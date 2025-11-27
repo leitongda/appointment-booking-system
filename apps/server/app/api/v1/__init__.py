@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, users, departments, doctors, schedules, appointments, content
+from app.api.v1 import auth, users, departments, doctors, schedules, appointments, content, statistics
 
 api_router = APIRouter()
 
@@ -10,3 +10,4 @@ api_router.include_router(doctors.router, prefix="/doctors", tags=["医生"])
 api_router.include_router(schedules.router, prefix="/schedules", tags=["排班"])
 api_router.include_router(appointments.router, prefix="/appointments", tags=["预约"])
 api_router.include_router(content.router, prefix="/content", tags=["内容管理"])
+api_router.include_router(statistics.router, prefix="/statistics", tags=["数据统计"])
