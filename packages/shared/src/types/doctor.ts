@@ -1,51 +1,30 @@
-import type { Department } from './department';
-
-/**
- * 医生信息
- */
 export interface Doctor {
   id: string;
-  userId: string;
-  hospitalId: string;
-  branchId?: string;
+  userId?: string;
   departmentId: string;
-  employeeNo?: string;
+  departmentName?: string;
   name: string;
+  phone?: string;
+  avatar?: string;
   title?: string;
   specialty?: string;
   introduction?: string;
-  avatar?: string;
-  consultationFee: number;
-  isExpert: boolean;
-  isRecommended: boolean;
+  registrationFee: number;
+  isRecommended: number;
+  sortOrder: number;
   status: number;
   createdAt: string;
   updatedAt: string;
-  // 关联信息
-  department?: Department;
 }
 
-/**
- * 医生简要信息
- */
-export interface DoctorBrief {
+export interface DoctorListItem {
   id: string;
   name: string;
-  title?: string;
   avatar?: string;
-  departmentName?: string;
-  consultationFee: number;
-}
-
-/**
- * 医生查询参数
- */
-export interface DoctorQueryParams {
-  departmentId?: string;
-  branchId?: string;
   title?: string;
-  keyword?: string;
-  isExpert?: boolean;
-  isRecommended?: boolean;
+  departmentId: string;
+  departmentName?: string;
+  specialty?: string;
+  registrationFee: number;
+  isRecommended: number;
 }
-

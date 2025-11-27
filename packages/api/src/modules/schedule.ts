@@ -1,83 +1,69 @@
-import { request } from '../request';
-import type { Schedule, ScheduleQueryParams, ScheduleTemplate, PageParams, PageResult } from '@hospital/shared';
+import request from '../request';
+import type { Schedule, PageResult } from '@hospital/shared';
 
-const PREFIX = '/schedules';
-
-/**
- * 获取排班列表
- */
-export const getList = (params?: PageParams & ScheduleQueryParams): Promise<PageResult<Schedule>> => {
-  return request.get(PREFIX, { params });
-};
-
-/**
- * 获取可预约排班
- */
-export const getAvailable = (params: {
-  doctorId: string;
+export interface ScheduleListParams {
+  doctorId?: string;
   startDate?: string;
   endDate?: string;
-}): Promise<Schedule[]> => {
-  return request.get(`${PREFIX}/available`, { params });
-};
+  status?: number;
+  page?: number;
+  pageSize?: number;
+}
 
-/**
- * 创建排班
- */
-export const create = (data: Partial<Schedule>): Promise<Schedule> => {
-  return request.post(PREFIX, data);
-};
+export interface ScheduleCreateData {
+  doctorId: string;
+  scheduleDate: string;
+  timeSlot: string;
+  startTime?: string;
+  endTime?: string;
+  totalSlots: number;
+  status?: number;
+}
 
-/**
- * 批量创建排班
- */
-export const batchCreate = (data: Partial<Schedule>[]): Promise<Schedule[]> => {
-  return request.post(`${PREFIX}/batch`, data);
-};
-
-/**
- * 根据模板生成排班
- */
-export const generate = (params: {
+export interface ScheduleBatchCreateData {
   doctorId: string;
   startDate: string;
   endDate: string;
-}): Promise<Schedule[]> => {
-  return request.post(`${PREFIX}/generate`, params);
-};
+  timeSlots: string[];
+  totalSlots: number;
+  weekdays: number[];
+}
 
-/**
- * 更新排班
- */
-export const update = (id: string, data: Partial<Schedule>): Promise<Schedule> => {
-  return request.put(`${PREFIX}/${id}`, data);
-};
+export interface AvailableSchedule {
+  id: string;
+  scheduleDate: string;
+  timeSlot: string;
+  availableSlots: number;
+  startTime?: string;
+  endTime?: string;
+}
 
-/**
- * 删除排班
- */
-export const remove = (id: string): Promise<void> => {
-  return request.delete(`${PREFIX}/${id}`);
-};
+export const scheduleApi = {
+  getList: (params?: ScheduleListParams): Promise<PageResult<Schedule>> => {
+    return request.get('/schedules', { params });
+  },
 
-/**
- * 停诊
- */
-export const suspend = (id: string, reason?: string): Promise<void> => {
-  return request.put(`${PREFIX}/${id}/suspend`, { reason });
-};
+  getAvailable: (doctorId: string, days?: number): Promise<AvailableSchedule[]> => {
+    return request.get(`/schedules/available/${doctorId}`, { params: { days } });
+  },
 
-/**
- * 获取排班模板
- */
-export const getTemplates = (doctorId: string): Promise<ScheduleTemplate[]> => {
-  return request.get(`${PREFIX}/templates`, { params: { doctorId } });
-};
+  getDetail: (id: string): Promise<Schedule> => {
+    return request.get(`/schedules/${id}`);
+  },
 
-/**
- * 保存排班模板
- */
-export const saveTemplate = (data: Partial<ScheduleTemplate>): Promise<ScheduleTemplate> => {
-  return request.post(`${PREFIX}/templates`, data);
-};
+  create: (data: ScheduleCreateData): Promise<Schedule> => {
+    return request.post('/schedules', data);
+  },
 
+  batchCreate: (data: ScheduleBatchCreateData): Promise<{ message: string }> => {
+    return request.post('/schedules/batch', data);
+  },
+
+  update: (id: string, data: Partial<ScheduleCreateData>): Promise<Schedule> => {
+    return request.put(`/schedules/${id}`, data);
+  },
+
+  suspend: (id: string): Promise<void> => {
+    return request.put(`/schedules/${id}/suspend`);
+  },
+};
