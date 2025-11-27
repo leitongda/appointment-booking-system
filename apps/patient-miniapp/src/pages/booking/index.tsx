@@ -1,0 +1,164 @@
+import { View, Text } from '@tarojs/components';
+import Taro, { useRouter } from '@tarojs/taro';
+import { Button, Radio } from '@nutui/nutui-react-taro';
+import { useState, useEffect } from 'react';
+import { doctorApi, userApi, appointmentApi } from '@hospital/api';
+import { TIME_SLOT_MAP } from '@hospital/shared';
+import type { Doctor, Patient } from '@hospital/shared';
+import './index.less';
+
+const BookingPage = () => {
+  const router = useRouter();
+  const { doctorId, scheduleId, date, timeSlot } = router.params;
+
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [doctor, setDoctor] = useState<Doctor | null>(null);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [selectedPatientId, setSelectedPatientId] = useState<string>('');
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const [doctorData, patientsData] = await Promise.all([
+        doctorApi.getDetail(doctorId!),
+        userApi.getPatients(),
+      ]);
+      setDoctor(doctorData);
+      setPatients(patientsData);
+
+      const defaultPatient = patientsData.find((p) => p.isDefault) || patientsData[0];
+      if (defaultPatient) {
+        setSelectedPatientId(defaultPatient.id);
+      }
+    } catch (error) {
+      console.error('加载数据失败', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedPatientId) {
+      Taro.showToast({ title: '请选择就诊人', icon: 'none' });
+      return;
+    }
+
+    const result = await Taro.showModal({
+      title: '确认预约',
+      content: '确定要预约吗？',
+    });
+
+    if (!result.confirm) return;
+
+    setSubmitting(true);
+    try {
+      const appointment = await appointmentApi.create({
+        scheduleId: scheduleId!,
+        patientId: selectedPatientId,
+      });
+
+      Taro.showToast({ title: '预约成功', icon: 'success' });
+      Taro.redirectTo({
+        url: `/pages/booking/result?appointmentNo=${appointment.appointmentNo}`,
+      });
+    } catch (error: any) {
+      Taro.showToast({ title: error.message || '预约失败', icon: 'none' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleAddPatient = () => {
+    Taro.navigateTo({ url: '/pages/profile/patient/edit' });
+  };
+
+  if (loading) {
+    return <View className="loading">加载中...</View>;
+  }
+
+  return (
+    <View className="booking-page">
+      {/* 预约信息 */}
+      <View className="card">
+        <Text className="card-title">预约信息</Text>
+        <View className="info-row">
+          <Text className="label">医生</Text>
+          <Text className="value">{doctor?.name} - {doctor?.title}</Text>
+        </View>
+        <View className="info-row">
+          <Text className="label">科室</Text>
+          <Text className="value">{doctor?.departmentName}</Text>
+        </View>
+        <View className="info-row">
+          <Text className="label">日期</Text>
+          <Text className="value">{date}</Text>
+        </View>
+        <View className="info-row">
+          <Text className="label">时段</Text>
+          <Text className="value">{TIME_SLOT_MAP[timeSlot || 'AM']}</Text>
+        </View>
+        <View className="info-row">
+          <Text className="label">挂号费</Text>
+          <Text className="value fee">¥{doctor?.registrationFee || 0}</Text>
+        </View>
+      </View>
+
+      {/* 选择就诊人 */}
+      <View className="card">
+        <View className="card-header">
+          <Text className="card-title">选择就诊人</Text>
+          <Text className="add-btn" onClick={handleAddPatient}>+ 新增</Text>
+        </View>
+
+        {patients.length === 0 ? (
+          <View className="empty-patient">
+            <Text>请先添加就诊人</Text>
+            <Button type="primary" size="small" onClick={handleAddPatient}>
+              添加就诊人
+            </Button>
+          </View>
+        ) : (
+          <Radio.Group
+            value={selectedPatientId}
+            onChange={(value) => setSelectedPatientId(value as string)}
+          >
+            {patients.map((patient) => (
+              <View key={patient.id} className="patient-item">
+                <Radio value={patient.id}>
+                  <Text className="patient-name">{patient.name}</Text>
+                  <Text className="patient-phone">
+                    ({patient.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')})
+                  </Text>
+                  {patient.isDefault && <Text className="default-tag">默认</Text>}
+                </Radio>
+              </View>
+            ))}
+          </Radio.Group>
+        )}
+      </View>
+
+      {/* 底部提交 */}
+      <View className="footer">
+        <View className="total">
+          <Text className="total-label">合计：</Text>
+          <Text className="total-price">¥{doctor?.registrationFee || 0}</Text>
+        </View>
+        <Button
+          type="primary"
+          loading={submitting}
+          disabled={!selectedPatientId}
+          onClick={handleSubmit}
+        >
+          确认预约
+        </Button>
+      </View>
+    </View>
+  );
+};
+
+export default BookingPage;
+

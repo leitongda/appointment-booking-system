@@ -1,0 +1,83 @@
+.patient-list-page {
+  min-height: 100vh;
+  background: #f5f5f5;
+  padding-bottom: 140px;
+}
+
+.list {
+  background: #fff;
+}
+
+.patient-item {
+  display: flex;
+  flex-direction: column;
+  padding: 32px;
+  border-bottom: 1px solid #f0f0f0;
+  position: relative;
+
+  &:active {
+    background: #f9f9f9;
+  }
+}
+
+.patient-main {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.patient-name {
+  font-size: 32px;
+  font-weight: 500;
+  color: #333;
+}
+
+.relationship {
+  font-size: 24px;
+  color: #666;
+  background: #f5f5f5;
+  padding: 4px 12px;
+  border-radius: 4px;
+  margin-left: 16px;
+}
+
+.default-tag {
+  font-size: 22px;
+  color: #1890ff;
+  background: #e6f7ff;
+  padding: 4px 12px;
+  border-radius: 4px;
+  margin-left: 16px;
+}
+
+.patient-info {
+  display: flex;
+  align-items: center;
+  font-size: 26px;
+  color: #999;
+}
+
+.divider {
+  margin: 0 16px;
+  color: #e0e0e0;
+}
+
+.arrow {
+  position: absolute;
+  right: 32px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 32px;
+  color: #ccc;
+}
+
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 24px 32px;
+  background: #fff;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+}
+
