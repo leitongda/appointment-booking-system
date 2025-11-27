@@ -1,47 +1,203 @@
-import { PageContainer, ProTable } from '@ant-design/pro-components';
-import type { ProColumns } from '@ant-design/pro-components';
-import { Tag, Button, Space } from 'antd';
+import { PageContainer, ProTable, ProCard } from '@ant-design/pro-components';
+import type { ProColumns, ActionType } from '@ant-design/pro-components';
+import { Tag, Button, Space, message, Row, Col, Statistic, Badge } from 'antd';
+import { SoundOutlined, CheckOutlined, UserOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { useRef, useState, useEffect } from 'react';
 import { history } from 'umi';
+import { appointmentApi } from '@hospital/api';
 import { APPOINTMENT_STATUS_MAP, APPOINTMENT_STATUS_COLOR, TIME_SLOT_MAP } from '@hospital/shared';
-
-interface AppointmentRecord {
-  id: string;
-  appointmentNo: string;
-  patientName: string;
-  patientPhone: string;
-  timeSlot: string;
-  queueNumber: number;
-  status: number;
-  signInTime: string;
-}
+import type { Appointment } from '@hospital/shared';
 
 const TodayAppointmentPage: React.FC = () => {
-  const columns: ProColumns<AppointmentRecord>[] = [
-    { title: '队列号', dataIndex: 'queueNumber', width: 80, render: (_, r) => <Tag color="blue">第{r.queueNumber}号</Tag> },
+  const actionRef = useRef<ActionType>();
+  const [loading, setLoading] = useState(true);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const data = await appointmentApi.getToday();
+      setAppointments(data);
+    } catch (error) {
+      console.error('加载失败', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCall = async (appointment: Appointment) => {
+    try {
+      await appointmentApi.call(appointment.id);
+      message.success(`已呼叫 ${appointment.patientName}`);
+      loadData();
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error.message || '呼叫失败');
+    }
+  };
+
+  const handleComplete = async (appointmentId: string) => {
+    try {
+      await appointmentApi.complete(appointmentId);
+      message.success('就诊完成');
+      history.push(`/medical-record/create?appointmentId=${appointmentId}`);
+    } catch (error: any) {
+      message.error(error.message || '操作失败');
+    }
+  };
+
+  // 统计
+  const stats = {
+    total: appointments.length,
+    pending: appointments.filter((a) => a.status === 1).length,
+    signedIn: appointments.filter((a) => a.status === 2).length,
+    inProgress: appointments.filter((a) => a.status === 3).length,
+    completed: appointments.filter((a) => a.status === 5).length,
+  };
+
+  const columns: ProColumns<Appointment>[] = [
+    { 
+      title: '队列号', 
+      dataIndex: 'queueNumber', 
+      width: 80, 
+      render: (_, r) => <Tag color="blue">第{r.queueNumber}号</Tag> 
+    },
     { title: '患者姓名', dataIndex: 'patientName', width: 100 },
-    { title: '手机号', dataIndex: 'patientPhone', width: 130 },
-    { title: '时段', dataIndex: 'timeSlot', width: 80, render: (_, r) => TIME_SLOT_MAP[r.timeSlot] },
-    { title: '状态', dataIndex: 'status', width: 100, render: (_, r) => <Tag color={APPOINTMENT_STATUS_COLOR[r.status]}>{APPOINTMENT_STATUS_MAP[r.status]}</Tag> },
-    { title: '签到时间', dataIndex: 'signInTime', width: 150 },
-    { title: '操作', width: 180, render: (_, r) => (
-      <Space>
-        {r.status === 2 && <Button size="small" type="primary">呼叫</Button>}
-        {r.status === 4 && <Button size="small" type="primary" onClick={() => history.push(`/medical-record/create?appointmentId=${r.id}`)}>填写病历</Button>}
-      </Space>
-    )},
+    { 
+      title: '手机号', 
+      dataIndex: 'patientPhone', 
+      width: 130,
+      render: (_, r) => r.patientPhone?.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')
+    },
+    { 
+      title: '时段', 
+      dataIndex: 'timeSlot', 
+      width: 80, 
+      render: (_, r) => TIME_SLOT_MAP[r.timeSlot || 'AM'] 
+    },
+    { 
+      title: '状态', 
+      dataIndex: 'status', 
+      width: 100, 
+      render: (_, r) => (
+        <Tag color={APPOINTMENT_STATUS_COLOR[r.status]}>
+          {APPOINTMENT_STATUS_MAP[r.status]}
+        </Tag>
+      )
+    },
+    { 
+      title: '签到时间', 
+      dataIndex: 'signInTime', 
+      width: 100,
+      render: (_, r) => r.signInTime?.substring(11, 16) || '-'
+    },
+    { 
+      title: '操作', 
+      valueType: 'option',
+      width: 180, 
+      render: (_, r) => (
+        <Space>
+          {r.status === 2 && (
+            <Button 
+              size="small" 
+              type="primary" 
+              icon={<SoundOutlined />}
+              onClick={() => handleCall(r)}
+            >
+              呼叫
+            </Button>
+          )}
+          {r.status === 3 && (
+            <Button 
+              size="small" 
+              type="primary"
+              icon={<CheckOutlined />}
+              onClick={() => handleComplete(r.id)}
+            >
+              完成
+            </Button>
+          )}
+          {(r.status === 3 || r.status === 5) && (
+            <Button 
+              size="small"
+              onClick={() => history.push(`/medical-record/create?appointmentId=${r.id}`)}
+            >
+              病历
+            </Button>
+          )}
+        </Space>
+      )
+    },
   ];
 
   return (
     <PageContainer>
-      <ProTable<AppointmentRecord>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={6}>
+          <ProCard>
+            <Statistic 
+              title="今日预约" 
+              value={stats.total} 
+              prefix={<UserOutlined />}
+            />
+          </ProCard>
+        </Col>
+        <Col span={6}>
+          <ProCard>
+            <Statistic 
+              title="候诊中" 
+              value={stats.signedIn}
+              valueStyle={{ color: '#faad14' }}
+              prefix={<ClockCircleOutlined />}
+            />
+          </ProCard>
+        </Col>
+        <Col span={6}>
+          <ProCard>
+            <Statistic 
+              title="就诊中" 
+              value={stats.inProgress}
+              valueStyle={{ color: '#1890ff' }}
+              prefix={<Badge status="processing" />}
+            />
+          </ProCard>
+        </Col>
+        <Col span={6}>
+          <ProCard>
+            <Statistic 
+              title="已完成" 
+              value={stats.completed}
+              valueStyle={{ color: '#52c41a' }}
+              prefix={<CheckOutlined />}
+            />
+          </ProCard>
+        </Col>
+      </Row>
+
+      <ProTable<Appointment>
+        actionRef={actionRef}
         rowKey="id"
         columns={columns}
+        loading={loading}
+        dataSource={appointments}
         search={false}
-        request={async () => ({ data: [], success: true, total: 0 })}
+        pagination={false}
+        toolBarRender={() => [
+          <Button key="refresh" onClick={loadData}>刷新</Button>,
+          <Button 
+            key="consultation" 
+            type="primary"
+            onClick={() => history.push('/consultation')}
+          >
+            进入就诊
+          </Button>,
+        ]}
       />
     </PageContainer>
   );
 };
 
 export default TodayAppointmentPage;
-

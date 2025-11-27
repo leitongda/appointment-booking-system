@@ -1,10 +1,16 @@
-import { NavBar, Form, Input, Button, Picker, Switch, Toast } from 'antd-mobile';
+import { NavBar, Form, Input, Button, Picker, Switch, Toast, Dialog } from 'antd-mobile';
 import { history, useSearchParams } from 'umi';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { userApi } from '@hospital/api';
 import { GENDER_MAP, PATIENT_RELATIONSHIPS } from '@hospital/shared';
+import type { Patient } from '@hospital/shared';
 import styles from './edit.less';
 
-const genderOptions = [[{ label: '男', value: 1 }, { label: '女', value: 2 }]];
+const genderOptions = [[
+  { label: '男', value: 1 },
+  { label: '女', value: 2 },
+]];
+
 const relationshipOptions = [PATIENT_RELATIONSHIPS.map((r) => ({ label: r, value: r }))];
 
 const PatientEditPage: React.FC = () => {
@@ -12,39 +18,182 @@ const PatientEditPage: React.FC = () => {
   const id = searchParams.get('id');
   const isEdit = !!id;
 
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [patient, setPatient] = useState<Patient | null>(null);
+  const [form] = Form.useForm();
+
   const [genderVisible, setGenderVisible] = useState(false);
   const [relationVisible, setRelationVisible] = useState(false);
 
-  const onFinish = (values: any) => {
-    console.log(values);
-    Toast.show(isEdit ? '保存成功' : '添加成功');
-    history.back();
+  useEffect(() => {
+    if (isEdit) {
+      loadPatient();
+    }
+  }, [id]);
+
+  const loadPatient = async () => {
+    setLoading(true);
+    try {
+      const patients = await userApi.getPatients();
+      const current = patients.find((p) => p.id === id);
+      if (current) {
+        setPatient(current);
+        form.setFieldsValue({
+          name: current.name,
+          phone: current.phone,
+          idCard: current.idCard,
+          gender: current.gender ? [current.gender] : undefined,
+          relationship: current.relationship ? [current.relationship] : undefined,
+          isDefault: current.isDefault,
+        });
+      }
+    } catch (error) {
+      Toast.show({ content: '加载失败', icon: 'fail' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      await form.validateFields();
+    } catch {
+      return;
+    }
+
+    const values = form.getFieldsValue();
+    const submitData = {
+      name: values.name,
+      phone: values.phone,
+      idCard: values.idCard,
+      gender: values.gender?.[0],
+      relationship: values.relationship?.[0],
+      isDefault: values.isDefault || false,
+    };
+
+    setSubmitting(true);
+    try {
+      if (isEdit && id) {
+        await userApi.updatePatient(id, submitData);
+        Toast.show({ content: '保存成功', icon: 'success' });
+      } else {
+        await userApi.addPatient(submitData);
+        Toast.show({ content: '添加成功', icon: 'success' });
+      }
+      history.back();
+    } catch (error: any) {
+      Toast.show({ content: error.message || '操作失败', icon: 'fail' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+
+    const result = await Dialog.confirm({
+      content: '确定要删除该就诊人吗？',
+    });
+
+    if (!result) return;
+
+    try {
+      await userApi.deletePatient(id);
+      Toast.show({ content: '删除成功', icon: 'success' });
+      history.back();
+    } catch (error: any) {
+      Toast.show({ content: error.message || '删除失败', icon: 'fail' });
+    }
   };
 
   return (
     <div className={styles.container}>
-      <NavBar onBack={() => history.back()}>{isEdit ? '编辑就诊人' : '添加就诊人'}</NavBar>
-      <Form layout="horizontal" onFinish={onFinish} footer={<Button block type="submit" color="primary">{isEdit ? '保存' : '添加'}</Button>}>
-        <Form.Item name="name" label="姓名" rules={[{ required: true }]}>
+      <NavBar onBack={() => history.back()}>
+        {isEdit ? '编辑就诊人' : '添加就诊人'}
+      </NavBar>
+
+      <Form
+        form={form}
+        layout="horizontal"
+        footer={
+          <div className={styles.footer}>
+            {isEdit && (
+              <Button block onClick={handleDelete} style={{ marginBottom: 12 }}>
+                删除就诊人
+              </Button>
+            )}
+            <Button 
+              block 
+              color="primary" 
+              loading={submitting}
+              onClick={handleSubmit}
+            >
+              {isEdit ? '保存' : '添加'}
+            </Button>
+          </div>
+        }
+      >
+        <Form.Item
+          name="name"
+          label="姓名"
+          rules={[{ required: true, message: '请输入姓名' }]}
+        >
           <Input placeholder="请输入真实姓名" />
         </Form.Item>
-        <Form.Item name="phone" label="手机号" rules={[{ required: true }]}>
-          <Input placeholder="请输入手机号" type="tel" />
+
+        <Form.Item
+          name="phone"
+          label="手机号"
+          rules={[
+            { required: true, message: '请输入手机号' },
+            { pattern: /^1\d{10}$/, message: '请输入正确的手机号' },
+          ]}
+        >
+          <Input placeholder="请输入手机号" type="tel" maxLength={11} />
         </Form.Item>
-        <Form.Item name="idCard" label="身份证号" rules={[{ required: true }]}>
-          <Input placeholder="请输入身份证号" />
+
+        <Form.Item
+          name="idCard"
+          label="身份证号"
+          rules={[
+            { pattern: /(^\d{15}$)|(^\d{18}$)|(^\d{17}(\d|X|x)$)/, message: '请输入正确的身份证号' },
+          ]}
+        >
+          <Input placeholder="请输入身份证号" maxLength={18} />
         </Form.Item>
-        <Form.Item name="gender" label="性别" trigger="onConfirm" onClick={() => setGenderVisible(true)}>
-          <Picker columns={genderOptions} visible={genderVisible} onClose={() => setGenderVisible(false)}>
+
+        <Form.Item
+          name="gender"
+          label="性别"
+          trigger="onConfirm"
+          onClick={() => setGenderVisible(true)}
+        >
+          <Picker
+            columns={genderOptions}
+            visible={genderVisible}
+            onClose={() => setGenderVisible(false)}
+          >
             {(value) => value?.[0]?.label || '请选择'}
           </Picker>
         </Form.Item>
-        <Form.Item name="relationship" label="与本人关系" trigger="onConfirm" onClick={() => setRelationVisible(true)}>
-          <Picker columns={relationshipOptions} visible={relationVisible} onClose={() => setRelationVisible(false)}>
+
+        <Form.Item
+          name="relationship"
+          label="与本人关系"
+          trigger="onConfirm"
+          onClick={() => setRelationVisible(true)}
+        >
+          <Picker
+            columns={relationshipOptions}
+            visible={relationVisible}
+            onClose={() => setRelationVisible(false)}
+          >
             {(value) => value?.[0]?.label || '请选择'}
           </Picker>
         </Form.Item>
-        <Form.Item name="isDefault" label="设为默认" valuePropName="checked">
+
+        <Form.Item name="isDefault" label="设为默认">
           <Switch />
         </Form.Item>
       </Form>
@@ -53,4 +202,3 @@ const PatientEditPage: React.FC = () => {
 };
 
 export default PatientEditPage;
-
