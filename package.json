@@ -1,0 +1,31 @@
+{
+  "name": "appointment-booking-system",
+  "version": "1.0.0",
+  "description": "医院挂号系统 - 机构端 + 患者端 + 医生端",
+  "private": true,
+  "scripts": {
+    "dev:admin": "pnpm --filter @hospital/admin dev",
+    "dev:patient": "pnpm --filter @hospital/patient dev",
+    "dev:doctor": "pnpm --filter @hospital/doctor dev",
+    "build:admin": "pnpm --filter @hospital/admin build",
+    "build:patient": "pnpm --filter @hospital/patient build",
+    "build:doctor": "pnpm --filter @hospital/doctor build",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test"
+  },
+  "keywords": [
+    "hospital",
+    "appointment",
+    "booking",
+    "react",
+    "fastapi"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}
+
