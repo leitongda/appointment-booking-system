@@ -1,0 +1,12 @@
+from fastapi import APIRouter
+from app.api.v1 import auth, users, departments, doctors, schedules, appointments
+
+api_router = APIRouter()
+
+api_router.include_router(auth.router, prefix="/auth", tags=["认证"])
+api_router.include_router(users.router, prefix="/users", tags=["用户"])
+api_router.include_router(departments.router, prefix="/departments", tags=["科室"])
+api_router.include_router(doctors.router, prefix="/doctors", tags=["医生"])
+api_router.include_router(schedules.router, prefix="/schedules", tags=["排班"])
+api_router.include_router(appointments.router, prefix="/appointments", tags=["预约"])
+

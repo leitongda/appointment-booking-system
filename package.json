@@ -1,31 +1,30 @@
 {
   "name": "appointment-booking-system",
   "version": "1.0.0",
-  "description": "医院挂号系统 - 机构端 + 患者端 + 医生端",
   "private": true,
+  "description": "医院挂号系统 - 机构端 + 患者端 + 医生端",
   "scripts": {
-    "dev:admin": "pnpm --filter @hospital/admin dev",
-    "dev:patient": "pnpm --filter @hospital/patient dev",
-    "dev:doctor": "pnpm --filter @hospital/doctor dev",
-    "build:admin": "pnpm --filter @hospital/admin build",
-    "build:patient": "pnpm --filter @hospital/patient build",
-    "build:doctor": "pnpm --filter @hospital/doctor build",
-    "build": "pnpm -r build",
-    "lint": "pnpm -r lint",
-    "test": "pnpm -r test"
+    "dev": "turbo run dev",
+    "dev:admin": "turbo run dev --filter=@hospital/admin",
+    "dev:patient-h5": "turbo run dev --filter=@hospital/patient-h5",
+    "dev:patient-miniapp": "turbo run dev --filter=@hospital/patient-miniapp",
+    "dev:doctor": "turbo run dev --filter=@hospital/doctor",
+    "dev:server": "cd apps/server && uvicorn app.main:app --reload --port 8000",
+    "build": "turbo run build",
+    "build:admin": "turbo run build --filter=@hospital/admin",
+    "build:patient-h5": "turbo run build --filter=@hospital/patient-h5",
+    "build:patient-miniapp": "turbo run build --filter=@hospital/patient-miniapp",
+    "build:doctor": "turbo run build --filter=@hospital/doctor",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules"
   },
-  "keywords": [
-    "hospital",
-    "appointment",
-    "booking",
-    "react",
-    "fastapi"
-  ],
-  "author": "",
-  "license": "MIT",
+  "devDependencies": {
+    "turbo": "^2.0.0"
+  },
+  "packageManager": "pnpm@8.15.0",
   "engines": {
     "node": ">=20.0.0",
     "pnpm": ">=8.0.0"
   }
 }
-
