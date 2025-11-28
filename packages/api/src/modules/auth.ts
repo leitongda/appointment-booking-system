@@ -3,6 +3,15 @@ import type { LoginParams, LoginResult, User } from '@hospital/shared';
 
 const PREFIX = '/auth';
 
+export interface WechatLoginResponse {
+  isNewUser: boolean;
+  needBindPhone: boolean;
+  openid: string;
+  accessToken?: string;
+  refreshToken?: string;
+  expiresIn?: number;
+}
+
 /**
  * 用户登录
  */
@@ -44,9 +53,33 @@ export const sendCode = (phone: string, type: 'login' | 'register' = 'login'): P
 };
 
 /**
- * 微信登录
+ * 微信登录（获取 openid）
  */
-export const wechatLogin = (code: string): Promise<LoginResult> => {
-  return request.post(`${PREFIX}/wechat-login`, { code });
+export const wechatLogin = (code: string): Promise<WechatLoginResponse> => {
+  return request.post(`${PREFIX}/wechat/login`, { code });
 };
 
+/**
+ * 微信获取手机号并登录
+ */
+export const wechatGetPhone = (code: string, openid: string): Promise<LoginResult> => {
+  return request.post(`${PREFIX}/wechat/phone`, { code, openid });
+};
+
+/**
+ * 微信绑定手机号（手动输入）
+ */
+export const wechatBindPhone = (openid: string, phone: string): Promise<LoginResult> => {
+  return request.post(`${PREFIX}/wechat/bind-phone`, { openid, phone });
+};
+
+export const authApi = {
+  login,
+  register,
+  logout,
+  refreshToken,
+  sendCode,
+  wechatLogin,
+  wechatGetPhone,
+  wechatBindPhone,
+};

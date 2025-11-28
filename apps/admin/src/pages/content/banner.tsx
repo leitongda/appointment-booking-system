@@ -1,21 +1,10 @@
 import { PageContainer, ProTable, ModalForm, ProFormText, ProFormDigit, ProFormSwitch, ProFormSelect } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
-import { Button, Tag, Space, message, Popconfirm, Image, Switch } from 'antd';
+import { Button, Space, message, Popconfirm, Image, Switch } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useRef, useState } from 'react';
 import { contentApi } from '@hospital/api';
-
-interface BannerRecord {
-  id: string;
-  title: string;
-  imageUrl: string;
-  linkType: number;
-  linkUrl: string;
-  position: string;
-  sortOrder: number;
-  status: number;
-  createdAt: string;
-}
+import type { Banner } from '@hospital/api';
 
 const linkTypes = [
   { label: '无跳转', value: 0 },
@@ -33,14 +22,14 @@ const positions = [
 const BannerPage: React.FC = () => {
   const actionRef = useRef<ActionType>();
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingBanner, setEditingBanner] = useState<BannerRecord | null>(null);
+  const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
 
   const handleAdd = () => {
     setEditingBanner(null);
     setModalVisible(true);
   };
 
-  const handleEdit = (record: BannerRecord) => {
+  const handleEdit = (record: Banner) => {
     setEditingBanner(record);
     setModalVisible(true);
   };
@@ -58,7 +47,12 @@ const BannerPage: React.FC = () => {
   const handleSubmit = async (values: any) => {
     try {
       const submitData = {
-        ...values,
+        title: values.title,
+        imageUrl: values.imageUrl,
+        linkType: values.linkType,
+        linkUrl: values.linkUrl,
+        position: values.position,
+        sortOrder: values.sortOrder,
         status: values.status ? 1 : 0,
       };
 
@@ -88,7 +82,7 @@ const BannerPage: React.FC = () => {
     }
   };
 
-  const columns: ProColumns<BannerRecord>[] = [
+  const columns: ProColumns<Banner>[] = [
     { 
       title: '图片', 
       dataIndex: 'imageUrl', 
@@ -140,14 +134,9 @@ const BannerPage: React.FC = () => {
     },
   ];
 
-  const mockData: BannerRecord[] = [
-    { id: '1', title: '欢迎使用预约挂号系统', imageUrl: 'https://via.placeholder.com/750x300', linkType: 0, linkUrl: '', position: 'home', sortOrder: 1, status: 1, createdAt: '2024-11-27' },
-    { id: '2', title: '健康体检套餐优惠', imageUrl: 'https://via.placeholder.com/750x300', linkType: 2, linkUrl: 'https://example.com', position: 'home', sortOrder: 2, status: 1, createdAt: '2024-11-26' },
-  ];
-
   return (
     <PageContainer>
-      <ProTable<BannerRecord>
+      <ProTable<Banner>
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
@@ -157,7 +146,25 @@ const BannerPage: React.FC = () => {
             新增轮播图
           </Button>
         ]}
-        request={async () => ({ data: mockData, success: true, total: mockData.length })}
+        request={async (params) => {
+          try {
+            const { current, pageSize, position, status } = params;
+            const result = await contentApi.getBannerList({
+              position,
+              status,
+              page: current || 1,
+              pageSize: pageSize || 10,
+            });
+            return { 
+              data: result.data || [], 
+              success: true, 
+              total: result.total || 0 
+            };
+          } catch (error: any) {
+            message.error(error.message || '获取数据失败');
+            return { data: [], success: false, total: 0 };
+          }
+        }}
       />
 
       <ModalForm
@@ -165,7 +172,10 @@ const BannerPage: React.FC = () => {
         open={modalVisible}
         onOpenChange={setModalVisible}
         onFinish={handleSubmit}
-        initialValues={editingBanner || { linkType: 0, position: 'home', sortOrder: 0, status: true }}
+        initialValues={editingBanner ? {
+          ...editingBanner,
+          status: editingBanner.status === 1,
+        } : { linkType: 0, position: 'home', sortOrder: 0, status: true }}
         modalProps={{ destroyOnClose: true }}
         width={600}
       >

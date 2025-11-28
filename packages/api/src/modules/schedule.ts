@@ -63,7 +63,24 @@ export const scheduleApi = {
     return request.put(`/schedules/${id}`, data);
   },
 
-  suspend: (id: string): Promise<void> => {
-    return request.put(`/schedules/${id}/suspend`);
+  /**
+   * 停诊
+   */
+  suspend: (id: string, reason?: string, notifyPatients: boolean = true): Promise<{
+    message: string;
+    notification?: {
+      notifiedCount: number;
+      failedCount: number;
+      message: string;
+    };
+  }> => {
+    return request.put(`/schedules/${id}/suspend`, { reason, notify_patients: notifyPatients });
+  },
+
+  /**
+   * 恢复排班
+   */
+  resume: (id: string): Promise<{ message: string }> => {
+    return request.put(`/schedules/${id}/resume`);
   },
 };

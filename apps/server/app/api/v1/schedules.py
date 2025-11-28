@@ -2,13 +2,21 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 from datetime import date
+from pydantic import BaseModel, Field
 
 from app.db.session import get_db
+from app.api.deps import get_current_admin
 from app.schemas.schedule import ScheduleCreate, ScheduleBatchCreate, ScheduleUpdate, ScheduleResponse, AvailableScheduleResponse
 from app.schemas.response import PageResponse
 from app.services.schedule_service import ScheduleService
+from app.services.notification_service import NotificationService
 
 router = APIRouter()
+
+
+class SuspendRequest(BaseModel):
+    reason: Optional[str] = Field(None, max_length=200, description="停诊原因")
+    notify_patients: bool = Field(True, description="是否通知患者")
 
 @router.get("", response_model=PageResponse[ScheduleResponse])
 async def get_schedules(
@@ -150,12 +158,46 @@ async def update_schedule(
     )
 
 @router.put("/{schedule_id}/suspend")
-async def suspend_schedule(schedule_id: str, db: AsyncSession = Depends(get_db)):
-    """停诊"""
+async def suspend_schedule(
+    schedule_id: str,
+    data: SuspendRequest = None,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """停诊并通知患者"""
     service = ScheduleService(db)
+    notification_service = NotificationService(db)
+    
+    # 先执行停诊
     schedule = await service.suspend(schedule_id)
     
     if not schedule:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班不存在")
     
-    return {"message": "停诊成功"}
+    result = {"message": "停诊成功"}
+    
+    # 通知患者
+    if data and data.notify_patients:
+        notify_result = await notification_service.notify_suspend(
+            schedule_id=schedule_id,
+            reason=data.reason
+        )
+        result["notification"] = notify_result
+    
+    return result
+
+
+@router.put("/{schedule_id}/resume")
+async def resume_schedule(
+    schedule_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """恢复排班"""
+    service = ScheduleService(db)
+    schedule = await service.resume(schedule_id)
+    
+    if not schedule:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班不存在")
+    
+    return {"message": "恢复成功"}

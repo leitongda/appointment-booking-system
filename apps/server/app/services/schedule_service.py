@@ -168,3 +168,14 @@ class ScheduleService:
         await self.db.refresh(schedule)
         return schedule
 
+    async def resume(self, schedule_id: str) -> Optional[Schedule]:
+        """恢复排班"""
+        schedule = await self.get_by_id(schedule_id)
+        if not schedule:
+            return None
+        
+        schedule.status = 1
+        await self.db.commit()
+        await self.db.refresh(schedule)
+        return schedule
+

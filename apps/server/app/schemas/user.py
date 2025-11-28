@@ -11,7 +11,8 @@ class UserBase(BaseModel):
 
 class UserCreate(BaseModel):
     phone: str = Field(..., min_length=11, max_length=11)
-    password: str = Field(..., min_length=6, max_length=20)
+    password: str = Field("", max_length=20, description="密码，微信用户可为空")
+    openid: Optional[str] = Field(None, max_length=100, description="微信 openid")
 
 class UserUpdate(BaseModel):
     nickname: Optional[str] = Field(None, max_length=50)

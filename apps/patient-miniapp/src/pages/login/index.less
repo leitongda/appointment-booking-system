@@ -1,13 +1,13 @@
 .login-page {
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 120px 48px;
+  padding: 100px 48px;
 }
 
 .header {
   text-align: center;
   color: #fff;
-  margin-bottom: 80px;
+  margin-bottom: 60px;
 }
 
 .logo {
@@ -28,6 +28,28 @@
   opacity: 0.8;
 }
 
+.wechat-login {
+  margin-bottom: 40px;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  margin-bottom: 40px;
+  
+  .line {
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.3);
+  }
+  
+  .text {
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.7);
+    padding: 0 24px;
+  }
+}
+
 .form-wrap {
   background: #fff;
   border-radius: 24px;
@@ -46,8 +68,42 @@
   color: #fff;
 }
 
-.divider {
+.divider-text {
   margin: 0 24px;
   color: rgba(255, 255, 255, 0.5);
 }
 
+.bind-phone-dialog {
+  padding: 20px 0;
+  
+  .tip {
+    display: block;
+    text-align: center;
+    color: #666;
+    font-size: 26px;
+    margin-bottom: 32px;
+  }
+  
+  .wechat-phone-btn {
+    width: 100%;
+    background: #07c160;
+    color: #fff;
+    border-radius: 48px;
+    height: 88px;
+    line-height: 88px;
+    font-size: 30px;
+    margin-bottom: 32px;
+  }
+  
+  .manual-input {
+    border-top: 1px solid #eee;
+    padding-top: 32px;
+    
+    .label {
+      display: block;
+      color: #999;
+      font-size: 24px;
+      margin-bottom: 16px;
+    }
+  }
+}

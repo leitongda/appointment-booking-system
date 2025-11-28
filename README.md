@@ -13,7 +13,7 @@
 │                          医院挂号系统                                │
 ├─────────────────┬─────────────────┬─────────────────────────────────┤
 │    机构端       │     患者端       │          医生端                 │
-│   (Admin)      │   (Patient)      │        (Doctor)                │
+│   (Admin)      │  (H5 + 小程序)   │        (Doctor)                │
 ├─────────────────┼─────────────────┼─────────────────────────────────┤
 │ • 权限管理     │ • 用户注册登录   │ • 个人信息管理                  │
 │ • 门店管理     │ • 科室/医生查询  │ • 排班管理                      │
@@ -50,11 +50,13 @@
 appointment-booking-system/
 ├── apps/                          # 应用目录
 │   ├── admin/                     # 机构端 (React + Umi)
-│   ├── patient/                   # 患者端 (React + Umi)
+│   ├── patient-h5/                # 患者端 H5 (React + Umi)
+│   ├── patient-miniapp/           # 患者端小程序
 │   ├── doctor/                    # 医生端 (React + Umi)
 │   └── server/                    # 后端服务 (FastAPI)
 │
 ├── packages/                      # 共享包
+│   ├── api/                       # API 请求封装/类型定义
 │   └── shared/                    # 共享组件/工具
 │
 ├── docs/                          # 项目文档
@@ -105,16 +107,18 @@ cd apps/server
 uvicorn app.main:app --reload
 
 # 启动前端服务
-pnpm dev:admin    # 机构端
-pnpm dev:patient  # 患者端
-pnpm dev:doctor   # 医生端
+pnpm dev:admin           # 机构端
+pnpm dev:patient-h5      # 患者端 H5
+pnpm dev:patient-miniapp # 患者端小程序
+pnpm dev:doctor          # 医生端
 ```
 
 ### 访问地址
 - 机构端: http://localhost:8001
-- 患者端: http://localhost:8002
+- 患者端 H5: http://localhost:8002
 - 医生端: http://localhost:8003
 - API文档: http://localhost:8000/docs
+- 患者端小程序: 使用微信开发者工具打开 `apps/patient-miniapp`
 
 ## 📖 文档
 

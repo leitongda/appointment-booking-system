@@ -1,13 +1,20 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, users, departments, doctors, schedules, appointments, content, statistics
+from app.api.v1 import auth, users, departments, doctors, schedules, appointments, content, statistics, medical_records, admin, settings, patients, export, stores, messages
 
 api_router = APIRouter()
 
 api_router.include_router(auth.router, prefix="/auth", tags=["认证"])
 api_router.include_router(users.router, prefix="/users", tags=["用户"])
+api_router.include_router(stores.router, prefix="/stores", tags=["门店管理"])
+api_router.include_router(messages.router, prefix="/messages", tags=["消息中心"])
 api_router.include_router(departments.router, prefix="/departments", tags=["科室"])
 api_router.include_router(doctors.router, prefix="/doctors", tags=["医生"])
 api_router.include_router(schedules.router, prefix="/schedules", tags=["排班"])
 api_router.include_router(appointments.router, prefix="/appointments", tags=["预约"])
+api_router.include_router(medical_records.router, prefix="/medical-records", tags=["病历"])
 api_router.include_router(content.router, prefix="/content", tags=["内容管理"])
 api_router.include_router(statistics.router, prefix="/statistics", tags=["数据统计"])
+api_router.include_router(admin.router, prefix="/admin", tags=["权限管理"])
+api_router.include_router(settings.router, prefix="/settings", tags=["系统设置"])
+api_router.include_router(patients.router, prefix="/patients", tags=["患者管理"])
+api_router.include_router(export.router, prefix="/export", tags=["数据导出"])

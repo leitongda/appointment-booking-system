@@ -4,10 +4,10 @@ export default defineConfig({
   npmClient: 'pnpm',
   plugins: [
     '@umijs/plugins/dist/antd',
+    '@umijs/plugins/dist/initial-state',
     '@umijs/plugins/dist/model',
     '@umijs/plugins/dist/request',
     '@umijs/plugins/dist/access',
-    '@umijs/plugins/dist/initial-state',
     '@umijs/plugins/dist/layout',
   ],
   antd: {
@@ -38,6 +38,12 @@ export default defineConfig({
       name: '仪表盘',
       icon: 'DashboardOutlined',
       component: '@/pages/dashboard',
+    },
+    {
+      path: '/store',
+      name: '门店管理',
+      icon: 'ShopOutlined',
+      component: '@/pages/store',
     },
     {
       path: '/department',

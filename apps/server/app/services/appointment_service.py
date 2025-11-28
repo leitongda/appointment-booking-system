@@ -239,3 +239,128 @@ class AppointmentService:
         await self.db.refresh(appointment)
         return appointment
 
+    async def pass_number(self, appointment_id: str) -> Optional[Appointment]:
+        """过号（患者未到，跳过）"""
+        appointment = await self.get_by_id(appointment_id)
+        if not appointment:
+            return None
+        
+        if appointment.status not in [APPOINTMENT_STATUS['SIGNED_IN'], APPOINTMENT_STATUS['IN_PROGRESS']]:
+            raise ValueError("当前状态不可过号")
+        
+        appointment.status = APPOINTMENT_STATUS['PASSED']
+        
+        await self.db.commit()
+        await self.db.refresh(appointment)
+        return appointment
+
+    async def recall(self, appointment_id: str) -> Optional[Appointment]:
+        """重新叫号（过号后再次呼叫）"""
+        appointment = await self.get_by_id(appointment_id)
+        if not appointment:
+            return None
+        
+        if appointment.status != APPOINTMENT_STATUS['PASSED']:
+            raise ValueError("只有过号状态可以重新叫号")
+        
+        appointment.status = APPOINTMENT_STATUS['IN_PROGRESS']
+        appointment.call_time = datetime.now()
+        
+        await self.db.commit()
+        await self.db.refresh(appointment)
+        return appointment
+
+    async def mark_no_show(self, appointment_id: str) -> Optional[Appointment]:
+        """标记爽约"""
+        appointment = await self.get_by_id(appointment_id)
+        if not appointment:
+            return None
+        
+        if appointment.status not in [APPOINTMENT_STATUS['PENDING'], APPOINTMENT_STATUS['PASSED']]:
+            raise ValueError("当前状态不可标记爽约")
+        
+        appointment.status = APPOINTMENT_STATUS['NO_SHOW']
+        
+        await self.db.commit()
+        await self.db.refresh(appointment)
+        return appointment
+
+    async def get_queue_info(self, doctor_id: str) -> dict:
+        """获取医生当前叫号信息"""
+        today = date.today()
+        
+        # 当前就诊中的患者
+        in_progress_result = await self.db.execute(
+            select(Appointment)
+            .join(Schedule)
+            .options(selectinload(Appointment.patient))
+            .where(
+                and_(
+                    Appointment.doctor_id == doctor_id,
+                    Schedule.schedule_date == today,
+                    Appointment.status == APPOINTMENT_STATUS['IN_PROGRESS']
+                )
+            )
+        )
+        current = in_progress_result.scalar_one_or_none()
+        
+        # 候诊队列（已签到）
+        waiting_result = await self.db.execute(
+            select(Appointment)
+            .join(Schedule)
+            .options(selectinload(Appointment.patient))
+            .where(
+                and_(
+                    Appointment.doctor_id == doctor_id,
+                    Schedule.schedule_date == today,
+                    Appointment.status == APPOINTMENT_STATUS['SIGNED_IN']
+                )
+            )
+            .order_by(Appointment.sign_in_time)
+        )
+        waiting_list = list(waiting_result.scalars().all())
+        
+        # 过号队列
+        passed_result = await self.db.execute(
+            select(Appointment)
+            .join(Schedule)
+            .options(selectinload(Appointment.patient))
+            .where(
+                and_(
+                    Appointment.doctor_id == doctor_id,
+                    Schedule.schedule_date == today,
+                    Appointment.status == APPOINTMENT_STATUS['PASSED']
+                )
+            )
+            .order_by(Appointment.queue_number)
+        )
+        passed_list = list(passed_result.scalars().all())
+        
+        return {
+            'current': {
+                'id': current.id,
+                'queueNumber': current.queue_number,
+                'patientName': current.patient.name if current and current.patient else None,
+                'callTime': current.call_time.isoformat() if current and current.call_time else None,
+            } if current else None,
+            'waitingCount': len(waiting_list),
+            'waitingList': [
+                {
+                    'id': a.id,
+                    'queueNumber': a.queue_number,
+                    'patientName': a.patient.name if a.patient else None,
+                    'signInTime': a.sign_in_time.isoformat() if a.sign_in_time else None,
+                }
+                for a in waiting_list[:10]
+            ],
+            'passedCount': len(passed_list),
+            'passedList': [
+                {
+                    'id': a.id,
+                    'queueNumber': a.queue_number,
+                    'patientName': a.patient.name if a.patient else None,
+                }
+                for a in passed_list
+            ],
+        }
+

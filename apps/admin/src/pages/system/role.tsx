@@ -1,17 +1,10 @@
 import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormSwitch } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
-import { Button, Tag, Space, message, Popconfirm, Modal, Tree, Checkbox } from 'antd';
+import { Button, Tag, Space, message, Popconfirm, Modal, Tree, Switch } from 'antd';
 import { PlusOutlined, SettingOutlined } from '@ant-design/icons';
 import { useRef, useState } from 'react';
-
-interface RoleRecord {
-  id: string;
-  name: string;
-  code: string;
-  description: string;
-  status: number;
-  createdAt: string;
-}
+import { adminApi } from '@hospital/api';
+import type { Role } from '@hospital/api';
 
 // 菜单权限树
 const menuTree = [
@@ -90,8 +83,7 @@ const RolePage: React.FC = () => {
   const actionRef = useRef<ActionType>();
   const [modalVisible, setModalVisible] = useState(false);
   const [permissionVisible, setPermissionVisible] = useState(false);
-  const [editingRole, setEditingRole] = useState<RoleRecord | null>(null);
-  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [checkedKeys, setCheckedKeys] = useState<string[]>([]);
 
   const handleAdd = () => {
@@ -99,28 +91,41 @@ const RolePage: React.FC = () => {
     setModalVisible(true);
   };
 
-  const handleEdit = (record: RoleRecord) => {
+  const handleEdit = (record: Role) => {
     setEditingRole(record);
     setModalVisible(true);
   };
 
-  const handlePermission = (record: RoleRecord) => {
+  const handlePermission = (record: Role) => {
     setEditingRole(record);
-    // 加载角色已有权限
-    setCheckedKeys(['dashboard', 'department:list', 'doctor:list']);
+    setCheckedKeys(record.permissions || []);
     setPermissionVisible(true);
   };
 
   const handleDelete = async (id: string) => {
-    message.success('删除成功');
-    actionRef.current?.reload();
+    try {
+      await adminApi.deleteRole(id);
+      message.success('删除成功');
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error.message || '删除失败');
+    }
   };
 
   const handleSubmit = async (values: any) => {
     try {
+      const submitData = {
+        name: values.name,
+        code: values.code,
+        description: values.description,
+        status: values.status ? 1 : 0,
+      };
+
       if (editingRole) {
+        await adminApi.updateRole(editingRole.id, submitData);
         message.success('更新成功');
       } else {
+        await adminApi.createRole(submitData);
         message.success('创建成功');
       }
       setModalVisible(false);
@@ -132,13 +137,30 @@ const RolePage: React.FC = () => {
     }
   };
 
-  const handlePermissionSave = () => {
-    console.log('保存权限:', checkedKeys);
-    message.success('权限配置成功');
-    setPermissionVisible(false);
+  const handlePermissionSave = async () => {
+    if (!editingRole) return;
+    
+    try {
+      await adminApi.updateRolePermissions(editingRole.id, checkedKeys);
+      message.success('权限配置成功');
+      setPermissionVisible(false);
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error.message || '操作失败');
+    }
   };
 
-  const columns: ProColumns<RoleRecord>[] = [
+  const handleStatusChange = async (id: string, status: number) => {
+    try {
+      await adminApi.updateRole(id, { status });
+      message.success(status === 1 ? '已启用' : '已禁用');
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error.message || '操作失败');
+    }
+  };
+
+  const columns: ProColumns<Role>[] = [
     { title: '角色名称', dataIndex: 'name', width: 150 },
     { title: '角色编码', dataIndex: 'code', width: 150 },
     { title: '描述', dataIndex: 'description', width: 250, search: false, ellipsis: true },
@@ -146,7 +168,16 @@ const RolePage: React.FC = () => {
       title: '状态', 
       dataIndex: 'status', 
       width: 100, 
-      valueEnum: { 0: { text: '禁用' }, 1: { text: '启用', status: 'Success' } } 
+      valueEnum: { 0: { text: '禁用' }, 1: { text: '启用', status: 'Success' } },
+      render: (_, r) => (
+        <Switch 
+          checked={r.status === 1} 
+          onChange={(checked) => handleStatusChange(r.id, checked ? 1 : 0)}
+          checkedChildren="启用" 
+          unCheckedChildren="禁用"
+          disabled={r.code === 'super_admin'}
+        />
+      )
     },
     { title: '创建时间', dataIndex: 'createdAt', width: 180, valueType: 'dateTime', search: false },
     { 
@@ -167,15 +198,9 @@ const RolePage: React.FC = () => {
     },
   ];
 
-  const mockData: RoleRecord[] = [
-    { id: '1', name: '超级管理员', code: 'super_admin', description: '拥有所有权限', status: 1, createdAt: '2024-01-01 00:00:00' },
-    { id: '2', name: '科室管理员', code: 'dept_admin', description: '负责科室和医生管理', status: 1, createdAt: '2024-11-01 10:00:00' },
-    { id: '3', name: '内容管理员', code: 'content_admin', description: '负责新闻公告管理', status: 1, createdAt: '2024-11-15 14:00:00' },
-  ];
-
   return (
     <PageContainer>
-      <ProTable<RoleRecord>
+      <ProTable<Role>
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
@@ -184,7 +209,25 @@ const RolePage: React.FC = () => {
             新增角色
           </Button>
         ]}
-        request={async () => ({ data: mockData, success: true, total: mockData.length })}
+        request={async (params) => {
+          try {
+            const { current, pageSize, status, name } = params;
+            const result = await adminApi.getRoles({
+              status,
+              keyword: name,
+              page: current || 1,
+              pageSize: pageSize || 10,
+            });
+            return { 
+              data: result.data || [], 
+              success: true, 
+              total: result.total || 0 
+            };
+          } catch (error: any) {
+            message.error(error.message || '获取数据失败');
+            return { data: [], success: false, total: 0 };
+          }
+        }}
       />
 
       <ModalForm
@@ -192,11 +235,20 @@ const RolePage: React.FC = () => {
         open={modalVisible}
         onOpenChange={setModalVisible}
         onFinish={handleSubmit}
-        initialValues={editingRole || { status: true }}
+        initialValues={editingRole ? {
+          ...editingRole,
+          status: editingRole.status === 1,
+        } : { status: true }}
         modalProps={{ destroyOnClose: true }}
       >
         <ProFormText name="name" label="角色名称" rules={[{ required: true }]} />
-        <ProFormText name="code" label="角色编码" rules={[{ required: true }]} disabled={!!editingRole} tooltip="创建后不可修改" />
+        <ProFormText 
+          name="code" 
+          label="角色编码" 
+          rules={[{ required: true }]} 
+          disabled={!!editingRole} 
+          tooltip="创建后不可修改" 
+        />
         <ProFormTextArea name="description" label="描述" fieldProps={{ rows: 2 }} />
         <ProFormSwitch name="status" label="状态" checkedChildren="启用" unCheckedChildren="禁用" initialValue={true} />
       </ModalForm>

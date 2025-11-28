@@ -1,24 +1,10 @@
-import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormSelect, ProFormSwitch, ProFormUploadButton } from '@ant-design/pro-components';
+import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormSelect, ProFormSwitch } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
 import { Button, Tag, Space, message, Popconfirm, Image, Switch } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useRef, useState } from 'react';
 import { contentApi } from '@hospital/api';
-
-interface NewsRecord {
-  id: string;
-  title: string;
-  type: number;
-  typeName: string;
-  coverImage: string;
-  summary: string;
-  content: string;
-  viewCount: number;
-  isTop: boolean;
-  status: number;
-  publishTime: string;
-  createdAt: string;
-}
+import type { News } from '@hospital/api';
 
 const newsTypes = [
   { label: '医院动态', value: 1 },
@@ -30,14 +16,14 @@ const newsTypes = [
 const NewsPage: React.FC = () => {
   const actionRef = useRef<ActionType>();
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingNews, setEditingNews] = useState<NewsRecord | null>(null);
+  const [editingNews, setEditingNews] = useState<News | null>(null);
 
   const handleAdd = () => {
     setEditingNews(null);
     setModalVisible(true);
   };
 
-  const handleEdit = (record: NewsRecord) => {
+  const handleEdit = (record: News) => {
     setEditingNews(record);
     setModalVisible(true);
   };
@@ -55,7 +41,11 @@ const NewsPage: React.FC = () => {
   const handleSubmit = async (values: any) => {
     try {
       const submitData = {
-        ...values,
+        title: values.title,
+        type: values.type,
+        coverImage: values.coverImage,
+        summary: values.summary,
+        content: values.content,
         isTop: values.isTop ? 1 : 0,
         status: values.status ? 1 : 0,
       };
@@ -86,7 +76,7 @@ const NewsPage: React.FC = () => {
     }
   };
 
-  const columns: ProColumns<NewsRecord>[] = [
+  const columns: ProColumns<News>[] = [
     { 
       title: '封面', 
       dataIndex: 'coverImage', 
@@ -139,15 +129,9 @@ const NewsPage: React.FC = () => {
     },
   ];
 
-  // Mock 数据
-  const mockData: NewsRecord[] = [
-    { id: '1', title: '我院引进最新医疗设备', type: 1, typeName: '医院动态', coverImage: '', summary: '为提升医疗服务水平...', content: '', viewCount: 1234, isTop: true, status: 1, publishTime: '2024-11-27 10:00:00', createdAt: '2024-11-27' },
-    { id: '2', title: '冬季养生小知识', type: 2, typeName: '健康科普', coverImage: '', summary: '冬季如何保养身体...', content: '', viewCount: 856, isTop: false, status: 1, publishTime: '2024-11-26 09:00:00', createdAt: '2024-11-26' },
-  ];
-
   return (
     <PageContainer>
-      <ProTable<NewsRecord>
+      <ProTable<News>
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
@@ -157,8 +141,23 @@ const NewsPage: React.FC = () => {
           </Button>
         ]}
         request={async (params) => {
-          // TODO: 调用真实 API
-          return { data: mockData, success: true, total: mockData.length };
+          try {
+            const { current, pageSize, type, status } = params;
+            const result = await contentApi.getNewsList({
+              type,
+              status,
+              page: current || 1,
+              pageSize: pageSize || 10,
+            });
+            return { 
+              data: result.data || [], 
+              success: true, 
+              total: result.total || 0 
+            };
+          } catch (error: any) {
+            message.error(error.message || '获取数据失败');
+            return { data: [], success: false, total: 0 };
+          }
         }}
       />
 
@@ -167,7 +166,11 @@ const NewsPage: React.FC = () => {
         open={modalVisible}
         onOpenChange={setModalVisible}
         onFinish={handleSubmit}
-        initialValues={editingNews || { type: 1, isTop: false, status: true }}
+        initialValues={editingNews ? {
+          ...editingNews,
+          isTop: Boolean(editingNews.isTop),
+          status: editingNews.status === 1,
+        } : { type: 1, isTop: false, status: true }}
         modalProps={{ destroyOnClose: true }}
         width={700}
       >

@@ -1,54 +1,75 @@
 import { PageContainer, ProTable, ModalForm, ProFormText, ProFormSelect, ProFormSwitch } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
-import { Button, Tag, Space, message, Popconfirm, Avatar, Modal, Form, Input } from 'antd';
+import { Button, Tag, Space, message, Popconfirm, Avatar, Modal, Form, Input, Switch } from 'antd';
 import { PlusOutlined, UserOutlined, KeyOutlined } from '@ant-design/icons';
-import { useRef, useState } from 'react';
-
-interface AdminRecord {
-  id: string;
-  name: string;
-  phone: string;
-  avatar: string;
-  roleId: string;
-  roleName: string;
-  status: number;
-  lastLoginTime: string;
-  createdAt: string;
-}
+import { useRef, useState, useEffect } from 'react';
+import { adminApi } from '@hospital/api';
+import type { Admin, Role } from '@hospital/api';
 
 const AdminPage: React.FC = () => {
   const actionRef = useRef<ActionType>();
   const [modalVisible, setModalVisible] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
-  const [editingAdmin, setEditingAdmin] = useState<AdminRecord | null>(null);
+  const [editingAdmin, setEditingAdmin] = useState<Admin | null>(null);
   const [passwordForm] = Form.useForm();
+  const [roles, setRoles] = useState<Role[]>([]);
+
+  useEffect(() => {
+    loadRoles();
+  }, []);
+
+  const loadRoles = async () => {
+    try {
+      const data = await adminApi.getAllRoles();
+      setRoles(data);
+    } catch (error) {
+      console.error('加载角色失败', error);
+    }
+  };
 
   const handleAdd = () => {
     setEditingAdmin(null);
     setModalVisible(true);
   };
 
-  const handleEdit = (record: AdminRecord) => {
+  const handleEdit = (record: Admin) => {
     setEditingAdmin(record);
     setModalVisible(true);
   };
 
-  const handleResetPassword = (record: AdminRecord) => {
+  const handleResetPassword = (record: Admin) => {
     setEditingAdmin(record);
     passwordForm.resetFields();
     setPasswordVisible(true);
   };
 
   const handleDelete = async (id: string) => {
-    message.success('删除成功');
-    actionRef.current?.reload();
+    try {
+      await adminApi.deleteAdmin(id);
+      message.success('删除成功');
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error.message || '删除失败');
+    }
   };
 
   const handleSubmit = async (values: any) => {
     try {
+      const submitData = {
+        username: values.username,
+        name: values.name,
+        phone: values.phone,
+        email: values.email,
+        roleId: values.roleId,
+        status: values.status ? 1 : 0,
+        password: values.password,
+      };
+
       if (editingAdmin) {
+        await adminApi.updateAdmin(editingAdmin.id, submitData);
         message.success('更新成功');
       } else {
+        await adminApi.createAdmin(submitData);
         message.success('创建成功');
       }
       setModalVisible(false);
@@ -61,42 +82,68 @@ const AdminPage: React.FC = () => {
   };
 
   const handlePasswordSubmit = async () => {
+    if (!editingAdmin) return;
+    
     try {
       const values = await passwordForm.validateFields();
-      console.log('重置密码:', editingAdmin?.id, values);
+      await adminApi.resetAdminPassword(editingAdmin.id, values.newPassword);
       message.success('密码重置成功');
       setPasswordVisible(false);
-    } catch (error) {
-      // 校验失败
+    } catch (error: any) {
+      if (error.message) {
+        message.error(error.message);
+      }
     }
   };
 
-  const columns: ProColumns<AdminRecord>[] = [
+  const handleStatusChange = async (id: string, status: number) => {
+    try {
+      await adminApi.updateAdmin(id, { status });
+      message.success(status === 1 ? '已启用' : '已禁用');
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error.message || '操作失败');
+    }
+  };
+
+  const columns: ProColumns<Admin>[] = [
     { 
       title: '管理员', 
       dataIndex: 'name', 
-      width: 150, 
+      width: 180, 
       render: (_, r) => (
         <Space>
           <Avatar src={r.avatar} icon={<UserOutlined />} />
-          {r.name}
+          <div>
+            <div>{r.name || r.username}</div>
+            <div style={{ fontSize: 12, color: '#999' }}>{r.username}</div>
+          </div>
         </Space>
       )
     },
     { title: '手机号', dataIndex: 'phone', width: 130 },
+    { title: '邮箱', dataIndex: 'email', width: 180, search: false, ellipsis: true },
     { 
       title: '角色', 
       dataIndex: 'roleName', 
       width: 120,
-      render: (_, r) => <Tag color="blue">{r.roleName}</Tag>
+      render: (_, r) => r.roleName ? <Tag color="blue">{r.roleName}</Tag> : '-'
     },
     { 
       title: '状态', 
       dataIndex: 'status', 
       width: 100, 
-      valueEnum: { 0: { text: '禁用' }, 1: { text: '启用', status: 'Success' } } 
+      valueEnum: { 0: { text: '禁用' }, 1: { text: '启用', status: 'Success' } },
+      render: (_, r) => (
+        <Switch 
+          checked={r.status === 1} 
+          onChange={(checked) => handleStatusChange(r.id, checked ? 1 : 0)}
+          checkedChildren="启用" 
+          unCheckedChildren="禁用"
+        />
+      )
     },
-    { title: '最后登录', dataIndex: 'lastLoginTime', width: 180, valueType: 'dateTime', search: false },
+    { title: '最后登录', dataIndex: 'lastLoginAt', width: 180, valueType: 'dateTime', search: false },
     { title: '创建时间', dataIndex: 'createdAt', width: 180, valueType: 'dateTime', search: false },
     { 
       title: '操作', 
@@ -106,30 +153,17 @@ const AdminPage: React.FC = () => {
         <Space>
           <a onClick={() => handleEdit(record)}>编辑</a>
           <a onClick={() => handleResetPassword(record)}><KeyOutlined /> 重置密码</a>
-          {record.id !== '1' && (
-            <Popconfirm title="确定删除吗？" onConfirm={() => handleDelete(record.id)}>
-              <a style={{ color: 'red' }}>删除</a>
-            </Popconfirm>
-          )}
+          <Popconfirm title="确定删除吗？" onConfirm={() => handleDelete(record.id)}>
+            <a style={{ color: 'red' }}>删除</a>
+          </Popconfirm>
         </Space>
       )
     },
   ];
 
-  const mockData: AdminRecord[] = [
-    { id: '1', name: '系统管理员', phone: '13800138000', avatar: '', roleId: '1', roleName: '超级管理员', status: 1, lastLoginTime: '2024-11-27 09:30:00', createdAt: '2024-01-01 00:00:00' },
-    { id: '2', name: '张三', phone: '13800138001', avatar: '', roleId: '2', roleName: '科室管理员', status: 1, lastLoginTime: '2024-11-26 15:20:00', createdAt: '2024-11-01 10:00:00' },
-  ];
-
-  const roleOptions = [
-    { label: '超级管理员', value: '1' },
-    { label: '科室管理员', value: '2' },
-    { label: '内容管理员', value: '3' },
-  ];
-
   return (
     <PageContainer>
-      <ProTable<AdminRecord>
+      <ProTable<Admin>
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
@@ -138,7 +172,25 @@ const AdminPage: React.FC = () => {
             新增管理员
           </Button>
         ]}
-        request={async () => ({ data: mockData, success: true, total: mockData.length })}
+        request={async (params) => {
+          try {
+            const { current, pageSize, status, name } = params;
+            const result = await adminApi.getAdmins({
+              status,
+              keyword: name,
+              page: current || 1,
+              pageSize: pageSize || 10,
+            });
+            return { 
+              data: result.data || [], 
+              success: true, 
+              total: result.total || 0 
+            };
+          } catch (error: any) {
+            message.error(error.message || '获取数据失败');
+            return { data: [], success: false, total: 0 };
+          }
+        }}
       />
 
       <ModalForm
@@ -146,19 +198,32 @@ const AdminPage: React.FC = () => {
         open={modalVisible}
         onOpenChange={setModalVisible}
         onFinish={handleSubmit}
-        initialValues={editingAdmin || { status: true }}
+        initialValues={editingAdmin ? {
+          ...editingAdmin,
+          status: editingAdmin.status === 1,
+        } : { status: true }}
         modalProps={{ destroyOnClose: true }}
       >
-        <ProFormText name="name" label="姓名" rules={[{ required: true }]} />
+        <ProFormText 
+          name="username" 
+          label="用户名" 
+          rules={[{ required: true }, { min: 3, message: '用户名至少3位' }]} 
+          disabled={!!editingAdmin}
+          tooltip={editingAdmin ? '用户名不可修改' : undefined}
+        />
+        <ProFormText name="name" label="姓名" />
         <ProFormText 
           name="phone" 
           label="手机号" 
-          rules={[
-            { required: true },
-            { pattern: /^1\d{10}$/, message: '请输入正确的手机号' }
-          ]} 
+          rules={[{ pattern: /^1\d{10}$/, message: '请输入正确的手机号' }]} 
         />
-        <ProFormSelect name="roleId" label="角色" options={roleOptions} rules={[{ required: true }]} />
+        <ProFormText name="email" label="邮箱" rules={[{ type: 'email', message: '请输入正确的邮箱' }]} />
+        <ProFormSelect 
+          name="roleId" 
+          label="角色" 
+          options={roles.map(r => ({ label: r.name, value: r.id }))} 
+          rules={[{ required: true }]} 
+        />
         {!editingAdmin && (
           <ProFormText.Password name="password" label="密码" rules={[{ required: true, min: 6 }]} />
         )}
@@ -166,7 +231,7 @@ const AdminPage: React.FC = () => {
       </ModalForm>
 
       <Modal
-        title={`重置密码 - ${editingAdmin?.name}`}
+        title={`重置密码 - ${editingAdmin?.name || editingAdmin?.username}`}
         open={passwordVisible}
         onCancel={() => setPasswordVisible(false)}
         onOk={handlePasswordSubmit}

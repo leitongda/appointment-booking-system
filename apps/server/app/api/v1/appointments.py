@@ -203,3 +203,65 @@ async def complete_appointment(appointment_id: str, db: AsyncSession = Depends(g
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在")
     
     return {"message": "就诊完成"}
+
+
+@router.put("/{appointment_id}/pass")
+async def pass_appointment(appointment_id: str, db: AsyncSession = Depends(get_db)):
+    """过号"""
+    service = AppointmentService(db)
+    
+    try:
+        appointment = await service.pass_number(appointment_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    
+    if not appointment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在")
+    
+    return {"message": "已过号"}
+
+
+@router.put("/{appointment_id}/recall")
+async def recall_appointment(appointment_id: str, db: AsyncSession = Depends(get_db)):
+    """重新叫号"""
+    service = AppointmentService(db)
+    
+    try:
+        appointment = await service.recall(appointment_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    
+    if not appointment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在")
+    
+    return {"message": "已重新呼叫"}
+
+
+@router.put("/{appointment_id}/no-show")
+async def mark_no_show(appointment_id: str, db: AsyncSession = Depends(get_db)):
+    """标记爽约"""
+    service = AppointmentService(db)
+    
+    try:
+        appointment = await service.mark_no_show(appointment_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    
+    if not appointment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在")
+    
+    return {"message": "已标记爽约"}
+
+
+@router.get("/queue/info")
+async def get_queue_info(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """获取当前叫号队列信息（医生端）"""
+    doctor_id = current_user.get("doctor_id")
+    if not doctor_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="非医生用户")
+    
+    service = AppointmentService(db)
+    return await service.get_queue_info(doctor_id)

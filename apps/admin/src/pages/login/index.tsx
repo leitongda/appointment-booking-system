@@ -1,20 +1,28 @@
-import { LockOutlined, MobileOutlined } from '@ant-design/icons';
+import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { LoginForm, ProFormText } from '@ant-design/pro-components';
 import { message } from 'antd';
-import { history } from 'umi';
-import { authApi } from '@hospital/api';
+import { history, useModel } from 'umi';
+import { adminApi } from '@hospital/api';
 import { setToken, STORAGE_KEYS, setStorage } from '@hospital/shared';
 import styles from './index.less';
 
 const Login: React.FC = () => {
-  const handleSubmit = async (values: { phone: string; password: string }) => {
+  const { refresh } = useModel('@@initialState');
+
+  const handleSubmit = async (values: { username: string; password: string }) => {
     try {
-      const result = await authApi.login(values);
+      const result = await adminApi.login(values);
+      
+      // 保存 token
       setToken(result.accessToken);
       setStorage(STORAGE_KEYS.REFRESH_TOKEN, result.refreshToken);
-      setStorage(STORAGE_KEYS.USER_INFO, result.user);
       
       message.success('登录成功！');
+      
+      // 刷新用户状态
+      await refresh();
+      
+      // 跳转到首页
       history.push('/dashboard');
     } catch (error: any) {
       message.error(error.message || '登录失败');
@@ -27,19 +35,18 @@ const Login: React.FC = () => {
         <LoginForm
           logo="/logo.svg"
           title="医院挂号管理系统"
-          subTitle="机构端后台管理"
+          subTitle="管理后台"
           onFinish={handleSubmit}
         >
           <ProFormText
-            name="phone"
+            name="username"
             fieldProps={{
               size: 'large',
-              prefix: <MobileOutlined />,
+              prefix: <UserOutlined />,
             }}
-            placeholder="请输入手机号"
+            placeholder="请输入用户名"
             rules={[
-              { required: true, message: '请输入手机号' },
-              { pattern: /^1[3-9]\d{9}$/, message: '手机号格式错误' },
+              { required: true, message: '请输入用户名' },
             ]}
           />
           <ProFormText.Password
@@ -58,4 +65,3 @@ const Login: React.FC = () => {
 };
 
 export default Login;
-

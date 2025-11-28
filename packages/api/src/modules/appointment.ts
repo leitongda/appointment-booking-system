@@ -26,6 +26,28 @@ export interface AppointmentStatistics {
   noShow: number;
 }
 
+export interface QueueInfo {
+  current: {
+    id: string;
+    queueNumber: number;
+    patientName: string;
+    callTime: string;
+  } | null;
+  waitingCount: number;
+  waitingList: {
+    id: string;
+    queueNumber: number;
+    patientName: string;
+    signInTime: string;
+  }[];
+  passedCount: number;
+  passedList: {
+    id: string;
+    queueNumber: number;
+    patientName: string;
+  }[];
+}
+
 export const appointmentApi = {
   getList: (params?: AppointmentListParams): Promise<PageResult<Appointment>> => {
     return request.get('/appointments', { params });
@@ -61,5 +83,33 @@ export const appointmentApi = {
 
   complete: (id: string): Promise<void> => {
     return request.put(`/appointments/${id}/complete`);
+  },
+
+  /**
+   * 过号
+   */
+  pass: (id: string): Promise<void> => {
+    return request.put(`/appointments/${id}/pass`);
+  },
+
+  /**
+   * 重新叫号
+   */
+  recall: (id: string): Promise<void> => {
+    return request.put(`/appointments/${id}/recall`);
+  },
+
+  /**
+   * 标记爽约
+   */
+  markNoShow: (id: string): Promise<void> => {
+    return request.put(`/appointments/${id}/no-show`);
+  },
+
+  /**
+   * 获取叫号队列信息
+   */
+  getQueueInfo: (): Promise<QueueInfo> => {
+    return request.get('/appointments/queue/info');
   },
 };

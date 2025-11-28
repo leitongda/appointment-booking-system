@@ -4,17 +4,7 @@ import { Button, Tag, Space, message, Popconfirm, Switch } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useRef, useState } from 'react';
 import { contentApi } from '@hospital/api';
-
-interface NoticeRecord {
-  id: string;
-  title: string;
-  type: number;
-  content: string;
-  isTop: boolean;
-  status: number;
-  publishTime: string;
-  createdAt: string;
-}
+import type { Notice } from '@hospital/api';
 
 const noticeTypes = [
   { label: '系统公告', value: 1 },
@@ -26,14 +16,14 @@ const noticeTypes = [
 const NoticePage: React.FC = () => {
   const actionRef = useRef<ActionType>();
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingNotice, setEditingNotice] = useState<NoticeRecord | null>(null);
+  const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
 
   const handleAdd = () => {
     setEditingNotice(null);
     setModalVisible(true);
   };
 
-  const handleEdit = (record: NoticeRecord) => {
+  const handleEdit = (record: Notice) => {
     setEditingNotice(record);
     setModalVisible(true);
   };
@@ -51,7 +41,9 @@ const NoticePage: React.FC = () => {
   const handleSubmit = async (values: any) => {
     try {
       const submitData = {
-        ...values,
+        title: values.title,
+        type: values.type,
+        content: values.content,
         isTop: values.isTop ? 1 : 0,
         status: values.status ? 1 : 0,
       };
@@ -72,7 +64,17 @@ const NoticePage: React.FC = () => {
     }
   };
 
-  const columns: ProColumns<NoticeRecord>[] = [
+  const handleStatusChange = async (id: string, status: number) => {
+    try {
+      await contentApi.updateNotice(id, { status });
+      message.success(status === 1 ? '已发布' : '已下架');
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error.message || '操作失败');
+    }
+  };
+
+  const columns: ProColumns<Notice>[] = [
     { title: '标题', dataIndex: 'title', width: 300, ellipsis: true },
     { 
       title: '类型', 
@@ -91,7 +93,15 @@ const NoticePage: React.FC = () => {
       title: '状态', 
       dataIndex: 'status', 
       width: 100,
-      valueEnum: { 0: { text: '草稿' }, 1: { text: '已发布', status: 'Success' } }
+      valueEnum: { 0: { text: '草稿' }, 1: { text: '已发布', status: 'Success' } },
+      render: (_, r) => (
+        <Switch 
+          checked={r.status === 1} 
+          onChange={(checked) => handleStatusChange(r.id, checked ? 1 : 0)}
+          checkedChildren="发布" 
+          unCheckedChildren="草稿"
+        />
+      )
     },
     { title: '发布时间', dataIndex: 'publishTime', width: 180, valueType: 'dateTime', search: false },
     { 
@@ -109,14 +119,9 @@ const NoticePage: React.FC = () => {
     },
   ];
 
-  const mockData: NoticeRecord[] = [
-    { id: '1', title: '关于调整门诊挂号时间的通知', type: 1, content: '为方便患者就诊...', isTop: true, status: 1, publishTime: '2024-11-27 08:00:00', createdAt: '2024-11-27' },
-    { id: '2', title: '张医生11月30日停诊通知', type: 2, content: '因个人原因...', isTop: false, status: 1, publishTime: '2024-11-26 10:00:00', createdAt: '2024-11-26' },
-  ];
-
   return (
     <PageContainer>
-      <ProTable<NoticeRecord>
+      <ProTable<Notice>
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
@@ -125,7 +130,25 @@ const NoticePage: React.FC = () => {
             新增公告
           </Button>
         ]}
-        request={async () => ({ data: mockData, success: true, total: mockData.length })}
+        request={async (params) => {
+          try {
+            const { current, pageSize, type, status } = params;
+            const result = await contentApi.getNoticeList({
+              type,
+              status,
+              page: current || 1,
+              pageSize: pageSize || 10,
+            });
+            return { 
+              data: result.data || [], 
+              success: true, 
+              total: result.total || 0 
+            };
+          } catch (error: any) {
+            message.error(error.message || '获取数据失败');
+            return { data: [], success: false, total: 0 };
+          }
+        }}
       />
 
       <ModalForm
@@ -133,7 +156,11 @@ const NoticePage: React.FC = () => {
         open={modalVisible}
         onOpenChange={setModalVisible}
         onFinish={handleSubmit}
-        initialValues={editingNotice || { type: 1, isTop: false, status: true }}
+        initialValues={editingNotice ? {
+          ...editingNotice,
+          isTop: Boolean(editingNotice.isTop),
+          status: editingNotice.status === 1,
+        } : { type: 1, isTop: false, status: true }}
         modalProps={{ destroyOnClose: true }}
         width={600}
       >

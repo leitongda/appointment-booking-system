@@ -1,14 +1,14 @@
 import { View, Text } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import { Empty } from '@nutui/nutui-react-taro';
+import { Empty, Loading } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
-import { appointmentApi } from '@hospital/api';
-import type { MedicalRecord } from '@hospital/shared';
+import { medicalRecordApi } from '@hospital/api';
+import type { MedicalRecordListItem } from '@hospital/api';
 import './index.less';
 
 const RecordsPage = () => {
   const [loading, setLoading] = useState(true);
-  const [records, setRecords] = useState<MedicalRecord[]>([]);
+  const [records, setRecords] = useState<MedicalRecordListItem[]>([]);
 
   useEffect(() => {
     loadRecords();
@@ -16,10 +16,11 @@ const RecordsPage = () => {
 
   const loadRecords = async () => {
     try {
-      const data = await appointmentApi.getMedicalRecords();
-      setRecords(data);
+      const result = await medicalRecordApi.getList({ pageSize: 50 });
+      setRecords(result.data || []);
     } catch (error) {
       console.error('加载就诊记录失败', error);
+      Taro.showToast({ title: '加载失败', icon: 'none' });
     } finally {
       setLoading(false);
     }
@@ -29,9 +30,22 @@ const RecordsPage = () => {
     Taro.navigateTo({ url: `/pages/records/detail?id=${id}` });
   };
 
+  const formatDate = (date?: string) => {
+    if (!date) return '-';
+    return date.substring(0, 10);
+  };
+
+  if (loading) {
+    return (
+      <View className="records-page loading-container">
+        <Loading type="spinner">加载中...</Loading>
+      </View>
+    );
+  }
+
   return (
     <View className="records-page">
-      {records.length === 0 && !loading ? (
+      {records.length === 0 ? (
         <Empty description="暂无就诊记录" />
       ) : (
         <View className="list">
@@ -42,21 +56,21 @@ const RecordsPage = () => {
               onClick={() => handleViewDetail(record.id)}
             >
               <View className="card-header">
-                <Text className="date">{record.visitDate}</Text>
+                <Text className="date">{formatDate(record.visitDate)}</Text>
                 <Text className="dept">{record.departmentName}</Text>
               </View>
               <View className="card-body">
                 <View className="info-row">
-                  <Text className="label">就诊医生</Text>
-                  <Text className="value">{record.doctorName}</Text>
+                  <Text className="label">病历号</Text>
+                  <Text className="value">{record.recordNo}</Text>
                 </View>
                 <View className="info-row">
-                  <Text className="label">主诉</Text>
-                  <Text className="value">{record.chiefComplaint || '无'}</Text>
+                  <Text className="label">就诊医生</Text>
+                  <Text className="value">{record.doctorName || '-'}</Text>
                 </View>
                 <View className="info-row">
                   <Text className="label">诊断</Text>
-                  <Text className="value">{record.diagnosis || '无'}</Text>
+                  <Text className="value diagnosis">{record.diagnosis || '-'}</Text>
                 </View>
               </View>
               <View className="card-footer">
@@ -71,4 +85,3 @@ const RecordsPage = () => {
 };
 
 export default RecordsPage;
-

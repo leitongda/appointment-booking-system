@@ -27,7 +27,8 @@ class UserService:
         user = User(
             id=str(uuid.uuid4()),
             phone=data.phone,
-            password_hash=get_password_hash(data.password),
+            password_hash=get_password_hash(data.password) if data.password else "",
+            openid=data.openid,
             status=1
         )
         self.db.add(user)

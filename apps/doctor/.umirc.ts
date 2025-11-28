@@ -4,10 +4,10 @@ export default defineConfig({
   npmClient: 'pnpm',
   plugins: [
     '@umijs/plugins/dist/antd',
+    '@umijs/plugins/dist/initial-state',
     '@umijs/plugins/dist/model',
     '@umijs/plugins/dist/request',
     '@umijs/plugins/dist/access',
-    '@umijs/plugins/dist/initial-state',
     '@umijs/plugins/dist/layout',
   ],
   antd: {},

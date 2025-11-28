@@ -1,11 +1,11 @@
 import { PageContainer, ProCard } from '@ant-design/pro-components';
-import { List, Avatar, Tag, Button, Empty, message, Modal, Input, Row, Col, Statistic, Badge } from 'antd';
-import { UserOutlined, SoundOutlined, StopOutlined, CheckOutlined } from '@ant-design/icons';
+import { List, Avatar, Tag, Button, Empty, message, Modal, Row, Col, Badge, Popconfirm } from 'antd';
+import { UserOutlined, SoundOutlined, StopOutlined, CheckOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
 import { history } from 'umi';
 import { appointmentApi } from '@hospital/api';
-import { APPOINTMENT_STATUS_MAP, APPOINTMENT_STATUS_COLOR, TIME_SLOT_MAP } from '@hospital/shared';
-import type { Appointment } from '@hospital/shared';
+import { TIME_SLOT_MAP } from '@hospital/shared';
+import type { Appointment, QueueInfo } from '@hospital/shared';
 
 const ConsultationPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -51,19 +51,33 @@ const ConsultationPage: React.FC = () => {
   };
 
   const handlePass = async (appointment: Appointment) => {
-    Modal.confirm({
-      title: '确认过号',
-      content: `确定将 ${appointment.patientName} 过号吗？过号后患者需要重新排队。`,
-      onOk: async () => {
-        try {
-          // TODO: 实现过号 API
-          message.success('已过号');
-          loadData();
-        } catch (error: any) {
-          message.error(error.message || '操作失败');
-        }
-      },
-    });
+    try {
+      await appointmentApi.pass(appointment.id);
+      message.success('已过号');
+      loadData();
+    } catch (error: any) {
+      message.error(error.message || '操作失败');
+    }
+  };
+
+  const handleRecall = async (appointment: Appointment) => {
+    try {
+      await appointmentApi.recall(appointment.id);
+      message.success(`已重新呼叫 ${appointment.patientName}`);
+      loadData();
+    } catch (error: any) {
+      message.error(error.message || '操作失败');
+    }
+  };
+
+  const handleMarkNoShow = async (appointment: Appointment) => {
+    try {
+      await appointmentApi.markNoShow(appointment.id);
+      message.success('已标记爽约');
+      loadData();
+    } catch (error: any) {
+      message.error(error.message || '操作失败');
+    }
   };
 
   const handleComplete = async () => {
@@ -84,7 +98,14 @@ const ConsultationPage: React.FC = () => {
   const passedList = appointments.filter((a) => a.status === 4);
 
   return (
-    <PageContainer loading={loading}>
+    <PageContainer 
+      loading={loading}
+      extra={
+        <Button icon={<ReloadOutlined />} onClick={loadData}>
+          刷新
+        </Button>
+      }
+    >
       <Row gutter={16}>
         {/* 当前就诊 */}
         <Col xs={24} lg={10}>
@@ -108,9 +129,13 @@ const ConsultationPage: React.FC = () => {
                   </Tag>
                 </div>
                 <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
-                  <Button icon={<StopOutlined />} onClick={() => handlePass(currentPatient)}>
-                    过号
-                  </Button>
+                  <Popconfirm
+                    title="确定过号吗？"
+                    description="过号后患者需要重新排队。"
+                    onConfirm={() => handlePass(currentPatient)}
+                  >
+                    <Button icon={<StopOutlined />}>过号</Button>
+                  </Popconfirm>
                   <Button type="primary" icon={<CheckOutlined />} onClick={handleComplete}>
                     完成就诊
                   </Button>
@@ -202,7 +227,16 @@ const ConsultationPage: React.FC = () => {
             renderItem={(item) => (
               <List.Item
                 actions={[
-                  <Button size="small" onClick={() => handleCall(item)}>重新呼叫</Button>
+                  <Button size="small" type="primary" onClick={() => handleRecall(item)}>
+                    重新呼叫
+                  </Button>,
+                  <Popconfirm
+                    title="确定标记爽约吗？"
+                    description="爽约记录会影响患者后续预约。"
+                    onConfirm={() => handleMarkNoShow(item)}
+                  >
+                    <Button size="small" danger>标记爽约</Button>
+                  </Popconfirm>
                 ]}
               >
                 <List.Item.Meta

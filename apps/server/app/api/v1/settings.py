@@ -1,0 +1,229 @@
+"""系统设置 API"""
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional, Dict, Any
+from pydantic import BaseModel, Field
+
+from app.db.session import get_db
+from app.api.deps import get_current_admin
+from app.services.settings_service import SettingsService
+
+router = APIRouter()
+
+
+# ========== Schemas ==========
+class BookingSettingsUpdate(BaseModel):
+    advanceDays: Optional[int] = Field(None, ge=1, le=30)
+    sameDayBooking: Optional[bool] = None
+    cancelHours: Optional[int] = Field(None, ge=0, le=24)
+    perDayLimit: Optional[int] = Field(None, ge=1, le=10)
+    perDoctorLimit: Optional[int] = Field(None, ge=1, le=5)
+    noShowLimit: Optional[int] = Field(None, ge=1, le=10)
+    blacklistDays: Optional[int] = Field(None, ge=1, le=365)
+
+
+class HospitalInfoUpdate(BaseModel):
+    hospitalName: Optional[str] = Field(None, max_length=100)
+    hospitalLevel: Optional[str] = Field(None, max_length=50)
+    address: Optional[str] = Field(None, max_length=200)
+    phone: Optional[str] = Field(None, max_length=50)
+    workTime: Optional[str] = Field(None, max_length=100)
+    introduction: Optional[str] = None
+    logo: Optional[str] = None
+
+
+class WechatConfigUpdate(BaseModel):
+    appId: Optional[str] = Field(None, max_length=100)
+    appSecret: Optional[str] = Field(None, max_length=100)
+    mchId: Optional[str] = Field(None, max_length=100)
+    apiKey: Optional[str] = Field(None, max_length=100)
+    notifyUrl: Optional[str] = Field(None, max_length=200)
+
+
+class SmsConfigUpdate(BaseModel):
+    smsProvider: Optional[str] = Field(None, max_length=50)
+    accessKeyId: Optional[str] = Field(None, max_length=100)
+    accessKeySecret: Optional[str] = Field(None, max_length=100)
+    signName: Optional[str] = Field(None, max_length=50)
+    templateCode: Optional[str] = Field(None, max_length=50)
+
+
+# ========== 预约设置 ==========
+@router.get("/booking")
+async def get_booking_settings(
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """获取预约设置"""
+    service = SettingsService(db)
+    return await service.get_booking_settings()
+
+
+@router.put("/booking")
+async def update_booking_settings(
+    data: BookingSettingsUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """更新预约设置"""
+    service = SettingsService(db)
+    
+    update_data = {}
+    if data.advanceDays is not None:
+        update_data['advance_days'] = data.advanceDays
+    if data.sameDayBooking is not None:
+        update_data['same_day_booking'] = data.sameDayBooking
+    if data.cancelHours is not None:
+        update_data['cancel_hours'] = data.cancelHours
+    if data.perDayLimit is not None:
+        update_data['per_day_limit'] = data.perDayLimit
+    if data.perDoctorLimit is not None:
+        update_data['per_doctor_limit'] = data.perDoctorLimit
+    if data.noShowLimit is not None:
+        update_data['no_show_limit'] = data.noShowLimit
+    if data.blacklistDays is not None:
+        update_data['blacklist_days'] = data.blacklistDays
+    
+    await service.update_category('booking', update_data)
+    return {"message": "保存成功"}
+
+
+# ========== 医院信息 ==========
+@router.get("/hospital")
+async def get_hospital_info(
+    db: AsyncSession = Depends(get_db),
+):
+    """获取医院信息（公开接口）"""
+    service = SettingsService(db)
+    return await service.get_hospital_info()
+
+
+@router.put("/hospital")
+async def update_hospital_info(
+    data: HospitalInfoUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """更新医院信息"""
+    service = SettingsService(db)
+    
+    update_data = {}
+    if data.hospitalName is not None:
+        update_data['name'] = data.hospitalName
+    if data.hospitalLevel is not None:
+        update_data['level'] = data.hospitalLevel
+    if data.address is not None:
+        update_data['address'] = data.address
+    if data.phone is not None:
+        update_data['phone'] = data.phone
+    if data.workTime is not None:
+        update_data['work_time'] = data.workTime
+    if data.introduction is not None:
+        update_data['introduction'] = data.introduction
+    if data.logo is not None:
+        update_data['logo'] = data.logo
+    
+    await service.update_category('hospital', update_data)
+    return {"message": "保存成功"}
+
+
+# ========== 微信配置 ==========
+@router.get("/wechat")
+async def get_wechat_config(
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """获取微信配置"""
+    service = SettingsService(db)
+    config = await service.get_wechat_config()
+    # 隐藏敏感信息
+    if config.get('appSecret'):
+        config['appSecret'] = '******'
+    if config.get('apiKey'):
+        config['apiKey'] = '******'
+    return config
+
+
+@router.put("/wechat")
+async def update_wechat_config(
+    data: WechatConfigUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """更新微信配置"""
+    service = SettingsService(db)
+    
+    update_data = {}
+    if data.appId is not None:
+        update_data['app_id'] = data.appId
+    if data.appSecret is not None and data.appSecret != '******':
+        update_data['app_secret'] = data.appSecret
+    if data.mchId is not None:
+        update_data['mch_id'] = data.mchId
+    if data.apiKey is not None and data.apiKey != '******':
+        update_data['api_key'] = data.apiKey
+    if data.notifyUrl is not None:
+        update_data['notify_url'] = data.notifyUrl
+    
+    await service.update_category('wechat', update_data)
+    return {"message": "保存成功"}
+
+
+# ========== 短信配置 ==========
+@router.get("/sms")
+async def get_sms_config(
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """获取短信配置"""
+    service = SettingsService(db)
+    config = await service.get_sms_config()
+    # 隐藏敏感信息
+    if config.get('accessKeySecret'):
+        config['accessKeySecret'] = '******'
+    return config
+
+
+@router.put("/sms")
+async def update_sms_config(
+    data: SmsConfigUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """更新短信配置"""
+    service = SettingsService(db)
+    
+    update_data = {}
+    if data.smsProvider is not None:
+        update_data['provider'] = data.smsProvider
+    if data.accessKeyId is not None:
+        update_data['access_key_id'] = data.accessKeyId
+    if data.accessKeySecret is not None and data.accessKeySecret != '******':
+        update_data['access_key_secret'] = data.accessKeySecret
+    if data.signName is not None:
+        update_data['sign_name'] = data.signName
+    if data.templateCode is not None:
+        update_data['template_code'] = data.templateCode
+    
+    await service.update_category('sms', update_data)
+    return {"message": "保存成功"}
+
+
+# ========== 公开接口：获取预约规则 ==========
+@router.get("/booking/rules")
+async def get_booking_rules(
+    db: AsyncSession = Depends(get_db),
+):
+    """获取预约规则（公开接口，用于患者端）"""
+    service = SettingsService(db)
+    settings = await service.get_booking_settings()
+    
+    # 只返回患者需要知道的规则
+    return {
+        'advanceDays': settings.get('advanceDays', 14),
+        'sameDayBooking': settings.get('sameDayBooking', True),
+        'cancelHours': settings.get('cancelHours', 2),
+        'perDayLimit': settings.get('perDayLimit', 3),
+    }
+
+

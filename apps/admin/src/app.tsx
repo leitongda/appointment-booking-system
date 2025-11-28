@@ -1,25 +1,33 @@
-import { message } from 'antd';
+import { message, Dropdown, Avatar, Space } from 'antd';
 import type { RequestConfig, RunTimeLayoutConfig } from 'umi';
 import { history } from 'umi';
-import { getToken, removeToken } from '@hospital/shared';
+import { getToken, removeToken, setToken } from '@hospital/shared';
+import { adminApi } from '@hospital/api';
+import type { Admin } from '@hospital/api';
+import { UserOutlined, LogoutOutlined, SettingOutlined } from '@ant-design/icons';
 
 /**
  * 初始化状态
  */
 export async function getInitialState(): Promise<{
-  currentUser?: API.User;
+  currentUser?: Admin;
 }> {
   const token = getToken();
   if (!token) {
     return {};
   }
   
+  // 登录页不需要获取用户信息
+  if (history.location.pathname === '/login') {
+    return {};
+  }
+  
   try {
-    // TODO: 获取用户信息
-    return {
-      currentUser: undefined,
-    };
+    const currentUser = await adminApi.getCurrentAdmin();
+    return { currentUser };
   } catch (error) {
+    // token 无效，清除并跳转登录
+    removeToken();
     return {};
   }
 }
@@ -27,13 +35,56 @@ export async function getInitialState(): Promise<{
 /**
  * Layout 配置
  */
-export const layout: RunTimeLayoutConfig = ({ initialState }) => {
+export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) => {
+  const handleLogout = () => {
+    removeToken();
+    setInitialState({ currentUser: undefined });
+    history.push('/login');
+    message.success('已退出登录');
+  };
+
   return {
     logo: '/logo.svg',
+    title: '医院管理后台',
     menu: {
       locale: false,
     },
-    rightContentRender: () => null,
+    rightContentRender: () => {
+      if (!initialState?.currentUser) {
+        return null;
+      }
+      
+      const menuItems = [
+        {
+          key: 'settings',
+          icon: <SettingOutlined />,
+          label: '个人设置',
+          onClick: () => history.push('/system/settings'),
+        },
+        {
+          type: 'divider' as const,
+        },
+        {
+          key: 'logout',
+          icon: <LogoutOutlined />,
+          label: '退出登录',
+          onClick: handleLogout,
+        },
+      ];
+
+      return (
+        <Dropdown menu={{ items: menuItems }} placement="bottomRight">
+          <Space style={{ cursor: 'pointer', padding: '0 12px' }}>
+            <Avatar 
+              size="small" 
+              icon={<UserOutlined />} 
+              src={initialState.currentUser.avatar}
+            />
+            <span>{initialState.currentUser.name || initialState.currentUser.username}</span>
+          </Space>
+        </Dropdown>
+      );
+    },
     onPageChange: () => {
       const { location } = history;
       // 如果没有登录，重定向到登录页
@@ -41,6 +92,8 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
         history.push('/login');
       }
     },
+    // 自定义 403 页面
+    unAccessible: <div>无权限访问</div>,
   };
 };
 
@@ -51,7 +104,9 @@ export const request: RequestConfig = {
   timeout: 30000,
   errorConfig: {
     errorHandler: (error: any) => {
-      message.error(error.message || '请求失败');
+      if (error.response?.status !== 401) {
+        message.error(error.message || '请求失败');
+      }
     },
   },
   requestInterceptors: [
@@ -68,15 +123,17 @@ export const request: RequestConfig = {
   ],
   responseInterceptors: [
     (response: any) => {
-      const { data } = response;
+      const { data, status } = response;
       
-      if (data?.code === 401) {
+      // 401 未授权
+      if (status === 401 || data?.code === 401) {
         removeToken();
         history.push('/login');
         return response;
       }
       
-      if (data?.code !== 200) {
+      // 业务错误
+      if (data?.code && data.code !== 200 && data.code !== 0) {
         message.error(data?.message || '请求失败');
       }
       
@@ -84,15 +141,3 @@ export const request: RequestConfig = {
     },
   ],
 };
-
-// API 类型定义
-declare namespace API {
-  interface User {
-    id: string;
-    phone: string;
-    name: string;
-    avatar?: string;
-    role: string;
-  }
-}
-
