@@ -11,9 +11,10 @@ const Login: React.FC = () => {
 
   const handleSubmit = async (values: { phone: string; password: string }) => {
     try {
-      const result = await authApi.login(values);
+      const result = await authApi.doctorLogin(values);
       setToken(result.accessToken);
       setStorage(STORAGE_KEYS.REFRESH_TOKEN, result.refreshToken);
+      setStorage('doctor', JSON.stringify(result.doctor));
       
       message.success('登录成功');
       

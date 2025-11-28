@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship as orm_relationship
 from app.db.base import Base, TimestampMixin
 import uuid
 
@@ -15,7 +15,7 @@ class User(Base, TimestampMixin):
     openid = Column(String(100), unique=True, index=True)
     status = Column(Integer, default=1)  # 0禁用 1正常
     
-    patients = relationship("Patient", back_populates="user")
+    patients = orm_relationship("Patient", back_populates="user")
 
 class Patient(Base, TimestampMixin):
     __tablename__ = "patients"
@@ -30,5 +30,5 @@ class Patient(Base, TimestampMixin):
     relationship = Column(String(20))  # 与账号用户关系
     is_default = Column(Boolean, default=False)
     
-    user = relationship("User", back_populates="patients")
+    user = orm_relationship("User", back_populates="patients")
 

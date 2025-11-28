@@ -40,6 +40,13 @@ export const DOCTOR_TITLE = {
 
 export const DOCTOR_TITLES = Object.values(DOCTOR_TITLE);
 
+export const DOCTOR_TITLE_MAP: Record<string, string> = {
+  '主任医师': '主任医师',
+  '副主任医师': '副主任医师',
+  '主治医师': '主治医师',
+  '住院医师': '住院医师',
+};
+
 /**
  * 就诊人关系
  */

@@ -73,6 +73,20 @@ export const wechatBindPhone = (openid: string, phone: string): Promise<LoginRes
   return request.post(`${PREFIX}/wechat/bind-phone`, { openid, phone });
 };
 
+/**
+ * 管理员登录
+ */
+export const adminLogin = (data: { username: string; password: string }): Promise<LoginResult & { admin: any }> => {
+  return request.post('/admin/login', data);
+};
+
+/**
+ * 医生登录
+ */
+export const doctorLogin = (data: { phone: string; password: string }): Promise<LoginResult & { doctor: any }> => {
+  return request.post('/doctors/login', data);
+};
+
 export const authApi = {
   login,
   register,
@@ -82,4 +96,6 @@ export const authApi = {
   wechatLogin,
   wechatGetPhone,
   wechatBindPhone,
+  adminLogin,
+  doctorLogin,
 };

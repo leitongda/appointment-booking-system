@@ -90,23 +90,43 @@ async def get_current_admin(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db)
 ) -> dict:
-    """获取当前管理员
+    """获取当前管理员"""
+    from app.models.admin import Admin
     
-    管理员暂时复用 User 表，通过 user_type 字段区分
-    后续可以扩展为独立的 Admin 表
-    """
     token = credentials.credentials
     payload = decode_token(token)
     
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的Token")
     
-    user_id = payload.get("sub")
-    if not user_id:
+    admin_id = payload.get("sub")
+    token_type = payload.get("type", "")
+    
+    if not admin_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的Token")
     
-    # 从数据库获取用户
-    result = await db.execute(select(User).where(User.id == user_id))
+    # 检查是否是管理员 token
+    if token_type == "admin" or "admin" in str(payload):
+        # 从 Admin 表获取管理员
+        result = await db.execute(select(Admin).where(Admin.id == admin_id))
+        admin = result.scalar_one_or_none()
+        
+        if admin:
+            if admin.status != 1:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+            
+            return {
+                "id": admin.id,
+                "username": admin.username,
+                "name": admin.name or "管理员",
+                "phone": admin.phone,
+                "status": admin.status,
+                "role_id": admin.role_id,
+                "is_admin": True,
+            }
+    
+    # 兼容旧的 User 表管理员
+    result = await db.execute(select(User).where(User.id == admin_id))
     user = result.scalar_one_or_none()
     
     if not user:
@@ -115,13 +135,10 @@ async def get_current_admin(
     if user.status != 1:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
     
-    # 暂时所有登录用户都可以访问管理后台
-    # 后续可以通过角色权限系统控制
-    
     return {
         "id": user.id,
         "phone": user.phone,
-        "nickname": user.nickname or "管理员",
+        "name": user.nickname or "管理员",
         "status": user.status,
         "is_admin": True,
     }

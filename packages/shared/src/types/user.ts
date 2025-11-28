@@ -8,6 +8,20 @@ export interface User {
   createdAt?: string;
 }
 
+export interface LoginParams {
+  phone: string;
+  password?: string;
+  code?: string;
+  type?: 'password' | 'code';
+}
+
+export interface LoginResult {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+  user: User;
+}
+
 export interface Patient {
   id: string;
   userId: string;

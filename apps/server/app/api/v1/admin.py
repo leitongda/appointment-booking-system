@@ -403,7 +403,7 @@ async def update_admin(
 @router.put("/admins/{admin_id}/reset-password")
 async def reset_admin_password(
     admin_id: str,
-    new_password: str = Field(..., min_length=6),
+    new_password: str = Query(..., min_length=6),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
