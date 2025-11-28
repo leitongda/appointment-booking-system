@@ -1,13 +1,89 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
+from pydantic import BaseModel
+from datetime import datetime
 
 from app.db.session import get_db
 from app.schemas.doctor import DoctorCreate, DoctorUpdate, DoctorResponse, DoctorListResponse
 from app.schemas.response import PageResponse
 from app.services.doctor_service import DoctorService
+from app.core.security import create_access_token, create_refresh_token, verify_password
+from app.core.config import settings
 
 router = APIRouter()
+
+
+# ========== 医生登录相关 ==========
+class DoctorLoginRequest(BaseModel):
+    phone: str
+    password: str
+
+
+class DoctorLoginResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    expires_in: int
+    doctor: DoctorResponse
+
+
+@router.post("/login", response_model=DoctorLoginResponse)
+async def doctor_login(
+    data: DoctorLoginRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """医生登录"""
+    service = DoctorService(db)
+    doctor = await service.authenticate(data.phone, data.password)
+    
+    if not doctor:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="手机号或密码错误")
+    
+    if doctor.status != 1:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+    
+    # 更新登录信息
+    client_ip = request.client.host if request.client else ""
+    await service.update_login_info(doctor.id, client_ip)
+    
+    # 生成Token
+    access_token = create_access_token(data={"sub": doctor.id, "type": "doctor"})
+    refresh_token = create_refresh_token(data={"sub": doctor.id, "type": "doctor"})
+    
+    return DoctorLoginResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        doctor=DoctorResponse(
+            id=doctor.id,
+            user_id=doctor.user_id,
+            name=doctor.name,
+            phone=doctor.phone,
+            avatar=doctor.avatar,
+            title=doctor.title,
+            department_id=doctor.department_id,
+            department_name=doctor.department.name if doctor.department else None,
+            specialty=doctor.specialty,
+            introduction=doctor.introduction,
+            registration_fee=doctor.registration_fee,
+            is_recommended=doctor.is_recommended,
+            sort_order=doctor.sort_order,
+            status=doctor.status,
+            created_at=doctor.created_at,
+            updated_at=doctor.updated_at
+        ),
+    )
+
+
+@router.get("/me", response_model=DoctorResponse)
+async def get_current_doctor_info(
+    db: AsyncSession = Depends(get_db),
+    # TODO: 添加医生认证依赖
+):
+    """获取当前登录医生信息"""
+    # 需要从 token 中获取医生 ID
+    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="待实现")
 
 @router.get("", response_model=PageResponse[DoctorListResponse])
 async def get_doctors(

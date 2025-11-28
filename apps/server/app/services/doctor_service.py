@@ -2,17 +2,43 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from typing import Optional, List
+from datetime import datetime
 import uuid
 
 from app.models.doctor import Doctor
 from app.models.department import Department
 from app.models.user import User
 from app.schemas.doctor import DoctorCreate, DoctorUpdate
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, verify_password
 
 class DoctorService:
     def __init__(self, db: AsyncSession):
         self.db = db
+    
+    async def get_by_phone(self, phone: str) -> Optional[Doctor]:
+        """根据手机号获取医生"""
+        result = await self.db.execute(
+            select(Doctor).options(selectinload(Doctor.department)).where(Doctor.phone == phone)
+        )
+        return result.scalar_one_or_none()
+    
+    async def authenticate(self, phone: str, password: str) -> Optional[Doctor]:
+        """医生认证"""
+        doctor = await self.get_by_phone(phone)
+        if not doctor or not doctor.password_hash:
+            return None
+        if not verify_password(password, doctor.password_hash):
+            return None
+        return doctor
+    
+    async def update_login_info(self, doctor_id: str, ip: str) -> None:
+        """更新登录信息"""
+        result = await self.db.execute(select(Doctor).where(Doctor.id == doctor_id))
+        doctor = result.scalar_one_or_none()
+        if doctor:
+            doctor.last_login_at = datetime.now()
+            doctor.last_login_ip = ip
+            await self.db.commit()
     
     async def get_by_id(self, doctor_id: str) -> Optional[Doctor]:
         result = await self.db.execute(
@@ -69,13 +95,18 @@ class DoctorService:
     
     async def create(self, data: DoctorCreate) -> Doctor:
         user_id = None
+        password_hash = None
         
-        # 如果提供密码，创建用户账号
+        # 如果提供密码，设置密码哈希
+        if data.password:
+            password_hash = get_password_hash(data.password)
+        
+        # 如果提供密码和手机号，创建用户账号
         if data.password and data.phone:
             user = User(
                 id=str(uuid.uuid4()),
                 phone=data.phone,
-                password_hash=get_password_hash(data.password),
+                password_hash=password_hash,
                 nickname=data.name,
                 status=1
             )
@@ -89,6 +120,7 @@ class DoctorService:
             department_id=data.department_id,
             name=data.name,
             phone=data.phone,
+            password_hash=password_hash,
             avatar=data.avatar,
             title=data.title,
             specialty=data.specialty,

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Text, Numeric, ForeignKey
+from sqlalchemy import Column, String, Integer, Text, Numeric, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from app.db.base import Base, TimestampMixin
 import uuid
@@ -10,7 +10,8 @@ class Doctor(Base, TimestampMixin):
     user_id = Column(String(36), ForeignKey("users.id"))
     department_id = Column(String(36), ForeignKey("departments.id"), nullable=False)
     name = Column(String(50), nullable=False)
-    phone = Column(String(20))
+    phone = Column(String(20), unique=True, index=True)
+    password_hash = Column(String(255))  # 登录密码
     avatar = Column(String(255))
     title = Column(String(50))  # 职称
     specialty = Column(Text)  # 擅长
@@ -19,6 +20,8 @@ class Doctor(Base, TimestampMixin):
     is_recommended = Column(Integer, default=0)  # 是否推荐
     sort_order = Column(Integer, default=0)
     status = Column(Integer, default=1)  # 0禁用 1正常
+    last_login_at = Column(DateTime, comment="最后登录时间")
+    last_login_ip = Column(String(50), comment="最后登录IP")
     
     department = relationship("Department", back_populates="doctors")
     schedules = relationship("Schedule", back_populates="doctor")
