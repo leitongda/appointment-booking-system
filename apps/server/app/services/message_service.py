@@ -55,6 +55,46 @@ class MessageService:
         
         return list(result.scalars().all()), count_result.scalar() or 0
     
+    async def get_all_messages(
+        self,
+        user_id: Optional[str],
+        user_type: Optional[str],
+        keyword: Optional[str],
+        query: MessageQuery
+    ) -> tuple[List[Message], int]:
+        """获取所有消息列表（管理端）"""
+        stmt = select(Message)
+        count_stmt = select(func.count(Message.id))
+        
+        if user_id:
+            stmt = stmt.where(Message.user_id == user_id)
+            count_stmt = count_stmt.where(Message.user_id == user_id)
+        
+        if user_type:
+            stmt = stmt.where(Message.user_type == user_type)
+            count_stmt = count_stmt.where(Message.user_type == user_type)
+        
+        if query.message_type:
+            stmt = stmt.where(Message.message_type == query.message_type.value)
+            count_stmt = count_stmt.where(Message.message_type == query.message_type.value)
+        
+        if query.is_read is not None:
+            stmt = stmt.where(Message.is_read == query.is_read)
+            count_stmt = count_stmt.where(Message.is_read == query.is_read)
+        
+        if keyword:
+            keyword_filter = Message.title.contains(keyword) | Message.content.contains(keyword)
+            stmt = stmt.where(keyword_filter)
+            count_stmt = count_stmt.where(keyword_filter)
+        
+        stmt = stmt.order_by(Message.created_at.desc())
+        stmt = stmt.offset((query.page - 1) * query.page_size).limit(query.page_size)
+        
+        result = await self.db.execute(stmt)
+        count_result = await self.db.execute(count_stmt)
+        
+        return list(result.scalars().all()), count_result.scalar() or 0
+    
     async def get_unread_count(self, user_id: str, user_type: str) -> UnreadCountResponse:
         """获取未读消息数量"""
         # 总未读数

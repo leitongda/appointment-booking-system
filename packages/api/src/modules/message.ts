@@ -2,10 +2,11 @@ import request from '../request';
 import type { Message, UnreadCount, MessageTemplate, PageResult } from '@hospital/shared';
 
 export interface MessageListParams {
-  userId: string;
-  userType: string;
+  userId?: string;
+  userType?: string;
   messageType?: string;
   isRead?: number;
+  keyword?: string;
   page?: number;
   pageSize?: number;
 }
@@ -30,7 +31,7 @@ export interface MessageBatchCreateData {
 }
 
 export const messageApi = {
-  // 获取消息列表
+  // 获取消息列表（用户端）
   getList: (params: MessageListParams): Promise<PageResult<Message>> => {
     return request.get('/messages/my', { 
       params: {
@@ -38,6 +39,21 @@ export const messageApi = {
         user_type: params.userType,
         message_type: params.messageType,
         is_read: params.isRead,
+        page: params.page,
+        page_size: params.pageSize,
+      }
+    });
+  },
+
+  // 获取所有消息列表（管理端）
+  getAllList: (params: MessageListParams): Promise<PageResult<Message>> => {
+    return request.get('/messages', { 
+      params: {
+        user_id: params.userId,
+        user_type: params.userType,
+        message_type: params.messageType,
+        is_read: params.isRead,
+        keyword: params.keyword,
         page: params.page,
         page_size: params.pageSize,
       }
@@ -95,8 +111,14 @@ export const messageApi = {
   },
 
   // 获取消息模板列表
-  getTemplates: (status?: number): Promise<MessageTemplate[]> => {
-    return request.get('/messages/templates', { params: { status } });
+  getTemplates: (params?: { status?: number; page?: number; pageSize?: number }): Promise<PageResult<MessageTemplate>> => {
+    return request.get('/messages/templates', { 
+      params: { 
+        status: params?.status,
+        page: params?.page,
+        page_size: params?.pageSize,
+      } 
+    });
   },
 
   // 创建消息模板

@@ -138,7 +138,41 @@ async def clear_read_messages(
     return {"message": f"已删除 {count} 条已读消息"}
 
 
-# ========== 管理端发送消息接口 ==========
+# ========== 管理端接口 ==========
+
+@router.get("", response_model=PageResponse[MessageListResponse])
+async def get_all_messages(
+    user_id: Optional[str] = None,
+    user_type: Optional[str] = None,
+    message_type: Optional[MessageType] = None,
+    is_read: Optional[int] = Query(None, ge=0, le=1),
+    keyword: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取所有消息列表（管理端）"""
+    service = MessageService(db)
+    query = MessageQuery(
+        message_type=message_type,
+        is_read=is_read,
+        page=page,
+        page_size=page_size
+    )
+    messages, total = await service.get_all_messages(
+        user_id=user_id,
+        user_type=user_type,
+        keyword=keyword,
+        query=query
+    )
+    
+    return PageResponse(
+        data=[MessageListResponse.model_validate(m) for m in messages],
+        total=total,
+        page=page,
+        page_size=page_size
+    )
+
 
 @router.post("/send", response_model=MessageResponse)
 async def send_message(
