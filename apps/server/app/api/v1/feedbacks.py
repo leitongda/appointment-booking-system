@@ -1,0 +1,182 @@
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional, List
+
+from app.db.session import get_db
+from app.schemas.feedback import (
+    FeedbackCreate, FeedbackReply, FeedbackResponse, FeedbackQuery,
+    FeedbackType, FeedbackStatus
+)
+from app.schemas.response import PageResponse
+from app.services.feedback_service import FeedbackService
+import json
+
+router = APIRouter()
+
+
+def parse_feedback_response(feedback) -> FeedbackResponse:
+    """解析反馈响应"""
+    images = None
+    if feedback.images:
+        try:
+            images = json.loads(feedback.images)
+        except:
+            pass
+    
+    return FeedbackResponse(
+        id=feedback.id,
+        user_id=feedback.user_id,
+        user_type=feedback.user_type,
+        feedback_type=feedback.feedback_type,
+        title=feedback.title,
+        content=feedback.content,
+        images=images,
+        contact=feedback.contact,
+        status=feedback.status,
+        handler_id=feedback.handler_id,
+        reply=feedback.reply,
+        handled_at=feedback.handled_at,
+        created_at=feedback.created_at
+    )
+
+
+@router.get("", response_model=PageResponse[FeedbackResponse])
+async def get_feedbacks(
+    user_id: Optional[str] = None,
+    feedback_type: Optional[FeedbackType] = None,
+    status: Optional[FeedbackStatus] = None,
+    keyword: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取反馈列表（管理端）"""
+    service = FeedbackService(db)
+    query = FeedbackQuery(
+        user_id=user_id,
+        feedback_type=feedback_type,
+        status=status,
+        keyword=keyword,
+        page=page,
+        page_size=page_size
+    )
+    feedbacks, total = await service.get_list(query)
+    
+    return PageResponse(
+        data=[parse_feedback_response(f) for f in feedbacks],
+        total=total,
+        page=page,
+        page_size=page_size
+    )
+
+
+@router.get("/pending-count")
+async def get_pending_count(db: AsyncSession = Depends(get_db)):
+    """获取待处理数量"""
+    service = FeedbackService(db)
+    count = await service.get_pending_count()
+    return {"count": count}
+
+
+@router.get("/statistics")
+async def get_statistics(db: AsyncSession = Depends(get_db)):
+    """获取反馈统计"""
+    service = FeedbackService(db)
+    return await service.get_statistics()
+
+
+@router.get("/my", response_model=List[FeedbackResponse])
+async def get_my_feedbacks(
+    user_id: str = Query(..., description="用户ID"),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取我的反馈列表（用户端）"""
+    service = FeedbackService(db)
+    feedbacks = await service.get_user_feedbacks(user_id)
+    return [parse_feedback_response(f) for f in feedbacks]
+
+
+@router.get("/{feedback_id}", response_model=FeedbackResponse)
+async def get_feedback(
+    feedback_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """获取反馈详情"""
+    service = FeedbackService(db)
+    feedback = await service.get_by_id(feedback_id)
+    
+    if not feedback:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="反馈不存在"
+        )
+    
+    return parse_feedback_response(feedback)
+
+
+@router.post("", response_model=FeedbackResponse)
+async def create_feedback(
+    data: FeedbackCreate,
+    db: AsyncSession = Depends(get_db)
+):
+    """提交反馈"""
+    service = FeedbackService(db)
+    feedback = await service.create(data)
+    return parse_feedback_response(feedback)
+
+
+@router.post("/{feedback_id}/reply", response_model=FeedbackResponse)
+async def reply_feedback(
+    feedback_id: str,
+    data: FeedbackReply,
+    handler_id: str = Query(..., description="处理人ID"),
+    db: AsyncSession = Depends(get_db)
+):
+    """回复反馈"""
+    service = FeedbackService(db)
+    feedback = await service.reply(feedback_id, handler_id, data)
+    
+    if not feedback:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="反馈不存在"
+        )
+    
+    return parse_feedback_response(feedback)
+
+
+@router.patch("/{feedback_id}/status")
+async def update_feedback_status(
+    feedback_id: str,
+    status: FeedbackStatus = Query(..., description="状态"),
+    db: AsyncSession = Depends(get_db)
+):
+    """更新反馈状态"""
+    service = FeedbackService(db)
+    feedback = await service.update_status(feedback_id, status.value)
+    
+    if not feedback:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="反馈不存在"
+        )
+    
+    return {"message": "状态更新成功"}
+
+
+@router.delete("/{feedback_id}")
+async def delete_feedback(
+    feedback_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """删除反馈"""
+    service = FeedbackService(db)
+    success = await service.delete(feedback_id)
+    
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="反馈不存在"
+        )
+    
+    return {"message": "删除成功"}
