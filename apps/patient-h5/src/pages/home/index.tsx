@@ -9,6 +9,8 @@ const menus = [
   { icon: '🏥', title: '预约挂号', path: '/department' },
   { icon: '📋', title: '我的预约', path: '/appointment' },
   { icon: '📝', title: '就诊记录', path: '/records' },
+  { icon: '🔔', title: '消息中心', path: '/message' },
+  { icon: '💬', title: '意见反馈', path: '/feedback' },
   { icon: '👤', title: '个人中心', path: '/profile' },
 ];
 
@@ -57,7 +59,7 @@ const HomePage: React.FC = () => {
 
       {/* 快捷入口 */}
       <Card className={styles.menuCard}>
-        <Grid columns={4} gap={8}>
+        <Grid columns={3} gap={8}>
           {menus.map((menu) => (
             <Grid.Item key={menu.path} onClick={() => history.push(menu.path)}>
               <div className={styles.menuItem}>
