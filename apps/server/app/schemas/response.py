@@ -18,3 +18,6 @@ class PageResponse(BaseModel, Generic[T]):
     page: int = 1
     page_size: int = 10
 
+# 别名，兼容旧代码
+ResponseModel = Response
+

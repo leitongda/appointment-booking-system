@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Text, Time
+from sqlalchemy import Column, String, Integer, Text, Time, ForeignKey
 from sqlalchemy.orm import relationship
 from app.db.base import Base, TimestampMixin
 import uuid
@@ -23,12 +23,13 @@ class Store(Base, TimestampMixin):
     opening_time = Column(Time, comment="营业开始时间")
     closing_time = Column(Time, comment="营业结束时间")
     working_days = Column(String(50), default="1,2,3,4,5,6,7", comment="工作日(1-7)")
+    business_hours = Column(String(100), comment="营业时间描述")
     image = Column(String(255), comment="门店图片")
     sort_order = Column(Integer, default=0, comment="排序")
     status = Column(Integer, default=1, comment="状态: 0-停业 1-营业")
     
     # 关联关系
-    departments = relationship("StoreDepartment", back_populates="store", cascade="all, delete-orphan")
+    store_departments = relationship("StoreDepartment", back_populates="store", cascade="all, delete-orphan")
 
 
 class StoreDepartment(Base, TimestampMixin):
@@ -36,10 +37,10 @@ class StoreDepartment(Base, TimestampMixin):
     __tablename__ = "store_departments"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    store_id = Column(String(36), nullable=False, comment="门店ID")
-    department_id = Column(String(36), nullable=False, comment="科室ID")
+    store_id = Column(String(36), ForeignKey("stores.id"), nullable=False, comment="门店ID")
+    department_id = Column(String(36), ForeignKey("departments.id"), nullable=False, comment="科室ID")
     floor = Column(String(20), comment="楼层")
     room = Column(String(50), comment="诊室")
     status = Column(Integer, default=1, comment="状态: 0-停诊 1-正常")
     
-    store = relationship("Store", back_populates="departments")
+    store = relationship("Store", back_populates="store_departments")

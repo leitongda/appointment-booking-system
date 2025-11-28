@@ -7,12 +7,15 @@ export interface Appointment {
   patientPhone?: string;
   doctorId: string;
   doctorName?: string;
+  doctorTitle?: string;
+  departmentId?: string;
   departmentName?: string;
   scheduleId: string;
   scheduleDate?: string;
   timeSlot?: string;
   queueNumber?: number;
   registrationFee?: number;
+  fee?: number;
   status: number;
   signInTime?: string;
   callTime?: string;
@@ -30,4 +33,19 @@ export interface AppointmentStatistics {
   completed: number;
   cancelled: number;
   noShow: number;
+}
+
+export interface QueueInfo {
+  currentNumber: number;
+  waitingCount: number;
+  currentPatient?: {
+    id: string;
+    name: string;
+    queueNumber: number;
+  };
+  nextPatients: {
+    id: string;
+    name: string;
+    queueNumber: number;
+  }[];
 }

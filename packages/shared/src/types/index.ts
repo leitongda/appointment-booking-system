@@ -6,3 +6,5 @@ export * from './schedule';
 export * from './appointment';
 export * from './store';
 export * from './message';
+export * from './leave-request';
+export * from './feedback';
