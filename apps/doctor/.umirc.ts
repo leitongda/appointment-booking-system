@@ -24,6 +24,7 @@ export default defineConfig({
     { path: '/', redirect: '/dashboard' },
     { path: '/dashboard', name: '工作台', icon: 'DashboardOutlined', component: '@/pages/dashboard' },
     { path: '/schedule', name: '我的排班', icon: 'CalendarOutlined', component: '@/pages/schedule' },
+    { path: '/leave-request', name: '停诊调班', icon: 'ExceptionOutlined', component: '@/pages/leave-request' },
     { path: '/appointment', name: '预约管理', icon: 'UnorderedListOutlined', routes: [
       { path: '/appointment', redirect: '/appointment/today' },
       { path: '/appointment/today', name: '今日预约', component: '@/pages/appointment/today' },
@@ -36,6 +37,7 @@ export default defineConfig({
       { path: '/medical-record/create', name: '填写病历', component: '@/pages/medical-record/form', hideInMenu: true },
     ]},
     { path: '/statistics', name: '数据统计', icon: 'BarChartOutlined', component: '@/pages/statistics' },
+    { path: '/message', name: '消息中心', icon: 'BellOutlined', component: '@/pages/message' },
   ],
   proxy: {
     '/api': { target: 'http://localhost:8000', changeOrigin: true },

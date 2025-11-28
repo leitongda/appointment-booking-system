@@ -90,6 +90,24 @@ export default defineConfig({
       component: '@/pages/patient',
     },
     {
+      path: '/leave-request',
+      name: '停诊审核',
+      icon: 'ExceptionOutlined',
+      component: '@/pages/leave-request',
+    },
+    {
+      path: '/feedback',
+      name: '用户反馈',
+      icon: 'CommentOutlined',
+      component: '@/pages/feedback',
+    },
+    {
+      path: '/message',
+      name: '消息管理',
+      icon: 'BellOutlined',
+      component: '@/pages/message',
+    },
+    {
       path: '/content',
       name: '内容管理',
       icon: 'FileTextOutlined',

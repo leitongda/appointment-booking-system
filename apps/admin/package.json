@@ -12,6 +12,7 @@
     "clean": "rm -rf dist .umi .umi-production"
   },
   "dependencies": {
+    "@ant-design/charts": "^2.6.6",
     "@ant-design/icons": "^5.2.6",
     "@ant-design/pro-components": "^2.6.43",
     "@hospital/api": "workspace:*",
@@ -34,4 +35,3 @@
     "vitest": "^1.2.0"
   }
 }
-
