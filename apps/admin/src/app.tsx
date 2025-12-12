@@ -1,114 +1,94 @@
-import { message, Dropdown, Avatar, Space } from 'antd';
-import type { RequestConfig, RunTimeLayoutConfig } from 'umi';
-import { history } from 'umi';
-import { getToken, removeToken, setToken } from '@hospital/shared';
+import { AvatarDropdown, AvatarName } from '@/components/RightContent';
+import { getToken, removeToken } from '@hospital/shared';
 import { adminApi } from '@hospital/api';
-import type { Admin } from '@hospital/api';
-import { UserOutlined, LogoutOutlined, SettingOutlined } from '@ant-design/icons';
+import type { Settings as LayoutSettings } from '@ant-design/pro-components';
+import type { RunTimeLayoutConfig, RequestConfig } from '@umijs/max';
+import { history } from '@umijs/max';
+import defaultSettings from '../config/defaultSettings';
+
+const loginPath = '/login';
 
 /**
- * 初始化状态
+ * 获取初始状态
+ * @see https://umijs.org/zh-CN/plugins/plugin-initial-state
  */
 export async function getInitialState(): Promise<{
-  currentUser?: Admin;
+  settings?: Partial<LayoutSettings>;
+  currentUser?: API.CurrentUser;
+  loading?: boolean;
+  fetchUserInfo?: () => Promise<API.CurrentUser | undefined>;
 }> {
+  const fetchUserInfo = async () => {
+    try {
+      const currentUser = await adminApi.getCurrentAdmin();
+      return currentUser as API.CurrentUser;
+    } catch (error) {
+      removeToken();
+      history.push(loginPath);
+    }
+    return undefined;
+  };
+
+  const { location } = history;
   const token = getToken();
-  if (!token) {
-    return {};
+
+  // 如果是登录页面，不执行获取用户信息
+  if (location.pathname !== loginPath && token) {
+    const currentUser = await fetchUserInfo();
+    return {
+      fetchUserInfo,
+      currentUser,
+      settings: defaultSettings as Partial<LayoutSettings>,
+    };
   }
-  
-  // 登录页不需要获取用户信息
-  if (history.location.pathname === '/login') {
-    return {};
-  }
-  
-  try {
-    const currentUser = await adminApi.getCurrentAdmin();
-    return { currentUser };
-  } catch (error) {
-    // token 无效，清除并跳转登录
-    removeToken();
-    return {};
-  }
+
+  return {
+    fetchUserInfo,
+    settings: defaultSettings as Partial<LayoutSettings>,
+  };
 }
 
 /**
- * Layout 配置
+ * ProLayout 运行时配置
+ * @doc https://procomponents.ant.design/components/layout
  */
-export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) => {
-  const handleLogout = () => {
-    removeToken();
-    setInitialState({ currentUser: undefined });
-    history.push('/login');
-    message.success('已退出登录');
-  };
-
+export const layout: RunTimeLayoutConfig = ({ initialState }) => {
   return {
-    logo: '/logo.svg',
-    title: '医院管理后台',
-    menu: {
-      locale: false,
+    actionsRender: () => [],
+    avatarProps: {
+      src: initialState?.currentUser?.avatar,
+      title: <AvatarName />,
+      render: (_, avatarChildren) => {
+        return <AvatarDropdown>{avatarChildren}</AvatarDropdown>;
+      },
     },
-    rightContentRender: () => {
-      if (!initialState?.currentUser) {
-        return null;
-      }
-      
-      const menuItems = [
-        {
-          key: 'settings',
-          icon: <SettingOutlined />,
-          label: '个人设置',
-          onClick: () => history.push('/system/settings'),
-        },
-        {
-          type: 'divider' as const,
-        },
-        {
-          key: 'logout',
-          icon: <LogoutOutlined />,
-          label: '退出登录',
-          onClick: handleLogout,
-        },
-      ];
-
-      return (
-        <Dropdown menu={{ items: menuItems }} placement="bottomRight">
-          <Space style={{ cursor: 'pointer', padding: '0 12px' }}>
-            <Avatar 
-              size="small" 
-              icon={<UserOutlined />} 
-              src={initialState.currentUser.avatar}
-            />
-            <span>{initialState.currentUser.name || initialState.currentUser.username}</span>
-          </Space>
-        </Dropdown>
-      );
+    waterMarkProps: {
+      content: initialState?.currentUser?.name,
     },
+    footerRender: () => (
+      <div style={{ textAlign: 'center', padding: '16px 0', color: '#999' }}>
+        医院挂号管理系统 ©{new Date().getFullYear()} 版权所有
+      </div>
+    ),
     onPageChange: () => {
       const { location } = history;
+      const token = getToken();
       // 如果没有登录，重定向到登录页
-      if (!initialState?.currentUser && location.pathname !== '/login') {
-        history.push('/login');
+      if (!token && location.pathname !== loginPath) {
+        history.push(loginPath);
       }
     },
-    // 自定义 403 页面
-    unAccessible: <div>无权限访问</div>,
+    menuHeaderRender: undefined,
+    ...initialState?.settings,
   };
 };
 
 /**
- * Request 配置
+ * 请求配置
+ * @doc https://umijs.org/docs/max/request
  */
 export const request: RequestConfig = {
   timeout: 30000,
-  errorConfig: {
-    errorHandler: (error: any) => {
-      if (error.response?.status !== 401) {
-        message.error(error.message || '请求失败');
-      }
-    },
-  },
   requestInterceptors: [
     (config: any) => {
       const token = getToken();
@@ -124,19 +104,14 @@ export const request: RequestConfig = {
   responseInterceptors: [
     (response: any) => {
       const { data, status } = response;
-      
+
       // 401 未授权
       if (status === 401 || data?.code === 401) {
         removeToken();
-        history.push('/login');
+        history.push(loginPath);
         return response;
       }
-      
-      // 业务错误
-      if (data?.code && data.code !== 200 && data.code !== 0) {
-        message.error(data?.message || '请求失败');
-      }
-      
+
       return response;
     },
   ],

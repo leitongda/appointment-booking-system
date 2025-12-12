@@ -1,40 +1,35 @@
+import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormTextArea, ProFormRadio } from '@ant-design/pro-components';
-import type { ProColumns, ActionType } from '@ant-design/pro-components';
-import { Tag, Space, message, Drawer, Descriptions, Badge, Card, Statistic, Row, Col } from 'antd';
-import { useRef, useState, useEffect } from 'react';
+import { App, Space, Tag, Drawer, Descriptions } from 'antd';
+import { useRef, useState } from 'react';
+import { useModel } from '@umijs/max';
 import { leaveRequestApi } from '@hospital/api';
 import type { LeaveRequest } from '@hospital/shared';
 
+const TYPE_MAP: Record<string, string> = { stop_clinic: '停诊申请', schedule_change: '调班申请' };
+const STATUS_MAP: Record<string, { text: string; color: string }> = {
+  pending: { text: '待审核', color: 'gold' },
+  approved: { text: '已通过', color: 'green' },
+  rejected: { text: '已拒绝', color: 'red' },
+  cancelled: { text: '已取消', color: 'default' },
+};
+const PERIOD_MAP: Record<string, string> = { morning: '上午', afternoon: '下午', evening: '晚上' };
+
 const LeaveRequestPage: React.FC = () => {
+  const { message } = App.useApp();
+  const { initialState } = useModel('@@initialState');
   const actionRef = useRef<ActionType>();
-  const [detailVisible, setDetailVisible] = useState(false);
-  const [reviewVisible, setReviewVisible] = useState(false);
-  const [currentRequest, setCurrentRequest] = useState<LeaveRequest | null>(null);
-  const [pendingCount, setPendingCount] = useState(0);
-
-  useEffect(() => {
-    loadPendingCount();
-  }, []);
-
-  const loadPendingCount = async () => {
-    try {
-      const result = await leaveRequestApi.getPendingCount();
-      setPendingCount(result.count);
-    } catch (error) {
-      console.error('获取待审核数量失败', error);
-    }
-  };
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [currentRecord, setCurrentRecord] = useState<LeaveRequest | null>(null);
 
   const handleReview = async (values: { status: string; comment?: string }) => {
-    if (!currentRequest) return false;
-    
+    if (!currentRecord || !initialState?.currentUser?.id) return false;
     try {
-      const reviewerId = localStorage.getItem('adminId') || 'admin';
-      await leaveRequestApi.review(currentRequest.id, reviewerId, values.status, values.comment);
-      message.success('审核完成');
-      setReviewVisible(false);
+      await leaveRequestApi.review(currentRecord.id, initialState.currentUser.id, values.status, values.comment);
+      message.success('审核成功');
+      setReviewOpen(false);
       actionRef.current?.reload();
-      loadPendingCount();
       return true;
     } catch (error: any) {
       message.error(error.message || '审核失败');
@@ -42,96 +37,39 @@ const LeaveRequestPage: React.FC = () => {
     }
   };
 
-  const getStatusTag = (status: string) => {
-    const map: Record<string, { color: string; text: string }> = {
-      pending: { color: 'orange', text: '待审核' },
-      approved: { color: 'success', text: '已通过' },
-      rejected: { color: 'error', text: '已拒绝' },
-      cancelled: { color: 'default', text: '已取消' },
-    };
-    const config = map[status] || { color: 'default', text: status };
-    return <Tag color={config.color}>{config.text}</Tag>;
-  };
-
-  const getTypeTag = (type: string) => {
-    return type === 'stop_clinic' 
-      ? <Tag color="red">停诊</Tag> 
-      : <Tag color="blue">调班</Tag>;
-  };
-
-  const getPeriodText = (period?: string) => {
-    if (!period) return '-';
-    const map: Record<string, string> = {
-      morning: '上午',
-      afternoon: '下午',
-      evening: '晚上',
-      all: '全天',
-    };
-    return map[period] || period;
-  };
-
   const columns: ProColumns<LeaveRequest>[] = [
-    { title: '医生', dataIndex: 'doctorName', width: 100, search: false },
-    { 
-      title: '类型', 
-      dataIndex: 'requestType', 
-      width: 80,
-      render: (_, r) => getTypeTag(r.requestType),
-      valueEnum: {
-        stop_clinic: '停诊',
-        schedule_change: '调班',
-      }
+    { title: '医生', dataIndex: 'doctorName', width: 80 },
+    { title: '科室', dataIndex: 'departmentName', width: 100 },
+    {
+      title: '类型',
+      dataIndex: 'requestType',
+      width: 100,
+      valueEnum: { stop_clinic: '停诊', schedule_change: '调班' },
+      render: (_, r) => TYPE_MAP[r.requestType] || '-',
     },
-    { 
-      title: '日期/时段', 
-      width: 180,
-      search: false,
+    { title: '日期', dataIndex: 'stopDate', width: 110 },
+    { title: '时段', dataIndex: 'stopPeriod', width: 70, render: (_, r) => PERIOD_MAP[r.stopPeriod] || '-' },
+    { title: '原因', dataIndex: 'reason', ellipsis: true, search: false },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 90,
+      valueEnum: Object.fromEntries(Object.entries(STATUS_MAP).map(([k, v]) => [k, { text: v.text }])),
       render: (_, r) => {
-        if (r.requestType === 'stop_clinic') {
-          return `${r.stopDate} ${getPeriodText(r.stopPeriod)}`;
-        }
-        return (
-          <div>
-            <div>原：{r.originalDate} {getPeriodText(r.originalPeriod)}</div>
-            <div>调：{r.targetDate} {getPeriodText(r.targetPeriod)}</div>
-          </div>
-        );
-      }
+        const s = STATUS_MAP[r.status] || { text: '未知', color: 'default' };
+        return <Tag color={s.color}>{s.text}</Tag>;
+      },
     },
-    { title: '原因', dataIndex: 'reason', width: 200, ellipsis: true, search: false },
-    { 
-      title: '受影响预约', 
-      dataIndex: 'affectedAppointments', 
-      width: 100,
-      search: false,
-      render: (val) => val ? <Badge count={val} style={{ backgroundColor: '#ff4d4f' }} /> : '-'
-    },
-    { 
-      title: '状态', 
-      dataIndex: 'status', 
-      width: 100,
-      render: (_, r) => getStatusTag(r.status),
-      valueEnum: {
-        pending: '待审核',
-        approved: '已通过',
-        rejected: '已拒绝',
-        cancelled: '已取消',
-      }
-    },
-    { title: '申请时间', dataIndex: 'createdAt', width: 160, valueType: 'dateTime', search: false },
+    { title: '申请时间', dataIndex: 'createdAt', valueType: 'dateTime', width: 160, search: false },
     {
       title: '操作',
       valueType: 'option',
-      width: 120,
+      width: 100,
       render: (_, record) => (
         <Space>
-          <a onClick={() => { setCurrentRequest(record); setDetailVisible(true); }}>
-            详情
-          </a>
+          <a onClick={() => { setCurrentRecord(record); setDetailOpen(true); }}>详情</a>
           {record.status === 'pending' && (
-            <a onClick={() => { setCurrentRequest(record); setReviewVisible(true); }}>
-              审核
-            </a>
+            <a onClick={() => { setCurrentRecord(record); setReviewOpen(true); }}>审核</a>
           )}
         </Space>
       ),
@@ -140,123 +78,55 @@ const LeaveRequestPage: React.FC = () => {
 
   return (
     <PageContainer>
-      {/* 统计卡片 */}
-      <Card style={{ marginBottom: 16 }}>
-        <Row gutter={16}>
-          <Col span={6}>
-            <Statistic 
-              title="待审核" 
-              value={pendingCount} 
-              valueStyle={{ color: pendingCount > 0 ? '#faad14' : undefined }}
-            />
-          </Col>
-        </Row>
-      </Card>
-
       <ProTable<LeaveRequest>
+        headerTitle="停诊审核"
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        search={{ labelWidth: 'auto' }}
         request={async (params) => {
-          const { current, pageSize, requestType, status } = params;
-          const result = await leaveRequestApi.getList({
-            requestType,
-            status,
-            page: current,
-            pageSize,
-          });
-          return { data: result.data, success: true, total: result.total };
+          const { current, pageSize, ...rest } = params;
+          const result = await leaveRequestApi.getList({ ...rest, page: current, pageSize });
+          return { data: result.data, total: result.total, success: true };
         }}
+        pagination={{ defaultPageSize: 10 }}
+        search={{ labelWidth: 'auto' }}
       />
 
-      {/* 详情抽屉 */}
-      <Drawer
-        title="申请详情"
-        open={detailVisible}
-        onClose={() => setDetailVisible(false)}
-        width={500}
-      >
-        {currentRequest && (
-          <Descriptions column={1} bordered size="small">
-            <Descriptions.Item label="医生">{currentRequest.doctorName || currentRequest.doctorId}</Descriptions.Item>
-            <Descriptions.Item label="类型">{getTypeTag(currentRequest.requestType)}</Descriptions.Item>
-            <Descriptions.Item label="状态">{getStatusTag(currentRequest.status)}</Descriptions.Item>
-            
-            {currentRequest.requestType === 'stop_clinic' ? (
-              <>
-                <Descriptions.Item label="停诊日期">{currentRequest.stopDate}</Descriptions.Item>
-                <Descriptions.Item label="停诊时段">{getPeriodText(currentRequest.stopPeriod)}</Descriptions.Item>
-              </>
-            ) : (
-              <>
-                <Descriptions.Item label="原日期">{currentRequest.originalDate}</Descriptions.Item>
-                <Descriptions.Item label="原时段">{getPeriodText(currentRequest.originalPeriod)}</Descriptions.Item>
-                <Descriptions.Item label="调整至日期">{currentRequest.targetDate}</Descriptions.Item>
-                <Descriptions.Item label="调整至时段">{getPeriodText(currentRequest.targetPeriod)}</Descriptions.Item>
-              </>
-            )}
-            
-            <Descriptions.Item label="申请原因">{currentRequest.reason}</Descriptions.Item>
-            <Descriptions.Item label="受影响预约">
-              {currentRequest.affectedAppointments > 0 ? (
-                <Tag color="red">{currentRequest.affectedAppointments} 人</Tag>
-              ) : '无'}
-            </Descriptions.Item>
-            <Descriptions.Item label="申请时间">{currentRequest.createdAt}</Descriptions.Item>
-            
-            {currentRequest.reviewComment && (
-              <Descriptions.Item label="审核意见">{currentRequest.reviewComment}</Descriptions.Item>
-            )}
-            {currentRequest.reviewedAt && (
-              <Descriptions.Item label="审核时间">{currentRequest.reviewedAt}</Descriptions.Item>
-            )}
-          </Descriptions>
-        )}
-      </Drawer>
-
-      {/* 审核弹窗 */}
       <ModalForm
         title="审核申请"
-        open={reviewVisible}
-        onOpenChange={setReviewVisible}
+        open={reviewOpen}
+        onOpenChange={setReviewOpen}
         onFinish={handleReview}
         modalProps={{ destroyOnClose: true }}
+        initialValues={{ status: 'approved' }}
       >
-        {currentRequest && (
-          <div style={{ marginBottom: 16, padding: 12, background: '#f5f5f5', borderRadius: 4 }}>
-            <div><strong>{getTypeTag(currentRequest.requestType)} {currentRequest.doctorName}</strong></div>
-            <div style={{ marginTop: 8 }}>
-              {currentRequest.requestType === 'stop_clinic' 
-                ? `${currentRequest.stopDate} ${getPeriodText(currentRequest.stopPeriod)}`
-                : `${currentRequest.originalDate} → ${currentRequest.targetDate}`
-              }
-            </div>
-            <div style={{ color: '#666', marginTop: 8 }}>原因：{currentRequest.reason}</div>
-            {currentRequest.affectedAppointments > 0 && (
-              <div style={{ color: '#ff4d4f', marginTop: 8 }}>
-                ⚠️ 将影响 {currentRequest.affectedAppointments} 位患者的预约
-              </div>
-            )}
-          </div>
-        )}
-        
         <ProFormRadio.Group
           name="status"
           label="审核结果"
-          rules={[{ required: true, message: '请选择审核结果' }]}
           options={[
             { label: '通过', value: 'approved' },
             { label: '拒绝', value: 'rejected' },
           ]}
+          rules={[{ required: true }]}
         />
-        
-        <ProFormTextArea
-          name="comment"
-          label="审核意见"
-          fieldProps={{ rows: 3 }}
-        />
+        <ProFormTextArea name="comment" label="审核意见" />
       </ModalForm>
+
+      <Drawer title="申请详情" open={detailOpen} onClose={() => setDetailOpen(false)} width={450}>
+        {currentRecord && (
+          <Descriptions column={1} bordered size="small">
+            <Descriptions.Item label="医生">{currentRecord.doctorName}</Descriptions.Item>
+            <Descriptions.Item label="科室">{currentRecord.departmentName}</Descriptions.Item>
+            <Descriptions.Item label="类型">{TYPE_MAP[currentRecord.requestType]}</Descriptions.Item>
+            <Descriptions.Item label="日期">{currentRecord.stopDate}</Descriptions.Item>
+            <Descriptions.Item label="时段">{PERIOD_MAP[currentRecord.stopPeriod]}</Descriptions.Item>
+            <Descriptions.Item label="原因">{currentRecord.reason}</Descriptions.Item>
+            <Descriptions.Item label="状态">{STATUS_MAP[currentRecord.status]?.text}</Descriptions.Item>
+            {currentRecord.reviewComment && <Descriptions.Item label="审核意见">{currentRecord.reviewComment}</Descriptions.Item>}
+            {currentRecord.reviewedAt && <Descriptions.Item label="审核时间">{currentRecord.reviewedAt}</Descriptions.Item>}
+          </Descriptions>
+        )}
+      </Drawer>
     </PageContainer>
   );
 };

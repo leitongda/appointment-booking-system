@@ -1,38 +1,22 @@
-import { PageContainer, ProTable, ModalForm, ProFormText, ProFormDigit, ProFormSwitch, ProFormSelect } from '@ant-design/pro-components';
-import type { ProColumns, ActionType } from '@ant-design/pro-components';
-import { Button, Space, message, Popconfirm, Image, Switch } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
+import type { ActionType, ProColumns } from '@ant-design/pro-components';
+import { PageContainer, ProTable, ModalForm, ProFormText, ProFormDigit, ProFormSelect, ProFormSwitch } from '@ant-design/pro-components';
+import { Button, App, Popconfirm, Space, Image } from 'antd';
 import { useRef, useState } from 'react';
 import { contentApi } from '@hospital/api';
 import type { Banner } from '@hospital/api';
 
-const linkTypes = [
-  { label: '无跳转', value: 0 },
-  { label: '内部页面', value: 1 },
+const LINK_TYPE_OPTIONS = [
+  { label: '无链接', value: 0 },
+  { label: '内部链接', value: 1 },
   { label: '外部链接', value: 2 },
-  { label: '新闻详情', value: 3 },
-];
-
-const positions = [
-  { label: '首页轮播', value: 'home' },
-  { label: '科室页面', value: 'department' },
-  { label: '个人中心', value: 'profile' },
 ];
 
 const BannerPage: React.FC = () => {
+  const { message } = App.useApp();
   const actionRef = useRef<ActionType>();
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
-
-  const handleAdd = () => {
-    setEditingBanner(null);
-    setModalVisible(true);
-  };
-
-  const handleEdit = (record: Banner) => {
-    setEditingBanner(record);
-    setModalVisible(true);
-  };
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<Banner | null>(null);
 
   const handleDelete = async (id: string) => {
     try {
@@ -46,24 +30,16 @@ const BannerPage: React.FC = () => {
 
   const handleSubmit = async (values: any) => {
     try {
-      const submitData = {
-        title: values.title,
-        imageUrl: values.imageUrl,
-        linkType: values.linkType,
-        linkUrl: values.linkUrl,
-        position: values.position,
-        sortOrder: values.sortOrder,
-        status: values.status ? 1 : 0,
-      };
-
-      if (editingBanner) {
-        await contentApi.updateBanner(editingBanner.id, submitData);
+      const data = { ...values, status: values.status ? 1 : 0 };
+      if (editingRecord) {
+        await contentApi.updateBanner(editingRecord.id, data);
         message.success('更新成功');
       } else {
-        await contentApi.createBanner(submitData);
+        await contentApi.createBanner(data);
         message.success('创建成功');
       }
-      setModalVisible(false);
+      setModalOpen(false);
+      setEditingRecord(null);
       actionRef.current?.reload();
       return true;
     } catch (error: any) {
@@ -72,120 +48,63 @@ const BannerPage: React.FC = () => {
     }
   };
 
-  const handleStatusChange = async (id: string, status: number) => {
-    try {
-      await contentApi.updateBanner(id, { status });
-      message.success(status === 1 ? '已启用' : '已禁用');
-      actionRef.current?.reload();
-    } catch (error: any) {
-      message.error(error.message || '操作失败');
-    }
-  };
-
   const columns: ProColumns<Banner>[] = [
-    { 
-      title: '图片', 
-      dataIndex: 'imageUrl', 
-      width: 160, 
-      search: false, 
-      render: (_, r) => <Image width={140} height={60} src={r.imageUrl} style={{ objectFit: 'cover', borderRadius: 4 }} /> 
-    },
-    { title: '标题', dataIndex: 'title', width: 200 },
-    { 
-      title: '位置', 
-      dataIndex: 'position', 
-      width: 100,
-      valueEnum: Object.fromEntries(positions.map((p) => [p.value, p.label]))
-    },
-    { 
-      title: '跳转类型', 
-      dataIndex: 'linkType', 
-      width: 100, 
-      search: false,
-      valueEnum: Object.fromEntries(linkTypes.map((t) => [t.value, t.label]))
-    },
-    { title: '排序', dataIndex: 'sortOrder', width: 80, search: false },
-    { 
-      title: '状态', 
-      dataIndex: 'status', 
-      width: 100,
-      valueEnum: { 0: { text: '禁用' }, 1: { text: '启用', status: 'Success' } },
-      render: (_, r) => (
-        <Switch 
-          checked={r.status === 1} 
-          onChange={(checked) => handleStatusChange(r.id, checked ? 1 : 0)}
-          checkedChildren="启用" 
-          unCheckedChildren="禁用"
-        />
-      )
-    },
-    { 
-      title: '操作', 
-      valueType: 'option', 
-      width: 150, 
+    { title: '图片', dataIndex: 'imageUrl', width: 120, search: false, render: (_, r) => <Image src={r.imageUrl} width={100} /> },
+    { title: '标题', dataIndex: 'title', ellipsis: true },
+    { title: '位置', dataIndex: 'position', width: 100, valueEnum: { home: '首页', mine: '我的' } },
+    { title: '链接类型', dataIndex: 'linkType', width: 100, search: false, valueEnum: { 0: '无链接', 1: '内部', 2: '外部' } },
+    { title: '排序', dataIndex: 'sortOrder', width: 70, search: false },
+    { title: '状态', dataIndex: 'status', width: 80, valueEnum: { 1: { text: '启用', status: 'Success' }, 0: { text: '禁用', status: 'Default' } } },
+    {
+      title: '操作',
+      valueType: 'option',
+      width: 120,
       render: (_, record) => (
         <Space>
-          <a onClick={() => handleEdit(record)}>编辑</a>
+          <a onClick={() => { setEditingRecord(record); setModalOpen(true); }}>编辑</a>
           <Popconfirm title="确定删除吗？" onConfirm={() => handleDelete(record.id)}>
-            <a style={{ color: 'red' }}>删除</a>
+            <a style={{ color: '#ff4d4f' }}>删除</a>
           </Popconfirm>
         </Space>
-      )
+      ),
     },
   ];
 
   return (
     <PageContainer>
       <ProTable<Banner>
+        headerTitle="轮播图列表"
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        search={{ labelWidth: 'auto' }}
-        toolBarRender={() => [
-          <Button key="add" type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-            新增轮播图
-          </Button>
-        ]}
         request={async (params) => {
-          try {
-            const { current, pageSize, position, status } = params;
-            const result = await contentApi.getBannerList({
-              position,
-              status,
-              page: current || 1,
-              pageSize: pageSize || 10,
-            });
-            return { 
-              data: result.data || [], 
-              success: true, 
-              total: result.total || 0 
-            };
-          } catch (error: any) {
-            message.error(error.message || '获取数据失败');
-            return { data: [], success: false, total: 0 };
-          }
+          const { current, pageSize, ...rest } = params;
+          const result = await contentApi.getBannerList({ ...rest, page: current, pageSize });
+          return { data: result.data, total: result.total, success: true };
         }}
+        toolBarRender={() => [
+          <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalOpen(true); }}>
+            新增轮播图
+          </Button>,
+        ]}
+        pagination={{ defaultPageSize: 10 }}
       />
 
       <ModalForm
-        title={editingBanner ? '编辑轮播图' : '新增轮播图'}
-        open={modalVisible}
-        onOpenChange={setModalVisible}
+        title={editingRecord ? '编辑轮播图' : '新增轮播图'}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
         onFinish={handleSubmit}
-        initialValues={editingBanner ? {
-          ...editingBanner,
-          status: editingBanner.status === 1,
-        } : { linkType: 0, position: 'home', sortOrder: 0, status: true }}
+        initialValues={editingRecord ? { ...editingRecord, status: editingRecord.status === 1 } : { linkType: 0, position: 'home', sortOrder: 0, status: true }}
         modalProps={{ destroyOnClose: true }}
-        width={600}
       >
-        <ProFormText name="title" label="标题" rules={[{ required: true }]} />
-        <ProFormText name="imageUrl" label="图片URL" rules={[{ required: true }]} placeholder="请输入图片URL，建议尺寸 750x300" />
-        <ProFormSelect name="position" label="展示位置" options={positions} rules={[{ required: true }]} />
-        <ProFormSelect name="linkType" label="跳转类型" options={linkTypes} />
-        <ProFormText name="linkUrl" label="跳转链接" placeholder="跳转类型为无跳转时可不填" />
-        <ProFormDigit name="sortOrder" label="排序" min={0} max={999} tooltip="数字越小越靠前" />
-        <ProFormSwitch name="status" label="状态" checkedChildren="启用" unCheckedChildren="禁用" initialValue={true} />
+        <ProFormText name="title" label="标题" />
+        <ProFormText name="imageUrl" label="图片URL" rules={[{ required: true }]} />
+        <ProFormSelect name="linkType" label="链接类型" options={LINK_TYPE_OPTIONS} />
+        <ProFormText name="linkUrl" label="链接地址" />
+        <ProFormSelect name="position" label="展示位置" options={[{ label: '首页', value: 'home' }, { label: '我的', value: 'mine' }]} />
+        <ProFormDigit name="sortOrder" label="排序" min={0} />
+        <ProFormSwitch name="status" label="启用状态" />
       </ModalForm>
     </PageContainer>
   );

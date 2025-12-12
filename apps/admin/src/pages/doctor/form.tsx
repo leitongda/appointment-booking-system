@@ -1,42 +1,60 @@
-import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormSwitch, ProFormMoney } from '@ant-design/pro-components';
-import { Card, message, Button, Space } from 'antd';
-import { history, useParams, useRequest } from 'umi';
-import { doctorApi, departmentApi } from '@hospital/api';
-import { DOCTOR_TITLE_MAP } from '@hospital/shared';
+import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormSwitch } from '@ant-design/pro-components';
+import { Card, App } from 'antd';
 import { useEffect, useState } from 'react';
+import { history, useParams } from '@umijs/max';
+import { doctorApi, departmentApi } from '@hospital/api';
+import type { Doctor, Department } from '@hospital/shared';
 
 const DoctorFormPage: React.FC = () => {
-  const params = useParams<{ id?: string }>();
-  const isEdit = !!params.id;
+  const { message } = App.useApp();
+  const { id } = useParams<{ id: string }>();
+  const isEdit = !!id;
   const [loading, setLoading] = useState(false);
-  const [initialValues, setInitialValues] = useState<any>(null);
+  const [doctor, setDoctor] = useState<Doctor | null>(null);
+  const [departments, setDepartments] = useState<Department[]>([]);
 
   useEffect(() => {
-    if (isEdit && params.id) {
-      setLoading(true);
-      doctorApi.getDetail(params.id).then((data) => {
-        setInitialValues({
-          ...data,
-          isRecommended: data.isRecommended === 1,
-          status: data.status === 1,
-        });
-      }).finally(() => setLoading(false));
+    loadDepartments();
+    if (isEdit) {
+      loadDoctor();
     }
-  }, [isEdit, params.id]);
+  }, [id]);
+
+  const loadDepartments = async () => {
+    try {
+      const res = await departmentApi.getList({ pageSize: 100, status: 1 });
+      setDepartments(res.data);
+    } catch (error) {
+      console.error('加载科室失败', error);
+    }
+  };
+
+  const loadDoctor = async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const data = await doctorApi.getDetail(id);
+      setDoctor(data);
+    } catch (error: any) {
+      message.error('加载医生信息失败');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (values: any) => {
-    try {
-      const submitData = {
-        ...values,
-        isRecommended: values.isRecommended ? 1 : 0,
-        status: values.status ? 1 : 0,
-      };
+    const data = {
+      ...values,
+      isRecommended: values.isRecommended ? 1 : 0,
+      status: values.status ? 1 : 0,
+    };
 
-      if (isEdit && params.id) {
-        await doctorApi.update(params.id, submitData);
+    try {
+      if (isEdit && id) {
+        await doctorApi.update(id, data);
         message.success('更新成功');
       } else {
-        await doctorApi.create(submitData);
+        await doctorApi.create(data);
         message.success('创建成功');
       }
       history.push('/doctor/list');
@@ -48,64 +66,58 @@ const DoctorFormPage: React.FC = () => {
   return (
     <PageContainer title={isEdit ? '编辑医生' : '新增医生'}>
       <Card loading={loading}>
-        {(!isEdit || initialValues) && (
-          <ProForm
-            initialValues={initialValues || { sortOrder: 0, isRecommended: false, status: true, registrationFee: 0 }}
-            onFinish={handleSubmit}
-            submitter={{
-              render: (props, doms) => (
-                <Space>
-                  <Button onClick={() => history.back()}>取消</Button>
-                  <Button type="primary" onClick={() => props.form?.submit()}>提交</Button>
-                </Space>
-              ),
-            }}
-          >
-            <ProForm.Group>
-              <ProFormText name="name" label="医生姓名" rules={[{ required: true }]} width="md" />
-              <ProFormText name="phone" label="手机号" rules={[{ pattern: /^1\d{10}$/, message: '请输入正确的手机号' }]} width="md" />
-            </ProForm.Group>
-
-            <ProForm.Group>
-              <ProFormSelect
-                name="departmentId"
-                label="所属科室"
-                rules={[{ required: true }]}
-                width="md"
-                request={async () => {
-                  const tree = await departmentApi.getTree();
-                  const flatten = (nodes: any[]): any[] => {
-                    return nodes.flatMap((n) => [{ label: n.name, value: n.id }, ...flatten(n.children || [])]);
-                  };
-                  return flatten(tree);
-                }}
-              />
-              <ProFormSelect
-                name="title"
-                label="职称"
-                width="md"
-                valueEnum={DOCTOR_TITLE_MAP}
-              />
-            </ProForm.Group>
-
-            <ProForm.Group>
-              <ProFormMoney name="registrationFee" label="挂号费" min={0} width="md" locale="zh-CN" />
-              <ProFormDigit name="sortOrder" label="排序" min={0} max={999} width="md" />
-            </ProForm.Group>
-
-            <ProFormTextArea name="specialty" label="擅长" fieldProps={{ rows: 3 }} />
-            <ProFormTextArea name="introduction" label="简介" fieldProps={{ rows: 4 }} />
-
-            {!isEdit && (
-              <ProFormText.Password name="password" label="登录密码" tooltip="医生端登录密码" width="md" />
-            )}
-
-            <ProForm.Group>
-              <ProFormSwitch name="isRecommended" label="推荐医生" checkedChildren="是" unCheckedChildren="否" />
-              <ProFormSwitch name="status" label="状态" checkedChildren="启用" unCheckedChildren="禁用" />
-            </ProForm.Group>
-          </ProForm>
-        )}
+        <ProForm
+          onFinish={handleSubmit}
+          initialValues={doctor ? {
+            ...doctor,
+            isRecommended: doctor.isRecommended === 1,
+            status: doctor.status === 1,
+          } : { sortOrder: 0, registrationFee: 0, isRecommended: false, status: true }}
+          submitter={{
+            searchConfig: { submitText: isEdit ? '保存' : '创建' },
+            resetButtonProps: { style: { display: 'none' } },
+          }}
+        >
+          <ProForm.Group>
+            <ProFormSelect
+              name="departmentId"
+              label="所属科室"
+              width="md"
+              options={departments.map((d) => ({ label: d.name, value: d.id }))}
+              rules={[{ required: true, message: '请选择科室' }]}
+            />
+            <ProFormText
+              name="name"
+              label="医生姓名"
+              width="md"
+              rules={[{ required: true, message: '请输入医生姓名' }]}
+            />
+          </ProForm.Group>
+          <ProForm.Group>
+            <ProFormText name="phone" label="手机号" width="md" />
+            <ProFormText name="title" label="职称" width="md" placeholder="如：主任医师" />
+          </ProForm.Group>
+          <ProFormText name="avatar" label="头像URL" />
+          <ProFormText name="specialty" label="专长" placeholder="医生专长领域" />
+          <ProFormTextArea name="introduction" label="简介" placeholder="医生简介" />
+          <ProForm.Group>
+            <ProFormDigit name="registrationFee" label="挂号费" width="sm" min={0} addonAfter="元" />
+            <ProFormDigit name="sortOrder" label="排序" width="sm" min={0} />
+          </ProForm.Group>
+          <ProForm.Group>
+            <ProFormSwitch name="isRecommended" label="推荐医生" />
+            <ProFormSwitch name="status" label="启用状态" />
+          </ProForm.Group>
+          {!isEdit && (
+            <ProFormText.Password
+              name="password"
+              label="登录密码"
+              width="md"
+              placeholder="医生端登录密码"
+              rules={[{ required: true, message: '请输入登录密码' }]}
+            />
+          )}
+        </ProForm>
       </Card>
     </PageContainer>
   );

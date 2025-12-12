@@ -49,3 +49,9 @@ export type { Banner, News, Notice } from './modules/content';
 
 // Patient types
 export type { PatientListItem, PatientDetail } from './modules/patient';
+
+// Settings types
+export type { BookingSettings, HospitalInfo, WechatConfig, SmsConfig, BookingRules } from './modules/settings';
+
+// Admin Operation Log type
+export type { OperationLog } from './modules/admin';

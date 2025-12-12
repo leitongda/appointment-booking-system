@@ -1,58 +1,129 @@
 import { PageContainer, ProDescriptions } from '@ant-design/pro-components';
-import { Card, Tag, Steps, Timeline } from 'antd';
-import { useParams } from 'umi';
+import { Card, Tag, Button, Space, Spin, Timeline, Divider } from 'antd';
+import { useEffect, useState } from 'react';
+import { history, useParams } from '@umijs/max';
+import { appointmentApi } from '@hospital/api';
+import type { Appointment } from '@hospital/shared';
+
+const STATUS_MAP: Record<number, { text: string; color: string }> = {
+  0: { text: '待签到', color: 'gold' },
+  1: { text: '已签到', color: 'blue' },
+  2: { text: '叫号中', color: 'processing' },
+  3: { text: '就诊中', color: 'cyan' },
+  4: { text: '已完成', color: 'green' },
+  5: { text: '已取消', color: 'default' },
+  6: { text: '已爽约', color: 'red' },
+  7: { text: '已过号', color: 'orange' },
+};
+
+const TIME_SLOT_MAP: Record<string, string> = {
+  morning: '上午',
+  afternoon: '下午',
+  evening: '晚上',
+};
 
 const AppointmentDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const [loading, setLoading] = useState(true);
+  const [appointment, setAppointment] = useState<Appointment | null>(null);
+
+  useEffect(() => {
+    if (id) loadAppointment();
+  }, [id]);
+
+  const loadAppointment = async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const data = await appointmentApi.getDetail(id);
+      setAppointment(data);
+    } catch (error) {
+      console.error('加载失败', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const status = STATUS_MAP[appointment?.status ?? -1] || { text: '未知', color: 'default' };
 
   return (
-    <PageContainer title="预约详情">
-      <Card title="基本信息" style={{ marginBottom: 16 }}>
-        <ProDescriptions column={3}>
-          <ProDescriptions.Item label="预约单号">YY20241127001</ProDescriptions.Item>
-          <ProDescriptions.Item label="状态">
-            <Tag color="blue">已预约</Tag>
-          </ProDescriptions.Item>
-          <ProDescriptions.Item label="来源">小程序</ProDescriptions.Item>
-          <ProDescriptions.Item label="预约日期">2024-11-28</ProDescriptions.Item>
-          <ProDescriptions.Item label="时段">上午</ProDescriptions.Item>
-          <ProDescriptions.Item label="队列号">5</ProDescriptions.Item>
-          <ProDescriptions.Item label="挂号费">¥50.00</ProDescriptions.Item>
-          <ProDescriptions.Item label="预约时间">2024-11-27 10:00:00</ProDescriptions.Item>
-        </ProDescriptions>
-      </Card>
+    <PageContainer
+      title="预约详情"
+      extra={<Button onClick={() => history.push('/appointment/list')}>返回列表</Button>}
+    >
+      <Spin spinning={loading}>
+        <Card title="基本信息">
+          <ProDescriptions column={2}>
+            <ProDescriptions.Item label="预约编号" copyable>{appointment?.appointmentNo}</ProDescriptions.Item>
+            <ProDescriptions.Item label="当前状态">
+              <Tag color={status.color}>{status.text}</Tag>
+            </ProDescriptions.Item>
+            <ProDescriptions.Item label="患者姓名">{appointment?.patientName}</ProDescriptions.Item>
+            <ProDescriptions.Item label="患者手机">{appointment?.patientPhone || '-'}</ProDescriptions.Item>
+            <ProDescriptions.Item label="预约医生">{appointment?.doctorName}</ProDescriptions.Item>
+            <ProDescriptions.Item label="所属科室">{appointment?.departmentName}</ProDescriptions.Item>
+            <ProDescriptions.Item label="预约日期">{appointment?.scheduleDate}</ProDescriptions.Item>
+            <ProDescriptions.Item label="预约时段">{TIME_SLOT_MAP[appointment?.timeSlot || ''] || '-'}</ProDescriptions.Item>
+            <ProDescriptions.Item label="排队号码">{appointment?.queueNumber || '-'}</ProDescriptions.Item>
+            <ProDescriptions.Item label="挂号费">¥{appointment?.registrationFee || 0}</ProDescriptions.Item>
+          </ProDescriptions>
+        </Card>
 
-      <Card title="就诊人信息" style={{ marginBottom: 16 }}>
-        <ProDescriptions column={3}>
-          <ProDescriptions.Item label="姓名">张三</ProDescriptions.Item>
-          <ProDescriptions.Item label="手机号">138****8888</ProDescriptions.Item>
-          <ProDescriptions.Item label="身份证">3101**********1234</ProDescriptions.Item>
-        </ProDescriptions>
-      </Card>
-
-      <Card title="医生信息" style={{ marginBottom: 16 }}>
-        <ProDescriptions column={3}>
-          <ProDescriptions.Item label="医生">李医生</ProDescriptions.Item>
-          <ProDescriptions.Item label="职称">主任医师</ProDescriptions.Item>
-          <ProDescriptions.Item label="科室">内科</ProDescriptions.Item>
-        </ProDescriptions>
-      </Card>
-
-      <Card title="状态流转">
-        <Steps
-          current={1}
-          items={[
-            { title: '已预约', description: '2024-11-27 10:00' },
-            { title: '已签到', description: '等待签到' },
-            { title: '候诊中', description: '' },
-            { title: '就诊中', description: '' },
-            { title: '已完成', description: '' },
-          ]}
-        />
-      </Card>
+        <Card title="时间线" style={{ marginTop: 16 }}>
+          <Timeline
+            items={[
+              {
+                color: 'green',
+                children: (
+                  <div>
+                    <strong>创建预约</strong>
+                    <p style={{ color: '#666', margin: 0 }}>{appointment?.createdAt}</p>
+                  </div>
+                ),
+              },
+              ...(appointment?.signInTime ? [{
+                color: 'blue',
+                children: (
+                  <div>
+                    <strong>签到</strong>
+                    <p style={{ color: '#666', margin: 0 }}>{appointment.signInTime}</p>
+                  </div>
+                ),
+              }] : []),
+              ...(appointment?.callTime ? [{
+                color: 'cyan',
+                children: (
+                  <div>
+                    <strong>叫号</strong>
+                    <p style={{ color: '#666', margin: 0 }}>{appointment.callTime}</p>
+                  </div>
+                ),
+              }] : []),
+              ...(appointment?.completedAt ? [{
+                color: 'green',
+                children: (
+                  <div>
+                    <strong>完成就诊</strong>
+                    <p style={{ color: '#666', margin: 0 }}>{appointment.completedAt}</p>
+                  </div>
+                ),
+              }] : []),
+              ...(appointment?.cancelledAt ? [{
+                color: 'red',
+                children: (
+                  <div>
+                    <strong>已取消</strong>
+                    <p style={{ color: '#666', margin: 0 }}>{appointment.cancelledAt}</p>
+                    {appointment.cancelReason && <p style={{ color: '#999', margin: 0 }}>原因：{appointment.cancelReason}</p>}
+                  </div>
+                ),
+              }] : []),
+            ]}
+          />
+        </Card>
+      </Spin>
     </PageContainer>
   );
 };
 
 export default AppointmentDetailPage;
-

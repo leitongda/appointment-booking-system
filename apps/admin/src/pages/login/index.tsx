@@ -1,29 +1,24 @@
-import { LockOutlined, UserOutlined } from '@ant-design/icons';
+import { LockOutlined, UserOutlined, MedicineBoxOutlined } from '@ant-design/icons';
 import { LoginForm, ProFormText } from '@ant-design/pro-components';
-import { message } from 'antd';
-import { history, useModel } from 'umi';
+import { useModel, history } from '@umijs/max';
+import { App } from 'antd';
 import { adminApi } from '@hospital/api';
 import { setToken, STORAGE_KEYS, setStorage } from '@hospital/shared';
 import styles from './index.less';
 
 const Login: React.FC = () => {
-  const { refresh } = useModel('@@initialState');
+  const { message } = App.useApp();
+  const { initialState, setInitialState } = useModel('@@initialState');
 
-  const handleSubmit = async (values: { username: string; password: string }) => {
+  const handleSubmit = async (values: API.LoginParams) => {
     try {
       const result = await adminApi.login(values);
-      
-      // 保存 token
       setToken(result.accessToken);
       setStorage(STORAGE_KEYS.REFRESH_TOKEN, result.refreshToken);
-      
       message.success('登录成功！');
-      
-      // 刷新用户状态
-      await refresh();
-      
-      // 跳转到首页
-      history.push('/dashboard');
+      const userInfo = await initialState?.fetchUserInfo?.();
+      await setInitialState((s) => ({ ...s, currentUser: userInfo }));
+      history.push('/');
     } catch (error: any) {
       message.error(error.message || '登录失败');
     }
@@ -31,37 +26,39 @@ const Login: React.FC = () => {
 
   return (
     <div className={styles.container}>
+      <div className={styles.background} />
       <div className={styles.content}>
-        <LoginForm
-          logo="/logo.svg"
-          title="医院挂号管理系统"
-          subTitle="管理后台"
-          onFinish={handleSubmit}
-        >
-          <ProFormText
-            name="username"
-            fieldProps={{
-              size: 'large',
-              prefix: <UserOutlined />,
+        <div className={styles.card}>
+          <div className={styles.header}>
+            <div className={styles.logo}><MedicineBoxOutlined /></div>
+            <h1 className={styles.title}>医院挂号管理系统</h1>
+          </div>
+          <LoginForm
+            contentStyle={{ minWidth: 320 }}
+            submitter={{
+              searchConfig: { submitText: '登 录' },
+              submitButtonProps: { size: 'large', style: { width: '100%' } },
             }}
-            placeholder="请输入用户名"
-            rules={[
-              { required: true, message: '请输入用户名' },
-            ]}
-          />
-          <ProFormText.Password
-            name="password"
-            fieldProps={{
-              size: 'large',
-              prefix: <LockOutlined />,
-            }}
-            placeholder="请输入密码"
-            rules={[{ required: true, message: '请输入密码' }]}
-          />
-        </LoginForm>
+            onFinish={handleSubmit}
+          >
+            <ProFormText
+              name="username"
+              fieldProps={{ size: 'large', prefix: <UserOutlined /> }}
+              placeholder="用户名"
+              rules={[{ required: true, message: '请输入用户名' }]}
+            />
+            <ProFormText.Password
+              name="password"
+              fieldProps={{ size: 'large', prefix: <LockOutlined /> }}
+              placeholder="密码"
+              rules={[{ required: true, message: '请输入密码' }]}
+            />
+          </LoginForm>
+        </div>
       </div>
     </div>
   );
 };
 
 export default Login;
+

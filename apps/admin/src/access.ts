@@ -2,22 +2,15 @@
  * 权限配置
  * @see https://umijs.org/docs/max/access
  */
-export default function access(initialState: { currentUser?: API.User } | undefined) {
+export default function access(initialState: { currentUser?: API.CurrentUser } | undefined) {
   const { currentUser } = initialState ?? {};
-  
+
   return {
-    canAdmin: currentUser && currentUser.role === 'ADMIN',
-    canDoctor: currentUser && currentUser.role === 'DOCTOR',
+    // 超级管理员权限
+    canSuperAdmin: currentUser?.role === 'SUPER_ADMIN',
+    // 普通管理员权限
+    canAdmin: currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN',
+    // 已登录
+    isLogin: !!currentUser,
   };
 }
-
-declare namespace API {
-  interface User {
-    id: string;
-    phone: string;
-    name: string;
-    avatar?: string;
-    role: string;
-  }
-}
-

@@ -11,12 +11,11 @@
     "resolveJsonModule": true,
     "declaration": true,
     "declarationMap": true,
-    "noEmit": true,
+    "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
     }
   },
-  "include": ["src/**/*", ".umirc.ts", "typings.d.ts"]
+  "include": ["src/**/*", "config/**/*", ".umirc.ts", "typings.d.ts"]
 }
-

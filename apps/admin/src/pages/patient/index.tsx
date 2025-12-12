@@ -1,46 +1,23 @@
+import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import type { ProColumns, ActionType } from '@ant-design/pro-components';
-import { Tag, Space, message, Popconfirm, Modal, Descriptions, Badge, Tabs, Statistic, List } from 'antd';
-import { useRef, useState } from 'react';
+import { App, Popconfirm, Space, Tag } from 'antd';
+import { useRef } from 'react';
 import { patientApi } from '@hospital/api';
-import type { PatientListItem, PatientDetail } from '@hospital/api';
-import { GENDER_MAP, APPOINTMENT_STATUS_MAP, APPOINTMENT_STATUS_COLOR } from '@hospital/shared';
+import type { PatientListItem } from '@hospital/api';
 
 const PatientPage: React.FC = () => {
+  const { message } = App.useApp();
   const actionRef = useRef<ActionType>();
-  const [detailVisible, setDetailVisible] = useState(false);
-  const [currentPatient, setCurrentPatient] = useState<PatientDetail | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'all' | 'blacklist'>('all');
 
-  const handleViewDetail = async (record: PatientListItem) => {
-    setDetailLoading(true);
-    setDetailVisible(true);
-    
+  const handleBlacklist = async (id: string, add: boolean) => {
     try {
-      const detail = await patientApi.getDetail(record.id);
-      setCurrentPatient(detail);
-    } catch (error: any) {
-      message.error(error.message || '获取详情失败');
-    } finally {
-      setDetailLoading(false);
-    }
-  };
-
-  const handleAddToBlacklist = async (record: PatientListItem) => {
-    try {
-      await patientApi.addToBlacklist(record.id);
-      message.success('已加入黑名单');
-      actionRef.current?.reload();
-    } catch (error: any) {
-      message.error(error.message || '操作失败');
-    }
-  };
-
-  const handleRemoveFromBlacklist = async (record: PatientListItem) => {
-    try {
-      await patientApi.removeFromBlacklist(record.id);
-      message.success('已移出黑名单');
+      if (add) {
+        await patientApi.addToBlacklist(id, '多次爽约');
+        message.success('已加入黑名单');
+      } else {
+        await patientApi.removeFromBlacklist(id);
+        message.success('已移出黑名单');
+      }
       actionRef.current?.reload();
     } catch (error: any) {
       message.error(error.message || '操作失败');
@@ -48,184 +25,63 @@ const PatientPage: React.FC = () => {
   };
 
   const columns: ProColumns<PatientListItem>[] = [
-    { title: '姓名', dataIndex: 'name', width: 100 },
-    { title: '手机号', dataIndex: 'phone', width: 130 },
-    { 
-      title: '性别', 
-      dataIndex: 'gender', 
-      width: 80, 
+    { title: '姓名', dataIndex: 'name', width: 80 },
+    { title: '手机号', dataIndex: 'phone', width: 120 },
+    { title: '身份证号', dataIndex: 'idCard', width: 180, search: false },
+    {
+      title: '性别',
+      dataIndex: 'gender',
+      width: 60,
       search: false,
-      render: (_, r) => GENDER_MAP[r.gender] || '未知'
+      render: (val) => (val === 1 ? '男' : val === 2 ? '女' : '-'),
     },
-    { 
-      title: '身份证', 
-      dataIndex: 'idCard', 
-      width: 180, 
-      search: false,
-      render: (_, r) => r.idCard ? `${r.idCard.substring(0, 6)}****${r.idCard.substring(14)}` : '-'
+    { title: '与本人关系', dataIndex: 'relationship', width: 100, search: false },
+    { title: '预约次数', dataIndex: 'appointmentCount', width: 90, search: false },
+    { title: '爽约次数', dataIndex: 'noShowCount', width: 90, search: false },
+    {
+      title: '黑名单',
+      dataIndex: 'isBlacklist',
+      width: 80,
+      valueEnum: { true: { text: '是', status: 'Error' }, false: { text: '否', status: 'Default' } },
+      render: (_, record) => record.isBlacklist ? <Tag color="red">黑名单</Tag> : '-',
     },
-    { 
-      title: '预约次数', 
-      dataIndex: 'appointmentCount', 
-      width: 100, 
-      search: false,
-      sorter: true,
-    },
-    { 
-      title: '爽约次数', 
-      dataIndex: 'noShowCount', 
-      width: 100, 
-      search: false,
-      render: (_, r) => (
-        <span style={{ color: r.noShowCount > 2 ? '#ff4d4f' : undefined }}>
-          {r.noShowCount}
-        </span>
-      ),
-    },
-    { 
-      title: '状态', 
-      dataIndex: 'isBlacklist', 
+    { title: '创建时间', dataIndex: 'createdAt', valueType: 'dateTime', width: 160, search: false },
+    {
+      title: '操作',
+      valueType: 'option',
       width: 100,
-      valueType: 'select',
-      valueEnum: {
-        false: { text: '正常', status: 'Success' },
-        true: { text: '黑名单', status: 'Error' },
-      },
-      render: (_, r) => r.isBlacklist 
-        ? <Badge status="error" text="黑名单" />
-        : <Badge status="success" text="正常" />
-    },
-    { 
-      title: '注册时间', 
-      dataIndex: 'createdAt', 
-      width: 180, 
-      valueType: 'dateTime', 
-      search: false,
-    },
-    { 
-      title: '操作', 
-      valueType: 'option', 
-      width: 180, 
       render: (_, record) => (
         <Space>
-          <a onClick={() => handleViewDetail(record)}>详情</a>
           {record.isBlacklist ? (
-            <Popconfirm 
-              title="确定移出黑名单吗？" 
-              onConfirm={() => handleRemoveFromBlacklist(record)}
-            >
-              <a style={{ color: '#52c41a' }}>移出黑名单</a>
+            <Popconfirm title="确定移出黑名单吗？" onConfirm={() => handleBlacklist(record.id, false)}>
+              <a>移出黑名单</a>
             </Popconfirm>
           ) : (
-            <Popconfirm 
-              title="确定加入黑名单吗？加入后该用户将无法预约。" 
-              onConfirm={() => handleAddToBlacklist(record)}
-            >
-              <a style={{ color: '#ff4d4f' }}>加入黑名单</a>
+            <Popconfirm title="确定加入黑名单吗？" onConfirm={() => handleBlacklist(record.id, true)}>
+              <a style={{ color: '#ff4d4f' }}>加黑名单</a>
             </Popconfirm>
           )}
         </Space>
-      )
+      ),
     },
   ];
 
   return (
     <PageContainer>
-      <Tabs
-        activeKey={activeTab}
-        onChange={(key) => {
-          setActiveTab(key as 'all' | 'blacklist');
-          actionRef.current?.reload();
-        }}
-        items={[
-          { key: 'all', label: '全部患者' },
-          { key: 'blacklist', label: '黑名单' },
-        ]}
-      />
-      
       <ProTable<PatientListItem>
+        headerTitle="患者列表"
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        search={{ labelWidth: 'auto' }}
         request={async (params) => {
-          try {
-            const { current, pageSize, name, phone, isBlacklist } = params;
-            
-            // 根据Tab决定是否只查黑名单
-            const queryParams = {
-              keyword: name || phone,
-              isBlacklist: activeTab === 'blacklist' ? true : isBlacklist,
-              page: current || 1,
-              pageSize: pageSize || 10,
-            };
-            
-            const result = await patientApi.getList(queryParams);
-            return { 
-              data: result.data || [], 
-              success: true, 
-              total: result.total || 0 
-            };
-          } catch (error: any) {
-            message.error(error.message || '获取数据失败');
-            return { data: [], success: false, total: 0 };
-          }
+          const { current, pageSize, name, phone, ...rest } = params;
+          const keyword = name || phone;
+          const result = await patientApi.getList({ ...rest, keyword, page: current, pageSize });
+          return { data: result.data, total: result.total, success: true };
         }}
+        pagination={{ defaultPageSize: 10 }}
+        search={{ labelWidth: 'auto' }}
       />
-
-      <Modal
-        title="患者详情"
-        open={detailVisible}
-        onCancel={() => setDetailVisible(false)}
-        footer={null}
-        width={700}
-        loading={detailLoading}
-      >
-        {currentPatient && (
-          <>
-            <Descriptions column={2} bordered size="small">
-              <Descriptions.Item label="姓名">{currentPatient.name}</Descriptions.Item>
-              <Descriptions.Item label="性别">{GENDER_MAP[currentPatient.gender] || '未知'}</Descriptions.Item>
-              <Descriptions.Item label="手机号">{currentPatient.phone}</Descriptions.Item>
-              <Descriptions.Item label="生日">{currentPatient.birthday || '-'}</Descriptions.Item>
-              <Descriptions.Item label="身份证" span={2}>{currentPatient.idCard}</Descriptions.Item>
-              <Descriptions.Item label="状态">
-                {currentPatient.isBlacklist 
-                  ? <Badge status="error" text="黑名单" />
-                  : <Badge status="success" text="正常" />}
-              </Descriptions.Item>
-              <Descriptions.Item label="注册时间">{currentPatient.createdAt}</Descriptions.Item>
-            </Descriptions>
-
-            <div style={{ display: 'flex', gap: 16, margin: '16px 0' }}>
-              <Statistic title="预约总数" value={currentPatient.statistics.appointmentCount} />
-              <Statistic title="完成就诊" value={currentPatient.statistics.completedCount} valueStyle={{ color: '#52c41a' }} />
-              <Statistic title="爽约次数" value={currentPatient.statistics.noShowCount} valueStyle={{ color: '#ff4d4f' }} />
-            </div>
-
-            <div style={{ marginTop: 16 }}>
-              <h4>最近预约记录</h4>
-              {currentPatient.recentAppointments.length === 0 ? (
-                <div style={{ color: '#999', textAlign: 'center', padding: 16 }}>暂无预约记录</div>
-              ) : (
-                <List
-                  size="small"
-                  dataSource={currentPatient.recentAppointments}
-                  renderItem={(item) => (
-                    <List.Item>
-                      <span>预约号：{item.appointmentNo}</span>
-                      <Tag color={APPOINTMENT_STATUS_COLOR[item.status]}>
-                        {APPOINTMENT_STATUS_MAP[item.status]}
-                      </Tag>
-                      <span style={{ color: '#999' }}>{item.createdAt}</span>
-                    </List.Item>
-                  )}
-                />
-              )}
-            </div>
-          </>
-        )}
-      </Modal>
     </PageContainer>
   );
 };

@@ -1,123 +1,165 @@
-import { PageContainer, ProTable, StatisticCard } from '@ant-design/pro-components';
-import type { ProColumns, ActionType } from '@ant-design/pro-components';
-import { Button, Tag, Space, message, Popconfirm, Row, Col, Card, Modal } from 'antd';
-import { useRef, useState, useEffect } from 'react';
+import type { ActionType, ProColumns } from '@ant-design/pro-components';
+import { PageContainer, ProTable } from '@ant-design/pro-components';
+import { App, Space, Tag, Popconfirm } from 'antd';
+import { useRef } from 'react';
+import { history } from '@umijs/max';
 import { appointmentApi } from '@hospital/api';
-import { APPOINTMENT_STATUS_MAP, APPOINTMENT_STATUS_COLOR, TIME_SLOT_MAP } from '@hospital/shared';
 import type { Appointment } from '@hospital/shared';
 
-const { Statistic } = StatisticCard;
+const STATUS_MAP: Record<number, { text: string; color: string }> = {
+  0: { text: '待签到', color: 'gold' },
+  1: { text: '已签到', color: 'blue' },
+  2: { text: '叫号中', color: 'processing' },
+  3: { text: '就诊中', color: 'cyan' },
+  4: { text: '已完成', color: 'green' },
+  5: { text: '已取消', color: 'default' },
+  6: { text: '已爽约', color: 'red' },
+  7: { text: '已过号', color: 'orange' },
+};
 
 const AppointmentListPage: React.FC = () => {
+  const { message } = App.useApp();
   const actionRef = useRef<ActionType>();
-  const [statistics, setStatistics] = useState({ total: 0, pending: 0, completed: 0, cancelled: 0 });
-  const [detailVisible, setDetailVisible] = useState(false);
-  const [currentRecord, setCurrentRecord] = useState<Appointment | null>(null);
 
-  useEffect(() => {
-    loadStatistics();
-  }, []);
-
-  const loadStatistics = async () => {
+  const handleCancel = async (id: string) => {
     try {
-      const data = await appointmentApi.getStatistics();
-      setStatistics(data);
-    } catch (error) {
-      console.error('加载统计失败', error);
+      await appointmentApi.cancel(id, '管理员取消');
+      message.success('取消成功');
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error.message || '操作失败');
     }
   };
 
-  const handleViewDetail = (record: Appointment) => {
-    setCurrentRecord(record);
-    setDetailVisible(true);
+  const handleMarkNoShow = async (id: string) => {
+    try {
+      await appointmentApi.markNoShow(id);
+      message.success('标记成功');
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error.message || '操作失败');
+    }
   };
 
   const columns: ProColumns<Appointment>[] = [
-    { title: '预约单号', dataIndex: 'appointmentNo', width: 150, copyable: true },
-    { title: '患者姓名', dataIndex: 'patientName', width: 100 },
-    { title: '患者手机', dataIndex: 'patientPhone', width: 130, search: false },
-    { title: '医生', dataIndex: 'doctorName', width: 100 },
-    { title: '科室', dataIndex: 'departmentName', width: 120, search: false },
-    { title: '预约日期', dataIndex: 'scheduleDate', width: 120, valueType: 'date' },
-    { title: '时段', dataIndex: 'timeSlot', width: 80, render: (_, r) => TIME_SLOT_MAP[r.timeSlot], valueEnum: TIME_SLOT_MAP },
-    { title: '队列号', dataIndex: 'queueNumber', width: 80, search: false, render: (_, r) => r.queueNumber ? <Tag color="blue">第{r.queueNumber}号</Tag> : '-' },
-    { 
-      title: '状态', 
-      dataIndex: 'status', 
-      width: 100,
-      valueEnum: APPOINTMENT_STATUS_MAP,
-      render: (_, r) => <Tag color={APPOINTMENT_STATUS_COLOR[r.status]}>{APPOINTMENT_STATUS_MAP[r.status]}</Tag>
+    {
+      title: '预约编号',
+      dataIndex: 'appointmentNo',
+      width: 140,
+      copyable: true,
     },
-    { title: '预约时间', dataIndex: 'createdAt', width: 180, valueType: 'dateTime', search: false },
-    { 
-      title: '操作', 
-      valueType: 'option',
+    {
+      title: '患者',
+      dataIndex: 'patientName',
+      width: 80,
+    },
+    {
+      title: '手机号',
+      dataIndex: 'patientPhone',
+      width: 120,
+      search: false,
+    },
+    {
+      title: '医生',
+      dataIndex: 'doctorName',
+      width: 80,
+    },
+    {
+      title: '科室',
+      dataIndex: 'departmentName',
       width: 100,
+      search: false,
+    },
+    {
+      title: '预约日期',
+      dataIndex: 'scheduleDate',
+      width: 110,
+      valueType: 'date',
+    },
+    {
+      title: '时段',
+      dataIndex: 'timeSlot',
+      width: 70,
+      valueEnum: {
+        morning: '上午',
+        afternoon: '下午',
+        evening: '晚上',
+      },
+    },
+    {
+      title: '排队号',
+      dataIndex: 'queueNumber',
+      width: 70,
+      search: false,
+      render: (val) => val || '-',
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 90,
+      valueType: 'select',
+      valueEnum: Object.fromEntries(
+        Object.entries(STATUS_MAP).map(([k, v]) => [k, { text: v.text }])
+      ),
+      render: (_, record) => {
+        const status = STATUS_MAP[record.status] || { text: '未知', color: 'default' };
+        return <Tag color={status.color}>{status.text}</Tag>;
+      },
+    },
+    {
+      title: '预约时间',
+      dataIndex: 'createdAt',
+      width: 160,
+      valueType: 'dateTime',
+      search: false,
+    },
+    {
+      title: '操作',
+      valueType: 'option',
+      width: 120,
       render: (_, record) => (
         <Space>
-          <a onClick={() => handleViewDetail(record)}>详情</a>
+          <a onClick={() => history.push(`/appointment/${record.id}`)}>详情</a>
+          {record.status === 0 && (
+            <>
+              <Popconfirm title="确定取消该预约吗？" onConfirm={() => handleCancel(record.id)}>
+                <a style={{ color: '#ff4d4f' }}>取消</a>
+              </Popconfirm>
+              <Popconfirm title="确定标记为爽约吗？" onConfirm={() => handleMarkNoShow(record.id)}>
+                <a style={{ color: '#fa8c16' }}>爽约</a>
+              </Popconfirm>
+            </>
+          )}
         </Space>
-      )
+      ),
     },
   ];
 
   return (
     <PageContainer>
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={6}>
-          <Card><Statistic title="总预约" value={statistics.total} /></Card>
-        </Col>
-        <Col span={6}>
-          <Card><Statistic title="待就诊" value={statistics.pending} valueStyle={{ color: '#1890ff' }} /></Card>
-        </Col>
-        <Col span={6}>
-          <Card><Statistic title="已完成" value={statistics.completed} valueStyle={{ color: '#52c41a' }} /></Card>
-        </Col>
-        <Col span={6}>
-          <Card><Statistic title="已取消" value={statistics.cancelled} valueStyle={{ color: '#999' }} /></Card>
-        </Col>
-      </Row>
-
       <ProTable<Appointment>
+        headerTitle="预约列表"
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        search={{ labelWidth: 'auto' }}
         request={async (params) => {
-          const { current, pageSize, appointmentNo, patientName, status, scheduleDate } = params;
+          const { current, pageSize, scheduleDate, ...rest } = params;
           const result = await appointmentApi.getList({
-            status,
+            ...rest,
             startDate: scheduleDate,
+            endDate: scheduleDate,
             page: current,
             pageSize,
           });
-          return { data: result.data, success: true, total: result.total };
+          return {
+            data: result.data,
+            total: result.total,
+            success: true,
+          };
         }}
+        pagination={{ defaultPageSize: 10 }}
+        search={{ labelWidth: 'auto' }}
       />
-
-      <Modal
-        title="预约详情"
-        open={detailVisible}
-        onCancel={() => setDetailVisible(false)}
-        footer={null}
-        width={600}
-      >
-        {currentRecord && (
-          <div>
-            <p><strong>预约单号：</strong>{currentRecord.appointmentNo}</p>
-            <p><strong>患者姓名：</strong>{currentRecord.patientName}</p>
-            <p><strong>患者手机：</strong>{currentRecord.patientPhone}</p>
-            <p><strong>医生：</strong>{currentRecord.doctorName}</p>
-            <p><strong>科室：</strong>{currentRecord.departmentName}</p>
-            <p><strong>预约日期：</strong>{currentRecord.scheduleDate} {TIME_SLOT_MAP[currentRecord.timeSlot]}</p>
-            <p><strong>队列号：</strong>第{currentRecord.queueNumber}号</p>
-            <p><strong>状态：</strong><Tag color={APPOINTMENT_STATUS_COLOR[currentRecord.status]}>{APPOINTMENT_STATUS_MAP[currentRecord.status]}</Tag></p>
-            {currentRecord.signInTime && <p><strong>签到时间：</strong>{currentRecord.signInTime}</p>}
-            {currentRecord.cancelTime && <p><strong>取消时间：</strong>{currentRecord.cancelTime}</p>}
-            {currentRecord.cancelReason && <p><strong>取消原因：</strong>{currentRecord.cancelReason}</p>}
-          </div>
-        )}
-      </Modal>
     </PageContainer>
   );
 };

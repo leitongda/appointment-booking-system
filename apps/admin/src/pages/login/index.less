@@ -1,33 +1,64 @@
 .container {
+  min-height: 100vh;
   display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: auto;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.background {
+  position: absolute;
+  inset: 0;
+  background: #fff;
 }
 
 .content {
-  flex: 1;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 400px;
+  padding: 24px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 40px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #f0f0f0;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.logo {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  background: linear-gradient(135deg, #1677ff 0%, #4096ff 100%);
+  border-radius: 16px;
   display: flex;
-  justify-content: center;
   align-items: center;
-  padding: 32px 0;
+  justify-content: center;
+  :global(.anticon) {
+    font-size: 32px;
+    color: #fff;
+  }
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin: 0;
 }
 
 :global {
-  .ant-pro-form-login-container {
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    padding: 40px;
-  }
-  
-  .ant-pro-form-login-title {
-    color: #333;
-  }
-  
+  .ant-pro-form-login-header,
   .ant-pro-form-login-desc {
-    color: #666;
+    display: none !important;
   }
 }
 
