@@ -4,6 +4,7 @@ import { App, Space, Tag, Button, Drawer, Descriptions, Image } from 'antd';
 import { useRef, useState } from 'react';
 import { useModel } from '@umijs/max';
 import { feedbackApi } from '@hospital/api';
+import { toProTableResult } from '@/utils/proTable';
 import type { Feedback } from '@hospital/shared';
 
 const TYPE_MAP: Record<string, { text: string; color: string }> = {
@@ -90,8 +91,7 @@ const FeedbackPage: React.FC = () => {
         columns={columns}
         request={async (params) => {
           const { current, pageSize, title, ...rest } = params;
-          const result = await feedbackApi.getList({ ...rest, keyword: title, page: current, pageSize });
-          return { data: result.data, total: result.total, success: true };
+          return toProTableResult(await feedbackApi.getList({ ...rest, keyword: title, page: current, pageSize }));
         }}
         pagination={{ defaultPageSize: 10 }}
         search={{ labelWidth: 'auto' }}
@@ -102,7 +102,7 @@ const FeedbackPage: React.FC = () => {
         open={replyOpen}
         onOpenChange={setReplyOpen}
         onFinish={handleReply}
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
       >
         <ProFormTextArea name="reply" label="回复内容" rules={[{ required: true }]} />
       </ModalForm>

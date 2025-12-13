@@ -8,6 +8,7 @@ from sqlalchemy import select, func, and_
 from app.db.session import get_db
 from app.api.deps import get_current_admin
 from app.models.appointment import Appointment
+from app.models.schedule import Schedule
 from app.models.user import User
 from app.models.doctor import Doctor
 from app.models.department import Department
@@ -31,11 +32,13 @@ async def get_overview(
         )
     )
     
-    # 今日就诊数
+    # 今日就诊数 - 通过 Schedule 获取 schedule_date
     today_visits = await db.scalar(
-        select(func.count(Appointment.id)).where(
+        select(func.count(Appointment.id))
+        .join(Schedule, Appointment.schedule_id == Schedule.id)
+        .where(
             and_(
-                Appointment.schedule_date == today,
+                Schedule.schedule_date == today,
                 Appointment.status == 5  # 已完成
             )
         )
@@ -59,9 +62,13 @@ async def get_overview(
         )
     )
     
-    # 本月收入（挂号费）
+    # 本月收入（挂号费）- 通过 Schedule -> Doctor 获取 registration_fee
     month_revenue = await db.scalar(
-        select(func.sum(Appointment.fee)).where(
+        select(func.sum(Doctor.registration_fee))
+        .select_from(Appointment)
+        .join(Schedule, Appointment.schedule_id == Schedule.id)
+        .join(Doctor, Schedule.doctor_id == Doctor.id)
+        .where(
             and_(
                 func.date(Appointment.created_at) >= first_day_of_month,
                 Appointment.status.in_([2, 3, 5])  # 已签到、候诊中、已完成
@@ -164,13 +171,16 @@ async def get_department_ranking(
     current_admin = Depends(get_current_admin)
 ):
     """获取科室预约排行"""
+    # Appointment -> Doctor -> Department
     result = await db.execute(
         select(
             Department.id,
             Department.name,
             func.count(Appointment.id).label('count')
         ).join(
-            Appointment, Appointment.department_id == Department.id
+            Doctor, Doctor.department_id == Department.id
+        ).join(
+            Appointment, Appointment.doctor_id == Doctor.id
         ).group_by(
             Department.id, Department.name
         ).order_by(
@@ -231,13 +241,15 @@ async def get_time_slot_distribution(
     current_admin = Depends(get_current_admin)
 ):
     """获取时段分布统计"""
+    # 通过 Schedule 获取 time_slot
     result = await db.execute(
         select(
-            Appointment.time_slot,
+            Schedule.time_slot,
             func.count(Appointment.id).label('count')
-        ).group_by(
-            Appointment.time_slot
         )
+        .select_from(Appointment)
+        .join(Schedule, Appointment.schedule_id == Schedule.id)
+        .group_by(Schedule.time_slot)
     )
     
     slot_map = {
@@ -260,15 +272,18 @@ async def get_weekday_distribution(
     current_admin = Depends(get_current_admin)
 ):
     """获取星期分布统计"""
-    # 使用 extract 获取星期几（0=周日，1=周一...6=周六）
+    # 使用 extract 获取星期几（0=周日，1=周一...6=周六）- 通过 Schedule 获取 schedule_date
     result = await db.execute(
         select(
-            func.extract('dow', Appointment.schedule_date).label('weekday'),
+            func.extract('dow', Schedule.schedule_date).label('weekday'),
             func.count(Appointment.id).label('count')
-        ).group_by(
-            func.extract('dow', Appointment.schedule_date)
+        )
+        .select_from(Appointment)
+        .join(Schedule, Appointment.schedule_id == Schedule.id)
+        .group_by(
+            func.extract('dow', Schedule.schedule_date)
         ).order_by(
-            func.extract('dow', Appointment.schedule_date)
+            func.extract('dow', Schedule.schedule_date)
         )
     )
     
@@ -292,11 +307,16 @@ async def get_revenue_trend(
     today = date.today()
     start_date = today - timedelta(days=days - 1)
     
+    # 通过 Schedule -> Doctor 获取 registration_fee
     result = await db.execute(
         select(
             func.date(Appointment.created_at).label('date'),
-            func.sum(Appointment.fee).label('revenue')
-        ).where(
+            func.sum(Doctor.registration_fee).label('revenue')
+        )
+        .select_from(Appointment)
+        .join(Schedule, Appointment.schedule_id == Schedule.id)
+        .join(Doctor, Schedule.doctor_id == Doctor.id)
+        .where(
             and_(
                 func.date(Appointment.created_at) >= start_date,
                 Appointment.status.in_([2, 3, 5])  # 有效预约

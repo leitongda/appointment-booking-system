@@ -1,3 +1,7 @@
+// 导出请求配置函数
+export { setBaseURL, setRequestInterceptor, setResponseInterceptor } from './request';
+
+// 导出 API 模块
 export { authApi } from './modules/auth';
 export { userApi } from './modules/user';
 export { departmentApi } from './modules/department';

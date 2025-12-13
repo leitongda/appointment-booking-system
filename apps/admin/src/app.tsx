@@ -4,9 +4,22 @@ import { adminApi } from '@hospital/api';
 import type { Settings as LayoutSettings } from '@ant-design/pro-components';
 import type { RunTimeLayoutConfig, RequestConfig } from '@umijs/max';
 import { history } from '@umijs/max';
+import { App } from 'antd';
 import defaultSettings from '../config/defaultSettings';
+import { initApiConfig } from '@/utils/request';
 
 const loginPath = '/login';
+
+// 初始化 API 请求配置（拦截器）
+initApiConfig();
+
+/**
+ * rootContainer 配置 - 用 App 组件包裹应用
+ * 这样可以使用 App.useApp() hooks (message, notification, modal)
+ */
+export function rootContainer(container: any) {
+  return <App>{container}</App>;
+}
 
 /**
  * 获取初始状态

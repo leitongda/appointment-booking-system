@@ -10,7 +10,7 @@ from app.db.session import get_db
 from app.api.deps import get_current_admin
 from app.services.admin_service import RoleService, AdminService, OperationLogService
 from app.schemas.response import PageResponse
-from app.core.security import create_access_token, create_refresh_token
+from app.core.security import create_access_token, create_refresh_token, get_rsa_public_key, rsa_decrypt
 from app.core.config import settings
 
 router = APIRouter()
@@ -73,27 +73,39 @@ class AdminResponse(BaseModel):
     phone: Optional[str] = None
     email: Optional[str] = None
     avatar: Optional[str] = None
-    role_id: Optional[str] = None
-    role_name: Optional[str] = None
+    role_id: Optional[str] = Field(None, serialization_alias="roleId")
+    role_name: Optional[str] = Field(None, serialization_alias="roleName")
     status: int
-    last_login_at: Optional[datetime] = None
-    last_login_ip: Optional[str] = None
-    created_at: datetime
+    last_login_at: Optional[datetime] = Field(None, serialization_alias="lastLoginAt")
+    last_login_ip: Optional[str] = Field(None, serialization_alias="lastLoginIp")
+    created_at: datetime = Field(..., serialization_alias="createdAt")
 
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 class AdminLoginRequest(BaseModel):
     username: str
-    password: str
+    password: str  # RSA 加密后的密码（Base64编码）
+    encrypted: bool = True  # 是否加密，默认为 True
+
+
+class PublicKeyResponse(BaseModel):
+    public_key: str = Field(..., serialization_alias="publicKey")
+    
+    class Config:
+        populate_by_name = True
 
 
 class AdminLoginResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    expires_in: int
+    access_token: str = Field(..., serialization_alias="accessToken")
+    refresh_token: str = Field(..., serialization_alias="refreshToken")
+    expires_in: int = Field(..., serialization_alias="expiresIn")
     admin: AdminResponse
+
+    class Config:
+        populate_by_name = True
 
 
 class OperationLogResponse(BaseModel):
@@ -139,7 +151,8 @@ def build_role_response(role) -> RoleResponse:
 
 
 def build_admin_response(admin) -> AdminResponse:
-    return AdminResponse(
+    """构建管理员响应对象"""
+    response = AdminResponse(
         id=admin.id,
         username=admin.username,
         name=admin.name,
@@ -153,18 +166,49 @@ def build_admin_response(admin) -> AdminResponse:
         last_login_ip=admin.last_login_ip,
         created_at=admin.created_at,
     )
+    return response
 
 
 # ========== 管理员登录 ==========
-@router.post("/login", response_model=AdminLoginResponse)
+@router.get("/public-key")
+async def get_public_key():
+    """获取 RSA 公钥（用于密码加密）"""
+    from app.schemas.response import Response
+    
+    public_key = get_rsa_public_key()
+    response_data = PublicKeyResponse(public_key=public_key)
+    
+    # 返回统一格式
+    return Response(
+        code=200,
+        message="success",
+        data=response_data.model_dump(by_alias=True)
+    ).model_dump()
+
+
+@router.post("/login")
 async def admin_login(
     data: AdminLoginRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """管理员登录"""
+    """管理员登录
+    
+    密码需要使用 RSA 公钥加密后传输（Base64编码）
+    """
     service = AdminService(db)
-    admin = await service.authenticate(data.username, data.password)
+    
+    # 解密密码
+    try:
+        if data.encrypted:
+            password = rsa_decrypt(data.password)
+        else:
+            # 兼容未加密的情况（仅用于开发调试）
+            password = data.password
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="密码解密失败")
+    
+    admin = await service.authenticate(data.username, password)
     
     if not admin:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误")
@@ -180,15 +224,16 @@ async def admin_login(
     access_token = create_access_token(data={"sub": admin.id, "type": "admin"})
     refresh_token = create_refresh_token(data={"sub": admin.id, "type": "admin"})
     
-    return AdminLoginResponse(
+    response = AdminLoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         admin=build_admin_response(admin),
     )
+    return response.model_dump(by_alias=True)
 
 
-@router.get("/me", response_model=AdminResponse)
+@router.get("/me")
 async def get_current_admin_info(
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),

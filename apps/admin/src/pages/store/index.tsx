@@ -4,6 +4,7 @@ import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFo
 import { Button, App, Popconfirm, Space, Tag } from 'antd';
 import { useRef, useState } from 'react';
 import { storeApi } from '@hospital/api';
+import { toProTableResult } from '@/utils/proTable';
 import type { Store } from '@hospital/shared';
 
 const StorePage: React.FC = () => {
@@ -79,8 +80,7 @@ const StorePage: React.FC = () => {
         columns={columns}
         request={async (params) => {
           const { current, pageSize, name, ...rest } = params;
-          const result = await storeApi.getList({ ...rest, keyword: name, page: current, pageSize });
-          return { data: result.data, total: result.total, success: true };
+          return toProTableResult(await storeApi.getList({ ...rest, keyword: name, page: current, pageSize }));
         }}
         toolBarRender={() => [
           <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalOpen(true); }}>
@@ -96,7 +96,7 @@ const StorePage: React.FC = () => {
         onOpenChange={setModalOpen}
         onFinish={handleSubmit}
         initialValues={editingRecord ? { ...editingRecord, status: editingRecord.status === 1 } : { status: true, sortOrder: 0 }}
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
         width={600}
       >
         <ProFormText name="name" label="门店名称" rules={[{ required: true }]} />

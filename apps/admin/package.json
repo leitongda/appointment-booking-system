@@ -4,7 +4,7 @@
   "private": true,
   "description": "医院挂号系统 - 机构端后台管理系统",
   "scripts": {
-    "dev": "max dev",
+    "dev": "PORT=8005 max dev",
     "build": "max build",
     "postinstall": "max setup",
     "lint": "eslint src --ext .ts,.tsx",

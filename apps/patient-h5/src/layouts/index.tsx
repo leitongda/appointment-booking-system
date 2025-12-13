@@ -2,6 +2,10 @@ import { Outlet, useLocation, history } from 'umi';
 import { TabBar } from 'antd-mobile';
 import { AppOutline, UnorderedListOutline, UserOutline } from 'antd-mobile-icons';
 import styles from './index.less';
+import { initApiConfig } from '@/utils/request';
+
+// 初始化 API 请求配置（拦截器）
+initApiConfig();
 
 const tabs = [
   { key: '/home', title: '首页', icon: <AppOutline /> },

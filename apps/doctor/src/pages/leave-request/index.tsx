@@ -204,7 +204,7 @@ const LeaveRequestPage: React.FC = () => {
         open={stopModalVisible}
         onOpenChange={setStopModalVisible}
         onFinish={handleStopClinic}
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
       >
         <ProFormDatePicker 
           name="stopDate" 
@@ -234,7 +234,7 @@ const LeaveRequestPage: React.FC = () => {
         open={changeModalVisible}
         onOpenChange={setChangeModalVisible}
         onFinish={handleScheduleChange}
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
       >
         <ProFormDatePicker 
           name="originalDate" 

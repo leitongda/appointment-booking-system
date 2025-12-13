@@ -31,7 +31,15 @@ export interface StoreCreateData {
 
 export const storeApi = {
   getList: (params?: StoreListParams): Promise<PageResult<Store>> => {
-    return request.get('/stores', { params });
+    // 转换参数名为后端期望的 snake_case 格式
+    const queryParams = params ? {
+      keyword: params.keyword,
+      status: params.status,
+      city: params.city,
+      page: params.page,
+      page_size: params.pageSize, // 转换为 snake_case
+    } : undefined;
+    return request.get('/stores', { params: queryParams });
   },
 
   getAll: (): Promise<Store[]> => {

@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@hospital/shared": "workspace:*",
-    "axios": "^1.6.5"
+    "axios": "^1.6.5",
+    "jsencrypt": "^3.3.2"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

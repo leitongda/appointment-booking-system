@@ -1,8 +1,98 @@
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Tuple
 from jose import jwt, JWTError
 import bcrypt
+import base64
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
+from cryptography.hazmat.backends import default_backend
 from app.core.config import settings
+
+
+# RSA 密钥缓存
+_rsa_private_key = None
+_rsa_public_key = None
+_rsa_public_key_pem = None
+
+
+def generate_rsa_key_pair() -> Tuple[bytes, bytes]:
+    """生成 RSA 密钥对"""
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+        backend=default_backend()
+    )
+    
+    private_pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption()
+    )
+    
+    public_key = private_key.public_key()
+    public_pem = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    
+    return private_pem, public_pem
+
+
+def load_rsa_keys():
+    """加载或生成 RSA 密钥对"""
+    global _rsa_private_key, _rsa_public_key, _rsa_public_key_pem
+    
+    if _rsa_private_key is not None:
+        return
+    
+    # 尝试从配置加载密钥
+    if settings.RSA_PRIVATE_KEY and settings.RSA_PUBLIC_KEY:
+        private_pem = settings.RSA_PRIVATE_KEY.encode()
+        public_pem = settings.RSA_PUBLIC_KEY.encode()
+    else:
+        # 生成新的密钥对（仅用于开发环境）
+        private_pem, public_pem = generate_rsa_key_pair()
+        print("警告: 使用自动生成的 RSA 密钥对，生产环境请配置 RSA_PRIVATE_KEY 和 RSA_PUBLIC_KEY")
+    
+    _rsa_private_key = serialization.load_pem_private_key(
+        private_pem,
+        password=None,
+        backend=default_backend()
+    )
+    _rsa_public_key = serialization.load_pem_public_key(
+        public_pem,
+        backend=default_backend()
+    )
+    _rsa_public_key_pem = public_pem.decode()
+
+
+def get_rsa_public_key() -> str:
+    """获取 RSA 公钥（PEM 格式）"""
+    load_rsa_keys()
+    return _rsa_public_key_pem
+
+
+def rsa_decrypt(encrypted_data: str) -> str:
+    """RSA 解密（使用私钥解密）
+    
+    Args:
+        encrypted_data: Base64 编码的加密数据
+    
+    Returns:
+        解密后的明文字符串
+    """
+    load_rsa_keys()
+    
+    # Base64 解码
+    encrypted_bytes = base64.b64decode(encrypted_data)
+    
+    # RSA 解密
+    decrypted_bytes = _rsa_private_key.decrypt(
+        encrypted_bytes,
+        padding.PKCS1v15()
+    )
+    
+    return decrypted_bytes.decode('utf-8')
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

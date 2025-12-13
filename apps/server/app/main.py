@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from app.api.v1 import api_router
 from app.core.config import settings
+from app.middleware.response import UnifiedResponseMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -20,6 +21,9 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
         lifespan=lifespan,
     )
+    
+    # 统一响应格式中间件（必须在 CORS 之前添加）
+    app.add_middleware(UnifiedResponseMiddleware)
     
     # CORS
     app.add_middleware(

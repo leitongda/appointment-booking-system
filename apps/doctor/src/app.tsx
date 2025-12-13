@@ -4,6 +4,10 @@ import { history } from 'umi';
 import { getToken, removeToken } from '@hospital/shared';
 import { userApi, doctorApi } from '@hospital/api';
 import { UserOutlined, LogoutOutlined, SettingOutlined } from '@ant-design/icons';
+import { initApiConfig } from '@/utils/request';
+
+// 初始化 API 请求配置（拦截器）
+initApiConfig();
 
 interface CurrentUser {
   id: string;

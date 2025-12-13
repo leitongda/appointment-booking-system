@@ -4,6 +4,7 @@ import { App, Space, Tag, Drawer, Descriptions } from 'antd';
 import { useRef, useState } from 'react';
 import { useModel } from '@umijs/max';
 import { leaveRequestApi } from '@hospital/api';
+import { toProTableResult } from '@/utils/proTable';
 import type { LeaveRequest } from '@hospital/shared';
 
 const TYPE_MAP: Record<string, string> = { stop_clinic: '停诊申请', schedule_change: '调班申请' };
@@ -85,8 +86,7 @@ const LeaveRequestPage: React.FC = () => {
         columns={columns}
         request={async (params) => {
           const { current, pageSize, ...rest } = params;
-          const result = await leaveRequestApi.getList({ ...rest, page: current, pageSize });
-          return { data: result.data, total: result.total, success: true };
+          return toProTableResult(await leaveRequestApi.getList({ ...rest, page: current, pageSize }));
         }}
         pagination={{ defaultPageSize: 10 }}
         search={{ labelWidth: 'auto' }}
@@ -97,7 +97,7 @@ const LeaveRequestPage: React.FC = () => {
         open={reviewOpen}
         onOpenChange={setReviewOpen}
         onFinish={handleReview}
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
         initialValues={{ status: 'approved' }}
       >
         <ProFormRadio.Group

@@ -4,6 +4,7 @@ import { PageContainer, ProTable, ModalForm, ProFormText, ProFormSelect, ProForm
 import { Button, App, Popconfirm, Space, Tag, Avatar } from 'antd';
 import { useRef, useState, useEffect } from 'react';
 import { adminApi } from '@hospital/api';
+import { toProTableResult } from '@/utils/proTable';
 import type { Admin, Role } from '@hospital/api';
 
 const AdminPage: React.FC = () => {
@@ -99,8 +100,7 @@ const AdminPage: React.FC = () => {
         columns={columns}
         request={async (params) => {
           const { current, pageSize, ...rest } = params;
-          const result = await adminApi.getAdmins({ ...rest, page: current, pageSize });
-          return { data: result.data, total: result.total, success: true };
+          return toProTableResult(await adminApi.getAdmins({ ...rest, page: current, pageSize }));
         }}
         toolBarRender={() => [
           <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalOpen(true); }}>
@@ -116,7 +116,7 @@ const AdminPage: React.FC = () => {
         onOpenChange={setModalOpen}
         onFinish={handleSubmit}
         initialValues={editingRecord ? { ...editingRecord, status: editingRecord.status === 1 } : { status: true }}
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
       >
         <ProFormText name="username" label="用户名" rules={[{ required: true }]} disabled={!!editingRecord} />
         {!editingRecord && <ProFormText.Password name="password" label="密码" rules={[{ required: true }]} />}

@@ -3,6 +3,7 @@ import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { App, Popconfirm, Space, Tag } from 'antd';
 import { useRef } from 'react';
 import { patientApi } from '@hospital/api';
+import { toProTableResult } from '@/utils/proTable';
 import type { PatientListItem } from '@hospital/api';
 
 const PatientPage: React.FC = () => {
@@ -76,8 +77,7 @@ const PatientPage: React.FC = () => {
         request={async (params) => {
           const { current, pageSize, name, phone, ...rest } = params;
           const keyword = name || phone;
-          const result = await patientApi.getList({ ...rest, keyword, page: current, pageSize });
-          return { data: result.data, total: result.total, success: true };
+          return toProTableResult(await patientApi.getList({ ...rest, keyword, page: current, pageSize }));
         }}
         pagination={{ defaultPageSize: 10 }}
         search={{ labelWidth: 'auto' }}

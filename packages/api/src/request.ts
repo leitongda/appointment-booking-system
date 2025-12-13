@@ -26,16 +26,40 @@ instance.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
     const { data } = response;
     
+    // 如果 data 不是对象，直接返回
+    if (!data || typeof data !== 'object') {
+      return data;
+    }
+    
     // 业务错误
-    if (data.code !== 200) {
+    if (data.code && data.code !== 200) {
       return Promise.reject(new Error(data.message || '请求失败'));
     }
     
-    return data.data;
+    // 分页响应：包含 total 字段，返回 ProTable 直接可用的格式
+    if ('total' in data && typeof data.total === 'number' && 'data' in data) {
+      return {
+        data: data.data,
+        total: data.total,
+        success: true,  // ProTable 需要的字段
+        page: data.page ?? 1,
+        pageSize: data.pageSize ?? data.page_size ?? 10,
+      };
+    }
+    
+    // 统一响应格式：包含 code 和 data 字段
+    if ('code' in data && 'data' in data) {
+      return data.data;
+    }
+    
+    // 其他情况直接返回
+    return data;
   },
   (error) => {
     // HTTP 错误
-    const message = error.response?.data?.message || error.message || '网络错误';
+    // 后端错误格式: { code: 400, message: "error", data: { detail: "实际错误信息" } }
+    const responseData = error.response?.data;
+    const message = responseData?.data?.detail || responseData?.message || error.message || '网络错误';
     return Promise.reject(new Error(message));
   }
 );
