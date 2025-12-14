@@ -40,7 +40,7 @@ const ScheduleTemplatePage: React.FC = () => {
   const loadDepartments = async () => {
     try {
       const res = await departmentApi.getList({ pageSize: 100, status: 1 });
-      setDepartments(res.data);
+      setDepartments(res.data ?? []);
     } catch (error) {
       console.error('加载科室失败', error);
     }
@@ -49,7 +49,7 @@ const ScheduleTemplatePage: React.FC = () => {
   const loadDoctorsByDept = async (deptId: string) => {
     try {
       const data = await doctorApi.getByDepartment(deptId);
-      setDoctors(data);
+      setDoctors(data ?? []);
     } catch (error) {
       console.error('加载医生失败', error);
     }
@@ -93,7 +93,7 @@ const ScheduleTemplatePage: React.FC = () => {
             name="departmentId"
             label="选择科室"
             width="lg"
-            options={departments.map((d) => ({ label: d.name, value: d.id }))}
+            options={(departments ?? []).map((d) => ({ label: d.name, value: d.id }))}
             onChange={(val) => setSelectedDept(val as string)}
             rules={[{ required: true, message: '请选择科室' }]}
           />
@@ -101,7 +101,7 @@ const ScheduleTemplatePage: React.FC = () => {
             name="doctorId"
             label="选择医生"
             width="lg"
-            options={doctors.map((d) => ({ label: `${d.name} - ${d.title || ''}`, value: d.id }))}
+            options={(doctors ?? []).map((d) => ({ label: `${d.name} - ${d.title || ''}`, value: d.id }))}
             rules={[{ required: true, message: '请选择医生' }]}
           />
           <ProFormDateRangePicker

@@ -67,11 +67,36 @@ export interface AdminLoginParams {
   password: string;
 }
 
+export interface PhoneLoginParams {
+  phone: string;
+  password: string;
+}
+
+export interface SmsLoginParams {
+  phone: string;
+  code: string;
+}
+
 export interface AdminLoginResult {
   accessToken: string;
   refreshToken: string;
   expiresIn: number;
   admin: Admin;
+}
+
+// ========== 微信扫码登录 ==========
+export interface WechatQrcodeResult {
+  qrcodeUrl: string;
+  ticket: string;
+  expireSeconds: number;
+}
+
+export interface WechatCheckResult {
+  status: 'waiting' | 'scanned' | 'confirmed' | 'expired';
+  accessToken?: string;
+  refreshToken?: string;
+  expiresIn?: number;
+  admin?: Admin;
 }
 
 // ========== 操作日志 ==========

@@ -3,8 +3,9 @@ import { getToken, removeToken } from '@hospital/shared';
 import { adminApi } from '@hospital/api';
 import type { Settings as LayoutSettings } from '@ant-design/pro-components';
 import type { RunTimeLayoutConfig, RequestConfig } from '@umijs/max';
-import { history } from '@umijs/max';
+import { history, useLocation } from '@umijs/max';
 import { App } from 'antd';
+import { useMemo } from 'react';
 import defaultSettings from '../config/defaultSettings';
 import { initApiConfig } from '@/utils/request';
 
@@ -12,6 +13,22 @@ const loginPath = '/login';
 
 // 初始化 API 请求配置（拦截器）
 initApiConfig();
+
+/**
+ * 页面过渡动画包装组件
+ */
+const PageTransitionWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const location = useLocation();
+  
+  // 使用 pathname 作为 key，当路由变化时触发动画
+  const animationKey = useMemo(() => location.pathname, [location.pathname]);
+  
+  return (
+    <div key={animationKey} className="page-transition-wrapper">
+      {children}
+    </div>
+  );
+};
 
 /**
  * rootContainer 配置 - 用 App 组件包裹应用
@@ -92,6 +109,10 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
       }
     },
     menuHeaderRender: undefined,
+    // 路由切换动画
+    childrenRender: (children: React.ReactNode) => {
+      return <PageTransitionWrapper>{children}</PageTransitionWrapper>;
+    },
     ...initialState?.settings,
   };
 };

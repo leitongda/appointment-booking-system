@@ -195,10 +195,28 @@ class AdminService:
         )
         return result.unique().scalar_one_or_none()
 
+    async def get_by_phone(self, phone: str) -> Optional[Admin]:
+        """根据手机号获取管理员"""
+        result = await self.db.execute(
+            select(Admin).options(selectinload(Admin.role)).where(Admin.phone == phone)
+        )
+        return result.unique().scalar_one_or_none()
+
     async def authenticate(self, username: str, password: str) -> Optional[Admin]:
-        """管理员登录认证"""
+        """管理员登录认证（用户名+密码）"""
         admin = await self.get_by_username(username)
         if not admin:
+            return None
+        if not verify_password(password, admin.password_hash):
+            return None
+        return admin
+
+    async def authenticate_by_phone(self, phone: str, password: str) -> Optional[Admin]:
+        """管理员登录认证（手机号+密码）"""
+        admin = await self.get_by_phone(phone)
+        if not admin:
+            return None
+        if not admin.password_hash:
             return None
         if not verify_password(password, admin.password_hash):
             return None

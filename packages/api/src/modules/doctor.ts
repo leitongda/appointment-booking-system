@@ -3,6 +3,7 @@ import type { Doctor, PageResult } from '@hospital/shared';
 
 export interface DoctorListParams {
   name?: string;
+  storeId?: string;
   departmentId?: string;
   status?: number;
   page?: number;
@@ -10,14 +11,40 @@ export interface DoctorListParams {
 }
 
 export interface DoctorCreateData {
+  // 基础信息
+  storeId?: string;
   departmentId: string;
   name: string;
+  username?: string;
   phone?: string;
+  gender?: number;
   avatar?: string;
+  banner?: string;
   title?: string;
+  yearsOfExperience?: number;
+  
+  // 资质信息
+  education?: string;
+  graduateSchool?: string;
+  licenseNumber?: string;
+  licenseImage?: string;
+  honors?: string;
+  
+  // 坐诊设置
+  scheduleDesc?: string;
+  maxDailyAppointments?: number;
+  onlineConsultEnabled?: number;
+  onlineConsultFee?: number;
+  registrationFee?: number;
+  
+  // 展示设置
+  pageStyle?: number;
+  promoVideo?: string;
+  tags?: string;
   specialty?: string;
   introduction?: string;
-  registrationFee?: number;
+  
+  // 其他设置
   isRecommended?: number;
   sortOrder?: number;
   status?: number;

@@ -4,25 +4,36 @@ import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { Button, App, Popconfirm, Space, Tag, Avatar } from 'antd';
 import { useRef, useState, useEffect } from 'react';
 import { history } from '@umijs/max';
-import { doctorApi, departmentApi } from '@hospital/api';
+import { doctorApi, departmentApi, storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
-import type { Doctor, Department } from '@hospital/shared';
+import type { Doctor, Department, Store } from '@hospital/shared';
 
 const DoctorListPage: React.FC = () => {
   const { message } = App.useApp();
   const actionRef = useRef<ActionType>();
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
 
   useEffect(() => {
     loadDepartments();
+    loadStores();
   }, []);
 
   const loadDepartments = async () => {
     try {
       const res = await departmentApi.getList({ pageSize: 100 });
-      setDepartments(res.data);
+      setDepartments(res.data ?? []);
     } catch (error) {
       console.error('加载科室失败', error);
+    }
+  };
+
+  const loadStores = async () => {
+    try {
+      const res = await storeApi.getList({ pageSize: 100 });
+      setStores(res.data ?? []);
+    } catch (error) {
+      console.error('加载门店失败', error);
     }
   };
 
@@ -54,26 +65,56 @@ const DoctorListPage: React.FC = () => {
       width: 100,
     },
     {
+      title: '性别',
+      dataIndex: 'gender',
+      width: 60,
+      search: false,
+      render: (_, record) => record.gender === 1 ? '男' : '女',
+    },
+    {
+      title: '所属门店',
+      dataIndex: 'storeId',
+      width: 120,
+      valueType: 'select',
+      fieldProps: {
+        options: (stores ?? []).map((s) => ({ label: s.name, value: s.id })),
+      },
+      render: (_, record) => record.storeName || '-',
+    },
+    {
       title: '所属科室',
       dataIndex: 'departmentId',
       width: 120,
       valueType: 'select',
       fieldProps: {
-        options: departments.map((d) => ({ label: d.name, value: d.id })),
+        options: (departments ?? []).map((d) => ({ label: d.name, value: d.id })),
       },
       render: (_, record) => record.departmentName || '-',
     },
     {
       title: '职称',
       dataIndex: 'title',
-      width: 100,
+      width: 120,
       search: false,
     },
     {
-      title: '专长',
-      dataIndex: 'specialty',
-      ellipsis: true,
+      title: '标签',
+      dataIndex: 'tags',
+      width: 150,
       search: false,
+      ellipsis: true,
+      render: (_, record) => {
+        if (!record.tags) return '-';
+        const tagList = record.tags.split(',').filter(Boolean);
+        return (
+          <Space size={[0, 4]} wrap>
+            {tagList.slice(0, 3).map((tag) => (
+              <Tag key={tag} color="blue">{tag}</Tag>
+            ))}
+            {tagList.length > 3 && <span>+{tagList.length - 3}</span>}
+          </Space>
+        );
+      },
     },
     {
       title: '挂号费',
@@ -105,6 +146,7 @@ const DoctorListPage: React.FC = () => {
       title: '操作',
       valueType: 'option',
       width: 150,
+      fixed: 'right',
       render: (_, record) => (
         <Space>
           <a onClick={() => history.push(`/doctor/${record.id}`)}>详情</a>
@@ -127,6 +169,7 @@ const DoctorListPage: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
+        scroll={{ x: 1200 }}
         request={async (params) => {
           const { current, pageSize, ...rest } = params;
           return toProTableResult(await doctorApi.getList({

@@ -91,7 +91,7 @@ const MessagePage: React.FC = () => {
         open={modalOpen}
         onOpenChange={setModalOpen}
         onFinish={handleSend}
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
         initialValues={{ userType: 'patient', messageType: 'system' }}
       >
         <ProFormText name="userId" label="用户ID" rules={[{ required: true }]} />

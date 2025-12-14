@@ -14,9 +14,70 @@ from app.core.config import settings
 router = APIRouter()
 
 
+def doctor_to_response(doctor) -> DoctorResponse:
+    """将医生模型转换为响应对象"""
+    return DoctorResponse(
+        id=doctor.id,
+        user_id=doctor.user_id,
+        store_id=doctor.store_id,
+        store_name=doctor.store.name if doctor.store else None,
+        department_id=doctor.department_id,
+        department_name=doctor.department.name if doctor.department else None,
+        name=doctor.name,
+        username=doctor.username,
+        phone=doctor.phone,
+        gender=doctor.gender or 1,
+        avatar=doctor.avatar,
+        banner=doctor.banner,
+        title=doctor.title,
+        years_of_experience=doctor.years_of_experience or 0,
+        education=doctor.education,
+        graduate_school=doctor.graduate_school,
+        license_number=doctor.license_number,
+        license_image=doctor.license_image,
+        honors=doctor.honors,
+        schedule_desc=doctor.schedule_desc,
+        max_daily_appointments=doctor.max_daily_appointments or 0,
+        online_consult_enabled=doctor.online_consult_enabled or 0,
+        online_consult_fee=doctor.online_consult_fee or 0,
+        registration_fee=doctor.registration_fee or 0,
+        page_style=doctor.page_style or 1,
+        promo_video=doctor.promo_video,
+        tags=doctor.tags,
+        specialty=doctor.specialty,
+        introduction=doctor.introduction,
+        is_recommended=doctor.is_recommended or 0,
+        sort_order=doctor.sort_order or 0,
+        status=doctor.status or 1,
+        created_at=doctor.created_at,
+        updated_at=doctor.updated_at
+    )
+
+
+def doctor_to_list_response(doctor) -> DoctorListResponse:
+    """将医生模型转换为列表响应对象"""
+    return DoctorListResponse(
+        id=doctor.id,
+        name=doctor.name,
+        avatar=doctor.avatar,
+        banner=doctor.banner,
+        title=doctor.title,
+        gender=doctor.gender or 1,
+        store_id=doctor.store_id,
+        store_name=doctor.store.name if doctor.store else None,
+        department_id=doctor.department_id,
+        department_name=doctor.department.name if doctor.department else None,
+        specialty=doctor.specialty,
+        registration_fee=doctor.registration_fee or 0,
+        is_recommended=doctor.is_recommended or 0,
+        tags=doctor.tags,
+        page_style=doctor.page_style or 1
+    )
+
+
 # ========== 医生登录相关 ==========
 class DoctorLoginRequest(BaseModel):
-    phone: str
+    phone: str  # 可以是手机号或账号
     password: str
 
 
@@ -33,12 +94,12 @@ async def doctor_login(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """医生登录"""
+    """医生登录（支持手机号或账号登录）"""
     service = DoctorService(db)
     doctor = await service.authenticate(data.phone, data.password)
     
     if not doctor:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="手机号或密码错误")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号或密码错误")
     
     if doctor.status != 1:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
@@ -55,24 +116,7 @@ async def doctor_login(
         access_token=access_token,
         refresh_token=refresh_token,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        doctor=DoctorResponse(
-            id=doctor.id,
-            user_id=doctor.user_id,
-            name=doctor.name,
-            phone=doctor.phone,
-            avatar=doctor.avatar,
-            title=doctor.title,
-            department_id=doctor.department_id,
-            department_name=doctor.department.name if doctor.department else None,
-            specialty=doctor.specialty,
-            introduction=doctor.introduction,
-            registration_fee=doctor.registration_fee,
-            is_recommended=doctor.is_recommended,
-            sort_order=doctor.sort_order,
-            status=doctor.status,
-            created_at=doctor.created_at,
-            updated_at=doctor.updated_at
-        ),
+        doctor=doctor_to_response(doctor),
     )
 
 
@@ -88,6 +132,7 @@ async def get_current_doctor_info(
 @router.get("", response_model=PageResponse[DoctorListResponse])
 async def get_doctors(
     name: Optional[str] = None,
+    store_id: Optional[str] = None,
     department_id: Optional[str] = None,
     status: Optional[int] = None,
     page: int = Query(1, ge=1),
@@ -97,22 +142,11 @@ async def get_doctors(
     """获取医生列表"""
     service = DoctorService(db)
     doctors, total = await service.get_list(
-        name=name, department_id=department_id, status=status, page=page, page_size=page_size
+        name=name, store_id=store_id, department_id=department_id, 
+        status=status, page=page, page_size=page_size
     )
     
-    result = []
-    for d in doctors:
-        result.append(DoctorListResponse(
-            id=d.id,
-            name=d.name,
-            avatar=d.avatar,
-            title=d.title,
-            department_id=d.department_id,
-            department_name=d.department.name if d.department else None,
-            specialty=d.specialty,
-            registration_fee=d.registration_fee,
-            is_recommended=d.is_recommended
-        ))
+    result = [doctor_to_list_response(d) for d in doctors]
     
     return PageResponse(data=result, total=total, page=page, page_size=page_size)
 
@@ -125,17 +159,7 @@ async def get_recommended_doctors(
     service = DoctorService(db)
     doctors = await service.get_recommended(limit=limit)
     
-    return [DoctorListResponse(
-        id=d.id,
-        name=d.name,
-        avatar=d.avatar,
-        title=d.title,
-        department_id=d.department_id,
-        department_name=d.department.name if d.department else None,
-        specialty=d.specialty,
-        registration_fee=d.registration_fee,
-        is_recommended=d.is_recommended
-    ) for d in doctors]
+    return [doctor_to_list_response(d) for d in doctors]
 
 @router.get("/by-department/{department_id}", response_model=List[DoctorListResponse])
 async def get_doctors_by_department(
@@ -146,17 +170,7 @@ async def get_doctors_by_department(
     service = DoctorService(db)
     doctors = await service.get_by_department(department_id)
     
-    return [DoctorListResponse(
-        id=d.id,
-        name=d.name,
-        avatar=d.avatar,
-        title=d.title,
-        department_id=d.department_id,
-        department_name=d.department.name if d.department else None,
-        specialty=d.specialty,
-        registration_fee=d.registration_fee,
-        is_recommended=d.is_recommended
-    ) for d in doctors]
+    return [doctor_to_list_response(d) for d in doctors]
 
 @router.get("/{doctor_id}", response_model=DoctorResponse)
 async def get_doctor(doctor_id: str, db: AsyncSession = Depends(get_db)):
@@ -167,24 +181,7 @@ async def get_doctor(doctor_id: str, db: AsyncSession = Depends(get_db)):
     if not doctor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在")
     
-    return DoctorResponse(
-        id=doctor.id,
-        user_id=doctor.user_id,
-        department_id=doctor.department_id,
-        department_name=doctor.department.name if doctor.department else None,
-        name=doctor.name,
-        phone=doctor.phone,
-        avatar=doctor.avatar,
-        title=doctor.title,
-        specialty=doctor.specialty,
-        introduction=doctor.introduction,
-        registration_fee=doctor.registration_fee,
-        is_recommended=doctor.is_recommended,
-        sort_order=doctor.sort_order,
-        status=doctor.status,
-        created_at=doctor.created_at,
-        updated_at=doctor.updated_at
-    )
+    return doctor_to_response(doctor)
 
 @router.post("", response_model=DoctorResponse)
 async def create_doctor(data: DoctorCreate, db: AsyncSession = Depends(get_db)):
@@ -192,23 +189,10 @@ async def create_doctor(data: DoctorCreate, db: AsyncSession = Depends(get_db)):
     service = DoctorService(db)
     doctor = await service.create(data)
     
-    return DoctorResponse(
-        id=doctor.id,
-        user_id=doctor.user_id,
-        department_id=doctor.department_id,
-        name=doctor.name,
-        phone=doctor.phone,
-        avatar=doctor.avatar,
-        title=doctor.title,
-        specialty=doctor.specialty,
-        introduction=doctor.introduction,
-        registration_fee=doctor.registration_fee,
-        is_recommended=doctor.is_recommended,
-        sort_order=doctor.sort_order,
-        status=doctor.status,
-        created_at=doctor.created_at,
-        updated_at=doctor.updated_at
-    )
+    # 需要重新加载关联关系
+    doctor = await service.get_by_id(doctor.id)
+    
+    return doctor_to_response(doctor)
 
 @router.put("/{doctor_id}", response_model=DoctorResponse)
 async def update_doctor(
@@ -223,24 +207,7 @@ async def update_doctor(
     if not doctor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在")
     
-    return DoctorResponse(
-        id=doctor.id,
-        user_id=doctor.user_id,
-        department_id=doctor.department_id,
-        department_name=doctor.department.name if doctor.department else None,
-        name=doctor.name,
-        phone=doctor.phone,
-        avatar=doctor.avatar,
-        title=doctor.title,
-        specialty=doctor.specialty,
-        introduction=doctor.introduction,
-        registration_fee=doctor.registration_fee,
-        is_recommended=doctor.is_recommended,
-        sort_order=doctor.sort_order,
-        status=doctor.status,
-        created_at=doctor.created_at,
-        updated_at=doctor.updated_at
-    )
+    return doctor_to_response(doctor)
 
 @router.delete("/{doctor_id}")
 async def delete_doctor(doctor_id: str, db: AsyncSession = Depends(get_db)):

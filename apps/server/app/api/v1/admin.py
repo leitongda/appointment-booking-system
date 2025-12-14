@@ -91,6 +91,46 @@ class AdminLoginRequest(BaseModel):
     encrypted: bool = True  # 是否加密，默认为 True
 
 
+class PhoneLoginRequest(BaseModel):
+    """手机号+密码登录请求"""
+    phone: str = Field(..., min_length=11, max_length=11)
+    password: str
+    encrypted: bool = True
+
+
+class SmsCodeRequest(BaseModel):
+    """发送短信验证码请求"""
+    phone: str = Field(..., min_length=11, max_length=11)
+
+
+class SmsLoginRequest(BaseModel):
+    """短信验证码登录请求"""
+    phone: str = Field(..., min_length=11, max_length=11)
+    code: str = Field(..., min_length=4, max_length=6)
+
+
+class WechatQrcodeResponse(BaseModel):
+    """微信扫码二维码响应"""
+    qrcode_url: str = Field(..., serialization_alias="qrcodeUrl")
+    ticket: str
+    expire_seconds: int = Field(..., serialization_alias="expireSeconds")
+
+    class Config:
+        populate_by_name = True
+
+
+class WechatCheckResponse(BaseModel):
+    """微信扫码状态响应"""
+    status: str  # waiting/scanned/confirmed/expired
+    access_token: Optional[str] = Field(None, serialization_alias="accessToken")
+    refresh_token: Optional[str] = Field(None, serialization_alias="refreshToken")
+    expires_in: Optional[int] = Field(None, serialization_alias="expiresIn")
+    admin: Optional[AdminResponse] = None
+
+    class Config:
+        populate_by_name = True
+
+
 class PublicKeyResponse(BaseModel):
     public_key: str = Field(..., serialization_alias="publicKey")
     
@@ -246,6 +286,233 @@ async def get_current_admin_info(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在")
     
     return build_admin_response(admin)
+
+
+# ========== 手机号登录 ==========
+@router.post("/phone-login")
+async def phone_login(
+    data: PhoneLoginRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """手机号+密码登录"""
+    service = AdminService(db)
+    
+    # 解密密码
+    try:
+        if data.encrypted:
+            password = rsa_decrypt(data.password)
+        else:
+            password = data.password
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="密码解密失败")
+    
+    admin = await service.authenticate_by_phone(data.phone, password)
+    
+    if not admin:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="手机号或密码错误")
+    
+    if admin.status != 1:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+    
+    # 更新登录信息
+    client_ip = request.client.host if request.client else ""
+    await service.update_login_info(admin.id, client_ip)
+    
+    # 生成Token
+    access_token = create_access_token(data={"sub": admin.id, "type": "admin"})
+    refresh_token = create_refresh_token(data={"sub": admin.id, "type": "admin"})
+    
+    response = AdminLoginResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        admin=build_admin_response(admin),
+    )
+    return response.model_dump(by_alias=True)
+
+
+# ========== 短信验证码登录 ==========
+@router.post("/sms/send")
+async def send_sms_code(
+    data: SmsCodeRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """发送登录验证码"""
+    from app.services.sms_service import SmsService
+    
+    service = AdminService(db)
+    
+    # 检查手机号是否存在
+    admin = await service.get_by_phone(data.phone)
+    if not admin:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该手机号未注册")
+    
+    if admin.status != 1:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+    
+    try:
+        await SmsService.send_code(data.phone, "login")
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    
+    return {"message": "验证码已发送"}
+
+
+@router.post("/sms/login")
+async def sms_login(
+    data: SmsLoginRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """短信验证码登录"""
+    from app.services.sms_service import SmsService
+    
+    service = AdminService(db)
+    
+    # 验证验证码
+    is_valid = await SmsService.verify_code(data.phone, data.code, "login")
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码错误或已过期")
+    
+    # 获取管理员
+    admin = await service.get_by_phone(data.phone)
+    if not admin:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该手机号未注册")
+    
+    if admin.status != 1:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+    
+    # 更新登录信息
+    client_ip = request.client.host if request.client else ""
+    await service.update_login_info(admin.id, client_ip)
+    
+    # 生成Token
+    access_token = create_access_token(data={"sub": admin.id, "type": "admin"})
+    refresh_token = create_refresh_token(data={"sub": admin.id, "type": "admin"})
+    
+    response = AdminLoginResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        admin=build_admin_response(admin),
+    )
+    return response.model_dump(by_alias=True)
+
+
+# ========== 微信扫码登录 ==========
+# 内存存储扫码状态（生产环境应使用 Redis）
+_wechat_scan_tickets: dict = {}
+
+@router.get("/wechat/qrcode")
+async def get_wechat_qrcode():
+    """获取微信扫码登录二维码
+    
+    注意：此为模拟实现，实际需要接入微信开放平台
+    """
+    import uuid
+    import time
+    
+    ticket = str(uuid.uuid4())
+    expire_seconds = 300
+    
+    # 存储票据状态
+    _wechat_scan_tickets[ticket] = {
+        "status": "waiting",
+        "created_at": time.time(),
+        "expire_at": time.time() + expire_seconds,
+        "admin_id": None,
+    }
+    
+    # 模拟二维码URL（实际应调用微信API生成）
+    # 实际微信开放平台的 URL 格式类似：
+    # https://open.weixin.qq.com/connect/qrconnect?appid=xxx&redirect_uri=xxx&...
+    qrcode_url = f"https://example.com/wechat/scan?ticket={ticket}"
+    
+    response = WechatQrcodeResponse(
+        qrcode_url=qrcode_url,
+        ticket=ticket,
+        expire_seconds=expire_seconds,
+    )
+    return response.model_dump(by_alias=True)
+
+
+@router.get("/wechat/check")
+async def check_wechat_scan(
+    ticket: str = Query(...),
+    request: Request = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """检查微信扫码状态
+    
+    前端需要轮询此接口，直到返回 confirmed 或 expired
+    """
+    import time
+    
+    if ticket not in _wechat_scan_tickets:
+        return WechatCheckResponse(status="expired").model_dump(by_alias=True)
+    
+    ticket_data = _wechat_scan_tickets[ticket]
+    
+    # 检查是否过期
+    if time.time() > ticket_data["expire_at"]:
+        del _wechat_scan_tickets[ticket]
+        return WechatCheckResponse(status="expired").model_dump(by_alias=True)
+    
+    # 如果已确认（已扫码并绑定管理员）
+    if ticket_data["status"] == "confirmed" and ticket_data["admin_id"]:
+        service = AdminService(db)
+        admin = await service.get_by_id(ticket_data["admin_id"])
+        
+        if admin and admin.status == 1:
+            # 更新登录信息
+            client_ip = request.client.host if request.client else ""
+            await service.update_login_info(admin.id, client_ip)
+            
+            # 生成Token
+            access_token = create_access_token(data={"sub": admin.id, "type": "admin"})
+            refresh_token = create_refresh_token(data={"sub": admin.id, "type": "admin"})
+            
+            # 清理票据
+            del _wechat_scan_tickets[ticket]
+            
+            response = WechatCheckResponse(
+                status="confirmed",
+                access_token=access_token,
+                refresh_token=refresh_token,
+                expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+                admin=build_admin_response(admin),
+            )
+            return response.model_dump(by_alias=True)
+    
+    return WechatCheckResponse(status=ticket_data["status"]).model_dump(by_alias=True)
+
+
+@router.post("/wechat/confirm")
+async def confirm_wechat_scan(
+    ticket: str = Query(...),
+    admin_id: str = Query(..., description="管理员ID（模拟扫码确认用）"),
+):
+    """确认微信扫码（模拟接口，用于测试）
+    
+    实际项目中，这个接口应该由微信回调触发
+    """
+    import time
+    
+    if ticket not in _wechat_scan_tickets:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="票据不存在或已过期")
+    
+    ticket_data = _wechat_scan_tickets[ticket]
+    
+    if time.time() > ticket_data["expire_at"]:
+        del _wechat_scan_tickets[ticket]
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="票据已过期")
+    
+    # 更新状态为已确认
+    ticket_data["status"] = "confirmed"
+    ticket_data["admin_id"] = admin_id
+    
+    return {"message": "扫码确认成功"}
 
 
 # ========== 角色管理 ==========

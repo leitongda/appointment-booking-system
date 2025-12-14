@@ -95,7 +95,7 @@ const NoticePage: React.FC = () => {
         onOpenChange={setModalOpen}
         onFinish={handleSubmit}
         initialValues={editingRecord ? { ...editingRecord, isTop: editingRecord.isTop, status: editingRecord.status === 1 } : { type: 1, isTop: false, status: true }}
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
         width={600}
       >
         <ProFormText name="title" label="标题" rules={[{ required: true }]} />

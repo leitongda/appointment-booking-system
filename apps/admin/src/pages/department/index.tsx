@@ -157,7 +157,7 @@ const DepartmentPage: React.FC = () => {
           isHot: editingRecord.isHot === 1,
           status: editingRecord.status === 1,
         } : { sortOrder: 0, isHot: false, status: true }}
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
       >
         <ProFormText
           name="name"

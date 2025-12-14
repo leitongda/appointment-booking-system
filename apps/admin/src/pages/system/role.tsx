@@ -94,7 +94,7 @@ const RolePage: React.FC = () => {
         onOpenChange={setModalOpen}
         onFinish={handleSubmit}
         initialValues={editingRecord ? { ...editingRecord, status: editingRecord.status === 1 } : { status: true }}
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
       >
         <ProFormText name="name" label="角色名称" rules={[{ required: true }]} />
         <ProFormText name="code" label="角色编码" rules={[{ required: true }]} disabled={!!editingRecord} />

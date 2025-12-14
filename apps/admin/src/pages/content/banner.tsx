@@ -96,7 +96,7 @@ const BannerPage: React.FC = () => {
         onOpenChange={setModalOpen}
         onFinish={handleSubmit}
         initialValues={editingRecord ? { ...editingRecord, status: editingRecord.status === 1 } : { linkType: 0, position: 'home', sortOrder: 0, status: true }}
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
       >
         <ProFormText name="title" label="标题" />
         <ProFormText name="imageUrl" label="图片URL" rules={[{ required: true }]} />
