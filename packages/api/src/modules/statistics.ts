@@ -51,6 +51,22 @@ export interface WeekdayItem {
   count: number;
 }
 
+export interface AppointmentSummary {
+  total: number;
+  completed: number;
+  noShow: number;
+  cancelled: number;
+  completedRate: number;
+  noShowRate: number;
+  cancelledRate: number;
+}
+
+export interface StoreRankingItem {
+  storeId: string;
+  storeName: string;
+  count: number;
+}
+
 export const statisticsApi = {
   /**
    * 获取概览数据
@@ -98,5 +114,17 @@ export const statisticsApi = {
    */
   getRevenueTrend: (days = 7) =>
     request.get<RevenueTrendItem[]>('/statistics/revenue/trend', { params: { days } }),
+
+  /**
+   * 获取预约汇总统计（完成率/爽约率/取消率）
+   */
+  getAppointmentSummary: (params?: { startDate?: string; endDate?: string; storeId?: string }) =>
+    request.get<AppointmentSummary>('/statistics/appointments/summary', { params }),
+
+  /**
+   * 获取门店预约排行
+   */
+  getStoreRanking: (params?: { limit?: number; startDate?: string; endDate?: string }) =>
+    request.get<StoreRankingItem[]>('/statistics/stores/ranking', { params }),
 };
 

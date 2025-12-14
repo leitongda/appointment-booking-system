@@ -54,6 +54,8 @@ export type {
   DoctorRankingItem,
   TimeSlotItem,
   WeekdayItem,
+  AppointmentSummary,
+  StoreRankingItem,
 } from './modules/statistics';
 
 // Admin types

@@ -77,6 +77,7 @@ export default [
     routes: [
       { path: '/appointment', redirect: '/appointment/list' },
       { path: '/appointment/list', name: '预约列表', component: './appointment/list' },
+      { path: '/appointment/statistics', name: '预约统计', component: './appointment/statistics' },
       { path: '/appointment/:id', name: '预约详情', component: './appointment/detail', hideInMenu: true },
     ],
   },

@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, case
 
 from app.db.session import get_db
 from app.api.deps import get_current_admin
@@ -12,6 +12,7 @@ from app.models.schedule import Schedule
 from app.models.user import User
 from app.models.doctor import Doctor
 from app.models.department import Department
+from app.models.store import Store
 from app.schemas.response import ResponseModel
 
 router = APIRouter()
@@ -339,4 +340,98 @@ async def get_revenue_trend(
         })
     
     return ResponseModel(data=trend)
+
+
+@router.get("/appointments/summary", response_model=ResponseModel)
+async def get_appointment_summary(
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    store_id: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """获取预约汇总统计（完成率/爽约率/取消率）"""
+    query = select(
+        func.count(Appointment.id).label('total'),
+        func.sum(case((Appointment.status == 5, 1), else_=0)).label('completed'),
+        func.sum(case((Appointment.status == 7, 1), else_=0)).label('no_show'),
+        func.sum(case((Appointment.status == 6, 1), else_=0)).label('cancelled'),
+    ).select_from(Appointment)
+    
+    conditions = []
+    
+    if start_date:
+        conditions.append(func.date(Appointment.created_at) >= start_date)
+    if end_date:
+        conditions.append(func.date(Appointment.created_at) <= end_date)
+    
+    if store_id:
+        query = query.join(Schedule, Appointment.schedule_id == Schedule.id)
+        query = query.join(Doctor, Schedule.doctor_id == Doctor.id)
+        conditions.append(Doctor.store_id == store_id)
+    
+    if conditions:
+        query = query.where(and_(*conditions))
+    
+    result = await db.execute(query)
+    row = result.fetchone()
+    
+    total = row.total or 0
+    completed = row.completed or 0
+    no_show = row.no_show or 0
+    cancelled = row.cancelled or 0
+    
+    return ResponseModel(data={
+        "total": total,
+        "completed": completed,
+        "noShow": no_show,
+        "cancelled": cancelled,
+        "completedRate": round(completed / total * 100, 2) if total > 0 else 0,
+        "noShowRate": round(no_show / total * 100, 2) if total > 0 else 0,
+        "cancelledRate": round(cancelled / total * 100, 2) if total > 0 else 0,
+    })
+
+
+@router.get("/stores/ranking", response_model=ResponseModel)
+async def get_store_ranking(
+    limit: int = Query(default=10, ge=1, le=50),
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """获取门店预约排行"""
+    query = (
+        select(
+            Store.id,
+            Store.name,
+            func.count(Appointment.id).label('count')
+        )
+        .select_from(Appointment)
+        .join(Schedule, Appointment.schedule_id == Schedule.id)
+        .join(Doctor, Schedule.doctor_id == Doctor.id)
+        .join(Store, Doctor.store_id == Store.id)
+    )
+    
+    conditions = []
+    if start_date:
+        conditions.append(func.date(Appointment.created_at) >= start_date)
+    if end_date:
+        conditions.append(func.date(Appointment.created_at) <= end_date)
+    
+    if conditions:
+        query = query.where(and_(*conditions))
+    
+    query = query.group_by(Store.id, Store.name).order_by(
+        func.count(Appointment.id).desc()
+    ).limit(limit)
+    
+    result = await db.execute(query)
+    
+    data = [
+        {"storeId": row.id, "storeName": row.name, "count": row.count}
+        for row in result.fetchall()
+    ]
+    
+    return ResponseModel(data=data)
 

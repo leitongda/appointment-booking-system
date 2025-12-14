@@ -299,14 +299,14 @@ const SettingsPage: React.FC = () => {
             name="cardName"
             label="名称修改"
             placeholder="如：朴泽堂就诊卡"
-            extra="修改前端"就诊卡"字样；所有涉及到"就诊卡"的地方都会修改"
+            extra='修改前端"就诊卡"字样；所有涉及到"就诊卡"的地方都会修改'
           />
           <ProFormText
             name="cardDescription"
             label="描述文字"
             placeholder="如：医道至朴.德泽万方"
             fieldProps={{ maxLength: 16, showCount: true }}
-            extra="修改前端添加"就诊卡"时；下方的详细描述文字；限16字以内"
+            extra='修改前端添加"就诊卡"时；下方的详细描述文字；限16字以内'
           />
           <ProFormDigit
             name="maxCardsPerUser"
