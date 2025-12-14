@@ -5,6 +5,7 @@ import { Button, App, Popconfirm, Space, Tag, Avatar } from 'antd';
 import { useRef, useState, useEffect } from 'react';
 import { history } from '@umijs/max';
 import { doctorApi, departmentApi } from '@hospital/api';
+import { toProTableResult } from '@/utils/proTable';
 import type { Doctor, Department } from '@hospital/shared';
 
 const DoctorListPage: React.FC = () => {
@@ -128,16 +129,11 @@ const DoctorListPage: React.FC = () => {
         columns={columns}
         request={async (params) => {
           const { current, pageSize, ...rest } = params;
-          const result = await doctorApi.getList({
+          return toProTableResult(await doctorApi.getList({
             ...rest,
             page: current,
             pageSize,
-          });
-          return {
-            data: result.data,
-            total: result.total,
-            success: true,
-          };
+          }));
         }}
         toolBarRender={() => [
           <Button

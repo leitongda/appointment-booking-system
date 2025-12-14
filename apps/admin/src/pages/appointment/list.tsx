@@ -4,6 +4,7 @@ import { App, Space, Tag, Popconfirm } from 'antd';
 import { useRef } from 'react';
 import { history } from '@umijs/max';
 import { appointmentApi } from '@hospital/api';
+import { toProTableResult } from '@/utils/proTable';
 import type { Appointment } from '@hospital/shared';
 
 const STATUS_MAP: Record<number, { text: string; color: string }> = {
@@ -144,18 +145,13 @@ const AppointmentListPage: React.FC = () => {
         columns={columns}
         request={async (params) => {
           const { current, pageSize, scheduleDate, ...rest } = params;
-          const result = await appointmentApi.getList({
+          return toProTableResult(await appointmentApi.getList({
             ...rest,
             startDate: scheduleDate,
             endDate: scheduleDate,
             page: current,
             pageSize,
-          });
-          return {
-            data: result.data,
-            total: result.total,
-            success: true,
-          };
+          }));
         }}
         pagination={{ defaultPageSize: 10 }}
         search={{ labelWidth: 'auto' }}

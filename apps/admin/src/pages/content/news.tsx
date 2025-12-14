@@ -4,6 +4,7 @@ import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFo
 import { Button, App, Popconfirm, Space, Tag, Image } from 'antd';
 import { useRef, useState } from 'react';
 import { contentApi } from '@hospital/api';
+import { toProTableResult } from '@/utils/proTable';
 import type { News } from '@hospital/api';
 
 const TYPE_OPTIONS = [
@@ -80,8 +81,7 @@ const NewsPage: React.FC = () => {
         columns={columns}
         request={async (params) => {
           const { current, pageSize, ...rest } = params;
-          const result = await contentApi.getNewsList({ ...rest, page: current, pageSize });
-          return { data: result.data, total: result.total, success: true };
+          return toProTableResult(await contentApi.getNewsList({ ...rest, page: current, pageSize }));
         }}
         toolBarRender={() => [
           <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalOpen(true); }}>

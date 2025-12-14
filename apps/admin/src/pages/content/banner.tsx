@@ -4,6 +4,7 @@ import { PageContainer, ProTable, ModalForm, ProFormText, ProFormDigit, ProFormS
 import { Button, App, Popconfirm, Space, Image } from 'antd';
 import { useRef, useState } from 'react';
 import { contentApi } from '@hospital/api';
+import { toProTableResult } from '@/utils/proTable';
 import type { Banner } from '@hospital/api';
 
 const LINK_TYPE_OPTIONS = [
@@ -79,8 +80,7 @@ const BannerPage: React.FC = () => {
         columns={columns}
         request={async (params) => {
           const { current, pageSize, ...rest } = params;
-          const result = await contentApi.getBannerList({ ...rest, page: current, pageSize });
-          return { data: result.data, total: result.total, success: true };
+          return toProTableResult(await contentApi.getBannerList({ ...rest, page: current, pageSize }));
         }}
         toolBarRender={() => [
           <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalOpen(true); }}>

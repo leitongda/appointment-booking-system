@@ -4,6 +4,7 @@ import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFo
 import { Button, App, Space, Tag, Popconfirm } from 'antd';
 import { useRef, useState } from 'react';
 import { messageApi } from '@hospital/api';
+import { toProTableResult } from '@/utils/proTable';
 import type { Message } from '@hospital/shared';
 
 const TYPE_MAP: Record<string, { text: string; color: string }> = {
@@ -74,8 +75,7 @@ const MessagePage: React.FC = () => {
         columns={columns}
         request={async (params) => {
           const { current, pageSize, title, ...rest } = params;
-          const result = await messageApi.getAllList({ ...rest, keyword: title, page: current, pageSize });
-          return { data: result.data, total: result.total, success: true };
+          return toProTableResult(await messageApi.getAllList({ ...rest, keyword: title, page: current, pageSize }));
         }}
         toolBarRender={() => [
           <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>

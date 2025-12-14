@@ -2,6 +2,7 @@ import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { Tag } from 'antd';
 import { adminApi } from '@hospital/api';
+import { toProTableResult } from '@/utils/proTable';
 import type { OperationLog } from '@hospital/api';
 
 const LogPage: React.FC = () => {
@@ -33,8 +34,7 @@ const LogPage: React.FC = () => {
         columns={columns}
         request={async (params) => {
           const { current, pageSize, ...rest } = params;
-          const result = await adminApi.getLogs({ ...rest, page: current, pageSize });
-          return { data: result.data, total: result.total, success: true };
+          return toProTableResult(await adminApi.getLogs({ ...rest, page: current, pageSize }));
         }}
         pagination={{ defaultPageSize: 20 }}
         search={{ labelWidth: 'auto' }}

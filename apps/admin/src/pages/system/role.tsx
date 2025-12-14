@@ -4,6 +4,7 @@ import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFo
 import { Button, App, Popconfirm, Space, Tag } from 'antd';
 import { useRef, useState } from 'react';
 import { adminApi } from '@hospital/api';
+import { toProTableResult } from '@/utils/proTable';
 import type { Role } from '@hospital/api';
 
 const RolePage: React.FC = () => {
@@ -77,8 +78,7 @@ const RolePage: React.FC = () => {
         columns={columns}
         request={async (params) => {
           const { current, pageSize, ...rest } = params;
-          const result = await adminApi.getRoles({ ...rest, page: current, pageSize });
-          return { data: result.data, total: result.total, success: true };
+          return toProTableResult(await adminApi.getRoles({ ...rest, page: current, pageSize }));
         }}
         toolBarRender={() => [
           <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalOpen(true); }}>

@@ -4,6 +4,7 @@ import { PageContainer, ProTable, ModalForm, ProFormSelect, ProFormDatePicker, P
 import { Button, App, Space, Tag, Popconfirm } from 'antd';
 import { useRef, useState, useEffect } from 'react';
 import { scheduleApi, doctorApi, departmentApi } from '@hospital/api';
+import { toProTableResult } from '@/utils/proTable';
 import type { Schedule, Doctor, Department } from '@hospital/shared';
 
 const TIME_SLOTS = [
@@ -165,16 +166,11 @@ const ScheduleListPage: React.FC = () => {
         columns={columns}
         request={async (params) => {
           const { current, pageSize, ...rest } = params;
-          const result = await scheduleApi.getList({
+          return toProTableResult(await scheduleApi.getList({
             ...rest,
             page: current,
             pageSize,
-          });
-          return {
-            data: result.data,
-            total: result.total,
-            success: true,
-          };
+          }));
         }}
         toolBarRender={() => [
           <Button

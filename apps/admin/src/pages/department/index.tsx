@@ -4,6 +4,7 @@ import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFo
 import { Button, App, Popconfirm, Space, Tag } from 'antd';
 import { useRef, useState } from 'react';
 import { departmentApi } from '@hospital/api';
+import { toProTableResult } from '@/utils/proTable';
 import type { Department } from '@hospital/shared';
 
 const DepartmentPage: React.FC = () => {
@@ -124,16 +125,11 @@ const DepartmentPage: React.FC = () => {
         columns={columns}
         request={async (params) => {
           const { current, pageSize, ...rest } = params;
-          const result = await departmentApi.getList({
+          return toProTableResult(await departmentApi.getList({
             ...rest,
             page: current,
             pageSize,
-          });
-          return {
-            data: result.data,
-            total: result.total,
-            success: true,
-          };
+          }));
         }}
         toolBarRender={() => [
           <Button
