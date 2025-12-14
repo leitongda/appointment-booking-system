@@ -13,4 +13,4 @@ from app.models.message import Message, MessageTemplate
 from app.models.leave_request import LeaveRequest
 from app.models.feedback import Feedback
 from app.models.consultation_fee import ConsultationFeeType, ConsultationFeeTemplate, DoctorConsultationFee
-
+from app.models.doctor_booking_setting import DoctorBookingSetting

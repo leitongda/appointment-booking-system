@@ -5,6 +5,7 @@ export interface DepartmentListParams {
   name?: string;
   status?: number;
   parentId?: string;
+  storeId?: string;
   page?: number;
   pageSize?: number;
 }
@@ -16,6 +17,29 @@ export interface DepartmentCreateData {
   sortOrder?: number;
   isHot?: number;
   status?: number;
+  
+  // 基础配置
+  storeId?: string;
+  tag?: string;
+  enableBanner?: number;
+  enableIntro?: number;
+  isFinal?: number;
+  isRecommended?: number;
+  
+  // 图片资源
+  bannerImage?: string;
+  icon?: string;
+  introImages?: string;
+  
+  // 详情内容
+  introContent?: string;
+  features?: string;
+  appointmentNotice?: string;
+  
+  // 联系信息
+  phone?: string;
+  location?: string;
+  workingHours?: string;
 }
 
 export const departmentApi = {

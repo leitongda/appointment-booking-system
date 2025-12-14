@@ -48,6 +48,7 @@ export default [
     routes: [
       { path: '/doctor', redirect: '/doctor/list' },
       { path: '/doctor/list', name: '医生列表', component: './doctor/list' },
+      { path: '/doctor/booking-setting', name: '预约设置', component: './doctor/booking-setting' },
       { path: '/doctor/create', name: '新增医生', component: './doctor/form', hideInMenu: true },
       { path: '/doctor/:id', name: '医生详情', component: './doctor/detail', hideInMenu: true },
       { path: '/doctor/:id/edit', name: '编辑医生', component: './doctor/form', hideInMenu: true },

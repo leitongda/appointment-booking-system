@@ -9,3 +9,4 @@ export * from './message';
 export * from './leave-request';
 export * from './feedback';
 export * from './consultation-fee';
+export * from './doctor-booking-setting';

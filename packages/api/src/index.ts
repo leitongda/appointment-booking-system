@@ -24,6 +24,7 @@ export {
   consultationFeeTemplateApi,
   doctorConsultationFeeApi,
 } from './modules/consultation-fee';
+export { doctorBookingSettingApi } from './modules/doctor-booking-setting';
 
 // Auth types are re-exported from @hospital/shared
 export type { LoginParams, LoginResult } from '@hospital/shared';
@@ -72,3 +73,6 @@ export type {
   ConsultationFeeTemplateCreateData,
   DoctorFeeQueryParams,
 } from './modules/consultation-fee';
+
+// Doctor Booking Setting types
+export type { DoctorBookingSettingListParams } from './modules/doctor-booking-setting';

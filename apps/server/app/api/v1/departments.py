@@ -9,11 +9,19 @@ from app.services.department_service import DepartmentService
 
 router = APIRouter()
 
+def _to_response(department) -> DepartmentResponse:
+    """将 Department 模型转换为响应对象，包含门店名称"""
+    data = DepartmentResponse.model_validate(department)
+    if department.store:
+        data.store_name = department.store.name
+    return data
+
 @router.get("", response_model=PageResponse[DepartmentResponse])
 async def get_departments(
     name: Optional[str] = None,
     status: Optional[int] = None,
     parent_id: Optional[str] = None,
+    store_id: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db)
@@ -21,11 +29,11 @@ async def get_departments(
     """获取科室列表"""
     service = DepartmentService(db)
     departments, total = await service.get_list(
-        name=name, status=status, parent_id=parent_id, page=page, page_size=page_size
+        name=name, status=status, parent_id=parent_id, store_id=store_id, page=page, page_size=page_size
     )
     
     return PageResponse(
-        data=[DepartmentResponse.model_validate(d) for d in departments],
+        data=[_to_response(d) for d in departments],
         total=total,
         page=page,
         page_size=page_size
@@ -48,7 +56,7 @@ async def get_hot_departments(
     """获取热门科室"""
     service = DepartmentService(db)
     departments = await service.get_hot(limit=limit)
-    return [DepartmentResponse.model_validate(d) for d in departments]
+    return [_to_response(d) for d in departments]
 
 @router.get("/{dept_id}", response_model=DepartmentResponse)
 async def get_department(dept_id: str, db: AsyncSession = Depends(get_db)):
@@ -59,7 +67,7 @@ async def get_department(dept_id: str, db: AsyncSession = Depends(get_db)):
     if not department:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="科室不存在")
     
-    return DepartmentResponse.model_validate(department)
+    return _to_response(department)
 
 @router.post("", response_model=DepartmentResponse)
 async def create_department(
@@ -69,7 +77,7 @@ async def create_department(
     """创建科室"""
     service = DepartmentService(db)
     department = await service.create(data)
-    return DepartmentResponse.model_validate(department)
+    return _to_response(department)
 
 @router.put("/{dept_id}", response_model=DepartmentResponse)
 async def update_department(
@@ -84,7 +92,7 @@ async def update_department(
     if not department:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="科室不存在")
     
-    return DepartmentResponse.model_validate(department)
+    return _to_response(department)
 
 @router.delete("/{dept_id}")
 async def delete_department(dept_id: str, db: AsyncSession = Depends(get_db)):

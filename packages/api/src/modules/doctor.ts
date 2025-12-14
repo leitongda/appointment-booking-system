@@ -67,6 +67,13 @@ export const doctorApi = {
     return request.get(`/doctors/by-department/${departmentId}`);
   },
 
+  getByStore: async (storeId: string): Promise<Doctor[]> => {
+    const result = await request.get<any>('/doctors', {
+      params: { store_id: storeId, page_size: 100 }
+    });
+    return result.data ?? [];
+  },
+
   getDetail: (id: string): Promise<Doctor> => {
     return request.get(`/doctors/${id}`);
   },
