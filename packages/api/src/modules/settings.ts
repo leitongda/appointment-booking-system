@@ -48,6 +48,22 @@ export interface BookingRules {
   perDayLimit: number;
 }
 
+// 预约选项配置
+export interface BookingFieldConfig {
+  field: string;
+  name: string;
+  enabled: boolean;
+  required: boolean;
+}
+
+// 就诊卡配置
+export interface PatientCardConfig {
+  cardName: string;
+  cardDescription: string;
+  maxCardsPerUser: number;
+  showOnHomepage: boolean;
+}
+
 const PREFIX = '/settings';
 
 export const settingsApi = {
@@ -90,6 +106,24 @@ export const settingsApi = {
 
   updateSmsConfig: (data: Partial<SmsConfig>): Promise<void> => {
     return request.put(`${PREFIX}/sms`, data);
+  },
+
+  // ========== 预约选项配置 ==========
+  getBookingFields: (): Promise<BookingFieldConfig[]> => {
+    return request.get(`${PREFIX}/booking-fields`);
+  },
+
+  updateBookingFields: (fields: BookingFieldConfig[]): Promise<{ data: BookingFieldConfig[] }> => {
+    return request.put(`${PREFIX}/booking-fields`, { fields });
+  },
+
+  // ========== 就诊卡配置 ==========
+  getPatientCardConfig: (): Promise<PatientCardConfig> => {
+    return request.get(`${PREFIX}/patient-card`);
+  },
+
+  updatePatientCardConfig: (data: Partial<PatientCardConfig>): Promise<{ data: PatientCardConfig }> => {
+    return request.put(`${PREFIX}/patient-card`, data);
   },
 };
 

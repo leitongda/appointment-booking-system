@@ -227,3 +227,70 @@ async def get_booking_rules(
     }
 
 
+# ========== 预约选项配置 ==========
+class BookingFieldUpdate(BaseModel):
+    field: str
+    enabled: bool
+    required: bool
+
+
+class BookingFieldsUpdate(BaseModel):
+    fields: list[BookingFieldUpdate]
+
+
+@router.get("/booking-fields")
+async def get_booking_fields(
+    db: AsyncSession = Depends(get_db),
+):
+    """获取预约选项配置（公开接口，用于动态渲染表单）"""
+    service = SettingsService(db)
+    return await service.get_booking_fields()
+
+
+@router.put("/booking-fields")
+async def update_booking_fields(
+    data: BookingFieldsUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """更新预约选项配置"""
+    service = SettingsService(db)
+    fields_data = [f.model_dump() for f in data.fields]
+    result = await service.update_booking_fields(fields_data)
+    return {"message": "保存成功", "data": result}
+
+
+# ========== 就诊卡配置 ==========
+class PatientCardConfigUpdate(BaseModel):
+    cardName: Optional[str] = Field(None, max_length=50, description="就诊卡名称")
+    cardDescription: Optional[str] = Field(None, max_length=16, description="描述文字（限16字）")
+    maxCardsPerUser: Optional[int] = Field(None, ge=1, le=20, description="可建卡数量")
+    showOnHomepage: Optional[bool] = Field(None, description="首页是否展示")
+
+
+@router.get("/patient-card")
+async def get_patient_card_config(
+    db: AsyncSession = Depends(get_db),
+):
+    """获取就诊卡配置（公开接口）"""
+    service = SettingsService(db)
+    return await service.get_patient_card_config()
+
+
+@router.put("/patient-card")
+async def update_patient_card_config(
+    data: PatientCardConfigUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """更新就诊卡配置"""
+    service = SettingsService(db)
+    result = await service.update_patient_card_config(
+        card_name=data.cardName,
+        card_description=data.cardDescription,
+        max_cards_per_user=data.maxCardsPerUser,
+        show_on_homepage=data.showOnHomepage,
+    )
+    return {"message": "保存成功", "data": result}
+
+

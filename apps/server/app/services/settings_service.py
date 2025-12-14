@@ -141,6 +141,91 @@ class SettingsService:
             'templateCode': data.get('template_code', ''),
         }
 
+    async def get_booking_fields(self) -> list:
+        """获取预约选项配置"""
+        data = await self.get_by_category('booking_fields')
+        
+        # 字段顺序和中文名称
+        field_names = {
+            'name': '姓名',
+            'phone': '联系电话',
+            'gender': '性别',
+            'province_city_district': '省/市/区',
+            'street': '街道/社区',
+            'card_no': '就诊卡编号',
+            'id_card_type': '证件类型',
+            'id_card': '证件号',
+            'ethnicity': '民族',
+            'birthday': '出生日期',
+            'age': '年龄',
+            'relationship': '关系',
+            'address': '详细地址',
+        }
+        
+        result = []
+        for field, name in field_names.items():
+            config = data.get(field, {'enabled': False, 'required': False})
+            if isinstance(config, str):
+                try:
+                    config = json.loads(config)
+                except:
+                    config = {'enabled': False, 'required': False}
+            
+            result.append({
+                'field': field,
+                'name': name,
+                'enabled': config.get('enabled', False),
+                'required': config.get('required', False),
+            })
+        
+        return result
+
+    async def update_booking_field(self, field: str, enabled: bool, required: bool) -> Dict[str, Any]:
+        """更新单个预约选项配置"""
+        value = {'enabled': enabled, 'required': required}
+        await self.set_value('booking_fields', field, value)
+        return value
+
+    async def update_booking_fields(self, fields: list) -> list:
+        """批量更新预约选项配置"""
+        for item in fields:
+            field = item.get('field')
+            enabled = item.get('enabled', False)
+            required = item.get('required', False)
+            if field:
+                await self.update_booking_field(field, enabled, required)
+        
+        return await self.get_booking_fields()
+
+    async def get_patient_card_config(self) -> Dict[str, Any]:
+        """获取就诊卡配置"""
+        data = await self.get_by_category('patient_card')
+        return {
+            'cardName': data.get('card_name', '就诊卡'),
+            'cardDescription': data.get('card_description', ''),
+            'maxCardsPerUser': data.get('max_cards_per_user', 5),
+            'showOnHomepage': data.get('show_on_homepage', False),
+        }
+
+    async def update_patient_card_config(
+        self,
+        card_name: str = None,
+        card_description: str = None,
+        max_cards_per_user: int = None,
+        show_on_homepage: bool = None,
+    ) -> Dict[str, Any]:
+        """更新就诊卡配置"""
+        if card_name is not None:
+            await self.set_value('patient_card', 'card_name', card_name)
+        if card_description is not None:
+            await self.set_value('patient_card', 'card_description', card_description)
+        if max_cards_per_user is not None:
+            await self.set_value('patient_card', 'max_cards_per_user', max_cards_per_user)
+        if show_on_homepage is not None:
+            await self.set_value('patient_card', 'show_on_homepage', show_on_homepage)
+        
+        return await self.get_patient_card_config()
+
     def _parse_value(self, value: str) -> Any:
         """解析值"""
         if value is None:

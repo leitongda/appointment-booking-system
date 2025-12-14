@@ -1,0 +1,303 @@
+"""黑名单服务"""
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, and_, or_
+from sqlalchemy.orm import selectinload
+from typing import Optional, List, Tuple
+from datetime import datetime, timedelta
+import uuid
+
+from app.models.blacklist import Blacklist
+from app.models.user import User, Patient
+from app.models.store import Store
+from app.schemas.blacklist import BlacklistCreate, BlacklistCheckResult
+
+
+class BlacklistService:
+    """黑名单服务"""
+    
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def get_list(
+        self,
+        keyword: Optional[str] = None,
+        store_id: Optional[str] = None,
+        status: Optional[int] = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> Tuple[List[dict], int]:
+        """获取黑名单列表"""
+        query = select(Blacklist).options(
+            selectinload(Blacklist.user),
+            selectinload(Blacklist.store)
+        )
+        conditions = []
+        
+        # 关键词搜索（用户昵称/电话/身份证/黑名单关键词）
+        if keyword:
+            # 需要搜索关联用户的信息
+            user_subquery = select(User.id).where(
+                or_(
+                    User.nickname.ilike(f"%{keyword}%"),
+                    User.phone.ilike(f"%{keyword}%")
+                )
+            )
+            conditions.append(
+                or_(
+                    Blacklist.keyword.ilike(f"%{keyword}%"),
+                    Blacklist.user_id.in_(user_subquery)
+                )
+            )
+        
+        if store_id:
+            conditions.append(Blacklist.store_id == store_id)
+        
+        if status is not None:
+            conditions.append(Blacklist.status == status)
+        
+        if conditions:
+            query = query.where(and_(*conditions))
+        
+        # 统计总数
+        count_query = select(func.count(Blacklist.id))
+        if conditions:
+            count_query = count_query.where(and_(*conditions))
+        total = await self.db.scalar(count_query)
+        
+        # 分页查询
+        query = query.order_by(Blacklist.created_at.desc())
+        query = query.offset((page - 1) * page_size).limit(page_size)
+        
+        result = await self.db.execute(query)
+        blacklists = result.unique().scalars().all()
+        
+        data = []
+        for item in blacklists:
+            user = item.user
+            store = item.store
+            
+            data.append({
+                'id': item.id,
+                'userId': item.user_id,
+                'userName': user.nickname if user else None,
+                'userPhone': user.phone if user else None,
+                'storeId': item.store_id,
+                'storeName': store.name if store else '全部门店',
+                'keyword': item.keyword,
+                'reason': item.reason,
+                'noShowCount': item.no_show_count,
+                'source': item.source,
+                'expireAt': item.expire_at.isoformat() if item.expire_at else None,
+                'releasedAt': item.released_at.isoformat() if item.released_at else None,
+                'status': item.status,
+                'createdAt': item.created_at.isoformat() if item.created_at else None,
+            })
+        
+        return data, total or 0
+
+    async def create(self, data: BlacklistCreate) -> dict:
+        """添加黑名单"""
+        blacklist = Blacklist(
+            id=str(uuid.uuid4()),
+            user_id=data.user_id,
+            store_id=data.store_id,
+            keyword=data.keyword,
+            reason=data.reason,
+            source=1,  # 手动添加
+            expire_at=data.expire_at,
+            status=1,
+        )
+        
+        self.db.add(blacklist)
+        await self.db.commit()
+        await self.db.refresh(blacklist)
+        
+        # 加载关联数据
+        await self.db.execute(
+            select(Blacklist)
+            .options(selectinload(Blacklist.user), selectinload(Blacklist.store))
+            .where(Blacklist.id == blacklist.id)
+        )
+        
+        return {
+            'id': blacklist.id,
+            'userId': blacklist.user_id,
+            'storeId': blacklist.store_id,
+            'keyword': blacklist.keyword,
+            'reason': blacklist.reason,
+            'source': blacklist.source,
+            'expireAt': blacklist.expire_at.isoformat() if blacklist.expire_at else None,
+            'status': blacklist.status,
+            'createdAt': blacklist.created_at.isoformat() if blacklist.created_at else None,
+        }
+
+    async def remove(self, blacklist_id: str) -> bool:
+        """移除黑名单（解禁）"""
+        result = await self.db.execute(
+            select(Blacklist).where(Blacklist.id == blacklist_id)
+        )
+        blacklist = result.scalar_one_or_none()
+        
+        if not blacklist:
+            return False
+        
+        blacklist.status = 0
+        blacklist.released_at = datetime.now()
+        await self.db.commit()
+        return True
+
+    async def delete(self, blacklist_id: str) -> bool:
+        """删除黑名单记录"""
+        result = await self.db.execute(
+            select(Blacklist).where(Blacklist.id == blacklist_id)
+        )
+        blacklist = result.scalar_one_or_none()
+        
+        if not blacklist:
+            return False
+        
+        await self.db.delete(blacklist)
+        await self.db.commit()
+        return True
+
+    async def check_blacklist(
+        self,
+        user_id: Optional[str] = None,
+        phone: Optional[str] = None,
+        id_card: Optional[str] = None,
+        store_id: Optional[str] = None,
+    ) -> BlacklistCheckResult:
+        """检查是否在黑名单中"""
+        conditions = [Blacklist.status == 1]
+        
+        # 检查是否过期
+        now = datetime.now()
+        conditions.append(
+            or_(
+                Blacklist.expire_at.is_(None),
+                Blacklist.expire_at > now
+            )
+        )
+        
+        # 门店条件：要么没有指定门店（全部门店），要么指定的门店匹配
+        if store_id:
+            conditions.append(
+                or_(
+                    Blacklist.store_id.is_(None),
+                    Blacklist.store_id == store_id
+                )
+            )
+        
+        # 匹配条件（满足任一即被拉黑）
+        match_conditions = []
+        
+        if user_id:
+            match_conditions.append(Blacklist.user_id == user_id)
+        
+        if phone:
+            match_conditions.append(Blacklist.keyword == phone)
+        
+        if id_card:
+            match_conditions.append(Blacklist.keyword == id_card)
+        
+        if not match_conditions:
+            return BlacklistCheckResult(is_blacklisted=False)
+        
+        conditions.append(or_(*match_conditions))
+        
+        result = await self.db.execute(
+            select(Blacklist).where(and_(*conditions)).limit(1)
+        )
+        blacklist = result.scalar_one_or_none()
+        
+        if blacklist:
+            return BlacklistCheckResult(
+                is_blacklisted=True,
+                reason=blacklist.reason,
+                expire_at=blacklist.expire_at
+            )
+        
+        return BlacklistCheckResult(is_blacklisted=False)
+
+    async def auto_add_blacklist(
+        self,
+        user_id: str,
+        no_show_count: int,
+        blacklist_days: int,
+    ) -> Optional[dict]:
+        """自动添加到黑名单（爽约触发）"""
+        # 检查是否已在黑名单中
+        existing = await self.db.execute(
+            select(Blacklist).where(
+                and_(
+                    Blacklist.user_id == user_id,
+                    Blacklist.status == 1
+                )
+            )
+        )
+        if existing.scalar_one_or_none():
+            return None
+        
+        # 计算解禁时间
+        expire_at = datetime.now() + timedelta(days=blacklist_days)
+        
+        blacklist = Blacklist(
+            id=str(uuid.uuid4()),
+            user_id=user_id,
+            reason=f'爽约{no_show_count}次，自动加入黑名单',
+            no_show_count=no_show_count,
+            source=2,  # 自动触发
+            expire_at=expire_at,
+            status=1,
+        )
+        
+        self.db.add(blacklist)
+        await self.db.commit()
+        await self.db.refresh(blacklist)
+        
+        return {
+            'id': blacklist.id,
+            'userId': blacklist.user_id,
+            'reason': blacklist.reason,
+            'noShowCount': blacklist.no_show_count,
+            'source': blacklist.source,
+            'expireAt': blacklist.expire_at.isoformat() if blacklist.expire_at else None,
+        }
+
+    async def auto_release_expired(self) -> List[dict]:
+        """自动解禁到期的黑名单"""
+        now = datetime.now()
+        
+        # 查询到期的黑名单
+        result = await self.db.execute(
+            select(Blacklist)
+            .options(selectinload(Blacklist.user))
+            .where(
+                and_(
+                    Blacklist.status == 1,
+                    Blacklist.expire_at <= now,
+                    Blacklist.expire_at.isnot(None)
+                )
+            )
+        )
+        expired_list = result.unique().scalars().all()
+        
+        released = []
+        for item in expired_list:
+            item.status = 0
+            item.released_at = now
+            
+            user = item.user
+            released.append({
+                'id': item.id,
+                'userId': item.user_id,
+                'userName': user.nickname if user else None,
+                'userPhone': user.phone if user else None,
+                'keyword': item.keyword,
+                'expireAt': item.expire_at.isoformat() if item.expire_at else None,
+            })
+        
+        if released:
+            await self.db.commit()
+        
+        return released

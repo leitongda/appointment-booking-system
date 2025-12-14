@@ -66,7 +66,7 @@ export const doctorBookingSettingApi = {
    */
   updateStatus: (id: string, status: number): Promise<void> => {
     return request.patch(`/doctor-booking-settings/${id}/status`, null, {
-      params: { status }
+      params: { new_status: status }
     });
   },
 };

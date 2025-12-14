@@ -38,6 +38,30 @@ export interface AvailableSchedule {
   endTime?: string;
 }
 
+export interface ScheduleStatisticsItem {
+  scheduleDate: string;
+  doctorId: string;
+  doctorName: string;
+  morningSlots: number;
+  afternoonSlots: number;
+  morningBooked: number;
+  afternoonBooked: number;
+}
+
+export interface ScheduleStatisticsResponse {
+  storeId: string;
+  storeName: string;
+  year: number;
+  month: number;
+  items: ScheduleStatisticsItem[];
+}
+
+export interface ScheduleStatisticsParams {
+  storeId: string;
+  year: number;
+  month: number;
+}
+
 export const scheduleApi = {
   getList: (params?: ScheduleListParams): Promise<PageResult<Schedule>> => {
     return request.get('/schedules', { params });
@@ -82,5 +106,12 @@ export const scheduleApi = {
    */
   resume: (id: string): Promise<{ message: string }> => {
     return request.put(`/schedules/${id}/resume`);
+  },
+
+  /**
+   * 获取排班统计
+   */
+  getStatistics: (params: ScheduleStatisticsParams): Promise<ScheduleStatisticsResponse> => {
+    return request.get('/schedules/statistics', { params });
   },
 };

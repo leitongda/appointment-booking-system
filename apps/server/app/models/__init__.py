@@ -14,3 +14,9 @@ from app.models.leave_request import LeaveRequest
 from app.models.feedback import Feedback
 from app.models.consultation_fee import ConsultationFeeType, ConsultationFeeTemplate, DoctorConsultationFee
 from app.models.doctor_booking_setting import DoctorBookingSetting
+from app.models.point_log import PointLog
+from app.models.schedule_template import ScheduleTemplate
+from app.models.custom_schedule import CustomSchedule
+from app.models.rest_day import RestDay
+from app.models.schedule_suspension import ScheduleSuspension
+from app.models.blacklist import Blacklist

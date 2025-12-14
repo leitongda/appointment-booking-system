@@ -2,9 +2,15 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { App, Popconfirm, Space, Tag } from 'antd';
 import { useRef } from 'react';
+import { history } from '@umijs/max';
 import { patientApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { PatientListItem } from '@hospital/api';
+
+const SOURCE_MAP: Record<number, string> = {
+  1: '用户添加',
+  2: '管理员添加',
+};
 
 const PatientPage: React.FC = () => {
   const { message } = App.useApp();
@@ -26,9 +32,10 @@ const PatientPage: React.FC = () => {
   };
 
   const columns: ProColumns<PatientListItem>[] = [
+    { title: '就诊卡编号', dataIndex: 'cardNo', width: 140, ellipsis: true },
     { title: '姓名', dataIndex: 'name', width: 80 },
     { title: '手机号', dataIndex: 'phone', width: 120 },
-    { title: '身份证号', dataIndex: 'idCard', width: 180, search: false },
+    { title: '身份证号', dataIndex: 'idCard', width: 180, search: false, ellipsis: true },
     {
       title: '性别',
       dataIndex: 'gender',
@@ -37,6 +44,13 @@ const PatientPage: React.FC = () => {
       render: (val) => (val === 1 ? '男' : val === 2 ? '女' : '-'),
     },
     { title: '与本人关系', dataIndex: 'relationship', width: 100, search: false },
+    {
+      title: '来源',
+      dataIndex: 'source',
+      width: 100,
+      search: false,
+      render: (_, record) => SOURCE_MAP[record.source || 1] || '-',
+    },
     { title: '预约次数', dataIndex: 'appointmentCount', width: 90, search: false },
     { title: '爽约次数', dataIndex: 'noShowCount', width: 90, search: false },
     {
@@ -50,9 +64,11 @@ const PatientPage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 100,
+      width: 140,
+      fixed: 'right',
       render: (_, record) => (
         <Space>
+          <a onClick={() => history.push(`/patient/${record.id}`)}>详情</a>
           {record.isBlacklist ? (
             <Popconfirm title="确定移出黑名单吗？" onConfirm={() => handleBlacklist(record.id, false)}>
               <a>移出黑名单</a>
@@ -74,9 +90,10 @@ const PatientPage: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
+        scroll={{ x: 1300 }}
         request={async (params) => {
-          const { current, pageSize, name, phone, ...rest } = params;
-          const keyword = name || phone;
+          const { current, pageSize, name, phone, cardNo, ...rest } = params;
+          const keyword = name || phone || cardNo;
           return toProTableResult(await patientApi.getList({ ...rest, keyword, page: current, pageSize }));
         }}
         pagination={{ defaultPageSize: 10 }}

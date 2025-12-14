@@ -63,6 +63,10 @@ export default [
       { path: '/schedule', redirect: '/schedule/list' },
       { path: '/schedule/list', name: '排班列表', component: './schedule/list' },
       { path: '/schedule/template', name: '排班模板', component: './schedule/template' },
+      { path: '/schedule/custom', name: '自定义排班', component: './schedule/custom' },
+      { path: '/schedule/rest-day', name: '休息日设置', component: './schedule/rest-day' },
+      { path: '/schedule/suspension', name: '停诊管理', component: './schedule/suspension' },
+      { path: '/schedule/statistics', name: '排班统计', component: './schedule/statistics' },
     ],
   },
   // 预约管理
@@ -81,7 +85,11 @@ export default [
     path: '/patient',
     name: '患者管理',
     icon: 'team',
-    component: './patient',
+    routes: [
+      { path: '/patient', redirect: '/patient/list' },
+      { path: '/patient/list', name: '患者列表', component: './patient' },
+      { path: '/patient/:id', name: '患者详情', component: './patient/detail', hideInMenu: true },
+    ],
   },
   // 停诊审核
   {

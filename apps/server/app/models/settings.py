@@ -62,6 +62,29 @@ DEFAULT_SETTINGS = {
         'template_code_remind': {'value': '', 'description': '就诊提醒模板'},
         'template_code_cancel': {'value': '', 'description': '取消预约模板'},
     },
+    # 预约选项配置（控制就诊人表单字段的启用/禁用、必填/非必填）
+    'booking_fields': {
+        'name': {'value': '{"enabled": true, "required": true}', 'description': '姓名'},
+        'phone': {'value': '{"enabled": true, "required": true}', 'description': '联系电话'},
+        'gender': {'value': '{"enabled": true, "required": true}', 'description': '性别'},
+        'province_city_district': {'value': '{"enabled": false, "required": false}', 'description': '省/市/区'},
+        'street': {'value': '{"enabled": false, "required": false}', 'description': '街道/社区'},
+        'card_no': {'value': '{"enabled": false, "required": false}', 'description': '就诊卡编号'},
+        'id_card_type': {'value': '{"enabled": false, "required": false}', 'description': '证件类型'},
+        'id_card': {'value': '{"enabled": false, "required": false}', 'description': '证件号'},
+        'ethnicity': {'value': '{"enabled": false, "required": false}', 'description': '民族'},
+        'birthday': {'value': '{"enabled": false, "required": false}', 'description': '出生日期'},
+        'age': {'value': '{"enabled": true, "required": true}', 'description': '年龄'},
+        'relationship': {'value': '{"enabled": false, "required": false}', 'description': '关系'},
+        'address': {'value': '{"enabled": false, "required": false}', 'description': '详细地址'},
+    },
+    # 就诊卡配置
+    'patient_card': {
+        'card_name': {'value': '就诊卡', 'description': '就诊卡名称'},
+        'card_description': {'value': '', 'description': '就诊卡描述文字（限16字以内）'},
+        'max_cards_per_user': {'value': '5', 'description': '每用户可建卡数量'},
+        'show_on_homepage': {'value': 'false', 'description': '首页是否展示'},
+    },
 }
 
 

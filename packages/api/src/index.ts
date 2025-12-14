@@ -25,6 +25,11 @@ export {
   doctorConsultationFeeApi,
 } from './modules/consultation-fee';
 export { doctorBookingSettingApi } from './modules/doctor-booking-setting';
+export { scheduleTemplateApi } from './modules/schedule-template';
+export { customScheduleApi } from './modules/custom-schedule';
+export { restDayApi } from './modules/rest-day';
+export { scheduleSuspensionApi } from './modules/schedule-suspension';
+export { blacklistApi } from './modules/blacklist';
 
 // Auth types are re-exported from @hospital/shared
 export type { LoginParams, LoginResult } from '@hospital/shared';
@@ -58,10 +63,41 @@ export type { Admin, Role, AdminLoginParams, AdminLoginResult } from './modules/
 export type { Banner, News, Notice } from './modules/content';
 
 // Patient types
-export type { PatientListItem, PatientDetail } from './modules/patient';
+export type {
+  PatientListItem,
+  PatientDetail,
+  PatientStatistics,
+  PatientUpdateData,
+  PatientAppointment,
+  PatientAppointmentParams,
+  ConsumptionRecord,
+  ConsumptionRecordParams,
+  PointLog,
+  PointLogResult,
+  PointAdjustData,
+  PointAdjustResult,
+  PointSummary,
+  PatientListParams,
+} from './modules/patient';
 
 // Settings types
-export type { BookingSettings, HospitalInfo, WechatConfig, SmsConfig, BookingRules } from './modules/settings';
+export type {
+  BookingSettings,
+  HospitalInfo,
+  WechatConfig,
+  SmsConfig,
+  BookingRules,
+  BookingFieldConfig,
+  PatientCardConfig,
+} from './modules/settings';
+
+// Blacklist types
+export type {
+  BlacklistItem,
+  BlacklistListParams,
+  BlacklistCreateData,
+  BlacklistCheckResult,
+} from './modules/blacklist';
 
 // Admin Operation Log type
 export type { OperationLog } from './modules/admin';
@@ -76,3 +112,43 @@ export type {
 
 // Doctor Booking Setting types
 export type { DoctorBookingSettingListParams } from './modules/doctor-booking-setting';
+
+// Schedule Template types
+export type {
+  ScheduleTemplateListParams,
+  ScheduleTemplateCreateData,
+  ScheduleTemplateUpdateData,
+  ScheduleGenerateData,
+  ScheduleBatchAddData,
+} from './modules/schedule-template';
+
+// Custom Schedule types
+export type {
+  CustomSchedule,
+  CustomScheduleListParams,
+  CustomScheduleCreateData,
+  TimePeriod,
+  EffectiveScheduleParams,
+} from './modules/custom-schedule';
+
+// Rest Day types
+export type {
+  RestDay,
+  RestDayListParams,
+  RestDayCreateData,
+} from './modules/rest-day';
+
+// Schedule Suspension types
+export type {
+  ScheduleSuspension,
+  ScheduleSuspensionListParams,
+  ScheduleSuspensionCreateData,
+  AvailableScheduleForSuspension,
+} from './modules/schedule-suspension';
+
+// Schedule Statistics types
+export type {
+  ScheduleStatisticsItem,
+  ScheduleStatisticsResponse,
+  ScheduleStatisticsParams,
+} from './modules/schedule';
