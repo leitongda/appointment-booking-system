@@ -1,34 +1,392 @@
-import { useState } from 'react';
-import { LockOutlined, UserOutlined, MedicineBoxOutlined } from '@ant-design/icons';
-import { LoginForm, ProFormText } from '@ant-design/pro-components';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { 
+  LockOutlined, 
+  UserOutlined, 
+  MedicineBoxOutlined, 
+  MobileOutlined,
+  WechatOutlined,
+  SafetyOutlined,
+} from '@ant-design/icons';
+import { ProFormText } from '@ant-design/pro-components';
 import { useModel, history } from '@umijs/max';
-import { App } from 'antd';
+import { App, Tabs, Button, Form, Input, QRCode, Spin, Space } from 'antd';
 import { adminApi } from '@hospital/api';
 import { setToken, STORAGE_KEYS, setStorage } from '@hospital/shared';
 import styles from './index.less';
 
+type LoginType = 'wechat' | 'phone' | 'account';
+type PhoneLoginType = 'sms' | 'password';
+
 const Login: React.FC = () => {
   const { message } = App.useApp();
   const { initialState, setInitialState } = useModel('@@initialState');
+  
+  // 登录方式
+  const [loginType, setLoginType] = useState<LoginType>('wechat');
+  const [phoneLoginType, setPhoneLoginType] = useState<PhoneLoginType>('sms');
+  
+  // 加载状态
   const [loading, setLoading] = useState(false);
+  const [smsLoading, setSmsLoading] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  
+  // 微信扫码相关
+  const [qrcodeUrl, setQrcodeUrl] = useState('');
+  const [qrcodeTicket, setQrcodeTicket] = useState('');
+  const [qrcodeStatus, setQrcodeStatus] = useState<'loading' | 'active' | 'expired'>('loading');
+  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // 表单
+  const [accountForm] = Form.useForm();
+  const [phoneForm] = Form.useForm();
 
-  const handleSubmit = async (values: API.LoginParams) => {
+  // 登录成功后的处理
+  const handleLoginSuccess = useCallback(async (result: any) => {
+    setToken(result.accessToken);
+    setStorage(STORAGE_KEYS.REFRESH_TOKEN, result.refreshToken);
+    message.success('登录成功！');
+    const userInfo = await initialState?.fetchUserInfo?.();
+    await setInitialState((s: any) => ({ ...s, currentUser: userInfo }));
+    history.push('/dashboard');
+  }, [initialState, setInitialState, message]);
+
+  // 账号密码登录
+  const handleAccountLogin = async (values: { username: string; password: string }) => {
     setLoading(true);
     try {
-      // adminApi.login 内部会自动获取公钥并加密密码
       const result = await adminApi.login(values);
-      setToken(result.accessToken);
-      setStorage(STORAGE_KEYS.REFRESH_TOKEN, result.refreshToken);
-      message.success('登录成功！');
-      const userInfo = await initialState?.fetchUserInfo?.();
-      await setInitialState((s) => ({ ...s, currentUser: userInfo }));
-      history.push('/dashboard');
+      await handleLoginSuccess(result);
     } catch (error: any) {
       message.error(error.message || '登录失败');
     } finally {
       setLoading(false);
     }
   };
+
+  // 手机号+密码登录
+  const handlePhonePasswordLogin = async (values: { phone: string; password: string }) => {
+    setLoading(true);
+    try {
+      const result = await adminApi.phoneLogin(values);
+      await handleLoginSuccess(result);
+    } catch (error: any) {
+      message.error(error.message || '登录失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 手机号+验证码登录
+  const handlePhoneSmsLogin = async (values: { phone: string; code: string }) => {
+    setLoading(true);
+    try {
+      const result = await adminApi.smsLogin(values);
+      await handleLoginSuccess(result);
+    } catch (error: any) {
+      message.error(error.message || '登录失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 发送验证码
+  const handleSendSms = async () => {
+    try {
+      const phone = phoneForm.getFieldValue('phone');
+      if (!phone || !/^1\d{10}$/.test(phone)) {
+        message.error('请输入正确的手机号');
+        return;
+      }
+      
+      setSmsLoading(true);
+      await adminApi.sendSmsCode(phone);
+      message.success('验证码已发送');
+      setCountdown(60);
+    } catch (error: any) {
+      message.error(error.message || '发送失败');
+    } finally {
+      setSmsLoading(false);
+    }
+  };
+
+  // 倒计时
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
+
+  // 获取微信二维码
+  const fetchWechatQrcode = useCallback(async () => {
+    setQrcodeStatus('loading');
+    try {
+      const result = await adminApi.getWechatQrcode();
+      setQrcodeUrl(result.qrcodeUrl);
+      setQrcodeTicket(result.ticket);
+      setQrcodeStatus('active');
+    } catch (error: any) {
+      message.error('获取二维码失败');
+      setQrcodeStatus('expired');
+    }
+  }, [message]);
+
+  // 轮询检查扫码状态
+  const pollWechatStatus = useCallback(async () => {
+    if (!qrcodeTicket || qrcodeStatus !== 'active') return;
+    
+    try {
+      const result = await adminApi.checkWechatScan(qrcodeTicket);
+      
+      if (result.status === 'confirmed' && result.accessToken) {
+        // 登录成功
+        if (pollTimerRef.current) {
+          clearInterval(pollTimerRef.current);
+          pollTimerRef.current = null;
+        }
+        await handleLoginSuccess(result);
+      } else if (result.status === 'expired') {
+        setQrcodeStatus('expired');
+        if (pollTimerRef.current) {
+          clearInterval(pollTimerRef.current);
+          pollTimerRef.current = null;
+        }
+      }
+    } catch (error) {
+      // 忽略轮询错误
+    }
+  }, [qrcodeTicket, qrcodeStatus, handleLoginSuccess]);
+
+  // 当切换到微信登录时获取二维码
+  useEffect(() => {
+    if (loginType === 'wechat') {
+      fetchWechatQrcode();
+    }
+    
+    return () => {
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+    };
+  }, [loginType, fetchWechatQrcode]);
+
+  // 开始轮询
+  useEffect(() => {
+    if (qrcodeStatus === 'active' && qrcodeTicket) {
+      pollTimerRef.current = setInterval(pollWechatStatus, 2000);
+    }
+    
+    return () => {
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+    };
+  }, [qrcodeStatus, qrcodeTicket, pollWechatStatus]);
+
+  // 手机号登录表单提交
+  const handlePhoneFormSubmit = (values: any) => {
+    if (phoneLoginType === 'sms') {
+      handlePhoneSmsLogin(values);
+    } else {
+      handlePhonePasswordLogin(values);
+    }
+  };
+
+  // 渲染微信扫码登录
+  const renderWechatLogin = () => (
+    <div className={styles.wechatLogin}>
+      <div className={styles.qrcodeWrapper}>
+        {qrcodeStatus === 'loading' && (
+          <div className={styles.qrcodeLoading}>
+            <Spin size="large" />
+            <p>加载中...</p>
+          </div>
+        )}
+        {qrcodeStatus === 'active' && (
+          <>
+            <QRCode 
+              value={qrcodeUrl || '-'} 
+              size={180}
+              status="active"
+              bordered={false}
+            />
+            <p className={styles.qrcodeTip}>请使用微信扫描二维码登录</p>
+          </>
+        )}
+        {qrcodeStatus === 'expired' && (
+          <div className={styles.qrcodeExpired}>
+            <QRCode 
+              value="-" 
+              size={180}
+              status="expired"
+              bordered={false}
+              onRefresh={fetchWechatQrcode}
+            />
+            <p>二维码已过期，请刷新</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // 渲染手机号登录
+  const renderPhoneLogin = () => (
+    <div className={styles.phoneLogin}>
+      <div className={styles.phoneLoginTypeSwitch}>
+        <Space>
+          <Button 
+            type={phoneLoginType === 'sms' ? 'primary' : 'default'}
+            size="small"
+            onClick={() => setPhoneLoginType('sms')}
+          >
+            验证码登录
+          </Button>
+          <Button 
+            type={phoneLoginType === 'password' ? 'primary' : 'default'}
+            size="small"
+            onClick={() => setPhoneLoginType('password')}
+          >
+            密码登录
+          </Button>
+        </Space>
+      </div>
+      
+      <Form
+        form={phoneForm}
+        onFinish={handlePhoneFormSubmit}
+        size="large"
+        className={styles.loginForm}
+      >
+        <Form.Item
+          name="phone"
+          rules={[
+            { required: true, message: '请输入手机号' },
+            { pattern: /^1\d{10}$/, message: '手机号格式不正确' }
+          ]}
+        >
+          <Input 
+            prefix={<MobileOutlined />} 
+            placeholder="请输入手机号" 
+            maxLength={11}
+          />
+        </Form.Item>
+        
+        {phoneLoginType === 'sms' ? (
+          <Form.Item
+            name="code"
+            rules={[{ required: true, message: '请输入验证码' }]}
+          >
+            <Input 
+              prefix={<SafetyOutlined />} 
+              placeholder="请输入验证码"
+              maxLength={6}
+              suffix={
+                <Button 
+                  type="link" 
+                  size="small"
+                  disabled={countdown > 0}
+                  loading={smsLoading}
+                  onClick={handleSendSms}
+                  style={{ padding: 0 }}
+                >
+                  {countdown > 0 ? `${countdown}s` : '获取验证码'}
+                </Button>
+              }
+            />
+          </Form.Item>
+        ) : (
+          <Form.Item
+            name="password"
+            rules={[{ required: true, message: '请输入密码' }]}
+          >
+            <Input.Password 
+              prefix={<LockOutlined />} 
+              placeholder="请输入密码" 
+            />
+          </Form.Item>
+        )}
+        
+        <Form.Item>
+          <Button type="primary" htmlType="submit" block loading={loading}>
+            登 录
+          </Button>
+        </Form.Item>
+      </Form>
+    </div>
+  );
+
+  // 渲染账号密码登录
+  const renderAccountLogin = () => (
+    <div className={styles.accountLogin}>
+      <Form
+        form={accountForm}
+        onFinish={handleAccountLogin}
+        size="large"
+        className={styles.loginForm}
+      >
+        <Form.Item
+          name="username"
+          rules={[{ required: true, message: '请输入用户名' }]}
+        >
+          <Input 
+            prefix={<UserOutlined />} 
+            placeholder="请输入用户名" 
+          />
+        </Form.Item>
+        
+        <Form.Item
+          name="password"
+          rules={[{ required: true, message: '请输入密码' }]}
+        >
+          <Input.Password 
+            prefix={<LockOutlined />} 
+            placeholder="请输入密码" 
+          />
+        </Form.Item>
+        
+        <Form.Item>
+          <Button type="primary" htmlType="submit" block loading={loading}>
+            登 录
+          </Button>
+        </Form.Item>
+      </Form>
+    </div>
+  );
+
+  const tabItems = [
+    {
+      key: 'wechat',
+      label: (
+        <span>
+          <WechatOutlined />
+          微信登录
+        </span>
+      ),
+      children: renderWechatLogin(),
+    },
+    {
+      key: 'phone',
+      label: (
+        <span>
+          <MobileOutlined />
+          手机号登录
+        </span>
+      ),
+      children: renderPhoneLogin(),
+    },
+    {
+      key: 'account',
+      label: (
+        <span>
+          <UserOutlined />
+          账号登录
+        </span>
+      ),
+      children: renderAccountLogin(),
+    },
+  ];
 
   return (
     <div className={styles.container}>
@@ -39,27 +397,14 @@ const Login: React.FC = () => {
             <div className={styles.logo}><MedicineBoxOutlined /></div>
             <h1 className={styles.title}>医院挂号管理系统</h1>
           </div>
-          <LoginForm
-            contentStyle={{ minWidth: 320 }}
-            submitter={{
-              searchConfig: { submitText: '登 录' },
-              submitButtonProps: { size: 'large', style: { width: '100%' }, loading },
-            }}
-            onFinish={handleSubmit}
-          >
-            <ProFormText
-              name="username"
-              fieldProps={{ size: 'large', prefix: <UserOutlined /> }}
-              placeholder="用户名"
-              rules={[{ required: true, message: '请输入用户名' }]}
-            />
-            <ProFormText.Password
-              name="password"
-              fieldProps={{ size: 'large', prefix: <LockOutlined /> }}
-              placeholder="密码"
-              rules={[{ required: true, message: '请输入密码' }]}
-            />
-          </LoginForm>
+          
+          <Tabs 
+            activeKey={loginType}
+            onChange={(key) => setLoginType(key as LoginType)}
+            items={tabItems}
+            centered
+            className={styles.loginTabs}
+          />
         </div>
       </div>
     </div>
@@ -67,4 +412,3 @@ const Login: React.FC = () => {
 };
 
 export default Login;
-

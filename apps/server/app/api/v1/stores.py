@@ -43,6 +43,8 @@ async def get_stores(
             code=store.code,
             address=store.address,
             phone=store.phone,
+            logo=store.logo,
+            theme_style=store.theme_style,
             status=store.status,
             department_count=dept_count,
             created_at=store.created_at

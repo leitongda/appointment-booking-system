@@ -50,8 +50,12 @@ class Doctor(Base, TimestampMixin):
     last_login_at = Column(DateTime, comment="最后登录时间")
     last_login_ip = Column(String(50), comment="最后登录IP")
     
+    # 诊费设置
+    use_fee_template = Column(Integer, default=0, comment="是否使用诊费模板 0否 1是")
+    
     # 关联关系
     store = relationship("Store", backref="doctors")
     department = relationship("Department", back_populates="doctors")
     schedules = relationship("Schedule", back_populates="doctor")
+    consultation_fees = relationship("DoctorConsultationFee", back_populates="doctor", cascade="all, delete-orphan")
 

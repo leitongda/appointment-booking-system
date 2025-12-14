@@ -41,6 +41,9 @@ class DoctorBase(BaseModel):
     is_recommended: int = Field(0, ge=0, le=1, description="是否推荐")
     sort_order: int = Field(0, ge=0, description="排序")
     status: int = Field(1, ge=0, le=1, description="状态")
+    
+    # 诊费设置
+    use_fee_template: int = Field(0, ge=0, le=1, description="是否使用诊费模板 0否 1是")
 
 class DoctorCreate(DoctorBase):
     password: Optional[str] = Field(None, min_length=6, description="医生账号密码")
@@ -83,6 +86,9 @@ class DoctorUpdate(BaseModel):
     is_recommended: Optional[int] = Field(None, ge=0, le=1)
     sort_order: Optional[int] = Field(None, ge=0)
     status: Optional[int] = Field(None, ge=0, le=1)
+    
+    # 诊费设置
+    use_fee_template: Optional[int] = Field(None, ge=0, le=1)
     
     # 密码更新
     password: Optional[str] = Field(None, min_length=6)

@@ -7,12 +7,15 @@ import { history } from '@umijs/max';
 import { doctorApi, departmentApi, storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Doctor, Department, Store } from '@hospital/shared';
+import DoctorConsultationFeeModal from './consultation-fee-modal';
 
 const DoctorListPage: React.FC = () => {
   const { message } = App.useApp();
   const actionRef = useRef<ActionType>();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
+  const [feeModalOpen, setFeeModalOpen] = useState(false);
+  const [selectedDoctor, setSelectedDoctor] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     loadDepartments();
@@ -145,12 +148,20 @@ const DoctorListPage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 150,
+      width: 200,
       fixed: 'right',
       render: (_, record) => (
         <Space>
           <a onClick={() => history.push(`/doctor/${record.id}`)}>详情</a>
           <a onClick={() => history.push(`/doctor/${record.id}/edit`)}>编辑</a>
+          <a
+            onClick={() => {
+              setSelectedDoctor({ id: record.id, name: record.name });
+              setFeeModalOpen(true);
+            }}
+          >
+            诊费
+          </a>
           <Popconfirm
             title="确定删除该医生吗？"
             onConfirm={() => handleDelete(record.id)}
@@ -190,6 +201,18 @@ const DoctorListPage: React.FC = () => {
         ]}
         pagination={{ defaultPageSize: 10 }}
       />
+      
+      {selectedDoctor && (
+        <DoctorConsultationFeeModal
+          open={feeModalOpen}
+          doctorId={selectedDoctor.id}
+          doctorName={selectedDoctor.name}
+          onClose={() => {
+            setFeeModalOpen(false);
+            setSelectedDoctor(null);
+          }}
+        />
+      )}
     </PageContainer>
   );
 };

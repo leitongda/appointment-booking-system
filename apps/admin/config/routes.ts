@@ -132,6 +132,8 @@ export default [
       { path: '/system/role', name: '角色管理', component: './system/role' },
       { path: '/system/admin', name: '管理员', component: './system/admin' },
       { path: '/system/settings', name: '系统配置', component: './system/settings' },
+      { path: '/system/consultation-fee-types', name: '诊费类型', component: './system/consultation-fee-types' },
+      { path: '/system/consultation-fee-templates', name: '诊费模板', component: './system/consultation-fee-templates' },
       { path: '/system/log', name: '操作日志', component: './system/log' },
     ],
   },

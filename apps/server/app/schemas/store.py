@@ -31,6 +31,10 @@ class StoreBase(BaseModel):
     closing_time: Optional[time] = Field(None, description="营业结束时间")
     working_days: Optional[str] = Field("1,2,3,4,5,6,7", description="工作日")
     image: Optional[str] = Field(None, max_length=255, description="门店图片")
+    logo: Optional[str] = Field(None, max_length=255, description="门店logo")
+    password: Optional[str] = Field(None, max_length=100, description="门店密码")
+    email: Optional[str] = Field(None, max_length=100, description="邮箱")
+    theme_style: Optional[str] = Field(None, max_length=50, description="风格选择")
     sort_order: int = Field(0, ge=0, description="排序")
     status: int = Field(1, ge=0, le=1, description="状态: 0-停业 1-营业")
 
@@ -62,6 +66,10 @@ class StoreUpdate(BaseModel):
     closing_time: Optional[time] = None
     working_days: Optional[str] = None
     image: Optional[str] = Field(None, max_length=255)
+    logo: Optional[str] = Field(None, max_length=255)
+    password: Optional[str] = Field(None, max_length=100)
+    email: Optional[str] = Field(None, max_length=100)
+    theme_style: Optional[str] = Field(None, max_length=50)
     sort_order: Optional[int] = Field(None, ge=0)
     status: Optional[int] = Field(None, ge=0, le=1)
 
@@ -78,6 +86,8 @@ class StoreResponse(StoreBase):
     id: str
     created_at: datetime
     updated_at: datetime
+    # 排除密码字段，不返回给前端
+    password: Optional[str] = Field(None, exclude=True)
 
 
 class StoreListResponse(BaseModel):
@@ -94,6 +104,8 @@ class StoreListResponse(BaseModel):
     code: Optional[str]
     address: Optional[str]
     phone: Optional[str]
+    logo: Optional[str] = None
+    theme_style: Optional[str] = None
     status: int
     department_count: int = 0
     created_at: datetime

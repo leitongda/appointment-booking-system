@@ -195,6 +195,61 @@ export const adminApi = {
     return request.get(`${PREFIX}/me`);
   },
 
+  // ========== 手机号登录 ==========
+  // 手机号+密码登录
+  phoneLogin: async (data: PhoneLoginParams, retried = false): Promise<AdminLoginResult> => {
+    try {
+      // 检查是否已有缓存的公钥
+      let publicKey = getPublicKey();
+      
+      if (!publicKey) {
+        publicKey = await adminApi.getPublicKey();
+      }
+      
+      // 加密密码
+      const encryptedPassword = rsaEncrypt(data.password);
+      
+      // 发送加密后的密码
+      const result = await request.post<AdminLoginResult>(`${PREFIX}/phone-login`, {
+        phone: data.phone,
+        password: encryptedPassword,
+        encrypted: true,
+      });
+      
+      return result;
+    } catch (error: any) {
+      // 如果是密码解密失败且未重试过，清除公钥缓存后重试
+      if (!retried && error.message?.includes('解密失败')) {
+        clearPublicKey();
+        return adminApi.phoneLogin(data, true);
+      }
+      
+      throw error;
+    }
+  },
+
+  // ========== 短信验证码登录 ==========
+  // 发送短信验证码
+  sendSmsCode: (phone: string): Promise<void> => {
+    return request.post(`${PREFIX}/sms/send`, { phone });
+  },
+
+  // 短信验证码登录
+  smsLogin: (data: SmsLoginParams): Promise<AdminLoginResult> => {
+    return request.post(`${PREFIX}/sms/login`, data);
+  },
+
+  // ========== 微信扫码登录 ==========
+  // 获取微信扫码二维码
+  getWechatQrcode: (): Promise<WechatQrcodeResult> => {
+    return request.get(`${PREFIX}/wechat/qrcode`);
+  },
+
+  // 检查微信扫码状态
+  checkWechatScan: (ticket: string): Promise<WechatCheckResult> => {
+    return request.get(`${PREFIX}/wechat/check`, { params: { ticket } });
+  },
+
   // ========== 角色管理 ==========
   getRoles: (params?: { 
     status?: number; 

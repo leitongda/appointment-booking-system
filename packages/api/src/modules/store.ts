@@ -25,6 +25,10 @@ export interface StoreCreateData {
   closingTime?: string;
   workingDays?: string;
   image?: string;
+  logo?: string;
+  password?: string;
+  email?: string;
+  themeStyle?: string;
   sortOrder?: number;
   status?: number;
 }

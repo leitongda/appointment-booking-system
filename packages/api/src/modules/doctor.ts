@@ -49,6 +49,9 @@ export interface DoctorCreateData {
   sortOrder?: number;
   status?: number;
   password?: string;
+  
+  // 诊费设置
+  useFeeTemplate?: number;
 }
 
 export const doctorApi = {

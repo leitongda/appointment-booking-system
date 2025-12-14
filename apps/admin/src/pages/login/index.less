@@ -9,28 +9,28 @@
 .background {
   position: absolute;
   inset: 0;
-  background: #fff;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%);
 }
 
 .content {
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 580px;
+  max-width: 480px;
   padding: 24px;
 }
 
 .card {
   background: #fff;
   border-radius: 16px;
-  padding: 40px;
+  padding: 40px 40px 24px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   border: 1px solid #f0f0f0;
 }
 
 .header {
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
 }
 
 .logo {
@@ -55,10 +55,141 @@
   margin: 0;
 }
 
+// 登录 Tabs 样式
+.loginTabs {
+  :global {
+    .ant-tabs-nav {
+      margin-bottom: 24px;
+      
+      &::before {
+        border-bottom: 1px solid #f0f0f0;
+      }
+    }
+    
+    .ant-tabs-tab {
+      padding: 12px 0;
+      font-size: 15px;
+      
+      .anticon {
+        margin-right: 6px;
+      }
+    }
+    
+    .ant-tabs-tab-active {
+      font-weight: 500;
+    }
+  }
+}
+
+// 登录表单通用样式
+.loginForm {
+  :global {
+    .ant-input-affix-wrapper {
+      padding: 10px 12px;
+      border-radius: 8px;
+      
+      .ant-input-prefix {
+        margin-right: 10px;
+        color: #999;
+      }
+    }
+    
+    .ant-btn-primary {
+      height: 44px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 500;
+    }
+  }
+}
+
+// 微信扫码登录
+.wechatLogin {
+  padding: 20px 0;
+}
+
+.qrcodeWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 260px;
+}
+
+.qrcodeLoading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  color: #666;
+}
+
+.qrcodeTip {
+  margin-top: 16px;
+  color: #666;
+  font-size: 14px;
+}
+
+.qrcodeExpired {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  
+  p {
+    margin-top: 16px;
+    color: #999;
+    font-size: 14px;
+  }
+}
+
+// 手机号登录
+.phoneLogin {
+  padding: 8px 0;
+}
+
+.phoneLoginTypeSwitch {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+  
+  :global {
+    .ant-btn {
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    
+    .ant-space {
+      background: #f5f5f5;
+      padding: 4px;
+      border-radius: 8px;
+    }
+    
+    .ant-btn-default {
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      
+      &:hover {
+        background: rgba(0, 0, 0, 0.04);
+      }
+    }
+    
+    .ant-btn-primary {
+      height: auto;
+      padding: 4px 12px;
+    }
+  }
+}
+
+// 账号密码登录
+.accountLogin {
+  padding: 8px 0;
+}
+
+// 隐藏 ProComponents 默认的 header
 :global {
   .ant-pro-form-login-header,
   .ant-pro-form-login-desc {
     display: none !important;
   }
 }
-

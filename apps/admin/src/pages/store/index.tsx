@@ -1,11 +1,19 @@
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSwitch } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Tag } from 'antd';
+import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSwitch, ProFormSelect, ProForm } from '@ant-design/pro-components';
+import { Button, App, Popconfirm, Space, Avatar } from 'antd';
 import { useRef, useState } from 'react';
 import { storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Store } from '@hospital/shared';
+
+// 风格选项
+const THEME_STYLE_OPTIONS = [
+  { label: '中医-红', value: '中医-红' },
+  { label: '中医-绿', value: '中医-绿' },
+  { label: '现代-蓝', value: '现代-蓝' },
+  { label: '简约-白', value: '简约-白' },
+];
 
 const StorePage: React.FC = () => {
   const { message } = App.useApp();
@@ -44,12 +52,19 @@ const StorePage: React.FC = () => {
   };
 
   const columns: ProColumns<Store>[] = [
+    {
+      title: 'Logo',
+      dataIndex: 'logo',
+      width: 60,
+      search: false,
+      render: (_, record) => record.logo ? <Avatar src={record.logo} size={40} /> : '-',
+    },
     { title: '门店名称', dataIndex: 'name', ellipsis: true },
     { title: '门店编码', dataIndex: 'code', width: 100, search: false },
     { title: '城市', dataIndex: 'city', width: 80 },
     { title: '地址', dataIndex: 'address', ellipsis: true, search: false },
     { title: '联系电话', dataIndex: 'phone', width: 120, search: false },
-    { title: '营业时间', width: 140, search: false, render: (_, r) => r.openingTime && r.closingTime ? `${r.openingTime}-${r.closingTime}` : '-' },
+    { title: '风格', dataIndex: 'themeStyle', width: 80, search: false },
     {
       title: '状态',
       dataIndex: 'status',
@@ -95,21 +110,139 @@ const StorePage: React.FC = () => {
         open={modalOpen}
         onOpenChange={setModalOpen}
         onFinish={handleSubmit}
-        initialValues={editingRecord ? { ...editingRecord, status: editingRecord.status === 1 } : { status: true, sortOrder: 0 }}
+        initialValues={editingRecord ? { ...editingRecord, status: editingRecord.status === 1 } : { status: true, sortOrder: 0, themeStyle: '中医-红' }}
         modalProps={{ destroyOnHidden: true }}
-        width={600}
+        width={800}
       >
-        <ProFormText name="name" label="门店名称" rules={[{ required: true }]} />
-        <ProFormText name="code" label="门店编码" />
-        <ProFormText name="city" label="城市" />
-        <ProFormText name="address" label="详细地址" />
-        <ProFormText name="phone" label="联系电话" />
-        <ProFormText name="contactPerson" label="联系人" />
-        <ProFormText name="openingTime" label="开始营业时间" placeholder="如：08:00" />
-        <ProFormText name="closingTime" label="结束营业时间" placeholder="如：18:00" />
-        <ProFormTextArea name="description" label="描述" />
-        <ProFormDigit name="sortOrder" label="排序" min={0} />
-        <ProFormSwitch name="status" label="营业状态" />
+        {/* 基础信息 */}
+        <ProForm.Group title="基础信息">
+          <ProFormText
+            name="name"
+            label="门店名称"
+            width="md"
+            rules={[{ required: true, message: '请输入门店名称' }]}
+            placeholder="如：朴泽堂中医馆"
+          />
+          <ProFormText.Password
+            name="password"
+            label="门店密码"
+            width="md"
+            placeholder="请输入门店密码"
+          />
+        </ProForm.Group>
+        <ProForm.Group>
+          <ProFormText
+            name="phone"
+            label="联系方式"
+            width="md"
+            placeholder="如：18984332758"
+            rules={[{ pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号' }]}
+          />
+          <ProFormText
+            name="email"
+            label="邮箱"
+            width="md"
+            placeholder="如：2544600916@qq.com"
+            rules={[{ type: 'email', message: '请输入正确的邮箱地址' }]}
+          />
+        </ProForm.Group>
+
+        {/* 地址信息 */}
+        <ProForm.Group title="地址信息">
+          <ProFormText
+            name="province"
+            label="省份"
+            width="sm"
+            placeholder="如：贵州省"
+          />
+          <ProFormText
+            name="city"
+            label="城市"
+            width="sm"
+            placeholder="如：贵阳市"
+          />
+          <ProFormText
+            name="district"
+            label="区县"
+            width="sm"
+            placeholder="如：观山湖区"
+          />
+        </ProForm.Group>
+        <ProFormTextArea
+          name="address"
+          label="门店地址"
+          placeholder="如：贵州省贵阳市观山湖区金阳街道碧海南路与林城路西南侧国电新时代大楼1层7号"
+          fieldProps={{ rows: 2 }}
+        />
+        <ProForm.Group>
+          <ProFormText
+            name="longitude"
+            label="经度"
+            width="sm"
+            placeholder="如：106.619922"
+          />
+          <ProFormText
+            name="latitude"
+            label="纬度"
+            width="sm"
+            placeholder="如：26.644479"
+          />
+        </ProForm.Group>
+
+        {/* 展示设置 */}
+        <ProForm.Group title="展示设置">
+          <ProFormDigit
+            name="sortOrder"
+            label="排序"
+            width="xs"
+            min={0}
+            fieldProps={{ precision: 0 }}
+            tooltip="数字越大越靠前"
+          />
+          <ProFormSelect
+            name="themeStyle"
+            label="风格选择"
+            width="sm"
+            options={THEME_STYLE_OPTIONS}
+            placeholder="请选择风格"
+          />
+        </ProForm.Group>
+        <ProFormText
+          name="logo"
+          label="Logo"
+          width="lg"
+          placeholder="图片URL，1:1比例，推荐尺寸：160px × 160px，≤100KB"
+          tooltip="1:1比例，推荐尺寸：160px × 160px"
+        />
+
+        {/* 营业设置 */}
+        <ProForm.Group title="营业设置">
+          <ProFormText
+            name="openingTime"
+            label="开始营业时间"
+            width="sm"
+            placeholder="如：08:00"
+          />
+          <ProFormText
+            name="closingTime"
+            label="结束营业时间"
+            width="sm"
+            placeholder="如：18:00"
+          />
+          <ProFormSwitch name="status" label="营业状态" />
+        </ProForm.Group>
+
+        {/* 其他信息 */}
+        <ProForm.Group title="其他信息">
+          <ProFormText name="code" label="门店编码" width="md" />
+          <ProFormText name="contactPerson" label="联系人" width="md" />
+        </ProForm.Group>
+        <ProFormTextArea
+          name="description"
+          label="门店简介"
+          placeholder="请输入门店简介"
+          fieldProps={{ rows: 3 }}
+        />
       </ModalForm>
     </PageContainer>
   );

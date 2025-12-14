@@ -49,6 +49,7 @@ def doctor_to_response(doctor) -> DoctorResponse:
         is_recommended=doctor.is_recommended or 0,
         sort_order=doctor.sort_order or 0,
         status=doctor.status or 1,
+        use_fee_template=doctor.use_fee_template or 0,
         created_at=doctor.created_at,
         updated_at=doctor.updated_at
     )

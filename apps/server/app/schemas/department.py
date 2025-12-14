@@ -9,6 +9,29 @@ class DepartmentBase(BaseModel):
     sort_order: int = Field(0, ge=0)
     is_hot: int = Field(0, ge=0, le=1, description="是否热门")
     status: int = Field(1, ge=0, le=1)
+    
+    # 基础配置
+    store_id: Optional[str] = Field(None, description="默认门店ID")
+    tag: Optional[str] = Field(None, max_length=100, description="科室标签")
+    enable_banner: int = Field(0, ge=0, le=1, description="是否开放banner")
+    enable_intro: int = Field(0, ge=0, le=1, description="是否开放科室简介")
+    is_final: int = Field(0, ge=0, le=1, description="是否终极科室")
+    is_recommended: int = Field(0, ge=0, le=1, description="是否推荐")
+    
+    # 图片资源
+    banner_image: Optional[str] = Field(None, max_length=500, description="banner图片URL")
+    icon: Optional[str] = Field(None, max_length=500, description="科室图标URL")
+    intro_images: Optional[str] = Field(None, description="简介图片集JSON")
+    
+    # 详情内容
+    intro_content: Optional[str] = Field(None, description="富文本简介")
+    features: Optional[str] = Field(None, description="科室特色JSON数组")
+    appointment_notice: Optional[str] = Field(None, description="预约须知")
+    
+    # 联系信息
+    phone: Optional[str] = Field(None, max_length=20, description="科室电话")
+    location: Optional[str] = Field(None, max_length=100, description="位置/楼层")
+    working_hours: Optional[str] = Field(None, max_length=200, description="工作时间")
 
 class DepartmentCreate(DepartmentBase):
     pass
@@ -20,11 +43,35 @@ class DepartmentUpdate(BaseModel):
     sort_order: Optional[int] = Field(None, ge=0)
     is_hot: Optional[int] = Field(None, ge=0, le=1)
     status: Optional[int] = Field(None, ge=0, le=1)
+    
+    # 基础配置
+    store_id: Optional[str] = None
+    tag: Optional[str] = Field(None, max_length=100)
+    enable_banner: Optional[int] = Field(None, ge=0, le=1)
+    enable_intro: Optional[int] = Field(None, ge=0, le=1)
+    is_final: Optional[int] = Field(None, ge=0, le=1)
+    is_recommended: Optional[int] = Field(None, ge=0, le=1)
+    
+    # 图片资源
+    banner_image: Optional[str] = Field(None, max_length=500)
+    icon: Optional[str] = Field(None, max_length=500)
+    intro_images: Optional[str] = None
+    
+    # 详情内容
+    intro_content: Optional[str] = None
+    features: Optional[str] = None
+    appointment_notice: Optional[str] = None
+    
+    # 联系信息
+    phone: Optional[str] = Field(None, max_length=20)
+    location: Optional[str] = Field(None, max_length=100)
+    working_hours: Optional[str] = Field(None, max_length=200)
 
 class DepartmentResponse(DepartmentBase):
     id: str
     created_at: datetime
     updated_at: datetime
+    store_name: Optional[str] = None
     
     class Config:
         from_attributes = True

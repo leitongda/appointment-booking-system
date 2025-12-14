@@ -41,6 +41,10 @@ export interface Doctor {
   isRecommended: number;
   sortOrder: number;
   status: number;
+  
+  // 诊费设置
+  useFeeTemplate: number;
+  
   createdAt: string;
   updatedAt: string;
 }

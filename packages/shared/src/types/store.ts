@@ -15,6 +15,10 @@ export interface Store {
   closingTime?: string;
   workingDays?: string;
   image?: string;
+  logo?: string;
+  password?: string;
+  email?: string;
+  themeStyle?: string;
   sortOrder: number;
   status: number;
   departmentCount?: number;

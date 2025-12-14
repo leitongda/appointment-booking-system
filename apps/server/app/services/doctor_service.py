@@ -168,7 +168,8 @@ class DoctorService:
             introduction=data.introduction,
             is_recommended=data.is_recommended,
             sort_order=data.sort_order,
-            status=data.status
+            status=data.status,
+            use_fee_template=data.use_fee_template
         )
         self.db.add(doctor)
         await self.db.commit()

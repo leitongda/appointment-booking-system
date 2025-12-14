@@ -19,6 +19,11 @@ export { storeApi } from './modules/store';
 export { messageApi } from './modules/message';
 export { leaveRequestApi } from './modules/leave-request';
 export { feedbackApi } from './modules/feedback';
+export {
+  consultationFeeTypeApi,
+  consultationFeeTemplateApi,
+  doctorConsultationFeeApi,
+} from './modules/consultation-fee';
 
 // Auth types are re-exported from @hospital/shared
 export type { LoginParams, LoginResult } from '@hospital/shared';
@@ -59,3 +64,11 @@ export type { BookingSettings, HospitalInfo, WechatConfig, SmsConfig, BookingRul
 
 // Admin Operation Log type
 export type { OperationLog } from './modules/admin';
+
+// Consultation Fee types
+export type {
+  ConsultationFeeTypeCreateData,
+  ConsultationFeeTypeUpdateData,
+  ConsultationFeeTemplateCreateData,
+  DoctorFeeQueryParams,
+} from './modules/consultation-fee';

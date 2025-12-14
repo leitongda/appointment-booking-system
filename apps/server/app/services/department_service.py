@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from typing import Optional, List
 import uuid
 
@@ -11,7 +12,11 @@ class DepartmentService:
         self.db = db
     
     async def get_by_id(self, dept_id: str) -> Optional[Department]:
-        result = await self.db.execute(select(Department).where(Department.id == dept_id))
+        result = await self.db.execute(
+            select(Department)
+            .options(selectinload(Department.store))
+            .where(Department.id == dept_id)
+        )
         return result.scalar_one_or_none()
     
     async def get_list(
@@ -19,10 +24,11 @@ class DepartmentService:
         name: Optional[str] = None,
         status: Optional[int] = None,
         parent_id: Optional[str] = None,
+        store_id: Optional[str] = None,
         page: int = 1,
         page_size: int = 10
     ) -> tuple[List[Department], int]:
-        query = select(Department)
+        query = select(Department).options(selectinload(Department.store))
         count_query = select(func.count(Department.id))
         
         if name:
@@ -34,9 +40,12 @@ class DepartmentService:
         if parent_id is not None:
             query = query.where(Department.parent_id == parent_id)
             count_query = count_query.where(Department.parent_id == parent_id)
+        if store_id is not None:
+            query = query.where(Department.store_id == store_id)
+            count_query = count_query.where(Department.store_id == store_id)
         
-        # 分页
-        query = query.order_by(Department.sort_order).offset((page - 1) * page_size).limit(page_size)
+        # 分页，按sort_order降序（数字越大越靠前）
+        query = query.order_by(Department.sort_order.desc()).offset((page - 1) * page_size).limit(page_size)
         
         result = await self.db.execute(query)
         count_result = await self.db.execute(count_query)
@@ -81,12 +90,37 @@ class DepartmentService:
             description=data.description,
             sort_order=data.sort_order,
             is_hot=data.is_hot,
-            status=data.status
+            status=data.status,
+            # 基础配置
+            store_id=data.store_id,
+            tag=data.tag,
+            enable_banner=data.enable_banner,
+            enable_intro=data.enable_intro,
+            is_final=data.is_final,
+            is_recommended=data.is_recommended,
+            # 图片资源
+            banner_image=data.banner_image,
+            icon=data.icon,
+            intro_images=data.intro_images,
+            # 详情内容
+            intro_content=data.intro_content,
+            features=data.features,
+            appointment_notice=data.appointment_notice,
+            # 联系信息
+            phone=data.phone,
+            location=data.location,
+            working_hours=data.working_hours,
         )
         self.db.add(department)
         await self.db.commit()
         await self.db.refresh(department)
-        return department
+        # 加载 store 关联
+        result = await self.db.execute(
+            select(Department)
+            .options(selectinload(Department.store))
+            .where(Department.id == department.id)
+        )
+        return result.scalar_one()
     
     async def update(self, dept_id: str, data: DepartmentUpdate) -> Optional[Department]:
         department = await self.get_by_id(dept_id)
@@ -98,8 +132,13 @@ class DepartmentService:
             setattr(department, field, value)
         
         await self.db.commit()
-        await self.db.refresh(department)
-        return department
+        # 重新加载 store 关联
+        result = await self.db.execute(
+            select(Department)
+            .options(selectinload(Department.store))
+            .where(Department.id == dept_id)
+        )
+        return result.scalar_one()
     
     async def delete(self, dept_id: str) -> bool:
         department = await self.get_by_id(dept_id)

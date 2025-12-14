@@ -8,3 +8,4 @@ export * from './store';
 export * from './message';
 export * from './leave-request';
 export * from './feedback';
+export * from './consultation-fee';
