@@ -2,7 +2,7 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { App, Space, Tag, Popconfirm } from 'antd';
 import { useRef } from 'react';
-import { history } from '@umijs/max';
+import { history, useAccess } from '@umijs/max';
 import { appointmentApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Appointment } from '@hospital/shared';
@@ -20,6 +20,7 @@ const STATUS_MAP: Record<number, { text: string; color: string }> = {
 
 const AppointmentListPage: React.FC = () => {
   const { message } = App.useApp();
+  const access = useAccess();
   const actionRef = useRef<ActionType>();
 
   const handleCancel = async (id: string) => {
@@ -117,18 +118,24 @@ const AppointmentListPage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 120,
+      width: 150,
       render: (_, record) => (
         <Space>
-          <a onClick={() => history.push(`/appointment/${record.id}`)}>详情</a>
+          {access.hasPermission('appointment:detail') && (
+            <a onClick={() => history.push(`/appointment/${record.id}`)}>详情</a>
+          )}
           {record.status === 0 && (
             <>
-              <Popconfirm title="确定取消该预约吗？" onConfirm={() => handleCancel(record.id)}>
-                <a style={{ color: '#ff4d4f' }}>取消</a>
-              </Popconfirm>
-              <Popconfirm title="确定标记为爽约吗？" onConfirm={() => handleMarkNoShow(record.id)}>
-                <a style={{ color: '#fa8c16' }}>爽约</a>
-              </Popconfirm>
+              {access.hasPermission('appointment:cancel') && (
+                <Popconfirm title="确定取消该预约吗？" onConfirm={() => handleCancel(record.id)}>
+                  <a style={{ color: '#ff4d4f' }}>取消</a>
+                </Popconfirm>
+              )}
+              {access.hasPermission('appointment:update') && (
+                <Popconfirm title="确定标记为爽约吗？" onConfirm={() => handleMarkNoShow(record.id)}>
+                  <a style={{ color: '#fa8c16' }}>爽约</a>
+                </Popconfirm>
+              )}
             </>
           )}
         </Space>

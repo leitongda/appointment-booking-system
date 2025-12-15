@@ -22,5 +22,9 @@ class Appointment(Base, TimestampMixin):
     cancel_reason = Column(Text)
     remark = Column(Text)
     
+    # 提醒相关
+    reminder_sent = Column(Integer, default=0, comment="是否已发送提醒: 0否 1是")
+    reminder_sent_at = Column(DateTime, comment="提醒发送时间")
+    
     schedule = relationship("Schedule", back_populates="appointments")
 
