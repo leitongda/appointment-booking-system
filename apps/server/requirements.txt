@@ -6,6 +6,7 @@ python-multipart==0.0.6
 # 数据库
 sqlalchemy[asyncio]==2.0.25
 asyncpg==0.29.0
+psycopg2-binary==2.9.9
 alembic==1.13.1
 
 # 数据校验
@@ -33,3 +34,10 @@ httpx==0.26.0
 pytest==7.4.4
 pytest-asyncio==0.23.3
 
+# ==================== 新增依赖 ====================
+
+# 阿里云短信 SDK（可选，按需安装）
+# alibabacloud_dysmsapi20170525==3.0.0
+
+# 腾讯云短信 SDK（可选，按需安装）
+# tencentcloud-sdk-python==3.0.1000
