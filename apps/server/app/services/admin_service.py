@@ -2,12 +2,12 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from sqlalchemy.orm import selectinload
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict, Any
 from datetime import datetime
 import uuid
 import json
 
-from app.models.admin import Admin, Role, OperationLog
+from app.models.admin import Admin, Role, OperationLog, Permission
 from app.core.security import get_password_hash, verify_password
 
 
@@ -91,7 +91,7 @@ class RoleService:
             return None
         
         # 超级管理员不允许修改编码
-        if role.code == "super_admin" and data.get("code") and data["code"] != "super_admin":
+        if role.code == "SUPER_ADMIN" and data.get("code") and data["code"] != "SUPER_ADMIN":
             raise ValueError("超级管理员编码不可修改")
         
         for key, value in data.items():
@@ -122,7 +122,7 @@ class RoleService:
             return False
         
         # 超级管理员不允许删除
-        if role.code == "super_admin":
+        if role.code == "SUPER_ADMIN":
             raise ValueError("超级管理员不可删除")
         
         # 检查是否有关联的管理员
@@ -292,10 +292,10 @@ class AdminService:
             return False
         
         # 检查是否是超级管理员
-        if admin.role and admin.role.code == "super_admin":
+        if admin.role and admin.role.code == "SUPER_ADMIN":
             # 检查是否是最后一个超级管理员
             super_admin_count = await self.db.scalar(
-                select(func.count(Admin.id)).join(Role).where(Role.code == "super_admin")
+                select(func.count(Admin.id)).join(Role).where(Role.code == "SUPER_ADMIN")
             )
             if super_admin_count and super_admin_count <= 1:
                 raise ValueError("不能删除最后一个超级管理员")
@@ -367,4 +367,124 @@ class OperationLogService:
         self.db.add(log)
         await self.db.commit()
         return log
+
+
+# ========== 权限服务 ==========
+class PermissionService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def get_all(self) -> List[Permission]:
+        """获取所有权限（平铺列表）"""
+        query = select(Permission).order_by(Permission.sort.asc(), Permission.created_at.asc())
+        result = await self.db.execute(query)
+        return list(result.scalars().all())
+
+    async def get_tree(self) -> List[Dict[str, Any]]:
+        """获取权限树形结构"""
+        permissions = await self.get_all()
+        
+        # 构建树形结构
+        perm_dict = {p.code: {
+            "id": p.id,
+            "code": p.code,
+            "name": p.name,
+            "type": p.type,
+            "parentCode": p.parent_code,
+            "icon": p.icon,
+            "sort": p.sort,
+            "children": []
+        } for p in permissions}
+        
+        tree = []
+        for p in permissions:
+            node = perm_dict[p.code]
+            if p.parent_code and p.parent_code in perm_dict:
+                perm_dict[p.parent_code]["children"].append(node)
+            else:
+                tree.append(node)
+        
+        return tree
+
+    async def get_by_code(self, code: str) -> Optional[Permission]:
+        """根据权限码获取权限"""
+        result = await self.db.execute(select(Permission).where(Permission.code == code))
+        return result.scalar_one_or_none()
+
+    async def create(self, data: dict) -> Permission:
+        """创建权限"""
+        existing = await self.get_by_code(data["code"])
+        if existing:
+            raise ValueError("权限码已存在")
+        
+        permission = Permission(
+            id=str(uuid.uuid4()),
+            code=data["code"],
+            name=data["name"],
+            type=data["type"],
+            parent_code=data.get("parent_code"),
+            icon=data.get("icon"),
+            sort=data.get("sort", 0),
+        )
+        self.db.add(permission)
+        await self.db.commit()
+        await self.db.refresh(permission)
+        return permission
+
+    async def batch_create(self, permissions_data: List[dict]) -> List[Permission]:
+        """批量创建权限"""
+        created = []
+        for data in permissions_data:
+            existing = await self.get_by_code(data["code"])
+            if not existing:
+                permission = Permission(
+                    id=str(uuid.uuid4()),
+                    code=data["code"],
+                    name=data["name"],
+                    type=data["type"],
+                    parent_code=data.get("parent_code"),
+                    icon=data.get("icon"),
+                    sort=data.get("sort", 0),
+                )
+                self.db.add(permission)
+                created.append(permission)
+        
+        if created:
+            await self.db.commit()
+        return created
+
+    async def delete(self, code: str) -> bool:
+        """删除权限"""
+        permission = await self.get_by_code(code)
+        if not permission:
+            return False
+        
+        await self.db.delete(permission)
+        await self.db.commit()
+        return True
+
+    async def get_admin_permissions(self, admin_id: str) -> List[str]:
+        """获取管理员的权限码列表"""
+        # 获取管理员及其角色
+        result = await self.db.execute(
+            select(Admin).options(selectinload(Admin.role)).where(Admin.id == admin_id)
+        )
+        admin = result.unique().scalar_one_or_none()
+        
+        if not admin or not admin.role:
+            return []
+        
+        # 超级管理员拥有所有权限
+        if admin.role.code == "SUPER_ADMIN":
+            all_perms = await self.get_all()
+            return [p.code for p in all_perms]
+        
+        # 其他角色从角色的 permissions 字段获取
+        if admin.role.permissions:
+            try:
+                return json.loads(admin.role.permissions)
+            except:
+                return []
+        
+        return []
 

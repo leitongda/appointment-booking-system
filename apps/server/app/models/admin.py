@@ -15,6 +15,19 @@ role_permissions = Table(
 )
 
 
+class Permission(Base, TimestampMixin):
+    """权限表"""
+    __tablename__ = "permissions"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    code = Column(String(100), unique=True, nullable=False, comment="权限码，如 doctor:create")
+    name = Column(String(100), nullable=False, comment="权限名称")
+    type = Column(String(20), nullable=False, comment="类型: menu/button")
+    parent_code = Column(String(100), comment="父级权限码")
+    icon = Column(String(50), comment="图标（菜单权限可用）")
+    sort = Column(Integer, default=0, comment="排序号")
+
+
 class Role(Base, TimestampMixin):
     """角色表"""
     __tablename__ = "roles"

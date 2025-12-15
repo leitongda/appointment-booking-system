@@ -8,7 +8,7 @@ import json
 
 from app.db.session import get_db
 from app.api.deps import get_current_admin
-from app.services.admin_service import RoleService, AdminService, OperationLogService
+from app.services.admin_service import RoleService, AdminService, OperationLogService, PermissionService
 from app.schemas.response import PageResponse
 from app.core.security import create_access_token, create_refresh_token, get_rsa_public_key, rsa_decrypt
 from app.core.config import settings
@@ -17,6 +17,30 @@ router = APIRouter()
 
 
 # ========== Schemas ==========
+class PermissionResponse(BaseModel):
+    id: str
+    code: str
+    name: str
+    type: str
+    parent_code: Optional[str] = Field(None, serialization_alias="parentCode")
+    icon: Optional[str] = None
+    sort: int = 0
+    children: Optional[List["PermissionResponse"]] = None
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+
+class PermissionCreate(BaseModel):
+    code: str = Field(..., max_length=100)
+    name: str = Field(..., max_length=100)
+    type: str = Field(..., max_length=20)
+    parent_code: Optional[str] = Field(None, max_length=100)
+    icon: Optional[str] = Field(None, max_length=50)
+    sort: int = Field(0, ge=0)
+
+
 class RoleCreate(BaseModel):
     name: str = Field(..., max_length=50)
     code: str = Field(..., max_length=50)
@@ -75,6 +99,8 @@ class AdminResponse(BaseModel):
     avatar: Optional[str] = None
     role_id: Optional[str] = Field(None, serialization_alias="roleId")
     role_name: Optional[str] = Field(None, serialization_alias="roleName")
+    role_code: Optional[str] = Field(None, serialization_alias="roleCode")
+    permissions: Optional[List[str]] = None
     status: int
     last_login_at: Optional[datetime] = Field(None, serialization_alias="lastLoginAt")
     last_login_ip: Optional[str] = Field(None, serialization_alias="lastLoginIp")
@@ -190,8 +216,18 @@ def build_role_response(role) -> RoleResponse:
     )
 
 
-def build_admin_response(admin) -> AdminResponse:
+def build_admin_response(admin, permissions: List[str] = None) -> AdminResponse:
     """构建管理员响应对象"""
+    # 解析角色权限
+    role_permissions = []
+    if permissions is not None:
+        role_permissions = permissions
+    elif admin.role and admin.role.permissions:
+        try:
+            role_permissions = json.loads(admin.role.permissions)
+        except:
+            role_permissions = []
+    
     response = AdminResponse(
         id=admin.id,
         username=admin.username,
@@ -201,6 +237,8 @@ def build_admin_response(admin) -> AdminResponse:
         avatar=admin.avatar,
         role_id=admin.role_id,
         role_name=admin.role.name if admin.role else None,
+        role_code=admin.role.code if admin.role else None,
+        permissions=role_permissions,
         status=admin.status,
         last_login_at=admin.last_login_at,
         last_login_ip=admin.last_login_ip,
@@ -285,7 +323,11 @@ async def get_current_admin_info(
     if not admin:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在")
     
-    return build_admin_response(admin)
+    # 获取管理员权限
+    perm_service = PermissionService(db)
+    permissions = await perm_service.get_admin_permissions(admin.id)
+    
+    return build_admin_response(admin, permissions)
 
 
 # ========== 手机号登录 ==========
@@ -772,4 +814,87 @@ async def get_operation_logs(
         page=page,
         page_size=page_size,
     )
+
+
+# ========== 权限管理 ==========
+@router.get("/permissions/tree")
+async def get_permissions_tree(
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """获取权限树形结构（用于角色权限分配）"""
+    service = PermissionService(db)
+    tree = await service.get_tree()
+    return tree
+
+
+@router.get("/permissions/all")
+async def get_all_permissions(
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """获取所有权限（平铺列表）"""
+    service = PermissionService(db)
+    permissions = await service.get_all()
+    return [
+        {
+            "id": p.id,
+            "code": p.code,
+            "name": p.name,
+            "type": p.type,
+            "parentCode": p.parent_code,
+            "icon": p.icon,
+            "sort": p.sort,
+        }
+        for p in permissions
+    ]
+
+
+@router.post("/permissions")
+async def create_permission(
+    data: PermissionCreate,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """创建权限（一般不需要手动创建，由初始化脚本管理）"""
+    service = PermissionService(db)
+    try:
+        permission = await service.create(data.model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return {
+        "id": permission.id,
+        "code": permission.code,
+        "name": permission.name,
+        "type": permission.type,
+        "parentCode": permission.parent_code,
+        "icon": permission.icon,
+        "sort": permission.sort,
+    }
+
+
+@router.post("/permissions/batch")
+async def batch_create_permissions(
+    permissions: List[PermissionCreate],
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """批量创建权限"""
+    service = PermissionService(db)
+    created = await service.batch_create([p.model_dump() for p in permissions])
+    return {"message": f"成功创建 {len(created)} 条权限"}
+
+
+@router.delete("/permissions/{code}")
+async def delete_permission(
+    code: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """删除权限"""
+    service = PermissionService(db)
+    success = await service.delete(code)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="权限不存在")
+    return {"message": "删除成功"}
 

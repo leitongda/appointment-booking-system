@@ -3,12 +3,14 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormText, ProFormSelect, ProFormSwitch } from '@ant-design/pro-components';
 import { Button, App, Popconfirm, Space, Tag, Avatar } from 'antd';
 import { useRef, useState, useEffect } from 'react';
+import { useAccess } from '@umijs/max';
 import { adminApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Admin, Role } from '@hospital/api';
 
 const AdminPage: React.FC = () => {
   const { message } = App.useApp();
+  const access = useAccess();
   const actionRef = useRef<ActionType>();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<Admin | null>(null);
@@ -34,6 +36,15 @@ const AdminPage: React.FC = () => {
       actionRef.current?.reload();
     } catch (error: any) {
       message.error(error.message || '删除失败');
+    }
+  };
+
+  const handleResetPassword = async (id: string) => {
+    try {
+      await adminApi.resetAdminPassword(id, '123456');
+      message.success('密码已重置为 123456');
+    } catch (error: any) {
+      message.error(error.message || '重置失败');
     }
   };
 
@@ -79,13 +90,22 @@ const AdminPage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 120,
+      width: 180,
       render: (_, record) => (
         <Space>
-          <a onClick={() => { setEditingRecord(record); setModalOpen(true); }}>编辑</a>
-          <Popconfirm title="确定删除该管理员吗？" onConfirm={() => handleDelete(record.id)}>
-            <a style={{ color: '#ff4d4f' }}>删除</a>
-          </Popconfirm>
+          {access.hasPermission('system:admin:update') && (
+            <a onClick={() => { setEditingRecord(record); setModalOpen(true); }}>编辑</a>
+          )}
+          {access.hasPermission('system:admin:reset-password') && (
+            <Popconfirm title="确定重置密码为 123456 吗？" onConfirm={() => handleResetPassword(record.id)}>
+              <a>重置密码</a>
+            </Popconfirm>
+          )}
+          {access.hasPermission('system:admin:delete') && record.roleCode !== 'SUPER_ADMIN' && (
+            <Popconfirm title="确定删除该管理员吗？" onConfirm={() => handleDelete(record.id)}>
+              <a style={{ color: '#ff4d4f' }}>删除</a>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -103,9 +123,11 @@ const AdminPage: React.FC = () => {
           return toProTableResult(await adminApi.getAdmins({ ...rest, page: current, pageSize }));
         }}
         toolBarRender={() => [
-          <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalOpen(true); }}>
-            新增管理员
-          </Button>,
+          access.hasPermission('system:admin:create') && (
+            <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalOpen(true); }}>
+              新增管理员
+            </Button>
+          ),
         ]}
         pagination={{ defaultPageSize: 10 }}
       />
@@ -116,7 +138,7 @@ const AdminPage: React.FC = () => {
         onOpenChange={setModalOpen}
         onFinish={handleSubmit}
         initialValues={editingRecord ? { ...editingRecord, status: editingRecord.status === 1 } : { status: true }}
-        modalProps={{ destroyOnHidden: true }}
+        modalProps={{ destroyOnClose: true }}
       >
         <ProFormText name="username" label="用户名" rules={[{ required: true }]} disabled={!!editingRecord} />
         {!editingRecord && <ProFormText.Password name="password" label="密码" rules={[{ required: true }]} />}
