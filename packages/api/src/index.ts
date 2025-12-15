@@ -59,7 +59,7 @@ export type {
 } from './modules/statistics';
 
 // Admin types
-export type { Admin, Role, AdminLoginParams, AdminLoginResult } from './modules/admin';
+export type { Admin, Role, Permission, AdminLoginParams, AdminLoginResult } from './modules/admin';
 
 // Content types
 export type { Banner, News, Notice } from './modules/content';

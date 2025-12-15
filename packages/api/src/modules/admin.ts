@@ -26,6 +26,18 @@ export interface RoleCreateData {
   status?: number;
 }
 
+// ========== 权限 ==========
+export interface Permission {
+  id: string;
+  code: string;
+  name: string;
+  type: 'menu' | 'button';
+  parentCode?: string;
+  icon?: string;
+  sort: number;
+  children?: Permission[];
+}
+
 // ========== 管理员 ==========
 export interface Admin {
   id: string;
@@ -36,6 +48,8 @@ export interface Admin {
   avatar?: string;
   roleId?: string;
   roleName?: string;
+  roleCode?: string;
+  permissions?: string[];
   status: number;
   lastLoginAt?: string;
   lastLoginIp?: string;
@@ -300,11 +314,16 @@ export const adminApi = {
   },
 
   createAdmin: (data: AdminCreateData): Promise<Admin> => {
-    return request.post(`${PREFIX}/admins`, data);
+    // 转换 roleId 为后端期望的 role_id
+    const { roleId, ...rest } = data;
+    return request.post(`${PREFIX}/admins`, { ...rest, role_id: roleId });
   },
 
   updateAdmin: (id: string, data: AdminUpdateData): Promise<Admin> => {
-    return request.put(`${PREFIX}/admins/${id}`, data);
+    // 转换 roleId 为后端期望的 role_id
+    const { roleId, ...rest } = data;
+    const payload = roleId !== undefined ? { ...rest, role_id: roleId } : rest;
+    return request.put(`${PREFIX}/admins/${id}`, payload);
   },
 
   resetAdminPassword: (id: string, newPassword: string): Promise<void> => {
@@ -327,6 +346,17 @@ export const adminApi = {
     pageSize?: number;
   }): Promise<PageResult<OperationLog>> => {
     return request.get(`${PREFIX}/logs`, { params });
+  },
+
+  // ========== 权限管理 ==========
+  // 获取权限树形结构（用于角色权限分配）
+  getPermissionsTree: (): Promise<Permission[]> => {
+    return request.get(`${PREFIX}/permissions/tree`);
+  },
+
+  // 获取所有权限（平铺列表）
+  getAllPermissions: (): Promise<Permission[]> => {
+    return request.get(`${PREFIX}/permissions/all`);
   },
 };
 
