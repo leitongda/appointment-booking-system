@@ -159,9 +159,7 @@ const LoginPage = () => {
       </View>
 
       <View className="footer">
-        <Text className="link">忘记密码</Text>
-        <Text className="divider-text">|</Text>
-        <Text className="link">注册账号</Text>
+        <Text className="tip">首次登录将自动创建账号</Text>
       </View>
 
       {/* 绑定手机号弹窗 */}
