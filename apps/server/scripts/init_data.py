@@ -30,12 +30,12 @@ async def init_data():
     
     async with async_session() as session:
         # 1. 创建超级管理员角色
-        result = await session.execute(select(Role).where(Role.code == "super_admin"))
+        result = await session.execute(select(Role).where(Role.code == "SUPER_ADMIN"))
         if not result.scalar_one_or_none():
             super_role = Role(
                 id=str(uuid.uuid4()),
                 name="超级管理员",
-                code="super_admin",
+                code="SUPER_ADMIN",
                 description="系统超级管理员，拥有所有权限",
                 permissions='["*"]',
                 status=1
@@ -53,7 +53,7 @@ async def init_data():
                 name="系统管理员",
                 phone="13800000000",
                 email="admin@hospital.com",
-                role_id=(await session.execute(select(Role.id).where(Role.code == "super_admin"))).scalar(),
+                role_id=(await session.execute(select(Role.id).where(Role.code == "SUPER_ADMIN"))).scalar(),
                 status=1
             )
             session.add(admin)
