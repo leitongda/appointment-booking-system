@@ -12,6 +12,7 @@ import {
 import { Card, App, Tabs, Spin, Table, Switch, Button, Input, Space, Popconfirm, Tag, Select, Form, Typography } from 'antd';
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useState, useEffect, useRef } from 'react';
+import { useAccess } from '@umijs/max';
 import { settingsApi, blacklistApi, storeApi } from '@hospital/api';
 import type { BookingSettings, HospitalInfo, BookingFieldConfig, PatientCardConfig, BlacklistItem } from '@hospital/api';
 
@@ -19,6 +20,7 @@ const { Text } = Typography;
 
 const SettingsPage: React.FC = () => {
   const { message } = App.useApp();
+  const access = useAccess();
   const [loading, setLoading] = useState(false);
   const [bookingSettings, setBookingSettings] = useState<BookingSettings | null>(null);
   const [hospitalInfo, setHospitalInfo] = useState<HospitalInfo | null>(null);
@@ -31,6 +33,7 @@ const SettingsPage: React.FC = () => {
   const [blacklistLoading, setBlacklistLoading] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [stores, setStores] = useState<any[]>([]);
+  const canEdit = access.hasPermission('system:settings');
 
   useEffect(() => {
     loadSettings();
@@ -224,7 +227,7 @@ const SettingsPage: React.FC = () => {
       title: '操作',
       width: 80,
       render: (_: any, record: BlacklistItem) =>
-        record.status === 1 ? (
+        canEdit && record.status === 1 ? (
           <Popconfirm title="确定解禁该用户吗？" onConfirm={() => handleRemoveBlacklist(record.id)}>
             <a>解禁</a>
           </Popconfirm>
@@ -337,9 +340,11 @@ const SettingsPage: React.FC = () => {
                 allowClear
               />
             </Space>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
-              添加黑名单
-            </Button>
+            {canEdit && (
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
+                添加黑名单
+              </Button>
+            )}
           </div>
           <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
             注：黑名单规则，如果只填关键词则判断就诊卡的手机号或者身份证，如果选择的是用户则该用户无法预约，选择门店只针对该门店不选择则针对所有门店

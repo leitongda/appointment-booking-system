@@ -1,4 +1,5 @@
 import { AvatarDropdown, AvatarName } from '@/components/RightContent';
+import { FullscreenButton, NotificationButton, RefreshButton } from '@/components/HeaderActions';
 import { getToken, removeToken } from '@hospital/shared';
 import { adminApi } from '@hospital/api';
 import type { Settings as LayoutSettings } from '@ant-design/pro-components';
@@ -84,7 +85,11 @@ export async function getInitialState(): Promise<{
  */
 export const layout: RunTimeLayoutConfig = ({ initialState }) => {
   return {
-    actionsRender: () => [],
+    actionsRender: () => [
+      <RefreshButton key="refresh" />,
+      <NotificationButton key="notification" />,
+      <FullscreenButton key="fullscreen" />,
+    ],
     avatarProps: {
       src: initialState?.currentUser?.avatar,
       title: <AvatarName />,

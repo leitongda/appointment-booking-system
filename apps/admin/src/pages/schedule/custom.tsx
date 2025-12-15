@@ -3,6 +3,7 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormSelect, ProFormDatePicker, ProFormDigit, ProFormTimePicker } from '@ant-design/pro-components';
 import { Button, App, Space, Tag, Popconfirm, Card, Form, Row, Col, DatePicker, Select } from 'antd';
 import { useRef, useState, useEffect } from 'react';
+import { useAccess } from '@umijs/max';
 import { customScheduleApi, storeApi, departmentApi, doctorApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import { APPOINTMENT_TYPE_OPTIONS, APPOINTMENT_TYPE_MAP } from '@hospital/shared';
@@ -20,6 +21,7 @@ interface TimePeriodConfig {
 
 const CustomSchedulePage: React.FC = () => {
   const { message } = App.useApp();
+  const access = useAccess();
   const actionRef = useRef<ActionType>();
   const [modalOpen, setModalOpen] = useState(false);
   const [effectiveModalOpen, setEffectiveModalOpen] = useState(false);
@@ -254,15 +256,17 @@ const CustomSchedulePage: React.FC = () => {
       valueType: 'option',
       width: 80,
       render: (_, record) => (
-        <Popconfirm 
-          title="确定删除该排班吗？" 
-          onConfirm={() => handleDelete(record.id)}
-          disabled={record.bookedCount > 0}
-        >
-          <a style={{ color: record.bookedCount > 0 ? '#ccc' : '#ff4d4f' }}>
-            删除
-          </a>
-        </Popconfirm>
+        access.hasPermission('schedule:custom') && (
+          <Popconfirm 
+            title="确定删除该排班吗？" 
+            onConfirm={() => handleDelete(record.id)}
+            disabled={record.bookedCount > 0}
+          >
+            <a style={{ color: record.bookedCount > 0 ? '#ccc' : '#ff4d4f' }}>
+              删除
+            </a>
+          </Popconfirm>
+        )
       ),
     },
   ];
@@ -333,14 +337,16 @@ const CustomSchedulePage: React.FC = () => {
           }));
         }}
         toolBarRender={() => [
-          <Button
-            key="add"
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setModalOpen(true)}
-          >
-            添加
-          </Button>,
+          access.hasPermission('schedule:custom') && (
+            <Button
+              key="add"
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setModalOpen(true)}
+            >
+              添加
+            </Button>
+          ),
         ]}
         pagination={{ defaultPageSize: 10 }}
       />

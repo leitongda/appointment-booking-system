@@ -3,6 +3,7 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormSelect, ProFormDatePicker, ProFormDigit } from '@ant-design/pro-components';
 import { Button, App, Space, Tag, Popconfirm } from 'antd';
 import { useRef, useState, useEffect } from 'react';
+import { useAccess } from '@umijs/max';
 import { scheduleApi, doctorApi, departmentApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Schedule, Doctor, Department } from '@hospital/shared';
@@ -15,6 +16,7 @@ const TIME_SLOTS = [
 
 const ScheduleListPage: React.FC = () => {
   const { message } = App.useApp();
+  const access = useAccess();
   const actionRef = useRef<ActionType>();
   const [modalOpen, setModalOpen] = useState(false);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -145,12 +147,14 @@ const ScheduleListPage: React.FC = () => {
       width: 100,
       render: (_, record) => (
         <Space>
-          {record.status === 1 ? (
-            <Popconfirm title="确定停诊吗？" onConfirm={() => handleSuspend(record.id)}>
-              <a style={{ color: '#ff4d4f' }}>停诊</a>
-            </Popconfirm>
-          ) : (
-            <a onClick={() => handleResume(record.id)}>恢复</a>
+          {access.hasPermission('schedule:update') && (
+            record.status === 1 ? (
+              <Popconfirm title="确定停诊吗？" onConfirm={() => handleSuspend(record.id)}>
+                <a style={{ color: '#ff4d4f' }}>停诊</a>
+              </Popconfirm>
+            ) : (
+              <a onClick={() => handleResume(record.id)}>恢复</a>
+            )
           )}
         </Space>
       ),
@@ -173,14 +177,16 @@ const ScheduleListPage: React.FC = () => {
           }));
         }}
         toolBarRender={() => [
-          <Button
-            key="add"
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setModalOpen(true)}
-          >
-            新增排班
-          </Button>,
+          access.hasPermission('schedule:create') && (
+            <Button
+              key="add"
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setModalOpen(true)}
+            >
+              新增排班
+            </Button>
+          ),
         ]}
         pagination={{ defaultPageSize: 10 }}
       />

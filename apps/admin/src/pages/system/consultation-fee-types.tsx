@@ -3,11 +3,13 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSwitch } from '@ant-design/pro-components';
 import { Button, App, Popconfirm, Space } from 'antd';
 import { useRef, useState } from 'react';
+import { useAccess } from '@umijs/max';
 import { consultationFeeTypeApi } from '@hospital/api';
 import type { ConsultationFeeType } from '@hospital/shared';
 
 const ConsultationFeeTypesPage: React.FC = () => {
   const { message } = App.useApp();
+  const access = useAccess();
   const actionRef = useRef<ActionType>();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ConsultationFeeType | null>(null);
@@ -92,21 +94,25 @@ const ConsultationFeeTypesPage: React.FC = () => {
       width: 120,
       render: (_, record) => (
         <Space>
-          <a
-            onClick={() => {
-              setEditingRecord(record);
-              setModalOpen(true);
-            }}
-          >
-            编辑
-          </a>
-          <Popconfirm
-            title="确定删除该诊费类型吗？"
-            description="删除后相关诊费配置也会受影响"
-            onConfirm={() => handleDelete(record.id)}
-          >
-            <a style={{ color: '#ff4d4f' }}>删除</a>
-          </Popconfirm>
+          {access.hasPermission('system:consultation-fee') && (
+            <a
+              onClick={() => {
+                setEditingRecord(record);
+                setModalOpen(true);
+              }}
+            >
+              编辑
+            </a>
+          )}
+          {access.hasPermission('system:consultation-fee') && (
+            <Popconfirm
+              title="确定删除该诊费类型吗？"
+              description="删除后相关诊费配置也会受影响"
+              onConfirm={() => handleDelete(record.id)}
+            >
+              <a style={{ color: '#ff4d4f' }}>删除</a>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -129,17 +135,19 @@ const ConsultationFeeTypesPage: React.FC = () => {
           };
         }}
         toolBarRender={() => [
-          <Button
-            key="add"
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              setEditingRecord(null);
-              setModalOpen(true);
-            }}
-          >
-            新增诊费类型
-          </Button>,
+          access.hasPermission('system:consultation-fee') && (
+            <Button
+              key="add"
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                setEditingRecord(null);
+                setModalOpen(true);
+              }}
+            >
+              新增诊费类型
+            </Button>
+          ),
         ]}
         pagination={false}
       />

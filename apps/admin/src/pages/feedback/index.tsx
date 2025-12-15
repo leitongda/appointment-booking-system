@@ -2,7 +2,7 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormTextArea } from '@ant-design/pro-components';
 import { App, Space, Tag, Button, Drawer, Descriptions, Image } from 'antd';
 import { useRef, useState } from 'react';
-import { useModel } from '@umijs/max';
+import { useModel, useAccess } from '@umijs/max';
 import { feedbackApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Feedback } from '@hospital/shared';
@@ -24,6 +24,7 @@ const STATUS_MAP: Record<string, { text: string; color: string }> = {
 const FeedbackPage: React.FC = () => {
   const { message } = App.useApp();
   const { initialState } = useModel('@@initialState');
+  const access = useAccess();
   const actionRef = useRef<ActionType>();
   const [replyOpen, setReplyOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -73,8 +74,10 @@ const FeedbackPage: React.FC = () => {
       width: 120,
       render: (_, record) => (
         <Space>
-          <a onClick={() => { setCurrentRecord(record); setDetailOpen(true); }}>详情</a>
-          {record.status === 'pending' && (
+          {access.hasPermission('feedback:list') && (
+            <a onClick={() => { setCurrentRecord(record); setDetailOpen(true); }}>详情</a>
+          )}
+          {access.hasPermission('feedback:reply') && record.status === 'pending' && (
             <a onClick={() => { setCurrentRecord(record); setReplyOpen(true); }}>回复</a>
           )}
         </Space>

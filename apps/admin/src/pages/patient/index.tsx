@@ -2,7 +2,7 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { App, Popconfirm, Space, Tag } from 'antd';
 import { useRef } from 'react';
-import { history } from '@umijs/max';
+import { history, useAccess } from '@umijs/max';
 import { patientApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { PatientListItem } from '@hospital/api';
@@ -14,6 +14,7 @@ const SOURCE_MAP: Record<number, string> = {
 
 const PatientPage: React.FC = () => {
   const { message } = App.useApp();
+  const access = useAccess();
   const actionRef = useRef<ActionType>();
 
   const handleBlacklist = async (id: string, add: boolean) => {
@@ -68,15 +69,19 @@ const PatientPage: React.FC = () => {
       fixed: 'right',
       render: (_, record) => (
         <Space>
-          <a onClick={() => history.push(`/patient/${record.id}`)}>详情</a>
-          {record.isBlacklist ? (
-            <Popconfirm title="确定移出黑名单吗？" onConfirm={() => handleBlacklist(record.id, false)}>
-              <a>移出黑名单</a>
-            </Popconfirm>
-          ) : (
-            <Popconfirm title="确定加入黑名单吗？" onConfirm={() => handleBlacklist(record.id, true)}>
-              <a style={{ color: '#ff4d4f' }}>加黑名单</a>
-            </Popconfirm>
+          {access.hasPermission('patient:detail') && (
+            <a onClick={() => history.push(`/patient/${record.id}`)}>详情</a>
+          )}
+          {access.hasPermission('patient:update') && (
+            record.isBlacklist ? (
+              <Popconfirm title="确定移出黑名单吗？" onConfirm={() => handleBlacklist(record.id, false)}>
+                <a>移出黑名单</a>
+              </Popconfirm>
+            ) : (
+              <Popconfirm title="确定加入黑名单吗？" onConfirm={() => handleBlacklist(record.id, true)}>
+                <a style={{ color: '#ff4d4f' }}>加黑名单</a>
+              </Popconfirm>
+            )
           )}
         </Space>
       ),

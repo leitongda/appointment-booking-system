@@ -3,6 +3,7 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormSelect } from '@ant-design/pro-components';
 import { Button, App, Space, Tag, Popconfirm } from 'antd';
 import { useRef, useState } from 'react';
+import { useAccess } from '@umijs/max';
 import { messageApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Message } from '@hospital/shared';
@@ -16,6 +17,7 @@ const TYPE_MAP: Record<string, { text: string; color: string }> = {
 
 const MessagePage: React.FC = () => {
   const { message } = App.useApp();
+  const access = useAccess();
   const actionRef = useRef<ActionType>();
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -78,9 +80,11 @@ const MessagePage: React.FC = () => {
           return toProTableResult(await messageApi.getAllList({ ...rest, keyword: title, page: current, pageSize }));
         }}
         toolBarRender={() => [
-          <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
-            发送消息
-          </Button>,
+          access.hasPermission('message:send') && (
+            <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+              发送消息
+            </Button>
+          ),
         ]}
         pagination={{ defaultPageSize: 10 }}
         search={{ labelWidth: 'auto' }}

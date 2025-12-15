@@ -3,7 +3,7 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { Button, App, Popconfirm, Space, Tag, Avatar } from 'antd';
 import { useRef, useState, useEffect } from 'react';
-import { history } from '@umijs/max';
+import { history, useAccess } from '@umijs/max';
 import { doctorApi, departmentApi, storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Doctor, Department, Store } from '@hospital/shared';
@@ -11,6 +11,7 @@ import DoctorConsultationFeeModal from './consultation-fee-modal';
 
 const DoctorListPage: React.FC = () => {
   const { message } = App.useApp();
+  const access = useAccess();
   const actionRef = useRef<ActionType>();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
@@ -152,22 +153,30 @@ const DoctorListPage: React.FC = () => {
       fixed: 'right',
       render: (_, record) => (
         <Space>
-          <a onClick={() => history.push(`/doctor/${record.id}`)}>详情</a>
-          <a onClick={() => history.push(`/doctor/${record.id}/edit`)}>编辑</a>
-          <a
-            onClick={() => {
-              setSelectedDoctor({ id: record.id, name: record.name });
-              setFeeModalOpen(true);
-            }}
-          >
-            诊费
-          </a>
-          <Popconfirm
-            title="确定删除该医生吗？"
-            onConfirm={() => handleDelete(record.id)}
-          >
-            <a style={{ color: '#ff4d4f' }}>删除</a>
-          </Popconfirm>
+          {access.hasPermission('doctor:detail') && (
+            <a onClick={() => history.push(`/doctor/${record.id}`)}>详情</a>
+          )}
+          {access.hasPermission('doctor:update') && (
+            <a onClick={() => history.push(`/doctor/${record.id}/edit`)}>编辑</a>
+          )}
+          {access.hasPermission('doctor:update') && (
+            <a
+              onClick={() => {
+                setSelectedDoctor({ id: record.id, name: record.name });
+                setFeeModalOpen(true);
+              }}
+            >
+              诊费
+            </a>
+          )}
+          {access.hasPermission('doctor:delete') && (
+            <Popconfirm
+              title="确定删除该医生吗？"
+              onConfirm={() => handleDelete(record.id)}
+            >
+              <a style={{ color: '#ff4d4f' }}>删除</a>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -190,14 +199,16 @@ const DoctorListPage: React.FC = () => {
           }));
         }}
         toolBarRender={() => [
-          <Button
-            key="add"
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => history.push('/doctor/create')}
-          >
-            新增医生
-          </Button>,
+          access.hasPermission('doctor:create') && (
+            <Button
+              key="add"
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => history.push('/doctor/create')}
+            >
+              新增医生
+            </Button>
+          ),
         ]}
         pagination={{ defaultPageSize: 10 }}
       />

@@ -3,6 +3,7 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSwitch, ProFormSelect, ProForm } from '@ant-design/pro-components';
 import { Button, App, Popconfirm, Space, Avatar } from 'antd';
 import { useRef, useState } from 'react';
+import { useAccess } from '@umijs/max';
 import { storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Store } from '@hospital/shared';
@@ -17,6 +18,7 @@ const THEME_STYLE_OPTIONS = [
 
 const StorePage: React.FC = () => {
   const { message } = App.useApp();
+  const access = useAccess();
   const actionRef = useRef<ActionType>();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<Store | null>(null);
@@ -77,10 +79,14 @@ const StorePage: React.FC = () => {
       width: 120,
       render: (_, record) => (
         <Space>
-          <a onClick={() => { setEditingRecord(record); setModalOpen(true); }}>编辑</a>
-          <Popconfirm title="确定删除该门店吗？" onConfirm={() => handleDelete(record.id)}>
-            <a style={{ color: '#ff4d4f' }}>删除</a>
-          </Popconfirm>
+          {access.hasPermission('store:update') && (
+            <a onClick={() => { setEditingRecord(record); setModalOpen(true); }}>编辑</a>
+          )}
+          {access.hasPermission('store:delete') && (
+            <Popconfirm title="确定删除该门店吗？" onConfirm={() => handleDelete(record.id)}>
+              <a style={{ color: '#ff4d4f' }}>删除</a>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -98,9 +104,11 @@ const StorePage: React.FC = () => {
           return toProTableResult(await storeApi.getList({ ...rest, keyword: name, page: current, pageSize }));
         }}
         toolBarRender={() => [
-          <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalOpen(true); }}>
-            新增门店
-          </Button>,
+          access.hasPermission('store:create') && (
+            <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalOpen(true); }}>
+              新增门店
+            </Button>
+          ),
         ]}
         pagination={{ defaultPageSize: 10 }}
       />

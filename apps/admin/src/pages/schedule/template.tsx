@@ -14,6 +14,7 @@ import {
 } from '@ant-design/pro-components';
 import { Button, App, Space, Popconfirm, Tag, Alert, Tabs } from 'antd';
 import { useRef, useState, useEffect, useMemo } from 'react';
+import { useAccess } from '@umijs/max';
 import { scheduleTemplateApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { ScheduleTemplate, Doctor, Department, Store } from '@hospital/shared';
@@ -29,6 +30,7 @@ import {
 
 const ScheduleTemplatePage: React.FC = () => {
   const { message } = App.useApp();
+  const access = useAccess();
   const actionRef = useRef<ActionType>();
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [batchAddModalOpen, setBatchAddModalOpen] = useState(false);
@@ -262,18 +264,22 @@ const ScheduleTemplatePage: React.FC = () => {
       width: 120,
       render: (_, record) => (
         <Space>
-          <a
-            onClick={() => {
-              setEditingRecord(record);
-              setSelectedDept(record.departmentId);
-              setTemplateModalOpen(true);
-            }}
-          >
-            编辑
-          </a>
-          <Popconfirm title="确定删除该模板吗？" onConfirm={() => handleDelete(record.id)}>
-            <a style={{ color: '#ff4d4f' }}>删除</a>
-          </Popconfirm>
+          {access.hasPermission('schedule:template') && (
+            <a
+              onClick={() => {
+                setEditingRecord(record);
+                setSelectedDept(record.departmentId);
+                setTemplateModalOpen(true);
+              }}
+            >
+              编辑
+            </a>
+          )}
+          {access.hasPermission('schedule:template') && (
+            <Popconfirm title="确定删除该模板吗？" onConfirm={() => handleDelete(record.id)}>
+              <a style={{ color: '#ff4d4f' }}>删除</a>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -321,31 +327,37 @@ const ScheduleTemplatePage: React.FC = () => {
                   );
                 }}
                 toolBarRender={() => [
-                  <Button
-                    key="generate"
-                    icon={<ThunderboltOutlined />}
-                    disabled={selectedTemplates.length === 0}
-                    onClick={() => setGenerateModalOpen(true)}
-                  >
-                    生成排班 ({selectedTemplates.length})
-                  </Button>,
-                  <Button
-                    key="batch"
-                    onClick={() => setBatchAddModalOpen(true)}
-                  >
-                    批量添加
-                  </Button>,
-                  <Button
-                    key="add"
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={() => {
-                      setEditingRecord(null);
-                      setTemplateModalOpen(true);
-                    }}
-                  >
-                    新增模板
-                  </Button>,
+                  access.hasPermission('schedule:template') && (
+                    <Button
+                      key="generate"
+                      icon={<ThunderboltOutlined />}
+                      disabled={selectedTemplates.length === 0}
+                      onClick={() => setGenerateModalOpen(true)}
+                    >
+                      生成排班 ({selectedTemplates.length})
+                    </Button>
+                  ),
+                  access.hasPermission('schedule:template') && (
+                    <Button
+                      key="batch"
+                      onClick={() => setBatchAddModalOpen(true)}
+                    >
+                      批量添加
+                    </Button>
+                  ),
+                  access.hasPermission('schedule:template') && (
+                    <Button
+                      key="add"
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      onClick={() => {
+                        setEditingRecord(null);
+                        setTemplateModalOpen(true);
+                      }}
+                    >
+                      新增模板
+                    </Button>
+                  ),
                 ]}
                 pagination={{ defaultPageSize: 10 }}
               />

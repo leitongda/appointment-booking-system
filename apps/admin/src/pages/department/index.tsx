@@ -14,12 +14,14 @@ import {
 } from '@ant-design/pro-components';
 import { Button, App, Popconfirm, Space, Tag, Divider } from 'antd';
 import { useRef, useState, useEffect } from 'react';
+import { useAccess } from '@umijs/max';
 import { departmentApi, storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Department, Store, DepartmentTreeNode } from '@hospital/shared';
 
 const DepartmentPage: React.FC = () => {
   const { message } = App.useApp();
+  const access = useAccess();
   const actionRef = useRef<ActionType>();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<Department | null>(null);
@@ -193,20 +195,24 @@ const DepartmentPage: React.FC = () => {
       fixed: 'right',
       render: (_, record) => (
         <Space>
-          <a
-            onClick={() => {
-              setEditingRecord(record);
-              setDrawerOpen(true);
-            }}
-          >
-            编辑
-          </a>
-          <Popconfirm
-            title="确定删除该科室吗？"
-            onConfirm={() => handleDelete(record.id)}
-          >
-            <a style={{ color: '#ff4d4f' }}>删除</a>
-          </Popconfirm>
+          {access.hasPermission('department:update') && (
+            <a
+              onClick={() => {
+                setEditingRecord(record);
+                setDrawerOpen(true);
+              }}
+            >
+              编辑
+            </a>
+          )}
+          {access.hasPermission('department:delete') && (
+            <Popconfirm
+              title="确定删除该科室吗？"
+              onConfirm={() => handleDelete(record.id)}
+            >
+              <a style={{ color: '#ff4d4f' }}>删除</a>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -252,17 +258,19 @@ const DepartmentPage: React.FC = () => {
           }));
         }}
         toolBarRender={() => [
-          <Button
-            key="add"
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              setEditingRecord(null);
-              setDrawerOpen(true);
-            }}
-          >
-            新增科室
-          </Button>,
+          access.hasPermission('department:create') && (
+            <Button
+              key="add"
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                setEditingRecord(null);
+                setDrawerOpen(true);
+              }}
+            >
+              新增科室
+            </Button>
+          ),
         ]}
         pagination={{ defaultPageSize: 10 }}
       />

@@ -3,6 +3,7 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormSelect, ProFormSwitch } from '@ant-design/pro-components';
 import { Button, App, Popconfirm, Space, Tag, Image } from 'antd';
 import { useRef, useState } from 'react';
+import { useAccess } from '@umijs/max';
 import { contentApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { News } from '@hospital/api';
@@ -15,6 +16,7 @@ const TYPE_OPTIONS = [
 
 const NewsPage: React.FC = () => {
   const { message } = App.useApp();
+  const access = useAccess();
   const actionRef = useRef<ActionType>();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<News | null>(null);
@@ -63,10 +65,14 @@ const NewsPage: React.FC = () => {
       width: 120,
       render: (_, record) => (
         <Space>
-          <a onClick={() => { setEditingRecord(record); setModalOpen(true); }}>编辑</a>
-          <Popconfirm title="确定删除吗？" onConfirm={() => handleDelete(record.id)}>
-            <a style={{ color: '#ff4d4f' }}>删除</a>
-          </Popconfirm>
+          {access.hasPermission('content:news:update') && (
+            <a onClick={() => { setEditingRecord(record); setModalOpen(true); }}>编辑</a>
+          )}
+          {access.hasPermission('content:news:delete') && (
+            <Popconfirm title="确定删除吗？" onConfirm={() => handleDelete(record.id)}>
+              <a style={{ color: '#ff4d4f' }}>删除</a>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -84,9 +90,11 @@ const NewsPage: React.FC = () => {
           return toProTableResult(await contentApi.getNewsList({ ...rest, page: current, pageSize }));
         }}
         toolBarRender={() => [
-          <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalOpen(true); }}>
-            发布新闻
-          </Button>,
+          access.hasPermission('content:news:create') && (
+            <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalOpen(true); }}>
+              发布新闻
+            </Button>
+          ),
         ]}
         pagination={{ defaultPageSize: 10 }}
       />

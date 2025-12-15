@@ -2,7 +2,7 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormTextArea, ProFormRadio } from '@ant-design/pro-components';
 import { App, Space, Tag, Drawer, Descriptions } from 'antd';
 import { useRef, useState } from 'react';
-import { useModel } from '@umijs/max';
+import { useModel, useAccess } from '@umijs/max';
 import { leaveRequestApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { LeaveRequest } from '@hospital/shared';
@@ -19,6 +19,7 @@ const PERIOD_MAP: Record<string, string> = { morning: '上午', afternoon: '下�
 const LeaveRequestPage: React.FC = () => {
   const { message } = App.useApp();
   const { initialState } = useModel('@@initialState');
+  const access = useAccess();
   const actionRef = useRef<ActionType>();
   const [reviewOpen, setReviewOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -68,8 +69,10 @@ const LeaveRequestPage: React.FC = () => {
       width: 100,
       render: (_, record) => (
         <Space>
-          <a onClick={() => { setCurrentRecord(record); setDetailOpen(true); }}>详情</a>
-          {record.status === 'pending' && (
+          {access.hasPermission('leave-request:list') && (
+            <a onClick={() => { setCurrentRecord(record); setDetailOpen(true); }}>详情</a>
+          )}
+          {access.hasPermission('leave-request:approve') && record.status === 'pending' && (
             <a onClick={() => { setCurrentRecord(record); setReviewOpen(true); }}>审核</a>
           )}
         </Space>

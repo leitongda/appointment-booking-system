@@ -25,6 +25,7 @@ export default [
     name: '仪表盘',
     icon: 'dashboard',
     component: './dashboard',
+    access: 'canDashboard',
   },
   // 门店管理
   {
@@ -32,6 +33,7 @@ export default [
     name: '门店管理',
     icon: 'shop',
     component: './store',
+    access: 'canStore',
   },
   // 科室管理
   {
@@ -39,12 +41,14 @@ export default [
     name: '科室管理',
     icon: 'apartment',
     component: './department',
+    access: 'canDepartment',
   },
   // 医生管理
   {
     path: '/doctor',
     name: '医生管理',
     icon: 'user',
+    access: 'canDoctor',
     routes: [
       { path: '/doctor', redirect: '/doctor/list' },
       { path: '/doctor/list', name: '医生列表', component: './doctor/list' },
@@ -59,6 +63,7 @@ export default [
     path: '/schedule',
     name: '排班管理',
     icon: 'calendar',
+    access: 'canSchedule',
     routes: [
       { path: '/schedule', redirect: '/schedule/list' },
       { path: '/schedule/list', name: '排班列表', component: './schedule/list' },
@@ -74,6 +79,7 @@ export default [
     path: '/appointment',
     name: '预约管理',
     icon: 'schedule',
+    access: 'canAppointment',
     routes: [
       { path: '/appointment', redirect: '/appointment/list' },
       { path: '/appointment/list', name: '预约列表', component: './appointment/list' },
@@ -86,6 +92,7 @@ export default [
     path: '/patient',
     name: '患者管理',
     icon: 'team',
+    access: 'canPatient',
     routes: [
       { path: '/patient', redirect: '/patient/list' },
       { path: '/patient/list', name: '患者列表', component: './patient' },
@@ -98,6 +105,7 @@ export default [
     name: '停诊审核',
     icon: 'exception',
     component: './leave-request',
+    access: 'canLeaveRequest',
   },
   // 用户反馈
   {
@@ -105,6 +113,7 @@ export default [
     name: '用户反馈',
     icon: 'comment',
     component: './feedback',
+    access: 'canFeedback',
   },
   // 消息管理
   {
@@ -112,12 +121,14 @@ export default [
     name: '消息管理',
     icon: 'bell',
     component: './message',
+    access: 'canMessage',
   },
   // 内容管理
   {
     path: '/content',
     name: '内容管理',
     icon: 'fileText',
+    access: 'canContent',
     routes: [
       { path: '/content', redirect: '/content/news' },
       { path: '/content/news', name: '新闻管理', component: './content/news' },
@@ -131,12 +142,14 @@ export default [
     name: '统计分析',
     icon: 'barChart',
     component: './statistics',
+    access: 'canStatistics',
   },
   // 系统设置
   {
     path: '/system',
     name: '系统设置',
     icon: 'setting',
+    access: 'canSystem',
     routes: [
       { path: '/system', redirect: '/system/role' },
       { path: '/system/role', name: '角色管理', component: './system/role' },

@@ -19,7 +19,9 @@ declare namespace API {
     name?: string;
     avatar?: string;
     phone?: string;
-    role?: string;
+    roleId?: string;
+    roleName?: string;
+    roleCode?: string;
     permissions?: string[];
   }
 

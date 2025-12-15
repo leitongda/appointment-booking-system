@@ -3,6 +3,7 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormText, ProFormDigit, ProFormSelect, ProFormSwitch } from '@ant-design/pro-components';
 import { Button, App, Popconfirm, Space, Image } from 'antd';
 import { useRef, useState } from 'react';
+import { useAccess } from '@umijs/max';
 import { contentApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Banner } from '@hospital/api';
@@ -15,6 +16,7 @@ const LINK_TYPE_OPTIONS = [
 
 const BannerPage: React.FC = () => {
   const { message } = App.useApp();
+  const access = useAccess();
   const actionRef = useRef<ActionType>();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<Banner | null>(null);
@@ -62,10 +64,14 @@ const BannerPage: React.FC = () => {
       width: 120,
       render: (_, record) => (
         <Space>
-          <a onClick={() => { setEditingRecord(record); setModalOpen(true); }}>编辑</a>
-          <Popconfirm title="确定删除吗？" onConfirm={() => handleDelete(record.id)}>
-            <a style={{ color: '#ff4d4f' }}>删除</a>
-          </Popconfirm>
+          {access.hasPermission('content:banner:update') && (
+            <a onClick={() => { setEditingRecord(record); setModalOpen(true); }}>编辑</a>
+          )}
+          {access.hasPermission('content:banner:delete') && (
+            <Popconfirm title="确定删除吗？" onConfirm={() => handleDelete(record.id)}>
+              <a style={{ color: '#ff4d4f' }}>删除</a>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -83,9 +89,11 @@ const BannerPage: React.FC = () => {
           return toProTableResult(await contentApi.getBannerList({ ...rest, page: current, pageSize }));
         }}
         toolBarRender={() => [
-          <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalOpen(true); }}>
-            新增轮播图
-          </Button>,
+          access.hasPermission('content:banner:create') && (
+            <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalOpen(true); }}>
+              新增轮播图
+            </Button>
+          ),
         ]}
         pagination={{ defaultPageSize: 10 }}
       />
