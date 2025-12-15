@@ -8,7 +8,7 @@ import logging
 
 from app.celery_app import celery_app
 from app.db.session import get_sync_db
-from app.models.settings import Settings
+from app.models.settings import SystemSetting as Settings
 from app.core.config import settings as app_settings
 from app.services.wechat_service import WechatTokenManager
 

@@ -9,7 +9,7 @@ from app.db.session import get_db
 from app.api.deps import get_current_admin
 from app.models.appointment import Appointment
 from app.models.schedule import Schedule
-from app.models.user import User
+from app.models.user import User, Patient
 from app.models.doctor import Doctor
 from app.models.department import Department
 from app.models.store import Store
@@ -45,9 +45,9 @@ async def get_overview(
         )
     )
     
-    # 总患者数
+    # 总患者数（使用 Patient 表统计）
     total_patients = await db.scalar(
-        select(func.count(User.id)).where(User.user_type == 'patient')
+        select(func.count(Patient.id))
     )
     
     # 总医生数

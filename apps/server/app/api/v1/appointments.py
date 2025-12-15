@@ -4,7 +4,7 @@ from typing import Optional
 from datetime import date
 
 from app.db.session import get_db
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_current_user_or_admin
 from app.schemas.appointment import AppointmentCreate, AppointmentResponse, AppointmentCancelRequest, AppointmentStatistics
 from app.schemas.response import PageResponse
 from app.services.appointment_service import AppointmentService
@@ -20,12 +20,14 @@ async def get_appointments(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_admin)
 ):
     """获取预约列表"""
     service = AppointmentService(db)
+    # 管理员可以查看所有预约，普通用户只能查看自己的
+    user_id = None if current_user.get("is_admin") else current_user["id"]
     appointments, total = await service.get_list(
-        user_id=current_user["id"],
+        user_id=user_id,
         status=status,
         patient_id=patient_id,
         start_date=start_date,
@@ -60,7 +62,7 @@ async def get_appointments(
 @router.get("/today")
 async def get_today_appointments(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_admin)
 ):
     """获取今日预约（医生端）"""
     service = AppointmentService(db)
@@ -87,7 +89,7 @@ async def get_appointment_statistics(
 async def get_appointment(
     appointment_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_admin)
 ):
     """获取预约详情"""
     service = AppointmentService(db)
@@ -119,7 +121,7 @@ async def get_appointment(
 async def create_appointment(
     data: AppointmentCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_admin)
 ):
     """创建预约"""
     service = AppointmentService(db)
@@ -147,14 +149,15 @@ async def cancel_appointment(
     appointment_id: str,
     data: AppointmentCancelRequest = None,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_admin)
 ):
     """取消预约"""
     service = AppointmentService(db)
     reason = data.reason if data else None
+    is_admin = current_user.get("is_admin", False)
     
     try:
-        appointment = await service.cancel(appointment_id, current_user["id"], reason)
+        appointment = await service.cancel(appointment_id, current_user["id"], reason, is_admin)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     
@@ -256,7 +259,7 @@ async def mark_no_show(appointment_id: str, db: AsyncSession = Depends(get_db)):
 @router.get("/queue/info")
 async def get_queue_info(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_admin)
 ):
     """获取当前叫号队列信息（医生端）"""
     doctor_id = current_user.get("doctor_id")

@@ -5,7 +5,10 @@
 export default function access(initialState: { currentUser?: API.CurrentUser } | undefined) {
   const { currentUser } = initialState ?? {};
   const permissions = currentUser?.permissions || [];
-  const isSuperAdmin = currentUser?.roleCode === 'SUPER_ADMIN';
+  // 支持大小写不敏感的角色码检查
+  const isSuperAdmin = currentUser?.roleCode?.toUpperCase() === 'SUPER_ADMIN';
+  // 检查是否有通配符权限
+  const hasWildcard = permissions.includes('*');
 
   /**
    * 检查是否拥有指定权限
@@ -13,8 +16,8 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
    * @returns boolean
    */
   const hasPermission = (permission: string): boolean => {
-    // 超级管理员拥有所有权限
-    if (isSuperAdmin) return true;
+    // 超级管理员或拥有通配符权限
+    if (isSuperAdmin || hasWildcard) return true;
     // 检查权限列表
     return permissions.includes(permission);
   };
@@ -25,7 +28,7 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
    * @returns boolean
    */
   const hasAnyPermission = (permissionList: string[]): boolean => {
-    if (isSuperAdmin) return true;
+    if (isSuperAdmin || hasWildcard) return true;
     return permissionList.some((p) => permissions.includes(p));
   };
 
@@ -35,7 +38,7 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
    * @returns boolean
    */
   const hasAllPermissions = (permissionList: string[]): boolean => {
-    if (isSuperAdmin) return true;
+    if (isSuperAdmin || hasWildcard) return true;
     return permissionList.every((p) => permissions.includes(p));
   };
 

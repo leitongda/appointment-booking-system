@@ -14,7 +14,7 @@ from app.models.schedule import Schedule
 from app.models.user import User
 from app.models.doctor import Doctor
 from app.models.department import Department
-from app.models.settings import Settings
+from app.models.settings import SystemSetting as Settings
 from app.core.config import settings as app_settings
 from app.services.wechat_service import WechatTokenManager
 import httpx

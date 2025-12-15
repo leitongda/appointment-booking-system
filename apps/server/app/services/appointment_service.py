@@ -172,10 +172,14 @@ class AppointmentService:
         await self.db.refresh(appointment)
         return appointment
     
-    async def cancel(self, appointment_id: str, user_id: str, reason: Optional[str] = None) -> Optional[Appointment]:
+    async def cancel(self, appointment_id: str, user_id: str, reason: Optional[str] = None, is_admin: bool = False) -> Optional[Appointment]:
         """取消预约"""
         appointment = await self.get_by_id(appointment_id)
-        if not appointment or appointment.user_id != user_id:
+        if not appointment:
+            return None
+        
+        # 非管理员只能取消自己的预约
+        if not is_admin and appointment.user_id != user_id:
             return None
         
         if appointment.status not in [1, 2]:

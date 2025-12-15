@@ -128,6 +128,14 @@ def create_refresh_token(data: dict) -> str:
 def decode_token(token: str) -> Optional[dict]:
     try:
         return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-    except JWTError:
+    except jwt.ExpiredSignatureError:
+        # Token 已过期
+        import logging
+        logging.getLogger(__name__).warning("Token 已过期")
+        return None
+    except JWTError as e:
+        # 其他 JWT 错误
+        import logging
+        logging.getLogger(__name__).warning(f"Token 解码失败: {e}")
         return None
 

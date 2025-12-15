@@ -6,6 +6,7 @@
 from datetime import datetime, timedelta
 from sqlalchemy import select, func, and_, update
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 
 from app.celery_app import celery_app
@@ -15,10 +16,67 @@ from app.models.user import User
 from app.models.appointment import Appointment
 from app.models.message import Message
 from app.models.admin import Admin
-from app.models.settings import Settings
+from app.models.settings import SystemSetting as Settings
 import uuid
 
 logger = logging.getLogger(__name__)
+
+
+async def auto_release_blacklist(db: AsyncSession) -> list[str]:
+    """
+    自动解禁到期的黑名单用户（异步版本，供 FastAPI 后台任务使用）
+    
+    Args:
+        db: 异步数据库会话
+    
+    Returns:
+        解禁的黑名单记录 ID 列表
+    """
+    now = datetime.now()
+    released_ids = []
+    
+    try:
+        # 查找已过期且状态为有效的黑名单记录
+        result = await db.execute(
+            select(Blacklist)
+            .where(
+                and_(
+                    Blacklist.status == 1,
+                    Blacklist.expire_at != None,
+                    Blacklist.expire_at <= now
+                )
+            )
+        )
+        expired_records = result.scalars().all()
+        
+        for record in expired_records:
+            # 更新状态为已解禁
+            record.status = 0
+            record.updated_at = now
+            released_ids.append(record.id)
+            
+            # 获取用户信息用于日志
+            user_info = "未知用户"
+            if record.user_id:
+                user_result = await db.execute(
+                    select(User).where(User.id == record.user_id)
+                )
+                user = user_result.scalar_one_or_none()
+                if user:
+                    user_info = user.nickname or user.phone or "未知用户"
+            elif record.keyword:
+                user_info = record.keyword
+            
+            logger.info(f"已自动解禁黑名单用户: {user_info}")
+        
+        await db.commit()
+        
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"黑名单自动解禁失败: {e}")
+        raise
+    
+    return released_ids
 
 
 def _get_setting_value(db: Session, category: str, key: str, default=None):

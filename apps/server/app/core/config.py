@@ -1,5 +1,24 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Optional
+from pathlib import Path
+import os
+
+
+def _get_env_file() -> str | None:
+    """检查 .env 文件是否可访问，如果不可访问则返回 None"""
+    env_path = Path(__file__).parent.parent.parent / ".env"
+    if env_path.exists():
+        try:
+            # 尝试读取文件来检查权限
+            with open(env_path, 'r') as f:
+                f.read(1)
+            return str(env_path)
+        except (PermissionError, OSError):
+            # 文件存在但无法访问（macOS provenance 属性等）
+            print(f"Warning: .env file exists but cannot be accessed: {env_path}")
+            return None
+    return None
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "医院挂号系统"
@@ -75,8 +94,11 @@ class Settings(BaseSettings):
     SMS_SIGN_NAME: Optional[str] = None
     SMS_TEMPLATE_CODE: Optional[str] = None
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = SettingsConfigDict(
+        env_file=_get_env_file(),
+        env_file_encoding='utf-8',
+        case_sensitive=True,
+    )
+
 
 settings = Settings()

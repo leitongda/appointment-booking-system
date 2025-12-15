@@ -8,6 +8,8 @@ from app.db.session import get_db
 from app.core.security import decode_token
 from app.models.user import User
 from app.models.doctor import Doctor
+from jose import jwt, JWTError
+from app.core.config import settings
 
 security = HTTPBearer()
 
@@ -153,3 +155,97 @@ async def get_optional_user(
         return await get_current_user(credentials, db)
     except HTTPException:
         return None
+
+
+async def get_current_user_or_admin(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db)
+) -> dict:
+    """
+    获取当前用户或管理员
+    同时支持普通用户和管理员访问的 API 使用此依赖
+    """
+    from app.models.admin import Admin
+    
+    token = credentials.credentials
+    
+    # 先检查 token 是否过期，提供更明确的错误信息
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token已过期，请重新登录")
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的Token")
+    
+    user_id = payload.get("sub")
+    token_type = payload.get("type", "")
+    
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的Token")
+    
+    # 优先检查是否是管理员
+    if token_type == "admin" or "admin" in str(payload):
+        result = await db.execute(select(Admin).where(Admin.id == user_id))
+        admin = result.scalar_one_or_none()
+        
+        if admin:
+            if admin.status != 1:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+            
+            return {
+                "id": admin.id,
+                "username": admin.username,
+                "name": admin.name or "管理员",
+                "phone": admin.phone,
+                "status": admin.status,
+                "role_id": admin.role_id,
+                "is_admin": True,
+                "is_doctor": False,
+                "doctor_id": None,
+            }
+    
+    # 尝试从 User 表获取
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if user:
+        if user.status != 1:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+        
+        # 检查是否是医生
+        doctor_result = await db.execute(select(Doctor).where(Doctor.user_id == user_id))
+        doctor = doctor_result.scalar_one_or_none()
+        
+        return {
+            "id": user.id,
+            "phone": user.phone,
+            "nickname": user.nickname,
+            "avatar": user.avatar,
+            "gender": user.gender,
+            "status": user.status,
+            "doctor_id": doctor.id if doctor else None,
+            "is_doctor": doctor is not None,
+            "is_admin": False,
+        }
+    
+    # 再次尝试 Admin 表（兼容旧 token）
+    result = await db.execute(select(Admin).where(Admin.id == user_id))
+    admin = result.scalar_one_or_none()
+    
+    if admin:
+        if admin.status != 1:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+        
+        return {
+            "id": admin.id,
+            "username": admin.username,
+            "name": admin.name or "管理员",
+            "phone": admin.phone,
+            "status": admin.status,
+            "role_id": admin.role_id,
+            "is_admin": True,
+            "is_doctor": False,
+            "doctor_id": None,
+        }
+    
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户不存在")
