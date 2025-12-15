@@ -1,3 +1,23 @@
+/*
+ * @Author: Lei TongDa ebian123@qq.com
+ * @Date: 2025-11-27 12:23:44
+ * @LastEditors: Lei TongDa ebian123@qq.com
+ * @LastEditTime: 2025-12-15 15:29:22
+ * @FilePath: /appointment-booking-system/apps/doctor/.umirc.ts
+ * @Description: 
+ * 
+ * Copyright (c) 2025 by ${git_name_email}, All Rights Reserved. 
+ */
+/*
+ * @Author: Lei TongDa ebian123@qq.com
+ * @Date: 2025-11-27 12:23:44
+ * @LastEditors: Lei TongDa ebian123@qq.com
+ * @LastEditTime: 2025-12-15 15:29:20
+ * @FilePath: /appointment-booking-system/apps/doctor/.umirc.ts
+ * @Description: 
+ * 
+ * Copyright (c) 2025 by ${git_name_email}, All Rights Reserved. 
+ */
 import { defineConfig } from 'umi';
 
 export default defineConfig({

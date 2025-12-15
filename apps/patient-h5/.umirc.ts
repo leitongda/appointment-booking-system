@@ -1,3 +1,13 @@
+/*
+ * @Author: Lei TongDa ebian123@qq.com
+ * @Date: 2025-11-27 12:16:57
+ * @LastEditors: Lei TongDa ebian123@qq.com
+ * @LastEditTime: 2025-12-15 15:29:18
+ * @FilePath: /appointment-booking-system/apps/patient-h5/.umirc.ts
+ * @Description: 
+ * 
+ * Copyright (c) 2025 by ${git_name_email}, All Rights Reserved. 
+ */
 import { defineConfig } from 'umi';
 
 export default defineConfig({
