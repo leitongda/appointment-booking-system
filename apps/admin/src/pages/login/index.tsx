@@ -407,6 +407,15 @@ const Login: React.FC = () => {
           />
         </div>
       </div>
+      <div className={styles.footer}>
+        <a 
+          href="https://beian.miit.gov.cn/" 
+          target="_blank" 
+          rel="noopener noreferrer"
+        >
+          蜀ICP备2022022726号-2
+        </a>
+      </div>
     </div>
   );
 };
