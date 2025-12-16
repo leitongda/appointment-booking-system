@@ -1,11 +1,11 @@
 import { AvatarDropdown, AvatarName } from '@/components/RightContent';
 import { FullscreenButton, NotificationButton, RefreshButton } from '@/components/HeaderActions';
-import { getToken, removeToken } from '@hospital/shared';
+import { getToken, removeToken, setStorage, STORAGE_KEYS, handleTokenExpired } from '@hospital/shared';
 import { adminApi } from '@hospital/api';
 import type { Settings as LayoutSettings } from '@ant-design/pro-components';
 import type { RunTimeLayoutConfig, RequestConfig } from '@umijs/max';
 import { history, useLocation } from '@umijs/max';
-import { App } from 'antd';
+import { App, message } from 'antd';
 import { useMemo } from 'react';
 import defaultSettings from '../config/defaultSettings';
 import { initApiConfig } from '@/utils/request';
@@ -111,7 +111,20 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
       // 如果没有登录，重定向到登录页
       if (!token && location.pathname !== loginPath) {
         history.push(loginPath);
+        return;
       }
+      // 记录上次访问的页面路径（排除登录页、欢迎页、404页等特殊页面）
+      const excludePaths = [loginPath, '/welcome', '/404', '/403', '/'];
+      if (token && !excludePaths.includes(location.pathname)) {
+        // 保存完整路径（包含 search 和 hash）
+        const fullPath = location.pathname + (location.search || '') + (location.hash || '');
+        setStorage(STORAGE_KEYS.LAST_PATH, fullPath);
+      }
+    },
+    // 无权限时重定向到仪表盘
+    unAccessible: <div />,
+    onUnAccessible: () => {
+      history.replace('/dashboard');
     },
     menuHeaderRender: undefined,
     // 路由切换动画
@@ -146,8 +159,10 @@ export const request: RequestConfig = {
 
       // 401 未授权
       if (status === 401 || data?.code === 401) {
-        removeToken();
-        history.push(loginPath);
+        handleTokenExpired(() => {
+          message.error('登录已过期，请重新登录');
+          history.push(loginPath);
+        });
         return response;
       }
 

@@ -3,10 +3,10 @@
  * 配置 @hospital/api 包的请求和响应拦截器
  */
 import { setRequestInterceptor, setResponseInterceptor } from '@hospital/api';
-import { getToken, removeToken } from '@hospital/shared';
+import { getToken, handleTokenExpired } from '@hospital/shared';
 import { history } from '@umijs/max';
+import { message } from 'antd';
 import type { InternalAxiosRequestConfig } from 'axios';
-import type { AxiosResponse } from 'axios';
 
 /**
  * 配置请求拦截器
@@ -49,10 +49,11 @@ export const setupResponseInterceptor = () => {
         
         // 401 未授权 - 清除 token 并跳转到登录页
         if (status === 401) {
-          console.warn('Token 已过期或无效，请重新登录');
-          removeToken();
-          history.push('/login');
-          return Promise.reject(new Error('未授权，请重新登录'));
+          handleTokenExpired(() => {
+            message.error('登录已过期，请重新登录');
+            history.push('/login');
+          });
+          return Promise.reject(new Error('登录已过期，请重新登录'));
         }
         
         // 403 禁止访问

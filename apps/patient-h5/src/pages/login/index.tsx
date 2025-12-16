@@ -1,10 +1,13 @@
 import { Form, Input, Button, Toast } from 'antd-mobile';
 import { history } from 'umi';
+import { resetTokenExpiredState } from '@hospital/shared';
 import styles from './index.less';
 
 const LoginPage: React.FC = () => {
   const onFinish = (values: any) => {
     console.log(values);
+    // 重置 token 失效处理状态
+    resetTokenExpiredState();
     Toast.show('登录成功');
     history.push('/home');
   };

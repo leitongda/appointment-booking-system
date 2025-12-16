@@ -9,7 +9,7 @@ import {
 } from '@ant-design/icons';
 import { App, Tabs, Button, Form, Input, QRCode, Spin, Space } from 'antd';
 import { adminApi } from '@hospital/api';
-import { setToken, STORAGE_KEYS, setStorage } from '@hospital/shared';
+import { setToken, STORAGE_KEYS, setStorage, getStorage, removeStorage, resetTokenExpiredState } from '@hospital/shared';
 import styles from './index.less';
 
 type LoginType = 'wechat' | 'phone' | 'account';
@@ -39,12 +39,24 @@ const Login: React.FC = () => {
 
   // 登录成功后的处理
   const handleLoginSuccess = useCallback(async (result: any) => {
+    // 重置 token 失效处理状态
+    resetTokenExpiredState();
+    
     setToken(result.accessToken);
     setStorage(STORAGE_KEYS.REFRESH_TOKEN, result.refreshToken);
     message.success('登录成功！');
+    
+    // 获取上次访问的页面路径
+    const lastPath = getStorage<string>(STORAGE_KEYS.LAST_PATH);
+    // 清除存储的路径（只使用一次）
+    removeStorage(STORAGE_KEYS.LAST_PATH);
+    
     // 使用 window.location.href 而不是 history.push
     // 这样会触发页面刷新，重新执行 getInitialState，确保权限正确加载
-    window.location.href = '/dashboard';
+    // 如果有上次访问的路径则跳转到该路径，否则跳转到 dashboard
+    // 权限检查由 layout 的 onUnAccessible 处理，无权限时会自动重定向到 dashboard
+    const targetPath = lastPath && lastPath !== '/' ? lastPath : '/dashboard';
+    window.location.href = targetPath;
   }, [message]);
 
   // 账号密码登录

@@ -3,7 +3,7 @@ import { LoginForm, ProFormText } from '@ant-design/pro-components';
 import { message } from 'antd';
 import { history, useModel } from 'umi';
 import { authApi } from '@hospital/api';
-import { setToken, setStorage, STORAGE_KEYS } from '@hospital/shared';
+import { setToken, setStorage, STORAGE_KEYS, resetTokenExpiredState } from '@hospital/shared';
 import styles from './index.less';
 
 const Login: React.FC = () => {
@@ -12,6 +12,10 @@ const Login: React.FC = () => {
   const handleSubmit = async (values: { phone: string; password: string }) => {
     try {
       const result = await authApi.doctorLogin(values);
+      
+      // 重置 token 失效处理状态
+      resetTokenExpiredState();
+      
       setToken(result.accessToken);
       setStorage(STORAGE_KEYS.REFRESH_TOKEN, result.refreshToken);
       setStorage('doctor', JSON.stringify(result.doctor));
