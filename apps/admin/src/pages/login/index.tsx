@@ -7,8 +7,6 @@ import {
   WechatOutlined,
   SafetyOutlined,
 } from '@ant-design/icons';
-import { ProFormText } from '@ant-design/pro-components';
-import { useModel, history } from '@umijs/max';
 import { App, Tabs, Button, Form, Input, QRCode, Spin, Space } from 'antd';
 import { adminApi } from '@hospital/api';
 import { setToken, STORAGE_KEYS, setStorage } from '@hospital/shared';
@@ -19,7 +17,6 @@ type PhoneLoginType = 'sms' | 'password';
 
 const Login: React.FC = () => {
   const { message } = App.useApp();
-  const { initialState, setInitialState } = useModel('@@initialState');
   
   // 登录方式
   const [loginType, setLoginType] = useState<LoginType>('wechat');
@@ -45,10 +42,10 @@ const Login: React.FC = () => {
     setToken(result.accessToken);
     setStorage(STORAGE_KEYS.REFRESH_TOKEN, result.refreshToken);
     message.success('登录成功！');
-    const userInfo = await initialState?.fetchUserInfo?.();
-    await setInitialState((s: any) => ({ ...s, currentUser: userInfo }));
-    history.push('/dashboard');
-  }, [initialState, setInitialState, message]);
+    // 使用 window.location.href 而不是 history.push
+    // 这样会触发页面刷新，重新执行 getInitialState，确保权限正确加载
+    window.location.href = '/dashboard';
+  }, [message]);
 
   // 账号密码登录
   const handleAccountLogin = async (values: { username: string; password: string }) => {
