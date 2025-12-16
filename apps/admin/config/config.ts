@@ -41,6 +41,7 @@ export default defineConfig({
   // 开发配置
   mfsu: {
     strategy: 'normal',
+    exclude: ['react-image-crop'],
   },
 
   // 构建配置

@@ -30,6 +30,7 @@ export { customScheduleApi } from './modules/custom-schedule';
 export { restDayApi } from './modules/rest-day';
 export { scheduleSuspensionApi } from './modules/schedule-suspension';
 export { blacklistApi } from './modules/blacklist';
+export { uploadApi } from './modules/upload';
 
 // Auth types are re-exported from @hospital/shared
 export type { LoginParams, LoginResult } from '@hospital/shared';
@@ -154,3 +155,6 @@ export type {
   ScheduleStatisticsResponse,
   ScheduleStatisticsParams,
 } from './modules/schedule';
+
+// Upload types
+export type { UploadResult, TransferRequest } from './modules/upload';

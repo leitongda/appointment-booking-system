@@ -36,8 +36,14 @@ pytest-asyncio>=0.24.0
 
 # ==================== 新增依赖 ====================
 
+# MinIO 存储
+minio>=7.2.0
+
 # 阿里云短信 SDK（可选，按需安装）
 # alibabacloud_dysmsapi20170525==3.0.0
 
 # 腾讯云短信 SDK（可选，按需安装）
 # tencentcloud-sdk-python==3.0.1000
+
+# 腾讯云 COS SDK（可选，按需安装）
+# cos-python-sdk-v5>=1.9.30

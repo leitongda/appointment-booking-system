@@ -94,6 +94,24 @@ class Settings(BaseSettings):
     SMS_SIGN_NAME: Optional[str] = None
     SMS_TEMPLATE_CODE: Optional[str] = None
     
+    # 存储配置
+    STORAGE_TYPE: str = "minio"  # minio / cos
+    
+    # MinIO 配置
+    MINIO_ENDPOINT: str = "localhost:9000"
+    MINIO_ACCESS_KEY: str = "minioadmin"
+    MINIO_SECRET_KEY: str = "minioadmin"
+    MINIO_BUCKET: str = "hospital"
+    MINIO_SECURE: bool = False  # 是否使用HTTPS
+    MINIO_PUBLIC_URL: Optional[str] = None  # 公网访问URL（可选，如CDN域名）
+    
+    # 腾讯云 COS 配置（预留）
+    COS_SECRET_ID: Optional[str] = None
+    COS_SECRET_KEY: Optional[str] = None
+    COS_REGION: str = "ap-guangzhou"
+    COS_BUCKET: Optional[str] = None
+    COS_CDN_DOMAIN: Optional[str] = None  # CDN加速域名（可选）
+    
     model_config = SettingsConfigDict(
         env_file=_get_env_file(),
         env_file_encoding='utf-8',

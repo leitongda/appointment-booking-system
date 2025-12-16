@@ -1,12 +1,13 @@
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormSelect, ProFormSwitch } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Tag, Image } from 'antd';
+import { Button, App, Popconfirm, Space, Tag, Image, Form } from 'antd';
 import { useRef, useState } from 'react';
 import { useAccess } from '@umijs/max';
 import { contentApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { News } from '@hospital/api';
+import ImageUpload from '@/components/ImageUpload';
 
 const TYPE_OPTIONS = [
   { label: '医院动态', value: 1 },
@@ -110,7 +111,15 @@ const NewsPage: React.FC = () => {
       >
         <ProFormText name="title" label="标题" rules={[{ required: true }]} />
         <ProFormSelect name="type" label="类型" options={TYPE_OPTIONS} rules={[{ required: true }]} />
-        <ProFormText name="coverImage" label="封面图URL" />
+        <Form.Item name="coverImage" label="封面图">
+          <ImageUpload
+            aspectRatio="16:9"
+            folder="news"
+            placeholder="上传封面图"
+            width={240}
+            height={135}
+          />
+        </Form.Item>
         <ProFormTextArea name="summary" label="摘要" />
         <ProFormTextArea name="content" label="内容" rules={[{ required: true }]} fieldProps={{ rows: 6 }} />
         <ProFormSwitch name="isTop" label="置顶" />

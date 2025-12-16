@@ -1,9 +1,10 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, users, departments, doctors, schedules, appointments, content, statistics, medical_records, admin, settings, patients, export, stores, messages, leave_requests, feedbacks, consultation_fees, doctor_booking_settings, schedule_templates, custom_schedules, rest_days, schedule_suspensions, blacklists
+from app.api.v1 import auth, users, departments, doctors, schedules, appointments, content, statistics, medical_records, admin, settings, patients, export, stores, messages, leave_requests, feedbacks, consultation_fees, doctor_booking_settings, schedule_templates, custom_schedules, rest_days, schedule_suspensions, blacklists, upload
 
 api_router = APIRouter()
 
 api_router.include_router(auth.router, prefix="/auth", tags=["认证"])
+api_router.include_router(upload.router, prefix="/upload", tags=["文件上传"])
 api_router.include_router(users.router, prefix="/users", tags=["用户"])
 api_router.include_router(stores.router, prefix="/stores", tags=["门店管理"])
 api_router.include_router(messages.router, prefix="/messages", tags=["消息中心"])

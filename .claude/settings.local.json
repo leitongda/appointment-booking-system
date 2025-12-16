@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "WebSearch",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(npx tsc:*)",
+      "Bash(cat:*)",
+      "Bash(pnpm install)"
     ]
   }
 }

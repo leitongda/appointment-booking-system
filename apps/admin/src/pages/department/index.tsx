@@ -12,12 +12,13 @@ import {
   ProFormGroup,
   ProFormDependency,
 } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Tag, Divider } from 'antd';
+import { Button, App, Popconfirm, Space, Tag, Divider, Form } from 'antd';
 import { useRef, useState, useEffect } from 'react';
 import { useAccess } from '@umijs/max';
 import { departmentApi, storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Department, Store, DepartmentTreeNode } from '@hospital/shared';
+import ImageUpload from '@/components/ImageUpload';
 
 const DepartmentPage: React.FC = () => {
   const { message } = App.useApp();
@@ -328,21 +329,33 @@ const DepartmentPage: React.FC = () => {
         />
 
         <Divider orientation="left">图片设置</Divider>
-        <ProFormText
-          name="icon"
-          label="科室图标"
-          placeholder="请输入科室图标URL"
-        />
-        <ProFormText
-          name="bannerImage"
-          label="Banner图片"
-          placeholder="请输入Banner图片URL"
-        />
-        <ProFormTextArea
-          name="introImages"
-          label="简介图片"
-          placeholder="请输入简介图片URL，多个用逗号分隔"
-        />
+        <Form.Item name="icon" label="科室图标">
+          <ImageUpload
+            aspectRatio="1:1"
+            folder="department"
+            placeholder="上传图标"
+            width={100}
+            height={100}
+          />
+        </Form.Item>
+        <Form.Item name="bannerImage" label="Banner图片">
+          <ImageUpload
+            aspectRatio="16:9"
+            folder="department"
+            placeholder="上传Banner"
+            width={240}
+            height={135}
+          />
+        </Form.Item>
+        <Form.Item name="introImages" label="简介图片" tooltip="支持上传简介图片">
+          <ImageUpload
+            aspectRatio="free"
+            folder="department"
+            placeholder="上传简介图"
+            width={200}
+            height={150}
+          />
+        </Form.Item>
 
         <Divider orientation="left">详情内容</Divider>
         <ProFormTextArea

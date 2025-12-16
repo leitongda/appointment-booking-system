@@ -192,3 +192,6 @@ class RequestLogger:
 # 全局请求日志记录器
 request_logger = RequestLogger()
 
+# 全局日志记录器（可以被其他模块导入使用）
+logger = logging.getLogger(__name__)
+

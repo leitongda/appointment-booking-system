@@ -1,9 +1,10 @@
 import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormSwitch, ProFormRadio } from '@ant-design/pro-components';
-import { Card, App, Row, Col } from 'antd';
+import { Card, App, Row, Col, Form } from 'antd';
 import { useEffect, useState } from 'react';
 import { history, useParams } from '@umijs/max';
 import { doctorApi, departmentApi, storeApi } from '@hospital/api';
 import type { Doctor, Department, Store } from '@hospital/shared';
+import ImageUpload from '@/components/ImageUpload';
 
 const GENDER_OPTIONS = [
   { label: '男', value: 1 },
@@ -170,22 +171,34 @@ const DoctorFormPage: React.FC = () => {
             )}
           </ProForm.Group>
           <ProForm.Group>
-            <ProFormText
+            <Form.Item
               name="avatar"
               label="医生头像"
-              width="lg"
-              placeholder="图片URL，推荐尺寸：160px × 160px，≤100KB"
               tooltip="1:1比例，推荐尺寸：160px × 160px"
-            />
+            >
+              <ImageUpload
+                aspectRatio="1:1"
+                folder="doctor"
+                placeholder="上传头像"
+                width={120}
+                height={120}
+              />
+            </Form.Item>
           </ProForm.Group>
           <ProForm.Group>
-            <ProFormText
+            <Form.Item
               name="banner"
               label="医生banner"
-              width="lg"
-              placeholder="图片URL，推荐尺寸：680px × 300px，≤300KB"
               tooltip="16:9比例，若选择医生风格3，请务必上传banner图"
-            />
+            >
+              <ImageUpload
+                aspectRatio="16:9"
+                folder="doctor"
+                placeholder="上传Banner"
+                width={272}
+                height={153}
+              />
+            </Form.Item>
           </ProForm.Group>
           <ProForm.Group>
             <ProFormSelect
@@ -236,13 +249,19 @@ const DoctorFormPage: React.FC = () => {
               width="md"
               placeholder="请输入执业证书编号"
             />
-            <ProFormText
-              name="licenseImage"
-              label="执业证书图片"
-              width="lg"
-              placeholder="执业证书图片URL"
-            />
           </ProForm.Group>
+          <Form.Item
+            name="licenseImage"
+            label="执业证书图片"
+          >
+            <ImageUpload
+              aspectRatio="free"
+              folder="doctor"
+              placeholder="上传证书"
+              width={200}
+              height={150}
+            />
+          </Form.Item>
           <ProFormTextArea
             name="honors"
             label="所获荣誉"

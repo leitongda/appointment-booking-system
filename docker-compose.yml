@@ -37,6 +37,26 @@ services:
       timeout: 5s
       retries: 5
 
+  # MinIO 对象存储
+  minio:
+    image: minio/minio:latest
+    container_name: hospital_minio
+    restart: always
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
   # FastAPI 后端
   backend:
     build:
@@ -55,6 +75,12 @@ services:
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
       - DEBUG=${DEBUG:-false}
       - ENVIRONMENT=${ENVIRONMENT:-production}
+      - STORAGE_TYPE=${STORAGE_TYPE:-minio}
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_BUCKET=${MINIO_BUCKET:-hospital}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-}
     ports:
       - "8000:8000"
     volumes:
@@ -128,6 +154,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  minio_data:
   celery_beat_data:
 
 networks:

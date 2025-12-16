@@ -10,3 +10,4 @@ export * from './leave-request';
 export * from './feedback';
 export * from './consultation-fee';
 export * from './doctor-booking-setting';
+export * from './region';

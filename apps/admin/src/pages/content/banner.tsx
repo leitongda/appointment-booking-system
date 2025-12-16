@@ -1,12 +1,13 @@
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormText, ProFormDigit, ProFormSelect, ProFormSwitch } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Image } from 'antd';
+import { Button, App, Popconfirm, Space, Image, Form } from 'antd';
 import { useRef, useState } from 'react';
 import { useAccess } from '@umijs/max';
 import { contentApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Banner } from '@hospital/api';
+import ImageUpload from '@/components/ImageUpload';
 
 const LINK_TYPE_OPTIONS = [
   { label: '无链接', value: 0 },
@@ -107,7 +108,15 @@ const BannerPage: React.FC = () => {
         modalProps={{ destroyOnHidden: true }}
       >
         <ProFormText name="title" label="标题" />
-        <ProFormText name="imageUrl" label="图片URL" rules={[{ required: true }]} />
+        <Form.Item name="imageUrl" label="轮播图片" rules={[{ required: true, message: '请上传轮播图片' }]}>
+          <ImageUpload
+            aspectRatio="16:9"
+            folder="banner"
+            placeholder="上传轮播图"
+            width={320}
+            height={180}
+          />
+        </Form.Item>
         <ProFormSelect name="linkType" label="链接类型" options={LINK_TYPE_OPTIONS} />
         <ProFormText name="linkUrl" label="链接地址" />
         <ProFormSelect name="position" label="展示位置" options={[{ label: '首页', value: 'home' }, { label: '我的', value: 'mine' }]} />

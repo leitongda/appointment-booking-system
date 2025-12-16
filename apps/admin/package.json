@@ -20,7 +20,8 @@
     "@umijs/max": "^4.6.0",
     "antd": "^5.29.1",
     "dayjs": "^1.11.10",
-    "lodash-es": "^4.17.21"
+    "lodash-es": "^4.17.21",
+    "react-image-crop": "^11.0.7"
   },
   "devDependencies": {
     "@types/lodash-es": "^4.17.12",

@@ -1,12 +1,14 @@
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSwitch, ProFormSelect, ProForm } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Avatar } from 'antd';
+import { Button, App, Popconfirm, Space, Avatar, Form } from 'antd';
 import { useRef, useState } from 'react';
 import { useAccess } from '@umijs/max';
 import { storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Store } from '@hospital/shared';
+import { ProFormRegionSelector } from '@hospital/shared';
+import ImageUpload from '@/components/ImageUpload';
 
 // 风格选项
 const THEME_STYLE_OPTIONS = [
@@ -35,7 +37,17 @@ const StorePage: React.FC = () => {
 
   const handleSubmit = async (values: any) => {
     try {
-      const data = { ...values, status: values.status ? 1 : 0 };
+      // 处理地区数据：将region数组转换为province/city/district字段
+      const { region, ...rest } = values;
+      const [province, city, district] = region || [];
+      const data = {
+        ...rest,
+        province,
+        city,
+        district,
+        status: values.status ? 1 : 0
+      };
+
       if (editingRecord) {
         await storeApi.update(editingRecord.id, data);
         message.success('更新成功');
@@ -118,7 +130,11 @@ const StorePage: React.FC = () => {
         open={modalOpen}
         onOpenChange={setModalOpen}
         onFinish={handleSubmit}
-        initialValues={editingRecord ? { ...editingRecord, status: editingRecord.status === 1 } : { status: true, sortOrder: 0, themeStyle: '中医-红' }}
+        initialValues={editingRecord ? {
+          ...editingRecord,
+          region: [editingRecord.province, editingRecord.city, editingRecord.district].filter(Boolean),
+          status: editingRecord.status === 1
+        } : { status: true, sortOrder: 0, themeStyle: '中医-红' }}
         modalProps={{ destroyOnHidden: true }}
         width={800}
       >
@@ -157,23 +173,11 @@ const StorePage: React.FC = () => {
 
         {/* 地址信息 */}
         <ProForm.Group title="地址信息">
-          <ProFormText
-            name="province"
-            label="省份"
-            width="sm"
-            placeholder="如：贵州省"
-          />
-          <ProFormText
-            name="city"
-            label="城市"
-            width="sm"
-            placeholder="如：贵阳市"
-          />
-          <ProFormText
-            name="district"
-            label="区县"
-            width="sm"
-            placeholder="如：观山湖区"
+          <ProFormRegionSelector
+            name="region"
+            label="所在地区"
+            width="md"
+            placeholder="请选择省/市/区"
           />
         </ProForm.Group>
         <ProFormTextArea
@@ -215,13 +219,19 @@ const StorePage: React.FC = () => {
             placeholder="请选择风格"
           />
         </ProForm.Group>
-        <ProFormText
+        <Form.Item
           name="logo"
           label="Logo"
-          width="lg"
-          placeholder="图片URL，1:1比例，推荐尺寸：160px × 160px，≤100KB"
           tooltip="1:1比例，推荐尺寸：160px × 160px"
-        />
+        >
+          <ImageUpload
+            aspectRatio="1:1"
+            folder="store"
+            placeholder="上传Logo"
+            width={120}
+            height={120}
+          />
+        </Form.Item>
 
         {/* 营业设置 */}
         <ProForm.Group title="营业设置">
