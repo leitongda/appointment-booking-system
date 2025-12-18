@@ -1,37 +1,21 @@
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import {
-  PageContainer,
-  ProTable,
-  DrawerForm,
-  ProFormText,
-  ProFormTextArea,
-  ProFormDigit,
-  ProFormSelect,
-  ProFormSwitch,
-  ProFormGroup,
-  ProFormDependency,
-} from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Tag, Divider, Form } from 'antd';
+import { PageContainer, ProTable } from '@ant-design/pro-components';
+import { Button, App, Popconfirm, Space, Tag } from 'antd';
 import { useRef, useState, useEffect } from 'react';
-import { useAccess } from '@umijs/max';
+import { history, useAccess } from '@umijs/max';
 import { departmentApi, storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
-import type { Department, Store, DepartmentTreeNode } from '@hospital/shared';
-import ImageUpload from '@/components/ImageUpload';
+import type { Department, Store } from '@hospital/shared';
 
 const DepartmentPage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
   const actionRef = useRef<ActionType>();
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<Department | null>(null);
   const [stores, setStores] = useState<Store[]>([]);
-  const [departments, setDepartments] = useState<DepartmentTreeNode[]>([]);
 
   useEffect(() => {
     loadStores();
-    loadDepartments();
   }, []);
 
   const loadStores = async () => {
@@ -43,66 +27,14 @@ const DepartmentPage: React.FC = () => {
     }
   };
 
-  const loadDepartments = async () => {
-    try {
-      const res = await departmentApi.getTree(1);
-      setDepartments(res ?? []);
-    } catch (error) {
-      console.error('加载科室失败', error);
-    }
-  };
-
   const handleDelete = async (id: string) => {
     try {
       await departmentApi.delete(id);
       message.success('删除成功');
       actionRef.current?.reload();
-      loadDepartments();
     } catch (error: any) {
       message.error(error.message || '删除失败');
     }
-  };
-
-  const handleSubmit = async (values: any) => {
-    try {
-      const data = {
-        ...values,
-        isHot: values.isHot ? 1 : 0,
-        status: values.status ? 1 : 0,
-        enableBanner: values.enableBanner ? 1 : 0,
-        enableIntro: values.enableIntro ? 1 : 0,
-        isFinal: values.isFinal ? 1 : 0,
-        isRecommended: values.isRecommended ? 1 : 0,
-      };
-      if (editingRecord) {
-        await departmentApi.update(editingRecord.id, data);
-        message.success('更新成功');
-      } else {
-        await departmentApi.create(data);
-        message.success('创建成功');
-      }
-      setDrawerOpen(false);
-      setEditingRecord(null);
-      actionRef.current?.reload();
-      loadDepartments();
-      return true;
-    } catch (error: any) {
-      message.error(error.message || '操作失败');
-      return false;
-    }
-  };
-
-  // 将树形结构扁平化为选项
-  const flattenTreeToOptions = (nodes: DepartmentTreeNode[], level = 0): { label: string; value: string }[] => {
-    const options: { label: string; value: string }[] = [];
-    nodes.forEach((node) => {
-      const prefix = level > 0 ? '└'.padStart(level * 2, ' ') + ' ' : '';
-      options.push({ label: prefix + node.name, value: node.id });
-      if (node.children?.length) {
-        options.push(...flattenTreeToOptions(node.children, level + 1));
-      }
-    });
-    return options;
   };
 
   const columns: ProColumns<Department>[] = [
@@ -197,14 +129,7 @@ const DepartmentPage: React.FC = () => {
       render: (_, record) => (
         <Space>
           {access.hasPermission('department:update') && (
-            <a
-              onClick={() => {
-                setEditingRecord(record);
-                setDrawerOpen(true);
-              }}
-            >
-              编辑
-            </a>
+            <a onClick={() => history.push(`/department/${record.id}/edit`)}>编辑</a>
           )}
           {access.hasPermission('department:delete') && (
             <Popconfirm
@@ -218,29 +143,6 @@ const DepartmentPage: React.FC = () => {
       ),
     },
   ];
-
-  const getInitialValues = () => {
-    if (editingRecord) {
-      return {
-        ...editingRecord,
-        isHot: editingRecord.isHot === 1,
-        status: editingRecord.status === 1,
-        enableBanner: editingRecord.enableBanner === 1,
-        enableIntro: editingRecord.enableIntro === 1,
-        isFinal: editingRecord.isFinal === 1,
-        isRecommended: editingRecord.isRecommended === 1,
-      };
-    }
-    return {
-      sortOrder: 1,
-      isHot: false,
-      status: true,
-      enableBanner: false,
-      enableIntro: false,
-      isFinal: false,
-      isRecommended: false,
-    };
-  };
 
   return (
     <PageContainer>
@@ -264,10 +166,7 @@ const DepartmentPage: React.FC = () => {
               key="add"
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => {
-                setEditingRecord(null);
-                setDrawerOpen(true);
-              }}
+              onClick={() => history.push('/department/create')}
             >
               新增科室
             </Button>
@@ -275,146 +174,6 @@ const DepartmentPage: React.FC = () => {
         ]}
         pagination={{ defaultPageSize: 10 }}
       />
-
-      <DrawerForm
-        title={editingRecord ? '编辑科室' : '新增科室'}
-        width={600}
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
-        onFinish={handleSubmit}
-        initialValues={getInitialValues()}
-        drawerProps={{ destroyOnClose: true }}
-      >
-        <Divider orientation="left">基础信息</Divider>
-        <ProFormSelect
-          name="storeId"
-          label="门店选择"
-          placeholder="请选择门店"
-          options={stores.map((s) => ({ label: s.name, value: s.id }))}
-          allowClear
-        />
-        <ProFormSelect
-          name="parentId"
-          label="父级分类"
-          placeholder="顶级分类"
-          options={[
-            { label: '顶级分类', value: '' },
-            ...flattenTreeToOptions(departments),
-          ]}
-          allowClear
-        />
-        <ProFormText
-          name="name"
-          label="科室名称"
-          placeholder="请输入科室名称"
-          rules={[{ required: true, message: '请输入科室名称' }]}
-        />
-        <ProFormText
-          name="tag"
-          label="科室标签"
-          placeholder="请输入科室标签，如：专家科室"
-        />
-        <ProFormDigit
-          name="sortOrder"
-          label="排序"
-          placeholder="数字越大越靠前"
-          min={0}
-          max={9999}
-          extra="说明：排序数字越大越靠前"
-        />
-        <ProFormTextArea
-          name="description"
-          label="描述"
-          placeholder="请输入科室描述"
-        />
-
-        <Divider orientation="left">图片设置</Divider>
-        <Form.Item name="icon" label="科室图标">
-          <ImageUpload
-            aspectRatio="1:1"
-            folder="department"
-            placeholder="上传图标"
-            width={100}
-            height={100}
-          />
-        </Form.Item>
-        <Form.Item name="bannerImage" label="Banner图片">
-          <ImageUpload
-            aspectRatio="16:9"
-            folder="department"
-            placeholder="上传Banner"
-            width={240}
-            height={135}
-          />
-        </Form.Item>
-        <Form.Item name="introImages" label="简介图片" tooltip="支持上传简介图片">
-          <ImageUpload
-            aspectRatio="free"
-            folder="department"
-            placeholder="上传简介图"
-            width={200}
-            height={150}
-          />
-        </Form.Item>
-
-        <Divider orientation="left">详情内容</Divider>
-        <ProFormTextArea
-          name="introContent"
-          label="科室简介"
-          placeholder="请输入科室详细简介"
-          fieldProps={{ rows: 4 }}
-        />
-        <ProFormTextArea
-          name="features"
-          label="科室特色"
-          placeholder="请输入科室特色，多个用逗号分隔"
-        />
-        <ProFormTextArea
-          name="appointmentNotice"
-          label="预约须知"
-          placeholder="请输入预约须知"
-          fieldProps={{ rows: 3 }}
-        />
-
-        <Divider orientation="left">联系信息</Divider>
-        <ProFormText
-          name="phone"
-          label="科室电话"
-          placeholder="请输入科室电话"
-        />
-        <ProFormText
-          name="location"
-          label="位置/楼层"
-          placeholder="请输入位置/楼层，如：门诊楼3楼"
-        />
-        <ProFormText
-          name="workingHours"
-          label="工作时间"
-          placeholder="请输入工作时间，如：周一至周五 8:00-17:00"
-        />
-
-        <Divider orientation="left">开关设置</Divider>
-        <ProFormGroup>
-          <ProFormSwitch name="enableBanner" label="是否开放banner" />
-          <ProFormSwitch name="enableIntro" label="是否开放科室简介" />
-        </ProFormGroup>
-        <ProFormGroup>
-          <ProFormSwitch name="status" label="是否启用科室" />
-          <ProFormSwitch
-            name="isFinal"
-            label="是否终极科室"
-            extra="说明：只有终极科室才能添加医生"
-          />
-        </ProFormGroup>
-        <ProFormGroup>
-          <ProFormSwitch
-            name="isRecommended"
-            label="是否推荐"
-            extra="说明：选择是则该科室名称及推荐医生将在首页展示"
-          />
-          <ProFormSwitch name="isHot" label="是否热门" />
-        </ProFormGroup>
-      </DrawerForm>
     </PageContainer>
   );
 };

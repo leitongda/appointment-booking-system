@@ -55,6 +55,16 @@ export const departmentApi = {
     return request.get('/departments/hot', { params: { limit } });
   },
 
+  /**
+   * 搜索科室
+   */
+  search: async (keyword: string, limit?: number): Promise<Department[]> => {
+    const result = await request.get<PageResult<Department>>('/departments', {
+      params: { name: keyword, page: 1, pageSize: limit || 10 },
+    });
+    return result.data ?? [];
+  },
+
   getDetail: (id: string): Promise<Department> => {
     return request.get(`/departments/${id}`);
   },
