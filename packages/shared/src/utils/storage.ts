@@ -7,6 +7,10 @@ export const STORAGE_KEYS = {
   USER_INFO: 'hospital_user_info',
   /** 上次访问的页面路径 */
   LAST_PATH: 'hospital_last_path',
+  /** 登录方式 */
+  LOGIN_TYPE: 'hospital_login_type',
+  /** 手机号登录子方式 */
+  PHONE_LOGIN_TYPE: 'hospital_phone_login_type',
 } as const;
 
 /**

@@ -64,6 +64,17 @@ export interface PatientCardConfig {
   showOnHomepage: boolean;
 }
 
+// 邮件配置
+export interface EmailConfig {
+  smtpHost: string;
+  smtpPort: number;
+  smtpUser: string;
+  smtpPassword: string;
+  smtpSsl: boolean;
+  senderName: string;
+  senderEmail: string;
+}
+
 const PREFIX = '/settings';
 
 export const settingsApi = {
@@ -124,6 +135,15 @@ export const settingsApi = {
 
   updatePatientCardConfig: (data: Partial<PatientCardConfig>): Promise<{ data: PatientCardConfig }> => {
     return request.put(`${PREFIX}/patient-card`, data);
+  },
+
+  // ========== 邮件配置 ==========
+  getEmailConfig: (): Promise<EmailConfig> => {
+    return request.get(`${PREFIX}/email`);
+  },
+
+  updateEmailConfig: (data: Partial<EmailConfig>): Promise<void> => {
+    return request.put(`${PREFIX}/email`, data);
   },
 };
 

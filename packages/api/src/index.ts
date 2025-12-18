@@ -31,6 +31,7 @@ export { restDayApi } from './modules/rest-day';
 export { scheduleSuspensionApi } from './modules/schedule-suspension';
 export { blacklistApi } from './modules/blacklist';
 export { uploadApi } from './modules/upload';
+export { emailTemplateApi, EMAIL_TEMPLATE_TYPE_OPTIONS } from './modules/email-template';
 
 // Auth types are re-exported from @hospital/shared
 export type { LoginParams, LoginResult } from '@hospital/shared';
@@ -92,6 +93,7 @@ export type {
   BookingRules,
   BookingFieldConfig,
   PatientCardConfig,
+  EmailConfig,
 } from './modules/settings';
 
 // Blacklist types
@@ -158,3 +160,14 @@ export type {
 
 // Upload types
 export type { UploadResult, TransferRequest } from './modules/upload';
+
+// Email Template types
+export type {
+  EmailTemplate,
+  EmailTemplateListItem,
+  EmailTemplateListParams,
+  EmailTemplateCreateData,
+  EmailTemplateUpdateData,
+  EmailTestData,
+  EmailTemplateType,
+} from './modules/email-template';
