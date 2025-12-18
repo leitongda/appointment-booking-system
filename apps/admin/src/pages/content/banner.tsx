@@ -1,26 +1,17 @@
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { PageContainer, ProTable, ModalForm, ProFormText, ProFormDigit, ProFormSelect, ProFormSwitch } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Image, Form } from 'antd';
-import { useRef, useState } from 'react';
-import { useAccess } from '@umijs/max';
+import { PageContainer, ProTable } from '@ant-design/pro-components';
+import { Button, App, Popconfirm, Space, Image } from 'antd';
+import { useRef } from 'react';
+import { history, useAccess } from '@umijs/max';
 import { contentApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Banner } from '@hospital/api';
-import ImageUpload from '@/components/ImageUpload';
-
-const LINK_TYPE_OPTIONS = [
-  { label: '无链接', value: 0 },
-  { label: '内部链接', value: 1 },
-  { label: '外部链接', value: 2 },
-];
 
 const BannerPage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
   const actionRef = useRef<ActionType>();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<Banner | null>(null);
 
   const handleDelete = async (id: string) => {
     try {
@@ -29,26 +20,6 @@ const BannerPage: React.FC = () => {
       actionRef.current?.reload();
     } catch (error: any) {
       message.error(error.message || '删除失败');
-    }
-  };
-
-  const handleSubmit = async (values: any) => {
-    try {
-      const data = { ...values, status: values.status ? 1 : 0 };
-      if (editingRecord) {
-        await contentApi.updateBanner(editingRecord.id, data);
-        message.success('更新成功');
-      } else {
-        await contentApi.createBanner(data);
-        message.success('创建成功');
-      }
-      setModalOpen(false);
-      setEditingRecord(null);
-      actionRef.current?.reload();
-      return true;
-    } catch (error: any) {
-      message.error(error.message || '操作失败');
-      return false;
     }
   };
 
@@ -66,7 +37,7 @@ const BannerPage: React.FC = () => {
       render: (_, record) => (
         <Space>
           {access.hasPermission('content:banner:update') && (
-            <a onClick={() => { setEditingRecord(record); setModalOpen(true); }}>编辑</a>
+            <a onClick={() => history.push(`/content/banner/${record.id}/edit`)}>编辑</a>
           )}
           {access.hasPermission('content:banner:delete') && (
             <Popconfirm title="确定删除吗？" onConfirm={() => handleDelete(record.id)}>
@@ -91,38 +62,18 @@ const BannerPage: React.FC = () => {
         }}
         toolBarRender={() => [
           access.hasPermission('content:banner:create') && (
-            <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalOpen(true); }}>
+            <Button
+              key="add"
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => history.push('/content/banner/create')}
+            >
               新增轮播图
             </Button>
           ),
         ]}
         pagination={{ defaultPageSize: 10 }}
       />
-
-      <ModalForm
-        title={editingRecord ? '编辑轮播图' : '新增轮播图'}
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        onFinish={handleSubmit}
-        initialValues={editingRecord ? { ...editingRecord, status: editingRecord.status === 1 } : { linkType: 0, position: 'home', sortOrder: 0, status: true }}
-        modalProps={{ destroyOnHidden: true }}
-      >
-        <ProFormText name="title" label="标题" />
-        <Form.Item name="imageUrl" label="轮播图片" rules={[{ required: true, message: '请上传轮播图片' }]}>
-          <ImageUpload
-            aspectRatio="16:9"
-            folder="banner"
-            placeholder="上传轮播图"
-            width={320}
-            height={180}
-          />
-        </Form.Item>
-        <ProFormSelect name="linkType" label="链接类型" options={LINK_TYPE_OPTIONS} />
-        <ProFormText name="linkUrl" label="链接地址" />
-        <ProFormSelect name="position" label="展示位置" options={[{ label: '首页', value: 'home' }, { label: '我的', value: 'mine' }]} />
-        <ProFormDigit name="sortOrder" label="排序" min={0} />
-        <ProFormSwitch name="status" label="启用状态" />
-      </ModalForm>
     </PageContainer>
   );
 };

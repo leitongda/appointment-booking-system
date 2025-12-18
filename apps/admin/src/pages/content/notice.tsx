@@ -1,25 +1,17 @@
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormSelect, ProFormSwitch } from '@ant-design/pro-components';
+import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { Button, App, Popconfirm, Space, Tag } from 'antd';
-import { useRef, useState } from 'react';
-import { useAccess } from '@umijs/max';
+import { useRef } from 'react';
+import { history, useAccess } from '@umijs/max';
 import { contentApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Notice } from '@hospital/api';
-
-const TYPE_OPTIONS = [
-  { label: '系统公告', value: 1 },
-  { label: '停诊通知', value: 2 },
-  { label: '活动通知', value: 3 },
-];
 
 const NoticePage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
   const actionRef = useRef<ActionType>();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<Notice | null>(null);
 
   const handleDelete = async (id: string) => {
     try {
@@ -28,26 +20,6 @@ const NoticePage: React.FC = () => {
       actionRef.current?.reload();
     } catch (error: any) {
       message.error(error.message || '删除失败');
-    }
-  };
-
-  const handleSubmit = async (values: any) => {
-    try {
-      const data = { ...values, isTop: values.isTop ? 1 : 0, status: values.status ? 1 : 0 };
-      if (editingRecord) {
-        await contentApi.updateNotice(editingRecord.id, data);
-        message.success('更新成功');
-      } else {
-        await contentApi.createNotice(data);
-        message.success('创建成功');
-      }
-      setModalOpen(false);
-      setEditingRecord(null);
-      actionRef.current?.reload();
-      return true;
-    } catch (error: any) {
-      message.error(error.message || '操作失败');
-      return false;
     }
   };
 
@@ -64,7 +36,7 @@ const NoticePage: React.FC = () => {
       render: (_, record) => (
         <Space>
           {access.hasPermission('content:notice:update') && (
-            <a onClick={() => { setEditingRecord(record); setModalOpen(true); }}>编辑</a>
+            <a onClick={() => history.push(`/content/notice/${record.id}/edit`)}>编辑</a>
           )}
           {access.hasPermission('content:notice:delete') && (
             <Popconfirm title="确定删除吗？" onConfirm={() => handleDelete(record.id)}>
@@ -89,29 +61,18 @@ const NoticePage: React.FC = () => {
         }}
         toolBarRender={() => [
           access.hasPermission('content:notice:create') && (
-            <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalOpen(true); }}>
+            <Button
+              key="add"
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => history.push('/content/notice/create')}
+            >
               发布公告
             </Button>
           ),
         ]}
         pagination={{ defaultPageSize: 10 }}
       />
-
-      <ModalForm
-        title={editingRecord ? '编辑公告' : '发布公告'}
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        onFinish={handleSubmit}
-        initialValues={editingRecord ? { ...editingRecord, isTop: editingRecord.isTop, status: editingRecord.status === 1 } : { type: 1, isTop: false, status: true }}
-        modalProps={{ destroyOnHidden: true }}
-        width={600}
-      >
-        <ProFormText name="title" label="标题" rules={[{ required: true }]} />
-        <ProFormSelect name="type" label="类型" options={TYPE_OPTIONS} rules={[{ required: true }]} />
-        <ProFormTextArea name="content" label="内容" rules={[{ required: true }]} fieldProps={{ rows: 6 }} />
-        <ProFormSwitch name="isTop" label="置顶" />
-        <ProFormSwitch name="status" label="立即发布" />
-      </ModalForm>
     </PageContainer>
   );
 };

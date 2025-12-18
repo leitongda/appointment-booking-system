@@ -1,26 +1,17 @@
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormSelect, ProFormSwitch } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Tag, Image, Form } from 'antd';
-import { useRef, useState } from 'react';
-import { useAccess } from '@umijs/max';
+import { PageContainer, ProTable } from '@ant-design/pro-components';
+import { Button, App, Popconfirm, Space, Tag, Image } from 'antd';
+import { useRef } from 'react';
+import { history, useAccess } from '@umijs/max';
 import { contentApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { News } from '@hospital/api';
-import ImageUpload from '@/components/ImageUpload';
-
-const TYPE_OPTIONS = [
-  { label: '医院动态', value: 1 },
-  { label: '健康知识', value: 2 },
-  { label: '政策法规', value: 3 },
-];
 
 const NewsPage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
   const actionRef = useRef<ActionType>();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<News | null>(null);
 
   const handleDelete = async (id: string) => {
     try {
@@ -29,26 +20,6 @@ const NewsPage: React.FC = () => {
       actionRef.current?.reload();
     } catch (error: any) {
       message.error(error.message || '删除失败');
-    }
-  };
-
-  const handleSubmit = async (values: any) => {
-    try {
-      const data = { ...values, isTop: values.isTop ? 1 : 0, status: values.status ? 1 : 0 };
-      if (editingRecord) {
-        await contentApi.updateNews(editingRecord.id, data);
-        message.success('更新成功');
-      } else {
-        await contentApi.createNews(data);
-        message.success('创建成功');
-      }
-      setModalOpen(false);
-      setEditingRecord(null);
-      actionRef.current?.reload();
-      return true;
-    } catch (error: any) {
-      message.error(error.message || '操作失败');
-      return false;
     }
   };
 
@@ -67,7 +38,7 @@ const NewsPage: React.FC = () => {
       render: (_, record) => (
         <Space>
           {access.hasPermission('content:news:update') && (
-            <a onClick={() => { setEditingRecord(record); setModalOpen(true); }}>编辑</a>
+            <a onClick={() => history.push(`/content/news/${record.id}/edit`)}>编辑</a>
           )}
           {access.hasPermission('content:news:delete') && (
             <Popconfirm title="确定删除吗？" onConfirm={() => handleDelete(record.id)}>
@@ -92,39 +63,18 @@ const NewsPage: React.FC = () => {
         }}
         toolBarRender={() => [
           access.hasPermission('content:news:create') && (
-            <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalOpen(true); }}>
+            <Button
+              key="add"
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => history.push('/content/news/create')}
+            >
               发布新闻
             </Button>
           ),
         ]}
         pagination={{ defaultPageSize: 10 }}
       />
-
-      <ModalForm
-        title={editingRecord ? '编辑新闻' : '发布新闻'}
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        onFinish={handleSubmit}
-        initialValues={editingRecord ? { ...editingRecord, isTop: editingRecord.isTop, status: editingRecord.status === 1 } : { type: 1, isTop: false, status: true }}
-        modalProps={{ destroyOnHidden: true }}
-        width={600}
-      >
-        <ProFormText name="title" label="标题" rules={[{ required: true }]} />
-        <ProFormSelect name="type" label="类型" options={TYPE_OPTIONS} rules={[{ required: true }]} />
-        <Form.Item name="coverImage" label="封面图">
-          <ImageUpload
-            aspectRatio="16:9"
-            folder="news"
-            placeholder="上传封面图"
-            width={240}
-            height={135}
-          />
-        </Form.Item>
-        <ProFormTextArea name="summary" label="摘要" />
-        <ProFormTextArea name="content" label="内容" rules={[{ required: true }]} fieldProps={{ rows: 6 }} />
-        <ProFormSwitch name="isTop" label="置顶" />
-        <ProFormSwitch name="status" label="立即发布" />
-      </ModalForm>
     </PageContainer>
   );
 };
