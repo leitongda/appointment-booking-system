@@ -18,9 +18,16 @@ type PhoneLoginType = 'sms' | 'password';
 const Login: React.FC = () => {
   const { message } = App.useApp();
   
-  // 登录方式
-  const [loginType, setLoginType] = useState<LoginType>('wechat');
-  const [phoneLoginType, setPhoneLoginType] = useState<PhoneLoginType>('sms');
+  // 登录方式（从 localStorage 读取，实现刷新后保持选中状态）
+  const [loginType, setLoginType] = useState<LoginType>(
+    () => getStorage<LoginType>(STORAGE_KEYS.LOGIN_TYPE) || 'wechat'
+  );
+  const [phoneLoginType, setPhoneLoginType] = useState<PhoneLoginType>(
+    () => getStorage<PhoneLoginType>(STORAGE_KEYS.PHONE_LOGIN_TYPE) || 'sms'
+  );
+
+  // 延迟启用动画，避免初始化时的切换效果
+  const [enableAnimation, setEnableAnimation] = useState(false);
   
   // 加载状态
   const [loading, setLoading] = useState(false);
@@ -126,6 +133,12 @@ const Login: React.FC = () => {
     }
   }, [countdown]);
 
+  // 组件挂载后启用动画
+  useEffect(() => {
+    const timer = setTimeout(() => setEnableAnimation(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
+
   // 获取微信二维码
   const fetchWechatQrcode = useCallback(async () => {
     setQrcodeStatus('loading');
@@ -203,6 +216,11 @@ const Login: React.FC = () => {
     }
   };
 
+  // 处理忘记密码
+  const handleForgotPassword = () => {
+    message.info('请联系系统管理员重置密码');
+  };
+
   // 渲染微信扫码登录
   const renderWechatLogin = () => (
     <div className={styles.wechatLogin}>
@@ -245,17 +263,23 @@ const Login: React.FC = () => {
     <div className={styles.phoneLogin}>
       <div className={styles.phoneLoginTypeSwitch}>
         <Space>
-          <Button 
+          <Button
             type={phoneLoginType === 'sms' ? 'primary' : 'default'}
             size="small"
-            onClick={() => setPhoneLoginType('sms')}
+            onClick={() => {
+              setPhoneLoginType('sms');
+              setStorage(STORAGE_KEYS.PHONE_LOGIN_TYPE, 'sms');
+            }}
           >
             验证码登录
           </Button>
-          <Button 
+          <Button
             type={phoneLoginType === 'password' ? 'primary' : 'default'}
             size="small"
-            onClick={() => setPhoneLoginType('password')}
+            onClick={() => {
+              setPhoneLoginType('password');
+              setStorage(STORAGE_KEYS.PHONE_LOGIN_TYPE, 'password');
+            }}
           >
             密码登录
           </Button>
@@ -323,6 +347,12 @@ const Login: React.FC = () => {
           </Button>
         </Form.Item>
       </Form>
+      
+      {phoneLoginType === 'password' && (
+        <div className={styles.forgotPassword}>
+          <a onClick={handleForgotPassword}>忘记密码？</a>
+        </div>
+      )}
     </div>
   );
 
@@ -361,6 +391,10 @@ const Login: React.FC = () => {
           </Button>
         </Form.Item>
       </Form>
+      
+      <div className={styles.forgotPassword}>
+        <a onClick={handleForgotPassword}>忘记密码？</a>
+      </div>
     </div>
   );
 
@@ -407,12 +441,17 @@ const Login: React.FC = () => {
             <h1 className={styles.title}>医院挂号管理系统</h1>
           </div>
           
-          <Tabs 
+          <Tabs
             activeKey={loginType}
-            onChange={(key) => setLoginType(key as LoginType)}
+            onChange={(key) => {
+              const newType = key as LoginType;
+              setLoginType(newType);
+              setStorage(STORAGE_KEYS.LOGIN_TYPE, newType);
+            }}
             items={tabItems}
             centered
             className={styles.loginTabs}
+            animated={enableAnimation}
           />
         </div>
       </div>
