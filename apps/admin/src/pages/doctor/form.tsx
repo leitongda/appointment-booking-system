@@ -5,6 +5,7 @@ import { history, useParams } from '@umijs/max';
 import { doctorApi, departmentApi, storeApi } from '@hospital/api';
 import type { Doctor, Department, Store } from '@hospital/shared';
 import ImageUpload from '@/components/ImageUpload';
+import RichTextEditor from '@/components/RichTextEditor';
 
 const GENDER_OPTIONS = [
   { label: '男', value: 1 },
@@ -340,12 +341,12 @@ const DoctorFormPage: React.FC = () => {
             placeholder="医生擅长领域"
             fieldProps={{ rows: 4 }}
           />
-          <ProFormTextArea
+          <Form.Item
             name="introduction"
             label="医生介绍"
-            placeholder="医生详细介绍"
-            fieldProps={{ rows: 6 }}
-          />
+          >
+            <RichTextEditor height={350} placeholder="请输入医生详细介绍..." />
+          </Form.Item>
         </Card>
 
         {/* 其他设置 */}
