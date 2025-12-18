@@ -54,6 +54,8 @@ celery_app.conf.update(
         "app.tasks.notification_task.*": {"queue": "notification"},
         "app.tasks.wechat_task.*": {"queue": "default"},
         "app.tasks.cleanup_task.*": {"queue": "scheduled"},
+        "app.tasks.operation_log_task.*": {"queue": "default"},
+        "app.tasks.behavior_log_task.*": {"queue": "default"},
     },
     
     # Beat 调度器配置（定时任务）
@@ -109,5 +111,7 @@ celery_app.autodiscover_tasks([
     "app.tasks.notification_task",
     "app.tasks.wechat_task",
     "app.tasks.cleanup_task",
+    "app.tasks.operation_log_task",
+    "app.tasks.behavior_log_task",
 ])
 

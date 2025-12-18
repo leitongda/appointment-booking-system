@@ -48,6 +48,16 @@ class SmsConfigUpdate(BaseModel):
     templateCode: Optional[str] = Field(None, max_length=50)
 
 
+class EmailConfigUpdate(BaseModel):
+    smtpHost: Optional[str] = Field(None, max_length=100, description="SMTP服务器地址")
+    smtpPort: Optional[int] = Field(None, ge=1, le=65535, description="SMTP端口")
+    smtpUser: Optional[str] = Field(None, max_length=100, description="SMTP用户名")
+    smtpPassword: Optional[str] = Field(None, max_length=200, description="SMTP密码")
+    smtpSsl: Optional[bool] = Field(None, description="是否使用SSL")
+    senderName: Optional[str] = Field(None, max_length=100, description="发件人名称")
+    senderEmail: Optional[str] = Field(None, max_length=100, description="发件人邮箱")
+
+
 # ========== 预约设置 ==========
 @router.get("/booking")
 async def get_booking_settings(
@@ -206,6 +216,51 @@ async def update_sms_config(
         update_data['template_code'] = data.templateCode
     
     await service.update_category('sms', update_data)
+    return {"message": "保存成功"}
+
+
+# ========== 邮件配置 ==========
+@router.get("/email")
+async def get_email_config(
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """获取邮件配置"""
+    service = SettingsService(db)
+    config = await service.get_email_config()
+    # 隐藏敏感信息
+    if config.get('smtp_password'):
+        config['smtp_password'] = '******'
+    # 转换为驼峰命名
+    return {
+        'smtpHost': config.get('smtp_host', ''),
+        'smtpPort': config.get('smtp_port', 465),
+        'smtpUser': config.get('smtp_user', ''),
+        'smtpPassword': config.get('smtp_password', ''),
+        'smtpSsl': config.get('smtp_ssl', True),
+        'senderName': config.get('sender_name', ''),
+        'senderEmail': config.get('sender_email', ''),
+    }
+
+
+@router.put("/email")
+async def update_email_config(
+    data: EmailConfigUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """更新邮件配置"""
+    service = SettingsService(db)
+    
+    await service.update_email_config(
+        smtp_host=data.smtpHost,
+        smtp_port=data.smtpPort,
+        smtp_user=data.smtpUser,
+        smtp_password=data.smtpPassword if data.smtpPassword != '******' else None,
+        smtp_ssl=data.smtpSsl,
+        sender_name=data.senderName,
+        sender_email=data.senderEmail,
+    )
     return {"message": "保存成功"}
 
 

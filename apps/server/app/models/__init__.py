@@ -20,3 +20,5 @@ from app.models.custom_schedule import CustomSchedule
 from app.models.rest_day import RestDay
 from app.models.schedule_suspension import ScheduleSuspension
 from app.models.blacklist import Blacklist
+from app.models.email_template import EmailTemplate, EmailTemplateType
+from app.models.behavior_log import UserBehaviorLog

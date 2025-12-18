@@ -12,6 +12,7 @@ from app.middleware.response import UnifiedResponseMiddleware
 from app.middleware.exception import register_exception_handlers
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.request_log import RequestLogMiddleware
+from app.middleware.operation_log import OperationLogMiddleware
 from app.db.session import AsyncSessionLocal
 from app.tasks.blacklist_task import auto_release_blacklist
 
@@ -114,6 +115,9 @@ def create_app() -> FastAPI:
     
     # 4. 请求日志中间件
     app.add_middleware(RequestLogMiddleware)
+    
+    # 5. 操作日志中间件（记录管理员的写操作到数据库）
+    app.add_middleware(OperationLogMiddleware)
     
     # ==================== 注册异常处理器 ====================
     register_exception_handlers(app)

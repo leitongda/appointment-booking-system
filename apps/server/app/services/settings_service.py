@@ -141,6 +141,47 @@ class SettingsService:
             'templateCode': data.get('template_code', ''),
         }
 
+    async def get_email_config(self) -> Dict[str, Any]:
+        """获取邮件配置"""
+        data = await self.get_by_category('email')
+        return {
+            'smtp_host': data.get('smtp_host', ''),
+            'smtp_port': data.get('smtp_port', 465),
+            'smtp_user': data.get('smtp_user', ''),
+            'smtp_password': data.get('smtp_password', ''),
+            'smtp_ssl': data.get('smtp_ssl', True),
+            'sender_name': data.get('sender_name', ''),
+            'sender_email': data.get('sender_email', ''),
+        }
+
+    async def update_email_config(
+        self,
+        smtp_host: str = None,
+        smtp_port: int = None,
+        smtp_user: str = None,
+        smtp_password: str = None,
+        smtp_ssl: bool = None,
+        sender_name: str = None,
+        sender_email: str = None,
+    ) -> Dict[str, Any]:
+        """更新邮件配置"""
+        if smtp_host is not None:
+            await self.set_value('email', 'smtp_host', smtp_host, 'SMTP服务器地址')
+        if smtp_port is not None:
+            await self.set_value('email', 'smtp_port', smtp_port, 'SMTP端口')
+        if smtp_user is not None:
+            await self.set_value('email', 'smtp_user', smtp_user, 'SMTP用户名')
+        if smtp_password is not None:
+            await self.set_value('email', 'smtp_password', smtp_password, 'SMTP密码')
+        if smtp_ssl is not None:
+            await self.set_value('email', 'smtp_ssl', smtp_ssl, '是否使用SSL')
+        if sender_name is not None:
+            await self.set_value('email', 'sender_name', sender_name, '发件人名称')
+        if sender_email is not None:
+            await self.set_value('email', 'sender_email', sender_email, '发件人邮箱')
+        
+        return await self.get_email_config()
+
     async def get_booking_fields(self) -> list:
         """获取预约选项配置"""
         data = await self.get_by_category('booking_fields')
