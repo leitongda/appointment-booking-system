@@ -17,6 +17,7 @@
     "@ant-design/pro-components": "^2.8.0",
     "@hospital/api": "workspace:*",
     "@hospital/shared": "workspace:*",
+    "@tinymce/tinymce-react": "^5.1.1",
     "@umijs/max": "^4.6.0",
     "antd": "^5.29.1",
     "dayjs": "^1.11.10",

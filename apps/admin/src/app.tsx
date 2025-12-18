@@ -1,6 +1,6 @@
 import { AvatarDropdown, AvatarName } from '@/components/RightContent';
 import { FullscreenButton, NotificationButton, RefreshButton } from '@/components/HeaderActions';
-import { getToken, removeToken, setStorage, STORAGE_KEYS, handleTokenExpired } from '@hospital/shared';
+import { getToken, removeToken, setStorage, STORAGE_KEYS, handleTokenExpired, initTracker, getTracker } from '@hospital/shared';
 import { adminApi } from '@hospital/api';
 import type { Settings as LayoutSettings } from '@ant-design/pro-components';
 import type { RunTimeLayoutConfig, RequestConfig } from '@umijs/max';
@@ -14,6 +14,17 @@ const loginPath = '/login';
 
 // 初始化 API 请求配置（拦截器）
 initApiConfig();
+
+// 初始化用户行为追踪器
+initTracker({
+  apiBaseUrl: process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8000',
+  platform: 'admin',
+  enabled: true,
+  enableInDev: true, // 开发环境也启用，方便测试
+  batchSize: 10,
+  batchInterval: 5000,
+  debug: process.env.NODE_ENV === 'development',
+});
 
 /**
  * 页面过渡动画包装组件
@@ -119,6 +130,12 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
         // 保存完整路径（包含 search 和 hash）
         const fullPath = location.pathname + (location.search || '') + (location.hash || '');
         setStorage(STORAGE_KEYS.LAST_PATH, fullPath);
+      }
+      
+      // 追踪页面访问
+      const tracker = getTracker();
+      if (tracker) {
+        tracker.trackPageView(location.pathname, document.title);
       }
     },
     // 无权限时重定向到仪表盘
