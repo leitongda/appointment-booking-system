@@ -1,9 +1,9 @@
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormSelect } from '@ant-design/pro-components';
-import { Button, App, Space, Tag, Popconfirm } from 'antd';
-import { useRef, useState } from 'react';
-import { useAccess } from '@umijs/max';
+import { PageContainer, ProTable } from '@ant-design/pro-components';
+import { Button, App, Tag } from 'antd';
+import { useRef } from 'react';
+import { history, useAccess } from '@umijs/max';
 import { messageApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Message } from '@hospital/shared';
@@ -16,29 +16,8 @@ const TYPE_MAP: Record<string, { text: string; color: string }> = {
 };
 
 const MessagePage: React.FC = () => {
-  const { message } = App.useApp();
   const access = useAccess();
   const actionRef = useRef<ActionType>();
-  const [modalOpen, setModalOpen] = useState(false);
-
-  const handleSend = async (values: any) => {
-    try {
-      await messageApi.send({
-        userId: values.userId,
-        userType: values.userType,
-        title: values.title,
-        content: values.content,
-        messageType: values.messageType,
-      });
-      message.success('发送成功');
-      setModalOpen(false);
-      actionRef.current?.reload();
-      return true;
-    } catch (error: any) {
-      message.error(error.message || '发送失败');
-      return false;
-    }
-  };
 
   const columns: ProColumns<Message>[] = [
     { title: '标题', dataIndex: 'title', ellipsis: true },
@@ -81,7 +60,12 @@ const MessagePage: React.FC = () => {
         }}
         toolBarRender={() => [
           access.hasPermission('message:send') && (
-            <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+            <Button
+              key="add"
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => history.push('/message/create')}
+            >
               发送消息
             </Button>
           ),
@@ -89,33 +73,6 @@ const MessagePage: React.FC = () => {
         pagination={{ defaultPageSize: 10 }}
         search={{ labelWidth: 'auto' }}
       />
-
-      <ModalForm
-        title="发送消息"
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        onFinish={handleSend}
-        modalProps={{ destroyOnHidden: true }}
-        initialValues={{ userType: 'patient', messageType: 'system' }}
-      >
-        <ProFormText name="userId" label="用户ID" rules={[{ required: true }]} />
-        <ProFormSelect
-          name="userType"
-          label="用户类型"
-          options={[
-            { label: '患者', value: 'patient' },
-            { label: '医生', value: 'doctor' },
-          ]}
-          rules={[{ required: true }]}
-        />
-        <ProFormSelect
-          name="messageType"
-          label="消息类型"
-          options={Object.entries(TYPE_MAP).map(([k, v]) => ({ label: v.text, value: k }))}
-        />
-        <ProFormText name="title" label="标题" rules={[{ required: true }]} />
-        <ProFormTextArea name="content" label="内容" />
-      </ModalForm>
     </PageContainer>
   );
 };
