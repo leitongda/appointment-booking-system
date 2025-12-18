@@ -1,47 +1,16 @@
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { PageContainer, ProTable, ModalForm, ProFormSelect, ProFormText, ProFormDateRangePicker } from '@ant-design/pro-components';
+import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { Button, App, Tag, Popconfirm, Alert } from 'antd';
-import { useRef, useState, useEffect } from 'react';
-import { restDayApi, storeApi, doctorApi } from '@hospital/api';
+import { useRef } from 'react';
+import { history } from '@umijs/max';
+import { restDayApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { RestDay } from '@hospital/api';
 
 const RestDayPage: React.FC = () => {
   const { message } = App.useApp();
   const actionRef = useRef<ActionType>();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [stores, setStores] = useState<any[]>([]);
-  const [doctors, setDoctors] = useState<any[]>([]);
-  const [selectedStore, setSelectedStore] = useState<string>();
-
-  useEffect(() => {
-    loadStores();
-  }, []);
-
-  useEffect(() => {
-    if (selectedStore) {
-      loadDoctorsByStore(selectedStore);
-    }
-  }, [selectedStore]);
-
-  const loadStores = async () => {
-    try {
-      const res = await storeApi.getList({ pageSize: 100, status: 1 });
-      setStores(res.data ?? []);
-    } catch (error) {
-      console.error('加载门店失败', error);
-    }
-  };
-
-  const loadDoctorsByStore = async (storeId: string) => {
-    try {
-      const res = await doctorApi.getList({ storeId, pageSize: 100, status: 1 });
-      setDoctors(res.data ?? []);
-    } catch (error) {
-      console.error('加载医生失败', error);
-    }
-  };
 
   const handleDelete = async (id: string) => {
     try {
@@ -60,25 +29,6 @@ const RestDayPage: React.FC = () => {
       actionRef.current?.reload();
     } catch (error: any) {
       message.error(error.message || '取消失败');
-    }
-  };
-
-  const handleSubmit = async (values: any) => {
-    try {
-      await restDayApi.create({
-        storeId: values.storeId,
-        doctorIds: values.doctorIds,
-        reason: values.reason,
-        startDate: values.dateRange[0].format('YYYY-MM-DD'),
-        endDate: values.dateRange[1].format('YYYY-MM-DD'),
-      });
-      message.success('添加成功');
-      setModalOpen(false);
-      actionRef.current?.reload();
-      return true;
-    } catch (error: any) {
-      message.error(error.message || '添加失败');
-      return false;
     }
   };
 
@@ -194,49 +144,13 @@ const RestDayPage: React.FC = () => {
             key="add"
             type="primary"
             icon={<PlusOutlined />}
-            onClick={() => setModalOpen(true)}
+            onClick={() => history.push('/schedule/rest-day/create')}
           >
             添加
           </Button>,
         ]}
         pagination={{ defaultPageSize: 10 }}
       />
-
-      <ModalForm
-        title="添加休息日"
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        onFinish={handleSubmit}
-        modalProps={{ destroyOnHidden: true }}
-      >
-        <ProFormSelect
-          name="storeId"
-          label="选择门店"
-          options={stores.map(s => ({ label: s.name, value: s.id }))}
-          rules={[{ required: true, message: '请选择门店' }]}
-          fieldProps={{
-            onChange: (val) => setSelectedStore(val),
-          }}
-        />
-        <ProFormSelect
-          name="doctorIds"
-          label="选择医生"
-          mode="multiple"
-          options={doctors.map(d => ({ label: d.name, value: d.id }))}
-          placeholder="不选则该门店所有医生都休息"
-          extra="注：选择对应的医生则选择的医生休息，不选则该门店所有医生都休息"
-        />
-        <ProFormText
-          name="reason"
-          label="休息原因"
-          placeholder="请输入休息原因"
-        />
-        <ProFormDateRangePicker
-          name="dateRange"
-          label="休息日期"
-          rules={[{ required: true, message: '请选择休息日期' }]}
-        />
-      </ModalForm>
     </PageContainer>
   );
 };

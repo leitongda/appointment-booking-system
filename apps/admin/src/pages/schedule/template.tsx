@@ -5,16 +5,15 @@ import {
   ProTable,
   ModalForm,
   ProFormSelect,
-  ProFormText,
-  ProFormDigit,
   ProFormTimePicker,
   ProFormDateRangePicker,
   ProFormCheckbox,
   ProFormRadio,
+  ProFormDigit,
 } from '@ant-design/pro-components';
 import { Button, App, Space, Popconfirm, Tag, Alert, Tabs } from 'antd';
 import { useRef, useState, useEffect, useMemo } from 'react';
-import { useAccess } from '@umijs/max';
+import { history, useAccess } from '@umijs/max';
 import { scheduleTemplateApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { ScheduleTemplate, Doctor, Department, Store } from '@hospital/shared';
@@ -32,16 +31,13 @@ const ScheduleTemplatePage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
   const actionRef = useRef<ActionType>();
-  const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [batchAddModalOpen, setBatchAddModalOpen] = useState(false);
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<ScheduleTemplate | null>(null);
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
 
   const [stores, setStores] = useState<Store[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [selectedStore, setSelectedStore] = useState<string>();
   const [selectedDept, setSelectedDept] = useState<string>();
 
   // 当前日期信息
@@ -94,38 +90,6 @@ const ScheduleTemplatePage: React.FC = () => {
       actionRef.current?.reload();
     } catch (error: any) {
       message.error(error.message || '删除失败');
-    }
-  };
-
-  const handleTemplateSubmit = async (values: any) => {
-    try {
-      const data = {
-        name: values.name,
-        storeId: values.storeId,
-        doctorId: values.doctorId,
-        departmentId: values.departmentId,
-        weekday: values.weekday,
-        appointmentType: values.appointmentType,
-        startTime: values.startTime,
-        endTime: values.endTime,
-        totalSlots: values.totalSlots,
-        scheduleMode: values.scheduleMode,
-      };
-
-      if (editingRecord) {
-        await scheduleTemplateApi.update(editingRecord.id, data);
-        message.success('更新成功');
-      } else {
-        await scheduleTemplateApi.create(data);
-        message.success('创建成功');
-      }
-      setTemplateModalOpen(false);
-      setEditingRecord(null);
-      actionRef.current?.reload();
-      return true;
-    } catch (error: any) {
-      message.error(error.message || '操作失败');
-      return false;
     }
   };
 
@@ -265,13 +229,7 @@ const ScheduleTemplatePage: React.FC = () => {
       render: (_, record) => (
         <Space>
           {access.hasPermission('schedule:template') && (
-            <a
-              onClick={() => {
-                setEditingRecord(record);
-                setSelectedDept(record.departmentId);
-                setTemplateModalOpen(true);
-              }}
-            >
+            <a onClick={() => history.push(`/schedule/template/${record.id}/edit`)}>
               编辑
             </a>
           )}
@@ -350,10 +308,7 @@ const ScheduleTemplatePage: React.FC = () => {
                       key="add"
                       type="primary"
                       icon={<PlusOutlined />}
-                      onClick={() => {
-                        setEditingRecord(null);
-                        setTemplateModalOpen(true);
-                      }}
+                      onClick={() => history.push('/schedule/template/create')}
                     >
                       新增模板
                     </Button>
@@ -365,99 +320,6 @@ const ScheduleTemplatePage: React.FC = () => {
           },
         ]}
       />
-
-      {/* 新增/编辑模板弹窗 */}
-      <ModalForm
-        title={editingRecord ? '编辑排班模板' : '新增排班模板'}
-        open={templateModalOpen}
-        onOpenChange={(open) => {
-          setTemplateModalOpen(open);
-          if (!open) {
-            setEditingRecord(null);
-            setSelectedDept(undefined);
-          }
-        }}
-        onFinish={handleTemplateSubmit}
-        initialValues={
-          editingRecord
-            ? {
-                ...editingRecord,
-              }
-            : {
-                appointmentType: 'normal',
-                scheduleMode: 'weekly',
-                totalSlots: 10,
-              }
-        }
-        modalProps={{ destroyOnHidden: true }}
-        width={600}
-      >
-        <ProFormText
-          name="name"
-          label="模板名称"
-          placeholder="如：张医生周一上午普通门诊"
-          rules={[{ required: true, message: '请输入模板名称' }]}
-        />
-        <ProFormSelect
-          name="storeId"
-          label="所属门店"
-          options={stores.map((s) => ({ label: s.name, value: s.id }))}
-          onChange={(val) => setSelectedStore(val as string)}
-          rules={[{ required: true, message: '请选择门店' }]}
-        />
-        <ProFormSelect
-          name="departmentId"
-          label="选择科室"
-          options={departments.map((d) => ({ label: d.name, value: d.id }))}
-          onChange={(val) => setSelectedDept(val as string)}
-          rules={[{ required: true, message: '请选择科室' }]}
-        />
-        <ProFormSelect
-          name="doctorId"
-          label="选择医生"
-          options={doctors.map((d) => ({ label: `${d.name} - ${d.title || ''}`, value: d.id }))}
-          rules={[{ required: true, message: '请选择医生' }]}
-          disabled={!selectedDept}
-          extra={!selectedDept ? '请先选择科室' : undefined}
-        />
-        <ProFormSelect
-          name="weekday"
-          label="选择星期"
-          options={WEEKDAY_OPTIONS}
-          rules={[{ required: true, message: '请选择星期' }]}
-        />
-        <ProFormSelect
-          name="appointmentType"
-          label="预约类型"
-          options={APPOINTMENT_TYPE_OPTIONS}
-          rules={[{ required: true, message: '请选择预约类型' }]}
-        />
-        <ProFormTimePicker
-          name="startTime"
-          label="开始时间"
-          fieldProps={{ format: 'HH:mm' }}
-          rules={[{ required: true, message: '请选择开始时间' }]}
-        />
-        <ProFormTimePicker
-          name="endTime"
-          label="结束时间"
-          fieldProps={{ format: 'HH:mm' }}
-          rules={[{ required: true, message: '请选择结束时间' }]}
-        />
-        <ProFormDigit
-          name="totalSlots"
-          label="班次人数"
-          min={1}
-          max={200}
-          rules={[{ required: true, message: '请输入班次人数' }]}
-        />
-        <ProFormRadio.Group
-          name="scheduleMode"
-          label="排班方式"
-          options={SCHEDULE_MODE_OPTIONS}
-          rules={[{ required: true, message: '请选择排班方式' }]}
-        />
-      </ModalForm>
 
       {/* 批量添加弹窗 */}
       <ModalForm
