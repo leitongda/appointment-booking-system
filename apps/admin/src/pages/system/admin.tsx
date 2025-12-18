@@ -1,33 +1,17 @@
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { PageContainer, ProTable, ModalForm, ProFormText, ProFormSelect, ProFormSwitch } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Tag, Avatar } from 'antd';
-import { useRef, useState, useEffect } from 'react';
-import { useAccess } from '@umijs/max';
+import { PageContainer, ProTable } from '@ant-design/pro-components';
+import { Button, App, Popconfirm, Space, Avatar } from 'antd';
+import { useRef } from 'react';
+import { history, useAccess } from '@umijs/max';
 import { adminApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
-import type { Admin, Role } from '@hospital/api';
+import type { Admin } from '@hospital/api';
 
 const AdminPage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
   const actionRef = useRef<ActionType>();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<Admin | null>(null);
-  const [roles, setRoles] = useState<Role[]>([]);
-
-  useEffect(() => {
-    loadRoles();
-  }, []);
-
-  const loadRoles = async () => {
-    try {
-      const data = await adminApi.getAllRoles();
-      setRoles(data);
-    } catch (error) {
-      console.error('加载角色失败', error);
-    }
-  };
 
   const handleDelete = async (id: string) => {
     try {
@@ -45,26 +29,6 @@ const AdminPage: React.FC = () => {
       message.success('密码已重置为 123456');
     } catch (error: any) {
       message.error(error.message || '重置失败');
-    }
-  };
-
-  const handleSubmit = async (values: any) => {
-    try {
-      const data = { ...values, status: values.status ? 1 : 0 };
-      if (editingRecord) {
-        await adminApi.updateAdmin(editingRecord.id, data);
-        message.success('更新成功');
-      } else {
-        await adminApi.createAdmin(data);
-        message.success('创建成功');
-      }
-      setModalOpen(false);
-      setEditingRecord(null);
-      actionRef.current?.reload();
-      return true;
-    } catch (error: any) {
-      message.error(error.message || '操作失败');
-      return false;
     }
   };
 
@@ -94,7 +58,7 @@ const AdminPage: React.FC = () => {
       render: (_, record) => (
         <Space>
           {access.hasPermission('system:admin:update') && (
-            <a onClick={() => { setEditingRecord(record); setModalOpen(true); }}>编辑</a>
+            <a onClick={() => history.push(`/system/admin/${record.id}/edit`)}>编辑</a>
           )}
           {access.hasPermission('system:admin:reset-password') && (
             <Popconfirm title="确定重置密码为 123456 吗？" onConfirm={() => handleResetPassword(record.id)}>
@@ -124,30 +88,18 @@ const AdminPage: React.FC = () => {
         }}
         toolBarRender={() => [
           access.hasPermission('system:admin:create') && (
-            <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalOpen(true); }}>
+            <Button
+              key="add"
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => history.push('/system/admin/create')}
+            >
               新增管理员
             </Button>
           ),
         ]}
         pagination={{ defaultPageSize: 10 }}
       />
-
-      <ModalForm
-        title={editingRecord ? '编辑管理员' : '新增管理员'}
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        onFinish={handleSubmit}
-        initialValues={editingRecord ? { ...editingRecord, status: editingRecord.status === 1 } : { status: true }}
-        modalProps={{ destroyOnClose: true }}
-      >
-        <ProFormText name="username" label="用户名" rules={[{ required: true }]} disabled={!!editingRecord} />
-        {!editingRecord && <ProFormText.Password name="password" label="密码" rules={[{ required: true }]} />}
-        <ProFormText name="name" label="姓名" />
-        <ProFormText name="phone" label="手机号" />
-        <ProFormText name="email" label="邮箱" />
-        <ProFormSelect name="roleId" label="角色" options={roles.map((r) => ({ label: r.name, value: r.id }))} />
-        <ProFormSwitch name="status" label="启用状态" />
-      </ModalForm>
     </PageContainer>
   );
 };

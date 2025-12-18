@@ -14,7 +14,7 @@ import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useState, useEffect, useRef } from 'react';
 import { useAccess } from '@umijs/max';
 import { settingsApi, blacklistApi, storeApi } from '@hospital/api';
-import type { BookingSettings, HospitalInfo, BookingFieldConfig, PatientCardConfig, BlacklistItem } from '@hospital/api';
+import type { BookingSettings, HospitalInfo, BookingFieldConfig, PatientCardConfig, BlacklistItem, EmailConfig } from '@hospital/api';
 
 const { Text } = Typography;
 
@@ -33,6 +33,7 @@ const SettingsPage: React.FC = () => {
   const [blacklistLoading, setBlacklistLoading] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [stores, setStores] = useState<any[]>([]);
+  const [emailConfig, setEmailConfig] = useState<EmailConfig | null>(null);
   const canEdit = access.hasPermission('system:settings');
 
   useEffect(() => {
@@ -43,16 +44,18 @@ const SettingsPage: React.FC = () => {
   const loadSettings = async () => {
     setLoading(true);
     try {
-      const [booking, hospital, fields, cardConfig] = await Promise.allSettled([
+      const [booking, hospital, fields, cardConfig, email] = await Promise.allSettled([
         settingsApi.getBookingSettings(),
         settingsApi.getHospitalInfo(),
         settingsApi.getBookingFields(),
         settingsApi.getPatientCardConfig(),
+        settingsApi.getEmailConfig(),
       ]);
       if (booking.status === 'fulfilled') setBookingSettings(booking.value);
       if (hospital.status === 'fulfilled') setHospitalInfo(hospital.value);
       if (fields.status === 'fulfilled') setBookingFields(fields.value);
       if (cardConfig.status === 'fulfilled') setPatientCardConfig(cardConfig.value);
+      if (email.status === 'fulfilled') setEmailConfig(email.value);
     } catch (error) {
       console.error('加载配置失败', error);
     } finally {
@@ -122,6 +125,15 @@ const SettingsPage: React.FC = () => {
   const handlePatientCardSubmit = async (values: any) => {
     try {
       await settingsApi.updatePatientCardConfig(values);
+      message.success('保存成功');
+    } catch (error: any) {
+      message.error(error.message || '保存失败');
+    }
+  };
+
+  const handleEmailConfigSubmit = async (values: any) => {
+    try {
+      await settingsApi.updateEmailConfig(values);
       message.success('保存成功');
     } catch (error: any) {
       message.error(error.message || '保存失败');
@@ -365,6 +377,69 @@ const SettingsPage: React.FC = () => {
             size="middle"
           />
         </div>
+      ),
+    },
+    {
+      key: 'email',
+      label: '邮件配置',
+      children: (
+        <ProForm
+          onFinish={handleEmailConfigSubmit}
+          initialValues={emailConfig || {}}
+          submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
+        >
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            配置SMTP服务器信息，用于发送邮件通知（如预约确认、就诊提醒等）。常见邮箱SMTP设置：QQ邮箱(smtp.qq.com:465)、163邮箱(smtp.163.com:465)、Gmail(smtp.gmail.com:587)
+          </Text>
+          <ProFormText
+            name="smtpHost"
+            label="SMTP服务器"
+            placeholder="如：smtp.qq.com"
+            rules={[{ required: true, message: '请输入SMTP服务器地址' }]}
+          />
+          <ProFormDigit
+            name="smtpPort"
+            label="SMTP端口"
+            placeholder="如：465 或 587"
+            min={1}
+            max={65535}
+            fieldProps={{ precision: 0 }}
+            rules={[{ required: true, message: '请输入SMTP端口' }]}
+          />
+          <ProFormText
+            name="smtpUser"
+            label="SMTP用户名"
+            placeholder="通常为邮箱地址"
+            rules={[{ required: true, message: '请输入SMTP用户名' }]}
+          />
+          <ProFormText.Password
+            name="smtpPassword"
+            label="SMTP密码"
+            placeholder="邮箱密码或授权码"
+            rules={[{ required: true, message: '请输入SMTP密码' }]}
+            extra="部分邮箱需要使用授权码而非登录密码"
+          />
+          <ProFormSwitch
+            name="smtpSsl"
+            label="使用SSL"
+            extra="大多数邮箱服务器需要启用SSL"
+          />
+          <ProFormText
+            name="senderName"
+            label="发件人名称"
+            placeholder="如：XX医院"
+            rules={[{ required: true, message: '请输入发件人名称' }]}
+          />
+          <ProFormText
+            name="senderEmail"
+            label="发件人邮箱"
+            placeholder="如：noreply@hospital.com"
+            rules={[
+              { required: true, message: '请输入发件人邮箱' },
+              { type: 'email', message: '请输入正确的邮箱格式' },
+            ]}
+          />
+        </ProForm>
       ),
     },
   ];
