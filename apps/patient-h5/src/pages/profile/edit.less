@@ -1,0 +1,44 @@
+.container {
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+.avatarSection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: #fff;
+  margin-bottom: 12px;
+
+  .avatarLabel {
+    font-size: 15px;
+    color: #333;
+  }
+
+  .avatarUploader {
+    :global {
+      .adm-image-uploader-cell {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        overflow: hidden;
+      }
+      
+      .adm-image-uploader-upload-button-wrap {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+      }
+    }
+  }
+}
+
+.form {
+  background: #fff;
+}
+
+.footer {
+  padding: 24px 16px;
+}
+

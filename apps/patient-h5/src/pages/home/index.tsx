@@ -1,8 +1,9 @@
-import { Swiper, Grid, Card, Image, Skeleton, Toast } from 'antd-mobile';
+import { Swiper, Grid, Card, Image, Skeleton, SearchBar } from 'antd-mobile';
 import { history } from 'umi';
 import { useState, useEffect } from 'react';
-import { departmentApi, doctorApi } from '@hospital/api';
+import { departmentApi, doctorApi, contentApi } from '@hospital/api';
 import type { Department, Doctor } from '@hospital/shared';
+import type { Banner } from '@hospital/api';
 import styles from './index.less';
 
 const menus = [
@@ -14,10 +15,18 @@ const menus = [
   { icon: '👤', title: '个人中心', path: '/profile' },
 ];
 
+// 默认轮播图（API无数据时使用）
+const defaultBanners = [
+  { id: '1', title: '便捷挂号', imageUrl: '', color: '#667eea' },
+  { id: '2', title: '专家坐诊', imageUrl: '', color: '#f093fb' },
+  { id: '3', title: '在线问诊', imageUrl: '', color: '#4facfe' },
+];
+
 const HomePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [hotDepts, setHotDepts] = useState<Department[]>([]);
   const [recommendDoctors, setRecommendDoctors] = useState<Doctor[]>([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
 
   useEffect(() => {
     loadData();
@@ -25,12 +34,14 @@ const HomePage: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [depts, doctors] = await Promise.all([
+      const [depts, doctors, bannerList] = await Promise.all([
         departmentApi.getHot(8),
         doctorApi.getRecommended(6),
+        contentApi.getActiveBanners('home').catch(() => []),
       ]);
       setHotDepts(depts);
       setRecommendDoctors(doctors);
+      setBanners(bannerList);
     } catch (error) {
       console.error('加载首页数据失败', error);
     } finally {
@@ -38,23 +49,71 @@ const HomePage: React.FC = () => {
     }
   };
 
+  const handleBannerClick = (banner: Banner) => {
+    if (banner.linkType === 1 && banner.linkUrl) {
+      // 内部链接
+      history.push(banner.linkUrl);
+    } else if (banner.linkType === 2 && banner.linkUrl) {
+      // 外部链接
+      window.location.href = banner.linkUrl;
+    }
+  };
+
+  const handleSearchFocus = () => {
+    history.push('/search');
+  };
+
+  // 使用API返回的轮播图或默认轮播图
+  const displayBanners = banners.length > 0 ? banners : null;
+
   return (
     <div className={styles.container}>
+      {/* 搜索栏 */}
+      <div className={styles.searchWrapper}>
+        <SearchBar 
+          placeholder="搜索科室/医生" 
+          onFocus={handleSearchFocus}
+          className={styles.searchBar}
+        />
+      </div>
+
       {/* 轮播图 */}
       <Swiper autoplay loop className={styles.banner}>
-        {[1, 2, 3].map((i) => (
-          <Swiper.Item key={i}>
-            <div 
-              className={styles.bannerItem} 
-              style={{ background: `linear-gradient(135deg, #667eea ${i * 10}%, #764ba2 100%)` }}
-            >
-              <div className={styles.bannerText}>
-                <h2>便捷挂号</h2>
-                <p>随时随地，轻松预约</p>
+        {displayBanners ? (
+          displayBanners.map((banner) => (
+            <Swiper.Item key={banner.id} onClick={() => handleBannerClick(banner)}>
+              <div className={styles.bannerItem}>
+                {banner.imageUrl ? (
+                  <Image src={banner.imageUrl} fit="cover" className={styles.bannerImage} />
+                ) : (
+                  <div 
+                    className={styles.bannerPlaceholder}
+                    style={{ background: `linear-gradient(135deg, #667eea 0%, #764ba2 100%)` }}
+                  >
+                    <div className={styles.bannerText}>
+                      <h2>{banner.title || '医院挂号系统'}</h2>
+                      <p>便捷预约，健康生活</p>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          </Swiper.Item>
-        ))}
+            </Swiper.Item>
+          ))
+        ) : (
+          defaultBanners.map((item) => (
+            <Swiper.Item key={item.id}>
+              <div 
+                className={styles.bannerItem} 
+                style={{ background: `linear-gradient(135deg, ${item.color} 0%, #764ba2 100%)` }}
+              >
+                <div className={styles.bannerText}>
+                  <h2>{item.title}</h2>
+                  <p>便捷预约，健康生活</p>
+                </div>
+              </div>
+            </Swiper.Item>
+          ))
+        )}
       </Swiper>
 
       {/* 快捷入口 */}

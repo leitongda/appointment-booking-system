@@ -1,11 +1,24 @@
 import { Outlet, useLocation, history } from 'umi';
 import { TabBar } from 'antd-mobile';
 import { AppOutline, UnorderedListOutline, UserOutline } from 'antd-mobile-icons';
+import { useEffect, useState } from 'react';
 import styles from './index.less';
 import { initApiConfig } from '@/utils/request';
+import { initTracker, getTracker, getToken } from '@hospital/shared';
 
 // 初始化 API 请求配置（拦截器）
 initApiConfig();
+
+// 初始化用户行为追踪器
+initTracker({
+  apiBaseUrl: process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8000',
+  platform: 'h5',
+  enabled: true,
+  enableInDev: true,
+  batchSize: 10,
+  batchInterval: 5000,
+  debug: process.env.NODE_ENV === 'development',
+});
 
 const tabs = [
   { key: '/home', title: '首页', icon: <AppOutline /> },
@@ -13,9 +26,49 @@ const tabs = [
   { key: '/profile', title: '我的', icon: <UserOutline /> },
 ];
 
+// 不需要登录的页面
+const publicPaths = ['/login', '/register', '/home', '/', '/department', '/doctor', '/search'];
+
+// 检查路径是否是公开页面
+const isPublicPath = (pathname: string) => {
+  // 完全匹配
+  if (publicPaths.includes(pathname)) return true;
+  // 前缀匹配（如 /doctor/xxx）
+  if (pathname.startsWith('/doctor/')) return true;
+  if (pathname.startsWith('/department/')) return true;
+  return false;
+};
+
 const Layout: React.FC = () => {
   const location = useLocation();
+  const [checked, setChecked] = useState(false);
   const showTabBar = ['/', '/home', '/appointment', '/profile'].includes(location.pathname);
+
+  // 登录状态检查
+  useEffect(() => {
+    const token = getToken();
+    const isPublic = isPublicPath(location.pathname);
+
+    if (!token && !isPublic) {
+      // 未登录且访问需要登录的页面，跳转到登录页
+      history.replace('/login');
+    } else {
+      setChecked(true);
+    }
+  }, [location.pathname]);
+
+  // 追踪页面访问
+  useEffect(() => {
+    const tracker = getTracker();
+    if (tracker) {
+      tracker.trackPageView(location.pathname, document.title);
+    }
+  }, [location.pathname]);
+
+  // 等待登录检查完成
+  if (!checked && !isPublicPath(location.pathname)) {
+    return null;
+  }
 
   return (
     <div className={styles.layout}>
