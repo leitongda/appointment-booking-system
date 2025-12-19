@@ -1,4 +1,4 @@
-import { PageContainer, ProDescriptions, ProTable } from '@ant-design/pro-components';
+import { PageContainer, ProDescriptions, ProTable, ModalForm, ProFormText, ProFormSelect, ProFormDatePicker, ProFormTextArea, ProForm } from '@ant-design/pro-components';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   Card,
@@ -16,14 +16,13 @@ import {
   Form,
   InputNumber,
   Input,
-  Select,
-  DatePicker,
   App,
   Table,
+  Popconfirm,
 } from 'antd';
-import { UserOutlined } from '@ant-design/icons';
+import { UserOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useEffect, useState, useRef } from 'react';
-import { history, useParams } from '@umijs/max';
+import { history, useParams, useAccess } from '@umijs/max';
 import { patientApi, doctorApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type {
@@ -32,11 +31,12 @@ import type {
   ConsumptionRecord,
   PointLog,
   PatientListItem,
+  PatientUpdateData,
 } from '@hospital/api';
+import type { FamilyMemberCreateData } from '@hospital/api/src/modules/patient';
 import type { Doctor } from '@hospital/shared';
 
 const { Title, Text } = Typography;
-const { RangePicker } = DatePicker;
 
 // 来源映射
 const SOURCE_MAP: Record<number, string> = {
@@ -63,17 +63,30 @@ const APPOINTMENT_STATUS_MAP: Record<number, { text: string; color: string }> = 
   7: { text: '已爽约', color: 'red' },
 };
 
-// 积分类型映射
-const POINT_TYPE_MAP: Record<number, string> = {
-  1: '消费',
-  2: '充值',
-  3: '赠送',
-  4: '手动调整',
-};
+const GENDER_OPTIONS = [
+  { label: '男', value: 1 },
+  { label: '女', value: 2 },
+];
+
+const RELATIONSHIP_OPTIONS = [
+  { label: '本人', value: '本人' },
+  { label: '父亲', value: '父亲' },
+  { label: '母亲', value: '母亲' },
+  { label: '配偶', value: '配偶' },
+  { label: '子女', value: '子女' },
+  { label: '其他', value: '其他' },
+];
+
+const ID_CARD_TYPE_OPTIONS = [
+  { label: '居民身份证', value: 1 },
+  { label: '户口簿', value: 2 },
+  { label: '护照', value: 3 },
+];
 
 const PatientDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { message } = App.useApp();
+  const access = useAccess();
   const [loading, setLoading] = useState(true);
   const [patient, setPatient] = useState<PatientDetail | null>(null);
   const [activeTab, setActiveTab] = useState('profile');
@@ -83,6 +96,11 @@ const PatientDetailPage: React.FC = () => {
   const appointmentRef = useRef<ActionType>();
   const consumptionRef = useRef<ActionType>();
   const pointRef = useRef<ActionType>();
+
+  // 家庭成员管理状态
+  const [addMemberModalVisible, setAddMemberModalVisible] = useState(false);
+  const [editMemberModalVisible, setEditMemberModalVisible] = useState(false);
+  const [currentMember, setCurrentMember] = useState<PatientListItem | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -124,6 +142,49 @@ const PatientDetailPage: React.FC = () => {
       pointRef.current?.reload();
     } catch (error: any) {
       message.error(error.message || '积分调整失败');
+    }
+  };
+
+  // 添加家庭成员
+  const handleAddFamilyMember = async (values: FamilyMemberCreateData) => {
+    if (!id) return false;
+    try {
+      await patientApi.addFamilyMember(id, values);
+      message.success('添加成功');
+      setAddMemberModalVisible(false);
+      loadPatient();
+      return true;
+    } catch (error: any) {
+      message.error(error.message || '添加失败');
+      return false;
+    }
+  };
+
+  // 编辑家庭成员
+  const handleEditFamilyMember = async (values: PatientUpdateData) => {
+    if (!id || !currentMember) return false;
+    try {
+      await patientApi.updateFamilyMember(id, currentMember.id, values);
+      message.success('编辑成功');
+      setEditMemberModalVisible(false);
+      setCurrentMember(null);
+      loadPatient();
+      return true;
+    } catch (error: any) {
+      message.error(error.message || '编辑失败');
+      return false;
+    }
+  };
+
+  // 删除家庭成员
+  const handleDeleteFamilyMember = async (memberId: string) => {
+    if (!id) return;
+    try {
+      await patientApi.deleteFamilyMember(id, memberId);
+      message.success('删除成功');
+      loadPatient();
+    } catch (error: any) {
+      message.error(error.message || '删除失败');
     }
   };
 
@@ -274,9 +335,24 @@ const PatientDetailPage: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 60,
+      width: 150,
       render: (_: any, record: PatientListItem) => (
-        <a onClick={() => history.push(`/patient/${record.id}`)}>查看</a>
+        <Space>
+          <a onClick={() => history.push(`/patient/${record.id}`)}>查看</a>
+          {access.hasPermission('patient:update') && (
+            <a onClick={() => { setCurrentMember(record); setEditMemberModalVisible(true); }}>
+              <EditOutlined /> 编辑
+            </a>
+          )}
+          {access.hasPermission('patient:update') && record.id !== id && (
+            <Popconfirm
+              title="确定删除该家庭成员吗？"
+              onConfirm={() => handleDeleteFamilyMember(record.id)}
+            >
+              <a style={{ color: '#ff4d4f' }}><DeleteOutlined /> 删除</a>
+            </Popconfirm>
+          )}
+        </Space>
       ),
     },
   ];
@@ -435,6 +511,85 @@ const PatientDetailPage: React.FC = () => {
     },
   ];
 
+  // 家庭成员表单内容
+  const FamilyMemberFormContent = () => (
+    <>
+      <ProForm.Group>
+        <ProFormText
+          name="name"
+          label="姓名"
+          width="sm"
+          rules={[{ required: true, message: '请输入姓名' }]}
+          placeholder="请输入姓名"
+        />
+        <ProFormText
+          name="phone"
+          label="手机号"
+          width="sm"
+          rules={[
+            { required: true, message: '请输入手机号' },
+            { pattern: /^1\d{10}$/, message: '手机号格式不正确' },
+          ]}
+          placeholder="请输入手机号"
+        />
+      </ProForm.Group>
+      <ProForm.Group>
+        <ProFormSelect
+          name="gender"
+          label="性别"
+          width="sm"
+          options={GENDER_OPTIONS}
+          placeholder="请选择性别"
+        />
+        <ProFormDatePicker
+          name="birthday"
+          label="出生日期"
+          width="sm"
+          placeholder="请选择出生日期"
+        />
+      </ProForm.Group>
+      <ProForm.Group>
+        <ProFormText
+          name="idCard"
+          label="身份证号"
+          width="sm"
+          placeholder="请输入身份证号"
+        />
+        <ProFormSelect
+          name="idCardType"
+          label="证件类型"
+          width="sm"
+          options={ID_CARD_TYPE_OPTIONS}
+          initialValue={1}
+        />
+      </ProForm.Group>
+      <ProForm.Group>
+        <ProFormSelect
+          name="relationship"
+          label="与本人关系"
+          width="sm"
+          options={RELATIONSHIP_OPTIONS}
+        />
+        <ProFormText
+          name="ethnicity"
+          label="民族"
+          width="sm"
+          initialValue="汉族"
+          placeholder="请输入民族"
+        />
+      </ProForm.Group>
+      <ProForm.Group>
+        <ProFormText name="province" label="省" width="sm" placeholder="请输入省份" />
+        <ProFormText name="city" label="市" width="sm" placeholder="请输入城市" />
+      </ProForm.Group>
+      <ProForm.Group>
+        <ProFormText name="district" label="区" width="sm" placeholder="请输入区县" />
+        <ProFormText name="street" label="街道/社区" width="sm" placeholder="请输入街道/社区" />
+      </ProForm.Group>
+      <ProFormTextArea name="address" label="详细地址" placeholder="请输入详细地址" />
+    </>
+  );
+
   return (
     <PageContainer
       title="患者详情"
@@ -482,6 +637,17 @@ const PatientDetailPage: React.FC = () => {
         <Card
           title={`家庭成员 总消费：¥${familyTotalConsumption.toFixed(2)}`}
           style={{ marginTop: 16 }}
+          extra={
+            access.hasPermission('patient:update') && (
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setAddMemberModalVisible(true)}
+              >
+                添加亲友
+              </Button>
+            )
+          }
         >
           <Table
             dataSource={patient?.familyMembers || []}
@@ -522,6 +688,40 @@ const PatientDetailPage: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* 添加家庭成员弹窗 */}
+      <ModalForm
+        title="添加亲友"
+        open={addMemberModalVisible}
+        onOpenChange={setAddMemberModalVisible}
+        onFinish={handleAddFamilyMember}
+        width={600}
+        modalProps={{ destroyOnClose: true }}
+      >
+        <FamilyMemberFormContent />
+      </ModalForm>
+
+      {/* 编辑家庭成员弹窗 */}
+      <ModalForm
+        title="编辑亲友"
+        open={editMemberModalVisible}
+        onOpenChange={(open) => {
+          setEditMemberModalVisible(open);
+          if (!open) setCurrentMember(null);
+        }}
+        onFinish={handleEditFamilyMember}
+        width={600}
+        modalProps={{ destroyOnClose: true }}
+        initialValues={currentMember ? {
+          name: currentMember.name,
+          phone: currentMember.phone,
+          gender: currentMember.gender,
+          idCard: currentMember.idCard,
+          relationship: currentMember.relationship,
+        } : {}}
+      >
+        <FamilyMemberFormContent />
+      </ModalForm>
     </PageContainer>
   );
 };

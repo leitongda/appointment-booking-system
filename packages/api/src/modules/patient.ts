@@ -169,9 +169,52 @@ export interface PatientListParams {
   pageSize?: number;
 }
 
+// ========== 创建患者 ==========
+export interface PatientCreateData {
+  name: string;
+  phone: string;
+  idCard?: string;
+  gender?: number;
+  birthday?: string;
+  relationship?: string;
+  isDefault?: boolean;
+  province?: string;
+  city?: string;
+  district?: string;
+  street?: string;
+  idCardType?: number;
+  ethnicity?: string;
+  address?: string;
+}
+
+// ========== 添加家庭成员 ==========
+export interface FamilyMemberCreateData {
+  name: string;
+  phone: string;
+  idCard?: string;
+  gender?: number;
+  birthday?: string;
+  relationship?: string;
+  isDefault?: boolean;
+  province?: string;
+  city?: string;
+  district?: string;
+  street?: string;
+  idCardType?: number;
+  ethnicity?: string;
+  address?: string;
+}
+
 const PREFIX = '/patients';
 
 export const patientApi = {
+  /**
+   * 创建患者（管理员手动添加）
+   */
+  create: (data: PatientCreateData): Promise<PatientDetail> => {
+    return request.post(PREFIX, data);
+  },
+
   /**
    * 获取患者列表
    */
@@ -247,5 +290,26 @@ export const patientApi = {
    */
   removeFromBlacklist: (id: string): Promise<void> => {
     return request.delete(`${PREFIX}/${id}/blacklist`);
+  },
+
+  /**
+   * 添加家庭成员（亲友）
+   */
+  addFamilyMember: (patientId: string, data: FamilyMemberCreateData): Promise<PatientListItem> => {
+    return request.post(`${PREFIX}/${patientId}/family-members`, data);
+  },
+
+  /**
+   * 编辑家庭成员
+   */
+  updateFamilyMember: (patientId: string, memberId: string, data: PatientUpdateData): Promise<PatientListItem> => {
+    return request.put(`${PREFIX}/${patientId}/family-members/${memberId}`, data);
+  },
+
+  /**
+   * 删除家庭成员
+   */
+  deleteFamilyMember: (patientId: string, memberId: string): Promise<void> => {
+    return request.delete(`${PREFIX}/${patientId}/family-members/${memberId}`);
   },
 };

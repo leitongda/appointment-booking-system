@@ -57,6 +57,42 @@ class PatientBase(BaseModel):
 class PatientCreate(PatientBase):
     pass
 
+
+class PatientCreateByAdmin(BaseModel):
+    """管理员创建患者（会同时创建用户）"""
+    name: str = Field(..., max_length=50, description="姓名")
+    phone: str = Field(..., min_length=11, max_length=11, description="手机号")
+    id_card: Optional[str] = Field(None, max_length=18, description="身份证号")
+    gender: Optional[int] = Field(None, ge=0, le=2)
+    birthday: Optional[str] = Field(None, description="出生日期 YYYY-MM-DD")
+    relationship: Optional[str] = Field(None, max_length=20, description="与账号用户关系")
+    is_default: bool = True
+    province: Optional[str] = Field(None, max_length=50, description="省")
+    city: Optional[str] = Field(None, max_length=50, description="市")
+    district: Optional[str] = Field(None, max_length=50, description="区")
+    street: Optional[str] = Field(None, max_length=100, description="街道/社区")
+    id_card_type: int = Field(1, ge=1, le=3, description="证件类型: 1身份证 2户口簿 3护照")
+    ethnicity: str = Field("汉族", max_length=20, description="民族")
+    address: Optional[str] = Field(None, max_length=255, description="详细地址")
+
+
+class FamilyMemberCreate(BaseModel):
+    """添加家庭成员（亲友）"""
+    name: str = Field(..., max_length=50, description="姓名")
+    phone: str = Field(..., min_length=11, max_length=11, description="手机号")
+    id_card: Optional[str] = Field(None, max_length=18, description="身份证号")
+    gender: Optional[int] = Field(None, ge=0, le=2)
+    birthday: Optional[str] = Field(None, description="出生日期 YYYY-MM-DD")
+    relationship: Optional[str] = Field(None, max_length=20, description="与账号用户关系")
+    is_default: bool = False
+    province: Optional[str] = Field(None, max_length=50, description="省")
+    city: Optional[str] = Field(None, max_length=50, description="市")
+    district: Optional[str] = Field(None, max_length=50, description="区")
+    street: Optional[str] = Field(None, max_length=100, description="街道/社区")
+    id_card_type: int = Field(1, ge=1, le=3, description="证件类型: 1身份证 2户口簿 3护照")
+    ethnicity: str = Field("汉族", max_length=20, description="民族")
+    address: Optional[str] = Field(None, max_length=255, description="详细地址")
+
 class PatientUpdate(BaseModel):
     name: Optional[str] = Field(None, max_length=50)
     phone: Optional[str] = Field(None, min_length=11, max_length=11)

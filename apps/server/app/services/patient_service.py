@@ -12,7 +12,8 @@ from app.models.schedule import Schedule
 from app.models.doctor import Doctor
 from app.models.department import Department
 from app.models.store import Store
-from app.schemas.user import PatientUpdate
+from app.schemas.user import PatientUpdate, PatientCreateByAdmin, FamilyMemberCreate
+from app.core.security import get_password_hash
 
 
 class PatientManageService:
@@ -460,3 +461,260 @@ class PatientManageService:
             })
         
         return patient_data, total or 0
+
+    def _generate_card_no(self) -> str:
+        """生成就诊卡编号"""
+        import random
+        import string
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        random_str = ''.join(random.choices(string.digits, k=4))
+        return f"JZK{timestamp}{random_str}"
+
+    async def create_patient(self, data: PatientCreateByAdmin) -> dict:
+        """创建患者（管理员手动添加）"""
+        # 检查手机号是否已存在用户
+        result = await self.db.execute(
+            select(User).where(User.phone == data.phone)
+        )
+        user = result.scalar_one_or_none()
+        
+        if user:
+            # 用户已存在，检查是否已有同名就诊人
+            existing_patient = await self.db.execute(
+                select(Patient).where(
+                    and_(
+                        Patient.user_id == user.id,
+                        Patient.name == data.name
+                    )
+                )
+            )
+            if existing_patient.scalar_one_or_none():
+                raise ValueError(f"该用户下已存在名为 {data.name} 的就诊人")
+        else:
+            # 创建新用户
+            user = User(
+                id=str(uuid.uuid4()),
+                phone=data.phone,
+                password_hash=get_password_hash("123456"),  # 默认密码
+                nickname=data.name,
+                status=1,
+            )
+            self.db.add(user)
+            await self.db.flush()
+        
+        # 解析生日
+        birthday = None
+        if data.birthday:
+            try:
+                birthday = datetime.strptime(data.birthday, '%Y-%m-%d')
+            except ValueError:
+                pass
+        
+        # 创建就诊人
+        patient = Patient(
+            id=str(uuid.uuid4()),
+            user_id=user.id,
+            name=data.name,
+            phone=data.phone,
+            id_card=data.id_card,
+            gender=data.gender,
+            birthday=birthday,
+            relationship=data.relationship or "本人",
+            is_default=data.is_default,
+            card_no=self._generate_card_no(),
+            province=data.province,
+            city=data.city,
+            district=data.district,
+            street=data.street,
+            id_card_type=data.id_card_type,
+            ethnicity=data.ethnicity,
+            address=data.address,
+            source=2,  # 管理员添加
+        )
+        self.db.add(patient)
+        await self.db.commit()
+        
+        return await self.get_detail(patient.id)
+
+    async def add_family_member(self, patient_id: str, data: FamilyMemberCreate) -> Optional[dict]:
+        """为患者添加家庭成员（亲友）"""
+        # 获取患者
+        result = await self.db.execute(
+            select(Patient).where(Patient.id == patient_id)
+        )
+        patient = result.scalar_one_or_none()
+        
+        if not patient:
+            return None
+        
+        # 检查是否已存在同名亲友
+        existing = await self.db.execute(
+            select(Patient).where(
+                and_(
+                    Patient.user_id == patient.user_id,
+                    Patient.name == data.name
+                )
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise ValueError(f"该用户下已存在名为 {data.name} 的就诊人")
+        
+        # 解析生日
+        birthday = None
+        if data.birthday:
+            try:
+                birthday = datetime.strptime(data.birthday, '%Y-%m-%d')
+            except ValueError:
+                pass
+        
+        # 创建亲友
+        member = Patient(
+            id=str(uuid.uuid4()),
+            user_id=patient.user_id,
+            name=data.name,
+            phone=data.phone,
+            id_card=data.id_card,
+            gender=data.gender,
+            birthday=birthday,
+            relationship=data.relationship,
+            is_default=data.is_default,
+            card_no=self._generate_card_no(),
+            province=data.province,
+            city=data.city,
+            district=data.district,
+            street=data.street,
+            id_card_type=data.id_card_type,
+            ethnicity=data.ethnicity,
+            address=data.address,
+            source=2,  # 管理员添加
+        )
+        
+        # 如果设为默认，取消其他默认
+        if data.is_default:
+            await self.db.execute(
+                select(Patient).where(
+                    and_(
+                        Patient.user_id == patient.user_id,
+                        Patient.is_default == True
+                    )
+                )
+            )
+            # 更新所有同用户的就诊人为非默认
+            from sqlalchemy import update
+            await self.db.execute(
+                update(Patient).where(Patient.user_id == patient.user_id).values(is_default=False)
+            )
+        
+        self.db.add(member)
+        await self.db.commit()
+        
+        # 返回新增的成员信息
+        return {
+            'id': member.id,
+            'userId': member.user_id,
+            'cardNo': member.card_no,
+            'name': member.name,
+            'phone': member.phone,
+            'idCard': member.id_card,
+            'gender': member.gender,
+            'birthday': member.birthday.isoformat() if member.birthday else None,
+            'relationship': member.relationship,
+            'isDefault': member.is_default,
+            'appointmentCount': 0,
+            'noShowCount': 0,
+            'isBlacklist': False,
+            'createdAt': member.created_at.isoformat() if member.created_at else None,
+        }
+
+    async def update_family_member(self, patient_id: str, member_id: str, data: PatientUpdate) -> Optional[dict]:
+        """编辑家庭成员信息"""
+        # 获取原患者确认用户
+        result = await self.db.execute(
+            select(Patient).where(Patient.id == patient_id)
+        )
+        patient = result.scalar_one_or_none()
+        
+        if not patient:
+            return None
+        
+        # 获取要编辑的成员
+        result = await self.db.execute(
+            select(Patient).where(
+                and_(
+                    Patient.id == member_id,
+                    Patient.user_id == patient.user_id
+                )
+            )
+        )
+        member = result.scalar_one_or_none()
+        
+        if not member:
+            return None
+        
+        # 更新字段
+        update_data = data.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            if hasattr(member, key):
+                setattr(member, key, value)
+        
+        await self.db.commit()
+        await self.db.refresh(member)
+        
+        # 返回更新后的信息
+        return {
+            'id': member.id,
+            'userId': member.user_id,
+            'cardNo': member.card_no,
+            'name': member.name,
+            'phone': member.phone,
+            'idCard': member.id_card,
+            'gender': member.gender,
+            'birthday': member.birthday.isoformat() if member.birthday else None,
+            'relationship': member.relationship,
+            'isDefault': member.is_default,
+            'createdAt': member.created_at.isoformat() if member.created_at else None,
+        }
+
+    async def delete_family_member(self, patient_id: str, member_id: str) -> bool:
+        """删除家庭成员"""
+        # 获取原患者确认用户
+        result = await self.db.execute(
+            select(Patient).where(Patient.id == patient_id)
+        )
+        patient = result.scalar_one_or_none()
+        
+        if not patient:
+            return False
+        
+        # 不能删除自己
+        if patient_id == member_id:
+            return False
+        
+        # 获取要删除的成员
+        result = await self.db.execute(
+            select(Patient).where(
+                and_(
+                    Patient.id == member_id,
+                    Patient.user_id == patient.user_id
+                )
+            )
+        )
+        member = result.scalar_one_or_none()
+        
+        if not member:
+            return False
+        
+        # 检查是否有预约记录
+        appt_count = await self.db.scalar(
+            select(func.count(Appointment.id)).where(Appointment.patient_id == member_id)
+        )
+        
+        if appt_count and appt_count > 0:
+            # 有预约记录，不能删除，只能软删除（这里选择直接返回失败，让前端提示）
+            raise ValueError("该就诊人有预约记录，无法删除")
+        
+        # 删除成员
+        await self.db.delete(member)
+        await self.db.commit()
+        
+        return True

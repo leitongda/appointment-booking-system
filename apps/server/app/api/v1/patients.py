@@ -8,10 +8,25 @@ from app.api.deps import get_current_admin
 from app.services.patient_service import PatientManageService
 from app.services.point_service import PointService
 from app.schemas.response import PageResponse
-from app.schemas.user import PatientUpdate
+from app.schemas.user import PatientUpdate, PatientCreateByAdmin, FamilyMemberCreate
 from app.schemas.point_log import PointAdjustData
 
 router = APIRouter()
+
+
+@router.post("")
+async def create_patient(
+    data: PatientCreateByAdmin,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """创建患者（管理员手动添加）"""
+    service = PatientManageService(db)
+    try:
+        result = await service.create_patient(data)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.get("")
@@ -223,3 +238,60 @@ async def remove_from_blacklist(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="患者不存在")
     
     return {"message": "已移出黑名单"}
+
+
+# ========== 家庭成员（亲友）管理 ==========
+@router.post("/{patient_id}/family-members")
+async def add_family_member(
+    patient_id: str,
+    data: FamilyMemberCreate,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """为患者添加家庭成员（亲友）"""
+    service = PatientManageService(db)
+    try:
+        result = await service.add_family_member(patient_id, data)
+        if not result:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="患者不存在")
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.put("/{patient_id}/family-members/{member_id}")
+async def update_family_member(
+    patient_id: str,
+    member_id: str,
+    data: PatientUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """编辑家庭成员信息"""
+    service = PatientManageService(db)
+    result = await service.update_family_member(patient_id, member_id, data)
+    
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="家庭成员不存在")
+    
+    return result
+
+
+@router.delete("/{patient_id}/family-members/{member_id}")
+async def delete_family_member(
+    patient_id: str,
+    member_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """删除家庭成员"""
+    service = PatientManageService(db)
+    try:
+        success = await service.delete_family_member(patient_id, member_id)
+        
+        if not success:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="家庭成员不存在或无法删除")
+        
+        return {"message": "删除成功"}
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

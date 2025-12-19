@@ -1,21 +1,53 @@
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { App, Popconfirm, Space, Tag } from 'antd';
-import { useRef } from 'react';
+import {
+  PageContainer,
+  ProTable,
+  ModalForm,
+  ProFormText,
+  ProFormSelect,
+  ProFormDatePicker,
+  ProFormTextArea,
+  ProForm,
+} from '@ant-design/pro-components';
+import { App, Popconfirm, Space, Tag, Button } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import { useRef, useState } from 'react';
 import { history, useAccess } from '@umijs/max';
 import { patientApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { PatientListItem } from '@hospital/api';
+import type { PatientCreateData } from '@hospital/api/src/modules/patient';
 
 const SOURCE_MAP: Record<number, string> = {
   1: '用户添加',
   2: '管理员添加',
 };
 
+const GENDER_OPTIONS = [
+  { label: '男', value: 1 },
+  { label: '女', value: 2 },
+];
+
+const RELATIONSHIP_OPTIONS = [
+  { label: '本人', value: '本人' },
+  { label: '父亲', value: '父亲' },
+  { label: '母亲', value: '母亲' },
+  { label: '配偶', value: '配偶' },
+  { label: '子女', value: '子女' },
+  { label: '其他', value: '其他' },
+];
+
+const ID_CARD_TYPE_OPTIONS = [
+  { label: '居民身份证', value: 1 },
+  { label: '户口簿', value: 2 },
+  { label: '护照', value: 3 },
+];
+
 const PatientPage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
   const actionRef = useRef<ActionType>();
+  const [createModalVisible, setCreateModalVisible] = useState(false);
 
   const handleBlacklist = async (id: string, add: boolean) => {
     try {
@@ -29,6 +61,19 @@ const PatientPage: React.FC = () => {
       actionRef.current?.reload();
     } catch (error: any) {
       message.error(error.message || '操作失败');
+    }
+  };
+
+  const handleCreate = async (values: PatientCreateData) => {
+    try {
+      await patientApi.create(values);
+      message.success('创建成功');
+      setCreateModalVisible(false);
+      actionRef.current?.reload();
+      return true;
+    } catch (error: any) {
+      message.error(error.message || '创建失败');
+      return false;
     }
   };
 
@@ -103,7 +148,111 @@ const PatientPage: React.FC = () => {
         }}
         pagination={{ defaultPageSize: 10 }}
         search={{ labelWidth: 'auto' }}
+        toolBarRender={() => [
+          access.hasPermission('patient:create') && (
+            <Button
+              key="add"
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setCreateModalVisible(true)}
+            >
+              新增患者
+            </Button>
+          ),
+        ]}
       />
+
+      {/* 新增患者弹窗 */}
+      <ModalForm
+        title="新增患者"
+        open={createModalVisible}
+        onOpenChange={setCreateModalVisible}
+        onFinish={handleCreate}
+        width={600}
+        modalProps={{ destroyOnClose: true }}
+      >
+        <ProForm.Group>
+          <ProFormText
+            name="name"
+            label="姓名"
+            width="sm"
+            rules={[{ required: true, message: '请输入姓名' }]}
+            placeholder="请输入姓名"
+          />
+          <ProFormText
+            name="phone"
+            label="手机号"
+            width="sm"
+            rules={[
+              { required: true, message: '请输入手机号' },
+              { pattern: /^1\d{10}$/, message: '手机号格式不正确' },
+            ]}
+            placeholder="请输入手机号"
+          />
+        </ProForm.Group>
+        <ProForm.Group>
+          <ProFormSelect
+            name="gender"
+            label="性别"
+            width="sm"
+            options={GENDER_OPTIONS}
+            placeholder="请选择性别"
+          />
+          <ProFormDatePicker
+            name="birthday"
+            label="出生日期"
+            width="sm"
+            placeholder="请选择出生日期"
+          />
+        </ProForm.Group>
+        <ProForm.Group>
+          <ProFormText
+            name="idCard"
+            label="身份证号"
+            width="sm"
+            rules={[
+              { pattern: /^[1-9]\d{5}(18|19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]$/, message: '身份证号格式不正确' },
+            ]}
+            placeholder="请输入身份证号"
+          />
+          <ProFormSelect
+            name="idCardType"
+            label="证件类型"
+            width="sm"
+            options={ID_CARD_TYPE_OPTIONS}
+            initialValue={1}
+          />
+        </ProForm.Group>
+        <ProForm.Group>
+          <ProFormSelect
+            name="relationship"
+            label="与本人关系"
+            width="sm"
+            options={RELATIONSHIP_OPTIONS}
+            initialValue="本人"
+          />
+          <ProFormText
+            name="ethnicity"
+            label="民族"
+            width="sm"
+            initialValue="汉族"
+            placeholder="请输入民族"
+          />
+        </ProForm.Group>
+        <ProForm.Group>
+          <ProFormText name="province" label="省" width="sm" placeholder="请输入省份" />
+          <ProFormText name="city" label="市" width="sm" placeholder="请输入城市" />
+        </ProForm.Group>
+        <ProForm.Group>
+          <ProFormText name="district" label="区" width="sm" placeholder="请输入区县" />
+          <ProFormText name="street" label="街道/社区" width="sm" placeholder="请输入街道/社区" />
+        </ProForm.Group>
+        <ProFormTextArea
+          name="address"
+          label="详细地址"
+          placeholder="请输入详细地址"
+        />
+      </ModalForm>
     </PageContainer>
   );
 };
