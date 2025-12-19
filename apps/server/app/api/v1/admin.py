@@ -330,6 +330,63 @@ async def get_current_admin_info(
     return build_admin_response(admin, permissions)
 
 
+class ChangePasswordRequest(BaseModel):
+    """修改密码请求"""
+    old_password: str = Field(..., min_length=6)
+    new_password: str = Field(..., min_length=6, max_length=20)
+
+
+class UpdateProfileRequest(BaseModel):
+    """更新个人信息请求"""
+    name: Optional[str] = Field(None, max_length=50)
+    phone: Optional[str] = Field(None, max_length=20)
+    email: Optional[str] = Field(None, max_length=100)
+    avatar: Optional[str] = Field(None, max_length=255)
+
+
+@router.put("/me")
+async def update_current_admin_profile(
+    data: UpdateProfileRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+):
+    """更新当前管理员个人信息"""
+    service = AdminService(db)
+    admin = await service.update(current_admin["id"], data.model_dump(exclude_unset=True))
+    
+    if not admin:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在")
+    
+    # 重新获取完整信息
+    admin = await service.get_by_id(current_admin["id"])
+    return build_admin_response(admin)
+
+
+@router.put("/me/change-password")
+async def change_current_admin_password(
+    data: ChangePasswordRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+):
+    """修改当前管理员密码"""
+    service = AdminService(db)
+    admin = await service.get_by_id(current_admin["id"])
+    
+    if not admin:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在")
+    
+    # 验证旧密码
+    from app.core.security import verify_password, get_password_hash
+    if not verify_password(data.old_password, admin.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="原密码错误")
+    
+    # 更新密码
+    admin.password_hash = get_password_hash(data.new_password)
+    await db.commit()
+    
+    return {"message": "密码修改成功"}
+
+
 # ========== 手机号登录 ==========
 @router.post("/phone-login")
 async def phone_login(

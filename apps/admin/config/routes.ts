@@ -197,6 +197,15 @@ export default [
       { path: '/system/analytics', name: '用户行为分析', component: './system/analytics' },
     ],
   },
+  // 个人设置（不显示在菜单中）
+  {
+    path: '/account',
+    hideInMenu: true,
+    routes: [
+      { path: '/account', redirect: '/account/settings' },
+      { path: '/account/settings', name: '个人设置', component: './account/settings' },
+    ],
+  },
   // 根路由重定向
   {
     path: '/',

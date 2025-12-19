@@ -209,6 +209,24 @@ export const adminApi = {
     return request.get(`${PREFIX}/me`);
   },
 
+  // 更新当前管理员个人信息
+  updateProfile: (data: { name?: string; phone?: string; email?: string; avatar?: string }): Promise<Admin> => {
+    return request.put(`${PREFIX}/me`, data);
+  },
+
+  // 修改当前管理员密码
+  changePassword: (data: { oldPassword: string; newPassword: string }): Promise<void> => {
+    return request.put(`${PREFIX}/me/change-password`, {
+      old_password: data.oldPassword,
+      new_password: data.newPassword,
+    });
+  },
+
+  // 获取管理员详情（用于编辑）
+  getAdminDetail: (id: string): Promise<Admin> => {
+    return request.get(`${PREFIX}/admins/${id}`);
+  },
+
   // ========== 手机号登录 ==========
   // 手机号+密码登录
   phoneLogin: async (data: PhoneLoginParams, retried = false): Promise<AdminLoginResult> => {
