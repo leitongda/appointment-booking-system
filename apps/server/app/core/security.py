@@ -47,8 +47,11 @@ def load_rsa_keys():
     
     # 尝试从配置加载密钥
     if settings.RSA_PRIVATE_KEY and settings.RSA_PUBLIC_KEY:
-        private_pem = settings.RSA_PRIVATE_KEY.encode()
-        public_pem = settings.RSA_PUBLIC_KEY.encode()
+        # 处理环境变量中的换行符（可能是字面量 \n）
+        private_key_str = settings.RSA_PRIVATE_KEY.replace('\\n', '\n')
+        public_key_str = settings.RSA_PUBLIC_KEY.replace('\\n', '\n')
+        private_pem = private_key_str.encode()
+        public_pem = public_key_str.encode()
     else:
         # 生成新的密钥对（仅用于开发环境）
         private_pem, public_pem = generate_rsa_key_pair()

@@ -98,6 +98,30 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     )
 
 
+def _sanitize_error(error: dict) -> dict:
+    """清理错误信息，确保可以 JSON 序列化"""
+    sanitized = {}
+    for key, value in error.items():
+        if isinstance(value, bytes):
+            # 将 bytes 转换为字符串
+            try:
+                sanitized[key] = value.decode('utf-8', errors='replace')
+            except Exception:
+                sanitized[key] = str(value)
+        elif isinstance(value, (list, tuple)):
+            sanitized[key] = [
+                v.decode('utf-8', errors='replace') if isinstance(v, bytes) else str(v) if not isinstance(v, (str, int, float, bool, type(None))) else v
+                for v in value
+            ]
+        elif isinstance(value, dict):
+            sanitized[key] = _sanitize_error(value)
+        elif not isinstance(value, (str, int, float, bool, type(None), list, dict)):
+            sanitized[key] = str(value)
+        else:
+            sanitized[key] = value
+    return sanitized
+
+
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """请求参数验证异常处理"""
     errors = exc.errors()
@@ -115,10 +139,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     
     logger.warning(f"参数验证失败: {error_messages}, path={request.url.path}")
     
+    # 清理错误信息，确保可以 JSON 序列化
+    sanitized_errors = [_sanitize_error(e) for e in errors]
+    
     return create_error_response(
         422,
         message,
-        data={"errors": errors},
+        data={"errors": sanitized_errors},
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY
     )
 
