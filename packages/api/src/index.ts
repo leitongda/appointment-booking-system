@@ -82,6 +82,8 @@ export type {
   PointAdjustResult,
   PointSummary,
   PatientListParams,
+  PatientCreateData as PatientCreateDataAdmin,
+  FamilyMemberCreateData,
 } from './modules/patient';
 
 // Settings types

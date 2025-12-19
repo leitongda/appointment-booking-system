@@ -57,9 +57,10 @@ instance.interceptors.response.use(
   },
   (error) => {
     // HTTP 错误
-    // 后端错误格式: { code: 400, message: "error", data: { detail: "实际错误信息" } }
+    // FastAPI HTTPException 格式: { detail: "错误信息" }
+    // 统一响应格式: { code: 400, message: "error", data: { detail: "实际错误信息" } }
     const responseData = error.response?.data;
-    const message = responseData?.data?.detail || responseData?.message || error.message || '网络错误';
+    const message = responseData?.detail || responseData?.data?.detail || responseData?.message || error.message || '网络错误';
     return Promise.reject(new Error(message));
   }
 );
