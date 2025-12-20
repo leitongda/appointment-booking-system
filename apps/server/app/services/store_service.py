@@ -1,14 +1,11 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func
 from typing import Optional, List
 import uuid
 
-from app.models.store import Store, StoreDepartment
+from app.models.store import Store
 from app.models.department import Department
-from app.schemas.store import (
-    StoreCreate, StoreUpdate, StoreQuery,
-    StoreDepartmentCreate, StoreDepartmentUpdate
-)
+from app.schemas.store import StoreCreate, StoreUpdate, StoreQuery
 
 
 class StoreService:
@@ -117,13 +114,13 @@ class StoreService:
         if not store:
             return False
         
-        # 检查是否有关联的科室
+        # 检查是否有关联的科室（通过 Department.store_id）
         result = await self.db.execute(
-            select(func.count(StoreDepartment.id))
-            .where(StoreDepartment.store_id == store_id)
+            select(func.count(Department.id))
+            .where(Department.store_id == store_id)
         )
         if result.scalar() > 0:
-            raise ValueError("该门店下有关联科室，请先解除关联")
+            raise ValueError("该门店下有关联科室，请先删除或转移科室")
         
         await self.db.delete(store)
         await self.db.commit()
@@ -140,93 +137,10 @@ class StoreService:
         await self.db.refresh(store)
         return store
     
-    # ========== 门店科室关联 ==========
-    
-    async def get_store_departments(self, store_id: str) -> List[dict]:
-        """获取门店的科室列表"""
-        result = await self.db.execute(
-            select(StoreDepartment, Department.name.label('department_name'))
-            .join(Department, StoreDepartment.department_id == Department.id)
-            .where(StoreDepartment.store_id == store_id)
-            .order_by(StoreDepartment.created_at)
-        )
-        
-        items = []
-        for row in result.all():
-            sd = row[0]
-            items.append({
-                'id': sd.id,
-                'store_id': sd.store_id,
-                'department_id': sd.department_id,
-                'department_name': row[1],
-                'floor': sd.floor,
-                'room': sd.room,
-                'status': sd.status,
-                'created_at': sd.created_at
-            })
-        return items
-    
-    async def add_department(self, data: StoreDepartmentCreate) -> StoreDepartment:
-        """添加门店科室关联"""
-        # 检查是否已存在
-        result = await self.db.execute(
-            select(StoreDepartment).where(
-                and_(
-                    StoreDepartment.store_id == data.store_id,
-                    StoreDepartment.department_id == data.department_id
-                )
-            )
-        )
-        if result.scalar_one_or_none():
-            raise ValueError("该科室已关联到此门店")
-        
-        store_dept = StoreDepartment(
-            id=str(uuid.uuid4()),
-            **data.model_dump()
-        )
-        self.db.add(store_dept)
-        await self.db.commit()
-        await self.db.refresh(store_dept)
-        return store_dept
-    
-    async def update_department(
-        self, 
-        relation_id: str, 
-        data: StoreDepartmentUpdate
-    ) -> Optional[StoreDepartment]:
-        """更新门店科室关联"""
-        result = await self.db.execute(
-            select(StoreDepartment).where(StoreDepartment.id == relation_id)
-        )
-        store_dept = result.scalar_one_or_none()
-        if not store_dept:
-            return None
-        
-        update_data = data.model_dump(exclude_unset=True)
-        for field, value in update_data.items():
-            setattr(store_dept, field, value)
-        
-        await self.db.commit()
-        await self.db.refresh(store_dept)
-        return store_dept
-    
-    async def remove_department(self, relation_id: str) -> bool:
-        """移除门店科室关联"""
-        result = await self.db.execute(
-            select(StoreDepartment).where(StoreDepartment.id == relation_id)
-        )
-        store_dept = result.scalar_one_or_none()
-        if not store_dept:
-            return False
-        
-        await self.db.delete(store_dept)
-        await self.db.commit()
-        return True
-    
     async def get_department_count(self, store_id: str) -> int:
-        """获取门店科室数量"""
+        """获取门店科室数量（通过 Department.store_id 统计）"""
         result = await self.db.execute(
-            select(func.count(StoreDepartment.id))
-            .where(StoreDepartment.store_id == store_id)
+            select(func.count(Department.id))
+            .where(Department.store_id == store_id)
         )
         return result.scalar() or 0

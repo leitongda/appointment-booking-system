@@ -2,8 +2,8 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { App, Space, Tag, Popconfirm } from 'antd';
 import { useRef } from 'react';
-import { history, useAccess } from '@umijs/max';
-import { appointmentApi } from '@hospital/api';
+import { history, useAccess, useModel } from '@umijs/max';
+import { appointmentApi, storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Appointment } from '@hospital/shared';
 
@@ -22,6 +22,10 @@ const AppointmentListPage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
   const actionRef = useRef<ActionType>();
+  
+  const { initialState } = useModel('@@initialState');
+  const currentStore = initialState?.currentStore;
+  const isSuperAdmin = !currentStore; // 超级管理员没有关联门店
 
   const handleCancel = async (id: string) => {
     try {
@@ -44,6 +48,24 @@ const AppointmentListPage: React.FC = () => {
   };
 
   const columns: ProColumns<Appointment>[] = [
+    // 超级管理员可以按门店筛选
+    ...(isSuperAdmin ? [{
+      title: '门店',
+      dataIndex: 'storeId',
+      hideInTable: true,
+      valueType: 'select',
+      request: async () => {
+        try {
+          const stores = await storeApi.getAll();
+          return [
+            { label: '全部门店', value: '' },
+            ...stores.map((s: any) => ({ label: s.name, value: s.id })),
+          ];
+        } catch {
+          return [];
+        }
+      },
+    } as ProColumns<Appointment>] : []),
     {
       title: '预约编号',
       dataIndex: 'appointmentNo',

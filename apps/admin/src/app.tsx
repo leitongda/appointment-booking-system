@@ -16,8 +16,10 @@ const loginPath = '/login';
 initApiConfig();
 
 // 初始化用户行为追踪器
+// apiBaseUrl 使用空字符串，请求路径为 /api/v1/analytics/batch
+// 开发环境会自动走代理（/api -> localhost:8000），避免 CORS 问题
 initTracker({
-  apiBaseUrl: process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8000',
+  apiBaseUrl: '',
   platform: 'admin',
   enabled: true,
   enableInDev: true, // 开发环境也启用，方便测试
@@ -50,6 +52,14 @@ export function rootContainer(container: any) {
   return <App>{container}</App>;
 }
 
+// 门店信息类型
+interface StoreInfo {
+  id: string;
+  name: string;
+  logo?: string;
+  themeStyle?: string;
+}
+
 /**
  * 获取初始状态
  * @see https://umijs.org/zh-CN/plugins/plugin-initial-state
@@ -57,6 +67,7 @@ export function rootContainer(container: any) {
 export async function getInitialState(): Promise<{
   settings?: Partial<LayoutSettings>;
   currentUser?: API.CurrentUser;
+  currentStore?: StoreInfo;
   loading?: boolean;
   fetchUserInfo?: () => Promise<API.CurrentUser | undefined>;
 }> {
@@ -77,9 +88,22 @@ export async function getInitialState(): Promise<{
   // 如果是登录页面，不执行获取用户信息
   if (location.pathname !== loginPath && token) {
     const currentUser = await fetchUserInfo();
+    
+    // 从 localStorage 获取登录时保存的门店信息
+    let currentStore: StoreInfo | undefined;
+    try {
+      const storeData = localStorage.getItem('currentStore');
+      if (storeData) {
+        currentStore = JSON.parse(storeData);
+      }
+    } catch (e) {
+      console.error('Failed to parse store info', e);
+    }
+    
     return {
       fetchUserInfo,
       currentUser,
+      currentStore,
       settings: defaultSettings as Partial<LayoutSettings>,
     };
   }
@@ -154,6 +178,8 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
 
 /**
  * 请求配置
+ * 注意：主要的请求/响应拦截逻辑在 @/utils/request.ts 中通过 @hospital/api 配置
+ * 这里是 umi-request 的配置，作为备用
  * @doc https://umijs.org/docs/max/request
  */
 export const request: RequestConfig = {
@@ -174,12 +200,30 @@ export const request: RequestConfig = {
     (response: any) => {
       const { data, status } = response;
 
-      // 401 未授权
+      // 处理 HTTP 401 或业务码 401（无效 Token）
       if (status === 401 || data?.code === 401) {
         handleTokenExpired(() => {
-          message.error('登录已过期，请重新登录');
+          message.error(data?.message || '登录已过期，请重新登录');
           history.push(loginPath);
         });
+        return response;
+      }
+
+      // 处理业务码 403（无权限）
+      if (data?.code === 403) {
+        message.error(data?.message || '没有权限访问该资源');
+        return response;
+      }
+
+      // 处理业务码 404（资源不存在）
+      if (data?.code === 404) {
+        message.error(data?.message || '请求的资源不存在');
+        return response;
+      }
+
+      // 处理其他非 200 的业务错误码
+      if (data?.code && data.code !== 200 && data.code >= 400) {
+        message.error(data?.message || '请求失败');
         return response;
       }
 

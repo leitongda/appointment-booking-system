@@ -2,9 +2,17 @@ import { defineConfig } from '@umijs/max';
 import routes from './routes';
 import proxy from './proxy';
 
-const { REACT_APP_ENV = 'dev' } = process.env;
+const { REACT_APP_ENV = 'dev', AMAP_KEY = '' } = process.env;
 
 export default defineConfig({
+  // 高德地图 SDK
+  headScripts: AMAP_KEY ? [
+    {
+      src: `https://webapi.amap.com/maps?v=2.0&key=${AMAP_KEY}&plugin=AMap.PlaceSearch,AMap.Geocoder,AMap.AutoComplete`,
+      async: true,
+    },
+  ] : [],
+
   // 使用 hash 路由
   hash: true,
 

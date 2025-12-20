@@ -38,6 +38,14 @@ export interface Permission {
   children?: Permission[];
 }
 
+// ========== 门店信息 ==========
+export interface StoreInfo {
+  id: string;
+  name: string;
+  logo?: string;
+  themeStyle?: string;
+}
+
 // ========== 管理员 ==========
 export interface Admin {
   id: string;
@@ -49,6 +57,8 @@ export interface Admin {
   roleId?: string;
   roleName?: string;
   roleCode?: string;
+  storeId?: string;
+  storeName?: string;
   permissions?: string[];
   status: number;
   lastLoginAt?: string;
@@ -63,6 +73,7 @@ export interface AdminCreateData {
   phone?: string;
   email?: string;
   roleId?: string;
+  storeId?: string;
   status?: number;
 }
 
@@ -73,6 +84,7 @@ export interface AdminUpdateData {
   phone?: string;
   email?: string;
   roleId?: string;
+  storeId?: string;
   status?: number;
 }
 
@@ -96,6 +108,7 @@ export interface AdminLoginResult {
   refreshToken: string;
   expiresIn: number;
   admin: Admin;
+  store?: StoreInfo;
 }
 
 // ========== 微信扫码登录 ==========
@@ -332,15 +345,21 @@ export const adminApi = {
   },
 
   createAdmin: (data: AdminCreateData): Promise<Admin> => {
-    // 转换 roleId 为后端期望的 role_id
-    const { roleId, ...rest } = data;
-    return request.post(`${PREFIX}/admins`, { ...rest, role_id: roleId });
+    // 转换 camelCase 为后端期望的 snake_case
+    const { roleId, storeId, ...rest } = data;
+    return request.post(`${PREFIX}/admins`, { 
+      ...rest, 
+      role_id: roleId,
+      store_id: storeId,
+    });
   },
 
   updateAdmin: (id: string, data: AdminUpdateData): Promise<Admin> => {
-    // 转换 roleId 为后端期望的 role_id
-    const { roleId, ...rest } = data;
-    const payload = roleId !== undefined ? { ...rest, role_id: roleId } : rest;
+    // 转换 camelCase 为后端期望的 snake_case
+    const { roleId, storeId, ...rest } = data;
+    const payload: any = { ...rest };
+    if (roleId !== undefined) payload.role_id = roleId;
+    if (storeId !== undefined) payload.store_id = storeId;
     return request.put(`${PREFIX}/admins/${id}`, payload);
   },
 

@@ -75,7 +75,11 @@ class Settings(BaseSettings):
     RSA_PUBLIC_KEY: Optional[str] = None
     
     # CORS
-    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:8002", "http://localhost:8003", "http://localhost:8005"]
+    # 同时支持 localhost 和 127.0.0.1，因为浏览器将它们视为不同的域
+    BACKEND_CORS_ORIGINS: List[str] = [
+        "http://localhost:8002", "http://localhost:8003", "http://localhost:8005",
+        "http://127.0.0.1:8002", "http://127.0.0.1:8003", "http://127.0.0.1:8005"
+    ]
     
     # 限流配置
     RATE_LIMIT_ENABLED: bool = True

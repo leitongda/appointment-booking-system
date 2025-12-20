@@ -38,6 +38,7 @@ class AppointmentService:
         user_id: Optional[str] = None,
         doctor_id: Optional[str] = None,
         patient_id: Optional[str] = None,
+        store_id: Optional[str] = None,
         status: Optional[int] = None,
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
@@ -56,6 +57,10 @@ class AppointmentService:
         if patient_id:
             query = query.where(Appointment.patient_id == patient_id)
             count_query = count_query.where(Appointment.patient_id == patient_id)
+        if store_id:
+            # 通过关联的 Schedule 表的 store_id 进行过滤
+            query = query.join(Schedule).where(Schedule.store_id == store_id)
+            count_query = count_query.join(Schedule).where(Schedule.store_id == store_id)
         if status is not None:
             query = query.where(Appointment.status == status)
             count_query = count_query.where(Appointment.status == status)

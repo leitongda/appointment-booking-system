@@ -80,6 +80,6 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     // 统计分析
     canStatistics: hasPermission('statistics') || hasPermission('statistics:view'),
     // 系统设置
-    canSystem: hasPermission('system') || hasAnyPermission(['system:role', 'system:admin', 'system:settings', 'system:log']),
+    canSystem: hasPermission('system') || hasAnyPermission(['system:role', 'system:user', 'system:settings', 'system:log']),
   };
 }

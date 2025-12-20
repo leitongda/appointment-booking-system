@@ -10,8 +10,10 @@ import { initTracker, getTracker, getToken } from '@hospital/shared';
 initApiConfig();
 
 // 初始化用户行为追踪器
+// apiBaseUrl 使用空字符串，请求路径为 /api/v1/analytics/batch
+// 开发环境会自动走代理（/api -> localhost:8000），避免 CORS 问题
 initTracker({
-  apiBaseUrl: process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8000',
+  apiBaseUrl: '',
   platform: 'h5',
   enabled: true,
   enableInDev: true,

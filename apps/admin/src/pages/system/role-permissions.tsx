@@ -119,7 +119,7 @@ const RolePermissionsPage: React.FC = () => {
       <Card loading={loading}>
         {permissionsTree.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <Spin tip="加载权限列表中..." />
+            <Spin tip="加载权限列表中..."><span /></Spin>
           </div>
         ) : (
           <>

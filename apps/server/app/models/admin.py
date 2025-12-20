@@ -57,12 +57,15 @@ class Admin(Base, TimestampMixin):
     email = Column(String(100), comment="邮箱")
     avatar = Column(String(255), comment="头像")
     role_id = Column(String(36), ForeignKey("roles.id"), comment="角色ID")
+    store_id = Column(String(36), ForeignKey("stores.id"), nullable=True, comment="所属门店ID，超级管理员为空")
     status = Column(Integer, default=1, comment="状态 0禁用 1启用")
     last_login_at = Column(DateTime, comment="最后登录时间")
     last_login_ip = Column(String(50), comment="最后登录IP")
     
     # 关联角色
     role = relationship("Role", back_populates="admins")
+    # 关联门店
+    store = relationship("Store", backref="admins")
 
 
 class OperationLog(Base):

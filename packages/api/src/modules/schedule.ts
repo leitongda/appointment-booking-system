@@ -3,6 +3,7 @@ import type { Schedule, PageResult } from '@hospital/shared';
 
 export interface ScheduleListParams {
   doctorId?: string;
+  storeId?: string;
   startDate?: string;
   endDate?: string;
   status?: number;
@@ -64,7 +65,17 @@ export interface ScheduleStatisticsParams {
 
 export const scheduleApi = {
   getList: (params?: ScheduleListParams): Promise<PageResult<Schedule>> => {
-    return request.get('/schedules', { params });
+    // 转换 camelCase 到 snake_case
+    const queryParams = params ? {
+      doctor_id: params.doctorId,
+      store_id: params.storeId,
+      start_date: params.startDate,
+      end_date: params.endDate,
+      status: params.status,
+      page: params.page,
+      page_size: params.pageSize,
+    } : undefined;
+    return request.get('/schedules', { params: queryParams });
   },
 
   getAvailable: (doctorId: string, days?: number): Promise<AvailableSchedule[]> => {

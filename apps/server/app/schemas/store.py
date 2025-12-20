@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime, time
 
 
@@ -111,39 +111,8 @@ class StoreListResponse(BaseModel):
     created_at: datetime
 
 
-class StoreDepartmentBase(BaseModel):
-    """门店科室关联基础模型"""
-    model_config = ConfigDict(
-        populate_by_name=True,
-        alias_generator=to_camel,
-    )
-    
-    store_id: str = Field(..., description="门店ID")
-    department_id: str = Field(..., description="科室ID")
-    floor: Optional[str] = Field(None, max_length=20, description="楼层")
-    room: Optional[str] = Field(None, max_length=50, description="诊室")
-    status: int = Field(1, ge=0, le=1, description="状态")
-
-
-class StoreDepartmentCreate(StoreDepartmentBase):
-    """创建门店科室关联"""
-    pass
-
-
-class StoreDepartmentUpdate(BaseModel):
-    """更新门店科室关联"""
-    model_config = ConfigDict(
-        populate_by_name=True,
-        alias_generator=to_camel,
-    )
-    
-    floor: Optional[str] = Field(None, max_length=20)
-    room: Optional[str] = Field(None, max_length=50)
-    status: Optional[int] = Field(None, ge=0, le=1)
-
-
-class StoreDepartmentResponse(StoreDepartmentBase):
-    """门店科室关联响应"""
+class StoreInfo(BaseModel):
+    """门店简要信息（用于登录响应等场景）"""
     model_config = ConfigDict(
         from_attributes=True,
         populate_by_name=True,
@@ -152,8 +121,9 @@ class StoreDepartmentResponse(StoreDepartmentBase):
     )
     
     id: str
-    department_name: Optional[str] = None
-    created_at: datetime
+    name: str
+    logo: Optional[str] = None
+    theme_style: Optional[str] = None
 
 
 class StoreQuery(BaseModel):

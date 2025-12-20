@@ -100,7 +100,7 @@ export const AvatarDropdown: React.FC<{ children: React.ReactNode }> = ({ childr
         }}
         onOk={() => form.submit()}
         confirmLoading={passwordLoading}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form
           form={form}

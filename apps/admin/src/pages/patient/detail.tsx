@@ -668,7 +668,7 @@ const PatientDetailPage: React.FC = () => {
           pointForm.resetFields();
         }}
         onOk={() => pointForm.submit()}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={pointForm} layout="vertical" onFinish={handleAdjustPoints}>
           <Form.Item
@@ -696,7 +696,7 @@ const PatientDetailPage: React.FC = () => {
         onOpenChange={setAddMemberModalVisible}
         onFinish={handleAddFamilyMember}
         width={600}
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
       >
         <FamilyMemberFormContent />
       </ModalForm>
@@ -711,7 +711,7 @@ const PatientDetailPage: React.FC = () => {
         }}
         onFinish={handleEditFamilyMember}
         width={600}
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
         initialValues={currentMember ? {
           name: currentMember.name,
           phone: currentMember.phone,

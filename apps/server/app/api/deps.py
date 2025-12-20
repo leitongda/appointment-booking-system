@@ -3,6 +3,8 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+from typing import Optional
 
 from app.db.session import get_db
 from app.core.security import decode_token
@@ -92,7 +94,7 @@ async def get_current_admin(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db)
 ) -> dict:
-    """获取当前管理员"""
+    """获取当前管理员（增强版，包含门店和角色信息）"""
     from app.models.admin import Admin
     
     token = credentials.credentials
@@ -109,13 +111,24 @@ async def get_current_admin(
     
     # 检查是否是管理员 token
     if token_type == "admin" or "admin" in str(payload):
-        # 从 Admin 表获取管理员
-        result = await db.execute(select(Admin).where(Admin.id == admin_id))
+        # 从 Admin 表获取管理员，同时加载关联的角色和门店
+        result = await db.execute(
+            select(Admin)
+            .options(
+                selectinload(Admin.role),
+                selectinload(Admin.store)
+            )
+            .where(Admin.id == admin_id)
+        )
         admin = result.scalar_one_or_none()
         
         if admin:
             if admin.status != 1:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+            
+            # 判断是否是超级管理员
+            role_code = admin.role.code if admin.role else None
+            is_super_admin = role_code == "SUPER_ADMIN"
             
             return {
                 "id": admin.id,
@@ -124,7 +137,14 @@ async def get_current_admin(
                 "phone": admin.phone,
                 "status": admin.status,
                 "role_id": admin.role_id,
+                "role_code": role_code,
+                "role_name": admin.role.name if admin.role else None,
+                "store_id": admin.store_id,
+                "store_name": admin.store.name if admin.store else None,
+                "store_logo": admin.store.logo if admin.store else None,
+                "store_theme": admin.store.theme_style if admin.store else None,
                 "is_admin": True,
+                "is_super_admin": is_super_admin,
             }
     
     # 兼容旧的 User 表管理员
@@ -142,8 +162,42 @@ async def get_current_admin(
         "phone": user.phone,
         "name": user.nickname or "管理员",
         "status": user.status,
+        "role_id": None,
+        "role_code": None,
+        "store_id": None,
+        "store_name": None,
         "is_admin": True,
+        "is_super_admin": True,  # 旧用户默认为超级管理员
     }
+
+
+def get_store_filter(current_admin: dict) -> Optional[str]:
+    """
+    获取门店过滤条件
+    
+    超级管理员返回 None（不过滤，可查看所有门店数据）
+    门店管理员返回其 store_id（只能查看本门店数据）
+    """
+    if current_admin.get("is_super_admin"):
+        return None
+    return current_admin.get("store_id")
+
+
+def check_store_access(current_admin: dict, target_store_id: Optional[str]) -> bool:
+    """
+    检查当前管理员是否有权访问目标门店
+    
+    超级管理员可以访问任何门店
+    门店管理员只能访问自己的门店
+    """
+    if current_admin.get("is_super_admin"):
+        return True
+    
+    admin_store_id = current_admin.get("store_id")
+    if not admin_store_id:
+        return False
+    
+    return admin_store_id == target_store_id
 
 
 async def get_optional_user(
@@ -185,12 +239,22 @@ async def get_current_user_or_admin(
     
     # 优先检查是否是管理员
     if token_type == "admin" or "admin" in str(payload):
-        result = await db.execute(select(Admin).where(Admin.id == user_id))
+        result = await db.execute(
+            select(Admin)
+            .options(
+                selectinload(Admin.role),
+                selectinload(Admin.store)
+            )
+            .where(Admin.id == user_id)
+        )
         admin = result.scalar_one_or_none()
         
         if admin:
             if admin.status != 1:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+            
+            role_code = admin.role.code if admin.role else None
+            is_super_admin = role_code == "SUPER_ADMIN"
             
             return {
                 "id": admin.id,
@@ -199,7 +263,11 @@ async def get_current_user_or_admin(
                 "phone": admin.phone,
                 "status": admin.status,
                 "role_id": admin.role_id,
+                "role_code": role_code,
+                "store_id": admin.store_id,
+                "store_name": admin.store.name if admin.store else None,
                 "is_admin": True,
+                "is_super_admin": is_super_admin,
                 "is_doctor": False,
                 "doctor_id": None,
             }
@@ -226,15 +294,27 @@ async def get_current_user_or_admin(
             "doctor_id": doctor.id if doctor else None,
             "is_doctor": doctor is not None,
             "is_admin": False,
+            "is_super_admin": False,
+            "store_id": None,
         }
     
     # 再次尝试 Admin 表（兼容旧 token）
-    result = await db.execute(select(Admin).where(Admin.id == user_id))
+    result = await db.execute(
+        select(Admin)
+        .options(
+            selectinload(Admin.role),
+            selectinload(Admin.store)
+        )
+        .where(Admin.id == user_id)
+    )
     admin = result.scalar_one_or_none()
     
     if admin:
         if admin.status != 1:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+        
+        role_code = admin.role.code if admin.role else None
+        is_super_admin = role_code == "SUPER_ADMIN"
         
         return {
             "id": admin.id,
@@ -243,7 +323,11 @@ async def get_current_user_or_admin(
             "phone": admin.phone,
             "status": admin.status,
             "role_id": admin.role_id,
+            "role_code": role_code,
+            "store_id": admin.store_id,
+            "store_name": admin.store.name if admin.store else None,
             "is_admin": True,
+            "is_super_admin": is_super_admin,
             "is_doctor": False,
             "doctor_id": None,
         }

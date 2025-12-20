@@ -4,9 +4,10 @@ import {
   BellOutlined,
   ReloadOutlined,
   CheckOutlined,
+  ShopOutlined,
 } from '@ant-design/icons';
 import { history, useModel } from '@umijs/max';
-import { Badge, Tooltip, Popover, List, Empty, Spin, Button, Typography, Space, App } from 'antd';
+import { Badge, Tooltip, Popover, List, Empty, Spin, Button, Typography, Space, App, Avatar, Tag } from 'antd';
 import React, { useState, useEffect, useCallback } from 'react';
 import { messageApi } from '@hospital/api';
 import dayjs from 'dayjs';
@@ -18,6 +19,37 @@ dayjs.extend(relativeTime);
 dayjs.locale('zh-cn');
 
 const { Text } = Typography;
+
+// 门店信息展示组件
+export const StoreInfoDisplay: React.FC = () => {
+  const { initialState } = useModel('@@initialState');
+  const currentStore = initialState?.currentStore;
+
+  // 超级管理员没有门店，不显示
+  if (!currentStore) {
+    return (
+      <Tooltip title="超级管理员 - 可管理所有门店">
+        <div className={styles.storeInfo}>
+          <Tag color="purple" style={{ margin: 0 }}>
+            <ShopOutlined style={{ marginRight: 4 }} />
+            全局管理
+          </Tag>
+        </div>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <div className={styles.storeInfo}>
+      {currentStore.logo ? (
+        <Avatar src={currentStore.logo} size={24} style={{ marginRight: 8 }} />
+      ) : (
+        <ShopOutlined style={{ marginRight: 8, fontSize: 16, color: '#1890ff' }} />
+      )}
+      <span className={styles.storeName}>{currentStore.name}</span>
+    </div>
+  );
+};
 
 // 全屏按钮组件
 export const FullscreenButton: React.FC = () => {
@@ -274,6 +306,7 @@ export const NotificationButton: React.FC = () => {
 export const HeaderActions: React.FC = () => {
   return (
     <Space className={styles.headerActions} size={4}>
+      <StoreInfoDisplay />
       <RefreshButton />
       <NotificationButton />
       <FullscreenButton />

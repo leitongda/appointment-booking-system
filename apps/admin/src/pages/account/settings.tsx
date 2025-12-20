@@ -86,6 +86,7 @@ const AccountSettingsPage: React.FC = () => {
                 label="姓名"
                 width="md"
                 placeholder="请输入姓名"
+                fieldProps={{ autoComplete: 'off' }}
               />
               <ProFormText
                 name="phone"
@@ -95,6 +96,7 @@ const AccountSettingsPage: React.FC = () => {
                 rules={[
                   { pattern: /^1\d{10}$/, message: '手机号格式不正确' },
                 ]}
+                fieldProps={{ autoComplete: 'off' }}
               />
             </ProForm.Group>
             <ProFormText
@@ -105,6 +107,7 @@ const AccountSettingsPage: React.FC = () => {
               rules={[
                 { type: 'email', message: '邮箱格式不正确' },
               ]}
+              fieldProps={{ autoComplete: 'off' }}
             />
           </ProForm>
         </Card>

@@ -1,13 +1,14 @@
-"""初始化权限数据"""
+"""初始化权限数据和内置角色"""
 import asyncio
 import sys
 import os
+import json
 
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.db.session import AsyncSessionLocal
-from app.services.admin_service import PermissionService
+from app.services.admin_service import PermissionService, RoleService
 
 # 权限数据定义
 # type: menu - 菜单权限, button - 按钮/操作权限
@@ -64,6 +65,7 @@ PERMISSIONS = [
     {"code": "patient:list", "name": "查看患者列表", "type": "button", "parent_code": "patient", "sort": 1},
     {"code": "patient:detail", "name": "查看患者详情", "type": "button", "parent_code": "patient", "sort": 2},
     {"code": "patient:update", "name": "编辑患者", "type": "button", "parent_code": "patient", "sort": 3},
+    {"code": "patient:create", "name": "新增患者", "type": "button", "parent_code": "patient", "sort": 4},
     
     # ========== 停诊审核 ==========
     {"code": "leave-request", "name": "停诊审核", "type": "menu", "parent_code": None, "icon": "exception", "sort": 8},
@@ -108,14 +110,48 @@ PERMISSIONS = [
     {"code": "system:role:update", "name": "编辑角色", "type": "button", "parent_code": "system:role", "sort": 2},
     {"code": "system:role:delete", "name": "删除角色", "type": "button", "parent_code": "system:role", "sort": 3},
     {"code": "system:role:permission", "name": "分配权限", "type": "button", "parent_code": "system:role", "sort": 4},
-    {"code": "system:admin", "name": "管理员管理", "type": "button", "parent_code": "system", "sort": 2},
-    {"code": "system:admin:create", "name": "新增管理员", "type": "button", "parent_code": "system:admin", "sort": 1},
-    {"code": "system:admin:update", "name": "编辑管理员", "type": "button", "parent_code": "system:admin", "sort": 2},
-    {"code": "system:admin:delete", "name": "删除管理员", "type": "button", "parent_code": "system:admin", "sort": 3},
-    {"code": "system:admin:reset-password", "name": "重置密码", "type": "button", "parent_code": "system:admin", "sort": 4},
+    # 用户管理（原管理员管理）
+    {"code": "system:user", "name": "用户管理", "type": "button", "parent_code": "system", "sort": 2},
+    {"code": "system:user:create", "name": "新增用户", "type": "button", "parent_code": "system:user", "sort": 1},
+    {"code": "system:user:update", "name": "编辑用户", "type": "button", "parent_code": "system:user", "sort": 2},
+    {"code": "system:user:delete", "name": "删除用户", "type": "button", "parent_code": "system:user", "sort": 3},
+    {"code": "system:user:reset-password", "name": "重置密码", "type": "button", "parent_code": "system:user", "sort": 4},
     {"code": "system:settings", "name": "系统配置", "type": "button", "parent_code": "system", "sort": 3},
     {"code": "system:consultation-fee", "name": "诊费管理", "type": "button", "parent_code": "system", "sort": 4},
     {"code": "system:log", "name": "操作日志", "type": "button", "parent_code": "system", "sort": 5},
+]
+
+# 内置角色定义
+BUILTIN_ROLES = [
+    {
+        "code": "SUPER_ADMIN",
+        "name": "超级管理员",
+        "description": "系统超级管理员，拥有所有权限，可管理所有门店",
+        "permissions": "*",  # 特殊标记，表示全部权限
+    },
+    {
+        "code": "STORE_ADMIN",
+        "name": "门店管理员",
+        "description": "门店管理员，管理本门店数据",
+        "permissions": [
+            "dashboard", "dashboard:view",
+            "store", "store:list", "store:update",  # 只能查看和编辑自己的门店
+            "department", "department:list", "department:create", "department:update", "department:delete",
+            "doctor", "doctor:list", "doctor:detail", "doctor:create", "doctor:update", "doctor:delete", "doctor:booking-setting",
+            "schedule", "schedule:list", "schedule:create", "schedule:update", "schedule:delete", 
+            "schedule:template", "schedule:custom", "schedule:rest-day", "schedule:suspension", "schedule:statistics",
+            "appointment", "appointment:list", "appointment:detail", "appointment:update", "appointment:cancel", "appointment:statistics",
+            "patient", "patient:list", "patient:detail", "patient:update", "patient:create",
+            "leave-request", "leave-request:list", "leave-request:approve",
+            "feedback", "feedback:list", "feedback:reply", "feedback:delete",
+            "message", "message:list", "message:send", "message:delete",
+            "content", "content:news", "content:news:create", "content:news:update", "content:news:delete",
+            "content:notice", "content:notice:create", "content:notice:update", "content:notice:delete",
+            "content:banner", "content:banner:create", "content:banner:update", "content:banner:delete",
+            "statistics", "statistics:view",
+            "system", "system:user", "system:user:create", "system:user:update", "system:user:delete", "system:user:reset-password",
+        ],
+    },
 ]
 
 
@@ -136,6 +172,52 @@ async def init_permissions():
             print(f"{prefix}- [{p.type}] {p.code}: {p.name}")
 
 
-if __name__ == "__main__":
-    asyncio.run(init_permissions())
+async def init_roles():
+    """初始化内置角色"""
+    async with AsyncSessionLocal() as db:
+        role_service = RoleService(db)
+        perm_service = PermissionService(db)
+        
+        print("\n开始初始化内置角色...")
+        
+        # 获取所有权限码（用于超级管理员）
+        all_permissions = await perm_service.get_all()
+        all_perm_codes = [p.code for p in all_permissions]
+        
+        for role_data in BUILTIN_ROLES:
+            existing = await role_service.get_by_code(role_data["code"])
+            
+            if existing:
+                print(f"  角色 {role_data['code']} 已存在，更新权限...")
+                # 更新权限
+                if role_data["permissions"] == "*":
+                    permissions = all_perm_codes
+                else:
+                    permissions = role_data["permissions"]
+                await role_service.update_permissions(existing.id, permissions)
+            else:
+                print(f"  创建角色 {role_data['code']}...")
+                if role_data["permissions"] == "*":
+                    permissions = all_perm_codes
+                else:
+                    permissions = role_data["permissions"]
+                
+                await role_service.create({
+                    "code": role_data["code"],
+                    "name": role_data["name"],
+                    "description": role_data["description"],
+                    "permissions": permissions,
+                    "status": 1,
+                })
+        
+        print("内置角色初始化完成！")
 
+
+async def main():
+    """主函数"""
+    await init_permissions()
+    await init_roles()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

@@ -1,11 +1,13 @@
 import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSwitch, ProFormSelect } from '@ant-design/pro-components';
-import { Card, App, Row, Col, Form } from 'antd';
-import { useEffect, useState } from 'react';
+import type { ProFormInstance } from '@ant-design/pro-components';
+import { Card, App, Row, Col, Form, Spin } from 'antd';
+import { useEffect, useState, useRef } from 'react';
 import { history, useParams } from '@umijs/max';
 import { storeApi } from '@hospital/api';
 import type { Store } from '@hospital/shared';
-import { ProFormRegionSelector } from '@hospital/shared';
 import ImageUpload from '@/components/ImageUpload';
+import MapLocationPicker from '@/components/MapLocationPicker';
+import type { LocationInfo } from '@/components/MapLocationPicker';
 
 // 风格选项
 const THEME_STYLE_OPTIONS = [
@@ -21,6 +23,19 @@ const StoreFormPage: React.FC = () => {
   const isEdit = !!id;
   const [loading, setLoading] = useState(false);
   const [store, setStore] = useState<Store | null>(null);
+  const formRef = useRef<ProFormInstance>();
+
+  // 处理地图选点后的位置变化
+  const handleLocationChange = (location: LocationInfo) => {
+    formRef.current?.setFieldsValue({
+      province: location.province,
+      city: location.city,
+      district: location.district,
+      address: location.address || location.formattedAddress,
+      longitude: location.longitude,
+      latitude: location.latitude,
+    });
+  };
 
   useEffect(() => {
     if (isEdit) {
@@ -43,14 +58,8 @@ const StoreFormPage: React.FC = () => {
 
   const handleSubmit = async (values: any) => {
     try {
-      // 处理地区数据：将region数组转换为province/city/district字段
-      const { region, ...rest } = values;
-      const [province, city, district] = region || [];
       const data = {
-        ...rest,
-        province,
-        city,
-        district,
+        ...values,
         status: values.status ? 1 : 0
       };
 
@@ -69,7 +78,6 @@ const StoreFormPage: React.FC = () => {
 
   const initialValues = store ? {
     ...store,
-    region: [store.province, store.city, store.district].filter(Boolean),
     status: store.status === 1
   } : {
     status: true,
@@ -77,9 +85,33 @@ const StoreFormPage: React.FC = () => {
     themeStyle: '中医-红'
   };
 
+  // 地图初始位置
+  const initialLocation: LocationInfo | undefined = store?.longitude && store?.latitude ? {
+    longitude: store.longitude,
+    latitude: store.latitude,
+    province: store.province,
+    city: store.city,
+    district: store.district,
+    address: store.address,
+  } : undefined;
+
+  // 编辑模式下，等数据加载完再渲染表单（避免 initialValues 警告）
+  if (isEdit && loading) {
+    return (
+      <PageContainer title="编辑门店">
+        <Card>
+          <div style={{ textAlign: 'center', padding: '50px 0' }}>
+            <Spin tip="加载中..."><span /></Spin>
+          </div>
+        </Card>
+      </PageContainer>
+    );
+  }
+
   return (
     <PageContainer title={isEdit ? '编辑门店' : '新增门店'}>
       <ProForm
+        formRef={formRef}
         onFinish={handleSubmit}
         initialValues={initialValues}
         submitter={{
@@ -109,6 +141,7 @@ const StoreFormPage: React.FC = () => {
               label="门店密码"
               width="md"
               placeholder="请输入门店密码"
+              fieldProps={{ autoComplete: 'new-password' }}
             />
           </ProForm.Group>
           <ProForm.Group>
@@ -118,6 +151,7 @@ const StoreFormPage: React.FC = () => {
               width="md"
               placeholder="如：18984332758"
               rules={[{ pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号' }]}
+              fieldProps={{ autoComplete: 'off' }}
             />
             <ProFormText
               name="email"
@@ -125,38 +159,74 @@ const StoreFormPage: React.FC = () => {
               width="md"
               placeholder="如：2544600916@qq.com"
               rules={[{ type: 'email', message: '请输入正确的邮箱地址' }]}
+              fieldProps={{ autoComplete: 'off' }}
             />
           </ProForm.Group>
         </Card>
 
         {/* 地址信息 */}
         <Card title="地址信息" style={{ marginBottom: 16 }} loading={loading}>
-          <ProFormRegionSelector
-            name="region"
-            label="所在地区"
-            width="md"
-            placeholder="请选择省/市/区"
-          />
+          <Form.Item label="地图选点" tooltip="在地图上点击选点或搜索地址，将自动填充下方位置信息">
+            <MapLocationPicker
+              value={initialLocation}
+              onChange={handleLocationChange}
+              height={400}
+              placeholder="搜索地址，如：朴泽堂中医馆"
+            />
+          </Form.Item>
+          
+          <Row gutter={16} style={{ marginTop: 16 }}>
+            <Col span={8}>
+              <ProFormText
+                name="province"
+                label="省份"
+                placeholder="通过地图选点自动填充"
+                fieldProps={{ readOnly: true }}
+              />
+            </Col>
+            <Col span={8}>
+              <ProFormText
+                name="city"
+                label="城市"
+                placeholder="通过地图选点自动填充"
+                fieldProps={{ readOnly: true }}
+              />
+            </Col>
+            <Col span={8}>
+              <ProFormText
+                name="district"
+                label="区/县"
+                placeholder="通过地图选点自动填充"
+                fieldProps={{ readOnly: true }}
+              />
+            </Col>
+          </Row>
+          
           <ProFormTextArea
             name="address"
-            label="门店地址"
-            placeholder="如：贵州省贵阳市观山湖区金阳街道碧海南路与林城路西南侧国电新时代大楼1层7号"
+            label="详细地址"
+            placeholder="通过地图选点自动填充，也可手动修改"
             fieldProps={{ rows: 2 }}
           />
-          <ProForm.Group>
-            <ProFormText
-              name="longitude"
-              label="经度"
-              width="sm"
-              placeholder="如：106.619922"
-            />
-            <ProFormText
-              name="latitude"
-              label="纬度"
-              width="sm"
-              placeholder="如：26.644479"
-            />
-          </ProForm.Group>
+          
+          <Row gutter={16}>
+            <Col span={12}>
+              <ProFormText
+                name="longitude"
+                label="经度"
+                placeholder="通过地图选点自动填充"
+                fieldProps={{ readOnly: true }}
+              />
+            </Col>
+            <Col span={12}>
+              <ProFormText
+                name="latitude"
+                label="纬度"
+                placeholder="通过地图选点自动填充"
+                fieldProps={{ readOnly: true }}
+              />
+            </Col>
+          </Row>
         </Card>
 
         {/* 展示设置 */}

@@ -175,7 +175,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
           确定
         </Button>,
       ]}
-      destroyOnClose
+      destroyOnHidden
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* 剪裁区域 */}

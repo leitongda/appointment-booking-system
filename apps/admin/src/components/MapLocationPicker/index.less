@@ -1,0 +1,106 @@
+.map-location-picker {
+  position: relative;
+  width: 100%;
+
+  .map-search-container {
+    position: relative;
+    margin-bottom: 12px;
+
+    .locate-btn {
+      cursor: pointer;
+      color: #999;
+      transition: color 0.3s;
+
+      &:hover {
+        color: #1890ff;
+      }
+    }
+
+    .search-results {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      background: #fff;
+      border: 1px solid #d9d9d9;
+      border-top: none;
+      border-radius: 0 0 6px 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      max-height: 300px;
+      overflow-y: auto;
+
+      .search-loading {
+        padding: 16px;
+        text-align: center;
+        color: #999;
+
+        span {
+          margin-left: 8px;
+        }
+      }
+
+      .ant-list-item {
+        padding: 8px 12px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+
+        &:hover {
+          background-color: #f5f5f5;
+        }
+
+        .poi-name {
+          font-weight: 500;
+          color: #333;
+        }
+
+        .poi-address {
+          font-size: 12px;
+          display: block;
+          margin-top: 2px;
+        }
+      }
+
+      .ant-empty {
+        padding: 24px 0;
+      }
+    }
+  }
+
+  .map-container {
+    position: relative;
+    width: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #d9d9d9;
+
+    .map-loading {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f5f5f5;
+      z-index: 1;
+    }
+  }
+
+  .location-info {
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: #f6f8fa;
+    border-radius: 6px;
+    border: 1px solid #e8e8e8;
+  }
+}
+
+// 高德地图信息窗口样式调整
+:global {
+  .amap-info-content {
+    padding: 8px 12px;
+  }
+}
+

@@ -1,5 +1,5 @@
 import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormSwitch, ProFormGroup } from '@ant-design/pro-components';
-import { Card, App, Row, Col, Form, Divider } from 'antd';
+import { Card, App, Row, Col, Form, Divider, Spin } from 'antd';
 import { useEffect, useState } from 'react';
 import { history, useParams } from '@umijs/max';
 import { departmentApi, storeApi } from '@hospital/api';
@@ -112,6 +112,19 @@ const DepartmentFormPage: React.FC = () => {
     isFinal: false,
     isRecommended: false,
   };
+
+  // 编辑模式下，等数据加载完再渲染表单（避免 initialValues 警告）
+  if (isEdit && loading) {
+    return (
+      <PageContainer title="编辑科室">
+        <Card>
+          <div style={{ textAlign: 'center', padding: '50px 0' }}>
+            <Spin tip="加载中..."><span /></Spin>
+          </div>
+        </Card>
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer title={isEdit ? '编辑科室' : '新增科室'}>

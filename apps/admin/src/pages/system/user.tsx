@@ -1,17 +1,20 @@
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Avatar } from 'antd';
+import { Button, App, Popconfirm, Space, Avatar, Tag } from 'antd';
 import { useRef } from 'react';
-import { history, useAccess } from '@umijs/max';
-import { adminApi } from '@hospital/api';
+import { history, useAccess, useModel } from '@umijs/max';
+import { adminApi, storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Admin } from '@hospital/api';
 
-const AdminPage: React.FC = () => {
+const UserPage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
   const actionRef = useRef<ActionType>();
+  const { initialState } = useModel('@@initialState');
+  const currentStore = initialState?.currentStore;
+  const isSuperAdmin = !currentStore; // 超级管理员没有关联门店
 
   const handleDelete = async (id: string) => {
     try {
@@ -44,6 +47,33 @@ const AdminPage: React.FC = () => {
     { title: '姓名', dataIndex: 'name', width: 100 },
     { title: '手机号', dataIndex: 'phone', width: 120, search: false },
     { title: '角色', dataIndex: 'roleName', width: 100, search: false },
+    // 超级管理员可以看到门店列
+    ...(isSuperAdmin ? [{
+      title: '所属门店',
+      dataIndex: 'storeName',
+      width: 120,
+      search: false,
+      render: (_: any, record: Admin) => record.storeName || <Tag color="purple">全局</Tag>,
+    } as ProColumns<Admin>] : []),
+    // 超级管理员可以按门店筛选
+    ...(isSuperAdmin ? [{
+      title: '门店',
+      dataIndex: 'storeId',
+      hideInTable: true,
+      valueType: 'select',
+      request: async () => {
+        try {
+          const stores = await storeApi.getAll();
+          return [
+            { label: '全部', value: '' },
+            { label: '全局用户', value: 'null' },
+            ...stores.map((s: any) => ({ label: s.name, value: s.id })),
+          ];
+        } catch {
+          return [];
+        }
+      },
+    } as ProColumns<Admin>] : []),
     {
       title: '状态',
       dataIndex: 'status',
@@ -57,16 +87,16 @@ const AdminPage: React.FC = () => {
       width: 180,
       render: (_, record) => (
         <Space>
-          {access.hasPermission('system:admin:update') && (
-            <a onClick={() => history.push(`/system/admin/${record.id}/edit`)}>编辑</a>
+          {access.hasPermission('system:user:update') && (
+            <a onClick={() => history.push(`/system/user/${record.id}/edit`)}>编辑</a>
           )}
-          {access.hasPermission('system:admin:reset-password') && (
+          {access.hasPermission('system:user:reset-password') && (
             <Popconfirm title="确定重置密码为 123456 吗？" onConfirm={() => handleResetPassword(record.id)}>
               <a>重置密码</a>
             </Popconfirm>
           )}
-          {access.hasPermission('system:admin:delete') && record.roleCode !== 'SUPER_ADMIN' && (
-            <Popconfirm title="确定删除该管理员吗？" onConfirm={() => handleDelete(record.id)}>
+          {access.hasPermission('system:user:delete') && record.roleCode !== 'SUPER_ADMIN' && (
+            <Popconfirm title="确定删除该用户吗？" onConfirm={() => handleDelete(record.id)}>
               <a style={{ color: '#ff4d4f' }}>删除</a>
             </Popconfirm>
           )}
@@ -78,23 +108,31 @@ const AdminPage: React.FC = () => {
   return (
     <PageContainer>
       <ProTable<Admin>
-        headerTitle="管理员列表"
+        headerTitle="用户列表"
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
         request={async (params) => {
-          const { current, pageSize, ...rest } = params;
-          return toProTableResult(await adminApi.getAdmins({ ...rest, page: current, pageSize }));
+          const { current, pageSize, storeId, ...rest } = params;
+          const queryParams: any = { ...rest, page: current, pageSize };
+          // 处理门店筛选
+          if (storeId === 'null') {
+            // 查询全局用户（store_id 为空）
+            queryParams.storeId = '';
+          } else if (storeId) {
+            queryParams.storeId = storeId;
+          }
+          return toProTableResult(await adminApi.getAdmins(queryParams));
         }}
         toolBarRender={() => [
-          access.hasPermission('system:admin:create') && (
+          access.hasPermission('system:user:create') && (
             <Button
               key="add"
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => history.push('/system/admin/create')}
+              onClick={() => history.push('/system/user/create')}
             >
-              新增管理员
+              新增用户
             </Button>
           ),
         ]}
@@ -104,4 +142,5 @@ const AdminPage: React.FC = () => {
   );
 };
 
-export default AdminPage;
+export default UserPage;
+

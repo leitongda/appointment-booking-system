@@ -418,6 +418,7 @@ const SettingsPage: React.FC = () => {
             placeholder="邮箱密码或授权码"
             rules={[{ required: true, message: '请输入SMTP密码' }]}
             extra="部分邮箱需要使用授权码而非登录密码"
+            fieldProps={{ autoComplete: 'new-password' }}
           />
           <ProFormSwitch
             name="smtpSsl"

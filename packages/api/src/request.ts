@@ -1,6 +1,44 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import type { ApiResponse } from '@hospital/shared';
 
+/**
+ * API 业务错误类
+ * 用于区分业务错误码和 HTTP 错误
+ */
+export class ApiError extends Error {
+  /** 业务错误码 */
+  code: number;
+  /** 原始响应数据 */
+  data: any;
+  
+  constructor(code: number, message: string, data?: any) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = code;
+    this.data = data;
+  }
+  
+  /** 是否是未授权错误 (401) */
+  isUnauthorized(): boolean {
+    return this.code === 401;
+  }
+  
+  /** 是否是禁止访问错误 (403) */
+  isForbidden(): boolean {
+    return this.code === 403;
+  }
+  
+  /** 是否是未找到错误 (404) */
+  isNotFound(): boolean {
+    return this.code === 404;
+  }
+  
+  /** 是否是服务器错误 (5xx) */
+  isServerError(): boolean {
+    return this.code >= 500 && this.code < 600;
+  }
+}
+
 // 创建 axios 实例
 const instance: AxiosInstance = axios.create({
   baseURL: '/api/v1',
@@ -31,9 +69,9 @@ instance.interceptors.response.use(
       return data;
     }
     
-    // 业务错误
+    // 业务错误 - 抛出 ApiError 以便各端进行精细化处理
     if (data.code && data.code !== 200) {
-      return Promise.reject(new Error(data.message || '请求失败'));
+      return Promise.reject(new ApiError(data.code, data.message || '请求失败', data.data));
     }
     
     // 分页响应：包含 total 字段，返回 ProTable 直接可用的格式
@@ -60,7 +98,14 @@ instance.interceptors.response.use(
     // FastAPI HTTPException 格式: { detail: "错误信息" }
     // 统一响应格式: { code: 400, message: "error", data: { detail: "实际错误信息" } }
     const responseData = error.response?.data;
+    const status = error.response?.status;
     const message = responseData?.detail || responseData?.data?.detail || responseData?.message || error.message || '网络错误';
+    
+    // 如果有 HTTP 状态码，使用 ApiError 以便统一处理
+    if (status) {
+      return Promise.reject(new ApiError(status, message, responseData?.data));
+    }
+    
     return Promise.reject(new Error(message));
   }
 );

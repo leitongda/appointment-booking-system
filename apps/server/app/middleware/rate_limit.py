@@ -40,6 +40,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if not self.enabled:
             return await call_next(request)
         
+        # OPTIONS 预检请求不限流（CORS preflight）
+        if request.method == "OPTIONS":
+            return await call_next(request)
+        
         # 获取客户端 IP
         client_ip = self._get_client_ip(request)
         

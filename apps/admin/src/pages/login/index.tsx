@@ -51,6 +51,14 @@ const Login: React.FC = () => {
     
     setToken(result.accessToken);
     setStorage(STORAGE_KEYS.REFRESH_TOKEN, result.refreshToken);
+    
+    // 保存门店信息到 localStorage（如果有）
+    if (result.store) {
+      localStorage.setItem('currentStore', JSON.stringify(result.store));
+    } else {
+      localStorage.removeItem('currentStore');
+    }
+    
     message.success('登录成功！');
     
     // 获取上次访问的页面路径

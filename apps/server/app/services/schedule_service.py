@@ -22,6 +22,7 @@ class ScheduleService:
     async def get_list(
         self,
         doctor_id: Optional[str] = None,
+        store_id: Optional[str] = None,
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
         status: Optional[int] = None,
@@ -34,6 +35,9 @@ class ScheduleService:
         if doctor_id:
             query = query.where(Schedule.doctor_id == doctor_id)
             count_query = count_query.where(Schedule.doctor_id == doctor_id)
+        if store_id:
+            query = query.where(Schedule.store_id == store_id)
+            count_query = count_query.where(Schedule.store_id == store_id)
         if start_date:
             query = query.where(Schedule.schedule_date >= start_date)
             count_query = count_query.where(Schedule.schedule_date >= start_date)

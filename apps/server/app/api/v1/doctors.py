@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from app.db.session import get_db
+from app.api.deps import get_current_admin, get_store_filter, check_store_access
 from app.schemas.doctor import DoctorCreate, DoctorUpdate, DoctorResponse, DoctorListResponse
 from app.schemas.response import PageResponse
 from app.services.doctor_service import DoctorService
@@ -138,10 +139,17 @@ async def get_doctors(
     status: Optional[int] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
 ):
     """获取医生列表"""
     service = DoctorService(db)
+    
+    # 门店过滤：门店管理员只能看自己门店的医生
+    store_filter = get_store_filter(current_admin)
+    if store_filter:
+        store_id = store_filter
+    
     doctors, total = await service.get_list(
         name=name, store_id=store_id, department_id=department_id, 
         status=status, page=page, page_size=page_size
@@ -174,7 +182,11 @@ async def get_doctors_by_department(
     return [doctor_to_list_response(d) for d in doctors]
 
 @router.get("/{doctor_id}", response_model=DoctorResponse)
-async def get_doctor(doctor_id: str, db: AsyncSession = Depends(get_db)):
+async def get_doctor(
+    doctor_id: str, 
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
     """获取医生详情"""
     service = DoctorService(db)
     doctor = await service.get_by_id(doctor_id)
@@ -182,11 +194,30 @@ async def get_doctor(doctor_id: str, db: AsyncSession = Depends(get_db)):
     if not doctor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在")
     
+    # 检查门店访问权限
+    if not check_store_access(current_admin, doctor.store_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权访问此医生信息")
+    
     return doctor_to_response(doctor)
 
 @router.post("", response_model=DoctorResponse)
-async def create_doctor(data: DoctorCreate, db: AsyncSession = Depends(get_db)):
+async def create_doctor(
+    data: DoctorCreate, 
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
     """创建医生"""
+    # 检查门店访问权限
+    store_filter = get_store_filter(current_admin)
+    if store_filter:
+        # 门店管理员只能在自己门店创建医生
+        if data.store_id and data.store_id != store_filter:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="只能在本门店创建医生")
+        data.store_id = store_filter
+    
+    if not data.store_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="必须指定所属门店")
+    
     service = DoctorService(db)
     doctor = await service.create(data)
     
@@ -199,21 +230,46 @@ async def create_doctor(data: DoctorCreate, db: AsyncSession = Depends(get_db)):
 async def update_doctor(
     doctor_id: str,
     data: DoctorUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
 ):
     """更新医生"""
     service = DoctorService(db)
-    doctor = await service.update(doctor_id, data)
+    doctor = await service.get_by_id(doctor_id)
     
     if not doctor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在")
     
+    # 检查门店访问权限
+    if not check_store_access(current_admin, doctor.store_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权修改此医生信息")
+    
+    # 门店管理员不能修改医生的门店归属
+    store_filter = get_store_filter(current_admin)
+    if store_filter and data.store_id and data.store_id != store_filter:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权修改医生的门店归属")
+    
+    doctor = await service.update(doctor_id, data)
+    
     return doctor_to_response(doctor)
 
 @router.delete("/{doctor_id}")
-async def delete_doctor(doctor_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_doctor(
+    doctor_id: str, 
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
     """删除医生"""
     service = DoctorService(db)
+    doctor = await service.get_by_id(doctor_id)
+    
+    if not doctor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在")
+    
+    # 检查门店访问权限
+    if not check_store_access(current_admin, doctor.store_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权删除此医生")
+    
     success = await service.delete(doctor_id)
     
     if not success:

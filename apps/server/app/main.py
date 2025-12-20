@@ -92,20 +92,18 @@ def create_app() -> FastAPI:
     
     # ==================== 注册中间件 ====================
     # 注意：中间件的执行顺序是后注册的先执行（洋葱模型）
+    # 所以 CORS 放在最后注册，确保它最先处理请求（尤其是 OPTIONS 预检）
     
-    # 1. 统一响应格式中间件
+    # 1. 统一响应格式中间件（最内层）
     app.add_middleware(UnifiedResponseMiddleware)
     
-    # 2. CORS 中间件
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.BACKEND_CORS_ORIGINS,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # 2. 操作日志中间件（记录管理员的写操作到数据库）
+    app.add_middleware(OperationLogMiddleware)
     
-    # 3. 限流中间件
+    # 3. 请求日志中间件
+    app.add_middleware(RequestLogMiddleware)
+    
+    # 4. 限流中间件
     app.add_middleware(
         RateLimitMiddleware,
         requests_per_minute=settings.RATE_LIMIT_PER_MINUTE,
@@ -113,11 +111,14 @@ def create_app() -> FastAPI:
         enabled=settings.RATE_LIMIT_ENABLED
     )
     
-    # 4. 请求日志中间件
-    app.add_middleware(RequestLogMiddleware)
-    
-    # 5. 操作日志中间件（记录管理员的写操作到数据库）
-    app.add_middleware(OperationLogMiddleware)
+    # 5. CORS 中间件（最外层，最先处理请求，确保 OPTIONS 预检能正确响应）
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.BACKEND_CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     
     # ==================== 注册异常处理器 ====================
     register_exception_handlers(app)

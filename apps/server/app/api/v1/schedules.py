@@ -7,7 +7,7 @@ from calendar import monthrange
 from pydantic import BaseModel, Field
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, get_store_filter, check_store_access
 from app.schemas.schedule import ScheduleCreate, ScheduleBatchCreate, ScheduleUpdate, ScheduleResponse, AvailableScheduleResponse
 from app.schemas.response import PageResponse
 from app.services.schedule_service import ScheduleService
@@ -27,17 +27,24 @@ class SuspendRequest(BaseModel):
 @router.get("", response_model=PageResponse[ScheduleResponse])
 async def get_schedules(
     doctor_id: Optional[str] = None,
+    store_id: Optional[str] = None,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     status: Optional[int] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
 ):
     """获取排班列表"""
+    # 门店过滤
+    store_filter = get_store_filter(current_admin)
+    if store_filter:
+        store_id = store_filter
+    
     service = ScheduleService(db)
     schedules, total = await service.get_list(
-        doctor_id=doctor_id, start_date=start_date, end_date=end_date,
+        doctor_id=doctor_id, store_id=store_id, start_date=start_date, end_date=end_date,
         status=status, page=page, page_size=page_size
     )
     
@@ -83,12 +90,24 @@ class ScheduleStatisticsResponse(BaseModel):
 
 @router.get("/statistics", response_model=ScheduleStatisticsResponse)
 async def get_schedule_statistics(
-    store_id: str = Query(..., description="门店ID"),
+    store_id: Optional[str] = Query(None, description="门店ID"),
     year: int = Query(..., ge=2020, le=2100, description="年份"),
     month: int = Query(..., ge=1, le=12, description="月份"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
 ):
     """获取排班统计（按门店、月份）"""
+    # 门店过滤
+    store_filter = get_store_filter(current_admin)
+    if store_filter:
+        store_id = store_filter
+    elif not store_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="必须指定门店ID")
+    
+    # 检查门店访问权限
+    if not check_store_access(current_admin, store_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权访问此门店数据")
+    
     # 获取门店信息
     store_result = await db.execute(select(Store).where(Store.id == store_id))
     store = store_result.scalar_one_or_none()

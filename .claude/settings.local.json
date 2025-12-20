@@ -7,7 +7,14 @@
       "Bash(npx tsc:*)",
       "Bash(cat:*)",
       "Bash(pnpm install)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(docker-compose ps:*)",
+      "Bash(docker compose ps:*)",
+      "Bash(lsof -i :8000 -i :8002 -i :8003 -i :8005)",
+      "Bash(docker ps:*)",
+      "Bash(pnpm turbo daemon stop:*)",
+      "Bash(npx turbo daemon stop:*)",
+      "Bash(kill:*)"
     ]
   }
 }

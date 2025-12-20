@@ -1,5 +1,5 @@
-// 导出请求配置函数
-export { setBaseURL, setRequestInterceptor, setResponseInterceptor } from './request';
+// 导出请求配置函数和错误类
+export { setBaseURL, setRequestInterceptor, setResponseInterceptor, ApiError } from './request';
 
 // 导出 API 模块
 export { authApi } from './modules/auth';

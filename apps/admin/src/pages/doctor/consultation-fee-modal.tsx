@@ -230,7 +230,7 @@ const DoctorConsultationFeeModal: React.FC<DoctorConsultationFeeModalProps> = ({
       onCancel={onClose}
       footer={null}
       width={800}
-      destroyOnClose
+      destroyOnHidden
     >
       <Spin spinning={loading}>
         <div style={{ marginBottom: 16 }}>

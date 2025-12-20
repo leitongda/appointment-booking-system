@@ -3,8 +3,8 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormSelect, ProFormDatePicker, ProFormDigit } from '@ant-design/pro-components';
 import { Button, App, Space, Tag, Popconfirm } from 'antd';
 import { useRef, useState, useEffect } from 'react';
-import { useAccess } from '@umijs/max';
-import { scheduleApi, doctorApi, departmentApi } from '@hospital/api';
+import { useAccess, useModel } from '@umijs/max';
+import { scheduleApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Schedule, Doctor, Department } from '@hospital/shared';
 
@@ -22,6 +22,10 @@ const ScheduleListPage: React.FC = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [selectedDept, setSelectedDept] = useState<string>();
+  
+  const { initialState } = useModel('@@initialState');
+  const currentStore = initialState?.currentStore;
+  const isSuperAdmin = !currentStore; // 超级管理员没有关联门店
 
   useEffect(() => {
     loadDepartments();
@@ -88,6 +92,24 @@ const ScheduleListPage: React.FC = () => {
   };
 
   const columns: ProColumns<Schedule>[] = [
+    // 超级管理员可以按门店筛选
+    ...(isSuperAdmin ? [{
+      title: '门店',
+      dataIndex: 'storeId',
+      hideInTable: true,
+      valueType: 'select',
+      request: async () => {
+        try {
+          const stores = await storeApi.getAll();
+          return [
+            { label: '全部门店', value: '' },
+            ...stores.map((s: any) => ({ label: s.name, value: s.id })),
+          ];
+        } catch {
+          return [];
+        }
+      },
+    } as ProColumns<Schedule>] : []),
     {
       title: '医生',
       dataIndex: 'doctorName',

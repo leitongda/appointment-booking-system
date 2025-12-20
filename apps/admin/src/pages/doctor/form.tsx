@@ -1,5 +1,5 @@
 import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormSwitch, ProFormRadio } from '@ant-design/pro-components';
-import { Card, App, Row, Col, Form } from 'antd';
+import { Card, App, Row, Col, Form, Spin } from 'antd';
 import { useEffect, useState } from 'react';
 import { history, useParams } from '@umijs/max';
 import { doctorApi, departmentApi, storeApi } from '@hospital/api';
@@ -114,6 +114,19 @@ const DoctorFormPage: React.FC = () => {
     status: true,
   };
 
+  // 编辑模式下，等数据加载完再渲染表单（避免 initialValues 警告）
+  if (isEdit && loading) {
+    return (
+      <PageContainer title="编辑医生">
+        <Card>
+          <div style={{ textAlign: 'center', padding: '50px 0' }}>
+            <Spin tip="加载中..."><span /></Spin>
+          </div>
+        </Card>
+      </PageContainer>
+    );
+  }
+
   return (
     <PageContainer title={isEdit ? '编辑医生' : '新增医生'}>
       <ProForm
@@ -160,6 +173,7 @@ const DoctorFormPage: React.FC = () => {
               width="md"
               placeholder="用于医生端登录"
               rules={[{ required: true, message: '请输入医生账号' }]}
+              fieldProps={{ autoComplete: 'off' }}
             />
             {!isEdit && (
               <ProFormText.Password
@@ -168,6 +182,7 @@ const DoctorFormPage: React.FC = () => {
                 width="md"
                 placeholder="医生端登录密码"
                 rules={[{ required: true, message: '请输入登录密码' }]}
+                fieldProps={{ autoComplete: 'new-password' }}
               />
             )}
           </ProForm.Group>

@@ -52,10 +52,12 @@ class DepartmentService:
         
         return list(result.scalars().all()), count_result.scalar() or 0
     
-    async def get_tree(self, status: Optional[int] = 1) -> List[DepartmentTreeNode]:
+    async def get_tree(self, status: Optional[int] = 1, store_id: Optional[str] = None) -> List[DepartmentTreeNode]:
         query = select(Department).order_by(Department.sort_order)
         if status is not None:
             query = query.where(Department.status == status)
+        if store_id is not None:
+            query = query.where(Department.store_id == store_id)
         
         result = await self.db.execute(query)
         departments = list(result.scalars().all())
@@ -73,13 +75,15 @@ class DepartmentService:
         
         return tree
     
-    async def get_hot(self, limit: int = 8) -> List[Department]:
-        result = await self.db.execute(
-            select(Department)
-            .where(Department.is_hot == 1, Department.status == 1)
-            .order_by(Department.sort_order)
-            .limit(limit)
+    async def get_hot(self, limit: int = 8, store_id: Optional[str] = None) -> List[Department]:
+        query = select(Department).options(selectinload(Department.store)).where(
+            Department.is_hot == 1, Department.status == 1
         )
+        if store_id is not None:
+            query = query.where(Department.store_id == store_id)
+        
+        query = query.order_by(Department.sort_order).limit(limit)
+        result = await self.db.execute(query)
         return list(result.scalars().all())
     
     async def create(self, data: DepartmentCreate) -> Department:

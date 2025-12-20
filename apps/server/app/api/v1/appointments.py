@@ -4,7 +4,7 @@ from typing import Optional
 from datetime import date
 
 from app.db.session import get_db
-from app.api.deps import get_current_user, get_current_user_or_admin
+from app.api.deps import get_current_user, get_current_user_or_admin, get_store_filter
 from app.schemas.appointment import AppointmentCreate, AppointmentResponse, AppointmentCancelRequest, AppointmentStatistics
 from app.schemas.response import PageResponse
 from app.services.appointment_service import AppointmentService
@@ -15,6 +15,7 @@ router = APIRouter()
 async def get_appointments(
     status: Optional[int] = None,
     patient_id: Optional[str] = None,
+    store_id: Optional[str] = None,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     page: int = Query(1, ge=1),
@@ -26,8 +27,16 @@ async def get_appointments(
     service = AppointmentService(db)
     # 管理员可以查看所有预约，普通用户只能查看自己的
     user_id = None if current_user.get("is_admin") else current_user["id"]
+    
+    # 门店过滤（只对管理员生效）
+    if current_user.get("is_admin"):
+        store_filter = get_store_filter(current_user)
+        if store_filter:
+            store_id = store_filter
+    
     appointments, total = await service.get_list(
         user_id=user_id,
+        store_id=store_id,
         status=status,
         patient_id=patient_id,
         start_date=start_date,

@@ -147,11 +147,12 @@ class AdminService:
         role_id: Optional[str] = None,
         status: Optional[int] = None,
         keyword: Optional[str] = None,
+        store_id: Optional[str] = None,
         page: int = 1,
         page_size: int = 10,
     ) -> Tuple[List[Admin], int]:
         """获取管理员列表"""
-        query = select(Admin).options(selectinload(Admin.role))
+        query = select(Admin).options(selectinload(Admin.role), selectinload(Admin.store))
         conditions = []
         
         if role_id:
@@ -164,6 +165,8 @@ class AdminService:
                 Admin.name.ilike(f"%{keyword}%") |
                 Admin.phone.ilike(f"%{keyword}%")
             )
+        if store_id is not None:
+            conditions.append(Admin.store_id == store_id)
         
         if conditions:
             query = query.where(and_(*conditions))
@@ -184,21 +187,27 @@ class AdminService:
     async def get_by_id(self, admin_id: str) -> Optional[Admin]:
         """获取管理员详情"""
         result = await self.db.execute(
-            select(Admin).options(selectinload(Admin.role)).where(Admin.id == admin_id)
+            select(Admin)
+            .options(selectinload(Admin.role), selectinload(Admin.store))
+            .where(Admin.id == admin_id)
         )
         return result.unique().scalar_one_or_none()
 
     async def get_by_username(self, username: str) -> Optional[Admin]:
         """根据用户名获取管理员"""
         result = await self.db.execute(
-            select(Admin).options(selectinload(Admin.role)).where(Admin.username == username)
+            select(Admin)
+            .options(selectinload(Admin.role), selectinload(Admin.store))
+            .where(Admin.username == username)
         )
         return result.unique().scalar_one_or_none()
 
     async def get_by_phone(self, phone: str) -> Optional[Admin]:
         """根据手机号获取管理员"""
         result = await self.db.execute(
-            select(Admin).options(selectinload(Admin.role)).where(Admin.phone == phone)
+            select(Admin)
+            .options(selectinload(Admin.role), selectinload(Admin.store))
+            .where(Admin.phone == phone)
         )
         return result.unique().scalar_one_or_none()
 
@@ -238,6 +247,7 @@ class AdminService:
             email=data.get("email"),
             avatar=data.get("avatar"),
             role_id=data.get("role_id"),
+            store_id=data.get("store_id"),
             status=data.get("status", 1),
         )
         self.db.add(admin)

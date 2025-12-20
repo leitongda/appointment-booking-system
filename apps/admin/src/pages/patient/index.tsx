@@ -169,7 +169,7 @@ const PatientPage: React.FC = () => {
         onOpenChange={setCreateModalVisible}
         onFinish={handleCreate}
         width={600}
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
       >
         <ProForm.Group>
           <ProFormText

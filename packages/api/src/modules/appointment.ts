@@ -5,6 +5,7 @@ export interface AppointmentListParams {
   status?: number;
   patientId?: string;
   doctorId?: string;
+  storeId?: string;
   startDate?: string;
   endDate?: string;
   page?: number;
@@ -50,7 +51,18 @@ export interface QueueInfo {
 
 export const appointmentApi = {
   getList: (params?: AppointmentListParams): Promise<PageResult<Appointment>> => {
-    return request.get('/appointments', { params });
+    // 转换 camelCase 到 snake_case
+    const queryParams = params ? {
+      status: params.status,
+      patient_id: params.patientId,
+      doctor_id: params.doctorId,
+      store_id: params.storeId,
+      start_date: params.startDate,
+      end_date: params.endDate,
+      page: params.page,
+      page_size: params.pageSize,
+    } : undefined;
+    return request.get('/appointments', { params: queryParams });
   },
 
   getToday: (): Promise<Appointment[]> => {

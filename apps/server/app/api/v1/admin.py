@@ -77,6 +77,7 @@ class AdminCreate(BaseModel):
     phone: Optional[str] = Field(None, max_length=20)
     email: Optional[str] = Field(None, max_length=100)
     role_id: Optional[str] = None
+    store_id: Optional[str] = Field(None, description="所属门店ID，门店管理员必填")
     status: int = Field(1, ge=0, le=1)
 
 
@@ -87,7 +88,20 @@ class AdminUpdate(BaseModel):
     phone: Optional[str] = Field(None, max_length=20)
     email: Optional[str] = Field(None, max_length=100)
     role_id: Optional[str] = None
+    store_id: Optional[str] = Field(None, description="所属门店ID")
     status: Optional[int] = Field(None, ge=0, le=1)
+
+
+class StoreInfo(BaseModel):
+    """门店简要信息（用于登录响应）"""
+    id: str
+    name: str
+    logo: Optional[str] = None
+    theme_style: Optional[str] = Field(None, serialization_alias="themeStyle")
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True
 
 
 class AdminResponse(BaseModel):
@@ -100,6 +114,8 @@ class AdminResponse(BaseModel):
     role_id: Optional[str] = Field(None, serialization_alias="roleId")
     role_name: Optional[str] = Field(None, serialization_alias="roleName")
     role_code: Optional[str] = Field(None, serialization_alias="roleCode")
+    store_id: Optional[str] = Field(None, serialization_alias="storeId")
+    store_name: Optional[str] = Field(None, serialization_alias="storeName")
     permissions: Optional[List[str]] = None
     status: int
     last_login_at: Optional[datetime] = Field(None, serialization_alias="lastLoginAt")
@@ -169,6 +185,7 @@ class AdminLoginResponse(BaseModel):
     refresh_token: str = Field(..., serialization_alias="refreshToken")
     expires_in: int = Field(..., serialization_alias="expiresIn")
     admin: AdminResponse
+    store: Optional[StoreInfo] = None  # 门店管理员登录时返回门店信息
 
     class Config:
         populate_by_name = True
@@ -238,6 +255,8 @@ def build_admin_response(admin, permissions: List[str] = None) -> AdminResponse:
         role_id=admin.role_id,
         role_name=admin.role.name if admin.role else None,
         role_code=admin.role.code if admin.role else None,
+        store_id=admin.store_id,
+        store_name=admin.store.name if admin.store else None,
         permissions=role_permissions,
         status=admin.status,
         last_login_at=admin.last_login_at,
@@ -245,6 +264,18 @@ def build_admin_response(admin, permissions: List[str] = None) -> AdminResponse:
         created_at=admin.created_at,
     )
     return response
+
+
+def build_store_info(store) -> Optional[StoreInfo]:
+    """构建门店简要信息"""
+    if not store:
+        return None
+    return StoreInfo(
+        id=store.id,
+        name=store.name,
+        logo=store.logo,
+        theme_style=store.theme_style,
+    )
 
 
 # ========== 管理员登录 ==========
@@ -307,6 +338,7 @@ async def admin_login(
         refresh_token=refresh_token,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         admin=build_admin_response(admin),
+        store=build_store_info(admin.store),
     )
     return response.model_dump(by_alias=True)
 
@@ -427,6 +459,7 @@ async def phone_login(
         refresh_token=refresh_token,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         admin=build_admin_response(admin),
+        store=build_store_info(admin.store),
     )
     return response.model_dump(by_alias=True)
 
@@ -495,6 +528,7 @@ async def sms_login(
         refresh_token=refresh_token,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         admin=build_admin_response(admin),
+        store=build_store_info(admin.store),
     )
     return response.model_dump(by_alias=True)
 
@@ -736,17 +770,27 @@ async def get_admins(
     role_id: Optional[str] = None,
     status: Optional[int] = None,
     keyword: Optional[str] = None,
+    store_id: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
     """获取管理员列表"""
+    from app.api.deps import get_store_filter
+    
     service = AdminService(db)
+    
+    # 门店过滤：门店管理员只能看到本门店的用户
+    store_filter = get_store_filter(current_admin)
+    if store_filter:
+        store_id = store_filter
+    
     items, total = await service.get_list(
         role_id=role_id,
         status=status,
         keyword=keyword,
+        store_id=store_id,
         page=page,
         page_size=page_size,
     )
@@ -779,6 +823,15 @@ async def create_admin(
     current_admin = Depends(get_current_admin),
 ):
     """创建管理员"""
+    from app.api.deps import get_store_filter, check_store_access
+    
+    # 门店管理员只能在自己门店创建用户
+    store_filter = get_store_filter(current_admin)
+    if store_filter:
+        if data.store_id and data.store_id != store_filter:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="只能在本门店创建用户")
+        data.store_id = store_filter
+    
     service = AdminService(db)
     try:
         admin = await service.create(data.model_dump())
@@ -798,13 +851,28 @@ async def update_admin(
     current_admin = Depends(get_current_admin),
 ):
     """更新管理员"""
+    from app.api.deps import get_store_filter, check_store_access
+    
     service = AdminService(db)
+    
+    # 检查权限
+    admin = await service.get_by_id(admin_id)
+    if not admin:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
+    
+    # 门店管理员只能修改本门店用户
+    store_filter = get_store_filter(current_admin)
+    if store_filter:
+        if not check_store_access(current_admin, admin.store_id):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权修改此用户")
+        # 不允许修改用户的门店归属
+        if data.store_id and data.store_id != store_filter:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权修改用户的门店归属")
+    
     try:
         admin = await service.update(admin_id, data.model_dump(exclude_unset=True))
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    if not admin:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在")
     
     # 重新获取完整信息
     admin = await service.get_by_id(admin_id)
