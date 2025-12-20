@@ -118,14 +118,13 @@ class DoctorService:
     
     async def create(self, data: DoctorCreate) -> Doctor:
         user_id = None
-        password_hash = None
         
-        # 如果提供密码，设置密码哈希
-        if data.password:
-            password_hash = get_password_hash(data.password)
+        # 如果未提供密码，使用默认密码
+        password = data.password or "123456"
+        password_hash = get_password_hash(password)
         
-        # 如果提供密码和手机号，创建用户账号
-        if data.password and data.phone:
+        # 如果提供手机号，创建用户账号
+        if data.phone:
             user = User(
                 id=str(uuid.uuid4()),
                 phone=data.phone,

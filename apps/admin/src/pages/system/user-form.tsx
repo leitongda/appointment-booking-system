@@ -71,8 +71,10 @@ const UserFormPage: React.FC = () => {
 
   const handleSubmit = async (values: any) => {
     try {
+      // 排除确认密码字段
+      const { confirmPassword, ...restValues } = values;
       const data = { 
-        ...values, 
+        ...restValues, 
         status: values.status ? 1 : 0,
         // 门店管理员创建的用户自动继承其门店
         storeId: isSuperAdmin ? values.storeId : currentStore?.id,
@@ -131,13 +133,41 @@ const UserFormPage: React.FC = () => {
               fieldProps={{ autoComplete: 'off' }}
             />
             {!isEdit && (
-              <ProFormText.Password
-                name="password"
-                label="密码"
-                width="md"
-                rules={[{ required: true, message: '请输入密码' }]}
-                fieldProps={{ autoComplete: 'new-password' }}
-              />
+              <>
+                <ProFormText.Password
+                  name="password"
+                  label="密码"
+                  width="md"
+                  placeholder="不填则默认为 123456"
+                  extra="不填写则使用默认密码：123456"
+                  fieldProps={{ autoComplete: 'new-password' }}
+                />
+                <ProFormText.Password
+                  name="confirmPassword"
+                  label="确认密码"
+                  width="md"
+                  placeholder="请再次输入密码"
+                  dependencies={['password']}
+                  rules={[
+                    ({ getFieldValue }) => ({
+                      validator(_, value) {
+                        const password = getFieldValue('password');
+                        if (!password && !value) {
+                          return Promise.resolve();
+                        }
+                        if (password && !value) {
+                          return Promise.reject(new Error('请再次输入密码'));
+                        }
+                        if (password !== value) {
+                          return Promise.reject(new Error('两次输入的密码不一致'));
+                        }
+                        return Promise.resolve();
+                      },
+                    }),
+                  ]}
+                  fieldProps={{ autoComplete: 'new-password' }}
+                />
+              </>
             )}
           </ProForm.Group>
         </Card>

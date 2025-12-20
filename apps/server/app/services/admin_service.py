@@ -238,10 +238,13 @@ class AdminService:
         if existing:
             raise ValueError("用户名已存在")
         
+        # 如果未提供密码，使用默认密码
+        password = data.get("password") or "123456"
+        
         admin = Admin(
             id=str(uuid.uuid4()),
             username=data["username"],
-            password_hash=get_password_hash(data["password"]),
+            password_hash=get_password_hash(password),
             name=data.get("name"),
             phone=data.get("phone"),
             email=data.get("email"),

@@ -78,9 +78,14 @@ class StoreService:
             if existing:
                 raise ValueError(f"门店编码 {data.code} 已存在")
         
+        # 准备数据，如果未提供密码则使用默认密码
+        store_data = data.model_dump()
+        if not store_data.get("password"):
+            store_data["password"] = "123456"
+        
         store = Store(
             id=str(uuid.uuid4()),
-            **data.model_dump()
+            **store_data
         )
         self.db.add(store)
         await self.db.commit()
