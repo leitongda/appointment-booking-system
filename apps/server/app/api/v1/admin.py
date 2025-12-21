@@ -83,7 +83,8 @@ class AdminCreate(BaseModel):
     email: Optional[str] = Field(None, max_length=100)
     avatar: Optional[str] = Field(None, max_length=255, description="头像URL")
     role_id: Optional[str] = None
-    store_id: Optional[str] = Field(None, description="所属门店ID，门店管理员必填")
+    store_id: Optional[str] = Field(None, description="当前门店ID（兼容旧版）")
+    store_ids: Optional[List[str]] = Field(None, description="绑定的门店ID列表")
     status: int = Field(1, ge=0, le=1)
 
 
@@ -95,7 +96,8 @@ class AdminUpdate(BaseModel):
     email: Optional[str] = Field(None, max_length=100)
     avatar: Optional[str] = Field(None, max_length=255, description="头像URL")
     role_id: Optional[str] = None
-    store_id: Optional[str] = Field(None, description="所属门店ID")
+    store_id: Optional[str] = Field(None, description="当前门店ID（兼容旧版）")
+    store_ids: Optional[List[str]] = Field(None, description="绑定的门店ID列表")
     status: Optional[int] = Field(None, ge=0, le=1)
 
 
