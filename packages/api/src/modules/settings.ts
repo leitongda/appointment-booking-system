@@ -75,6 +75,19 @@ export interface EmailConfig {
   senderEmail: string;
 }
 
+// 缩略图尺寸配置
+export interface ThumbnailSize {
+  name: string;
+  width: number;
+  height: number;
+}
+
+// 图片处理配置
+export interface ImageConfig {
+  thumbnailSizes: ThumbnailSize[];
+  compressQuality: number;
+}
+
 const PREFIX = '/settings';
 
 export const settingsApi = {
@@ -144,6 +157,15 @@ export const settingsApi = {
 
   updateEmailConfig: (data: Partial<EmailConfig>): Promise<void> => {
     return request.put(`${PREFIX}/email`, data);
+  },
+
+  // ========== 图片处理配置 ==========
+  getImageConfig: (): Promise<ImageConfig> => {
+    return request.get(`${PREFIX}/image`);
+  },
+
+  updateImageConfig: (data: Partial<ImageConfig>): Promise<{ data: ImageConfig }> => {
+    return request.put(`${PREFIX}/image`, data);
   },
 };
 

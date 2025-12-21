@@ -1,6 +1,7 @@
-import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSwitch } from '@ant-design/pro-components';
-import { Card, App, Row, Col } from 'antd';
-import { useEffect, useState } from 'react';
+import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSwitch, FooterToolbar } from '@ant-design/pro-components';
+import type { ProFormInstance } from '@ant-design/pro-components';
+import { Card, App, Button, Space, Spin } from 'antd';
+import { useEffect, useState, useRef } from 'react';
 import { history, useParams } from '@umijs/max';
 import { consultationFeeTypeApi } from '@hospital/api';
 import type { ConsultationFeeType } from '@hospital/shared';
@@ -11,6 +12,7 @@ const ConsultationFeeTypeFormPage: React.FC = () => {
   const isEdit = !!id;
   const [loading, setLoading] = useState(false);
   const [feeType, setFeeType] = useState<ConsultationFeeType | null>(null);
+  const formRef = useRef<ProFormInstance>();
 
   useEffect(() => {
     if (isEdit) {
@@ -24,6 +26,11 @@ const ConsultationFeeTypeFormPage: React.FC = () => {
     try {
       const data = await consultationFeeTypeApi.getDetail(id);
       setFeeType(data);
+      // 异步加载完成后，使用 setFieldsValue 更新表单值
+      formRef.current?.setFieldsValue({
+        ...data,
+        status: data.status === 1,
+      });
     } catch (error: any) {
       message.error('加载诊费类型信息失败');
     } finally {
@@ -61,17 +68,19 @@ const ConsultationFeeTypeFormPage: React.FC = () => {
   return (
     <PageContainer title={isEdit ? '编辑诊费类型' : '新增诊费类型'}>
       <ProForm
+        formRef={formRef}
         onFinish={handleSubmit}
         initialValues={initialValues}
         submitter={{
-          searchConfig: { submitText: isEdit ? '保存' : '创建' },
-          resetButtonProps: { style: { display: 'none' } },
-          render: (_, dom) => (
-            <Row>
-              <Col span={24} style={{ textAlign: 'center' }}>
-                {dom}
-              </Col>
-            </Row>
+          render: (props, dom) => (
+            <FooterToolbar>
+              <Space>
+                <Button onClick={() => history.back()}>取消</Button>
+                <Button type="primary" onClick={() => props.form?.submit()}>
+                  {isEdit ? '保存' : '创建'}
+                </Button>
+              </Space>
+            </FooterToolbar>
           ),
         }}
       >

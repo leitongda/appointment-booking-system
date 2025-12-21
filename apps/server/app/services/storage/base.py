@@ -70,6 +70,26 @@ class BaseStorage(ABC):
         pass
     
     @abstractmethod
+    async def upload_bytes(
+        self,
+        data: bytes,
+        key: str,
+        content_type: str
+    ) -> UploadResult:
+        """
+        上传字节数据（用于上传处理后的图片）
+        
+        Args:
+            data: 字节数据
+            key: 存储键名（完整路径）
+            content_type: 文件MIME类型
+            
+        Returns:
+            UploadResult: 上传结果
+        """
+        pass
+    
+    @abstractmethod
     async def get_url(self, key: str, expires: int = 3600) -> str:
         """
         获取文件访问URL

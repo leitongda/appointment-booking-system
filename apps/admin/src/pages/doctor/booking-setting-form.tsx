@@ -1,6 +1,7 @@
-import { PageContainer, ProForm, ProFormSelect, ProFormDigit, ProFormTimePicker } from '@ant-design/pro-components';
-import { Card, App, Row, Col } from 'antd';
-import { useEffect, useState } from 'react';
+import { PageContainer, ProForm, ProFormSelect, ProFormDigit, ProFormTimePicker, FooterToolbar } from '@ant-design/pro-components';
+import type { ProFormInstance } from '@ant-design/pro-components';
+import { Card, App, Button, Space, Spin } from 'antd';
+import { useEffect, useState, useRef } from 'react';
 import { history, useParams } from '@umijs/max';
 import { doctorBookingSettingApi, storeApi, doctorApi } from '@hospital/api';
 import type { DoctorBookingSetting, Store, Doctor } from '@hospital/shared';
@@ -16,6 +17,7 @@ const DoctorBookingSettingFormPage: React.FC = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [existingDoctorIds, setExistingDoctorIds] = useState<string[]>([]);
   const [selectedStoreId, setSelectedStoreId] = useState<string>();
+  const formRef = useRef<ProFormInstance>();
 
   useEffect(() => {
     loadStores();
@@ -72,6 +74,16 @@ const DoctorBookingSettingFormPage: React.FC = () => {
       if (data.storeId) {
         setSelectedStoreId(data.storeId);
       }
+      // 异步加载完成后，使用 setFieldsValue 更新表单值
+      formRef.current?.setFieldsValue({
+        storeId: data.storeId,
+        doctorId: data.doctorId,
+        bookingStartOffset: data.bookingStartOffset,
+        bookingRangeDays: data.bookingRangeDays,
+        releaseTime: data.releaseTime
+          ? dayjs(data.releaseTime, 'HH:mm')
+          : dayjs('00:00', 'HH:mm'),
+      });
     } catch (error: any) {
       message.error('加载预约设置失败');
     } finally {
@@ -125,17 +137,19 @@ const DoctorBookingSettingFormPage: React.FC = () => {
   return (
     <PageContainer title={isEdit ? '编辑医生预约设置' : '添加医生预约管理'}>
       <ProForm
+        formRef={formRef}
         onFinish={handleSubmit}
         initialValues={initialValues}
         submitter={{
-          searchConfig: { submitText: isEdit ? '保存' : '创建' },
-          resetButtonProps: { style: { display: 'none' } },
-          render: (_, dom) => (
-            <Row>
-              <Col span={24} style={{ textAlign: 'center' }}>
-                {dom}
-              </Col>
-            </Row>
+          render: (props, dom) => (
+            <FooterToolbar>
+              <Space>
+                <Button onClick={() => history.back()}>取消</Button>
+                <Button type="primary" onClick={() => props.form?.submit()}>
+                  {isEdit ? '保存' : '创建'}
+                </Button>
+              </Space>
+            </FooterToolbar>
           ),
         }}
       >

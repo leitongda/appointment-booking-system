@@ -5,9 +5,11 @@ import {
   ProFormTextArea,
   ProFormSelect,
   ProFormSwitch,
+  FooterToolbar,
 } from '@ant-design/pro-components';
-import { Card, App, Row, Col, Form, Spin } from 'antd';
-import { useEffect, useState } from 'react';
+import type { ProFormInstance } from '@ant-design/pro-components';
+import { Card, App, Row, Col, Form, Spin, Button, Space } from 'antd';
+import { useEffect, useState, useRef } from 'react';
 import { history, useParams } from '@umijs/max';
 import { emailTemplateApi, EMAIL_TEMPLATE_TYPE_OPTIONS } from '@hospital/api';
 import type { EmailTemplate } from '@hospital/api';
@@ -19,6 +21,7 @@ const EmailTemplateFormPage: React.FC = () => {
   const isEdit = !!id;
   const [loading, setLoading] = useState(false);
   const [template, setTemplate] = useState<EmailTemplate | null>(null);
+  const formRef = useRef<ProFormInstance>();
 
   useEffect(() => {
     if (isEdit) {
@@ -32,6 +35,11 @@ const EmailTemplateFormPage: React.FC = () => {
     try {
       const data = await emailTemplateApi.getById(id);
       setTemplate(data);
+      // 异步加载完成后，使用 setFieldsValue 更新表单值
+      formRef.current?.setFieldsValue({
+        ...data,
+        status: data.status === 1,
+      });
     } catch (error: any) {
       message.error('加载邮件模板失败');
     } finally {
@@ -78,17 +86,19 @@ const EmailTemplateFormPage: React.FC = () => {
     <PageContainer title={isEdit ? '编辑邮件模板' : '新增邮件模板'}>
       <Spin spinning={loading}>
         <ProForm
+          formRef={formRef}
           onFinish={handleSubmit}
           initialValues={initialValues}
           submitter={{
-            searchConfig: { submitText: isEdit ? '保存' : '创建' },
-            resetButtonProps: { style: { display: 'none' } },
-            render: (_, dom) => (
-              <Row>
-                <Col span={24} style={{ textAlign: 'center' }}>
-                  {dom}
-                </Col>
-              </Row>
+            render: (props, dom) => (
+              <FooterToolbar>
+                <Space>
+                  <Button onClick={() => history.back()}>取消</Button>
+                  <Button type="primary" onClick={() => props.form?.submit()}>
+                    {isEdit ? '保存' : '创建'}
+                  </Button>
+                </Space>
+              </FooterToolbar>
             ),
           }}
         >

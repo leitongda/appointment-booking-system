@@ -195,6 +195,7 @@ export default [
       { path: '/system/email-templates/:id/edit', name: '编辑邮件模板', component: './system/email-template-form', hideInMenu: true },
       { path: '/system/log', name: '操作日志', component: './system/log' },
       { path: '/system/analytics', name: '用户行为分析', component: './system/analytics' },
+      { path: '/system/online-users', name: '在线用户', component: './system/online-users' },
     ],
   },
   // 个人设置（不显示在菜单中）

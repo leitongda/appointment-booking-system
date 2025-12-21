@@ -1,9 +1,11 @@
-import { PageContainer, ProForm, ProFormText, ProFormSelect, ProFormSwitch, ProFormDependency } from '@ant-design/pro-components';
-import { Card, App, Row, Col, Alert } from 'antd';
-import { useEffect, useState } from 'react';
+import { PageContainer, ProForm, ProFormText, ProFormSelect, ProFormSwitch, ProFormDependency, FooterToolbar } from '@ant-design/pro-components';
+import type { ProFormInstance } from '@ant-design/pro-components';
+import { Card, App, Alert, Button, Space, Form } from 'antd';
+import { useEffect, useState, useRef } from 'react';
 import { history, useParams, useModel } from '@umijs/max';
 import { adminApi, storeApi } from '@hospital/api';
 import type { Admin, Role } from '@hospital/api';
+import ImageUpload from '@/components/ImageUpload';
 
 interface Store {
   id: string;
@@ -18,6 +20,7 @@ const UserFormPage: React.FC = () => {
   const [admin, setAdmin] = useState<Admin | null>(null);
   const [roles, setRoles] = useState<Role[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
+  const formRef = useRef<ProFormInstance>();
   
   const { initialState } = useModel('@@initialState');
   const currentStore = initialState?.currentStore;
@@ -62,6 +65,11 @@ const UserFormPage: React.FC = () => {
     try {
       const data = await adminApi.getAdminDetail(id);
       setAdmin(data);
+      // 异步加载完成后，使用 setFieldsValue 更新表单值
+      formRef.current?.setFieldsValue({
+        ...data,
+        status: data.status === 1,
+      });
     } catch (error: any) {
       message.error('加载用户信息失败');
     } finally {
@@ -108,17 +116,19 @@ const UserFormPage: React.FC = () => {
   return (
     <PageContainer title={isEdit ? '编辑用户' : '新增用户'}>
       <ProForm
+        formRef={formRef}
         onFinish={handleSubmit}
         initialValues={initialValues}
         submitter={{
-          searchConfig: { submitText: isEdit ? '保存' : '创建' },
-          resetButtonProps: { style: { display: 'none' } },
-          render: (_, dom) => (
-            <Row>
-              <Col span={24} style={{ textAlign: 'center' }}>
-                {dom}
-              </Col>
-            </Row>
+          render: (props, dom) => (
+            <FooterToolbar>
+              <Space>
+                <Button onClick={() => history.back()}>取消</Button>
+                <Button type="primary" onClick={() => props.form?.submit()}>
+                  {isEdit ? '保存' : '创建'}
+                </Button>
+              </Space>
+            </FooterToolbar>
           ),
         }}
       >
@@ -126,10 +136,12 @@ const UserFormPage: React.FC = () => {
           <ProForm.Group>
             <ProFormText
               name="username"
-              label="用户名"
+              label="账号"
               width="md"
-              rules={[{ required: true, message: '请输入用户名' }]}
+              rules={[{ required: true, message: '请输入账号' }]}
               disabled={isEdit}
+              placeholder="用于登录的唯一标识"
+              extra={isEdit ? '账号创建后不可修改' : '账号用于登录，创建后不可修改'}
               fieldProps={{ autoComplete: 'off' }}
             />
             {!isEdit && (
@@ -173,8 +185,29 @@ const UserFormPage: React.FC = () => {
         </Card>
 
         <Card title="基本信息" style={{ marginBottom: 16 }} loading={loading}>
+          <Form.Item 
+            name="avatar" 
+            label="头像"
+            valuePropName="value"
+          >
+            <ImageUpload
+              aspectRatio="1:1"
+              width={100}
+              height={100}
+              folder="avatars"
+              placeholder="上传头像"
+              allowUrlTransfer={false}
+              showCrop={true}
+            />
+          </Form.Item>
           <ProForm.Group>
-            <ProFormText name="name" label="姓名" width="md" fieldProps={{ autoComplete: 'off' }} />
+            <ProFormText 
+              name="name" 
+              label="用户名" 
+              width="md" 
+              placeholder="用户的显示名称"
+              fieldProps={{ autoComplete: 'off' }} 
+            />
             <ProFormText name="phone" label="手机号" width="md" fieldProps={{ autoComplete: 'off' }} />
           </ProForm.Group>
           <ProFormText name="email" label="邮箱" width="md" fieldProps={{ autoComplete: 'off' }} />

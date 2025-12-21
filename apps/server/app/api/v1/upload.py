@@ -1,10 +1,14 @@
 """文件上传 API"""
+import io
 from fastapi import APIRouter, UploadFile, File, HTTPException, status, Depends, Form
 from pydantic import BaseModel, HttpUrl
-from typing import Optional
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional, Dict
 
 from app.api.deps import get_current_admin
+from app.db.session import get_db
 from app.services.storage import get_storage, UploadResult
+from app.services.image_processor import ImageProcessor, create_image_processor, ProcessedImage
 from app.core.logging import logger
 
 router = APIRouter()
@@ -22,12 +26,22 @@ ALLOWED_IMAGE_TYPES = {
 MAX_FILE_SIZE = 5 * 1024 * 1024
 
 
+class ThumbnailInfo(BaseModel):
+    """缩略图信息"""
+    url: str
+    key: str
+    width: int
+    height: int
+    size: int
+
+
 class UploadResponse(BaseModel):
     """上传响应"""
     url: str
     key: str
     size: int
     content_type: str
+    thumbnails: Optional[Dict[str, ThumbnailInfo]] = None
 
 
 class TransferRequest(BaseModel):
@@ -58,10 +72,23 @@ def validate_image(file: UploadFile) -> None:
             )
 
 
+def _generate_thumbnail_key(original_key: str, size_name: str) -> str:
+    """生成缩略图存储键名"""
+    # 从原始键名中提取路径和文件名
+    # 格式：folder/202501/uuid.ext -> folder/202501/thumb_small_uuid.ext
+    parts = original_key.rsplit('/', 1)
+    if len(parts) == 2:
+        folder_path, filename = parts
+        return f"{folder_path}/thumb_{size_name}_{filename}"
+    return f"thumb_{size_name}_{original_key}"
+
+
 @router.post("", response_model=UploadResponse)
 async def upload_image(
     file: UploadFile = File(...),
     folder: str = Form(default="images"),
+    generate_thumbnails: bool = Form(default=False),
+    db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
     """
@@ -69,8 +96,9 @@ async def upload_image(
     
     - **file**: 图片文件（支持jpg, png, gif, webp, svg）
     - **folder**: 存储文件夹（默认images）
+    - **generate_thumbnails**: 是否生成缩略图（默认false）
     
-    返回图片URL和存储信息
+    返回图片URL和存储信息，如果启用缩略图则返回多尺寸URL
     """
     # 验证图片
     validate_image(file)
@@ -88,21 +116,73 @@ async def upload_image(
     
     try:
         storage = get_storage()
-        result = await storage.upload(
-            file=file.file,
-            filename=file.filename or "image.jpg",
-            content_type=file.content_type or "image/jpeg",
-            folder=folder
-        )
+        content_type = file.content_type or "image/jpeg"
+        filename = file.filename or "image.jpg"
         
-        logger.info(f"Image uploaded: {result.key} by admin {current_admin.get('id')}")
+        # 如果需要生成缩略图
+        if generate_thumbnails and content_type != 'image/svg+xml':
+            # 创建图片处理器
+            processor = await create_image_processor(db)
+            
+            # 处理图片
+            file_io = io.BytesIO(content)
+            original_img, thumbnails = processor.process(file_io, content_type)
+            
+            # 上传原图
+            original_result = await storage.upload(
+                file=io.BytesIO(original_img.data),
+                filename=filename,
+                content_type=content_type,
+                folder=folder
+            )
+            
+            # 上传缩略图
+            thumbnail_infos = {}
+            for thumb in thumbnails:
+                thumb_key = _generate_thumbnail_key(original_result.key, thumb.name)
+                thumb_result = await storage.upload_bytes(
+                    data=thumb.data,
+                    key=thumb_key,
+                    content_type=content_type
+                )
+                thumbnail_infos[thumb.name] = ThumbnailInfo(
+                    url=thumb_result.url,
+                    key=thumb_result.key,
+                    width=thumb.width,
+                    height=thumb.height,
+                    size=thumb.size
+                )
+            
+            logger.info(
+                f"Image uploaded with {len(thumbnails)} thumbnails: "
+                f"{original_result.key} by admin {current_admin.get('id')}"
+            )
+            
+            return UploadResponse(
+                url=original_result.url,
+                key=original_result.key,
+                size=original_result.size,
+                content_type=original_result.content_type,
+                thumbnails=thumbnail_infos
+            )
         
-        return UploadResponse(
-            url=result.url,
-            key=result.key,
-            size=result.size,
-            content_type=result.content_type
-        )
+        else:
+            # 不生成缩略图，直接上传
+            result = await storage.upload(
+                file=file.file,
+                filename=filename,
+                content_type=content_type,
+                folder=folder
+            )
+            
+            logger.info(f"Image uploaded: {result.key} by admin {current_admin.get('id')}")
+            
+            return UploadResponse(
+                url=result.url,
+                key=result.key,
+                size=result.size,
+                content_type=result.content_type
+            )
         
     except Exception as e:
         logger.error(f"Upload failed: {e}")

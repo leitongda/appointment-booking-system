@@ -85,6 +85,14 @@ DEFAULT_SETTINGS = {
         'max_cards_per_user': {'value': '5', 'description': '每用户可建卡数量'},
         'show_on_homepage': {'value': 'false', 'description': '首页是否展示'},
     },
+    # 图片处理配置
+    'image': {
+        'thumbnail_sizes': {
+            'value': '[{"name": "small", "width": 200, "height": 200}, {"name": "medium", "width": 800, "height": 800}]',
+            'description': '缩略图尺寸配置（JSON数组）'
+        },
+        'compress_quality': {'value': '85', 'description': '压缩质量（1-100）'},
+    },
 }
 
 

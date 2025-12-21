@@ -3,12 +3,22 @@
  */
 import { request } from '../request';
 
+/** 缩略图信息 */
+export interface ThumbnailInfo {
+  url: string;
+  key: string;
+  width: number;
+  height: number;
+  size: number;
+}
+
 /** 上传结果 */
 export interface UploadResult {
   url: string;
   key: string;
   size: number;
   content_type: string;
+  thumbnails?: Record<string, ThumbnailInfo>;
 }
 
 /** URL转存请求 */
@@ -17,16 +27,31 @@ export interface TransferRequest {
   folder?: string;
 }
 
+/** 上传选项 */
+export interface UploadOptions {
+  folder?: string;
+  generateThumbnails?: boolean;
+}
+
 export const uploadApi = {
   /**
    * 上传图片
    * @param file 文件
-   * @param folder 存储文件夹
+   * @param options 上传选项
    */
-  upload: async (file: File, folder: string = 'images'): Promise<UploadResult> => {
+  upload: async (file: File, options: UploadOptions | string = 'images'): Promise<UploadResult> => {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('folder', folder);
+    
+    // 兼容旧的字符串参数
+    if (typeof options === 'string') {
+      formData.append('folder', options);
+    } else {
+      formData.append('folder', options.folder || 'images');
+      if (options.generateThumbnails) {
+        formData.append('generate_thumbnails', 'true');
+      }
+    }
     
     return request.post<UploadResult>('/upload', formData, {
       headers: {

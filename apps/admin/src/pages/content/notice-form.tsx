@@ -1,6 +1,7 @@
-import { PageContainer, ProForm, ProFormText, ProFormSelect, ProFormSwitch } from '@ant-design/pro-components';
-import { Card, App, Row, Col, Form } from 'antd';
-import { useEffect, useState } from 'react';
+import { PageContainer, ProForm, ProFormText, ProFormSelect, ProFormSwitch, FooterToolbar } from '@ant-design/pro-components';
+import type { ProFormInstance } from '@ant-design/pro-components';
+import { Card, App, Form, Button, Space, Spin } from 'antd';
+import { useEffect, useState, useRef } from 'react';
 import { history, useParams } from '@umijs/max';
 import { contentApi } from '@hospital/api';
 import type { Notice } from '@hospital/api';
@@ -18,6 +19,7 @@ const NoticeFormPage: React.FC = () => {
   const isEdit = !!id;
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const formRef = useRef<ProFormInstance>();
 
   useEffect(() => {
     if (isEdit) {
@@ -31,6 +33,12 @@ const NoticeFormPage: React.FC = () => {
     try {
       const data = await contentApi.getNoticeDetail(id);
       setNotice(data);
+      // 异步加载完成后，使用 setFieldsValue 更新表单值
+      formRef.current?.setFieldsValue({
+        ...data,
+        isTop: data.isTop === 1,
+        status: data.status === 1,
+      });
     } catch (error: any) {
       message.error('加载公告信息失败');
     } finally {
@@ -67,17 +75,19 @@ const NoticeFormPage: React.FC = () => {
   return (
     <PageContainer title={isEdit ? '编辑公告' : '发布公告'}>
       <ProForm
+        formRef={formRef}
         onFinish={handleSubmit}
         initialValues={initialValues}
         submitter={{
-          searchConfig: { submitText: isEdit ? '保存' : '发布' },
-          resetButtonProps: { style: { display: 'none' } },
-          render: (_, dom) => (
-            <Row>
-              <Col span={24} style={{ textAlign: 'center' }}>
-                {dom}
-              </Col>
-            </Row>
+          render: (props, dom) => (
+            <FooterToolbar>
+              <Space>
+                <Button onClick={() => history.back()}>取消</Button>
+                <Button type="primary" onClick={() => props.form?.submit()}>
+                  {isEdit ? '保存' : '发布'}
+                </Button>
+              </Space>
+            </FooterToolbar>
           ),
         }}
       >

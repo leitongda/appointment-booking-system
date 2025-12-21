@@ -1,5 +1,5 @@
-import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormSwitch, ProFormRadio } from '@ant-design/pro-components';
-import { Card, App, Row, Col, Form, Spin } from 'antd';
+import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormSwitch, ProFormRadio, FooterToolbar } from '@ant-design/pro-components';
+import { Card, App, Form, Spin, Button, Space } from 'antd';
 import { useEffect, useState } from 'react';
 import { history, useParams } from '@umijs/max';
 import { doctorApi, departmentApi, storeApi } from '@hospital/api';
@@ -135,14 +135,15 @@ const DoctorFormPage: React.FC = () => {
         onFinish={handleSubmit}
         initialValues={initialValues}
         submitter={{
-          searchConfig: { submitText: isEdit ? '保存' : '创建' },
-          resetButtonProps: { style: { display: 'none' } },
-          render: (_, dom) => (
-            <Row>
-              <Col span={24} style={{ textAlign: 'center' }}>
-                {dom}
-              </Col>
-            </Row>
+          render: (props, dom) => (
+            <FooterToolbar>
+              <Space>
+                <Button onClick={() => history.back()}>取消</Button>
+                <Button type="primary" onClick={() => props.form?.submit()}>
+                  {isEdit ? '保存' : '创建'}
+                </Button>
+              </Space>
+            </FooterToolbar>
           ),
         }}
       >

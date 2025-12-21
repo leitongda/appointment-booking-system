@@ -43,8 +43,8 @@ const UserPage: React.FC = () => {
       search: false,
       render: (_, record) => <Avatar src={record.avatar} size={36}>{record.name?.charAt(0)}</Avatar>,
     },
-    { title: '用户名', dataIndex: 'username', width: 120 },
-    { title: '姓名', dataIndex: 'name', width: 100 },
+    { title: '账号', dataIndex: 'username', width: 120 },
+    { title: '用户名', dataIndex: 'name', width: 100 },
     { title: '手机号', dataIndex: 'phone', width: 120, search: false },
     { title: '角色', dataIndex: 'roleName', width: 100, search: false },
     // 超级管理员可以看到门店列

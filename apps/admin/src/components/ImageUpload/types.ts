@@ -14,12 +14,22 @@ export const ASPECT_RATIO_MAP: Record<AspectRatioPreset, number | undefined> = {
   'free': undefined,
 };
 
+/** 缩略图信息 */
+export interface ThumbnailInfo {
+  url: string;
+  key: string;
+  width: number;
+  height: number;
+  size: number;
+}
+
 /** 上传结果 */
 export interface UploadResult {
   url: string;
   key: string;
   size: number;
   content_type: string;
+  thumbnails?: Record<string, ThumbnailInfo>;
 }
 
 /** 图片上传组件属性 */
@@ -28,6 +38,8 @@ export interface ImageUploadProps {
   value?: string;
   /** 值变化回调 */
   onChange?: (value: string | undefined) => void;
+  /** 缩略图变化回调（当 generateThumbnails 为 true 时使用） */
+  onThumbnailsChange?: (thumbnails: Record<string, ThumbnailInfo> | undefined) => void;
   /** 剪裁比例 */
   aspectRatio?: AspectRatioPreset;
   /** 是否禁用 */
@@ -46,6 +58,8 @@ export interface ImageUploadProps {
   allowUrlTransfer?: boolean;
   /** 是否显示剪裁按钮 */
   showCrop?: boolean;
+  /** 是否生成缩略图 */
+  generateThumbnails?: boolean;
 }
 
 /** 图片剪裁组件属性 */

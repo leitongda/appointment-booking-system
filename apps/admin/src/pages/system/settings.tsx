@@ -7,14 +7,15 @@ import {
   ProFormTextArea,
   ProFormDateTimePicker,
   ProFormSelect,
+  ProFormList,
   ModalForm,
 } from '@ant-design/pro-components';
-import { Card, App, Tabs, Spin, Table, Switch, Button, Input, Space, Popconfirm, Tag, Select, Form, Typography } from 'antd';
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { Card, App, Tabs, Spin, Table, Switch, Button, Input, Space, Popconfirm, Tag, Select, Form, Typography, Slider, Row, Col } from 'antd';
+import { PlusOutlined, SearchOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useState, useEffect, useRef } from 'react';
 import { useAccess } from '@umijs/max';
 import { settingsApi, blacklistApi, storeApi } from '@hospital/api';
-import type { BookingSettings, HospitalInfo, BookingFieldConfig, PatientCardConfig, BlacklistItem, EmailConfig } from '@hospital/api';
+import type { BookingSettings, HospitalInfo, BookingFieldConfig, PatientCardConfig, BlacklistItem, EmailConfig, ImageConfig, ThumbnailSize } from '@hospital/api';
 
 const { Text } = Typography;
 
@@ -34,6 +35,7 @@ const SettingsPage: React.FC = () => {
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [stores, setStores] = useState<any[]>([]);
   const [emailConfig, setEmailConfig] = useState<EmailConfig | null>(null);
+  const [imageConfig, setImageConfig] = useState<ImageConfig | null>(null);
   const canEdit = access.hasPermission('system:settings');
 
   useEffect(() => {
@@ -44,18 +46,20 @@ const SettingsPage: React.FC = () => {
   const loadSettings = async () => {
     setLoading(true);
     try {
-      const [booking, hospital, fields, cardConfig, email] = await Promise.allSettled([
+      const [booking, hospital, fields, cardConfig, email, image] = await Promise.allSettled([
         settingsApi.getBookingSettings(),
         settingsApi.getHospitalInfo(),
         settingsApi.getBookingFields(),
         settingsApi.getPatientCardConfig(),
         settingsApi.getEmailConfig(),
+        settingsApi.getImageConfig(),
       ]);
       if (booking.status === 'fulfilled') setBookingSettings(booking.value);
       if (hospital.status === 'fulfilled') setHospitalInfo(hospital.value);
       if (fields.status === 'fulfilled') setBookingFields(fields.value);
       if (cardConfig.status === 'fulfilled') setPatientCardConfig(cardConfig.value);
       if (email.status === 'fulfilled') setEmailConfig(email.value);
+      if (image.status === 'fulfilled') setImageConfig(image.value);
     } catch (error) {
       console.error('加载配置失败', error);
     } finally {
@@ -134,6 +138,18 @@ const SettingsPage: React.FC = () => {
   const handleEmailConfigSubmit = async (values: any) => {
     try {
       await settingsApi.updateEmailConfig(values);
+      message.success('保存成功');
+    } catch (error: any) {
+      message.error(error.message || '保存失败');
+    }
+  };
+
+  const handleImageConfigSubmit = async (values: any) => {
+    try {
+      await settingsApi.updateImageConfig({
+        thumbnailSizes: values.thumbnailSizes,
+        compressQuality: values.compressQuality,
+      });
       message.success('保存成功');
     } catch (error: any) {
       message.error(error.message || '保存失败');
@@ -440,6 +456,81 @@ const SettingsPage: React.FC = () => {
               { type: 'email', message: '请输入正确的邮箱格式' },
             ]}
           />
+        </ProForm>
+      ),
+    },
+    {
+      key: 'image',
+      label: '图片处理配置',
+      children: (
+        <ProForm
+          onFinish={handleImageConfigSubmit}
+          initialValues={imageConfig || { thumbnailSizes: [], compressQuality: 85 }}
+          submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
+        >
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            配置图片上传时的缩略图生成规则和压缩质量。上传时可选择是否生成缩略图。
+          </Text>
+          <ProFormDigit
+            name="compressQuality"
+            label="压缩质量"
+            min={1}
+            max={100}
+            fieldProps={{ 
+              precision: 0,
+              addonAfter: '%',
+            }}
+            extra="图片压缩质量，1-100，值越高质量越好但文件越大，推荐 75-90"
+          />
+          <ProFormList
+            name="thumbnailSizes"
+            label="缩略图尺寸配置"
+            creatorButtonProps={{
+              creatorButtonText: '添加尺寸',
+              icon: <PlusOutlined />,
+            }}
+            copyIconProps={false}
+            deleteIconProps={{
+              Icon: DeleteOutlined,
+              tooltipText: '删除',
+            }}
+            itemRender={({ listDom, action }) => (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                {listDom}
+                {action}
+              </div>
+            )}
+          >
+            <Space align="baseline">
+              <ProFormText
+                name="name"
+                placeholder="名称，如 small"
+                rules={[{ required: true, message: '请输入名称' }]}
+                width="sm"
+              />
+              <ProFormDigit
+                name="width"
+                placeholder="宽度"
+                min={1}
+                max={4096}
+                fieldProps={{ precision: 0, addonAfter: 'px' }}
+                rules={[{ required: true, message: '请输入宽度' }]}
+                width="sm"
+              />
+              <ProFormDigit
+                name="height"
+                placeholder="高度"
+                min={1}
+                max={4096}
+                fieldProps={{ precision: 0, addonAfter: 'px' }}
+                rules={[{ required: true, message: '请输入高度' }]}
+                width="sm"
+              />
+            </Space>
+          </ProFormList>
+          <Text type="secondary">
+            提示：缩略图会等比例缩放，保持原图宽高比，不会拉伸变形。宽度和高度表示缩略图的最大尺寸。
+          </Text>
         </ProForm>
       ),
     },

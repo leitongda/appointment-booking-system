@@ -116,6 +116,42 @@ class TencentCOSStorage(BaseStorage):
             logger.error(f"COS delete error: {e}")
             return False
     
+    async def upload_bytes(
+        self,
+        data: bytes,
+        key: str,
+        content_type: str
+    ) -> UploadResult:
+        """上传字节数据到COS"""
+        try:
+            # 创建BytesIO对象
+            file_data = io.BytesIO(data)
+            size = len(data)
+            
+            # 上传到COS
+            self.client.put_object(
+                Bucket=self.bucket,
+                Body=file_data,
+                Key=key,
+                ContentType=content_type,
+            )
+            
+            # 生成访问URL
+            url = self._build_url(key)
+            
+            logger.info(f"Uploaded bytes to COS: {key}")
+            
+            return UploadResult(
+                url=url,
+                key=key,
+                size=size,
+                content_type=content_type
+            )
+            
+        except Exception as e:
+            logger.error(f"COS upload bytes error: {e}")
+            raise Exception(f"文件上传失败: {str(e)}")
+    
     async def get_url(self, key: str, expires: int = 3600) -> str:
         """获取文件访问URL"""
         return self._build_url(key)

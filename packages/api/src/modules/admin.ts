@@ -72,6 +72,7 @@ export interface AdminCreateData {
   name?: string;
   phone?: string;
   email?: string;
+  avatar?: string;
   roleId?: string;
   storeId?: string;
   status?: number;
@@ -83,6 +84,7 @@ export interface AdminUpdateData {
   name?: string;
   phone?: string;
   email?: string;
+  avatar?: string;
   roleId?: string;
   storeId?: string;
   status?: number;
@@ -145,6 +147,62 @@ export interface OperationLog {
 
 export interface PageResult<T> {
   data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+// ========== 在线用户 ==========
+export interface DeviceInfo {
+  browser: string;
+  os: string;
+  deviceType: 'desktop' | 'mobile' | 'tablet';
+}
+
+export interface OnlineUser {
+  adminId: string;
+  username: string;
+  name?: string;
+  roleName?: string;
+  loginTime: string;
+  loginIp: string;
+  userAgent: string;
+  deviceInfo: DeviceInfo;
+  ttl: number;  // Token 剩余有效期（秒）
+}
+
+// ========== 用户状态 ==========
+export interface UserStatus {
+  adminId: string;
+  username: string;
+  name?: string;
+  roleName?: string;
+  status: 'online' | 'offline';
+  // 在线时显示
+  loginTime?: string;
+  loginIp?: string;
+  deviceInfo?: DeviceInfo;
+  ttl?: number;
+  // 离线时显示
+  lastLoginAt?: string;
+  lastLoginIp?: string;
+}
+
+// ========== 登录历史 ==========
+export interface LoginHistory {
+  id: string;
+  loginTime: string;
+  logoutTime?: string;
+  logoutType?: 'manual' | 'timeout' | 'kicked';
+  loginIp?: string;
+  browser?: string;
+  os?: string;
+  deviceType?: 'desktop' | 'mobile' | 'tablet';
+  duration?: number;  // 在线时长（秒）
+}
+
+export interface LoginHistoryResult {
+  list: LoginHistory[];
   total: number;
   page: number;
   pageSize: number;
@@ -394,6 +452,33 @@ export const adminApi = {
   // 获取所有权限（平铺列表）
   getAllPermissions: (): Promise<Permission[]> => {
     return request.get(`${PREFIX}/permissions/all`);
+  },
+
+  // ========== 在线用户管理 ==========
+  // 获取在线用户列表
+  getOnlineUsers: (): Promise<OnlineUser[]> => {
+    return request.get(`${PREFIX}/online-users`);
+  },
+
+  // 强制用户下线
+  kickUser: (adminId: string): Promise<{ message: string }> => {
+    return request.post(`${PREFIX}/online-users/${adminId}/kick`);
+  },
+
+  // 退出登录
+  logout: (): Promise<{ message: string }> => {
+    return request.post(`${PREFIX}/logout`);
+  },
+
+  // ========== 用户状态管理 ==========
+  // 获取所有用户状态列表（在线+离线）
+  getUserStatus: (): Promise<UserStatus[]> => {
+    return request.get(`${PREFIX}/user-status`);
+  },
+
+  // 获取指定用户的登录历史
+  getLoginHistory: (adminId: string, params?: { page?: number; pageSize?: number }): Promise<LoginHistoryResult> => {
+    return request.get(`${PREFIX}/login-history/${adminId}`, { params });
   },
 };
 

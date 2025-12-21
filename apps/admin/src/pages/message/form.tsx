@@ -1,5 +1,5 @@
-import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormSelect } from '@ant-design/pro-components';
-import { Card, App, Row, Col } from 'antd';
+import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormSelect, FooterToolbar } from '@ant-design/pro-components';
+import { Card, App, Button, Space } from 'antd';
 import { history } from '@umijs/max';
 import { messageApi } from '@hospital/api';
 
@@ -35,14 +35,15 @@ const MessageFormPage: React.FC = () => {
         onFinish={handleSubmit}
         initialValues={{ userType: 'patient', messageType: 'system' }}
         submitter={{
-          searchConfig: { submitText: '发送' },
-          resetButtonProps: { style: { display: 'none' } },
-          render: (_, dom) => (
-            <Row>
-              <Col span={24} style={{ textAlign: 'center' }}>
-                {dom}
-              </Col>
-            </Row>
+          render: (props, dom) => (
+            <FooterToolbar>
+              <Space>
+                <Button onClick={() => history.back()}>取消</Button>
+                <Button type="primary" onClick={() => props.form?.submit()}>
+                  发送
+                </Button>
+              </Space>
+            </FooterToolbar>
           ),
         }}
       >

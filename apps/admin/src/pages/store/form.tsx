@@ -1,6 +1,6 @@
-import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSwitch, ProFormSelect } from '@ant-design/pro-components';
+import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSwitch, ProFormSelect, FooterToolbar } from '@ant-design/pro-components';
 import type { ProFormInstance } from '@ant-design/pro-components';
-import { Card, App, Row, Col, Form, Spin } from 'antd';
+import { Card, App, Row, Col, Form, Spin, Button, Space } from 'antd';
 import { useEffect, useState, useRef } from 'react';
 import { history, useParams } from '@umijs/max';
 import { storeApi } from '@hospital/api';
@@ -117,14 +117,15 @@ const StoreFormPage: React.FC = () => {
         onFinish={handleSubmit}
         initialValues={initialValues}
         submitter={{
-          searchConfig: { submitText: isEdit ? '保存' : '创建' },
-          resetButtonProps: { style: { display: 'none' } },
-          render: (_, dom) => (
-            <Row>
-              <Col span={24} style={{ textAlign: 'center' }}>
-                {dom}
-              </Col>
-            </Row>
+          render: (props, dom) => (
+            <FooterToolbar>
+              <Space>
+                <Button onClick={() => history.back()}>取消</Button>
+                <Button type="primary" onClick={() => props.form?.submit()}>
+                  {isEdit ? '保存' : '创建'}
+                </Button>
+              </Space>
+            </FooterToolbar>
           ),
         }}
       >
@@ -136,7 +137,7 @@ const StoreFormPage: React.FC = () => {
               label="门店名称"
               width="md"
               rules={[{ required: true, message: '请输入门店名称' }]}
-              placeholder="如：朴泽堂中医馆"
+              placeholder="如：xxx医馆"
             />
             <ProFormText.Password
               name="password"
@@ -179,7 +180,7 @@ const StoreFormPage: React.FC = () => {
               name="phone"
               label="联系方式"
               width="md"
-              placeholder="如：18984332758"
+              placeholder="如：138xxxx8888"
               rules={[{ pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号' }]}
               fieldProps={{ autoComplete: 'off' }}
             />
@@ -187,7 +188,7 @@ const StoreFormPage: React.FC = () => {
               name="email"
               label="邮箱"
               width="md"
-              placeholder="如：2544600916@qq.com"
+              placeholder="如：example@qq.com"
               rules={[{ type: 'email', message: '请输入正确的邮箱地址' }]}
               fieldProps={{ autoComplete: 'off' }}
             />
@@ -201,7 +202,7 @@ const StoreFormPage: React.FC = () => {
               value={initialLocation}
               onChange={handleLocationChange}
               height={400}
-              placeholder="搜索地址，如：朴泽堂中医馆"
+              placeholder="搜索地址，如：xxx中医馆"
             />
           </Form.Item>
           

@@ -61,7 +61,7 @@ export type {
 } from './modules/statistics';
 
 // Admin types
-export type { Admin, Role, Permission, AdminLoginParams, AdminLoginResult } from './modules/admin';
+export type { Admin, Role, Permission, AdminLoginParams, AdminLoginResult, OnlineUser, DeviceInfo, UserStatus, LoginHistory, LoginHistoryResult } from './modules/admin';
 
 // Content types
 export type { Banner, News, Notice } from './modules/content';
@@ -96,6 +96,8 @@ export type {
   BookingFieldConfig,
   PatientCardConfig,
   EmailConfig,
+  ThumbnailSize,
+  ImageConfig,
 } from './modules/settings';
 
 // Blacklist types
@@ -161,7 +163,7 @@ export type {
 } from './modules/schedule';
 
 // Upload types
-export type { UploadResult, TransferRequest } from './modules/upload';
+export type { UploadResult, TransferRequest, ThumbnailInfo, UploadOptions } from './modules/upload';
 
 // Email Template types
 export type {

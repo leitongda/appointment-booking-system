@@ -1,6 +1,25 @@
 import request from '../request';
 import type { Doctor, PageResult } from '@hospital/shared';
 
+/**
+ * 将 camelCase 字符串转换为 snake_case
+ */
+const toSnakeCase = (str: string): string => {
+  return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+};
+
+/**
+ * 将对象的所有键从 camelCase 转换为 snake_case
+ */
+const toSnakeCaseKeys = (obj: Record<string, any>): Record<string, any> => {
+  const result: Record<string, any> = {};
+  for (const key of Object.keys(obj)) {
+    const snakeKey = toSnakeCase(key);
+    result[snakeKey] = obj[key];
+  }
+  return result;
+};
+
 export interface DoctorListParams {
   name?: string;
   storeId?: string;
@@ -89,11 +108,20 @@ export const doctorApi = {
   },
 
   create: (data: DoctorCreateData): Promise<Doctor> => {
-    return request.post('/doctors', data);
+    // 自动将所有 camelCase 键转换为 snake_case
+    const payload = toSnakeCaseKeys(data as Record<string, any>);
+    return request.post('/doctors', payload);
   },
 
   update: (id: string, data: Partial<DoctorCreateData>): Promise<Doctor> => {
-    return request.put(`/doctors/${id}`, data);
+    // 自动将所有 camelCase 键转换为 snake_case，只保留有值的字段
+    const payload: Record<string, any> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) {
+        payload[toSnakeCase(key)] = value;
+      }
+    }
+    return request.put(`/doctors/${id}`, payload);
   },
 
   delete: (id: string): Promise<void> => {

@@ -15,6 +15,17 @@ role_permissions = Table(
 )
 
 
+# 管理员-门店关联表（多对多）
+admin_stores = Table(
+    'admin_stores',
+    Base.metadata,
+    Column('admin_id', String(36), ForeignKey('admins.id', ondelete='CASCADE'), primary_key=True, comment='管理员ID'),
+    Column('store_id', String(36), ForeignKey('stores.id', ondelete='CASCADE'), primary_key=True, comment='门店ID'),
+    Column('is_manager', Integer, default=0, comment='是否为该门店管理员: 0否 1是'),
+    Column('created_at', DateTime, default=datetime.utcnow, comment='创建时间'),
+)
+
+
 class Permission(Base, TimestampMixin):
     """权限表"""
     __tablename__ = "permissions"
@@ -57,15 +68,18 @@ class Admin(Base, TimestampMixin):
     email = Column(String(100), comment="邮箱")
     avatar = Column(String(255), comment="头像")
     role_id = Column(String(36), ForeignKey("roles.id"), comment="角色ID")
-    store_id = Column(String(36), ForeignKey("stores.id"), nullable=True, comment="所属门店ID，超级管理员为空")
+    # 当前选中的门店（用于门店切换功能）
+    current_store_id = Column(String(36), ForeignKey("stores.id"), nullable=True, comment="当前选中门店ID，超级管理员可为空")
     status = Column(Integer, default=1, comment="状态 0禁用 1启用")
     last_login_at = Column(DateTime, comment="最后登录时间")
     last_login_ip = Column(String(50), comment="最后登录IP")
     
     # 关联角色
     role = relationship("Role", back_populates="admins")
-    # 关联门店
-    store = relationship("Store", backref="admins")
+    # 当前选中门店（单个）
+    current_store = relationship("Store", foreign_keys=[current_store_id], backref="current_admins")
+    # 绑定的所有门店（多对多）
+    stores = relationship("Store", secondary=admin_stores, backref="admin_members")
 
 
 class OperationLog(Base):
@@ -85,4 +99,24 @@ class OperationLog(Base):
     user_agent = Column(String(255), comment="User-Agent")
     duration = Column(Integer, comment="耗时(毫秒)")
     created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
+
+
+class AdminLoginHistory(Base):
+    """管理员登录历史表"""
+    __tablename__ = "admin_login_history"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    admin_id = Column(String(36), ForeignKey("admins.id"), nullable=False, comment="管理员ID")
+    login_time = Column(DateTime, nullable=False, default=datetime.utcnow, comment="登录时间")
+    logout_time = Column(DateTime, nullable=True, comment="退出时间")
+    logout_type = Column(String(20), nullable=True, comment="退出类型: manual/timeout/kicked")
+    login_ip = Column(String(50), comment="登录IP")
+    user_agent = Column(String(500), comment="User-Agent字符串")
+    browser = Column(String(50), comment="浏览器")
+    os = Column(String(50), comment="操作系统")
+    device_type = Column(String(20), comment="设备类型: desktop/mobile/tablet")
+    duration = Column(Integer, nullable=True, comment="在线时长（秒）")
+    
+    # 关联管理员
+    admin = relationship("Admin", backref="login_history")
 

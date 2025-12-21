@@ -21,6 +21,13 @@ export const AvatarDropdown: React.FC<{ children: React.ReactNode }> = ({ childr
   const [form] = Form.useForm();
 
   const handleLogout = async () => {
+    try {
+      // 调用后端接口清除会话
+      await adminApi.logout();
+    } catch (error) {
+      // 即使失败也继续清除本地状态
+      console.error('退出登录请求失败:', error);
+    }
     removeToken();
     setInitialState((s) => ({ ...s, currentUser: undefined }));
     history.push('/login');

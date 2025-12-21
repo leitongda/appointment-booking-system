@@ -71,6 +71,8 @@ class RedisCache:
     PREFIX_WECHAT_LOCK = "wechat:lock:"    # 微信 Token 刷新锁
     PREFIX_SCAN_LOGIN = "scan:login:"      # 扫码登录
     PREFIX_USER_SESSION = "session:"       # 用户会话
+    PREFIX_ADMIN_SESSION = "session:admin:"  # 管理员会话
+    PREFIX_TOKEN_BLACKLIST = "token:blacklist:"  # Token 黑名单
     PREFIX_CACHE = "cache:"                # 通用缓存
     PREFIX_LOCK = "lock:"                  # 分布式锁
     
@@ -302,6 +304,103 @@ class RedisCache:
         key = f"{cls.PREFIX_SCAN_LOGIN}{scan_id}"
         return await cls.delete(key)
     
+    # ==================== 管理员会话管理 ====================
+    
+    @classmethod
+    async def set_admin_session(
+        cls,
+        admin_id: str,
+        session_data: dict,
+        expire: int = None
+    ) -> bool:
+        """
+        存储管理员会话信息
+        
+        Args:
+            admin_id: 管理员 ID
+            session_data: 会话数据，包含:
+                - admin_id: 管理员 ID
+                - username: 用户名
+                - name: 姓名
+                - role_name: 角色名称
+                - login_time: 登录时间 (ISO 格式)
+                - login_ip: 登录 IP
+                - user_agent: User-Agent 字符串
+                - token_hash: Token 的 hash 值
+                - expires_at: Token 过期时间 (ISO 格式)
+                - device_info: 设备信息 dict
+            expire: 过期时间（秒），默认与 Token 有效期一致
+        """
+        key = f"{cls.PREFIX_ADMIN_SESSION}{admin_id}"
+        return await cls.set(key, session_data, expire)
+    
+    @classmethod
+    async def get_admin_session(cls, admin_id: str) -> Optional[dict]:
+        """获取单个管理员会话信息"""
+        key = f"{cls.PREFIX_ADMIN_SESSION}{admin_id}"
+        return await cls.get(key)
+    
+    @classmethod
+    async def get_all_admin_sessions(cls) -> list[dict]:
+        """
+        获取所有在线管理员会话
+        
+        Returns:
+            所有在线会话列表，每个元素包含会话数据和剩余 TTL
+        """
+        try:
+            client = await get_redis()
+            # 使用 SCAN 命令获取所有管理员会话键
+            pattern = f"{cls.PREFIX_ADMIN_SESSION}*"
+            sessions = []
+            
+            cursor = 0
+            while True:
+                cursor, keys = await client.scan(cursor, match=pattern, count=100)
+                for key in keys:
+                    session_data = await cls.get(key)
+                    if session_data:
+                        # 获取剩余 TTL
+                        ttl = await cls.ttl(key)
+                        session_data["ttl"] = ttl if ttl > 0 else 0
+                        sessions.append(session_data)
+                
+                if cursor == 0:
+                    break
+            
+            return sessions
+        except Exception as e:
+            logger.error(f"获取所有管理员会话失败: {e}")
+            return []
+    
+    @classmethod
+    async def delete_admin_session(cls, admin_id: str) -> bool:
+        """删除管理员会话"""
+        key = f"{cls.PREFIX_ADMIN_SESSION}{admin_id}"
+        return await cls.delete(key)
+    
+    # ==================== Token 黑名单 ====================
+    
+    @classmethod
+    async def add_token_to_blacklist(cls, token_hash: str, expire: int) -> bool:
+        """
+        将 Token 加入黑名单
+        
+        Args:
+            token_hash: Token 的 hash 值
+            expire: 过期时间（秒），应与 Token 剩余有效期一致
+        """
+        if expire <= 0:
+            return True  # Token 已过期，无需加入黑名单
+        key = f"{cls.PREFIX_TOKEN_BLACKLIST}{token_hash}"
+        return await cls.set(key, "1", expire)
+    
+    @classmethod
+    async def is_token_blacklisted(cls, token_hash: str) -> bool:
+        """检查 Token 是否在黑名单中"""
+        key = f"{cls.PREFIX_TOKEN_BLACKLIST}{token_hash}"
+        return await cls.exists(key)
+    
     # ==================== 分布式锁（异步）====================
     
     @classmethod
@@ -531,4 +630,55 @@ class SyncRedisCache:
 # 快捷方法
 cache = RedisCache()
 sync_cache = SyncRedisCache()
+
+
+# ==================== User-Agent 解析辅助函数 ====================
+
+def parse_user_agent(user_agent_string: str) -> dict:
+    """
+    解析 User-Agent 字符串，提取设备信息
+    
+    Args:
+        user_agent_string: User-Agent 字符串
+        
+    Returns:
+        设备信息字典:
+        - browser: 浏览器名称和版本
+        - os: 操作系统名称和版本
+        - device_type: 设备类型 (desktop/mobile/tablet)
+    """
+    try:
+        from user_agents import parse
+        ua = parse(user_agent_string)
+        
+        # 获取浏览器信息
+        browser = ua.browser.family
+        if ua.browser.version_string:
+            browser = f"{browser} {ua.browser.version_string}"
+        
+        # 获取操作系统信息
+        os_info = ua.os.family
+        if ua.os.version_string:
+            os_info = f"{os_info} {ua.os.version_string}"
+        
+        # 判断设备类型
+        if ua.is_mobile:
+            device_type = "mobile"
+        elif ua.is_tablet:
+            device_type = "tablet"
+        else:
+            device_type = "desktop"
+        
+        return {
+            "browser": browser,
+            "os": os_info,
+            "device_type": device_type,
+        }
+    except Exception as e:
+        logger.warning(f"解析 User-Agent 失败: {e}")
+        return {
+            "browser": "Unknown",
+            "os": "Unknown",
+            "device_type": "desktop",
+        }
 

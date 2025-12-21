@@ -118,9 +118,17 @@ def _get_action_name(method: str, path: str) -> str:
     return base_action
 
 
-def _sanitize_params(params: dict) -> dict:
+def _sanitize_params(params):
     """脱敏请求参数"""
     if not params:
+        return params
+    
+    # 如果参数是列表，直接返回（或递归处理列表中的字典）
+    if isinstance(params, list):
+        return [_sanitize_params(item) if isinstance(item, dict) else item for item in params]
+    
+    # 如果不是字典，直接返回
+    if not isinstance(params, dict):
         return params
     
     sanitized = {}

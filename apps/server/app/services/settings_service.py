@@ -267,6 +267,38 @@ class SettingsService:
         
         return await self.get_patient_card_config()
 
+    async def get_image_config(self) -> Dict[str, Any]:
+        """获取图片处理配置"""
+        data = await self.get_by_category('image')
+        
+        # 解析缩略图尺寸
+        thumbnail_sizes = data.get('thumbnail_sizes', [])
+        if isinstance(thumbnail_sizes, str):
+            try:
+                thumbnail_sizes = json.loads(thumbnail_sizes)
+            except json.JSONDecodeError:
+                thumbnail_sizes = []
+        
+        return {
+            'thumbnailSizes': thumbnail_sizes,
+            'compressQuality': data.get('compress_quality', 85),
+        }
+
+    async def update_image_config(
+        self,
+        thumbnail_sizes: list = None,
+        compress_quality: int = None,
+    ) -> Dict[str, Any]:
+        """更新图片处理配置"""
+        if thumbnail_sizes is not None:
+            await self.set_value('image', 'thumbnail_sizes', thumbnail_sizes, '缩略图尺寸配置')
+        if compress_quality is not None:
+            # 确保质量在有效范围内
+            compress_quality = max(1, min(100, compress_quality))
+            await self.set_value('image', 'compress_quality', compress_quality, '压缩质量')
+        
+        return await self.get_image_config()
+
     def _parse_value(self, value: str) -> Any:
         """解析值"""
         if value is None:

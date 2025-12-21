@@ -9,6 +9,10 @@ export default {
       changeOrigin: true,
       pathRewrite: { '^/api': '/api' },
     },
+    '/uploads': {
+      target: 'http://localhost:8000',
+      changeOrigin: true,
+    },
   },
   test: {
     '/api': {
@@ -16,12 +20,20 @@ export default {
       changeOrigin: true,
       pathRewrite: { '^/api': '/api' },
     },
+    '/uploads': {
+      target: 'http://localhost:8000',
+      changeOrigin: true,
+    },
   },
   pre: {
     '/api': {
       target: 'http://localhost:8000',
       changeOrigin: true,
       pathRewrite: { '^/api': '/api' },
+    },
+    '/uploads': {
+      target: 'http://localhost:8000',
+      changeOrigin: true,
     },
   },
 };

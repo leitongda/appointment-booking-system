@@ -1,5 +1,5 @@
-import { PageContainer, ProForm, ProFormSelect, ProFormText, ProFormDateRangePicker } from '@ant-design/pro-components';
-import { Card, App, Row, Col, Alert } from 'antd';
+import { PageContainer, ProForm, ProFormSelect, ProFormText, ProFormDateRangePicker, FooterToolbar } from '@ant-design/pro-components';
+import { Card, App, Alert, Button, Space } from 'antd';
 import { useEffect, useState } from 'react';
 import { history } from '@umijs/max';
 import { restDayApi, storeApi, doctorApi } from '@hospital/api';
@@ -67,14 +67,15 @@ const RestDayFormPage: React.FC = () => {
       <ProForm
         onFinish={handleSubmit}
         submitter={{
-          searchConfig: { submitText: '创建' },
-          resetButtonProps: { style: { display: 'none' } },
-          render: (_, dom) => (
-            <Row>
-              <Col span={24} style={{ textAlign: 'center' }}>
-                {dom}
-              </Col>
-            </Row>
+          render: (props, dom) => (
+            <FooterToolbar>
+              <Space>
+                <Button onClick={() => history.back()}>取消</Button>
+                <Button type="primary" onClick={() => props.form?.submit()}>
+                  创建
+                </Button>
+              </Space>
+            </FooterToolbar>
           ),
         }}
       >

@@ -1,6 +1,7 @@
-import { PageContainer, ProForm, ProFormText, ProFormSelect, ProFormDigit, ProFormTimePicker, ProFormRadio } from '@ant-design/pro-components';
-import { Card, App, Row, Col, Alert } from 'antd';
-import { useEffect, useState, useMemo } from 'react';
+import { PageContainer, ProForm, ProFormText, ProFormSelect, ProFormDigit, ProFormTimePicker, ProFormRadio, FooterToolbar } from '@ant-design/pro-components';
+import type { ProFormInstance } from '@ant-design/pro-components';
+import { Card, App, Alert, Button, Space, Spin } from 'antd';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { history, useParams } from '@umijs/max';
 import { scheduleTemplateApi, storeApi, departmentApi, doctorApi } from '@hospital/api';
 import type { ScheduleTemplate, Doctor, Department, Store } from '@hospital/shared';
@@ -17,6 +18,7 @@ const ScheduleTemplateFormPage: React.FC = () => {
   const isEdit = !!id;
   const [loading, setLoading] = useState(false);
   const [template, setTemplate] = useState<ScheduleTemplate | null>(null);
+  const formRef = useRef<ProFormInstance>();
 
   const [stores, setStores] = useState<Store[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -77,6 +79,10 @@ const ScheduleTemplateFormPage: React.FC = () => {
       if (data.departmentId) {
         setSelectedDept(data.departmentId);
       }
+      // 异步加载完成后，使用 setFieldsValue 更新表单值
+      formRef.current?.setFieldsValue({
+        ...data,
+      });
     } catch (error: any) {
       message.error('加载排班模板信息失败');
     } finally {
@@ -136,17 +142,19 @@ const ScheduleTemplateFormPage: React.FC = () => {
       />
 
       <ProForm
+        formRef={formRef}
         onFinish={handleSubmit}
         initialValues={initialValues}
         submitter={{
-          searchConfig: { submitText: isEdit ? '保存' : '创建' },
-          resetButtonProps: { style: { display: 'none' } },
-          render: (_, dom) => (
-            <Row>
-              <Col span={24} style={{ textAlign: 'center' }}>
-                {dom}
-              </Col>
-            </Row>
+          render: (props, dom) => (
+            <FooterToolbar>
+              <Space>
+                <Button onClick={() => history.back()}>取消</Button>
+                <Button type="primary" onClick={() => props.form?.submit()}>
+                  {isEdit ? '保存' : '创建'}
+                </Button>
+              </Space>
+            </FooterToolbar>
           ),
         }}
       >
@@ -155,7 +163,7 @@ const ScheduleTemplateFormPage: React.FC = () => {
             name="name"
             label="模板名称"
             width="lg"
-            placeholder="如：张医生周一上午普通门诊"
+            placeholder="如：某医生周一上午普通门诊"
             rules={[{ required: true, message: '请输入模板名称' }]}
           />
           <ProForm.Group>

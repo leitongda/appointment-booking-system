@@ -4,10 +4,12 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from typing import Optional
+from typing import Optional, List, Union
+import hashlib
 
 from app.db.session import get_db
 from app.core.security import decode_token
+from app.core.redis import RedisCache
 from app.models.user import User
 from app.models.doctor import Doctor
 from jose import jwt, JWTError
@@ -94,7 +96,14 @@ async def get_current_admin(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db)
 ) -> dict:
-    """获取当前管理员（增强版，包含门店和角色信息）"""
+    """获取当前管理员（增强版，包含门店和角色信息）
+    
+    返回值包含：
+    - current_store_id: 当前选中的门店ID
+    - store_ids: 绑定的所有门店ID列表
+    - can_view_all_stores: 是否可以查看所有门店（超管或多门店用户）
+    - is_store_admin: 是否是门店管理员角色
+    """
     from app.models.admin import Admin
     
     token = credentials.credentials
@@ -102,6 +111,11 @@ async def get_current_admin(
     
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的Token")
+    
+    # 检查 Token 是否在黑名单中
+    token_hash = hashlib.sha256(token.encode()).hexdigest()[:32]
+    if await RedisCache.is_token_blacklisted(token_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token已失效，请重新登录")
     
     admin_id = payload.get("sub")
     token_type = payload.get("type", "")
@@ -111,12 +125,13 @@ async def get_current_admin(
     
     # 检查是否是管理员 token
     if token_type == "admin" or "admin" in str(payload):
-        # 从 Admin 表获取管理员，同时加载关联的角色和门店
+        # 从 Admin 表获取管理员，同时加载关联的角色、当前门店和所有绑定门店
         result = await db.execute(
             select(Admin)
             .options(
                 selectinload(Admin.role),
-                selectinload(Admin.store)
+                selectinload(Admin.current_store),
+                selectinload(Admin.stores)
             )
             .where(Admin.id == admin_id)
         )
@@ -126,9 +141,17 @@ async def get_current_admin(
             if admin.status != 1:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
             
-            # 判断是否是超级管理员
+            # 判断角色类型
             role_code = admin.role.code if admin.role else None
-            is_super_admin = role_code == "SUPER_ADMIN"
+            role_name = admin.role.name if admin.role else None
+            is_super_admin = role_code == "SUPER_ADMIN" or role_name == "超级管理员"
+            is_store_admin = role_code == "STORE_ADMIN" or role_name == "门店管理员"
+            
+            # 获取绑定的门店ID列表
+            store_ids = [s.id for s in admin.stores] if admin.stores else []
+            
+            # 是否可以查看所有绑定门店（超管可查看所有，门店管理员可聚合查看绑定门店）
+            can_view_all_stores = is_super_admin or (is_store_admin and len(store_ids) > 1)
             
             return {
                 "id": admin.id,
@@ -139,12 +162,23 @@ async def get_current_admin(
                 "role_id": admin.role_id,
                 "role_code": role_code,
                 "role_name": admin.role.name if admin.role else None,
-                "store_id": admin.store_id,
-                "store_name": admin.store.name if admin.store else None,
-                "store_logo": admin.store.logo if admin.store else None,
-                "store_theme": admin.store.theme_style if admin.store else None,
+                # 多门店支持
+                "current_store_id": admin.current_store_id,
+                "current_store_name": admin.current_store.name if admin.current_store else None,
+                "current_store_logo": admin.current_store.logo if admin.current_store else None,
+                "current_store_theme": admin.current_store.theme_style if admin.current_store else None,
+                "store_ids": store_ids,
+                "stores": [{"id": s.id, "name": s.name, "logo": s.logo} for s in admin.stores] if admin.stores else [],
+                # 兼容旧字段
+                "store_id": admin.current_store_id,
+                "store_name": admin.current_store.name if admin.current_store else None,
+                "store_logo": admin.current_store.logo if admin.current_store else None,
+                "store_theme": admin.current_store.theme_style if admin.current_store else None,
+                # 权限标志
                 "is_admin": True,
                 "is_super_admin": is_super_admin,
+                "is_store_admin": is_store_admin,
+                "can_view_all_stores": can_view_all_stores,
             }
     
     # 兼容旧的 User 表管理员
@@ -164,23 +198,43 @@ async def get_current_admin(
         "status": user.status,
         "role_id": None,
         "role_code": None,
+        "current_store_id": None,
+        "store_ids": [],
+        "stores": [],
         "store_id": None,
         "store_name": None,
         "is_admin": True,
         "is_super_admin": True,  # 旧用户默认为超级管理员
+        "is_store_admin": False,
+        "can_view_all_stores": True,
     }
 
 
-def get_store_filter(current_admin: dict) -> Optional[str]:
+def get_store_filter(current_admin: dict, allow_all: bool = False) -> Union[None, str, List[str]]:
     """
     获取门店过滤条件
     
-    超级管理员返回 None（不过滤，可查看所有门店数据）
-    门店管理员返回其 store_id（只能查看本门店数据）
+    Args:
+        current_admin: 当前管理员信息
+        allow_all: 是否允许查看所有绑定门店（聚合查看模式）
+    
+    Returns:
+        - None: 超管，不过滤，可查看所有门店数据
+        - str: 单个门店ID（当前选中门店）
+        - List[str]: 多个门店ID列表（聚合查看模式）
     """
     if current_admin.get("is_super_admin"):
         return None
-    return current_admin.get("store_id")
+    
+    store_ids = current_admin.get("store_ids", [])
+    current_store_id = current_admin.get("current_store_id") or current_admin.get("store_id")
+    
+    # 聚合查看模式：返回所有绑定门店
+    if allow_all and current_admin.get("can_view_all_stores") and len(store_ids) > 1:
+        return store_ids
+    
+    # 默认返回当前选中门店
+    return current_store_id
 
 
 def check_store_access(current_admin: dict, target_store_id: Optional[str]) -> bool:
@@ -188,16 +242,52 @@ def check_store_access(current_admin: dict, target_store_id: Optional[str]) -> b
     检查当前管理员是否有权访问目标门店
     
     超级管理员可以访问任何门店
-    门店管理员只能访问自己的门店
+    其他用户只能访问绑定的门店
     """
     if current_admin.get("is_super_admin"):
         return True
     
-    admin_store_id = current_admin.get("store_id")
-    if not admin_store_id:
+    if not target_store_id:
         return False
     
+    # 检查目标门店是否在绑定门店列表中
+    store_ids = current_admin.get("store_ids", [])
+    if store_ids and target_store_id in store_ids:
+        return True
+    
+    # 兼容旧字段
+    admin_store_id = current_admin.get("current_store_id") or current_admin.get("store_id")
     return admin_store_id == target_store_id
+
+
+def get_effective_store_id(current_admin: dict, requested_store_id: Optional[str] = None) -> Optional[str]:
+    """
+    获取有效的门店ID（用于创建/更新操作）
+    
+    Args:
+        current_admin: 当前管理员信息
+        requested_store_id: 请求指定的门店ID
+    
+    Returns:
+        有效的门店ID，如果无权限则抛出异常
+    """
+    # 超管可以指定任意门店
+    if current_admin.get("is_super_admin"):
+        return requested_store_id
+    
+    current_store_id = current_admin.get("current_store_id") or current_admin.get("store_id")
+    
+    # 如果指定了门店ID，验证权限
+    if requested_store_id:
+        if not check_store_access(current_admin, requested_store_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="无权操作该门店数据"
+            )
+        return requested_store_id
+    
+    # 默认使用当前选中门店
+    return current_store_id
 
 
 async def get_optional_user(
@@ -243,7 +333,8 @@ async def get_current_user_or_admin(
             select(Admin)
             .options(
                 selectinload(Admin.role),
-                selectinload(Admin.store)
+                selectinload(Admin.current_store),
+                selectinload(Admin.stores)
             )
             .where(Admin.id == user_id)
         )
@@ -254,7 +345,10 @@ async def get_current_user_or_admin(
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
             
             role_code = admin.role.code if admin.role else None
-            is_super_admin = role_code == "SUPER_ADMIN"
+            role_name = admin.role.name if admin.role else None
+            is_super_admin = role_code == "SUPER_ADMIN" or role_name == "超级管理员"
+            is_store_admin = role_code == "STORE_ADMIN" or role_name == "门店管理员"
+            store_ids = [s.id for s in admin.stores] if admin.stores else []
             
             return {
                 "id": admin.id,
@@ -264,10 +358,13 @@ async def get_current_user_or_admin(
                 "status": admin.status,
                 "role_id": admin.role_id,
                 "role_code": role_code,
-                "store_id": admin.store_id,
-                "store_name": admin.store.name if admin.store else None,
+                "current_store_id": admin.current_store_id,
+                "store_ids": store_ids,
+                "store_id": admin.current_store_id,
+                "store_name": admin.current_store.name if admin.current_store else None,
                 "is_admin": True,
                 "is_super_admin": is_super_admin,
+                "is_store_admin": is_store_admin,
                 "is_doctor": False,
                 "doctor_id": None,
             }
@@ -296,6 +393,7 @@ async def get_current_user_or_admin(
             "is_admin": False,
             "is_super_admin": False,
             "store_id": None,
+            "store_ids": [],
         }
     
     # 再次尝试 Admin 表（兼容旧 token）
@@ -303,7 +401,8 @@ async def get_current_user_or_admin(
         select(Admin)
         .options(
             selectinload(Admin.role),
-            selectinload(Admin.store)
+            selectinload(Admin.current_store),
+            selectinload(Admin.stores)
         )
         .where(Admin.id == user_id)
     )
@@ -314,7 +413,10 @@ async def get_current_user_or_admin(
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
         
         role_code = admin.role.code if admin.role else None
-        is_super_admin = role_code == "SUPER_ADMIN"
+        role_name = admin.role.name if admin.role else None
+        is_super_admin = role_code == "SUPER_ADMIN" or role_name == "超级管理员"
+        is_store_admin = role_code == "STORE_ADMIN" or role_name == "门店管理员"
+        store_ids = [s.id for s in admin.stores] if admin.stores else []
         
         return {
             "id": admin.id,
@@ -324,10 +426,13 @@ async def get_current_user_or_admin(
             "status": admin.status,
             "role_id": admin.role_id,
             "role_code": role_code,
-            "store_id": admin.store_id,
-            "store_name": admin.store.name if admin.store else None,
+            "current_store_id": admin.current_store_id,
+            "store_ids": store_ids,
+            "store_id": admin.current_store_id,
+            "store_name": admin.current_store.name if admin.current_store else None,
             "is_admin": True,
             "is_super_admin": is_super_admin,
+            "is_store_admin": is_store_admin,
             "is_doctor": False,
             "doctor_id": None,
         }

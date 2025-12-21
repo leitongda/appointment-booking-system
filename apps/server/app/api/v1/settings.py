@@ -349,3 +349,45 @@ async def update_patient_card_config(
     return {"message": "保存成功", "data": result}
 
 
+# ========== 图片处理配置 ==========
+class ThumbnailSizeItem(BaseModel):
+    name: str = Field(..., max_length=50, description="尺寸名称，如 small, medium")
+    width: int = Field(..., ge=1, le=4096, description="宽度像素")
+    height: int = Field(..., ge=1, le=4096, description="高度像素")
+
+
+class ImageConfigUpdate(BaseModel):
+    thumbnailSizes: Optional[list[ThumbnailSizeItem]] = Field(None, description="缩略图尺寸配置")
+    compressQuality: Optional[int] = Field(None, ge=1, le=100, description="压缩质量 1-100")
+
+
+@router.get("/image")
+async def get_image_config(
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """获取图片处理配置"""
+    service = SettingsService(db)
+    return await service.get_image_config()
+
+
+@router.put("/image")
+async def update_image_config(
+    data: ImageConfigUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """更新图片处理配置"""
+    service = SettingsService(db)
+    
+    thumbnail_sizes = None
+    if data.thumbnailSizes is not None:
+        thumbnail_sizes = [s.model_dump() for s in data.thumbnailSizes]
+    
+    result = await service.update_image_config(
+        thumbnail_sizes=thumbnail_sizes,
+        compress_quality=data.compressQuality,
+    )
+    return {"message": "保存成功", "data": result}
+
+

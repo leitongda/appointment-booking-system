@@ -1,6 +1,7 @@
-import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormSwitch } from '@ant-design/pro-components';
-import { Card, App, Row, Col } from 'antd';
-import { useEffect, useState } from 'react';
+import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormSwitch, FooterToolbar } from '@ant-design/pro-components';
+import type { ProFormInstance } from '@ant-design/pro-components';
+import { Card, App, Button, Space, Spin } from 'antd';
+import { useEffect, useState, useRef } from 'react';
 import { history, useParams } from '@umijs/max';
 import { adminApi } from '@hospital/api';
 import type { Role } from '@hospital/api';
@@ -11,6 +12,7 @@ const RoleFormPage: React.FC = () => {
   const isEdit = !!id;
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState<Role | null>(null);
+  const formRef = useRef<ProFormInstance>();
 
   useEffect(() => {
     if (isEdit) {
@@ -22,8 +24,13 @@ const RoleFormPage: React.FC = () => {
     if (!id) return;
     setLoading(true);
     try {
-      const data = await adminApi.getRoleDetail(id);
+      const data = await adminApi.getRole(id);
       setRole(data);
+      // 异步加载完成后，使用 setFieldsValue 更新表单值
+      formRef.current?.setFieldsValue({
+        ...data,
+        status: data.status === 1,
+      });
     } catch (error: any) {
       message.error('加载角色信息失败');
     } finally {
@@ -57,17 +64,19 @@ const RoleFormPage: React.FC = () => {
   return (
     <PageContainer title={isEdit ? '编辑角色' : '新增角色'}>
       <ProForm
+        formRef={formRef}
         onFinish={handleSubmit}
         initialValues={initialValues}
         submitter={{
-          searchConfig: { submitText: isEdit ? '保存' : '创建' },
-          resetButtonProps: { style: { display: 'none' } },
-          render: (_, dom) => (
-            <Row>
-              <Col span={24} style={{ textAlign: 'center' }}>
-                {dom}
-              </Col>
-            </Row>
+          render: (props, dom) => (
+            <FooterToolbar>
+              <Space>
+                <Button onClick={() => history.back()}>取消</Button>
+                <Button type="primary" onClick={() => props.form?.submit()}>
+                  {isEdit ? '保存' : '创建'}
+                </Button>
+              </Space>
+            </FooterToolbar>
           ),
         }}
       >

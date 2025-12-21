@@ -19,6 +19,7 @@ import { uploadApi } from '@hospital/api';
 const ImageUpload: React.FC<ImageUploadProps> = ({
   value,
   onChange,
+  onThumbnailsChange,
   aspectRatio = 'free',
   disabled = false,
   maxSize = 5,
@@ -28,6 +29,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   height = 120,
   allowUrlTransfer = true,
   showCrop = true,
+  generateThumbnails = false,
 }) => {
   const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
@@ -44,15 +46,22 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   const uploadFile = useCallback(async (file: File) => {
     setLoading(true);
     try {
-      const result = await uploadApi.upload(file, folder);
+      const result = await uploadApi.upload(file, { 
+        folder, 
+        generateThumbnails 
+      });
       onChange?.(result.url);
+      // 如果有缩略图，通知父组件
+      if (result.thumbnails && onThumbnailsChange) {
+        onThumbnailsChange(result.thumbnails);
+      }
       message.success('上传成功');
     } catch (error: any) {
       message.error(error.message || '上传失败');
     } finally {
       setLoading(false);
     }
-  }, [folder, onChange, message]);
+  }, [folder, generateThumbnails, onChange, onThumbnailsChange, message]);
 
   // 处理文件选择（开始剪裁或直接上传）
   const handleFileSelect = useCallback((file: File) => {
@@ -128,7 +137,8 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   // 删除图片
   const handleDelete = useCallback(() => {
     onChange?.(undefined);
-  }, [onChange]);
+    onThumbnailsChange?.(undefined);
+  }, [onChange, onThumbnailsChange]);
 
   // 重新剪裁当前图片
   const handleReCrop = useCallback(() => {

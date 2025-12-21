@@ -1,10 +1,10 @@
 import { PageContainer, ProForm, ProFormText } from '@ant-design/pro-components';
-import { Card, App, Avatar, Row, Col, Typography, Space, Spin } from 'antd';
-import { UserOutlined } from '@ant-design/icons';
+import { Card, App, Row, Col, Typography, Space, Spin } from 'antd';
 import { useState, useEffect } from 'react';
 import { useModel } from '@umijs/max';
 import { adminApi } from '@hospital/api';
 import type { Admin } from '@hospital/api';
+import ImageUpload from '@/components/ImageUpload';
 
 const { Title, Text } = Typography;
 
@@ -13,6 +13,8 @@ const AccountSettingsPage: React.FC = () => {
   const { initialState, setInitialState } = useModel('@@initialState');
   const [loading, setLoading] = useState(false);
   const [admin, setAdmin] = useState<Admin | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>();
+  const [avatarSaving, setAvatarSaving] = useState(false);
 
   useEffect(() => {
     loadAdmin();
@@ -23,10 +25,37 @@ const AccountSettingsPage: React.FC = () => {
     try {
       const data = await adminApi.getCurrentAdmin();
       setAdmin(data);
+      setAvatarUrl(data.avatar);
     } catch (error) {
       console.error('加载用户信息失败', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 头像变更时自动保存
+  const handleAvatarChange = async (url: string | undefined) => {
+    setAvatarUrl(url);
+    if (url === admin?.avatar) return; // 没有变化不需要保存
+    
+    setAvatarSaving(true);
+    try {
+      const updatedAdmin = await adminApi.updateProfile({ avatar: url });
+      message.success('头像更新成功');
+      setAdmin(updatedAdmin);
+      // 更新全局状态
+      if (initialState) {
+        setInitialState({
+          ...initialState,
+          currentUser: updatedAdmin,
+        });
+      }
+    } catch (error: any) {
+      message.error(error.message || '头像更新失败');
+      // 恢复原来的头像
+      setAvatarUrl(admin?.avatar);
+    } finally {
+      setAvatarSaving(false);
     }
   };
 
@@ -53,7 +82,19 @@ const AccountSettingsPage: React.FC = () => {
         <Card style={{ marginBottom: 16 }}>
           <Row gutter={24} align="middle">
             <Col>
-              <Avatar size={80} icon={<UserOutlined />} src={admin?.avatar} />
+              <Spin spinning={avatarSaving}>
+                <ImageUpload
+                  value={avatarUrl}
+                  onChange={handleAvatarChange}
+                  aspectRatio="1:1"
+                  width={100}
+                  height={100}
+                  folder="avatars"
+                  placeholder="上传头像"
+                  allowUrlTransfer={false}
+                  showCrop={true}
+                />
+              </Spin>
             </Col>
             <Col>
               <Space direction="vertical" size={4}>
@@ -62,6 +103,7 @@ const AccountSettingsPage: React.FC = () => {
                 </Title>
                 <Text type="secondary">用户名：{admin?.username}</Text>
                 <Text type="secondary">角色：{admin?.roleName || '-'}</Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>点击左侧可更换头像</Text>
               </Space>
             </Col>
           </Row>

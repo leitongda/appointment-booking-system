@@ -116,6 +116,40 @@ class LocalStorage(BaseStorage):
             logger.error(f"Local delete error: {e}")
             return False
     
+    async def upload_bytes(
+        self,
+        data: bytes,
+        key: str,
+        content_type: str
+    ) -> UploadResult:
+        """上传字节数据到本地"""
+        try:
+            # 完整文件路径
+            file_path = self.upload_dir / key
+            
+            # 确保目录存在
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # 保存文件
+            async with aiofiles.open(file_path, 'wb') as f:
+                await f.write(data)
+            
+            # 生成访问URL
+            url = self._build_url(key)
+            
+            logger.info(f"Uploaded bytes to local: {key}")
+            
+            return UploadResult(
+                url=url,
+                key=key,
+                size=len(data),
+                content_type=content_type
+            )
+            
+        except Exception as e:
+            logger.error(f"Local upload bytes error: {e}")
+            raise Exception(f"文件上传失败: {str(e)}")
+    
     async def get_url(self, key: str, expires: int = 3600) -> str:
         """获取文件访问URL"""
         return self._build_url(key)

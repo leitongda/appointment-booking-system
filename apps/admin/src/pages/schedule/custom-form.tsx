@@ -1,5 +1,5 @@
 import { PlusOutlined, CopyOutlined, DeleteOutlined } from '@ant-design/icons';
-import { PageContainer, ProForm, ProFormSelect, ProFormDatePicker, ProFormDigit, ProFormTimePicker } from '@ant-design/pro-components';
+import { PageContainer, ProForm, ProFormSelect, ProFormDatePicker, ProFormDigit, ProFormTimePicker, FooterToolbar } from '@ant-design/pro-components';
 import { Card, App, Row, Col, Button, Space } from 'antd';
 import { useEffect, useState } from 'react';
 import { history } from '@umijs/max';
@@ -139,14 +139,15 @@ const CustomScheduleFormPage: React.FC = () => {
       <ProForm
         onFinish={handleSubmit}
         submitter={{
-          searchConfig: { submitText: '创建' },
-          resetButtonProps: { style: { display: 'none' } },
-          render: (_, dom) => (
-            <Row>
-              <Col span={24} style={{ textAlign: 'center' }}>
-                {dom}
-              </Col>
-            </Row>
+          render: (props, dom) => (
+            <FooterToolbar>
+              <Space>
+                <Button onClick={() => history.back()}>取消</Button>
+                <Button type="primary" onClick={() => props.form?.submit()}>
+                  创建
+                </Button>
+              </Space>
+            </FooterToolbar>
           ),
         }}
       >

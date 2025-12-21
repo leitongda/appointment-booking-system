@@ -1,17 +1,22 @@
 """管理员和角色 API"""
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
+import hashlib
 
 from app.db.session import get_db
 from app.api.deps import get_current_admin
+
+security = HTTPBearer()
 from app.services.admin_service import RoleService, AdminService, OperationLogService, PermissionService
 from app.schemas.response import PageResponse
 from app.core.security import create_access_token, create_refresh_token, get_rsa_public_key, rsa_decrypt
 from app.core.config import settings
+from app.core.redis import RedisCache, parse_user_agent
 
 router = APIRouter()
 
@@ -76,6 +81,7 @@ class AdminCreate(BaseModel):
     name: Optional[str] = Field(None, max_length=50)
     phone: Optional[str] = Field(None, max_length=20)
     email: Optional[str] = Field(None, max_length=100)
+    avatar: Optional[str] = Field(None, max_length=255, description="头像URL")
     role_id: Optional[str] = None
     store_id: Optional[str] = Field(None, description="所属门店ID，门店管理员必填")
     status: int = Field(1, ge=0, le=1)
@@ -87,6 +93,7 @@ class AdminUpdate(BaseModel):
     name: Optional[str] = Field(None, max_length=50)
     phone: Optional[str] = Field(None, max_length=20)
     email: Optional[str] = Field(None, max_length=100)
+    avatar: Optional[str] = Field(None, max_length=255, description="头像URL")
     role_id: Optional[str] = None
     store_id: Optional[str] = Field(None, description="所属门店ID")
     status: Optional[int] = Field(None, ge=0, le=1)
@@ -278,6 +285,74 @@ def build_store_info(store) -> Optional[StoreInfo]:
     )
 
 
+async def store_admin_session(
+    admin,
+    access_token: str,
+    client_ip: str,
+    user_agent: str,
+    db: AsyncSession = None,
+) -> None:
+    """
+    存储管理员会话信息到 Redis，并创建登录历史记录
+    
+    Args:
+        admin: 管理员对象
+        access_token: 访问令牌
+        client_ip: 客户端 IP
+        user_agent: User-Agent 字符串
+        db: 数据库会话（用于创建登录历史）
+    """
+    from app.models.admin import AdminLoginHistory
+    import uuid
+    
+    # 生成 token hash（用于黑名单）
+    token_hash = hashlib.sha256(access_token.encode()).hexdigest()[:32]
+    
+    # 解析设备信息
+    device_info = parse_user_agent(user_agent)
+    
+    # 计算过期时间
+    expire_seconds = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    expires_at = datetime.utcnow() + timedelta(seconds=expire_seconds)
+    login_time = datetime.utcnow()
+    
+    # 生成登录历史 ID
+    login_history_id = str(uuid.uuid4())
+    
+    # 构建会话数据
+    session_data = {
+        "admin_id": admin.id,
+        "username": admin.username,
+        "name": admin.name or admin.username,
+        "role_name": admin.role.name if admin.role else None,
+        "login_time": login_time.isoformat(),
+        "login_ip": client_ip,
+        "user_agent": user_agent,
+        "token_hash": token_hash,
+        "expires_at": expires_at.isoformat(),
+        "device_info": device_info,
+        "login_history_id": login_history_id,  # 存储登录历史ID，用于退出时更新
+    }
+    
+    # 存储到 Redis
+    await RedisCache.set_admin_session(admin.id, session_data, expire_seconds)
+    
+    # 创建登录历史记录
+    if db:
+        login_history = AdminLoginHistory(
+            id=login_history_id,
+            admin_id=admin.id,
+            login_time=login_time,
+            login_ip=client_ip,
+            user_agent=user_agent,
+            browser=device_info.get("browser", "Unknown"),
+            os=device_info.get("os", "Unknown"),
+            device_type=device_info.get("device_type", "desktop"),
+        )
+        db.add(login_history)
+        await db.commit()
+
+
 # ========== 管理员登录 ==========
 @router.get("/public-key")
 async def get_public_key():
@@ -327,11 +402,15 @@ async def admin_login(
     
     # 更新登录信息
     client_ip = request.client.host if request.client else ""
+    user_agent = request.headers.get("user-agent", "")
     await service.update_login_info(admin.id, client_ip)
     
     # 生成Token
     access_token = create_access_token(data={"sub": admin.id, "type": "admin"})
     refresh_token = create_refresh_token(data={"sub": admin.id, "type": "admin"})
+    
+    # 存储会话到 Redis
+    await store_admin_session(admin, access_token, client_ip, user_agent, db)
     
     response = AdminLoginResponse(
         access_token=access_token,
@@ -360,6 +439,63 @@ async def get_current_admin_info(
     permissions = await perm_service.get_admin_permissions(admin.id)
     
     return build_admin_response(admin, permissions)
+
+
+@router.post("/logout")
+async def admin_logout(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    current_admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    管理员退出登录
+    
+    将当前 Token 加入黑名单，并删除 Redis 会话，更新登录历史
+    """
+    from app.models.admin import AdminLoginHistory
+    from sqlalchemy import select
+    
+    admin_id = current_admin.get("id")
+    token = credentials.credentials
+    
+    # 计算 token hash
+    token_hash = hashlib.sha256(token.encode()).hexdigest()[:32]
+    
+    # 获取 session 信息
+    session = await RedisCache.get_admin_session(admin_id)
+    session_key = f"{RedisCache.PREFIX_ADMIN_SESSION}{admin_id}"
+    ttl = await RedisCache.ttl(session_key)
+    
+    # 更新登录历史记录
+    if session:
+        login_history_id = session.get("login_history_id")
+        login_time_str = session.get("login_time")
+        if login_history_id:
+            result = await db.execute(
+                select(AdminLoginHistory).where(AdminLoginHistory.id == login_history_id)
+            )
+            login_history = result.scalar_one_or_none()
+            if login_history:
+                logout_time = datetime.utcnow()
+                login_history.logout_time = logout_time
+                login_history.logout_type = "manual"
+                # 计算在线时长
+                if login_time_str:
+                    try:
+                        login_time = datetime.fromisoformat(login_time_str)
+                        login_history.duration = int((logout_time - login_time).total_seconds())
+                    except:
+                        pass
+                await db.commit()
+    
+    # 将 token 加入黑名单
+    if ttl > 0:
+        await RedisCache.add_token_to_blacklist(token_hash, ttl)
+    
+    # 删除会话
+    await RedisCache.delete_admin_session(admin_id)
+    
+    return {"message": "退出登录成功"}
 
 
 class ChangePasswordRequest(BaseModel):
@@ -448,11 +584,15 @@ async def phone_login(
     
     # 更新登录信息
     client_ip = request.client.host if request.client else ""
+    user_agent = request.headers.get("user-agent", "")
     await service.update_login_info(admin.id, client_ip)
     
     # 生成Token
     access_token = create_access_token(data={"sub": admin.id, "type": "admin"})
     refresh_token = create_refresh_token(data={"sub": admin.id, "type": "admin"})
+    
+    # 存储会话到 Redis
+    await store_admin_session(admin, access_token, client_ip, user_agent, db)
     
     response = AdminLoginResponse(
         access_token=access_token,
@@ -517,11 +657,15 @@ async def sms_login(
     
     # 更新登录信息
     client_ip = request.client.host if request.client else ""
+    user_agent = request.headers.get("user-agent", "")
     await service.update_login_info(admin.id, client_ip)
     
     # 生成Token
     access_token = create_access_token(data={"sub": admin.id, "type": "admin"})
     refresh_token = create_refresh_token(data={"sub": admin.id, "type": "admin"})
+    
+    # 存储会话到 Redis
+    await store_admin_session(admin, access_token, client_ip, user_agent, db)
     
     response = AdminLoginResponse(
         access_token=access_token,
@@ -1022,4 +1166,264 @@ async def delete_permission(
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="权限不存在")
     return {"message": "删除成功"}
+
+
+# ========== 在线用户管理 ==========
+class OnlineUserResponse(BaseModel):
+    """在线用户响应"""
+    admin_id: str = Field(..., serialization_alias="adminId")
+    username: str
+    name: Optional[str] = None
+    role_name: Optional[str] = Field(None, serialization_alias="roleName")
+    login_time: str = Field(..., serialization_alias="loginTime")
+    login_ip: str = Field(..., serialization_alias="loginIp")
+    user_agent: str = Field(..., serialization_alias="userAgent")
+    device_info: dict = Field(..., serialization_alias="deviceInfo")
+    ttl: int  # Token 剩余有效期（秒）
+
+    class Config:
+        populate_by_name = True
+
+
+@router.get("/online-users")
+async def get_online_users(
+    current_admin: dict = Depends(get_current_admin),
+):
+    """
+    获取在线用户列表
+    
+    所有管理员都可以查看在线用户列表
+    """
+    sessions = await RedisCache.get_all_admin_sessions()
+    
+    result = []
+    for session in sessions:
+        result.append(OnlineUserResponse(
+            admin_id=session.get("admin_id", ""),
+            username=session.get("username", ""),
+            name=session.get("name"),
+            role_name=session.get("role_name"),
+            login_time=session.get("login_time", ""),
+            login_ip=session.get("login_ip", ""),
+            user_agent=session.get("user_agent", ""),
+            device_info=session.get("device_info", {}),
+            ttl=session.get("ttl", 0),
+        ).model_dump(by_alias=True))
+    
+    return result
+
+
+@router.post("/online-users/{admin_id}/kick")
+async def kick_online_user(
+    admin_id: str,
+    current_admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    强制用户下线
+    
+    将用户的 Token 加入黑名单，并删除会话，更新登录历史
+    """
+    from app.models.admin import AdminLoginHistory
+    from sqlalchemy import select
+    
+    # 权限检查：只有超级管理员可以强制下线
+    if not current_admin.get("is_super_admin"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要超级管理员权限")
+    
+    # 不能踢自己
+    if admin_id == current_admin.get("id"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="不能强制自己下线")
+    
+    # 获取会话信息
+    session = await RedisCache.get_admin_session(admin_id)
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不在线")
+    
+    # 更新登录历史记录
+    login_history_id = session.get("login_history_id")
+    login_time_str = session.get("login_time")
+    if login_history_id:
+        result = await db.execute(
+            select(AdminLoginHistory).where(AdminLoginHistory.id == login_history_id)
+        )
+        login_history = result.scalar_one_or_none()
+        if login_history:
+            logout_time = datetime.utcnow()
+            login_history.logout_time = logout_time
+            login_history.logout_type = "kicked"
+            # 计算在线时长
+            if login_time_str:
+                try:
+                    login_time = datetime.fromisoformat(login_time_str)
+                    login_history.duration = int((logout_time - login_time).total_seconds())
+                except:
+                    pass
+            await db.commit()
+    
+    # 将 Token 加入黑名单
+    token_hash = session.get("token_hash")
+    session_key = f"{RedisCache.PREFIX_ADMIN_SESSION}{admin_id}"
+    ttl = await RedisCache.ttl(session_key)
+    if token_hash and ttl > 0:
+        await RedisCache.add_token_to_blacklist(token_hash, ttl)
+    
+    # 删除会话
+    await RedisCache.delete_admin_session(admin_id)
+    
+    return {"message": "用户已强制下线"}
+
+
+# ========== 用户状态管理 ==========
+class UserStatusResponse(BaseModel):
+    """用户状态响应"""
+    admin_id: str = Field(..., serialization_alias="adminId")
+    username: str
+    name: Optional[str] = None
+    role_name: Optional[str] = Field(None, serialization_alias="roleName")
+    status: str  # online / offline
+    # 在线时显示
+    login_time: Optional[str] = Field(None, serialization_alias="loginTime")
+    login_ip: Optional[str] = Field(None, serialization_alias="loginIp")
+    device_info: Optional[dict] = Field(None, serialization_alias="deviceInfo")
+    ttl: Optional[int] = None
+    # 离线时显示
+    last_login_at: Optional[str] = Field(None, serialization_alias="lastLoginAt")
+    last_login_ip: Optional[str] = Field(None, serialization_alias="lastLoginIp")
+
+    class Config:
+        populate_by_name = True
+
+
+class LoginHistoryResponse(BaseModel):
+    """登录历史响应"""
+    id: str
+    login_time: str = Field(..., serialization_alias="loginTime")
+    logout_time: Optional[str] = Field(None, serialization_alias="logoutTime")
+    logout_type: Optional[str] = Field(None, serialization_alias="logoutType")
+    login_ip: Optional[str] = Field(None, serialization_alias="loginIp")
+    browser: Optional[str] = None
+    os: Optional[str] = None
+    device_type: Optional[str] = Field(None, serialization_alias="deviceType")
+    duration: Optional[int] = None  # 在线时长（秒）
+
+    class Config:
+        populate_by_name = True
+
+
+@router.get("/user-status")
+async def get_user_status(
+    current_admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取所有用户状态列表（在线+离线）
+    """
+    from app.models.admin import Admin
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    
+    # 获取所有在线会话
+    sessions = await RedisCache.get_all_admin_sessions()
+    online_admin_ids = {s.get("admin_id") for s in sessions}
+    session_map = {s.get("admin_id"): s for s in sessions}
+    
+    # 获取所有管理员
+    result = await db.execute(
+        select(Admin)
+        .options(selectinload(Admin.role))
+        .where(Admin.status == 1)
+        .order_by(Admin.created_at.desc())
+    )
+    admins = result.scalars().all()
+    
+    user_status_list = []
+    for admin in admins:
+        if admin.id in online_admin_ids:
+            # 在线用户
+            session = session_map[admin.id]
+            user_status_list.append(UserStatusResponse(
+                admin_id=admin.id,
+                username=admin.username,
+                name=admin.name,
+                role_name=admin.role.name if admin.role else None,
+                status="online",
+                login_time=session.get("login_time"),
+                login_ip=session.get("login_ip"),
+                device_info=session.get("device_info"),
+                ttl=session.get("ttl", 0),
+                last_login_at=None,
+                last_login_ip=None,
+            ).model_dump(by_alias=True))
+        else:
+            # 离线用户
+            user_status_list.append(UserStatusResponse(
+                admin_id=admin.id,
+                username=admin.username,
+                name=admin.name,
+                role_name=admin.role.name if admin.role else None,
+                status="offline",
+                login_time=None,
+                login_ip=None,
+                device_info=None,
+                ttl=None,
+                last_login_at=admin.last_login_at.isoformat() if admin.last_login_at else None,
+                last_login_ip=admin.last_login_ip,
+            ).model_dump(by_alias=True))
+    
+    return user_status_list
+
+
+@router.get("/login-history/{admin_id}")
+async def get_login_history(
+    admin_id: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    current_admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取指定用户的登录历史
+    """
+    from app.models.admin import AdminLoginHistory
+    from sqlalchemy import select, func
+    
+    # 查询总数
+    count_stmt = select(func.count(AdminLoginHistory.id)).where(
+        AdminLoginHistory.admin_id == admin_id
+    )
+    total_result = await db.execute(count_stmt)
+    total = total_result.scalar() or 0
+    
+    # 查询列表
+    stmt = (
+        select(AdminLoginHistory)
+        .where(AdminLoginHistory.admin_id == admin_id)
+        .order_by(AdminLoginHistory.login_time.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    result = await db.execute(stmt)
+    records = result.scalars().all()
+    
+    history_list = []
+    for record in records:
+        history_list.append(LoginHistoryResponse(
+            id=record.id,
+            login_time=record.login_time.isoformat() if record.login_time else "",
+            logout_time=record.logout_time.isoformat() if record.logout_time else None,
+            logout_type=record.logout_type,
+            login_ip=record.login_ip,
+            browser=record.browser,
+            os=record.os,
+            device_type=record.device_type,
+            duration=record.duration,
+        ).model_dump(by_alias=True))
+    
+    return {
+        "list": history_list,
+        "total": total,
+        "page": page,
+        "pageSize": page_size,
+    }
 
