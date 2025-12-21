@@ -2,6 +2,7 @@ import { PageContainer, ProCard, StatisticCard } from '@ant-design/pro-component
 import { Col, Row, Table, Empty, Spin, DatePicker, Select, Form, Button, Card, Progress } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
+import { useAccess, useModel } from '@umijs/max';
 import { statisticsApi, storeApi } from '@hospital/api';
 import type {
   AppointmentSummary,
@@ -19,6 +20,10 @@ const { RangePicker } = DatePicker;
 
 const AppointmentStatisticsPage: React.FC = () => {
   const [form] = Form.useForm();
+  const access = useAccess();
+  const { initialState } = useModel('@@initialState');
+  const { currentUser } = initialState ?? {};
+  const isSuperAdmin = access.canSuperAdmin;
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<any[]>([]);
   const [summary, setSummary] = useState<AppointmentSummary | null>(null);
@@ -37,7 +42,12 @@ const AppointmentStatisticsPage: React.FC = () => {
   const loadStores = async () => {
     try {
       const res = await storeApi.getList({ pageSize: 100, status: 1 });
-      setStores(res.data ?? []);
+      let storeList = res.data ?? [];
+      // 非超管只显示其关联的门店
+      if (!isSuperAdmin && currentUser?.storeIds?.length) {
+        storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
+      }
+      setStores(storeList);
     } catch (error) {
       console.error('加载门店失败', error);
     }

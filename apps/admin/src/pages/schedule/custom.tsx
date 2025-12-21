@@ -3,7 +3,7 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm } from '@ant-design/pro-components';
 import { Button, App, Tag, Popconfirm, Card, Form, DatePicker, Select } from 'antd';
 import { useRef, useState, useEffect } from 'react';
-import { history, useAccess } from '@umijs/max';
+import { history, useAccess, useModel } from '@umijs/max';
 import { customScheduleApi, storeApi, doctorApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import { APPOINTMENT_TYPE_MAP } from '@hospital/shared';
@@ -12,6 +12,9 @@ import type { CustomSchedule } from '@hospital/api';
 const CustomSchedulePage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
+  const { initialState } = useModel('@@initialState');
+  const { currentUser, currentStore } = initialState ?? {};
+  const isSuperAdmin = access.canSuperAdmin;
   const actionRef = useRef<ActionType>();
   const [effectiveModalOpen, setEffectiveModalOpen] = useState(false);
   const [stores, setStores] = useState<any[]>([]);
@@ -26,7 +29,12 @@ const CustomSchedulePage: React.FC = () => {
   const loadStores = async () => {
     try {
       const res = await storeApi.getList({ pageSize: 100, status: 1 });
-      setStores(res.data ?? []);
+      let storeList = res.data ?? [];
+      // 非超管只显示其关联的门店
+      if (!isSuperAdmin && currentUser?.storeIds?.length) {
+        storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
+      }
+      setStores(storeList);
     } catch (error) {
       console.error('加载门店失败', error);
     }

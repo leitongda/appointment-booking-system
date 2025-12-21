@@ -1,7 +1,7 @@
 import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormSwitch, ProFormRadio, FooterToolbar } from '@ant-design/pro-components';
 import { Card, App, Form, Spin, Button, Space } from 'antd';
 import { useEffect, useState } from 'react';
-import { history, useParams } from '@umijs/max';
+import { history, useParams, useModel, useAccess } from '@umijs/max';
 import { doctorApi, departmentApi, storeApi } from '@hospital/api';
 import type { Doctor, Department, Store } from '@hospital/shared';
 import ImageUpload from '@/components/ImageUpload';
@@ -29,6 +29,10 @@ const EDUCATION_OPTIONS = [
 const DoctorFormPage: React.FC = () => {
   const { message } = App.useApp();
   const { id } = useParams<{ id: string }>();
+  const access = useAccess();
+  const { initialState } = useModel('@@initialState');
+  const { currentUser, currentStore } = initialState ?? {};
+  const isSuperAdmin = access.canSuperAdmin;
   const isEdit = !!id;
   const [loading, setLoading] = useState(false);
   const [doctor, setDoctor] = useState<Doctor | null>(null);
@@ -55,7 +59,12 @@ const DoctorFormPage: React.FC = () => {
   const loadStores = async () => {
     try {
       const res = await storeApi.getList({ pageSize: 100, status: 1 });
-      setStores(res.data ?? []);
+      let storeList = res.data ?? [];
+      // 非超管只显示其关联的门店
+      if (!isSuperAdmin && currentUser?.storeIds?.length) {
+        storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
+      }
+      setStores(storeList);
     } catch (error) {
       console.error('加载门店失败', error);
     }
@@ -167,6 +176,9 @@ const DoctorFormPage: React.FC = () => {
               width="md"
               options={(stores ?? []).map((s) => ({ label: s.name, value: s.id }))}
               placeholder="请选择门店"
+              rules={[{ required: true, message: '请选择所属门店' }]}
+              disabled={!isSuperAdmin && (currentUser?.storeIds?.length ?? 0) <= 1}
+              initialValue={!isSuperAdmin && currentStore?.id ? currentStore.id : undefined}
             />
           </ProForm.Group>
           <ProForm.Group>

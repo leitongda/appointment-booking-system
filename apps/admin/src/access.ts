@@ -6,7 +6,12 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
   const { currentUser } = initialState ?? {};
   const permissions = currentUser?.permissions || [];
   // 支持大小写不敏感的角色码检查
-  const isSuperAdmin = currentUser?.roleCode?.toUpperCase() === 'SUPER_ADMIN';
+  const roleCode = currentUser?.roleCode?.toUpperCase();
+  const isSuperAdmin = roleCode === 'SUPER_ADMIN' || currentUser?.isSuperAdmin;
+  const isStoreAdmin = roleCode === 'STORE_ADMIN' || currentUser?.isStoreAdmin;
+  const isStoreUser = roleCode === 'STORE_USER';
+  // 是否可以查看所有门店数据
+  const canViewAllStores = currentUser?.canViewAllStores || isSuperAdmin;
   // 检查是否有通配符权限
   const hasWildcard = permissions.includes('*');
 
@@ -43,8 +48,12 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
   };
 
   return {
-    // 超级管理员权限
+    // ========== 角色权限 ==========
     canSuperAdmin: isSuperAdmin,
+    canStoreAdmin: isStoreAdmin,
+    canStoreUser: isStoreUser,
+    canViewAllStores,
+    
     // 已登录
     isLogin: !!currentUser,
     // 权限检查函数
@@ -57,8 +66,10 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     // ========== 菜单权限（用于路由 access 配置）==========
     // 仪表盘
     canDashboard: hasPermission('dashboard') || hasPermission('dashboard:view'),
-    // 门店管理
+    // 门店管理 - 只有超管可以创建/删除门店
     canStore: hasPermission('store') || hasPermission('store:list'),
+    canStoreCreate: isSuperAdmin && hasPermission('store:create'),
+    canStoreDelete: isSuperAdmin && hasPermission('store:delete'),
     // 科室管理
     canDepartment: hasPermission('department') || hasPermission('department:list'),
     // 医生管理
@@ -79,7 +90,9 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canContent: hasPermission('content') || hasAnyPermission(['content:news', 'content:notice', 'content:banner']),
     // 统计分析
     canStatistics: hasPermission('statistics') || hasPermission('statistics:view'),
-    // 系统设置
+    // 系统设置 - 只有超管可以管理角色
     canSystem: hasPermission('system') || hasAnyPermission(['system:role', 'system:user', 'system:settings', 'system:log']),
+    canManageRoles: isSuperAdmin && hasPermission('system:role'),
+    canManageUsers: hasPermission('system:user'),
   };
 }

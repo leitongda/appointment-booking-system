@@ -33,26 +33,27 @@ async def get_stores(
         page_size=page_size
     )
     
-    # 门店管理员只能看到自己的门店
-    store_id = current_admin.get("store_id")
-    if store_id:
-        # 如果是门店管理员，只返回自己的门店
-        store = await service.get_by_id(store_id)
-        if store:
-            result = [StoreListResponse(
-                id=store.id,
-                name=store.name,
-                code=store.code,
-                address=store.address,
-                phone=store.phone,
-                logo=store.logo,
-                theme_style=store.theme_style,
-                status=store.status,
-                department_count=await service.get_department_count(store.id),
-                created_at=store.created_at
-            )]
-            return PageResponse(data=result, total=1, page=1, page_size=page_size)
-        return PageResponse(data=[], total=0, page=1, page_size=page_size)
+    # 门店管理员只能看到自己关联的门店（支持多门店）
+    store_ids = current_admin.get("store_ids")
+    if store_ids and not current_admin.get("is_super_admin"):
+        # 如果是门店管理员，只返回关联的门店
+        stores_result = []
+        for store_id in store_ids:
+            store = await service.get_by_id(store_id)
+            if store:
+                stores_result.append(StoreListResponse(
+                    id=store.id,
+                    name=store.name,
+                    code=store.code,
+                    address=store.address,
+                    phone=store.phone,
+                    logo=store.logo,
+                    theme_style=store.theme_style,
+                    status=store.status,
+                    department_count=await service.get_department_count(store.id),
+                    created_at=store.created_at
+                ))
+        return PageResponse(data=stores_result, total=len(stores_result), page=1, page_size=page_size)
     
     # 超级管理员可以看到所有门店
     stores, total = await service.get_list(query)

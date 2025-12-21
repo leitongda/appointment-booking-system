@@ -52,10 +52,16 @@ const Login: React.FC = () => {
     setToken(result.accessToken);
     setStorage(STORAGE_KEYS.REFRESH_TOKEN, result.refreshToken);
     
-    // 保存门店信息到 localStorage（如果有）
-    if (result.store) {
+    // 保存门店信息到 localStorage
+    // 支持单门店 (result.store) 和多门店 (result.stores) 场景
+    if (result.stores && result.stores.length > 0) {
+      // 多门店管理员，默认选择第一个门店
+      localStorage.setItem('currentStore', JSON.stringify(result.stores[0]));
+    } else if (result.store) {
+      // 兼容旧的单门店返回
       localStorage.setItem('currentStore', JSON.stringify(result.store));
     } else {
+      // 超级管理员没有门店
       localStorage.removeItem('currentStore');
     }
     

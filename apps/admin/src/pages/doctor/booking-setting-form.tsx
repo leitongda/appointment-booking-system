@@ -2,7 +2,7 @@ import { PageContainer, ProForm, ProFormSelect, ProFormDigit, ProFormTimePicker,
 import type { ProFormInstance } from '@ant-design/pro-components';
 import { Card, App, Button, Space, Spin } from 'antd';
 import { useEffect, useState, useRef } from 'react';
-import { history, useParams } from '@umijs/max';
+import { history, useParams, useAccess, useModel } from '@umijs/max';
 import { doctorBookingSettingApi, storeApi, doctorApi } from '@hospital/api';
 import type { DoctorBookingSetting, Store, Doctor } from '@hospital/shared';
 import dayjs from 'dayjs';
@@ -10,6 +10,10 @@ import dayjs from 'dayjs';
 const DoctorBookingSettingFormPage: React.FC = () => {
   const { message } = App.useApp();
   const { id } = useParams<{ id: string }>();
+  const access = useAccess();
+  const { initialState } = useModel('@@initialState');
+  const { currentUser, currentStore } = initialState ?? {};
+  const isSuperAdmin = access.canSuperAdmin;
   const isEdit = !!id;
   const [loading, setLoading] = useState(false);
   const [setting, setSetting] = useState<DoctorBookingSetting | null>(null);
@@ -41,7 +45,12 @@ const DoctorBookingSettingFormPage: React.FC = () => {
   const loadStores = async () => {
     try {
       const data = await storeApi.getAll();
-      setStores(data ?? []);
+      let storeList = data ?? [];
+      // 非超管只显示其关联的门店
+      if (!isSuperAdmin && currentUser?.storeIds?.length) {
+        storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
+      }
+      setStores(storeList);
     } catch (error) {
       console.error('加载门店失败', error);
     }

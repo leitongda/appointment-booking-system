@@ -5,11 +5,14 @@ import {
   ReloadOutlined,
   CheckOutlined,
   ShopOutlined,
+  DownOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons';
 import { history, useModel } from '@umijs/max';
 import { Badge, Tooltip, Popover, List, Empty, Spin, Button, Typography, Space, App, Avatar, Tag } from 'antd';
 import React, { useState, useEffect, useCallback } from 'react';
-import { messageApi } from '@hospital/api';
+import { messageApi, adminApi } from '@hospital/api';
+import type { StoreInfo } from '@hospital/api';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/zh-cn';
@@ -20,36 +23,182 @@ dayjs.locale('zh-cn');
 
 const { Text } = Typography;
 
-// 门店信息展示组件
-export const StoreInfoDisplay: React.FC = () => {
-  const { initialState } = useModel('@@initialState');
+// 门店切换器组件
+export const StoreSwitcher: React.FC = () => {
+  const { message } = App.useApp();
+  const { initialState, setInitialState } = useModel('@@initialState');
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [stores, setStores] = useState<StoreInfo[]>([]);
+  const [canViewAllStores, setCanViewAllStores] = useState(false);
+  
+  const currentUser = initialState?.currentUser;
   const currentStore = initialState?.currentStore;
+  const isSuperAdmin = currentUser?.isSuperAdmin || currentUser?.roleCode === 'SUPER_ADMIN';
 
-  // 超级管理员没有门店，不显示
-  if (!currentStore) {
+  // 加载门店列表
+  const loadStores = useCallback(async () => {
+    if (!currentUser?.id) return;
+    setLoading(true);
+    try {
+      const result = await adminApi.getMyStores();
+      setStores(result.stores || []);
+      setCanViewAllStores(result.canViewAllStores);
+    } catch (error) {
+      console.error('加载门店列表失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUser?.id]);
+
+  // 打开时加载门店列表
+  useEffect(() => {
+    if (open) {
+      loadStores();
+    }
+  }, [open, loadStores]);
+
+  // 切换门店
+  const handleSwitchStore = async (storeId: string | null) => {
+    try {
+      if (storeId === null) {
+        // 切换到"全部门店"模式
+        localStorage.removeItem('currentStore');
+        setInitialState((prev) => ({
+          ...prev,
+          currentStore: undefined,
+          isAggregateMode: true,
+        }));
+        message.success('已切换到全部门店模式');
+      } else {
+        const result = await adminApi.switchStore(storeId);
+        if (result.currentStore) {
+          localStorage.setItem('currentStore', JSON.stringify(result.currentStore));
+          setInitialState((prev) => ({
+            ...prev,
+            currentStore: result.currentStore,
+            isAggregateMode: false,
+          }));
+          message.success(`已切换到 ${result.currentStore.name}`);
+        }
+      }
+      setOpen(false);
+      // 刷新页面数据
+      window.location.reload();
+    } catch (error: any) {
+      message.error(error.message || '切换门店失败');
+    }
+  };
+
+  // 超级管理员或只有一个门店的用户：显示静态信息
+  const showStaticInfo = !canViewAllStores && stores.length <= 1;
+
+  // 渲染当前门店信息
+  const renderCurrentStore = () => {
+    if (isSuperAdmin && !currentStore) {
+      return (
+        <Tag color="purple" style={{ margin: 0 }}>
+          <ShopOutlined style={{ marginRight: 4 }} />
+          全局管理
+        </Tag>
+      );
+    }
+
+    if (!currentStore) {
+      return (
+        <Tag color="geekblue" style={{ margin: 0 }}>
+          <AppstoreOutlined style={{ marginRight: 4 }} />
+          全部门店
+        </Tag>
+      );
+    }
+
     return (
-      <Tooltip title="超级管理员 - 可管理所有门店">
+      <>
+        {currentStore.logo ? (
+          <Avatar src={currentStore.logo} size={24} style={{ marginRight: 8 }} />
+        ) : (
+          <ShopOutlined style={{ marginRight: 8, fontSize: 16, color: '#1890ff' }} />
+        )}
+        <span className={styles.storeName}>{currentStore.name}</span>
+        {!showStaticInfo && <DownOutlined className={styles.storeDropdownIcon} />}
+      </>
+    );
+  };
+
+  // 静态显示（不可切换）
+  if (showStaticInfo) {
+    return (
+      <Tooltip title={isSuperAdmin ? "超级管理员 - 可管理所有门店" : currentStore?.name}>
         <div className={styles.storeInfo}>
-          <Tag color="purple" style={{ margin: 0 }}>
-            <ShopOutlined style={{ marginRight: 4 }} />
-            全局管理
-          </Tag>
+          {renderCurrentStore()}
         </div>
       </Tooltip>
     );
   }
 
-  return (
-    <div className={styles.storeInfo}>
-      {currentStore.logo ? (
-        <Avatar src={currentStore.logo} size={24} style={{ marginRight: 8 }} />
-      ) : (
-        <ShopOutlined style={{ marginRight: 8, fontSize: 16, color: '#1890ff' }} />
-      )}
-      <span className={styles.storeName}>{currentStore.name}</span>
+  // 门店切换面板
+  const content = (
+    <div className={styles.storeSwitcherPanel}>
+      <div className={styles.storeSwitcherHeader}>
+        <span className={styles.headerTitle}>切换门店</span>
+      </div>
+      <Spin spinning={loading}>
+        <div className={styles.storeList}>
+          {/* 全部门店选项（仅多门店用户可见） */}
+          {canViewAllStores && (
+            <div
+              className={`${styles.storeItem} ${styles.allStoresItem} ${!currentStore ? styles.active : ''}`}
+              onClick={() => handleSwitchStore(null)}
+            >
+              <AppstoreOutlined className={styles.allStoresIcon} />
+              <span className={styles.storeItemName}>全部门店</span>
+              {!currentStore && <CheckOutlined className={styles.storeItemCheck} />}
+            </div>
+          )}
+          {/* 门店列表 */}
+          {stores.map((store) => (
+            <div
+              key={store.id}
+              className={`${styles.storeItem} ${currentStore?.id === store.id ? styles.active : ''}`}
+              onClick={() => handleSwitchStore(store.id)}
+            >
+              {store.logo ? (
+                <Avatar src={store.logo} size={32} className={styles.storeItemLogo} />
+              ) : (
+                <Avatar icon={<ShopOutlined />} size={32} className={styles.storeItemLogo} />
+              )}
+              <span className={styles.storeItemName}>{store.name}</span>
+              {currentStore?.id === store.id && <CheckOutlined className={styles.storeItemCheck} />}
+            </div>
+          ))}
+          {stores.length === 0 && !loading && (
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无门店" />
+          )}
+        </div>
+      </Spin>
     </div>
   );
+
+  return (
+    <Popover
+      content={content}
+      trigger="click"
+      open={open}
+      onOpenChange={setOpen}
+      placement="bottomRight"
+      overlayClassName={styles.storeSwitcherPopover}
+      arrow={{ pointAtCenter: true }}
+    >
+      <div className={styles.storeInfo}>
+        {renderCurrentStore()}
+      </div>
+    </Popover>
+  );
 };
+
+// 保留旧的组件名作为别名
+export const StoreInfoDisplay = StoreSwitcher;
 
 // 全屏按钮组件
 export const FullscreenButton: React.FC = () => {
@@ -306,7 +455,7 @@ export const NotificationButton: React.FC = () => {
 export const HeaderActions: React.FC = () => {
   return (
     <Space className={styles.headerActions} size={4}>
-      <StoreInfoDisplay />
+      <StoreSwitcher />
       <RefreshButton />
       <NotificationButton />
       <FullscreenButton />

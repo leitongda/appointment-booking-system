@@ -13,8 +13,10 @@ const UserPage: React.FC = () => {
   const access = useAccess();
   const actionRef = useRef<ActionType>();
   const { initialState } = useModel('@@initialState');
-  const currentStore = initialState?.currentStore;
-  const isSuperAdmin = !currentStore; // 超级管理员没有关联门店
+  const { currentUser, currentStore } = initialState ?? {};
+  const isSuperAdmin = access.canSuperAdmin;
+  // 多门店管理员也可以看到门店筛选
+  const showStoreFilter = isSuperAdmin || (currentUser?.storeIds?.length ?? 0) > 1;
 
   const handleDelete = async (id: string) => {
     try {
@@ -47,16 +49,16 @@ const UserPage: React.FC = () => {
     { title: '用户名', dataIndex: 'name', width: 100 },
     { title: '手机号', dataIndex: 'phone', width: 120, search: false },
     { title: '角色', dataIndex: 'roleName', width: 100, search: false },
-    // 超级管理员可以看到门店列
-    ...(isSuperAdmin ? [{
+    // 超级管理员或多门店管理员可以看到门店列
+    ...(showStoreFilter ? [{
       title: '所属门店',
       dataIndex: 'storeName',
       width: 120,
       search: false,
       render: (_: any, record: Admin) => record.storeName || <Tag color="purple">全局</Tag>,
     } as ProColumns<Admin>] : []),
-    // 超级管理员可以按门店筛选
-    ...(isSuperAdmin ? [{
+    // 超级管理员或多门店管理员可以按门店筛选
+    ...(showStoreFilter ? [{
       title: '门店',
       dataIndex: 'storeId',
       hideInTable: true,
@@ -64,11 +66,20 @@ const UserPage: React.FC = () => {
       request: async () => {
         try {
           const stores = await storeApi.getAll();
-          return [
+          let storeList = stores ?? [];
+          // 非超管只显示其关联的门店
+          if (!isSuperAdmin && currentUser?.storeIds?.length) {
+            storeList = storeList.filter((s: any) => currentUser.storeIds?.includes(s.id));
+          }
+          const options = [
             { label: '全部', value: '' },
-            { label: '全局用户', value: 'null' },
-            ...stores.map((s: any) => ({ label: s.name, value: s.id })),
+            ...storeList.map((s: any) => ({ label: s.name, value: s.id })),
           ];
+          // 只有超管可以看到"全局用户"选项
+          if (isSuperAdmin) {
+            options.splice(1, 0, { label: '全局用户', value: 'null' });
+          }
+          return options;
         } catch {
           return [];
         }

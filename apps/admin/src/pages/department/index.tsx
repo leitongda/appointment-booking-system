@@ -2,8 +2,8 @@ import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { Button, App, Popconfirm, Space, Tag } from 'antd';
-import { useRef, useState, useEffect } from 'react';
-import { history, useAccess } from '@umijs/max';
+import { useRef, useState, useEffect, useMemo } from 'react';
+import { history, useAccess, useModel } from '@umijs/max';
 import { departmentApi, storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Department, Store } from '@hospital/shared';
@@ -11,11 +11,20 @@ import type { Department, Store } from '@hospital/shared';
 const DepartmentPage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
+  const { initialState } = useModel('@@initialState');
   const actionRef = useRef<ActionType>();
   const [stores, setStores] = useState<Store[]>([]);
 
+  // 用户门店相关信息
+  const userStores = initialState?.userStores || [];
+  const canViewAllStores = access.canViewAllStores;
+  const isSingleStore = !canViewAllStores && userStores.length <= 1;
+
   useEffect(() => {
-    loadStores();
+    // 只有超管或多门店用户才需要加载门店列表
+    if (canViewAllStores || userStores.length > 1) {
+      loadStores();
+    }
   }, []);
 
   const loadStores = async () => {
@@ -26,6 +35,26 @@ const DepartmentPage: React.FC = () => {
       console.error('加载门店失败', error);
     }
   };
+
+  // 构建门店筛选选项
+  const storeFilterOptions = useMemo(() => {
+    if (isSingleStore) return [];
+    
+    const options: { label: string; value: string }[] = [];
+    
+    // 多门店用户或超管可以选择"全部"
+    if (canViewAllStores) {
+      options.push({ label: '全部门店', value: 'all' });
+    }
+    
+    // 添加门店选项
+    const storeList = access.canSuperAdmin ? stores : userStores;
+    storeList.forEach((s: any) => {
+      options.push({ label: s.name, value: s.id });
+    });
+    
+    return options;
+  }, [stores, userStores, canViewAllStores, isSingleStore, access.canSuperAdmin]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -50,17 +79,21 @@ const DepartmentPage: React.FC = () => {
       ellipsis: true,
       width: 120,
       search: false,
+      // 单门店用户隐藏门店列
+      hideInTable: isSingleStore,
       render: (_, record) => record.storeName || '-',
     },
     {
       title: '门店筛选',
       dataIndex: 'storeId',
       hideInTable: true,
+      // 单门店用户隐藏门店筛选
+      hideInSearch: isSingleStore,
       valueType: 'select',
       fieldProps: {
-        options: stores.map((s) => ({ label: s.name, value: s.id })),
+        options: storeFilterOptions,
         allowClear: true,
-        placeholder: '请选择门店',
+        placeholder: canViewAllStores ? '全部门店' : '请选择门店',
       },
     },
     {

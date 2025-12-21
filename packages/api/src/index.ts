@@ -61,7 +61,21 @@ export type {
 } from './modules/statistics';
 
 // Admin types
-export type { Admin, Role, Permission, AdminLoginParams, AdminLoginResult, OnlineUser, DeviceInfo, UserStatus, LoginHistory, LoginHistoryResult } from './modules/admin';
+export type { 
+  Admin, 
+  Role, 
+  Permission, 
+  AdminLoginParams, 
+  AdminLoginResult, 
+  OnlineUser, 
+  DeviceInfo, 
+  UserStatus, 
+  LoginHistory, 
+  LoginHistoryResult,
+  StoreInfo,
+  MyStoresResult,
+  SwitchStoreResult,
+} from './modules/admin';
 
 // Content types
 export type { Banner, News, Notice } from './modules/content';

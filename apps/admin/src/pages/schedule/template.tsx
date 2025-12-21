@@ -13,7 +13,7 @@ import {
 } from '@ant-design/pro-components';
 import { Button, App, Space, Popconfirm, Tag, Alert, Tabs } from 'antd';
 import { useRef, useState, useEffect, useMemo } from 'react';
-import { history, useAccess } from '@umijs/max';
+import { history, useAccess, useModel } from '@umijs/max';
 import { scheduleTemplateApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { ScheduleTemplate, Doctor, Department, Store } from '@hospital/shared';
@@ -30,6 +30,9 @@ import {
 const ScheduleTemplatePage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
+  const { initialState } = useModel('@@initialState');
+  const { currentUser } = initialState ?? {};
+  const isSuperAdmin = access.canSuperAdmin;
   const actionRef = useRef<ActionType>();
   const [batchAddModalOpen, setBatchAddModalOpen] = useState(false);
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
@@ -59,7 +62,12 @@ const ScheduleTemplatePage: React.FC = () => {
   const loadStores = async () => {
     try {
       const data = await storeApi.getAll();
-      setStores(data ?? []);
+      let storeList = data ?? [];
+      // 非超管只显示其关联的门店
+      if (!isSuperAdmin && currentUser?.storeIds?.length) {
+        storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
+      }
+      setStores(storeList);
     } catch (error) {
       console.error('加载门店失败', error);
     }

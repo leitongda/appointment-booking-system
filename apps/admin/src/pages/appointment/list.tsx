@@ -24,8 +24,10 @@ const AppointmentListPage: React.FC = () => {
   const actionRef = useRef<ActionType>();
   
   const { initialState } = useModel('@@initialState');
-  const currentStore = initialState?.currentStore;
-  const isSuperAdmin = !currentStore; // 超级管理员没有关联门店
+  const { currentUser, currentStore } = initialState ?? {};
+  const isSuperAdmin = access.canSuperAdmin;
+  // 多门店管理员也可以看到门店筛选
+  const showStoreFilter = isSuperAdmin || (currentUser?.storeIds?.length ?? 0) > 1;
 
   const handleCancel = async (id: string) => {
     try {
@@ -48,8 +50,8 @@ const AppointmentListPage: React.FC = () => {
   };
 
   const columns: ProColumns<Appointment>[] = [
-    // 超级管理员可以按门店筛选
-    ...(isSuperAdmin ? [{
+    // 超级管理员和多门店管理员可以按门店筛选
+    ...(showStoreFilter ? [{
       title: '门店',
       dataIndex: 'storeId',
       hideInTable: true,
@@ -57,9 +59,14 @@ const AppointmentListPage: React.FC = () => {
       request: async () => {
         try {
           const stores = await storeApi.getAll();
+          let storeList = stores ?? [];
+          // 非超管只显示其关联的门店
+          if (!isSuperAdmin && currentUser?.storeIds?.length) {
+            storeList = storeList.filter((s: any) => currentUser.storeIds?.includes(s.id));
+          }
           return [
             { label: '全部门店', value: '' },
-            ...stores.map((s: any) => ({ label: s.name, value: s.id })),
+            ...storeList.map((s: any) => ({ label: s.name, value: s.id })),
           ];
         } catch {
           return [];

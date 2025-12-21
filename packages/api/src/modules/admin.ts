@@ -136,7 +136,8 @@ export interface AdminLoginResult {
   refreshToken: string;
   expiresIn: number;
   admin: Admin;
-  store?: StoreInfo;
+  store?: StoreInfo;  // 兼容旧版本，返回第一个门店
+  stores?: StoreInfo[];  // 多门店管理员返回所有门店
 }
 
 // ========== 微信扫码登录 ==========

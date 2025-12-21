@@ -1,7 +1,7 @@
 import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormSwitch, ProFormGroup, FooterToolbar } from '@ant-design/pro-components';
 import { Card, App, Form, Divider, Spin, Button, Space } from 'antd';
 import { useEffect, useState } from 'react';
-import { history, useParams } from '@umijs/max';
+import { history, useParams, useModel, useAccess } from '@umijs/max';
 import { departmentApi, storeApi } from '@hospital/api';
 import type { Department, Store, DepartmentTreeNode } from '@hospital/shared';
 import ImageUpload from '@/components/ImageUpload';
@@ -10,6 +10,10 @@ import RichTextEditor from '@/components/RichTextEditor';
 const DepartmentFormPage: React.FC = () => {
   const { message } = App.useApp();
   const { id } = useParams<{ id: string }>();
+  const access = useAccess();
+  const { initialState } = useModel('@@initialState');
+  const { currentUser, currentStore } = initialState ?? {};
+  const isSuperAdmin = access.canSuperAdmin;
   const isEdit = !!id;
   const [loading, setLoading] = useState(false);
   const [department, setDepartment] = useState<Department | null>(null);
@@ -27,7 +31,12 @@ const DepartmentFormPage: React.FC = () => {
   const loadStores = async () => {
     try {
       const res = await storeApi.getList({ pageSize: 100, status: 1 });
-      setStores(res.data ?? []);
+      let storeList = res.data ?? [];
+      // 非超管只显示其关联的门店
+      if (!isSuperAdmin && currentUser?.storeIds?.length) {
+        storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
+      }
+      setStores(storeList);
     } catch (error) {
       console.error('加载门店失败', error);
     }
@@ -153,7 +162,10 @@ const DepartmentFormPage: React.FC = () => {
               width="md"
               placeholder="请选择门店"
               options={stores.map((s) => ({ label: s.name, value: s.id }))}
-              allowClear
+              rules={[{ required: true, message: '请选择门店' }]}
+              disabled={!isSuperAdmin && (currentUser?.storeIds?.length ?? 0) <= 1}
+              initialValue={!isSuperAdmin && currentStore?.id ? currentStore.id : undefined}
+              allowClear={isSuperAdmin}
             />
             <ProFormSelect
               name="parentId"

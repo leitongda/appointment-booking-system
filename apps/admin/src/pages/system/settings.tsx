@@ -13,7 +13,7 @@ import {
 import { Card, App, Tabs, Spin, Table, Switch, Button, Input, Space, Popconfirm, Tag, Select, Form, Typography, Slider, Row, Col } from 'antd';
 import { PlusOutlined, SearchOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useState, useEffect, useRef } from 'react';
-import { useAccess } from '@umijs/max';
+import { useAccess, useModel } from '@umijs/max';
 import { settingsApi, blacklistApi, storeApi } from '@hospital/api';
 import type { BookingSettings, HospitalInfo, BookingFieldConfig, PatientCardConfig, BlacklistItem, EmailConfig, ImageConfig, ThumbnailSize } from '@hospital/api';
 
@@ -22,6 +22,9 @@ const { Text } = Typography;
 const SettingsPage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
+  const { initialState } = useModel('@@initialState');
+  const { currentUser } = initialState ?? {};
+  const isSuperAdmin = access.canSuperAdmin;
   const [loading, setLoading] = useState(false);
   const [bookingSettings, setBookingSettings] = useState<BookingSettings | null>(null);
   const [hospitalInfo, setHospitalInfo] = useState<HospitalInfo | null>(null);
@@ -71,7 +74,12 @@ const SettingsPage: React.FC = () => {
   const loadStores = async () => {
     try {
       const res = await storeApi.getList({ pageSize: 100, status: 1 });
-      setStores(res.data ?? []);
+      let storeList = res.data ?? [];
+      // 非超管只显示其关联的门店
+      if (!isSuperAdmin && currentUser?.storeIds?.length) {
+        storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
+      }
+      setStores(storeList);
     } catch (error) {
       console.error('加载门店失败', error);
     }

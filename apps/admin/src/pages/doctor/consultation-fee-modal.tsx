@@ -1,6 +1,7 @@
 import { Modal, App, Switch, Select, Table, InputNumber, Button, Space, Spin, Alert, Empty, Divider, Card } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
+import { useAccess, useModel } from '@umijs/max';
 import { consultationFeeTypeApi, consultationFeeTemplateApi, doctorConsultationFeeApi, storeApi, departmentApi } from '@hospital/api';
 import type { ConsultationFeeType, ConsultationFeeTemplateWithType, StoreDepartmentFeeGroup, Store, Department, DoctorConsultationFeeItem } from '@hospital/shared';
 
@@ -26,6 +27,10 @@ const DoctorConsultationFeeModal: React.FC<DoctorConsultationFeeModalProps> = ({
   onClose,
 }) => {
   const { message } = App.useApp();
+  const access = useAccess();
+  const { initialState } = useModel('@@initialState');
+  const { currentUser } = initialState ?? {};
+  const isSuperAdmin = access.canSuperAdmin;
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [useFeeTemplate, setUseFeeTemplate] = useState(false);
@@ -60,7 +65,12 @@ const DoctorConsultationFeeModal: React.FC<DoctorConsultationFeeModalProps> = ({
       
       setFeeTypes(typesRes);
       setTemplates(templatesRes);
-      setStores(storesRes.data ?? []);
+      // 非超管只显示其关联的门店
+      let storeList = storesRes.data ?? [];
+      if (!isSuperAdmin && currentUser?.storeIds?.length) {
+        storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
+      }
+      setStores(storeList);
       setDepartments(deptsRes.data ?? []);
       setUseFeeTemplate(settingRes.useFeeTemplate === 1);
       

@@ -206,7 +206,8 @@ class AdminLoginResponse(BaseModel):
     refresh_token: str = Field(..., serialization_alias="refreshToken")
     expires_in: int = Field(..., serialization_alias="expiresIn")
     admin: AdminResponse
-    store: Optional[StoreInfo] = None  # 门店管理员登录时返回门店信息
+    store: Optional[StoreInfo] = None  # 兼容旧版本，返回第一个门店
+    stores: Optional[List[StoreInfo]] = None  # 多门店管理员登录时返回所有门店
 
     class Config:
         populate_by_name = True
@@ -328,6 +329,21 @@ def build_store_info(store) -> Optional[StoreInfo]:
         logo=store.logo,
         theme_style=store.theme_style,
     )
+
+
+def build_stores_list(stores) -> Optional[List[StoreInfo]]:
+    """构建多门店列表"""
+    if not stores:
+        return None
+    return [
+        StoreInfo(
+            id=s.id,
+            name=s.name,
+            logo=s.logo,
+            theme_style=s.theme_style,
+        )
+        for s in stores
+    ]
 
 
 async def store_admin_session(
@@ -457,12 +473,17 @@ async def admin_login(
     # 存储会话到 Redis
     await store_admin_session(admin, access_token, client_ip, user_agent, db)
     
+    # 构建门店信息
+    stores_list = build_stores_list(admin.stores)
+    first_store = stores_list[0] if stores_list else None
+    
     response = AdminLoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         admin=build_admin_response(admin),
-        store=build_store_info(admin.store),
+        store=first_store,  # 兼容旧版本
+        stores=stores_list,  # 新版本返回完整门店列表
     )
     return response.model_dump(by_alias=True)
 
@@ -729,12 +750,17 @@ async def phone_login(
     # 存储会话到 Redis
     await store_admin_session(admin, access_token, client_ip, user_agent, db)
     
+    # 构建门店信息
+    stores_list = build_stores_list(admin.stores)
+    first_store = stores_list[0] if stores_list else None
+    
     response = AdminLoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         admin=build_admin_response(admin),
-        store=build_store_info(admin.store),
+        store=first_store,  # 兼容旧版本
+        stores=stores_list,  # 新版本返回完整门店列表
     )
     return response.model_dump(by_alias=True)
 
@@ -802,12 +828,17 @@ async def sms_login(
     # 存储会话到 Redis
     await store_admin_session(admin, access_token, client_ip, user_agent, db)
     
+    # 构建门店信息
+    stores_list = build_stores_list(admin.stores)
+    first_store = stores_list[0] if stores_list else None
+    
     response = AdminLoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         admin=build_admin_response(admin),
-        store=build_store_info(admin.store),
+        store=first_store,  # 兼容旧版本
+        stores=stores_list,  # 新版本返回完整门店列表
     )
     return response.model_dump(by_alias=True)
 

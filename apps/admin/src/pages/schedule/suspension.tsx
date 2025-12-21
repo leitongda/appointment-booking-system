@@ -3,12 +3,17 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormSelect, ProFormText, ProFormDatePicker } from '@ant-design/pro-components';
 import { Button, App, Tag, Popconfirm, Checkbox, Space } from 'antd';
 import { useRef, useState, useEffect } from 'react';
+import { useAccess, useModel } from '@umijs/max';
 import { scheduleSuspensionApi, storeApi, doctorApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { ScheduleSuspension, AvailableScheduleForSuspension } from '@hospital/api';
 
 const SuspensionPage: React.FC = () => {
   const { message } = App.useApp();
+  const access = useAccess();
+  const { initialState } = useModel('@@initialState');
+  const { currentUser } = initialState ?? {};
+  const isSuperAdmin = access.canSuperAdmin;
   const actionRef = useRef<ActionType>();
   const [modalOpen, setModalOpen] = useState(false);
   const [stores, setStores] = useState<any[]>([]);
@@ -39,7 +44,12 @@ const SuspensionPage: React.FC = () => {
   const loadStores = async () => {
     try {
       const res = await storeApi.getList({ pageSize: 100, status: 1 });
-      setStores(res.data ?? []);
+      let storeList = res.data ?? [];
+      // 非超管只显示其关联的门店
+      if (!isSuperAdmin && currentUser?.storeIds?.length) {
+        storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
+      }
+      setStores(storeList);
     } catch (error) {
       console.error('加载门店失败', error);
     }

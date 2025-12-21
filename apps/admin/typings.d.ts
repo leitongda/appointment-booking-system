@@ -147,6 +147,14 @@ declare namespace AMap {
 
 declare const AMap: typeof AMap;
 
+// 门店信息类型
+interface StoreInfo {
+  id: string;
+  name: string;
+  logo?: string;
+  themeStyle?: string;
+}
+
 // API 类型定义
 declare namespace API {
   interface CurrentUser {
@@ -158,7 +166,20 @@ declare namespace API {
     roleId?: string;
     roleName?: string;
     roleCode?: string;
+    // 当前选中门店
+    currentStoreId?: string;
+    currentStoreName?: string;
+    // 兼容旧字段
+    storeId?: string;
+    storeName?: string;
+    // 绑定的所有门店
+    storeIds?: string[];
+    stores?: StoreInfo[];
+    // 权限相关
     permissions?: string[];
+    isSuperAdmin?: boolean;
+    isStoreAdmin?: boolean;
+    canViewAllStores?: boolean;
   }
 
   interface LoginParams {

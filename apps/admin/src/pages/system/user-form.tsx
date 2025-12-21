@@ -2,7 +2,7 @@ import { PageContainer, ProForm, ProFormText, ProFormSelect, ProFormSwitch, ProF
 import type { ProFormInstance } from '@ant-design/pro-components';
 import { Card, App, Alert, Button, Space, Form } from 'antd';
 import { useEffect, useState, useRef } from 'react';
-import { history, useParams, useModel } from '@umijs/max';
+import { history, useParams, useModel, useAccess } from '@umijs/max';
 import { adminApi, storeApi } from '@hospital/api';
 import type { Admin, Role } from '@hospital/api';
 import ImageUpload from '@/components/ImageUpload';
@@ -15,6 +15,7 @@ interface Store {
 const UserFormPage: React.FC = () => {
   const { message } = App.useApp();
   const { id } = useParams<{ id: string }>();
+  const access = useAccess();
   const isEdit = !!id;
   const [loading, setLoading] = useState(false);
   const [admin, setAdmin] = useState<Admin | null>(null);
@@ -23,12 +24,13 @@ const UserFormPage: React.FC = () => {
   const formRef = useRef<ProFormInstance>();
   
   const { initialState } = useModel('@@initialState');
-  const currentStore = initialState?.currentStore;
-  const isSuperAdmin = !currentStore; // 超级管理员没有关联门店
+  const { currentUser, currentStore } = initialState ?? {};
+  const isSuperAdmin = access.canSuperAdmin;
 
   useEffect(() => {
     loadRoles();
-    if (isSuperAdmin) {
+    // 超管或多门店管理员需要加载门店列表
+    if (isSuperAdmin || (currentUser?.storeIds?.length ?? 0) > 1) {
       loadStores();
     }
     if (isEdit) {
@@ -53,7 +55,12 @@ const UserFormPage: React.FC = () => {
   const loadStores = async () => {
     try {
       const data = await storeApi.getAll();
-      setStores(data);
+      let storeList = data ?? [];
+      // 非超管只显示其关联的门店
+      if (!isSuperAdmin && currentUser?.storeIds?.length) {
+        storeList = storeList.filter((s: Store) => currentUser.storeIds?.includes(s.id));
+      }
+      setStores(storeList);
     } catch (error) {
       console.error('加载门店失败', error);
     }
@@ -69,6 +76,8 @@ const UserFormPage: React.FC = () => {
       formRef.current?.setFieldsValue({
         ...data,
         status: data.status === 1,
+        // 使用 storeIds 数组
+        storeIds: data.storeIds || (data.storeId ? [data.storeId] : []),
       });
     } catch (error: any) {
       message.error('加载用户信息失败');
@@ -80,12 +89,14 @@ const UserFormPage: React.FC = () => {
   const handleSubmit = async (values: any) => {
     try {
       // 排除确认密码字段
-      const { confirmPassword, ...restValues } = values;
+      const { confirmPassword, storeIds, ...restValues } = values;
       const data = { 
         ...restValues, 
         status: values.status ? 1 : 0,
-        // 门店管理员创建的用户自动继承其门店
-        storeId: isSuperAdmin ? values.storeId : currentStore?.id,
+        // 多门店绑定
+        storeIds: isSuperAdmin ? storeIds : (currentStore?.id ? [currentStore.id] : []),
+        // 兼容旧字段：使用第一个门店作为 storeId
+        storeId: isSuperAdmin ? (storeIds?.[0] || null) : currentStore?.id,
       };
       if (isEdit && id) {
         await adminApi.updateAdmin(id, data);
@@ -103,8 +114,10 @@ const UserFormPage: React.FC = () => {
   const initialValues = admin ? {
     ...admin,
     status: admin.status === 1,
+    storeIds: admin.storeIds || (admin.storeId ? [admin.storeId] : []),
   } : {
     status: true,
+    storeIds: [],
   };
 
   // 获取选中的角色编码
@@ -244,20 +257,28 @@ const UserFormPage: React.FC = () => {
                   );
                 }
                 
+                // 门店管理员可以绑定多个门店
+                const isStoreAdminRole = roleCode === 'STORE_ADMIN';
+                
                 return (
                   <ProFormSelect
-                    name="storeId"
-                    label="所属门店"
-                    width="md"
+                    name="storeIds"
+                    label="绑定门店"
+                    width="lg"
+                    mode="multiple"
                     options={stores.map((s) => ({ label: s.name, value: s.id }))}
-                    placeholder="请选择门店（门店管理员必选）"
+                    placeholder={isStoreAdminRole ? "请选择要管理的门店（可多选）" : "请选择门店"}
                     rules={[
                       {
-                        required: roleCode === 'STORE_ADMIN',
-                        message: '门店管理员必须选择所属门店',
+                        required: isStoreAdminRole,
+                        message: '门店管理员必须至少绑定一个门店',
                       },
                     ]}
-                    extra="门店管理员需要绑定门店，选择后只能管理该门店数据"
+                    extra={
+                      isStoreAdminRole 
+                        ? "门店管理员可以绑定多个门店，并在后台切换查看不同门店的数据" 
+                        : "普通用户绑定门店后，只能操作该门店的数据"
+                    }
                   />
                 );
               }}

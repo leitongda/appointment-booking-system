@@ -2,12 +2,17 @@ import { SearchOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
 import { Button, Card, Form, Select, DatePicker, Table, Tag, Empty, Row, Col, Statistic } from 'antd';
 import { useState, useEffect } from 'react';
+import { useAccess, useModel } from '@umijs/max';
 import { scheduleApi, storeApi } from '@hospital/api';
 import type { ScheduleStatisticsItem, ScheduleStatisticsResponse } from '@hospital/api';
 import dayjs from 'dayjs';
 
 const ScheduleStatisticsPage: React.FC = () => {
   const [form] = Form.useForm();
+  const access = useAccess();
+  const { initialState } = useModel('@@initialState');
+  const { currentUser } = initialState ?? {};
+  const isSuperAdmin = access.canSuperAdmin;
   const [stores, setStores] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [statistics, setStatistics] = useState<ScheduleStatisticsResponse | null>(null);
@@ -19,7 +24,12 @@ const ScheduleStatisticsPage: React.FC = () => {
   const loadStores = async () => {
     try {
       const res = await storeApi.getList({ pageSize: 100, status: 1 });
-      setStores(res.data ?? []);
+      let storeList = res.data ?? [];
+      // 非超管只显示其关联的门店
+      if (!isSuperAdmin && currentUser?.storeIds?.length) {
+        storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
+      }
+      setStores(storeList);
     } catch (error) {
       console.error('加载门店失败', error);
     }
