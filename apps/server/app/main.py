@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import asyncio
 import logging
+from pathlib import Path
 
 from app.api.v1 import api_router
 from app.core.config import settings
@@ -125,6 +127,13 @@ def create_app() -> FastAPI:
     
     # ==================== 注册路由 ====================
     app.include_router(api_router, prefix=settings.API_V1_STR)
+    
+    # ==================== 静态文件服务（本地存储模式） ====================
+    if settings.STORAGE_TYPE.lower() == "local":
+        upload_dir = Path(settings.LOCAL_UPLOAD_DIR)
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        app.mount("/uploads", StaticFiles(directory=str(upload_dir)), name="uploads")
+        logger.info(f"静态文件服务已挂载: /uploads -> {upload_dir}")
     
     # ==================== 健康检查 ====================
     @app.get("/health")

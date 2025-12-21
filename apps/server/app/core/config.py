@@ -99,7 +99,11 @@ class Settings(BaseSettings):
     SMS_TEMPLATE_CODE: Optional[str] = None
     
     # 存储配置
-    STORAGE_TYPE: str = "minio"  # minio / cos
+    STORAGE_TYPE: str = "local"  # local / minio / cos
+    
+    # 本地存储配置
+    LOCAL_UPLOAD_DIR: str = "uploads"  # 上传文件目录
+    LOCAL_PUBLIC_URL: Optional[str] = None  # 公网访问URL（可选，如CDN域名）
     
     # MinIO 配置
     MINIO_ENDPOINT: str = "localhost:9000"

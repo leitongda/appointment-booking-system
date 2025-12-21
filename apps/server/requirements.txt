@@ -29,6 +29,7 @@ celery>=5.3.6
 # 工具
 python-dotenv>=1.0.1
 httpx>=0.28.0
+aiofiles>=24.1.0
 
 # 邮件发送
 aiosmtplib>=3.0.0

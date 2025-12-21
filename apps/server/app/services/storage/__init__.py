@@ -12,6 +12,7 @@ def get_storage() -> BaseStorage:
     获取存储服务实例
     
     根据配置自动选择存储后端：
+    - local: 本地文件存储（默认）
     - minio: MinIO 存储
     - cos: 腾讯云 COS 存储
     
@@ -25,7 +26,12 @@ def get_storage() -> BaseStorage:
     
     storage_type = settings.STORAGE_TYPE.lower()
     
-    if storage_type == "minio":
+    if storage_type == "local":
+        from app.services.storage.local_storage import LocalStorage
+        _storage_instance = LocalStorage()
+        logger.info("Using local file storage backend")
+    
+    elif storage_type == "minio":
         from app.services.storage.minio_storage import MinIOStorage
         _storage_instance = MinIOStorage()
         logger.info("Using MinIO storage backend")
