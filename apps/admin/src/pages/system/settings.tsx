@@ -313,7 +313,7 @@ const SettingsPage: React.FC = () => {
           <ProFormText
             name="cardName"
             label="名称修改"
-            placeholder="如：朴泽堂就诊卡"
+            placeholder="如：xxx就诊卡"
             extra='修改前端"就诊卡"字样；所有涉及到"就诊卡"的地方都会修改'
           />
           <ProFormText
