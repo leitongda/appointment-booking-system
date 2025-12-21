@@ -7,7 +7,7 @@ from datetime import datetime
 import uuid
 import json
 
-from app.models.admin import Admin, Role, OperationLog, Permission
+from app.models.admin import Admin, Role, OperationLog, Permission, admin_stores
 from app.core.security import get_password_hash, verify_password
 
 
@@ -152,7 +152,11 @@ class AdminService:
         page_size: int = 10,
     ) -> Tuple[List[Admin], int]:
         """获取管理员列表"""
-        query = select(Admin).options(selectinload(Admin.role), selectinload(Admin.store))
+        query = select(Admin).options(
+            selectinload(Admin.role), 
+            selectinload(Admin.current_store),
+            selectinload(Admin.stores)
+        )
         conditions = []
         
         if role_id:
@@ -166,12 +170,16 @@ class AdminService:
                 Admin.phone.ilike(f"%{keyword}%")
             )
         if store_id is not None:
-            conditions.append(Admin.store_id == store_id)
+            # 查询绑定了该门店的管理员
+            query = query.join(admin_stores, Admin.id == admin_stores.c.admin_id)
+            conditions.append(admin_stores.c.store_id == store_id)
         
         if conditions:
             query = query.where(and_(*conditions))
         
         count_query = select(func.count(Admin.id))
+        if store_id is not None:
+            count_query = count_query.join(admin_stores, Admin.id == admin_stores.c.admin_id)
         if conditions:
             count_query = count_query.where(and_(*conditions))
         total = await self.db.scalar(count_query)
@@ -188,7 +196,11 @@ class AdminService:
         """获取管理员详情"""
         result = await self.db.execute(
             select(Admin)
-            .options(selectinload(Admin.role), selectinload(Admin.store))
+            .options(
+                selectinload(Admin.role), 
+                selectinload(Admin.current_store),
+                selectinload(Admin.stores)
+            )
             .where(Admin.id == admin_id)
         )
         return result.unique().scalar_one_or_none()
@@ -197,7 +209,11 @@ class AdminService:
         """根据用户名获取管理员"""
         result = await self.db.execute(
             select(Admin)
-            .options(selectinload(Admin.role), selectinload(Admin.store))
+            .options(
+                selectinload(Admin.role), 
+                selectinload(Admin.current_store),
+                selectinload(Admin.stores)
+            )
             .where(Admin.username == username)
         )
         return result.unique().scalar_one_or_none()
@@ -206,7 +222,11 @@ class AdminService:
         """根据手机号获取管理员"""
         result = await self.db.execute(
             select(Admin)
-            .options(selectinload(Admin.role), selectinload(Admin.store))
+            .options(
+                selectinload(Admin.role), 
+                selectinload(Admin.current_store),
+                selectinload(Admin.stores)
+            )
             .where(Admin.phone == phone)
         )
         return result.unique().scalar_one_or_none()
@@ -233,6 +253,8 @@ class AdminService:
 
     async def create(self, data: dict) -> Admin:
         """创建管理员"""
+        from app.models.store import Store
+        
         # 检查用户名是否已存在
         existing = await self.get_by_username(data["username"])
         if existing:
@@ -240,6 +262,18 @@ class AdminService:
         
         # 如果未提供密码，使用默认密码
         password = data.get("password") or "123456"
+        
+        # 处理门店绑定
+        store_ids = data.get("store_ids") or []
+        current_store_id = data.get("store_id") or data.get("current_store_id")
+        
+        # 如果只提供了 store_id 但没有 store_ids，自动加入 store_ids
+        if current_store_id and current_store_id not in store_ids:
+            store_ids.append(current_store_id)
+        
+        # 如果有 store_ids 但没有 current_store_id，使用第一个
+        if store_ids and not current_store_id:
+            current_store_id = store_ids[0]
         
         admin = Admin(
             id=str(uuid.uuid4()),
@@ -250,16 +284,32 @@ class AdminService:
             email=data.get("email"),
             avatar=data.get("avatar"),
             role_id=data.get("role_id"),
-            store_id=data.get("store_id"),
+            current_store_id=current_store_id,
             status=data.get("status", 1),
         )
         self.db.add(admin)
+        await self.db.flush()  # 先刷新以获取 admin.id
+        
+        # 绑定门店
+        if store_ids:
+            for store_id in store_ids:
+                await self.db.execute(
+                    admin_stores.insert().values(
+                        admin_id=admin.id,
+                        store_id=store_id,
+                        is_manager=1 if data.get("role_id") else 0,
+                    )
+                )
+        
         await self.db.commit()
-        await self.db.refresh(admin)
-        return admin
+        
+        # 重新获取完整信息
+        return await self.get_by_id(admin.id)
 
     async def update(self, admin_id: str, data: dict) -> Optional[Admin]:
         """更新管理员"""
+        from sqlalchemy import delete
+        
         admin = await self.get_by_id(admin_id)
         if not admin:
             return None
@@ -270,15 +320,47 @@ class AdminService:
             if existing:
                 raise ValueError("用户名已存在")
         
+        # 处理门店绑定更新
+        store_ids = data.pop("store_ids", None)
+        
+        # 兼容旧的 store_id 字段
+        if "store_id" in data:
+            current_store_id = data.pop("store_id")
+            if current_store_id:
+                data["current_store_id"] = current_store_id
+                # 如果没有提供 store_ids，自动更新绑定
+                if store_ids is None:
+                    store_ids = [current_store_id]
+        
         for key, value in data.items():
             if key == "password" and value:
                 admin.password_hash = get_password_hash(value)
             elif hasattr(admin, key) and value is not None:
                 setattr(admin, key, value)
         
+        # 更新门店绑定
+        if store_ids is not None:
+            # 删除旧的绑定
+            await self.db.execute(
+                delete(admin_stores).where(admin_stores.c.admin_id == admin_id)
+            )
+            # 添加新的绑定
+            for store_id in store_ids:
+                await self.db.execute(
+                    admin_stores.insert().values(
+                        admin_id=admin_id,
+                        store_id=store_id,
+                        is_manager=1,
+                    )
+                )
+            # 确保 current_store_id 在绑定列表中
+            if admin.current_store_id and admin.current_store_id not in store_ids:
+                admin.current_store_id = store_ids[0] if store_ids else None
+        
         await self.db.commit()
-        await self.db.refresh(admin)
-        return admin
+        
+        # 重新获取完整信息
+        return await self.get_by_id(admin_id)
 
     async def reset_password(self, admin_id: str, new_password: str) -> bool:
         """重置密码"""

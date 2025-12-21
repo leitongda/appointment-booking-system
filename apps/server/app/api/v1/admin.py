@@ -123,9 +123,21 @@ class AdminResponse(BaseModel):
     role_id: Optional[str] = Field(None, serialization_alias="roleId")
     role_name: Optional[str] = Field(None, serialization_alias="roleName")
     role_code: Optional[str] = Field(None, serialization_alias="roleCode")
+    # 当前选中门店
+    current_store_id: Optional[str] = Field(None, serialization_alias="currentStoreId")
+    current_store_name: Optional[str] = Field(None, serialization_alias="currentStoreName")
+    # 兼容旧字段
     store_id: Optional[str] = Field(None, serialization_alias="storeId")
     store_name: Optional[str] = Field(None, serialization_alias="storeName")
+    # 绑定的所有门店
+    store_ids: Optional[List[str]] = Field(None, serialization_alias="storeIds")
+    stores: Optional[List[StoreInfo]] = None
+    # 权限相关
     permissions: Optional[List[str]] = None
+    is_super_admin: bool = Field(False, serialization_alias="isSuperAdmin")
+    is_store_admin: bool = Field(False, serialization_alias="isStoreAdmin")
+    can_view_all_stores: bool = Field(False, serialization_alias="canViewAllStores")
+    # 其他字段
     status: int
     last_login_at: Optional[datetime] = Field(None, serialization_alias="lastLoginAt")
     last_login_ip: Optional[str] = Field(None, serialization_alias="lastLoginIp")
@@ -254,6 +266,25 @@ def build_admin_response(admin, permissions: List[str] = None) -> AdminResponse:
         except:
             role_permissions = []
     
+    # 判断角色类型
+    role_code = admin.role.code if admin.role else None
+    is_super_admin = role_code == "SUPER_ADMIN"
+    is_store_admin = role_code == "STORE_ADMIN"
+    
+    # 获取绑定的门店列表
+    store_ids = []
+    stores = []
+    if hasattr(admin, 'stores') and admin.stores:
+        store_ids = [s.id for s in admin.stores]
+        stores = [StoreInfo(id=s.id, name=s.name, logo=s.logo, theme_style=s.theme_style) for s in admin.stores]
+    
+    # 是否可以查看所有门店
+    can_view_all_stores = is_super_admin or (is_store_admin and len(store_ids) > 1)
+    
+    # 兼容旧字段：current_store 可能是 current_store 或 store
+    current_store = getattr(admin, 'current_store', None) or getattr(admin, 'store', None)
+    current_store_id = getattr(admin, 'current_store_id', None) or getattr(admin, 'store_id', None)
+    
     response = AdminResponse(
         id=admin.id,
         username=admin.username,
@@ -263,10 +294,22 @@ def build_admin_response(admin, permissions: List[str] = None) -> AdminResponse:
         avatar=admin.avatar,
         role_id=admin.role_id,
         role_name=admin.role.name if admin.role else None,
-        role_code=admin.role.code if admin.role else None,
-        store_id=admin.store_id,
-        store_name=admin.store.name if admin.store else None,
+        role_code=role_code,
+        # 当前选中门店
+        current_store_id=current_store_id,
+        current_store_name=current_store.name if current_store else None,
+        # 兼容旧字段
+        store_id=current_store_id,
+        store_name=current_store.name if current_store else None,
+        # 绑定的所有门店
+        store_ids=store_ids,
+        stores=stores,
+        # 权限
         permissions=role_permissions,
+        is_super_admin=is_super_admin,
+        is_store_admin=is_store_admin,
+        can_view_all_stores=can_view_all_stores,
+        # 其他字段
         status=admin.status,
         last_login_at=admin.last_login_at,
         last_login_ip=admin.last_login_ip,
@@ -555,6 +598,96 @@ async def change_current_admin_password(
     await db.commit()
     
     return {"message": "密码修改成功"}
+
+
+# ========== 门店切换 ==========
+class SwitchStoreRequest(BaseModel):
+    """切换门店请求"""
+    store_id: str = Field(..., description="目标门店ID")
+
+
+@router.get("/me/stores")
+async def get_my_stores(
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+):
+    """获取当前用户绑定的门店列表"""
+    # 超级管理员返回所有门店
+    if current_admin.get("is_super_admin"):
+        from app.services.store_service import StoreService
+        store_service = StoreService(db)
+        stores, _ = await store_service.get_list(None)
+        return {
+            "stores": [
+                {
+                    "id": s.id,
+                    "name": s.name,
+                    "logo": s.logo,
+                    "themeStyle": s.theme_style,
+                }
+                for s in stores
+            ],
+            "currentStoreId": current_admin.get("current_store_id"),
+            "canViewAllStores": True,
+        }
+    
+    # 普通用户返回绑定的门店
+    stores = current_admin.get("stores", [])
+    return {
+        "stores": stores,
+        "currentStoreId": current_admin.get("current_store_id"),
+        "canViewAllStores": current_admin.get("can_view_all_stores", False),
+    }
+
+
+@router.put("/me/current-store")
+async def switch_current_store(
+    data: SwitchStoreRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+):
+    """切换当前门店
+    
+    只有绑定了多个门店的用户才能切换门店
+    超级管理员可以切换到任意门店
+    """
+    from app.api.deps import check_store_access
+    
+    target_store_id = data.store_id
+    
+    # 检查权限
+    if not current_admin.get("is_super_admin"):
+        if not check_store_access(current_admin, target_store_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权访问该门店"
+            )
+    
+    # 更新当前门店
+    service = AdminService(db)
+    admin = await service.get_by_id(current_admin["id"])
+    
+    if not admin:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
+    
+    admin.current_store_id = target_store_id
+    await db.commit()
+    
+    # 获取门店信息
+    from app.models.store import Store
+    from sqlalchemy import select
+    result = await db.execute(select(Store).where(Store.id == target_store_id))
+    store = result.scalar_one_or_none()
+    
+    return {
+        "message": "门店切换成功",
+        "currentStore": {
+            "id": store.id,
+            "name": store.name,
+            "logo": store.logo,
+            "themeStyle": store.theme_style,
+        } if store else None
+    }
 
 
 # ========== 手机号登录 ==========

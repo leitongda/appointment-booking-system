@@ -57,9 +57,21 @@ export interface Admin {
   roleId?: string;
   roleName?: string;
   roleCode?: string;
+  // 当前选中门店
+  currentStoreId?: string;
+  currentStoreName?: string;
+  // 兼容旧字段
   storeId?: string;
   storeName?: string;
+  // 绑定的所有门店
+  storeIds?: string[];
+  stores?: StoreInfo[];
+  // 权限相关
   permissions?: string[];
+  isSuperAdmin?: boolean;
+  isStoreAdmin?: boolean;
+  canViewAllStores?: boolean;
+  // 其他字段
   status: number;
   lastLoginAt?: string;
   lastLoginIp?: string;
@@ -75,6 +87,7 @@ export interface AdminCreateData {
   avatar?: string;
   roleId?: string;
   storeId?: string;
+  storeIds?: string[];
   status?: number;
 }
 
@@ -87,7 +100,20 @@ export interface AdminUpdateData {
   avatar?: string;
   roleId?: string;
   storeId?: string;
+  storeIds?: string[];
   status?: number;
+}
+
+// ========== 门店切换 ==========
+export interface MyStoresResult {
+  stores: StoreInfo[];
+  currentStoreId?: string;
+  canViewAllStores: boolean;
+}
+
+export interface SwitchStoreResult {
+  message: string;
+  currentStore?: StoreInfo;
 }
 
 export interface AdminLoginParams {
@@ -479,6 +505,17 @@ export const adminApi = {
   // 获取指定用户的登录历史
   getLoginHistory: (adminId: string, params?: { page?: number; pageSize?: number }): Promise<LoginHistoryResult> => {
     return request.get(`${PREFIX}/login-history/${adminId}`, { params });
+  },
+
+  // ========== 门店切换 ==========
+  // 获取当前用户绑定的门店列表
+  getMyStores: (): Promise<MyStoresResult> => {
+    return request.get(`${PREFIX}/me/stores`);
+  },
+
+  // 切换当前门店
+  switchStore: (storeId: string): Promise<SwitchStoreResult> => {
+    return request.put(`${PREFIX}/me/current-store`, { store_id: storeId });
   },
 };
 
