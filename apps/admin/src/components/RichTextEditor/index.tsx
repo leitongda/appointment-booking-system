@@ -44,9 +44,12 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const baseToolbar = 'undo redo | blocks | bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image table | code preview fullscreen';
   const toolbar = variables?.length ? `${baseToolbar} | insertvariable` : baseToolbar;
 
+  // 获取 TinyMCE API Key
+  const apiKey = process.env.TINYMCE_API_KEY || 'no-api-key';
+
   return (
     <Editor
-      tinymceScriptSrc="https://cdn.tiny.cloud/1/no-api-key/tinymce/7/tinymce.min.js"
+      tinymceScriptSrc={`https://cdn.tiny.cloud/1/${apiKey}/tinymce/7/tinymce.min.js`}
       onInit={(_evt: unknown, editor: TinyMCEEditorInstance) => {
         editorRef.current = editor;
       }}
