@@ -10,7 +10,7 @@ import type { ImageCropperProps } from './types';
 /**
  * 将canvas内容转换为Blob
  */
-function canvasToBlob(canvas: HTMLCanvasElement, type: string = 'image/jpeg', quality: number = 0.9): Promise<Blob> {
+function canvasToBlob(canvas: HTMLCanvasElement, type: string = 'image/png', quality: number = 0.9): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
@@ -73,6 +73,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
   const [scale, setScale] = useState(1);
   const [rotate, setRotate] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [imageType, setImageType] = useState<string>('image/png');
 
   // 图片加载完成后初始化剪裁区域
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -87,8 +88,42 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
       setRotate(0);
       setCrop(undefined);
       setCompletedCrop(undefined);
+      
+      // 检测图片格式
+      if (imageSrc) {
+        // 如果是 data URL，提取 MIME 类型
+        if (imageSrc.startsWith('data:')) {
+          const match = imageSrc.match(/^data:(image\/[a-z]+);/);
+          if (match) {
+            setImageType(match[1]);
+          } else {
+            setImageType('image/png');
+          }
+        }
+        // 如果是 URL，从扩展名推断
+        else {
+          const ext = imageSrc.toLowerCase().split('.').pop()?.split('?')[0];
+          switch (ext) {
+            case 'jpg':
+            case 'jpeg':
+              setImageType('image/jpeg');
+              break;
+            case 'png':
+              setImageType('image/png');
+              break;
+            case 'webp':
+              setImageType('image/webp');
+              break;
+            case 'gif':
+              setImageType('image/gif');
+              break;
+            default:
+              setImageType('image/png');
+          }
+        }
+      }
     }
-  }, [open]);
+  }, [open, imageSrc]);
 
   // 执行剪裁
   const handleCrop = async () => {
@@ -128,6 +163,13 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
 
       ctx.save();
 
+      // 如果是支持透明的格式（PNG、WebP、GIF），清空画布（默认透明）
+      // 如果是 JPEG，用白色填充背景
+      if (imageType === 'image/jpeg') {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
       // 移动到画布中心
       ctx.translate(canvas.width / (2 * pixelRatio), canvas.height / (2 * pixelRatio));
       ctx.rotate(rotateRads);
@@ -149,9 +191,32 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
 
       ctx.restore();
 
-      // 转换为Blob
-      const blob = await canvasToBlob(canvas, 'image/jpeg', 0.9);
-      const file = new File([blob], 'cropped.jpg', { type: 'image/jpeg' });
+      // 根据原图类型转换为 Blob，质量参数仅对 JPEG/WebP 有效
+      const quality = imageType === 'image/jpeg' ? 0.95 : 0.9;
+      const blob = await canvasToBlob(canvas, imageType, quality);
+      
+      // 生成对应的文件扩展名
+      let fileExt = 'png';
+      let mimeType = imageType;
+      switch (imageType) {
+        case 'image/jpeg':
+          fileExt = 'jpg';
+          break;
+        case 'image/png':
+          fileExt = 'png';
+          break;
+        case 'image/webp':
+          fileExt = 'webp';
+          break;
+        case 'image/gif':
+          fileExt = 'gif';
+          break;
+        default:
+          fileExt = 'png';
+          mimeType = 'image/png';
+      }
+      
+      const file = new File([blob], `cropped.${fileExt}`, { type: mimeType });
 
       onConfirm(file);
     } catch (error) {

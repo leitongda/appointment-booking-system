@@ -154,11 +154,24 @@ class ImageProcessor:
         """压缩图片"""
         buffer = io.BytesIO()
         
-        # 处理RGBA模式
+        # 处理RGBA/P模式
         save_img = img
-        if output_format == "JPEG" and img.mode in ("RGBA", "P"):
-            # JPEG不支持透明，转换为RGB
-            save_img = img.convert("RGB")
+        if output_format == "JPEG" and img.mode in ("RGBA", "P", "LA"):
+            # JPEG不支持透明，转换为RGB并使用白色背景
+            # 创建白色背景
+            background = Image.new("RGB", img.size, (255, 255, 255))
+            # 如果有透明通道，正确合成
+            if img.mode == "RGBA" or img.mode == "LA":
+                background.paste(img, mask=img.split()[-1])  # 使用alpha通道作为mask
+            else:
+                background.paste(img)
+            save_img = background
+        elif output_format != "JPEG" and img.mode not in ("RGB", "RGBA", "P"):
+            # 对于支持透明的格式，确保使用正确的模式
+            if img.mode in ("LA", "L"):
+                save_img = img.convert("RGBA")
+            elif img.mode == "1":
+                save_img = img.convert("RGB")
         
         # 保存图片
         save_kwargs = {"format": output_format}
