@@ -108,9 +108,11 @@ class StoreInfo(BaseModel):
     logo: Optional[str] = None
     theme_style: Optional[str] = Field(None, serialization_alias="themeStyle")
 
-    class Config:
-        from_attributes = True
-        populate_by_name = True
+    model_config = {
+        "from_attributes": True,
+        "populate_by_name": True,
+        "serialize_by_alias": True,
+    }
 
 
 class AdminResponse(BaseModel):
@@ -143,9 +145,11 @@ class AdminResponse(BaseModel):
     last_login_ip: Optional[str] = Field(None, serialization_alias="lastLoginIp")
     created_at: datetime = Field(..., serialization_alias="createdAt")
 
-    class Config:
-        from_attributes = True
-        populate_by_name = True
+    model_config = {
+        "from_attributes": True,
+        "populate_by_name": True,
+        "serialize_by_alias": True,  # 确保序列化时使用别名
+    }
 
 
 class AdminLoginRequest(BaseModel):
@@ -488,7 +492,7 @@ async def admin_login(
     return response.model_dump(by_alias=True)
 
 
-@router.get("/me")
+@router.get("/me", response_model=AdminResponse)
 async def get_current_admin_info(
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
@@ -578,7 +582,7 @@ class UpdateProfileRequest(BaseModel):
     avatar: Optional[str] = Field(None, max_length=255)
 
 
-@router.put("/me")
+@router.put("/me", response_model=AdminResponse)
 async def update_current_admin_profile(
     data: UpdateProfileRequest,
     db: AsyncSession = Depends(get_db),

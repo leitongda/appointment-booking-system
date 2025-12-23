@@ -1,12 +1,12 @@
 """数据统计 API"""
 from datetime import date, datetime, timedelta
-from typing import Optional
+from typing import Optional, List, Union
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, case
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, get_store_filter
 from app.models.appointment import Appointment
 from app.models.schedule import Schedule
 from app.models.user import User, Patient
@@ -18,6 +18,15 @@ from app.schemas.response import ResponseModel
 router = APIRouter()
 
 
+def _build_store_filter_condition(store_filter: Union[None, str, List[str]]):
+    """构建门店过滤条件"""
+    if store_filter is None:
+        return None
+    if isinstance(store_filter, list):
+        return Doctor.store_id.in_(store_filter)
+    return Doctor.store_id == store_filter
+
+
 @router.get("/overview", response_model=ResponseModel)
 async def get_overview(
     db: AsyncSession = Depends(get_db),
@@ -26,17 +35,28 @@ async def get_overview(
     """获取概览数据"""
     today = date.today()
     
-    # 今日预约数
-    today_appointments = await db.scalar(
-        select(func.count(Appointment.id)).where(
-            func.date(Appointment.created_at) == today
-        )
+    # 获取门店过滤条件
+    store_filter = get_store_filter(current_admin)
+    store_condition = _build_store_filter_condition(store_filter)
+    
+    # 今日预约数（通过 Doctor 关联门店过滤）
+    today_query = (
+        select(func.count(Appointment.id))
+        .select_from(Appointment)
+        .join(Schedule, Appointment.schedule_id == Schedule.id)
+        .join(Doctor, Schedule.doctor_id == Doctor.id)
+        .where(func.date(Appointment.created_at) == today)
     )
+    if store_condition is not None:
+        today_query = today_query.where(store_condition)
+    today_appointments = await db.scalar(today_query)
     
     # 今日就诊数 - 通过 Schedule 获取 schedule_date
-    today_visits = await db.scalar(
+    today_visits_query = (
         select(func.count(Appointment.id))
+        .select_from(Appointment)
         .join(Schedule, Appointment.schedule_id == Schedule.id)
+        .join(Doctor, Schedule.doctor_id == Doctor.id)
         .where(
             and_(
                 Schedule.schedule_date == today,
@@ -44,27 +64,36 @@ async def get_overview(
             )
         )
     )
+    if store_condition is not None:
+        today_visits_query = today_visits_query.where(store_condition)
+    today_visits = await db.scalar(today_visits_query)
     
-    # 总患者数（使用 Patient 表统计）
+    # 总患者数（患者是全局的，不按门店过滤）
     total_patients = await db.scalar(
         select(func.count(Patient.id))
     )
     
-    # 总医生数
-    total_doctors = await db.scalar(
-        select(func.count(Doctor.id)).where(Doctor.status == 1)
-    )
+    # 总医生数（按门店过滤）
+    doctors_query = select(func.count(Doctor.id)).where(Doctor.status == 1)
+    if store_condition is not None:
+        doctors_query = doctors_query.where(store_condition)
+    total_doctors = await db.scalar(doctors_query)
     
-    # 本月预约数
+    # 本月预约数（按门店过滤）
     first_day_of_month = today.replace(day=1)
-    month_appointments = await db.scalar(
-        select(func.count(Appointment.id)).where(
-            func.date(Appointment.created_at) >= first_day_of_month
-        )
+    month_query = (
+        select(func.count(Appointment.id))
+        .select_from(Appointment)
+        .join(Schedule, Appointment.schedule_id == Schedule.id)
+        .join(Doctor, Schedule.doctor_id == Doctor.id)
+        .where(func.date(Appointment.created_at) >= first_day_of_month)
     )
+    if store_condition is not None:
+        month_query = month_query.where(store_condition)
+    month_appointments = await db.scalar(month_query)
     
-    # 本月收入（挂号费）- 通过 Schedule -> Doctor 获取 registration_fee
-    month_revenue = await db.scalar(
+    # 本月收入（挂号费）- 按门店过滤
+    revenue_query = (
         select(func.sum(Doctor.registration_fee))
         .select_from(Appointment)
         .join(Schedule, Appointment.schedule_id == Schedule.id)
@@ -75,7 +104,10 @@ async def get_overview(
                 Appointment.status.in_([2, 3, 5])  # 已签到、候诊中、已完成
             )
         )
-    ) or 0
+    )
+    if store_condition is not None:
+        revenue_query = revenue_query.where(store_condition)
+    month_revenue = await db.scalar(revenue_query) or 0
     
     return ResponseModel(data={
         "todayAppointments": today_appointments or 0,
@@ -97,19 +129,26 @@ async def get_appointment_trend(
     today = date.today()
     start_date = today - timedelta(days=days - 1)
     
-    # 查询每天的预约数
-    result = await db.execute(
+    # 获取门店过滤条件
+    store_filter = get_store_filter(current_admin)
+    store_condition = _build_store_filter_condition(store_filter)
+    
+    # 查询每天的预约数（按门店过滤）
+    query = (
         select(
             func.date(Appointment.created_at).label('date'),
             func.count(Appointment.id).label('count')
-        ).where(
-            func.date(Appointment.created_at) >= start_date
-        ).group_by(
-            func.date(Appointment.created_at)
-        ).order_by(
-            func.date(Appointment.created_at)
         )
+        .select_from(Appointment)
+        .join(Schedule, Appointment.schedule_id == Schedule.id)
+        .join(Doctor, Schedule.doctor_id == Doctor.id)
+        .where(func.date(Appointment.created_at) >= start_date)
     )
+    if store_condition is not None:
+        query = query.where(store_condition)
+    
+    query = query.group_by(func.date(Appointment.created_at)).order_by(func.date(Appointment.created_at))
+    result = await db.execute(query)
     
     data = {str(row.date): row.count for row in result.fetchall()}
     
@@ -133,15 +172,30 @@ async def get_appointment_status_stats(
     current_admin = Depends(get_current_admin)
 ):
     """获取预约状态统计"""
-    query = select(
-        Appointment.status,
-        func.count(Appointment.id).label('count')
+    # 获取门店过滤条件
+    store_filter = get_store_filter(current_admin)
+    store_condition = _build_store_filter_condition(store_filter)
+    
+    query = (
+        select(
+            Appointment.status,
+            func.count(Appointment.id).label('count')
+        )
+        .select_from(Appointment)
+        .join(Schedule, Appointment.schedule_id == Schedule.id)
+        .join(Doctor, Schedule.doctor_id == Doctor.id)
     )
     
+    conditions = []
     if start_date:
-        query = query.where(func.date(Appointment.created_at) >= start_date)
+        conditions.append(func.date(Appointment.created_at) >= start_date)
     if end_date:
-        query = query.where(func.date(Appointment.created_at) <= end_date)
+        conditions.append(func.date(Appointment.created_at) <= end_date)
+    if store_condition is not None:
+        conditions.append(store_condition)
+    
+    if conditions:
+        query = query.where(and_(*conditions))
     
     query = query.group_by(Appointment.status)
     
@@ -172,22 +226,31 @@ async def get_department_ranking(
     current_admin = Depends(get_current_admin)
 ):
     """获取科室预约排行"""
-    # Appointment -> Doctor -> Department
-    result = await db.execute(
+    # 获取门店过滤条件
+    store_filter = get_store_filter(current_admin)
+    store_condition = _build_store_filter_condition(store_filter)
+    
+    # Appointment -> Schedule -> Doctor -> Department
+    query = (
         select(
             Department.id,
             Department.name,
             func.count(Appointment.id).label('count')
-        ).join(
-            Doctor, Doctor.department_id == Department.id
-        ).join(
-            Appointment, Appointment.doctor_id == Doctor.id
-        ).group_by(
-            Department.id, Department.name
-        ).order_by(
-            func.count(Appointment.id).desc()
-        ).limit(limit)
+        )
+        .select_from(Appointment)
+        .join(Schedule, Appointment.schedule_id == Schedule.id)
+        .join(Doctor, Schedule.doctor_id == Doctor.id)
+        .join(Department, Doctor.department_id == Department.id)
     )
+    
+    if store_condition is not None:
+        query = query.where(store_condition)
+    
+    query = query.group_by(Department.id, Department.name).order_by(
+        func.count(Appointment.id).desc()
+    ).limit(limit)
+    
+    result = await db.execute(query)
     
     data = [
         {"departmentId": row.id, "departmentName": row.name, "count": row.count}
@@ -204,23 +267,34 @@ async def get_doctor_ranking(
     current_admin = Depends(get_current_admin)
 ):
     """获取医生预约排行"""
-    result = await db.execute(
+    # 获取门店过滤条件
+    store_filter = get_store_filter(current_admin)
+    store_condition = _build_store_filter_condition(store_filter)
+    
+    query = (
         select(
             Doctor.id,
             Doctor.name,
             Doctor.title,
             Department.name.label('department_name'),
             func.count(Appointment.id).label('count')
-        ).join(
-            Appointment, Appointment.doctor_id == Doctor.id
-        ).join(
-            Department, Doctor.department_id == Department.id
-        ).group_by(
-            Doctor.id, Doctor.name, Doctor.title, Department.name
-        ).order_by(
-            func.count(Appointment.id).desc()
-        ).limit(limit)
+        )
+        .select_from(Appointment)
+        .join(Schedule, Appointment.schedule_id == Schedule.id)
+        .join(Doctor, Schedule.doctor_id == Doctor.id)
+        .join(Department, Doctor.department_id == Department.id)
     )
+    
+    if store_condition is not None:
+        query = query.where(store_condition)
+    
+    query = query.group_by(
+        Doctor.id, Doctor.name, Doctor.title, Department.name
+    ).order_by(
+        func.count(Appointment.id).desc()
+    ).limit(limit)
+    
+    result = await db.execute(query)
     
     data = [
         {
@@ -242,16 +316,26 @@ async def get_time_slot_distribution(
     current_admin = Depends(get_current_admin)
 ):
     """获取时段分布统计"""
+    # 获取门店过滤条件
+    store_filter = get_store_filter(current_admin)
+    store_condition = _build_store_filter_condition(store_filter)
+    
     # 通过 Schedule 获取 time_slot
-    result = await db.execute(
+    query = (
         select(
             Schedule.time_slot,
             func.count(Appointment.id).label('count')
         )
         .select_from(Appointment)
         .join(Schedule, Appointment.schedule_id == Schedule.id)
-        .group_by(Schedule.time_slot)
+        .join(Doctor, Schedule.doctor_id == Doctor.id)
     )
+    
+    if store_condition is not None:
+        query = query.where(store_condition)
+    
+    query = query.group_by(Schedule.time_slot)
+    result = await db.execute(query)
     
     slot_map = {
         "AM": "上午",
@@ -273,20 +357,30 @@ async def get_weekday_distribution(
     current_admin = Depends(get_current_admin)
 ):
     """获取星期分布统计"""
+    # 获取门店过滤条件
+    store_filter = get_store_filter(current_admin)
+    store_condition = _build_store_filter_condition(store_filter)
+    
     # 使用 extract 获取星期几（0=周日，1=周一...6=周六）- 通过 Schedule 获取 schedule_date
-    result = await db.execute(
+    query = (
         select(
             func.extract('dow', Schedule.schedule_date).label('weekday'),
             func.count(Appointment.id).label('count')
         )
         .select_from(Appointment)
         .join(Schedule, Appointment.schedule_id == Schedule.id)
-        .group_by(
-            func.extract('dow', Schedule.schedule_date)
-        ).order_by(
-            func.extract('dow', Schedule.schedule_date)
-        )
+        .join(Doctor, Schedule.doctor_id == Doctor.id)
     )
+    
+    if store_condition is not None:
+        query = query.where(store_condition)
+    
+    query = query.group_by(
+        func.extract('dow', Schedule.schedule_date)
+    ).order_by(
+        func.extract('dow', Schedule.schedule_date)
+    )
+    result = await db.execute(query)
     
     weekday_names = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
     
@@ -308,7 +402,18 @@ async def get_revenue_trend(
     today = date.today()
     start_date = today - timedelta(days=days - 1)
     
+    # 获取门店过滤条件
+    store_filter = get_store_filter(current_admin)
+    store_condition = _build_store_filter_condition(store_filter)
+    
     # 通过 Schedule -> Doctor 获取 registration_fee
+    conditions = [
+        func.date(Appointment.created_at) >= start_date,
+        Appointment.status.in_([2, 3, 5])  # 有效预约
+    ]
+    if store_condition is not None:
+        conditions.append(store_condition)
+    
     result = await db.execute(
         select(
             func.date(Appointment.created_at).label('date'),
@@ -317,16 +422,9 @@ async def get_revenue_trend(
         .select_from(Appointment)
         .join(Schedule, Appointment.schedule_id == Schedule.id)
         .join(Doctor, Schedule.doctor_id == Doctor.id)
-        .where(
-            and_(
-                func.date(Appointment.created_at) >= start_date,
-                Appointment.status.in_([2, 3, 5])  # 有效预约
-            )
-        ).group_by(
-            func.date(Appointment.created_at)
-        ).order_by(
-            func.date(Appointment.created_at)
-        )
+        .where(and_(*conditions))
+        .group_by(func.date(Appointment.created_at))
+        .order_by(func.date(Appointment.created_at))
     )
     
     data = {str(row.date): float(row.revenue or 0) for row in result.fetchall()}
@@ -351,12 +449,20 @@ async def get_appointment_summary(
     current_admin = Depends(get_current_admin)
 ):
     """获取预约汇总统计（完成率/爽约率/取消率）"""
-    query = select(
-        func.count(Appointment.id).label('total'),
-        func.sum(case((Appointment.status == 5, 1), else_=0)).label('completed'),
-        func.sum(case((Appointment.status == 7, 1), else_=0)).label('no_show'),
-        func.sum(case((Appointment.status == 6, 1), else_=0)).label('cancelled'),
-    ).select_from(Appointment)
+    # 获取门店过滤条件
+    store_filter = get_store_filter(current_admin)
+    
+    query = (
+        select(
+            func.count(Appointment.id).label('total'),
+            func.sum(case((Appointment.status == 5, 1), else_=0)).label('completed'),
+            func.sum(case((Appointment.status == 7, 1), else_=0)).label('no_show'),
+            func.sum(case((Appointment.status == 6, 1), else_=0)).label('cancelled'),
+        )
+        .select_from(Appointment)
+        .join(Schedule, Appointment.schedule_id == Schedule.id)
+        .join(Doctor, Schedule.doctor_id == Doctor.id)
+    )
     
     conditions = []
     
@@ -365,9 +471,12 @@ async def get_appointment_summary(
     if end_date:
         conditions.append(func.date(Appointment.created_at) <= end_date)
     
-    if store_id:
-        query = query.join(Schedule, Appointment.schedule_id == Schedule.id)
-        query = query.join(Doctor, Schedule.doctor_id == Doctor.id)
+    # 优先使用管理员的门店过滤，如果是超管则可以使用传入的 store_id
+    if store_filter is not None:
+        store_condition = _build_store_filter_condition(store_filter)
+        if store_condition is not None:
+            conditions.append(store_condition)
+    elif store_id:
         conditions.append(Doctor.store_id == store_id)
     
     if conditions:
@@ -400,7 +509,11 @@ async def get_store_ranking(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
 ):
-    """获取门店预约排行"""
+    """获取门店预约排行（只有超管可以看到所有门店排行）"""
+    # 获取门店过滤条件
+    store_filter = get_store_filter(current_admin)
+    store_condition = _build_store_filter_condition(store_filter)
+    
     query = (
         select(
             Store.id,
@@ -418,6 +531,8 @@ async def get_store_ranking(
         conditions.append(func.date(Appointment.created_at) >= start_date)
     if end_date:
         conditions.append(func.date(Appointment.created_at) <= end_date)
+    if store_condition is not None:
+        conditions.append(store_condition)
     
     if conditions:
         query = query.where(and_(*conditions))

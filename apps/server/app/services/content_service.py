@@ -19,6 +19,7 @@ class NewsService:
         type: Optional[int] = None,
         status: Optional[int] = None,
         keyword: Optional[str] = None,
+        store_id: Optional[str] = None,
         page: int = 1,
         page_size: int = 10,
     ) -> Tuple[List[News], int]:
@@ -36,6 +37,11 @@ class NewsService:
                     News.title.ilike(f"%{keyword}%"),
                     News.summary.ilike(f"%{keyword}%")
                 )
+            )
+        if store_id:
+            # 查询门店专属和全局的新闻
+            conditions.append(
+                or_(News.store_id == store_id, News.store_id.is_(None))
             )
         
         if conditions:
@@ -59,14 +65,21 @@ class NewsService:
     async def get_published(
         self,
         type: Optional[int] = None,
+        store_id: Optional[str] = None,
         limit: int = 10,
     ) -> List[News]:
         """获取已发布的新闻"""
-        query = select(News).where(News.status == 1)
+        conditions = [News.status == 1]
         
         if type is not None:
-            query = query.where(News.type == type)
+            conditions.append(News.type == type)
         
+        if store_id:
+            conditions.append(
+                or_(News.store_id == store_id, News.store_id.is_(None))
+            )
+        
+        query = select(News).where(and_(*conditions))
         query = query.order_by(News.is_top.desc(), News.publish_time.desc())
         query = query.limit(limit)
         
@@ -77,10 +90,11 @@ class NewsService:
         """获取新闻详情"""
         return await self.db.get(News, news_id)
 
-    async def create(self, data: dict) -> News:
+    async def create(self, data: dict, store_id: Optional[str] = None) -> News:
         """创建新闻"""
         news = News(
             id=str(uuid.uuid4()),
+            store_id=store_id,
             title=data["title"],
             type=data.get("type", 1),
             cover_image=data.get("cover_image"),
@@ -141,6 +155,7 @@ class NoticeService:
         type: Optional[int] = None,
         status: Optional[int] = None,
         keyword: Optional[str] = None,
+        store_id: Optional[str] = None,
         page: int = 1,
         page_size: int = 10,
     ) -> Tuple[List[Notice], int]:
@@ -154,6 +169,10 @@ class NoticeService:
             conditions.append(Notice.status == status)
         if keyword:
             conditions.append(Notice.title.ilike(f"%{keyword}%"))
+        if store_id:
+            conditions.append(
+                or_(Notice.store_id == store_id, Notice.store_id.is_(None))
+            )
         
         if conditions:
             query = query.where(and_(*conditions))
@@ -171,9 +190,16 @@ class NoticeService:
         
         return list(items), total or 0
 
-    async def get_published(self, limit: int = 10) -> List[Notice]:
+    async def get_published(self, store_id: Optional[str] = None, limit: int = 10) -> List[Notice]:
         """获取已发布的公告"""
-        query = select(Notice).where(Notice.status == 1)
+        conditions = [Notice.status == 1]
+        
+        if store_id:
+            conditions.append(
+                or_(Notice.store_id == store_id, Notice.store_id.is_(None))
+            )
+        
+        query = select(Notice).where(and_(*conditions))
         query = query.order_by(Notice.is_top.desc(), Notice.publish_time.desc())
         query = query.limit(limit)
         
@@ -184,10 +210,11 @@ class NoticeService:
         """获取公告详情"""
         return await self.db.get(Notice, notice_id)
 
-    async def create(self, data: dict) -> Notice:
+    async def create(self, data: dict, store_id: Optional[str] = None) -> Notice:
         """创建公告"""
         notice = Notice(
             id=str(uuid.uuid4()),
+            store_id=store_id,
             title=data["title"],
             type=data.get("type", 1),
             content=data["content"],
@@ -237,6 +264,7 @@ class BannerService:
         self,
         position: Optional[str] = None,
         status: Optional[int] = None,
+        store_id: Optional[str] = None,
         page: int = 1,
         page_size: int = 10,
     ) -> Tuple[List[Banner], int]:
@@ -248,6 +276,10 @@ class BannerService:
             conditions.append(Banner.position == position)
         if status is not None:
             conditions.append(Banner.status == status)
+        if store_id:
+            conditions.append(
+                or_(Banner.store_id == store_id, Banner.store_id.is_(None))
+            )
         
         if conditions:
             query = query.where(and_(*conditions))
@@ -265,14 +297,19 @@ class BannerService:
         
         return list(items), total or 0
 
-    async def get_active(self, position: str = "home") -> List[Banner]:
+    async def get_active(self, position: str = "home", store_id: Optional[str] = None) -> List[Banner]:
         """获取启用的轮播图"""
-        query = select(Banner).where(
-            and_(
-                Banner.position == position,
-                Banner.status == 1
+        conditions = [
+            Banner.position == position,
+            Banner.status == 1
+        ]
+        
+        if store_id:
+            conditions.append(
+                or_(Banner.store_id == store_id, Banner.store_id.is_(None))
             )
-        )
+        
+        query = select(Banner).where(and_(*conditions))
         query = query.order_by(Banner.sort_order.asc())
         
         result = await self.db.execute(query)
@@ -282,10 +319,11 @@ class BannerService:
         """获取轮播图详情"""
         return await self.db.get(Banner, banner_id)
 
-    async def create(self, data: dict) -> Banner:
+    async def create(self, data: dict, store_id: Optional[str] = None) -> Banner:
         """创建轮播图"""
         banner = Banner(
             id=str(uuid.uuid4()),
+            store_id=store_id,
             title=data.get("title"),
             image_url=data["image_url"],
             link_type=data.get("link_type", 0),

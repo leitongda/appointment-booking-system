@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
+from sqlalchemy.orm import selectinload
 from typing import Optional, List
 from datetime import datetime
 import uuid
@@ -7,6 +8,7 @@ import uuid
 from app.models.leave_request import LeaveRequest, RequestType, RequestStatus
 from app.models.appointment import Appointment
 from app.models.schedule import Schedule
+from app.models.doctor import Doctor
 from app.schemas.leave_request import (
     StopClinicCreate, ScheduleChangeCreate, ReviewRequest, LeaveRequestQuery
 )
@@ -29,6 +31,13 @@ class LeaveRequestService:
         """获取申请列表"""
         stmt = select(LeaveRequest)
         count_stmt = select(func.count(LeaveRequest.id))
+        
+        # 门店过滤：通过医生关联门店
+        if query.store_id:
+            stmt = stmt.join(Doctor, LeaveRequest.doctor_id == Doctor.id)
+            stmt = stmt.where(Doctor.store_id == query.store_id)
+            count_stmt = count_stmt.join(Doctor, LeaveRequest.doctor_id == Doctor.id)
+            count_stmt = count_stmt.where(Doctor.store_id == query.store_id)
         
         if query.doctor_id:
             stmt = stmt.where(LeaveRequest.doctor_id == query.doctor_id)
@@ -202,13 +211,18 @@ class LeaveRequestService:
             # 实际实现需要更复杂的逻辑
             pass
     
-    async def get_pending_count(self) -> int:
+    async def get_pending_count(self, store_id: Optional[str] = None) -> int:
         """获取待审核数量"""
-        result = await self.db.execute(
-            select(func.count(LeaveRequest.id)).where(
-                LeaveRequest.status == RequestStatus.PENDING.value
-            )
+        stmt = select(func.count(LeaveRequest.id)).where(
+            LeaveRequest.status == RequestStatus.PENDING.value
         )
+        
+        # 门店过滤
+        if store_id:
+            stmt = stmt.join(Doctor, LeaveRequest.doctor_id == Doctor.id)
+            stmt = stmt.where(Doctor.store_id == store_id)
+        
+        result = await self.db.execute(stmt)
         return result.scalar() or 0
     
     async def get_doctor_requests(

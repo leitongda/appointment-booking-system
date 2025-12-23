@@ -1,4 +1,5 @@
-from sqlalchemy import Column, String, Integer, Text, DateTime, Enum
+from sqlalchemy import Column, String, Integer, Text, DateTime, Enum, ForeignKey
+from sqlalchemy.orm import relationship
 from app.db.base import Base, TimestampMixin
 import uuid
 import enum
@@ -18,6 +19,7 @@ class Message(Base, TimestampMixin):
     __tablename__ = "messages"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    store_id = Column(String(36), ForeignKey("stores.id"), nullable=True, index=True, comment="所属门店ID，NULL表示全局")
     user_id = Column(String(36), nullable=False, index=True, comment="接收用户ID")
     user_type = Column(String(20), nullable=False, comment="用户类型: patient/doctor")
     title = Column(String(200), nullable=False, comment="消息标题")
@@ -29,6 +31,8 @@ class Message(Base, TimestampMixin):
     
     # 额外数据，JSON格式存储
     extra_data = Column(Text, comment="额外数据(JSON)")
+    
+    store = relationship("Store", backref="messages")
 
 
 class MessageTemplate(Base, TimestampMixin):

@@ -26,6 +26,7 @@ class PatientManageService:
         self,
         keyword: Optional[str] = None,
         is_blacklist: Optional[bool] = None,
+        store_id: Optional[str] = None,
         page: int = 1,
         page_size: int = 10,
     ) -> Tuple[List[dict], int]:
@@ -42,6 +43,12 @@ class PatientManageService:
                     Patient.id_card.ilike(f"%{keyword}%"),
                     Patient.card_no.ilike(f"%{keyword}%")
                 )
+            )
+        
+        # 门店过滤
+        if store_id:
+            conditions.append(
+                or_(Patient.store_id == store_id, Patient.store_id.is_(None))
             )
         
         if conditions:
@@ -424,14 +431,22 @@ class PatientManageService:
 
     async def get_blacklist(
         self,
+        store_id: Optional[str] = None,
         page: int = 1,
         page_size: int = 10,
     ) -> Tuple[List[dict], int]:
         """获取黑名单列表"""
         # 查询被禁用用户的就诊人
-        query = select(Patient).join(User).where(User.status == 0)
+        conditions = [User.status == 0]
         
-        count_query = select(func.count(Patient.id)).join(User).where(User.status == 0)
+        # 门店过滤
+        if store_id:
+            conditions.append(
+                or_(Patient.store_id == store_id, Patient.store_id.is_(None))
+            )
+        
+        query = select(Patient).join(User).where(and_(*conditions))
+        count_query = select(func.count(Patient.id)).join(User).where(and_(*conditions))
         total = await self.db.scalar(count_query)
         
         query = query.order_by(Patient.created_at.desc())
@@ -470,7 +485,7 @@ class PatientManageService:
         random_str = ''.join(random.choices(string.digits, k=4))
         return f"JZK{timestamp}{random_str}"
 
-    async def create_patient(self, data: PatientCreateByAdmin) -> dict:
+    async def create_patient(self, data: PatientCreateByAdmin, store_id: Optional[str] = None) -> dict:
         """创建患者（管理员手动添加）"""
         # 检查手机号是否已存在用户
         result = await self.db.execute(
@@ -514,6 +529,7 @@ class PatientManageService:
         patient = Patient(
             id=str(uuid.uuid4()),
             user_id=user.id,
+            store_id=store_id,  # 关联门店
             name=data.name,
             phone=data.phone,
             id_card=data.id_card,

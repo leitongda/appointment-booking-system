@@ -4,6 +4,7 @@ from typing import Optional, List
 from datetime import date
 
 from app.db.session import get_db
+from app.api.deps import get_current_admin, get_store_filter
 from app.schemas.leave_request import (
     StopClinicCreate, ScheduleChangeCreate, ReviewRequest,
     LeaveRequestResponse, LeaveRequestQuery, RequestType, RequestStatus
@@ -23,9 +24,13 @@ async def get_leave_requests(
     end_date: Optional[date] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
 ):
     """获取申请列表（管理端）"""
+    # 获取门店过滤
+    store_filter = get_store_filter(current_admin)
+    
     service = LeaveRequestService(db)
     query = LeaveRequestQuery(
         doctor_id=doctor_id,
@@ -34,7 +39,8 @@ async def get_leave_requests(
         start_date=start_date,
         end_date=end_date,
         page=page,
-        page_size=page_size
+        page_size=page_size,
+        store_id=store_filter if isinstance(store_filter, str) else None
     )
     requests, total = await service.get_list(query)
     
@@ -47,10 +53,17 @@ async def get_leave_requests(
 
 
 @router.get("/pending-count")
-async def get_pending_count(db: AsyncSession = Depends(get_db)):
+async def get_pending_count(
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
     """获取待审核数量"""
+    # 获取门店过滤
+    store_filter = get_store_filter(current_admin)
+    store_id = store_filter if isinstance(store_filter, str) else None
+    
     service = LeaveRequestService(db)
-    count = await service.get_pending_count()
+    count = await service.get_pending_count(store_id=store_id)
     return {"count": count}
 
 

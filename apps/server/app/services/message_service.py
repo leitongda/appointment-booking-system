@@ -60,7 +60,8 @@ class MessageService:
         user_id: Optional[str],
         user_type: Optional[str],
         keyword: Optional[str],
-        query: MessageQuery
+        query: MessageQuery,
+        store_id: Optional[str] = None
     ) -> tuple[List[Message], int]:
         """获取所有消息列表（管理端）"""
         stmt = select(Message)
@@ -86,6 +87,13 @@ class MessageService:
             keyword_filter = Message.title.contains(keyword) | Message.content.contains(keyword)
             stmt = stmt.where(keyword_filter)
             count_stmt = count_stmt.where(keyword_filter)
+        
+        # 门店过滤
+        if store_id:
+            from sqlalchemy import or_
+            store_filter = or_(Message.store_id == store_id, Message.store_id.is_(None))
+            stmt = stmt.where(store_filter)
+            count_stmt = count_stmt.where(store_filter)
         
         stmt = stmt.order_by(Message.created_at.desc())
         stmt = stmt.offset((query.page - 1) * query.page_size).limit(query.page_size)
@@ -133,12 +141,13 @@ class MessageService:
             stop_clinic=type_counts.get('stop_clinic', 0)
         )
     
-    async def create(self, data: MessageCreate) -> Message:
+    async def create(self, data: MessageCreate, store_id: Optional[str] = None) -> Message:
         """创建消息"""
         extra_data_str = json.dumps(data.extra_data) if data.extra_data else None
         
         message = Message(
             id=str(uuid.uuid4()),
+            store_id=store_id,
             user_id=data.user_id,
             user_type=data.user_type,
             title=data.title,
@@ -152,12 +161,13 @@ class MessageService:
         await self.db.refresh(message)
         return message
     
-    async def batch_create(self, data: MessageBatchCreate) -> int:
+    async def batch_create(self, data: MessageBatchCreate, store_id: Optional[str] = None) -> int:
         """批量创建消息"""
         messages = []
         for user_id in data.user_ids:
             message = Message(
                 id=str(uuid.uuid4()),
+                store_id=store_id,
                 user_id=user_id,
                 user_type=data.user_type,
                 title=data.title,

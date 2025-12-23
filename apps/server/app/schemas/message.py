@@ -40,6 +40,7 @@ class MessageBatchCreate(BaseModel):
 class MessageResponse(MessageBase):
     """消息响应"""
     id: str
+    store_id: Optional[str] = None
     user_id: str
     user_type: str
     is_read: int
@@ -53,6 +54,7 @@ class MessageResponse(MessageBase):
 class MessageListResponse(BaseModel):
     """消息列表响应"""
     id: str
+    store_id: Optional[str] = None
     title: str
     content: Optional[str]
     message_type: str

@@ -246,7 +246,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
   // 门店用户：使用门店的 logo 和名称
   // 如果有门店信息，则覆盖默认设置
   const storeCustomSettings = currentStore ? {
-    logo: currentStore.logo ? `/api/v1${currentStore.logo}` : defaultSettings.logo,
+    logo: currentStore.logo || defaultSettings.logo,
     title: currentStore.name || defaultSettings.title,
   } : {};
 

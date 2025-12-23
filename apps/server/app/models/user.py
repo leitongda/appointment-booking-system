@@ -24,6 +24,7 @@ class Patient(Base, TimestampMixin):
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    store_id = Column(String(36), ForeignKey("stores.id"), nullable=True, index=True, comment="首次就诊门店ID")
     name = Column(String(50), nullable=False)
     phone = Column(String(20), nullable=False)
     id_card = Column(String(18))
@@ -45,4 +46,5 @@ class Patient(Base, TimestampMixin):
     total_consumption = Column(Numeric(10, 2), default=0)  # 累计消费
     
     user = orm_relationship("User", back_populates="patients")
+    store = orm_relationship("Store", backref="patients")
 

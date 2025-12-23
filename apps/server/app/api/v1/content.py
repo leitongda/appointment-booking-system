@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, get_store_filter
 from app.services.content_service import NewsService, NoticeService, BannerService
 from app.schemas.response import PageResponse
 
@@ -26,6 +26,7 @@ class NewsCreate(BaseModel):
 
 class NewsResponse(BaseModel):
     id: str
+    store_id: Optional[str] = None
     title: str
     type: int
     cover_image: Optional[str] = None
@@ -52,6 +53,7 @@ class NoticeCreate(BaseModel):
 
 class NoticeResponse(BaseModel):
     id: str
+    store_id: Optional[str] = None
     title: str
     type: int
     content: Optional[str] = None
@@ -77,6 +79,7 @@ class BannerCreate(BaseModel):
 
 class BannerResponse(BaseModel):
     id: str
+    store_id: Optional[str] = None
     title: Optional[str] = None
     image_url: str
     link_type: int = 0
@@ -97,17 +100,24 @@ async def get_news_list(
     type: Optional[int] = None,
     status: Optional[int] = None,
     keyword: Optional[str] = None,
+    store_id: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
     """获取新闻列表"""
+    # 门店过滤
+    store_filter = get_store_filter(current_admin)
+    if store_filter:
+        store_id = store_filter
+    
     service = NewsService(db)
     items, total = await service.get_list(
         type=type,
         status=status,
         keyword=keyword,
+        store_id=store_id,
         page=page,
         page_size=page_size,
     )
@@ -122,12 +132,13 @@ async def get_news_list(
 @router.get("/news/published", response_model=List[NewsResponse])
 async def get_published_news(
     type: Optional[int] = None,
+    store_id: Optional[str] = None,
     limit: int = Query(10, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
 ):
     """获取已发布新闻（前端展示）"""
     service = NewsService(db)
-    items = await service.get_published(type=type, limit=limit)
+    items = await service.get_published(type=type, store_id=store_id, limit=limit)
     return [NewsResponse.model_validate(item) for item in items]
 
 
@@ -155,8 +166,13 @@ async def create_news(
     current_admin = Depends(get_current_admin),
 ):
     """创建新闻"""
+    # 获取当前管理员的门店ID（非超管创建时自动关联门店）
+    store_id = None
+    if not current_admin.get("is_super_admin"):
+        store_id = current_admin.get("current_store_id") or current_admin.get("store_id")
+    
     service = NewsService(db)
-    news = await service.create(data.model_dump())
+    news = await service.create(data.model_dump(), store_id=store_id)
     return NewsResponse.model_validate(news)
 
 
@@ -195,17 +211,24 @@ async def get_notice_list(
     type: Optional[int] = None,
     status: Optional[int] = None,
     keyword: Optional[str] = None,
+    store_id: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
     """获取公告列表"""
+    # 门店过滤
+    store_filter = get_store_filter(current_admin)
+    if store_filter:
+        store_id = store_filter
+    
     service = NoticeService(db)
     items, total = await service.get_list(
         type=type,
         status=status,
         keyword=keyword,
+        store_id=store_id,
         page=page,
         page_size=page_size,
     )
@@ -219,12 +242,13 @@ async def get_notice_list(
 
 @router.get("/notices/published", response_model=List[NoticeResponse])
 async def get_published_notices(
+    store_id: Optional[str] = None,
     limit: int = Query(10, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
 ):
     """获取已发布公告（前端展示）"""
     service = NoticeService(db)
-    items = await service.get_published(limit=limit)
+    items = await service.get_published(store_id=store_id, limit=limit)
     return [NoticeResponse.model_validate(item) for item in items]
 
 
@@ -248,8 +272,13 @@ async def create_notice(
     current_admin = Depends(get_current_admin),
 ):
     """创建公告"""
+    # 获取当前管理员的门店ID（非超管创建时自动关联门店）
+    store_id = None
+    if not current_admin.get("is_super_admin"):
+        store_id = current_admin.get("current_store_id") or current_admin.get("store_id")
+    
     service = NoticeService(db)
-    notice = await service.create(data.model_dump())
+    notice = await service.create(data.model_dump(), store_id=store_id)
     return NoticeResponse.model_validate(notice)
 
 
@@ -287,16 +316,23 @@ async def delete_notice(
 async def get_banner_list(
     position: Optional[str] = None,
     status: Optional[int] = None,
+    store_id: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
     """获取轮播图列表"""
+    # 门店过滤
+    store_filter = get_store_filter(current_admin)
+    if store_filter:
+        store_id = store_filter
+    
     service = BannerService(db)
     items, total = await service.get_list(
         position=position,
         status=status,
+        store_id=store_id,
         page=page,
         page_size=page_size,
     )
@@ -311,11 +347,12 @@ async def get_banner_list(
 @router.get("/banners/active", response_model=List[BannerResponse])
 async def get_active_banners(
     position: str = "home",
+    store_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ):
     """获取启用的轮播图（前端展示）"""
     service = BannerService(db)
-    items = await service.get_active(position=position)
+    items = await service.get_active(position=position, store_id=store_id)
     return [BannerResponse.model_validate(item) for item in items]
 
 
@@ -326,8 +363,13 @@ async def create_banner(
     current_admin = Depends(get_current_admin),
 ):
     """创建轮播图"""
+    # 获取当前管理员的门店ID（非超管创建时自动关联门店）
+    store_id = None
+    if not current_admin.get("is_super_admin"):
+        store_id = current_admin.get("current_store_id") or current_admin.get("store_id")
+    
     service = BannerService(db)
-    banner = await service.create(data.model_dump())
+    banner = await service.create(data.model_dump(), store_id=store_id)
     return BannerResponse.model_validate(banner)
 
 

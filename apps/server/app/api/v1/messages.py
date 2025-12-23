@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 
 from app.db.session import get_db
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_current_admin, get_store_filter
 from app.schemas.message import (
     MessageCreate, MessageBatchCreate, MessageQuery,
     MessageResponse, MessageListResponse, UnreadCountResponse,
@@ -147,11 +147,18 @@ async def get_all_messages(
     message_type: Optional[MessageType] = None,
     is_read: Optional[int] = Query(None, ge=0, le=1),
     keyword: Optional[str] = None,
+    store_id: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
 ):
     """获取所有消息列表（管理端）"""
+    # 门店过滤
+    store_filter = get_store_filter(current_admin)
+    if store_filter:
+        store_id = store_filter
+    
     service = MessageService(db)
     query = MessageQuery(
         message_type=message_type,
@@ -163,7 +170,8 @@ async def get_all_messages(
         user_id=user_id,
         user_type=user_type,
         keyword=keyword,
-        query=query
+        query=query,
+        store_id=store_id
     )
     
     return PageResponse(
@@ -177,22 +185,34 @@ async def get_all_messages(
 @router.post("/send", response_model=MessageResponse)
 async def send_message(
     data: MessageCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
 ):
     """发送消息（管理端）"""
+    # 获取当前管理员的门店ID（非超管创建时自动关联门店）
+    store_id = None
+    if not current_admin.get("is_super_admin"):
+        store_id = current_admin.get("current_store_id") or current_admin.get("store_id")
+    
     service = MessageService(db)
-    message = await service.create(data)
+    message = await service.create(data, store_id=store_id)
     return MessageResponse.model_validate(message)
 
 
 @router.post("/send-batch")
 async def send_batch_messages(
     data: MessageBatchCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
 ):
     """批量发送消息（管理端）"""
+    # 获取当前管理员的门店ID（非超管创建时自动关联门店）
+    store_id = None
+    if not current_admin.get("is_super_admin"):
+        store_id = current_admin.get("current_store_id") or current_admin.get("store_id")
+    
     service = MessageService(db)
-    count = await service.batch_create(data)
+    count = await service.batch_create(data, store_id=store_id)
     return {"message": f"成功发送 {count} 条消息"}
 
 

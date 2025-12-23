@@ -84,5 +84,6 @@ class LeaveRequestQuery(BaseModel):
     status: Optional[RequestStatus] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
+    store_id: Optional[str] = None  # 门店过滤
     page: int = Field(1, ge=1)
     page_size: int = Field(10, ge=1, le=100)

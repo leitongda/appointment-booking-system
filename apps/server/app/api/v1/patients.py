@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, get_store_filter
 from app.services.patient_service import PatientManageService
 from app.services.point_service import PointService
 from app.schemas.response import PageResponse
@@ -21,9 +21,14 @@ async def create_patient(
     current_admin = Depends(get_current_admin),
 ):
     """创建患者（管理员手动添加）"""
+    # 获取当前管理员的门店ID（非超管创建时自动关联门店）
+    store_id = None
+    if not current_admin.get("is_super_admin"):
+        store_id = current_admin.get("current_store_id") or current_admin.get("store_id")
+    
     service = PatientManageService(db)
     try:
-        result = await service.create_patient(data)
+        result = await service.create_patient(data, store_id=store_id)
         return result
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -33,16 +38,23 @@ async def create_patient(
 async def get_patients(
     keyword: Optional[str] = None,
     is_blacklist: Optional[bool] = None,
+    store_id: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
     """获取患者列表"""
+    # 门店过滤
+    store_filter = get_store_filter(current_admin)
+    if store_filter:
+        store_id = store_filter
+    
     service = PatientManageService(db)
     items, total = await service.get_list(
         keyword=keyword,
         is_blacklist=is_blacklist,
+        store_id=store_id,
         page=page,
         page_size=page_size,
     )
@@ -51,14 +63,20 @@ async def get_patients(
 
 @router.get("/blacklist")
 async def get_blacklist(
+    store_id: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
     """获取黑名单列表"""
+    # 门店过滤
+    store_filter = get_store_filter(current_admin)
+    if store_filter:
+        store_id = store_filter
+    
     service = PatientManageService(db)
-    items, total = await service.get_blacklist(page=page, page_size=page_size)
+    items, total = await service.get_blacklist(store_id=store_id, page=page, page_size=page_size)
     return PageResponse(data=items, total=total, page=page, page_size=page_size)
 
 
