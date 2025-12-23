@@ -10,8 +10,10 @@ export type EventType = 'page_view' | 'page_leave' | 'click' | 'search' | 'custo
 
 /** 追踪配置 */
 export interface TrackerConfig {
-  /** API 基础地址 */
+  /** API 基础地址（如 http://localhost:8000 或空字符串） */
   apiBaseUrl: string;
+  /** API 路径（如 /api/v1/analytics/batch），可选，默认使用 /api/v1/analytics/batch */
+  apiPath?: string;
   /** 平台类型 */
   platform: Platform;
   /** 是否启用 */

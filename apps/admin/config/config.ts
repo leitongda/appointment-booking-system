@@ -2,7 +2,12 @@ import { defineConfig } from '@umijs/max';
 import routes from './routes';
 import proxy from './proxy';
 
-const { REACT_APP_ENV = 'dev', AMAP_KEY = '', TINYMCE_API_KEY = '' } = process.env;
+const { 
+  REACT_APP_ENV = 'dev', 
+  AMAP_KEY = '', 
+  TINYMCE_API_KEY = '',
+  API_BASE_URL = '/api/v1',  // API 基础路径，支持动态配置
+} = process.env;
 
 export default defineConfig({
   // 高德地图 SDK
@@ -16,6 +21,7 @@ export default defineConfig({
   // 定义全局变量
   define: {
     'process.env.TINYMCE_API_KEY': TINYMCE_API_KEY,
+    'process.env.API_BASE_URL': API_BASE_URL,
   },
 
   // 使用 hash 路由

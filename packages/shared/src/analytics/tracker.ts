@@ -68,6 +68,9 @@ function getReferrer(): string {
 /**
  * 用户行为追踪器
  */
+/** 默认的 Analytics API 路径 */
+const DEFAULT_ANALYTICS_PATH = '/api/v1/analytics/batch';
+
 export class Tracker {
   private config: Required<TrackerConfig>;
   private sessionId: string;
@@ -83,6 +86,7 @@ export class Tracker {
       batchSize: 10,
       batchInterval: 5000,
       debug: false,
+      apiPath: DEFAULT_ANALYTICS_PATH,
       ...config,
     };
     
@@ -163,7 +167,8 @@ export class Tracker {
     const events = [...this.eventQueue];
     this.eventQueue = [];
 
-    const url = `${this.config.apiBaseUrl}/api/v1/analytics/batch`;
+    // 使用配置的 apiPath，支持动态 API 路径
+    const url = `${this.config.apiBaseUrl}${this.config.apiPath}`;
     const body = JSON.stringify({ events });
 
     if (this.config.debug) {

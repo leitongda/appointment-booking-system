@@ -146,6 +146,32 @@ cd apps/server
 pip install -r requirements.txt
 ```
 
+### 环境配置
+
+后端服务需要配置环境变量才能运行。请按以下步骤配置：
+
+```bash
+# 进入后端目录
+cd apps/server
+
+# 复制环境变量模板
+cp .env.example .env
+
+# 编辑 .env 文件，根据实际情况修改配置
+```
+
+**必需配置项：**
+
+| 变量名 | 说明 | 示例值 |
+|--------|------|--------|
+| `DATABASE_URL` | PostgreSQL 数据库连接 | `postgresql+asyncpg://user:pass@localhost:5432/dbname` |
+| `REDIS_URL` | Redis 连接地址 | `redis://localhost:6379/0` |
+| `SECRET_KEY` | JWT 签名密钥 | 使用 `openssl rand -hex 32` 生成 |
+
+> ⚠️ **安全提示**：生产环境务必修改 `SECRET_KEY` 为强随机字符串，切勿使用默认值！
+
+完整配置项说明请查看 `apps/server/.env.example` 文件。
+
 ### 启动开发服务
 
 ```bash

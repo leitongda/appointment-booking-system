@@ -15,7 +15,10 @@ export default defineConfig(async (merge) => {
     sourceRoot: 'src',
     outputRoot: 'dist',
     plugins: ['@tarojs/plugin-framework-react'],
-    defineConstants: {},
+    // 定义全局环境变量
+    defineConstants: {
+      'process.env.TARO_APP_API_URL': JSON.stringify(process.env.TARO_APP_API_URL || ''),
+    },
     copy: {
       patterns: [],
       options: {},

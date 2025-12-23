@@ -2,9 +2,13 @@ import { message, Dropdown, Avatar, Space } from 'antd';
 import type { RequestConfig, RunTimeLayoutConfig } from 'umi';
 import { history } from 'umi';
 import { getToken, removeToken } from '@hospital/shared';
-import { userApi, doctorApi } from '@hospital/api';
+import { userApi, doctorApi, setBaseURL } from '@hospital/api';
 import { UserOutlined, LogoutOutlined, SettingOutlined } from '@ant-design/icons';
 import { initApiConfig } from '@/utils/request';
+
+// 设置 API 基础路径（从环境变量读取，支持动态配置）
+const apiBaseUrl = process.env.API_BASE_URL || '/api/v1';
+setBaseURL(apiBaseUrl);
 
 // 初始化 API 请求配置（拦截器）
 initApiConfig();

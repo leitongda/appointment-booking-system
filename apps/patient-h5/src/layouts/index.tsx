@@ -5,15 +5,20 @@ import { useEffect, useState } from 'react';
 import styles from './index.less';
 import { initApiConfig } from '@/utils/request';
 import { initTracker, getTracker, getToken } from '@hospital/shared';
+import { setBaseURL } from '@hospital/api';
+
+// 设置 API 基础路径（从环境变量读取，支持动态配置）
+const apiBaseUrl = process.env.API_BASE_URL || '/api/v1';
+setBaseURL(apiBaseUrl);
 
 // 初始化 API 请求配置（拦截器）
 initApiConfig();
 
 // 初始化用户行为追踪器
-// apiBaseUrl 使用空字符串，请求路径为 /api/v1/analytics/batch
-// 开发环境会自动走代理（/api -> localhost:8000），避免 CORS 问题
+// 使用配置的 API 基础路径，支持动态版本
 initTracker({
   apiBaseUrl: '',
+  apiPath: `${apiBaseUrl}/analytics/batch`,
   platform: 'h5',
   enabled: true,
   enableInDev: true,

@@ -1,4 +1,4 @@
-import { request } from '../request';
+import { getBaseURL } from '../request';
 
 const PREFIX = '/export';
 
@@ -21,9 +21,13 @@ export interface ExportSchedulesParams {
 
 /**
  * 获取导出URL（用于下载）
+ * 使用 getBaseURL() 获取当前配置的 API 基础路径
  */
 const getExportUrl = (path: string, params?: Record<string, any>): string => {
-  const baseUrl = (request as any).defaults?.baseURL || '/api/v1';
+  const baseUrl = getBaseURL();
+  if (!baseUrl) {
+    console.warn('[Export] API baseURL 未设置，请确保在应用初始化时调用 setBaseURL()');
+  }
   const url = new URL(`${baseUrl}${PREFIX}${path}`, window.location.origin);
   
   if (params) {

@@ -11,6 +11,7 @@ import logging
 import json
 
 from app.core.security import decode_token
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -52,17 +53,22 @@ ACTION_MAPPING = {
     "DELETE": "删除",
 }
 
-# 排除的路径（不记录日志）
-EXCLUDE_PATHS = [
-    "/api/v1/admin/login",
-    "/api/v1/admin/phone-login",
-    "/api/v1/admin/sms/send",
-    "/api/v1/admin/sms/login",
-    "/api/v1/admin/wechat",
-    "/api/v1/admin/public-key",
-    "/api/v1/admin/logs",  # 避免查看日志时产生日志
-    "/api/v1/auth",
-    "/api/v1/upload",
+# 排除的路径后缀（相对路径，不记录日志）
+# 使用相对路径，在检查时会动态拼接 API 前缀
+EXCLUDE_PATH_SUFFIXES = [
+    "/admin/login",
+    "/admin/phone-login",
+    "/admin/sms/send",
+    "/admin/sms/login",
+    "/admin/wechat",
+    "/admin/public-key",
+    "/admin/logs",  # 避免查看日志时产生日志
+    "/auth",
+    "/upload",
+]
+
+# 非 API 的排除路径
+EXCLUDE_NON_API_PATHS = [
     "/health",
     "/docs",
     "/redoc",
@@ -75,8 +81,8 @@ SENSITIVE_FIELDS = ["password", "password_hash", "token", "secret", "access_toke
 
 def _get_module_name(path: str) -> str:
     """根据请求路径获取模块名称"""
-    # 移除 API 前缀
-    clean_path = path.replace("/api/v1", "")
+    # 移除 API 前缀（使用动态配置）
+    clean_path = path.replace(settings.API_V1_STR, "")
     
     # 匹配模块
     for prefix, module_name in MODULE_MAPPING.items():
@@ -90,8 +96,8 @@ def _get_action_name(method: str, path: str) -> str:
     """根据请求方法和路径获取操作名称"""
     base_action = ACTION_MAPPING.get(method, method)
     
-    # 特殊路径的操作名称
-    clean_path = path.replace("/api/v1", "")
+    # 特殊路径的操作名称（使用动态配置）
+    clean_path = path.replace(settings.API_V1_STR, "")
     
     # 处理一些特殊操作
     if "/status" in clean_path and method == "PUT":
@@ -147,9 +153,17 @@ def _sanitize_params(params):
 
 def _should_exclude_path(path: str) -> bool:
     """检查路径是否应该被排除"""
-    for exclude_path in EXCLUDE_PATHS:
-        if path.startswith(exclude_path):
+    # 检查非 API 路径
+    if path in EXCLUDE_NON_API_PATHS:
+        return True
+    
+    # 检查 API 路径（使用动态前缀）
+    api_prefix = settings.API_V1_STR
+    for suffix in EXCLUDE_PATH_SUFFIXES:
+        full_path = f"{api_prefix}{suffix}"
+        if path == full_path or path.startswith(f"{full_path}/"):
             return True
+    
     return False
 
 
@@ -187,9 +201,9 @@ def _extract_admin_from_token(request: Request) -> tuple:
 class OperationLogMiddleware(BaseHTTPMiddleware):
     """操作日志中间件"""
     
-    def __init__(self, app, exclude_paths: list = None):
+    def __init__(self, app, exclude_path_suffixes: list = None):
         super().__init__(app)
-        self.exclude_paths = exclude_paths or EXCLUDE_PATHS
+        self.exclude_path_suffixes = exclude_path_suffixes or EXCLUDE_PATH_SUFFIXES
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         # 只记录写操作

@@ -1,5 +1,22 @@
 // 导出请求配置函数和错误类
-export { setBaseURL, setRequestInterceptor, setResponseInterceptor, ApiError } from './request';
+export { 
+  setBaseURL, 
+  getBaseURL,
+  setHttpClient,
+  getHttpClient,
+  setRequestInterceptor, 
+  setResponseInterceptor, 
+  ApiError,
+} from './request';
+export type { HttpClient } from './request';
+
+// 导出 API 配置
+export { API_CONFIG, getApiBaseUrl, setApiConfig, resetApiConfig } from './config';
+export type { ApiConfig } from './config';
+
+// 导出请求适配器（用于小程序等非浏览器环境）
+export { createTaroAdapter, getTaroToken, setTaroToken } from './adapters';
+export type { TaroAdapterConfig } from './adapters';
 
 // 导出 API 模块
 export { authApi } from './modules/auth';

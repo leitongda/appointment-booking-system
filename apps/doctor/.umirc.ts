@@ -20,7 +20,13 @@
  */
 import { defineConfig } from 'umi';
 
+const { API_BASE_URL = '/api/v1' } = process.env;
+
 export default defineConfig({
+  // 定义全局环境变量
+  define: {
+    'process.env.API_BASE_URL': API_BASE_URL,
+  },
   npmClient: 'pnpm',
   plugins: [
     '@umijs/plugins/dist/antd',

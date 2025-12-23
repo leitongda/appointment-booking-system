@@ -22,14 +22,23 @@ def _get_env_file() -> str | None:
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "医院挂号系统"
-    API_V1_STR: str = "/api/v1"
+    
+    # API 路径配置（支持动态版本和前缀）
+    API_PREFIX: str = "/api"    # API 基础前缀
+    API_VERSION: str = "v1"     # API 版本号
+    
+    @property
+    def API_V1_STR(self) -> str:
+        """完整 API 路径（保持向后兼容）"""
+        return f"{self.API_PREFIX}/{self.API_VERSION}"
     
     # 环境
     DEBUG: bool = False
     ENVIRONMENT: str = "development"  # development, staging, production
     
     # 数据库（异步，FastAPI 使用）
-    DATABASE_URL: str = "postgresql+asyncpg://hospital:hospital123@localhost:5432/hospital_booking"
+    # 必需配置，请在 .env 文件中设置
+    DATABASE_URL: str
     DB_POOL_SIZE: int = 10
     DB_MAX_OVERFLOW: int = 20
     DB_POOL_TIMEOUT: int = 30
@@ -42,7 +51,8 @@ class Settings(BaseSettings):
         return self.DATABASE_URL.replace("postgresql+asyncpg", "postgresql+psycopg2")
     
     # Redis
-    REDIS_URL: str = "redis://localhost:6379/0"
+    # 必需配置，请在 .env 文件中设置
+    REDIS_URL: str
     
     # Celery 配置
     @property
@@ -64,7 +74,9 @@ class Settings(BaseSettings):
     SCHEDULE_AUTO_GENERATE_DAYS: int = 14  # 自动生成未来多少天的排班
     
     # JWT
-    SECRET_KEY: str = "your-secret-key-change-in-production"
+    # 必需配置，请在 .env 文件中设置
+    # 生成方法: openssl rand -hex 32
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -107,8 +119,9 @@ class Settings(BaseSettings):
     
     # MinIO 配置
     MINIO_ENDPOINT: str = "localhost:9000"
-    MINIO_ACCESS_KEY: str = "minioadmin"
-    MINIO_SECRET_KEY: str = "minioadmin"
+    # 敏感配置，请在 .env 文件中设置
+    MINIO_ACCESS_KEY: str = ""
+    MINIO_SECRET_KEY: str = ""
     MINIO_BUCKET: str = "hospital"
     MINIO_SECURE: bool = False  # 是否使用HTTPS
     MINIO_PUBLIC_URL: Optional[str] = None  # 公网访问URL（可选，如CDN域名）

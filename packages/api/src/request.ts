@@ -39,14 +39,38 @@ export class ApiError extends Error {
   }
 }
 
-// 创建 axios 实例
-const instance: AxiosInstance = axios.create({
-  baseURL: '/api/v1',
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+/**
+ * HTTP 客户端接口
+ * 用于支持自定义 HTTP 客户端（如小程序 Taro 适配器）
+ */
+export interface HttpClient {
+  defaults: { baseURL?: string };
+  get: <T = any>(url: string, config?: AxiosRequestConfig) => Promise<T>;
+  post: <T = any>(url: string, data?: any, config?: AxiosRequestConfig) => Promise<T>;
+  put: <T = any>(url: string, data?: any, config?: AxiosRequestConfig) => Promise<T>;
+  delete: <T = any>(url: string, config?: AxiosRequestConfig) => Promise<T>;
+  patch: <T = any>(url: string, data?: any, config?: AxiosRequestConfig) => Promise<T>;
+  interceptors?: AxiosInstance['interceptors'];
+}
+
+// HTTP 客户端实例（可被替换为自定义实现）
+let httpClient: HttpClient | null = null;
+
+/**
+ * 创建默认的 axios 实例
+ * 注意：不设置 baseURL，由各端在初始化时通过 setBaseURL 设置
+ */
+const createDefaultInstance = (): AxiosInstance => {
+  return axios.create({
+    timeout: 30000,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+};
+
+// 默认的 axios 实例
+const instance: AxiosInstance = createDefaultInstance();
 
 // 请求拦截器
 instance.interceptors.request.use(
@@ -111,10 +135,35 @@ instance.interceptors.response.use(
 );
 
 /**
+ * 获取当前 HTTP 客户端
+ * 如果设置了自定义客户端则返回自定义客户端，否则返回默认 axios 实例
+ */
+export const getHttpClient = (): HttpClient => {
+  return httpClient || instance;
+};
+
+/**
+ * 设置自定义 HTTP 客户端
+ * 用于小程序等非浏览器环境，可以传入 Taro 适配器等自定义实现
+ */
+export const setHttpClient = (client: HttpClient) => {
+  httpClient = client;
+};
+
+/**
  * 设置基础 URL
+ * 必须在应用启动时调用此方法设置 API 前缀
  */
 export const setBaseURL = (baseURL: string) => {
-  instance.defaults.baseURL = baseURL;
+  const client = getHttpClient();
+  client.defaults.baseURL = baseURL;
+};
+
+/**
+ * 获取当前基础 URL
+ */
+export const getBaseURL = (): string => {
+  return getHttpClient().defaults.baseURL || '';
 };
 
 /**
@@ -139,26 +188,27 @@ export const setResponseInterceptor = (
 
 /**
  * 封装请求方法
+ * 自动使用当前配置的 HTTP 客户端
  */
 export const request = {
   get: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> => {
-    return instance.get(url, config);
+    return getHttpClient().get(url, config);
   },
   
   post: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
-    return instance.post(url, data, config);
+    return getHttpClient().post(url, data, config);
   },
   
   put: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
-    return instance.put(url, data, config);
+    return getHttpClient().put(url, data, config);
   },
   
   delete: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> => {
-    return instance.delete(url, config);
+    return getHttpClient().delete(url, config);
   },
   
   patch: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
-    return instance.patch(url, data, config);
+    return getHttpClient().patch(url, data, config);
   },
 };
 

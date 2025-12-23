@@ -1,7 +1,7 @@
 import { AvatarDropdown, AvatarName } from '@/components/RightContent';
 import { FullscreenButton, NotificationButton, RefreshButton } from '@/components/HeaderActions';
 import { getToken, removeToken, setStorage, STORAGE_KEYS, handleTokenExpired, initTracker, getTracker } from '@hospital/shared';
-import { adminApi } from '@hospital/api';
+import { adminApi, setBaseURL } from '@hospital/api';
 import type { Settings as LayoutSettings, MenuDataItem } from '@ant-design/pro-components';
 import type { RunTimeLayoutConfig, RequestConfig } from '@umijs/max';
 import { history, useLocation } from '@umijs/max';
@@ -9,6 +9,11 @@ import { App, message } from 'antd';
 import { useMemo } from 'react';
 import defaultSettings from '../config/defaultSettings';
 import { initApiConfig } from '@/utils/request';
+
+// 设置 API 基础路径（从环境变量读取，支持动态配置）
+const apiBaseUrl = process.env.API_BASE_URL || '/api/v1';
+setBaseURL(apiBaseUrl);
+console.log(`✓ API 基础路径已设置: ${apiBaseUrl}`);
 
 /**
  * 动态菜单配置
@@ -127,10 +132,10 @@ const loginPath = '/login';
 initApiConfig();
 
 // 初始化用户行为追踪器
-// apiBaseUrl 使用空字符串，请求路径为 /api/v1/analytics/batch
-// 开发环境会自动走代理（/api -> localhost:8000），避免 CORS 问题
+// 使用配置的 API 基础路径，支持动态版本
 initTracker({
   apiBaseUrl: '',
+  apiPath: `${apiBaseUrl}/analytics/batch`,
   platform: 'admin',
   enabled: true,
   enableInDev: true, // 开发环境也启用，方便测试
