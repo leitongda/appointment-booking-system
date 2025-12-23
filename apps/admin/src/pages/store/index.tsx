@@ -1,11 +1,12 @@
-import { PlusOutlined, ApartmentOutlined } from '@ant-design/icons';
+import { PlusOutlined, ApartmentOutlined, UserOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Avatar, Modal, Tree, Spin, Empty } from 'antd';
-import type { TreeDataNode, TreeProps } from 'antd';
+import { Button, App, Popconfirm, Space, Avatar, Modal, Tree, Spin, Empty, Transfer, Tag } from 'antd';
+import type { TreeDataNode, TreeProps, TransferProps } from 'antd';
 import { useRef, useState, useCallback } from 'react';
 import { history, useAccess } from '@umijs/max';
-import { storeApi, departmentApi } from '@hospital/api';
+import { storeApi, departmentApi, adminApi } from '@hospital/api';
+import type { StoreAdmin } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Store, DepartmentTreeNode } from '@hospital/shared';
 
@@ -33,6 +34,13 @@ const getAllKeys = (nodes: DepartmentTreeNode[]): string[] => {
   return keys;
 };
 
+interface AdminItem {
+  key: string;
+  title: string;
+  description: string;
+  disabled?: boolean;
+}
+
 const StorePage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
@@ -46,6 +54,14 @@ const StorePage: React.FC = () => {
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // 用户绑定弹窗状态
+  const [userBindModalVisible, setUserBindModalVisible] = useState(false);
+  const [userBindingStore, setUserBindingStore] = useState<Store | null>(null);
+  const [allAdmins, setAllAdmins] = useState<AdminItem[]>([]);
+  const [selectedAdminKeys, setSelectedAdminKeys] = useState<string[]>([]);
+  const [userLoading, setUserLoading] = useState(false);
+  const [userSubmitting, setUserSubmitting] = useState(false);
 
   const handleDelete = async (id: string) => {
     try {
@@ -91,7 +107,7 @@ const StorePage: React.FC = () => {
     setCheckedKeys(keys as string[]);
   };
 
-  // 提交绑定
+  // 提交绑定科室
   const handleBindSubmit = async () => {
     if (!bindingStore) return;
     
@@ -108,7 +124,7 @@ const StorePage: React.FC = () => {
     }
   };
 
-  // 关闭弹窗
+  // 关闭科室弹窗
   const handleCloseBindModal = () => {
     setBindModalVisible(false);
     setBindingStore(null);
@@ -116,6 +132,72 @@ const StorePage: React.FC = () => {
     setCheckedKeys([]);
     setExpandedKeys([]);
   };
+
+  // 打开用户绑定弹窗
+  const handleOpenUserBindModal = useCallback(async (store: Store) => {
+    setUserBindingStore(store);
+    setUserBindModalVisible(true);
+    setUserLoading(true);
+    
+    try {
+      // 并行获取所有用户和已绑定的用户
+      const [adminsResult, boundAdmins] = await Promise.all([
+        adminApi.getAdmins({ pageSize: 200, status: 1 }),
+        storeApi.getAdmins(store.id),
+      ]);
+      
+      // 转换为 Transfer 数据格式
+      const adminItems: AdminItem[] = (adminsResult.data ?? []).map((admin) => ({
+        key: admin.id,
+        title: admin.name || admin.username,
+        description: admin.phone || admin.email || '',
+      }));
+      setAllAdmins(adminItems);
+      
+      // 设置已绑定的用户为选中状态
+      const boundIds = (boundAdmins || []).map((a) => a.id);
+      setSelectedAdminKeys(boundIds);
+    } catch (error: any) {
+      message.error('加载用户数据失败');
+      console.error(error);
+    } finally {
+      setUserLoading(false);
+    }
+  }, [message]);
+
+  // 处理用户选择变化
+  const handleUserChange: TransferProps['onChange'] = (targetKeys) => {
+    setSelectedAdminKeys(targetKeys as string[]);
+  };
+
+  // 提交用户绑定
+  const handleUserBindSubmit = async () => {
+    if (!userBindingStore) return;
+    
+    setUserSubmitting(true);
+    try {
+      await storeApi.batchBindAdmins(userBindingStore.id, selectedAdminKeys);
+      message.success('分配成功');
+      setUserBindModalVisible(false);
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error.message || '分配失败');
+    } finally {
+      setUserSubmitting(false);
+    }
+  };
+
+  // 关闭用户弹窗
+  const handleCloseUserBindModal = () => {
+    setUserBindModalVisible(false);
+    setUserBindingStore(null);
+    setAllAdmins([]);
+    setSelectedAdminKeys([]);
+  };
+
+  // Transfer 过滤搜索
+  const filterOption = (inputValue: string, option: AdminItem) =>
+    option.title.indexOf(inputValue) > -1 || option.description.indexOf(inputValue) > -1;
 
   const columns: ProColumns<Store>[] = [
     {
@@ -140,12 +222,17 @@ const StorePage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 180,
+      width: 220,
       render: (_, record) => (
         <Space>
           {access.hasPermission('store:update') && (
             <a onClick={() => handleOpenBindModal(record)}>
               <ApartmentOutlined /> 科室
+            </a>
+          )}
+          {access.canSuperAdmin && (
+            <a onClick={() => handleOpenUserBindModal(record)}>
+              <UserOutlined /> 用户
             </a>
           )}
           {access.hasPermission('store:update') && (
@@ -216,6 +303,55 @@ const StorePage: React.FC = () => {
               onExpand={(keys) => setExpandedKeys(keys as string[])}
               onCheck={handleCheck}
               selectable={false}
+            />
+          </div>
+        )}
+      </Modal>
+
+      {/* 用户绑定弹窗 */}
+      <Modal
+        title={`分配用户 - ${userBindingStore?.name || ''}`}
+        open={userBindModalVisible}
+        onCancel={handleCloseUserBindModal}
+        onOk={handleUserBindSubmit}
+        confirmLoading={userSubmitting}
+        okText="确定"
+        cancelText="取消"
+        width={700}
+        destroyOnClose
+      >
+        {userLoading ? (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <Spin tip="加载中..." />
+          </div>
+        ) : allAdmins.length === 0 ? (
+          <Empty description="暂无用户数据" />
+        ) : (
+          <div>
+            <div style={{ marginBottom: 12 }}>
+              <Tag color="blue">已选择 {selectedAdminKeys.length} 个用户</Tag>
+            </div>
+            <Transfer
+              dataSource={allAdmins}
+              targetKeys={selectedAdminKeys}
+              onChange={handleUserChange}
+              filterOption={filterOption}
+              showSearch
+              listStyle={{
+                width: 280,
+                height: 350,
+              }}
+              titles={['可选用户', '已分配用户']}
+              render={(item) => (
+                <span>
+                  {item.title}
+                  {item.description && (
+                    <span style={{ color: '#999', marginLeft: 8, fontSize: 12 }}>
+                      {item.description}
+                    </span>
+                  )}
+                </span>
+              )}
             />
           </div>
         )}

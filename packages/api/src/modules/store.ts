@@ -1,6 +1,18 @@
 import request from '../request';
 import type { Store, StoreDepartment, Department, PageResult } from '@hospital/shared';
 
+export interface StoreAdmin {
+  id: string;
+  username: string;
+  name?: string;
+  phone?: string;
+  email?: string;
+  avatar?: string;
+  roleId?: string;
+  status: number;
+  createdAt?: string;
+}
+
 export interface StoreListParams {
   keyword?: string;
   status?: number;
@@ -99,5 +111,14 @@ export const storeApi = {
 
   removeDepartment: (relationId: string): Promise<void> => {
     return request.delete(`/stores/departments/${relationId}`);
+  },
+
+  // 门店用户关联
+  getAdmins: (storeId: string): Promise<StoreAdmin[]> => {
+    return request.get(`/stores/${storeId}/admins`);
+  },
+
+  batchBindAdmins: (storeId: string, adminIds: string[]): Promise<{ message: string; count: number }> => {
+    return request.put(`/stores/${storeId}/admins/batch`, adminIds);
   },
 };

@@ -1,5 +1,6 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
+from datetime import datetime
 
 
 # ========== 短信登录 ==========
@@ -61,3 +62,29 @@ class AdminLoginResponse(BaseModel):
 
     class Config:
         populate_by_name = True
+
+
+# ========== 管理员列表响应 ==========
+def to_camel(string: str) -> str:
+    """转换 snake_case 为 camelCase"""
+    components = string.split('_')
+    return components[0] + ''.join(x.title() for x in components[1:])
+
+
+class AdminListResponse(BaseModel):
+    """管理员列表响应（用于门店用户列表等场景）"""
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+    )
+    
+    id: str
+    username: str
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    avatar: Optional[str] = None
+    role_id: Optional[str] = None
+    status: int = 1
+    created_at: Optional[datetime] = None

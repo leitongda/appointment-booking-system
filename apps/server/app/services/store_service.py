@@ -1,10 +1,11 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete, and_
 from typing import Optional, List
 import uuid
 
 from app.models.store import Store
 from app.models.department import Department
+from app.models.admin import Admin, admin_stores
 from app.schemas.store import StoreCreate, StoreUpdate, StoreQuery
 
 
@@ -201,3 +202,65 @@ class StoreService:
         
         await self.db.commit()
         return len(department_ids)
+    
+    async def get_admins(self, store_id: str) -> List[Admin]:
+        """获取门店已绑定的管理员列表"""
+        result = await self.db.execute(
+            select(Admin)
+            .join(admin_stores, Admin.id == admin_stores.c.admin_id)
+            .where(admin_stores.c.store_id == store_id)
+            .order_by(Admin.created_at.desc())
+        )
+        return list(result.scalars().all())
+    
+    async def batch_bind_admins(self, store_id: str, admin_ids: List[str]) -> int:
+        """批量绑定管理员到门店
+        
+        Args:
+            store_id: 门店ID
+            admin_ids: 要绑定的管理员ID列表
+            
+        Returns:
+            绑定的管理员数量
+        """
+        # 先验证门店是否存在
+        store = await self.get_by_id(store_id)
+        if not store:
+            raise ValueError("门店不存在")
+        
+        # 获取当前已绑定的管理员ID
+        current_admins = await self.get_admins(store_id)
+        current_ids = {a.id for a in current_admins}
+        new_ids = set(admin_ids)
+        
+        # 需要解绑的管理员（当前已绑定但不在新列表中）
+        to_unbind = current_ids - new_ids
+        if to_unbind:
+            await self.db.execute(
+                delete(admin_stores).where(
+                    and_(
+                        admin_stores.c.store_id == store_id,
+                        admin_stores.c.admin_id.in_(to_unbind)
+                    )
+                )
+            )
+        
+        # 需要绑定的管理员（在新列表中但当前未绑定）
+        to_bind = new_ids - current_ids
+        if to_bind:
+            for admin_id in to_bind:
+                # 验证管理员是否存在
+                result = await self.db.execute(
+                    select(Admin).where(Admin.id == admin_id)
+                )
+                admin = result.scalar_one_or_none()
+                if admin:
+                    await self.db.execute(
+                        admin_stores.insert().values(
+                            admin_id=admin_id,
+                            store_id=store_id
+                        )
+                    )
+        
+        await self.db.commit()
+        return len(admin_ids)

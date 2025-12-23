@@ -33,6 +33,9 @@ export { blacklistApi } from './modules/blacklist';
 export { uploadApi } from './modules/upload';
 export { emailTemplateApi, EMAIL_TEMPLATE_TYPE_OPTIONS } from './modules/email-template';
 
+// Store types
+export type { StoreAdmin } from './modules/store';
+
 // Auth types are re-exported from @hospital/shared
 export type { LoginParams, LoginResult } from '@hospital/shared';
 export type { PatientCreateData } from './modules/user';

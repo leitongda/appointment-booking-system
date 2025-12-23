@@ -8,6 +8,7 @@ from app.schemas.store import (
     StoreCreate, StoreUpdate, StoreResponse, StoreListResponse, StoreQuery
 )
 from app.schemas.department import DepartmentResponse
+from app.schemas.admin import AdminListResponse
 from app.schemas.response import PageResponse
 from app.services.store_service import StoreService
 
@@ -301,6 +302,61 @@ async def batch_bind_departments(
     try:
         count = await service.batch_bind_departments(store_id, department_ids)
         return {"message": "绑定成功", "count": count}
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.get("/{store_id}/admins", response_model=List[AdminListResponse])
+async def get_store_admins(
+    store_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """获取门店已绑定的管理员列表"""
+    # 仅超级管理员可操作
+    if not current_admin.get("is_super_admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="仅超级管理员可查看门店用户"
+        )
+    
+    service = StoreService(db)
+    
+    # 验证门店是否存在
+    store = await service.get_by_id(store_id)
+    if not store:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="门店不存在"
+        )
+    
+    admins = await service.get_admins(store_id)
+    return [AdminListResponse.model_validate(a) for a in admins]
+
+
+@router.put("/{store_id}/admins/batch")
+async def batch_bind_admins(
+    store_id: str,
+    admin_ids: List[str],
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """批量绑定管理员到门店"""
+    # 仅超级管理员可操作
+    if not current_admin.get("is_super_admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="仅超级管理员可分配用户"
+        )
+    
+    service = StoreService(db)
+    
+    try:
+        count = await service.batch_bind_admins(store_id, admin_ids)
+        return {"message": "分配成功", "count": count}
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -1,14 +1,16 @@
-"""初始化权限数据和内置角色"""
+"""初始化权限数据
+
+注意：角色初始化请使用 init_roles.py 脚本
+"""
 import asyncio
 import sys
 import os
-import json
 
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.db.session import AsyncSessionLocal
-from app.services.admin_service import PermissionService, RoleService
+from app.services.admin_service import PermissionService
 
 # 权限数据定义
 # type: menu - 菜单权限, button - 按钮/操作权限
@@ -121,40 +123,6 @@ PERMISSIONS = [
     {"code": "system:log", "name": "操作日志", "type": "button", "parent_code": "system", "sort": 5},
 ]
 
-# 内置角色定义
-BUILTIN_ROLES = [
-    {
-        "code": "SUPER_ADMIN",
-        "name": "超级管理员",
-        "description": "系统超级管理员，拥有所有权限，可管理所有门店",
-        "permissions": "*",  # 特殊标记，表示全部权限
-    },
-    {
-        "code": "STORE_ADMIN",
-        "name": "门店管理员",
-        "description": "门店管理员，管理本门店数据",
-        "permissions": [
-            "dashboard", "dashboard:view",
-            "store", "store:list", "store:update",  # 只能查看和编辑自己的门店
-            "department", "department:list", "department:create", "department:update", "department:delete",
-            "doctor", "doctor:list", "doctor:detail", "doctor:create", "doctor:update", "doctor:delete", "doctor:booking-setting",
-            "schedule", "schedule:list", "schedule:create", "schedule:update", "schedule:delete", 
-            "schedule:template", "schedule:custom", "schedule:rest-day", "schedule:suspension", "schedule:statistics",
-            "appointment", "appointment:list", "appointment:detail", "appointment:update", "appointment:cancel", "appointment:statistics",
-            "patient", "patient:list", "patient:detail", "patient:update", "patient:create",
-            "leave-request", "leave-request:list", "leave-request:approve",
-            "feedback", "feedback:list", "feedback:reply", "feedback:delete",
-            "message", "message:list", "message:send", "message:delete",
-            "content", "content:news", "content:news:create", "content:news:update", "content:news:delete",
-            "content:notice", "content:notice:create", "content:notice:update", "content:notice:delete",
-            "content:banner", "content:banner:create", "content:banner:update", "content:banner:delete",
-            "statistics", "statistics:view",
-            "system", "system:user", "system:user:create", "system:user:update", "system:user:delete", "system:user:reset-password",
-        ],
-    },
-]
-
-
 async def init_permissions():
     """初始化权限数据"""
     async with AsyncSessionLocal() as db:
@@ -172,51 +140,9 @@ async def init_permissions():
             print(f"{prefix}- [{p.type}] {p.code}: {p.name}")
 
 
-async def init_roles():
-    """初始化内置角色"""
-    async with AsyncSessionLocal() as db:
-        role_service = RoleService(db)
-        perm_service = PermissionService(db)
-        
-        print("\n开始初始化内置角色...")
-        
-        # 获取所有权限码（用于超级管理员）
-        all_permissions = await perm_service.get_all()
-        all_perm_codes = [p.code for p in all_permissions]
-        
-        for role_data in BUILTIN_ROLES:
-            existing = await role_service.get_by_code(role_data["code"])
-            
-            if existing:
-                print(f"  角色 {role_data['code']} 已存在，更新权限...")
-                # 更新权限
-                if role_data["permissions"] == "*":
-                    permissions = all_perm_codes
-                else:
-                    permissions = role_data["permissions"]
-                await role_service.update_permissions(existing.id, permissions)
-            else:
-                print(f"  创建角色 {role_data['code']}...")
-                if role_data["permissions"] == "*":
-                    permissions = all_perm_codes
-                else:
-                    permissions = role_data["permissions"]
-                
-                await role_service.create({
-                    "code": role_data["code"],
-                    "name": role_data["name"],
-                    "description": role_data["description"],
-                    "permissions": permissions,
-                    "status": 1,
-                })
-        
-        print("内置角色初始化完成！")
-
-
 async def main():
-    """主函数"""
+    """主函数：仅初始化权限数据，角色初始化请使用 init_roles.py"""
     await init_permissions()
-    await init_roles()
 
 
 if __name__ == "__main__":

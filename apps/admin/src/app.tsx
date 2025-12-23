@@ -2,13 +2,124 @@ import { AvatarDropdown, AvatarName } from '@/components/RightContent';
 import { FullscreenButton, NotificationButton, RefreshButton } from '@/components/HeaderActions';
 import { getToken, removeToken, setStorage, STORAGE_KEYS, handleTokenExpired, initTracker, getTracker } from '@hospital/shared';
 import { adminApi } from '@hospital/api';
-import type { Settings as LayoutSettings } from '@ant-design/pro-components';
+import type { Settings as LayoutSettings, MenuDataItem } from '@ant-design/pro-components';
 import type { RunTimeLayoutConfig, RequestConfig } from '@umijs/max';
 import { history, useLocation } from '@umijs/max';
 import { App, message } from 'antd';
 import { useMemo } from 'react';
 import defaultSettings from '../config/defaultSettings';
 import { initApiConfig } from '@/utils/request';
+
+/**
+ * 动态菜单配置
+ * 用于在访问隐藏的编辑/新增页面时，动态显示对应的菜单项
+ */
+interface DynamicMenuConfig {
+  // 路由匹配正则
+  pattern: RegExp;
+  // 父级菜单路径
+  parentPath: string;
+  // 动态菜单项配置
+  menuItem: {
+    name: string;
+    path: string;
+  };
+}
+
+// 动态菜单规则配置
+const dynamicMenuRules: DynamicMenuConfig[] = [
+  // 科室管理
+  {
+    pattern: /^\/department\/create$/,
+    parentPath: '/department',
+    menuItem: { name: '新增科室', path: '/department/create' },
+  },
+  {
+    pattern: /^\/department\/[^/]+\/edit$/,
+    parentPath: '/department',
+    menuItem: { name: '编辑科室', path: '/department/:id/edit' },
+  },
+  // 门店管理
+  {
+    pattern: /^\/store\/create$/,
+    parentPath: '/store',
+    menuItem: { name: '新增门店', path: '/store/create' },
+  },
+  {
+    pattern: /^\/store\/[^/]+\/edit$/,
+    parentPath: '/store',
+    menuItem: { name: '编辑门店', path: '/store/:id/edit' },
+  },
+  // 医生管理
+  {
+    pattern: /^\/doctor\/create$/,
+    parentPath: '/doctor',
+    menuItem: { name: '新增医生', path: '/doctor/create' },
+  },
+  {
+    pattern: /^\/doctor\/[^/]+\/edit$/,
+    parentPath: '/doctor',
+    menuItem: { name: '编辑医生', path: '/doctor/:id/edit' },
+  },
+  {
+    // 排除 list, create, booking-setting 等已知路由，只匹配实际的 ID
+    pattern: /^\/doctor\/(?!list$|create$|booking-setting)[^/]+$/,
+    parentPath: '/doctor',
+    menuItem: { name: '医生详情', path: '/doctor/:id' },
+  },
+  // 预约设置
+  {
+    pattern: /^\/doctor\/booking-setting\/create$/,
+    parentPath: '/doctor',
+    menuItem: { name: '添加预约设置', path: '/doctor/booking-setting/create' },
+  },
+  {
+    pattern: /^\/doctor\/booking-setting\/[^/]+\/edit$/,
+    parentPath: '/doctor',
+    menuItem: { name: '编辑预约设置', path: '/doctor/booking-setting/:id/edit' },
+  },
+];
+
+/**
+ * 处理菜单数据，根据当前路由动态添加菜单项
+ */
+const processMenuData = (menuData: MenuDataItem[], pathname: string): MenuDataItem[] => {
+  // 查找匹配的动态菜单规则
+  const matchedRule = dynamicMenuRules.find((rule) => rule.pattern.test(pathname));
+
+  if (!matchedRule) {
+    return menuData;
+  }
+
+  // 递归处理菜单数据
+  return menuData.map((item) => {
+    // 找到父级菜单
+    if (item.path === matchedRule.parentPath) {
+      // 创建动态菜单项
+      const dynamicMenuItem: MenuDataItem = {
+        name: matchedRule.menuItem.name,
+        path: pathname, // 使用实际路径，确保高亮
+        hideInMenu: false,
+      };
+
+      // 在子菜单末尾添加动态菜单项
+      return {
+        ...item,
+        children: [...(item.children || []), dynamicMenuItem],
+      };
+    }
+
+    // 递归处理子菜单
+    if (item.children) {
+      return {
+        ...item,
+        children: processMenuData(item.children, pathname),
+      };
+    }
+
+    return item;
+  });
+};
 
 const loginPath = '/login';
 
@@ -130,6 +241,15 @@ export async function getInitialState(): Promise<{
  * @doc https://procomponents.ant.design/components/layout
  */
 export const layout: RunTimeLayoutConfig = ({ initialState }) => {
+  const { currentStore } = initialState || {};
+  
+  // 门店用户：使用门店的 logo 和名称
+  // 如果有门店信息，则覆盖默认设置
+  const storeCustomSettings = currentStore ? {
+    logo: currentStore.logo ? `/api/v1${currentStore.logo}` : defaultSettings.logo,
+    title: currentStore.name || defaultSettings.title,
+  } : {};
+
   return {
     actionsRender: () => [
       <RefreshButton key="refresh" />,
@@ -148,7 +268,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
     },
     footerRender: () => (
       <div style={{ textAlign: 'center', padding: '16px 0', color: '#999' }}>
-        医院挂号管理系统 ©{new Date().getFullYear()} 版权所有
+        {currentStore?.name || '医院挂号管理系统'} ©{new Date().getFullYear()} 版权所有
       </div>
     ),
     onPageChange: () => {
@@ -179,11 +299,17 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
       history.replace('/dashboard');
     },
     menuHeaderRender: undefined,
+    // 动态菜单渲染：根据当前路由动态显示编辑/新增等隐藏菜单项
+    menuDataRender: (menuData) => {
+      const { pathname } = history.location;
+      return processMenuData(menuData, pathname);
+    },
     // 路由切换动画
     childrenRender: (children: React.ReactNode) => {
       return <PageTransitionWrapper>{children}</PageTransitionWrapper>;
     },
     ...initialState?.settings,
+    ...storeCustomSettings,
   };
 };
 
