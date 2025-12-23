@@ -1,5 +1,5 @@
 import request from '../request';
-import type { Store, StoreDepartment, PageResult } from '@hospital/shared';
+import type { Store, StoreDepartment, Department, PageResult } from '@hospital/shared';
 
 export interface StoreListParams {
   keyword?: string;
@@ -71,8 +71,12 @@ export const storeApi = {
   },
 
   // 门店科室关联
-  getDepartments: (storeId: string): Promise<StoreDepartment[]> => {
+  getDepartments: (storeId: string): Promise<Department[]> => {
     return request.get(`/stores/${storeId}/departments`);
+  },
+
+  batchBindDepartments: (storeId: string, departmentIds: string[]): Promise<{ message: string; count: number }> => {
+    return request.put(`/stores/${storeId}/departments/batch`, departmentIds);
   },
 
   addDepartment: (

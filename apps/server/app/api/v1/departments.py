@@ -5,6 +5,7 @@ from typing import Optional, List
 from app.db.session import get_db
 from app.api.deps import get_current_admin, get_store_filter, check_store_access
 from app.schemas.department import DepartmentCreate, DepartmentUpdate, DepartmentResponse, DepartmentTreeNode
+from app.schemas.doctor import DoctorListResponse
 from app.schemas.response import PageResponse
 from app.services.department_service import DepartmentService
 
@@ -167,3 +168,126 @@ async def delete_department(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     
     return {"message": "删除成功"}
+
+
+@router.get("/{dept_id}/doctors", response_model=List[DoctorListResponse])
+async def get_department_doctors(
+    dept_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """获取科室已绑定的医生列表"""
+    service = DepartmentService(db)
+    
+    # 验证科室是否存在
+    department = await service.get_by_id(dept_id)
+    if not department:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="科室不存在"
+        )
+    
+    # 检查门店访问权限
+    if not check_store_access(current_admin, department.store_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权访问此科室")
+    
+    doctors = await service.get_doctors(dept_id)
+    
+    result = []
+    for d in doctors:
+        item = DoctorListResponse(
+            id=d.id,
+            name=d.name,
+            avatar=d.avatar,
+            banner=d.banner,
+            title=d.title,
+            gender=d.gender,
+            store_id=d.store_id,
+            department_id=d.department_id,
+            specialty=d.specialty,
+            registration_fee=d.registration_fee,
+            is_recommended=d.is_recommended,
+            tags=d.tags,
+            page_style=d.page_style,
+        )
+        result.append(item)
+    
+    return result
+
+
+@router.get("/{dept_id}/available-doctors", response_model=List[DoctorListResponse])
+async def get_available_doctors(
+    dept_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """获取可绑定到此科室的医生列表（同门店的所有医生）"""
+    service = DepartmentService(db)
+    
+    # 验证科室是否存在
+    department = await service.get_by_id(dept_id)
+    if not department:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="科室不存在"
+        )
+    
+    # 检查门店访问权限
+    if not check_store_access(current_admin, department.store_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权访问此科室")
+    
+    # 获取同门店的所有医生
+    doctors = await service.get_all_doctors(store_id=department.store_id)
+    
+    result = []
+    for d in doctors:
+        item = DoctorListResponse(
+            id=d.id,
+            name=d.name,
+            avatar=d.avatar,
+            banner=d.banner,
+            title=d.title,
+            gender=d.gender,
+            store_id=d.store_id,
+            department_id=d.department_id,
+            specialty=d.specialty,
+            registration_fee=d.registration_fee,
+            is_recommended=d.is_recommended,
+            tags=d.tags,
+            page_style=d.page_style,
+        )
+        result.append(item)
+    
+    return result
+
+
+@router.put("/{dept_id}/doctors/batch")
+async def batch_bind_doctors(
+    dept_id: str,
+    doctor_ids: List[str],
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """批量绑定医生到科室"""
+    service = DepartmentService(db)
+    
+    # 验证科室是否存在
+    department = await service.get_by_id(dept_id)
+    if not department:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="科室不存在"
+        )
+    
+    # 检查门店访问权限
+    if not check_store_access(current_admin, department.store_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权操作此科室")
+    
+    try:
+        count = await service.batch_bind_doctors(dept_id, doctor_ids)
+        return {"message": "绑定成功", "count": count}
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )

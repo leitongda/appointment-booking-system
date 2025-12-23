@@ -87,7 +87,16 @@ export const scheduleApi = {
   },
 
   create: (data: ScheduleCreateData): Promise<Schedule> => {
-    return request.post('/schedules', data);
+    // 转换 camelCase 到 snake_case
+    return request.post('/schedules', {
+      doctor_id: data.doctorId,
+      schedule_date: data.scheduleDate,
+      time_slot: data.timeSlot,
+      start_time: data.startTime,
+      end_time: data.endTime,
+      total_slots: data.totalSlots,
+      status: data.status,
+    });
   },
 
   batchCreate: (data: ScheduleBatchCreateData): Promise<{ message: string }> => {

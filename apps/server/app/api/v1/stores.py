@@ -7,6 +7,7 @@ from app.api.deps import get_current_admin
 from app.schemas.store import (
     StoreCreate, StoreUpdate, StoreResponse, StoreListResponse, StoreQuery
 )
+from app.schemas.department import DepartmentResponse
 from app.schemas.response import PageResponse
 from app.services.store_service import StoreService
 
@@ -248,3 +249,60 @@ async def update_store_status(
         )
     
     return {"message": "状态更新成功"}
+
+
+@router.get("/{store_id}/departments", response_model=List[DepartmentResponse])
+async def get_store_departments(
+    store_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """获取门店已绑定的科室列表"""
+    # 门店管理员只能查看自己的门店
+    admin_store_id = current_admin.get("store_id")
+    if admin_store_id and admin_store_id != store_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权访问此门店"
+        )
+    
+    service = StoreService(db)
+    
+    # 验证门店是否存在
+    store = await service.get_by_id(store_id)
+    if not store:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="门店不存在"
+        )
+    
+    departments = await service.get_departments(store_id)
+    return [DepartmentResponse.model_validate(d) for d in departments]
+
+
+@router.put("/{store_id}/departments/batch")
+async def batch_bind_departments(
+    store_id: str,
+    department_ids: List[str],
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """批量绑定科室到门店"""
+    # 门店管理员只能操作自己的门店
+    admin_store_id = current_admin.get("store_id")
+    if admin_store_id and admin_store_id != store_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权操作此门店"
+        )
+    
+    service = StoreService(db)
+    
+    try:
+        count = await service.batch_bind_departments(store_id, department_ids)
+        return {"message": "绑定成功", "count": count}
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )

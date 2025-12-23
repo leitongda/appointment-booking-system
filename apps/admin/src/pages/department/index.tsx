@@ -1,12 +1,12 @@
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, UserOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Tag } from 'antd';
-import { useRef, useState, useEffect, useMemo } from 'react';
+import { Button, App, Popconfirm, Space, Tag, Modal, Spin, Empty, Checkbox, Avatar, List } from 'antd';
+import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
 import { departmentApi, storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
-import type { Department, Store } from '@hospital/shared';
+import type { Department, Store, DoctorListItem } from '@hospital/shared';
 
 const DepartmentPage: React.FC = () => {
   const { message } = App.useApp();
@@ -14,6 +14,14 @@ const DepartmentPage: React.FC = () => {
   const { initialState } = useModel('@@initialState');
   const actionRef = useRef<ActionType>();
   const [stores, setStores] = useState<Store[]>([]);
+
+  // 医生绑定弹窗状态
+  const [bindModalVisible, setBindModalVisible] = useState(false);
+  const [bindingDepartment, setBindingDepartment] = useState<Department | null>(null);
+  const [availableDoctors, setAvailableDoctors] = useState<DoctorListItem[]>([]);
+  const [checkedDoctorIds, setCheckedDoctorIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   // 用户门店相关信息
   const userStores = initialState?.userStores || [];
@@ -64,6 +72,66 @@ const DepartmentPage: React.FC = () => {
     } catch (error: any) {
       message.error(error.message || '删除失败');
     }
+  };
+
+  // 打开绑定医生弹窗
+  const handleOpenBindModal = useCallback(async (department: Department) => {
+    setBindingDepartment(department);
+    setBindModalVisible(true);
+    setLoading(true);
+    
+    try {
+      // 并行获取可绑定的医生和已绑定的医生
+      const [allDoctors, boundDoctors] = await Promise.all([
+        departmentApi.getAvailableDoctors(department.id),
+        departmentApi.getDoctors(department.id),
+      ]);
+      
+      setAvailableDoctors(allDoctors || []);
+      
+      // 设置已绑定的医生为选中状态
+      const boundIds = (boundDoctors || []).map((d) => d.id);
+      setCheckedDoctorIds(boundIds);
+    } catch (error: any) {
+      message.error('加载医生数据失败');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  }, [message]);
+
+  // 处理医生选中变化
+  const handleDoctorCheck = (doctorId: string, checked: boolean) => {
+    if (checked) {
+      setCheckedDoctorIds((prev) => [...prev, doctorId]);
+    } else {
+      setCheckedDoctorIds((prev) => prev.filter((id) => id !== doctorId));
+    }
+  };
+
+  // 提交绑定
+  const handleBindSubmit = async () => {
+    if (!bindingDepartment) return;
+    
+    setSubmitting(true);
+    try {
+      await departmentApi.batchBindDoctors(bindingDepartment.id, checkedDoctorIds);
+      message.success('绑定成功');
+      setBindModalVisible(false);
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error.message || '绑定失败');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // 关闭弹窗
+  const handleCloseBindModal = () => {
+    setBindModalVisible(false);
+    setBindingDepartment(null);
+    setAvailableDoctors([]);
+    setCheckedDoctorIds([]);
   };
 
   const columns: ProColumns<Department>[] = [
@@ -157,10 +225,15 @@ const DepartmentPage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 120,
+      width: 180,
       fixed: 'right',
       render: (_, record) => (
         <Space>
+          {access.hasPermission('department:update') && record.isFinal === 1 && (
+            <a onClick={() => handleOpenBindModal(record)}>
+              <UserOutlined /> 医生
+            </a>
+          )}
           {access.hasPermission('department:update') && (
             <a onClick={() => history.push(`/department/${record.id}/edit`)}>编辑</a>
           )}
@@ -207,6 +280,76 @@ const DepartmentPage: React.FC = () => {
         ]}
         pagination={{ defaultPageSize: 10 }}
       />
+
+      {/* 医生绑定弹窗 */}
+      <Modal
+        title={`绑定医生 - ${bindingDepartment?.name || ''}`}
+        open={bindModalVisible}
+        onCancel={handleCloseBindModal}
+        onOk={handleBindSubmit}
+        confirmLoading={submitting}
+        okText="确定"
+        cancelText="取消"
+        width={600}
+        destroyOnClose
+      >
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <Spin tip="加载中..." />
+          </div>
+        ) : availableDoctors.length === 0 ? (
+          <Empty description="暂无可绑定的医生" />
+        ) : (
+          <div style={{ maxHeight: 400, overflow: 'auto' }}>
+            <List
+              dataSource={availableDoctors}
+              renderItem={(doctor) => (
+                <List.Item
+                  key={doctor.id}
+                  style={{ padding: '12px 0' }}
+                  actions={[
+                    <Checkbox
+                      key="check"
+                      checked={checkedDoctorIds.includes(doctor.id)}
+                      onChange={(e) => handleDoctorCheck(doctor.id, e.target.checked)}
+                    />,
+                  ]}
+                >
+                  <List.Item.Meta
+                    avatar={
+                      <Avatar
+                        src={doctor.avatar}
+                        icon={!doctor.avatar && <UserOutlined />}
+                        size={48}
+                      />
+                    }
+                    title={
+                      <Space>
+                        <span>{doctor.name}</span>
+                        {doctor.title && <Tag color="blue">{doctor.title}</Tag>}
+                      </Space>
+                    }
+                    description={
+                      <Space direction="vertical" size={0}>
+                        {doctor.departmentName && (
+                          <span style={{ color: '#999' }}>
+                            当前科室: {doctor.departmentName}
+                          </span>
+                        )}
+                        {doctor.specialty && (
+                          <span style={{ color: '#666', fontSize: 12 }}>
+                            擅长: {doctor.specialty.length > 30 ? doctor.specialty.slice(0, 30) + '...' : doctor.specialty}
+                          </span>
+                        )}
+                      </Space>
+                    }
+                  />
+                </List.Item>
+              )}
+            />
+          </div>
+        )}
+      </Modal>
     </PageContainer>
   );
 };

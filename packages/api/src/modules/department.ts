@@ -1,5 +1,5 @@
 import request from '../request';
-import type { Department, DepartmentTreeNode, PageResult } from '@hospital/shared';
+import type { Department, DepartmentTreeNode, DoctorListItem, PageResult } from '@hospital/shared';
 
 export interface DepartmentListParams {
   name?: string;
@@ -79,5 +79,18 @@ export const departmentApi = {
 
   delete: (id: string): Promise<void> => {
     return request.delete(`/departments/${id}`);
+  },
+
+  // 科室医生关联
+  getDoctors: (deptId: string): Promise<DoctorListItem[]> => {
+    return request.get(`/departments/${deptId}/doctors`);
+  },
+
+  getAvailableDoctors: (deptId: string): Promise<DoctorListItem[]> => {
+    return request.get(`/departments/${deptId}/available-doctors`);
+  },
+
+  batchBindDoctors: (deptId: string, doctorIds: string[]): Promise<{ message: string; count: number }> => {
+    return request.put(`/departments/${deptId}/doctors/batch`, doctorIds);
   },
 };

@@ -7,12 +7,12 @@
  * - 图片剪裁
  * - URL转存
  */
-import { Upload, Button, Space, Input, App, Spin, Image } from 'antd';
+import { Upload, Button, Space, Input, App, Image } from 'antd';
 import { PlusOutlined, DeleteOutlined, ScissorOutlined, LinkOutlined, LoadingOutlined } from '@ant-design/icons';
 import { useState, useCallback } from 'react';
 import type { UploadProps } from 'antd';
 import ImageCropper from './ImageCropper';
-import type { ImageUploadProps, UploadResult } from './types';
+import type { ImageUploadProps } from './types';
 import { ASPECT_RATIO_MAP } from './types';
 import { uploadApi } from '@hospital/api';
 
@@ -30,6 +30,18 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   allowUrlTransfer = true,
   showCrop = true,
   generateThumbnails = false,
+  // 裁剪增强属性
+  cropOutputFormat = 'jpeg',
+  cropBackgroundColor = '#ffffff',
+  cropQuality = 0.9,
+  cropMaxWidth,
+  cropMaxHeight,
+  cropCircular = false,
+  cropPresetSizes,
+  cropShowGrid = true,
+  cropShowFlip = true,
+  cropShowBrightnessContrast = false,
+  cropWatermark,
 }) => {
   const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
@@ -279,6 +291,18 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
         aspectRatio={aspectRatioValue}
         onConfirm={handleCropConfirm}
         onCancel={handleCropCancel}
+        // 裁剪增强属性
+        outputFormat={cropOutputFormat}
+        backgroundColor={cropBackgroundColor}
+        quality={cropQuality}
+        maxWidth={cropMaxWidth}
+        maxHeight={cropMaxHeight}
+        circularCrop={cropCircular}
+        presetSizes={cropPresetSizes}
+        showGrid={cropShowGrid}
+        showFlip={cropShowFlip}
+        showBrightnessContrast={cropShowBrightnessContrast}
+        watermark={cropWatermark}
       />
     </div>
   );

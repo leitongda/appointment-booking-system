@@ -5,6 +5,7 @@ from typing import Optional, List
 import uuid
 
 from app.models.department import Department
+from app.models.doctor import Doctor
 from app.schemas.department import DepartmentCreate, DepartmentUpdate, DepartmentTreeNode
 
 class DepartmentService:
@@ -159,4 +160,60 @@ class DepartmentService:
         await self.db.delete(department)
         await self.db.commit()
         return True
+    
+    async def get_doctors(self, dept_id: str) -> List[Doctor]:
+        """获取科室已绑定的医生列表"""
+        result = await self.db.execute(
+            select(Doctor)
+            .where(Doctor.department_id == dept_id)
+            .order_by(Doctor.sort_order.desc(), Doctor.created_at.desc())
+        )
+        return list(result.scalars().all())
+    
+    async def get_all_doctors(self, store_id: Optional[str] = None) -> List[Doctor]:
+        """获取所有可绑定的医生列表"""
+        query = select(Doctor).where(Doctor.status == 1)
+        if store_id:
+            query = query.where(Doctor.store_id == store_id)
+        query = query.order_by(Doctor.sort_order.desc(), Doctor.name)
+        result = await self.db.execute(query)
+        return list(result.scalars().all())
+    
+    async def batch_bind_doctors(self, dept_id: str, doctor_ids: List[str]) -> int:
+        """批量绑定医生到科室
+        
+        Args:
+            dept_id: 科室ID
+            doctor_ids: 要绑定的医生ID列表
+            
+        Returns:
+            绑定的医生数量
+        """
+        # 先验证科室是否存在
+        department = await self.get_by_id(dept_id)
+        if not department:
+            raise ValueError("科室不存在")
+        
+        # 解绑当前科室的所有医生（不在新列表中的）
+        current_doctors = await self.get_doctors(dept_id)
+        current_ids = {d.id for d in current_doctors}
+        new_ids = set(doctor_ids)
+        
+        # 需要解绑的医生（当前已绑定但不在新列表中）- 设为空科室不合适，这里保持不变
+        # 医生必须有科室，所以我们不能解绑，只能绑定新的
+        
+        # 需要绑定的医生（在新列表中但当前未绑定到此科室）
+        to_bind = new_ids - current_ids
+        if to_bind:
+            result = await self.db.execute(
+                select(Doctor).where(Doctor.id.in_(to_bind))
+            )
+            for doctor in result.scalars().all():
+                doctor.department_id = dept_id
+                # 同时更新门店，保持科室和医生门店一致
+                if department.store_id:
+                    doctor.store_id = department.store_id
+        
+        await self.db.commit()
+        return len(doctor_ids)
 

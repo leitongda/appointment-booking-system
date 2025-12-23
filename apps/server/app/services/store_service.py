@@ -149,3 +149,55 @@ class StoreService:
             .where(Department.store_id == store_id)
         )
         return result.scalar() or 0
+    
+    async def get_departments(self, store_id: str) -> List[Department]:
+        """获取门店已绑定的科室列表"""
+        result = await self.db.execute(
+            select(Department)
+            .where(Department.store_id == store_id)
+            .order_by(Department.sort_order.desc(), Department.created_at.desc())
+        )
+        return list(result.scalars().all())
+    
+    async def batch_bind_departments(self, store_id: str, department_ids: List[str]) -> int:
+        """批量绑定科室到门店
+        
+        Args:
+            store_id: 门店ID
+            department_ids: 要绑定的科室ID列表
+            
+        Returns:
+            绑定的科室数量
+        """
+        # 先验证门店是否存在
+        store = await self.get_by_id(store_id)
+        if not store:
+            raise ValueError("门店不存在")
+        
+        # 解绑当前门店的所有科室（不在新列表中的）
+        current_departments = await self.get_departments(store_id)
+        current_ids = {d.id for d in current_departments}
+        new_ids = set(department_ids)
+        
+        # 需要解绑的科室（当前已绑定但不在新列表中）
+        to_unbind = current_ids - new_ids
+        if to_unbind:
+            result = await self.db.execute(
+                select(Department).where(Department.id.in_(to_unbind))
+            )
+            for dept in result.scalars().all():
+                dept.store_id = None
+        
+        # 需要绑定的科室（在新列表中但当前未绑定）
+        to_bind = new_ids - current_ids
+        if to_bind:
+            result = await self.db.execute(
+                select(Department).where(Department.id.in_(to_bind))
+            )
+            for dept in result.scalars().all():
+                # 只绑定未绑定到其他门店的科室
+                if dept.store_id is None:
+                    dept.store_id = store_id
+        
+        await self.db.commit()
+        return len(department_ids)
