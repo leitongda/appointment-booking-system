@@ -1,10 +1,20 @@
+/*
+ * @Author: Lei TongDa ebian123@qq.com
+ * @Date: 2025-12-16 23:35:00
+ * @LastEditors: Lei TongDa ebian123@qq.com
+ * @LastEditTime: 2025-12-25 15:13:40
+ * @FilePath: /appointment-booking-system/apps/admin/config/config.ts
+ * @Description: 
+ * 
+ * Copyright (c) 2025 by ${git_name_email}, All Rights Reserved. 
+ */
 import { defineConfig } from '@umijs/max';
 import routes from './routes';
 import proxy from './proxy';
 
-const { 
-  REACT_APP_ENV = 'dev', 
-  AMAP_KEY = '', 
+const {
+  REACT_APP_ENV = 'dev',
+  AMAP_KEY = '',
   TINYMCE_API_KEY = '',
   API_BASE_URL = '/api/v1',  // API 基础路径，支持动态配置
 } = process.env;
@@ -46,6 +56,21 @@ export default defineConfig({
   layout: {
     title: '医院挂号管理系统',
     locale: false,
+
+
+    navTheme: 'light',
+    colorPrimary: '#722ED1',
+    layout: 'mix',
+    contentWidth: 'Fluid',
+    fixedHeader: true,
+    fixSiderbar: true,
+    pwa: true,
+    logo: 'https://gw.alipayobjects.com/zos/rmsportal/KDpgvguMpGfqaHPjicRK.svg',
+    token: {},
+    siderMenuType: 'group',
+    splitMenus: true,
+
+
   },
 
   // 路由配置
@@ -73,4 +98,7 @@ export default defineConfig({
 
   // favicon
   favicons: ['/favicon.ico'],
+
+
+
 });

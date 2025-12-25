@@ -19,10 +19,13 @@ const Settings: ProLayoutProps & {
   pwa: false,
   logo: '/logo.svg',
   iconfontUrl: '',
+
+  // 侧边菜单类型
+  siderMenuType: "sub",
+  
   token: {
     // 参考 https://procomponents.ant.design/components/layout#api
   },
 };
 
 export default Settings;
-

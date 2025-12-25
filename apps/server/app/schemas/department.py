@@ -1,8 +1,20 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import datetime
 
+
+def to_camel(string: str) -> str:
+    """将 snake_case 转换为 camelCase"""
+    components = string.split('_')
+    return components[0] + ''.join(x.title() for x in components[1:])
+
+
 class DepartmentBase(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,  # 允许使用原始字段名或别名
+    )
+    
     name: str = Field(..., max_length=100, description="科室名称")
     parent_id: Optional[str] = Field(None, description="父级科室ID")
     description: Optional[str] = None
@@ -37,6 +49,11 @@ class DepartmentCreate(DepartmentBase):
     pass
 
 class DepartmentUpdate(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,  # 允许使用原始字段名或别名
+    )
+    
     name: Optional[str] = Field(None, max_length=100)
     parent_id: Optional[str] = None
     description: Optional[str] = None
@@ -68,22 +85,30 @@ class DepartmentUpdate(BaseModel):
     working_hours: Optional[str] = Field(None, max_length=200)
 
 class DepartmentResponse(DepartmentBase):
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+        by_alias=True,  # 序列化时使用别名 (camelCase)
+    )
+    
     id: str
     created_at: datetime
     updated_at: datetime
     store_name: Optional[str] = None
-    
-    class Config:
-        from_attributes = True
 
 class DepartmentTreeNode(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+        by_alias=True,
+    )
+    
     id: str
     name: str
     parent_id: Optional[str]
     children: List['DepartmentTreeNode'] = []
-    
-    class Config:
-        from_attributes = True
 
 DepartmentTreeNode.model_rebuild()
 
