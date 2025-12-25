@@ -38,6 +38,8 @@ export default [
       { path: '/store/list', name: '门店列表', component: './store' },
       { path: '/store/create', name: '新增门店', component: './store/form', hideInMenu: true },
       { path: '/store/:id/edit', name: '编辑门店', component: './store/form', hideInMenu: true },
+      { path: '/store/:storeId/fee-types', name: '门店诊费类型', component: './store/fee-types', hideInMenu: true },
+      { path: '/store/:storeId/fee-templates', name: '门店诊费模板', component: './store/fee-templates', hideInMenu: true },
     ],
   },
   // 科室管理

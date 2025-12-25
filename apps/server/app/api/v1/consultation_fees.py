@@ -8,7 +8,9 @@ from app.schemas.consultation_fee import (
     ConsultationFeeTypeCreate, ConsultationFeeTypeUpdate, ConsultationFeeTypeResponse,
     ConsultationFeeTemplateCreate, ConsultationFeeTemplateResponse, ConsultationFeeTemplateWithType,
     DoctorConsultationFeeResponse, DoctorConsultationFeeBatchCreate,
-    DoctorFeeSettingResponse, DoctorFeeSettingUpdate, StoreDepartmentFeeGroup
+    DoctorFeeSettingResponse, DoctorFeeSettingUpdate, StoreDepartmentFeeGroup,
+    StoreFeeTemplateResponse, StoreFeeTemplateBatchCreate, StoreFeeTemplateWithType,
+    ApplyTemplateRequest
 )
 from app.services.consultation_fee_service import ConsultationFeeService
 
@@ -20,18 +22,27 @@ router = APIRouter()
 @router.get("/types", response_model=List[ConsultationFeeTypeResponse])
 async def get_fee_types(
     status: Optional[int] = Query(None, description="状态筛选"),
+    store_id: Optional[str] = Query(None, description="门店ID，获取门店可用的诊费类型（全局+门店专属）"),
+    include_global: bool = Query(True, description="是否包含全局类型"),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取诊费类型列表"""
+    """
+    获取诊费类型列表
+    - 不传 store_id：返回全局类型
+    - 传 store_id：返回门店可用的类型（全局类型 + 门店专属类型）
+    """
     service = ConsultationFeeService(db)
-    fee_types = await service.get_fee_types(status=status)
+    fee_types = await service.get_fee_types(status=status, store_id=store_id, include_global=include_global)
     return [ConsultationFeeTypeResponse(
         id=ft.id,
+        store_id=ft.store_id,
+        store_name=ft.store.name if ft.store else None,
         name=ft.name,
         code=ft.code,
         description=ft.description,
         sort_order=ft.sort_order,
         status=ft.status,
+        is_global=ft.store_id is None,
         created_at=ft.created_at,
         updated_at=ft.updated_at
     ) for ft in fee_types]
@@ -51,11 +62,14 @@ async def get_fee_type(
     
     return ConsultationFeeTypeResponse(
         id=fee_type.id,
+        store_id=fee_type.store_id,
+        store_name=fee_type.store.name if fee_type.store else None,
         name=fee_type.name,
         code=fee_type.code,
         description=fee_type.description,
         sort_order=fee_type.sort_order,
         status=fee_type.status,
+        is_global=fee_type.store_id is None,
         created_at=fee_type.created_at,
         updated_at=fee_type.updated_at
     )
@@ -66,12 +80,16 @@ async def create_fee_type(
     data: ConsultationFeeTypeCreate,
     db: AsyncSession = Depends(get_db)
 ):
-    """创建诊费类型"""
+    """
+    创建诊费类型
+    - store_id 为空：创建全局类型
+    - store_id 有值：创建门店专属类型
+    """
     service = ConsultationFeeService(db)
     
-    # 检查编码是否已存在
+    # 检查编码是否已存在（在同一门店或全局范围内）
     if data.code:
-        existing = await service.get_fee_type_by_code(data.code)
+        existing = await service.get_fee_type_by_code(data.code, data.store_id)
         if existing:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="类型编码已存在")
     
@@ -79,11 +97,14 @@ async def create_fee_type(
     
     return ConsultationFeeTypeResponse(
         id=fee_type.id,
+        store_id=fee_type.store_id,
+        store_name=fee_type.store.name if fee_type.store else None,
         name=fee_type.name,
         code=fee_type.code,
         description=fee_type.description,
         sort_order=fee_type.sort_order,
         status=fee_type.status,
+        is_global=fee_type.store_id is None,
         created_at=fee_type.created_at,
         updated_at=fee_type.updated_at
     )
@@ -98,24 +119,30 @@ async def update_fee_type(
     """更新诊费类型"""
     service = ConsultationFeeService(db)
     
+    # 获取现有记录
+    existing_type = await service.get_fee_type_by_id(fee_type_id)
+    if not existing_type:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="诊费类型不存在")
+    
     # 检查编码是否已存在
     if data.code:
-        existing = await service.get_fee_type_by_code(data.code)
+        store_id = data.store_id if data.store_id is not None else existing_type.store_id
+        existing = await service.get_fee_type_by_code(data.code, store_id)
         if existing and existing.id != fee_type_id:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="类型编码已存在")
     
     fee_type = await service.update_fee_type(fee_type_id, data)
     
-    if not fee_type:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="诊费类型不存在")
-    
     return ConsultationFeeTypeResponse(
         id=fee_type.id,
+        store_id=fee_type.store_id,
+        store_name=fee_type.store.name if fee_type.store else None,
         name=fee_type.name,
         code=fee_type.code,
         description=fee_type.description,
         sort_order=fee_type.sort_order,
         status=fee_type.status,
+        is_global=fee_type.store_id is None,
         created_at=fee_type.created_at,
         updated_at=fee_type.updated_at
     )
@@ -136,13 +163,13 @@ async def delete_fee_type(
     return {"message": "删除成功"}
 
 
-# ========== 诊费模板相关 API ==========
+# ========== 全局诊费模板相关 API ==========
 
 @router.get("/templates", response_model=List[ConsultationFeeTemplateWithType])
 async def get_fee_templates(
     db: AsyncSession = Depends(get_db)
 ):
-    """获取诊费模板列表（带类型信息）"""
+    """获取全局诊费模板列表（带类型信息）"""
     service = ConsultationFeeService(db)
     templates = await service.get_fee_templates_with_types()
     return [ConsultationFeeTemplateWithType(**t) for t in templates]
@@ -153,7 +180,7 @@ async def update_fee_templates(
     templates: List[dict],
     db: AsyncSession = Depends(get_db)
 ):
-    """批量更新诊费模板"""
+    """批量更新全局诊费模板"""
     service = ConsultationFeeService(db)
     await service.batch_update_fee_templates(templates)
     return {"message": "更新成功"}
@@ -164,7 +191,7 @@ async def create_or_update_fee_template(
     data: ConsultationFeeTemplateCreate,
     db: AsyncSession = Depends(get_db)
 ):
-    """创建或更新诊费模板"""
+    """创建或更新全局诊费模板"""
     service = ConsultationFeeService(db)
     
     # 验证诊费类型是否存在
@@ -185,6 +212,54 @@ async def create_or_update_fee_template(
         created_at=template.created_at,
         updated_at=template.updated_at
     )
+
+
+# ========== 门店诊费模板相关 API ==========
+
+@router.get("/store-templates/{store_id}", response_model=List[StoreFeeTemplateWithType])
+async def get_store_fee_templates(
+    store_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    获取门店诊费模板列表（带类型信息）
+    返回门店可用的所有诊费类型及其模板配置，包含全局模板金额作为参考
+    """
+    service = ConsultationFeeService(db)
+    templates = await service.get_store_fee_templates_with_types(store_id)
+    return [StoreFeeTemplateWithType(**t) for t in templates]
+
+
+@router.post("/store-templates/{store_id}/batch")
+async def batch_save_store_fee_templates(
+    store_id: str,
+    data: StoreFeeTemplateBatchCreate,
+    db: AsyncSession = Depends(get_db)
+):
+    """批量保存门店诊费模板"""
+    if data.store_id != store_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="门店ID不匹配")
+    
+    service = ConsultationFeeService(db)
+    await service.batch_save_store_fee_templates(data)
+    
+    return {"message": "保存成功"}
+
+
+@router.delete("/store-templates/{store_id}/{fee_type_id}")
+async def delete_store_fee_template(
+    store_id: str,
+    fee_type_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """删除门店诊费模板"""
+    service = ConsultationFeeService(db)
+    success = await service.delete_store_fee_template(store_id, fee_type_id)
+    
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="门店诊费模板不存在")
+    
+    return {"message": "删除成功"}
 
 
 # ========== 医生诊费配置相关 API ==========
@@ -296,6 +371,31 @@ async def batch_save_doctor_fees(
     await service.batch_save_doctor_fees(data)
     
     return {"message": "保存成功"}
+
+
+@router.post("/doctors/{doctor_id}/apply-template")
+async def apply_template_to_doctor(
+    doctor_id: str,
+    data: ApplyTemplateRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    一键带入模板：将门店模板的金额应用到医生诊费配置
+    优先使用门店模板，如果门店未配置则使用全局模板
+    """
+    service = ConsultationFeeService(db)
+    
+    # 验证医生是否存在
+    doctor_setting = await service.get_doctor_fee_setting(doctor_id)
+    if not doctor_setting:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在")
+    
+    fees = await service.apply_template_to_doctor(doctor_id, data.store_id, data.department_id)
+    
+    return {
+        "message": "模板应用成功",
+        "count": len(fees)
+    }
 
 
 @router.delete("/doctors/{doctor_id}/fees/{store_id}/{department_id}")

@@ -89,9 +89,20 @@ class ScheduleService:
         if existing.scalar_one_or_none():
             raise ValueError("该时段排班已存在")
         
+        # 如果没有传递 store_id，从医生信息中获取
+        store_id = data.store_id
+        if not store_id:
+            doctor_result = await self.db.execute(
+                select(Doctor).where(Doctor.id == data.doctor_id)
+            )
+            doctor = doctor_result.scalar_one_or_none()
+            if doctor:
+                store_id = doctor.store_id
+        
         schedule = Schedule(
             id=str(uuid.uuid4()),
             doctor_id=data.doctor_id,
+            store_id=store_id,
             schedule_date=data.schedule_date,
             time_slot=data.time_slot,
             start_time=data.start_time,
@@ -107,6 +118,13 @@ class ScheduleService:
     
     async def batch_create(self, data: ScheduleBatchCreate) -> int:
         """批量创建排班"""
+        # 先获取医生的 store_id
+        doctor_result = await self.db.execute(
+            select(Doctor).where(Doctor.id == data.doctor_id)
+        )
+        doctor = doctor_result.scalar_one_or_none()
+        store_id = doctor.store_id if doctor else None
+        
         created_count = 0
         current_date = data.start_date
         
@@ -129,6 +147,7 @@ class ScheduleService:
                         schedule = Schedule(
                             id=str(uuid.uuid4()),
                             doctor_id=data.doctor_id,
+                            store_id=store_id,
                             schedule_date=current_date,
                             time_slot=time_slot,
                             total_slots=data.total_slots,

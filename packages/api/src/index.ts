@@ -39,6 +39,7 @@ export { feedbackApi } from './modules/feedback';
 export {
   consultationFeeTypeApi,
   consultationFeeTemplateApi,
+  storeFeeTemplateApi,
   doctorConsultationFeeApi,
 } from './modules/consultation-fee';
 export { doctorBookingSettingApi } from './modules/doctor-booking-setting';
@@ -147,8 +148,7 @@ export type { OperationLog } from './modules/admin';
 
 // Consultation Fee types
 export type {
-  ConsultationFeeTypeCreateData,
-  ConsultationFeeTypeUpdateData,
+  ConsultationFeeTypeListParams,
   ConsultationFeeTemplateCreateData,
   DoctorFeeQueryParams,
 } from './modules/consultation-fee';

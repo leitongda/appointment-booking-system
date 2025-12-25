@@ -3,13 +3,40 @@
  */
 export interface ConsultationFeeType {
   id: string;
+  storeId?: string;  // 门店ID，null 表示全局类型
+  storeName?: string;  // 门店名称
   name: string;
   code?: string;
   description?: string;
   sortOrder: number;
   status: number;
+  isGlobal?: boolean;  // 是否为全局类型
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * 创建诊费类型请求
+ */
+export interface ConsultationFeeTypeCreate {
+  storeId?: string;  // 门店ID，不传表示创建全局类型
+  name: string;
+  code?: string;
+  description?: string;
+  sortOrder?: number;
+  status?: number;
+}
+
+/**
+ * 更新诊费类型请求
+ */
+export interface ConsultationFeeTypeUpdate {
+  storeId?: string;
+  name?: string;
+  code?: string;
+  description?: string;
+  sortOrder?: number;
+  status?: number;
 }
 
 /**
@@ -38,6 +65,67 @@ export interface ConsultationFeeTemplateWithType {
   initialFee: number;
   followUpFee: number;
   status: number;
+}
+
+/**
+ * 门店诊费模板
+ */
+export interface StoreFeeTemplate {
+  id: string;
+  storeId: string;
+  storeName?: string;
+  feeTypeId: string;
+  feeTypeName?: string;
+  feeTypeCode?: string;
+  initialFee: number;
+  followUpFee: number;
+  status: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * 门店诊费模板项（用于批量保存）
+ */
+export interface StoreFeeTemplateItem {
+  feeTypeId: string;
+  feeTypeName?: string;
+  feeTypeCode?: string;
+  initialFee: number;
+  followUpFee: number;
+}
+
+/**
+ * 批量保存门店诊费模板请求
+ */
+export interface StoreFeeTemplateBatchCreate {
+  storeId: string;
+  templates: StoreFeeTemplateItem[];
+}
+
+/**
+ * 带诊费类型信息的门店模板响应（用于列表展示）
+ */
+export interface StoreFeeTemplateWithType {
+  id?: string;
+  storeId?: string;
+  feeTypeId: string;
+  feeTypeName: string;
+  feeTypeCode?: string;
+  initialFee: number;
+  followUpFee: number;
+  globalInitialFee?: number;  // 全局模板的初诊金额（用于参考）
+  globalFollowUpFee?: number;  // 全局模板的复诊金额（用于参考）
+  status: number;
+  isGlobalType: boolean;  // 是否为全局类型
+}
+
+/**
+ * 一键带入模板请求
+ */
+export interface ApplyTemplateRequest {
+  storeId: string;
+  departmentId: string;
 }
 
 /**

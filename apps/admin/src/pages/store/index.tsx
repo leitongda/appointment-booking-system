@@ -1,4 +1,4 @@
-import { PlusOutlined, ApartmentOutlined, UserOutlined } from '@ant-design/icons';
+import { PlusOutlined, ApartmentOutlined, UserOutlined, MoneyCollectOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { Button, App, Popconfirm, Space, Avatar, Modal, Tree, Spin, Empty, Transfer, Tag } from 'antd';
@@ -222,12 +222,17 @@ const StorePage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 220,
+      width: 280,
       render: (_, record) => (
         <Space>
           {access.hasPermission('store:update') && (
             <a onClick={() => handleOpenBindModal(record)}>
               <ApartmentOutlined /> 科室
+            </a>
+          )}
+          {access.hasPermission('store:update') && (
+            <a onClick={() => history.push(`/store/${record.id}/fee-templates`)}>
+              <MoneyCollectOutlined /> 诊费
             </a>
           )}
           {access.canSuperAdmin && (

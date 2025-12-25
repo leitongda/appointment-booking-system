@@ -1,5 +1,5 @@
-import { Modal, App, Switch, Select, Table, InputNumber, Button, Space, Spin, Alert, Empty, Divider, Card } from 'antd';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Modal, App, Switch, Select, Table, InputNumber, Button, Space, Spin, Alert, Empty, Divider, Card, Tooltip, Popconfirm } from 'antd';
+import { PlusOutlined, DeleteOutlined, ImportOutlined } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
 import { useAccess, useModel } from '@umijs/max';
 import { consultationFeeTypeApi, consultationFeeTemplateApi, doctorConsultationFeeApi, storeApi, departmentApi } from '@hospital/api';
@@ -33,6 +33,7 @@ const DoctorConsultationFeeModal: React.FC<DoctorConsultationFeeModalProps> = ({
   const isSuperAdmin = access.canSuperAdmin;
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [applyingTemplate, setApplyingTemplate] = useState<string | null>(null);
   const [useFeeTemplate, setUseFeeTemplate] = useState(false);
   
   // 数据
@@ -195,6 +196,29 @@ const DoctorConsultationFeeModal: React.FC<DoctorConsultationFeeModalProps> = ({
     }
   };
 
+  // 一键带入模板
+  const handleApplyTemplate = async (configIndex: number) => {
+    const config = feeConfigs[configIndex];
+    const configKey = `${config.storeId}_${config.departmentId}`;
+    setApplyingTemplate(configKey);
+    
+    try {
+      const result = await doctorConsultationFeeApi.applyTemplate(doctorId, {
+        storeId: config.storeId,
+        departmentId: config.departmentId,
+      });
+      
+      message.success(`成功应用模板，已更新 ${result.count} 个诊费项`);
+      
+      // 重新加载数据以获取最新的诊费配置
+      await loadData();
+    } catch (error: any) {
+      message.error(error.message || '应用模板失败');
+    } finally {
+      setApplyingTemplate(null);
+    }
+  };
+
   const feeColumns = [
     {
       title: '诊费类型',
@@ -267,6 +291,14 @@ const DoctorConsultationFeeModal: React.FC<DoctorConsultationFeeModalProps> = ({
           <>
             <Divider orientation="left">自定义诊费配置</Divider>
             
+            <Alert
+              message="一键带入模板功能"
+              description="点击每个配置卡片中的「带入模板」按钮，可自动从门店诊费模板导入金额。如果门店未配置模板，将使用全局模板的金额。"
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+            
             {/* 新增配置区域 */}
             <Card size="small" style={{ marginBottom: 16 }}>
               <Space wrap>
@@ -302,58 +334,80 @@ const DoctorConsultationFeeModal: React.FC<DoctorConsultationFeeModalProps> = ({
             {feeConfigs.length === 0 ? (
               <Empty description="暂无诊费配置，请添加" />
             ) : (
-              feeConfigs.map((config, configIndex) => (
-                <Card
-                  key={`${config.storeId}_${config.departmentId}`}
-                  size="small"
-                  title={
-                    <Space>
-                      <span>{config.storeName}</span>
-                      <span>-</span>
-                      <span>{config.departmentName}</span>
-                    </Space>
-                  }
-                  extra={
-                    <Space>
-                      <Button
-                        type="primary"
-                        size="small"
-                        onClick={() => handleSaveConfig(configIndex)}
-                        loading={saving}
-                      >
-                        保存
-                      </Button>
-                      <Button
-                        danger
-                        size="small"
-                        icon={<DeleteOutlined />}
-                        onClick={() => handleDeleteConfig(configIndex)}
-                      >
-                        删除
-                      </Button>
-                    </Space>
-                  }
-                  style={{ marginBottom: 16 }}
-                >
-                  <Table
-                    rowKey="feeTypeId"
-                    columns={feeColumns.map(col => {
-                      if (col.dataIndex === 'initialFee' || col.dataIndex === 'followUpFee') {
-                        return {
-                          ...col,
-                          render: (_: any, record: DoctorConsultationFeeItem, feeIndex: number) =>
-                            col.render!(_, record, feeIndex, configIndex),
-                        };
-                      }
-                      return col;
-                    })}
-                    dataSource={config.fees}
-                    pagination={false}
+              feeConfigs.map((config, configIndex) => {
+                const configKey = `${config.storeId}_${config.departmentId}`;
+                const isApplying = applyingTemplate === configKey;
+                
+                return (
+                  <Card
+                    key={configKey}
                     size="small"
-                    bordered
-                  />
-                </Card>
-              ))
+                    title={
+                      <Space>
+                        <span>{config.storeName}</span>
+                        <span>-</span>
+                        <span>{config.departmentName}</span>
+                      </Space>
+                    }
+                    extra={
+                      <Space>
+                        <Tooltip title="从门店诊费模板一键导入金额，如果门店未配置则使用全局模板">
+                          <Popconfirm
+                            title="确定要从模板导入金额吗？"
+                            description="导入后将覆盖当前的金额设置"
+                            onConfirm={() => handleApplyTemplate(configIndex)}
+                            okText="确定"
+                            cancelText="取消"
+                          >
+                            <Button
+                              size="small"
+                              icon={<ImportOutlined />}
+                              loading={isApplying}
+                            >
+                              带入模板
+                            </Button>
+                          </Popconfirm>
+                        </Tooltip>
+                        <Button
+                          type="primary"
+                          size="small"
+                          onClick={() => handleSaveConfig(configIndex)}
+                          loading={saving}
+                        >
+                          保存
+                        </Button>
+                        <Button
+                          danger
+                          size="small"
+                          icon={<DeleteOutlined />}
+                          onClick={() => handleDeleteConfig(configIndex)}
+                        >
+                          删除
+                        </Button>
+                      </Space>
+                    }
+                    style={{ marginBottom: 16 }}
+                  >
+                    <Table
+                      rowKey="feeTypeId"
+                      columns={feeColumns.map(col => {
+                        if (col.dataIndex === 'initialFee' || col.dataIndex === 'followUpFee') {
+                          return {
+                            ...col,
+                            render: (_: any, record: DoctorConsultationFeeItem, feeIndex: number) =>
+                              col.render!(_, record, feeIndex, configIndex),
+                          };
+                        }
+                        return col;
+                      })}
+                      dataSource={config.fees}
+                      pagination={false}
+                      size="small"
+                      bordered
+                    />
+                  </Card>
+                );
+              })
             )}
           </>
         )}
