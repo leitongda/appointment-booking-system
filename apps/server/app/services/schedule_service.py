@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from typing import Optional, List
 from datetime import date, timedelta
 import uuid
@@ -15,7 +15,9 @@ class ScheduleService:
     
     async def get_by_id(self, schedule_id: str) -> Optional[Schedule]:
         result = await self.db.execute(
-            select(Schedule).options(selectinload(Schedule.doctor)).where(Schedule.id == schedule_id)
+            select(Schedule).options(
+                selectinload(Schedule.doctor).selectinload(Doctor.department)
+            ).where(Schedule.id == schedule_id)
         )
         return result.scalar_one_or_none()
     
@@ -29,7 +31,9 @@ class ScheduleService:
         page: int = 1,
         page_size: int = 10
     ) -> tuple[List[Schedule], int]:
-        query = select(Schedule).options(selectinload(Schedule.doctor))
+        query = select(Schedule).options(
+            selectinload(Schedule.doctor).selectinload(Doctor.department)
+        )
         count_query = select(func.count(Schedule.id))
         
         if doctor_id:
