@@ -1,0 +1,480 @@
+// 状态颜色变量
+@status-available: #4CAF50;
+@status-booked: #2196F3;
+@status-full: #F44336;
+@status-suspended: #9E9E9E;
+
+// 日历主容器
+.schedule-calendar-card {
+  .ant-card-body {
+    padding: 16px;
+  }
+}
+
+// 医生选择器
+.doctor-selector {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 8px;
+
+  .doctor-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .doctor-avatar {
+      flex-shrink: 0;
+    }
+
+    .doctor-details {
+      flex: 1;
+
+      .doctor-name {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+
+      .doctor-meta {
+        color: #666;
+        font-size: 14px;
+      }
+    }
+  }
+}
+
+// 日历头部
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+    .date-navigation {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      .date-display {
+        min-width: 180px;
+        text-align: center;
+        font-size: 16px;
+        font-weight: 500;
+      }
+    }
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+}
+
+// 状态图例
+.status-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0;
+  font-size: 12px;
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+
+      &.available {
+        background: @status-available;
+      }
+
+      &.booked {
+        background: @status-booked;
+      }
+
+      &.full {
+        background: @status-full;
+      }
+
+      &.suspended {
+        background: @status-suspended;
+      }
+    }
+  }
+}
+
+// 日历视图容器
+.calendar-view-container {
+  min-height: 500px;
+}
+
+// 周视图
+.week-view {
+  .week-grid {
+    display: grid;
+    grid-template-columns: 60px repeat(7, 1fr);
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    overflow: hidden;
+
+    // 表头
+    .week-header {
+      display: contents;
+
+      .header-cell {
+        padding: 12px 8px;
+        text-align: center;
+        background: #fafafa;
+        border-bottom: 1px solid #e8e8e8;
+        font-weight: 500;
+
+        &.time-column {
+          background: #f5f5f5;
+        }
+
+        &.today {
+          background: #e6f7ff;
+          color: #1890ff;
+        }
+
+        &.weekend {
+          background: #f9f9f9;
+        }
+
+        .header-date {
+          font-size: 16px;
+        }
+
+        .header-weekday {
+          font-size: 12px;
+          color: #666;
+        }
+      }
+    }
+
+    // 时间行
+    .time-row {
+      display: contents;
+
+      .time-cell {
+        padding: 8px;
+        border-right: 1px solid #e8e8e8;
+        border-bottom: 1px solid #f0f0f0;
+        background: #fafafa;
+        font-size: 12px;
+        color: #666;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .slot-cell {
+        border-right: 1px solid #f0f0f0;
+        border-bottom: 1px solid #f0f0f0;
+        min-height: 40px;
+        position: relative;
+
+        &:last-child {
+          border-right: none;
+        }
+
+        &.today {
+          background: rgba(24, 144, 255, 0.02);
+        }
+
+        &.weekend {
+          background: #fafafa;
+        }
+      }
+    }
+  }
+
+  // 当前时间线
+  .current-time-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #ff4d4f;
+    z-index: 10;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: -4px;
+      top: -3px;
+      width: 8px;
+      height: 8px;
+      background: #ff4d4f;
+      border-radius: 50%;
+    }
+  }
+}
+
+// 时间格单元格
+.time-slot-cell {
+  width: 100%;
+  height: 100%;
+  padding: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #f5f5f5;
+  }
+
+  &.available {
+    .slot-indicator {
+      background: @status-available;
+    }
+
+    &:hover {
+      background: fade(@status-available, 10%);
+    }
+  }
+
+  &.booked {
+    .slot-indicator {
+      background: @status-booked;
+    }
+
+    &:hover {
+      background: fade(@status-booked, 10%);
+    }
+  }
+
+  &.full {
+    .slot-indicator {
+      background: @status-full;
+    }
+
+    cursor: not-allowed;
+
+    &:hover {
+      background: fade(@status-full, 10%);
+    }
+  }
+
+  &.suspended {
+    .slot-indicator {
+      background: @status-suspended;
+    }
+
+    cursor: not-allowed;
+
+    &:hover {
+      background: fade(@status-suspended, 10%);
+    }
+  }
+
+  .slot-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 2px;
+
+    .slot-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .slot-count {
+      font-size: 10px;
+      color: #666;
+    }
+  }
+}
+
+// 月视图
+.month-view {
+  .ant-picker-calendar {
+    .ant-picker-calendar-date {
+      height: 100px;
+      padding: 4px 8px;
+
+      &:hover {
+        background: #f5f5f5;
+      }
+    }
+
+    .ant-picker-calendar-date-today {
+      .ant-picker-calendar-date-value {
+        color: #1890ff;
+        font-weight: 600;
+      }
+    }
+  }
+
+  .month-cell-content {
+    padding: 4px 0;
+
+    .cell-stats {
+      display: flex;
+      gap: 8px;
+      font-size: 12px;
+
+      .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+
+        .stat-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+
+          &.available {
+            background: @status-available;
+          }
+
+          &.booked {
+            background: @status-booked;
+          }
+        }
+      }
+    }
+
+    .cell-slots {
+      margin-top: 4px;
+
+      .slot-tag {
+        font-size: 10px;
+        margin: 2px;
+        padding: 0 4px;
+      }
+    }
+  }
+}
+
+// 日期详情抽屉
+.day-detail-drawer {
+  .drawer-header {
+    margin-bottom: 16px;
+
+    .drawer-date {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .drawer-weekday {
+      color: #666;
+      margin-left: 8px;
+    }
+  }
+
+  .schedule-section {
+    margin-bottom: 24px;
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 12px;
+      padding: 8px 12px;
+      background: #fafafa;
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .appointment-list {
+      .appointment-item {
+        padding: 12px;
+        border: 1px solid #f0f0f0;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+
+        &:hover {
+          border-color: #1890ff;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .patient-name {
+          font-weight: 500;
+          margin-bottom: 4px;
+        }
+
+        .appointment-meta {
+          font-size: 12px;
+          color: #666;
+        }
+      }
+    }
+
+    .empty-text {
+      color: #999;
+      font-size: 12px;
+      padding: 8px 0;
+    }
+  }
+
+  .drawer-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #f0f0f0;
+  }
+}
+
+// 预约详情弹窗
+.appointment-detail-modal {
+  .detail-item {
+    display: flex;
+    margin-bottom: 12px;
+
+    .detail-label {
+      width: 80px;
+      color: #666;
+      flex-shrink: 0;
+    }
+
+    .detail-value {
+      flex: 1;
+    }
+  }
+}
+
+// 创建预约弹窗
+.create-appointment-modal {
+  .schedule-info {
+    padding: 12px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    margin-bottom: 16px;
+
+    .info-item {
+      display: flex;
+      margin-bottom: 8px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      .info-label {
+        width: 70px;
+        color: #666;
+      }
+    }
+  }
+}
+

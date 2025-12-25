@@ -79,6 +79,8 @@ export default [
     routes: [
       { path: '/schedule', redirect: '/schedule/list' },
       { path: '/schedule/list', name: '排班列表', component: './schedule/list' },
+      { path: '/schedule/calendar', name: '排班日历', component: './schedule/calendar' },
+      { path: '/schedule/gantt', name: '排班甘特图', component: './schedule/gantt' },
       { path: '/schedule/template', name: '排班模板', component: './schedule/template' },
       { path: '/schedule/template/create', name: '新增排班模板', component: './schedule/template-form', hideInMenu: true },
       { path: '/schedule/template/:id/edit', name: '编辑排班模板', component: './schedule/template-form', hideInMenu: true },

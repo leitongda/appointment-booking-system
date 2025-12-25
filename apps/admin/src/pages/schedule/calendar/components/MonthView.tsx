@@ -1,0 +1,128 @@
+import { Calendar, Badge, Tag } from 'antd';
+import type { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
+import type { Schedule, Appointment } from '@hospital/shared';
+
+interface MonthViewProps {
+  currentDate: Dayjs;
+  schedules: Schedule[];
+  appointments: Appointment[];
+  onDateClick: (date: Dayjs) => void;
+}
+
+const TIME_SLOT_LABELS: Record<string, string> = {
+  morning: '上午',
+  afternoon: '下午',
+  evening: '晚上',
+};
+
+const MonthView: React.FC<MonthViewProps> = ({
+  currentDate,
+  schedules,
+  appointments,
+  onDateClick,
+}) => {
+  // 获取某天的排班
+  const getSchedulesByDate = (date: Dayjs): Schedule[] => {
+    const dateStr = date.format('YYYY-MM-DD');
+    return schedules.filter(s => s.scheduleDate === dateStr);
+  };
+
+  // 获取某天的预约数量
+  const getAppointmentCountByDate = (date: Dayjs): number => {
+    const dateStr = date.format('YYYY-MM-DD');
+    return appointments.filter(a => a.scheduleDate === dateStr).length;
+  };
+
+  // 计算某天的统计数据
+  const getDateStats = (date: Dayjs) => {
+    const daySchedules = getSchedulesByDate(date);
+    const totalSlots = daySchedules.reduce((sum, s) => sum + s.totalSlots, 0);
+    const bookedSlots = daySchedules.reduce((sum, s) => sum + s.bookedSlots, 0);
+    const availableSlots = totalSlots - bookedSlots;
+    const hasSuspended = daySchedules.some(s => s.status === 0);
+    
+    return {
+      totalSlots,
+      bookedSlots,
+      availableSlots,
+      hasSuspended,
+      schedules: daySchedules,
+    };
+  };
+
+  const dateCellRender = (date: Dayjs) => {
+    const stats = getDateStats(date);
+    
+    if (stats.schedules.length === 0) {
+      return null;
+    }
+
+    // 按时段排序
+    const sortOrder = { morning: 0, afternoon: 1, evening: 2 };
+    const sortedSchedules = [...stats.schedules].sort(
+      (a, b) => (sortOrder[a.timeSlot as keyof typeof sortOrder] ?? 3) - 
+                (sortOrder[b.timeSlot as keyof typeof sortOrder] ?? 3)
+    );
+
+    return (
+      <div className="month-cell-content">
+        <div className="cell-stats">
+          {stats.availableSlots > 0 && (
+            <span className="stat-item">
+              <span className="stat-dot available" />
+              <span>{stats.availableSlots}</span>
+            </span>
+          )}
+          {stats.bookedSlots > 0 && (
+            <span className="stat-item">
+              <span className="stat-dot booked" />
+              <span>{stats.bookedSlots}</span>
+            </span>
+          )}
+        </div>
+        <div className="cell-slots">
+          {sortedSchedules.slice(0, 3).map(s => {
+            const available = s.totalSlots - s.bookedSlots;
+            let color = 'success';
+            if (s.status === 0) color = 'default';
+            else if (available <= 0) color = 'error';
+            else if (available <= s.totalSlots * 0.2) color = 'warning';
+            
+            return (
+              <Tag 
+                key={s.id} 
+                color={color} 
+                className="slot-tag"
+              >
+                {TIME_SLOT_LABELS[s.timeSlot] || s.timeSlot}
+              </Tag>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const handleSelect = (date: Dayjs) => {
+    onDateClick(date);
+  };
+
+  return (
+    <div className="month-view">
+      <Calendar
+        value={currentDate}
+        onSelect={handleSelect}
+        cellRender={(date, info) => {
+          if (info.type === 'date') {
+            return dateCellRender(date);
+          }
+          return null;
+        }}
+      />
+    </div>
+  );
+};
+
+export default MonthView;
+
