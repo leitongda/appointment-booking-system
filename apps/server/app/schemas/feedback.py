@@ -1,7 +1,13 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
+
+
+def to_camel(string: str) -> str:
+    """将 snake_case 转换为 camelCase"""
+    components = string.split('_')
+    return components[0] + ''.join(x.title() for x in components[1:])
 
 
 class FeedbackType(str, Enum):
@@ -20,6 +26,11 @@ class FeedbackStatus(str, Enum):
 
 class FeedbackCreate(BaseModel):
     """创建反馈"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     user_id: str = Field(..., description="用户ID")
     user_type: str = Field("patient", description="用户类型")
     feedback_type: FeedbackType = Field(FeedbackType.SUGGESTION, description="反馈类型")
@@ -31,32 +42,46 @@ class FeedbackCreate(BaseModel):
 
 class FeedbackReply(BaseModel):
     """回复反馈"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     reply: str = Field(..., min_length=1, description="回复内容")
     status: FeedbackStatus = Field(FeedbackStatus.RESOLVED, description="状态")
 
 
 class FeedbackResponse(BaseModel):
     """反馈响应"""
-    id: str
-    user_id: str
-    user_type: str
-    feedback_type: str
-    title: str
-    content: str
-    images: Optional[List[str]] = None
-    contact: Optional[str]
-    status: str
-    handler_id: Optional[str]
-    reply: Optional[str]
-    handled_at: Optional[datetime]
-    created_at: datetime
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+        by_alias=True,
+    )
     
-    class Config:
-        from_attributes = True
+    id: str
+    user_id: Optional[str] = None
+    user_type: Optional[str] = None
+    feedback_type: Optional[str] = None
+    title: Optional[str] = None
+    content: Optional[str] = None
+    images: Optional[List[str]] = None
+    contact: Optional[str] = None
+    status: Optional[str] = None
+    handler_id: Optional[str] = None
+    reply: Optional[str] = None
+    handled_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
 
 
 class FeedbackQuery(BaseModel):
     """查询参数"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     user_id: Optional[str] = None
     feedback_type: Optional[FeedbackType] = None
     status: Optional[FeedbackStatus] = None

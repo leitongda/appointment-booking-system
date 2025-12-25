@@ -1,11 +1,22 @@
 """黑名单 Schema"""
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import datetime
 
 
+def to_camel(string: str) -> str:
+    """将 snake_case 转换为 camelCase"""
+    components = string.split('_')
+    return components[0] + ''.join(x.title() for x in components[1:])
+
+
 class BlacklistCreate(BaseModel):
     """创建黑名单"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     user_id: Optional[str] = Field(None, description="用户ID，可选")
     store_id: Optional[str] = Field(None, description="门店ID，可选，不选则针对所有门店")
     keyword: Optional[str] = Field(None, max_length=50, description="手机号或身份证关键词")
@@ -15,6 +26,13 @@ class BlacklistCreate(BaseModel):
 
 class BlacklistResponse(BaseModel):
     """黑名单响应"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+        by_alias=True,
+    )
+    
     id: str
     user_id: Optional[str] = None
     user_name: Optional[str] = None
@@ -28,14 +46,16 @@ class BlacklistResponse(BaseModel):
     expire_at: Optional[datetime] = None
     released_at: Optional[datetime] = None
     status: int = 1
-    created_at: datetime
-    
-    class Config:
-        from_attributes = True
+    created_at: Optional[datetime] = None
 
 
 class BlacklistListParams(BaseModel):
     """黑名单列表查询参数"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     keyword: Optional[str] = Field(None, description="搜索关键词（用户昵称/电话/身份证）")
     store_id: Optional[str] = Field(None, description="门店ID")
     status: Optional[int] = Field(None, description="状态: 1生效 0已解禁")
@@ -45,6 +65,12 @@ class BlacklistListParams(BaseModel):
 
 class BlacklistCheckResult(BaseModel):
     """黑名单检查结果"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        by_alias=True,
+    )
+    
     is_blacklisted: bool = False
     reason: Optional[str] = None
     expire_at: Optional[datetime] = None

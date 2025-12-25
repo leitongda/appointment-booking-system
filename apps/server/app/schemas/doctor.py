@@ -1,9 +1,21 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from decimal import Decimal
 from datetime import datetime
 
+
+def to_camel(string: str) -> str:
+    """将 snake_case 转换为 camelCase"""
+    components = string.split('_')
+    return components[0] + ''.join(x.title() for x in components[1:])
+
+
 class DoctorBase(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     # 基础信息
     store_id: Optional[str] = Field(None, description="所属门店ID")
     department_id: str = Field(..., description="科室ID")
@@ -49,6 +61,11 @@ class DoctorCreate(DoctorBase):
     password: Optional[str] = Field(None, min_length=6, description="医生账号密码")
 
 class DoctorUpdate(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     # 基础信息
     store_id: Optional[str] = None
     department_id: Optional[str] = None
@@ -93,33 +110,86 @@ class DoctorUpdate(BaseModel):
     # 密码更新
     password: Optional[str] = Field(None, min_length=6)
 
-class DoctorResponse(DoctorBase):
+class DoctorResponse(BaseModel):
+    """医生响应模型"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+        by_alias=True,
+    )
+    
     id: str
     user_id: Optional[str] = None
+    store_id: Optional[str] = None
     store_name: Optional[str] = None
+    department_id: Optional[str] = None
     department_name: Optional[str] = None
+    
+    # 基础信息
+    name: str
+    username: Optional[str] = None
+    phone: Optional[str] = None
+    gender: Optional[int] = 1
+    avatar: Optional[str] = None
+    banner: Optional[str] = None
+    title: Optional[str] = None
+    years_of_experience: Optional[int] = 0
+    
+    # 资质信息
+    education: Optional[str] = None
+    graduate_school: Optional[str] = None
+    license_number: Optional[str] = None
+    license_image: Optional[str] = None
+    honors: Optional[str] = None
+    
+    # 坐诊设置
+    schedule_desc: Optional[str] = None
+    max_daily_appointments: Optional[int] = 0
+    online_consult_enabled: Optional[int] = 0
+    online_consult_fee: Optional[Decimal] = Decimal("0")
+    registration_fee: Optional[Decimal] = Decimal("0")
+    
+    # 展示设置
+    page_style: Optional[int] = 1
+    promo_video: Optional[str] = None
+    tags: Optional[str] = None
+    specialty: Optional[str] = None
+    introduction: Optional[str] = None
+    
+    # 其他设置
+    is_recommended: Optional[int] = 0
+    sort_order: Optional[int] = 0
+    status: Optional[int] = 1
+    
+    # 诊费设置
+    use_fee_template: Optional[int] = 0
+    
     created_at: datetime
     updated_at: datetime
-    
-    class Config:
-        from_attributes = True
+
 
 class DoctorListResponse(BaseModel):
+    """医生列表响应模型"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+        by_alias=True,
+    )
+    
     id: str
     name: str
     avatar: Optional[str] = None
     banner: Optional[str] = None
     title: Optional[str] = None
-    gender: int = 1
+    gender: Optional[int] = 1
     store_id: Optional[str] = None
     store_name: Optional[str] = None
-    department_id: str
+    department_id: Optional[str] = None
     department_name: Optional[str] = None
     specialty: Optional[str] = None
-    registration_fee: Decimal
-    is_recommended: int
+    registration_fee: Optional[Decimal] = Decimal("0")
+    is_recommended: Optional[int] = 0
     tags: Optional[str] = None
-    page_style: int = 1
-    
-    class Config:
-        from_attributes = True
+    page_style: Optional[int] = 1

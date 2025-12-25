@@ -1,8 +1,14 @@
 """用户行为日志 Schema"""
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
+
+
+def to_camel(string: str) -> str:
+    """将 snake_case 转换为 camelCase"""
+    components = string.split('_')
+    return components[0] + ''.join(x.title() for x in components[1:])
 
 
 class Platform(str, Enum):
@@ -23,6 +29,11 @@ class EventType(str, Enum):
 
 class TrackEventRequest(BaseModel):
     """单条埋点上报请求"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     platform: Platform = Field(..., description="平台")
     session_id: Optional[str] = Field(None, max_length=64, description="会话ID")
     event_type: EventType = Field(..., description="事件类型")
@@ -39,16 +50,28 @@ class TrackEventRequest(BaseModel):
 
 class BatchTrackRequest(BaseModel):
     """批量埋点上报请求"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     events: List[TrackEventRequest] = Field(..., min_length=1, max_length=100, description="事件列表")
 
 
 class UserBehaviorLogResponse(BaseModel):
     """用户行为日志响应"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+        by_alias=True,
+    )
+    
     id: str
-    platform: str
+    platform: Optional[str] = None
     user_id: Optional[str] = None
     session_id: Optional[str] = None
-    event_type: str
+    event_type: Optional[str] = None
     page_path: Optional[str] = None
     page_title: Optional[str] = None
     element_id: Optional[str] = None
@@ -63,54 +86,80 @@ class UserBehaviorLogResponse(BaseModel):
     device_type: Optional[str] = None
     browser: Optional[str] = None
     os: Optional[str] = None
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
+    created_at: Optional[datetime] = None
 
 
 # ========== 统计相关 Schema ==========
 
 class PageViewStats(BaseModel):
     """页面访问统计"""
-    page_path: str
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        by_alias=True,
+    )
+    
+    page_path: Optional[str] = None
     page_title: Optional[str] = None
-    view_count: int
-    unique_users: int
+    view_count: int = 0
+    unique_users: int = 0
 
 
 class ClickStats(BaseModel):
     """点击统计"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        by_alias=True,
+    )
+    
     element_id: Optional[str] = None
     element_text: Optional[str] = None
     page_path: Optional[str] = None
-    click_count: int
+    click_count: int = 0
 
 
 class SearchKeywordStats(BaseModel):
     """搜索关键词统计"""
-    keyword: str
-    search_count: int
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        by_alias=True,
+    )
+    
+    keyword: Optional[str] = None
+    search_count: int = 0
 
 
 class DailyStats(BaseModel):
     """每日统计"""
-    date: str
-    page_views: int
-    unique_users: int
-    clicks: int
-    searches: int
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        by_alias=True,
+    )
+    
+    date: Optional[str] = None
+    page_views: int = 0
+    unique_users: int = 0
+    clicks: int = 0
+    searches: int = 0
 
 
 class BehaviorOverview(BaseModel):
     """行为概览"""
-    total_page_views: int
-    total_unique_users: int
-    total_clicks: int
-    total_searches: int
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        by_alias=True,
+    )
+    
+    total_page_views: int = 0
+    total_unique_users: int = 0
+    total_clicks: int = 0
+    total_searches: int = 0
     avg_duration: Optional[float] = None
-    top_pages: List[PageViewStats]
-    top_clicks: List[ClickStats]
-    top_keywords: List[SearchKeywordStats]
-    daily_stats: List[DailyStats]
-
+    top_pages: List[PageViewStats] = []
+    top_clicks: List[ClickStats] = []
+    top_keywords: List[SearchKeywordStats] = []
+    daily_stats: List[DailyStats] = []

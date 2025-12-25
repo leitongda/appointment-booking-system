@@ -12,7 +12,7 @@ from app.models.store import Store
 from app.models.message import Message, MessageTemplate
 from app.models.leave_request import LeaveRequest
 from app.models.feedback import Feedback
-from app.models.consultation_fee import ConsultationFeeType, ConsultationFeeTemplate, DoctorConsultationFee
+from app.models.consultation_fee import ConsultationFeeType, ConsultationFeeTemplate, StoreFeeTemplate, DoctorConsultationFee
 from app.models.doctor_booking_setting import DoctorBookingSetting
 from app.models.point_log import PointLog
 from app.models.schedule_template import ScheduleTemplate

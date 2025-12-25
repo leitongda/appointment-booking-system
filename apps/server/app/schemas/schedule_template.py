@@ -1,7 +1,13 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import time, datetime, date
 from enum import Enum
+
+
+def to_camel(string: str) -> str:
+    """将 snake_case 转换为 camelCase"""
+    components = string.split('_')
+    return components[0] + ''.join(x.title() for x in components[1:])
 
 
 class AppointmentType(str, Enum):
@@ -27,6 +33,11 @@ class ScheduleMode(str, Enum):
 
 class ScheduleTemplateBase(BaseModel):
     """排班模板基础模型"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     name: str = Field(..., max_length=100, description="模板名称")
     store_id: str = Field(..., description="门店ID")
     doctor_id: str = Field(..., description="医生ID")
@@ -46,6 +57,11 @@ class ScheduleTemplateCreate(ScheduleTemplateBase):
 
 class ScheduleTemplateUpdate(BaseModel):
     """更新排班模板"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     name: Optional[str] = Field(None, max_length=100, description="模板名称")
     store_id: Optional[str] = None
     doctor_id: Optional[str] = None
@@ -59,22 +75,41 @@ class ScheduleTemplateUpdate(BaseModel):
     status: Optional[int] = Field(None, ge=0, le=1)
 
 
-class ScheduleTemplateResponse(ScheduleTemplateBase):
+class ScheduleTemplateResponse(BaseModel):
     """排班模板响应"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+        by_alias=True,
+    )
+    
     id: str
-    status: int
+    name: Optional[str] = None
+    store_id: Optional[str] = None
+    doctor_id: Optional[str] = None
+    department_id: Optional[str] = None
+    weekday: Optional[int] = None
+    appointment_type: Optional[str] = "normal"
+    start_time: Optional[time] = None
+    end_time: Optional[time] = None
+    total_slots: Optional[int] = 10
+    schedule_mode: Optional[str] = "weekly"
+    status: Optional[int] = 1
     store_name: Optional[str] = None
     doctor_name: Optional[str] = None
     department_name: Optional[str] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
 
 
 class ScheduleGenerateRequest(BaseModel):
     """根据模板生成排班请求"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     template_ids: List[str] = Field(..., description="模板ID列表")
     start_date: date = Field(..., description="开始日期")
     end_date: date = Field(..., description="结束日期")
@@ -82,6 +117,11 @@ class ScheduleGenerateRequest(BaseModel):
 
 class ScheduleBatchAddRequest(BaseModel):
     """批量添加排班请求（不依赖模板）"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     store_id: str = Field(..., description="门店ID")
     doctor_id: str = Field(..., description="医生ID")
     department_id: str = Field(..., description="科室ID")

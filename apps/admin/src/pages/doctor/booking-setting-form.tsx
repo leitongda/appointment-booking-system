@@ -74,6 +74,12 @@ const DoctorBookingSettingFormPage: React.FC = () => {
     }
   };
 
+  const getValidReleaseTime = (timeStr?: string) => {
+    if (!timeStr) return dayjs('00:00', 'HH:mm');
+    const parsed = dayjs(timeStr, 'HH:mm');
+    return parsed.isValid() ? parsed : dayjs('00:00', 'HH:mm');
+  };
+
   const loadSetting = async () => {
     if (!id) return;
     setLoading(true);
@@ -89,9 +95,7 @@ const DoctorBookingSettingFormPage: React.FC = () => {
         doctorId: data.doctorId,
         bookingStartOffset: data.bookingStartOffset,
         bookingRangeDays: data.bookingRangeDays,
-        releaseTime: data.releaseTime
-          ? dayjs(data.releaseTime, 'HH:mm')
-          : dayjs('00:00', 'HH:mm'),
+        releaseTime: getValidReleaseTime(data.releaseTime),
       });
     } catch (error: any) {
       message.error('加载预约设置失败');
@@ -102,8 +106,9 @@ const DoctorBookingSettingFormPage: React.FC = () => {
 
   const handleSubmit = async (values: any) => {
     try {
-      const releaseTime = values.releaseTime
-        ? dayjs(values.releaseTime).format('HH:mm')
+      const releaseTimeValue = dayjs(values.releaseTime);
+      const releaseTime = releaseTimeValue.isValid()
+        ? releaseTimeValue.format('HH:mm')
         : '00:00';
 
       const data = {
@@ -134,9 +139,7 @@ const DoctorBookingSettingFormPage: React.FC = () => {
     doctorId: setting.doctorId,
     bookingStartOffset: setting.bookingStartOffset,
     bookingRangeDays: setting.bookingRangeDays,
-    releaseTime: setting.releaseTime
-      ? dayjs(setting.releaseTime, 'HH:mm')
-      : dayjs('00:00', 'HH:mm'),
+    releaseTime: getValidReleaseTime(setting.releaseTime),
   } : {
     bookingStartOffset: 0,
     bookingRangeDays: 14,

@@ -1,7 +1,13 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import date, datetime
 from enum import Enum
+
+
+def to_camel(string: str) -> str:
+    """将 snake_case 转换为 camelCase"""
+    components = string.split('_')
+    return components[0] + ''.join(x.title() for x in components[1:])
 
 
 class RequestType(str, Enum):
@@ -26,6 +32,11 @@ class Period(str, Enum):
 # 停诊申请
 class StopClinicCreate(BaseModel):
     """创建停诊申请"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     doctor_id: str = Field(..., description="医生ID")
     schedule_id: Optional[str] = Field(None, description="排班ID")
     stop_date: date = Field(..., description="停诊日期")
@@ -36,6 +47,11 @@ class StopClinicCreate(BaseModel):
 # 调班申请
 class ScheduleChangeCreate(BaseModel):
     """创建调班申请"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     doctor_id: str = Field(..., description="医生ID")
     original_date: date = Field(..., description="原日期")
     original_period: Period = Field(..., description="原时段")
@@ -47,6 +63,11 @@ class ScheduleChangeCreate(BaseModel):
 # 审核
 class ReviewRequest(BaseModel):
     """审核申请"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     status: RequestStatus = Field(..., description="审核结果")
     review_comment: Optional[str] = Field(None, max_length=500, description="审核意见")
 
@@ -54,31 +75,40 @@ class ReviewRequest(BaseModel):
 # 响应
 class LeaveRequestResponse(BaseModel):
     """申请响应"""
-    id: str
-    doctor_id: str
-    doctor_name: Optional[str] = None
-    request_type: str
-    schedule_id: Optional[str]
-    stop_date: Optional[date]
-    stop_period: Optional[str]
-    original_date: Optional[date]
-    original_period: Optional[str]
-    target_date: Optional[date]
-    target_period: Optional[str]
-    reason: str
-    status: str
-    reviewer_id: Optional[str]
-    review_comment: Optional[str]
-    reviewed_at: Optional[datetime]
-    affected_appointments: int
-    created_at: datetime
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+        by_alias=True,
+    )
     
-    class Config:
-        from_attributes = True
+    id: str
+    doctor_id: Optional[str] = None
+    doctor_name: Optional[str] = None
+    request_type: Optional[str] = None
+    schedule_id: Optional[str] = None
+    stop_date: Optional[date] = None
+    stop_period: Optional[str] = None
+    original_date: Optional[date] = None
+    original_period: Optional[str] = None
+    target_date: Optional[date] = None
+    target_period: Optional[str] = None
+    reason: Optional[str] = None
+    status: Optional[str] = None
+    reviewer_id: Optional[str] = None
+    review_comment: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    affected_appointments: Optional[int] = 0
+    created_at: Optional[datetime] = None
 
 
 class LeaveRequestQuery(BaseModel):
     """查询参数"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     doctor_id: Optional[str] = None
     request_type: Optional[RequestType] = None
     status: Optional[RequestStatus] = None

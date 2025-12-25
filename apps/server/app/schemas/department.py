@@ -84,7 +84,8 @@ class DepartmentUpdate(BaseModel):
     location: Optional[str] = Field(None, max_length=100)
     working_hours: Optional[str] = Field(None, max_length=200)
 
-class DepartmentResponse(DepartmentBase):
+class DepartmentResponse(BaseModel):
+    """科室响应模型 - 所有字段都可为空以兼容历史数据"""
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,
@@ -93,9 +94,38 @@ class DepartmentResponse(DepartmentBase):
     )
     
     id: str
+    name: str
+    parent_id: Optional[str] = None
+    description: Optional[str] = None
+    sort_order: Optional[int] = 0
+    is_hot: Optional[int] = 0
+    status: Optional[int] = 1
     created_at: datetime
     updated_at: datetime
+    
+    # 基础配置
+    store_id: Optional[str] = None
     store_name: Optional[str] = None
+    tag: Optional[str] = None
+    enable_banner: Optional[int] = 0
+    enable_intro: Optional[int] = 0
+    is_final: Optional[int] = 0
+    is_recommended: Optional[int] = 0
+    
+    # 图片资源
+    banner_image: Optional[str] = None
+    icon: Optional[str] = None
+    intro_images: Optional[str] = None
+    
+    # 详情内容
+    intro_content: Optional[str] = None
+    features: Optional[str] = None
+    appointment_notice: Optional[str] = None
+    
+    # 联系信息
+    phone: Optional[str] = None
+    location: Optional[str] = None
+    working_hours: Optional[str] = None
 
 class DepartmentTreeNode(BaseModel):
     model_config = ConfigDict(
@@ -107,7 +137,7 @@ class DepartmentTreeNode(BaseModel):
     
     id: str
     name: str
-    parent_id: Optional[str]
+    parent_id: Optional[str] = None
     children: List['DepartmentTreeNode'] = []
 
 DepartmentTreeNode.model_rebuild()

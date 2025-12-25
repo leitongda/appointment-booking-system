@@ -1,7 +1,13 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
+
+
+def to_camel(string: str) -> str:
+    """将 snake_case 转换为 camelCase"""
+    components = string.split('_')
+    return components[0] + ''.join(x.title() for x in components[1:])
 
 
 class EmailTemplateType(str, Enum):
@@ -14,6 +20,11 @@ class EmailTemplateType(str, Enum):
 
 class EmailTemplateBase(BaseModel):
     """邮件模板基础模型"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     code: str = Field(..., max_length=50, description="模板编码")
     name: str = Field(..., max_length=100, description="模板名称")
     template_type: EmailTemplateType = Field(EmailTemplateType.CUSTOM, description="模板类型")
@@ -30,6 +41,11 @@ class EmailTemplateCreate(EmailTemplateBase):
 
 class EmailTemplateUpdate(BaseModel):
     """更新邮件模板"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     name: Optional[str] = Field(None, max_length=100)
     template_type: Optional[EmailTemplateType] = None
     subject_template: Optional[str] = Field(None, max_length=200)
@@ -40,41 +56,52 @@ class EmailTemplateUpdate(BaseModel):
 
 class EmailTemplateResponse(BaseModel):
     """邮件模板响应"""
-    id: str
-    code: str
-    name: str
-    templateType: str = Field(alias='template_type')
-    subjectTemplate: str = Field(alias='subject_template')
-    contentTemplate: str = Field(alias='content_template')
-    description: Optional[str] = None
-    status: int
-    createdAt: datetime = Field(alias='created_at')
-    updatedAt: datetime = Field(alias='updated_at')
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+        by_alias=True,
+    )
     
-    class Config:
-        from_attributes = True
-        populate_by_name = True
+    id: str
+    code: Optional[str] = None
+    name: Optional[str] = None
+    template_type: Optional[str] = None
+    subject_template: Optional[str] = None
+    content_template: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[int] = 1
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 class EmailTemplateListResponse(BaseModel):
     """邮件模板列表响应"""
-    id: str
-    code: str
-    name: str
-    templateType: str = Field(alias='template_type')
-    subjectTemplate: str = Field(alias='subject_template')
-    description: Optional[str] = None
-    status: int
-    createdAt: datetime = Field(alias='created_at')
-    updatedAt: datetime = Field(alias='updated_at')
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+        by_alias=True,
+    )
     
-    class Config:
-        from_attributes = True
-        populate_by_name = True
+    id: str
+    code: Optional[str] = None
+    name: Optional[str] = None
+    template_type: Optional[str] = None
+    subject_template: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[int] = 1
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 class EmailTemplateQuery(BaseModel):
     """邮件模板查询参数"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     template_type: Optional[EmailTemplateType] = Field(None, description="模板类型")
     status: Optional[int] = Field(None, description="状态")
     keyword: Optional[str] = Field(None, description="关键词搜索")
@@ -84,13 +111,22 @@ class EmailTemplateQuery(BaseModel):
 
 class EmailTestRequest(BaseModel):
     """发送测试邮件请求"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     to_email: str = Field(..., description="收件人邮箱")
     variables: Optional[dict] = Field(None, description="模板变量")
 
 
 class EmailSendRequest(BaseModel):
     """发送邮件请求"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
     template_code: str = Field(..., description="模板编码")
     to_email: str = Field(..., description="收件人邮箱")
     variables: dict = Field(default_factory=dict, description="模板变量")
-
