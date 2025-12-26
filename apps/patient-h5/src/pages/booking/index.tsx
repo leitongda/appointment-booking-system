@@ -1,11 +1,12 @@
-import { NavBar, Card, List, Button, Radio, Toast, Dialog, Skeleton, Empty } from 'antd-mobile';
+import { NavBar, Radio, Toast, Dialog, Skeleton, Empty } from 'antd-mobile';
 import { history, useParams, useSearchParams } from 'umi';
 import { useState, useEffect } from 'react';
-import { AddOutline } from 'antd-mobile-icons';
-import { doctorApi, scheduleApi, userApi, appointmentApi } from '@hospital/api';
+import { motion } from 'framer-motion';
+import { doctorApi, userApi, appointmentApi } from '@hospital/api';
 import { TIME_SLOT_MAP } from '@hospital/shared';
-import type { Doctor, Patient, AvailableSchedule } from '@hospital/shared';
-import styles from './index.less';
+import type { Doctor, Patient } from '@hospital/shared';
+import { Card, Button } from '@/components/ui';
+import { fadeInUp, stagger } from '@/components/ui/animations';
 
 const BookingPage: React.FC = () => {
   const { doctorId } = useParams<{ doctorId: string }>();
@@ -33,7 +34,6 @@ const BookingPage: React.FC = () => {
       setDoctor(doctorData);
       setPatients(patientsData);
       
-      // 默认选择第一个就诊人或默认就诊人
       const defaultPatient = patientsData.find((p) => p.isDefault) || patientsData[0];
       if (defaultPatient) {
         setSelectedPatientId(defaultPatient.id);
@@ -76,84 +76,149 @@ const BookingPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className={styles.container}>
-        <NavBar onBack={() => history.back()}>确认预约</NavBar>
-        <Skeleton.Paragraph lineCount={8} animated />
+      <div className="min-h-screen bg-background">
+        <NavBar 
+          onBack={() => history.back()}
+          className="!bg-card border-b border-border"
+        >
+          确认预约
+        </NavBar>
+        <div className="p-4">
+          <Skeleton.Paragraph lineCount={8} animated />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className={styles.container}>
-      <NavBar onBack={() => history.back()}>确认预约</NavBar>
-
-      <Card title="预约信息" className={styles.card}>
-        <div className={styles.row}>
-          <span>医生</span>
-          <span>{doctor?.name} - {doctor?.title}</span>
-        </div>
-        <div className={styles.row}>
-          <span>科室</span>
-          <span>{doctor?.departmentName}</span>
-        </div>
-        <div className={styles.row}>
-          <span>日期</span>
-          <span>{date}</span>
-        </div>
-        <div className={styles.row}>
-          <span>时段</span>
-          <span>{TIME_SLOT_MAP[timeSlot || 'AM']}</span>
-        </div>
-        <div className={styles.row}>
-          <span>挂号费</span>
-          <span className={styles.fee}>¥{doctor?.registrationFee || 0}</span>
-        </div>
-      </Card>
-
-      <Card 
-        title="选择就诊人" 
-        className={styles.card} 
-        extra={
-          <Button 
-            size="mini" 
-            onClick={() => history.push('/profile/patient/edit')}
-          >
-            <AddOutline /> 新增
-          </Button>
-        }
+    <div className="min-h-screen bg-background pb-24">
+      <NavBar 
+        onBack={() => history.back()}
+        className="!bg-card border-b border-border"
       >
-        {patients.length === 0 ? (
-          <Empty description="请先添加就诊人" />
-        ) : (
-          <Radio.Group value={selectedPatientId} onChange={(v) => setSelectedPatientId(v as string)}>
-            <List>
-              {patients.map((patient) => (
-                <List.Item key={patient.id} prefix={<Radio value={patient.id} />}>
-                  {patient.name}
-                  <span className={styles.patientPhone}>
-                    ({patient.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')})
-                  </span>
-                  {patient.isDefault && <span className={styles.defaultTag}>默认</span>}
-                </List.Item>
-              ))}
-            </List>
-          </Radio.Group>
-        )}
-      </Card>
+        确认预约
+      </NavBar>
 
-      <div className={styles.footer}>
-        <div className={styles.total}>
-          <span>合计：</span>
-          <span className={styles.price}>¥{doctor?.registrationFee || 0}</span>
+      <motion.div
+        className="p-4 space-y-4"
+        variants={stagger}
+        initial="hidden"
+        animate="visible"
+      >
+        {/* Appointment Info */}
+        <motion.div variants={fadeInUp}>
+          <Card variant="default" padding="lg">
+            <h3 className="font-semibold text-foreground mb-4">预约信息</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">医生</span>
+                <span className="text-foreground font-medium">
+                  {doctor?.name} - {doctor?.title}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">科室</span>
+                <span className="text-foreground">{doctor?.departmentName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">日期</span>
+                <span className="text-foreground">{date}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">时段</span>
+                <span className="text-foreground">{TIME_SLOT_MAP[timeSlot || 'AM']}</span>
+              </div>
+              <div className="flex justify-between pt-2 border-t border-border">
+                <span className="text-muted-foreground">挂号费</span>
+                <span className="text-accent font-semibold text-lg">
+                  ¥{doctor?.registrationFee || 0}
+                </span>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* Patient Selection */}
+        <motion.div variants={fadeInUp}>
+          <Card variant="default" padding="lg">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-foreground">选择就诊人</h3>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => history.push('/profile/patient/edit')}
+                icon={
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                }
+              >
+                新增
+              </Button>
+            </div>
+
+            {patients.length === 0 ? (
+              <Empty description="请先添加就诊人" />
+            ) : (
+              <Radio.Group 
+                value={selectedPatientId} 
+                onChange={(v) => setSelectedPatientId(v as string)}
+              >
+                <div className="space-y-2">
+                  {patients.map((patient) => (
+                    <div 
+                      key={patient.id}
+                      className={`
+                        flex items-center gap-3 p-4 rounded-xl border transition-all cursor-pointer
+                        ${selectedPatientId === patient.id 
+                          ? 'border-accent bg-accent/5' 
+                          : 'border-border bg-muted hover:border-accent/30'
+                        }
+                      `}
+                      onClick={() => setSelectedPatientId(patient.id)}
+                    >
+                      <Radio value={patient.id} />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-foreground">{patient.name}</span>
+                          {patient.isDefault && (
+                            <span className="text-xs text-accent bg-accent/10 px-2 py-0.5 rounded-full">
+                              默认
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {patient.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Radio.Group>
+            )}
+          </Card>
+        </motion.div>
+      </motion.div>
+
+      {/* Fixed Footer */}
+      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 safe-area-inset-bottom">
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-muted-foreground">合计：</span>
+            <span className="text-accent font-semibold text-xl ml-1">
+              ¥{doctor?.registrationFee || 0}
+            </span>
+          </div>
+          <Button 
+            size="lg"
+            onClick={handleSubmit}
+            loading={submitting}
+            disabled={!selectedPatientId}
+            className="min-w-[120px]"
+          >
+            确认预约
+          </Button>
         </div>
-        <Button 
-          color="primary" 
-          onClick={handleSubmit}
-          loading={submitting}
-          disabled={!selectedPatientId}
-        >
-          确认预约
-        </Button>
       </div>
     </div>
   );

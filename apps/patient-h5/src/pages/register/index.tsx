@@ -1,8 +1,10 @@
-import { Form, Input, Button, Toast, NavBar } from 'antd-mobile';
+import { Form, Input, Toast, NavBar } from 'antd-mobile';
 import { history } from 'umi';
 import { useState, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { authApi } from '@hospital/api';
-import styles from './index.less';
+import { Card, Button, RadialGlow } from '@/components/ui';
+import { fadeInUp, stagger } from '@/components/ui/animations';
 
 const RegisterPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -68,90 +70,138 @@ const RegisterPage: React.FC = () => {
   };
 
   return (
-    <div className={styles.container}>
-      <NavBar onBack={() => history.back()}>注册账号</NavBar>
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Background decorations */}
+      <RadialGlow size="xl" position="top-right" opacity={0.06} />
+      <RadialGlow size="lg" position="bottom-left" color="secondary" opacity={0.04} />
+
+      <NavBar 
+        onBack={() => history.back()}
+        className="!bg-transparent relative z-10"
+      >
+        注册账号
+      </NavBar>
       
-      <div className={styles.formWrapper}>
-        <Form 
-          form={form}
-          layout="vertical" 
-          onFinish={onFinish}
-          footer={
-            <Button 
-              block 
-              color="primary" 
-              type="submit" 
-              size="large"
-              loading={loading}
+      <motion.div 
+        className="px-4 pb-8 relative z-10"
+        variants={stagger}
+        initial="hidden"
+        animate="visible"
+      >
+        <motion.div variants={fadeInUp}>
+          <Card variant="elevated" padding="lg" className="shadow-xl">
+            <Form 
+              form={form}
+              layout="vertical" 
+              onFinish={onFinish}
             >
-              注册
-            </Button>
-          }
-        >
-          <Form.Item 
-            name="name" 
-            label="姓名"
-            rules={[{ required: true, message: '请输入姓名' }]}
-          >
-            <Input placeholder="请输入真实姓名" />
-          </Form.Item>
-          
-          <Form.Item 
-            name="phone" 
-            label="手机号"
-            rules={[
-              { required: true, message: '请输入手机号' },
-              { pattern: /^1\d{10}$/, message: '请输入正确的手机号' },
-            ]}
-          >
-            <Input placeholder="请输入手机号" type="tel" maxLength={11} />
-          </Form.Item>
-          
-          <Form.Item 
-            name="code" 
-            label="验证码"
-            rules={[{ required: true, message: '请输入验证码' }]}
-            extra={
-              <Button 
-                size="small" 
-                onClick={handleSendCode}
-                disabled={countdown > 0}
-                loading={sendingCode}
+              <Form.Item 
+                name="name" 
+                label="姓名"
+                rules={[{ required: true, message: '请输入姓名' }]}
               >
-                {countdown > 0 ? `${countdown}s后重试` : '获取验证码'}
-              </Button>
-            }
+                <Input 
+                  placeholder="请输入真实姓名"
+                  className="!h-12 !rounded-xl !border-border focus:!border-accent"
+                />
+              </Form.Item>
+              
+              <Form.Item 
+                name="phone" 
+                label="手机号"
+                rules={[
+                  { required: true, message: '请输入手机号' },
+                  { pattern: /^1\d{10}$/, message: '请输入正确的手机号' },
+                ]}
+              >
+                <Input 
+                  placeholder="请输入手机号" 
+                  type="tel" 
+                  maxLength={11}
+                  className="!h-12 !rounded-xl !border-border focus:!border-accent"
+                />
+              </Form.Item>
+              
+              <Form.Item 
+                name="code" 
+                label="验证码"
+                rules={[{ required: true, message: '请输入验证码' }]}
+                extra={
+                  <Button 
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSendCode}
+                    disabled={countdown > 0}
+                    loading={sendingCode}
+                    className="!text-accent"
+                  >
+                    {countdown > 0 ? `${countdown}s后重试` : '获取验证码'}
+                  </Button>
+                }
+              >
+                <Input 
+                  placeholder="请输入验证码" 
+                  maxLength={6}
+                  className="!h-12 !rounded-xl !border-border focus:!border-accent"
+                />
+              </Form.Item>
+              
+              <Form.Item 
+                name="password" 
+                label="密码"
+                rules={[
+                  { required: true, message: '请输入密码' },
+                  { min: 6, message: '密码至少6位' },
+                ]}
+              >
+                <Input 
+                  placeholder="请输入密码（至少6位）" 
+                  type="password"
+                  className="!h-12 !rounded-xl !border-border focus:!border-accent"
+                />
+              </Form.Item>
+              
+              <Form.Item 
+                name="confirmPassword" 
+                label="确认密码"
+                rules={[{ required: true, message: '请再次输入密码' }]}
+              >
+                <Input 
+                  placeholder="请再次输入密码" 
+                  type="password"
+                  className="!h-12 !rounded-xl !border-border focus:!border-accent"
+                />
+              </Form.Item>
+
+              <div className="mt-6">
+                <Button 
+                  block 
+                  type="submit"
+                  size="lg"
+                  loading={loading}
+                >
+                  注册
+                </Button>
+              </div>
+            </Form>
+          </Card>
+        </motion.div>
+        
+        <motion.p 
+          variants={fadeInUp}
+          className="text-center mt-6 text-sm text-muted-foreground"
+        >
+          已有账号？
+          <button 
+            onClick={() => history.push('/login')}
+            className="text-accent hover:text-accent-secondary transition-colors ml-1 font-medium"
           >
-            <Input placeholder="请输入验证码" maxLength={6} />
-          </Form.Item>
-          
-          <Form.Item 
-            name="password" 
-            label="密码"
-            rules={[
-              { required: true, message: '请输入密码' },
-              { min: 6, message: '密码至少6位' },
-            ]}
-          >
-            <Input placeholder="请输入密码（至少6位）" type="password" />
-          </Form.Item>
-          
-          <Form.Item 
-            name="confirmPassword" 
-            label="确认密码"
-            rules={[{ required: true, message: '请再次输入密码' }]}
-          >
-            <Input placeholder="请再次输入密码" type="password" />
-          </Form.Item>
-        </Form>
-      </div>
-      
-      <div className={styles.loginLink}>
-        已有账号？<span onClick={() => history.push('/login')}>立即登录</span>
-      </div>
+            立即登录
+          </button>
+        </motion.p>
+      </motion.div>
     </div>
   );
 };
 
 export default RegisterPage;
-

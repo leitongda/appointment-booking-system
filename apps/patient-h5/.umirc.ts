@@ -24,10 +24,20 @@ export default defineConfig({
   ],
   model: {},
   request: {},
+  // PostCSS plugins for Tailwind CSS
+  extraPostCSSPlugins: [
+    require('tailwindcss'),
+    require('autoprefixer'),
+  ],
+  // Import global CSS files
+  styles: [
+    '/src/global.css',
+    '/src/theme.css',
+  ],
   routes: [
     {
       path: '/',
-      component: '@/layouts/index',
+      component: '@/components/MainLayout/index',
       routes: [
         { path: '/', redirect: '/home' },
         { path: '/home', component: '@/pages/home' },
@@ -49,6 +59,9 @@ export default defineConfig({
       ],
     },
     { path: '/login', component: '@/pages/login' },
+    { path: '/register', component: '@/pages/register' },
+    { path: '/search', component: '@/pages/search' },
+    { path: '/settings', component: '@/pages/settings' },
   ],
   proxy: {
     '/api': {
@@ -57,4 +70,3 @@ export default defineConfig({
     },
   },
 });
-

@@ -1,9 +1,11 @@
-import { NavBar, List, Empty, InfiniteScroll, PullToRefresh, Skeleton, Tag } from 'antd-mobile';
+import { NavBar, Empty, InfiniteScroll, PullToRefresh, Skeleton } from 'antd-mobile';
 import { history } from 'umi';
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { medicalRecordApi } from '@hospital/api';
 import type { MedicalRecordListItem } from '@hospital/api';
-import styles from './index.less';
+import { Card } from '@/components/ui';
+import { fadeInUp, stagger } from '@/components/ui/animations';
 
 const RecordsPage: React.FC = () => {
   const [records, setRecords] = useState<MedicalRecordListItem[]>([]);
@@ -62,9 +64,14 @@ const RecordsPage: React.FC = () => {
 
   if (loading && records.length === 0) {
     return (
-      <div className={styles.container}>
-        <NavBar onBack={() => history.back()}>就诊记录</NavBar>
-        <div style={{ padding: 16 }}>
+      <div className="min-h-screen bg-background">
+        <NavBar 
+          onBack={() => history.back()}
+          className="!bg-card border-b border-border"
+        >
+          就诊记录
+        </NavBar>
+        <div className="p-4">
           <Skeleton.Paragraph lineCount={5} animated />
           <Skeleton.Paragraph lineCount={5} animated />
         </div>
@@ -73,43 +80,77 @@ const RecordsPage: React.FC = () => {
   }
 
   return (
-    <div className={styles.container}>
-      <NavBar onBack={() => history.back()}>就诊记录</NavBar>
+    <div className="min-h-screen bg-background">
+      <NavBar 
+        onBack={() => history.back()}
+        className="!bg-card border-b border-border"
+      >
+        就诊记录
+      </NavBar>
       
       <PullToRefresh onRefresh={handleRefresh}>
-        {records.length === 0 ? (
-          <Empty description="暂无就诊记录" style={{ marginTop: 100 }} />
-        ) : (
-          <>
-            <List>
+        <div className="p-4">
+          {records.length === 0 ? (
+            <div className="flex items-center justify-center h-64">
+              <Empty description="暂无就诊记录" />
+            </div>
+          ) : (
+            <motion.div
+              className="space-y-3"
+              variants={stagger}
+              initial="hidden"
+              animate="visible"
+            >
               {records.map((record) => (
-                <List.Item
+                <motion.div
                   key={record.id}
-                  description={
-                    <div className={styles.recordInfo}>
-                      <div className={styles.diagnosis}>
-                        诊断：<Tag color="primary" fill="outline">{record.diagnosis}</Tag>
-                      </div>
-                      <div className={styles.meta}>
-                        {record.departmentName} · {record.doctorName}
-                      </div>
-                    </div>
-                  }
-                  extra={
-                    <div className={styles.date}>
-                      {formatDate(record.visitDate)}
-                    </div>
-                  }
-                  onClick={() => history.push(`/records/${record.id}`)}
-                  arrow
+                  variants={fadeInUp}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  <div className={styles.recordNo}>病历号：{record.recordNo}</div>
-                </List.Item>
+                  <Card 
+                    variant="default" 
+                    padding="md"
+                    hoverable
+                    animated={false}
+                    className="cursor-pointer"
+                    onClick={() => history.push(`/records/${record.id}`)}
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <span className="text-xs text-muted-foreground">病历号：</span>
+                        <span className="font-mono text-sm text-foreground">{record.recordNo}</span>
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        {formatDate(record.visitDate)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs text-accent bg-accent/10 px-2 py-1 rounded-full">
+                        {record.diagnosis}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        {record.departmentName} · {record.doctorName}
+                      </p>
+                      <svg 
+                        className="w-5 h-5 text-muted-foreground" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </Card>
+                </motion.div>
               ))}
-            </List>
-            <InfiniteScroll loadMore={loadMore} hasMore={hasMore} />
-          </>
-        )}
+            </motion.div>
+          )}
+          <InfiniteScroll loadMore={loadMore} hasMore={hasMore} />
+        </div>
       </PullToRefresh>
     </div>
   );

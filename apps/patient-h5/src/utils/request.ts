@@ -4,8 +4,8 @@
  */
 import { setRequestInterceptor, setResponseInterceptor } from '@hospital/api';
 import { getToken, handleTokenExpired } from '@hospital/shared';
-import { history } from '@umijs/max';
-import { message } from 'antd';
+import { history } from 'umi';
+import { Toast } from 'antd-mobile';
 import type { InternalAxiosRequestConfig } from 'axios';
 import type { AxiosResponse } from 'axios';
 
@@ -48,7 +48,7 @@ export const setupResponseInterceptor = () => {
         // 401 未授权 - 清除 token 并跳转到登录页
         if (status === 401) {
           handleTokenExpired(() => {
-            message.error('登录已过期，请重新登录');
+            Toast.show({ icon: 'fail', content: '登录已过期，请重新登录' });
             history.push('/login');
           });
           return Promise.reject(new Error('登录已过期，请重新登录'));

@@ -1,10 +1,12 @@
-import { NavBar, Form, Input, Button, Picker, Switch, Toast, Dialog } from 'antd-mobile';
+import { NavBar, Form, Input, Picker, Switch, Toast, Dialog } from 'antd-mobile';
 import { history, useSearchParams } from 'umi';
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { userApi } from '@hospital/api';
 import { GENDER_MAP, PATIENT_RELATIONSHIPS } from '@hospital/shared';
 import type { Patient } from '@hospital/shared';
-import styles from './edit.less';
+import { Button, Card } from '@/components/ui';
+import { fadeInUp, stagger } from '@/components/ui/animations';
 
 const genderOptions = [[
   { label: '男', value: 1 },
@@ -108,95 +110,121 @@ const PatientEditPage: React.FC = () => {
   };
 
   return (
-    <div className={styles.container}>
-      <NavBar onBack={() => history.back()}>
+    <div className="min-h-screen bg-background pb-6">
+      <NavBar 
+        onBack={() => history.back()}
+        className="!bg-card border-b border-border"
+      >
         {isEdit ? '编辑就诊人' : '添加就诊人'}
       </NavBar>
 
-      <Form
-        form={form}
-        layout="horizontal"
-        footer={
-          <div className={styles.footer}>
-            {isEdit && (
-              <Button block onClick={handleDelete} style={{ marginBottom: 12 }}>
-                删除就诊人
-              </Button>
-            )}
-            <Button 
-              block 
-              color="primary" 
-              loading={submitting}
-              onClick={handleSubmit}
-            >
-              {isEdit ? '保存' : '添加'}
-            </Button>
-          </div>
-        }
+      <motion.div
+        className="p-4"
+        variants={stagger}
+        initial="hidden"
+        animate="visible"
       >
-        <Form.Item
-          name="name"
-          label="姓名"
-          rules={[{ required: true, message: '请输入姓名' }]}
-        >
-          <Input placeholder="请输入真实姓名" />
-        </Form.Item>
+        <motion.div variants={fadeInUp}>
+          <Card variant="default" padding="none" className="overflow-hidden">
+            <Form
+              form={form}
+              layout="horizontal"
+              className="[&_.adm-list-item]:min-h-[52px]"
+            >
+              <Form.Item
+                name="name"
+                label="姓名"
+                rules={[{ required: true, message: '请输入姓名' }]}
+              >
+                <Input placeholder="请输入真实姓名" className="text-right" />
+              </Form.Item>
 
-        <Form.Item
-          name="phone"
-          label="手机号"
-          rules={[
-            { required: true, message: '请输入手机号' },
-            { pattern: /^1\d{10}$/, message: '请输入正确的手机号' },
-          ]}
-        >
-          <Input placeholder="请输入手机号" type="tel" maxLength={11} />
-        </Form.Item>
+              <Form.Item
+                name="phone"
+                label="手机号"
+                rules={[
+                  { required: true, message: '请输入手机号' },
+                  { pattern: /^1\d{10}$/, message: '请输入正确的手机号' },
+                ]}
+              >
+                <Input placeholder="请输入手机号" type="tel" maxLength={11} className="text-right" />
+              </Form.Item>
 
-        <Form.Item
-          name="idCard"
-          label="身份证号"
-          rules={[
-            { pattern: /(^\d{15}$)|(^\d{18}$)|(^\d{17}(\d|X|x)$)/, message: '请输入正确的身份证号' },
-          ]}
-        >
-          <Input placeholder="请输入身份证号" maxLength={18} />
-        </Form.Item>
+              <Form.Item
+                name="idCard"
+                label="身份证号"
+                rules={[
+                  { pattern: /(^\d{15}$)|(^\d{18}$)|(^\d{17}(\d|X|x)$)/, message: '请输入正确的身份证号' },
+                ]}
+              >
+                <Input placeholder="请输入身份证号" maxLength={18} className="text-right font-mono" />
+              </Form.Item>
 
-        <Form.Item
-          name="gender"
-          label="性别"
-          trigger="onConfirm"
-          onClick={() => setGenderVisible(true)}
-        >
-          <Picker
-            columns={genderOptions}
-            visible={genderVisible}
-            onClose={() => setGenderVisible(false)}
+              <Form.Item
+                name="gender"
+                label="性别"
+                trigger="onConfirm"
+                onClick={() => setGenderVisible(true)}
+              >
+                <Picker
+                  columns={genderOptions}
+                  visible={genderVisible}
+                  onClose={() => setGenderVisible(false)}
+                >
+                  {(value) => (
+                    <span className={value?.[0]?.label ? 'text-foreground' : 'text-muted-foreground'}>
+                      {value?.[0]?.label || '请选择'}
+                    </span>
+                  )}
+                </Picker>
+              </Form.Item>
+
+              <Form.Item
+                name="relationship"
+                label="与本人关系"
+                trigger="onConfirm"
+                onClick={() => setRelationVisible(true)}
+              >
+                <Picker
+                  columns={relationshipOptions}
+                  visible={relationVisible}
+                  onClose={() => setRelationVisible(false)}
+                >
+                  {(value) => (
+                    <span className={value?.[0]?.label ? 'text-foreground' : 'text-muted-foreground'}>
+                      {value?.[0]?.label || '请选择'}
+                    </span>
+                  )}
+                </Picker>
+              </Form.Item>
+
+              <Form.Item name="isDefault" label="设为默认" childElementPosition="right">
+                <Switch />
+              </Form.Item>
+            </Form>
+          </Card>
+        </motion.div>
+
+        <motion.div variants={fadeInUp} className="mt-6 space-y-3">
+          {isEdit && (
+            <Button 
+              variant="ghost"
+              className="w-full !text-red-500 !border-red-200 hover:!bg-red-50"
+              onClick={handleDelete}
+            >
+              删除就诊人
+            </Button>
+          )}
+          <Button 
+            variant="primary"
+            className="w-full"
+            disabled={submitting}
+            onClick={handleSubmit}
           >
-            {(value) => value?.[0]?.label || '请选择'}
-          </Picker>
-        </Form.Item>
-
-        <Form.Item
-          name="relationship"
-          label="与本人关系"
-          trigger="onConfirm"
-          onClick={() => setRelationVisible(true)}
-        >
-          <Picker
-            columns={relationshipOptions}
-            visible={relationVisible}
-            onClose={() => setRelationVisible(false)}
-          >
-            {(value) => value?.[0]?.label || '请选择'}
-          </Picker>
-        </Form.Item>
-
-        <Form.Item name="isDefault" label="设为默认">
-          <Switch />
-        </Form.Item>
-      </Form>
+            {submitting ? '提交中...' : (isEdit ? '保存' : '添加')}
+          </Button>
+        </motion.div>
+      </motion.div>
     </div>
   );
 };

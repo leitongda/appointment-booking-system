@@ -1,10 +1,12 @@
-import { Tabs, Card, Tag, Empty, Button, Dialog, Toast, PullToRefresh, InfiniteScroll } from 'antd-mobile';
+import { Tabs, Tag, Empty, Dialog, Toast, PullToRefresh, InfiniteScroll } from 'antd-mobile';
 import { history } from 'umi';
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { appointmentApi } from '@hospital/api';
 import { APPOINTMENT_STATUS_MAP, APPOINTMENT_STATUS_COLOR, TIME_SLOT_MAP } from '@hospital/shared';
 import type { Appointment } from '@hospital/shared';
-import styles from './index.less';
+import { Card, Button } from '@/components/ui';
+import { fadeInUp, stagger } from '@/components/ui/animations';
 
 const AppointmentPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -75,13 +77,34 @@ const AppointmentPage: React.FC = () => {
     }
   };
 
+  // Map status colors to our design system
+  const getStatusColor = (status: number) => {
+    const colorMap: Record<string, string> = {
+      'primary': 'bg-accent/10 text-accent',
+      'success': 'bg-green-100 text-green-600',
+      'warning': 'bg-yellow-100 text-yellow-600',
+      'danger': 'bg-red-100 text-red-600',
+      'default': 'bg-muted text-muted-foreground',
+    };
+    return colorMap[APPOINTMENT_STATUS_COLOR[status]] || colorMap.default;
+  };
+
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>我的预约</div>
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-accent to-accent-secondary px-4 pt-12 pb-4">
+        <h1 className="text-white text-xl font-display">我的预约</h1>
+      </div>
+
+      {/* Tabs */}
       <Tabs 
         activeKey={activeTab} 
         onChange={setActiveTab}
-        className={styles.tabs}
+        className="!bg-card"
+        style={{
+          '--active-line-color': '#0052FF',
+          '--active-title-color': '#0052FF',
+        } as React.CSSProperties}
       >
         <Tabs.Tab title="全部" key="all" />
         <Tabs.Tab title="待就诊" key="pending" />
@@ -90,54 +113,86 @@ const AppointmentPage: React.FC = () => {
       </Tabs>
       
       <PullToRefresh onRefresh={() => loadAppointments(true)}>
-        <div className={styles.list}>
+        <div className="p-4">
           {appointments.length === 0 && !loading ? (
-            <Empty description="暂无预约记录" />
+            <div className="flex items-center justify-center h-64">
+              <Empty description="暂无预约记录" />
+            </div>
           ) : (
-            appointments.map((item) => (
-              <Card 
-                key={item.id} 
-                className={styles.card} 
-                onClick={() => history.push(`/appointment/${item.id}`)}
-              >
-                <div className={styles.cardHeader}>
-                  <span className={styles.appointmentNo}>预约单号：{item.appointmentNo}</span>
-                  <Tag color={APPOINTMENT_STATUS_COLOR[item.status]}>
-                    {APPOINTMENT_STATUS_MAP[item.status]}
-                  </Tag>
-                </div>
-                <div className={styles.cardBody}>
-                  <div className={styles.info}>
-                    <div className={styles.doctorName}>{item.doctorName}</div>
-                    <div className={styles.deptName}>{item.departmentName}</div>
-                  </div>
-                  <div className={styles.time}>
-                    <div>{item.scheduleDate}</div>
-                    <div>
-                      {TIME_SLOT_MAP[item.timeSlot || 'AM']}
-                      {item.queueNumber && ` 第${item.queueNumber}号`}
+            <motion.div
+              className="space-y-3"
+              variants={stagger}
+              initial="hidden"
+              animate="visible"
+            >
+              {appointments.map((item) => (
+                <motion.div
+                  key={item.id}
+                  variants={fadeInUp}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Card 
+                    variant="default" 
+                    padding="md"
+                    hoverable
+                    animated={false}
+                    className="cursor-pointer"
+                    onClick={() => history.push(`/appointment/${item.id}`)}
+                  >
+                    {/* Header */}
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm text-muted-foreground">
+                        预约单号：{item.appointmentNo}
+                      </span>
+                      <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(item.status)}`}>
+                        {APPOINTMENT_STATUS_MAP[item.status]}
+                      </span>
                     </div>
-                  </div>
-                </div>
-                {item.status === 1 && (
-                  <div className={styles.cardFooter}>
-                    <Button 
-                      size="small" 
-                      onClick={(e) => { e.stopPropagation(); handleCancel(item.id); }}
-                    >
-                      取消预约
-                    </Button>
-                    <Button 
-                      size="small" 
-                      color="primary"
-                      onClick={(e) => { e.stopPropagation(); handleSignIn(item.id); }}
-                    >
-                      签到
-                    </Button>
-                  </div>
-                )}
-              </Card>
-            ))
+
+                    {/* Body */}
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-semibold text-foreground text-lg">
+                          {item.doctorName}
+                        </h3>
+                        <p className="text-muted-foreground text-sm mt-1">
+                          {item.departmentName}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-foreground">{item.scheduleDate}</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {TIME_SLOT_MAP[item.timeSlot || 'AM']}
+                          {item.queueNumber && (
+                            <span className="ml-2 text-accent">第{item.queueNumber}号</span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    {item.status === 1 && (
+                      <div className="flex gap-2 mt-4 pt-4 border-t border-border">
+                        <Button 
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => { e.stopPropagation(); handleCancel(item.id); }}
+                        >
+                          取消预约
+                        </Button>
+                        <Button 
+                          variant="primary"
+                          size="sm"
+                          onClick={(e) => { e.stopPropagation(); handleSignIn(item.id); }}
+                        >
+                          签到
+                        </Button>
+                      </div>
+                    )}
+                  </Card>
+                </motion.div>
+              ))}
+            </motion.div>
           )}
           <InfiniteScroll loadMore={() => loadAppointments()} hasMore={hasMore} />
         </div>

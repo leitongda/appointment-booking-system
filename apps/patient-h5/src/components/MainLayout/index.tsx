@@ -2,7 +2,6 @@ import { Outlet, useLocation, history } from 'umi';
 import { TabBar } from 'antd-mobile';
 import { AppOutline, UnorderedListOutline, UserOutline } from 'antd-mobile-icons';
 import { useEffect, useState } from 'react';
-import styles from './index.less';
 import { initApiConfig } from '@/utils/request';
 import { initTracker, getTracker, getToken } from '@hospital/shared';
 import { setBaseURL } from '@hospital/api';
@@ -78,15 +77,26 @@ const Layout: React.FC = () => {
   }
 
   return (
-    <div className={styles.layout}>
-      <div className={styles.content}>
+    <div className="flex flex-col h-screen bg-background">
+      {/* Main content area */}
+      <div className="flex-1 overflow-y-auto overscroll-contain">
         <Outlet />
       </div>
+
+      {/* Tab bar */}
       {showTabBar && (
-        <div className={styles.tabBar}>
-          <TabBar activeKey={location.pathname} onChange={(key) => history.push(key)}>
+        <div className="flex-shrink-0 border-t border-border bg-card safe-area-inset-bottom">
+          <TabBar 
+            activeKey={location.pathname} 
+            onChange={(key) => history.push(key)}
+            className="!bg-transparent"
+          >
             {tabs.map((tab) => (
-              <TabBar.Item key={tab.key} icon={tab.icon} title={tab.title} />
+              <TabBar.Item 
+                key={tab.key} 
+                icon={tab.icon} 
+                title={tab.title}
+              />
             ))}
           </TabBar>
         </div>
@@ -96,4 +106,3 @@ const Layout: React.FC = () => {
 };
 
 export default Layout;
-

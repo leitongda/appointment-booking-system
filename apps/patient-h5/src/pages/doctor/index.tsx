@@ -1,9 +1,11 @@
-import { NavBar, List, Image, Tag, Skeleton, Empty } from 'antd-mobile';
+import { NavBar, Image, Skeleton, Empty } from 'antd-mobile';
 import { history, useSearchParams } from 'umi';
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { doctorApi } from '@hospital/api';
 import type { Doctor } from '@hospital/shared';
-import styles from './index.less';
+import { Card } from '@/components/ui';
+import { fadeInUp, stagger, viewportOptions } from '@/components/ui/animations';
 
 const DoctorPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -32,53 +34,102 @@ const DoctorPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className={styles.container}>
-        <NavBar onBack={() => history.back()}>{departmentName || '选择医生'}</NavBar>
-        <Skeleton.Paragraph lineCount={8} animated />
+      <div className="min-h-screen bg-background">
+        <NavBar 
+          onBack={() => history.back()}
+          className="!bg-card border-b border-border"
+        >
+          {departmentName || '选择医生'}
+        </NavBar>
+        <div className="p-4">
+          <Skeleton.Paragraph lineCount={8} animated />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className={styles.container}>
-      <NavBar onBack={() => history.back()}>{departmentName || '选择医生'}</NavBar>
+    <div className="min-h-screen bg-background">
+      <NavBar 
+        onBack={() => history.back()}
+        className="!bg-card border-b border-border"
+      >
+        {departmentName || '选择医生'}
+      </NavBar>
+
       {doctors.length === 0 ? (
-        <Empty description="暂无医生" />
+        <div className="flex items-center justify-center h-64">
+          <Empty description="暂无医生" />
+        </div>
       ) : (
-        <List className={styles.list}>
+        <motion.div
+          className="p-4 space-y-3"
+          variants={stagger}
+          initial="hidden"
+          animate="visible"
+        >
           {doctors.map((doctor) => (
-            <List.Item
+            <motion.div
               key={doctor.id}
-              prefix={
-                <Image 
-                  src={doctor.avatar || ''} 
-                  width={60} 
-                  height={60} 
-                  fit="cover" 
-                  style={{ borderRadius: 8, background: '#f5f5f5' }} 
-                />
-              }
-              description={
-                <div className={styles.doctorInfo}>
-                  <div className={styles.doctorDept}>{doctor.departmentName}</div>
-                  <div className={styles.doctorSpec}>擅长：{doctor.specialty || '暂无'}</div>
-                  <div className={styles.doctorFee}>挂号费：¥{doctor.registrationFee}</div>
-                </div>
-              }
-              onClick={() => history.push(`/doctor/${doctor.id}`)}
-              arrow
+              variants={fadeInUp}
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.98 }}
             >
-              <div className={styles.doctorName}>
-                {doctor.name}
-                {doctor.title && (
-                  <Tag color="primary" fill="outline" className={styles.doctorTitle}>
-                    {doctor.title}
-                  </Tag>
-                )}
-              </div>
-            </List.Item>
+              <Card 
+                variant="default" 
+                padding="md"
+                hoverable
+                animated={false}
+                className="cursor-pointer"
+                onClick={() => history.push(`/doctor/${doctor.id}`)}
+              >
+                <div className="flex gap-4">
+                  <Image 
+                    src={doctor.avatar || ''} 
+                    width={72} 
+                    height={72} 
+                    fit="cover" 
+                    className="rounded-xl bg-muted flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-lg text-foreground">
+                        {doctor.name}
+                      </span>
+                      {doctor.title && (
+                        <span className="text-xs text-accent bg-accent/10 px-2 py-0.5 rounded-full">
+                          {doctor.title}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-1">
+                      {doctor.departmentName}
+                    </p>
+                    <p className="text-xs text-muted-foreground/70 truncate">
+                      擅长：{doctor.specialty || '暂无'}
+                    </p>
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-accent font-semibold text-lg">
+                        ¥{doctor.registrationFee}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        挂号费
+                      </span>
+                    </div>
+                  </div>
+                  <svg 
+                    className="w-5 h-5 text-muted-foreground self-center flex-shrink-0" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </Card>
+            </motion.div>
           ))}
-        </List>
+        </motion.div>
       )}
     </div>
   );

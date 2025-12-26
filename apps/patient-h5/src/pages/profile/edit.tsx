@@ -1,10 +1,12 @@
-import { NavBar, Form, Input, Button, Toast, ImageUploader } from 'antd-mobile';
+import { NavBar, Form, Input, Toast, ImageUploader } from 'antd-mobile';
 import { history } from 'umi';
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { userApi, uploadApi } from '@hospital/api';
 import type { User } from '@hospital/shared';
 import type { ImageUploadItem } from 'antd-mobile/es/components/image-uploader';
-import styles from './edit.less';
+import { Button, Card } from '@/components/ui';
+import { fadeInUp, stagger } from '@/components/ui/animations';
 
 const ProfileEditPage: React.FC = () => {
   const [form] = Form.useForm();
@@ -77,60 +79,83 @@ const ProfileEditPage: React.FC = () => {
   };
 
   return (
-    <div className={styles.container}>
-      <NavBar onBack={() => history.back()}>编辑资料</NavBar>
-
-      <div className={styles.avatarSection}>
-        <div className={styles.avatarLabel}>头像</div>
-        <ImageUploader
-          value={fileList}
-          onChange={setFileList}
-          upload={handleUpload}
-          maxCount={1}
-          className={styles.avatarUploader}
-        />
-      </div>
-
-      <Form
-        form={form}
-        layout="horizontal"
-        className={styles.form}
+    <div className="min-h-screen bg-background pb-24">
+      <NavBar 
+        onBack={() => history.back()}
+        className="!bg-card border-b border-border"
       >
-        <Form.Item
-          name="nickname"
-          label="昵称"
-          rules={[{ required: true, message: '请输入昵称' }]}
-        >
-          <Input placeholder="请输入昵称" />
-        </Form.Item>
+        编辑资料
+      </NavBar>
 
-        <Form.Item
-          name="email"
-          label="邮箱"
-          rules={[
-            { type: 'email', message: '请输入正确的邮箱地址' },
-          ]}
-        >
-          <Input placeholder="请输入邮箱（选填）" type="email" />
-        </Form.Item>
+      <motion.div
+        className="p-4 space-y-4"
+        variants={stagger}
+        initial="hidden"
+        animate="visible"
+      >
+        {/* Avatar Section */}
+        <motion.div variants={fadeInUp}>
+          <Card variant="default" padding="lg">
+            <div className="flex items-center justify-between">
+              <span className="text-foreground font-medium">头像</span>
+              <ImageUploader
+                value={fileList}
+                onChange={setFileList}
+                upload={handleUpload}
+                maxCount={1}
+                className="[&_.adm-image-uploader-cell]:!w-16 [&_.adm-image-uploader-cell]:!h-16 [&_.adm-image-uploader-cell]:!rounded-full"
+              />
+            </div>
+          </Card>
+        </motion.div>
 
-        <Form.Item label="手机号">
-          <Input 
-            value={user?.phone?.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')} 
-            disabled 
-          />
-        </Form.Item>
-      </Form>
+        {/* Form Section */}
+        <motion.div variants={fadeInUp}>
+          <Card variant="default" padding="none" className="overflow-hidden">
+            <Form
+              form={form}
+              layout="horizontal"
+              className="[&_.adm-list-item]:min-h-[52px]"
+            >
+              <Form.Item
+                name="nickname"
+                label="昵称"
+                rules={[{ required: true, message: '请输入昵称' }]}
+              >
+                <Input placeholder="请输入昵称" className="text-right" />
+              </Form.Item>
 
-      <div className={styles.footer}>
+              <Form.Item
+                name="email"
+                label="邮箱"
+                rules={[
+                  { type: 'email', message: '请输入正确的邮箱地址' },
+                ]}
+              >
+                <Input placeholder="请输入邮箱（选填）" type="email" className="text-right" />
+              </Form.Item>
+
+              <Form.Item label="手机号">
+                <Input 
+                  value={user?.phone?.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')} 
+                  disabled 
+                  className="text-right text-muted-foreground"
+                />
+              </Form.Item>
+            </Form>
+          </Card>
+        </motion.div>
+      </motion.div>
+
+      {/* Fixed Footer */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-sm border-t border-border">
         <Button
-          block
-          color="primary"
-          size="large"
-          loading={submitting}
+          variant="primary"
+          className="w-full"
+          disabled={submitting}
           onClick={handleSubmit}
         >
-          保存
+          {submitting ? '保存中...' : '保存'}
         </Button>
       </div>
     </div>
@@ -138,4 +163,3 @@ const ProfileEditPage: React.FC = () => {
 };
 
 export default ProfileEditPage;
-

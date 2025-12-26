@@ -1,10 +1,12 @@
-import { NavBar, Card, Steps, Button, Dialog, Toast, Skeleton, Empty, Tag } from 'antd-mobile';
+import { NavBar, Steps, Dialog, Toast, Skeleton, Empty } from 'antd-mobile';
 import { history, useParams } from 'umi';
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { appointmentApi } from '@hospital/api';
-import { APPOINTMENT_STATUS_MAP, APPOINTMENT_STATUS_COLOR, TIME_SLOT_MAP } from '@hospital/shared';
+import { APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP } from '@hospital/shared';
 import type { Appointment } from '@hospital/shared';
-import styles from './detail.less';
+import { Card, Button, InvertedSection } from '@/components/ui';
+import { fadeInUp, stagger } from '@/components/ui/animations';
 
 const { Step } = Steps;
 
@@ -63,12 +65,12 @@ const AppointmentDetailPage: React.FC = () => {
 
   const getStepsCurrent = (status: number) => {
     switch (status) {
-      case 1: return 0; // 待就诊
-      case 2: return 1; // 已签到
-      case 3: return 2; // 就诊中
-      case 5: return 3; // 已完成
-      case 6: return -1; // 已取消
-      case 7: return -1; // 爽约
+      case 1: return 0;
+      case 2: return 1;
+      case 3: return 2;
+      case 5: return 3;
+      case 6: return -1;
+      case 7: return -1;
       default: return 0;
     }
   };
@@ -83,11 +85,22 @@ const AppointmentDetailPage: React.FC = () => {
     return date.substring(0, 16).replace('T', ' ');
   };
 
+  const getStatusColor = (status: number) => {
+    if (status === 6 || status === 7) return 'from-red-500 to-red-600';
+    if (status === 5) return 'from-green-500 to-green-600';
+    return 'from-accent to-accent-secondary';
+  };
+
   if (loading) {
     return (
-      <div className={styles.container}>
-        <NavBar onBack={() => history.back()}>预约详情</NavBar>
-        <div style={{ padding: 16 }}>
+      <div className="min-h-screen bg-background">
+        <NavBar 
+          onBack={() => history.back()}
+          className="!bg-card border-b border-border"
+        >
+          预约详情
+        </NavBar>
+        <div className="p-4">
           <Skeleton.Paragraph lineCount={10} animated />
         </div>
       </div>
@@ -96,9 +109,16 @@ const AppointmentDetailPage: React.FC = () => {
 
   if (!appointment) {
     return (
-      <div className={styles.container}>
-        <NavBar onBack={() => history.back()}>预约详情</NavBar>
-        <Empty description="预约不存在" style={{ marginTop: 100 }} />
+      <div className="min-h-screen bg-background">
+        <NavBar 
+          onBack={() => history.back()}
+          className="!bg-card border-b border-border"
+        >
+          预约详情
+        </NavBar>
+        <div className="flex items-center justify-center h-64">
+          <Empty description="预约不存在" />
+        </div>
       </div>
     );
   }
@@ -106,90 +126,172 @@ const AppointmentDetailPage: React.FC = () => {
   const isCancelled = appointment.status === 6;
   const isCompleted = appointment.status === 5;
   const isNoShow = appointment.status === 7;
-  const canCancel = appointment.status === 1; // 只有待就诊可取消
-  const canSignIn = appointment.status === 1; // 只有待就诊可签到
+  const canCancel = appointment.status === 1;
+  const canSignIn = appointment.status === 1;
 
   return (
-    <div className={styles.container}>
-      <NavBar onBack={() => history.back()}>预约详情</NavBar>
+    <div className="min-h-screen bg-background pb-24">
+      <NavBar 
+        onBack={() => history.back()}
+        className="!bg-transparent absolute top-0 left-0 right-0 z-20 text-white"
+      >
+        预约详情
+      </NavBar>
 
-      {/* 状态展示 */}
-      <div className={styles.statusBar} style={{ 
-        backgroundColor: isCancelled || isNoShow ? '#ff4d4f' : isCompleted ? '#52c41a' : '#1890ff' 
-      }}>
-        <div className={styles.statusText}>
-          {APPOINTMENT_STATUS_MAP[appointment.status]}
+      {/* Status Header */}
+      <div className={`bg-gradient-to-r ${getStatusColor(appointment.status)} pt-16 pb-8 px-4`}>
+        <div className="text-center text-white">
+          <h2 className="text-2xl font-display mb-2">
+            {APPOINTMENT_STATUS_MAP[appointment.status]}
+          </h2>
+          {appointment.status === 2 && (
+            <p className="text-white/80">
+              您是第 {appointment.queueNumber} 号，请耐心等待叫号
+            </p>
+          )}
         </div>
-        {appointment.status === 2 && (
-          <div className={styles.queueInfo}>
-            您是第 {appointment.queueNumber} 号，请耐心等待叫号
-          </div>
-        )}
       </div>
 
-      <Card title="预约信息" className={styles.card}>
-        <div className={styles.row}><span>预约单号</span><span>{appointment.appointmentNo}</span></div>
-        <div className={styles.row}><span>预约日期</span><span>{formatDate(appointment.scheduleDate)}</span></div>
-        <div className={styles.row}>
-          <span>就诊时段</span>
-          <span>{TIME_SLOT_MAP[appointment.timeSlot || 'AM']} 第{appointment.queueNumber}号</span>
-        </div>
-        <div className={styles.row}><span>挂号费</span><span className={styles.fee}>¥{appointment.fee?.toFixed(2) || '0.00'}</span></div>
-      </Card>
+      <motion.div
+        className="px-4 -mt-4 relative z-10 space-y-4"
+        variants={stagger}
+        initial="hidden"
+        animate="visible"
+      >
+        {/* Appointment Info */}
+        <motion.div variants={fadeInUp}>
+          <Card variant="elevated" padding="lg">
+            <h3 className="font-semibold text-foreground mb-4">预约信息</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">预约单号</span>
+                <span className="font-mono text-foreground">{appointment.appointmentNo}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">预约日期</span>
+                <span className="text-foreground">{formatDate(appointment.scheduleDate)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">就诊时段</span>
+                <span className="text-foreground">
+                  {TIME_SLOT_MAP[appointment.timeSlot || 'AM']} 第{appointment.queueNumber}号
+                </span>
+              </div>
+              <div className="flex justify-between pt-2 border-t border-border">
+                <span className="text-muted-foreground">挂号费</span>
+                <span className="text-accent font-semibold">¥{appointment.fee?.toFixed(2) || '0.00'}</span>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
 
-      <Card title="就诊人信息" className={styles.card}>
-        <div className={styles.row}><span>姓名</span><span>{appointment.patientName}</span></div>
-        <div className={styles.row}>
-          <span>手机号</span>
-          <span>{appointment.patientPhone?.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}</span>
-        </div>
-      </Card>
+        {/* Patient Info */}
+        <motion.div variants={fadeInUp}>
+          <Card variant="default" padding="lg">
+            <h3 className="font-semibold text-foreground mb-4">就诊人信息</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">姓名</span>
+                <span className="text-foreground">{appointment.patientName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">手机号</span>
+                <span className="text-foreground">
+                  {appointment.patientPhone?.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}
+                </span>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
 
-      <Card title="医生信息" className={styles.card}>
-        <div className={styles.row}><span>医生</span><span>{appointment.doctorName}</span></div>
-        <div className={styles.row}><span>职称</span><span>{appointment.doctorTitle}</span></div>
-        <div className={styles.row}><span>科室</span><span>{appointment.departmentName}</span></div>
-      </Card>
+        {/* Doctor Info */}
+        <motion.div variants={fadeInUp}>
+          <Card variant="default" padding="lg">
+            <h3 className="font-semibold text-foreground mb-4">医生信息</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">医生</span>
+                <span className="text-foreground">{appointment.doctorName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">职称</span>
+                <span className="text-foreground">{appointment.doctorTitle}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">科室</span>
+                <span className="text-foreground">{appointment.departmentName}</span>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
 
-      {!isCancelled && !isNoShow && (
-        <Card title="就诊进度" className={styles.card}>
-          <Steps current={getStepsCurrent(appointment.status)} direction="vertical">
-            <Step 
-              title="已预约" 
-              description={formatTime(appointment.createdAt)} 
-            />
-            <Step 
-              title="已签到" 
-              description={appointment.signInTime ? formatTime(appointment.signInTime) : '等待签到'} 
-            />
-            <Step 
-              title="就诊中" 
-              description={appointment.callTime ? formatTime(appointment.callTime) : ''} 
-            />
-            <Step 
-              title="已完成" 
-              description={appointment.completeTime ? formatTime(appointment.completeTime) : ''} 
-            />
-          </Steps>
-        </Card>
-      )}
+        {/* Progress Steps */}
+        {!isCancelled && !isNoShow && (
+          <motion.div variants={fadeInUp}>
+            <Card variant="default" padding="lg">
+              <h3 className="font-semibold text-foreground mb-4">就诊进度</h3>
+              <Steps 
+                current={getStepsCurrent(appointment.status)} 
+                direction="vertical"
+                style={{
+                  '--adm-color-primary': '#0052FF',
+                } as React.CSSProperties}
+              >
+                <Step 
+                  title="已预约" 
+                  description={formatTime(appointment.createdAt)} 
+                />
+                <Step 
+                  title="已签到" 
+                  description={appointment.signInTime ? formatTime(appointment.signInTime) : '等待签到'} 
+                />
+                <Step 
+                  title="就诊中" 
+                  description={appointment.callTime ? formatTime(appointment.callTime) : ''} 
+                />
+                <Step 
+                  title="已完成" 
+                  description={appointment.completeTime ? formatTime(appointment.completeTime) : ''} 
+                />
+              </Steps>
+            </Card>
+          </motion.div>
+        )}
 
-      {isCancelled && (
-        <Card title="取消信息" className={styles.card}>
-          <div className={styles.row}><span>取消时间</span><span>{formatTime(appointment.cancelTime)}</span></div>
-          {appointment.cancelReason && (
-            <div className={styles.row}><span>取消原因</span><span>{appointment.cancelReason}</span></div>
-          )}
-        </Card>
-      )}
+        {/* Cancel Info */}
+        {isCancelled && (
+          <motion.div variants={fadeInUp}>
+            <Card variant="default" padding="lg">
+              <h3 className="font-semibold text-foreground mb-4">取消信息</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">取消时间</span>
+                  <span className="text-foreground">{formatTime(appointment.cancelTime)}</span>
+                </div>
+                {appointment.cancelReason && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">取消原因</span>
+                    <span className="text-foreground">{appointment.cancelReason}</span>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </motion.div>
+        )}
+      </motion.div>
 
+      {/* Footer Actions */}
       {(canCancel || canSignIn) && (
-        <div className={styles.footer}>
+        <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 flex gap-3 safe-area-inset-bottom">
           {canCancel && (
-            <Button block onClick={handleCancel}>取消预约</Button>
+            <Button variant="outline" block onClick={handleCancel}>
+              取消预约
+            </Button>
           )}
           {canSignIn && (
-            <Button block color="primary" onClick={handleSignIn}>签到</Button>
+            <Button block onClick={handleSignIn}>
+              签到
+            </Button>
           )}
         </div>
       )}

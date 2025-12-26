@@ -1,9 +1,10 @@
-import { NavBar, SideBar, List, SearchBar, Skeleton } from 'antd-mobile';
+import { NavBar, SideBar, SearchBar, Skeleton } from 'antd-mobile';
 import { history } from 'umi';
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { departmentApi } from '@hospital/api';
 import type { DepartmentTreeNode } from '@hospital/shared';
-import styles from './index.less';
+import { fadeInUp, stagger } from '@/components/ui/animations';
 
 const DepartmentPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -37,42 +38,101 @@ const DepartmentPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className={styles.container}>
-        <NavBar onBack={() => history.back()}>选择科室</NavBar>
-        <Skeleton.Paragraph lineCount={10} animated />
+      <div className="min-h-screen bg-background">
+        <NavBar 
+          onBack={() => history.back()}
+          className="!bg-card border-b border-border"
+        >
+          选择科室
+        </NavBar>
+        <div className="p-4">
+          <Skeleton.Paragraph lineCount={10} animated />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className={styles.container}>
-      <NavBar onBack={() => history.back()}>选择科室</NavBar>
-      <SearchBar 
-        placeholder="搜索科室" 
-        className={styles.search}
-        value={searchValue}
-        onChange={setSearchValue}
-      />
-      <div className={styles.content}>
-        <SideBar activeKey={activeKey} onChange={setActiveKey} className={styles.sidebar}>
+    <div className="min-h-screen bg-background flex flex-col">
+      <NavBar 
+        onBack={() => history.back()}
+        className="!bg-card border-b border-border flex-shrink-0"
+      >
+        选择科室
+      </NavBar>
+      
+      {/* Search Bar */}
+      <div className="px-4 py-3 bg-card border-b border-border">
+        <SearchBar 
+          placeholder="搜索科室" 
+          value={searchValue}
+          onChange={setSearchValue}
+          style={{
+            '--background': '#F1F5F9',
+            '--border-radius': '12px',
+            '--height': '44px',
+          } as React.CSSProperties}
+        />
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Sidebar */}
+        <SideBar 
+          activeKey={activeKey} 
+          onChange={setActiveKey}
+          className="!bg-muted flex-shrink-0 w-28"
+          style={{
+            '--background-color': '#F1F5F9',
+            '--item-border-radius': '0',
+          } as React.CSSProperties}
+        >
           {departments.map((dept) => (
-            <SideBar.Item key={dept.id} title={dept.name} />
+            <SideBar.Item 
+              key={dept.id} 
+              title={dept.name}
+            />
           ))}
         </SideBar>
-        <div className={styles.list}>
-          <List>
+
+        {/* List */}
+        <div className="flex-1 overflow-y-auto bg-card">
+          <motion.div
+            variants={stagger}
+            initial="hidden"
+            animate="visible"
+            className="p-2"
+          >
             {currentDept?.children
               .filter((child) => !searchValue || child.name.includes(searchValue))
               .map((child) => (
-                <List.Item
+                <motion.div
                   key={child.id}
+                  variants={fadeInUp}
+                  className="
+                    flex items-center justify-between 
+                    px-4 py-4 
+                    rounded-xl 
+                    mb-2
+                    bg-muted hover:bg-accent/5 
+                    cursor-pointer 
+                    active:bg-accent/10 
+                    transition-colors
+                  "
                   onClick={() => handleSelectDept(child.id, child.name)}
-                  arrow
                 >
-                  {child.name}
-                </List.Item>
+                  <span className="text-foreground font-medium">{child.name}</span>
+                  <svg 
+                    className="w-5 h-5 text-muted-foreground" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </motion.div>
               ))}
-          </List>
+          </motion.div>
         </div>
       </div>
     </div>

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { NavBar, Form, Input, TextArea, Button, Selector, ImageUploader, Toast, List, Tag, Empty } from 'antd-mobile';
+import { NavBar, Form, Input, TextArea, Selector, Toast, Empty } from 'antd-mobile';
 import { history } from 'umi';
+import { motion } from 'framer-motion';
 import { feedbackApi } from '@hospital/api';
 import type { Feedback } from '@hospital/shared';
-import styles from './index.less';
+import { Card, Button } from '@/components/ui';
+import { fadeInUp, stagger } from '@/components/ui/animations';
 
 const feedbackTypes = [
   { label: '建议', value: 'suggestion' },
@@ -58,15 +60,24 @@ const FeedbackPage: React.FC = () => {
     }
   };
 
-  const getStatusTag = (status: string) => {
-    const map: Record<string, { color: string; text: string }> = {
-      pending: { color: '#faad14', text: '待处理' },
-      processing: { color: '#1890ff', text: '处理中' },
-      resolved: { color: '#52c41a', text: '已解决' },
-      closed: { color: '#999', text: '已关闭' },
+  const getStatusColor = (status: string) => {
+    const map: Record<string, string> = {
+      pending: 'bg-yellow-100 text-yellow-600',
+      processing: 'bg-accent/10 text-accent',
+      resolved: 'bg-green-100 text-green-600',
+      closed: 'bg-muted text-muted-foreground',
     };
-    const config = map[status] || { color: '#999', text: status };
-    return <Tag color={config.color}>{config.text}</Tag>;
+    return map[status] || 'bg-muted text-muted-foreground';
+  };
+
+  const getStatusText = (status: string) => {
+    const map: Record<string, string> = {
+      pending: '待处理',
+      processing: '处理中',
+      resolved: '已解决',
+      closed: '已关闭',
+    };
+    return map[status] || status;
   };
 
   const getTypeText = (type: string) => {
@@ -80,101 +91,155 @@ const FeedbackPage: React.FC = () => {
   };
 
   return (
-    <div className={styles.container}>
-      <NavBar onBack={() => history.goBack()}>意见反馈</NavBar>
+    <div className="min-h-screen bg-background">
+      <NavBar 
+        onBack={() => history.goBack()}
+        className="!bg-card border-b border-border"
+      >
+        意见反馈
+      </NavBar>
       
-      <div className={styles.tabs}>
-        <div 
-          className={`${styles.tab} ${showForm ? styles.active : ''}`}
+      {/* Tab Switcher */}
+      <div className="flex bg-card border-b border-border">
+        <button
+          className={`flex-1 py-4 text-center font-medium transition-colors relative ${
+            showForm ? 'text-accent' : 'text-muted-foreground'
+          }`}
           onClick={() => setShowForm(true)}
         >
           提交反馈
-        </div>
-        <div 
-          className={`${styles.tab} ${!showForm ? styles.active : ''}`}
+          {showForm && (
+            <motion.div 
+              className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent"
+              layoutId="tab-indicator"
+            />
+          )}
+        </button>
+        <button
+          className={`flex-1 py-4 text-center font-medium transition-colors relative ${
+            !showForm ? 'text-accent' : 'text-muted-foreground'
+          }`}
           onClick={() => setShowForm(false)}
         >
           我的反馈
-        </div>
+          {!showForm && (
+            <motion.div 
+              className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent"
+              layoutId="tab-indicator"
+            />
+          )}
+        </button>
       </div>
 
       {showForm ? (
-        <div className={styles.formWrapper}>
-          <Form form={form} layout="vertical">
-            <Form.Item name="feedbackType" label="反馈类型">
-              <Selector options={feedbackTypes} />
-            </Form.Item>
+        <motion.div 
+          className="p-4"
+          variants={fadeInUp}
+          initial="hidden"
+          animate="visible"
+        >
+          <Card variant="default" padding="lg">
+            <Form form={form} layout="vertical">
+              <Form.Item name="feedbackType" label="反馈类型">
+                <Selector 
+                  options={feedbackTypes}
+                  style={{
+                    '--checked-color': '#0052FF',
+                    '--checked-text-color': '#FFFFFF',
+                  } as React.CSSProperties}
+                />
+              </Form.Item>
+              
+              <Form.Item 
+                name="title" 
+                label="标题" 
+                rules={[{ required: true, message: '请输入标题' }]}
+              >
+                <Input 
+                  placeholder="请简要描述您的问题或建议" 
+                  maxLength={50}
+                  className="!h-12 !rounded-xl"
+                />
+              </Form.Item>
+              
+              <Form.Item 
+                name="content" 
+                label="详细内容" 
+                rules={[
+                  { required: true, message: '请输入详细内容' },
+                  { min: 10, message: '内容至少10个字符' }
+                ]}
+              >
+                <TextArea 
+                  placeholder="请详细描述您遇到的问题或建议..." 
+                  rows={5}
+                  maxLength={500}
+                  showCount
+                  className="!rounded-xl"
+                />
+              </Form.Item>
+              
+              <Form.Item name="contact" label="联系方式（选填）">
+                <Input 
+                  placeholder="方便我们与您联系"
+                  className="!h-12 !rounded-xl"
+                />
+              </Form.Item>
+            </Form>
             
-            <Form.Item 
-              name="title" 
-              label="标题" 
-              rules={[{ required: true, message: '请输入标题' }]}
+            <Button 
+              block 
+              size="lg"
+              loading={loading}
+              onClick={handleSubmit}
+              className="mt-4"
             >
-              <Input placeholder="请简要描述您的问题或建议" maxLength={50} />
-            </Form.Item>
-            
-            <Form.Item 
-              name="content" 
-              label="详细内容" 
-              rules={[
-                { required: true, message: '请输入详细内容' },
-                { min: 10, message: '内容至少10个字符' }
-              ]}
-            >
-              <TextArea 
-                placeholder="请详细描述您遇到的问题或建议..." 
-                rows={5}
-                maxLength={500}
-                showCount
-              />
-            </Form.Item>
-            
-            <Form.Item name="contact" label="联系方式（选填）">
-              <Input placeholder="方便我们与您联系" />
-            </Form.Item>
-          </Form>
-          
-          <Button 
-            block 
-            color="primary" 
-            size="large"
-            loading={loading}
-            onClick={handleSubmit}
-            className={styles.submitBtn}
-          >
-            提交反馈
-          </Button>
-        </div>
+              提交反馈
+            </Button>
+          </Card>
+        </motion.div>
       ) : (
-        <div className={styles.listWrapper}>
+        <div className="p-4">
           {myFeedbacks.length === 0 ? (
-            <Empty description="暂无反馈记录" />
+            <div className="flex items-center justify-center h-64">
+              <Empty description="暂无反馈记录" />
+            </div>
           ) : (
-            <List>
+            <motion.div
+              className="space-y-3"
+              variants={stagger}
+              initial="hidden"
+              animate="visible"
+            >
               {myFeedbacks.map(item => (
-                <List.Item
-                  key={item.id}
-                  description={
-                    <div className={styles.feedbackItem}>
-                      <div className={styles.content}>{item.content}</div>
-                      <div className={styles.meta}>
-                        <span>{getTypeText(item.feedbackType)}</span>
-                        <span>{new Date(item.createdAt).toLocaleDateString()}</span>
-                      </div>
-                      {item.reply && (
-                        <div className={styles.reply}>
-                          <div className={styles.replyLabel}>官方回复：</div>
-                          <div>{item.reply}</div>
-                        </div>
-                      )}
+                <motion.div key={item.id} variants={fadeInUp}>
+                  <Card variant="default" padding="md" animated={false}>
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="font-medium text-foreground flex-1">{item.title}</h3>
+                      <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(item.status)}`}>
+                        {getStatusText(item.status)}
+                      </span>
                     </div>
-                  }
-                  extra={getStatusTag(item.status)}
-                >
-                  {item.title}
-                </List.Item>
+                    
+                    <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                      {item.content}
+                    </p>
+                    
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{getTypeText(item.feedbackType)}</span>
+                      <span>{new Date(item.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    
+                    {item.reply && (
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <p className="text-xs text-accent mb-1">官方回复：</p>
+                        <p className="text-sm text-foreground">{item.reply}</p>
+                      </div>
+                    )}
+                  </Card>
+                </motion.div>
               ))}
-            </List>
+            </motion.div>
           )}
         </div>
       )}
