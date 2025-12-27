@@ -108,7 +108,7 @@ async def get_feedback(
     if not feedback:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="反馈不存在"
+            detail="反馈不存在，请检查后重试"
         )
     
     return parse_feedback_response(feedback)
@@ -139,7 +139,7 @@ async def reply_feedback(
     if not feedback:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="反馈不存在"
+            detail="反馈不存在，请检查后重试"
         )
     
     return parse_feedback_response(feedback)
@@ -158,7 +158,7 @@ async def update_feedback_status(
     if not feedback:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="反馈不存在"
+            detail="反馈不存在，请检查后重试"
         )
     
     return {"message": "状态更新成功"}
@@ -176,7 +176,7 @@ async def delete_feedback(
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="反馈不存在"
+            detail="反馈不存在，请检查后重试"
         )
     
     return {"message": "删除成功"}

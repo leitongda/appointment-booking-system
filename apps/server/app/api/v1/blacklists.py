@@ -71,7 +71,7 @@ async def remove_blacklist(
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="黑名单记录不存在"
+            detail="黑名单记录不存在，请检查后重试"
         )
     
     return {"message": "解禁成功"}

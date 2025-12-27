@@ -58,7 +58,7 @@ async def get_fee_type(
     fee_type = await service.get_fee_type_by_id(fee_type_id)
     
     if not fee_type:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="诊费类型不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="诊费类型不存在，请检查后重试")
     
     return ConsultationFeeTypeResponse(
         id=fee_type.id,
@@ -91,7 +91,7 @@ async def create_fee_type(
     if data.code:
         existing = await service.get_fee_type_by_code(data.code, data.store_id)
         if existing:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="类型编码已存在")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="类型编码已存在，请使用其他编码")
     
     fee_type = await service.create_fee_type(data)
     
@@ -122,14 +122,14 @@ async def update_fee_type(
     # 获取现有记录
     existing_type = await service.get_fee_type_by_id(fee_type_id)
     if not existing_type:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="诊费类型不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="诊费类型不存在，请检查后重试")
     
     # 检查编码是否已存在
     if data.code:
         store_id = data.store_id if data.store_id is not None else existing_type.store_id
         existing = await service.get_fee_type_by_code(data.code, store_id)
         if existing and existing.id != fee_type_id:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="类型编码已存在")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="类型编码已存在，请使用其他编码")
     
     fee_type = await service.update_fee_type(fee_type_id, data)
     
@@ -158,7 +158,7 @@ async def delete_fee_type(
     success = await service.delete_fee_type(fee_type_id)
     
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="诊费类型不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="诊费类型不存在，请检查后重试")
     
     return {"message": "删除成功"}
 
@@ -238,7 +238,7 @@ async def batch_save_store_fee_templates(
 ):
     """批量保存门店诊费模板"""
     if data.store_id != store_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="门店ID不匹配")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="门店信息不匹配，请检查后重试")
     
     service = ConsultationFeeService(db)
     await service.batch_save_store_fee_templates(data)
@@ -257,7 +257,7 @@ async def delete_store_fee_template(
     success = await service.delete_store_fee_template(store_id, fee_type_id)
     
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="门店诊费模板不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="门店诊费模板不存在，请检查后重试")
     
     return {"message": "删除成功"}
 
@@ -274,7 +274,7 @@ async def get_doctor_fee_setting(
     result = await service.get_doctor_fee_setting(doctor_id)
     
     if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在，请检查后重试")
     
     fees = [DoctorConsultationFeeResponse(
         id=f.id,
@@ -323,7 +323,7 @@ async def update_doctor_use_template(
     success = await service.update_doctor_use_template(doctor_id, data.use_fee_template)
     
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在，请检查后重试")
     
     return {"message": "更新成功"}
 
@@ -365,7 +365,7 @@ async def batch_save_doctor_fees(
 ):
     """批量保存医生诊费配置"""
     if data.doctor_id != doctor_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="医生ID不匹配")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="医生信息不匹配，请检查后重试")
     
     service = ConsultationFeeService(db)
     await service.batch_save_doctor_fees(data)
@@ -388,7 +388,7 @@ async def apply_template_to_doctor(
     # 验证医生是否存在
     doctor_setting = await service.get_doctor_fee_setting(doctor_id)
     if not doctor_setting:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在，请检查后重试")
     
     fees = await service.apply_template_to_doctor(doctor_id, data.store_id, data.department_id)
     

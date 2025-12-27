@@ -69,7 +69,7 @@ async def get_message(
     if not message:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="消息不存在"
+            detail="消息不存在，请检查后重试"
         )
     
     return MessageResponse.model_validate(message)
@@ -88,7 +88,7 @@ async def mark_as_read(
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="消息不存在"
+            detail="消息不存在，请检查后重试"
         )
     
     return {"message": "已标记为已读"}
@@ -120,7 +120,7 @@ async def delete_message(
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="消息不存在"
+            detail="消息不存在，请检查后重试"
         )
     
     return {"message": "删除成功"}
@@ -259,7 +259,7 @@ async def update_template(
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="模板不存在"
+            detail="模板不存在，请检查后重试"
         )
     
     return MessageTemplateResponse.model_validate(template)
@@ -277,7 +277,7 @@ async def delete_template(
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="模板不存在"
+            detail="模板不存在，请检查后重试"
         )
     
     return {"message": "删除成功"}

@@ -83,11 +83,11 @@ async def get_department(
     department = await service.get_by_id(dept_id)
     
     if not department:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="科室不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="科室不存在，请检查后重试")
     
     # 检查门店访问权限
     if not check_store_access(current_admin, department.store_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权访问此科室")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权访问此科室")
     
     return _to_response(department)
 
@@ -103,11 +103,11 @@ async def create_department(
     if store_filter:
         # 门店管理员只能在自己门店创建科室
         if data.store_id and data.store_id != store_filter:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="只能在本门店创建科室")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="只能在本门店创建科室，请选择正确的门店")
         data.store_id = store_filter
     
     if not data.store_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="必须指定所属门店")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请选择所属门店")
     
     service = DepartmentService(db)
     department = await service.create(data)
@@ -125,16 +125,16 @@ async def update_department(
     department = await service.get_by_id(dept_id)
     
     if not department:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="科室不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="科室不存在，请检查后重试")
     
     # 检查门店访问权限
     if not check_store_access(current_admin, department.store_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权修改此科室")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权修改此科室")
     
     # 门店管理员不能修改科室的门店归属
     store_filter = get_store_filter(current_admin)
     if store_filter and data.store_id and data.store_id != store_filter:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权修改科室的门店归属")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权修改科室的门店归属")
     
     department = await service.update(dept_id, data)
     return _to_response(department)
@@ -150,16 +150,16 @@ async def delete_department(
     department = await service.get_by_id(dept_id)
     
     if not department:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="科室不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="科室不存在，请检查后重试")
     
     # 检查门店访问权限
     if not check_store_access(current_admin, department.store_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权删除此科室")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权删除此科室")
     
     try:
         success = await service.delete(dept_id)
         if not success:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="科室不存在")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="科室不存在，请检查后重试")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     
@@ -180,12 +180,12 @@ async def get_department_doctors(
     if not department:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="科室不存在"
+            detail="科室不存在，请检查后重试"
         )
     
     # 检查门店访问权限
     if not check_store_access(current_admin, department.store_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权访问此科室")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权访问此科室")
     
     doctors = await service.get_doctors(dept_id)
     
@@ -225,12 +225,12 @@ async def get_available_doctors(
     if not department:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="科室不存在"
+            detail="科室不存在，请检查后重试"
         )
     
     # 检查门店访问权限
     if not check_store_access(current_admin, department.store_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权访问此科室")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权访问此科室")
     
     # 获取同门店的所有医生
     doctors = await service.get_all_doctors(store_id=department.store_id)
@@ -272,12 +272,12 @@ async def batch_bind_doctors(
     if not department:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="科室不存在"
+            detail="科室不存在，请检查后重试"
         )
     
     # 检查门店访问权限
     if not check_store_access(current_admin, department.store_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权操作此科室")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权操作此科室")
     
     try:
         count = await service.batch_bind_doctors(dept_id, doctor_ids)

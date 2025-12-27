@@ -101,10 +101,10 @@ async def doctor_login(
     doctor = await service.authenticate(data.phone, data.password)
     
     if not doctor:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号或密码错误")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号或密码错误，请检查后重试")
     
     if doctor.status != 1:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
     
     # 更新登录信息
     client_ip = request.client.host if request.client else ""
@@ -129,7 +129,7 @@ async def get_current_doctor_info(
 ):
     """获取当前登录医生信息"""
     # 需要从 token 中获取医生 ID
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="待实现")
+    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="功能开发中，敬请期待")
 
 @router.get("", response_model=PageResponse[DoctorListResponse])
 async def get_doctors(
@@ -200,11 +200,11 @@ async def get_doctor(
     doctor = await service.get_by_id(doctor_id)
     
     if not doctor:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在，请检查后重试")
     
     # 检查门店访问权限
     if not check_store_access(current_admin, doctor.store_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权访问此医生信息")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权访问此医生信息")
     
     return doctor_to_response(doctor)
 
@@ -220,11 +220,11 @@ async def create_doctor(
     if store_filter:
         # 门店管理员只能在自己门店创建医生
         if data.store_id and data.store_id != store_filter:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="只能在本门店创建医生")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="只能在本门店创建医生，请选择正确的门店")
         data.store_id = store_filter
     
     if not data.store_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="必须指定所属门店")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请选择所属门店")
     
     service = DoctorService(db)
     doctor = await service.create(data)
@@ -246,16 +246,16 @@ async def update_doctor(
     doctor = await service.get_by_id(doctor_id)
     
     if not doctor:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在，请检查后重试")
     
     # 检查门店访问权限
     if not check_store_access(current_admin, doctor.store_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权修改此医生信息")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权修改此医生信息")
     
     # 门店管理员不能修改医生的门店归属
     store_filter = get_store_filter(current_admin)
     if store_filter and data.store_id and data.store_id != store_filter:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权修改医生的门店归属")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权修改医生的门店归属")
     
     doctor = await service.update(doctor_id, data)
     
@@ -272,15 +272,15 @@ async def delete_doctor(
     doctor = await service.get_by_id(doctor_id)
     
     if not doctor:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在，请检查后重试")
     
     # 检查门店访问权限
     if not check_store_access(current_admin, doctor.store_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权删除此医生")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权删除此医生")
     
     success = await service.delete(doctor_id)
     
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在，请检查后重试")
     
     return {"message": "删除成功"}

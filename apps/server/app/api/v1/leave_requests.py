@@ -91,7 +91,7 @@ async def get_leave_request(
     if not request:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="申请不存在"
+            detail="申请不存在，请检查后重试"
         )
     
     return LeaveRequestResponse.model_validate(request)
@@ -134,7 +134,7 @@ async def review_request(
         if not request:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="申请不存在"
+                detail="申请不存在，请检查后重试"
             )
         return LeaveRequestResponse.model_validate(request)
     except ValueError as e:
@@ -158,7 +158,7 @@ async def cancel_request(
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="申请不存在"
+                detail="申请不存在，请检查后重试"
             )
         return {"message": "取消成功"}
     except ValueError as e:

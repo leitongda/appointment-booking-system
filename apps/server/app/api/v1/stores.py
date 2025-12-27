@@ -32,13 +32,13 @@ async def get_store_by_code(
     if not store:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="门店不存在"
+            detail="门店不存在，请检查后重试"
         )
     
     if store.status != 1:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="门店已停业"
+            detail="门店已停业，暂不可用"
         )
     
     return StoreResponse.model_validate(store)
@@ -149,7 +149,7 @@ async def get_store(
     if admin_store_id and admin_store_id != store_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权访问此门店"
+            detail="您无权访问此门店"
         )
     
     service = StoreService(db)
@@ -158,7 +158,7 @@ async def get_store(
     if not store:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
-            detail="门店不存在"
+            detail="门店不存在，请检查后重试"
         )
     
     return StoreResponse.model_validate(store)
@@ -175,7 +175,7 @@ async def create_store(
     if current_admin.get("store_id"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="门店管理员无权创建门店"
+            detail="门店管理员无权创建门店，请联系超级管理员"
         )
     
     service = StoreService(db)
@@ -203,7 +203,7 @@ async def update_store(
     if admin_store_id and admin_store_id != store_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权修改此门店"
+            detail="您无权修改此门店"
         )
     
     service = StoreService(db)
@@ -213,7 +213,7 @@ async def update_store(
         if not store:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, 
-                detail="门店不存在"
+                detail="门店不存在，请检查后重试"
             )
         return StoreResponse.model_validate(store)
     except ValueError as e:
@@ -234,7 +234,7 @@ async def delete_store(
     if current_admin.get("store_id"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="门店管理员无权删除门店"
+            detail="门店管理员无权删除门店，请联系超级管理员"
         )
     
     service = StoreService(db)
@@ -244,7 +244,7 @@ async def delete_store(
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, 
-                detail="门店不存在"
+                detail="门店不存在，请检查后重试"
             )
     except ValueError as e:
         raise HTTPException(
@@ -268,7 +268,7 @@ async def update_store_status(
     if admin_store_id and admin_store_id != store_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权修改此门店状态"
+            detail="您无权修改此门店状态"
         )
     
     service = StoreService(db)
@@ -277,7 +277,7 @@ async def update_store_status(
     if not store:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
-            detail="门店不存在"
+            detail="门店不存在，请检查后重试"
         )
     
     return {"message": "状态更新成功"}
@@ -295,7 +295,7 @@ async def get_store_departments(
     if admin_store_id and admin_store_id != store_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权访问此门店"
+            detail="您无权访问此门店"
         )
     
     service = StoreService(db)
@@ -305,7 +305,7 @@ async def get_store_departments(
     if not store:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="门店不存在"
+            detail="门店不存在，请检查后重试"
         )
     
     departments = await service.get_departments(store_id)
@@ -325,7 +325,7 @@ async def batch_bind_departments(
     if admin_store_id and admin_store_id != store_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权操作此门店"
+            detail="您无权操作此门店"
         )
     
     service = StoreService(db)
@@ -361,7 +361,7 @@ async def get_store_admins(
     if not store:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="门店不存在"
+            detail="门店不存在，请检查后重试"
         )
     
     admins = await service.get_admins(store_id)

@@ -68,7 +68,7 @@ async def get_email_template(
     template = await service.get_by_id(template_id)
     
     if not template:
-        raise HTTPException(status_code=404, detail="邮件模板不存在")
+        raise HTTPException(status_code=404, detail="邮件模板不存在，请检查后重试")
     
     return EmailTemplateResponse.model_validate(template)
 
@@ -101,7 +101,7 @@ async def update_email_template(
     template = await service.update(template_id, data)
     
     if not template:
-        raise HTTPException(status_code=404, detail="邮件模板不存在")
+        raise HTTPException(status_code=404, detail="邮件模板不存在，请检查后重试")
     
     return EmailTemplateResponse.model_validate(template)
 
@@ -117,7 +117,7 @@ async def delete_email_template(
     success = await service.delete(template_id)
     
     if not success:
-        raise HTTPException(status_code=404, detail="邮件模板不存在")
+        raise HTTPException(status_code=404, detail="邮件模板不存在，请检查后重试")
     
     return {"message": "删除成功"}
 

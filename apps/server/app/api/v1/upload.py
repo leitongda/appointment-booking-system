@@ -56,7 +56,7 @@ def validate_image(file: UploadFile) -> None:
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"不支持的图片格式: {file.content_type}，支持: jpg, png, gif, webp, svg"
+            detail=f"不支持的图片格式，请使用 jpg、png、gif、webp 或 svg 格式"
         )
     
     # 检查文件扩展名
@@ -68,7 +68,7 @@ def validate_image(file: UploadFile) -> None:
         if ext and ext not in valid_exts:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"不支持的文件扩展名: {ext}"
+                detail=f"不支持的文件格式，请检查文件类型"
             )
 
 
@@ -108,7 +108,7 @@ async def upload_image(
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"文件大小超过限制（最大{MAX_FILE_SIZE // 1024 // 1024}MB）"
+            detail=f"文件大小超过限制，最大支持{MAX_FILE_SIZE // 1024 // 1024}MB"
         )
     
     # 重置文件指针
@@ -251,7 +251,7 @@ async def delete_image(
         else:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="文件不存在或删除失败"
+                detail="文件不存在或删除失败，请检查后重试"
             )
             
     except HTTPException:

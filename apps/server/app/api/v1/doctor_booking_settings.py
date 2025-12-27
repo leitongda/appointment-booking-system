@@ -65,7 +65,7 @@ async def get_doctor_booking_setting(
     if not setting:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="设置不存在"
+            detail="设置不存在，请检查后重试"
         )
     
     return DoctorBookingSettingResponse.model_validate(setting)
@@ -111,7 +111,7 @@ async def update_doctor_booking_setting(
         if not setting:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="设置不存在"
+                detail="设置不存在，请检查后重试"
             )
         return DoctorBookingSettingResponse.model_validate(setting)
     except ValueError as e:
@@ -133,7 +133,7 @@ async def delete_doctor_booking_setting(
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="设置不存在"
+            detail="设置不存在，请检查后重试"
         )
     
     return {"message": "删除成功"}
@@ -152,7 +152,7 @@ async def update_doctor_booking_setting_status(
     if not setting:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="设置不存在"
+            detail="设置不存在，请检查后重试"
         )
     
     return {"message": "状态更新成功"}

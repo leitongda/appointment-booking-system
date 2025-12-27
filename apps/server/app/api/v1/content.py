@@ -151,7 +151,7 @@ async def get_news_detail(
     service = NewsService(db)
     news = await service.get_by_id(news_id)
     if not news:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="新闻不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="新闻不存在，请检查后重试")
     
     # 增加浏览量
     await service.increment_view(news_id)
@@ -187,7 +187,7 @@ async def update_news(
     service = NewsService(db)
     news = await service.update(news_id, data.model_dump())
     if not news:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="新闻不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="新闻不存在，请检查后重试")
     return NewsResponse.model_validate(news)
 
 
@@ -201,7 +201,7 @@ async def delete_news(
     service = NewsService(db)
     success = await service.delete(news_id)
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="新闻不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="新闻不存在，请检查后重试")
     return {"message": "删除成功"}
 
 
@@ -261,7 +261,7 @@ async def get_notice_detail(
     service = NoticeService(db)
     notice = await service.get_by_id(notice_id)
     if not notice:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="公告不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="公告不存在，请检查后重试")
     return NoticeResponse.model_validate(notice)
 
 
@@ -293,7 +293,7 @@ async def update_notice(
     service = NoticeService(db)
     notice = await service.update(notice_id, data.model_dump())
     if not notice:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="公告不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="公告不存在，请检查后重试")
     return NoticeResponse.model_validate(notice)
 
 
@@ -307,7 +307,7 @@ async def delete_notice(
     service = NoticeService(db)
     success = await service.delete(notice_id)
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="公告不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="公告不存在，请检查后重试")
     return {"message": "删除成功"}
 
 
@@ -384,7 +384,7 @@ async def update_banner(
     service = BannerService(db)
     banner = await service.update(banner_id, data.model_dump())
     if not banner:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="轮播图不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="轮播图不存在，请检查后重试")
     return BannerResponse.model_validate(banner)
 
 
@@ -398,5 +398,5 @@ async def delete_banner(
     service = BannerService(db)
     success = await service.delete(banner_id)
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="轮播图不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="轮播图不存在，请检查后重试")
     return {"message": "删除成功"}

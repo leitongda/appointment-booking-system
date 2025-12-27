@@ -151,7 +151,7 @@ async def get_record_by_appointment(
     record = await service.get_by_appointment(appointment_id)
     
     if not record:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="病历不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="病历不存在，请检查后重试")
     
     return build_record_response(record)
 
@@ -167,7 +167,7 @@ async def get_medical_record(
     record = await service.get_by_id(record_id)
     
     if not record:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="病历不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="病历不存在，请检查后重试")
     
     return build_record_response(record)
 
@@ -181,7 +181,7 @@ async def create_medical_record(
     """创建病历"""
     doctor_id = current_user.get("doctor_id")
     if not doctor_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="只有医生可以创建病历")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要医生权限，请联系管理员开通")
     
     service = MedicalRecordService(db)
     
@@ -207,7 +207,7 @@ async def update_medical_record(
     record = await service.update(record_id, data)
     
     if not record:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="病历不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="病历不存在，请检查后重试")
     
     # 重新获取完整信息
     record = await service.get_by_id(record_id)
@@ -225,7 +225,7 @@ async def delete_medical_record(
     success = await service.delete(record_id)
     
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="病历不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="病历不存在，请检查后重试")
     
     return {"message": "删除成功"}
 

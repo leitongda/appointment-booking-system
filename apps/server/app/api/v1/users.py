@@ -19,7 +19,7 @@ async def get_profile(
     user = await user_service.get_by_id(current_user["id"])
     
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在，请检查后重试")
     
     return UserResponse(
         id=user.id,
@@ -41,7 +41,7 @@ async def update_profile(
     user = await user_service.update(current_user["id"], data)
     
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在，请检查后重试")
     
     return UserResponse(
         id=user.id,
@@ -86,7 +86,7 @@ async def update_patient(
     patient = await patient_service.update(patient_id, current_user["id"], data)
     
     if not patient:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="就诊人不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="就诊人不存在，请检查后重试")
     
     return PatientResponse.model_validate(patient)
 
@@ -101,6 +101,6 @@ async def delete_patient(
     success = await patient_service.delete(patient_id, current_user["id"])
     
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="就诊人不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="就诊人不存在，请检查后重试")
     
     return {"message": "删除成功"}

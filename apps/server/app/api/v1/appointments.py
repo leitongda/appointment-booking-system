@@ -105,7 +105,7 @@ async def get_appointment(
     appointment = await service.get_by_id(appointment_id)
     
     if not appointment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
     
     return AppointmentResponse(
         id=appointment.id,
@@ -171,7 +171,7 @@ async def cancel_appointment(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     
     if not appointment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
     
     return {"message": "取消成功"}
 
@@ -186,7 +186,7 @@ async def sign_in_appointment(appointment_id: str, db: AsyncSession = Depends(ge
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     
     if not appointment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
     
     return {"message": "签到成功", "queue_number": appointment.queue_number}
 
@@ -201,7 +201,7 @@ async def call_appointment(appointment_id: str, db: AsyncSession = Depends(get_d
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     
     if not appointment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
     
     return {"message": "已呼叫"}
 
@@ -212,7 +212,7 @@ async def complete_appointment(appointment_id: str, db: AsyncSession = Depends(g
     appointment = await service.complete(appointment_id)
     
     if not appointment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
     
     return {"message": "就诊完成"}
 
@@ -228,7 +228,7 @@ async def pass_appointment(appointment_id: str, db: AsyncSession = Depends(get_d
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     
     if not appointment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
     
     return {"message": "已过号"}
 
@@ -244,7 +244,7 @@ async def recall_appointment(appointment_id: str, db: AsyncSession = Depends(get
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     
     if not appointment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
     
     return {"message": "已重新呼叫"}
 
@@ -260,7 +260,7 @@ async def mark_no_show(appointment_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     
     if not appointment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
     
     return {"message": "已标记爽约"}
 
@@ -273,7 +273,7 @@ async def get_queue_info(
     """获取当前叫号队列信息（医生端）"""
     doctor_id = current_user.get("doctor_id")
     if not doctor_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="非医生用户")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要医生权限，请联系管理员开通")
     
     service = AppointmentService(db)
     return await service.get_queue_info(doctor_id)
