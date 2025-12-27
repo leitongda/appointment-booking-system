@@ -14,7 +14,9 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@config/*": ["config/*"],
+      "@config": ["config"]
     }
   },
   "include": ["src/**/*", "config/**/*", ".umirc.ts", "typings.d.ts"]

@@ -27,21 +27,21 @@ async def get_current_user(
     payload = decode_token(token)
     
     if not payload:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的Token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="身份验证失败，请重新登录")
     
     user_id = payload.get("sub")
     if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的Token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="身份验证失败，请重新登录")
     
     # 从数据库获取用户
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户不存在")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号不存在，请检查后重试")
     
     if user.status != 1:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
     
     # 检查是否是医生
     doctor_result = await db.execute(select(Doctor).where(Doctor.user_id == user_id))
@@ -65,21 +65,21 @@ async def get_current_doctor(
 ) -> dict:
     """获取当前医生用户"""
     if not current_user.get("is_doctor"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要医生权限")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要医生权限，请联系管理员开通")
     
     doctor_id = current_user.get("doctor_id")
     if not doctor_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="医生信息不存在")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="医生信息不存在，请检查后重试")
     
     # 获取医生详情
     result = await db.execute(select(Doctor).where(Doctor.id == doctor_id))
     doctor = result.scalar_one_or_none()
     
     if not doctor:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="医生信息不存在")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="医生信息不存在，请检查后重试")
     
     if doctor.status != 1:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="医生账号已被禁用")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="医生账号已被禁用，请联系管理员")
     
     return {
         **current_user,
@@ -110,18 +110,18 @@ async def get_current_admin(
     payload = decode_token(token)
     
     if not payload:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的Token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="身份验证失败，请重新登录")
     
     # 检查 Token 是否在黑名单中
     token_hash = hashlib.sha256(token.encode()).hexdigest()[:32]
     if await RedisCache.is_token_blacklisted(token_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token已失效，请重新登录")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="登录已失效，请重新登录")
     
     admin_id = payload.get("sub")
     token_type = payload.get("type", "")
     
     if not admin_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的Token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="身份验证失败，请重新登录")
     
     # 检查是否是管理员 token
     if token_type == "admin" or "admin" in str(payload):
@@ -139,7 +139,7 @@ async def get_current_admin(
         
         if admin:
             if admin.status != 1:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
             
             # 判断角色类型
             role_code = admin.role.code if admin.role else None
@@ -186,10 +186,10 @@ async def get_current_admin(
     user = result.scalar_one_or_none()
     
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户不存在")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号不存在，请检查后重试")
     
     if user.status != 1:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
     
     return {
         "id": user.id,
@@ -282,7 +282,7 @@ def get_effective_store_id(current_admin: dict, requested_store_id: Optional[str
         if not check_store_access(current_admin, requested_store_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, 
-                detail="无权操作该门店数据"
+                detail="您无权操作此门店数据"
             )
         return requested_store_id
     
@@ -317,15 +317,15 @@ async def get_current_user_or_admin(
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token已过期，请重新登录")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="登录已过期，请重新登录")
     except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的Token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="身份验证失败，请重新登录")
     
     user_id = payload.get("sub")
     token_type = payload.get("type", "")
     
     if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的Token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="身份验证失败，请重新登录")
     
     # 优先检查是否是管理员
     if token_type == "admin" or "admin" in str(payload):
@@ -342,7 +342,7 @@ async def get_current_user_or_admin(
         
         if admin:
             if admin.status != 1:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
             
             role_code = admin.role.code if admin.role else None
             role_name = admin.role.name if admin.role else None
@@ -375,7 +375,7 @@ async def get_current_user_or_admin(
     
     if user:
         if user.status != 1:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
         
         # 检查是否是医生
         doctor_result = await db.execute(select(Doctor).where(Doctor.user_id == user_id))
@@ -410,7 +410,7 @@ async def get_current_user_or_admin(
     
     if admin:
         if admin.status != 1:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
         
         role_code = admin.role.code if admin.role else None
         role_name = admin.role.name if admin.role else None
@@ -437,4 +437,4 @@ async def get_current_user_or_admin(
             "doctor_id": None,
         }
     
-    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户不存在")
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号不存在，请检查后重试")

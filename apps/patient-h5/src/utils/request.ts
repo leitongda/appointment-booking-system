@@ -40,6 +40,17 @@ const EXCLUDE_STORE_ID_PATHS = [
 ];
 
 /**
+ * 不需要自动添加 token 的接口路径
+ * 登录、注册等认证相关接口不应该携带旧的 token
+ */
+const EXCLUDE_TOKEN_PATHS = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/wechat/login',
+  '/auth/wechat/bind-phone',
+];
+
+/**
  * 检查是否需要添加 store_id
  */
 const shouldAddStoreId = (url: string): boolean => {
@@ -47,17 +58,27 @@ const shouldAddStoreId = (url: string): boolean => {
 };
 
 /**
+ * 检查是否需要添加 token
+ */
+const shouldAddToken = (url: string): boolean => {
+  return !EXCLUDE_TOKEN_PATHS.some(path => url.includes(path));
+};
+
+/**
  * 配置请求拦截器
  * 自动在请求头中添加 Authorization token
  * 自动在请求参数中添加 store_id（多门店隔离）
+ * 注意：登录相关接口不添加 token，避免携带过期 token 导致的问题
  */
 export const setupRequestInterceptor = () => {
   setRequestInterceptor(
     (config: InternalAxiosRequestConfig) => {
-      // 1. 添加 Authorization token
-      const token = getToken();
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+      // 1. 添加 Authorization token（登录相关接口除外）
+      if (config.url && shouldAddToken(config.url)) {
+        const token = getToken();
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
       }
       
       // 2. 自动添加 store_id 参数（多门店隔离）

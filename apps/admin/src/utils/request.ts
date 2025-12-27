@@ -27,15 +27,43 @@ const ERROR_MESSAGES: Record<number, string> = {
 };
 
 /**
+ * 不需要自动添加 token 的接口路径
+ * 登录、注册等认证相关接口不应该携带旧的 token
+ */
+const EXCLUDE_TOKEN_PATHS = [
+  '/admin/login',
+  '/admin/phone-login',
+  '/admin/sms/send',
+  '/admin/sms/login',
+  '/admin/wechat/qrcode',
+  '/admin/wechat/check',
+  '/admin/public-key',
+  '/auth/login',
+  '/auth/register',
+  '/doctors/login',
+];
+
+/**
+ * 检查是否需要添加 token
+ */
+const shouldAddToken = (url: string): boolean => {
+  return !EXCLUDE_TOKEN_PATHS.some(path => url.includes(path));
+};
+
+/**
  * 配置请求拦截器
  * 自动在请求头中添加 Authorization token
+ * 注意：登录相关接口不添加 token，避免携带过期 token 导致的问题
  */
 export const setupRequestInterceptor = () => {
   setRequestInterceptor(
     (config: InternalAxiosRequestConfig) => {
-      const token = getToken();
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+      // 登录相关接口不添加 token
+      if (config.url && shouldAddToken(config.url)) {
+        const token = getToken();
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
       }
       return config;
     },

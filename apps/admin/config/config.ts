@@ -9,6 +9,7 @@
  * Copyright (c) 2025 by ${git_name_email}, All Rights Reserved. 
  */
 import { defineConfig } from '@umijs/max';
+import path from 'path';
 import routes from './routes';
 import proxy from './proxy';
 
@@ -20,6 +21,11 @@ const {
 } = process.env;
 
 export default defineConfig({
+  // 路径别名配置
+  alias: {
+    '@config': path.resolve(__dirname),
+  },
+
   // 高德地图 SDK
   headScripts: AMAP_KEY ? [
     {

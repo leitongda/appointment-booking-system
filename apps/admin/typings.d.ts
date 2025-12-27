@@ -155,6 +155,16 @@ interface StoreInfo {
   themeStyle?: string;
 }
 
+// UmiJS 类型声明（修复类型检查问题）
+declare module '@umijs/max' {
+  export const history: any;
+  export function useModel(namespace: string): any;
+  export function useAccess(): any;
+  export function useLocation(): any;
+  export function useParams(): any;
+  export function useSearchParams(): any;
+}
+
 // API 类型定义
 declare namespace API {
   interface CurrentUser {

@@ -26,7 +26,7 @@ class BusinessError(Exception):
 class AuthenticationError(Exception):
     """认证异常"""
     
-    def __init__(self, message: str = "认证失败"):
+    def __init__(self, message: str = "身份验证失败，请重新登录"):
         self.message = message
         super().__init__(message)
 
@@ -34,7 +34,7 @@ class AuthenticationError(Exception):
 class PermissionDeniedError(Exception):
     """权限不足异常"""
     
-    def __init__(self, message: str = "权限不足"):
+    def __init__(self, message: str = "权限不足，请联系管理员"):
         self.message = message
         super().__init__(message)
 
@@ -42,7 +42,7 @@ class PermissionDeniedError(Exception):
 class NotFoundError(Exception):
     """资源不存在异常"""
     
-    def __init__(self, message: str = "资源不存在"):
+    def __init__(self, message: str = "资源不存在，请检查后重试"):
         self.message = message
         super().__init__(message)
 
@@ -93,7 +93,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     logger.warning(f"HTTP异常: {exc.detail}, status={exc.status_code}, path={request.url.path}")
     return create_error_response(
         exc.status_code,
-        exc.detail if isinstance(exc.detail, str) else "请求错误",
+        exc.detail if isinstance(exc.detail, str) else "请求错误，请检查后重试",
         status_code=exc.status_code
     )
 
@@ -133,7 +133,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         msg = error.get("msg", "参数错误")
         error_messages.append(f"{loc}: {msg}")
     
-    message = "参数验证失败"
+    message = "请求参数错误，请检查后重试"
     if error_messages:
         message = error_messages[0]  # 返回第一个错误
     
@@ -153,7 +153,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 async def jwt_exception_handler(request: Request, exc: JWTError):
     """JWT 异常处理"""
     logger.warning(f"JWT异常: {str(exc)}, path={request.url.path}")
-    return create_error_response(401, "Token无效或已过期", status_code=status.HTTP_401_UNAUTHORIZED)
+    return create_error_response(401, "身份验证失败，请重新登录", status_code=status.HTTP_401_UNAUTHORIZED)
 
 
 async def database_exception_handler(request: Request, exc: SQLAlchemyError):
@@ -163,9 +163,9 @@ async def database_exception_handler(request: Request, exc: SQLAlchemyError):
     
     # 处理唯一约束冲突
     if isinstance(exc, IntegrityError):
-        return create_error_response(400, "数据已存在或违反约束条件")
+        return create_error_response(400, "数据已存在或违反约束条件，请检查后重试")
     
-    return create_error_response(500, "数据库操作失败", status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return create_error_response(500, "操作失败，请稍后重试", status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 async def global_exception_handler(request: Request, exc: Exception):
@@ -176,7 +176,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     # 生产环境不暴露详细错误信息
     return create_error_response(
         500,
-        "服务器内部错误",
+        "服务器异常，请稍后重试",
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
     )
 
