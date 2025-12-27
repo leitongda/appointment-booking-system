@@ -34,6 +34,7 @@ const ScheduleRulePage: React.FC = () => {
   const { currentUser } = initialState ?? {};
   const isSuperAdmin = access.canSuperAdmin;
   const actionRef = useRef<ActionType>();
+  const [batchAddModalOpen, setBatchAddModalOpen] = useState(false);
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
 
@@ -97,6 +98,55 @@ const ScheduleRulePage: React.FC = () => {
       actionRef.current?.reload();
     } catch (error: any) {
       message.error(error.message || '删除失败');
+    }
+  };
+
+  const handleBatchAddSubmit = async (values: any) => {
+    const { dateRange, startTime, endTime, totalSlots, slotCount, ...rest } = values;
+    if (!dateRange || dateRange.length !== 2) {
+      message.error('请选择日期范围');
+      return false;
+    }
+
+    // 验证时间字段
+    if (!startTime || !endTime) {
+      message.error('请填写开始时间和结束时间');
+      return false;
+    }
+
+    try {
+      // 格式化日期和时间
+      const startDate = typeof dateRange[0] === 'string' 
+        ? dateRange[0] 
+        : dateRange[0].format('YYYY-MM-DD');
+      const endDate = typeof dateRange[1] === 'string' 
+        ? dateRange[1] 
+        : dateRange[1].format('YYYY-MM-DD');
+      
+      // 格式化时间（ProFormTimePicker 返回的是 dayjs 对象）
+      const formattedStartTime = typeof startTime === 'string' 
+        ? startTime 
+        : startTime.format('HH:mm');
+      const formattedEndTime = typeof endTime === 'string' 
+        ? endTime 
+        : endTime.format('HH:mm');
+
+      const result = await scheduleTemplateApi.batchAdd({
+        ...rest,
+        startTime: formattedStartTime,
+        endTime: formattedEndTime,
+        slotCapacity: totalSlots || 10, // totalSlots 对应后端的 slotCapacity
+        slotCount: slotCount || 1, // 默认班次数量为 1
+        startDate,
+        endDate,
+      });
+      message.success(result.message);
+      setBatchAddModalOpen(false);
+      actionRef.current?.reload();
+      return true;
+    } catch (error: any) {
+      message.error(error.message || '批量添加失败');
+      return false;
     }
   };
 
@@ -287,6 +337,14 @@ const ScheduleRulePage: React.FC = () => {
           ),
           access.hasPermission('schedule:template') && (
             <Button
+              key="batch"
+              onClick={() => setBatchAddModalOpen(true)}
+            >
+              批量添加
+            </Button>
+          ),
+          access.hasPermission('schedule:template') && (
+            <Button
               key="add"
               type="primary"
               icon={<PlusOutlined />}
@@ -298,6 +356,106 @@ const ScheduleRulePage: React.FC = () => {
         ]}
         pagination={{ defaultPageSize: 10 }}
       />
+
+      {/* 批量添加弹窗 */}
+      <ModalForm
+        title="批量添加排班规则"
+        open={batchAddModalOpen}
+        onOpenChange={(open) => {
+          setBatchAddModalOpen(open);
+          if (!open) {
+            setSelectedDept(undefined);
+          }
+        }}
+        onFinish={handleBatchAddSubmit}
+        initialValues={{
+          appointmentType: 'normal',
+          scheduleMode: 'weekly',
+          totalSlots: 10,
+          slotCount: 1,
+          weekdays: [1, 2, 3, 4, 5],
+        }}
+        modalProps={{ destroyOnHidden: true }}
+        width={600}
+      >
+        <Alert
+          message={`当前为本月第${dateInfo.monthWeek}周，本年第${dateInfo.yearWeek}周（${dateInfo.isOddWeek ? '奇数' : '偶数'}周）`}
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+        <ProFormSelect
+          name="storeId"
+          label="选择门店"
+          options={stores.map((s) => ({ label: s.name, value: s.id }))}
+          rules={[{ required: true, message: '请选择门店' }]}
+        />
+        <ProFormSelect
+          name="departmentId"
+          label="选择科室"
+          options={departments.map((d) => ({ label: d.name, value: d.id }))}
+          onChange={(val) => setSelectedDept(val as string)}
+          rules={[{ required: true, message: '请选择科室' }]}
+        />
+        <ProFormSelect
+          name="doctorId"
+          label="选择医生"
+          options={doctors.map((d) => ({ label: `${d.name} - ${d.title || ''}`, value: d.id }))}
+          rules={[{ required: true, message: '请选择医生' }]}
+          disabled={!selectedDept}
+        />
+        <ProFormSelect
+          name="appointmentType"
+          label="预约类型"
+          options={APPOINTMENT_TYPE_OPTIONS}
+          rules={[{ required: true, message: '请选择预约类型' }]}
+        />
+        <ProFormTimePicker
+          name="startTime"
+          label="开始时间"
+          fieldProps={{ format: 'HH:mm' }}
+          rules={[{ required: true, message: '请选择开始时间' }]}
+        />
+        <ProFormTimePicker
+          name="endTime"
+          label="结束时间"
+          fieldProps={{ format: 'HH:mm' }}
+          rules={[{ required: true, message: '请选择结束时间' }]}
+        />
+        <ProFormDigit
+          name="slotCount"
+          label="班次数量"
+          min={1}
+          max={50}
+          rules={[{ required: true, message: '请输入班次数量' }]}
+          extra="根据时间区间均分生成多个班次"
+        />
+        <ProFormDigit
+          name="totalSlots"
+          label="班次人数"
+          min={1}
+          max={200}
+          rules={[{ required: true, message: '请输入班次人数' }]}
+          extra="每个班次可预约的人数"
+        />
+        <ProFormCheckbox.Group
+          name="weekdays"
+          label="选择星期"
+          options={WEEKDAY_OPTIONS}
+          rules={[{ required: true, message: '请选择星期' }]}
+        />
+        <ProFormRadio.Group
+          name="scheduleMode"
+          label="排班方式"
+          options={SCHEDULE_MODE_OPTIONS}
+          rules={[{ required: true, message: '请选择排班方式' }]}
+        />
+        <ProFormDateRangePicker
+          name="dateRange"
+          label="日期范围"
+          rules={[{ required: true, message: '请选择日期范围' }]}
+        />
+      </ModalForm>
 
       {/* 生成排班弹窗 */}
       <ModalForm

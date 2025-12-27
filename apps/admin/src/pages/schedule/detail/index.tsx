@@ -1,23 +1,82 @@
+import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { App, Space, Tag, Popconfirm } from 'antd';
-import { useRef } from 'react';
+import { PageContainer, ProTable, ModalForm, ProFormSelect, ProFormDatePicker, ProFormDigit } from '@ant-design/pro-components';
+import { Button, App, Space, Tag, Popconfirm } from 'antd';
+import { useRef, useState, useEffect } from 'react';
 import { useAccess, useModel } from '@umijs/max';
 import { scheduleApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Schedule, Doctor, Department } from '@hospital/shared';
 import { APPOINTMENT_TYPE_MAP } from '@hospital/shared';
+import dayjs from 'dayjs';
+
+const TIME_SLOTS = [
+  { label: '上午', value: 'morning' },
+  { label: '下午', value: 'afternoon' },
+  { label: '晚上', value: 'evening' },
+];
 
 const ScheduleDetailPage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
   const actionRef = useRef<ActionType>();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [selectedDept, setSelectedDept] = useState<string>();
   
   const { initialState } = useModel('@@initialState');
   const { currentUser } = initialState ?? {};
   const isSuperAdmin = access.canSuperAdmin;
   // 多门店管理员也可以看到门店筛选
   const showStoreFilter = isSuperAdmin || (currentUser?.storeIds?.length ?? 0) > 1;
+
+  useEffect(() => {
+    loadDepartments();
+  }, []);
+
+  useEffect(() => {
+    if (selectedDept) {
+      loadDoctorsByDept(selectedDept);
+    }
+  }, [selectedDept]);
+
+  const loadDepartments = async () => {
+    try {
+      const res = await departmentApi.getList({ pageSize: 100, status: 1 });
+      setDepartments(res.data ?? []);
+    } catch (error) {
+      console.error('加载科室失败', error);
+    }
+  };
+
+  const loadDoctorsByDept = async (deptId: string) => {
+    try {
+      const data = await doctorApi.getByDepartment(deptId);
+      setDoctors(data ?? []);
+    } catch (error) {
+      console.error('加载医生失败', error);
+    }
+  };
+
+  const handleSubmit = async (values: any) => {
+    try {
+      await scheduleApi.create({
+        doctorId: values.doctorId,
+        scheduleDate: values.scheduleDate ? dayjs(values.scheduleDate).format('YYYY-MM-DD') : values.scheduleDate,
+        timeSlot: values.timeSlot,
+        totalSlots: values.totalSlots,
+        status: 1,
+      });
+      message.success('创建成功');
+      setModalOpen(false);
+      actionRef.current?.reload();
+      return true;
+    } catch (error: any) {
+      message.error(error.message || '创建失败');
+      return false;
+    }
+  };
 
   const handleSuspend = async (id: string) => {
     try {
@@ -166,7 +225,7 @@ const ScheduleDetailPage: React.FC = () => {
   return (
     <PageContainer>
       <ProTable<Schedule>
-        headerTitle="排班详情"
+        headerTitle="排班列表"
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
@@ -179,12 +238,65 @@ const ScheduleDetailPage: React.FC = () => {
             pageSize,
           }));
         }}
+        toolBarRender={() => [
+          access.hasPermission('schedule:create') && (
+            <Button
+              key="add"
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setModalOpen(true)}
+            >
+              新增排班
+            </Button>
+          ),
+        ]}
         pagination={{ defaultPageSize: 20 }}
         search={{
           labelWidth: 'auto',
           defaultCollapsed: false,
         }}
       />
+
+      <ModalForm
+        title="新增排班"
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        onFinish={handleSubmit}
+        modalProps={{ destroyOnHidden: true }}
+        initialValues={{ totalSlots: 20 }}
+      >
+        <ProFormSelect
+          name="departmentId"
+          label="选择科室"
+          options={(departments ?? []).map((d) => ({ label: d.name, value: d.id }))}
+          onChange={(val) => setSelectedDept(val as string)}
+          rules={[{ required: true, message: '请选择科室' }]}
+        />
+        <ProFormSelect
+          name="doctorId"
+          label="选择医生"
+          options={(doctors ?? []).map((d) => ({ label: `${d.name} - ${d.title || ''}`, value: d.id }))}
+          rules={[{ required: true, message: '请选择医生' }]}
+        />
+        <ProFormDatePicker
+          name="scheduleDate"
+          label="排班日期"
+          rules={[{ required: true, message: '请选择日期' }]}
+        />
+        <ProFormSelect
+          name="timeSlot"
+          label="时段"
+          options={TIME_SLOTS}
+          rules={[{ required: true, message: '请选择时段' }]}
+        />
+        <ProFormDigit
+          name="totalSlots"
+          label="号源数量"
+          min={1}
+          max={100}
+          rules={[{ required: true, message: '请输入号源数量' }]}
+        />
+      </ModalForm>
     </PageContainer>
   );
 };

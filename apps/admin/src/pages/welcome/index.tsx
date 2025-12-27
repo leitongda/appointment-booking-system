@@ -19,7 +19,7 @@ const features = [
   { icon: <ShopOutlined />, title: '门店管理', desc: '管理医院门店', path: '/store', color: '#52c41a' },
   { icon: <TeamOutlined />, title: '科室管理', desc: '管理科室设置', path: '/department', color: '#722ed1' },
   { icon: <UserOutlined />, title: '医生管理', desc: '管理医生信息', path: '/doctor/list', color: '#13c2c2' },
-  { icon: <CalendarOutlined />, title: '排班管理', desc: '设置出诊排班', path: '/schedule/list', color: '#fa8c16' },
+  { icon: <CalendarOutlined />, title: '排班管理', desc: '设置出诊排班', path: '/schedule/rule', color: '#fa8c16' },
   { icon: <ScheduleOutlined />, title: '预约管理', desc: '处理预约挂号', path: '/appointment/list', color: '#eb2f96' },
   { icon: <BarChartOutlined />, title: '统计分析', desc: '查看统计报表', path: '/statistics', color: '#f5222d' },
   { icon: <SettingOutlined />, title: '系统设置', desc: '系统配置管理', path: '/system/settings', color: '#595959' },
