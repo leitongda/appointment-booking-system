@@ -15,11 +15,12 @@ export interface ScheduleTemplateCreateData {
   storeId: string;
   doctorId: string;
   departmentId: string;
-  weekday: number;
+  weekdays: number[];
   appointmentType: string;
   startTime: string;
   endTime: string;
-  totalSlots: number;
+  slotCount: number;
+  slotCapacity: number;
   scheduleMode: string;
 }
 
@@ -28,11 +29,12 @@ export interface ScheduleTemplateUpdateData {
   storeId?: string;
   doctorId?: string;
   departmentId?: string;
-  weekday?: number;
+  weekdays?: number[];
   appointmentType?: string;
   startTime?: string;
   endTime?: string;
-  totalSlots?: number;
+  slotCount?: number;
+  slotCapacity?: number;
   scheduleMode?: string;
   status?: number;
 }
@@ -50,7 +52,8 @@ export interface ScheduleBatchAddData {
   appointmentType: string;
   startTime: string;
   endTime: string;
-  totalSlots: number;
+  slotCount: number;
+  slotCapacity: number;
   scheduleMode: string;
   weekdays: number[];
   startDate: string;
@@ -89,11 +92,12 @@ export const scheduleTemplateApi = {
       store_id: data.storeId,
       doctor_id: data.doctorId,
       department_id: data.departmentId,
-      weekday: data.weekday,
+      weekdays: data.weekdays,
       appointment_type: data.appointmentType,
       start_time: data.startTime,
       end_time: data.endTime,
-      total_slots: data.totalSlots,
+      slot_count: data.slotCount,
+      slot_capacity: data.slotCapacity,
       schedule_mode: data.scheduleMode,
     });
   },
@@ -107,11 +111,12 @@ export const scheduleTemplateApi = {
     if (data.storeId !== undefined) requestData.store_id = data.storeId;
     if (data.doctorId !== undefined) requestData.doctor_id = data.doctorId;
     if (data.departmentId !== undefined) requestData.department_id = data.departmentId;
-    if (data.weekday !== undefined) requestData.weekday = data.weekday;
+    if (data.weekdays !== undefined) requestData.weekdays = data.weekdays;
     if (data.appointmentType !== undefined) requestData.appointment_type = data.appointmentType;
     if (data.startTime !== undefined) requestData.start_time = data.startTime;
     if (data.endTime !== undefined) requestData.end_time = data.endTime;
-    if (data.totalSlots !== undefined) requestData.total_slots = data.totalSlots;
+    if (data.slotCount !== undefined) requestData.slot_count = data.slotCount;
+    if (data.slotCapacity !== undefined) requestData.slot_capacity = data.slotCapacity;
     if (data.scheduleMode !== undefined) requestData.schedule_mode = data.scheduleMode;
     if (data.status !== undefined) requestData.status = data.status;
     return request.put(`/schedule-templates/${id}`, requestData);
@@ -146,7 +151,8 @@ export const scheduleTemplateApi = {
       appointment_type: data.appointmentType,
       start_time: data.startTime,
       end_time: data.endTime,
-      total_slots: data.totalSlots,
+      slot_count: data.slotCount,
+      slot_capacity: data.slotCapacity,
       schedule_mode: data.scheduleMode,
       weekdays: data.weekdays,
       start_date: data.startDate,

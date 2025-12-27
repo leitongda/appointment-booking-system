@@ -1,9 +1,10 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from sqlalchemy.orm import selectinload
-from typing import Optional, List
-from datetime import date, timedelta
+from typing import Optional, List, Tuple
+from datetime import date, timedelta, time
 import uuid
+import json
 
 from app.models.schedule_template import ScheduleTemplate
 from app.models.schedule import Schedule
@@ -60,6 +61,53 @@ def get_time_slot_from_time(start_time) -> str:
         return "afternoon"
     else:
         return "evening"
+
+
+def split_time_range(start: time, end: time, count: int) -> List[Tuple[time, time]]:
+    """将时间区间均分为多个班次
+    
+    Args:
+        start: 开始时间
+        end: 结束时间
+        count: 班次数量
+    
+    Returns:
+        班次时间列表，如 [(09:00, 11:00), (11:00, 13:00), ...]
+    """
+    if count <= 0:
+        return [(start, end)]
+    
+    # 计算总分钟数
+    start_minutes = start.hour * 60 + start.minute
+    end_minutes = end.hour * 60 + end.minute
+    total_minutes = end_minutes - start_minutes
+    
+    if total_minutes <= 0:
+        return [(start, end)]
+    
+    # 每个班次的分钟数
+    slot_minutes = total_minutes // count
+    
+    slots = []
+    current_start = start
+    
+    for i in range(count):
+        # 计算当前班次的结束时间
+        current_start_minutes = current_start.hour * 60 + current_start.minute
+        current_end_minutes = current_start_minutes + slot_minutes
+        
+        # 最后一个班次使用结束时间，确保覆盖完整区间
+        if i == count - 1:
+            current_end = end
+        else:
+            current_end_hour = current_end_minutes // 60
+            current_end_minute = current_end_minutes % 60
+            current_end = time(current_end_hour, current_end_minute)
+        
+        slots.append((current_start, current_end))
+        current_start = current_end
+    
+    return slots
 
 
 class ScheduleTemplateService:
@@ -124,11 +172,12 @@ class ScheduleTemplateService:
             store_id=data.store_id,
             doctor_id=data.doctor_id,
             department_id=data.department_id,
-            weekday=data.weekday,
+            weekdays=json.dumps(data.weekdays),
             appointment_type=data.appointment_type.value,
             start_time=data.start_time,
             end_time=data.end_time,
-            total_slots=data.total_slots,
+            slot_count=data.slot_count,
+            slot_capacity=data.slot_capacity,
             schedule_mode=data.schedule_mode.value,
             status=1
         )
@@ -150,6 +199,10 @@ class ScheduleTemplateService:
             update_data['appointment_type'] = update_data['appointment_type'].value
         if 'schedule_mode' in update_data and update_data['schedule_mode']:
             update_data['schedule_mode'] = update_data['schedule_mode'].value
+        
+        # 处理 weekdays 数组
+        if 'weekdays' in update_data and update_data['weekdays'] is not None:
+            update_data['weekdays'] = json.dumps(update_data['weekdays'])
         
         for field, value in update_data.items():
             setattr(template, field, value)
@@ -177,43 +230,51 @@ class ScheduleTemplateService:
             if not template or template.status != 1:
                 continue
             
+            # 获取星期列表
+            weekdays = template.weekday_list
+            
+            # 均分时间生成多个班次
+            time_slots = split_time_range(template.start_time, template.end_time, template.slot_count)
+            
             current_date = data.start_date
             while current_date <= data.end_date:
                 weekday = current_date.isoweekday()  # 1-7 代表周一到周日
                 
-                # 检查星期是否匹配
-                if weekday == template.weekday:
+                # 检查星期是否匹配（支持多选）
+                if weekday in weekdays:
                     # 检查排班方式是否匹配
                     if should_generate_schedule(current_date, template.schedule_mode):
-                        # 检查是否已存在
-                        time_slot = get_time_slot_from_time(template.start_time)
-                        existing = await self.db.execute(
-                            select(Schedule).where(
-                                and_(
-                                    Schedule.doctor_id == template.doctor_id,
-                                    Schedule.schedule_date == current_date,
-                                    Schedule.start_time == template.start_time,
-                                    Schedule.end_time == template.end_time
+                        # 为每个班次生成排班记录
+                        for slot_start, slot_end in time_slots:
+                            time_slot = get_time_slot_from_time(slot_start)
+                            # 检查是否已存在
+                            existing = await self.db.execute(
+                                select(Schedule).where(
+                                    and_(
+                                        Schedule.doctor_id == template.doctor_id,
+                                        Schedule.schedule_date == current_date,
+                                        Schedule.start_time == slot_start,
+                                        Schedule.end_time == slot_end
+                                    )
                                 )
                             )
-                        )
-                        if not existing.scalar_one_or_none():
-                            schedule = Schedule(
-                                id=str(uuid.uuid4()),
-                                doctor_id=template.doctor_id,
-                                store_id=template.store_id,
-                                template_id=template.id,
-                                schedule_date=current_date,
-                                time_slot=time_slot,
-                                start_time=template.start_time,
-                                end_time=template.end_time,
-                                total_slots=template.total_slots,
-                                appointment_type=template.appointment_type,
-                                booked_slots=0,
-                                status=1
-                            )
-                            self.db.add(schedule)
-                            created_count += 1
+                            if not existing.scalar_one_or_none():
+                                schedule = Schedule(
+                                    id=str(uuid.uuid4()),
+                                    doctor_id=template.doctor_id,
+                                    store_id=template.store_id,
+                                    template_id=template.id,
+                                    schedule_date=current_date,
+                                    time_slot=time_slot,
+                                    start_time=slot_start,
+                                    end_time=slot_end,
+                                    total_slots=template.slot_capacity,
+                                    appointment_type=template.appointment_type,
+                                    booked_slots=0,
+                                    status=1
+                                )
+                                self.db.add(schedule)
+                                created_count += 1
                 
                 current_date += timedelta(days=1)
         
@@ -223,8 +284,11 @@ class ScheduleTemplateService:
     async def batch_add_schedules(self, data: ScheduleBatchAddRequest) -> int:
         """批量添加排班（不依赖模板）"""
         created_count = 0
-        current_date = data.start_date
         
+        # 均分时间生成多个班次
+        time_slots = split_time_range(data.start_time, data.end_time, data.slot_count)
+        
+        current_date = data.start_date
         while current_date <= data.end_date:
             weekday = current_date.isoweekday()  # 1-7 代表周一到周日
             
@@ -232,34 +296,36 @@ class ScheduleTemplateService:
             if weekday in data.weekdays:
                 # 检查排班方式是否匹配
                 if should_generate_schedule(current_date, data.schedule_mode.value):
-                    # 检查是否已存在
-                    time_slot = get_time_slot_from_time(data.start_time)
-                    existing = await self.db.execute(
-                        select(Schedule).where(
-                            and_(
-                                Schedule.doctor_id == data.doctor_id,
-                                Schedule.schedule_date == current_date,
-                                Schedule.start_time == data.start_time,
-                                Schedule.end_time == data.end_time
+                    # 为每个班次生成排班记录
+                    for slot_start, slot_end in time_slots:
+                        time_slot = get_time_slot_from_time(slot_start)
+                        # 检查是否已存在
+                        existing = await self.db.execute(
+                            select(Schedule).where(
+                                and_(
+                                    Schedule.doctor_id == data.doctor_id,
+                                    Schedule.schedule_date == current_date,
+                                    Schedule.start_time == slot_start,
+                                    Schedule.end_time == slot_end
+                                )
                             )
                         )
-                    )
-                    if not existing.scalar_one_or_none():
-                        schedule = Schedule(
-                            id=str(uuid.uuid4()),
-                            doctor_id=data.doctor_id,
-                            store_id=data.store_id,
-                            schedule_date=current_date,
-                            time_slot=time_slot,
-                            start_time=data.start_time,
-                            end_time=data.end_time,
-                            total_slots=data.total_slots,
-                            appointment_type=data.appointment_type.value,
-                            booked_slots=0,
-                            status=1
-                        )
-                        self.db.add(schedule)
-                        created_count += 1
+                        if not existing.scalar_one_or_none():
+                            schedule = Schedule(
+                                id=str(uuid.uuid4()),
+                                doctor_id=data.doctor_id,
+                                store_id=data.store_id,
+                                schedule_date=current_date,
+                                time_slot=time_slot,
+                                start_time=slot_start,
+                                end_time=slot_end,
+                                total_slots=data.slot_capacity,
+                                appointment_type=data.appointment_type.value,
+                                booked_slots=0,
+                                status=1
+                            )
+                            self.db.add(schedule)
+                            created_count += 1
             
             current_date += timedelta(days=1)
         

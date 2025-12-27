@@ -148,3 +148,124 @@ export function getDateInfo(date: Date = new Date()): {
     isOddWeek: yearWeek % 2 === 1,
   };
 }
+
+/**
+ * 将时间区间均分为多个班次
+ * @param startTime 开始时间，格式 "HH:mm"
+ * @param endTime 结束时间，格式 "HH:mm"
+ * @param count 班次数量
+ * @returns 班次时间列表，如 [["09:00", "11:00"], ["11:00", "13:00"], ...]
+ */
+export function splitTimeRange(
+  startTime: string,
+  endTime: string,
+  count: number
+): Array<[string, string]> {
+  if (count <= 0) {
+    return [[startTime, endTime]];
+  }
+
+  const [startHour, startMinute] = startTime.split(':').map(Number);
+  const [endHour, endMinute] = endTime.split(':').map(Number);
+
+  const startMinutes = startHour * 60 + startMinute;
+  const endMinutes = endHour * 60 + endMinute;
+  const totalMinutes = endMinutes - startMinutes;
+
+  if (totalMinutes <= 0) {
+    return [[startTime, endTime]];
+  }
+
+  const slotMinutes = Math.floor(totalMinutes / count);
+  const slots: Array<[string, string]> = [];
+
+  let currentStartMinutes = startMinutes;
+
+  for (let i = 0; i < count; i++) {
+    const currentEndMinutes = i === count - 1 
+      ? endMinutes 
+      : currentStartMinutes + slotMinutes;
+
+    const startH = Math.floor(currentStartMinutes / 60);
+    const startM = currentStartMinutes % 60;
+    const endH = Math.floor(currentEndMinutes / 60);
+    const endM = currentEndMinutes % 60;
+
+    const startStr = `${String(startH).padStart(2, '0')}:${String(startM).padStart(2, '0')}`;
+    const endStr = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+
+    slots.push([startStr, endStr]);
+    currentStartMinutes = currentEndMinutes;
+  }
+
+  return slots;
+}
+
+/**
+ * 判断指定日期是否应该生成排班
+ * @param date 日期
+ * @param scheduleMode 排班方式
+ * @returns 是否应该生成排班
+ */
+export function shouldGenerateSchedule(
+  date: Date,
+  scheduleMode: string
+): boolean {
+  const dateInfo = getDateInfo(date);
+  const monthWeek = dateInfo.monthWeek;
+  const yearWeek = dateInfo.yearWeek;
+
+  switch (scheduleMode) {
+    case 'weekly':
+      return true;
+    case 'month_week_1':
+      return monthWeek === 1;
+    case 'month_week_2':
+      return monthWeek === 2;
+    case 'month_week_3':
+      return monthWeek === 3;
+    case 'month_week_4':
+      return monthWeek === 4;
+    case 'month_week_5':
+      return monthWeek === 5;
+    case 'year_odd_week':
+      return yearWeek % 2 === 1;
+    case 'year_even_week':
+      return yearWeek % 2 === 0;
+    default:
+      return false;
+  }
+}
+
+/**
+ * 生成排班预览数据
+ * @param config 排班配置
+ * @param startDate 开始日期
+ * @param endDate 结束日期
+ * @returns 预览日期列表（会生成排班的日期）
+ */
+export function generateSchedulePreview(
+  config: {
+    weekdays: number[];
+    scheduleMode: string;
+  },
+  startDate: Date,
+  endDate: Date
+): Date[] {
+  const previewDates: Date[] = [];
+  const currentDate = new Date(startDate);
+
+  while (currentDate <= endDate) {
+    const weekday = currentDate.getDay() === 0 ? 7 : currentDate.getDay(); // 转换为1-7格式
+
+    if (config.weekdays.includes(weekday)) {
+      if (shouldGenerateSchedule(new Date(currentDate), config.scheduleMode)) {
+        previewDates.push(new Date(currentDate));
+      }
+    }
+
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  return previewDates;
+}

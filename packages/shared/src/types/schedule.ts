@@ -36,11 +36,12 @@ export interface ScheduleTemplate {
   doctorName?: string;
   departmentId: string;
   departmentName?: string;
-  weekday: number;
+  weekdays: number[];  // 星期数组，如 [1,2,3,4,5]
   appointmentType: string;
   startTime: string;
   endTime: string;
-  totalSlots: number;
+  slotCount: number;  // 班次数量
+  slotCapacity: number;  // 每班次人数
   scheduleMode: string;
   status: number;
   createdAt: string;
