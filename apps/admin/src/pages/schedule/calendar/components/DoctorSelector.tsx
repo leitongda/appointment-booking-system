@@ -68,24 +68,17 @@ const DoctorSelector: React.FC<DoctorSelectorProps> = ({ selectedDoctor, onSelec
     onSelect(doctor || null);
   };
 
-  // 清除选择
-  const handleClear = () => {
-    onSelect(null);
-    setSelectedDeptId(undefined);
-    setDoctors([]);
-  };
-
   return (
-    <div className="doctor-selector">
-      {selectedDoctor ? (
-        <div className="doctor-info">
-          <Avatar 
-            src={selectedDoctor.avatar} 
-            size={64} 
-            icon={<UserOutlined />}
-            className="doctor-avatar"
-          />
-          <div className="doctor-details">
+    <div className="doctor-selector" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="doctor-info" style={{ display: 'flex', alignItems: 'center' }}>
+        <Avatar 
+          src={selectedDoctor?.avatar} 
+          size={64} 
+          icon={<UserOutlined />}
+          className="doctor-avatar"
+        />
+        {selectedDoctor && (
+          <div className="doctor-details" style={{ marginLeft: 12 }}>
             <div className="doctor-name">{selectedDoctor.name}</div>
             <div className="doctor-meta">
               <Space split="|">
@@ -94,38 +87,34 @@ const DoctorSelector: React.FC<DoctorSelectorProps> = ({ selectedDoctor, onSelec
               </Space>
             </div>
           </div>
-          <a onClick={handleClear} style={{ marginLeft: 16, color: '#1890ff' }}>
-            重新选择
-          </a>
-        </div>
-      ) : (
-        <Space size="middle">
+        )}
+      </div>
+      <Space size="middle">
+        <Select
+          style={{ width: 160 }}
+          placeholder="选择科室"
+          showSearch
+          optionFilterProp="label"
+          value={selectedDeptId}
+          onChange={handleDeptChange}
+          options={departments.map(d => ({ label: d.name, value: d.id }))}
+        />
+        <Spin spinning={loading}>
           <Select
-            style={{ width: 200 }}
-            placeholder="选择科室"
+            style={{ width: 160 }}
+            placeholder="选择医生"
             showSearch
             optionFilterProp="label"
-            value={selectedDeptId}
-            onChange={handleDeptChange}
-            options={departments.map(d => ({ label: d.name, value: d.id }))}
+            disabled={!selectedDeptId}
+            value={selectedDoctor?.id}
+            onChange={handleDoctorChange}
+            options={doctors.map(d => ({ 
+              label: `${d.name} - ${d.title || ''}`, 
+              value: d.id 
+            }))}
           />
-          <Spin spinning={loading}>
-            <Select
-              style={{ width: 200 }}
-              placeholder="选择医生"
-              showSearch
-              optionFilterProp="label"
-              disabled={!selectedDeptId}
-              value={selectedDoctor?.id}
-              onChange={handleDoctorChange}
-              options={doctors.map(d => ({ 
-                label: `${d.name} - ${d.title || ''}`, 
-                value: d.id 
-              }))}
-            />
-          </Spin>
-        </Space>
-      )}
+        </Spin>
+      </Space>
     </div>
   );
 };
