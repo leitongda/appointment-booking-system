@@ -36,3 +36,43 @@ export interface StoreDepartment {
   status: number;
   createdAt: string;
 }
+
+/**
+ * 门店上下文 - 用于患者端多门店隔离
+ */
+export interface StoreContext {
+  /** 门店ID */
+  storeId: string;
+  /** 门店编码 */
+  storeCode: string;
+  /** 门店名称 */
+  storeName: string;
+  /** 门店logo */
+  storeLogo?: string;
+  /** 门店主题风格 */
+  storeTheme?: string;
+  /** 门店电话 */
+  storePhone?: string;
+  /** 门店地址 */
+  storeAddress?: string;
+}
+
+/**
+ * 门店上下文存储键名
+ */
+export const STORE_CONTEXT_KEY = 'hospital_store_context';
+
+/**
+ * 从 Store 对象创建 StoreContext
+ */
+export function createStoreContext(store: Store): StoreContext {
+  return {
+    storeId: store.id,
+    storeCode: store.code || '',
+    storeName: store.name,
+    storeLogo: store.logo,
+    storeTheme: store.themeStyle,
+    storePhone: store.phone,
+    storeAddress: store.address,
+  };
+}

@@ -42,11 +42,12 @@ class ScheduleTemplateBase(BaseModel):
     store_id: str = Field(..., description="门店ID")
     doctor_id: str = Field(..., description="医生ID")
     department_id: str = Field(..., description="科室ID")
-    weekday: int = Field(..., ge=1, le=7, description="星期 1-7")
+    weekdays: List[int] = Field(..., description="星期数组 1-7，如[1,2,3,4,5]")
     appointment_type: AppointmentType = Field(default=AppointmentType.NORMAL, description="预约类型")
     start_time: time = Field(..., description="开始时间")
     end_time: time = Field(..., description="结束时间")
-    total_slots: int = Field(default=10, ge=1, le=200, description="班次人数")
+    slot_count: int = Field(default=1, ge=1, le=50, description="班次数量")
+    slot_capacity: int = Field(default=10, ge=1, le=200, description="每班次人数")
     schedule_mode: ScheduleMode = Field(default=ScheduleMode.WEEKLY, description="排班方式")
 
 
@@ -66,11 +67,12 @@ class ScheduleTemplateUpdate(BaseModel):
     store_id: Optional[str] = None
     doctor_id: Optional[str] = None
     department_id: Optional[str] = None
-    weekday: Optional[int] = Field(None, ge=1, le=7)
+    weekdays: Optional[List[int]] = Field(None, description="星期数组 1-7")
     appointment_type: Optional[AppointmentType] = None
     start_time: Optional[time] = None
     end_time: Optional[time] = None
-    total_slots: Optional[int] = Field(None, ge=1, le=200)
+    slot_count: Optional[int] = Field(None, ge=1, le=50)
+    slot_capacity: Optional[int] = Field(None, ge=1, le=200)
     schedule_mode: Optional[ScheduleMode] = None
     status: Optional[int] = Field(None, ge=0, le=1)
 
@@ -89,11 +91,12 @@ class ScheduleTemplateResponse(BaseModel):
     store_id: Optional[str] = None
     doctor_id: Optional[str] = None
     department_id: Optional[str] = None
-    weekday: Optional[int] = None
+    weekdays: Optional[List[int]] = None
     appointment_type: Optional[str] = "normal"
     start_time: Optional[time] = None
     end_time: Optional[time] = None
-    total_slots: Optional[int] = 10
+    slot_count: Optional[int] = 1
+    slot_capacity: Optional[int] = 10
     schedule_mode: Optional[str] = "weekly"
     status: Optional[int] = 1
     store_name: Optional[str] = None

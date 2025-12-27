@@ -5,12 +5,13 @@ import { useEffect, useState } from 'react';
 import { initApiConfig } from '@/utils/request';
 import { initTracker, getTracker, getToken } from '@hospital/shared';
 import { setBaseURL } from '@hospital/api';
+import { StoreProvider } from '@/components/StoreProvider';
 
 // 设置 API 基础路径（从环境变量读取，支持动态配置）
 const apiBaseUrl = process.env.API_BASE_URL || '/api/v1';
 setBaseURL(apiBaseUrl);
 
-// 初始化 API 请求配置（拦截器）
+// 初始化 API 请求配置（拦截器，包含门店ID自动注入）
 initApiConfig();
 
 // 初始化用户行为追踪器
@@ -77,31 +78,33 @@ const Layout: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background">
-      {/* Main content area */}
-      <div className="flex-1 overflow-y-auto overscroll-contain">
-        <Outlet />
-      </div>
-
-      {/* Tab bar */}
-      {showTabBar && (
-        <div className="flex-shrink-0 border-t border-border bg-card safe-area-inset-bottom">
-          <TabBar 
-            activeKey={location.pathname} 
-            onChange={(key) => history.push(key)}
-            className="!bg-transparent"
-          >
-            {tabs.map((tab) => (
-              <TabBar.Item 
-                key={tab.key} 
-                icon={tab.icon} 
-                title={tab.title}
-              />
-            ))}
-          </TabBar>
+    <StoreProvider>
+      <div className="flex flex-col h-screen bg-background">
+        {/* Main content area */}
+        <div className="flex-1 overflow-y-auto overscroll-contain">
+          <Outlet />
         </div>
-      )}
-    </div>
+
+        {/* Tab bar */}
+        {showTabBar && (
+          <div className="flex-shrink-0 border-t border-border bg-card safe-area-inset-bottom">
+            <TabBar 
+              activeKey={location.pathname} 
+              onChange={(key) => history.push(key)}
+              className="!bg-transparent"
+            >
+              {tabs.map((tab) => (
+                <TabBar.Item 
+                  key={tab.key} 
+                  icon={tab.icon} 
+                  title={tab.title}
+                />
+              ))}
+            </TabBar>
+          </div>
+        )}
+      </div>
+    </StoreProvider>
   );
 };
 

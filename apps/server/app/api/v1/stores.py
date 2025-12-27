@@ -15,6 +15,37 @@ from app.services.store_service import StoreService
 router = APIRouter()
 
 
+# ==================== 公开接口（无需登录） ====================
+
+@router.get("/by-code/{code}", response_model=StoreResponse)
+async def get_store_by_code(
+    code: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """通过编码获取门店（公开接口，无需登录）
+    
+    用于患者端H5/小程序初始化时验证门店
+    """
+    service = StoreService(db)
+    store = await service.get_by_code(code)
+    
+    if not store:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="门店不存在"
+        )
+    
+    if store.status != 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="门店已停业"
+        )
+    
+    return StoreResponse.model_validate(store)
+
+
+# ==================== 需要登录的接口 ====================
+
 @router.get("", response_model=PageResponse[StoreListResponse])
 async def get_stores(
     keyword: Optional[str] = None,

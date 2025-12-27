@@ -79,7 +79,12 @@ export default [
     icon: 'calendar',
     access: 'canSchedule',
     routes: [
-      { path: '/schedule', redirect: '/schedule/list' },
+      { path: '/schedule', redirect: '/schedule/rule' },
+      { path: '/schedule/rule', name: '排班规则设置', component: './schedule/rule' },
+      { path: '/schedule/rule/create', name: '新增排班规则', component: './schedule/rule/form', hideInMenu: true },
+      { path: '/schedule/rule/:id/edit', name: '编辑排班规则', component: './schedule/rule/form', hideInMenu: true },
+      { path: '/schedule/detail', name: '排班详情', component: './schedule/detail' },
+      { path: '/schedule/detail/calendar', name: '排班日历视图', component: './schedule/detail/calendar' },
       { path: '/schedule/list', name: '排班列表', component: './schedule/list' },
       { path: '/schedule/calendar', name: '排班日历', component: './schedule/calendar' },
       { path: '/schedule/gantt', name: '排班甘特图', component: './schedule/gantt' },

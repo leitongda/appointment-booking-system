@@ -1,25 +1,79 @@
 /**
  * API 请求配置 - 患者端 H5
  * 配置 @hospital/api 包的请求和响应拦截器
+ * 
+ * 功能：
+ * 1. 自动添加 Authorization token
+ * 2. 自动添加 store_id 参数（多门店隔离）
+ * 3. 统一错误处理
  */
 import { setRequestInterceptor, setResponseInterceptor } from '@hospital/api';
-import { getToken, handleTokenExpired } from '@hospital/shared';
+import { getToken, handleTokenExpired, STORE_CONTEXT_KEY, type StoreContext } from '@hospital/shared';
 import { history } from 'umi';
 import { Toast } from 'antd-mobile';
 import type { InternalAxiosRequestConfig } from 'axios';
 import type { AxiosResponse } from 'axios';
 
 /**
+ * 获取当前门店ID（从 localStorage）
+ */
+const getStoreId = (): string | null => {
+  try {
+    const stored = localStorage.getItem(STORE_CONTEXT_KEY);
+    if (stored) {
+      const context = JSON.parse(stored) as StoreContext;
+      return context.storeId;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+};
+
+/**
+ * 不需要自动添加 store_id 的接口路径
+ */
+const EXCLUDE_STORE_ID_PATHS = [
+  '/stores/by-code/',  // 门店验证接口本身不需要 store_id
+  '/auth/',            // 认证相关接口
+  '/analytics/',       // 分析接口
+];
+
+/**
+ * 检查是否需要添加 store_id
+ */
+const shouldAddStoreId = (url: string): boolean => {
+  return !EXCLUDE_STORE_ID_PATHS.some(path => url.includes(path));
+};
+
+/**
  * 配置请求拦截器
  * 自动在请求头中添加 Authorization token
+ * 自动在请求参数中添加 store_id（多门店隔离）
  */
 export const setupRequestInterceptor = () => {
   setRequestInterceptor(
     (config: InternalAxiosRequestConfig) => {
+      // 1. 添加 Authorization token
       const token = getToken();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+      
+      // 2. 自动添加 store_id 参数（多门店隔离）
+      const storeId = getStoreId();
+      if (storeId && config.url && shouldAddStoreId(config.url)) {
+        // 对于 GET 请求，添加到 params
+        if (config.method?.toLowerCase() === 'get') {
+          config.params = {
+            ...config.params,
+            store_id: storeId,
+          };
+        }
+        // 对于其他请求（POST/PUT等），如果是需要门店过滤的列表查询，也添加到 params
+        // 注意：创建/更新操作的 store_id 应该在业务代码中显式传递
+      }
+      
       return config;
     },
     (error) => {

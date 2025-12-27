@@ -46,6 +46,14 @@ export interface StoreCreateData {
 }
 
 export const storeApi = {
+  /**
+   * 通过门店编码获取门店信息（公开接口，无需登录）
+   * 用于患者端初始化时验证门店
+   */
+  getByCode: (code: string): Promise<Store> => {
+    return request.get(`/stores/by-code/${code}`);
+  },
+
   getList: (params?: StoreListParams): Promise<PageResult<Store>> => {
     // 转换参数名为后端期望的 snake_case 格式
     const queryParams = params ? {

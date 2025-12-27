@@ -162,22 +162,30 @@ async def get_doctors(
 @router.get("/recommended", response_model=List[DoctorListResponse])
 async def get_recommended_doctors(
     limit: int = Query(6, ge=1, le=20),
+    store_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
-    """获取推荐医生"""
+    """获取推荐医生（公开接口，支持门店过滤）
+    
+    用于患者端首页推荐医生展示
+    """
     service = DoctorService(db)
-    doctors = await service.get_recommended(limit=limit)
+    doctors = await service.get_recommended(limit=limit, store_id=store_id)
     
     return [doctor_to_list_response(d) for d in doctors]
 
 @router.get("/by-department/{department_id}", response_model=List[DoctorListResponse])
 async def get_doctors_by_department(
     department_id: str,
+    store_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
-    """获取科室下的医生"""
+    """获取科室下的医生（公开接口，支持门店过滤）
+    
+    用于患者端查看科室医生列表
+    """
     service = DoctorService(db)
-    doctors = await service.get_by_department(department_id)
+    doctors = await service.get_by_department(department_id, store_id=store_id)
     
     return [doctor_to_list_response(d) for d in doctors]
 

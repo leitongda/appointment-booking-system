@@ -1,7 +1,8 @@
-from sqlalchemy import Column, String, Integer, Time, ForeignKey
+from sqlalchemy import Column, String, Integer, Time, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.db.base import Base, TimestampMixin
 import uuid
+import json
 
 
 class ScheduleTemplate(Base, TimestampMixin):
@@ -13,13 +14,37 @@ class ScheduleTemplate(Base, TimestampMixin):
     store_id = Column(String(36), ForeignKey("stores.id"), nullable=False, comment="门店ID")
     doctor_id = Column(String(36), ForeignKey("doctors.id"), nullable=False, comment="医生ID")
     department_id = Column(String(36), ForeignKey("departments.id"), nullable=False, comment="科室ID")
-    weekday = Column(Integer, nullable=False, comment="星期 1-7")
+    weekdays = Column(Text, nullable=False, comment="星期数组 JSON格式 [1,2,3,4,5]")
     appointment_type = Column(String(20), default="normal", comment="预约类型: urgent/normal/expert/medical_insurance/self_pay")
     start_time = Column(Time, nullable=False, comment="开始时间")
     end_time = Column(Time, nullable=False, comment="结束时间")
-    total_slots = Column(Integer, default=10, comment="班次人数")
+    slot_count = Column(Integer, nullable=False, default=1, comment="班次数量")
+    slot_capacity = Column(Integer, default=10, comment="每班次人数")
     schedule_mode = Column(String(50), default="weekly", comment="排班方式")
     status = Column(Integer, default=1, comment="状态: 0禁用 1启用")
+    
+    @property
+    def weekday_list(self) -> list:
+        """获取星期列表"""
+        if not self.weekdays:
+            return []
+        try:
+            return json.loads(self.weekdays)
+        except (json.JSONDecodeError, TypeError):
+            # 兼容旧数据：如果是单个数字，转换为数组
+            try:
+                weekday_int = int(self.weekdays)
+                return [weekday_int]
+            except (ValueError, TypeError):
+                return []
+    
+    @weekday_list.setter
+    def weekday_list(self, value: list):
+        """设置星期列表"""
+        if isinstance(value, list):
+            self.weekdays = json.dumps(value)
+        else:
+            self.weekdays = json.dumps([])
     
     # 关联关系
     store = relationship("Store", backref="schedule_templates")

@@ -52,17 +52,13 @@ async def get_departments(
 async def get_department_tree(
     status: Optional[int] = 1,
     store_id: Optional[str] = None,
-    db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    db: AsyncSession = Depends(get_db)
 ):
-    """获取科室树"""
+    """获取科室树（公开接口，支持门店过滤）
+    
+    用于患者端显示科室列表
+    """
     service = DepartmentService(db)
-    
-    # 门店过滤
-    store_filter = get_store_filter(current_admin)
-    if store_filter:
-        store_id = store_filter
-    
     return await service.get_tree(status=status, store_id=store_id)
 
 @router.get("/hot", response_model=List[DepartmentResponse])

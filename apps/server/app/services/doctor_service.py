@@ -97,23 +97,44 @@ class DoctorService:
         
         return list(result.scalars().all()), count_result.scalar() or 0
     
-    async def get_recommended(self, limit: int = 6) -> List[Doctor]:
-        result = await self.db.execute(
+    async def get_recommended(self, limit: int = 6, store_id: Optional[str] = None) -> List[Doctor]:
+        """获取推荐医生
+        
+        Args:
+            limit: 返回数量
+            store_id: 门店ID，如提供则只返回该门店的推荐医生
+        """
+        query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
             .where(Doctor.is_recommended == 1, Doctor.status == 1)
-            .order_by(Doctor.sort_order.desc())
-            .limit(limit)
         )
+        
+        if store_id:
+            query = query.where(Doctor.store_id == store_id)
+        
+        query = query.order_by(Doctor.sort_order.desc()).limit(limit)
+        result = await self.db.execute(query)
         return list(result.scalars().all())
     
-    async def get_by_department(self, department_id: str) -> List[Doctor]:
-        result = await self.db.execute(
+    async def get_by_department(self, department_id: str, store_id: Optional[str] = None) -> List[Doctor]:
+        """获取科室下的医生
+        
+        Args:
+            department_id: 科室ID
+            store_id: 门店ID，如提供则只返回该门店的医生
+        """
+        query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
             .where(Doctor.department_id == department_id, Doctor.status == 1)
-            .order_by(Doctor.sort_order.desc())
         )
+        
+        if store_id:
+            query = query.where(Doctor.store_id == store_id)
+        
+        query = query.order_by(Doctor.sort_order.desc())
+        result = await self.db.execute(query)
         return list(result.scalars().all())
     
     async def create(self, data: DoctorCreate) -> Doctor:
