@@ -83,19 +83,37 @@ def rsa_decrypt(encrypted_data: str) -> str:
     
     Returns:
         解密后的明文字符串
+    
+    Raises:
+        ValueError: 当解密失败时抛出，包含详细的错误信息
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     load_rsa_keys()
     
-    # Base64 解码
-    encrypted_bytes = base64.b64decode(encrypted_data)
+    try:
+        # Base64 解码
+        encrypted_bytes = base64.b64decode(encrypted_data, validate=True)
+    except Exception as e:
+        logger.error(f"RSA解密失败: Base64解码错误 - {str(e)}")
+        raise ValueError(f"密码加密数据格式错误: Base64解码失败")
     
-    # RSA 解密
-    decrypted_bytes = _rsa_private_key.decrypt(
-        encrypted_bytes,
-        padding.PKCS1v15()
-    )
+    try:
+        # RSA 解密
+        decrypted_bytes = _rsa_private_key.decrypt(
+            encrypted_bytes,
+            padding.PKCS1v15()
+        )
+    except Exception as e:
+        logger.error(f"RSA解密失败: 解密错误 - {str(e)}, 加密数据长度: {len(encrypted_bytes)}")
+        raise ValueError(f"密码解密失败: 可能是RSA密钥不匹配或数据已损坏")
     
-    return decrypted_bytes.decode('utf-8')
+    try:
+        return decrypted_bytes.decode('utf-8')
+    except Exception as e:
+        logger.error(f"RSA解密失败: UTF-8解码错误 - {str(e)}")
+        raise ValueError(f"密码解密失败: 无法解码为UTF-8字符串")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

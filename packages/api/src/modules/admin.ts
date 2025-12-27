@@ -292,8 +292,15 @@ export const adminApi = {
       console.error('❌ 登录失败:', error);
       
       // 如果是密码解密失败且未重试过，清除公钥缓存后重试
-      if (!retried && error.message?.includes('解密失败')) {
-        console.log('🔄 检测到公钥可能过期，清除缓存并重试...');
+      // 检查多种可能的错误消息格式
+      const errorMessage = error.message || error.detail || '';
+      const isDecryptError = errorMessage.includes('解密失败') || 
+                            errorMessage.includes('密码解密失败') ||
+                            errorMessage.includes('RSA密钥不匹配') ||
+                            errorMessage.includes('Base64解码失败');
+      
+      if (!retried && isDecryptError) {
+        console.log('🔄 检测到公钥可能过期或密钥不匹配，清除缓存并重试...');
         clearPublicKey();
         return adminApi.login(data, true);
       }

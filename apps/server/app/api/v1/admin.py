@@ -448,13 +448,26 @@ async def admin_login(
     service = AdminService(db)
     
     # 解密密码
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
         if data.encrypted:
             password = rsa_decrypt(data.password)
+            logger.debug(f"密码解密成功，用户名: {data.username}")
         else:
             # 兼容未加密的情况（仅用于开发调试）
             password = data.password
+            logger.warning(f"使用未加密密码登录（仅开发环境），用户名: {data.username}")
+    except ValueError as e:
+        # ValueError 包含详细的错误信息
+        error_msg = str(e)
+        logger.error(f"密码解密失败: {error_msg}, 用户名: {data.username}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
     except Exception as e:
+        # 其他未知错误
+        error_msg = f"密码处理失败: {str(e)}"
+        logger.error(f"{error_msg}, 用户名: {data.username}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="密码格式错误，请重新输入")
     
     admin = await service.authenticate(data.username, password)
@@ -726,12 +739,25 @@ async def phone_login(
     service = AdminService(db)
     
     # 解密密码
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
         if data.encrypted:
             password = rsa_decrypt(data.password)
+            logger.debug(f"密码解密成功，手机号: {data.phone}")
         else:
             password = data.password
+            logger.warning(f"使用未加密密码登录（仅开发环境），手机号: {data.phone}")
+    except ValueError as e:
+        # ValueError 包含详细的错误信息
+        error_msg = str(e)
+        logger.error(f"密码解密失败: {error_msg}, 手机号: {data.phone}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
     except Exception as e:
+        # 其他未知错误
+        error_msg = f"密码处理失败: {str(e)}"
+        logger.error(f"{error_msg}, 手机号: {data.phone}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="密码格式错误，请重新输入")
     
     admin = await service.authenticate_by_phone(data.phone, password)
