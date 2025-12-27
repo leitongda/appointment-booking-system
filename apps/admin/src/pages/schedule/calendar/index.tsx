@@ -86,7 +86,7 @@ const ScheduleCalendarPage: React.FC = () => {
         doctorId: selectedDoctor.id,
         startDate,
         endDate,
-        pageSize: 200,
+        pageSize: 100,
       });
       setAppointments(result.data || []);
     } catch (error) {

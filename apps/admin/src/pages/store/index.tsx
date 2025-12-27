@@ -142,7 +142,7 @@ const StorePage: React.FC = () => {
     try {
       // 并行获取所有用户和已绑定的用户
       const [adminsResult, boundAdmins] = await Promise.all([
-        adminApi.getAdmins({ pageSize: 200, status: 1 }),
+        adminApi.getAdmins({ pageSize: 100, status: 1 }),
         storeApi.getAdmins(store.id),
       ]);
       

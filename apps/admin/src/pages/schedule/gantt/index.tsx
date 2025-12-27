@@ -88,7 +88,7 @@ const ScheduleGanttPage: React.FC = () => {
         const data = await doctorApi.getByDepartment(deptId);
         setDoctors(data ?? []);
       } else {
-        const res = await doctorApi.getList({ pageSize: 200 });
+        const res = await doctorApi.getList({ pageSize: 100 });
         setDoctors(res.data ?? []);
       }
     } catch (error) {
