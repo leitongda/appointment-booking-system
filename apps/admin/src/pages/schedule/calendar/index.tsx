@@ -23,10 +23,20 @@ export interface ScheduleSlot {
   status: 'available' | 'booked' | 'full' | 'suspended';
 }
 
+const STORAGE_KEY_VIEW_MODE = 'schedule_calendar_view_mode';
+
+const getInitialViewMode = (): ViewMode => {
+  const cached = localStorage.getItem(STORAGE_KEY_VIEW_MODE);
+  if (cached === 'week' || cached === 'month') {
+    return cached;
+  }
+  return 'month'; // 默认月视图
+};
+
 const ScheduleCalendarPage: React.FC = () => {
   // 状态管理
   const [loading, setLoading] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('week');
+  const [viewMode, setViewMode] = useState<ViewMode>(getInitialViewMode);
   const [currentDate, setCurrentDate] = useState<Dayjs>(dayjs());
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -124,10 +134,16 @@ const ScheduleCalendarPage: React.FC = () => {
     setCreateModalOpen(true);
   };
 
+  // 处理视图模式切换
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem(STORAGE_KEY_VIEW_MODE, mode);
+  };
+
   // 处理切换到周视图
   const handleSwitchToWeek = (date: Dayjs) => {
     setCurrentDate(date);
-    setViewMode('week');
+    handleViewModeChange('week');
     setDrawerOpen(false);
   };
 
@@ -161,7 +177,7 @@ const ScheduleCalendarPage: React.FC = () => {
             <CalendarHeader
               viewMode={viewMode}
               currentDate={currentDate}
-              onViewModeChange={setViewMode}
+              onViewModeChange={handleViewModeChange}
               onDateChange={setCurrentDate}
               onRefresh={refreshData}
             />

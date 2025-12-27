@@ -33,7 +33,7 @@ const DoctorSelector: React.FC<DoctorSelectorProps> = ({ selectedDoctor, onSelec
       const deptList = res.data ?? [];
       setDepartments(deptList);
       // 默认选择第一个科室
-      if (deptList.length > 0 && !selectedDeptId) {
+      if (deptList.length === 1 && !selectedDeptId) {
         setSelectedDeptId(deptList[0].id);
       }
     } catch (error) {
@@ -48,7 +48,7 @@ const DoctorSelector: React.FC<DoctorSelectorProps> = ({ selectedDoctor, onSelec
       const doctorList = data ?? [];
       setDoctors(doctorList);
       // 默认选择第一个医生
-      if (doctorList.length > 0 && !selectedDoctor) {
+      if (doctorList.length === 1 && !selectedDoctor) {
         onSelect(doctorList[0]);
       }
     } catch (error) {

@@ -87,6 +87,20 @@ export const doctorApi = {
   },
 
   /**
+   * 检查医生账号是否已存在
+   */
+  checkUsername: (username: string, excludeId?: string): Promise<{ exists: boolean; suggestions: string[] }> => {
+    return request.post('/doctors/check-username', { username, exclude_id: excludeId });
+  },
+
+  /**
+   * 根据姓名生成医生账号
+   */
+  generateUsername: (name: string): Promise<{ username: string }> => {
+    return request.post('/doctors/generate-username', { name });
+  },
+
+  /**
    * 搜索医生
    */
   search: async (keyword: string, limit?: number): Promise<Doctor[]> => {

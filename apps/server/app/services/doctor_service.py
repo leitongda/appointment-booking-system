@@ -4,6 +4,10 @@ from sqlalchemy.orm import selectinload
 from typing import Optional, List
 from datetime import datetime
 import uuid
+import random
+import string
+
+from pypinyin import lazy_pinyin
 
 from app.models.doctor import Doctor
 from app.models.department import Department
@@ -224,3 +228,45 @@ class DoctorService:
         await self.db.delete(doctor)
         await self.db.commit()
         return True
+    
+    async def check_username_exists(self, username: str, exclude_id: Optional[str] = None) -> bool:
+        """检查用户名是否已存在"""
+        query = select(Doctor).where(Doctor.username == username)
+        if exclude_id:
+            query = query.where(Doctor.id != exclude_id)
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none() is not None
+    
+    def name_to_pinyin(self, name: str) -> str:
+        """将中文姓名转换为拼音"""
+        return ''.join(lazy_pinyin(name))
+    
+    async def generate_username(self, name: str) -> str:
+        """根据姓名生成唯一用户名"""
+        base_username = self.name_to_pinyin(name)
+        username = base_username
+        
+        # 检查是否存在，如果存在则添加随机数字后缀
+        if await self.check_username_exists(username):
+            for _ in range(10):  # 最多尝试10次
+                suffix = '_' + ''.join(random.choices(string.digits, k=3))
+                username = base_username + suffix
+                if not await self.check_username_exists(username):
+                    break
+        
+        return username
+    
+    async def suggest_usernames(self, base_username: str, count: int = 3) -> List[str]:
+        """生成推荐用户名列表"""
+        suggestions = []
+        attempts = 0
+        max_attempts = count * 5
+        
+        while len(suggestions) < count and attempts < max_attempts:
+            suffix = '_' + ''.join(random.choices(string.digits, k=3))
+            candidate = base_username + suffix
+            if not await self.check_username_exists(candidate) and candidate not in suggestions:
+                suggestions.append(candidate)
+            attempts += 1
+        
+        return suggestions

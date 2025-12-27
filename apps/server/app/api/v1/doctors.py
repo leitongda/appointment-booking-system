@@ -284,3 +284,54 @@ async def delete_doctor(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在，请检查后重试")
     
     return {"message": "删除成功"}
+
+
+class CheckUsernameRequest(BaseModel):
+    username: str
+    exclude_id: Optional[str] = None
+
+
+class CheckUsernameResponse(BaseModel):
+    exists: bool
+    suggestions: List[str] = []
+
+
+class GenerateUsernameRequest(BaseModel):
+    name: str
+
+
+class GenerateUsernameResponse(BaseModel):
+    username: str
+
+
+@router.post("/check-username", response_model=CheckUsernameResponse)
+async def check_username(
+    data: CheckUsernameRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """检查医生账号是否已存在，如存在则返回推荐账号"""
+    service = DoctorService(db)
+    exists = await service.check_username_exists(data.username, data.exclude_id)
+    
+    suggestions = []
+    if exists:
+        # 获取基础用户名（去掉可能的数字后缀）
+        base_username = data.username.rstrip('0123456789').rstrip('_')
+        if not base_username:
+            base_username = data.username
+        suggestions = await service.suggest_usernames(base_username)
+    
+    return CheckUsernameResponse(exists=exists, suggestions=suggestions)
+
+
+@router.post("/generate-username", response_model=GenerateUsernameResponse)
+async def generate_username(
+    data: GenerateUsernameRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """根据医生姓名生成唯一账号"""
+    service = DoctorService(db)
+    username = await service.generate_username(data.name)
+    return GenerateUsernameResponse(username=username)

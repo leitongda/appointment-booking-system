@@ -1,11 +1,14 @@
 import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormSwitch, ProFormRadio, FooterToolbar } from '@ant-design/pro-components';
-import { Card, App, Form, Spin, Button, Space } from 'antd';
-import { useEffect, useState } from 'react';
+import { Card, App, Form, Spin, Button, Space, Typography, Input } from 'antd';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { history, useParams, useModel, useAccess } from '@umijs/max';
 import { doctorApi, departmentApi, storeApi } from '@hospital/api';
 import type { Doctor, Department, Store } from '@hospital/shared';
 import ImageUpload from '@/components/ImageUpload';
 import RichTextEditor from '@/components/RichTextEditor';
+import { debounce } from 'lodash-es';
+
+const { Text, Link } = Typography;
 
 const GENDER_OPTIONS = [
   { label: '男', value: 1 },
@@ -28,7 +31,7 @@ const EDUCATION_OPTIONS = [
 
 const DoctorFormPage: React.FC = () => {
   const { message } = App.useApp();
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const access = useAccess();
   const { initialState } = useModel('@@initialState');
   const { currentUser, currentStore } = initialState ?? {};
@@ -38,6 +41,9 @@ const DoctorFormPage: React.FC = () => {
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
+  const [usernameError, setUsernameError] = useState<string>('');
+  const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
+  const formRef = useRef<any>(null);
 
   useEffect(() => {
     loadDepartments();
@@ -68,6 +74,55 @@ const DoctorFormPage: React.FC = () => {
     } catch (error) {
       console.error('加载门店失败', error);
     }
+  };
+
+  // 检查用户名是否重复
+  const checkUsername = useCallback(
+    debounce(async (username: string) => {
+      if (!username) {
+        setUsernameError('');
+        setUsernameSuggestions([]);
+        return;
+      }
+      try {
+        const res = await doctorApi.checkUsername(username, isEdit ? id : undefined);
+        if (res.exists) {
+          setUsernameError('该账号已存在');
+          setUsernameSuggestions(res.suggestions);
+        } else {
+          setUsernameError('');
+          setUsernameSuggestions([]);
+        }
+      } catch (error) {
+        console.error('检查用户名失败', error);
+      }
+    }, 500),
+    [isEdit, id]
+  );
+
+  // 根据姓名自动生成账号
+  const handleNameChange = async (name: string) => {
+    if (!name || isEdit) return;
+    
+    // 只在新增时自动生成
+    const currentUsername = formRef.current?.getFieldValue('username');
+    if (currentUsername) return; // 如果已有账号则不覆盖
+    
+    try {
+      const res = await doctorApi.generateUsername(name);
+      formRef.current?.setFieldValue('username', res.username);
+      setUsernameError('');
+      setUsernameSuggestions([]);
+    } catch (error) {
+      console.error('生成用户名失败', error);
+    }
+  };
+
+  // 点击推荐账号
+  const handleSuggestionClick = (username: string) => {
+    formRef.current?.setFieldValue('username', username);
+    setUsernameError('');
+    setUsernameSuggestions([]);
   };
 
   const loadDoctor = async () => {
@@ -141,10 +196,11 @@ const DoctorFormPage: React.FC = () => {
   return (
     <PageContainer title={isEdit ? '编辑医生' : '新增医生'}>
       <ProForm
+        formRef={formRef}
         onFinish={handleSubmit}
         initialValues={initialValues}
         submitter={{
-          render: (props, dom) => (
+          render: (props) => (
             <FooterToolbar>
               <Space>
                 <Button onClick={() => history.back()}>取消</Button>
@@ -164,6 +220,9 @@ const DoctorFormPage: React.FC = () => {
               label="医生姓名"
               width="md"
               rules={[{ required: true, message: '请输入医生姓名' }]}
+              fieldProps={{
+                onBlur: (e) => handleNameChange(e.target.value),
+              }}
             />
             <ProFormRadio.Group
               name="gender"
@@ -182,14 +241,36 @@ const DoctorFormPage: React.FC = () => {
             />
           </ProForm.Group>
           <ProForm.Group>
-            <ProFormText
+            <Form.Item
               name="username"
               label="医生账号"
-              width="md"
-              placeholder="用于医生端登录"
               rules={[{ required: true, message: '请输入医生账号' }]}
-              fieldProps={{ autoComplete: 'off' }}
-            />
+              validateStatus={usernameError ? 'error' : undefined}
+              help={
+                usernameError ? (
+                  <div>
+                    <Text type="danger">{usernameError}</Text>
+                    {usernameSuggestions.length > 0 && (
+                      <div style={{ marginTop: 4 }}>
+                        <Text type="secondary">推荐账号：</Text>
+                        {usernameSuggestions.map((s, i) => (
+                          <Link key={s} onClick={() => handleSuggestionClick(s)} style={{ marginLeft: i > 0 ? 8 : 4 }}>
+                            {s}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : undefined
+              }
+            >
+              <Input
+                style={{ width: 328 }}
+                placeholder="用于医生端登录，输入姓名后自动生成"
+                autoComplete="off"
+                onChange={(e) => checkUsername(e.target.value)}
+              />
+            </Form.Item>
             {!isEdit && (
               <>
                 <ProFormText.Password
