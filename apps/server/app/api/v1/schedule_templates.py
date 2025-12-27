@@ -28,40 +28,85 @@ async def get_templates(
     db: AsyncSession = Depends(get_db)
 ):
     """获取排班模板列表"""
-    service = ScheduleTemplateService(db)
-    templates, total = await service.get_list(
-        store_id=store_id,
-        doctor_id=doctor_id,
-        department_id=department_id,
-        status=status,
-        page=page,
-        page_size=page_size
-    )
+    import logging
+    logger = logging.getLogger(__name__)
     
-    result = []
-    for t in templates:
-        result.append(ScheduleTemplateResponse(
-            id=t.id,
-            name=t.name,
-            store_id=t.store_id,
-            doctor_id=t.doctor_id,
-            department_id=t.department_id,
-            weekdays=t.weekday_list,
-            appointment_type=t.appointment_type,
-            start_time=t.start_time,
-            end_time=t.end_time,
-            slot_count=t.slot_count,
-            slot_capacity=t.slot_capacity,
-            schedule_mode=t.schedule_mode,
-            status=t.status,
-            store_name=t.store.name if t.store else None,
-            doctor_name=t.doctor.name if t.doctor else None,
-            department_name=t.department.name if t.department else None,
-            created_at=t.created_at,
-            updated_at=t.updated_at
-        ))
-    
-    return PageResponse(data=result, total=total, page=page, page_size=page_size)
+    try:
+        service = ScheduleTemplateService(db)
+        templates, total = await service.get_list(
+            store_id=store_id,
+            doctor_id=doctor_id,
+            department_id=department_id,
+            status=status,
+            page=page,
+            page_size=page_size
+        )
+        
+        result = []
+        for t in templates:
+            try:
+                # 安全地获取 weekday_list
+                weekdays = []
+                try:
+                    weekdays = t.weekday_list if hasattr(t, 'weekday_list') else []
+                except Exception as e:
+                    logger.warning(f"获取模板 {t.id} 的 weekday_list 失败: {str(e)}")
+                    weekdays = []
+                
+                # 安全地获取关联对象名称
+                store_name = None
+                try:
+                    if t.store and hasattr(t.store, 'name'):
+                        store_name = t.store.name
+                except Exception:
+                    pass
+                
+                doctor_name = None
+                try:
+                    if t.doctor and hasattr(t.doctor, 'name'):
+                        doctor_name = t.doctor.name
+                except Exception:
+                    pass
+                
+                department_name = None
+                try:
+                    if t.department and hasattr(t.department, 'name'):
+                        department_name = t.department.name
+                except Exception:
+                    pass
+                
+                result.append(ScheduleTemplateResponse(
+                    id=t.id,
+                    name=t.name,
+                    store_id=t.store_id,
+                    doctor_id=t.doctor_id,
+                    department_id=t.department_id,
+                    weekdays=weekdays,
+                    appointment_type=t.appointment_type,
+                    start_time=t.start_time,
+                    end_time=t.end_time,
+                    slot_count=t.slot_count,
+                    slot_capacity=t.slot_capacity,
+                    schedule_mode=t.schedule_mode,
+                    status=t.status,
+                    store_name=store_name,
+                    doctor_name=doctor_name,
+                    department_name=department_name,
+                    created_at=t.created_at,
+                    updated_at=t.updated_at
+                ))
+            except Exception as e:
+                logger.error(f"处理模板 {t.id if t else 'unknown'} 时出错: {str(e)}", exc_info=True)
+                # 跳过有问题的模板，继续处理其他模板
+                continue
+        
+        return PageResponse(data=result, total=total, page=page, page_size=page_size)
+    except Exception as e:
+        logger.error(f"获取排班模板列表失败: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取排班模板列表失败: {str(e)}"
+        )
 
 
 @router.get("/{template_id}", response_model=ScheduleTemplateResponse)

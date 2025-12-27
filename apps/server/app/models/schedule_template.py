@@ -29,8 +29,12 @@ class ScheduleTemplate(Base, TimestampMixin):
         if not self.weekdays:
             return []
         try:
-            return json.loads(self.weekdays)
-        except (json.JSONDecodeError, TypeError):
+            # 确保 weekdays 是字符串
+            weekdays_str = str(self.weekdays) if not isinstance(self.weekdays, str) else self.weekdays
+            if not weekdays_str.strip():
+                return []
+            return json.loads(weekdays_str)
+        except (json.JSONDecodeError, TypeError, ValueError):
             # 兼容旧数据：如果是单个数字，转换为数组
             try:
                 weekday_int = int(self.weekdays)
