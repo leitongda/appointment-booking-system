@@ -30,7 +30,12 @@ const DoctorSelector: React.FC<DoctorSelectorProps> = ({ selectedDoctor, onSelec
   const loadDepartments = async () => {
     try {
       const res = await departmentApi.getList({ pageSize: 100, status: 1 });
-      setDepartments(res.data ?? []);
+      const deptList = res.data ?? [];
+      setDepartments(deptList);
+      // 默认选择第一个科室
+      if (deptList.length > 0 && !selectedDeptId) {
+        setSelectedDeptId(deptList[0].id);
+      }
     } catch (error) {
       console.error('加载科室失败', error);
     }
@@ -40,7 +45,12 @@ const DoctorSelector: React.FC<DoctorSelectorProps> = ({ selectedDoctor, onSelec
     setLoading(true);
     try {
       const data = await doctorApi.getByDepartment(deptId);
-      setDoctors(data ?? []);
+      const doctorList = data ?? [];
+      setDoctors(doctorList);
+      // 默认选择第一个医生
+      if (doctorList.length > 0 && !selectedDoctor) {
+        onSelect(doctorList[0]);
+      }
     } catch (error) {
       console.error('加载医生失败', error);
     } finally {
@@ -95,6 +105,7 @@ const DoctorSelector: React.FC<DoctorSelectorProps> = ({ selectedDoctor, onSelec
             placeholder="选择科室"
             showSearch
             optionFilterProp="label"
+            value={selectedDeptId}
             onChange={handleDeptChange}
             options={departments.map(d => ({ label: d.name, value: d.id }))}
           />
@@ -105,6 +116,7 @@ const DoctorSelector: React.FC<DoctorSelectorProps> = ({ selectedDoctor, onSelec
               showSearch
               optionFilterProp="label"
               disabled={!selectedDeptId}
+              value={selectedDoctor?.id}
               onChange={handleDoctorChange}
               options={doctors.map(d => ({ 
                 label: `${d.name} - ${d.title || ''}`, 
