@@ -103,7 +103,7 @@ const ScheduleGanttPage: React.FC = () => {
       const params: any = {
         startDate: dateRange[0].format('YYYY-MM-DD'),
         endDate: dateRange[1].format('YYYY-MM-DD'),
-        pageSize: 500,
+        pageSize: 100, // 后端限制最大为 100
       };
       if (selectedStore) params.storeId = selectedStore;
       if (selectedDoctorId) params.doctorId = selectedDoctorId;

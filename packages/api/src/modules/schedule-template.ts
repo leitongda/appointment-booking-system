@@ -1,6 +1,65 @@
 import request from '../request';
 import type { ScheduleTemplate, PageResult } from '@hospital/shared';
 
+/**
+ * 验证并格式化时间值
+ * @param timeValue 时间值（可能是字符串、dayjs对象、Date对象或其他格式）
+ * @returns 格式化后的 "HH:mm" 字符串，如果无效则返回 undefined
+ */
+function formatTimeValue(timeValue: any): string | undefined {
+  if (!timeValue) return undefined;
+  
+  // 如果已经是有效的 "HH:mm" 格式字符串，直接返回
+  if (typeof timeValue === 'string') {
+    // 检查是否是 "Invalid Date" 字符串
+    if (timeValue === 'Invalid Date' || timeValue.toLowerCase().includes('invalid')) {
+      return undefined;
+    }
+    // 检查是否符合 "HH:mm" 格式
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (timeRegex.test(timeValue)) {
+      return timeValue;
+    }
+    // 尝试从其他格式中提取时间（如 "HH:mm:ss"）
+    const timeMatch = timeValue.match(/([01]\d|2[0-3]):([0-5]\d)/);
+    if (timeMatch) {
+      return timeMatch[0];
+    }
+    return undefined;
+  }
+  
+  // 如果是 Date 对象
+  if (timeValue instanceof Date) {
+    if (!isNaN(timeValue.getTime())) {
+      const hours = String(timeValue.getHours()).padStart(2, '0');
+      const minutes = String(timeValue.getMinutes()).padStart(2, '0');
+      return `${hours}:${minutes}`;
+    }
+    return undefined;
+  }
+  
+  // 如果是对象且有 format 方法（可能是 dayjs 对象）
+  if (timeValue && typeof timeValue.format === 'function') {
+    try {
+      // 检查是否有 isValid 方法
+      if (timeValue.isValid && !timeValue.isValid()) {
+        return undefined;
+      }
+      const formatted = timeValue.format('HH:mm');
+      // 验证格式化后的结果
+      const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+      if (timeRegex.test(formatted)) {
+        return formatted;
+      }
+    } catch (e) {
+      // 如果格式化失败，返回 undefined
+      return undefined;
+    }
+  }
+  
+  return undefined;
+}
+
 export interface ScheduleTemplateListParams {
   storeId?: string;
   doctorId?: string;
@@ -87,6 +146,14 @@ export const scheduleTemplateApi = {
    * 创建排班模板
    */
   create: (data: ScheduleTemplateCreateData): Promise<ScheduleTemplate> => {
+    // 验证并格式化时间字段
+    const formattedStartTime = formatTimeValue(data.startTime);
+    const formattedEndTime = formatTimeValue(data.endTime);
+    
+    if (!formattedStartTime || !formattedEndTime) {
+      throw new Error('开始时间和结束时间格式不正确，应为 HH:mm 格式');
+    }
+    
     return request.post('/schedule-templates', {
       name: data.name,
       store_id: data.storeId,
@@ -94,8 +161,8 @@ export const scheduleTemplateApi = {
       department_id: data.departmentId,
       weekdays: data.weekdays,
       appointment_type: data.appointmentType,
-      start_time: data.startTime,
-      end_time: data.endTime,
+      start_time: formattedStartTime,
+      end_time: formattedEndTime,
       slot_count: data.slotCount,
       slot_capacity: data.slotCapacity,
       schedule_mode: data.scheduleMode,
@@ -113,8 +180,22 @@ export const scheduleTemplateApi = {
     if (data.departmentId !== undefined) requestData.department_id = data.departmentId;
     if (data.weekdays !== undefined) requestData.weekdays = data.weekdays;
     if (data.appointmentType !== undefined) requestData.appointment_type = data.appointmentType;
-    if (data.startTime !== undefined) requestData.start_time = data.startTime;
-    if (data.endTime !== undefined) requestData.end_time = data.endTime;
+    
+    // 验证并格式化时间字段
+    if (data.startTime !== undefined) {
+      const formattedStartTime = formatTimeValue(data.startTime);
+      if (formattedStartTime) {
+        requestData.start_time = formattedStartTime;
+      }
+    }
+    
+    if (data.endTime !== undefined) {
+      const formattedEndTime = formatTimeValue(data.endTime);
+      if (formattedEndTime) {
+        requestData.end_time = formattedEndTime;
+      }
+    }
+    
     if (data.slotCount !== undefined) requestData.slot_count = data.slotCount;
     if (data.slotCapacity !== undefined) requestData.slot_capacity = data.slotCapacity;
     if (data.scheduleMode !== undefined) requestData.schedule_mode = data.scheduleMode;

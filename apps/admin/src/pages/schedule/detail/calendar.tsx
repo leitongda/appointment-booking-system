@@ -82,7 +82,7 @@ const ScheduleDetailCalendarPage: React.FC = () => {
       const params: any = {
         startDate,
         endDate,
-        pageSize: 1000,
+        pageSize: 100,
       };
       
       if (selectedStore) {

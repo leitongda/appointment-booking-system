@@ -149,6 +149,9 @@ export function getDateInfo(date: Date = new Date()): {
   };
 }
 
+// 时间格式验证正则：HH:mm
+const TIME_FORMAT_REGEX = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+
 /**
  * 将时间区间均分为多个班次
  * @param startTime 开始时间，格式 "HH:mm"
@@ -161,12 +164,29 @@ export function splitTimeRange(
   endTime: string,
   count: number
 ): Array<[string, string]> {
+  // 验证输入格式
+  if (!startTime || !endTime || !TIME_FORMAT_REGEX.test(startTime) || !TIME_FORMAT_REGEX.test(endTime)) {
+    return [[startTime || '00:00', endTime || '00:00']];
+  }
+
   if (count <= 0) {
     return [[startTime, endTime]];
   }
 
   const [startHour, startMinute] = startTime.split(':').map(Number);
   const [endHour, endMinute] = endTime.split(':').map(Number);
+  
+  // 验证解析后的数值是否有效
+  if (
+    isNaN(startHour) || isNaN(startMinute) || 
+    isNaN(endHour) || isNaN(endMinute) ||
+    startHour < 0 || startHour > 23 ||
+    startMinute < 0 || startMinute > 59 ||
+    endHour < 0 || endHour > 23 ||
+    endMinute < 0 || endMinute > 59
+  ) {
+    return [[startTime, endTime]];
+  }
 
   const startMinutes = startHour * 60 + startMinute;
   const endMinutes = endHour * 60 + endMinute;

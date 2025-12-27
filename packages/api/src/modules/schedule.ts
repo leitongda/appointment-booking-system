@@ -1,6 +1,65 @@
 import request from '../request';
 import type { Schedule, PageResult } from '@hospital/shared';
 
+/**
+ * 验证并格式化时间值
+ * @param timeValue 时间值（可能是字符串、dayjs对象、Date对象或其他格式）
+ * @returns 格式化后的 "HH:mm" 字符串，如果无效则返回 undefined
+ */
+function formatTimeValue(timeValue: any): string | undefined {
+  if (!timeValue) return undefined;
+  
+  // 如果已经是有效的 "HH:mm" 格式字符串，直接返回
+  if (typeof timeValue === 'string') {
+    // 检查是否是 "Invalid Date" 字符串
+    if (timeValue === 'Invalid Date' || timeValue.toLowerCase().includes('invalid')) {
+      return undefined;
+    }
+    // 检查是否符合 "HH:mm" 格式
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (timeRegex.test(timeValue)) {
+      return timeValue;
+    }
+    // 尝试从其他格式中提取时间（如 "HH:mm:ss"）
+    const timeMatch = timeValue.match(/([01]\d|2[0-3]):([0-5]\d)/);
+    if (timeMatch) {
+      return timeMatch[0];
+    }
+    return undefined;
+  }
+  
+  // 如果是 Date 对象
+  if (timeValue instanceof Date) {
+    if (!isNaN(timeValue.getTime())) {
+      const hours = String(timeValue.getHours()).padStart(2, '0');
+      const minutes = String(timeValue.getMinutes()).padStart(2, '0');
+      return `${hours}:${minutes}`;
+    }
+    return undefined;
+  }
+  
+  // 如果是对象且有 format 方法（可能是 dayjs 对象）
+  if (timeValue && typeof timeValue.format === 'function') {
+    try {
+      // 检查是否有 isValid 方法
+      if (timeValue.isValid && !timeValue.isValid()) {
+        return undefined;
+      }
+      const formatted = timeValue.format('HH:mm');
+      // 验证格式化后的结果
+      const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+      if (timeRegex.test(formatted)) {
+        return formatted;
+      }
+    } catch (e) {
+      // 如果格式化失败，返回 undefined
+      return undefined;
+    }
+  }
+  
+  return undefined;
+}
+
 export interface ScheduleListParams {
   doctorId?: string;
   storeId?: string;
@@ -68,6 +127,9 @@ export interface ScheduleStatisticsParams {
 export const scheduleApi = {
   getList: (params?: ScheduleListParams): Promise<PageResult<Schedule>> => {
     // 转换 camelCase 到 snake_case
+    // 确保 pageSize 不超过后端限制（100）
+    const safePageSize = params?.pageSize && params.pageSize > 100 ? 100 : params?.pageSize;
+    
     const queryParams = params ? {
       doctor_id: params.doctorId,
       store_id: params.storeId,
@@ -75,7 +137,7 @@ export const scheduleApi = {
       end_date: params.endDate,
       status: params.status,
       page: params.page,
-      page_size: params.pageSize,
+      page_size: safePageSize,
     } : undefined;
     return request.get('/schedules', { params: queryParams });
   },
@@ -98,8 +160,18 @@ export const scheduleApi = {
     
     // 可选字段
     if (data.timeSlot) requestData.time_slot = data.timeSlot;
-    if (data.startTime) requestData.start_time = data.startTime;
-    if (data.endTime) requestData.end_time = data.endTime;
+    
+    // 验证并格式化时间字段
+    const formattedStartTime = formatTimeValue(data.startTime);
+    if (formattedStartTime) {
+      requestData.start_time = formattedStartTime;
+    }
+    
+    const formattedEndTime = formatTimeValue(data.endTime);
+    if (formattedEndTime) {
+      requestData.end_time = formattedEndTime;
+    }
+    
     if (data.appointmentType) requestData.appointment_type = data.appointmentType;
     if (data.templateId) requestData.template_id = data.templateId;
     if (data.status !== undefined) requestData.status = data.status;
@@ -112,7 +184,34 @@ export const scheduleApi = {
   },
 
   update: (id: string, data: Partial<ScheduleCreateData>): Promise<Schedule> => {
-    return request.put(`/schedules/${id}`, data);
+    // 转换 camelCase 到 snake_case，并验证时间格式
+    const requestData: any = {};
+    
+    if (data.doctorId !== undefined) requestData.doctor_id = data.doctorId;
+    if (data.scheduleDate !== undefined) requestData.schedule_date = data.scheduleDate;
+    if (data.totalSlots !== undefined) requestData.total_slots = data.totalSlots;
+    if (data.timeSlot !== undefined) requestData.time_slot = data.timeSlot;
+    
+    // 验证并格式化时间字段
+    if (data.startTime !== undefined) {
+      const formattedStartTime = formatTimeValue(data.startTime);
+      if (formattedStartTime) {
+        requestData.start_time = formattedStartTime;
+      }
+    }
+    
+    if (data.endTime !== undefined) {
+      const formattedEndTime = formatTimeValue(data.endTime);
+      if (formattedEndTime) {
+        requestData.end_time = formattedEndTime;
+      }
+    }
+    
+    if (data.appointmentType !== undefined) requestData.appointment_type = data.appointmentType;
+    if (data.templateId !== undefined) requestData.template_id = data.templateId;
+    if (data.status !== undefined) requestData.status = data.status;
+    
+    return request.put(`/schedules/${id}`, requestData);
   },
 
   /**

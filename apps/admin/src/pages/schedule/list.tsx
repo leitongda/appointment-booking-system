@@ -7,6 +7,7 @@ import { useAccess, useModel } from '@umijs/max';
 import { scheduleApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Schedule, Doctor, Department } from '@hospital/shared';
+import dayjs from 'dayjs';
 
 const TIME_SLOTS = [
   { label: '上午', value: 'morning' },
@@ -80,7 +81,10 @@ const ScheduleListPage: React.FC = () => {
   const handleSubmit = async (values: any) => {
     try {
       await scheduleApi.create({
-        ...values,
+        doctorId: values.doctorId,
+        scheduleDate: values.scheduleDate ? dayjs(values.scheduleDate).format('YYYY-MM-DD') : values.scheduleDate,
+        timeSlot: values.timeSlot,
+        totalSlots: values.totalSlots,
         status: 1,
       });
       message.success('创建成功');

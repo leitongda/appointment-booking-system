@@ -14,6 +14,25 @@ import {
 import RulePreviewCalendar from '../components/RulePreviewCalendar';
 import dayjs from 'dayjs';
 
+// 格式化时间为 HH:mm 格式
+const formatTime = (time: any): string | undefined => {
+  if (!time) return undefined;
+  if (typeof time === 'string') {
+    // 如果已经是字符串，检查格式是否正确
+    return /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(time) ? time : undefined;
+  }
+  // 如果是 dayjs 对象，直接格式化
+  if (time?.format && typeof time.format === 'function') {
+    return time.format('HH:mm');
+  }
+  // 尝试转换为 dayjs 对象
+  try {
+    return dayjs(time).format('HH:mm');
+  } catch {
+    return undefined;
+  }
+};
+
 const ScheduleRuleFormPage: React.FC = () => {
   const { message } = App.useApp();
   const { id } = useParams<{ id: string }>();
@@ -113,6 +132,23 @@ const ScheduleRuleFormPage: React.FC = () => {
 
   const handleSubmit = async (values: any) => {
     try {
+      // 格式化时间，确保有效性
+      let startTime: string | undefined = undefined;
+      if (values.startTime) {
+        const formatted = dayjs(values.startTime);
+        if (formatted.isValid()) {
+          startTime = formatted.format('HH:mm');
+        }
+      }
+      
+      let endTime: string | undefined = undefined;
+      if (values.endTime) {
+        const formatted = dayjs(values.endTime);
+        if (formatted.isValid()) {
+          endTime = formatted.format('HH:mm');
+        }
+      }
+      
       const data = {
         name: values.name,
         storeId: values.storeId,
@@ -120,8 +156,8 @@ const ScheduleRuleFormPage: React.FC = () => {
         departmentId: values.departmentId,
         weekdays: values.weekdays || [],
         appointmentType: values.appointmentType,
-        startTime: values.startTime ? dayjs(values.startTime).format('HH:mm') : undefined,
-        endTime: values.endTime ? dayjs(values.endTime).format('HH:mm') : undefined,
+        startTime,
+        endTime,
         slotCount: values.slotCount || 1,
         slotCapacity: values.slotCapacity || 10,
         scheduleMode: values.scheduleMode,
@@ -166,8 +202,8 @@ const ScheduleRuleFormPage: React.FC = () => {
               doctorId={formValues.doctorId}
               weekdays={formValues.weekdays || []}
               scheduleMode={formValues.scheduleMode}
-              startTime={formValues.startTime ? dayjs(formValues.startTime).format('HH:mm') : undefined}
-              endTime={formValues.endTime ? dayjs(formValues.endTime).format('HH:mm') : undefined}
+              startTime={formatTime(formValues.startTime)}
+              endTime={formatTime(formValues.endTime)}
               slotCount={formValues.slotCount || 1}
               showExisting={!!formValues.doctorId}
             />

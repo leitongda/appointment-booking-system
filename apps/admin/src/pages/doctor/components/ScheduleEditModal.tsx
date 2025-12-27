@@ -84,16 +84,29 @@ const ScheduleEditModal: React.FC<ScheduleEditModalProps> = ({
       const timeSlot = values.timeSlot;
       const defaultTime = DEFAULT_TIMES[timeSlot] || DEFAULT_TIMES.morning;
       
+      // 格式化时间，确保有效性
+      let startTime = defaultTime.start;
+      if (values.startTime) {
+        const formatted = dayjs(values.startTime);
+        if (formatted.isValid()) {
+          startTime = formatted.format('HH:mm');
+        }
+      }
+      
+      let endTime = defaultTime.end;
+      if (values.endTime) {
+        const formatted = dayjs(values.endTime);
+        if (formatted.isValid()) {
+          endTime = formatted.format('HH:mm');
+        }
+      }
+      
       await scheduleApi.create({
         doctorId,
         scheduleDate: date.format('YYYY-MM-DD'),
         timeSlot: values.timeSlot,
-        startTime: values.startTime 
-          ? dayjs(values.startTime).format('HH:mm') 
-          : defaultTime.start,
-        endTime: values.endTime 
-          ? dayjs(values.endTime).format('HH:mm') 
-          : defaultTime.end,
+        startTime,
+        endTime,
         totalSlots: values.totalSlots,
         status: 1,
       });

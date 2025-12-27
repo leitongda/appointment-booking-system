@@ -11,6 +11,7 @@ import {
   WEEKDAY_OPTIONS,
   getDateInfo,
 } from '@hospital/shared';
+import dayjs from 'dayjs';
 
 const ScheduleTemplateFormPage: React.FC = () => {
   const { message } = App.useApp();
@@ -91,6 +92,8 @@ const ScheduleTemplateFormPage: React.FC = () => {
       // 异步加载完成后，使用 setFieldsValue 更新表单值
       formRef.current?.setFieldsValue({
         ...data,
+        startTime: data.startTime ? dayjs(data.startTime, 'HH:mm') : undefined,
+        endTime: data.endTime ? dayjs(data.endTime, 'HH:mm') : undefined,
       });
     } catch (error: any) {
       message.error('加载排班模板信息失败');
@@ -101,6 +104,23 @@ const ScheduleTemplateFormPage: React.FC = () => {
 
   const handleSubmit = async (values: any) => {
     try {
+      // 格式化时间，确保有效性
+      let startTime: string | undefined = undefined;
+      if (values.startTime) {
+        const formatted = dayjs(values.startTime);
+        if (formatted.isValid()) {
+          startTime = formatted.format('HH:mm');
+        }
+      }
+      
+      let endTime: string | undefined = undefined;
+      if (values.endTime) {
+        const formatted = dayjs(values.endTime);
+        if (formatted.isValid()) {
+          endTime = formatted.format('HH:mm');
+        }
+      }
+      
       const data = {
         name: values.name,
         storeId: values.storeId,
@@ -108,8 +128,8 @@ const ScheduleTemplateFormPage: React.FC = () => {
         departmentId: values.departmentId,
         weekday: values.weekday,
         appointmentType: values.appointmentType,
-        startTime: values.startTime,
-        endTime: values.endTime,
+        startTime,
+        endTime,
         totalSlots: values.totalSlots,
         scheduleMode: values.scheduleMode,
       };

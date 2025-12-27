@@ -6,6 +6,9 @@ import { scheduleApi } from '@hospital/api';
 import type { Schedule } from '@hospital/shared';
 import { generateSchedulePreview, getDateInfo, splitTimeRange, WEEKDAY_MAP } from '@hospital/shared';
 
+// 时间格式验证正则：HH:mm
+const TIME_FORMAT_REGEX = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+
 interface RulePreviewCalendarProps {
   /** 医生ID */
   doctorId?: string;
@@ -76,7 +79,7 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
           doctorId,
           startDate,
           endDate,
-          pageSize: 1000,
+          pageSize: 100,
         });
 
         // 按日期分组
@@ -155,7 +158,7 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
                 {item.type === 'processing' && (
                   <div>
                     <div>将生成排班：</div>
-                    {startTime && endTime && slotCount > 0 && (() => {
+                    {startTime && endTime && slotCount > 0 && TIME_FORMAT_REGEX.test(startTime) && TIME_FORMAT_REGEX.test(endTime) && (() => {
                       const slots = splitTimeRange(startTime, endTime, slotCount);
                       return (
                         <div>
@@ -165,6 +168,9 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
                         </div>
                       );
                     })()}
+                    {(!startTime || !endTime || !TIME_FORMAT_REGEX.test(startTime) || !TIME_FORMAT_REGEX.test(endTime)) && (
+                      <div style={{ color: '#ff4d4f' }}>请设置有效的开始时间和结束时间</div>
+                    )}
                   </div>
                 )}
               </div>
