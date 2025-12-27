@@ -455,15 +455,15 @@ async def admin_login(
             # 兼容未加密的情况（仅用于开发调试）
             password = data.password
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="密码解密失败")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="密码格式错误，请重新输入")
     
     admin = await service.authenticate(data.username, password)
     
     if not admin:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误，请检查后重试")
     
     if admin.status != 1:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
     
     # 更新登录信息
     client_ip = request.client.host if request.client else ""
@@ -502,7 +502,7 @@ async def get_current_admin_info(
     admin = await service.get_by_id(current_admin["id"])
     
     if not admin:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在，请检查后重试")
     
     # 获取管理员权限
     perm_service = PermissionService(db)
@@ -593,7 +593,7 @@ async def update_current_admin_profile(
     admin = await service.update(current_admin["id"], data.model_dump(exclude_unset=True))
     
     if not admin:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在，请检查后重试")
     
     # 重新获取完整信息
     admin = await service.get_by_id(current_admin["id"])
@@ -611,12 +611,12 @@ async def change_current_admin_password(
     admin = await service.get_by_id(current_admin["id"])
     
     if not admin:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在，请检查后重试")
     
     # 验证旧密码
     from app.core.security import verify_password, get_password_hash
     if not verify_password(data.old_password, admin.password_hash):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="原密码错误")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="原密码错误，请重新输入")
     
     # 更新密码
     admin.password_hash = get_password_hash(data.new_password)
@@ -685,7 +685,7 @@ async def switch_current_store(
         if not check_store_access(current_admin, target_store_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权访问该门店"
+                detail="您无权访问此门店"
             )
     
     # 更新当前门店
@@ -693,7 +693,7 @@ async def switch_current_store(
     admin = await service.get_by_id(current_admin["id"])
     
     if not admin:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在，请检查后重试")
     
     admin.current_store_id = target_store_id
     await db.commit()
@@ -732,15 +732,15 @@ async def phone_login(
         else:
             password = data.password
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="密码解密失败")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="密码格式错误，请重新输入")
     
     admin = await service.authenticate_by_phone(data.phone, password)
     
     if not admin:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="手机号或密码错误")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="手机号或密码错误，请检查后重试")
     
     if admin.status != 1:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
     
     # 更新登录信息
     client_ip = request.client.host if request.client else ""
@@ -783,10 +783,10 @@ async def send_sms_code(
     # 检查手机号是否存在
     admin = await service.get_by_phone(data.phone)
     if not admin:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该手机号未注册")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该手机号未注册，请先注册账号")
     
     if admin.status != 1:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
     
     try:
         await SmsService.send_code(data.phone, "login")
@@ -810,15 +810,15 @@ async def sms_login(
     # 验证验证码
     is_valid = await SmsService.verify_code(data.phone, data.code, "login")
     if not is_valid:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码错误或已过期")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码错误或已过期，请重新获取")
     
     # 获取管理员
     admin = await service.get_by_phone(data.phone)
     if not admin:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该手机号未注册")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该手机号未注册，请先注册账号")
     
     if admin.status != 1:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
     
     # 更新登录信息
     client_ip = request.client.host if request.client else ""
@@ -947,13 +947,13 @@ async def confirm_wechat_scan(
     import time
     
     if ticket not in _wechat_scan_tickets:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="票据不存在或已过期")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="票据不存在或已过期，请重新操作")
     
     ticket_data = _wechat_scan_tickets[ticket]
     
     if time.time() > ticket_data["expire_at"]:
         del _wechat_scan_tickets[ticket]
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="票据已过期")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="票据已过期，请重新操作")
     
     # 更新状态为已确认
     ticket_data["status"] = "confirmed"
@@ -1009,7 +1009,7 @@ async def get_role(
     service = RoleService(db)
     role = await service.get_by_id(role_id)
     if not role:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="角色不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="角色不存在，请检查后重试")
     return build_role_response(role)
 
 
@@ -1042,7 +1042,7 @@ async def update_role(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     if not role:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="角色不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="角色不存在，请检查后重试")
     return build_role_response(role)
 
 
@@ -1057,7 +1057,7 @@ async def update_role_permissions(
     service = RoleService(db)
     role = await service.update_permissions(role_id, permissions)
     if not role:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="角色不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="角色不存在，请检查后重试")
     return {"message": "权限更新成功"}
 
 
@@ -1074,7 +1074,7 @@ async def delete_role(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="角色不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="角色不存在，请检查后重试")
     return {"message": "删除成功"}
 
 
@@ -1126,7 +1126,7 @@ async def get_admin(
     service = AdminService(db)
     admin = await service.get_by_id(admin_id)
     if not admin:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在，请检查后重试")
     return build_admin_response(admin)
 
 
@@ -1143,7 +1143,7 @@ async def create_admin(
     store_filter = get_store_filter(current_admin)
     if store_filter:
         if data.store_id and data.store_id != store_filter:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="只能在本门店创建用户")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="只能在本门店创建用户，请选择正确的门店")
         data.store_id = store_filter
     
     service = AdminService(db)
@@ -1172,16 +1172,16 @@ async def update_admin(
     # 检查权限
     admin = await service.get_by_id(admin_id)
     if not admin:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在，请检查后重试")
     
     # 门店管理员只能修改本门店用户
     store_filter = get_store_filter(current_admin)
     if store_filter:
         if not check_store_access(current_admin, admin.store_id):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权修改此用户")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权修改此用户")
         # 不允许修改用户的门店归属
         if data.store_id and data.store_id != store_filter:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权修改用户的门店归属")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权修改用户的门店归属")
     
     try:
         admin = await service.update(admin_id, data.model_dump(exclude_unset=True))
@@ -1204,7 +1204,7 @@ async def reset_admin_password(
     service = AdminService(db)
     success = await service.reset_password(admin_id, new_password)
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在，请检查后重试")
     return {"message": "密码重置成功"}
 
 
@@ -1221,7 +1221,7 @@ async def delete_admin(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在，请检查后重试")
     return {"message": "删除成功"}
 
 
@@ -1334,7 +1334,7 @@ async def delete_permission(
     service = PermissionService(db)
     success = await service.delete(code)
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="权限不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="权限不存在，请检查后重试")
     return {"message": "删除成功"}
 
 
@@ -1408,7 +1408,7 @@ async def kick_online_user(
     # 获取会话信息
     session = await RedisCache.get_admin_session(admin_id)
     if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不在线")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不在线，无法执行此操作")
     
     # 更新登录历史记录
     login_history_id = session.get("login_history_id")

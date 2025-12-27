@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MedicineBoxOutlined } from '@ant-design/icons';
 import { App, Tabs } from 'antd';
-import { setToken, STORAGE_KEYS, setStorage, getStorage, removeStorage, resetTokenExpiredState } from '@hospital/shared';
+import { history, useModel } from '@umijs/max';
+import { setToken, STORAGE_KEYS, setStorage, getStorage, removeStorage, removeToken, resetTokenExpiredState } from '@hospital/shared';
+import { adminApi } from '@hospital/api';
+import defaultSettings from '@config/defaultSettings';
 import { 
   AccountLogin, UserOutlined,
   PhoneLogin, MobileOutlined,
@@ -13,6 +16,7 @@ type LoginType = 'wechat' | 'phone' | 'account';
 
 const Login: React.FC = () => {
   const { message } = App.useApp();
+  const { setInitialState } = useModel('@@initialState');
   
   // 登录方式（从 localStorage 读取，实现刷新后保持选中状态）
   const [loginType, setLoginType] = useState<LoginType>(
@@ -38,12 +42,15 @@ const Login: React.FC = () => {
     
     // 保存门店信息到 localStorage
     // 支持单门店 (result.store) 和多门店 (result.stores) 场景
+    let currentStore: any = null;
     if (result.stores && result.stores.length > 0) {
       // 多门店管理员，默认选择第一个门店
-      localStorage.setItem('currentStore', JSON.stringify(result.stores[0]));
+      currentStore = result.stores[0];
+      localStorage.setItem('currentStore', JSON.stringify(currentStore));
     } else if (result.store) {
       // 兼容旧的单门店返回
-      localStorage.setItem('currentStore', JSON.stringify(result.store));
+      currentStore = result.store;
+      localStorage.setItem('currentStore', JSON.stringify(currentStore));
     } else {
       // 超级管理员没有门店
       localStorage.removeItem('currentStore');
@@ -51,16 +58,46 @@ const Login: React.FC = () => {
     
     message.success('登录成功！');
     
+    // 登录接口已经返回了用户信息，直接使用，无需再次请求
+    const currentUser = result.admin;
+    const userStores = result.stores || (result.store ? [result.store] : []);
+    
+    // 创建 fetchUserInfo 函数（用于后续刷新用户信息）
+    const fetchUserInfo = async () => {
+      try {
+        const user = await adminApi.getCurrentAdmin();
+        return user as any;
+      } catch (error) {
+        removeToken();
+        history.push('/login');
+        return undefined;
+      }
+    };
+    
+    // 更新初始状态，避免整页刷新
+    // 使用函数式更新，保留原有字段（如 settings），并设置新的用户信息
+    setInitialState((s: any) => ({
+      ...s,
+      fetchUserInfo,
+      currentUser: currentUser as any,
+      currentStore: currentStore || undefined,
+      userStores: userStores,
+      isAggregateMode: !currentStore && currentUser?.canViewAllStores,
+      settings: s?.settings || defaultSettings as any,
+    }));
+    
     // 获取上次访问的页面路径
     const lastPath = getStorage<string>(STORAGE_KEYS.LAST_PATH);
     // 清除存储的路径（只使用一次）
     removeStorage(STORAGE_KEYS.LAST_PATH);
     
-    // 使用 window.location.href 而不是 history.push
-    // 这样会触发页面刷新，重新执行 getInitialState，确保权限正确加载
+    // 使用 history.push 进行路由跳转，不会触发整页刷新
+    // 使用 setTimeout 确保状态更新完成后再跳转
     const targetPath = lastPath && lastPath !== '/' ? lastPath : '/dashboard';
-    window.location.href = targetPath;
-  }, [message]);
+    setTimeout(() => {
+      history.push(targetPath);
+    }, 0);
+  }, [message, setInitialState]);
 
   const tabItems = [
     {

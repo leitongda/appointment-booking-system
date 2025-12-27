@@ -20,10 +20,10 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     user = await user_service.authenticate(data.phone, data.password)
     
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="手机号或密码错误")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="手机号或密码错误，请检查后重试")
     
     if user.status != 1:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
     
     access_token = create_access_token(data={"sub": user.id})
     refresh_token = create_refresh_token(data={"sub": user.id})
@@ -42,7 +42,7 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
     # 检查手机号是否已注册
     existing = await user_service.get_by_phone(data.phone)
     if existing:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="手机号已注册")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="手机号已注册，请直接登录")
     
     from app.schemas.user import UserCreate
     user = await user_service.create(UserCreate(phone=data.phone, password=data.password))
@@ -62,14 +62,14 @@ async def refresh_token(data: RefreshTokenRequest, db: AsyncSession = Depends(ge
     payload = decode_token(data.refresh_token)
     
     if not payload or payload.get("type") != "refresh":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的刷新Token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="身份验证失败，请重新登录")
     
     user_id = payload.get("sub")
     user_service = UserService(db)
     user = await user_service.get_by_id(user_id)
     
     if not user or user.status != 1:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户不存在或已禁用")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号不存在或已被禁用，请检查后重试")
     
     access_token = create_access_token(data={"sub": user.id})
     new_refresh_token = create_refresh_token(data={"sub": user.id})
@@ -91,10 +91,10 @@ async def change_password(
     user = await user_service.get_by_id(current_user["id"])
     
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在，请检查后重试")
     
     if not verify_password(data.old_password, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="原密码错误")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="原密码错误，请重新输入")
     
     user.password_hash = get_password_hash(data.new_password)
     await db.commit()
@@ -120,7 +120,7 @@ async def wechat_login(data: WechatLoginRequest, db: AsyncSession = Depends(get_
         openid = session_info.get("openid")
         
         if not openid:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="获取 openid 失败")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="微信授权失败，请重试")
         
         # 查找用户
         user = await user_service.get_by_openid(openid)
@@ -165,7 +165,7 @@ async def wechat_get_phone(data: WechatPhoneRequest, db: AsyncSession = Depends(
         phone = await wechat_service.get_phone_number(data.code)
         
         if not phone:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="获取手机号失败")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="获取手机号失败，请重试")
         
         # 查找或创建用户
         user = await user_service.get_by_phone(phone)
@@ -207,7 +207,7 @@ async def wechat_bind_phone(data: WechatBindPhoneRequest, db: AsyncSession = Dep
     # 验证手机号格式
     import re
     if not re.match(r'^1\d{10}$', data.phone):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="手机号格式不正确")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="手机号格式不正确，请检查后重试")
     
     # 查找或创建用户
     user = await user_service.get_by_phone(data.phone)
@@ -215,7 +215,7 @@ async def wechat_bind_phone(data: WechatBindPhoneRequest, db: AsyncSession = Dep
     if user:
         # 更新 openid
         if user.openid and user.openid != data.openid:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该手机号已绑定其他微信")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该手机号已绑定其他微信账号")
         user.openid = data.openid
         await db.commit()
     else:
