@@ -16,7 +16,7 @@ from app.models.consultation_fee import ConsultationFeeType, ConsultationFeeTemp
 from app.models.doctor_booking_setting import DoctorBookingSetting
 from app.models.point_log import PointLog
 from app.models.schedule_template import ScheduleTemplate
-from app.models.custom_schedule import CustomSchedule
+# CustomSchedule已合并到Schedule，不再需要单独导入
 from app.models.rest_day import RestDay
 from app.models.schedule_suspension import ScheduleSuspension
 from app.models.blacklist import Blacklist
