@@ -104,33 +104,38 @@ const ScheduleTemplateFormPage: React.FC = () => {
 
   const handleSubmit = async (values: any) => {
     try {
-      // 格式化时间，确保有效性
-      let startTime: string | undefined = undefined;
-      if (values.startTime) {
-        const formatted = dayjs(values.startTime);
-        if (formatted.isValid()) {
-          startTime = formatted.format('HH:mm');
-        }
+      // 验证必填字段
+      if (!values.startTime || !values.endTime) {
+        message.error('请填写开始时间和结束时间');
+        return;
       }
       
-      let endTime: string | undefined = undefined;
-      if (values.endTime) {
-        const formatted = dayjs(values.endTime);
-        if (formatted.isValid()) {
-          endTime = formatted.format('HH:mm');
-        }
+      // 格式化时间，确保有效性
+      const startTimeFormatted = dayjs(values.startTime);
+      const endTimeFormatted = dayjs(values.endTime);
+      
+      if (!startTimeFormatted.isValid() || !endTimeFormatted.isValid()) {
+        message.error('开始时间和结束时间格式不正确');
+        return;
       }
+      
+      const startTime = startTimeFormatted.format('HH:mm');
+      const endTime = endTimeFormatted.format('HH:mm');
+      
+      // 将 weekday（单数）转换为 weekdays（复数数组）
+      const weekdays = values.weekday ? [values.weekday] : [];
       
       const data = {
         name: values.name,
         storeId: values.storeId,
         doctorId: values.doctorId,
         departmentId: values.departmentId,
-        weekday: values.weekday,
+        weekdays, // 使用 weekdays 数组
         appointmentType: values.appointmentType,
         startTime,
         endTime,
-        totalSlots: values.totalSlots,
+        slotCount: 1, // 默认班次数量为 1
+        slotCapacity: values.totalSlots || 10, // totalSlots 对应后端的 slotCapacity
         scheduleMode: values.scheduleMode,
       };
 

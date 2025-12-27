@@ -255,5 +255,18 @@ async def generate_schedules(
     return {"message": f"成功创建 {created_count} 条排班", "count": created_count}
 
 
-# batch-add API 已移除，请使用 /schedules/batch API
-# 该API支持模板生成和手动创建两种模式
+@router.post("/batch-add")
+async def batch_add_schedules(
+    data: ScheduleBatchAddRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """批量添加排班（不依赖模板）"""
+    service = ScheduleTemplateService(db)
+    
+    try:
+        created_count = await service.batch_add_schedules(data)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    
+    return {"message": f"成功创建 {created_count} 条排班", "count": created_count}
