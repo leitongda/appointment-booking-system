@@ -113,6 +113,22 @@ export const setupResponseInterceptor = () => {
           return Promise.reject(error);
         }
         
+        // 密码解密错误（400状态码 + 解密失败消息）- 登录接口会自动重试，不显示错误
+        if (code === 400 && errorMessage && (
+          errorMessage.includes('解密失败') ||
+          errorMessage.includes('密码解密失败') ||
+          errorMessage.includes('RSA密钥不匹配') ||
+          errorMessage.includes('Base64解码失败') ||
+          errorMessage.includes('无法解码为UTF-8字符串')
+        )) {
+          // 如果是登录接口，静默处理，让登录函数自动重试
+          const requestUrl = error.url || '';
+          if (requestUrl.includes('/admin/login') || requestUrl.includes('/admin/phone-login')) {
+            // 不显示错误消息，直接返回错误让登录函数处理重试
+            return Promise.reject(error);
+          }
+        }
+        
         // 其他业务错误，显示后端返回的消息
         if (errorMessage) {
           message.error(errorMessage);
@@ -126,6 +142,8 @@ export const setupResponseInterceptor = () => {
       if (response) {
         const { status, data } = response;
         const errorMsg = data?.detail || data?.message || ERROR_MESSAGES[status] || '请求失败';
+        // 获取请求 URL（可能是相对路径或完整路径）
+        const requestUrl = error?.config?.url || error?.request?.responseURL || '';
         
         // 401 未授权
         if (status === 401) {
@@ -133,12 +151,27 @@ export const setupResponseInterceptor = () => {
             message.error(errorMsg);
             history.push('/login');
           });
-          return Promise.reject(new ApiError(status, errorMsg, data));
+          return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
+        }
+        
+        // 密码解密错误（400状态码 + 解密失败消息）- 登录接口会自动重试，不显示错误
+        if (status === 400 && errorMsg && (
+          errorMsg.includes('解密失败') ||
+          errorMsg.includes('密码解密失败') ||
+          errorMsg.includes('RSA密钥不匹配') ||
+          errorMsg.includes('Base64解码失败') ||
+          errorMsg.includes('无法解码为UTF-8字符串')
+        )) {
+          // 如果是登录接口，静默处理，让登录函数自动重试
+          if (requestUrl.includes('/admin/login') || requestUrl.includes('/admin/phone-login')) {
+            // 不显示错误消息，直接返回错误让登录函数处理重试
+            return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
+          }
         }
         
         // 显示错误消息
         message.error(errorMsg);
-        return Promise.reject(new ApiError(status, errorMsg, data));
+        return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
       }
       
       // 网络错误或其他错误

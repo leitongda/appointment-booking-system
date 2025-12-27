@@ -10,12 +10,15 @@ export class ApiError extends Error {
   code: number;
   /** 原始响应数据 */
   data: any;
+  /** 请求 URL（用于判断是否是登录接口等） */
+  url?: string;
   
-  constructor(code: number, message: string, data?: any) {
+  constructor(code: number, message: string, data?: any, url?: string) {
     super(message);
     this.name = 'ApiError';
     this.code = code;
     this.data = data;
+    this.url = url;
   }
   
   /** 是否是未授权错误 (401) */
@@ -95,7 +98,8 @@ instance.interceptors.response.use(
     
     // 业务错误 - 抛出 ApiError 以便各端进行精细化处理
     if (data.code && data.code !== 200) {
-      return Promise.reject(new ApiError(data.code, data.message || '请求失败', data.data));
+      const requestUrl = response.config?.url || '';
+      return Promise.reject(new ApiError(data.code, data.message || '请求失败', data.data, requestUrl));
     }
     
     // 分页响应：包含 total 字段，返回 ProTable 直接可用的格式
@@ -124,10 +128,12 @@ instance.interceptors.response.use(
     const responseData = error.response?.data;
     const status = error.response?.status;
     const message = responseData?.detail || responseData?.data?.detail || responseData?.message || error.message || '网络错误';
+    // 保存请求 URL，用于后续判断是否是登录接口等
+    const requestUrl = error.config?.url || error.request?.responseURL || '';
     
     // 如果有 HTTP 状态码，使用 ApiError 以便统一处理
     if (status) {
-      return Promise.reject(new ApiError(status, message, responseData?.data));
+      return Promise.reject(new ApiError(status, message, responseData?.data, requestUrl));
     }
     
     return Promise.reject(new Error(message));

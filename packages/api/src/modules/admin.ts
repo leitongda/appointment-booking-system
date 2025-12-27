@@ -297,7 +297,9 @@ export const adminApi = {
       const isDecryptError = errorMessage.includes('解密失败') || 
                             errorMessage.includes('密码解密失败') ||
                             errorMessage.includes('RSA密钥不匹配') ||
-                            errorMessage.includes('Base64解码失败');
+                            errorMessage.includes('Base64解码失败') ||
+                            errorMessage.includes('无法解码为UTF-8字符串') ||
+                            errorMessage.includes('密码加密数据格式错误');
       
       if (!retried && isDecryptError) {
         console.log('🔄 检测到公钥可能过期或密钥不匹配，清除缓存并重试...');
@@ -356,7 +358,17 @@ export const adminApi = {
       return result;
     } catch (error: any) {
       // 如果是密码解密失败且未重试过，清除公钥缓存后重试
-      if (!retried && error.message?.includes('解密失败')) {
+      // 检查多种可能的错误消息格式
+      const errorMessage = error.message || error.detail || '';
+      const isDecryptError = errorMessage.includes('解密失败') || 
+                            errorMessage.includes('密码解密失败') ||
+                            errorMessage.includes('RSA密钥不匹配') ||
+                            errorMessage.includes('Base64解码失败') ||
+                            errorMessage.includes('无法解码为UTF-8字符串') ||
+                            errorMessage.includes('密码加密数据格式错误');
+      
+      if (!retried && isDecryptError) {
+        console.log('🔄 检测到公钥可能过期或密钥不匹配，清除缓存并重试...');
         clearPublicKey();
         return adminApi.phoneLogin(data, true);
       }
