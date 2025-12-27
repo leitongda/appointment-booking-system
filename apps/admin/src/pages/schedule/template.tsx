@@ -102,17 +102,43 @@ const ScheduleTemplatePage: React.FC = () => {
   };
 
   const handleBatchAddSubmit = async (values: any) => {
-    const { dateRange, ...rest } = values;
+    const { dateRange, startTime, endTime, totalSlots, slotCount, ...rest } = values;
     if (!dateRange || dateRange.length !== 2) {
       message.error('请选择日期范围');
       return false;
     }
 
+    // 验证时间字段
+    if (!startTime || !endTime) {
+      message.error('请填写开始时间和结束时间');
+      return false;
+    }
+
     try {
+      // 格式化日期和时间
+      const startDate = typeof dateRange[0] === 'string' 
+        ? dateRange[0] 
+        : dateRange[0].format('YYYY-MM-DD');
+      const endDate = typeof dateRange[1] === 'string' 
+        ? dateRange[1] 
+        : dateRange[1].format('YYYY-MM-DD');
+      
+      // 格式化时间（ProFormTimePicker 返回的是 dayjs 对象）
+      const formattedStartTime = typeof startTime === 'string' 
+        ? startTime 
+        : startTime.format('HH:mm');
+      const formattedEndTime = typeof endTime === 'string' 
+        ? endTime 
+        : endTime.format('HH:mm');
+
       const result = await scheduleTemplateApi.batchAdd({
         ...rest,
-        startDate: dateRange[0],
-        endDate: dateRange[1],
+        startTime: formattedStartTime,
+        endTime: formattedEndTime,
+        slotCapacity: totalSlots || 10, // totalSlots 对应后端的 slotCapacity
+        slotCount: slotCount || 1, // 默认班次数量为 1
+        startDate,
+        endDate,
       });
       message.success(result.message);
       setBatchAddModalOpen(false);

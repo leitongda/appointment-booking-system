@@ -163,7 +163,29 @@ async def database_exception_handler(request: Request, exc: SQLAlchemyError):
     
     # 处理唯一约束冲突
     if isinstance(exc, IntegrityError):
-        return create_error_response(400, "数据已存在或违反约束条件，请检查后重试")
+        error_str = str(exc.orig) if hasattr(exc, 'orig') else str(exc)
+        
+        # 尝试提取更详细的错误信息
+        error_message = "数据已存在或违反约束条件，请检查后重试"
+        
+        # 检查是否是外键约束错误
+        if "foreign key" in error_str.lower() or "violates foreign key constraint" in error_str.lower():
+            if "store_id" in error_str:
+                error_message = "门店不存在，请检查门店ID"
+            elif "doctor_id" in error_str:
+                error_message = "医生不存在，请检查医生ID"
+            elif "department_id" in error_str:
+                error_message = "科室不存在，请检查科室ID"
+            else:
+                error_message = "关联数据不存在，请检查后重试"
+        # 检查是否是唯一约束错误
+        elif "unique constraint" in error_str.lower() or "duplicate key" in error_str.lower():
+            error_message = "数据已存在，请勿重复创建"
+        # 检查是否是 NOT NULL 约束错误
+        elif "not null" in error_str.lower() or "null value" in error_str.lower():
+            error_message = "必填字段不能为空，请检查后重试"
+        
+        return create_error_response(400, error_message)
     
     return create_error_response(500, "操作失败，请稍后重试", status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

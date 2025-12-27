@@ -1,7 +1,7 @@
 """merge custom_schedules into schedules
 
 Revision ID: 021_merge_custom_schedules
-Revises: 020_update_schedule_template_fields
+Revises: 020_schedule_template_fields
 Create Date: 2025-01-15 10:00:00.000000
 
 """
@@ -12,7 +12,7 @@ from sqlalchemy import inspect, text
 
 # revision identifiers, used by Alembic.
 revision = '021_merge_custom_schedules'
-down_revision = '020_update_schedule_template_fields'
+down_revision = '020_schedule_template_fields'
 branch_labels = None
 depends_on = None
 
@@ -59,8 +59,8 @@ def upgrade() -> None:
             NULL as template_id,  -- 自定义排班没有模板ID
             cs.schedule_date,
             CASE 
-                WHEN HOUR(cs.start_time) < 12 THEN 'morning'
-                WHEN HOUR(cs.start_time) < 18 THEN 'afternoon'
+                WHEN EXTRACT(HOUR FROM cs.start_time) < 12 THEN 'morning'
+                WHEN EXTRACT(HOUR FROM cs.start_time) < 18 THEN 'afternoon'
                 ELSE 'evening'
             END as time_slot,
             cs.start_time,

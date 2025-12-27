@@ -12,7 +12,7 @@ import json
 
 
 # revision identifiers, used by Alembic.
-revision = '020_update_schedule_template_fields'
+revision = '020_schedule_template_fields'
 down_revision = '019_add_store_fee_templates'
 branch_labels = None
 depends_on = None
@@ -42,35 +42,29 @@ def upgrade() -> None:
         op.add_column('schedule_templates', sa.Column('slot_capacity', sa.Integer, nullable=True, server_default='10', comment='每班次人数'))
     
     # 4. 迁移旧数据：将 weekday 转换为 weekdays JSON数组
-    bind = op.get_bind()
-    conn = bind.connect()
+    connection = op.get_bind()
     try:
         # 检查是否有 weekday 字段
         if column_exists('schedule_templates', 'weekday'):
             # 将 weekday 转换为 weekdays JSON数组
-            result = conn.execute(sa.text("SELECT id, weekday FROM schedule_templates WHERE weekdays IS NULL OR weekdays = ''"))
+            result = connection.execute(sa.text("SELECT id, weekday FROM schedule_templates WHERE weekdays IS NULL OR weekdays = ''"))
             rows = result.fetchall()
             for row in rows:
                 template_id, weekday = row
                 if weekday:
                     weekdays_json = json.dumps([weekday])
-                    conn.execute(sa.text("UPDATE schedule_templates SET weekdays = :weekdays WHERE id = :id"), 
+                    connection.execute(sa.text("UPDATE schedule_templates SET weekdays = :weekdays WHERE id = :id"), 
                                {"weekdays": weekdays_json, "id": template_id})
         
         # 迁移 total_slots 到 slot_capacity
         if column_exists('schedule_templates', 'total_slots'):
-            conn.execute(sa.text("UPDATE schedule_templates SET slot_capacity = total_slots WHERE slot_capacity IS NULL"))
+            connection.execute(sa.text("UPDATE schedule_templates SET slot_capacity = total_slots WHERE slot_capacity IS NULL"))
         
         # 设置默认值
-        conn.execute(sa.text("UPDATE schedule_templates SET slot_count = 1 WHERE slot_count IS NULL"))
-        conn.execute(sa.text("UPDATE schedule_templates SET slot_capacity = 10 WHERE slot_capacity IS NULL"))
-        
-        conn.commit()
+        connection.execute(sa.text("UPDATE schedule_templates SET slot_count = 1 WHERE slot_count IS NULL"))
+        connection.execute(sa.text("UPDATE schedule_templates SET slot_capacity = 10 WHERE slot_capacity IS NULL"))
     except Exception as e:
-        conn.rollback()
         print(f"数据迁移错误: {e}")
-    finally:
-        conn.close()
     
     # 5. 设置字段为 NOT NULL（在数据迁移后）
     try:

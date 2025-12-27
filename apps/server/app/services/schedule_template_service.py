@@ -79,6 +79,75 @@ class ScheduleTemplateService:
     
     async def create(self, data: ScheduleTemplateCreate) -> ScheduleTemplate:
         """创建排班模板"""
+        from app.models.store import Store
+        from app.models.doctor import Doctor
+        from app.models.department import Department
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        # 验证必填字段
+        if not data.name or not data.name.strip():
+            raise ValueError("模板名称不能为空")
+        if not data.store_id:
+            raise ValueError("门店ID不能为空")
+        if not data.doctor_id:
+            raise ValueError("医生ID不能为空")
+        if not data.department_id:
+            raise ValueError("科室ID不能为空")
+        if not data.weekdays or len(data.weekdays) == 0:
+            raise ValueError("星期数组不能为空")
+        if not data.start_time:
+            raise ValueError("开始时间不能为空")
+        if not data.end_time:
+            raise ValueError("结束时间不能为空")
+        
+        # 验证门店是否存在
+        store_result = await self.db.execute(
+            select(Store).where(Store.id == data.store_id)
+        )
+        if not store_result.scalar_one_or_none():
+            raise ValueError("门店不存在")
+        
+        # 验证医生是否存在
+        doctor_result = await self.db.execute(
+            select(Doctor).where(Doctor.id == data.doctor_id)
+        )
+        if not doctor_result.scalar_one_or_none():
+            raise ValueError("医生不存在")
+        
+        # 验证科室是否存在
+        department_result = await self.db.execute(
+            select(Department).where(Department.id == data.department_id)
+        )
+        if not department_result.scalar_one_or_none():
+            raise ValueError("科室不存在")
+        
+        # 确保时间对象正确
+        start_time = data.start_time
+        end_time = data.end_time
+        
+        # 如果是字符串，尝试解析
+        if isinstance(start_time, str):
+            try:
+                from datetime import datetime
+                start_time = datetime.strptime(start_time, "%H:%M").time()
+            except ValueError:
+                try:
+                    start_time = datetime.strptime(start_time, "%H:%M:%S").time()
+                except ValueError:
+                    raise ValueError(f"开始时间格式错误: {start_time}")
+        
+        if isinstance(end_time, str):
+            try:
+                from datetime import datetime
+                end_time = datetime.strptime(end_time, "%H:%M").time()
+            except ValueError:
+                try:
+                    end_time = datetime.strptime(end_time, "%H:%M:%S").time()
+                except ValueError:
+                    raise ValueError(f"结束时间格式错误: {end_time}")
+        
         template = ScheduleTemplate(
             id=str(uuid.uuid4()),
             name=data.name,
@@ -86,12 +155,12 @@ class ScheduleTemplateService:
             doctor_id=data.doctor_id,
             department_id=data.department_id,
             weekdays=json.dumps(data.weekdays),
-            appointment_type=data.appointment_type.value,
-            start_time=data.start_time,
-            end_time=data.end_time,
-            slot_count=data.slot_count,
-            slot_capacity=data.slot_capacity,
-            schedule_mode=data.schedule_mode.value,
+            appointment_type=data.appointment_type.value if hasattr(data.appointment_type, 'value') else str(data.appointment_type),
+            start_time=start_time,
+            end_time=end_time,
+            slot_count=data.slot_count or 1,
+            slot_capacity=data.slot_capacity or 10,
+            schedule_mode=data.schedule_mode.value if hasattr(data.schedule_mode, 'value') else str(data.schedule_mode),
             status=1
         )
         self.db.add(template)

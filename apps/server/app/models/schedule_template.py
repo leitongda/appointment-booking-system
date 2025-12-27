@@ -19,7 +19,7 @@ class ScheduleTemplate(Base, TimestampMixin):
     start_time = Column(Time, nullable=False, comment="开始时间")
     end_time = Column(Time, nullable=False, comment="结束时间")
     slot_count = Column(Integer, nullable=False, default=1, comment="班次数量")
-    slot_capacity = Column(Integer, default=10, comment="每班次人数")
+    slot_capacity = Column(Integer, nullable=False, default=10, comment="每班次人数")
     schedule_mode = Column(String(50), default="weekly", comment="排班方式")
     status = Column(Integer, default=1, comment="状态: 0禁用 1启用")
     

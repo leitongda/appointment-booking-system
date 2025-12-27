@@ -147,12 +147,26 @@ async def create_template(
     current_admin = Depends(get_current_admin)
 ):
     """创建排班模板"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # 记录接收到的数据（用于调试）
+    logger.info(f"创建排班模板，数据: name={data.name}, store_id={data.store_id}, "
+                f"doctor_id={data.doctor_id}, department_id={data.department_id}, "
+                f"start_time={data.start_time} (type: {type(data.start_time)}), "
+                f"end_time={data.end_time} (type: {type(data.end_time)}), "
+                f"slot_count={data.slot_count}, slot_capacity={data.slot_capacity}")
+    
     service = ScheduleTemplateService(db)
     
     try:
         template = await service.create(data)
     except ValueError as e:
+        logger.error(f"创建排班模板失败: {str(e)}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(f"创建排班模板时发生未知错误: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"创建失败: {str(e)}")
     
     # 重新加载关联数据
     template = await service.get_by_id(template.id)

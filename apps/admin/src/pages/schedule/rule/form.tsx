@@ -35,7 +35,7 @@ const formatTime = (time: any): string | undefined => {
 
 const ScheduleRuleFormPage: React.FC = () => {
   const { message } = App.useApp();
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const access = useAccess();
   const { initialState } = useModel('@@initialState');
   const { currentUser } = initialState ?? {};
@@ -117,7 +117,7 @@ const ScheduleRuleFormPage: React.FC = () => {
         ...data,
         weekdays: data.weekdays || [],
         slotCount: data.slotCount || 1,
-        slotCapacity: data.slotCapacity || data.totalSlots || 10, // 兼容旧数据
+        slotCapacity: data.slotCapacity || 10,
         startTime: data.startTime ? dayjs(data.startTime, 'HH:mm') : undefined,
         endTime: data.endTime ? dayjs(data.endTime, 'HH:mm') : undefined,
       };
@@ -131,22 +131,15 @@ const ScheduleRuleFormPage: React.FC = () => {
   };
 
   const handleSubmit = async (values: any) => {
+    console.log("🚀 ~ handleSubmit ~ values:", values)
     try {
-      // 格式化时间，确保有效性
-      let startTime: string | undefined = undefined;
-      if (values.startTime) {
-        const formatted = dayjs(values.startTime);
-        if (formatted.isValid()) {
-          startTime = formatted.format('HH:mm');
-        }
-      }
+      // 使用 formatTime 函数格式化时间，支持字符串和 dayjs 对象
+      const startTime = formatTime(values.startTime);
+      const endTime = formatTime(values.endTime);
       
-      let endTime: string | undefined = undefined;
-      if (values.endTime) {
-        const formatted = dayjs(values.endTime);
-        if (formatted.isValid()) {
-          endTime = formatted.format('HH:mm');
-        }
+      if (!startTime || !endTime) {
+        message.error('请填写有效的开始时间和结束时间');
+        return;
       }
       
       const data = {
