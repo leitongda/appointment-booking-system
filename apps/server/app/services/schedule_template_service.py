@@ -14,100 +14,13 @@ from app.schemas.schedule_template import (
     ScheduleGenerateRequest,
     ScheduleBatchAddRequest,
 )
-
-
-def get_month_week(d: date) -> int:
-    """获取日期在月内的周数
-    1-7号为第1周，8-14号为第2周，15-21号为第3周，22-28号为第4周，29号-月底为第5周
-    """
-    return (d.day - 1) // 7 + 1
-
-
-def get_year_week(d: date) -> int:
-    """获取日期在年内的周数"""
-    return d.isocalendar()[1]
-
-
-def should_generate_schedule(d: date, schedule_mode: str) -> bool:
-    """判断指定日期是否应该生成排班"""
-    month_week = get_month_week(d)
-    year_week = get_year_week(d)
-    
-    if schedule_mode == "weekly":
-        return True
-    elif schedule_mode == "month_week_1":
-        return month_week == 1
-    elif schedule_mode == "month_week_2":
-        return month_week == 2
-    elif schedule_mode == "month_week_3":
-        return month_week == 3
-    elif schedule_mode == "month_week_4":
-        return month_week == 4
-    elif schedule_mode == "month_week_5":
-        return month_week == 5
-    elif schedule_mode == "year_odd_week":
-        return year_week % 2 == 1
-    elif schedule_mode == "year_even_week":
-        return year_week % 2 == 0
-    return False
-
-
-def get_time_slot_from_time(start_time) -> str:
-    """根据开始时间判断时段"""
-    hour = start_time.hour
-    if hour < 12:
-        return "morning"
-    elif hour < 18:
-        return "afternoon"
-    else:
-        return "evening"
-
-
-def split_time_range(start: time, end: time, count: int) -> List[Tuple[time, time]]:
-    """将时间区间均分为多个班次
-    
-    Args:
-        start: 开始时间
-        end: 结束时间
-        count: 班次数量
-    
-    Returns:
-        班次时间列表，如 [(09:00, 11:00), (11:00, 13:00), ...]
-    """
-    if count <= 0:
-        return [(start, end)]
-    
-    # 计算总分钟数
-    start_minutes = start.hour * 60 + start.minute
-    end_minutes = end.hour * 60 + end.minute
-    total_minutes = end_minutes - start_minutes
-    
-    if total_minutes <= 0:
-        return [(start, end)]
-    
-    # 每个班次的分钟数
-    slot_minutes = total_minutes // count
-    
-    slots = []
-    current_start = start
-    
-    for i in range(count):
-        # 计算当前班次的结束时间
-        current_start_minutes = current_start.hour * 60 + current_start.minute
-        current_end_minutes = current_start_minutes + slot_minutes
-        
-        # 最后一个班次使用结束时间，确保覆盖完整区间
-        if i == count - 1:
-            current_end = end
-        else:
-            current_end_hour = current_end_minutes // 60
-            current_end_minute = current_end_minutes % 60
-            current_end = time(current_end_hour, current_end_minute)
-        
-        slots.append((current_start, current_end))
-        current_start = current_end
-    
-    return slots
+from app.utils.schedule_utils import (
+    get_month_week,
+    get_year_week,
+    should_generate_schedule,
+    get_time_slot_from_time,
+    split_time_range,
+)
 
 
 class ScheduleTemplateService:
@@ -223,66 +136,31 @@ class ScheduleTemplateService:
     
     async def generate_schedules(self, data: ScheduleGenerateRequest) -> int:
         """根据模板批量生成排班"""
+        from app.services.schedule_service import ScheduleService
+        
+        schedule_service = ScheduleService(self.db)
         created_count = 0
         
         for template_id in data.template_ids:
-            template = await self.get_by_id(template_id)
-            if not template or template.status != 1:
-                continue
-            
-            # 获取星期列表
-            weekdays = template.weekday_list
-            
-            # 均分时间生成多个班次
-            time_slots = split_time_range(template.start_time, template.end_time, template.slot_count)
-            
-            current_date = data.start_date
-            while current_date <= data.end_date:
-                weekday = current_date.isoweekday()  # 1-7 代表周一到周日
-                
-                # 检查星期是否匹配（支持多选）
-                if weekday in weekdays:
-                    # 检查排班方式是否匹配
-                    if should_generate_schedule(current_date, template.schedule_mode):
-                        # 为每个班次生成排班记录
-                        for slot_start, slot_end in time_slots:
-                            time_slot = get_time_slot_from_time(slot_start)
-                            # 检查是否已存在
-                            existing = await self.db.execute(
-                                select(Schedule).where(
-                                    and_(
-                                        Schedule.doctor_id == template.doctor_id,
-                                        Schedule.schedule_date == current_date,
-                                        Schedule.start_time == slot_start,
-                                        Schedule.end_time == slot_end
-                                    )
-                                )
-                            )
-                            if not existing.scalar_one_or_none():
-                                schedule = Schedule(
-                                    id=str(uuid.uuid4()),
-                                    doctor_id=template.doctor_id,
-                                    store_id=template.store_id,
-                                    template_id=template.id,
-                                    schedule_date=current_date,
-                                    time_slot=time_slot,
-                                    start_time=slot_start,
-                                    end_time=slot_end,
-                                    total_slots=template.slot_capacity,
-                                    appointment_type=template.appointment_type,
-                                    booked_slots=0,
-                                    status=1
-                                )
-                                self.db.add(schedule)
-                                created_count += 1
-                
-                current_date += timedelta(days=1)
+            # 使用内部方法，不自动commit
+            count = await schedule_service._generate_from_template_internal(
+                template_id=template_id,
+                start_date=data.start_date,
+                end_date=data.end_date,
+                check_rest_day=True,
+                auto_commit=False
+            )
+            created_count += count
         
+        # 统一提交
         await self.db.commit()
         return created_count
     
     async def batch_add_schedules(self, data: ScheduleBatchAddRequest) -> int:
-        """批量添加排班（不依赖模板）"""
+        """
+        批量添加排班（不依赖模板）
+        @deprecated 此方法已废弃，请使用 ScheduleService 的相关方法
+        """
         created_count = 0
         
         # 均分时间生成多个班次

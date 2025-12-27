@@ -6,7 +6,7 @@ export interface Schedule {
   storeId?: string;
   storeName?: string;
   scheduleDate: string;
-  timeSlot: string;
+  timeSlot?: string;  // 可为空，可通过startTime自动计算
   startTime?: string;
   endTime?: string;
   totalSlots: number;

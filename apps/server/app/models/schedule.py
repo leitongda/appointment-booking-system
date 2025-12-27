@@ -11,7 +11,7 @@ class Schedule(Base, TimestampMixin):
     store_id = Column(String(36), ForeignKey("stores.id"), nullable=True, comment="门店ID")
     template_id = Column(String(36), ForeignKey("schedule_templates.id"), nullable=True, comment="来源模板ID")
     schedule_date = Column(Date, nullable=False)
-    time_slot = Column(String(10), nullable=False)  # AM/PM
+    time_slot = Column(String(10), nullable=True, comment="时段: AM/PM/morning/afternoon/evening，可为空（自定义排班可通过start_time计算）")
     start_time = Column(Time)
     end_time = Column(Time)
     total_slots = Column(Integer, default=10)  # 总号源

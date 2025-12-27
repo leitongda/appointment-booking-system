@@ -133,7 +133,7 @@ async def delete_schedule_suspension(
     success = await service.delete(suspension_id)
     
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="停诊记录不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="停诊记录不存在，请检查后重试")
     
     return {"message": "删除成功"}
 
@@ -149,6 +149,6 @@ async def cancel_schedule_suspension(
     suspension = await service.cancel(suspension_id)
     
     if not suspension:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="停诊记录不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="停诊记录不存在，请检查后重试")
     
     return {"message": "取消成功"}

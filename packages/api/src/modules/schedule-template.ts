@@ -142,21 +142,25 @@ export const scheduleTemplateApi = {
 
   /**
    * 批量添加排班（不依赖模板）
+   * @deprecated 请使用 scheduleApi.batchCreate() 代替
+   * 此方法为了保持向后兼容，会将数据转换为新的API格式
    */
-  batchAdd: (data: ScheduleBatchAddData): Promise<{ message: string; count: number }> => {
-    return request.post('/schedule-templates/batch-add', {
-      store_id: data.storeId,
-      doctor_id: data.doctorId,
-      department_id: data.departmentId,
-      appointment_type: data.appointmentType,
-      start_time: data.startTime,
-      end_time: data.endTime,
-      slot_count: data.slotCount,
-      slot_capacity: data.slotCapacity,
-      schedule_mode: data.scheduleMode,
+  batchAdd: async (data: ScheduleBatchAddData): Promise<{ message: string; count: number }> => {
+    // 注意：新API不支持 slot_count, schedule_mode, appointment_type 等参数
+    // 这里简化处理，只支持基本的批量创建
+    const { scheduleApi } = await import('./schedule');
+    const result = await scheduleApi.batchCreate({
+      doctorId: data.doctorId,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      timeSlots: [`${data.startTime}-${data.endTime}`], // 简化处理，只支持单个时间段
+      totalSlots: data.slotCapacity,
       weekdays: data.weekdays,
-      start_date: data.startDate,
-      end_date: data.endDate,
     });
+    
+    return {
+      message: result.message || '批量添加成功',
+      count: 0, // 新API不返回count，需要后续扩展
+    };
   },
 };

@@ -79,7 +79,7 @@ async def create_rest_day(
     if data.start_date > data.end_date:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="开始日期不能大于结束日期"
+            detail="开始日期不能大于结束日期，请检查后重试"
         )
     
     rest_day = await service.create(data)
@@ -118,7 +118,7 @@ async def delete_rest_day(
     success = await service.delete(rest_day_id)
     
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="休息日记录不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="休息日记录不存在，请检查后重试")
     
     return {"message": "删除成功"}
 
@@ -134,6 +134,6 @@ async def cancel_rest_day(
     rest_day = await service.cancel(rest_day_id)
     
     if not rest_day:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="休息日记录不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="休息日记录不存在，请检查后重试")
     
     return {"message": "取消成功"}

@@ -13,7 +13,6 @@ from app.schemas.response import PageResponse
 from app.services.schedule_service import ScheduleService
 from app.services.notification_service import NotificationService
 from app.models.schedule import Schedule
-from app.models.custom_schedule import CustomSchedule
 from app.models.doctor import Doctor
 from app.models.store import Store
 
@@ -53,6 +52,7 @@ async def get_schedules(
         result.append(ScheduleResponse(
             id=s.id,
             doctor_id=s.doctor_id,
+            store_id=s.store_id,
             doctor_name=s.doctor.name if s.doctor else None,
             department_name=s.doctor.department.name if s.doctor and s.doctor.department else None,
             schedule_date=s.schedule_date,
@@ -61,6 +61,8 @@ async def get_schedules(
             end_time=s.end_time,
             total_slots=s.total_slots,
             booked_slots=s.booked_slots,
+            appointment_type=s.appointment_type,
+            template_id=s.template_id,
             status=s.status,
             created_at=s.created_at
         ))
@@ -102,17 +104,17 @@ async def get_schedule_statistics(
     if store_filter:
         store_id = store_filter
     elif not store_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="必须指定门店ID")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请选择门店")
     
     # 检查门店访问权限
     if not check_store_access(current_admin, store_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权访问此门店数据")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权访问此门店数据")
     
     # 获取门店信息
     store_result = await db.execute(select(Store).where(Store.id == store_id))
     store = store_result.scalar_one_or_none()
     if not store:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="门店不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="门店不存在，请检查后重试")
     
     # 计算月份的开始和结束日期
     start_date = date(year, month, 1)
@@ -159,21 +161,22 @@ async def get_schedule_statistics(
             stats_dict[key]["afternoon_slots"] += s.total_slots
             stats_dict[key]["afternoon_booked"] += s.booked_slots
     
-    # 2. 获取自定义排班统计
+    # 2. 获取自定义排班统计（template_id为NULL的排班）
     custom_result = await db.execute(
-        select(CustomSchedule)
+        select(Schedule)
         .where(
             and_(
-                CustomSchedule.store_id == store_id,
-                CustomSchedule.schedule_date >= start_date,
-                CustomSchedule.schedule_date <= end_date,
-                CustomSchedule.status == 1
+                Schedule.store_id == store_id,
+                Schedule.schedule_date >= start_date,
+                Schedule.schedule_date <= end_date,
+                Schedule.status == 1,
+                Schedule.template_id.is_(None)  # 自定义排班
             )
         )
     )
-    custom_schedules = custom_result.scalars().all()
+    custom_schedule_list = custom_result.scalars().all()
     
-    for s in custom_schedules:
+    for s in custom_schedule_list:
         key = (s.schedule_date, s.doctor_id)
         if key not in stats_dict:
             stats_dict[key] = {
@@ -184,12 +187,12 @@ async def get_schedule_statistics(
             }
         
         # 根据时间判断上午/下午
-        if s.start_time.hour < 12:
-            stats_dict[key]["morning_slots"] += s.max_patients
-            stats_dict[key]["morning_booked"] += s.booked_count
-        else:
-            stats_dict[key]["afternoon_slots"] += s.max_patients
-            stats_dict[key]["afternoon_booked"] += s.booked_count
+        if s.start_time and s.start_time.hour < 12:
+            stats_dict[key]["morning_slots"] += s.total_slots
+            stats_dict[key]["morning_booked"] += s.booked_slots
+        elif s.start_time:
+            stats_dict[key]["afternoon_slots"] += s.total_slots
+            stats_dict[key]["afternoon_booked"] += s.booked_slots
     
     # 构建结果
     items = []
@@ -239,11 +242,12 @@ async def get_schedule(schedule_id: str, db: AsyncSession = Depends(get_db)):
     schedule = await service.get_by_id(schedule_id)
     
     if not schedule:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班不存在，请检查后重试")
     
     return ScheduleResponse(
         id=schedule.id,
         doctor_id=schedule.doctor_id,
+        store_id=schedule.store_id,
         doctor_name=schedule.doctor.name if schedule.doctor else None,
         department_name=schedule.doctor.department.name if schedule.doctor and schedule.doctor.department else None,
         schedule_date=schedule.schedule_date,
@@ -252,6 +256,8 @@ async def get_schedule(schedule_id: str, db: AsyncSession = Depends(get_db)):
         end_time=schedule.end_time,
         total_slots=schedule.total_slots,
         booked_slots=schedule.booked_slots,
+        appointment_type=schedule.appointment_type,
+        template_id=schedule.template_id,
         status=schedule.status,
         created_at=schedule.created_at
     )
@@ -269,12 +275,15 @@ async def create_schedule(data: ScheduleCreate, db: AsyncSession = Depends(get_d
     return ScheduleResponse(
         id=schedule.id,
         doctor_id=schedule.doctor_id,
+        store_id=schedule.store_id,
         schedule_date=schedule.schedule_date,
         time_slot=schedule.time_slot,
         start_time=schedule.start_time,
         end_time=schedule.end_time,
         total_slots=schedule.total_slots,
         booked_slots=schedule.booked_slots,
+        appointment_type=schedule.appointment_type,
+        template_id=schedule.template_id,
         status=schedule.status,
         created_at=schedule.created_at
     )
@@ -301,62 +310,23 @@ async def update_schedule(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     
     if not schedule:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班不存在，请检查后重试")
     
     return ScheduleResponse(
         id=schedule.id,
         doctor_id=schedule.doctor_id,
+        store_id=schedule.store_id,
         schedule_date=schedule.schedule_date,
         time_slot=schedule.time_slot,
         start_time=schedule.start_time,
         end_time=schedule.end_time,
         total_slots=schedule.total_slots,
         booked_slots=schedule.booked_slots,
+        appointment_type=schedule.appointment_type,
+        template_id=schedule.template_id,
         status=schedule.status,
         created_at=schedule.created_at
     )
 
-@router.put("/{schedule_id}/suspend")
-async def suspend_schedule(
-    schedule_id: str,
-    data: SuspendRequest = None,
-    db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
-):
-    """停诊并通知患者"""
-    service = ScheduleService(db)
-    notification_service = NotificationService(db)
-    
-    # 先执行停诊
-    schedule = await service.suspend(schedule_id)
-    
-    if not schedule:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班不存在")
-    
-    result = {"message": "停诊成功"}
-    
-    # 通知患者
-    if data and data.notify_patients:
-        notify_result = await notification_service.notify_suspend(
-            schedule_id=schedule_id,
-            reason=data.reason
-        )
-        result["notification"] = notify_result
-    
-    return result
-
-
-@router.put("/{schedule_id}/resume")
-async def resume_schedule(
-    schedule_id: str,
-    db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
-):
-    """恢复排班"""
-    service = ScheduleService(db)
-    schedule = await service.resume(schedule_id)
-    
-    if not schedule:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班不存在")
-    
-    return {"message": "恢复成功"}
+# 停诊功能已统一到 /schedule-suspensions API
+# 请使用 ScheduleSuspensionService 进行停诊管理

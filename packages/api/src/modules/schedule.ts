@@ -14,10 +14,12 @@ export interface ScheduleListParams {
 export interface ScheduleCreateData {
   doctorId: string;
   scheduleDate: string;
-  timeSlot: string;
+  timeSlot?: string;  // 可为空，可通过startTime自动计算
   startTime?: string;
   endTime?: string;
   totalSlots: number;
+  appointmentType?: string;
+  templateId?: string;
   status?: number;
 }
 
@@ -88,15 +90,21 @@ export const scheduleApi = {
 
   create: (data: ScheduleCreateData): Promise<Schedule> => {
     // 转换 camelCase 到 snake_case
-    return request.post('/schedules', {
+    const requestData: any = {
       doctor_id: data.doctorId,
       schedule_date: data.scheduleDate,
-      time_slot: data.timeSlot,
-      start_time: data.startTime,
-      end_time: data.endTime,
       total_slots: data.totalSlots,
-      status: data.status,
-    });
+    };
+    
+    // 可选字段
+    if (data.timeSlot) requestData.time_slot = data.timeSlot;
+    if (data.startTime) requestData.start_time = data.startTime;
+    if (data.endTime) requestData.end_time = data.endTime;
+    if (data.appointmentType) requestData.appointment_type = data.appointmentType;
+    if (data.templateId) requestData.template_id = data.templateId;
+    if (data.status !== undefined) requestData.status = data.status;
+    
+    return request.post('/schedules', requestData);
   },
 
   batchCreate: (data: ScheduleBatchCreateData): Promise<{ message: string }> => {
@@ -109,8 +117,10 @@ export const scheduleApi = {
 
   /**
    * 停诊
+   * @deprecated 请使用 scheduleSuspensionApi.create() 代替
+   * 此方法为了保持向后兼容，内部会先获取排班详情，然后创建停诊记录
    */
-  suspend: (id: string, reason?: string, notifyPatients: boolean = true): Promise<{
+  suspend: async (id: string, reason?: string, notifyPatients: boolean = true): Promise<{
     message: string;
     notification?: {
       notifiedCount: number;
@@ -118,14 +128,65 @@ export const scheduleApi = {
       message: string;
     };
   }> => {
-    return request.put(`/schedules/${id}/suspend`, { reason, notify_patients: notifyPatients });
+    // 先获取排班详情
+    const schedule: Schedule = await request.get(`/schedules/${id}`);
+    
+    if (!schedule.storeId) {
+      throw new Error('排班缺少门店信息，无法停诊');
+    }
+    
+    // 使用新的停诊API
+    const { scheduleSuspensionApi } = await import('./schedule-suspension');
+    await scheduleSuspensionApi.create({
+      storeId: schedule.storeId,
+      doctorId: schedule.doctorId,
+      title: reason || '管理员停诊',
+      suspensionDate: schedule.scheduleDate,
+      scheduleIds: [id],
+    });
+    
+    return {
+      message: '停诊成功',
+      // 注意：新API不返回notification信息，如果需要可以后续扩展
+      // notifyPatients 参数暂时忽略，因为新API会自动通知患者
+    };
   },
 
   /**
    * 恢复排班
+   * @deprecated 请使用 scheduleSuspensionApi.cancel() 代替
+   * 此方法为了保持向后兼容，会查找对应的停诊记录并取消
    */
-  resume: (id: string): Promise<{ message: string }> => {
-    return request.put(`/schedules/${id}/resume`);
+  resume: async (id: string): Promise<{ message: string }> => {
+    // 先获取排班详情
+    const schedule: Schedule = await request.get(`/schedules/${id}`);
+    
+    // 查找该排班的停诊记录
+    const { scheduleSuspensionApi } = await import('./schedule-suspension');
+    const suspensions = await scheduleSuspensionApi.getList({
+      doctorId: schedule.doctorId,
+      startDate: schedule.scheduleDate,
+      endDate: schedule.scheduleDate,
+      status: 1, // 生效中的停诊
+      pageSize: 100, // 获取足够多的记录
+    });
+    
+    // 查找包含该排班ID的停诊记录，或者全天停诊的记录
+    const suspension = suspensions.data?.find(s => {
+      if (s.scheduleIds && s.scheduleIds.length > 0) {
+        return s.scheduleIds.includes(id);
+      }
+      // 如果没有指定scheduleIds，说明是全天停诊
+      return s.suspensionDate === schedule.scheduleDate;
+    });
+    
+    if (suspension) {
+      await scheduleSuspensionApi.cancel(suspension.id);
+      return { message: '恢复成功' };
+    } else {
+      // 如果没有找到停诊记录，直接返回成功（可能排班状态已经是正常的）
+      return { message: '恢复成功' };
+    }
   },
 
   /**

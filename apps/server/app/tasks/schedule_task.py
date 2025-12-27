@@ -14,53 +14,13 @@ from app.models.schedule_template import ScheduleTemplate
 from app.models.schedule import Schedule
 from app.models.rest_day import RestDay
 from app.core.config import settings
+from app.utils.schedule_utils import (
+    should_generate_schedule,
+    get_time_slot_from_time,
+    split_time_range,
+)
 
 logger = logging.getLogger(__name__)
-
-
-def get_month_week(d: date) -> int:
-    """获取日期在月内的周数"""
-    return (d.day - 1) // 7 + 1
-
-
-def get_year_week(d: date) -> int:
-    """获取日期在年内的周数"""
-    return d.isocalendar()[1]
-
-
-def should_generate_schedule(d: date, schedule_mode: str) -> bool:
-    """判断指定日期是否应该生成排班"""
-    month_week = get_month_week(d)
-    year_week = get_year_week(d)
-    
-    if schedule_mode == "weekly":
-        return True
-    elif schedule_mode == "month_week_1":
-        return month_week == 1
-    elif schedule_mode == "month_week_2":
-        return month_week == 2
-    elif schedule_mode == "month_week_3":
-        return month_week == 3
-    elif schedule_mode == "month_week_4":
-        return month_week == 4
-    elif schedule_mode == "month_week_5":
-        return month_week == 5
-    elif schedule_mode == "year_odd_week":
-        return year_week % 2 == 1
-    elif schedule_mode == "year_even_week":
-        return year_week % 2 == 0
-    return False
-
-
-def get_time_slot_from_time(start_time) -> str:
-    """根据开始时间判断时段"""
-    hour = start_time.hour
-    if hour < 12:
-        return "morning"
-    elif hour < 18:
-        return "afternoon"
-    else:
-        return "evening"
 
 
 def is_rest_day(db: Session, check_date: date, store_id: str = None) -> bool:
@@ -122,13 +82,22 @@ def auto_generate_schedules_task():
             logger.info(f"找到 {len(templates)} 个启用的排班模板")
             
             for template in templates:
+                # 获取星期列表（支持多星期）
+                weekdays = template.weekday_list
+                if not weekdays:
+                    logger.warning(f"模板 {template.id} 没有配置星期，跳过")
+                    continue
+                
+                # 均分时间生成多个班次
+                time_slots = split_time_range(template.start_time, template.end_time, template.slot_count)
+                
                 current_date = today
                 
                 while current_date <= end_date:
                     weekday = current_date.isoweekday()  # 1-7 代表周一到周日
                     
-                    # 检查星期是否匹配
-                    if weekday == template.weekday:
+                    # 检查星期是否匹配（支持多选）
+                    if weekday in weekdays:
                         # 检查排班方式是否匹配
                         if should_generate_schedule(current_date, template.schedule_mode):
                             # 检查是否为休息日
@@ -138,50 +107,52 @@ def auto_generate_schedules_task():
                                 current_date += timedelta(days=1)
                                 continue
                             
-                            # 检查是否已存在相同排班
-                            existing = db.execute(
-                                select(Schedule).where(
-                                    and_(
-                                        Schedule.doctor_id == template.doctor_id,
-                                        Schedule.schedule_date == current_date,
-                                        Schedule.start_time == template.start_time,
-                                        Schedule.end_time == template.end_time
+                            # 为每个班次生成排班记录
+                            for slot_start, slot_end in time_slots:
+                                # 检查是否已存在相同排班
+                                existing = db.execute(
+                                    select(Schedule).where(
+                                        and_(
+                                            Schedule.doctor_id == template.doctor_id,
+                                            Schedule.schedule_date == current_date,
+                                            Schedule.start_time == slot_start,
+                                            Schedule.end_time == slot_end
+                                        )
                                     )
+                                ).scalar_one_or_none()
+                                
+                                if existing:
+                                    logger.debug(
+                                        f"排班已存在: doctor={template.doctor_id}, "
+                                        f"date={current_date}, time={slot_start}-{slot_end}"
+                                    )
+                                    skipped_count += 1
+                                    continue
+                                
+                                # 创建新排班
+                                time_slot = get_time_slot_from_time(slot_start)
+                                schedule = Schedule(
+                                    id=str(uuid.uuid4()),
+                                    doctor_id=template.doctor_id,
+                                    store_id=template.store_id,
+                                    template_id=template.id,
+                                    schedule_date=current_date,
+                                    time_slot=time_slot,
+                                    start_time=slot_start,
+                                    end_time=slot_end,
+                                    total_slots=template.slot_capacity,
+                                    appointment_type=template.appointment_type,
+                                    booked_slots=0,
+                                    status=1
                                 )
-                            ).scalar_one_or_none()
-                            
-                            if existing:
+                                db.add(schedule)
+                                created_count += 1
+                                
                                 logger.debug(
-                                    f"排班已存在: doctor={template.doctor_id}, "
-                                    f"date={current_date}"
+                                    f"创建排班: doctor={template.doctor_id}, "
+                                    f"date={current_date}, slot={time_slot}, "
+                                    f"time={slot_start}-{slot_end}"
                                 )
-                                skipped_count += 1
-                                current_date += timedelta(days=1)
-                                continue
-                            
-                            # 创建新排班
-                            time_slot = get_time_slot_from_time(template.start_time)
-                            schedule = Schedule(
-                                id=str(uuid.uuid4()),
-                                doctor_id=template.doctor_id,
-                                store_id=template.store_id,
-                                template_id=template.id,
-                                schedule_date=current_date,
-                                time_slot=time_slot,
-                                start_time=template.start_time,
-                                end_time=template.end_time,
-                                total_slots=template.total_slots,
-                                appointment_type=template.appointment_type,
-                                booked_slots=0,
-                                status=1
-                            )
-                            db.add(schedule)
-                            created_count += 1
-                            
-                            logger.debug(
-                                f"创建排班: doctor={template.doctor_id}, "
-                                f"date={current_date}, slot={time_slot}"
-                            )
                     
                     current_date += timedelta(days=1)
             
@@ -225,45 +196,56 @@ def generate_schedules_for_template(
             if not template or template.status != 1:
                 return {"created_count": 0, "reason": "模板不存在或未启用"}
             
+            # 获取星期列表（支持多星期）
+            weekdays = template.weekday_list
+            if not weekdays:
+                return {"created_count": 0, "reason": "模板没有配置星期"}
+            
+            # 均分时间生成多个班次
+            time_slots = split_time_range(template.start_time, template.end_time, template.slot_count)
+            
             current_date = start
             while current_date <= end:
                 weekday = current_date.isoweekday()
                 
-                if weekday == template.weekday:
+                # 检查星期是否匹配（支持多选）
+                if weekday in weekdays:
                     if should_generate_schedule(current_date, template.schedule_mode):
                         if is_rest_day(db, current_date, template.store_id):
                             current_date += timedelta(days=1)
                             continue
                         
-                        existing = db.execute(
-                            select(Schedule).where(
-                                and_(
-                                    Schedule.doctor_id == template.doctor_id,
-                                    Schedule.schedule_date == current_date,
-                                    Schedule.start_time == template.start_time,
-                                    Schedule.end_time == template.end_time
+                        # 为每个班次生成排班记录
+                        for slot_start, slot_end in time_slots:
+                            existing = db.execute(
+                                select(Schedule).where(
+                                    and_(
+                                        Schedule.doctor_id == template.doctor_id,
+                                        Schedule.schedule_date == current_date,
+                                        Schedule.start_time == slot_start,
+                                        Schedule.end_time == slot_end
+                                    )
                                 )
-                            )
-                        ).scalar_one_or_none()
-                        
-                        if not existing:
-                            time_slot = get_time_slot_from_time(template.start_time)
-                            schedule = Schedule(
-                                id=str(uuid.uuid4()),
-                                doctor_id=template.doctor_id,
-                                store_id=template.store_id,
-                                template_id=template.id,
-                                schedule_date=current_date,
-                                time_slot=time_slot,
-                                start_time=template.start_time,
-                                end_time=template.end_time,
-                                total_slots=template.total_slots,
-                                appointment_type=template.appointment_type,
-                                booked_slots=0,
-                                status=1
-                            )
-                            db.add(schedule)
-                            created_count += 1
+                            ).scalar_one_or_none()
+                            
+                            if not existing:
+                                time_slot = get_time_slot_from_time(slot_start)
+                                schedule = Schedule(
+                                    id=str(uuid.uuid4()),
+                                    doctor_id=template.doctor_id,
+                                    store_id=template.store_id,
+                                    template_id=template.id,
+                                    schedule_date=current_date,
+                                    time_slot=time_slot,
+                                    start_time=slot_start,
+                                    end_time=slot_end,
+                                    total_slots=template.slot_capacity,
+                                    appointment_type=template.appointment_type,
+                                    booked_slots=0,
+                                    status=1
+                                )
+                                db.add(schedule)
+                                created_count += 1
                 
                 current_date += timedelta(days=1)
             

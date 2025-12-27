@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { scheduleApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
 import type { Schedule, Doctor, Department, Store } from '@hospital/shared';
 import { APPOINTMENT_TYPE_MAP, TIME_SLOT_MAP } from '@hospital/shared';
-import { useModel } from '@umijs/max';
+import { useModel, useAccess } from '@umijs/max';
 
 interface DaySchedules {
   [date: string]: Schedule[];
@@ -25,8 +25,9 @@ const ScheduleDetailCalendarPage: React.FC = () => {
   const [stores, setStores] = useState<Store[]>([]);
   
   const { initialState } = useModel('@@initialState');
+  const access = useAccess();
   const { currentUser } = initialState ?? {};
-  const isSuperAdmin = true; // 简化处理
+  const isSuperAdmin = access.canSuperAdmin;
 
   useEffect(() => {
     loadStores();

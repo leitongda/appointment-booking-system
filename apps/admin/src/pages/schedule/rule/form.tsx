@@ -96,6 +96,9 @@ const ScheduleRuleFormPage: React.FC = () => {
       // 异步加载完成后，使用 setFieldsValue 更新表单值
       const formData = {
         ...data,
+        weekdays: data.weekdays || [],
+        slotCount: data.slotCount || 1,
+        slotCapacity: data.slotCapacity || data.totalSlots || 10, // 兼容旧数据
         startTime: data.startTime ? dayjs(data.startTime, 'HH:mm') : undefined,
         endTime: data.endTime ? dayjs(data.endTime, 'HH:mm') : undefined,
       };

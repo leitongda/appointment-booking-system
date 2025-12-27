@@ -71,7 +71,7 @@ async def get_template(template_id: str, db: AsyncSession = Depends(get_db)):
     template = await service.get_by_id(template_id)
     
     if not template:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="模板不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班模板不存在，请检查后重试")
     
     return ScheduleTemplateResponse(
         id=template.id,
@@ -150,7 +150,7 @@ async def update_template(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     
     if not template:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="模板不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班模板不存在，请检查后重试")
     
     # 重新加载关联数据
     template = await service.get_by_id(template.id)
@@ -188,7 +188,7 @@ async def delete_template(
     success = await service.delete(template_id)
     
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="模板不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班模板不存在，请检查后重试")
     
     return {"message": "删除成功"}
 
@@ -210,18 +210,5 @@ async def generate_schedules(
     return {"message": f"成功创建 {created_count} 条排班", "count": created_count}
 
 
-@router.post("/batch-add")
-async def batch_add_schedules(
-    data: ScheduleBatchAddRequest,
-    db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
-):
-    """批量添加排班（不依赖模板）"""
-    service = ScheduleTemplateService(db)
-    
-    try:
-        created_count = await service.batch_add_schedules(data)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    
-    return {"message": f"成功创建 {created_count} 条排班", "count": created_count}
+# batch-add API 已移除，请使用 /schedules/batch API
+# 该API支持模板生成和手动创建两种模式

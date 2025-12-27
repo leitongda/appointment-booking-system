@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import { useEffect, useState, useMemo } from 'react';
 import { scheduleApi } from '@hospital/api';
 import type { Schedule } from '@hospital/shared';
-import { generateSchedulePreview, getDateInfo, WEEKDAY_MAP } from '@hospital/shared';
+import { generateSchedulePreview, getDateInfo, splitTimeRange, WEEKDAY_MAP } from '@hospital/shared';
 
 interface RulePreviewCalendarProps {
   /** 医生ID */
@@ -155,11 +155,16 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
                 {item.type === 'processing' && (
                   <div>
                     <div>将生成排班：</div>
-                    {startTime && endTime && slotCount > 0 && (
-                      <div>
-                        {startTime} - {endTime}，共{slotCount}个班次
-                      </div>
-                    )}
+                    {startTime && endTime && slotCount > 0 && (() => {
+                      const slots = splitTimeRange(startTime, endTime, slotCount);
+                      return (
+                        <div>
+                          {slots.map(([slotStart, slotEnd], idx) => (
+                            <div key={idx}>班次{idx + 1}: {slotStart}-{slotEnd}</div>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>

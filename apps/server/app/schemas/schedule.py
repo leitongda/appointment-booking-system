@@ -18,7 +18,7 @@ class ScheduleBase(BaseModel):
     doctor_id: str = Field(..., description="医生ID")
     store_id: Optional[str] = Field(None, description="门店ID")
     schedule_date: date = Field(..., description="排班日期")
-    time_slot: str = Field(..., pattern="^(AM|PM|morning|afternoon|evening)$", description="时段")
+    time_slot: Optional[str] = Field(None, pattern="^(AM|PM|morning|afternoon|evening)$", description="时段，可为空（可通过start_time自动计算）")
     start_time: Optional[time] = None
     end_time: Optional[time] = None
     total_slots: int = Field(10, ge=1, le=200, description="总号源")
