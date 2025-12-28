@@ -102,6 +102,7 @@ class ScheduleTemplateResponse(BaseModel):
     store_name: Optional[str] = None
     doctor_name: Optional[str] = None
     department_name: Optional[str] = None
+    last_generated_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

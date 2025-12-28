@@ -44,6 +44,7 @@ export interface ScheduleTemplate {
   slotCapacity: number;  // 每班次人数
   scheduleMode: string;
   status: number;
+  lastGeneratedAt?: string;  // 上一次生成排班时间
   createdAt: string;
   updatedAt?: string;
 }

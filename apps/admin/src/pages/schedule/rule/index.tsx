@@ -1,4 +1,4 @@
-import { PlusOutlined, ThunderboltOutlined, DeleteOutlined, StopOutlined, HistoryOutlined } from '@ant-design/icons';
+import { PlusOutlined, ThunderboltOutlined, DeleteOutlined, StopOutlined, HistoryOutlined, CalendarOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   PageContainer,
@@ -304,8 +304,21 @@ const ScheduleRulePage: React.FC = () => {
     }
   };
 
+  // 单个规则生成排班
+  const handleSingleGenerate = (record: ScheduleTemplate) => {
+    setSelectedTemplates([record.id]);
+    setCurrentTemplate(record);
+    setGenerateModalOpen(true);
+  };
+
   // 操作菜单
   const getActionMenuItems = (record: ScheduleTemplate): MenuProps['items'] => [
+    {
+      key: 'generate',
+      icon: <CalendarOutlined />,
+      label: '生成排班',
+      onClick: () => handleSingleGenerate(record),
+    },
     {
       key: 'edit',
       label: '编辑',
@@ -426,7 +439,7 @@ const ScheduleRulePage: React.FC = () => {
       dataIndex: 'slotCapacity',
       width: 80,
       search: false,
-      render: (_, record) => record.slotCapacity || record.totalSlots || 10,
+      render: (_, record) => record.slotCapacity || 10,
     },
     {
       title: '排班方式',
@@ -434,6 +447,30 @@ const ScheduleRulePage: React.FC = () => {
       width: 100,
       search: false,
       render: (_, record) => SCHEDULE_MODE_MAP[record.scheduleMode] || record.scheduleMode,
+    },
+    {
+      title: '生成状态',
+      dataIndex: 'lastGeneratedAt',
+      width: 90,
+      search: false,
+      render: (_, record) => {
+        if (record.lastGeneratedAt) {
+          return <Tag color="success">已生成</Tag>;
+        }
+        return <Tag color="default">未生成</Tag>;
+      },
+    },
+    {
+      title: '上次生成时间',
+      dataIndex: 'lastGeneratedAt',
+      width: 160,
+      search: false,
+      render: (_, record) => {
+        if (record.lastGeneratedAt) {
+          return dayjs(record.lastGeneratedAt).format('YYYY-MM-DD HH:mm');
+        }
+        return '-';
+      },
     },
     {
       title: '状态',
@@ -525,7 +562,7 @@ const ScheduleRulePage: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        scroll={{ x: 1400 }}
+        scroll={{ x: 1650 }}
         rowSelection={{
           selectedRowKeys: selectedTemplates,
           onChange: (keys) => setSelectedTemplates(keys as string[]),
@@ -675,19 +712,41 @@ const ScheduleRulePage: React.FC = () => {
 
       {/* 生成排班弹窗 */}
       <ModalForm
-        title="根据规则生成排班"
+        title={currentTemplate ? `生成排班 - ${currentTemplate.name}` : '根据规则生成排班'}
         open={generateModalOpen}
-        onOpenChange={setGenerateModalOpen}
+        onOpenChange={(open) => {
+          setGenerateModalOpen(open);
+          if (!open) {
+            setCurrentTemplate(null);
+          }
+        }}
         onFinish={handleGenerateSubmit}
         modalProps={{ destroyOnHidden: true }}
-        width={400}
+        width={500}
       >
-        <Alert
-          message={`已选择 ${selectedTemplates.length} 个规则`}
-          type="info"
-          showIcon
-          style={{ marginBottom: 16 }}
-        />
+        {currentTemplate ? (
+          <Alert
+            message={
+              <div>
+                <div>规则：<strong>{currentTemplate.name}</strong></div>
+                <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+                  医生：{currentTemplate.doctorName} | 科室：{currentTemplate.departmentName} | 
+                  星期：{(currentTemplate.weekdays || []).map((w: number) => WEEKDAY_MAP[w]).join('、')}
+                </div>
+              </div>
+            }
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        ) : (
+          <Alert
+            message={`已选择 ${selectedTemplates.length} 个规则`}
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        )}
         <ProFormDateRangePicker
           name="dateRange"
           label="生成日期范围"
@@ -702,7 +761,7 @@ const ScheduleRulePage: React.FC = () => {
         open={logsModalOpen}
         onCancel={() => setLogsModalOpen(false)}
         footer={null}
-        width={900}
+        width={1300}
       >
         <Table
           columns={logsColumns}

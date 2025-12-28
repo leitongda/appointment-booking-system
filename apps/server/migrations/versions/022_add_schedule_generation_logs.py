@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '022_add_schedule_generation_logs'
-down_revision = '021_merge_custom_schedules'
+down_revision = '2fc10ef02888'
 branch_labels = None
 depends_on = None
 

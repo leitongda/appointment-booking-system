@@ -163,6 +163,10 @@ export type {
   ScheduleTemplateUpdateData,
   ScheduleGenerateData,
   ScheduleBatchAddData,
+  BatchOperateData,
+  BatchOperateResult,
+  CheckGeneratedResult,
+  ScheduleGenerationLog,
 } from './modules/schedule-template';
 
 // Custom Schedule types

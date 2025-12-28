@@ -294,4 +294,32 @@ export const scheduleApi = {
   getStatistics: (params: ScheduleStatisticsParams): Promise<ScheduleStatisticsResponse> => {
     return request.get('/schedules/statistics', { params });
   },
+
+  /**
+   * 批量停诊
+   */
+  batchSuspend: (scheduleIds: string[], reason?: string): Promise<{ success: boolean; affectedCount: number; message: string }> => {
+    return request.post('/schedules/batch-suspend', {
+      schedule_ids: scheduleIds,
+      reason,
+    });
+  },
+
+  /**
+   * 批量恢复
+   */
+  batchResume: (scheduleIds: string[]): Promise<{ success: boolean; affectedCount: number; message: string }> => {
+    return request.post('/schedules/batch-resume', {
+      schedule_ids: scheduleIds,
+    });
+  },
+
+  /**
+   * 批量删除
+   */
+  batchDelete: (scheduleIds: string[]): Promise<{ success: boolean; affectedCount: number; message: string }> => {
+    return request.post('/schedules/batch-delete', {
+      schedule_ids: scheduleIds,
+    });
+  },
 };

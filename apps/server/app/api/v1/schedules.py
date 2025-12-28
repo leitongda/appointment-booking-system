@@ -328,5 +328,73 @@ async def update_schedule(
         created_at=schedule.created_at
     )
 
-# 停诊功能已统一到 /schedule-suspensions API
-# 请使用 ScheduleSuspensionService 进行停诊管理
+class BatchScheduleRequest(BaseModel):
+    """批量操作排班请求"""
+    schedule_ids: List[str] = Field(..., min_length=1, description="排班ID列表")
+    reason: Optional[str] = Field(None, max_length=200, description="操作原因")
+
+
+class BatchOperateResponse(BaseModel):
+    """批量操作响应"""
+    success: bool
+    affected_count: int
+    message: str
+
+
+@router.post("/batch-suspend", response_model=BatchOperateResponse)
+async def batch_suspend_schedules(
+    data: BatchScheduleRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """批量停诊排班"""
+    service = ScheduleService(db)
+    
+    affected_count = await service.batch_suspend(data.schedule_ids, data.reason)
+    
+    return BatchOperateResponse(
+        success=True,
+        affected_count=affected_count,
+        message=f"成功停诊 {affected_count} 条排班记录"
+    )
+
+
+@router.post("/batch-resume", response_model=BatchOperateResponse)
+async def batch_resume_schedules(
+    data: BatchScheduleRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """批量恢复排班"""
+    service = ScheduleService(db)
+    
+    affected_count = await service.batch_resume(data.schedule_ids)
+    
+    return BatchOperateResponse(
+        success=True,
+        affected_count=affected_count,
+        message=f"成功恢复 {affected_count} 条排班记录"
+    )
+
+
+@router.post("/batch-delete", response_model=BatchOperateResponse)
+async def batch_delete_schedules(
+    data: BatchScheduleRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """批量删除排班（只能删除没有预约的排班）"""
+    service = ScheduleService(db)
+    
+    affected_count = await service.batch_delete(data.schedule_ids)
+    
+    skipped = len(data.schedule_ids) - affected_count
+    message = f"成功删除 {affected_count} 条排班记录"
+    if skipped > 0:
+        message += f"，{skipped} 条因有预约而跳过"
+    
+    return BatchOperateResponse(
+        success=True,
+        affected_count=affected_count,
+        message=message
+    )

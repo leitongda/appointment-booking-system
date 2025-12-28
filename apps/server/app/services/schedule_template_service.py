@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, delete
 from sqlalchemy.orm import selectinload
 from typing import Optional, List, Tuple
-from datetime import date, timedelta, time
+from datetime import date, timedelta, time, datetime
 import uuid
 import json
 
@@ -214,6 +214,7 @@ class ScheduleTemplateService:
         
         schedule_service = ScheduleService(self.db)
         created_count = 0
+        now = datetime.now()
         
         for template_id in data.template_ids:
             # 使用内部方法，不自动commit
@@ -225,6 +226,12 @@ class ScheduleTemplateService:
                 auto_commit=False
             )
             created_count += count
+            
+            # 如果有生成排班，更新模板的 last_generated_at
+            if count > 0:
+                template = await self.get_by_id(template_id)
+                if template:
+                    template.last_generated_at = now
         
         # 统一提交
         await self.db.commit()
@@ -232,12 +239,36 @@ class ScheduleTemplateService:
     
     async def batch_add_schedules(self, data: ScheduleBatchAddRequest) -> int:
         """
-        批量添加排班（不依赖模板）
-        @deprecated 此方法已废弃，请使用 ScheduleService 的相关方法
+        批量添加排班
+        会先自动创建一个排班规则模板，然后基于模板生成排班
+        这样可以通过批量停诊/删除功能管理这些排班
         """
+        now = datetime.now()
+        
+        # 1. 先创建一个排班规则模板
+        template_name = f"批量添加-{data.start_date}至{data.end_date}"
+        template = ScheduleTemplate(
+            id=str(uuid.uuid4()),
+            name=template_name,
+            store_id=data.store_id,
+            doctor_id=data.doctor_id,
+            department_id=data.department_id,
+            weekdays=json.dumps(data.weekdays) if data.weekdays else "[]",
+            appointment_type=data.appointment_type.value,
+            start_time=data.start_time,
+            end_time=data.end_time,
+            slot_count=data.slot_count,
+            slot_capacity=data.slot_capacity,
+            schedule_mode=data.schedule_mode.value,
+            status=1
+        )
+        self.db.add(template)
+        await self.db.flush()  # 确保 template.id 已生成
+        
+        template_id = template.id
         created_count = 0
         
-        # 均分时间生成多个班次
+        # 2. 均分时间生成多个班次
         time_slots = split_time_range(data.start_time, data.end_time, data.slot_count)
         
         current_date = data.start_date
@@ -267,6 +298,7 @@ class ScheduleTemplateService:
                                 id=str(uuid.uuid4()),
                                 doctor_id=data.doctor_id,
                                 store_id=data.store_id,
+                                template_id=template_id,  # 关联模板ID
                                 schedule_date=current_date,
                                 time_slot=time_slot,
                                 start_time=slot_start,
@@ -280,6 +312,10 @@ class ScheduleTemplateService:
                             created_count += 1
             
             current_date += timedelta(days=1)
+        
+        # 如果有生成排班，更新模板的 last_generated_at
+        if created_count > 0:
+            template.last_generated_at = now
         
         await self.db.commit()
         return created_count

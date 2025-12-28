@@ -269,8 +269,8 @@ async def generate_schedules(
     service = ScheduleTemplateService(db)
     
     # 获取操作人信息
-    operator_id = current_admin.id if current_admin else None
-    operator_name = current_admin.username if current_admin else None
+    operator_id = current_admin.get("id") if current_admin else None
+    operator_name = current_admin.get("username") if current_admin else None
     
     try:
         created_count = await service.generate_schedules(data)
@@ -346,8 +346,8 @@ async def batch_delete_schedules(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班规则不存在")
     
     # 获取操作人信息
-    operator_id = current_admin.id if current_admin else None
-    operator_name = current_admin.username if current_admin else None
+    operator_id = current_admin.get("id") if current_admin else None
+    operator_name = current_admin.get("username") if current_admin else None
     
     # 处理请求参数
     start_date = data.start_date if data else None
@@ -389,8 +389,8 @@ async def batch_suspend_schedules(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班规则不存在")
     
     # 获取操作人信息
-    operator_id = current_admin.id if current_admin else None
-    operator_name = current_admin.username if current_admin else None
+    operator_id = current_admin.get("id") if current_admin else None
+    operator_name = current_admin.get("username") if current_admin else None
     
     # 处理请求参数
     start_date = data.start_date if data else None

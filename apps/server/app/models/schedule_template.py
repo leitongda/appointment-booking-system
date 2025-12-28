@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Time, ForeignKey, Text
+from sqlalchemy import Column, String, Integer, Time, ForeignKey, Text, DateTime
 from sqlalchemy.orm import relationship
 from app.db.base import Base, TimestampMixin
 import uuid
@@ -22,6 +22,7 @@ class ScheduleTemplate(Base, TimestampMixin):
     slot_capacity = Column(Integer, nullable=False, default=10, comment="每班次人数")
     schedule_mode = Column(String(50), default="weekly", comment="排班方式")
     status = Column(Integer, default=1, comment="状态: 0禁用 1启用")
+    last_generated_at = Column(DateTime, nullable=True, comment="上一次生成排班时间")
     
     @property
     def weekday_list(self) -> list:

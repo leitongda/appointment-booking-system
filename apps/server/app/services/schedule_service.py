@@ -199,9 +199,108 @@ class ScheduleService:
         await self.db.refresh(schedule)
         return schedule
     
-    # suspend() 和 resume() 方法已移除
-    # 停诊功能统一通过 ScheduleSuspensionService 管理
-    # 这样可以保留停诊历史记录和审计信息
+    async def batch_suspend(self, schedule_ids: List[str], reason: Optional[str] = None) -> int:
+        """
+        批量停诊排班
+        
+        Args:
+            schedule_ids: 排班ID列表
+            reason: 停诊原因
+        
+        Returns:
+            成功停诊的数量
+        """
+        if not schedule_ids:
+            return 0
+        
+        # 查询符合条件的排班（只停诊正常状态的排班）
+        result = await self.db.execute(
+            select(Schedule).where(
+                and_(
+                    Schedule.id.in_(schedule_ids),
+                    Schedule.status == 1  # 只停诊正常状态的排班
+                )
+            )
+        )
+        schedules = result.scalars().all()
+        
+        affected_count = 0
+        for schedule in schedules:
+            schedule.status = 0  # 设置为停诊状态
+            affected_count += 1
+        
+        if affected_count > 0:
+            await self.db.commit()
+        
+        return affected_count
+    
+    async def batch_resume(self, schedule_ids: List[str]) -> int:
+        """
+        批量恢复排班
+        
+        Args:
+            schedule_ids: 排班ID列表
+        
+        Returns:
+            成功恢复的数量
+        """
+        if not schedule_ids:
+            return 0
+        
+        # 查询符合条件的排班（只恢复停诊状态的排班）
+        result = await self.db.execute(
+            select(Schedule).where(
+                and_(
+                    Schedule.id.in_(schedule_ids),
+                    Schedule.status == 0  # 只恢复停诊状态的排班
+                )
+            )
+        )
+        schedules = result.scalars().all()
+        
+        affected_count = 0
+        for schedule in schedules:
+            schedule.status = 1  # 设置为正常状态
+            affected_count += 1
+        
+        if affected_count > 0:
+            await self.db.commit()
+        
+        return affected_count
+    
+    async def batch_delete(self, schedule_ids: List[str]) -> int:
+        """
+        批量删除排班
+        
+        Args:
+            schedule_ids: 排班ID列表
+        
+        Returns:
+            成功删除的数量（不包括有预约的排班）
+        """
+        if not schedule_ids:
+            return 0
+        
+        # 查询符合条件的排班（只删除没有预约的排班）
+        result = await self.db.execute(
+            select(Schedule).where(
+                and_(
+                    Schedule.id.in_(schedule_ids),
+                    Schedule.booked_slots == 0  # 只删除没有预约的排班
+                )
+            )
+        )
+        schedules = result.scalars().all()
+        
+        affected_count = 0
+        for schedule in schedules:
+            await self.db.delete(schedule)
+            affected_count += 1
+        
+        if affected_count > 0:
+            await self.db.commit()
+        
+        return affected_count
     
     async def _check_rest_day(self, check_date: date, store_id: Optional[str] = None, doctor_id: Optional[str] = None) -> bool:
         """检查指定日期是否为休息日"""
