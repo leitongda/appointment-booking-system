@@ -1,6 +1,6 @@
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { PageContainer, ProTable, ModalForm, ProFormSelect, ProFormDatePicker, ProFormDigit } from '@ant-design/pro-components';
+import { PageContainer, ProTable, ModalForm, ProFormSelect, ProFormDatePicker, ProFormDigit, ProFormDateRangePicker } from '@ant-design/pro-components';
 import { Button, App, Space, Tag, Popconfirm } from 'antd';
 import { useRef, useState, useEffect } from 'react';
 import { useAccess, useModel } from '@umijs/max';
@@ -122,6 +122,23 @@ const ScheduleListPage: React.FC = () => {
       },
     } as ProColumns<Schedule>] : []),
     {
+      title: '日期范围',
+      dataIndex: 'dateRange',
+      valueType: 'dateRange',
+      hideInTable: true,
+      search: {
+        transform: (value) => {
+          if (value && value.length === 2) {
+            return {
+              startDate: value[0],
+              endDate: value[1],
+            };
+          }
+          return {};
+        },
+      },
+    },
+    {
       title: '医生',
       dataIndex: 'doctorName',
       width: 100,
@@ -136,6 +153,7 @@ const ScheduleListPage: React.FC = () => {
       dataIndex: 'scheduleDate',
       width: 110,
       valueType: 'date',
+      search: false,
     },
     {
       title: '时段',
