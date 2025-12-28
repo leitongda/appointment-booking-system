@@ -1,7 +1,7 @@
 """管理员和角色模型"""
 from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey, Table
 from sqlalchemy.orm import relationship
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, AuditMixin
 from datetime import datetime
 import uuid
 
@@ -26,7 +26,7 @@ admin_stores = Table(
 )
 
 
-class Permission(Base, TimestampMixin):
+class Permission(Base, AuditMixin):
     """权限表"""
     __tablename__ = "permissions"
     
@@ -39,7 +39,7 @@ class Permission(Base, TimestampMixin):
     sort = Column(Integer, default=0, comment="排序号")
 
 
-class Role(Base, TimestampMixin):
+class Role(Base, AuditMixin):
     """角色表"""
     __tablename__ = "roles"
     
@@ -56,7 +56,7 @@ class Role(Base, TimestampMixin):
     admins = relationship("Admin", back_populates="role")
 
 
-class Admin(Base, TimestampMixin):
+class Admin(Base, AuditMixin):
     """管理员表"""
     __tablename__ = "admins"
     

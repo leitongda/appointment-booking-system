@@ -7,6 +7,7 @@ import uuid
 from app.models.department import Department
 from app.models.doctor import Doctor
 from app.schemas.department import DepartmentCreate, DepartmentUpdate, DepartmentTreeNode
+from app.utils.audit import set_create_audit, set_update_audit
 
 class DepartmentService:
     def __init__(self, db: AsyncSession):
@@ -87,7 +88,7 @@ class DepartmentService:
         result = await self.db.execute(query)
         return list(result.scalars().all())
     
-    async def create(self, data: DepartmentCreate) -> Department:
+    async def create(self, data: DepartmentCreate, operator_id: Optional[str] = None) -> Department:
         department = Department(
             id=str(uuid.uuid4()),
             name=data.name,
@@ -116,6 +117,7 @@ class DepartmentService:
             location=data.location,
             working_hours=data.working_hours,
         )
+        set_create_audit(department, operator_id)
         self.db.add(department)
         await self.db.commit()
         await self.db.refresh(department)
@@ -127,7 +129,7 @@ class DepartmentService:
         )
         return result.scalar_one()
     
-    async def update(self, dept_id: str, data: DepartmentUpdate) -> Optional[Department]:
+    async def update(self, dept_id: str, data: DepartmentUpdate, operator_id: Optional[str] = None) -> Optional[Department]:
         department = await self.get_by_id(dept_id)
         if not department:
             return None
@@ -136,6 +138,7 @@ class DepartmentService:
         for field, value in update_data.items():
             setattr(department, field, value)
         
+        set_update_audit(department, operator_id)
         await self.db.commit()
         # 重新加载 store 关联
         result = await self.db.execute(

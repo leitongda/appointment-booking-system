@@ -9,6 +9,7 @@ import json
 
 from app.models.admin import Admin, Role, OperationLog, Permission, admin_stores
 from app.core.security import get_password_hash, verify_password
+from app.utils.audit import set_create_audit, set_update_audit
 
 
 # ========== 角色服务 ==========
@@ -63,7 +64,7 @@ class RoleService:
         result = await self.db.execute(select(Role).where(Role.code == code))
         return result.scalar_one_or_none()
 
-    async def create(self, data: dict) -> Role:
+    async def create(self, data: dict, operator_id: Optional[str] = None) -> Role:
         """创建角色"""
         # 检查编码是否已存在
         existing = await self.get_by_code(data["code"])
@@ -79,12 +80,13 @@ class RoleService:
             permissions=json.dumps(permissions) if permissions else None,
             status=data.get("status", 1),
         )
+        set_create_audit(role, operator_id)
         self.db.add(role)
         await self.db.commit()
         await self.db.refresh(role)
         return role
 
-    async def update(self, role_id: str, data: dict) -> Optional[Role]:
+    async def update(self, role_id: str, data: dict, operator_id: Optional[str] = None) -> Optional[Role]:
         """更新角色"""
         role = await self.get_by_id(role_id)
         if not role:
@@ -100,17 +102,19 @@ class RoleService:
             if hasattr(role, key) and value is not None:
                 setattr(role, key, value)
         
+        set_update_audit(role, operator_id)
         await self.db.commit()
         await self.db.refresh(role)
         return role
 
-    async def update_permissions(self, role_id: str, permissions: List[str]) -> Optional[Role]:
+    async def update_permissions(self, role_id: str, permissions: List[str], operator_id: Optional[str] = None) -> Optional[Role]:
         """更新角色权限"""
         role = await self.get_by_id(role_id)
         if not role:
             return None
         
         role.permissions = json.dumps(permissions)
+        set_update_audit(role, operator_id)
         await self.db.commit()
         await self.db.refresh(role)
         return role
@@ -251,7 +255,7 @@ class AdminService:
             return None
         return admin
 
-    async def create(self, data: dict) -> Admin:
+    async def create(self, data: dict, operator_id: Optional[str] = None) -> Admin:
         """创建管理员"""
         from app.models.store import Store
         
@@ -287,6 +291,7 @@ class AdminService:
             current_store_id=current_store_id,
             status=data.get("status", 1),
         )
+        set_create_audit(admin, operator_id)
         self.db.add(admin)
         await self.db.flush()  # 先刷新以获取 admin.id
         
@@ -306,7 +311,7 @@ class AdminService:
         # 重新获取完整信息
         return await self.get_by_id(admin.id)
 
-    async def update(self, admin_id: str, data: dict) -> Optional[Admin]:
+    async def update(self, admin_id: str, data: dict, operator_id: Optional[str] = None) -> Optional[Admin]:
         """更新管理员"""
         from sqlalchemy import delete
         
@@ -357,6 +362,7 @@ class AdminService:
             if admin.current_store_id and admin.current_store_id not in store_ids:
                 admin.current_store_id = store_ids[0] if store_ids else None
         
+        set_update_audit(admin, operator_id)
         await self.db.commit()
         
         # 重新获取完整信息

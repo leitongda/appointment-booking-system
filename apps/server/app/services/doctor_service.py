@@ -15,6 +15,7 @@ from app.models.store import Store
 from app.models.user import User
 from app.schemas.doctor import DoctorCreate, DoctorUpdate
 from app.core.security import get_password_hash, verify_password
+from app.utils.audit import set_create_audit, set_update_audit
 
 class DoctorService:
     def __init__(self, db: AsyncSession):
@@ -141,7 +142,7 @@ class DoctorService:
         result = await self.db.execute(query)
         return list(result.scalars().all())
     
-    async def create(self, data: DoctorCreate) -> Doctor:
+    async def create(self, data: DoctorCreate, operator_id: Optional[str] = None) -> Doctor:
         user_id = None
         
         # 如果未提供密码，使用默认密码
@@ -157,6 +158,7 @@ class DoctorService:
                 nickname=data.name,
                 status=1
             )
+            set_create_audit(user, operator_id)
             self.db.add(user)
             await self.db.flush()
             user_id = user.id
@@ -195,12 +197,13 @@ class DoctorService:
             status=data.status,
             use_fee_template=data.use_fee_template
         )
+        set_create_audit(doctor, operator_id)
         self.db.add(doctor)
         await self.db.commit()
         await self.db.refresh(doctor)
         return doctor
     
-    async def update(self, doctor_id: str, data: DoctorUpdate) -> Optional[Doctor]:
+    async def update(self, doctor_id: str, data: DoctorUpdate, operator_id: Optional[str] = None) -> Optional[Doctor]:
         doctor = await self.get_by_id(doctor_id)
         if not doctor:
             return None
@@ -216,6 +219,7 @@ class DoctorService:
             if hasattr(doctor, field):
                 setattr(doctor, field, value)
         
+        set_update_audit(doctor, operator_id)
         await self.db.commit()
         await self.db.refresh(doctor)
         return doctor

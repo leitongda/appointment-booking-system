@@ -14,6 +14,7 @@ from app.models.department import Department
 from app.models.store import Store
 from app.schemas.user import PatientUpdate, PatientCreateByAdmin, FamilyMemberCreate
 from app.core.security import get_password_hash
+from app.utils.audit import set_create_audit, set_update_audit
 
 
 class PatientManageService:
@@ -254,7 +255,7 @@ class PatientManageService:
             'familyMembers': family_data,
         }
 
-    async def update_patient(self, patient_id: str, data: PatientUpdate) -> Optional[dict]:
+    async def update_patient(self, patient_id: str, data: PatientUpdate, operator_id: Optional[str] = None) -> Optional[dict]:
         """更新患者信息"""
         result = await self.db.execute(
             select(Patient).where(Patient.id == patient_id)
@@ -270,6 +271,7 @@ class PatientManageService:
             if hasattr(patient, key):
                 setattr(patient, key, value)
         
+        set_update_audit(patient, operator_id)
         await self.db.commit()
         await self.db.refresh(patient)
         
@@ -485,7 +487,7 @@ class PatientManageService:
         random_str = ''.join(random.choices(string.digits, k=4))
         return f"JZK{timestamp}{random_str}"
 
-    async def create_patient(self, data: PatientCreateByAdmin, store_id: Optional[str] = None) -> dict:
+    async def create_patient(self, data: PatientCreateByAdmin, store_id: Optional[str] = None, operator_id: Optional[str] = None) -> dict:
         """创建患者（管理员手动添加）"""
         # 检查手机号是否已存在用户
         result = await self.db.execute(
@@ -514,6 +516,7 @@ class PatientManageService:
                 nickname=data.name,
                 status=1,
             )
+            set_create_audit(user, operator_id)
             self.db.add(user)
             await self.db.flush()
         
@@ -547,12 +550,13 @@ class PatientManageService:
             address=data.address,
             source=2,  # 管理员添加
         )
+        set_create_audit(patient, operator_id)
         self.db.add(patient)
         await self.db.commit()
         
         return await self.get_detail(patient.id)
 
-    async def add_family_member(self, patient_id: str, data: FamilyMemberCreate) -> Optional[dict]:
+    async def add_family_member(self, patient_id: str, data: FamilyMemberCreate, operator_id: Optional[str] = None) -> Optional[dict]:
         """为患者添加家庭成员（亲友）"""
         # 获取患者
         result = await self.db.execute(
@@ -604,6 +608,7 @@ class PatientManageService:
             address=data.address,
             source=2,  # 管理员添加
         )
+        set_create_audit(member, operator_id)
         
         # 如果设为默认，取消其他默认
         if data.is_default:
@@ -642,7 +647,7 @@ class PatientManageService:
             'createdAt': member.created_at.isoformat() if member.created_at else None,
         }
 
-    async def update_family_member(self, patient_id: str, member_id: str, data: PatientUpdate) -> Optional[dict]:
+    async def update_family_member(self, patient_id: str, member_id: str, data: PatientUpdate, operator_id: Optional[str] = None) -> Optional[dict]:
         """编辑家庭成员信息"""
         # 获取原患者确认用户
         result = await self.db.execute(
@@ -673,6 +678,7 @@ class PatientManageService:
             if hasattr(member, key):
                 setattr(member, key, value)
         
+        set_update_audit(member, operator_id)
         await self.db.commit()
         await self.db.refresh(member)
         

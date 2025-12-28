@@ -9,6 +9,7 @@ from app.models.appointment import Appointment
 from app.models.schedule import Schedule
 from app.models.user import Patient
 from app.schemas.appointment import AppointmentCreate, AppointmentStatistics
+from app.utils.audit import set_create_audit, set_update_audit
 
 # 预约状态
 APPOINTMENT_STATUS = {
@@ -112,7 +113,7 @@ class AppointmentService:
             no_show=status_counts.get(7, 0)
         )
     
-    async def create(self, user_id: str, data: AppointmentCreate) -> Appointment:
+    async def create(self, user_id: str, data: AppointmentCreate, operator_id: Optional[str] = None) -> Appointment:
         # 获取排班信息
         schedule_result = await self.db.execute(
             select(Schedule).options(selectinload(Schedule.doctor)).where(Schedule.id == data.schedule_id)
@@ -168,6 +169,8 @@ class AppointmentService:
             queue_number=queue_number,
             status=APPOINTMENT_STATUS['PENDING']
         )
+        # 设置创建人（如果是用户自己创建，使用 user_id；如果是管理员创建，使用 operator_id）
+        set_create_audit(appointment, operator_id or user_id)
         self.db.add(appointment)
         
         # 更新排班已预约数
@@ -177,7 +180,7 @@ class AppointmentService:
         await self.db.refresh(appointment)
         return appointment
     
-    async def cancel(self, appointment_id: str, user_id: str, reason: Optional[str] = None, is_admin: bool = False) -> Optional[Appointment]:
+    async def cancel(self, appointment_id: str, user_id: str, reason: Optional[str] = None, is_admin: bool = False, operator_id: Optional[str] = None) -> Optional[Appointment]:
         """取消预约"""
         appointment = await self.get_by_id(appointment_id)
         if not appointment:
@@ -193,6 +196,7 @@ class AppointmentService:
         appointment.status = APPOINTMENT_STATUS['CANCELLED']
         appointment.cancel_time = datetime.now()
         appointment.cancel_reason = reason
+        set_update_audit(appointment, operator_id or user_id)
         
         # 恢复号源
         schedule = appointment.schedule

@@ -10,6 +10,7 @@ from app.models.doctor import Doctor
 from app.models.rest_day import RestDay
 from app.schemas.schedule import ScheduleCreate, ScheduleBatchCreate, ScheduleUpdate
 from app.utils.schedule_utils import get_time_slot_from_time
+from app.utils.audit import set_create_audit, set_update_audit
 
 class ScheduleService:
     def __init__(self, db: AsyncSession):
@@ -81,7 +82,7 @@ class ScheduleService:
         )
         return list(result.scalars().all())
     
-    async def create(self, data: ScheduleCreate) -> Schedule:
+    async def create(self, data: ScheduleCreate, operator_id: Optional[str] = None) -> Schedule:
         # 如果没有提供 time_slot，根据 start_time 自动计算
         time_slot = data.time_slot
         if not time_slot and data.start_time:
@@ -130,6 +131,7 @@ class ScheduleService:
             appointment_type=data.appointment_type or "normal",
             status=data.status
         )
+        set_create_audit(schedule, operator_id)
         self.db.add(schedule)
         await self.db.commit()
         await self.db.refresh(schedule)
@@ -181,7 +183,7 @@ class ScheduleService:
         await self.db.commit()
         return created_count
     
-    async def update(self, schedule_id: str, data: ScheduleUpdate) -> Optional[Schedule]:
+    async def update(self, schedule_id: str, data: ScheduleUpdate, operator_id: Optional[str] = None) -> Optional[Schedule]:
         schedule = await self.get_by_id(schedule_id)
         if not schedule:
             return None
@@ -195,6 +197,7 @@ class ScheduleService:
         for field, value in update_data.items():
             setattr(schedule, field, value)
         
+        set_update_audit(schedule, operator_id)
         await self.db.commit()
         await self.db.refresh(schedule)
         return schedule

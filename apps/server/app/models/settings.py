@@ -1,11 +1,11 @@
 """系统设置模型"""
 from sqlalchemy import Column, String, Integer, Text, DateTime
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, AuditMixin
 from datetime import datetime
 import uuid
 
 
-class SystemSetting(Base, TimestampMixin):
+class SystemSetting(Base, AuditMixin):
     """系统设置表（键值对存储）"""
     __tablename__ = "system_settings"
     

@@ -7,6 +7,7 @@ from app.models.store import Store
 from app.models.department import Department
 from app.models.admin import Admin, admin_stores
 from app.schemas.store import StoreCreate, StoreUpdate, StoreQuery
+from app.utils.audit import set_create_audit, set_update_audit
 
 
 class StoreService:
@@ -71,7 +72,7 @@ class StoreService:
         )
         return list(result.scalars().all())
     
-    async def create(self, data: StoreCreate) -> Store:
+    async def create(self, data: StoreCreate, operator_id: Optional[str] = None) -> Store:
         """创建门店"""
         # 检查编码是否重复
         if data.code:
@@ -88,12 +89,13 @@ class StoreService:
             id=str(uuid.uuid4()),
             **store_data
         )
+        set_create_audit(store, operator_id)
         self.db.add(store)
         await self.db.commit()
         await self.db.refresh(store)
         return store
     
-    async def update(self, store_id: str, data: StoreUpdate) -> Optional[Store]:
+    async def update(self, store_id: str, data: StoreUpdate, operator_id: Optional[str] = None) -> Optional[Store]:
         """更新门店"""
         store = await self.get_by_id(store_id)
         if not store:
@@ -110,6 +112,7 @@ class StoreService:
         for field, value in update_data.items():
             setattr(store, field, value)
         
+        set_update_audit(store, operator_id)
         await self.db.commit()
         await self.db.refresh(store)
         return store

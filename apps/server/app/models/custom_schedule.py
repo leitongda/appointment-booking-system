@@ -1,10 +1,10 @@
 from sqlalchemy import Column, String, Integer, Date, Time, ForeignKey
 from sqlalchemy.orm import relationship
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, AuditMixin
 import uuid
 
 
-class CustomSchedule(Base, TimestampMixin):
+class CustomSchedule(Base, AuditMixin):
     """自定义排班（单日排班）模型"""
     __tablename__ = "custom_schedules"
     
