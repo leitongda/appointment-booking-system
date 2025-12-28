@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
+from datetime import date
 
 from app.db.session import get_db
 from app.api.deps import get_current_admin
@@ -10,6 +11,12 @@ from app.schemas.schedule_template import (
     ScheduleTemplateResponse,
     ScheduleGenerateRequest,
     ScheduleBatchAddRequest,
+)
+from app.schemas.schedule_generation_log import (
+    ScheduleGenerationLogResponse,
+    CheckGeneratedResponse,
+    BatchOperateRequest,
+    BatchOperateResponse,
 )
 from app.schemas.response import PageResponse
 from app.services.schedule_template_service import ScheduleTemplateService
@@ -261,8 +268,26 @@ async def generate_schedules(
     """根据模板批量生成排班"""
     service = ScheduleTemplateService(db)
     
+    # 获取操作人信息
+    operator_id = current_admin.id if current_admin else None
+    operator_name = current_admin.username if current_admin else None
+    
     try:
         created_count = await service.generate_schedules(data)
+        
+        # 记录生成日志
+        if created_count > 0:
+            for template_id in data.template_ids:
+                await service.log_generation(
+                    template_id=template_id,
+                    action_type="generate",
+                    affected_count=created_count,
+                    operator_id=operator_id,
+                    operator_name=operator_name,
+                    start_date=data.start_date,
+                    end_date=data.end_date,
+                    remark=f"生成排班 {created_count} 条"
+                )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     
@@ -284,3 +309,145 @@ async def batch_add_schedules(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     
     return {"message": f"成功创建 {created_count} 条排班", "count": created_count}
+
+
+@router.get("/{template_id}/check-generated", response_model=CheckGeneratedResponse)
+async def check_generated(
+    template_id: str,
+    start_date: Optional[date] = Query(None, description="开始日期"),
+    end_date: Optional[date] = Query(None, description="结束日期"),
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """检查规则是否已生成过排班"""
+    service = ScheduleTemplateService(db)
+    
+    # 先检查模板是否存在
+    template = await service.get_by_id(template_id)
+    if not template:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班规则不存在")
+    
+    return await service.check_generated(template_id, start_date, end_date)
+
+
+@router.post("/{template_id}/batch-delete", response_model=BatchOperateResponse)
+async def batch_delete_schedules(
+    template_id: str,
+    data: Optional[BatchOperateRequest] = None,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """批量删除规则生成的排班"""
+    service = ScheduleTemplateService(db)
+    
+    # 先检查模板是否存在
+    template = await service.get_by_id(template_id)
+    if not template:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班规则不存在")
+    
+    # 获取操作人信息
+    operator_id = current_admin.id if current_admin else None
+    operator_name = current_admin.username if current_admin else None
+    
+    # 处理请求参数
+    start_date = data.start_date if data else None
+    end_date = data.end_date if data else None
+    future_only = data.future_only if data else True
+    
+    try:
+        affected_count = await service.batch_delete_schedules(
+            template_id=template_id,
+            operator_id=operator_id,
+            operator_name=operator_name,
+            start_date=start_date,
+            end_date=end_date,
+            future_only=future_only
+        )
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    
+    return BatchOperateResponse(
+        success=True,
+        affected_count=affected_count,
+        message=f"成功删除 {affected_count} 条排班记录"
+    )
+
+
+@router.post("/{template_id}/batch-suspend", response_model=BatchOperateResponse)
+async def batch_suspend_schedules(
+    template_id: str,
+    data: Optional[BatchOperateRequest] = None,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """批量停诊规则生成的排班"""
+    service = ScheduleTemplateService(db)
+    
+    # 先检查模板是否存在
+    template = await service.get_by_id(template_id)
+    if not template:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班规则不存在")
+    
+    # 获取操作人信息
+    operator_id = current_admin.id if current_admin else None
+    operator_name = current_admin.username if current_admin else None
+    
+    # 处理请求参数
+    start_date = data.start_date if data else None
+    end_date = data.end_date if data else None
+    future_only = data.future_only if data else True
+    
+    try:
+        affected_count = await service.batch_suspend_schedules(
+            template_id=template_id,
+            operator_id=operator_id,
+            operator_name=operator_name,
+            start_date=start_date,
+            end_date=end_date,
+            future_only=future_only
+        )
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    
+    return BatchOperateResponse(
+        success=True,
+        affected_count=affected_count,
+        message=f"成功停诊 {affected_count} 条排班记录"
+    )
+
+
+@router.get("/{template_id}/logs", response_model=PageResponse[ScheduleGenerationLogResponse])
+async def get_generation_logs(
+    template_id: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """获取规则的生成历史记录"""
+    service = ScheduleTemplateService(db)
+    
+    # 先检查模板是否存在
+    template = await service.get_by_id(template_id)
+    if not template:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班规则不存在")
+    
+    logs, total = await service.get_generation_logs(template_id, page, page_size)
+    
+    result = [
+        ScheduleGenerationLogResponse(
+            id=log.id,
+            template_id=log.template_id,
+            operator_id=log.operator_id,
+            operator_name=log.operator_name,
+            action_type=log.action_type,
+            start_date=log.start_date,
+            end_date=log.end_date,
+            affected_count=log.affected_count,
+            remark=log.remark,
+            created_at=log.created_at
+        )
+        for log in logs
+    ]
+    
+    return PageResponse(data=result, total=total, page=page, page_size=page_size)

@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, delete
 from sqlalchemy.orm import selectinload
 from typing import Optional, List, Tuple
 from datetime import date, timedelta, time
@@ -8,11 +8,16 @@ import json
 
 from app.models.schedule_template import ScheduleTemplate
 from app.models.schedule import Schedule
+from app.models.schedule_generation_log import ScheduleGenerationLog
 from app.schemas.schedule_template import (
     ScheduleTemplateCreate,
     ScheduleTemplateUpdate,
     ScheduleGenerateRequest,
     ScheduleBatchAddRequest,
+)
+from app.schemas.schedule_generation_log import (
+    BatchOperateRequest,
+    CheckGeneratedResponse,
 )
 from app.utils.schedule_utils import (
     get_month_week,
@@ -278,3 +283,193 @@ class ScheduleTemplateService:
         
         await self.db.commit()
         return created_count
+    
+    async def check_generated(
+        self,
+        template_id: str,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None
+    ) -> CheckGeneratedResponse:
+        """检查规则是否已生成过排班"""
+        # 查询该模板生成的所有排班
+        query = select(Schedule).where(Schedule.template_id == template_id)
+        
+        if start_date:
+            query = query.where(Schedule.schedule_date >= start_date)
+        if end_date:
+            query = query.where(Schedule.schedule_date <= end_date)
+        
+        result = await self.db.execute(query)
+        schedules = result.scalars().all()
+        
+        if not schedules:
+            return CheckGeneratedResponse(
+                has_generated=False,
+                schedule_count=0,
+                date_range_count=0
+            )
+        
+        # 统计信息
+        all_dates = [s.schedule_date for s in schedules]
+        
+        return CheckGeneratedResponse(
+            has_generated=True,
+            schedule_count=len(schedules),
+            date_range_count=len(schedules),
+            earliest_date=min(all_dates) if all_dates else None,
+            latest_date=max(all_dates) if all_dates else None
+        )
+    
+    async def batch_delete_schedules(
+        self,
+        template_id: str,
+        operator_id: Optional[str] = None,
+        operator_name: Optional[str] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+        future_only: bool = True
+    ) -> int:
+        """批量删除规则生成的排班"""
+        today = date.today()
+        
+        # 构建查询条件
+        conditions = [Schedule.template_id == template_id]
+        
+        if future_only:
+            conditions.append(Schedule.schedule_date >= today)
+        if start_date:
+            conditions.append(Schedule.schedule_date >= start_date)
+        if end_date:
+            conditions.append(Schedule.schedule_date <= end_date)
+        
+        # 只删除没有预约的排班
+        conditions.append(Schedule.booked_slots == 0)
+        
+        # 先统计数量
+        count_query = select(func.count(Schedule.id)).where(and_(*conditions))
+        count_result = await self.db.execute(count_query)
+        affected_count = count_result.scalar() or 0
+        
+        if affected_count > 0:
+            # 删除排班
+            delete_stmt = delete(Schedule).where(and_(*conditions))
+            await self.db.execute(delete_stmt)
+            
+            # 记录日志
+            log = ScheduleGenerationLog(
+                id=str(uuid.uuid4()),
+                template_id=template_id,
+                operator_id=operator_id,
+                operator_name=operator_name,
+                action_type="delete",
+                start_date=start_date or (today if future_only else None),
+                end_date=end_date,
+                affected_count=affected_count,
+                remark=f"批量删除排班，删除 {affected_count} 条记录"
+            )
+            self.db.add(log)
+            await self.db.commit()
+        
+        return affected_count
+    
+    async def batch_suspend_schedules(
+        self,
+        template_id: str,
+        operator_id: Optional[str] = None,
+        operator_name: Optional[str] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+        future_only: bool = True
+    ) -> int:
+        """批量停诊规则生成的排班"""
+        today = date.today()
+        
+        # 构建查询条件
+        conditions = [
+            Schedule.template_id == template_id,
+            Schedule.status == 1  # 只停诊正常状态的排班
+        ]
+        
+        if future_only:
+            conditions.append(Schedule.schedule_date >= today)
+        if start_date:
+            conditions.append(Schedule.schedule_date >= start_date)
+        if end_date:
+            conditions.append(Schedule.schedule_date <= end_date)
+        
+        # 查询符合条件的排班
+        query = select(Schedule).where(and_(*conditions))
+        result = await self.db.execute(query)
+        schedules = result.scalars().all()
+        
+        affected_count = 0
+        for schedule in schedules:
+            schedule.status = 0  # 设置为停诊状态
+            affected_count += 1
+        
+        if affected_count > 0:
+            # 记录日志
+            log = ScheduleGenerationLog(
+                id=str(uuid.uuid4()),
+                template_id=template_id,
+                operator_id=operator_id,
+                operator_name=operator_name,
+                action_type="suspend",
+                start_date=start_date or (today if future_only else None),
+                end_date=end_date,
+                affected_count=affected_count,
+                remark=f"批量停诊，停诊 {affected_count} 条记录"
+            )
+            self.db.add(log)
+            await self.db.commit()
+        
+        return affected_count
+    
+    async def get_generation_logs(
+        self,
+        template_id: str,
+        page: int = 1,
+        page_size: int = 10
+    ) -> Tuple[List[ScheduleGenerationLog], int]:
+        """获取生成历史记录"""
+        query = select(ScheduleGenerationLog).where(
+            ScheduleGenerationLog.template_id == template_id
+        ).order_by(ScheduleGenerationLog.created_at.desc())
+        
+        count_query = select(func.count(ScheduleGenerationLog.id)).where(
+            ScheduleGenerationLog.template_id == template_id
+        )
+        
+        query = query.offset((page - 1) * page_size).limit(page_size)
+        
+        result = await self.db.execute(query)
+        count_result = await self.db.execute(count_query)
+        
+        return list(result.scalars().all()), count_result.scalar() or 0
+    
+    async def log_generation(
+        self,
+        template_id: str,
+        action_type: str,
+        affected_count: int,
+        operator_id: Optional[str] = None,
+        operator_name: Optional[str] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+        remark: Optional[str] = None
+    ) -> ScheduleGenerationLog:
+        """记录生成日志"""
+        log = ScheduleGenerationLog(
+            id=str(uuid.uuid4()),
+            template_id=template_id,
+            operator_id=operator_id,
+            operator_name=operator_name,
+            action_type=action_type,
+            start_date=start_date,
+            end_date=end_date,
+            affected_count=affected_count,
+            remark=remark
+        )
+        self.db.add(log)
+        await self.db.commit()
+        return log

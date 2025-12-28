@@ -14,7 +14,13 @@
       "Bash(docker ps:*)",
       "Bash(pnpm turbo daemon stop:*)",
       "Bash(npx turbo daemon stop:*)",
-      "Bash(kill:*)"
+      "Bash(kill:*)",
+      "Edit"
     ]
+  },
+  "statusLine": {
+    "command": "~/.claude/ccline/ccline",
+    "padding": 0,
+    "type": "command"
   }
 }

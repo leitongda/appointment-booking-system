@@ -104,6 +104,39 @@ export interface ScheduleGenerateData {
   endDate: string;
 }
 
+export interface BatchOperateData {
+  startDate?: string;
+  endDate?: string;
+  futureOnly?: boolean;
+}
+
+export interface BatchOperateResult {
+  success: boolean;
+  affectedCount: number;
+  message: string;
+}
+
+export interface CheckGeneratedResult {
+  hasGenerated: boolean;
+  scheduleCount: number;
+  dateRangeCount: number;
+  earliestDate?: string;
+  latestDate?: string;
+}
+
+export interface ScheduleGenerationLog {
+  id: string;
+  templateId: string;
+  operatorId?: string;
+  operatorName?: string;
+  actionType: string;
+  startDate?: string;
+  endDate?: string;
+  affectedCount: number;
+  remark?: string;
+  createdAt: string;
+}
+
 export interface ScheduleBatchAddData {
   storeId: string;
   doctorId: string;
@@ -248,5 +281,46 @@ export const scheduleTemplateApi = {
       start_date: data.startDate,
       end_date: data.endDate,
     });
+  },
+
+  /**
+   * 检查规则是否已生成过排班
+   */
+  checkGenerated: (id: string, startDate?: string, endDate?: string): Promise<CheckGeneratedResult> => {
+    const params: Record<string, string> = {};
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
+    return request.get(`/schedule-templates/${id}/check-generated`, { params });
+  },
+
+  /**
+   * 批量删除规则生成的排班
+   */
+  batchDelete: (id: string, data?: BatchOperateData): Promise<BatchOperateResult> => {
+    const requestData = data ? {
+      start_date: data.startDate,
+      end_date: data.endDate,
+      future_only: data.futureOnly ?? true,
+    } : undefined;
+    return request.post(`/schedule-templates/${id}/batch-delete`, requestData);
+  },
+
+  /**
+   * 批量停诊规则生成的排班
+   */
+  batchSuspend: (id: string, data?: BatchOperateData): Promise<BatchOperateResult> => {
+    const requestData = data ? {
+      start_date: data.startDate,
+      end_date: data.endDate,
+      future_only: data.futureOnly ?? true,
+    } : undefined;
+    return request.post(`/schedule-templates/${id}/batch-suspend`, requestData);
+  },
+
+  /**
+   * 获取规则的生成历史记录
+   */
+  getLogs: (id: string, page: number = 1, pageSize: number = 10): Promise<{ data: ScheduleGenerationLog[]; total: number }> => {
+    return request.get(`/schedule-templates/${id}/logs`, { params: { page, page_size: pageSize } });
   },
 };

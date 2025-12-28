@@ -1,4 +1,4 @@
-import { PlusOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { PlusOutlined, ThunderboltOutlined, DeleteOutlined, StopOutlined, HistoryOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   PageContainer,
@@ -11,7 +11,8 @@ import {
   ProFormRadio,
   ProFormDigit,
 } from '@ant-design/pro-components';
-import { Button, App, Space, Popconfirm, Tag, Alert } from 'antd';
+import { Button, App, Space, Popconfirm, Tag, Alert, Modal, Table, Tooltip, Dropdown } from 'antd';
+import type { MenuProps } from 'antd';
 import { useRef, useState, useEffect, useMemo } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
 import { scheduleTemplateApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
@@ -26,9 +27,17 @@ import {
   WEEKDAY_OPTIONS,
   getDateInfo,
 } from '@hospital/shared';
+import dayjs from 'dayjs';
+
+// 操作类型映射
+const ACTION_TYPE_MAP: Record<string, { text: string; color: string }> = {
+  generate: { text: '生成排班', color: 'green' },
+  delete: { text: '删除排班', color: 'red' },
+  suspend: { text: '批量停诊', color: 'orange' },
+};
 
 const ScheduleRulePage: React.FC = () => {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const access = useAccess();
   const { initialState } = useModel('@@initialState');
   const { currentUser } = initialState ?? {};
@@ -36,7 +45,11 @@ const ScheduleRulePage: React.FC = () => {
   const actionRef = useRef<ActionType>();
   const [batchAddModalOpen, setBatchAddModalOpen] = useState(false);
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
+  const [logsModalOpen, setLogsModalOpen] = useState(false);
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
+  const [currentTemplate, setCurrentTemplate] = useState<ScheduleTemplate | null>(null);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
 
   const [stores, setStores] = useState<Store[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -101,6 +114,71 @@ const ScheduleRulePage: React.FC = () => {
     }
   };
 
+  // 批量删除排班
+  const handleBatchDelete = async (record: ScheduleTemplate) => {
+    modal.confirm({
+      title: '确认删除排班',
+      content: (
+        <div>
+          <p>确定要删除该规则生成的所有<strong>未来</strong>排班吗？</p>
+          <p style={{ color: '#999', fontSize: 12 }}>注意：已有预约的排班不会被删除</p>
+        </div>
+      ),
+      okText: '确认删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          const result = await scheduleTemplateApi.batchDelete(record.id);
+          message.success(result.message);
+          actionRef.current?.reload();
+        } catch (error: any) {
+          message.error(error.message || '删除失败');
+        }
+      },
+    });
+  };
+
+  // 批量停诊
+  const handleBatchSuspend = async (record: ScheduleTemplate) => {
+    modal.confirm({
+      title: '确认批量停诊',
+      content: (
+        <div>
+          <p>确定要停诊该规则生成的所有<strong>未来</strong>排班吗？</p>
+          <p style={{ color: '#999', fontSize: 12 }}>停诊后可在排班列表中恢复</p>
+        </div>
+      ),
+      okText: '确认停诊',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          const result = await scheduleTemplateApi.batchSuspend(record.id);
+          message.success(result.message);
+          actionRef.current?.reload();
+        } catch (error: any) {
+          message.error(error.message || '停诊失败');
+        }
+      },
+    });
+  };
+
+  // 查看历史记录
+  const handleViewLogs = async (record: ScheduleTemplate) => {
+    setCurrentTemplate(record);
+    setLogsModalOpen(true);
+    setLogsLoading(true);
+    try {
+      const result = await scheduleTemplateApi.getLogs(record.id, 1, 50);
+      setLogs(result.data ?? []);
+    } catch (error: any) {
+      message.error(error.message || '加载历史记录失败');
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
   const handleBatchAddSubmit = async (values: any) => {
     const { dateRange, startTime, endTime, totalSlots, slotCount, ...rest } = values;
     if (!dateRange || dateRange.length !== 2) {
@@ -162,11 +240,58 @@ const ScheduleRulePage: React.FC = () => {
       return false;
     }
 
+    // 格式化日期
+    const startDate = typeof dateRange[0] === 'string' 
+      ? dateRange[0] 
+      : dateRange[0].format('YYYY-MM-DD');
+    const endDate = typeof dateRange[1] === 'string' 
+      ? dateRange[1] 
+      : dateRange[1].format('YYYY-MM-DD');
+
+    // 检查是否已生成过排班
+    let hasExisting = false;
+    let totalExistingCount = 0;
+    
+    for (const templateId of selectedTemplates) {
+      try {
+        const checkResult = await scheduleTemplateApi.checkGenerated(templateId, startDate, endDate);
+        if (checkResult.hasGenerated && checkResult.dateRangeCount > 0) {
+          hasExisting = true;
+          totalExistingCount += checkResult.dateRangeCount;
+        }
+      } catch (error) {
+        console.error('检查生成状态失败', error);
+      }
+    }
+
+    // 如果已存在排班，弹出确认框
+    if (hasExisting) {
+      const confirmed = await new Promise<boolean>((resolve) => {
+        modal.confirm({
+          title: '检测到已存在排班',
+          content: (
+            <div>
+              <p>在所选日期范围内，已存在 <strong>{totalExistingCount}</strong> 条排班记录。</p>
+              <p>是否继续生成？（不会删除已有排班，只会跳过已存在的时段）</p>
+            </div>
+          ),
+          okText: '继续生成',
+          cancelText: '取消',
+          onOk: () => resolve(true),
+          onCancel: () => resolve(false),
+        });
+      });
+
+      if (!confirmed) {
+        return false;
+      }
+    }
+
     try {
       const result = await scheduleTemplateApi.generate({
         templateIds: selectedTemplates,
-        startDate: dateRange[0],
-        endDate: dateRange[1],
+        startDate,
+        endDate,
       });
       message.success(result.message);
       setGenerateModalOpen(false);
@@ -178,6 +303,56 @@ const ScheduleRulePage: React.FC = () => {
       return false;
     }
   };
+
+  // 操作菜单
+  const getActionMenuItems = (record: ScheduleTemplate): MenuProps['items'] => [
+    {
+      key: 'edit',
+      label: '编辑',
+      onClick: () => history.push(`/schedule/rule/${record.id}/edit`),
+    },
+    {
+      key: 'logs',
+      icon: <HistoryOutlined />,
+      label: '历史记录',
+      onClick: () => handleViewLogs(record),
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'batchDelete',
+      icon: <DeleteOutlined />,
+      label: '删除排班',
+      danger: true,
+      onClick: () => handleBatchDelete(record),
+    },
+    {
+      key: 'batchSuspend',
+      icon: <StopOutlined />,
+      label: '批量停诊',
+      danger: true,
+      onClick: () => handleBatchSuspend(record),
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'delete',
+      label: '删除规则',
+      danger: true,
+      onClick: () => {
+        modal.confirm({
+          title: '确认删除',
+          content: '确定要删除该排班规则吗？删除后不可恢复。',
+          okText: '删除',
+          okType: 'danger',
+          cancelText: '取消',
+          onOk: () => handleDelete(record.id),
+        });
+      },
+    },
+  ];
 
   const columns: ProColumns<ScheduleTemplate>[] = [
     {
@@ -272,21 +447,61 @@ const ScheduleRulePage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 180,
+      width: 120,
+      fixed: 'right',
       render: (_, record) => (
         <Space>
           {access.hasPermission('schedule:template') && (
-            <a onClick={() => history.push(`/schedule/rule/${record.id}/edit`)}>
-              编辑
-            </a>
-          )}
-          {access.hasPermission('schedule:template') && (
-            <Popconfirm title="确定删除该规则吗？" onConfirm={() => handleDelete(record.id)}>
-              <a style={{ color: '#ff4d4f' }}>删除</a>
-            </Popconfirm>
+            <Dropdown menu={{ items: getActionMenuItems(record) }} trigger={['click']}>
+              <a onClick={(e) => e.preventDefault()}>操作 ▼</a>
+            </Dropdown>
           )}
         </Space>
       ),
+    },
+  ];
+
+  // 历史记录表格列
+  const logsColumns = [
+    {
+      title: '操作类型',
+      dataIndex: 'actionType',
+      width: 100,
+      render: (type: string) => {
+        const info = ACTION_TYPE_MAP[type] || { text: type, color: 'default' };
+        return <Tag color={info.color}>{info.text}</Tag>;
+      },
+    },
+    {
+      title: '操作人',
+      dataIndex: 'operatorName',
+      width: 100,
+    },
+    {
+      title: '日期范围',
+      width: 180,
+      render: (_: any, record: any) => {
+        if (record.startDate && record.endDate) {
+          return `${record.startDate} ~ ${record.endDate}`;
+        }
+        return record.startDate || record.endDate || '-';
+      },
+    },
+    {
+      title: '影响记录数',
+      dataIndex: 'affectedCount',
+      width: 100,
+    },
+    {
+      title: '操作时间',
+      dataIndex: 'createdAt',
+      width: 160,
+      render: (time: string) => dayjs(time).format('YYYY-MM-DD HH:mm:ss'),
+    },
+    {
+      title: '备注',
+      dataIndex: 'remark',
+      ellipsis: true,
     },
   ];
 
@@ -310,6 +525,7 @@ const ScheduleRulePage: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
+        scroll={{ x: 1400 }}
         rowSelection={{
           selectedRowKeys: selectedTemplates,
           onChange: (keys) => setSelectedTemplates(keys as string[]),
@@ -479,9 +695,27 @@ const ScheduleRulePage: React.FC = () => {
           extra="系统将根据规则配置的星期和排班方式，在日期范围内生成对应的排班"
         />
       </ModalForm>
+
+      {/* 历史记录弹窗 */}
+      <Modal
+        title={`历史记录 - ${currentTemplate?.name || ''}`}
+        open={logsModalOpen}
+        onCancel={() => setLogsModalOpen(false)}
+        footer={null}
+        width={900}
+      >
+        <Table
+          columns={logsColumns}
+          dataSource={logs}
+          loading={logsLoading}
+          rowKey="id"
+          pagination={{ pageSize: 10 }}
+          size="small"
+          locale={{ emptyText: '暂无历史记录' }}
+        />
+      </Modal>
     </PageContainer>
   );
 };
 
 export default ScheduleRulePage;
-
