@@ -8,6 +8,7 @@ import uuid
 from app.models.user import User, Patient
 from app.models.point_log import PointLog
 from app.models.admin import Admin
+from app.utils.audit import set_create_audit
 
 
 class PointService:
@@ -123,6 +124,7 @@ class PointService:
             remark=remark,
             operator_id=operator_id,
         )
+        set_create_audit(point_log, operator_id)
         self.db.add(point_log)
         
         await self.db.commit()

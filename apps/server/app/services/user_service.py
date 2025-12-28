@@ -6,6 +6,7 @@ import uuid
 from app.models.user import User, Patient
 from app.schemas.user import UserCreate, UserUpdate, PatientCreate, PatientUpdate
 from app.core.security import get_password_hash, verify_password
+from app.utils.audit import set_create_audit, set_update_audit
 
 class UserService:
     def __init__(self, db: AsyncSession):
@@ -31,12 +32,13 @@ class UserService:
             openid=data.openid,
             status=1
         )
+        set_create_audit(user, None)
         self.db.add(user)
         await self.db.commit()
         await self.db.refresh(user)
         return user
     
-    async def update(self, user_id: str, data: UserUpdate) -> Optional[User]:
+    async def update(self, user_id: str, data: UserUpdate, operator_id: Optional[str] = None) -> Optional[User]:
         user = await self.get_by_id(user_id)
         if not user:
             return None
@@ -45,6 +47,7 @@ class UserService:
         for field, value in update_data.items():
             setattr(user, field, value)
         
+        set_update_audit(user, operator_id)
         await self.db.commit()
         await self.db.refresh(user)
         return user
@@ -93,6 +96,7 @@ class PatientService:
             relationship=data.relationship,
             is_default=is_default
         )
+        set_create_audit(patient, user_id)
         self.db.add(patient)
         await self.db.commit()
         await self.db.refresh(patient)
@@ -115,6 +119,7 @@ class PatientService:
         for field, value in update_data.items():
             setattr(patient, field, value)
         
+        set_update_audit(patient, user_id)
         await self.db.commit()
         await self.db.refresh(patient)
         return patient

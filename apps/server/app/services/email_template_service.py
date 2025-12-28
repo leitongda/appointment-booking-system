@@ -7,6 +7,7 @@ from app.models.email_template import EmailTemplate
 from app.schemas.email_template import (
     EmailTemplateCreate, EmailTemplateUpdate, EmailTemplateQuery
 )
+from app.utils.audit import set_create_audit, set_update_audit
 
 
 class EmailTemplateService:
@@ -72,7 +73,7 @@ class EmailTemplateService:
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
     
-    async def create(self, data: EmailTemplateCreate) -> EmailTemplate:
+    async def create(self, data: EmailTemplateCreate, operator_id: Optional[str] = None) -> EmailTemplate:
         """创建邮件模板"""
         existing = await self.get_by_code(data.code)
         if existing:
@@ -88,12 +89,13 @@ class EmailTemplateService:
             description=data.description,
             status=data.status
         )
+        set_create_audit(template, operator_id)
         self.db.add(template)
         await self.db.commit()
         await self.db.refresh(template)
         return template
     
-    async def update(self, template_id: str, data: EmailTemplateUpdate) -> Optional[EmailTemplate]:
+    async def update(self, template_id: str, data: EmailTemplateUpdate, operator_id: Optional[str] = None) -> Optional[EmailTemplate]:
         """更新邮件模板"""
         template = await self.get_by_id(template_id)
         if not template:
@@ -108,6 +110,7 @@ class EmailTemplateService:
         for field, value in update_data.items():
             setattr(template, field, value)
         
+        set_update_audit(template, operator_id)
         await self.db.commit()
         await self.db.refresh(template)
         return template

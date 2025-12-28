@@ -10,6 +10,7 @@ from app.models.rest_day import RestDay
 from app.models.doctor import Doctor
 from app.models.store import Store
 from app.schemas.rest_day import RestDayCreate
+from app.utils.audit import set_create_audit, set_update_audit
 
 
 class RestDayService:
@@ -77,7 +78,7 @@ class RestDayService:
         
         return rest_days, count_result.scalar() or 0
     
-    async def create(self, data: RestDayCreate) -> RestDay:
+    async def create(self, data: RestDayCreate, operator_id: Optional[str] = None) -> RestDay:
         """创建休息日"""
         rest_day = RestDay(
             id=str(uuid.uuid4()),
@@ -88,6 +89,7 @@ class RestDayService:
             end_date=data.end_date,
             status=1
         )
+        set_create_audit(rest_day, operator_id)
         self.db.add(rest_day)
         await self.db.commit()
         await self.db.refresh(rest_day)
@@ -103,13 +105,14 @@ class RestDayService:
         await self.db.commit()
         return True
     
-    async def cancel(self, rest_day_id: str) -> Optional[RestDay]:
+    async def cancel(self, rest_day_id: str, operator_id: Optional[str] = None) -> Optional[RestDay]:
         """取消休息日"""
         rest_day = await self.get_by_id(rest_day_id)
         if not rest_day:
             return None
         
         rest_day.status = 0
+        set_update_audit(rest_day, operator_id)
         await self.db.commit()
         await self.db.refresh(rest_day)
         return rest_day

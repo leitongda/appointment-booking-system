@@ -11,6 +11,7 @@ from app.schemas.doctor_booking_setting import (
     DoctorBookingSettingUpdate,
     DoctorBookingSettingQuery,
 )
+from app.utils.audit import set_create_audit, set_update_audit
 
 
 class DoctorBookingSettingService:
@@ -103,7 +104,7 @@ class DoctorBookingSettingService:
         total = count_result.scalar() or 0
         return items, total
     
-    async def create(self, data: DoctorBookingSettingCreate) -> DoctorBookingSetting:
+    async def create(self, data: DoctorBookingSettingCreate, operator_id: Optional[str] = None) -> DoctorBookingSetting:
         """创建设置"""
         # 检查是否已存在
         existing = await self.get_by_store_and_doctor(data.store_id, data.doctor_id)
@@ -128,6 +129,7 @@ class DoctorBookingSettingService:
             id=str(uuid.uuid4()),
             **data.model_dump()
         )
+        set_create_audit(setting, operator_id)
         self.db.add(setting)
         await self.db.commit()
         await self.db.refresh(setting)
@@ -136,7 +138,8 @@ class DoctorBookingSettingService:
     async def update(
         self, 
         setting_id: str, 
-        data: DoctorBookingSettingUpdate
+        data: DoctorBookingSettingUpdate,
+        operator_id: Optional[str] = None
     ) -> Optional[DoctorBookingSetting]:
         """更新设置"""
         setting = await self.get_by_id(setting_id)
@@ -147,6 +150,7 @@ class DoctorBookingSettingService:
         for field, value in update_data.items():
             setattr(setting, field, value)
         
+        set_update_audit(setting, operator_id)
         await self.db.commit()
         await self.db.refresh(setting)
         return setting
@@ -172,7 +176,8 @@ class DoctorBookingSettingService:
     async def update_status(
         self, 
         setting_id: str, 
-        status: int
+        status: int,
+        operator_id: Optional[str] = None
     ) -> Optional[DoctorBookingSetting]:
         """更新设置状态"""
         setting = await self.get_by_id(setting_id)
@@ -180,6 +185,7 @@ class DoctorBookingSettingService:
             return None
         
         setting.status = status
+        set_update_audit(setting, operator_id)
         await self.db.commit()
         await self.db.refresh(setting)
         return setting

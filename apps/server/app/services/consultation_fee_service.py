@@ -14,6 +14,7 @@ from app.schemas.consultation_fee import (
     DoctorConsultationFeeBatchCreate, DoctorConsultationFeeItem,
     StoreFeeTemplateCreate, StoreFeeTemplateItem, StoreFeeTemplateBatchCreate
 )
+from app.utils.audit import set_create_audit, set_update_audit
 
 
 class ConsultationFeeService:
@@ -89,7 +90,7 @@ class ConsultationFeeService:
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
     
-    async def create_fee_type(self, data: ConsultationFeeTypeCreate) -> ConsultationFeeType:
+    async def create_fee_type(self, data: ConsultationFeeTypeCreate, operator_id: Optional[str] = None) -> ConsultationFeeType:
         """创建诊费类型"""
         fee_type = ConsultationFeeType(
             id=str(uuid.uuid4()),
@@ -100,12 +101,13 @@ class ConsultationFeeService:
             sort_order=data.sort_order,
             status=data.status
         )
+        set_create_audit(fee_type, operator_id)
         self.db.add(fee_type)
         await self.db.commit()
         await self.db.refresh(fee_type)
         return fee_type
     
-    async def update_fee_type(self, fee_type_id: str, data: ConsultationFeeTypeUpdate) -> Optional[ConsultationFeeType]:
+    async def update_fee_type(self, fee_type_id: str, data: ConsultationFeeTypeUpdate, operator_id: Optional[str] = None) -> Optional[ConsultationFeeType]:
         """更新诊费类型"""
         fee_type = await self.get_fee_type_by_id(fee_type_id)
         if not fee_type:
@@ -116,6 +118,7 @@ class ConsultationFeeService:
             if hasattr(fee_type, field):
                 setattr(fee_type, field, value)
         
+        set_update_audit(fee_type, operator_id)
         await self.db.commit()
         await self.db.refresh(fee_type)
         return fee_type
@@ -182,7 +185,7 @@ class ConsultationFeeService:
         )
         return result.scalar_one_or_none()
     
-    async def create_or_update_fee_template(self, data: ConsultationFeeTemplateCreate) -> ConsultationFeeTemplate:
+    async def create_or_update_fee_template(self, data: ConsultationFeeTemplateCreate, operator_id: Optional[str] = None) -> ConsultationFeeTemplate:
         """创建或更新全局诊费模板"""
         template = await self.get_fee_template_by_type(data.fee_type_id)
         
@@ -190,6 +193,7 @@ class ConsultationFeeService:
             template.initial_fee = data.initial_fee
             template.follow_up_fee = data.follow_up_fee
             template.status = data.status
+            set_update_audit(template, operator_id)
         else:
             template = ConsultationFeeTemplate(
                 id=str(uuid.uuid4()),
@@ -198,6 +202,7 @@ class ConsultationFeeService:
                 follow_up_fee=data.follow_up_fee,
                 status=data.status
             )
+            set_create_audit(template, operator_id)
             self.db.add(template)
         
         await self.db.commit()
@@ -285,7 +290,7 @@ class ConsultationFeeService:
         return result
     
     async def create_or_update_store_fee_template(
-        self, store_id: str, fee_type_id: str, initial_fee: Decimal, follow_up_fee: Decimal, status: int = 1
+        self, store_id: str, fee_type_id: str, initial_fee: Decimal, follow_up_fee: Decimal, status: int = 1, operator_id: Optional[str] = None
     ) -> StoreFeeTemplate:
         """创建或更新门店诊费模板"""
         template = await self.get_store_fee_template_by_type(store_id, fee_type_id)
@@ -294,6 +299,7 @@ class ConsultationFeeService:
             template.initial_fee = initial_fee
             template.follow_up_fee = follow_up_fee
             template.status = status
+            set_update_audit(template, operator_id)
         else:
             template = StoreFeeTemplate(
                 id=str(uuid.uuid4()),
@@ -303,6 +309,7 @@ class ConsultationFeeService:
                 follow_up_fee=follow_up_fee,
                 status=status
             )
+            set_create_audit(template, operator_id)
             self.db.add(template)
         
         await self.db.commit()
@@ -446,7 +453,7 @@ class ConsultationFeeService:
         )
         return result.scalar_one_or_none()
     
-    async def create_doctor_fee(self, data: DoctorConsultationFeeCreate) -> DoctorConsultationFee:
+    async def create_doctor_fee(self, data: DoctorConsultationFeeCreate, operator_id: Optional[str] = None) -> DoctorConsultationFee:
         """创建医生诊费配置"""
         fee = DoctorConsultationFee(
             id=str(uuid.uuid4()),
@@ -458,12 +465,13 @@ class ConsultationFeeService:
             follow_up_fee=data.follow_up_fee,
             status=data.status
         )
+        set_create_audit(fee, operator_id)
         self.db.add(fee)
         await self.db.commit()
         await self.db.refresh(fee)
         return fee
     
-    async def update_doctor_fee(self, fee_id: str, data: DoctorConsultationFeeUpdate) -> Optional[DoctorConsultationFee]:
+    async def update_doctor_fee(self, fee_id: str, data: DoctorConsultationFeeUpdate, operator_id: Optional[str] = None) -> Optional[DoctorConsultationFee]:
         """更新医生诊费配置"""
         fee = await self.get_doctor_fee_by_id(fee_id)
         if not fee:
@@ -474,11 +482,12 @@ class ConsultationFeeService:
             if hasattr(fee, field):
                 setattr(fee, field, value)
         
+        set_update_audit(fee, operator_id)
         await self.db.commit()
         await self.db.refresh(fee)
         return fee
     
-    async def batch_save_doctor_fees(self, data: DoctorConsultationFeeBatchCreate) -> List[DoctorConsultationFee]:
+    async def batch_save_doctor_fees(self, data: DoctorConsultationFeeBatchCreate, operator_id: Optional[str] = None) -> List[DoctorConsultationFee]:
         """批量保存医生诊费配置"""
         result = []
         
@@ -490,6 +499,7 @@ class ConsultationFeeService:
             if existing:
                 existing.initial_fee = item.initial_fee
                 existing.follow_up_fee = item.follow_up_fee
+                set_update_audit(existing, operator_id)
                 await self.db.flush()
                 result.append(existing)
             else:
@@ -503,6 +513,7 @@ class ConsultationFeeService:
                     follow_up_fee=item.follow_up_fee,
                     status=1
                 )
+                set_create_audit(fee, operator_id)
                 self.db.add(fee)
                 await self.db.flush()
                 result.append(fee)

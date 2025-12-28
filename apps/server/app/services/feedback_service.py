@@ -7,6 +7,7 @@ import json
 
 from app.models.feedback import Feedback, FeedbackStatus
 from app.schemas.feedback import FeedbackCreate, FeedbackReply, FeedbackQuery
+from app.utils.audit import set_create_audit, set_update_audit
 
 
 class FeedbackService:
@@ -75,6 +76,7 @@ class FeedbackService:
             images=images_str,
             contact=data.contact
         )
+        set_create_audit(feedback, data.user_id)
         
         self.db.add(feedback)
         await self.db.commit()
@@ -96,6 +98,7 @@ class FeedbackService:
         feedback.status = data.status.value
         feedback.handler_id = handler_id
         feedback.handled_at = datetime.utcnow()
+        set_update_audit(feedback, handler_id)
         
         await self.db.commit()
         await self.db.refresh(feedback)
@@ -104,7 +107,8 @@ class FeedbackService:
     async def update_status(
         self, 
         feedback_id: str, 
-        status: str
+        status: str,
+        operator_id: Optional[str] = None
     ) -> Optional[Feedback]:
         """更新状态"""
         feedback = await self.get_by_id(feedback_id)
@@ -112,6 +116,7 @@ class FeedbackService:
             return None
         
         feedback.status = status
+        set_update_audit(feedback, operator_id)
         await self.db.commit()
         await self.db.refresh(feedback)
         return feedback

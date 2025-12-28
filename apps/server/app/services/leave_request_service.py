@@ -12,6 +12,7 @@ from app.models.doctor import Doctor
 from app.schemas.leave_request import (
     StopClinicCreate, ScheduleChangeCreate, ReviewRequest, LeaveRequestQuery
 )
+from app.utils.audit import set_create_audit, set_update_audit
 
 
 class LeaveRequestService:
@@ -86,6 +87,7 @@ class LeaveRequestService:
             reason=data.reason,
             affected_appointments=affected
         )
+        set_create_audit(request, data.doctor_id)
         
         self.db.add(request)
         await self.db.commit()
@@ -112,6 +114,7 @@ class LeaveRequestService:
             reason=data.reason,
             affected_appointments=affected
         )
+        set_create_audit(request, data.doctor_id)
         
         self.db.add(request)
         await self.db.commit()
@@ -136,6 +139,7 @@ class LeaveRequestService:
         request.reviewer_id = reviewer_id
         request.review_comment = data.review_comment
         request.reviewed_at = datetime.utcnow()
+        set_update_audit(request, reviewer_id)
         
         # 如果通过，处理排班和预约
         if data.status == RequestStatus.APPROVED:
@@ -158,6 +162,7 @@ class LeaveRequestService:
             raise ValueError("该申请已处理，无法取消")
         
         request.status = RequestStatus.CANCELLED.value
+        set_update_audit(request, doctor_id)
         await self.db.commit()
         return True
     

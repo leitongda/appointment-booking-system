@@ -6,6 +6,7 @@ import uuid
 import json
 
 from app.models.settings import SystemSetting, DEFAULT_SETTINGS
+from app.utils.audit import set_create_audit, set_update_audit
 
 
 class SettingsService:
@@ -54,7 +55,7 @@ class SettingsService:
         
         return default
 
-    async def set_value(self, category: str, key: str, value: Any, description: str = None) -> SystemSetting:
+    async def set_value(self, category: str, key: str, value: Any, description: str = None, operator_id: Optional[str] = None) -> SystemSetting:
         """设置单个值"""
         result = await self.db.execute(
             select(SystemSetting).where(
@@ -72,6 +73,7 @@ class SettingsService:
             setting.value = str_value
             if description:
                 setting.description = description
+            set_update_audit(setting, operator_id)
         else:
             setting = SystemSetting(
                 id=str(uuid.uuid4()),
@@ -80,6 +82,7 @@ class SettingsService:
                 value=str_value,
                 description=description or DEFAULT_SETTINGS.get(category, {}).get(key, {}).get('description'),
             )
+            set_create_audit(setting, operator_id)
             self.db.add(setting)
         
         await self.db.commit()

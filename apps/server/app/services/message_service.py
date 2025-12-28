@@ -10,6 +10,7 @@ from app.schemas.message import (
     MessageCreate, MessageBatchCreate, MessageQuery,
     MessageTemplateCreate, MessageTemplateUpdate, UnreadCountResponse
 )
+from app.utils.audit import set_create_audit, set_update_audit
 
 
 class MessageService:
@@ -141,7 +142,7 @@ class MessageService:
             stop_clinic=type_counts.get('stop_clinic', 0)
         )
     
-    async def create(self, data: MessageCreate, store_id: Optional[str] = None) -> Message:
+    async def create(self, data: MessageCreate, store_id: Optional[str] = None, operator_id: Optional[str] = None) -> Message:
         """创建消息"""
         extra_data_str = json.dumps(data.extra_data) if data.extra_data else None
         
@@ -156,12 +157,13 @@ class MessageService:
             related_id=data.related_id,
             extra_data=extra_data_str
         )
+        set_create_audit(message, operator_id)
         self.db.add(message)
         await self.db.commit()
         await self.db.refresh(message)
         return message
     
-    async def batch_create(self, data: MessageBatchCreate, store_id: Optional[str] = None) -> int:
+    async def batch_create(self, data: MessageBatchCreate, store_id: Optional[str] = None, operator_id: Optional[str] = None) -> int:
         """批量创建消息"""
         messages = []
         for user_id in data.user_ids:
@@ -175,6 +177,7 @@ class MessageService:
                 message_type=data.message_type.value,
                 related_id=data.related_id
             )
+            set_create_audit(message, operator_id)
             messages.append(message)
         
         self.db.add_all(messages)
@@ -323,7 +326,7 @@ class MessageTemplateService:
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
     
-    async def create(self, data: MessageTemplateCreate) -> MessageTemplate:
+    async def create(self, data: MessageTemplateCreate, operator_id: Optional[str] = None) -> MessageTemplate:
         existing = await self.get_by_code(data.code)
         if existing:
             raise ValueError(f"模板编码 {data.code} 已存在")
@@ -332,12 +335,13 @@ class MessageTemplateService:
             id=str(uuid.uuid4()),
             **data.model_dump()
         )
+        set_create_audit(template, operator_id)
         self.db.add(template)
         await self.db.commit()
         await self.db.refresh(template)
         return template
     
-    async def update(self, template_id: str, data: MessageTemplateUpdate) -> Optional[MessageTemplate]:
+    async def update(self, template_id: str, data: MessageTemplateUpdate, operator_id: Optional[str] = None) -> Optional[MessageTemplate]:
         template = await self.get_by_id(template_id)
         if not template:
             return None
@@ -346,6 +350,7 @@ class MessageTemplateService:
         for field, value in update_data.items():
             setattr(template, field, value)
         
+        set_update_audit(template, operator_id)
         await self.db.commit()
         await self.db.refresh(template)
         return template

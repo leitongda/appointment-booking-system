@@ -11,6 +11,7 @@ from app.models.schedule import Schedule
 from app.models.doctor import Doctor
 from app.models.store import Store
 from app.schemas.schedule_suspension import ScheduleSuspensionCreate, AvailableScheduleForSuspension
+from app.utils.audit import set_create_audit, set_update_audit
 
 
 class ScheduleSuspensionService:
@@ -68,7 +69,7 @@ class ScheduleSuspensionService:
         
         return list(result.scalars().all()), count_result.scalar() or 0
     
-    async def create(self, data: ScheduleSuspensionCreate) -> ScheduleSuspension:
+    async def create(self, data: ScheduleSuspensionCreate, operator_id: Optional[str] = None) -> ScheduleSuspension:
         """创建停诊并自动更新相关排班状态"""
         suspension = ScheduleSuspension(
             id=str(uuid.uuid4()),
@@ -80,6 +81,7 @@ class ScheduleSuspensionService:
             time_slots=json.dumps(data.time_slots) if data.time_slots else None,
             status=1
         )
+        set_create_audit(suspension, operator_id)
         self.db.add(suspension)
         
         # 如果有指定的排班ID，更新这些排班的状态
@@ -196,6 +198,7 @@ class ScheduleSuspensionService:
                 schedule.status = 1
         
         suspension.status = 0  # 标记停诊记录为已取消
+        set_update_audit(suspension, None)  # 取消时更新 updated_by
         await self.db.commit()
         await self.db.refresh(suspension)
         return suspension

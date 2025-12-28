@@ -12,6 +12,7 @@ from app.models.user import Patient
 from app.models.doctor import Doctor
 from app.models.department import Department
 from app.schemas.medical_record import MedicalRecordCreate, MedicalRecordUpdate
+from app.utils.audit import set_create_audit, set_update_audit
 
 
 def generate_record_no() -> str:
@@ -64,6 +65,7 @@ class MedicalRecordService:
             status=data.status,
             visit_date=datetime.now(),
         )
+        set_create_audit(record, doctor_id)
         
         self.db.add(record)
         await self.db.commit()
@@ -163,7 +165,7 @@ class MedicalRecordService:
         """获取患者的病历列表"""
         return await self.get_list(patient_id=patient_id, page=page, page_size=page_size)
 
-    async def update(self, record_id: str, data: MedicalRecordUpdate) -> Optional[MedicalRecord]:
+    async def update(self, record_id: str, data: MedicalRecordUpdate, operator_id: Optional[str] = None) -> Optional[MedicalRecord]:
         """更新病历"""
         record = await self.db.get(MedicalRecord, record_id)
         if not record:
@@ -173,6 +175,7 @@ class MedicalRecordService:
         for key, value in update_data.items():
             setattr(record, key, value)
         
+        set_update_audit(record, operator_id)
         await self.db.commit()
         await self.db.refresh(record)
         

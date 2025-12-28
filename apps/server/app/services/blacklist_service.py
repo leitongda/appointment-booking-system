@@ -10,6 +10,7 @@ from app.models.blacklist import Blacklist
 from app.models.user import User, Patient
 from app.models.store import Store
 from app.schemas.blacklist import BlacklistCreate, BlacklistCheckResult
+from app.utils.audit import set_create_audit, set_update_audit
 
 
 class BlacklistService:
@@ -95,7 +96,7 @@ class BlacklistService:
         
         return data, total or 0
 
-    async def create(self, data: BlacklistCreate) -> dict:
+    async def create(self, data: BlacklistCreate, operator_id: Optional[str] = None) -> dict:
         """添加黑名单"""
         blacklist = Blacklist(
             id=str(uuid.uuid4()),
@@ -107,6 +108,7 @@ class BlacklistService:
             expire_at=data.expire_at,
             status=1,
         )
+        set_create_audit(blacklist, operator_id)
         
         self.db.add(blacklist)
         await self.db.commit()
@@ -131,7 +133,7 @@ class BlacklistService:
             'createdAt': blacklist.created_at.isoformat() if blacklist.created_at else None,
         }
 
-    async def remove(self, blacklist_id: str) -> bool:
+    async def remove(self, blacklist_id: str, operator_id: Optional[str] = None) -> bool:
         """移除黑名单（解禁）"""
         result = await self.db.execute(
             select(Blacklist).where(Blacklist.id == blacklist_id)
@@ -143,6 +145,7 @@ class BlacklistService:
         
         blacklist.status = 0
         blacklist.released_at = datetime.now()
+        set_update_audit(blacklist, operator_id)
         await self.db.commit()
         return True
 

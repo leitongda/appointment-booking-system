@@ -7,6 +7,7 @@ from datetime import datetime
 import uuid
 
 from app.models.content import News, Notice, Banner
+from app.utils.audit import set_create_audit, set_update_audit
 
 
 # ========== 新闻服务 ==========
@@ -90,7 +91,7 @@ class NewsService:
         """获取新闻详情"""
         return await self.db.get(News, news_id)
 
-    async def create(self, data: dict, store_id: Optional[str] = None) -> News:
+    async def create(self, data: dict, store_id: Optional[str] = None, operator_id: Optional[str] = None) -> News:
         """创建新闻"""
         news = News(
             id=str(uuid.uuid4()),
@@ -104,12 +105,13 @@ class NewsService:
             status=data.get("status", 0),
             publish_time=datetime.now() if data.get("status") == 1 else None,
         )
+        set_create_audit(news, operator_id)
         self.db.add(news)
         await self.db.commit()
         await self.db.refresh(news)
         return news
 
-    async def update(self, news_id: str, data: dict) -> Optional[News]:
+    async def update(self, news_id: str, data: dict, operator_id: Optional[str] = None) -> Optional[News]:
         """更新新闻"""
         news = await self.get_by_id(news_id)
         if not news:
@@ -123,6 +125,7 @@ class NewsService:
         if data.get("status") == 1 and not news.publish_time:
             news.publish_time = datetime.now()
         
+        set_update_audit(news, operator_id)
         await self.db.commit()
         await self.db.refresh(news)
         return news
@@ -210,7 +213,7 @@ class NoticeService:
         """获取公告详情"""
         return await self.db.get(Notice, notice_id)
 
-    async def create(self, data: dict, store_id: Optional[str] = None) -> Notice:
+    async def create(self, data: dict, store_id: Optional[str] = None, operator_id: Optional[str] = None) -> Notice:
         """创建公告"""
         notice = Notice(
             id=str(uuid.uuid4()),
@@ -222,12 +225,13 @@ class NoticeService:
             status=data.get("status", 0),
             publish_time=datetime.now() if data.get("status") == 1 else None,
         )
+        set_create_audit(notice, operator_id)
         self.db.add(notice)
         await self.db.commit()
         await self.db.refresh(notice)
         return notice
 
-    async def update(self, notice_id: str, data: dict) -> Optional[Notice]:
+    async def update(self, notice_id: str, data: dict, operator_id: Optional[str] = None) -> Optional[Notice]:
         """更新公告"""
         notice = await self.get_by_id(notice_id)
         if not notice:
@@ -240,6 +244,7 @@ class NoticeService:
         if data.get("status") == 1 and not notice.publish_time:
             notice.publish_time = datetime.now()
         
+        set_update_audit(notice, operator_id)
         await self.db.commit()
         await self.db.refresh(notice)
         return notice
@@ -319,7 +324,7 @@ class BannerService:
         """获取轮播图详情"""
         return await self.db.get(Banner, banner_id)
 
-    async def create(self, data: dict, store_id: Optional[str] = None) -> Banner:
+    async def create(self, data: dict, store_id: Optional[str] = None, operator_id: Optional[str] = None) -> Banner:
         """创建轮播图"""
         banner = Banner(
             id=str(uuid.uuid4()),
@@ -332,12 +337,13 @@ class BannerService:
             sort_order=data.get("sort_order", 0),
             status=data.get("status", 1),
         )
+        set_create_audit(banner, operator_id)
         self.db.add(banner)
         await self.db.commit()
         await self.db.refresh(banner)
         return banner
 
-    async def update(self, banner_id: str, data: dict) -> Optional[Banner]:
+    async def update(self, banner_id: str, data: dict, operator_id: Optional[str] = None) -> Optional[Banner]:
         """更新轮播图"""
         banner = await self.get_by_id(banner_id)
         if not banner:
@@ -347,6 +353,7 @@ class BannerService:
             if hasattr(banner, key) and value is not None:
                 setattr(banner, key, value)
         
+        set_update_audit(banner, operator_id)
         await self.db.commit()
         await self.db.refresh(banner)
         return banner

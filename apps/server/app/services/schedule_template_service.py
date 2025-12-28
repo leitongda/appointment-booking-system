@@ -26,6 +26,7 @@ from app.utils.schedule_utils import (
     get_time_slot_from_time,
     split_time_range,
 )
+from app.utils.audit import set_create_audit, set_update_audit
 
 
 class ScheduleTemplateService:
@@ -168,12 +169,13 @@ class ScheduleTemplateService:
             schedule_mode=data.schedule_mode.value if hasattr(data.schedule_mode, 'value') else str(data.schedule_mode),
             status=1
         )
+        set_create_audit(template, data.operator_id if hasattr(data, 'operator_id') else None)
         self.db.add(template)
         await self.db.commit()
         await self.db.refresh(template)
         return template
     
-    async def update(self, template_id: str, data: ScheduleTemplateUpdate) -> Optional[ScheduleTemplate]:
+    async def update(self, template_id: str, data: ScheduleTemplateUpdate, operator_id: Optional[str] = None) -> Optional[ScheduleTemplate]:
         """更新排班模板"""
         template = await self.get_by_id(template_id)
         if not template:
@@ -194,6 +196,7 @@ class ScheduleTemplateService:
         for field, value in update_data.items():
             setattr(template, field, value)
         
+        set_update_audit(template, operator_id)
         await self.db.commit()
         await self.db.refresh(template)
         return template
