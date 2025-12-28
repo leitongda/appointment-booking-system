@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Integer, Text, Enum
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, AuditMixin
 import uuid
 import enum
 
@@ -13,7 +13,7 @@ class EmailTemplateType(str, enum.Enum):
     CUSTOM = "custom"                            # 自定义
 
 
-class EmailTemplate(Base, TimestampMixin):
+class EmailTemplate(Base, AuditMixin):
     """邮件模板模型"""
     __tablename__ = "email_templates"
     

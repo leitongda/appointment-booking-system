@@ -1,11 +1,11 @@
 """病历模型"""
 from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey, Numeric
 from sqlalchemy.orm import relationship
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, AuditMixin
 import uuid
 
 
-class MedicalRecord(Base, TimestampMixin):
+class MedicalRecord(Base, AuditMixin):
     """病历表"""
     __tablename__ = "medical_records"
     

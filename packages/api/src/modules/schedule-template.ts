@@ -100,8 +100,8 @@ export interface ScheduleTemplateUpdateData {
 
 export interface ScheduleGenerateData {
   templateIds: string[];
-  startDate: string;
-  endDate: string;
+  startDate?: string;  // 可选，默认今天
+  endDate?: string;    // 可选，默认1年后
 }
 
 export interface BatchOperateData {
@@ -247,11 +247,16 @@ export const scheduleTemplateApi = {
    * 根据模板批量生成排班
    */
   generate: (data: ScheduleGenerateData): Promise<{ message: string; count: number }> => {
-    return request.post('/schedule-templates/generate', {
+    const requestData: Record<string, any> = {
       template_ids: data.templateIds,
-      start_date: data.startDate,
-      end_date: data.endDate,
-    });
+    };
+    if (data.startDate) {
+      requestData.start_date = data.startDate;
+    }
+    if (data.endDate) {
+      requestData.end_date = data.endDate;
+    }
+    return request.post('/schedule-templates/generate', requestData);
   },
 
   /**

@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, Integer, Text, DateTime, Enum, ForeignKey
 from sqlalchemy.orm import relationship
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, AuditMixin
 import uuid
 import enum
 
@@ -14,7 +14,7 @@ class MessageType(str, enum.Enum):
     STOP_CLINIC = "stop_clinic"  # 停诊通知
 
 
-class Message(Base, TimestampMixin):
+class Message(Base, AuditMixin):
     """消息模型"""
     __tablename__ = "messages"
     
@@ -35,7 +35,7 @@ class Message(Base, TimestampMixin):
     store = relationship("Store", backref="messages")
 
 
-class MessageTemplate(Base, TimestampMixin):
+class MessageTemplate(Base, AuditMixin):
     """消息模板"""
     __tablename__ = "message_templates"
     

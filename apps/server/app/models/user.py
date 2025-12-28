@@ -1,9 +1,9 @@
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, Numeric
 from sqlalchemy.orm import relationship as orm_relationship
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, AuditMixin
 import uuid
 
-class User(Base, TimestampMixin):
+class User(Base, AuditMixin):
     __tablename__ = "users"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -19,7 +19,7 @@ class User(Base, TimestampMixin):
     patients = orm_relationship("Patient", back_populates="user")
     point_logs = orm_relationship("PointLog", back_populates="user")
 
-class Patient(Base, TimestampMixin):
+class Patient(Base, AuditMixin):
     __tablename__ = "patients"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))

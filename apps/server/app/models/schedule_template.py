@@ -1,11 +1,11 @@
 from sqlalchemy import Column, String, Integer, Time, ForeignKey, Text, DateTime
 from sqlalchemy.orm import relationship
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, AuditMixin
 import uuid
 import json
 
 
-class ScheduleTemplate(Base, TimestampMixin):
+class ScheduleTemplate(Base, AuditMixin):
     """排班模板模型"""
     __tablename__ = "schedule_templates"
     

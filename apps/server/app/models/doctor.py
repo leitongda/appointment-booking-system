@@ -1,9 +1,9 @@
 from sqlalchemy import Column, String, Integer, Text, Numeric, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, AuditMixin
 import uuid
 
-class Doctor(Base, TimestampMixin):
+class Doctor(Base, AuditMixin):
     __tablename__ = "doctors"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))

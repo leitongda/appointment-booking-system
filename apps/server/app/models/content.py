@@ -1,10 +1,10 @@
 from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, AuditMixin
 from datetime import datetime
 import uuid
 
-class News(Base, TimestampMixin):
+class News(Base, AuditMixin):
     """新闻资讯"""
     __tablename__ = "news"
     
@@ -22,7 +22,7 @@ class News(Base, TimestampMixin):
     
     store = relationship("Store", backref="news")
 
-class Notice(Base, TimestampMixin):
+class Notice(Base, AuditMixin):
     """公告通知"""
     __tablename__ = "notices"
     
@@ -37,7 +37,7 @@ class Notice(Base, TimestampMixin):
     
     store = relationship("Store", backref="notices")
 
-class Banner(Base, TimestampMixin):
+class Banner(Base, AuditMixin):
     """轮播图"""
     __tablename__ = "banners"
     

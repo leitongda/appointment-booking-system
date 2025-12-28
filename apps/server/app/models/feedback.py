@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Integer, Text, DateTime
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, AuditMixin
 import uuid
 import enum
 
@@ -20,7 +20,7 @@ class FeedbackStatus(str, enum.Enum):
     CLOSED = "closed"  # 已关闭
 
 
-class Feedback(Base, TimestampMixin):
+class Feedback(Base, AuditMixin):
     """用户反馈模型"""
     __tablename__ = "feedbacks"
     

@@ -1,11 +1,11 @@
 """积分流水模型"""
 from sqlalchemy import Column, String, Integer, ForeignKey
 from sqlalchemy.orm import relationship
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, AuditMixin
 import uuid
 
 
-class PointLog(Base, TimestampMixin):
+class PointLog(Base, AuditMixin):
     """积分流水记录"""
     __tablename__ = "point_logs"
     

@@ -1,5 +1,5 @@
 import { PlusOutlined, ThunderboltOutlined, DeleteOutlined, StopOutlined, HistoryOutlined, CalendarOutlined } from '@ant-design/icons';
-import type { ActionType, ProColumns } from '@ant-design/pro-components';
+import type { ActionType, ProColumns, ProFormInstance } from '@ant-design/pro-components';
 import {
   PageContainer,
   ProTable,
@@ -7,6 +7,7 @@ import {
   ProFormSelect,
   ProFormTimePicker,
   ProFormDateRangePicker,
+  ProFormDatePicker,
   ProFormCheckbox,
   ProFormRadio,
   ProFormDigit,
@@ -43,6 +44,8 @@ const ScheduleRulePage: React.FC = () => {
   const { currentUser } = initialState ?? {};
   const isSuperAdmin = access.canSuperAdmin;
   const actionRef = useRef<ActionType>();
+  const generateFormRef = useRef<ProFormInstance>();
+  const batchAddFormRef = useRef<ProFormInstance>();
   const [batchAddModalOpen, setBatchAddModalOpen] = useState(false);
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
   const [logsModalOpen, setLogsModalOpen] = useState(false);
@@ -229,61 +232,59 @@ const ScheduleRulePage: React.FC = () => {
   };
 
   const handleGenerateSubmit = async (values: any) => {
-    const { dateRange } = values;
-    if (!dateRange || dateRange.length !== 2) {
-      message.error('请选择日期范围');
-      return false;
-    }
+    const { startDate: startDateVal, endDate: endDateVal } = values;
 
     if (selectedTemplates.length === 0) {
       message.error('请先选择要使用的规则');
       return false;
     }
 
-    // 格式化日期
-    const startDate = typeof dateRange[0] === 'string' 
-      ? dateRange[0] 
-      : dateRange[0].format('YYYY-MM-DD');
-    const endDate = typeof dateRange[1] === 'string' 
-      ? dateRange[1] 
-      : dateRange[1].format('YYYY-MM-DD');
+    // 格式化日期（可选，为空时后端会使用默认值）
+    const startDate = startDateVal 
+      ? (typeof startDateVal === 'string' ? startDateVal : startDateVal.format('YYYY-MM-DD'))
+      : undefined;
+    const endDate = endDateVal 
+      ? (typeof endDateVal === 'string' ? endDateVal : endDateVal.format('YYYY-MM-DD'))
+      : undefined;
 
-    // 检查是否已生成过排班
-    let hasExisting = false;
-    let totalExistingCount = 0;
-    
-    for (const templateId of selectedTemplates) {
-      try {
-        const checkResult = await scheduleTemplateApi.checkGenerated(templateId, startDate, endDate);
-        if (checkResult.hasGenerated && checkResult.dateRangeCount > 0) {
-          hasExisting = true;
-          totalExistingCount += checkResult.dateRangeCount;
+    // 检查是否已生成过排班（只在有日期时检查）
+    if (startDate || endDate) {
+      let hasExisting = false;
+      let totalExistingCount = 0;
+      
+      for (const templateId of selectedTemplates) {
+        try {
+          const checkResult = await scheduleTemplateApi.checkGenerated(templateId, startDate, endDate);
+          if (checkResult.hasGenerated && checkResult.dateRangeCount > 0) {
+            hasExisting = true;
+            totalExistingCount += checkResult.dateRangeCount;
+          }
+        } catch (error) {
+          console.error('检查生成状态失败', error);
         }
-      } catch (error) {
-        console.error('检查生成状态失败', error);
       }
-    }
 
-    // 如果已存在排班，弹出确认框
-    if (hasExisting) {
-      const confirmed = await new Promise<boolean>((resolve) => {
-        modal.confirm({
-          title: '检测到已存在排班',
-          content: (
-            <div>
-              <p>在所选日期范围内，已存在 <strong>{totalExistingCount}</strong> 条排班记录。</p>
-              <p>是否继续生成？（不会删除已有排班，只会跳过已存在的时段）</p>
-            </div>
-          ),
-          okText: '继续生成',
-          cancelText: '取消',
-          onOk: () => resolve(true),
-          onCancel: () => resolve(false),
+      // 如果已存在排班，弹出确认框
+      if (hasExisting) {
+        const confirmed = await new Promise<boolean>((resolve) => {
+          modal.confirm({
+            title: '检测到已存在排班',
+            content: (
+              <div>
+                <p>在所选日期范围内，已存在 <strong>{totalExistingCount}</strong> 条排班记录。</p>
+                <p>是否继续生成？（不会删除已有排班，只会跳过已存在的时段）</p>
+              </div>
+            ),
+            okText: '继续生成',
+            cancelText: '取消',
+            onOk: () => resolve(true),
+            onCancel: () => resolve(false),
+          });
         });
-      });
 
-      if (!confirmed) {
-        return false;
+        if (!confirmed) {
+          return false;
+        }
       }
     }
 
@@ -614,6 +615,7 @@ const ScheduleRulePage: React.FC = () => {
       <ModalForm
         title="批量添加排班规则"
         open={batchAddModalOpen}
+        formRef={batchAddFormRef}
         onOpenChange={(open) => {
           setBatchAddModalOpen(open);
           if (!open) {
@@ -647,7 +649,10 @@ const ScheduleRulePage: React.FC = () => {
           name="departmentId"
           label="选择科室"
           options={departments.map((d) => ({ label: d.name, value: d.id }))}
-          onChange={(val) => setSelectedDept(val as string)}
+          onChange={(val) => {
+            setSelectedDept(val as string);
+            batchAddFormRef.current?.setFieldValue('doctorId', undefined);
+          }}
           rules={[{ required: true, message: '请选择科室' }]}
         />
         <ProFormSelect
@@ -714,6 +719,7 @@ const ScheduleRulePage: React.FC = () => {
       <ModalForm
         title={currentTemplate ? `生成排班 - ${currentTemplate.name}` : '根据规则生成排班'}
         open={generateModalOpen}
+        formRef={generateFormRef}
         onOpenChange={(open) => {
           setGenerateModalOpen(open);
           if (!open) {
@@ -747,11 +753,55 @@ const ScheduleRulePage: React.FC = () => {
             style={{ marginBottom: 16 }}
           />
         )}
-        <ProFormDateRangePicker
-          name="dateRange"
-          label="生成日期范围"
-          rules={[{ required: true, message: '请选择日期范围' }]}
-          extra="系统将根据规则配置的星期和排班方式，在日期范围内生成对应的排班"
+        
+        {/* 快捷选择按钮 */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 8, color: '#666' }}>快捷选择：</div>
+          <Space wrap>
+            {[
+              { label: '1个月', months: 1 },
+              { label: '2个月', months: 2 },
+              { label: '3个月', months: 3 },
+              { label: '6个月', months: 6 },
+              { label: '1年', months: 12 },
+              { label: '2年', months: 24 },
+              { label: '3年', months: 36 },
+            ].map((item) => (
+              <Button
+                key={item.label}
+                size="small"
+                onClick={() => {
+                  const start = dayjs();
+                  const end = dayjs().add(item.months, 'month');
+                  generateFormRef.current?.setFieldsValue({
+                    startDate: start,
+                    endDate: end,
+                  });
+                }}
+              >
+                {item.label}
+              </Button>
+            ))}
+          </Space>
+        </div>
+        
+        <ProFormDatePicker
+          name="startDate"
+          label="开始日期"
+          placeholder="不选则默认今天"
+          extra="可选，不填写默认从今天开始"
+        />
+        <ProFormDatePicker
+          name="endDate"
+          label="结束日期"
+          placeholder="不选则默认1年后"
+          extra="可选，不填写默认生成到1年后"
+        />
+        <Alert
+          message="系统将根据规则配置的星期和排班方式，在日期范围内生成对应的排班"
+          type="info"
+          showIcon
+          style={{ marginTop: 8 }}
         />
       </ModalForm>
 

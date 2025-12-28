@@ -1,10 +1,10 @@
 from sqlalchemy import Column, String, Integer, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, AuditMixin
 import uuid
 
 
-class DoctorBookingSetting(Base, TimestampMixin):
+class DoctorBookingSetting(Base, AuditMixin):
     """医生预约设置模型"""
     __tablename__ = "doctor_booking_settings"
     

@@ -1,12 +1,12 @@
 """黑名单模型"""
 from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey
 from sqlalchemy.orm import relationship
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, AuditMixin
 from datetime import datetime
 import uuid
 
 
-class Blacklist(Base, TimestampMixin):
+class Blacklist(Base, AuditMixin):
     """黑名单表"""
     __tablename__ = "blacklists"
     

@@ -1,10 +1,10 @@
 from sqlalchemy import Column, String, Integer, Text, Numeric, ForeignKey, DateTime, UniqueConstraint
 from sqlalchemy.orm import relationship
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, AuditMixin
 import uuid
 
 
-class ConsultationFeeType(Base, TimestampMixin):
+class ConsultationFeeType(Base, AuditMixin):
     """诊费类型模型"""
     __tablename__ = "consultation_fee_types"
     __table_args__ = (
@@ -27,7 +27,7 @@ class ConsultationFeeType(Base, TimestampMixin):
     doctor_fees = relationship("DoctorConsultationFee", back_populates="fee_type")
 
 
-class ConsultationFeeTemplate(Base, TimestampMixin):
+class ConsultationFeeTemplate(Base, AuditMixin):
     """诊费模板模型（全局默认诊费配置）"""
     __tablename__ = "consultation_fee_templates"
     
@@ -41,7 +41,7 @@ class ConsultationFeeTemplate(Base, TimestampMixin):
     fee_type = relationship("ConsultationFeeType", back_populates="templates")
 
 
-class StoreFeeTemplate(Base, TimestampMixin):
+class StoreFeeTemplate(Base, AuditMixin):
     """门店诊费模板模型（门店级别的诊费配置，可覆盖全局模板）"""
     __tablename__ = "store_fee_templates"
     __table_args__ = (
@@ -60,7 +60,7 @@ class StoreFeeTemplate(Base, TimestampMixin):
     fee_type = relationship("ConsultationFeeType", back_populates="store_templates")
 
 
-class DoctorConsultationFee(Base, TimestampMixin):
+class DoctorConsultationFee(Base, AuditMixin):
     """医生诊费配置模型"""
     __tablename__ = "doctor_consultation_fees"
     

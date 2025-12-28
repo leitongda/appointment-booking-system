@@ -1,5 +1,5 @@
 import { PlusOutlined, StopOutlined, PlayCircleOutlined, DeleteOutlined } from '@ant-design/icons';
-import type { ActionType, ProColumns } from '@ant-design/pro-components';
+import type { ActionType, ProColumns, ProFormInstance } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormSelect, ProFormDatePicker, ProFormDigit, ProFormDateRangePicker } from '@ant-design/pro-components';
 import { Button, App, Space, Tag, Popconfirm, Alert } from 'antd';
 import { useRef, useState, useEffect } from 'react';
@@ -19,6 +19,7 @@ const ScheduleListPage: React.FC = () => {
   const { message, modal } = App.useApp();
   const access = useAccess();
   const actionRef = useRef<ActionType>();
+  const formRef = useRef<ProFormInstance>();
   const [modalOpen, setModalOpen] = useState(false);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -270,6 +271,9 @@ const ScheduleListPage: React.FC = () => {
         allowClear: true,
         placeholder: '请选择科室',
         optionFilterProp: 'label',
+        onChange: () => {
+          formRef.current?.setFieldValue('doctorId', undefined);
+        },
       },
       render: (_, record) => record.departmentName,
     },
@@ -379,6 +383,7 @@ const ScheduleListPage: React.FC = () => {
       <ProTable<Schedule>
         headerTitle="排班列表"
         actionRef={actionRef}
+        formRef={formRef}
         rowKey="id"
         columns={columns}
         rowSelection={{

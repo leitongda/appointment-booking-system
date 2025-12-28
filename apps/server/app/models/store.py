@@ -1,10 +1,10 @@
 from sqlalchemy import Column, String, Integer, Text, Time
 from sqlalchemy.orm import relationship
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, AuditMixin
 import uuid
 
 
-class Store(Base, TimestampMixin):
+class Store(Base, AuditMixin):
     """门店/分院模型"""
     __tablename__ = "stores"
     

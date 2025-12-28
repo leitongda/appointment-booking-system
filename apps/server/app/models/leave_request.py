@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Integer, Text, Date, DateTime
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, AuditMixin
 import uuid
 import enum
 
@@ -18,7 +18,7 @@ class RequestStatus(str, enum.Enum):
     CANCELLED = "cancelled"  # 已取消
 
 
-class LeaveRequest(Base, TimestampMixin):
+class LeaveRequest(Base, AuditMixin):
     """停诊/调班申请模型"""
     __tablename__ = "leave_requests"
     

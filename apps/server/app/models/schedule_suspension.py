@@ -1,10 +1,10 @@
 from sqlalchemy import Column, String, Integer, Date, Text, ForeignKey
 from sqlalchemy.orm import relationship
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, AuditMixin
 import uuid
 
 
-class ScheduleSuspension(Base, TimestampMixin):
+class ScheduleSuspension(Base, AuditMixin):
     """停诊记录模型"""
     __tablename__ = "schedule_suspensions"
     

@@ -1,7 +1,8 @@
 import { PlusOutlined, CopyOutlined, DeleteOutlined } from '@ant-design/icons';
 import { PageContainer, ProForm, ProFormSelect, ProFormDatePicker, ProFormDigit, ProFormTimePicker, FooterToolbar } from '@ant-design/pro-components';
+import type { ProFormInstance } from '@ant-design/pro-components';
 import { Card, App, Row, Col, Button, Space } from 'antd';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
 import { customScheduleApi, storeApi, departmentApi, doctorApi } from '@hospital/api';
 import { APPOINTMENT_TYPE_OPTIONS } from '@hospital/shared';
@@ -22,6 +23,7 @@ const CustomScheduleFormPage: React.FC = () => {
   const { initialState } = useModel('@@initialState');
   const { currentUser, currentStore } = initialState ?? {};
   const isSuperAdmin = access.canSuperAdmin;
+  const formRef = useRef<ProFormInstance>();
   const [stores, setStores] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [doctors, setDoctors] = useState<any[]>([]);
@@ -146,6 +148,7 @@ const CustomScheduleFormPage: React.FC = () => {
   return (
     <PageContainer title="添加自定义排班">
       <ProForm
+        formRef={formRef}
         onFinish={handleSubmit}
         submitter={{
           render: (props, dom) => (
@@ -179,7 +182,10 @@ const CustomScheduleFormPage: React.FC = () => {
               options={departments.map(d => ({ label: d.name, value: d.id }))}
               rules={[{ required: true, message: '请选择科室' }]}
               fieldProps={{
-                onChange: (val) => setSelectedDept(val),
+                onChange: (val) => {
+                  setSelectedDept(val);
+                  formRef.current?.setFieldValue('doctorId', undefined);
+                },
               }}
             />
             <ProFormSelect

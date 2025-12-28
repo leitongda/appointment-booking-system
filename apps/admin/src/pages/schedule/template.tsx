@@ -1,5 +1,5 @@
 import { PlusOutlined, ThunderboltOutlined } from '@ant-design/icons';
-import type { ActionType, ProColumns } from '@ant-design/pro-components';
+import type { ActionType, ProColumns, ProFormInstance } from '@ant-design/pro-components';
 import {
   PageContainer,
   ProTable,
@@ -34,6 +34,7 @@ const ScheduleTemplatePage: React.FC = () => {
   const { currentUser } = initialState ?? {};
   const isSuperAdmin = access.canSuperAdmin;
   const actionRef = useRef<ActionType>();
+  const batchAddFormRef = useRef<ProFormInstance>();
   const [batchAddModalOpen, setBatchAddModalOpen] = useState(false);
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
@@ -359,6 +360,7 @@ const ScheduleTemplatePage: React.FC = () => {
       <ModalForm
         title="批量添加排班"
         open={batchAddModalOpen}
+        formRef={batchAddFormRef}
         onOpenChange={(open) => {
           setBatchAddModalOpen(open);
           if (!open) {
@@ -391,7 +393,10 @@ const ScheduleTemplatePage: React.FC = () => {
           name="departmentId"
           label="选择科室"
           options={departments.map((d) => ({ label: d.name, value: d.id }))}
-          onChange={(val) => setSelectedDept(val as string)}
+          onChange={(val) => {
+            setSelectedDept(val as string);
+            batchAddFormRef.current?.setFieldValue('doctorId', undefined);
+          }}
           rules={[{ required: true, message: '请选择科室' }]}
         />
         <ProFormSelect

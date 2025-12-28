@@ -1,9 +1,9 @@
 from sqlalchemy import Column, String, Integer, Date, Time, ForeignKey
 from sqlalchemy.orm import relationship
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, AuditMixin
 import uuid
 
-class Schedule(Base, TimestampMixin):
+class Schedule(Base, AuditMixin):
     __tablename__ = "schedules"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))

@@ -1,10 +1,10 @@
 from sqlalchemy import Column, String, Integer, Date, Text, ForeignKey
 from sqlalchemy.orm import relationship
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, AuditMixin
 import uuid
 
 
-class RestDay(Base, TimestampMixin):
+class RestDay(Base, AuditMixin):
     """休息日设置模型"""
     __tablename__ = "rest_days"
     

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
-from datetime import date
+from datetime import date, timedelta
 
 from app.db.session import get_db
 from app.api.deps import get_current_admin
@@ -268,6 +268,14 @@ async def generate_schedules(
     """根据模板批量生成排班"""
     service = ScheduleTemplateService(db)
     
+    # 处理日期默认值
+    start_date = data.start_date if data.start_date else date.today()
+    end_date = data.end_date if data.end_date else start_date + timedelta(days=365)
+    
+    # 更新 data 对象中的日期
+    data.start_date = start_date
+    data.end_date = end_date
+    
     # 获取操作人信息
     operator_id = current_admin.get("id") if current_admin else None
     operator_name = current_admin.get("username") if current_admin else None
@@ -284,8 +292,8 @@ async def generate_schedules(
                     affected_count=created_count,
                     operator_id=operator_id,
                     operator_name=operator_name,
-                    start_date=data.start_date,
-                    end_date=data.end_date,
+                    start_date=start_date,
+                    end_date=end_date,
                     remark=f"生成排班 {created_count} 条"
                 )
     except ValueError as e:

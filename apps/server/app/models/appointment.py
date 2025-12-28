@@ -1,10 +1,10 @@
 from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey
 from sqlalchemy.orm import relationship
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, AuditMixin
 from datetime import datetime
 import uuid
 
-class Appointment(Base, TimestampMixin):
+class Appointment(Base, AuditMixin):
     __tablename__ = "appointments"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))

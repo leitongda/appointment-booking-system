@@ -214,7 +214,10 @@ const ScheduleTemplateFormPage: React.FC = () => {
               width="md"
               options={departments.map((d) => ({ label: d.name, value: d.id }))}
               fieldProps={{
-                onChange: (val) => setSelectedDept(val as string),
+                onChange: (val) => {
+                  setSelectedDept(val as string);
+                  formRef.current?.setFieldValue('doctorId', undefined);
+                },
               }}
               rules={[{ required: true, message: '请选择科室' }]}
             />

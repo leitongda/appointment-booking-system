@@ -115,8 +115,8 @@ class ScheduleGenerateRequest(BaseModel):
     )
     
     template_ids: List[str] = Field(..., description="模板ID列表")
-    start_date: date = Field(..., description="开始日期")
-    end_date: date = Field(..., description="结束日期")
+    start_date: Optional[date] = Field(None, description="开始日期，为空则默认今天")
+    end_date: Optional[date] = Field(None, description="结束日期，为空则默认1年后")
 
 
 class ScheduleBatchAddRequest(BaseModel):
