@@ -3,7 +3,7 @@ import Taro from '@tarojs/taro';
 import { Button } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 import { userApi } from '@hospital/api';
-import { removeToken, removeStorage, STORAGE_KEYS } from '@hospital/shared';
+import { removeToken, removeStorage, STORAGE_KEYS, getToken } from '@hospital/shared';
 import type { User } from '@hospital/shared';
 import {
   TeamIcon,
@@ -39,10 +39,22 @@ const menuGroups: { items: { icon: IconComponent; title: string; desc: string; p
 
 const ProfilePage = () => {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    loadProfile();
+    checkLoginStatus();
   }, []);
+
+  const checkLoginStatus = () => {
+    const token = getToken();
+    if (token) {
+      setIsLoggedIn(true);
+      loadProfile();
+    } else {
+      setIsLoggedIn(false);
+      setUser(null);
+    }
+  };
 
   const loadProfile = async () => {
     try {
@@ -50,6 +62,16 @@ const ProfilePage = () => {
       setUser(data);
     } catch (error) {
       console.error('加载用户信息失败', error);
+      // 如果获取用户信息失败（可能 token 过期），重置登录状态
+      setIsLoggedIn(false);
+      setUser(null);
+    }
+  };
+
+  // 点击头像/用户信息区域，未登录时跳转登录
+  const handleHeaderClick = () => {
+    if (!isLoggedIn) {
+      Taro.navigateTo({ url: '/pages/login/index' });
     }
   };
 
@@ -79,7 +101,7 @@ const ProfilePage = () => {
     <View className="profile-page">
       {/* 头部区域 */}
       <View className="header">
-        <View className="header-content">
+        <View className="header-content" onClick={handleHeaderClick}>
           <View className="avatar">
             {user?.avatar ? (
               <Image src={user.avatar} mode="aspectFill" />
@@ -88,11 +110,16 @@ const ProfilePage = () => {
             )}
           </View>
           <View className="user-info">
-            <Text className="nickname">{user?.nickname || '未设置昵称'}</Text>
+            <Text className="nickname">
+              {isLoggedIn ? (user?.nickname || '未设置昵称') : '点击登录'}
+            </Text>
             <Text className="phone">
-              {user?.phone?.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') || '未登录'}
+              {isLoggedIn
+                ? (user?.phone?.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') || '')
+                : '登录后享受更多服务'}
             </Text>
           </View>
+          {!isLoggedIn && <Text className="login-arrow">›</Text>}
         </View>
       </View>
 
@@ -140,12 +167,14 @@ const ProfilePage = () => {
         </View>
       ))}
 
-      {/* 退出登录 */}
-      <View className="logout-wrap">
-        <Button className="logout-btn" onClick={handleLogout}>
-          退出登录
-        </Button>
-      </View>
+      {/* 退出登录 - 仅登录状态显示 */}
+      {isLoggedIn && (
+        <View className="logout-wrap">
+          <Button className="logout-btn" onClick={handleLogout}>
+            退出登录
+          </Button>
+        </View>
+      )}
 
       {/* 版本信息 */}
       <View className="version-info">

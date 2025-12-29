@@ -43,11 +43,16 @@ export default defineConfig(async (merge) => {
       options: {},
     },
     framework: 'react',
-    compiler: 'webpack5',
+    // 使用 webpack5 编译器并禁用 prebundle
+    // 禁用 prebundle 以解决 NutUI 图标样式加载问题
+    // 详情: https://github.com/NutUI/nutui-react/issues/1889
+    compiler: {
+      type: 'webpack5',
+      prebundle: {
+        enable: false,
+      },
+    },
     mini: {
-      // 禁用 prebundle 以解决 NutUI 图标样式加载问题
-      // 详情: https://github.com/NutUI/nutui-react/issues/1889
-      experimentalCompileMode: false,
       compile: {
         include: [],
         exclude: [],
@@ -64,10 +69,6 @@ export default defineConfig(async (merge) => {
             generateScopedName: '[name]__[local]___[hash:base64:5]',
           },
         },
-      },
-      // 禁用预编译，避免 wxss 文件被错误地作为 js 模块加载
-      prebundle: {
-        enable: false,
       },
     },
     h5: {
