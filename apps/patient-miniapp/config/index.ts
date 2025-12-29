@@ -14,7 +14,7 @@ export default defineConfig(async (merge) => {
     },
     sourceRoot: 'src',
     outputRoot: 'dist',
-    plugins: ['@tarojs/plugin-framework-react'],
+    plugins: ['@tarojs/plugin-framework-react', '@tarojs/plugin-html'],
     // 小程序环境不支持的库替换为空模块
     // 1. jsencrypt - 依赖 Web Crypto API，小程序不支持
     // 2. @ant-design/pro-components 和 antd - PC端组件库，小程序不需要
