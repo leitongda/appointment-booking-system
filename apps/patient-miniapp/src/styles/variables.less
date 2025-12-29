@@ -1,52 +1,74 @@
 // ===========================================
 // Corporate Trust Design System - Variables
-// 小程序设计变量系统
+// 小程序设计变量系统 (支持动态主题)
 // ===========================================
 
 // -------------------------------------------
-// 颜色系统 (Color System)
+// 动态主题色 - 使用 CSS 变量实现主题切换
 // -------------------------------------------
 
-// 主色调 - Indigo-Violet 渐变色系
-@color-primary: #4F46E5;           // Indigo 600 - 核心品牌色
-@color-primary-dark: #4338CA;      // Indigo 700 - 深色变体
-@color-primary-light: #6366F1;     // Indigo 500 - 浅色变体
-@color-secondary: #7C3AED;         // Violet 600 - 次要品牌色
-@color-secondary-light: #8B5CF6;   // Violet 500
+// 主色调 - 通过 CSS 变量动态获取
+@color-primary: var(--color-primary, #C41E3A);
+@color-primary-dark: var(--color-primary-dark, #A31631);
+@color-primary-light: var(--color-primary-light, #DC3545);
+@color-secondary: var(--color-secondary, #8B2942);
+@color-secondary-light: var(--color-secondary-light, #A23B55);
 
-// 功能色
+// 渐变色 - 使用 CSS 变量
+@gradient-primary: var(--gradient-primary, linear-gradient(135deg, #C41E3A 0%, #8B2942 100%));
+@gradient-primary-horizontal: var(--gradient-primary-h, linear-gradient(90deg, #C41E3A 0%, #8B2942 100%));
+@gradient-light: var(--gradient-light, linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%));
+
+// 主题相关阴影
+@shadow-color: var(--shadow-color, rgba(196, 30, 58, 0.15));
+@shadow-button-theme: var(--shadow-button, 0 8rpx 28rpx 0 rgba(196, 30, 58, 0.3));
+@badge-bg: var(--badge-bg, rgba(196, 30, 58, 0.1));
+
+// -------------------------------------------
+// 功能色 (固定不变)
+// -------------------------------------------
+
 @color-success: #10B981;           // Emerald 500
 @color-warning: #F59E0B;           // Amber 500
 @color-danger: #EF4444;            // Red 500
 @color-info: #3B82F6;              // Blue 500
 
-// 背景色
+// -------------------------------------------
+// 背景色 (固定不变)
+// -------------------------------------------
+
 @color-bg-base: #F8FAFC;           // Slate 50 - 页面背景
 @color-bg-white: #FFFFFF;          // 白色 - 卡片背景
 @color-bg-secondary: #F1F5F9;      // Slate 100 - 次级背景
 @color-bg-tertiary: #E2E8F0;       // Slate 200 - 三级背景
 
-// 文字色
+// -------------------------------------------
+// 文字色 (固定不变)
+// -------------------------------------------
+
 @color-text-primary: #0F172A;      // Slate 900 - 主要文字
 @color-text-secondary: #475569;    // Slate 600 - 次要文字
 @color-text-muted: #64748B;        // Slate 500 - 辅助文字
 @color-text-placeholder: #94A3B8;  // Slate 400 - 占位符
 @color-text-white: #FFFFFF;        // 白色文字
 
-// 边框色
+// -------------------------------------------
+// 边框色 (固定不变)
+// -------------------------------------------
+
 @color-border: #E2E8F0;            // Slate 200
 @color-border-light: #F1F5F9;      // Slate 100
 @color-divider: #F1F5F9;           // 分隔线
 
+// -------------------------------------------
 // 特殊颜色
+// -------------------------------------------
+
 @color-price: #F97316;             // Orange 500 - 价格
 @color-link: @color-primary;       // 链接色
 
-// 渐变色
-@gradient-primary: linear-gradient(135deg, @color-primary 0%, @color-secondary 100%);
-@gradient-primary-horizontal: linear-gradient(90deg, @color-primary 0%, @color-secondary 100%);
-@gradient-light: linear-gradient(135deg, #EEF2FF 0%, #F5F3FF 100%);  // Indigo-50 to Violet-50
-@gradient-dark: linear-gradient(135deg, #312E81 0%, #1E1B4B 100%);   // Indigo 900-950
+// 深色渐变背景 (用于 CTA 区域)
+@gradient-dark: linear-gradient(135deg, #312E81 0%, #1E1B4B 100%);
 
 // -------------------------------------------
 // 字体系统 (Typography)
@@ -117,25 +139,25 @@
 @radius-full: 9999rpx;     // 圆形/胶囊
 
 // -------------------------------------------
-// 阴影系统 (Shadows) - 带颜色的阴影
+// 阴影系统 (Shadows) - 使用主题色
 // -------------------------------------------
 
-// 彩色阴影 - Indigo 色调
-@shadow-sm: 0 4rpx 12rpx -2rpx rgba(79, 70, 229, 0.06);
-@shadow-base: 0 8rpx 24rpx -4rpx rgba(79, 70, 229, 0.08);
-@shadow-md: 0 8rpx 40rpx -4rpx rgba(79, 70, 229, 0.1);
-@shadow-lg: 0 16rpx 48rpx -8rpx rgba(79, 70, 229, 0.12);
-@shadow-xl: 0 20rpx 50rpx -10rpx rgba(79, 70, 229, 0.15);
+// 彩色阴影 - 使用 CSS 变量中的阴影色
+@shadow-sm: 0 4rpx 12rpx -2rpx @shadow-color;
+@shadow-base: 0 8rpx 24rpx -4rpx @shadow-color;
+@shadow-md: 0 8rpx 40rpx -4rpx @shadow-color;
+@shadow-lg: 0 16rpx 48rpx -8rpx @shadow-color;
+@shadow-xl: 0 20rpx 50rpx -10rpx @shadow-color;
 
-// 按钮阴影
-@shadow-button: 0 8rpx 28rpx 0 rgba(79, 70, 229, 0.3);
-@shadow-button-hover: 0 12rpx 32rpx 0 rgba(79, 70, 229, 0.35);
+// 按钮阴影 - 使用主题按钮阴影
+@shadow-button: @shadow-button-theme;
+@shadow-button-hover: 0 12rpx 32rpx 0 @shadow-color;
 
 // 卡片阴影
 @shadow-card: @shadow-md;
 @shadow-card-hover: @shadow-xl;
 
-// 底部固定栏阴影
+// 底部固定栏阴影 (中性色)
 @shadow-footer: 0 -8rpx 32rpx rgba(0, 0, 0, 0.06);
 
 // 中性阴影 (用于特殊场景)
@@ -201,4 +223,3 @@
 @status-warning: @color-warning;     // 警告
 @status-danger: @color-danger;       // 危险/取消
 @status-disabled: @color-text-muted; // 禁用
-

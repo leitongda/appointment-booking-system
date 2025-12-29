@@ -1,27 +1,28 @@
 // ===========================================
 // Corporate Trust Design System - Mixins
-// 小程序样式混入
+// 小程序样式混入 (支持动态主题)
 // ===========================================
 
 @import './variables.less';
 
 // -------------------------------------------
 // 渐变背景 (Gradient Backgrounds)
+// 使用 CSS 变量实现动态主题
 // -------------------------------------------
 
 // 主色渐变背景
 .gradient-primary() {
-  background: @gradient-primary;
+  background: var(--gradient-primary, linear-gradient(135deg, #C41E3A 0%, #8B2942 100%));
 }
 
 // 水平主色渐变
 .gradient-primary-horizontal() {
-  background: @gradient-primary-horizontal;
+  background: var(--gradient-primary-h, linear-gradient(90deg, #C41E3A 0%, #8B2942 100%));
 }
 
 // 浅色渐变背景
 .gradient-light() {
-  background: @gradient-light;
+  background: var(--gradient-light, linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%));
 }
 
 // 深色渐变背景 (用于 CTA 区域)
@@ -37,7 +38,7 @@
 .card-base() {
   background: @color-bg-white;
   border-radius: @radius-xl;
-  box-shadow: @shadow-card;
+  box-shadow: 0 8rpx 40rpx -4rpx var(--shadow-color, rgba(196, 30, 58, 0.1));
   transition: box-shadow @transition-base, transform @transition-base;
 }
 
@@ -47,14 +48,14 @@
   
   &:active {
     transform: translateY(4rpx);
-    box-shadow: @shadow-sm;
+    box-shadow: 0 4rpx 12rpx -2rpx var(--shadow-color, rgba(196, 30, 58, 0.06));
   }
 }
 
 // 悬浮卡片 (用于重点内容)
 .card-elevated() {
   .card-base();
-  box-shadow: @shadow-lg;
+  box-shadow: 0 16rpx 48rpx -8rpx var(--shadow-color, rgba(196, 30, 58, 0.12));
 }
 
 // 扁平卡片 (无阴影)
@@ -74,13 +75,13 @@
   color: @color-text-white;
   border: none;
   border-radius: @radius-lg;
-  box-shadow: @shadow-button;
+  box-shadow: var(--shadow-button, 0 8rpx 28rpx 0 rgba(196, 30, 58, 0.3));
   font-weight: @font-weight-semibold;
   transition: all @transition-base;
   
   &:active {
     transform: translateY(2rpx);
-    box-shadow: @shadow-sm;
+    box-shadow: 0 4rpx 12rpx -2rpx var(--shadow-color, rgba(196, 30, 58, 0.06));
     opacity: 0.95;
   }
   
@@ -111,7 +112,7 @@
 // 文字按钮
 .button-text() {
   background: transparent;
-  color: @color-primary;
+  color: var(--color-primary, #C41E3A);
   border: none;
   font-weight: @font-weight-medium;
   
@@ -144,7 +145,7 @@
 
 // 渐变文字 (用于标题强调)
 .text-gradient() {
-  background: @gradient-primary;
+  background: var(--gradient-primary, linear-gradient(135deg, #C41E3A 0%, #8B2942 100%));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -212,8 +213,8 @@
   align-items: center;
   justify-content: center;
   padding: 4rpx 16rpx;
-  background: rgba(79, 70, 229, 0.1);
-  color: @color-primary;
+  background: var(--badge-bg, rgba(196, 30, 58, 0.1));
+  color: var(--color-primary, #C41E3A);
   font-size: @font-size-xs;
   font-weight: @font-weight-medium;
   border-radius: @radius-sm;
@@ -269,9 +270,9 @@
   justify-content: center;
   width: @size;
   height: @size;
-  background: rgba(79, 70, 229, 0.08);
+  background: var(--badge-bg, rgba(196, 30, 58, 0.08));
   border-radius: @radius-lg;
-  color: @color-primary;
+  color: var(--color-primary, #C41E3A);
 }
 
 // 渐变图标容器
@@ -302,7 +303,7 @@
 .avatar-bordered(@size: @avatar-size-md) {
   .avatar(@size);
   border: 4rpx solid @color-bg-white;
-  box-shadow: @shadow-sm;
+  box-shadow: 0 4rpx 12rpx -2rpx var(--shadow-color, rgba(196, 30, 58, 0.06));
 }
 
 // -------------------------------------------
@@ -326,8 +327,8 @@
   }
   
   &:focus {
-    border-color: @color-primary;
-    box-shadow: 0 0 0 4rpx rgba(79, 70, 229, 0.1);
+    border-color: var(--color-primary, #C41E3A);
+    box-shadow: 0 0 0 4rpx var(--badge-bg, rgba(196, 30, 58, 0.1));
   }
 }
 
@@ -373,12 +374,12 @@
 // 装饰元素 (Decorative Elements)
 // -------------------------------------------
 
-// 背景装饰球
-.bg-blob(@size: 400rpx, @color: rgba(79, 70, 229, 0.15)) {
+// 背景装饰球 (使用主题色)
+.bg-blob(@size: 400rpx) {
   position: absolute;
   width: @size;
   height: @size;
-  background: @color;
+  background: var(--shadow-color, rgba(196, 30, 58, 0.15));
   border-radius: 50%;
   filter: blur(60rpx);
   pointer-events: none;
@@ -386,7 +387,8 @@
 
 // 次要装饰球
 .bg-blob-secondary(@size: 300rpx) {
-  .bg-blob(@size, rgba(124, 58, 237, 0.12));
+  .bg-blob(@size);
+  opacity: 0.8;
 }
 
 // -------------------------------------------
@@ -466,4 +468,3 @@
   box-shadow: @shadow-footer;
   z-index: @z-index-fixed;
 }
-

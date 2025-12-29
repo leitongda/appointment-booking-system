@@ -11,6 +11,10 @@ export const STORAGE_KEYS = {
   LOGIN_TYPE: 'hospital_login_type',
   /** 手机号登录子方式 */
   PHONE_LOGIN_TYPE: 'hospital_phone_login_type',
+  /** 门店上下文 */
+  STORE_CONTEXT: 'hospital_store_context',
+  /** 当前主题 */
+  CURRENT_THEME: 'hospital_current_theme',
 } as const;
 
 /**

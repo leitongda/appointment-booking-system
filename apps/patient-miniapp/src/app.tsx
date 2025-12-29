@@ -5,6 +5,7 @@ import './app.less';
 import { initTracker, getTracker, STORAGE_KEYS } from '@hospital/shared';
 import { setHttpClient, createTaroAdapter } from '@hospital/api';
 import { validateStoreConfig, getStoreId } from '@/utils/store';
+import { initThemeFromStore } from '@/utils/theme';
 
 /**
  * 获取 Token（小程序版本，使用 Taro Storage）
@@ -30,6 +31,10 @@ const apiBaseUrl = process.env.TARO_APP_API_URL || `${DEFAULT_API_HOST}${DEFAULT
 
 // 验证门店配置
 validateStoreConfig();
+
+// 初始化主题（从门店配置加载）
+const themeConfig = initThemeFromStore();
+console.log(`✓ 主题已初始化: ${themeConfig.primary}`);
 
 // 设置 Taro 请求适配器（替换默认的 axios）
 const taroAdapter = createTaroAdapter(Taro as any, {
