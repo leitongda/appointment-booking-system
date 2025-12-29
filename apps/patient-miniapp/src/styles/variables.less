@@ -4,25 +4,18 @@
 // ===========================================
 
 // -------------------------------------------
-// 动态主题色 - 使用 CSS 变量实现主题切换
+// 动态主题色说明
 // -------------------------------------------
+// 主题色通过 CSS 变量实现动态切换
+// 在 Less 中我们定义默认值，同时在 themes.less 中定义 CSS 变量
+// 使用时直接使用 var(--color-xxx) 或使用下面的默认值变量
 
-// 主色调 - 通过 CSS 变量动态获取
-@color-primary: var(--color-primary, #C41E3A);
-@color-primary-dark: var(--color-primary-dark, #A31631);
-@color-primary-light: var(--color-primary-light, #DC3545);
-@color-secondary: var(--color-secondary, #8B2942);
-@color-secondary-light: var(--color-secondary-light, #A23B55);
-
-// 渐变色 - 使用 CSS 变量
-@gradient-primary: var(--gradient-primary, linear-gradient(135deg, #C41E3A 0%, #8B2942 100%));
-@gradient-primary-horizontal: var(--gradient-primary-h, linear-gradient(90deg, #C41E3A 0%, #8B2942 100%));
-@gradient-light: var(--gradient-light, linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%));
-
-// 主题相关阴影
-@shadow-color: var(--shadow-color, rgba(196, 30, 58, 0.15));
-@shadow-button-theme: var(--shadow-button, 0 8rpx 28rpx 0 rgba(196, 30, 58, 0.3));
-@badge-bg: var(--badge-bg, rgba(196, 30, 58, 0.1));
+// 默认主题色 (中医-红 朱砂红) - 用于 Less 编译时的回退值
+@theme-primary: #C41E3A;
+@theme-primary-dark: #A31631;
+@theme-primary-light: #DC3545;
+@theme-secondary: #8B2942;
+@theme-secondary-light: #A23B55;
 
 // -------------------------------------------
 // 功能色 (固定不变)
@@ -65,7 +58,6 @@
 // -------------------------------------------
 
 @color-price: #F97316;             // Orange 500 - 价格
-@color-link: @color-primary;       // 链接色
 
 // 深色渐变背景 (用于 CTA 区域)
 @gradient-dark: linear-gradient(135deg, #312E81 0%, #1E1B4B 100%);
@@ -139,30 +131,15 @@
 @radius-full: 9999rpx;     // 圆形/胶囊
 
 // -------------------------------------------
-// 阴影系统 (Shadows) - 使用主题色
+// 阴影系统 (Shadows)
 // -------------------------------------------
-
-// 彩色阴影 - 使用 CSS 变量中的阴影色
-@shadow-sm: 0 4rpx 12rpx -2rpx @shadow-color;
-@shadow-base: 0 8rpx 24rpx -4rpx @shadow-color;
-@shadow-md: 0 8rpx 40rpx -4rpx @shadow-color;
-@shadow-lg: 0 16rpx 48rpx -8rpx @shadow-color;
-@shadow-xl: 0 20rpx 50rpx -10rpx @shadow-color;
-
-// 按钮阴影 - 使用主题按钮阴影
-@shadow-button: @shadow-button-theme;
-@shadow-button-hover: 0 12rpx 32rpx 0 @shadow-color;
-
-// 卡片阴影
-@shadow-card: @shadow-md;
-@shadow-card-hover: @shadow-xl;
-
-// 底部固定栏阴影 (中性色)
-@shadow-footer: 0 -8rpx 32rpx rgba(0, 0, 0, 0.06);
 
 // 中性阴影 (用于特殊场景)
 @shadow-neutral-sm: 0 4rpx 12rpx -2rpx rgba(0, 0, 0, 0.04);
 @shadow-neutral-md: 0 8rpx 24rpx -4rpx rgba(0, 0, 0, 0.08);
+
+// 底部固定栏阴影 (中性色)
+@shadow-footer: 0 -8rpx 32rpx rgba(0, 0, 0, 0.06);
 
 // -------------------------------------------
 // 动画 (Animation)
@@ -218,7 +195,6 @@
 @input-height: 88rpx;
 
 // 状态颜色映射
-@status-pending: @color-primary;     // 待处理
 @status-success: @color-success;     // 成功
 @status-warning: @color-warning;     // 警告
 @status-danger: @color-danger;       // 危险/取消

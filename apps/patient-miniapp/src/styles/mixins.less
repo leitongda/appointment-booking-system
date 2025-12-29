@@ -12,12 +12,12 @@
 
 // 主色渐变背景
 .gradient-primary() {
-  background: var(--gradient-primary, linear-gradient(135deg, #C41E3A 0%, #8B2942 100%));
+  background: linear-gradient(135deg, var(--color-primary, @theme-primary) 0%, var(--color-secondary, @theme-secondary) 100%);
 }
 
 // 水平主色渐变
 .gradient-primary-horizontal() {
-  background: var(--gradient-primary-h, linear-gradient(90deg, #C41E3A 0%, #8B2942 100%));
+  background: linear-gradient(90deg, var(--color-primary, @theme-primary) 0%, var(--color-secondary, @theme-secondary) 100%);
 }
 
 // 浅色渐变背景
@@ -112,7 +112,7 @@
 // 文字按钮
 .button-text() {
   background: transparent;
-  color: var(--color-primary, #C41E3A);
+  color: var(--color-primary, @theme-primary);
   border: none;
   font-weight: @font-weight-medium;
   
@@ -145,7 +145,7 @@
 
 // 渐变文字 (用于标题强调)
 .text-gradient() {
-  background: var(--gradient-primary, linear-gradient(135deg, #C41E3A 0%, #8B2942 100%));
+  background: linear-gradient(135deg, var(--color-primary, @theme-primary) 0%, var(--color-secondary, @theme-secondary) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -214,7 +214,7 @@
   justify-content: center;
   padding: 4rpx 16rpx;
   background: var(--badge-bg, rgba(196, 30, 58, 0.1));
-  color: var(--color-primary, #C41E3A);
+  color: var(--color-primary, @theme-primary);
   font-size: @font-size-xs;
   font-weight: @font-weight-medium;
   border-radius: @radius-sm;
@@ -272,7 +272,7 @@
   height: @size;
   background: var(--badge-bg, rgba(196, 30, 58, 0.08));
   border-radius: @radius-lg;
-  color: var(--color-primary, #C41E3A);
+  color: var(--color-primary, @theme-primary);
 }
 
 // 渐变图标容器
@@ -327,7 +327,7 @@
   }
   
   &:focus {
-    border-color: var(--color-primary, #C41E3A);
+    border-color: var(--color-primary, @theme-primary);
     box-shadow: 0 0 0 4rpx var(--badge-bg, rgba(196, 30, 58, 0.1));
   }
 }
