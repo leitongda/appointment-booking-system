@@ -7,13 +7,24 @@ import { APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP } from '@hospital/shared';
 import type { AppointmentDetail } from '@hospital/shared';
 import './detail.less';
 
-const statusColorMap: Record<number, string> = {
-  1: '#1890ff',
-  2: '#52c41a',
-  3: '#faad14',
-  5: '#52c41a',
-  6: '#999',
-  7: '#ff4d4f',
+// 状态图标映射
+const statusIconMap: Record<number, string> = {
+  1: '📅',
+  2: '✅',
+  3: '⏳',
+  5: '✓',
+  6: '❌',
+  7: '❌',
+};
+
+// 状态颜色映射
+const statusStyleMap: Record<number, { background: string }> = {
+  1: { background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' },
+  2: { background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' },
+  3: { background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' },
+  5: { background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' },
+  6: { background: 'linear-gradient(135deg, #64748B 0%, #475569 100%)' },
+  7: { background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)' },
 };
 
 const AppointmentDetailPage = () => {
@@ -67,22 +78,41 @@ const AppointmentDetailPage = () => {
     }
   };
 
-  if (loading || !appointment) {
-    return <View className="loading">加载中...</View>;
+  if (loading) {
+    return (
+      <View className="appointment-detail-page">
+        <View className="loading">加载中...</View>
+      </View>
+    );
+  }
+
+  if (!appointment) {
+    return (
+      <View className="appointment-detail-page">
+        <View className="loading">预约信息不存在</View>
+      </View>
+    );
   }
 
   return (
     <View className="appointment-detail-page">
+      {/* 状态头部 */}
       <View
         className="status-header"
-        style={{ background: statusColorMap[appointment.status] }}
+        style={statusStyleMap[appointment.status]}
       >
-        <Text className="status-text">{APPOINTMENT_STATUS_MAP[appointment.status]}</Text>
-        {appointment.queueNumber && (
-          <Text className="queue-text">排队号：第{appointment.queueNumber}号</Text>
-        )}
+        <View className="status-content">
+          <View className="status-icon">
+            <Text>{statusIconMap[appointment.status]}</Text>
+          </View>
+          <Text className="status-text">{APPOINTMENT_STATUS_MAP[appointment.status]}</Text>
+          {appointment.queueNumber && (
+            <Text className="queue-text">排队号：第{appointment.queueNumber}号</Text>
+          )}
+        </View>
       </View>
 
+      {/* 预约信息 */}
       <View className="section">
         <Text className="section-title">预约信息</Text>
         <View className="info-row">
@@ -103,6 +133,7 @@ const AppointmentDetailPage = () => {
         </View>
       </View>
 
+      {/* 医生信息 */}
       <View className="section">
         <Text className="section-title">医生信息</Text>
         <View className="info-row">
@@ -119,6 +150,7 @@ const AppointmentDetailPage = () => {
         </View>
       </View>
 
+      {/* 就诊人信息 */}
       <View className="section">
         <Text className="section-title">就诊人信息</Text>
         <View className="info-row">
@@ -133,10 +165,15 @@ const AppointmentDetailPage = () => {
         </View>
       </View>
 
+      {/* 底部操作 */}
       {appointment.status === 1 && (
         <View className="actions">
-          <Button block onClick={handleCancel}>取消预约</Button>
-          <Button type="primary" block onClick={handleSignIn}>签到</Button>
+          <Button className="btn-cancel" block onClick={handleCancel}>
+            取消预约
+          </Button>
+          <Button className="btn-primary" type="primary" block onClick={handleSignIn}>
+            签到
+          </Button>
         </View>
       )}
     </View>
@@ -144,4 +181,3 @@ const AppointmentDetailPage = () => {
 };
 
 export default AppointmentDetailPage;
-

@@ -1,179 +1,246 @@
+// ===========================================
+// 医生详情页样式 - Corporate Trust Design System
+// ===========================================
+
+@import '../../styles/variables.less';
+@import '../../styles/mixins.less';
+
 .doctor-detail-page {
-  min-height: 100vh;
-  background: #f5f5f5;
-  padding-bottom: 40px;
+  .page-container();
+  padding-bottom: @spacing-4;
 }
 
 .loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 400px;
-  color: #999;
+  .loading-state();
 }
 
+// -------------------------------------------
+// 医生信息卡片
+// -------------------------------------------
+
 .doctor-info {
-  background: #fff;
-  margin: 24px;
-  border-radius: 16px;
-  padding: 24px;
+  margin: @page-padding;
+  padding: @card-padding;
+  .card-base();
 }
 
 .info-header {
   display: flex;
-  margin-bottom: 24px;
+  margin-bottom: @spacing-4;
 }
 
 .avatar {
-  width: 160px;
-  height: 160px;
-  border-radius: 16px;
-  background: #f0f0f0;
+  width: @avatar-size-xl;
+  height: @avatar-size-xl;
+  border-radius: @radius-xl;
+  background: linear-gradient(135deg, #E0E7FF 0%, #EDE9FE 100%);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 64rpx;
+  overflow: hidden;
+  
+  image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 }
 
 .info-content {
   flex: 1;
-  margin-left: 24px;
+  margin-left: @spacing-4;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .name-row {
   display: flex;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: @spacing-2;
+  flex-wrap: wrap;
+  gap: @spacing-2;
 }
 
 .name {
-  font-size: 36px;
-  font-weight: 500;
-  color: #333;
+  font-size: @font-size-xl;
+  font-weight: @font-weight-bold;
+  color: @color-text-primary;
 }
 
 .title {
-  font-size: 24px;
-  color: #1890ff;
-  background: #e6f7ff;
-  padding: 4px 12px;
-  border-radius: 4px;
-  margin-left: 12px;
+  .badge-primary();
+  font-size: @font-size-xs;
 }
 
 .dept {
-  font-size: 26px;
-  color: #666;
-  margin-bottom: 12px;
+  font-size: @font-size-base;
+  color: @color-text-secondary;
+  margin-bottom: @spacing-2;
 }
 
 .fee {
-  font-size: 28px;
-  color: #ff6b00;
+  font-size: @font-size-lg;
+  font-weight: @font-weight-semibold;
+  color: @color-price;
 }
 
+// -------------------------------------------
+// 信息区块
+// -------------------------------------------
+
 .info-section {
-  margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px solid #f0f0f0;
+  margin-top: @spacing-4;
+  padding-top: @spacing-4;
+  border-top: @border-width solid @color-divider;
 }
 
 .label {
-  font-size: 26px;
-  color: #999;
-  margin-bottom: 8px;
+  .text-muted();
   display: block;
+  margin-bottom: @spacing-1;
 }
 
 .value {
-  font-size: 28px;
-  color: #333;
-  line-height: 1.6;
+  .text-body();
+  line-height: @line-height-relaxed;
 }
 
+// -------------------------------------------
+// 排班区域
+// -------------------------------------------
+
 .schedule-section {
-  background: #fff;
-  margin: 24px;
-  border-radius: 16px;
-  padding: 24px;
+  margin: 0 @page-padding @spacing-4;
+  padding: @card-padding;
+  .card-base();
 }
 
 .section-title {
-  font-size: 32px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 24px;
+  .heading-section();
+  margin-bottom: @spacing-4;
+  display: flex;
+  align-items: center;
+  
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 6rpx;
+    height: 32rpx;
+    background: @gradient-primary;
+    border-radius: @radius-full;
+    margin-right: @spacing-2;
+  }
 }
 
 .no-schedule {
-  text-align: center;
-  padding: 60px 0;
-  color: #999;
-  font-size: 28px;
+  .empty-state();
 }
 
 .schedule-list {
-  // 
+  // Container
 }
 
 .schedule-row {
   display: flex;
-  align-items: center;
-  padding: 24px 0;
-  border-bottom: 1px solid #f0f0f0;
+  align-items: flex-start;
+  padding: @spacing-4 0;
+  border-bottom: @border-width solid @color-divider;
+
+  &:first-child {
+    padding-top: 0;
+  }
 
   &:last-child {
     border-bottom: none;
+    padding-bottom: 0;
   }
 }
 
 .schedule-date {
-  width: 120px;
+  width: 120rpx;
   flex-shrink: 0;
+  padding-top: @spacing-1;
 }
 
 .date {
-  font-size: 28px;
-  color: #333;
+  font-size: @font-size-lg;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
   display: block;
+  margin-bottom: 4rpx;
 }
 
 .weekday {
-  font-size: 24px;
-  color: #999;
+  font-size: @font-size-sm;
+  color: @color-text-muted;
 }
 
 .schedule-slots {
   flex: 1;
   display: flex;
-  gap: 16px;
+  gap: @spacing-2;
   flex-wrap: wrap;
 }
 
 .slot-btn {
-  min-width: 140px;
-  height: 80px;
+  min-width: 160rpx;
+  height: 88rpx;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  border-radius: 8px;
-  font-size: 24px;
+  border-radius: @radius-lg;
+  font-size: @font-size-sm;
+  border: none;
+  padding: 0 @spacing-2;
+  transition: all @transition-base;
 
   &.available {
-    background: #1890ff;
-    color: #fff;
+    .gradient-primary();
+    color: @color-text-white;
+    box-shadow: @shadow-button;
+    
+    &:active {
+      transform: translateY(2rpx);
+      box-shadow: @shadow-sm;
+    }
   }
 
   &.full {
-    background: #f5f5f5;
-    color: #999;
+    background: @color-bg-secondary;
+    color: @color-text-muted;
   }
 }
 
 .slot-time {
-  font-size: 24px;
+  font-size: @font-size-sm;
+  font-weight: @font-weight-medium;
 }
 
 .slot-count {
-  font-size: 22px;
-  margin-top: 4px;
+  font-size: @font-size-xs;
+  margin-top: 4rpx;
+  opacity: 0.9;
 }
 
+// -------------------------------------------
+// 医生标签
+// -------------------------------------------
+
+.doctor-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: @spacing-2;
+  margin-top: @spacing-3;
+}
+
+.doctor-tag {
+  padding: 8rpx 20rpx;
+  background: rgba(79, 70, 229, 0.06);
+  color: @color-primary;
+  font-size: @font-size-xs;
+  border-radius: @radius-full;
+}

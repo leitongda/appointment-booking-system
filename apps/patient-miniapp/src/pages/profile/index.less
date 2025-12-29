@@ -1,44 +1,225 @@
+// ===========================================
+// 个人中心页样式 - Corporate Trust Design System
+// ===========================================
+
+@import '../../styles/variables.less';
+@import '../../styles/mixins.less';
+
 .profile-page {
-  min-height: 100vh;
-  background: #f5f5f5;
+  .page-container();
 }
 
+// -------------------------------------------
+// 头部区域
+// -------------------------------------------
+
 .header {
+  position: relative;
+  padding: @spacing-8 @page-padding @spacing-6;
+  .gradient-primary();
+  overflow: hidden;
+  
+  // 装饰性背景球
+  &::before {
+    content: '';
+    position: absolute;
+    top: -80rpx;
+    right: -60rpx;
+    width: 280rpx;
+    height: 280rpx;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+  }
+  
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -40rpx;
+    left: 60rpx;
+    width: 160rpx;
+    height: 160rpx;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 50%;
+  }
+}
+
+.header-content {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
-  padding: 48px 32px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .avatar {
-  width: 128px;
-  height: 128px;
+  width: @avatar-size-lg;
+  height: @avatar-size-lg;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.2);
+  border: 4rpx solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48rpx;
+  
+  image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 }
 
 .user-info {
-  margin-left: 32px;
-  color: #fff;
+  margin-left: @spacing-4;
+  color: @color-text-white;
+  flex: 1;
 }
 
 .nickname {
-  font-size: 36px;
-  font-weight: 500;
+  font-size: @font-size-xl;
+  font-weight: @font-weight-bold;
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: @spacing-1;
 }
 
 .phone {
-  font-size: 28px;
-  opacity: 0.8;
+  font-size: @font-size-base;
+  opacity: 0.85;
 }
 
-.menu-group {
-  margin-top: 24px;
+// -------------------------------------------
+// 统计卡片
+// -------------------------------------------
+
+.stats-card {
+  margin: -40rpx @page-padding @spacing-3;
+  padding: @spacing-4;
+  .card-base();
+  position: relative;
+  z-index: 10;
+  display: flex;
+  justify-content: space-around;
 }
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  
+  &:not(:last-child) {
+    border-right: @border-width solid @color-divider;
+  }
+}
+
+.stat-value {
+  font-size: @font-size-2xl;
+  font-weight: @font-weight-bold;
+  color: @color-primary;
+  margin-bottom: 4rpx;
+}
+
+.stat-label {
+  font-size: @font-size-xs;
+  color: @color-text-muted;
+}
+
+// -------------------------------------------
+// 菜单组
+// -------------------------------------------
+
+.menu-section {
+  margin: @spacing-3 @page-padding;
+}
+
+.menu-card {
+  .card-base();
+  overflow: hidden;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  padding: @spacing-4;
+  background: @color-bg-white;
+  transition: background @transition-base;
+  
+  &:not(:last-child) {
+    border-bottom: @border-width solid @color-divider;
+  }
+  
+  &:active {
+    background: @color-bg-secondary;
+  }
+}
+
+.menu-icon {
+  width: @icon-container-md;
+  height: @icon-container-md;
+  border-radius: @radius-lg;
+  background: rgba(79, 70, 229, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  margin-right: @spacing-3;
+}
+
+.menu-content {
+  flex: 1;
+}
+
+.menu-title {
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  font-weight: @font-weight-medium;
+}
+
+.menu-desc {
+  font-size: @font-size-xs;
+  color: @color-text-muted;
+  margin-top: 4rpx;
+}
+
+.menu-arrow {
+  font-size: @font-size-lg;
+  color: @color-text-placeholder;
+}
+
+.menu-badge {
+  .badge-primary();
+  margin-right: @spacing-2;
+}
+
+// -------------------------------------------
+// 退出登录
+// -------------------------------------------
 
 .logout-wrap {
-  padding: 48px 32px;
+  padding: @spacing-8 @page-padding;
 }
 
+.logout-btn {
+  .button-secondary();
+  width: 100%;
+  height: @button-height-lg;
+  border-radius: @radius-xl;
+  font-size: @font-size-base;
+  color: @color-text-secondary;
+  
+  &:active {
+    background: @color-bg-secondary;
+  }
+}
+
+// -------------------------------------------
+// 版本信息
+// -------------------------------------------
+
+.version-info {
+  text-align: center;
+  padding: @spacing-4 0 @spacing-8;
+  font-size: @font-size-xs;
+  color: @color-text-placeholder;
+}

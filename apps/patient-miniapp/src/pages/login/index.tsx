@@ -70,7 +70,6 @@ const LoginPage = () => {
   // 微信获取手机号
   const handleGetPhoneNumber = async (e: any) => {
     if (e.detail.errMsg !== 'getPhoneNumber:ok') {
-      // 用户拒绝授权，显示手动输入表单
       return;
     }
 
@@ -119,8 +118,11 @@ const LoginPage = () => {
 
   return (
     <View className="login-page">
+      {/* 头部 */}
       <View className="header">
-        <Text className="logo">🏥</Text>
+        <View className="logo">
+          <Text>🏥</Text>
+        </View>
         <Text className="title">医院挂号系统</Text>
         <Text className="subtitle">便捷预约，健康生活</Text>
       </View>
@@ -132,18 +134,19 @@ const LoginPage = () => {
           block 
           loading={wechatLoading}
           onClick={handleWechatLogin}
-          style={{ backgroundColor: '#07c160', borderColor: '#07c160' }}
         >
           微信一键登录
         </Button>
       </View>
 
+      {/* 分隔线 */}
       <View className="divider">
         <View className="line" />
         <Text className="text">或使用手机号登录</Text>
         <View className="line" />
       </View>
 
+      {/* 表单 */}
       <View className="form-wrap">
         <Form onFinish={handleSubmit}>
           <Form.Item name="phone" rules={[{ required: true, message: '请输入手机号' }]}>
@@ -158,6 +161,7 @@ const LoginPage = () => {
         </Form>
       </View>
 
+      {/* 底部 */}
       <View className="footer">
         <Text className="tip">首次登录将自动创建账号</Text>
       </View>
@@ -172,7 +176,6 @@ const LoginPage = () => {
         <View className="bind-phone-dialog">
           <Text className="tip">首次登录，请绑定手机号以便接收预约通知</Text>
           
-          {/* 微信授权获取手机号按钮 */}
           <TaroButton
             openType="getPhoneNumber"
             onGetPhoneNumber={handleGetPhoneNumber}
@@ -195,7 +198,6 @@ const LoginPage = () => {
               block 
               loading={loading}
               onClick={handleBindPhone}
-              style={{ marginTop: 12 }}
             >
               确认绑定
             </Button>

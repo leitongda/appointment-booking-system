@@ -68,8 +68,20 @@ const DoctorDetailPage = () => {
     return acc;
   }, {} as Record<string, AvailableSchedule[]>);
 
-  if (loading || !doctor) {
-    return <View className="loading">加载中...</View>;
+  if (loading) {
+    return (
+      <View className="doctor-detail-page">
+        <View className="loading">加载中...</View>
+      </View>
+    );
+  }
+
+  if (!doctor) {
+    return (
+      <View className="doctor-detail-page">
+        <View className="loading">医生信息不存在</View>
+      </View>
+    );
   }
 
   return (
@@ -77,7 +89,13 @@ const DoctorDetailPage = () => {
       {/* 医生信息 */}
       <View className="doctor-info">
         <View className="info-header">
-          <Image className="avatar" src={doctor.avatar || ''} mode="aspectFill" />
+          <View className="avatar">
+            {doctor.avatar ? (
+              <Image src={doctor.avatar} mode="aspectFill" />
+            ) : (
+              <Text>👨‍⚕️</Text>
+            )}
+          </View>
           <View className="info-content">
             <View className="name-row">
               <Text className="name">{doctor.name}</Text>
@@ -89,12 +107,12 @@ const DoctorDetailPage = () => {
         </View>
 
         <View className="info-section">
-          <Text className="label">擅长</Text>
+          <Text className="label">擅长领域</Text>
           <Text className="value">{doctor.specialty || '暂无信息'}</Text>
         </View>
 
         <View className="info-section">
-          <Text className="label">简介</Text>
+          <Text className="label">医生简介</Text>
           <Text className="value">{doctor.introduction || '暂无简介'}</Text>
         </View>
       </View>
@@ -104,7 +122,9 @@ const DoctorDetailPage = () => {
         <Text className="section-title">选择就诊时间</Text>
 
         {Object.keys(groupedSchedules).length === 0 ? (
-          <View className="no-schedule">暂无可预约时段</View>
+          <View className="no-schedule">
+            <Text>暂无可预约时段</Text>
+          </View>
         ) : (
           <View className="schedule-list">
             {Object.entries(groupedSchedules).map(([date, daySchedules]) => (
@@ -138,4 +158,3 @@ const DoctorDetailPage = () => {
 };
 
 export default DoctorDetailPage;
-

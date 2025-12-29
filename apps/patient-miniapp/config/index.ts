@@ -15,6 +15,12 @@ export default defineConfig(async (merge) => {
     sourceRoot: 'src',
     outputRoot: 'dist',
     plugins: ['@tarojs/plugin-framework-react'],
+    // 小程序不需要 jsencrypt（RSA 加密），将其替换为空模块
+    // 这解决了 "Cannot read property 'crypto' of undefined" 错误
+    alias: {
+      '@': path.resolve(__dirname, '..', 'src'),
+      'jsencrypt': path.resolve(__dirname, '..', 'src', 'utils', 'empty-module.ts'),
+    },
     // 定义全局环境变量
     // 门店配置说明：
     // - TARO_APP_STORE_ID: 门店UUID，用于API请求过滤
@@ -64,9 +70,6 @@ export default defineConfig(async (merge) => {
           },
         },
       },
-    },
-    alias: {
-      '@': path.resolve(__dirname, '..', 'src'),
     },
   };
 

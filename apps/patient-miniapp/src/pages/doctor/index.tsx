@@ -35,9 +35,17 @@ const DoctorListPage = () => {
     });
   };
 
+  if (loading) {
+    return (
+      <View className="doctor-list-page">
+        <View className="empty">加载中...</View>
+      </View>
+    );
+  }
+
   return (
     <View className="doctor-list-page">
-      {doctors.length === 0 && !loading ? (
+      {doctors.length === 0 ? (
         <View className="empty">
           <Text>暂无医生</Text>
         </View>
@@ -50,11 +58,11 @@ const DoctorListPage = () => {
               onClick={() => handleSelectDoctor(doctor.id)}
             >
               <View className="avatar-wrap">
-                <Image
-                  className="avatar"
-                  src={doctor.avatar || ''}
-                  mode="aspectFill"
-                />
+                {doctor.avatar ? (
+                  <Image className="avatar" src={doctor.avatar} mode="aspectFill" />
+                ) : (
+                  <Text>👨‍⚕️</Text>
+                )}
               </View>
               <View className="info">
                 <View className="name-row">
@@ -66,6 +74,7 @@ const DoctorListPage = () => {
               </View>
               <View className="fee">
                 <Text className="price">¥{doctor.registrationFee}</Text>
+                <Text className="book-btn">预约</Text>
               </View>
             </View>
           ))}
@@ -76,4 +85,3 @@ const DoctorListPage = () => {
 };
 
 export default DoctorListPage;
-

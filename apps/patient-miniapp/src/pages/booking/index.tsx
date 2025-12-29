@@ -77,32 +77,39 @@ const BookingPage = () => {
   };
 
   if (loading) {
-    return <View className="loading">加载中...</View>;
+    return (
+      <View className="booking-page">
+        <View className="loading">加载中...</View>
+      </View>
+    );
   }
 
   return (
     <View className="booking-page">
+      {/* 医生信息摘要 */}
+      <View className="doctor-summary">
+        <View className="doctor-avatar">
+          <Text>👨‍⚕️</Text>
+        </View>
+        <View className="doctor-info">
+          <Text className="doctor-name">{doctor?.name} · {doctor?.title}</Text>
+          <Text className="doctor-dept">{doctor?.departmentName}</Text>
+        </View>
+      </View>
+
       {/* 预约信息 */}
       <View className="card">
         <Text className="card-title">预约信息</Text>
         <View className="info-row">
-          <Text className="label">医生</Text>
-          <Text className="value">{doctor?.name} - {doctor?.title}</Text>
-        </View>
-        <View className="info-row">
-          <Text className="label">科室</Text>
-          <Text className="value">{doctor?.departmentName}</Text>
-        </View>
-        <View className="info-row">
-          <Text className="label">日期</Text>
+          <Text className="label">就诊日期</Text>
           <Text className="value">{date}</Text>
         </View>
         <View className="info-row">
-          <Text className="label">时段</Text>
+          <Text className="label">就诊时段</Text>
           <Text className="value">{TIME_SLOT_MAP[timeSlot || 'AM']}</Text>
         </View>
         <View className="info-row">
-          <Text className="label">挂号费</Text>
+          <Text className="label">挂号费用</Text>
           <Text className="value fee">¥{doctor?.registrationFee || 0}</Text>
         </View>
       </View>
@@ -129,16 +136,34 @@ const BookingPage = () => {
             {patients.map((patient) => (
               <View key={patient.id} className="patient-item">
                 <Radio value={patient.id}>
-                  <Text className="patient-name">{patient.name}</Text>
-                  <Text className="patient-phone">
-                    ({patient.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')})
-                  </Text>
-                  {patient.isDefault && <Text className="default-tag">默认</Text>}
+                  <View className="patient-info">
+                    <Text className="patient-name">{patient.name}</Text>
+                    <Text className="patient-phone">
+                      {patient.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}
+                    </Text>
+                    {patient.isDefault && <Text className="default-tag">默认</Text>}
+                  </View>
                 </Radio>
               </View>
             ))}
           </Radio.Group>
         )}
+      </View>
+
+      {/* 预约须知 */}
+      <View className="notice-card">
+        <Text className="notice-title">预约须知</Text>
+        <View className="notice-list">
+          <View className="notice-item">
+            <Text>请按预约时间提前15分钟到达医院</Text>
+          </View>
+          <View className="notice-item">
+            <Text>就诊时请携带有效身份证件</Text>
+          </View>
+          <View className="notice-item">
+            <Text>如需取消预约，请提前24小时操作</Text>
+          </View>
+        </View>
       </View>
 
       {/* 底部提交 */}
@@ -148,6 +173,7 @@ const BookingPage = () => {
           <Text className="total-price">¥{doctor?.registrationFee || 0}</Text>
         </View>
         <Button
+          className="submit-btn"
           type="primary"
           loading={submitting}
           disabled={!selectedPatientId}
@@ -161,4 +187,3 @@ const BookingPage = () => {
 };
 
 export default BookingPage;
-

@@ -1,0 +1,469 @@
+// ===========================================
+// Corporate Trust Design System - Mixins
+// 小程序样式混入
+// ===========================================
+
+@import './variables.less';
+
+// -------------------------------------------
+// 渐变背景 (Gradient Backgrounds)
+// -------------------------------------------
+
+// 主色渐变背景
+.gradient-primary() {
+  background: @gradient-primary;
+}
+
+// 水平主色渐变
+.gradient-primary-horizontal() {
+  background: @gradient-primary-horizontal;
+}
+
+// 浅色渐变背景
+.gradient-light() {
+  background: @gradient-light;
+}
+
+// 深色渐变背景 (用于 CTA 区域)
+.gradient-dark() {
+  background: @gradient-dark;
+}
+
+// -------------------------------------------
+// 卡片样式 (Card Styles)
+// -------------------------------------------
+
+// 基础卡片
+.card-base() {
+  background: @color-bg-white;
+  border-radius: @radius-xl;
+  box-shadow: @shadow-card;
+  transition: box-shadow @transition-base, transform @transition-base;
+}
+
+// 可点击卡片 (带按压效果)
+.card-interactive() {
+  .card-base();
+  
+  &:active {
+    transform: translateY(4rpx);
+    box-shadow: @shadow-sm;
+  }
+}
+
+// 悬浮卡片 (用于重点内容)
+.card-elevated() {
+  .card-base();
+  box-shadow: @shadow-lg;
+}
+
+// 扁平卡片 (无阴影)
+.card-flat() {
+  background: @color-bg-white;
+  border-radius: @radius-xl;
+  border: @border-base;
+}
+
+// -------------------------------------------
+// 按钮样式 (Button Styles)
+// -------------------------------------------
+
+// 主要按钮
+.button-primary() {
+  .gradient-primary();
+  color: @color-text-white;
+  border: none;
+  border-radius: @radius-lg;
+  box-shadow: @shadow-button;
+  font-weight: @font-weight-semibold;
+  transition: all @transition-base;
+  
+  &:active {
+    transform: translateY(2rpx);
+    box-shadow: @shadow-sm;
+    opacity: 0.95;
+  }
+  
+  &[disabled],
+  &.disabled {
+    background: @color-bg-tertiary;
+    color: @color-text-muted;
+    box-shadow: none;
+    opacity: 1;
+  }
+}
+
+// 次要按钮
+.button-secondary() {
+  background: @color-bg-white;
+  color: @color-text-secondary;
+  border: @border-base;
+  border-radius: @radius-lg;
+  font-weight: @font-weight-medium;
+  transition: all @transition-base;
+  
+  &:active {
+    background: @color-bg-secondary;
+    border-color: @color-border;
+  }
+}
+
+// 文字按钮
+.button-text() {
+  background: transparent;
+  color: @color-primary;
+  border: none;
+  font-weight: @font-weight-medium;
+  
+  &:active {
+    opacity: 0.7;
+  }
+}
+
+// 危险按钮
+.button-danger() {
+  background: @color-danger;
+  color: @color-text-white;
+  border: none;
+  border-radius: @radius-lg;
+  font-weight: @font-weight-semibold;
+  
+  &:active {
+    opacity: 0.9;
+  }
+}
+
+// 胶囊按钮
+.button-capsule() {
+  border-radius: @radius-full;
+}
+
+// -------------------------------------------
+// 文字样式 (Typography)
+// -------------------------------------------
+
+// 渐变文字 (用于标题强调)
+.text-gradient() {
+  background: @gradient-primary;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+// 页面标题
+.heading-page() {
+  font-size: @font-size-xl;
+  font-weight: @font-weight-bold;
+  color: @color-text-primary;
+  line-height: @line-height-tight;
+}
+
+// 卡片标题
+.heading-card() {
+  font-size: @font-size-lg;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
+  line-height: @line-height-snug;
+}
+
+// 区块标题
+.heading-section() {
+  font-size: @font-size-lg;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
+  line-height: @line-height-normal;
+}
+
+// 正文文字
+.text-body() {
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  line-height: @line-height-relaxed;
+}
+
+// 辅助文字
+.text-secondary() {
+  font-size: @font-size-sm;
+  color: @color-text-secondary;
+  line-height: @line-height-normal;
+}
+
+// 小号辅助文字
+.text-muted() {
+  font-size: @font-size-sm;
+  color: @color-text-muted;
+  line-height: @line-height-normal;
+}
+
+// 价格文字
+.text-price() {
+  font-size: @font-size-base;
+  font-weight: @font-weight-semibold;
+  color: @color-price;
+}
+
+// -------------------------------------------
+// 徽章/标签样式 (Badge/Tag Styles)
+// -------------------------------------------
+
+// 主色徽章
+.badge-primary() {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rpx 16rpx;
+  background: rgba(79, 70, 229, 0.1);
+  color: @color-primary;
+  font-size: @font-size-xs;
+  font-weight: @font-weight-medium;
+  border-radius: @radius-sm;
+}
+
+// 成功徽章
+.badge-success() {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rpx 16rpx;
+  background: rgba(16, 185, 129, 0.1);
+  color: @color-success;
+  font-size: @font-size-xs;
+  font-weight: @font-weight-medium;
+  border-radius: @radius-sm;
+}
+
+// 警告徽章
+.badge-warning() {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rpx 16rpx;
+  background: rgba(245, 158, 11, 0.1);
+  color: @color-warning;
+  font-size: @font-size-xs;
+  font-weight: @font-weight-medium;
+  border-radius: @radius-sm;
+}
+
+// 危险徽章
+.badge-danger() {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rpx 16rpx;
+  background: rgba(239, 68, 68, 0.1);
+  color: @color-danger;
+  font-size: @font-size-xs;
+  font-weight: @font-weight-medium;
+  border-radius: @radius-sm;
+}
+
+// -------------------------------------------
+// 图标容器 (Icon Container)
+// -------------------------------------------
+
+// 主色图标容器
+.icon-container(@size: @icon-container-md) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: @size;
+  height: @size;
+  background: rgba(79, 70, 229, 0.08);
+  border-radius: @radius-lg;
+  color: @color-primary;
+}
+
+// 渐变图标容器
+.icon-container-gradient(@size: @icon-container-md) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: @size;
+  height: @size;
+  .gradient-primary();
+  border-radius: @radius-lg;
+  color: @color-text-white;
+}
+
+// -------------------------------------------
+// 头像样式 (Avatar Styles)
+// -------------------------------------------
+
+.avatar(@size: @avatar-size-md) {
+  width: @size;
+  height: @size;
+  border-radius: 50%;
+  background: @color-bg-secondary;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.avatar-bordered(@size: @avatar-size-md) {
+  .avatar(@size);
+  border: 4rpx solid @color-bg-white;
+  box-shadow: @shadow-sm;
+}
+
+// -------------------------------------------
+// 表单相关 (Form Elements)
+// -------------------------------------------
+
+// 输入框
+.input-base() {
+  width: 100%;
+  height: @input-height;
+  padding: 0 @spacing-4;
+  background: @color-bg-white;
+  border: @border-base;
+  border-radius: @radius-lg;
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  transition: border-color @transition-base, box-shadow @transition-base;
+  
+  &::placeholder {
+    color: @color-text-placeholder;
+  }
+  
+  &:focus {
+    border-color: @color-primary;
+    box-shadow: 0 0 0 4rpx rgba(79, 70, 229, 0.1);
+  }
+}
+
+// 搜索框
+.search-bar() {
+  display: flex;
+  align-items: center;
+  height: 72rpx;
+  padding: 0 @spacing-4;
+  background: @color-bg-white;
+  border-radius: @radius-full;
+  
+  .placeholder {
+    color: @color-text-placeholder;
+    font-size: @font-size-base;
+  }
+}
+
+// -------------------------------------------
+// 列表项 (List Item)
+// -------------------------------------------
+
+.list-item() {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: @spacing-4 0;
+  border-bottom: @border-width solid @color-divider;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+  
+  &:active {
+    background: @color-bg-secondary;
+    margin: 0 -@spacing-4;
+    padding-left: @spacing-4;
+    padding-right: @spacing-4;
+  }
+}
+
+// -------------------------------------------
+// 装饰元素 (Decorative Elements)
+// -------------------------------------------
+
+// 背景装饰球
+.bg-blob(@size: 400rpx, @color: rgba(79, 70, 229, 0.15)) {
+  position: absolute;
+  width: @size;
+  height: @size;
+  background: @color;
+  border-radius: 50%;
+  filter: blur(60rpx);
+  pointer-events: none;
+}
+
+// 次要装饰球
+.bg-blob-secondary(@size: 300rpx) {
+  .bg-blob(@size, rgba(124, 58, 237, 0.12));
+}
+
+// -------------------------------------------
+// 布局辅助 (Layout Helpers)
+// -------------------------------------------
+
+// Flex 居中
+.flex-center() {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// Flex 垂直居中
+.flex-align-center() {
+  display: flex;
+  align-items: center;
+}
+
+// Flex 两端对齐
+.flex-between() {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+// Flex 列布局
+.flex-column() {
+  display: flex;
+  flex-direction: column;
+}
+
+// 页面容器
+.page-container() {
+  min-height: 100vh;
+  background: @color-bg-base;
+}
+
+// 内容区域
+.content-section() {
+  padding: @page-padding;
+}
+
+// -------------------------------------------
+// 状态样式 (Status Styles)
+// -------------------------------------------
+
+// 空状态
+.empty-state() {
+  .flex-center();
+  flex-direction: column;
+  padding: @spacing-12 @spacing-4;
+  color: @color-text-muted;
+  font-size: @font-size-base;
+}
+
+// 加载状态
+.loading-state() {
+  .flex-center();
+  min-height: 400rpx;
+  color: @color-text-muted;
+  font-size: @font-size-base;
+}
+
+// -------------------------------------------
+// 固定底部栏 (Fixed Footer)
+// -------------------------------------------
+
+.fixed-footer() {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: @spacing-3 @spacing-4;
+  padding-bottom: calc(@spacing-3 + env(safe-area-inset-bottom));
+  background: @color-bg-white;
+  box-shadow: @shadow-footer;
+  z-index: @z-index-fixed;
+}
+

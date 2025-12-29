@@ -1,6 +1,6 @@
 import { View, Text } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
-import { Button, Result } from '@nutui/nutui-react-taro';
+import { Button } from '@nutui/nutui-react-taro';
 import './result.less';
 
 const BookingResultPage = () => {
@@ -17,12 +17,16 @@ const BookingResultPage = () => {
 
   return (
     <View className="result-page">
-      <Result
-        status="success"
-        title="预约成功"
-        description={`预约单号：${appointmentNo}`}
-      />
+      {/* 成功图标 */}
+      <View className="success-icon">
+        <View className="icon-circle">
+          <Text className="icon-check">✓</Text>
+        </View>
+        <Text className="success-title">预约成功</Text>
+        <Text className="success-desc">预约单号：{appointmentNo}</Text>
+      </View>
 
+      {/* 温馨提示 */}
       <View className="notice">
         <Text className="notice-title">温馨提示</Text>
         <View className="notice-item">
@@ -36,11 +40,12 @@ const BookingResultPage = () => {
         </View>
       </View>
 
+      {/* 操作按钮 */}
       <View className="actions">
-        <Button block onClick={handleViewDetail}>
+        <Button className="btn-secondary" block onClick={handleViewDetail}>
           查看预约详情
         </Button>
-        <Button type="primary" block onClick={handleBackHome}>
+        <Button className="btn-primary" type="primary" block onClick={handleBackHome}>
           返回首页
         </Button>
       </View>
@@ -49,4 +54,3 @@ const BookingResultPage = () => {
 };
 
 export default BookingResultPage;
-

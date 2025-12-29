@@ -1,131 +1,267 @@
+// ===========================================
+// 预约确认页样式 - Corporate Trust Design System
+// ===========================================
+
+@import '../../styles/variables.less';
+@import '../../styles/mixins.less';
+
 .booking-page {
-  min-height: 100vh;
-  background: #f5f5f5;
-  padding: 24px;
-  padding-bottom: 160px;
+  .page-container();
+  padding: @page-padding;
+  padding-bottom: 180rpx;
 }
 
 .loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 400px;
-  color: #999;
+  .loading-state();
 }
 
+// -------------------------------------------
+// 通用卡片
+// -------------------------------------------
+
 .card {
-  background: #fff;
-  border-radius: 16px;
-  padding: 24px;
-  margin-bottom: 24px;
+  .card-base();
+  padding: @card-padding;
+  margin-bottom: @spacing-3;
 }
 
 .card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
+  .flex-between();
+  margin-bottom: @spacing-3;
 }
 
 .card-title {
-  font-size: 32px;
-  font-weight: 500;
-  color: #333;
+  .heading-card();
+  display: flex;
+  align-items: center;
+  
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 6rpx;
+    height: 28rpx;
+    background: @gradient-primary;
+    border-radius: @radius-full;
+    margin-right: @spacing-2;
+  }
 }
 
 .add-btn {
-  font-size: 28px;
-  color: #1890ff;
+  font-size: @font-size-base;
+  color: @color-primary;
+  font-weight: @font-weight-medium;
+  
+  &:active {
+    opacity: 0.7;
+  }
 }
 
+// -------------------------------------------
+// 预约信息
+// -------------------------------------------
+
 .info-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 16px 0;
-  border-bottom: 1px solid #f5f5f5;
+  .flex-between();
+  padding: @spacing-3 0;
+  border-bottom: @border-width solid @color-divider;
+
+  &:first-of-type {
+    padding-top: 0;
+  }
 
   &:last-child {
     border-bottom: none;
+    padding-bottom: 0;
   }
 }
 
 .label {
-  font-size: 28px;
-  color: #666;
+  font-size: @font-size-base;
+  color: @color-text-muted;
 }
 
 .value {
-  font-size: 28px;
-  color: #333;
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  font-weight: @font-weight-medium;
 }
 
 .fee {
-  color: #ff6b00;
-  font-weight: 500;
+  color: @color-price;
+  font-weight: @font-weight-semibold;
+  font-size: @font-size-lg;
 }
+
+// -------------------------------------------
+// 医生信息摘要
+// -------------------------------------------
+
+.doctor-summary {
+  display: flex;
+  align-items: center;
+  padding: @spacing-3;
+  background: @color-bg-secondary;
+  border-radius: @radius-lg;
+  margin-bottom: @spacing-3;
+}
+
+.doctor-avatar {
+  .avatar(@avatar-size-md);
+  background: linear-gradient(135deg, #E0E7FF 0%, #EDE9FE 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+}
+
+.doctor-info {
+  flex: 1;
+  margin-left: @spacing-3;
+}
+
+.doctor-name {
+  font-size: @font-size-base;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
+}
+
+.doctor-dept {
+  font-size: @font-size-sm;
+  color: @color-text-muted;
+  margin-top: 4rpx;
+}
+
+// -------------------------------------------
+// 就诊人选择
+// -------------------------------------------
 
 .empty-patient {
-  text-align: center;
-  padding: 40px 0;
-  color: #999;
-  font-size: 28px;
-}
-
-.patient-item {
-  padding: 24px 0;
-  border-bottom: 1px solid #f5f5f5;
-
-  &:last-child {
-    border-bottom: none;
+  .empty-state();
+  padding: @spacing-6 0;
+  
+  text {
+    margin-bottom: @spacing-3;
   }
 }
 
+.patient-item {
+  padding: @spacing-4 0;
+  border-bottom: @border-width solid @color-divider;
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+}
+
+.patient-radio {
+  display: flex;
+  align-items: center;
+}
+
+.patient-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: @spacing-2;
+}
+
 .patient-name {
-  font-size: 28px;
-  color: #333;
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  font-weight: @font-weight-medium;
 }
 
 .patient-phone {
-  font-size: 24px;
-  color: #999;
-  margin-left: 12px;
+  font-size: @font-size-sm;
+  color: @color-text-muted;
 }
 
 .default-tag {
-  font-size: 22px;
-  color: #1890ff;
-  background: #e6f7ff;
-  padding: 4px 12px;
-  border-radius: 4px;
-  margin-left: 12px;
+  .badge-primary();
 }
 
+// -------------------------------------------
+// 底部固定栏
+// -------------------------------------------
+
 .footer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  .fixed-footer();
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 24px 32px;
-  background: #fff;
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+  gap: @spacing-3;
 }
 
 .total {
+  flex: 1;
   display: flex;
   align-items: baseline;
 }
 
 .total-label {
-  font-size: 28px;
-  color: #666;
+  font-size: @font-size-base;
+  color: @color-text-secondary;
 }
 
 .total-price {
-  font-size: 40px;
-  color: #ff6b00;
-  font-weight: 500;
+  font-size: @font-size-3xl;
+  font-weight: @font-weight-bold;
+  color: @color-price;
+  margin-left: 4rpx;
 }
 
+.submit-btn {
+  min-width: 240rpx;
+  height: @button-height-lg;
+  .button-primary();
+  font-size: @font-size-base;
+  border-radius: @radius-xl;
+}
+
+// -------------------------------------------
+// 预约须知
+// -------------------------------------------
+
+.notice-card {
+  .card-base();
+  padding: @card-padding;
+  margin-bottom: @spacing-3;
+}
+
+.notice-title {
+  font-size: @font-size-base;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
+  margin-bottom: @spacing-3;
+  display: flex;
+  align-items: center;
+  
+  &::before {
+    content: '📋';
+    margin-right: @spacing-2;
+  }
+}
+
+.notice-list {
+  padding-left: @spacing-2;
+}
+
+.notice-item {
+  font-size: @font-size-sm;
+  color: @color-text-secondary;
+  line-height: @line-height-relaxed;
+  margin-bottom: @spacing-2;
+  display: flex;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+  
+  &::before {
+    content: '•';
+    color: @color-primary;
+    margin-right: @spacing-2;
+    flex-shrink: 0;
+  }
+}

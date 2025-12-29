@@ -7,13 +7,17 @@ import { APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP } from '@hospital/shared';
 import type { Appointment } from '@hospital/shared';
 import './index.less';
 
-const statusColorMap: Record<number, string> = {
-  1: '#1890ff',
-  2: '#52c41a',
-  3: '#faad14',
-  5: '#52c41a',
-  6: '#999',
-  7: '#ff4d4f',
+// 状态样式映射
+const getStatusClass = (status: number): string => {
+  const classMap: Record<number, string> = {
+    1: 'status-pending',
+    2: 'status-confirmed',
+    3: 'status-pending',
+    5: 'status-completed',
+    6: 'status-cancelled',
+    7: 'status-cancelled',
+  };
+  return classMap[status] || '';
 };
 
 const AppointmentPage = () => {
@@ -81,28 +85,33 @@ const AppointmentPage = () => {
 
   return (
     <View className="appointment-page">
-      <Tabs
-        value={activeTab}
-        onChange={(value) => setActiveTab(value as string)}
-      >
-        <Tabs.TabPane title="全部" value="0" />
-        <Tabs.TabPane title="待就诊" value="1" />
-        <Tabs.TabPane title="已完成" value="2" />
-        <Tabs.TabPane title="已取消" value="3" />
-      </Tabs>
+      <View className="tabs-wrapper">
+        <Tabs
+          value={activeTab}
+          onChange={(value) => setActiveTab(value as string)}
+        >
+          <Tabs.TabPane title="全部" value="0" />
+          <Tabs.TabPane title="待就诊" value="1" />
+          <Tabs.TabPane title="已完成" value="2" />
+          <Tabs.TabPane title="已取消" value="3" />
+        </Tabs>
+      </View>
 
       <View className="list">
-        {appointments.length === 0 && !loading ? (
-          <Empty description="暂无预约记录" />
+        {loading ? (
+          <View className="loading-wrapper">
+            <Text>加载中...</Text>
+          </View>
+        ) : appointments.length === 0 ? (
+          <View className="empty-wrapper">
+            <Empty description="暂无预约记录" />
+          </View>
         ) : (
           appointments.map((item) => (
             <View key={item.id} className="card" onClick={() => handleViewDetail(item.id)}>
               <View className="card-header">
                 <Text className="appointment-no">预约单号：{item.appointmentNo}</Text>
-                <Text 
-                  className="status" 
-                  style={{ color: statusColorMap[item.status] }}
-                >
+                <Text className={`status ${getStatusClass(item.status)}`}>
                   {APPOINTMENT_STATUS_MAP[item.status]}
                 </Text>
               </View>
@@ -116,21 +125,25 @@ const AppointmentPage = () => {
                   <Text className="date">{item.scheduleDate}</Text>
                   <Text className="slot">
                     {TIME_SLOT_MAP[item.timeSlot || 'AM']}
-                    {item.queueNumber && ` 第${item.queueNumber}号`}
+                    {item.queueNumber && (
+                      <Text className="queue-number">第{item.queueNumber}号</Text>
+                    )}
                   </Text>
                 </View>
               </View>
 
               {item.status === 1 && (
                 <View className="card-footer">
-                  <Button 
-                    size="small" 
+                  <Button
+                    className="btn-cancel"
+                    size="small"
                     onClick={(e) => { e.stopPropagation(); handleCancel(item.id); }}
                   >
                     取消预约
                   </Button>
-                  <Button 
-                    type="primary" 
+                  <Button
+                    className="btn-signin"
+                    type="primary"
                     size="small"
                     onClick={(e) => { e.stopPropagation(); handleSignIn(item.id); }}
                   >
@@ -147,4 +160,3 @@ const AppointmentPage = () => {
 };
 
 export default AppointmentPage;
-

@@ -1,86 +1,206 @@
+// ===========================================
+// 预约列表页样式 - Corporate Trust Design System
+// ===========================================
+
+@import '../../styles/variables.less';
+@import '../../styles/mixins.less';
+
 .appointment-page {
-  min-height: 100vh;
-  background: #f5f5f5;
+  .page-container();
 }
+
+// -------------------------------------------
+// Tabs 样式
+// -------------------------------------------
+
+.tabs-wrapper {
+  background: @color-bg-white;
+  position: sticky;
+  top: 0;
+  z-index: @z-index-sticky;
+}
+
+// -------------------------------------------
+// 列表区域
+// -------------------------------------------
 
 .list {
-  padding: 24px;
+  padding: @page-padding;
 }
 
-.card {
-  background: #fff;
-  border-radius: 16px;
-  padding: 24px;
-  margin-bottom: 24px;
+// -------------------------------------------
+// 预约卡片
+// -------------------------------------------
 
-  &:active {
-    opacity: 0.9;
+.card {
+  .card-interactive();
+  padding: @card-padding;
+  margin-bottom: @spacing-3;
+  
+  &:last-child {
+    margin-bottom: 0;
   }
 }
 
 .card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #f0f0f0;
-  margin-bottom: 20px;
+  .flex-between();
+  padding-bottom: @spacing-3;
+  border-bottom: @border-width solid @color-divider;
+  margin-bottom: @spacing-3;
 }
 
 .appointment-no {
-  font-size: 24px;
-  color: #999;
+  font-size: @font-size-sm;
+  color: @color-text-muted;
 }
 
 .status {
-  font-size: 26px;
-  font-weight: 500;
+  font-size: @font-size-sm;
+  font-weight: @font-weight-semibold;
+  padding: 4rpx 16rpx;
+  border-radius: @radius-full;
+  
+  // 状态颜色通过 style 动态设置
+  &.status-pending {
+    background: rgba(79, 70, 229, 0.1);
+    color: @color-primary;
+  }
+  
+  &.status-confirmed {
+    background: rgba(16, 185, 129, 0.1);
+    color: @color-success;
+  }
+  
+  &.status-completed {
+    background: rgba(16, 185, 129, 0.1);
+    color: @color-success;
+  }
+  
+  &.status-cancelled {
+    background: rgba(100, 116, 139, 0.1);
+    color: @color-text-muted;
+  }
 }
 
 .card-body {
-  display: flex;
-  justify-content: space-between;
+  .flex-between();
 }
 
 .info {
   flex: 1;
+  min-width: 0;
 }
 
 .doctor-name {
-  font-size: 32px;
-  font-weight: 500;
-  color: #333;
+  font-size: @font-size-lg;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: @spacing-1;
 }
 
 .dept-name {
-  font-size: 26px;
-  color: #666;
+  font-size: @font-size-base;
+  color: @color-text-secondary;
 }
 
 .time {
   text-align: right;
+  flex-shrink: 0;
+  margin-left: @spacing-3;
 }
 
 .date {
-  font-size: 28px;
-  color: #333;
+  font-size: @font-size-lg;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: @spacing-1;
 }
 
 .slot {
-  font-size: 26px;
-  color: #666;
+  font-size: @font-size-sm;
+  color: @color-text-secondary;
 }
+
+.queue-number {
+  display: inline-block;
+  margin-left: @spacing-1;
+  padding: 2rpx 12rpx;
+  background: rgba(79, 70, 229, 0.1);
+  color: @color-primary;
+  border-radius: @radius-full;
+  font-size: @font-size-xs;
+  font-weight: @font-weight-medium;
+}
+
+// -------------------------------------------
+// 卡片底部操作
+// -------------------------------------------
 
 .card-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 24px;
-  margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px solid #f0f0f0;
+  gap: @spacing-3;
+  margin-top: @spacing-4;
+  padding-top: @spacing-3;
+  border-top: @border-width solid @color-divider;
 }
 
+.btn-cancel {
+  .button-secondary();
+  min-width: 160rpx;
+  height: @button-height-sm;
+  font-size: @font-size-sm;
+  border-radius: @radius-lg;
+  padding: 0 @spacing-4;
+}
+
+.btn-signin {
+  .button-primary();
+  min-width: 160rpx;
+  height: @button-height-sm;
+  font-size: @font-size-sm;
+  border-radius: @radius-lg;
+  padding: 0 @spacing-4;
+}
+
+// -------------------------------------------
+// 空状态
+// -------------------------------------------
+
+.empty-wrapper {
+  padding: @spacing-8 0;
+}
+
+// -------------------------------------------
+// 加载状态
+// -------------------------------------------
+
+.loading-wrapper {
+  .loading-state();
+  padding: @spacing-8 0;
+}
+
+// -------------------------------------------
+// 患者信息
+// -------------------------------------------
+
+.patient-info {
+  display: flex;
+  align-items: center;
+  margin-top: @spacing-2;
+  padding-top: @spacing-2;
+}
+
+.patient-label {
+  font-size: @font-size-sm;
+  color: @color-text-muted;
+  margin-right: @spacing-1;
+}
+
+.patient-name {
+  font-size: @font-size-sm;
+  color: @color-text-secondary;
+  font-weight: @font-weight-medium;
+}

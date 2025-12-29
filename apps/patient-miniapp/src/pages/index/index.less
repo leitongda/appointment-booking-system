@@ -1,110 +1,373 @@
+// ===========================================
+// 首页样式 - Corporate Trust Design System
+// ===========================================
+
+@import '../../styles/variables.less';
+@import '../../styles/mixins.less';
+
 .container {
-  padding-bottom: 20px;
+  .page-container();
+  padding-bottom: @spacing-4;
 }
 
+// -------------------------------------------
+// Banner 区域
+// -------------------------------------------
+
 .banner {
-  height: 300px;
+  height: 360rpx;
+  position: relative;
+  overflow: hidden;
 }
 
 .banner-item {
-  height: 300px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
-  font-size: 48px;
+  height: 360rpx;
+  position: relative;
+  .gradient-primary();
+  overflow: hidden;
+  
+  // 装饰性背景球
+  &::before {
+    content: '';
+    position: absolute;
+    top: -100rpx;
+    right: -80rpx;
+    width: 300rpx;
+    height: 300rpx;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+  }
+  
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -60rpx;
+    left: 40rpx;
+    width: 200rpx;
+    height: 200rpx;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+  }
 }
 
+.banner-content {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 @page-padding;
+}
+
+.banner-title {
+  font-size: @font-size-3xl;
+  font-weight: @font-weight-bold;
+  color: @color-text-white;
+  margin-bottom: @spacing-2;
+  line-height: @line-height-tight;
+}
+
+.banner-subtitle {
+  font-size: @font-size-base;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: @line-height-relaxed;
+}
+
+// -------------------------------------------
+// 功能菜单卡片
+// -------------------------------------------
+
 .menu-card {
-  margin: 24px;
-  padding: 24px;
-  background: #fff;
-  border-radius: 16px;
+  margin: -60rpx @page-padding @spacing-3;
+  padding: @spacing-4;
+  .card-base();
+  position: relative;
+  z-index: 10;
 }
 
 .menu-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 16px 0;
+  padding: @spacing-3 0;
+  transition: transform @transition-base;
+  
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+.menu-icon-wrap {
+  .icon-container(@icon-container-lg);
+  margin-bottom: @spacing-2;
+  font-size: 44rpx;
 }
 
 .menu-icon {
-  font-size: 56px;
-  margin-bottom: 16px;
+  font-size: 44rpx;
+  line-height: 1;
 }
 
 .menu-title {
-  font-size: 24px;
-  color: #333;
+  font-size: @font-size-sm;
+  color: @color-text-primary;
+  font-weight: @font-weight-medium;
 }
 
+// -------------------------------------------
+// 通用区块样式
+// -------------------------------------------
+
 .section {
-  margin: 24px;
-  padding: 24px;
-  background: #fff;
-  border-radius: 16px;
+  margin: 0 @page-padding @spacing-3;
+  padding: @spacing-4;
+  .card-base();
+}
+
+.section-header {
+  .flex-between();
+  margin-bottom: @spacing-3;
 }
 
 .section-title {
-  font-size: 32px;
-  font-weight: 500;
-  margin-bottom: 24px;
+  .heading-section();
+}
+
+.section-more {
+  font-size: @font-size-sm;
+  color: @color-text-muted;
+  display: flex;
+  align-items: center;
+  
+  &::after {
+    content: '›';
+    margin-left: 4rpx;
+    font-size: @font-size-base;
+  }
+}
+
+// -------------------------------------------
+// 热门科室
+// -------------------------------------------
+
+.dept-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: @spacing-2;
 }
 
 .dept-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: @spacing-3 0;
+  border-radius: @radius-lg;
+  transition: all @transition-base;
+  
+  &:active {
+    background: @color-bg-secondary;
+    transform: scale(0.96);
+  }
+}
+
+.dept-icon-wrap {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: @radius-lg;
+  background: rgba(79, 70, 229, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: @spacing-2;
+  font-size: 36rpx;
+}
+
+.dept-name {
+  font-size: @font-size-sm;
+  color: @color-text-primary;
   text-align: center;
-  padding: 24px 0;
-  font-size: 28px;
-  color: #333;
+}
+
+// -------------------------------------------
+// 推荐医生
+// -------------------------------------------
+
+.doctor-list {
+  display: flex;
+  flex-direction: column;
+  gap: @spacing-3;
 }
 
 .doctor-card {
   display: flex;
-  gap: 24px;
-  padding: 24px;
-  background: #f9f9f9;
-  border-radius: 16px;
-  margin-bottom: 16px;
-
-  &:last-child {
-    margin-bottom: 0;
+  gap: @spacing-3;
+  padding: @spacing-3;
+  background: @color-bg-secondary;
+  border-radius: @radius-xl;
+  transition: all @transition-base;
+  
+  &:active {
+    background: @color-bg-tertiary;
+    transform: translateY(2rpx);
   }
 }
 
 .doctor-avatar {
-  width: 120px;
-  height: 120px;
-  background: #eee;
-  border-radius: 50%;
+  .avatar(@avatar-size-lg);
+  background: linear-gradient(135deg, #E0E7FF 0%, #EDE9FE 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48rpx;
+  color: @color-primary;
 }
 
 .doctor-info {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.doctor-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: @spacing-1;
 }
 
 .doctor-name {
-  font-size: 32px;
-  font-weight: 500;
+  font-size: @font-size-lg;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
+  margin-right: @spacing-2;
 }
 
 .doctor-title {
-  font-size: 24px;
-  color: #1890ff;
-  font-weight: normal;
-  margin-left: 8px;
+  .badge-primary();
 }
 
 .doctor-dept {
-  font-size: 24px;
-  color: #666;
-  margin-top: 8px;
+  font-size: @font-size-sm;
+  color: @color-text-secondary;
+  margin-bottom: @spacing-1;
 }
 
 .doctor-spec {
-  font-size: 24px;
-  color: #999;
-  margin-top: 8px;
+  font-size: @font-size-sm;
+  color: @color-text-muted;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+// -------------------------------------------
+// 快捷入口卡片
+// -------------------------------------------
+
+.quick-entry {
+  margin: 0 @page-padding @spacing-3;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: @spacing-3;
+}
+
+.quick-card {
+  padding: @spacing-4;
+  .card-base();
+  position: relative;
+  overflow: hidden;
+  
+  &:active {
+    transform: translateY(2rpx);
+    box-shadow: @shadow-sm;
+  }
+  
+  // 装饰
+  &::after {
+    content: '';
+    position: absolute;
+    right: -20rpx;
+    bottom: -20rpx;
+    width: 100rpx;
+    height: 100rpx;
+    background: rgba(79, 70, 229, 0.06);
+    border-radius: 50%;
+  }
+}
+
+.quick-icon {
+  font-size: 48rpx;
+  margin-bottom: @spacing-2;
+}
+
+.quick-title {
+  font-size: @font-size-base;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
+  margin-bottom: 4rpx;
+}
+
+.quick-desc {
+  font-size: @font-size-xs;
+  color: @color-text-muted;
+}
+
+// -------------------------------------------
+// 健康资讯
+// -------------------------------------------
+
+.news-list {
+  display: flex;
+  flex-direction: column;
+  gap: @spacing-3;
+}
+
+.news-item {
+  display: flex;
+  gap: @spacing-3;
+  padding-bottom: @spacing-3;
+  border-bottom: @border-width solid @color-divider;
+  
+  &:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+  
+  &:active {
+    opacity: 0.8;
+  }
+}
+
+.news-cover {
+  width: 160rpx;
+  height: 120rpx;
+  border-radius: @radius-lg;
+  background: @color-bg-secondary;
+  flex-shrink: 0;
+}
+
+.news-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.news-title {
+  font-size: @font-size-base;
+  font-weight: @font-weight-medium;
+  color: @color-text-primary;
+  line-height: @line-height-snug;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.news-meta {
+  font-size: @font-size-xs;
+  color: @color-text-muted;
+}

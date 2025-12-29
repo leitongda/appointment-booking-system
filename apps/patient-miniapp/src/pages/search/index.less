@@ -1,60 +1,118 @@
+// ===========================================
+// 搜索页样式 - Corporate Trust Design System
+// ===========================================
+
+@import '../../styles/variables.less';
+@import '../../styles/mixins.less';
+
 .search-page {
-  min-height: 100vh;
-  background: #f5f5f5;
+  .page-container();
 }
+
+// -------------------------------------------
+// 搜索头部
+// -------------------------------------------
 
 .search-header {
-  background: #fff;
-  padding: 16px;
+  background: @color-bg-white;
+  padding: @spacing-3 @page-padding;
+  position: sticky;
+  top: 0;
+  z-index: @z-index-sticky;
+  box-shadow: @shadow-sm;
+  
+  .nut-searchbar {
+    --nutui-searchbar-background: @color-bg-secondary;
+    --nutui-searchbar-input-background: @color-bg-secondary;
+    --nutui-searchbar-input-text-color: @color-text-primary;
+    --nutui-searchbar-input-placeholder-color: @color-text-placeholder;
+    border-radius: @radius-full;
+    
+    .nut-searchbar__search-input {
+      border-radius: @radius-full;
+    }
+  }
 }
 
+// -------------------------------------------
+// 提示
+// -------------------------------------------
+
 .tip {
-  text-align: center;
-  padding: 100px 0;
-  color: #999;
-  font-size: 28px;
+  .empty-state();
+  padding: @spacing-12 0;
+}
+
+// -------------------------------------------
+// 搜索结果
+// -------------------------------------------
+
+.search-result {
+  // Container
 }
 
 .result-section {
-  background: #fff;
-  margin-top: 24px;
-  padding: 0 24px;
+  background: @color-bg-white;
+  margin-top: @spacing-3;
+  margin-left: @page-padding;
+  margin-right: @page-padding;
+  border-radius: @radius-xl;
+  padding: 0 @card-padding;
+  box-shadow: @shadow-base;
 }
 
 .section-title {
-  font-size: 28px;
-  font-weight: 500;
-  color: #333;
-  padding: 24px 0;
-  border-bottom: 1px solid #f0f0f0;
-  display: block;
+  font-size: @font-size-base;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
+  padding: @spacing-3 0;
+  border-bottom: @border-width solid @color-divider;
+  display: flex;
+  align-items: center;
+  
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 6rpx;
+    height: 28rpx;
+    background: @gradient-primary;
+    border-radius: @radius-full;
+    margin-right: @spacing-2;
+  }
 }
 
 .result-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 28px 0;
-  border-bottom: 1px solid #f0f0f0;
+  .flex-between();
+  padding: @spacing-4 0;
+  border-bottom: @border-width solid @color-divider;
+  transition: background @transition-base;
 
   &:last-child {
     border-bottom: none;
   }
 
   &:active {
-    background: #f9f9f9;
+    background: @color-bg-secondary;
+    margin: 0 -@card-padding;
+    padding-left: @card-padding;
+    padding-right: @card-padding;
   }
 }
 
 .item-name {
-  font-size: 28px;
-  color: #333;
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  font-weight: @font-weight-medium;
 }
 
 .arrow {
-  font-size: 32px;
-  color: #ccc;
+  font-size: @font-size-xl;
+  color: @color-text-placeholder;
 }
+
+// -------------------------------------------
+// 医生搜索结果
+// -------------------------------------------
 
 .doctor-item {
   flex-direction: column;
@@ -64,20 +122,58 @@
 .doctor-info {
   display: flex;
   align-items: center;
-  margin-bottom: 8px;
+  gap: @spacing-2;
+  margin-bottom: @spacing-1;
 }
 
 .doctor-title {
-  font-size: 24px;
-  color: #1890ff;
-  background: #e6f7ff;
-  padding: 4px 12px;
-  border-radius: 4px;
-  margin-left: 12px;
+  .badge-primary();
 }
 
 .doctor-dept {
-  font-size: 24px;
-  color: #999;
+  font-size: @font-size-sm;
+  color: @color-text-muted;
 }
 
+// -------------------------------------------
+// 历史搜索 (可选)
+// -------------------------------------------
+
+.history-section {
+  padding: @page-padding;
+}
+
+.history-header {
+  .flex-between();
+  margin-bottom: @spacing-3;
+}
+
+.history-title {
+  font-size: @font-size-base;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
+}
+
+.history-clear {
+  font-size: @font-size-sm;
+  color: @color-text-muted;
+}
+
+.history-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: @spacing-2;
+}
+
+.history-tag {
+  padding: @spacing-1 @spacing-3;
+  background: @color-bg-white;
+  border-radius: @radius-full;
+  font-size: @font-size-sm;
+  color: @color-text-secondary;
+  box-shadow: @shadow-sm;
+  
+  &:active {
+    background: @color-bg-secondary;
+  }
+}
