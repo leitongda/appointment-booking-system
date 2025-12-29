@@ -1,7 +1,6 @@
 /**
  * 数据导入导出 API
  */
-import { request } from '../request';
 
 const BASE_URL = '/api/v1/data';
 
