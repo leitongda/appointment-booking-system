@@ -12,6 +12,7 @@ import json
 
 from app.core.security import decode_token
 from app.core.config import settings
+from app.utils.ip import get_client_ip as _get_client_ip_util
 
 logger = logging.getLogger(__name__)
 
@@ -168,16 +169,8 @@ def _should_exclude_path(path: str) -> bool:
 
 
 def _get_client_ip(request: Request) -> str:
-    """获取客户端真实 IP"""
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    
-    real_ip = request.headers.get("X-Real-IP")
-    if real_ip:
-        return real_ip
-    
-    return request.client.host if request.client else "unknown"
+    """获取客户端真实 IP（使用统一的工具函数）"""
+    return _get_client_ip_util(request)
 
 
 def _extract_admin_from_token(request: Request) -> tuple:

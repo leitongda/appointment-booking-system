@@ -45,9 +45,16 @@ const EXCLUDE_TOKEN_PATHS = [
 
 /**
  * 检查是否需要添加 token
+ * 使用精确路径匹配，避免 /admin/login 错误匹配 /admin/login-history
  */
 const shouldAddToken = (url: string): boolean => {
-  return !EXCLUDE_TOKEN_PATHS.some(path => url.includes(path));
+  return !EXCLUDE_TOKEN_PATHS.some(path => {
+    // 精确匹配：路径完全相等，或者 url 以 path/ 开头（带参数的情况）
+    // 例如：/admin/login 匹配 /admin/login 或 /admin/login?xxx
+    // 但不匹配 /admin/login-history
+    const urlPath = url.split('?')[0]; // 去掉查询参数
+    return urlPath === path || urlPath.startsWith(path + '/') || urlPath.startsWith(path + '?');
+  });
 };
 
 /**

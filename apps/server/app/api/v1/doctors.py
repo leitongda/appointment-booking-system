@@ -11,6 +11,7 @@ from app.schemas.response import PageResponse
 from app.services.doctor_service import DoctorService
 from app.core.security import create_access_token, create_refresh_token, verify_password
 from app.core.config import settings
+from app.utils.ip import get_client_ip
 
 router = APIRouter()
 
@@ -107,7 +108,7 @@ async def doctor_login(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
     
     # 更新登录信息
-    client_ip = request.client.host if request.client else ""
+    client_ip = get_client_ip(request)
     await service.update_login_info(doctor.id, client_ip)
     
     # 生成Token

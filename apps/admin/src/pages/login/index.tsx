@@ -149,7 +149,7 @@ const Login: React.FC = () => {
               setLoginType(newType);
               setStorage(STORAGE_KEYS.LOGIN_TYPE, newType);
             }}
-            items={tabItems.map(item => ({ ...item, destroyInactiveTabPane: true }))}
+            items={tabItems.map(item => ({ ...item, destroyOnHidden: true }))}
             centered
             className={styles.loginTabs}
             animated={enableAnimation}

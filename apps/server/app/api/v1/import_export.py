@@ -10,10 +10,6 @@ from app.db.session import get_db
 from app.api.deps import get_current_admin
 from app.services.excel_service import ExcelExportService, ExcelImportService
 from app.services.import_service import ImportService
-from app.services.doctor_service import DoctorService
-from app.services.patient_service import PatientService
-from app.services.department_service import DepartmentService
-from app.services.store_service import StoreService
 from app.models.doctor import Doctor
 from app.models.user import Patient
 from app.models.department import Department

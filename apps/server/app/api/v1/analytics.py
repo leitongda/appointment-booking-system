@@ -23,21 +23,14 @@ from app.schemas.behavior_log import (
 )
 from app.models.behavior_log import UserBehaviorLog
 from app.schemas.response import PageResponse
+from app.utils.ip import get_client_ip
 
 router = APIRouter()
 
 
 def _get_client_ip(request: Request) -> str:
-    """获取客户端真实 IP"""
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    
-    real_ip = request.headers.get("X-Real-IP")
-    if real_ip:
-        return real_ip
-    
-    return request.client.host if request.client else "unknown"
+    """获取客户端真实 IP（包装函数，保持向后兼容）"""
+    return get_client_ip(request)
 
 
 def _parse_user_agent(user_agent: str) -> dict:

@@ -4,6 +4,7 @@ import { DownloadOutlined, UploadOutlined, FileExcelOutlined, MoreOutlined } fro
 import type { UploadProps, MenuProps } from 'antd';
 import type { RcFile } from 'antd/es/upload';
 import { request } from '@umijs/max';
+import { getToken } from '@hospital/shared';
 
 const { Text } = Typography;
 
@@ -71,7 +72,7 @@ const ImportExport: React.FC<ImportExportProps> = ({
       
       const response = await fetch(url, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${getToken()}`,
         },
       });
       
@@ -114,7 +115,7 @@ const ImportExport: React.FC<ImportExportProps> = ({
     try {
       const response = await fetch(templateUrl, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${getToken()}`,
         },
       });
       

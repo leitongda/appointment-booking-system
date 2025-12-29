@@ -11,12 +11,13 @@ import hashlib
 from app.db.session import get_db
 from app.api.deps import get_current_admin
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 from app.services.admin_service import RoleService, AdminService, OperationLogService, PermissionService
 from app.schemas.response import PageResponse
 from app.core.security import create_access_token, create_refresh_token, get_rsa_public_key, rsa_decrypt
 from app.core.config import settings
 from app.core.redis import RedisCache, parse_user_agent
+from app.utils.ip import get_client_ip
 
 router = APIRouter()
 
@@ -479,7 +480,7 @@ async def admin_login(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
     
     # 更新登录信息
-    client_ip = request.client.host if request.client else ""
+    client_ip = get_client_ip(request)
     user_agent = request.headers.get("user-agent", "")
     await service.update_login_info(admin.id, client_ip)
     
@@ -769,7 +770,7 @@ async def phone_login(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
     
     # 更新登录信息
-    client_ip = request.client.host if request.client else ""
+    client_ip = get_client_ip(request)
     user_agent = request.headers.get("user-agent", "")
     await service.update_login_info(admin.id, client_ip)
     
@@ -847,7 +848,7 @@ async def sms_login(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
     
     # 更新登录信息
-    client_ip = request.client.host if request.client else ""
+    client_ip = get_client_ip(request)
     user_agent = request.headers.get("user-agent", "")
     await service.update_login_info(admin.id, client_ip)
     
@@ -939,7 +940,7 @@ async def check_wechat_scan(
         
         if admin and admin.status == 1:
             # 更新登录信息
-            client_ip = request.client.host if request.client else ""
+            client_ip = get_client_ip(request)
             await service.update_login_info(admin.id, client_ip)
             
             # 生成Token

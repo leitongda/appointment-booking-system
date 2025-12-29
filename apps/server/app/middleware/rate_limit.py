@@ -10,6 +10,7 @@ import time
 import logging
 
 from app.core.redis import get_redis
+from app.utils.ip import get_client_ip
 
 logger = logging.getLogger(__name__)
 
@@ -73,17 +74,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
     
     def _get_client_ip(self, request: Request) -> str:
-        """获取客户端真实 IP"""
-        # 优先从代理头获取
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
-        
-        real_ip = request.headers.get("X-Real-IP")
-        if real_ip:
-            return real_ip
-        
-        return request.client.host if request.client else "unknown"
+        """获取客户端真实 IP（使用统一的工具函数）"""
+        return get_client_ip(request)
     
     async def _check_rate_limit(self, client_ip: str) -> tuple[bool, int]:
         """
@@ -198,12 +190,8 @@ class EndpointRateLimiter:
         if hasattr(request.state, "user_id"):
             return f"user:{request.state.user_id}"
         
-        # 否则使用 IP
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            return f"ip:{forwarded.split(',')[0].strip()}"
-        
-        return f"ip:{request.client.host if request.client else 'unknown'}"
+        # 否则使用 IP（使用统一的工具函数）
+        return f"ip:{get_client_ip(request)}"
     
     async def _check_limit(
         self,

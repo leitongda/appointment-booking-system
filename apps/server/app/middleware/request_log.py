@@ -9,6 +9,8 @@ import time
 import logging
 import uuid
 
+from app.utils.ip import get_client_ip
+
 logger = logging.getLogger("request")
 
 
@@ -73,14 +75,6 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
             raise
     
     def _get_client_ip(self, request: Request) -> str:
-        """获取客户端真实 IP"""
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
-        
-        real_ip = request.headers.get("X-Real-IP")
-        if real_ip:
-            return real_ip
-        
-        return request.client.host if request.client else "unknown"
+        """获取客户端真实 IP（使用统一的工具函数）"""
+        return get_client_ip(request)
 

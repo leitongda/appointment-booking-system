@@ -15,7 +15,7 @@ from app.models.doctor import Doctor
 from jose import jwt, JWTError
 from app.core.config import settings
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
@@ -23,6 +23,10 @@ async def get_current_user(
     db: AsyncSession = Depends(get_db)
 ) -> dict:
     """获取当前用户"""
+    # 处理未提供 Authorization header 的情况
+    if not credentials:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="未提供身份凭证，请先登录")
+    
     token = credentials.credentials
     payload = decode_token(token)
     
@@ -105,6 +109,10 @@ async def get_current_admin(
     - is_store_admin: 是否是门店管理员角色
     """
     from app.models.admin import Admin
+    
+    # 处理未提供 Authorization header 的情况
+    if not credentials:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="未提供身份凭证，请先登录")
     
     token = credentials.credentials
     payload = decode_token(token)
@@ -310,6 +318,10 @@ async def get_current_user_or_admin(
     同时支持普通用户和管理员访问的 API 使用此依赖
     """
     from app.models.admin import Admin
+    
+    # 处理未提供 Authorization header 的情况
+    if not credentials:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="未提供身份凭证，请先登录")
     
     token = credentials.credentials
     

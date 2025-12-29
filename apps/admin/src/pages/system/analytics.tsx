@@ -4,7 +4,7 @@ import { Card, Row, Col, Statistic, Table, Select, Typography, Space, Tag, Spin 
 import {
   EyeOutlined,
   UserOutlined,
-  ClickOutlined,
+  AimOutlined,
   SearchOutlined,
   ClockCircleOutlined,
 } from '@ant-design/icons';
@@ -191,7 +191,7 @@ const AnalyticsPage: React.FC = () => {
               <Statistic
                 title="点击次数"
                 value={data?.total_clicks || 0}
-                prefix={<ClickOutlined />}
+                prefix={<AimOutlined />}
                 valueStyle={{ color: '#faad14' }}
               />
             </Card>
