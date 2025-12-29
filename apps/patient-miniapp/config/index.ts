@@ -53,6 +53,8 @@ export default defineConfig(async (merge) => {
       },
     },
     mini: {
+      // 生产环境禁用 source map 以减小包体积
+      enableSourceMap: process.env.NODE_ENV !== 'production',
       compile: {
         include: [],
         exclude: [],
