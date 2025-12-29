@@ -3,9 +3,10 @@ import { PageContainer, ProTable, ModalForm, ProFormTextArea } from '@ant-design
 import { App, Space, Tag, Button, Drawer, Descriptions, Image } from 'antd';
 import { useRef, useState } from 'react';
 import { useModel, useAccess } from '@umijs/max';
-import { feedbackApi } from '@hospital/api';
+import { feedbackApi, dataApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Feedback } from '@hospital/shared';
+import ImportExport from '@/components/ImportExport';
 
 const TYPE_MAP: Record<string, { text: string; color: string }> = {
   suggestion: { text: '建议', color: 'blue' },
@@ -98,6 +99,14 @@ const FeedbackPage: React.FC = () => {
         }}
         pagination={{ defaultPageSize: 10 }}
         search={{ labelWidth: 'auto' }}
+        toolBarRender={() => [
+          <ImportExport
+            key="export"
+            moduleName="用户反馈"
+            exportUrl={dataApi.getExportFeedbacksUrl()}
+            showImport={false}
+          />,
+        ]}
       />
 
       <ModalForm

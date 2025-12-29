@@ -1,10 +1,10 @@
-"""数据导出 API"""
+"""数据导出 API - 已升级为 Excel 格式"""
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from datetime import date
-import io
+from io import BytesIO
 
 from app.db.session import get_db
 from app.api.deps import get_current_admin
@@ -24,7 +24,7 @@ async def export_appointments(
 ):
     """导出预约记录"""
     service = ExportService(db)
-    csv_bytes, filename = await service.export_appointments(
+    excel_bytes, filename = await service.export_appointments(
         start_date=start_date,
         end_date=end_date,
         status=status,
@@ -32,11 +32,10 @@ async def export_appointments(
     )
     
     return StreamingResponse(
-        io.BytesIO(csv_bytes),
-        media_type="text/csv",
+        BytesIO(excel_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
             "Content-Disposition": f"attachment; filename={filename}",
-            "Content-Type": "text/csv; charset=utf-8"
         }
     )
 
@@ -49,14 +48,13 @@ async def export_patients(
 ):
     """导出患者列表"""
     service = ExportService(db)
-    csv_bytes, filename = await service.export_patients(keyword=keyword)
+    excel_bytes, filename = await service.export_patients(keyword=keyword)
     
     return StreamingResponse(
-        io.BytesIO(csv_bytes),
-        media_type="text/csv",
+        BytesIO(excel_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
             "Content-Disposition": f"attachment; filename={filename}",
-            "Content-Type": "text/csv; charset=utf-8"
         }
     )
 
@@ -71,18 +69,16 @@ async def export_schedules(
 ):
     """导出排班记录"""
     service = ExportService(db)
-    csv_bytes, filename = await service.export_schedules(
+    excel_bytes, filename = await service.export_schedules(
         start_date=start_date,
         end_date=end_date,
         doctor_id=doctor_id,
     )
     
     return StreamingResponse(
-        io.BytesIO(csv_bytes),
-        media_type="text/csv",
+        BytesIO(excel_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
             "Content-Disposition": f"attachment; filename={filename}",
-            "Content-Type": "text/csv; charset=utf-8"
         }
     )
-

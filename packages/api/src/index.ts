@@ -50,6 +50,8 @@ export { scheduleSuspensionApi } from './modules/schedule-suspension';
 export { blacklistApi } from './modules/blacklist';
 export { uploadApi } from './modules/upload';
 export { emailTemplateApi, EMAIL_TEMPLATE_TYPE_OPTIONS } from './modules/email-template';
+export { dataApi } from './modules/data';
+export type { ImportResult } from './modules/data';
 
 // Store types
 export type { StoreAdmin } from './modules/store';

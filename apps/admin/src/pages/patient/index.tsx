@@ -13,10 +13,11 @@ import { App, Popconfirm, Space, Tag, Button } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useRef, useState } from 'react';
 import { history, useAccess } from '@umijs/max';
-import { patientApi } from '@hospital/api';
+import { patientApi, dataApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { PatientListItem } from '@hospital/api';
 import type { PatientCreateData } from '@hospital/api/src/modules/patient';
+import ImportExport from '@/components/ImportExport';
 
 const SOURCE_MAP: Record<number, string> = {
   1: '用户添加',
@@ -149,6 +150,14 @@ const PatientPage: React.FC = () => {
         pagination={{ defaultPageSize: 10 }}
         search={{ labelWidth: 'auto' }}
         toolBarRender={() => [
+          <ImportExport
+            key="import-export"
+            moduleName="患者"
+            exportUrl={dataApi.getExportPatientsUrl()}
+            importUrl={dataApi.getImportPatientsUrl()}
+            templateUrl={dataApi.getPatientTemplateUrl()}
+            onImportSuccess={() => actionRef.current?.reload()}
+          />,
           access.hasPermission('patient:create') && (
             <Button
               key="add"

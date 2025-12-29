@@ -1,11 +1,12 @@
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { Tag, Modal, Typography, Space, Tooltip } from 'antd';
-import { adminApi } from '@hospital/api';
+import { adminApi, dataApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { OperationLog } from '@hospital/api';
 import { useRef, useState } from 'react';
 import { EyeOutlined } from '@ant-design/icons';
+import ImportExport from '@/components/ImportExport';
 
 const { Paragraph, Text } = Typography;
 
@@ -173,7 +174,14 @@ const LogPage: React.FC = () => {
           defaultCollapsed: false,
         }}
         dateFormatter="string"
-        toolBarRender={() => []}
+        toolBarRender={() => [
+          <ImportExport
+            key="export"
+            moduleName="操作日志"
+            exportUrl={dataApi.getExportLogsUrl()}
+            showImport={false}
+          />,
+        ]}
       />
 
       <Modal

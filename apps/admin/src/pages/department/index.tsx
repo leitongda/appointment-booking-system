@@ -4,9 +4,10 @@ import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { Button, App, Popconfirm, Space, Tag, Modal, Spin, Empty, Checkbox, Avatar, List } from 'antd';
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
-import { departmentApi, storeApi } from '@hospital/api';
+import { departmentApi, storeApi, dataApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Department, Store, DoctorListItem } from '@hospital/shared';
+import ImportExport from '@/components/ImportExport';
 
 const DepartmentPage: React.FC = () => {
   const { message } = App.useApp();
@@ -267,6 +268,14 @@ const DepartmentPage: React.FC = () => {
           }));
         }}
         toolBarRender={() => [
+          <ImportExport
+            key="import-export"
+            moduleName="科室"
+            exportUrl={dataApi.getExportDepartmentsUrl()}
+            importUrl={dataApi.getImportDepartmentsUrl()}
+            templateUrl={dataApi.getDepartmentTemplateUrl()}
+            onImportSuccess={() => actionRef.current?.reload()}
+          />,
           access.hasPermission('department:create') && (
             <Button
               key="add"

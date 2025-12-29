@@ -14,7 +14,7 @@ import {
 import { Button, App, Space, Popconfirm, Tag, Alert, Tabs } from 'antd';
 import { useRef, useState, useEffect, useMemo } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
-import { scheduleTemplateApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
+import { scheduleTemplateApi, doctorApi, departmentApi, storeApi, dataApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { ScheduleTemplate, Doctor, Department, Store } from '@hospital/shared';
 import {
@@ -26,6 +26,7 @@ import {
   WEEKDAY_OPTIONS,
   getDateInfo,
 } from '@hospital/shared';
+import ImportExport from '@/components/ImportExport';
 
 const ScheduleTemplatePage: React.FC = () => {
   const { message } = App.useApp();
@@ -320,6 +321,12 @@ const ScheduleTemplatePage: React.FC = () => {
                   );
                 }}
                 toolBarRender={() => [
+                  <ImportExport
+                    key="import-export"
+                    moduleName="排班模板"
+                    exportUrl={dataApi.getExportScheduleTemplatesUrl()}
+                    showImport={false}
+                  />,
                   access.hasPermission('schedule:template') && (
                     <Button
                       key="generate"

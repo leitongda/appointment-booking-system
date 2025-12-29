@@ -5,10 +5,11 @@ import { Button, App, Popconfirm, Space, Avatar, Modal, Tree, Spin, Empty, Trans
 import type { TreeDataNode, TreeProps, TransferProps } from 'antd';
 import { useRef, useState, useCallback } from 'react';
 import { history, useAccess } from '@umijs/max';
-import { storeApi, departmentApi, adminApi } from '@hospital/api';
+import { storeApi, departmentApi, adminApi, dataApi } from '@hospital/api';
 import type { StoreAdmin } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Store, DepartmentTreeNode } from '@hospital/shared';
+import ImportExport from '@/components/ImportExport';
 
 // 将科室树转换为 Antd Tree 数据格式
 const convertToTreeData = (nodes: DepartmentTreeNode[]): TreeDataNode[] => {
@@ -265,6 +266,14 @@ const StorePage: React.FC = () => {
           return toProTableResult(await storeApi.getList({ ...rest, keyword: name, page: current, pageSize }));
         }}
         toolBarRender={() => [
+          <ImportExport
+            key="import-export"
+            moduleName="门店"
+            exportUrl={dataApi.getExportStoresUrl()}
+            importUrl={dataApi.getImportStoresUrl()}
+            templateUrl={dataApi.getStoreTemplateUrl()}
+            onImportSuccess={() => actionRef.current?.reload()}
+          />,
           access.hasPermission('store:create') && (
             <Button
               key="add"

@@ -60,3 +60,6 @@ user-agents>=2.2.0
 
 # 中文拼音转换
 pypinyin>=0.51.0
+
+# Excel 处理
+openpyxl>=3.1.0

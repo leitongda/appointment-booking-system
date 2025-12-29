@@ -4,10 +4,11 @@ import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { Button, App, Popconfirm, Space, Tag, Avatar } from 'antd';
 import { useRef, useState, useEffect, useMemo } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
-import { doctorApi, departmentApi, storeApi } from '@hospital/api';
+import { doctorApi, departmentApi, storeApi, dataApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Doctor, Department, Store } from '@hospital/shared';
 import DoctorConsultationFeeModal from './consultation-fee-modal';
+import ImportExport from '@/components/ImportExport';
 
 const DoctorListPage: React.FC = () => {
   const { message } = App.useApp();
@@ -234,6 +235,14 @@ const DoctorListPage: React.FC = () => {
           }));
         }}
         toolBarRender={() => [
+          <ImportExport
+            key="import-export"
+            moduleName="医生"
+            exportUrl={dataApi.getExportDoctorsUrl()}
+            importUrl={dataApi.getImportDoctorsUrl()}
+            templateUrl={dataApi.getDoctorTemplateUrl()}
+            onImportSuccess={() => actionRef.current?.reload()}
+          />,
           access.hasPermission('doctor:create') && (
             <Button
               key="add"

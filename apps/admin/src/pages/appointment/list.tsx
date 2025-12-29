@@ -3,9 +3,10 @@ import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { App, Space, Tag, Popconfirm } from 'antd';
 import { useRef } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
-import { appointmentApi, storeApi } from '@hospital/api';
+import { appointmentApi, storeApi, dataApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Appointment } from '@hospital/shared';
+import ImportExport from '@/components/ImportExport';
 
 const STATUS_MAP: Record<number, { text: string; color: string }> = {
   0: { text: '待签到', color: 'gold' },
@@ -191,6 +192,14 @@ const AppointmentListPage: React.FC = () => {
         }}
         pagination={{ defaultPageSize: 10 }}
         search={{ labelWidth: 'auto' }}
+        toolBarRender={() => [
+          <ImportExport
+            key="export"
+            moduleName="预约"
+            exportUrl={dataApi.getExportAppointmentsUrl()}
+            showImport={false}
+          />,
+        ]}
       />
     </PageContainer>
   );

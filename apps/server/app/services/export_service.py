@@ -1,17 +1,16 @@
-"""数据导出服务"""
+"""数据导出服务 - 已升级为 Excel 格式"""
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
 from typing import Optional, List
 from datetime import date, datetime
-import io
-import csv
 
 from app.models.appointment import Appointment
 from app.models.schedule import Schedule
 from app.models.user import Patient
 from app.models.doctor import Doctor
 from app.models.department import Department
+from app.services.excel_service import ExcelExportService
 
 
 class ExportService:
@@ -57,30 +56,26 @@ class ExportService:
         
         # 状态映射
         status_map = {
-            1: '待就诊', 2: '已签到', 3: '就诊中', 4: '已过号',
-            5: '已完成', 6: '已取消', 7: '爽约'
+            0: '待签到', 1: '已签到', 2: '叫号中', 3: '就诊中',
+            4: '已完成', 5: '已取消', 6: '已爽约', 7: '已过号'
         }
-        time_slot_map = {'AM': '上午', 'PM': '下午'}
+        time_slot_map = {'morning': '上午', 'afternoon': '下午', 'evening': '晚上', 'AM': '上午', 'PM': '下午'}
         
-        # 构建CSV
-        output = io.StringIO()
-        writer = csv.writer(output)
-        
-        # 表头
-        writer.writerow([
+        # 构建 Excel
+        headers = [
             '预约单号', '就诊日期', '时段', '排队号',
             '患者姓名', '患者手机', '身份证号',
             '医生', '科室', '状态',
             '签到时间', '完成时间', '取消时间', '取消原因',
             '创建时间'
-        ])
+        ]
         
-        # 数据
+        data = []
         for a in appointments:
             schedule = a.schedule
             patient = a.patient
             
-            writer.writerow([
+            data.append([
                 a.appointment_no,
                 str(schedule.schedule_date) if schedule else '',
                 time_slot_map.get(schedule.time_slot, '') if schedule else '',
@@ -98,14 +93,9 @@ class ExportService:
                 a.created_at.strftime('%Y-%m-%d %H:%M:%S') if a.created_at else '',
             ])
         
-        csv_content = output.getvalue()
-        output.close()
-        
-        # 添加BOM头，让Excel正确识别UTF-8
-        csv_bytes = b'\xef\xbb\xbf' + csv_content.encode('utf-8')
-        
-        filename = f"appointments_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv"
-        return csv_bytes, filename
+        excel_bytes = ExcelExportService.create_workbook(headers, data, "预约记录")
+        filename = f"appointments_{datetime.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+        return excel_bytes, filename
     
     async def export_patients(
         self,
@@ -130,32 +120,34 @@ class ExportService:
         
         gender_map = {0: '未知', 1: '男', 2: '女'}
         
-        output = io.StringIO()
-        writer = csv.writer(output)
+        headers = [
+            '就诊卡编号', '姓名', '手机号', '身份证号', '性别', '出生日期',
+            '与本人关系', '省', '市', '区', '详细地址', '来源', '创建时间'
+        ]
         
-        writer.writerow([
-            '姓名', '手机号', '身份证号', '性别', '出生日期',
-            '与用户关系', '是否默认', '创建时间'
-        ])
+        source_map = {1: '用户添加', 2: '管理员添加'}
         
+        data = []
         for p in patients:
-            writer.writerow([
+            data.append([
+                p.card_no or '',
                 p.name,
                 p.phone,
                 p.id_card or '',
                 gender_map.get(p.gender, ''),
                 str(p.birthday) if p.birthday else '',
                 p.relationship or '',
-                '是' if p.is_default else '否',
+                p.province or '',
+                p.city or '',
+                p.district or '',
+                p.address or '',
+                source_map.get(p.source, ''),
                 p.created_at.strftime('%Y-%m-%d %H:%M:%S') if p.created_at else '',
             ])
         
-        csv_content = output.getvalue()
-        output.close()
-        
-        csv_bytes = b'\xef\xbb\xbf' + csv_content.encode('utf-8')
-        filename = f"patients_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv"
-        return csv_bytes, filename
+        excel_bytes = ExcelExportService.create_workbook(headers, data, "患者列表")
+        filename = f"patients_{datetime.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+        return excel_bytes, filename
     
     async def export_schedules(
         self,
@@ -185,21 +177,19 @@ class ExportService:
         schedules = result.unique().scalars().all()
         
         status_map = {0: '停诊', 1: '正常'}
-        time_slot_map = {'AM': '上午', 'PM': '下午'}
+        time_slot_map = {'morning': '上午', 'afternoon': '下午', 'evening': '晚上', 'AM': '上午', 'PM': '下午'}
         
-        output = io.StringIO()
-        writer = csv.writer(output)
-        
-        writer.writerow([
+        headers = [
             '排班日期', '时段', '医生', '科室',
             '总号源', '已预约', '剩余', '状态', '创建时间'
-        ])
+        ]
         
+        data = []
         for s in schedules:
             doctor = s.doctor
             dept = doctor.department if doctor else None
             
-            writer.writerow([
+            data.append([
                 str(s.schedule_date),
                 time_slot_map.get(s.time_slot, ''),
                 doctor.name if doctor else '',
@@ -211,10 +201,6 @@ class ExportService:
                 s.created_at.strftime('%Y-%m-%d %H:%M:%S') if s.created_at else '',
             ])
         
-        csv_content = output.getvalue()
-        output.close()
-        
-        csv_bytes = b'\xef\xbb\xbf' + csv_content.encode('utf-8')
-        filename = f"schedules_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv"
-        return csv_bytes, filename
-
+        excel_bytes = ExcelExportService.create_workbook(headers, data, "排班记录")
+        filename = f"schedules_{datetime.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+        return excel_bytes, filename

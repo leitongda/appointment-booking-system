@@ -4,9 +4,10 @@ import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { Button, App, Popconfirm, Space, Avatar, Tag } from 'antd';
 import { useRef } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
-import { adminApi, storeApi } from '@hospital/api';
+import { adminApi, storeApi, dataApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Admin } from '@hospital/api';
+import ImportExport from '@/components/ImportExport';
 
 const UserPage: React.FC = () => {
   const { message } = App.useApp();
@@ -136,6 +137,12 @@ const UserPage: React.FC = () => {
           return toProTableResult(await adminApi.getAdmins(queryParams));
         }}
         toolBarRender={() => [
+          <ImportExport
+            key="import-export"
+            moduleName="系统用户"
+            exportUrl={dataApi.getExportUsersUrl()}
+            showImport={false}
+          />,
           access.hasPermission('system:user:create') && (
             <Button
               key="add"
