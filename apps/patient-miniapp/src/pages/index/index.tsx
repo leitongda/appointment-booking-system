@@ -1,26 +1,25 @@
 import { View, Text, Swiper, SwiperItem } from '@tarojs/components';
 import Taro from '@tarojs/taro';
+import {
+  HospitalIcon,
+  CalendarIcon,
+  RecordIcon,
+  UserIcon,
+  DoctorIcon,
+  FlashIcon,
+  SearchIcon,
+  getDeptIcon,
+  MoreIcon,
+} from '../../components/Icons';
 import './index.less';
 
 // 功能菜单配置
 const menus = [
-  { icon: '🏥', title: '预约挂号', path: '/pages/department/index' },
-  { icon: '📋', title: '我的预约', path: '/pages/appointment/index' },
-  { icon: '📝', title: '就诊记录', path: '/pages/records/index' },
-  { icon: '👤', title: '个人中心', path: '/pages/profile/index' },
+  { icon: HospitalIcon, title: '预约挂号', path: '/pages/department/index' },
+  { icon: CalendarIcon, title: '我的预约', path: '/pages/appointment/index' },
+  { icon: RecordIcon, title: '就诊记录', path: '/pages/records/index' },
+  { icon: UserIcon, title: '个人中心', path: '/pages/profile/index' },
 ];
-
-// 科室图标映射
-const deptIcons: Record<string, string> = {
-  '内科': '🫀',
-  '外科': '🔪',
-  '儿科': '👶',
-  '妇科': '👩',
-  '骨科': '🦴',
-  '眼科': '👁️',
-  '口腔': '🦷',
-  '更多': '➕',
-};
 
 // 热门科室
 const hotDepts = ['内科', '外科', '儿科', '妇科', '骨科', '眼科', '口腔', '更多'];
@@ -67,26 +66,33 @@ const IndexPage = () => {
       {/* 功能菜单 */}
       <View className="menu-card">
         <View className="dept-grid">
-          {menus.map((menu) => (
-            <View key={menu.path} className="menu-item" onClick={() => navigateTo(menu.path)}>
-              <View className="menu-icon-wrap">
-                <Text className="menu-icon">{menu.icon}</Text>
+          {menus.map((menu) => {
+            const IconComponent = menu.icon;
+            return (
+              <View key={menu.path} className="menu-item" onClick={() => navigateTo(menu.path)}>
+                <View className="menu-icon-wrap">
+                  <IconComponent size={28} color="#4F46E5" />
+                </View>
+                <Text className="menu-title">{menu.title}</Text>
               </View>
-              <Text className="menu-title">{menu.title}</Text>
-            </View>
-          ))}
+            );
+          })}
         </View>
       </View>
 
       {/* 快捷入口 */}
       <View className="quick-entry">
         <View className="quick-card" onClick={() => navigateTo('/pages/department/index')}>
-          <Text className="quick-icon">⚡</Text>
+          <View className="quick-icon">
+            <FlashIcon size={24} color="#F59E0B" />
+          </View>
           <Text className="quick-title">快速挂号</Text>
           <Text className="quick-desc">一键预约，省时省力</Text>
         </View>
         <View className="quick-card" onClick={() => navigateTo('/pages/search/index')}>
-          <Text className="quick-icon">🔍</Text>
+          <View className="quick-icon">
+            <SearchIcon size={24} color="#10B981" />
+          </View>
           <Text className="quick-title">找医生</Text>
           <Text className="quick-desc">搜索专家，精准就医</Text>
         </View>
@@ -101,18 +107,21 @@ const IndexPage = () => {
           </Text>
         </View>
         <View className="dept-grid">
-          {hotDepts.map((name) => (
-            <View
-              key={name}
-              className="dept-item"
-              onClick={() => navigateTo('/pages/department/index')}
-            >
-              <View className="dept-icon-wrap">
-                <Text>{deptIcons[name] || '🏥'}</Text>
+          {hotDepts.map((name) => {
+            const IconComponent = name === '更多' ? MoreIcon : getDeptIcon(name);
+            return (
+              <View
+                key={name}
+                className="dept-item"
+                onClick={() => navigateTo('/pages/department/index')}
+              >
+                <View className="dept-icon-wrap">
+                  <IconComponent size={24} color="#4F46E5" />
+                </View>
+                <Text className="dept-name">{name}</Text>
               </View>
-              <Text className="dept-name">{name}</Text>
-            </View>
-          ))}
+            );
+          })}
         </View>
       </View>
 
@@ -132,7 +141,7 @@ const IndexPage = () => {
               onClick={() => navigateTo(`/pages/doctor/detail?id=${doctor.id}`)}
             >
               <View className="doctor-avatar">
-                <Text>👨‍⚕️</Text>
+                <DoctorIcon size={32} color="#4F46E5" />
               </View>
               <View className="doctor-info">
                 <View className="doctor-header">

@@ -4,6 +4,7 @@ import { Form, Input, Button, Dialog } from '@nutui/nutui-react-taro';
 import { useState } from 'react';
 import { authApi } from '@hospital/api';
 import { setToken, setStorage, STORAGE_KEYS } from '@hospital/shared';
+import { HospitalIcon } from '../../components/Icons';
 import './index.less';
 
 const LoginPage = () => {
@@ -121,7 +122,7 @@ const LoginPage = () => {
       {/* 头部 */}
       <View className="header">
         <View className="logo">
-          <Text>🏥</Text>
+          <HospitalIcon size={48} color="#4F46E5" />
         </View>
         <Text className="title">医院挂号系统</Text>
         <Text className="subtitle">便捷预约，健康生活</Text>

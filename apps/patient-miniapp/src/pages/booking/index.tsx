@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { doctorApi, userApi, appointmentApi } from '@hospital/api';
 import { TIME_SLOT_MAP } from '@hospital/shared';
 import type { Doctor, Patient } from '@hospital/shared';
+import { DoctorIcon } from '../../components/Icons';
 import './index.less';
 
 const BookingPage = () => {
@@ -89,7 +90,7 @@ const BookingPage = () => {
       {/* 医生信息摘要 */}
       <View className="doctor-summary">
         <View className="doctor-avatar">
-          <Text>👨‍⚕️</Text>
+          <DoctorIcon size={36} color="#4F46E5" />
         </View>
         <View className="doctor-info">
           <Text className="doctor-name">{doctor?.name} · {doctor?.title}</Text>

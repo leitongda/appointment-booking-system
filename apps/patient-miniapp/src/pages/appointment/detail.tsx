@@ -5,16 +5,23 @@ import { useState, useEffect } from 'react';
 import { appointmentApi } from '@hospital/api';
 import { APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP } from '@hospital/shared';
 import type { AppointmentDetail } from '@hospital/shared';
+import {
+  CalendarIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  CheckIcon,
+  CloseCircleIcon,
+} from '../../components/Icons';
 import './detail.less';
 
 // 状态图标映射
-const statusIconMap: Record<number, string> = {
-  1: '📅',
-  2: '✅',
-  3: '⏳',
-  5: '✓',
-  6: '❌',
-  7: '❌',
+const StatusIconMap: Record<number, React.ComponentType<{ size?: number; color?: string }>> = {
+  1: CalendarIcon,
+  2: CheckCircleIcon,
+  3: ClockIcon,
+  5: CheckIcon,
+  6: CloseCircleIcon,
+  7: CloseCircleIcon,
 };
 
 // 状态颜色映射
@@ -94,6 +101,8 @@ const AppointmentDetailPage = () => {
     );
   }
 
+  const StatusIcon = StatusIconMap[appointment.status] || CalendarIcon;
+
   return (
     <View className="appointment-detail-page">
       {/* 状态头部 */}
@@ -103,7 +112,7 @@ const AppointmentDetailPage = () => {
       >
         <View className="status-content">
           <View className="status-icon">
-            <Text>{statusIconMap[appointment.status]}</Text>
+            <StatusIcon size={32} color="#fff" />
           </View>
           <Text className="status-text">{APPOINTMENT_STATUS_MAP[appointment.status]}</Text>
           {appointment.queueNumber && (

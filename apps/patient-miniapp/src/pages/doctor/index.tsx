@@ -3,11 +3,12 @@ import Taro, { useRouter } from '@tarojs/taro';
 import { useState, useEffect } from 'react';
 import { doctorApi } from '@hospital/api';
 import type { Doctor } from '@hospital/shared';
+import { DoctorIcon } from '../../components/Icons';
 import './index.less';
 
 const DoctorListPage = () => {
   const router = useRouter();
-  const { departmentId, departmentName } = router.params;
+  const { departmentId } = router.params;
 
   const [loading, setLoading] = useState(true);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -61,7 +62,7 @@ const DoctorListPage = () => {
                 {doctor.avatar ? (
                   <Image className="avatar" src={doctor.avatar} mode="aspectFill" />
                 ) : (
-                  <Text>👨‍⚕️</Text>
+                  <DoctorIcon size={36} color="#4F46E5" />
                 )}
               </View>
               <View className="info">

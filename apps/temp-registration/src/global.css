@@ -1,0 +1,70 @@
+/* Google Fonts - 中文友好字体 */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* Tailwind CSS v3 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 点状纹理背景 */
+@layer utilities {
+  .bg-dot-pattern {
+    background-image: radial-gradient(circle, rgba(0, 163, 163, 0.1) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  
+  .bg-gradient-medical {
+    background: linear-gradient(135deg, #00A3A3 0%, #00C4B4 50%, #4DC9C9 100%);
+  }
+  
+  .bg-gradient-medical-light {
+    background: linear-gradient(135deg, rgba(0, 163, 163, 0.1) 0%, rgba(0, 196, 180, 0.05) 100%);
+  }
+}
+
+/* prefers-reduced-motion 支持 */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Body base styles */
+body {
+  font-family: 'Noto Sans SC', 'PingFang SC', system-ui, sans-serif;
+  background-color: #F0FAFA;
+  color: #0F172A;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Safe area for iOS */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 163, 163, 0.3);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 163, 163, 0.5);
+}
+

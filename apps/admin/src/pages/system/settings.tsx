@@ -15,7 +15,7 @@ import { PlusOutlined, SearchOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useState, useEffect, useRef } from 'react';
 import { useAccess, useModel } from '@umijs/max';
 import { settingsApi, blacklistApi, storeApi } from '@hospital/api';
-import type { BookingSettings, HospitalInfo, BookingFieldConfig, PatientCardConfig, BlacklistItem, EmailConfig, ImageConfig, ThumbnailSize } from '@hospital/api';
+import type { BookingSettings, HospitalInfo, BookingFieldConfig, PatientCardConfig, BlacklistItem, EmailConfig, ImageConfig, ThumbnailSize, WechatConfig } from '@hospital/api';
 
 const { Text } = Typography;
 
@@ -39,6 +39,7 @@ const SettingsPage: React.FC = () => {
   const [stores, setStores] = useState<any[]>([]);
   const [emailConfig, setEmailConfig] = useState<EmailConfig | null>(null);
   const [imageConfig, setImageConfig] = useState<ImageConfig | null>(null);
+  const [wechatConfig, setWechatConfig] = useState<WechatConfig | null>(null);
   const canEdit = access.hasPermission('system:settings');
 
   useEffect(() => {
@@ -49,13 +50,14 @@ const SettingsPage: React.FC = () => {
   const loadSettings = async () => {
     setLoading(true);
     try {
-      const [booking, hospital, fields, cardConfig, email, image] = await Promise.allSettled([
+      const [booking, hospital, fields, cardConfig, email, image, wechat] = await Promise.allSettled([
         settingsApi.getBookingSettings(),
         settingsApi.getHospitalInfo(),
         settingsApi.getBookingFields(),
         settingsApi.getPatientCardConfig(),
         settingsApi.getEmailConfig(),
         settingsApi.getImageConfig(),
+        settingsApi.getWechatConfig(),
       ]);
       if (booking.status === 'fulfilled') setBookingSettings(booking.value);
       if (hospital.status === 'fulfilled') setHospitalInfo(hospital.value);
@@ -63,6 +65,7 @@ const SettingsPage: React.FC = () => {
       if (cardConfig.status === 'fulfilled') setPatientCardConfig(cardConfig.value);
       if (email.status === 'fulfilled') setEmailConfig(email.value);
       if (image.status === 'fulfilled') setImageConfig(image.value);
+      if (wechat.status === 'fulfilled') setWechatConfig(wechat.value);
     } catch (error) {
       console.error('加载配置失败', error);
     } finally {
@@ -158,6 +161,15 @@ const SettingsPage: React.FC = () => {
         thumbnailSizes: values.thumbnailSizes,
         compressQuality: values.compressQuality,
       });
+      message.success('保存成功');
+    } catch (error: any) {
+      message.error(error.message || '保存失败');
+    }
+  };
+
+  const handleWechatConfigSubmit = async (values: any) => {
+    try {
+      await settingsApi.updateWechatConfig(values);
       message.success('保存成功');
     } catch (error: any) {
       message.error(error.message || '保存失败');
@@ -463,6 +475,59 @@ const SettingsPage: React.FC = () => {
               { required: true, message: '请输入发件人邮箱' },
               { type: 'email', message: '请输入正确的邮箱格式' },
             ]}
+          />
+        </ProForm>
+      ),
+    },
+    {
+      key: 'wechat',
+      label: '微信配置',
+      children: (
+        <ProForm
+          onFinish={handleWechatConfigSubmit}
+          initialValues={wechatConfig || {}}
+          submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
+        >
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            配置微信小程序的 AppID 和 Secret，用于微信登录和消息推送。在{' '}
+            <a href="https://mp.weixin.qq.com" target="_blank" rel="noopener noreferrer">
+              微信公众平台
+            </a>{' '}
+            → 开发管理 → 开发设置 中获取。
+          </Text>
+          <ProFormText
+            name="appId"
+            label="小程序 AppID"
+            placeholder="请输入小程序 AppID"
+            rules={[{ required: true, message: '请输入小程序 AppID' }]}
+            extra="在微信公众平台 → 开发管理 → 开发设置 中获取"
+          />
+          <ProFormText.Password
+            name="appSecret"
+            label="小程序 Secret"
+            placeholder="请输入小程序 Secret"
+            rules={[{ required: true, message: '请输入小程序 Secret' }]}
+            extra="Secret 是敏感信息，请妥善保管"
+            fieldProps={{ autoComplete: 'new-password' }}
+          />
+          <ProFormText
+            name="mchId"
+            label="商户号 (选填)"
+            placeholder="请输入微信支付商户号"
+            extra="如需使用微信支付功能，请填写商户号"
+          />
+          <ProFormText.Password
+            name="apiKey"
+            label="API 密钥 (选填)"
+            placeholder="请输入微信支付 API 密钥"
+            extra="如需使用微信支付功能，请填写 API 密钥"
+            fieldProps={{ autoComplete: 'new-password' }}
+          />
+          <ProFormText
+            name="notifyUrl"
+            label="支付回调地址 (选填)"
+            placeholder="如：https://your-domain.com/api/v1/wechat/pay/notify"
+            extra="微信支付结果通知的回调地址"
           />
         </ProForm>
       ),

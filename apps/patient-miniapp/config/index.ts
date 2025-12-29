@@ -15,11 +15,16 @@ export default defineConfig(async (merge) => {
     sourceRoot: 'src',
     outputRoot: 'dist',
     plugins: ['@tarojs/plugin-framework-react'],
-    // 小程序不需要 jsencrypt（RSA 加密），将其替换为空模块
-    // 这解决了 "Cannot read property 'crypto' of undefined" 错误
+    // 小程序环境不支持的库替换为空模块
+    // 1. jsencrypt - 依赖 Web Crypto API，小程序不支持
+    // 2. @ant-design/pro-components 和 antd - PC端组件库，小程序不需要
+    // 3. react-dom - 在 @hospital/shared 导出的 PC 组件中使用，需要提供空的 flushSync
     alias: {
       '@': path.resolve(__dirname, '..', 'src'),
       'jsencrypt': path.resolve(__dirname, '..', 'src', 'utils', 'empty-module.ts'),
+      '@ant-design/pro-components': path.resolve(__dirname, '..', 'src', 'utils', 'empty-antd.ts'),
+      'antd': path.resolve(__dirname, '..', 'src', 'utils', 'empty-antd.ts'),
+      '@ant-design/icons': path.resolve(__dirname, '..', 'src', 'utils', 'empty-antd.ts'),
     },
     // 定义全局环境变量
     // 门店配置说明：

@@ -1,6 +1,7 @@
 import { View, Text } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
 import { Button } from '@nutui/nutui-react-taro';
+import { CheckIcon } from '../../components/Icons';
 import './result.less';
 
 const BookingResultPage = () => {
@@ -20,7 +21,7 @@ const BookingResultPage = () => {
       {/* 成功图标 */}
       <View className="success-icon">
         <View className="icon-circle">
-          <Text className="icon-check">✓</Text>
+          <CheckIcon size={48} color="#fff" />
         </View>
         <Text className="success-title">预约成功</Text>
         <Text className="success-desc">预约单号：{appointmentNo}</Text>

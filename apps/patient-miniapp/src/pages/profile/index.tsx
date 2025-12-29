@@ -5,22 +5,34 @@ import { useState, useEffect } from 'react';
 import { userApi } from '@hospital/api';
 import { removeToken, removeStorage, STORAGE_KEYS } from '@hospital/shared';
 import type { User } from '@hospital/shared';
+import {
+  TeamIcon,
+  RecordIcon,
+  BellIcon,
+  ChatIcon,
+  InfoIcon,
+  SettingsIcon,
+  UserIcon,
+} from '../../components/Icons';
 import './index.less';
 
+// 图标组件类型
+type IconComponent = typeof TeamIcon;
+
 // 菜单配置
-const menuGroups = [
+const menuGroups: { items: { icon: IconComponent; title: string; desc: string; path?: string; badge?: string }[] }[] = [
   {
     items: [
-      { icon: '👥', title: '就诊人管理', desc: '管理就诊人信息', path: '/pages/profile/patient/index' },
-      { icon: '📋', title: '就诊记录', desc: '查看历史就诊记录', path: '/pages/records/index' },
-      { icon: '🔔', title: '消息通知', desc: '预约提醒、系统通知', badge: '' },
+      { icon: TeamIcon, title: '就诊人管理', desc: '管理就诊人信息', path: '/pages/profile/patient/index' },
+      { icon: RecordIcon, title: '就诊记录', desc: '查看历史就诊记录', path: '/pages/records/index' },
+      { icon: BellIcon, title: '消息通知', desc: '预约提醒、系统通知', badge: '' },
     ],
   },
   {
     items: [
-      { icon: '💬', title: '意见反馈', desc: '帮助我们做得更好' },
-      { icon: 'ℹ️', title: '关于我们', desc: '了解更多' },
-      { icon: '⚙️', title: '设置', desc: '账号与安全' },
+      { icon: ChatIcon, title: '意见反馈', desc: '帮助我们做得更好' },
+      { icon: InfoIcon, title: '关于我们', desc: '了解更多' },
+      { icon: SettingsIcon, title: '设置', desc: '账号与安全' },
     ],
   },
 ];
@@ -72,7 +84,7 @@ const ProfilePage = () => {
             {user?.avatar ? (
               <Image src={user.avatar} mode="aspectFill" />
             ) : (
-              <Text>👤</Text>
+              <UserIcon size={40} color="#fff" />
             )}
           </View>
           <View className="user-info">
@@ -104,23 +116,26 @@ const ProfilePage = () => {
       {menuGroups.map((group, groupIndex) => (
         <View key={groupIndex} className="menu-section">
           <View className="menu-card">
-            {group.items.map((item, itemIndex) => (
-              <View
-                key={itemIndex}
-                className="menu-item"
-                onClick={() => handleMenuClick(item)}
-              >
-                <View className="menu-icon">
-                  <Text>{item.icon}</Text>
+            {group.items.map((item, itemIndex) => {
+              const IconComponent = item.icon;
+              return (
+                <View
+                  key={itemIndex}
+                  className="menu-item"
+                  onClick={() => handleMenuClick(item)}
+                >
+                  <View className="menu-icon">
+                    <IconComponent size={22} color="#4F46E5" />
+                  </View>
+                  <View className="menu-content">
+                    <Text className="menu-title">{item.title}</Text>
+                    <Text className="menu-desc">{item.desc}</Text>
+                  </View>
+                  {item.badge && <Text className="menu-badge">{item.badge}</Text>}
+                  <Text className="menu-arrow">›</Text>
                 </View>
-                <View className="menu-content">
-                  <Text className="menu-title">{item.title}</Text>
-                  <Text className="menu-desc">{item.desc}</Text>
-                </View>
-                {item.badge && <Text className="menu-badge">{item.badge}</Text>}
-                <Text className="menu-arrow">›</Text>
-              </View>
-            ))}
+              );
+            })}
           </View>
         </View>
       ))}

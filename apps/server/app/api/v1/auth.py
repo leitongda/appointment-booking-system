@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.api.deps import get_current_user
-from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, RefreshTokenRequest, ChangePasswordRequest
+from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, RefreshTokenRequest, ChangePasswordRequest, LoginResponse, UserInfo
 from app.schemas.user import UserResponse
 from app.schemas.wechat import WechatLoginRequest, WechatLoginResponse, WechatPhoneRequest, WechatBindPhoneRequest
 from app.services.user_service import UserService
@@ -13,7 +13,7 @@ from app.core.config import settings
 
 router = APIRouter()
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=LoginResponse)
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     """用户登录"""
     user_service = UserService(db)
@@ -28,10 +28,18 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     access_token = create_access_token(data={"sub": user.id})
     refresh_token = create_refresh_token(data={"sub": user.id})
     
-    return TokenResponse(
+    return LoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        user=UserInfo(
+            id=user.id,
+            phone=user.phone,
+            nickname=user.nickname,
+            avatar=user.avatar,
+            gender=user.gender or 0,
+            status=user.status
+        )
     )
 
 @router.post("/register", response_model=UserResponse)
@@ -132,7 +140,7 @@ async def wechat_login(data: WechatLoginRequest, db: AsyncSession = Depends(get_
             
             return WechatLoginResponse(
                 is_new_user=False,
-                need_bindPhone=False,
+                need_bind_phone=False,
                 openid=openid,
                 access_token=access_token,
                 refresh_token=refresh_token,
@@ -142,7 +150,7 @@ async def wechat_login(data: WechatLoginRequest, db: AsyncSession = Depends(get_
             # 新用户，需要绑定手机号
             return WechatLoginResponse(
                 is_new_user=True,
-                need_bindPhone=True,
+                need_bind_phone=True,
                 openid=openid,
                 access_token=None,
                 refresh_token=None,
@@ -152,7 +160,7 @@ async def wechat_login(data: WechatLoginRequest, db: AsyncSession = Depends(get_
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.post("/wechat/phone", response_model=TokenResponse)
+@router.post("/wechat/phone", response_model=LoginResponse)
 async def wechat_get_phone(data: WechatPhoneRequest, db: AsyncSession = Depends(get_db)):
     """
     微信获取手机号并自动登录/注册
@@ -175,6 +183,7 @@ async def wechat_get_phone(data: WechatPhoneRequest, db: AsyncSession = Depends(
             if not user.openid:
                 user.openid = data.openid
                 await db.commit()
+                await db.refresh(user)
         else:
             # 创建新用户
             from app.schemas.user import UserCreate
@@ -188,16 +197,24 @@ async def wechat_get_phone(data: WechatPhoneRequest, db: AsyncSession = Depends(
         access_token = create_access_token(data={"sub": user.id})
         refresh_token = create_refresh_token(data={"sub": user.id})
         
-        return TokenResponse(
+        return LoginResponse(
             access_token=access_token,
             refresh_token=refresh_token,
-            expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+            expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            user=UserInfo(
+                id=user.id,
+                phone=user.phone,
+                nickname=user.nickname,
+                avatar=user.avatar,
+                gender=user.gender or 0,
+                status=user.status
+            )
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.post("/wechat/bind-phone", response_model=TokenResponse)
+@router.post("/wechat/bind-phone", response_model=LoginResponse)
 async def wechat_bind_phone(data: WechatBindPhoneRequest, db: AsyncSession = Depends(get_db)):
     """
     微信绑定手机号（手动输入方式）
@@ -218,6 +235,7 @@ async def wechat_bind_phone(data: WechatBindPhoneRequest, db: AsyncSession = Dep
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该手机号已绑定其他微信账号")
         user.openid = data.openid
         await db.commit()
+        await db.refresh(user)
     else:
         # 创建新用户
         from app.schemas.user import UserCreate
@@ -231,8 +249,16 @@ async def wechat_bind_phone(data: WechatBindPhoneRequest, db: AsyncSession = Dep
     access_token = create_access_token(data={"sub": user.id})
     refresh_token = create_refresh_token(data={"sub": user.id})
     
-    return TokenResponse(
+    return LoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        user=UserInfo(
+            id=user.id,
+            phone=user.phone,
+            nickname=user.nickname,
+            avatar=user.avatar,
+            gender=user.gender or 0,
+            status=user.status
+        )
     )

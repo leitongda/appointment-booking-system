@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { doctorApi, scheduleApi } from '@hospital/api';
 import { TIME_SLOT_MAP } from '@hospital/shared';
 import type { Doctor, AvailableSchedule } from '@hospital/shared';
+import { DoctorIcon } from '../../components/Icons';
 import './detail.less';
 
 const WEEKDAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
@@ -93,7 +94,7 @@ const DoctorDetailPage = () => {
             {doctor.avatar ? (
               <Image src={doctor.avatar} mode="aspectFill" />
             ) : (
-              <Text>👨‍⚕️</Text>
+              <DoctorIcon size={48} color="#4F46E5" />
             )}
           </View>
           <View className="info-content">

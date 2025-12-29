@@ -1,0 +1,151 @@
+/* antd-mobile Theme Override - 医疗健康主题 */
+/* Uses :root:root for higher specificity to override antd-mobile defaults */
+
+:root:root {
+  /* Primary colors - 医疗蓝绿色 */
+  --adm-color-primary: #00A3A3;
+  --adm-color-primary-dark: #007A7A;
+  --adm-color-primary-light: #4DC9C9;
+  
+  /* Semantic colors */
+  --adm-color-success: #10B981;
+  --adm-color-warning: #F59E0B;
+  --adm-color-danger: #EF4444;
+  --adm-color-weak: #64748B;
+  
+  /* Text colors */
+  --adm-color-text: #0F172A;
+  --adm-color-text-secondary: #64748B;
+  --adm-color-text-light: #94A3B8;
+  
+  /* Background colors */
+  --adm-color-background: #F0FAFA;
+  --adm-color-box: #FFFFFF;
+  --adm-color-fill: #E6F4F4;
+  --adm-color-fill-content: #F0FAFA;
+  
+  /* Border colors */
+  --adm-color-border: #D0E8E8;
+  --adm-border-color: #D0E8E8;
+  
+  /* Typography */
+  --adm-font-family: 'Noto Sans SC', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --adm-font-size-main: 15px;
+  
+  /* Border radius - 更圆润的现代风格 */
+  --adm-border-radius-s: 10px;
+  --adm-border-radius-m: 14px;
+  --adm-border-radius-l: 18px;
+}
+
+/* 确保触摸目标至少44px以满足无障碍要求 */
+.adm-button {
+  min-height: 48px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.adm-input {
+  min-height: 48px;
+  font-size: 16px;
+}
+
+.adm-list-item {
+  min-height: 52px;
+}
+
+.adm-form-item {
+  --border-inner: none;
+}
+
+/* Form styling improvements */
+.adm-form .adm-list-body {
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.adm-form .adm-list-item {
+  padding: 14px 18px;
+}
+
+/* Button primary gradient - 医疗蓝绿渐变 */
+.adm-button-primary {
+  background: linear-gradient(135deg, #00A3A3 0%, #00C4B4 100%);
+  border: none;
+  box-shadow: 0 4px 14px rgba(0, 163, 163, 0.25);
+}
+
+.adm-button-primary:active {
+  background: linear-gradient(135deg, #007A7A 0%, #00A3A3 100%);
+  transform: scale(0.98);
+}
+
+/* Card improvements */
+.adm-card {
+  border-radius: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+/* Tab bar styling */
+.adm-tab-bar {
+  --adm-tab-bar-color: #64748B;
+  --adm-tab-bar-active-color: #00A3A3;
+}
+
+/* Search bar styling */
+.adm-search-bar {
+  --border-radius: 24px;
+  --background: rgba(255, 255, 255, 0.95);
+}
+
+/* Toast styling */
+.adm-toast-main {
+  border-radius: 14px;
+}
+
+/* Dialog styling */
+.adm-dialog-body {
+  border-radius: 18px;
+}
+
+/* Swiper indicator styling */
+.adm-page-indicator-dot {
+  --dot-border-radius: 4px;
+}
+
+.adm-page-indicator-dot-active {
+  background-color: #00A3A3;
+}
+
+/* List styling */
+.adm-list-item-content-arrow {
+  color: #94A3B8;
+}
+
+/* Badge styling */
+.adm-badge-content {
+  background: linear-gradient(135deg, #00A3A3 0%, #00C4B4 100%);
+}
+
+/* Skeleton styling */
+.adm-skeleton-paragraph-line {
+  border-radius: 6px;
+}
+
+/* Steps 步骤条样式 */
+.adm-steps {
+  --title-font-size: 13px;
+  --description-font-size: 12px;
+  --icon-size: 28px;
+}
+
+.adm-step-status-finish .adm-step-icon-container {
+  background: linear-gradient(135deg, #00A3A3 0%, #00C4B4 100%);
+  border-color: transparent;
+}
+
+.adm-step-status-process .adm-step-icon-container {
+  background: linear-gradient(135deg, #00A3A3 0%, #00C4B4 100%);
+  border-color: transparent;
+}
+

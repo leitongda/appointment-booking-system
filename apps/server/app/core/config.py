@@ -95,8 +95,8 @@ class Settings(BaseSettings):
     
     # 限流配置
     RATE_LIMIT_ENABLED: bool = True
-    RATE_LIMIT_PER_MINUTE: int = 60
-    RATE_LIMIT_PER_SECOND: int = 10
+    RATE_LIMIT_PER_MINUTE: int = 300  # 每分钟最大请求数（前端页面加载可能同时发起多个请求）
+    RATE_LIMIT_PER_SECOND: int = 50   # 每秒最大请求数
     
     # 日志配置
     LOG_LEVEL: str = "INFO"

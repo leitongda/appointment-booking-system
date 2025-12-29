@@ -1,3 +1,13 @@
+/*
+ * @Author: Lei TongDa ebian123@qq.com
+ * @Date: 2025-11-27 12:20:26
+ * @LastEditors: Lei TongDa ebian123@qq.com
+ * @LastEditTime: 2025-12-29 20:57:03
+ * @FilePath: /appointment-booking-system/apps/patient-miniapp/src/app.config.ts
+ * @Description: 
+ * 
+ * Copyright (c) 2025 by ${git_name_email}, All Rights Reserved. 
+ */
 export default defineAppConfig({
   pages: [
     'pages/index/index',
@@ -18,7 +28,7 @@ export default defineAppConfig({
   ],
   window: {
     backgroundTextStyle: 'light',
-    navigationBarBackgroundColor: '#667eea',
+    navigationBarBackgroundColor: '#fff',
     navigationBarTitleText: '医院挂号',
     navigationBarTextStyle: 'white',
   },

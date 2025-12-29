@@ -18,6 +18,29 @@
 @theme-secondary-light: #A23B55;
 
 // -------------------------------------------
+// 主题色变量 (LESS 编译时使用)
+// -------------------------------------------
+// 注：这些是静态 LESS 变量，运行时可通过 CSS 变量覆盖
+@color-primary: @theme-primary;
+@color-primary-dark: @theme-primary-dark;
+@color-primary-light: @theme-primary-light;
+@color-secondary: @theme-secondary;
+@color-secondary-light: @theme-secondary-light;
+
+// 主题渐变
+@gradient-primary: linear-gradient(135deg, @color-primary 0%, @color-secondary 100%);
+@gradient-primary-h: linear-gradient(90deg, @color-primary 0%, @color-secondary 100%);
+@gradient-light: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+
+// 主题阴影
+@shadow-color: rgba(196, 30, 58, 0.15);
+@shadow-button: 0 8rpx 28rpx 0 rgba(196, 30, 58, 0.3);
+@shadow-base: 0 4rpx 16rpx 0 rgba(0, 0, 0, 0.04);
+@shadow-sm: 0 4rpx 12rpx -2rpx rgba(0, 0, 0, 0.04);
+@shadow-card: 0 8rpx 40rpx -4rpx rgba(0, 0, 0, 0.08);
+@badge-bg: rgba(196, 30, 58, 0.1);
+
+// -------------------------------------------
 // 功能色 (固定不变)
 // -------------------------------------------
 

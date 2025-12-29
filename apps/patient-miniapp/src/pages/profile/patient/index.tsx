@@ -1,6 +1,6 @@
 import { View, Text } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import { Button, Empty, SwipeCell } from '@nutui/nutui-react-taro';
+import { Button, Empty, Swipe } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 import { userApi } from '@hospital/api';
 import { GENDER_MAP } from '@hospital/shared';
@@ -63,7 +63,7 @@ const PatientListPage = () => {
       ) : (
         <View className="list">
           {patients.map((patient) => (
-            <SwipeCell
+            <Swipe
               key={patient.id}
               rightAction={
                 <Button type="danger" onClick={() => handleDelete(patient.id)}>
@@ -86,7 +86,7 @@ const PatientListPage = () => {
                 </View>
                 <Text className="arrow">›</Text>
               </View>
-            </SwipeCell>
+            </Swipe>
           ))}
         </View>
       )}
