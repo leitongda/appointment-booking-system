@@ -194,9 +194,9 @@ export const setResponseInterceptor = (
 
 /**
  * 封装请求方法
- * 自动使用当前配置的 HTTP 客户端
+ * 自动使用当前配置的 HTTP 客户端（支持 Taro 适配器等自定义实现）
  */
-export const request = {
+const request = {
   get: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> => {
     return getHttpClient().get(url, config);
   },
@@ -218,5 +218,8 @@ export const request = {
   },
 };
 
-export default instance;
+export { request };
+
+// 默认导出 request 对象，确保所有模块使用 getHttpClient() 获取正确的客户端
+export default request;
 

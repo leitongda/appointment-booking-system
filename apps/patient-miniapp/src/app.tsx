@@ -1,8 +1,7 @@
 import { PropsWithChildren, useEffect } from 'react';
 import Taro from '@tarojs/taro';
-// NutUI 样式全量导入
-// 注：NutUI Taro 版本的按需加载配置较复杂，分包优化已能有效减少包大小
-import '@nutui/nutui-react-taro/dist/style.css';
+// NutUI 样式按需加载 - 通过 babel-plugin-import 自动导入
+// 详情见 babel.config.js
 import './app.less';
 import { initTracker, getTracker, STORAGE_KEYS } from '@hospital/shared';
 import { setHttpClient, createTaroAdapter } from '@hospital/api';

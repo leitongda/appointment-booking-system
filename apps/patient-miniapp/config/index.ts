@@ -53,9 +53,10 @@ export default defineConfig(async (merge) => {
       },
     },
     // 开启持久化缓存，提升二次编译速度
+    // 注意：开发模式下禁用缓存可以避免某些编译错误
     // 详情: https://docs.taro.zone/docs/config-detail#cache
     cache: {
-      enable: true,
+      enable: process.env.NODE_ENV === 'production',
     },
     mini: {
       // 生产环境禁用 source map 以减小包体积
@@ -65,7 +66,13 @@ export default defineConfig(async (merge) => {
         collapseWhitespace: true,
       },
       compile: {
-        include: [],
+        // 包含 workspace 包，确保它们被正确编译
+        include: [
+          (modulePath: string) => modulePath.includes('@hospital/api'),
+          (modulePath: string) => modulePath.includes('@hospital/shared'),
+          (modulePath: string) => modulePath.includes('packages/api'),
+          (modulePath: string) => modulePath.includes('packages/shared'),
+        ],
         exclude: [],
       },
       postcss: {
@@ -104,45 +111,8 @@ export default defineConfig(async (merge) => {
           .maxEntrypointSize(800 * 1024) // 800 KiB
           .hints(process.env.NODE_ENV === 'production' ? 'warning' : false);
 
-        // 优化 splitChunks 配置，更细粒度地拆分 vendors
-        chain.optimization.splitChunks({
-          chunks: 'all',
-          maxInitialRequests: Infinity,
-          minSize: 20000,
-          cacheGroups: {
-            // NutUI 组件库单独打包
-            nutui: {
-              name: 'nutui',
-              test: /[\\/]node_modules[\\/]@nutui[\\/]/,
-              priority: 20,
-            },
-            // Taro 相关依赖单独打包
-            taro: {
-              name: 'taro',
-              test: /[\\/]node_modules[\\/]@tarojs[\\/]/,
-              priority: 15,
-            },
-            // React 单独打包
-            react: {
-              name: 'react',
-              test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
-              priority: 12,
-            },
-            // 其他 node_modules 依赖
-            vendors: {
-              name: 'vendors',
-              test: /[\\/]node_modules[\\/]/,
-              priority: 10,
-            },
-          },
-        });
-
-        // 生产环境额外优化
-        if (process.env.NODE_ENV === 'production') {
-          // 优化模块 ID，减小输出大小
-          chain.optimization.set('moduleIds', 'deterministic');
-          chain.optimization.set('chunkIds', 'deterministic');
-        }
+        // 使用 Taro 默认的 splitChunks 配置
+        // 注意：自定义 splitChunks 可能导致 chunk ID 和文件名不匹配
       },
     },
     h5: {
