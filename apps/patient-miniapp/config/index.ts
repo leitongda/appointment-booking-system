@@ -21,6 +21,9 @@ export default defineConfig(async (merge) => {
     // 3. react-dom - 在 @hospital/shared 导出的 PC 组件中使用，需要提供空的 flushSync
     alias: {
       '@': path.resolve(__dirname, '..', 'src'),
+      // axios 在小程序环境中不可用（不支持 xhr/http/fetch 适配器）
+      // 使用空模块替代，API 请求通过 setHttpClient 使用 Taro 适配器
+      'axios': path.resolve(__dirname, '..', 'src', 'utils', 'empty-axios.ts'),
       'jsencrypt': path.resolve(__dirname, '..', 'src', 'utils', 'empty-module.ts'),
       '@ant-design/pro-components': path.resolve(__dirname, '..', 'src', 'utils', 'empty-antd.ts'),
       'antd': path.resolve(__dirname, '..', 'src', 'utils', 'empty-antd.ts'),
