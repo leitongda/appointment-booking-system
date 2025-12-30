@@ -111,7 +111,7 @@ class WechatTokenManager:
             "secret": app_secret
         }
         
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
             response = await client.get(url, params=params)
             data = response.json()
         
@@ -282,7 +282,7 @@ class WechatService:
             "grant_type": "authorization_code"
         }
         
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
             response = await client.get(url, params=params)
             data = response.json()
         
@@ -312,7 +312,7 @@ class WechatService:
         
         url = f"{self.WECHAT_API_URL}/wxa/business/getuserphonenumber?access_token={access_token}"
         
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
             response = await client.post(url, json={"code": code})
             data = response.json()
         
@@ -376,7 +376,7 @@ class WechatService:
         if page:
             payload["page"] = page
         
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
             response = await client.post(url, json=payload)
             result = response.json()
         
@@ -391,7 +391,7 @@ class WechatService:
                     force_refresh=True
                 )
                 url = f"{self.WECHAT_API_URL}/cgi-bin/message/subscribe/send?access_token={access_token}"
-                async with httpx.AsyncClient(timeout=10.0) as client:
+                async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
                     response = await client.post(url, json=payload)
                     result = response.json()
                 

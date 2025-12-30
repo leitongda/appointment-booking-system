@@ -29,7 +29,7 @@ const DoctorDetailPage: React.FC = () => {
     if (!id) return;
     setLoading(true);
     try {
-      const data = await doctorApi.getDetail(id);
+      const data = await doctorApi.getDetailAdmin(id);
       setDoctor(data);
     } catch (error) {
       console.error('加载失败', error);

@@ -129,7 +129,7 @@ const DoctorFormPage: React.FC = () => {
     if (!id) return;
     setLoading(true);
     try {
-      const data = await doctorApi.getDetail(id);
+      const data = await doctorApi.getDetailAdmin(id);
       setDoctor(data);
     } catch (error: any) {
       message.error('加载医生信息失败');

@@ -190,13 +190,36 @@ async def get_doctors_by_department(
     
     return [doctor_to_list_response(d) for d in doctors]
 
+
+@router.get("/public/{doctor_id}", response_model=DoctorResponse)
+async def get_doctor_public(
+    doctor_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """获取医生详情（公开接口，用于患者端查看医生信息）
+    
+    无需登录即可访问，只返回已启用的医生信息
+    """
+    service = DoctorService(db)
+    doctor = await service.get_by_id(doctor_id)
+    
+    if not doctor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在")
+    
+    # 只返回已启用的医生
+    if doctor.status != 1:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在")
+    
+    return doctor_to_response(doctor)
+
+
 @router.get("/{doctor_id}", response_model=DoctorResponse)
 async def get_doctor(
     doctor_id: str, 
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
 ):
-    """获取医生详情"""
+    """获取医生详情（管理端接口，需要管理员权限）"""
     service = DoctorService(db)
     doctor = await service.get_by_id(doctor_id)
     
