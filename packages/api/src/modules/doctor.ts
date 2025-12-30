@@ -117,7 +117,18 @@ export const doctorApi = {
     return result.data ?? [];
   },
 
+  /**
+   * 获取医生详情（公开接口，无需登录）
+   * 用于患者端查看医生详情页
+   */
   getDetail: (id: string): Promise<Doctor> => {
+    return request.get(`/doctors/public/${id}`);
+  },
+
+  /**
+   * 获取医生详情（管理端接口，需要管理员权限）
+   */
+  getDetailAdmin: (id: string): Promise<Doctor> => {
     return request.get(`/doctors/${id}`);
   },
 
