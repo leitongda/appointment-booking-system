@@ -261,3 +261,4 @@ const PatientInfoPage: React.FC = () => {
 export default PatientInfoPage;
 
 
+
