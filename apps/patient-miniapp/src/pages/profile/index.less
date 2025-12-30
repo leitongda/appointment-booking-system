@@ -230,3 +230,168 @@
   font-size: @font-size-xs;
   color: @color-text-placeholder;
 }
+
+// -------------------------------------------
+// 用户信息弹窗 - 获取头像昵称
+// -------------------------------------------
+
+.user-info-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+}
+
+.user-info-sheet {
+  width: 100%;
+  background: #fff;
+  border-radius: @radius-2xl @radius-2xl 0 0;
+  padding: @spacing-4;
+  padding-bottom: calc(@spacing-4 + env(safe-area-inset-bottom));
+  animation: slideUp 0.3s ease-out;
+  
+  @keyframes slideUp {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  
+  .sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding-bottom: @spacing-4;
+    border-bottom: @border-width solid @color-divider;
+    margin-bottom: @spacing-4;
+    
+    .sheet-title {
+      font-size: @font-size-lg;
+      font-weight: @font-weight-semibold;
+      color: @color-text-primary;
+    }
+    
+    .sheet-close {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 48rpx;
+      color: @color-text-muted;
+      padding: @spacing-2;
+      line-height: 1;
+    }
+  }
+  
+  .sheet-content {
+    .tip {
+      display: block;
+      text-align: center;
+      font-size: @font-size-sm;
+      color: @color-text-muted;
+      margin-bottom: @spacing-5;
+    }
+    
+    // 头像选择区域
+    .avatar-section {
+      display: flex;
+      justify-content: center;
+      margin-bottom: @spacing-5;
+      
+      .avatar-btn {
+        width: 160rpx;
+        height: 160rpx;
+        padding: 0;
+        background: transparent;
+        border: none;
+        border-radius: 50%;
+        overflow: hidden;
+        
+        &::after {
+          border: none;
+        }
+        
+        .avatar-img {
+          width: 160rpx;
+          height: 160rpx;
+          border-radius: 50%;
+        }
+        
+        .avatar-placeholder {
+          width: 160rpx;
+          height: 160rpx;
+          border-radius: 50%;
+          background: @color-bg-tertiary;
+          border: 4rpx dashed @color-divider;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          
+          .avatar-icon {
+            font-size: 56rpx;
+            color: @color-text-muted;
+            line-height: 1;
+          }
+          
+          .avatar-text {
+            font-size: @font-size-xs;
+            color: @color-text-muted;
+            margin-top: @spacing-1;
+          }
+        }
+      }
+    }
+    
+    // 昵称输入区域
+    .nickname-section {
+      margin-bottom: @spacing-5;
+      
+      .label {
+        display: block;
+        color: @color-text-secondary;
+        font-size: @font-size-sm;
+        margin-bottom: @spacing-2;
+      }
+      
+      .nickname-input {
+        width: 100%;
+        height: @input-height;
+        background: @color-bg-secondary;
+        border-radius: @radius-lg;
+        padding: 0 @spacing-4;
+        font-size: @font-size-base;
+        color: @color-text-primary;
+      }
+    }
+    
+    // 确认按钮
+    .confirm-btn {
+      margin-bottom: @spacing-3;
+    }
+    
+    // 跳过区域
+    .skip-section {
+      text-align: center;
+      
+      .skip-btn {
+        display: inline-block;
+        color: @color-text-muted;
+        font-size: @font-size-sm;
+        padding: @spacing-2 @spacing-4;
+        
+        &:active {
+          opacity: 0.7;
+        }
+      }
+    }
+  }
+}

@@ -109,14 +109,26 @@ export default [
   },
   // 患者管理
   {
-    path: '/patient',
+    path: '/user',
     name: '患者管理',
     icon: 'team',
     access: 'canPatient',
     routes: [
-      { path: '/patient', redirect: '/patient/list' },
-      { path: '/patient/list', name: '患者列表', component: './patient' },
-      { path: '/patient/:id', name: '患者详情', component: './patient/detail', hideInMenu: true },
+      { path: '/user', redirect: '/user/list' },
+      { path: '/user/list', name: '患者列表', component: './user' },
+      { path: '/user/:id', name: '患者详情', component: './user/detail', hideInMenu: true },
+    ],
+  },
+  // 就诊卡管理
+  {
+    path: '/medical-card',
+    name: '就诊卡管理',
+    icon: 'idcard',
+    access: 'canPatient',
+    routes: [
+      { path: '/medical-card', redirect: '/medical-card/list' },
+      { path: '/medical-card/list', name: '就诊卡列表', component: './patient' },
+      { path: '/medical-card/:id', name: '就诊卡详情', component: './patient/detail', hideInMenu: true },
     ],
   },
   // 停诊审核

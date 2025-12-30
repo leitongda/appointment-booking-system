@@ -1,6 +1,6 @@
 export default definePageConfig({
   navigationBarTitleText: '个人中心',
-  navigationBarBackgroundColor: '#667eea',
+  navigationBarBackgroundColor: '#C41E3A',
   navigationBarTextStyle: 'white',
 });
 

@@ -39,4 +39,7 @@ class Store(Base, AuditMixin):
     wechat_api_key = Column(String(100), comment="微信支付API密钥")
     wechat_notify_url = Column(String(255), comment="微信支付回调地址")
     
+    # 就诊卡配置
+    max_cards_per_user = Column(Integer, default=5, comment="每用户可建就诊卡数量上限")
+    
     # 关联关系 - 通过 backref 在 Department, Doctor, Admin 等模型中自动创建

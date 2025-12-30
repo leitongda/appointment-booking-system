@@ -66,8 +66,9 @@ PERMISSIONS = [
     {"code": "patient", "name": "患者管理", "type": "menu", "parent_code": None, "icon": "team", "sort": 7},
     {"code": "patient:list", "name": "查看患者列表", "type": "button", "parent_code": "patient", "sort": 1},
     {"code": "patient:detail", "name": "查看患者详情", "type": "button", "parent_code": "patient", "sort": 2},
-    {"code": "patient:update", "name": "编辑患者", "type": "button", "parent_code": "patient", "sort": 3},
-    {"code": "patient:create", "name": "新增患者", "type": "button", "parent_code": "patient", "sort": 4},
+    {"code": "patient:create", "name": "新增患者", "type": "button", "parent_code": "patient", "sort": 3},
+    {"code": "patient:update", "name": "编辑患者", "type": "button", "parent_code": "patient", "sort": 4},
+    {"code": "patient:delete", "name": "删除患者", "type": "button", "parent_code": "patient", "sort": 5},
     
     # ========== 停诊审核 ==========
     {"code": "leave-request", "name": "停诊审核", "type": "menu", "parent_code": None, "icon": "exception", "sort": 8},

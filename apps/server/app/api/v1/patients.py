@@ -1,5 +1,5 @@
 """患者管理 API（管理后台）"""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status as http_status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
@@ -31,7 +31,7 @@ async def create_patient(
         result = await service.create_patient(data, store_id=store_id)
         return result
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.get("")
@@ -91,7 +91,7 @@ async def get_patient_detail(
     detail = await service.get_detail(patient_id)
     
     if not detail:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="患者不存在，请检查后重试")
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="患者不存在，请检查后重试")
     
     return detail
 
@@ -108,9 +108,28 @@ async def update_patient(
     result = await service.update_patient(patient_id, data)
     
     if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="患者不存在，请检查后重试")
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="患者不存在，请检查后重试")
     
     return result
+
+
+@router.delete("/{patient_id}")
+async def delete_patient(
+    patient_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """删除患者（就诊卡）"""
+    service = PatientManageService(db)
+    try:
+        success = await service.delete_patient(patient_id)
+        
+        if not success:
+            raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="患者不存在，请检查后重试")
+        
+        return {"message": "删除成功"}
+    except ValueError as e:
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.get("/{patient_id}/appointments")
@@ -206,7 +225,7 @@ async def adjust_points(
     
     if not result:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail="积分调整失败，请检查患者是否存在或积分余额是否充足"
         )
     
@@ -237,7 +256,7 @@ async def add_to_blacklist(
     success = await service.add_to_blacklist(patient_id, reason)
     
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="患者不存在，请检查后重试")
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="患者不存在，请检查后重试")
     
     return {"message": "已加入黑名单"}
 
@@ -253,7 +272,7 @@ async def remove_from_blacklist(
     success = await service.remove_from_blacklist(patient_id)
     
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="患者不存在，请检查后重试")
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="患者不存在，请检查后重试")
     
     return {"message": "已移出黑名单"}
 
@@ -271,10 +290,10 @@ async def add_family_member(
     try:
         result = await service.add_family_member(patient_id, data)
         if not result:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="患者不存在，请检查后重试")
+            raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="患者不存在，请检查后重试")
         return result
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.put("/{patient_id}/family-members/{member_id}")
@@ -290,7 +309,7 @@ async def update_family_member(
     result = await service.update_family_member(patient_id, member_id, data)
     
     if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="家庭成员不存在，请检查后重试")
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="家庭成员不存在，请检查后重试")
     
     return result
 
@@ -308,8 +327,8 @@ async def delete_family_member(
         success = await service.delete_family_member(patient_id, member_id)
         
         if not success:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="家庭成员不存在或无法删除，请检查后重试")
+            raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="家庭成员不存在或无法删除，请检查后重试")
         
         return {"message": "删除成功"}
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))

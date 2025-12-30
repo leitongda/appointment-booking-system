@@ -22,6 +22,7 @@ export interface Store {
   sortOrder: number;
   status: number;
   departmentCount?: number;
+  maxCardsPerUser?: number;  // 每用户可建就诊卡数量上限
   createdAt: string;
   updatedAt: string;
   // 微信配置（敏感字段不返回或掩码处理）

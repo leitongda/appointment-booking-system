@@ -3,7 +3,7 @@
  * 
  * 修复内容：
  * 1. base.wxml 中 input 标签未正确闭合的问题
- * 2. app-origin.wxss 中使用了小程序不支持的 * 通配选择器
+ * 2. 所有 wxss 文件中使用了小程序不支持的 * 通配选择器
  * 
  * 相关 Issue: https://github.com/NervJS/taro/issues/10848
  * 
@@ -47,8 +47,94 @@ function fixBaseWxml(silent = false) {
 }
 
 /**
- * 修复 WXSS 中的不兼容语法
+ * 修复单个 WXSS 文件中的不兼容语法
  * 微信小程序不支持 * 通配选择器
+ */
+function fixSingleWxss(filePath, silent = false) {
+  if (!fs.existsSync(filePath)) {
+    return false;
+  }
+
+  let content = fs.readFileSync(filePath, 'utf-8');
+  const originalContent = content;
+
+  // 移除包含 >* 选择器的规则
+  // 这些规则通常是 NutUI 的样式，形如 .nut-xxx>*{...}
+  // 由于小程序不支持 * 选择器，我们需要移除整个规则
+  // 匹配模式: 选择器>*{规则内容}
+  content = content.replace(/[^{}]*>\*\s*\{[^}]*\}/g, '');
+  
+  // 同时处理 >*:pseudo-class 选择器，如 >*:first-child, >*:last-child
+  content = content.replace(/[^{}]*>\*:[a-z-]+\s*\{[^}]*\}/g, '');
+
+  // 移除可能产生的连续分号
+  content = content.replace(/;;+/g, ';');
+
+  if (content !== originalContent) {
+    fs.writeFileSync(filePath, content, 'utf-8');
+    return true;
+  }
+  return false;
+}
+
+/**
+ * 递归查找所有 wxss 文件
+ */
+function findWxssFiles(dir, files = []) {
+  if (!fs.existsSync(dir)) {
+    return files;
+  }
+  
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      // 跳过 node_modules
+      if (entry.name !== 'node_modules') {
+        findWxssFiles(fullPath, files);
+      }
+    } else if (entry.isFile() && entry.name.endsWith('.wxss')) {
+      files.push(fullPath);
+    }
+  }
+  
+  return files;
+}
+
+/**
+ * 修复所有 WXSS 文件中的不兼容语法
+ */
+function fixAllWxss(silent = false) {
+  if (!fs.existsSync(distPath)) {
+    if (!silent) {
+      console.log('[fix-wxss] dist 目录不存在，跳过修复');
+    }
+    return;
+  }
+
+  // 查找所有 wxss 文件
+  const wxssFiles = findWxssFiles(distPath);
+
+  let fixedCount = 0;
+  for (const filePath of wxssFiles) {
+    if (fixSingleWxss(filePath, silent)) {
+      const relativePath = path.relative(distPath, filePath);
+      console.log(`[fix-wxss] ✅ 修复 ${relativePath}`);
+      fixedCount++;
+    }
+  }
+
+  if (fixedCount === 0) {
+    console.log('[fix-wxss] 所有 wxss 文件无需修复');
+  } else {
+    console.log(`[fix-wxss] ✅ 共修复 ${fixedCount} 个文件`);
+  }
+}
+
+/**
+ * 修复 WXSS 中的不兼容语法（兼容旧接口）
+ * @deprecated 使用 fixAllWxss 代替
  */
 function fixWxss(silent = false) {
   if (!fs.existsSync(appOriginWxssPath)) {
@@ -58,20 +144,7 @@ function fixWxss(silent = false) {
     return;
   }
 
-  let content = fs.readFileSync(appOriginWxssPath, 'utf-8');
-  const originalContent = content;
-
-  // 移除包含 >* 选择器的规则
-  // 这些规则通常是 NutUI 的样式，形如 .nut-xxx>*{...}
-  // 由于小程序不支持 * 选择器，我们需要移除整个规则
-  // 匹配模式: 选择器>*{规则内容}
-  content = content.replace(/[^{}]*>\*\s*\{[^}]*\}/g, '');
-
-  // 移除可能产生的连续分号
-  content = content.replace(/;;+/g, ';');
-
-  if (content !== originalContent) {
-    fs.writeFileSync(appOriginWxssPath, content, 'utf-8');
+  if (fixSingleWxss(appOriginWxssPath, silent)) {
     console.log('[fix-wxss] ✅ 成功修复 app-origin.wxss 中的不兼容选择器');
   } else {
     console.log('[fix-wxss] app-origin.wxss 无需修复');
@@ -83,7 +156,7 @@ function fixWxss(silent = false) {
  */
 function runAllFixes(silent = false) {
   fixBaseWxml(silent);
-  fixWxss(silent);
+  fixAllWxss(silent);
 }
 
 // 首次执行（watch 模式下静默，因为文件可能还未生成）
@@ -98,9 +171,9 @@ if (isWatchMode) {
   
   // 等待 dist 目录创建后再开始监听
   function startWatching() {
-    fs.watch(distPath, { recursive: false }, (eventType, filename) => {
-      // 监听 base.wxml 和 app-origin.wxss
-      if (filename === 'base.wxml' || filename === 'app-origin.wxss') {
+    fs.watch(distPath, { recursive: true }, (eventType, filename) => {
+      // 监听 base.wxml 和所有 wxss 文件
+      if (filename === 'base.wxml' || (filename && filename.endsWith('.wxss'))) {
         if (debounceTimer) {
           clearTimeout(debounceTimer);
         }

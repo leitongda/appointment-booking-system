@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
+from datetime import datetime
 import uuid
 
 from app.models.user import User, Patient
@@ -24,12 +25,61 @@ class UserService:
         result = await self.db.execute(select(User).where(User.openid == openid))
         return result.scalar_one_or_none()
     
+    async def get_by_unionid(self, unionid: str) -> Optional[User]:
+        """通过 unionid 获取用户（跨应用关联）"""
+        result = await self.db.execute(select(User).where(User.unionid == unionid))
+        return result.scalar_one_or_none()
+    
+    async def update_wechat_info(self, user_id: str, data: dict, operator_id: Optional[str] = None) -> bool:
+        """更新用户的微信信息
+        
+        Args:
+            user_id: 用户ID
+            data: 微信信息字典，可包含 unionid, nickname, avatar
+            operator_id: 操作者ID
+        """
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            return False
+        
+        # 更新 unionid
+        if data.get("unionid") and not user.unionid:
+            user.unionid = data["unionid"]
+        
+        # 更新微信昵称
+        if data.get("nickname"):
+            user.wechat_nickname = data["nickname"]
+            # 如果用户没有设置昵称，使用微信昵称
+            if not user.nickname or user.nickname == "微信用户":
+                user.nickname = data["nickname"]
+        
+        # 更新微信头像
+        if data.get("avatar"):
+            user.wechat_avatar = data["avatar"]
+            # 如果用户没有设置头像，使用微信头像
+            if not user.avatar:
+                user.avatar = data["avatar"]
+        
+        # 更新同步时间
+        user.wechat_synced_at = datetime.now()
+        
+        set_update_audit(user, operator_id)
+        await self.db.commit()
+        return True
+    
     async def create(self, data: UserCreate) -> User:
         user = User(
             id=str(uuid.uuid4()),
-            phone=data.phone,
+            phone=data.phone or "",
             password_hash=get_password_hash(data.password) if data.password else "",
             openid=data.openid,
+            unionid=data.unionid,
+            nickname=data.nickname or "微信用户",
+            avatar=data.avatar or "",
+            wechat_nickname=data.nickname if data.openid else None,
+            wechat_avatar=data.avatar if data.openid else None,
+            wechat_synced_at=datetime.now() if data.openid else None,
             status=1
         )
         set_create_audit(user, None)

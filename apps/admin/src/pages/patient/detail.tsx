@@ -97,6 +97,9 @@ const PatientDetailPage: React.FC = () => {
   const consumptionRef = useRef<ActionType>();
   const pointRef = useRef<ActionType>();
 
+  // 编辑当前患者状态
+  const [editPatientModalVisible, setEditPatientModalVisible] = useState(false);
+
   // 家庭成员管理状态
   const [addMemberModalVisible, setAddMemberModalVisible] = useState(false);
   const [editMemberModalVisible, setEditMemberModalVisible] = useState(false);
@@ -183,6 +186,33 @@ const PatientDetailPage: React.FC = () => {
       await patientApi.deleteFamilyMember(id, memberId);
       message.success('删除成功');
       loadPatient();
+    } catch (error: any) {
+      message.error(error.message || '删除失败');
+    }
+  };
+
+  // 编辑当前患者信息
+  const handleEditPatient = async (values: PatientUpdateData) => {
+    if (!id) return false;
+    try {
+      await patientApi.update(id, values);
+      message.success('保存成功');
+      setEditPatientModalVisible(false);
+      loadPatient();
+      return true;
+    } catch (error: any) {
+      message.error(error.message || '保存失败');
+      return false;
+    }
+  };
+
+  // 删除当前患者
+  const handleDeletePatient = async () => {
+    if (!id) return;
+    try {
+      await patientApi.delete(id);
+      message.success('删除成功');
+      history.push('/medical-card/list');
     } catch (error: any) {
       message.error(error.message || '删除失败');
     }
@@ -338,7 +368,7 @@ const PatientDetailPage: React.FC = () => {
       width: 150,
       render: (_: any, record: PatientListItem) => (
         <Space>
-          <a onClick={() => history.push(`/patient/${record.id}`)}>查看</a>
+          <a onClick={() => history.push(`/medical-card/${record.id}`)}>查看</a>
           {access.hasPermission('patient:update') && (
             <a onClick={() => { setCurrentMember(record); setEditMemberModalVisible(true); }}>
               <EditOutlined /> 编辑
@@ -625,6 +655,24 @@ const PatientDetailPage: React.FC = () => {
                 </div>
               </Space>
             </Col>
+            <Col flex="auto" style={{ textAlign: 'right' }}>
+              <Space>
+                {access.hasPermission('patient:update') && (
+                  <Button icon={<EditOutlined />} onClick={() => setEditPatientModalVisible(true)}>
+                    编辑信息
+                  </Button>
+                )}
+                {access.hasPermission('patient:delete') && (
+                  <Popconfirm
+                    title="确定删除该就诊卡吗？"
+                    description="删除后不可恢复"
+                    onConfirm={handleDeletePatient}
+                  >
+                    <Button danger icon={<DeleteOutlined />}>删除</Button>
+                  </Popconfirm>
+                )}
+              </Space>
+            </Col>
           </Row>
         </Card>
 
@@ -721,6 +769,103 @@ const PatientDetailPage: React.FC = () => {
         } : {}}
       >
         <FamilyMemberFormContent />
+      </ModalForm>
+
+      {/* 编辑当前患者信息弹窗 */}
+      <ModalForm
+        title="编辑就诊卡信息"
+        open={editPatientModalVisible}
+        onOpenChange={setEditPatientModalVisible}
+        onFinish={handleEditPatient}
+        width={600}
+        modalProps={{ destroyOnHidden: true }}
+        initialValues={patient ? {
+          name: patient.name,
+          phone: patient.phone,
+          gender: patient.gender,
+          idCard: patient.idCard,
+          birthday: patient.birthday,
+          relationship: patient.relationship,
+          idCardType: patient.idCardType,
+          ethnicity: patient.ethnicity,
+          province: patient.province,
+          city: patient.city,
+          district: patient.district,
+          street: patient.street,
+          address: patient.address,
+        } : {}}
+      >
+        <ProForm.Group>
+          <ProFormText
+            name="name"
+            label="姓名"
+            width="sm"
+            rules={[{ required: true, message: '请输入姓名' }]}
+            placeholder="请输入姓名"
+          />
+          <ProFormText
+            name="phone"
+            label="手机号"
+            width="sm"
+            rules={[
+              { required: true, message: '请输入手机号' },
+              { pattern: /^1\d{10}$/, message: '手机号格式不正确' },
+            ]}
+            placeholder="请输入手机号"
+          />
+        </ProForm.Group>
+        <ProForm.Group>
+          <ProFormSelect
+            name="gender"
+            label="性别"
+            width="sm"
+            options={GENDER_OPTIONS}
+            placeholder="请选择性别"
+          />
+          <ProFormDatePicker
+            name="birthday"
+            label="出生日期"
+            width="sm"
+            placeholder="请选择出生日期"
+          />
+        </ProForm.Group>
+        <ProForm.Group>
+          <ProFormText
+            name="idCard"
+            label="身份证号"
+            width="sm"
+            placeholder="请输入身份证号"
+          />
+          <ProFormSelect
+            name="idCardType"
+            label="证件类型"
+            width="sm"
+            options={ID_CARD_TYPE_OPTIONS}
+          />
+        </ProForm.Group>
+        <ProForm.Group>
+          <ProFormSelect
+            name="relationship"
+            label="与本人关系"
+            width="sm"
+            options={RELATIONSHIP_OPTIONS}
+          />
+          <ProFormText
+            name="ethnicity"
+            label="民族"
+            width="sm"
+            placeholder="请输入民族"
+          />
+        </ProForm.Group>
+        <ProForm.Group>
+          <ProFormText name="province" label="省" width="sm" placeholder="请输入省份" />
+          <ProFormText name="city" label="市" width="sm" placeholder="请输入城市" />
+        </ProForm.Group>
+        <ProForm.Group>
+          <ProFormText name="district" label="区" width="sm" placeholder="请输入区县" />
+          <ProFormText name="street" label="街道/社区" width="sm" placeholder="请输入街道/社区" />
+        </ProForm.Group>
+        <ProFormTextArea name="address" label="详细地址" placeholder="请输入详细地址" />
       </ModalForm>
     </PageContainer>
   );

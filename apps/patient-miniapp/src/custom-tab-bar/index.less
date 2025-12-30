@@ -1,0 +1,47 @@
+@import '../styles/variables.less';
+
+.custom-tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: @z-index-fixed;
+  display: flex;
+  align-items: center;
+  height: 100rpx;
+  background-color: @color-bg-white;
+  border-top: 1rpx solid @color-border-light;
+  padding-bottom: env(safe-area-inset-bottom);
+
+  &__item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    transition: all @transition-fast;
+
+    &:active {
+      opacity: 0.7;
+    }
+  }
+
+  &__icon {
+    width: 56rpx;
+    height: 56rpx;
+    margin-bottom: 6rpx;
+  }
+
+  &__text {
+    font-size: 26rpx;
+    line-height: 1.2;
+    color: @color-text-muted;
+
+    &--active {
+      color: @color-primary;
+      font-weight: @font-weight-medium;
+    }
+  }
+}
+

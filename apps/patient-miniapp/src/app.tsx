@@ -1,4 +1,4 @@
-import { PropsWithChildren, useEffect } from 'react';
+import { PropsWithChildren, useEffect, useRef } from 'react';
 import Taro from '@tarojs/taro';
 // NutUI 样式按需加载 - 通过 babel-plugin-import 自动导入
 // 详情见 babel.config.js
@@ -24,18 +24,15 @@ const getToken = (): string | null => {
 // 开发环境使用本地服务器
 const DEFAULT_API_HOST = process.env.NODE_ENV === 'production' 
   ? 'https://api.example.com' 
-  : 'http://localhost:8000';
+  : 'http://192.168.31.69:8000';
+console.log("🚀 ~ DEFAULT_API_HOST:", DEFAULT_API_HOST)
 const DEFAULT_API_PATH = '/api/v1';
+console.log("🚀 ~ DEFAULT_API_PATH:", DEFAULT_API_PATH)
 
 // 完整的 API 基础 URL
 const apiBaseUrl = process.env.TARO_APP_API_URL || `${DEFAULT_API_HOST}${DEFAULT_API_PATH}`;
-
-// 验证门店配置
-validateStoreConfig();
-
-// 初始化主题（从门店配置加载）
-const themeConfig = initThemeFromStore();
-console.log(`✓ 主题已初始化: ${themeConfig.primary}`);
+console.log("🚀 ~ process.env.TARO_APP_API_URL:", process.env.TARO_APP_API_URL)
+console.log("🚀 ~ apiBaseUrl:", apiBaseUrl)
 
 // 设置 Taro 请求适配器（替换默认的 axios）
 const taroAdapter = createTaroAdapter(Taro as any, {
@@ -51,6 +48,7 @@ if (taroAdapter.interceptors) {
   taroAdapter.interceptors.request.use((config: any) => {
     // 1. 添加 Authorization token
     const token = getToken();
+    console.log(`🔐 [请求拦截器] URL: ${config.url}, Token: ${token ? token.substring(0, 20) + '...' : '无'}`);
     if (token) {
       config.header = {
         ...config.header,
@@ -74,6 +72,53 @@ if (taroAdapter.interceptors) {
     
     return config;
   });
+  
+  // 添加响应拦截器：解析服务端统一返回格式
+  // 注意：这里直接返回解包后的数据，而不是整个 response 对象
+  taroAdapter.interceptors.response.use((response: any) => {
+    const data = response.data;
+    
+    // 如果 data 不是对象，直接返回 data
+    if (!data || typeof data !== 'object') {
+      return data;
+    }
+    
+    // 处理 HTTP 错误状态码
+    if (response.statusCode >= 400) {
+      const message = data.detail || data.message || '请求失败';
+      const error = new Error(message);
+      (error as any).code = response.statusCode;
+      (error as any).data = data;
+      throw error;
+    }
+    
+    // 处理业务错误（code 不是 200）
+    if (data.code && data.code !== 200) {
+      const error = new Error(data.message || '请求失败');
+      (error as any).code = data.code;
+      (error as any).data = data.data;
+      throw error;
+    }
+    
+    // 分页响应：包含 total 字段，直接返回解包后的格式
+    if ('total' in data && typeof data.total === 'number' && 'data' in data) {
+      return {
+        data: data.data,
+        total: data.total,
+        success: true,
+        page: data.page ?? 1,
+        pageSize: data.pageSize ?? data.page_size ?? 10,
+      };
+    }
+    
+    // 统一响应格式：包含 code 和 data 字段，直接返回内部 data
+    if ('code' in data && 'data' in data) {
+      return data.data;
+    }
+    
+    // 其他情况直接返回 data
+    return data;
+  });
 }
 
 setHttpClient(taroAdapter);
@@ -94,6 +139,22 @@ initTracker({
 });
 
 function App({ children }: PropsWithChildren) {
+  // 使用 useRef 确保初始化只执行一次
+  const isInitialized = useRef(false);
+
+  // 初始化配置 - 只在运行时执行一次
+  useEffect(() => {
+    if (isInitialized.current) return;
+    isInitialized.current = true;
+
+    // 验证门店配置
+    validateStoreConfig();
+
+    // 初始化主题（从门店配置加载）
+    const themeConfig = initThemeFromStore();
+    console.log(`✓ 主题已初始化: ${themeConfig.primary}`);
+  }, []);
+
   // 监听页面显示，追踪页面访问
   useEffect(() => {
     // 小程序路由监听

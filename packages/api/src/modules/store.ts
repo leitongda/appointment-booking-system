@@ -43,6 +43,7 @@ export interface StoreCreateData {
   themeStyle?: string;
   sortOrder?: number;
   status?: number;
+  maxCardsPerUser?: number;
 }
 
 export const storeApi = {

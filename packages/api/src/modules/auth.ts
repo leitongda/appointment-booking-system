@@ -79,6 +79,16 @@ export const wechatBindPhone = (openid: string, phone: string): Promise<LoginRes
 };
 
 /**
+ * 微信绑定用户信息（头像昵称）并完成登录
+ * @param openid 用户 openid
+ * @param nickname 昵称
+ * @param avatar 头像 URL
+ */
+export const wechatBindUserInfo = (openid: string, nickname: string, avatar?: string): Promise<LoginResult> => {
+  return request.post(`${PREFIX}/wechat/bind-userinfo`, { openid, nickname, avatar });
+};
+
+/**
  * 管理员登录
  */
 export const adminLogin = (data: { username: string; password: string }): Promise<LoginResult & { admin: any }> => {
@@ -101,6 +111,7 @@ export const authApi = {
   wechatLogin,
   wechatGetPhone,
   wechatBindPhone,
+  wechatBindUserInfo,
   adminLogin,
   doctorLogin,
 };

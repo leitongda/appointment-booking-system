@@ -88,7 +88,8 @@ const StoreFormPage: React.FC = () => {
   } : {
     status: true,
     sortOrder: 0,
-    themeStyle: '中医-红'
+    themeStyle: '中医-红',
+    maxCardsPerUser: 5
   };
 
   // 地图初始位置
@@ -315,6 +316,21 @@ const StoreFormPage: React.FC = () => {
             />
             <ProFormSwitch name="status" label="营业状态" />
           </ProForm.Group>
+        </Card>
+
+        {/* 就诊卡配置 */}
+        <Card title="就诊卡配置" style={{ marginBottom: 16 }} loading={loading}>
+          <ProFormDigit
+            name="maxCardsPerUser"
+            label="每用户可建就诊卡数量上限"
+            width="sm"
+            min={1}
+            max={20}
+            fieldProps={{ precision: 0 }}
+            placeholder="默认5张"
+            tooltip="限制该门店下每个用户可绑定的就诊卡数量"
+            extra="设置范围：1-20，默认为5张"
+          />
         </Card>
 
         {/* 其他信息 */}

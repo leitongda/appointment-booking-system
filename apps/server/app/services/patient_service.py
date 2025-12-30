@@ -105,6 +105,7 @@ class PatientManageService:
                 'phone': patient.phone,
                 'idCard': patient.id_card,
                 'gender': patient.gender,
+                'age': patient.age,
                 'birthday': patient.birthday.isoformat() if patient.birthday else None,
                 'relationship': patient.relationship,
                 'isDefault': patient.is_default,
@@ -113,6 +114,9 @@ class PatientManageService:
                 'noShowCount': no_show_count or 0,
                 'isBlacklist': is_in_blacklist,
                 'createdAt': patient.created_at.isoformat() if patient.created_at else None,
+                # 所属患者信息
+                'userPhone': user.phone if user else None,
+                'userNickname': user.nickname if user else None,
             })
         
         return patient_data, total or 0
@@ -739,4 +743,543 @@ class PatientManageService:
         await self.db.delete(member)
         await self.db.commit()
         
+        return True
+
+    async def delete_patient(self, patient_id: str) -> bool:
+        """删除患者（就诊卡）"""
+        result = await self.db.execute(
+            select(Patient).options(selectinload(Patient.user)).where(Patient.id == patient_id)
+        )
+        patient = result.unique().scalar_one_or_none()
+        
+        if not patient:
+            return False
+        
+        # 检查是否有预约记录
+        appt_count = await self.db.scalar(
+            select(func.count(Appointment.id)).where(Appointment.patient_id == patient_id)
+        )
+        
+        if appt_count and appt_count > 0:
+            raise ValueError("该就诊卡有预约记录，无法删除")
+        
+        # 检查用户是否只有这一张就诊卡
+        user_id = patient.user_id
+        card_count = await self.db.scalar(
+            select(func.count(Patient.id)).where(Patient.user_id == user_id)
+        )
+        
+        if card_count and card_count <= 1:
+            raise ValueError("用户至少需要保留一张就诊卡")
+        
+        # 如果是默认就诊卡，需要将另一张设为默认
+        if patient.is_default:
+            other_card = await self.db.execute(
+                select(Patient).where(
+                    and_(
+                        Patient.user_id == user_id,
+                        Patient.id != patient_id
+                    )
+                ).limit(1)
+            )
+            other = other_card.scalar_one_or_none()
+            if other:
+                other.is_default = True
+        
+        # 删除就诊卡
+        await self.db.delete(patient)
+        await self.db.commit()
+        return True
+
+
+class UserManageService:
+    """用户（患者）管理服务（管理后台）"""
+    
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def get_list(
+        self,
+        keyword: Optional[str] = None,
+        status: Optional[int] = None,
+        store_id: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> Tuple[List[dict], int]:
+        """获取患者列表（users 表）"""
+        query = select(User)
+        conditions = []
+        
+        if keyword:
+            conditions.append(
+                or_(
+                    User.phone.ilike(f"%{keyword}%"),
+                    User.nickname.ilike(f"%{keyword}%")
+                )
+            )
+        
+        if status is not None:
+            conditions.append(User.status == status)
+        
+        # 门店过滤：查询在该门店有就诊卡的用户，或者没有任何就诊卡的用户
+        if store_id:
+            # 在该门店有就诊卡的用户
+            users_with_cards_in_store = select(Patient.user_id).where(
+                or_(Patient.store_id == store_id, Patient.store_id.is_(None))
+            ).distinct()
+            # 没有任何就诊卡的用户（新注册用户）
+            all_users_with_cards = select(Patient.user_id).distinct()
+            conditions.append(
+                or_(
+                    User.id.in_(users_with_cards_in_store),
+                    ~User.id.in_(all_users_with_cards)
+                )
+            )
+        
+        if conditions:
+            query = query.where(and_(*conditions))
+        
+        # 统计总数
+        count_query = select(func.count(User.id))
+        if conditions:
+            count_query = count_query.where(and_(*conditions))
+        total = await self.db.scalar(count_query)
+        
+        # 分页查询
+        query = query.order_by(User.created_at.desc())
+        query = query.offset((page - 1) * page_size).limit(page_size)
+        
+        result = await self.db.execute(query)
+        users = result.scalars().all()
+        
+        # 获取每个用户的就诊卡统计
+        user_data = []
+        for user in users:
+            # 查询就诊卡数量
+            card_count = await self.db.scalar(
+                select(func.count(Patient.id)).where(Patient.user_id == user.id)
+            )
+            
+            # 查询总预约次数
+            appointment_count = await self.db.scalar(
+                select(func.count(Appointment.id))
+                .join(Patient, Appointment.patient_id == Patient.id)
+                .where(Patient.user_id == user.id)
+            )
+            
+            user_data.append({
+                'id': user.id,
+                'phone': user.phone,
+                'nickname': user.nickname or '微信用户',
+                'avatar': user.avatar,
+                'gender': user.gender,
+                'status': user.status,
+                'points': user.points or 0,
+                'cardCount': card_count or 0,
+                'appointmentCount': appointment_count or 0,
+                'createdAt': user.created_at.isoformat() if user.created_at else None,
+            })
+        
+        return user_data, total or 0
+
+    async def get_detail(self, user_id: str) -> Optional[dict]:
+        """获取患者（用户）详情"""
+        result = await self.db.execute(
+            select(User).where(User.id == user_id)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            return None
+        
+        # 获取该用户的所有就诊卡
+        cards_result = await self.db.execute(
+            select(Patient)
+            .where(Patient.user_id == user_id)
+            .order_by(Patient.is_default.desc(), Patient.created_at.asc())
+        )
+        cards = cards_result.scalars().all()
+        
+        cards_data = []
+        for card in cards:
+            # 查询预约次数
+            appointment_count = await self.db.scalar(
+                select(func.count(Appointment.id)).where(Appointment.patient_id == card.id)
+            )
+            
+            # 查询爽约次数
+            no_show_count = await self.db.scalar(
+                select(func.count(Appointment.id)).where(
+                    and_(
+                        Appointment.patient_id == card.id,
+                        Appointment.status == 7
+                    )
+                )
+            )
+            
+            cards_data.append({
+                'id': card.id,
+                'cardNo': card.card_no,
+                'name': card.name,
+                'phone': card.phone,
+                'idCard': card.id_card,
+                'gender': card.gender,
+                'age': card.age,
+                'birthday': card.birthday.isoformat() if card.birthday else None,
+                'relationship': card.relationship,
+                'isDefault': card.is_default,
+                'source': card.source or 1,
+                'appointmentCount': appointment_count or 0,
+                'noShowCount': no_show_count or 0,
+                'createdAt': card.created_at.isoformat() if card.created_at else None,
+            })
+        
+        # 统计总预约次数
+        total_appointment_count = await self.db.scalar(
+            select(func.count(Appointment.id))
+            .join(Patient, Appointment.patient_id == Patient.id)
+            .where(Patient.user_id == user_id)
+        )
+        
+        # 统计爽约次数
+        total_no_show_count = await self.db.scalar(
+            select(func.count(Appointment.id))
+            .join(Patient, Appointment.patient_id == Patient.id)
+            .where(and_(
+                Patient.user_id == user_id,
+                Appointment.status == 7
+            ))
+        )
+        
+        return {
+            'id': user.id,
+            'phone': user.phone,
+            'nickname': user.nickname or '微信用户',
+            'avatar': user.avatar,
+            'gender': user.gender,
+            'openid': user.openid,
+            'unionid': user.unionid,
+            'wechatNickname': user.wechat_nickname,
+            'wechatAvatar': user.wechat_avatar,
+            'wechatSyncedAt': user.wechat_synced_at.isoformat() if user.wechat_synced_at else None,
+            'status': user.status,
+            'points': user.points or 0,
+            'createdAt': user.created_at.isoformat() if user.created_at else None,
+            'updatedAt': user.updated_at.isoformat() if user.updated_at else None,
+            # 统计信息
+            'cardCount': len(cards_data),
+            'appointmentCount': total_appointment_count or 0,
+            'noShowCount': total_no_show_count or 0,
+            # 就诊卡列表
+            'cards': cards_data,
+        }
+
+    async def update_status(self, user_id: str, status: int, operator_id: Optional[str] = None) -> bool:
+        """更新用户状态（禁用/启用）"""
+        result = await self.db.execute(
+            select(User).where(User.id == user_id)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            return False
+        
+        user.status = status
+        set_update_audit(user, operator_id)
+        await self.db.commit()
+        return True
+
+    async def adjust_points(self, user_id: str, amount: int, remark: str, operator_id: Optional[str] = None) -> bool:
+        """调整用户积分"""
+        from app.models.point import PointLog
+        
+        result = await self.db.execute(
+            select(User).where(User.id == user_id)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            return False
+        
+        # 更新积分
+        new_points = (user.points or 0) + amount
+        if new_points < 0:
+            raise ValueError("积分不足")
+        
+        user.points = new_points
+        set_update_audit(user, operator_id)
+        
+        # 记录积分日志
+        point_log = PointLog(
+            id=str(uuid.uuid4()),
+            user_id=user_id,
+            change_amount=amount,
+            balance=new_points,
+            remark=remark,
+            operator_id=operator_id,
+        )
+        set_create_audit(point_log, operator_id)
+        self.db.add(point_log)
+        
+        await self.db.commit()
+        return True
+
+    async def delete_user(self, user_id: str, operator_id: Optional[str] = None) -> bool:
+        """删除用户（患者）"""
+        result = await self.db.execute(
+            select(User).where(User.id == user_id)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            return False
+        
+        # 检查是否有预约记录
+        appt_count = await self.db.scalar(
+            select(func.count(Appointment.id))
+            .join(Patient, Appointment.patient_id == Patient.id)
+            .where(Patient.user_id == user_id)
+        )
+        
+        if appt_count and appt_count > 0:
+            raise ValueError("该用户有预约记录，无法删除")
+        
+        # 删除所有就诊卡
+        await self.db.execute(
+            select(Patient).where(Patient.user_id == user_id)
+        )
+        cards_result = await self.db.execute(
+            select(Patient).where(Patient.user_id == user_id)
+        )
+        cards = cards_result.scalars().all()
+        for card in cards:
+            await self.db.delete(card)
+        
+        # 删除用户
+        await self.db.delete(user)
+        await self.db.commit()
+        return True
+
+    async def update_user(self, user_id: str, data: dict, operator_id: Optional[str] = None) -> Optional[dict]:
+        """更新用户基本信息"""
+        result = await self.db.execute(
+            select(User).where(User.id == user_id)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            return None
+        
+        # 更新允许的字段
+        allowed_fields = ['nickname', 'avatar', 'gender', 'phone']
+        for key, value in data.items():
+            if key in allowed_fields and hasattr(user, key):
+                setattr(user, key, value)
+        
+        set_update_audit(user, operator_id)
+        await self.db.commit()
+        await self.db.refresh(user)
+        
+        return await self.get_detail(user_id)
+
+    async def create_card(self, user_id: str, data, operator_id: Optional[str] = None) -> Optional[dict]:
+        """为用户添加就诊卡"""
+        from app.schemas.user import FamilyMemberCreate
+        
+        result = await self.db.execute(
+            select(User).where(User.id == user_id)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            return None
+        
+        # 检查是否已存在同名就诊卡
+        existing = await self.db.execute(
+            select(Patient).where(
+                and_(
+                    Patient.user_id == user_id,
+                    Patient.name == data.name
+                )
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise ValueError(f"该用户下已存在名为 {data.name} 的就诊卡")
+        
+        # 解析生日
+        birthday = None
+        if data.birthday:
+            try:
+                birthday = datetime.strptime(data.birthday, '%Y-%m-%d')
+            except ValueError:
+                pass
+        
+        # 生成卡号
+        import random
+        import string
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        random_str = ''.join(random.choices(string.digits, k=4))
+        card_no = f"JZK{timestamp}{random_str}"
+        
+        # 如果设为默认，取消其他默认
+        if data.is_default:
+            from sqlalchemy import update as sql_update
+            await self.db.execute(
+                sql_update(Patient).where(Patient.user_id == user_id).values(is_default=False)
+            )
+        
+        # 创建就诊卡
+        card = Patient(
+            id=str(uuid.uuid4()),
+            user_id=user_id,
+            name=data.name,
+            phone=data.phone,
+            id_card=data.id_card,
+            gender=data.gender,
+            birthday=birthday,
+            relationship=data.relationship,
+            is_default=data.is_default,
+            card_no=card_no,
+            province=data.province,
+            city=data.city,
+            district=data.district,
+            street=data.street,
+            id_card_type=data.id_card_type,
+            ethnicity=data.ethnicity,
+            address=data.address,
+            source=2,  # 管理员添加
+        )
+        set_create_audit(card, operator_id)
+        self.db.add(card)
+        await self.db.commit()
+        
+        return {
+            'id': card.id,
+            'userId': card.user_id,
+            'cardNo': card.card_no,
+            'name': card.name,
+            'phone': card.phone,
+            'idCard': card.id_card,
+            'gender': card.gender,
+            'birthday': card.birthday.isoformat() if card.birthday else None,
+            'relationship': card.relationship,
+            'isDefault': card.is_default,
+            'appointmentCount': 0,
+            'noShowCount': 0,
+            'createdAt': card.created_at.isoformat() if card.created_at else None,
+        }
+
+    async def update_card(self, user_id: str, card_id: str, data, operator_id: Optional[str] = None) -> Optional[dict]:
+        """更新就诊卡信息"""
+        result = await self.db.execute(
+            select(Patient).where(
+                and_(
+                    Patient.id == card_id,
+                    Patient.user_id == user_id
+                )
+            )
+        )
+        card = result.scalar_one_or_none()
+        
+        if not card:
+            return None
+        
+        # 更新字段
+        update_data = data.model_dump(exclude_unset=True)
+        
+        # 如果设为默认，取消其他默认
+        if update_data.get('is_default'):
+            from sqlalchemy import update as sql_update
+            await self.db.execute(
+                sql_update(Patient).where(
+                    and_(Patient.user_id == user_id, Patient.id != card_id)
+                ).values(is_default=False)
+            )
+        
+        for key, value in update_data.items():
+            if hasattr(card, key):
+                setattr(card, key, value)
+        
+        set_update_audit(card, operator_id)
+        await self.db.commit()
+        await self.db.refresh(card)
+        
+        # 查询预约统计
+        appointment_count = await self.db.scalar(
+            select(func.count(Appointment.id)).where(Appointment.patient_id == card_id)
+        )
+        no_show_count = await self.db.scalar(
+            select(func.count(Appointment.id)).where(
+                and_(
+                    Appointment.patient_id == card_id,
+                    Appointment.status == 7
+                )
+            )
+        )
+        
+        return {
+            'id': card.id,
+            'userId': card.user_id,
+            'cardNo': card.card_no,
+            'name': card.name,
+            'phone': card.phone,
+            'idCard': card.id_card,
+            'gender': card.gender,
+            'age': card.age,
+            'birthday': card.birthday.isoformat() if card.birthday else None,
+            'relationship': card.relationship,
+            'isDefault': card.is_default,
+            'source': card.source or 1,
+            'appointmentCount': appointment_count or 0,
+            'noShowCount': no_show_count or 0,
+            'createdAt': card.created_at.isoformat() if card.created_at else None,
+        }
+
+    async def delete_card(self, user_id: str, card_id: str) -> bool:
+        """删除就诊卡"""
+        result = await self.db.execute(
+            select(Patient).where(
+                and_(
+                    Patient.id == card_id,
+                    Patient.user_id == user_id
+                )
+            )
+        )
+        card = result.scalar_one_or_none()
+        
+        if not card:
+            return False
+        
+        # 检查用户是否只有一张就诊卡
+        card_count = await self.db.scalar(
+            select(func.count(Patient.id)).where(Patient.user_id == user_id)
+        )
+        if card_count and card_count <= 1:
+            raise ValueError("用户至少需要保留一张就诊卡")
+        
+        # 检查是否有预约记录
+        appt_count = await self.db.scalar(
+            select(func.count(Appointment.id)).where(Appointment.patient_id == card_id)
+        )
+        
+        if appt_count and appt_count > 0:
+            raise ValueError("该就诊卡有预约记录，无法删除")
+        
+        # 如果是默认就诊卡，需要将另一张设为默认
+        if card.is_default:
+            other_card = await self.db.execute(
+                select(Patient).where(
+                    and_(
+                        Patient.user_id == user_id,
+                        Patient.id != card_id
+                    )
+                ).limit(1)
+            )
+            other = other_card.scalar_one_or_none()
+            if other:
+                other.is_default = True
+        
+        # 删除就诊卡
+        await self.db.delete(card)
+        await self.db.commit()
         return True

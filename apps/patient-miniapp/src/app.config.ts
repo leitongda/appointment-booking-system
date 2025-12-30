@@ -72,11 +72,12 @@ export default defineAppConfig({
     backgroundTextStyle: 'light',
     navigationBarBackgroundColor: '#fff',
     navigationBarTitleText: '医院挂号',
-    navigationBarTextStyle: 'white',
+    navigationBarTextStyle: 'black',
   },
   tabBar: {
+    custom: true,
     color: '#999',
-    selectedColor: '#667eea',
+    selectedColor: '#C41E3A',
     backgroundColor: '#fff',
     borderStyle: 'black',
     list: [

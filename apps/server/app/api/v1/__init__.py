@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, users, departments, doctors, schedules, appointments, content, statistics, medical_records, admin, settings, patients, export, stores, messages, leave_requests, feedbacks, consultation_fees, doctor_booking_settings, schedule_templates, custom_schedules, rest_days, schedule_suspensions, blacklists, upload, email_templates, analytics, import_export
+from app.api.v1 import auth, users, departments, doctors, schedules, appointments, content, statistics, medical_records, admin, settings, patients, export, stores, messages, leave_requests, feedbacks, consultation_fees, doctor_booking_settings, schedule_templates, custom_schedules, rest_days, schedule_suspensions, blacklists, upload, email_templates, analytics, import_export, user_manage
 
 api_router = APIRouter()
 
@@ -17,7 +17,8 @@ api_router.include_router(content.router, prefix="/content", tags=["内容管理
 api_router.include_router(statistics.router, prefix="/statistics", tags=["数据统计"])
 api_router.include_router(admin.router, prefix="/admin", tags=["权限管理"])
 api_router.include_router(settings.router, prefix="/settings", tags=["系统设置"])
-api_router.include_router(patients.router, prefix="/patients", tags=["患者管理"])
+api_router.include_router(patients.router, prefix="/patients", tags=["就诊卡管理"])
+api_router.include_router(user_manage.router, prefix="/user-manage", tags=["患者管理"])
 api_router.include_router(export.router, prefix="/export", tags=["数据导出"])
 api_router.include_router(leave_requests.router, prefix="/leave-requests", tags=["停诊调班"])
 api_router.include_router(feedbacks.router, prefix="/feedbacks", tags=["用户反馈"])

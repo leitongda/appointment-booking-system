@@ -29,9 +29,12 @@ class UserCreate(BaseModel):
         populate_by_name=True,
     )
     
-    phone: str = Field(..., min_length=11, max_length=11)
+    phone: str = Field("", max_length=11, description="手机号，微信用户可为空")
     password: str = Field("", max_length=20, description="密码，微信用户可为空")
     openid: Optional[str] = Field(None, max_length=100, description="微信 openid")
+    unionid: Optional[str] = Field(None, max_length=100, description="微信开放平台统一ID")
+    nickname: Optional[str] = Field(None, max_length=50, description="昵称")
+    avatar: Optional[str] = Field(None, description="头像URL")
 
 
 class UserUpdate(BaseModel):
@@ -108,6 +111,7 @@ class PatientBase(BaseModel):
     phone: str = Field(..., min_length=11, max_length=11)
     id_card: Optional[str] = Field(None, max_length=18, description="身份证号")
     gender: Optional[int] = Field(None, ge=0, le=2)
+    age: Optional[int] = Field(None, ge=0, le=150, description="年龄")
     relationship: Optional[str] = Field(None, max_length=20, description="与账号用户关系")
     is_default: bool = False
     # 新增字段
@@ -137,6 +141,7 @@ class PatientCreateByAdmin(BaseModel):
     phone: str = Field(..., min_length=11, max_length=11, description="手机号")
     id_card: Optional[str] = Field(None, max_length=18, description="身份证号")
     gender: Optional[int] = Field(None, ge=0, le=2)
+    age: Optional[int] = Field(None, ge=0, le=150, description="年龄")
     birthday: Optional[str] = Field(None, description="出生日期 YYYY-MM-DD")
     relationship: Optional[str] = Field(None, max_length=20, description="与账号用户关系")
     is_default: bool = True
@@ -160,6 +165,7 @@ class FamilyMemberCreate(BaseModel):
     phone: str = Field(..., min_length=11, max_length=11, description="手机号")
     id_card: Optional[str] = Field(None, max_length=18, description="身份证号")
     gender: Optional[int] = Field(None, ge=0, le=2)
+    age: Optional[int] = Field(None, ge=0, le=150, description="年龄")
     birthday: Optional[str] = Field(None, description="出生日期 YYYY-MM-DD")
     relationship: Optional[str] = Field(None, max_length=20, description="与账号用户关系")
     is_default: bool = False
@@ -182,6 +188,7 @@ class PatientUpdate(BaseModel):
     phone: Optional[str] = Field(None, min_length=11, max_length=11)
     id_card: Optional[str] = Field(None, max_length=18)
     gender: Optional[int] = Field(None, ge=0, le=2)
+    age: Optional[int] = Field(None, ge=0, le=150, description="年龄")
     relationship: Optional[str] = Field(None, max_length=20)
     is_default: Optional[bool] = None
     # 新增可更新字段
@@ -208,6 +215,7 @@ class PatientResponse(BaseModel):
     phone: Optional[str] = None
     id_card: Optional[str] = None
     gender: Optional[int] = None
+    age: Optional[int] = None
     relationship: Optional[str] = None
     is_default: bool = False
     card_no: Optional[str] = None
@@ -241,13 +249,18 @@ class PatientListItemResponse(BaseModel):
     phone: Optional[str] = None
     id_card: Optional[str] = None
     gender: Optional[int] = None
+    age: Optional[int] = None
     birthday: Optional[str] = None
     relationship: Optional[str] = None
     is_default: bool = False
+    source: int = 1
     appointment_count: int = 0
     no_show_count: int = 0
     is_blacklist: bool = False
     created_at: Optional[str] = None
+    # 所属患者信息（用于就诊卡列表显示）
+    user_phone: Optional[str] = None
+    user_nickname: Optional[str] = None
 
 
 class PatientStatistics(BaseModel):

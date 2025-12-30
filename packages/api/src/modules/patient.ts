@@ -1,7 +1,7 @@
 import { request } from '../request';
 import type { PageResult } from '@hospital/shared';
 
-// ========== 患者列表项 ==========
+// ========== 就诊卡列表项 ==========
 export interface PatientListItem {
   id: string;
   userId: string;
@@ -10,6 +10,7 @@ export interface PatientListItem {
   phone: string;
   idCard?: string;
   gender?: number;
+  age?: number;
   birthday?: string | null;
   relationship?: string;
   isDefault: boolean;
@@ -18,6 +19,9 @@ export interface PatientListItem {
   noShowCount: number;
   isBlacklist: boolean;
   createdAt: string;
+  // 所属患者信息
+  userPhone?: string;
+  userNickname?: string;
 }
 
 // ========== 患者统计 ==========
@@ -234,6 +238,13 @@ export const patientApi = {
    */
   update: (id: string, data: PatientUpdateData): Promise<PatientDetail> => {
     return request.put(`${PREFIX}/${id}`, data);
+  },
+
+  /**
+   * 删除患者（就诊卡）
+   */
+  delete: (id: string): Promise<{ message: string }> => {
+    return request.delete(`${PREFIX}/${id}`);
   },
 
   /**

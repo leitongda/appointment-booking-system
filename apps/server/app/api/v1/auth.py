@@ -5,7 +5,7 @@ from app.db.session import get_db
 from app.api.deps import get_current_user
 from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, RefreshTokenRequest, ChangePasswordRequest, LoginResponse, UserInfo
 from app.schemas.user import UserResponse
-from app.schemas.wechat import WechatLoginRequest, WechatLoginResponse, WechatPhoneRequest, WechatBindPhoneRequest
+from app.schemas.wechat import WechatLoginRequest, WechatLoginResponse, WechatPhoneRequest, WechatBindPhoneRequest, WechatBindUserInfoRequest
 from app.services.user_service import UserService
 from app.services.wechat_service import WechatService
 from app.core.security import create_access_token, create_refresh_token, decode_token, verify_password, get_password_hash
@@ -115,7 +115,7 @@ async def change_password(
 async def wechat_login(data: WechatLoginRequest, db: AsyncSession = Depends(get_db)):
     """
     微信小程序登录
-    - 通过 code 获取 openid
+    - 通过 code 获取 openid 和 unionid
     - 如果用户已存在，返回 token
     - 如果是新用户，返回 openid，需要绑定手机号
     """
@@ -123,18 +123,27 @@ async def wechat_login(data: WechatLoginRequest, db: AsyncSession = Depends(get_
     user_service = UserService(db)
     
     try:
-        # 获取 openid
+        # 获取 openid 和 unionid
         session_info = await wechat_service.code2session(data.code)
         openid = session_info.get("openid")
+        unionid = session_info.get("unionid")
         
         if not openid:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="微信授权失败，请重试")
         
-        # 查找用户
-        user = await user_service.get_by_openid(openid)
+        # 优先通过 unionid 查找用户（跨应用关联）
+        user = None
+        if unionid:
+            user = await user_service.get_by_unionid(unionid)
+        if not user:
+            user = await user_service.get_by_openid(openid)
         
         if user:
-            # 已有用户，直接返回 token
+            # 已有用户，更新 unionid（如果之前没有）
+            if unionid and not user.unionid:
+                await user_service.update_wechat_info(user.id, {"unionid": unionid})
+            
+            # 直接返回 token
             access_token = create_access_token(data={"sub": user.id})
             refresh_token = create_refresh_token(data={"sub": user.id})
             
@@ -179,18 +188,24 @@ async def wechat_get_phone(data: WechatPhoneRequest, db: AsyncSession = Depends(
         user = await user_service.get_by_phone(phone)
         
         if user:
-            # 更新 openid
+            # 更新 openid 和 unionid
+            update_data = {}
             if not user.openid:
                 user.openid = data.openid
                 await db.commit()
-                await db.refresh(user)
+            if hasattr(data, 'unionid') and data.unionid:
+                update_data["unionid"] = data.unionid
+            if update_data:
+                await user_service.update_wechat_info(user.id, update_data)
+            await db.refresh(user)
         else:
             # 创建新用户
             from app.schemas.user import UserCreate
             user = await user_service.create(UserCreate(
                 phone=phone,
                 password="",  # 微信用户无密码
-                openid=data.openid
+                openid=data.openid,
+                unionid=getattr(data, 'unionid', None)
             ))
         
         # 生成 token
@@ -256,6 +271,66 @@ async def wechat_bind_phone(data: WechatBindPhoneRequest, db: AsyncSession = Dep
         user=UserInfo(
             id=user.id,
             phone=user.phone,
+            nickname=user.nickname,
+            avatar=user.avatar,
+            gender=user.gender or 0,
+            status=user.status
+        )
+    )
+
+
+@router.post("/wechat/bind-userinfo", response_model=LoginResponse)
+async def wechat_bind_userinfo(data: WechatBindUserInfoRequest, db: AsyncSession = Depends(get_db)):
+    """
+    微信绑定用户信息（头像昵称）并完成登录
+    - 不需要手机号，直接使用 openid 创建/更新用户
+    - 同时存储微信原始信息到专用字段
+    """
+    user_service = UserService(db)
+    
+    # 查找或创建用户
+    user = await user_service.get_by_openid(data.openid)
+    
+    if user:
+        # 更新用户信息和微信信息
+        wechat_info = {}
+        if data.nickname:
+            user.nickname = data.nickname
+            wechat_info["nickname"] = data.nickname
+        if data.avatar:
+            user.avatar = data.avatar
+            wechat_info["avatar"] = data.avatar
+        if hasattr(data, 'unionid') and data.unionid:
+            wechat_info["unionid"] = data.unionid
+        
+        if wechat_info:
+            await user_service.update_wechat_info(user.id, wechat_info)
+        else:
+            await db.commit()
+        await db.refresh(user)
+    else:
+        # 创建新用户（不需要手机号）
+        from app.schemas.user import UserCreate
+        user = await user_service.create(UserCreate(
+            phone="",  # 不需要手机号
+            password="",
+            openid=data.openid,
+            unionid=getattr(data, 'unionid', None),
+            nickname=data.nickname or "微信用户",
+            avatar=data.avatar or ""
+        ))
+    
+    # 生成 token
+    access_token = create_access_token(data={"sub": user.id})
+    refresh_token = create_refresh_token(data={"sub": user.id})
+    
+    return LoginResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        user=UserInfo(
+            id=user.id,
+            phone=user.phone or "",
             nickname=user.nickname,
             avatar=user.avatar,
             gender=user.gender or 0,

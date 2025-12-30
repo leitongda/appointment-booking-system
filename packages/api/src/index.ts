@@ -52,6 +52,16 @@ export { uploadApi } from './modules/upload';
 export { emailTemplateApi, EMAIL_TEMPLATE_TYPE_OPTIONS } from './modules/email-template';
 export { dataApi } from './modules/data';
 export type { ImportResult } from './modules/data';
+export { userManageApi } from './modules/user-manage';
+export type { 
+  UserListItem, 
+  UserDetail, 
+  UserCard, 
+  UserListParams,
+  UserUpdateData,
+  CardCreateData,
+  CardUpdateData,
+} from './modules/user-manage';
 
 // Store types
 export type { StoreAdmin } from './modules/store';

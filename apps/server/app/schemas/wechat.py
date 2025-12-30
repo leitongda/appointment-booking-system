@@ -44,6 +44,18 @@ class WechatBindPhoneRequest(BaseModel):
     code: Optional[str] = Field(None, description="验证码")
 
 
+class WechatBindUserInfoRequest(BaseModel):
+    """微信绑定用户信息请求（头像昵称）"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
+    openid: str = Field(..., description="用户 openid")
+    nickname: str = Field(..., description="用户昵称")
+    avatar: Optional[str] = Field(None, description="用户头像URL")
+
+
 class WechatLoginResponse(BaseModel):
     """微信登录响应"""
     model_config = ConfigDict(

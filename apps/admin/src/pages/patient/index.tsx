@@ -10,12 +10,12 @@ import {
   ProForm,
 } from '@ant-design/pro-components';
 import { App, Popconfirm, Space, Tag, Button } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useRef, useState } from 'react';
 import { history, useAccess } from '@umijs/max';
 import { patientApi, dataApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
-import type { PatientListItem } from '@hospital/api';
+import type { PatientListItem, PatientUpdateData } from '@hospital/api';
 import type { PatientCreateData } from '@hospital/api/src/modules/patient';
 import ImportExport from '@/components/ImportExport';
 
@@ -49,6 +49,8 @@ const PatientPage: React.FC = () => {
   const access = useAccess();
   const actionRef = useRef<ActionType>();
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [currentPatient, setCurrentPatient] = useState<PatientListItem | null>(null);
 
   const handleBlacklist = async (id: string, add: boolean) => {
     try {
@@ -78,11 +80,34 @@ const PatientPage: React.FC = () => {
     }
   };
 
+  const handleEdit = async (values: PatientUpdateData) => {
+    if (!currentPatient) return false;
+    try {
+      await patientApi.update(currentPatient.id, values);
+      message.success('保存成功');
+      setEditModalVisible(false);
+      setCurrentPatient(null);
+      actionRef.current?.reload();
+      return true;
+    } catch (error: any) {
+      message.error(error.message || '保存失败');
+      return false;
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await patientApi.delete(id);
+      message.success('删除成功');
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error.message || '删除失败');
+    }
+  };
+
   const columns: ProColumns<PatientListItem>[] = [
-    { title: '就诊卡编号', dataIndex: 'cardNo', width: 140, ellipsis: true },
+    { title: '卡号', dataIndex: 'cardNo', width: 150, ellipsis: true },
     { title: '姓名', dataIndex: 'name', width: 80 },
-    { title: '手机号', dataIndex: 'phone', width: 120 },
-    { title: '身份证号', dataIndex: 'idCard', width: 180, search: false, ellipsis: true },
     {
       title: '性别',
       dataIndex: 'gender',
@@ -90,12 +115,35 @@ const PatientPage: React.FC = () => {
       search: false,
       render: (val) => (val === 1 ? '男' : val === 2 ? '女' : '-'),
     },
-    { title: '与本人关系', dataIndex: 'relationship', width: 100, search: false },
+    { title: '年龄', dataIndex: 'age', width: 60, search: false, render: (val) => val ?? '-' },
+    { title: '手机号', dataIndex: 'phone', width: 120 },
+    {
+      title: '默认',
+      dataIndex: 'isDefault',
+      width: 60,
+      search: false,
+      render: (val) => val ? <Tag color="blue">默认</Tag> : '-',
+    },
+    {
+      title: '所属患者',
+      dataIndex: 'userNickname',
+      width: 120,
+      search: false,
+      render: (_, record) => (
+        <Space direction="vertical" size={0}>
+          <span>{record.userNickname || '微信用户'}</span>
+          <span style={{ color: '#999', fontSize: 12 }}>{record.userPhone}</span>
+        </Space>
+      ),
+    },
     {
       title: '来源',
       dataIndex: 'source',
       width: 100,
-      search: false,
+      valueEnum: {
+        1: { text: '用户添加' },
+        2: { text: '管理员添加' },
+      },
       render: (_, record) => SOURCE_MAP[record.source || 1] || '-',
     },
     { title: '预约次数', dataIndex: 'appointmentCount', width: 90, search: false },
@@ -111,12 +159,17 @@ const PatientPage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 140,
+      width: 220,
       fixed: 'right',
       render: (_, record) => (
         <Space>
           {access.hasPermission('patient:detail') && (
-            <a onClick={() => history.push(`/patient/${record.id}`)}>详情</a>
+            <a onClick={() => history.push(`/medical-card/${record.id}`)}>详情</a>
+          )}
+          {access.hasPermission('patient:update') && (
+            <a onClick={() => { setCurrentPatient(record); setEditModalVisible(true); }}>
+              <EditOutlined /> 编辑
+            </a>
           )}
           {access.hasPermission('patient:update') && (
             record.isBlacklist ? (
@@ -129,6 +182,15 @@ const PatientPage: React.FC = () => {
               </Popconfirm>
             )
           )}
+          {access.hasPermission('patient:delete') && (
+            <Popconfirm
+              title="确定删除该就诊卡吗？"
+              description="删除后不可恢复"
+              onConfirm={() => handleDelete(record.id)}
+            >
+              <a style={{ color: '#ff4d4f' }}><DeleteOutlined /> 删除</a>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -137,7 +199,7 @@ const PatientPage: React.FC = () => {
   return (
     <PageContainer>
       <ProTable<PatientListItem>
-        headerTitle="患者列表"
+        headerTitle="就诊卡列表"
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
@@ -152,7 +214,7 @@ const PatientPage: React.FC = () => {
         toolBarRender={() => [
           <ImportExport
             key="import-export"
-            moduleName="患者"
+            moduleName="就诊卡"
             exportUrl={dataApi.getExportPatientsUrl()}
             importUrl={dataApi.getImportPatientsUrl()}
             templateUrl={dataApi.getPatientTemplateUrl()}
@@ -165,15 +227,15 @@ const PatientPage: React.FC = () => {
               icon={<PlusOutlined />}
               onClick={() => setCreateModalVisible(true)}
             >
-              新增患者
+              新增就诊卡
             </Button>
           ),
         ]}
       />
 
-      {/* 新增患者弹窗 */}
+      {/* 新增就诊卡弹窗 */}
       <ModalForm
-        title="新增患者"
+        title="新增就诊卡"
         open={createModalVisible}
         onOpenChange={setCreateModalVisible}
         onFinish={handleCreate}
@@ -245,6 +307,103 @@ const PatientPage: React.FC = () => {
             label="民族"
             width="sm"
             initialValue="汉族"
+            placeholder="请输入民族"
+          />
+        </ProForm.Group>
+        <ProForm.Group>
+          <ProFormText name="province" label="省" width="sm" placeholder="请输入省份" />
+          <ProFormText name="city" label="市" width="sm" placeholder="请输入城市" />
+        </ProForm.Group>
+        <ProForm.Group>
+          <ProFormText name="district" label="区" width="sm" placeholder="请输入区县" />
+          <ProFormText name="street" label="街道/社区" width="sm" placeholder="请输入街道/社区" />
+        </ProForm.Group>
+        <ProFormTextArea
+          name="address"
+          label="详细地址"
+          placeholder="请输入详细地址"
+        />
+      </ModalForm>
+
+      {/* 编辑就诊卡弹窗 */}
+      <ModalForm
+        title="编辑就诊卡"
+        open={editModalVisible}
+        onOpenChange={(open) => {
+          setEditModalVisible(open);
+          if (!open) setCurrentPatient(null);
+        }}
+        onFinish={handleEdit}
+        width={600}
+        modalProps={{ destroyOnHidden: true }}
+        initialValues={currentPatient ? {
+          name: currentPatient.name,
+          phone: currentPatient.phone,
+          gender: currentPatient.gender,
+          idCard: currentPatient.idCard,
+          birthday: currentPatient.birthday,
+          relationship: currentPatient.relationship,
+        } : {}}
+      >
+        <ProForm.Group>
+          <ProFormText
+            name="name"
+            label="姓名"
+            width="sm"
+            rules={[{ required: true, message: '请输入姓名' }]}
+            placeholder="请输入姓名"
+          />
+          <ProFormText
+            name="phone"
+            label="手机号"
+            width="sm"
+            rules={[
+              { required: true, message: '请输入手机号' },
+              { pattern: /^1\d{10}$/, message: '手机号格式不正确' },
+            ]}
+            placeholder="请输入手机号"
+          />
+        </ProForm.Group>
+        <ProForm.Group>
+          <ProFormSelect
+            name="gender"
+            label="性别"
+            width="sm"
+            options={GENDER_OPTIONS}
+            placeholder="请选择性别"
+          />
+          <ProFormDatePicker
+            name="birthday"
+            label="出生日期"
+            width="sm"
+            placeholder="请选择出生日期"
+          />
+        </ProForm.Group>
+        <ProForm.Group>
+          <ProFormText
+            name="idCard"
+            label="身份证号"
+            width="sm"
+            placeholder="请输入身份证号"
+          />
+          <ProFormSelect
+            name="idCardType"
+            label="证件类型"
+            width="sm"
+            options={ID_CARD_TYPE_OPTIONS}
+          />
+        </ProForm.Group>
+        <ProForm.Group>
+          <ProFormSelect
+            name="relationship"
+            label="与本人关系"
+            width="sm"
+            options={RELATIONSHIP_OPTIONS}
+          />
+          <ProFormText
+            name="ethnicity"
+            label="民族"
+            width="sm"
             placeholder="请输入民族"
           />
         </ProForm.Group>

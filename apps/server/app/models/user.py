@@ -16,6 +16,12 @@ class User(Base, AuditMixin):
     status = Column(Integer, default=1)  # 0禁用 1正常
     points = Column(Integer, default=0)  # 当前积分
     
+    # 微信相关字段
+    unionid = Column(String(100), unique=True, index=True, nullable=True, comment="微信开放平台统一ID")
+    wechat_nickname = Column(String(50), nullable=True, comment="微信原始昵称")
+    wechat_avatar = Column(String(500), nullable=True, comment="微信原始头像URL")
+    wechat_synced_at = Column(DateTime, nullable=True, comment="最后同步微信信息时间")
+    
     patients = orm_relationship("Patient", back_populates="user")
     point_logs = orm_relationship("PointLog", back_populates="user")
 
@@ -29,6 +35,7 @@ class Patient(Base, AuditMixin):
     phone = Column(String(20), nullable=False)
     id_card = Column(String(18))
     gender = Column(Integer)
+    age = Column(Integer, comment="年龄")  # 新增年龄字段
     birthday = Column(DateTime)
     relationship = Column(String(20))  # 与账号用户关系
     is_default = Column(Boolean, default=False)

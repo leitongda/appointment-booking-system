@@ -1,10 +1,11 @@
-import { View, Text, Image } from '@tarojs/components';
+import { View, Text, Image, Button as TaroButton, Input as TaroInput } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { Button } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
-import { userApi, appointmentApi } from '@hospital/api';
+import { userApi, appointmentApi, authApi } from '@hospital/api';
 import { STORAGE_KEYS } from '@hospital/shared';
-import { getToken, removeToken, removeStorage } from '../../utils/auth';
+import { getToken, removeToken, removeStorage, setToken, setStorage } from '../../utils/auth';
+import { getStoreId } from '../../utils/store';
 import type { User } from '@hospital/shared';
 import {
   TeamIcon,
@@ -48,7 +49,22 @@ interface Stats {
 const ProfilePage = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true); // 初始化状态
   const [stats, setStats] = useState<Stats>({ appointmentCount: 0, patientCount: 0, messageCount: 0 });
+  
+  // 微信登录相关状态
+  const [wechatLoading, setWechatLoading] = useState(false);
+  const [openid, setOpenid] = useState('');
+  const [bindLoading, setBindLoading] = useState(false);
+  
+  // 用户信息设置弹窗状态
+  const [showUserInfo, setShowUserInfo] = useState(false);
+  const [avatar, setAvatar] = useState('');
+  const [nickname, setNickname] = useState('');
+  
+  // 已注释：绑定手机号相关状态
+  // const [showBindPhone, setShowBindPhone] = useState(false);
+  // const [bindPhone, setBindPhone] = useState('');
 
   useEffect(() => {
     checkLoginStatus();
@@ -56,37 +72,69 @@ const ProfilePage = () => {
 
   // 页面显示时刷新数据
   Taro.useDidShow(() => {
-    if (isLoggedIn) {
+    // 如果正在初始化，跳过
+    if (isInitializing) return;
+    
+    // 重新检查登录状态，确保 token 仍然有效
+    const token = getToken();
+    if (token && isLoggedIn) {
       loadStats();
+    } else if (!token) {
+      // token 已被清除，重置状态
+      setIsLoggedIn(false);
+      setUser(null);
+      setStats({ appointmentCount: 0, patientCount: 0, messageCount: 0 });
     }
   });
 
-  const checkLoginStatus = () => {
+  // 检查登录状态，先验证 token 有效性
+  const checkLoginStatus = async () => {
+    setIsInitializing(true);
     const token = getToken();
     if (token) {
-      setIsLoggedIn(true);
-      loadProfile();
-      loadStats();
+      // 先验证 token 是否有效
+      const isValid = await loadProfile();
+      if (isValid) {
+        setIsLoggedIn(true);
+        loadStats();
+      } else {
+        // token 无效，清除并重置状态
+        removeToken();
+        removeStorage(STORAGE_KEYS.USER_INFO);
+        setIsLoggedIn(false);
+        setUser(null);
+        setStats({ appointmentCount: 0, patientCount: 0, messageCount: 0 });
+      }
     } else {
       setIsLoggedIn(false);
       setUser(null);
       setStats({ appointmentCount: 0, patientCount: 0, messageCount: 0 });
     }
+    setIsInitializing(false);
   };
 
-  const loadProfile = async () => {
+  // 加载用户资料，返回是否成功
+  const loadProfile = async (): Promise<boolean> => {
+    console.log("🚀 ~ loadProfile 开始调用");
     try {
       const data = await userApi.getProfile();
+      console.log("🚀 ~ loadProfile 成功:", data);
       setUser(data);
-    } catch (error) {
-      console.error('加载用户信息失败', error);
+      return true;
+    } catch (error: any) {
+      console.error('❌ loadProfile 失败:', error?.message || error);
+      console.error('❌ 错误详情:', JSON.stringify(error, null, 2));
       // 如果获取用户信息失败（可能 token 过期），重置登录状态
       setIsLoggedIn(false);
       setUser(null);
+      return false;
     }
   };
 
   const loadStats = async () => {
+    // 再次检查 token，避免无效请求
+    if (!getToken()) return;
+    
     try {
       const [appointmentsResult, patients] = await Promise.all([
         appointmentApi.getList({ pageSize: 1 }).catch(() => ({ total: 0, data: [] })),
@@ -103,12 +151,196 @@ const ProfilePage = () => {
     }
   };
 
-  // 点击头像/用户信息区域，未登录时跳转登录
-  const handleHeaderClick = () => {
-    if (!isLoggedIn) {
-      Taro.navigateTo({ url: '/pages/login/index' });
+  // 点击头像/用户信息区域，未登录时直接发起微信登录
+  const handleHeaderClick = async () => {
+    // 初始化中、已登录、正在登录中，都不处理点击
+    if (isInitializing || isLoggedIn || wechatLoading) return;
+    
+    setWechatLoading(true);
+    
+    try {
+      // 1. 获取微信登录 code
+      const loginRes = await Taro.login();
+      console.log("🚀 ~ handleHeaderClick ~ loginRes:", loginRes)
+      const code = loginRes.code;
+      console.log("🚀 ~ handleHeaderClick ~ code:", code)
+      
+      if (!code) {
+        throw new Error('获取登录凭证失败');
+      }
+      
+      // 2. 调用后端接口获取 openid
+      const storeId = getStoreId();
+      console.log("🚀 ~ handleHeaderClick ~ storeId:", storeId)
+      const result = await authApi.wechatLogin(code, storeId || undefined);
+      console.log("🚀 ~ handleHeaderClick ~ result:", result);
+      console.log("🚀 ~ result 类型:", typeof result);
+      console.log("🚀 ~ result.isNewUser:", result.isNewUser);
+      console.log("🚀 ~ result.needBindPhone:", result.needBindPhone);
+      console.log("🚀 ~ result.openid:", result.openid);
+      console.log("🚀 ~ 条件判断:", result.isNewUser || result.needBindPhone);
+      
+      if (result.isNewUser || result.needBindPhone) {
+        // 新用户，显示设置头像昵称弹窗
+        console.log("🚀 ~ 进入新用户分支，准备显示设置用户信息弹窗");
+        setOpenid(result.openid);
+        setShowUserInfo(true);
+        console.log("🚀 ~ setShowUserInfo(true) 已调用");
+        // 已注释：原来需要绑定手机号
+        // setShowBindPhone(true);
+      } else {
+        // 已有用户，直接登录成功
+        console.log("🚀 ~ 登录成功，准备保存 Token:", result.accessToken);
+        
+        if (!result.accessToken) {
+          console.error("❌ accessToken 为空！检查后端返回的数据结构");
+          Taro.showToast({ title: '登录失败：Token 为空', icon: 'none' });
+          return;
+        }
+        
+        setToken(result.accessToken);
+        
+        // 验证 Token 是否保存成功
+        const savedToken = Taro.getStorageSync('hospital_token');
+        console.log("🚀 ~ 验证保存的 Token:", savedToken ? `${savedToken.substring(0, 20)}...` : '空');
+        
+        Taro.showToast({ title: '登录成功', icon: 'success' });
+        setIsLoggedIn(true);
+        // 加载用户信息和统计数据
+        loadProfile();
+        loadStats();
+      }
+    } catch (error: any) {
+      Taro.showToast({ title: error.message || '微信登录失败', icon: 'none' });
+    } finally {
+      setWechatLoading(false);
     }
   };
+
+  // 选择头像回调
+  const handleChooseAvatar = (e: any) => {
+    console.log("🚀 ~ handleChooseAvatar ~ e:", e);
+    const avatarUrl = e.detail.avatarUrl;
+    if (avatarUrl) {
+      setAvatar(avatarUrl);
+    }
+  };
+
+  // 昵称输入完成回调
+  const handleNicknameBlur = (e: any) => {
+    console.log("🚀 ~ handleNicknameBlur ~ e:", e);
+    const value = e.detail.value;
+    if (value) {
+      setNickname(value);
+    }
+  };
+
+  // 确认用户信息并完成登录
+  const handleConfirmUserInfo = async () => {
+    if (!nickname.trim()) {
+      Taro.showToast({ title: '请输入昵称', icon: 'none' });
+      return;
+    }
+
+    setBindLoading(true);
+    try {
+      const result = await authApi.wechatBindUserInfo(openid, nickname, avatar);
+      setToken(result.accessToken);
+      if (result.user) {
+        setStorage(STORAGE_KEYS.USER_INFO, result.user);
+      }
+      setShowUserInfo(false);
+      Taro.showToast({ title: '登录成功', icon: 'success' });
+      setIsLoggedIn(true);
+      loadProfile();
+      loadStats();
+    } catch (error: any) {
+      console.log("🚀 ~ handleConfirmUserInfo ~ error:", error);
+      Taro.showToast({ title: error.message || '登录失败', icon: 'none' });
+    } finally {
+      setBindLoading(false);
+    }
+  };
+
+  // 跳过设置，使用默认信息登录
+  const handleSkipUserInfo = async () => {
+    setBindLoading(true);
+    try {
+      const result = await authApi.wechatBindUserInfo(openid, '微信用户', '');
+      setToken(result.accessToken);
+      if (result.user) {
+        setStorage(STORAGE_KEYS.USER_INFO, result.user);
+      }
+      setShowUserInfo(false);
+      Taro.showToast({ title: '登录成功', icon: 'success' });
+      setIsLoggedIn(true);
+      loadProfile();
+      loadStats();
+    } catch (error: any) {
+      Taro.showToast({ title: error.message || '登录失败', icon: 'none' });
+    } finally {
+      setBindLoading(false);
+    }
+  };
+
+  /* 已注释：微信获取手机号相关代码
+  const handleGetPhoneNumber = async (e: any) => {
+    if (e.detail.errMsg !== 'getPhoneNumber:ok') {
+      return;
+    }
+
+    const code = e.detail.code;
+    if (!code) {
+      Taro.showToast({ title: '获取手机号失败', icon: 'none' });
+      return;
+    }
+
+    setBindLoading(true);
+    try {
+      const storeId = getStoreId();
+      const result = await authApi.wechatGetPhone(code, openid, storeId || undefined);
+      setToken(result.accessToken);
+      if (result.user) {
+        setStorage(STORAGE_KEYS.USER_INFO, result.user);
+      }
+      setShowBindPhone(false);
+      Taro.showToast({ title: '登录成功', icon: 'success' });
+      setIsLoggedIn(true);
+      loadProfile();
+      loadStats();
+    } catch (error: any) {
+      Taro.showToast({ title: error.message || '获取手机号失败', icon: 'none' });
+    } finally {
+      setBindLoading(false);
+    }
+  };
+
+  const handleBindPhone = async () => {
+    if (!bindPhone || !/^1\d{10}$/.test(bindPhone)) {
+      Taro.showToast({ title: '请输入正确的手机号', icon: 'none' });
+      return;
+    }
+
+    setBindLoading(true);
+    try {
+      const result = await authApi.wechatBindPhone(openid, bindPhone);
+      setToken(result.accessToken);
+      if (result.user) {
+        setStorage(STORAGE_KEYS.USER_INFO, result.user);
+      }
+      setShowBindPhone(false);
+      setBindPhone('');
+      Taro.showToast({ title: '绑定成功', icon: 'success' });
+      setIsLoggedIn(true);
+      loadProfile();
+      loadStats();
+    } catch (error: any) {
+      Taro.showToast({ title: error.message || '绑定失败', icon: 'none' });
+    } finally {
+      setBindLoading(false);
+    }
+  };
+  */
 
   const handleLogout = async () => {
     const result = await Taro.showModal({
@@ -180,7 +412,7 @@ const ProfilePage = () => {
           </View>
           <View className="user-info">
             <Text className="nickname">
-              {isLoggedIn ? (user?.nickname || '未设置昵称') : '点击登录'}
+              {isInitializing ? '加载中...' : (wechatLoading ? '登录中...' : (isLoggedIn ? (user?.nickname || '未设置昵称') : '点击登录'))}
             </Text>
             <Text className="phone">
               {isLoggedIn
@@ -188,7 +420,7 @@ const ProfilePage = () => {
                 : '登录后享受更多服务'}
             </Text>
           </View>
-          {!isLoggedIn && <Text className="login-arrow">›</Text>}
+          {!isLoggedIn && !wechatLoading && !isInitializing && <Text className="login-arrow">›</Text>}
         </View>
       </View>
 
@@ -249,6 +481,70 @@ const ProfilePage = () => {
       <View className="version-info">
         <Text>版本 1.0.0</Text>
       </View>
+
+      {/* 设置用户信息弹窗 - 获取头像昵称 */}
+      {showUserInfo && (
+        <View className="user-info-mask" onClick={() => setShowUserInfo(false)}>
+          <View className="user-info-sheet" onClick={(e) => e.stopPropagation()}>
+            <View className="sheet-header">
+              <Text className="sheet-title">完善个人信息</Text>
+              <Text className="sheet-close" onClick={() => setShowUserInfo(false)}>×</Text>
+            </View>
+            <View className="sheet-content">
+              <Text className="tip">请设置您的头像和昵称</Text>
+              
+              {/* 头像选择 */}
+              <View className="avatar-section">
+                <TaroButton
+                  openType="chooseAvatar"
+                  onChooseAvatar={handleChooseAvatar}
+                  className="avatar-btn"
+                >
+                  {avatar ? (
+                    <Image src={avatar} className="avatar-img" mode="aspectFill" />
+                  ) : (
+                    <View className="avatar-placeholder">
+                      <Text className="avatar-icon">+</Text>
+                      <Text className="avatar-text">选择头像</Text>
+                    </View>
+                  )}
+                </TaroButton>
+              </View>
+
+              {/* 昵称输入 */}
+              <View className="nickname-section">
+                <Text className="label">昵称</Text>
+                <TaroInput
+                  type="nickname"
+                  className="nickname-input"
+                  placeholder="请输入昵称"
+                  value={nickname}
+                  onBlur={handleNicknameBlur}
+                  onInput={(e) => setNickname(e.detail.value)}
+                />
+              </View>
+
+              {/* 确认按钮 */}
+              <Button 
+                type="primary" 
+                block 
+                loading={bindLoading}
+                onClick={handleConfirmUserInfo}
+                className="confirm-btn"
+              >
+                确认并登录
+              </Button>
+
+              {/* 跳过按钮 */}
+              <View className="skip-section">
+                <Text className="skip-btn" onClick={handleSkipUserInfo}>
+                  跳过，稍后设置
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
