@@ -4,6 +4,7 @@ import { Button, Empty, Swipe } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 import { userApi } from '@hospital/api';
 import { GENDER_MAP } from '@hospital/shared';
+import { getToken } from '../../../utils/auth';
 import type { Patient } from '@hospital/shared';
 import './index.less';
 
@@ -12,6 +13,13 @@ const PatientListPage = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
 
   useEffect(() => {
+    // 检查登录状态
+    const token = getToken();
+    if (!token) {
+      Taro.showToast({ title: '请先登录', icon: 'none' });
+      Taro.navigateTo({ url: '/pages/login/index' });
+      return;
+    }
     loadPatients();
   }, []);
 
@@ -49,11 +57,11 @@ const PatientListPage = () => {
   };
 
   const handleEdit = (id: string) => {
-    Taro.navigateTo({ url: `/pages/profile/patient/edit?id=${id}` });
+    Taro.navigateTo({ url: `/packageProfile/pages/patient/edit?id=${id}` });
   };
 
   const handleAdd = () => {
-    Taro.navigateTo({ url: '/pages/profile/patient/edit' });
+    Taro.navigateTo({ url: '/packageProfile/pages/patient/edit' });
   };
 
   return (

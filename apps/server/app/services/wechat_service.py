@@ -210,31 +210,59 @@ class WechatTokenManager:
 
 
 class WechatService:
-    """微信小程序服务"""
+    """微信小程序服务
+    
+    支持从门店读取独立的微信配置，每个门店可以有独立的小程序。
+    """
     
     WECHAT_API_URL = "https://api.weixin.qq.com"
     
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, store_id: Optional[str] = None):
+        """
+        初始化微信服务
+        
+        Args:
+            db: 数据库会话
+            store_id: 门店ID，如果提供则从该门店读取微信配置
+        """
         self.db = db
+        self.store_id = store_id
         self._app_id: Optional[str] = None
         self._app_secret: Optional[str] = None
+        self._config_loaded = False
     
     async def _load_config(self):
-        """加载微信配置"""
-        if self._app_id and self._app_secret:
+        """加载微信配置（从门店读取）"""
+        if self._config_loaded:
             return
         
-        # 优先从配置文件读取
+        # 优先从环境变量读取（开发/测试环境兼容）
         if settings.WECHAT_APP_ID and settings.WECHAT_APP_SECRET:
             self._app_id = settings.WECHAT_APP_ID
             self._app_secret = settings.WECHAT_APP_SECRET
+            self._config_loaded = True
             return
         
-        # 从数据库读取
-        settings_service = SettingsService(self.db)
-        config = await settings_service.get_by_category('wechat')
-        self._app_id = config.get('app_id', '')
-        self._app_secret = config.get('app_secret', '')
+        # 从门店读取微信配置
+        if self.store_id:
+            from app.models.store import Store
+            from sqlalchemy import select
+            
+            result = await self.db.execute(
+                select(Store).where(Store.id == self.store_id)
+            )
+            store = result.scalar_one_or_none()
+            
+            if store and store.wechat_app_id and store.wechat_app_secret:
+                self._app_id = store.wechat_app_id
+                self._app_secret = store.wechat_app_secret
+                self._config_loaded = True
+                logger.debug(f"[微信配置] 从门店加载: store_id={self.store_id}")
+                return
+        
+        # 未找到配置
+        self._config_loaded = True
+        logger.warning(f"[微信配置] 未找到配置: store_id={self.store_id}")
     
     async def code2session(self, code: str) -> Dict[str, Any]:
         """

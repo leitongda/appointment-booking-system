@@ -34,6 +34,15 @@ class AppointmentService:
         )
         return result.scalar_one_or_none()
     
+    async def get_by_appointment_no(self, appointment_no: str) -> Optional[Appointment]:
+        """按预约号获取预约"""
+        result = await self.db.execute(
+            select(Appointment)
+            .options(selectinload(Appointment.schedule))
+            .where(Appointment.appointment_no == appointment_no)
+        )
+        return result.scalar_one_or_none()
+    
     async def get_list(
         self,
         user_id: Optional[str] = None,

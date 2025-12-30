@@ -44,6 +44,28 @@ class UserUpdate(BaseModel):
     avatar: Optional[str] = None
     gender: Optional[int] = Field(None, ge=0, le=2)
 
+
+class ChangePasswordRequest(BaseModel):
+    """修改密码请求"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
+    old_password: str = Field(..., min_length=6, max_length=20, description="旧密码")
+    new_password: str = Field(..., min_length=6, max_length=20, description="新密码")
+
+
+class BindPhoneRequest(BaseModel):
+    """绑定手机号请求"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
+    phone: str = Field(..., min_length=11, max_length=11, description="新手机号")
+    code: Optional[str] = Field(None, max_length=6, description="验证码（可选）")
+
 class UserInDB(UserBase):
     model_config = ConfigDict(
         alias_generator=to_camel,

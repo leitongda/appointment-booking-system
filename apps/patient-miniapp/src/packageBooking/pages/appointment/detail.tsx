@@ -4,6 +4,7 @@ import { Button } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 import { appointmentApi } from '@hospital/api';
 import { APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP } from '@hospital/shared';
+import { getToken } from '../../../utils/auth';
 import type { AppointmentDetail } from '@hospital/shared';
 import {
   CalendarIcon,
@@ -11,7 +12,7 @@ import {
   ClockIcon,
   CheckIcon,
   CloseCircleIcon,
-} from '../../components/Icons';
+} from '../../../components/Icons';
 import './detail.less';
 
 // 状态图标映射
@@ -42,6 +43,13 @@ const AppointmentDetailPage = () => {
   const [appointment, setAppointment] = useState<AppointmentDetail | null>(null);
 
   useEffect(() => {
+    // 检查登录状态
+    const token = getToken();
+    if (!token) {
+      Taro.showToast({ title: '请先登录', icon: 'none' });
+      Taro.navigateTo({ url: '/pages/login/index' });
+      return;
+    }
     loadAppointment();
   }, []);
 

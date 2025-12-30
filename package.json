@@ -8,6 +8,7 @@
     "dev:admin": "turbo run dev --filter=@hospital/admin",
     "dev:patient-h5": "turbo run dev --filter=@hospital/patient-h5",
     "dev:patient-miniapp": "turbo run dev --filter=@hospital/patient-miniapp",
+    "dev:patient-miniapp:prod": "turbo run dev:prod --filter=@hospital/patient-miniapp",
     "dev:doctor": "turbo run dev --filter=@hospital/doctor",
     "dev:temp-registration": "turbo run dev --filter=@hospital/temp-registration",
     "dev:server": "cd apps/server && uvicorn app.main:app --reload --port 8000",

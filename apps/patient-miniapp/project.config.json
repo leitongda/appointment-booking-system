@@ -4,7 +4,7 @@
   "description": "医院挂号系统 - 患者端小程序",
   "appid": "wx53e28e21cd070928",
   "setting": {
-    "urlCheck": true,
+    "urlCheck": false,
     "es6": false,
     "enhance": false,
     "compileHotReLoad": false,

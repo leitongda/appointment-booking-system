@@ -1,5 +1,5 @@
 import request from '../request';
-import type { Store, StoreDepartment, Department, PageResult } from '@hospital/shared';
+import type { Store, StoreDepartment, Department, PageResult, StoreWechatConfig } from '@hospital/shared';
 
 export interface StoreAdmin {
   id: string;
@@ -128,5 +128,14 @@ export const storeApi = {
 
   batchBindAdmins: (storeId: string, adminIds: string[]): Promise<{ message: string; count: number }> => {
     return request.put(`/stores/${storeId}/admins/batch`, adminIds);
+  },
+
+  // 门店微信配置
+  getWechatConfig: (storeId: string): Promise<StoreWechatConfig> => {
+    return request.get(`/stores/${storeId}/wechat-config`);
+  },
+
+  updateWechatConfig: (storeId: string, data: StoreWechatConfig): Promise<{ message: string }> => {
+    return request.put(`/stores/${storeId}/wechat-config`, data);
   },
 };

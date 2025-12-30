@@ -4,8 +4,9 @@ import { Button, Radio } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 import { doctorApi, userApi, appointmentApi } from '@hospital/api';
 import { TIME_SLOT_MAP } from '@hospital/shared';
+import { getToken } from '../../../utils/auth';
 import type { Doctor, Patient } from '@hospital/shared';
-import { DoctorIcon } from '../../components/Icons';
+import { DoctorIcon } from '../../../components/Icons';
 import './index.less';
 
 const BookingPage = () => {
@@ -19,6 +20,13 @@ const BookingPage = () => {
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
 
   useEffect(() => {
+    // 检查登录状态
+    const token = getToken();
+    if (!token) {
+      Taro.showToast({ title: '请先登录', icon: 'none' });
+      Taro.navigateTo({ url: '/pages/login/index' });
+      return;
+    }
     loadData();
   }, []);
 
@@ -64,7 +72,7 @@ const BookingPage = () => {
 
       Taro.showToast({ title: '预约成功', icon: 'success' });
       Taro.redirectTo({
-        url: `/pages/booking/result?appointmentNo=${appointment.appointmentNo}`,
+        url: `/packageBooking/pages/booking/result?appointmentNo=${appointment.appointmentNo}`,
       });
     } catch (error: any) {
       Taro.showToast({ title: error.message || '预约失败', icon: 'none' });
@@ -74,7 +82,7 @@ const BookingPage = () => {
   };
 
   const handleAddPatient = () => {
-    Taro.navigateTo({ url: '/pages/profile/patient/edit' });
+    Taro.navigateTo({ url: '/packageProfile/pages/patient/edit' });
   };
 
   if (loading) {

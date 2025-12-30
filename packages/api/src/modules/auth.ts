@@ -54,16 +54,21 @@ export const sendCode = (phone: string, type: 'login' | 'register' = 'login'): P
 
 /**
  * 微信登录（获取 openid）
+ * @param code 微信登录凭证
+ * @param storeId 门店ID（用于获取对应门店的微信配置）
  */
-export const wechatLogin = (code: string): Promise<WechatLoginResponse> => {
-  return request.post(`${PREFIX}/wechat/login`, { code });
+export const wechatLogin = (code: string, storeId?: string): Promise<WechatLoginResponse> => {
+  return request.post(`${PREFIX}/wechat/login`, { code, storeId });
 };
 
 /**
  * 微信获取手机号并登录
+ * @param code 手机号获取凭证
+ * @param openid 用户 openid
+ * @param storeId 门店ID（用于获取对应门店的微信配置）
  */
-export const wechatGetPhone = (code: string, openid: string): Promise<LoginResult> => {
-  return request.post(`${PREFIX}/wechat/phone`, { code, openid });
+export const wechatGetPhone = (code: string, openid: string, storeId?: string): Promise<LoginResult> => {
+  return request.post(`${PREFIX}/wechat/phone`, { code, openid, storeId });
 };
 
 /**

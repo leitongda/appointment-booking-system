@@ -35,7 +35,7 @@ const SearchPage = () => {
   };
 
   const handleSelectDoctor = (id: string) => {
-    Taro.navigateTo({ url: `/pages/doctor/detail?id=${id}` });
+    Taro.navigateTo({ url: `/packageBooking/pages/doctor/detail?id=${id}` });
   };
 
   const handleSelectDept = (id: string, name: string) => {

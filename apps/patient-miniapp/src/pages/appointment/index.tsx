@@ -4,6 +4,7 @@ import { Tabs, Button, Empty } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 import { appointmentApi } from '@hospital/api';
 import { APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP } from '@hospital/shared';
+import { getToken } from '../../utils/auth';
 import type { Appointment } from '@hospital/shared';
 import './index.less';
 
@@ -24,8 +25,17 @@ const AppointmentPage = () => {
   const [activeTab, setActiveTab] = useState('0');
   const [loading, setLoading] = useState(true);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
+    // 检查登录状态
+    const token = getToken();
+    if (!token) {
+      setIsLoggedIn(false);
+      setLoading(false);
+      return;
+    }
+    setIsLoggedIn(true);
     loadAppointments();
   }, [activeTab]);
 
@@ -80,7 +90,7 @@ const AppointmentPage = () => {
   };
 
   const handleViewDetail = (id: string) => {
-    Taro.navigateTo({ url: `/pages/appointment/detail?id=${id}` });
+    Taro.navigateTo({ url: `/packageBooking/pages/appointment/detail?id=${id}` });
   };
 
   return (
@@ -98,7 +108,19 @@ const AppointmentPage = () => {
       </View>
 
       <View className="list">
-        {loading ? (
+        {!isLoggedIn ? (
+          <View className="empty-wrapper">
+            <Empty description="请先登录查看预约记录" />
+            <Button
+              type="primary"
+              size="small"
+              style={{ marginTop: '16px' }}
+              onClick={() => Taro.navigateTo({ url: '/pages/login/index' })}
+            >
+              去登录
+            </Button>
+          </View>
+        ) : loading ? (
           <View className="loading-wrapper">
             <Text>加载中...</Text>
           </View>

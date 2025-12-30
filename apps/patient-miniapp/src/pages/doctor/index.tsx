@@ -32,7 +32,7 @@ const DoctorListPage = () => {
 
   const handleSelectDoctor = (doctorId: string) => {
     Taro.navigateTo({
-      url: `/pages/doctor/detail?id=${doctorId}`,
+      url: `/packageBooking/pages/doctor/detail?id=${doctorId}`,
     });
   };
 

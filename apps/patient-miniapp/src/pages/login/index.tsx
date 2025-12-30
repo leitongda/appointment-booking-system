@@ -3,8 +3,10 @@ import Taro from '@tarojs/taro';
 import { Form, Input, Button, Dialog } from '@nutui/nutui-react-taro';
 import { useState } from 'react';
 import { authApi } from '@hospital/api';
-import { setToken, setStorage, STORAGE_KEYS } from '@hospital/shared';
+import { STORAGE_KEYS } from '@hospital/shared';
+import { setToken, setStorage } from '../../utils/auth';
 import { HospitalIcon } from '../../components/Icons';
+import { getStoreId } from '../../utils/store';
 import './index.less';
 
 const LoginPage = () => {
@@ -48,8 +50,9 @@ const LoginPage = () => {
         throw new Error('获取登录凭证失败');
       }
       
-      // 2. 调用后端接口获取 openid
-      const result = await authApi.wechatLogin(code);
+      // 2. 调用后端接口获取 openid（传递门店ID以使用对应的微信配置）
+      const storeId = getStoreId();
+      const result = await authApi.wechatLogin(code, storeId || undefined);
       
       if (result.isNewUser || result.needBindPhone) {
         // 新用户，需要绑定手机号
@@ -82,7 +85,8 @@ const LoginPage = () => {
 
     setWechatLoading(true);
     try {
-      const result = await authApi.wechatGetPhone(code, openid);
+      const storeId = getStoreId();
+      const result = await authApi.wechatGetPhone(code, openid, storeId || undefined);
       setToken(result.accessToken);
       setStorage(STORAGE_KEYS.USER_INFO, result.user);
       setShowBindPhone(false);

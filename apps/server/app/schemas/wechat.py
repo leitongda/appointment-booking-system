@@ -17,6 +17,7 @@ class WechatLoginRequest(BaseModel):
     )
     
     code: str = Field(..., description="微信登录凭证 code")
+    store_id: Optional[str] = Field(None, description="门店ID，用于获取对应门店的微信配置")
 
 
 class WechatPhoneRequest(BaseModel):
@@ -28,6 +29,7 @@ class WechatPhoneRequest(BaseModel):
     
     code: str = Field(..., description="手机号获取凭证 code")
     openid: str = Field(..., description="用户 openid")
+    store_id: Optional[str] = Field(None, description="门店ID，用于获取对应门店的微信配置")
 
 
 class WechatBindPhoneRequest(BaseModel):

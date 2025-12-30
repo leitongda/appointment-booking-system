@@ -3,6 +3,7 @@ import Taro, { useRouter } from '@tarojs/taro';
 import { Form, Input, Radio, Button, Switch } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 import { userApi } from '@hospital/api';
+import { getToken } from '../../../utils/auth';
 import type { PatientForm } from '@hospital/shared';
 import './edit.less';
 
@@ -18,6 +19,13 @@ const PatientEditPage = () => {
   });
 
   useEffect(() => {
+    // 检查登录状态
+    const token = getToken();
+    if (!token) {
+      Taro.showToast({ title: '请先登录', icon: 'none' });
+      Taro.navigateTo({ url: '/pages/login/index' });
+      return;
+    }
     if (isEdit) {
       loadPatient();
     }

@@ -2,8 +2,9 @@ import { View, Text, Image } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { Button } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
-import { userApi } from '@hospital/api';
-import { removeToken, removeStorage, STORAGE_KEYS, getToken } from '@hospital/shared';
+import { userApi, appointmentApi } from '@hospital/api';
+import { STORAGE_KEYS } from '@hospital/shared';
+import { getToken, removeToken, removeStorage } from '../../utils/auth';
 import type { User } from '@hospital/shared';
 import {
   TeamIcon,
@@ -23,36 +24,53 @@ type IconComponent = typeof TeamIcon;
 const menuGroups: { items: { icon: IconComponent; title: string; desc: string; path?: string; badge?: string }[] }[] = [
   {
     items: [
-      { icon: TeamIcon, title: '就诊人管理', desc: '管理就诊人信息', path: '/pages/profile/patient/index' },
-      { icon: RecordIcon, title: '就诊记录', desc: '查看历史就诊记录', path: '/pages/records/index' },
-      { icon: BellIcon, title: '消息通知', desc: '预约提醒、系统通知', badge: '' },
+      { icon: TeamIcon, title: '就诊人管理', desc: '管理就诊人信息', path: '/packageProfile/pages/patient/index' },
+      { icon: RecordIcon, title: '就诊记录', desc: '查看历史就诊记录', path: '/packageProfile/pages/records/index' },
+      { icon: BellIcon, title: '消息通知', desc: '预约提醒、系统通知', path: '/packageProfile/pages/message/index' },
     ],
   },
   {
     items: [
-      { icon: ChatIcon, title: '意见反馈', desc: '帮助我们做得更好' },
-      { icon: InfoIcon, title: '关于我们', desc: '了解更多' },
-      { icon: SettingsIcon, title: '设置', desc: '账号与安全' },
+      { icon: ChatIcon, title: '意见反馈', desc: '帮助我们做得更好', path: '/packageProfile/pages/feedback/index' },
+      { icon: InfoIcon, title: '关于我们', desc: '了解更多', path: '/packageOther/pages/about/index' },
+      { icon: SettingsIcon, title: '设置', desc: '账号与安全', path: '/packageProfile/pages/settings/index' },
     ],
   },
 ];
 
+// 统计数据类型
+interface Stats {
+  appointmentCount: number;
+  patientCount: number;
+  messageCount: number;
+}
+
 const ProfilePage = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [stats, setStats] = useState<Stats>({ appointmentCount: 0, patientCount: 0, messageCount: 0 });
 
   useEffect(() => {
     checkLoginStatus();
   }, []);
+
+  // 页面显示时刷新数据
+  Taro.useDidShow(() => {
+    if (isLoggedIn) {
+      loadStats();
+    }
+  });
 
   const checkLoginStatus = () => {
     const token = getToken();
     if (token) {
       setIsLoggedIn(true);
       loadProfile();
+      loadStats();
     } else {
       setIsLoggedIn(false);
       setUser(null);
+      setStats({ appointmentCount: 0, patientCount: 0, messageCount: 0 });
     }
   };
 
@@ -65,6 +83,23 @@ const ProfilePage = () => {
       // 如果获取用户信息失败（可能 token 过期），重置登录状态
       setIsLoggedIn(false);
       setUser(null);
+    }
+  };
+
+  const loadStats = async () => {
+    try {
+      const [appointmentsResult, patients] = await Promise.all([
+        appointmentApi.getList({ pageSize: 1 }).catch(() => ({ total: 0, data: [] })),
+        userApi.getPatients().catch(() => []),
+      ]);
+      
+      setStats({
+        appointmentCount: appointmentsResult.total || 0,
+        patientCount: patients.length,
+        messageCount: 0, // 消息模块待实现
+      });
+    } catch (error) {
+      console.error('加载统计数据失败', error);
     }
   };
 
@@ -90,10 +125,44 @@ const ProfilePage = () => {
   };
 
   const handleMenuClick = (item: typeof menuGroups[0]['items'][0]) => {
+    // 需要登录的菜单项
+    const requireLoginPaths = [
+      '/packageProfile/pages/patient/index',
+      '/packageProfile/pages/records/index',
+      '/packageProfile/pages/message/index',
+      '/packageProfile/pages/feedback/index',
+      '/packageProfile/pages/settings/index',
+    ];
+
     if (item.path) {
+      // 检查是否需要登录
+      if (requireLoginPaths.includes(item.path) && !isLoggedIn) {
+        Taro.showToast({ title: '请先登录', icon: 'none' });
+        Taro.navigateTo({ url: '/pages/login/index' });
+        return;
+      }
       Taro.navigateTo({ url: item.path });
     } else {
       Taro.showToast({ title: '功能开发中', icon: 'none' });
+    }
+  };
+
+  const handleStatClick = (type: 'appointment' | 'patient' | 'message') => {
+    if (!isLoggedIn) {
+      Taro.navigateTo({ url: '/pages/login/index' });
+      return;
+    }
+    
+    switch (type) {
+      case 'appointment':
+        Taro.switchTab({ url: '/pages/appointment/index' });
+        break;
+      case 'patient':
+        Taro.navigateTo({ url: '/packageProfile/pages/patient/index' });
+        break;
+      case 'message':
+        Taro.navigateTo({ url: '/packageProfile/pages/message/index' });
+        break;
     }
   };
 
@@ -125,16 +194,16 @@ const ProfilePage = () => {
 
       {/* 统计卡片 */}
       <View className="stats-card">
-        <View className="stat-item">
-          <Text className="stat-value">0</Text>
+        <View className="stat-item" onClick={() => handleStatClick('appointment')}>
+          <Text className="stat-value">{stats.appointmentCount}</Text>
           <Text className="stat-label">预约次数</Text>
         </View>
-        <View className="stat-item">
-          <Text className="stat-value">0</Text>
+        <View className="stat-item" onClick={() => handleStatClick('patient')}>
+          <Text className="stat-value">{stats.patientCount}</Text>
           <Text className="stat-label">就诊人</Text>
         </View>
-        <View className="stat-item">
-          <Text className="stat-value">0</Text>
+        <View className="stat-item" onClick={() => handleStatClick('message')}>
+          <Text className="stat-value">{stats.messageCount}</Text>
           <Text className="stat-label">消息</Text>
         </View>
       </View>

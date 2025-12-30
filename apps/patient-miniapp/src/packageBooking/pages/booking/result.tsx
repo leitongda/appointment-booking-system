@@ -1,7 +1,7 @@
 import { View, Text } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
 import { Button } from '@nutui/nutui-react-taro';
-import { CheckIcon } from '../../components/Icons';
+import { CheckIcon } from '../../../components/Icons';
 import './result.less';
 
 const BookingResultPage = () => {
@@ -9,7 +9,7 @@ const BookingResultPage = () => {
   const { appointmentNo } = router.params;
 
   const handleViewDetail = () => {
-    Taro.redirectTo({ url: `/pages/appointment/detail?appointmentNo=${appointmentNo}` });
+    Taro.redirectTo({ url: `/packageBooking/pages/appointment/detail?appointmentNo=${appointmentNo}` });
   };
 
   const handleBackHome = () => {

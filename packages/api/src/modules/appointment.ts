@@ -77,6 +77,13 @@ export const appointmentApi = {
     return request.get(`/appointments/${id}`);
   },
 
+  /**
+   * 按预约号获取预约详情
+   */
+  getDetailByNo: (appointmentNo: string): Promise<Appointment> => {
+    return request.get(`/appointments/by-no/${appointmentNo}`);
+  },
+
   create: (data: AppointmentCreateData): Promise<Appointment> => {
     return request.post('/appointments', data);
   },

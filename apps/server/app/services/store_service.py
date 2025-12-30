@@ -267,3 +267,54 @@ class StoreService:
         
         await self.db.commit()
         return len(admin_ids)
+    
+    async def update_wechat_config(self, store_id: str, config: dict, operator_id: Optional[str] = None) -> Optional[Store]:
+        """更新门店微信配置
+        
+        Args:
+            store_id: 门店ID
+            config: 微信配置字典，可包含以下字段：
+                - wechat_app_id: 小程序AppID
+                - wechat_app_secret: 小程序Secret
+                - wechat_mch_id: 商户号
+                - wechat_api_key: API密钥
+                - wechat_notify_url: 支付回调地址
+            operator_id: 操作人ID
+            
+        Returns:
+            更新后的门店对象
+        """
+        store = await self.get_by_id(store_id)
+        if not store:
+            return None
+        
+        # 更新微信配置字段
+        for field, value in config.items():
+            if hasattr(store, field):
+                setattr(store, field, value)
+        
+        set_update_audit(store, operator_id)
+        await self.db.commit()
+        await self.db.refresh(store)
+        return store
+    
+    async def get_wechat_config(self, store_id: str) -> Optional[dict]:
+        """获取门店微信配置
+        
+        Args:
+            store_id: 门店ID
+            
+        Returns:
+            微信配置字典
+        """
+        store = await self.get_by_id(store_id)
+        if not store:
+            return None
+        
+        return {
+            'app_id': store.wechat_app_id,
+            'app_secret': store.wechat_app_secret,
+            'mch_id': store.wechat_mch_id,
+            'api_key': store.wechat_api_key,
+            'notify_url': store.wechat_notify_url,
+        }

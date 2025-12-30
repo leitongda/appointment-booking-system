@@ -5,7 +5,8 @@ from typing import Optional, List
 from app.db.session import get_db
 from app.api.deps import get_current_admin
 from app.schemas.store import (
-    StoreCreate, StoreUpdate, StoreResponse, StoreListResponse, StoreQuery
+    StoreCreate, StoreUpdate, StoreResponse, StoreListResponse, StoreQuery,
+    StoreWechatConfigUpdate, StoreWechatConfigResponse
 )
 from app.schemas.department import DepartmentResponse
 from app.schemas.admin import AdminListResponse
@@ -393,3 +394,105 @@ async def batch_bind_admins(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
+
+
+# ==================== 门店微信配置 ====================
+
+@router.get("/{store_id}/wechat-config", response_model=StoreWechatConfigResponse)
+async def get_store_wechat_config(
+    store_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """获取门店微信配置
+    
+    权限：
+    - 超级管理员：可获取任意门店配置
+    - 门店管理员：只能获取自己关联门店的配置
+    """
+    # 权限检查
+    is_super_admin = current_admin.get("is_super_admin")
+    admin_store_ids = current_admin.get("store_ids") or []
+    
+    if not is_super_admin and store_id not in admin_store_ids:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您无权访问此门店的微信配置"
+        )
+    
+    service = StoreService(db)
+    store = await service.get_by_id(store_id)
+    
+    if not store:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="门店不存在"
+        )
+    
+    # 返回配置，敏感字段掩码处理
+    return StoreWechatConfigResponse(
+        app_id=store.wechat_app_id or '',
+        app_secret='******' if store.wechat_app_secret else '',
+        mch_id=store.wechat_mch_id or '',
+        api_key='******' if store.wechat_api_key else '',
+        notify_url=store.wechat_notify_url or ''
+    )
+
+
+@router.put("/{store_id}/wechat-config")
+async def update_store_wechat_config(
+    store_id: str,
+    data: StoreWechatConfigUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """更新门店微信配置
+    
+    权限：
+    - 超级管理员：可更新任意门店配置
+    - 门店管理员（有 settings:wechat 权限）：只能更新自己关联门店的配置
+    """
+    # 权限检查
+    is_super_admin = current_admin.get("is_super_admin")
+    admin_store_ids = current_admin.get("store_ids") or []
+    permissions = current_admin.get("permissions") or []
+    
+    if not is_super_admin:
+        if store_id not in admin_store_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="您无权修改此门店的微信配置"
+            )
+        # 检查是否有微信配置权限
+        if "settings:wechat" not in permissions and "settings:edit" not in permissions:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="您没有修改微信配置的权限"
+            )
+    
+    service = StoreService(db)
+    store = await service.get_by_id(store_id)
+    
+    if not store:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="门店不存在"
+        )
+    
+    # 更新配置
+    update_data = {}
+    if data.app_id is not None:
+        update_data['wechat_app_id'] = data.app_id
+    if data.app_secret is not None and data.app_secret != '******':
+        update_data['wechat_app_secret'] = data.app_secret
+    if data.mch_id is not None:
+        update_data['wechat_mch_id'] = data.mch_id
+    if data.api_key is not None and data.api_key != '******':
+        update_data['wechat_api_key'] = data.api_key
+    if data.notify_url is not None:
+        update_data['wechat_notify_url'] = data.notify_url
+    
+    if update_data:
+        await service.update_wechat_config(store_id, update_data)
+    
+    return {"message": "微信配置更新成功"}

@@ -25,6 +25,9 @@ export interface Appointment {
   createdAt: string;
 }
 
+/** 预约详情（与 Appointment 相同，用于语义区分） */
+export type AppointmentDetail = Appointment;
+
 export interface AppointmentStatistics {
   total: number;
   pending: number;

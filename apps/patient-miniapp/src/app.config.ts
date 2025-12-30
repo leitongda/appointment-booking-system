@@ -9,23 +9,65 @@
  * Copyright (c) 2025 by ${git_name_email}, All Rights Reserved. 
  */
 export default defineAppConfig({
+  // 主包页面：tabBar 页面和高频访问页面
   pages: [
-    'pages/index/index',
-    'pages/department/index',
-    'pages/doctor/index',
-    'pages/doctor/detail',
-    'pages/booking/index',
-    'pages/booking/result',
-    'pages/appointment/index',
-    'pages/appointment/detail',
-    'pages/profile/index',
-    'pages/profile/patient/index',
-    'pages/profile/patient/edit',
-    'pages/records/index',
-    'pages/records/detail',
-    'pages/search/index',
-    'pages/login/index',
+    'pages/index/index',           // 首页 (tabBar)
+    'pages/appointment/index',     // 预约列表 (tabBar)
+    'pages/profile/index',         // 我的 (tabBar)
+    'pages/department/index',      // 科室列表 (首页入口)
+    'pages/doctor/index',          // 医生列表 (首页入口)
+    'pages/login/index',           // 登录页 (高频)
   ],
+  // 分包配置：将低频页面分离到子包
+  subPackages: [
+    {
+      // 预约相关子包
+      root: 'packageBooking',
+      name: 'booking',
+      pages: [
+        'pages/doctor/detail',       // 医生详情
+        'pages/booking/index',       // 预约挂号
+        'pages/booking/result',      // 预约结果
+        'pages/appointment/detail',  // 预约详情
+      ],
+    },
+    {
+      // 个人中心相关子包
+      root: 'packageProfile',
+      name: 'profile',
+      pages: [
+        'pages/patient/index',       // 就诊人列表
+        'pages/patient/edit',        // 就诊人编辑
+        'pages/records/index',       // 就诊记录
+        'pages/records/detail',      // 记录详情
+        'pages/message/index',       // 消息中心
+        'pages/feedback/index',      // 意见反馈
+        'pages/settings/index',      // 设置
+      ],
+    },
+    {
+      // 其他功能子包
+      root: 'packageOther',
+      name: 'other',
+      pages: [
+        'pages/search/index',        // 搜索
+        'pages/about/index',         // 关于
+        'pages/webview/index',       // 网页
+        'pages/agreement/index',     // 协议
+      ],
+    },
+  ],
+  // 分包预下载规则
+  preloadRule: {
+    'pages/index/index': {
+      network: 'all',
+      packages: ['booking'],  // 进入首页时预下载预约子包
+    },
+    'pages/profile/index': {
+      network: 'all',
+      packages: ['profile'],  // 进入我的时预下载个人中心子包
+    },
+  },
   window: {
     backgroundTextStyle: 'light',
     navigationBarBackgroundColor: '#fff',

@@ -24,6 +24,21 @@ export interface Store {
   departmentCount?: number;
   createdAt: string;
   updatedAt: string;
+  // 微信配置（敏感字段不返回或掩码处理）
+  wechatAppId?: string;
+  wechatMchId?: string;
+  wechatNotifyUrl?: string;
+}
+
+/**
+ * 门店微信配置
+ */
+export interface StoreWechatConfig {
+  appId?: string;
+  appSecret?: string;
+  mchId?: string;
+  apiKey?: string;
+  notifyUrl?: string;
 }
 
 export interface StoreDepartment {

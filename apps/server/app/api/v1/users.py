@@ -4,7 +4,7 @@ from typing import List
 
 from app.db.session import get_db
 from app.api.deps import get_current_user
-from app.schemas.user import UserResponse, UserUpdate, PatientCreate, PatientUpdate, PatientResponse
+from app.schemas.user import UserResponse, UserUpdate, PatientCreate, PatientUpdate, PatientResponse, ChangePasswordRequest, BindPhoneRequest
 from app.services.user_service import UserService, PatientService
 
 router = APIRouter()
@@ -52,6 +52,42 @@ async def update_profile(
         status=user.status
     )
 
+@router.post("/change-password")
+async def change_password(
+    data: ChangePasswordRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """修改密码"""
+    user_service = UserService(db)
+    success, message = await user_service.change_password(
+        current_user["id"],
+        data.old_password,
+        data.new_password
+    )
+    
+    if not success:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
+    
+    return {"message": message}
+
+
+@router.post("/bind-phone")
+async def bind_phone(
+    data: BindPhoneRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """绑定/更换手机号"""
+    user_service = UserService(db)
+    success, message = await user_service.bind_phone(current_user["id"], data.phone)
+    
+    if not success:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
+    
+    return {"message": message}
+
+
 # ========== 就诊人管理 ==========
 @router.get("/patients", response_model=List[PatientResponse])
 async def get_patients(
@@ -62,6 +98,21 @@ async def get_patients(
     patient_service = PatientService(db)
     patients = await patient_service.get_by_user_id(current_user["id"])
     return [PatientResponse.model_validate(p) for p in patients]
+
+@router.get("/patients/{patient_id}", response_model=PatientResponse)
+async def get_patient_detail(
+    patient_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """获取就诊人详情"""
+    patient_service = PatientService(db)
+    patient = await patient_service.get_by_id_and_user(patient_id, current_user["id"])
+    
+    if not patient:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="就诊人不存在，请检查后重试")
+    
+    return PatientResponse.model_validate(patient)
 
 @router.post("/patients", response_model=PatientResponse)
 async def add_patient(

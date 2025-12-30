@@ -94,6 +94,42 @@ async def get_appointment_statistics(
     service = AppointmentService(db)
     return await service.get_statistics(doctor_id=doctor_id, start_date=start_date, end_date=end_date)
 
+@router.get("/by-no/{appointment_no}", response_model=AppointmentResponse)
+async def get_appointment_by_no(
+    appointment_no: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user_or_admin)
+):
+    """按预约号获取预约详情"""
+    service = AppointmentService(db)
+    appointment = await service.get_by_appointment_no(appointment_no)
+    
+    if not appointment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
+    
+    # 验证权限：普通用户只能查看自己的预约
+    if not current_user.get("is_admin") and appointment.user_id != current_user["id"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权查看此预约")
+    
+    return AppointmentResponse(
+        id=appointment.id,
+        appointment_no=appointment.appointment_no,
+        user_id=appointment.user_id,
+        patient_id=appointment.patient_id,
+        doctor_id=appointment.doctor_id,
+        schedule_id=appointment.schedule_id,
+        schedule_date=appointment.schedule.schedule_date if appointment.schedule else None,
+        time_slot=appointment.schedule.time_slot if appointment.schedule else None,
+        queue_number=appointment.queue_number,
+        status=appointment.status,
+        sign_in_time=appointment.sign_in_time,
+        call_time=appointment.call_time,
+        complete_time=appointment.complete_time,
+        cancel_time=appointment.cancel_time,
+        cancel_reason=appointment.cancel_reason,
+        created_at=appointment.created_at
+    )
+
 @router.get("/{appointment_id}", response_model=AppointmentResponse)
 async def get_appointment(
     appointment_id: str,

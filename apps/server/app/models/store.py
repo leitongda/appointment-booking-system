@@ -32,4 +32,11 @@ class Store(Base, AuditMixin):
     sort_order = Column(Integer, default=0, comment="排序")
     status = Column(Integer, default=1, comment="状态: 0-停业 1-营业")
     
+    # 微信小程序配置
+    wechat_app_id = Column(String(100), comment="微信小程序AppID")
+    wechat_app_secret = Column(String(100), comment="微信小程序Secret")
+    wechat_mch_id = Column(String(100), comment="微信支付商户号")
+    wechat_api_key = Column(String(100), comment="微信支付API密钥")
+    wechat_notify_url = Column(String(255), comment="微信支付回调地址")
+    
     # 关联关系 - 通过 backref 在 Department, Doctor, Admin 等模型中自动创建

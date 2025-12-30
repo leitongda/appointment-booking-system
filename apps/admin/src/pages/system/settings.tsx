@@ -16,6 +16,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAccess, useModel } from '@umijs/max';
 import { settingsApi, blacklistApi, storeApi } from '@hospital/api';
 import type { BookingSettings, HospitalInfo, BookingFieldConfig, PatientCardConfig, BlacklistItem, EmailConfig, ImageConfig, ThumbnailSize, WechatConfig } from '@hospital/api';
+import type { StoreWechatConfig, Store } from '@hospital/shared';
 
 const { Text } = Typography;
 
@@ -40,7 +41,11 @@ const SettingsPage: React.FC = () => {
   const [emailConfig, setEmailConfig] = useState<EmailConfig | null>(null);
   const [imageConfig, setImageConfig] = useState<ImageConfig | null>(null);
   const [wechatConfig, setWechatConfig] = useState<WechatConfig | null>(null);
+  const [selectedStoreId, setSelectedStoreId] = useState<string>('');
+  const [storeWechatConfig, setStoreWechatConfig] = useState<StoreWechatConfig | null>(null);
+  const [wechatLoading, setWechatLoading] = useState(false);
   const canEdit = access.hasPermission('system:settings');
+  const canEditWechat = isSuperAdmin || access.hasPermission('settings:wechat') || access.hasPermission('settings:edit');
 
   useEffect(() => {
     loadSettings();
@@ -170,6 +175,44 @@ const SettingsPage: React.FC = () => {
   const handleWechatConfigSubmit = async (values: any) => {
     try {
       await settingsApi.updateWechatConfig(values);
+      message.success('保存成功');
+    } catch (error: any) {
+      message.error(error.message || '保存失败');
+    }
+  };
+
+  // 加载门店微信配置
+  const loadStoreWechatConfig = async (storeId: string) => {
+    if (!storeId) {
+      setStoreWechatConfig(null);
+      return;
+    }
+    setWechatLoading(true);
+    try {
+      const config = await storeApi.getWechatConfig(storeId);
+      setStoreWechatConfig(config);
+    } catch (error: any) {
+      console.error('加载门店微信配置失败', error);
+      setStoreWechatConfig(null);
+    } finally {
+      setWechatLoading(false);
+    }
+  };
+
+  // 门店选择变化时加载配置
+  const handleStoreChange = (storeId: string) => {
+    setSelectedStoreId(storeId);
+    loadStoreWechatConfig(storeId);
+  };
+
+  // 保存门店微信配置
+  const handleStoreWechatConfigSubmit = async (values: any) => {
+    if (!selectedStoreId) {
+      message.warning('请先选择门店');
+      return;
+    }
+    try {
+      await storeApi.updateWechatConfig(selectedStoreId, values);
       message.success('保存成功');
     } catch (error: any) {
       message.error(error.message || '保存失败');
@@ -483,53 +526,91 @@ const SettingsPage: React.FC = () => {
       key: 'wechat',
       label: '微信配置',
       children: (
-        <ProForm
-          onFinish={handleWechatConfigSubmit}
-          initialValues={wechatConfig || {}}
-          submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
-        >
+        <div>
           <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-            配置微信小程序的 AppID 和 Secret，用于微信登录和消息推送。在{' '}
+            每个门店可以配置独立的微信小程序。请先选择门店，然后配置对应的 AppID 和 Secret。在{' '}
             <a href="https://mp.weixin.qq.com" target="_blank" rel="noopener noreferrer">
               微信公众平台
             </a>{' '}
             → 开发管理 → 开发设置 中获取。
           </Text>
-          <ProFormText
-            name="appId"
-            label="小程序 AppID"
-            placeholder="请输入小程序 AppID"
-            rules={[{ required: true, message: '请输入小程序 AppID' }]}
-            extra="在微信公众平台 → 开发管理 → 开发设置 中获取"
-          />
-          <ProFormText.Password
-            name="appSecret"
-            label="小程序 Secret"
-            placeholder="请输入小程序 Secret"
-            rules={[{ required: true, message: '请输入小程序 Secret' }]}
-            extra="Secret 是敏感信息，请妥善保管"
-            fieldProps={{ autoComplete: 'new-password' }}
-          />
-          <ProFormText
-            name="mchId"
-            label="商户号 (选填)"
-            placeholder="请输入微信支付商户号"
-            extra="如需使用微信支付功能，请填写商户号"
-          />
-          <ProFormText.Password
-            name="apiKey"
-            label="API 密钥 (选填)"
-            placeholder="请输入微信支付 API 密钥"
-            extra="如需使用微信支付功能，请填写 API 密钥"
-            fieldProps={{ autoComplete: 'new-password' }}
-          />
-          <ProFormText
-            name="notifyUrl"
-            label="支付回调地址 (选填)"
-            placeholder="如：https://your-domain.com/api/v1/wechat/pay/notify"
-            extra="微信支付结果通知的回调地址"
-          />
-        </ProForm>
+          
+          <div style={{ marginBottom: 24 }}>
+            <span style={{ marginRight: 8 }}>选择门店：</span>
+            <Select
+              style={{ width: 300 }}
+              placeholder="请选择门店"
+              value={selectedStoreId || undefined}
+              onChange={handleStoreChange}
+              options={stores.map((s) => ({ label: s.name, value: s.id }))}
+              allowClear
+            />
+          </div>
+
+          {selectedStoreId ? (
+            <Spin spinning={wechatLoading}>
+              <ProForm
+                key={selectedStoreId}
+                onFinish={handleStoreWechatConfigSubmit}
+                initialValues={storeWechatConfig || {}}
+                submitter={{ 
+                  searchConfig: { submitText: '保存设置' }, 
+                  resetButtonProps: { style: { display: 'none' } },
+                  submitButtonProps: { disabled: !canEditWechat }
+                }}
+              >
+                <ProFormText
+                  name="appId"
+                  label="小程序 AppID"
+                  placeholder="请输入小程序 AppID"
+                  rules={[{ required: true, message: '请输入小程序 AppID' }]}
+                  extra="在微信公众平台 → 开发管理 → 开发设置 中获取"
+                  disabled={!canEditWechat}
+                />
+                <ProFormText.Password
+                  name="appSecret"
+                  label="小程序 Secret"
+                  placeholder="请输入小程序 Secret"
+                  rules={[{ required: true, message: '请输入小程序 Secret' }]}
+                  extra="Secret 是敏感信息，请妥善保管（已保存的密钥显示为 ******）"
+                  fieldProps={{ autoComplete: 'new-password' }}
+                  disabled={!canEditWechat}
+                />
+                <ProFormText
+                  name="mchId"
+                  label="商户号 (选填)"
+                  placeholder="请输入微信支付商户号"
+                  extra="如需使用微信支付功能，请填写商户号"
+                  disabled={!canEditWechat}
+                />
+                <ProFormText.Password
+                  name="apiKey"
+                  label="API 密钥 (选填)"
+                  placeholder="请输入微信支付 API 密钥"
+                  extra="如需使用微信支付功能，请填写 API 密钥"
+                  fieldProps={{ autoComplete: 'new-password' }}
+                  disabled={!canEditWechat}
+                />
+                <ProFormText
+                  name="notifyUrl"
+                  label="支付回调地址 (选填)"
+                  placeholder="如：https://your-domain.com/api/v1/wechat/pay/notify"
+                  extra="微信支付结果通知的回调地址"
+                  disabled={!canEditWechat}
+                />
+                {!canEditWechat && (
+                  <Text type="warning" style={{ display: 'block', marginTop: 16 }}>
+                    您没有修改微信配置的权限，仅可查看
+                  </Text>
+                )}
+              </ProForm>
+            </Spin>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
+              请先选择门店以查看或编辑微信配置
+            </div>
+          )}
+        </div>
       ),
     },
     {

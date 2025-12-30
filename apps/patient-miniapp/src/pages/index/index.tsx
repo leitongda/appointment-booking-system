@@ -1,5 +1,9 @@
-import { View, Text, Swiper, SwiperItem } from '@tarojs/components';
+import { View, Text, Swiper, SwiperItem, Image } from '@tarojs/components';
 import Taro from '@tarojs/taro';
+import { useState, useEffect } from 'react';
+import { contentApi, departmentApi, doctorApi } from '@hospital/api';
+import type { Banner } from '@hospital/api';
+import type { Department, Doctor } from '@hospital/shared';
 import {
   HospitalIcon,
   CalendarIcon,
@@ -17,33 +21,87 @@ import './index.less';
 const menus = [
   { icon: HospitalIcon, title: '预约挂号', path: '/pages/department/index' },
   { icon: CalendarIcon, title: '我的预约', path: '/pages/appointment/index' },
-  { icon: RecordIcon, title: '就诊记录', path: '/pages/records/index' },
+  { icon: RecordIcon, title: '就诊记录', path: '/packageProfile/pages/records/index' },
   { icon: UserIcon, title: '个人中心', path: '/pages/profile/index' },
 ];
 
-// 热门科室
-const hotDepts = ['内科', '外科', '儿科', '妇科', '骨科', '眼科', '口腔', '更多'];
-
-// 推荐医生模拟数据
-const doctors = [
-  { id: '1', name: '张医生', title: '主任医师', dept: '心内科', spec: '擅长：心血管疾病、高血压、冠心病' },
-  { id: '2', name: '李医生', title: '副主任医师', dept: '神经内科', spec: '擅长：头痛、失眠、神经系统疾病' },
-  { id: '3', name: '王医生', title: '主治医师', dept: '消化内科', spec: '擅长：胃肠疾病、肝胆疾病' },
-];
-
-// Banner 数据
-const banners = [
-  { id: 1, title: '智慧医疗', subtitle: '便捷预约，高效就医' },
-  { id: 2, title: '专家团队', subtitle: '权威专家，精准诊疗' },
-  { id: 3, title: '优质服务', subtitle: '以患者为中心，提供贴心服务' },
+// 默认轮播图（API无数据时的备用）
+const defaultBanners = [
+  { id: '1', title: '智慧医疗', imageUrl: '', linkType: 0 },
+  { id: '2', title: '专家团队', imageUrl: '', linkType: 0 },
+  { id: '3', title: '优质服务', imageUrl: '', linkType: 0 },
 ];
 
 const IndexPage = () => {
+  const [banners, setBanners] = useState<Banner[]>([]);
+  const [hotDepts, setHotDepts] = useState<Department[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      console.log('[首页] 开始加载数据...');
+      
+      const [bannersData, deptsData, doctorsData] = await Promise.all([
+        contentApi.getActiveBanners('home').catch((err) => {
+          console.error('[首页] 加载轮播图失败:', err);
+          return [];
+        }),
+        departmentApi.getHot(8).catch((err) => {
+          console.error('[首页] 加载热门科室失败:', err);
+          return [];
+        }),
+        doctorApi.getRecommended(3).catch((err) => {
+          console.error('[首页] 加载推荐医生失败:', err);
+          return [];
+        }),
+      ]);
+      
+      console.log('[首页] 数据加载结果:', {
+        banners: bannersData.length,
+        depts: deptsData.length,
+        doctors: doctorsData.length,
+      });
+      
+      setBanners(bannersData.length > 0 ? bannersData : defaultBanners as any);
+      setHotDepts(deptsData);
+      setDoctors(doctorsData);
+    } catch (error) {
+      console.error('加载首页数据失败', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const navigateTo = (path: string) => {
-    if (path === '/pages/profile/index') {
+    if (path === '/pages/profile/index' || path === '/pages/appointment/index') {
       Taro.switchTab({ url: path });
     } else {
       Taro.navigateTo({ url: path });
+    }
+  };
+
+  const handleBannerClick = (banner: Banner) => {
+    if (banner.linkType === 1 && banner.linkUrl) {
+      // 内部链接
+      navigateTo(banner.linkUrl);
+    } else if (banner.linkType === 2 && banner.linkUrl) {
+      // 外部链接 - 小程序使用 webview
+      Taro.navigateTo({ url: `/packageOther/pages/webview/index?url=${encodeURIComponent(banner.linkUrl)}` });
+    }
+  };
+
+  const handleDeptClick = (dept?: Department) => {
+    if (dept) {
+      Taro.navigateTo({
+        url: `/pages/doctor/index?departmentId=${dept.id}&departmentName=${encodeURIComponent(dept.name)}`,
+      });
+    } else {
+      navigateTo('/pages/department/index');
     }
   };
 
@@ -52,12 +110,15 @@ const IndexPage = () => {
       {/* Banner 轮播 */}
       <Swiper className="banner" autoplay circular indicatorDots indicatorActiveColor="#fff">
         {banners.map((banner) => (
-          <SwiperItem key={banner.id}>
+          <SwiperItem key={banner.id} onClick={() => handleBannerClick(banner)}>
             <View className="banner-item">
-              <View className="banner-content">
-                <Text className="banner-title">{banner.title}</Text>
-                <Text className="banner-subtitle">{banner.subtitle}</Text>
-              </View>
+              {banner.imageUrl ? (
+                <Image className="banner-image" src={banner.imageUrl} mode="aspectFill" />
+              ) : (
+                <View className="banner-content">
+                  <Text className="banner-title">{banner.title || '欢迎使用'}</Text>
+                </View>
+              )}
             </View>
           </SwiperItem>
         ))}
@@ -89,7 +150,7 @@ const IndexPage = () => {
           <Text className="quick-title">快速挂号</Text>
           <Text className="quick-desc">一键预约，省时省力</Text>
         </View>
-        <View className="quick-card" onClick={() => navigateTo('/pages/search/index')}>
+        <View className="quick-card" onClick={() => navigateTo('/packageOther/pages/search/index')}>
           <View className="quick-icon">
             <SearchIcon size={24} color="#10B981" />
           </View>
@@ -107,21 +168,48 @@ const IndexPage = () => {
           </Text>
         </View>
         <View className="dept-grid">
-          {hotDepts.map((name) => {
-            const IconComponent = name === '更多' ? MoreIcon : getDeptIcon(name);
-            return (
-              <View
-                key={name}
-                className="dept-item"
-                onClick={() => navigateTo('/pages/department/index')}
-              >
+          {hotDepts.length > 0 ? (
+            <>
+              {hotDepts.slice(0, 7).map((dept) => {
+                const IconComponent = getDeptIcon(dept.name);
+                return (
+                  <View
+                    key={dept.id}
+                    className="dept-item"
+                    onClick={() => handleDeptClick(dept)}
+                  >
+                    <View className="dept-icon-wrap">
+                      <IconComponent size={24} color="#4F46E5" />
+                    </View>
+                    <Text className="dept-name">{dept.name}</Text>
+                  </View>
+                );
+              })}
+              <View className="dept-item" onClick={() => navigateTo('/pages/department/index')}>
                 <View className="dept-icon-wrap">
-                  <IconComponent size={24} color="#4F46E5" />
+                  <MoreIcon size={24} color="#4F46E5" />
                 </View>
-                <Text className="dept-name">{name}</Text>
+                <Text className="dept-name">更多</Text>
               </View>
-            );
-          })}
+            </>
+          ) : (
+            // 默认显示固定科室名称
+            ['内科', '外科', '儿科', '妇科', '骨科', '眼科', '口腔', '更多'].map((name) => {
+              const IconComponent = name === '更多' ? MoreIcon : getDeptIcon(name);
+              return (
+                <View
+                  key={name}
+                  className="dept-item"
+                  onClick={() => navigateTo('/pages/department/index')}
+                >
+                  <View className="dept-icon-wrap">
+                    <IconComponent size={24} color="#4F46E5" />
+                  </View>
+                  <Text className="dept-name">{name}</Text>
+                </View>
+              );
+            })
+          )}
         </View>
       </View>
 
@@ -134,25 +222,35 @@ const IndexPage = () => {
           </Text>
         </View>
         <View className="doctor-list">
-          {doctors.map((doctor) => (
-            <View
-              key={doctor.id}
-              className="doctor-card"
-              onClick={() => navigateTo(`/pages/doctor/detail?id=${doctor.id}`)}
-            >
-              <View className="doctor-avatar">
-                <DoctorIcon size={32} color="#4F46E5" />
-              </View>
-              <View className="doctor-info">
-                <View className="doctor-header">
-                  <Text className="doctor-name">{doctor.name}</Text>
-                  <Text className="doctor-title">{doctor.title}</Text>
+          {doctors.length > 0 ? (
+            doctors.map((doctor) => (
+              <View
+                key={doctor.id}
+                className="doctor-card"
+                onClick={() => navigateTo(`/packageBooking/pages/doctor/detail?id=${doctor.id}`)}
+              >
+                <View className="doctor-avatar">
+                  {doctor.avatar ? (
+                    <Image className="avatar-image" src={doctor.avatar} mode="aspectFill" />
+                  ) : (
+                    <DoctorIcon size={32} color="#4F46E5" />
+                  )}
                 </View>
-                <Text className="doctor-dept">{doctor.dept}</Text>
-                <Text className="doctor-spec">{doctor.spec}</Text>
+                <View className="doctor-info">
+                  <View className="doctor-header">
+                    <Text className="doctor-name">{doctor.name}</Text>
+                    {doctor.title && <Text className="doctor-title">{doctor.title}</Text>}
+                  </View>
+                  <Text className="doctor-dept">{doctor.departmentName}</Text>
+                  <Text className="doctor-spec">擅长：{doctor.specialty || '暂无'}</Text>
+                </View>
               </View>
+            ))
+          ) : !loading ? (
+            <View className="empty-doctors">
+              <Text>暂无推荐医生</Text>
             </View>
-          ))}
+          ) : null}
         </View>
       </View>
     </View>

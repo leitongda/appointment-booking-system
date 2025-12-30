@@ -3,6 +3,7 @@ import Taro from '@tarojs/taro';
 import { Empty, Loading } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 import { medicalRecordApi } from '@hospital/api';
+import { getToken } from '../../../utils/auth';
 import type { MedicalRecordListItem } from '@hospital/api';
 import './index.less';
 
@@ -11,6 +12,13 @@ const RecordsPage = () => {
   const [records, setRecords] = useState<MedicalRecordListItem[]>([]);
 
   useEffect(() => {
+    // 检查登录状态
+    const token = getToken();
+    if (!token) {
+      Taro.showToast({ title: '请先登录', icon: 'none' });
+      Taro.navigateTo({ url: '/pages/login/index' });
+      return;
+    }
     loadRecords();
   }, []);
 
@@ -27,7 +35,7 @@ const RecordsPage = () => {
   };
 
   const handleViewDetail = (id: string) => {
-    Taro.navigateTo({ url: `/pages/records/detail?id=${id}` });
+    Taro.navigateTo({ url: `/packageProfile/pages/records/detail?id=${id}` });
   };
 
   const formatDate = (date?: string) => {

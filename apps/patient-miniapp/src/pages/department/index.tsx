@@ -35,7 +35,7 @@ const DepartmentPage = () => {
   };
 
   const handleSearch = () => {
-    Taro.navigateTo({ url: '/pages/search/index' });
+    Taro.navigateTo({ url: '/packageOther/pages/search/index' });
   };
 
   if (loading) {

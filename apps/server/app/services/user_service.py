@@ -60,6 +60,38 @@ class UserService:
             return None
         return user
 
+    async def change_password(self, user_id: str, old_password: str, new_password: str) -> tuple[bool, str]:
+        """修改密码"""
+        user = await self.get_by_id(user_id)
+        if not user:
+            return False, "用户不存在"
+        
+        # 验证旧密码（如果有密码）
+        if user.password_hash and not verify_password(old_password, user.password_hash):
+            return False, "原密码错误"
+        
+        # 设置新密码
+        user.password_hash = get_password_hash(new_password)
+        set_update_audit(user, user_id)
+        await self.db.commit()
+        return True, "密码修改成功"
+
+    async def bind_phone(self, user_id: str, phone: str) -> tuple[bool, str]:
+        """绑定/更换手机号"""
+        user = await self.get_by_id(user_id)
+        if not user:
+            return False, "用户不存在"
+        
+        # 检查手机号是否已被使用
+        existing = await self.get_by_phone(phone)
+        if existing and existing.id != user_id:
+            return False, "该手机号已被其他用户绑定"
+        
+        user.phone = phone
+        set_update_audit(user, user_id)
+        await self.db.commit()
+        return True, "手机号绑定成功"
+
 
 class PatientService:
     def __init__(self, db: AsyncSession):
@@ -67,6 +99,13 @@ class PatientService:
     
     async def get_by_id(self, patient_id: str) -> Optional[Patient]:
         result = await self.db.execute(select(Patient).where(Patient.id == patient_id))
+        return result.scalar_one_or_none()
+    
+    async def get_by_id_and_user(self, patient_id: str, user_id: str) -> Optional[Patient]:
+        """获取指定用户的就诊人详情"""
+        result = await self.db.execute(
+            select(Patient).where(Patient.id == patient_id, Patient.user_id == user_id)
+        )
         return result.scalar_one_or_none()
     
     async def get_by_user_id(self, user_id: str) -> list[Patient]:

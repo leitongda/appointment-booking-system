@@ -138,3 +138,33 @@ class StoreQuery(BaseModel):
     city: Optional[str] = Field(None, description="城市筛选")
     page: int = Field(1, ge=1, description="页码")
     page_size: int = Field(10, ge=1, le=100, description="每页数量")
+
+
+class StoreWechatConfigUpdate(BaseModel):
+    """更新门店微信配置"""
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel,
+    )
+    
+    app_id: Optional[str] = Field(None, max_length=100, description="小程序AppID")
+    app_secret: Optional[str] = Field(None, max_length=100, description="小程序Secret")
+    mch_id: Optional[str] = Field(None, max_length=100, description="商户号")
+    api_key: Optional[str] = Field(None, max_length=100, description="API密钥")
+    notify_url: Optional[str] = Field(None, max_length=255, description="支付回调地址")
+
+
+class StoreWechatConfigResponse(BaseModel):
+    """门店微信配置响应"""
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
+    
+    app_id: Optional[str] = Field(None, description="小程序AppID")
+    app_secret: Optional[str] = Field(None, description="小程序Secret（掩码）")
+    mch_id: Optional[str] = Field(None, description="商户号")
+    api_key: Optional[str] = Field(None, description="API密钥（掩码）")
+    notify_url: Optional[str] = Field(None, description="支付回调地址")
