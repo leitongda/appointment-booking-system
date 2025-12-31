@@ -42,7 +42,14 @@ export default defineConfig(async (merge) => {
       'process.env.TARO_APP_STORE_NAME': JSON.stringify(process.env.TARO_APP_STORE_NAME || ''),
     },
     copy: {
-      patterns: [],
+      patterns: [
+        // 复制 tabbar 图标资源到 dist 目录
+        // 自定义 TabBar 组件使用绝对路径引用这些图片
+        {
+          from: 'src/assets/tabbar/',
+          to: 'dist/assets/tabbar/',
+        },
+      ],
       options: {},
     },
     framework: 'react',
