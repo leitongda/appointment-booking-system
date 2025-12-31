@@ -49,6 +49,35 @@ export interface QueueInfo {
   }[];
 }
 
+// 待签到预约（用于扫码签到）
+export interface PendingAppointment {
+  id: string;
+  appointmentNo: string;
+  patientName: string | null;
+  doctorName: string | null;
+  departmentName: string | null;
+  scheduleDate: string | null;
+  timeSlot: number | null;
+  status: number;
+}
+
+// 签到队列项
+export interface CheckinQueueItem {
+  id: string;
+  appointmentNo: string;
+  queueNumber: number | null;
+  patientId: string;
+  patientName: string | null;
+  doctorId: string;
+  doctorName: string | null;
+  departmentName: string | null;
+  scheduleDate: string | null;
+  timeSlot: number | null;
+  status: number;
+  signInTime: string | null;
+  callTime: string | null;
+}
+
 export const appointmentApi = {
   getList: (params?: AppointmentListParams): Promise<PageResult<Appointment>> => {
     // 转换 camelCase 到 snake_case
@@ -130,5 +159,30 @@ export const appointmentApi = {
    */
   getQueueInfo: (): Promise<QueueInfo> => {
     return request.get('/appointments/queue/info');
+  },
+
+  /**
+   * 获取用户在指定门店的今日待签到预约
+   * 用于患者扫码签到时选择要签到的预约
+   */
+  getTodayPending: (storeId: string): Promise<PendingAppointment[]> => {
+    return request.get('/appointments/today-pending', { params: { store_id: storeId } });
+  },
+
+  /**
+   * 获取签到队列
+   * 用于管理后台和医生端查看当日已签到的患者队列
+   */
+  getCheckinQueue: (params?: {
+    storeId?: string;
+    doctorId?: string;
+    targetDate?: string;
+  }): Promise<CheckinQueueItem[]> => {
+    const queryParams = params ? {
+      store_id: params.storeId,
+      doctor_id: params.doctorId,
+      target_date: params.targetDate,
+    } : undefined;
+    return request.get('/appointments/queue', { params: queryParams });
   },
 };

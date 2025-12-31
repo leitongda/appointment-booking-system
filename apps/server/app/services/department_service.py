@@ -219,4 +219,30 @@ class DepartmentService:
         
         await self.db.commit()
         return len(doctor_ids)
+    
+    async def batch_update_sort_order(self, items: List[dict]) -> int:
+        """批量更新科室排序
+        
+        Args:
+            items: 排序项列表，格式为 [{id: str, sort_order: int}, ...]
+            
+        Returns:
+            更新的记录数量
+        """
+        count = 0
+        for item in items:
+            dept_id = item.get('id')
+            sort_order = item.get('sort_order')
+            
+            if dept_id and sort_order is not None:
+                result = await self.db.execute(
+                    select(Department).where(Department.id == dept_id)
+                )
+                department = result.scalar_one_or_none()
+                if department:
+                    department.sort_order = sort_order
+                    count += 1
+        
+        await self.db.commit()
+        return count
 

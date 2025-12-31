@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
+from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.api.deps import get_current_admin, get_store_filter, check_store_access
@@ -10,6 +11,15 @@ from app.schemas.response import PageResponse
 from app.services.department_service import DepartmentService
 
 router = APIRouter()
+
+
+class SortOrderItem(BaseModel):
+    id: str
+    sort_order: int
+
+
+class BatchSortRequest(BaseModel):
+    items: List[SortOrderItem]
 
 def _to_response(department) -> DepartmentResponse:
     """将 Department 模型转换为响应对象，包含门店名称"""
@@ -71,6 +81,19 @@ async def get_hot_departments(
     service = DepartmentService(db)
     departments = await service.get_hot(limit=limit, store_id=store_id)
     return [_to_response(d) for d in departments]
+
+
+@router.put("/batch-sort")
+async def batch_update_sort_order(
+    data: BatchSortRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """批量更新科室排序"""
+    service = DepartmentService(db)
+    items = [{"id": item.id, "sort_order": item.sort_order} for item in data.items]
+    count = await service.batch_update_sort_order(items)
+    return {"message": "排序更新成功", "count": count}
 
 @router.get("/{dept_id}", response_model=DepartmentResponse)
 async def get_department(

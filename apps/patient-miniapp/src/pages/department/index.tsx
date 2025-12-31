@@ -6,10 +6,32 @@ import type { DepartmentTreeNode } from '@hospital/shared';
 import { SearchIcon, getDeptIcon } from '../../components/Icons';
 import './index.less';
 
+// 获取所有叶子科室（无子科室的科室）
+const getLeafDepartments = (departments: DepartmentTreeNode[]): DepartmentTreeNode[] => {
+  const leaves: DepartmentTreeNode[] = [];
+  const traverse = (nodes: DepartmentTreeNode[]) => {
+    nodes.forEach((node) => {
+      if (!node.children || node.children.length === 0) {
+        leaves.push(node);
+      } else {
+        traverse(node.children);
+      }
+    });
+  };
+  traverse(departments);
+  return leaves;
+};
+
+// 判断是否为单层结构（所有科室都没有子科室）
+const isFlatStructure = (departments: DepartmentTreeNode[]): boolean => {
+  return departments.every((dept) => !dept.children || dept.children.length === 0);
+};
+
 const DepartmentPage = () => {
   const [loading, setLoading] = useState(true);
   const [departments, setDepartments] = useState<DepartmentTreeNode[]>([]);
   const [activeIndex, setActiveIndex] = useState<number>(0);
+  const [isFlat, setIsFlat] = useState(false);
 
   useEffect(() => {
     loadDepartments();
@@ -18,6 +40,22 @@ const DepartmentPage = () => {
   const loadDepartments = async () => {
     try {
       const data = await departmentApi.getTree();
+      
+      // 获取所有叶子科室
+      const leaves = getLeafDepartments(data);
+      
+      // 如果只有一个叶子科室，直接跳转到医生列表
+      if (leaves.length === 1) {
+        const leaf = leaves[0];
+        Taro.redirectTo({
+          url: `/pages/doctor/index?departmentId=${leaf.id}&departmentName=${encodeURIComponent(leaf.name)}`,
+        });
+        return;
+      }
+      
+      // 判断是否为单层结构
+      const flat = isFlatStructure(data);
+      setIsFlat(flat);
       setDepartments(data);
     } catch (error) {
       console.error('加载科室失败', error);
@@ -56,6 +94,44 @@ const DepartmentPage = () => {
     );
   }
 
+  // 单层结构：平铺网格展示
+  if (isFlat) {
+    return (
+      <View className="department-page">
+        {/* 搜索栏 */}
+        <View className="search-bar">
+          <View className="search-input" onClick={handleSearch}>
+            <View className="search-icon">
+              <SearchIcon size={16} color="#9CA3AF" />
+            </View>
+            <Text className="placeholder">搜索科室/医生</Text>
+          </View>
+        </View>
+
+        <View className="flat-content">
+          <View className="flat-grid">
+            {departments.map((dept) => {
+              const IconComponent = getDeptIcon(dept.name);
+              return (
+                <View
+                  key={dept.id}
+                  className="flat-item"
+                  onClick={() => handleSelectDept(dept.id, dept.name)}
+                >
+                  <View className="flat-icon">
+                    <IconComponent size={28} color="#4F46E5" />
+                  </View>
+                  <Text className="flat-name">{dept.name}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  // 多层结构：左右分栏展示
   return (
     <View className="department-page">
       {/* 搜索栏 */}

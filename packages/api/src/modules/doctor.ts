@@ -152,4 +152,13 @@ export const doctorApi = {
   delete: (id: string): Promise<void> => {
     return request.delete(`/doctors/${id}`);
   },
+
+  /**
+   * 批量更新医生排序
+   */
+  batchUpdateSort: (items: { id: string; sortOrder: number }[]): Promise<{ message: string; count: number }> => {
+    return request.put('/doctors/batch-sort', {
+      items: items.map(item => ({ id: item.id, sort_order: item.sortOrder })),
+    });
+  },
 };

@@ -263,19 +263,16 @@
 }
 
 // -------------------------------------------
-// 快捷入口卡片
+// 就诊卡快捷入口
 // -------------------------------------------
 
-.quick-entry {
+.patient-card-entry {
   margin: 0 @page-padding @spacing-3;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: @spacing-3;
-}
-
-.quick-card {
   padding: @spacing-4;
   .card-base();
+  display: flex;
+  align-items: center;
+  gap: @spacing-3;
   position: relative;
   overflow: hidden;
   
@@ -284,34 +281,60 @@
     box-shadow: @shadow-sm;
   }
   
-  // 装饰
-  &::after {
+  // 装饰性背景
+  &::before {
     content: '';
     position: absolute;
-    right: -20rpx;
-    bottom: -20rpx;
-    width: 100rpx;
-    height: 100rpx;
-    background: rgba(79, 70, 229, 0.06);
+    right: -40rpx;
+    top: -40rpx;
+    width: 160rpx;
+    height: 160rpx;
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(16, 185, 129, 0.06) 100%);
     border-radius: 50%;
   }
 }
 
-.quick-icon {
-  font-size: 48rpx;
-  margin-bottom: @spacing-2;
+.card-icon {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: @radius-xl;
+  background: linear-gradient(135deg, #E0E7FF 0%, #EDE9FE 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  
+  &.add-icon {
+    background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%);
+  }
 }
 
-.quick-title {
-  font-size: @font-size-base;
+.card-info {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.card-name {
+  font-size: @font-size-lg;
   font-weight: @font-weight-semibold;
   color: @color-text-primary;
+  display: block;
   margin-bottom: 4rpx;
 }
 
-.quick-desc {
-  font-size: @font-size-xs;
+.card-relation {
+  font-size: @font-size-sm;
   color: @color-text-muted;
+  display: block;
+}
+
+.card-arrow {
+  font-size: @font-size-2xl;
+  color: @color-text-muted;
+  position: relative;
+  z-index: 1;
 }
 
 // -------------------------------------------

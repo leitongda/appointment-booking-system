@@ -25,7 +25,7 @@ const getToken = (): string | null => {
 // 开发环境使用本地服务器
 const DEFAULT_API_HOST = process.env.NODE_ENV === 'production' 
   ? 'https://api.example.com' 
-  : 'http://192.168.31.69:8000';
+  : 'http://127.0.0.1:8000';
 console.log("🚀 ~ DEFAULT_API_HOST:", DEFAULT_API_HOST)
 const DEFAULT_API_PATH = '/api/v1';
 console.log("🚀 ~ DEFAULT_API_PATH:", DEFAULT_API_PATH)

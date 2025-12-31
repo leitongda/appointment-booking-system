@@ -75,6 +75,9 @@ const svgs = {
   close: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="{color}"/></svg>`,
   closeCircle: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.47 2 2 6.47 2 12C2 17.53 6.47 22 12 22C17.53 22 22 17.53 22 12C22 6.47 17.53 2 12 2ZM17 15.59L15.59 17L12 13.41L8.41 17L7 15.59L10.59 12L7 8.41L8.41 7L12 10.59L15.59 7L17 8.41L13.41 12L17 15.59Z" fill="{color}"/></svg>`,
   clock: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.99 2C6.47 2 2 6.48 2 12C2 17.52 6.47 22 11.99 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 11.99 2ZM12 20C7.58 20 4 16.42 4 12C4 7.58 7.58 4 12 4C16.42 4 20 7.58 20 12C20 16.42 16.42 20 12 20ZM12.5 7H11V13L16.25 16.15L17 14.92L12.5 12.25V7Z" fill="{color}"/></svg>`,
+  scan: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 6H6V4H4C2.9 4 2 4.9 2 6V8H4V6Z" fill="{color}"/><path d="M4 18H6V20H4C2.9 20 2 19.1 2 18V16H4V18Z" fill="{color}"/><path d="M20 4H18V6H20V8H22V6C22 4.9 21.1 4 20 4Z" fill="{color}"/><path d="M20 18H18V20H20C21.1 20 22 19.1 22 18V16H20V18Z" fill="{color}"/><path d="M3 11H21V13H3V11Z" fill="{color}"/><path d="M7 7H10V10H7V7Z" fill="{color}"/><path d="M14 7H17V10H14V7Z" fill="{color}"/><path d="M7 14H10V17H7V14Z" fill="{color}"/><path d="M14 14H17V17H14V14Z" fill="{color}"/></svg>`,
+  card: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4ZM20 18H4V6H20V18Z" fill="{color}"/><path d="M4 8H20V10H4V8Z" fill="{color}"/><path d="M7 12H12V14H7V12Z" fill="{color}"/><path d="M7 15H10V16H7V15Z" fill="{color}"/></svg>`,
+  addUser: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 12C17.21 12 19 10.21 19 8C19 5.79 17.21 4 15 4C12.79 4 11 5.79 11 8C11 10.21 12.79 12 15 12ZM6 10V7H4V10H1V12H4V15H6V12H9V10H6ZM15 14C12.33 14 7 15.34 7 18V20H23V18C23 15.34 17.67 14 15 14Z" fill="{color}"/></svg>`,
 };
 
 // 医院图标
@@ -225,6 +228,21 @@ export const CloseCircleIcon = (props: IconProps) => (
 // 等待/时钟图标
 export const ClockIcon = (props: IconProps) => (
   <SvgIcon {...props} svg={svgs.clock} />
+);
+
+// 扫码图标
+export const ScanIcon = (props: IconProps) => (
+  <SvgIcon {...props} svg={svgs.scan} />
+);
+
+// 就诊卡图标
+export const CardIcon = (props: IconProps) => (
+  <SvgIcon {...props} svg={svgs.card} />
+);
+
+// 添加用户图标
+export const AddUserIcon = (props: IconProps) => (
+  <SvgIcon {...props} svg={svgs.addUser} />
 );
 
 // 图标映射表 - 用于科室

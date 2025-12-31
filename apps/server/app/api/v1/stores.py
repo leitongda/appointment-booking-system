@@ -496,3 +496,45 @@ async def update_store_wechat_config(
         await service.update_wechat_config(store_id, update_data)
     
     return {"message": "微信配置更新成功"}
+
+
+# ==================== 签到二维码 ====================
+
+@router.get("/{store_id}/checkin-qrcode")
+async def get_store_checkin_qrcode(
+    store_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """获取门店签到二维码
+    
+    返回二维码内容（用于前端生成二维码图片）
+    二维码内容格式: store-checkin:{store_id}
+    """
+    service = StoreService(db)
+    store = await service.get_by_id(store_id)
+    
+    if not store:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="门店不存在，请检查后重试"
+        )
+    
+    # 权限检查：超级管理员或门店关联管理员可以获取
+    store_ids = current_admin.get("store_ids")
+    if store_ids and not current_admin.get("is_super_admin"):
+        if store_id not in store_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权限操作此门店"
+            )
+    
+    # 生成签到二维码内容
+    qrcode_content = f"store-checkin:{store_id}"
+    
+    return {
+        "storeId": store_id,
+        "storeName": store.name,
+        "qrcodeContent": qrcode_content,
+        "description": "请使用微信扫描此二维码进行签到"
+    }

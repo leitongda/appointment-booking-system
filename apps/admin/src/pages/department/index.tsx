@@ -1,13 +1,82 @@
-import { PlusOutlined, UserOutlined } from '@ant-design/icons';
+import { PlusOutlined, UserOutlined, HolderOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Tag, Modal, Spin, Empty, Checkbox, Avatar, List } from 'antd';
+import { Button, App, Popconfirm, Space, Tag, Modal, Spin, Empty, Checkbox, Avatar, List, Switch } from 'antd';
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
 import { departmentApi, storeApi, dataApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Department, Store, DoctorListItem } from '@hospital/shared';
 import ImportExport from '@/components/ImportExport';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
+import { CSS } from '@dnd-kit/utilities';
+import React from 'react';
+
+// 拖拽行组件
+interface SortableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {
+  'data-row-key'?: string;
+}
+
+const RowContext = React.createContext<{
+  setActivatorNodeRef?: (element: HTMLElement | null) => void;
+  listeners?: Record<string, any>;
+}>({});
+
+const SortableRow: React.FC<SortableRowProps> = ({ children, style, ...props }) => {
+  const id = props['data-row-key'] || '';
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const rowStyle: React.CSSProperties = {
+    ...style,
+    transform: CSS.Transform.toString(transform && { ...transform, scaleY: 1 }),
+    transition,
+    ...(isDragging ? { position: 'relative', zIndex: 9999, background: '#fafafa' } : {}),
+  };
+
+  return (
+    <RowContext.Provider value={{ setActivatorNodeRef, listeners }}>
+      <tr {...props} ref={setNodeRef} style={rowStyle} {...attributes}>
+        {children}
+      </tr>
+    </RowContext.Provider>
+  );
+};
+
+// 拖拽手柄组件
+const DragHandle: React.FC = () => {
+  const { setActivatorNodeRef, listeners } = React.useContext(RowContext);
+  return (
+    <HolderOutlined
+      ref={setActivatorNodeRef}
+      style={{ cursor: 'grab', color: '#999', fontSize: 16, touchAction: 'none' }}
+      {...listeners}
+    />
+  );
+};
 
 const DepartmentPage: React.FC = () => {
   const { message } = App.useApp();
@@ -15,6 +84,8 @@ const DepartmentPage: React.FC = () => {
   const { initialState } = useModel('@@initialState');
   const actionRef = useRef<ActionType>();
   const [stores, setStores] = useState<Store[]>([]);
+  const [dataSource, setDataSource] = useState<Department[]>([]);
+  const [sorting, setSorting] = useState(false);
 
   // 医生绑定弹窗状态
   const [bindModalVisible, setBindModalVisible] = useState(false);
@@ -23,6 +94,12 @@ const DepartmentPage: React.FC = () => {
   const [checkedDoctorIds, setCheckedDoctorIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // 拖拽传感器配置
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   // 用户门店相关信息
   const userStores = initialState?.userStores || [];
@@ -74,6 +151,62 @@ const DepartmentPage: React.FC = () => {
       message.error(error.message || '删除失败');
     }
   };
+
+  // 切换推荐状态
+  const handleRecommendChange = useCallback(async (id: string, checked: boolean) => {
+    try {
+      await departmentApi.update(id, { isRecommended: checked ? 1 : 0 });
+      message.success(checked ? '已设为推荐' : '已取消推荐');
+      setDataSource((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, isRecommended: checked ? 1 : 0 } : item))
+      );
+    } catch (error: any) {
+      message.error(error.message || '操作失败');
+    }
+  }, [message]);
+
+  // 切换热门状态
+  const handleHotChange = useCallback(async (id: string, checked: boolean) => {
+    try {
+      await departmentApi.update(id, { isHot: checked ? 1 : 0 });
+      message.success(checked ? '已设为热门' : '已取消热门');
+      setDataSource((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, isHot: checked ? 1 : 0 } : item))
+      );
+    } catch (error: any) {
+      message.error(error.message || '操作失败');
+    }
+  }, [message]);
+
+  // 拖拽排序处理
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = dataSource.findIndex((item) => item.id === active.id);
+    const newIndex = dataSource.findIndex((item) => item.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const newData = arrayMove(dataSource, oldIndex, newIndex);
+    setDataSource(newData);
+
+    // 计算新的排序值（倒序，最大值在前）
+    const sortItems = newData.map((item, index) => ({
+      id: item.id,
+      sortOrder: newData.length - index,
+    }));
+
+    setSorting(true);
+    try {
+      await departmentApi.batchUpdateSort(sortItems);
+      message.success('排序已保存');
+    } catch (error: any) {
+      message.error(error.message || '排序保存失败');
+      actionRef.current?.reload();
+    } finally {
+      setSorting(false);
+    }
+  }, [dataSource, message]);
 
   // 打开绑定医生弹窗
   const handleOpenBindModal = useCallback(async (department: Department) => {
@@ -137,6 +270,13 @@ const DepartmentPage: React.FC = () => {
 
   const columns: ProColumns<Department>[] = [
     {
+      title: '',
+      dataIndex: 'drag',
+      width: 40,
+      search: false,
+      render: () => <DragHandle />,
+    },
+    {
       title: '科室名称',
       dataIndex: 'name',
       ellipsis: true,
@@ -191,19 +331,29 @@ const DepartmentPage: React.FC = () => {
     {
       title: '推荐',
       dataIndex: 'isRecommended',
-      width: 70,
+      width: 80,
       search: false,
       render: (_, record) => (
-        record.isRecommended === 1 ? <Tag color="orange">推荐</Tag> : '-'
+        <Switch
+          checked={record.isRecommended === 1}
+          onChange={(checked) => handleRecommendChange(record.id, checked)}
+          disabled={!access.hasPermission('department:update')}
+          size="small"
+        />
       ),
     },
     {
       title: '热门',
       dataIndex: 'isHot',
-      width: 70,
+      width: 80,
       search: false,
       render: (_, record) => (
-        record.isHot === 1 ? <Tag color="red">热门</Tag> : '-'
+        <Switch
+          checked={record.isHot === 1}
+          onChange={(checked) => handleHotChange(record.id, checked)}
+          disabled={!access.hasPermission('department:update')}
+          size="small"
+        />
       ),
     },
     {
@@ -253,42 +403,63 @@ const DepartmentPage: React.FC = () => {
 
   return (
     <PageContainer>
-      <ProTable<Department>
-        headerTitle="科室列表"
-        actionRef={actionRef}
-        rowKey="id"
-        columns={columns}
-        scroll={{ x: 1200 }}
-        request={async (params) => {
-          const { current, pageSize, ...rest } = params;
-          return toProTableResult(await departmentApi.getList({
-            ...rest,
-            page: current,
-            pageSize,
-          }));
-        }}
-        toolBarRender={() => [
-          <ImportExport
-            key="import-export"
-            moduleName="科室"
-            exportUrl={dataApi.getExportDepartmentsUrl()}
-            importUrl={dataApi.getImportDepartmentsUrl()}
-            templateUrl={dataApi.getDepartmentTemplateUrl()}
-            onImportSuccess={() => actionRef.current?.reload()}
-          />,
-          access.hasPermission('department:create') && (
-            <Button
-              key="add"
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => history.push('/department/create')}
-            >
-              新增科室
-            </Button>
-          ),
-        ]}
-        pagination={{ defaultPageSize: 10 }}
-      />
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        modifiers={[restrictToVerticalAxis]}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={dataSource.map((item) => item.id)} strategy={verticalListSortingStrategy}>
+          <ProTable<Department>
+            headerTitle="科室列表"
+            actionRef={actionRef}
+            rowKey="id"
+            columns={columns}
+            dataSource={dataSource}
+            scroll={{ x: 1300 }}
+            loading={sorting}
+            components={{
+              body: {
+                row: SortableRow,
+              },
+            }}
+            onRow={(record) => ({
+              'data-row-key': record.id,
+            } as any)}
+            request={async (params) => {
+              const { current, pageSize, ...rest } = params;
+              const result = await departmentApi.getList({
+                ...rest,
+                page: current,
+                pageSize,
+              });
+              setDataSource(result.data ?? []);
+              return toProTableResult(result);
+            }}
+            toolBarRender={() => [
+              <ImportExport
+                key="import-export"
+                moduleName="科室"
+                exportUrl={dataApi.getExportDepartmentsUrl()}
+                importUrl={dataApi.getImportDepartmentsUrl()}
+                templateUrl={dataApi.getDepartmentTemplateUrl()}
+                onImportSuccess={() => actionRef.current?.reload()}
+              />,
+              access.hasPermission('department:create') && (
+                <Button
+                  key="add"
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => history.push('/department/create')}
+                >
+                  新增科室
+                </Button>
+              ),
+            ]}
+            pagination={{ defaultPageSize: 10 }}
+          />
+        </SortableContext>
+      </DndContext>
 
       {/* 医生绑定弹窗 */}
       <Modal

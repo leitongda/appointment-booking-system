@@ -28,6 +28,8 @@ export default defineAppConfig({
         'pages/booking/index',       // 预约挂号
         'pages/booking/result',      // 预约结果
         'pages/appointment/detail',  // 预约详情
+        'pages/checkin/scan',        // 扫码签到
+        'pages/checkin/select',      // 选择预约签到
       ],
     },
     {

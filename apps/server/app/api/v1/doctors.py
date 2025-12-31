@@ -162,7 +162,7 @@ async def get_doctors(
 
 @router.get("/recommended", response_model=List[DoctorListResponse])
 async def get_recommended_doctors(
-    limit: int = Query(6, ge=1, le=20),
+    limit: int = Query(6, ge=1, le=100),
     store_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
@@ -211,6 +211,30 @@ async def get_doctor_public(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在")
     
     return doctor_to_response(doctor)
+
+
+# ========== batch-sort 路由必须放在 /{doctor_id} 之前，否则会被当作 doctor_id 处理 ==========
+
+class SortOrderItem(BaseModel):
+    id: str
+    sort_order: int
+
+
+class BatchSortRequest(BaseModel):
+    items: List[SortOrderItem]
+
+
+@router.put("/batch-sort")
+async def batch_update_sort_order(
+    data: BatchSortRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """批量更新医生排序"""
+    service = DoctorService(db)
+    items = [{"id": item.id, "sort_order": item.sort_order} for item in data.items]
+    count = await service.batch_update_sort_order(items)
+    return {"message": "排序更新成功", "count": count}
 
 
 @router.get("/{doctor_id}", response_model=DoctorResponse)

@@ -83,6 +83,90 @@ async def get_today_appointments(
     appointments = await service.get_today_by_doctor(doctor_id)
     return appointments
 
+
+@router.get("/today-pending")
+async def get_today_pending_appointments(
+    store_id: str = Query(..., description="门店ID"),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """获取用户在指定门店的今日待签到预约
+    
+    用于患者扫码签到时选择要签到的预约
+    """
+    service = AppointmentService(db)
+    appointments = await service.get_today_pending_by_user_and_store(
+        user_id=current_user["id"],
+        store_id=store_id
+    )
+    
+    result = []
+    for a in appointments:
+        result.append({
+            "id": a.id,
+            "appointmentNo": a.appointment_no,
+            "patientName": a.patient.name if a.patient else None,
+            "doctorName": a.doctor.name if a.doctor else None,
+            "departmentName": a.doctor.department.name if a.doctor and a.doctor.department else None,
+            "scheduleDate": a.schedule.schedule_date.isoformat() if a.schedule else None,
+            "timeSlot": a.schedule.time_slot if a.schedule else None,
+            "status": a.status,
+        })
+    
+    return result
+
+
+@router.get("/queue")
+async def get_checkin_queue(
+    store_id: Optional[str] = None,
+    doctor_id: Optional[str] = None,
+    target_date: Optional[date] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user_or_admin)
+):
+    """获取签到队列
+    
+    用于管理后台和医生端查看当日已签到的患者队列
+    按签到时间排序
+    """
+    service = AppointmentService(db)
+    
+    # 如果是医生端，只能查看自己的队列
+    if not current_user.get("is_admin"):
+        doctor_id = current_user.get("doctor_id")
+        if not doctor_id:
+            return []
+    
+    # 默认查询今日
+    if not target_date:
+        target_date = date.today()
+    
+    appointments = await service.get_checkin_queue(
+        store_id=store_id,
+        doctor_id=doctor_id,
+        target_date=target_date
+    )
+    
+    result = []
+    for a in appointments:
+        result.append({
+            "id": a.id,
+            "appointmentNo": a.appointment_no,
+            "queueNumber": a.queue_number,
+            "patientId": a.patient_id,
+            "patientName": a.patient.name if a.patient else None,
+            "doctorId": a.doctor_id,
+            "doctorName": a.doctor.name if a.doctor else None,
+            "departmentName": a.doctor.department.name if a.doctor and a.doctor.department else None,
+            "scheduleDate": a.schedule.schedule_date.isoformat() if a.schedule else None,
+            "timeSlot": a.schedule.time_slot if a.schedule else None,
+            "status": a.status,
+            "signInTime": a.sign_in_time.isoformat() if a.sign_in_time else None,
+            "callTime": a.call_time.isoformat() if a.call_time else None,
+        })
+    
+    return result
+
 @router.get("/statistics", response_model=AppointmentStatistics)
 async def get_appointment_statistics(
     doctor_id: Optional[str] = None,

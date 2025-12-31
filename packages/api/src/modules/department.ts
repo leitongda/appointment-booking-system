@@ -93,4 +93,13 @@ export const departmentApi = {
   batchBindDoctors: (deptId: string, doctorIds: string[]): Promise<{ message: string; count: number }> => {
     return request.put(`/departments/${deptId}/doctors/batch`, doctorIds);
   },
+
+  /**
+   * 批量更新科室排序
+   */
+  batchUpdateSort: (items: { id: string; sortOrder: number }[]): Promise<{ message: string; count: number }> => {
+    return request.put('/departments/batch-sort', {
+      items: items.map(item => ({ id: item.id, sort_order: item.sortOrder })),
+    });
+  },
 };

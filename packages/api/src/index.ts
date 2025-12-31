@@ -72,7 +72,7 @@ export type { PatientCreateData } from './modules/user';
 export type { DepartmentListParams, DepartmentCreateData } from './modules/department';
 export type { DoctorListParams, DoctorCreateData } from './modules/doctor';
 export type { ScheduleListParams, ScheduleCreateData, ScheduleBatchCreateData, AvailableSchedule } from './modules/schedule';
-export type { AppointmentListParams, AppointmentCreateData, AppointmentStatistics } from './modules/appointment';
+export type { AppointmentListParams, AppointmentCreateData, AppointmentStatistics, PendingAppointment, CheckinQueueItem } from './modules/appointment';
 export type {
   MedicalRecord,
   MedicalRecordListItem,

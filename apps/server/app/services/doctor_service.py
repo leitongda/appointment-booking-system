@@ -274,3 +274,29 @@ class DoctorService:
             attempts += 1
         
         return suggestions
+    
+    async def batch_update_sort_order(self, items: List[dict]) -> int:
+        """批量更新医生排序
+        
+        Args:
+            items: 排序项列表，格式为 [{id: str, sort_order: int}, ...]
+            
+        Returns:
+            更新的记录数量
+        """
+        count = 0
+        for item in items:
+            doctor_id = item.get('id')
+            sort_order = item.get('sort_order')
+            
+            if doctor_id and sort_order is not None:
+                result = await self.db.execute(
+                    select(Doctor).where(Doctor.id == doctor_id)
+                )
+                doctor = result.scalar_one_or_none()
+                if doctor:
+                    doctor.sort_order = sort_order
+                    count += 1
+        
+        await self.db.commit()
+        return count

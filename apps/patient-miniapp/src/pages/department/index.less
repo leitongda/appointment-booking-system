@@ -203,3 +203,55 @@
 .loading-state {
   .loading-state();
 }
+
+// -------------------------------------------
+// 单层结构 - 平铺网格展示
+// -------------------------------------------
+
+.flat-content {
+  flex: 1;
+  padding: @spacing-4 @page-padding;
+  overflow-y: auto;
+  background: @color-bg-secondary;
+}
+
+.flat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: @spacing-3;
+}
+
+.flat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: @spacing-4 @spacing-2;
+  background: @color-bg-white;
+  border-radius: @radius-xl;
+  box-shadow: @shadow-sm;
+  transition: all @transition-base;
+  
+  &:active {
+    transform: scale(0.96);
+    box-shadow: @shadow-xs;
+  }
+}
+
+.flat-icon {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: @radius-lg;
+  background: rgba(79, 70, 229, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: @spacing-2;
+}
+
+.flat-name {
+  font-size: @font-size-sm;
+  color: @color-text-primary;
+  font-weight: @font-weight-medium;
+  text-align: center;
+  line-height: @line-height-snug;
+}

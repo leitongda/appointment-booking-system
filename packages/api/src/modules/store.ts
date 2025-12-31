@@ -139,4 +139,14 @@ export const storeApi = {
   updateWechatConfig: (storeId: string, data: StoreWechatConfig): Promise<{ message: string }> => {
     return request.put(`/stores/${storeId}/wechat-config`, data);
   },
+
+  // 门店签到二维码
+  getCheckinQrcode: (storeId: string): Promise<{
+    storeId: string;
+    storeName: string;
+    qrcodeContent: string;
+    description: string;
+  }> => {
+    return request.get(`/stores/${storeId}/checkin-qrcode`);
+  },
 };

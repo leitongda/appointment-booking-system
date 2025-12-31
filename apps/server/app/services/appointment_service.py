@@ -386,3 +386,86 @@ class AppointmentService:
             ],
         }
 
+    async def get_today_pending_by_user_and_store(
+        self, 
+        user_id: str, 
+        store_id: str
+    ) -> List[Appointment]:
+        """获取用户在指定门店的今日待签到预约
+        
+        用于患者扫码签到时选择要签到的预约
+        """
+        from app.models.doctor import Doctor
+        
+        today = date.today()
+        
+        result = await self.db.execute(
+            select(Appointment)
+            .join(Schedule)
+            .options(
+                selectinload(Appointment.schedule),
+                selectinload(Appointment.patient),
+                selectinload(Appointment.doctor).selectinload(Doctor.department)
+            )
+            .where(
+                and_(
+                    Appointment.user_id == user_id,
+                    Schedule.store_id == store_id,
+                    Schedule.schedule_date == today,
+                    Appointment.status == APPOINTMENT_STATUS['PENDING']
+                )
+            )
+            .order_by(Schedule.time_slot)
+        )
+        
+        return list(result.scalars().all())
+
+    async def get_checkin_queue(
+        self,
+        store_id: Optional[str] = None,
+        doctor_id: Optional[str] = None,
+        target_date: Optional[date] = None
+    ) -> List[Appointment]:
+        """获取签到队列
+        
+        返回指定日期的已签到及后续状态的预约，按签到时间排序
+        用于管理后台和医生端查看叫号队列
+        """
+        from app.models.doctor import Doctor
+        
+        if not target_date:
+            target_date = date.today()
+        
+        query = (
+            select(Appointment)
+            .join(Schedule)
+            .options(
+                selectinload(Appointment.schedule),
+                selectinload(Appointment.patient),
+                selectinload(Appointment.doctor).selectinload(Doctor.department)
+            )
+            .where(
+                and_(
+                    Schedule.schedule_date == target_date,
+                    # 已签到、就诊中、已过号、已完成
+                    Appointment.status.in_([
+                        APPOINTMENT_STATUS['SIGNED_IN'],
+                        APPOINTMENT_STATUS['IN_PROGRESS'],
+                        APPOINTMENT_STATUS['PASSED'],
+                        APPOINTMENT_STATUS['COMPLETED']
+                    ])
+                )
+            )
+        )
+        
+        if store_id:
+            query = query.where(Schedule.store_id == store_id)
+        
+        if doctor_id:
+            query = query.where(Appointment.doctor_id == doctor_id)
+        
+        # 按签到时间排序
+        query = query.order_by(Appointment.sign_in_time)
+        
+        result = await self.db.execute(query)
+        return list(result.scalars().all())

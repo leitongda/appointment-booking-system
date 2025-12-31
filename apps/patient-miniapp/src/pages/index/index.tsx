@@ -1,62 +1,62 @@
 import { View, Text, Swiper, SwiperItem, Image } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useState, useEffect } from 'react';
-import { contentApi, departmentApi, doctorApi } from '@hospital/api';
+import { contentApi, doctorApi, userApi } from '@hospital/api';
 import type { Banner } from '@hospital/api';
-import type { Department, Doctor } from '@hospital/shared';
+import type { Doctor, Patient } from '@hospital/shared';
 import {
   HospitalIcon,
   CalendarIcon,
-  RecordIcon,
-  UserIcon,
+  ChatIcon,
   DoctorIcon,
-  FlashIcon,
-  SearchIcon,
-  getDeptIcon,
-  MoreIcon,
+  ScanIcon,
+  CardIcon,
+  AddUserIcon,
 } from '../../components/Icons';
 import { PageContainer } from '../../components/PageContainer';
+import { getToken } from '../../utils/auth';
 import './index.less';
 
 // 功能菜单配置
 const menus = [
   { icon: HospitalIcon, title: '预约挂号', path: '/pages/department/index' },
-  { icon: CalendarIcon, title: '我的预约', path: '/pages/appointment/index' },
-  { icon: RecordIcon, title: '就诊记录', path: '/packageProfile/pages/records/index' },
-  { icon: UserIcon, title: '个人中心', path: '/pages/profile/index' },
+  { icon: CalendarIcon, title: '预约记录', path: '/pages/appointment/index' },
+  { icon: ScanIcon, title: '扫码签到', path: '/packageBooking/pages/checkin/scan' },
+  { icon: ChatIcon, title: '我的客服', path: '/packageProfile/pages/feedback/index' },
 ];
 
 // 默认轮播图（API无数据时的备用）
 const defaultBanners = [
   { id: '1', title: '智慧医疗', imageUrl: '', linkType: 0 },
-  { id: '2', title: '专家团队', imageUrl: '', linkType: 0 },
-  { id: '3', title: '优质服务', imageUrl: '', linkType: 0 },
+  // { id: '2', title: '专家团队', imageUrl: '', linkType: 0 },
+  // { id: '3', title: '优质服务', imageUrl: '', linkType: 0 },
 ];
 
 const IndexPage = () => {
   const [banners, setBanners] = useState<Banner[]>([]);
-  const [hotDepts, setHotDepts] = useState<Department[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [defaultPatient, setDefaultPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadData();
   }, []);
 
+  // 页面显示时刷新就诊卡（可能用户新增了就诊卡）
+  Taro.useDidShow(() => {
+    loadPatients();
+  });
+
   const loadData = async () => {
     try {
       console.log('[首页] 开始加载数据...');
       
-      const [bannersData, deptsData, doctorsData] = await Promise.all([
+      const [bannersData, doctorsData] = await Promise.all([
         contentApi.getActiveBanners('home').catch((err) => {
           console.error('[首页] 加载轮播图失败:', err);
           return [];
         }),
-        departmentApi.getHot(8).catch((err) => {
-          console.error('[首页] 加载热门科室失败:', err);
-          return [];
-        }),
-        doctorApi.getRecommended(3).catch((err) => {
+        doctorApi.getRecommended(6).catch((err) => {
           console.error('[首页] 加载推荐医生失败:', err);
           return [];
         }),
@@ -64,17 +64,35 @@ const IndexPage = () => {
       
       console.log('[首页] 数据加载结果:', {
         banners: bannersData.length,
-        depts: deptsData.length,
         doctors: doctorsData.length,
       });
       
       setBanners(bannersData.length > 0 ? bannersData : defaultBanners as any);
-      setHotDepts(deptsData);
       setDoctors(doctorsData);
+
+      // 加载就诊卡（需要登录）
+      await loadPatients();
     } catch (error) {
       console.error('加载首页数据失败', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPatients = async () => {
+    const token = getToken();
+    if (!token) {
+      setDefaultPatient(null);
+      return;
+    }
+    try {
+      const patients = await userApi.getPatients();
+      // 找到默认就诊卡，如果没有默认则取第一个
+      const defaultOne = patients.find((p) => p.isDefault) || patients[0] || null;
+      setDefaultPatient(defaultOne);
+    } catch (error) {
+      console.error('[首页] 加载就诊卡失败:', error);
+      setDefaultPatient(null);
     }
   };
 
@@ -96,13 +114,13 @@ const IndexPage = () => {
     }
   };
 
-  const handleDeptClick = (dept?: Department) => {
-    if (dept) {
-      Taro.navigateTo({
-        url: `/pages/doctor/index?departmentId=${dept.id}&departmentName=${encodeURIComponent(dept.name)}`,
-      });
+  const handlePatientCardClick = () => {
+    if (defaultPatient) {
+      // 有就诊卡，跳转到就诊卡详情编辑页面
+      Taro.navigateTo({ url: `/packageProfile/pages/patient/edit?id=${defaultPatient.id}` });
     } else {
-      navigateTo('/pages/department/index');
+      // 无就诊卡，跳转到新增就诊卡页面
+      Taro.navigateTo({ url: '/packageProfile/pages/patient/edit' });
     }
   };
 
@@ -142,76 +160,33 @@ const IndexPage = () => {
         </View>
       </View>
 
-      {/* 快捷入口 */}
-      <View className="quick-entry">
-        <View className="quick-card" onClick={() => navigateTo('/pages/department/index')}>
-          <View className="quick-icon">
-            <FlashIcon size={24} color="#F59E0B" />
-          </View>
-          <Text className="quick-title">快速挂号</Text>
-          <Text className="quick-desc">一键预约，省时省力</Text>
-        </View>
-        <View className="quick-card" onClick={() => navigateTo('/packageOther/pages/search/index')}>
-          <View className="quick-icon">
-            <SearchIcon size={24} color="#10B981" />
-          </View>
-          <Text className="quick-title">找医生</Text>
-          <Text className="quick-desc">搜索专家，精准就医</Text>
-        </View>
-      </View>
-
-      {/* 热门科室 */}
-      <View className="section">
-        <View className="section-header">
-          <Text className="section-title">热门科室</Text>
-          <Text className="section-more" onClick={() => navigateTo('/pages/department/index')}>
-            全部
-          </Text>
-        </View>
-        <View className="dept-grid">
-          {hotDepts.length > 0 ? (
-            <>
-              {hotDepts.slice(0, 7).map((dept) => {
-                const IconComponent = getDeptIcon(dept.name);
-                return (
-                  <View
-                    key={dept.id}
-                    className="dept-item"
-                    onClick={() => handleDeptClick(dept)}
-                  >
-                    <View className="dept-icon-wrap">
-                      <IconComponent size={24} color="#4F46E5" />
-                    </View>
-                    <Text className="dept-name">{dept.name}</Text>
-                  </View>
-                );
-              })}
-              <View className="dept-item" onClick={() => navigateTo('/pages/department/index')}>
-                <View className="dept-icon-wrap">
-                  <MoreIcon size={24} color="#4F46E5" />
-                </View>
-                <Text className="dept-name">更多</Text>
-              </View>
-            </>
-          ) : (
-            // 默认显示固定科室名称
-            ['内科', '外科', '儿科', '妇科', '骨科', '眼科', '口腔', '更多'].map((name) => {
-              const IconComponent = name === '更多' ? MoreIcon : getDeptIcon(name);
-              return (
-                <View
-                  key={name}
-                  className="dept-item"
-                  onClick={() => navigateTo('/pages/department/index')}
-                >
-                  <View className="dept-icon-wrap">
-                    <IconComponent size={24} color="#4F46E5" />
-                  </View>
-                  <Text className="dept-name">{name}</Text>
-                </View>
-              );
-            })
-          )}
-        </View>
+      {/* 就诊卡快捷入口 */}
+      <View className="patient-card-entry" onClick={handlePatientCardClick}>
+        {defaultPatient ? (
+          <>
+            <View className="card-icon">
+              <CardIcon size={32} color="#4F46E5" />
+            </View>
+            <View className="card-info">
+              <Text className="card-name">{defaultPatient.name}</Text>
+              <Text className="card-relation">
+                {defaultPatient.relationship || '本人'} · 默认就诊人
+              </Text>
+            </View>
+            <Text className="card-arrow">›</Text>
+          </>
+        ) : (
+          <>
+            <View className="card-icon add-icon">
+              <AddUserIcon size={32} color="#10B981" />
+            </View>
+            <View className="card-info">
+              <Text className="card-name">添加就诊卡</Text>
+              <Text className="card-relation">添加就诊人信息，快速预约挂号</Text>
+            </View>
+            <Text className="card-arrow">›</Text>
+          </>
+        )}
       </View>
 
       {/* 推荐医生 */}

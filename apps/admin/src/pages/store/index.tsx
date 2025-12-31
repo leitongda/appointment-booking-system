@@ -1,7 +1,7 @@
-import { PlusOutlined, ApartmentOutlined, UserOutlined, MoneyCollectOutlined } from '@ant-design/icons';
+import { PlusOutlined, ApartmentOutlined, UserOutlined, MoneyCollectOutlined, QrcodeOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Avatar, Modal, Tree, Spin, Empty, Transfer, Tag } from 'antd';
+import { Button, App, Popconfirm, Space, Avatar, Modal, Tree, Spin, Empty, Transfer, Tag, QRCode } from 'antd';
 import type { TreeDataNode, TreeProps, TransferProps } from 'antd';
 import { useRef, useState, useCallback } from 'react';
 import { history, useAccess } from '@umijs/max';
@@ -63,6 +63,11 @@ const StorePage: React.FC = () => {
   const [selectedAdminKeys, setSelectedAdminKeys] = useState<string[]>([]);
   const [userLoading, setUserLoading] = useState(false);
   const [userSubmitting, setUserSubmitting] = useState(false);
+
+  // 签到二维码弹窗状态
+  const [qrcodeModalVisible, setQrcodeModalVisible] = useState(false);
+  const [qrcodeStore, setQrcodeStore] = useState<Store | null>(null);
+  const [qrcodeContent, setQrcodeContent] = useState<string>('');
 
   const handleDelete = async (id: string) => {
     try {
@@ -200,6 +205,37 @@ const StorePage: React.FC = () => {
   const filterOption = (inputValue: string, option: AdminItem) =>
     option.title.indexOf(inputValue) > -1 || option.description.indexOf(inputValue) > -1;
 
+  // 打开签到二维码弹窗
+  const handleOpenQrcodeModal = async (store: Store) => {
+    setQrcodeStore(store);
+    setQrcodeModalVisible(true);
+    
+    try {
+      const result = await storeApi.getCheckinQrcode(store.id);
+      setQrcodeContent(result.qrcodeContent);
+    } catch (error: any) {
+      message.error(error.message || '获取二维码失败');
+    }
+  };
+
+  // 关闭签到二维码弹窗
+  const handleCloseQrcodeModal = () => {
+    setQrcodeModalVisible(false);
+    setQrcodeStore(null);
+    setQrcodeContent('');
+  };
+
+  // 下载二维码
+  const handleDownloadQrcode = () => {
+    const canvas = document.querySelector('#store-checkin-qrcode canvas') as HTMLCanvasElement;
+    if (canvas) {
+      const link = document.createElement('a');
+      link.download = `签到二维码-${qrcodeStore?.name || '门店'}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+  };
+
   const columns: ProColumns<Store>[] = [
     {
       title: 'Logo',
@@ -234,6 +270,11 @@ const StorePage: React.FC = () => {
           {access.hasPermission('store:update') && (
             <a onClick={() => history.push(`/store/${record.id}/fee-templates`)}>
               <MoneyCollectOutlined /> 诊费
+            </a>
+          )}
+          {access.hasPermission('store:read') && (
+            <a onClick={() => handleOpenQrcodeModal(record)}>
+              <QrcodeOutlined /> 签到码
             </a>
           )}
           {access.canSuperAdmin && (
@@ -369,6 +410,43 @@ const StorePage: React.FC = () => {
             />
           </div>
         )}
+      </Modal>
+
+      {/* 签到二维码弹窗 */}
+      <Modal
+        title={`签到二维码 - ${qrcodeStore?.name || ''}`}
+        open={qrcodeModalVisible}
+        onCancel={handleCloseQrcodeModal}
+        footer={[
+          <Button key="close" onClick={handleCloseQrcodeModal}>
+            关闭
+          </Button>,
+          <Button key="download" type="primary" onClick={handleDownloadQrcode}>
+            下载二维码
+          </Button>,
+        ]}
+        width={400}
+        destroyOnClose
+      >
+        <div style={{ textAlign: 'center', padding: '24px 0' }} id="store-checkin-qrcode">
+          {qrcodeContent ? (
+            <>
+              <QRCode
+                value={qrcodeContent}
+                size={256}
+                style={{ margin: '0 auto' }}
+              />
+              <div style={{ marginTop: 16, color: '#666' }}>
+                请使用微信扫描此二维码进行签到
+              </div>
+              <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
+                二维码内容: {qrcodeContent}
+              </div>
+            </>
+          ) : (
+            <Spin tip="加载中..." />
+          )}
+        </div>
       </Modal>
     </PageContainer>
   );
