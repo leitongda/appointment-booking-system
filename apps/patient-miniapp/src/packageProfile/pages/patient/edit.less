@@ -7,6 +7,7 @@
 
 .patient-edit-page {
   .page-container();
+  padding-bottom: 200rpx;
 }
 
 // -------------------------------------------
@@ -16,57 +17,174 @@
 .form-section {
   background: @color-bg-white;
   margin: @page-padding;
+  margin-bottom: @component-gap;
   border-radius: @radius-xl;
-  padding: @spacing-2 0;
+  padding: @spacing-4 0;
   box-shadow: @shadow-base;
+  overflow: hidden;
+}
+
+// 区块标题
+.section-title {
+  padding: 0 @spacing-4 @spacing-3;
+  font-size: @font-size-sm;
+  font-weight: @font-weight-semibold;
+  color: @color-text-muted;
+  text-transform: uppercase;
+  letter-spacing: 2rpx;
+  border-bottom: @border-width solid @color-divider;
+  margin-bottom: @spacing-2;
+}
+
+// -------------------------------------------
+// 同行布局表单项
+// -------------------------------------------
+
+.form-item-inline {
+  padding: @spacing-3 @spacing-4 !important;
+  border-bottom: @border-width solid @color-divider;
   
-  .nut-form-item {
-    padding: @spacing-2 @spacing-4;
+  &:last-child {
+    border-bottom: none;
+  }
+  
+  .nut-cell__title {
+    font-size: @font-size-base;
+    color: @color-text-primary;
+    font-weight: @font-weight-medium;
+    flex-shrink: 0;
+    min-width: 160rpx;
+  }
+  
+  .nut-input {
+    text-align: right;
+    font-size: @font-size-base;
     
-    .nut-cell__title {
-      font-size: @font-size-base;
-      color: @color-text-secondary;
-      font-weight: @font-weight-medium;
-    }
-    
-    .nut-input {
+    input {
       text-align: right;
-      font-size: @font-size-base;
       
-      input {
-        text-align: right;
-        
-        &::placeholder {
-          color: @color-text-placeholder;
-        }
+      &::placeholder {
+        color: @color-text-placeholder;
       }
     }
   }
+}
+
+// Switch 表单项特殊样式
+.form-item-switch {
+  .nut-cell__value {
+    flex: none;
+  }
+}
+
+// -------------------------------------------
+// 堆叠布局表单项
+// -------------------------------------------
+
+.form-item-stacked {
+  padding: @spacing-3 @spacing-4;
+  border-bottom: @border-width solid @color-divider;
   
-  // Radio 样式
-  .nut-radio-group {
+  &:last-child {
+    border-bottom: none;
+  }
+  
+  .stacked-label {
     display: flex;
-    justify-content: flex-end;
-    gap: @spacing-4;
-  }
-  
-  .nut-radio {
-    --nutui-radio-icon-checked-color: @color-primary;
-    --nutui-radio-label-color: @color-text-primary;
+    align-items: center;
+    margin-bottom: @spacing-2;
     
-    .nut-radio__icon--checked {
-      background: @gradient-primary;
-      border-color: @color-primary;
-    }
-    
-    .nut-radio__label {
+    .label-text {
       font-size: @font-size-base;
+      color: @color-text-primary;
+      font-weight: @font-weight-medium;
+    }
+    
+    .required-mark {
+      color: @color-danger;
+      margin-left: 4rpx;
+      font-size: @font-size-sm;
     }
   }
   
+  .stacked-input {
+    background: @color-bg-secondary;
+    border-radius: @radius-lg;
+    padding: 0 @spacing-3;
+    
+    .stacked-input-field {
+      width: 100%;
+      height: @input-height;
+      font-size: @font-size-base;
+      color: @color-text-primary;
+      background: transparent;
+      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+      letter-spacing: 2rpx;
+    }
+  }
+}
+
+// -------------------------------------------
+// Picker 选择器样式
+// -------------------------------------------
+
+.form-item-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: @spacing-3 @spacing-4;
+  border-bottom: @border-width solid @color-divider;
+  
+  .picker-label {
+    font-size: @font-size-base;
+    color: @color-text-primary;
+    font-weight: @font-weight-medium;
+    flex-shrink: 0;
+  }
+  
+  .picker-value {
+    display: flex;
+    align-items: center;
+    gap: @spacing-2;
+    font-size: @font-size-base;
+    color: @color-text-primary;
+    
+    .placeholder {
+      color: @color-text-placeholder;
+    }
+    
+    .picker-arrow {
+      font-size: @font-size-lg;
+      color: @color-text-muted;
+      font-weight: @font-weight-normal;
+    }
+  }
+}
+
+// 自定义关系输入
+.custom-relation-wrap {
+  padding: @spacing-2 @spacing-4 @spacing-3;
+  border-bottom: @border-width solid @color-divider;
+  
+  .custom-input {
+    width: 100%;
+    height: @input-height;
+    padding: 0 @spacing-3;
+    background: @color-bg-secondary;
+    border-radius: @radius-lg;
+    font-size: @font-size-base;
+    color: @color-text-primary;
+  }
+}
+
+// -------------------------------------------
+// Switch 样式
+// -------------------------------------------
+
+.form-section {
   // Switch 样式
   .nut-switch {
-    --nutui-switch-open-background-color: @color-primary;
+    --nutui-switch-open-background-color: var(--color-primary, @theme-primary);
   }
 }
 
@@ -79,6 +197,7 @@
   font-size: @font-size-xs;
   color: @color-text-muted;
   line-height: @line-height-relaxed;
+  text-align: center;
 }
 
 // -------------------------------------------
