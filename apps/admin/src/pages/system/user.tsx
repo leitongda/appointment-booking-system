@@ -96,7 +96,7 @@ const UserPage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 180,
+      width: 100,
       render: (_, record) => (
         <Space>
           {access.hasPermission('system:user:update') && (

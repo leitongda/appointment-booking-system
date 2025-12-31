@@ -3,6 +3,8 @@ from sqlalchemy import select
 from typing import Optional
 from datetime import datetime
 import uuid
+import random
+import string
 
 from app.models.user import User, Patient
 from app.schemas.user import UserCreate, UserUpdate, PatientCreate, PatientUpdate
@@ -147,6 +149,12 @@ class PatientService:
     def __init__(self, db: AsyncSession):
         self.db = db
     
+    def _generate_card_no(self) -> str:
+        """生成就诊卡编号"""
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        random_str = ''.join(random.choices(string.digits, k=4))
+        return f"JZK{timestamp}{random_str}"
+    
     async def get_by_id(self, patient_id: str) -> Optional[Patient]:
         result = await self.db.execute(select(Patient).where(Patient.id == patient_id))
         return result.scalar_one_or_none()
@@ -183,7 +191,8 @@ class PatientService:
             id_card=data.id_card,
             gender=data.gender,
             relationship=data.relationship,
-            is_default=is_default
+            is_default=is_default,
+            card_no=self._generate_card_no(),
         )
         set_create_audit(patient, user_id)
         self.db.add(patient)

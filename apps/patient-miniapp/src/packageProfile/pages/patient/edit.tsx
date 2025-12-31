@@ -131,7 +131,7 @@ const PatientEditPage = () => {
         : relationship,
     };
 
-    if (!formData.name || !formData.idCard || !formData.phone) {
+    if (!formData.name || !formData.phone) {
       Taro.showToast({ title: '请填写完整信息', icon: 'none' });
       return;
     }
@@ -178,16 +178,15 @@ const PatientEditPage = () => {
             </Picker>
           </View>
 
-          {/* 身份证号 - 堆叠布局 */}
+          {/* 身份证号 - 堆叠布局（选填） */}
           <View className="form-item-stacked">
             <View className="stacked-label">
               <Text className="label-text">身份证号</Text>
-              <Text className="required-mark">*</Text>
             </View>
             <View className="stacked-input">
               <TaroInput
                 className="stacked-input-field"
-                placeholder="请输入18位身份证号码"
+                placeholder="请输入18位身份证号码（选填）"
                 maxlength={18}
                 value={formValues.idCard || ''}
                 onInput={(e) => setFormValues({ ...formValues, idCard: e.detail.value })}

@@ -5,6 +5,9 @@
 @import '../../../styles/variables.less';
 @import '../../../styles/mixins.less';
 
+// 统一 label 宽度
+@form-label-width: 180rpx;
+
 .patient-edit-page {
   .page-container();
   padding-bottom: 200rpx;
@@ -53,7 +56,8 @@
     color: @color-text-primary;
     font-weight: @font-weight-medium;
     flex-shrink: 0;
-    min-width: 160rpx;
+    width: @form-label-width;
+    min-width: @form-label-width;
   }
   
   .nut-input {
@@ -98,6 +102,8 @@
       font-size: @font-size-base;
       color: @color-text-primary;
       font-weight: @font-weight-medium;
+      width: @form-label-width;
+      min-width: @form-label-width;
     }
     
     .required-mark {
@@ -140,11 +146,15 @@
     color: @color-text-primary;
     font-weight: @font-weight-medium;
     flex-shrink: 0;
+    width: @form-label-width;
+    min-width: @form-label-width;
   }
   
   .picker-value {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
+    flex: 1;
     gap: @spacing-2;
     font-size: @font-size-base;
     color: @color-text-primary;

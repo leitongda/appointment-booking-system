@@ -623,7 +623,7 @@ const PatientDetailPage: React.FC = () => {
   return (
     <PageContainer
       title="患者详情"
-      extra={<Button onClick={() => history.push('/patient/list')}>返回列表</Button>}
+      extra={<Button onClick={() => history.push('/user/list')}>返回列表</Button>}
     >
       <Spin spinning={loading}>
         {/* 头部信息卡片 */}
