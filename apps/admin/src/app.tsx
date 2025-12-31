@@ -319,9 +319,9 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
     waterMarkProps: {
       content: [initialState?.currentUser?.name, initialState?.currentUser?.email || initialState?.currentUser?.phone],
       fontColor: 'rgba(0, 0, 0, 0.05)', // 水印颜色和透明度，数值越小越淡
-      fontSize: 14,                     // 字体大小
-      gap: [10, 10],               // 水印间距 [水平, 垂直]
-      rotate: -22,                   // 旋转角度
+      fontSize: 14,                       // 字体大小
+      gap: [10, 10],                      // 水印间距 [水平, 垂直]
+      rotate: -22,                        // 旋转角度
 
     zIndex: 11,
     offset: undefined,
