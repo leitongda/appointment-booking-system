@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, users, departments, doctors, schedules, appointments, content, statistics, medical_records, admin, settings, patients, export, stores, messages, leave_requests, feedbacks, consultation_fees, doctor_booking_settings, schedule_templates, custom_schedules, rest_days, schedule_suspensions, blacklists, upload, email_templates, analytics, import_export, user_manage
+from app.api.v1 import auth, users, departments, doctors, schedules, appointments, content, statistics, medical_records, admin, settings, patients, export, stores, messages, leave_requests, feedbacks, consultation_fees, doctor_booking_settings, schedule_templates, custom_schedules, rest_days, schedule_suspensions, blacklists, upload, email_templates, analytics, import_export, user_manage, booking_notices, user_favorites
 
 api_router = APIRouter()
 
@@ -32,3 +32,5 @@ api_router.include_router(blacklists.router, prefix="/blacklists", tags=["黑名
 api_router.include_router(email_templates.router, prefix="/email-templates", tags=["邮件模板"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["用户行为分析"])
 api_router.include_router(import_export.router, prefix="/data", tags=["数据导入导出"])
+api_router.include_router(booking_notices.router, prefix="/booking-notices", tags=["预约须知"])
+api_router.include_router(user_favorites.router, prefix="/favorites", tags=["用户收藏"])

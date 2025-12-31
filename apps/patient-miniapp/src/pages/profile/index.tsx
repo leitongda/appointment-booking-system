@@ -2,7 +2,7 @@ import { View, Text, Image, Button as TaroButton, Input as TaroInput } from '@ta
 import Taro from '@tarojs/taro';
 import { Button } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
-import { userApi, appointmentApi, authApi } from '@hospital/api';
+import { userApi, appointmentApi, authApi, storeApi } from '@hospital/api';
 import { STORAGE_KEYS } from '@hospital/shared';
 import { getToken, removeToken, removeStorage, setToken, setStorage } from '../../utils/auth';
 import { getStoreId } from '../../utils/store';
@@ -15,6 +15,8 @@ import {
   InfoIcon,
   SettingsIcon,
   UserIcon,
+  HeartIcon,
+  PhoneIcon,
 } from '../../components/Icons';
 import { PageContainer } from '../../components/PageContainer';
 import './index.less';
@@ -22,11 +24,22 @@ import './index.less';
 // 图标组件类型
 type IconComponent = typeof TeamIcon;
 
+// 菜单项类型
+interface MenuItem {
+  icon: IconComponent;
+  title: string;
+  desc: string;
+  path?: string;
+  badge?: string;
+  action?: string; // 特殊操作标识
+}
+
 // 菜单配置
-const menuGroups: { items: { icon: IconComponent; title: string; desc: string; path?: string; badge?: string }[] }[] = [
+const menuGroups: { items: MenuItem[] }[] = [
   {
     items: [
       { icon: TeamIcon, title: '就诊人管理', desc: '管理就诊人信息', path: '/packageProfile/pages/patient/index' },
+      { icon: HeartIcon, title: '我的收藏', desc: '收藏的医生', path: '/packageProfile/pages/favorite/index' },
       { icon: RecordIcon, title: '就诊记录', desc: '查看历史就诊记录', path: '/packageProfile/pages/records/index' },
       { icon: BellIcon, title: '消息通知', desc: '预约提醒、系统通知', path: '/packageProfile/pages/message/index' },
     ],
@@ -34,6 +47,7 @@ const menuGroups: { items: { icon: IconComponent; title: string; desc: string; p
   {
     items: [
       { icon: ChatIcon, title: '意见反馈', desc: '帮助我们做得更好', path: '/packageProfile/pages/feedback/index' },
+      { icon: PhoneIcon, title: '联系我们', desc: '拨打门店电话', action: 'contact' },
       { icon: InfoIcon, title: '关于我们', desc: '了解更多', path: '/packageOther/pages/about/index' },
       { icon: SettingsIcon, title: '设置', desc: '账号与安全', path: '/packageProfile/pages/settings/index' },
     ],
@@ -66,10 +80,29 @@ const ProfilePage = () => {
   // 已注释：绑定手机号相关状态
   // const [showBindPhone, setShowBindPhone] = useState(false);
   // const [bindPhone, setBindPhone] = useState('');
+  
+  // 门店电话
+  const [storePhone, setStorePhone] = useState('');
 
   useEffect(() => {
     checkLoginStatus();
+    loadStoreInfo();
   }, []);
+  
+  // 加载门店信息（获取电话号码）
+  const loadStoreInfo = async () => {
+    const storeId = getStoreId();
+    if (!storeId) return;
+    
+    try {
+      const store = await storeApi.getDetail(storeId);
+      if (store?.phone) {
+        setStorePhone(store.phone);
+      }
+    } catch (error) {
+      console.error('获取门店信息失败', error);
+    }
+  };
 
   // 页面显示时刷新数据
   Taro.useDidShow(() => {
@@ -79,6 +112,8 @@ const ProfilePage = () => {
     // 重新检查登录状态，确保 token 仍然有效
     const token = getToken();
     if (token && isLoggedIn) {
+      // 重新加载用户信息（可能从编辑页返回，头像或昵称已更新）
+      loadProfile();
       loadStats();
     } else if (!token) {
       // token 已被清除，重置状态
@@ -152,10 +187,18 @@ const ProfilePage = () => {
     }
   };
 
-  // 点击头像/用户信息区域，未登录时直接发起微信登录
+  // 点击头像/用户信息区域
+  // 已登录：跳转到个人信息编辑页面
+  // 未登录：发起微信登录
   const handleHeaderClick = async () => {
-    // 初始化中、已登录、正在登录中，都不处理点击
-    if (isInitializing || isLoggedIn || wechatLoading) return;
+    // 初始化中、正在登录中，不处理点击
+    if (isInitializing || wechatLoading) return;
+    
+    // 已登录用户点击头像，跳转到个人信息编辑页面
+    if (isLoggedIn) {
+      Taro.navigateTo({ url: '/packageProfile/pages/profile/edit' });
+      return;
+    }
     
     setWechatLoading(true);
     
@@ -359,10 +402,42 @@ const ProfilePage = () => {
     }
   };
 
-  const handleMenuClick = (item: typeof menuGroups[0]['items'][0]) => {
+  // 联系我们 - 显示 ActionSheet 选择拨打电话
+  const handleContactUs = async () => {
+    if (!storePhone) {
+      Taro.showToast({ title: '暂无联系电话', icon: 'none' });
+      return;
+    }
+    
+    try {
+      const result = await Taro.showActionSheet({
+        itemList: [`拨打电话 ${storePhone}`],
+      });
+      
+      if (result.tapIndex === 0) {
+        Taro.makePhoneCall({
+          phoneNumber: storePhone,
+        });
+      }
+    } catch (error: any) {
+      // 用户取消选择时会抛出错误，无需处理
+      if (error.errMsg !== 'showActionSheet:fail cancel') {
+        console.error('操作失败', error);
+      }
+    }
+  };
+
+  const handleMenuClick = (item: MenuItem) => {
+    // 处理特殊操作
+    if (item.action === 'contact') {
+      handleContactUs();
+      return;
+    }
+    
     // 需要登录的菜单项
     const requireLoginPaths = [
       '/packageProfile/pages/patient/index',
+      '/packageProfile/pages/favorite/index',
       '/packageProfile/pages/records/index',
       '/packageProfile/pages/message/index',
       '/packageProfile/pages/feedback/index',
@@ -425,7 +500,8 @@ const ProfilePage = () => {
                 : '登录后享受更多服务'}
             </Text>
           </View>
-          {!isLoggedIn && !wechatLoading && !isInitializing && <Text className="login-arrow">›</Text>}
+          {/* 显示箭头：未登录时或已登录时（可编辑资料） */}
+          {!wechatLoading && !isInitializing && <Text className="login-arrow">›</Text>}
         </View>
       </View>
 

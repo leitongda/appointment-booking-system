@@ -17,6 +17,7 @@ class AppointmentCreate(BaseModel):
     
     schedule_id: str = Field(..., description="排班ID")
     patient_id: str = Field(..., description="就诊人ID")
+    symptom_description: Optional[str] = Field(None, max_length=500, description="病情描述/预填信息")
 
 
 class AppointmentResponse(BaseModel):
@@ -47,6 +48,7 @@ class AppointmentResponse(BaseModel):
     complete_time: Optional[datetime] = None
     cancel_time: Optional[datetime] = None
     cancel_reason: Optional[str] = None
+    symptom_description: Optional[str] = None
     created_at: Optional[datetime] = None
 
 

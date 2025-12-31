@@ -1,0 +1,259 @@
+// ===========================================
+// 个人信息编辑页样式 - Corporate Trust Design System
+// ===========================================
+
+@import '../../../styles/variables.less';
+@import '../../../styles/mixins.less';
+
+.profile-edit-page {
+  min-height: 100vh;
+  background: @color-bg-base;
+  padding-bottom: calc(@spacing-8 + env(safe-area-inset-bottom));
+}
+
+// -------------------------------------------
+// 头像区域
+// -------------------------------------------
+
+.avatar-section {
+  padding: @spacing-6 @page-padding;
+  background: @color-bg-white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: @spacing-3;
+}
+
+.avatar-wrapper {
+  position: relative;
+  margin-bottom: @spacing-3;
+}
+
+.avatar-container {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  overflow: hidden;
+  background: @color-bg-secondary;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 4rpx solid @color-border;
+  
+  .avatar-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  .avatar-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background: @color-bg-tertiary;
+  }
+}
+
+.avatar-edit-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: @color-primary;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 4rpx solid @color-bg-white;
+  
+  .edit-icon {
+    color: @color-text-white;
+    font-size: 24rpx;
+  }
+}
+
+.avatar-actions {
+  display: flex;
+  gap: @spacing-4;
+  
+  .action-btn {
+    padding: @spacing-2 @spacing-4;
+    border-radius: @radius-full;
+    font-size: @font-size-sm;
+    background: transparent;
+    border: none;
+    color: @color-primary;
+    
+    &::after {
+      border: none;
+    }
+    
+    &:active {
+      opacity: 0.7;
+    }
+  }
+  
+  .wechat-btn {
+    background: rgba(7, 193, 96, 0.1);
+    color: #07C160;
+  }
+  
+  .album-btn {
+    background: rgba(79, 70, 229, 0.1);
+    color: @color-primary;
+  }
+}
+
+// -------------------------------------------
+// 表单区域
+// -------------------------------------------
+
+.form-section {
+  background: @color-bg-white;
+  padding: 0 @page-padding;
+  margin-bottom: @spacing-3;
+}
+
+.form-item {
+  display: flex;
+  align-items: center;
+  padding: @spacing-4 0;
+  border-bottom: @border-width solid @color-divider;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.form-label {
+  width: 140rpx;
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  font-weight: @font-weight-medium;
+  flex-shrink: 0;
+}
+
+.form-input {
+  flex: 1;
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  text-align: right;
+  background: transparent;
+  
+  &::placeholder {
+    color: @color-text-placeholder;
+  }
+}
+
+.form-value {
+  flex: 1;
+  font-size: @font-size-base;
+  color: @color-text-muted;
+  text-align: right;
+}
+
+// -------------------------------------------
+// 性别选择
+// -------------------------------------------
+
+.gender-picker {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  
+  .gender-value {
+    font-size: @font-size-base;
+    color: @color-text-primary;
+    
+    &.placeholder {
+      color: @color-text-placeholder;
+    }
+  }
+  
+  .picker-arrow {
+    font-size: @font-size-lg;
+    color: @color-text-placeholder;
+    margin-left: @spacing-2;
+  }
+}
+
+// -------------------------------------------
+// 底部按钮
+// -------------------------------------------
+
+.submit-section {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: @spacing-4 @page-padding;
+  padding-bottom: calc(@spacing-4 + env(safe-area-inset-bottom));
+  background: @color-bg-white;
+  box-shadow: @shadow-footer;
+}
+
+.submit-btn {
+  width: 100%;
+  height: @button-height-lg;
+  border-radius: @radius-xl;
+  font-size: @font-size-base;
+  font-weight: @font-weight-semibold;
+}
+
+// -------------------------------------------
+// 加载状态
+// -------------------------------------------
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: @z-index-modal;
+  
+  .loading-text {
+    font-size: @font-size-sm;
+    color: @color-text-muted;
+    margin-top: @spacing-2;
+  }
+}
+
+// -------------------------------------------
+// 长辈模式 - 字体放大 (+20%)
+// -------------------------------------------
+
+.profile-edit-page.font-mode-elder {
+  .form-label {
+    font-size: @font-size-base-elder;
+  }
+  
+  .form-input {
+    font-size: @font-size-base-elder;
+  }
+  
+  .form-value {
+    font-size: @font-size-base-elder;
+  }
+  
+  .gender-picker .gender-value {
+    font-size: @font-size-base-elder;
+  }
+  
+  .submit-btn {
+    font-size: @font-size-base-elder;
+  }
+  
+  .action-btn {
+    font-size: @font-size-sm-elder;
+  }
+}
+

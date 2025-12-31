@@ -213,11 +213,20 @@ class ConsultationFeeService:
         """批量更新全局诊费模板"""
         result = []
         for t in templates:
+            # 支持 snake_case 和 camelCase 两种格式
+            fee_type_id = t.get('fee_type_id') or t.get('feeTypeId')
+            initial_fee = t.get('initial_fee') or t.get('initialFee') or 0
+            follow_up_fee = t.get('follow_up_fee') or t.get('followUpFee') or 0
+            status = t.get('status', 1)
+            
+            if not fee_type_id:
+                continue  # 跳过没有 fee_type_id 的记录
+            
             data = ConsultationFeeTemplateCreate(
-                fee_type_id=t['fee_type_id'],
-                initial_fee=Decimal(str(t.get('initial_fee', 0))),
-                follow_up_fee=Decimal(str(t.get('follow_up_fee', 0))),
-                status=t.get('status', 1)
+                fee_type_id=fee_type_id,
+                initial_fee=Decimal(str(initial_fee)),
+                follow_up_fee=Decimal(str(follow_up_fee)),
+                status=status
             )
             template = await self.create_or_update_fee_template(data)
             result.append(template)

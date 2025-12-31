@@ -1,13 +1,33 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
+from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.api.deps import get_current_user
 from app.schemas.user import UserResponse, UserUpdate, PatientCreate, PatientUpdate, PatientResponse, ChangePasswordRequest, BindPhoneRequest
 from app.services.user_service import UserService, PatientService
+from app.services.storage import get_storage
+from app.core.logging import logger
 
 router = APIRouter()
+
+# 允许的头像图片类型
+ALLOWED_AVATAR_TYPES = {
+    'image/jpeg': ['jpg', 'jpeg'],
+    'image/png': ['png'],
+    'image/gif': ['gif'],
+    'image/webp': ['webp'],
+}
+
+# 最大头像文件大小（2MB）
+MAX_AVATAR_SIZE = 2 * 1024 * 1024
+
+
+class AvatarUploadResponse(BaseModel):
+    """头像上传响应"""
+    url: str
+    key: str
 
 @router.get("/profile", response_model=UserResponse)
 async def get_profile(
@@ -86,6 +106,65 @@ async def bind_phone(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
     
     return {"message": message}
+
+
+@router.post("/avatar", response_model=AvatarUploadResponse)
+async def upload_avatar(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    上传用户头像
+    
+    - **file**: 头像图片文件（支持jpg, png, gif, webp）
+    
+    返回头像URL，可用于更新用户资料
+    """
+    # 验证图片类型
+    if file.content_type not in ALLOWED_AVATAR_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="不支持的图片格式，请使用 jpg、png、gif 或 webp 格式"
+        )
+    
+    # 检查文件大小
+    content = await file.read()
+    if len(content) > MAX_AVATAR_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"文件大小超过限制，最大支持{MAX_AVATAR_SIZE // 1024 // 1024}MB"
+        )
+    
+    # 重置文件指针
+    await file.seek(0)
+    
+    try:
+        storage = get_storage()
+        content_type = file.content_type or "image/jpeg"
+        filename = file.filename or "avatar.jpg"
+        
+        # 上传到 avatars 文件夹
+        result = await storage.upload(
+            file=file.file,
+            filename=filename,
+            content_type=content_type,
+            folder="avatars"
+        )
+        
+        logger.info(f"User avatar uploaded: {result.key} by user {current_user.get('id')}")
+        
+        return AvatarUploadResponse(
+            url=result.url,
+            key=result.key
+        )
+        
+    except Exception as e:
+        logger.error(f"Avatar upload failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="头像上传失败，请稍后重试"
+        )
 
 
 # ========== 就诊人管理 ==========

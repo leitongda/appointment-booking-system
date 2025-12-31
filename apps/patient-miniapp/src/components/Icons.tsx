@@ -53,6 +53,7 @@ const svgs = {
   flash: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 2V13H10V22L17 10H13L17 2H7Z" fill="{color}"/></svg>`,
   search: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15.5 14H14.71L14.43 13.73C15.41 12.59 16 11.11 16 9.5C16 5.91 13.09 3 9.5 3C5.91 3 3 5.91 3 9.5C3 13.09 5.91 16 9.5 16C11.11 16 12.59 15.41 13.73 14.43L14 14.71V15.5L19 20.49L20.49 19L15.5 14ZM9.5 14C7.01 14 5 11.99 5 9.5C5 7.01 7.01 5 9.5 5C11.99 5 14 7.01 14 9.5C14 11.99 11.99 14 9.5 14Z" fill="{color}"/></svg>`,
   heart: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 21.35L10.55 20.03C5.4 15.36 2 12.27 2 8.5C2 5.41 4.42 3 7.5 3C9.24 3 10.91 3.81 12 5.08C13.09 3.81 14.76 3 16.5 3C19.58 3 22 5.41 22 8.5C22 12.27 18.6 15.36 13.45 20.03L12 21.35Z" fill="{color}"/></svg>`,
+  heartOutline: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.5 3C14.76 3 13.09 3.81 12 5.08C10.91 3.81 9.24 3 7.5 3C4.42 3 2 5.41 2 8.5C2 12.27 5.4 15.36 10.55 20.03L12 21.35L13.45 20.03C18.6 15.36 22 12.27 22 8.5C22 5.41 19.58 3 16.5 3ZM12.1 18.55L12 18.65L11.9 18.55C7.14 14.24 4 11.39 4 8.5C4 6.5 5.5 5 7.5 5C9.04 5 10.54 5.99 11.07 7.36H12.93C13.46 5.99 14.96 5 16.5 5C18.5 5 20 6.5 20 8.5C20 11.39 16.86 14.24 12.1 18.55Z" fill="{color}"/></svg>`,
   surgery: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20.71 7.04C21.1 6.65 21.1 6.02 20.71 5.63L18.37 3.29C17.98 2.9 17.35 2.9 16.96 3.29L15.12 5.12L18.87 8.87L20.71 7.04Z" fill="{color}"/><path d="M3 17.25V21H6.75L17.81 9.94L14.06 6.19L3 17.25ZM5.92 19H5V18.08L14.06 9.02L14.98 9.94L5.92 19Z" fill="{color}"/></svg>`,
   baby: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="6" r="3" fill="{color}"/><path d="M12 10C8.13 10 5 13.13 5 17V22H7V17C7 15.9 7.9 15 9 15H15C16.1 15 17 15.9 17 17V22H19V17C19 13.13 15.87 10 12 10Z" fill="{color}"/><circle cx="9" cy="6" r="1" fill="white"/><circle cx="15" cy="6" r="1" fill="white"/></svg>`,
   gynecology: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="8" r="5" fill="{color}"/><path d="M11 14V19H9V21H11V23H13V21H15V19H13V14" fill="{color}"/></svg>`,
@@ -78,6 +79,7 @@ const svgs = {
   scan: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 6H6V4H4C2.9 4 2 4.9 2 6V8H4V6Z" fill="{color}"/><path d="M4 18H6V20H4C2.9 20 2 19.1 2 18V16H4V18Z" fill="{color}"/><path d="M20 4H18V6H20V8H22V6C22 4.9 21.1 4 20 4Z" fill="{color}"/><path d="M20 18H18V20H20C21.1 20 22 19.1 22 18V16H20V18Z" fill="{color}"/><path d="M3 11H21V13H3V11Z" fill="{color}"/><path d="M7 7H10V10H7V7Z" fill="{color}"/><path d="M14 7H17V10H14V7Z" fill="{color}"/><path d="M7 14H10V17H7V14Z" fill="{color}"/><path d="M14 14H17V17H14V14Z" fill="{color}"/></svg>`,
   card: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4ZM20 18H4V6H20V18Z" fill="{color}"/><path d="M4 8H20V10H4V8Z" fill="{color}"/><path d="M7 12H12V14H7V12Z" fill="{color}"/><path d="M7 15H10V16H7V15Z" fill="{color}"/></svg>`,
   addUser: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 12C17.21 12 19 10.21 19 8C19 5.79 17.21 4 15 4C12.79 4 11 5.79 11 8C11 10.21 12.79 12 15 12ZM6 10V7H4V10H1V12H4V15H6V12H9V10H6ZM15 14C12.33 14 7 15.34 7 18V20H23V18C23 15.34 17.67 14 15 14Z" fill="{color}"/></svg>`,
+  phone: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.62 10.79C8.06 13.62 10.38 15.94 13.21 17.38L15.41 15.18C15.69 14.9 16.08 14.82 16.43 14.93C17.55 15.3 18.75 15.5 20 15.5C20.55 15.5 21 15.95 21 16.5V20C21 20.55 20.55 21 20 21C10.61 21 3 13.39 3 4C3 3.45 3.45 3 4 3H7.5C8.05 3 8.5 3.45 8.5 4C8.5 5.25 8.7 6.45 9.07 7.57C9.18 7.92 9.1 8.31 8.82 8.59L6.62 10.79Z" fill="{color}"/></svg>`,
 };
 
 // 医院图标
@@ -115,9 +117,14 @@ export const SearchIcon = (props: IconProps) => (
   <SvgIcon {...props} svg={svgs.search} />
 );
 
-// 内科/心脏图标
+// 内科/心脏图标（实心）
 export const HeartIcon = (props: IconProps) => (
   <SvgIcon {...props} svg={svgs.heart} />
+);
+
+// 爱心图标（空心）
+export const HeartOutlineIcon = (props: IconProps) => (
+  <SvgIcon {...props} svg={svgs.heartOutline} />
 );
 
 // 外科/手术刀图标
@@ -243,6 +250,11 @@ export const CardIcon = (props: IconProps) => (
 // 添加用户图标
 export const AddUserIcon = (props: IconProps) => (
   <SvgIcon {...props} svg={svgs.addUser} />
+);
+
+// 电话图标
+export const PhoneIcon = (props: IconProps) => (
+  <SvgIcon {...props} svg={svgs.phone} />
 );
 
 // 图标映射表 - 用于科室

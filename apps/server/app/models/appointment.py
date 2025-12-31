@@ -21,6 +21,7 @@ class Appointment(Base, AuditMixin):
     cancel_time = Column(DateTime)
     cancel_reason = Column(Text)
     remark = Column(Text)
+    symptom_description = Column(Text, nullable=True, comment="病情描述/预填信息")
     
     # 提醒相关
     reminder_sent = Column(Integer, default=0, comment="是否已发送提醒: 0否 1是")

@@ -103,9 +103,9 @@ const FeedbackPage = () => {
           placeholder="请详细描述您的问题或建议，我们会认真处理每一条反馈..."
           value={content}
           onInput={(e) => setContent(e.detail.value)}
-          maxlength={500}
+          maxlength={300}
         />
-        <Text className="char-count">{content.length}/500</Text>
+        <Text className="char-count">{content.length}/300</Text>
       </View>
 
       {/* 提交按钮 */}

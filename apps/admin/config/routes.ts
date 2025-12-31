@@ -210,6 +210,7 @@ export default [
       { path: '/system/email-templates', name: '邮件模板', component: './system/email-templates' },
       { path: '/system/email-templates/create', name: '新增邮件模板', component: './system/email-template-form', hideInMenu: true },
       { path: '/system/email-templates/:id/edit', name: '编辑邮件模板', component: './system/email-template-form', hideInMenu: true },
+      { path: '/system/booking-notice', name: '预约须知', component: './system/booking-notice' },
       { path: '/system/log', name: '操作日志', component: './system/log' },
       { path: '/system/analytics', name: '用户行为分析', component: './system/analytics' },
       { path: '/system/online-users', name: '在线用户', component: './system/online-users' },

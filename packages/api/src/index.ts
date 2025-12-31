@@ -53,6 +53,8 @@ export { emailTemplateApi, EMAIL_TEMPLATE_TYPE_OPTIONS } from './modules/email-t
 export { dataApi } from './modules/data';
 export type { ImportResult } from './modules/data';
 export { userManageApi } from './modules/user-manage';
+export { favoriteApi } from './modules/favorite';
+export { bookingNoticeApi } from './modules/booking-notice';
 export type { 
   UserListItem, 
   UserDetail, 
@@ -225,3 +227,20 @@ export type {
   EmailTestData,
   EmailTemplateType,
 } from './modules/email-template';
+
+// Favorite types
+export type {
+  Favorite,
+  FavoriteTarget,
+  FavoriteListResult,
+  FavoriteCheckResult,
+  FavoriteCreateData,
+} from './modules/favorite';
+
+// Booking Notice types
+export type { 
+  BookingNotice,
+  BookingNoticeListResult,
+  BookingNoticeCreateData,
+  BookingNoticeUpdateData,
+} from './modules/booking-notice';

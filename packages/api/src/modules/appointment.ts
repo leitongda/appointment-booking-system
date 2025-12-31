@@ -15,6 +15,7 @@ export interface AppointmentListParams {
 export interface AppointmentCreateData {
   scheduleId: string;
   patientId: string;
+  symptomDescription?: string;
 }
 
 export interface AppointmentStatistics {

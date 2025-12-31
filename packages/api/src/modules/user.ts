@@ -20,6 +20,11 @@ export interface BindPhoneData {
   code?: string;
 }
 
+export interface AvatarUploadResult {
+  url: string;
+  key: string;
+}
+
 export const userApi = {
   getProfile: (): Promise<User> => {
     return request.get('/users/profile');
@@ -71,5 +76,27 @@ export const userApi = {
 
   deletePatient: (id: string): Promise<void> => {
     return request.delete(`/users/patients/${id}`);
+  },
+
+  /**
+   * 上传头像（H5端使用）
+   * 小程序端请使用 Taro.uploadFile 直接调用 /users/avatar 接口
+   */
+  uploadAvatar: (file: File): Promise<AvatarUploadResult> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request.post<AvatarUploadResult>('/users/avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+
+  /**
+   * 获取头像上传接口路径
+   * 供小程序使用 Taro.uploadFile 时拼接完整 URL
+   */
+  getAvatarUploadPath: (): string => {
+    return '/users/avatar';
   },
 };

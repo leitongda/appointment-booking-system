@@ -176,7 +176,8 @@ class AppointmentService:
             doctor_id=schedule.doctor_id,
             schedule_id=data.schedule_id,
             queue_number=queue_number,
-            status=APPOINTMENT_STATUS['PENDING']
+            status=APPOINTMENT_STATUS['PENDING'],
+            symptom_description=data.symptom_description
         )
         # 设置创建人（如果是用户自己创建，使用 user_id；如果是管理员创建，使用 operator_id）
         set_create_audit(appointment, operator_id or user_id)

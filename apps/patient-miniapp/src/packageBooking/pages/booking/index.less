@@ -16,21 +16,21 @@
 }
 
 // -------------------------------------------
-// 通用卡片
+// 就诊人信息卡片（顶部）
 // -------------------------------------------
 
-.card {
+.patient-card {
   .card-base();
   padding: @card-padding;
   margin-bottom: @spacing-3;
 }
 
-.card-header {
+.patient-card-header {
   .flex-between();
   margin-bottom: @spacing-3;
 }
 
-.card-title {
+.patient-card-title {
   .heading-card();
   display: flex;
   align-items: center;
@@ -46,8 +46,8 @@
   }
 }
 
-.add-btn {
-  font-size: @font-size-base;
+.change-btn {
+  font-size: @font-size-sm;
   color: @color-primary;
   font-weight: @font-weight-medium;
   
@@ -56,84 +56,54 @@
   }
 }
 
-// -------------------------------------------
-// 预约信息
-// -------------------------------------------
-
-.info-row {
-  .flex-between();
-  padding: @spacing-3 0;
-  border-bottom: @border-width solid @color-divider;
-
-  &:first-of-type {
-    padding-top: 0;
-  }
-
-  &:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-  }
-}
-
-.label {
-  font-size: @font-size-base;
-  color: @color-text-muted;
-}
-
-.value {
-  font-size: @font-size-base;
-  color: @color-text-primary;
-  font-weight: @font-weight-medium;
-}
-
-.fee {
-  color: @color-price;
-  font-weight: @font-weight-semibold;
-  font-size: @font-size-lg;
-}
-
-// -------------------------------------------
-// 医生信息摘要
-// -------------------------------------------
-
-.doctor-summary {
+.selected-patient {
   display: flex;
   align-items: center;
   padding: @spacing-3;
-  background: @color-bg-secondary;
+  background: var(--badge-bg, rgba(196, 30, 58, 0.06));
+  border: 2rpx solid var(--color-primary, @theme-primary);
   border-radius: @radius-lg;
-  margin-bottom: @spacing-3;
 }
 
-.doctor-avatar {
-  .avatar(@avatar-size-md);
+.patient-avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: @radius-full;
   background: linear-gradient(135deg, #E0E7FF 0%, #EDE9FE 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 36rpx;
+  flex-shrink: 0;
 }
 
-.doctor-info {
+.patient-details {
   flex: 1;
   margin-left: @spacing-3;
 }
 
-.doctor-name {
-  font-size: @font-size-base;
+.patient-name {
+  font-size: @font-size-lg;
   font-weight: @font-weight-semibold;
   color: @color-text-primary;
+  display: block;
+  margin-bottom: 4rpx;
 }
 
-.doctor-dept {
+.patient-phone {
   font-size: @font-size-sm;
-  color: @color-text-muted;
-  margin-top: 4rpx;
+  color: @color-text-secondary;
 }
 
-// -------------------------------------------
-// 就诊人选择
-// -------------------------------------------
+.default-tag {
+  .badge-primary();
+  margin-left: @spacing-2;
+}
+
+.select-patient-tip {
+  padding: @spacing-4;
+  text-align: center;
+  color: @color-text-muted;
+}
 
 .empty-patient {
   .empty-state();
@@ -144,8 +114,14 @@
   }
 }
 
+.patient-list {
+  margin-top: @spacing-3;
+  padding-top: @spacing-3;
+  border-top: @border-width solid @color-divider;
+}
+
 .patient-item {
-  padding: @spacing-4 0;
+  padding: @spacing-3 0;
   border-bottom: @border-width solid @color-divider;
 
   &:last-child {
@@ -154,32 +130,247 @@
   }
 }
 
-.patient-radio {
-  display: flex;
-  align-items: center;
-}
-
 .patient-info {
-  flex: 1;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: @spacing-2;
+  
+  .name {
+    font-size: @font-size-base;
+    color: @color-text-primary;
+    font-weight: @font-weight-medium;
+  }
+  
+  .phone {
+    font-size: @font-size-sm;
+    color: @color-text-muted;
+  }
 }
 
-.patient-name {
+// -------------------------------------------
+// 预约信息卡片（中间）
+// -------------------------------------------
+
+.appointment-card {
+  .card-base();
+  padding: @card-padding;
+  margin-bottom: @spacing-3;
+}
+
+.card-title {
+  .heading-card();
+  display: flex;
+  align-items: center;
+  margin-bottom: @spacing-4;
+  
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 6rpx;
+    height: 28rpx;
+    background: @gradient-primary;
+    border-radius: @radius-full;
+    margin-right: @spacing-2;
+  }
+}
+
+// 医生信息行
+.doctor-row {
+  display: flex;
+  align-items: center;
+  padding: @spacing-3;
+  background: @color-bg-secondary;
+  border-radius: @radius-lg;
+  margin-bottom: @spacing-4;
+}
+
+.doctor-avatar {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: @radius-xl;
+  background: linear-gradient(135deg, #E0E7FF 0%, #EDE9FE 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  
+  image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.doctor-info {
+  flex: 1;
+  margin-left: @spacing-3;
+}
+
+.doctor-name-row {
+  display: flex;
+  align-items: center;
+  gap: @spacing-2;
+  margin-bottom: 4rpx;
+}
+
+.doctor-name {
+  font-size: @font-size-lg;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
+}
+
+.doctor-title {
+  .badge-primary();
+  font-size: @font-size-xs;
+}
+
+.doctor-dept {
+  font-size: @font-size-sm;
+  color: @color-text-secondary;
+}
+
+// 信息列表
+.info-list {
+  // container
+}
+
+.info-row {
+  .flex-between();
+  padding: @spacing-3 0;
+  border-bottom: @border-width solid @color-divider;
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+}
+
+.label {
+  font-size: @font-size-base;
+  color: @color-text-muted;
+  flex-shrink: 0;
+}
+
+.value {
   font-size: @font-size-base;
   color: @color-text-primary;
   font-weight: @font-weight-medium;
+  text-align: right;
+  flex: 1;
+  margin-left: @spacing-3;
+  
+  &.fee {
+    color: @color-price;
+    font-weight: @font-weight-semibold;
+    font-size: @font-size-lg;
+  }
+  
+  &.address {
+    font-size: @font-size-sm;
+    line-height: @line-height-relaxed;
+  }
 }
 
-.patient-phone {
-  font-size: @font-size-sm;
+// -------------------------------------------
+// 病情描述
+// -------------------------------------------
+
+.symptom-section {
+  margin-top: @spacing-4;
+  padding-top: @spacing-4;
+  border-top: @border-width solid @color-divider;
+  position: relative;
+}
+
+.symptom-label {
+  font-size: @font-size-base;
+  font-weight: @font-weight-medium;
+  color: @color-text-primary;
+  margin-bottom: @spacing-2;
+  display: block;
+}
+
+.symptom-input {
+  width: 100%;
+  min-height: 160rpx;
+  padding: @spacing-3;
+  background: @color-bg-secondary;
+  border-radius: @radius-lg;
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  line-height: @line-height-relaxed;
+  box-sizing: border-box;
+  
+  &::placeholder {
+    color: @color-text-muted;
+  }
+}
+
+.symptom-count {
+  position: absolute;
+  right: 0;
+  bottom: @spacing-2;
+  font-size: @font-size-xs;
   color: @color-text-muted;
 }
 
-.default-tag {
-  .badge-primary();
+// -------------------------------------------
+// 预约须知（底部）
+// -------------------------------------------
+
+.notice-card {
+  .card-base();
+  padding: @card-padding;
+  margin-bottom: @spacing-3;
+}
+
+.notice-title {
+  font-size: @font-size-base;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
+  margin-bottom: @spacing-3;
+  display: flex;
+  align-items: center;
+  
+  &::before {
+    content: '📋';
+    margin-right: @spacing-2;
+  }
+}
+
+.notice-list {
+  padding-left: @spacing-1;
+}
+
+.notice-item {
+  margin-bottom: @spacing-3;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.notice-item-title {
+  font-size: @font-size-sm;
+  font-weight: @font-weight-medium;
+  color: @color-text-primary;
+  margin-bottom: @spacing-1;
+  display: block;
+}
+
+.notice-content {
+  font-size: @font-size-sm;
+  color: @color-text-secondary;
+  line-height: @line-height-relaxed;
+  display: flex;
+  
+  &::before {
+    content: '•';
+    color: @color-primary;
+    margin-right: @spacing-2;
+    flex-shrink: 0;
+  }
 }
 
 // -------------------------------------------
@@ -219,49 +410,3 @@
   border-radius: @radius-xl;
 }
 
-// -------------------------------------------
-// 预约须知
-// -------------------------------------------
-
-.notice-card {
-  .card-base();
-  padding: @card-padding;
-  margin-bottom: @spacing-3;
-}
-
-.notice-title {
-  font-size: @font-size-base;
-  font-weight: @font-weight-semibold;
-  color: @color-text-primary;
-  margin-bottom: @spacing-3;
-  display: flex;
-  align-items: center;
-  
-  &::before {
-    content: '📋';
-    margin-right: @spacing-2;
-  }
-}
-
-.notice-list {
-  padding-left: @spacing-2;
-}
-
-.notice-item {
-  font-size: @font-size-sm;
-  color: @color-text-secondary;
-  line-height: @line-height-relaxed;
-  margin-bottom: @spacing-2;
-  display: flex;
-  
-  &:last-child {
-    margin-bottom: 0;
-  }
-  
-  &::before {
-    content: '•';
-    color: @color-primary;
-    margin-right: @spacing-2;
-    flex-shrink: 0;
-  }
-}

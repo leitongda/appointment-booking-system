@@ -27,6 +27,7 @@
 .info-header {
   display: flex;
   margin-bottom: @spacing-4;
+  position: relative;
 }
 
 .avatar {
@@ -88,6 +89,43 @@
 }
 
 // -------------------------------------------
+// 收藏按钮
+// -------------------------------------------
+
+.favorite-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: @spacing-2;
+  border-radius: @radius-lg;
+  transition: all @transition-base;
+  
+  &:active {
+    transform: scale(0.95);
+    background: @color-bg-secondary;
+  }
+  
+  &.loading {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}
+
+.favorite-text {
+  font-size: @font-size-xs;
+  color: @color-text-muted;
+  margin-top: 4rpx;
+  
+  .favorite-btn.active & {
+    color: #EF4444;
+  }
+}
+
+// -------------------------------------------
 // 信息区块
 // -------------------------------------------
 
@@ -109,7 +147,7 @@
 }
 
 // -------------------------------------------
-// 排班区域
+// 排班区域 - 新布局
 // -------------------------------------------
 
 .schedule-section {
@@ -118,9 +156,15 @@
   .card-base();
 }
 
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: @spacing-4;
+}
+
 .section-title {
   .heading-section();
-  margin-bottom: @spacing-4;
   display: flex;
   align-items: center;
   
@@ -135,95 +179,140 @@
   }
 }
 
+.scroll-hint {
+  font-size: @font-size-xs;
+  color: @color-text-muted;
+}
+
 .no-schedule {
   .empty-state();
 }
 
-.schedule-list {
-  // Container
+// -------------------------------------------
+// 日期横向滑动
+// -------------------------------------------
+
+.date-scroll {
+  margin: 0 -@card-padding;
+  padding: 0 @card-padding;
+  white-space: nowrap;
 }
 
-.schedule-row {
+.date-list {
+  display: inline-flex;
+  gap: @spacing-2;
+  padding: @spacing-1 0;
+}
+
+.date-item {
   display: flex;
-  align-items: flex-start;
-  padding: @spacing-4 0;
-  border-bottom: @border-width solid @color-divider;
-
-  &:first-child {
-    padding-top: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 120rpx;
+  height: 120rpx;
+  padding: @spacing-2 @spacing-3;
+  background: @color-bg-white;
+  border: 2rpx solid @color-border;
+  border-radius: @radius-lg;
+  transition: all @transition-base;
+  
+  &.active {
+    background: var(--badge-bg, rgba(196, 30, 58, 0.08));
+    border-color: var(--color-primary, @theme-primary);
+    border-width: 3rpx;
   }
-
-  &:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
+  
+  &:active {
+    transform: scale(0.96);
   }
 }
 
-.schedule-date {
-  width: 120rpx;
-  flex-shrink: 0;
-  padding-top: @spacing-1;
+.date-weekday {
+  font-size: @font-size-sm;
+  color: @color-text-secondary;
+  margin-bottom: 4rpx;
+  
+  .date-item.active & {
+    color: var(--color-primary, @theme-primary);
+    font-weight: @font-weight-medium;
+  }
 }
 
-.date {
+.date-day {
   font-size: @font-size-lg;
   font-weight: @font-weight-semibold;
   color: @color-text-primary;
-  display: block;
-  margin-bottom: 4rpx;
+  
+  .date-item.active & {
+    color: var(--color-primary, @theme-primary);
+  }
 }
 
-.weekday {
-  font-size: @font-size-sm;
-  color: @color-text-muted;
+// -------------------------------------------
+// 时段卡片 - 两列布局（浅色背景+边框）
+// -------------------------------------------
+
+.time-slots {
+  display: flex;
+  gap: @spacing-3;
+  margin-top: @spacing-4;
 }
 
-.schedule-slots {
+.time-slot-card {
   flex: 1;
   display: flex;
-  gap: @spacing-2;
-  flex-wrap: wrap;
-}
-
-.slot-btn {
-  min-width: 160rpx;
-  height: 88rpx;
-  display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  border-radius: @radius-lg;
-  font-size: @font-size-sm;
-  border: none;
-  padding: 0 @spacing-2;
+  justify-content: center;
+  padding: @spacing-4 @spacing-3;
+  border-radius: @radius-xl;
   transition: all @transition-base;
-
+  min-height: 160rpx;
+  
   &.available {
-    .gradient-primary();
-    color: @color-text-white;
-    box-shadow: @shadow-button;
+    background: var(--badge-bg, rgba(196, 30, 58, 0.06));
+    border: 2rpx solid var(--color-primary, @theme-primary);
     
     &:active {
-      transform: translateY(2rpx);
-      box-shadow: @shadow-sm;
+      transform: scale(0.98);
+      background: var(--badge-bg, rgba(196, 30, 58, 0.12));
     }
   }
-
+  
   &.full {
     background: @color-bg-secondary;
-    color: @color-text-muted;
+    border: 2rpx solid @color-border;
+    
+    .slot-period,
+    .slot-available,
+    .slot-dept {
+      color: @color-text-muted;
+    }
   }
 }
 
-.slot-time {
-  font-size: @font-size-sm;
-  font-weight: @font-weight-medium;
+.slot-period {
+  font-size: @font-size-lg;
+  font-weight: @font-weight-semibold;
+  color: var(--color-primary, @theme-primary);
+  margin-bottom: @spacing-1;
 }
 
-.slot-count {
+.slot-available {
+  font-size: @font-size-base;
+  font-weight: @font-weight-medium;
+  color: var(--color-primary, @theme-primary);
+  margin-bottom: @spacing-1;
+}
+
+.slot-dept {
   font-size: @font-size-xs;
-  margin-top: 4rpx;
-  opacity: 0.9;
+  color: @color-text-secondary;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 // -------------------------------------------

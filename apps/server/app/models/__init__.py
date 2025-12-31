@@ -23,3 +23,5 @@ from app.models.blacklist import Blacklist
 from app.models.email_template import EmailTemplate, EmailTemplateType
 from app.models.behavior_log import UserBehaviorLog
 from app.models.schedule_generation_log import ScheduleGenerationLog
+from app.models.booking_notice import BookingNotice
+from app.models.user_favorite import UserFavorite

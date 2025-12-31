@@ -37,8 +37,10 @@ export default defineAppConfig({
       root: 'packageProfile',
       name: 'profile',
       pages: [
+        'pages/profile/edit',        // 个人信息编辑
         'pages/patient/index',       // 就诊人列表
         'pages/patient/edit',        // 就诊人编辑
+        'pages/favorite/index',      // 我的收藏
         'pages/records/index',       // 就诊记录
         'pages/records/detail',      // 记录详情
         'pages/message/index',       // 消息中心
