@@ -8,6 +8,7 @@ import { getToken, setStorage } from '../../../utils/auth';
 import { getFontMode, type FontMode } from '../../../utils/fontMode';
 import { UserIcon } from '../../../components/Icons';
 import LoginPopup from '../../../components/LoginPopup';
+import { getImageUrl } from '../../../utils/url';
 import type { User } from '@hospital/shared';
 import './edit.less';
 
@@ -197,7 +198,7 @@ const ProfileEditPage = () => {
         <View className="avatar-wrapper">
           <View className="avatar-container">
             {avatar ? (
-              <Image src={avatar} className="avatar-image" mode="aspectFill" />
+              <Image src={getImageUrl(avatar)} className="avatar-image" mode="aspectFill" />
             ) : (
               <View className="avatar-placeholder">
                 <UserIcon size={60} color="#94A3B8" />

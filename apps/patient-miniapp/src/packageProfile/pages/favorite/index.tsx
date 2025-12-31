@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { favoriteApi } from '@hospital/api';
 import type { Favorite } from '@hospital/api';
 import { DoctorIcon } from '../../../components/Icons';
+import { getImageUrl } from '../../../utils/url';
 import './index.less';
 
 const FavoritePage = () => {
@@ -90,7 +91,7 @@ const FavoritePage = () => {
               >
                 <View className="doctor-avatar">
                   {favorite.target?.avatar ? (
-                    <Image src={favorite.target.avatar} mode="aspectFill" />
+                    <Image src={getImageUrl(favorite.target.avatar)} mode="aspectFill" />
                   ) : (
                     <DoctorIcon size={32} color="#4F46E5" />
                   )}

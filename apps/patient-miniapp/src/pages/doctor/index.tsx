@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { doctorApi } from '@hospital/api';
 import type { Doctor } from '@hospital/shared';
 import { DoctorIcon } from '../../components/Icons';
+import { getImageUrl } from '../../utils/url';
 import './index.less';
 
 const DoctorListPage = () => {
@@ -60,7 +61,7 @@ const DoctorListPage = () => {
             >
               <View className="avatar-wrap">
                 {doctor.avatar ? (
-                  <Image className="avatar" src={doctor.avatar} mode="aspectFill" />
+                  <Image className="avatar" src={getImageUrl(doctor.avatar)} mode="aspectFill" />
                 ) : (
                   <DoctorIcon size={36} color="#4F46E5" />
                 )}

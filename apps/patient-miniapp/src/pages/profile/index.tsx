@@ -19,6 +19,7 @@ import {
   PhoneIcon,
 } from '../../components/Icons';
 import { PageContainer } from '../../components/PageContainer';
+import { getImageUrl } from '../../utils/url';
 import './index.less';
 
 // 图标组件类型
@@ -485,7 +486,7 @@ const ProfilePage = () => {
         <View className="header-content" onClick={handleHeaderClick}>
           <View className="avatar">
             {user?.avatar ? (
-              <Image src={user.avatar} mode="aspectFill" />
+              <Image src={getImageUrl(user.avatar)} mode="aspectFill" />
             ) : (
               <UserIcon size={40} color="#fff" />
             )}

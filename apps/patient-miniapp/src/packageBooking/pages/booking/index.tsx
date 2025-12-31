@@ -9,6 +9,7 @@ import { getToken } from '../../../utils/auth';
 import LoginPopup from '../../../components/LoginPopup';
 import type { Doctor, Patient } from '@hospital/shared';
 import { DoctorIcon, UserIcon } from '../../../components/Icons';
+import { getImageUrl } from '../../../utils/url';
 import './index.less';
 
 const BookingPage = () => {
@@ -196,7 +197,7 @@ const BookingPage = () => {
         <View className="doctor-row">
           <View className="doctor-avatar">
             {doctor?.avatar ? (
-              <Image src={doctor.avatar} mode="aspectFill" />
+              <Image src={getImageUrl(doctor.avatar)} mode="aspectFill" />
             ) : (
               <DoctorIcon size={36} color="#4F46E5" />
             )}

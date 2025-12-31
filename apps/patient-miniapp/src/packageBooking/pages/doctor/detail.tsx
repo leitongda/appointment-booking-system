@@ -7,6 +7,7 @@ import { TIME_SLOT_MAP } from '@hospital/shared';
 import type { Doctor, AvailableSchedule } from '@hospital/shared';
 import { DoctorIcon, HeartIcon, HeartOutlineIcon } from '../../../components/Icons';
 import { getToken } from '../../../utils/auth';
+import { getImageUrl } from '../../../utils/url';
 import LoginPopup from '../../../components/LoginPopup';
 import './detail.less';
 
@@ -227,7 +228,7 @@ const DoctorDetailPage = () => {
         <View className="info-header">
           <View className="avatar">
             {doctor.avatar ? (
-              <Image src={doctor.avatar} mode="aspectFill" />
+              <Image src={getImageUrl(doctor.avatar)} mode="aspectFill" />
             ) : (
               <DoctorIcon size={48} color="#4F46E5" />
             )}

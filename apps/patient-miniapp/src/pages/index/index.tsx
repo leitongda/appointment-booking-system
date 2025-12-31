@@ -15,6 +15,7 @@ import {
 } from '../../components/Icons';
 import { PageContainer } from '../../components/PageContainer';
 import { getToken } from '../../utils/auth';
+import { getImageUrl } from '../../utils/url';
 import './index.less';
 
 // 功能菜单配置
@@ -132,7 +133,7 @@ const IndexPage = () => {
           <SwiperItem key={banner.id} onClick={() => handleBannerClick(banner)}>
             <View className="banner-item">
               {banner.imageUrl ? (
-                <Image className="banner-image" src={banner.imageUrl} mode="aspectFill" />
+                <Image className="banner-image" src={getImageUrl(banner.imageUrl)} mode="aspectFill" />
               ) : (
                 <View className="banner-content">
                   <Text className="banner-title">{banner.title || '欢迎使用'}</Text>
@@ -207,7 +208,7 @@ const IndexPage = () => {
               >
                 <View className="doctor-avatar">
                   {doctor.avatar ? (
-                    <Image className="avatar-image" src={doctor.avatar} mode="aspectFill" />
+                    <Image className="avatar-image" src={getImageUrl(doctor.avatar)} mode="aspectFill" />
                   ) : (
                     <DoctorIcon size={32} color="#4F46E5" />
                   )}
