@@ -1,0 +1,248 @@
+// ===========================================
+// 登录弹窗样式 - Corporate Trust Design System
+// ===========================================
+
+@import '../styles/variables.less';
+@import '../styles/mixins.less';
+
+// -------------------------------------------
+// 遮罩层
+// -------------------------------------------
+
+.login-popup-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: @z-index-modal;
+  display: flex;
+  align-items: flex-end;
+}
+
+// -------------------------------------------
+// 弹窗面板
+// -------------------------------------------
+
+.login-popup-sheet {
+  width: 100%;
+  background: @color-bg-white;
+  border-radius: @radius-2xl @radius-2xl 0 0;
+  padding: @spacing-4;
+  padding-bottom: calc(@spacing-6 + env(safe-area-inset-bottom));
+  animation: slideUp 0.3s ease-out;
+  
+  @keyframes slideUp {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+}
+
+// 顶部指示条
+.sheet-indicator {
+  width: 60rpx;
+  height: 8rpx;
+  background: @color-bg-tertiary;
+  border-radius: @radius-full;
+  margin: 0 auto @spacing-4;
+}
+
+// -------------------------------------------
+// 头部区域
+// -------------------------------------------
+
+.sheet-header {
+  text-align: center;
+  padding-bottom: @spacing-4;
+  position: relative;
+  
+  .logo {
+    width: 100rpx;
+    height: 100rpx;
+    background: var(--badge-bg, rgba(196, 30, 58, 0.1));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto @spacing-3;
+  }
+  
+  .sheet-title {
+    font-size: @font-size-xl;
+    font-weight: @font-weight-bold;
+    color: @color-text-primary;
+    display: block;
+    margin-bottom: @spacing-1;
+  }
+  
+  .sheet-subtitle {
+    font-size: @font-size-sm;
+    color: @color-text-secondary;
+    display: block;
+  }
+  
+  .sheet-close {
+    position: absolute;
+    right: 0;
+    top: 0;
+    font-size: 48rpx;
+    color: @color-text-muted;
+    padding: @spacing-2;
+    line-height: 1;
+  }
+}
+
+// -------------------------------------------
+// 内容区域
+// -------------------------------------------
+
+.sheet-content {
+  .tip {
+    display: block;
+    text-align: center;
+    color: @color-text-secondary;
+    font-size: @font-size-sm;
+    margin-bottom: @spacing-4;
+  }
+  
+  // 微信登录按钮
+  .wechat-btn {
+    height: @button-height-lg !important;
+    border-radius: @radius-xl !important;
+    background: #07c160 !important;
+    border-color: #07c160 !important;
+    font-size: @font-size-base !important;
+    font-weight: @font-weight-semibold !important;
+    box-shadow: 0 8rpx 24rpx rgba(7, 193, 96, 0.3) !important;
+    margin-bottom: @spacing-4;
+    
+    &:active {
+      background: #06ad56 !important;
+    }
+  }
+  
+  // 协议区域
+  .agreement {
+    .flex-center();
+    flex-wrap: wrap;
+    margin-top: @spacing-2;
+    font-size: @font-size-xs;
+    color: @color-text-muted;
+    
+    .link {
+      color: var(--color-primary, @theme-primary);
+      margin: 0 4rpx;
+      
+      &:active {
+        opacity: 0.7;
+      }
+    }
+  }
+  
+  // 头像选择区域
+  .avatar-section {
+    display: flex;
+    justify-content: center;
+    margin-bottom: @spacing-5;
+    
+    .avatar-btn {
+      width: 160rpx;
+      height: 160rpx;
+      padding: 0;
+      background: transparent;
+      border: none;
+      border-radius: 50%;
+      overflow: hidden;
+      
+      &::after {
+        border: none;
+      }
+      
+      .avatar-img {
+        width: 160rpx;
+        height: 160rpx;
+        border-radius: 50%;
+      }
+      
+      .avatar-placeholder {
+        width: 160rpx;
+        height: 160rpx;
+        border-radius: 50%;
+        background: @color-bg-tertiary;
+        border: 4rpx dashed @color-divider;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        
+        .avatar-icon {
+          font-size: 56rpx;
+          color: @color-text-muted;
+          line-height: 1;
+        }
+        
+        .avatar-text {
+          font-size: @font-size-xs;
+          color: @color-text-muted;
+          margin-top: @spacing-1;
+        }
+      }
+    }
+  }
+  
+  // 昵称输入区域
+  .nickname-section {
+    margin-bottom: @spacing-5;
+    
+    .label {
+      display: block;
+      color: @color-text-secondary;
+      font-size: @font-size-sm;
+      margin-bottom: @spacing-2;
+    }
+    
+    .nickname-input {
+      width: 100%;
+      height: @input-height;
+      background: @color-bg-secondary;
+      border-radius: @radius-lg;
+      padding: 0 @spacing-4;
+      font-size: @font-size-base;
+      color: @color-text-primary;
+    }
+  }
+  
+  // 确认按钮
+  .confirm-btn {
+    margin-bottom: @spacing-3;
+    height: @button-height-lg !important;
+    border-radius: @radius-xl !important;
+    .gradient-primary();
+    border: none !important;
+    font-size: @font-size-base !important;
+    font-weight: @font-weight-semibold !important;
+    box-shadow: @shadow-button !important;
+  }
+  
+  // 跳过区域
+  .skip-section {
+    text-align: center;
+    
+    .skip-btn {
+      display: inline-block;
+      color: @color-text-muted;
+      font-size: @font-size-sm;
+      padding: @spacing-2 @spacing-4;
+      
+      &:active {
+        opacity: 0.7;
+      }
+    }
+  }
+}
+

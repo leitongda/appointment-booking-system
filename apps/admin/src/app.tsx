@@ -1,14 +1,15 @@
 import { AvatarDropdown, AvatarName } from '@/components/RightContent';
-import { FullscreenButton, NotificationButton, RefreshButton } from '@/components/HeaderActions';
+import { FullscreenButton, NotificationButton, RefreshButton, SpacingButton } from '@/components/HeaderActions';
 import { getToken, removeToken, setStorage, STORAGE_KEYS, handleTokenExpired, initTracker, getTracker } from '@hospital/shared';
 import { adminApi, setBaseURL } from '@hospital/api';
 import type { Settings as LayoutSettings, MenuDataItem } from '@ant-design/pro-components';
 import type { RunTimeLayoutConfig, RequestConfig } from '@umijs/max';
 import { history, useLocation } from '@umijs/max';
-import { App, message } from 'antd';
+import { App, message, ConfigProvider, theme } from 'antd';
 import { useMemo } from 'react';
 import defaultSettings from '../config/defaultSettings';
 import { initApiConfig } from '@/utils/request';
+import { getSpacingMode, applySpacingCSSVariables, SPACING_CONFIG } from '@/utils/spacing';
 
 // 设置 API 基础路径（从环境变量读取，支持动态配置）
 const apiBaseUrl = process.env.API_BASE_URL || '/api/v1';
@@ -161,11 +162,56 @@ const PageTransitionWrapper: React.FC<{ children: React.ReactNode }> = ({ childr
 };
 
 /**
- * rootContainer 配置 - 用 App 组件包裹应用
+ * 获取 Ant Design 主题配置
+ * 根据间距模式返回对应的主题算法和 token
+ */
+function getThemeConfig() {
+  const spacingMode = getSpacingMode();
+  const spacingValues = SPACING_CONFIG[spacingMode];
+  
+  // 紧凑模式使用 compactAlgorithm
+  const algorithm = spacingMode === 'compact' ? theme.compactAlgorithm : theme.defaultAlgorithm;
+  
+  // 根据间距模式调整 token
+  const tokenConfig = {
+    // 组件内边距
+    padding: spacingValues.padding,
+    paddingLG: spacingValues.padding + 8,
+    paddingSM: spacingValues.padding - 4,
+    paddingXS: spacingValues.padding - 8,
+    // 外边距
+    margin: spacingValues.component,
+    marginLG: spacingValues.section,
+    marginSM: spacingValues.component - 4,
+    marginXS: spacingValues.component - 8,
+  };
+  
+  return { algorithm, tokenConfig };
+}
+
+/**
+ * rootContainer 配置 - 用 App 和 ConfigProvider 组件包裹应用
  * 这样可以使用 App.useApp() hooks (message, notification, modal)
+ * 同时应用间距模式的主题配置
  */
 export function rootContainer(container: any) {
-  return <App>{container}</App>;
+  const { algorithm, tokenConfig } = getThemeConfig();
+  
+  // 初始化时应用 CSS 变量
+  if (typeof window !== 'undefined') {
+    applySpacingCSSVariables(getSpacingMode());
+  }
+  
+  return (
+    <ConfigProvider
+      theme={{
+        algorithm,
+        token: tokenConfig,
+      }}
+    >
+      <App>{container}</App>
+    </ConfigProvider>
+  );
 }
 
 // 门店信息类型
@@ -257,6 +303,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
 
   return {
     actionsRender: () => [
+      <SpacingButton key="spacing" />,
       <RefreshButton key="refresh" />,
       <NotificationButton key="notification" />,
       <FullscreenButton key="fullscreen" />,

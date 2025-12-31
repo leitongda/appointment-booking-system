@@ -83,16 +83,18 @@ export const removeStorage = (key: string): void => {
 };
 
 /**
- * 检查登录状态，未登录则跳转到登录页
+ * 判断是否已登录
+ * @returns 是否已登录
+ */
+export const isLoggedIn = (): boolean => {
+  return !!getToken();
+};
+
+/**
+ * 检查登录状态（仅返回状态，不自动跳转）
  * @returns 是否已登录
  */
 export const checkLogin = (): boolean => {
-  const token = getToken();
-  if (!token) {
-    Taro.showToast({ title: '请先登录', icon: 'none' });
-    Taro.navigateTo({ url: '/pages/login/index' });
-    return false;
-  }
-  return true;
+  return isLoggedIn();
 };
 

@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { appointmentApi } from '@hospital/api';
 import { APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP } from '@hospital/shared';
 import { getToken } from '../../../utils/auth';
+import LoginPopup from '../../../components/LoginPopup';
 import type { AppointmentDetail } from '@hospital/shared';
 import {
   CalendarIcon,
@@ -41,17 +42,25 @@ const AppointmentDetailPage = () => {
 
   const [loading, setLoading] = useState(true);
   const [appointment, setAppointment] = useState<AppointmentDetail | null>(null);
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
 
   useEffect(() => {
     // 检查登录状态
     const token = getToken();
     if (!token) {
       Taro.showToast({ title: '请先登录', icon: 'none' });
-      Taro.navigateTo({ url: '/pages/login/index' });
+      setShowLoginPopup(true);
+      setLoading(false);
       return;
     }
     loadAppointment();
   }, []);
+
+  // 登录成功后加载数据
+  const handleLoginSuccess = () => {
+    setShowLoginPopup(false);
+    loadAppointment();
+  };
 
   const loadAppointment = async () => {
     try {
@@ -193,6 +202,18 @@ const AppointmentDetailPage = () => {
           </Button>
         </View>
       )}
+
+      {/* 登录弹窗 */}
+      <LoginPopup
+        visible={showLoginPopup}
+        onClose={() => {
+          setShowLoginPopup(false);
+          if (!getToken()) {
+            Taro.navigateBack();
+          }
+        }}
+        onSuccess={handleLoginSuccess}
+      />
     </View>
   );
 };

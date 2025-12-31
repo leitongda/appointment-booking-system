@@ -1,3 +1,11 @@
+/* 间距模式 CSS 变量 - 默认标准模式 */
+:root {
+  --spacing-card: 16px;
+  --spacing-section: 16px;
+  --spacing-component: 12px;
+  --spacing-padding: 16px;
+}
+
 /* 全局样式 */
 html,
 body,
@@ -30,6 +38,32 @@ body,
 /* 卡片样式优化 */
 .ant-card {
   border-radius: 8px;
+  margin-bottom: var(--spacing-card);
+}
+
+/* 间距辅助类 */
+.mb-section {
+  margin-bottom: var(--spacing-section) !important;
+}
+
+.mt-section {
+  margin-top: var(--spacing-section) !important;
+}
+
+.mb-component {
+  margin-bottom: var(--spacing-component) !important;
+}
+
+.mt-component {
+  margin-top: var(--spacing-component) !important;
+}
+
+.p-section {
+  padding: var(--spacing-section) !important;
+}
+
+.p-component {
+  padding: var(--spacing-component) !important;
 }
 
 /* 按钮样式优化 */

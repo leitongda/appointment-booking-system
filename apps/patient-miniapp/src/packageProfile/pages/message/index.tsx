@@ -6,6 +6,7 @@ import { messageApi, userApi } from '@hospital/api';
 import type { Message, MessageType } from '@hospital/shared';
 import { BellIcon, CalendarIcon, InfoIcon, ClockIcon, CloseCircleIcon } from '../../../components/Icons';
 import { getToken } from '../../../utils/auth';
+import LoginPopup from '../../../components/LoginPopup';
 import './index.less';
 
 // 消息类型图标映射
@@ -62,6 +63,7 @@ const MessagePage = () => {
     appointment: 0,
     system: 0,
   });
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
 
   useEffect(() => {
     checkLoginAndLoad();
@@ -77,7 +79,8 @@ const MessagePage = () => {
     const token = getToken();
     if (!token) {
       Taro.showToast({ title: '请先登录', icon: 'none' });
-      Taro.navigateTo({ url: '/pages/login/index' });
+      setShowLoginPopup(true);
+      setLoading(false);
       return;
     }
 
@@ -89,6 +92,12 @@ const MessagePage = () => {
       console.error('获取用户信息失败', error);
       setLoading(false);
     }
+  };
+
+  // 登录成功后加载数据
+  const handleLoginSuccess = () => {
+    setShowLoginPopup(false);
+    checkLoginAndLoad();
   };
 
   const loadMessages = async () => {
@@ -245,6 +254,18 @@ const MessagePage = () => {
           })}
         </View>
       )}
+
+      {/* 登录弹窗 */}
+      <LoginPopup
+        visible={showLoginPopup}
+        onClose={() => {
+          setShowLoginPopup(false);
+          if (!getToken()) {
+            Taro.navigateBack();
+          }
+        }}
+        onSuccess={handleLoginSuccess}
+      />
     </View>
   );
 };

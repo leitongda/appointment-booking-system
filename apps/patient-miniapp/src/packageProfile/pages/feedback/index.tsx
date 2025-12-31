@@ -4,6 +4,7 @@ import { Button, Rate } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 import { feedbackApi, userApi } from '@hospital/api';
 import { getToken } from '../../../utils/auth';
+import LoginPopup from '../../../components/LoginPopup';
 import './index.less';
 
 const FeedbackPage = () => {
@@ -11,18 +12,25 @@ const FeedbackPage = () => {
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [userId, setUserId] = useState('');
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
 
   useEffect(() => {
     // 检查登录状态并获取用户信息
     const token = getToken();
     if (!token) {
       Taro.showToast({ title: '请先登录', icon: 'none' });
-      Taro.navigateTo({ url: '/pages/login/index' });
+      setShowLoginPopup(true);
       return;
     }
     
     loadUserInfo();
   }, []);
+
+  // 登录成功后加载用户信息
+  const handleLoginSuccess = () => {
+    setShowLoginPopup(false);
+    loadUserInfo();
+  };
 
   const loadUserInfo = async () => {
     try {
@@ -119,6 +127,18 @@ const FeedbackPage = () => {
         <Text className="tips-content">• 您的反馈将帮助我们改进服务质量</Text>
         <Text className="tips-content">• 如有紧急问题，请直接联系医院客服</Text>
       </View>
+
+      {/* 登录弹窗 */}
+      <LoginPopup
+        visible={showLoginPopup}
+        onClose={() => {
+          setShowLoginPopup(false);
+          if (!getToken()) {
+            Taro.navigateBack();
+          }
+        }}
+        onSuccess={handleLoginSuccess}
+      />
     </View>
   );
 };

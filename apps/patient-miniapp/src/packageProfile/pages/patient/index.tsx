@@ -5,23 +5,32 @@ import { useState, useEffect } from 'react';
 import { userApi } from '@hospital/api';
 import { GENDER_MAP } from '@hospital/shared';
 import { getToken } from '../../../utils/auth';
+import LoginPopup from '../../../components/LoginPopup';
 import type { Patient } from '@hospital/shared';
 import './index.less';
 
 const PatientListPage = () => {
   const [loading, setLoading] = useState(true);
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
 
   useEffect(() => {
     // 检查登录状态
     const token = getToken();
     if (!token) {
       Taro.showToast({ title: '请先登录', icon: 'none' });
-      Taro.navigateTo({ url: '/pages/login/index' });
+      setShowLoginPopup(true);
+      setLoading(false);
       return;
     }
     loadPatients();
   }, []);
+
+  // 登录成功后加载数据
+  const handleLoginSuccess = () => {
+    setShowLoginPopup(false);
+    loadPatients();
+  };
 
   // 页面显示时刷新
   Taro.useDidShow(() => {
@@ -104,6 +113,18 @@ const PatientListPage = () => {
           添加就诊人
         </Button>
       </View>
+
+      {/* 登录弹窗 */}
+      <LoginPopup
+        visible={showLoginPopup}
+        onClose={() => {
+          setShowLoginPopup(false);
+          if (!getToken()) {
+            Taro.navigateBack();
+          }
+        }}
+        onSuccess={handleLoginSuccess}
+      />
     </View>
   );
 };

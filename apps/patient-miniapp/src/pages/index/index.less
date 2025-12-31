@@ -371,3 +371,79 @@
   font-size: @font-size-xs;
   color: @color-text-muted;
 }
+
+// 空状态
+.empty-doctors {
+  padding: @spacing-6 0;
+  text-align: center;
+  color: @color-text-muted;
+  font-size: @font-size-sm;
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+}
+
+// -------------------------------------------
+// 长辈模式 - 字体放大 (+20%)
+// -------------------------------------------
+
+.container.font-mode-elder {
+  .banner-title {
+    font-size: @font-size-3xl-elder;
+  }
+
+  .banner-subtitle {
+    font-size: @font-size-base-elder;
+  }
+
+  .menu-title {
+    font-size: @font-size-sm-elder;
+  }
+
+  .section-title {
+    font-size: @font-size-lg-elder;
+  }
+
+  .section-more {
+    font-size: @font-size-sm-elder;
+
+    &::after {
+      font-size: @font-size-base-elder;
+    }
+  }
+
+  .dept-name {
+    font-size: @font-size-sm-elder;
+  }
+
+  .doctor-name {
+    font-size: @font-size-lg-elder;
+  }
+
+  .doctor-dept,
+  .doctor-spec {
+    font-size: @font-size-sm-elder;
+  }
+
+  .quick-title {
+    font-size: @font-size-base-elder;
+  }
+
+  .quick-desc {
+    font-size: @font-size-xs-elder;
+  }
+
+  .news-title {
+    font-size: @font-size-base-elder;
+  }
+
+  .news-meta {
+    font-size: @font-size-xs-elder;
+  }
+
+  .empty-doctors {
+    font-size: @font-size-sm-elder;
+  }
+}

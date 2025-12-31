@@ -3,26 +3,33 @@ import Taro from '@tarojs/taro';
 import { useState, useEffect } from 'react';
 import './index.less';
 
+// 导入图标资源（让 webpack 正确处理路径）
+import homeIcon from '../assets/tabbar/home.png';
+import homeActiveIcon from '../assets/tabbar/home-active.png';
+import appointmentIcon from '../assets/tabbar/appointment.png';
+import appointmentActiveIcon from '../assets/tabbar/appointment-active.png';
+import profileIcon from '../assets/tabbar/profile.png';
+import profileActiveIcon from '../assets/tabbar/profile-active.png';
+
 // TabBar 配置
-// 使用绝对路径引用图片，避免 require 在小程序中可能导致的 base64 兼容性问题
 const tabBarList = [
   {
     pagePath: '/pages/index/index',
     text: '首页',
-    iconPath: '/assets/tabbar/home.png',
-    selectedIconPath: '/assets/tabbar/home-active.png',
+    iconPath: homeIcon,
+    selectedIconPath: homeActiveIcon,
   },
   {
     pagePath: '/pages/appointment/index',
     text: '预约',
-    iconPath: '/assets/tabbar/appointment.png',
-    selectedIconPath: '/assets/tabbar/appointment-active.png',
+    iconPath: appointmentIcon,
+    selectedIconPath: appointmentActiveIcon,
   },
   {
     pagePath: '/pages/profile/index',
     text: '我的',
-    iconPath: '/assets/tabbar/profile.png',
-    selectedIconPath: '/assets/tabbar/profile-active.png',
+    iconPath: profileIcon,
+    selectedIconPath: profileActiveIcon,
   },
 ];
 

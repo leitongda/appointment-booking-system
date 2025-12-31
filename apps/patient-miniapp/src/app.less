@@ -289,3 +289,63 @@ swiper {
 .safe-area-top {
   padding-top: env(safe-area-inset-top);
 }
+
+// -------------------------------------------
+// 长辈模式 - 字体放大 (+20%)
+// 通过在根容器添加 .font-mode-elder 类启用
+// -------------------------------------------
+
+.font-mode-elder {
+  // 基础字体放大
+  font-size: @font-size-base-elder;
+
+  // 工具类字体大小覆盖
+  .text-xs { font-size: @font-size-xs-elder; }
+  .text-sm { font-size: @font-size-sm-elder; }
+  .text-base { font-size: @font-size-base-elder; }
+  .text-lg { font-size: @font-size-lg-elder; }
+  .text-xl { font-size: @font-size-xl-elder; }
+  .text-2xl { font-size: @font-size-2xl-elder; }
+
+  // NutUI 组件字体覆盖
+  .nut-cell {
+    --nutui-cell-title-font: @font-size-base-elder;
+    --nutui-cell-desc-font: @font-size-sm-elder;
+  }
+
+  .nut-sidenavbar {
+    .nut-sidenavbar-sub__title {
+      font-size: @font-size-sm-elder;
+    }
+  }
+
+  .nut-sidebar-item {
+    --nutui-sidebar-font-size: @font-size-sm-elder;
+  }
+
+  .nut-button {
+    font-size: @font-size-base-elder;
+  }
+
+  .nut-tabs {
+    --nutui-tabs-title-font-size: @font-size-base-elder;
+  }
+
+  .nut-empty {
+    --nutui-empty-description-font-size: @font-size-base-elder;
+  }
+
+  .nut-dialog {
+    --nutui-dialog-title-font-size: @font-size-lg-elder;
+    --nutui-dialog-content-font-size: @font-size-base-elder;
+  }
+
+  .nut-input {
+    --nutui-input-font-size: @font-size-base-elder;
+  }
+
+  .nut-switch {
+    --nutui-switch-width: 56rpx;
+    --nutui-switch-height: 32rpx;
+  }
+}

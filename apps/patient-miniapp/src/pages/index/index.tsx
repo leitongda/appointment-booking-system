@@ -15,6 +15,7 @@ import {
   getDeptIcon,
   MoreIcon,
 } from '../../components/Icons';
+import { PageContainer } from '../../components/PageContainer';
 import './index.less';
 
 // 功能菜单配置
@@ -106,7 +107,7 @@ const IndexPage = () => {
   };
 
   return (
-    <View className="container">
+    <PageContainer className="container">
       {/* Banner 轮播 */}
       <Swiper className="banner" autoplay circular indicatorDots indicatorActiveColor="#fff">
         {banners.map((banner) => (
@@ -253,7 +254,7 @@ const IndexPage = () => {
           ) : null}
         </View>
       </View>
-    </View>
+    </PageContainer>
   );
 };
 

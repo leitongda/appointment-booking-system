@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { appointmentApi } from '@hospital/api';
 import { APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP } from '@hospital/shared';
 import { getToken } from '../../utils/auth';
+import LoginPopup from '../../components/LoginPopup';
 import type { Appointment } from '@hospital/shared';
 import './index.less';
 
@@ -26,6 +27,7 @@ const AppointmentPage = () => {
   const [loading, setLoading] = useState(true);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
 
   useEffect(() => {
     // 检查登录状态
@@ -38,6 +40,13 @@ const AppointmentPage = () => {
     setIsLoggedIn(true);
     loadAppointments();
   }, [activeTab]);
+
+  // 登录成功后刷新数据
+  const handleLoginSuccess = () => {
+    setIsLoggedIn(true);
+    setShowLoginPopup(false);
+    loadAppointments();
+  };
 
   const loadAppointments = async () => {
     setLoading(true);
@@ -115,7 +124,7 @@ const AppointmentPage = () => {
               type="primary"
               size="small"
               style={{ marginTop: '16px' }}
-              onClick={() => Taro.navigateTo({ url: '/pages/login/index' })}
+              onClick={() => setShowLoginPopup(true)}
             >
               去登录
             </Button>
@@ -177,6 +186,13 @@ const AppointmentPage = () => {
           ))
         )}
       </View>
+
+      {/* 登录弹窗 */}
+      <LoginPopup
+        visible={showLoginPopup}
+        onClose={() => setShowLoginPopup(false)}
+        onSuccess={handleLoginSuccess}
+      />
     </View>
   );
 };

@@ -4,6 +4,7 @@ import { Form, Input, Radio, Button, Switch } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 import { userApi } from '@hospital/api';
 import { getToken } from '../../../utils/auth';
+import LoginPopup from '../../../components/LoginPopup';
 import type { PatientForm } from '@hospital/shared';
 import './edit.less';
 
@@ -17,19 +18,28 @@ const PatientEditPage = () => {
     gender: 1,
     isDefault: false,
   });
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
 
   useEffect(() => {
     // 检查登录状态
     const token = getToken();
     if (!token) {
       Taro.showToast({ title: '请先登录', icon: 'none' });
-      Taro.navigateTo({ url: '/pages/login/index' });
+      setShowLoginPopup(true);
       return;
     }
     if (isEdit) {
       loadPatient();
     }
   }, [id]);
+
+  // 登录成功后加载数据
+  const handleLoginSuccess = () => {
+    setShowLoginPopup(false);
+    if (isEdit) {
+      loadPatient();
+    }
+  };
 
   const loadPatient = async () => {
     try {
@@ -116,6 +126,18 @@ const PatientEditPage = () => {
           </Button>
         </View>
       </Form>
+
+      {/* 登录弹窗 */}
+      <LoginPopup
+        visible={showLoginPopup}
+        onClose={() => {
+          setShowLoginPopup(false);
+          if (!getToken()) {
+            Taro.navigateBack();
+          }
+        }}
+        onSuccess={handleLoginSuccess}
+      />
     </View>
   );
 };

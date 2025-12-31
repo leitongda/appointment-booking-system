@@ -7,6 +7,7 @@ import { initTracker, getTracker, STORAGE_KEYS } from '@hospital/shared';
 import { setHttpClient, createTaroAdapter } from '@hospital/api';
 import { validateStoreConfig, getStoreId } from '@/utils/store';
 import { initThemeFromStore } from '@/utils/theme';
+import { initFontMode } from '@/utils/fontMode';
 
 /**
  * 获取 Token（小程序版本，使用 Taro Storage）
@@ -153,6 +154,10 @@ function App({ children }: PropsWithChildren) {
     // 初始化主题（从门店配置加载）
     const themeConfig = initThemeFromStore();
     console.log(`✓ 主题已初始化: ${themeConfig.primary}`);
+
+    // 初始化字体模式（从本地存储读取用户偏好）
+    const fontModeConfig = initFontMode();
+    console.log(`✓ 字体模式已初始化: ${fontModeConfig.name}`);
   }, []);
 
   // 监听页面显示，追踪页面访问

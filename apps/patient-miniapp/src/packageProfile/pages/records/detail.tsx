@@ -4,6 +4,7 @@ import { Loading, Empty, Tag } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 import { medicalRecordApi } from '@hospital/api';
 import { getToken } from '../../../utils/auth';
+import LoginPopup from '../../../components/LoginPopup';
 import type { MedicalRecord } from '@hospital/api';
 import './detail.less';
 
@@ -13,19 +14,29 @@ const RecordDetailPage = () => {
 
   const [loading, setLoading] = useState(true);
   const [record, setRecord] = useState<MedicalRecord | null>(null);
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
 
   useEffect(() => {
     // 检查登录状态
     const token = getToken();
     if (!token) {
       Taro.showToast({ title: '请先登录', icon: 'none' });
-      Taro.navigateTo({ url: '/pages/login/index' });
+      setShowLoginPopup(true);
+      setLoading(false);
       return;
     }
     if (id) {
       loadRecord();
     }
   }, [id]);
+
+  // 登录成功后加载数据
+  const handleLoginSuccess = () => {
+    setShowLoginPopup(false);
+    if (id) {
+      loadRecord();
+    }
+  };
 
   const loadRecord = async () => {
     try {
@@ -158,6 +169,18 @@ const RecordDetailPage = () => {
           </View>
         </View>
       )}
+
+      {/* 登录弹窗 */}
+      <LoginPopup
+        visible={showLoginPopup}
+        onClose={() => {
+          setShowLoginPopup(false);
+          if (!getToken()) {
+            Taro.navigateBack();
+          }
+        }}
+        onSuccess={handleLoginSuccess}
+      />
     </View>
   );
 };

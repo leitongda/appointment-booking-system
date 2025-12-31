@@ -5,6 +5,8 @@ import { useState, useEffect } from 'react';
 import { STORAGE_KEYS } from '@hospital/shared';
 import { getToken, removeToken, removeStorage } from '../../../utils/auth';
 import { userApi } from '@hospital/api';
+import { getFontMode, applyFontMode, getFontModeClassName, type FontMode } from '../../../utils/fontMode';
+import LoginPopup from '../../../components/LoginPopup';
 import './index.less';
 
 const SettingsPage = () => {
@@ -12,6 +14,9 @@ const SettingsPage = () => {
   const [notificationEnabled, setNotificationEnabled] = useState(true);
   const [systemNotificationEnabled, setSystemNotificationEnabled] = useState(true);
   const [userPhone, setUserPhone] = useState('');
+
+  // 字体模式
+  const [fontMode, setFontMode] = useState<FontMode>(getFontMode());
 
   // 修改密码弹窗
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
@@ -25,16 +30,26 @@ const SettingsPage = () => {
   const [newPhone, setNewPhone] = useState('');
   const [phoneLoading, setPhoneLoading] = useState(false);
 
+  // 登录弹窗
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
+
   useEffect(() => {
     const token = getToken();
     if (!token) {
       Taro.showToast({ title: '请先登录', icon: 'none' });
-      Taro.navigateTo({ url: '/pages/login/index' });
+      setShowLoginPopup(true);
       return;
     }
     setIsLoggedIn(true);
     loadUserInfo();
   }, []);
+
+  // 登录成功后加载用户信息
+  const handleLoginSuccess = () => {
+    setShowLoginPopup(false);
+    setIsLoggedIn(true);
+    loadUserInfo();
+  };
 
   const loadUserInfo = async () => {
     try {
@@ -145,7 +160,8 @@ const SettingsPage = () => {
       removeToken();
       removeStorage(STORAGE_KEYS.USER_INFO);
       Taro.showToast({ title: '已退出登录', icon: 'success' });
-      Taro.reLaunch({ url: '/pages/login/index' });
+      // 退出后跳转到首页
+      Taro.switchTab({ url: '/pages/index/index' });
     }
   };
 
@@ -153,8 +169,22 @@ const SettingsPage = () => {
     Taro.navigateTo({ url: `/packageOther/pages/agreement/index?type=${type}` });
   };
 
+  // 切换字体模式
+  const handleFontModeChange = (isElder: boolean) => {
+    const newMode: FontMode = isElder ? 'elder' : 'standard';
+    setFontMode(newMode);
+    applyFontMode(newMode);
+    Taro.showToast({ 
+      title: isElder ? '已开启长辈模式' : '已切换标准模式', 
+      icon: 'success' 
+    });
+  };
+
+  // 根据当前字体模式获取类名
+  const fontModeClass = fontMode === 'elder' ? 'font-mode-elder' : '';
+
   return (
-    <View className="settings-page">
+    <View className={`settings-page ${fontModeClass}`}>
       {/* 账号安全 */}
       <View className="section">
         <Text className="section-title">账号安全</Text>
@@ -192,6 +222,23 @@ const SettingsPage = () => {
               <Switch
                 checked={systemNotificationEnabled}
                 onChange={(value) => setSystemNotificationEnabled(value)}
+              />
+            }
+          />
+        </View>
+      </View>
+
+      {/* 显示设置 */}
+      <View className="section">
+        <Text className="section-title">显示设置</Text>
+        <View className="cell-group">
+          <Cell
+            title="长辈模式"
+            description="开启后字体放大，方便阅读"
+            extra={
+              <Switch
+                checked={fontMode === 'elder'}
+                onChange={(value) => handleFontModeChange(value)}
               />
             }
           />
@@ -303,6 +350,18 @@ const SettingsPage = () => {
           </Button>
         </View>
       </Dialog>
+
+      {/* 登录弹窗 */}
+      <LoginPopup
+        visible={showLoginPopup}
+        onClose={() => {
+          setShowLoginPopup(false);
+          if (!getToken()) {
+            Taro.navigateBack();
+          }
+        }}
+        onSuccess={handleLoginSuccess}
+      />
     </View>
   );
 };

@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { doctorApi, userApi, appointmentApi } from '@hospital/api';
 import { TIME_SLOT_MAP } from '@hospital/shared';
 import { getToken } from '../../../utils/auth';
+import LoginPopup from '../../../components/LoginPopup';
 import type { Doctor, Patient } from '@hospital/shared';
 import { DoctorIcon } from '../../../components/Icons';
 import './index.less';
@@ -18,17 +19,25 @@ const BookingPage = () => {
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
 
   useEffect(() => {
     // 检查登录状态
     const token = getToken();
     if (!token) {
       Taro.showToast({ title: '请先登录', icon: 'none' });
-      Taro.navigateTo({ url: '/pages/login/index' });
+      setShowLoginPopup(true);
+      setLoading(false);
       return;
     }
     loadData();
   }, []);
+
+  // 登录成功后加载数据
+  const handleLoginSuccess = () => {
+    setShowLoginPopup(false);
+    loadData();
+  };
 
   const loadData = async () => {
     try {
@@ -191,6 +200,19 @@ const BookingPage = () => {
           确认预约
         </Button>
       </View>
+
+      {/* 登录弹窗 */}
+      <LoginPopup
+        visible={showLoginPopup}
+        onClose={() => {
+          setShowLoginPopup(false);
+          // 如果关闭登录弹窗且未登录，返回上一页
+          if (!getToken()) {
+            Taro.navigateBack();
+          }
+        }}
+        onSuccess={handleLoginSuccess}
+      />
     </View>
   );
 };

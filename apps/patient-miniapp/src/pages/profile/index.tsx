@@ -16,6 +16,7 @@ import {
   SettingsIcon,
   UserIcon,
 } from '../../components/Icons';
+import { PageContainer } from '../../components/PageContainer';
 import './index.less';
 
 // 图标组件类型
@@ -351,8 +352,10 @@ const ProfilePage = () => {
     if (result.confirm) {
       removeToken();
       removeStorage(STORAGE_KEYS.USER_INFO);
+      setIsLoggedIn(false);
+      setUser(null);
+      setStats({ appointmentCount: 0, patientCount: 0, messageCount: 0 });
       Taro.showToast({ title: '已退出登录', icon: 'success' });
-      Taro.reLaunch({ url: '/pages/login/index' });
     }
   };
 
@@ -370,7 +373,8 @@ const ProfilePage = () => {
       // 检查是否需要登录
       if (requireLoginPaths.includes(item.path) && !isLoggedIn) {
         Taro.showToast({ title: '请先登录', icon: 'none' });
-        Taro.navigateTo({ url: '/pages/login/index' });
+        // 触发登录流程（点击头像区域）
+        handleHeaderClick();
         return;
       }
       Taro.navigateTo({ url: item.path });
@@ -381,7 +385,8 @@ const ProfilePage = () => {
 
   const handleStatClick = (type: 'appointment' | 'patient' | 'message') => {
     if (!isLoggedIn) {
-      Taro.navigateTo({ url: '/pages/login/index' });
+      // 触发登录流程
+      handleHeaderClick();
       return;
     }
     
@@ -399,7 +404,7 @@ const ProfilePage = () => {
   };
 
   return (
-    <View className="profile-page">
+    <PageContainer className="profile-page">
       {/* 头部区域 */}
       <View className="header">
         <View className="header-content" onClick={handleHeaderClick}>
@@ -545,7 +550,7 @@ const ProfilePage = () => {
           </View>
         </View>
       )}
-    </View>
+    </PageContainer>
   );
 };
 

@@ -7,9 +7,13 @@ import {
   ShopOutlined,
   DownOutlined,
   AppstoreOutlined,
+  ColumnWidthOutlined,
 } from '@ant-design/icons';
 import { history, useModel } from '@umijs/max';
-import { Badge, Tooltip, Popover, List, Empty, Spin, Button, Typography, Space, App, Avatar, Tag } from 'antd';
+import { Badge, Tooltip, Popover, List, Empty, Spin, Button, Typography, Space, App, Avatar, Tag, Dropdown } from 'antd';
+import type { MenuProps } from 'antd';
+import { getSpacingMode, setSpacingMode, applySpacingCSSVariables, SPACING_LABELS } from '@/utils/spacing';
+import type { SpacingMode } from '@/utils/spacing';
 import React, { useState, useEffect, useCallback } from 'react';
 import { messageApi, adminApi } from '@hospital/api';
 import type { StoreInfo } from '@hospital/api';
@@ -451,11 +455,73 @@ export const NotificationButton: React.FC = () => {
   );
 };
 
+// 间距模式切换按钮
+export const SpacingButton: React.FC = () => {
+  const [currentMode, setCurrentMode] = useState<SpacingMode>(() => getSpacingMode());
+
+  // 初始化时应用 CSS 变量
+  useEffect(() => {
+    applySpacingCSSVariables(currentMode);
+  }, []);
+
+  const handleModeChange = useCallback((mode: SpacingMode) => {
+    setSpacingMode(mode);
+    setCurrentMode(mode);
+    applySpacingCSSVariables(mode);
+    // 刷新页面以应用 Ant Design 主题变化
+    window.location.reload();
+  }, []);
+
+  const menuItems: MenuProps['items'] = [
+    {
+      key: 'compact',
+      label: (
+        <div className={styles.spacingMenuItem}>
+          <span>紧凑</span>
+          {currentMode === 'compact' && <CheckOutlined />}
+        </div>
+      ),
+      onClick: () => handleModeChange('compact'),
+    },
+    {
+      key: 'standard',
+      label: (
+        <div className={styles.spacingMenuItem}>
+          <span>标准</span>
+          {currentMode === 'standard' && <CheckOutlined />}
+        </div>
+      ),
+      onClick: () => handleModeChange('standard'),
+    },
+    {
+      key: 'comfortable',
+      label: (
+        <div className={styles.spacingMenuItem}>
+          <span>宽松</span>
+          {currentMode === 'comfortable' && <CheckOutlined />}
+        </div>
+      ),
+      onClick: () => handleModeChange('comfortable'),
+    },
+  ];
+
+  return (
+    <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
+      <Tooltip title={`间距模式：${SPACING_LABELS[currentMode]}`}>
+        <div className={styles.actionItem}>
+          <ColumnWidthOutlined />
+        </div>
+      </Tooltip>
+    </Dropdown>
+  );
+};
+
 // 导出所有 Action 组件
 export const HeaderActions: React.FC = () => {
   return (
     <Space className={styles.headerActions} size={4}>
       <StoreSwitcher />
+      <SpacingButton />
       <RefreshButton />
       <NotificationButton />
       <FullscreenButton />

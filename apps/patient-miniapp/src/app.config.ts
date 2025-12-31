@@ -16,7 +16,6 @@ export default defineAppConfig({
     'pages/profile/index',         // 我的 (tabBar)
     'pages/department/index',      // 科室列表 (首页入口)
     'pages/doctor/index',          // 医生列表 (首页入口)
-    'pages/login/index',           // 登录页 (高频)
   ],
   // 分包配置：将低频页面分离到子包
   subPackages: [
