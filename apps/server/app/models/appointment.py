@@ -23,6 +23,15 @@ class Appointment(Base, AuditMixin):
     remark = Column(Text)
     symptom_description = Column(Text, nullable=True, comment="病情描述/预填信息")
     
+    # 就诊人快照信息
+    patient_name = Column(String(50), nullable=True, comment="就诊人姓名(快照)")
+    patient_phone = Column(String(20), nullable=True, comment="就诊人手机(快照)")
+    
+    # 医生快照信息
+    doctor_name = Column(String(50), nullable=True, comment="医生姓名(快照)")
+    doctor_title = Column(String(50), nullable=True, comment="医生职称(快照)")
+    department_name = Column(String(100), nullable=True, comment="科室名称(快照)")
+    
     # 提醒相关
     reminder_sent = Column(Integer, default=0, comment="是否已发送提醒: 0否 1是")
     reminder_sent_at = Column(DateTime, comment="提醒发送时间")

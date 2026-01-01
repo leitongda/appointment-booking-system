@@ -52,7 +52,12 @@ async def get_appointments(
             appointment_no=a.appointment_no,
             user_id=a.user_id,
             patient_id=a.patient_id,
+            patient_name=a.patient_name,
+            patient_phone=a.patient_phone,
             doctor_id=a.doctor_id,
+            doctor_name=a.doctor_name,
+            doctor_title=a.doctor_title,
+            department_name=a.department_name,
             schedule_id=a.schedule_id,
             schedule_date=a.schedule.schedule_date if a.schedule else None,
             time_slot=a.schedule.time_slot if a.schedule else None,
@@ -63,6 +68,7 @@ async def get_appointments(
             complete_time=a.complete_time,
             cancel_time=a.cancel_time,
             cancel_reason=a.cancel_reason,
+            symptom_description=a.symptom_description,
             created_at=a.created_at
         ))
     
@@ -105,9 +111,9 @@ async def get_today_pending_appointments(
         result.append({
             "id": a.id,
             "appointmentNo": a.appointment_no,
-            "patientName": a.patient.name if a.patient else None,
-            "doctorName": a.doctor.name if a.doctor else None,
-            "departmentName": a.doctor.department.name if a.doctor and a.doctor.department else None,
+            "patientName": a.patient_name,
+            "doctorName": a.doctor_name,
+            "departmentName": a.department_name,
             "scheduleDate": a.schedule.schedule_date.isoformat() if a.schedule else None,
             "timeSlot": a.schedule.time_slot if a.schedule else None,
             "status": a.status,
@@ -154,10 +160,10 @@ async def get_checkin_queue(
             "appointmentNo": a.appointment_no,
             "queueNumber": a.queue_number,
             "patientId": a.patient_id,
-            "patientName": a.patient.name if a.patient else None,
+            "patientName": a.patient_name,
             "doctorId": a.doctor_id,
-            "doctorName": a.doctor.name if a.doctor else None,
-            "departmentName": a.doctor.department.name if a.doctor and a.doctor.department else None,
+            "doctorName": a.doctor_name,
+            "departmentName": a.department_name,
             "scheduleDate": a.schedule.schedule_date.isoformat() if a.schedule else None,
             "timeSlot": a.schedule.time_slot if a.schedule else None,
             "status": a.status,
@@ -200,7 +206,12 @@ async def get_appointment_by_no(
         appointment_no=appointment.appointment_no,
         user_id=appointment.user_id,
         patient_id=appointment.patient_id,
+        patient_name=appointment.patient_name,
+        patient_phone=appointment.patient_phone,
         doctor_id=appointment.doctor_id,
+        doctor_name=appointment.doctor_name,
+        doctor_title=appointment.doctor_title,
+        department_name=appointment.department_name,
         schedule_id=appointment.schedule_id,
         schedule_date=appointment.schedule.schedule_date if appointment.schedule else None,
         time_slot=appointment.schedule.time_slot if appointment.schedule else None,
@@ -211,6 +222,7 @@ async def get_appointment_by_no(
         complete_time=appointment.complete_time,
         cancel_time=appointment.cancel_time,
         cancel_reason=appointment.cancel_reason,
+        symptom_description=appointment.symptom_description,
         created_at=appointment.created_at
     )
 
@@ -232,7 +244,12 @@ async def get_appointment(
         appointment_no=appointment.appointment_no,
         user_id=appointment.user_id,
         patient_id=appointment.patient_id,
+        patient_name=appointment.patient_name,
+        patient_phone=appointment.patient_phone,
         doctor_id=appointment.doctor_id,
+        doctor_name=appointment.doctor_name,
+        doctor_title=appointment.doctor_title,
+        department_name=appointment.department_name,
         schedule_id=appointment.schedule_id,
         schedule_date=appointment.schedule.schedule_date if appointment.schedule else None,
         time_slot=appointment.schedule.time_slot if appointment.schedule else None,
@@ -243,6 +260,7 @@ async def get_appointment(
         complete_time=appointment.complete_time,
         cancel_time=appointment.cancel_time,
         cancel_reason=appointment.cancel_reason,
+        symptom_description=appointment.symptom_description,
         created_at=appointment.created_at
     )
 
@@ -265,11 +283,17 @@ async def create_appointment(
         appointment_no=appointment.appointment_no,
         user_id=appointment.user_id,
         patient_id=appointment.patient_id,
+        patient_name=appointment.patient_name,
+        patient_phone=appointment.patient_phone,
         doctor_id=appointment.doctor_id,
+        doctor_name=appointment.doctor_name,
+        doctor_title=appointment.doctor_title,
+        department_name=appointment.department_name,
         schedule_id=appointment.schedule_id,
         queue_number=appointment.queue_number,
         status=appointment.status,
         sign_in_time=appointment.sign_in_time,
+        symptom_description=appointment.symptom_description,
         created_at=appointment.created_at
     )
 

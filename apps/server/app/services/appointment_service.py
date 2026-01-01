@@ -8,6 +8,7 @@ import uuid
 from app.models.appointment import Appointment
 from app.models.schedule import Schedule
 from app.models.user import Patient
+from app.models.doctor import Doctor
 from app.schemas.appointment import AppointmentCreate, AppointmentStatistics
 from app.utils.audit import set_create_audit, set_update_audit
 
@@ -123,9 +124,11 @@ class AppointmentService:
         )
     
     async def create(self, user_id: str, data: AppointmentCreate, operator_id: Optional[str] = None) -> Appointment:
-        # 获取排班信息
+        # 获取排班信息（包含医生和科室信息，用于快照）
         schedule_result = await self.db.execute(
-            select(Schedule).options(selectinload(Schedule.doctor)).where(Schedule.id == data.schedule_id)
+            select(Schedule)
+            .options(selectinload(Schedule.doctor).selectinload(Doctor.department))
+            .where(Schedule.id == data.schedule_id)
         )
         schedule = schedule_result.scalar_one_or_none()
         
@@ -167,7 +170,8 @@ class AppointmentService:
         max_queue = queue_result.scalar() or 0
         queue_number = max_queue + 1
         
-        # 创建预约
+        # 创建预约（包含快照信息）
+        doctor = schedule.doctor
         appointment = Appointment(
             id=str(uuid.uuid4()),
             appointment_no=appointment_no,
@@ -177,7 +181,14 @@ class AppointmentService:
             schedule_id=data.schedule_id,
             queue_number=queue_number,
             status=APPOINTMENT_STATUS['PENDING'],
-            symptom_description=data.symptom_description
+            symptom_description=data.symptom_description,
+            # 就诊人快照信息
+            patient_name=patient.name,
+            patient_phone=patient.phone,
+            # 医生快照信息
+            doctor_name=doctor.name if doctor else None,
+            doctor_title=doctor.title if doctor else None,
+            department_name=doctor.department.name if doctor and doctor.department else None,
         )
         # 设置创建人（如果是用户自己创建，使用 user_id；如果是管理员创建，使用 operator_id）
         set_create_audit(appointment, operator_id or user_id)

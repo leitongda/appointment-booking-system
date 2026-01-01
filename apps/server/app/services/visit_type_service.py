@@ -11,7 +11,7 @@ from app.schemas.store_visit_type_config import (
     StoreVisitTypeConfigCreate,
     StoreVisitTypeConfigUpdate
 )
-from app.db.audit import set_create_audit, set_update_audit
+from app.utils.audit import set_create_audit, set_update_audit
 
 
 class VisitTypeService:

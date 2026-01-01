@@ -36,6 +36,7 @@ class AppointmentResponse(BaseModel):
     patient_phone: Optional[str] = None
     doctor_id: Optional[str] = None
     doctor_name: Optional[str] = None
+    doctor_title: Optional[str] = None
     department_name: Optional[str] = None
     schedule_id: Optional[str] = None
     schedule_date: Optional[date] = None
