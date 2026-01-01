@@ -1,5 +1,5 @@
 import { View, Text } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { usePullDownRefresh } from '@tarojs/taro';
 import { useState, useEffect } from 'react';
 import { departmentApi } from '@hospital/api';
 import type { DepartmentTreeNode } from '@hospital/shared';
@@ -36,6 +36,13 @@ const DepartmentPage = () => {
   useEffect(() => {
     loadDepartments();
   }, []);
+
+  // 下拉刷新
+  usePullDownRefresh(() => {
+    loadDepartments().finally(() => {
+      Taro.stopPullDownRefresh();
+    });
+  });
 
   const loadDepartments = async () => {
     try {

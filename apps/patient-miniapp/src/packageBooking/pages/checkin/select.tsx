@@ -6,6 +6,8 @@ import { appointmentApi } from '@hospital/api';
 import { TIME_SLOT_MAP } from '@hospital/shared';
 import type { PendingAppointment } from '@hospital/api';
 import { DoctorIcon, CheckCircleIcon } from '../../../components/Icons';
+import { getToken } from '../../../utils/auth';
+import LoginPopup from '../../../components/LoginPopup';
 import './select.less';
 
 const CheckinSelectPage = () => {
@@ -16,12 +18,29 @@ const CheckinSelectPage = () => {
   const [appointments, setAppointments] = useState<PendingAppointment[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
 
   useEffect(() => {
+    // 检查登录状态
+    const token = getToken();
+    if (!token) {
+      Taro.showToast({ title: '请先登录', icon: 'none' });
+      setShowLoginPopup(true);
+      setLoading(false);
+      return;
+    }
     if (storeId) {
       loadAppointments();
     }
   }, [storeId]);
+
+  // 登录成功后加载数据
+  const handleLoginSuccess = () => {
+    setShowLoginPopup(false);
+    if (storeId) {
+      loadAppointments();
+    }
+  };
 
   const loadAppointments = async () => {
     try {
@@ -152,6 +171,18 @@ const CheckinSelectPage = () => {
           </View>
         </>
       )}
+
+      {/* 登录弹窗 */}
+      <LoginPopup
+        visible={showLoginPopup}
+        onClose={() => {
+          setShowLoginPopup(false);
+          if (!getToken()) {
+            Taro.navigateBack();
+          }
+        }}
+        onSuccess={handleLoginSuccess}
+      />
     </View>
   );
 };

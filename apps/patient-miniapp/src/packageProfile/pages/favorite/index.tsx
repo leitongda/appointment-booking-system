@@ -1,24 +1,50 @@
 import { View, Text, Image } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { usePullDownRefresh } from '@tarojs/taro';
 import { Button, Swipe, Empty } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 import { favoriteApi } from '@hospital/api';
 import type { Favorite } from '@hospital/api';
 import { DoctorIcon } from '../../../components/Icons';
+import { getToken } from '../../../utils/auth';
+import LoginPopup from '../../../components/LoginPopup';
 import { getImageUrl } from '../../../utils/url';
 import './index.less';
 
 const FavoritePage = () => {
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
 
   useEffect(() => {
+    // 检查登录状态
+    const token = getToken();
+    if (!token) {
+      Taro.showToast({ title: '请先登录', icon: 'none' });
+      setShowLoginPopup(true);
+      setLoading(false);
+      return;
+    }
     loadFavorites();
   }, []);
 
   // 页面显示时刷新数据
   Taro.useDidShow(() => {
+    if (getToken()) {
+      loadFavorites();
+    }
+  });
+
+  // 登录成功后加载数据
+  const handleLoginSuccess = () => {
+    setShowLoginPopup(false);
     loadFavorites();
+  };
+
+  // 下拉刷新
+  usePullDownRefresh(() => {
+    loadFavorites().finally(() => {
+      Taro.stopPullDownRefresh();
+    });
   });
 
   const loadFavorites = async () => {
@@ -120,6 +146,18 @@ const FavoritePage = () => {
       <View className="tip-text">
         <Text>左滑可取消收藏</Text>
       </View>
+
+      {/* 登录弹窗 */}
+      <LoginPopup
+        visible={showLoginPopup}
+        onClose={() => {
+          setShowLoginPopup(false);
+          if (!getToken()) {
+            Taro.navigateBack();
+          }
+        }}
+        onSuccess={handleLoginSuccess}
+      />
     </View>
   );
 };

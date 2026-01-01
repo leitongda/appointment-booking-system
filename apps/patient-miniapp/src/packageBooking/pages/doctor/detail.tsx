@@ -1,5 +1,5 @@
 import { View, Text, Image, ScrollView } from '@tarojs/components';
-import Taro, { useRouter } from '@tarojs/taro';
+import Taro, { useRouter, usePullDownRefresh } from '@tarojs/taro';
 import { Button } from '@nutui/nutui-react-taro';
 import { useState, useEffect, useMemo } from 'react';
 import { doctorApi, scheduleApi, favoriteApi } from '@hospital/api';
@@ -37,6 +37,17 @@ const DoctorDetailPage = () => {
       loadData();
     }
   }, [id]);
+
+  // 下拉刷新
+  usePullDownRefresh(() => {
+    if (id) {
+      loadData().finally(() => {
+        Taro.stopPullDownRefresh();
+      });
+    } else {
+      Taro.stopPullDownRefresh();
+    }
+  });
 
   const loadData = async () => {
     try {

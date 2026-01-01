@@ -1,5 +1,5 @@
 import { View, Text, Swiper, SwiperItem, Image } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { usePullDownRefresh } from '@tarojs/taro';
 import { useState, useEffect } from 'react';
 import { contentApi, doctorApi, userApi } from '@hospital/api';
 import type { Banner } from '@hospital/api';
@@ -15,6 +15,7 @@ import {
 } from '../../components/Icons';
 import { PageContainer } from '../../components/PageContainer';
 import { getToken } from '../../utils/auth';
+import LoginPopup from '../../components/LoginPopup';
 import { getImageUrl } from '../../utils/url';
 import './index.less';
 
@@ -33,11 +34,19 @@ const defaultBanners = [
   // { id: '3', title: '优质服务', imageUrl: '', linkType: 0 },
 ];
 
+// 需要登录的菜单路径
+const requireLoginPaths = [
+  '/pages/appointment/index',
+  '/packageBooking/pages/checkin/scan',
+  '/packageProfile/pages/feedback/index',
+];
+
 const IndexPage = () => {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [defaultPatient, setDefaultPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -46,6 +55,13 @@ const IndexPage = () => {
   // 页面显示时刷新就诊卡（可能用户新增了就诊卡）
   Taro.useDidShow(() => {
     loadPatients();
+  });
+
+  // 下拉刷新
+  usePullDownRefresh(() => {
+    loadData().finally(() => {
+      Taro.stopPullDownRefresh();
+    });
   });
 
   const loadData = async () => {
@@ -97,7 +113,22 @@ const IndexPage = () => {
     }
   };
 
-  const navigateTo = (path: string) => {
+  // 登录成功回调
+  const handleLoginSuccess = () => {
+    setShowLoginPopup(false);
+    loadPatients();
+  };
+
+  const navigateTo = (path: string, checkLogin = false) => {
+    // 检查是否需要登录
+    if (checkLogin || requireLoginPaths.includes(path)) {
+      const token = getToken();
+      if (!token) {
+        setShowLoginPopup(true);
+        return;
+      }
+    }
+    
     if (path === '/pages/profile/index' || path === '/pages/appointment/index') {
       Taro.switchTab({ url: path });
     } else {
@@ -116,6 +147,13 @@ const IndexPage = () => {
   };
 
   const handlePatientCardClick = () => {
+    // 未登录时弹出登录弹窗
+    const token = getToken();
+    if (!token) {
+      setShowLoginPopup(true);
+      return;
+    }
+    
     if (defaultPatient) {
       // 有就诊卡，跳转到就诊卡详情编辑页面
       Taro.navigateTo({ url: `/packageProfile/pages/patient/edit?id=${defaultPatient.id}` });
@@ -233,6 +271,13 @@ const IndexPage = () => {
           ) : null}
         </View>
       </View>
+
+      {/* 登录弹窗 */}
+      <LoginPopup
+        visible={showLoginPopup}
+        onClose={() => setShowLoginPopup(false)}
+        onSuccess={handleLoginSuccess}
+      />
     </PageContainer>
   );
 };

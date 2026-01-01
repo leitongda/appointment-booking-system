@@ -1,5 +1,5 @@
 import { View, Text } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { usePullDownRefresh } from '@tarojs/taro';
 import { Button, Empty, Swipe } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 import { userApi } from '@hospital/api';
@@ -35,6 +35,13 @@ const PatientListPage = () => {
   // 页面显示时刷新
   Taro.useDidShow(() => {
     loadPatients();
+  });
+
+  // 下拉刷新
+  usePullDownRefresh(() => {
+    loadPatients().finally(() => {
+      Taro.stopPullDownRefresh();
+    });
   });
 
   const loadPatients = async () => {

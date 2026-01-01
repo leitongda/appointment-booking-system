@@ -1,5 +1,5 @@
 import { View, Text, Image } from '@tarojs/components';
-import Taro, { useRouter } from '@tarojs/taro';
+import Taro, { useRouter, usePullDownRefresh } from '@tarojs/taro';
 import { useState, useEffect } from 'react';
 import { doctorApi } from '@hospital/api';
 import type { Doctor } from '@hospital/shared';
@@ -19,6 +19,17 @@ const DoctorListPage = () => {
       loadDoctors();
     }
   }, [departmentId]);
+
+  // 下拉刷新
+  usePullDownRefresh(() => {
+    if (departmentId) {
+      loadDoctors().finally(() => {
+        Taro.stopPullDownRefresh();
+      });
+    } else {
+      Taro.stopPullDownRefresh();
+    }
+  });
 
   const loadDoctors = async () => {
     try {

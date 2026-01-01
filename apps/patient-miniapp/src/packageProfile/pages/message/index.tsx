@@ -1,5 +1,5 @@
 import { View, Text } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { usePullDownRefresh } from '@tarojs/taro';
 import { Empty, Tabs, Button } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 import { messageApi, userApi } from '@hospital/api';
@@ -99,6 +99,17 @@ const MessagePage = () => {
     setShowLoginPopup(false);
     checkLoginAndLoad();
   };
+
+  // 下拉刷新
+  usePullDownRefresh(() => {
+    if (userId) {
+      Promise.all([loadMessages(), loadUnreadCount(userId)]).finally(() => {
+        Taro.stopPullDownRefresh();
+      });
+    } else {
+      Taro.stopPullDownRefresh();
+    }
+  });
 
   const loadMessages = async () => {
     setLoading(true);

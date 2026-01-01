@@ -1,5 +1,5 @@
 import { View, Text } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { usePullDownRefresh } from '@tarojs/taro';
 import { Empty, Loading } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 import { medicalRecordApi } from '@hospital/api';
@@ -30,6 +30,13 @@ const RecordsPage = () => {
     setShowLoginPopup(false);
     loadRecords();
   };
+
+  // 下拉刷新
+  usePullDownRefresh(() => {
+    loadRecords().finally(() => {
+      Taro.stopPullDownRefresh();
+    });
+  });
 
   const loadRecords = async () => {
     try {

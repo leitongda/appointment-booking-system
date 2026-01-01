@@ -1,5 +1,5 @@
 import { View, Text } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { usePullDownRefresh } from '@tarojs/taro';
 import { Tabs, Button, Empty } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 import { appointmentApi } from '@hospital/api';
@@ -47,6 +47,17 @@ const AppointmentPage = () => {
     setShowLoginPopup(false);
     loadAppointments();
   };
+
+  // 下拉刷新
+  usePullDownRefresh(() => {
+    if (isLoggedIn) {
+      loadAppointments().finally(() => {
+        Taro.stopPullDownRefresh();
+      });
+    } else {
+      Taro.stopPullDownRefresh();
+    }
+  });
 
   const loadAppointments = async () => {
     setLoading(true);
