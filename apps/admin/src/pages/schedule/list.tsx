@@ -218,6 +218,12 @@ const ScheduleListPage: React.FC = () => {
   const handleEdit = (record: Schedule) => {
     setCurrentSchedule(record);
     setEditModalOpen(true);
+    // 确保表单值在弹窗打开后正确设置
+    setTimeout(() => {
+      editFormRef.current?.setFieldsValue({
+        totalSlots: record.totalSlots,
+      });
+    }, 0);
   };
 
   const handleEditSubmit = async (values: any) => {
