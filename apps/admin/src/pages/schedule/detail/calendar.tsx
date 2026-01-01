@@ -1,7 +1,13 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { Calendar, Badge, Tooltip, Spin, Tag, Select, Space } from 'antd';
+import { Calendar, Badge, Tooltip, Spin, Tag, Select, Space, Button } from 'antd';
+import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+
+dayjs.extend(isSameOrAfter);
+dayjs.extend(isSameOrBefore);
 import { useEffect, useState, useCallback } from 'react';
 import { scheduleApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
 import type { Schedule, Doctor, Department, Store } from '@hospital/shared';
@@ -15,7 +21,8 @@ interface DaySchedules {
 const ScheduleDetailCalendarPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [scheduleData, setScheduleData] = useState<DaySchedules>({});
-  const [currentMonth, setCurrentMonth] = useState<Dayjs>(dayjs());
+  const [currentDate, setCurrentDate] = useState<Dayjs>(dayjs());
+  const [panelMode, setPanelMode] = useState<'month' | 'year'>('month');
   const [selectedDoctor, setSelectedDoctor] = useState<string>();
   const [selectedDepartment, setSelectedDepartment] = useState<string>();
   const [selectedStore, setSelectedStore] = useState<string>();
@@ -28,6 +35,24 @@ const ScheduleDetailCalendarPage: React.FC = () => {
   const access = useAccess();
   const { currentUser } = initialState ?? {};
   const isSuperAdmin = access.canSuperAdmin;
+
+  // 导航到上一个月/年
+  const handlePrev = () => {
+    if (panelMode === 'year') {
+      setCurrentDate(currentDate.subtract(1, 'year'));
+    } else {
+      setCurrentDate(currentDate.subtract(1, 'month'));
+    }
+  };
+
+  // 导航到下一个月/年
+  const handleNext = () => {
+    if (panelMode === 'year') {
+      setCurrentDate(currentDate.add(1, 'year'));
+    } else {
+      setCurrentDate(currentDate.add(1, 'month'));
+    }
+  };
 
   useEffect(() => {
     loadStores();
@@ -73,16 +98,24 @@ const ScheduleDetailCalendarPage: React.FC = () => {
     }
   };
 
-  const loadSchedules = useCallback(async (month: Dayjs) => {
+  const loadSchedules = useCallback(async (date: Dayjs, mode: 'month' | 'year') => {
     setLoading(true);
     try {
-      const startDate = month.startOf('month').format('YYYY-MM-DD');
-      const endDate = month.endOf('month').format('YYYY-MM-DD');
+      let startDate: string;
+      let endDate: string;
+      
+      if (mode === 'year') {
+        startDate = date.startOf('year').format('YYYY-MM-DD');
+        endDate = date.endOf('year').format('YYYY-MM-DD');
+      } else {
+        startDate = date.startOf('month').format('YYYY-MM-DD');
+        endDate = date.endOf('month').format('YYYY-MM-DD');
+      }
       
       const params: any = {
         startDate,
         endDate,
-        pageSize: 100,
+        pageSize: mode === 'year' ? 500 : 100, // 年视图需要更多数据
       };
       
       if (selectedStore) {
@@ -113,11 +146,12 @@ const ScheduleDetailCalendarPage: React.FC = () => {
   }, [selectedStore, selectedDoctor]);
 
   useEffect(() => {
-    loadSchedules(currentMonth);
-  }, [loadSchedules, currentMonth]);
+    loadSchedules(currentDate, panelMode);
+  }, [loadSchedules, currentDate, panelMode]);
 
-  const handlePanelChange = (date: Dayjs) => {
-    setCurrentMonth(date);
+  const handlePanelChange = (date: Dayjs, mode: 'month' | 'year') => {
+    setCurrentDate(date);
+    setPanelMode(mode);
   };
 
   const getStatusBadge = (schedule: Schedule) => {
@@ -189,6 +223,73 @@ const ScheduleDetailCalendarPage: React.FC = () => {
     );
   };
 
+  // 年视图的月份单元格渲染
+  const monthCellRender = (date: Dayjs) => {
+    const monthStart = date.startOf('month');
+    const monthEnd = date.endOf('month');
+    
+    // 统计该月排班数据
+    let totalSchedules = 0;
+    let totalBookedSlots = 0;
+    let totalSlots = 0;
+    let hasSuspended = false;
+    
+    Object.keys(scheduleData).forEach(dateStr => {
+      const d = dayjs(dateStr);
+      if (d.isSameOrAfter(monthStart, 'day') && d.isSameOrBefore(monthEnd, 'day')) {
+        scheduleData[dateStr].forEach(schedule => {
+          totalSchedules++;
+          totalBookedSlots += schedule.bookedSlots;
+          totalSlots += schedule.totalSlots;
+          if (schedule.status === 0) {
+            hasSuspended = true;
+          }
+        });
+      }
+    });
+
+    if (totalSchedules === 0) {
+      return null;
+    }
+
+    const availableSlots = totalSlots - totalBookedSlots;
+    let statusType: 'success' | 'warning' | 'error' | 'default' = 'success';
+    
+    if (availableSlots <= 0) {
+      statusType = 'error';
+    } else if (availableSlots <= totalSlots * 0.2) {
+      statusType = 'warning';
+    }
+
+    return (
+      <div style={{ fontSize: 11, padding: '4px 0' }}>
+        <Tooltip
+          title={
+            <div>
+              <div>排班数：{totalSchedules}</div>
+              <div>总号源：{totalSlots}</div>
+              <div>已预约：{totalBookedSlots}</div>
+              <div>剩余：{availableSlots}</div>
+              {hasSuspended && <div style={{ color: '#ff4d4f' }}>含停诊班次</div>}
+            </div>
+          }
+        >
+          <div>
+            <Badge 
+              status={statusType} 
+              text={`${totalSchedules}个班次`} 
+            />
+          </div>
+          <div style={{ marginTop: 2 }}>
+            <span style={{ fontSize: 10, color: '#666' }}>
+              {totalBookedSlots}/{totalSlots}
+            </span>
+          </div>
+        </Tooltip>
+      </div>
+    );
+  };
+
   return (
     <PageContainer>
       <Space style={{ marginBottom: 16 }} wrap>
@@ -227,10 +328,69 @@ const ScheduleDetailCalendarPage: React.FC = () => {
 
       <Spin spinning={loading}>
         <Calendar
+          value={currentDate}
           onPanelChange={handlePanelChange}
+          headerRender={({ value, type, onChange, onTypeChange }) => {
+            const year = value.year();
+            const month = value.month();
+            const displayText = type === 'year' 
+              ? `${year}年` 
+              : `${year}年${month + 1}月`;
+
+            return (
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                padding: '8px 16px',
+                marginBottom: 8,
+              }}>
+                <Space>
+                  <Button 
+                    icon={<LeftOutlined />}
+                    onClick={handlePrev}
+                    size="small"
+                  />
+                  <span style={{ 
+                    fontWeight: 600, 
+                    fontSize: 16,
+                    minWidth: 120,
+                    textAlign: 'center',
+                    display: 'inline-block',
+                  }}>
+                    {displayText}
+                  </span>
+                  <Button 
+                    icon={<RightOutlined />}
+                    onClick={handleNext}
+                    size="small"
+                  />
+                </Space>
+                <Space>
+                  <Button
+                    size="small"
+                    type={type === 'month' ? 'primary' : 'default'}
+                    onClick={() => onTypeChange('month')}
+                  >
+                    月
+                  </Button>
+                  <Button
+                    size="small"
+                    type={type === 'year' ? 'primary' : 'default'}
+                    onClick={() => onTypeChange('year')}
+                  >
+                    年
+                  </Button>
+                </Space>
+              </div>
+            );
+          }}
           cellRender={(date, info) => {
             if (info.type === 'date') {
               return dateCellRender(date);
+            }
+            if (info.type === 'month') {
+              return monthCellRender(date);
             }
             return null;
           }}

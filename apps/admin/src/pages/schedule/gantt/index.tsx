@@ -75,21 +75,32 @@ const ScheduleGanttPage: React.FC = () => {
   const loadDepartments = async () => {
     try {
       const res = await departmentApi.getList({ pageSize: 100, status: 1 });
-      setDepartments(res.data ?? []);
+      const deptList = res.data ?? [];
+      setDepartments(deptList);
+      // 默认选择第一个科室
+      if (deptList.length > 0 && !selectedDept) {
+        setSelectedDept(deptList[0].id);
+      }
     } catch (error) {
       console.error('加载科室失败', error);
     }
   };
 
   // 加载医生列表
-  const loadDoctors = async (deptId?: string) => {
+  const loadDoctors = async (deptId?: string, autoSelectFirst: boolean = false) => {
     try {
+      let doctorList: Doctor[] = [];
       if (deptId) {
         const data = await doctorApi.getByDepartment(deptId);
-        setDoctors(data ?? []);
+        doctorList = data ?? [];
       } else {
         const res = await doctorApi.getList({ pageSize: 100 });
-        setDoctors(res.data ?? []);
+        doctorList = res.data ?? [];
+      }
+      setDoctors(doctorList);
+      // 默认选择第一个医生
+      if (autoSelectFirst && doctorList.length > 0) {
+        setSelectedDoctorId(doctorList[0].id);
       }
     } catch (error) {
       console.error('加载医生失败', error);
@@ -128,8 +139,8 @@ const ScheduleGanttPage: React.FC = () => {
 
   useEffect(() => {
     if (selectedDept) {
-      loadDoctors(selectedDept);
       setSelectedDoctorId(undefined);
+      loadDoctors(selectedDept, true);
     } else {
       loadDoctors();
     }

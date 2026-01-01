@@ -1,6 +1,12 @@
-import { Calendar, Badge, Tooltip, Spin, Alert } from 'antd';
+import { Calendar, Badge, Tooltip, Spin, Alert, Button, Space } from 'antd';
+import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+
+dayjs.extend(isSameOrAfter);
+dayjs.extend(isSameOrBefore);
 import { useEffect, useState, useMemo } from 'react';
 import { scheduleApi } from '@hospital/api';
 import type { Schedule, BreakTime } from '@hospital/shared';
@@ -51,16 +57,27 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [scheduleData, setScheduleData] = useState<DaySchedules>({});
-  const [currentMonth, setCurrentMonth] = useState<Dayjs>(dayjs());
+  const [currentDate, setCurrentDate] = useState<Dayjs>(dayjs());
+  const [panelMode, setPanelMode] = useState<'month' | 'year'>('month');
 
-  // 计算预览日期
+  // 计算预览日期（根据当前面板模式计算不同范围）
   const previewDates = useMemo(() => {
     if (!weekdays.length || !scheduleMode) {
       return [];
     }
 
-    const start = currentMonth.startOf('month').toDate();
-    const end = currentMonth.endOf('month').toDate();
+    let start: Date;
+    let end: Date;
+    
+    if (panelMode === 'year') {
+      // 年视图：计算整年
+      start = currentDate.startOf('year').toDate();
+      end = currentDate.endOf('year').toDate();
+    } else {
+      // 月视图：计算当月
+      start = currentDate.startOf('month').toDate();
+      end = currentDate.endOf('month').toDate();
+    }
 
     return generateSchedulePreview(
       {
@@ -70,7 +87,25 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
       start,
       end
     );
-  }, [weekdays, scheduleMode, currentMonth]);
+  }, [weekdays, scheduleMode, currentDate, panelMode]);
+
+  // 导航到上一个月/年
+  const handlePrev = () => {
+    if (panelMode === 'year') {
+      setCurrentDate(currentDate.subtract(1, 'year'));
+    } else {
+      setCurrentDate(currentDate.subtract(1, 'month'));
+    }
+  };
+
+  // 导航到下一个月/年
+  const handleNext = () => {
+    if (panelMode === 'year') {
+      setCurrentDate(currentDate.add(1, 'year'));
+    } else {
+      setCurrentDate(currentDate.add(1, 'month'));
+    }
+  };
 
   // 计算每日工作时长
   const dailyDuration = useMemo(() => {
@@ -90,14 +125,22 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
     const loadSchedules = async () => {
       setLoading(true);
       try {
-        const startDate = currentMonth.startOf('month').format('YYYY-MM-DD');
-        const endDate = currentMonth.endOf('month').format('YYYY-MM-DD');
+        let startDate: string;
+        let endDate: string;
+        
+        if (panelMode === 'year') {
+          startDate = currentDate.startOf('year').format('YYYY-MM-DD');
+          endDate = currentDate.endOf('year').format('YYYY-MM-DD');
+        } else {
+          startDate = currentDate.startOf('month').format('YYYY-MM-DD');
+          endDate = currentDate.endOf('month').format('YYYY-MM-DD');
+        }
 
         const result = await scheduleApi.getList({
           doctorId,
           startDate,
           endDate,
-          pageSize: 100,
+          pageSize: 500, // 年视图需要更多数据
         });
 
         // 按日期分组
@@ -119,10 +162,11 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
     };
 
     loadSchedules();
-  }, [doctorId, currentMonth, showExisting]);
+  }, [doctorId, currentDate, showExisting, panelMode]);
 
-  const handlePanelChange = (date: Dayjs) => {
-    setCurrentMonth(date);
+  const handlePanelChange = (date: Dayjs, mode: 'month' | 'year') => {
+    setCurrentDate(date);
+    setPanelMode(mode);
   };
 
   const dateInfo = useMemo(() => getDateInfo(new Date()), []);
@@ -222,6 +266,46 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
     );
   };
 
+  // 年视图的月份单元格渲染
+  const monthCellRender = (date: Dayjs) => {
+    const monthStart = date.startOf('month');
+    const monthEnd = date.endOf('month');
+    
+    // 统计该月已有排班数
+    let existingCount = 0;
+    Object.keys(scheduleData).forEach(dateStr => {
+      const d = dayjs(dateStr);
+      if (d.isSameOrAfter(monthStart, 'day') && d.isSameOrBefore(monthEnd, 'day')) {
+        existingCount += scheduleData[dateStr].length;
+      }
+    });
+
+    // 统计该月预览排班数
+    const previewCount = previewDates.filter(d => {
+      const pd = dayjs(d);
+      return pd.isSameOrAfter(monthStart, 'day') && pd.isSameOrBefore(monthEnd, 'day');
+    }).length;
+
+    if (existingCount === 0 && previewCount === 0) {
+      return null;
+    }
+
+    return (
+      <div style={{ fontSize: 12, padding: '4px 0' }}>
+        {existingCount > 0 && (
+          <div style={{ marginBottom: 2 }}>
+            <Badge status="success" text={`已有${existingCount}个班次`} />
+          </div>
+        )}
+        {previewCount > 0 && (
+          <div>
+            <Badge status="processing" text={`将生成${previewCount * slotCount}个班次`} />
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div>
       <Alert
@@ -252,10 +336,69 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
 
       <Spin spinning={loading}>
         <Calendar
+          value={currentDate}
           onPanelChange={handlePanelChange}
+          headerRender={({ value, type, onChange, onTypeChange }) => {
+            const year = value.year();
+            const month = value.month();
+            const displayText = type === 'year' 
+              ? `${year}年` 
+              : `${year}年${month + 1}月`;
+
+            return (
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                padding: '8px 16px',
+                marginBottom: 8,
+              }}>
+                <Space>
+                  <Button 
+                    icon={<LeftOutlined />}
+                    onClick={handlePrev}
+                    size="small"
+                  />
+                  <span style={{ 
+                    fontWeight: 600, 
+                    fontSize: 16,
+                    minWidth: 120,
+                    textAlign: 'center',
+                    display: 'inline-block',
+                  }}>
+                    {displayText}
+                  </span>
+                  <Button 
+                    icon={<RightOutlined />}
+                    onClick={handleNext}
+                    size="small"
+                  />
+                </Space>
+                <Space>
+                  <Button
+                    size="small"
+                    type={type === 'month' ? 'primary' : 'default'}
+                    onClick={() => onTypeChange('month')}
+                  >
+                    月
+                  </Button>
+                  <Button
+                    size="small"
+                    type={type === 'year' ? 'primary' : 'default'}
+                    onClick={() => onTypeChange('year')}
+                  >
+                    年
+                  </Button>
+                </Space>
+              </div>
+            );
+          }}
           cellRender={(date, info) => {
             if (info.type === 'date') {
               return dateCellRender(date);
+            }
+            if (info.type === 'month') {
+              return monthCellRender(date);
             }
             return null;
           }}

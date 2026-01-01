@@ -458,7 +458,7 @@ class ScheduleService:
             创建的排班数量
         """
         from app.models.schedule_template import ScheduleTemplate
-        from app.utils.schedule_utils import split_time_range, should_generate_schedule
+        from app.utils.schedule_utils import split_time_range_with_breaks, should_generate_schedule
         
         # 获取模板
         template_result = await self.db.execute(
@@ -473,8 +473,11 @@ class ScheduleService:
         if not weekdays:
             return 0
         
-        # 均分时间生成多个班次
-        time_slots = split_time_range(template.start_time, template.end_time, template.slot_count)
+        # 获取排除时间列表
+        break_times = template.break_times_list or []
+        
+        # 均分时间生成多个班次（考虑排除时间）
+        time_slots = split_time_range_with_breaks(template.start_time, template.end_time, template.slot_count, break_times)
         
         created_count = 0
         current_date = start_date
