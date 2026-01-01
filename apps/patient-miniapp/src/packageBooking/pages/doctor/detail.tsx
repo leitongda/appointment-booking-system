@@ -239,7 +239,6 @@ const DoctorDetailPage = () => {
               {doctor.title && <Text className="title">{doctor.title}</Text>}
             </View>
             <Text className="dept">{doctor.departmentName}</Text>
-            <Text className="fee">挂号费：¥{doctor.registrationFee}</Text>
           </View>
           {/* 收藏按钮 */}
           <View 
@@ -373,10 +372,6 @@ const DoctorDetailPage = () => {
                   <Text className="confirm-info-value highlight">
                     {selectedDate} {selectedDateInfo?.weekday} {selectedSlot === 'AM' ? '上午' : '下午'}
                   </Text>
-                </View>
-                <View className="confirm-info-row">
-                  <Text className="confirm-info-label">挂号费用</Text>
-                  <Text className="confirm-info-value fee">¥{doctor.registrationFee}</Text>
                 </View>
               </View>
             </View>

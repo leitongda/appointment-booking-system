@@ -76,7 +76,6 @@ PENDING(待支付) → CONFIRMED(已预约) → SIGNED(已签到) → WAITING(�
 | appointment_date | DATE | 预约日期 |
 | time_slot | VARCHAR | 时段 |
 | queue_number | INT | 排队序号 |
-| fee | DECIMAL | 挂号费 |
 | status | SMALLINT | 状态 |
 | source | VARCHAR | 来源 |
 

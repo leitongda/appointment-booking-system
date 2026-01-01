@@ -1,4 +1,4 @@
-import { PlusOutlined, ApartmentOutlined, UserOutlined, MoneyCollectOutlined, QrcodeOutlined } from '@ant-design/icons';
+import { PlusOutlined, ApartmentOutlined, UserOutlined, MoneyCollectOutlined, QrcodeOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { Button, App, Popconfirm, Space, Avatar, Modal, Tree, Spin, Empty, Transfer, Tag, QRCode } from 'antd';
@@ -270,6 +270,11 @@ const StorePage: React.FC = () => {
           {access.hasPermission('store:update') && (
             <a onClick={() => history.push(`/store/${record.id}/fee-templates`)}>
               <MoneyCollectOutlined /> 诊费
+            </a>
+          )}
+          {access.hasPermission('store:update') && (
+            <a onClick={() => history.push(`/store/${record.id}/visit-type-config`)}>
+              <ClockCircleOutlined /> 复诊规则
             </a>
           )}
           {access.hasPermission('store:read') && (

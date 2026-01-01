@@ -299,9 +299,6 @@ const HomePage: React.FC = () => {
                       擅长：{doctor.specialty || '暂无'}
                     </p>
                   </div>
-                  <div className="text-accent font-semibold text-lg">
-                    ¥{doctor.registrationFee}
-                  </div>
                 </motion.div>
               ))}
             </div>

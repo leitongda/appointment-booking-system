@@ -126,9 +126,6 @@ const DoctorDetailPage: React.FC = () => {
                 )}
               </div>
               <p className="text-muted-foreground mb-2">{doctor.departmentName}</p>
-              <p className="text-accent font-semibold text-lg">
-                挂号费：¥{doctor.registrationFee}
-              </p>
             </div>
           </div>
 

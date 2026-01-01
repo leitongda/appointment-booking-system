@@ -15,7 +15,7 @@
 - 基本信息：姓名、头像、职称
 - 专业信息：擅长领域、简介
 - 关联信息：所属科室、门店
-- 预约设置：号源数、挂号费
+- 预约设置：号源数（诊费通过诊费配置系统管理）
 
 ### 2.3 医生状态
 - 在职/离职
@@ -45,7 +45,7 @@
 | title | VARCHAR | 职称 |
 | specialty | VARCHAR | 擅长领域 |
 | introduction | TEXT | 简介 |
-| consultation_fee | DECIMAL | 挂号费 |
+| use_fee_template | INTEGER | 是否使用诊费模板 |
 | is_expert | BOOLEAN | 是否专家 |
 | is_recommended | BOOLEAN | 是否推荐 |
 | status | SMALLINT | 状态 |

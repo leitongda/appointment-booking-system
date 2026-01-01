@@ -29,9 +29,6 @@ export interface RegistrationData {
   patientGender?: 'male' | 'female';
   patientAge?: number;
   
-  // 费用信息
-  registrationFee?: number;
-  
   // 挂号结果
   appointmentId?: number;
   queueNumber?: string;

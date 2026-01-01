@@ -104,9 +104,6 @@ const FavoritePage = () => {
                     )}
                   </View>
                   <Text className="doctor-dept">{favorite.target?.departmentName || ''}</Text>
-                  <Text className="doctor-fee">
-                    挂号费：¥{favorite.target?.registrationFee || 0}
-                  </Text>
                 </View>
                 <View className="book-btn" onClick={(e) => {
                   e.stopPropagation();

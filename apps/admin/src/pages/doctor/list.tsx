@@ -132,12 +132,6 @@ const SortableItem: React.FC<SortableItemProps> = ({ id, doctor, index }) => {
               <span style={{ fontSize: 13, color: '#8c8c8c' }}>{doctor.storeName}</span>
             </>
           )}
-          {doctor.registrationFee !== undefined && doctor.registrationFee > 0 && (
-            <>
-              <span style={{ color: '#d9d9d9' }}>|</span>
-              <span style={{ fontSize: 13, color: '#ff7a45' }}>¥{doctor.registrationFee}</span>
-            </>
-          )}
         </div>
       </div>
     </div>
@@ -452,13 +446,6 @@ const DoctorListPage: React.FC = () => {
           </Space>
         );
       },
-    },
-    {
-      title: '挂号费',
-      dataIndex: 'registrationFee',
-      width: 80,
-      search: false,
-      render: (val) => `¥${val || 0}`,
     },
     {
       title: '号源状态',

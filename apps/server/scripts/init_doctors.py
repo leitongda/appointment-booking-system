@@ -44,7 +44,6 @@ async def init_doctors():
                 "title": "主任医师",
                 "specialty": "心血管疾病、高血压、冠心病",
                 "introduction": "从医30年，擅长心血管疾病诊治",
-                "registration_fee": 50.00,
                 "is_recommended": 1,
             },
             {
@@ -55,7 +54,6 @@ async def init_doctors():
                 "title": "副主任医师",
                 "specialty": "呼吸系统疾病、肺炎、哮喘",
                 "introduction": "呼吸内科专家，擅长各类呼吸系统疾病",
-                "registration_fee": 30.00,
                 "is_recommended": 1,
             },
             {
@@ -66,7 +64,6 @@ async def init_doctors():
                 "title": "主任医师",
                 "specialty": "普外科手术、腹腔镜微创手术",
                 "introduction": "外科专家，擅长微创手术",
-                "registration_fee": 60.00,
                 "is_recommended": 1,
             },
         ]
@@ -83,7 +80,6 @@ async def init_doctors():
                     title=doc_data["title"],
                     specialty=doc_data["specialty"],
                     introduction=doc_data["introduction"],
-                    registration_fee=doc_data["registration_fee"],
                     is_recommended=doc_data["is_recommended"],
                     status=1
                 )

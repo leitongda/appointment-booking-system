@@ -48,7 +48,7 @@ async def export_doctors(
     result = await db.execute(query)
     doctors = result.unique().scalars().all()
     
-    headers = ["姓名", "性别", "手机号", "所属门店", "所属科室", "职称", "擅长", "标签", "挂号费", "状态"]
+    headers = ["姓名", "性别", "手机号", "所属门店", "所属科室", "职称", "擅长", "标签", "状态"]
     data = []
     
     gender_map = {1: "男", 2: "女"}
@@ -64,7 +64,6 @@ async def export_doctors(
             d.title or "",
             d.specialty or "",
             d.tags or "",
-            d.registration_fee or 0,
             status_map.get(d.status, ""),
         ])
     
@@ -224,11 +223,11 @@ async def download_doctor_template(
     current_admin = Depends(get_current_admin),
 ):
     """下载医生导入模板"""
-    headers = ["姓名", "性别", "手机号", "门店名称", "科室名称", "职称", "擅长", "标签", "挂号费"]
+    headers = ["姓名", "性别", "手机号", "门店名称", "科室名称", "职称", "擅长", "标签"]
     required_fields = ["姓名", "门店名称", "科室名称"]
     sample_data = [
-        ["张医生", "男", "13800138000", "总院", "内科", "主任医师", "心血管疾病", "专家,推荐", "50"],
-        ["李医生", "女", "13900139000", "分院", "外科", "副主任医师", "骨科手术", "骨科专家", "30"],
+        ["张医生", "男", "13800138000", "总院", "内科", "主任医师", "心血管疾病", "专家,推荐"],
+        ["李医生", "女", "13900139000", "分院", "外科", "副主任医师", "骨科手术", "骨科专家"],
     ]
     field_notes = {
         "姓名": "必填，医生姓名",
@@ -239,7 +238,6 @@ async def download_doctor_template(
         "职称": "如：主任医师、副主任医师、主治医师等",
         "擅长": "医生擅长的领域",
         "标签": "多个标签用逗号分隔",
-        "挂号费": "数字，单位：元",
     }
     
     excel_bytes = ExcelImportService.create_template(headers, sample_data, required_fields, field_notes)
@@ -357,7 +355,7 @@ async def import_doctors(
     
     content = await file.read()
     
-    headers = ["姓名", "性别", "手机号", "门店名称", "科室名称", "职称", "擅长", "标签", "挂号费"]
+    headers = ["姓名", "性别", "手机号", "门店名称", "科室名称", "职称", "擅长", "标签"]
     required_fields = ["姓名", "门店名称", "科室名称"]
     
     # 预加载门店和科室映射
@@ -392,7 +390,6 @@ async def import_doctors(
             title=row_data.get("职称"),
             specialty=row_data.get("擅长"),
             tags=row_data.get("标签"),
-            registration_fee=float(row_data.get("挂号费") or 0),
             status=1,
         )
         db.add(doctor)

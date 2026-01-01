@@ -55,6 +55,7 @@ export type { ImportResult } from './modules/data';
 export { userManageApi } from './modules/user-manage';
 export { favoriteApi } from './modules/favorite';
 export { bookingNoticeApi } from './modules/booking-notice';
+export { storeVisitTypeConfigApi } from './modules/store-visit-type-config';
 export type { 
   UserListItem, 
   UserDetail, 

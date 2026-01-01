@@ -38,9 +38,9 @@ const ConfirmPage: React.FC = () => {
 
   const handleConfirmPayment = async () => {
     const result = await Dialog.confirm({
-      title: '确认支付',
-      content: `您需要支付挂号费 ¥${registrationData.registrationFee || 0}，确认后将完成挂号。`,
-      confirmText: '确认支付',
+      title: '确认挂号',
+      content: '确认后将完成挂号。',
+      confirmText: '确认挂号',
       cancelText: '取消',
     });
 
@@ -218,29 +218,17 @@ const ConfirmPage: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
                       d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              费用明细
+              挂号确认
             </h3>
             <div>
-              <InfoItem label="挂号费" value={`¥${registrationData.registrationFee || 0}`} />
-              <div className="flex justify-between items-center pt-4 mt-2 border-t border-border">
-                <span className="font-medium text-foreground">应付金额</span>
-                <span className="text-2xl font-bold text-primary">
-                  ¥{registrationData.registrationFee || 0}
-                </span>
-              </div>
+              <p className="text-muted-foreground">请确认以上信息无误后提交挂号</p>
             </div>
           </Card>
         </motion.div>
       </motion.div>
 
-      {/* 底部支付按钮 */}
+      {/* 底部确认按钮 */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-card border-t border-border safe-area-bottom">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-muted-foreground">合计：</span>
-          <span className="text-2xl font-bold text-primary">
-            ¥{registrationData.registrationFee || 0}
-          </span>
-        </div>
         <Button
           block
           color="primary"

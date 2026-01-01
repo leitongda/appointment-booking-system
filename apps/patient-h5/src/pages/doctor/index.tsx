@@ -108,14 +108,6 @@ const DoctorPage: React.FC = () => {
                     <p className="text-xs text-muted-foreground/70 truncate">
                       擅长：{doctor.specialty || '暂无'}
                     </p>
-                    <div className="flex items-center justify-between mt-3">
-                      <span className="text-accent font-semibold text-lg">
-                        ¥{doctor.registrationFee}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        挂号费
-                      </span>
-                    </div>
                   </div>
                   <svg 
                     className="w-5 h-5 text-muted-foreground self-center flex-shrink-0" 

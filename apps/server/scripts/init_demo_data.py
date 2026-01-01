@@ -290,7 +290,6 @@ async def init_demo_data():
                     title=doc_data["title"],
                     specialty=doc_data["spec"],
                     introduction=f"擅长{doc_data['spec']}",
-                    registration_fee=doc_data["fee"],
                     is_recommended=1,
                     status=1,
                     gender=1

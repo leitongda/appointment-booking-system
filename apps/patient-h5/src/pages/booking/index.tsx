@@ -128,12 +128,6 @@ const BookingPage: React.FC = () => {
                 <span className="text-muted-foreground">时段</span>
                 <span className="text-foreground">{TIME_SLOT_MAP[timeSlot || 'AM']}</span>
               </div>
-              <div className="flex justify-between pt-2 border-t border-border">
-                <span className="text-muted-foreground">挂号费</span>
-                <span className="text-accent font-semibold text-lg">
-                  ¥{doctor?.registrationFee || 0}
-                </span>
-              </div>
             </div>
           </Card>
         </motion.div>
@@ -203,12 +197,6 @@ const BookingPage: React.FC = () => {
       {/* Fixed Footer */}
       <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 safe-area-inset-bottom">
         <div className="flex items-center justify-between">
-          <div>
-            <span className="text-muted-foreground">合计：</span>
-            <span className="text-accent font-semibold text-xl ml-1">
-              ¥{doctor?.registrationFee || 0}
-            </span>
-          </div>
           <Button 
             size="lg"
             onClick={handleSubmit}

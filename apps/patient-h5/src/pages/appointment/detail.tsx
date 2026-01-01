@@ -177,10 +177,6 @@ const AppointmentDetailPage: React.FC = () => {
                   {TIME_SLOT_MAP[appointment.timeSlot || 'AM']} 第{appointment.queueNumber}号
                 </span>
               </div>
-              <div className="flex justify-between pt-2 border-t border-border">
-                <span className="text-muted-foreground">挂号费</span>
-                <span className="text-accent font-semibold">¥{appointment.fee?.toFixed(2) || '0.00'}</span>
-              </div>
             </div>
           </Card>
         </motion.div>

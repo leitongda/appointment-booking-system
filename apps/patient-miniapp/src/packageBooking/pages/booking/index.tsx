@@ -217,10 +217,6 @@ const BookingPage = () => {
             <Text className="label">预约时间</Text>
             <Text className="value">{date} {TIME_SLOT_MAP[timeSlot || 'AM']}</Text>
           </View>
-          <View className="info-row">
-            <Text className="label">挂号费用</Text>
-            <Text className="value fee">¥{doctor?.registrationFee || 0}</Text>
-          </View>
           {hospitalName && (
             <View className="info-row">
               <Text className="label">就诊机构</Text>
@@ -284,10 +280,6 @@ const BookingPage = () => {
 
       {/* 底部提交 */}
       <View className="footer">
-        <View className="total">
-          <Text className="total-label">合计：</Text>
-          <Text className="total-price">¥{doctor?.registrationFee || 0}</Text>
-        </View>
         <Button
           className="submit-btn"
           type="primary"

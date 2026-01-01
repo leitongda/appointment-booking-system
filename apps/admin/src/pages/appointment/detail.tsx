@@ -65,7 +65,6 @@ const AppointmentDetailPage: React.FC = () => {
             <ProDescriptions.Item label="预约日期">{appointment?.scheduleDate}</ProDescriptions.Item>
             <ProDescriptions.Item label="预约时段">{TIME_SLOT_MAP[appointment?.timeSlot || ''] || '-'}</ProDescriptions.Item>
             <ProDescriptions.Item label="排队号码">{appointment?.queueNumber || '-'}</ProDescriptions.Item>
-            <ProDescriptions.Item label="挂号费">¥{appointment?.registrationFee || 0}</ProDescriptions.Item>
           </ProDescriptions>
         </Card>
 

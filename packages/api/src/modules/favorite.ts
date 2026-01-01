@@ -8,7 +8,6 @@ export interface FavoriteTarget {
   departmentId?: string;
   departmentName?: string;
   specialty?: string;
-  registrationFee?: number;
   status?: number;
   description?: string;
   icon?: string;

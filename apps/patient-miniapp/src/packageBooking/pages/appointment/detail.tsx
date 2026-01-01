@@ -170,10 +170,6 @@ const AppointmentDetailPage = () => {
           <Text className="label">科室</Text>
           <Text className="value">{appointment.departmentName}</Text>
         </View>
-        <View className="info-row">
-          <Text className="label">挂号费</Text>
-          <Text className="value fee">¥{appointment.fee}</Text>
-        </View>
       </View>
 
       {/* 就诊人信息 */}

@@ -61,7 +61,6 @@ const DoctorPage: React.FC = () => {
       doctorName: doctor.name,
       doctorTitle: doctor.title,
       doctorAvatar: doctor.avatar,
-      registrationFee: doctor.registrationFee,
     });
     history.push(`/time-slot?doctorId=${doctor.id}`);
   };
@@ -172,12 +171,8 @@ const DoctorPage: React.FC = () => {
                       )}
                     </div>
 
-                    {/* 挂号费 */}
-                    <div className="flex flex-col items-end justify-between">
-                      <div className="text-right">
-                        <span className="text-xl font-semibold text-primary">¥{doctor.registrationFee}</span>
-                        <p className="text-xs text-muted-foreground">挂号费</p>
-                      </div>
+                    {/* 选择按钮 */}
+                    <div className="flex flex-col items-end justify-center">
                       <div className="flex items-center gap-1 text-primary text-sm">
                         <span>选择</span>
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

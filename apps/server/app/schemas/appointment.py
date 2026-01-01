@@ -41,7 +41,6 @@ class AppointmentResponse(BaseModel):
     schedule_date: Optional[date] = None
     time_slot: Optional[str] = None
     queue_number: Optional[int] = None
-    registration_fee: Optional[float] = None
     status: Optional[int] = None
     sign_in_time: Optional[datetime] = None
     call_time: Optional[datetime] = None

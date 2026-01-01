@@ -173,7 +173,6 @@ const DoctorFormPage: React.FC = () => {
     maxDailyAppointments: 0,
     onlineConsultEnabled: false,
     onlineConsultFee: 0,
-    registrationFee: 0,
     pageStyle: 1,
     sortOrder: 0,
     isRecommended: false,
@@ -426,13 +425,6 @@ const DoctorFormPage: React.FC = () => {
               fieldProps={{ precision: 0 }}
               tooltip="0表示不限制"
               addonAfter="人"
-            />
-            <ProFormDigit
-              name="registrationFee"
-              label="挂号费"
-              width="sm"
-              min={0}
-              addonAfter="元"
             />
           </ProForm.Group>
           <ProForm.Group>

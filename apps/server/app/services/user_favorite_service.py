@@ -100,7 +100,6 @@ class UserFavoriteService:
                     "departmentId": doctor.department_id,
                     "departmentName": doctor.department.name if doctor.department else None,
                     "specialty": doctor.specialty,
-                    "registrationFee": float(doctor.registration_fee) if doctor.registration_fee else 0,
                     "status": doctor.status
                 }
         elif target_type == "department":

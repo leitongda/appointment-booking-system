@@ -40,7 +40,6 @@ class DoctorBase(BaseModel):
     max_daily_appointments: int = Field(0, ge=0, description="每日最大接诊量,0表示不限制")
     online_consult_enabled: int = Field(0, ge=0, le=1, description="是否支持在线问诊 0否 1是")
     online_consult_fee: Decimal = Field(Decimal("0"), ge=0, description="在线问诊费用")
-    registration_fee: Decimal = Field(Decimal("0"), ge=0, description="挂号费")
     
     # 展示设置
     page_style: int = Field(1, ge=1, le=3, description="页面风格 1/2/3")
@@ -90,7 +89,6 @@ class DoctorUpdate(BaseModel):
     max_daily_appointments: Optional[int] = Field(None, ge=0)
     online_consult_enabled: Optional[int] = Field(None, ge=0, le=1)
     online_consult_fee: Optional[Decimal] = Field(None, ge=0)
-    registration_fee: Optional[Decimal] = Field(None, ge=0)
     
     # 展示设置
     page_style: Optional[int] = Field(None, ge=1, le=3)
@@ -148,7 +146,6 @@ class DoctorResponse(BaseModel):
     max_daily_appointments: Optional[int] = 0
     online_consult_enabled: Optional[int] = 0
     online_consult_fee: Optional[Decimal] = Decimal("0")
-    registration_fee: Optional[Decimal] = Decimal("0")
     
     # 展示设置
     page_style: Optional[int] = 1
@@ -189,7 +186,6 @@ class DoctorListResponse(BaseModel):
     department_id: Optional[str] = None
     department_name: Optional[str] = None
     specialty: Optional[str] = None
-    registration_fee: Optional[Decimal] = Decimal("0")
     is_recommended: Optional[int] = 0
     tags: Optional[str] = None
     page_style: Optional[int] = 1

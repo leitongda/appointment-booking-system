@@ -187,7 +187,6 @@ class DoctorService:
             max_daily_appointments=data.max_daily_appointments,
             online_consult_enabled=data.online_consult_enabled,
             online_consult_fee=data.online_consult_fee,
-            registration_fee=data.registration_fee,
             page_style=data.page_style,
             promo_video=data.promo_video,
             tags=data.tags,

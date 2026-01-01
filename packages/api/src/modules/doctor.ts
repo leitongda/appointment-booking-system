@@ -54,7 +54,6 @@ export interface DoctorCreateData {
   maxDailyAppointments?: number;
   onlineConsultEnabled?: number;
   onlineConsultFee?: number;
-  registrationFee?: number;
   
   // 展示设置
   pageStyle?: number;

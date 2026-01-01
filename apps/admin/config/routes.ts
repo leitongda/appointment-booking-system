@@ -40,6 +40,7 @@ export default [
       { path: '/store/:id/edit', name: '编辑门店', component: './store/form', hideInMenu: true },
       { path: '/store/:storeId/fee-types', name: '门店诊费类型', component: './store/fee-types', hideInMenu: true },
       { path: '/store/:storeId/fee-templates', name: '门店诊费模板', component: './store/fee-templates', hideInMenu: true },
+      { path: '/store/:storeId/visit-type-config', name: '复诊规则配置', component: './store/visit-type-config', hideInMenu: true },
     ],
   },
   // 科室管理

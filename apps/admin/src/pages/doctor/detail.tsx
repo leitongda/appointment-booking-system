@@ -63,7 +63,6 @@ const DoctorDetailPage: React.FC = () => {
       <ProDescriptions column={2}>
         <ProDescriptions.Item label="所属科室">{doctor?.departmentName || '-'}</ProDescriptions.Item>
         <ProDescriptions.Item label="手机号">{doctor?.phone || '-'}</ProDescriptions.Item>
-        <ProDescriptions.Item label="挂号费">¥{doctor?.registrationFee || 0}</ProDescriptions.Item>
         <ProDescriptions.Item label="排序">{doctor?.sortOrder || 0}</ProDescriptions.Item>
         <ProDescriptions.Item label="专长" span={2}>{doctor?.specialty || '-'}</ProDescriptions.Item>
         <ProDescriptions.Item label="简介" span={2}>{doctor?.introduction || '-'}</ProDescriptions.Item>

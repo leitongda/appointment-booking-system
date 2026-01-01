@@ -14,7 +14,6 @@ export interface Appointment {
   scheduleDate?: string;
   timeSlot?: string;
   queueNumber?: number;
-  registrationFee?: number;
   fee?: number;
   status: number;
   signInTime?: string;

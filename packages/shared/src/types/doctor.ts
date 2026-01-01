@@ -28,7 +28,6 @@ export interface Doctor {
   maxDailyAppointments: number;
   onlineConsultEnabled: number;
   onlineConsultFee: number;
-  registrationFee: number;
   
   // 展示设置
   pageStyle: number;
@@ -64,7 +63,6 @@ export interface DoctorListItem {
   departmentId: string;
   departmentName?: string;
   specialty?: string;
-  registrationFee: number;
   isRecommended: number;
   tags?: string;
   pageStyle: number;

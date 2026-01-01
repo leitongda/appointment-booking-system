@@ -34,7 +34,6 @@ class Doctor(Base, AuditMixin):
     max_daily_appointments = Column(Integer, default=0, comment="每日最大接诊量,0表示不限制")
     online_consult_enabled = Column(Integer, default=0, comment="是否支持在线问诊 0否 1是")
     online_consult_fee = Column(Numeric(10, 2), default=0, comment="在线问诊费用")
-    registration_fee = Column(Numeric(10, 2), default=0, comment="挂号费")
     
     # 展示设置
     page_style = Column(Integer, default=1, comment="页面风格 1/2/3")

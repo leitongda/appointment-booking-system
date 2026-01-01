@@ -14,6 +14,7 @@ from app.models.doctor import Doctor
 from app.models.department import Department
 from app.models.store import Store
 from app.schemas.response import ResponseModel
+from app.services.revenue_service import RevenueService
 
 router = APIRouter()
 
@@ -92,22 +93,13 @@ async def get_overview(
         month_query = month_query.where(store_condition)
     month_appointments = await db.scalar(month_query)
     
-    # 本月收入（挂号费）- 按门店过滤
-    revenue_query = (
-        select(func.sum(Doctor.registration_fee))
-        .select_from(Appointment)
-        .join(Schedule, Appointment.schedule_id == Schedule.id)
-        .join(Doctor, Schedule.doctor_id == Doctor.id)
-        .where(
-            and_(
-                func.date(Appointment.created_at) >= first_day_of_month,
-                Appointment.status.in_([2, 3, 5])  # 已签到、候诊中、已完成
-            )
-        )
+    # 本月收入（诊费）- 按门店过滤
+    revenue_service = RevenueService(db)
+    month_revenue = await revenue_service.calculate_total_revenue(
+        start_date=first_day_of_month,
+        end_date=today,
+        store_id=store_filter if isinstance(store_filter, str) else None
     )
-    if store_condition is not None:
-        revenue_query = revenue_query.where(store_condition)
-    month_revenue = await db.scalar(revenue_query) or 0
     
     return ResponseModel(data={
         "todayAppointments": today_appointments or 0,
@@ -406,28 +398,13 @@ async def get_revenue_trend(
     store_filter = get_store_filter(current_admin)
     store_condition = _build_store_filter_condition(store_filter)
     
-    # 通过 Schedule -> Doctor 获取 registration_fee
-    conditions = [
-        func.date(Appointment.created_at) >= start_date,
-        Appointment.status.in_([2, 3, 5])  # 有效预约
-    ]
-    if store_condition is not None:
-        conditions.append(store_condition)
-    
-    result = await db.execute(
-        select(
-            func.date(Appointment.created_at).label('date'),
-            func.sum(Doctor.registration_fee).label('revenue')
-        )
-        .select_from(Appointment)
-        .join(Schedule, Appointment.schedule_id == Schedule.id)
-        .join(Doctor, Schedule.doctor_id == Doctor.id)
-        .where(and_(*conditions))
-        .group_by(func.date(Appointment.created_at))
-        .order_by(func.date(Appointment.created_at))
+    # 通过诊费系统计算收入
+    revenue_service = RevenueService(db)
+    data = await revenue_service.calculate_revenue_trend(
+        start_date=start_date,
+        end_date=today,
+        store_id=store_filter if isinstance(store_filter, str) else None
     )
-    
-    data = {str(row.date): float(row.revenue or 0) for row in result.fetchall()}
     
     trend = []
     for i in range(days):
