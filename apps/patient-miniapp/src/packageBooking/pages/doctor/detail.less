@@ -377,6 +377,192 @@
 }
 
 // -------------------------------------------
+// 班次选择 Picker
+// -------------------------------------------
+
+.slot-picker-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: @z-index-modal;
+  display: flex;
+  align-items: flex-end;
+}
+
+.slot-picker-sheet {
+  width: 100%;
+  background: @color-bg-white;
+  border-radius: @radius-2xl @radius-2xl 0 0;
+  padding: @spacing-4;
+  padding-bottom: calc(@spacing-6 + env(safe-area-inset-bottom));
+  animation: slideUp 0.3s ease-out;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.slot-picker-indicator {
+  width: 60rpx;
+  height: 8rpx;
+  background: @color-bg-tertiary;
+  border-radius: @radius-full;
+  margin: 0 auto @spacing-4;
+}
+
+.slot-picker-header {
+  text-align: center;
+  padding-bottom: @spacing-4;
+  border-bottom: @border-width solid @color-divider;
+  
+  .slot-picker-title {
+    display: block;
+    font-size: @font-size-xl;
+    font-weight: @font-weight-bold;
+    color: @color-text-primary;
+    margin-bottom: @spacing-1;
+  }
+  
+  .slot-picker-subtitle {
+    display: block;
+    font-size: @font-size-sm;
+    color: @color-text-secondary;
+  }
+}
+
+// 班次列表 - 一行3个
+.slot-picker-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: @spacing-3;
+  padding: @spacing-4 0;
+}
+
+.slot-picker-item {
+  width: calc((100% - @spacing-3 * 2) / 3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: @spacing-3 @spacing-2;
+  background: @color-bg-white;
+  border: 2rpx solid @color-border;
+  border-radius: @radius-lg;
+  position: relative;
+  transition: all @transition-base;
+  min-height: 140rpx;
+  
+  &:active {
+    transform: scale(0.96);
+  }
+  
+  // 选中状态
+  &.selected {
+    border-color: var(--color-primary, @theme-primary);
+    border-width: 3rpx;
+    background: var(--badge-bg, rgba(196, 30, 58, 0.04));
+    
+    .slot-time-start,
+    .slot-time-separator,
+    .slot-time-end {
+      color: var(--color-primary, @theme-primary);
+    }
+    
+    .slot-remain {
+      color: var(--color-primary, @theme-primary);
+    }
+  }
+  
+  // 禁用状态（约满）
+  &.disabled {
+    background: @color-bg-secondary;
+    border-color: transparent;
+    
+    .slot-time-start,
+    .slot-time-separator,
+    .slot-time-end,
+    .slot-remain {
+      color: @color-text-muted;
+    }
+    
+    &:active {
+      transform: none;
+    }
+  }
+}
+
+.slot-time-start,
+.slot-time-end {
+  font-size: @font-size-base;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
+  line-height: 1.2;
+}
+
+.slot-time-separator {
+  font-size: @font-size-sm;
+  color: @color-text-secondary;
+  margin: 2rpx 0;
+}
+
+.slot-check {
+  position: absolute;
+  top: 8rpx;
+  right: 8rpx;
+  font-size: @font-size-xs;
+  color: var(--color-primary, @theme-primary);
+  font-weight: @font-weight-bold;
+}
+
+.slot-remain {
+  font-size: @font-size-xs;
+  color: @color-text-secondary;
+  margin-top: @spacing-1;
+}
+
+.slot-picker-footer {
+  padding-top: @spacing-4;
+  border-top: @border-width solid @color-divider;
+  
+  .slot-picker-next-btn {
+    width: 100%;
+    height: @button-height-lg !important;
+    border-radius: @radius-xl !important;
+    background: @gradient-primary !important;
+    border: none !important;
+    font-size: @font-size-base !important;
+    font-weight: @font-weight-semibold !important;
+    color: @color-text-white !important;
+    box-shadow: @shadow-button !important;
+    
+    &:active {
+      opacity: 0.9;
+    }
+    
+    &[disabled] {
+      opacity: 0.5;
+      background: @color-bg-tertiary !important;
+      box-shadow: none !important;
+    }
+  }
+  
+  .slot-picker-cancel-btn {
+    display: block;
+    width: 100%;
+    text-align: center;
+    margin-top: @spacing-3;
+    padding: @spacing-2;
+    font-size: @font-size-sm;
+    color: @color-text-muted;
+    
+    &:active {
+      opacity: 0.7;
+    }
+  }
+}
+
+// -------------------------------------------
 // 预约确认弹窗
 // -------------------------------------------
 

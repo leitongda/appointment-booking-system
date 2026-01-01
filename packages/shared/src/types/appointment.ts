@@ -13,6 +13,8 @@ export interface Appointment {
   scheduleId: string;
   scheduleDate?: string;
   timeSlot?: string;
+  startTime?: string;
+  endTime?: string;
   queueNumber?: number;
   fee?: number;
   status: number;

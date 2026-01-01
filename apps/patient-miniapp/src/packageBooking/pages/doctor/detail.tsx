@@ -23,6 +23,10 @@ const DoctorDetailPage = () => {
   
   // 时段选择状态（单选）
   const [selectedSlot, setSelectedSlot] = useState<'AM' | 'PM' | null>(null);
+  // 班次选择 Picker 状态
+  const [showSlotPicker, setShowSlotPicker] = useState(false);
+  // 选中的具体班次
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
   // 确认弹窗状态
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
   
@@ -168,23 +172,28 @@ const DoctorDetailPage = () => {
     };
   }, [selectedDate]);
 
-  // 获取选中时段的 schedule（用于跳转）
-  const selectedSchedule = useMemo(() => {
-    if (!selectedSlot) return null;
-    const slotSchedules = selectedSlot === 'AM' 
+  // 获取选中时段的班次列表（用于 Picker 展示）
+  const selectedSlotSchedules = useMemo(() => {
+    if (!selectedSlot) return [];
+    return selectedSlot === 'AM' 
       ? timeSlotSummary.morning.schedules 
       : timeSlotSummary.afternoon.schedules;
-    // 返回第一个有余号的排班
-    return slotSchedules.find(s => s.availableSlots > 0) || null;
   }, [selectedSlot, timeSlotSummary]);
+
+  // 获取选中的具体班次（用于跳转）
+  const selectedSchedule = useMemo(() => {
+    if (!selectedScheduleId) return null;
+    return schedules.find(s => s.id === selectedScheduleId) || null;
+  }, [selectedScheduleId, schedules]);
 
   const handleDateSelect = (date: string) => {
     setSelectedDate(date);
-    // 切换日期时重置时段选择
+    // 切换日期时重置时段选择和班次选择
     setSelectedSlot(null);
+    setSelectedScheduleId(null);
   };
 
-  // 点击时段卡片 - 单选并弹出确认框
+  // 点击时段卡片 - 弹出班次选择 Picker
   const handleTimeSlotClick = (slot: 'AM' | 'PM') => {
     const summary = slot === 'AM' ? timeSlotSummary.morning : timeSlotSummary.afternoon;
     
@@ -193,8 +202,37 @@ const DoctorDetailPage = () => {
       return;
     }
     
-    // 设置选中状态并弹出确认框
+    // 设置选中的时段
     setSelectedSlot(slot);
+    setSelectedScheduleId(null);
+    
+    // 如果只有一个班次，直接选中并弹出确认框
+    if (summary.schedules.length === 1) {
+      setSelectedScheduleId(summary.schedules[0].id);
+      setShowConfirmPopup(true);
+    } else {
+      // 多个班次，弹出班次选择 Picker
+      setShowSlotPicker(true);
+    }
+  };
+
+  // 关闭班次选择 Picker
+  const handleCloseSlotPicker = () => {
+    setShowSlotPicker(false);
+  };
+
+  // 选择具体班次
+  const handleSelectSchedule = (scheduleId: string) => {
+    setSelectedScheduleId(scheduleId);
+  };
+
+  // 班次选择后点击下一步
+  const handleSlotPickerNext = () => {
+    if (!selectedScheduleId) {
+      Taro.showToast({ title: '请选择就诊班次', icon: 'none' });
+      return;
+    }
+    setShowSlotPicker(false);
     setShowConfirmPopup(true);
   };
 
@@ -211,8 +249,22 @@ const DoctorDetailPage = () => {
     }
     
     setShowConfirmPopup(false);
+    // 构建 URL 参数，包含具体班次时间
+    const params = new URLSearchParams({
+      doctorId: id!,
+      scheduleId: selectedSchedule.id,
+      date: selectedSchedule.scheduleDate,
+      timeSlot: selectedSchedule.timeSlot,
+    });
+    if (selectedSchedule.startTime) {
+      params.set('startTime', selectedSchedule.startTime);
+    }
+    if (selectedSchedule.endTime) {
+      params.set('endTime', selectedSchedule.endTime);
+    }
+    
     Taro.navigateTo({
-      url: `/packageBooking/pages/booking/index?doctorId=${id}&scheduleId=${selectedSchedule.id}&date=${selectedSchedule.scheduleDate}&timeSlot=${selectedSchedule.timeSlot}`,
+      url: `/packageBooking/pages/booking/index?${params.toString()}`,
     });
   };
 
@@ -348,6 +400,63 @@ const DoctorDetailPage = () => {
         )}
       </View>
 
+      {/* 班次选择 Picker */}
+      {showSlotPicker && (
+        <View className="slot-picker-mask" onClick={handleCloseSlotPicker}>
+          <View className="slot-picker-sheet" onClick={(e) => e.stopPropagation()}>
+            {/* 顶部指示条 */}
+            <View className="slot-picker-indicator" />
+            
+            {/* 头部 */}
+            <View className="slot-picker-header">
+              <Text className="slot-picker-title">选择就诊班次</Text>
+              <Text className="slot-picker-subtitle">
+                {selectedDateInfo?.formatted} {selectedDateInfo?.weekday} · {selectedSlot === 'AM' ? '上午' : '下午'}
+              </Text>
+            </View>
+            
+            {/* 班次列表 - 一行3个 */}
+            <View className="slot-picker-list">
+              {selectedSlotSchedules.map(schedule => {
+                const isSelected = selectedScheduleId === schedule.id;
+                const isFull = schedule.availableSlots <= 0;
+                
+                return (
+                  <View
+                    key={schedule.id}
+                    className={`slot-picker-item ${isSelected ? 'selected' : ''} ${isFull ? 'disabled' : ''}`}
+                    onClick={() => !isFull && handleSelectSchedule(schedule.id)}
+                  >
+                    <Text className="slot-time-start">{schedule.startTime || '--:--'}</Text>
+                    <Text className="slot-time-separator">-</Text>
+                    <Text className="slot-time-end">{schedule.endTime || '--:--'}</Text>
+                    {isSelected && <Text className="slot-check">✓</Text>}
+                    <Text className="slot-remain">
+                      {isFull ? '约满' : `余${schedule.availableSlots}`}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+            
+            {/* 底部按钮 */}
+            <View className="slot-picker-footer">
+              <Button 
+                type="primary" 
+                className="slot-picker-next-btn"
+                disabled={!selectedScheduleId}
+                onClick={handleSlotPickerNext}
+              >
+                下一步
+              </Button>
+              <Text className="slot-picker-cancel-btn" onClick={handleCloseSlotPicker}>
+                取消
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* 预约确认弹窗 */}
       {showConfirmPopup && (
         <View className="confirm-popup-mask" onClick={handleCloseConfirmPopup}>
@@ -386,6 +495,9 @@ const DoctorDetailPage = () => {
                   <Text className="confirm-info-label">就诊时间</Text>
                   <Text className="confirm-info-value highlight">
                     {selectedDate} {selectedDateInfo?.weekday} {selectedSlot === 'AM' ? '上午' : '下午'}
+                    {selectedSchedule?.startTime && selectedSchedule?.endTime && (
+                      <Text> ({selectedSchedule.startTime}-{selectedSchedule.endTime})</Text>
+                    )}
                   </Text>
                 </View>
               </View>

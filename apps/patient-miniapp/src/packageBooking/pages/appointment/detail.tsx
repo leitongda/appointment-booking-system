@@ -151,7 +151,10 @@ const AppointmentDetailPage = () => {
         </View>
         <View className="info-row">
           <Text className="label">就诊时段</Text>
-          <Text className="value">{TIME_SLOT_MAP[appointment.timeSlot || 'AM']}</Text>
+          <Text className="value">
+            {TIME_SLOT_MAP[appointment.timeSlot || 'AM']}
+            {appointment.startTime && appointment.endTime && ` (${appointment.startTime}-${appointment.endTime})`}
+          </Text>
         </View>
         <View className="info-row">
           <Text className="label">预约时间</Text>

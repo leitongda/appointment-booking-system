@@ -14,7 +14,7 @@ import './index.less';
 
 const BookingPage = () => {
   const router = useRouter();
-  const { doctorId, scheduleId, date, timeSlot } = router.params;
+  const { doctorId, scheduleId, date, timeSlot, startTime, endTime } = router.params;
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -242,7 +242,10 @@ const BookingPage = () => {
         <View className="info-list">
           <View className="info-row">
             <Text className="label">预约时间</Text>
-            <Text className="value">{date} {TIME_SLOT_MAP[timeSlot || 'AM']}</Text>
+            <Text className="value">
+              {date} {TIME_SLOT_MAP[timeSlot || 'AM']}
+              {startTime && endTime && ` (${startTime}-${endTime})`}
+            </Text>
           </View>
           {hospitalName && (
             <View className="info-row">

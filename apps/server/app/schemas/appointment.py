@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
-from datetime import datetime, date
+from datetime import datetime, date, time
 
 
 def to_camel(string: str) -> str:
@@ -41,6 +41,8 @@ class AppointmentResponse(BaseModel):
     schedule_id: Optional[str] = None
     schedule_date: Optional[date] = None
     time_slot: Optional[str] = None
+    start_time: Optional[time] = None
+    end_time: Optional[time] = None
     queue_number: Optional[int] = None
     status: Optional[int] = None
     sign_in_time: Optional[datetime] = None
