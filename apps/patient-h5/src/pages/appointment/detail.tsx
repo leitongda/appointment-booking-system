@@ -86,7 +86,8 @@ const AppointmentDetailPage: React.FC = () => {
   };
 
   const getStatusColor = (status: number) => {
-    if (status === 6 || status === 7) return 'from-red-500 to-red-600';
+    // 6=已取消, 7=已过期, 8=已关闭(爽约)
+    if (status === 6 || status === 7 || status === 8) return 'from-red-500 to-red-600';
     if (status === 5) return 'from-green-500 to-green-600';
     return 'from-accent to-accent-secondary';
   };
@@ -125,7 +126,7 @@ const AppointmentDetailPage: React.FC = () => {
 
   const isCancelled = appointment.status === 6;
   const isCompleted = appointment.status === 5;
-  const isNoShow = appointment.status === 7;
+  const isNoShow = appointment.status === 8;  // 8=CLOSED(爽约)
   const canCancel = appointment.status === 1;
   const canSignIn = appointment.status === 1;
 

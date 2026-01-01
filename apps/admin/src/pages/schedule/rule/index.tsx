@@ -12,13 +12,14 @@ import {
   ProFormRadio,
   ProFormDigit,
 } from '@ant-design/pro-components';
-import { Button, App, Space, Popconfirm, Tag, Alert, Modal, Table, Tooltip, Dropdown } from 'antd';
+import { Button, App, Space, Popconfirm, Tag, Alert, Modal, Table, Tooltip, Dropdown, InputNumber, Tabs } from 'antd';
+import { EyeOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { useRef, useState, useEffect, useMemo } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
 import { scheduleTemplateApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
-import type { ScheduleTemplate, Doctor, Department, Store } from '@hospital/shared';
+import type { ScheduleTemplate, Doctor, Department, Store, ScheduleSlotPreview, SchedulePreviewGenerateResponse } from '@hospital/shared';
 import {
   APPOINTMENT_TYPE_MAP,
   APPOINTMENT_TYPE_OPTIONS,
@@ -53,6 +54,13 @@ const ScheduleRulePage: React.FC = () => {
   const [currentTemplate, setCurrentTemplate] = useState<ScheduleTemplate | null>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  
+  // 预览相关状态
+  const [previewData, setPreviewData] = useState<SchedulePreviewGenerateResponse[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  // 存储编辑过的班次容量
+  const [editedCapacities, setEditedCapacities] = useState<Record<string, number>>({});
 
   const [stores, setStores] = useState<Store[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -228,6 +236,77 @@ const ScheduleRulePage: React.FC = () => {
     } catch (error: any) {
       message.error(error.message || '批量添加失败');
       return false;
+    }
+  };
+
+  // 预览生成排班
+  const handlePreviewGenerate = async () => {
+    const values = generateFormRef.current?.getFieldsValue();
+    const { startDate: startDateVal, endDate: endDateVal } = values || {};
+
+    if (selectedTemplates.length === 0) {
+      message.error('请先选择要使用的规则');
+      return;
+    }
+
+    const startDate = startDateVal 
+      ? (typeof startDateVal === 'string' ? startDateVal : startDateVal.format('YYYY-MM-DD'))
+      : undefined;
+    const endDate = endDateVal 
+      ? (typeof endDateVal === 'string' ? endDateVal : endDateVal.format('YYYY-MM-DD'))
+      : dayjs().add(30, 'day').format('YYYY-MM-DD');
+
+    setPreviewLoading(true);
+    try {
+      const result = await scheduleTemplateApi.previewGenerate({
+        templateIds: selectedTemplates,
+        startDate,
+        endDate,
+      });
+      setPreviewData(result);
+      setEditedCapacities({});
+      setShowPreview(true);
+    } catch (error: any) {
+      message.error(error.message || '预览生成失败');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  // 确认生成（带自定义容量）
+  const handleConfirmGenerate = async () => {
+    const values = generateFormRef.current?.getFieldsValue();
+    const { startDate: startDateVal, endDate: endDateVal } = values || {};
+
+    const startDate = startDateVal 
+      ? (typeof startDateVal === 'string' ? startDateVal : startDateVal.format('YYYY-MM-DD'))
+      : undefined;
+    const endDate = endDateVal 
+      ? (typeof endDateVal === 'string' ? endDateVal : endDateVal.format('YYYY-MM-DD'))
+      : undefined;
+
+    // 构建容量覆盖数据
+    const slotCapacities = Object.entries(editedCapacities).map(([key, capacity]) => {
+      const [scheduleDate, startTime, endTime] = key.split('|');
+      return { scheduleDate, startTime, endTime, slotCapacity: capacity };
+    });
+
+    try {
+      const result = await scheduleTemplateApi.generateWithCapacity({
+        templateIds: selectedTemplates,
+        startDate,
+        endDate,
+        slotCapacities: slotCapacities.length > 0 ? slotCapacities : undefined,
+      });
+      message.success(result.message);
+      setGenerateModalOpen(false);
+      setShowPreview(false);
+      setPreviewData([]);
+      setEditedCapacities({});
+      setSelectedTemplates([]);
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error.message || '生成排班失败');
     }
   };
 
@@ -716,94 +795,205 @@ const ScheduleRulePage: React.FC = () => {
       </ModalForm>
 
       {/* 生成排班弹窗 */}
-      <ModalForm
+      <Modal
         title={currentTemplate ? `生成排班 - ${currentTemplate.name}` : '根据规则生成排班'}
         open={generateModalOpen}
-        formRef={generateFormRef}
-        onOpenChange={(open) => {
-          setGenerateModalOpen(open);
-          if (!open) {
-            setCurrentTemplate(null);
-          }
+        onCancel={() => {
+          setGenerateModalOpen(false);
+          setCurrentTemplate(null);
+          setShowPreview(false);
+          setPreviewData([]);
+          setEditedCapacities({});
         }}
-        onFinish={handleGenerateSubmit}
-        modalProps={{ destroyOnHidden: true }}
-        width={500}
-      >
-        {currentTemplate ? (
-          <Alert
-            message={
-              <div>
-                <div>规则：<strong>{currentTemplate.name}</strong></div>
-                <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
-                  医生：{currentTemplate.doctorName} | 科室：{currentTemplate.departmentName} | 
-                  星期：{(currentTemplate.weekdays || []).map((w: number) => WEEKDAY_MAP[w]).join('、')}
-                </div>
-              </div>
-            }
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-        ) : (
-          <Alert
-            message={`已选择 ${selectedTemplates.length} 个规则`}
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-        )}
-        
-        {/* 快捷选择按钮 */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ marginBottom: 8, color: '#666' }}>快捷选择：</div>
-          <Space wrap>
-            {[
-              { label: '1个月', months: 1 },
-              { label: '2个月', months: 2 },
-              { label: '3个月', months: 3 },
-              { label: '6个月', months: 6 },
-              { label: '1年', months: 12 },
-              { label: '2年', months: 24 },
-              { label: '3年', months: 36 },
-            ].map((item) => (
-              <Button
-                key={item.label}
-                size="small"
-                onClick={() => {
-                  const start = dayjs();
-                  const end = dayjs().add(item.months, 'month');
-                  generateFormRef.current?.setFieldsValue({
-                    startDate: start,
-                    endDate: end,
-                  });
-                }}
-              >
-                {item.label}
-              </Button>
-            ))}
+        footer={showPreview ? (
+          <Space>
+            <Button onClick={() => setShowPreview(false)}>返回设置</Button>
+            <Button type="primary" onClick={handleConfirmGenerate}>
+              确认生成 ({previewData.reduce((acc, p) => acc + p.totalCount, 0)} 条)
+            </Button>
           </Space>
-        </div>
-        
-        <ProFormDatePicker
-          name="startDate"
-          label="开始日期"
-          placeholder="不选则默认今天"
-          extra="可选，不填写默认从今天开始"
-        />
-        <ProFormDatePicker
-          name="endDate"
-          label="结束日期"
-          placeholder="不选则默认1年后"
-          extra="可选，不填写默认生成到1年后"
-        />
-        <Alert
-          message="系统将根据规则配置的星期和排班方式，在日期范围内生成对应的排班"
-          type="info"
-          showIcon
-          style={{ marginTop: 8 }}
-        />
-      </ModalForm>
+        ) : (
+          <Space>
+            <Button onClick={() => setGenerateModalOpen(false)}>取消</Button>
+            <Button 
+              icon={<EyeOutlined />}
+              onClick={handlePreviewGenerate}
+              loading={previewLoading}
+            >
+              预览班次
+            </Button>
+            <Button type="primary" onClick={() => generateFormRef.current?.submit()}>
+              直接生成
+            </Button>
+          </Space>
+        )}
+        destroyOnClose
+        width={showPreview ? 900 : 500}
+      >
+        {!showPreview ? (
+          <ProForm
+            formRef={generateFormRef}
+            onFinish={handleGenerateSubmit}
+            submitter={false}
+          >
+            {currentTemplate ? (
+              <Alert
+                message={
+                  <div>
+                    <div>规则：<strong>{currentTemplate.name}</strong></div>
+                    <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+                      医生：{currentTemplate.doctorName} | 科室：{currentTemplate.departmentName} | 
+                      星期：{(currentTemplate.weekdays || []).map((w: number) => WEEKDAY_MAP[w]).join('、')}
+                      {currentTemplate.breakTimes && currentTemplate.breakTimes.length > 0 && (
+                        <span> | 排除时间：{currentTemplate.breakTimes.map(bt => `${bt.startTime}-${bt.endTime}`).join('、')}</span>
+                      )}
+                    </div>
+                  </div>
+                }
+                type="info"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+            ) : (
+              <Alert
+                message={`已选择 ${selectedTemplates.length} 个规则`}
+                type="info"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+            )}
+            
+            {/* 快捷选择按钮 */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: 8, color: '#666' }}>快捷选择：</div>
+              <Space wrap>
+                {[
+                  { label: '1个月', months: 1 },
+                  { label: '2个月', months: 2 },
+                  { label: '3个月', months: 3 },
+                  { label: '6个月', months: 6 },
+                  { label: '1年', months: 12 },
+                  { label: '2年', months: 24 },
+                  { label: '3年', months: 36 },
+                ].map((item) => (
+                  <Button
+                    key={item.label}
+                    size="small"
+                    onClick={() => {
+                      const start = dayjs();
+                      const end = dayjs().add(item.months, 'month');
+                      generateFormRef.current?.setFieldsValue({
+                        startDate: start,
+                        endDate: end,
+                      });
+                    }}
+                  >
+                    {item.label}
+                  </Button>
+                ))}
+              </Space>
+            </div>
+            
+            <ProFormDatePicker
+              name="startDate"
+              label="开始日期"
+              placeholder="不选则默认今天"
+              extra="可选，不填写默认从今天开始"
+            />
+            <ProFormDatePicker
+              name="endDate"
+              label="结束日期"
+              placeholder="不选则默认1年后"
+              extra="可选，不填写默认生成到1年后（预览默认30天）"
+            />
+            <Alert
+              message="点击「预览班次」可查看并编辑每个班次的可预约人数，或直接点击「直接生成」使用默认设置"
+              type="info"
+              showIcon
+              style={{ marginTop: 8 }}
+            />
+          </ProForm>
+        ) : (
+          <div>
+            <Alert
+              message={`预览：共 ${previewData.reduce((acc, p) => acc + p.totalCount, 0)} 个班次，可修改每个班次的可预约人数`}
+              type="success"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+            
+            {previewData.map((preview) => (
+              <div key={preview.templateId} style={{ marginBottom: 16 }}>
+                <div style={{ marginBottom: 8, fontWeight: 500 }}>
+                  {preview.templateName} - {preview.doctorName} ({preview.departmentName})
+                </div>
+                <Table
+                  size="small"
+                  dataSource={preview.slots}
+                  rowKey={(record) => `${record.scheduleDate}-${record.startTime}-${record.endTime}`}
+                  pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `共 ${total} 条` }}
+                  columns={[
+                    {
+                      title: '日期',
+                      dataIndex: 'scheduleDate',
+                      width: 110,
+                    },
+                    {
+                      title: '星期',
+                      dataIndex: 'weekdayName',
+                      width: 70,
+                    },
+                    {
+                      title: '时间段',
+                      render: (_, record) => `${record.startTime} - ${record.endTime}`,
+                      width: 130,
+                    },
+                    {
+                      title: '时段',
+                      dataIndex: 'timeSlot',
+                      width: 80,
+                      render: (val) => {
+                        const slotMap: Record<string, string> = {
+                          morning: '上午',
+                          afternoon: '下午',
+                          evening: '晚上',
+                        };
+                        return slotMap[val] || val;
+                      },
+                    },
+                    {
+                      title: '可预约人数',
+                      dataIndex: 'slotCapacity',
+                      width: 120,
+                      render: (val, record) => {
+                        const key = `${record.scheduleDate}|${record.startTime}|${record.endTime}`;
+                        const editedValue = editedCapacities[key];
+                        return (
+                          <InputNumber
+                            size="small"
+                            min={1}
+                            max={200}
+                            value={editedValue !== undefined ? editedValue : val}
+                            onChange={(newVal) => {
+                              if (newVal !== null) {
+                                setEditedCapacities(prev => ({
+                                  ...prev,
+                                  [key]: newVal,
+                                }));
+                              }
+                            }}
+                            style={{ width: 80 }}
+                          />
+                        );
+                      },
+                    },
+                  ]}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
 
       {/* 历史记录弹窗 */}
       <Modal

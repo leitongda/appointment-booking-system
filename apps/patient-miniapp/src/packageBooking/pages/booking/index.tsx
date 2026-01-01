@@ -88,15 +88,42 @@ const BookingPage = () => {
       return;
     }
 
-    const result = await Taro.showModal({
-      title: '确认预约',
-      content: '确定要预约吗？',
-    });
-
-    if (!result.confirm) return;
-
     setSubmitting(true);
+    
     try {
+      // 检查是否有同一天同一时段的重复预约
+      const duplicateCheck = await appointmentApi.checkDuplicate(scheduleId!, selectedPatientId);
+      
+      if (duplicateCheck.hasDuplicate) {
+        // 有重复预约，提示用户确认
+        const existingAppts = duplicateCheck.appointments;
+        const doctorNames = existingAppts.map(a => a.doctorName || '未知医生').join('、');
+        
+        const confirmResult = await Taro.showModal({
+          title: '重复预约提醒',
+          content: `您在同一天${timeSlot === 'AM' ? '上午' : '下午'}已预约了${doctorNames}的号，是否继续预约？`,
+          confirmText: '继续预约',
+          cancelText: '取消',
+        });
+
+        if (!confirmResult.confirm) {
+          setSubmitting(false);
+          return;
+        }
+      } else {
+        // 没有重复预约，正常确认
+        const result = await Taro.showModal({
+          title: '确认预约',
+          content: '确定要预约吗？',
+        });
+
+        if (!result.confirm) {
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      // 创建预约
       const appointment = await appointmentApi.create({
         scheduleId: scheduleId!,
         patientId: selectedPatientId,

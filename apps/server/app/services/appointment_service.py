@@ -1,8 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import selectinload
 from typing import Optional, List
-from datetime import datetime, date
+from datetime import datetime, date, time, timedelta
 import uuid
 
 from app.models.appointment import Appointment
@@ -12,15 +12,17 @@ from app.models.doctor import Doctor
 from app.schemas.appointment import AppointmentCreate, AppointmentStatistics
 from app.utils.audit import set_create_audit, set_update_audit
 
-# 预约状态
+# 预约状态 - 与前端共享常量保持一致
 APPOINTMENT_STATUS = {
-    'PENDING': 1,      # 待就诊
-    'SIGNED_IN': 2,    # 已签到
-    'IN_PROGRESS': 3,  # 就诊中
-    'PASSED': 4,       # 已过号
+    'PENDING': 0,      # 待支付
+    'CONFIRMED': 1,    # 已预约
+    'SIGNED': 2,       # 已签到
+    'WAITING': 3,      # 候诊中
+    'SEEING': 4,       # 就诊中
     'COMPLETED': 5,    # 已完成
     'CANCELLED': 6,    # 已取消
-    'NO_SHOW': 7       # 已爽约
+    'EXPIRED': 7,      # 已过期
+    'CLOSED': 8        # 已关闭
 }
 
 class AppointmentService:
@@ -53,11 +55,26 @@ class AppointmentService:
         status: Optional[int] = None,
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
+        keyword: Optional[str] = None,
+        department_id: Optional[str] = None,
+        created_start: Optional[datetime] = None,
+        created_end: Optional[datetime] = None,
         page: int = 1,
         page_size: int = 10
     ) -> tuple[List[Appointment], int]:
+        """获取预约列表
+        
+        Args:
+            keyword: 关键字搜索（预约编号/患者姓名/手机号）
+            department_id: 科室ID（通过科室名称匹配）
+            created_start: 创建时间开始
+            created_end: 创建时间结束
+        """
         query = select(Appointment).options(selectinload(Appointment.schedule))
         count_query = select(func.count(Appointment.id))
+        
+        # 标记是否已经 join 了 Schedule 表
+        schedule_joined = False
         
         if user_id:
             query = query.where(Appointment.user_id == user_id)
@@ -70,11 +87,58 @@ class AppointmentService:
             count_query = count_query.where(Appointment.patient_id == patient_id)
         if store_id:
             # 通过关联的 Schedule 表的 store_id 进行过滤
-            query = query.join(Schedule).where(Schedule.store_id == store_id)
-            count_query = count_query.join(Schedule).where(Schedule.store_id == store_id)
+            if not schedule_joined:
+                query = query.join(Schedule)
+                count_query = count_query.join(Schedule)
+                schedule_joined = True
+            query = query.where(Schedule.store_id == store_id)
+            count_query = count_query.where(Schedule.store_id == store_id)
         if status is not None:
             query = query.where(Appointment.status == status)
             count_query = count_query.where(Appointment.status == status)
+        
+        # 关键字搜索（预约编号/患者姓名/手机号）
+        if keyword:
+            keyword_filter = or_(
+                Appointment.appointment_no.ilike(f'%{keyword}%'),
+                Appointment.patient_name.ilike(f'%{keyword}%'),
+                Appointment.patient_phone.ilike(f'%{keyword}%')
+            )
+            query = query.where(keyword_filter)
+            count_query = count_query.where(keyword_filter)
+        
+        # 科室过滤（通过科室名称匹配，因为 Appointment 只有 department_name 快照）
+        if department_id:
+            # 需要查询科室名称，然后用名称匹配
+            from app.models.department import Department
+            dept_result = await self.db.execute(
+                select(Department.name).where(Department.id == department_id)
+            )
+            dept_name = dept_result.scalar_one_or_none()
+            if dept_name:
+                query = query.where(Appointment.department_name == dept_name)
+                count_query = count_query.where(Appointment.department_name == dept_name)
+        
+        # 预约日期范围过滤（通过 Schedule.schedule_date）
+        if start_date or end_date:
+            if not schedule_joined:
+                query = query.join(Schedule)
+                count_query = count_query.join(Schedule)
+                schedule_joined = True
+            if start_date:
+                query = query.where(Schedule.schedule_date >= start_date)
+                count_query = count_query.where(Schedule.schedule_date >= start_date)
+            if end_date:
+                query = query.where(Schedule.schedule_date <= end_date)
+                count_query = count_query.where(Schedule.schedule_date <= end_date)
+        
+        # 创建时间范围过滤
+        if created_start:
+            query = query.where(Appointment.created_at >= created_start)
+            count_query = count_query.where(Appointment.created_at >= created_start)
+        if created_end:
+            query = query.where(Appointment.created_at <= created_end)
+            count_query = count_query.where(Appointment.created_at <= created_end)
         
         query = query.order_by(Appointment.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
         
@@ -94,7 +158,13 @@ class AppointmentService:
                 and_(
                     Appointment.doctor_id == doctor_id,
                     Schedule.schedule_date == today,
-                    Appointment.status.in_([1, 2, 3, 4])
+                    # 已预约、已签到、候诊中、就诊中
+                    Appointment.status.in_([
+                        APPOINTMENT_STATUS['CONFIRMED'],
+                        APPOINTMENT_STATUS['SIGNED'],
+                        APPOINTMENT_STATUS['WAITING'],
+                        APPOINTMENT_STATUS['SEEING']
+                    ])
                 )
             )
             .order_by(Appointment.queue_number)
@@ -153,7 +223,12 @@ class AppointmentService:
                 and_(
                     Appointment.patient_id == data.patient_id,
                     Appointment.schedule_id == data.schedule_id,
-                    Appointment.status.in_([1, 2, 3])
+                    # 已预约、已签到、候诊中
+                    Appointment.status.in_([
+                        APPOINTMENT_STATUS['CONFIRMED'],
+                        APPOINTMENT_STATUS['SIGNED'],
+                        APPOINTMENT_STATUS['WAITING']
+                    ])
                 )
             )
         )
@@ -180,7 +255,7 @@ class AppointmentService:
             doctor_id=schedule.doctor_id,
             schedule_id=data.schedule_id,
             queue_number=queue_number,
-            status=APPOINTMENT_STATUS['PENDING'],
+            status=APPOINTMENT_STATUS['CONFIRMED'],
             symptom_description=data.symptom_description,
             # 就诊人快照信息
             patient_name=patient.name,
@@ -211,8 +286,39 @@ class AppointmentService:
         if not is_admin and appointment.user_id != user_id:
             return None
         
-        if appointment.status not in [1, 2]:
+        # 只有已预约或已签到状态可以取消
+        if appointment.status not in [APPOINTMENT_STATUS['CONFIRMED'], APPOINTMENT_STATUS['SIGNED']]:
             raise ValueError("当前状态不可取消")
+        
+        # 非管理员需要检查取消时间限制
+        if not is_admin:
+            from app.services.settings_service import SettingsService
+            settings_service = SettingsService(self.db)
+            cancel_hours = await settings_service.get_value('booking', 'cancel_hours', 2)
+            
+            schedule = appointment.schedule
+            if schedule and cancel_hours > 0:
+                # 计算就诊时间
+                # 优先使用排班的 start_time，否则根据 time_slot 推算
+                if schedule.start_time:
+                    visit_time = schedule.start_time
+                else:
+                    # 根据 time_slot 确定默认开始时间
+                    time_slot_start_map = {
+                        'AM': time(8, 0),
+                        'PM': time(14, 0),
+                        'morning': time(8, 0),
+                        'afternoon': time(14, 0),
+                        'evening': time(18, 0),
+                        'NIGHT': time(18, 0),
+                    }
+                    visit_time = time_slot_start_map.get(schedule.time_slot, time(8, 0))
+                
+                visit_datetime = datetime.combine(schedule.schedule_date, visit_time)
+                cancel_deadline = visit_datetime - timedelta(hours=cancel_hours)
+                
+                if datetime.now() > cancel_deadline:
+                    raise ValueError(f"就诊前{cancel_hours}小时内不可取消预约")
         
         appointment.status = APPOINTMENT_STATUS['CANCELLED']
         appointment.cancel_time = datetime.now()
@@ -234,10 +340,10 @@ class AppointmentService:
         if not appointment:
             return None
         
-        if appointment.status != APPOINTMENT_STATUS['PENDING']:
+        if appointment.status != APPOINTMENT_STATUS['CONFIRMED']:
             raise ValueError("当前状态不可签到")
         
-        appointment.status = APPOINTMENT_STATUS['SIGNED_IN']
+        appointment.status = APPOINTMENT_STATUS['SIGNED']
         appointment.sign_in_time = datetime.now()
         
         await self.db.commit()
@@ -250,10 +356,10 @@ class AppointmentService:
         if not appointment:
             return None
         
-        if appointment.status != APPOINTMENT_STATUS['SIGNED_IN']:
+        if appointment.status != APPOINTMENT_STATUS['SIGNED']:
             raise ValueError("患者未签到")
         
-        appointment.status = APPOINTMENT_STATUS['IN_PROGRESS']
+        appointment.status = APPOINTMENT_STATUS['SEEING']
         appointment.call_time = datetime.now()
         
         await self.db.commit()
@@ -279,10 +385,10 @@ class AppointmentService:
         if not appointment:
             return None
         
-        if appointment.status not in [APPOINTMENT_STATUS['SIGNED_IN'], APPOINTMENT_STATUS['IN_PROGRESS']]:
+        if appointment.status not in [APPOINTMENT_STATUS['SIGNED'], APPOINTMENT_STATUS['SEEING']]:
             raise ValueError("当前状态不可过号")
         
-        appointment.status = APPOINTMENT_STATUS['PASSED']
+        appointment.status = APPOINTMENT_STATUS['EXPIRED']  # 使用 EXPIRED 表示已过号
         
         await self.db.commit()
         await self.db.refresh(appointment)
@@ -294,10 +400,10 @@ class AppointmentService:
         if not appointment:
             return None
         
-        if appointment.status != APPOINTMENT_STATUS['PASSED']:
+        if appointment.status != APPOINTMENT_STATUS['EXPIRED']:
             raise ValueError("只有过号状态可以重新叫号")
         
-        appointment.status = APPOINTMENT_STATUS['IN_PROGRESS']
+        appointment.status = APPOINTMENT_STATUS['SEEING']
         appointment.call_time = datetime.now()
         
         await self.db.commit()
@@ -310,10 +416,10 @@ class AppointmentService:
         if not appointment:
             return None
         
-        if appointment.status not in [APPOINTMENT_STATUS['PENDING'], APPOINTMENT_STATUS['PASSED']]:
+        if appointment.status not in [APPOINTMENT_STATUS['CONFIRMED'], APPOINTMENT_STATUS['EXPIRED']]:
             raise ValueError("当前状态不可标记爽约")
         
-        appointment.status = APPOINTMENT_STATUS['NO_SHOW']
+        appointment.status = APPOINTMENT_STATUS['CLOSED']  # 使用 CLOSED 表示已爽约
         
         await self.db.commit()
         await self.db.refresh(appointment)
@@ -332,7 +438,7 @@ class AppointmentService:
                 and_(
                     Appointment.doctor_id == doctor_id,
                     Schedule.schedule_date == today,
-                    Appointment.status == APPOINTMENT_STATUS['IN_PROGRESS']
+                    Appointment.status == APPOINTMENT_STATUS['SEEING']
                 )
             )
         )
@@ -347,7 +453,7 @@ class AppointmentService:
                 and_(
                     Appointment.doctor_id == doctor_id,
                     Schedule.schedule_date == today,
-                    Appointment.status == APPOINTMENT_STATUS['SIGNED_IN']
+                    Appointment.status == APPOINTMENT_STATUS['SIGNED']
                 )
             )
             .order_by(Appointment.sign_in_time)
@@ -363,7 +469,7 @@ class AppointmentService:
                 and_(
                     Appointment.doctor_id == doctor_id,
                     Schedule.schedule_date == today,
-                    Appointment.status == APPOINTMENT_STATUS['PASSED']
+                    Appointment.status == APPOINTMENT_STATUS['EXPIRED']
                 )
             )
             .order_by(Appointment.queue_number)
@@ -424,7 +530,7 @@ class AppointmentService:
                     Appointment.user_id == user_id,
                     Schedule.store_id == store_id,
                     Schedule.schedule_date == today,
-                    Appointment.status == APPOINTMENT_STATUS['PENDING']
+                    Appointment.status == APPOINTMENT_STATUS['CONFIRMED']
                 )
             )
             .order_by(Schedule.time_slot)
@@ -459,11 +565,11 @@ class AppointmentService:
             .where(
                 and_(
                     Schedule.schedule_date == target_date,
-                    # 已签到、就诊中、已过号、已完成
+                    # 已签到、候诊中、就诊中、已完成
                     Appointment.status.in_([
-                        APPOINTMENT_STATUS['SIGNED_IN'],
-                        APPOINTMENT_STATUS['IN_PROGRESS'],
-                        APPOINTMENT_STATUS['PASSED'],
+                        APPOINTMENT_STATUS['SIGNED'],
+                        APPOINTMENT_STATUS['WAITING'],
+                        APPOINTMENT_STATUS['SEEING'],
                         APPOINTMENT_STATUS['COMPLETED']
                     ])
                 )
@@ -480,4 +586,41 @@ class AppointmentService:
         query = query.order_by(Appointment.sign_in_time)
         
         result = await self.db.execute(query)
+        return list(result.scalars().all())
+    
+    async def check_duplicate_same_day(
+        self, 
+        user_id: str, 
+        patient_id: str, 
+        schedule_date: date, 
+        time_slot: str
+    ) -> List[Appointment]:
+        """检查同一天同一时段是否有重复预约
+        
+        Args:
+            user_id: 用户ID
+            patient_id: 就诊人ID
+            schedule_date: 预约日期
+            time_slot: 时段 (AM=上午, PM=下午)
+            
+        Returns:
+            该时段已有的预约列表（有效状态：已预约/已签到/候诊中）
+        """
+        result = await self.db.execute(
+            select(Appointment)
+            .join(Schedule)
+            .options(selectinload(Appointment.schedule))
+            .where(
+                and_(
+                    Appointment.patient_id == patient_id,
+                    Schedule.schedule_date == schedule_date,
+                    Schedule.time_slot == time_slot,
+                    Appointment.status.in_([
+                        APPOINTMENT_STATUS['CONFIRMED'],
+                        APPOINTMENT_STATUS['SIGNED'],
+                        APPOINTMENT_STATUS['WAITING']
+                    ])
+                )
+            )
+        )
         return list(result.scalars().all())

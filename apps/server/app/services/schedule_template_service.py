@@ -25,6 +25,7 @@ from app.utils.schedule_utils import (
     should_generate_schedule,
     get_time_slot_from_time,
     split_time_range,
+    split_time_range_with_breaks,
 )
 from app.utils.audit import set_create_audit, set_update_audit
 
@@ -154,6 +155,18 @@ class ScheduleTemplateService:
                 except ValueError:
                     raise ValueError(f"结束时间格式错误: {end_time}")
         
+        # 处理 break_times
+        break_times_json = None
+        if data.break_times:
+            break_times_list = []
+            for bt in data.break_times:
+                bt_dict = {
+                    "startTime": bt.start_time.strftime("%H:%M") if hasattr(bt.start_time, 'strftime') else str(bt.start_time),
+                    "endTime": bt.end_time.strftime("%H:%M") if hasattr(bt.end_time, 'strftime') else str(bt.end_time)
+                }
+                break_times_list.append(bt_dict)
+            break_times_json = json.dumps(break_times_list)
+        
         template = ScheduleTemplate(
             id=str(uuid.uuid4()),
             name=data.name,
@@ -167,6 +180,7 @@ class ScheduleTemplateService:
             slot_count=data.slot_count or 1,
             slot_capacity=data.slot_capacity or 10,
             schedule_mode=data.schedule_mode.value if hasattr(data.schedule_mode, 'value') else str(data.schedule_mode),
+            break_times=break_times_json,
             status=1
         )
         set_create_audit(template, data.operator_id if hasattr(data, 'operator_id') else None)
@@ -192,6 +206,23 @@ class ScheduleTemplateService:
         # 处理 weekdays 数组
         if 'weekdays' in update_data and update_data['weekdays'] is not None:
             update_data['weekdays'] = json.dumps(update_data['weekdays'])
+        
+        # 处理 break_times 数组
+        if 'break_times' in update_data:
+            if update_data['break_times'] is not None:
+                break_times_list = []
+                for bt in update_data['break_times']:
+                    if hasattr(bt, 'start_time'):
+                        bt_dict = {
+                            "startTime": bt.start_time.strftime("%H:%M") if hasattr(bt.start_time, 'strftime') else str(bt.start_time),
+                            "endTime": bt.end_time.strftime("%H:%M") if hasattr(bt.end_time, 'strftime') else str(bt.end_time)
+                        }
+                    else:
+                        bt_dict = bt
+                    break_times_list.append(bt_dict)
+                update_data['break_times'] = json.dumps(break_times_list)
+            else:
+                update_data['break_times'] = None
         
         for field, value in update_data.items():
             setattr(template, field, value)
@@ -248,6 +279,18 @@ class ScheduleTemplateService:
         """
         now = datetime.now()
         
+        # 处理 break_times
+        break_times_json = None
+        break_times_list = []
+        if data.break_times:
+            for bt in data.break_times:
+                bt_dict = {
+                    "startTime": bt.start_time.strftime("%H:%M") if hasattr(bt.start_time, 'strftime') else str(bt.start_time),
+                    "endTime": bt.end_time.strftime("%H:%M") if hasattr(bt.end_time, 'strftime') else str(bt.end_time)
+                }
+                break_times_list.append(bt_dict)
+            break_times_json = json.dumps(break_times_list)
+        
         # 1. 先创建一个排班规则模板
         template_name = f"批量添加-{data.start_date}至{data.end_date}"
         template = ScheduleTemplate(
@@ -263,6 +306,7 @@ class ScheduleTemplateService:
             slot_count=data.slot_count,
             slot_capacity=data.slot_capacity,
             schedule_mode=data.schedule_mode.value,
+            break_times=break_times_json,
             status=1
         )
         self.db.add(template)
@@ -271,8 +315,8 @@ class ScheduleTemplateService:
         template_id = template.id
         created_count = 0
         
-        # 2. 均分时间生成多个班次
-        time_slots = split_time_range(data.start_time, data.end_time, data.slot_count)
+        # 2. 均分时间生成多个班次（考虑排除时间）
+        time_slots = split_time_range_with_breaks(data.start_time, data.end_time, data.slot_count, break_times_list)
         
         current_date = data.start_date
         while current_date <= data.end_date:
@@ -512,3 +556,100 @@ class ScheduleTemplateService:
         self.db.add(log)
         await self.db.commit()
         return log
+    
+    async def generate_schedules_with_capacity(
+        self,
+        template_ids: List[str],
+        start_date: date,
+        end_date: date,
+        capacity_overrides: dict = None
+    ) -> int:
+        """根据模板批量生成排班，支持自定义班次容量
+        
+        Args:
+            template_ids: 模板ID列表
+            start_date: 开始日期
+            end_date: 结束日期
+            capacity_overrides: 容量覆盖字典，key为(日期, 开始时间, 结束时间)元组
+        """
+        created_count = 0
+        now = datetime.now()
+        
+        for template_id in template_ids:
+            template = await self.get_by_id(template_id)
+            if not template or template.status != 1:
+                continue
+            
+            # 获取星期列表
+            weekdays = template.weekday_list
+            if not weekdays:
+                continue
+            
+            # 获取排除时间列表
+            break_times = template.break_times_list or []
+            
+            # 均分时间生成多个班次（考虑排除时间）
+            time_slots = split_time_range_with_breaks(
+                template.start_time,
+                template.end_time,
+                template.slot_count,
+                break_times
+            )
+            
+            current_date = start_date
+            while current_date <= end_date:
+                weekday = current_date.isoweekday()
+                
+                if weekday in weekdays:
+                    if should_generate_schedule(current_date, template.schedule_mode):
+                        for slot_start, slot_end in time_slots:
+                            # 检查是否已存在
+                            existing = await self.db.execute(
+                                select(Schedule).where(
+                                    and_(
+                                        Schedule.doctor_id == template.doctor_id,
+                                        Schedule.schedule_date == current_date,
+                                        Schedule.start_time == slot_start,
+                                        Schedule.end_time == slot_end
+                                    )
+                                )
+                            )
+                            if not existing.scalar_one_or_none():
+                                time_slot = get_time_slot_from_time(slot_start)
+                                
+                                # 检查是否有自定义容量
+                                capacity = template.slot_capacity
+                                if capacity_overrides:
+                                    key = (
+                                        current_date.isoformat(),
+                                        slot_start.strftime("%H:%M"),
+                                        slot_end.strftime("%H:%M")
+                                    )
+                                    if key in capacity_overrides:
+                                        capacity = capacity_overrides[key]
+                                
+                                schedule = Schedule(
+                                    id=str(uuid.uuid4()),
+                                    doctor_id=template.doctor_id,
+                                    store_id=template.store_id,
+                                    template_id=template.id,
+                                    schedule_date=current_date,
+                                    time_slot=time_slot,
+                                    start_time=slot_start,
+                                    end_time=slot_end,
+                                    total_slots=capacity,
+                                    appointment_type=template.appointment_type,
+                                    booked_slots=0,
+                                    status=1
+                                )
+                                self.db.add(schedule)
+                                created_count += 1
+                
+                current_date += timedelta(days=1)
+            
+            # 更新模板的 last_generated_at
+            if created_count > 0:
+                template.last_generated_at = now
+        
+        await self.db.commit()
+        return created_count

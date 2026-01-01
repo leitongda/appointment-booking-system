@@ -21,6 +21,7 @@ class ScheduleTemplate(Base, AuditMixin):
     slot_count = Column(Integer, nullable=False, default=1, comment="班次数量")
     slot_capacity = Column(Integer, nullable=False, default=10, comment="每班次人数")
     schedule_mode = Column(String(50), default="weekly", comment="排班方式")
+    break_times = Column(Text, nullable=True, comment="排除时间段 JSON格式 [{startTime: '12:00', endTime: '13:30'}]")
     status = Column(Integer, default=1, comment="状态: 0禁用 1启用")
     last_generated_at = Column(DateTime, nullable=True, comment="上一次生成排班时间")
     
@@ -50,6 +51,27 @@ class ScheduleTemplate(Base, AuditMixin):
             self.weekdays = json.dumps(value)
         else:
             self.weekdays = json.dumps([])
+    
+    @property
+    def break_times_list(self) -> list:
+        """获取排除时间段列表"""
+        if not self.break_times:
+            return []
+        try:
+            break_times_str = str(self.break_times) if not isinstance(self.break_times, str) else self.break_times
+            if not break_times_str.strip():
+                return []
+            return json.loads(break_times_str)
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return []
+    
+    @break_times_list.setter
+    def break_times_list(self, value: list):
+        """设置排除时间段列表"""
+        if isinstance(value, list):
+            self.break_times = json.dumps(value)
+        else:
+            self.break_times = None
     
     # 关联关系
     store = relationship("Store", backref="schedule_templates")

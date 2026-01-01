@@ -9,9 +9,9 @@ import type { CheckinQueueItem } from '@hospital/api';
 import dayjs from 'dayjs';
 
 const STATUS_MAP: Record<number, { text: string; color: string }> = {
-  2: { text: '已签到', color: 'blue' },
-  3: { text: '就诊中', color: 'processing' },
-  4: { text: '已过号', color: 'orange' },
+  2: { text: '已签到', color: 'cyan' },
+  3: { text: '候诊中', color: 'purple' },
+  4: { text: '就诊中', color: 'processing' },
   5: { text: '已完成', color: 'green' },
 };
 
@@ -213,7 +213,7 @@ const AppointmentQueuePage: React.FC = () => {
                 </Button>
               </>
             )}
-            {status === 4 && (
+            {status === 7 && (  /* 7=已过期(过号) */
               <Button size="small" onClick={() => handleRecall(record.id)}>
                 重新叫号
               </Button>

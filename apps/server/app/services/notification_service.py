@@ -38,7 +38,7 @@ class NotificationService:
             .where(
                 and_(
                     Appointment.schedule_id == schedule_id,
-                    Appointment.status.in_([1, 2, 3])  # 待就诊、已签到、就诊中
+                    Appointment.status.in_([1, 2, 3])  # 已预约、已签到、候诊中
                 )
             )
         )

@@ -97,9 +97,10 @@ const DepartmentDetailPage: React.FC = () => {
           <motion.div variants={fadeInUp}>
             <SectionLabel>科室简介</SectionLabel>
             <Card variant="default" padding="lg" className="mt-3">
-              <p className="text-foreground leading-relaxed">
-                {department.description}
-              </p>
+              <div 
+                className="text-foreground leading-relaxed [&_p]:m-0"
+                dangerouslySetInnerHTML={{ __html: department.description }}
+              />
             </Card>
           </motion.div>
         )}

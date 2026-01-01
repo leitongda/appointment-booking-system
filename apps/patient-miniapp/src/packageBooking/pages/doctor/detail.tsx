@@ -1,4 +1,4 @@
-import { View, Text, Image, ScrollView } from '@tarojs/components';
+import { View, Text, Image, ScrollView, RichText } from '@tarojs/components';
 import Taro, { useRouter, usePullDownRefresh } from '@tarojs/taro';
 import { Button } from '@nutui/nutui-react-taro';
 import { useState, useEffect, useMemo } from 'react';
@@ -272,7 +272,11 @@ const DoctorDetailPage = () => {
 
         <View className="info-section">
           <Text className="label">医生简介</Text>
-          <Text className="value">{doctor.introduction || '暂无简介'}</Text>
+          {doctor.introduction ? (
+            <RichText className="value rich-text-value" nodes={doctor.introduction} />
+          ) : (
+            <Text className="value">暂无简介</Text>
+          )}
         </View>
       </View>
 

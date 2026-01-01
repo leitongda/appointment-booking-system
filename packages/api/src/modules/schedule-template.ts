@@ -1,5 +1,5 @@
 import request from '../request';
-import type { ScheduleTemplate, PageResult } from '@hospital/shared';
+import type { ScheduleTemplate, PageResult, BreakTime, SchedulePreviewGenerateResponse } from '@hospital/shared';
 
 /**
  * 验证并格式化时间值
@@ -81,6 +81,7 @@ export interface ScheduleTemplateCreateData {
   slotCount: number;
   slotCapacity: number;
   scheduleMode: string;
+  breakTimes?: BreakTime[];
 }
 
 export interface ScheduleTemplateUpdateData {
@@ -95,6 +96,7 @@ export interface ScheduleTemplateUpdateData {
   slotCount?: number;
   slotCapacity?: number;
   scheduleMode?: string;
+  breakTimes?: BreakTime[];
   status?: number;
 }
 
@@ -147,9 +149,30 @@ export interface ScheduleBatchAddData {
   slotCount: number;
   slotCapacity: number;
   scheduleMode: string;
+  breakTimes?: BreakTime[];
   weekdays: number[];
   startDate: string;
   endDate: string;
+}
+
+export interface SchedulePreviewGenerateData {
+  templateIds: string[];
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface SlotCapacityOverride {
+  scheduleDate: string;
+  startTime: string;
+  endTime: string;
+  slotCapacity: number;
+}
+
+export interface ScheduleGenerateWithCapacityData {
+  templateIds: string[];
+  startDate?: string;
+  endDate?: string;
+  slotCapacities?: SlotCapacityOverride[];
 }
 
 export const scheduleTemplateApi = {
@@ -187,6 +210,12 @@ export const scheduleTemplateApi = {
       throw new Error('开始时间和结束时间格式不正确，应为 HH:mm 格式');
     }
     
+    // 格式化 breakTimes
+    const formattedBreakTimes = data.breakTimes?.map(bt => ({
+      start_time: formatTimeValue(bt.startTime) || bt.startTime,
+      end_time: formatTimeValue(bt.endTime) || bt.endTime,
+    }));
+    
     return request.post('/schedule-templates', {
       name: data.name,
       store_id: data.storeId,
@@ -199,6 +228,7 @@ export const scheduleTemplateApi = {
       slot_count: data.slotCount,
       slot_capacity: data.slotCapacity,
       schedule_mode: data.scheduleMode,
+      break_times: formattedBreakTimes,
     });
   },
 
@@ -232,6 +262,12 @@ export const scheduleTemplateApi = {
     if (data.slotCount !== undefined) requestData.slot_count = data.slotCount;
     if (data.slotCapacity !== undefined) requestData.slot_capacity = data.slotCapacity;
     if (data.scheduleMode !== undefined) requestData.schedule_mode = data.scheduleMode;
+    if (data.breakTimes !== undefined) {
+      requestData.break_times = data.breakTimes?.map(bt => ({
+        start_time: formatTimeValue(bt.startTime) || bt.startTime,
+        end_time: formatTimeValue(bt.endTime) || bt.endTime,
+      }));
+    }
     if (data.status !== undefined) requestData.status = data.status;
     return request.put(`/schedule-templates/${id}`, requestData);
   },
@@ -271,6 +307,12 @@ export const scheduleTemplateApi = {
       throw new Error('开始时间和结束时间格式不正确，应为 HH:mm 格式');
     }
     
+    // 格式化 breakTimes
+    const formattedBreakTimes = data.breakTimes?.map(bt => ({
+      start_time: formatTimeValue(bt.startTime) || bt.startTime,
+      end_time: formatTimeValue(bt.endTime) || bt.endTime,
+    }));
+    
     // 转换 camelCase 到 snake_case
     return request.post('/schedule-templates/batch-add', {
       store_id: data.storeId,
@@ -282,6 +324,7 @@ export const scheduleTemplateApi = {
       slot_count: data.slotCount,
       slot_capacity: data.slotCapacity,
       schedule_mode: data.scheduleMode,
+      break_times: formattedBreakTimes,
       weekdays: data.weekdays,
       start_date: data.startDate,
       end_date: data.endDate,
@@ -327,5 +370,45 @@ export const scheduleTemplateApi = {
    */
   getLogs: (id: string, page: number = 1, pageSize: number = 10): Promise<{ data: ScheduleGenerationLog[]; total: number }> => {
     return request.get(`/schedule-templates/${id}/logs`, { params: { page, page_size: pageSize } });
+  },
+
+  /**
+   * 预览生成排班（不实际写入数据库）
+   */
+  previewGenerate: (data: SchedulePreviewGenerateData): Promise<SchedulePreviewGenerateResponse[]> => {
+    const requestData: Record<string, any> = {
+      template_ids: data.templateIds,
+    };
+    if (data.startDate) {
+      requestData.start_date = data.startDate;
+    }
+    if (data.endDate) {
+      requestData.end_date = data.endDate;
+    }
+    return request.post('/schedule-templates/preview-generate', requestData);
+  },
+
+  /**
+   * 根据模板批量生成排班（支持自定义班次容量）
+   */
+  generateWithCapacity: (data: ScheduleGenerateWithCapacityData): Promise<{ message: string; count: number }> => {
+    const requestData: Record<string, any> = {
+      template_ids: data.templateIds,
+    };
+    if (data.startDate) {
+      requestData.start_date = data.startDate;
+    }
+    if (data.endDate) {
+      requestData.end_date = data.endDate;
+    }
+    if (data.slotCapacities) {
+      requestData.slot_capacities = data.slotCapacities.map(sc => ({
+        schedule_date: sc.scheduleDate,
+        start_time: sc.startTime,
+        end_time: sc.endTime,
+        slot_capacity: sc.slotCapacity,
+      }));
+    }
+    return request.post('/schedule-templates/generate-with-capacity', requestData);
   },
 };

@@ -194,13 +194,15 @@ async def get_appointment_status_stats(
     result = await db.execute(query)
     
     status_map = {
-        1: "待就诊",
+        0: "待支付",
+        1: "已预约",
         2: "已签到",
         3: "候诊中",
         4: "就诊中",
         5: "已完成",
         6: "已取消",
-        7: "爽约",
+        7: "已过期",
+        8: "已关闭",
     }
     
     data = [
@@ -433,7 +435,7 @@ async def get_appointment_summary(
         select(
             func.count(Appointment.id).label('total'),
             func.sum(case((Appointment.status == 5, 1), else_=0)).label('completed'),
-            func.sum(case((Appointment.status == 7, 1), else_=0)).label('no_show'),
+            func.sum(case((Appointment.status == 8, 1), else_=0)).label('no_show'),  # 8=CLOSED(爽约)
             func.sum(case((Appointment.status == 6, 1), else_=0)).label('cancelled'),
         )
         .select_from(Appointment)

@@ -339,7 +339,7 @@ const SettingsPage: React.FC = () => {
           submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
         >
           <ProFormDigit name="advanceDays" label="提前预约天数" min={1} max={30} fieldProps={{ addonAfter: '天' }} />
-          <ProFormDigit name="cancelHours" label="取消提前小时数" min={1} max={48} fieldProps={{ addonAfter: '小时' }} />
+          <ProFormDigit name="cancelHours" label="取消时限" min={0} max={168} fieldProps={{ addonAfter: '小时' }} tooltip="就诊前多少小时内不可取消预约，设置为0表示不限制" />
           <ProFormDigit name="perDayLimit" label="每人每天最大预约数" min={1} max={10} />
           <ProFormDigit name="perDoctorLimit" label="每人每医生最大预约数" min={1} max={5} />
           <ProFormDigit name="noShowLimit" label="爽约次数限制" min={1} max={10} />

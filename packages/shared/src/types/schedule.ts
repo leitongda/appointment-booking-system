@@ -27,6 +27,14 @@ export interface AvailableSchedule {
   appointmentType?: string;
 }
 
+/**
+ * 排除时间段（如午休时间）
+ */
+export interface BreakTime {
+  startTime: string;
+  endTime: string;
+}
+
 export interface ScheduleTemplate {
   id: string;
   name: string;
@@ -43,6 +51,7 @@ export interface ScheduleTemplate {
   slotCount: number;  // 班次数量
   slotCapacity: number;  // 每班次人数
   scheduleMode: string;
+  breakTimes?: BreakTime[];  // 排除时间段（如午休时间）
   status: number;
   lastGeneratedAt?: string;  // 上一次生成排班时间
   createdAt: string;
@@ -125,4 +134,29 @@ export interface ScheduleStatisticsResponse {
   year: number;
   month: number;
   items: ScheduleStatisticsItem[];
+}
+
+/**
+ * 班次预览项
+ */
+export interface ScheduleSlotPreview {
+  scheduleDate: string;
+  startTime: string;
+  endTime: string;
+  timeSlot: string;
+  slotCapacity: number;
+  weekday: number;
+  weekdayName: string;
+}
+
+/**
+ * 预览生成排班响应
+ */
+export interface SchedulePreviewGenerateResponse {
+  slots: ScheduleSlotPreview[];
+  totalCount: number;
+  templateId: string;
+  templateName: string;
+  doctorName?: string;
+  departmentName?: string;
 }

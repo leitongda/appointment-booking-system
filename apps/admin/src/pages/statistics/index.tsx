@@ -8,7 +8,7 @@ const { Statistic } = StatisticCard;
 const { RangePicker } = DatePicker;
 
 const STATUS_MAP: Record<number, string> = {
-  0: '待签到', 1: '已签到', 2: '叫号中', 3: '就诊中', 4: '已完成', 5: '已取消', 6: '已爽约', 7: '已过号',
+  0: '待支付', 1: '已预约', 2: '已签到', 3: '候诊中', 4: '就诊中', 5: '已完成', 6: '已取消', 7: '已过期', 8: '已关闭',
 };
 
 const StatisticsPage: React.FC = () => {

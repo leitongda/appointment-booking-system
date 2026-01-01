@@ -3,20 +3,22 @@ import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { App, Space, Tag, Popconfirm } from 'antd';
 import { useRef } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
-import { appointmentApi, storeApi, dataApi } from '@hospital/api';
+import { appointmentApi, storeApi, dataApi, doctorApi, departmentApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Appointment } from '@hospital/shared';
 import ImportExport from '@/components/ImportExport';
+import dayjs from 'dayjs';
 
 const STATUS_MAP: Record<number, { text: string; color: string }> = {
-  0: { text: '待签到', color: 'gold' },
-  1: { text: '已签到', color: 'blue' },
-  2: { text: '叫号中', color: 'processing' },
-  3: { text: '就诊中', color: 'cyan' },
-  4: { text: '已完成', color: 'green' },
-  5: { text: '已取消', color: 'default' },
-  6: { text: '已爽约', color: 'red' },
-  7: { text: '已过号', color: 'orange' },
+  0: { text: '待支付', color: 'orange' },
+  1: { text: '已预约', color: 'blue' },
+  2: { text: '已签到', color: 'cyan' },
+  3: { text: '候诊中', color: 'purple' },
+  4: { text: '就诊中', color: 'processing' },
+  5: { text: '已完成', color: 'green' },
+  6: { text: '已取消', color: 'default' },
+  7: { text: '已过期', color: 'default' },
+  8: { text: '已关闭', color: 'default' },
 };
 
 const AppointmentListPage: React.FC = () => {
@@ -50,7 +52,25 @@ const AppointmentListPage: React.FC = () => {
     }
   };
 
+  // 日期快捷选项
+  const datePresets: { label: string; value: [dayjs.Dayjs, dayjs.Dayjs] }[] = [
+    { label: '今天', value: [dayjs(), dayjs()] },
+    { label: '本周', value: [dayjs().startOf('week'), dayjs().endOf('week')] },
+    { label: '本月', value: [dayjs().startOf('month'), dayjs().endOf('month')] },
+    { label: '近7天', value: [dayjs().subtract(6, 'day'), dayjs()] },
+    { label: '近30天', value: [dayjs().subtract(29, 'day'), dayjs()] },
+  ];
+
   const columns: ProColumns<Appointment>[] = [
+    // 关键字搜索（仅搜索，不在表格中显示）
+    {
+      title: '关键字',
+      dataIndex: 'keyword',
+      hideInTable: true,
+      fieldProps: {
+        placeholder: '预约编号/患者姓名/手机号',
+      },
+    },
     // 超级管理员和多门店管理员可以按门店筛选
     ...(showStoreFilter ? [{
       title: '门店',
@@ -79,11 +99,13 @@ const AppointmentListPage: React.FC = () => {
       dataIndex: 'appointmentNo',
       width: 140,
       copyable: true,
+      search: false,
     },
     {
       title: '患者',
       dataIndex: 'patientName',
       width: 80,
+      search: false,
     },
     {
       title: '手机号',
@@ -95,6 +117,31 @@ const AppointmentListPage: React.FC = () => {
       title: '医生',
       dataIndex: 'doctorName',
       width: 80,
+      search: false,
+    },
+    // 医生下拉选择器（仅搜索，不在表格中显示）
+    {
+      title: '医生',
+      dataIndex: 'doctorId',
+      hideInTable: true,
+      valueType: 'select',
+      fieldProps: {
+        showSearch: true,
+        optionFilterProp: 'label',
+        placeholder: '请选择医生',
+      },
+      request: async () => {
+        try {
+          const result = await doctorApi.getList({ page: 1, pageSize: 200 });
+          const doctors = result.data ?? [];
+          return [
+            { label: '全部医生', value: '' },
+            ...doctors.map((d: any) => ({ label: `${d.name}（${d.departmentName || '无科室'}）`, value: d.id })),
+          ];
+        } catch {
+          return [];
+        }
+      },
     },
     {
       title: '科室',
@@ -102,16 +149,61 @@ const AppointmentListPage: React.FC = () => {
       width: 100,
       search: false,
     },
+    // 科室下拉选择器（仅搜索，不在表格中显示）
+    {
+      title: '科室',
+      dataIndex: 'departmentId',
+      hideInTable: true,
+      valueType: 'select',
+      fieldProps: {
+        showSearch: true,
+        optionFilterProp: 'label',
+        placeholder: '请选择科室',
+      },
+      request: async () => {
+        try {
+          const result = await departmentApi.getList({ page: 1, pageSize: 200 });
+          const departments = result.data ?? [];
+          return [
+            { label: '全部科室', value: '' },
+            ...departments.map((d: any) => ({ label: d.name, value: d.id })),
+          ];
+        } catch {
+          return [];
+        }
+      },
+    },
+    // 预约日期范围选择器（仅搜索，不在表格中显示）
+    {
+      title: '预约日期',
+      dataIndex: 'scheduleDateRange',
+      hideInTable: true,
+      valueType: 'dateRange',
+      fieldProps: {
+        presets: datePresets,
+      },
+      search: {
+        transform: (value) => {
+          if (!value) return {};
+          return {
+            startDate: value[0],
+            endDate: value[1],
+          };
+        },
+      },
+    },
     {
       title: '预约日期',
       dataIndex: 'scheduleDate',
       width: 110,
       valueType: 'date',
+      search: false,
     },
     {
       title: '时段',
       dataIndex: 'timeSlot',
       width: 70,
+      search: false,
       valueEnum: {
         morning: '上午',
         afternoon: '下午',
@@ -138,8 +230,27 @@ const AppointmentListPage: React.FC = () => {
         return <Tag color={status.color}>{status.text}</Tag>;
       },
     },
+    // 创建时间范围选择器（仅搜索，不在表格中显示）
     {
-      title: '预约时间',
+      title: '创建时间',
+      dataIndex: 'createdAtRange',
+      hideInTable: true,
+      valueType: 'dateTimeRange',
+      fieldProps: {
+        presets: datePresets,
+      },
+      search: {
+        transform: (value) => {
+          if (!value) return {};
+          return {
+            createdStart: value[0],
+            createdEnd: value[1],
+          };
+        },
+      },
+    },
+    {
+      title: '创建时间',
       dataIndex: 'createdAt',
       width: 160,
       valueType: 'dateTime',
@@ -181,11 +292,29 @@ const AppointmentListPage: React.FC = () => {
         rowKey="id"
         columns={columns}
         request={async (params) => {
-          const { current, pageSize, scheduleDate, ...rest } = params;
+          const { 
+            current, 
+            pageSize, 
+            keyword,
+            storeId,
+            doctorId,
+            departmentId,
+            startDate,
+            endDate,
+            createdStart,
+            createdEnd,
+            status,
+          } = params;
           return toProTableResult(await appointmentApi.getList({
-            ...rest,
-            startDate: scheduleDate,
-            endDate: scheduleDate,
+            keyword: keyword || undefined,
+            storeId: storeId || undefined,
+            doctorId: doctorId || undefined,
+            departmentId: departmentId || undefined,
+            startDate: startDate || undefined,
+            endDate: endDate || undefined,
+            createdStart: createdStart || undefined,
+            createdEnd: createdEnd || undefined,
+            status: status !== undefined && status !== '' ? Number(status) : undefined,
             page: current,
             pageSize,
           }));

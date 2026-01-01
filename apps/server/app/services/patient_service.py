@@ -81,7 +81,7 @@ class PatientManageService:
                 select(func.count(Appointment.id)).where(
                     and_(
                         Appointment.patient_id == patient.id,
-                        Appointment.status == 7  # 爽约状态
+                        Appointment.status == 8  # 爽约状态(CLOSED)
                     )
                 )
             )
@@ -153,7 +153,7 @@ class PatientManageService:
             select(func.count(Appointment.id)).where(
                 and_(
                     Appointment.patient_id == patient_id,
-                    Appointment.status == 7
+                    Appointment.status == 8  # 爽约(CLOSED)
                 )
             )
         )
@@ -198,7 +198,7 @@ class PatientManageService:
                 select(func.count(Appointment.id)).where(
                     and_(
                         Appointment.patient_id == member.id,
-                        Appointment.status == 7
+                        Appointment.status == 8  # 爽约(CLOSED)
                     )
                 )
             )
@@ -467,7 +467,7 @@ class PatientManageService:
                 select(func.count(Appointment.id)).where(
                     and_(
                         Appointment.patient_id == patient.id,
-                        Appointment.status == 7
+                        Appointment.status == 8  # 爽约(CLOSED)
                     )
                 )
             )
@@ -912,7 +912,7 @@ class UserManageService:
                 select(func.count(Appointment.id)).where(
                     and_(
                         Appointment.patient_id == card.id,
-                        Appointment.status == 7
+                        Appointment.status == 8  # 爽约(CLOSED)
                     )
                 )
             )
@@ -947,7 +947,7 @@ class UserManageService:
             .join(Patient, Appointment.patient_id == Patient.id)
             .where(and_(
                 Patient.user_id == user_id,
-                Appointment.status == 7
+                Appointment.status == 8  # 爽约(CLOSED)
             ))
         )
         
@@ -1212,7 +1212,7 @@ class UserManageService:
             select(func.count(Appointment.id)).where(
                 and_(
                     Appointment.patient_id == card_id,
-                    Appointment.status == 7
+                    Appointment.status == 8  # 爽约(CLOSED)
                 )
             )
         )

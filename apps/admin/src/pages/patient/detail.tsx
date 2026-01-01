@@ -53,14 +53,15 @@ const ID_CARD_TYPE_MAP: Record<number, string> = {
 
 // 预约状态映射
 const APPOINTMENT_STATUS_MAP: Record<number, { text: string; color: string }> = {
-  0: { text: '待支付', color: 'gold' },
-  1: { text: '待就诊', color: 'blue' },
+  0: { text: '待支付', color: 'orange' },
+  1: { text: '已预约', color: 'blue' },
   2: { text: '已签到', color: 'cyan' },
-  3: { text: '就诊中', color: 'processing' },
-  4: { text: '已完成', color: 'green' },
-  5: { text: '已就诊', color: 'green' },
+  3: { text: '候诊中', color: 'purple' },
+  4: { text: '就诊中', color: 'processing' },
+  5: { text: '已完成', color: 'green' },
   6: { text: '已取消', color: 'default' },
-  7: { text: '已爽约', color: 'red' },
+  7: { text: '已过期', color: 'default' },
+  8: { text: '已关闭', color: 'default' },
 };
 
 const GENDER_OPTIONS = [

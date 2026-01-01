@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from typing import Optional
-from datetime import date
+from datetime import date, datetime
 
 from app.db.session import get_db
 from app.api.deps import get_current_user, get_current_user_or_admin, get_store_filter
@@ -18,12 +19,25 @@ async def get_appointments(
     store_id: Optional[str] = None,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
+    keyword: Optional[str] = None,
+    doctor_id: Optional[str] = None,
+    department_id: Optional[str] = None,
+    created_start: Optional[datetime] = None,
+    created_end: Optional[datetime] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin)
 ):
-    """获取预约列表"""
+    """获取预约列表
+    
+    Args:
+        keyword: 关键字搜索（预约编号/患者姓名/手机号）
+        doctor_id: 医生ID
+        department_id: 科室ID
+        created_start: 创建时间开始
+        created_end: 创建时间结束
+    """
     service = AppointmentService(db)
     # 管理员可以查看所有预约，普通用户只能查看自己的
     user_id = None if current_user.get("is_admin") else current_user["id"]
@@ -41,6 +55,11 @@ async def get_appointments(
         patient_id=patient_id,
         start_date=start_date,
         end_date=end_date,
+        keyword=keyword,
+        doctor_id=doctor_id,
+        department_id=department_id,
+        created_start=created_start,
+        created_end=created_end,
         page=page,
         page_size=page_size
     )
@@ -183,6 +202,55 @@ async def get_appointment_statistics(
     """获取预约统计"""
     service = AppointmentService(db)
     return await service.get_statistics(doctor_id=doctor_id, start_date=start_date, end_date=end_date)
+
+@router.get("/check-duplicate")
+async def check_duplicate_appointment(
+    schedule_id: str = Query(..., description="排班ID"),
+    patient_id: str = Query(..., description="就诊人ID"),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """检查同一天同一时段是否有重复预约
+    
+    返回该时段已有的预约列表，用于前端提醒用户
+    """
+    from app.models.schedule import Schedule
+    
+    service = AppointmentService(db)
+    
+    # 先获取排班信息以获取日期和时段
+    schedule_result = await db.execute(
+        select(Schedule).where(Schedule.id == schedule_id)
+    )
+    schedule = schedule_result.scalar_one_or_none()
+    
+    if not schedule:
+        return {"hasDuplicate": False, "appointments": []}
+    
+    # 检查重复预约
+    duplicates = await service.check_duplicate_same_day(
+        user_id=current_user["id"],
+        patient_id=patient_id,
+        schedule_date=schedule.schedule_date,
+        time_slot=schedule.time_slot
+    )
+    
+    result = []
+    for a in duplicates:
+        result.append({
+            "id": a.id,
+            "appointmentNo": a.appointment_no,
+            "doctorName": a.doctor_name,
+            "departmentName": a.department_name,
+            "scheduleDate": a.schedule.schedule_date.isoformat() if a.schedule else None,
+            "timeSlot": a.schedule.time_slot if a.schedule else None,
+            "status": a.status,
+        })
+    
+    return {
+        "hasDuplicate": len(result) > 0,
+        "appointments": result
+    }
 
 @router.get("/by-no/{appointment_no}", response_model=AppointmentResponse)
 async def get_appointment_by_no(

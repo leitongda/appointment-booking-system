@@ -31,6 +31,17 @@ class ScheduleMode(str, Enum):
     YEAR_EVEN_WEEK = "year_even_week"  # 本年偶数周
 
 
+class BreakTime(BaseModel):
+    """排除时间段（如午休时间）"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
+    start_time: time = Field(..., description="开始时间")
+    end_time: time = Field(..., description="结束时间")
+
+
 class ScheduleTemplateBase(BaseModel):
     """排班模板基础模型"""
     model_config = ConfigDict(
@@ -49,6 +60,7 @@ class ScheduleTemplateBase(BaseModel):
     slot_count: int = Field(default=1, ge=1, le=50, description="班次数量")
     slot_capacity: int = Field(default=10, ge=1, le=200, description="每班次人数")
     schedule_mode: ScheduleMode = Field(default=ScheduleMode.WEEKLY, description="排班方式")
+    break_times: Optional[List[BreakTime]] = Field(None, description="排除时间段列表（如午休时间）")
 
 
 class ScheduleTemplateCreate(ScheduleTemplateBase):
@@ -74,6 +86,7 @@ class ScheduleTemplateUpdate(BaseModel):
     slot_count: Optional[int] = Field(None, ge=1, le=50)
     slot_capacity: Optional[int] = Field(None, ge=1, le=200)
     schedule_mode: Optional[ScheduleMode] = None
+    break_times: Optional[List[BreakTime]] = Field(None, description="排除时间段列表（如午休时间）")
     status: Optional[int] = Field(None, ge=0, le=1)
 
 
@@ -98,6 +111,7 @@ class ScheduleTemplateResponse(BaseModel):
     slot_count: Optional[int] = 1
     slot_capacity: Optional[int] = 10
     schedule_mode: Optional[str] = "weekly"
+    break_times: Optional[List[BreakTime]] = None
     status: Optional[int] = 1
     store_name: Optional[str] = None
     doctor_name: Optional[str] = None
@@ -135,6 +149,76 @@ class ScheduleBatchAddRequest(BaseModel):
     slot_count: int = Field(default=1, ge=1, le=50, description="班次数量")
     slot_capacity: int = Field(default=10, ge=1, le=200, description="每班次人数")
     schedule_mode: ScheduleMode = Field(default=ScheduleMode.WEEKLY, description="排班方式")
+    break_times: Optional[List[BreakTime]] = Field(None, description="排除时间段列表（如午休时间）")
     weekdays: List[int] = Field(..., description="星期列表 1-7")
     start_date: date = Field(..., description="开始日期")
     end_date: date = Field(..., description="结束日期")
+
+
+class ScheduleSlotPreview(BaseModel):
+    """班次预览项"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
+    schedule_date: date = Field(..., description="排班日期")
+    start_time: time = Field(..., description="开始时间")
+    end_time: time = Field(..., description="结束时间")
+    time_slot: str = Field(..., description="时段: morning/afternoon/evening")
+    slot_capacity: int = Field(..., description="可预约人数")
+    weekday: int = Field(..., description="星期几 1-7")
+    weekday_name: str = Field(..., description="星期名称")
+
+
+class SchedulePreviewGenerateRequest(BaseModel):
+    """预览生成排班请求"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
+    template_ids: List[str] = Field(..., description="模板ID列表")
+    start_date: Optional[date] = Field(None, description="开始日期，为空则默认今天")
+    end_date: Optional[date] = Field(None, description="结束日期，为空则默认30天后")
+
+
+class SchedulePreviewGenerateResponse(BaseModel):
+    """预览生成排班响应"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
+    slots: List[ScheduleSlotPreview] = Field(..., description="预览班次列表")
+    total_count: int = Field(..., description="总班次数")
+    template_id: str = Field(..., description="模板ID")
+    template_name: str = Field(..., description="模板名称")
+    doctor_name: Optional[str] = None
+    department_name: Optional[str] = None
+
+
+class SlotCapacityOverride(BaseModel):
+    """班次容量覆盖"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
+    schedule_date: date = Field(..., description="排班日期")
+    start_time: time = Field(..., description="开始时间")
+    end_time: time = Field(..., description="结束时间")
+    slot_capacity: int = Field(..., ge=1, le=200, description="可预约人数")
+
+
+class ScheduleGenerateWithCapacityRequest(BaseModel):
+    """带自定义容量的生成排班请求"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
+    template_ids: List[str] = Field(..., description="模板ID列表")
+    start_date: Optional[date] = Field(None, description="开始日期，为空则默认今天")
+    end_date: Optional[date] = Field(None, description="结束日期，为空则默认1年后")
+    slot_capacities: Optional[List[SlotCapacityOverride]] = Field(None, description="自定义班次容量列表")

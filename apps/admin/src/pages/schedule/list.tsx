@@ -1,7 +1,7 @@
-import { PlusOutlined, StopOutlined, PlayCircleOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, StopOutlined, PlayCircleOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns, ProFormInstance } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormSelect, ProFormDatePicker, ProFormDigit, ProFormDateRangePicker } from '@ant-design/pro-components';
-import { Button, App, Space, Tag, Popconfirm, Alert } from 'antd';
+import { Button, App, Space, Tag, Popconfirm, Alert, Tooltip } from 'antd';
 import { useRef, useState, useEffect } from 'react';
 import { useAccess, useModel } from '@umijs/max';
 import { scheduleApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
@@ -20,7 +20,10 @@ const ScheduleListPage: React.FC = () => {
   const access = useAccess();
   const actionRef = useRef<ActionType>();
   const formRef = useRef<ProFormInstance>();
+  const editFormRef = useRef<ProFormInstance>();
   const [modalOpen, setModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [currentSchedule, setCurrentSchedule] = useState<Schedule | null>(null);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [selectedDept, setSelectedDept] = useState<string>();
@@ -211,6 +214,30 @@ const ScheduleListPage: React.FC = () => {
     }
   };
 
+  // 编辑排班
+  const handleEdit = (record: Schedule) => {
+    setCurrentSchedule(record);
+    setEditModalOpen(true);
+  };
+
+  const handleEditSubmit = async (values: any) => {
+    if (!currentSchedule) return false;
+    
+    try {
+      await scheduleApi.update(currentSchedule.id, {
+        totalSlots: values.totalSlots,
+      });
+      message.success('修改成功');
+      setEditModalOpen(false);
+      setCurrentSchedule(null);
+      actionRef.current?.reload();
+      return true;
+    } catch (error: any) {
+      message.error(error.message || '修改失败');
+      return false;
+    }
+  };
+
   const columns: ProColumns<Schedule>[] = [
     // 超级管理员可以按门店筛选
     ...(showStoreFilter ? [{
@@ -345,9 +372,16 @@ const ScheduleListPage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 100,
+      width: 140,
       render: (_, record) => (
         <Space>
+          {access.hasPermission('schedule:update') && (
+            <Tooltip title="修改可预约人数">
+              <a onClick={() => handleEdit(record)}>
+                <EditOutlined /> 编辑
+              </a>
+            </Tooltip>
+          )}
           {access.hasPermission('schedule:update') && (
             record.status === 1 ? (
               <Popconfirm title="确定停诊吗？" onConfirm={() => handleSuspend(record.id)}>
@@ -485,6 +519,63 @@ const ScheduleListPage: React.FC = () => {
           min={1}
           max={100}
           rules={[{ required: true, message: '请输入号源数量' }]}
+        />
+      </ModalForm>
+
+      {/* 编辑排班弹窗 */}
+      <ModalForm
+        title="编辑排班"
+        open={editModalOpen}
+        formRef={editFormRef}
+        onOpenChange={(open) => {
+          setEditModalOpen(open);
+          if (!open) {
+            setCurrentSchedule(null);
+          }
+        }}
+        onFinish={handleEditSubmit}
+        modalProps={{ destroyOnClose: true }}
+        initialValues={{
+          totalSlots: currentSchedule?.totalSlots || 20,
+        }}
+      >
+        {currentSchedule && (
+          <Alert
+            message={
+              <div>
+                <div><strong>医生：</strong>{currentSchedule.doctorName}</div>
+                <div><strong>日期：</strong>{currentSchedule.scheduleDate}</div>
+                <div><strong>时段：</strong>
+                  {currentSchedule.startTime && currentSchedule.endTime 
+                    ? `${currentSchedule.startTime} - ${currentSchedule.endTime}`
+                    : currentSchedule.timeSlot === 'morning' ? '上午' 
+                    : currentSchedule.timeSlot === 'afternoon' ? '下午' 
+                    : '晚上'}
+                </div>
+                <div><strong>已预约：</strong>{currentSchedule.bookedSlots || 0} 人</div>
+              </div>
+            }
+            type="info"
+            style={{ marginBottom: 16 }}
+          />
+        )}
+        <ProFormDigit
+          name="totalSlots"
+          label="可预约人数"
+          min={currentSchedule?.bookedSlots || 1}
+          max={200}
+          rules={[
+            { required: true, message: '请输入可预约人数' },
+            {
+              validator: (_, value) => {
+                if (value < (currentSchedule?.bookedSlots || 0)) {
+                  return Promise.reject(`不能小于已预约人数 (${currentSchedule?.bookedSlots || 0})`);
+                }
+                return Promise.resolve();
+              },
+            },
+          ]}
+          extra={`当前已预约 ${currentSchedule?.bookedSlots || 0} 人，不能设置小于此值`}
         />
       </ModalForm>
     </PageContainer>

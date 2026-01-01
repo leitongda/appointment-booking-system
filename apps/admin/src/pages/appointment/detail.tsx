@@ -6,14 +6,15 @@ import { appointmentApi } from '@hospital/api';
 import type { Appointment } from '@hospital/shared';
 
 const STATUS_MAP: Record<number, { text: string; color: string }> = {
-  0: { text: '待签到', color: 'gold' },
-  1: { text: '已签到', color: 'blue' },
-  2: { text: '叫号中', color: 'processing' },
-  3: { text: '就诊中', color: 'cyan' },
-  4: { text: '已完成', color: 'green' },
-  5: { text: '已取消', color: 'default' },
-  6: { text: '已爽约', color: 'red' },
-  7: { text: '已过号', color: 'orange' },
+  0: { text: '待支付', color: 'orange' },
+  1: { text: '已预约', color: 'blue' },
+  2: { text: '已签到', color: 'cyan' },
+  3: { text: '候诊中', color: 'purple' },
+  4: { text: '就诊中', color: 'processing' },
+  5: { text: '已完成', color: 'green' },
+  6: { text: '已取消', color: 'default' },
+  7: { text: '已过期', color: 'default' },
+  8: { text: '已关闭', color: 'default' },
 };
 
 const TIME_SLOT_MAP: Record<string, string> = {

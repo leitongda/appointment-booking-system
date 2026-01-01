@@ -245,7 +245,7 @@ def mark_no_show_appointments_task():
                     select(func.count(Appointment.id)).where(
                         and_(
                             Appointment.user_id == user_id,
-                            Appointment.status == 7
+                            Appointment.status == 8  # CLOSED(爽约)
                         )
                     )
                 )
@@ -323,7 +323,7 @@ def check_and_add_blacklist(user_id: str):
                 select(func.count(Appointment.id)).where(
                     and_(
                         Appointment.user_id == user_id,
-                        Appointment.status == 7
+                        Appointment.status == 8  # CLOSED(爽约)
                     )
                 )
             )

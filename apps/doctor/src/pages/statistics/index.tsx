@@ -17,7 +17,7 @@ const StatisticsPage: React.FC = () => {
   const totalAppointments = trendData.reduce((sum, item) => sum + item.count, 0);
   const completedCount = statusData.find(s => s.status === 5)?.count || 0;
   const cancelledCount = statusData.find(s => s.status === 6)?.count || 0;
-  const noShowCount = statusData.find(s => s.status === 7)?.count || 0;
+  const noShowCount = statusData.find(s => s.status === 8)?.count || 0;  // 8=CLOSED(爽约)
   const completionRate = totalAppointments > 0 ? ((completedCount / totalAppointments) * 100).toFixed(1) : '0';
   const noShowRate = totalAppointments > 0 ? ((noShowCount / totalAppointments) * 100).toFixed(1) : '0';
 

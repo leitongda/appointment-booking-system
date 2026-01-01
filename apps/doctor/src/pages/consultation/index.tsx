@@ -92,10 +92,10 @@ const ConsultationPage: React.FC = () => {
     }
   };
 
-  // 候诊队列
+  // 候诊队列（已签到）
   const waitingList = appointments.filter((a) => a.status === 2);
-  // 已过号
-  const passedList = appointments.filter((a) => a.status === 4);
+  // 已过号 (7=EXPIRED)
+  const passedList = appointments.filter((a) => a.status === 7);
 
   return (
     <PageContainer 

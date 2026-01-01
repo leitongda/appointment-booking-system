@@ -1,10 +1,11 @@
 import { PageContainer, ProForm, ProFormText, ProFormSelect, ProFormDigit, ProFormTimePicker, ProFormRadio, ProFormCheckbox, FooterToolbar } from '@ant-design/pro-components';
 import type { ProFormInstance } from '@ant-design/pro-components';
-import { Card, App, Alert, Button, Space, Spin, Row, Col } from 'antd';
+import { Card, App, Button, Space, Row, Col, Collapse, TimePicker, Divider, Typography } from 'antd';
+import { PlusOutlined, DeleteOutlined, SettingOutlined } from '@ant-design/icons';
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { history, useParams, useAccess, useModel } from '@umijs/max';
 import { scheduleTemplateApi, storeApi, departmentApi, doctorApi } from '@hospital/api';
-import type { ScheduleTemplate, Doctor, Department, Store } from '@hospital/shared';
+import type { ScheduleTemplate, Doctor, Department, Store, BreakTime } from '@hospital/shared';
 import {
   APPOINTMENT_TYPE_OPTIONS,
   SCHEDULE_MODE_OPTIONS,
@@ -52,6 +53,9 @@ const ScheduleRuleFormPage: React.FC = () => {
 
   // 表单值，用于实时更新日历预览
   const [formValues, setFormValues] = useState<any>({});
+  
+  // 排除时间段（午休时间等）
+  const [breakTimes, setBreakTimes] = useState<{ startTime?: any; endTime?: any }[]>([]);
 
   const dateInfo = useMemo(() => getDateInfo(), []);
 
@@ -123,6 +127,14 @@ const ScheduleRuleFormPage: React.FC = () => {
       };
       formRef.current?.setFieldsValue(formData);
       setFormValues(formData);
+      
+      // 加载排除时间段
+      if (data.breakTimes && data.breakTimes.length > 0) {
+        setBreakTimes(data.breakTimes.map(bt => ({
+          startTime: bt.startTime ? dayjs(bt.startTime, 'HH:mm') : undefined,
+          endTime: bt.endTime ? dayjs(bt.endTime, 'HH:mm') : undefined,
+        })));
+      }
     } catch (error: any) {
       message.error('加载排班规则信息失败');
     } finally {
@@ -142,6 +154,15 @@ const ScheduleRuleFormPage: React.FC = () => {
         return;
       }
       
+      // 格式化排除时间段
+      const formattedBreakTimes: BreakTime[] = breakTimes
+        .filter(bt => bt.startTime && bt.endTime)
+        .map(bt => ({
+          startTime: formatTime(bt.startTime) || '',
+          endTime: formatTime(bt.endTime) || '',
+        }))
+        .filter(bt => bt.startTime && bt.endTime);
+      
       const data = {
         name: values.name,
         storeId: values.storeId,
@@ -154,6 +175,7 @@ const ScheduleRuleFormPage: React.FC = () => {
         slotCount: values.slotCount || 1,
         slotCapacity: values.slotCapacity || 10,
         scheduleMode: values.scheduleMode,
+        breakTimes: formattedBreakTimes.length > 0 ? formattedBreakTimes : undefined,
       };
 
       if (isEdit && id) {
@@ -318,13 +340,93 @@ const ScheduleRuleFormPage: React.FC = () => {
               </ProForm.Group>
             </Card>
 
-            <Card title="排班方式" loading={loading}>
+            <Card title="排班方式" style={{ marginBottom: 16 }} loading={loading}>
               <ProFormRadio.Group
                 name="scheduleMode"
                 options={SCHEDULE_MODE_OPTIONS}
                 rules={[{ required: true, message: '请选择排班方式' }]}
               />
             </Card>
+            
+            <Collapse
+              items={[
+                {
+                  key: 'advanced',
+                  label: (
+                    <Space>
+                      <SettingOutlined />
+                      <span>高级设置</span>
+                      {breakTimes.length > 0 && (
+                        <Typography.Text type="secondary">
+                          (已配置 {breakTimes.length} 个排除时间段)
+                        </Typography.Text>
+                      )}
+                    </Space>
+                  ),
+                  children: (
+                    <div>
+                      <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+                        设置排除时间段（如午休时间），生成班次时会自动跳过这些时间段
+                      </Typography.Text>
+                      
+                      {breakTimes.map((bt, index) => (
+                        <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: 12, gap: 8 }}>
+                          <TimePicker
+                            placeholder="开始时间"
+                            format="HH:mm"
+                            value={bt.startTime}
+                            onChange={(val) => {
+                              const newBreakTimes = [...breakTimes];
+                              newBreakTimes[index] = { ...newBreakTimes[index], startTime: val };
+                              setBreakTimes(newBreakTimes);
+                            }}
+                            style={{ width: 120 }}
+                          />
+                          <span>至</span>
+                          <TimePicker
+                            placeholder="结束时间"
+                            format="HH:mm"
+                            value={bt.endTime}
+                            onChange={(val) => {
+                              const newBreakTimes = [...breakTimes];
+                              newBreakTimes[index] = { ...newBreakTimes[index], endTime: val };
+                              setBreakTimes(newBreakTimes);
+                            }}
+                            style={{ width: 120 }}
+                          />
+                          <Button
+                            type="text"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={() => {
+                              const newBreakTimes = breakTimes.filter((_, i) => i !== index);
+                              setBreakTimes(newBreakTimes);
+                            }}
+                          />
+                        </div>
+                      ))}
+                      
+                      <Button
+                        type="dashed"
+                        onClick={() => setBreakTimes([...breakTimes, { startTime: undefined, endTime: undefined }])}
+                        icon={<PlusOutlined />}
+                        style={{ width: '100%' }}
+                      >
+                        添加排除时间段
+                      </Button>
+                      
+                      <Divider />
+                      
+                      <Typography.Text type="secondary">
+                        <strong>示例：</strong>如果工作时间是 09:00-18:00，午休时间是 12:00-13:30，
+                        班次数量设为 4，则会在 09:00-12:00 和 13:30-18:00 期间均匀分配 4 个班次。
+                      </Typography.Text>
+                    </div>
+                  ),
+                },
+              ]}
+              style={{ marginBottom: 16 }}
+            />
           </ProForm>
         </Col>
       </Row>

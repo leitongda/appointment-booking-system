@@ -8,6 +8,14 @@ export interface AppointmentListParams {
   storeId?: string;
   startDate?: string;
   endDate?: string;
+  /** 关键字搜索（预约编号/患者姓名/手机号） */
+  keyword?: string;
+  /** 科室ID */
+  departmentId?: string;
+  /** 创建时间开始 */
+  createdStart?: string;
+  /** 创建时间结束 */
+  createdEnd?: string;
   page?: number;
   pageSize?: number;
 }
@@ -16,6 +24,22 @@ export interface AppointmentCreateData {
   scheduleId: string;
   patientId: string;
   symptomDescription?: string;
+}
+
+// 重复预约检查结果
+export interface DuplicateAppointmentInfo {
+  id: string;
+  appointmentNo: string;
+  doctorName: string | null;
+  departmentName: string | null;
+  scheduleDate: string | null;
+  timeSlot: string | null;
+  status: number;
+}
+
+export interface CheckDuplicateResult {
+  hasDuplicate: boolean;
+  appointments: DuplicateAppointmentInfo[];
 }
 
 export interface AppointmentStatistics {
@@ -80,6 +104,16 @@ export interface CheckinQueueItem {
 }
 
 export const appointmentApi = {
+  /**
+   * 检查同一天同一时段是否有重复预约
+   * 用于在预约前提醒用户
+   */
+  checkDuplicate: (scheduleId: string, patientId: string): Promise<CheckDuplicateResult> => {
+    return request.get('/appointments/check-duplicate', {
+      params: { schedule_id: scheduleId, patient_id: patientId }
+    });
+  },
+
   getList: (params?: AppointmentListParams): Promise<PageResult<Appointment>> => {
     // 转换 camelCase 到 snake_case
     const queryParams = params ? {
@@ -89,6 +123,10 @@ export const appointmentApi = {
       store_id: params.storeId,
       start_date: params.startDate,
       end_date: params.endDate,
+      keyword: params.keyword,
+      department_id: params.departmentId,
+      created_start: params.createdStart,
+      created_end: params.createdEnd,
       page: params.page,
       page_size: params.pageSize,
     } : undefined;

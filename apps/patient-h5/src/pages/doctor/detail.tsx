@@ -140,9 +140,16 @@ const DoctorDetailPage: React.FC = () => {
           {/* Introduction */}
           <div>
             <h4 className="font-medium text-foreground mb-2">简介</h4>
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              {doctor.introduction || '暂无简介'}
-            </p>
+            {doctor.introduction ? (
+              <div 
+                className="text-muted-foreground text-sm leading-relaxed [&_p]:m-0"
+                dangerouslySetInnerHTML={{ __html: doctor.introduction }}
+              />
+            ) : (
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                暂无简介
+              </p>
+            )}
           </div>
         </Card>
       </motion.div>

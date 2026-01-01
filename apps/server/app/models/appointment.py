@@ -14,7 +14,7 @@ class Appointment(Base, AuditMixin):
     doctor_id = Column(String(36), ForeignKey("doctors.id"), nullable=False)
     schedule_id = Column(String(36), ForeignKey("schedules.id"), nullable=False)
     queue_number = Column(Integer)  # 队列号
-    status = Column(Integer, default=1)  # 1待确认 2已签到 3就诊中 4已过号 5已完成 6已取消 7已爽约
+    status = Column(Integer, default=1)  # 0待支付 1已预约 2已签到 3候诊中 4就诊中 5已完成 6已取消 7已过期 8已关闭
     sign_in_time = Column(DateTime)
     call_time = Column(DateTime)
     complete_time = Column(DateTime)

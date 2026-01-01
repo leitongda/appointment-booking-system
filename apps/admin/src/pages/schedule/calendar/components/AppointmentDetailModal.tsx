@@ -10,12 +10,14 @@ interface AppointmentDetailModalProps {
 }
 
 const STATUS_MAP: Record<number, { text: string; color: string }> = {
-  0: { text: '待就诊', color: 'processing' },
-  1: { text: '已签到', color: 'warning' },
-  2: { text: '就诊中', color: 'processing' },
-  3: { text: '已完成', color: 'success' },
-  4: { text: '已取消', color: 'default' },
-  5: { text: '爽约', color: 'error' },
+  0: { text: '待支付', color: 'warning' },
+  1: { text: '已预约', color: 'processing' },
+  2: { text: '已签到', color: 'cyan' },
+  3: { text: '候诊中', color: 'purple' },
+  4: { text: '就诊中', color: 'processing' },
+  5: { text: '已完成', color: 'success' },
+  6: { text: '已取消', color: 'default' },
+  7: { text: '已过期', color: 'default' },
 };
 
 const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({

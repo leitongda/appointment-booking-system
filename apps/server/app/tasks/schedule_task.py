@@ -18,6 +18,7 @@ from app.utils.schedule_utils import (
     should_generate_schedule,
     get_time_slot_from_time,
     split_time_range,
+    split_time_range_with_breaks,
 )
 
 logger = logging.getLogger(__name__)
@@ -88,8 +89,16 @@ def auto_generate_schedules_task():
                     logger.warning(f"模板 {template.id} 没有配置星期，跳过")
                     continue
                 
-                # 均分时间生成多个班次
-                time_slots = split_time_range(template.start_time, template.end_time, template.slot_count)
+                # 获取排除时间列表
+                break_times = template.break_times_list or []
+                
+                # 均分时间生成多个班次（考虑排除时间）
+                time_slots = split_time_range_with_breaks(
+                    template.start_time, 
+                    template.end_time, 
+                    template.slot_count,
+                    break_times
+                )
                 
                 current_date = today
                 
@@ -201,8 +210,16 @@ def generate_schedules_for_template(
             if not weekdays:
                 return {"created_count": 0, "reason": "模板没有配置星期"}
             
-            # 均分时间生成多个班次
-            time_slots = split_time_range(template.start_time, template.end_time, template.slot_count)
+            # 获取排除时间列表
+            break_times = template.break_times_list or []
+            
+            # 均分时间生成多个班次（考虑排除时间）
+            time_slots = split_time_range_with_breaks(
+                template.start_time, 
+                template.end_time, 
+                template.slot_count,
+                break_times
+            )
             
             current_date = start
             while current_date <= end:

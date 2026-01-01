@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
+from typing import Optional, List
 from datetime import date, timedelta
 
 from app.db.session import get_db
@@ -11,6 +11,11 @@ from app.schemas.schedule_template import (
     ScheduleTemplateResponse,
     ScheduleGenerateRequest,
     ScheduleBatchAddRequest,
+    SchedulePreviewGenerateRequest,
+    SchedulePreviewGenerateResponse,
+    ScheduleSlotPreview,
+    ScheduleGenerateWithCapacityRequest,
+    BreakTime,
 )
 from app.schemas.schedule_generation_log import (
     ScheduleGenerationLogResponse,
@@ -20,8 +25,47 @@ from app.schemas.schedule_generation_log import (
 )
 from app.schemas.response import PageResponse
 from app.services.schedule_template_service import ScheduleTemplateService
+from datetime import time as time_type
 
 router = APIRouter()
+
+
+def parse_break_times_for_response(break_times_list: list) -> list:
+    """将 break_times_list 转换为 BreakTime 对象列表"""
+    if not break_times_list:
+        return None
+    
+    result = []
+    for bt in break_times_list:
+        try:
+            start_key = "startTime" if "startTime" in bt else "start_time"
+            end_key = "endTime" if "endTime" in bt else "end_time"
+            
+            start_val = bt.get(start_key)
+            end_val = bt.get(end_key)
+            
+            # 如果是字符串，转换为 time 对象
+            if isinstance(start_val, str):
+                parts = start_val.split(":")
+                start_time = time_type(int(parts[0]), int(parts[1]))
+            elif isinstance(start_val, time_type):
+                start_time = start_val
+            else:
+                continue
+            
+            if isinstance(end_val, str):
+                parts = end_val.split(":")
+                end_time = time_type(int(parts[0]), int(parts[1]))
+            elif isinstance(end_val, time_type):
+                end_time = end_val
+            else:
+                continue
+            
+            result.append(BreakTime(start_time=start_time, end_time=end_time))
+        except (ValueError, KeyError, TypeError):
+            continue
+    
+    return result if result else None
 
 
 @router.get("", response_model=PageResponse[ScheduleTemplateResponse])
@@ -82,6 +126,14 @@ async def get_templates(
                 except Exception:
                     pass
                 
+                # 安全地获取 break_times_list
+                break_times = None
+                try:
+                    if hasattr(t, 'break_times_list'):
+                        break_times = parse_break_times_for_response(t.break_times_list)
+                except Exception:
+                    pass
+                
                 result.append(ScheduleTemplateResponse(
                     id=t.id,
                     name=t.name,
@@ -95,6 +147,7 @@ async def get_templates(
                     slot_count=t.slot_count,
                     slot_capacity=t.slot_capacity,
                     schedule_mode=t.schedule_mode,
+                    break_times=break_times,
                     status=t.status,
                     store_name=store_name,
                     doctor_name=doctor_name,
@@ -138,6 +191,7 @@ async def get_template(template_id: str, db: AsyncSession = Depends(get_db)):
         slot_count=template.slot_count,
         slot_capacity=template.slot_capacity,
         schedule_mode=template.schedule_mode,
+        break_times=parse_break_times_for_response(template.break_times_list),
         status=template.status,
         store_name=template.store.name if template.store else None,
         doctor_name=template.doctor.name if template.doctor else None,
@@ -191,6 +245,7 @@ async def create_template(
         slot_count=template.slot_count,
         slot_capacity=template.slot_capacity,
         schedule_mode=template.schedule_mode,
+        break_times=parse_break_times_for_response(template.break_times_list),
         status=template.status,
         store_name=template.store.name if template.store else None,
         doctor_name=template.doctor.name if template.doctor else None,
@@ -234,6 +289,7 @@ async def update_template(
         slot_count=template.slot_count,
         slot_capacity=template.slot_capacity,
         schedule_mode=template.schedule_mode,
+        break_times=parse_break_times_for_response(template.break_times_list),
         status=template.status,
         store_name=template.store.name if template.store else None,
         doctor_name=template.doctor.name if template.doctor else None,
@@ -257,6 +313,148 @@ async def delete_template(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班模板不存在，请检查后重试")
     
     return {"message": "删除成功"}
+
+
+WEEKDAY_NAMES = {
+    1: "周一",
+    2: "周二",
+    3: "周三",
+    4: "周四",
+    5: "周五",
+    6: "周六",
+    7: "周日",
+}
+
+
+@router.post("/preview-generate", response_model=List[SchedulePreviewGenerateResponse])
+async def preview_generate_schedules(
+    data: SchedulePreviewGenerateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """预览生成排班（不实际写入数据库）"""
+    from app.utils.schedule_utils import (
+        split_time_range_with_breaks,
+        get_time_slot_from_time,
+        should_generate_schedule,
+    )
+    
+    service = ScheduleTemplateService(db)
+    
+    # 处理日期默认值
+    start_date = data.start_date if data.start_date else date.today()
+    end_date = data.end_date if data.end_date else start_date + timedelta(days=30)
+    
+    results = []
+    
+    for template_id in data.template_ids:
+        template = await service.get_by_id(template_id)
+        if not template or template.status != 1:
+            continue
+        
+        # 获取星期列表
+        weekdays = template.weekday_list
+        if not weekdays:
+            continue
+        
+        # 获取排除时间列表
+        break_times = template.break_times_list or []
+        
+        # 均分时间生成多个班次
+        time_slots = split_time_range_with_breaks(
+            template.start_time,
+            template.end_time,
+            template.slot_count,
+            break_times
+        )
+        
+        slots = []
+        current_date = start_date
+        
+        while current_date <= end_date:
+            weekday = current_date.isoweekday()
+            
+            if weekday in weekdays:
+                if should_generate_schedule(current_date, template.schedule_mode):
+                    for slot_start, slot_end in time_slots:
+                        time_slot = get_time_slot_from_time(slot_start)
+                        slots.append(ScheduleSlotPreview(
+                            schedule_date=current_date,
+                            start_time=slot_start,
+                            end_time=slot_end,
+                            time_slot=time_slot,
+                            slot_capacity=template.slot_capacity,
+                            weekday=weekday,
+                            weekday_name=WEEKDAY_NAMES.get(weekday, f"星期{weekday}")
+                        ))
+            
+            current_date += timedelta(days=1)
+        
+        results.append(SchedulePreviewGenerateResponse(
+            slots=slots,
+            total_count=len(slots),
+            template_id=template.id,
+            template_name=template.name,
+            doctor_name=template.doctor.name if template.doctor else None,
+            department_name=template.department.name if template.department else None
+        ))
+    
+    return results
+
+
+@router.post("/generate-with-capacity")
+async def generate_schedules_with_capacity(
+    data: ScheduleGenerateWithCapacityRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """根据模板批量生成排班（支持自定义班次容量）"""
+    service = ScheduleTemplateService(db)
+    
+    # 处理日期默认值
+    start_date = data.start_date if data.start_date else date.today()
+    end_date = data.end_date if data.end_date else start_date + timedelta(days=365)
+    
+    # 获取操作人信息
+    operator_id = current_admin.get("id") if current_admin else None
+    operator_name = current_admin.get("username") if current_admin else None
+    
+    # 构建容量覆盖映射
+    capacity_overrides = {}
+    if data.slot_capacities:
+        for override in data.slot_capacities:
+            key = (
+                override.schedule_date.isoformat(),
+                override.start_time.strftime("%H:%M"),
+                override.end_time.strftime("%H:%M")
+            )
+            capacity_overrides[key] = override.slot_capacity
+    
+    try:
+        created_count = await service.generate_schedules_with_capacity(
+            template_ids=data.template_ids,
+            start_date=start_date,
+            end_date=end_date,
+            capacity_overrides=capacity_overrides
+        )
+        
+        # 记录生成日志
+        if created_count > 0:
+            for template_id in data.template_ids:
+                await service.log_generation(
+                    template_id=template_id,
+                    action_type="generate",
+                    affected_count=created_count,
+                    operator_id=operator_id,
+                    operator_name=operator_name,
+                    start_date=start_date,
+                    end_date=end_date,
+                    remark=f"生成排班（含自定义容量）{created_count} 条"
+                )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    
+    return {"message": f"成功创建 {created_count} 条排班", "count": created_count}
 
 
 @router.post("/generate")

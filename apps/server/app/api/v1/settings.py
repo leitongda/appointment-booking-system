@@ -15,7 +15,7 @@ router = APIRouter()
 class BookingSettingsUpdate(BaseModel):
     advanceDays: Optional[int] = Field(None, ge=1, le=30)
     sameDayBooking: Optional[bool] = None
-    cancelHours: Optional[int] = Field(None, ge=0, le=24)
+    cancelHours: Optional[int] = Field(None, ge=0, le=168)
     perDayLimit: Optional[int] = Field(None, ge=1, le=10)
     perDoctorLimit: Optional[int] = Field(None, ge=1, le=5)
     noShowLimit: Optional[int] = Field(None, ge=1, le=10)
