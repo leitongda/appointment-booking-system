@@ -567,7 +567,7 @@ const ScheduleListPage: React.FC = () => {
           rules={[
             { required: true, message: '请输入可预约人数' },
             {
-              validator: (_, value) => {
+              validator: (_: unknown, value: number) => {
                 if (value < (currentSchedule?.bookedSlots || 0)) {
                   return Promise.reject(`不能小于已预约人数 (${currentSchedule?.bookedSlots || 0})`);
                 }
