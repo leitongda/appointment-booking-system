@@ -391,3 +391,90 @@ async def update_image_config(
     return {"message": "保存成功", "data": result}
 
 
+# ========== 时段配置 ==========
+class TimePeriodItem(BaseModel):
+    key: str = Field(..., max_length=50, description="时段标识，如 morning, afternoon")
+    name: str = Field(..., max_length=50, description="时段名称，如 上午, 下午")
+    startTime: str = Field(..., pattern=r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$', description="开始时间，格式 HH:mm")
+    endTime: str = Field(..., pattern=r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$', description="结束时间，格式 HH:mm")
+
+
+class TimePeriodsUpdate(BaseModel):
+    storeId: Optional[str] = Field(None, description="门店ID，不传则更新全局配置")
+    periods: list[TimePeriodItem] = Field(..., min_length=1, description="时段配置列表")
+
+
+class TimePeriodsResponse(BaseModel):
+    periods: list[dict] = Field(..., description="时段配置列表")
+    isCustom: bool = Field(..., description="是否为门店自定义配置")
+
+
+@router.get("/time-periods")
+async def get_time_periods(
+    storeId: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """获取时段配置（公开接口）
+    
+    如果提供 storeId，优先返回门店配置，没有则返回全局配置
+    """
+    service = SettingsService(db)
+    periods = await service.get_time_periods(store_id=storeId)
+    
+    # 检查是否为门店自定义配置
+    is_custom = False
+    if storeId:
+        is_custom = await service.has_store_time_periods(storeId)
+    
+    return {
+        "periods": periods,
+        "isCustom": is_custom
+    }
+
+
+@router.put("/time-periods")
+async def update_time_periods(
+    data: TimePeriodsUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """更新时段配置
+    
+    如果提供 storeId，则更新门店级别配置，否则更新全局配置
+    """
+    service = SettingsService(db)
+    operator_id = current_admin.get("id") if current_admin else None
+    
+    periods_data = [p.model_dump() for p in data.periods]
+    result = await service.set_time_periods(
+        periods=periods_data,
+        store_id=data.storeId,
+        operator_id=operator_id
+    )
+    
+    return {"message": "保存成功", "data": {"periods": result}}
+
+
+@router.delete("/time-periods/{store_id}")
+async def delete_store_time_periods(
+    store_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """删除门店自定义时段配置（恢复使用全局配置）"""
+    service = SettingsService(db)
+    operator_id = current_admin.get("id") if current_admin else None
+    
+    success = await service.delete_store_setting(
+        category='time_periods',
+        key='periods',
+        store_id=store_id,
+        operator_id=operator_id
+    )
+    
+    if success:
+        return {"message": "已恢复使用全局配置"}
+    else:
+        return {"message": "该门店未设置自定义配置"}
+
+

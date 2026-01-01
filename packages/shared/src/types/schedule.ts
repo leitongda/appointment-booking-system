@@ -144,6 +144,7 @@ export interface ScheduleSlotPreview {
   startTime: string;
   endTime: string;
   timeSlot: string;
+  periodName: string;  // 时段名称：上午/下午/晚上 或自定义
   slotCapacity: number;
   weekday: number;
   weekdayName: string;
@@ -159,4 +160,6 @@ export interface SchedulePreviewGenerateResponse {
   templateName: string;
   doctorName?: string;
   departmentName?: string;
+  dailyDurationHours?: number;   // 每日总时长（小时）
+  dailyDurationMinutes?: number; // 每日总时长（剩余分钟数）
 }

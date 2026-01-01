@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from starlette import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 from datetime import date, timedelta
@@ -164,7 +165,7 @@ async def get_templates(
     except Exception as e:
         logger.error(f"获取排班模板列表失败: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"获取排班模板列表失败: {str(e)}"
         )
 
@@ -176,7 +177,7 @@ async def get_template(template_id: str, db: AsyncSession = Depends(get_db)):
     template = await service.get_by_id(template_id)
     
     if not template:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班模板不存在，请检查后重试")
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="排班模板不存在，请检查后重试")
     
     return ScheduleTemplateResponse(
         id=template.id,
@@ -224,10 +225,10 @@ async def create_template(
         template = await service.create(data)
     except ValueError as e:
         logger.error(f"创建排班模板失败: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"创建排班模板时发生未知错误: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"创建失败: {str(e)}")
+        raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"创建失败: {str(e)}")
     
     # 重新加载关联数据
     template = await service.get_by_id(template.id)
@@ -268,10 +269,10 @@ async def update_template(
     try:
         template = await service.update(template_id, data)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
     
     if not template:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班模板不存在，请检查后重试")
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="排班模板不存在，请检查后重试")
     
     # 重新加载关联数据
     template = await service.get_by_id(template.id)
@@ -310,7 +311,7 @@ async def delete_template(
     success = await service.delete(template_id)
     
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班模板不存在，请检查后重试")
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="排班模板不存在，请检查后重试")
     
     return {"message": "删除成功"}
 
@@ -336,10 +337,14 @@ async def preview_generate_schedules(
     from app.utils.schedule_utils import (
         split_time_range_with_breaks,
         get_time_slot_from_time,
+        get_period_name_from_time,
         should_generate_schedule,
+        calculate_working_duration,
     )
+    from app.services.settings_service import SettingsService
     
     service = ScheduleTemplateService(db)
+    settings_service = SettingsService(db)
     
     # 处理日期默认值
     start_date = data.start_date if data.start_date else date.today()
@@ -357,8 +362,20 @@ async def preview_generate_schedules(
         if not weekdays:
             continue
         
+        # 获取门店的时段配置
+        time_periods = await settings_service.get_time_periods(store_id=template.store_id)
+        
         # 获取排除时间列表
         break_times = template.break_times_list or []
+        
+        # 计算每日有效工作时长
+        daily_duration = calculate_working_duration(
+            template.start_time,
+            template.end_time,
+            break_times
+        )
+        daily_hours = daily_duration // 60
+        daily_minutes = daily_duration % 60
         
         # 均分时间生成多个班次
         time_slots = split_time_range_with_breaks(
@@ -377,12 +394,14 @@ async def preview_generate_schedules(
             if weekday in weekdays:
                 if should_generate_schedule(current_date, template.schedule_mode):
                     for slot_start, slot_end in time_slots:
-                        time_slot = get_time_slot_from_time(slot_start)
+                        time_slot = get_time_slot_from_time(slot_start, time_periods)
+                        period_name = get_period_name_from_time(slot_start, time_periods)
                         slots.append(ScheduleSlotPreview(
                             schedule_date=current_date,
                             start_time=slot_start,
                             end_time=slot_end,
                             time_slot=time_slot,
+                            period_name=period_name,
                             slot_capacity=template.slot_capacity,
                             weekday=weekday,
                             weekday_name=WEEKDAY_NAMES.get(weekday, f"星期{weekday}")
@@ -396,7 +415,9 @@ async def preview_generate_schedules(
             template_id=template.id,
             template_name=template.name,
             doctor_name=template.doctor.name if template.doctor else None,
-            department_name=template.department.name if template.department else None
+            department_name=template.department.name if template.department else None,
+            daily_duration_hours=daily_hours,
+            daily_duration_minutes=daily_minutes
         ))
     
     return results
@@ -452,7 +473,7 @@ async def generate_schedules_with_capacity(
                     remark=f"生成排班（含自定义容量）{created_count} 条"
                 )
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
     
     return {"message": f"成功创建 {created_count} 条排班", "count": created_count}
 
@@ -495,7 +516,7 @@ async def generate_schedules(
                     remark=f"生成排班 {created_count} 条"
                 )
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
     
     return {"message": f"成功创建 {created_count} 条排班", "count": created_count}
 
@@ -512,7 +533,7 @@ async def batch_add_schedules(
     try:
         created_count = await service.batch_add_schedules(data)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
     
     return {"message": f"成功创建 {created_count} 条排班", "count": created_count}
 
@@ -531,7 +552,7 @@ async def check_generated(
     # 先检查模板是否存在
     template = await service.get_by_id(template_id)
     if not template:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班规则不存在")
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="排班规则不存在")
     
     return await service.check_generated(template_id, start_date, end_date)
 
@@ -549,7 +570,7 @@ async def batch_delete_schedules(
     # 先检查模板是否存在
     template = await service.get_by_id(template_id)
     if not template:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班规则不存在")
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="排班规则不存在")
     
     # 获取操作人信息
     operator_id = current_admin.get("id") if current_admin else None
@@ -570,7 +591,7 @@ async def batch_delete_schedules(
             future_only=future_only
         )
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
     
     return BatchOperateResponse(
         success=True,
@@ -592,7 +613,7 @@ async def batch_suspend_schedules(
     # 先检查模板是否存在
     template = await service.get_by_id(template_id)
     if not template:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班规则不存在")
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="排班规则不存在")
     
     # 获取操作人信息
     operator_id = current_admin.get("id") if current_admin else None
@@ -613,7 +634,7 @@ async def batch_suspend_schedules(
             future_only=future_only
         )
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
     
     return BatchOperateResponse(
         success=True,
@@ -636,7 +657,7 @@ async def get_generation_logs(
     # 先检查模板是否存在
     template = await service.get_by_id(template_id)
     if not template:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班规则不存在")
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="排班规则不存在")
     
     logs, total = await service.get_generation_logs(template_id, page, page_size)
     

@@ -383,7 +383,7 @@ async def batch_delete_schedules(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
 ):
-    """批量删除排班（只能删除没有预约的排班）"""
+    """批量删除排班（只能删除没有任何预约记录的排班）"""
     service = ScheduleService(db)
     
     affected_count = await service.batch_delete(data.schedule_ids)
@@ -391,7 +391,7 @@ async def batch_delete_schedules(
     skipped = len(data.schedule_ids) - affected_count
     message = f"成功删除 {affected_count} 条排班记录"
     if skipped > 0:
-        message += f"，{skipped} 条因有预约而跳过"
+        message += f"，{skipped} 条因存在预约记录而跳过"
     
     return BatchOperateResponse(
         success=True,

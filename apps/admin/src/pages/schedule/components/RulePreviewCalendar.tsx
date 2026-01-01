@@ -3,8 +3,15 @@ import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import { useEffect, useState, useMemo } from 'react';
 import { scheduleApi } from '@hospital/api';
-import type { Schedule } from '@hospital/shared';
-import { generateSchedulePreview, getDateInfo, splitTimeRange, WEEKDAY_MAP } from '@hospital/shared';
+import type { Schedule, BreakTime } from '@hospital/shared';
+import { 
+  generateSchedulePreview, 
+  getDateInfo, 
+  splitTimeRangeWithBreaks,
+  getPeriodNameFromTime,
+  calculateWorkingDuration,
+  formatDuration,
+} from '@hospital/shared';
 
 // 时间格式验证正则：HH:mm
 const TIME_FORMAT_REGEX = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
@@ -22,6 +29,8 @@ interface RulePreviewCalendarProps {
   endTime?: string;
   /** 班次数量 */
   slotCount?: number;
+  /** 排除时间段 */
+  breakTimes?: BreakTime[];
   /** 是否显示已有排班 */
   showExisting?: boolean;
 }
@@ -37,6 +46,7 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
   startTime,
   endTime,
   slotCount = 1,
+  breakTimes = [],
   showExisting = true,
 }) => {
   const [loading, setLoading] = useState(false);
@@ -61,6 +71,14 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
       end
     );
   }, [weekdays, scheduleMode, currentMonth]);
+
+  // 计算每日工作时长
+  const dailyDuration = useMemo(() => {
+    if (!startTime || !endTime || !TIME_FORMAT_REGEX.test(startTime) || !TIME_FORMAT_REGEX.test(endTime)) {
+      return 0;
+    }
+    return calculateWorkingDuration(startTime, endTime, breakTimes);
+  }, [startTime, endTime, breakTimes]);
 
   // 加载已有排班
   useEffect(() => {
@@ -159,11 +177,30 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
                   <div>
                     <div>将生成排班：</div>
                     {startTime && endTime && slotCount > 0 && TIME_FORMAT_REGEX.test(startTime) && TIME_FORMAT_REGEX.test(endTime) && (() => {
-                      const slots = splitTimeRange(startTime, endTime, slotCount);
+                      // 使用考虑排除时间的函数
+                      const slots = splitTimeRangeWithBreaks(startTime, endTime, slotCount, breakTimes);
+                      
+                      // 按时段分组
+                      const groupedByPeriod: Record<string, Array<[string, string]>> = {};
+                      slots.forEach(([slotStart, slotEnd]) => {
+                        const periodName = getPeriodNameFromTime(slotStart);
+                        if (!groupedByPeriod[periodName]) {
+                          groupedByPeriod[periodName] = [];
+                        }
+                        groupedByPeriod[periodName].push([slotStart, slotEnd]);
+                      });
+                      
                       return (
                         <div>
-                          {slots.map(([slotStart, slotEnd], idx) => (
-                            <div key={idx}>班次{idx + 1}: {slotStart}-{slotEnd}</div>
+                          {Object.entries(groupedByPeriod).map(([period, periodSlots]) => (
+                            <div key={period} style={{ marginBottom: 4 }}>
+                              <div style={{ fontWeight: 'bold', color: '#1890ff' }}>{period}：</div>
+                              {periodSlots.map(([slotStart, slotEnd], idx) => (
+                                <div key={idx} style={{ paddingLeft: 8 }}>
+                                  {slotStart}-{slotEnd}
+                                </div>
+                              ))}
+                            </div>
                           ))}
                         </div>
                       );
@@ -193,6 +230,19 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
             当前日期：{dayjs().format('YYYY-MM-DD')}，
             为本月第<strong>{dateInfo.monthWeek}</strong>周，
             本周为本年<strong>{dateInfo.isOddWeek ? '奇数' : '偶数'}</strong>周（第{dateInfo.yearWeek}周）
+            {dailyDuration > 0 && (
+              <>
+                <span style={{ marginLeft: 16 }}>|</span>
+                <span style={{ marginLeft: 16 }}>
+                  每日总时长：<strong>{formatDuration(dailyDuration)}</strong>
+                  {breakTimes.length > 0 && (
+                    <span style={{ color: '#999', marginLeft: 4 }}>
+                      (已排除{breakTimes.length}个时间段)
+                    </span>
+                  )}
+                </span>
+              </>
+            )}
           </span>
         }
         type="info"
@@ -230,4 +280,3 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
 };
 
 export default RulePreviewCalendar;
-

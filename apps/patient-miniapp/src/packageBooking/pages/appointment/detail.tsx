@@ -2,9 +2,11 @@ import { View, Text } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
 import { Button } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
-import { appointmentApi } from '@hospital/api';
-import { APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP } from '@hospital/shared';
+import { appointmentApi, settingsApi } from '@hospital/api';
+import type { TimePeriodConfig } from '@hospital/api';
+import { APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP, getPeriodNameFromTime } from '@hospital/shared';
 import { getToken } from '../../../utils/auth';
+import { formatTime } from '../../../utils/url';
 import LoginPopup from '../../../components/LoginPopup';
 import type { AppointmentDetail } from '@hospital/shared';
 import {
@@ -43,6 +45,7 @@ const AppointmentDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [appointment, setAppointment] = useState<AppointmentDetail | null>(null);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
+  const [timePeriods, setTimePeriods] = useState<TimePeriodConfig[]>([]);
 
   useEffect(() => {
     // 检查登录状态
@@ -64,10 +67,14 @@ const AppointmentDetailPage = () => {
 
   const loadAppointment = async () => {
     try {
-      const data = id
-        ? await appointmentApi.getDetail(id)
-        : await appointmentApi.getDetailByNo(appointmentNo!);
+      const [data, timePeriodsRes] = await Promise.all([
+        id
+          ? appointmentApi.getDetail(id)
+          : appointmentApi.getDetailByNo(appointmentNo!),
+        settingsApi.getTimePeriods().catch(() => ({ periods: [], isCustom: false })),
+      ]);
       setAppointment(data);
+      setTimePeriods(timePeriodsRes.periods || []);
     } catch (error) {
       console.error('加载预约详情失败', error);
     } finally {
@@ -152,8 +159,11 @@ const AppointmentDetailPage = () => {
         <View className="info-row">
           <Text className="label">就诊时段</Text>
           <Text className="value">
-            {TIME_SLOT_MAP[appointment.timeSlot || 'AM']}
-            {appointment.startTime && appointment.endTime && ` (${appointment.startTime}-${appointment.endTime})`}
+            {appointment.startTime 
+              ? getPeriodNameFromTime(formatTime(appointment.startTime) || '', timePeriods) 
+              : TIME_SLOT_MAP[appointment.timeSlot || 'AM']
+            }
+            {appointment.startTime && appointment.endTime && ` (${formatTime(appointment.startTime)}-${formatTime(appointment.endTime)})`}
           </Text>
         </View>
         <View className="info-row">

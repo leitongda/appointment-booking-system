@@ -53,15 +53,40 @@ def should_generate_schedule(d: date, schedule_mode: str) -> bool:
     return False
 
 
-def get_time_slot_from_time(start_time: time) -> str:
+def get_time_slot_from_time(start_time: time, periods: Optional[List[Dict[str, Any]]] = None) -> str:
     """根据开始时间判断时段
     
     Args:
         start_time: 开始时间
+        periods: 自定义时段配置列表，如 [{"key": "morning", "name": "上午", "startTime": "06:00", "endTime": "12:00"}]
     
     Returns:
-        时段字符串: morning/afternoon/evening
+        时段字符串: morning/afternoon/evening 或自定义时段的 key
     """
+    if periods:
+        # 使用自定义时段配置
+        start_minutes = start_time.hour * 60 + start_time.minute
+        for period in periods:
+            period_start = period.get('startTime', '00:00')
+            period_end = period.get('endTime', '24:00')
+            
+            # 解析时段时间
+            try:
+                ps_parts = period_start.split(':')
+                pe_parts = period_end.split(':')
+                period_start_minutes = int(ps_parts[0]) * 60 + int(ps_parts[1])
+                period_end_minutes = int(pe_parts[0]) * 60 + int(pe_parts[1])
+                
+                # 处理跨越午夜的情况
+                if period_end_minutes <= period_start_minutes:
+                    period_end_minutes += 24 * 60
+                
+                if period_start_minutes <= start_minutes < period_end_minutes:
+                    return period.get('key', 'morning')
+            except (ValueError, IndexError):
+                continue
+    
+    # 默认逻辑
     hour = start_time.hour
     if hour < 12:
         return "morning"
@@ -69,6 +94,91 @@ def get_time_slot_from_time(start_time: time) -> str:
         return "afternoon"
     else:
         return "evening"
+
+
+def get_period_name_from_time(start_time: time, periods: Optional[List[Dict[str, Any]]] = None) -> str:
+    """根据开始时间获取时段名称
+    
+    Args:
+        start_time: 开始时间
+        periods: 自定义时段配置列表
+    
+    Returns:
+        时段名称: 上午/下午/晚上 或自定义时段名称
+    """
+    if periods:
+        start_minutes = start_time.hour * 60 + start_time.minute
+        for period in periods:
+            period_start = period.get('startTime', '00:00')
+            period_end = period.get('endTime', '24:00')
+            
+            try:
+                ps_parts = period_start.split(':')
+                pe_parts = period_end.split(':')
+                period_start_minutes = int(ps_parts[0]) * 60 + int(ps_parts[1])
+                period_end_minutes = int(pe_parts[0]) * 60 + int(pe_parts[1])
+                
+                if period_end_minutes <= period_start_minutes:
+                    period_end_minutes += 24 * 60
+                
+                if period_start_minutes <= start_minutes < period_end_minutes:
+                    return period.get('name', '上午')
+            except (ValueError, IndexError):
+                continue
+    
+    # 默认名称
+    hour = start_time.hour
+    if hour < 12:
+        return "上午"
+    elif hour < 18:
+        return "下午"
+    else:
+        return "晚上"
+
+
+def calculate_working_duration(
+    start: time, 
+    end: time, 
+    break_times: Optional[List[Dict[str, Any]]] = None
+) -> int:
+    """计算有效工作时长（分钟）
+    
+    Args:
+        start: 开始时间
+        end: 结束时间
+        break_times: 排除时间段列表
+    
+    Returns:
+        有效工作分钟数
+    """
+    start_minutes = time_to_minutes(start)
+    end_minutes = time_to_minutes(end)
+    total_minutes = end_minutes - start_minutes
+    
+    if total_minutes <= 0:
+        return 0
+    
+    if not break_times:
+        return total_minutes
+    
+    # 计算排除时间段的总时长
+    excluded_minutes = 0
+    for bt in break_times:
+        try:
+            bt_start, bt_end = parse_break_time(bt)
+            bt_start_min = time_to_minutes(bt_start)
+            bt_end_min = time_to_minutes(bt_end)
+            
+            # 计算与工作时间的交集
+            overlap_start = max(bt_start_min, start_minutes)
+            overlap_end = min(bt_end_min, end_minutes)
+            
+            if overlap_end > overlap_start:
+                excluded_minutes += overlap_end - overlap_start
+        except (ValueError, KeyError):
+            continue
+    
+    return max(0, total_minutes - excluded_minutes)
 
 
 def split_time_range(start: time, end: time, count: int) -> List[Tuple[time, time]]:

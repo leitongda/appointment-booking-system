@@ -1,7 +1,7 @@
 """系统设置服务"""
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
-from typing import Optional, Dict, Any
+from sqlalchemy import select, and_, or_
+from typing import Optional, Dict, Any, List
 import uuid
 import json
 
@@ -13,17 +13,55 @@ class SettingsService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_category(self, category: str) -> Dict[str, Any]:
-        """获取某个分类的所有设置"""
-        result = await self.db.execute(
-            select(SystemSetting).where(SystemSetting.category == category)
-        )
-        settings = result.scalars().all()
+    async def get_by_category(self, category: str, store_id: Optional[str] = None) -> Dict[str, Any]:
+        """获取某个分类的所有设置
         
-        # 构建结果字典
-        data = {}
-        for setting in settings:
-            data[setting.key] = self._parse_value(setting.value)
+        Args:
+            category: 分类名
+            store_id: 门店ID，如果提供则优先返回门店配置，否则返回全局配置
+        """
+        if store_id:
+            # 门店级别：先查门店配置，再补充全局配置
+            result = await self.db.execute(
+                select(SystemSetting).where(
+                    and_(
+                        SystemSetting.category == category,
+                        or_(
+                            SystemSetting.store_id == store_id,
+                            SystemSetting.store_id.is_(None)
+                        )
+                    )
+                )
+            )
+            settings = result.scalars().all()
+            
+            # 构建结果字典，门店配置优先
+            data = {}
+            global_data = {}
+            for setting in settings:
+                if setting.store_id == store_id:
+                    data[setting.key] = self._parse_value(setting.value)
+                else:
+                    global_data[setting.key] = self._parse_value(setting.value)
+            
+            # 用全局配置补充门店配置
+            for key, value in global_data.items():
+                if key not in data:
+                    data[key] = value
+        else:
+            # 只查全局配置
+            result = await self.db.execute(
+                select(SystemSetting).where(
+                    and_(
+                        SystemSetting.category == category,
+                        SystemSetting.store_id.is_(None)
+                    )
+                )
+            )
+            settings = result.scalars().all()
+            data = {}
+            for setting in settings:
+                data[setting.key] = self._parse_value(setting.value)
         
         # 补充默认值
         defaults = DEFAULT_SETTINGS.get(category, {})
@@ -33,13 +71,37 @@ class SettingsService:
         
         return data
 
-    async def get_value(self, category: str, key: str, default: Any = None) -> Any:
-        """获取单个设置值"""
+    async def get_value(self, category: str, key: str, default: Any = None, store_id: Optional[str] = None) -> Any:
+        """获取单个设置值
+        
+        Args:
+            category: 分类名
+            key: 键名
+            default: 默认值
+            store_id: 门店ID，如果提供则优先返回门店配置
+        """
+        if store_id:
+            # 先查门店配置
+            result = await self.db.execute(
+                select(SystemSetting).where(
+                    and_(
+                        SystemSetting.category == category,
+                        SystemSetting.key == key,
+                        SystemSetting.store_id == store_id
+                    )
+                )
+            )
+            setting = result.scalar_one_or_none()
+            if setting:
+                return self._parse_value(setting.value)
+        
+        # 查全局配置
         result = await self.db.execute(
             select(SystemSetting).where(
                 and_(
                     SystemSetting.category == category,
-                    SystemSetting.key == key
+                    SystemSetting.key == key,
+                    SystemSetting.store_id.is_(None)
                 )
             )
         )
@@ -55,16 +117,37 @@ class SettingsService:
         
         return default
 
-    async def set_value(self, category: str, key: str, value: Any, description: str = None, operator_id: Optional[str] = None) -> SystemSetting:
-        """设置单个值"""
-        result = await self.db.execute(
-            select(SystemSetting).where(
+    async def set_value(self, category: str, key: str, value: Any, description: str = None, 
+                       operator_id: Optional[str] = None, store_id: Optional[str] = None) -> SystemSetting:
+        """设置单个值
+        
+        Args:
+            category: 分类名
+            key: 键名
+            value: 值
+            description: 描述
+            operator_id: 操作人ID
+            store_id: 门店ID，如果提供则设置门店级别配置
+        """
+        # 查询条件：匹配 store_id（可能为 None）
+        if store_id:
+            query = select(SystemSetting).where(
                 and_(
                     SystemSetting.category == category,
-                    SystemSetting.key == key
+                    SystemSetting.key == key,
+                    SystemSetting.store_id == store_id
                 )
             )
-        )
+        else:
+            query = select(SystemSetting).where(
+                and_(
+                    SystemSetting.category == category,
+                    SystemSetting.key == key,
+                    SystemSetting.store_id.is_(None)
+                )
+            )
+        
+        result = await self.db.execute(query)
         setting = result.scalar_one_or_none()
         
         str_value = self._stringify_value(value)
@@ -77,6 +160,7 @@ class SettingsService:
         else:
             setting = SystemSetting(
                 id=str(uuid.uuid4()),
+                store_id=store_id,
                 category=category,
                 key=key,
                 value=str_value,
@@ -88,6 +172,108 @@ class SettingsService:
         await self.db.commit()
         await self.db.refresh(setting)
         return setting
+    
+    async def delete_store_setting(self, category: str, key: str, store_id: str, operator_id: Optional[str] = None) -> bool:
+        """删除门店级别的配置（恢复使用全局配置）
+        
+        Args:
+            category: 分类名
+            key: 键名
+            store_id: 门店ID
+            operator_id: 操作人ID
+        
+        Returns:
+            是否删除成功
+        """
+        result = await self.db.execute(
+            select(SystemSetting).where(
+                and_(
+                    SystemSetting.category == category,
+                    SystemSetting.key == key,
+                    SystemSetting.store_id == store_id
+                )
+            )
+        )
+        setting = result.scalar_one_or_none()
+        
+        if setting:
+            await self.db.delete(setting)
+            await self.db.commit()
+            return True
+        
+        return False
+
+    async def get_time_periods(self, store_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """获取时段配置
+        
+        Args:
+            store_id: 门店ID，如果提供则优先返回门店配置
+        
+        Returns:
+            时段配置列表，如：[{"key": "morning", "name": "上午", "startTime": "06:00", "endTime": "12:00"}]
+        """
+        periods = await self.get_value('time_periods', 'periods', store_id=store_id)
+        
+        if periods is None:
+            # 返回默认值
+            return [
+                {"key": "morning", "name": "上午", "startTime": "06:00", "endTime": "12:00"},
+                {"key": "afternoon", "name": "下午", "startTime": "12:00", "endTime": "18:00"},
+            ]
+        
+        if isinstance(periods, str):
+            try:
+                periods = json.loads(periods)
+            except json.JSONDecodeError:
+                return [
+                    {"key": "morning", "name": "上午", "startTime": "06:00", "endTime": "12:00"},
+                    {"key": "afternoon", "name": "下午", "startTime": "12:00", "endTime": "18:00"},
+                ]
+        
+        return periods
+    
+    async def set_time_periods(self, periods: List[Dict[str, Any]], store_id: Optional[str] = None, 
+                               operator_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """设置时段配置
+        
+        Args:
+            periods: 时段配置列表
+            store_id: 门店ID，如果提供则设置门店级别配置
+            operator_id: 操作人ID
+        
+        Returns:
+            更新后的时段配置
+        """
+        await self.set_value(
+            category='time_periods',
+            key='periods',
+            value=periods,
+            description='时段划分配置',
+            operator_id=operator_id,
+            store_id=store_id
+        )
+        
+        return await self.get_time_periods(store_id=store_id)
+    
+    async def has_store_time_periods(self, store_id: str) -> bool:
+        """检查门店是否有自定义时段配置
+        
+        Args:
+            store_id: 门店ID
+        
+        Returns:
+            是否有自定义配置
+        """
+        result = await self.db.execute(
+            select(SystemSetting).where(
+                and_(
+                    SystemSetting.category == 'time_periods',
+                    SystemSetting.key == 'periods',
+                    SystemSetting.store_id == store_id
+                )
+            )
+        )
+        return result.scalar_one_or_none() is not None
 
     async def update_category(self, category: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """更新某个分类的所有设置"""

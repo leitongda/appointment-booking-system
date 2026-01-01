@@ -4,6 +4,7 @@ import {
   PageContainer,
   ProTable,
   ModalForm,
+  ProForm,
   ProFormSelect,
   ProFormTimePicker,
   ProFormDateRangePicker,
@@ -922,75 +923,115 @@ const ScheduleRulePage: React.FC = () => {
               style={{ marginBottom: 16 }}
             />
             
-            {previewData.map((preview) => (
-              <div key={preview.templateId} style={{ marginBottom: 16 }}>
-                <div style={{ marginBottom: 8, fontWeight: 500 }}>
-                  {preview.templateName} - {preview.doctorName} ({preview.departmentName})
-                </div>
-                <Table
-                  size="small"
-                  dataSource={preview.slots}
-                  rowKey={(record) => `${record.scheduleDate}-${record.startTime}-${record.endTime}`}
-                  pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `共 ${total} 条` }}
-                  columns={[
-                    {
-                      title: '日期',
-                      dataIndex: 'scheduleDate',
-                      width: 110,
-                    },
-                    {
-                      title: '星期',
-                      dataIndex: 'weekdayName',
-                      width: 70,
-                    },
-                    {
-                      title: '时间段',
-                      render: (_, record) => `${record.startTime} - ${record.endTime}`,
-                      width: 130,
-                    },
-                    {
-                      title: '时段',
-                      dataIndex: 'timeSlot',
-                      width: 80,
-                      render: (val) => {
-                        const slotMap: Record<string, string> = {
-                          morning: '上午',
-                          afternoon: '下午',
-                          evening: '晚上',
-                        };
-                        return slotMap[val] || val;
-                      },
-                    },
-                    {
-                      title: '可预约人数',
-                      dataIndex: 'slotCapacity',
-                      width: 120,
-                      render: (val, record) => {
-                        const key = `${record.scheduleDate}|${record.startTime}|${record.endTime}`;
-                        const editedValue = editedCapacities[key];
-                        return (
-                          <InputNumber
+            {previewData.map((preview) => {
+              // 按时段分组
+              const groupedByPeriod: Record<string, typeof preview.slots> = {};
+              preview.slots.forEach((slot) => {
+                const periodName = slot.periodName || '其他';
+                if (!groupedByPeriod[periodName]) {
+                  groupedByPeriod[periodName] = [];
+                }
+                groupedByPeriod[periodName].push(slot);
+              });
+              const periodNames = Object.keys(groupedByPeriod);
+              
+              return (
+                <div key={preview.templateId} style={{ marginBottom: 16 }}>
+                  <div style={{ marginBottom: 8 }}>
+                    <span style={{ fontWeight: 500 }}>
+                      {preview.templateName} - {preview.doctorName} ({preview.departmentName})
+                    </span>
+                    {preview.dailyDurationHours !== undefined && (
+                      <span style={{ marginLeft: 16, color: '#666', fontSize: 12 }}>
+                        每日总时长：{preview.dailyDurationHours}小时
+                        {preview.dailyDurationMinutes !== undefined && preview.dailyDurationMinutes > 0 && `${preview.dailyDurationMinutes}分钟`}
+                      </span>
+                    )}
+                  </div>
+                  
+                  {periodNames.length > 1 ? (
+                    <Tabs
+                      items={periodNames.map((periodName) => ({
+                        key: periodName,
+                        label: `${periodName} (${groupedByPeriod[periodName].length})`,
+                        children: (
+                          <Table
                             size="small"
-                            min={1}
-                            max={200}
-                            value={editedValue !== undefined ? editedValue : val}
-                            onChange={(newVal) => {
-                              if (newVal !== null) {
-                                setEditedCapacities(prev => ({
-                                  ...prev,
-                                  [key]: newVal,
-                                }));
-                              }
-                            }}
-                            style={{ width: 80 }}
+                            dataSource={groupedByPeriod[periodName]}
+                            rowKey={(record) => `${record.scheduleDate}-${record.startTime}-${record.endTime}`}
+                            pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `共 ${total} 条` }}
+                            columns={[
+                              { title: '日期', dataIndex: 'scheduleDate', width: 110 },
+                              { title: '星期', dataIndex: 'weekdayName', width: 70 },
+                              { title: '时间段', render: (_, record) => `${record.startTime} - ${record.endTime}`, width: 130 },
+                              {
+                                title: '可预约人数',
+                                dataIndex: 'slotCapacity',
+                                width: 120,
+                                render: (val, record) => {
+                                  const key = `${record.scheduleDate}|${record.startTime}|${record.endTime}`;
+                                  const editedValue = editedCapacities[key];
+                                  return (
+                                    <InputNumber
+                                      size="small"
+                                      min={1}
+                                      max={200}
+                                      value={editedValue !== undefined ? editedValue : val}
+                                      onChange={(newVal) => {
+                                        if (newVal !== null) {
+                                          setEditedCapacities(prev => ({ ...prev, [key]: newVal }));
+                                        }
+                                      }}
+                                      style={{ width: 80 }}
+                                    />
+                                  );
+                                },
+                              },
+                            ]}
                           />
-                        );
-                      },
-                    },
-                  ]}
-                />
-              </div>
-            ))}
+                        ),
+                      }))}
+                    />
+                  ) : (
+                    <Table
+                      size="small"
+                      dataSource={preview.slots}
+                      rowKey={(record) => `${record.scheduleDate}-${record.startTime}-${record.endTime}`}
+                      pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `共 ${total} 条` }}
+                      columns={[
+                        { title: '日期', dataIndex: 'scheduleDate', width: 110 },
+                        { title: '星期', dataIndex: 'weekdayName', width: 70 },
+                        { title: '时间段', render: (_, record) => `${record.startTime} - ${record.endTime}`, width: 130 },
+                        { title: '时段', dataIndex: 'periodName', width: 80 },
+                        {
+                          title: '可预约人数',
+                          dataIndex: 'slotCapacity',
+                          width: 120,
+                          render: (val, record) => {
+                            const key = `${record.scheduleDate}|${record.startTime}|${record.endTime}`;
+                            const editedValue = editedCapacities[key];
+                            return (
+                              <InputNumber
+                                size="small"
+                                min={1}
+                                max={200}
+                                value={editedValue !== undefined ? editedValue : val}
+                                onChange={(newVal) => {
+                                  if (newVal !== null) {
+                                    setEditedCapacities(prev => ({ ...prev, [key]: newVal }));
+                                  }
+                                }}
+                                style={{ width: 80 }}
+                              />
+                            );
+                          },
+                        },
+                      ]}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </Modal>

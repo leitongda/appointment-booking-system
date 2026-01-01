@@ -88,6 +88,20 @@ export interface ImageConfig {
   compressQuality: number;
 }
 
+// 时段配置
+export interface TimePeriodConfig {
+  key: string;       // 时段标识，如 morning, afternoon
+  name: string;      // 时段名称，如 上午, 下午
+  startTime: string; // 开始时间，格式 HH:mm
+  endTime: string;   // 结束时间，格式 HH:mm
+}
+
+// 时段配置响应
+export interface TimePeriodsResponse {
+  periods: TimePeriodConfig[];
+  isCustom: boolean;  // 是否为门店自定义配置
+}
+
 const PREFIX = '/settings';
 
 export const settingsApi = {
@@ -166,6 +180,33 @@ export const settingsApi = {
 
   updateImageConfig: (data: Partial<ImageConfig>): Promise<{ data: ImageConfig }> => {
     return request.put(`${PREFIX}/image`, data);
+  },
+
+  // ========== 时段配置 ==========
+  /**
+   * 获取时段配置
+   * @param storeId 门店ID，不传则获取全局配置
+   */
+  getTimePeriods: (storeId?: string): Promise<TimePeriodsResponse> => {
+    const params = storeId ? { storeId } : {};
+    return request.get(`${PREFIX}/time-periods`, { params });
+  },
+
+  /**
+   * 更新时段配置
+   * @param periods 时段配置列表
+   * @param storeId 门店ID，不传则更新全局配置
+   */
+  updateTimePeriods: (periods: TimePeriodConfig[], storeId?: string): Promise<{ data: { periods: TimePeriodConfig[] } }> => {
+    return request.put(`${PREFIX}/time-periods`, { periods, storeId });
+  },
+
+  /**
+   * 删除门店自定义时段配置（恢复使用全局配置）
+   * @param storeId 门店ID
+   */
+  deleteStoreTimePeriods: (storeId: string): Promise<{ message: string }> => {
+    return request.delete(`${PREFIX}/time-periods/${storeId}`);
   },
 };
 

@@ -56,3 +56,24 @@ export const getFullUrl = (path: string | null | undefined): string => {
  */
 export const getImageUrl = getFullUrl;
 
+/**
+ * 格式化时间字符串为 HH:MM 格式
+ * 后端返回的时间可能是 "HH:MM:SS" 或 "HH:MM" 格式
+ * 
+ * @param time 时间字符串
+ * @returns 格式化后的时间 "HH:MM"
+ * 
+ * @example
+ * formatTime('09:00:00') // => '09:00'
+ * formatTime('09:00') // => '09:00'
+ * formatTime(null) // => ''
+ */
+export const formatTime = (time: string | null | undefined): string => {
+  if (!time) return '';
+  // 如果是 "HH:MM:SS" 格式，截取前5个字符
+  if (time.length > 5 && time[5] === ':') {
+    return time.substring(0, 5);
+  }
+  return time;
+};
+

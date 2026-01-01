@@ -1,10 +1,10 @@
 import { View, Text, Image, Textarea } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
 import { Button, Radio } from '@nutui/nutui-react-taro';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { doctorApi, userApi, appointmentApi, bookingNoticeApi, settingsApi } from '@hospital/api';
-import type { BookingNotice } from '@hospital/api';
-import { TIME_SLOT_MAP } from '@hospital/shared';
+import type { BookingNotice, TimePeriodConfig } from '@hospital/api';
+import { TIME_SLOT_MAP, getPeriodNameFromTime } from '@hospital/shared';
 import { getToken } from '../../../utils/auth';
 import LoginPopup from '../../../components/LoginPopup';
 import type { Doctor, Patient } from '@hospital/shared';
@@ -32,6 +32,9 @@ const BookingPage = () => {
   // 医院信息
   const [hospitalName, setHospitalName] = useState('');
   const [hospitalAddress, setHospitalAddress] = useState('');
+  
+  // 时段配置
+  const [timePeriods, setTimePeriods] = useState<TimePeriodConfig[]>([]);
 
   useEffect(() => {
     // 检查登录状态
@@ -53,15 +56,18 @@ const BookingPage = () => {
 
   const loadData = async () => {
     try {
-      const [doctorData, patientsData, notices, hospitalInfo] = await Promise.all([
+      const [doctorData, patientsData, notices, hospitalInfo, timePeriodsRes] = await Promise.all([
         doctorApi.getDetail(doctorId!),
         userApi.getPatients(),
         bookingNoticeApi.getPublicList('BOOKING').catch(() => []),
         settingsApi.getHospitalInfo().catch(() => null),
+        // 获取门店时段配置
+        settingsApi.getTimePeriods().catch(() => ({ periods: [], isCustom: false })),
       ]);
       setDoctor(doctorData);
       setPatients(patientsData);
       setBookingNotices(notices);
+      setTimePeriods(timePeriodsRes.periods || []);
       
       if (hospitalInfo) {
         setHospitalName(hospitalInfo.name || '');
@@ -243,7 +249,7 @@ const BookingPage = () => {
           <View className="info-row">
             <Text className="label">预约时间</Text>
             <Text className="value">
-              {date} {TIME_SLOT_MAP[timeSlot || 'AM']}
+              {date} {startTime ? getPeriodNameFromTime(startTime, timePeriods) : TIME_SLOT_MAP[timeSlot || 'AM']}
               {startTime && endTime && ` (${startTime}-${endTime})`}
             </Text>
           </View>

@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { appointmentApi } from '@hospital/api';
 import { APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP } from '@hospital/shared';
 import { getToken } from '../../utils/auth';
+import { formatTime } from '../../utils/url';
 import LoginPopup from '../../components/LoginPopup';
 import type { Appointment } from '@hospital/shared';
 import './index.less';
@@ -167,7 +168,7 @@ const AppointmentPage = () => {
                   <Text className="date">{item.scheduleDate}</Text>
                   <Text className="slot">
                     {TIME_SLOT_MAP[item.timeSlot || 'AM']}
-                    {item.startTime && item.endTime && ` ${item.startTime}-${item.endTime}`}
+                    {item.startTime && item.endTime && ` ${formatTime(item.startTime)}-${formatTime(item.endTime)}`}
                     {item.queueNumber && (
                       <Text className="queue-number">第{item.queueNumber}号</Text>
                     )}

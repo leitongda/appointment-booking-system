@@ -152,6 +152,326 @@ export function getDateInfo(date: Date = new Date()): {
 // 时间格式验证正则：HH:mm
 const TIME_FORMAT_REGEX = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
 
+// 复用 types/schedule.ts 中的 BreakTime
+import type { BreakTime } from '../types/schedule';
+export type { BreakTime };
+
+/**
+ * 时段配置类型
+ */
+export interface TimePeriod {
+  key: string;       // 时段标识，如 morning, afternoon
+  name: string;      // 时段名称，如 上午, 下午
+  startTime: string; // 开始时间，格式 HH:mm
+  endTime: string;   // 结束时间，格式 HH:mm
+}
+
+/**
+ * 默认时段配置
+ */
+export const DEFAULT_TIME_PERIODS: TimePeriod[] = [
+  { key: 'morning', name: '上午', startTime: '06:00', endTime: '12:00' },
+  { key: 'afternoon', name: '下午', startTime: '12:00', endTime: '18:00' },
+];
+
+/**
+ * 时间字符串转分钟数
+ */
+function timeToMinutes(timeStr: string): number {
+  if (!timeStr || !TIME_FORMAT_REGEX.test(timeStr)) return 0;
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+/**
+ * 分钟数转时间字符串
+ */
+function minutesToTime(minutes: number): string {
+  const hours = Math.floor(minutes / 60) % 24;
+  const mins = minutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+}
+
+/**
+ * 获取有效工作时间段（排除休息时间）
+ */
+function getWorkingPeriods(
+  startTime: string,
+  endTime: string,
+  breakTimes?: BreakTime[]
+): Array<[number, number]> {
+  const startMinutes = timeToMinutes(startTime);
+  const endMinutes = timeToMinutes(endTime);
+  
+  if (!breakTimes || breakTimes.length === 0) {
+    return [[startMinutes, endMinutes]];
+  }
+  
+  // 解析并排序排除时间段
+  const breaks: Array<[number, number]> = [];
+  for (const bt of breakTimes) {
+    const btStart = timeToMinutes(bt.startTime);
+    const btEnd = timeToMinutes(bt.endTime);
+    // 只保留与工作时间有交集的排除时间
+    if (btEnd > startMinutes && btStart < endMinutes) {
+      breaks.push([Math.max(btStart, startMinutes), Math.min(btEnd, endMinutes)]);
+    }
+  }
+  
+  // 按开始时间排序
+  breaks.sort((a, b) => a[0] - b[0]);
+  
+  // 合并重叠的排除时间段
+  const mergedBreaks: Array<[number, number]> = [];
+  for (const bt of breaks) {
+    if (mergedBreaks.length > 0 && bt[0] <= mergedBreaks[mergedBreaks.length - 1][1]) {
+      mergedBreaks[mergedBreaks.length - 1][1] = Math.max(mergedBreaks[mergedBreaks.length - 1][1], bt[1]);
+    } else {
+      mergedBreaks.push([...bt]);
+    }
+  }
+  
+  // 生成有效工作时间段
+  const periods: Array<[number, number]> = [];
+  let currentStart = startMinutes;
+  
+  for (const [btStart, btEnd] of mergedBreaks) {
+    if (currentStart < btStart) {
+      periods.push([currentStart, btStart]);
+    }
+    currentStart = btEnd;
+  }
+  
+  // 添加最后一个时间段
+  if (currentStart < endMinutes) {
+    periods.push([currentStart, endMinutes]);
+  }
+  
+  return periods;
+}
+
+/**
+ * 将时间区间均分为多个班次（考虑排除时间段）
+ * @param startTime 开始时间，格式 "HH:mm"
+ * @param endTime 结束时间，格式 "HH:mm"
+ * @param count 班次数量
+ * @param breakTimes 排除时间段列表
+ * @returns 班次时间列表
+ */
+export function splitTimeRangeWithBreaks(
+  startTime: string,
+  endTime: string,
+  count: number,
+  breakTimes?: BreakTime[]
+): Array<[string, string]> {
+  // 验证输入格式
+  if (!startTime || !endTime || !TIME_FORMAT_REGEX.test(startTime) || !TIME_FORMAT_REGEX.test(endTime)) {
+    return [[startTime || '00:00', endTime || '00:00']];
+  }
+  
+  if (count <= 0) {
+    return [[startTime, endTime]];
+  }
+  
+  // 如果没有排除时间，使用原来的函数
+  if (!breakTimes || breakTimes.length === 0) {
+    return splitTimeRange(startTime, endTime, count);
+  }
+  
+  // 获取有效工作时间段
+  const workingPeriods = getWorkingPeriods(startTime, endTime, breakTimes);
+  
+  if (workingPeriods.length === 0) {
+    return [[startTime, endTime]];
+  }
+  
+  // 计算总有效工作分钟数
+  let totalWorkingMinutes = 0;
+  for (const [start, end] of workingPeriods) {
+    totalWorkingMinutes += end - start;
+  }
+  
+  if (totalWorkingMinutes <= 0) {
+    return [[startTime, endTime]];
+  }
+  
+  // 每个班次的分钟数
+  let slotMinutes = Math.floor(totalWorkingMinutes / count);
+  if (slotMinutes <= 0) slotMinutes = 1;
+  
+  // 在有效时间段内分配班次
+  const slots: Array<[string, string]> = [];
+  let slotCount = 0;
+  
+  for (const [periodStart, periodEnd] of workingPeriods) {
+    let currentPos = periodStart;
+    
+    while (currentPos < periodEnd && slotCount < count) {
+      // 如果是最后一个班次
+      if (slotCount === count - 1) {
+        slots.push([minutesToTime(currentPos), minutesToTime(periodEnd)]);
+        slotCount++;
+        currentPos = periodEnd;
+      } else {
+        const availableInPeriod = periodEnd - currentPos;
+        
+        if (slotMinutes <= availableInPeriod) {
+          const slotEnd = currentPos + slotMinutes;
+          slots.push([minutesToTime(currentPos), minutesToTime(slotEnd)]);
+          slotCount++;
+          currentPos = slotEnd;
+        } else {
+          // 当前时间段不足，作为一个班次
+          slots.push([minutesToTime(currentPos), minutesToTime(periodEnd)]);
+          slotCount++;
+          currentPos = periodEnd;
+        }
+      }
+    }
+  }
+  
+  return slots.length > 0 ? slots : [[startTime, endTime]];
+}
+
+/**
+ * 计算有效工作时长（分钟）
+ * @param startTime 开始时间
+ * @param endTime 结束时间
+ * @param breakTimes 排除时间段列表
+ * @returns 有效工作分钟数
+ */
+export function calculateWorkingDuration(
+  startTime: string,
+  endTime: string,
+  breakTimes?: BreakTime[]
+): number {
+  if (!startTime || !endTime || !TIME_FORMAT_REGEX.test(startTime) || !TIME_FORMAT_REGEX.test(endTime)) {
+    return 0;
+  }
+  
+  const startMinutes = timeToMinutes(startTime);
+  const endMinutes = timeToMinutes(endTime);
+  let totalMinutes = endMinutes - startMinutes;
+  
+  if (totalMinutes <= 0) return 0;
+  
+  if (!breakTimes || breakTimes.length === 0) {
+    return totalMinutes;
+  }
+  
+  // 计算排除时间段的总时长
+  let excludedMinutes = 0;
+  for (const bt of breakTimes) {
+    const btStart = timeToMinutes(bt.startTime);
+    const btEnd = timeToMinutes(bt.endTime);
+    
+    // 计算与工作时间的交集
+    const overlapStart = Math.max(btStart, startMinutes);
+    const overlapEnd = Math.min(btEnd, endMinutes);
+    
+    if (overlapEnd > overlapStart) {
+      excludedMinutes += overlapEnd - overlapStart;
+    }
+  }
+  
+  return Math.max(0, totalMinutes - excludedMinutes);
+}
+
+/**
+ * 格式化工作时长为易读格式
+ * @param minutes 分钟数
+ * @returns 格式化字符串，如 "2小时30分钟"
+ */
+export function formatDuration(minutes: number): string {
+  if (minutes <= 0) return '0分钟';
+  
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  
+  if (hours === 0) {
+    return `${mins}分钟`;
+  } else if (mins === 0) {
+    return `${hours}小时`;
+  } else {
+    return `${hours}小时${mins}分钟`;
+  }
+}
+
+/**
+ * 根据开始时间获取时段名称
+ * @param startTime 开始时间，格式 "HH:mm"
+ * @param periods 自定义时段配置
+ * @returns 时段名称
+ */
+export function getPeriodNameFromTime(
+  startTime: string,
+  periods?: TimePeriod[]
+): string {
+  if (!startTime || !TIME_FORMAT_REGEX.test(startTime)) {
+    return '上午';
+  }
+  
+  const startMinutes = timeToMinutes(startTime);
+  const periodsToUse = periods && periods.length > 0 ? periods : DEFAULT_TIME_PERIODS;
+  
+  for (const period of periodsToUse) {
+    const periodStart = timeToMinutes(period.startTime);
+    let periodEnd = timeToMinutes(period.endTime);
+    
+    // 处理跨越午夜的情况
+    if (periodEnd <= periodStart) {
+      periodEnd += 24 * 60;
+    }
+    
+    if (startMinutes >= periodStart && startMinutes < periodEnd) {
+      return period.name;
+    }
+  }
+  
+  // 默认根据小时判断
+  const hour = Math.floor(startMinutes / 60);
+  if (hour < 12) return '上午';
+  if (hour < 18) return '下午';
+  return '晚上';
+}
+
+/**
+ * 根据开始时间获取时段标识
+ * @param startTime 开始时间，格式 "HH:mm"
+ * @param periods 自定义时段配置
+ * @returns 时段标识
+ */
+export function getTimeSlotFromTime(
+  startTime: string,
+  periods?: TimePeriod[]
+): string {
+  if (!startTime || !TIME_FORMAT_REGEX.test(startTime)) {
+    return 'morning';
+  }
+  
+  const startMinutes = timeToMinutes(startTime);
+  const periodsToUse = periods && periods.length > 0 ? periods : DEFAULT_TIME_PERIODS;
+  
+  for (const period of periodsToUse) {
+    const periodStart = timeToMinutes(period.startTime);
+    let periodEnd = timeToMinutes(period.endTime);
+    
+    if (periodEnd <= periodStart) {
+      periodEnd += 24 * 60;
+    }
+    
+    if (startMinutes >= periodStart && startMinutes < periodEnd) {
+      return period.key;
+    }
+  }
+  
+  // 默认根据小时判断
+  const hour = Math.floor(startMinutes / 60);
+  if (hour < 12) return 'morning';
+  if (hour < 18) return 'afternoon';
+  return 'evening';
+}
+
 /**
  * 将时间区间均分为多个班次
  * @param startTime 开始时间，格式 "HH:mm"

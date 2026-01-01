@@ -6,7 +6,7 @@ import { doctorApi, scheduleApi, favoriteApi } from '@hospital/api';
 import type { Doctor, AvailableSchedule } from '@hospital/shared';
 import { DoctorIcon, HeartIcon, HeartOutlineIcon } from '../../../components/Icons';
 import { getToken } from '../../../utils/auth';
-import { getImageUrl } from '../../../utils/url';
+import { getImageUrl, formatTime } from '../../../utils/url';
 import LoginPopup from '../../../components/LoginPopup';
 import './detail.less';
 
@@ -197,7 +197,8 @@ const DoctorDetailPage = () => {
   const handleTimeSlotClick = (slot: 'AM' | 'PM') => {
     const summary = slot === 'AM' ? timeSlotSummary.morning : timeSlotSummary.afternoon;
     
-    if (summary.available <= 0) {
+    // 检查是否有可预约的班次
+    if (summary.available <= 0 || summary.schedules.length === 0) {
       Taro.showToast({ title: '该时段已约满', icon: 'none' });
       return;
     }
@@ -257,10 +258,10 @@ const DoctorDetailPage = () => {
       timeSlot: selectedSchedule.timeSlot,
     });
     if (selectedSchedule.startTime) {
-      params.set('startTime', selectedSchedule.startTime);
+      params.set('startTime', formatTime(selectedSchedule.startTime));
     }
     if (selectedSchedule.endTime) {
-      params.set('endTime', selectedSchedule.endTime);
+      params.set('endTime', formatTime(selectedSchedule.endTime));
     }
     
     Taro.navigateTo({
@@ -427,9 +428,9 @@ const DoctorDetailPage = () => {
                     className={`slot-picker-item ${isSelected ? 'selected' : ''} ${isFull ? 'disabled' : ''}`}
                     onClick={() => !isFull && handleSelectSchedule(schedule.id)}
                   >
-                    <Text className="slot-time-start">{schedule.startTime || '--:--'}</Text>
+                    <Text className="slot-time-start">{formatTime(schedule.startTime) || '--:--'}</Text>
                     <Text className="slot-time-separator">-</Text>
-                    <Text className="slot-time-end">{schedule.endTime || '--:--'}</Text>
+                    <Text className="slot-time-end">{formatTime(schedule.endTime) || '--:--'}</Text>
                     {isSelected && <Text className="slot-check">✓</Text>}
                     <Text className="slot-remain">
                       {isFull ? '约满' : `余${schedule.availableSlots}`}
@@ -496,7 +497,7 @@ const DoctorDetailPage = () => {
                   <Text className="confirm-info-value highlight">
                     {selectedDate} {selectedDateInfo?.weekday} {selectedSlot === 'AM' ? '上午' : '下午'}
                     {selectedSchedule?.startTime && selectedSchedule?.endTime && (
-                      <Text> ({selectedSchedule.startTime}-{selectedSchedule.endTime})</Text>
+                      <Text> ({formatTime(selectedSchedule.startTime)}-{formatTime(selectedSchedule.endTime)})</Text>
                     )}
                   </Text>
                 </View>

@@ -220,6 +220,14 @@ const ScheduleRuleFormPage: React.FC = () => {
               startTime={formatTime(formValues.startTime)}
               endTime={formatTime(formValues.endTime)}
               slotCount={formValues.slotCount || 1}
+              breakTimes={breakTimes
+                .filter(bt => bt.startTime && bt.endTime)
+                .map(bt => ({
+                  startTime: formatTime(bt.startTime) || '',
+                  endTime: formatTime(bt.endTime) || '',
+                }))
+                .filter(bt => bt.startTime && bt.endTime)
+              }
               showExisting={!!formValues.doctorId}
             />
           </Card>

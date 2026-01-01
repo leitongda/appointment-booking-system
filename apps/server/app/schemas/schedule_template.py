@@ -166,6 +166,7 @@ class ScheduleSlotPreview(BaseModel):
     start_time: time = Field(..., description="开始时间")
     end_time: time = Field(..., description="结束时间")
     time_slot: str = Field(..., description="时段: morning/afternoon/evening")
+    period_name: str = Field(..., description="时段名称: 上午/下午/晚上 或自定义")
     slot_capacity: int = Field(..., description="可预约人数")
     weekday: int = Field(..., description="星期几 1-7")
     weekday_name: str = Field(..., description="星期名称")
@@ -192,6 +193,8 @@ class SchedulePreviewGenerateResponse(BaseModel):
     
     slots: List[ScheduleSlotPreview] = Field(..., description="预览班次列表")
     total_count: int = Field(..., description="总班次数")
+    daily_duration_hours: Optional[int] = Field(None, description="每日总时长（小时）")
+    daily_duration_minutes: Optional[int] = Field(None, description="每日总时长（剩余分钟数）")
     template_id: str = Field(..., description="模板ID")
     template_name: str = Field(..., description="模板名称")
     doctor_name: Optional[str] = None

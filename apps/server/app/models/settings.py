@@ -1,22 +1,34 @@
 """系统设置模型"""
-from sqlalchemy import Column, String, Integer, Text, DateTime
+from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey, Index
+from sqlalchemy.orm import relationship
 from app.db.base import Base, AuditMixin
 from datetime import datetime
 import uuid
 
 
 class SystemSetting(Base, AuditMixin):
-    """系统设置表（键值对存储）"""
+    """系统设置表（键值对存储）
+    
+    支持门店级别配置：
+    - store_id 为空：全局默认配置
+    - store_id 有值：门店特定配置（优先级高于全局配置）
+    """
     __tablename__ = "system_settings"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    category = Column(String(50), nullable=False, comment="分类: booking, hospital, wechat, sms")
+    store_id = Column(String(36), ForeignKey("stores.id", ondelete="CASCADE"), nullable=True, comment="门店ID，为空表示全局配置")
+    category = Column(String(50), nullable=False, comment="分类: booking, hospital, wechat, sms, time_periods")
     key = Column(String(100), nullable=False, comment="设置项键名")
     value = Column(Text, comment="设置项值")
     description = Column(String(200), comment="描述")
     
-    # 联合唯一索引
+    # 关联门店
+    store = relationship("Store", backref="settings")
+    
+    # 索引：加速按门店和分类查询
     __table_args__ = (
+        Index('ix_system_settings_store_category', 'store_id', 'category'),
+        Index('ix_system_settings_store_category_key', 'store_id', 'category', 'key'),
         {'sqlite_autoincrement': True},
     )
 
@@ -92,6 +104,13 @@ DEFAULT_SETTINGS = {
             'description': '缩略图尺寸配置（JSON数组）'
         },
         'compress_quality': {'value': '85', 'description': '压缩质量（1-100）'},
+    },
+    # 时段划分配置（支持门店级别覆盖）
+    'time_periods': {
+        'periods': {
+            'value': '[{"key":"morning","name":"上午","startTime":"06:00","endTime":"12:00"},{"key":"afternoon","name":"下午","startTime":"12:00","endTime":"18:00"}]',
+            'description': '时段划分配置，用于排班预览和预约显示'
+        },
     },
 }
 

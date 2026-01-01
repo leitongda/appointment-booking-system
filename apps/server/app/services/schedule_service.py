@@ -281,17 +281,30 @@ class ScheduleService:
         Returns:
             成功删除的数量（不包括有预约的排班）
         """
+        from app.models.appointment import Appointment
+        
         if not schedule_ids:
             return 0
         
-        # 查询符合条件的排班（只删除没有预约的排班）
+        # 查询哪些排班有关联的预约记录（包括所有状态的预约）
+        # 注意：由于 schedule_id 是 NOT NULL 约束，删除排班会导致外键约束失败
+        # 因此只要有任何预约记录关联到该排班，就不能删除
+        appointments_result = await self.db.execute(
+            select(Appointment.schedule_id).where(
+                Appointment.schedule_id.in_(schedule_ids)
+            ).distinct()
+        )
+        schedule_ids_with_appointments = {row[0] for row in appointments_result.fetchall()}
+        
+        # 过滤出可以删除的排班ID（没有任何预约记录的排班）
+        deletable_schedule_ids = [sid for sid in schedule_ids if sid not in schedule_ids_with_appointments]
+        
+        if not deletable_schedule_ids:
+            return 0
+        
+        # 查询这些排班记录
         result = await self.db.execute(
-            select(Schedule).where(
-                and_(
-                    Schedule.id.in_(schedule_ids),
-                    Schedule.booked_slots == 0  # 只删除没有预约的排班
-                )
-            )
+            select(Schedule).where(Schedule.id.in_(deletable_schedule_ids))
         )
         schedules = result.scalars().all()
         
