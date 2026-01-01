@@ -274,6 +274,10 @@ class AppointmentService:
         
         await self.db.commit()
         await self.db.refresh(appointment)
+        
+        # 设置 schedule 关联，以便 API 层可以访问排班信息
+        appointment.schedule = schedule
+        
         return appointment
     
     async def cancel(self, appointment_id: str, user_id: str, reason: Optional[str] = None, is_admin: bool = False, operator_id: Optional[str] = None) -> Optional[Appointment]:
