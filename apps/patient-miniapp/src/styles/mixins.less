@@ -427,6 +427,14 @@
   background: @color-bg-base;
 }
 
+// TabBar 页面容器（为底部导航预留空间）
+.page-container-tabbar() {
+  min-height: 100vh;
+  background: @color-bg-base;
+  // TabBar 高度 100rpx + 额外间距 + 安全区
+  padding-bottom: calc(120rpx + env(safe-area-inset-bottom));
+}
+
 // 内容区域
 .content-section() {
   padding: @page-padding;

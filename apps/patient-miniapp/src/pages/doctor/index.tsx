@@ -74,9 +74,8 @@ const DoctorListPage = () => {
                 <Text className="dept">{doctor.departmentName}</Text>
                 <Text className="spec">擅长：{doctor.specialty || '暂无'}</Text>
               </View>
-              <View className="fee">
-                <Text className="price">¥{doctor.registrationFee}</Text>
-                <Text className="book-btn">预约</Text>
+              <View className={`slot-tag ${doctor.hasAvailableSlots ? 'available' : 'unavailable'}`}>
+                <Text>{doctor.hasAvailableSlots ? '有号' : '无号'}</Text>
               </View>
             </View>
           ))}

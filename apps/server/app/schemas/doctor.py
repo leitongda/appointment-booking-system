@@ -193,3 +193,5 @@ class DoctorListResponse(BaseModel):
     is_recommended: Optional[int] = 0
     tags: Optional[str] = None
     page_style: Optional[int] = 1
+    has_available_slots: Optional[bool] = False  # 是否有可预约号源（未来7天内）
+    status: Optional[int] = 1  # 状态

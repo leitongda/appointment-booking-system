@@ -57,8 +57,13 @@ def doctor_to_response(doctor) -> DoctorResponse:
     )
 
 
-def doctor_to_list_response(doctor) -> DoctorListResponse:
-    """将医生模型转换为列表响应对象"""
+def doctor_to_list_response(doctor, has_available_slots: bool = False) -> DoctorListResponse:
+    """将医生模型转换为列表响应对象
+    
+    Args:
+        doctor: 医生模型对象
+        has_available_slots: 是否有可预约号源
+    """
     return DoctorListResponse(
         id=doctor.id,
         name=doctor.name,
@@ -74,7 +79,9 @@ def doctor_to_list_response(doctor) -> DoctorListResponse:
         registration_fee=doctor.registration_fee or 0,
         is_recommended=doctor.is_recommended or 0,
         tags=doctor.tags,
-        page_style=doctor.page_style or 1
+        page_style=doctor.page_style or 1,
+        has_available_slots=has_available_slots,
+        status=doctor.status or 1
     )
 
 
@@ -156,7 +163,11 @@ async def get_doctors(
         status=status, page=page, page_size=page_size
     )
     
-    result = [doctor_to_list_response(d) for d in doctors]
+    # 批量获取医生的号源状态
+    doctor_ids = [d.id for d in doctors]
+    availability_map = await service.get_doctors_availability(doctor_ids)
+    
+    result = [doctor_to_list_response(d, availability_map.get(d.id, False)) for d in doctors]
     
     return PageResponse(data=result, total=total, page=page, page_size=page_size)
 
@@ -173,7 +184,11 @@ async def get_recommended_doctors(
     service = DoctorService(db)
     doctors = await service.get_recommended(limit=limit, store_id=store_id)
     
-    return [doctor_to_list_response(d) for d in doctors]
+    # 批量获取医生的号源状态
+    doctor_ids = [d.id for d in doctors]
+    availability_map = await service.get_doctors_availability(doctor_ids)
+    
+    return [doctor_to_list_response(d, availability_map.get(d.id, False)) for d in doctors]
 
 @router.get("/by-department/{department_id}", response_model=List[DoctorListResponse])
 async def get_doctors_by_department(
@@ -188,7 +203,11 @@ async def get_doctors_by_department(
     service = DoctorService(db)
     doctors = await service.get_by_department(department_id, store_id=store_id)
     
-    return [doctor_to_list_response(d) for d in doctors]
+    # 批量获取医生的号源状态
+    doctor_ids = [d.id for d in doctors]
+    availability_map = await service.get_doctors_availability(doctor_ids)
+    
+    return [doctor_to_list_response(d, availability_map.get(d.id, False)) for d in doctors]
 
 
 @router.get("/public/{doctor_id}", response_model=DoctorResponse)

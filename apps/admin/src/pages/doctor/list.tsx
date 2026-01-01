@@ -461,6 +461,17 @@ const DoctorListPage: React.FC = () => {
       render: (val) => `¥${val || 0}`,
     },
     {
+      title: '号源状态',
+      dataIndex: 'hasAvailableSlots',
+      width: 90,
+      search: false,
+      render: (_, record) => (
+        <Tag color={record.hasAvailableSlots ? 'success' : 'default'}>
+          {record.hasAvailableSlots ? '有号' : '无号'}
+        </Tag>
+      ),
+    },
+    {
       title: '推荐',
       dataIndex: 'isRecommended',
       width: 80,

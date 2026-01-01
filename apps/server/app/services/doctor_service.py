@@ -1,8 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_
 from sqlalchemy.orm import selectinload
-from typing import Optional, List
-from datetime import datetime
+from typing import Optional, List, Dict
+from datetime import datetime, date, timedelta
 import uuid
 import random
 import string
@@ -13,6 +13,7 @@ from app.models.doctor import Doctor
 from app.models.department import Department
 from app.models.store import Store
 from app.models.user import User
+from app.models.schedule import Schedule
 from app.schemas.doctor import DoctorCreate, DoctorUpdate
 from app.core.security import get_password_hash, verify_password
 from app.utils.audit import set_create_audit, set_update_audit
@@ -300,3 +301,42 @@ class DoctorService:
         
         await self.db.commit()
         return count
+    
+    async def get_doctors_availability(self, doctor_ids: List[str], days: int = 7) -> Dict[str, bool]:
+        """批量获取医生的可预约号源状态
+        
+        Args:
+            doctor_ids: 医生ID列表
+            days: 查询未来多少天内的号源，默认7天
+            
+        Returns:
+            医生ID到是否有可用号源的映射 {doctor_id: has_available_slots}
+        """
+        if not doctor_ids:
+            return {}
+        
+        today = date.today()
+        end_date = today + timedelta(days=days)
+        
+        # 查询未来days天内有可用号源的医生ID
+        result = await self.db.execute(
+            select(Schedule.doctor_id)
+            .where(
+                and_(
+                    Schedule.doctor_id.in_(doctor_ids),
+                    Schedule.schedule_date >= today,
+                    Schedule.schedule_date <= end_date,
+                    Schedule.status == 1,
+                    Schedule.booked_slots < Schedule.total_slots
+                )
+            )
+            .distinct()
+        )
+        
+        available_doctor_ids = set(result.scalars().all())
+        
+        # 构建结果字典
+        return {
+            doctor_id: doctor_id in available_doctor_ids
+            for doctor_id in doctor_ids
+        }

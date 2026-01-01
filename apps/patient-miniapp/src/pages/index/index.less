@@ -6,8 +6,7 @@
 @import '../../styles/mixins.less';
 
 .container {
-  .page-container();
-  padding-bottom: @spacing-4;
+  .page-container-tabbar();
 }
 
 // -------------------------------------------
@@ -201,6 +200,7 @@
 
 .doctor-card {
   display: flex;
+  align-items: center;
   gap: @spacing-3;
   padding: @spacing-3;
   background: @color-bg-secondary;
@@ -260,6 +260,27 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+// 号源状态标签
+.slot-tag {
+  flex-shrink: 0;
+  padding: 8rpx 24rpx;
+  border-radius: @radius-full;
+  font-size: @font-size-sm;
+  font-weight: @font-weight-medium;
+  display: flex;
+  align-items: center;
+  
+  &.available {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10B981;
+  }
+  
+  &.unavailable {
+    background: rgba(100, 116, 139, 0.1);
+    color: #64748B;
+  }
 }
 
 // -------------------------------------------

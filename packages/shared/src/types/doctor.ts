@@ -45,6 +45,9 @@ export interface Doctor {
   // 诊费设置
   useFeeTemplate: number;
   
+  // 号源状态
+  hasAvailableSlots?: boolean;  // 是否有可预约号源（未来7天内）
+  
   createdAt: string;
   updatedAt: string;
 }
@@ -65,4 +68,6 @@ export interface DoctorListItem {
   isRecommended: number;
   tags?: string;
   pageStyle: number;
+  hasAvailableSlots?: boolean;  // 是否有可预约号源（未来7天内）
+  status?: number;  // 状态
 }

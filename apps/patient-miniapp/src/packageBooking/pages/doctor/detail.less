@@ -250,7 +250,7 @@
 }
 
 // -------------------------------------------
-// 时段卡片 - 两列布局（浅色背景+边框）
+// 时段卡片 - 两列布局（单选样式）
 // -------------------------------------------
 
 .time-slots {
@@ -261,33 +261,57 @@
 
 .time-slot-card {
   flex: 1;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: @spacing-4 @spacing-3;
+  padding: @spacing-5 @spacing-3 @spacing-4;
   border-radius: @radius-xl;
   transition: all @transition-base;
   min-height: 160rpx;
   
-  &.available {
-    background: var(--badge-bg, rgba(196, 30, 58, 0.06));
-    border: 2rpx solid var(--color-primary, @theme-primary);
+  // 默认状态：白色背景 + 浅灰边框
+  background: @color-bg-white;
+  border: 2rpx solid @color-border;
+  
+  .slot-period {
+    color: @color-text-primary;
+  }
+  
+  .slot-available {
+    color: @color-text-secondary;
+  }
+  
+  &:active {
+    transform: scale(0.98);
+  }
+  
+  // 选中状态：红色边框 + 红色文字
+  &.selected {
+    border-color: var(--color-primary, @theme-primary);
+    border-width: 3rpx;
+    background: var(--badge-bg, rgba(196, 30, 58, 0.04));
     
-    &:active {
-      transform: scale(0.98);
-      background: var(--badge-bg, rgba(196, 30, 58, 0.12));
+    .slot-period,
+    .slot-available {
+      color: var(--color-primary, @theme-primary);
     }
   }
   
+  // 约满状态：灰色背景
   &.full {
     background: @color-bg-secondary;
-    border: 2rpx solid @color-border;
+    border-color: @color-border;
     
     .slot-period,
     .slot-available,
     .slot-dept {
       color: @color-text-muted;
+    }
+    
+    &:active {
+      transform: none;
     }
   }
 }
@@ -295,15 +319,18 @@
 .slot-period {
   font-size: @font-size-lg;
   font-weight: @font-weight-semibold;
-  color: var(--color-primary, @theme-primary);
   margin-bottom: @spacing-1;
+  transition: color @transition-base;
 }
 
+// 余号标签 - 右上角绝对定位
 .slot-available {
-  font-size: @font-size-base;
+  position: absolute;
+  top: 12rpx;
+  right: 16rpx;
+  font-size: @font-size-xs;
   font-weight: @font-weight-medium;
-  color: var(--color-primary, @theme-primary);
-  margin-bottom: @spacing-1;
+  transition: color @transition-base;
 }
 
 .slot-dept {
@@ -313,6 +340,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  margin-top: @spacing-1;
 }
 
 // -------------------------------------------
@@ -332,4 +360,186 @@
   color: @color-primary;
   font-size: @font-size-xs;
   border-radius: @radius-full;
+}
+
+// -------------------------------------------
+// 预约确认弹窗
+// -------------------------------------------
+
+.confirm-popup-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: @z-index-modal;
+  display: flex;
+  align-items: flex-end;
+}
+
+.confirm-popup-sheet {
+  width: 100%;
+  background: @color-bg-white;
+  border-radius: @radius-2xl @radius-2xl 0 0;
+  padding: @spacing-4;
+  padding-bottom: calc(@spacing-6 + env(safe-area-inset-bottom));
+  animation: slideUp 0.3s ease-out;
+  
+  @keyframes slideUp {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+}
+
+// 顶部指示条
+.confirm-indicator {
+  width: 60rpx;
+  height: 8rpx;
+  background: @color-bg-tertiary;
+  border-radius: @radius-full;
+  margin: 0 auto @spacing-4;
+}
+
+// 弹窗头部
+.confirm-header {
+  text-align: center;
+  padding-bottom: @spacing-4;
+  border-bottom: @border-width solid @color-divider;
+  
+  .confirm-title {
+    font-size: @font-size-xl;
+    font-weight: @font-weight-bold;
+    color: @color-text-primary;
+  }
+}
+
+// 弹窗内容
+.confirm-content {
+  padding: @spacing-4 0;
+}
+
+// 医生信息行
+.confirm-doctor-row {
+  display: flex;
+  align-items: center;
+  padding-bottom: @spacing-4;
+  border-bottom: @border-width solid @color-divider;
+  
+  .confirm-doctor-avatar {
+    width: 96rpx;
+    height: 96rpx;
+    border-radius: @radius-xl;
+    background: linear-gradient(135deg, #E0E7FF 0%, #EDE9FE 100%);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    
+    image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+  
+  .confirm-doctor-info {
+    flex: 1;
+    margin-left: @spacing-3;
+    
+    .confirm-doctor-name-row {
+      display: flex;
+      align-items: center;
+      gap: @spacing-2;
+      margin-bottom: 8rpx;
+      
+      .confirm-doctor-name {
+        font-size: @font-size-lg;
+        font-weight: @font-weight-semibold;
+        color: @color-text-primary;
+      }
+      
+      .confirm-doctor-title {
+        .badge-primary();
+        font-size: @font-size-xs;
+      }
+    }
+    
+    .confirm-doctor-dept {
+      font-size: @font-size-sm;
+      color: @color-text-secondary;
+    }
+  }
+}
+
+// 预约信息列表
+.confirm-info-list {
+  padding-top: @spacing-4;
+  
+  .confirm-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: @spacing-2 0;
+    
+    .confirm-info-label {
+      font-size: @font-size-sm;
+      color: @color-text-secondary;
+    }
+    
+    .confirm-info-value {
+      font-size: @font-size-base;
+      font-weight: @font-weight-medium;
+      color: @color-text-primary;
+      
+      &.highlight {
+        color: var(--color-primary, @theme-primary);
+      }
+      
+      &.fee {
+        color: @color-price;
+        font-weight: @font-weight-semibold;
+      }
+    }
+  }
+}
+
+// 弹窗底部按钮
+.confirm-footer {
+  padding-top: @spacing-4;
+  
+  .confirm-next-btn {
+    width: 100%;
+    height: @button-height-lg !important;
+    border-radius: @radius-xl !important;
+    background: @gradient-primary !important;
+    border: none !important;
+    font-size: @font-size-base !important;
+    font-weight: @font-weight-semibold !important;
+    color: @color-text-white !important;
+    box-shadow: @shadow-button !important;
+    
+    &:active {
+      opacity: 0.9;
+    }
+  }
+  
+  .confirm-cancel-btn {
+    display: block;
+    width: 100%;
+    text-align: center;
+    margin-top: @spacing-3;
+    padding: @spacing-2;
+    font-size: @font-size-sm;
+    color: @color-text-muted;
+    
+    &:active {
+      opacity: 0.7;
+    }
+  }
 }
