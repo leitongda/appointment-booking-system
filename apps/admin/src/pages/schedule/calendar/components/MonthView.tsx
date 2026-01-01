@@ -10,10 +10,24 @@ interface MonthViewProps {
   onDateClick: (date: Dayjs) => void;
 }
 
+// 时段标签映射 - 支持两种格式
 const TIME_SLOT_LABELS: Record<string, string> = {
   morning: '上午',
   afternoon: '下午',
   evening: '晚上',
+  AM: '上午',
+  PM: '下午',
+  NIGHT: '晚上',
+};
+
+// 时段排序权重 - 支持两种格式
+const TIME_SLOT_SORT_ORDER: Record<string, number> = {
+  morning: 0,
+  AM: 0,
+  afternoon: 1,
+  PM: 1,
+  evening: 2,
+  NIGHT: 2,
 };
 
 const MonthView: React.FC<MonthViewProps> = ({
@@ -58,11 +72,10 @@ const MonthView: React.FC<MonthViewProps> = ({
       return null;
     }
 
-    // 按时段排序
-    const sortOrder = { morning: 0, afternoon: 1, evening: 2 };
+    // 按时段排序（支持两种格式）
     const sortedSchedules = [...stats.schedules].sort(
-      (a, b) => (sortOrder[a.timeSlot as keyof typeof sortOrder] ?? 3) - 
-                (sortOrder[b.timeSlot as keyof typeof sortOrder] ?? 3)
+      (a, b) => (TIME_SLOT_SORT_ORDER[a.timeSlot] ?? 3) - 
+                (TIME_SLOT_SORT_ORDER[b.timeSlot] ?? 3)
     );
 
     return (

@@ -65,20 +65,39 @@ const ScheduleCalendarPage: React.FC = () => {
     }
   }, [currentDate, viewMode]);
 
-  // 加载排班数据
+  // 加载排班数据（分页加载所有数据）
   const loadSchedules = useCallback(async () => {
     if (!selectedDoctor) return;
     
     setLoading(true);
     try {
       const { startDate, endDate } = getDateRange();
-      const result = await scheduleApi.getList({
+      const baseParams = {
         doctorId: selectedDoctor.id,
         startDate,
         endDate,
         pageSize: 100,
-      });
-      setSchedules(result.data || []);
+      };
+
+      // 第一次请求获取总数
+      const firstResult = await scheduleApi.getList({ ...baseParams, page: 1 });
+      const total = firstResult.total || 0;
+      let allSchedules = firstResult.data || [];
+
+      // 如果有更多数据，继续请求
+      if (total > 100) {
+        const totalPages = Math.ceil(total / 100);
+        const promises = [];
+        for (let page = 2; page <= totalPages; page++) {
+          promises.push(scheduleApi.getList({ ...baseParams, page }));
+        }
+        const results = await Promise.all(promises);
+        for (const result of results) {
+          allSchedules = allSchedules.concat(result.data || []);
+        }
+      }
+
+      setSchedules(allSchedules);
     } catch (error) {
       console.error('加载排班失败', error);
     } finally {
@@ -86,19 +105,38 @@ const ScheduleCalendarPage: React.FC = () => {
     }
   }, [selectedDoctor, getDateRange]);
 
-  // 加载预约数据
+  // 加载预约数据（分页加载所有数据）
   const loadAppointments = useCallback(async () => {
     if (!selectedDoctor) return;
     
     try {
       const { startDate, endDate } = getDateRange();
-      const result = await appointmentApi.getList({
+      const baseParams = {
         doctorId: selectedDoctor.id,
         startDate,
         endDate,
         pageSize: 100,
-      });
-      setAppointments(result.data || []);
+      };
+
+      // 第一次请求获取总数
+      const firstResult = await appointmentApi.getList({ ...baseParams, page: 1 });
+      const total = firstResult.total || 0;
+      let allAppointments = firstResult.data || [];
+
+      // 如果有更多数据，继续请求
+      if (total > 100) {
+        const totalPages = Math.ceil(total / 100);
+        const promises = [];
+        for (let page = 2; page <= totalPages; page++) {
+          promises.push(appointmentApi.getList({ ...baseParams, page }));
+        }
+        const results = await Promise.all(promises);
+        for (const result of results) {
+          allAppointments = allAppointments.concat(result.data || []);
+        }
+      }
+
+      setAppointments(allAppointments);
     } catch (error) {
       console.error('加载预约失败', error);
     }

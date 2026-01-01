@@ -38,6 +38,20 @@ const WeekView: React.FC<WeekViewProps> = ({
     return Array.from({ length: 7 }, (_, i) => startOfWeek.add(i, 'day'));
   }, [currentDate]);
 
+  // 规范化 timeSlot 为小写格式
+  const normalizeTimeSlot = (slot: string | undefined): string => {
+    if (!slot) return '';
+    const slotMap: Record<string, string> = {
+      'AM': 'morning',
+      'PM': 'afternoon', 
+      'NIGHT': 'evening',
+      'morning': 'morning',
+      'afternoon': 'afternoon',
+      'evening': 'evening',
+    };
+    return slotMap[slot] || slot;
+  };
+
   // 按日期和时间获取排班
   const getScheduleForSlot = (date: Dayjs, timeSlot: string): Schedule | undefined => {
     const dateStr = date.format('YYYY-MM-DD');
@@ -56,10 +70,11 @@ const WeekView: React.FC<WeekViewProps> = ({
         return slotMinutes >= startMinutes && slotMinutes < endMinutes;
       }
       
-      // 如果没有具体时间，根据 timeSlot 判断
-      if (s.timeSlot === 'morning' && hour >= 8 && hour < 12) return true;
-      if (s.timeSlot === 'afternoon' && hour >= 14 && hour < 18) return true;
-      if (s.timeSlot === 'evening' && hour >= 18 && hour < 21) return true;
+      // 如果没有具体时间，根据 timeSlot 判断（支持两种格式）
+      const normalizedSlot = normalizeTimeSlot(s.timeSlot);
+      if (normalizedSlot === 'morning' && hour >= 8 && hour < 12) return true;
+      if (normalizedSlot === 'afternoon' && hour >= 14 && hour < 18) return true;
+      if (normalizedSlot === 'evening' && hour >= 18 && hour < 21) return true;
       
       return false;
     });
@@ -73,10 +88,11 @@ const WeekView: React.FC<WeekViewProps> = ({
     return appointments.filter(a => {
       if (a.scheduleDate !== dateStr) return false;
       
-      // 根据 timeSlot 类型判断
-      if (a.timeSlot === 'morning' && hour >= 8 && hour < 12) return true;
-      if (a.timeSlot === 'afternoon' && hour >= 14 && hour < 18) return true;
-      if (a.timeSlot === 'evening' && hour >= 18 && hour < 21) return true;
+      // 根据 timeSlot 类型判断（支持两种格式）
+      const normalizedSlot = normalizeTimeSlot(a.timeSlot);
+      if (normalizedSlot === 'morning' && hour >= 8 && hour < 12) return true;
+      if (normalizedSlot === 'afternoon' && hour >= 14 && hour < 18) return true;
+      if (normalizedSlot === 'evening' && hour >= 18 && hour < 21) return true;
       
       return false;
     });

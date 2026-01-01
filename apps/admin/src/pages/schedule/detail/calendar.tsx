@@ -112,29 +112,45 @@ const ScheduleDetailCalendarPage: React.FC = () => {
         endDate = date.endOf('month').format('YYYY-MM-DD');
       }
       
-      const params: any = {
+      const baseParams: any = {
         startDate,
         endDate,
-        pageSize: mode === 'year' ? 500 : 100, // 年视图需要更多数据
+        pageSize: 100, // 后端限制最大为 100
       };
       
       if (selectedStore) {
-        params.storeId = selectedStore;
+        baseParams.storeId = selectedStore;
       }
       if (selectedDoctor) {
-        params.doctorId = selectedDoctor;
+        baseParams.doctorId = selectedDoctor;
       }
       
-      const result = await scheduleApi.getList(params);
+      // 第一次请求获取总数
+      const firstResult = await scheduleApi.getList({ ...baseParams, page: 1 });
+      const total = firstResult.total || 0;
+      let allSchedules = firstResult.data || [];
+
+      // 如果有更多数据，继续请求
+      if (total > 100) {
+        const totalPages = Math.ceil(total / 100);
+        const promises = [];
+        for (let page = 2; page <= totalPages; page++) {
+          promises.push(scheduleApi.getList({ ...baseParams, page }));
+        }
+        const results = await Promise.all(promises);
+        for (const result of results) {
+          allSchedules = allSchedules.concat(result.data || []);
+        }
+      }
       
       // 按日期分组
       const grouped: DaySchedules = {};
-      (result.data ?? []).forEach((schedule) => {
-        const date = schedule.scheduleDate;
-        if (!grouped[date]) {
-          grouped[date] = [];
+      allSchedules.forEach((schedule) => {
+        const scheduleDate = schedule.scheduleDate;
+        if (!grouped[scheduleDate]) {
+          grouped[scheduleDate] = [];
         }
-        grouped[date].push(schedule);
+        grouped[scheduleDate].push(schedule);
       });
       
       setScheduleData(grouped);
@@ -176,8 +192,7 @@ const ScheduleDetailCalendarPage: React.FC = () => {
       return null;
     }
 
-    // 按时段和时间排序
-    const sortOrder = { morning: 0, afternoon: 1, evening: 2 };
+    // 按开始时间排序
     const sortedSchedules = [...schedules].sort((a, b) => {
       const timeA = a.startTime || '00:00';
       const timeB = b.startTime || '00:00';

@@ -3,18 +3,39 @@ import { Card, Spin, DatePicker, Select, Space, Empty, Tooltip, Tag, Button, Dra
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import dayjs, { Dayjs } from 'dayjs';
 import { scheduleApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
-import type { Schedule, Doctor, Department } from '@hospital/shared';
+import type { Schedule, Doctor, Department, Store } from '@hospital/shared';
 import { useModel, useAccess } from '@umijs/max';
-import { LeftOutlined, RightOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { LeftOutlined, RightOutlined, ReloadOutlined } from '@ant-design/icons';
 import './gantt.less';
 
 const { RangePicker } = DatePicker;
 
-// 时段配置
-const TIME_SLOT_CONFIG = {
+// 时段配置 - 支持两种格式的 timeSlot
+const TIME_SLOT_CONFIG: Record<string, { label: string; color: string; startHour: number; endHour: number }> = {
+  // 小写格式
   morning: { label: '上午', color: '#1890ff', startHour: 8, endHour: 12 },
   afternoon: { label: '下午', color: '#52c41a', startHour: 14, endHour: 18 },
   evening: { label: '晚上', color: '#722ed1', startHour: 19, endHour: 21 },
+  // 大写格式 (兼容旧数据)
+  AM: { label: '上午', color: '#1890ff', startHour: 8, endHour: 12 },
+  PM: { label: '下午', color: '#52c41a', startHour: 14, endHour: 18 },
+  NIGHT: { label: '晚上', color: '#722ed1', startHour: 19, endHour: 21 },
+};
+
+// 图例配置（只显示小写格式，避免重复）
+const LEGEND_CONFIG = [
+  { key: 'morning', label: '上午', color: '#1890ff' },
+  { key: 'afternoon', label: '下午', color: '#52c41a' },
+  { key: 'evening', label: '晚上', color: '#722ed1' },
+];
+
+// 默认时段配置（用于 fallback）
+const DEFAULT_SLOT_CONFIG = { label: '未知', color: '#999', startHour: 8, endHour: 12 };
+
+// 获取时段配置（带 fallback）
+const getSlotConfig = (timeSlot: string | undefined) => {
+  if (!timeSlot) return DEFAULT_SLOT_CONFIG;
+  return TIME_SLOT_CONFIG[timeSlot] || DEFAULT_SLOT_CONFIG;
 };
 
 // 状态配置
@@ -29,7 +50,7 @@ interface GanttTask {
   doctorName: string;
   departmentName?: string;
   date: string;
-  timeSlot: 'morning' | 'afternoon' | 'evening';
+  timeSlot: string;  // 支持 morning/afternoon/evening 和 AM/PM/NIGHT
   startTime: string;
   endTime: string;
   totalSlots: number;
@@ -51,6 +72,7 @@ const ScheduleGanttPage: React.FC = () => {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
   
   // 筛选条件
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([
@@ -66,36 +88,82 @@ const ScheduleGanttPage: React.FC = () => {
   const [selectedTask, setSelectedTask] = useState<GanttTask | null>(null);
 
   const { initialState } = useModel('@@initialState');
-  const { currentUser, currentStore } = initialState ?? {};
+  const { currentUser } = initialState ?? {};
   const access = useAccess();
   const isSuperAdmin = access.canSuperAdmin;
   const showStoreFilter = isSuperAdmin || (currentUser?.storeIds?.length ?? 0) > 1;
 
-  // 加载科室列表
+  // 加载门店列表
+  const loadStores = async () => {
+    try {
+      const data = await storeApi.getAll();
+      let storeList = data ?? [];
+      // 非超级管理员只显示有权限的门店
+      if (!isSuperAdmin && currentUser?.storeIds?.length) {
+        storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
+      }
+      setStores(storeList);
+    } catch (error) {
+      console.error('加载门店失败', error);
+    }
+  };
+
+  // 加载科室列表（分页加载所有数据）
   const loadDepartments = async () => {
     try {
-      const res = await departmentApi.getList({ pageSize: 100, status: 1 });
-      const deptList = res.data ?? [];
-      setDepartments(deptList);
+      // 第一次请求获取总数
+      const firstResult = await departmentApi.getList({ pageSize: 100, status: 1, page: 1 });
+      const total = firstResult.total || 0;
+      let allDepts = firstResult.data ?? [];
+
+      // 如果有更多数据，继续请求
+      if (total > 100) {
+        const totalPages = Math.ceil(total / 100);
+        const promises = [];
+        for (let page = 2; page <= totalPages; page++) {
+          promises.push(departmentApi.getList({ pageSize: 100, status: 1, page }));
+        }
+        const results = await Promise.all(promises);
+        for (const result of results) {
+          allDepts = allDepts.concat(result.data ?? []);
+        }
+      }
+
+      setDepartments(allDepts);
       // 默认选择第一个科室
-      if (deptList.length > 0 && !selectedDept) {
-        setSelectedDept(deptList[0].id);
+      if (allDepts.length > 0 && !selectedDept) {
+        setSelectedDept(allDepts[0].id);
       }
     } catch (error) {
       console.error('加载科室失败', error);
     }
   };
 
-  // 加载医生列表
+  // 加载医生列表（分页加载所有数据）
   const loadDoctors = async (deptId?: string, autoSelectFirst: boolean = false) => {
     try {
       let doctorList: Doctor[] = [];
       if (deptId) {
+        // 按科室获取（通常不分页）
         const data = await doctorApi.getByDepartment(deptId);
         doctorList = data ?? [];
       } else {
-        const res = await doctorApi.getList({ pageSize: 100 });
-        doctorList = res.data ?? [];
+        // 分页加载所有医生
+        const firstResult = await doctorApi.getList({ pageSize: 100, page: 1 });
+        const total = firstResult.total || 0;
+        doctorList = firstResult.data ?? [];
+
+        if (total > 100) {
+          const totalPages = Math.ceil(total / 100);
+          const promises = [];
+          for (let page = 2; page <= totalPages; page++) {
+            promises.push(doctorApi.getList({ pageSize: 100, page }));
+          }
+          const results = await Promise.all(promises);
+          for (const result of results) {
+            doctorList = doctorList.concat(result.data ?? []);
+          }
+        }
       }
       setDoctors(doctorList);
       // 默认选择第一个医生
@@ -107,20 +175,37 @@ const ScheduleGanttPage: React.FC = () => {
     }
   };
 
-  // 加载排班数据
+  // 加载排班数据（分页加载所有数据）
   const loadSchedules = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = {
+      const baseParams: any = {
         startDate: dateRange[0].format('YYYY-MM-DD'),
         endDate: dateRange[1].format('YYYY-MM-DD'),
         pageSize: 100, // 后端限制最大为 100
       };
-      if (selectedStore) params.storeId = selectedStore;
-      if (selectedDoctorId) params.doctorId = selectedDoctorId;
+      if (selectedStore) baseParams.storeId = selectedStore;
+      if (selectedDoctorId) baseParams.doctorId = selectedDoctorId;
 
-      const result = await scheduleApi.getList(params);
-      setSchedules(result.data || []);
+      // 第一次请求获取总数
+      const firstResult = await scheduleApi.getList({ ...baseParams, page: 1 });
+      const total = firstResult.total || 0;
+      let allSchedules = firstResult.data || [];
+
+      // 如果有更多数据，继续请求
+      if (total > 100) {
+        const totalPages = Math.ceil(total / 100);
+        const promises = [];
+        for (let page = 2; page <= totalPages; page++) {
+          promises.push(scheduleApi.getList({ ...baseParams, page }));
+        }
+        const results = await Promise.all(promises);
+        for (const result of results) {
+          allSchedules = allSchedules.concat(result.data || []);
+        }
+      }
+
+      setSchedules(allSchedules);
     } catch (error) {
       console.error('加载排班失败', error);
     } finally {
@@ -129,6 +214,7 @@ const ScheduleGanttPage: React.FC = () => {
   }, [dateRange, selectedStore, selectedDoctorId]);
 
   useEffect(() => {
+    loadStores();
     loadDepartments();
     loadDoctors();
   }, []);
@@ -149,7 +235,7 @@ const ScheduleGanttPage: React.FC = () => {
   // 转换排班数据为甘特图任务
   const ganttTasks: GanttTask[] = useMemo(() => {
     return schedules.map((schedule) => {
-      const slotConfig = TIME_SLOT_CONFIG[schedule.timeSlot as keyof typeof TIME_SLOT_CONFIG] || TIME_SLOT_CONFIG.morning;
+      const slotConfig = getSlotConfig(schedule.timeSlot);
       const progress = schedule.totalSlots > 0 
         ? Math.round((schedule.bookedSlots / schedule.totalSlots) * 100)
         : 0;
@@ -160,7 +246,7 @@ const ScheduleGanttPage: React.FC = () => {
         doctorName: schedule.doctorName || '未知医生',
         departmentName: schedule.departmentName,
         date: schedule.scheduleDate,
-        timeSlot: schedule.timeSlot as 'morning' | 'afternoon' | 'evening',
+        timeSlot: schedule.timeSlot || 'morning',  // 确保有默认值
         startTime: schedule.startTime || `${slotConfig.startHour.toString().padStart(2, '0')}:00`,
         endTime: schedule.endTime || `${slotConfig.endHour.toString().padStart(2, '0')}:00`,
         totalSlots: schedule.totalSlots,
@@ -233,8 +319,8 @@ const ScheduleGanttPage: React.FC = () => {
 
   // 渲染甘特图任务块
   const renderTaskBlock = (task: GanttTask) => {
-    const slotConfig = TIME_SLOT_CONFIG[task.timeSlot];
-    const statusConfig = STATUS_CONFIG[task.status as keyof typeof STATUS_CONFIG];
+    const slotConfig = getSlotConfig(task.timeSlot);
+    const statusConfig = STATUS_CONFIG[task.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG[1];
     const isSuspended = task.status === 0;
 
     return (
@@ -305,8 +391,7 @@ const ScheduleGanttPage: React.FC = () => {
                 style={{ width: 150 }}
                 value={selectedStore}
                 onChange={setSelectedStore}
-                options={[]}
-                // 门店选项在实际使用中需加载
+                options={stores.map((s) => ({ label: s.name, value: s.id }))}
               />
             )}
             <Select
@@ -349,13 +434,13 @@ const ScheduleGanttPage: React.FC = () => {
         {/* 图例 */}
         <div className="gantt-legend">
           <Space size="large">
-            {Object.entries(TIME_SLOT_CONFIG).map(([key, config]) => (
-              <span key={key} className="legend-item">
+            {LEGEND_CONFIG.map((item) => (
+              <span key={item.key} className="legend-item">
                 <span 
                   className="legend-color" 
-                  style={{ backgroundColor: config.color }} 
+                  style={{ backgroundColor: item.color }} 
                 />
-                {config.label}
+                {item.label}
               </span>
             ))}
             <span className="legend-item">
@@ -424,37 +509,41 @@ const ScheduleGanttPage: React.FC = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
       >
-        {selectedTask && (
-          <Descriptions column={1} bordered size="small">
-            <Descriptions.Item label="医生">{selectedTask.doctorName}</Descriptions.Item>
-            <Descriptions.Item label="科室">{selectedTask.departmentName || '-'}</Descriptions.Item>
-            <Descriptions.Item label="日期">{selectedTask.date}</Descriptions.Item>
-            <Descriptions.Item label="时段">
-              <Tag color={TIME_SLOT_CONFIG[selectedTask.timeSlot].color}>
-                {TIME_SLOT_CONFIG[selectedTask.timeSlot].label}
-              </Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="时间">
-              {selectedTask.startTime} - {selectedTask.endTime}
-            </Descriptions.Item>
-            <Descriptions.Item label="总号源">{selectedTask.totalSlots}</Descriptions.Item>
-            <Descriptions.Item label="已预约">{selectedTask.bookedSlots}</Descriptions.Item>
-            <Descriptions.Item label="剩余">
-              {selectedTask.totalSlots - selectedTask.bookedSlots}
-            </Descriptions.Item>
-            <Descriptions.Item label="预约率">
-              <span style={{ color: selectedTask.progress >= 80 ? '#ff4d4f' : '#52c41a' }}>
-                {selectedTask.progress}%
-              </span>
-            </Descriptions.Item>
-            <Descriptions.Item label="状态">
-              <Badge 
-                status={STATUS_CONFIG[selectedTask.status as keyof typeof STATUS_CONFIG].color as any}
-                text={STATUS_CONFIG[selectedTask.status as keyof typeof STATUS_CONFIG].text}
-              />
-            </Descriptions.Item>
-          </Descriptions>
-        )}
+        {selectedTask && (() => {
+          const taskSlotConfig = getSlotConfig(selectedTask.timeSlot);
+          const taskStatusConfig = STATUS_CONFIG[selectedTask.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG[1];
+          return (
+            <Descriptions column={1} bordered size="small">
+              <Descriptions.Item label="医生">{selectedTask.doctorName}</Descriptions.Item>
+              <Descriptions.Item label="科室">{selectedTask.departmentName || '-'}</Descriptions.Item>
+              <Descriptions.Item label="日期">{selectedTask.date}</Descriptions.Item>
+              <Descriptions.Item label="时段">
+                <Tag color={taskSlotConfig.color}>
+                  {taskSlotConfig.label}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="时间">
+                {selectedTask.startTime} - {selectedTask.endTime}
+              </Descriptions.Item>
+              <Descriptions.Item label="总号源">{selectedTask.totalSlots}</Descriptions.Item>
+              <Descriptions.Item label="已预约">{selectedTask.bookedSlots}</Descriptions.Item>
+              <Descriptions.Item label="剩余">
+                {selectedTask.totalSlots - selectedTask.bookedSlots}
+              </Descriptions.Item>
+              <Descriptions.Item label="预约率">
+                <span style={{ color: selectedTask.progress >= 80 ? '#ff4d4f' : '#52c41a' }}>
+                  {selectedTask.progress}%
+                </span>
+              </Descriptions.Item>
+              <Descriptions.Item label="状态">
+                <Badge 
+                  status={taskStatusConfig.color as any}
+                  text={taskStatusConfig.text}
+                />
+              </Descriptions.Item>
+            </Descriptions>
+          );
+        })()}
       </Drawer>
     </PageContainer>
   );

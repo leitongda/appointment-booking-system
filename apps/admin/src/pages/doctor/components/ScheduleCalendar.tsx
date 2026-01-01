@@ -14,10 +14,24 @@ interface DaySchedules {
   [date: string]: Schedule[];
 }
 
+// 时段标签映射 - 支持两种格式
 const TIME_SLOT_LABELS: Record<string, string> = {
   morning: '上午',
   afternoon: '下午',
   evening: '晚上',
+  AM: '上午',
+  PM: '下午',
+  NIGHT: '晚上',
+};
+
+// 时段排序权重 - 支持两种格式
+const TIME_SLOT_SORT_ORDER: Record<string, number> = {
+  morning: 0,
+  AM: 0,
+  afternoon: 1,
+  PM: 1,
+  evening: 2,
+  NIGHT: 2,
 };
 
 const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ doctorId, onDateClick }) => {
@@ -33,21 +47,39 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ doctorId, onDateCli
       const startDate = month.startOf('month').format('YYYY-MM-DD');
       const endDate = month.endOf('month').format('YYYY-MM-DD');
       
-      const result = await scheduleApi.getList({
+      const baseParams = {
         doctorId,
         startDate,
         endDate,
         pageSize: 100,
-      });
+      };
+      
+      // 第一次请求获取总数
+      const firstResult = await scheduleApi.getList({ ...baseParams, page: 1 });
+      const total = firstResult.total || 0;
+      let allSchedules = firstResult.data || [];
+
+      // 如果有更多数据，继续请求
+      if (total > 100) {
+        const totalPages = Math.ceil(total / 100);
+        const promises = [];
+        for (let page = 2; page <= totalPages; page++) {
+          promises.push(scheduleApi.getList({ ...baseParams, page }));
+        }
+        const results = await Promise.all(promises);
+        for (const result of results) {
+          allSchedules = allSchedules.concat(result.data || []);
+        }
+      }
       
       // 按日期分组
       const grouped: DaySchedules = {};
-      (result.data ?? []).forEach((schedule) => {
-        const date = schedule.scheduleDate;
-        if (!grouped[date]) {
-          grouped[date] = [];
+      allSchedules.forEach((schedule) => {
+        const scheduleDate = schedule.scheduleDate;
+        if (!grouped[scheduleDate]) {
+          grouped[scheduleDate] = [];
         }
-        grouped[date].push(schedule);
+        grouped[scheduleDate].push(schedule);
       });
       
       setScheduleData(grouped);
@@ -104,10 +136,9 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ doctorId, onDateCli
       return null;
     }
 
-    // 按时段排序
-    const sortOrder = { morning: 0, afternoon: 1, evening: 2 };
+    // 按时段排序（支持两种格式）
     const sortedSchedules = [...schedules].sort(
-      (a, b) => (sortOrder[a.timeSlot as keyof typeof sortOrder] ?? 3) - (sortOrder[b.timeSlot as keyof typeof sortOrder] ?? 3)
+      (a, b) => (TIME_SLOT_SORT_ORDER[a.timeSlot] ?? 3) - (TIME_SLOT_SORT_ORDER[b.timeSlot] ?? 3)
     );
 
     return (
