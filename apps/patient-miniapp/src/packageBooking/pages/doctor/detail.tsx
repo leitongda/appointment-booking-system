@@ -2,7 +2,7 @@ import { View, Text, Image, ScrollView, RichText } from '@tarojs/components';
 import Taro, { useRouter, usePullDownRefresh } from '@tarojs/taro';
 import { Button } from '@nutui/nutui-react-taro';
 import { useState, useEffect, useMemo } from 'react';
-import { doctorApi, scheduleApi, favoriteApi } from '@hospital/api';
+import { doctorApi, scheduleApi, favoriteApi, settingsApi } from '@hospital/api';
 import type { Doctor, AvailableSchedule } from '@hospital/shared';
 import { DoctorIcon, HeartIcon, HeartOutlineIcon } from '../../../components/Icons';
 import { getToken } from '../../../utils/auth';
@@ -19,6 +19,7 @@ const DoctorDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [schedules, setSchedules] = useState<AvailableSchedule[]>([]);
+  const [advanceDays, setAdvanceDays] = useState<number>(10); // 可提前预约天数
   const [selectedDate, setSelectedDate] = useState<string>('');
   
   // 时段选择状态（单选）
@@ -27,8 +28,6 @@ const DoctorDetailPage = () => {
   const [showSlotPicker, setShowSlotPicker] = useState(false);
   // 选中的具体班次
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
-  // 确认弹窗状态
-  const [showConfirmPopup, setShowConfirmPopup] = useState(false);
   
   // 收藏相关状态
   const [isFavorited, setIsFavorited] = useState(false);
@@ -55,11 +54,17 @@ const DoctorDetailPage = () => {
 
   const loadData = async () => {
     try {
-      const [doctorData, scheduleData] = await Promise.all([
-        doctorApi.getDetail(id!),
-        scheduleApi.getAvailable(id!, 14),
-      ]);
+      // 先获取医生信息，以便获取门店ID
+      const doctorData = await doctorApi.getDetail(id!);
       setDoctor(doctorData);
+      
+      // 获取预约规则配置（使用医生所属门店的配置）
+      const bookingRules = await settingsApi.getBookingRules(doctorData.storeId).catch(() => ({ advanceDays: 10 }));
+      const days = bookingRules.advanceDays || 10;
+      setAdvanceDays(days);
+      
+      // 使用配置的预约天数获取可用排班
+      const scheduleData = await scheduleApi.getAvailable(id!, days);
       setSchedules(scheduleData);
       
       // 默认选中第一个日期
@@ -180,12 +185,6 @@ const DoctorDetailPage = () => {
       : timeSlotSummary.afternoon.schedules;
   }, [selectedSlot, timeSlotSummary]);
 
-  // 获取选中的具体班次（用于跳转）
-  const selectedSchedule = useMemo(() => {
-    if (!selectedScheduleId) return null;
-    return schedules.find(s => s.id === selectedScheduleId) || null;
-  }, [selectedScheduleId, schedules]);
-
   const handleDateSelect = (date: string) => {
     setSelectedDate(date);
     // 切换日期时重置时段选择和班次选择
@@ -207,10 +206,10 @@ const DoctorDetailPage = () => {
     setSelectedSlot(slot);
     setSelectedScheduleId(null);
     
-    // 如果只有一个班次，直接选中并弹出确认框
+    // 如果只有一个班次，直接选中并跳转
     if (summary.schedules.length === 1) {
-      setSelectedScheduleId(summary.schedules[0].id);
-      setShowConfirmPopup(true);
+      const schedule = summary.schedules[0];
+      navigateToBooking(schedule);
     } else {
       // 多个班次，弹出班次选择 Picker
       setShowSlotPicker(true);
@@ -227,46 +226,42 @@ const DoctorDetailPage = () => {
     setSelectedScheduleId(scheduleId);
   };
 
+  // 跳转到预约确认页
+  const navigateToBooking = (schedule: AvailableSchedule) => {
+    // 构建 URL 参数，包含具体班次时间
+    const params = new URLSearchParams({
+      doctorId: id!,
+      scheduleId: schedule.id,
+      date: schedule.scheduleDate,
+      timeSlot: schedule.timeSlot,
+    });
+    if (schedule.startTime) {
+      params.set('startTime', formatTime(schedule.startTime));
+    }
+    if (schedule.endTime) {
+      params.set('endTime', formatTime(schedule.endTime));
+    }
+    
+    Taro.navigateTo({
+      url: `/packageBooking/pages/booking/index?${params.toString()}`,
+    });
+  };
+
   // 班次选择后点击下一步
   const handleSlotPickerNext = () => {
     if (!selectedScheduleId) {
       Taro.showToast({ title: '请选择就诊班次', icon: 'none' });
       return;
     }
-    setShowSlotPicker(false);
-    setShowConfirmPopup(true);
-  };
-
-  // 关闭确认弹窗
-  const handleCloseConfirmPopup = () => {
-    setShowConfirmPopup(false);
-  };
-
-  // 点击下一步 - 跳转到预约确认页
-  const handleNextStep = () => {
-    if (!selectedSchedule) {
-      Taro.showToast({ title: '请选择就诊时段', icon: 'none' });
+    
+    const schedule = schedules.find(s => s.id === selectedScheduleId);
+    if (!schedule) {
+      Taro.showToast({ title: '班次信息错误', icon: 'none' });
       return;
     }
     
-    setShowConfirmPopup(false);
-    // 构建 URL 参数，包含具体班次时间
-    const params = new URLSearchParams({
-      doctorId: id!,
-      scheduleId: selectedSchedule.id,
-      date: selectedSchedule.scheduleDate,
-      timeSlot: selectedSchedule.timeSlot,
-    });
-    if (selectedSchedule.startTime) {
-      params.set('startTime', formatTime(selectedSchedule.startTime));
-    }
-    if (selectedSchedule.endTime) {
-      params.set('endTime', formatTime(selectedSchedule.endTime));
-    }
-    
-    Taro.navigateTo({
-      url: `/packageBooking/pages/booking/index?${params.toString()}`,
-    });
+    setShowSlotPicker(false);
+    navigateToBooking(schedule);
   };
 
   if (loading) {
@@ -416,6 +411,26 @@ const DoctorDetailPage = () => {
               </Text>
             </View>
             
+            {/* 医生信息 */}
+            <View className="slot-picker-doctor">
+              <View className="slot-picker-doctor-avatar">
+                {doctor?.avatar ? (
+                  <Image src={getImageUrl(doctor.avatar)} mode="aspectFill" />
+                ) : (
+                  <DoctorIcon size={32} color="#4F46E5" />
+                )}
+              </View>
+              <View className="slot-picker-doctor-info">
+                <View className="slot-picker-doctor-name-row">
+                  <Text className="slot-picker-doctor-name">{doctor?.name}</Text>
+                  {doctor?.title && <Text className="slot-picker-doctor-title">{doctor.title}</Text>}
+                </View>
+                {doctor?.departmentName && (
+                  <Text className="slot-picker-doctor-dept">{doctor.departmentName}</Text>
+                )}
+              </View>
+            </View>
+            
             {/* 班次列表 - 一行3个 */}
             <View className="slot-picker-list">
               {selectedSlotSchedules.map(schedule => {
@@ -428,9 +443,9 @@ const DoctorDetailPage = () => {
                     className={`slot-picker-item ${isSelected ? 'selected' : ''} ${isFull ? 'disabled' : ''}`}
                     onClick={() => !isFull && handleSelectSchedule(schedule.id)}
                   >
-                    <Text className="slot-time-start">{formatTime(schedule.startTime) || '--:--'}</Text>
-                    <Text className="slot-time-separator">-</Text>
-                    <Text className="slot-time-end">{formatTime(schedule.endTime) || '--:--'}</Text>
+                    <Text className="slot-time">
+                      {formatTime(schedule.startTime) || '--:--'}~{formatTime(schedule.endTime) || '--:--'}
+                    </Text>
                     {isSelected && <Text className="slot-check">✓</Text>}
                     <Text className="slot-remain">
                       {isFull ? '约满' : `余${schedule.availableSlots}`}
@@ -451,69 +466,6 @@ const DoctorDetailPage = () => {
                 下一步
               </Button>
               <Text className="slot-picker-cancel-btn" onClick={handleCloseSlotPicker}>
-                取消
-              </Text>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {/* 预约确认弹窗 */}
-      {showConfirmPopup && (
-        <View className="confirm-popup-mask" onClick={handleCloseConfirmPopup}>
-          <View className="confirm-popup-sheet" onClick={(e) => e.stopPropagation()}>
-            {/* 顶部指示条 */}
-            <View className="confirm-indicator" />
-            
-            {/* 头部 */}
-            <View className="confirm-header">
-              <Text className="confirm-title">预约信息确认</Text>
-            </View>
-            
-            {/* 内容 */}
-            <View className="confirm-content">
-              {/* 医生信息 */}
-              <View className="confirm-doctor-row">
-                <View className="confirm-doctor-avatar">
-                  {doctor.avatar ? (
-                    <Image src={getImageUrl(doctor.avatar)} mode="aspectFill" />
-                  ) : (
-                    <DoctorIcon size={36} color="#4F46E5" />
-                  )}
-                </View>
-                <View className="confirm-doctor-info">
-                  <View className="confirm-doctor-name-row">
-                    <Text className="confirm-doctor-name">{doctor.name}</Text>
-                    {doctor.title && <Text className="confirm-doctor-title">{doctor.title}</Text>}
-                  </View>
-                  <Text className="confirm-doctor-dept">{doctor.departmentName}</Text>
-                </View>
-              </View>
-              
-              {/* 预约信息 */}
-              <View className="confirm-info-list">
-                <View className="confirm-info-row">
-                  <Text className="confirm-info-label">就诊时间</Text>
-                  <Text className="confirm-info-value highlight">
-                    {selectedDate} {selectedDateInfo?.weekday} {selectedSlot === 'AM' ? '上午' : '下午'}
-                    {selectedSchedule?.startTime && selectedSchedule?.endTime && (
-                      <Text> ({formatTime(selectedSchedule.startTime)}-{formatTime(selectedSchedule.endTime)})</Text>
-                    )}
-                  </Text>
-                </View>
-              </View>
-            </View>
-            
-            {/* 底部按钮 */}
-            <View className="confirm-footer">
-              <Button 
-                type="primary" 
-                className="confirm-next-btn"
-                onClick={handleNextStep}
-              >
-                下一步
-              </Button>
-              <Text className="confirm-cancel-btn" onClick={handleCloseConfirmPopup}>
                 取消
               </Text>
             </View>

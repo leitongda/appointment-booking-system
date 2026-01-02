@@ -20,6 +20,45 @@ import type { StoreWechatConfig, Store } from '@hospital/shared';
 
 const { Text } = Typography;
 
+// 预约设置默认值（与后端 DEFAULT_SETTINGS 保持一致）
+const DEFAULT_BOOKING_SETTINGS: BookingSettings = {
+  advanceDays: 10,
+  sameDayBooking: true,
+  cancelHours: 2,
+  perDayLimit: 3,
+  perDoctorLimit: 1,
+  noShowLimit: 3,
+  blacklistDays: 30,
+};
+
+// 就诊卡配置默认值
+const DEFAULT_PATIENT_CARD_CONFIG: PatientCardConfig = {
+  cardName: '就诊卡',
+  cardDescription: '',
+  maxCardsPerUser: 5,
+  showOnHomepage: false,
+};
+
+// 邮件配置默认值
+const DEFAULT_EMAIL_CONFIG: EmailConfig = {
+  smtpHost: '',
+  smtpPort: 465,
+  smtpUser: '',
+  smtpPassword: '',
+  smtpSsl: true,
+  senderName: '',
+  senderEmail: '',
+};
+
+// 图片配置默认值
+const DEFAULT_IMAGE_CONFIG: ImageConfig = {
+  thumbnailSizes: [
+    { name: 'small', width: 200, height: 200 },
+    { name: 'medium', width: 800, height: 800 },
+  ],
+  compressQuality: 85,
+};
+
 const SettingsPage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
@@ -334,8 +373,9 @@ const SettingsPage: React.FC = () => {
       label: '预约设置',
       children: (
         <ProForm
+          key={loading ? 'booking-loading' : 'booking-loaded'}
           onFinish={handleBookingSubmit}
-          initialValues={bookingSettings || {}}
+          initialValues={{ ...DEFAULT_BOOKING_SETTINGS, ...bookingSettings }}
           submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
         >
           <ProFormDigit name="advanceDays" label="提前预约天数" min={1} max={30} fieldProps={{ addonAfter: '天' }} />
@@ -353,6 +393,7 @@ const SettingsPage: React.FC = () => {
       label: '医院信息',
       children: (
         <ProForm
+          key={loading ? 'hospital-loading' : 'hospital-loaded'}
           onFinish={handleHospitalSubmit}
           initialValues={hospitalInfo || {}}
           submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
@@ -385,8 +426,9 @@ const SettingsPage: React.FC = () => {
       label: '建卡名称配置',
       children: (
         <ProForm
+          key={loading ? 'patientCard-loading' : 'patientCard-loaded'}
           onFinish={handlePatientCardSubmit}
-          initialValues={patientCardConfig || {}}
+          initialValues={{ ...DEFAULT_PATIENT_CARD_CONFIG, ...patientCardConfig }}
           submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
         >
           <ProFormText
@@ -463,8 +505,9 @@ const SettingsPage: React.FC = () => {
       label: '邮件配置',
       children: (
         <ProForm
+          key={loading ? 'email-loading' : 'email-loaded'}
           onFinish={handleEmailConfigSubmit}
-          initialValues={emailConfig || {}}
+          initialValues={{ ...DEFAULT_EMAIL_CONFIG, ...emailConfig }}
           submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
         >
           <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
@@ -618,8 +661,9 @@ const SettingsPage: React.FC = () => {
       label: '图片处理配置',
       children: (
         <ProForm
+          key={loading ? 'image-loading' : 'image-loaded'}
           onFinish={handleImageConfigSubmit}
-          initialValues={imageConfig || { thumbnailSizes: [], compressQuality: 85 }}
+          initialValues={{ ...DEFAULT_IMAGE_CONFIG, ...imageConfig }}
           submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
         >
           <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>

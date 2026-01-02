@@ -213,9 +213,18 @@ class ScheduleTemplateService:
                 break_times_list = []
                 for bt in update_data['break_times']:
                     if hasattr(bt, 'start_time'):
+                        # bt 是 BreakTime 对象
                         bt_dict = {
                             "startTime": bt.start_time.strftime("%H:%M") if hasattr(bt.start_time, 'strftime') else str(bt.start_time),
                             "endTime": bt.end_time.strftime("%H:%M") if hasattr(bt.end_time, 'strftime') else str(bt.end_time)
+                        }
+                    elif isinstance(bt, dict):
+                        # bt 是字典（从 model_dump 返回），需要处理其中可能的 time 对象
+                        start_time = bt.get('start_time') or bt.get('startTime')
+                        end_time = bt.get('end_time') or bt.get('endTime')
+                        bt_dict = {
+                            "startTime": start_time.strftime("%H:%M") if hasattr(start_time, 'strftime') else str(start_time),
+                            "endTime": end_time.strftime("%H:%M") if hasattr(end_time, 'strftime') else str(end_time)
                         }
                     else:
                         bt_dict = bt

@@ -11,6 +11,7 @@ from app.models.user import Patient
 from app.models.doctor import Doctor
 from app.schemas.appointment import AppointmentCreate, AppointmentStatistics
 from app.utils.audit import set_create_audit, set_update_audit
+from app.services.settings_service import SettingsService
 
 # 预约状态 - 与前端共享常量保持一致
 APPOINTMENT_STATUS = {
@@ -208,6 +209,24 @@ class AppointmentService:
             raise ValueError("该排班已停诊")
         if schedule.booked_slots >= schedule.total_slots:
             raise ValueError("号源已满")
+        
+        # 获取门店配置
+        settings_service = SettingsService(self.db)
+        store_id = schedule.store_id
+        
+        # 验证1：预约日期范围
+        advance_days = await settings_service.get_value('booking', 'advance_days', 10, store_id=store_id)
+        max_date = date.today() + timedelta(days=advance_days)
+        if schedule.schedule_date > max_date:
+            raise ValueError(f"预约日期不能超过{advance_days}天")
+        
+        # 验证2：同用户同门店单日预约次数限制
+        per_day_limit = await settings_service.get_value('booking', 'per_day_limit', 3, store_id=store_id)
+        today_count = await self._count_user_store_daily_appointments(
+            user_id, store_id, schedule.schedule_date
+        )
+        if today_count >= per_day_limit:
+            raise ValueError(f"当日预约已达上限（最多{per_day_limit}次）")
         
         # 验证就诊人
         patient_result = await self.db.execute(
@@ -628,3 +647,43 @@ class AppointmentService:
             )
         )
         return list(result.scalars().all())
+
+    async def _count_user_store_daily_appointments(
+        self,
+        user_id: str,
+        store_id: Optional[str],
+        schedule_date: date
+    ) -> int:
+        """统计用户在指定门店指定日期的有效预约数
+        
+        Args:
+            user_id: 用户ID
+            store_id: 门店ID
+            schedule_date: 预约日期
+            
+        Returns:
+            有效预约数量（已预约/已签到/候诊中/就诊中）
+        """
+        query = (
+            select(func.count(Appointment.id))
+            .join(Schedule)
+            .where(
+                and_(
+                    Appointment.user_id == user_id,
+                    Schedule.schedule_date == schedule_date,
+                    Appointment.status.in_([
+                        APPOINTMENT_STATUS['CONFIRMED'],
+                        APPOINTMENT_STATUS['SIGNED'],
+                        APPOINTMENT_STATUS['WAITING'],
+                        APPOINTMENT_STATUS['SEEING']
+                    ])
+                )
+            )
+        )
+        
+        # 如果指定了门店，则增加门店过滤条件
+        if store_id:
+            query = query.where(Schedule.store_id == store_id)
+        
+        result = await self.db.execute(query)
+        return result.scalar() or 0

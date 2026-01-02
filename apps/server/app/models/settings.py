@@ -37,7 +37,7 @@ class SystemSetting(Base, AuditMixin):
 DEFAULT_SETTINGS = {
     # 预约设置
     'booking': {
-        'advance_days': {'value': '14', 'description': '可提前预约天数'},
+        'advance_days': {'value': '10', 'description': '可提前预约天数'},
         'same_day_booking': {'value': 'true', 'description': '允许当天预约'},
         'cancel_hours': {'value': '2', 'description': '就诊前不可取消时间(小时)'},
         'per_day_limit': {'value': '3', 'description': '每人每天预约限制'},

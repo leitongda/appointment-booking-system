@@ -282,11 +282,15 @@ class SettingsService:
         
         return await self.get_by_category(category)
 
-    async def get_booking_settings(self) -> Dict[str, Any]:
-        """获取预约设置"""
-        data = await self.get_by_category('booking')
+    async def get_booking_settings(self, store_id: Optional[str] = None) -> Dict[str, Any]:
+        """获取预约设置
+        
+        Args:
+            store_id: 门店ID，如果提供则优先返回门店配置
+        """
+        data = await self.get_by_category('booking', store_id=store_id)
         return {
-            'advanceDays': data.get('advance_days', 14),
+            'advanceDays': data.get('advance_days', 10),
             'sameDayBooking': data.get('same_day_booking', True),
             'cancelHours': data.get('cancel_hours', 2),
             'perDayLimit': data.get('per_day_limit', 3),

@@ -431,6 +431,62 @@
   }
 }
 
+// 医生信息区域
+.slot-picker-doctor {
+  display: flex;
+  align-items: center;
+  padding: @spacing-4;
+  margin-top: @spacing-4;
+  background: @color-bg-secondary;
+  border-radius: @radius-lg;
+}
+
+.slot-picker-doctor-avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: @radius-xl;
+  background: linear-gradient(135deg, #E0E7FF 0%, #EDE9FE 100%);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  
+  image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.slot-picker-doctor-info {
+  flex: 1;
+  margin-left: @spacing-3;
+}
+
+.slot-picker-doctor-name-row {
+  display: flex;
+  align-items: center;
+  gap: @spacing-2;
+  margin-bottom: 4rpx;
+}
+
+.slot-picker-doctor-name {
+  font-size: @font-size-lg;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
+}
+
+.slot-picker-doctor-title {
+  .badge-primary();
+  font-size: @font-size-xs;
+}
+
+.slot-picker-doctor-dept {
+  font-size: @font-size-sm;
+  color: @color-text-secondary;
+}
+
 // 班次列表 - 一行3个
 .slot-picker-list {
   display: flex;
@@ -451,7 +507,7 @@
   border-radius: @radius-lg;
   position: relative;
   transition: all @transition-base;
-  min-height: 140rpx;
+  min-height: 120rpx;
   
   &:active {
     transform: scale(0.96);
@@ -463,9 +519,7 @@
     border-width: 3rpx;
     background: var(--badge-bg, rgba(196, 30, 58, 0.04));
     
-    .slot-time-start,
-    .slot-time-separator,
-    .slot-time-end {
+    .slot-time {
       color: var(--color-primary, @theme-primary);
     }
     
@@ -479,9 +533,7 @@
     background: @color-bg-secondary;
     border-color: transparent;
     
-    .slot-time-start,
-    .slot-time-separator,
-    .slot-time-end,
+    .slot-time,
     .slot-remain {
       color: @color-text-muted;
     }
@@ -492,23 +544,17 @@
   }
 }
 
-.slot-time-start,
-.slot-time-end {
-  font-size: @font-size-base;
+.slot-time {
+  font-size: @font-size-sm;
   font-weight: @font-weight-semibold;
   color: @color-text-primary;
-  line-height: 1.2;
-}
-
-.slot-time-separator {
-  font-size: @font-size-sm;
-  color: @color-text-secondary;
-  margin: 2rpx 0;
+  text-align: center;
+  line-height: 1.3;
 }
 
 .slot-check {
   position: absolute;
-  top: 8rpx;
+  top: 6rpx;
   right: 8rpx;
   font-size: @font-size-xs;
   color: var(--color-primary, @theme-primary);

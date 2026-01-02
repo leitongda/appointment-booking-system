@@ -115,8 +115,13 @@ export const settingsApi = {
   },
 
   // 公开接口：获取预约规则
-  getBookingRules: (): Promise<BookingRules> => {
-    return request.get(`${PREFIX}/booking/rules`);
+  /**
+   * 获取预约规则
+   * @param storeId 门店ID，不传则获取全局配置
+   */
+  getBookingRules: (storeId?: string): Promise<BookingRules> => {
+    const params = storeId ? { storeId } : {};
+    return request.get(`${PREFIX}/booking/rules`, { params });
   },
 
   // ========== 医院信息 ==========

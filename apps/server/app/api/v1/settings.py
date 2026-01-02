@@ -267,15 +267,20 @@ async def update_email_config(
 # ========== 公开接口：获取预约规则 ==========
 @router.get("/booking/rules")
 async def get_booking_rules(
+    storeId: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ):
-    """获取预约规则（公开接口，用于患者端）"""
+    """获取预约规则（公开接口，用于患者端）
+    
+    Args:
+        storeId: 门店ID，如果提供则返回门店级别配置，否则返回全局配置
+    """
     service = SettingsService(db)
-    settings = await service.get_booking_settings()
+    settings = await service.get_booking_settings(store_id=storeId)
     
     # 只返回患者需要知道的规则
     return {
-        'advanceDays': settings.get('advanceDays', 14),
+        'advanceDays': settings.get('advanceDays', 10),
         'sameDayBooking': settings.get('sameDayBooking', True),
         'cancelHours': settings.get('cancelHours', 2),
         'perDayLimit': settings.get('perDayLimit', 3),
