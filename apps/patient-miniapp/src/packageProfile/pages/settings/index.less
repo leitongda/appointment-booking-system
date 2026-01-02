@@ -1,52 +1,61 @@
+// ===========================================
+// 设置页样式 - Corporate Trust Design System
+// ===========================================
+
+@import '../../../styles/variables.less';
+@import '../../../styles/mixins.less';
+
 .settings-page {
-  min-height: 100vh;
-  background: #f5f5f5;
-  padding-bottom: 100px;
+  .page-container();
+  padding-bottom: 120rpx;
 
   .section {
-    margin-bottom: 24px;
+    margin-bottom: @spacing-3;
 
     .section-title {
-      font-size: 26px;
-      color: #6B7280;
-      padding: 24px 32px 12px;
+      font-size: @font-size-xs;
+      color: @color-text-muted;
+      padding: @spacing-3 @page-padding @spacing-2;
       display: block;
+      text-transform: uppercase;
+      letter-spacing: 1rpx;
     }
 
     .cell-group {
-      background: #fff;
+      background: @color-bg-white;
 
       .nut-cell {
-        padding: 32px;
+        padding: @spacing-4 @page-padding;
 
         &::after {
-          left: 32px;
-          right: 32px;
+          left: @page-padding;
+          right: @page-padding;
         }
 
         .nut-cell__title {
-          font-size: 28px;
-          color: #1f2937;
+          font-size: @font-size-base;
+          color: @color-text-primary;
         }
 
         .nut-cell__desc {
-          font-size: 24px;
-          color: #9CA3AF;
+          font-size: @font-size-xs;
+          color: @color-text-placeholder;
         }
       }
     }
   }
 
   .logout-section {
-    padding: 48px 32px;
+    padding: @spacing-8 @page-padding;
 
     .logout-btn {
-      height: 88px;
-      background: #fff;
-      border: 1px solid #EF4444;
-      color: #EF4444;
-      font-size: 30px;
-      border-radius: 44px;
+      height: @button-height-lg;
+      background: @color-bg-white;
+      border: @border-width solid @color-danger;
+      color: @color-danger;
+      font-size: @font-size-base;
+      font-weight: @font-weight-medium;
+      border-radius: @radius-full;
 
       &:active {
         background: #FEF2F2;
@@ -56,34 +65,34 @@
 }
 
 .dialog-content {
-  padding: 24px 0;
+  padding: @spacing-3 0;
 
   .input-item {
-    margin-bottom: 24px;
+    margin-bottom: @spacing-3;
 
     .label {
       display: block;
-      font-size: 26px;
-      color: #6B7280;
-      margin-bottom: 12px;
+      font-size: @font-size-xs;
+      color: @color-text-muted;
+      margin-bottom: @spacing-2;
     }
 
     .nut-input {
-      background: #f5f5f5;
-      border-radius: 8px;
-      padding: 20px 24px;
+      background: @color-bg-secondary;
+      border-radius: @radius-md;
+      padding: @spacing-3;
 
       .nut-input__input {
-        font-size: 28px;
+        font-size: @font-size-base;
       }
     }
   }
 
   .nut-button {
-    margin-top: 16px;
-    height: 80px;
-    font-size: 28px;
-    border-radius: 40px;
+    margin-top: @spacing-3;
+    height: @button-height-lg;
+    font-size: @font-size-base;
+    border-radius: @radius-full;
   }
 }
 
@@ -94,17 +103,17 @@
 .settings-page.font-mode-elder {
   .section {
     .section-title {
-      font-size: 31px;
+      font-size: @font-size-xs-elder;
     }
 
     .cell-group {
       .nut-cell {
         .nut-cell__title {
-          font-size: 34px;
+          font-size: @font-size-base-elder;
         }
 
         .nut-cell__desc {
-          font-size: 29px;
+          font-size: @font-size-xs-elder;
         }
       }
     }
@@ -112,7 +121,7 @@
 
   .logout-section {
     .logout-btn {
-      font-size: 36px;
+      font-size: @font-size-base-elder;
     }
   }
 }
@@ -120,17 +129,17 @@
 .font-mode-elder .dialog-content {
   .input-item {
     .label {
-      font-size: 31px;
+      font-size: @font-size-xs-elder;
     }
 
     .nut-input {
       .nut-input__input {
-        font-size: 34px;
+        font-size: @font-size-base-elder;
       }
     }
   }
 
   .nut-button {
-    font-size: 34px;
+    font-size: @font-size-base-elder;
   }
 }

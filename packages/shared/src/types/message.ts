@@ -1,4 +1,4 @@
-export type MessageType = 'appointment' | 'consultation' | 'schedule' | 'system' | 'stop_clinic';
+export type MessageType = 'appointment' | 'consultation' | 'schedule' | 'system' | 'stop_clinic' | 'feedback';
 
 export interface Message {
   id: string;
@@ -20,6 +20,7 @@ export interface UnreadCount {
   schedule: number;
   system: number;
   stopClinic: number;
+  feedback: number;
 }
 
 export interface MessageTemplate {

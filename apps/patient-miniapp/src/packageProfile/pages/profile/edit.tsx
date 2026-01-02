@@ -138,26 +138,25 @@ const ProfileEditPage = () => {
 
   // 昵称输入
   const handleNicknameInput = (e: any) => {
-    setNickname(e.detail.value);
+    const value = e.detail.value;
+    setNickname(value);
   };
 
-  // 昵称获取（微信昵称 - 从 input type="nickname" 获取）
+  // 昵称失焦（微信昵称选择后会触发此事件）
   const handleNicknameBlur = (e: any) => {
     const value = e.detail.value;
-    if (value) {
+    if (value && value !== nickname) {
+      console.log('昵称更新:', value);
       setNickname(value);
     }
   };
 
-  // 点击使用微信昵称按钮
-  const handleUseWechatNickname = () => {
-    // 聚焦到昵称输入框，触发微信昵称选择
-    // 微信会自动在键盘上方显示"使用微信昵称"选项
-    Taro.showToast({
-      title: '请在键盘上方选择"使用微信昵称"',
-      icon: 'none',
-      duration: 2000,
-    });
+  // 昵称审核完成回调（微信 type="nickname" 专用）
+  const handleNickNameReview = (e: any) => {
+    console.log('昵称审核结果:', e.detail);
+    // e.detail = { pass: boolean, timeout: boolean }
+    // pass: 是否通过审核
+    // timeout: 是否超时
   };
 
   // 性别选择
@@ -254,20 +253,15 @@ const ProfileEditPage = () => {
             <TaroInput
               type="nickname"
               className="form-input nickname-input"
-              placeholder="请输入昵称或点击右侧获取"
+              placeholder="点击输入或使用微信昵称"
               value={nickname}
               onInput={handleNicknameInput}
               onBlur={handleNicknameBlur}
+              // @ts-ignore - onNickNameReview 是微信小程序专属事件
+              onNickNameReview={handleNickNameReview}
             />
-            <TaroButton
-              className="wechat-nickname-btn"
-              size="mini"
-              onClick={handleUseWechatNickname}
-            >
-              微信昵称
-            </TaroButton>
           </View>
-          <Text className="form-hint">点击输入框后，可在键盘上方选择"使用微信昵称"</Text>
+          <Text className="form-hint">真机上点击输入框，键盘上方会显示"使用微信昵称"选项</Text>
         </View>
 
         {/* 性别 */}

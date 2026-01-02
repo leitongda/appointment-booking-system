@@ -120,7 +120,7 @@ class MessageService:
         
         # 各类型未读数
         type_counts = {}
-        for msg_type in ['appointment', 'consultation', 'schedule', 'system', 'stop_clinic']:
+        for msg_type in ['appointment', 'consultation', 'schedule', 'system', 'stop_clinic', 'feedback']:
             result = await self.db.execute(
                 select(func.count(Message.id)).where(
                     and_(
@@ -139,7 +139,8 @@ class MessageService:
             consultation=type_counts.get('consultation', 0),
             schedule=type_counts.get('schedule', 0),
             system=type_counts.get('system', 0),
-            stop_clinic=type_counts.get('stop_clinic', 0)
+            stop_clinic=type_counts.get('stop_clinic', 0),
+            feedback=type_counts.get('feedback', 0)
         )
     
     async def create(self, data: MessageCreate, store_id: Optional[str] = None, operator_id: Optional[str] = None) -> Message:

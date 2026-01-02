@@ -6,6 +6,7 @@ import uuid
 import json
 
 from app.models.feedback import Feedback, FeedbackStatus
+from app.models.message import Message, MessageType
 from app.schemas.feedback import FeedbackCreate, FeedbackReply, FeedbackQuery
 from app.utils.audit import set_create_audit, set_update_audit
 
@@ -99,6 +100,19 @@ class FeedbackService:
         feedback.handler_id = handler_id
         feedback.handled_at = datetime.utcnow()
         set_update_audit(feedback, handler_id)
+        
+        # 创建消息通知给用户
+        message = Message(
+            id=str(uuid.uuid4()),
+            user_id=feedback.user_id,
+            user_type=feedback.user_type or "patient",
+            title="您的反馈已收到回复",
+            content=f"您提交的反馈「{feedback.title}」已收到回复：{data.reply[:100]}{'...' if len(data.reply) > 100 else ''}",
+            message_type=MessageType.FEEDBACK.value,
+            related_id=feedback_id,
+        )
+        set_create_audit(message, handler_id)
+        self.db.add(message)
         
         await self.db.commit()
         await self.db.refresh(feedback)

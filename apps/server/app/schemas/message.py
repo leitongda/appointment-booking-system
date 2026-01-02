@@ -120,6 +120,7 @@ class UnreadCountResponse(BaseModel):
     schedule: int = 0
     system: int = 0
     stop_clinic: int = 0
+    feedback: int = 0
 
 
 # 消息模板

@@ -539,7 +539,6 @@ const ProfilePage = () => {
                   </View>
                   <View className="menu-content">
                     <Text className="menu-title">{item.title}</Text>
-                    <Text className="menu-desc">{item.desc}</Text>
                   </View>
                   {item.badge && <Text className="menu-badge">{item.badge}</Text>}
                   <Text className="menu-arrow">›</Text>

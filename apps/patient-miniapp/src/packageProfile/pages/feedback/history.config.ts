@@ -1,0 +1,6 @@
+export default definePageConfig({
+  navigationBarTitleText: '我的反馈',
+  enablePullDownRefresh: true,
+  backgroundColor: '#F5F5F5',
+});
+

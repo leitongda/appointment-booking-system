@@ -4,7 +4,7 @@ import { Empty, Tabs, Button } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 import { messageApi, userApi } from '@hospital/api';
 import type { Message, MessageType } from '@hospital/shared';
-import { BellIcon, CalendarIcon, InfoIcon, ClockIcon, CloseCircleIcon } from '../../../components/Icons';
+import { BellIcon, CalendarIcon, InfoIcon, ClockIcon, CloseCircleIcon, ChatIcon } from '../../../components/Icons';
 import { getToken } from '../../../utils/auth';
 import LoginPopup from '../../../components/LoginPopup';
 import './index.less';
@@ -16,6 +16,7 @@ const iconMap: Record<MessageType | string, React.ComponentType<{ size?: number;
   consultation: InfoIcon,
   system: InfoIcon,
   stop_clinic: CloseCircleIcon,
+  feedback: ChatIcon,
 };
 
 // 消息类型名称映射
@@ -25,6 +26,7 @@ const typeNameMap: Record<MessageType | string, string> = {
   consultation: '咨询通知',
   system: '系统通知',
   stop_clinic: '停诊通知',
+  feedback: '反馈回复',
 };
 
 // 格式化时间
@@ -168,6 +170,10 @@ const MessagePage = () => {
         case 'appointment':
           Taro.navigateTo({ url: `/packageBooking/pages/appointment/detail?id=${message.relatedId}` });
           break;
+        case 'feedback':
+          // 跳转到反馈历史页面查看详情
+          Taro.navigateTo({ url: `/packageProfile/pages/feedback/history?id=${message.relatedId}` });
+          break;
         default:
           // 显示消息详情弹窗
           Taro.showModal({
@@ -229,6 +235,7 @@ const MessagePage = () => {
         >
           <Tabs.TabPane title="全部" value="all" />
           <Tabs.TabPane title="预约" value="appointment" />
+          <Tabs.TabPane title="反馈" value="feedback" />
           <Tabs.TabPane title="系统" value="system" />
         </Tabs>
       </View>

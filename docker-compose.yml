@@ -1,62 +1,6 @@
 version: '3.8'
 
 services:
-  # PostgreSQL 数据库
-  postgres:
-    image: postgres:16-alpine
-    container_name: hospital_postgres
-    restart: always
-    environment:
-      POSTGRES_USER: ${DB_USER:-hospital}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-hospital123}
-      POSTGRES_DB: ${DB_NAME:-hospital_booking}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./docs/database/schema.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hospital"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Redis 缓存
-  redis:
-    image: redis:7-alpine
-    container_name: hospital_redis
-    restart: always
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # MinIO 对象存储
-  minio:
-    image: minio/minio:latest
-    container_name: hospital_minio
-    restart: always
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
-    command: server /data --console-address ":9001"
-    volumes:
-      - minio_data:/data
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-
   # FastAPI 后端
   backend:
     build:
@@ -64,99 +8,44 @@ services:
       dockerfile: Dockerfile
     container_name: hospital_backend
     restart: always
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-hospital}:${DB_PASSWORD:-hospital123}@postgres:5432/${DB_NAME:-hospital_booking}
-      - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
-      - DEBUG=${DEBUG:-false}
-      - ENVIRONMENT=${ENVIRONMENT:-production}
-      - STORAGE_TYPE=${STORAGE_TYPE:-minio}
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
-      - MINIO_BUCKET=${MINIO_BUCKET:-hospital}
-      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-}
+      # 连接宝塔安装的数据库（host.docker.internal 指向宿主机）
+      - DATABASE_URL=postgresql+asyncpg://hospital:kfETyKGsLX6hNnWK@host.docker.internal:5432/hospital_booking
+      - REDIS_URL=redis://host.docker.internal:6379/0
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key}
+      - DEBUG=false
+      - ENVIRONMENT=production
     ports:
       - "8000:8000"
-    volumes:
-      - ./apps/server:/app
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
-  # Celery Worker - 处理异步任务
+  # Celery Worker
   celery_worker:
     build:
       context: ./apps/server
       dockerfile: Dockerfile
     container_name: hospital_celery_worker
     restart: always
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-hospital}:${DB_PASSWORD:-hospital123}@postgres:5432/${DB_NAME:-hospital_booking}
-      - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - DATABASE_URL=postgresql+asyncpg://hospital:kfETyKGsLX6hNnWK@host.docker.internal:5432/hospital_booking
+      - REDIS_URL=redis://host.docker.internal:6379/0
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key}
     command: celery -A app.celery_app worker -l info -c 4 -Q default,scheduled,notification
-    volumes:
-      - ./apps/server:/app
-    healthcheck:
-      test: ["CMD-SHELL", "celery -A app.celery_app inspect ping -d celery@$$HOSTNAME"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
-  # Celery Beat - 定时任务调度器
+  # Celery Beat
   celery_beat:
     build:
       context: ./apps/server
       dockerfile: Dockerfile
     container_name: hospital_celery_beat
     restart: always
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      celery_worker:
-        condition: service_started
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-hospital}:${DB_PASSWORD:-hospital123}@postgres:5432/${DB_NAME:-hospital_booking}
-      - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - DATABASE_URL=postgresql+asyncpg://hospital:kfETyKGsLX6hNnWK@host.docker.internal:5432/hospital_booking
+      - REDIS_URL=redis://host.docker.internal:6379/0
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key}
     command: celery -A app.celery_app beat -l info --pidfile=/tmp/celerybeat.pid
-    volumes:
-      - ./apps/server:/app
-      - celery_beat_data:/tmp
-
-  # Nginx 反向代理 (生产环境)
-  nginx:
-    image: nginx:alpine
-    container_name: hospital_nginx
-    restart: always
-    depends_on:
-      - backend
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./apps/admin/dist:/usr/share/nginx/html/admin
-      - ./apps/patient/dist:/usr/share/nginx/html/patient
-      - ./apps/doctor/dist:/usr/share/nginx/html/doctor
-    ports:
-      - "80:80"
-    profiles:
-      - production
-
-volumes:
-  postgres_data:
-  redis_data:
-  minio_data:
-  celery_beat_data:
-
-networks:
-  default:
-    name: hospital_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

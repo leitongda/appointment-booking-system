@@ -45,6 +45,7 @@ export default defineAppConfig({
         'pages/records/detail',      // 记录详情
         'pages/message/index',       // 消息中心
         'pages/feedback/index',      // 意见反馈
+        'pages/feedback/history',    // 反馈历史
         'pages/settings/index',      // 设置
       ],
     },

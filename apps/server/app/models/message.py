@@ -12,6 +12,7 @@ class MessageType(str, enum.Enum):
     SCHEDULE = "schedule"  # 排班通知
     SYSTEM = "system"  # 系统通知
     STOP_CLINIC = "stop_clinic"  # 停诊通知
+    FEEDBACK = "feedback"  # 反馈回复通知
 
 
 class Message(Base, AuditMixin):

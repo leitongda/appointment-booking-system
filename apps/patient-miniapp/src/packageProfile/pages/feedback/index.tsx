@@ -121,11 +121,18 @@ const FeedbackPage = () => {
         </Button>
       </View>
 
+      {/* 查看历史反馈 */}
+      <View className="history-link" onClick={() => Taro.navigateTo({ url: '/packageProfile/pages/feedback/history' })}>
+        <Text className="history-text">查看我的反馈历史</Text>
+        <Text className="history-arrow">›</Text>
+      </View>
+
       {/* 提示 */}
       <View className="tips">
         <Text className="tips-title">温馨提示</Text>
         <Text className="tips-content">• 您的反馈将帮助我们改进服务质量</Text>
         <Text className="tips-content">• 如有紧急问题，请直接联系医院客服</Text>
+        <Text className="tips-content">• 提交后可在反馈历史中查看回复</Text>
       </View>
 
       {/* 登录弹窗 */}
