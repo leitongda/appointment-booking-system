@@ -196,17 +196,15 @@ const BookingPage: React.FC = () => {
 
       {/* Fixed Footer */}
       <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 safe-area-inset-bottom">
-        <div className="flex items-center justify-between">
-          <Button 
-            size="lg"
-            onClick={handleSubmit}
-            loading={submitting}
-            disabled={!selectedPatientId}
-            className="min-w-[120px]"
-          >
-            确认预约
-          </Button>
-        </div>
+        <Button 
+          size="lg"
+          block
+          onClick={handleSubmit}
+          loading={submitting}
+          disabled={!selectedPatientId}
+        >
+          确认预约
+        </Button>
       </div>
     </div>
   );

@@ -14,7 +14,10 @@ import './index.less';
 
 const BookingPage = () => {
   const router = useRouter();
-  const { doctorId, scheduleId, date, timeSlot, startTime, endTime } = router.params;
+  const { doctorId, scheduleId, date, timeSlot } = router.params;
+  // 解码时间参数（URL 中的 %3A 需要解码为冒号）
+  const startTime = router.params.startTime ? decodeURIComponent(router.params.startTime) : undefined;
+  const endTime = router.params.endTime ? decodeURIComponent(router.params.endTime) : undefined;
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
