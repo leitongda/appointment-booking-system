@@ -89,6 +89,11 @@ const BookingPage = () => {
   const selectedPatient = patients.find(p => p.id === selectedPatientId);
 
   const handleSubmit = async () => {
+    if (!scheduleId) {
+      Taro.showToast({ title: '排班信息无效', icon: 'none' });
+      return;
+    }
+    
     if (!selectedPatientId) {
       Taro.showToast({ title: '请选择就诊人', icon: 'none' });
       return;
@@ -98,7 +103,7 @@ const BookingPage = () => {
     
     try {
       // 检查是否有同一天同一时段的重复预约
-      const duplicateCheck = await appointmentApi.checkDuplicate(scheduleId!, selectedPatientId);
+      const duplicateCheck = await appointmentApi.checkDuplicate(scheduleId, selectedPatientId);
       
       if (duplicateCheck.hasDuplicate) {
         // 有重复预约，提示用户确认
@@ -131,7 +136,7 @@ const BookingPage = () => {
 
       // 创建预约
       const appointment = await appointmentApi.create({
-        scheduleId: scheduleId!,
+        scheduleId: scheduleId,
         patientId: selectedPatientId,
         symptomDescription: symptomDescription.trim() || undefined,
       });
