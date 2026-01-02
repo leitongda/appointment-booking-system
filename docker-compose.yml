@@ -1,4 +1,5 @@
-version: '3.8'
+# 宝塔混合部署配置
+# 数据库和 Redis 使用宝塔安装的服务，Docker 只运行后端应用
 
 services:
   # FastAPI 后端
@@ -9,18 +10,23 @@ services:
     container_name: hospital_backend
     restart: always
     environment:
-      # 连接宝塔安装的数据库（host.docker.internal 指向宿主机）
-      - DATABASE_URL=postgresql+asyncpg://hospital:kfETyKGsLX6hNnWK@host.docker.internal:5432/hospital_booking
+      # 连接宝塔安装的 PostgreSQL
+      - DATABASE_URL=postgresql+asyncpg://hospital:njESjyken4xihHit@host.docker.internal:5432/hospital_booking
+      # 连接宝塔安装的 Redis
       - REDIS_URL=redis://host.docker.internal:6379/0
-      - SECRET_KEY=${SECRET_KEY:-your-secret-key}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
       - DEBUG=false
       - ENVIRONMENT=production
+      - STORAGE_TYPE=local
+      - UPLOAD_DIR=/app/uploads
     ports:
       - "8000:8000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    volumes:
+      - ./apps/server/uploads:/app/uploads
 
-  # Celery Worker
+  # Celery Worker - 处理异步任务
   celery_worker:
     build:
       context: ./apps/server
@@ -28,14 +34,14 @@ services:
     container_name: hospital_celery_worker
     restart: always
     environment:
-      - DATABASE_URL=postgresql+asyncpg://hospital:kfETyKGsLX6hNnWK@host.docker.internal:5432/hospital_booking
+      - DATABASE_URL=postgresql+asyncpg://hospital:njESjyken4xihHit@host.docker.internal:5432/hospital_booking
       - REDIS_URL=redis://host.docker.internal:6379/0
-      - SECRET_KEY=${SECRET_KEY:-your-secret-key}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
     command: celery -A app.celery_app worker -l info -c 4 -Q default,scheduled,notification
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  # Celery Beat
+  # Celery Beat - 定时任务调度器
   celery_beat:
     build:
       context: ./apps/server
@@ -43,9 +49,9 @@ services:
     container_name: hospital_celery_beat
     restart: always
     environment:
-      - DATABASE_URL=postgresql+asyncpg://hospital:kfETyKGsLX6hNnWK@host.docker.internal:5432/hospital_booking
+      - DATABASE_URL=postgresql+asyncpg://hospital:njESjyken4xihHit@host.docker.internal:5432/hospital_booking
       - REDIS_URL=redis://host.docker.internal:6379/0
-      - SECRET_KEY=${SECRET_KEY:-your-secret-key}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
     command: celery -A app.celery_app beat -l info --pidfile=/tmp/celerybeat.pid
     extra_hosts:
       - "host.docker.internal:host-gateway"
