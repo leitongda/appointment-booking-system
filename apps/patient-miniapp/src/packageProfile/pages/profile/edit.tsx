@@ -113,16 +113,20 @@ const ProfileEditPage = () => {
       });
 
       if (uploadResult.statusCode === 200) {
-        const data = JSON.parse(uploadResult.data);
-        if (data.url) {
-          setAvatar(data.url);
+        const response = JSON.parse(uploadResult.data);
+        // 服务端使用统一响应格式: { code, message, data: { url, key } }
+        const avatarUrl = response.data?.url || response.url;
+        if (avatarUrl) {
+          setAvatar(avatarUrl);
           Taro.showToast({ title: '头像上传成功', icon: 'success' });
         } else {
           throw new Error('上传响应格式错误');
         }
       } else {
-        const errorData = JSON.parse(uploadResult.data);
-        throw new Error(errorData.detail || '上传失败');
+        const errorResponse = JSON.parse(uploadResult.data);
+        // 错误响应也可能是统一格式: { code, message, data }
+        const errorMessage = errorResponse.message || errorResponse.detail || '上传失败';
+        throw new Error(errorMessage);
       }
     } catch (error: any) {
       console.error('头像上传失败', error);
@@ -137,12 +141,23 @@ const ProfileEditPage = () => {
     setNickname(e.detail.value);
   };
 
-  // 昵称获取（微信昵称）
+  // 昵称获取（微信昵称 - 从 input type="nickname" 获取）
   const handleNicknameBlur = (e: any) => {
     const value = e.detail.value;
     if (value) {
       setNickname(value);
     }
+  };
+
+  // 点击使用微信昵称按钮
+  const handleUseWechatNickname = () => {
+    // 聚焦到昵称输入框，触发微信昵称选择
+    // 微信会自动在键盘上方显示"使用微信昵称"选项
+    Taro.showToast({
+      title: '请在键盘上方选择"使用微信昵称"',
+      icon: 'none',
+      duration: 2000,
+    });
   };
 
   // 性别选择
@@ -233,16 +248,26 @@ const ProfileEditPage = () => {
       {/* 表单区域 */}
       <View className="form-section">
         {/* 昵称 */}
-        <View className="form-item">
+        <View className="form-item nickname-item">
           <Text className="form-label">昵称</Text>
-          <TaroInput
-            type="nickname"
-            className="form-input"
-            placeholder="请输入昵称"
-            value={nickname}
-            onInput={handleNicknameInput}
-            onBlur={handleNicknameBlur}
-          />
+          <View className="nickname-input-wrapper">
+            <TaroInput
+              type="nickname"
+              className="form-input nickname-input"
+              placeholder="请输入昵称或点击右侧获取"
+              value={nickname}
+              onInput={handleNicknameInput}
+              onBlur={handleNicknameBlur}
+            />
+            <TaroButton
+              className="wechat-nickname-btn"
+              size="mini"
+              onClick={handleUseWechatNickname}
+            >
+              微信昵称
+            </TaroButton>
+          </View>
+          <Text className="form-hint">点击输入框后，可在键盘上方选择"使用微信昵称"</Text>
         </View>
 
         {/* 性别 */}

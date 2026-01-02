@@ -174,6 +174,67 @@
 }
 
 // -------------------------------------------
+// 未登录引导卡片
+// -------------------------------------------
+
+.login-guide-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: @spacing-8 @page-padding;
+  min-height: 60vh;
+}
+
+.login-guide-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: @color-bg-white;
+  border-radius: @radius-xl;
+  padding: @spacing-8 @spacing-6;
+  width: 100%;
+  max-width: 600rpx;
+  box-shadow: @shadow-card;
+}
+
+.login-guide-icon {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  background: @gradient-primary;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: @spacing-5;
+  box-shadow: @shadow-button;
+}
+
+.login-guide-title {
+  font-size: @font-size-xl;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
+  margin-bottom: @spacing-2;
+}
+
+.login-guide-desc {
+  font-size: @font-size-sm;
+  color: @color-text-muted;
+  text-align: center;
+  margin-bottom: @spacing-6;
+  line-height: @line-height-relaxed;
+}
+
+.login-guide-btn {
+  .button-primary();
+  width: 100%;
+  height: @button-height-lg;
+  font-size: @font-size-base;
+  font-weight: @font-weight-semibold;
+  border-radius: @radius-lg;
+  box-shadow: @shadow-button;
+}
+
+// -------------------------------------------
 // 加载状态
 // -------------------------------------------
 

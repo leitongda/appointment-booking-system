@@ -7,6 +7,7 @@ import { APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP } from '@hospital/shared';
 import { getToken } from '../../utils/auth';
 import { formatTime } from '../../utils/url';
 import LoginPopup from '../../components/LoginPopup';
+import { CalendarIcon } from '../../components/Icons';
 import type { Appointment } from '@hospital/shared';
 import './index.less';
 
@@ -130,16 +131,21 @@ const AppointmentPage = () => {
 
       <View className="list">
         {!isLoggedIn ? (
-          <View className="empty-wrapper">
-            <Empty description="请先登录查看预约记录" />
-            <Button
-              type="primary"
-              size="small"
-              style={{ marginTop: '16px' }}
-              onClick={() => setShowLoginPopup(true)}
-            >
-              去登录
-            </Button>
+          <View className="login-guide-wrapper">
+            <View className="login-guide-card">
+              <View className="login-guide-icon">
+                <CalendarIcon size={48} color="#fff" />
+              </View>
+              <Text className="login-guide-title">登录后查看预约</Text>
+              <Text className="login-guide-desc">登录后可查看和管理您的全部预约记录</Text>
+              <Button
+                className="login-guide-btn"
+                type="primary"
+                onClick={() => setShowLoginPopup(true)}
+              >
+                立即登录
+              </Button>
+            </View>
           </View>
         ) : loading ? (
           <View className="loading-wrapper">
