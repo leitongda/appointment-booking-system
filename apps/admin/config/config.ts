@@ -108,6 +108,7 @@ export default defineConfig({
   // favicon
   favicons: ['/favicon.ico'],
 
+  // 点击组件配置
   clickToComponent: {},
 
 });
