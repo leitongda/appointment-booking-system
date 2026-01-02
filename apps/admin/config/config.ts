@@ -2,7 +2,7 @@
  * @Author: Lei TongDa ebian123@qq.com
  * @Date: 2025-12-16 23:35:00
  * @LastEditors: Lei TongDa ebian123@qq.com
- * @LastEditTime: 2025-12-25 15:13:40
+ * @LastEditTime: 2026-01-02 22:51:10
  * @FilePath: /appointment-booking-system/apps/admin/config/config.ts
  * @Description: 
  * 
@@ -99,12 +99,15 @@ export default defineConfig({
     chrome: 80,
   },
 
+  // 修复 esbuild helpers 冲突
+  esbuildMinifyIIFE: true,
+
   // 网页标题
   title: '医院挂号管理系统',
 
   // favicon
   favicons: ['/favicon.ico'],
 
-
+  clickToComponent: {},
 
 });

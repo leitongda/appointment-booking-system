@@ -7,6 +7,7 @@ export {
   setRequestInterceptor, 
   setResponseInterceptor, 
   ApiError,
+  request,
 } from './request';
 export type { HttpClient } from './request';
 
