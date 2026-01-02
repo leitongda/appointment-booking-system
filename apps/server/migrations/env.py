@@ -23,6 +23,11 @@ from app.models import settings, store, user
 # this is the Alembic Config object
 config = context.config
 
+# 优先使用环境变量中的 DATABASE_URL
+database_url = os.environ.get("DATABASE_URL")
+if database_url:
+    config.set_main_option("sqlalchemy.url", database_url)
+
 # Interpret the config file for Python logging.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
