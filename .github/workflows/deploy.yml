@@ -1,0 +1,45 @@
+name: Deploy to Tencent Cloud CVM
+
+on:
+  push:
+    branches:
+      - main  # 只在 main 分支推送时触发
+  workflow_dispatch:  # 支持手动触发
+
+env:
+  PROJECT_DIR: /www/hospital-booking  # 腾讯云服务器上的项目目录
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Tencent Cloud CVM
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.CVM_HOST }}
+          username: ${{ secrets.CVM_USERNAME }}
+          key: ${{ secrets.CVM_SSH_KEY }}
+          port: ${{ secrets.CVM_PORT || 22 }}
+          script: |
+            # 进入项目目录
+            cd ${{ env.PROJECT_DIR }}
+            
+            # 拉取最新代码
+            git fetch origin main
+            git reset --hard origin/main
+            
+            # 停止旧容器并构建新镜像启动
+            docker compose down
+            docker compose up -d --build
+            
+            # 清理未使用的镜像（可选，释放磁盘空间）
+            docker image prune -f
+            
+            # 输出部署状态
+            echo "✅ 部署完成！"
+            docker compose ps
+
