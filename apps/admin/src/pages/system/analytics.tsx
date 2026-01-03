@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense, lazy, ComponentType } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
 import { Card, Row, Col, Statistic, Table, Select, Typography, Space, Tag, Spin } from 'antd';
 import {
@@ -8,8 +8,25 @@ import {
   SearchOutlined,
   ClockCircleOutlined,
 } from '@ant-design/icons';
-import { Line, Column, WordCloud } from '@ant-design/charts';
 import { request } from '@hospital/api';
+
+// 图表组件动态加载，减少首屏体积约 1.5MB
+const Line = lazy(() => 
+  import('@ant-design/charts').then(m => ({ default: m.Line as ComponentType<any> }))
+);
+const Column = lazy(() => 
+  import('@ant-design/charts').then(m => ({ default: m.Column as ComponentType<any> }))
+);
+const WordCloud = lazy(() => 
+  import('@ant-design/charts').then(m => ({ default: m.WordCloud as ComponentType<any> }))
+);
+
+// 图表加载占位组件
+const ChartLoading = ({ height = 300 }: { height?: number }) => (
+  <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <Spin tip="图表加载中..." />
+  </div>
+);
 
 const { Title, Text } = Typography;
 
@@ -225,14 +242,18 @@ const AnalyticsPage: React.FC = () => {
 
         {/* 趋势图 */}
         <Card title="访问趋势" style={{ marginBottom: 16 }}>
-          <Line {...trendConfig} height={300} />
+          <Suspense fallback={<ChartLoading />}>
+            <Line {...trendConfig} height={300} />
+          </Suspense>
         </Card>
 
         <Row gutter={[16, 16]}>
           {/* 页面访问排行 */}
           <Col xs={24} lg={12}>
             <Card title="页面访问排行 Top 10">
-              <Column {...pageRankConfig} height={300} />
+              <Suspense fallback={<ChartLoading />}>
+                <Column {...pageRankConfig} height={300} />
+              </Suspense>
             </Card>
           </Col>
 
@@ -240,7 +261,9 @@ const AnalyticsPage: React.FC = () => {
           <Col xs={24} lg={12}>
             <Card title="搜索关键词词云">
               {data?.top_keywords && data.top_keywords.length > 0 ? (
-                <WordCloud {...wordCloudConfig} height={300} />
+                <Suspense fallback={<ChartLoading />}>
+                  <WordCloud {...wordCloudConfig} height={300} />
+                </Suspense>
               ) : (
                 <div style={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Text type="secondary">暂无搜索数据</Text>

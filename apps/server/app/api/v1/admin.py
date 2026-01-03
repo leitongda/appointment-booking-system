@@ -8,8 +8,11 @@ from datetime import datetime, timedelta
 import json
 import hashlib
 
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from app.db.session import get_db
 from app.api.deps import get_current_admin
+from app.models.admin import Admin, Permission
 
 security = HTTPBearer(auto_error=False)
 from app.services.admin_service import RoleService, AdminService, OperationLogService, PermissionService
@@ -511,16 +514,44 @@ async def get_current_admin_info(
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
 ):
-    """获取当前登录管理员信息"""
-    service = AdminService(db)
-    admin = await service.get_by_id(current_admin["id"])
+    """获取当前登录管理员信息
+    
+    优化：减少重复数据库查询
+    - get_current_admin 依赖已验证用户身份
+    - 这里只需查询一次 Admin 并直接从 role 获取权限
+    """
+    admin_id = current_admin["id"]
+    
+    # 单次查询获取 Admin 及其关联的 role、store、stores
+    result = await db.execute(
+        select(Admin)
+        .options(
+            selectinload(Admin.role),
+            selectinload(Admin.current_store),
+            selectinload(Admin.stores)
+        )
+        .where(Admin.id == admin_id)
+    )
+    admin = result.unique().scalar_one_or_none()
     
     if not admin:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在，请检查后重试")
     
-    # 获取管理员权限
-    perm_service = PermissionService(db)
-    permissions = await perm_service.get_admin_permissions(admin.id)
+    # 直接从已加载的 role 获取权限，避免重复查询
+    permissions = []
+    if admin.role:
+        if admin.role.code == "SUPER_ADMIN":
+            # 超级管理员：查询所有权限码
+            perm_result = await db.execute(
+                select(Permission.code).order_by(Permission.sort.asc())
+            )
+            permissions = list(perm_result.scalars().all())
+        elif admin.role.permissions:
+            # 普通角色：从 role.permissions JSON 字段解析
+            try:
+                permissions = json.loads(admin.role.permissions)
+            except (json.JSONDecodeError, TypeError):
+                permissions = []
     
     return build_admin_response(admin, permissions)
 

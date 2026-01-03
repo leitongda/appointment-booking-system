@@ -29,7 +29,9 @@ async def get_redis() -> aioredis.Redis:
         _redis_client = aioredis.from_url(
             settings.REDIS_URL,
             encoding="utf-8",
-            decode_responses=True
+            decode_responses=True,
+            socket_connect_timeout=5,  # 连接超时 5 秒
+            socket_timeout=5,  # 操作超时 5 秒
         )
     return _redis_client
 
@@ -49,7 +51,9 @@ def get_sync_redis() -> sync_redis.Redis:
         _sync_redis_client = sync_redis.from_url(
             settings.REDIS_URL,
             encoding="utf-8",
-            decode_responses=True
+            decode_responses=True,
+            socket_connect_timeout=5,  # 连接超时 5 秒
+            socket_timeout=5,  # 操作超时 5 秒
         )
     return _sync_redis_client
 

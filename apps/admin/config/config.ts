@@ -10,6 +10,7 @@
  */
 import { defineConfig } from '@umijs/max';
 import path from 'path';
+import CompressionPlugin from 'compression-webpack-plugin';
 import routes from './routes';
 import proxy from './proxy';
 
@@ -111,4 +112,22 @@ export default defineConfig({
   // 点击组件配置
   clickToComponent: {},
 
+  // 代码分割优化
+  codeSplitting: {
+    jsStrategy: 'granularChunks',
+  },
+
+  // Webpack 链式配置
+  chainWebpack(config) {
+    // 生产环境启用 gzip 预压缩
+    if (process.env.NODE_ENV === 'production') {
+      config.plugin('compression-gzip').use(CompressionPlugin, [{
+        algorithm: 'gzip',
+        test: /\.(js|css|html|svg)$/,
+        threshold: 10240, // 仅压缩大于 10KB 的文件
+        minRatio: 0.8,
+        filename: '[path][base].gz',
+      }]);
+    }
+  },
 });
