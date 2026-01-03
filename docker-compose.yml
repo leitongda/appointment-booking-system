@@ -18,7 +18,7 @@ services:
       - DEBUG=false
       - ENVIRONMENT=production
       - STORAGE_TYPE=local
-      - UPLOAD_DIR=/app/uploads
+      - LOCAL_UPLOAD_DIR=/app/uploads
     ports:
       - "8000:8000"
     extra_hosts:

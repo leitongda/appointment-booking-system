@@ -138,3 +138,4 @@ uploads/
 package-lock.json
 yarn.lock
 
+**/dist.zip

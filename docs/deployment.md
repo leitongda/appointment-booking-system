@@ -229,7 +229,7 @@ ENVIRONMENT=production
 
 # 存储配置
 STORAGE_TYPE=local
-UPLOAD_DIR=/opt/hospital/apps/server/uploads
+LOCAL_UPLOAD_DIR=/opt/hospital/apps/server/uploads
 
 # CORS 配置
 CORS_ORIGINS=https://yy.xxx.com
