@@ -1,0 +1,177 @@
+name: Deploy Admin
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      # admin 应用代码变更
+      - 'apps/admin/**'
+      # 共享包变更（admin 依赖这些包）
+      - 'packages/api/**'
+      - 'packages/shared/**'
+      # 根目录配置变更
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'turbo.json'
+  workflow_dispatch:  # 支持手动触发
+    inputs:
+      force_deploy:
+        description: '强制部署（跳过缓存）'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '8'
+  # 服务器配置
+  DEPLOY_PATH: /www/hospital-booking/apps/admin  # 服务器上的部署目录
+  BACKUP_PATH: /www/hospital-booking/backups     # 备份目录
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # ==================== 1. 检出代码 ====================
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      # ==================== 2. 设置 Node.js 环境 ====================
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # ==================== 3. 设置 pnpm ====================
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      # ==================== 4. 获取 pnpm store 目录 ====================
+      - name: 📁 Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      # ==================== 5. 缓存依赖 ====================
+      - name: 💾 Cache pnpm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      # ==================== 6. 安装依赖 ====================
+      - name: 📦 Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ==================== 7. 构建 Admin 应用 ====================
+      - name: 🔨 Build Admin
+        run: pnpm build:admin
+        env:
+          # 如果有环境变量需要在构建时注入，在这里添加
+          NODE_ENV: production
+          # UMI_ENV: prod
+
+      # ==================== 8. 压缩构建产物 ====================
+      - name: 📦 Compress dist folder
+        run: |
+          cd apps/admin
+          # 创建带时间戳的 zip 文件名
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          ZIP_NAME="admin-dist-${TIMESTAMP}.zip"
+          echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
+          
+          # 压缩 dist 目录
+          zip -r ${ZIP_NAME} dist/
+          
+          # 显示压缩文件信息
+          ls -lh ${ZIP_NAME}
+          echo "✅ 压缩完成: ${ZIP_NAME}"
+
+      # ==================== 9. 上传到服务器并部署 ====================
+      - name: 🚀 Deploy to Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.CVM_HOST }}
+          username: ${{ secrets.CVM_USERNAME }}
+          key: ${{ secrets.CVM_SSH_KEY }}
+          port: ${{ secrets.CVM_PORT || 22 }}
+          script: |
+            echo "📁 准备部署目录..."
+            
+            # 创建必要的目录
+            mkdir -p ${{ env.DEPLOY_PATH }}
+            mkdir -p ${{ env.BACKUP_PATH }}
+            
+            # 备份当前版本（如果存在）
+            if [ -d "${{ env.DEPLOY_PATH }}/dist" ]; then
+              BACKUP_NAME="admin-backup-$(date +%Y%m%d_%H%M%S).tar.gz"
+              echo "📦 备份当前版本: ${BACKUP_NAME}"
+              tar -czf "${{ env.BACKUP_PATH }}/${BACKUP_NAME}" -C "${{ env.DEPLOY_PATH }}" dist
+              
+              # 只保留最近 5 个备份
+              cd ${{ env.BACKUP_PATH }}
+              ls -t admin-backup-*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm -f
+            fi
+            
+            echo "✅ 服务器准备完成"
+
+      # ==================== 10. 传输文件到服务器 ====================
+      - name: 📤 Upload dist to Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.CVM_HOST }}
+          username: ${{ secrets.CVM_USERNAME }}
+          key: ${{ secrets.CVM_SSH_KEY }}
+          port: ${{ secrets.CVM_PORT || 22 }}
+          source: "apps/admin/${{ env.ZIP_NAME }}"
+          target: "${{ env.DEPLOY_PATH }}"
+          strip_components: 2  # 去掉 apps/admin 前缀
+
+      # ==================== 11. 解压并完成部署 ====================
+      - name: 📂 Extract and finalize deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.CVM_HOST }}
+          username: ${{ secrets.CVM_USERNAME }}
+          key: ${{ secrets.CVM_SSH_KEY }}
+          port: ${{ secrets.CVM_PORT || 22 }}
+          script: |
+            cd ${{ env.DEPLOY_PATH }}
+            
+            echo "📦 解压文件: ${{ env.ZIP_NAME }}"
+            
+            # 删除旧的 dist 目录
+            rm -rf dist
+            
+            # 解压新文件
+            unzip -o ${{ env.ZIP_NAME }}
+            
+            # 清理 zip 文件
+            rm -f ${{ env.ZIP_NAME }}
+            
+            # 设置权限
+            chmod -R 755 dist
+            
+            echo "✅ 部署完成！"
+            echo "📁 部署目录: ${{ env.DEPLOY_PATH }}/dist"
+            ls -la dist/ | head -20
+
+      # ==================== 12. 部署通知（可选） ====================
+      - name: 📢 Deployment Summary
+        if: always()
+        run: |
+          echo "========================================"
+          echo "📋 部署摘要"
+          echo "========================================"
+          echo "🏷️  分支: ${{ github.ref_name }}"
+          echo "📝 提交: ${{ github.sha }}"
+          echo "👤 触发者: ${{ github.actor }}"
+          echo "📦 构建文件: ${{ env.ZIP_NAME }}"
+          echo "📁 部署路径: ${{ env.DEPLOY_PATH }}/dist"
+          echo "========================================"
