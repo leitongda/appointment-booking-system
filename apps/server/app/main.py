@@ -9,13 +9,13 @@ from pathlib import Path
 from app.api.v1 import api_router
 from app.core.config import settings
 from app.core.logging import setup_logging
-from app.core.redis import close_redis
+from app.core.redis import close_redis, get_redis
 from app.middleware.response import UnifiedResponseMiddleware
 from app.middleware.exception import register_exception_handlers
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.request_log import RequestLogMiddleware
 from app.middleware.operation_log import OperationLogMiddleware
-from app.db.session import AsyncSessionLocal
+from app.db.session import AsyncSessionLocal, engine
 from app.tasks.blacklist_task import auto_release_blacklist
 
 # 初始化日志系统
@@ -49,6 +49,31 @@ async def blacklist_auto_release_task():
             logger.error(f"黑名单自动解禁任务出错: {e}")
 
 
+async def warmup_connections():
+    """预热数据库和 Redis 连接池
+    
+    在应用启动时建立连接，避免首次请求时的连接延迟
+    """
+    try:
+        # 预热 PostgreSQL 连接池
+        logger.info("正在预热数据库连接池...")
+        async with AsyncSessionLocal() as session:
+            from sqlalchemy import text
+            await session.execute(text("SELECT 1"))
+        logger.info("✅ 数据库连接池预热完成")
+    except Exception as e:
+        logger.error(f"❌ 数据库连接池预热失败: {e}")
+    
+    try:
+        # 预热 Redis 连接
+        logger.info("正在预热 Redis 连接...")
+        redis = await get_redis()
+        await redis.ping()
+        logger.info("✅ Redis 连接预热完成")
+    except Exception as e:
+        logger.error(f"❌ Redis 连接预热失败: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期"""
@@ -57,6 +82,9 @@ async def lifespan(app: FastAPI):
     logger.info(f"   环境: {settings.ENVIRONMENT}")
     logger.info(f"   调试模式: {settings.DEBUG}")
     logger.info("="*50)
+    
+    # 预热连接池（消除冷启动延迟）
+    await warmup_connections()
     
     # 启动后台任务
     task = asyncio.create_task(blacklist_auto_release_task())
