@@ -75,7 +75,7 @@ const RolePermissionsPage: React.FC = () => {
     if (!id) return;
     setLoading(true);
     try {
-      const data = await adminApi.getRoleDetail(id);
+      const data = await adminApi.getRole(id);
       setRole(data);
       setCheckedKeys(data.permissions || []);
     } catch (error: any) {
