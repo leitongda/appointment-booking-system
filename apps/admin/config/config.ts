@@ -2,7 +2,7 @@
  * @Author: Lei TongDa ebian123@qq.com
  * @Date: 2025-12-16 23:35:00
  * @LastEditors: Lei TongDa ebian123@qq.com
- * @LastEditTime: 2026-01-02 22:51:10
+ * @LastEditTime: 2026-01-03 10:30:00
  * @FilePath: /appointment-booking-system/apps/admin/config/config.ts
  * @Description: 
  * 
@@ -112,15 +112,20 @@ export default defineConfig({
   // 点击组件配置
   clickToComponent: {},
 
-  // 代码分割优化
+  // 代码分割优化 - 使用 depPerChunk 策略将每个 npm 包单独打包
   codeSplitting: {
-    jsStrategy: 'granularChunks',
+    jsStrategy: 'depPerChunk',
+    jsStrategyOptions: {
+      // 大于 50KB 的包单独打包
+      minSize: 50000,
+    },
   },
 
   // Webpack 链式配置
   chainWebpack(config) {
-    // 生产环境启用 gzip 预压缩
+    // 生产环境优化
     if (process.env.NODE_ENV === 'production') {
+      // gzip 预压缩
       config.plugin('compression-gzip').use(CompressionPlugin, [{
         algorithm: 'gzip',
         test: /\.(js|css|html|svg)$/,
@@ -128,6 +133,68 @@ export default defineConfig({
         minRatio: 0.8,
         filename: '[path][base].gz',
       }]);
+
+      // 优化 splitChunks 配置
+      config.optimization.splitChunks({
+        chunks: 'all',
+        minSize: 20000,
+        minChunks: 1,
+        maxAsyncRequests: 30,
+        maxInitialRequests: 30,
+        automaticNameDelimiter: '-',
+        cacheGroups: {
+          // antd 相关库单独打包
+          antd: {
+            name: 'antd-lib',
+            test: /[\\/]node_modules[\\/](antd|@ant-design\/icons)[\\/]/,
+            priority: 30,
+            chunks: 'all',
+          },
+          // @ant-design/pro-components 单独打包
+          proComponents: {
+            name: 'pro-components-lib',
+            test: /[\\/]node_modules[\\/]@ant-design[\\/]pro-/,
+            priority: 25,
+            chunks: 'all',
+          },
+          // @ant-design/charts 和 @antv 相关单独打包（图表库）
+          charts: {
+            name: 'charts-lib',
+            test: /[\\/]node_modules[\\/](@ant-design[\\/]charts|@ant-design[\\/]plots|@antv)[\\/]/,
+            priority: 20,
+            chunks: 'async', // 仅异步加载
+          },
+          // React 相关
+          react: {
+            name: 'react-lib',
+            test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+            priority: 40,
+            chunks: 'all',
+          },
+          // 其他常用工具库
+          utils: {
+            name: 'utils-lib',
+            test: /[\\/]node_modules[\\/](lodash|lodash-es|dayjs|moment)[\\/]/,
+            priority: 15,
+            chunks: 'all',
+          },
+          // 通用第三方库
+          vendors: {
+            name: 'vendors',
+            test: /[\\/]node_modules[\\/]/,
+            priority: 10,
+            chunks: 'all',
+            minChunks: 2,
+          },
+          // 公共组件
+          common: {
+            name: 'common',
+            minChunks: 2,
+            priority: 5,
+            reuseExistingChunk: true,
+          },
+        },
+      });
     }
   },
 });
