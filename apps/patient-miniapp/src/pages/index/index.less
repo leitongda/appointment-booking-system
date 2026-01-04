@@ -174,7 +174,7 @@
   width: 72rpx;
   height: 72rpx;
   border-radius: @radius-lg;
-  background: rgba(79, 70, 229, 0.08);
+  background: rgba(196, 30, 58, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -215,7 +215,7 @@
 
 .doctor-avatar {
   .avatar(@avatar-size-lg);
-  background: linear-gradient(135deg, #E0E7FF 0%, #EDE9FE 100%);
+  background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -234,6 +234,7 @@
 .doctor-header {
   display: flex;
   align-items: center;
+  flex-wrap: nowrap;
   margin-bottom: @spacing-1;
 }
 
@@ -242,10 +243,14 @@
   font-weight: @font-weight-semibold;
   color: @color-text-primary;
   margin-right: @spacing-2;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .doctor-title {
   .badge-primary();
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .doctor-dept {
@@ -310,7 +315,7 @@
     top: -40rpx;
     width: 160rpx;
     height: 160rpx;
-    background: linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(16, 185, 129, 0.06) 100%);
+    background: linear-gradient(135deg, rgba(196, 30, 58, 0.08) 0%, rgba(16, 185, 129, 0.06) 100%);
     border-radius: 50%;
   }
 }
@@ -319,7 +324,7 @@
   width: 88rpx;
   height: 88rpx;
   border-radius: @radius-xl;
-  background: linear-gradient(135deg, #E0E7FF 0%, #EDE9FE 100%);
+  background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
   display: flex;
   align-items: center;
   justify-content: center;

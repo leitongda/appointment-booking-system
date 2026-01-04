@@ -134,7 +134,7 @@ const CheckinSelectPage = () => {
                 onClick={() => handleSelect(item.id)}
               >
                 <View className="card-icon">
-                  <DoctorIcon size={40} color="#4F46E5" />
+                  <DoctorIcon size={40} color="#C41E3A" />
                 </View>
                 <View className="card-content">
                   <View className="card-header">

@@ -257,7 +257,7 @@ const MessagePage = () => {
                 onClick={() => handleMessageClick(message)}
               >
                 <View className="message-icon">
-                  <IconComponent size={24} color={isRead ? '#9CA3AF' : '#4F46E5'} />
+                  <IconComponent size={24} color={isRead ? '#9CA3AF' : '#C41E3A'} />
                 </View>
                 <View className="message-content">
                   <View className="message-header">

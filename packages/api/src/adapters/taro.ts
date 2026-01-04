@@ -5,6 +5,27 @@
 
 import type { HttpClient } from '../request';
 
+/**
+ * 将 params 对象序列化为 URL 查询字符串
+ */
+const serializeParams = (params: Record<string, any>): string => {
+  const parts: string[] = [];
+  for (const key in params) {
+    const value = params[key];
+    if (value === undefined || value === null) continue;
+    if (Array.isArray(value)) {
+      value.forEach((v) => {
+        if (v !== undefined && v !== null) {
+          parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(v))}`);
+        }
+      });
+    } else {
+      parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
+    }
+  }
+  return parts.join('&');
+};
+
 // Taro 类型声明（避免直接依赖 @tarojs/taro）
 interface TaroRequestOption {
   url: string;
@@ -125,7 +146,16 @@ export const createTaroAdapter = (Taro: TaroStatic, config: TaroAdapterConfig): 
     },
     
     get: <T = any>(url: string, config?: any): Promise<T> => {
-      return doRequest<T>('GET', url, undefined, config?.headers);
+      // 处理 params 参数，将其序列化到 URL
+      let finalUrl = url;
+      if (config?.params && typeof config.params === 'object') {
+        const queryString = serializeParams(config.params);
+        if (queryString) {
+          const separator = url.includes('?') ? '&' : '?';
+          finalUrl = `${url}${separator}${queryString}`;
+        }
+      }
+      return doRequest<T>('GET', finalUrl, undefined, config?.headers);
     },
     
     post: <T = any>(url: string, data?: any, config?: any): Promise<T> => {
@@ -137,7 +167,16 @@ export const createTaroAdapter = (Taro: TaroStatic, config: TaroAdapterConfig): 
     },
     
     delete: <T = any>(url: string, config?: any): Promise<T> => {
-      return doRequest<T>('DELETE', url, undefined, config?.headers);
+      // 处理 params 参数，将其序列化到 URL
+      let finalUrl = url;
+      if (config?.params && typeof config.params === 'object') {
+        const queryString = serializeParams(config.params);
+        if (queryString) {
+          const separator = url.includes('?') ? '&' : '?';
+          finalUrl = `${url}${separator}${queryString}`;
+        }
+      }
+      return doRequest<T>('DELETE', finalUrl, undefined, config?.headers);
     },
     
     patch: <T = any>(url: string, data?: any, config?: any): Promise<T> => {

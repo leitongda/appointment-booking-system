@@ -1,6 +1,6 @@
 import { View, Text, Input as TaroInput, Picker } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
-import { Form, Input, Button, Switch } from '@nutui/nutui-react-taro';
+import { Form, Button, Switch } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 import { userApi } from '@hospital/api';
 import { getToken } from '../../../utils/auth';
@@ -155,21 +155,33 @@ const PatientEditPage = () => {
   return (
     <View className="patient-edit-page">
       <Form
-        initialValues={formValues}
         onFinish={handleSubmit}
       >
         {/* 基本信息卡片 */}
         <View className="form-section">
           <View className="section-title">基本信息</View>
           
-          {/* 姓名 - 同行布局 */}
-          <Form.Item label="姓名" name="name" required className="form-item-inline">
-            <Input placeholder="请输入真实姓名" />
-          </Form.Item>
+          {/* 姓名 - 与其他字段统一的同行布局 */}
+          <View className="form-item-row">
+            <View className="row-label">
+              <Text className="label-text">姓名</Text>
+              <Text className="required-mark">*</Text>
+            </View>
+            <View className="row-input">
+              <TaroInput
+                className="row-input-field"
+                placeholder="请输入真实姓名"
+                value={formValues.name || ''}
+                onInput={(e) => setFormValues({ ...formValues, name: e.detail.value })}
+              />
+            </View>
+          </View>
 
           {/* 性别 - Picker 选择 */}
-          <View className="form-item-picker">
-            <View className="picker-label">性别</View>
+          <View className="form-item-row">
+            <View className="row-label">
+              <Text className="label-text">性别</Text>
+            </View>
             <Picker mode="selector" range={GENDER_OPTIONS} value={genderIndex} onChange={handleGenderChange}>
               <View className="picker-value">
                 <Text className={genderIndex === 0 ? 'placeholder' : ''}>{GENDER_OPTIONS[genderIndex]}</Text>
@@ -178,15 +190,15 @@ const PatientEditPage = () => {
             </Picker>
           </View>
 
-          {/* 身份证号 - 堆叠布局（选填） */}
-          <View className="form-item-stacked">
-            <View className="stacked-label">
+          {/* 身份证号 - 同行布局（选填） */}
+          <View className="form-item-row">
+            <View className="row-label">
               <Text className="label-text">身份证号</Text>
             </View>
-            <View className="stacked-input">
+            <View className="row-input">
               <TaroInput
-                className="stacked-input-field"
-                placeholder="请输入18位身份证号码（选填）"
+                className="row-input-field row-input-mono"
+                placeholder="18位身份证号（选填）"
                 maxlength={18}
                 value={formValues.idCard || ''}
                 onInput={(e) => setFormValues({ ...formValues, idCard: e.detail.value })}
@@ -194,15 +206,15 @@ const PatientEditPage = () => {
             </View>
           </View>
 
-          {/* 手机号 - 堆叠布局 */}
-          <View className="form-item-stacked">
-            <View className="stacked-label">
+          {/* 手机号 - 同行布局 */}
+          <View className="form-item-row">
+            <View className="row-label">
               <Text className="label-text">手机号</Text>
               <Text className="required-mark">*</Text>
             </View>
-            <View className="stacked-input">
+            <View className="row-input">
               <TaroInput
-                className="stacked-input-field"
+                className="row-input-field row-input-mono"
                 placeholder="请输入11位手机号码"
                 type="number"
                 maxlength={11}
@@ -218,8 +230,10 @@ const PatientEditPage = () => {
           <View className="section-title">附加设置</View>
           
           {/* 与本人关系 - Picker 选择 */}
-          <View className="form-item-picker">
-            <View className="picker-label">与本人关系</View>
+          <View className="form-item-row">
+            <View className="row-label">
+              <Text className="label-text">与本人关系</Text>
+            </View>
             <Picker mode="selector" range={RELATIONSHIP_OPTIONS} value={relationIndex} onChange={handleRelationChange}>
               <View className="picker-value">
                 <Text className={!formValues.relationship && !showCustomRelation ? 'placeholder' : ''}>
@@ -246,12 +260,15 @@ const PatientEditPage = () => {
           )}
 
           {/* 设为默认 - 同行布局 */}
-          <Form.Item label="设为默认就诊人" name="isDefault" className="form-item-inline form-item-switch">
+          <View className="form-item-row form-item-switch">
+            <View className="row-label">
+              <Text className="label-text">设为默认就诊人</Text>
+            </View>
             <Switch
               checked={formValues.isDefault}
               onChange={(value) => setFormValues({ ...formValues, isDefault: value })}
             />
-          </Form.Item>
+          </View>
         </View>
 
         {/* 提示信息 */}

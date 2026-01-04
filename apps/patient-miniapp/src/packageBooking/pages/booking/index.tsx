@@ -92,12 +92,16 @@ const BookingPage = () => {
   const selectedPatient = patients.find(p => p.id === selectedPatientId);
 
   const handleSubmit = async () => {
-    if (!scheduleId) {
-      Taro.showToast({ title: '排班信息无效', icon: 'none' });
+    // 严格检查参数有效性（避免空字符串或 undefined）
+    const validScheduleId = scheduleId?.trim();
+    const validPatientId = selectedPatientId?.trim();
+    
+    if (!validScheduleId) {
+      Taro.showToast({ title: '排班信息无效，请返回重新选择', icon: 'none' });
       return;
     }
     
-    if (!selectedPatientId) {
+    if (!validPatientId) {
       Taro.showToast({ title: '请选择就诊人', icon: 'none' });
       return;
     }
@@ -106,7 +110,7 @@ const BookingPage = () => {
     
     try {
       // 检查是否有同一天同一时段的重复预约
-      const duplicateCheck = await appointmentApi.checkDuplicate(scheduleId, selectedPatientId);
+      const duplicateCheck = await appointmentApi.checkDuplicate(validScheduleId, validPatientId);
       
       if (duplicateCheck.hasDuplicate) {
         // 有重复预约，提示用户确认
@@ -139,8 +143,8 @@ const BookingPage = () => {
 
       // 创建预约
       const appointment = await appointmentApi.create({
-        scheduleId: scheduleId,
-        patientId: selectedPatientId,
+        scheduleId: validScheduleId,
+        patientId: validPatientId,
         symptomDescription: symptomDescription.trim() || undefined,
       });
 
@@ -188,7 +192,7 @@ const BookingPage = () => {
             {selectedPatient ? (
               <View className="selected-patient">
                 <View className="patient-avatar">
-                  <UserIcon size={28} color="#4F46E5" />
+                  <UserIcon size={28} color="#C41E3A" />
                 </View>
                 <View className="patient-details">
                   <Text className="patient-name">{selectedPatient.name}</Text>
@@ -240,7 +244,7 @@ const BookingPage = () => {
             {doctor?.avatar ? (
               <Image src={getImageUrl(doctor.avatar)} mode="aspectFill" />
             ) : (
-              <DoctorIcon size={36} color="#4F46E5" />
+              <DoctorIcon size={36} color="#C41E3A" />
             )}
           </View>
           <View className="doctor-info">

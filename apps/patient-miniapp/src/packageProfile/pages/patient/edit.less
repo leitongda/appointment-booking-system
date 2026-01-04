@@ -40,70 +40,32 @@
 }
 
 // -------------------------------------------
-// 同行布局表单项
+// 统一同行布局表单项
 // -------------------------------------------
 
-.form-item-inline {
-  padding: @spacing-3 @spacing-4 !important;
+.form-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: @spacing-3 @spacing-4;
   border-bottom: @border-width solid @color-divider;
+  min-height: 100rpx;
   
   &:last-child {
     border-bottom: none;
   }
   
-  .nut-cell__title {
-    font-size: @font-size-base;
-    color: @color-text-primary;
-    font-weight: @font-weight-medium;
+  .row-label {
+    display: flex;
+    align-items: center;
     flex-shrink: 0;
     width: @form-label-width;
     min-width: @form-label-width;
-  }
-  
-  .nut-input {
-    text-align: right;
-    font-size: @font-size-base;
-    
-    input {
-      text-align: right;
-      
-      &::placeholder {
-        color: @color-text-placeholder;
-      }
-    }
-  }
-}
-
-// Switch 表单项特殊样式
-.form-item-switch {
-  .nut-cell__value {
-    flex: none;
-  }
-}
-
-// -------------------------------------------
-// 堆叠布局表单项
-// -------------------------------------------
-
-.form-item-stacked {
-  padding: @spacing-3 @spacing-4;
-  border-bottom: @border-width solid @color-divider;
-  
-  &:last-child {
-    border-bottom: none;
-  }
-  
-  .stacked-label {
-    display: flex;
-    align-items: center;
-    margin-bottom: @spacing-2;
     
     .label-text {
       font-size: @font-size-base;
       color: @color-text-primary;
       font-weight: @font-weight-medium;
-      width: @form-label-width;
-      min-width: @form-label-width;
     }
     
     .required-mark {
@@ -113,43 +75,32 @@
     }
   }
   
-  .stacked-input {
-    background: @color-bg-secondary;
-    border-radius: @radius-lg;
-    padding: 0 @spacing-3;
+  .row-input {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
     
-    .stacked-input-field {
+    .row-input-field {
       width: 100%;
-      height: @input-height;
+      height: 60rpx;
       font-size: @font-size-base;
       color: @color-text-primary;
+      text-align: right;
       background: transparent;
+      
+      &::placeholder {
+        color: @color-text-placeholder;
+      }
+    }
+    
+    // 等宽字体（用于身份证号、手机号等）
+    .row-input-mono {
       font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-      letter-spacing: 2rpx;
+      letter-spacing: 1rpx;
     }
   }
-}
-
-// -------------------------------------------
-// Picker 选择器样式
-// -------------------------------------------
-
-.form-item-picker {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: @spacing-3 @spacing-4;
-  border-bottom: @border-width solid @color-divider;
   
-  .picker-label {
-    font-size: @font-size-base;
-    color: @color-text-primary;
-    font-weight: @font-weight-medium;
-    flex-shrink: 0;
-    width: @form-label-width;
-    min-width: @form-label-width;
-  }
-  
+  // Picker 值样式（与其他元素保持一致）
   .picker-value {
     display: flex;
     align-items: center;
@@ -170,6 +121,14 @@
     }
   }
 }
+
+// Switch 表单项特殊样式
+.form-item-switch {
+  .nut-switch {
+    flex-shrink: 0;
+  }
+}
+
 
 // 自定义关系输入
 .custom-relation-wrap {

@@ -97,7 +97,8 @@ instance.interceptors.response.use(
     }
     
     // 业务错误 - 抛出 ApiError 以便各端进行精细化处理
-    if (data.code && data.code !== 200) {
+    // 2xx 状态码都是成功，不仅仅是 200（如 201 Created）
+    if (data.code && (data.code < 200 || data.code >= 300)) {
       const requestUrl = response.config?.url || '';
       return Promise.reject(new ApiError(data.code, data.message || '请求失败', data.data, requestUrl));
     }

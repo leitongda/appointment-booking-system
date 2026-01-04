@@ -119,7 +119,7 @@ const FavoritePage = () => {
                   {favorite.target?.avatar ? (
                     <Image src={getImageUrl(favorite.target.avatar)} mode="aspectFill" />
                   ) : (
-                    <DoctorIcon size={32} color="#4F46E5" />
+                    <DoctorIcon size={32} color="#C41E3A" />
                   )}
                 </View>
                 <View className="doctor-info">

@@ -47,6 +47,7 @@ const IndexPage = () => {
   const [defaultPatient, setDefaultPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
+  const [pendingPatientCardNav, setPendingPatientCardNav] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -113,10 +114,34 @@ const IndexPage = () => {
     }
   };
 
+  // 跳转到就诊卡页面（根据是否有就诊卡决定跳转到列表还是新增）
+  const navigateToPatientPage = async () => {
+    try {
+      const patients = await userApi.getPatients();
+      if (patients.length > 0) {
+        // 有就诊卡，跳转到列表管理页面
+        Taro.navigateTo({ url: '/packageProfile/pages/patient/index' });
+      } else {
+        // 无就诊卡，跳转到新增页面
+        Taro.navigateTo({ url: '/packageProfile/pages/patient/edit' });
+      }
+    } catch (error) {
+      console.error('[首页] 获取就诊卡失败:', error);
+      // 出错时默认跳转到新增页面
+      Taro.navigateTo({ url: '/packageProfile/pages/patient/edit' });
+    }
+  };
+
   // 登录成功回调
-  const handleLoginSuccess = () => {
+  const handleLoginSuccess = async () => {
     setShowLoginPopup(false);
-    loadPatients();
+    await loadPatients();
+    
+    // 如果是从就诊卡入口触发的登录，自动跳转
+    if (pendingPatientCardNav) {
+      setPendingPatientCardNav(false);
+      navigateToPatientPage();
+    }
   };
 
   const navigateTo = (path: string, checkLogin = false) => {
@@ -150,17 +175,13 @@ const IndexPage = () => {
     // 未登录时弹出登录弹窗
     const token = getToken();
     if (!token) {
+      setPendingPatientCardNav(true);  // 标记需要跳转
       setShowLoginPopup(true);
       return;
     }
     
-    if (defaultPatient) {
-      // 有就诊卡，跳转到就诊卡详情编辑页面
-      Taro.navigateTo({ url: `/packageProfile/pages/patient/edit?id=${defaultPatient.id}` });
-    } else {
-      // 无就诊卡，跳转到新增就诊卡页面
-      Taro.navigateTo({ url: '/packageProfile/pages/patient/edit' });
-    }
+    // 执行跳转逻辑
+    navigateToPatientPage();
   };
 
   return (
@@ -190,7 +211,7 @@ const IndexPage = () => {
             return (
               <View key={menu.path} className="menu-item" onClick={() => navigateTo(menu.path)}>
                 <View className="menu-icon-wrap">
-                  <IconComponent size={28} color="#4F46E5" />
+                  <IconComponent size={28} color="#C41E3A" />
                 </View>
                 <Text className="menu-title">{menu.title}</Text>
               </View>
@@ -204,7 +225,7 @@ const IndexPage = () => {
         {defaultPatient ? (
           <>
             <View className="card-icon">
-              <CardIcon size={32} color="#4F46E5" />
+              <CardIcon size={32} color="#C41E3A" />
             </View>
             <View className="card-info">
               <Text className="card-name">{defaultPatient.name}</Text>
@@ -248,7 +269,7 @@ const IndexPage = () => {
                   {doctor.avatar ? (
                     <Image className="avatar-image" src={getImageUrl(doctor.avatar)} mode="aspectFill" />
                   ) : (
-                    <DoctorIcon size={32} color="#4F46E5" />
+                    <DoctorIcon size={32} color="#C41E3A" />
                   )}
                 </View>
                 <View className="doctor-info">

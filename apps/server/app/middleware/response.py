@@ -42,9 +42,11 @@ class UnifiedResponseMiddleware(BaseHTTPMiddleware):
                     )
                 
                 # 包装为统一格式
+                # 2xx 状态码都是成功，不仅仅是 200
+                is_success = 200 <= response.status_code < 300
                 wrapped_data = {
                     "code": response.status_code,
-                    "message": "success" if response.status_code == 200 else "error",
+                    "message": "success" if is_success else "error",
                     "data": data
                 }
                 

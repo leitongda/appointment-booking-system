@@ -32,6 +32,8 @@ const DepartmentPage = () => {
   const [departments, setDepartments] = useState<DepartmentTreeNode[]>([]);
   const [activeIndex, setActiveIndex] = useState<number>(0);
   const [isFlat, setIsFlat] = useState(false);
+  // 标记是否正在跳转，防止页面闪烁
+  const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
     loadDepartments();
@@ -54,6 +56,8 @@ const DepartmentPage = () => {
       // 如果只有一个叶子科室，直接跳转到医生列表
       if (leaves.length === 1) {
         const leaf = leaves[0];
+        // 设置跳转标记，保持加载状态，避免页面闪烁
+        setRedirecting(true);
         Taro.redirectTo({
           url: `/pages/doctor/index?departmentId=${leaf.id}&departmentName=${encodeURIComponent(leaf.name)}`,
         });
@@ -64,9 +68,9 @@ const DepartmentPage = () => {
       const flat = isFlatStructure(data);
       setIsFlat(flat);
       setDepartments(data);
+      setLoading(false);
     } catch (error) {
       console.error('加载科室失败', error);
-    } finally {
       setLoading(false);
     }
   };
@@ -83,7 +87,8 @@ const DepartmentPage = () => {
     Taro.navigateTo({ url: '/packageOther/pages/search/index' });
   };
 
-  if (loading) {
+  // 加载中或正在跳转时，显示加载状态，避免页面闪烁
+  if (loading || redirecting) {
     return (
       <View className="department-page">
         <View className="search-bar">
@@ -95,7 +100,7 @@ const DepartmentPage = () => {
           </View>
         </View>
         <View className="content">
-          <View className="loading-state">加载中...</View>
+          <View className="loading-state">{redirecting ? '正在跳转...' : '加载中...'}</View>
         </View>
       </View>
     );
@@ -126,7 +131,7 @@ const DepartmentPage = () => {
                   onClick={() => handleSelectDept(dept.id, dept.name)}
                 >
                   <View className="flat-icon">
-                    <IconComponent size={28} color="#4F46E5" />
+                    <IconComponent size={28} color="#C41E3A" />
                   </View>
                   <Text className="flat-name">{dept.name}</Text>
                 </View>
@@ -178,7 +183,7 @@ const DepartmentPage = () => {
                 >
                   <View className="dept-content">
                     <View className="dept-icon">
-                      <IconComponent size={20} color="#4F46E5" />
+                      <IconComponent size={20} color="#C41E3A" />
                     </View>
                     <View>
                       <Text className="dept-name">{child.name}</Text>

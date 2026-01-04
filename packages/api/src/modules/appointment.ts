@@ -109,8 +109,12 @@ export const appointmentApi = {
    * 用于在预约前提醒用户
    */
   checkDuplicate: (scheduleId: string, patientId: string): Promise<CheckDuplicateResult> => {
+    // 验证参数非空
+    if (!scheduleId?.trim() || !patientId?.trim()) {
+      return Promise.reject(new Error('缺少必要参数：排班ID或就诊人ID'));
+    }
     return request.get('/appointments/check-duplicate', {
-      params: { schedule_id: scheduleId, patient_id: patientId }
+      params: { schedule_id: scheduleId.trim(), patient_id: patientId.trim() }
     });
   },
 

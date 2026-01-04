@@ -74,7 +74,7 @@ const DoctorListPage = () => {
                 {doctor.avatar ? (
                   <Image className="avatar" src={getImageUrl(doctor.avatar)} mode="aspectFill" />
                 ) : (
-                  <DoctorIcon size={36} color="#4F46E5" />
+                  <DoctorIcon size={36} color="#C41E3A" />
                 )}
               </View>
               <View className="info">

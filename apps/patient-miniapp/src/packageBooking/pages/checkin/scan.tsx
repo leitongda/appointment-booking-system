@@ -76,7 +76,7 @@ const CheckinScanPage = () => {
     <View className="checkin-scan-page">
       <View className="scan-area">
         <View className="scan-icon-wrap">
-          <ScanIcon size={80} color="#4F46E5" />
+          <ScanIcon size={80} color="#C41E3A" />
         </View>
         <Text className="scan-title">扫码签到</Text>
         <Text className="scan-desc">

@@ -96,8 +96,8 @@ function createIconPNG(width, height, iconType, isActive) {
   const radius = width * 0.35;
   
   // 颜色设置
-  const activeColor = { r: 102, g: 126, b: 234 }; // #667eea
-  const inactiveColor = { r: 153, g: 153, b: 153 }; // #999
+  const activeColor = { r: 196, g: 30, b: 58 }; // #C41E3A 朱砂红
+  const inactiveColor = { r: 156, g: 163, b: 175 }; // #9CA3AF 灰色
   const color = isActive ? activeColor : inactiveColor;
   
   for (let y = 0; y < height; y++) {

@@ -289,7 +289,7 @@ const DoctorDetailPage = () => {
             {doctor.avatar ? (
               <Image src={getImageUrl(doctor.avatar)} mode="aspectFill" />
             ) : (
-              <DoctorIcon size={48} color="#4F46E5" />
+              <DoctorIcon size={48} color="#C41E3A" />
             )}
           </View>
           <View className="info-content">
@@ -417,7 +417,7 @@ const DoctorDetailPage = () => {
                 {doctor?.avatar ? (
                   <Image src={getImageUrl(doctor.avatar)} mode="aspectFill" />
                 ) : (
-                  <DoctorIcon size={32} color="#4F46E5" />
+                  <DoctorIcon size={32} color="#C41E3A" />
                 )}
               </View>
               <View className="slot-picker-doctor-info">

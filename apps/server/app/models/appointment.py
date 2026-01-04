@@ -36,5 +36,8 @@ class Appointment(Base, AuditMixin):
     reminder_sent = Column(Integer, default=0, comment="是否已发送提醒: 0否 1是")
     reminder_sent_at = Column(DateTime, comment="提醒发送时间")
     
+    # 关联关系
     schedule = relationship("Schedule", back_populates="appointments")
+    patient = relationship("Patient", backref="appointments")
+    doctor = relationship("Doctor", backref="appointments")
 

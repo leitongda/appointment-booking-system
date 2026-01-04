@@ -30,7 +30,7 @@ const StatusIconMap: Record<number, React.ComponentType<{ size?: number; color?:
 
 // 状态颜色映射
 const statusStyleMap: Record<number, { background: string }> = {
-  1: { background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' },
+  1: { background: 'linear-gradient(135deg, #C41E3A 0%, #8B2942 100%)' },
   2: { background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' },
   3: { background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' },
   5: { background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' },

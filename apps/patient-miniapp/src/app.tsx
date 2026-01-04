@@ -1,5 +1,8 @@
 import { PropsWithChildren, useEffect, useRef } from 'react';
 import Taro from '@tarojs/taro';
+// 占位组件引用：确保 Taro 生成对应的 WXML 模板
+// NutUI Switch 组件内部使用了 checkbox，需要显式引用以生成 tmpl_0_24
+import { View, Checkbox, CheckboxGroup, Label, Radio, RadioGroup } from '@tarojs/components';
 // NutUI 样式按需加载 - 通过 babel-plugin-import 自动导入
 // 详情见 babel.config.js
 import './app.less';
@@ -93,8 +96,8 @@ if (taroAdapter.interceptors) {
       throw error;
     }
     
-    // 处理业务错误（code 不是 200）
-    if (data.code && data.code !== 200) {
+    // 处理业务错误（code 不是 2xx 成功状态码）
+    if (data.code && (data.code < 200 || data.code >= 300)) {
       const error = new Error(data.message || '请求失败');
       (error as any).code = data.code;
       (error as any).data = data.data;
@@ -139,6 +142,30 @@ initTracker({
   debug: process.env.NODE_ENV === 'development',
 });
 
+/**
+ * 占位组件：确保 Taro 为 NutUI 内部使用的原生组件生成 WXML 模板
+ * 
+ * 背景：NutUI 的 Switch 等组件内部使用了微信小程序原生组件（如 checkbox）
+ * 但 Taro 在编译时可能无法识别这些间接依赖，导致 base.wxml 中缺少对应模板
+ * 通过在这里显式使用这些组件，可以确保 Taro 生成完整的模板
+ * 
+ * 错误示例：Template `tmpl_0_24` not found (24 对应 checkbox 组件)
+ */
+function TaroComponentPlaceholder() {
+  // 使用隐藏样式，确保组件被 Taro 识别但不影响页面展示
+  // 注意：不能使用条件渲染，否则可能被 tree-shaking 优化掉
+  return (
+    <View style={{ position: 'absolute', left: '-9999px', width: 0, height: 0, overflow: 'hidden' }}>
+      <CheckboxGroup>
+        <Label><Checkbox value="placeholder" /></Label>
+      </CheckboxGroup>
+      <RadioGroup>
+        <Label><Radio value="placeholder" /></Label>
+      </RadioGroup>
+    </View>
+  );
+}
+
 function App({ children }: PropsWithChildren) {
   // 使用 useRef 确保初始化只执行一次
   const isInitialized = useRef(false);
@@ -182,7 +209,12 @@ function App({ children }: PropsWithChildren) {
     // 这里只处理初始页面
   }, []);
 
-  return children;
+  return (
+    <>
+      {children}
+      <TaroComponentPlaceholder />
+    </>
+  );
 }
 
 export default App;

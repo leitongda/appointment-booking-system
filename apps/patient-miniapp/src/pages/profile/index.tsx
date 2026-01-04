@@ -13,7 +13,6 @@ import {
   BellIcon,
   ChatIcon,
   InfoIcon,
-  SettingsIcon,
   UserIcon,
   HeartIcon,
   PhoneIcon,
@@ -50,7 +49,8 @@ const menuGroups: { items: MenuItem[] }[] = [
       { icon: ChatIcon, title: '意见反馈', desc: '帮助我们做得更好', path: '/packageProfile/pages/feedback/index' },
       { icon: PhoneIcon, title: '联系我们', desc: '拨打门店电话', action: 'contact' },
       { icon: InfoIcon, title: '关于我们', desc: '了解更多', path: '/packageOther/pages/about/index' },
-      { icon: SettingsIcon, title: '设置', desc: '账号与安全', path: '/packageProfile/pages/settings/index' },
+      { icon: RecordIcon, title: '用户协议', desc: '服务条款', action: 'agreement-user' },
+      { icon: RecordIcon, title: '隐私政策', desc: '隐私保护说明', action: 'agreement-privacy' },
     ],
   },
 ];
@@ -435,6 +435,16 @@ const ProfilePage = () => {
       return;
     }
     
+    // 处理协议页面跳转
+    if (item.action === 'agreement-user') {
+      Taro.navigateTo({ url: '/packageOther/pages/agreement/index?type=user' });
+      return;
+    }
+    if (item.action === 'agreement-privacy') {
+      Taro.navigateTo({ url: '/packageOther/pages/agreement/index?type=privacy' });
+      return;
+    }
+    
     // 需要登录的菜单项
     const requireLoginPaths = [
       '/packageProfile/pages/patient/index',
@@ -442,7 +452,6 @@ const ProfilePage = () => {
       '/packageProfile/pages/records/index',
       '/packageProfile/pages/message/index',
       '/packageProfile/pages/feedback/index',
-      '/packageProfile/pages/settings/index',
     ];
 
     if (item.path) {
@@ -535,7 +544,7 @@ const ProfilePage = () => {
                   onClick={() => handleMenuClick(item)}
                 >
                   <View className="menu-icon">
-                    <IconComponent size={22} color="#4F46E5" />
+                    <IconComponent size={22} color="#C41E3A" />
                   </View>
                   <View className="menu-content">
                     <Text className="menu-title">{item.title}</Text>
