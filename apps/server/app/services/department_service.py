@@ -89,16 +89,20 @@ class DepartmentService:
         return list(result.scalars().all())
     
     async def create(self, data: DepartmentCreate, operator_id: Optional[str] = None) -> Department:
+        # 将空字符串的外键字段转换为 None，避免外键约束违规
+        parent_id = data.parent_id if data.parent_id else None
+        store_id = data.store_id if data.store_id else None
+        
         department = Department(
             id=str(uuid.uuid4()),
             name=data.name,
-            parent_id=data.parent_id,
+            parent_id=parent_id,
             description=data.description,
             sort_order=data.sort_order,
             is_hot=data.is_hot,
             status=data.status,
             # 基础配置
-            store_id=data.store_id,
+            store_id=store_id,
             tag=data.tag,
             enable_banner=data.enable_banner,
             enable_intro=data.enable_intro,
@@ -135,6 +139,12 @@ class DepartmentService:
             return None
         
         update_data = data.model_dump(exclude_unset=True)
+        
+        # 将空字符串的外键字段转换为 None，避免外键约束违规
+        for fk_field in ['parent_id', 'store_id']:
+            if fk_field in update_data and update_data[fk_field] == '':
+                update_data[fk_field] = None
+        
         for field, value in update_data.items():
             setattr(department, field, value)
         
