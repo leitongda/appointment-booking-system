@@ -1,13 +1,14 @@
 name: Deploy Server
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'apps/server/**'
-      - 'docker-compose.yml'
-  workflow_dispatch:  # 支持手动触发
+  # 暂时禁用自动触发
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - 'apps/server/**'
+  #     - 'docker-compose.yml'
+  workflow_dispatch:  # 保留手动触发
 
 env:
   PROJECT_DIR: /www/hospital-booking
