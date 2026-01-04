@@ -240,28 +240,30 @@ const StorePage: React.FC = () => {
     {
       title: 'Logo',
       dataIndex: 'logo',
-      width: 60,
+      width: 64,
       search: false,
       render: (_, record) => record.logo ? <Avatar src={record.logo} size={40} /> : '-',
     },
-    { title: '门店名称', dataIndex: 'name', ellipsis: true },
+    { title: '门店名称', dataIndex: 'name', width: 140, ellipsis: true },
     { title: '门店编码', dataIndex: 'code', width: 100, search: false },
-    { title: '城市', dataIndex: 'city', width: 80 },
-    { title: '地址', dataIndex: 'address', ellipsis: true, search: false },
+    { title: '城市', dataIndex: 'city', width: 80, search: false },
+    { title: '地址', dataIndex: 'address', width: 180, ellipsis: true, search: false },
     { title: '联系电话', dataIndex: 'phone', width: 120, search: false },
-    { title: '风格', dataIndex: 'themeStyle', width: 80, search: false },
+    { title: '风格', dataIndex: 'themeStyle', width: 70, search: false },
     {
       title: '状态',
       dataIndex: 'status',
-      width: 80,
+      width: 70,
+      search: false,
       valueEnum: { 1: { text: '营业', status: 'Success' }, 0: { text: '停业', status: 'Default' } },
     },
     {
       title: '操作',
       valueType: 'option',
-      width: 280,
+      width: 360,
+      fixed: 'right',
       render: (_, record) => (
-        <Space>
+        <Space size={4} wrap>
           {access.hasPermission('store:update') && (
             <a onClick={() => handleOpenBindModal(record)}>
               <ApartmentOutlined /> 科室
@@ -274,12 +276,12 @@ const StorePage: React.FC = () => {
           )}
           {access.hasPermission('store:update') && (
             <a onClick={() => history.push(`/store/${record.id}/visit-type-config`)}>
-              <ClockCircleOutlined /> 复诊规则
+              <ClockCircleOutlined /> 复诊
             </a>
           )}
           {access.hasPermission('store:read') && (
             <a onClick={() => handleOpenQrcodeModal(record)}>
-              <QrcodeOutlined /> 签到码
+              <QrcodeOutlined /> 签到
             </a>
           )}
           {access.canSuperAdmin && (
@@ -307,6 +309,7 @@ const StorePage: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
+        scroll={{ x: 1200 }}
         request={async (params) => {
           const { current, pageSize, name, ...rest } = params;
           return toProTableResult(await storeApi.getList({ ...rest, keyword: name, page: current, pageSize }));

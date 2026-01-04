@@ -62,6 +62,8 @@ const ScheduleRulePage: React.FC = () => {
   const [showPreview, setShowPreview] = useState(false);
   // 存储编辑过的班次容量
   const [editedCapacities, setEditedCapacities] = useState<Record<string, number>>({});
+  // 生成排班 loading 状态
+  const [generateLoading, setGenerateLoading] = useState(false);
 
   const [stores, setStores] = useState<Store[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -395,6 +397,7 @@ const ScheduleRulePage: React.FC = () => {
       return { scheduleDate, startTime, endTime, slotCapacity: capacity };
     });
 
+    setGenerateLoading(true);
     try {
       const result = await scheduleTemplateApi.generateWithCapacity({
         templateIds: selectedTemplates,
@@ -411,6 +414,8 @@ const ScheduleRulePage: React.FC = () => {
       actionRef.current?.reload();
     } catch (error: any) {
       message.error(error.message || '生成排班失败');
+    } finally {
+      setGenerateLoading(false);
     }
   };
 
@@ -471,6 +476,7 @@ const ScheduleRulePage: React.FC = () => {
       }
     }
 
+    setGenerateLoading(true);
     try {
       const result = await scheduleTemplateApi.generate({
         templateIds: selectedTemplates,
@@ -485,6 +491,8 @@ const ScheduleRulePage: React.FC = () => {
     } catch (error: any) {
       message.error(error.message || '生成排班失败');
       return false;
+    } finally {
+      setGenerateLoading(false);
     }
   };
 
@@ -917,22 +925,23 @@ const ScheduleRulePage: React.FC = () => {
         }}
         footer={showPreview ? (
           <Space>
-            <Button onClick={() => setShowPreview(false)}>返回设置</Button>
-            <Button type="primary" onClick={handleConfirmGenerate}>
+            <Button onClick={() => setShowPreview(false)} disabled={generateLoading}>返回设置</Button>
+            <Button type="primary" onClick={handleConfirmGenerate} loading={generateLoading}>
               确认生成 ({previewData.reduce((acc, p) => acc + p.totalCount, 0)} 条)
             </Button>
           </Space>
         ) : (
           <Space>
-            <Button onClick={() => setGenerateModalOpen(false)}>取消</Button>
+            <Button onClick={() => setGenerateModalOpen(false)} disabled={generateLoading}>取消</Button>
             <Button 
               icon={<EyeOutlined />}
               onClick={handlePreviewGenerate}
               loading={previewLoading}
+              disabled={generateLoading}
             >
               预览班次
             </Button>
-            <Button type="primary" onClick={() => generateFormRef.current?.submit()}>
+            <Button type="primary" onClick={() => generateFormRef.current?.submit()} loading={generateLoading}>
               直接生成
             </Button>
           </Space>

@@ -93,6 +93,7 @@ const PatientDetailPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [pointModalOpen, setPointModalOpen] = useState(false);
+  const [pointLoading, setPointLoading] = useState(false);
   const [pointForm] = Form.useForm();
   const appointmentRef = useRef<ActionType>();
   const consumptionRef = useRef<ActionType>();
@@ -137,6 +138,7 @@ const PatientDetailPage: React.FC = () => {
 
   const handleAdjustPoints = async (values: { amount: number; remark: string }) => {
     if (!id) return;
+    setPointLoading(true);
     try {
       await patientApi.adjustPoints(id, values);
       message.success('积分调整成功');
@@ -146,6 +148,8 @@ const PatientDetailPage: React.FC = () => {
       pointRef.current?.reload();
     } catch (error: any) {
       message.error(error.message || '积分调整失败');
+    } finally {
+      setPointLoading(false);
     }
   };
 
@@ -717,6 +721,7 @@ const PatientDetailPage: React.FC = () => {
           pointForm.resetFields();
         }}
         onOk={() => pointForm.submit()}
+        confirmLoading={pointLoading}
         destroyOnHidden
       >
         <Form form={pointForm} layout="vertical" onFinish={handleAdjustPoints}>

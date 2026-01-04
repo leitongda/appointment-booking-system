@@ -58,6 +58,7 @@ const UserDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<UserDetail | null>(null);
   const [pointModalOpen, setPointModalOpen] = useState(false);
+  const [pointLoading, setPointLoading] = useState(false);
   const [pointForm] = Form.useForm();
   
   // 编辑用户状态
@@ -100,6 +101,7 @@ const UserDetailPage: React.FC = () => {
 
   const handleAdjustPoints = async (values: { amount: number; remark: string }) => {
     if (!id) return;
+    setPointLoading(true);
     try {
       await userManageApi.adjustPoints(id, values.amount, values.remark);
       message.success('积分调整成功');
@@ -108,6 +110,8 @@ const UserDetailPage: React.FC = () => {
       loadUser();
     } catch (error: any) {
       message.error(error.message || '积分调整失败');
+    } finally {
+      setPointLoading(false);
     }
   };
 
@@ -450,6 +454,7 @@ const UserDetailPage: React.FC = () => {
           pointForm.resetFields();
         }}
         onOk={() => pointForm.submit()}
+        confirmLoading={pointLoading}
         destroyOnHidden
       >
         <Form form={pointForm} layout="vertical" onFinish={handleAdjustPoints}>
