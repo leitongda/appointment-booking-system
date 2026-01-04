@@ -59,6 +59,9 @@ importers:
       lodash-es:
         specifier: ^4.17.21
         version: 4.17.22
+      pinyin-pro:
+        specifier: ^3.27.0
+        version: 3.27.0
       react-image-crop:
         specifier: ^11.0.7
         version: 11.0.10(react@18.3.1)
@@ -8403,6 +8406,9 @@ packages:
   pino@7.11.0:
     resolution: {integrity: sha512-dMACeu63HtRLmCG8VKdy4cShCPKaYDR4youZqoSWLxl5Gu99HUw8bw75thbPv9Nip+H+QYX8o3ZJbTdVZZ2TVg==}
     hasBin: true
+
+  pinyin-pro@3.27.0:
+    resolution: {integrity: sha512-Osdgjwe7Rm17N2paDMM47yW+jUIUH3+0RGo8QP39ZTLpTaJVDK0T58hOLaMQJbcMmAebVuK2ePunTEVEx1clNQ==}
 
   pirates@4.0.7:
     resolution: {integrity: sha512-TfySrs/5nm8fQJDcBDuUng3VOUKsd7S+zqvbOTiGXHfxX4wK31ard+hoNuvkicM/2YFzlpDgABOevKSsB4G/FA==}
@@ -21705,6 +21711,8 @@ snapshots:
       safe-stable-stringify: 2.5.0
       sonic-boom: 2.8.0
       thread-stream: 0.15.2
+
+  pinyin-pro@3.27.0: {}
 
   pirates@4.0.7: {}
 

@@ -30,6 +30,45 @@ class StoreService:
         )
         return result.scalar_one_or_none()
     
+    async def get_by_name(self, name: str) -> Optional[Store]:
+        """根据名称获取门店"""
+        result = await self.db.execute(
+            select(Store).where(Store.name == name)
+        )
+        return result.scalar_one_or_none()
+    
+    async def check_name_exists(self, name: str, exclude_id: Optional[str] = None) -> bool:
+        """检查门店名称是否已存在
+        
+        Args:
+            name: 门店名称
+            exclude_id: 排除的门店ID（编辑时排除当前记录）
+            
+        Returns:
+            是否存在
+        """
+        stmt = select(func.count(Store.id)).where(Store.name == name)
+        if exclude_id:
+            stmt = stmt.where(Store.id != exclude_id)
+        result = await self.db.execute(stmt)
+        return (result.scalar() or 0) > 0
+    
+    async def check_code_exists(self, code: str, exclude_id: Optional[str] = None) -> bool:
+        """检查门店编码是否已存在
+        
+        Args:
+            code: 门店编码
+            exclude_id: 排除的门店ID（编辑时排除当前记录）
+            
+        Returns:
+            是否存在
+        """
+        stmt = select(func.count(Store.id)).where(Store.code == code)
+        if exclude_id:
+            stmt = stmt.where(Store.id != exclude_id)
+        result = await self.db.execute(stmt)
+        return (result.scalar() or 0) > 0
+    
     async def get_list(self, query: StoreQuery) -> tuple[List[Store], int]:
         """获取门店列表"""
         stmt = select(Store)

@@ -45,6 +45,36 @@ async def get_store_by_code(
     return StoreResponse.model_validate(store)
 
 
+@router.get("/check-unique")
+async def check_unique(
+    field: str = Query(..., pattern="^(name|code)$", description="检查字段: name 或 code"),
+    value: str = Query(..., min_length=1, description="字段值"),
+    exclude_id: Optional[str] = Query(None, description="排除的门店ID（编辑时使用）"),
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """检查门店名称或编码是否已存在
+    
+    用于前端表单实时验证唯一性
+    
+    Args:
+        field: 检查字段，可选 "name" 或 "code"
+        value: 字段值
+        exclude_id: 编辑时排除当前门店ID
+        
+    Returns:
+        { "exists": bool } - 是否已存在
+    """
+    service = StoreService(db)
+    
+    if field == "name":
+        exists = await service.check_name_exists(value, exclude_id)
+    else:  # field == "code"
+        exists = await service.check_code_exists(value, exclude_id)
+    
+    return {"exists": exists}
+
+
 # ==================== 需要登录的接口 ====================
 
 @router.get("", response_model=PageResponse[StoreListResponse])

@@ -19,6 +19,9 @@ services:
       - ENVIRONMENT=production
       - STORAGE_TYPE=local
       - LOCAL_UPLOAD_DIR=/app/uploads
+      # 微信小程序配置
+      - WECHAT_APP_ID=${WECHAT_APP_ID:-}
+      - WECHAT_APP_SECRET=${WECHAT_APP_SECRET:-}
     ports:
       - "8000:8000"
     extra_hosts:

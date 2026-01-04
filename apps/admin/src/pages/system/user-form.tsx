@@ -151,10 +151,14 @@ const UserFormPage: React.FC = () => {
               name="username"
               label="账号"
               width="md"
-              rules={[{ required: true, message: '请输入账号' }]}
+              rules={[
+                { required: true, message: '请输入账号' },
+                { min: 3, message: '账号至少需要3个字符' },
+                { max: 50, message: '账号最多50个字符' },
+              ]}
               disabled={isEdit}
               placeholder="用于登录的唯一标识"
-              extra={isEdit ? '账号创建后不可修改' : '账号用于登录，创建后不可修改'}
+              extra={isEdit ? '账号创建后不可修改' : '账号用于登录，创建后不可修改（至少3个字符）'}
               fieldProps={{ autoComplete: 'off' }}
             />
             {!isEdit && (
@@ -164,7 +168,10 @@ const UserFormPage: React.FC = () => {
                   label="密码"
                   width="md"
                   placeholder="不填则默认为 123456"
-                  extra="不填写则使用默认密码：123456"
+                  rules={[
+                    { min: 6, message: '密码至少需要6个字符' },
+                  ]}
+                  extra="不填写则使用默认密码：123456（如填写需至少6个字符）"
                   fieldProps={{ autoComplete: 'new-password' }}
                 />
                 <ProFormText.Password

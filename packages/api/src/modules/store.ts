@@ -149,4 +149,15 @@ export const storeApi = {
   }> => {
     return request.get(`/stores/${storeId}/checkin-qrcode`);
   },
+
+  // 检查门店名称或编码唯一性
+  checkUnique: (
+    field: 'name' | 'code',
+    value: string,
+    excludeId?: string
+  ): Promise<{ exists: boolean }> => {
+    return request.get('/stores/check-unique', {
+      params: { field, value, exclude_id: excludeId }
+    });
+  },
 };
