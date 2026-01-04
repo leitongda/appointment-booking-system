@@ -168,6 +168,14 @@ export const appointmentApi = {
     return request.put(`/appointments/${id}/sign-in`);
   },
 
+  /**
+   * 取消签到（仅超级管理员）
+   * 将状态从"已签到"恢复为"已预约"
+   */
+  cancelSignIn: (id: string): Promise<{ message: string }> => {
+    return request.put(`/appointments/${id}/cancel-sign-in`);
+  },
+
   call: (id: string): Promise<void> => {
     return request.put(`/appointments/${id}/call`);
   },

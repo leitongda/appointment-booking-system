@@ -1,5 +1,5 @@
 import { View, Image, Text } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { useDidShow } from '@tarojs/taro';
 import { useState, useEffect } from 'react';
 import './index.less';
 
@@ -27,30 +27,54 @@ const tabBarList = [
   },
 ];
 
+// 根据当前路由获取选中索引
+function getSelectedIndex(): number {
+  const pages = Taro.getCurrentPages();
+  if (pages.length > 0) {
+    const currentPage = pages[pages.length - 1];
+    const currentPath = '/' + currentPage.route;
+    const index = tabBarList.findIndex((item) => item.pagePath === currentPath);
+    if (index !== -1) {
+      return index;
+    }
+  }
+  return 0;
+}
+
+// 事件名称常量
+const TAB_CHANGE_EVENT = 'tabbar:change';
+
 export default function CustomTabBar() {
-  const [selected, setSelected] = useState(0);
+  // 初始化时就根据当前路由设置正确的索引
+  const [selected, setSelected] = useState(() => getSelectedIndex());
 
+  // 监听来自页面的 TabBar 更新事件
   useEffect(() => {
-    // 监听页面显示，更新选中状态
-    const updateSelected = () => {
-      const pages = Taro.getCurrentPages();
-      if (pages.length > 0) {
-        const currentPage = pages[pages.length - 1];
-        const currentPath = '/' + currentPage.route;
-        const index = tabBarList.findIndex((item) => item.pagePath === currentPath);
-        if (index !== -1) {
-          setSelected(index);
-        }
-      }
+    const handler = (index: number) => {
+      setSelected(index);
     };
-
-    updateSelected();
+    Taro.eventCenter.on(TAB_CHANGE_EVENT, handler);
+    return () => {
+      Taro.eventCenter.off(TAB_CHANGE_EVENT, handler);
+    };
   }, []);
+
+  // 每次页面显示时更新选中状态
+  useDidShow(() => {
+    const index = getSelectedIndex();
+    setSelected(index);
+  });
 
   const handleSwitch = (index: number, pagePath: string) => {
     if (index === selected) return;
     
+    // 立即更新状态
     setSelected(index);
+    
+    // 通知其他组件
+    Taro.eventCenter.trigger(TAB_CHANGE_EVENT, index);
+    
+    // 跳转页面
     Taro.switchTab({
       url: pagePath,
     });

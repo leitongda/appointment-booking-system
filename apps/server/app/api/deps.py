@@ -218,6 +218,18 @@ async def get_current_admin(
     }
 
 
+async def get_current_super_admin(
+    current_admin: dict = Depends(get_current_admin)
+) -> dict:
+    """获取当前超级管理员（仅超级管理员可访问）"""
+    if not current_admin.get("is_super_admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="此操作仅限超级管理员"
+        )
+    return current_admin
+
+
 def get_store_filter(current_admin: dict, allow_all: bool = False) -> Union[None, str, List[str]]:
     """
     获取门店过滤条件

@@ -1,5 +1,5 @@
 import { View, Text } from '@tarojs/components';
-import Taro, { usePullDownRefresh } from '@tarojs/taro';
+import Taro, { usePullDownRefresh, useDidShow } from '@tarojs/taro';
 import { Tabs, Button, Empty } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 import { appointmentApi } from '@hospital/api';
@@ -42,6 +42,11 @@ const AppointmentPage = () => {
     setIsLoggedIn(true);
     loadAppointments();
   }, [activeTab]);
+
+  // 页面显示时更新 TabBar 选中状态
+  useDidShow(() => {
+    Taro.eventCenter.trigger('tabbar:change', 1);
+  });
 
   // 登录成功后刷新数据
   const handleLoginSuccess = () => {
@@ -101,14 +106,9 @@ const AppointmentPage = () => {
     }
   };
 
-  const handleSignIn = async (id: string) => {
-    try {
-      const result = await appointmentApi.signIn(id);
-      Taro.showToast({ title: `签到成功，您是第${result.queueNumber}号`, icon: 'success' });
-      loadAppointments();
-    } catch (error: any) {
-      Taro.showToast({ title: error.message || '签到失败', icon: 'none' });
-    }
+  const handleSignIn = () => {
+    // 跳转到扫码签到页面
+    Taro.navigateTo({ url: '/packageBooking/pages/checkin/scan' });
   };
 
   const handleViewDetail = (id: string) => {
@@ -195,9 +195,9 @@ const AppointmentPage = () => {
                     className="btn-signin"
                     type="primary"
                     size="small"
-                    onClick={(e) => { e.stopPropagation(); handleSignIn(item.id); }}
+                    onClick={(e) => { e.stopPropagation(); handleSignIn(); }}
                   >
-                    签到
+                    扫码签到
                   </Button>
                 </View>
               )}

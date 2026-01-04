@@ -1,7 +1,7 @@
 import { PageContainer, ProDescriptions } from '@ant-design/pro-components';
-import { Card, Tag, Button, Space, Spin, Timeline, Divider } from 'antd';
+import { Card, Tag, Button, Space, Spin, Timeline, Divider, App, Popconfirm } from 'antd';
 import { useEffect, useState } from 'react';
-import { history, useParams } from '@umijs/max';
+import { history, useParams, useAccess } from '@umijs/max';
 import { appointmentApi } from '@hospital/api';
 import type { Appointment } from '@hospital/shared';
 
@@ -25,6 +25,9 @@ const TIME_SLOT_MAP: Record<string, string> = {
 
 const AppointmentDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { message } = App.useApp();
+  const access = useAccess();
+  const isSuperAdmin = access.canSuperAdmin;
   const [loading, setLoading] = useState(true);
   const [appointment, setAppointment] = useState<Appointment | null>(null);
 
@@ -45,12 +48,36 @@ const AppointmentDetailPage: React.FC = () => {
     }
   };
 
+  const handleCancelSignIn = async () => {
+    if (!id) return;
+    try {
+      await appointmentApi.cancelSignIn(id);
+      message.success('取消签到成功');
+      loadAppointment();
+    } catch (error: any) {
+      message.error(error.message || '操作失败');
+    }
+  };
+
   const status = STATUS_MAP[appointment?.status ?? -1] || { text: '未知', color: 'default' };
 
   return (
     <PageContainer
       title="预约详情"
-      extra={<Button onClick={() => history.push('/appointment/list')}>返回列表</Button>}
+      extra={
+        <Space>
+          {appointment?.status === 2 && isSuperAdmin && (
+            <Popconfirm
+              title="确定取消签到吗？"
+              description="状态将恢复为已预约"
+              onConfirm={handleCancelSignIn}
+            >
+              <Button danger>取消签到</Button>
+            </Popconfirm>
+          )}
+          <Button onClick={() => history.push('/appointment/list')}>返回列表</Button>
+        </Space>
+      }
     >
       <Spin spinning={loading}>
         <Card title="基本信息">

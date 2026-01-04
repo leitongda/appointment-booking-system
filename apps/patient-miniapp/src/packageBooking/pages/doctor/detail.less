@@ -89,7 +89,7 @@
 }
 
 // -------------------------------------------
-// 收藏按钮
+// 收藏按钮（纯图标，通过颜色区分状态）
 // -------------------------------------------
 
 .favorite-btn {
@@ -97,14 +97,12 @@
   top: 0;
   right: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  // 固定尺寸，避免图标切换时布局抖动
-  width: 80rpx;
-  height: 72rpx;
-  padding: @spacing-2;
-  border-radius: @radius-lg;
+  // 固定尺寸，纯图标按钮
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: @radius-full;
   // 只过渡 opacity 和 background，不过渡 transform 避免闪动
   transition: opacity @transition-base, background @transition-base;
   
@@ -119,21 +117,9 @@
   
   // 图标容器固定尺寸
   > view {
-    width: 40rpx !important;
-    height: 40rpx !important;
+    width: 48rpx !important;
+    height: 48rpx !important;
     flex-shrink: 0;
-  }
-}
-
-.favorite-text {
-  font-size: @font-size-xs;
-  color: @color-text-muted;
-  margin-top: 4rpx;
-  // 防止文字换行导致高度变化
-  white-space: nowrap;
-  
-  .favorite-btn.active & {
-    color: #EF4444;
   }
 }
 

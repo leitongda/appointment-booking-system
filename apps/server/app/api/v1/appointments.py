@@ -5,7 +5,7 @@ from typing import Optional
 from datetime import date, datetime
 
 from app.db.session import get_db
-from app.api.deps import get_current_user, get_current_user_or_admin, get_store_filter
+from app.api.deps import get_current_user, get_current_user_or_admin, get_store_filter, get_current_super_admin
 from app.schemas.appointment import AppointmentCreate, AppointmentResponse, AppointmentCancelRequest, AppointmentStatistics
 from app.schemas.response import PageResponse
 from app.services.appointment_service import AppointmentService
@@ -411,6 +411,30 @@ async def sign_in_appointment(appointment_id: str, db: AsyncSession = Depends(ge
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
     
     return {"message": "签到成功", "queue_number": appointment.queue_number}
+
+
+@router.put("/{appointment_id}/cancel-sign-in")
+async def cancel_sign_in_appointment(
+    appointment_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_super_admin)
+):
+    """取消签到（仅超级管理员）
+    
+    将状态从"已签到"恢复为"已预约"
+    """
+    service = AppointmentService(db)
+    
+    try:
+        appointment = await service.cancel_sign_in(appointment_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    
+    if not appointment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
+    
+    return {"message": "取消签到成功"}
+
 
 @router.put("/{appointment_id}/call")
 async def call_appointment(appointment_id: str, db: AsyncSession = Depends(get_db)):

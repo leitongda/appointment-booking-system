@@ -52,6 +52,16 @@ const AppointmentListPage: React.FC = () => {
     }
   };
 
+  const handleCancelSignIn = async (id: string) => {
+    try {
+      await appointmentApi.cancelSignIn(id);
+      message.success('取消签到成功');
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error.message || '操作失败');
+    }
+  };
+
   // 日期快捷选项
   const datePresets: { label: string; value: [dayjs.Dayjs, dayjs.Dayjs] }[] = [
     { label: '今天', value: [dayjs(), dayjs()] },
@@ -259,7 +269,7 @@ const AppointmentListPage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 150,
+      width: 180,
       render: (_, record) => (
         <Space>
           {access.hasPermission('appointment:detail') && (
@@ -278,6 +288,11 @@ const AppointmentListPage: React.FC = () => {
                 </Popconfirm>
               )}
             </>
+          )}
+          {record.status === 2 && isSuperAdmin && (
+            <Popconfirm title="确定取消签到吗？状态将恢复为已预约" onConfirm={() => handleCancelSignIn(record.id)}>
+              <a style={{ color: '#ff4d4f' }}>取消签到</a>
+            </Popconfirm>
           )}
         </Space>
       ),

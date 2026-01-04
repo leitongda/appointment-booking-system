@@ -99,14 +99,9 @@ const AppointmentDetailPage = () => {
     }
   };
 
-  const handleSignIn = async () => {
-    try {
-      const result = await appointmentApi.signIn(appointment!.id);
-      Taro.showToast({ title: `签到成功，您是第${result.queueNumber}号`, icon: 'success' });
-      loadAppointment();
-    } catch (error: any) {
-      Taro.showToast({ title: error.message || '签到失败', icon: 'none' });
-    }
+  const handleSignIn = () => {
+    // 跳转到扫码签到页面
+    Taro.navigateTo({ url: '/packageBooking/pages/checkin/scan' });
   };
 
   if (loading) {
@@ -207,7 +202,7 @@ const AppointmentDetailPage = () => {
             取消预约
           </Button>
           <Button className="btn-primary" type="primary" block onClick={handleSignIn}>
-            签到
+            扫码签到
           </Button>
         </View>
       )}

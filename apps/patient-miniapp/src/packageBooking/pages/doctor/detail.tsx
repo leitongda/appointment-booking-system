@@ -305,11 +305,10 @@ const DoctorDetailPage = () => {
             onClick={handleToggleFavorite}
           >
             {isFavorited ? (
-              <HeartIcon size={20} color="#EF4444" />
+              <HeartIcon size={24} color="#EF4444" />
             ) : (
-              <HeartOutlineIcon size={20} color="#94A3B8" />
+              <HeartOutlineIcon size={24} color="#94A3B8" />
             )}
-            <Text className="favorite-text">{isFavorited ? '已收藏' : '收藏'}</Text>
           </View>
         </View>
 

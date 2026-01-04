@@ -373,6 +373,25 @@ class AppointmentService:
         await self.db.refresh(appointment)
         return appointment
     
+    async def cancel_sign_in(self, appointment_id: str) -> Optional[Appointment]:
+        """取消签到（将状态从已签到恢复为已预约）
+        
+        仅超级管理员可调用
+        """
+        appointment = await self.get_by_id(appointment_id)
+        if not appointment:
+            return None
+        
+        if appointment.status != APPOINTMENT_STATUS['SIGNED']:
+            raise ValueError("只有已签到状态的预约才能取消签到")
+        
+        appointment.status = APPOINTMENT_STATUS['CONFIRMED']
+        appointment.sign_in_time = None
+        
+        await self.db.commit()
+        await self.db.refresh(appointment)
+        return appointment
+    
     async def call_patient(self, appointment_id: str) -> Optional[Appointment]:
         """叫号"""
         appointment = await self.get_by_id(appointment_id)

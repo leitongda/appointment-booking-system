@@ -1,5 +1,5 @@
 import { View, Text, Image, Button as TaroButton, Input as TaroInput } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { useDidShow } from '@tarojs/taro';
 import { Button } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 import { userApi, appointmentApi, authApi, storeApi } from '@hospital/api';
@@ -84,6 +84,11 @@ const ProfilePage = () => {
   
   // 门店电话
   const [storePhone, setStorePhone] = useState('');
+
+  // 页面显示时更新 TabBar 选中状态
+  useDidShow(() => {
+    Taro.eventCenter.trigger('tabbar:change', 2);
+  });
 
   useEffect(() => {
     checkLoginStatus();

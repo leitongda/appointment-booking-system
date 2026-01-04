@@ -1,5 +1,5 @@
 import { View, Text, Swiper, SwiperItem, Image } from '@tarojs/components';
-import Taro, { usePullDownRefresh } from '@tarojs/taro';
+import Taro, { usePullDownRefresh, useDidShow } from '@tarojs/taro';
 import { useState, useEffect } from 'react';
 import { contentApi, doctorApi, userApi } from '@hospital/api';
 import type { Banner } from '@hospital/api';
@@ -54,8 +54,10 @@ const IndexPage = () => {
   }, []);
 
   // 页面显示时刷新就诊卡（可能用户新增了就诊卡）
-  Taro.useDidShow(() => {
+  useDidShow(() => {
     loadPatients();
+    // 更新 TabBar 选中状态
+    Taro.eventCenter.trigger('tabbar:change', 0);
   });
 
   // 下拉刷新
