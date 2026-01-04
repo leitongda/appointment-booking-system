@@ -662,3 +662,127 @@ class ScheduleTemplateService:
         
         await self.db.commit()
         return created_count
+    
+    async def copy_to_doctors(
+        self,
+        template_id: str,
+        target_doctor_ids: List[str],
+        overrides: dict = None
+    ) -> int:
+        """复制排班规则给其他医生
+        
+        Args:
+            template_id: 原规则ID
+            target_doctor_ids: 目标医生ID列表
+            overrides: 覆盖配置（可选），支持的字段包括：
+                - name: 规则名称
+                - weekdays: 星期数组
+                - appointment_type: 预约类型
+                - start_time: 开始时间
+                - end_time: 结束时间
+                - slot_count: 班次数量
+                - slot_capacity: 每班次人数
+                - schedule_mode: 排班方式
+                - break_times: 排除时间段
+        
+        Returns:
+            创建的规则数量
+        """
+        from app.models.doctor import Doctor
+        
+        # 获取原规则
+        template = await self.get_by_id(template_id)
+        if not template:
+            raise ValueError("原排班规则不存在")
+        
+        # 获取目标医生信息
+        doctor_result = await self.db.execute(
+            select(Doctor).where(Doctor.id.in_(target_doctor_ids))
+        )
+        doctors = {d.id: d for d in doctor_result.scalars().all()}
+        
+        if not doctors:
+            raise ValueError("未找到有效的目标医生")
+        
+        # 准备覆盖配置
+        overrides = overrides or {}
+        
+        created_count = 0
+        
+        for doctor_id in target_doctor_ids:
+            doctor = doctors.get(doctor_id)
+            if not doctor:
+                continue  # 跳过不存在的医生
+            
+            # 生成新规则名称
+            base_name = overrides.get('name') or template.name
+            new_name = f"{base_name}（{doctor.name}）"
+            
+            # 处理 weekdays
+            weekdays = overrides.get('weekdays') or template.weekday_list
+            weekdays_json = json.dumps(weekdays) if isinstance(weekdays, list) else template.weekdays
+            
+            # 处理 break_times
+            break_times_json = None
+            if 'break_times' in overrides and overrides['break_times'] is not None:
+                break_times_list = []
+                for bt in overrides['break_times']:
+                    if hasattr(bt, 'start_time'):
+                        bt_dict = {
+                            "startTime": bt.start_time.strftime("%H:%M") if hasattr(bt.start_time, 'strftime') else str(bt.start_time),
+                            "endTime": bt.end_time.strftime("%H:%M") if hasattr(bt.end_time, 'strftime') else str(bt.end_time)
+                        }
+                    elif isinstance(bt, dict):
+                        start_time = bt.get('start_time') or bt.get('startTime')
+                        end_time = bt.get('end_time') or bt.get('endTime')
+                        bt_dict = {
+                            "startTime": start_time.strftime("%H:%M") if hasattr(start_time, 'strftime') else str(start_time),
+                            "endTime": end_time.strftime("%H:%M") if hasattr(end_time, 'strftime') else str(end_time)
+                        }
+                    else:
+                        bt_dict = bt
+                    break_times_list.append(bt_dict)
+                break_times_json = json.dumps(break_times_list)
+            else:
+                break_times_json = template.break_times
+            
+            # 处理时间字段
+            start_time = overrides.get('start_time') or template.start_time
+            end_time = overrides.get('end_time') or template.end_time
+            
+            # 如果是字符串，尝试解析
+            if isinstance(start_time, str):
+                try:
+                    start_time = datetime.strptime(start_time, "%H:%M").time()
+                except ValueError:
+                    start_time = datetime.strptime(start_time, "%H:%M:%S").time()
+            
+            if isinstance(end_time, str):
+                try:
+                    end_time = datetime.strptime(end_time, "%H:%M").time()
+                except ValueError:
+                    end_time = datetime.strptime(end_time, "%H:%M:%S").time()
+            
+            # 创建新规则
+            new_template = ScheduleTemplate(
+                id=str(uuid.uuid4()),
+                name=new_name,
+                store_id=template.store_id,  # 保持原门店
+                doctor_id=doctor_id,
+                department_id=doctor.department_id,  # 使用目标医生的科室
+                weekdays=weekdays_json,
+                appointment_type=overrides.get('appointment_type') or template.appointment_type,
+                start_time=start_time,
+                end_time=end_time,
+                slot_count=overrides.get('slot_count') if overrides.get('slot_count') is not None else template.slot_count,
+                slot_capacity=overrides.get('slot_capacity') if overrides.get('slot_capacity') is not None else template.slot_capacity,
+                schedule_mode=overrides.get('schedule_mode') or template.schedule_mode,
+                break_times=break_times_json,
+                status=1
+            )
+            set_create_audit(new_template, None)
+            self.db.add(new_template)
+            created_count += 1
+        
+        await self.db.commit()
+        return created_count

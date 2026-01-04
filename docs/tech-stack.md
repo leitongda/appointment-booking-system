@@ -37,7 +37,7 @@
 | **Ant Design** | 5.29+ | UI 组件库 |
 | **ProComponents** | 2.8+ | 高级业务组件（ProTable、ProForm 等） |
 | **@ant-design/charts** | 2.6+ | 图表组件 |
-| **TinyMCE** | 5.1+ | 富文本编辑器 |
+| **wangEditor** | 5.1+ | 富文本编辑器（开源免费） |
 | **dayjs** | 1.11+ | 日期处理 |
 | **@dnd-kit** | 6.x | 拖拽排序功能 |
 

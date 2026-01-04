@@ -1,6 +1,13 @@
-import { useRef } from 'react';
-import { Editor } from '@tinymce/tinymce-react';
-import type { IAllProps } from '@tinymce/tinymce-react';
+import { useEffect, useRef, useState } from 'react';
+import '@wangeditor/editor/dist/css/style.css';
+import { Editor, Toolbar } from '@wangeditor/editor-for-react';
+import {
+  Boot,
+  IDomEditor,
+  IDropPanelMenu,
+  IEditorConfig,
+  IToolbarConfig,
+} from '@wangeditor/editor';
 
 // 邮件模板常用变量
 export const EMAIL_TEMPLATE_VARIABLES = [
@@ -23,8 +30,115 @@ interface RichTextEditorProps {
   disabled?: boolean;
 }
 
-// 获取 TinyMCE Editor 类型
-type TinyMCEEditorInstance = Parameters<NonNullable<IAllProps['onInit']>>[1];
+// 变量插入菜单的 key
+const INSERT_VARIABLE_MENU_KEY = 'insertVariable';
+
+// 是否已注册自定义菜单
+let isMenuRegistered = false;
+
+// 创建变量插入菜单类
+function createInsertVariableMenuClass(
+  variables: { label: string; value: string }[],
+) {
+  class InsertVariableMenu implements IDropPanelMenu {
+    title: string;
+    tag: string;
+    showDropPanel: boolean;
+    private $panel: HTMLElement | null = null;
+    private currentEditor: IDomEditor | null = null;
+
+    constructor() {
+      this.title = '插入变量';
+      this.tag = 'button';
+      this.showDropPanel = true;
+    }
+
+    isActive(): boolean {
+      return false;
+    }
+
+    getValue(): string | boolean {
+      return '';
+    }
+
+    isDisabled(editor: IDomEditor): boolean {
+      return editor.isDisabled();
+    }
+
+    exec(): void {
+      // DropPanel menu 不需要实现 exec
+    }
+
+    getPanelContentElem(editor: IDomEditor): HTMLElement {
+      this.currentEditor = editor;
+
+      // 如果已有缓存的面板，直接返回
+      if (this.$panel) {
+        return this.$panel;
+      }
+
+      // 创建面板容器
+      const $panel = document.createElement('div');
+      $panel.style.cssText =
+        'padding: 8px 0; min-width: 120px; max-height: 300px; overflow-y: auto;';
+
+      // 创建变量列表
+      variables.forEach((variable) => {
+        const $item = document.createElement('div');
+        $item.innerText = variable.label;
+        $item.style.cssText = `
+          padding: 8px 16px;
+          cursor: pointer;
+          font-size: 14px;
+          color: #333;
+          transition: background-color 0.2s;
+        `;
+
+        $item.addEventListener('mouseenter', () => {
+          $item.style.backgroundColor = '#f5f5f5';
+        });
+
+        $item.addEventListener('mouseleave', () => {
+          $item.style.backgroundColor = 'transparent';
+        });
+
+        $item.addEventListener('click', () => {
+          if (this.currentEditor) {
+            // 插入变量占位符（带样式）
+            this.currentEditor.dangerouslyInsertHtml(
+              `<span style="color: #1890ff; font-weight: bold;">{{${variable.value}}}</span>&nbsp;`,
+            );
+          }
+        });
+
+        $panel.appendChild($item);
+      });
+
+      this.$panel = $panel;
+      return $panel;
+    }
+  }
+
+  return InsertVariableMenu;
+}
+
+// 注册变量插入菜单
+function registerVariableMenu(
+  variables: { label: string; value: string }[],
+): void {
+  if (isMenuRegistered) return;
+
+  const InsertVariableMenuClass = createInsertVariableMenuClass(variables);
+
+  Boot.registerMenu({
+    key: INSERT_VARIABLE_MENU_KEY,
+    factory() {
+      return new InsertVariableMenuClass();
+    },
+  });
+
+  isMenuRegistered = true;
+}
 
 const RichTextEditor: React.FC<RichTextEditorProps> = ({
   value,
@@ -34,73 +148,114 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   variables,
   disabled = false,
 }) => {
-  const editorRef = useRef<TinyMCEEditorInstance | null>(null);
+  const [editor, setEditor] = useState<IDomEditor | null>(null);
+  const isInitialMount = useRef(true);
 
-  const handleEditorChange = (content: string) => {
-    onChange?.(content);
+  // 注册变量菜单（如果有变量配置）
+  useEffect(() => {
+    if (variables?.length && !isMenuRegistered) {
+      registerVariableMenu(variables);
+    }
+  }, [variables]);
+
+  // 工具栏配置
+  const toolbarConfig: Partial<IToolbarConfig> = {
+    toolbarKeys: [
+      'undo',
+      'redo',
+      '|',
+      'headerSelect',
+      '|',
+      'bold',
+      'italic',
+      'underline',
+      'through',
+      '|',
+      'color',
+      'bgColor',
+      '|',
+      'justifyLeft',
+      'justifyCenter',
+      'justifyRight',
+      'justifyJustify',
+      '|',
+      'bulletedList',
+      'numberedList',
+      'todo',
+      '|',
+      'indent',
+      'delIndent',
+      '|',
+      'insertLink',
+      'insertImage',
+      'insertTable',
+      '|',
+      'codeBlock',
+      'divider',
+      '|',
+      'fullScreen',
+      // 如果有变量配置，添加变量插入菜单
+      ...(variables?.length ? ['|', INSERT_VARIABLE_MENU_KEY] : []),
+    ],
   };
 
-  // 根据是否有变量配置来决定工具栏
-  const baseToolbar = 'undo redo | blocks | bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image table | code preview fullscreen';
-  const toolbar = variables?.length ? `${baseToolbar} | insertvariable` : baseToolbar;
+  // 编辑器配置
+  const editorConfig: Partial<IEditorConfig> = {
+    placeholder,
+    readOnly: disabled,
+    MENU_CONF: {},
+  };
 
-  // 获取 TinyMCE API Key
-  const apiKey = process.env.TINYMCE_API_KEY || 'no-api-key';
+  // 及时销毁 editor
+  useEffect(() => {
+    return () => {
+      if (editor == null) return;
+      editor.destroy();
+      setEditor(null);
+    };
+  }, [editor]);
+
+  // 处理内容变化
+  const handleChange = (newEditor: IDomEditor) => {
+    // 跳过初始化时的 onChange 调用
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    const html = newEditor.getHtml();
+    // 如果内容为空段落，返回空字符串
+    const isEmpty = html === '<p><br></p>' || html === '<p></p>';
+    onChange?.(isEmpty ? '' : html);
+  };
 
   return (
-    <Editor
-      tinymceScriptSrc={`https://cdn.tiny.cloud/1/${apiKey}/tinymce/7/tinymce.min.js`}
-      onInit={(_evt: unknown, editor: TinyMCEEditorInstance) => {
-        editorRef.current = editor;
+    <div
+      style={{
+        border: '1px solid #d9d9d9',
+        borderRadius: '6px',
+        overflow: 'hidden',
       }}
-      value={value}
-      onEditorChange={handleEditorChange}
-      disabled={disabled}
-      init={{
-        height,
-        placeholder,
-        menubar: false,
-        language: 'zh_CN',
-        plugins: 'lists link image table code preview fullscreen wordcount',
-        toolbar,
-        toolbar_mode: 'sliding',
-        branding: false,
-        promotion: false,
-        statusbar: true,
-        elementpath: false,
-        resize: true,
-        content_style: `
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            font-size: 14px;
-            line-height: 1.6;
-            padding: 12px;
-          }
-          p { margin: 0 0 10px 0; }
-        `,
-        setup: (editor: TinyMCEEditorInstance) => {
-          // 添加变量插入按钮
-          if (variables?.length) {
-            editor.ui.registry.addMenuButton('insertvariable', {
-              text: '插入变量',
-              tooltip: '插入模板变量',
-              fetch: (callback: (items: Array<{ type: 'menuitem'; text: string; onAction: () => void }>) => void) => {
-                const items = variables.map((v) => ({
-                  type: 'menuitem' as const,
-                  text: v.label,
-                  onAction: () => {
-                    editor.insertContent(`<span style="color: #1890ff; font-weight: bold;">{{${v.value}}}</span>&nbsp;`);
-                  },
-                }));
-                callback(items);
-              },
-            });
-          }
-        },
-      }}
-    />
+    >
+      <Toolbar
+        editor={editor}
+        defaultConfig={toolbarConfig}
+        mode="default"
+        style={{
+          borderBottom: '1px solid #d9d9d9',
+          backgroundColor: '#fafafa',
+        }}
+      />
+      <Editor
+        defaultConfig={editorConfig}
+        value={value}
+        onCreated={setEditor}
+        onChange={handleChange}
+        mode="default"
+        style={{ height: `${height}px`, overflowY: 'hidden' }}
+      />
+    </div>
   );
 };
 
 export default RichTextEditor;
-

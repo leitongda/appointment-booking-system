@@ -17,9 +17,31 @@ import proxy from './proxy';
 const {
   REACT_APP_ENV = 'dev',
   AMAP_KEY = '',
-  TINYMCE_API_KEY = '',
+  AMAP_SERVICE_HOST = '',  // 高德地图代理服务器地址，例如：https://your-domain.com/_AMapService
   API_BASE_URL = '/api/v1',  // API 基础路径，支持动态配置
 } = process.env;
+
+// 构建高德地图相关脚本
+const buildAMapScripts = () => {
+  if (!AMAP_KEY) return [];
+  
+  const scripts: any[] = [];
+  
+  // 安全配置脚本（必须在 SDK 加载前）
+  if (AMAP_SERVICE_HOST) {
+    scripts.push({
+      content: `window._AMapSecurityConfig = { serviceHost: "${AMAP_SERVICE_HOST}" };`,
+    });
+  }
+  
+  // 高德地图 SDK
+  scripts.push({
+    src: `https://webapi.amap.com/maps?v=2.0&key=${AMAP_KEY}&plugin=AMap.PlaceSearch,AMap.Geocoder,AMap.AutoComplete`,
+    async: true,
+  });
+  
+  return scripts;
+};
 
 export default defineConfig({
   // 路径别名配置
@@ -28,16 +50,10 @@ export default defineConfig({
   },
 
   // 高德地图 SDK
-  headScripts: AMAP_KEY ? [
-    {
-      src: `https://webapi.amap.com/maps?v=2.0&key=${AMAP_KEY}&plugin=AMap.PlaceSearch,AMap.Geocoder,AMap.AutoComplete`,
-      async: true,
-    },
-  ] : [],
+  headScripts: buildAMapScripts(),
 
   // 定义全局变量
   define: {
-    'process.env.TINYMCE_API_KEY': TINYMCE_API_KEY,
     'process.env.API_BASE_URL': API_BASE_URL,
   },
 

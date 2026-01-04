@@ -175,6 +175,24 @@ export interface ScheduleGenerateWithCapacityData {
   slotCapacities?: SlotCapacityOverride[];
 }
 
+export interface ScheduleTemplateCopyData {
+  targetDoctorIds: string[];
+  name?: string;
+  weekdays?: number[];
+  appointmentType?: string;
+  startTime?: string;
+  endTime?: string;
+  slotCount?: number;
+  slotCapacity?: number;
+  scheduleMode?: string;
+  breakTimes?: BreakTime[];
+}
+
+export interface ScheduleTemplateCopyResult {
+  message: string;
+  createdCount: number;
+}
+
 export const scheduleTemplateApi = {
   /**
    * 获取排班模板列表
@@ -410,5 +428,39 @@ export const scheduleTemplateApi = {
       }));
     }
     return request.post('/schedule-templates/generate-with-capacity', requestData);
+  },
+
+  /**
+   * 复制排班规则给其他医生
+   */
+  copy: (id: string, data: ScheduleTemplateCopyData): Promise<ScheduleTemplateCopyResult> => {
+    const requestData: Record<string, any> = {
+      target_doctor_ids: data.targetDoctorIds,
+    };
+    if (data.name !== undefined) requestData.name = data.name;
+    if (data.weekdays !== undefined) requestData.weekdays = data.weekdays;
+    if (data.appointmentType !== undefined) requestData.appointment_type = data.appointmentType;
+    if (data.startTime !== undefined) {
+      const formattedStartTime = formatTimeValue(data.startTime);
+      if (formattedStartTime) {
+        requestData.start_time = formattedStartTime;
+      }
+    }
+    if (data.endTime !== undefined) {
+      const formattedEndTime = formatTimeValue(data.endTime);
+      if (formattedEndTime) {
+        requestData.end_time = formattedEndTime;
+      }
+    }
+    if (data.slotCount !== undefined) requestData.slot_count = data.slotCount;
+    if (data.slotCapacity !== undefined) requestData.slot_capacity = data.slotCapacity;
+    if (data.scheduleMode !== undefined) requestData.schedule_mode = data.scheduleMode;
+    if (data.breakTimes !== undefined) {
+      requestData.break_times = data.breakTimes?.map(bt => ({
+        start_time: formatTimeValue(bt.startTime) || bt.startTime,
+        end_time: formatTimeValue(bt.endTime) || bt.endTime,
+      }));
+    }
+    return request.post(`/schedule-templates/${id}/copy`, requestData);
   },
 };

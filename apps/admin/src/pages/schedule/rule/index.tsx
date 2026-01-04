@@ -1,4 +1,4 @@
-import { PlusOutlined, ThunderboltOutlined, DeleteOutlined, StopOutlined, HistoryOutlined, CalendarOutlined } from '@ant-design/icons';
+import { PlusOutlined, ThunderboltOutlined, DeleteOutlined, StopOutlined, HistoryOutlined, CalendarOutlined, CopyOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns, ProFormInstance } from '@ant-design/pro-components';
 import {
   PageContainer,
@@ -13,7 +13,7 @@ import {
   ProFormRadio,
   ProFormDigit,
 } from '@ant-design/pro-components';
-import { Button, App, Space, Popconfirm, Tag, Alert, Modal, Table, Tooltip, Dropdown, InputNumber, Tabs } from 'antd';
+import { Button, App, Space, Popconfirm, Tag, Alert, Modal, Table, Tooltip, Dropdown, InputNumber, Tabs, Steps, Transfer, Select } from 'antd';
 import { EyeOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { useRef, useState, useEffect, useMemo } from 'react';
@@ -68,6 +68,16 @@ const ScheduleRulePage: React.FC = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [selectedDept, setSelectedDept] = useState<string>();
 
+  // 复制规则相关状态
+  const [copyModalOpen, setCopyModalOpen] = useState(false);
+  const [copyStep, setCopyStep] = useState(0); // 0: 编辑配置, 1: 选择医生
+  const [copySourceTemplate, setCopySourceTemplate] = useState<ScheduleTemplate | null>(null);
+  const [copyFormData, setCopyFormData] = useState<any>(null);
+  const [copyTargetDoctorIds, setCopyTargetDoctorIds] = useState<string[]>([]);
+  const [copyLoading, setCopyLoading] = useState(false);
+  const [allDoctors, setAllDoctors] = useState<Doctor[]>([]);
+  const [copyDeptFilter, setCopyDeptFilter] = useState<string | undefined>(undefined);
+
   // 当前日期信息
   const dateInfo = useMemo(() => getDateInfo(), []);
 
@@ -115,6 +125,99 @@ const ScheduleRulePage: React.FC = () => {
       console.error('加载医生失败', error);
     }
   };
+
+  // 加载所有医生（用于复制弹窗）
+  const loadAllDoctors = async () => {
+    try {
+      const res = await doctorApi.getList({ pageSize: 1000, status: 1 });
+      setAllDoctors(res.data ?? []);
+    } catch (error) {
+      console.error('加载所有医生失败', error);
+    }
+  };
+
+  // 打开复制弹窗
+  const handleOpenCopyModal = async (record: ScheduleTemplate) => {
+    setCopySourceTemplate(record);
+    // 初始化表单数据
+    setCopyFormData({
+      name: record.name,
+      weekdays: record.weekdays || [],
+      appointmentType: record.appointmentType || 'normal',
+      startTime: record.startTime,
+      endTime: record.endTime,
+      slotCount: record.slotCount || 1,
+      slotCapacity: record.slotCapacity || 10,
+      scheduleMode: record.scheduleMode || 'weekly',
+      breakTimes: record.breakTimes || [],
+    });
+    setCopyStep(0);
+    setCopyTargetDoctorIds([]);
+    setCopyDeptFilter(undefined);
+    setCopyModalOpen(true);
+    // 加载所有医生
+    await loadAllDoctors();
+  };
+
+  // 复制规则下一步
+  const handleCopyNextStep = () => {
+    setCopyStep(1);
+  };
+
+  // 复制规则上一步
+  const handleCopyPrevStep = () => {
+    setCopyStep(0);
+  };
+
+  // 确认复制
+  const handleConfirmCopy = async () => {
+    if (copyTargetDoctorIds.length === 0) {
+      message.error('请选择至少一个目标医生');
+      return;
+    }
+
+    if (!copySourceTemplate) {
+      message.error('复制源规则不存在');
+      return;
+    }
+
+    setCopyLoading(true);
+    try {
+      const result = await scheduleTemplateApi.copy(copySourceTemplate.id, {
+        targetDoctorIds: copyTargetDoctorIds,
+        name: copyFormData.name,
+        weekdays: copyFormData.weekdays,
+        appointmentType: copyFormData.appointmentType,
+        startTime: copyFormData.startTime,
+        endTime: copyFormData.endTime,
+        slotCount: copyFormData.slotCount,
+        slotCapacity: copyFormData.slotCapacity,
+        scheduleMode: copyFormData.scheduleMode,
+        breakTimes: copyFormData.breakTimes,
+      });
+      message.success(result.message);
+      setCopyModalOpen(false);
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error.message || '复制失败');
+    } finally {
+      setCopyLoading(false);
+    }
+  };
+
+  // 过滤后的医生列表（排除源规则的医生）
+  const filteredDoctors = useMemo(() => {
+    let list = allDoctors;
+    // 排除源规则的医生
+    if (copySourceTemplate) {
+      list = list.filter(d => d.id !== copySourceTemplate.doctorId);
+    }
+    // 按科室过滤
+    if (copyDeptFilter) {
+      list = list.filter(d => d.departmentId === copyDeptFilter);
+    }
+    return list;
+  }, [allDoctors, copySourceTemplate, copyDeptFilter]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -404,6 +507,12 @@ const ScheduleRulePage: React.FC = () => {
       key: 'edit',
       label: '编辑',
       onClick: () => history.push(`/schedule/rule/${record.id}/edit`),
+    },
+    {
+      key: 'copy',
+      icon: <CopyOutlined />,
+      label: '复制规则',
+      onClick: () => handleOpenCopyModal(record),
     },
     {
       key: 'logs',
@@ -1053,6 +1162,174 @@ const ScheduleRulePage: React.FC = () => {
           size="small"
           locale={{ emptyText: '暂无历史记录' }}
         />
+      </Modal>
+
+      {/* 复制规则弹窗 */}
+      <Modal
+        title="复制排班规则"
+        open={copyModalOpen}
+        onCancel={() => {
+          setCopyModalOpen(false);
+          setCopySourceTemplate(null);
+          setCopyFormData(null);
+          setCopyStep(0);
+          setCopyTargetDoctorIds([]);
+        }}
+        footer={
+          <Space>
+            <Button onClick={() => setCopyModalOpen(false)}>取消</Button>
+            {copyStep === 0 ? (
+              <Button type="primary" onClick={handleCopyNextStep}>
+                下一步：选择医生
+              </Button>
+            ) : (
+              <>
+                <Button onClick={handleCopyPrevStep}>上一步</Button>
+                <Button
+                  type="primary"
+                  loading={copyLoading}
+                  onClick={handleConfirmCopy}
+                  disabled={copyTargetDoctorIds.length === 0}
+                >
+                  确认复制 ({copyTargetDoctorIds.length})
+                </Button>
+              </>
+            )}
+          </Space>
+        }
+        width={700}
+        destroyOnClose
+      >
+        <Steps
+          current={copyStep}
+          items={[
+            { title: '调整配置' },
+            { title: '选择医生' },
+          ]}
+          style={{ marginBottom: 24 }}
+        />
+
+        {copyStep === 0 && copyFormData && (
+          <div>
+            <Alert
+              message={
+                <div>
+                  复制来源：<strong>{copySourceTemplate?.name}</strong>
+                  <span style={{ marginLeft: 16, color: '#666' }}>
+                    医生：{copySourceTemplate?.doctorName}
+                  </span>
+                </div>
+              }
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+            
+            <ProForm
+              layout="horizontal"
+              labelCol={{ span: 6 }}
+              wrapperCol={{ span: 18 }}
+              submitter={false}
+              initialValues={copyFormData}
+              onValuesChange={(_, allValues) => {
+                setCopyFormData(allValues);
+              }}
+            >
+              <ProFormCheckbox.Group
+                name="weekdays"
+                label="选择星期"
+                options={WEEKDAY_OPTIONS}
+              />
+              <ProFormSelect
+                name="appointmentType"
+                label="预约类型"
+                options={APPOINTMENT_TYPE_OPTIONS}
+              />
+              <ProFormTimePicker
+                name="startTime"
+                label="开始时间"
+                fieldProps={{ format: 'HH:mm' }}
+              />
+              <ProFormTimePicker
+                name="endTime"
+                label="结束时间"
+                fieldProps={{ format: 'HH:mm' }}
+              />
+              <ProFormDigit
+                name="slotCount"
+                label="班次数量"
+                min={1}
+                max={50}
+                fieldProps={{ style: { width: 120 } }}
+              />
+              <ProFormDigit
+                name="slotCapacity"
+                label="班次人数"
+                min={1}
+                max={200}
+                fieldProps={{ style: { width: 120 } }}
+              />
+              <ProFormRadio.Group
+                name="scheduleMode"
+                label="排班方式"
+                options={SCHEDULE_MODE_OPTIONS}
+              />
+            </ProForm>
+          </div>
+        )}
+
+        {copyStep === 1 && (
+          <div>
+            <Alert
+              message="选择要复制规则的目标医生，可选择多个医生"
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+            
+            <div style={{ marginBottom: 16 }}>
+              <span style={{ marginRight: 8 }}>按科室筛选：</span>
+              <Select
+                allowClear
+                placeholder="全部科室"
+                style={{ width: 200 }}
+                value={copyDeptFilter}
+                onChange={(val) => setCopyDeptFilter(val)}
+                options={departments.map(d => ({ label: d.name, value: d.id }))}
+              />
+            </div>
+            
+            <Transfer
+              dataSource={filteredDoctors.map(d => ({
+                key: d.id,
+                title: d.name,
+                description: `${d.departmentName || ''} ${d.title || ''}`.trim(),
+              }))}
+              titles={['可选医生', '已选医生']}
+              targetKeys={copyTargetDoctorIds}
+              onChange={(nextTargetKeys) => setCopyTargetDoctorIds(nextTargetKeys as string[])}
+              render={(item) => (
+                <span>
+                  {item.title}
+                  {item.description && (
+                    <span style={{ color: '#999', fontSize: 12, marginLeft: 8 }}>
+                      {item.description}
+                    </span>
+                  )}
+                </span>
+              )}
+              listStyle={{
+                width: 280,
+                height: 350,
+              }}
+              showSearch
+              filterOption={(inputValue, item) =>
+                item.title!.toLowerCase().includes(inputValue.toLowerCase()) ||
+                (item.description || '').toLowerCase().includes(inputValue.toLowerCase())
+              }
+            />
+          </div>
+        )}
       </Modal>
     </PageContainer>
   );

@@ -106,6 +106,7 @@ const DepartmentFormPage: React.FC = () => {
 
   const initialValues = department ? {
     ...department,
+    parentId: department.parentId ?? '',  // 将 null/undefined 转为空字符串以匹配"顶级分类"选项
     isHot: department.isHot === 1,
     status: department.status === 1,
     enableBanner: department.enableBanner === 1,
@@ -114,6 +115,7 @@ const DepartmentFormPage: React.FC = () => {
     isRecommended: department.isRecommended === 1,
   } : {
     sortOrder: 1,
+    parentId: '',  // 新增时默认选中"顶级分类"
     isHot: false,
     status: true,
     enableBanner: false,

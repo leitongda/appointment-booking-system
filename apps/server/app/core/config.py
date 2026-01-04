@@ -133,9 +133,6 @@ class Settings(BaseSettings):
     COS_BUCKET: Optional[str] = None
     COS_CDN_DOMAIN: Optional[str] = None  # CDN加速域名（可选）
     
-    # TinyMCE 富文本编辑器配置
-    TINYMCE_API_KEY: Optional[str] = None  # TinyMCE API Key
-    
     model_config = SettingsConfigDict(
         env_file=_get_env_file(),
         env_file_encoding='utf-8',

@@ -16,6 +16,8 @@ from app.schemas.schedule_template import (
     SchedulePreviewGenerateResponse,
     ScheduleSlotPreview,
     ScheduleGenerateWithCapacityRequest,
+    ScheduleTemplateCopyRequest,
+    ScheduleTemplateCopyResponse,
     BreakTime,
 )
 from app.schemas.schedule_generation_log import (
@@ -678,3 +680,57 @@ async def get_generation_logs(
     ]
     
     return PageResponse(data=result, total=total, page=page, page_size=page_size)
+
+
+@router.post("/{template_id}/copy", response_model=ScheduleTemplateCopyResponse)
+async def copy_template_to_doctors(
+    template_id: str,
+    data: ScheduleTemplateCopyRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """复制排班规则给其他医生
+    
+    将指定规则的配置复制给其他医生，支持在复制时调整配置。
+    """
+    service = ScheduleTemplateService(db)
+    
+    # 先检查模板是否存在
+    template = await service.get_by_id(template_id)
+    if not template:
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="排班规则不存在")
+    
+    # 构建覆盖配置
+    overrides = {}
+    if data.name is not None:
+        overrides['name'] = data.name
+    if data.weekdays is not None:
+        overrides['weekdays'] = data.weekdays
+    if data.appointment_type is not None:
+        overrides['appointment_type'] = data.appointment_type
+    if data.start_time is not None:
+        overrides['start_time'] = data.start_time
+    if data.end_time is not None:
+        overrides['end_time'] = data.end_time
+    if data.slot_count is not None:
+        overrides['slot_count'] = data.slot_count
+    if data.slot_capacity is not None:
+        overrides['slot_capacity'] = data.slot_capacity
+    if data.schedule_mode is not None:
+        overrides['schedule_mode'] = data.schedule_mode
+    if data.break_times is not None:
+        overrides['break_times'] = data.break_times
+    
+    try:
+        created_count = await service.copy_to_doctors(
+            template_id=template_id,
+            target_doctor_ids=data.target_doctor_ids,
+            overrides=overrides if overrides else None
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
+    
+    return ScheduleTemplateCopyResponse(
+        message=f"成功复制 {created_count} 条规则",
+        created_count=created_count
+    )

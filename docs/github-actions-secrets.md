@@ -108,3 +108,47 @@ ssh-copy-id -i ~/.ssh/id_rsa.pub username@your-server-ip
 2. 确保 `pnpm-lock.yaml` 已提交到仓库
 3. 本地运行 `pnpm build:admin` 等命令验证是否能正常构建
 
+## 高德地图配置说明
+
+Admin 后台使用高德地图进行位置选择功能。通过 `.env` 文件配置（不通过 GitHub Secrets）。
+
+### 配置方式
+
+在 `apps/admin/` 目录下创建 `.env` 文件：
+
+```bash
+# apps/admin/.env
+AMAP_KEY=your_amap_key
+AMAP_SERVICE_HOST=https://your-domain.com/_AMapService
+```
+
+### 1. 获取 AMAP_KEY
+
+从高德开放平台获取 Web JS API Key：
+
+1. 访问 [高德开放平台](https://lbs.amap.com/)
+2. 注册/登录账号
+3. 进入控制台 → 应用管理 → 我的应用
+4. 创建新应用，选择 **Web端(JS API)** 类型
+5. 复制生成的 Key
+
+### 2. 配置 AMAP_SERVICE_HOST
+
+高德地图 Web 服务 API 需要配置代理服务，防止 Key 暴露：
+
+在 Nginx 配置中添加代理规则：
+
+```nginx
+# 高德地图 API 代理
+location /_AMapService/ {
+    proxy_pass https://restapi.amap.com/;
+    proxy_set_header Host restapi.amap.com;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+}
+```
+
+然后配置 `AMAP_SERVICE_HOST` 为您的代理地址：
+- 格式：`https://your-domain.com/_AMapService`
+- 示例：`https://admin.hospital.com/_AMapService`
+

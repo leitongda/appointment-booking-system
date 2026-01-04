@@ -1,8 +1,11 @@
 """初始化测试医生数据"""
 import asyncio
 import sys
+import os
 import uuid
-sys.path.insert(0, '/Users/leijiadashao/leitond/appointment-booking-system/apps/server')
+
+# 添加项目根目录到 Python 路径
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker

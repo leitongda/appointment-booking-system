@@ -225,3 +225,34 @@ class ScheduleGenerateWithCapacityRequest(BaseModel):
     start_date: Optional[date] = Field(None, description="开始日期，为空则默认今天")
     end_date: Optional[date] = Field(None, description="结束日期，为空则默认1年后")
     slot_capacities: Optional[List[SlotCapacityOverride]] = Field(None, description="自定义班次容量列表")
+
+
+class ScheduleTemplateCopyRequest(BaseModel):
+    """复制排班规则请求"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
+    target_doctor_ids: List[str] = Field(..., description="目标医生ID列表")
+    # 可调整的配置字段（覆盖原规则配置）
+    name: Optional[str] = Field(None, max_length=100, description="规则名称（可选，不填则自动生成）")
+    weekdays: Optional[List[int]] = Field(None, description="星期数组 1-7")
+    appointment_type: Optional[str] = Field(None, description="预约类型")
+    start_time: Optional[time] = Field(None, description="开始时间")
+    end_time: Optional[time] = Field(None, description="结束时间")
+    slot_count: Optional[int] = Field(None, ge=1, le=50, description="班次数量")
+    slot_capacity: Optional[int] = Field(None, ge=1, le=200, description="每班次人数")
+    schedule_mode: Optional[str] = Field(None, description="排班方式")
+    break_times: Optional[List[BreakTime]] = Field(None, description="排除时间段列表")
+
+
+class ScheduleTemplateCopyResponse(BaseModel):
+    """复制排班规则响应"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+    
+    message: str = Field(..., description="提示消息")
+    created_count: int = Field(..., description="创建数量")

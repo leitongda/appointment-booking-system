@@ -183,6 +183,8 @@ export type {
   BatchOperateResult,
   CheckGeneratedResult,
   ScheduleGenerationLog,
+  ScheduleTemplateCopyData,
+  ScheduleTemplateCopyResult,
 } from './modules/schedule-template';
 
 // Custom Schedule types
