@@ -1,13 +1,16 @@
-name: Deploy to Tencent Cloud CVM
+name: Deploy Server
 
 on:
   push:
     branches:
-      - main  # 只在 main 分支推送时触发
+      - main
+    paths:
+      - 'apps/server/**'
+      - 'docker-compose.yml'
   workflow_dispatch:  # 支持手动触发
 
 env:
-  PROJECT_DIR: /www/hospital-booking  # 腾讯云服务器上的项目目录
+  PROJECT_DIR: /www/hospital-booking
 
 jobs:
   deploy:
@@ -40,6 +43,6 @@ jobs:
             docker image prune -f
             
             # 输出部署状态
-            echo "✅ 部署完成！"
+            echo "✅ Server 部署完成！"
             docker compose ps
 

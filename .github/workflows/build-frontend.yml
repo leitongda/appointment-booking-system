@@ -1,0 +1,107 @@
+name: Build and Deploy Frontend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/admin/**'
+      - 'apps/doctor/**'
+      - 'apps/patient-h5/**'
+      - 'apps/temp-registration/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+  workflow_dispatch:  # 支持手动触发
+
+env:
+  PROJECT_DIR: /www/hospital-booking
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build all frontend apps
+        run: |
+          pnpm build:admin
+          pnpm build:doctor
+          pnpm build:patient-h5
+          pnpm build:temp-registration
+
+      - name: Upload admin dist to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.CVM_HOST }}
+          username: ${{ secrets.CVM_USERNAME }}
+          key: ${{ secrets.CVM_SSH_KEY }}
+          port: ${{ secrets.CVM_PORT || 22 }}
+          source: "apps/admin/dist/*"
+          target: "${{ env.PROJECT_DIR }}/apps/admin/dist"
+          strip_components: 3
+
+      - name: Upload doctor dist to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.CVM_HOST }}
+          username: ${{ secrets.CVM_USERNAME }}
+          key: ${{ secrets.CVM_SSH_KEY }}
+          port: ${{ secrets.CVM_PORT || 22 }}
+          source: "apps/doctor/dist/*"
+          target: "${{ env.PROJECT_DIR }}/apps/doctor/dist"
+          strip_components: 3
+
+      - name: Upload patient-h5 dist to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.CVM_HOST }}
+          username: ${{ secrets.CVM_USERNAME }}
+          key: ${{ secrets.CVM_SSH_KEY }}
+          port: ${{ secrets.CVM_PORT || 22 }}
+          source: "apps/patient-h5/dist/*"
+          target: "${{ env.PROJECT_DIR }}/apps/patient-h5/dist"
+          strip_components: 3
+
+      - name: Upload temp-registration dist to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.CVM_HOST }}
+          username: ${{ secrets.CVM_USERNAME }}
+          key: ${{ secrets.CVM_SSH_KEY }}
+          port: ${{ secrets.CVM_PORT || 22 }}
+          source: "apps/temp-registration/dist/*"
+          target: "${{ env.PROJECT_DIR }}/apps/temp-registration/dist"
+          strip_components: 3
+
+      - name: Notify deployment complete
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.CVM_HOST }}
+          username: ${{ secrets.CVM_USERNAME }}
+          key: ${{ secrets.CVM_SSH_KEY }}
+          port: ${{ secrets.CVM_PORT || 22 }}
+          script: |
+            echo "✅ 前端构建产物已上传完成！"
+            echo "已更新的应用："
+            echo "  - admin"
+            echo "  - doctor"
+            echo "  - patient-h5"
+            echo "  - temp-registration"
+
