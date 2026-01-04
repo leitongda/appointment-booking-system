@@ -66,9 +66,9 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     // ========== 菜单权限（用于路由 access 配置）==========
     // 仪表盘
     canDashboard: hasPermission('dashboard') || hasPermission('dashboard:view'),
-    // 门店管理 - 只有超管可以看到门店列表、创建、删除门店
-    // 门店用户（门店管理员/门店员工）不应看到门店管理菜单
-    canStore: isSuperAdmin,
+    // 门店管理 - 超管可以看到门店列表，门店管理员/用户可通过顶部面板访问子页面
+    // 拥有 store 或 store:list 权限的用户可以访问门店子页面（诊费、复诊等）
+    canStore: isSuperAdmin || hasPermission('store') || hasPermission('store:list'),
     canStoreCreate: isSuperAdmin,
     canStoreDelete: isSuperAdmin,
     // 科室管理

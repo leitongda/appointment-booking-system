@@ -80,7 +80,7 @@ export default defineAppConfig({
   },
   tabBar: {
     custom: true,
-    color: '#999',
+    color: '#9CA3AF',
     selectedColor: '#C41E3A',
     backgroundColor: '#fff',
     borderStyle: 'black',

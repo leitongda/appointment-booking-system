@@ -8,14 +8,18 @@ import {
   DownOutlined,
   AppstoreOutlined,
   ColumnWidthOutlined,
+  QrcodeOutlined,
+  MoneyCollectOutlined,
+  ClockCircleOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
-import { history, useModel } from '@umijs/max';
-import { Badge, Tooltip, Popover, List, Empty, Spin, Button, Typography, Space, App, Avatar, Tag, Dropdown } from 'antd';
+import { history, useModel, useAccess } from '@umijs/max';
+import { Badge, Tooltip, Popover, List, Empty, Spin, Button, Typography, Space, App, Avatar, Tag, Dropdown, Modal, QRCode } from 'antd';
 import type { MenuProps } from 'antd';
 import { getSpacingMode, setSpacingMode, applySpacingCSSVariables, SPACING_LABELS } from '@/utils/spacing';
 import type { SpacingMode } from '@/utils/spacing';
-import React, { useState, useEffect, useCallback } from 'react';
-import { messageApi, adminApi } from '@hospital/api';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { messageApi, adminApi, storeApi } from '@hospital/api';
 import type { StoreInfo } from '@hospital/api';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -31,10 +35,16 @@ const { Text } = Typography;
 export const StoreSwitcher: React.FC = () => {
   const { message } = App.useApp();
   const { initialState, setInitialState } = useModel('@@initialState');
+  const access = useAccess();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [stores, setStores] = useState<StoreInfo[]>([]);
   const [canViewAllStores, setCanViewAllStores] = useState(false);
+  
+  // 签到二维码弹窗状态
+  const [qrcodeModalVisible, setQrcodeModalVisible] = useState(false);
+  const [qrcodeContent, setQrcodeContent] = useState('');
+  const [qrcodeLoading, setQrcodeLoading] = useState(false);
   
   const currentUser = initialState?.currentUser;
   const currentStore = initialState?.currentStore;
@@ -97,6 +107,80 @@ export const StoreSwitcher: React.FC = () => {
   // 超级管理员或只有一个门店的用户：显示静态信息
   const showStaticInfo = !canViewAllStores && stores.length <= 1;
 
+  // 打开签到二维码弹窗
+  const handleOpenQrcode = useCallback(async () => {
+    if (!currentStore?.id) {
+      message.warning('请先选择一个门店');
+      return;
+    }
+    setQrcodeModalVisible(true);
+    setQrcodeLoading(true);
+    setOpen(false); // 关闭门店切换面板
+    try {
+      const result = await storeApi.getCheckinQrcode(currentStore.id);
+      setQrcodeContent(result.qrcodeContent);
+    } catch (error: any) {
+      message.error(error.message || '获取二维码失败');
+    } finally {
+      setQrcodeLoading(false);
+    }
+  }, [currentStore?.id, message]);
+
+  // 下载二维码
+  const handleDownloadQrcode = useCallback(() => {
+    const canvas = document.querySelector('#store-header-qrcode canvas') as HTMLCanvasElement;
+    if (canvas) {
+      const link = document.createElement('a');
+      link.download = `签到二维码-${currentStore?.name || '门店'}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+  }, [currentStore?.name]);
+
+  // 门店管理功能入口（根据权限过滤）
+  const storeActions = useMemo(() => {
+    const actions = [
+      { 
+        key: 'qrcode', 
+        icon: <QrcodeOutlined />, 
+        label: '签到二维码',
+        permission: 'store:list',
+        onClick: handleOpenQrcode 
+      },
+      { 
+        key: 'fee', 
+        icon: <MoneyCollectOutlined />, 
+        label: '诊费设置',
+        permission: 'store:update',
+        onClick: () => {
+          setOpen(false);
+          history.push(`/store/${currentStore?.id}/fee-templates`);
+        }
+      },
+      { 
+        key: 'visit', 
+        icon: <ClockCircleOutlined />, 
+        label: '复诊规则',
+        permission: 'store:update',
+        onClick: () => {
+          setOpen(false);
+          history.push(`/store/${currentStore?.id}/visit-type-config`);
+        }
+      },
+      { 
+        key: 'edit', 
+        icon: <EditOutlined />, 
+        label: '编辑门店',
+        permission: 'store:update',
+        onClick: () => {
+          setOpen(false);
+          history.push(`/store/${currentStore?.id}/edit`);
+        }
+      },
+    ];
+    return actions.filter(action => access.hasPermission(action.permission));
+  }, [access, currentStore?.id, handleOpenQrcode]);
+
   // 渲染当前门店信息
   const renderCurrentStore = () => {
     if (isSuperAdmin && !currentStore) {
@@ -130,8 +214,11 @@ export const StoreSwitcher: React.FC = () => {
     );
   };
 
-  // 静态显示（不可切换）
-  if (showStaticInfo) {
+  // 静态显示（不可切换门店，但仍需要显示门店管理功能区）
+  // 如果有门店管理功能权限，仍然需要显示 Popover
+  const hasStoreActions = storeActions.length > 0 && currentStore;
+  
+  if (showStaticInfo && !hasStoreActions) {
     return (
       <Tooltip title={isSuperAdmin ? "超级管理员 - 可管理所有门店" : currentStore?.name}>
         <div className={styles.storeInfo}>
@@ -144,60 +231,125 @@ export const StoreSwitcher: React.FC = () => {
   // 门店切换面板
   const content = (
     <div className={styles.storeSwitcherPanel}>
+      {/* 标题栏：根据是否可切换门店显示不同标题 */}
       <div className={styles.storeSwitcherHeader}>
-        <span className={styles.headerTitle}>切换门店</span>
+        <span className={styles.headerTitle}>
+          {showStaticInfo ? '门店管理' : '切换门店'}
+        </span>
       </div>
-      <Spin spinning={loading}>
-        <div className={styles.storeList}>
-          {/* 全部门店选项（仅多门店用户可见） */}
-          {canViewAllStores && (
-            <div
-              className={`${styles.storeItem} ${styles.allStoresItem} ${!currentStore ? styles.active : ''}`}
-              onClick={() => handleSwitchStore(null)}
-            >
-              <AppstoreOutlined className={styles.allStoresIcon} />
-              <span className={styles.storeItemName}>全部门店</span>
-              {!currentStore && <CheckOutlined className={styles.storeItemCheck} />}
-            </div>
-          )}
-          {/* 门店列表 */}
-          {stores.map((store) => (
-            <div
-              key={store.id}
-              className={`${styles.storeItem} ${currentStore?.id === store.id ? styles.active : ''}`}
-              onClick={() => handleSwitchStore(store.id)}
-            >
-              {store.logo ? (
-                <Avatar src={store.logo} size={32} className={styles.storeItemLogo} />
-              ) : (
-                <Avatar icon={<ShopOutlined />} size={32} className={styles.storeItemLogo} />
-              )}
-              <span className={styles.storeItemName}>{store.name}</span>
-              {currentStore?.id === store.id && <CheckOutlined className={styles.storeItemCheck} />}
-            </div>
-          ))}
-          {stores.length === 0 && !loading && (
-            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无门店" />
-          )}
+      {/* 门店列表：仅在可切换门店时显示 */}
+      {!showStaticInfo && (
+        <Spin spinning={loading}>
+          <div className={styles.storeList}>
+            {/* 全部门店选项（仅多门店用户可见） */}
+            {canViewAllStores && (
+              <div
+                className={`${styles.storeItem} ${styles.allStoresItem} ${!currentStore ? styles.active : ''}`}
+                onClick={() => handleSwitchStore(null)}
+              >
+                <AppstoreOutlined className={styles.allStoresIcon} />
+                <span className={styles.storeItemName}>全部门店</span>
+                {!currentStore && <CheckOutlined className={styles.storeItemCheck} />}
+              </div>
+            )}
+            {/* 门店列表 */}
+            {stores.map((store) => (
+              <div
+                key={store.id}
+                className={`${styles.storeItem} ${currentStore?.id === store.id ? styles.active : ''}`}
+                onClick={() => handleSwitchStore(store.id)}
+              >
+                {store.logo ? (
+                  <Avatar src={store.logo} size={32} className={styles.storeItemLogo} />
+                ) : (
+                  <Avatar icon={<ShopOutlined />} size={32} className={styles.storeItemLogo} />
+                )}
+                <span className={styles.storeItemName}>{store.name}</span>
+                {currentStore?.id === store.id && <CheckOutlined className={styles.storeItemCheck} />}
+              </div>
+            ))}
+            {stores.length === 0 && !loading && (
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无门店" />
+            )}
+          </div>
+        </Spin>
+      )}
+      {/* 门店管理功能区 */}
+      {currentStore && storeActions.length > 0 && (
+        <div className={styles.storeActionsSection} style={showStaticInfo ? { borderTop: 'none' } : undefined}>
+          {!showStaticInfo && <div className={styles.sectionTitle}>门店管理</div>}
+          <div className={styles.storeActionGrid}>
+            {storeActions.map(action => (
+              <div 
+                key={action.key} 
+                className={styles.storeActionItem}
+                onClick={action.onClick}
+              >
+                {action.icon}
+                <span>{action.label}</span>
+              </div>
+            ))}
+          </div>
         </div>
-      </Spin>
+      )}
     </div>
   );
 
   return (
-    <Popover
-      content={content}
-      trigger="click"
-      open={open}
-      onOpenChange={setOpen}
-      placement="bottomRight"
-      overlayClassName={styles.storeSwitcherPopover}
-      arrow={{ pointAtCenter: true }}
-    >
-      <div className={styles.storeInfo}>
-        {renderCurrentStore()}
-      </div>
-    </Popover>
+    <>
+      <Popover
+        content={content}
+        trigger="click"
+        open={open}
+        onOpenChange={setOpen}
+        placement="bottomRight"
+        overlayClassName={styles.storeSwitcherPopover}
+        arrow={{ pointAtCenter: true }}
+      >
+        <div className={styles.storeInfo}>
+          {renderCurrentStore()}
+        </div>
+      </Popover>
+      
+      {/* 签到二维码弹窗 */}
+      <Modal
+        title={`签到二维码 - ${currentStore?.name || ''}`}
+        open={qrcodeModalVisible}
+        onCancel={() => setQrcodeModalVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setQrcodeModalVisible(false)}>
+            关闭
+          </Button>,
+          <Button key="download" type="primary" onClick={handleDownloadQrcode} disabled={!qrcodeContent}>
+            下载二维码
+          </Button>,
+        ]}
+        width={400}
+        destroyOnClose
+      >
+        <div style={{ textAlign: 'center', padding: '24px 0' }} id="store-header-qrcode">
+          {qrcodeLoading ? (
+            <Spin tip="加载中..." />
+          ) : qrcodeContent ? (
+            <>
+              <QRCode
+                value={qrcodeContent}
+                size={256}
+                style={{ margin: '0 auto' }}
+              />
+              <div style={{ marginTop: 16, color: '#666' }}>
+                请使用微信扫描此二维码进行签到
+              </div>
+              <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
+                二维码内容: {qrcodeContent}
+              </div>
+            </>
+          ) : (
+            <Empty description="获取二维码失败" />
+          )}
+        </div>
+      </Modal>
+    </>
   );
 };
 
