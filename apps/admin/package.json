@@ -5,6 +5,8 @@
   "description": "医院挂号系统 - 机构端后台管理系统",
   "scripts": {
     "dev": "NODE_OPTIONS='--require ./scripts/fix-network.js' HOST=127.0.0.1 PORT=8005 max dev",
+    "dev:local": "NODE_OPTIONS='--require ./scripts/fix-network.js' HOST=127.0.0.1 PORT=8005 max dev",
+    "dev:remote": "NODE_OPTIONS='--require ./scripts/fix-network.js' HOST=127.0.0.1 PORT=8005 PROXY_TARGET=https://yy.aicm.online max dev",
     "build": "max build",
     "postinstall": "max setup",
     "lint": "eslint src --ext .ts,.tsx",

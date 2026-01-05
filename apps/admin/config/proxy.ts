@@ -13,44 +13,44 @@
  * @doc https://umijs.org/docs/guides/proxy
  */
 
-const target_url = 'http://localhost:8000'; // 本地开发环境
-// const target_url = 'https://yy.aicm.online'; // 本地开发环境
+// 从环境变量读取代理目标，默认为本地开发环境
+const PROXY_TARGET = process.env.PROXY_TARGET || 'http://localhost:8000';
 
 export default {
   dev: {
     '/api': {
-      target: target_url,
+      target: PROXY_TARGET,
       changeOrigin: true,
       pathRewrite: { '^/api': '/api' },
     },
     '/uploads': {
-      target: target_url,
+      target: PROXY_TARGET,
       changeOrigin: true,
     },
     '/_AMapService': {
-      target: target_url,
+      target: PROXY_TARGET,
       changeOrigin: true,
     },
   },
   test: {
     '/api': {
-      target: target_url,
+      target: PROXY_TARGET,
       changeOrigin: true,
       pathRewrite: { '^/api': '/api' },
     },
     '/uploads': {
-      target: target_url,
+      target: PROXY_TARGET,
       changeOrigin: true,
     },
   },
   pre: {
     '/api': {
-      target: target_url,
+      target: PROXY_TARGET,
       changeOrigin: true,
       pathRewrite: { '^/api': '/api' },
     },
     '/uploads': {
-      target: target_url,
+      target: PROXY_TARGET,
       changeOrigin: true,
     },
   },

@@ -284,7 +284,7 @@ class SettingsService:
 
     async def get_booking_settings(self, store_id: Optional[str] = None) -> Dict[str, Any]:
         """获取预约设置
-        
+
         Args:
             store_id: 门店ID，如果提供则优先返回门店配置
         """
@@ -297,6 +297,13 @@ class SettingsService:
             'perDoctorLimit': data.get('per_doctor_limit', 1),
             'noShowLimit': data.get('no_show_limit', 3),
             'blacklistDays': data.get('blacklist_days', 30),
+            # 提前预约截止配置
+            'advanceBookingMinutes': data.get('advance_booking_minutes', 0),
+            'advanceBookingDirection': data.get('advance_booking_direction', 'before'),
+            'advanceBookingReference': data.get('advance_booking_reference', 'end'),
+            # 签到时间配置
+            'signInAdvanceMinutes': data.get('sign_in_advance_minutes', 30),
+            'signInLateMinutes': data.get('sign_in_late_minutes', 30),
         }
 
     async def get_hospital_info(self) -> Dict[str, Any]:

@@ -21,14 +21,15 @@ const DoctorDetailPage = () => {
   const [schedules, setSchedules] = useState<AvailableSchedule[]>([]);
   const [advanceDays, setAdvanceDays] = useState<number>(10); // 可提前预约天数
   const [selectedDate, setSelectedDate] = useState<string>('');
-  
+  const [bookingRules, setBookingRules] = useState<any>({}); // 预约规则
+
   // 时段选择状态（单选）
   const [selectedSlot, setSelectedSlot] = useState<'AM' | 'PM' | null>(null);
   // 班次选择 Picker 状态
   const [showSlotPicker, setShowSlotPicker] = useState(false);
   // 选中的具体班次
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
-  
+
   // 收藏相关状态
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteId, setFavoriteId] = useState<string | null>(null);
@@ -57,16 +58,22 @@ const DoctorDetailPage = () => {
       // 先获取医生信息，以便获取门店ID
       const doctorData = await doctorApi.getDetail(id!);
       setDoctor(doctorData);
-      
+
       // 获取预约规则配置（使用医生所属门店的配置）
-      const bookingRules = await settingsApi.getBookingRules(doctorData.storeId).catch(() => ({ advanceDays: 10 }));
-      const days = bookingRules.advanceDays || 10;
+      const rules = await settingsApi.getBookingRules(doctorData.storeId).catch(() => ({
+        advanceDays: 10,
+        advanceBookingMinutes: 0,
+        advanceBookingDirection: 'before',
+        advanceBookingReference: 'end',
+      }));
+      setBookingRules(rules);
+      const days = rules.advanceDays || 10;
       setAdvanceDays(days);
-      
+
       // 使用配置的预约天数获取可用排班
       const scheduleData = await scheduleApi.getAvailable(id!, days);
       setSchedules(scheduleData);
-      
+
       // 默认选中第一个日期
       if (scheduleData.length > 0) {
         const dates = [...new Set(scheduleData.map(s => s.scheduleDate))];
@@ -74,7 +81,7 @@ const DoctorDetailPage = () => {
           setSelectedDate(dates[0]);
         }
       }
-      
+
       // 检查收藏状态
       if (getToken()) {
         checkFavoriteStatus();
@@ -137,6 +144,56 @@ const DoctorDetailPage = () => {
     checkFavoriteStatus();
   };
 
+  // 判断班次是否已过截止时间
+  const isScheduleExpired = (schedule: AvailableSchedule): boolean => {
+    const { advanceBookingMinutes = 0, advanceBookingDirection = 'before', advanceBookingReference = 'end' } = bookingRules;
+
+    // 配置为0表示不限制
+    if (!advanceBookingMinutes || advanceBookingMinutes <= 0) {
+      return false;
+    }
+
+    // 只判断当天班次 - 使用本地日期格式 YYYY-MM-DD
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
+
+    if (schedule.scheduleDate !== todayStr) {
+      return false; // 非当天班次不限制
+    }
+
+    // 解析班次时间 - 支持 HH:mm 或 HH:mm:ss 格式
+    const getMinutes = (timeStr?: string): number | null => {
+      if (!timeStr) return null;
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      if (isNaN(hours) || isNaN(minutes)) return null;
+      return hours * 60 + minutes;
+    };
+
+    const startMinutes = getMinutes(schedule.startTime);
+    const endMinutes = getMinutes(schedule.endTime);
+
+    if (startMinutes === null || endMinutes === null) {
+      return false; // 无时间信息的班次不限制
+    }
+
+    // 确定基准时间
+    const baseMinutes = advanceBookingReference === 'start' ? startMinutes : endMinutes;
+
+    // 计算截止时间
+    const cutoffMinutes = advanceBookingDirection === 'before'
+      ? baseMinutes - advanceBookingMinutes
+      : baseMinutes + advanceBookingMinutes;
+
+    // 获取当前时间（分钟数）
+    const nowMinutes = today.getHours() * 60 + today.getMinutes();
+
+    // 判断是否已过截止时间
+    return nowMinutes >= cutoffMinutes;
+  };
+
   // 获取所有日期列表
   const dateList = useMemo(() => {
     const dates = [...new Set(schedules.map(s => s.scheduleDate))].sort();
@@ -195,20 +252,27 @@ const DoctorDetailPage = () => {
   // 点击时段卡片 - 弹出班次选择 Picker
   const handleTimeSlotClick = (slot: 'AM' | 'PM') => {
     const summary = slot === 'AM' ? timeSlotSummary.morning : timeSlotSummary.afternoon;
-    
+
     // 检查是否有可预约的班次
     if (summary.available <= 0 || summary.schedules.length === 0) {
       Taro.showToast({ title: '该时段已约满', icon: 'none' });
       return;
     }
-    
+
+    // 检查是否所有班次都已过截止时间
+    const availableSchedules = summary.schedules.filter(s => !isScheduleExpired(s));
+    if (availableSchedules.length === 0) {
+      Taro.showToast({ title: '该时段已过预约截止时间', icon: 'none' });
+      return;
+    }
+
     // 设置选中的时段
     setSelectedSlot(slot);
     setSelectedScheduleId(null);
-    
-    // 如果只有一个班次，直接选中并跳转
-    if (summary.schedules.length === 1) {
-      const schedule = summary.schedules[0];
+
+    // 如果只有一个可用班次，直接选中并跳转
+    if (availableSchedules.length === 1) {
+      const schedule = availableSchedules[0];
       navigateToBooking(schedule);
     } else {
       // 多个班次，弹出班次选择 Picker
@@ -435,19 +499,21 @@ const DoctorDetailPage = () => {
               {selectedSlotSchedules.map(schedule => {
                 const isSelected = selectedScheduleId === schedule.id;
                 const isFull = schedule.availableSlots <= 0;
-                
+                const isExpired = isScheduleExpired(schedule);
+                const isDisabled = isFull || isExpired;
+
                 return (
                   <View
                     key={schedule.id}
-                    className={`slot-picker-item ${isSelected ? 'selected' : ''} ${isFull ? 'disabled' : ''}`}
-                    onClick={() => !isFull && handleSelectSchedule(schedule.id)}
+                    className={`slot-picker-item ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}`}
+                    onClick={() => !isDisabled && handleSelectSchedule(schedule.id)}
                   >
                     <Text className="slot-time">
                       {formatTime(schedule.startTime) || '--:--'}~{formatTime(schedule.endTime) || '--:--'}
                     </Text>
                     {isSelected && <Text className="slot-check">✓</Text>}
                     <Text className="slot-remain">
-                      {isFull ? '约满' : `余${schedule.availableSlots}`}
+                      {isFull ? '约满' : isExpired ? '已截止' : `余${schedule.availableSlots}`}
                     </Text>
                   </View>
                 );

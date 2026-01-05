@@ -82,8 +82,12 @@ export interface PendingAppointment {
   doctorName: string | null;
   departmentName: string | null;
   scheduleDate: string | null;
-  timeSlot: number | null;
+  timeSlot: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
   status: number;
+  signInStatus?: 'early' | 'available' | 'late';
+  signInMessage?: string;
 }
 
 // 签到队列项

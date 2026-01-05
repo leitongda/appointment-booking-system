@@ -3,6 +3,7 @@ import { Card, App, Form, Spin, Button, Space, Typography, Input } from 'antd';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { history, useParams, useModel, useAccess } from '@umijs/max';
 import { doctorApi, departmentApi, storeApi } from '@hospital/api';
+import { PAGINATION_CONFIG } from '@/constants/pagination';
 import type { Doctor, Department, Store } from '@hospital/shared';
 import ImageUpload from '@/components/ImageUpload';
 import RichTextEditor from '@/components/RichTextEditor';
@@ -55,7 +56,7 @@ const DoctorFormPage: React.FC = () => {
 
   const loadDepartments = async () => {
     try {
-      const res = await departmentApi.getList({ pageSize: 100, status: 1 });
+      const res = await departmentApi.getList({ pageSize: PAGINATION_CONFIG.SELECT_MAX_SIZE, status: 1 });
       setDepartments(res.data ?? []);
     } catch (error) {
       console.error('加载科室失败', error);
@@ -64,7 +65,7 @@ const DoctorFormPage: React.FC = () => {
 
   const loadStores = async () => {
     try {
-      const res = await storeApi.getList({ pageSize: 100, status: 1 });
+      const res = await storeApi.getList({ pageSize: PAGINATION_CONFIG.SELECT_MAX_SIZE, status: 1 });
       let storeList = res.data ?? [];
       // 非超管只显示其关联的门店
       if (!isSuperAdmin && currentUser?.storeIds?.length) {

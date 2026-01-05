@@ -6,6 +6,7 @@ import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
 import { doctorApi, departmentApi, storeApi, dataApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
+import { PAGINATION_CONFIG } from '@/constants/pagination';
 import type { Doctor, Department, Store } from '@hospital/shared';
 import DoctorConsultationFeeModal from './consultation-fee-modal';
 import ImportExport from '@/components/ImportExport';
@@ -317,7 +318,7 @@ const DoctorListPage: React.FC = () => {
 
   const loadDepartments = async () => {
     try {
-      const res = await departmentApi.getList({ pageSize: 100 });
+      const res = await departmentApi.getList({ pageSize: PAGINATION_CONFIG.SELECT_MAX_SIZE });
       setDepartments(res.data ?? []);
     } catch (error) {
       console.error('加载科室失败', error);
@@ -326,7 +327,7 @@ const DoctorListPage: React.FC = () => {
 
   const loadStores = async () => {
     try {
-      const res = await storeApi.getList({ pageSize: 100 });
+      const res = await storeApi.getList({ pageSize: PAGINATION_CONFIG.SELECT_MAX_SIZE });
       setStores(res.data ?? []);
     } catch (error) {
       console.error('加载门店失败', error);
@@ -336,14 +337,14 @@ const DoctorListPage: React.FC = () => {
   // 构建门店筛选选项
   const storeFilterOptions = useMemo(() => {
     if (isSingleStore) return [];
-    
+
     const options: { label: string; value: string }[] = [];
-    
+
     // 多门店用户或超管可以选择"全部"
     if (canViewAllStores) {
       options.push({ label: '全部门店', value: 'all' });
     }
-    
+
     // 添加门店选项
     const storeList = access.canSuperAdmin ? stores : userStores;
     storeList.forEach((s: any) => {
@@ -353,7 +354,7 @@ const DoctorListPage: React.FC = () => {
     return options;
   }, [stores, userStores, canViewAllStores, isSingleStore, access.canSuperAdmin]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     try {
       await doctorApi.delete(id);
       message.success('删除成功');
@@ -361,7 +362,7 @@ const DoctorListPage: React.FC = () => {
     } catch (error: any) {
       message.error(error.message || '删除失败');
     }
-  };
+  }, [message, actionRef]);
 
   // 切换推荐状态
   const handleRecommendChange = useCallback(async (id: string, checked: boolean) => {
@@ -372,9 +373,10 @@ const DoctorListPage: React.FC = () => {
     } catch (error: any) {
       message.error(error.message || '操作失败');
     }
-  }, [message]);
+  }, [message, actionRef]);
 
-  const columns: ProColumns<Doctor>[] = [
+  // 使用 useMemo 优化 columns 配置
+  const columns = useMemo<ProColumns<Doctor>[]>(() => [
     {
       title: '头像',
       dataIndex: 'avatar',
@@ -516,7 +518,7 @@ const DoctorListPage: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [departments, storeFilterOptions, isSingleStore, access, handleRecommendChange]);
 
   return (
     <PageContainer>

@@ -1,9 +1,11 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { Card, Spin } from 'antd';
+import { Card, Spin, message } from 'antd';
 import { useState, useEffect, useCallback } from 'react';
 import dayjs, { Dayjs } from 'dayjs';
 import { scheduleApi, appointmentApi } from '@hospital/api';
 import type { Schedule, Appointment, Doctor } from '@hospital/shared';
+import { PAGINATION_CONFIG } from '@/constants/pagination';
+import { requestDeduplicator } from '@/utils/requestDeduplication';
 import DoctorSelector from './components/DoctorSelector';
 import CalendarHeader from './components/CalendarHeader';
 import WeekView from './components/WeekView';
@@ -65,79 +67,57 @@ const ScheduleCalendarPage: React.FC = () => {
     }
   }, [currentDate, viewMode]);
 
-  // 加载排班数据（分页加载所有数据）
+  // 加载排班数据（优化后：使用请求去重和更大的pageSize）
   const loadSchedules = useCallback(async () => {
     if (!selectedDoctor) return;
-    
+
     setLoading(true);
     try {
       const { startDate, endDate } = getDateRange();
-      const baseParams = {
-        doctorId: selectedDoctor.id,
-        startDate,
-        endDate,
-        pageSize: 100,
-      };
 
-      // 第一次请求获取总数
-      const firstResult = await scheduleApi.getList({ ...baseParams, page: 1 });
-      const total = firstResult.total || 0;
-      let allSchedules = firstResult.data || [];
+      // 使用请求去重，避免并发相同请求
+      const result = await requestDeduplicator.dedupe(
+        `schedules-${selectedDoctor.id}-${startDate}-${endDate}`,
+        () => scheduleApi.getList({
+          doctorId: selectedDoctor.id,
+          startDate,
+          endDate,
+          page: 1,
+          pageSize: PAGINATION_CONFIG.CALENDAR_MAX_SIZE, // 使用更大的pageSize
+        })
+      );
 
-      // 如果有更多数据，继续请求
-      if (total > 100) {
-        const totalPages = Math.ceil(total / 100);
-        const promises = [];
-        for (let page = 2; page <= totalPages; page++) {
-          promises.push(scheduleApi.getList({ ...baseParams, page }));
-        }
-        const results = await Promise.all(promises);
-        for (const result of results) {
-          allSchedules = allSchedules.concat(result.data || []);
-        }
-      }
-
-      setSchedules(allSchedules);
+      setSchedules(result.data || []);
     } catch (error) {
+      message.error('加载排班失败，请稍后重试');
       console.error('加载排班失败', error);
     } finally {
       setLoading(false);
     }
   }, [selectedDoctor, getDateRange]);
 
-  // 加载预约数据（分页加载所有数据）
+  // 加载预约数据（优化后：使用请求去重和更大的pageSize）
   const loadAppointments = useCallback(async () => {
     if (!selectedDoctor) return;
-    
+
     try {
       const { startDate, endDate } = getDateRange();
-      const baseParams = {
-        doctorId: selectedDoctor.id,
-        startDate,
-        endDate,
-        pageSize: 100,
-      };
 
-      // 第一次请求获取总数
-      const firstResult = await appointmentApi.getList({ ...baseParams, page: 1 });
-      const total = firstResult.total || 0;
-      let allAppointments = firstResult.data || [];
+      // 使用请求去重，避免并发相同请求
+      const result = await requestDeduplicator.dedupe(
+        `appointments-${selectedDoctor.id}-${startDate}-${endDate}`,
+        () => appointmentApi.getList({
+          doctorId: selectedDoctor.id,
+          startDate,
+          endDate,
+          page: 1,
+          pageSize: PAGINATION_CONFIG.CALENDAR_MAX_SIZE, // 使用更大的pageSize
+        })
+      );
 
-      // 如果有更多数据，继续请求
-      if (total > 100) {
-        const totalPages = Math.ceil(total / 100);
-        const promises = [];
-        for (let page = 2; page <= totalPages; page++) {
-          promises.push(appointmentApi.getList({ ...baseParams, page }));
-        }
-        const results = await Promise.all(promises);
-        for (const result of results) {
-          allAppointments = allAppointments.concat(result.data || []);
-        }
-      }
-
-      setAppointments(allAppointments);
+      setAppointments(result.data || []);
     } catch (error) {
+      message.error('加载预约失败，请稍后重试');
       console.error('加载预约失败', error);
     }
   }, [selectedDoctor, getDateRange]);

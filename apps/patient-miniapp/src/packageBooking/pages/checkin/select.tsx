@@ -61,7 +61,11 @@ const CheckinSelectPage = () => {
     }
   };
 
-  const handleSelect = (id: string) => {
+  const handleSelect = (id: string, signInStatus?: string) => {
+    // 只允许选择可签到的预约
+    if (signInStatus === 'early' || signInStatus === 'late') {
+      return;
+    }
     setSelectedId(id);
   };
 
@@ -127,35 +131,44 @@ const CheckinSelectPage = () => {
           </View>
 
           <View className="appointment-list">
-            {appointments.map((item) => (
-              <View
-                key={item.id}
-                className={`appointment-card ${selectedId === item.id ? 'selected' : ''}`}
-                onClick={() => handleSelect(item.id)}
-              >
-                <View className="card-icon">
-                  <DoctorIcon size={40} color="#C41E3A" />
+            {appointments.map((item) => {
+              const isDisabled = item.signInStatus === 'early' || item.signInStatus === 'late';
+              return (
+                <View
+                  key={item.id}
+                  className={`appointment-card ${selectedId === item.id ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}`}
+                  onClick={() => handleSelect(item.id, item.signInStatus)}
+                >
+                  <View className="card-icon">
+                    <DoctorIcon size={40} color="#C41E3A" />
+                  </View>
+                  <View className="card-content">
+                    <View className="card-header">
+                      <Text className="doctor-name">{item.doctorName || '医生'}</Text>
+                      <Text className="dept-name">{item.departmentName}</Text>
+                    </View>
+                    <Text className="patient-name">就诊人：{item.patientName}</Text>
+                    <View className="schedule-info">
+                      <Text className="schedule-date">{item.scheduleDate}</Text>
+                      <Text className="schedule-time">
+                        {item.startTime ? item.startTime.substring(0, 5) : (item.timeSlot !== null ? TIME_SLOT_MAP[item.timeSlot] : '')}
+                        {item.endTime ? ` ~ ${item.endTime.substring(0, 5)}` : ''}
+                      </Text>
+                    </View>
+                    {item.signInMessage && (
+                      <View className={`signin-status ${item.signInStatus}`}>
+                        <Text className="status-text">{item.signInMessage}</Text>
+                      </View>
+                    )}
+                  </View>
+                  {selectedId === item.id && !isDisabled && (
+                    <View className="selected-icon">
+                      <CheckCircleIcon size={24} color="#10B981" />
+                    </View>
+                  )}
                 </View>
-                <View className="card-content">
-                  <View className="card-header">
-                    <Text className="doctor-name">{item.doctorName || '医生'}</Text>
-                    <Text className="dept-name">{item.departmentName}</Text>
-                  </View>
-                  <Text className="patient-name">就诊人：{item.patientName}</Text>
-                  <View className="schedule-info">
-                    <Text className="schedule-date">{item.scheduleDate}</Text>
-                    <Text className="schedule-time">
-                      {item.timeSlot !== null ? TIME_SLOT_MAP[item.timeSlot] : ''}
-                    </Text>
-                  </View>
-                </View>
-                {selectedId === item.id && (
-                  <View className="selected-icon">
-                    <CheckCircleIcon size={24} color="#10B981" />
-                  </View>
-                )}
-              </View>
-            ))}
+              );
+            })}
           </View>
 
           <View className="action-bar">

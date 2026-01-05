@@ -2,10 +2,11 @@ import { PlusOutlined, StopOutlined, PlayCircleOutlined, DeleteOutlined, EditOut
 import type { ActionType, ProColumns, ProFormInstance } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormSelect, ProFormDatePicker, ProFormDigit, ProFormDateRangePicker } from '@ant-design/pro-components';
 import { Button, App, Space, Tag, Popconfirm, Alert, Tooltip } from 'antd';
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { useAccess, useModel } from '@umijs/max';
 import { scheduleApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
+import { PAGINATION_CONFIG } from '@/constants/pagination';
 import type { Schedule, Doctor, Department } from '@hospital/shared';
 import dayjs from 'dayjs';
 
@@ -292,8 +293,7 @@ const ScheduleListPage: React.FC = () => {
       valueType: 'select',
       request: async () => {
         try {
-          const res = await departmentApi.getList({ pageSize: 100, status: 1 });
-          console.log("🚀 ~ ScheduleListPage ~ res:", res)
+          const res = await departmentApi.getList({ pageSize: PAGINATION_CONFIG.SELECT_MAX_SIZE, status: 1 });
           return (res.data ?? []).map((d: Department) => ({ label: d.name, value: d.id }));
         } catch {
           return [];
@@ -317,7 +317,7 @@ const ScheduleListPage: React.FC = () => {
       valueType: 'select',
       request: async () => {
         try {
-          const res = await doctorApi.getList({ pageSize: 200 });
+          const res = await doctorApi.getList({ pageSize: PAGINATION_CONFIG.SELECT_MAX_SIZE });
           return (res.data ?? []).map((d: Doctor) => ({ label: `${d.name}${d.title ? ` - ${d.title}` : ''}`, value: d.id }));
         } catch {
           return [];

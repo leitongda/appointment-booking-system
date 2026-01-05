@@ -362,13 +362,58 @@ class AppointmentService:
         appointment = await self.get_by_id(appointment_id)
         if not appointment:
             return None
-        
+
         if appointment.status != APPOINTMENT_STATUS['CONFIRMED']:
             raise ValueError("当前状态不可签到")
-        
+
+        # 获取排班信息用于时间验证
+        stmt = select(Schedule).where(Schedule.id == appointment.schedule_id)
+        result = await self.db.execute(stmt)
+        schedule = result.scalar_one_or_none()
+
+        if schedule:
+            # 获取门店的签到时间配置
+            settings_service = SettingsService(self.db)
+            settings = await settings_service.get_booking_settings(store_id=schedule.store_id)
+
+            sign_in_advance_minutes = settings.get('signInAdvanceMinutes', 30)
+            sign_in_late_minutes = settings.get('signInLateMinutes', 30)
+
+            # 计算班次开始时间
+            if schedule.start_time:
+                visit_time = schedule.start_time
+            else:
+                # 根据 time_slot 确定默认开始时间
+                time_slot_start_map = {
+                    'AM': time(8, 0),
+                    'PM': time(14, 0),
+                    'morning': time(8, 0),
+                    'afternoon': time(14, 0),
+                    'evening': time(18, 0),
+                    'NIGHT': time(18, 0),
+                }
+                visit_time = time_slot_start_map.get(schedule.time_slot, time(8, 0))
+
+            visit_datetime = datetime.combine(schedule.schedule_date, visit_time)
+            now = datetime.now()
+
+            # 计算允许签到的时间窗口
+            sign_in_start = visit_datetime - timedelta(minutes=sign_in_advance_minutes)
+            sign_in_end = visit_datetime + timedelta(minutes=sign_in_late_minutes)
+
+            # 验证签到时间
+            if now < sign_in_start:
+                # 还没到签到时间
+                minutes_until = int((sign_in_start - now).total_seconds() / 60)
+                raise ValueError(f"未到签到时间，请等待{minutes_until}分钟后再试")
+
+            if now > sign_in_end:
+                # 已过签到时间
+                raise ValueError("已过签到时间，无法签到")
+
         appointment.status = APPOINTMENT_STATUS['SIGNED']
         appointment.sign_in_time = datetime.now()
-        
+
         await self.db.commit()
         await self.db.refresh(appointment)
         return appointment

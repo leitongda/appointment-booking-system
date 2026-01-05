@@ -1,10 +1,11 @@
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { App, Space, Tag, Popconfirm } from 'antd';
-import { useRef } from 'react';
+import { useRef, useMemo, useCallback } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
 import { appointmentApi, storeApi, dataApi, doctorApi, departmentApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
+import { PAGINATION_CONFIG } from '@/constants/pagination';
 import type { Appointment } from '@hospital/shared';
 import ImportExport from '@/components/ImportExport';
 import dayjs from 'dayjs';
@@ -32,7 +33,7 @@ const AppointmentListPage: React.FC = () => {
   // 多门店管理员也可以看到门店筛选
   const showStoreFilter = isSuperAdmin || (currentUser?.storeIds?.length ?? 0) > 1;
 
-  const handleCancel = async (id: string) => {
+  const handleCancel = useCallback(async (id: string) => {
     try {
       await appointmentApi.cancel(id, '管理员取消');
       message.success('取消成功');
@@ -40,9 +41,9 @@ const AppointmentListPage: React.FC = () => {
     } catch (error: any) {
       message.error(error.message || '操作失败');
     }
-  };
+  }, [message, actionRef]);
 
-  const handleMarkNoShow = async (id: string) => {
+  const handleMarkNoShow = useCallback(async (id: string) => {
     try {
       await appointmentApi.markNoShow(id);
       message.success('标记成功');
@@ -50,9 +51,9 @@ const AppointmentListPage: React.FC = () => {
     } catch (error: any) {
       message.error(error.message || '操作失败');
     }
-  };
+  }, [message, actionRef]);
 
-  const handleCancelSignIn = async (id: string) => {
+  const handleCancelSignIn = useCallback(async (id: string) => {
     try {
       await appointmentApi.cancelSignIn(id);
       message.success('取消签到成功');
@@ -60,7 +61,7 @@ const AppointmentListPage: React.FC = () => {
     } catch (error: any) {
       message.error(error.message || '操作失败');
     }
-  };
+  }, [message, actionRef]);
 
   // 日期快捷选项
   const datePresets: { label: string; value: [dayjs.Dayjs, dayjs.Dayjs] }[] = [
@@ -71,7 +72,8 @@ const AppointmentListPage: React.FC = () => {
     { label: '近30天', value: [dayjs().subtract(29, 'day'), dayjs()] },
   ];
 
-  const columns: ProColumns<Appointment>[] = [
+  // 使用 useMemo 优化 columns 配置
+  const columns = useMemo<ProColumns<Appointment>[]>(() => [
     // 关键字搜索（仅搜索，不在表格中显示）
     {
       title: '关键字',
@@ -297,7 +299,7 @@ const AppointmentListPage: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [showStoreFilter, access, handleCancel, handleMarkNoShow, handleCancelSignIn]);
 
   return (
     <PageContainer>

@@ -9,6 +9,13 @@ export interface BookingSettings {
   perDoctorLimit: number;
   noShowLimit: number;
   blacklistDays: number;
+  // 提前预约截止配置
+  advanceBookingMinutes: number;
+  advanceBookingDirection: 'before' | 'after';
+  advanceBookingReference: 'start' | 'end';
+  // 签到时间配置
+  signInAdvanceMinutes: number;
+  signInLateMinutes: number;
 }
 
 // 医院信息
@@ -46,6 +53,13 @@ export interface BookingRules {
   sameDayBooking: boolean;
   cancelHours: number;
   perDayLimit: number;
+  // 提前预约截止配置
+  advanceBookingMinutes: number;
+  advanceBookingDirection: 'before' | 'after';
+  advanceBookingReference: 'start' | 'end';
+  // 签到时间配置
+  signInAdvanceMinutes: number;
+  signInLateMinutes: number;
 }
 
 // 预约选项配置
@@ -110,8 +124,14 @@ export const settingsApi = {
     return request.get(`${PREFIX}/booking`);
   },
 
-  updateBookingSettings: (data: Partial<BookingSettings>): Promise<void> => {
-    return request.put(`${PREFIX}/booking`, data);
+  /**
+   * 更新预约设置
+   * @param data 设置数据
+   * @param storeId 门店ID，不传则更新全局配置
+   */
+  updateBookingSettings: (data: Partial<BookingSettings>, storeId?: string): Promise<void> => {
+    const params = storeId ? { storeId } : undefined;
+    return request.put(`${PREFIX}/booking`, data, { params });
   },
 
   // 公开接口：获取预约规则

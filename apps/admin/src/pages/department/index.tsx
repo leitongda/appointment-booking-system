@@ -6,6 +6,7 @@ import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
 import { departmentApi, storeApi, dataApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
+import { PAGINATION_CONFIG } from '@/constants/pagination';
 import type { Department, Store, DoctorListItem } from '@hospital/shared';
 import ImportExport from '@/components/ImportExport';
 import {
@@ -115,7 +116,7 @@ const DepartmentPage: React.FC = () => {
 
   const loadStores = async () => {
     try {
-      const res = await storeApi.getList({ pageSize: 100, status: 1 });
+      const res = await storeApi.getList({ pageSize: PAGINATION_CONFIG.SELECT_MAX_SIZE, status: 1 });
       setStores(res.data ?? []);
     } catch (error) {
       console.error('加载门店失败', error);
@@ -142,7 +143,7 @@ const DepartmentPage: React.FC = () => {
     return options;
   }, [stores, userStores, canViewAllStores, isSingleStore, access.canSuperAdmin]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     try {
       await departmentApi.delete(id);
       message.success('删除成功');
@@ -150,7 +151,7 @@ const DepartmentPage: React.FC = () => {
     } catch (error: any) {
       message.error(error.message || '删除失败');
     }
-  };
+  }, [message, actionRef]);
 
   // 切换推荐状态
   const handleRecommendChange = useCallback(async (id: string, checked: boolean) => {
@@ -268,7 +269,8 @@ const DepartmentPage: React.FC = () => {
     setCheckedDoctorIds([]);
   };
 
-  const columns: ProColumns<Department>[] = [
+  // 使用 useMemo 优化 columns 配置
+  const columns = useMemo<ProColumns<Department>[]>(() => [
     {
       title: '',
       dataIndex: 'drag',
@@ -399,7 +401,7 @@ const DepartmentPage: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [storeFilterOptions, isSingleStore, canViewAllStores, access, handleRecommendChange, handleHotChange, handleDelete]);
 
   return (
     <PageContainer>

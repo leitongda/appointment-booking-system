@@ -20,6 +20,13 @@ class BookingSettingsUpdate(BaseModel):
     perDoctorLimit: Optional[int] = Field(None, ge=1, le=5)
     noShowLimit: Optional[int] = Field(None, ge=1, le=10)
     blacklistDays: Optional[int] = Field(None, ge=1, le=365)
+    # 提前预约截止配置
+    advanceBookingMinutes: Optional[int] = Field(None, ge=0, le=1440, description="提前预约截止时间（分钟），0表示不限制")
+    advanceBookingDirection: Optional[str] = Field(None, pattern='^(before|after)$', description="时间方向: before往前, after往后")
+    advanceBookingReference: Optional[str] = Field(None, pattern='^(start|end)$', description="基准时间: start开始时间, end结束时间")
+    # 签到时间配置
+    signInAdvanceMinutes: Optional[int] = Field(None, ge=0, le=1440, description="提前签到时间（分钟），班次开始前多少分钟可以签到")
+    signInLateMinutes: Optional[int] = Field(None, ge=0, le=1440, description="迟到签到时间（分钟），班次开始后多少分钟还可以签到")
 
 
 class HospitalInfoUpdate(BaseModel):
@@ -72,12 +79,18 @@ async def get_booking_settings(
 @router.put("/booking")
 async def update_booking_settings(
     data: BookingSettingsUpdate,
+    storeId: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
-    """更新预约设置"""
+    """更新预约设置
+
+    Args:
+        data: 预约设置数据
+        storeId: 门店ID，如果提供则更新门店级别配置，否则更新全局配置
+    """
     service = SettingsService(db)
-    
+
     update_data = {}
     if data.advanceDays is not None:
         update_data['advance_days'] = data.advanceDays
@@ -93,8 +106,20 @@ async def update_booking_settings(
         update_data['no_show_limit'] = data.noShowLimit
     if data.blacklistDays is not None:
         update_data['blacklist_days'] = data.blacklistDays
-    
-    await service.update_category('booking', update_data)
+    # 提前预约截止配置
+    if data.advanceBookingMinutes is not None:
+        update_data['advance_booking_minutes'] = data.advanceBookingMinutes
+    if data.advanceBookingDirection is not None:
+        update_data['advance_booking_direction'] = data.advanceBookingDirection
+    if data.advanceBookingReference is not None:
+        update_data['advance_booking_reference'] = data.advanceBookingReference
+    # 签到时间配置
+    if data.signInAdvanceMinutes is not None:
+        update_data['sign_in_advance_minutes'] = data.signInAdvanceMinutes
+    if data.signInLateMinutes is not None:
+        update_data['sign_in_late_minutes'] = data.signInLateMinutes
+
+    await service.update_category('booking', update_data, store_id=storeId)
     return {"message": "保存成功"}
 
 
@@ -271,19 +296,26 @@ async def get_booking_rules(
     db: AsyncSession = Depends(get_db),
 ):
     """获取预约规则（公开接口，用于患者端）
-    
+
     Args:
         storeId: 门店ID，如果提供则返回门店级别配置，否则返回全局配置
     """
     service = SettingsService(db)
     settings = await service.get_booking_settings(store_id=storeId)
-    
+
     # 只返回患者需要知道的规则
     return {
         'advanceDays': settings.get('advanceDays', 10),
         'sameDayBooking': settings.get('sameDayBooking', True),
         'cancelHours': settings.get('cancelHours', 2),
         'perDayLimit': settings.get('perDayLimit', 3),
+        # 提前预约截止配置
+        'advanceBookingMinutes': settings.get('advanceBookingMinutes', 0),
+        'advanceBookingDirection': settings.get('advanceBookingDirection', 'before'),
+        'advanceBookingReference': settings.get('advanceBookingReference', 'end'),
+        # 签到时间配置
+        'signInAdvanceMinutes': settings.get('signInAdvanceMinutes', 30),
+        'signInLateMinutes': settings.get('signInLateMinutes', 30),
     }
 
 

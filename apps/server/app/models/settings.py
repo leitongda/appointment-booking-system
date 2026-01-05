@@ -44,6 +44,13 @@ DEFAULT_SETTINGS = {
         'per_doctor_limit': {'value': '1', 'description': '每人每医生预约限制'},
         'no_show_limit': {'value': '3', 'description': '爽约次数限制'},
         'blacklist_days': {'value': '30', 'description': '黑名单禁止天数'},
+        # 提前预约截止配置
+        'advance_booking_minutes': {'value': '0', 'description': '提前预约截止时间(分钟)，0表示不限制'},
+        'advance_booking_direction': {'value': 'before', 'description': '时间方向: before(往前), after(往后)'},
+        'advance_booking_reference': {'value': 'end', 'description': '基准时间: start(开始时间), end(结束时间)'},
+        # 签到时间配置
+        'sign_in_advance_minutes': {'value': '30', 'description': '提前签到时间(分钟)，班次开始前多少分钟可以签到'},
+        'sign_in_late_minutes': {'value': '30', 'description': '迟到签到时间(分钟)，班次开始后多少分钟还可以签到'},
     },
     # 医院信息
     'hospital': {

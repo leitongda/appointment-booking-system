@@ -21,7 +21,8 @@
     "deploy:frontend": "node scripts/deploy-frontend.mjs",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "clean": "turbo run clean && rm -rf node_modules"
+    "clean": "turbo run clean && rm -rf node_modules",
+    "clean:patient-miniapp-cache": "pnpm --filter @hospital/patient-miniapp clean:cache"
   },
   "devDependencies": {
     "chalk": "^5.3.0",

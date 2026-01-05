@@ -15,7 +15,8 @@
       "Bash(pnpm turbo daemon stop:*)",
       "Bash(npx turbo daemon stop:*)",
       "Bash(kill:*)",
-      "Edit"
+      "Edit",
+      "Bash(cd:*)"
     ]
   },
   "statusLine": {

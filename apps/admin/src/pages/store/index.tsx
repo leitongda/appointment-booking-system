@@ -263,7 +263,7 @@ const StorePage: React.FC = () => {
       width: 360,
       fixed: 'right',
       render: (_, record) => (
-        <Space size={4} wrap>
+        <Space size={8} wrap>
           {access.hasPermission('store:update') && (
             <a onClick={() => handleOpenBindModal(record)}>
               <ApartmentOutlined /> 科室

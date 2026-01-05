@@ -2,13 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
-from datetime import date, datetime
+from datetime import date, datetime, time, timedelta
 
 from app.db.session import get_db
 from app.api.deps import get_current_user, get_current_user_or_admin, get_store_filter, get_current_super_admin
 from app.schemas.appointment import AppointmentCreate, AppointmentResponse, AppointmentCancelRequest, AppointmentStatistics
 from app.schemas.response import PageResponse
 from app.services.appointment_service import AppointmentService
+from app.services.settings_service import SettingsService
 
 router = APIRouter()
 
@@ -118,7 +119,7 @@ async def get_today_pending_appointments(
     current_user: dict = Depends(get_current_user)
 ):
     """获取用户在指定门店的今日待签到预约
-    
+
     用于患者扫码签到时选择要签到的预约
     """
     service = AppointmentService(db)
@@ -126,9 +127,55 @@ async def get_today_pending_appointments(
         user_id=current_user["id"],
         store_id=store_id
     )
-    
+
+    # 获取门店的签到时间配置
+    settings_service = SettingsService(db)
+    settings = await settings_service.get_booking_settings(store_id=store_id)
+    sign_in_advance_minutes = settings.get('signInAdvanceMinutes', 30)
+    sign_in_late_minutes = settings.get('signInLateMinutes', 30)
+
+    now = datetime.now()
+
     result = []
     for a in appointments:
+        # 计算签到时间状态
+        signInStatus = 'available'  # 默认可以签到
+        signInMessage = ''
+
+        if a.schedule:
+            # 计算班次开始时间
+            if a.schedule.start_time:
+                visit_time = a.schedule.start_time
+            else:
+                # 根据 time_slot 确定默认开始时间
+                time_slot_start_map = {
+                    'AM': time(8, 0),
+                    'PM': time(14, 0),
+                    'morning': time(8, 0),
+                    'afternoon': time(14, 0),
+                    'evening': time(18, 0),
+                    'NIGHT': time(18, 0),
+                }
+                visit_time = time_slot_start_map.get(a.schedule.time_slot, time(8, 0))
+
+            visit_datetime = datetime.combine(a.schedule.schedule_date, visit_time)
+
+            # 计算允许签到的时间窗口
+            sign_in_start = visit_datetime - timedelta(minutes=sign_in_advance_minutes)
+            sign_in_end = visit_datetime + timedelta(minutes=sign_in_late_minutes)
+
+            # 判断签到状态
+            if now < sign_in_start:
+                signInStatus = 'early'
+                minutes_until = int((sign_in_start - now).total_seconds() / 60)
+                signInMessage = f'未到签到时间，请等待{minutes_until}分钟'
+            elif now > sign_in_end:
+                signInStatus = 'late'
+                signInMessage = '已过签到时间'
+            else:
+                signInStatus = 'available'
+                signInMessage = '可以签到'
+
         result.append({
             "id": a.id,
             "appointmentNo": a.appointment_no,
@@ -137,9 +184,13 @@ async def get_today_pending_appointments(
             "departmentName": a.department_name,
             "scheduleDate": a.schedule.schedule_date.isoformat() if a.schedule else None,
             "timeSlot": a.schedule.time_slot if a.schedule else None,
+            "startTime": a.schedule.start_time.isoformat() if a.schedule and a.schedule.start_time else None,
+            "endTime": a.schedule.end_time.isoformat() if a.schedule and a.schedule.end_time else None,
             "status": a.status,
+            "signInStatus": signInStatus,
+            "signInMessage": signInMessage,
         })
-    
+
     return result
 
 

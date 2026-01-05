@@ -29,6 +29,13 @@ const DEFAULT_BOOKING_SETTINGS: BookingSettings = {
   perDoctorLimit: 1,
   noShowLimit: 3,
   blacklistDays: 30,
+  // 提前预约截止配置
+  advanceBookingMinutes: 0,
+  advanceBookingDirection: 'before',
+  advanceBookingReference: 'end',
+  // 签到时间配置
+  signInAdvanceMinutes: 30,
+  signInLateMinutes: 30,
 };
 
 // 就诊卡配置默认值
@@ -83,6 +90,8 @@ const SettingsPage: React.FC = () => {
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [storeWechatConfig, setStoreWechatConfig] = useState<StoreWechatConfig | null>(null);
   const [wechatLoading, setWechatLoading] = useState(false);
+  // 预约设置门店选择
+  const [selectedBookingStoreId, setSelectedBookingStoreId] = useState<string>('');
   const canEdit = access.hasPermission('system:settings');
   const canEditWechat = isSuperAdmin || access.hasPermission('settings:wechat') || access.hasPermission('settings:edit');
 
@@ -148,11 +157,54 @@ const SettingsPage: React.FC = () => {
 
   const handleBookingSubmit = async (values: any) => {
     try {
-      await settingsApi.updateBookingSettings(values);
+      await settingsApi.updateBookingSettings(values, selectedBookingStoreId || undefined);
       message.success('保存成功');
+      // 重新加载配置
+      if (selectedBookingStoreId) {
+        await loadStoreBookingSettings(selectedBookingStoreId);
+      } else {
+        const settings = await settingsApi.getBookingSettings();
+        setBookingSettings(settings);
+      }
     } catch (error: any) {
       message.error(error.message || '保存失败');
     }
+  };
+
+  // 加载门店预约设置
+  const loadStoreBookingSettings = async (storeId: string) => {
+    if (!storeId) {
+      // 加载全局配置
+      const settings = await settingsApi.getBookingSettings();
+      setBookingSettings(settings);
+      return;
+    }
+    try {
+      // 调用API时传递storeId参数
+      const rules = await settingsApi.getBookingRules(storeId);
+      setBookingSettings({
+        advanceDays: rules.advanceDays,
+        sameDayBooking: rules.sameDayBooking,
+        cancelHours: rules.cancelHours,
+        perDayLimit: rules.perDayLimit,
+        perDoctorLimit: 1,
+        noShowLimit: 3,
+        blacklistDays: 30,
+        advanceBookingMinutes: rules.advanceBookingMinutes,
+        advanceBookingDirection: rules.advanceBookingDirection,
+        advanceBookingReference: rules.advanceBookingReference,
+        signInAdvanceMinutes: rules.signInAdvanceMinutes,
+        signInLateMinutes: rules.signInLateMinutes,
+      });
+    } catch (error: any) {
+      console.error('加载门店预约设置失败', error);
+    }
+  };
+
+  // 门店选择变化时加载配置
+  const handleBookingStoreChange = (storeId: string) => {
+    setSelectedBookingStoreId(storeId);
+    loadStoreBookingSettings(storeId);
   };
 
   const handleHospitalSubmit = async (values: any) => {
@@ -372,20 +424,82 @@ const SettingsPage: React.FC = () => {
       key: 'booking',
       label: '预约设置',
       children: (
-        <ProForm
-          key={loading ? 'booking-loading' : 'booking-loaded'}
-          onFinish={handleBookingSubmit}
-          initialValues={{ ...DEFAULT_BOOKING_SETTINGS, ...bookingSettings }}
-          submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
-        >
-          <ProFormDigit name="advanceDays" label="提前预约天数" min={1} max={30} fieldProps={{ addonAfter: '天' }} />
-          <ProFormDigit name="cancelHours" label="取消时限" min={0} max={168} fieldProps={{ addonAfter: '小时' }} tooltip="就诊前多少小时内不可取消预约，设置为0表示不限制" />
-          <ProFormDigit name="perDayLimit" label="每人每天最大预约数" min={1} max={10} />
-          <ProFormDigit name="perDoctorLimit" label="每人每医生最大预约数" min={1} max={5} />
-          <ProFormDigit name="noShowLimit" label="爽约次数限制" min={1} max={10} />
-          <ProFormDigit name="blacklistDays" label="黑名单限制天数" min={1} max={365} fieldProps={{ addonAfter: '天' }} />
-          <ProFormSwitch name="sameDayBooking" label="允许当天预约" />
-        </ProForm>
+        <div>
+          {/* 门店选择器 */}
+          <div style={{ marginBottom: 24 }}>
+            <span style={{ marginRight: 8 }}>选择门店：</span>
+            <Select
+              style={{ width: 300 }}
+              placeholder="全局配置（不选择门店）"
+              value={selectedBookingStoreId || undefined}
+              onChange={handleBookingStoreChange}
+              options={[
+                { label: '全局配置（默认）', value: '' },
+                ...stores.map((s) => ({ label: s.name, value: s.id }))
+              ]}
+              allowClear
+            />
+          </div>
+
+          <ProForm
+            key={selectedBookingStoreId || 'global'}
+            onFinish={handleBookingSubmit}
+            initialValues={{ ...DEFAULT_BOOKING_SETTINGS, ...bookingSettings }}
+            submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
+          >
+            <ProFormDigit name="advanceDays" label="提前预约天数" min={1} max={30} fieldProps={{ addonAfter: '天' }} />
+            <ProFormDigit name="cancelHours" label="取消时限" min={0} max={168} fieldProps={{ addonAfter: '小时' }} tooltip="就诊前多少小时内不可取消预约，设置为0表示不限制" />
+            <ProFormDigit name="perDayLimit" label="每人每天最大预约数" min={1} max={10} />
+            <ProFormDigit name="perDoctorLimit" label="每人每医生最大预约数" min={1} max={5} />
+            <ProFormDigit name="noShowLimit" label="爽约次数限制" min={1} max={10} />
+            <ProFormDigit name="blacklistDays" label="黑名单限制天数" min={1} max={365} fieldProps={{ addonAfter: '天' }} />
+            <ProFormSwitch name="sameDayBooking" label="允许当天预约" />
+            {/* 提前预约截止配置 */}
+            <ProFormDigit
+              name="advanceBookingMinutes"
+              label="提前预约截止时间"
+              min={0}
+              max={1440}
+              fieldProps={{ addonAfter: '分钟' }}
+              tooltip="设置为0表示不限制，当天班次可随时预约"
+            />
+            <ProFormSelect
+              name="advanceBookingDirection"
+              label="时间方向"
+              options={[
+                { label: '往前（提前）', value: 'before' },
+                { label: '往后（延后）', value: 'after' },
+              ]}
+              tooltip="'往前'表示从基准时间往前推算截止时间，'往后'表示从基准时间往后推算"
+            />
+            <ProFormSelect
+              name="advanceBookingReference"
+              label="基准时间"
+              options={[
+                { label: '开始时间', value: 'start' },
+                { label: '结束时间', value: 'end' },
+              ]}
+              tooltip="选择以班次的开始时间还是结束时间作为基准进行计算"
+            />
+            {/* 签到时间配置 */}
+            <ProFormDigit
+              name="signInAdvanceMinutes"
+              label="提前签到时间"
+              min={0}
+              max={1440}
+              fieldProps={{ addonAfter: '分钟' }}
+              tooltip="班次开始前多少分钟可以签到，例如30分钟表示班次开始前30分钟可以签到"
+            />
+            <ProFormDigit
+              name="signInLateMinutes"
+              label="迟到签到时间"
+              min={0}
+              max={1440}
+              fieldProps={{ addonAfter: '分钟' }}
+              tooltip="班次开始后多少分钟还可以签到，例如30分钟表示班次开始后30分钟内可以签到"
+            />
+          </ProForm>
+        </div>
       ),
     },
     {
