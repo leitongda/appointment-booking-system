@@ -77,6 +77,14 @@ export const doctorApi = {
     return request.get('/doctors', { params });
   },
 
+  /**
+   * 获取所有医生（管理端接口）
+   * 用于管理后台需要获取完整医生列表的场景，如签到队列筛选
+   */
+  getAll: (): Promise<Doctor[]> => {
+    return request.get('/doctors/all');
+  },
+
   getRecommended: (limit?: number): Promise<Doctor[]> => {
     return request.get('/doctors/recommended', { params: { limit } });
   },
