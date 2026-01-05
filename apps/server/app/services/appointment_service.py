@@ -12,6 +12,7 @@ from app.models.doctor import Doctor
 from app.schemas.appointment import AppointmentCreate, AppointmentStatistics
 from app.utils.audit import set_create_audit, set_update_audit
 from app.services.settings_service import SettingsService
+from app.services.rule_engine_service import RuleEngineService
 
 # 预约状态 - 与前端共享常量保持一致
 APPOINTMENT_STATUS = {
@@ -202,18 +203,35 @@ class AppointmentService:
             .where(Schedule.id == data.schedule_id)
         )
         schedule = schedule_result.scalar_one_or_none()
-        
+
         if not schedule:
             raise ValueError("排班不存在")
         if schedule.status != 1:
             raise ValueError("该排班已停诊")
         if schedule.booked_slots >= schedule.total_slots:
             raise ValueError("号源已满")
-        
+
         # 获取门店配置
         settings_service = SettingsService(self.db)
         store_id = schedule.store_id
-        
+
+        # 规则引擎集成 - 检查预约时间窗
+        rule_engine = RuleEngineService(self.db)
+        book_result = await rule_engine.check_action_window(schedule, 'BOOK')
+
+        # 如果规则引擎返回不允许且失败策略是 REJECT，则拒绝预约
+        if not book_result['allowed'] and book_result['fail_policy'] == 'REJECT':
+            raise ValueError(book_result['message'])
+
+        # 获取签到和取消时间窗信息（用于快照）
+        checkin_result = await rule_engine.check_action_window(schedule, 'CHECKIN')
+        cancel_result = await rule_engine.check_action_window(schedule, 'CANCEL')
+
+        # 获取规则组ID
+        rule_set = None
+        if schedule.shift_type_id:
+            rule_set = await rule_engine.get_applicable_rule_set(schedule.shift_type_id)
+
         # 验证1：预约日期范围
         advance_days = await settings_service.get_value('booking', 'advance_days', 10, store_id=store_id)
         max_date = date.today() + timedelta(days=advance_days)
@@ -283,6 +301,15 @@ class AppointmentService:
             doctor_name=doctor.name if doctor else None,
             doctor_title=doctor.title if doctor else None,
             department_name=doctor.department.name if doctor and doctor.department else None,
+            # 规则快照信息
+            rule_set_id=rule_set.id if rule_set else None,
+            book_open_at=book_result['open_at'],
+            book_close_at=book_result['close_at'],
+            checkin_open_at=checkin_result['open_at'],
+            checkin_close_at=checkin_result['close_at'],
+            cancel_open_at=cancel_result['open_at'],
+            cancel_close_at=cancel_result['close_at'],
+            checkin_count=0,
         )
         # 设置创建人（如果是用户自己创建，使用 user_id；如果是管理员创建，使用 operator_id）
         set_create_audit(appointment, operator_id or user_id)
@@ -304,44 +331,51 @@ class AppointmentService:
         appointment = await self.get_by_id(appointment_id)
         if not appointment:
             return None
-        
+
         # 非管理员只能取消自己的预约
         if not is_admin and appointment.user_id != user_id:
             return None
-        
+
         # 只有已预约或已签到状态可以取消
         if appointment.status not in [APPOINTMENT_STATUS['CONFIRMED'], APPOINTMENT_STATUS['SIGNED']]:
             raise ValueError("当前状态不可取消")
-        
+
         # 非管理员需要检查取消时间限制
         if not is_admin:
-            from app.services.settings_service import SettingsService
-            settings_service = SettingsService(self.db)
-            cancel_hours = await settings_service.get_value('booking', 'cancel_hours', 2)
-            
-            schedule = appointment.schedule
-            if schedule and cancel_hours > 0:
-                # 计算就诊时间
-                # 优先使用排班的 start_time，否则根据 time_slot 推算
-                if schedule.start_time:
-                    visit_time = schedule.start_time
-                else:
-                    # 根据 time_slot 确定默认开始时间
-                    time_slot_start_map = {
-                        'AM': time(8, 0),
-                        'PM': time(14, 0),
-                        'morning': time(8, 0),
-                        'afternoon': time(14, 0),
-                        'evening': time(18, 0),
-                        'NIGHT': time(18, 0),
-                    }
-                    visit_time = time_slot_start_map.get(schedule.time_slot, time(8, 0))
-                
-                visit_datetime = datetime.combine(schedule.schedule_date, visit_time)
-                cancel_deadline = visit_datetime - timedelta(hours=cancel_hours)
-                
-                if datetime.now() > cancel_deadline:
-                    raise ValueError(f"就诊前{cancel_hours}小时内不可取消预约")
+            now = datetime.now()
+
+            # 优先使用规则快照中的取消时间窗
+            if appointment.cancel_open_at and appointment.cancel_close_at:
+                if now < appointment.cancel_open_at:
+                    raise ValueError("未到取消时间窗口")
+                if now > appointment.cancel_close_at:
+                    raise ValueError("已过取消时间窗口，无法取消预约")
+            else:
+                # 兼容旧数据：使用门店配置
+                settings_service = SettingsService(self.db)
+                cancel_hours = await settings_service.get_value('booking', 'cancel_hours', 2)
+
+                schedule = appointment.schedule
+                if schedule and cancel_hours > 0:
+                    # 计算就诊时间
+                    if schedule.start_time:
+                        visit_time = schedule.start_time
+                    else:
+                        time_slot_start_map = {
+                            'AM': time(8, 0),
+                            'PM': time(14, 0),
+                            'morning': time(8, 0),
+                            'afternoon': time(14, 0),
+                            'evening': time(18, 0),
+                            'NIGHT': time(18, 0),
+                        }
+                        visit_time = time_slot_start_map.get(schedule.time_slot, time(8, 0))
+
+                    visit_datetime = datetime.combine(schedule.schedule_date, visit_time)
+                    cancel_deadline = visit_datetime - timedelta(hours=cancel_hours)
+
+                    if now > cancel_deadline:
+                        raise ValueError(f"就诊前{cancel_hours}小时内不可取消预约")
         
         appointment.status = APPOINTMENT_STATUS['CANCELLED']
         appointment.cancel_time = datetime.now()
@@ -366,53 +400,65 @@ class AppointmentService:
         if appointment.status != APPOINTMENT_STATUS['CONFIRMED']:
             raise ValueError("当前状态不可签到")
 
-        # 获取排班信息用于时间验证
-        stmt = select(Schedule).where(Schedule.id == appointment.schedule_id)
-        result = await self.db.execute(stmt)
-        schedule = result.scalar_one_or_none()
+        now = datetime.now()
 
-        if schedule:
-            # 获取门店的签到时间配置
-            settings_service = SettingsService(self.db)
-            settings = await settings_service.get_booking_settings(store_id=schedule.store_id)
-
-            sign_in_advance_minutes = settings.get('signInAdvanceMinutes', 30)
-            sign_in_late_minutes = settings.get('signInLateMinutes', 30)
-
-            # 计算班次开始时间
-            if schedule.start_time:
-                visit_time = schedule.start_time
-            else:
-                # 根据 time_slot 确定默认开始时间
-                time_slot_start_map = {
-                    'AM': time(8, 0),
-                    'PM': time(14, 0),
-                    'morning': time(8, 0),
-                    'afternoon': time(14, 0),
-                    'evening': time(18, 0),
-                    'NIGHT': time(18, 0),
-                }
-                visit_time = time_slot_start_map.get(schedule.time_slot, time(8, 0))
-
-            visit_datetime = datetime.combine(schedule.schedule_date, visit_time)
-            now = datetime.now()
-
-            # 计算允许签到的时间窗口
-            sign_in_start = visit_datetime - timedelta(minutes=sign_in_advance_minutes)
-            sign_in_end = visit_datetime + timedelta(minutes=sign_in_late_minutes)
-
-            # 验证签到时间
-            if now < sign_in_start:
-                # 还没到签到时间
-                minutes_until = int((sign_in_start - now).total_seconds() / 60)
+        # 优先使用规则快照中的签到时间窗
+        if appointment.checkin_open_at and appointment.checkin_close_at:
+            if now < appointment.checkin_open_at:
+                minutes_until = int((appointment.checkin_open_at - now).total_seconds() / 60)
                 raise ValueError(f"未到签到时间，请等待{minutes_until}分钟后再试")
-
-            if now > sign_in_end:
-                # 已过签到时间
+            if now > appointment.checkin_close_at:
                 raise ValueError("已过签到时间，无法签到")
+        else:
+            # 兼容旧数据：使用门店配置
+            stmt = select(Schedule).where(Schedule.id == appointment.schedule_id)
+            result = await self.db.execute(stmt)
+            schedule = result.scalar_one_or_none()
+
+            if schedule:
+                settings_service = SettingsService(self.db)
+                settings = await settings_service.get_booking_settings(store_id=schedule.store_id)
+
+                sign_in_advance_minutes = settings.get('signInAdvanceMinutes', 30)
+                sign_in_late_minutes = settings.get('signInLateMinutes', 30)
+
+                if schedule.start_time:
+                    visit_time = schedule.start_time
+                else:
+                    time_slot_start_map = {
+                        'AM': time(8, 0),
+                        'PM': time(14, 0),
+                        'morning': time(8, 0),
+                        'afternoon': time(14, 0),
+                        'evening': time(18, 0),
+                        'NIGHT': time(18, 0),
+                    }
+                    visit_time = time_slot_start_map.get(schedule.time_slot, time(8, 0))
+
+                visit_datetime = datetime.combine(schedule.schedule_date, visit_time)
+                sign_in_start = visit_datetime - timedelta(minutes=sign_in_advance_minutes)
+                sign_in_end = visit_datetime + timedelta(minutes=sign_in_late_minutes)
+
+                if now < sign_in_start:
+                    minutes_until = int((sign_in_start - now).total_seconds() / 60)
+                    raise ValueError(f"未到签到时间，请等待{minutes_until}分钟后再试")
+
+                if now > sign_in_end:
+                    raise ValueError("已过签到时间，无法签到")
+
+        # 检查签到策略：签到次数限制
+        if appointment.rule_set_id:
+            rule_engine = RuleEngineService(self.db)
+            checkin_policy = await rule_engine.get_checkin_policy_by_rule_set_id(appointment.rule_set_id)
+            if checkin_policy and checkin_policy.max_times:
+                current_count = appointment.checkin_count or 0
+                if current_count >= checkin_policy.max_times:
+                    raise ValueError(f"已达到最大签到次数限制（{checkin_policy.max_times}次）")
 
         appointment.status = APPOINTMENT_STATUS['SIGNED']
-        appointment.sign_in_time = datetime.now()
+        appointment.sign_in_time = now
+        # 更新签到次数
+        appointment.checkin_count = (appointment.checkin_count or 0) + 1
 
         await self.db.commit()
         await self.db.refresh(appointment)
