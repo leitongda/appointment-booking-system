@@ -57,25 +57,30 @@ export const WAITLIST_PROMOTE_POLICY_OPTIONS = [
 ] as const;
 
 // ==================== 时间窗动作类型选项 ====================
+// 每种动作类型对应不同的业务场景和验证规则
+// 用于配置时间窗口限制的操作类型
 export const WINDOW_ACTION_OPTIONS = [
-  { label: '预约', value: 'BOOK' },
-  { label: '签到', value: 'CHECKIN' },
-  { label: '取消', value: 'CANCEL' },
-  { label: '释放', value: 'HOLD_RELEASE' },
+  { label: '预约', value: 'BOOK' },           // 创建预约时的时间窗口限制
+  { label: '签到', value: 'CHECKIN' },        // 签到操作的时间窗口限制
+  { label: '取消', value: 'CANCEL' },         // 取消预约的时间窗口限制
+  { label: '释放', value: 'HOLD_RELEASE' },   // 释放占位号的时间窗口限制
 ] as const;
 
 // ==================== 时间窗参考点选项 ====================
+// 参考点用于计算时间窗口的基准时间
+// openOffsetSec/closeOffsetSec 是相对于参考点的偏移量
 export const WINDOW_REFERENCE_POINT_OPTIONS = [
-  { label: '班次开始时间', value: 'SHIFT_START' },
-  { label: '班次结束时间', value: 'SHIFT_END' },
-  { label: '预约创建时间', value: 'BOOKING_CREATED_AT' },
+  { label: '班次开始时间', value: 'SHIFT_START' },         // 以班次开始时间为基准
+  { label: '班次结束时间', value: 'SHIFT_END' },           // 以班次结束时间为基准
+  { label: '预约创建时间', value: 'BOOKING_CREATED_AT' },  // 以创建预约的时间为基准
 ] as const;
 
 // ==================== 时间窗失败策略选项 ====================
+// 当操作不在时间窗内时的处理方式
 export const WINDOW_FAIL_POLICY_OPTIONS = [
-  { label: '拒绝操作', value: 'REJECT' },
-  { label: '允许并打标签', value: 'ALLOW_WITH_TAG' },
-  { label: '自动进入候补', value: 'AUTO_TO_WAITLIST' },
+  { label: '拒绝操作', value: 'REJECT' },              // 直接拒绝操作，返回错误提示
+  { label: '允许并打标签', value: 'ALLOW_WITH_TAG' },  // 允许操作但标记为特殊状态（如迟到预约）
+  { label: '自动进入候补', value: 'AUTO_TO_WAITLIST' }, // 自动添加到候补队列
 ] as const;
 
 // ==================== 默认值配置 ====================
@@ -151,6 +156,48 @@ export const WINDOW_DEFAULT_VALUES = {
 } as const;
 
 /**
+ * 默认时间窗配置 - 满足基本业务规则
+ * 1. 预约必须在班次开始时间之前
+ * 2. 签到必须在班次结束时间之前
+ * 3. 签到不能早于预约时间前30分钟（即预约后30分钟才能签到）
+ */
+export const DEFAULT_WINDOWS = [
+  // 预约时间窗：班次开始前24小时开放，班次开始时关闭（不包含开始时刻）
+  {
+    action: 'BOOK' as const,
+    referencePoint: 'SHIFT_START' as const,
+    openOffsetSec: -86400, // 提前24小时
+    closeOffsetSec: 0,     // 班次开始时
+    openInclusive: true,
+    closeInclusive: false, // 不包含班次开始时刻
+    failPolicy: 'REJECT' as const,
+    enabled: true,
+  },
+  // 签到时间窗1：预约后30分钟才能签到（防止过早签到）
+  {
+    action: 'CHECKIN' as const,
+    referencePoint: 'BOOKING_CREATED_AT' as const,
+    openOffsetSec: 1800,   // 预约后30分钟才能签到
+    closeOffsetSec: null,  // 不限制最晚时间
+    openInclusive: true,
+    closeInclusive: false,
+    failPolicy: 'REJECT' as const,
+    enabled: true,
+  },
+  // 签到时间窗2：必须在班次结束时间前签到
+  {
+    action: 'CHECKIN' as const,
+    referencePoint: 'SHIFT_END' as const,
+    openOffsetSec: null,   // 不限制最早时间
+    closeOffsetSec: 0,     // 班次结束时
+    openInclusive: true,
+    closeInclusive: true,  // 包含班次结束时刻
+    failPolicy: 'REJECT' as const,
+    enabled: true,
+  },
+] as const;
+
+/**
  * 完整的规则组表单初始值
  */
 export const RULE_SET_FORM_INITIAL_VALUES = {
@@ -159,5 +206,5 @@ export const RULE_SET_FORM_INITIAL_VALUES = {
   checkinPolicy: CHECKIN_POLICY_DEFAULT_VALUES,
   capacityPolicy: CAPACITY_POLICY_DEFAULT_VALUES,
   shiftTypeIds: [],
-  windows: [],
+  windows: DEFAULT_WINDOWS,
 } as const;

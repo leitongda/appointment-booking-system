@@ -89,8 +89,6 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canMessage: hasPermission('message') || hasPermission('message:list'),
     // 内容管理
     canContent: hasPermission('content') || hasAnyPermission(['content:news', 'content:notice', 'content:banner']),
-    // 统计分析
-    canStatistics: hasPermission('statistics') || hasPermission('statistics:view'),
     // 系统设置 - 只有超管可以管理角色
     canSystem: hasPermission('system') || hasAnyPermission(['system:role', 'system:user', 'system:settings', 'system:log']),
     canManageRoles: isSuperAdmin && hasPermission('system:role'),

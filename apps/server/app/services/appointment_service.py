@@ -228,25 +228,60 @@ class AppointmentService:
         checkin_result = await rule_engine.check_action_window(schedule, 'CHECKIN')
         cancel_result = await rule_engine.check_action_window(schedule, 'CANCEL')
 
-        # 获取规则组ID
+        # 获取规则组ID和预约策略
         rule_set = None
+        booking_policy = None
+        capacity_policy = None
+
         if schedule.shift_type_id:
             rule_set = await rule_engine.get_applicable_rule_set(schedule.shift_type_id)
+            if rule_set:
+                booking_policy = await rule_engine.get_booking_policy(schedule.shift_type_id)
+                capacity_policy = await rule_engine.get_capacity_policy(schedule.shift_type_id)
 
-        # 验证1：预约日期范围
-        advance_days = await settings_service.get_value('booking', 'advance_days', 10, store_id=store_id)
-        max_date = date.today() + timedelta(days=advance_days)
-        if schedule.schedule_date > max_date:
-            raise ValueError(f"预约日期不能超过{advance_days}天")
-        
-        # 验证2：同用户同门店单日预约次数限制
-        per_day_limit = await settings_service.get_value('booking', 'per_day_limit', 3, store_id=store_id)
-        today_count = await self._count_user_store_daily_appointments(
-            user_id, store_id, schedule.schedule_date
-        )
-        if today_count >= per_day_limit:
-            raise ValueError(f"当日预约已达上限（最多{per_day_limit}次）")
-        
+        # ========== 规则引擎验证（优先使用规则组配置） ==========
+
+        # 验证1：预约策略 - 检查预约冲突
+        if booking_policy:
+            conflict_result = await rule_engine.check_booking_conflicts(
+                db=self.db,
+                shift_id=data.schedule_id,
+                user_id=user_id,
+                policy=booking_policy,
+                booking_time=datetime.now()
+            )
+            if not conflict_result['allowed']:
+                raise ValueError(conflict_result['reason'])
+
+        # 验证2：容量策略 - 检查容量限制
+        if capacity_policy:
+            capacity_result = await rule_engine.check_capacity_limits(
+                db=self.db,
+                shift_id=data.schedule_id,
+                user_id=user_id,
+                policy=capacity_policy
+            )
+            if not capacity_result['allowed']:
+                # 如果候补位置存在，可以提示用户候补（未来功能）
+                raise ValueError(capacity_result['reason'])
+
+        # ========== 兼容旧配置：没有规则组时使用门店配置 ==========
+
+        # 验证3：预约日期范围（仅当没有规则组时使用）
+        if not rule_set:
+            advance_days = await settings_service.get_value('booking', 'advance_days', 10, store_id=store_id)
+            max_date = date.today() + timedelta(days=advance_days)
+            if schedule.schedule_date > max_date:
+                raise ValueError(f"预约日期不能超过{advance_days}天")
+
+            # 验证4：同用户同门店单日预约次数限制（仅当没有规则组时使用）
+            per_day_limit = await settings_service.get_value('booking', 'per_day_limit', 3, store_id=store_id)
+            today_count = await self._count_user_store_daily_appointments(
+                user_id, store_id, schedule.schedule_date
+            )
+            if today_count >= per_day_limit:
+                raise ValueError(f"当日预约已达上限（最多{per_day_limit}次）")
+
         # 验证就诊人
         patient_result = await self.db.execute(
             select(Patient).where(Patient.id == data.patient_id, Patient.user_id == user_id)
@@ -382,13 +417,27 @@ class AppointmentService:
         appointment.cancel_time = datetime.now()
         appointment.cancel_reason = reason
         set_update_audit(appointment, operator_id or user_id)
-        
+
         # 恢复号源
         schedule = appointment.schedule
         if schedule:
             schedule.booked_slots = max(0, schedule.booked_slots - 1)
-        
+
         await self.db.commit()
+
+        # 候补队列自动递补
+        if schedule:
+            try:
+                from app.services.waitlist_service import WaitlistService
+                waitlist_service = WaitlistService(self.db)
+                await waitlist_service.auto_promote(
+                    schedule_id=appointment.schedule_id,
+                    reason='APPOINTMENT_CANCELLED'
+                )
+            except Exception as e:
+                # 候补递补失败不影响取消操作
+                print(f'候补自动递补失败: {e}')
+
         await self.db.refresh(appointment)
         return appointment
     
@@ -485,6 +534,20 @@ class AppointmentService:
                     current_count = appointment.checkin_count or 0
                     if current_count >= checkin_policy.max_times:
                         raise ValueError(f"已达到最大签到次数限制（{checkin_policy.max_times}次）")
+
+                # 计算宽限期
+                if checkin_policy:
+                    grace_result = rule_engine.calculate_checkin_grace_period(
+                        appointment=appointment,
+                        policy=checkin_policy,
+                        current_time=now
+                    )
+
+                    # 虽然超过宽限期，但只要在签到窗口内仍可签到
+                    # 宽限期影响签到状态标记（准时/迟到）
+                    if grace_result['is_late']:
+                        # 可以签到，但标记为迟到
+                        pass  # 未来可以添加迟到标记字段
 
             # 更新预约状态
             appointment.status = APPOINTMENT_STATUS['SIGNED']

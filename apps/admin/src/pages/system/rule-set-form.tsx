@@ -187,74 +187,76 @@ const RuleSetFormPage: React.FC = () => {
               label: '时间口径',
               children: (
                 <Card style={{ marginBottom: 16 }} loading={loading}>
-                  <Row gutter={16}>
-                    <Col span={12}>
+                  {/* 时间与精度配置 */}
+                  <Row gutter={[24, 16]} style={{ marginBottom: 16 }}>
+                    <Col span={6}>
                       <ProFormSelect
                         name="timeSource"
                         label="时间来源"
-                        width="md"
+                        width="xl"
                         options={TIME_SOURCE_OPTIONS}
                         rules={[{ required: true, message: '请选择时间来源' }]}
-                        extra="用于判断时间窗的基准时间来源"
+                        tooltip="用于判断时间窗的基准时间来源"
                       />
                     </Col>
-                    <Col span={12}>
+                    <Col span={6}>
                       <ProFormSelect
                         name="timezoneSource"
                         label="时区来源"
-                        width="md"
+                        width="xl"
                         options={TIMEZONE_SOURCE_OPTIONS}
                         rules={[{ required: true, message: '请选择时区来源' }]}
+                        tooltip="用于时间判断的时区基准：医院配置时区使用统一标准时区，班次时区使用班次特定时区，用户时区使用用户所在地时区"
+                      />
+                    </Col>
+                    <Col span={6}>
+                      <ProFormSelect
+                        name="comparePrecision"
+                        label="比较精度"
+                        width="xl"
+                        options={COMPARE_PRECISION_OPTIONS}
+                        rules={[{ required: true, message: '请选择比较精度' }]}
+                        tooltip="时间比较的最小单位"
+                      />
+                    </Col>
+                    <Col span={6}>
+                      <ProFormSelect
+                        name="roundingMode"
+                        label="舍入模式"
+                        width="xl"
+                        options={ROUNDING_MODE_OPTIONS}
+                        rules={[{ required: true, message: '请选择舍入模式' }]}
+                        tooltip="时间比较时的舍入规则：不舍入使用精确时间，向下/向上取整到分钟可提高比较效率并减少时钟偏差影响"
                       />
                     </Col>
                   </Row>
 
-                  <Row gutter={16}>
-                    <Col span={8}>
-                      <ProFormSelect
-                        name="comparePrecision"
-                        label="比较精度"
-                        width="md"
-                        options={COMPARE_PRECISION_OPTIONS}
-                        rules={[{ required: true, message: '请选择比较精度' }]}
-                      />
-                    </Col>
-                    <Col span={8}>
-                      <ProFormSelect
-                        name="roundingMode"
-                        label="舍入模式"
-                        width="md"
-                        options={ROUNDING_MODE_OPTIONS}
-                        rules={[{ required: true, message: '请选择舍入模式' }]}
-                      />
-                    </Col>
+                  {/* 容差与边界配置 */}
+                  <Row gutter={[24, 16]}>
                     <Col span={8}>
                       <ProFormDigit
                         name="clockSkewToleranceSec"
                         label="时钟容差(秒)"
-                        width="md"
+                        width="xl"
                         min={0}
                         max={300}
                         fieldProps={{ precision: 0 }}
                         rules={[{ required: true, message: '请输入时钟容差' }]}
-                        extra="允许客户端与服务端时间的最大偏差"
+                        tooltip="允许客户端与服务端时间的最大偏差"
                       />
                     </Col>
-                  </Row>
-
-                  <Row gutter={16}>
-                    <Col span={12}>
+                    <Col span={8}>
                       <ProFormSwitch
                         name="defaultOpenInclusive"
                         label="默认包含开放边界"
-                        extra="默认情况下时间窗开放时间是否包含边界"
+                        tooltip="默认情况下时间窗开放时间是否包含边界"
                       />
                     </Col>
-                    <Col span={12}>
+                    <Col span={8}>
                       <ProFormSwitch
                         name="defaultCloseInclusive"
                         label="默认包含截止边界"
-                        extra="默认情况下时间窗截止时间是否包含边界"
+                        tooltip="默认情况下时间窗截止时间是否包含边界"
                       />
                     </Col>
                   </Row>
@@ -271,90 +273,98 @@ const RuleSetFormPage: React.FC = () => {
               label: '预约策略',
               children: (
                 <Card style={{ marginBottom: 16 }} loading={loading}>
-                  <Row gutter={16}>
+                  {/* 预约前置条件 */}
+                  <Row gutter={[24, 16]} style={{ marginBottom: 16 }}>
                     <Col span={8}>
                       <ProFormSwitch
                         name={['bookingPolicy', 'requireAuth']}
                         label="需要登录"
-                        extra="未登录用户无法预约"
+                        tooltip="未登录用户无法预约"
                       />
                     </Col>
                     <Col span={8}>
                       <ProFormSwitch
                         name={['bookingPolicy', 'requirePatientProfileComplete']}
                         label="需要完整档案"
-                        extra="预约前需完善就诊人信息"
+                        tooltip="预约前需完善就诊人信息"
                       />
-                    </Col>
-                    <Col span={8}>
-                      {/* 占位，保持布局对齐 */}
                     </Col>
                   </Row>
 
-                  <Row gutter={16}>
+                  {/* 限约配置 */}
+                  <Row gutter={[24, 16]} style={{ marginBottom: 16 }}>
                     <Col span={8}>
                       <ProFormDigit
                         name={['bookingPolicy', 'perUserPerShift']}
                         label="每班次限约数"
+                        width="xl"
                         min={1}
                         max={100}
                         fieldProps={{ precision: 0 }}
                         rules={[{ required: true, message: '请输入限约数' }]}
-                        extra="同一用户在同一班次的预约上限"
+                        tooltip="同一用户在同一班次的预约上限"
                       />
                     </Col>
                     <Col span={8}>
                       <ProFormDigit
                         name={['bookingPolicy', 'perUserPerDay']}
                         label="每日限约数"
+                        width="xl"
                         min={0}
                         max={100}
                         fieldProps={{ precision: 0 }}
-                        extra="0表示不限制"
+                        tooltip="0表示不限制"
                       />
                     </Col>
                     <Col span={8}>
                       <ProFormDigit
                         name={['bookingPolicy', 'perUserPerWeek']}
                         label="每周限约数"
+                        width="xl"
                         min={0}
                         max={500}
                         fieldProps={{ precision: 0 }}
-                        extra="0表示不限制"
+                        tooltip="0表示不限制"
                       />
                     </Col>
                   </Row>
 
-                  <Row gutter={16}>
+                  {/* 冲突处理策略 */}
+                  <Row gutter={[24, 16]}>
                     <Col span={8}>
                       <ProFormSelect
                         name={['bookingPolicy', 'conflictSameShift']}
                         label="同班次冲突策略"
+                        width="xl"
                         options={CONFLICT_STRATEGY_OPTIONS.filter(opt =>
                           opt.value === 'REJECT' || opt.value === 'REPLACE'
                         )}
                         rules={[{ required: true, message: '请选择冲突策略' }]}
+                        tooltip="同一用户在同一班次多次预约时的处理方式：拒绝表示不允许重复预约，替换表示新预约替换旧预约"
                       />
                     </Col>
                     <Col span={8}>
                       <ProFormSelect
                         name={['bookingPolicy', 'conflictOverlapTime']}
                         label="时间重叠策略"
+                        width="xl"
                         options={CONFLICT_STRATEGY_OPTIONS.filter(opt =>
                           opt.value === 'REJECT' || opt.value === 'ALLOW'
                         )}
                         rules={[{ required: true, message: '请选择重叠策略' }]}
+                        tooltip="同一用户预约时间重叠的班次时的处理方式：拒绝表示不允许时间重叠的预约，允许表示可以同时预约多个时间重叠的班次"
                       />
                     </Col>
                     <Col span={8}>
                       <ProFormSelect
                         name={['bookingPolicy', 'conflictSameTypeSameDay']}
                         label="同类型同日策略"
+                        width="xl"
                         options={CONFLICT_STRATEGY_OPTIONS.filter(opt =>
                           opt.value === 'REJECT' || opt.value === 'ALLOW'
                         )}
                         rules={[{ required: true, message: '请选择策略' }]}
-                        extra="同一类型预约在同一天的限制"
+                        tooltip="同一类型预约在同一天的限制"
                       />
                     </Col>
                   </Row>
@@ -366,68 +376,81 @@ const RuleSetFormPage: React.FC = () => {
               label: '签到策略',
               children: (
                 <Card style={{ marginBottom: 16 }} loading={loading}>
-                  <Row gutter={16}>
+                  {/* 签到前置条件 */}
+                  <Row gutter={[24, 16]} style={{ marginBottom: 16 }}>
                     <Col span={8}>
                       <ProFormSwitch
                         name={['checkinPolicy', 'requireBooking']}
                         label="需要预约"
-                        extra="是否必须先预约才能签到"
+                        tooltip="是否必须先预约才能签到"
                       />
                     </Col>
                     <Col span={8}>
                       <ProFormSwitch
                         name={['checkinPolicy', 'allowOnsiteBooking']}
                         label="允许现场预约"
+                        tooltip="允许在签到时现场创建预约"
                       />
                     </Col>
                     <Col span={8}>
                       <ProFormSwitch
                         name={['checkinPolicy', 'auditLog']}
                         label="记录签到日志"
+                        tooltip="记录每次签到的详细信息"
                       />
                     </Col>
                   </Row>
 
-                  <Row gutter={16}>
+                  {/* 签到限制配置 */}
+                  <Row gutter={[24, 16]} style={{ marginBottom: 16 }}>
                     <Col span={8}>
                       <ProFormDigit
                         name={['checkinPolicy', 'maxTimes']}
                         label="最大签到次数"
+                        width="xl"
                         min={1}
                         max={10}
                         fieldProps={{ precision: 0 }}
                         rules={[{ required: true, message: '请输入最大次数' }]}
-                        extra="同一预约最多允许签到的次数"
+                        tooltip="同一预约最多允许签到的次数"
                       />
                     </Col>
                     <Col span={8}>
                       <ProFormDigit
                         name={['checkinPolicy', 'gracePeriodSec']}
                         label="宽限期(秒)"
+                        width="xl"
                         min={0}
                         max={3600}
                         fieldProps={{ precision: 0 }}
                         rules={[{ required: true, message: '请输入宽限期' }]}
-                        extra="迟到后的宽限时间，默认15分钟"
+                        tooltip="迟到后的宽限时间，默认15分钟"
                       />
                     </Col>
                     <Col span={8}>
                       <ProFormSelect
                         name={['checkinPolicy', 'afterGraceStatus']}
                         label="宽限期后状态"
+                        width="xl"
                         options={AFTER_GRACE_STATUS_OPTIONS}
-                        extra="宽限期结束后的状态标记"
+                        tooltip="宽限期结束后的状态标记"
                       />
                     </Col>
                   </Row>
 
-                  <ProFormSelect
-                    name={['checkinPolicy', 'noCheckinAfterClose']}
-                    label="超时未签到处理"
-                    options={NO_CHECKIN_AFTER_CLOSE_OPTIONS}
-                    rules={[{ required: true, message: '请选择处理方式' }]}
-                    extra="签到窗口关闭后仍未签到的处理方式"
-                  />
+                  {/* 超时处理 */}
+                  <Row gutter={[24, 16]}>
+                    <Col span={24}>
+                      <ProFormSelect
+                        name={['checkinPolicy', 'noCheckinAfterClose']}
+                        label="超时未签到处理"
+                        width="xl"
+                        options={NO_CHECKIN_AFTER_CLOSE_OPTIONS}
+                        rules={[{ required: true, message: '请选择处理方式' }]}
+                        tooltip="签到窗口关闭后仍未签到的处理方式"
+                      />
+                    </Col>
+                  </Row>
                 </Card>
               ),
             },
@@ -436,85 +459,85 @@ const RuleSetFormPage: React.FC = () => {
               label: '容量策略',
               children: (
                 <Card style={{ marginBottom: 16 }} loading={loading}>
-                  <Row gutter={16}>
-                    <Col span={12}>
+                  {/* 基础容量配置 */}
+                  <Row gutter={[24, 16]} style={{ marginBottom: 16 }}>
+                    <Col span={8}>
                       <ProFormDigit
                         name={['capacityPolicy', 'totalCapacity']}
                         label="总容量"
+                        width="xl"
                         min={1}
                         max={1000}
                         fieldProps={{ precision: 0 }}
                         rules={[{ required: true, message: '请输入总容量' }]}
-                        extra="班次的总预约容量"
+                        tooltip="班次的总预约容量"
                       />
                     </Col>
-                    <Col span={12}>
+                    <Col span={8}>
                       <ProFormDigit
                         name={['capacityPolicy', 'perUserCapacity']}
                         label="每人限约数"
+                        width="xl"
                         min={1}
                         max={50}
                         fieldProps={{ precision: 0 }}
                         rules={[{ required: true, message: '请输入限约数' }]}
-                        extra="每个用户最多可预约的数量"
+                        tooltip="每个用户最多可预约的数量"
+                      />
+                    </Col>
+                    <Col span={8}>
+                      <ProFormSwitch
+                        name={['capacityPolicy', 'overbookingEnabled']}
+                        label="允许超额预约"
+                        tooltip="允许预约数超过总容量"
                       />
                     </Col>
                   </Row>
 
-                  <Row gutter={16}>
+                  {/* 候补配置 */}
+                  <Row gutter={[24, 16]} style={{ marginBottom: 16 }}>
                     <Col span={8}>
                       <ProFormSwitch
                         name={['capacityPolicy', 'waitlistEnabled']}
                         label="启用候补"
+                        tooltip="启用候补队列功能"
                       />
                     </Col>
                     <Col span={8}>
                       <ProFormDigit
                         name={['capacityPolicy', 'waitlistMaxSize']}
                         label="候补队列大小"
+                        width="xl"
                         min={1}
                         max={100}
                         fieldProps={{ precision: 0 }}
                         rules={[{ required: true, message: '请输入队列大小' }]}
-                        tooltip={{
-                          title: '仅在启用候补时生效',
-                          placement: 'top',
-                        }}
+                        tooltip="仅在启用候补时生效"
                       />
                     </Col>
                     <Col span={8}>
                       <ProFormSelect
                         name={['capacityPolicy', 'waitlistPromotePolicy']}
                         label="候补递补策略"
+                        width="xl"
                         options={WAITLIST_PROMOTE_POLICY_OPTIONS}
-                        tooltip={{
-                          title: '仅在启用候补时生效',
-                          placement: 'top',
-                        }}
+                        tooltip="仅在启用候补时生效"
                       />
                     </Col>
                   </Row>
 
-                  <Row gutter={16}>
-                    <Col span={12}>
-                      <ProFormSwitch
-                        name={['capacityPolicy', 'overbookingEnabled']}
-                        label="允许超额预约"
-                      />
-                    </Col>
+                  {/* 超额预约配置 */}
+                  <Row gutter={[24, 16]}>
                     <Col span={12}>
                       <ProFormDigit
                         name={['capacityPolicy', 'overbookingMax']}
                         label="最大超额数"
+                        width="xl"
                         min={1}
                         max={100}
                         fieldProps={{ precision: 0 }}
                         rules={[{ required: true, message: '请输入超额数' }]}
-                        extra="允许超过总容量的最大数量"
-                        tooltip={{
-                          title: '仅在允许超额预约时生效',
-                          placement: 'top',
-                        }}
+                        tooltip="仅在允许超额预约时生效，允许超过总容量的最大数量"
                       />
                     </Col>
                   </Row>

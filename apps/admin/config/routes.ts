@@ -12,13 +12,6 @@ export default [
     layout: false,
     component: './login',
   },
-  // 欢迎页
-  {
-    path: '/welcome',
-    name: '欢迎',
-    icon: 'smile',
-    component: './welcome',
-  },
   // 仪表盘
   {
     path: '/dashboard',
@@ -179,14 +172,6 @@ export default [
       { path: '/content/banner/create', name: '新增轮播图', component: './content/banner-form', hideInMenu: true },
       { path: '/content/banner/:id/edit', name: '编辑轮播图', component: './content/banner-form', hideInMenu: true },
     ],
-  },
-  // 统计分析
-  {
-    path: '/statistics',
-    name: '统计分析',
-    icon: 'barChart',
-    component: './statistics',
-    access: 'canStatistics',
   },
   // 系统设置
   {

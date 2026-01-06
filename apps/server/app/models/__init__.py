@@ -26,3 +26,4 @@ from app.models.schedule_generation_log import ScheduleGenerationLog
 from app.models.booking_notice import BookingNotice
 from app.models.user_favorite import UserFavorite
 from app.models.store_visit_type_config import StoreVisitTypeConfig
+from app.models.waitlist import WaitlistEntry
