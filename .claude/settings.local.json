@@ -16,12 +16,14 @@
       "Bash(npx turbo daemon stop:*)",
       "Bash(kill:*)",
       "Edit",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(python3:*)",
+      "Bash(pip install:*)"
     ]
   },
   "statusLine": {
+    "type": "command",
     "command": "~/.claude/ccline/ccline",
-    "padding": 0,
-    "type": "command"
+    "padding": 0
   }
 }
