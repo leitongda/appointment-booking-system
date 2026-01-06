@@ -933,7 +933,7 @@ const ScheduleRulePage: React.FC = () => {
         ) : (
           <Space>
             <Button onClick={() => setGenerateModalOpen(false)} disabled={generateLoading}>取消</Button>
-            <Button 
+            <Button
               icon={<EyeOutlined />}
               onClick={handlePreviewGenerate}
               loading={previewLoading}
@@ -946,7 +946,7 @@ const ScheduleRulePage: React.FC = () => {
             </Button>
           </Space>
         )}
-        destroyOnClose
+        destroyOnHidden
         width={showPreview ? 900 : 500}
       >
         {!showPreview ? (
@@ -1207,7 +1207,7 @@ const ScheduleRulePage: React.FC = () => {
           </Space>
         }
         width={700}
-        destroyOnClose
+        destroyOnHidden
       >
         <Steps
           current={copyStep}

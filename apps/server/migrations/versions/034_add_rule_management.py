@@ -113,7 +113,8 @@ def upgrade() -> None:
         sa.Column('description', sa.Text, comment='描述'),
         sa.Column('created_at', sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text('now()')),
         sa.Column('updated_at', sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text('now()')),
-        sa.UniqueConstraint('rule_set_id', 'action', name='uq_rule_windows_rule_set_action'),
+        sa.Column('created_by', sa.String(36), comment='创建人ID'),
+        sa.Column('updated_by', sa.String(36), comment='更新人ID'),
         comment='时间窗配置表'
     )
 
@@ -133,6 +134,8 @@ def upgrade() -> None:
         sa.Column('conflict_same_type_same_day', sa.String(20), nullable=False, default='ALLOW', comment='同类型同日冲突策略: REJECT/ALLOW'),
         sa.Column('created_at', sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text('now()')),
         sa.Column('updated_at', sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text('now()')),
+        sa.Column('created_by', sa.String(36), comment='创建人ID'),
+        sa.Column('updated_by', sa.String(36), comment='更新人ID'),
         comment='预约策略表'
     )
 
@@ -149,6 +152,8 @@ def upgrade() -> None:
         sa.Column('no_checkin_after_close', sa.String(30), nullable=False, default='KEEP_BOOKED', comment='截止后未签到处理: KEEP_BOOKED/AUTO_CANCEL/ABSENT'),
         sa.Column('created_at', sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text('now()')),
         sa.Column('updated_at', sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text('now()')),
+        sa.Column('created_by', sa.String(36), comment='创建人ID'),
+        sa.Column('updated_by', sa.String(36), comment='更新人ID'),
         comment='签到策略表'
     )
 
@@ -165,6 +170,8 @@ def upgrade() -> None:
         sa.Column('overbooking_max', sa.Integer, nullable=False, default=0, comment='超额最大数量'),
         sa.Column('created_at', sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text('now()')),
         sa.Column('updated_at', sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text('now()')),
+        sa.Column('created_by', sa.String(36), comment='创建人ID'),
+        sa.Column('updated_by', sa.String(36), comment='更新人ID'),
         comment='容量策略表'
     )
 
@@ -194,7 +201,10 @@ def upgrade() -> None:
     op.add_column('schedules', sa.Column('shift_type_id', sa.String(36), sa.ForeignKey('shift_types.id'), comment='班次类型ID'))
     op.add_column('schedules', sa.Column('start_at', sa.TIMESTAMP(timezone=True), comment='带时区的开始时间'))
     op.add_column('schedules', sa.Column('end_at', sa.TIMESTAMP(timezone=True), comment='带时区的结束时间'))
-    op.add_column('schedules', sa.Column('timezone', sa.String(50), nullable=False, default='Asia/Shanghai', comment='时区'))
+    # timezone 列需要分步添加：先添加可空列，更新现有数据，再设置为 NOT NULL
+    op.add_column('schedules', sa.Column('timezone', sa.String(50), nullable=True, comment='时区'))
+    op.execute("UPDATE schedules SET timezone = 'Asia/Shanghai' WHERE timezone IS NULL")
+    op.alter_column('schedules', 'timezone', nullable=False)
 
     op.create_index('idx_schedules_shift_type', 'schedules', ['shift_type_id'])
 

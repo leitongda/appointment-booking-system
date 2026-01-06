@@ -57,6 +57,8 @@ export { userManageApi } from './modules/user-manage';
 export { favoriteApi } from './modules/favorite';
 export { bookingNoticeApi } from './modules/booking-notice';
 export { storeVisitTypeConfigApi } from './modules/store-visit-type-config';
+export { ruleSetApi, shiftTypeApi } from './modules/rule-set';
+export { auditLogApi } from './modules/audit-log';
 export type { 
   UserListItem, 
   UserDetail, 
@@ -242,9 +244,28 @@ export type {
 } from './modules/favorite';
 
 // Booking Notice types
-export type { 
+export type {
   BookingNotice,
   BookingNoticeListResult,
   BookingNoticeCreateData,
   BookingNoticeUpdateData,
 } from './modules/booking-notice';
+
+// Rule Set types
+export type {
+  RuleSet,
+  RuleWindow,
+  RuleBookingPolicy,
+  RuleCheckinPolicy,
+  RuleCapacityPolicy,
+  ShiftType,
+  RulePreviewRequest,
+  RulePreviewResponse,
+  WindowCheckResult,
+  WindowOffsetConfig,
+  RuleSetListParams,
+  RuleSetCreateData,
+  RuleSetUpdateData,
+  RuleWindowCreateData,
+  RuleWindowUpdateData,
+} from '@hospital/shared';

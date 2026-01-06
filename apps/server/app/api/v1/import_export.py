@@ -768,9 +768,299 @@ async def export_feedbacks(
     
     excel_bytes = ExcelExportService.create_workbook(headers, data, "用户反馈")
     filename = f"feedbacks_{datetime.now().strftime('%Y%m%d%H%M%S')}.xlsx"
-    
+
     return StreamingResponse(
         BytesIO(excel_bytes),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+
+# ==================== 规则组导入导出 ====================
+
+@router.get("/export/rule-sets")
+async def export_rule_sets(
+    enabled: Optional[bool] = None,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """导出规则组列表（多工作表）"""
+    from app.models.rule_set import RuleSet
+    from sqlalchemy.orm import selectinload
+
+    # 查询所有规则组及其关联数据
+    query = select(RuleSet).options(
+        selectinload(RuleSet.windows),
+        selectinload(RuleSet.booking_policy),
+        selectinload(RuleSet.checkin_policy),
+        selectinload(RuleSet.capacity_policy),
+    )
+
+    if enabled is not None:
+        query = query.where(RuleSet.enabled == enabled)
+
+    query = query.order_by(RuleSet.priority, RuleSet.created_at.desc())
+    result = await db.execute(query)
+    rule_sets = result.unique().scalars().all()
+
+    # 准备多工作表数据
+    workbook_data = {}
+
+    # 工作表1: 规则组基础信息
+    headers1 = ["规则组名称", "优先级", "是否启用", "时间来源", "时区来源", "比较精度",
+                "开放边界包含", "截止边界包含", "取整模式", "时钟偏差容忍度(秒)", "描述"]
+    data1 = []
+
+    for rs in rule_sets:
+        data1.append([
+            rs.name,
+            rs.priority,
+            "是" if rs.enabled else "否",
+            rs.time_source,
+            rs.timezone_source,
+            rs.compare_precision,
+            "是" if rs.default_open_inclusive else "否",
+            "是" if rs.default_close_inclusive else "否",
+            rs.rounding_mode,
+            rs.clock_skew_tolerance_sec,
+            rs.description or "",
+        ])
+
+    workbook_data["规则组"] = {"headers": headers1, "data": data1}
+
+    # 工作表2: 时间窗配置
+    headers2 = ["规则组名称", "动作类型", "参考点", "开放偏移(秒)", "截止偏移(秒)",
+                "开放边界包含", "截止边界包含", "失败策略", "失败标签", "是否启用", "描述"]
+    data2 = []
+
+    for rs in rule_sets:
+        for window in rs.windows:
+            data2.append([
+                rs.name,
+                window.action,
+                window.reference_point,
+                window.open_offset_sec,
+                window.close_offset_sec,
+                "是" if window.open_inclusive else "否" if window.open_inclusive is not None else "",
+                "是" if window.close_inclusive else "否" if window.close_inclusive is not None else "",
+                window.fail_policy,
+                window.fail_tag or "",
+                "是" if window.enabled else "否",
+                window.description or "",
+            ])
+
+    workbook_data["时间窗"] = {"headers": headers2, "data": data2}
+
+    # 工作表3: 预约策略
+    headers3 = ["规则组名称", "要求登录", "要求档案完整", "每用户每班次", "每用户每天", "每用户每周",
+                "同班次冲突策略", "时间重叠策略", "同类型同日策略"]
+    data3 = []
+
+    for rs in rule_sets:
+        bp = rs.booking_policy
+        if bp:
+            data3.append([
+                rs.name,
+                "是" if bp.require_auth else "否",
+                "是" if bp.require_patient_profile_complete else "否",
+                bp.per_user_per_shift,
+                bp.per_user_per_day or "",
+                bp.per_user_per_week or "",
+                bp.conflict_same_shift,
+                bp.conflict_overlap_time,
+                bp.conflict_same_type_same_day,
+            ])
+
+    workbook_data["预约策略"] = {"headers": headers3, "data": data3}
+
+    # 工作表4: 签到策略
+    headers4 = ["规则组名称", "必须预约", "允许现场补约", "允许签到次数", "记录审计日志",
+                "宽限期(秒)", "宽限后状态", "截止后未签到处理"]
+    data4 = []
+
+    for rs in rule_sets:
+        cp = rs.checkin_policy
+        if cp:
+            data4.append([
+                rs.name,
+                "是" if cp.require_booking else "否",
+                "是" if cp.allow_onsite_booking else "否",
+                cp.max_times,
+                "是" if cp.audit_log else "否",
+                cp.grace_period_sec,
+                cp.after_grace_status or "",
+                cp.no_checkin_after_close,
+            ])
+
+    workbook_data["签到策略"] = {"headers": headers4, "data": data4}
+
+    # 工作表5: 容量策略
+    headers5 = ["规则组名称", "总容量", "每用户容量", "启用候补", "候补队列最大长度",
+                "候补递补策略", "允许超额", "超额最大数量"]
+    data5 = []
+
+    for rs in rule_sets:
+        cap = rs.capacity_policy
+        if cap:
+            data5.append([
+                rs.name,
+                cap.total_capacity,
+                cap.per_user_capacity,
+                "是" if cap.waitlist_enabled else "否",
+                cap.waitlist_max_size,
+                cap.waitlist_promote_policy,
+                "是" if cap.overbooking_enabled else "否",
+                cap.overbooking_max,
+            ])
+
+    workbook_data["容量策略"] = {"headers": headers5, "data": data5}
+
+    # 创建多工作表Excel
+    excel_bytes = ExcelExportService.create_multi_sheet_workbook(workbook_data)
+    filename = f"rule_sets_{datetime.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+
+    return StreamingResponse(
+        BytesIO(excel_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+@router.get("/template/rule-sets")
+async def download_rule_set_template(
+    current_admin = Depends(get_current_admin),
+):
+    """下载规则组导入模板（多工作表）"""
+    workbook_data = {}
+
+    # 工作表1: 规则组基础信息
+    headers1 = ["规则组名称", "优先级", "是否启用", "时间来源", "时区来源", "比较精度",
+                "开放边界包含", "截止边界包含", "取整模式", "时钟偏差容忍度(秒)", "描述"]
+    sample1 = [
+        ["普通门诊规则", 100, "是", "SERVER", "HOSPITAL", "SECOND", "是", "是", "NONE", 5, "用于普通门诊"],
+        ["专家门诊规则", 90, "是", "SERVER", "HOSPITAL", "SECOND", "是", "是", "NONE", 5, "用于专家门诊"],
+    ]
+    notes1 = {
+        "规则组名称": "必填，唯一标识，用于关联其他工作表",
+        "优先级": "数字，越小越优先",
+        "是否启用": "是/否",
+        "时间来源": "SERVER/CLIENT",
+        "时区来源": "HOSPITAL/SHIFT/USER",
+        "比较精度": "SECOND/MILLISECOND/MINUTE",
+        "开放边界包含": "是/否",
+        "截止边界包含": "是/否",
+        "取整模式": "NONE/CEILING/FLOOR/ROUND",
+        "时钟偏差容忍度(秒)": "秒数",
+        "描述": "规则组描述",
+    }
+    workbook_data["规则组"] = {"headers": headers1, "data": sample1, "field_notes": notes1}
+
+    # 工作表2: 时间窗配置
+    headers2 = ["规则组名称", "动作类型", "参考点", "开放偏移(秒)", "截止偏移(秒)",
+                "开放边界包含", "截止边界包含", "失败策略", "失败标签", "是否启用", "描述"]
+    sample2 = [
+        ["普通门诊规则", "BOOK", "SHIFT_START", -86400, 0, "是", "是", "REJECT", "", "是", "预约窗口"],
+        ["普通门诊规则", "CHECKIN", "SHIFT_START", -1800, 300, "是", "是", "REJECT", "", "是", "签到窗口"],
+        ["普通门诊规则", "CANCEL", "SHIFT_START", -86400, -3600, "是", "是", "REJECT", "", "是", "取消窗口"],
+    ]
+    notes2 = {
+        '规则组名称': '必填，关联到"规则组"工作表的名称',
+        "动作类型": "BOOK/CHECKIN/CANCEL/HOLD_RELEASE",
+        "参考点": "SHIFT_START/SHIFT_END/BOOKING_CREATED_AT",
+        "开放偏移(秒)": "秒数，可负可正",
+        "截止偏移(秒)": "秒数，可负可正",
+        "开放边界包含": "是/否，为空则使用规则组默认值",
+        "截止边界包含": "是/否，为空则使用规则组默认值",
+        "失败策略": "REJECT/ALLOW_WITH_TAG/AUTO_TO_WAITLIST",
+        "失败标签": "失败时添加的标签",
+        "是否启用": "是/否",
+        "描述": "时间窗描述",
+    }
+    workbook_data["时间窗"] = {"headers": headers2, "data": sample2, "field_notes": notes2}
+
+    # 工作表3: 预约策略
+    headers3 = ["规则组名称", "要求登录", "要求档案完整", "每用户每班次", "每用户每天", "每用户每周",
+                "同班次冲突策略", "时间重叠策略", "同类型同日策略"]
+    sample3 = [
+        ["普通门诊规则", "是", "否", 1, "", "", "REJECT", "REJECT", "ALLOW"],
+        ["专家门诊规则", "是", "是", 1, 1, "", "REJECT", "REJECT", "ALLOW"],
+    ]
+    notes3 = {
+        '规则组名称': '必填，关联到"规则组"工作表的名称',
+        "要求登录": "是/否",
+        "要求档案完整": "是/否",
+        "每用户每班次": "数字",
+        "每用户每天": "数字，为空表示不限制",
+        "每用户每周": "数字，为空表示不限制",
+        "同班次冲突策略": "REJECT/REPLACE",
+        "时间重叠策略": "REJECT/ALLOW",
+        "同类型同日策略": "REJECT/ALLOW",
+    }
+    workbook_data["预约策略"] = {"headers": headers3, "data": sample3, "field_notes": notes3}
+
+    # 工作表4: 签到策略
+    headers4 = ["规则组名称", "必须预约", "允许现场补约", "允许签到次数", "记录审计日志",
+                "宽限期(秒)", "宽限后状态", "截止后未签到处理"]
+    sample4 = [
+        ["普通门诊规则", "是", "否", 1, "是", 300, "LATE", "KEEP_BOOKED"],
+        ["专家门诊规则", "是", "否", 1, "是", 600, "LATE", "ABSENT"],
+    ]
+    notes4 = {
+        '规则组名称': '必填，关联到"规则组"工作表的名称',
+        "必须预约": "是/否",
+        "允许现场补约": "是/否",
+        "允许签到次数": "数字",
+        "记录审计日志": "是/否",
+        "宽限期(秒)": "秒数",
+        "宽限后状态": "LATE/ON_TIME",
+        "截止后未签到处理": "KEEP_BOOKED/AUTO_CANCEL/ABSENT",
+    }
+    workbook_data["签到策略"] = {"headers": headers4, "data": sample4, "field_notes": notes4}
+
+    # 工作表5: 容量策略
+    headers5 = ["规则组名称", "总容量", "每用户容量", "启用候补", "候补队列最大长度",
+                "候补递补策略", "允许超额", "超额最大数量"]
+    sample5 = [
+        ["普通门诊规则", 50, 1, "是", 10, "MANUAL", "否", 0],
+        ["专家门诊规则", 20, 1, "是", 5, "MANUAL", "否", 0],
+    ]
+    notes5 = {
+        '规则组名称': '必填，关联到"规则组"工作表的名称',
+        "总容量": "数字，0表示不限制",
+        "每用户容量": "数字",
+        "启用候补": "是/否",
+        "候补队列最大长度": "数字",
+        "候补递补策略": "MANUAL/AUTO",
+        "允许超额": "是/否",
+        "超额最大数量": "数字",
+    }
+    workbook_data["容量策略"] = {"headers": headers5, "data": sample5, "field_notes": notes5}
+
+    # 创建多工作表Excel模板
+    excel_bytes = ExcelImportService.create_multi_sheet_template(workbook_data)
+
+    return StreamingResponse(
+        BytesIO(excel_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=rule_set_import_template.xlsx"}
+    )
+
+
+@router.post("/import/rule-sets")
+async def import_rule_sets(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """导入规则组数据（多工作表）"""
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="请上传 Excel 文件")
+
+    content = await file.read()
+
+    from app.services.rule_set_import_service import RuleSetImportService
+    import_service = RuleSetImportService(db)
+    result = await import_service.import_rule_sets(content)
+
+    return result
+

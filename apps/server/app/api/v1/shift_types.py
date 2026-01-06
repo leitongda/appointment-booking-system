@@ -9,8 +9,9 @@ from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
 
 from app.db.session import get_db
-from app.api.deps import get_current_user, get_current_super_admin
+from app.api.deps import get_current_user, get_current_admin, get_current_super_admin
 from app.services.shift_type_service import ShiftTypeService
+from app.schemas.rule_set import PageResult
 
 
 def to_camel(string: str) -> str:
@@ -65,14 +66,14 @@ class ShiftTypeResponse(BaseModel):
 router = APIRouter()
 
 
-@router.get("", response_model=list[ShiftTypeResponse])
+@router.get("", response_model=PageResult[ShiftTypeResponse])
 async def get_shift_types(
     enabled: Optional[bool] = Query(None, description="是否启用"),
     keyword: Optional[str] = Query(None, description="搜索关键词"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=100, description="每页数量"),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_admin: dict = Depends(get_current_admin)
 ):
     """获取班次类型列表"""
     service = ShiftTypeService(db)
@@ -82,13 +83,13 @@ async def get_shift_types(
         page=page,
         page_size=page_size
     )
-    return shift_types
+    return PageResult(data=shift_types, total=total)
 
 
 @router.get("/all", response_model=list[ShiftTypeResponse])
 async def get_all_shift_types(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_admin: dict = Depends(get_current_admin)
 ):
     """获取所有启用的班次类型（用于下拉选择）"""
     service = ShiftTypeService(db)
@@ -100,7 +101,7 @@ async def get_all_shift_types(
 async def get_shift_type(
     shift_type_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_admin: dict = Depends(get_current_admin)
 ):
     """获取班次类型详情"""
     service = ShiftTypeService(db)

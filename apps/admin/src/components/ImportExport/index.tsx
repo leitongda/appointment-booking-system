@@ -260,7 +260,7 @@ const ImportExport: React.FC<ImportExportProps> = ({
           okText="开始导入"
           cancelText="取消"
           width={600}
-          destroyOnClose
+          destroyOnHidden
         >
           <Space direction="vertical" style={{ width: '100%' }} size="middle">
             <Alert
@@ -332,7 +332,7 @@ const ImportExport: React.FC<ImportExportProps> = ({
         cancelText="取消"
         okButtonProps={{ disabled: !selectedFile }}
         width={600}
-        destroyOnClose
+        destroyOnHidden
       >
         <Space direction="vertical" style={{ width: '100%' }} size="middle">
           <Alert

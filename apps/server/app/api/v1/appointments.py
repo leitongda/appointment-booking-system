@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
 from datetime import date, datetime, time, timedelta
+from fastapi.security.utils import get_authorization_scheme_param
 
 from app.db.session import get_db
 from app.api.deps import get_current_user, get_current_user_or_admin, get_store_filter, get_current_super_admin
@@ -449,18 +450,37 @@ async def cancel_appointment(
     return {"message": "取消成功"}
 
 @router.put("/{appointment_id}/sign-in")
-async def sign_in_appointment(appointment_id: str, db: AsyncSession = Depends(get_db)):
+async def sign_in_appointment(
+    appointment_id: str,
+    checkin_method: Optional[str] = Body(None, embed=True),
+    device_info: Optional[str] = Body(None, embed=True),
+    location_info: Optional[str] = Body(None, embed=True),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user_or_admin)
+):
     """签到"""
     service = AppointmentService(db)
-    
+
+    # 提取设备信息（从请求头）
+    if not device_info:
+        # 可以从请求头获取用户代理等信息
+        device_info = current_user.get("user_agent")
+
     try:
-        appointment = await service.sign_in(appointment_id)
+        appointment = await service.sign_in(
+            appointment_id=appointment_id,
+            checkin_method=checkin_method or 'MANUAL',
+            device_info=device_info,
+            location_info=location_info,
+            operator_id=current_user.get("id"),
+            operator_type='ADMIN' if current_user.get("is_admin") else 'USER'
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    
+
     if not appointment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
-    
+
     return {"message": "签到成功", "queue_number": appointment.queue_number}
 
 

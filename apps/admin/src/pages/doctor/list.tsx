@@ -223,7 +223,7 @@ const RecommendedSortModal: React.FC<RecommendedSortModalProps> = ({ open, onClo
       okText="保存排序"
       cancelText="取消"
       width={680}
-      destroyOnClose
+      destroyOnHidden
       styles={{
         body: { padding: '16px 24px 24px' },
       }}

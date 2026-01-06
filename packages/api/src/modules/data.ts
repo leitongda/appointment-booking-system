@@ -2,7 +2,7 @@
  * 数据导入导出 API
  */
 
-const BASE_URL = '/api/v1/data';
+const BASE_URL = '/data';
 
 export interface ImportResult {
   success_count: number;
@@ -17,7 +17,7 @@ export interface ImportResult {
 
 export const dataApi = {
   // ==================== 导出接口 ====================
-  
+
   /** 获取预约导出 URL (使用原有导出接口) */
   getExportAppointmentsUrl: (params?: { startDate?: string; endDate?: string; status?: number; doctorId?: string }) => {
     const searchParams = new URLSearchParams();
@@ -26,7 +26,7 @@ export const dataApi = {
     if (params?.status !== undefined) searchParams.append('status', String(params.status));
     if (params?.doctorId) searchParams.append('doctor_id', params.doctorId);
     const query = searchParams.toString();
-    return `/api/v1/export/appointments${query ? `?${query}` : ''}`;
+    return `/export/appointments${query ? `?${query}` : ''}`;
   },
   
   /** 获取医生导出 URL */
@@ -124,6 +124,22 @@ export const dataApi = {
   
   /** 获取门店导入 URL */
   getImportStoresUrl: () => `${BASE_URL}/import/stores`,
+
+  // ==================== 规则组导入导出 ====================
+
+  /** 获取规则组导出 URL */
+  getExportRuleSetsUrl: (params?: { enabled?: boolean }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.enabled !== undefined) searchParams.append('enabled', String(params.enabled));
+    const query = searchParams.toString();
+    return `${BASE_URL}/export/rule-sets${query ? `?${query}` : ''}`;
+  },
+
+  /** 获取规则组导入模板 URL */
+  getRuleSetTemplateUrl: () => `${BASE_URL}/template/rule-sets`,
+
+  /** 获取规则组导入 URL */
+  getImportRuleSetsUrl: () => `${BASE_URL}/import/rule-sets`,
 };
 
 export default dataApi;

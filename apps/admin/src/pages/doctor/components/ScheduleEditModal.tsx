@@ -154,7 +154,7 @@ const ScheduleEditModal: React.FC<ScheduleEditModalProps> = ({
         onOpenChange={onOpenChange}
         submitter={false}
         width={560}
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
       >
         <div style={{ marginBottom: 16 }}>
           <Button
@@ -230,7 +230,7 @@ const ScheduleEditModal: React.FC<ScheduleEditModalProps> = ({
         onOpenChange={setAddFormOpen}
         onFinish={handleAddSchedule}
         width={400}
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
         initialValues={{ totalSlots: 20 }}
       >
         <ProFormSelect

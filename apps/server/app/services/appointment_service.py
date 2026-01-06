@@ -9,6 +9,7 @@ from app.models.appointment import Appointment
 from app.models.schedule import Schedule
 from app.models.user import Patient
 from app.models.doctor import Doctor
+from app.models.rule_set import AppointmentCheckin
 from app.schemas.appointment import AppointmentCreate, AppointmentStatistics
 from app.utils.audit import set_create_audit, set_update_audit
 from app.services.settings_service import SettingsService
@@ -391,79 +392,172 @@ class AppointmentService:
         await self.db.refresh(appointment)
         return appointment
     
-    async def sign_in(self, appointment_id: str) -> Optional[Appointment]:
-        """签到"""
+    async def sign_in(
+        self,
+        appointment_id: str,
+        checkin_method: str = 'MANUAL',
+        device_info: Optional[str] = None,
+        location_info: Optional[str] = None,
+        operator_id: Optional[str] = None,
+        operator_type: Optional[str] = None
+    ) -> Optional[Appointment]:
+        """签到（带审计日志）
+
+        Args:
+            appointment_id: 预约ID
+            checkin_method: 签到方式 (QR_CODE/MANUAL/PHONE)
+            device_info: 设备信息（用户代理等）
+            location_info: 位置信息（IP地址等）
+            operator_id: 操作人ID
+            operator_type: 操作人类型 (USER/ADMIN/DOCTOR)
+        """
         appointment = await self.get_by_id(appointment_id)
         if not appointment:
+            # 记录失败日志：预约不存在
+            await self._create_checkin_log(
+                appointment_id=None,
+                checkin_method=checkin_method,
+                device_info=device_info,
+                location_info=location_info,
+                operator_id=operator_id,
+                operator_type=operator_type,
+                status='FAILED',
+                fail_reason='预约不存在'
+            )
             return None
 
-        if appointment.status != APPOINTMENT_STATUS['CONFIRMED']:
-            raise ValueError("当前状态不可签到")
+        try:
+            # 验证预约状态
+            if appointment.status != APPOINTMENT_STATUS['CONFIRMED']:
+                raise ValueError("当前状态不可签到")
 
-        now = datetime.now()
+            now = datetime.now()
 
-        # 优先使用规则快照中的签到时间窗
-        if appointment.checkin_open_at and appointment.checkin_close_at:
-            if now < appointment.checkin_open_at:
-                minutes_until = int((appointment.checkin_open_at - now).total_seconds() / 60)
-                raise ValueError(f"未到签到时间，请等待{minutes_until}分钟后再试")
-            if now > appointment.checkin_close_at:
-                raise ValueError("已过签到时间，无法签到")
-        else:
-            # 兼容旧数据：使用门店配置
-            stmt = select(Schedule).where(Schedule.id == appointment.schedule_id)
-            result = await self.db.execute(stmt)
-            schedule = result.scalar_one_or_none()
-
-            if schedule:
-                settings_service = SettingsService(self.db)
-                settings = await settings_service.get_booking_settings(store_id=schedule.store_id)
-
-                sign_in_advance_minutes = settings.get('signInAdvanceMinutes', 30)
-                sign_in_late_minutes = settings.get('signInLateMinutes', 30)
-
-                if schedule.start_time:
-                    visit_time = schedule.start_time
-                else:
-                    time_slot_start_map = {
-                        'AM': time(8, 0),
-                        'PM': time(14, 0),
-                        'morning': time(8, 0),
-                        'afternoon': time(14, 0),
-                        'evening': time(18, 0),
-                        'NIGHT': time(18, 0),
-                    }
-                    visit_time = time_slot_start_map.get(schedule.time_slot, time(8, 0))
-
-                visit_datetime = datetime.combine(schedule.schedule_date, visit_time)
-                sign_in_start = visit_datetime - timedelta(minutes=sign_in_advance_minutes)
-                sign_in_end = visit_datetime + timedelta(minutes=sign_in_late_minutes)
-
-                if now < sign_in_start:
-                    minutes_until = int((sign_in_start - now).total_seconds() / 60)
+            # 优先使用规则快照中的签到时间窗
+            if appointment.checkin_open_at and appointment.checkin_close_at:
+                if now < appointment.checkin_open_at:
+                    minutes_until = int((appointment.checkin_open_at - now).total_seconds() / 60)
                     raise ValueError(f"未到签到时间，请等待{minutes_until}分钟后再试")
-
-                if now > sign_in_end:
+                if now > appointment.checkin_close_at:
                     raise ValueError("已过签到时间，无法签到")
+            else:
+                # 兼容旧数据：使用门店配置
+                stmt = select(Schedule).where(Schedule.id == appointment.schedule_id)
+                result = await self.db.execute(stmt)
+                schedule = result.scalar_one_or_none()
 
-        # 检查签到策略：签到次数限制
-        if appointment.rule_set_id:
-            rule_engine = RuleEngineService(self.db)
-            checkin_policy = await rule_engine.get_checkin_policy_by_rule_set_id(appointment.rule_set_id)
-            if checkin_policy and checkin_policy.max_times:
-                current_count = appointment.checkin_count or 0
-                if current_count >= checkin_policy.max_times:
-                    raise ValueError(f"已达到最大签到次数限制（{checkin_policy.max_times}次）")
+                if schedule:
+                    settings_service = SettingsService(self.db)
+                    settings = await settings_service.get_booking_settings(store_id=schedule.store_id)
 
-        appointment.status = APPOINTMENT_STATUS['SIGNED']
-        appointment.sign_in_time = now
-        # 更新签到次数
-        appointment.checkin_count = (appointment.checkin_count or 0) + 1
+                    sign_in_advance_minutes = settings.get('signInAdvanceMinutes', 30)
+                    sign_in_late_minutes = settings.get('signInLateMinutes', 30)
 
-        await self.db.commit()
-        await self.db.refresh(appointment)
-        return appointment
-    
+                    if schedule.start_time:
+                        visit_time = schedule.start_time
+                    else:
+                        time_slot_start_map = {
+                            'AM': time(8, 0),
+                            'PM': time(14, 0),
+                            'morning': time(8, 0),
+                            'afternoon': time(14, 0),
+                            'evening': time(18, 0),
+                            'NIGHT': time(18, 0),
+                        }
+                        visit_time = time_slot_start_map.get(schedule.time_slot, time(8, 0))
+
+                    visit_datetime = datetime.combine(schedule.schedule_date, visit_time)
+                    sign_in_start = visit_datetime - timedelta(minutes=sign_in_advance_minutes)
+                    sign_in_end = visit_datetime + timedelta(minutes=sign_in_late_minutes)
+
+                    if now < sign_in_start:
+                        minutes_until = int((sign_in_start - now).total_seconds() / 60)
+                        raise ValueError(f"未到签到时间，请等待{minutes_until}分钟后再试")
+
+                    if now > sign_in_end:
+                        raise ValueError("已过签到时间，无法签到")
+
+            # 检查签到策略：签到次数限制
+            if appointment.rule_set_id:
+                rule_engine = RuleEngineService(self.db)
+                checkin_policy = await rule_engine.get_checkin_policy_by_rule_set_id(appointment.rule_set_id)
+                if checkin_policy and checkin_policy.max_times:
+                    current_count = appointment.checkin_count or 0
+                    if current_count >= checkin_policy.max_times:
+                        raise ValueError(f"已达到最大签到次数限制（{checkin_policy.max_times}次）")
+
+            # 更新预约状态
+            appointment.status = APPOINTMENT_STATUS['SIGNED']
+            appointment.sign_in_time = now
+            # 更新签到次数
+            appointment.checkin_count = (appointment.checkin_count or 0) + 1
+
+            # 记录成功审计日志
+            await self._create_checkin_log(
+                appointment_id=appointment.id,
+                checkin_method=checkin_method,
+                device_info=device_info,
+                location_info=location_info,
+                operator_id=operator_id,
+                operator_type=operator_type,
+                status='SUCCESS',
+                fail_reason=None
+            )
+
+            await self.db.commit()
+            await self.db.refresh(appointment)
+            return appointment
+
+        except Exception as e:
+            # 记录失败审计日志
+            await self._create_checkin_log(
+                appointment_id=appointment.id if appointment else None,
+                checkin_method=checkin_method,
+                device_info=device_info,
+                location_info=location_info,
+                operator_id=operator_id,
+                operator_type=operator_type,
+                status='FAILED',
+                fail_reason=str(e)
+            )
+            raise
+
+    async def _create_checkin_log(
+        self,
+        appointment_id: Optional[str],
+        checkin_method: str,
+        device_info: Optional[str],
+        location_info: Optional[str],
+        operator_id: Optional[str],
+        operator_type: Optional[str],
+        status: str,
+        fail_reason: Optional[str]
+    ):
+        """创建签到审计日志
+
+        Args:
+            appointment_id: 预约ID（失败时可能为None）
+            checkin_method: 签到方式
+            device_info: 设备信息
+            location_info: 位置信息
+            operator_id: 操作人ID
+            operator_type: 操作人类型
+            status: 状态 (SUCCESS/FAILED)
+            fail_reason: 失败原因
+        """
+        checkin_log = AppointmentCheckin(
+            appointment_id=appointment_id,
+            checkin_method=checkin_method,
+            device_info=device_info,
+            location_info=location_info,
+            operator_id=operator_id,
+            operator_type=operator_type,
+            status=status,
+            fail_reason=fail_reason
+        )
+        self.db.add(checkin_log)
+        await self.db.flush()  # 立即写入，但不提交事务
+
     async def cancel_sign_in(self, appointment_id: str) -> Optional[Appointment]:
         """取消签到（将状态从已签到恢复为已预约）
         

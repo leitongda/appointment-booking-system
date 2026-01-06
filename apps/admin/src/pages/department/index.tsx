@@ -473,7 +473,7 @@ const DepartmentPage: React.FC = () => {
         okText="确定"
         cancelText="取消"
         width={600}
-        destroyOnClose
+        destroyOnHidden
       >
         {loading ? (
           <div style={{ textAlign: 'center', padding: '40px 0' }}>

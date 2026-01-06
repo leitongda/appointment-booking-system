@@ -347,7 +347,7 @@ const StorePage: React.FC = () => {
         okText="确定"
         cancelText="取消"
         width={500}
-        destroyOnClose
+        destroyOnHidden
       >
         {loading ? (
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
@@ -381,7 +381,7 @@ const StorePage: React.FC = () => {
         okText="确定"
         cancelText="取消"
         width={700}
-        destroyOnClose
+        destroyOnHidden
       >
         {userLoading ? (
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
@@ -434,7 +434,7 @@ const StorePage: React.FC = () => {
           </Button>,
         ]}
         width={400}
-        destroyOnClose
+        destroyOnHidden
       >
         <div style={{ textAlign: 'center', padding: '24px 0' }} id="store-checkin-qrcode">
           {qrcodeContent ? (

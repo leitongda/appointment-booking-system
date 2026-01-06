@@ -4,7 +4,7 @@
 包含请求/响应模型的 Pydantic 定义
 """
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, List
+from typing import Optional, List, TypeVar, Generic
 from datetime import datetime, date, time
 
 
@@ -12,6 +12,24 @@ def to_camel(string: str) -> str:
     """将 snake_case 转换为 camelCase"""
     components = string.split('_')
     return components[0] + ''.join(x.title() for x in components[1:])
+
+
+# ==================== 通用模型 ====================
+
+T = TypeVar('T')
+
+
+class PageResult(BaseModel, Generic[T]):
+    """分页结果"""
+    data: List[T] = Field(default_factory=list, description="数据列表")
+    total: int = Field(0, description="总数")
+
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+        by_alias=True
+    )
 
 
 # ==================== 基础模型 ====================

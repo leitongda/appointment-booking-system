@@ -109,7 +109,7 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
       confirmLoading={loading}
       okText="确认预约"
       className="create-appointment-modal"
-      destroyOnClose
+      destroyOnHidden
     >
       {schedule && (
         <div className="schedule-info">

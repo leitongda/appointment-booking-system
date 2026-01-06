@@ -325,7 +325,7 @@ export const StoreSwitcher: React.FC = () => {
           </Button>,
         ]}
         width={400}
-        destroyOnClose
+        destroyOnHidden
       >
         <div style={{ textAlign: 'center', padding: '24px 0' }} id="store-header-qrcode">
           {qrcodeLoading ? (

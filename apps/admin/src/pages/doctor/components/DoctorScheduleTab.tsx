@@ -140,7 +140,7 @@ const DoctorScheduleTab: React.FC<DoctorScheduleTabProps> = ({ doctorId, doctorN
         onOpenChange={setGenerateModalOpen}
         onFinish={handleGenerateSubmit}
         width={500}
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
       >
         {templates.length === 0 ? (
           <Alert

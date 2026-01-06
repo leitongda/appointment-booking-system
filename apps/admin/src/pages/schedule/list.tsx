@@ -540,7 +540,7 @@ const ScheduleListPage: React.FC = () => {
           }
         }}
         onFinish={handleEditSubmit}
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
         initialValues={{
           totalSlots: currentSchedule?.totalSlots || 20,
         }}
