@@ -98,6 +98,14 @@ export interface AvailableSchedule {
   availableSlots: number;
   startTime?: string;
   endTime?: string;
+  appointmentType?: string;
+  // 新增字段：规则引擎相关
+  totalSlots?: number;
+  bookingOpenAt?: string | null;
+  bookingCloseAt?: string | null;
+  bookingStatus?: 'available' | 'closing_soon' | 'full' | 'closed' | 'not_open';
+  capacityPercent?: number;
+  urgencyLevel?: 'normal' | 'medium' | 'high' | 'critical';
 }
 
 export interface ScheduleStatisticsItem {

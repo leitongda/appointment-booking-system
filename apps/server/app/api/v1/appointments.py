@@ -4,6 +4,7 @@ from sqlalchemy import select
 from typing import Optional
 from datetime import date, datetime, time, timedelta
 from fastapi.security.utils import get_authorization_scheme_param
+import pytz
 
 from app.db.session import get_db
 from app.api.deps import get_current_user, get_current_user_or_admin, get_store_filter, get_current_super_admin
@@ -11,6 +12,7 @@ from app.schemas.appointment import AppointmentCreate, AppointmentResponse, Appo
 from app.schemas.response import PageResponse
 from app.services.appointment_service import AppointmentService
 from app.services.settings_service import SettingsService
+from app.services.rule_engine_service import RuleEngineService
 
 router = APIRouter()
 
@@ -119,63 +121,98 @@ async def get_today_pending_appointments(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """获取用户在指定门店的今日待签到预约
+    """获取用户在指定门店的今日待签到预约（增强版：包含详细时间窗信息）
 
     用于患者扫码签到时选择要签到的预约
     """
     service = AppointmentService(db)
+    rule_engine = RuleEngineService(db)
     appointments = await service.get_today_pending_by_user_and_store(
         user_id=current_user["id"],
         store_id=store_id
     )
 
-    # 获取门店的签到时间配置
-    settings_service = SettingsService(db)
-    settings = await settings_service.get_booking_settings(store_id=store_id)
-    sign_in_advance_minutes = settings.get('signInAdvanceMinutes', 30)
-    sign_in_late_minutes = settings.get('signInLateMinutes', 30)
-
-    now = datetime.now()
-
+    now = datetime.now(pytz.UTC)
     result = []
+
     for a in appointments:
-        # 计算签到时间状态
-        signInStatus = 'available'  # 默认可以签到
+        signInStatus = 'available'
         signInMessage = ''
+        checkin_open_at = None
+        checkin_close_at = None
+        minutes_until_open = None
+        minutes_until_close = None
 
         if a.schedule:
-            # 计算班次开始时间
-            if a.schedule.start_time:
-                visit_time = a.schedule.start_time
-            else:
-                # 根据 time_slot 确定默认开始时间
-                time_slot_start_map = {
-                    'AM': time(8, 0),
-                    'PM': time(14, 0),
-                    'morning': time(8, 0),
-                    'afternoon': time(14, 0),
-                    'evening': time(18, 0),
-                    'NIGHT': time(18, 0),
-                }
-                visit_time = time_slot_start_map.get(a.schedule.time_slot, time(8, 0))
+            # 使用规则引擎检查签到时间窗
+            try:
+                window_check = await rule_engine.check_action_window(a.schedule, 'CHECKIN', now)
 
-            visit_datetime = datetime.combine(a.schedule.schedule_date, visit_time)
+                checkin_open_at = window_check.get('open_at')
+                checkin_close_at = window_check.get('close_at')
 
-            # 计算允许签到的时间窗口
-            sign_in_start = visit_datetime - timedelta(minutes=sign_in_advance_minutes)
-            sign_in_end = visit_datetime + timedelta(minutes=sign_in_late_minutes)
+                if not window_check.get('allowed'):
+                    if now < window_check.get('open_at', now):
+                        signInStatus = 'early'
+                        if checkin_open_at:
+                            minutes_until_open = int((checkin_open_at - now).total_seconds() / 60)
+                            signInMessage = f'未到签到时间，还需等待{minutes_until_open}分钟'
+                        else:
+                            signInMessage = '未到签到时间'
+                    else:
+                        signInStatus = 'late'
+                        signInMessage = '已过签到时间'
+                else:
+                    signInStatus = 'available'
+                    if checkin_close_at:
+                        minutes_until_close = int((checkin_close_at - now).total_seconds() / 60)
+                        signInMessage = f'可以签到（余{minutes_until_close}分钟）'
+                    else:
+                        signInMessage = '可以签到'
+            except Exception:
+                # 规则引擎检查失败，降级使用门店配置
+                settings_service = SettingsService(db)
+                settings = await settings_service.get_booking_settings(store_id=store_id)
+                sign_in_advance_minutes = settings.get('signInAdvanceMinutes', 30)
+                sign_in_late_minutes = settings.get('signInLateMinutes', 30)
 
-            # 判断签到状态
-            if now < sign_in_start:
-                signInStatus = 'early'
-                minutes_until = int((sign_in_start - now).total_seconds() / 60)
-                signInMessage = f'未到签到时间，请等待{minutes_until}分钟'
-            elif now > sign_in_end:
-                signInStatus = 'late'
-                signInMessage = '已过签到时间'
-            else:
-                signInStatus = 'available'
-                signInMessage = '可以签到'
+                # 计算班次开始时间
+                if a.schedule.start_time:
+                    visit_time = a.schedule.start_time
+                else:
+                    time_slot_start_map = {
+                        'AM': time(8, 0),
+                        'PM': time(14, 0),
+                        'morning': time(8, 0),
+                        'afternoon': time(14, 0),
+                        'evening': time(18, 0),
+                        'NIGHT': time(18, 0),
+                    }
+                    visit_time = time_slot_start_map.get(a.schedule.time_slot, time(8, 0))
+
+                visit_datetime = datetime.combine(a.schedule.schedule_date, visit_time)
+
+                # 计算允许签到的时间窗口
+                sign_in_start = visit_datetime - timedelta(minutes=sign_in_advance_minutes)
+                sign_in_end = visit_datetime + timedelta(minutes=sign_in_late_minutes)
+
+                if now < sign_in_start:
+                    signInStatus = 'early'
+                    minutes_until_open = int((sign_in_start - now).total_seconds() / 60)
+                    signInMessage = f'未到签到时间，请等待{minutes_until_open}分钟'
+                    checkin_open_at = sign_in_start
+                    checkin_close_at = sign_in_end
+                elif now > sign_in_end:
+                    signInStatus = 'late'
+                    signInMessage = '已过签到时间'
+                    checkin_open_at = sign_in_start
+                    checkin_close_at = sign_in_end
+                else:
+                    signInStatus = 'available'
+                    minutes_until_close = int((sign_in_end - now).total_seconds() / 60)
+                    signInMessage = f'可以签到（余{minutes_until_close}分钟）'
+                    checkin_open_at = sign_in_start
+                    checkin_close_at = sign_in_end
 
         result.append({
             "id": a.id,
@@ -190,6 +227,10 @@ async def get_today_pending_appointments(
             "status": a.status,
             "signInStatus": signInStatus,
             "signInMessage": signInMessage,
+            "checkinOpenAt": checkin_open_at.isoformat() if checkin_open_at else None,
+            "checkinCloseAt": checkin_close_at.isoformat() if checkin_close_at else None,
+            "minutesUntilOpen": minutes_until_open,
+            "minutesUntilClose": minutes_until_close,
         })
 
     return result

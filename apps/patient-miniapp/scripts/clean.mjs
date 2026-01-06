@@ -6,11 +6,12 @@
  */
 
 import { existsSync, rmSync, readdirSync, statSync } from 'fs';
-import { join, resolve } from 'path';
+import { join, resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = resolve(__filename, '..');
+// 使用 dirname 获取脚本所在目录，再向上两级到项目根目录
+const __dirname = resolve(dirname(__filename), '..');
 
 // 需要清理的目录和文件列表
 const CLEAN_TARGETS = [

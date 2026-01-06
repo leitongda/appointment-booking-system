@@ -90,7 +90,7 @@ class AvailableScheduleResponse(BaseModel):
         from_attributes=True,
         by_alias=True,
     )
-    
+
     id: str
     schedule_date: Optional[date] = None
     time_slot: Optional[str] = None
@@ -98,3 +98,11 @@ class AvailableScheduleResponse(BaseModel):
     start_time: Optional[time] = None
     end_time: Optional[time] = None
     appointment_type: Optional[str] = "normal"
+
+    # 新增字段：规则引擎相关
+    total_slots: Optional[int] = None  # 总容量
+    booking_open_at: Optional[datetime] = None  # 预约开放时间
+    booking_close_at: Optional[datetime] = None  # 预约截止时间
+    booking_status: Optional[str] = None  # 预约状态：available/closing_soon/full/closed/not_open
+    capacity_percent: Optional[float] = None  # 容量百分比 (0-100)
+    urgency_level: Optional[str] = None  # 紧急程度：normal/medium/high

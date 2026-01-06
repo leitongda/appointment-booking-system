@@ -171,17 +171,27 @@ if (isWatchMode) {
   
   // 等待 dist 目录创建后再开始监听
   function startWatching() {
-    fs.watch(distPath, { recursive: true }, (eventType, filename) => {
-      // 监听 base.wxml 和所有 wxss 文件
-      if (filename === 'base.wxml' || (filename && filename.endsWith('.wxss'))) {
-        if (debounceTimer) {
-          clearTimeout(debounceTimer);
+    const watcher = fs.watch(distPath, { recursive: true }, (eventType, filename) => {
+      try {
+        // 监听 base.wxml 和所有 wxss 文件
+        if (filename === 'base.wxml' || (filename && filename.endsWith('.wxss'))) {
+          if (debounceTimer) {
+            clearTimeout(debounceTimer);
+          }
+          debounceTimer = setTimeout(() => {
+            runAllFixes();
+          }, 100);
         }
-        debounceTimer = setTimeout(() => {
-          runAllFixes();
-        }, 100);
+      } catch (error) {
+        console.error('[fix] 监听器错误:', error.message);
       }
     });
+
+    // 处理 watcher 错误
+    watcher.on('error', (error) => {
+      console.error('[fix] 监听器错误:', error.message);
+    });
+
     console.log('[fix] 👀 开始监听 dist 目录...');
   }
   

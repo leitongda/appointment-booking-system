@@ -30,6 +30,9 @@ const DoctorDetailPage = () => {
   // 选中的具体班次
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
 
+  // 新增：当前时间（用于倒计时）
+  const [currentTime, setCurrentTime] = useState(new Date());
+
   // 收藏相关状态
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteId, setFavoriteId] = useState<string | null>(null);
@@ -41,6 +44,26 @@ const DoctorDetailPage = () => {
       loadData();
     }
   }, [id]);
+
+  // 新增：智能倒计时（每分钟更新，当剩余<1分钟时切换为每秒刷新）
+  useEffect(() => {
+    // 计算是否需要秒级刷新
+    const needSecondPrecision = schedules.some(s => {
+      if (!s.bookingCloseAt) return false;
+      const closeTime = new Date(s.bookingCloseAt);
+      const now = new Date();
+      const minutesUntil = (closeTime.getTime() - now.getTime()) / 60000;
+      return minutesUntil > 0 && minutesUntil < 1;
+    });
+
+    const interval = needSecondPrecision ? 1000 : 60000;
+
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, interval);
+
+    return () => clearInterval(timer);
+  }, [schedules]); // 移除 currentTime 依赖，避免无限循环
 
   // 下拉刷新
   usePullDownRefresh(() => {
@@ -144,54 +167,69 @@ const DoctorDetailPage = () => {
     checkFavoriteStatus();
   };
 
-  // 判断班次是否已过截止时间
+  // 判断班次是否已过截止时间（使用后端返回的状态）
+  const getScheduleStatus = (schedule: AvailableSchedule): {
+    disabled: boolean;
+    message: string;
+    className?: string;
+    countdown?: { text: string; minutes: number };
+  } => {
+    // 优先使用后端返回的 bookingStatus
+    if (schedule.bookingStatus) {
+      switch (schedule.bookingStatus) {
+        case 'not_open':
+          const openTime = schedule.bookingOpenAt ? new Date(schedule.bookingOpenAt) : null;
+          const minutesUntilOpen = openTime ? Math.floor((openTime.getTime() - currentTime.getTime()) / 60000) : 0;
+          if (minutesUntilOpen > 0) {
+            const hours = Math.floor(minutesUntilOpen / 60);
+            const mins = minutesUntilOpen % 60;
+            const text = hours > 0 ? `${hours}小时${mins}分钟` : `${mins}分钟`;
+            return {
+              disabled: true,
+              message: `未开放`,
+              className: 'not-open',
+              countdown: { text, minutes: minutesUntilOpen }
+            };
+          }
+          return { disabled: true, message: '未开放', className: 'not-open' };
+        case 'closed':
+          return { disabled: true, message: '已截止', className: 'closed' };
+        case 'full':
+          return { disabled: true, message: '约满', className: 'full' };
+        case 'closing_soon':
+          return { disabled: false, message: `余${schedule.availableSlots}`, className: 'closing-soon' };
+        default:
+          return { disabled: false, message: `余${schedule.availableSlots}` };
+      }
+    }
+
+    // 兼容旧逻辑（如果没有后端状态）
+    if (schedule.availableSlots <= 0) {
+      return { disabled: true, message: '约满', className: 'full' };
+    }
+
+    return { disabled: false, message: `余${schedule.availableSlots}` };
+  };
+
+  // 计算倒计时（用于班次 Picker）
+  const getCountdown = (schedule: AvailableSchedule): { text: string; minutes: number } | null => {
+    if (!schedule.bookingCloseAt) return null;
+
+    const closeTime = new Date(schedule.bookingCloseAt);
+    const minutesLeft = Math.floor((closeTime.getTime() - currentTime.getTime()) / 60000);
+
+    if (minutesLeft <= 0) return null;
+    if (minutesLeft < 60) {
+      return { text: `${minutesLeft}分钟`, minutes: minutesLeft };
+    }
+    const hours = Math.floor(minutesLeft / 60);
+    const mins = minutesLeft % 60;
+    return { text: `${hours}小时${mins}分钟`, minutes: minutesLeft };
+  };
+
+  // 保留旧函数名作为兼容
   const isScheduleExpired = (schedule: AvailableSchedule): boolean => {
-    const { advanceBookingMinutes = 0, advanceBookingDirection = 'before', advanceBookingReference = 'end' } = bookingRules;
-
-    // 配置为0表示不限制
-    if (!advanceBookingMinutes || advanceBookingMinutes <= 0) {
-      return false;
-    }
-
-    // 只判断当天班次 - 使用本地日期格式 YYYY-MM-DD
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    const todayStr = `${year}-${month}-${day}`;
-
-    if (schedule.scheduleDate !== todayStr) {
-      return false; // 非当天班次不限制
-    }
-
-    // 解析班次时间 - 支持 HH:mm 或 HH:mm:ss 格式
-    const getMinutes = (timeStr?: string): number | null => {
-      if (!timeStr) return null;
-      const [hours, minutes] = timeStr.split(':').map(Number);
-      if (isNaN(hours) || isNaN(minutes)) return null;
-      return hours * 60 + minutes;
-    };
-
-    const startMinutes = getMinutes(schedule.startTime);
-    const endMinutes = getMinutes(schedule.endTime);
-
-    if (startMinutes === null || endMinutes === null) {
-      return false; // 无时间信息的班次不限制
-    }
-
-    // 确定基准时间
-    const baseMinutes = advanceBookingReference === 'start' ? startMinutes : endMinutes;
-
-    // 计算截止时间
-    const cutoffMinutes = advanceBookingDirection === 'before'
-      ? baseMinutes - advanceBookingMinutes
-      : baseMinutes + advanceBookingMinutes;
-
-    // 获取当前时间（分钟数）
-    const nowMinutes = today.getHours() * 60 + today.getMinutes();
-
-    // 判断是否已过截止时间
-    return nowMinutes >= cutoffMinutes;
+    return getScheduleStatus(schedule).disabled;
   };
 
   // 获取所有日期列表
@@ -237,10 +275,54 @@ const DoctorDetailPage = () => {
   // 获取选中时段的班次列表（用于 Picker 展示）
   const selectedSlotSchedules = useMemo(() => {
     if (!selectedSlot) return [];
-    return selectedSlot === 'AM' 
-      ? timeSlotSummary.morning.schedules 
+    return selectedSlot === 'AM'
+      ? timeSlotSummary.morning.schedules
       : timeSlotSummary.afternoon.schedules;
   }, [selectedSlot, timeSlotSummary]);
+
+  // 计算时段的状态和紧急程度
+  const getSlotSummary = (slotSchedules: AvailableSchedule[]) => {
+    if (slotSchedules.length === 0) {
+      return { status: 'none', urgency: 'normal', message: '无班次', disabled: true };
+    }
+
+    // 检查是否有可预约的班次
+    const availableSchedules = slotSchedules.filter(s => !getScheduleStatus(s).disabled);
+    if (availableSchedules.length === 0) {
+      return { status: 'full', urgency: 'critical', message: '约满', disabled: true };
+    }
+
+    // 计算总容量和平均紧急程度
+    let totalSlots = 0;
+    let totalAvailable = 0;
+    let maxUrgency = 0; // 0=normal, 1=medium, 2=high, 3=critical
+
+    for (const s of slotSchedules) {
+      if (s.totalSlots) {
+        totalSlots += s.totalSlots;
+        totalAvailable += s.availableSlots;
+      }
+      if (s.urgencyLevel === 'critical') maxUrgency = Math.max(maxUrgency, 3);
+      else if (s.urgencyLevel === 'high') maxUrgency = Math.max(maxUrgency, 2);
+      else if (s.urgencyLevel === 'medium') maxUrgency = Math.max(maxUrgency, 1);
+    }
+
+    // 计算容量百分比
+    const capacityPercent = totalSlots > 0 ? (totalAvailable / totalSlots) * 100 : 0;
+
+    // 判断紧急程度
+    let urgency = 'normal';
+    if (capacityPercent < 20 || maxUrgency >= 3) urgency = 'critical';
+    else if (capacityPercent < 50 || maxUrgency >= 2) urgency = 'high';
+    else if (capacityPercent < 70 || maxUrgency >= 1) urgency = 'medium';
+
+    return {
+      status: 'available',
+      urgency,
+      message: `余${totalAvailable}`,
+      disabled: false,
+    };
+  };
 
   const handleDateSelect = (date: string) => {
     setSelectedDate(date);
@@ -427,33 +509,38 @@ const DoctorDetailPage = () => {
               </View>
             </ScrollView>
 
-            {/* 上午/下午时段选择 - 两列布局（单选） */}
+            {/* 上午/下午时段选择 - 两列布局（单选，增强版） */}
             <View className="time-slots">
-              <View 
-                className={`time-slot-card ${timeSlotSummary.morning.available <= 0 ? 'full' : ''} ${selectedSlot === 'AM' ? 'selected' : ''}`}
-                onClick={() => handleTimeSlotClick('AM')}
-              >
-                <Text className="slot-available">
-                  {timeSlotSummary.morning.available > 0 ? `余${timeSlotSummary.morning.available}` : '约满'}
-                </Text>
-                <Text className="slot-period">上午</Text>
-                {doctor.departmentName && (
-                  <Text className="slot-dept">{doctor.departmentName}</Text>
-                )}
-              </View>
-              
-              <View 
-                className={`time-slot-card ${timeSlotSummary.afternoon.available <= 0 ? 'full' : ''} ${selectedSlot === 'PM' ? 'selected' : ''}`}
-                onClick={() => handleTimeSlotClick('PM')}
-              >
-                <Text className="slot-available">
-                  {timeSlotSummary.afternoon.available > 0 ? `余${timeSlotSummary.afternoon.available}` : '约满'}
-                </Text>
-                <Text className="slot-period">下午</Text>
-                {doctor.departmentName && (
-                  <Text className="slot-dept">{doctor.departmentName}</Text>
-                )}
-              </View>
+              {['AM', 'PM'].map(slot => {
+                const summary = slot === 'AM' ? timeSlotSummary.morning : timeSlotSummary.afternoon;
+                const slotStatus = getSlotSummary(summary.schedules);
+                const urgencyClass = slotStatus.urgency !== 'normal' ? `urgency-${slotStatus.urgency}` : '';
+
+                return (
+                  <View
+                    key={slot}
+                    className={`time-slot-card ${slotStatus.disabled ? 'full' : ''} ${selectedSlot === slot ? 'selected' : ''} ${slotStatus.status === 'closing-soon' ? 'closing-soon' : ''} ${urgencyClass}`}
+                    data-urgency={slotStatus.urgency}
+                    onClick={() => !slotStatus.disabled && handleTimeSlotClick(slot as 'AM' | 'PM')}
+                  >
+                    {/* 紧急程度徽章 */}
+                    {slotStatus.urgency === 'high' && !slotStatus.disabled && (
+                      <View className="slot-urgency-badge high">紧张</View>
+                    )}
+                    {slotStatus.urgency === 'critical' && !slotStatus.disabled && (
+                      <View className="slot-urgency-badge critical">紧急</View>
+                    )}
+
+                    <Text className="slot-available">
+                      {slotStatus.message}
+                    </Text>
+                    <Text className="slot-period">{slot === 'AM' ? '上午' : '下午'}</Text>
+                    {doctor.departmentName && (
+                      <Text className="slot-dept">{doctor.departmentName}</Text>
+                    )}
+                  </View>
+                );
+              })}
             </View>
           </>
         )}
@@ -494,27 +581,58 @@ const DoctorDetailPage = () => {
               </View>
             </View>
             
-            {/* 班次列表 - 一行3个 */}
+            {/* 班次列表 - 一行3个（增强版） */}
             <View className="slot-picker-list">
               {selectedSlotSchedules.map(schedule => {
                 const isSelected = selectedScheduleId === schedule.id;
-                const isFull = schedule.availableSlots <= 0;
-                const isExpired = isScheduleExpired(schedule);
-                const isDisabled = isFull || isExpired;
+                const status = getScheduleStatus(schedule);
+                const countdown = getCountdown(schedule);
+                const urgency = schedule.urgencyLevel || 'normal';
+                const isDisabled = status.disabled;
+
+                // 计算容量百分比
+                const capacityPercent = schedule.totalSlots && schedule.totalSlots > 0
+                  ? ((schedule.totalSlots - schedule.availableSlots) / schedule.totalSlots) * 100
+                  : 0;
 
                 return (
                   <View
                     key={schedule.id}
-                    className={`slot-picker-item ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}`}
+                    className={`slot-picker-item ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''} ${status.className || ''} urgency-${urgency}`}
+                    data-urgency={urgency}
                     onClick={() => !isDisabled && handleSelectSchedule(schedule.id)}
                   >
+                    {/* 状态图标 */}
+                    {(urgency === 'high' || urgency === 'critical') && !isDisabled && (
+                      <View className={`slot-status-icon ${urgency === 'critical' ? 'alert' : 'warning'}`}>
+                        {urgency === 'critical' ? '!' : '⚠'}
+                      </View>
+                    )}
+
+                    {isSelected && <Text className="slot-check">✓</Text>}
+
                     <Text className="slot-time">
                       {formatTime(schedule.startTime) || '--:--'}~{formatTime(schedule.endTime) || '--:--'}
                     </Text>
-                    {isSelected && <Text className="slot-check">✓</Text>}
+
                     <Text className="slot-remain">
-                      {isFull ? '约满' : isExpired ? '已截止' : `余${schedule.availableSlots}`}
+                      {status.message}
                     </Text>
+
+                    {/* 容量进度条 */}
+                    {schedule.totalSlots && !isDisabled && schedule.totalSlots > 0 && (
+                      <View className="slot-capacity-bar">
+                        <View
+                          className={`slot-capacity-fill ${urgency}`}
+                          style={{ width: `${capacityPercent}%` }}
+                        />
+                      </View>
+                    )}
+
+                    {/* 倒计时 */}
+                    {countdown && countdown.minutes <= 120 && !isDisabled && (
+                      <Text className="slot-countdown">⏱ {countdown.text}</Text>
+                    )}
                   </View>
                 );
               })}

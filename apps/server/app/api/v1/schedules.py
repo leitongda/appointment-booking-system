@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, extract
 from typing import Optional, List
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from calendar import monthrange
 from pydantic import BaseModel, Field
+import pytz
 
 from app.db.session import get_db
 from app.api.deps import get_current_admin, get_store_filter, check_store_access
@@ -12,6 +13,7 @@ from app.schemas.schedule import ScheduleCreate, ScheduleBatchCreate, ScheduleUp
 from app.schemas.response import PageResponse
 from app.services.schedule_service import ScheduleService
 from app.services.notification_service import NotificationService
+from app.services.rule_engine_service import RuleEngineService
 from app.models.schedule import Schedule
 from app.models.doctor import Doctor
 from app.models.store import Store
@@ -222,18 +224,87 @@ async def get_available_schedules(
     days: int = Query(14, ge=1, le=30),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取可预约排班"""
+    """获取可预约排班（增强版：包含规则引擎信息）"""
     service = ScheduleService(db)
+    rule_engine = RuleEngineService(db)
     schedules = await service.get_available(doctor_id, days=days)
-    
-    return [AvailableScheduleResponse(
-        id=s.id,
-        schedule_date=s.schedule_date,
-        time_slot=s.time_slot,
-        available_slots=s.total_slots - s.booked_slots,
-        start_time=s.start_time,
-        end_time=s.end_time
-    ) for s in schedules]
+
+    now = datetime.now(pytz.UTC)
+    result = []
+
+    for s in schedules:
+        available = s.total_slots - s.booked_slots
+
+        # 检查预约时间窗（使用规则引擎）
+        booking_open_at = None
+        booking_close_at = None
+        booking_status = "available"
+
+        try:
+            window_check = await rule_engine.check_action_window(s, 'BOOK', now)
+            if window_check.get('allowed'):
+                booking_open_at = window_check.get('open_at')
+                booking_close_at = window_check.get('close_at')
+            else:
+                # 未开放或已截止
+                if now < window_check.get('open_at', now):
+                    booking_status = 'not_open'
+                    booking_open_at = window_check.get('open_at')
+                    booking_close_at = window_check.get('close_at')
+                else:
+                    booking_status = 'closed'
+                    booking_open_at = window_check.get('open_at')
+                    booking_close_at = window_check.get('close_at')
+        except Exception:
+            # 规则引擎检查失败，使用默认状态
+            pass
+
+        # 如果已约满，覆盖状态
+        if available == 0:
+            booking_status = 'full'
+
+        # 计算容量百分比
+        capacity_percent = (available / s.total_slots * 100) if s.total_slots > 0 else 0
+
+        # 判断紧急程度（按百分比：>50%正常，20-50%中等，<20%紧急，0%约满）
+        urgency_level = "normal"
+        if available == 0:
+            urgency_level = "critical"  # 约满
+        elif capacity_percent < 20:
+            urgency_level = "high"
+        elif capacity_percent < 50:
+            urgency_level = "medium"
+
+        # 如果即将截止（<30分钟），提升紧急程度
+        if booking_close_at:
+            minutes_until_close = (booking_close_at - now).total_seconds() / 60
+            if 0 < minutes_until_close < 30 and booking_status == 'available':
+                if urgency_level == 'normal':
+                    urgency_level = 'medium'
+                elif urgency_level == 'medium':
+                    urgency_level = 'high'
+
+        # 更新即将约满状态
+        if booking_status == 'available' and capacity_percent < 30 and capacity_percent > 0:
+            booking_status = 'closing_soon'
+
+        result.append(AvailableScheduleResponse(
+            id=s.id,
+            schedule_date=s.schedule_date,
+            time_slot=s.time_slot,
+            available_slots=available,
+            total_slots=s.total_slots,
+            start_time=s.start_time,
+            end_time=s.end_time,
+            appointment_type=s.appointment_type,
+            booking_open_at=booking_open_at,
+            booking_close_at=booking_close_at,
+            booking_status=booking_status,
+            capacity_percent=round(capacity_percent, 1),
+            urgency_level=urgency_level
+        ))
+
+    return result
 
 @router.get("/{schedule_id}", response_model=ScheduleResponse)
 async def get_schedule(schedule_id: str, db: AsyncSession = Depends(get_db)):

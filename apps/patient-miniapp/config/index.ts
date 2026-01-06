@@ -112,6 +112,17 @@ export default defineConfig(async (merge) => {
       },
       // Webpack 配置优化
       webpackChain(chain) {
+        // 修复 React JSX Runtime 模块导入问题
+        // React 18 使用 exports 字段限制导出，需要显式配置
+        chain.resolve.alias.set(
+          'react/jsx-runtime',
+          path.resolve(__dirname, '..', 'node_modules', 'react', 'jsx-runtime')
+        );
+        chain.resolve.alias.set(
+          'react/jsx-dev-runtime',
+          path.resolve(__dirname, '..', 'node_modules', 'react', 'jsx-dev-runtime')
+        );
+
         // 调整 performance 配置
         // 微信小程序分包后，主包限制是 2MB，单个分包限制是 2MB
         // 对于共享公共代码的小程序，入口点包含所有公共 chunks 是正常现象

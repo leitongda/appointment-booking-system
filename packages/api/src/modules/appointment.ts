@@ -88,6 +88,11 @@ export interface PendingAppointment {
   status: number;
   signInStatus?: 'early' | 'available' | 'late';
   signInMessage?: string;
+  // 新增字段：签到时间窗信息
+  checkinOpenAt?: string | null;
+  checkinCloseAt?: string | null;
+  minutesUntilOpen?: number | null;
+  minutesUntilClose?: number | null;
 }
 
 // 签到队列项

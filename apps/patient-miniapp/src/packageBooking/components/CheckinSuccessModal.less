@@ -1,0 +1,117 @@
+@import '../../styles/variables.less';
+
+.checkin-success-modal {
+  padding: @spacing-6 @spacing-5;
+  text-align: center;
+  min-width: 560rpx;
+}
+
+// 成功图标
+.success-icon {
+  width: 120rpx;
+  height: 120rpx;
+  margin: 0 auto @spacing-5;
+  background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .icon {
+    font-size: 64rpx;
+    color: #10B981;
+    font-weight: @font-weight-bold;
+  }
+}
+
+// 标题
+.modal-title {
+  display: block;
+  font-size: @font-size-xl;
+  font-weight: @font-weight-bold;
+  color: @color-text-primary;
+  margin-bottom: @spacing-5;
+}
+
+// 排队号码容器
+.queue-number-container {
+  padding: @spacing-5;
+  background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+  border-radius: @radius-xl;
+  margin-bottom: @spacing-5;
+  box-shadow: 0 8rpx 24rpx rgba(245, 158, 11, 0.15);
+}
+
+.queue-label {
+  display: block;
+  font-size: @font-size-sm;
+  color: #92400E;
+  margin-bottom: @spacing-2;
+}
+
+.queue-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: @spacing-4;
+  background: @color-bg-white;
+  border-radius: @radius-lg;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+  margin-bottom: @spacing-2;
+
+  .number {
+    font-size: 88rpx;
+    font-weight: @font-weight-extrabold;
+    color: #F59E0B;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 8rpx;
+    line-height: 1;
+  }
+}
+
+.queue-hint {
+  display: block;
+  font-size: @font-size-sm;
+  color: #92400E;
+}
+
+// 温馨提示
+.tips {
+  padding: @spacing-4;
+  background: @color-bg-secondary;
+  border-radius: @radius-lg;
+  margin-bottom: @spacing-5;
+  text-align: left;
+}
+
+.tip-text {
+  display: block;
+  font-size: @font-size-sm;
+  color: @color-text-muted;
+  line-height: @line-height-relaxed;
+  margin-bottom: @spacing-1;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+// 关闭按钮
+.close-btn {
+  width: 100%;
+  height: @button-height-lg;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #C41E3A 0%, #A81B2D 100%);
+  border-radius: @radius-xl;
+  color: @color-text-white;
+  font-size: @font-size-base;
+  font-weight: @font-weight-semibold;
+  box-shadow: 0 4rpx 12rpx rgba(196, 30, 58, 0.3);
+  transition: opacity @transition-base;
+
+  &:active {
+    opacity: 0.9;
+  }
+}

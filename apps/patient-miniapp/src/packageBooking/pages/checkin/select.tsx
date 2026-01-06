@@ -8,7 +8,32 @@ import type { PendingAppointment } from '@hospital/api';
 import { DoctorIcon, CheckCircleIcon } from '../../../components/Icons';
 import { getToken } from '../../../utils/auth';
 import LoginPopup from '../../../components/LoginPopup';
+import CheckinSuccessModal from '../components/CheckinSuccessModal';
 import './select.less';
+
+// 辅助函数：格式化剩余时间
+const formatTimeRemaining = (seconds: number): string => {
+  if (seconds <= 0) return '0秒';
+
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+
+  if (hours > 0) {
+    return `${hours}小时${minutes}分`;
+  } else if (minutes > 0) {
+    return `${minutes}分${secs}秒`;
+  } else {
+    return `${secs}秒`;
+  }
+};
+
+// 辅助函数：格式化时间 HH:mm
+const formatTime = (date: Date): string => {
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
 
 const CheckinSelectPage = () => {
   const router = useRouter();
@@ -19,6 +44,13 @@ const CheckinSelectPage = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
+
+  // 新增：当前时间（用于智能倒计时）
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // 新增：签到成功弹窗状态
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [queueNumber, setQueueNumber] = useState(0);
 
   useEffect(() => {
     // 检查登录状态
@@ -41,6 +73,26 @@ const CheckinSelectPage = () => {
       loadAppointments();
     }
   };
+
+  // 新增：智能倒计时（默认每分钟刷新，当有预约在1分钟内开放或关闭时切换为每秒刷新）
+  useEffect(() => {
+    if (appointments.length === 0) return;
+
+    // 计算是否需要秒级刷新
+    const needSecondPrecision = appointments.some(item => {
+      if (item.minutesUntilOpen !== null && item.minutesUntilOpen < 1) return true;
+      if (item.minutesUntilClose !== null && item.minutesUntilClose < 1) return true;
+      return false;
+    });
+
+    const interval = needSecondPrecision ? 1000 : 60000;
+
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, interval);
+
+    return () => clearInterval(timer);
+  }, [appointments]);
 
   const loadAppointments = async () => {
     try {
@@ -82,17 +134,10 @@ const CheckinSelectPage = () => {
 
     try {
       const result = await appointmentApi.signIn(selectedId);
-      
-      Taro.showModal({
-        title: '签到成功',
-        content: `您的排队号码是 ${result.queueNumber}，请在候诊区等待叫号。`,
-        showCancel: false,
-        confirmText: '知道了',
-        success: () => {
-          // 返回首页
-          Taro.switchTab({ url: '/pages/appointment/index' });
-        },
-      });
+
+      // 设置排队号并显示签到成功弹窗
+      setQueueNumber(result.queueNumber);
+      setShowSuccessModal(true);
     } catch (error: any) {
       console.error('[签到] 失败:', error);
       Taro.showToast({
@@ -102,6 +147,13 @@ const CheckinSelectPage = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // 关闭签到成功弹窗
+  const handleSuccessModalClose = () => {
+    setShowSuccessModal(false);
+    // 返回首页
+    Taro.switchTab({ url: '/pages/appointment/index' });
   };
 
   if (loading) {
@@ -133,10 +185,38 @@ const CheckinSelectPage = () => {
           <View className="appointment-list">
             {appointments.map((item) => {
               const isDisabled = item.signInStatus === 'early' || item.signInStatus === 'late';
+
+              // 计算实时倒计时
+              let countdownInfo = null;
+              if (item.checkinOpenAt && item.checkinCloseAt) {
+                const openTime = new Date(item.checkinOpenAt);
+                const closeTime = new Date(item.checkinCloseAt);
+                const now = currentTime;
+
+                if (now < openTime) {
+                  const seconds = Math.floor((openTime.getTime() - now.getTime()) / 1000);
+                  const text = formatTimeRemaining(seconds);
+                  countdownInfo = {
+                    type: 'waiting',
+                    text,
+                    percent: Math.max(0, Math.min(100, (seconds / ((item.minutesUntilOpen || 1) * 60)) * 100))
+                  };
+                } else if (now < closeTime) {
+                  const seconds = Math.floor((closeTime.getTime() - now.getTime()) / 1000);
+                  const text = formatTimeRemaining(seconds);
+                  countdownInfo = {
+                    type: 'available',
+                    text,
+                    percent: Math.max(0, Math.min(100, seconds / ((item.minutesUntilClose || 1) * 60) * 100))
+                  };
+                }
+              }
+
               return (
                 <View
                   key={item.id}
                   className={`appointment-card ${selectedId === item.id ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}`}
+                  data-status={item.signInStatus}
                   onClick={() => handleSelect(item.id, item.signInStatus)}
                 >
                   <View className="card-icon">
@@ -155,9 +235,44 @@ const CheckinSelectPage = () => {
                         {item.endTime ? ` ~ ${item.endTime.substring(0, 5)}` : ''}
                       </Text>
                     </View>
+
+                    {/* 新增：时间窗口信息 */}
+                    {item.checkinOpenAt && item.checkinCloseAt && (
+                      <View className="time-window-info">
+                        <Text className="window-label">签到时间：</Text>
+                        <Text className="window-time">
+                          {formatTime(new Date(item.checkinOpenAt))} - {formatTime(new Date(item.checkinCloseAt))}
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* 签到状态 */}
                     {item.signInMessage && (
                       <View className={`signin-status ${item.signInStatus}`}>
                         <Text className="status-text">{item.signInMessage}</Text>
+                      </View>
+                    )}
+
+                    {/* 新增：倒计时或时间进度条 */}
+                    {countdownInfo && (
+                      <View className={`countdown-container ${countdownInfo.type}`}>
+                        {countdownInfo.type === 'waiting' ? (
+                          <>
+                            <Text className="countdown-label">等待签到：</Text>
+                            <Text className="countdown-text">{countdownInfo.text}</Text>
+                          </>
+                        ) : (
+                          <>
+                            <Text className="countdown-label">剩余时间：</Text>
+                            <Text className="countdown-text warning">{countdownInfo.text}</Text>
+                          </>
+                        )}
+                        <View className="countdown-bar">
+                          <View
+                            className={`countdown-fill ${countdownInfo.type}`}
+                            style={{ width: `${countdownInfo.percent}%` }}
+                          />
+                        </View>
                       </View>
                     )}
                   </View>
@@ -195,6 +310,13 @@ const CheckinSelectPage = () => {
           }
         }}
         onSuccess={handleLoginSuccess}
+      />
+
+      {/* 签到成功弹窗 */}
+      <CheckinSuccessModal
+        visible={showSuccessModal}
+        queueNumber={queueNumber}
+        onClose={handleSuccessModalClose}
       />
     </View>
   );
