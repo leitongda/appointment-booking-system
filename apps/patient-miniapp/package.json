@@ -19,6 +19,8 @@
     "dev:alipay": "npm run build:alipay -- --watch",
     "dev": "npm run dev:weapp",
     "dev:prod": "npm run dev:weapp:prod",
+    "dev:local": "TARO_APP_API_URL=http://127.0.0.1:8000/api/v1 taro build --type weapp --watch & node scripts/fix-wxml.js --watch",
+    "dev:remote": "TARO_APP_API_URL=https://yy.aicm.online/api/v1 taro build --type weapp --watch & node scripts/fix-wxml.js --watch",
     "clean": "rm -rf dist",
     "clean:cache": "node scripts/clean.mjs",
     "fix:wxml": "node scripts/fix-wxml.js"

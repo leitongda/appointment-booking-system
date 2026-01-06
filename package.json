@@ -6,8 +6,12 @@
   "scripts": {
     "dev": "turbo run dev",
     "dev:admin": "turbo run dev --filter=@hospital/admin",
+    "dev:admin:local": "turbo run dev:local --filter=@hospital/admin",
+    "dev:admin:remote": "turbo run dev:remote --filter=@hospital/admin",
     "dev:patient-h5": "turbo run dev --filter=@hospital/patient-h5",
     "dev:patient-miniapp": "turbo run dev --filter=@hospital/patient-miniapp",
+    "dev:patient-miniapp:local": "turbo run dev:local --filter=@hospital/patient-miniapp",
+    "dev:patient-miniapp:remote": "turbo run dev:remote --filter=@hospital/patient-miniapp",
     "dev:patient-miniapp:prod": "turbo run dev:prod --filter=@hospital/patient-miniapp",
     "dev:doctor": "turbo run dev --filter=@hospital/doctor",
     "dev:temp-registration": "turbo run dev --filter=@hospital/temp-registration",
