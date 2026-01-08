@@ -217,7 +217,10 @@ def upgrade() -> None:
     op.add_column('appointments', sa.Column('checkin_close_at', sa.TIMESTAMP(timezone=True), comment='签到窗口截止时间(快照)'))
     op.add_column('appointments', sa.Column('cancel_open_at', sa.TIMESTAMP(timezone=True), comment='取消窗口开放时间(快照)'))
     op.add_column('appointments', sa.Column('cancel_close_at', sa.TIMESTAMP(timezone=True), comment='取消窗口截止时间(快照)'))
-    op.add_column('appointments', sa.Column('checkin_count', sa.Integer, nullable=False, default=0, comment='签到次数'))
+    # checkin_count 列需要分步添加：先添加可空列，更新现有数据，再设置为 NOT NULL
+    op.add_column('appointments', sa.Column('checkin_count', sa.Integer, nullable=True, comment='签到次数'))
+    op.execute("UPDATE appointments SET checkin_count = 0 WHERE checkin_count IS NULL")
+    op.alter_column('appointments', 'checkin_count', nullable=False)
     op.add_column('appointments', sa.Column('last_checkin_at', sa.TIMESTAMP(timezone=True), comment='最后签到时间'))
 
 
