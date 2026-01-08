@@ -181,9 +181,24 @@ const IndexPage = () => {
       setShowLoginPopup(true);
       return;
     }
-    
+
     // 执行跳转逻辑
     navigateToPatientPage();
+  };
+
+  // 处理推荐医生卡片点击
+  const handleDoctorClick = (doctorId: string) => {
+    // 检查登录状态
+    const token = getToken();
+    if (!token) {
+      Taro.showToast({ title: '请先登录', icon: 'none' });
+      setShowLoginPopup(true);
+      return;
+    }
+
+    Taro.navigateTo({
+      url: `/packageBooking/pages/doctor/detail?id=${doctorId}`,
+    });
   };
 
   return (
@@ -265,7 +280,7 @@ const IndexPage = () => {
               <View
                 key={doctor.id}
                 className="doctor-card"
-                onClick={() => navigateTo(`/packageBooking/pages/doctor/detail?id=${doctor.id}`)}
+                onClick={() => handleDoctorClick(doctor.id)}
               >
                 <View className="doctor-avatar">
                   {doctor.avatar ? (

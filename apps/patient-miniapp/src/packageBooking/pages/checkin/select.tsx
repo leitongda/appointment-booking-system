@@ -8,7 +8,7 @@ import type { PendingAppointment } from '@hospital/api';
 import { DoctorIcon, CheckCircleIcon } from '../../../components/Icons';
 import { getToken } from '../../../utils/auth';
 import LoginPopup from '../../../components/LoginPopup';
-import CheckinSuccessModal from '../components/CheckinSuccessModal';
+import CheckinSuccessModal from '../../components/CheckinSuccessModal';
 import './select.less';
 
 // 辅助函数：格式化剩余时间

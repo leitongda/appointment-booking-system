@@ -114,14 +114,11 @@ export default defineConfig(async (merge) => {
       webpackChain(chain) {
         // 修复 React JSX Runtime 模块导入问题
         // React 18 使用 exports 字段限制导出，需要显式配置
-        chain.resolve.alias.set(
-          'react/jsx-runtime',
-          path.resolve(__dirname, '..', 'node_modules', 'react', 'jsx-runtime')
-        );
-        chain.resolve.alias.set(
-          'react/jsx-dev-runtime',
-          path.resolve(__dirname, '..', 'node_modules', 'react', 'jsx-dev-runtime')
-        );
+        // 统一使用 patient-miniapp 的 React，避免 shared 包的 React 解析问题
+        const reactPath = path.resolve(__dirname, '..', 'node_modules', 'react');
+        chain.resolve.alias.set('react', reactPath);
+        chain.resolve.alias.set('react/jsx-runtime', path.resolve(reactPath, 'jsx-runtime.js'));
+        chain.resolve.alias.set('react/jsx-dev-runtime', path.resolve(reactPath, 'jsx-dev-runtime.js'));
 
         // 调整 performance 配置
         // 微信小程序分包后，主包限制是 2MB，单个分包限制是 2MB

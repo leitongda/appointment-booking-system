@@ -6,17 +6,8 @@ module.exports = {
     }],
   ],
   plugins: [
-    // NutUI 样式按需加载
-    // 自动将 import { Button } from '@nutui/nutui-react-taro'
-    // 转换为同时导入对应的 CSS 文件
-    ['import', {
-      libraryName: '@nutui/nutui-react-taro',
-      libraryDirectory: 'dist/es/packages',
-      // 使用 style: 'css' 自动加载组件对应的 CSS 样式
-      // 这会自动加载 dist/es/packages/[componentName]/style/css.js
-      style: 'css',
-      camel2DashComponentName: false,
-    }, '@nutui/nutui-react-taro'],
+    // NutUI 3.0.19-cpp.22 使用扁平化构建，样式已内联到组件中
+    // 不需要 babel-plugin-import 进行样式按需加载
   ],
 };
 
