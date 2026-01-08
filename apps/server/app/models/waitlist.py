@@ -24,7 +24,7 @@ class WaitlistEntry(Base):
     # 关联信息
     user_id = Column(String(36), nullable=False, index=True, comment='用户ID')
     patient_id = Column(String(36), nullable=False, comment='就诊人ID')
-    schedule_id = Column(String(36), nullable=False, index=True, comment='排班ID')
+    schedule_id = Column(String(36), ForeignKey('schedules.id'), nullable=False, index=True, comment='排班ID')
     shift_type_id = Column(String(36), nullable=True, comment='班次类型ID')
 
     # 候补状态
