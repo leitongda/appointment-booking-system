@@ -23,9 +23,9 @@ export const PAGINATION_CONFIG = {
   /**
    * 筛选器下拉框最大数量
    * 用于科室、门店、医生等选择器
-   * 适中大小，既保证完整性又避免加载过多数据
+   * 受后端 page_size <= 100 限制
    */
-  SELECT_MAX_SIZE: 200,
+  SELECT_MAX_SIZE: 100,
 
   /**
    * 日历组件最大数量
