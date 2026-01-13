@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "milk-tea": {
+      "type": "streamable-http",
+      "url": "https://open.bigmodel.cn/api/mcp/milk_tea/mcp",
+      "headers": {
+        "Authorization": "eyJhbGciOiJIUzUxMiJ9.eyJ1c2VyX3R5cGUiOiJQRVJTT05BTCIsInVzZXJfY2hhbm5lbCI6IldFQ0hBVF9PUEVOIiwidXNlcl9pZCI6MjE2NzA3OSwidXNlcl9rZXkiOiJjZjY3YTU0NS1lMzc3LTRlMDItODcxZC1mYjc4OTM2ZjQ3YzEiLCJjdXN0b21lcl9pZCI6IjE1MTc1MTQzOTI2NzA3MSIsInVzZXJuYW1lIjoiaHlldG0xNTUifQ.ScVSATLXvjYdP3UpI6ABdbXcFpBVG7vKNDfJE0DFhY6PigSvEDCN7PTgSc_RHoqNdqeABOgt-AL1WcJm1pSOzA"
+      }
+    }
+  }
+}
