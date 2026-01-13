@@ -75,7 +75,14 @@
       "Bash(lsof:*)",
       "Bash(readlink:*)",
       "Bash(pkill:*)",
-      "Bash(pnpm clean:cache:*)"
+      "Bash(pnpm clean:cache:*)",
+      "Bash(pnpm run build:admin:*)",
+      "Bash(pnpm run build)",
+      "Bash(ls:*)",
+      "Bash(pnpm run:type-check:*)",
+      "Bash(pnpm dev:admin:*)",
+      "Bash(pnpm dev:remote:*)",
+      "Bash(pnpm -w run build:admin:*)"
     ]
   },
   "statusLine": {
