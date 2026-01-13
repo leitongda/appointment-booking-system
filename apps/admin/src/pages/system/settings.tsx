@@ -11,7 +11,7 @@ import {
   ModalForm,
 } from '@ant-design/pro-components';
 import { Card, App, Tabs, Spin, Table, Switch, Button, Input, Space, Popconfirm, Tag, Select, Form, Typography, Slider, Row, Col } from 'antd';
-import { PlusOutlined, SearchOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, DeleteOutlined, CalendarOutlined, CloseCircleOutlined, CheckCircleOutlined, StopOutlined, NumberOutlined } from '@ant-design/icons';
 import { useState, useEffect, useRef } from 'react';
 import { useAccess, useModel } from '@umijs/max';
 import { settingsApi, blacklistApi, storeApi } from '@hospital/api';
@@ -422,7 +422,7 @@ const SettingsPage: React.FC = () => {
   const items = [
     {
       key: 'booking',
-      label: '预约设置',
+      label: '规则配置',
       children: (
         <div>
           {/* 门店选择器 */}
@@ -447,57 +447,147 @@ const SettingsPage: React.FC = () => {
             initialValues={{ ...DEFAULT_BOOKING_SETTINGS, ...bookingSettings }}
             submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
           >
-            <ProFormDigit name="advanceDays" label="提前预约天数" min={1} max={30} fieldProps={{ addonAfter: '天' }} />
-            <ProFormDigit name="cancelHours" label="取消时限" min={0} max={168} fieldProps={{ addonAfter: '小时' }} tooltip="就诊前多少小时内不可取消预约，设置为0表示不限制" />
-            <ProFormDigit name="perDayLimit" label="每人每天最大预约数" min={1} max={10} />
-            <ProFormDigit name="perDoctorLimit" label="每人每医生最大预约数" min={1} max={5} />
-            <ProFormDigit name="noShowLimit" label="爽约次数限制" min={1} max={10} />
-            <ProFormDigit name="blacklistDays" label="黑名单限制天数" min={1} max={365} fieldProps={{ addonAfter: '天' }} />
-            <ProFormSwitch name="sameDayBooking" label="允许当天预约" />
-            {/* 提前预约截止配置 */}
-            <ProFormDigit
-              name="advanceBookingMinutes"
-              label="提前预约截止时间"
-              min={0}
-              max={1440}
-              fieldProps={{ addonAfter: '分钟' }}
-              tooltip="设置为0表示不限制，当天班次可随时预约"
-            />
-            <ProFormSelect
-              name="advanceBookingDirection"
-              label="时间方向"
-              options={[
-                { label: '往前（提前）', value: 'before' },
-                { label: '往后（延后）', value: 'after' },
-              ]}
-              tooltip="'往前'表示从基准时间往前推算截止时间，'往后'表示从基准时间往后推算"
-            />
-            <ProFormSelect
-              name="advanceBookingReference"
-              label="基准时间"
-              options={[
-                { label: '开始时间', value: 'start' },
-                { label: '结束时间', value: 'end' },
-              ]}
-              tooltip="选择以班次的开始时间还是结束时间作为基准进行计算"
-            />
-            {/* 签到时间配置 */}
-            <ProFormDigit
-              name="signInAdvanceMinutes"
-              label="提前签到时间"
-              min={0}
-              max={1440}
-              fieldProps={{ addonAfter: '分钟' }}
-              tooltip="班次开始前多少分钟可以签到，例如30分钟表示班次开始前30分钟可以签到"
-            />
-            <ProFormDigit
-              name="signInLateMinutes"
-              label="迟到签到时间"
-              min={0}
-              max={1440}
-              fieldProps={{ addonAfter: '分钟' }}
-              tooltip="班次开始后多少分钟还可以签到，例如30分钟表示班次开始后30分钟内可以签到"
-            />
+            <Space direction="vertical" style={{ width: '100%' }} size="large">
+              {/* 预约时间限制 */}
+              <Card title={<><CalendarOutlined /><span style={{ marginLeft: 8 }}>预约时间限制</span></>} size="small">
+                <Row gutter={16}>
+                  <Col span={8}>
+                    <ProFormDigit
+                      name="advanceDays"
+                      label="提前预约天数"
+                      min={1}
+                      max={30}
+                      fieldProps={{ addonAfter: '天' }}
+                      tooltip="用户最多可以提前几天进行预约"
+                    />
+                  </Col>
+                  <Col span={8}>
+                    <ProFormSwitch
+                      name="sameDayBooking"
+                      label="允许当天预约"
+                      tooltip="是否允许预约当天的号源"
+                    />
+                  </Col>
+                  <Col span={8}>
+                    <ProFormDigit
+                      name="advanceBookingMinutes"
+                      label="预约截止时间"
+                      min={0}
+                      max={1440}
+                      fieldProps={{ addonAfter: '分钟' }}
+                      tooltip="预约当天号源的截止时间，0表示不限制"
+                    />
+                  </Col>
+                </Row>
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <ProFormSelect
+                      name="advanceBookingDirection"
+                      label="时间方向"
+                      options={[
+                        { label: '往前（提前）', value: 'before' },
+                        { label: '往后（延后）', value: 'after' },
+                      ]}
+                      tooltip="'往前'表示从基准时间往前推算，'往后'表示从基准时间往后推算"
+                    />
+                  </Col>
+                  <Col span={12}>
+                    <ProFormSelect
+                      name="advanceBookingReference"
+                      label="基准时间"
+                      options={[
+                        { label: '开始时间', value: 'start' },
+                        { label: '结束时间', value: 'end' },
+                      ]}
+                      tooltip="以班次的开始时间还是结束时间作为基准"
+                    />
+                  </Col>
+                </Row>
+              </Card>
+
+              {/* 取消规则 */}
+              <Card title={<><CloseCircleOutlined /><span style={{ marginLeft: 8 }}>取消规则</span></>} size="small">
+                <ProFormDigit
+                  name="cancelHours"
+                  label="最晚取消时间"
+                  min={0}
+                  max={168}
+                  fieldProps={{ addonAfter: '小时' }}
+                  tooltip="用户最晚可以在就诊前几小时取消预约，0表示不限制"
+                />
+              </Card>
+
+              {/* 签到规则 */}
+              <Card title={<><CheckCircleOutlined /><span style={{ marginLeft: 8 }}>签到规则</span></>} size="small">
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <ProFormDigit
+                      name="signInAdvanceMinutes"
+                      label="提前签到时间"
+                      min={0}
+                      max={1440}
+                      fieldProps={{ addonAfter: '分钟' }}
+                      tooltip="用户最早可以在班次开始前几分钟签到"
+                    />
+                  </Col>
+                  <Col span={12}>
+                    <ProFormDigit
+                      name="signInLateMinutes"
+                      label="迟到签到时间"
+                      min={0}
+                      max={1440}
+                      fieldProps={{ addonAfter: '分钟' }}
+                      tooltip="用户最晚可以在班次开始后几分钟签到"
+                    />
+                  </Col>
+                </Row>
+              </Card>
+
+              {/* 频次限制 */}
+              <Card title={<><NumberOutlined /><span style={{ marginLeft: 8 }}>频次限制</span></>} size="small">
+                <Row gutter={16}>
+                  <Col span={8}>
+                    <ProFormDigit
+                      name="perDayLimit"
+                      label="每人每天最大预约数"
+                      min={1}
+                      max={10}
+                      tooltip="每个用户每天最多可以预约多少次"
+                    />
+                  </Col>
+                  <Col span={8}>
+                    <ProFormDigit
+                      name="perDoctorLimit"
+                      label="每人每医生最大预约数"
+                      min={1}
+                      max={5}
+                      tooltip="每个用户对同一个医生最多可以预约多少次"
+                    />
+                  </Col>
+                  <Col span={8}>
+                    <ProFormDigit
+                      name="noShowLimit"
+                      label="爽约次数限制"
+                      min={1}
+                      max={10}
+                      tooltip="用户爽约多少次后会被限制预约"
+                    />
+                  </Col>
+                </Row>
+              </Card>
+
+              {/* 黑名单规则 */}
+              <Card title={<><StopOutlined /><span style={{ marginLeft: 8 }}>黑名单规则</span></>} size="small">
+                <ProFormDigit
+                  name="blacklistDays"
+                  label="黑名单限制天数"
+                  min={1}
+                  max={365}
+                  fieldProps={{ addonAfter: '天' }}
+                  tooltip="用户被加入黑名单后，多少天内无法预约"
+                />
+              </Card>
+            </Space>
           </ProForm>
         </div>
       ),
