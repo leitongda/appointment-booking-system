@@ -157,10 +157,8 @@ const ProfilePage = () => {
 
   // 加载用户资料，返回是否成功
   const loadProfile = async (): Promise<boolean> => {
-    console.log("🚀 ~ loadProfile 开始调用");
     try {
       const data = await userApi.getProfile();
-      console.log("🚀 ~ loadProfile 成功:", data);
       setUser(data);
       return true;
     } catch (error: any) {
@@ -211,9 +209,7 @@ const ProfilePage = () => {
     try {
       // 1. 获取微信登录 code
       const loginRes = await Taro.login();
-      console.log("🚀 ~ handleHeaderClick ~ loginRes:", loginRes)
       const code = loginRes.code;
-      console.log("🚀 ~ handleHeaderClick ~ code:", code)
       
       if (!code) {
         throw new Error('获取登录凭证失败');
@@ -221,26 +217,16 @@ const ProfilePage = () => {
       
       // 2. 调用后端接口获取 openid
       const storeId = getStoreId();
-      console.log("🚀 ~ handleHeaderClick ~ storeId:", storeId)
       const result = await authApi.wechatLogin(code, storeId || undefined);
-      console.log("🚀 ~ handleHeaderClick ~ result:", result);
-      console.log("🚀 ~ result 类型:", typeof result);
-      console.log("🚀 ~ result.isNewUser:", result.isNewUser);
-      console.log("🚀 ~ result.needBindPhone:", result.needBindPhone);
-      console.log("🚀 ~ result.openid:", result.openid);
-      console.log("🚀 ~ 条件判断:", result.isNewUser || result.needBindPhone);
       
       if (result.isNewUser || result.needBindPhone) {
         // 新用户，显示设置头像昵称弹窗
-        console.log("🚀 ~ 进入新用户分支，准备显示设置用户信息弹窗");
         setOpenid(result.openid);
         setShowUserInfo(true);
-        console.log("🚀 ~ setShowUserInfo(true) 已调用");
         // 已注释：原来需要绑定手机号
         // setShowBindPhone(true);
       } else {
         // 已有用户，直接登录成功
-        console.log("🚀 ~ 登录成功，准备保存 Token:", result.accessToken);
         
         if (!result.accessToken) {
           console.error("❌ accessToken 为空！检查后端返回的数据结构");
@@ -252,7 +238,6 @@ const ProfilePage = () => {
         
         // 验证 Token 是否保存成功
         const savedToken = Taro.getStorageSync('hospital_token');
-        console.log("🚀 ~ 验证保存的 Token:", savedToken ? `${savedToken.substring(0, 20)}...` : '空');
         
         Taro.showToast({ title: '登录成功', icon: 'success' });
         setIsLoggedIn(true);
@@ -269,7 +254,6 @@ const ProfilePage = () => {
 
   // 选择头像回调
   const handleChooseAvatar = (e: any) => {
-    console.log("🚀 ~ handleChooseAvatar ~ e:", e);
     const avatarUrl = e.detail.avatarUrl;
     if (avatarUrl) {
       setAvatar(avatarUrl);
@@ -278,7 +262,6 @@ const ProfilePage = () => {
 
   // 昵称输入完成回调
   const handleNicknameBlur = (e: any) => {
-    console.log("🚀 ~ handleNicknameBlur ~ e:", e);
     const value = e.detail.value;
     if (value) {
       setNickname(value);
@@ -305,7 +288,6 @@ const ProfilePage = () => {
       loadProfile();
       loadStats();
     } catch (error: any) {
-      console.log("🚀 ~ handleConfirmUserInfo ~ error:", error);
       Taro.showToast({ title: error.message || '登录失败', icon: 'none' });
     } finally {
       setBindLoading(false);

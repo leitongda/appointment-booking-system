@@ -293,7 +293,6 @@ export async function getInitialState(): Promise<{
  */
 export const layout: RunTimeLayoutConfig = ({ initialState }) => {
   const { currentStore } = initialState || {};
-  console.log("🚀 ~ layout ~ initialState:", initialState)
 
   // 门店用户：使用门店的 logo 和名称
   // 如果有门店信息，则覆盖默认设置

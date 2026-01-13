@@ -147,8 +147,8 @@ export const CAPACITY_POLICY_DEFAULT_VALUES = {
 export const WINDOW_DEFAULT_VALUES = {
   action: 'BOOK' as const,
   referencePoint: 'SHIFT_START' as const,
-  openOffsetSec: -86400,
-  closeOffsetSec: 0,
+  openOffsetSec: -1800,  // 提前30分钟
+  closeOffsetSec: 0,     // 截止偏移为0
   openInclusive: true,
   closeInclusive: false,
   failPolicy: 'REJECT' as const,

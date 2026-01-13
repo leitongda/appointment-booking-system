@@ -7,6 +7,7 @@ import { history, useAccess } from '@umijs/max';
 import { ruleSetApi, dataApi } from '@hospital/api';
 import type { RuleSet } from '@hospital/shared';
 import ImportExport from '@/components/ImportExport';
+import { RuleSetPreviewDrawer } from '@/components/rule-set-visualization';
 import { getRuleSetColumns } from './components/RuleSetTableColumns';
 
 const RuleSetsPage: React.FC = () => {
@@ -15,6 +16,7 @@ const RuleSetsPage: React.FC = () => {
   const actionRef = useRef<ActionType>();
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [selectedRows, setSelectedRows] = useState<RuleSet[]>([]);
+  const [selectedRuleSet, setSelectedRuleSet] = useState<RuleSet | null>(null);
 
   const handleDelete = async (id: string) => {
     try {
@@ -124,6 +126,7 @@ const RuleSetsPage: React.FC = () => {
   const columns: ProColumns<RuleSet>[] = getRuleSetColumns({
     handleToggleEnabled,
     handleDelete,
+    handleView: (record) => setSelectedRuleSet(record),
     canSuperAdmin: access.canSuperAdmin,
   });
 
@@ -196,6 +199,13 @@ const RuleSetsPage: React.FC = () => {
           showSizeChanger: true,
           showQuickJumper: true,
         }}
+      />
+
+      {/* 规则组预览抽屉 */}
+      <RuleSetPreviewDrawer
+        open={!!selectedRuleSet}
+        onClose={() => setSelectedRuleSet(null)}
+        ruleSet={selectedRuleSet}
       />
     </PageContainer>
   );

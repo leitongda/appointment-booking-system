@@ -6,6 +6,7 @@ import type { RuleSet } from '@hospital/shared';
 interface ColumnHandlers {
   handleToggleEnabled: (record: RuleSet) => void;
   handleDelete: (id: string) => void;
+  handleView?: (record: RuleSet) => void;
   canSuperAdmin: boolean;
 }
 
@@ -81,10 +82,13 @@ export const getRuleSetColumns = (handlers: ColumnHandlers): ProColumns<RuleSet>
   {
     title: '操作',
     valueType: 'option',
-    width: 180,
+    width: 220,
     fixed: 'right',
     render: (_, record) => (
       <Space>
+        {handlers.handleView && (
+          <a onClick={() => handlers.handleView!(record)}>查看</a>
+        )}
         <a onClick={() => history.push(`/system/rule-sets/${record.id}/edit`)}>编辑</a>
         <Popconfirm
           title={record.enabled ? '确定禁用该规则组吗？' : '确定启用该规则组吗？'}

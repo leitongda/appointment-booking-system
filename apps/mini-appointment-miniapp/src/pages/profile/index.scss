@@ -1,0 +1,87 @@
+@import '@/styles/variables.scss';
+
+.profile-page {
+  min-height: 100vh;
+  background-color: $bg-color;
+}
+
+.user-section {
+  background: linear-gradient(135deg, $primary-color 0%, #40a9ff 100%);
+  padding: $spacing-xl $spacing-md;
+  margin-bottom: $spacing-md;
+}
+
+.user-info,
+.login-prompt {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.user-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background-color: white;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+}
+
+.user-details {
+  flex: 1;
+  color: white;
+}
+
+.user-name,
+.login-text {
+  display: block;
+  font-size: $font-size-lg;
+  font-weight: bold;
+  margin-bottom: $spacing-xs;
+}
+
+.user-phone {
+  display: block;
+  font-size: $font-size-sm;
+  opacity: 0.9;
+}
+
+.menu-section {
+  margin-bottom: $spacing-md;
+}
+
+.section-title {
+  padding: $spacing-md;
+  font-size: $font-size-sm;
+  color: $text-color-secondary;
+}
+
+.menu-list {
+  background-color: $bg-color-white;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  padding: $spacing-md;
+  border-bottom: 1px solid $divider-color;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.menu-icon {
+  font-size: $font-size-xl;
+  margin-right: $spacing-md;
+}
+
+.menu-title {
+  flex: 1;
+  font-size: $font-size-md;
+  color: $text-color;
+}
+
+.menu-arrow {
+  font-size: $font-size-xl;
+  color: $text-color-light;
+}

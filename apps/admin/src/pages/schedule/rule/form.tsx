@@ -143,7 +143,6 @@ const ScheduleRuleFormPage: React.FC = () => {
   };
 
   const handleSubmit = async (values: any) => {
-    console.log("🚀 ~ handleSubmit ~ values:", values)
     try {
       // 使用 formatTime 函数格式化时间，支持字符串和 dayjs 对象
       const startTime = formatTime(values.startTime);

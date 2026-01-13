@@ -1,5 +1,6 @@
-import { Card, Space, Button, Typography, Form, Select, InputNumber, Input, Row, Col, Tooltip } from 'antd';
+import { Card, Space, Button, Typography, Form, Select, InputNumber, Input, Row, Col, Tooltip, Radio } from 'antd';
 import { PlusOutlined, DeleteOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { useState, useEffect } from 'react';
 import {
   WINDOW_ACTION_OPTIONS,
   WINDOW_REFERENCE_POINT_OPTIONS,
@@ -9,12 +10,32 @@ import {
 
 const { Text } = Typography;
 
+// ==================== 类型定义 ====================
+
+type TimeUnit = 'second' | 'minute' | 'hour' | 'day' | 'week';
+
+interface TimeUnitOption {
+  label: string;
+  value: TimeUnit;
+  seconds: number;
+}
+
+// ==================== 常量定义 ====================
+
+const TIME_UNIT_OPTIONS: TimeUnitOption[] = [
+  { label: '秒', value: 'second', seconds: 1 },
+  { label: '分钟', value: 'minute', seconds: 60 },
+  { label: '小时', value: 'hour', seconds: 3600 },
+  { label: '天', value: 'day', seconds: 86400 },
+  { label: '周', value: 'week', seconds: 604800 },
+];
+
+// ==================== 工具函数 ====================
+
 /**
  * 将秒数转换为可读格式
- * @param seconds 秒数，null 表示不限制
- * @param referencePoint 参考点类型
  */
-const formatOffset = (seconds: number | null, referencePoint?: string): string => {
+const formatOffset = (seconds: number | null): string => {
   if (seconds === null) return '不限制';
 
   const abs = Math.abs(seconds);
@@ -29,6 +50,26 @@ const formatOffset = (seconds: number | null, referencePoint?: string): string =
 
   const str = parts.join('');
   return seconds >= 0 ? `延后${str}` : `提前${str}`;
+};
+
+/**
+ * 将秒数转换为单位值
+ */
+const secondsToUnit = (seconds: number | null, unit: TimeUnit): number | null => {
+  if (seconds === null) return null;
+  const unitOption = TIME_UNIT_OPTIONS.find(opt => opt.value === unit);
+  if (!unitOption) return seconds;
+  return Math.round(seconds / unitOption.seconds);
+};
+
+/**
+ * 将单位值转换为秒数
+ */
+const unitToSeconds = (value: number | null, unit: TimeUnit): number | null => {
+  if (value === null) return null;
+  const unitOption = TIME_UNIT_OPTIONS.find(opt => opt.value === unit);
+  if (!unitOption) return value;
+  return value * unitOption.seconds;
 };
 
 /**
@@ -47,6 +88,98 @@ const getWindowDescription = (action: string, referencePoint: string): string =>
     BOOKING_CREATED_AT: '预约创建时间',
   };
   return `${actionLabels[action] || action} - 基于${refLabels[referencePoint] || referencePoint}`;
+};
+
+// ==================== 子组件 ====================
+
+/**
+ * 时间偏移输入组件（带单位切换）
+ */
+interface OffsetInputProps {
+  value: number | null;
+  onChange: (value: number | null) => void;
+  placeholder?: string;
+  defaultUnit?: TimeUnit;  // 默认单位
+}
+
+const OffsetInput: React.FC<OffsetInputProps> = ({
+  value,
+  onChange,
+  placeholder,
+  defaultUnit = 'minute'
+}) => {
+  // 使用指定的默认单位
+  const [unit, setUnit] = useState<TimeUnit>(defaultUnit);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // 当外部值变化时，自动选择合适的单位（仅在初始化后）
+  useEffect(() => {
+    if (value !== null && isInitialized) {
+      // 根据值的大小自动选择合适的单位
+      const abs = Math.abs(value);
+      if (abs >= 604800 && abs % 604800 === 0) {
+        setUnit('week');
+      } else if (abs >= 86400 && abs % 86400 === 0) {
+        setUnit('day');
+      } else if (abs >= 3600 && abs % 3600 === 0) {
+        setUnit('hour');
+      } else if (abs >= 60 && abs % 60 === 0) {
+        setUnit('minute');
+      } else {
+        setUnit('second');
+      }
+    }
+    // 标记为已初始化（第一次有值之后）
+    if (value !== null && !isInitialized) {
+      setIsInitialized(true);
+    }
+  }, [value, isInitialized]);
+
+  // 将秒数转换为当前单位的值
+  const displayValue = value !== null ? secondsToUnit(value, unit) : null;
+
+  // 处理数值变化
+  const handleValueChange = (newValue: number | null) => {
+    if (newValue === null) {
+      onChange(null);
+    } else {
+      onChange(unitToSeconds(newValue, unit));
+    }
+    setIsInitialized(true);
+  };
+
+  // 处理单位变化
+  const handleUnitChange = (newUnit: TimeUnit) => {
+    setUnit(newUnit);
+    // 转换当前值到新单位
+    if (displayValue !== null) {
+      onChange(unitToSeconds(displayValue, newUnit));
+    }
+    setIsInitialized(true);
+  };
+
+  const unitOption = TIME_UNIT_OPTIONS.find(opt => opt.value === unit);
+
+  return (
+    <Space.Compact style={{ width: '100%' }}>
+      <InputNumber
+        value={displayValue}
+        onChange={handleValueChange}
+        placeholder={placeholder}
+        min={unitOption ? -31536000 / unitOption.seconds : -31536000}
+        max={unitOption ? 31536000 / unitOption.seconds : 31536000}
+        precision={0}
+        style={{ flex: 1 }}
+        controls
+      />
+      <Select
+        value={unit}
+        onChange={handleUnitChange}
+        options={TIME_UNIT_OPTIONS.map(opt => ({ label: opt.label, value: opt.value }))}
+        style={{ width: 90 }}
+      />
+    </Space.Compact>
+  );
 };
 
 /**
@@ -125,37 +258,25 @@ const WindowFormItem: React.FC<WindowFormItemProps> = ({ field, remove }) => {
           <Col span={12}>
             <Form.Item
               name={[field.name, 'openOffsetSec']}
-              label="开放偏移(秒)"
+              label="开放偏移"
               extra="留空表示不限制最早时间"
             >
-              <InputNumber
-                min={-31536000}
-                max={31536000}
-                precision={0}
-                style={{ width: '100%' }}
-                placeholder="留空=不限制"
-              />
+              <OffsetInput placeholder="留空=不限制" defaultUnit="minute" />
             </Form.Item>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              {formatOffset(openOffsetSec ?? null)}
+              当前值: {formatOffset(openOffsetSec ?? null)}
             </Text>
           </Col>
           <Col span={12}>
             <Form.Item
               name={[field.name, 'closeOffsetSec']}
-              label="截止偏移(秒)"
+              label="截止偏移"
               extra="留空表示不限制最晚时间"
             >
-              <InputNumber
-                min={-31536000}
-                max={31536000}
-                precision={0}
-                style={{ width: '100%' }}
-                placeholder="留空=不限制"
-              />
+              <OffsetInput placeholder="留空=不限制" defaultUnit="minute" />
             </Form.Item>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              {formatOffset(closeOffsetSec ?? null)}
+              当前值: {formatOffset(closeOffsetSec ?? null)}
             </Text>
           </Col>
         </Row>

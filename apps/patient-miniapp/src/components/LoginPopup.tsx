@@ -63,7 +63,6 @@ const LoginPopup: React.FC<LoginPopupProps> = ({
     try {
       // 1. 获取微信登录 code
       const loginRes = await Taro.login();
-      console.log("🚀 ~ LoginPopup handleWechatLogin ~ loginRes:", loginRes);
       const code = loginRes.code;
       
       if (!code) {
@@ -72,18 +71,14 @@ const LoginPopup: React.FC<LoginPopupProps> = ({
       
       // 2. 调用后端接口获取 openid
       const storeId = getStoreId();
-      console.log("🚀 ~ LoginPopup handleWechatLogin ~ storeId:", storeId);
       const result = await authApi.wechatLogin(code, storeId || undefined);
-      console.log("🚀 ~ LoginPopup handleWechatLogin ~ result:", result);
       
       if (result.isNewUser || result.needBindPhone) {
         // 新用户，显示设置头像昵称界面
-        console.log("🚀 ~ 新用户，显示设置用户信息界面");
         setOpenid(result.openid);
         setShowUserInfo(true);
       } else {
         // 已有用户，直接登录成功
-        console.log("🚀 ~ 登录成功，Token:", result.accessToken);
         
         if (!result.accessToken) {
           console.error("❌ accessToken 为空！");
@@ -106,7 +101,6 @@ const LoginPopup: React.FC<LoginPopupProps> = ({
 
   // 选择头像回调
   const handleChooseAvatar = (e: any) => {
-    console.log("🚀 ~ handleChooseAvatar ~ e:", e);
     const avatarUrl = e.detail.avatarUrl;
     if (avatarUrl) {
       setAvatar(avatarUrl);

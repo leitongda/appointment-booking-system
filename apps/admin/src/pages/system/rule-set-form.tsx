@@ -1,11 +1,12 @@
 import { PageContainer, ProForm, ProFormText, ProFormSelect, ProFormDigit, ProFormSwitch, ProFormTextArea, FooterToolbar } from '@ant-design/pro-components';
-import { Card, App, Button, Space, Row, Col, Tabs, message } from 'antd';
-import { useEffect, useState, useRef } from 'react';
+import { Card, App, Button, Space, Row, Col, Tabs, message, Form } from 'antd';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { history, useParams, useAccess } from '@umijs/max';
 import { ruleSetApi, shiftTypeApi } from '@hospital/api';
 import type { RuleSet, ShiftType } from '@hospital/shared';
 import RuleWindowConfig from '../../components/RuleWindowConfig';
 import RulePreviewModal from './components/RulePreviewModal';
+import { RuleSetLivePreview, RuleSetSummaryCard } from '@/components/rule-set-visualization';
 import {
   TIME_SOURCE_OPTIONS,
   TIMEZONE_SOURCE_OPTIONS,
@@ -28,6 +29,7 @@ const RuleSetFormPage: React.FC = () => {
   const [shiftTypes, setShiftTypes] = useState<ShiftType[]>([]);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [currentFormData, setCurrentFormData] = useState<any>(null);
+  const [formValues, setFormValues] = useState<Partial<RuleSet>>({});
   const formRef = useRef<any>();
 
   useEffect(() => {
@@ -58,6 +60,16 @@ const RuleSetFormPage: React.FC = () => {
         ...data,
         shiftTypeIds: data.shiftTypes?.map((st) => st.id) || [],
         // 策略数据直接设置，不再需要独立状态
+        bookingPolicy: data.bookingPolicy || RULE_SET_FORM_INITIAL_VALUES.bookingPolicy,
+        checkinPolicy: data.checkinPolicy || RULE_SET_FORM_INITIAL_VALUES.checkinPolicy,
+        capacityPolicy: data.capacityPolicy || RULE_SET_FORM_INITIAL_VALUES.capacityPolicy,
+        windows: Array.isArray(data.windows) ? data.windows : [],
+      });
+
+      // 同时更新 formValues 用于预览
+      setFormValues({
+        ...data,
+        shiftTypeIds: data.shiftTypes?.map((st) => st.id) || [],
         bookingPolicy: data.bookingPolicy || RULE_SET_FORM_INITIAL_VALUES.bookingPolicy,
         checkinPolicy: data.checkinPolicy || RULE_SET_FORM_INITIAL_VALUES.checkinPolicy,
         capacityPolicy: data.capacityPolicy || RULE_SET_FORM_INITIAL_VALUES.capacityPolicy,
@@ -97,36 +109,62 @@ const RuleSetFormPage: React.FC = () => {
     shiftTypeIds: ruleSet.shiftTypes?.map((st) => st.id) || [],
   } : RULE_SET_FORM_INITIAL_VALUES;
 
+  // 初始化 formValues
+  useEffect(() => {
+    if (ruleSet) {
+      setFormValues({
+        ...ruleSet,
+        shiftTypeIds: ruleSet.shiftTypes?.map((st) => st.id) || [],
+      });
+    } else {
+      setFormValues(RULE_SET_FORM_INITIAL_VALUES);
+    }
+  }, [ruleSet]);
+
+  // 等待数据加载完成再渲染表单（编辑模式下）
+  if (isEdit && loading) {
+    return (
+      <PageContainer title={isEdit ? '编辑规则组' : '新增规则组'}>
+        <Card loading />
+      </PageContainer>
+    );
+  }
+
   return (
     <PageContainer title={isEdit ? '编辑规则组' : '新增规则组'}>
+      {/* 表单区域 */}
       <ProForm
-        formRef={formRef}
-        onFinish={handleSubmit}
-        initialValues={initialValues}
-        submitter={{
-          render: (props, dom) => (
-            <FooterToolbar>
-              <Space>
-                <Button onClick={() => {
-                  // 传入当前表单数据
-                  const values = formRef.current?.getFieldsValue();
-                  setCurrentFormData(values);
-                  setPreviewModalOpen(true);
-                }}>
-                  预览规则效果
-                </Button>
-                <Button onClick={() => history.back()}>取消</Button>
-                <Button type="primary" onClick={() => props.form?.submit()}>
-                  {isEdit ? '保存' : '创建'}
-                </Button>
-              </Space>
-            </FooterToolbar>
-          ),
-        }}
-      >
-        <Tabs
-          defaultActiveKey="basic"
-          items={[
+            formRef={formRef}
+            onFinish={handleSubmit}
+            initialValues={initialValues}
+            onValuesChange={(changedValues, allValues) => {
+              // 实时更新表单值用于预览
+              setFormValues(allValues);
+            }}
+            submitter={{
+              render: (props, dom) => (
+                <FooterToolbar>
+                  <Space>
+                    <Button onClick={() => {
+                      // 传入当前表单数据
+                      const values = formRef.current?.getFieldsValue();
+                      setCurrentFormData(values);
+                      setPreviewModalOpen(true);
+                    }}>
+                      预览规则效果
+                    </Button>
+                    <Button onClick={() => history.back()}>取消</Button>
+                    <Button type="primary" onClick={() => props.form?.submit()}>
+                      {isEdit ? '保存' : '创建'}
+                    </Button>
+                  </Space>
+                </FooterToolbar>
+              ),
+            }}
+          >
+            <Tabs
+              defaultActiveKey="basic"
+              items={[
             {
               key: 'basic',
               label: '基础信息',
@@ -547,6 +585,14 @@ const RuleSetFormPage: React.FC = () => {
           ]}
         />
       </ProForm>
+
+      {/* 底部：实时预览面板（占据整行） */}
+      <div style={{ marginTop: 24 }}>
+        <RuleSetLivePreview
+          formData={formValues}
+          shiftTypes={shiftTypes}
+        />
+      </div>
 
       <RulePreviewModal
         open={previewModalOpen}

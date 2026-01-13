@@ -1,0 +1,267 @@
+/**
+ * 规则组时间轴可视化组件
+ * 将时间窗配置转换为直观的时间轴展示
+ */
+
+import React, { useMemo } from 'react';
+import { Timeline, Space, Tag, Card, Typography, Row, Col } from 'antd';
+import type { RuleWindow } from '@hospital/shared';
+import { formatOffset, groupWindowsByAction } from '@/utils/ruleSetFormatter';
+
+const { Text } = Typography;
+
+// ==================== 类型定义 ====================
+
+export interface RuleSetTimelineProps {
+  windows: RuleWindow[];
+  direction?: 'horizontal' | 'vertical';
+  showReferenceLine?: boolean;
+  compact?: boolean;
+}
+
+// ==================== 常量定义 ====================
+
+/**
+ * 动作类型颜色配置
+ */
+const ACTION_COLORS = {
+  BOOK: { primary: '#1890ff', light: '#e6f7ff', label: '预约' },
+  CHECKIN: { primary: '#52c41a', light: '#f6ffed', label: '签到' },
+  CANCEL: { primary: '#fa8c16', light: '#fff7e6', label: '取消' },
+  HOLD_RELEASE: { primary: '#722ed1', light: '#f9f0ff', label: '释放' },
+};
+
+/**
+ * 参考点标签映射
+ */
+const REFERENCE_POINT_LABELS: Record<string, string> = {
+  SHIFT_START: '班次开始时间',
+  SHIFT_END: '班次结束时间',
+  BOOKING_CREATED_AT: '预约创建时间',
+};
+
+// ==================== 子组件 ====================
+
+/**
+ * 单个时间窗的时间轴项
+ */
+interface WindowTimelineItemProps {
+  window: RuleWindow;
+  compact?: boolean;
+}
+
+const WindowTimelineItem: React.FC<WindowTimelineItemProps> = ({ window, compact }) => {
+  const colorConfig = ACTION_COLORS[window.action] || ACTION_COLORS.BOOK;
+  const refPointLabel = REFERENCE_POINT_LABELS[window.referencePoint] || window.referencePoint;
+  const openOffset = formatOffset(window.openOffsetSec);
+  const closeOffset = formatOffset(window.closeOffsetSec);
+
+  return (
+    <div
+      style={{
+        padding: compact ? '8px 12px' : '12px 16px',
+        backgroundColor: colorConfig.light,
+        borderRadius: '6px',
+        borderLeft: `3px solid ${colorConfig.primary}`,
+      }}
+    >
+      <Space direction="vertical" size={compact ? 'small' : 'middle'} style={{ width: '100%' }}>
+        {/* 动作类型与参考点 */}
+        <div>
+          <Tag color={colorConfig.primary}>{colorConfig.label}</Tag>
+          <Text type="secondary" style={{ fontSize: compact ? 12 : 13 }}>
+            基于 {refPointLabel}
+          </Text>
+        </div>
+
+        {/* 时间偏移 */}
+        {!compact && (
+          <Row gutter={16}>
+            <Col span={12}>
+              <Text type="secondary">开放：</Text>
+              <Text>{openOffset}</Text>
+            </Col>
+            <Col span={12}>
+              <Text type="secondary">截止：</Text>
+              <Text>{closeOffset}</Text>
+            </Col>
+          </Row>
+        )}
+
+        {compact && (
+          <Text type="secondary" style={{ fontSize: 11 }}>
+            {openOffset} / {closeOffset}
+          </Text>
+        )}
+
+        {/* 失败策略 */}
+        {!compact && (
+          <div>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              失败策略：{window.failPolicy === 'REJECT' ? '拒绝操作' : null}
+              {window.failPolicy === 'ALLOW_WITH_TAG' ? `允许并打标签: ${window.failTag || '无'}` : null}
+              {window.failPolicy === 'AUTO_TO_WAITLIST' ? '自动进入候补' : null}
+            </Text>
+          </div>
+        )}
+      </Space>
+    </div>
+  );
+};
+
+// ==================== 主组件 ====================
+
+/**
+ * 规则组时间轴组件
+ */
+const RuleSetTimeline: React.FC<RuleSetTimelineProps> = ({
+  windows,
+  direction = 'vertical',
+  showReferenceLine = true,
+  compact = false,
+}) => {
+  // 按动作类型分组时间窗
+  const groupedWindows = useMemo(() => groupWindowsByAction(windows), [windows]);
+
+  // 如果没有时间窗，显示提示
+  const allWindows = [
+    ...groupedWindows.book,
+    ...groupedWindows.checkin,
+    ...groupedWindows.cancel,
+    ...groupedWindows.holdRelease,
+  ];
+
+  if (allWindows.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: '32px 0' }}>
+        <Text type="secondary">暂无时间窗配置</Text>
+      </div>
+    );
+  }
+
+  // 垂直时间轴模式
+  if (direction === 'vertical') {
+    return (
+      <Timeline mode="left">
+        {groupedWindows.book.length > 0 && (
+          <Timeline.Item
+            key="book"
+            color={ACTION_COLORS.BOOK.primary}
+            label={<Text strong>{ACTION_COLORS.BOOK.label}</Text>}
+          >
+            <Space direction="vertical" style={{ width: '100%' }} size="small">
+              {groupedWindows.book.map((window) => (
+                <WindowTimelineItem key={window.id} window={window} compact={compact} />
+              ))}
+            </Space>
+          </Timeline.Item>
+        )}
+
+        {groupedWindows.checkin.length > 0 && (
+          <Timeline.Item
+            key="checkin"
+            color={ACTION_COLORS.CHECKIN.primary}
+            label={<Text strong>{ACTION_COLORS.CHECKIN.label}</Text>}
+          >
+            <Space direction="vertical" style={{ width: '100%' }} size="small">
+              {groupedWindows.checkin.map((window) => (
+                <WindowTimelineItem key={window.id} window={window} compact={compact} />
+              ))}
+            </Space>
+          </Timeline.Item>
+        )}
+
+        {groupedWindows.cancel.length > 0 && (
+          <Timeline.Item
+            key="cancel"
+            color={ACTION_COLORS.CANCEL.primary}
+            label={<Text strong>{ACTION_COLORS.CANCEL.label}</Text>}
+          >
+            <Space direction="vertical" style={{ width: '100%' }} size="small">
+              {groupedWindows.cancel.map((window) => (
+                <WindowTimelineItem key={window.id} window={window} compact={compact} />
+              ))}
+            </Space>
+          </Timeline.Item>
+        )}
+
+        {groupedWindows.holdRelease.length > 0 && (
+          <Timeline.Item
+            key="holdRelease"
+            color={ACTION_COLORS.HOLD_RELEASE.primary}
+            label={<Text strong>{ACTION_COLORS.HOLD_RELEASE.label}</Text>}
+          >
+            <Space direction="vertical" style={{ width: '100%' }} size="small">
+              {groupedWindows.holdRelease.map((window) => (
+                <WindowTimelineItem key={window.id} window={window} compact={compact} />
+              ))}
+            </Space>
+          </Timeline.Item>
+        )}
+      </Timeline>
+    );
+  }
+
+  // 水平时间轴模式（用于紧凑展示）
+  return (
+    <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      {groupedWindows.book.length > 0 && (
+        <Card
+          size="small"
+          title={<Tag color={ACTION_COLORS.BOOK.primary}>{ACTION_COLORS.BOOK.label}</Tag>}
+          styles={{ body: { padding: (compact ? '8px' : '12px') } }}
+        >
+          <Space direction="vertical" style={{ width: '100%' }} size="small">
+            {groupedWindows.book.map((window) => (
+              <WindowTimelineItem key={window.id} window={window} compact={compact} />
+            ))}
+          </Space>
+        </Card>
+      )}
+
+      {groupedWindows.checkin.length > 0 && (
+        <Card
+          size="small"
+          title={<Tag color={ACTION_COLORS.CHECKIN.primary}>{ACTION_COLORS.CHECKIN.label}</Tag>}
+          styles={{ body: { padding: (compact ? '8px' : '12px') } }}
+        >
+          <Space direction="vertical" style={{ width: '100%' }} size="small">
+            {groupedWindows.checkin.map((window) => (
+              <WindowTimelineItem key={window.id} window={window} compact={compact} />
+            ))}
+          </Space>
+        </Card>
+      )}
+
+      {groupedWindows.cancel.length > 0 && (
+        <Card
+          size="small"
+          title={<Tag color={ACTION_COLORS.CANCEL.primary}>{ACTION_COLORS.CANCEL.label}</Tag>}
+          styles={{ body: { padding: (compact ? '8px' : '12px') } }}
+        >
+          <Space direction="vertical" style={{ width: '100%' }} size="small">
+            {groupedWindows.cancel.map((window) => (
+              <WindowTimelineItem key={window.id} window={window} compact={compact} />
+            ))}
+          </Space>
+        </Card>
+      )}
+
+      {groupedWindows.holdRelease.length > 0 && (
+        <Card
+          size="small"
+          title={<Tag color={ACTION_COLORS.HOLD_RELEASE.primary}>{ACTION_COLORS.HOLD_RELEASE.label}</Tag>}
+          styles={{ body: { padding: (compact ? '8px' : '12px') } }}
+        >
+          <Space direction="vertical" style={{ width: '100%' }} size="small">
+            {groupedWindows.holdRelease.map((window) => (
+              <WindowTimelineItem key={window.id} window={window} compact={compact} />
+            ))}
+          </Space>
+        </Card>
+      )}
+    </Space>
+  );
+};
+
+export default React.memo(RuleSetTimeline);

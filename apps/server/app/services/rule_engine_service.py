@@ -138,14 +138,15 @@ class RuleEngineService:
         if reference_point == 'SHIFT_START':
             if schedule.start_at:
                 return schedule.start_at
-            # 如果没有 start_at，使用 schedule_date + start_time
+            # 如果没有 start_at，使用 schedule_date + start_time，添加 UTC 时区
             if schedule.start_time:
-                return datetime.combine(schedule.schedule_date, schedule.start_time)
+                return pytz.UTC.localize(datetime.combine(schedule.schedule_date, schedule.start_time))
         elif reference_point == 'SHIFT_END':
             if schedule.end_at:
                 return schedule.end_at
+            # 添加 UTC 时区
             if schedule.end_time:
-                return datetime.combine(schedule.schedule_date, schedule.end_time)
+                return pytz.UTC.localize(datetime.combine(schedule.schedule_date, schedule.end_time))
         elif reference_point == 'BOOKING_CREATED_AT':
             # 预约创建时间，由调用方提供
             return datetime.now(pytz.UTC)
@@ -154,7 +155,7 @@ class RuleEngineService:
         if schedule.start_at:
             return schedule.start_at
         if schedule.start_time:
-            return datetime.combine(schedule.schedule_date, schedule.start_time)
+            return pytz.UTC.localize(datetime.combine(schedule.schedule_date, schedule.start_time))
 
         return datetime.now(pytz.UTC)
 
