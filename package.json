@@ -2,7 +2,7 @@
   "name": "appointment-booking-system",
   "version": "1.0.0",
   "private": true,
-  "description": "医院挂号系统 - 机构端 + 患者端 + 医生端 + 临时挂号H5",
+  "description": "医院挂号系统 - 机构端 + 患者端 + 医生端 + 临时挂号H5 + 预约小程序",
   "scripts": {
     "dev": "turbo run dev",
     "dev:admin": "turbo run dev --filter=@hospital/admin",
@@ -13,6 +13,10 @@
     "dev:patient-miniapp:local": "turbo run dev:local --filter=@hospital/patient-miniapp",
     "dev:patient-miniapp:remote": "turbo run dev:remote --filter=@hospital/patient-miniapp",
     "dev:patient-miniapp:prod": "turbo run dev:prod --filter=@hospital/patient-miniapp",
+    "dev:mini-appointment": "cd apps/mini-appointment-miniapp && pnpm run dev:weapp",
+    "dev:mini-appointment:h5": "cd apps/mini-appointment-miniapp && pnpm run dev:h5",
+    "dev:mini-appointment:alipay": "cd apps/mini-appointment-miniapp && pnpm run dev:alipay",
+    "build:mini-appointment": "cd apps/mini-appointment-miniapp && pnpm run build:weapp",
     "dev:doctor": "turbo run dev --filter=@hospital/doctor",
     "dev:temp-registration": "turbo run dev --filter=@hospital/temp-registration",
     "dev:server": "cd apps/server && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
@@ -36,7 +40,7 @@
     "prompts": "^2.4.2",
     "turbo": "^2.7.3"
   },
-  "packageManager": "pnpm@8.15.0",
+  "packageManager": "pnpm@10.27.0",
   "engines": {
     "node": ">=20.0.0",
     "pnpm": ">=8.0.0"
