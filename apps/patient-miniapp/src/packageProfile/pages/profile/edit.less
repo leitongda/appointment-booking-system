@@ -122,63 +122,47 @@
   align-items: center;
   padding: @spacing-4 0;
   border-bottom: @border-width solid @color-divider;
-  
+
   &:last-child {
     border-bottom: none;
   }
 }
 
 .form-label {
-  width: 140rpx;
+  width: 180rpx;
   font-size: @font-size-base;
   color: @color-text-primary;
   font-weight: @font-weight-medium;
   flex-shrink: 0;
 }
 
-.form-input {
+// 输入框容器（统一右对齐）
+.form-input-wrapper {
   flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.form-input {
   font-size: @font-size-base;
   color: @color-text-primary;
   text-align: right;
   background: transparent;
-  
+
   &::placeholder {
     color: @color-text-placeholder;
   }
 }
 
-// -------------------------------------------
-// 昵称输入区域
-// -------------------------------------------
-
-.nickname-item {
-  flex-direction: column;
-  align-items: stretch;
-  
-  .form-label {
-    margin-bottom: @spacing-2;
-  }
-}
-
-.nickname-input-wrapper {
-  display: flex;
-  align-items: center;
-  
-  .nickname-input {
-    flex: 1;
-    text-align: left;
-    padding: @spacing-2 @spacing-3;
-    background: @color-bg-secondary;
-    border-radius: @radius-md;
-    height: 72rpx;
-  }
-}
-
+// 表单提示文字
 .form-hint {
+  display: block;
+  padding: 0 @page-padding;
+  padding-top: @spacing-2;
   font-size: @font-size-xs;
   color: @color-text-placeholder;
-  margin-top: @spacing-2;
+  line-height: @line-height-normal;
 }
 
 .form-value {
@@ -230,11 +214,9 @@
 }
 
 .submit-btn {
+  .button-primary();
   width: 100%;
   height: @button-height-lg;
-  border-radius: @radius-xl;
-  font-size: @font-size-base;
-  font-weight: @font-weight-semibold;
 }
 
 // -------------------------------------------

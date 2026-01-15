@@ -284,31 +284,34 @@ const SettingsPage = () => {
         footer={null}
       >
         <View className="dialog-content">
-          <View className="input-item">
-            <Text className="label">原密码</Text>
+          <View className="form-item">
+            <Text className="form-label">原密码</Text>
             <Input
               type="password"
               placeholder="请输入原密码"
               value={oldPassword}
               onChange={(val) => setOldPassword(val)}
+              className="form-input"
             />
           </View>
-          <View className="input-item">
-            <Text className="label">新密码</Text>
+          <View className="form-item">
+            <Text className="form-label">新密码</Text>
             <Input
               type="password"
               placeholder="请输入新密码（至少6位）"
               value={newPassword}
               onChange={(val) => setNewPassword(val)}
+              className="form-input"
             />
           </View>
-          <View className="input-item">
-            <Text className="label">确认密码</Text>
+          <View className="form-item">
+            <Text className="form-label">确认密码</Text>
             <Input
               type="password"
               placeholder="请再次输入新密码"
               value={confirmPassword}
               onChange={(val) => setConfirmPassword(val)}
+              className="form-input"
             />
           </View>
           <Button
@@ -316,6 +319,7 @@ const SettingsPage = () => {
             block
             loading={passwordLoading}
             onClick={handleSubmitPassword}
+            className="submit-btn"
           >
             确认修改
           </Button>
@@ -330,14 +334,15 @@ const SettingsPage = () => {
         footer={null}
       >
         <View className="dialog-content">
-          <View className="input-item">
-            <Text className="label">手机号</Text>
+          <View className="form-item">
+            <Text className="form-label">手机号</Text>
             <Input
               type="tel"
               placeholder="请输入新手机号"
               maxLength={11}
               value={newPhone}
               onChange={(val) => setNewPhone(val)}
+              className="form-input"
             />
           </View>
           <Button
@@ -345,6 +350,7 @@ const SettingsPage = () => {
             block
             loading={phoneLoading}
             onClick={handleSubmitPhone}
+            className="submit-btn"
           >
             确认绑定
           </Button>

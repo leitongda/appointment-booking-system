@@ -247,12 +247,12 @@ const ProfileEditPage = () => {
       {/* 表单区域 */}
       <View className="form-section">
         {/* 昵称 */}
-        <View className="form-item nickname-item">
+        <View className="form-item">
           <Text className="form-label">昵称</Text>
-          <View className="nickname-input-wrapper">
+          <View className="form-input-wrapper">
             <TaroInput
               type="nickname"
-              className="form-input nickname-input"
+              className="form-input"
               placeholder="点击输入或使用微信昵称"
               value={nickname}
               onInput={handleNicknameInput}
@@ -261,8 +261,8 @@ const ProfileEditPage = () => {
               onNickNameReview={handleNickNameReview}
             />
           </View>
-          <Text className="form-hint">真机上点击输入框，键盘上方会显示"使用微信昵称"选项</Text>
         </View>
+        <Text className="form-hint">真机上点击输入框，键盘上方会显示"使用微信昵称"选项</Text>
 
         {/* 性别 */}
         <View className="form-item">

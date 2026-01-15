@@ -50,15 +50,15 @@
 
     .logout-btn {
       height: @button-height-lg;
-      background: @color-bg-white;
-      border: @border-width solid @color-danger;
-      color: @color-danger;
-      font-size: @font-size-base;
-      font-weight: @font-weight-medium;
-      border-radius: @radius-full;
+      background: @color-bg-white !important;
+      border: @border-width solid @color-danger !important;
+      color: @color-danger !important;
+      font-size: @font-size-base !important;
+      font-weight: @font-weight-medium !important;
+      border-radius: @radius-full !important;
 
       &:active {
-        background: #FEF2F2;
+        background: #FEF2F2 !important;
       }
     }
   }
@@ -67,28 +67,38 @@
 .dialog-content {
   padding: @spacing-3 0;
 
-  .input-item {
-    margin-bottom: @spacing-3;
+  // 同行布局表单项（Label 和输入框在同一行，输入框右对齐）
+  .form-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: @spacing-4;
 
-    .label {
-      display: block;
-      font-size: @font-size-xs;
-      color: @color-text-muted;
-      margin-bottom: @spacing-2;
+    .form-label {
+      width: 140rpx;
+      flex-shrink: 0;
+      font-size: @font-size-base;
+      color: @color-text-primary;
     }
 
-    .nut-input {
-      background: @color-bg-secondary;
-      border-radius: @radius-md;
-      padding: @spacing-3;
+    .form-input {
+      flex: 1;
+      text-align: right;
 
+      // NutUI Input 内部样式覆盖
       .nut-input__input {
+        text-align: right;
         font-size: @font-size-base;
+        color: @color-text-primary;
+
+        &::placeholder {
+          color: @color-text-placeholder;
+        }
       }
     }
   }
 
-  .nut-button {
+  .submit-btn {
     margin-top: @spacing-3;
     height: @button-height-lg;
     font-size: @font-size-base;
@@ -127,19 +137,19 @@
 }
 
 .font-mode-elder .dialog-content {
-  .input-item {
-    .label {
-      font-size: @font-size-xs-elder;
+  .form-item {
+    .form-label {
+      font-size: @font-size-base-elder;
     }
 
-    .nut-input {
+    .form-input {
       .nut-input__input {
         font-size: @font-size-base-elder;
       }
     }
   }
 
-  .nut-button {
+  .submit-btn {
     font-size: @font-size-base-elder;
   }
 }

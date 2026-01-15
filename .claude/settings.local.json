@@ -82,7 +82,12 @@
       "Bash(pnpm run:type-check:*)",
       "Bash(pnpm dev:admin:*)",
       "Bash(pnpm dev:remote:*)",
-      "Bash(pnpm -w run build:admin:*)"
+      "Bash(pnpm -w run build:admin:*)",
+      "Bash(pnpm update:*)",
+      "Bash(pnpm dev:prod:*)",
+      "Bash(NODE_ENV=production taro build:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm run tsc:*)"
     ]
   },
   "statusLine": {

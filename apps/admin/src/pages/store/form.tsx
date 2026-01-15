@@ -1,14 +1,18 @@
 import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSwitch, ProFormSelect, FooterToolbar } from '@ant-design/pro-components';
 import type { ProFormInstance } from '@ant-design/pro-components';
-import { Card, App, Row, Col, Form, Spin, Button, Space } from 'antd';
+import { Card, App, Row, Col, Form, Spin, Button, Space, Alert, Typography } from 'antd';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { history, useParams } from '@umijs/max';
 import { storeApi } from '@hospital/api';
 import type { Store } from '@hospital/shared';
+import { ProFormRegionSelector } from '@hospital/shared';
 import ImageUpload from '@/components/ImageUpload';
-import MapLocationPicker from '@/components/MapLocationPicker';
+import MapLocationPickerModal from '@/components/MapLocationPickerModal';
 import type { LocationInfo } from '@/components/MapLocationPicker';
+import { EnvironmentOutlined } from '@ant-design/icons';
 import { pinyin } from 'pinyin-pro';
+
+const { Text } = Typography;
 
 // 风格选项 - 中国风主题预设
 const THEME_STYLE_OPTIONS = [
@@ -51,18 +55,12 @@ const StoreFormPage: React.FC = () => {
   const formRef = useRef<ProFormInstance>();
   // 标记编码是否被用户手动修改过
   const [codeManuallyEdited, setCodeManuallyEdited] = useState(false);
+  // 地图弹框状态
+  const [mapModalVisible, setMapModalVisible] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<LocationInfo | undefined>();
 
-  // 处理地图选点后的位置变化
-  const handleLocationChange = (location: LocationInfo) => {
-    formRef.current?.setFieldsValue({
-      province: location.province,
-      city: location.city,
-      district: location.district,
-      address: location.address || location.formattedAddress,
-      longitude: location.longitude,
-      latitude: location.latitude,
-    });
-  };
+  // 检查是否有定位信息
+  const hasLocation = !!currentLocation?.longitude && !!currentLocation?.latitude;
 
   useEffect(() => {
     if (isEdit) {
@@ -78,11 +76,41 @@ const StoreFormPage: React.FC = () => {
     try {
       const data = await storeApi.getDetail(id);
       setStore(data);
+      // 如果有经纬度，设置当前选中位置
+      if (data.longitude && data.latitude) {
+        setCurrentLocation({
+          longitude: data.longitude,
+          latitude: data.latitude,
+          province: data.province,
+          city: data.city,
+          district: data.district,
+          address: data.address,
+          formattedAddress: `${data.province}${data.city}${data.district}${data.address}`,
+        });
+      }
     } catch (error: any) {
       message.error('加载门店信息失败');
     } finally {
       setLoading(false);
     }
+  };
+
+  // 地图选点确认
+  const handleMapOk = (location: LocationInfo) => {
+    formRef.current?.setFieldsValue({
+      region: [location.province, location.city, location.district].filter(Boolean),
+      address: location.address || location.formattedAddress,
+      longitude: location.longitude,
+      latitude: location.latitude,
+    });
+
+    setCurrentLocation(location);
+    setMapModalVisible(false);
+  };
+
+  // 地图选点取消
+  const handleMapCancel = () => {
+    setMapModalVisible(false);
   };
 
   const handleSubmit = async (values: any) => {
@@ -168,6 +196,7 @@ const StoreFormPage: React.FC = () => {
 
   const initialValues = store ? {
     ...store,
+    region: [store.province, store.city, store.district].filter(Boolean),
     status: store.status === 1
   } : {
     status: true,
@@ -177,16 +206,6 @@ const StoreFormPage: React.FC = () => {
     openingTime: '08:00',
     closingTime: '18:00',
   };
-
-  // 地图初始位置
-  const initialLocation: LocationInfo | undefined = store?.longitude && store?.latitude ? {
-    longitude: store.longitude,
-    latitude: store.latitude,
-    province: store.province,
-    city: store.city,
-    district: store.district,
-    address: store.address,
-  } : undefined;
 
   // 编辑模式下，等数据加载完再渲染表单（避免 initialValues 警告）
   if (isEdit && loading) {
@@ -349,68 +368,73 @@ const StoreFormPage: React.FC = () => {
 
         {/* 地址信息 */}
         <Card title="地址信息" style={{ marginBottom: 16 }} loading={loading}>
-          <Form.Item label="地图选点" tooltip="在地图上点击选点或搜索地址，将自动填充下方位置信息">
-            <MapLocationPicker
-              value={initialLocation}
-              onChange={handleLocationChange}
-              height={400}
-              placeholder="搜索地址，如：xxx中医馆"
-            />
-          </Form.Item>
-          
-          <Row gutter={16} style={{ marginTop: 16 }}>
-            <Col span={8}>
-              <ProFormText
-                name="province"
-                label="省份"
-                placeholder="通过地图选点自动填充"
-                fieldProps={{ readOnly: true }}
-              />
-            </Col>
-            <Col span={8}>
-              <ProFormText
-                name="city"
-                label="城市"
-                placeholder="通过地图选点自动填充"
-                fieldProps={{ readOnly: true }}
-              />
-            </Col>
-            <Col span={8}>
-              <ProFormText
-                name="district"
-                label="区/县"
-                placeholder="通过地图选点自动填充"
-                fieldProps={{ readOnly: true }}
-              />
-            </Col>
-          </Row>
-          
+          {/* 省市区级联选择器 */}
+          <ProFormRegionSelector
+            name="region"
+            label="所在地区"
+            width="lg"
+            rules={[{ required: true, message: '请选择所在地区' }]}
+            fieldProps={{
+              placeholder: '请选择省/市/区',
+              changeOnSelect: true,
+              showSearch: true,
+            }}
+            transform={(value) => ({
+              province: value?.[0] || '',
+              city: value?.[1] || '',
+              district: value?.[2] || '',
+            })}
+          />
+
+          {/* 详细地址输入框 */}
           <ProFormTextArea
             name="address"
             label="详细地址"
-            placeholder="通过地图选点自动填充，也可手动修改"
+            placeholder="请输入详细地址，如：道路、门牌号、楼层等"
             fieldProps={{ rows: 2 }}
             rules={[{ max: 255, message: '详细地址不能超过255个字符' }]}
           />
-          
-          <Row gutter={16}>
-            <Col span={12}>
-              <ProFormText
-                name="longitude"
-                label="经度"
-                placeholder="通过地图选点自动填充"
-                fieldProps={{ readOnly: true }}
+
+          {/* 地图定位 */}
+          <Form.Item label="地图定位" tooltip="在地图上精确定位，将自动填充上方位置信息">
+            <Button
+              icon={<EnvironmentOutlined />}
+              onClick={() => setMapModalVisible(true)}
+              size="large"
+              block
+            >
+              {hasLocation ? '重新定位' : '点击定位'}
+            </Button>
+
+            {hasLocation && currentLocation && (
+              <Alert
+                message={
+                  <Space direction="vertical" size={4}>
+                    <div>
+                      <EnvironmentOutlined style={{ marginRight: 8 }} />
+                      <Text strong>已定位：</Text>
+                      <Text>{currentLocation.formattedAddress || currentLocation.address || '未知地址'}</Text>
+                    </div>
+                    <div style={{ paddingLeft: 22 }}>
+                      <Text type="secondary">
+                        经度: {currentLocation.longitude} | 纬度: {currentLocation.latitude}
+                      </Text>
+                    </div>
+                  </Space>
+                }
+                type="success"
+                showIcon
+                style={{ marginTop: 8 }}
               />
-            </Col>
-            <Col span={12}>
-              <ProFormText
-                name="latitude"
-                label="纬度"
-                placeholder="通过地图选点自动填充"
-                fieldProps={{ readOnly: true }}
-              />
-            </Col>
-          </Row>
+            )}
+          </Form.Item>
+
+          {/* 隐藏字段（用于数据提交） */}
+          <ProFormText name="longitude" hidden />
+          <ProFormText name="latitude" hidden />
+          <ProFormText name="province" hidden />
+          <ProFormText name="city" hidden />
+          <ProFormText name="district" hidden />
         </Card>
 
         {/* 展示设置 */}
@@ -497,6 +521,16 @@ const StoreFormPage: React.FC = () => {
           />
         </Card>
       </ProForm>
+
+      {/* 地图选点弹框 */}
+      <MapLocationPickerModal
+        visible={mapModalVisible}
+        onCancel={handleMapCancel}
+        onOk={handleMapOk}
+        initialValue={currentLocation}
+        title="选择门店位置"
+        width={900}
+      />
     </PageContainer>
   );
 };

@@ -340,10 +340,114 @@
   padding: 0 @spacing-4;
   background: @color-bg-white;
   border-radius: @radius-full;
-  
+
   .placeholder {
     color: @color-text-placeholder;
     font-size: @font-size-base;
+  }
+}
+
+// -------------------------------------------
+// 表单布局样式 (Form Layout Styles)
+// -------------------------------------------
+
+// 同行布局表单项（Label 和输入框在同一行，输入框右对齐）
+// 用于简单表单字段：姓名、性别、手机号、身份证号等
+.form-row-item(@label-width: @form-label-width) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: @spacing-4;
+
+  .form-row-label {
+    width: @label-width;
+    flex-shrink: 0;
+    color: @color-text-primary;
+    font-size: @font-size-base;
+    line-height: @line-height-normal;
+  }
+
+  .form-row-input-wrapper {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-left: @spacing-3;
+
+    .form-row-input-field {
+      text-align: right;
+      color: @color-text-primary;
+      font-size: @font-size-base;
+      width: 100%;
+
+      &::placeholder {
+        color: @color-text-placeholder;
+      }
+    }
+
+    // Picker 选择器样式
+    .form-row-picker {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      color: @color-text-primary;
+      font-size: @font-size-base;
+
+      &.placeholder {
+        color: @color-text-placeholder;
+      }
+    }
+  }
+}
+
+// 垂直布局表单项（Label 独占一行，输入框左对齐，灰色背景）
+// 用于复杂表单字段：病情描述、意见反馈、长文本输入等
+.form-column-item() {
+  margin-bottom: @spacing-4;
+
+  .form-column-label {
+    display: block;
+    margin-bottom: @spacing-2;
+    color: @color-text-primary;
+    font-size: @font-size-base;
+    line-height: @line-height-normal;
+  }
+
+  .form-column-input-wrapper {
+    width: 100%;
+
+    .form-column-input-field {
+      width: 100%;
+      background: @color-bg-secondary;
+      border-radius: @radius-lg;
+      padding: @spacing-3;
+      text-align: left;
+      color: @color-text-primary;
+      font-size: @font-size-base;
+      box-sizing: border-box;
+
+      &::placeholder {
+        color: @color-text-placeholder;
+      }
+    }
+
+    // Textarea 特殊样式
+    .form-column-textarea {
+      width: 100%;
+      min-height: 160rpx;
+      background: @color-bg-secondary;
+      border-radius: @radius-lg;
+      padding: @spacing-3;
+      text-align: left;
+      color: @color-text-primary;
+      font-size: @font-size-base;
+      box-sizing: border-box;
+      line-height: @line-height-relaxed;
+
+      &::placeholder {
+        color: @color-text-placeholder;
+      }
+    }
   }
 }
 
@@ -475,4 +579,66 @@
   background: @color-bg-white;
   box-shadow: @shadow-footer;
   z-index: @z-index-fixed;
+}
+
+// -------------------------------------------
+// NutUI 按钮样式覆盖 (Button Overrides)
+// -------------------------------------------
+
+// 所有 nut-button 的基础样式重置
+.nut-button {
+  border-radius: @radius-xl !important;
+  font-size: @font-size-base !important;
+  font-weight: @font-weight-medium !important;
+}
+
+// 主要按钮覆盖
+.nut-button--primary {
+  .gradient-primary() !important;
+  border: none !important;
+  border-radius: @radius-xl !important;
+  color: @color-text-white !important;
+  font-size: @font-size-base !important;
+  font-weight: @font-weight-semibold !important;
+  box-shadow: var(--shadow-button, 0 8rpx 28rpx 0 rgba(196, 30, 58, 0.3)) !important;
+
+  &:active {
+    transform: translateY(2rpx);
+    box-shadow: @shadow-sm !important;
+  }
+
+  &[disabled],
+  &.disabled {
+    background: @color-bg-tertiary !important;
+    color: @color-text-muted !important;
+    box-shadow: none !important;
+  }
+}
+
+// 次要按钮覆盖
+.nut-button--secondary {
+  background: @color-bg-white !important;
+  border: @border-base !important;
+  border-radius: @radius-xl !important;
+  color: @color-text-secondary !important;
+  font-size: @font-size-base !important;
+  font-weight: @font-weight-medium !important;
+
+  &:active {
+    background: @color-bg-secondary !important;
+  }
+}
+
+// 危险按钮覆盖
+.nut-button--danger {
+  background: @color-danger !important;
+  border: none !important;
+  border-radius: @radius-xl !important;
+  color: @color-text-white !important;
+  font-size: @font-size-base !important;
+  font-weight: @font-weight-semibold !important;
+
+  &:active {
+    opacity: 0.9 !important;
+  }
 }

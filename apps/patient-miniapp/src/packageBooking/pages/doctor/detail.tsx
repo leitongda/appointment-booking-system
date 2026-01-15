@@ -590,11 +590,6 @@ const DoctorDetailPage = () => {
                 const urgency = schedule.urgencyLevel || 'normal';
                 const isDisabled = status.disabled;
 
-                // 计算容量百分比
-                const capacityPercent = schedule.totalSlots && schedule.totalSlots > 0
-                  ? ((schedule.totalSlots - schedule.availableSlots) / schedule.totalSlots) * 100
-                  : 0;
-
                 return (
                   <View
                     key={schedule.id}
@@ -616,18 +611,8 @@ const DoctorDetailPage = () => {
                     </Text>
 
                     <Text className="slot-remain">
-                      {status.message}
+                      {schedule.appointmentType || '普通'} {status.message}
                     </Text>
-
-                    {/* 容量进度条 */}
-                    {schedule.totalSlots && !isDisabled && schedule.totalSlots > 0 && (
-                      <View className="slot-capacity-bar">
-                        <View
-                          className={`slot-capacity-fill ${urgency}`}
-                          style={{ width: `${capacityPercent}%` }}
-                        />
-                      </View>
-                    )}
 
                     {/* 倒计时 */}
                     {countdown && countdown.minutes <= 120 && !isDisabled && (

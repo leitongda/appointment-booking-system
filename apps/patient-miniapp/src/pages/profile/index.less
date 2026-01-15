@@ -211,12 +211,14 @@
   .button-secondary();
   width: 100%;
   height: @button-height-lg;
-  border-radius: @radius-xl;
-  font-size: @font-size-base;
-  color: @color-text-secondary;
-  
+  border-radius: @radius-xl !important;
+  font-size: @font-size-base !important;
+  color: @color-text-secondary !important;
+  background: @color-bg-white !important;
+  border: @border-base !important;
+
   &:active {
-    background: @color-bg-secondary;
+    background: @color-bg-secondary !important;
   }
 }
 
