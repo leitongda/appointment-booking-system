@@ -1,4 +1,4 @@
-import { PropsWithChildren, useEffect, useRef } from 'react';
+import { PropsWithChildren, useEffect, useRef, useState } from 'react';
 import Taro from '@tarojs/taro';
 // 占位组件引用：确保 Taro 生成对应的 WXML 模板
 // NutUI Switch 组件内部使用了 checkbox，需要显式引用以生成 tmpl_0_24
@@ -9,7 +9,7 @@ import './app.less';
 import { initTracker, getTracker, STORAGE_KEYS } from '@hospital/shared';
 import { setHttpClient, createTaroAdapter } from '@hospital/api';
 import { validateStoreConfig, getStoreId } from '@/utils/store';
-import { initThemeFromStore } from '@/utils/theme';
+import { initThemeFromStore, getCurrentTheme, getThemeClass } from '@/utils/theme';
 import { initFontMode } from '@/utils/fontMode';
 
 /**
@@ -169,6 +169,8 @@ function TaroComponentPlaceholder() {
 function App({ children }: PropsWithChildren) {
   // 使用 useRef 确保初始化只执行一次
   const isInitialized = useRef(false);
+  // 主题状态
+  const [currentTheme, setCurrentTheme] = useState(() => getCurrentTheme());
 
   // 初始化配置 - 只在运行时执行一次
   useEffect(() => {
@@ -181,6 +183,7 @@ function App({ children }: PropsWithChildren) {
     // 初始化主题（从门店配置加载）
     const themeConfig = initThemeFromStore();
     console.log(`✓ 主题已初始化: ${themeConfig.primary}`);
+    setCurrentTheme(getCurrentTheme());
 
     // 初始化字体模式（从本地存储读取用户偏好）
     const fontModeConfig = initFontMode();
@@ -209,11 +212,14 @@ function App({ children }: PropsWithChildren) {
     // 这里只处理初始页面
   }, []);
 
+  // 获取主题对应的 CSS 类名
+  const themeClass = getThemeClass(currentTheme);
+
   return (
-    <>
+    <View className={`app-root theme-${themeClass}`}>
       {children}
       <TaroComponentPlaceholder />
-    </>
+    </View>
   );
 }
 

@@ -6,6 +6,7 @@ import { doctorApi, userApi, appointmentApi, bookingNoticeApi, settingsApi } fro
 import type { BookingNotice, TimePeriodConfig } from '@hospital/api';
 import { TIME_SLOT_MAP, getPeriodNameFromTime } from '@hospital/shared';
 import { getToken } from '../../../utils/auth';
+import { getThemePrimaryColor } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import type { Doctor, Patient } from '@hospital/shared';
 import { DoctorIcon, UserIcon } from '../../../components/Icons';
@@ -192,7 +193,7 @@ const BookingPage = () => {
             {selectedPatient ? (
               <View className="selected-patient">
                 <View className="patient-avatar">
-                  <UserIcon size={28} color="#C41E3A" />
+                  <UserIcon size={28} color={getThemePrimaryColor()} />
                 </View>
                 <View className="patient-details">
                   <Text className="patient-name">{selectedPatient.name}</Text>
@@ -244,7 +245,7 @@ const BookingPage = () => {
             {doctor?.avatar ? (
               <Image src={getImageUrl(doctor.avatar)} mode="aspectFill" />
             ) : (
-              <DoctorIcon size={36} color="#C41E3A" />
+              <DoctorIcon size={36} color={getThemePrimaryColor()} />
             )}
           </View>
           <View className="doctor-info">

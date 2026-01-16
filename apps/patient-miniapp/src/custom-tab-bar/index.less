@@ -51,8 +51,8 @@
     pointer-events: none;
 
     &--active {
-      // 主题色 - 朱砂红
-      color: @color-primary;
+      // 主题色 - 使用 CSS 变量支持动态主题切换
+      color: var(--color-primary, @color-primary);
       font-weight: @font-weight-medium;
     }
   }

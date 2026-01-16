@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { departmentApi } from '@hospital/api';
 import type { DepartmentTreeNode } from '@hospital/shared';
 import { SearchIcon, getDeptIcon } from '../../components/Icons';
+import { getThemePrimaryColor } from '../../utils/theme';
 import './index.less';
 
 // 获取所有叶子科室（无子科室的科室）
@@ -131,7 +132,7 @@ const DepartmentPage = () => {
                   onClick={() => handleSelectDept(dept.id, dept.name)}
                 >
                   <View className="flat-icon">
-                    <IconComponent size={28} color="#C41E3A" />
+                    <IconComponent size={28} color={getThemePrimaryColor()} />
                   </View>
                   <Text className="flat-name">{dept.name}</Text>
                 </View>
@@ -183,7 +184,7 @@ const DepartmentPage = () => {
                 >
                   <View className="dept-content">
                     <View className="dept-icon">
-                      <IconComponent size={20} color="#C41E3A" />
+                      <IconComponent size={20} color={getThemePrimaryColor()} />
                     </View>
                     <View>
                       <Text className="dept-name">{child.name}</Text>

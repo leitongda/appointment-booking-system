@@ -1,11 +1,12 @@
 import { View, Text } from '@tarojs/components';
-import { 
-  HospitalIcon, 
-  CalendarIcon, 
-  DoctorIcon, 
-  RecordIcon, 
-  TeamIcon 
+import {
+  HospitalIcon,
+  CalendarIcon,
+  DoctorIcon,
+  RecordIcon,
+  TeamIcon
 } from '../../../components/Icons';
+import { getThemePrimaryColor } from '../../../utils/theme';
 import './index.less';
 
 const AboutPage = () => {
@@ -14,7 +15,7 @@ const AboutPage = () => {
       {/* Logo 区域 */}
       <View className="logo-section">
         <View className="logo-wrap">
-          <HospitalIcon size={64} color="#C41E3A" />
+          <HospitalIcon size={64} color={getThemePrimaryColor()} />
         </View>
         <Text className="app-name">医院挂号系统</Text>
         <Text className="version">版本 1.0.0</Text>
@@ -26,7 +27,7 @@ const AboutPage = () => {
         <View className="feature-list">
           <View className="feature-item">
             <View className="feature-icon">
-              <CalendarIcon size={32} color="#C41E3A" />
+              <CalendarIcon size={32} color={getThemePrimaryColor()} />
             </View>
             <View className="feature-content">
               <Text className="feature-title">在线预约</Text>
@@ -35,7 +36,7 @@ const AboutPage = () => {
           </View>
           <View className="feature-item">
             <View className="feature-icon">
-              <DoctorIcon size={32} color="#C41E3A" />
+              <DoctorIcon size={32} color={getThemePrimaryColor()} />
             </View>
             <View className="feature-content">
               <Text className="feature-title">专家查询</Text>
@@ -44,7 +45,7 @@ const AboutPage = () => {
           </View>
           <View className="feature-item">
             <View className="feature-icon">
-              <RecordIcon size={32} color="#C41E3A" />
+              <RecordIcon size={32} color={getThemePrimaryColor()} />
             </View>
             <View className="feature-content">
               <Text className="feature-title">就诊记录</Text>
@@ -53,7 +54,7 @@ const AboutPage = () => {
           </View>
           <View className="feature-item">
             <View className="feature-icon">
-              <TeamIcon size={32} color="#C41E3A" />
+              <TeamIcon size={32} color={getThemePrimaryColor()} />
             </View>
             <View className="feature-content">
               <Text className="feature-title">就诊人管理</Text>

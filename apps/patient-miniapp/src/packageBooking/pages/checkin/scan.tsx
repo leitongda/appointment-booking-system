@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@nutui/nutui-react-taro';
 import { ScanIcon } from '../../../components/Icons';
 import { getToken } from '../../../utils/auth';
+import { getThemePrimaryColor } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import './scan.less';
 
@@ -76,7 +77,7 @@ const CheckinScanPage = () => {
     <View className="checkin-scan-page">
       <View className="scan-area">
         <View className="scan-icon-wrap">
-          <ScanIcon size={80} color="#C41E3A" />
+          <ScanIcon size={80} color={getThemePrimaryColor()} />
         </View>
         <Text className="scan-title">扫码签到</Text>
         <Text className="scan-desc">

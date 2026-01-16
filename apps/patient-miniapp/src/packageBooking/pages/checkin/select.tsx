@@ -7,6 +7,7 @@ import { TIME_SLOT_MAP } from '@hospital/shared';
 import type { PendingAppointment } from '@hospital/api';
 import { DoctorIcon, CheckCircleIcon } from '../../../components/Icons';
 import { getToken } from '../../../utils/auth';
+import { getThemePrimaryColor } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import CheckinSuccessModal from '../../components/CheckinSuccessModal';
 import './select.less';
@@ -220,7 +221,7 @@ const CheckinSelectPage = () => {
                   onClick={() => handleSelect(item.id, item.signInStatus)}
                 >
                   <View className="card-icon">
-                    <DoctorIcon size={40} color="#C41E3A" />
+                    <DoctorIcon size={40} color={getThemePrimaryColor()} />
                   </View>
                   <View className="card-content">
                     <View className="card-header">

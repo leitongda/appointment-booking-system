@@ -6,6 +6,7 @@ import type { Doctor } from '@hospital/shared';
 import { DoctorIcon } from '../../components/Icons';
 import { getImageUrl } from '../../utils/url';
 import { getToken } from '../../utils/auth';
+import { getThemePrimaryColor } from '../../utils/theme';
 import LoginPopup from '../../components/LoginPopup';
 import './index.less';
 
@@ -91,7 +92,7 @@ const DoctorListPage = () => {
                   {doctor.avatar ? (
                     <Image className="avatar" src={getImageUrl(doctor.avatar)} mode="aspectFill" />
                   ) : (
-                    <DoctorIcon size={36} color="#C41E3A" />
+                    <DoctorIcon size={36} color={getThemePrimaryColor()} />
                   )}
                 </View>
                 <View className="info">

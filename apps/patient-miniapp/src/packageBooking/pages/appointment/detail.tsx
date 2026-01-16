@@ -6,6 +6,7 @@ import { appointmentApi, settingsApi } from '@hospital/api';
 import type { TimePeriodConfig } from '@hospital/api';
 import { APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP, getPeriodNameFromTime } from '@hospital/shared';
 import { getToken } from '../../../utils/auth';
+import { getThemeGradient } from '../../../utils/theme';
 import { formatTime } from '../../../utils/url';
 import LoginPopup from '../../../components/LoginPopup';
 import type { AppointmentDetail } from '@hospital/shared';
@@ -30,7 +31,7 @@ const StatusIconMap: Record<number, React.ComponentType<{ size?: number; color?:
 
 // 状态颜色映射
 const statusStyleMap: Record<number, { background: string }> = {
-  1: { background: 'linear-gradient(135deg, #C41E3A 0%, #8B2942 100%)' },
+  1: { background: getThemeGradient() },
   2: { background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' },
   3: { background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' },
   5: { background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' },

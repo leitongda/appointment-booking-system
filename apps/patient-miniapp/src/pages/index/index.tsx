@@ -15,6 +15,7 @@ import {
 } from '../../components/Icons';
 import { PageContainer } from '../../components/PageContainer';
 import { getToken } from '../../utils/auth';
+import { getThemePrimaryColor } from '../../utils/theme';
 import LoginPopup from '../../components/LoginPopup';
 import { getImageUrl } from '../../utils/url';
 import './index.less';
@@ -228,7 +229,7 @@ const IndexPage = () => {
             return (
               <View key={menu.path} className="menu-item" onClick={() => navigateTo(menu.path)}>
                 <View className="menu-icon-wrap">
-                  <IconComponent size={28} color="#C41E3A" />
+                  <IconComponent size={28} color={getThemePrimaryColor()} />
                 </View>
                 <Text className="menu-title">{menu.title}</Text>
               </View>
@@ -242,7 +243,7 @@ const IndexPage = () => {
         {defaultPatient ? (
           <>
             <View className="card-icon">
-              <CardIcon size={32} color="#C41E3A" />
+              <CardIcon size={32} color={getThemePrimaryColor()} />
             </View>
             <View className="card-info">
               <Text className="card-name">{defaultPatient.name}</Text>
@@ -286,7 +287,7 @@ const IndexPage = () => {
                   {doctor.avatar ? (
                     <Image className="avatar-image" src={getImageUrl(doctor.avatar)} mode="aspectFill" />
                   ) : (
-                    <DoctorIcon size={32} color="#C41E3A" />
+                    <DoctorIcon size={32} color={getThemePrimaryColor()} />
                   )}
                 </View>
                 <View className="doctor-info">

@@ -7,6 +7,7 @@ import { STORAGE_KEYS } from '@hospital/shared';
 import { setToken, setStorage } from '../utils/auth';
 import { getStoreId } from '../utils/store';
 import { HospitalIcon } from './Icons';
+import { getThemePrimaryColor } from '../utils/theme';
 import './LoginPopup.less';
 
 export interface LoginPopupProps {
@@ -177,7 +178,7 @@ const LoginPopup: React.FC<LoginPopupProps> = ({
           <>
             <View className="sheet-header">
               <View className="logo">
-                <HospitalIcon size={36} color="#C41E3A" />
+                <HospitalIcon size={36} color={getThemePrimaryColor()} />
               </View>
               <Text className="sheet-title">登录医院挂号系统</Text>
               <Text className="sheet-subtitle">便捷预约，健康生活</Text>

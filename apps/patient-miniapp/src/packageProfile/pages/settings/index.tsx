@@ -6,6 +6,7 @@ import { STORAGE_KEYS } from '@hospital/shared';
 import { getToken, removeToken, removeStorage } from '../../../utils/auth';
 import { userApi } from '@hospital/api';
 import { getFontMode, applyFontMode, getFontModeClassName, type FontMode } from '../../../utils/fontMode';
+import { getCurrentTheme, applyTheme, getThemeList } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import './index.less';
 
@@ -17,6 +18,11 @@ const SettingsPage = () => {
 
   // 字体模式
   const [fontMode, setFontMode] = useState<FontMode>(getFontMode());
+
+  // 主题选择
+  const [showThemePicker, setShowThemePicker] = useState(false);
+  const [currentTheme, setCurrentTheme] = useState(getCurrentTheme());
+  const themeList = getThemeList();
 
   // 修改密码弹窗
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
@@ -174,10 +180,18 @@ const SettingsPage = () => {
     const newMode: FontMode = isElder ? 'elder' : 'standard';
     setFontMode(newMode);
     applyFontMode(newMode);
-    Taro.showToast({ 
-      title: isElder ? '已开启长辈模式' : '已切换标准模式', 
-      icon: 'success' 
+    Taro.showToast({
+      title: isElder ? '已开启长辈模式' : '已切换标准模式',
+      icon: 'success'
     });
+  };
+
+  // 切换主题
+  const handleThemeChange = (themeName: string) => {
+    applyTheme(themeName);
+    setCurrentTheme(themeName);
+    setShowThemePicker(false);
+    Taro.showToast({ title: '主题已切换', icon: 'success' });
   };
 
   // 根据当前字体模式获取类名
@@ -233,6 +247,12 @@ const SettingsPage = () => {
         <Text className="section-title">显示设置</Text>
         <View className="cell-group">
           <Cell
+            title="主题风格"
+            description={currentTheme}
+            isLink
+            onClick={() => setShowThemePicker(true)}
+          />
+          <Cell
             title="长辈模式"
             description="开启后字体放大，方便阅读"
             extra={
@@ -270,7 +290,7 @@ const SettingsPage = () => {
       {/* 退出登录 */}
       {isLoggedIn && (
         <View className="logout-section">
-          <Button className="logout-btn" block onClick={handleLogout}>
+          <Button type="danger" className="logout-btn" block onClick={handleLogout}>
             退出登录
           </Button>
         </View>
@@ -354,6 +374,26 @@ const SettingsPage = () => {
           >
             确认绑定
           </Button>
+        </View>
+      </Dialog>
+
+      {/* 主题选择弹窗 */}
+      <Dialog
+        visible={showThemePicker}
+        title="选择主题"
+        onClose={() => setShowThemePicker(false)}
+      >
+        <View className="theme-picker">
+          {themeList.map(theme => (
+            <View
+              key={theme.name}
+              className={`theme-item ${currentTheme === theme.name ? 'active' : ''}`}
+              onClick={() => handleThemeChange(theme.name)}
+            >
+              <View className="theme-color" style={{ background: theme.color }} />
+              <Text className="theme-name">{theme.name}</Text>
+            </View>
+          ))}
         </View>
       </Dialog>
 

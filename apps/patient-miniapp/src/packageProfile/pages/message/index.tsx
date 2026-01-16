@@ -6,6 +6,7 @@ import { messageApi, userApi } from '@hospital/api';
 import type { Message, MessageType } from '@hospital/shared';
 import { BellIcon, CalendarIcon, InfoIcon, ClockIcon, CloseCircleIcon, ChatIcon } from '../../../components/Icons';
 import { getToken } from '../../../utils/auth';
+import { getThemePrimaryColor } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import './index.less';
 
@@ -257,7 +258,7 @@ const MessagePage = () => {
                 onClick={() => handleMessageClick(message)}
               >
                 <View className="message-icon">
-                  <IconComponent size={24} color={isRead ? '#9CA3AF' : '#C41E3A'} />
+                  <IconComponent size={24} color={isRead ? '#9CA3AF' : getThemePrimaryColor()} />
                 </View>
                 <View className="message-content">
                   <View className="message-header">

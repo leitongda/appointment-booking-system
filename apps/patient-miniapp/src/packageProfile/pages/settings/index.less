@@ -49,6 +49,7 @@
     padding: @spacing-8 @page-padding;
 
     .logout-btn {
+      // 覆盖 type="danger" 的默认样式（红色实心按钮）
       height: @button-height-lg;
       background: @color-bg-white !important;
       border: @border-width solid @color-danger !important;
@@ -151,5 +152,43 @@
 
   .submit-btn {
     font-size: @font-size-base-elder;
+  }
+}
+
+// -------------------------------------------
+// 主题选择器样式
+// -------------------------------------------
+
+.theme-picker {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: @spacing-3;
+  padding: @spacing-3 0;
+
+  .theme-item {
+    display: flex;
+    align-items: center;
+    padding: @spacing-3;
+    border: 2rpx solid @color-border;
+    border-radius: @radius-lg;
+    transition: all @transition-base;
+
+    &.active {
+      border-color: var(--color-primary, @color-primary);
+      background: var(--gradient-light, linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%));
+    }
+  }
+
+  .theme-color {
+    width: 48rpx;
+    height: 48rpx;
+    border-radius: 50%;
+    margin-right: @spacing-2;
+    flex-shrink: 0;
+  }
+
+  .theme-name {
+    font-size: @font-size-base;
+    color: @color-text-primary;
   }
 }

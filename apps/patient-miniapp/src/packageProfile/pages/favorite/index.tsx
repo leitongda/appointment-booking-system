@@ -6,6 +6,7 @@ import { favoriteApi } from '@hospital/api';
 import type { Favorite } from '@hospital/api';
 import { DoctorIcon } from '../../../components/Icons';
 import { getToken } from '../../../utils/auth';
+import { getThemePrimaryColor } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import { getImageUrl } from '../../../utils/url';
 import './index.less';
@@ -119,7 +120,7 @@ const FavoritePage = () => {
                   {favorite.target?.avatar ? (
                     <Image src={getImageUrl(favorite.target.avatar)} mode="aspectFill" />
                   ) : (
-                    <DoctorIcon size={32} color="#C41E3A" />
+                    <DoctorIcon size={32} color={getThemePrimaryColor()} />
                   )}
                 </View>
                 <View className="doctor-info">

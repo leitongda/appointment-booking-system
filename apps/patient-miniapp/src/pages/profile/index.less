@@ -208,17 +208,18 @@
 }
 
 .logout-btn {
-  .button-secondary();
+  // 覆盖 type="danger" 的默认样式（红色实心按钮）
   width: 100%;
   height: @button-height-lg;
-  border-radius: @radius-xl !important;
-  font-size: @font-size-base !important;
-  color: @color-text-secondary !important;
   background: @color-bg-white !important;
-  border: @border-base !important;
+  border: @border-width solid @color-danger !important;
+  color: @color-danger !important;
+  font-size: @font-size-base !important;
+  font-weight: @font-weight-medium !important;
+  border-radius: @radius-xl !important;
 
   &:active {
-    background: @color-bg-secondary !important;
+    background: #FEF2F2 !important;
   }
 }
 

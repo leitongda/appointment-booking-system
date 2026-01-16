@@ -6,6 +6,7 @@ import { doctorApi, scheduleApi, favoriteApi, settingsApi } from '@hospital/api'
 import type { Doctor, AvailableSchedule } from '@hospital/shared';
 import { DoctorIcon, HeartIcon, HeartOutlineIcon } from '../../../components/Icons';
 import { getToken } from '../../../utils/auth';
+import { getThemePrimaryColor } from '../../../utils/theme';
 import { getImageUrl, formatTime } from '../../../utils/url';
 import LoginPopup from '../../../components/LoginPopup';
 import './detail.less';
@@ -435,7 +436,7 @@ const DoctorDetailPage = () => {
             {doctor.avatar ? (
               <Image src={getImageUrl(doctor.avatar)} mode="aspectFill" />
             ) : (
-              <DoctorIcon size={48} color="#C41E3A" />
+              <DoctorIcon size={48} color={getThemePrimaryColor()} />
             )}
           </View>
           <View className="info-content">
@@ -567,7 +568,7 @@ const DoctorDetailPage = () => {
                 {doctor?.avatar ? (
                   <Image src={getImageUrl(doctor.avatar)} mode="aspectFill" />
                 ) : (
-                  <DoctorIcon size={32} color="#C41E3A" />
+                  <DoctorIcon size={32} color={getThemePrimaryColor()} />
                 )}
               </View>
               <View className="slot-picker-doctor-info">

@@ -81,7 +81,7 @@ export default defineAppConfig({
   tabBar: {
     custom: true,
     color: '#9CA3AF',
-    selectedColor: '#C41E3A',
+    selectedColor: '',  // 使用 CSS 变量动态控制主题色
     backgroundColor: '#fff',
     borderStyle: 'black',
     list: [

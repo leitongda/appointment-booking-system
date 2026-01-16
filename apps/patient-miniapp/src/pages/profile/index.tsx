@@ -19,6 +19,7 @@ import {
 } from '../../components/Icons';
 import { PageContainer } from '../../components/PageContainer';
 import { getImageUrl } from '../../utils/url';
+import { getThemePrimaryColor } from '../../utils/theme';
 import './index.less';
 
 // 图标组件类型
@@ -531,7 +532,7 @@ const ProfilePage = () => {
                   onClick={() => handleMenuClick(item)}
                 >
                   <View className="menu-icon">
-                    <IconComponent size={22} color="#C41E3A" />
+                    <IconComponent size={22} color={getThemePrimaryColor()} />
                   </View>
                   <View className="menu-content">
                     <Text className="menu-title">{item.title}</Text>
@@ -548,7 +549,7 @@ const ProfilePage = () => {
       {/* 退出登录 - 仅登录状态显示 */}
       {isLoggedIn && (
         <View className="logout-wrap">
-          <Button className="logout-btn" onClick={handleLogout}>
+          <Button type="danger" className="logout-btn" onClick={handleLogout}>
             退出登录
           </Button>
         </View>
