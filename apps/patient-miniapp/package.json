@@ -14,7 +14,7 @@
     "build:alipay": "taro build --type alipay",
     "build:h5": "taro build --type h5",
     "dev:weapp": "taro build --type weapp --watch & node scripts/fix-wxml.js --watch",
-    "dev:weapp:prod": "NODE_ENV=production taro build --type weapp --watch & node scripts/fix-wxml.js --watch",
+    "dev:weapp:prod": "node scripts/clean.mjs && NODE_ENV=production taro build --type weapp --watch & node scripts/fix-wxml.js --watch",
     "dev:swan": "npm run build:swan -- --watch",
     "dev:alipay": "npm run build:alipay -- --watch",
     "dev": "npm run dev:weapp",
