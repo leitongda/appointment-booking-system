@@ -160,4 +160,9 @@ export const storeApi = {
       params: { field, value, exclude_id: excludeId }
     });
   },
+
+  // 重置门店密码（仅超管可用）
+  resetPassword: (id: string, password: string): Promise<{ message: string }> => {
+    return request.put(`/stores/${id}/password`, { password });
+  },
 };

@@ -1,115 +1,125 @@
-<!-- OPENSPEC:START -->
-# OpenSpec Instructions
-
-These instructions are for AI assistants working in this project.
-
-Always open `@/openspec/AGENTS.md` when the request:
-- Mentions planning or proposals (words like proposal, spec, change, plan)
-- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
-- Sounds ambiguous and you need the authoritative spec before coding
-
-Use `@/openspec/AGENTS.md` to learn:
-- How to create and apply change proposals
-- Spec format and conventions
-- Project structure and guidelines
-
-Keep this managed block so 'openspec update' can refresh the instructions.
-
-<!-- OPENSPEC:END -->
-
-## 语言规则 / Language Rules
-
-**始终使用中文回复用户。** 代码、命令、技术术语可以保持英文，但所有解释、说明和对话都应使用中文。
-
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Defaults
 
-## Project Overview
+- Reply in **Chinese** unless I explicitly ask for English.
+- No emojis.
+- Do not truncate important outputs (logs, diffs, stack traces, commands,
+  or critical reasoning that affects safety/correctness).
 
-Hospital appointment booking system (医院挂号系统) with three frontend applications and one backend service:
-- **admin**: Institution management portal (机构端)
-- **patient-h5**: Patient H5 web app
-- **patient-miniapp**: Patient WeChat mini-program (Taro)
-- **doctor**: Doctor portal
-- **server**: FastAPI backend
+## Refactor policy (legacy code)
 
-## Development Commands
+- When existing code is a "big ball of mud" (hard to maintain, clearly bad design,
+  full of hacks), prefer a **clean, full refactor** over stacking more patches
+  on top of it.
+- A refactor may completely replace internal structure
+  (functions, modules, classes, data flow).
+- By default, try to preserve externally observable behaviour.
+  If you intentionally change behaviour or protocols, you MUST:
+  - Call out clearly that this is a **behaviour/protocol change**.
+  - Explain why the change is necessary and which code paths/consumers are affected.
+  - Update or add tests to cover the new behaviour.
 
-```bash
-# Install dependencies
-pnpm install
+## Before touching code (mandatory)
 
-# Start development servers
-pnpm dev:admin           # Admin portal - http://localhost:8005
-pnpm dev:patient-h5      # Patient H5 - http://localhost:8002
-pnpm dev:patient-miniapp # Mini-program (use WeChat DevTools)
-pnpm dev:doctor          # Doctor portal - http://localhost:8003
-pnpm dev:server          # Backend API - http://localhost:8000
+Find reuse opportunities + Trace the call/dependency chain and impact radius:
 
-# Build
-pnpm build               # Build all
-pnpm build:admin         # Build admin only
+- Use semantic code search first via `codebase-retrieval` tool.
+- Confirm understanding with LSP: `goToDefinition`, `findReferences`.
+- Use Grep/Glob for verifying and understanding additional code snippets.
 
-# Infrastructure (Docker)
-docker-compose up -d postgres redis minio  # Start databases
-```
+## Red lines
 
-### Backend Setup
+- No copy-paste duplication.
+- Do not break existing externally observable behaviour **unless**:
+  - It is part of a deliberate refactor as described in the refactor policy, and
+  - You clearly document the behavioural change and its impact.
+- Do not proceed with a known-wrong approach.
+- Critical paths must have explicit error handling.
+- Never implement "blindly": always confirm understanding via code reading + references.
 
-```bash
-cd apps/server
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+## Web research (no guessing)
 
-# Database migrations
-alembic upgrade head
-alembic revision --autogenerate -m "description"
-```
+If something is unfamiliar or likely version-sensitive, you MUST search the web instead of guessing:
 
-## Architecture
+- Use Exa: `mcp__exa__web_search_exa`.
 
-### Monorepo Structure (pnpm + Turborepo)
+Source priority:
 
-```
-apps/
-├── admin/          # Umi 4 + Ant Design Pro
-├── patient-h5/     # Umi 4 + Ant Design Mobile
-├── patient-miniapp/# Taro 3 (WeChat)
-├── doctor/         # Umi 4 + Ant Design Pro
-└── server/         # FastAPI + SQLAlchemy
-    └── app/
-        ├── api/v1/     # Route handlers
-        ├── models/     # SQLAlchemy models
-        ├── schemas/    # Pydantic schemas
-        ├── services/   # Business logic
-        ├── core/       # Config, auth, redis
-        ├── db/         # Database session
-        ├── middleware/ # Request/response handling
-        └── tasks/      # Celery async tasks
+1. Official docs / API reference.
+2. Official changelog / release notes.
+3. Upstream GitHub repository docs (README, `/docs`).
+4. Community posts only if necessary to fill gaps.
 
-packages/
-├── api/            # @hospital/api - API client & types
-└── shared/         # @hospital/shared - Shared utilities & components
-```
+Version rule:
 
-### Tech Stack
+- When behaviour may differ across versions, first identify the project's version (lockfile/config),
+  then search docs specifically for that version.
 
-**Frontend**: React 18, TypeScript, Umi 4, Ant Design 5, ProComponents, Zustand, TanStack Query, Taro 3
+## Task sizing
 
-**Backend**: Python 3.12+, FastAPI, SQLAlchemy 2.x (async), PostgreSQL 16, Redis 7, Celery, Alembic, MinIO
+- **Simple**
+- Criteria — single file, clear requirement, < 20 lines changed,
+  clearly local impact.
+- Handling — after doing the "Before touching code" steps
+  (research + impact analysis + internal three-question checklist),
+  you may execute directly with minimal explanation.
+- A very short context line is enough;
+  a full breakdown of the checklist is not required.
 
-### Key Patterns
+- **Medium**
+  - Criteria — 2–5 files, or requires some research, or impact is not obviously local.
+  - Handling — write a short plan (bullet points) → then implement.
+  - Briefly surface the checklist result in the reply
+    (1–3 short lines describing real issue, key reuse, and main impact).
 
-- Frontend apps import from `@hospital/api` for API calls and `@hospital/shared` for common utilities
-- Backend uses async SQLAlchemy with dependency injection (`Depends(get_db)`)
-- JWT authentication with role-based access control
-- Unified API response format via middleware
+- **Complex**
+  - Criteria — architecture changes, multiple modules, high uncertainty or risk.
+  - Handling — follow this workflow:
+    1. **RESEARCH**: inspect code and facts only (no proposals yet).
+    2. **PLAN**: present options + tradeoffs + recommendation;
+       use `AskUserQuestion` actively to align with the user;
+       wait for user's confirmation.
+    3. **EXECUTE**: implement exactly the approved plan.
+    4. **REVIEW**: self-check (tests, edge cases, cleanup).
 
-## OpenSpec Workflow
+## Git
 
-For significant changes (new features, breaking changes, architecture), create a proposal:
-1. Read `openspec/AGENTS.md` for instructions
-2. Create change directory in `openspec/changes/[change-id]/`
-3. Write `proposal.md`, `tasks.md`, and spec deltas
-4. Run `openspec validate [change-id] --strict`
+- Do not commit unless I explicitly ask.
+- Do not push unless I explicitly ask.
+- Before writing a commit message, glance at a few recent commits and match the repo's style:
+  - `git log -n 5 --oneline`
+- If there is no obvious existing style, use this default format:
+  - `<type>(<scope>): <description>`
+- Before any commit: run `git diff` and confirm the exact scope of changes.
+- Never force-push to `main` / `master` unless the user approves.
+- Do not add attribution lines in commit messages.
+
+## Security
+
+- Never hardcode secrets (keys/passwords/tokens).
+- Never commit `.env` files or any credentials.
+- Validate user input at trust boundaries (APIs, CLIs, external data sources).
+
+## Quality & cleanup
+
+- Prefer clarity and simplicity first (KISS); apply DRY to remove obvious
+  copy-paste duplication when it does not hurt readability.
+- If you change a function signature, update **all** call sites.
+- After changes:
+  - Remove temporary files.
+  - Remove dead/commented-out code.
+  - Remove unused imports.
+  - Remove debug logging that is no longer needed.
+- Run the smallest meaningful verification (lint/test/build) for the parts you touched.
+
+## Windows / PowerShell (if used)
+
+- PowerShell does not support `&&`; use `;` to chain commands.
+- Quote paths that contain spaces or non-ASCII characters.
+
+## Baisc Infos
+
+Unless directly relevant to the user's current question, you should avoid proactively mentioning, illustrating, or trailing off into the following information in 99% of cases:
+
+- the user's github id: xxxx

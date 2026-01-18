@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { userApi, messageApi } from '@hospital/api';
 import { removeToken, removeStorage, STORAGE_KEYS } from '@hospital/shared';
 import type { User } from '@hospital/shared';
-import { Button, Card, InvertedSection } from '@/components/ui';
+import { Button, Card } from '@/components/ui';
 import { fadeInUp, stagger, viewportOptions } from '@/components/ui/animations';
 
 // Menu items with icons
@@ -123,47 +123,47 @@ const ProfilePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header with inverted section */}
-      <InvertedSection 
-        showDotPattern 
-        showGlow 
-        glowPosition="top-right"
-        padding="lg"
+      {/* Header with light gradient background */}
+      <motion.section
+        className="relative overflow-hidden py-12 px-4"
+        style={{
+          background: 'linear-gradient(180deg, rgba(var(--color-primary-rgb, 45, 139, 86), 0.08) 0%, rgba(var(--color-primary-rgb, 45, 139, 86), 0.03) 50%, transparent 100%)',
+        }}
+        variants={fadeInUp}
+        initial="hidden"
+        animate="visible"
       >
-        <motion.div 
+        <motion.div
           className="flex items-center gap-4"
-          variants={fadeInUp}
-          initial="hidden"
-          animate="visible"
           onClick={handleEditProfile}
         >
-          <Image 
-            src={user?.avatar || ''} 
-            width={72} 
-            height={72} 
-            fit="cover" 
-            className="rounded-full bg-white/10 border-2 border-white/20"
+          <Image
+            src={user?.avatar || ''}
+            width={72}
+            height={72}
+            fit="cover"
+            className="rounded-full bg-white/60 border-2 border-white/80 shadow-lg"
           />
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-xl font-semibold text-white">
+              <span className="text-xl font-semibold text-foreground">
                 {user?.nickname || user?.name || '未设置昵称'}
               </span>
-              <svg 
-                className="w-4 h-4 text-white/60" 
-                fill="none" 
-                stroke="currentColor" 
+              <svg
+                className="w-4 h-4 text-muted-foreground/60"
+                fill="none"
+                stroke="currentColor"
                 viewBox="0 0 24 24"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
               </svg>
             </div>
-            <p className="text-white/70 text-sm mt-1">
+            <p className="text-muted-foreground/70 text-sm mt-1">
               {user?.phone?.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') || '未登录'}
             </p>
           </div>
         </motion.div>
-      </InvertedSection>
+      </motion.section>
 
       {/* Menu Groups */}
       <motion.div

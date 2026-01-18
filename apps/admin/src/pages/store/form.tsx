@@ -1,15 +1,15 @@
 import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSwitch, ProFormSelect, FooterToolbar } from '@ant-design/pro-components';
 import type { ProFormInstance } from '@ant-design/pro-components';
-import { Card, App, Row, Col, Form, Spin, Button, Space, Alert, Typography } from 'antd';
+import { Card, App, Row, Col, Form, Spin, Button, Space, Alert, Typography, Modal, Input } from 'antd';
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { history, useParams } from '@umijs/max';
+import { history, useParams, useAccess } from '@umijs/max';
 import { storeApi } from '@hospital/api';
 import type { Store } from '@hospital/shared';
 import { ProFormRegionSelector } from '@hospital/shared';
 import ImageUpload from '@/components/ImageUpload';
 import MapLocationPickerModal from '@/components/MapLocationPickerModal';
 import type { LocationInfo } from '@/components/MapLocationPicker';
-import { EnvironmentOutlined } from '@ant-design/icons';
+import { EnvironmentOutlined, KeyOutlined } from '@ant-design/icons';
 import { pinyin } from 'pinyin-pro';
 
 const { Text } = Typography;
@@ -50,6 +50,7 @@ const StoreFormPage: React.FC = () => {
   const { message } = App.useApp();
   const { id } = useParams<{ id: string }>();
   const isEdit = !!id;
+  const access = useAccess();
   const [loading, setLoading] = useState(false);
   const [store, setStore] = useState<Store | null>(null);
   const formRef = useRef<ProFormInstance>();
@@ -58,6 +59,11 @@ const StoreFormPage: React.FC = () => {
   // 地图弹框状态
   const [mapModalVisible, setMapModalVisible] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<LocationInfo | undefined>();
+  // 重置密码弹框状态
+  const [resetPasswordModalVisible, setResetPasswordModalVisible] = useState(false);
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   // 检查是否有定位信息
   const hasLocation = !!currentLocation?.longitude && !!currentLocation?.latitude;
@@ -111,6 +117,36 @@ const StoreFormPage: React.FC = () => {
   // 地图选点取消
   const handleMapCancel = () => {
     setMapModalVisible(false);
+  };
+
+  // 重置密码
+  const handleResetPassword = async () => {
+    if (!newPassword) {
+      message.error('请输入新密码');
+      return;
+    }
+    if (newPassword.length < 6) {
+      message.error('密码至少6个字符');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      message.error('两次输入的密码不一致');
+      return;
+    }
+    if (!id) return;
+
+    setResetPasswordLoading(true);
+    try {
+      await storeApi.resetPassword(id, newPassword);
+      message.success('密码重置成功');
+      setResetPasswordModalVisible(false);
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      message.error(error.message || '重置密码失败');
+    } finally {
+      setResetPasswordLoading(false);
+    }
   };
 
   const handleSubmit = async (values: any) => {
@@ -306,8 +342,13 @@ const StoreFormPage: React.FC = () => {
               name="phone"
               label="联系方式"
               width="md"
-              placeholder="如：138xxxx8888"
-              rules={[{ pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号' }]}
+              placeholder="如：138xxxx8888 或 xxxx-xxxxxxxx"
+              rules={[
+                {
+                  pattern: /^([1][3-9]\d{9})|((\d{3,4}-)?\d{7,8}(-\d{1,4})?)$/,
+                  message: '请输入正确的手机号或座机号（如：13800138000 或 xxxx-xxxxxxxx）'
+                }
+              ]}
               fieldProps={{ autoComplete: 'off' }}
             />
           </ProForm.Group>
@@ -325,45 +366,65 @@ const StoreFormPage: React.FC = () => {
 
         {/* 账号设置 */}
         <Card title="账号设置" style={{ marginBottom: 16 }} loading={loading}>
-          <ProForm.Group>
-            <ProFormText.Password
-              name="password"
-              label="门店密码"
-              width="md"
-              placeholder="不填则默认为 123456"
-              extra="不填写则使用默认密码：123456"
-              fieldProps={{ autoComplete: 'new-password' }}
-              rules={[
-                { min: 6, message: '密码至少6个字符' },
-                { max: 50, message: '密码不能超过50个字符' },
-              ]}
-            />
-            <ProFormText.Password
-              name="confirmPassword"
-              label="确认密码"
-              width="md"
-              placeholder="请再次输入密码"
-              dependencies={['password']}
-              rules={[
-                ({ getFieldValue }) => ({
-                  validator(_, value) {
-                    const password = getFieldValue('password');
-                    if (!password && !value) {
+          {!isEdit ? (
+            // 新增模式：显示密码输入框
+            <ProForm.Group>
+              <ProFormText.Password
+                name="password"
+                label="门店密码"
+                width="md"
+                placeholder="不填则默认为 123456"
+                extra="不填写则使用默认密码：123456"
+                fieldProps={{ autoComplete: 'new-password' }}
+                rules={[
+                  { min: 6, message: '密码至少6个字符' },
+                  { max: 50, message: '密码不能超过50个字符' },
+                ]}
+              />
+              <ProFormText.Password
+                name="confirmPassword"
+                label="确认密码"
+                width="md"
+                placeholder="请再次输入密码"
+                dependencies={['password']}
+                rules={[
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      const password = getFieldValue('password');
+                      if (!password && !value) {
+                        return Promise.resolve();
+                      }
+                      if (password && !value) {
+                        return Promise.reject(new Error('请再次输入密码'));
+                      }
+                      if (password !== value) {
+                        return Promise.reject(new Error('两次输入的密码不一致'));
+                      }
                       return Promise.resolve();
-                    }
-                    if (password && !value) {
-                      return Promise.reject(new Error('请再次输入密码'));
-                    }
-                    if (password !== value) {
-                      return Promise.reject(new Error('两次输入的密码不一致'));
-                    }
-                    return Promise.resolve();
-                  },
-                }),
-              ]}
-              fieldProps={{ autoComplete: 'new-password' }}
-            />
-          </ProForm.Group>
+                    },
+                  }),
+                ]}
+                fieldProps={{ autoComplete: 'new-password' }}
+              />
+            </ProForm.Group>
+          ) : (
+            // 编辑模式：显示重置密码按钮（仅超管可见）
+            <>
+              {access.canSuperAdmin && (
+                <Form.Item label="门店密码">
+                  <Space>
+                    <Button
+                      icon={<KeyOutlined />}
+                      onClick={() => setResetPasswordModalVisible(true)}
+                    >
+                      重置密码
+                    </Button>
+                    <Text type="secondary">仅超管可重置门店密码</Text>
+                  </Space>
+                </Form.Item>
+              )}
+            </>
+          )}
         </Card>
 
         {/* 地址信息 */}
@@ -442,10 +503,10 @@ const StoreFormPage: React.FC = () => {
           <Form.Item
             name="logo"
             label="Logo"
-            tooltip="1:1比例，推荐尺寸：160px × 160px"
+            tooltip="支持自由剪裁，推荐尺寸：160px × 160px"
           >
             <ImageUpload
-              aspectRatio="1:1"
+              aspectRatio="free"
               folder="store"
               placeholder="上传Logo"
               width={120}
@@ -531,6 +592,47 @@ const StoreFormPage: React.FC = () => {
         title="选择门店位置"
         width={900}
       />
+
+      {/* 重置密码弹框 */}
+      <Modal
+        title="重置门店密码"
+        open={resetPasswordModalVisible}
+        onCancel={() => {
+          setResetPasswordModalVisible(false);
+          setNewPassword('');
+          setConfirmPassword('');
+        }}
+        onOk={handleResetPassword}
+        confirmLoading={resetPasswordLoading}
+        okText="确定"
+        cancelText="取消"
+      >
+        <Form layout="vertical">
+          <Form.Item
+            label="新密码"
+            required
+            extra="密码至少6个字符"
+          >
+            <Input.Password
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="请输入新密码"
+              autoComplete="new-password"
+            />
+          </Form.Item>
+          <Form.Item
+            label="确认密码"
+            required
+          >
+            <Input.Password
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="请再次输入新密码"
+              autoComplete="new-password"
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </PageContainer>
   );
 };

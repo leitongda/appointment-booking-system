@@ -219,7 +219,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
     }));
   }, [presetSizes]);
 
-  // 执行剪裁
+  // 执行剪裁（两阶段处理：先变换原图，再提取裁剪区域）
   const handleCrop = async () => {
     if (!imgRef.current || !completedCrop) {
       return;
@@ -229,15 +229,20 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
 
     try {
       const image = imgRef.current;
-      
-      // 计算实际的剪裁尺寸
+
+      // 计算裁剪区域在原图上的实际坐标
       const scaleX = image.naturalWidth / image.width;
       const scaleY = image.naturalHeight / image.height;
 
-      let outputWidth = Math.floor(completedCrop.width * scaleX);
-      let outputHeight = Math.floor(completedCrop.height * scaleY);
+      const cropX = completedCrop.x * scaleX;
+      const cropY = completedCrop.y * scaleY;
+      const cropWidth = completedCrop.width * scaleX;
+      const cropHeight = completedCrop.height * scaleY;
 
-      // 应用尺寸限制
+      // 计算最终输出尺寸（应用尺寸限制）
+      let outputWidth = Math.floor(cropWidth);
+      let outputHeight = Math.floor(cropHeight);
+
       if (maxWidth && outputWidth > maxWidth) {
         const ratio = maxWidth / outputWidth;
         outputWidth = maxWidth;
@@ -249,16 +254,49 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
         outputWidth = Math.floor(outputWidth * ratio);
       }
 
+      // ============ 阶段一：在临时 canvas 上变换原图 ============
+      const tempCanvas = document.createElement('canvas');
+      const tempCtx = tempCanvas.getContext('2d');
+
+      if (!tempCtx) {
+        throw new Error('Temporary canvas context not available');
+      }
+
+      tempCanvas.width = image.naturalWidth;
+      tempCanvas.height = image.naturalHeight;
+      tempCtx.imageSmoothingQuality = 'high';
+
+      const centerNaturalX = image.naturalWidth / 2;
+      const centerNaturalY = image.naturalHeight / 2;
+
+      tempCtx.save();
+
+      // 应用变换（以原图中心为基准）
+      tempCtx.translate(centerNaturalX, centerNaturalY);
+      tempCtx.rotate(rotate * (Math.PI / 180));
+      tempCtx.scale(scale * (flipH ? -1 : 1), scale * (flipV ? -1 : 1));
+      tempCtx.translate(-centerNaturalX, -centerNaturalY);
+
+      // 应用滤镜
+      if (brightness !== 100 || contrast !== 100) {
+        tempCtx.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+      }
+
+      // 绘制原图到临时 canvas
+      tempCtx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight);
+
+      tempCtx.restore();
+
+      // ============ 阶段二：从临时 canvas 提取裁剪区域 ============
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
 
       if (!ctx) {
-        throw new Error('Canvas context not available');
+        throw new Error('Final canvas context not available');
       }
 
       canvas.width = outputWidth;
       canvas.height = outputHeight;
-
       ctx.imageSmoothingQuality = 'high';
 
       // 填充背景
@@ -269,48 +307,24 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
-      // 圆形裁剪 - 设置裁剪区域
+      // 圆形裁剪
       if (circularCrop) {
+        ctx.save();
         ctx.beginPath();
         ctx.arc(outputWidth / 2, outputHeight / 2, Math.min(outputWidth, outputHeight) / 2, 0, Math.PI * 2);
         ctx.clip();
       }
 
-      const cropX = completedCrop.x * scaleX;
-      const cropY = completedCrop.y * scaleY;
-      const cropWidth = completedCrop.width * scaleX;
-      const cropHeight = completedCrop.height * scaleY;
-
-      ctx.save();
-
-      // 应用变换
-      const centerX = outputWidth / 2;
-      const centerY = outputHeight / 2;
-      
-      ctx.translate(centerX, centerY);
-      ctx.rotate(rotate * (Math.PI / 180));
-      ctx.scale(scale * (flipH ? -1 : 1), scale * (flipV ? -1 : 1));
-      ctx.translate(-centerX, -centerY);
-
-      // 应用滤镜（亮度、对比度）
-      if (brightness !== 100 || contrast !== 100) {
-        ctx.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
-      }
-
-      // 绘制图片
+      // 从临时 canvas 提取裁剪区域
       ctx.drawImage(
-        image,
-        cropX,
-        cropY,
-        cropWidth,
-        cropHeight,
-        0,
-        0,
-        outputWidth,
-        outputHeight
+        tempCanvas,
+        cropX, cropY, cropWidth, cropHeight,
+        0, 0, outputWidth, outputHeight
       );
 
-      ctx.restore();
+      if (circularCrop) {
+        ctx.restore();
+      }
 
       // 绘制水印
       if (watermark?.text) {
@@ -319,11 +333,11 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
         ctx.font = `${fontSize}px sans-serif`;
         ctx.fillStyle = watermark.color || 'rgba(255,255,255,0.8)';
         ctx.globalAlpha = watermark.opacity ?? 0.5;
-        
+
         const textMetrics = ctx.measureText(watermark.text);
         const textWidth = textMetrics.width;
         const textHeight = fontSize;
-        
+
         const { x, y } = getWatermarkPosition(
           watermark.position || 'bottomRight',
           outputWidth,
@@ -331,12 +345,12 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
           textWidth,
           textHeight
         );
-        
+
         ctx.fillText(watermark.text, x, y);
         ctx.restore();
       }
 
-      // 转换为Blob
+      // 转换为 Blob
       const mimeType = MIME_TYPE_MAP[currentFormat];
       const extension = EXTENSION_MAP[currentFormat];
       const blob = await canvasToBlob(canvas, mimeType, quality);

@@ -1,7 +1,7 @@
 import { defineConfig, type UserConfigExport } from '@tarojs/cli';
 import path from 'path';
 
-export default defineConfig(async (merge) => {
+export default defineConfig(async () => {
   const baseConfig: UserConfigExport = {
     projectName: 'hospital-patient-miniapp',
     date: '2024-1-1',
@@ -94,7 +94,7 @@ export default defineConfig(async (merge) => {
           enable: true,
           config: {
             namingPattern: 'module',
-            generateScopedName: process.env.NODE_ENV === 'production' 
+            generateScopedName: process.env.NODE_ENV === 'production'
               ? '[hash:base64:5]'  // 生产环境使用更短的类名
               : '[name]__[local]___[hash:base64:5]',
           },

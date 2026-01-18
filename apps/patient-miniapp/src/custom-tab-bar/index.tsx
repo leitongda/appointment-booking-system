@@ -1,29 +1,36 @@
-import { View, Image, Text } from '@tarojs/components';
+import { View, Text } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
 import { useState, useEffect } from 'react';
+import {
+  HomeIcon,
+  HomeOutlineIcon,
+  AppointmentIcon,
+  AppointmentOutlineIcon,
+  ProfileIcon,
+  ProfileOutlineIcon,
+} from '../components/Icons';
+import { getThemePrimaryColor } from '../utils/theme';
 import './index.less';
 
 // TabBar 配置
-// 注意：使用相对路径引用图片资源，避免 base64 编码导致图片显示问题
-// 路径相对于小程序根目录（dist 目录）
 const tabBarList = [
   {
     pagePath: '/pages/index/index',
     text: '首页',
-    iconPath: '/assets/tabbar/home.png',
-    selectedIconPath: '/assets/tabbar/home-active.png',
+    Icon: HomeOutlineIcon,
+    ActiveIcon: HomeIcon,
   },
   {
     pagePath: '/pages/appointment/index',
     text: '预约',
-    iconPath: '/assets/tabbar/appointment.png',
-    selectedIconPath: '/assets/tabbar/appointment-active.png',
+    Icon: AppointmentOutlineIcon,
+    ActiveIcon: AppointmentIcon,
   },
   {
     pagePath: '/pages/profile/index',
     text: '我的',
-    iconPath: '/assets/tabbar/profile.png',
-    selectedIconPath: '/assets/tabbar/profile-active.png',
+    Icon: ProfileOutlineIcon,
+    ActiveIcon: ProfileIcon,
   },
 ];
 
@@ -44,9 +51,14 @@ function getSelectedIndex(): number {
 // 事件名称常量
 const TAB_CHANGE_EVENT = 'tabbar:change';
 
+// 未选中颜色
+const INACTIVE_COLOR = '#9CA3AF';
+
 export default function CustomTabBar() {
   // 初始化时就根据当前路由设置正确的索引
   const [selected, setSelected] = useState(() => getSelectedIndex());
+  // 主题色
+  const [primaryColor, setPrimaryColor] = useState(() => getThemePrimaryColor());
 
   // 监听来自页面的 TabBar 更新事件
   useEffect(() => {
@@ -59,21 +71,23 @@ export default function CustomTabBar() {
     };
   }, []);
 
-  // 每次页面显示时更新选中状态
+  // 每次页面显示时更新选中状态和主题色
   useDidShow(() => {
     const index = getSelectedIndex();
     setSelected(index);
+    // 更新主题色（可能在设置页面切换了主题）
+    setPrimaryColor(getThemePrimaryColor());
   });
 
   const handleSwitch = (index: number, pagePath: string) => {
     if (index === selected) return;
-    
+
     // 立即更新状态
     setSelected(index);
-    
+
     // 通知其他组件
     Taro.eventCenter.trigger(TAB_CHANGE_EVENT, index);
-    
+
     // 跳转页面
     Taro.switchTab({
       url: pagePath,
@@ -82,27 +96,30 @@ export default function CustomTabBar() {
 
   return (
     <View className="custom-tab-bar">
-      {tabBarList.map((item, index) => (
-        <View
-          key={item.pagePath}
-          className="custom-tab-bar__item"
-          onClick={() => handleSwitch(index, item.pagePath)}
-        >
-          <Image
-            className="custom-tab-bar__icon"
-            src={index === selected ? item.selectedIconPath : item.iconPath}
-            mode="aspectFit"
-          />
-          <Text
-            className={`custom-tab-bar__text ${
-              index === selected ? 'custom-tab-bar__text--active' : ''
-            }`}
+      {tabBarList.map((item, index) => {
+        const isActive = index === selected;
+        const IconComponent = isActive ? item.ActiveIcon : item.Icon;
+        const iconColor = isActive ? primaryColor : INACTIVE_COLOR;
+
+        return (
+          <View
+            key={item.pagePath}
+            className="custom-tab-bar__item"
+            onClick={() => handleSwitch(index, item.pagePath)}
           >
-            {item.text}
-          </Text>
-        </View>
-      ))}
+            <View className="custom-tab-bar__icon-wrap">
+              <IconComponent size={28} color={iconColor} />
+            </View>
+            <Text
+              className={`custom-tab-bar__text ${isActive ? 'custom-tab-bar__text--active' : ''
+                }`}
+              style={isActive ? { color: primaryColor } : undefined}
+            >
+              {item.text}
+            </Text>
+          </View>
+        );
+      })}
     </View>
   );
 }
-

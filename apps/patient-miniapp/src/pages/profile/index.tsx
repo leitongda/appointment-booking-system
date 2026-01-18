@@ -485,7 +485,7 @@ const ProfilePage = () => {
             {user?.avatar ? (
               <Image src={getImageUrl(user.avatar)} mode="aspectFill" />
             ) : (
-              <UserIcon size={40} color="#fff" />
+              <UserIcon size={40} color="#64748B" />
             )}
           </View>
           <View className="user-info">

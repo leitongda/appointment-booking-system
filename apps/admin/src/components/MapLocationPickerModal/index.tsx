@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Alert, Space, Typography } from 'antd';
+import { Modal, Space, Typography } from 'antd';
 import { EnvironmentOutlined } from '@ant-design/icons';
-import MapLocationPicker from '@/components/MapLocationPicker';
+import AddressInput from '@/components/MapLocationPicker';
 import type { LocationInfo } from '@/components/MapLocationPicker';
-import './index.less';
 
 const { Text } = Typography;
 
-interface MapLocationPickerModalProps {
+interface AddressInputModalProps {
   visible: boolean;
   onCancel: () => void;
   onOk: (location: LocationInfo) => void;
@@ -16,13 +15,13 @@ interface MapLocationPickerModalProps {
   width?: number;
 }
 
-const MapLocationPickerModal: React.FC<MapLocationPickerModalProps> = ({
+const AddressInputModal: React.FC<AddressInputModalProps> = ({
   visible,
   onCancel,
   onOk,
   initialValue,
-  title = '选择位置',
-  width = 900,
+  title = '输入地址',
+  width = 600,
 }) => {
   const [tempLocation, setTempLocation] = useState<LocationInfo | undefined>(initialValue);
 
@@ -33,7 +32,7 @@ const MapLocationPickerModal: React.FC<MapLocationPickerModalProps> = ({
   }, [visible, initialValue]);
 
   const handleOk = () => {
-    if (tempLocation) {
+    if (tempLocation?.address) {
       onOk(tempLocation);
     }
   };
@@ -49,41 +48,39 @@ const MapLocationPickerModal: React.FC<MapLocationPickerModalProps> = ({
       onCancel={onCancel}
       onOk={handleOk}
       width={width}
-      destroyOnClose
+      destroyOnClose={false}
       okText="确定"
       cancelText="取消"
-      okButtonProps={{ disabled: !tempLocation?.longitude || !tempLocation?.latitude }}
+      okButtonProps={{ disabled: !tempLocation?.address }}
     >
-      <MapLocationPicker
-        value={tempLocation}
-        onChange={handleLocationChange}
-        height={500}
-        placeholder="搜索地址，如：xxx中医馆"
-      />
+      <Space direction="vertical" style={{ width: '100%' }} size="large">
+        <div>
+          <Text strong style={{ marginBottom: 8, display: 'block' }}>
+            请输入完整的机构地址
+          </Text>
+          <AddressInput
+            value={tempLocation}
+            onChange={handleLocationChange}
+            placeholder="例如：贵州省贵阳市观山湖区XXX中医馆"
+          />
+        </div>
 
-      {tempLocation && (
-        <Alert
-          message={
+        {tempLocation?.address && (
+          <div style={{ padding: '12px 16px', background: '#f6f8fa', borderRadius: '6px' }}>
             <Space direction="vertical" size={4}>
               <div>
-                <EnvironmentOutlined style={{ marginRight: 8 }} />
-                <Text strong>已选择位置：</Text>
-                <Text>{tempLocation.formattedAddress || tempLocation.address || '未知地址'}</Text>
+                <EnvironmentOutlined style={{ marginRight: 8, color: '#1890ff' }} />
+                <Text strong>地址预览：</Text>
               </div>
               <div style={{ paddingLeft: 22 }}>
-                <Text type="secondary">
-                  经度: {tempLocation.longitude} | 纬度: {tempLocation.latitude}
-                </Text>
+                <Text>{tempLocation.address}</Text>
               </div>
             </Space>
-          }
-          type="info"
-          showIcon
-          style={{ marginTop: 16 }}
-        />
-      )}
+          </div>
+        )}
+      </Space>
     </Modal>
   );
 };
 
-export default MapLocationPickerModal;
+export default AddressInputModal;
