@@ -6,6 +6,7 @@ import { useRef, useState, useEffect } from 'react';
 import { useAccess, useModel } from '@umijs/max';
 import { scheduleApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
+import { fetchAllData } from '@/utils/fetchAllData';
 import type { Schedule, Doctor, Department } from '@hospital/shared';
 import { APPOINTMENT_TYPE_MAP } from '@hospital/shared';
 import dayjs from 'dayjs';
@@ -46,8 +47,11 @@ const ScheduleDetailPage: React.FC = () => {
 
   const loadDepartments = async () => {
     try {
-      const res = await departmentApi.getList({ pageSize: 100, status: 1 });
-      setDepartments(res.data ?? []);
+      // 获取所有启用的科室
+      const allDepts = await fetchAllData((page, pageSize) =>
+        departmentApi.getList({ page, pageSize, status: 1 })
+      );
+      setDepartments(allDepts);
     } catch (error) {
       console.error('加载科室失败', error);
     }
@@ -250,8 +254,11 @@ const ScheduleDetailPage: React.FC = () => {
       valueType: 'select',
       request: async () => {
         try {
-          const res = await departmentApi.getList({ pageSize: 100, status: 1 });
-          return (res.data ?? []).map((d: Department) => ({ label: d.name, value: d.id }));
+          // 获取所有启用的科室
+          const allDepts = await fetchAllData((page, pageSize) =>
+            departmentApi.getList({ page, pageSize, status: 1 })
+          );
+          return allDepts.map((d: Department) => ({ label: d.name, value: d.id }));
         } catch {
           return [];
         }
@@ -280,9 +287,11 @@ const ScheduleDetailPage: React.FC = () => {
             const data = await doctorApi.getByDepartment(params.departmentId);
             return (data ?? []).map((d: Doctor) => ({ label: `${d.name}${d.title ? ` - ${d.title}` : ''}`, value: d.id }));
           }
-          // 未选择科室时，加载全部医生
-          const res = await doctorApi.getList({ pageSize: 200 });
-          return (res.data ?? []).map((d: Doctor) => ({ label: `${d.name}${d.title ? ` - ${d.title}` : ''}`, value: d.id }));
+          // 未选择科室时，加载全部医生（使用分页加载）
+          const allDoctors = await fetchAllData((page, pageSize) =>
+            doctorApi.getList({ page, pageSize })
+          );
+          return allDoctors.map((d: Doctor) => ({ label: `${d.name}${d.title ? ` - ${d.title}` : ''}`, value: d.id }));
         } catch {
           return [];
         }

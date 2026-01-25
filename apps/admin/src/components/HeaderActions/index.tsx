@@ -12,9 +12,11 @@ import {
   MoneyCollectOutlined,
   ClockCircleOutlined,
   EditOutlined,
+  DeleteOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import { history, useModel, useAccess } from '@umijs/max';
-import { Badge, Tooltip, Popover, List, Empty, Spin, Button, Typography, Space, App, Avatar, Tag, Dropdown, Modal, QRCode } from 'antd';
+import { Badge, Tooltip, Popover, List, Empty, Spin, Button, Typography, Space, App, Avatar, Tag, Dropdown, Modal, QRCode, Tabs, Divider, Card } from 'antd';
 import type { MenuProps } from 'antd';
 import { getSpacingMode, setSpacingMode, applySpacingCSSVariables, SPACING_LABELS } from '@/utils/spacing';
 import type { SpacingMode } from '@/utils/spacing';
@@ -430,6 +432,7 @@ export const NotificationButton: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [activeTab, setActiveTab] = useState('all');
 
   const currentUser = initialState?.currentUser;
 
@@ -453,7 +456,7 @@ export const NotificationButton: React.FC = () => {
         userId: currentUser.id,
         userType: 'admin',
         page: 1,
-        pageSize: 5,
+        pageSize: 10,
       });
       setMessages(res?.items || []);
     } catch (error) {
@@ -479,7 +482,8 @@ export const NotificationButton: React.FC = () => {
   }, [open, fetchMessages]);
 
   // 标记消息已读
-  const handleMarkAsRead = useCallback(async (messageId: string) => {
+  const handleMarkAsRead = useCallback(async (messageId: string, event?: React.MouseEvent) => {
+    event?.stopPropagation();
     if (!currentUser?.id) return;
     try {
       await messageApi.markAsRead(messageId, currentUser.id);
@@ -503,6 +507,20 @@ export const NotificationButton: React.FC = () => {
     }
   }, [currentUser?.id, fetchMessages, fetchUnreadCount, message]);
 
+  // 删除消息
+  const handleDeleteMessage = useCallback(async (messageId: string, event?: React.MouseEvent) => {
+    event?.stopPropagation();
+    if (!currentUser?.id) return;
+    try {
+      await messageApi.delete(messageId, currentUser.id);
+      fetchMessages();
+      fetchUnreadCount();
+      message.success('删除成功');
+    } catch (error) {
+      console.error('删除消息失败:', error);
+    }
+  }, [currentUser?.id, fetchMessages, fetchUnreadCount, message]);
+
   // 查看全部消息
   const handleViewAll = useCallback(() => {
     setOpen(false);
@@ -510,76 +528,192 @@ export const NotificationButton: React.FC = () => {
   }, []);
 
   // 消息类型映射
-  const messageTypeMap: Record<string, { color: string; text: string }> = {
-    system: { color: '#1890ff', text: '系统' },
-    appointment: { color: '#52c41a', text: '预约' },
-    notification: { color: '#faad14', text: '通知' },
-    reminder: { color: '#eb2f96', text: '提醒' },
+  const messageTypeConfig: Record<string, { color: string; text: string; icon: React.ReactNode }> = {
+    system: { color: 'blue', text: '系统', icon: <BellOutlined /> },
+    appointment: { color: 'green', text: '预约', icon: <CheckOutlined /> },
+    notification: { color: 'orange', text: '通知', icon: <EyeOutlined /> },
+    reminder: { color: 'red', text: '提醒', icon: <ClockCircleOutlined /> },
   };
+
+  // 过滤消息
+  const filteredMessages = useMemo(() => {
+    if (activeTab === 'all') return messages;
+    if (activeTab === 'unread') return messages.filter(m => !m.is_read);
+    return messages.filter(m => m.message_type === activeTab);
+  }, [messages, activeTab]);
+
+  // 统计各类型消息数量
+  const messageCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      all: messages.length,
+      unread: messages.filter(m => !m.is_read).length,
+      system: 0,
+      appointment: 0,
+      notification: 0,
+      reminder: 0,
+    };
+    messages.forEach(m => {
+      if (counts[m.message_type] !== undefined) {
+        counts[m.message_type]++;
+      }
+    });
+    return counts;
+  }, [messages]);
+
+  // 渲染消息项操作菜单
+  const renderMessageActions = (item: Message) => {
+    const items: MenuProps['items'] = [
+      !item.is_read && {
+        key: 'read',
+        icon: <EyeOutlined />,
+        label: '标为已读',
+        onClick: (e) => handleMarkAsRead(item.id, e.domEvent),
+      },
+      {
+        key: 'delete',
+        icon: <DeleteOutlined />,
+        label: '删除',
+        danger: true,
+        onClick: (e) => handleDeleteMessage(item.id, e.domEvent),
+      },
+    ].filter(Boolean);
+
+    if (items.length === 0) return null;
+
+    return (
+      <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
+        <Button
+          type="text"
+          size="small"
+          icon={<DownOutlined />}
+          onClick={(e) => e.stopPropagation()}
+          className={styles.messageActionBtn}
+        />
+      </Dropdown>
+    );
+  };
+
+  // Tab 配置
+  const tabItems = [
+    { key: 'all', label: '全部', count: messageCounts.all },
+    { key: 'unread', label: '未读', count: messageCounts.unread },
+    { key: 'system', label: '系统', count: messageCounts.system },
+    { key: 'appointment', label: '预约', count: messageCounts.appointment },
+  ].filter(tab => tab.count > 0 || tab.key === 'all' || tab.key === 'unread');
 
   const content = (
     <div className={styles.notificationPanel}>
+      {/* 头部 */}
       <div className={styles.panelHeader}>
-        <span className={styles.panelTitle}>消息通知</span>
+        <Space size={12}>
+          <BellOutlined className={styles.headerIcon} />
+          <span className={styles.panelTitle}>消息通知</span>
+          {unreadCount > 0 && (
+            <Badge count={unreadCount} size="small" />
+          )}
+        </Space>
         {unreadCount > 0 && (
-          <Button 
-            type="link" 
-            size="small" 
+          <Button
+            type="text"
+            size="small"
             icon={<CheckOutlined />}
             onClick={handleMarkAllAsRead}
+            className={styles.headerActionBtn}
           >
             全部已读
           </Button>
         )}
       </div>
+
+      <Divider className={styles.headerDivider} />
+
+      {/* 标签页 */}
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        className={styles.messageTabs}
+        items={tabItems.map(tab => ({
+          key: tab.key,
+          label: (
+            <Space size={4}>
+              <span>{tab.label}</span>
+              {tab.count > 0 && (
+                <Badge count={tab.count} size="small" />
+              )}
+            </Space>
+          ),
+        }))}
+      />
+
+      {/* 消息列表 */}
       <Spin spinning={loading}>
-        {messages.length > 0 ? (
+        {filteredMessages.length > 0 ? (
           <List
             className={styles.messageList}
-            dataSource={messages}
-            renderItem={(item) => (
-              <List.Item
-                className={`${styles.messageItem} ${item.is_read ? '' : styles.unread}`}
-                onClick={() => {
-                  if (!item.is_read) {
-                    handleMarkAsRead(item.id);
-                  }
-                }}
-              >
-                <div className={styles.messageContent}>
-                  <div className={styles.messageHeader}>
-                    <Badge 
-                      color={messageTypeMap[item.message_type]?.color || '#999'} 
-                      text={
-                        <Text strong={!item.is_read} ellipsis className={styles.messageTitle}>
-                          {item.title}
-                        </Text>
-                      }
-                    />
-                    {!item.is_read && <span className={styles.unreadDot} />}
-                  </div>
-                  {item.content && (
-                    <Text type="secondary" ellipsis className={styles.messageDesc}>
-                      {item.content}
+            dataSource={filteredMessages}
+            renderItem={(item) => {
+              const config = messageTypeConfig[item.message_type] || messageTypeConfig.system;
+              return (
+                <List.Item
+                  className={`${styles.messageItem} ${!item.is_read ? styles.unread : ''}`}
+                  onClick={() => {
+                    if (!item.is_read) {
+                      handleMarkAsRead(item.id);
+                    }
+                  }}
+                >
+                  <div className={styles.messageContent}>
+                    <div className={styles.messageHeader}>
+                      <Space size={8}>
+                        <Tag color={config.color} icon={config.icon} className={styles.messageTypeTag}>
+                          {config.text}
+                        </Tag>
+                        {!item.is_read && <Badge status="processing" />}
+                      </Space>
+                      {renderMessageActions(item)}
+                    </div>
+                    <div className={styles.messageTitleWrapper}>
+                      <Text
+                        strong={!item.is_read}
+                        className={styles.messageTitle}
+                        ellipsis={{ tooltip: item.title }}
+                      >
+                        {item.title}
+                      </Text>
+                    </div>
+                    {item.content && (
+                      <Text
+                        type="secondary"
+                        ellipsis={{ tooltip: item.content }}
+                        className={styles.messageDesc}
+                      >
+                        {item.content}
+                      </Text>
+                    )}
+                    <Text type="secondary" className={styles.messageTime}>
+                      {dayjs(item.created_at).fromNow()}
                     </Text>
-                  )}
-                  <Text type="secondary" className={styles.messageTime}>
-                    {dayjs(item.created_at).fromNow()}
-                  </Text>
-                </div>
-              </List.Item>
-            )}
+                  </div>
+                </List.Item>
+              );
+            }}
           />
         ) : (
-          <Empty 
-            image={Empty.PRESENTED_IMAGE_SIMPLE} 
-            description="暂无消息"
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={
+              activeTab === 'unread' ? '暂无未读消息' : '暂无消息'
+            }
             className={styles.emptyState}
           />
         )}
       </Spin>
+
+      <Divider className={styles.footerDivider} />
+
+      {/* 底部 */}
       <div className={styles.panelFooter}>
-        <Button type="link" block onClick={handleViewAll}>
+        <Button type="link" icon={<AppstoreOutlined />} onClick={handleViewAll}>
           查看全部消息
         </Button>
       </div>
@@ -594,7 +728,8 @@ export const NotificationButton: React.FC = () => {
       onOpenChange={setOpen}
       placement="bottomRight"
       overlayClassName={styles.notificationPopover}
-      arrow={{ pointAtCenter: true }}
+      arrow={false}
+      destroyTooltipOnHide
     >
       <Tooltip title="消息通知" open={open ? false : undefined}>
         <div className={styles.actionItem}>

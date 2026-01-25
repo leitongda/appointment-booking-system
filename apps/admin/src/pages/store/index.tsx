@@ -1,8 +1,8 @@
-import { PlusOutlined, ApartmentOutlined, UserOutlined, MoneyCollectOutlined, QrcodeOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, ApartmentOutlined, UserOutlined, MoneyCollectOutlined, QrcodeOutlined, ClockCircleOutlined, EditOutlined, DeleteOutlined, MoreOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Avatar, Modal, Tree, Spin, Empty, Transfer, Tag, QRCode } from 'antd';
-import type { TreeDataNode, TreeProps, TransferProps } from 'antd';
+import { Button, App, Popconfirm, Space, Avatar, Modal, Tree, Spin, Empty, Transfer, Tag, QRCode, Dropdown, Divider } from 'antd';
+import type { TreeDataNode, TreeProps, TransferProps, MenuProps } from 'antd';
 import { useRef, useState, useCallback } from 'react';
 import { history, useAccess } from '@umijs/max';
 import { storeApi, departmentApi, adminApi, dataApi } from '@hospital/api';
@@ -240,65 +240,88 @@ const StorePage: React.FC = () => {
     {
       title: 'Logo',
       dataIndex: 'logo',
-      width: 64,
+      width: 70,
       search: false,
-      render: (_, record) => record.logo ? <Avatar src={record.logo} size={40} /> : '-',
+      render: (_, record) => record.logo ? <Avatar src={record.logo} size={42} /> : '-',
     },
-    { title: '门店名称', dataIndex: 'name', width: 140, ellipsis: true },
-    { title: '门店编码', dataIndex: 'code', width: 100, search: false },
-    { title: '城市', dataIndex: 'city', width: 80, search: false },
-    { title: '地址', dataIndex: 'address', width: 180, ellipsis: true, search: false },
-    { title: '联系电话', dataIndex: 'phone', width: 120, search: false },
-    { title: '风格', dataIndex: 'themeStyle', width: 70, search: false },
+    { title: '门店名称', dataIndex: 'name', width: 160, ellipsis: true },
+    { title: '门店编码', dataIndex: 'code', width: 110, search: false },
+    { title: '城市', dataIndex: 'city', width: 90, search: false },
+    { title: '地址', dataIndex: 'address', width: 220, ellipsis: true, search: false },
+    { title: '联系电话', dataIndex: 'phone', width: 130, search: false },
+    { title: '风格', dataIndex: 'themeStyle', width: 80, search: false },
     {
       title: '状态',
       dataIndex: 'status',
-      width: 70,
+      width: 80,
       search: false,
       valueEnum: { 1: { text: '营业', status: 'Success' }, 0: { text: '停业', status: 'Default' } },
     },
     {
       title: '操作',
       valueType: 'option',
-      width: 360,
+      width: 240,
       fixed: 'right',
-      render: (_, record) => (
-        <Space size={8} wrap>
-          {access.hasPermission('store:update') && (
-            <a onClick={() => handleOpenBindModal(record)}>
-              <ApartmentOutlined /> 科室
-            </a>
-          )}
-          {access.hasPermission('store:update') && (
-            <a onClick={() => history.push(`/store/${record.id}/fee-templates`)}>
-              <MoneyCollectOutlined /> 诊费
-            </a>
-          )}
-          {access.hasPermission('store:update') && (
-            <a onClick={() => history.push(`/store/${record.id}/visit-type-config`)}>
-              <ClockCircleOutlined /> 复诊
-            </a>
-          )}
-          {access.hasPermission('store:read') && (
-            <a onClick={() => handleOpenQrcodeModal(record)}>
-              <QrcodeOutlined /> 签到
-            </a>
-          )}
-          {access.canSuperAdmin && (
-            <a onClick={() => handleOpenUserBindModal(record)}>
-              <UserOutlined /> 用户
-            </a>
-          )}
-          {access.hasPermission('store:update') && (
-            <a onClick={() => history.push(`/store/${record.id}/edit`)}>编辑</a>
-          )}
-          {access.hasPermission('store:delete') && (
-            <Popconfirm title="确定删除该门店吗？" onConfirm={() => handleDelete(record.id)}>
-              <a style={{ color: '#ff4d4f' }}>删除</a>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
+      render: (_, record) => {
+        // 更多操作菜单项
+        const moreMenuItems: MenuProps['items'] = [
+          access.hasPermission('store:update') && {
+            key: 'department',
+            icon: <ApartmentOutlined />,
+            label: '绑定科室',
+            onClick: () => handleOpenBindModal(record),
+          },
+          access.hasPermission('store:update') && {
+            key: 'fee',
+            icon: <MoneyCollectOutlined />,
+            label: '诊费模板',
+            onClick: () => history.push(`/store/${record.id}/fee-templates`),
+          },
+          access.hasPermission('store:update') && {
+            key: 'visit',
+            icon: <ClockCircleOutlined />,
+            label: '复诊配置',
+            onClick: () => history.push(`/store/${record.id}/visit-type-config`),
+          },
+          access.canSuperAdmin && {
+            key: 'user',
+            icon: <UserOutlined />,
+            label: '分配用户',
+            onClick: () => handleOpenUserBindModal(record),
+          },
+        ].filter(Boolean);
+
+        return (
+          <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
+            {/* 常用操作直接显示 */}
+            {access.hasPermission('store:update') && (
+              <a onClick={() => history.push(`/store/${record.id}/edit`)} style={{ fontSize: 13 }}>
+                <EditOutlined /> 编辑
+              </a>
+            )}
+            {access.hasPermission('store:read') && (
+              <a onClick={() => handleOpenQrcodeModal(record)} style={{ fontSize: 13 }}>
+                <QrcodeOutlined /> 签到
+              </a>
+            )}
+            {access.hasPermission('store:delete') && (
+              <Popconfirm title="确定删除该门店吗？" onConfirm={() => handleDelete(record.id)}>
+                <a style={{ color: '#ff4d4f', fontSize: 13 }}>
+                  <DeleteOutlined /> 删除
+                </a>
+              </Popconfirm>
+            )}
+            {/* 更多操作下拉菜单 */}
+            {moreMenuItems.length > 0 && (
+              <Dropdown menu={{ items: moreMenuItems }} trigger={['click']}>
+                <a style={{ color: '#666', fontSize: 13 }}>
+                  <MoreOutlined /> 更多
+                </a>
+              </Dropdown>
+            )}
+          </Space>
+        );
+      },
     },
   ];
 
@@ -309,7 +332,7 @@ const StorePage: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        scroll={{ x: 1200 }}
+        scroll={{ x: 1300 }}
         request={async (params) => {
           const { current, pageSize, name, ...rest } = params;
           return toProTableResult(await storeApi.getList({ ...rest, keyword: name, page: current, pageSize }));

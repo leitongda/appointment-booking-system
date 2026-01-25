@@ -125,7 +125,7 @@ class DoctorService:
     
     async def get_by_department(self, department_id: str, store_id: Optional[str] = None) -> List[Doctor]:
         """获取科室下的医生
-        
+
         Args:
             department_id: 科室ID
             store_id: 门店ID，如提供则只返回该门店的医生
@@ -135,10 +135,31 @@ class DoctorService:
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
             .where(Doctor.department_id == department_id, Doctor.status == 1)
         )
-        
+
         if store_id:
             query = query.where(Doctor.store_id == store_id)
-        
+
+        query = query.order_by(Doctor.sort_order.desc())
+        result = await self.db.execute(query)
+        return list(result.scalars().all())
+
+    async def get_all_active(self, store_id: Optional[str] = None) -> List[Doctor]:
+        """获取所有在职医生（不使用分页限制）
+
+        Args:
+            store_id: 门店ID，如提供则只返回该门店的医生
+
+        Returns:
+            所有在职医生列表
+        """
+        query = select(Doctor).options(
+            selectinload(Doctor.department),
+            selectinload(Doctor.store)
+        ).where(Doctor.status == 1)
+
+        if store_id:
+            query = query.where(Doctor.store_id == store_id)
+
         query = query.order_by(Doctor.sort_order.desc())
         result = await self.db.execute(query)
         return list(result.scalars().all())

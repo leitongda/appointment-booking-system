@@ -5,6 +5,7 @@ import { PlusOutlined, DeleteOutlined, SettingOutlined } from '@ant-design/icons
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { history, useParams, useAccess, useModel } from '@umijs/max';
 import { scheduleTemplateApi, storeApi, departmentApi, doctorApi } from '@hospital/api';
+import { fetchAllData } from '@/utils/fetchAllData';
 import type { ScheduleTemplate, Doctor, Department, Store, BreakTime } from '@hospital/shared';
 import {
   APPOINTMENT_TYPE_OPTIONS,
@@ -91,8 +92,11 @@ const ScheduleRuleFormPage: React.FC = () => {
 
   const loadDepartments = async () => {
     try {
-      const res = await departmentApi.getList({ pageSize: 100, status: 1 });
-      setDepartments(res.data ?? []);
+      // 获取所有启用的科室
+      const allDepts = await fetchAllData((page, pageSize) =>
+        departmentApi.getList({ page, pageSize, status: 1 })
+      );
+      setDepartments(allDepts);
     } catch (error) {
       console.error('加载科室失败', error);
     }

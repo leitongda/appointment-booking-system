@@ -175,20 +175,16 @@ async def get_all_doctors(
     current_admin = Depends(get_current_admin)
 ):
     """获取所有医生（管理端接口）
-    
+
     用于管理后台需要获取完整医生列表的场景，如签到队列筛选
     """
     service = DoctorService(db)
-    
+
     # 门店过滤：门店管理员只能看自己门店的医生
     store_filter = get_store_filter(current_admin)
-    
-    doctors, _ = await service.get_list(
-        store_id=store_filter,
-        page=1, 
-        page_size=1000  # 获取所有医生
-    )
-    
+
+    doctors = await service.get_all_active(store_id=store_filter)
+
     return [doctor_to_list_response(d) for d in doctors]
 
 

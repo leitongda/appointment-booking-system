@@ -1,7 +1,7 @@
 import { View, Text, Image } from '@tarojs/components';
-import Taro, { usePullDownRefresh } from '@tarojs/taro';
+import Taro, { usePullDownRefresh, useReachBottom } from '@tarojs/taro';
 import { Button, Swipe, Empty } from '@nutui/nutui-react-taro';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { favoriteApi } from '@hospital/api';
 import type { Favorite } from '@hospital/api';
 import { DoctorIcon } from '../../../components/Icons';
@@ -11,10 +11,15 @@ import LoginPopup from '../../../components/LoginPopup';
 import { getImageUrl } from '../../../utils/url';
 import './index.less';
 
+const PAGE_SIZE = 20;
+
 const FavoritePage = () => {
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     // 检查登录状态
@@ -31,7 +36,14 @@ const FavoritePage = () => {
   // 页面显示时刷新数据
   Taro.useDidShow(() => {
     if (getToken()) {
-      loadFavorites();
+      resetAndLoad();
+    }
+  });
+
+  // 上拉加载更多
+  useReachBottom(() => {
+    if (!loadingMore && hasMore) {
+      loadMoreFavorites();
     }
   });
 
@@ -43,19 +55,45 @@ const FavoritePage = () => {
 
   // 下拉刷新
   usePullDownRefresh(() => {
-    loadFavorites().finally(() => {
+    resetAndLoad().finally(() => {
       Taro.stopPullDownRefresh();
     });
   });
 
+  // 重置并加载
+  const resetAndLoad = useCallback(async () => {
+    setPage(1);
+    setHasMore(true);
+    return loadFavorites();
+  }, []);
+
   const loadFavorites = async () => {
     try {
-      const result = await favoriteApi.getList({ targetType: 'doctor', pageSize: 100 });
+      const result = await favoriteApi.getList({ targetType: 'doctor', page: 1, pageSize: PAGE_SIZE });
       setFavorites(result.data || []);
+      setHasMore((result.data?.length || 0) < (result.total || 0));
     } catch (error) {
       console.error('加载收藏列表失败', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMoreFavorites = async () => {
+    if (loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const result = await favoriteApi.getList({ targetType: 'doctor', page: nextPage, pageSize: PAGE_SIZE });
+      const newFavorites = result.data || [];
+      setFavorites(prev => [...prev, ...newFavorites]);
+      setPage(nextPage);
+      setHasMore(newFavorites.length < (result.total || 0) && newFavorites.length > 0);
+    } catch (error) {
+      console.error('加载更多收藏失败', error);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -147,6 +185,20 @@ const FavoritePage = () => {
       <View className="tip-text">
         <Text>左滑可取消收藏</Text>
       </View>
+
+      {/* 加载状态 */}
+      {loadingMore && (
+        <View className="loading-more">
+          <Text>加载中...</Text>
+        </View>
+      )}
+
+      {/* 没有更多数据 */}
+      {!hasMore && favorites.length > 0 && (
+        <View className="no-more">
+          <Text>没有更多了</Text>
+        </View>
+      )}
 
       {/* 登录弹窗 */}
       <LoginPopup

@@ -4,6 +4,7 @@ import { Button, Card, Form, Select, DatePicker, Table, Tag, Empty, Row, Col, St
 import { useState, useEffect } from 'react';
 import { useAccess, useModel } from '@umijs/max';
 import { scheduleApi, storeApi } from '@hospital/api';
+import { fetchAllData } from '@/utils/fetchAllData';
 import type { ScheduleStatisticsItem, ScheduleStatisticsResponse } from '@hospital/api';
 import dayjs from 'dayjs';
 
@@ -23,8 +24,11 @@ const ScheduleStatisticsPage: React.FC = () => {
 
   const loadStores = async () => {
     try {
-      const res = await storeApi.getList({ pageSize: 100, status: 1 });
-      let storeList = res.data ?? [];
+      // 获取所有启用的门店
+      const allStores = await fetchAllData((page, pageSize) =>
+        storeApi.getList({ page, pageSize, status: 1 })
+      );
+      let storeList = allStores;
       // 非超管只显示其关联的门店
       if (!isSuperAdmin && currentUser?.storeIds?.length) {
         storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));

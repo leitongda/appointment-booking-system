@@ -43,7 +43,7 @@ const globalCache = new Map<string, { data: any; timestamp: number }>();
  * ```tsx
  * const { data, loading, refetch } = useDataCache({
  *   key: 'departments',
- *   fetcher: () => departmentApi.getList({ pageSize: 200 }),
+ *   fetcher: () => departmentApi.getList({ pageSize: 100 }),
  *   staleTime: 5 * 60 * 1000, // 5分钟
  * });
  * ```

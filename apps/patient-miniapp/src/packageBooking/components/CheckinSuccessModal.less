@@ -11,7 +11,7 @@
   width: 120rpx;
   height: 120rpx;
   margin: 0 auto @spacing-5;
-  background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);
+  background: var(--gradient-light, linear-gradient(135deg, #DBEAFE 0%, #E0E7FF 100%));
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -19,7 +19,7 @@
 
   .icon {
     font-size: 64rpx;
-    color: #10B981;
+    color: var(--color-primary, #10B981);
     font-weight: @font-weight-bold;
   }
 }
@@ -108,7 +108,7 @@
   color: @color-text-white;
   font-size: @font-size-base;
   font-weight: @font-weight-semibold;
-  box-shadow: 0 4rpx 12rpx rgba(196, 30, 58, 0.3);
+  box-shadow: var(--shadow-button, 0 4rpx 12rpx rgba(30, 111, 217, 0.3));
   transition: opacity @transition-base;
 
   &:active {

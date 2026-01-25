@@ -20,6 +20,7 @@ import { useRef, useState, useEffect, useMemo } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
 import { scheduleTemplateApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
+import { fetchAllData } from '@/utils/fetchAllData';
 import type { ScheduleTemplate, Doctor, Department, Store, ScheduleSlotPreview, SchedulePreviewGenerateResponse } from '@hospital/shared';
 import {
   APPOINTMENT_TYPE_MAP,
@@ -131,8 +132,10 @@ const ScheduleRulePage: React.FC = () => {
   // 加载所有医生（用于复制弹窗）
   const loadAllDoctors = async () => {
     try {
-      const res = await doctorApi.getList({ pageSize: 1000, status: 1 });
-      setAllDoctors(res.data ?? []);
+      const doctors = await fetchAllData((page, pageSize) =>
+        doctorApi.getList({ page, pageSize, status: 1 })
+      );
+      setAllDoctors(doctors);
     } catch (error) {
       console.error('加载所有医生失败', error);
     }

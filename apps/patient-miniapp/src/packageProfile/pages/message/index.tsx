@@ -1,7 +1,7 @@
 import { View, Text } from '@tarojs/components';
-import Taro, { usePullDownRefresh } from '@tarojs/taro';
+import Taro, { usePullDownRefresh, useReachBottom } from '@tarojs/taro';
 import { Empty, Tabs, Button } from '@nutui/nutui-react-taro';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { messageApi, userApi } from '@hospital/api';
 import type { Message, MessageType } from '@hospital/shared';
 import { BellIcon, CalendarIcon, InfoIcon, ClockIcon, CloseCircleIcon, ChatIcon } from '../../../components/Icons';
@@ -67,6 +67,10 @@ const MessagePage = () => {
     system: 0,
   });
   const [showLoginPopup, setShowLoginPopup] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const PAGE_SIZE = 20;
 
   useEffect(() => {
     checkLoginAndLoad();
@@ -74,9 +78,16 @@ const MessagePage = () => {
 
   useEffect(() => {
     if (userId) {
-      loadMessages();
+      resetAndLoad();
     }
   }, [activeTab, userId]);
+
+  // 上拉加载更多
+  useReachBottom(() => {
+    if (!loadingMore && hasMore) {
+      loadMoreMessages();
+    }
+  });
 
   const checkLoginAndLoad = async () => {
     const token = getToken();
@@ -103,10 +114,17 @@ const MessagePage = () => {
     checkLoginAndLoad();
   };
 
+  // 重置并加载
+  const resetAndLoad = useCallback(async () => {
+    setPage(1);
+    setHasMore(true);
+    return loadMessages();
+  }, []);
+
   // 下拉刷新
   usePullDownRefresh(() => {
     if (userId) {
-      Promise.all([loadMessages(), loadUnreadCount(userId)]).finally(() => {
+      Promise.all([resetAndLoad(), loadUnreadCount(userId)]).finally(() => {
         Taro.stopPullDownRefresh();
       });
     } else {
@@ -119,20 +137,48 @@ const MessagePage = () => {
     try {
       const params: { page: number; pageSize: number; messageType?: string } = {
         page: 1,
-        pageSize: 50,
+        pageSize: PAGE_SIZE,
       };
-      
+
       if (activeTab !== 'all') {
         params.messageType = activeTab;
       }
 
       const result = await messageApi.getList(params);
       setMessages(result.data || []);
+      setHasMore((result.data?.length || 0) < (result.total || 0));
     } catch (error) {
       console.error('加载消息列表失败', error);
       Taro.showToast({ title: '加载失败', icon: 'none' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMoreMessages = async () => {
+    if (loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const params: { page: number; pageSize: number; messageType?: string } = {
+        page: nextPage,
+        pageSize: PAGE_SIZE,
+      };
+
+      if (activeTab !== 'all') {
+        params.messageType = activeTab;
+      }
+
+      const result = await messageApi.getList(params);
+      const newMessages = result.data || [];
+      setMessages(prev => [...prev, ...newMessages]);
+      setPage(nextPage);
+      setHasMore(newMessages.length < (result.total || 0) && newMessages.length > 0);
+    } catch (error) {
+      console.error('加载更多消息失败', error);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -271,6 +317,20 @@ const MessagePage = () => {
               </View>
             );
           })}
+        </View>
+      )}
+
+      {/* 加载状态 */}
+      {loadingMore && (
+        <View className="loading-more">
+          <Text>加载中...</Text>
+        </View>
+      )}
+
+      {/* 没有更多数据 */}
+      {!hasMore && messages.length > 0 && (
+        <View className="no-more">
+          <Text>没有更多了</Text>
         </View>
       )}
 

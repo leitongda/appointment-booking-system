@@ -69,7 +69,7 @@
   width: 80rpx;
   height: 80rpx;
   border-radius: @radius-full;
-  background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+  background: var(--gradient-light, linear-gradient(135deg, #DBEAFE 0%, #E0E7FF 100%));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -188,7 +188,7 @@
   width: 100rpx;
   height: 100rpx;
   border-radius: @radius-xl;
-  background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+  background: var(--gradient-light, linear-gradient(135deg, #DBEAFE 0%, #E0E7FF 100%));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -404,6 +404,7 @@
 
 .submit-btn {
   min-width: 240rpx;
+  width: 100%;
   height: @button-height-lg;
   .button-primary();
   font-size: @font-size-base;

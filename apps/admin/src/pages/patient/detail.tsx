@@ -25,6 +25,7 @@ import { useEffect, useState, useRef } from 'react';
 import { history, useParams, useAccess } from '@umijs/max';
 import { patientApi, doctorApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
+import { fetchAllData } from '@/utils/fetchAllData';
 import type {
   PatientDetail,
   PatientAppointment,
@@ -129,8 +130,10 @@ const PatientDetailPage: React.FC = () => {
 
   const loadDoctors = async () => {
     try {
-      const res = await doctorApi.getList({ pageSize: 100 });
-      setDoctors(res.data ?? []);
+      const doctors = await fetchAllData((page, pageSize) =>
+        doctorApi.getList({ page, pageSize })
+      );
+      setDoctors(doctors);
     } catch (error) {
       console.error('加载医生失败', error);
     }

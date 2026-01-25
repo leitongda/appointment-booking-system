@@ -4,6 +4,7 @@ import { Button } from '@nutui/nutui-react-taro';
 import { useState, useEffect, useMemo } from 'react';
 import { doctorApi, scheduleApi, favoriteApi, settingsApi } from '@hospital/api';
 import type { Doctor, AvailableSchedule } from '@hospital/shared';
+import { APPOINTMENT_TYPE_MAP } from '@hospital/shared';
 import { DoctorIcon, HeartIcon, HeartOutlineIcon } from '../../../components/Icons';
 import { getToken } from '../../../utils/auth';
 import { getThemePrimaryColor } from '../../../utils/theme';
@@ -612,7 +613,7 @@ const DoctorDetailPage = () => {
                     </Text>
 
                     <Text className="slot-remain">
-                      {schedule.appointmentType || '普通'} {status.message}
+                      {APPOINTMENT_TYPE_MAP[schedule.appointmentType] || '普通'} {status.message}
                     </Text>
 
                     {/* 倒计时 */}

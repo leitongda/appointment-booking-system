@@ -5,6 +5,7 @@ import { Card, App, Row, Col, Button, Space } from 'antd';
 import { useEffect, useState, useRef } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
 import { customScheduleApi, storeApi, departmentApi, doctorApi } from '@hospital/api';
+import { fetchAllData } from '@/utils/fetchAllData';
 import { APPOINTMENT_TYPE_OPTIONS } from '@hospital/shared';
 import dayjs from 'dayjs';
 
@@ -51,8 +52,11 @@ const CustomScheduleFormPage: React.FC = () => {
 
   const loadStores = async () => {
     try {
-      const res = await storeApi.getList({ pageSize: 100, status: 1 });
-      let storeList = res.data ?? [];
+      // 获取所有启用的门店
+      const allStores = await fetchAllData((page, pageSize) =>
+        storeApi.getList({ page, pageSize, status: 1 })
+      );
+      let storeList = allStores;
       // 非超管只显示其关联的门店
       if (!isSuperAdmin && currentUser?.storeIds?.length) {
         storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
@@ -65,8 +69,11 @@ const CustomScheduleFormPage: React.FC = () => {
 
   const loadDepartmentsByStore = async (storeId: string) => {
     try {
-      const res = await departmentApi.getList({ pageSize: 100, status: 1 });
-      setDepartments(res.data ?? []);
+      // 获取所有启用的科室
+      const allDepts = await fetchAllData((page, pageSize) =>
+        departmentApi.getList({ page, pageSize, status: 1 })
+      );
+      setDepartments(allDepts);
     } catch (error) {
       console.error('加载科室失败', error);
     }

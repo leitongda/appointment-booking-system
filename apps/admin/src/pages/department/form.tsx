@@ -3,6 +3,7 @@ import { Card, App, Form, Divider, Spin, Button, Space } from 'antd';
 import { useEffect, useState } from 'react';
 import { history, useParams, useModel, useAccess } from '@umijs/max';
 import { departmentApi, storeApi } from '@hospital/api';
+import { fetchAllData } from '@/utils/fetchAllData';
 import type { Department, Store, DepartmentTreeNode } from '@hospital/shared';
 import ImageUpload from '@/components/ImageUpload';
 import RichTextEditor from '@/components/RichTextEditor';
@@ -30,8 +31,11 @@ const DepartmentFormPage: React.FC = () => {
 
   const loadStores = async () => {
     try {
-      const res = await storeApi.getList({ pageSize: 100, status: 1 });
-      let storeList = res.data ?? [];
+      // 获取所有启用的门店
+      const allStores = await fetchAllData((page, pageSize) =>
+        storeApi.getList({ page, pageSize, status: 1 })
+      );
+      let storeList = allStores;
       // 非超管只显示其关联的门店
       if (!isSuperAdmin && currentUser?.storeIds?.length) {
         storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));

@@ -22,7 +22,8 @@
 .banner-item {
   height: 360rpx;
   position: relative;
-  .gradient-primary();
+  // 中等深度蓝色渐变
+  background: linear-gradient(135deg, #60A5FA 0%, #818CF8 100%);
   overflow: hidden;
   
   // 装饰性背景球
@@ -215,7 +216,7 @@
 
 .doctor-avatar {
   .avatar(@avatar-size-lg);
-  background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+  background: var(--gradient-light, linear-gradient(135deg, #DBEAFE 0%, #E0E7FF 100%));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -324,14 +325,14 @@
   width: 88rpx;
   height: 88rpx;
   border-radius: @radius-xl;
-  background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+  background: var(--gradient-light, linear-gradient(135deg, #DBEAFE 0%, #E0E7FF 100%));
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   
   &.add-icon {
-    background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%);
+    background: var(--gradient-primary, linear-gradient(135deg, #1E6FD9 0%, #4F46E5 100%));
   }
 }
 

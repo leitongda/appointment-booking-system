@@ -3,6 +3,7 @@ import { PlusOutlined, DeleteOutlined, ImportOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react';
 import { useAccess, useModel } from '@umijs/max';
 import { consultationFeeTypeApi, consultationFeeTemplateApi, doctorConsultationFeeApi, storeApi, departmentApi } from '@hospital/api';
+import { fetchAllData } from '@/utils/fetchAllData';
 import type { ConsultationFeeType, ConsultationFeeTemplateWithType, StoreDepartmentFeeGroup, Store, Department, DoctorConsultationFeeItem } from '@hospital/shared';
 
 interface DoctorConsultationFeeModalProps {
@@ -56,25 +57,29 @@ const DoctorConsultationFeeModal: React.FC<DoctorConsultationFeeModalProps> = ({
   const loadData = async () => {
     setLoading(true);
     try {
-      const [typesRes, templatesRes, storesRes, deptsRes, settingRes] = await Promise.all([
+      const [typesRes, templatesRes, settingRes] = await Promise.all([
         consultationFeeTypeApi.getList({ status: 1 }),
         consultationFeeTemplateApi.getList(),
-        storeApi.getList({ pageSize: 100, status: 1 }),
-        departmentApi.getList({ pageSize: 100, status: 1 }),
         doctorConsultationFeeApi.getFeeSetting(doctorId),
       ]);
-      
+
+      // 获取所有启用的门店和科室（使用分页加载）
+      const [allStores, allDepts] = await Promise.all([
+        fetchAllData((page, pageSize) => storeApi.getList({ page, pageSize, status: 1 })),
+        fetchAllData((page, pageSize) => departmentApi.getList({ page, pageSize, status: 1 })),
+      ]);
+
       setFeeTypes(typesRes);
       setTemplates(templatesRes);
       // 非超管只显示其关联的门店
-      let storeList = storesRes.data ?? [];
+      let storeList = allStores;
       if (!isSuperAdmin && currentUser?.storeIds?.length) {
         storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
       }
       setStores(storeList);
-      setDepartments(deptsRes.data ?? []);
+      setDepartments(allDepts);
       setUseFeeTemplate(settingRes.useFeeTemplate === 1);
-      
+
       // 转换已有配置为分组格式
       const grouped = await doctorConsultationFeeApi.getFeesGrouped(doctorId);
       setFeeConfigs(grouped.map(g => ({

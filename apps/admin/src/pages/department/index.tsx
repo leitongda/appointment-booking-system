@@ -1,7 +1,8 @@
-import { PlusOutlined, UserOutlined, HolderOutlined } from '@ant-design/icons';
+import { PlusOutlined, UserOutlined, HolderOutlined, EditOutlined, DeleteOutlined, MoreOutlined, SettingOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Tag, Modal, Spin, Empty, Checkbox, Avatar, List, Switch } from 'antd';
+import { Button, App, Popconfirm, Space, Tag, Modal, Spin, Empty, Checkbox, Avatar, List, Switch, Divider, Dropdown } from 'antd';
+import type { MenuProps } from 'antd';
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
 import { departmentApi, storeApi, dataApi } from '@hospital/api';
@@ -378,28 +379,55 @@ const DepartmentPage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 180,
+      width: 200,
       fixed: 'right',
-      render: (_, record) => (
-        <Space>
-          {access.hasPermission('department:update') && record.isFinal === 1 && (
-            <a onClick={() => handleOpenBindModal(record)}>
-              <UserOutlined /> 医生
-            </a>
-          )}
-          {access.hasPermission('department:update') && (
-            <a onClick={() => history.push(`/department/${record.id}/edit`)}>编辑</a>
-          )}
-          {access.hasPermission('department:delete') && (
-            <Popconfirm
-              title="确定删除该科室吗？"
-              onConfirm={() => handleDelete(record.id)}
-            >
-              <a style={{ color: '#ff4d4f' }}>删除</a>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
+      render: (_, record) => {
+        // 更多操作菜单项
+        const moreMenuItems: MenuProps['items'] = [
+          access.hasPermission('department:update') && {
+            key: 'recommend',
+            label: record.isRecommended === 1 ? '取消推荐' : '设为推荐',
+            onClick: () => handleRecommendChange(record.id, record.isRecommended !== 1),
+          },
+          access.hasPermission('department:update') && {
+            key: 'hot',
+            label: record.isHot === 1 ? '取消热门' : '设为热门',
+            onClick: () => handleHotChange(record.id, record.isHot !== 1),
+          },
+        ].filter(Boolean);
+
+        return (
+          <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
+            {access.hasPermission('department:update') && record.isFinal === 1 && (
+              <a onClick={() => handleOpenBindModal(record)} style={{ fontSize: 13 }}>
+                <UserOutlined /> 医生
+              </a>
+            )}
+            {access.hasPermission('department:update') && (
+              <a onClick={() => history.push(`/department/${record.id}/edit`)} style={{ fontSize: 13 }}>
+                <EditOutlined /> 编辑
+              </a>
+            )}
+            {access.hasPermission('department:delete') && (
+              <Popconfirm
+                title="确定删除该科室吗？"
+                onConfirm={() => handleDelete(record.id)}
+              >
+                <a style={{ color: '#ff4d4f', fontSize: 13 }}>
+                  <DeleteOutlined /> 删除
+                </a>
+              </Popconfirm>
+            )}
+            {moreMenuItems.length > 0 && (
+              <Dropdown menu={{ items: moreMenuItems }} trigger={['click']}>
+                <a style={{ color: '#666', fontSize: 13 }}>
+                  <MoreOutlined /> 更多
+                </a>
+              </Dropdown>
+            )}
+          </Space>
+        );
+      },
     },
   ], [storeFilterOptions, isSingleStore, canViewAllStores, access, handleRecommendChange, handleHotChange, handleDelete]);
 

@@ -98,7 +98,7 @@ class MinIOStorage(BaseStorage):
         """从URL下载并上传到MinIO"""
         try:
             # 下载外部图片
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=30.0, trust_env=False) as client:
                 response = await client.get(url, follow_redirects=True)
                 response.raise_for_status()
                 

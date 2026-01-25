@@ -1,7 +1,8 @@
-import { PlusOutlined, StarOutlined, HolderOutlined } from '@ant-design/icons';
+import { PlusOutlined, StarOutlined, HolderOutlined, EditOutlined, DeleteOutlined, MoreOutlined, EyeOutlined, DollarOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Tag, Avatar, Switch, Modal, Empty, Spin } from 'antd';
+import { Button, App, Popconfirm, Space, Tag, Avatar, Switch, Modal, Empty, Spin, Divider, Dropdown } from 'antd';
+import type { MenuProps } from 'antd';
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
 import { doctorApi, departmentApi, storeApi, dataApi } from '@hospital/api';
@@ -487,36 +488,55 @@ const DoctorListPage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 200,
+      width: 180,
       fixed: 'right',
-      render: (_, record) => (
-        <Space>
-          {access.hasPermission('doctor:detail') && (
-            <a onClick={() => history.push(`/doctor/${record.id}`)}>详情</a>
-          )}
-          {access.hasPermission('doctor:update') && (
-            <a onClick={() => history.push(`/doctor/${record.id}/edit`)}>编辑</a>
-          )}
-          {access.hasPermission('doctor:update') && (
-            <a
-              onClick={() => {
-                setSelectedDoctor({ id: record.id, name: record.name });
-                setFeeModalOpen(true);
-              }}
-            >
-              诊费
-            </a>
-          )}
-          {access.hasPermission('doctor:delete') && (
-            <Popconfirm
-              title="确定删除该医生吗？"
-              onConfirm={() => handleDelete(record.id)}
-            >
-              <a style={{ color: '#ff4d4f' }}>删除</a>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
+      render: (_, record) => {
+        // 更多操作菜单项
+        const moreMenuItems: MenuProps['items'] = [
+          access.hasPermission('doctor:detail') && {
+            key: 'detail',
+            icon: <EyeOutlined />,
+            label: '详情',
+            onClick: () => history.push(`/doctor/${record.id}`),
+          },
+          access.hasPermission('doctor:update') && {
+            key: 'fee',
+            icon: <DollarOutlined />,
+            label: '诊费设置',
+            onClick: () => {
+              setSelectedDoctor({ id: record.id, name: record.name });
+              setFeeModalOpen(true);
+            },
+          },
+        ].filter(Boolean);
+
+        return (
+          <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
+            {access.hasPermission('doctor:update') && (
+              <a onClick={() => history.push(`/doctor/${record.id}/edit`)} style={{ fontSize: 13 }}>
+                <EditOutlined /> 编辑
+              </a>
+            )}
+            {access.hasPermission('doctor:delete') && (
+              <Popconfirm
+                title="确定删除该医生吗？"
+                onConfirm={() => handleDelete(record.id)}
+              >
+                <a style={{ color: '#ff4d4f', fontSize: 13 }}>
+                  <DeleteOutlined /> 删除
+                </a>
+              </Popconfirm>
+            )}
+            {moreMenuItems.length > 0 && (
+              <Dropdown menu={{ items: moreMenuItems }} trigger={['click']}>
+                <a style={{ color: '#666', fontSize: 13 }}>
+                  <MoreOutlined /> 更多
+                </a>
+              </Dropdown>
+            )}
+          </Space>
+        );
+      },
     },
   ], [departments, storeFilterOptions, isSingleStore, access, handleRecommendChange]);
 

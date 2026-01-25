@@ -9,8 +9,9 @@ import {
   ProFormTextArea,
   ProForm,
 } from '@ant-design/pro-components';
-import { App, Popconfirm, Space, Tag, Button } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { App, Popconfirm, Space, Tag, Button, Divider, Dropdown } from 'antd';
+import type { MenuProps } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, MoreOutlined, EyeOutlined, StopOutlined } from '@ant-design/icons';
 import { useRef, useState } from 'react';
 import { history, useAccess } from '@umijs/max';
 import { patientApi, dataApi } from '@hospital/api';
@@ -161,38 +162,62 @@ const PatientPage: React.FC = () => {
       valueType: 'option',
       width: 220,
       fixed: 'right',
-      render: (_, record) => (
-        <Space>
-          {access.hasPermission('patient:detail') && (
-            <a onClick={() => history.push(`/medical-card/${record.id}`)}>详情</a>
-          )}
-          {access.hasPermission('patient:update') && (
-            <a onClick={() => { setCurrentPatient(record); setEditModalVisible(true); }}>
-              <EditOutlined /> 编辑
-            </a>
-          )}
-          {access.hasPermission('patient:update') && (
-            record.isBlacklist ? (
-              <Popconfirm title="确定移出黑名单吗？" onConfirm={() => handleBlacklist(record.id, false)}>
-                <a>移出黑名单</a>
+      render: (_, record) => {
+        // 更多操作菜单项
+        const moreMenuItems: MenuProps['items'] = [
+          access.hasPermission('patient:update') && (
+            record.isBlacklist ? {
+              key: 'remove-blacklist',
+              icon: <StopOutlined />,
+              label: '移出黑名单',
+              onClick: () => handleBlacklist(record.id, false),
+            } : {
+              key: 'add-blacklist',
+              icon: <StopOutlined />,
+              label: '加黑名单',
+              onClick: () => {
+                Popconfirm.confirm({
+                  title: '确定加入黑名单吗？',
+                  onConfirm: () => handleBlacklist(record.id, true),
+                });
+              },
+            }
+          ),
+        ].filter(Boolean);
+
+        return (
+          <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
+            {access.hasPermission('patient:detail') && (
+              <a onClick={() => history.push(`/medical-card/${record.id}`)} style={{ fontSize: 13 }}>
+                <EyeOutlined /> 详情
+              </a>
+            )}
+            {access.hasPermission('patient:update') && (
+              <a onClick={() => { setCurrentPatient(record); setEditModalVisible(true); }} style={{ fontSize: 13 }}>
+                <EditOutlined /> 编辑
+              </a>
+            )}
+            {access.hasPermission('patient:delete') && (
+              <Popconfirm
+                title="确定删除该就诊卡吗？"
+                description="删除后不可恢复"
+                onConfirm={() => handleDelete(record.id)}
+              >
+                <a style={{ color: '#ff4d4f', fontSize: 13 }}>
+                  <DeleteOutlined /> 删除
+                </a>
               </Popconfirm>
-            ) : (
-              <Popconfirm title="确定加入黑名单吗？" onConfirm={() => handleBlacklist(record.id, true)}>
-                <a style={{ color: '#ff4d4f' }}>加黑名单</a>
-              </Popconfirm>
-            )
-          )}
-          {access.hasPermission('patient:delete') && (
-            <Popconfirm
-              title="确定删除该就诊卡吗？"
-              description="删除后不可恢复"
-              onConfirm={() => handleDelete(record.id)}
-            >
-              <a style={{ color: '#ff4d4f' }}><DeleteOutlined /> 删除</a>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
+            )}
+            {moreMenuItems.length > 0 && (
+              <Dropdown menu={{ items: moreMenuItems }} trigger={['click']}>
+                <a style={{ color: '#666', fontSize: 13 }}>
+                  <MoreOutlined /> 更多
+                </a>
+              </Dropdown>
+            )}
+          </Space>
+        );
+      },
     },
   ];
 

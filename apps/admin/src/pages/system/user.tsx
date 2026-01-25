@@ -1,7 +1,8 @@
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, MoreOutlined, KeyOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Avatar, Tag } from 'antd';
+import { Button, App, Popconfirm, Space, Avatar, Tag, Divider, Dropdown } from 'antd';
+import type { MenuProps } from 'antd';
 import { useRef } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
 import { adminApi, storeApi, dataApi } from '@hospital/api';
@@ -96,24 +97,48 @@ const UserPage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 100,
-      render: (_, record) => (
-        <Space>
-          {access.hasPermission('system:user:update') && (
-            <a onClick={() => history.push(`/system/user/${record.id}/edit`)}>编辑</a>
-          )}
-          {access.hasPermission('system:user:reset-password') && (
-            <Popconfirm title="确定重置密码为 123456 吗？" onConfirm={() => handleResetPassword(record.id)}>
-              <a>重置密码</a>
-            </Popconfirm>
-          )}
-          {access.hasPermission('system:user:delete') && record.roleCode !== 'SUPER_ADMIN' && (
-            <Popconfirm title="确定删除该用户吗？" onConfirm={() => handleDelete(record.id)}>
-              <a style={{ color: '#ff4d4f' }}>删除</a>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
+      width: 180,
+      fixed: 'right',
+      render: (_, record) => {
+        // 更多操作菜单项
+        const moreMenuItems: MenuProps['items'] = [
+          access.hasPermission('system:user:reset-password') && {
+            key: 'reset-password',
+            icon: <KeyOutlined />,
+            label: '重置密码',
+            onClick: () => {
+              Popconfirm.confirm({
+                title: '确定重置密码为 123456 吗？',
+                onConfirm: () => handleResetPassword(record.id),
+              });
+            },
+          },
+        ].filter(Boolean);
+
+        return (
+          <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
+            {access.hasPermission('system:user:update') && (
+              <a onClick={() => history.push(`/system/user/${record.id}/edit`)} style={{ fontSize: 13 }}>
+                <EditOutlined /> 编辑
+              </a>
+            )}
+            {access.hasPermission('system:user:delete') && record.roleCode !== 'SUPER_ADMIN' && (
+              <Popconfirm title="确定删除该用户吗？" onConfirm={() => handleDelete(record.id)}>
+                <a style={{ color: '#ff4d4f', fontSize: 13 }}>
+                  <DeleteOutlined /> 删除
+                </a>
+              </Popconfirm>
+            )}
+            {moreMenuItems.length > 0 && (
+              <Dropdown menu={{ items: moreMenuItems }} trigger={['click']}>
+                <a style={{ color: '#666', fontSize: 13 }}>
+                  <MoreOutlined /> 更多
+                </a>
+              </Dropdown>
+            )}
+          </Space>
+        );
+      },
     },
   ];
 

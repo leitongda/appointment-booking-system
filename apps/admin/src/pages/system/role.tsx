@@ -1,7 +1,8 @@
-import { PlusOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import { PlusOutlined, SafetyCertificateOutlined, EditOutlined, DeleteOutlined, MoreOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Tag } from 'antd';
+import { Button, App, Popconfirm, Space, Tag, Divider, Dropdown } from 'antd';
+import type { MenuProps } from 'antd';
 import { useRef } from 'react';
 import { history, useAccess } from '@umijs/max';
 import { adminApi } from '@hospital/api';
@@ -46,24 +47,43 @@ const RolePage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 200,
-      render: (_, record) => (
-        <Space>
-          {access.hasPermission('system:role:permission') && record.code !== 'SUPER_ADMIN' && (
-            <a onClick={() => history.push(`/system/role/${record.id}/permissions`)}>
-              <SafetyCertificateOutlined /> 分配权限
-            </a>
-          )}
-          {access.hasPermission('system:role:update') && (
-            <a onClick={() => history.push(`/system/role/${record.id}/edit`)}>编辑</a>
-          )}
-          {access.hasPermission('system:role:delete') && record.code !== 'SUPER_ADMIN' && (
-            <Popconfirm title="确定删除该角色吗？" onConfirm={() => handleDelete(record.id)}>
-              <a style={{ color: '#ff4d4f' }}>删除</a>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
+      width: 180,
+      fixed: 'right',
+      render: (_, record) => {
+        // 更多操作菜单项
+        const moreMenuItems: MenuProps['items'] = [
+          access.hasPermission('system:role:permission') && record.code !== 'SUPER_ADMIN' && {
+            key: 'permissions',
+            icon: <SafetyCertificateOutlined />,
+            label: '分配权限',
+            onClick: () => history.push(`/system/role/${record.id}/permissions`),
+          },
+        ].filter(Boolean);
+
+        return (
+          <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
+            {access.hasPermission('system:role:update') && (
+              <a onClick={() => history.push(`/system/role/${record.id}/edit`)} style={{ fontSize: 13 }}>
+                <EditOutlined /> 编辑
+              </a>
+            )}
+            {access.hasPermission('system:role:delete') && record.code !== 'SUPER_ADMIN' && (
+              <Popconfirm title="确定删除该角色吗？" onConfirm={() => handleDelete(record.id)}>
+                <a style={{ color: '#ff4d4f', fontSize: 13 }}>
+                  <DeleteOutlined /> 删除
+                </a>
+              </Popconfirm>
+            )}
+            {moreMenuItems.length > 0 && (
+              <Dropdown menu={{ items: moreMenuItems }} trigger={['click']}>
+                <a style={{ color: '#666', fontSize: 13 }}>
+                  <MoreOutlined /> 更多
+                </a>
+              </Dropdown>
+            )}
+          </Space>
+        );
+      },
     },
   ];
 

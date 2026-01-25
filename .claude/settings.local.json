@@ -87,7 +87,14 @@
       "Bash(pnpm dev:prod:*)",
       "Bash(NODE_ENV=production taro build:*)",
       "Bash(pnpm add:*)",
-      "Bash(pnpm run tsc:*)"
+      "Bash(pnpm run tsc:*)",
+      "Bash(pnpm --filter admin run tsc:*)",
+      "Bash(pnpm --filter admin run lint:*)",
+      "Bash(pnpm --filter admin run build:*)",
+      "Bash(pnpm run build:*)",
+      "Bash(pnpm store prune:*)",
+      "Bash(pnpm cache clean:*)",
+      "Bash(pgrep:*)"
     ]
   },
   "statusLine": {

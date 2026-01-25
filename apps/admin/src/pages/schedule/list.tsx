@@ -1,7 +1,7 @@
 import { PlusOutlined, StopOutlined, PlayCircleOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns, ProFormInstance } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormSelect, ProFormDatePicker, ProFormDigit, ProFormDateRangePicker } from '@ant-design/pro-components';
-import { Button, App, Space, Tag, Popconfirm, Alert, Tooltip } from 'antd';
+import { Button, App, Space, Tag, Popconfirm, Alert, Tooltip, Divider } from 'antd';
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { useAccess, useModel } from '@umijs/max';
 import { scheduleApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
@@ -378,12 +378,13 @@ const ScheduleListPage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 140,
+      width: 160,
+      fixed: 'right',
       render: (_, record) => (
-        <Space>
+        <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
           {access.hasPermission('schedule:update') && (
             <Tooltip title="修改可预约人数">
-              <a onClick={() => handleEdit(record)}>
+              <a onClick={() => handleEdit(record)} style={{ fontSize: 13 }}>
                 <EditOutlined /> 编辑
               </a>
             </Tooltip>
@@ -391,10 +392,10 @@ const ScheduleListPage: React.FC = () => {
           {access.hasPermission('schedule:update') && (
             record.status === 1 ? (
               <Popconfirm title="确定停诊吗？" onConfirm={() => handleSuspend(record.id)}>
-                <a style={{ color: '#ff4d4f' }}>停诊</a>
+                <a style={{ color: '#ff4d4f', fontSize: 13 }}>停诊</a>
               </Popconfirm>
             ) : (
-              <a onClick={() => handleResume(record.id)}>恢复</a>
+              <a onClick={() => handleResume(record.id)} style={{ fontSize: 13, color: '#52c41a' }}>恢复</a>
             )
           )}
         </Space>

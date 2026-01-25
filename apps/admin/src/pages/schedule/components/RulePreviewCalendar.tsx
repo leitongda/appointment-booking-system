@@ -10,6 +10,7 @@ dayjs.extend(isSameOrBefore);
 import { useEffect, useState, useMemo } from 'react';
 import { scheduleApi } from '@hospital/api';
 import type { Schedule, BreakTime } from '@hospital/shared';
+import { fetchAllData } from '@/utils/fetchAllData';
 import { 
   generateSchedulePreview, 
   getDateInfo, 
@@ -127,7 +128,7 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
       try {
         let startDate: string;
         let endDate: string;
-        
+
         if (panelMode === 'year') {
           startDate = currentDate.startOf('year').format('YYYY-MM-DD');
           endDate = currentDate.endOf('year').format('YYYY-MM-DD');
@@ -136,16 +137,16 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
           endDate = currentDate.endOf('month').format('YYYY-MM-DD');
         }
 
-        const result = await scheduleApi.getList({
-          doctorId,
-          startDate,
-          endDate,
-          pageSize: 500, // 年视图需要更多数据
-        });
+        // 年视图可能超过100条记录，使用分页加载；月视图100条足够
+        const schedules = panelMode === 'year'
+          ? await fetchAllData((page, pageSize) =>
+              scheduleApi.getList({ doctorId, startDate, endDate, page, pageSize })
+            )
+          : (await scheduleApi.getList({ doctorId, startDate, endDate, pageSize: 100 })).data ?? [];
 
         // 按日期分组
         const grouped: DaySchedules = {};
-        (result.data ?? []).forEach((schedule) => {
+        schedules.forEach((schedule) => {
           const date = schedule.scheduleDate;
           if (!grouped[date]) {
             grouped[date] = [];

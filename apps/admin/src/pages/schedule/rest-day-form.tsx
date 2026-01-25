@@ -3,6 +3,7 @@ import { Card, App, Alert, Button, Space } from 'antd';
 import { useEffect, useState } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
 import { restDayApi, storeApi, doctorApi } from '@hospital/api';
+import { fetchAllData } from '@/utils/fetchAllData';
 
 const RestDayFormPage: React.FC = () => {
   const { message } = App.useApp();
@@ -26,8 +27,11 @@ const RestDayFormPage: React.FC = () => {
 
   const loadStores = async () => {
     try {
-      const res = await storeApi.getList({ pageSize: 100, status: 1 });
-      let storeList = res.data ?? [];
+      // 获取所有启用的门店
+      const allStores = await fetchAllData((page, pageSize) =>
+        storeApi.getList({ page, pageSize, status: 1 })
+      );
+      let storeList = allStores;
       // 非超管只显示其关联的门店
       if (!isSuperAdmin && currentUser?.storeIds?.length) {
         storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
@@ -40,8 +44,11 @@ const RestDayFormPage: React.FC = () => {
 
   const loadDoctorsByStore = async (storeId: string) => {
     try {
-      const res = await doctorApi.getList({ storeId, pageSize: 100, status: 1 });
-      setDoctors(res.data ?? []);
+      // 获取该门店所有在职医生
+      const allDoctors = await fetchAllData((page, pageSize) =>
+        doctorApi.getList({ storeId, page, pageSize, status: 1 })
+      );
+      setDoctors(allDoctors);
     } catch (error) {
       console.error('加载医生失败', error);
     }

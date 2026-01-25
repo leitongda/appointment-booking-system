@@ -1,7 +1,7 @@
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { App, Space, Tag, Avatar, Popconfirm } from 'antd';
-import { UserOutlined, DeleteOutlined } from '@ant-design/icons';
+import { App, Space, Tag, Avatar, Popconfirm, Divider } from 'antd';
+import { UserOutlined, DeleteOutlined, EyeOutlined, StopOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useRef } from 'react';
 import { history, useAccess } from '@umijs/max';
 import { userManageApi } from '@hospital/api';
@@ -102,25 +102,31 @@ const UserManagePage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 100,
+      width: 220,
       fixed: 'right',
       render: (_, record) => (
-        <Space>
-          <a onClick={() => history.push(`/user/${record.id}`)}>详情</a>
+        <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
+          <a onClick={() => history.push(`/user/${record.id}`)} style={{ fontSize: 13 }}>
+            <EyeOutlined /> 详情
+          </a>
           {access.hasPermission('user:update') && (
             record.status === 1 ? (
               <Popconfirm
                 title="确定禁用该用户吗？禁用后用户将无法预约"
                 onConfirm={() => handleUpdateStatus(record.id, 0)}
               >
-                <a style={{ color: '#ff4d4f' }}>禁用</a>
+                <a style={{ color: '#ff4d4f', fontSize: 13 }}>
+                  <StopOutlined /> 禁用
+                </a>
               </Popconfirm>
             ) : (
               <Popconfirm
                 title="确定启用该用户吗？"
                 onConfirm={() => handleUpdateStatus(record.id, 1)}
               >
-                <a style={{ color: '#52c41a' }}>启用</a>
+                <a style={{ color: '#52c41a', fontSize: 13 }}>
+                  <CheckCircleOutlined /> 启用
+                </a>
               </Popconfirm>
             )
           )}
@@ -130,7 +136,9 @@ const UserManagePage: React.FC = () => {
               description="删除后用户的所有就诊卡将被一并删除，此操作不可恢复"
               onConfirm={() => handleDelete(record.id)}
             >
-              <a style={{ color: '#ff4d4f' }}><DeleteOutlined /> 删除</a>
+              <a style={{ color: '#ff4d4f', fontSize: 13 }}>
+                <DeleteOutlined /> 删除
+              </a>
             </Popconfirm>
           )}
         </Space>

@@ -1,10 +1,12 @@
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { App, Space, Tag, Popconfirm } from 'antd';
+import { App, Space, Tag, Popconfirm, Divider } from 'antd';
+import { EyeOutlined, CloseCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useRef, useMemo, useCallback } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
 import { appointmentApi, storeApi, dataApi, doctorApi, departmentApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
+import { fetchAllData } from '@/utils/fetchAllData';
 import { PAGINATION_CONFIG } from '@/constants/pagination';
 import type { Appointment } from '@hospital/shared';
 import ImportExport from '@/components/ImportExport';
@@ -144,8 +146,10 @@ const AppointmentListPage: React.FC = () => {
       },
       request: async () => {
         try {
-          const result = await doctorApi.getList({ page: 1, pageSize: 200 });
-          const doctors = result.data ?? [];
+          // 获取所有医生（使用分页加载）
+          const doctors = await fetchAllData((page, pageSize) =>
+            doctorApi.getList({ page, pageSize })
+          );
           return [
             { label: '全部医生', value: '' },
             ...doctors.map((d: any) => ({ label: `${d.name}（${d.departmentName || '无科室'}）`, value: d.id })),
@@ -174,8 +178,10 @@ const AppointmentListPage: React.FC = () => {
       },
       request: async () => {
         try {
-          const result = await departmentApi.getList({ page: 1, pageSize: 200 });
-          const departments = result.data ?? [];
+          // 获取所有科室（使用分页加载）
+          const departments = await fetchAllData((page, pageSize) =>
+            departmentApi.getList({ page, pageSize })
+          );
           return [
             { label: '全部科室', value: '' },
             ...departments.map((d: any) => ({ label: d.name, value: d.id })),
@@ -271,29 +277,34 @@ const AppointmentListPage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 180,
+      width: 200,
+      fixed: 'right',
       render: (_, record) => (
-        <Space>
+        <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
           {access.hasPermission('appointment:detail') && (
-            <a onClick={() => history.push(`/appointment/${record.id}`)}>详情</a>
+            <a onClick={() => history.push(`/appointment/${record.id}`)} style={{ fontSize: 13 }}>
+              <EyeOutlined /> 详情
+            </a>
           )}
-          {record.status === 0 && (
-            <>
-              {access.hasPermission('appointment:cancel') && (
-                <Popconfirm title="确定取消该预约吗？" onConfirm={() => handleCancel(record.id)}>
-                  <a style={{ color: '#ff4d4f' }}>取消</a>
-                </Popconfirm>
-              )}
-              {access.hasPermission('appointment:update') && (
-                <Popconfirm title="确定标记为爽约吗？" onConfirm={() => handleMarkNoShow(record.id)}>
-                  <a style={{ color: '#fa8c16' }}>爽约</a>
-                </Popconfirm>
-              )}
-            </>
+          {record.status === 0 && access.hasPermission('appointment:cancel') && (
+            <Popconfirm title="确定取消该预约吗？" onConfirm={() => handleCancel(record.id)}>
+              <a style={{ color: '#ff4d4f', fontSize: 13 }}>
+                <CloseCircleOutlined /> 取消
+              </a>
+            </Popconfirm>
+          )}
+          {record.status === 0 && access.hasPermission('appointment:update') && (
+            <Popconfirm title="确定标记为爽约吗？" onConfirm={() => handleMarkNoShow(record.id)}>
+              <a style={{ color: '#fa8c16', fontSize: 13 }}>
+                <ExclamationCircleOutlined /> 爽约
+              </a>
+            </Popconfirm>
           )}
           {record.status === 2 && isSuperAdmin && (
             <Popconfirm title="确定取消签到吗？状态将恢复为已预约" onConfirm={() => handleCancelSignIn(record.id)}>
-              <a style={{ color: '#ff4d4f' }}>取消签到</a>
+              <a style={{ color: '#ff4d4f', fontSize: 13 }}>
+                <CloseCircleOutlined /> 取消签到
+              </a>
             </Popconfirm>
           )}
         </Space>

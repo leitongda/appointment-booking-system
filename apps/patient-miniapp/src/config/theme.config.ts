@@ -34,7 +34,7 @@ export interface ThemeConfig {
  */
 export const THEME_CONFIG = {
   // 默认主题（开发可通过修改此值切换默认主题）
-  default: '中医-绿',
+  default: '现代-蓝',
 
   // 主题定义
   themes: {
@@ -169,9 +169,20 @@ export const THEME_CONFIG = {
 
   /**
    * 获取主题配置
+   * 如果指定主题不存在，回退到默认主题；如果默认主题也不存在，回退到第一个可用主题
    */
   getTheme(name: string): ThemeConfig {
-    return this.themes[name as keyof typeof this.themes] || this.themes[this.default as keyof typeof this.themes];
+    // 尝试获取指定主题
+    const theme = this.themes[name as keyof typeof this.themes];
+    if (theme) return theme;
+
+    // 回退到默认主题
+    const defaultTheme = this.themes[this.default as keyof typeof this.themes];
+    if (defaultTheme) return defaultTheme;
+
+    // 回退到第一个可用主题（确保永远返回有效主题）
+    const firstThemeName = Object.keys(this.themes)[0];
+    return this.themes[firstThemeName as keyof typeof this.themes];
   },
 
   /**

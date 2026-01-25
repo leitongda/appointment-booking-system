@@ -2,6 +2,7 @@ import { Avatar, Select, Space, Spin } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
 import { doctorApi, departmentApi } from '@hospital/api';
+import { fetchAllData } from '@/utils/fetchAllData';
 import type { Doctor, Department } from '@hospital/shared';
 
 interface DoctorSelectorProps {
@@ -29,8 +30,10 @@ const DoctorSelector: React.FC<DoctorSelectorProps> = ({ selectedDoctor, onSelec
 
   const loadDepartments = async () => {
     try {
-      const res = await departmentApi.getList({ pageSize: 100, status: 1 });
-      const deptList = res.data ?? [];
+      // 获取所有启用的科室
+      const deptList = await fetchAllData((page, pageSize) =>
+        departmentApi.getList({ page, pageSize, status: 1 })
+      );
       setDepartments(deptList);
       // 默认选择第一个科室
       if (deptList.length > 0 && !selectedDeptId) {

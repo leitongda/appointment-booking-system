@@ -1,6 +1,7 @@
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormTextArea, ProFormRadio } from '@ant-design/pro-components';
-import { App, Space, Tag, Drawer, Descriptions } from 'antd';
+import { App, Space, Tag, Drawer, Descriptions, Divider } from 'antd';
+import { EyeOutlined, AuditOutlined } from '@ant-design/icons';
 import { useRef, useState } from 'react';
 import { useModel, useAccess } from '@umijs/max';
 import { leaveRequestApi } from '@hospital/api';
@@ -66,14 +67,19 @@ const LeaveRequestPage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 100,
+      width: 150,
+      fixed: 'right',
       render: (_, record) => (
-        <Space>
+        <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
           {access.hasPermission('leave-request:list') && (
-            <a onClick={() => { setCurrentRecord(record); setDetailOpen(true); }}>详情</a>
+            <a onClick={() => { setCurrentRecord(record); setDetailOpen(true); }} style={{ fontSize: 13 }}>
+              <EyeOutlined /> 详情
+            </a>
           )}
           {access.hasPermission('leave-request:approve') && record.status === 'pending' && (
-            <a onClick={() => { setCurrentRecord(record); setReviewOpen(true); }}>审核</a>
+            <a onClick={() => { setCurrentRecord(record); setReviewOpen(true); }} style={{ fontSize: 13 }}>
+              <AuditOutlined /> 审核
+            </a>
           )}
         </Space>
       ),

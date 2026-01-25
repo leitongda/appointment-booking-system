@@ -1,6 +1,7 @@
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormTextArea } from '@ant-design/pro-components';
-import { App, Space, Tag, Button, Drawer, Descriptions, Image } from 'antd';
+import { App, Space, Tag, Button, Drawer, Descriptions, Image, Divider } from 'antd';
+import { EyeOutlined, MessageOutlined } from '@ant-design/icons';
 import { useRef, useState } from 'react';
 import { useModel, useAccess } from '@umijs/max';
 import { feedbackApi, dataApi } from '@hospital/api';
@@ -72,14 +73,19 @@ const FeedbackPage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 120,
+      width: 150,
+      fixed: 'right',
       render: (_, record) => (
-        <Space>
+        <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
           {access.hasPermission('feedback:list') && (
-            <a onClick={() => { setCurrentRecord(record); setDetailOpen(true); }}>详情</a>
+            <a onClick={() => { setCurrentRecord(record); setDetailOpen(true); }} style={{ fontSize: 13 }}>
+              <EyeOutlined /> 详情
+            </a>
           )}
           {access.hasPermission('feedback:reply') && record.status === 'pending' && (
-            <a onClick={() => { setCurrentRecord(record); setReplyOpen(true); }}>回复</a>
+            <a onClick={() => { setCurrentRecord(record); setReplyOpen(true); }} style={{ fontSize: 13 }}>
+              <MessageOutlined /> 回复
+            </a>
           )}
         </Space>
       ),

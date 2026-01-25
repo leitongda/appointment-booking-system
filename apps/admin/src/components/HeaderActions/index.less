@@ -214,20 +214,21 @@
   :global {
     .ant-popover-inner {
       padding: 0;
-      border-radius: 12px;
+      border-radius: 8px;
       overflow: hidden;
-      box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.08),
-                  0 9px 28px 0 rgba(0, 0, 0, 0.05),
-                  0 12px 48px 16px rgba(0, 0, 0, 0.03);
+    }
+    .ant-popover-inner-content {
+      padding: 0;
     }
   }
 }
 
 .notificationPanel {
-  width: 340px;
-  max-height: 480px;
+  width: 400px;
+  max-height: 520px;
   display: flex;
   flex-direction: column;
+  background-color: #fff;
 }
 
 .panelHeader {
@@ -235,60 +236,133 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  border-bottom: 1px solid #f0f0f0;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
+
+  .headerIcon {
+    font-size: 16px;
+    color: #fff;
+  }
 
   .panelTitle {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     color: #fff;
   }
 
+  .headerActionBtn {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 12px;
+    padding: 0 4px;
+    height: auto;
+
+    &:hover {
+      color: #fff;
+    }
+
+    :global {
+      .anticon {
+        font-size: 12px;
+      }
+    }
+  }
+
   :global {
-    .ant-btn-link {
-      color: rgba(255, 255, 255, 0.85);
-      padding: 0;
-      height: auto;
-      
-      &:hover {
-        color: #fff;
+    .ant-space {
+      color: #fff;
+    }
+    .ant-badge {
+      .ant-badge-count {
+        background-color: #ff4d4f;
       }
     }
   }
 }
 
+.headerDivider {
+  margin: 0;
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+// 消息标签页
+.messageTabs {
+  padding: 8px 16px 0;
+
+  :global {
+    .ant-tabs-nav {
+      margin-bottom: 0;
+    }
+    .ant-tabs-tab {
+      padding: 6px 8px;
+      font-size: 13px;
+      margin: 0 8px 0 0;
+    }
+    .ant-tabs-ink-bar {
+      height: 2px;
+    }
+    .ant-badge {
+      .ant-badge-count {
+        font-size: 10px;
+        height: 16px;
+        line-height: 16px;
+        padding: 0 4px;
+        min-width: 16px;
+      }
+    }
+  }
+}
+
+// 消息列表
 .messageList {
-  max-height: 360px;
+  flex: 1;
   overflow-y: auto;
+  padding: 0;
 
   :global {
     .ant-list-item {
       padding: 0;
       border-bottom: none;
     }
+    .ant-spin-nested-loading {
+      min-height: 200px;
+    }
+  }
+
+  // 自定义滚动条
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+    &:hover {
+      background: rgba(0, 0, 0, 0.2);
+    }
   }
 }
 
 .messageItem {
-  padding: 12px 16px !important;
+  padding: 12px 16px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
-  border-bottom: 1px solid #f5f5f5 !important;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid #f0f0f0;
 
   &:hover {
-    background-color: #f9f9f9;
+    background-color: #fafafa;
   }
 
   &:last-child {
-    border-bottom: none !important;
+    border-bottom: none;
   }
 
   &.unread {
-    background-color: #e6f7ff;
+    background-color: #f6ffed;
+    border-left: 3px solid #52c41a;
 
     &:hover {
-      background-color: #d6efff;
+      background-color: #f0f9ff;
     }
   }
 }
@@ -301,49 +375,102 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.messageTypeTag {
+  font-size: 11px;
+  padding: 0 6px;
+  height: 20px;
+  line-height: 18px;
+  border-radius: 4px;
+  margin: 0;
+
+  :global {
+    .anticon {
+      font-size: 10px;
+      margin-right: 2px;
+    }
+  }
+}
+
+.messageActionBtn {
+  color: rgba(0, 0, 0, 0.45);
+  padding: 2px 4px;
+
+  &:hover {
+    color: rgba(0, 0, 0, 0.65);
+    background-color: rgba(0, 0, 0, 0.04);
+  }
+
+  :global {
+    .anticon {
+      font-size: 12px;
+    }
+  }
+}
+
+.messageTitleWrapper {
   margin-bottom: 4px;
 }
 
 .messageTitle {
-  max-width: 260px;
   font-size: 14px;
-}
+  color: rgba(0, 0, 0, 0.85);
+  line-height: 1.5;
+  display: block;
 
-.unreadDot {
-  width: 8px;
-  height: 8px;
-  background-color: #ff4d4f;
-  border-radius: 50%;
-  flex-shrink: 0;
+  &:hover {
+    color: #1890ff;
+  }
 }
 
 .messageDesc {
   display: block;
   font-size: 12px;
-  margin-bottom: 4px;
+  color: rgba(0, 0, 0, 0.45);
+  line-height: 1.5;
+  margin-bottom: 6px;
   max-width: 100%;
 }
 
 .messageTime {
   font-size: 12px;
+  color: rgba(0, 0, 0, 0.35);
 }
 
 .emptyState {
-  padding: 40px 0;
+  padding: 48px 0;
+  color: rgba(0, 0, 0, 0.35);
+}
+
+.footerDivider {
+  margin: 0;
+  border-color: rgba(0, 0, 0, 0.06);
 }
 
 .panelFooter {
-  border-top: 1px solid #f0f0f0;
+  padding: 8px 16px;
   background-color: #fafafa;
 
   :global {
     .ant-btn-link {
-      color: #1890ff;
-      height: 44px;
-      
+      color: rgba(0, 0, 0, 0.65);
+      font-size: 13px;
+      width: 100%;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+
       &:hover {
-        color: #40a9ff;
-        background-color: #f0f0f0;
+        color: #1890ff;
+        background-color: rgba(24, 144, 255, 0.08);
+      }
+
+      .anticon {
+        margin-right: 6px;
       }
     }
   }

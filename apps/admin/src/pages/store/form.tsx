@@ -1,18 +1,12 @@
 import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSwitch, ProFormSelect, FooterToolbar } from '@ant-design/pro-components';
 import type { ProFormInstance } from '@ant-design/pro-components';
-import { Card, App, Row, Col, Form, Spin, Button, Space, Alert, Typography, Modal, Input } from 'antd';
+import { Card, App, Spin, Button, Space, Form } from 'antd';
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { history, useParams, useAccess } from '@umijs/max';
+import { history, useParams } from '@umijs/max';
 import { storeApi } from '@hospital/api';
 import type { Store } from '@hospital/shared';
-import { ProFormRegionSelector } from '@hospital/shared';
 import ImageUpload from '@/components/ImageUpload';
-import MapLocationPickerModal from '@/components/MapLocationPickerModal';
-import type { LocationInfo } from '@/components/MapLocationPicker';
-import { EnvironmentOutlined, KeyOutlined } from '@ant-design/icons';
 import { pinyin } from 'pinyin-pro';
-
-const { Text } = Typography;
 
 // 风格选项 - 中国风主题预设
 const THEME_STYLE_OPTIONS = [
@@ -50,23 +44,11 @@ const StoreFormPage: React.FC = () => {
   const { message } = App.useApp();
   const { id } = useParams<{ id: string }>();
   const isEdit = !!id;
-  const access = useAccess();
   const [loading, setLoading] = useState(false);
   const [store, setStore] = useState<Store | null>(null);
   const formRef = useRef<ProFormInstance>();
   // 标记编码是否被用户手动修改过
   const [codeManuallyEdited, setCodeManuallyEdited] = useState(false);
-  // 地图弹框状态
-  const [mapModalVisible, setMapModalVisible] = useState(false);
-  const [currentLocation, setCurrentLocation] = useState<LocationInfo | undefined>();
-  // 重置密码弹框状态
-  const [resetPasswordModalVisible, setResetPasswordModalVisible] = useState(false);
-  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-
-  // 检查是否有定位信息
-  const hasLocation = !!currentLocation?.longitude && !!currentLocation?.latitude;
 
   useEffect(() => {
     if (isEdit) {
@@ -82,18 +64,6 @@ const StoreFormPage: React.FC = () => {
     try {
       const data = await storeApi.getDetail(id);
       setStore(data);
-      // 如果有经纬度，设置当前选中位置
-      if (data.longitude && data.latitude) {
-        setCurrentLocation({
-          longitude: data.longitude,
-          latitude: data.latitude,
-          province: data.province,
-          city: data.city,
-          district: data.district,
-          address: data.address,
-          formattedAddress: `${data.province}${data.city}${data.district}${data.address}`,
-        });
-      }
     } catch (error: any) {
       message.error('加载门店信息失败');
     } finally {
@@ -101,60 +71,10 @@ const StoreFormPage: React.FC = () => {
     }
   };
 
-  // 地图选点确认
-  const handleMapOk = (location: LocationInfo) => {
-    formRef.current?.setFieldsValue({
-      region: [location.province, location.city, location.district].filter(Boolean),
-      address: location.address || location.formattedAddress,
-      longitude: location.longitude,
-      latitude: location.latitude,
-    });
-
-    setCurrentLocation(location);
-    setMapModalVisible(false);
-  };
-
-  // 地图选点取消
-  const handleMapCancel = () => {
-    setMapModalVisible(false);
-  };
-
-  // 重置密码
-  const handleResetPassword = async () => {
-    if (!newPassword) {
-      message.error('请输入新密码');
-      return;
-    }
-    if (newPassword.length < 6) {
-      message.error('密码至少6个字符');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      message.error('两次输入的密码不一致');
-      return;
-    }
-    if (!id) return;
-
-    setResetPasswordLoading(true);
-    try {
-      await storeApi.resetPassword(id, newPassword);
-      message.success('密码重置成功');
-      setResetPasswordModalVisible(false);
-      setNewPassword('');
-      setConfirmPassword('');
-    } catch (error: any) {
-      message.error(error.message || '重置密码失败');
-    } finally {
-      setResetPasswordLoading(false);
-    }
-  };
-
   const handleSubmit = async (values: any) => {
     try {
-      // 排除确认密码字段
-      const { confirmPassword, ...restValues } = values;
       const data = {
-        ...restValues,
+        ...values,
         status: values.status ? 1 : 0
       };
 
@@ -230,9 +150,16 @@ const StoreFormPage: React.FC = () => {
     [isEdit, id]
   );
 
+  // 格式化时间，从 HH:mm:ss 转换为 HH:mm
+  const formatTime = (time: string | undefined): string | undefined => {
+    if (!time) return undefined;
+    return time.slice(0, 5); // 取前5个字符 "HH:mm"
+  };
+
   const initialValues = store ? {
     ...store,
-    region: [store.province, store.city, store.district].filter(Boolean),
+    openingTime: formatTime(store.openingTime),
+    closingTime: formatTime(store.closingTime),
     status: store.status === 1
   } : {
     status: true,
@@ -364,138 +291,19 @@ const StoreFormPage: React.FC = () => {
           </ProForm.Group>
         </Card>
 
-        {/* 账号设置 */}
-        <Card title="账号设置" style={{ marginBottom: 16 }} loading={loading}>
-          {!isEdit ? (
-            // 新增模式：显示密码输入框
-            <ProForm.Group>
-              <ProFormText.Password
-                name="password"
-                label="门店密码"
-                width="md"
-                placeholder="不填则默认为 123456"
-                extra="不填写则使用默认密码：123456"
-                fieldProps={{ autoComplete: 'new-password' }}
-                rules={[
-                  { min: 6, message: '密码至少6个字符' },
-                  { max: 50, message: '密码不能超过50个字符' },
-                ]}
-              />
-              <ProFormText.Password
-                name="confirmPassword"
-                label="确认密码"
-                width="md"
-                placeholder="请再次输入密码"
-                dependencies={['password']}
-                rules={[
-                  ({ getFieldValue }) => ({
-                    validator(_, value) {
-                      const password = getFieldValue('password');
-                      if (!password && !value) {
-                        return Promise.resolve();
-                      }
-                      if (password && !value) {
-                        return Promise.reject(new Error('请再次输入密码'));
-                      }
-                      if (password !== value) {
-                        return Promise.reject(new Error('两次输入的密码不一致'));
-                      }
-                      return Promise.resolve();
-                    },
-                  }),
-                ]}
-                fieldProps={{ autoComplete: 'new-password' }}
-              />
-            </ProForm.Group>
-          ) : (
-            // 编辑模式：显示重置密码按钮（仅超管可见）
-            <>
-              {access.canSuperAdmin && (
-                <Form.Item label="门店密码">
-                  <Space>
-                    <Button
-                      icon={<KeyOutlined />}
-                      onClick={() => setResetPasswordModalVisible(true)}
-                    >
-                      重置密码
-                    </Button>
-                    <Text type="secondary">仅超管可重置门店密码</Text>
-                  </Space>
-                </Form.Item>
-              )}
-            </>
-          )}
-        </Card>
-
         {/* 地址信息 */}
         <Card title="地址信息" style={{ marginBottom: 16 }} loading={loading}>
-          {/* 省市区级联选择器 */}
-          <ProFormRegionSelector
-            name="region"
-            label="所在地区"
-            width="lg"
-            rules={[{ required: true, message: '请选择所在地区' }]}
-            fieldProps={{
-              placeholder: '请选择省/市/区',
-              changeOnSelect: true,
-              showSearch: true,
-            }}
-            transform={(value) => ({
-              province: value?.[0] || '',
-              city: value?.[1] || '',
-              district: value?.[2] || '',
-            })}
-          />
-
-          {/* 详细地址输入框 */}
           <ProFormTextArea
             name="address"
-            label="详细地址"
-            placeholder="请输入详细地址，如：道路、门牌号、楼层等"
-            fieldProps={{ rows: 2 }}
-            rules={[{ max: 255, message: '详细地址不能超过255个字符' }]}
+            label="地址"
+            placeholder="请输入完整地址，如：贵州省贵阳市观山湖区XX路XX号XX大厦X楼"
+            fieldProps={{ rows: 3 }}
+            rules={[
+              { required: true, message: '请输入地址' },
+              { max: 255, message: '地址不能超过255个字符' }
+            ]}
+            extra="请输入完整的机构地址，包含省市区、街道、门牌号等信息"
           />
-
-          {/* 地图定位 */}
-          <Form.Item label="地图定位" tooltip="在地图上精确定位，将自动填充上方位置信息">
-            <Button
-              icon={<EnvironmentOutlined />}
-              onClick={() => setMapModalVisible(true)}
-              size="large"
-              block
-            >
-              {hasLocation ? '重新定位' : '点击定位'}
-            </Button>
-
-            {hasLocation && currentLocation && (
-              <Alert
-                message={
-                  <Space direction="vertical" size={4}>
-                    <div>
-                      <EnvironmentOutlined style={{ marginRight: 8 }} />
-                      <Text strong>已定位：</Text>
-                      <Text>{currentLocation.formattedAddress || currentLocation.address || '未知地址'}</Text>
-                    </div>
-                    <div style={{ paddingLeft: 22 }}>
-                      <Text type="secondary">
-                        经度: {currentLocation.longitude} | 纬度: {currentLocation.latitude}
-                      </Text>
-                    </div>
-                  </Space>
-                }
-                type="success"
-                showIcon
-                style={{ marginTop: 8 }}
-              />
-            )}
-          </Form.Item>
-
-          {/* 隐藏字段（用于数据提交） */}
-          <ProFormText name="longitude" hidden />
-          <ProFormText name="latitude" hidden />
-          <ProFormText name="province" hidden />
-          <ProFormText name="city" hidden />
-          <ProFormText name="district" hidden />
         </Card>
 
         {/* 展示设置 */}
@@ -578,61 +386,10 @@ const StoreFormPage: React.FC = () => {
             name="description"
             label="门店简介"
             placeholder="请输入门店简介"
-            fieldProps={{ rows: 3 }}
+            fieldProps={{ rows: 15 }}
           />
         </Card>
       </ProForm>
-
-      {/* 地图选点弹框 */}
-      <MapLocationPickerModal
-        visible={mapModalVisible}
-        onCancel={handleMapCancel}
-        onOk={handleMapOk}
-        initialValue={currentLocation}
-        title="选择门店位置"
-        width={900}
-      />
-
-      {/* 重置密码弹框 */}
-      <Modal
-        title="重置门店密码"
-        open={resetPasswordModalVisible}
-        onCancel={() => {
-          setResetPasswordModalVisible(false);
-          setNewPassword('');
-          setConfirmPassword('');
-        }}
-        onOk={handleResetPassword}
-        confirmLoading={resetPasswordLoading}
-        okText="确定"
-        cancelText="取消"
-      >
-        <Form layout="vertical">
-          <Form.Item
-            label="新密码"
-            required
-            extra="密码至少6个字符"
-          >
-            <Input.Password
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="请输入新密码"
-              autoComplete="new-password"
-            />
-          </Form.Item>
-          <Form.Item
-            label="确认密码"
-            required
-          >
-            <Input.Password
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="请再次输入新密码"
-              autoComplete="new-password"
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
     </PageContainer>
   );
 };

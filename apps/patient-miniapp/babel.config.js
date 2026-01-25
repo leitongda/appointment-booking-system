@@ -6,8 +6,15 @@ module.exports = {
     }],
   ],
   plugins: [
-    // NutUI 3.0.19-cpp.22 使用扁平化构建，样式已内联到组件中
-    // 不需要 babel-plugin-import 进行样式按需加载
+    // NutUI 样式按需加载
+    // 自动将 import { Button } from '@nutui/nutui-react-taro'
+    // 转换为同时导入对应的样式文件
+    ['import', {
+      libraryName: '@nutui/nutui-react-taro',
+      libraryDirectory: 'dist/es/packages',
+      style: true,
+      camel2DashComponentName: false,
+    }, '@nutui/nutui-react-taro'],
   ],
 };
 

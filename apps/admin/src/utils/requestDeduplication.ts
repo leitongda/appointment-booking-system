@@ -37,7 +37,7 @@ class RequestDeduplicator {
    * ```ts
    * const data = await requestDeduplicator.dedupe(
    *   `departments-${status}`,
-   *   () => departmentApi.getList({ pageSize: 200, status })
+   *   () => departmentApi.getList({ pageSize: 100, status })
    * );
    * ```
    */
@@ -149,7 +149,7 @@ if (typeof window !== 'undefined') {
  * );
  *
  * // 使用
- * const data = await getDepartures({ pageSize: 200, status: 1 });
+ * const data = await getDepartures({ pageSize: 100, status: 1 });
  * ```
  */
 export function createDedupeRequest<P extends any[], R>(

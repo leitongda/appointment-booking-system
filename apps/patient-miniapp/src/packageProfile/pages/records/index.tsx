@@ -1,17 +1,22 @@
 import { View, Text } from '@tarojs/components';
-import Taro, { usePullDownRefresh } from '@tarojs/taro';
+import Taro, { usePullDownRefresh, useReachBottom } from '@tarojs/taro';
 import { Empty, Loading } from '@nutui/nutui-react-taro';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { medicalRecordApi } from '@hospital/api';
 import { getToken } from '../../../utils/auth';
 import LoginPopup from '../../../components/LoginPopup';
 import type { MedicalRecordListItem } from '@hospital/api';
 import './index.less';
 
+const PAGE_SIZE = 20;
+
 const RecordsPage = () => {
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<MedicalRecordListItem[]>([]);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     // 检查登录状态
@@ -25,28 +30,68 @@ const RecordsPage = () => {
     loadRecords();
   }, []);
 
+  // 页面显示时刷新数据
+  Taro.useDidShow(() => {
+    if (getToken()) {
+      resetAndLoad();
+    }
+  });
+
+  // 上拉加载更多
+  useReachBottom(() => {
+    if (!loadingMore && hasMore) {
+      loadMoreRecords();
+    }
+  });
+
   // 登录成功后加载数据
   const handleLoginSuccess = () => {
     setShowLoginPopup(false);
     loadRecords();
   };
 
+  // 重置并加载
+  const resetAndLoad = useCallback(async () => {
+    setPage(1);
+    setHasMore(true);
+    return loadRecords();
+  }, []);
+
   // 下拉刷新
   usePullDownRefresh(() => {
-    loadRecords().finally(() => {
+    resetAndLoad().finally(() => {
       Taro.stopPullDownRefresh();
     });
   });
 
   const loadRecords = async () => {
     try {
-      const result = await medicalRecordApi.getList({ pageSize: 50 });
+      const result = await medicalRecordApi.getList({ page: 1, pageSize: PAGE_SIZE });
       setRecords(result.data || []);
+      setHasMore((result.data?.length || 0) < (result.total || 0));
     } catch (error) {
       console.error('加载就诊记录失败', error);
       Taro.showToast({ title: '加载失败', icon: 'none' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMoreRecords = async () => {
+    if (loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const result = await medicalRecordApi.getList({ page: nextPage, pageSize: PAGE_SIZE });
+      const newRecords = result.data || [];
+      setRecords(prev => [...prev, ...newRecords]);
+      setPage(nextPage);
+      setHasMore(newRecords.length < (result.total || 0) && newRecords.length > 0);
+    } catch (error) {
+      console.error('加载更多就诊记录失败', error);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -102,6 +147,20 @@ const RecordsPage = () => {
               </View>
             </View>
           ))}
+        </View>
+      )}
+
+      {/* 加载状态 */}
+      {loadingMore && (
+        <View className="loading-more">
+          <Text>加载中...</Text>
+        </View>
+      )}
+
+      {/* 没有更多数据 */}
+      {!hasMore && records.length > 0 && (
+        <View className="no-more">
+          <Text>没有更多了</Text>
         </View>
       )}
 
