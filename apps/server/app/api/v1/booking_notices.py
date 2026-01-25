@@ -11,6 +11,7 @@ from app.schemas.booking_notice import (
     BookingNoticeUpdate,
     BookingNoticeResponse,
 )
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -35,7 +36,7 @@ async def get_notices(
     type: Optional[str] = Query(None, description="类型"),
     status: Optional[int] = Query(None, description="状态: 0禁用 1启用"),
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100, alias="pageSize"),
+    page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE, alias="pageSize"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin)
 ):

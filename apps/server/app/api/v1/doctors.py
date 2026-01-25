@@ -144,7 +144,7 @@ async def get_doctors(
     department_id: Optional[str] = None,
     status: Optional[int] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
 ):
@@ -190,7 +190,7 @@ async def get_all_doctors(
 
 @router.get("/recommended", response_model=List[DoctorListResponse])
 async def get_recommended_doctors(
-    limit: int = Query(6, ge=1, le=100),
+    limit: int = Query(6, ge=1, le=settings.MAX_PAGE_SIZE),
     store_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):

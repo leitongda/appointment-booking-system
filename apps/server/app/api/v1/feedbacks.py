@@ -9,6 +9,7 @@ from app.schemas.feedback import (
 )
 from app.schemas.response import PageResponse
 from app.services.feedback_service import FeedbackService
+from app.core.config import settings
 import json
 
 router = APIRouter()
@@ -47,7 +48,7 @@ async def get_feedbacks(
     status: Optional[FeedbackStatus] = None,
     keyword: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db)
 ):
     """获取反馈列表（管理端）"""

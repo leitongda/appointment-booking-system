@@ -11,6 +11,7 @@ from app.schemas.user_favorite import (
     UserFavoriteResponse,
     FavoriteCheckResponse,
 )
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -19,7 +20,7 @@ router = APIRouter()
 async def get_favorites(
     target_type: Optional[str] = Query(None, alias="targetType", pattern="^(doctor|department)$", description="收藏类型"),
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100, alias="pageSize"),
+    page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE, alias="pageSize"),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):

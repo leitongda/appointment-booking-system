@@ -102,6 +102,10 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_DIR: str = "logs"
     LOG_JSON_FORMAT: bool = False
+
+    # 分页配置
+    DEFAULT_PAGE_SIZE: int = 10        # 默认每页数量
+    MAX_PAGE_SIZE: int = 500           # 最大每页数量
     
     # 短信配置
     SMS_PROVIDER: str = "mock"  # mock, aliyun, tencent

@@ -10,6 +10,7 @@ from app.services.point_service import PointService
 from app.schemas.response import PageResponse
 from app.schemas.user import PatientUpdate, PatientCreateByAdmin, FamilyMemberCreate
 from app.schemas.point_log import PointAdjustData
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -40,7 +41,7 @@ async def get_patients(
     is_blacklist: Optional[bool] = None,
     store_id: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
@@ -65,7 +66,7 @@ async def get_patients(
 async def get_blacklist(
     store_id: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
@@ -142,7 +143,7 @@ async def get_patient_appointments(
     is_admin_booked: Optional[bool] = None,
     is_follow_up: Optional[bool] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
@@ -167,7 +168,7 @@ async def get_consumption_records(
     patient_id: str,
     item_name: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
@@ -186,7 +187,7 @@ async def get_consumption_records(
 async def get_point_logs(
     patient_id: str,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):

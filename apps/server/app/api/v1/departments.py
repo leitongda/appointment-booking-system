@@ -9,6 +9,7 @@ from app.schemas.department import DepartmentCreate, DepartmentUpdate, Departmen
 from app.schemas.doctor import DoctorListResponse
 from app.schemas.response import PageResponse
 from app.services.department_service import DepartmentService
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -35,7 +36,7 @@ async def get_departments(
     parent_id: Optional[str] = None,
     store_id: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
 ):

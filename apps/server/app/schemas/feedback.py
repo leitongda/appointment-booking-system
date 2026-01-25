@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
+from app.core.config import settings
 
 
 def to_camel(string: str) -> str:
@@ -87,4 +88,4 @@ class FeedbackQuery(BaseModel):
     status: Optional[FeedbackStatus] = None
     keyword: Optional[str] = None
     page: int = Field(1, ge=1)
-    page_size: int = Field(10, ge=1, le=100)
+    page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE)

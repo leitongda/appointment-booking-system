@@ -11,6 +11,7 @@ from app.schemas.doctor_booking_setting import (
 )
 from app.schemas.response import PageResponse
 from app.services.doctor_booking_setting_service import DoctorBookingSettingService
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -21,7 +22,7 @@ async def get_doctor_booking_settings(
     doctor_id: Optional[str] = None,
     status: Optional[int] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db)
 ):
     """获取医生预约设置列表"""

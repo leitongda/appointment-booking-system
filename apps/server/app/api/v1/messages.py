@@ -12,6 +12,7 @@ from app.schemas.message import (
 )
 from app.schemas.response import PageResponse
 from app.services.message_service import MessageService, MessageTemplateService
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -23,7 +24,7 @@ async def get_my_messages(
     message_type: Optional[MessageType] = None,
     is_read: Optional[int] = Query(None, ge=0, le=1),
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     user_id: str = Query(..., description="用户ID"),
     user_type: str = Query(..., description="用户类型: patient/doctor"),
     db: AsyncSession = Depends(get_db)
@@ -149,7 +150,7 @@ async def get_all_messages(
     keyword: Optional[str] = None,
     store_id: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
 ):

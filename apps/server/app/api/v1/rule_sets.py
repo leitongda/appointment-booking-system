@@ -20,6 +20,7 @@ from app.schemas.rule_set import (
 from app.services.rule_set_service import RuleSetService
 from app.services.rule_engine_service import RuleEngineService
 from app.models.schedule import Schedule
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -29,7 +30,7 @@ async def get_rule_sets(
     enabled: Optional[bool] = Query(None, description="是否启用"),
     shift_type_id: Optional[str] = Query(None, description="班次类型ID"),
     page: int = Query(1, ge=1, description="页码"),
-    page_size: int = Query(10, ge=1, le=100, description="每页数量"),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin)
 ):

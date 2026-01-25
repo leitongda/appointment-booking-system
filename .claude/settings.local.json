@@ -94,7 +94,8 @@
       "Bash(pnpm run build:*)",
       "Bash(pnpm store prune:*)",
       "Bash(pnpm cache clean:*)",
-      "Bash(pgrep:*)"
+      "Bash(pgrep:*)",
+      "Bash(python:*)"
     ]
   },
   "statusLine": {

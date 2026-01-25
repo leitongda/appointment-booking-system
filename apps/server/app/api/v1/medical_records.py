@@ -14,6 +14,7 @@ from app.schemas.medical_record import (
 )
 from app.schemas.response import PageResponse
 from app.services.medical_record_service import MedicalRecordService
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -75,7 +76,7 @@ async def get_medical_records(
     status: Optional[int] = None,
     keyword: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
@@ -100,7 +101,7 @@ async def get_medical_records(
 @router.get("/my", response_model=PageResponse[MedicalRecordListResponse])
 async def get_my_records(
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
@@ -124,7 +125,7 @@ async def get_my_records(
 async def get_patient_records(
     patient_id: str,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):

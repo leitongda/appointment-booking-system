@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import date, datetime
 from enum import Enum
+from app.core.config import settings
 
 
 def to_camel(string: str) -> str:
@@ -116,4 +117,4 @@ class LeaveRequestQuery(BaseModel):
     end_date: Optional[date] = None
     store_id: Optional[str] = None  # 门店过滤
     page: int = Field(1, ge=1)
-    page_size: int = Field(10, ge=1, le=100)
+    page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE)

@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List, Any
 from datetime import datetime
 from enum import Enum
+from app.core.config import settings
 
 
 def to_camel(string: str) -> str:
@@ -103,7 +104,7 @@ class MessageQuery(BaseModel):
     message_type: Optional[MessageType] = Field(None, description="消息类型")
     is_read: Optional[int] = Field(None, description="是否已读")
     page: int = Field(1, ge=1)
-    page_size: int = Field(10, ge=1, le=100)
+    page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE)
 
 
 class UnreadCountResponse(BaseModel):

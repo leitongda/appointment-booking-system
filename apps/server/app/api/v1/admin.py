@@ -1026,7 +1026,7 @@ async def get_roles(
     status: Optional[int] = None,
     keyword: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
@@ -1144,7 +1144,7 @@ async def get_admins(
     keyword: Optional[str] = None,
     store_id: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
@@ -1291,7 +1291,7 @@ async def get_operation_logs(
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
@@ -1606,7 +1606,7 @@ async def get_user_status(
 async def get_login_history(
     admin_id: str,
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     current_admin: dict = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):

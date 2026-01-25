@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import date, time, datetime
 from app.schemas.schedule_template import AppointmentType
+from app.core.config import settings
 
 
 def to_camel(string: str) -> str:
@@ -74,7 +75,7 @@ class CustomScheduleListParams(BaseModel):
     appointment_type: Optional[AppointmentType] = None
     status: Optional[int] = Field(None, ge=0, le=1)
     page: int = Field(1, ge=1)
-    page_size: int = Field(10, ge=1, le=100)
+    page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE)
 
 
 class EffectiveScheduleParams(BaseModel):

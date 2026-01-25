@@ -8,6 +8,7 @@ from app.db.session import get_db
 from app.api.deps import get_current_admin
 from app.services.blacklist_service import BlacklistService
 from app.schemas.blacklist import BlacklistCreate
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -18,7 +19,7 @@ async def get_blacklist_list(
     store_id: Optional[str] = Query(None, description="门店ID"),
     status: Optional[int] = Query(None, description="状态: 1生效 0已解禁"),
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):

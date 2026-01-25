@@ -15,6 +15,7 @@ from app.schemas.response import PageResponse
 from app.services.schedule_service import ScheduleService
 from app.models.schedule import Schedule
 from app.utils.schedule_utils import get_time_slot_from_time
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -29,7 +30,7 @@ async def get_custom_schedules(
     appointment_type: Optional[str] = None,
     status: Optional[int] = Query(None, ge=0, le=1),
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db)
 ):
     """获取自定义排班列表（template_id为NULL的排班）"""

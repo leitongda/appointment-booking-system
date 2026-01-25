@@ -24,6 +24,7 @@ from app.schemas.behavior_log import (
 from app.models.behavior_log import UserBehaviorLog
 from app.schemas.response import PageResponse
 from app.utils.ip import get_client_ip
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -196,7 +197,7 @@ async def get_behavior_logs(
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):

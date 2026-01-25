@@ -29,6 +29,7 @@ from app.schemas.schedule_generation_log import (
 from app.schemas.response import PageResponse
 from app.services.schedule_template_service import ScheduleTemplateService
 from datetime import time as time_type
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -78,7 +79,7 @@ async def get_templates(
     department_id: Optional[str] = None,
     status: Optional[int] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db)
 ):
     """获取排班模板列表"""
@@ -649,7 +650,7 @@ async def batch_suspend_schedules(
 async def get_generation_logs(
     template_id: str,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
 ):

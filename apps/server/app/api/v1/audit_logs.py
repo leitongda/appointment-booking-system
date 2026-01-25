@@ -10,6 +10,7 @@ from app.db.session import get_db
 from app.api.deps import get_current_admin
 from app.models.rule_set import AppointmentCheckin
 from app.models.appointment import Appointment
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -23,7 +24,7 @@ async def get_checkin_logs(
     start_time: Optional[datetime] = Query(None, description="开始时间"),
     end_time: Optional[datetime] = Query(None, description="结束时间"),
     page: int = Query(1, ge=1, description="页码"),
-    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
+    page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量"),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):

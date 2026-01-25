@@ -2,6 +2,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import datetime
+from app.core.config import settings
 
 
 def to_camel(string: str) -> str:
@@ -60,7 +61,7 @@ class BlacklistListParams(BaseModel):
     store_id: Optional[str] = Field(None, description="门店ID")
     status: Optional[int] = Field(None, description="状态: 1生效 0已解禁")
     page: int = Field(1, ge=1)
-    page_size: int = Field(20, ge=1, le=100)
+    page_size: int = Field(20, ge=1, le=settings.MAX_PAGE_SIZE)
 
 
 class BlacklistCheckResult(BaseModel):

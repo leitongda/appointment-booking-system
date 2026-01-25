@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from datetime import datetime, time
+from app.core.config import settings
 
 
 def to_camel(string: str) -> str:
@@ -140,7 +141,7 @@ class StoreQuery(BaseModel):
     status: Optional[int] = Field(None, description="状态筛选")
     city: Optional[str] = Field(None, description="城市筛选")
     page: int = Field(1, ge=1, description="页码")
-    page_size: int = Field(10, ge=1, le=100, description="每页数量")
+    page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量")
 
 
 class StoreWechatConfigUpdate(BaseModel):

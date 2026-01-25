@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import datetime, date, time
+from app.core.config import settings
 
 
 def to_camel(string: str) -> str:
@@ -66,7 +67,7 @@ class AppointmentListQuery(BaseModel):
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     page: int = Field(1, ge=1)
-    page_size: int = Field(10, ge=1, le=100)
+    page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE)
 
 
 class AppointmentCancelRequest(BaseModel):

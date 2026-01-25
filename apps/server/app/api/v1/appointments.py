@@ -13,6 +13,7 @@ from app.schemas.response import PageResponse
 from app.services.appointment_service import AppointmentService
 from app.services.settings_service import SettingsService
 from app.services.rule_engine_service import RuleEngineService
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -29,7 +30,7 @@ async def get_appointments(
     created_start: Optional[datetime] = None,
     created_end: Optional[datetime] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin)
 ):

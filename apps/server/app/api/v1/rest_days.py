@@ -12,6 +12,7 @@ from app.schemas.rest_day import (
 )
 from app.schemas.response import PageResponse
 from app.services.rest_day_service import RestDayService
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -24,7 +25,7 @@ async def get_rest_days(
     end_date: Optional[date] = None,
     status: Optional[int] = Query(None, ge=0, le=1),
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db)
 ):
     """获取休息日列表"""

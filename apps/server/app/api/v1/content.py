@@ -9,6 +9,7 @@ from app.db.session import get_db
 from app.api.deps import get_current_admin, get_store_filter
 from app.services.content_service import NewsService, NoticeService, BannerService
 from app.schemas.response import PageResponse
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -102,7 +103,7 @@ async def get_news_list(
     keyword: Optional[str] = None,
     store_id: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
@@ -213,7 +214,7 @@ async def get_notice_list(
     keyword: Optional[str] = None,
     store_id: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
@@ -318,7 +319,7 @@ async def get_banner_list(
     status: Optional[int] = None,
     store_id: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
