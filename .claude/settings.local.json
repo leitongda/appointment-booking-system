@@ -95,7 +95,9 @@
       "Bash(pnpm store prune:*)",
       "Bash(pnpm cache clean:*)",
       "Bash(pgrep:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(pnpm --filter admin build:*)",
+      "Bash(pnpm --filter admin dev:*)"
     ]
   },
   "statusLine": {
