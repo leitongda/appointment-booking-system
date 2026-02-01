@@ -155,8 +155,21 @@ async def get_current_admin(
             is_super_admin = role_code == "SUPER_ADMIN" or role_name == "超级管理员"
             is_store_admin = role_code == "STORE_ADMIN" or role_name == "门店管理员"
             
-            # 获取绑定的门店ID列表
-            store_ids = [s.id for s in admin.stores] if admin.stores else []
+            # 过滤禁用门店（status=2 表示禁用）
+            available_stores = [s for s in admin.stores if s.status != 2] if admin.stores else []
+            
+            # 非超级管理员：如果所有绑定门店都被禁用，拒绝访问
+            if not is_super_admin and admin.stores and not available_stores:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您所属的门店已被禁用，请联系管理员")
+            
+            # 获取绑定的可用门店ID列表
+            store_ids = [s.id for s in available_stores]
+            
+            # 检查当前选中门店是否可用
+            current_store = admin.current_store
+            if current_store and current_store.status == 2:
+                # 当前门店被禁用，自动切换到第一个可用门店
+                current_store = available_stores[0] if available_stores else None
             
             # 是否可以查看所有绑定门店（超管可查看所有，门店管理员可聚合查看绑定门店）
             can_view_all_stores = is_super_admin or (is_store_admin and len(store_ids) > 1)
@@ -170,18 +183,18 @@ async def get_current_admin(
                 "role_id": admin.role_id,
                 "role_code": role_code,
                 "role_name": admin.role.name if admin.role else None,
-                # 多门店支持
-                "current_store_id": admin.current_store_id,
-                "current_store_name": admin.current_store.name if admin.current_store else None,
-                "current_store_logo": admin.current_store.logo if admin.current_store else None,
-                "current_store_theme": admin.current_store.theme_style if admin.current_store else None,
+                # 多门店支持（只返回可用门店）
+                "current_store_id": current_store.id if current_store else None,
+                "current_store_name": current_store.name if current_store else None,
+                "current_store_logo": current_store.logo if current_store else None,
+                "current_store_theme": current_store.theme_style if current_store else None,
                 "store_ids": store_ids,
-                "stores": [{"id": s.id, "name": s.name, "logo": s.logo} for s in admin.stores] if admin.stores else [],
+                "stores": [{"id": s.id, "name": s.name, "logo": s.logo} for s in available_stores],
                 # 兼容旧字段
-                "store_id": admin.current_store_id,
-                "store_name": admin.current_store.name if admin.current_store else None,
-                "store_logo": admin.current_store.logo if admin.current_store else None,
-                "store_theme": admin.current_store.theme_style if admin.current_store else None,
+                "store_id": current_store.id if current_store else None,
+                "store_name": current_store.name if current_store else None,
+                "store_logo": current_store.logo if current_store else None,
+                "store_theme": current_store.theme_style if current_store else None,
                 # 权限标志
                 "is_admin": True,
                 "is_super_admin": is_super_admin,

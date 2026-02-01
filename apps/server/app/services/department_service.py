@@ -88,6 +88,29 @@ class DepartmentService:
         result = await self.db.execute(query)
         return list(result.scalars().all())
     
+    async def get_all_active(
+        self,
+        store_id: Optional[str] = None,
+        limit: int = 1000
+    ) -> List[Department]:
+        """获取所有启用的科室（下拉选择用）
+        
+        Args:
+            store_id: 门店ID过滤
+            limit: 最大返回数量，默认1000
+            
+        Returns:
+            科室列表
+        """
+        query = select(Department).options(selectinload(Department.store)).where(
+            Department.status == 1
+        )
+        if store_id:
+            query = query.where(Department.store_id == store_id)
+        query = query.order_by(Department.sort_order.desc()).limit(limit)
+        result = await self.db.execute(query)
+        return list(result.scalars().all())
+    
     async def create(self, data: DepartmentCreate, operator_id: Optional[str] = None) -> Department:
         # 将空字符串的外键字段转换为 None，避免外键约束违规
         parent_id = data.parent_id if data.parent_id else None

@@ -3,7 +3,6 @@ import { PlusOutlined, DeleteOutlined, ImportOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react';
 import { useAccess, useModel } from '@umijs/max';
 import { consultationFeeTypeApi, consultationFeeTemplateApi, doctorConsultationFeeApi, storeApi, departmentApi } from '@hospital/api';
-import { fetchAllData } from '@/utils/fetchAllData';
 import type { ConsultationFeeType, ConsultationFeeTemplateWithType, StoreDepartmentFeeGroup, Store, Department, DoctorConsultationFeeItem } from '@hospital/shared';
 
 interface DoctorConsultationFeeModalProps {
@@ -63,10 +62,10 @@ const DoctorConsultationFeeModal: React.FC<DoctorConsultationFeeModalProps> = ({
         doctorConsultationFeeApi.getFeeSetting(doctorId),
       ]);
 
-      // 获取所有启用的门店和科室（使用分页加载）
+      // 获取所有启用的门店和科室
       const [allStores, allDepts] = await Promise.all([
-        fetchAllData((page, pageSize) => storeApi.getList({ page, pageSize, status: 1 })),
-        fetchAllData((page, pageSize) => departmentApi.getList({ page, pageSize, status: 1 })),
+        storeApi.getAll(),
+        departmentApi.getAll(),
       ]);
 
       setFeeTypes(typesRes);

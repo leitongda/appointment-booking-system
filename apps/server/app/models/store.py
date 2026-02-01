@@ -30,7 +30,7 @@ class Store(Base, AuditMixin):
     email = Column(String(100), comment="邮箱")
     theme_style = Column(String(50), comment="风格选择")
     sort_order = Column(Integer, default=0, comment="排序")
-    status = Column(Integer, default=1, comment="状态: 0-停业 1-营业")
+    status = Column(Integer, default=1, comment="状态: 0-停业 1-营业 2-禁用")
     
     # 微信小程序配置
     wechat_app_id = Column(String(100), comment="微信小程序AppID")

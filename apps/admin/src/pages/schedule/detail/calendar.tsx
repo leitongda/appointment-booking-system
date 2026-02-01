@@ -82,8 +82,8 @@ const ScheduleDetailCalendarPage: React.FC = () => {
 
   const loadDepartments = async () => {
     try {
-      const res = await departmentApi.getList({ pageSize: 100, status: 1 });
-      setDepartments(res.data ?? []);
+      const data = await departmentApi.getAll();
+      setDepartments(data ?? []);
     } catch (error) {
       console.error('加载科室失败', error);
     }

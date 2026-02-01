@@ -17,6 +17,8 @@ export const STORAGE_KEYS = {
   CURRENT_THEME: 'hospital_current_theme',
   /** 字体模式 (standard | elder) */
   FONT_MODE: 'hospital_font_mode',
+  /** 菜单展开状态 */
+  MENU_OPEN_KEYS: 'hospital_menu_open_keys',
 } as const;
 
 /**

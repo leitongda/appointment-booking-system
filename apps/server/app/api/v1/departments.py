@@ -84,6 +84,28 @@ async def get_hot_departments(
     return [_to_response(d) for d in departments]
 
 
+@router.get("/all", response_model=List[DepartmentResponse])
+async def get_all_departments(
+    store_id: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """获取所有启用的科室（下拉选择用）
+    
+    用于管理后台选择器场景，返回所有启用状态的科室
+    最大返回 1000 条
+    """
+    service = DepartmentService(db)
+    
+    # 门店权限过滤
+    store_filter = get_store_filter(current_admin)
+    if store_filter:
+        store_id = store_filter
+    
+    departments = await service.get_all_active(store_id=store_id)
+    return [_to_response(d) for d in departments]
+
+
 @router.put("/batch-sort")
 async def batch_update_sort_order(
     data: BatchSortRequest,

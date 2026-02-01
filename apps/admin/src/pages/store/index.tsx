@@ -79,6 +79,17 @@ const StorePage: React.FC = () => {
     }
   };
 
+  // 切换门店状态（启用/禁用）
+  const handleToggleStatus = async (id: string, newStatus: number) => {
+    try {
+      await storeApi.updateStatus(id, newStatus);
+      message.success(newStatus === 2 ? '禁用成功' : '启用成功');
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error.message || '操作失败');
+    }
+  };
+
   // 打开绑定科室弹窗
   const handleOpenBindModal = useCallback(async (store: Store) => {
     setBindingStore(store);
@@ -255,7 +266,11 @@ const StorePage: React.FC = () => {
       dataIndex: 'status',
       width: 80,
       search: false,
-      valueEnum: { 1: { text: '营业', status: 'Success' }, 0: { text: '停业', status: 'Default' } },
+      valueEnum: {
+        1: { text: '营业', status: 'Success' },
+        0: { text: '停业', status: 'Default' },
+        2: { text: '禁用', status: 'Error' },
+      },
     },
     {
       title: '操作',
@@ -310,6 +325,20 @@ const StorePage: React.FC = () => {
                   <DeleteOutlined /> 删除
                 </a>
               </Popconfirm>
+            )}
+            {/* 启用/禁用操作（仅超管可见） */}
+            {access.canSuperAdmin && record.status !== 2 && (
+              <Popconfirm
+                title="禁用后，该门店所有人员将无法登录，确定禁用吗？"
+                onConfirm={() => handleToggleStatus(record.id, 2)}
+              >
+                <a style={{ color: '#ff4d4f', fontSize: 13 }}>禁用</a>
+              </Popconfirm>
+            )}
+            {access.canSuperAdmin && record.status === 2 && (
+              <a onClick={() => handleToggleStatus(record.id, 1)} style={{ color: '#52c41a', fontSize: 13 }}>
+                启用
+              </a>
             )}
             {/* 更多操作下拉菜单 */}
             {moreMenuItems.length > 0 && (

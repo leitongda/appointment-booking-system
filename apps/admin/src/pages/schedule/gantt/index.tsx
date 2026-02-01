@@ -108,26 +108,10 @@ const ScheduleGanttPage: React.FC = () => {
     }
   };
 
-  // 加载科室列表（分页加载所有数据）
+  // 加载科室列表
   const loadDepartments = async () => {
     try {
-      // 第一次请求获取总数
-      const firstResult = await departmentApi.getList({ pageSize: 100, status: 1, page: 1 });
-      const total = firstResult.total || 0;
-      let allDepts = firstResult.data ?? [];
-
-      // 如果有更多数据，继续请求
-      if (total > 100) {
-        const totalPages = Math.ceil(total / 100);
-        const promises = [];
-        for (let page = 2; page <= totalPages; page++) {
-          promises.push(departmentApi.getList({ pageSize: 100, status: 1, page }));
-        }
-        const results = await Promise.all(promises);
-        for (const result of results) {
-          allDepts = allDepts.concat(result.data ?? []);
-        }
-      }
+      const allDepts = await departmentApi.getAll();
 
       setDepartments(allDepts);
       // 默认选择第一个科室

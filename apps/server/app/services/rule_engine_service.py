@@ -51,22 +51,29 @@ class RuleEngineService:
         self,
         schedule: Schedule,
         action: str,
-        current_time: Optional[datetime] = None
+        current_time: Optional[datetime] = None,
+        booking_created_at: Optional[datetime] = None
     ) -> Dict[str, Any]:
         """检查动作是否在时间窗口内
+
+        支持多时间窗组合校验（AND 逻辑）：
+        - 如果同一动作配置了多个时间窗，所有时间窗都必须满足才允许操作
+        - 返回的开放时间是所有时间窗中最晚的开放时间
+        - 返回的截止时间是所有时间窗中最早的截止时间
 
         Args:
             schedule: 排班对象
             action: 动作类型 (BOOK/CHECKIN/CANCEL)
             current_time: 当前时间，默认使用服务端时间
+            booking_created_at: 预约创建时间（用于 BOOKING_CREATED_AT 参考点）
 
         Returns:
             {
                 "allowed": bool,  # 是否允许
-                "open_at": datetime,  # 开放时间
-                "close_at": datetime,  # 截止时间
+                "open_at": datetime,  # 开放时间（多个窗口取最晚）
+                "close_at": datetime,  # 截止时间（多个窗口取最早）
                 "current_time": datetime,  # 当前时间
-                "fail_policy": str,  # 失败策略
+                "fail_policy": str,  # 失败策略（第一个不满足的窗口）
                 "fail_tag": str,  # 失败标签
                 "message": str,  # 提示信息
             }
@@ -85,7 +92,7 @@ class RuleEngineService:
         if not rule_set:
             return self._get_default_window_result(schedule, action, current_time)
 
-        # 获取对应动作的时间窗
+        # 获取对应动作的所有启用时间窗
         result = await self.db.execute(
             select(RuleWindow).where(
                 and_(
@@ -95,41 +102,103 @@ class RuleEngineService:
                 )
             )
         )
-        window = result.scalar_one_or_none()
+        windows = result.scalars().all()
 
-        if not window:
+        if not windows:
             return self._get_default_window_result(schedule, action, current_time)
 
-        # 计算参考时间
-        reference_time = self._get_reference_time(schedule, window.reference_point)
+        # 多时间窗组合校验（AND 逻辑）
+        combined_open_at = None  # 最晚的开放时间
+        combined_close_at = None  # 最早的截止时间
+        all_allowed = True
+        first_failed_window = None
 
-        # 计算开放和截止时间
-        open_at = reference_time + timedelta(seconds=window.open_offset_sec)
-        close_at = reference_time + timedelta(seconds=window.close_offset_sec)
+        for window in windows:
+            # 计算参考时间
+            reference_time = self._get_reference_time(
+                schedule, 
+                window.reference_point,
+                booking_created_at=booking_created_at
+            )
 
-        # 获取边界包含设置
-        open_inclusive = window.open_inclusive if window.open_inclusive is not None else rule_set.default_open_inclusive
-        close_inclusive = window.close_inclusive if window.close_inclusive is not None else rule_set.default_close_inclusive
+            # 计算开放和截止时间
+            # 处理 None 值：如果偏移量为 None，则不限制该边界
+            if window.open_offset_sec is not None:
+                window_open_at = reference_time + timedelta(seconds=window.open_offset_sec)
+            else:
+                # 无开放偏移表示从很早就开放
+                window_open_at = current_time - timedelta(days=365)
 
-        # 判断是否在窗口内
-        allowed = self._is_in_window(current_time, open_at, close_at, open_inclusive, close_inclusive)
+            if window.close_offset_sec is not None:
+                window_close_at = reference_time + timedelta(seconds=window.close_offset_sec)
+            else:
+                # 无截止偏移表示永不截止
+                window_close_at = current_time + timedelta(days=365)
 
+            # 获取边界包含设置
+            open_inclusive = window.open_inclusive if window.open_inclusive is not None else rule_set.default_open_inclusive
+            close_inclusive = window.close_inclusive if window.close_inclusive is not None else rule_set.default_close_inclusive
+
+            # 判断是否在窗口内
+            window_allowed = self._is_in_window(current_time, window_open_at, window_close_at, open_inclusive, close_inclusive)
+
+            # 记录第一个不满足的窗口
+            if not window_allowed and first_failed_window is None:
+                first_failed_window = {
+                    'window': window,
+                    'open_at': window_open_at,
+                    'close_at': window_close_at
+                }
+                all_allowed = False
+
+            # 组合时间窗：开放时间取最晚，截止时间取最早
+            if combined_open_at is None or window_open_at > combined_open_at:
+                combined_open_at = window_open_at
+            if combined_close_at is None or window_close_at < combined_close_at:
+                combined_close_at = window_close_at
+
+        # 如果有不满足的窗口，使用第一个不满足的窗口信息
+        if first_failed_window:
+            window = first_failed_window['window']
+            return {
+                "allowed": False,
+                "open_at": combined_open_at,
+                "close_at": combined_close_at,
+                "current_time": current_time,
+                "fail_policy": window.fail_policy,
+                "fail_tag": window.fail_tag,
+                "message": self._generate_window_message(
+                    False,
+                    first_failed_window['open_at'],
+                    first_failed_window['close_at'],
+                    action,
+                    window.fail_policy
+                )
+            }
+
+        # 所有窗口都满足
         return {
-            "allowed": allowed,
-            "open_at": open_at,
-            "close_at": close_at,
+            "allowed": True,
+            "open_at": combined_open_at,
+            "close_at": combined_close_at,
             "current_time": current_time,
-            "fail_policy": window.fail_policy,
-            "fail_tag": window.fail_tag,
-            "message": self._generate_window_message(allowed, open_at, close_at, action, window.fail_policy)
+            "fail_policy": "ALLOW",
+            "fail_tag": None,
+            "message": "操作允许"
         }
 
-    def _get_reference_time(self, schedule: Schedule, reference_point: str) -> datetime:
+    def _get_reference_time(
+        self, 
+        schedule: Schedule, 
+        reference_point: str,
+        booking_created_at: Optional[datetime] = None
+    ) -> datetime:
         """获取参考时间
 
         Args:
             schedule: 排班对象
             reference_point: 参考点类型
+            booking_created_at: 预约创建时间（用于 BOOKING_CREATED_AT 参考点）
 
         Returns:
             参考时间（带时区）
@@ -148,7 +217,12 @@ class RuleEngineService:
             if schedule.end_time:
                 return pytz.UTC.localize(datetime.combine(schedule.schedule_date, schedule.end_time))
         elif reference_point == 'BOOKING_CREATED_AT':
-            # 预约创建时间，由调用方提供
+            # 优先使用调用方提供的预约创建时间
+            if booking_created_at:
+                if booking_created_at.tzinfo is None:
+                    return pytz.UTC.localize(booking_created_at)
+                return booking_created_at
+            # 默认使用当前时间
             return datetime.now(pytz.UTC)
 
         # 默认返回班次开始时间
@@ -352,6 +426,7 @@ class RuleEngineService:
         user_id: str,
         policy: RuleBookingPolicy,
         booking_time: datetime,
+        schedule: Optional[Schedule] = None,
     ) -> Dict[str, Any]:
         """检查预约冲突
 
@@ -369,6 +444,7 @@ class RuleEngineService:
             user_id: 用户ID
             policy: 预约策略对象
             booking_time: 预约时间
+            schedule: 排班对象（用于日期、时间、类型检查）
 
         Returns:
             {
@@ -383,9 +459,9 @@ class RuleEngineService:
                 select(func.count(Appointment.id))
                 .where(
                     and_(
-                        Appointment.shift_id == shift_id,
+                        Appointment.schedule_id == shift_id,
                         Appointment.user_id == user_id,
-                        Appointment.status.in_(['booked', 'checked_in'])
+                        Appointment.status.in_([1, 2])  # 1=已预约, 2=已签到
                     )
                 )
             )
@@ -402,9 +478,9 @@ class RuleEngineService:
             existing = await db.execute(
                 select(Appointment).where(
                     and_(
-                        Appointment.shift_id == shift_id,
+                        Appointment.schedule_id == shift_id,
                         Appointment.user_id == user_id,
-                        Appointment.status.in_(['booked', 'checked_in'])
+                        Appointment.status.in_([1, 2])  # 1=已预约, 2=已签到
                     )
                 ).limit(1)
             )
@@ -415,8 +491,127 @@ class RuleEngineService:
                     'conflict_with': None
                 }
 
-        # 3-6. 其他检查需要更多上下文信息（班次时间、日期等）
-        # 这里返回允许，由调用方根据需要进一步验证
+        # 以下检查需要 schedule 信息
+        if schedule:
+            schedule_date = schedule.schedule_date
+
+            # 3. 检查每日限约数 (per_user_per_day)
+            if policy.per_user_per_day and policy.per_user_per_day > 0:
+                day_count_result = await db.execute(
+                    select(func.count(Appointment.id))
+                    .join(Schedule, Appointment.schedule_id == Schedule.id)
+                    .where(
+                        and_(
+                            Appointment.user_id == user_id,
+                            Appointment.status.in_([1, 2])  # 1=已预约, 2=已签到,
+                            Schedule.schedule_date == schedule_date
+                        )
+                    )
+                )
+                day_count = day_count_result.scalar() or 0
+                if day_count >= policy.per_user_per_day:
+                    return {
+                        'allowed': False,
+                        'reason': f'您今日已预约{day_count}次，每日最多可预约{policy.per_user_per_day}次',
+                        'conflict_with': None
+                    }
+
+            # 4. 检查每周限约数 (per_user_per_week)
+            if policy.per_user_per_week and policy.per_user_per_week > 0:
+                # 计算本周的开始和结束日期（周一到周日）
+                week_start = schedule_date - timedelta(days=schedule_date.weekday())
+                week_end = week_start + timedelta(days=6)
+
+                week_count_result = await db.execute(
+                    select(func.count(Appointment.id))
+                    .join(Schedule, Appointment.schedule_id == Schedule.id)
+                    .where(
+                        and_(
+                            Appointment.user_id == user_id,
+                            Appointment.status.in_([1, 2])  # 1=已预约, 2=已签到,
+                            Schedule.schedule_date >= week_start,
+                            Schedule.schedule_date <= week_end
+                        )
+                    )
+                )
+                week_count = week_count_result.scalar() or 0
+                if week_count >= policy.per_user_per_week:
+                    return {
+                        'allowed': False,
+                        'reason': f'您本周已预约{week_count}次，每周最多可预约{policy.per_user_per_week}次',
+                        'conflict_with': None
+                    }
+
+            # 5. 检查时间重叠策略 (conflict_overlap_time)
+            if policy.conflict_overlap_time == 'REJECT' and schedule.start_time and schedule.end_time:
+                # 查找同一日期、时间有重叠的预约
+                overlap_result = await db.execute(
+                    select(Appointment, Schedule)
+                    .join(Schedule, Appointment.schedule_id == Schedule.id)
+                    .where(
+                        and_(
+                            Appointment.user_id == user_id,
+                            Appointment.status.in_([1, 2])  # 1=已预约, 2=已签到,
+                            Schedule.schedule_date == schedule_date,
+                            Schedule.id != shift_id,  # 排除当前班次
+                            # 时间重叠判断：A.start < B.end AND A.end > B.start
+                            Schedule.start_time < schedule.end_time,
+                            Schedule.end_time > schedule.start_time
+                        )
+                    )
+                    .limit(1)
+                )
+                overlap_row = overlap_result.first()
+                if overlap_row:
+                    conflict_appointment, conflict_schedule = overlap_row
+                    return {
+                        'allowed': False,
+                        'reason': f'您在该时间段已有其他预约（{conflict_schedule.start_time.strftime("%H:%M")}-{conflict_schedule.end_time.strftime("%H:%M")}），时间冲突',
+                        'conflict_with': {
+                            'appointment_id': conflict_appointment.id,
+                            'schedule_id': conflict_schedule.id,
+                            'start_time': str(conflict_schedule.start_time),
+                            'end_time': str(conflict_schedule.end_time)
+                        }
+                    }
+
+            # 6. 检查同类型同日策略 (conflict_same_type_same_day)
+            if policy.conflict_same_type_same_day == 'REJECT' and schedule.appointment_type:
+                same_type_result = await db.execute(
+                    select(Appointment, Schedule)
+                    .join(Schedule, Appointment.schedule_id == Schedule.id)
+                    .where(
+                        and_(
+                            Appointment.user_id == user_id,
+                            Appointment.status.in_([1, 2])  # 1=已预约, 2=已签到,
+                            Schedule.schedule_date == schedule_date,
+                            Schedule.appointment_type == schedule.appointment_type,
+                            Schedule.id != shift_id  # 排除当前班次
+                        )
+                    )
+                    .limit(1)
+                )
+                same_type_row = same_type_result.first()
+                if same_type_row:
+                    conflict_appointment, conflict_schedule = same_type_row
+                    appointment_type_names = {
+                        'normal': '普通门诊',
+                        'expert': '专家门诊',
+                        'urgent': '急诊',
+                        'medical_insurance': '医保门诊',
+                        'self_pay': '自费门诊'
+                    }
+                    type_name = appointment_type_names.get(schedule.appointment_type, schedule.appointment_type)
+                    return {
+                        'allowed': False,
+                        'reason': f'您今日已预约{type_name}，同类型预约每日限一次',
+                        'conflict_with': {
+                            'appointment_id': conflict_appointment.id,
+                            'schedule_id': conflict_schedule.id,
+                            'appointment_type': conflict_schedule.appointment_type
+                        }
+                    }
+
         return {
             'allowed': True,
             'reason': None,
@@ -458,8 +653,8 @@ class RuleEngineService:
                 select(func.count(Appointment.id))
                 .where(
                     and_(
-                        Appointment.shift_id == shift_id,
-                        Appointment.status.in_(['booked', 'checked_in'])
+                        Appointment.schedule_id == shift_id,
+                        Appointment.status.in_([1, 2])  # 1=已预约, 2=已签到
                     )
                 )
             )
@@ -498,9 +693,9 @@ class RuleEngineService:
                 select(func.count(Appointment.id))
                 .where(
                     and_(
-                        Appointment.shift_id == shift_id,
+                        Appointment.schedule_id == shift_id,
                         Appointment.user_id == user_id,
-                        Appointment.status.in_(['booked', 'checked_in'])
+                        Appointment.status.in_([1, 2])  # 1=已预约, 2=已签到
                     )
                 )
             )

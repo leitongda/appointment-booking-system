@@ -1,5 +1,9 @@
-import { PageContainer, ProForm, ProFormText, ProFormSelect, ProFormDigit, ProFormSwitch, ProFormTextArea, FooterToolbar } from '@ant-design/pro-components';
-import { Card, App, Button, Space, Row, Col, Tabs, message, Form } from 'antd';
+import { PageContainer, ProForm, ProFormText, ProFormSelect, ProFormDigit, ProFormSwitch, ProFormTextArea, FooterToolbar, ProFormDependency } from '@ant-design/pro-components';
+import { Card, App, Button, Space, Row, Col, Tabs, message, Form, Alert, Modal, Radio, Typography, Affix } from 'antd';
+import { ThunderboltOutlined } from '@ant-design/icons';
+
+// 侧边栏预览面板宽度
+const PREVIEW_SIDEBAR_WIDTH = 400;
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { history, useParams, useAccess } from '@umijs/max';
 import { ruleSetApi, shiftTypeApi } from '@hospital/api';
@@ -17,7 +21,11 @@ import {
   NO_CHECKIN_AFTER_CLOSE_OPTIONS,
   WAITLIST_PROMOTE_POLICY_OPTIONS,
   RULE_SET_FORM_INITIAL_VALUES,
+  RULE_SET_PRESETS,
+  type RuleSetPreset,
 } from '@/constants/rule-set';
+
+const { Text } = Typography;
 
 const RuleSetFormPage: React.FC = () => {
   const { message: antMessage } = App.useApp();
@@ -31,6 +39,29 @@ const RuleSetFormPage: React.FC = () => {
   const [currentFormData, setCurrentFormData] = useState<any>(null);
   const [formValues, setFormValues] = useState<Partial<RuleSet>>({});
   const formRef = useRef<any>();
+
+  // 预设模板相关状态
+  const [presetModalOpen, setPresetModalOpen] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+
+  // 应用预设模板
+  const handleApplyPreset = (presetId: string) => {
+    const preset = RULE_SET_PRESETS.find(p => p.id === presetId);
+    if (preset) {
+      // 保留用户已选择的班次类型
+      const currentShiftTypeIds = formRef.current?.getFieldValue('shiftTypeIds') || [];
+      // 深拷贝预设配置以转换为可变类型
+      const newValues = JSON.parse(JSON.stringify({
+        ...preset.config,
+        shiftTypeIds: currentShiftTypeIds.length > 0 ? currentShiftTypeIds : [],
+      }));
+      formRef.current?.setFieldsValue(newValues);
+      setFormValues(newValues);
+      antMessage.success(`已应用「${preset.name}」预设模板`);
+      setPresetModalOpen(false);
+      setSelectedPreset(null);
+    }
+  };
 
   useEffect(() => {
     loadShiftTypes();
@@ -132,8 +163,34 @@ const RuleSetFormPage: React.FC = () => {
 
   return (
     <PageContainer title={isEdit ? '编辑规则组' : '新增规则组'}>
-      {/* 表单区域 */}
-      <ProForm
+      {/* 快速配置预设提示（仅新增时显示） */}
+      {!isEdit && (
+        <Alert
+          message="快速开始"
+          description={
+            <Space>
+              <span>选择预设模板可快速配置规则组，节省配置时间</span>
+              <Button
+                type="primary"
+                size="small"
+                icon={<ThunderboltOutlined />}
+                onClick={() => setPresetModalOpen(true)}
+              >
+                选择预设模板
+              </Button>
+            </Space>
+          }
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      {/* 左右分栏布局：左侧表单，右侧固定预览 */}
+      <div style={{ display: 'flex', gap: 24 }}>
+        {/* 左侧：表单区域 */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <ProForm
             formRef={formRef}
             onFinish={handleSubmit}
             initialValues={initialValues}
@@ -541,57 +598,79 @@ const RuleSetFormPage: React.FC = () => {
                         tooltip="启用候补队列功能"
                       />
                     </Col>
-                    <Col span={8}>
-                      <ProFormDigit
-                        name={['capacityPolicy', 'waitlistMaxSize']}
-                        label="候补队列大小"
-                        width="xl"
-                        min={1}
-                        max={100}
-                        fieldProps={{ precision: 0 }}
-                        rules={[{ required: true, message: '请输入队列大小' }]}
-                        tooltip="仅在启用候补时生效"
-                      />
-                    </Col>
-                    <Col span={8}>
-                      <ProFormSelect
-                        name={['capacityPolicy', 'waitlistPromotePolicy']}
-                        label="候补递补策略"
-                        width="xl"
-                        options={WAITLIST_PROMOTE_POLICY_OPTIONS}
-                        tooltip="仅在启用候补时生效"
-                      />
-                    </Col>
+                    <ProFormDependency name={[['capacityPolicy', 'waitlistEnabled']]}>
+                      {({ capacityPolicy }) => {
+                        if (!capacityPolicy?.waitlistEnabled) return null;
+                        return (
+                          <>
+                            <Col span={8}>
+                              <ProFormDigit
+                                name={['capacityPolicy', 'waitlistMaxSize']}
+                                label="候补队列大小"
+                                width="xl"
+                                min={1}
+                                max={100}
+                                fieldProps={{ precision: 0 }}
+                                rules={[{ required: true, message: '请输入队列大小' }]}
+                                tooltip="候补队列的最大长度"
+                              />
+                            </Col>
+                            <Col span={8}>
+                              <ProFormSelect
+                                name={['capacityPolicy', 'waitlistPromotePolicy']}
+                                label="候补递补策略"
+                                width="xl"
+                                options={[...WAITLIST_PROMOTE_POLICY_OPTIONS]}
+                                tooltip="当有空位时如何递补候补用户"
+                              />
+                            </Col>
+                          </>
+                        );
+                      }}
+                    </ProFormDependency>
                   </Row>
 
-                  {/* 超额预约配置 */}
-                  <Row gutter={[24, 16]}>
-                    <Col span={12}>
-                      <ProFormDigit
-                        name={['capacityPolicy', 'overbookingMax']}
-                        label="最大超额数"
-                        width="xl"
-                        min={1}
-                        max={100}
-                        fieldProps={{ precision: 0 }}
-                        rules={[{ required: true, message: '请输入超额数' }]}
-                        tooltip="仅在允许超额预约时生效，允许超过总容量的最大数量"
-                      />
-                    </Col>
-                  </Row>
+                  {/* 超额预约配置 - 仅在启用超额时显示 */}
+                  <ProFormDependency name={[['capacityPolicy', 'overbookingEnabled']]}>
+                    {({ capacityPolicy }) => {
+                      if (!capacityPolicy?.overbookingEnabled) return null;
+                      return (
+                        <Row gutter={[24, 16]}>
+                          <Col span={12}>
+                            <ProFormDigit
+                              name={['capacityPolicy', 'overbookingMax']}
+                              label="最大超额数"
+                              width="xl"
+                              min={1}
+                              max={100}
+                              fieldProps={{ precision: 0 }}
+                              rules={[{ required: true, message: '请输入超额数' }]}
+                              tooltip="允许超过总容量的最大预约数量"
+                            />
+                          </Col>
+                        </Row>
+                      );
+                    }}
+                  </ProFormDependency>
                 </Card>
               ),
             },
           ]}
         />
-      </ProForm>
+          </ProForm>
+        </div>
 
-      {/* 底部：实时预览面板（占据整行） */}
-      <div style={{ marginTop: 24 }}>
-        <RuleSetLivePreview
-          formData={formValues}
-          shiftTypes={shiftTypes}
-        />
+        {/* 右侧：固定预览面板 */}
+        <div style={{ width: PREVIEW_SIDEBAR_WIDTH, flexShrink: 0 }}>
+          <Affix offsetTop={80}>
+            <div style={{ maxHeight: 'calc(100vh - 160px)', overflowY: 'auto' }}>
+              <RuleSetLivePreview
+                formData={formValues}
+                shiftTypes={shiftTypes}
+              />
+            </div>
+          </Affix>
+        </div>
       </div>
 
       <RulePreviewModal
@@ -600,6 +679,72 @@ const RuleSetFormPage: React.FC = () => {
         shiftTypes={shiftTypes}
         ruleSetData={currentFormData}
       />
+
+      {/* 预设模板选择弹窗 */}
+      <Modal
+        title="选择预设模板"
+        open={presetModalOpen}
+        onCancel={() => {
+          setPresetModalOpen(false);
+          setSelectedPreset(null);
+        }}
+        onOk={() => {
+          if (selectedPreset) {
+            handleApplyPreset(selectedPreset);
+          } else {
+            antMessage.warning('请选择一个预设模板');
+          }
+        }}
+        okText="应用模板"
+        cancelText="取消"
+        width={600}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Text type="secondary">
+            选择一个预设模板，系统将自动填充规则配置。您仍可在应用后进行调整。
+          </Text>
+        </div>
+        <Radio.Group
+          value={selectedPreset}
+          onChange={(e) => setSelectedPreset(e.target.value)}
+          style={{ width: '100%' }}
+        >
+          <Space direction="vertical" style={{ width: '100%' }}>
+            {RULE_SET_PRESETS.map((preset) => (
+              <Card
+                key={preset.id}
+                size="small"
+                hoverable
+                style={{
+                  border: selectedPreset === preset.id ? '2px solid #1890ff' : '1px solid #d9d9d9',
+                  backgroundColor: selectedPreset === preset.id ? '#e6f7ff' : undefined,
+                }}
+                onClick={() => setSelectedPreset(preset.id)}
+              >
+                <Radio value={preset.id}>
+                  <Space direction="vertical" size={0}>
+                    <Text strong>{preset.name}</Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {preset.description}
+                    </Text>
+                    <Space style={{ marginTop: 4 }}>
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        优先级: {preset.config.priority}
+                      </Text>
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        每日限约: {preset.config.bookingPolicy.perUserPerDay || '不限'}
+                      </Text>
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        容量: {preset.config.capacityPolicy.totalCapacity || '不限'}
+                      </Text>
+                    </Space>
+                  </Space>
+                </Radio>
+              </Card>
+            ))}
+          </Space>
+        </Radio.Group>
+      </Modal>
     </PageContainer>
   );
 };

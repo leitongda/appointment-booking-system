@@ -14,6 +14,10 @@ from app.schemas.appointment import AppointmentCreate, AppointmentStatistics
 from app.utils.audit import set_create_audit, set_update_audit
 from app.services.settings_service import SettingsService
 from app.services.rule_engine_service import RuleEngineService
+from app.core.redis import RedisCache
+import logging
+
+logger = logging.getLogger(__name__)
 
 # 预约状态 - 与前端共享常量保持一致
 APPOINTMENT_STATUS = {
@@ -248,22 +252,16 @@ class AppointmentService:
                 shift_id=data.schedule_id,
                 user_id=user_id,
                 policy=booking_policy,
-                booking_time=datetime.now()
+                booking_time=datetime.now(),
+                schedule=schedule  # 传递排班对象，用于每日/每周限约数、时间重叠、同类型同日等检查
             )
             if not conflict_result['allowed']:
                 raise ValueError(conflict_result['reason'])
 
         # 验证2：容量策略 - 检查容量限制
-        if capacity_policy:
-            capacity_result = await rule_engine.check_capacity_limits(
-                db=self.db,
-                shift_id=data.schedule_id,
-                user_id=user_id,
-                policy=capacity_policy
-            )
-            if not capacity_result['allowed']:
-                # 如果候补位置存在，可以提示用户候补（未来功能）
-                raise ValueError(capacity_result['reason'])
+        # 注意：容量检查使用分布式锁来保证并发安全，锁在后续流程中获取
+        # 这里先保存策略，在创建预约时进行原子性检查
+        capacity_check_needed = capacity_policy is not None
 
         # ========== 兼容旧配置：没有规则组时使用门店配置 ==========
 
@@ -290,72 +288,102 @@ class AppointmentService:
         if not patient:
             raise ValueError("就诊人不存在")
         
-        # 检查是否重复预约
-        existing = await self.db.execute(
-            select(Appointment).where(
-                and_(
-                    Appointment.patient_id == data.patient_id,
-                    Appointment.schedule_id == data.schedule_id,
-                    # 已预约、已签到、候诊中
-                    Appointment.status.in_([
-                        APPOINTMENT_STATUS['CONFIRMED'],
-                        APPOINTMENT_STATUS['SIGNED'],
-                        APPOINTMENT_STATUS['WAITING']
-                    ])
+        # ========== 使用分布式锁保证预约创建的原子性 ==========
+        # 锁范围包括：容量检查、重复预约检查、队列号生成、预约创建
+        lock_name = f"appointment:create:{data.schedule_id}"
+        
+        try:
+            async with RedisCache.distributed_lock(lock_name, timeout=10, retry_times=5):
+                # 在锁内进行容量检查（防止超售）
+                if capacity_check_needed and capacity_policy:
+                    capacity_result = await rule_engine.check_capacity_limits(
+                        db=self.db,
+                        shift_id=data.schedule_id,
+                        user_id=user_id,
+                        policy=capacity_policy
+                    )
+                    if not capacity_result['allowed']:
+                        raise ValueError(capacity_result['reason'])
+
+                # 检查是否重复预约
+                existing = await self.db.execute(
+                    select(Appointment).where(
+                        and_(
+                            Appointment.patient_id == data.patient_id,
+                            Appointment.schedule_id == data.schedule_id,
+                            # 已预约、已签到、候诊中
+                            Appointment.status.in_([
+                                APPOINTMENT_STATUS['CONFIRMED'],
+                                APPOINTMENT_STATUS['SIGNED'],
+                                APPOINTMENT_STATUS['WAITING']
+                            ])
+                        )
+                    )
                 )
-            )
-        )
-        if existing.scalar_one_or_none():
-            raise ValueError("该就诊人已预约此时段")
-        
-        # 生成预约号
-        appointment_no = f"YY{datetime.now().strftime('%Y%m%d%H%M%S')}{str(uuid.uuid4())[:4].upper()}"
-        
-        # 获取队列号
-        queue_result = await self.db.execute(
-            select(func.max(Appointment.queue_number)).where(Appointment.schedule_id == data.schedule_id)
-        )
-        max_queue = queue_result.scalar() or 0
-        queue_number = max_queue + 1
-        
-        # 创建预约（包含快照信息）
-        doctor = schedule.doctor
-        appointment = Appointment(
-            id=str(uuid.uuid4()),
-            appointment_no=appointment_no,
-            user_id=user_id,
-            patient_id=data.patient_id,
-            doctor_id=schedule.doctor_id,
-            schedule_id=data.schedule_id,
-            queue_number=queue_number,
-            status=APPOINTMENT_STATUS['CONFIRMED'],
-            symptom_description=data.symptom_description,
-            # 就诊人快照信息
-            patient_name=patient.name,
-            patient_phone=patient.phone,
-            # 医生快照信息
-            doctor_name=doctor.name if doctor else None,
-            doctor_title=doctor.title if doctor else None,
-            department_name=doctor.department.name if doctor and doctor.department else None,
-            # 规则快照信息
-            rule_set_id=rule_set.id if rule_set else None,
-            book_open_at=book_result['open_at'],
-            book_close_at=book_result['close_at'],
-            checkin_open_at=checkin_result['open_at'],
-            checkin_close_at=checkin_result['close_at'],
-            cancel_open_at=cancel_result['open_at'],
-            cancel_close_at=cancel_result['close_at'],
-            checkin_count=0,
-        )
-        # 设置创建人（如果是用户自己创建，使用 user_id；如果是管理员创建，使用 operator_id）
-        set_create_audit(appointment, operator_id or user_id)
-        self.db.add(appointment)
-        
-        # 更新排班已预约数
-        schedule.booked_slots += 1
-        
-        await self.db.commit()
-        await self.db.refresh(appointment)
+                if existing.scalar_one_or_none():
+                    raise ValueError("该就诊人已预约此时段")
+                
+                # 重新检查排班号源（在锁内确保准确性）
+                schedule_refresh = await self.db.execute(
+                    select(Schedule).where(Schedule.id == data.schedule_id)
+                )
+                schedule_current = schedule_refresh.scalar_one_or_none()
+                if schedule_current and schedule_current.booked_slots >= schedule_current.total_slots:
+                    raise ValueError("号源已满")
+                
+                # 生成预约号
+                appointment_no = f"YY{datetime.now().strftime('%Y%m%d%H%M%S')}{str(uuid.uuid4())[:4].upper()}"
+                
+                # 获取队列号
+                queue_result = await self.db.execute(
+                    select(func.max(Appointment.queue_number)).where(Appointment.schedule_id == data.schedule_id)
+                )
+                max_queue = queue_result.scalar() or 0
+                queue_number = max_queue + 1
+                
+                # 创建预约（包含快照信息）
+                doctor = schedule.doctor
+                appointment = Appointment(
+                    id=str(uuid.uuid4()),
+                    appointment_no=appointment_no,
+                    user_id=user_id,
+                    patient_id=data.patient_id,
+                    doctor_id=schedule.doctor_id,
+                    schedule_id=data.schedule_id,
+                    queue_number=queue_number,
+                    status=APPOINTMENT_STATUS['CONFIRMED'],
+                    symptom_description=data.symptom_description,
+                    # 就诊人快照信息
+                    patient_name=patient.name,
+                    patient_phone=patient.phone,
+                    # 医生快照信息
+                    doctor_name=doctor.name if doctor else None,
+                    doctor_title=doctor.title if doctor else None,
+                    department_name=doctor.department.name if doctor and doctor.department else None,
+                    # 规则快照信息
+                    rule_set_id=rule_set.id if rule_set else None,
+                    book_open_at=book_result['open_at'],
+                    book_close_at=book_result['close_at'],
+                    checkin_open_at=checkin_result['open_at'],
+                    checkin_close_at=checkin_result['close_at'],
+                    cancel_open_at=cancel_result['open_at'],
+                    cancel_close_at=cancel_result['close_at'],
+                    checkin_count=0,
+                )
+                # 设置创建人（如果是用户自己创建，使用 user_id；如果是管理员创建，使用 operator_id）
+                set_create_audit(appointment, operator_id or user_id)
+                self.db.add(appointment)
+                
+                # 更新排班已预约数
+                schedule.booked_slots += 1
+                
+                await self.db.commit()
+                await self.db.refresh(appointment)
+                
+        except RuntimeError as e:
+            # 获取锁失败（系统繁忙）
+            logger.warning(f"预约创建获取锁失败: {lock_name}, 错误: {e}")
+            raise ValueError("系统繁忙，请稍后重试")
         
         # 设置 schedule 关联，以便 API 层可以访问排班信息
         appointment.schedule = schedule

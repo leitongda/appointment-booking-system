@@ -37,7 +37,7 @@ class StoreBase(BaseModel):
     email: Optional[str] = Field(None, max_length=100, description="邮箱")
     theme_style: Optional[str] = Field(None, max_length=50, description="风格选择")
     sort_order: int = Field(0, ge=0, description="排序")
-    status: int = Field(1, ge=0, le=1, description="状态: 0-停业 1-营业")
+    status: int = Field(1, ge=0, le=2, description="状态: 0-停业 1-营业 2-禁用")
     max_cards_per_user: int = Field(5, ge=1, le=20, description="每用户可建就诊卡数量上限")
 
 
@@ -73,7 +73,7 @@ class StoreUpdate(BaseModel):
     email: Optional[str] = Field(None, max_length=100)
     theme_style: Optional[str] = Field(None, max_length=50)
     sort_order: Optional[int] = Field(None, ge=0)
-    status: Optional[int] = Field(None, ge=0, le=1)
+    status: Optional[int] = Field(None, ge=0, le=2, description="状态: 0-停业 1-营业 2-禁用")
     max_cards_per_user: Optional[int] = Field(None, ge=1, le=20, description="每用户可建就诊卡数量上限")
 
 

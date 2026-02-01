@@ -56,6 +56,14 @@ export const departmentApi = {
   },
 
   /**
+   * 获取所有启用的科室（下拉选择用）
+   * @param storeId 门店ID（可选）
+   */
+  getAll: (storeId?: string): Promise<Department[]> => {
+    return request.get('/departments/all', { params: { storeId } });
+  },
+
+  /**
    * 搜索科室
    */
   search: async (keyword: string, limit?: number): Promise<Department[]> => {

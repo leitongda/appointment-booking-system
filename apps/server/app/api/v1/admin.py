@@ -482,6 +482,17 @@ async def admin_login(
     if admin.status != 1:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
     
+    # 判断是否是超级管理员
+    role_code = admin.role.code if admin.role else None
+    is_super_admin = role_code == "SUPER_ADMIN"
+    
+    # 过滤禁用门店（status=2 表示禁用）
+    available_stores = [s for s in admin.stores if s.status != 2] if admin.stores else []
+    
+    # 非超级管理员：如果所有绑定门店都被禁用，拒绝登录
+    if not is_super_admin and admin.stores and not available_stores:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您所属的门店已被禁用，请联系管理员")
+    
     # 更新登录信息
     client_ip = get_client_ip(request)
     user_agent = request.headers.get("user-agent", "")
@@ -494,8 +505,8 @@ async def admin_login(
     # 存储会话到 Redis
     await store_admin_session(admin, access_token, client_ip, user_agent, db)
     
-    # 构建门店信息
-    stores_list = build_stores_list(admin.stores)
+    # 构建门店信息（只返回可用门店）
+    stores_list = build_stores_list(available_stores)
     first_store = stores_list[0] if stores_list else None
     
     response = AdminLoginResponse(

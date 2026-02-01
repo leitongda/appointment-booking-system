@@ -208,3 +208,353 @@ export const RULE_SET_FORM_INITIAL_VALUES = {
   shiftTypeIds: [],
   windows: DEFAULT_WINDOWS,
 } as const;
+
+// ==================== 预设模板 ====================
+
+/**
+ * 预设模板类型
+ */
+export interface RuleSetPreset {
+  id: string;
+  name: string;
+  description: string;
+  config: typeof RULE_SET_FORM_INITIAL_VALUES;
+}
+
+/**
+ * 标准门诊预设
+ * 适用于普通门诊，宽松的预约限制
+ */
+export const PRESET_STANDARD_CLINIC: RuleSetPreset = {
+  id: 'standard-clinic',
+  name: '标准门诊',
+  description: '适用于普通门诊，提前7天开放预约，每日可预约3次',
+  config: {
+    name: '标准门诊规则',
+    enabled: true,
+    priority: 100,
+    timeSource: 'SERVER',
+    timezoneSource: 'HOSPITAL',
+    comparePrecision: 'MINUTE',
+    defaultOpenInclusive: true,
+    defaultCloseInclusive: false,
+    roundingMode: 'NONE',
+    clockSkewToleranceSec: 5,
+    description: '适用于普通门诊的预约规则',
+    shiftTypeIds: [],
+    bookingPolicy: {
+      requireAuth: true,
+      requirePatientProfileComplete: false,
+      perUserPerShift: 1,
+      perUserPerDay: 3,
+      perUserPerWeek: 10,
+      conflictSameShift: 'REJECT',
+      conflictOverlapTime: 'REJECT',
+      conflictSameTypeSameDay: 'ALLOW',
+    },
+    checkinPolicy: {
+      requireBooking: true,
+      allowOnsiteBooking: false,
+      maxTimes: 1,
+      auditLog: true,
+      gracePeriodSec: 900, // 15分钟宽限期
+      afterGraceStatus: 'LATE',
+      noCheckinAfterClose: 'KEEP_BOOKED',
+    },
+    capacityPolicy: {
+      totalCapacity: 30,
+      perUserCapacity: 1,
+      waitlistEnabled: false,
+      waitlistMaxSize: 10,
+      waitlistPromotePolicy: 'MANUAL',
+      overbookingEnabled: false,
+      overbookingMax: 0,
+    },
+    windows: [
+      {
+        action: 'BOOK' as const,
+        referencePoint: 'SHIFT_START' as const,
+        openOffsetSec: -604800, // 提前7天
+        closeOffsetSec: 0,
+        openInclusive: true,
+        closeInclusive: false,
+        failPolicy: 'REJECT' as const,
+        enabled: true,
+      },
+      {
+        action: 'CHECKIN' as const,
+        referencePoint: 'SHIFT_START' as const,
+        openOffsetSec: -1800, // 班次开始前30分钟
+        closeOffsetSec: 3600, // 班次开始后1小时
+        openInclusive: true,
+        closeInclusive: true,
+        failPolicy: 'REJECT' as const,
+        enabled: true,
+      },
+      {
+        action: 'CANCEL' as const,
+        referencePoint: 'SHIFT_START' as const,
+        openOffsetSec: -604800, // 提前7天
+        closeOffsetSec: -7200, // 班次开始前2小时
+        openInclusive: true,
+        closeInclusive: true,
+        failPolicy: 'REJECT' as const,
+        enabled: true,
+      },
+    ],
+  },
+};
+
+/**
+ * 专家门诊预设
+ * 适用于专家门诊，限制更严格
+ */
+export const PRESET_EXPERT_CLINIC: RuleSetPreset = {
+  id: 'expert-clinic',
+  name: '专家门诊',
+  description: '适用于专家门诊，需完善档案，每日限约1次，支持候补',
+  config: {
+    name: '专家门诊规则',
+    enabled: true,
+    priority: 50,
+    timeSource: 'SERVER',
+    timezoneSource: 'HOSPITAL',
+    comparePrecision: 'MINUTE',
+    defaultOpenInclusive: true,
+    defaultCloseInclusive: false,
+    roundingMode: 'NONE',
+    clockSkewToleranceSec: 5,
+    description: '适用于专家门诊的预约规则，限制较严格',
+    shiftTypeIds: [],
+    bookingPolicy: {
+      requireAuth: true,
+      requirePatientProfileComplete: true, // 需要完善档案
+      perUserPerShift: 1,
+      perUserPerDay: 1, // 每日限约1次
+      perUserPerWeek: 3,
+      conflictSameShift: 'REJECT',
+      conflictOverlapTime: 'REJECT',
+      conflictSameTypeSameDay: 'REJECT', // 同类型同日不可重复预约
+    },
+    checkinPolicy: {
+      requireBooking: true,
+      allowOnsiteBooking: false,
+      maxTimes: 1,
+      auditLog: true,
+      gracePeriodSec: 600, // 10分钟宽限期
+      afterGraceStatus: 'LATE',
+      noCheckinAfterClose: 'ABSENT', // 未签到标记爽约
+    },
+    capacityPolicy: {
+      totalCapacity: 15, // 较少号源
+      perUserCapacity: 1,
+      waitlistEnabled: true, // 启用候补
+      waitlistMaxSize: 5,
+      waitlistPromotePolicy: 'AUTO',
+      overbookingEnabled: false,
+      overbookingMax: 0,
+    },
+    windows: [
+      {
+        action: 'BOOK' as const,
+        referencePoint: 'SHIFT_START' as const,
+        openOffsetSec: -259200, // 提前3天
+        closeOffsetSec: -3600, // 班次开始前1小时截止
+        openInclusive: true,
+        closeInclusive: false,
+        failPolicy: 'REJECT' as const,
+        enabled: true,
+      },
+      {
+        action: 'CHECKIN' as const,
+        referencePoint: 'SHIFT_START' as const,
+        openOffsetSec: -1800, // 班次开始前30分钟
+        closeOffsetSec: 1800, // 班次开始后30分钟
+        openInclusive: true,
+        closeInclusive: true,
+        failPolicy: 'REJECT' as const,
+        enabled: true,
+      },
+      {
+        action: 'CANCEL' as const,
+        referencePoint: 'SHIFT_START' as const,
+        openOffsetSec: -259200, // 提前3天
+        closeOffsetSec: -14400, // 班次开始前4小时
+        openInclusive: true,
+        closeInclusive: true,
+        failPolicy: 'REJECT' as const,
+        enabled: true,
+      },
+    ],
+  },
+};
+
+/**
+ * 体检预设
+ * 适用于体检预约，需要提前预约
+ */
+export const PRESET_HEALTH_CHECK: RuleSetPreset = {
+  id: 'health-check',
+  name: '体检预约',
+  description: '适用于体检中心，需提前1天预约，可超额预订',
+  config: {
+    name: '体检预约规则',
+    enabled: true,
+    priority: 80,
+    timeSource: 'SERVER',
+    timezoneSource: 'HOSPITAL',
+    comparePrecision: 'MINUTE',
+    defaultOpenInclusive: true,
+    defaultCloseInclusive: false,
+    roundingMode: 'NONE',
+    clockSkewToleranceSec: 5,
+    description: '适用于体检中心的预约规则',
+    shiftTypeIds: [],
+    bookingPolicy: {
+      requireAuth: true,
+      requirePatientProfileComplete: true, // 体检需要完整档案
+      perUserPerShift: 1,
+      perUserPerDay: 1,
+      perUserPerWeek: 1, // 每周限约1次
+      conflictSameShift: 'REJECT',
+      conflictOverlapTime: 'REJECT',
+      conflictSameTypeSameDay: 'REJECT',
+    },
+    checkinPolicy: {
+      requireBooking: true,
+      allowOnsiteBooking: false,
+      maxTimes: 1,
+      auditLog: true,
+      gracePeriodSec: 1800, // 30分钟宽限期
+      afterGraceStatus: 'LATE',
+      noCheckinAfterClose: 'KEEP_BOOKED',
+    },
+    capacityPolicy: {
+      totalCapacity: 50,
+      perUserCapacity: 1,
+      waitlistEnabled: true,
+      waitlistMaxSize: 20,
+      waitlistPromotePolicy: 'AUTO',
+      overbookingEnabled: true, // 允许超额
+      overbookingMax: 5,
+    },
+    windows: [
+      {
+        action: 'BOOK' as const,
+        referencePoint: 'SHIFT_START' as const,
+        openOffsetSec: -2592000, // 提前30天
+        closeOffsetSec: -86400, // 班次开始前1天截止
+        openInclusive: true,
+        closeInclusive: false,
+        failPolicy: 'REJECT' as const,
+        enabled: true,
+      },
+      {
+        action: 'CHECKIN' as const,
+        referencePoint: 'SHIFT_START' as const,
+        openOffsetSec: -3600, // 班次开始前1小时
+        closeOffsetSec: 7200, // 班次开始后2小时
+        openInclusive: true,
+        closeInclusive: true,
+        failPolicy: 'REJECT' as const,
+        enabled: true,
+      },
+      {
+        action: 'CANCEL' as const,
+        referencePoint: 'SHIFT_START' as const,
+        openOffsetSec: -2592000, // 提前30天
+        closeOffsetSec: -172800, // 班次开始前2天
+        openInclusive: true,
+        closeInclusive: true,
+        failPolicy: 'REJECT' as const,
+        enabled: true,
+      },
+    ],
+  },
+};
+
+/**
+ * 急诊预设
+ * 适用于急诊，宽松的限制，允许现场预约
+ */
+export const PRESET_EMERGENCY: RuleSetPreset = {
+  id: 'emergency',
+  name: '急诊',
+  description: '适用于急诊，不限制预约次数，允许现场预约',
+  config: {
+    name: '急诊规则',
+    enabled: true,
+    priority: 10, // 高优先级
+    timeSource: 'SERVER',
+    timezoneSource: 'HOSPITAL',
+    comparePrecision: 'MINUTE',
+    defaultOpenInclusive: true,
+    defaultCloseInclusive: true,
+    roundingMode: 'NONE',
+    clockSkewToleranceSec: 10,
+    description: '适用于急诊的预约规则，限制最宽松',
+    shiftTypeIds: [],
+    bookingPolicy: {
+      requireAuth: true,
+      requirePatientProfileComplete: false,
+      perUserPerShift: 3,
+      perUserPerDay: 0, // 不限制
+      perUserPerWeek: 0, // 不限制
+      conflictSameShift: 'ALLOW',
+      conflictOverlapTime: 'ALLOW',
+      conflictSameTypeSameDay: 'ALLOW',
+    },
+    checkinPolicy: {
+      requireBooking: false, // 不强制预约
+      allowOnsiteBooking: true, // 允许现场预约
+      maxTimes: 3,
+      auditLog: true,
+      gracePeriodSec: 3600, // 1小时宽限期
+      afterGraceStatus: 'ON_TIME', // 不标记迟到
+      noCheckinAfterClose: 'KEEP_BOOKED',
+    },
+    capacityPolicy: {
+      totalCapacity: 0, // 不限制
+      perUserCapacity: 3,
+      waitlistEnabled: false,
+      waitlistMaxSize: 0,
+      waitlistPromotePolicy: 'MANUAL',
+      overbookingEnabled: true,
+      overbookingMax: 999,
+    },
+    windows: [
+      {
+        action: 'BOOK' as const,
+        referencePoint: 'SHIFT_START' as const,
+        openOffsetSec: -86400, // 提前1天
+        closeOffsetSec: 7200, // 班次开始后2小时仍可预约
+        openInclusive: true,
+        closeInclusive: true,
+        failPolicy: 'ALLOW_WITH_TAG' as const, // 超时允许但打标签
+        failTag: '紧急预约',
+        enabled: true,
+      },
+      {
+        action: 'CHECKIN' as const,
+        referencePoint: 'SHIFT_END' as const,
+        openOffsetSec: -86400, // 不限制开始时间
+        closeOffsetSec: 0, // 班次结束前
+        openInclusive: true,
+        closeInclusive: true,
+        failPolicy: 'ALLOW_WITH_TAG' as const,
+        failTag: '超时签到',
+        enabled: true,
+      },
+    ],
+  },
+};
+
+/**
+ * 所有预设模板列表
+ */
+export const RULE_SET_PRESETS: RuleSetPreset[] = [
+  PRESET_STANDARD_CLINIC,
+  PRESET_EXPERT_CLINIC,
+  PRESET_HEALTH_CHECK,
+  PRESET_EMERGENCY,
+];

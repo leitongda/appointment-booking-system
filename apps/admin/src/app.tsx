@@ -1,6 +1,6 @@
 import { AvatarDropdown, AvatarName } from '@/components/RightContent';
 import { FullscreenButton, NotificationButton, RefreshButton, SpacingButton } from '@/components/HeaderActions';
-import { getToken, removeToken, setStorage, STORAGE_KEYS, handleTokenExpired, initTracker, getTracker } from '@hospital/shared';
+import { getToken, removeToken, setStorage, getStorage, STORAGE_KEYS, handleTokenExpired, initTracker, getTracker } from '@hospital/shared';
 import { adminApi, setBaseURL } from '@hospital/api';
 import type { Settings as LayoutSettings, MenuDataItem } from '@ant-design/pro-components';
 import type { RunTimeLayoutConfig, RequestConfig } from '@umijs/max';
@@ -10,6 +10,35 @@ import { useMemo } from 'react';
 import defaultSettings from '../config/defaultSettings';
 import { initApiConfig } from '@/utils/request';
 import { getSpacingMode, applySpacingCSSVariables, SPACING_CONFIG } from '@/utils/spacing';
+
+/**
+ * 菜单展开状态管理
+ * 使用模块级变量存储当前展开的菜单 keys，避免每次渲染重新读取 localStorage
+ */
+let currentMenuOpenKeys: string[] = [];
+
+// 初始化时从 localStorage 读取
+if (typeof window !== 'undefined') {
+  const savedKeys = getStorage<string[]>(STORAGE_KEYS.MENU_OPEN_KEYS);
+  if (savedKeys && Array.isArray(savedKeys)) {
+    currentMenuOpenKeys = savedKeys;
+  }
+}
+
+/**
+ * 获取当前菜单展开状态
+ */
+const getMenuOpenKeys = (): string[] => {
+  return currentMenuOpenKeys;
+};
+
+/**
+ * 设置菜单展开状态并持久化到 localStorage
+ */
+const setMenuOpenKeys = (keys: string[]): void => {
+  currentMenuOpenKeys = keys;
+  setStorage(STORAGE_KEYS.MENU_OPEN_KEYS, keys);
+};
 
 // 设置 API 基础路径（从环境变量读取，支持动态配置）
 const apiBaseUrl = process.env.API_BASE_URL || '/api/v1';
@@ -304,6 +333,14 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
   return {
     // 允许多个子菜单同时展开
     subMenuCloseAll: false,
+    // 菜单属性：设置初始展开状态并持久化
+    // 使用 defaultOpenKeys（非受控模式）设置初始值，onOpenChange 保存状态
+    menuProps: {
+      defaultOpenKeys: getMenuOpenKeys(),
+      onOpenChange: (keys: string[]) => {
+        setMenuOpenKeys(keys);
+      },
+    },
     actionsRender: () => [
       <SpacingButton key="spacing" />,
       <RefreshButton key="refresh" />,

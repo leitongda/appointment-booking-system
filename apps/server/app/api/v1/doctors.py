@@ -112,6 +112,10 @@ async def doctor_login(
     if doctor.status != 1:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
     
+    # 检查所属门店状态（status=2 表示禁用）
+    if doctor.store and doctor.store.status == 2:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您所属的门店已被禁用，请联系管理员")
+    
     # 更新登录信息
     client_ip = get_client_ip(request)
     await service.update_login_info(doctor.id, client_ip)

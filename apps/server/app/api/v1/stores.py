@@ -290,20 +290,43 @@ async def delete_store(
 @router.patch("/{store_id}/status")
 async def update_store_status(
     store_id: str,
-    new_status: int = Query(..., ge=0, le=1, alias="status", description="状态: 0-停业 1-营业"),
+    new_status: int = Query(..., ge=0, le=2, alias="status", description="状态: 0-停业 1-营业 2-禁用"),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
 ):
-    """更新门店状态"""
-    # 门店管理员只能更新自己的门店状态
-    admin_store_id = current_admin.get("store_id")
-    if admin_store_id and admin_store_id != store_id:
+    """更新门店状态
+    
+    - 0: 停业（门店管理员可操作）
+    - 1: 营业（门店管理员可操作）
+    - 2: 禁用（仅超级管理员可操作，禁用后该门店所有人员无法登录）
+    """
+    is_super_admin = current_admin.get("is_super_admin")
+    
+    # 禁用/启用操作仅超级管理员可执行
+    if new_status == 2 and not is_super_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="您无权修改此门店状态"
+            detail="禁用门店需要超级管理员权限"
         )
     
+    # 检查当前门店状态，如果是从禁用状态恢复，也需要超级管理员权限
     service = StoreService(db)
+    current_store = await service.get_by_id(store_id)
+    if current_store and current_store.status == 2 and not is_super_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="启用门店需要超级管理员权限"
+        )
+    
+    # 门店管理员只能更新自己的门店状态（非禁用操作）
+    if not is_super_admin:
+        admin_store_id = current_admin.get("store_id")
+        if admin_store_id and admin_store_id != store_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="您无权修改此门店状态"
+            )
+    
     store = await service.update_status(store_id, new_status)
     
     if not store:

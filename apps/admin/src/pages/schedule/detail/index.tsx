@@ -48,9 +48,7 @@ const ScheduleDetailPage: React.FC = () => {
   const loadDepartments = async () => {
     try {
       // 获取所有启用的科室
-      const allDepts = await fetchAllData((page, pageSize) =>
-        departmentApi.getList({ page, pageSize, status: 1 })
-      );
+      const allDepts = await departmentApi.getAll();
       setDepartments(allDepts);
     } catch (error) {
       console.error('加载科室失败', error);
@@ -255,9 +253,7 @@ const ScheduleDetailPage: React.FC = () => {
       request: async () => {
         try {
           // 获取所有启用的科室
-          const allDepts = await fetchAllData((page, pageSize) =>
-            departmentApi.getList({ page, pageSize, status: 1 })
-          );
+          const allDepts = await departmentApi.getAll();
           return allDepts.map((d: Department) => ({ label: d.name, value: d.id }));
         } catch {
           return [];

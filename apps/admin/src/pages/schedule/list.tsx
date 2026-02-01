@@ -49,8 +49,8 @@ const ScheduleListPage: React.FC = () => {
 
   const loadDepartments = async () => {
     try {
-      const res = await departmentApi.getList({ pageSize: 100, status: 1 });
-      setDepartments(res.data ?? []);
+      const data = await departmentApi.getAll();
+      setDepartments(data ?? []);
     } catch (error) {
       console.error('加载科室失败', error);
     }
@@ -293,8 +293,8 @@ const ScheduleListPage: React.FC = () => {
       valueType: 'select',
       request: async () => {
         try {
-          const res = await departmentApi.getList({ pageSize: PAGINATION_CONFIG.SELECT_MAX_SIZE, status: 1 });
-          return (res.data ?? []).map((d: Department) => ({ label: d.name, value: d.id }));
+          const data = await departmentApi.getAll();
+          return (data ?? []).map((d: Department) => ({ label: d.name, value: d.id }));
         } catch {
           return [];
         }
