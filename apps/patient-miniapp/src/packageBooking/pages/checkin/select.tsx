@@ -12,21 +12,41 @@ import LoginPopup from '../../../components/LoginPopup';
 import CheckinSuccessModal from '../../components/CheckinSuccessModal';
 import './select.less';
 
-// 辅助函数：格式化剩余时间
+// 辅助函数：格式化剩余时间（智能显示天/时/分/秒）
 const formatTimeRemaining = (seconds: number): string => {
   if (seconds <= 0) return '0秒';
 
-  const hours = Math.floor(seconds / 3600);
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
 
-  if (hours > 0) {
-    return `${hours}小时${minutes}分`;
-  } else if (minutes > 0) {
-    return `${minutes}分${secs}秒`;
-  } else {
-    return `${secs}秒`;
+  // 超过1天：显示 X天X小时
+  if (days > 0) {
+    if (hours > 0) {
+      return `${days}天${hours}小时`;
+    }
+    return `${days}天`;
   }
+
+  // 超过1小时：显示 X小时X分
+  if (hours > 0) {
+    if (minutes > 0) {
+      return `${hours}小时${minutes}分`;
+    }
+    return `${hours}小时`;
+  }
+
+  // 超过1分钟：显示 X分X秒
+  if (minutes > 0) {
+    if (secs > 0) {
+      return `${minutes}分${secs}秒`;
+    }
+    return `${minutes}分钟`;
+  }
+
+  // 小于1分钟：显示 X秒
+  return `${secs}秒`;
 };
 
 // 辅助函数：格式化时间 HH:mm
@@ -34,6 +54,45 @@ const formatTime = (date: Date): string => {
   const hours = String(date.getHours()).padStart(2, '0');
   const minutes = String(date.getMinutes()).padStart(2, '0');
   return `${hours}:${minutes}`;
+};
+
+// 辅助函数：智能格式化签到时间窗口
+const formatCheckinTimeWindow = (openAt: string, closeAt: string): string => {
+  const openDate = new Date(openAt);
+  const closeDate = new Date(closeAt);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const openDay = new Date(openDate.getFullYear(), openDate.getMonth(), openDate.getDate());
+  const closeDay = new Date(closeDate.getFullYear(), closeDate.getMonth(), closeDate.getDate());
+
+  const openTimeStr = formatTime(openDate);
+  const closeTimeStr = formatTime(closeDate);
+
+  // 都是今天
+  if (openDay.getTime() === today.getTime() && closeDay.getTime() === today.getTime()) {
+    return `今天 ${openTimeStr} - ${closeTimeStr}`;
+  }
+
+  // 判断是否是明天
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  // 开始时间是明天
+  if (openDay.getTime() === tomorrow.getTime()) {
+    if (closeDay.getTime() === tomorrow.getTime()) {
+      return `明天 ${openTimeStr} - ${closeTimeStr}`;
+    }
+    return `明天 ${openTimeStr} - ${closeDate.getMonth() + 1}/${closeDate.getDate()} ${closeTimeStr}`;
+  }
+
+  // 其他情况：显示具体日期
+  const formatDateStr = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`;
+
+  if (openDay.getTime() === closeDay.getTime()) {
+    return `${formatDateStr(openDate)} ${openTimeStr} - ${closeTimeStr}`;
+  }
+
+  return `${formatDateStr(openDate)} ${openTimeStr} - ${formatDateStr(closeDate)} ${closeTimeStr}`;
 };
 
 const CheckinSelectPage = () => {
@@ -242,7 +301,7 @@ const CheckinSelectPage = () => {
                       <View className="time-window-info">
                         <Text className="window-label">签到时间：</Text>
                         <Text className="window-time">
-                          {formatTime(new Date(item.checkinOpenAt))} - {formatTime(new Date(item.checkinCloseAt))}
+                          {formatCheckinTimeWindow(item.checkinOpenAt, item.checkinCloseAt)}
                         </Text>
                       </View>
                     )}
