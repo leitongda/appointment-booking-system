@@ -437,7 +437,7 @@ const DoctorDetailPage = () => {
             {doctor.avatar ? (
               <Image src={getImageUrl(doctor.avatar)} mode="aspectFill" />
             ) : (
-              <DoctorIcon size={48} color={getThemePrimaryColor()} />
+              <DoctorIcon size={56} color={getThemePrimaryColor()} />
             )}
           </View>
           <View className="info-content">
@@ -605,8 +605,6 @@ const DoctorDetailPage = () => {
                         {urgency === 'critical' ? '!' : '⚠'}
                       </View>
                     )}
-
-                    {isSelected && <Text className="slot-check">✓</Text>}
 
                     <Text className="slot-time">
                       {formatTime(schedule.startTime) || '--:--'}~{formatTime(schedule.endTime) || '--:--'}
