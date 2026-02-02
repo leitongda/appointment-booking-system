@@ -73,6 +73,14 @@ export interface DoctorCreateData {
 }
 
 export const doctorApi = {
+  /**
+   * 获取当前登录医生信息
+   * 医生端专用，需要医生 token
+   */
+  getMe: (): Promise<Doctor> => {
+    return request.get('/doctors/me');
+  },
+
   getList: (params?: DoctorListParams): Promise<PageResult<Doctor>> => {
     return request.get('/doctors', { params });
   },
