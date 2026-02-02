@@ -260,9 +260,11 @@ const HorizontalTimeline: React.FC<HorizontalTimelineProps> = ({
         bookingCreatedAt
       );
 
-      // 判断是否有限制
-      const hasNoOpenLimit = window.openOffsetSec === null;
-      const hasNoCloseLimit = window.closeOffsetSec === null;
+      // 判断是否"不限制"：null 表示不限制，undefined/NaN 等无效值也视为不限制
+      const hasNoOpenLimit = window.openOffsetSec == null || 
+        (typeof window.openOffsetSec === 'number' && !isFinite(window.openOffsetSec));
+      const hasNoCloseLimit = window.closeOffsetSec == null || 
+        (typeof window.closeOffsetSec === 'number' && !isFinite(window.closeOffsetSec));
 
       // 计算显示范围
       let displayStart = openTime || timelineRange.min;

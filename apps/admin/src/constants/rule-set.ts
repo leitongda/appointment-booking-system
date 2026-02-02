@@ -145,6 +145,7 @@ export const CAPACITY_POLICY_DEFAULT_VALUES = {
  * 时间窗默认值
  */
 export const WINDOW_DEFAULT_VALUES = {
+  name: '新时间窗',
   action: 'BOOK' as const,
   referencePoint: 'SHIFT_START' as const,
   openOffsetSec: -1800,  // 提前30分钟
@@ -164,6 +165,7 @@ export const WINDOW_DEFAULT_VALUES = {
 export const DEFAULT_WINDOWS = [
   // 预约时间窗：班次开始前24小时开放，班次开始时关闭（不包含开始时刻）
   {
+    name: '预约时间窗',
     action: 'BOOK' as const,
     referencePoint: 'SHIFT_START' as const,
     openOffsetSec: -86400, // 提前24小时
@@ -175,6 +177,7 @@ export const DEFAULT_WINDOWS = [
   },
   // 签到时间窗1：预约后30分钟才能签到（防止过早签到）
   {
+    name: '签到时间窗（预约后）',
     action: 'CHECKIN' as const,
     referencePoint: 'BOOKING_CREATED_AT' as const,
     openOffsetSec: 1800,   // 预约后30分钟才能签到
@@ -186,6 +189,7 @@ export const DEFAULT_WINDOWS = [
   },
   // 签到时间窗2：必须在班次结束时间前签到
   {
+    name: '签到时间窗（班次结束前）',
     action: 'CHECKIN' as const,
     referencePoint: 'SHIFT_END' as const,
     openOffsetSec: null,   // 不限制最早时间
@@ -272,6 +276,7 @@ export const PRESET_STANDARD_CLINIC: RuleSetPreset = {
     },
     windows: [
       {
+        name: '预约时间窗',
         action: 'BOOK' as const,
         referencePoint: 'SHIFT_START' as const,
         openOffsetSec: -604800, // 提前7天
@@ -282,6 +287,7 @@ export const PRESET_STANDARD_CLINIC: RuleSetPreset = {
         enabled: true,
       },
       {
+        name: '签到时间窗',
         action: 'CHECKIN' as const,
         referencePoint: 'SHIFT_START' as const,
         openOffsetSec: -1800, // 班次开始前30分钟
@@ -292,6 +298,7 @@ export const PRESET_STANDARD_CLINIC: RuleSetPreset = {
         enabled: true,
       },
       {
+        name: '取消时间窗',
         action: 'CANCEL' as const,
         referencePoint: 'SHIFT_START' as const,
         openOffsetSec: -604800, // 提前7天
@@ -356,6 +363,7 @@ export const PRESET_EXPERT_CLINIC: RuleSetPreset = {
     },
     windows: [
       {
+        name: '预约时间窗',
         action: 'BOOK' as const,
         referencePoint: 'SHIFT_START' as const,
         openOffsetSec: -259200, // 提前3天
@@ -366,6 +374,7 @@ export const PRESET_EXPERT_CLINIC: RuleSetPreset = {
         enabled: true,
       },
       {
+        name: '签到时间窗',
         action: 'CHECKIN' as const,
         referencePoint: 'SHIFT_START' as const,
         openOffsetSec: -1800, // 班次开始前30分钟
@@ -376,6 +385,7 @@ export const PRESET_EXPERT_CLINIC: RuleSetPreset = {
         enabled: true,
       },
       {
+        name: '取消时间窗',
         action: 'CANCEL' as const,
         referencePoint: 'SHIFT_START' as const,
         openOffsetSec: -259200, // 提前3天
@@ -440,6 +450,7 @@ export const PRESET_HEALTH_CHECK: RuleSetPreset = {
     },
     windows: [
       {
+        name: '预约时间窗',
         action: 'BOOK' as const,
         referencePoint: 'SHIFT_START' as const,
         openOffsetSec: -2592000, // 提前30天
@@ -450,6 +461,7 @@ export const PRESET_HEALTH_CHECK: RuleSetPreset = {
         enabled: true,
       },
       {
+        name: '签到时间窗',
         action: 'CHECKIN' as const,
         referencePoint: 'SHIFT_START' as const,
         openOffsetSec: -3600, // 班次开始前1小时
@@ -460,6 +472,7 @@ export const PRESET_HEALTH_CHECK: RuleSetPreset = {
         enabled: true,
       },
       {
+        name: '取消时间窗',
         action: 'CANCEL' as const,
         referencePoint: 'SHIFT_START' as const,
         openOffsetSec: -2592000, // 提前30天
@@ -524,6 +537,7 @@ export const PRESET_EMERGENCY: RuleSetPreset = {
     },
     windows: [
       {
+        name: '预约时间窗',
         action: 'BOOK' as const,
         referencePoint: 'SHIFT_START' as const,
         openOffsetSec: -86400, // 提前1天
@@ -535,6 +549,7 @@ export const PRESET_EMERGENCY: RuleSetPreset = {
         enabled: true,
       },
       {
+        name: '签到时间窗',
         action: 'CHECKIN' as const,
         referencePoint: 'SHIFT_END' as const,
         openOffsetSec: -86400, // 不限制开始时间

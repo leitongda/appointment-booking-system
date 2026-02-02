@@ -472,9 +472,9 @@ export function calculateTimelineRange(
   windows.forEach((window) => {
     if (!window.enabled) return;
 
-    // 计算开放时间
+    // 计算开放时间（使用 != null 同时处理 null 和 undefined）
     const openTime =
-      window.openOffsetSec !== null
+      window.openOffsetSec != null && isFinite(window.openOffsetSec)
         ? calculateWindowTime(
             window.referencePoint,
             window.openOffsetSec,
@@ -486,7 +486,7 @@ export function calculateTimelineRange(
 
     // 计算关闭时间
     const closeTime =
-      window.closeOffsetSec !== null
+      window.closeOffsetSec != null && isFinite(window.closeOffsetSec)
         ? calculateWindowTime(
             window.referencePoint,
             window.closeOffsetSec,
@@ -496,12 +496,26 @@ export function calculateTimelineRange(
           )
         : null;
 
-    // 更新范围
-    if (openTime && dayjs(openTime).isBefore(minDate)) {
-      minDate = dayjs(openTime);
+    // 更新范围 - 需要同时考虑 openTime 和 closeTime 对 minDate 和 maxDate 的影响
+    // 当开放偏移为正时，openTime 可能晚于 shiftEnd，需要扩展 maxDate
+    // 当截止偏移为负时，closeTime 可能早于 shiftStart，需要扩展 minDate
+    if (openTime) {
+      const openDayjs = dayjs(openTime);
+      if (openDayjs.isBefore(minDate)) {
+        minDate = openDayjs;
+      }
+      if (openDayjs.isAfter(maxDate)) {
+        maxDate = openDayjs;
+      }
     }
-    if (closeTime && dayjs(closeTime).isAfter(maxDate)) {
-      maxDate = dayjs(closeTime);
+    if (closeTime) {
+      const closeDayjs = dayjs(closeTime);
+      if (closeDayjs.isBefore(minDate)) {
+        minDate = closeDayjs;
+      }
+      if (closeDayjs.isAfter(maxDate)) {
+        maxDate = closeDayjs;
+      }
     }
   });
 

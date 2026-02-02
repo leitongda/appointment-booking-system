@@ -729,7 +729,7 @@ export const NotificationButton: React.FC = () => {
       placement="bottomRight"
       overlayClassName={styles.notificationPopover}
       arrow={false}
-      destroyTooltipOnHide
+      destroyOnHidden
     >
       <Tooltip title="消息通知" open={open ? false : undefined}>
         <div className={styles.actionItem}>

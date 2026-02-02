@@ -1,9 +1,6 @@
 import { PageContainer, ProForm, ProFormText, ProFormSelect, ProFormDigit, ProFormSwitch, ProFormTextArea, FooterToolbar, ProFormDependency } from '@ant-design/pro-components';
 import { Card, App, Button, Space, Row, Col, Tabs, message, Form, Alert, Modal, Radio, Typography, Affix } from 'antd';
 import { ThunderboltOutlined } from '@ant-design/icons';
-
-// 侧边栏预览面板宽度
-const PREVIEW_SIDEBAR_WIDTH = 400;
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { history, useParams, useAccess } from '@umijs/max';
 import { ruleSetApi, shiftTypeApi } from '@hospital/api';
@@ -11,6 +8,12 @@ import type { RuleSet, ShiftType } from '@hospital/shared';
 import RuleWindowConfig from '../../components/RuleWindowConfig';
 import RulePreviewModal from './components/RulePreviewModal';
 import { RuleSetLivePreview, RuleSetSummaryCard } from '@/components/rule-set-visualization';
+import ResizableDivider from '@/components/ResizableDivider';
+
+// 侧边栏预览面板默认和限制宽度
+const DEFAULT_PREVIEW_WIDTH = 400;
+const MIN_PREVIEW_WIDTH = 300;
+const MAX_PREVIEW_WIDTH = 600;
 import {
   TIME_SOURCE_OPTIONS,
   TIMEZONE_SOURCE_OPTIONS,
@@ -39,6 +42,9 @@ const RuleSetFormPage: React.FC = () => {
   const [currentFormData, setCurrentFormData] = useState<any>(null);
   const [formValues, setFormValues] = useState<Partial<RuleSet>>({});
   const formRef = useRef<any>();
+
+  // 预览面板宽度状态
+  const [previewWidth, setPreviewWidth] = useState(DEFAULT_PREVIEW_WIDTH);
 
   // 预设模板相关状态
   const [presetModalOpen, setPresetModalOpen] = useState(false);
@@ -186,10 +192,13 @@ const RuleSetFormPage: React.FC = () => {
         />
       )}
 
-      {/* 左右分栏布局：左侧表单，右侧固定预览 */}
-      <div style={{ display: 'flex', gap: 24 }}>
-        {/* 左侧：表单区域 */}
-        <div style={{ flex: 1, minWidth: 0 }}>
+      {/* 左右分栏布局：左侧表单，右侧可调整宽度的预览 */}
+      <ResizableDivider
+        initialRightWidth={previewWidth}
+        minRightWidth={MIN_PREVIEW_WIDTH}
+        maxRightWidth={MAX_PREVIEW_WIDTH}
+        onWidthChange={setPreviewWidth}
+        leftContent={
           <ProForm
             formRef={formRef}
             onFinish={handleSubmit}
@@ -658,20 +667,18 @@ const RuleSetFormPage: React.FC = () => {
           ]}
         />
           </ProForm>
-        </div>
-
-        {/* 右侧：固定预览面板 */}
-        <div style={{ width: PREVIEW_SIDEBAR_WIDTH, flexShrink: 0 }}>
+        }
+        rightContent={
           <Affix offsetTop={80}>
-            <div style={{ maxHeight: 'calc(100vh - 160px)', overflowY: 'auto' }}>
+            <div style={{ maxHeight: 'calc(100vh - 160px)', overflowY: 'auto', paddingLeft: 8 }}>
               <RuleSetLivePreview
                 formData={formValues}
                 shiftTypes={shiftTypes}
               />
             </div>
           </Affix>
-        </div>
-      </div>
+        }
+      />
 
       <RulePreviewModal
         open={previewModalOpen}

@@ -71,9 +71,11 @@ const WindowBar: React.FC<WindowBarProps> = ({
   const colorConfig = ACTION_COLORS[window.action] || ACTION_COLORS.BOOK;
   const refPointLabel = REFERENCE_POINT_LABELS[window.referencePoint] || window.referencePoint;
 
-  // 检查是否有 null 值（不限制）
-  const hasNoOpenLimit = window.openOffsetSec === null;
-  const hasNoCloseLimit = window.closeOffsetSec === null;
+  // 判断是否"不限制"：null 表示不限制，undefined/NaN 等无效值也视为不限制
+  const hasNoOpenLimit = window.openOffsetSec == null || 
+    (typeof window.openOffsetSec === 'number' && !isFinite(window.openOffsetSec));
+  const hasNoCloseLimit = window.closeOffsetSec == null || 
+    (typeof window.closeOffsetSec === 'number' && !isFinite(window.closeOffsetSec));
 
   // 构建 Tooltip 内容
   const tooltipContent = (

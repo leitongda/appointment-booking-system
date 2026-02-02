@@ -1,4 +1,4 @@
-import { Card, Space, Button, Typography, Form, Select, InputNumber, Input, Row, Col, Tooltip, Radio } from 'antd';
+import { Card, Space, Button, Typography, Form, Select, InputNumber, Input, Row, Col, Tooltip, Tabs, Empty, Popconfirm } from 'antd';
 import { PlusOutlined, DeleteOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
 import {
@@ -29,6 +29,13 @@ const TIME_UNIT_OPTIONS: TimeUnitOption[] = [
   { label: '天', value: 'day', seconds: 86400 },
   { label: '周', value: 'week', seconds: 604800 },
 ];
+
+const ACTION_LABELS: Record<string, string> = {
+  BOOK: '预约',
+  CHECKIN: '签到',
+  CANCEL: '取消',
+  HOLD_RELEASE: '释放',
+};
 
 // ==================== 工具函数 ====================
 
@@ -73,21 +80,11 @@ const unitToSeconds = (value: number | null, unit: TimeUnit): number | null => {
 };
 
 /**
- * 获取时间窗描述
+ * 生成默认时间窗名称
  */
-const getWindowDescription = (action: string, referencePoint: string): string => {
-  const actionLabels: Record<string, string> = {
-    BOOK: '预约',
-    CHECKIN: '签到',
-    CANCEL: '取消',
-    HOLD_RELEASE: '释放',
-  };
-  const refLabels: Record<string, string> = {
-    SHIFT_START: '班次开始时间',
-    SHIFT_END: '班次结束时间',
-    BOOKING_CREATED_AT: '预约创建时间',
-  };
-  return `${actionLabels[action] || action} - 基于${refLabels[referencePoint] || referencePoint}`;
+const generateDefaultWindowName = (action: string, index: number): string => {
+  const actionLabel = ACTION_LABELS[action] || action || '未命名';
+  return `${actionLabel}时间窗`;
 };
 
 // ==================== 子组件 ====================
@@ -99,7 +96,7 @@ interface OffsetInputProps {
   value: number | null;
   onChange: (value: number | null) => void;
   placeholder?: string;
-  defaultUnit?: TimeUnit;  // 默认单位
+  defaultUnit?: TimeUnit;
 }
 
 const OffsetInput: React.FC<OffsetInputProps> = ({
@@ -108,14 +105,11 @@ const OffsetInput: React.FC<OffsetInputProps> = ({
   placeholder,
   defaultUnit = 'minute'
 }) => {
-  // 使用指定的默认单位
   const [unit, setUnit] = useState<TimeUnit>(defaultUnit);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // 当外部值变化时，自动选择合适的单位（仅在初始化后）
   useEffect(() => {
     if (value !== null && isInitialized) {
-      // 根据值的大小自动选择合适的单位
       const abs = Math.abs(value);
       if (abs >= 604800 && abs % 604800 === 0) {
         setUnit('week');
@@ -129,16 +123,13 @@ const OffsetInput: React.FC<OffsetInputProps> = ({
         setUnit('second');
       }
     }
-    // 标记为已初始化（第一次有值之后）
     if (value !== null && !isInitialized) {
       setIsInitialized(true);
     }
   }, [value, isInitialized]);
 
-  // 将秒数转换为当前单位的值
   const displayValue = value !== null ? secondsToUnit(value, unit) : null;
 
-  // 处理数值变化
   const handleValueChange = (newValue: number | null) => {
     if (newValue === null) {
       onChange(null);
@@ -148,10 +139,8 @@ const OffsetInput: React.FC<OffsetInputProps> = ({
     setIsInitialized(true);
   };
 
-  // 处理单位变化
   const handleUnitChange = (newUnit: TimeUnit) => {
     setUnit(newUnit);
-    // 转换当前值到新单位
     if (displayValue !== null) {
       onChange(unitToSeconds(displayValue, newUnit));
     }
@@ -183,40 +172,36 @@ const OffsetInput: React.FC<OffsetInputProps> = ({
 };
 
 /**
- * 单个时间窗配置项组件
+ * 单个时间窗配置表单内容
  */
-interface WindowFormItemProps {
+interface WindowFormContentProps {
   field: any;
   remove: (name: number) => void;
 }
 
-const WindowFormItem: React.FC<WindowFormItemProps> = ({ field, remove }) => {
+const WindowFormContent: React.FC<WindowFormContentProps> = ({ field, remove }) => {
   const action = Form.useWatch(['windows', field.name, 'action']);
-  const referencePoint = Form.useWatch(['windows', field.name, 'referencePoint']);
   const openOffsetSec = Form.useWatch(['windows', field.name, 'openOffsetSec']);
   const closeOffsetSec = Form.useWatch(['windows', field.name, 'closeOffsetSec']);
   const failPolicy = Form.useWatch(['windows', field.name, 'failPolicy']);
 
-  // 自动生成描述
-  const autoDescription = action && referencePoint ? getWindowDescription(action, referencePoint) : '';
-
   return (
-    <Card
-      key={field.key}
-      type="inner"
-      title={`时间窗 ${field.name + 1}`}
-      extra={
-        <Button
-          type="text"
-          danger
-          size="small"
-          icon={<DeleteOutlined />}
-          onClick={() => remove(field.name)}
-          title="删除此时间窗"
-        />
-      }
-    >
+    <div style={{ padding: '16px 0' }}>
       <Space direction="vertical" style={{ width: '100%' }} size="middle">
+        {/* 自定义名称 */}
+        <Row gutter={16}>
+          <Col span={24}>
+            <Form.Item
+              name={[field.name, 'name']}
+              label="时间窗名称"
+              rules={[{ required: true, message: '请输入时间窗名称' }]}
+              extra="自定义名称，用于识别此时间窗"
+            >
+              <Input placeholder="如：提前预约窗口、签到时间窗" maxLength={50} />
+            </Form.Item>
+          </Col>
+        </Row>
+
         {/* 动作类型与参考点 */}
         <Row gutter={16}>
           <Col span={12}>
@@ -365,10 +350,9 @@ const WindowFormItem: React.FC<WindowFormItemProps> = ({ field, remove }) => {
           <Col span={24}>
             <Form.Item
               name={[field.name, 'description']}
-              label="描述"
-              initialValue={autoDescription}
+              label="备注说明"
             >
-              <Input placeholder="可选，描述该时间窗的用途" />
+              <Input.TextArea placeholder="可选，描述该时间窗的用途" rows={2} />
             </Form.Item>
           </Col>
         </Row>
@@ -381,46 +365,168 @@ const WindowFormItem: React.FC<WindowFormItemProps> = ({ field, remove }) => {
         >
           <input type="hidden" />
         </Form.Item>
+
+        {/* 删除按钮 */}
+        <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 16, marginTop: 8 }}>
+          <Popconfirm
+            title="确定删除此时间窗？"
+            onConfirm={() => remove(field.name)}
+            okText="删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button danger icon={<DeleteOutlined />}>
+              删除此时间窗
+            </Button>
+          </Popconfirm>
+        </div>
       </Space>
+    </div>
+  );
+};
+
+/**
+ * 时间窗配置组件 - 使用竖向 Tabs 展示
+ */
+const RuleWindowConfig: React.FC = () => {
+  const [activeKey, setActiveKey] = useState<string>('0');
+
+  return (
+    <Card title="时间窗配置" style={{ marginBottom: 16 }}>
+      <Form.List name="windows">
+        {(fields, { add, remove }) => {
+          // 当没有时间窗时显示空状态
+          if (fields.length === 0) {
+            return (
+              <div style={{ textAlign: 'center', padding: '48px 0' }}>
+                <Empty
+                  description="暂无时间窗配置"
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                >
+                  <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={() => {
+                      add({ ...WINDOW_DEFAULT_VALUES, name: '新时间窗' });
+                      setActiveKey('0');
+                    }}
+                  >
+                    添加时间窗
+                  </Button>
+                </Empty>
+              </div>
+            );
+          }
+
+          // 使用 Form.useWatch 获取 windows 数据用于显示 tab 标签
+          return (
+            <WindowTabsContent
+              fields={fields}
+              add={add}
+              remove={remove}
+              activeKey={activeKey}
+              setActiveKey={setActiveKey}
+            />
+          );
+        }}
+      </Form.List>
     </Card>
   );
 };
 
 /**
- * 时间窗配置组件 - 使用 Form.List 集成到主表单
+ * 时间窗 Tabs 内容组件 - 使用 Form.useWatch 获取实时数据
  */
-const RuleWindowConfig: React.FC = () => {
-  return (
-    <Card title="时间窗配置" style={{ marginBottom: 16 }}>
-      <Form.List name="windows">
-        {(fields, { add, remove }) => (
-          <>
-            {fields.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '32px 0' }}>
-                <Text type="secondary" style={{ fontSize: 14 }}>暂无时间窗配置，点击下方按钮添加</Text>
-              </div>
-            ) : (
-              <Space direction="vertical" style={{ width: '100%' }} size="large">
-                {fields.map((field) => (
-                  <WindowFormItem key={field.key} field={field} remove={remove} />
-                ))}
-              </Space>
-            )}
+interface WindowTabsContentProps {
+  fields: any[];
+  add: (defaultValue?: any) => void;
+  remove: (index: number) => void;
+  activeKey: string;
+  setActiveKey: (key: string) => void;
+}
 
-            <Button
-              type="dashed"
-              onClick={() => add(WINDOW_DEFAULT_VALUES)}
-              block
-              icon={<PlusOutlined />}
-              style={{ marginTop: 16, height: 40 }}
-              size="large"
-            >
-              添加时间窗
-            </Button>
-          </>
-        )}
-      </Form.List>
-    </Card>
+const WindowTabsContent: React.FC<WindowTabsContentProps> = ({
+  fields,
+  add,
+  remove,
+  activeKey,
+  setActiveKey,
+}) => {
+  // 使用 useWatch 获取所有 windows 的数据
+  const windows = Form.useWatch('windows') || [];
+
+  // 生成 tab 项
+  const tabItems = fields.map((field, index) => {
+    const windowData = windows[index] || {};
+    const name = windowData.name || generateDefaultWindowName(windowData.action, index);
+    const action = windowData.action;
+    const actionLabel = ACTION_LABELS[action] || '';
+
+    return {
+      key: String(index),
+      label: (
+        <div style={{ 
+          maxWidth: 150, 
+          overflow: 'hidden', 
+          textOverflow: 'ellipsis', 
+          whiteSpace: 'nowrap',
+          textAlign: 'left',
+        }}>
+          <div style={{ fontWeight: 500 }}>{name}</div>
+          {actionLabel && (
+            <div style={{ fontSize: 11, color: '#8c8c8c' }}>{actionLabel}</div>
+          )}
+        </div>
+      ),
+      children: (
+        <WindowFormContent 
+          key={field.key} 
+          field={field} 
+          remove={(name) => {
+            remove(name);
+            // 删除后调整 activeKey
+            if (fields.length > 1) {
+              const newIndex = Math.min(index, fields.length - 2);
+              setActiveKey(String(newIndex));
+            }
+          }} 
+        />
+      ),
+    };
+  });
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <Tabs
+        activeKey={activeKey}
+        onChange={setActiveKey}
+        tabPosition="left"
+        items={tabItems}
+        style={{ minHeight: 400 }}
+        tabBarStyle={{ width: 180 }}
+        tabBarExtraContent={{
+          left: (
+            <div style={{ padding: '8px 0', marginBottom: 8 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                共 {fields.length} 个时间窗
+              </Text>
+            </div>
+          ),
+        }}
+      />
+      <Button
+        type="dashed"
+        onClick={() => {
+          add({ ...WINDOW_DEFAULT_VALUES, name: `时间窗 ${fields.length + 1}` });
+          setActiveKey(String(fields.length));
+        }}
+        block
+        icon={<PlusOutlined />}
+        style={{ height: 40 }}
+      >
+        添加时间窗
+      </Button>
+    </div>
   );
 };
 

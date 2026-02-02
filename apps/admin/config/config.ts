@@ -63,8 +63,8 @@ export default defineConfig({
     pwa: true,
     logo: 'https://gw.alipayobjects.com/zos/rmsportal/KDpgvguMpGfqaHPjicRK.svg',
     token: {},
-    siderMenuType: 'group',
-    splitMenus: true,
+    siderMenuType: 'sub',
+    splitMenus: false,
 
 
   },

@@ -151,10 +151,24 @@ const GanttTimeline: React.FC<GanttTimelineProps> = ({
     };
   }, []);
 
+  // 序列化 windows 用于深度比较依赖
+  // 当 windows 数组引用不变但内容变化时（如修改 closeOffsetSec），需要重新计算
+  const windowsKey = useMemo(() => {
+    return JSON.stringify(windows.map(w => ({
+      id: w.id,
+      action: w.action,
+      referencePoint: w.referencePoint,
+      openOffsetSec: w.openOffsetSec,
+      closeOffsetSec: w.closeOffsetSec,
+      enabled: w.enabled,
+    })));
+  }, [windows]);
+
   // 计算时间轴范围
   const timelineRange = useMemo<TimelineRange>(() => {
     return calculateTimelineRange(shiftStart, shiftEnd, windows, bookingCreatedAt);
-  }, [shiftStart, shiftEnd, windows, bookingCreatedAt]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shiftStart, shiftEnd, windowsKey, bookingCreatedAt]);
 
   // 计算班次比例位置
   const shiftRatio = useMemo(() => {
@@ -172,7 +186,8 @@ const GanttTimeline: React.FC<GanttTimelineProps> = ({
   // 计算启用的时间窗
   const enabledWindows = useMemo(() => {
     return windows.filter((w) => w.enabled);
-  }, [windows]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [windowsKey]);
 
   // 计算布局尺寸
   const layout = useMemo(() => {
@@ -260,23 +275,64 @@ const GanttTimeline: React.FC<GanttTimelineProps> = ({
         bookingCreatedAt
       );
 
-      const hasNoOpenLimit = window.openOffsetSec === null;
-      const hasNoCloseLimit = window.closeOffsetSec === null;
+      // 判断是否"不限制"：null 表示不限制，undefined/NaN 等无效值也视为不限制
+      const hasNoOpenLimit = window.openOffsetSec == null || 
+        (typeof window.openOffsetSec === 'number' && !isFinite(window.openOffsetSec));
+      const hasNoCloseLimit = window.closeOffsetSec == null || 
+        (typeof window.closeOffsetSec === 'number' && !isFinite(window.closeOffsetSec));
 
-      let displayStart = openTime || timelineRange.min;
-      let displayEnd = closeTime || timelineRange.max;
+      // 确定显示的起止时间
+      // 注意：openTime 表示"开放时间"（时间窗开始允许操作），closeTime 表示"截止时间"（时间窗停止允许操作）
+      let displayStart: Date;
+      let displayEnd: Date;
 
       if (hasNoOpenLimit) {
         displayStart = timelineRange.min;
+      } else {
+        displayStart = openTime || timelineRange.min;
       }
+
       if (hasNoCloseLimit) {
         displayEnd = timelineRange.max;
+      } else {
+        displayEnd = closeTime || timelineRange.max;
+      }
+
+      // 确保 displayStart <= displayEnd，处理配置异常（开放时间晚于截止时间）的情况
+      if (displayStart && displayEnd && dayjs(displayStart).isAfter(dayjs(displayEnd))) {
+        // 交换开始和结束时间，保证条形能正确渲染
+        [displayStart, displayEnd] = [displayEnd, displayStart];
       }
 
       const x1 = timeToX(displayStart);
       const x2 = timeToX(displayEnd);
       const y = CONFIG.paddingTop + index * CONFIG.rowHeight;
       const barHeight = CONFIG.rowHeight - 16;
+
+      // 调试日志：帮助排查宽度计算问题
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[GanttTimeline] Window render data:', {
+          action: window.action,
+          referencePoint: window.referencePoint,
+          openOffsetSec: window.openOffsetSec,
+          closeOffsetSec: window.closeOffsetSec,
+          hasNoOpenLimit,
+          hasNoCloseLimit,
+          openTime: openTime ? dayjs(openTime).format('YYYY-MM-DD HH:mm:ss') : null,
+          closeTime: closeTime ? dayjs(closeTime).format('YYYY-MM-DD HH:mm:ss') : null,
+          displayStart: dayjs(displayStart).format('YYYY-MM-DD HH:mm:ss'),
+          displayEnd: dayjs(displayEnd).format('YYYY-MM-DD HH:mm:ss'),
+          shiftStart: dayjs(shiftStart).format('YYYY-MM-DD HH:mm:ss'),
+          shiftEnd: dayjs(shiftEnd).format('YYYY-MM-DD HH:mm:ss'),
+          x1,
+          x2,
+          width: x2 - x1,
+          timelineRange: {
+            min: dayjs(timelineRange.min).format('YYYY-MM-DD HH:mm:ss'),
+            max: dayjs(timelineRange.max).format('YYYY-MM-DD HH:mm:ss'),
+          },
+        });
+      }
 
       return {
         window,
@@ -296,7 +352,7 @@ const GanttTimeline: React.FC<GanttTimelineProps> = ({
         displayEnd,
       };
     });
-  }, [enabledWindows, timelineRange, shiftStart, shiftEnd, bookingCreatedAt, layout.chartWidth]);
+  }, [enabledWindows, timelineRange, shiftStart, shiftEnd, bookingCreatedAt, timeToX]);
 
   if (enabledWindows.length === 0) {
     return (
