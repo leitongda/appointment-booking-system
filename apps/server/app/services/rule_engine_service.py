@@ -503,7 +503,7 @@ class RuleEngineService:
                     .where(
                         and_(
                             Appointment.user_id == user_id,
-                            Appointment.status.in_([1, 2])  # 1=已预约, 2=已签到,
+                            Appointment.status.in_([1, 2]),  # 1=已预约, 2=已签到
                             Schedule.schedule_date == schedule_date
                         )
                     )
@@ -528,7 +528,7 @@ class RuleEngineService:
                     .where(
                         and_(
                             Appointment.user_id == user_id,
-                            Appointment.status.in_([1, 2])  # 1=已预约, 2=已签到,
+                            Appointment.status.in_([1, 2]),  # 1=已预约, 2=已签到
                             Schedule.schedule_date >= week_start,
                             Schedule.schedule_date <= week_end
                         )
@@ -551,7 +551,7 @@ class RuleEngineService:
                     .where(
                         and_(
                             Appointment.user_id == user_id,
-                            Appointment.status.in_([1, 2])  # 1=已预约, 2=已签到,
+                            Appointment.status.in_([1, 2]),  # 1=已预约, 2=已签到
                             Schedule.schedule_date == schedule_date,
                             Schedule.id != shift_id,  # 排除当前班次
                             # 时间重叠判断：A.start < B.end AND A.end > B.start
@@ -583,7 +583,7 @@ class RuleEngineService:
                     .where(
                         and_(
                             Appointment.user_id == user_id,
-                            Appointment.status.in_([1, 2])  # 1=已预约, 2=已签到,
+                            Appointment.status.in_([1, 2]),  # 1=已预约, 2=已签到
                             Schedule.schedule_date == schedule_date,
                             Schedule.appointment_type == schedule.appointment_type,
                             Schedule.id != shift_id  # 排除当前班次

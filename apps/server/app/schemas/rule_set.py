@@ -67,7 +67,7 @@ class RuleSetBase(BaseModel):
     timezone_source: str = Field('HOSPITAL', description="时区来源")
     compare_precision: str = Field('SECOND', description="比较精度")
     default_open_inclusive: bool = True
-    default_close_inclusive: bool = True
+    default_close_inclusive: bool = False  # 与前端默认值保持一致
     rounding_mode: str = Field('NONE', description="取整模式")
     clock_skew_tolerance_sec: int = Field(5, ge=0, description="时钟偏差容忍度(秒)")
     description: Optional[str] = Field(None, description="描述")
@@ -144,8 +144,8 @@ class RuleWindowBase(BaseModel):
     """时间窗基础模型"""
     action: str = Field(..., description="动作类型: BOOK/CHECKIN/CANCEL")
     reference_point: str = Field(..., description="参考点: SHIFT_START/SHIFT_END/BOOKING_CREATED_AT")
-    open_offset_sec: int = Field(..., description="开放偏移(秒)")
-    close_offset_sec: int = Field(..., description="截止偏移(秒)")
+    open_offset_sec: Optional[int] = Field(None, description="开放偏移(秒),NULL表示不限制")
+    close_offset_sec: Optional[int] = Field(None, description="截止偏移(秒),NULL表示不限制")
     open_inclusive: Optional[bool] = Field(None, description="开放边界包含")
     close_inclusive: Optional[bool] = Field(None, description="截止边界包含")
     fail_policy: str = Field('REJECT', description="失败策略: REJECT/ALLOW_WITH_TAG/AUTO_TO_WAITLIST")

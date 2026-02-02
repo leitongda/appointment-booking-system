@@ -47,7 +47,7 @@ class RuleSet(Base, AuditMixin):
     timezone_source = Column(String(20), nullable=False, default='HOSPITAL', comment="时区来源: HOSPITAL/SHIFT/USER")
     compare_precision = Column(String(20), nullable=False, default='SECOND', comment="比较精度: SECOND/MILLISECOND/MINUTE")
     default_open_inclusive = Column(Boolean, nullable=False, default=True, comment="默认开放边界包含")
-    default_close_inclusive = Column(Boolean, nullable=False, default=True, comment="默认截止边界包含")
+    default_close_inclusive = Column(Boolean, nullable=False, default=False, comment="默认截止边界包含(与前端默认值一致)")
     rounding_mode = Column(String(30), nullable=False, default='NONE', comment="取整模式")
     clock_skew_tolerance_sec = Column(Integer, nullable=False, default=5, comment="时钟偏差容忍度(秒)")
 
@@ -90,8 +90,8 @@ class RuleWindow(Base, AuditMixin):
     action = Column(String(30), nullable=False, comment="动作类型: BOOK/CHECKIN/CANCEL/HOLD_RELEASE")
     reference_point = Column(String(50), nullable=False, comment="参考点: SHIFT_START/SHIFT_END/BOOKING_CREATED_AT")
 
-    open_offset_sec = Column(Integer, nullable=False, comment="开放偏移(秒),可负可正")
-    close_offset_sec = Column(Integer, nullable=False, comment="截止偏移(秒),可负可正")
+    open_offset_sec = Column(Integer, nullable=True, comment="开放偏移(秒),可负可正,NULL表示不限制")
+    close_offset_sec = Column(Integer, nullable=True, comment="截止偏移(秒),可负可正,NULL表示不限制")
 
     open_inclusive = Column(Boolean, comment="开放边界包含,NULL则使用规则组默认值")
     close_inclusive = Column(Boolean, comment="截止边界包含,NULL则使用规则组默认值")

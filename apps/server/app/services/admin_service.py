@@ -92,9 +92,17 @@ class RoleService:
         if not role:
             return None
         
-        # 超级管理员不允许修改编码
-        if role.code == "SUPER_ADMIN" and data.get("code") and data["code"] != "SUPER_ADMIN":
-            raise ValueError("超级管理员编码不可修改")
+        # 超级管理员角色保护
+        if role.code == "SUPER_ADMIN":
+            # 不允许修改编码
+            if data.get("code") and data["code"] != "SUPER_ADMIN":
+                raise ValueError("超级管理员编码不可修改")
+            # 不允许禁用超级管理员角色
+            if data.get("status") == 0:
+                raise ValueError("超级管理员角色不可禁用")
+            # 不允许修改超级管理员的权限（始终拥有所有权限）
+            if "permissions" in data:
+                raise ValueError("超级管理员权限不可修改，始终拥有所有权限")
         
         for key, value in data.items():
             if key == "permissions":
@@ -112,6 +120,10 @@ class RoleService:
         role = await self.get_by_id(role_id)
         if not role:
             return None
+        
+        # 超级管理员权限不可修改
+        if role.code == "SUPER_ADMIN":
+            raise ValueError("超级管理员权限不可修改，始终拥有所有权限")
         
         role.permissions = json.dumps(permissions)
         set_update_audit(role, operator_id)

@@ -131,6 +131,16 @@ class PatientManageService:
             age -= 1
         return age
 
+    async def get_patient_store_id(self, patient_id: str) -> Optional[str]:
+        """获取患者的门店ID
+        
+        用于权限检查
+        """
+        result = await self.db.execute(
+            select(Patient.store_id).where(Patient.id == patient_id)
+        )
+        return result.scalar_one_or_none()
+
     async def get_detail(self, patient_id: str) -> Optional[dict]:
         """获取患者详情（扩展版）"""
         result = await self.db.execute(

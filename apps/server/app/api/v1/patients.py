@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin, get_store_filter
+from app.api.deps import get_current_admin, get_store_filter, check_store_access
 from app.services.patient_service import PatientManageService
 from app.services.point_service import PointService
 from app.schemas.response import PageResponse
@@ -89,6 +89,12 @@ async def get_patient_detail(
 ):
     """获取患者详情"""
     service = PatientManageService(db)
+    
+    # 获取患者信息并检查门店访问权限
+    patient_store_id = await service.get_patient_store_id(patient_id)
+    if patient_store_id and not check_store_access(current_admin, patient_store_id):
+        raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail="您无权查看此患者信息")
+    
     detail = await service.get_detail(patient_id)
     
     if not detail:
@@ -106,6 +112,12 @@ async def update_patient(
 ):
     """更新患者信息"""
     service = PatientManageService(db)
+    
+    # 检查门店访问权限
+    patient_store_id = await service.get_patient_store_id(patient_id)
+    if patient_store_id and not check_store_access(current_admin, patient_store_id):
+        raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail="您无权修改此患者信息")
+    
     result = await service.update_patient(patient_id, data)
     
     if not result:
@@ -122,6 +134,12 @@ async def delete_patient(
 ):
     """删除患者（就诊卡）"""
     service = PatientManageService(db)
+    
+    # 检查门店访问权限
+    patient_store_id = await service.get_patient_store_id(patient_id)
+    if patient_store_id and not check_store_access(current_admin, patient_store_id):
+        raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail="您无权删除此患者")
+    
     try:
         success = await service.delete_patient(patient_id)
         

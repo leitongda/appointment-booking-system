@@ -4,8 +4,9 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Callable
 import hashlib
+import json
 
 from app.db.session import get_db
 from app.core.security import decode_token
@@ -67,7 +68,7 @@ async def get_current_doctor(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> dict:
-    """获取当前医生用户"""
+    """获取当前医生用户（通过 User 表关联）"""
     if not current_user.get("is_doctor"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要医生权限，请联系管理员开通")
     
@@ -94,6 +95,60 @@ async def get_current_doctor(
             "title": doctor.title,
         }
     }
+
+
+async def get_current_doctor_by_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db)
+) -> Doctor:
+    """
+    从医生 token 中获取当前医生
+    用于医生端登录后的接口认证
+    医生登录 token 的 sub 是 doctor.id，type 是 "doctor"
+    """
+    from app.core.security import decode_token
+    
+    if not credentials:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="未提供身份凭证，请先登录")
+    
+    token = credentials.credentials
+    payload = decode_token(token)
+    
+    if not payload:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="身份验证失败，请重新登录")
+    
+    doctor_id = payload.get("sub")
+    token_type = payload.get("type", "")
+    
+    if not doctor_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="身份验证失败，请重新登录")
+    
+    # 验证是医生 token
+    if token_type != "doctor":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的医生凭证，请使用医生账号登录")
+    
+    # 获取医生详情，同时加载关联的科室和门店
+    result = await db.execute(
+        select(Doctor)
+        .options(
+            selectinload(Doctor.department),
+            selectinload(Doctor.store)
+        )
+        .where(Doctor.id == doctor_id)
+    )
+    doctor = result.scalar_one_or_none()
+    
+    if not doctor:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="医生账号不存在，请检查后重试")
+    
+    if doctor.status != 1:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="医生账号已被禁用，请联系管理员")
+    
+    # 检查门店状态
+    if doctor.store and doctor.store.status == 2:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您所属的门店已被禁用，请联系管理员")
+    
+    return doctor
 
 
 async def get_current_admin(
@@ -174,6 +229,17 @@ async def get_current_admin(
             # 是否可以查看所有绑定门店（超管可查看所有，门店管理员可聚合查看绑定门店）
             can_view_all_stores = is_super_admin or (is_store_admin and len(store_ids) > 1)
             
+            # 解析权限列表
+            permissions = []
+            if is_super_admin:
+                # 超级管理员拥有所有权限
+                permissions = ["*"]
+            elif admin.role and admin.role.permissions:
+                try:
+                    permissions = json.loads(admin.role.permissions)
+                except (json.JSONDecodeError, TypeError):
+                    permissions = []
+            
             return {
                 "id": admin.id,
                 "username": admin.username,
@@ -200,6 +266,8 @@ async def get_current_admin(
                 "is_super_admin": is_super_admin,
                 "is_store_admin": is_store_admin,
                 "can_view_all_stores": can_view_all_stores,
+                # 权限列表
+                "permissions": permissions,
             }
     
     # 兼容旧的 User 表管理员
@@ -228,6 +296,7 @@ async def get_current_admin(
         "is_super_admin": True,  # 旧用户默认为超级管理员
         "is_store_admin": False,
         "can_view_all_stores": True,
+        "permissions": ["*"],  # 旧用户默认拥有所有权限
     }
 
 
@@ -475,3 +544,96 @@ async def get_current_user_or_admin(
         }
     
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号不存在，请检查后重试")
+
+
+def require_permission(*permissions: str) -> Callable:
+    """
+    创建权限检查依赖
+    
+    用法:
+        @router.post("")
+        async def create_doctor(
+            ...,
+            _: None = Depends(require_permission("doctor:create"))
+        ):
+            ...
+    
+    或者检查多个权限（满足其中一个即可）:
+        @router.put("")
+        async def update_doctor(
+            ...,
+            _: None = Depends(require_permission("doctor:update", "doctor:create"))
+        ):
+            ...
+    
+    Args:
+        *permissions: 需要的权限码，满足其中一个即可
+    
+    Returns:
+        FastAPI 依赖函数
+    """
+    async def check_permission(current_admin: dict = Depends(get_current_admin)) -> None:
+        # 超级管理员拥有所有权限
+        if current_admin.get("is_super_admin"):
+            return None
+        
+        admin_permissions = current_admin.get("permissions", [])
+        
+        # 检查是否拥有通配符权限
+        if "*" in admin_permissions:
+            return None
+        
+        # 检查是否拥有所需权限之一
+        for perm in permissions:
+            if perm in admin_permissions:
+                return None
+        
+        # 没有权限，抛出异常
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"需要权限: {', '.join(permissions)}"
+        )
+    
+    return check_permission
+
+
+def require_all_permissions(*permissions: str) -> Callable:
+    """
+    创建权限检查依赖（需要满足所有权限）
+    
+    用法:
+        @router.delete("")
+        async def delete_all(
+            ...,
+            _: None = Depends(require_all_permissions("doctor:delete", "doctor:list"))
+        ):
+            ...
+    
+    Args:
+        *permissions: 需要的权限码，必须全部满足
+    
+    Returns:
+        FastAPI 依赖函数
+    """
+    async def check_all_permissions(current_admin: dict = Depends(get_current_admin)) -> None:
+        # 超级管理员拥有所有权限
+        if current_admin.get("is_super_admin"):
+            return None
+        
+        admin_permissions = current_admin.get("permissions", [])
+        
+        # 检查是否拥有通配符权限
+        if "*" in admin_permissions:
+            return None
+        
+        # 检查是否拥有所有需要的权限
+        missing = [p for p in permissions if p not in admin_permissions]
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"缺少权限: {', '.join(missing)}"
+            )
+        
+        return None
+    
+    return check_all_permissions

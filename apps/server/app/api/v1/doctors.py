@@ -5,7 +5,8 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin, get_store_filter, check_store_access
+from app.api.deps import get_current_admin, get_store_filter, check_store_access, get_current_doctor_by_token
+from app.models.doctor import Doctor
 from app.schemas.doctor import DoctorCreate, DoctorUpdate, DoctorResponse, DoctorListResponse
 from app.schemas.response import PageResponse
 from app.services.doctor_service import DoctorService
@@ -134,12 +135,10 @@ async def doctor_login(
 
 @router.get("/me", response_model=DoctorResponse)
 async def get_current_doctor_info(
-    db: AsyncSession = Depends(get_db),
-    # TODO: 添加医生认证依赖
+    doctor: Doctor = Depends(get_current_doctor_by_token),
 ):
     """获取当前登录医生信息"""
-    # 需要从 token 中获取医生 ID
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="功能开发中，敬请期待")
+    return doctor_to_response(doctor)
 
 @router.get("", response_model=PageResponse[DoctorListResponse])
 async def get_doctors(

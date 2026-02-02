@@ -137,6 +137,23 @@ async def review_request(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="申请不存在，请检查后重试"
             )
+        
+        # 发送 WebSocket 通知给医生（审核结果）
+        if request.doctor_id:
+            try:
+                from app.core.websocket import notify_leave_request_reviewed
+                await notify_leave_request_reviewed(
+                    doctor_id=request.doctor_id,
+                    review_data={
+                        "request_id": request.id,
+                        "request_type": request.request_type,
+                        "status": request.status,
+                        "review_comment": request.review_comment,
+                    }
+                )
+            except Exception:
+                pass  # WebSocket 通知失败不影响业务
+        
         return LeaveRequestResponse.model_validate(request)
     except ValueError as e:
         raise HTTPException(

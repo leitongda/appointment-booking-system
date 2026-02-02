@@ -7,13 +7,19 @@ from fastapi.security.utils import get_authorization_scheme_param
 import pytz
 
 from app.db.session import get_db
-from app.api.deps import get_current_user, get_current_user_or_admin, get_store_filter, get_current_super_admin
+from app.api.deps import get_current_user, get_current_user_or_admin, get_store_filter, get_current_super_admin, get_current_admin, check_store_access
 from app.schemas.appointment import AppointmentCreate, AppointmentResponse, AppointmentCancelRequest, AppointmentStatistics
 from app.schemas.response import PageResponse
 from app.services.appointment_service import AppointmentService
 from app.services.settings_service import SettingsService
 from app.services.rule_engine_service import RuleEngineService
 from app.core.config import settings
+from app.core.websocket import (
+    notify_patient_signed_in,
+    notify_queue_updated,
+    WSMessageType,
+    notify_doctor
+)
 
 router = APIRouter()
 
@@ -293,9 +299,13 @@ async def get_appointment_statistics(
     doctor_id: Optional[str] = None,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin)
 ):
-    """获取预约统计"""
+    """获取预约统计（需要管理员权限）
+    
+    TODO: 添加门店过滤支持
+    """
     service = AppointmentService(db)
     return await service.get_statistics(doctor_id=doctor_id, start_date=start_date, end_date=end_date)
 
@@ -446,6 +456,23 @@ async def create_appointment(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     
+    # 发送 WebSocket 通知给医生（新预约）
+    if appointment.doctor_id:
+        try:
+            from app.core.websocket import notify_new_appointment
+            await notify_new_appointment(
+                doctor_id=appointment.doctor_id,
+                appointment_data={
+                    "appointment_id": appointment.id,
+                    "patient_name": appointment.patient_name,
+                    "queue_number": appointment.queue_number,
+                    "schedule_date": appointment.schedule.schedule_date.isoformat() if appointment.schedule else None,
+                    "time_slot": appointment.schedule.time_slot if appointment.schedule else None,
+                }
+            )
+        except Exception:
+            pass  # WebSocket 通知失败不影响业务
+    
     return AppointmentResponse(
         id=appointment.id,
         appointment_no=appointment.appointment_no,
@@ -523,6 +550,24 @@ async def sign_in_appointment(
     if not appointment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
 
+    # 发送 WebSocket 通知给医生
+    if appointment.doctor_id:
+        try:
+            await notify_patient_signed_in(
+                doctor_id=appointment.doctor_id,
+                appointment_data={
+                    "appointment_id": appointment.id,
+                    "patient_name": appointment.patient_name,
+                    "queue_number": appointment.queue_number,
+                    "time_slot": appointment.time_slot,
+                    "sign_in_time": appointment.sign_in_time.isoformat() if appointment.sign_in_time else None,
+                }
+            )
+        except Exception as e:
+            # WebSocket 通知失败不影响业务
+            import logging
+            logging.getLogger(__name__).warning(f"WebSocket 通知失败: {e}")
+
     return {"message": "签到成功", "queue_number": appointment.queue_number}
 
 
@@ -550,76 +595,207 @@ async def cancel_sign_in_appointment(
 
 
 @router.put("/{appointment_id}/call")
-async def call_appointment(appointment_id: str, db: AsyncSession = Depends(get_db)):
-    """叫号"""
+async def call_appointment(
+    appointment_id: str, 
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin)
+):
+    """叫号（需要管理员权限）"""
     service = AppointmentService(db)
+    
+    # 先获取预约信息，检查门店访问权限
+    appointment = await service.get_by_id(appointment_id)
+    if not appointment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
+    
+    # 检查门店访问权限
+    if appointment.schedule and appointment.schedule.store_id:
+        if not check_store_access(current_admin, appointment.schedule.store_id):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权操作此门店的预约")
     
     try:
         appointment = await service.call_patient(appointment_id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     
-    if not appointment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
+    # 发送 WebSocket 通知
+    if appointment.doctor_id:
+        try:
+            await notify_doctor(
+                doctor_id=appointment.doctor_id,
+                message_type=WSMessageType.PATIENT_CALLED,
+                data={
+                    "appointment_id": appointment.id,
+                    "patient_name": appointment.patient_name,
+                    "queue_number": appointment.queue_number,
+                }
+            )
+        except Exception:
+            pass  # WebSocket 通知失败不影响业务
     
     return {"message": "已呼叫"}
 
 @router.put("/{appointment_id}/complete")
-async def complete_appointment(appointment_id: str, db: AsyncSession = Depends(get_db)):
-    """完成就诊"""
+async def complete_appointment(
+    appointment_id: str, 
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin)
+):
+    """完成就诊（需要管理员权限）"""
     service = AppointmentService(db)
-    appointment = await service.complete(appointment_id)
     
+    # 先获取预约信息，检查门店访问权限
+    appointment = await service.get_by_id(appointment_id)
     if not appointment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
+    
+    # 检查门店访问权限
+    if appointment.schedule and appointment.schedule.store_id:
+        if not check_store_access(current_admin, appointment.schedule.store_id):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权操作此门店的预约")
+    
+    appointment = await service.complete(appointment_id)
+    
+    # 发送 WebSocket 通知
+    if appointment.doctor_id:
+        try:
+            await notify_doctor(
+                doctor_id=appointment.doctor_id,
+                message_type=WSMessageType.PATIENT_COMPLETED,
+                data={
+                    "appointment_id": appointment.id,
+                    "patient_name": appointment.patient_name,
+                    "queue_number": appointment.queue_number,
+                }
+            )
+        except Exception:
+            pass
     
     return {"message": "就诊完成"}
 
 
 @router.put("/{appointment_id}/pass")
-async def pass_appointment(appointment_id: str, db: AsyncSession = Depends(get_db)):
-    """过号"""
+async def pass_appointment(
+    appointment_id: str, 
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin)
+):
+    """过号（需要管理员权限）"""
     service = AppointmentService(db)
+    
+    # 先获取预约信息，检查门店访问权限
+    appointment = await service.get_by_id(appointment_id)
+    if not appointment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
+    
+    # 检查门店访问权限
+    if appointment.schedule and appointment.schedule.store_id:
+        if not check_store_access(current_admin, appointment.schedule.store_id):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权操作此门店的预约")
     
     try:
         appointment = await service.pass_number(appointment_id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     
-    if not appointment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
+    # 发送 WebSocket 通知
+    if appointment.doctor_id:
+        try:
+            await notify_doctor(
+                doctor_id=appointment.doctor_id,
+                message_type=WSMessageType.PATIENT_PASSED,
+                data={
+                    "appointment_id": appointment.id,
+                    "patient_name": appointment.patient_name,
+                    "queue_number": appointment.queue_number,
+                }
+            )
+        except Exception:
+            pass
     
     return {"message": "已过号"}
 
 
 @router.put("/{appointment_id}/recall")
-async def recall_appointment(appointment_id: str, db: AsyncSession = Depends(get_db)):
-    """重新叫号"""
+async def recall_appointment(
+    appointment_id: str, 
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin)
+):
+    """重新叫号（需要管理员权限）"""
     service = AppointmentService(db)
+    
+    # 先获取预约信息，检查门店访问权限
+    appointment = await service.get_by_id(appointment_id)
+    if not appointment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
+    
+    # 检查门店访问权限
+    if appointment.schedule and appointment.schedule.store_id:
+        if not check_store_access(current_admin, appointment.schedule.store_id):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权操作此门店的预约")
     
     try:
         appointment = await service.recall(appointment_id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     
-    if not appointment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
+    # 发送 WebSocket 通知
+    if appointment.doctor_id:
+        try:
+            await notify_doctor(
+                doctor_id=appointment.doctor_id,
+                message_type=WSMessageType.PATIENT_RECALLED,
+                data={
+                    "appointment_id": appointment.id,
+                    "patient_name": appointment.patient_name,
+                    "queue_number": appointment.queue_number,
+                }
+            )
+        except Exception:
+            pass
     
     return {"message": "已重新呼叫"}
 
 
 @router.put("/{appointment_id}/no-show")
-async def mark_no_show(appointment_id: str, db: AsyncSession = Depends(get_db)):
-    """标记爽约"""
+async def mark_no_show(
+    appointment_id: str, 
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin)
+):
+    """标记爽约（需要管理员权限）"""
     service = AppointmentService(db)
+    
+    # 先获取预约信息，检查门店访问权限
+    appointment = await service.get_by_id(appointment_id)
+    if not appointment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
+    
+    # 检查门店访问权限
+    if appointment.schedule and appointment.schedule.store_id:
+        if not check_store_access(current_admin, appointment.schedule.store_id):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权操作此门店的预约")
     
     try:
         appointment = await service.mark_no_show(appointment_id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     
-    if not appointment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
+    # 发送 WebSocket 通知
+    if appointment.doctor_id:
+        try:
+            await notify_doctor(
+                doctor_id=appointment.doctor_id,
+                message_type=WSMessageType.PATIENT_NO_SHOW,
+                data={
+                    "appointment_id": appointment.id,
+                    "patient_name": appointment.patient_name,
+                    "queue_number": appointment.queue_number,
+                }
+            )
+        except Exception:
+            pass
     
     return {"message": "已标记爽约"}
 

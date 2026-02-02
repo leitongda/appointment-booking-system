@@ -10,6 +10,7 @@ from app.api.v1 import api_router
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.redis import close_redis, get_redis
+from app.core.websocket import ws_manager
 from app.middleware.response import UnifiedResponseMiddleware
 from app.middleware.exception import register_exception_handlers
 from app.middleware.rate_limit import RateLimitMiddleware
@@ -74,6 +75,42 @@ async def warmup_connections():
         logger.error(f"❌ Redis 连接预热失败: {e}")
 
 
+async def ensure_super_admin_exists():
+    """确保系统中存在超级管理员
+    
+    系统启动时检查，如果没有超级管理员则记录警告日志。
+    生产环境中应通过初始化脚本创建超级管理员。
+    """
+    from sqlalchemy import select, func
+    from app.models.admin import Admin, Role
+    
+    try:
+        async with AsyncSessionLocal() as session:
+            # 检查是否存在 SUPER_ADMIN 角色
+            role_result = await session.execute(
+                select(Role).where(Role.code == "SUPER_ADMIN")
+            )
+            super_role = role_result.scalar_one_or_none()
+            
+            if not super_role:
+                logger.warning("⚠️  系统中不存在 SUPER_ADMIN 角色，请运行初始化脚本: python scripts/init_roles.py")
+                return
+            
+            # 检查是否有超级管理员账号
+            admin_count = await session.scalar(
+                select(func.count(Admin.id))
+                .join(Role)
+                .where(Role.code == "SUPER_ADMIN", Admin.status == 1)
+            )
+            
+            if not admin_count or admin_count == 0:
+                logger.warning("⚠️  系统中不存在有效的超级管理员账号，请运行初始化脚本: python scripts/init_data.py")
+            else:
+                logger.info(f"✅ 超级管理员检查通过（共 {admin_count} 个有效超管账号）")
+    except Exception as e:
+        logger.error(f"❌ 超级管理员检查失败: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期"""
@@ -86,10 +123,17 @@ async def lifespan(app: FastAPI):
     # 预热连接池（消除冷启动延迟）
     await warmup_connections()
     
+    # 检查超级管理员是否存在
+    await ensure_super_admin_exists()
+    
     # 启动后台任务
     task = asyncio.create_task(blacklist_auto_release_task())
     _background_tasks.append(task)
     logger.info("后台定时任务已启动")
+    
+    # 启动 WebSocket 管理器
+    await ws_manager.start()
+    logger.info("WebSocket 管理器已启动")
     
     yield
     
@@ -101,6 +145,10 @@ async def lifespan(app: FastAPI):
             await task
         except asyncio.CancelledError:
             pass
+    
+    # 停止 WebSocket 管理器
+    await ws_manager.stop()
+    logger.info("WebSocket 管理器已停止")
     
     # 关闭 Redis 连接
     await close_redis()
