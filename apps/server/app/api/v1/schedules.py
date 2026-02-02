@@ -230,7 +230,9 @@ async def get_available_schedules(
     rule_engine = RuleEngineService(db)
     schedules = await service.get_available(doctor_id, days=days)
 
-    now = datetime.now(pytz.UTC)
+    # 使用本地时区（中国标准时间）
+    local_tz = pytz.timezone('Asia/Shanghai')
+    now = datetime.now(local_tz)
     result = []
 
     for s in schedules:

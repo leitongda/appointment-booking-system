@@ -78,8 +78,14 @@ class RuleEngineService:
                 "message": str,  # 提示信息
             }
         """
+        # 获取排班时区（默认为 Asia/Shanghai）
+        schedule_tz = pytz.timezone(getattr(schedule, 'timezone', None) or 'Asia/Shanghai')
+
         if not current_time:
-            current_time = datetime.now(pytz.UTC)
+            current_time = datetime.now(schedule_tz)
+        elif current_time.tzinfo is None:
+            # 如果传入的时间没有时区，使用排班时区
+            current_time = schedule_tz.localize(current_time)
 
         # 获取班次类型
         shift_type_id = schedule.shift_type_id
@@ -203,35 +209,47 @@ class RuleEngineService:
         Returns:
             参考时间（带时区）
         """
+        # 获取排班时区（默认为 Asia/Shanghai）
+        schedule_tz = pytz.timezone(getattr(schedule, 'timezone', None) or 'Asia/Shanghai')
+
+        def localize_local_time(local_dt: datetime) -> datetime:
+            """将本地时间（无时区）转换为带时区的时间"""
+            if local_dt.tzinfo is None:
+                return schedule_tz.localize(local_dt)
+            return local_dt
+
         # 优先使用 start_at/end_at（带时区的绝对时间）
         if reference_point == 'SHIFT_START':
             if schedule.start_at:
                 return schedule.start_at
-            # 如果没有 start_at，使用 schedule_date + start_time，添加 UTC 时区
+            # 如果没有 start_at，使用 schedule_date + start_time，使用排班时区
             if schedule.start_time:
-                return pytz.UTC.localize(datetime.combine(schedule.schedule_date, schedule.start_time))
+                local_dt = datetime.combine(schedule.schedule_date, schedule.start_time)
+                return localize_local_time(local_dt)
         elif reference_point == 'SHIFT_END':
             if schedule.end_at:
                 return schedule.end_at
-            # 添加 UTC 时区
+            # 使用排班时区
             if schedule.end_time:
-                return pytz.UTC.localize(datetime.combine(schedule.schedule_date, schedule.end_time))
+                local_dt = datetime.combine(schedule.schedule_date, schedule.end_time)
+                return localize_local_time(local_dt)
         elif reference_point == 'BOOKING_CREATED_AT':
             # 优先使用调用方提供的预约创建时间
             if booking_created_at:
                 if booking_created_at.tzinfo is None:
-                    return pytz.UTC.localize(booking_created_at)
+                    return schedule_tz.localize(booking_created_at)
                 return booking_created_at
             # 默认使用当前时间
-            return datetime.now(pytz.UTC)
+            return datetime.now(schedule_tz)
 
         # 默认返回班次开始时间
         if schedule.start_at:
             return schedule.start_at
         if schedule.start_time:
-            return pytz.UTC.localize(datetime.combine(schedule.schedule_date, schedule.start_time))
+            local_dt = datetime.combine(schedule.schedule_date, schedule.start_time)
+            return localize_local_time(local_dt)
 
-        return datetime.now(pytz.UTC)
+        return datetime.now(schedule_tz)
 
     def _is_in_window(
         self,
