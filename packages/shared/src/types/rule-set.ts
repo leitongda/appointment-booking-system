@@ -50,8 +50,8 @@ export interface RuleWindow {
   ruleSetId: string;
   action: 'BOOK' | 'CHECKIN' | 'CANCEL' | 'HOLD_RELEASE';
   referencePoint: 'SHIFT_START' | 'SHIFT_END' | 'BOOKING_CREATED_AT';
-  openOffsetSec: number;
-  closeOffsetSec: number;
+  openOffsetSec: number | null;  // null 表示不限制
+  closeOffsetSec: number | null;  // null 表示不限制
   openInclusive?: boolean | null;
   closeInclusive?: boolean | null;
   failPolicy: 'REJECT' | 'ALLOW_WITH_TAG' | 'AUTO_TO_WAITLIST';
