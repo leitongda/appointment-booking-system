@@ -4,6 +4,7 @@ from sqlalchemy.orm import selectinload
 from typing import Optional, List
 from datetime import datetime, date, time, timedelta
 import uuid
+import pytz
 
 from app.models.appointment import Appointment
 from app.models.schedule import Schedule
@@ -490,17 +491,8 @@ class AppointmentService:
         """
         appointment = await self.get_by_id(appointment_id)
         if not appointment:
-            # 记录失败日志：预约不存在
-            await self._create_checkin_log(
-                appointment_id=None,
-                checkin_method=checkin_method,
-                device_info=device_info,
-                location_info=location_info,
-                operator_id=operator_id,
-                operator_type=operator_type,
-                status='FAILED',
-                fail_reason='预约不存在'
-            )
+            # 预约不存在时不记录审计日志（appointment_id 不可为空）
+            # 直接返回 None，由上层处理 404 错误
             return None
 
         try:
@@ -508,14 +500,25 @@ class AppointmentService:
             if appointment.status != APPOINTMENT_STATUS['CONFIRMED']:
                 raise ValueError("当前状态不可签到")
 
-            now = datetime.now()
+            # 使用本地时区（中国标准时间）
+            local_tz = pytz.timezone('Asia/Shanghai')
+            now = datetime.now(local_tz)
 
             # 优先使用规则快照中的签到时间窗
             if appointment.checkin_open_at and appointment.checkin_close_at:
-                if now < appointment.checkin_open_at:
-                    minutes_until = int((appointment.checkin_open_at - now).total_seconds() / 60)
+                # 确保时间比较在同一时区下进行
+                checkin_open = appointment.checkin_open_at
+                checkin_close = appointment.checkin_close_at
+                # 如果数据库时间无时区信息，假设为本地时区
+                if checkin_open.tzinfo is None:
+                    checkin_open = local_tz.localize(checkin_open)
+                if checkin_close.tzinfo is None:
+                    checkin_close = local_tz.localize(checkin_close)
+
+                if now < checkin_open:
+                    minutes_until = int((checkin_open - now).total_seconds() / 60)
                     raise ValueError(f"未到签到时间，请等待{minutes_until}分钟后再试")
-                if now > appointment.checkin_close_at:
+                if now > checkin_close:
                     raise ValueError("已过签到时间，无法签到")
             else:
                 # 兼容旧数据：使用门店配置
@@ -544,6 +547,8 @@ class AppointmentService:
                         visit_time = time_slot_start_map.get(schedule.time_slot, time(8, 0))
 
                     visit_datetime = datetime.combine(schedule.schedule_date, visit_time)
+                    # 将 naive datetime 转换为带时区的 datetime，确保与 now 比较时类型一致
+                    visit_datetime = local_tz.localize(visit_datetime)
                     sign_in_start = visit_datetime - timedelta(minutes=sign_in_advance_minutes)
                     sign_in_end = visit_datetime + timedelta(minutes=sign_in_late_minutes)
 
@@ -627,7 +632,7 @@ class AppointmentService:
         """创建签到审计日志
 
         Args:
-            appointment_id: 预约ID（失败时可能为None）
+            appointment_id: 预约ID（必填，数据库约束不允许为空）
             checkin_method: 签到方式
             device_info: 设备信息
             location_info: 位置信息
@@ -636,6 +641,10 @@ class AppointmentService:
             status: 状态 (SUCCESS/FAILED)
             fail_reason: 失败原因
         """
+        # appointment_id 为必填项（数据库约束），跳过无效记录
+        if not appointment_id:
+            return
+
         checkin_log = AppointmentCheckin(
             appointment_id=appointment_id,
             checkin_method=checkin_method,

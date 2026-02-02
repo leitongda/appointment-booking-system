@@ -139,7 +139,9 @@ async def get_today_pending_appointments(
         store_id=store_id
     )
 
-    now = datetime.now(pytz.UTC)
+    # 使用本地时区（中国标准时间）
+    local_tz = pytz.timezone('Asia/Shanghai')
+    now = datetime.now(local_tz)
     result = []
 
     for a in appointments:
@@ -198,6 +200,8 @@ async def get_today_pending_appointments(
                     visit_time = time_slot_start_map.get(a.schedule.time_slot, time(8, 0))
 
                 visit_datetime = datetime.combine(a.schedule.schedule_date, visit_time)
+                # 将 naive datetime 转换为带时区的 datetime，确保与 now 比较时类型一致
+                visit_datetime = local_tz.localize(visit_datetime)
 
                 # 计算允许签到的时间窗口
                 sign_in_start = visit_datetime - timedelta(minutes=sign_in_advance_minutes)
