@@ -319,9 +319,12 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
       content: [initialState?.currentUser?.name, initialState?.currentUser?.email || initialState?.currentUser?.phone],
       fontColor: 'rgba(0, 0, 0, 0.05)', // 水印颜色和透明度，数值越小越淡
       fontSize: 14,                       // 字体大小
-      gap: [10, 10],                      // 水印间距 [水平, 垂直]
+      gap: [100, 100],                    // 水印间距 [水平, 垂直]，默认值 100
       rotate: -22,                        // 旋转角度
-      zIndex: 1,                          // 降低 z-index，避免覆盖菜单
+      zIndex: 9,                          // 使用默认 z-index
+      // 注意：不要设置 style: { pointerEvents: 'none' }
+      // 因为 style 会应用到 Watermark 容器（包含内容），导致内容无法点击
+      // Watermark 组件内部已正确处理水印层的 pointer-events
     },
     footerRender: () => (
       <div style={{ textAlign: 'center', padding: '16px 0', color: '#999' }}>

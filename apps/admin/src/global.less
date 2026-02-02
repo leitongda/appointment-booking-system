@@ -104,9 +104,9 @@ body,
   height: 100%;
 }
 
-/* 水印不阻止点击事件 */
-.ant-pro-layout-watermark,
-[class*="watermark"] {
-  pointer-events: none !important;
-}
+/* 
+ * 注意：不要给 .ant-watermark 容器设置 pointer-events: none
+ * 因为 Watermark 组件的根元素包含了内容，设置后会导致内容无法点击
+ * Ant Design Watermark 组件内部已正确处理水印层的 pointer-events
+ */
 
