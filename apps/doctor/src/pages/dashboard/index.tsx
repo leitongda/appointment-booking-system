@@ -1,11 +1,12 @@
 import { PageContainer, ProCard, StatisticCard } from '@ant-design/pro-components';
-import { Col, Row, List, Avatar, Tag, Button, Empty, message, Badge } from 'antd';
-import { UserOutlined, CheckCircleOutlined, ClockCircleOutlined, BellOutlined } from '@ant-design/icons';
-import { useState, useEffect } from 'react';
+import { Col, Row, List, Avatar, Tag, Button, Empty, message, Badge, Tooltip } from 'antd';
+import { UserOutlined, CheckCircleOutlined, ClockCircleOutlined, BellOutlined, WifiOutlined, DisconnectOutlined } from '@ant-design/icons';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { history } from 'umi';
 import { appointmentApi } from '@hospital/api';
 import { APPOINTMENT_STATUS_MAP, APPOINTMENT_STATUS_COLOR, TIME_SLOT_MAP } from '@hospital/shared';
 import type { Appointment, AppointmentStatistics } from '@hospital/shared';
+import { useWebSocket, ConnectionStatus } from '@/hooks';
 
 const { Statistic } = StatisticCard;
 
@@ -17,11 +18,21 @@ const Dashboard: React.FC = () => {
   const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
   const [currentPatient, setCurrentPatient] = useState<Appointment | null>(null);
 
-  useEffect(() => {
-    loadData();
+  // 获取医生 ID
+  const doctorId = useMemo(() => {
+    try {
+      const doctorStr = localStorage.getItem('doctor');
+      if (doctorStr) {
+        const doctor = JSON.parse(doctorStr);
+        return doctor.id || doctor.doctorId || '';
+      }
+    } catch (e) {
+      console.error('解析医生信息失败:', e);
+    }
+    return '';
   }, []);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [stats, appointments] = await Promise.all([
         appointmentApi.getStatistics(),
@@ -38,7 +49,20 @@ const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // WebSocket 连接
+  const { status: wsStatus, reconnect } = useWebSocket({
+    doctorId,
+    onPatientSignedIn: () => loadData(),
+    onQueueUpdated: () => loadData(),
+    onNewAppointment: () => loadData(),
+    showNotifications: true,
+  });
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleCall = async (appointment: Appointment) => {
     try {
@@ -75,8 +99,36 @@ const Dashboard: React.FC = () => {
   // 待签到
   const pendingList = todayAppointments.filter((a) => a.status === 1);
 
+  // 连接状态指示器
+  const connectionIndicator = useMemo(() => {
+    if (wsStatus === ConnectionStatus.CONNECTED) {
+      return (
+        <Tooltip title="实时连接正常">
+          <Tag color="success" icon={<WifiOutlined />}>实时</Tag>
+        </Tooltip>
+      );
+    }
+    if (wsStatus === ConnectionStatus.CONNECTING || wsStatus === ConnectionStatus.RECONNECTING) {
+      return (
+        <Tooltip title="正在连接...">
+          <Tag color="processing" icon={<WifiOutlined />}>连接中</Tag>
+        </Tooltip>
+      );
+    }
+    return (
+      <Tooltip title="实时连接已断开，点击重连">
+        <Tag color="error" icon={<DisconnectOutlined />} style={{ cursor: 'pointer' }} onClick={reconnect}>
+          离线
+        </Tag>
+      </Tooltip>
+    );
+  }, [wsStatus, reconnect]);
+
   return (
-    <PageContainer loading={loading}>
+    <PageContainer 
+      loading={loading}
+      extra={connectionIndicator}
+    >
       {/* 统计卡片 */}
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={8}>

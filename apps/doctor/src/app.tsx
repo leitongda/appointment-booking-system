@@ -2,7 +2,7 @@ import { message, Dropdown, Avatar, Space } from 'antd';
 import type { RequestConfig, RunTimeLayoutConfig } from 'umi';
 import { history } from 'umi';
 import { getToken, removeToken } from '@hospital/shared';
-import { userApi, doctorApi, setBaseURL } from '@hospital/api';
+import { doctorApi, setBaseURL } from '@hospital/api';
 import { UserOutlined, LogoutOutlined, SettingOutlined } from '@ant-design/icons';
 import { initApiConfig } from '@/utils/request';
 
@@ -13,17 +13,19 @@ setBaseURL(apiBaseUrl);
 // 初始化 API 请求配置（拦截器）
 initApiConfig();
 
-interface CurrentUser {
+interface CurrentDoctor {
   id: string;
-  phone: string;
-  nickname?: string;
+  name: string;
+  phone?: string;
   avatar?: string;
-  doctorId?: string;
-  doctorName?: string;
+  title?: string;
+  departmentId?: string;
   departmentName?: string;
+  storeId?: string;
+  storeName?: string;
 }
 
-export async function getInitialState(): Promise<{ currentUser?: CurrentUser }> {
+export async function getInitialState(): Promise<{ currentDoctor?: CurrentDoctor }> {
   const token = getToken();
   if (!token) {
     return {};
@@ -35,15 +37,19 @@ export async function getInitialState(): Promise<{ currentUser?: CurrentUser }> 
   }
   
   try {
-    const user = await userApi.getProfile();
-    // 医生端需要获取医生信息
-    // 假设医生登录后，可以通过某种方式获取关联的医生信息
+    // 使用医生专用 API 获取当前登录医生信息
+    const doctor = await doctorApi.getMe();
     return { 
-      currentUser: {
-        id: user.id,
-        phone: user.phone,
-        nickname: user.nickname,
-        avatar: user.avatar,
+      currentDoctor: {
+        id: doctor.id,
+        name: doctor.name,
+        phone: doctor.phone,
+        avatar: doctor.avatar,
+        title: doctor.title,
+        departmentId: doctor.departmentId,
+        departmentName: doctor.departmentName,
+        storeId: doctor.storeId,
+        storeName: doctor.storeName,
       }
     };
   } catch (error) {
@@ -55,7 +61,8 @@ export async function getInitialState(): Promise<{ currentUser?: CurrentUser }> 
 export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) => {
   const handleLogout = () => {
     removeToken();
-    setInitialState({ currentUser: undefined });
+    localStorage.removeItem('doctor');
+    setInitialState({ currentDoctor: undefined });
     history.push('/login');
     message.success('已退出登录');
   };
@@ -65,7 +72,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
     title: '医生工作站',
     menu: { locale: false },
     rightContentRender: () => {
-      if (!initialState?.currentUser) {
+      if (!initialState?.currentDoctor) {
         return null;
       }
 
@@ -92,15 +99,20 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
             <Avatar 
               size="small" 
               icon={<UserOutlined />} 
-              src={initialState.currentUser.avatar}
+              src={initialState.currentDoctor.avatar}
             />
-            <span>{initialState.currentUser.nickname || initialState.currentUser.phone}</span>
+            <span>{initialState.currentDoctor.name}</span>
+            {initialState.currentDoctor.title && (
+              <span style={{ color: '#999', fontSize: 12 }}>
+                ({initialState.currentDoctor.title})
+              </span>
+            )}
           </Space>
         </Dropdown>
       );
     },
     onPageChange: () => {
-      if (!initialState?.currentUser && location.pathname !== '/login') {
+      if (!initialState?.currentDoctor && location.pathname !== '/login') {
         history.push('/login');
       }
     },

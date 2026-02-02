@@ -1,4 +1,4 @@
-import { LockOutlined, MobileOutlined } from '@ant-design/icons';
+import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { LoginForm, ProFormText } from '@ant-design/pro-components';
 import { message } from 'antd';
 import { history, useModel } from 'umi';
@@ -22,7 +22,7 @@ const Login: React.FC = () => {
 
       message.success('登录成功');
 
-      // 刷新用户状态
+      // 刷新医生状态
       await refresh();
 
       history.push('/dashboard');
@@ -41,11 +41,10 @@ const Login: React.FC = () => {
       >
         <ProFormText
           name="phone"
-          fieldProps={{ size: 'large', prefix: <MobileOutlined /> }}
-          placeholder="请输入手机号"
+          fieldProps={{ size: 'large', prefix: <UserOutlined /> }}
+          placeholder="请输入手机号或账号"
           rules={[
-            { required: true, message: '请输入手机号' },
-            { pattern: /^1[3-9]\d{9}$/, message: '手机号格式错误' }
+            { required: true, message: '请输入手机号或账号' },
           ]}
         />
         <ProFormText.Password

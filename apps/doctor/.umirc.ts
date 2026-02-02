@@ -20,12 +20,17 @@
  */
 import { defineConfig } from 'umi';
 
-const { API_BASE_URL = '/api/v1', PROXY_TARGET = 'http://localhost:8000' } = process.env;
+const { 
+  API_BASE_URL = '/api/v1', 
+  PROXY_TARGET = 'http://localhost:8000',
+  WS_URL = '',  // WebSocket URL，为空时自动从当前页面推断
+} = process.env;
 
 export default defineConfig({
   // 定义全局环境变量
   define: {
     'process.env.API_BASE_URL': API_BASE_URL,
+    'process.env.WS_URL': WS_URL,
   },
   npmClient: 'pnpm',
   plugins: [

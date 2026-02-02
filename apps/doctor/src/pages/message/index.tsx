@@ -1,9 +1,10 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { Tabs, List, Badge, Tag, Empty, Button, Spin, message as antMessage, Modal } from 'antd';
-import { BellOutlined, CalendarOutlined, MedicineBoxOutlined, NotificationOutlined, CheckOutlined } from '@ant-design/icons';
-import { useState, useEffect } from 'react';
+import { Tabs, List, Badge, Tag, Empty, Button, Spin, message as antMessage, Modal, Tooltip } from 'antd';
+import { BellOutlined, CalendarOutlined, MedicineBoxOutlined, NotificationOutlined, CheckOutlined, WifiOutlined, DisconnectOutlined } from '@ant-design/icons';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { messageApi } from '@hospital/api';
 import type { Message, UnreadCount } from '@hospital/shared';
+import { useWebSocket, ConnectionStatus } from '@/hooks';
 
 const MessagePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -13,28 +14,31 @@ const MessagePage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   
-  // 模拟医生ID，实际应从登录状态获取
-  const doctorId = localStorage.getItem('doctorId') || '';
+  // 获取医生 ID
+  const doctorId = useMemo(() => {
+    try {
+      const doctorStr = localStorage.getItem('doctor');
+      if (doctorStr) {
+        const doctor = JSON.parse(doctorStr);
+        return doctor.id || doctor.doctorId || '';
+      }
+    } catch (e) {
+      console.error('解析医生信息失败:', e);
+    }
+    return '';
+  }, []);
   const userType = 'doctor';
 
-  useEffect(() => {
-    loadUnreadCount();
-  }, []);
-
-  useEffect(() => {
-    loadMessages(1);
-  }, [activeTab]);
-
-  const loadUnreadCount = async () => {
+  const loadUnreadCount = useCallback(async () => {
     try {
       const count = await messageApi.getUnreadCount(doctorId, userType);
       setUnreadCount(count);
     } catch (error) {
       console.error('获取未读数失败', error);
     }
-  };
+  }, [doctorId]);
 
-  const loadMessages = async (pageNum: number) => {
+  const loadMessages = useCallback(async (pageNum: number) => {
     setLoading(true);
     try {
       const messageType = activeTab === 'all' ? undefined : activeTab;
@@ -54,7 +58,31 @@ const MessagePage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, doctorId]);
+
+  // WebSocket 连接
+  const { status: wsStatus, reconnect } = useWebSocket({
+    doctorId,
+    onSystemMessage: () => {
+      // 收到新系统消息时刷新列表
+      loadMessages(1);
+      loadUnreadCount();
+    },
+    onLeaveRequestReviewed: () => {
+      // 收到审核结果时刷新列表
+      loadMessages(1);
+      loadUnreadCount();
+    },
+    showNotifications: false, // 消息中心自己显示，不需要额外通知
+  });
+
+  useEffect(() => {
+    loadUnreadCount();
+  }, [loadUnreadCount]);
+
+  useEffect(() => {
+    loadMessages(1);
+  }, [activeTab, loadMessages]);
 
   const handleRead = async (msg: Message) => {
     if (msg.isRead === 0) {
@@ -139,14 +167,42 @@ const MessagePage: React.FC = () => {
     { key: 'system', label: <Badge count={unreadCount?.system} size="small" offset={[8, 0]}>系统</Badge> },
   ];
 
+  // 连接状态指示器
+  const connectionIndicator = useMemo(() => {
+    if (wsStatus === ConnectionStatus.CONNECTED) {
+      return (
+        <Tooltip title="实时连接正常">
+          <Tag color="success" icon={<WifiOutlined />}>实时</Tag>
+        </Tooltip>
+      );
+    }
+    if (wsStatus === ConnectionStatus.CONNECTING || wsStatus === ConnectionStatus.RECONNECTING) {
+      return (
+        <Tooltip title="正在连接...">
+          <Tag color="processing" icon={<WifiOutlined />}>连接中</Tag>
+        </Tooltip>
+      );
+    }
+    return (
+      <Tooltip title="实时连接已断开，点击重连">
+        <Tag color="error" icon={<DisconnectOutlined />} style={{ cursor: 'pointer' }} onClick={reconnect}>
+          离线
+        </Tag>
+      </Tooltip>
+    );
+  }, [wsStatus, reconnect]);
+
   return (
     <PageContainer
       extra={
-        unreadCount && unreadCount.total > 0 ? (
-          <Button icon={<CheckOutlined />} onClick={handleReadAll}>
-            全部已读
-          </Button>
-        ) : null
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {connectionIndicator}
+          {unreadCount && unreadCount.total > 0 && (
+            <Button icon={<CheckOutlined />} onClick={handleReadAll}>
+              全部已读
+            </Button>
+          )}
+        </div>
       }
     >
       <Tabs 
