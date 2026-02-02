@@ -189,14 +189,7 @@ const IndexPage = () => {
 
   // 处理推荐医生卡片点击
   const handleDoctorClick = (doctorId: string) => {
-    // 检查登录状态
-    const token = getToken();
-    if (!token) {
-      Taro.showToast({ title: '请先登录', icon: 'none' });
-      setShowLoginPopup(true);
-      return;
-    }
-
+    // 医生详情页无需登录即可浏览，登录检查在预约确认页进行
     Taro.navigateTo({
       url: `/packageBooking/pages/doctor/detail?id=${doctorId}`,
     });

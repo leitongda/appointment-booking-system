@@ -44,7 +44,6 @@ const BookingPage = () => {
     // 检查登录状态
     const token = getToken();
     if (!token) {
-      Taro.showToast({ title: '请先登录', icon: 'none' });
       setShowLoginPopup(true);
       setLoading(false);
       return;

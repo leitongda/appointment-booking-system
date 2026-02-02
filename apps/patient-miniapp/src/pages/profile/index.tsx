@@ -445,7 +445,6 @@ const ProfilePage = () => {
     if (item.path) {
       // 检查是否需要登录
       if (requireLoginPaths.includes(item.path) && !isLoggedIn) {
-        Taro.showToast({ title: '请先登录', icon: 'none' });
         // 触发登录流程（点击头像区域）
         handleHeaderClick();
         return;
