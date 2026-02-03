@@ -531,7 +531,10 @@ async def sign_in_appointment(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin)
 ):
-    """签到"""
+    """签到
+    
+    权限验证：非管理员只能签到自己的预约（门店隔离）
+    """
     service = AppointmentService(db)
 
     # 提取设备信息（从请求头）
@@ -542,6 +545,8 @@ async def sign_in_appointment(
     try:
         appointment = await service.sign_in(
             appointment_id=appointment_id,
+            user_id=current_user.get("id"),
+            is_admin=current_user.get("is_admin", False),
             checkin_method=checkin_method or 'MANUAL',
             device_info=device_info,
             location_info=location_info,

@@ -473,6 +473,8 @@ class AppointmentService:
     async def sign_in(
         self,
         appointment_id: str,
+        user_id: Optional[str] = None,
+        is_admin: bool = False,
         checkin_method: str = 'MANUAL',
         device_info: Optional[str] = None,
         location_info: Optional[str] = None,
@@ -483,6 +485,8 @@ class AppointmentService:
 
         Args:
             appointment_id: 预约ID
+            user_id: 操作用户ID（用于权限验证）
+            is_admin: 是否是管理员操作
             checkin_method: 签到方式 (QR_CODE/MANUAL/PHONE)
             device_info: 设备信息（用户代理等）
             location_info: 位置信息（IP地址等）
@@ -496,6 +500,10 @@ class AppointmentService:
             return None
 
         try:
+            # 权限验证：非管理员只能签到自己的预约（门店隔离）
+            if not is_admin and user_id and appointment.user_id != user_id:
+                raise ValueError("无权操作此预约")
+
             # 验证预约状态
             if appointment.status != APPOINTMENT_STATUS['CONFIRMED']:
                 raise ValueError("当前状态不可签到")
