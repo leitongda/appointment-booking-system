@@ -103,7 +103,7 @@ async def get_checkin_logs(
         "data": items,
         "total": total,
         "page": page,
-        "page_size": page_size
+        "pageSize": page_size
     }
 
 

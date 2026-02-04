@@ -16,7 +16,11 @@ from app.models.doctor import Doctor
 from jose import jwt, JWTError
 from app.core.config import settings
 
-security = HTTPBearer(auto_error=False)
+security = HTTPBearer(
+    auto_error=False,
+    scheme_name="JWT认证",
+    description="在 Header 中携带 `Authorization: Bearer <token>`，Token 通过登录接口获取"
+)
 
 
 async def get_current_user(

@@ -47,41 +47,41 @@ class CustomScheduleResponse(BaseModel):
         alias_generator=to_camel,
         by_alias=True,
     )
-    
-    id: str
-    store_id: str
-    store_name: Optional[str] = None
-    department_id: str
-    department_name: Optional[str] = None
-    doctor_id: str
-    doctor_name: Optional[str] = None
-    schedule_date: date
-    start_time: time
-    end_time: time
-    appointment_type: str
-    max_patients: int
-    booked_count: int
-    status: int
-    created_at: datetime
-    is_rest_day: Optional[bool] = False  # 是否在休息日（后端计算）
+
+    id: str = Field(..., description="排班ID")
+    store_id: str = Field(..., description="门店ID")
+    store_name: Optional[str] = Field(None, description="门店名称")
+    department_id: str = Field(..., description="科室ID")
+    department_name: Optional[str] = Field(None, description="科室名称")
+    doctor_id: str = Field(..., description="医生ID")
+    doctor_name: Optional[str] = Field(None, description="医生名称")
+    schedule_date: date = Field(..., description="排班日期")
+    start_time: time = Field(..., description="开始时间")
+    end_time: time = Field(..., description="结束时间")
+    appointment_type: str = Field(..., description="预约类型")
+    max_patients: int = Field(..., description="最大预约人数")
+    booked_count: int = Field(..., description="已预约人数")
+    status: int = Field(..., description="状态")
+    created_at: datetime = Field(..., description="创建时间")
+    is_rest_day: Optional[bool] = Field(False, description="是否在休息日")
 
 
 class CustomScheduleListParams(BaseModel):
     """查询自定义排班列表参数"""
-    store_id: Optional[str] = None
-    department_id: Optional[str] = None
-    doctor_id: Optional[str] = None
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    appointment_type: Optional[AppointmentType] = None
-    status: Optional[int] = Field(None, ge=0, le=1)
-    page: int = Field(1, ge=1)
-    page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE)
+    store_id: Optional[str] = Field(None, description="门店ID")
+    department_id: Optional[str] = Field(None, description="科室ID")
+    doctor_id: Optional[str] = Field(None, description="医生ID")
+    start_date: Optional[date] = Field(None, description="开始日期")
+    end_date: Optional[date] = Field(None, description="结束日期")
+    appointment_type: Optional[AppointmentType] = Field(None, description="预约类型")
+    status: Optional[int] = Field(None, ge=0, le=1, description="状态")
+    page: int = Field(1, ge=1, description="页码")
+    page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量")
 
 
 class EffectiveScheduleParams(BaseModel):
     """查询生效班次参数"""
-    store_id: Optional[str] = None
-    doctor_id: Optional[str] = None
+    store_id: Optional[str] = Field(None, description="门店ID")
+    doctor_id: Optional[str] = Field(None, description="医生ID")
     start_date: date = Field(..., description="开始日期")
     end_date: date = Field(..., description="结束日期")

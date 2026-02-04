@@ -9,13 +9,20 @@ def to_camel(string: str) -> str:
 
 
 class LoginRequest(BaseModel):
+    """用户登录请求"""
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "phone": "13800138000",
+                "password": "123456"
+            }
+        }
     )
     
-    phone: str = Field(..., min_length=11, max_length=11, description="手机号")
-    password: str = Field(..., min_length=6, description="密码")
+    phone: str = Field(..., min_length=11, max_length=11, description="手机号", examples=["13800138000"])
+    password: str = Field(..., min_length=6, description="密码", examples=["123456"])
 
 
 class RegisterRequest(BaseModel):
@@ -23,11 +30,18 @@ class RegisterRequest(BaseModel):
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "phone": "13800138000",
+                "password": "123456",
+                "code": "888888"
+            }
+        }
     )
     
-    phone: str = Field(..., min_length=11, max_length=11, description="手机号")
-    password: str = Field(..., min_length=6, max_length=20, description="密码")
-    code: Optional[str] = Field(None, description="短信验证码")
+    phone: str = Field(..., min_length=11, max_length=11, description="手机号", examples=["13800138000"])
+    password: str = Field(..., min_length=6, max_length=20, description="密码", examples=["123456"])
+    code: Optional[str] = Field(None, description="短信验证码", examples=["888888"])
 
 
 class TokenResponse(BaseModel):

@@ -16,7 +16,7 @@ from app.core.config import settings
 router = APIRouter()
 
 
-@router.get("")
+@router.get("", summary="获取收藏列表")
 async def get_favorites(
     target_type: Optional[str] = Query(None, alias="targetType", pattern="^(doctor|department)$", description="收藏类型"),
     page: int = Query(1, ge=1),
@@ -41,7 +41,7 @@ async def get_favorites(
     }
 
 
-@router.get("/check", response_model=FavoriteCheckResponse)
+@router.get("/check", response_model=FavoriteCheckResponse, summary="检查是否已收藏")
 async def check_favorite(
     target_type: str = Query(..., alias="targetType", pattern="^(doctor|department)$"),
     target_id: str = Query(..., alias="targetId"),
@@ -62,7 +62,7 @@ async def check_favorite(
     )
 
 
-@router.post("", response_model=UserFavoriteResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserFavoriteResponse, status_code=status.HTTP_201_CREATED, summary="添加收藏")
 async def create_favorite(
     data: UserFavoriteCreate,
     db: AsyncSession = Depends(get_db),
@@ -77,7 +77,7 @@ async def create_favorite(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/{favorite_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{favorite_id}", status_code=status.HTTP_204_NO_CONTENT, summary="取消收藏")
 async def delete_favorite(
     favorite_id: str,
     db: AsyncSession = Depends(get_db),
@@ -91,7 +91,7 @@ async def delete_favorite(
         raise HTTPException(status_code=404, detail="收藏不存在或无权操作")
 
 
-@router.delete("/target/{target_type}/{target_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/target/{target_type}/{target_id}", status_code=status.HTTP_204_NO_CONTENT, summary="取消收藏")
 async def delete_favorite_by_target(
     target_type: str,
     target_id: str,

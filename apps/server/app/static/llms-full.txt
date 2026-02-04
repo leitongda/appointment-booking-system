@@ -1,6 +1,48 @@
 # 医院挂号系统
 
-> 医院挂号系统 API
+> 
+## 医院预约挂号系统 API
+
+一套完整的医院预约挂号解决方案，支持多门店、多科室、多医生的排班预约管理。
+
+### 主要功能
+
+| 模块 | 功能 |
+|------|------|
+| **预约管理** | 在线预约、签到、叫号、取消、爽约处理 |
+| **排班管理** | 模板排班、自定义排班、停诊、休息日 |
+| **患者管理** | 就诊卡、病历、积分、黑名单 |
+| **权限管理** | 多角色、细粒度权限、操作日志 |
+| **数据统计** | 预约趋势、收入统计、科室/医生排行 |
+
+### 认证方式
+
+- **JWT Token 认证**: 大部分接口需要在 Header 中携带 `Authorization: Bearer <token>`
+- **微信登录**: 支持微信小程序授权登录
+- **手机号登录**: 支持短信验证码登录
+
+### 响应格式
+
+所有接口返回统一格式：
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": { ... }
+}
+```
+
+### 错误码说明
+
+| 错误码 | 说明 |
+|--------|------|
+| 0 | 成功 |
+| 400 | 请求参数错误 |
+| 401 | 未认证或 Token 过期 |
+| 403 | 无权限 |
+| 404 | 资源不存在 |
+| 500 | 服务器内部错误 |
+        
 
 - API 版本: 1.0.0
 - 基础路径: /api/v1
@@ -134,7 +176,7 @@
 
 ### POST /api/v1/upload
 
-**Upload Image**
+**上传图片**
 
 上传图片
 
@@ -148,7 +190,7 @@
 
 ### POST /api/v1/upload/transfer
 
-**Transfer From Url**
+**URL转存**
 
 从URL转存图片
 
@@ -170,7 +212,7 @@
 
 ### DELETE /api/v1/upload/{key}
 
-**Delete Image**
+**删除图片**
 
 删除图片
 
@@ -312,7 +354,7 @@
 
 ### GET /api/v1/stores/by-code/{code}
 
-**Get Store By Code**
+**获取门店**
 
 通过编码获取门店（公开接口，无需登录）
 
@@ -326,7 +368,7 @@
 
 ### GET /api/v1/stores/check-unique
 
-**Check Unique**
+**检查唯一性**
 
 检查门店名称或编码是否已存在
 
@@ -350,9 +392,7 @@ Returns:
 
 ### GET /api/v1/stores
 
-**Get Stores**
-
-获取门店列表
+**获取门店列表**
 
 **参数:**
 
@@ -366,7 +406,7 @@ Returns:
 
 ### POST /api/v1/stores
 
-**Create Store**
+**创建门店**
 
 创建门店（仅超级管理员）
 
@@ -385,7 +425,7 @@ Returns:
 
 ### GET /api/v1/stores/all
 
-**Get All Stores**
+**获取所有门店**
 
 获取所有营业中的门店（下拉选择用）
 
@@ -393,9 +433,7 @@ Returns:
 
 ### GET /api/v1/stores/{store_id}
 
-**Get Store**
-
-获取门店详情
+**获取门店详情**
 
 **参数:**
 
@@ -405,9 +443,7 @@ Returns:
 
 ### PUT /api/v1/stores/{store_id}
 
-**Update Store**
-
-更新门店
+**更新门店**
 
 **参数:**
 
@@ -428,7 +464,7 @@ Returns:
 
 ### DELETE /api/v1/stores/{store_id}
 
-**Delete Store**
+**删除门店**
 
 删除门店（仅超级管理员）
 
@@ -440,7 +476,7 @@ Returns:
 
 ### PATCH /api/v1/stores/{store_id}/status
 
-**Update Store Status**
+**更新门店状态**
 
 更新门店状态
 
@@ -457,7 +493,7 @@ Returns:
 
 ### GET /api/v1/stores/{store_id}/departments
 
-**Get Store Departments**
+**获取科室列表**
 
 获取门店已绑定的科室列表
 
@@ -469,7 +505,7 @@ Returns:
 
 ### PUT /api/v1/stores/{store_id}/departments/batch
 
-**Batch Bind Departments**
+**批量绑定科室**
 
 批量绑定科室到门店
 
@@ -485,7 +521,7 @@ Returns:
 
 ### GET /api/v1/stores/{store_id}/admins
 
-**Get Store Admins**
+**获取管理员列表**
 
 获取门店已绑定的管理员列表
 
@@ -497,7 +533,7 @@ Returns:
 
 ### PUT /api/v1/stores/{store_id}/admins/batch
 
-**Batch Bind Admins**
+**批量绑定管理员**
 
 批量绑定管理员到门店
 
@@ -513,7 +549,7 @@ Returns:
 
 ### GET /api/v1/stores/{store_id}/wechat-config
 
-**Get Store Wechat Config**
+**获取微信配置**
 
 获取门店微信配置
 
@@ -529,7 +565,7 @@ Returns:
 
 ### PUT /api/v1/stores/{store_id}/wechat-config
 
-**Update Store Wechat Config**
+**更新微信配置**
 
 更新门店微信配置
 
@@ -555,7 +591,7 @@ Returns:
 
 ### GET /api/v1/stores/{store_id}/checkin-qrcode
 
-**Get Store Checkin Qrcode**
+**获取签到二维码**
 
 获取门店签到二维码
 
@@ -572,7 +608,7 @@ Returns:
 
 ### GET /api/v1/messages/my
 
-**Get My Messages**
+**获取我的消息**
 
 获取我的消息列表
 
@@ -589,7 +625,7 @@ Returns:
 
 ### GET /api/v1/messages/unread-count
 
-**Get Unread Count**
+**获取未读数**
 
 获取未读消息数量
 
@@ -602,9 +638,7 @@ Returns:
 
 ### GET /api/v1/messages/{message_id}
 
-**Get Message**
-
-获取消息详情
+**获取消息详情**
 
 **参数:**
 
@@ -614,9 +648,7 @@ Returns:
 
 ### DELETE /api/v1/messages/{message_id}
 
-**Delete Message**
-
-删除消息
+**删除消息**
 
 **参数:**
 
@@ -627,7 +659,7 @@ Returns:
 
 ### POST /api/v1/messages/read/{message_id}
 
-**Mark As Read**
+**标记已读**
 
 标记消息为已读
 
@@ -640,7 +672,7 @@ Returns:
 
 ### POST /api/v1/messages/read-all
 
-**Mark All As Read**
+**全部标记已读**
 
 标记所有消息为已读
 
@@ -654,9 +686,7 @@ Returns:
 
 ### DELETE /api/v1/messages/clear/read
 
-**Clear Read Messages**
-
-清空已读消息
+**清空已读消息**
 
 **参数:**
 
@@ -667,7 +697,7 @@ Returns:
 
 ### GET /api/v1/messages
 
-**Get All Messages**
+**获取消息列表**
 
 获取所有消息列表（管理端）
 
@@ -686,7 +716,7 @@ Returns:
 
 ### POST /api/v1/messages/send
 
-**Send Message**
+**发送消息**
 
 发送消息（管理端）
 
@@ -705,7 +735,7 @@ Returns:
 
 ### POST /api/v1/messages/send-batch
 
-**Send Batch Messages**
+**批量发送消息**
 
 批量发送消息（管理端）
 
@@ -724,7 +754,7 @@ Returns:
 
 ### GET /api/v1/messages/templates
 
-**Get Templates**
+**获取模板列表**
 
 获取消息模板列表
 
@@ -736,9 +766,7 @@ Returns:
 
 ### POST /api/v1/messages/templates
 
-**Create Template**
-
-创建消息模板
+**创建消息模板**
 
 **请求:**
 
@@ -755,9 +783,7 @@ Returns:
 
 ### PUT /api/v1/messages/templates/{template_id}
 
-**Update Template**
-
-更新消息模板
+**更新消息模板**
 
 **参数:**
 
@@ -777,9 +803,7 @@ Returns:
 
 ### DELETE /api/v1/messages/templates/{template_id}
 
-**Delete Template**
-
-删除消息模板
+**删除消息模板**
 
 **参数:**
 
@@ -1572,7 +1596,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/medical-records
 
-**Get Medical Records**
+**获取列表**
 
 获取病历列表
 
@@ -1592,9 +1616,7 @@ TODO: 添加门店过滤支持
 
 ### POST /api/v1/medical-records
 
-**Create Medical Record**
-
-创建病历
+**创建病历**
 
 **请求:**
 
@@ -1611,7 +1633,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/medical-records/my
 
-**Get My Records**
+**获取我的列表**
 
 获取当前医生的病历列表
 
@@ -1624,7 +1646,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/medical-records/patient/{patient_id}
 
-**Get Patient Records**
+**获取患者列表**
 
 获取患者的病历列表
 
@@ -1638,7 +1660,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/medical-records/appointment/{appointment_id}
 
-**Get Record By Appointment**
+**根据预约获取**
 
 根据预约ID获取病历
 
@@ -1650,7 +1672,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/medical-records/{record_id}
 
-**Get Medical Record**
+**获取详情**
 
 获取病历详情
 
@@ -1662,9 +1684,7 @@ TODO: 添加门店过滤支持
 
 ### PUT /api/v1/medical-records/{record_id}
 
-**Update Medical Record**
-
-更新病历
+**更新病历**
 
 **参数:**
 
@@ -1685,9 +1705,7 @@ TODO: 添加门店过滤支持
 
 ### DELETE /api/v1/medical-records/{record_id}
 
-**Delete Medical Record**
-
-删除病历
+**删除病历**
 
 **参数:**
 
@@ -1699,9 +1717,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/content/news
 
-**Get News List**
-
-获取新闻列表
+**获取新闻列表**
 
 **参数:**
 
@@ -1716,9 +1732,7 @@ TODO: 添加门店过滤支持
 
 ### POST /api/v1/content/news
 
-**Create News**
-
-创建新闻
+**创建新闻**
 
 **请求:**
 
@@ -1735,7 +1749,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/content/news/published
 
-**Get Published News**
+**获取已发布新闻**
 
 获取已发布新闻（前端展示）
 
@@ -1749,9 +1763,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/content/news/{news_id}
 
-**Get News Detail**
-
-获取新闻详情
+**获取新闻详情**
 
 **参数:**
 
@@ -1761,9 +1773,7 @@ TODO: 添加门店过滤支持
 
 ### PUT /api/v1/content/news/{news_id}
 
-**Update News**
-
-更新新闻
+**更新新闻**
 
 **参数:**
 
@@ -1784,9 +1794,7 @@ TODO: 添加门店过滤支持
 
 ### DELETE /api/v1/content/news/{news_id}
 
-**Delete News**
-
-删除新闻
+**删除新闻**
 
 **参数:**
 
@@ -1796,9 +1804,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/content/notices
 
-**Get Notice List**
-
-获取公告列表
+**获取公告列表**
 
 **参数:**
 
@@ -1813,9 +1819,7 @@ TODO: 添加门店过滤支持
 
 ### POST /api/v1/content/notices
 
-**Create Notice**
-
-创建公告
+**创建公告**
 
 **请求:**
 
@@ -1831,7 +1835,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/content/notices/published
 
-**Get Published Notices**
+**获取已发布公告**
 
 获取已发布公告（前端展示）
 
@@ -1844,9 +1848,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/content/notices/{notice_id}
 
-**Get Notice Detail**
-
-获取公告详情
+**获取公告详情**
 
 **参数:**
 
@@ -1856,9 +1858,7 @@ TODO: 添加门店过滤支持
 
 ### PUT /api/v1/content/notices/{notice_id}
 
-**Update Notice**
-
-更新公告
+**更新公告**
 
 **参数:**
 
@@ -1878,9 +1878,7 @@ TODO: 添加门店过滤支持
 
 ### DELETE /api/v1/content/notices/{notice_id}
 
-**Delete Notice**
-
-删除公告
+**删除公告**
 
 **参数:**
 
@@ -1890,9 +1888,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/content/banners
 
-**Get Banner List**
-
-获取轮播图列表
+**获取轮播图列表**
 
 **参数:**
 
@@ -1906,9 +1902,7 @@ TODO: 添加门店过滤支持
 
 ### POST /api/v1/content/banners
 
-**Create Banner**
-
-创建轮播图
+**创建轮播图**
 
 **请求:**
 
@@ -1925,7 +1919,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/content/banners/active
 
-**Get Active Banners**
+**获取启用轮播图**
 
 获取启用的轮播图（前端展示）
 
@@ -1938,9 +1932,7 @@ TODO: 添加门店过滤支持
 
 ### PUT /api/v1/content/banners/{banner_id}
 
-**Update Banner**
-
-更新轮播图
+**更新轮播图**
 
 **参数:**
 
@@ -1961,9 +1953,7 @@ TODO: 添加门店过滤支持
 
 ### DELETE /api/v1/content/banners/{banner_id}
 
-**Delete Banner**
-
-删除轮播图
+**删除轮播图**
 
 **参数:**
 
@@ -1975,15 +1965,13 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/statistics/overview
 
-**Get Overview**
-
-获取概览数据
+**获取概览数据**
 
 ---
 
 ### GET /api/v1/statistics/appointments/trend
 
-**Get Appointment Trend**
+**获取预约趋势**
 
 获取预约趋势数据
 
@@ -1995,9 +1983,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/statistics/appointments/status
 
-**Get Appointment Status Stats**
-
-获取预约状态统计
+**获取预约状态统计**
 
 **参数:**
 
@@ -2008,9 +1994,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/statistics/departments/ranking
 
-**Get Department Ranking**
-
-获取科室预约排行
+**获取科室预约排行**
 
 **参数:**
 
@@ -2020,9 +2004,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/statistics/doctors/ranking
 
-**Get Doctor Ranking**
-
-获取医生预约排行
+**获取医生预约排行**
 
 **参数:**
 
@@ -2032,25 +2014,19 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/statistics/time-slots/distribution
 
-**Get Time Slot Distribution**
-
-获取时段分布统计
+**获取时段分布统计**
 
 ---
 
 ### GET /api/v1/statistics/weekday/distribution
 
-**Get Weekday Distribution**
-
-获取星期分布统计
+**获取星期分布统计**
 
 ---
 
 ### GET /api/v1/statistics/revenue/trend
 
-**Get Revenue Trend**
-
-获取收入趋势
+**获取收入趋势**
 
 **参数:**
 
@@ -2060,7 +2036,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/statistics/appointments/summary
 
-**Get Appointment Summary**
+**获取预约汇总统计**
 
 获取预约汇总统计（完成率/爽约率/取消率）
 
@@ -2074,7 +2050,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/statistics/stores/ranking
 
-**Get Store Ranking**
+**获取门店预约排行**
 
 获取门店预约排行（只有超管可以看到所有门店排行）
 
@@ -2279,9 +2255,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/admin/roles
 
-**Get Roles**
-
-获取角色列表
+**获取角色列表**
 
 **参数:**
 
@@ -2294,9 +2268,7 @@ TODO: 添加门店过滤支持
 
 ### POST /api/v1/admin/roles
 
-**Create Role**
-
-创建角色
+**创建角色**
 
 **请求:**
 
@@ -2312,7 +2284,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/admin/roles/all
 
-**Get All Roles**
+**获取所有角色**
 
 获取所有启用的角色（用于下拉选择）
 
@@ -2320,9 +2292,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/admin/roles/{role_id}
 
-**Get Role**
-
-获取角色详情
+**获取角色详情**
 
 **参数:**
 
@@ -2332,9 +2302,7 @@ TODO: 添加门店过滤支持
 
 ### PUT /api/v1/admin/roles/{role_id}
 
-**Update Role**
-
-更新角色
+**更新角色**
 
 **参数:**
 
@@ -2353,9 +2321,7 @@ TODO: 添加门店过滤支持
 
 ### DELETE /api/v1/admin/roles/{role_id}
 
-**Delete Role**
-
-删除角色
+**删除角色**
 
 **参数:**
 
@@ -2365,9 +2331,7 @@ TODO: 添加门店过滤支持
 
 ### PUT /api/v1/admin/roles/{role_id}/permissions
 
-**Update Role Permissions**
-
-更新角色权限
+**更新角色权限**
 
 **参数:**
 
@@ -2381,9 +2345,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/admin/admins
 
-**Get Admins**
-
-获取管理员列表
+**获取管理员列表**
 
 **参数:**
 
@@ -2398,9 +2360,7 @@ TODO: 添加门店过滤支持
 
 ### POST /api/v1/admin/admins
 
-**Create Admin**
-
-创建管理员
+**创建管理员**
 
 **请求:**
 
@@ -2417,9 +2377,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/admin/admins/{admin_id}
 
-**Get Admin**
-
-获取管理员详情
+**获取管理员详情**
 
 **参数:**
 
@@ -2429,9 +2387,7 @@ TODO: 添加门店过滤支持
 
 ### PUT /api/v1/admin/admins/{admin_id}
 
-**Update Admin**
-
-更新管理员
+**更新管理员**
 
 **参数:**
 
@@ -2452,9 +2408,7 @@ TODO: 添加门店过滤支持
 
 ### DELETE /api/v1/admin/admins/{admin_id}
 
-**Delete Admin**
-
-删除管理员
+**删除管理员**
 
 **参数:**
 
@@ -2464,7 +2418,7 @@ TODO: 添加门店过滤支持
 
 ### PUT /api/v1/admin/admins/{admin_id}/reset-password
 
-**Reset Admin Password**
+**重置密码**
 
 重置管理员密码
 
@@ -2477,7 +2431,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/admin/logs
 
-**Get Operation Logs**
+**获取操作日志**
 
 获取操作日志列表
 
@@ -2494,7 +2448,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/admin/permissions/tree
 
-**Get Permissions Tree**
+**获取权限树**
 
 获取权限树形结构（用于角色权限分配）
 
@@ -2502,7 +2456,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/admin/permissions/all
 
-**Get All Permissions**
+**获取所有权限**
 
 获取所有权限（平铺列表）
 
@@ -2510,7 +2464,7 @@ TODO: 添加门店过滤支持
 
 ### POST /api/v1/admin/permissions
 
-**Create Permission**
+**创建权限**
 
 创建权限（一般不需要手动创建，由初始化脚本管理）
 
@@ -2529,9 +2483,7 @@ TODO: 添加门店过滤支持
 
 ### POST /api/v1/admin/permissions/batch
 
-**Batch Create Permissions**
-
-批量创建权限
+**批量创建权限**
 
 **请求:**
 
@@ -2541,9 +2493,7 @@ TODO: 添加门店过滤支持
 
 ### DELETE /api/v1/admin/permissions/{code}
 
-**Delete Permission**
-
-删除权限
+**删除权限**
 
 **参数:**
 
@@ -2553,7 +2503,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/admin/online-users
 
-**Get Online Users**
+**获取在线用户**
 
 获取在线用户列表
 
@@ -2563,7 +2513,7 @@ TODO: 添加门店过滤支持
 
 ### POST /api/v1/admin/online-users/{admin_id}/kick
 
-**Kick Online User**
+**强制用户下线**
 
 强制用户下线
 
@@ -2577,7 +2527,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/admin/user-status
 
-**Get User Status**
+**获取用户状态**
 
 获取所有用户状态列表（在线+离线）
 
@@ -2585,7 +2535,7 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/admin/login-history/{admin_id}
 
-**Get Login History**
+**获取登录历史**
 
 获取指定用户的登录历史
 
@@ -2601,15 +2551,13 @@ TODO: 添加门店过滤支持
 
 ### GET /api/v1/settings/booking
 
-**Get Booking Settings**
-
-获取预约设置
+**获取预约设置**
 
 ---
 
 ### PUT /api/v1/settings/booking
 
-**Update Booking Settings**
+**更新预约设置**
 
 更新预约设置
 
@@ -2636,7 +2584,7 @@ Args:
 
 ### GET /api/v1/settings/hospital
 
-**Get Hospital Info**
+**获取医院信息**
 
 获取医院信息（公开接口）
 
@@ -2644,9 +2592,7 @@ Args:
 
 ### PUT /api/v1/settings/hospital
 
-**Update Hospital Info**
-
-更新医院信息
+**更新医院信息**
 
 **请求:**
 
@@ -2663,17 +2609,13 @@ Args:
 
 ### GET /api/v1/settings/wechat
 
-**Get Wechat Config**
-
-获取微信配置
+**获取微信配置**
 
 ---
 
 ### PUT /api/v1/settings/wechat
 
-**Update Wechat Config**
-
-更新微信配置
+**更新微信配置**
 
 **请求:**
 
@@ -2689,17 +2631,13 @@ Args:
 
 ### GET /api/v1/settings/sms
 
-**Get Sms Config**
-
-获取短信配置
+**获取短信配置**
 
 ---
 
 ### PUT /api/v1/settings/sms
 
-**Update Sms Config**
-
-更新短信配置
+**更新短信配置**
 
 **请求:**
 
@@ -2715,17 +2653,13 @@ Args:
 
 ### GET /api/v1/settings/email
 
-**Get Email Config**
-
-获取邮件配置
+**获取邮件配置**
 
 ---
 
 ### PUT /api/v1/settings/email
 
-**Update Email Config**
-
-更新邮件配置
+**更新邮件配置**
 
 **请求:**
 
@@ -2742,7 +2676,7 @@ Args:
 
 ### GET /api/v1/settings/booking/rules
 
-**Get Booking Rules**
+**获取预约规则**
 
 获取预约规则（公开接口，用于患者端）
 
@@ -2757,7 +2691,7 @@ Args:
 
 ### GET /api/v1/settings/booking-fields
 
-**Get Booking Fields**
+**获取预约选项配置**
 
 获取预约选项配置（公开接口，用于动态渲染表单）
 
@@ -2765,9 +2699,7 @@ Args:
 
 ### PUT /api/v1/settings/booking-fields
 
-**Update Booking Fields**
-
-更新预约选项配置
+**更新预约选项配置**
 
 **请求:**
 
@@ -2779,7 +2711,7 @@ Args:
 
 ### GET /api/v1/settings/patient-card
 
-**Get Patient Card Config**
+**获取就诊卡配置**
 
 获取就诊卡配置（公开接口）
 
@@ -2787,9 +2719,7 @@ Args:
 
 ### PUT /api/v1/settings/patient-card
 
-**Update Patient Card Config**
-
-更新就诊卡配置
+**更新就诊卡配置**
 
 **请求:**
 
@@ -2804,17 +2734,13 @@ Args:
 
 ### GET /api/v1/settings/image
 
-**Get Image Config**
-
-获取图片处理配置
+**获取图片处理配置**
 
 ---
 
 ### PUT /api/v1/settings/image
 
-**Update Image Config**
-
-更新图片处理配置
+**更新图片处理配置**
 
 **请求:**
 
@@ -2827,7 +2753,7 @@ Args:
 
 ### GET /api/v1/settings/time-periods
 
-**Get Time Periods**
+**获取时段配置**
 
 获取时段配置（公开接口）
 
@@ -2841,7 +2767,7 @@ Args:
 
 ### PUT /api/v1/settings/time-periods
 
-**Update Time Periods**
+**更新时段配置**
 
 更新时段配置
 
@@ -2858,7 +2784,7 @@ Args:
 
 ### DELETE /api/v1/settings/time-periods/{store_id}
 
-**Delete Store Time Periods**
+**删除门店时段配置**
 
 删除门店自定义时段配置（恢复使用全局配置）
 
@@ -3115,7 +3041,7 @@ Args:
 
 ### GET /api/v1/user-manage
 
-**Get Users**
+**获取患者列表**
 
 获取患者（用户）列表
 
@@ -3131,7 +3057,7 @@ Args:
 
 ### GET /api/v1/user-manage/{user_id}
 
-**Get User Detail**
+**获取患者详情**
 
 获取患者（用户）详情
 
@@ -3143,7 +3069,7 @@ Args:
 
 ### DELETE /api/v1/user-manage/{user_id}
 
-**Delete User**
+**删除用户**
 
 删除用户（患者）
 
@@ -3155,7 +3081,7 @@ Args:
 
 ### PUT /api/v1/user-manage/{user_id}
 
-**Update User**
+**更新用户信息**
 
 更新用户基本信息
 
@@ -3171,7 +3097,7 @@ Args:
 
 ### PUT /api/v1/user-manage/{user_id}/status
 
-**Update User Status**
+**更新用户状态**
 
 更新用户状态（禁用/启用）
 
@@ -3184,9 +3110,7 @@ Args:
 
 ### POST /api/v1/user-manage/{user_id}/points
 
-**Adjust User Points**
-
-调整用户积分
+**调整用户积分**
 
 **参数:**
 
@@ -3198,7 +3122,7 @@ Args:
 
 ### POST /api/v1/user-manage/{user_id}/cards
 
-**Create Card**
+**添加就诊卡**
 
 为用户添加就诊卡
 
@@ -3221,9 +3145,7 @@ Args:
 
 ### PUT /api/v1/user-manage/{user_id}/cards/{card_id}
 
-**Update Card**
-
-更新就诊卡信息
+**更新就诊卡信息**
 
 **参数:**
 
@@ -3245,9 +3167,7 @@ Args:
 
 ### DELETE /api/v1/user-manage/{user_id}/cards/{card_id}
 
-**Delete Card**
-
-删除就诊卡
+**删除就诊卡**
 
 **参数:**
 
@@ -3260,9 +3180,7 @@ Args:
 
 ### GET /api/v1/export/appointments
 
-**Export Appointments**
-
-导出预约记录
+**导出预约记录**
 
 **参数:**
 
@@ -3303,7 +3221,7 @@ Args:
 
 ### GET /api/v1/leave-requests
 
-**Get Leave Requests**
+**获取申请列表**
 
 获取申请列表（管理端）
 
@@ -3321,7 +3239,7 @@ Args:
 
 ### GET /api/v1/leave-requests/pending-count
 
-**Get Pending Count**
+**获取待审核数**
 
 获取待审核数量
 
@@ -3329,7 +3247,7 @@ Args:
 
 ### GET /api/v1/leave-requests/my
 
-**Get My Requests**
+**获取我的申请**
 
 获取我的申请列表（医生端）
 
@@ -3342,9 +3260,7 @@ Args:
 
 ### GET /api/v1/leave-requests/{request_id}
 
-**Get Leave Request**
-
-获取申请详情
+**获取申请详情**
 
 **参数:**
 
@@ -3354,9 +3270,7 @@ Args:
 
 ### POST /api/v1/leave-requests/stop-clinic
 
-**Create Stop Clinic Request**
-
-创建停诊申请
+**创建停诊申请**
 
 **请求:**
 
@@ -3372,9 +3286,7 @@ Args:
 
 ### POST /api/v1/leave-requests/schedule-change
 
-**Create Schedule Change Request**
-
-创建调班申请
+**创建调班申请**
 
 **请求:**
 
@@ -3391,9 +3303,7 @@ Args:
 
 ### POST /api/v1/leave-requests/{request_id}/review
 
-**Review Request**
-
-审核申请
+**审核申请**
 
 **参数:**
 
@@ -3410,9 +3320,7 @@ Args:
 
 ### POST /api/v1/leave-requests/{request_id}/cancel
 
-**Cancel Request**
-
-取消申请
+**取消申请**
 
 **参数:**
 
@@ -3425,7 +3333,7 @@ Args:
 
 ### GET /api/v1/feedbacks
 
-**Get Feedbacks**
+**获取反馈列表**
 
 获取反馈列表（管理端）
 
@@ -3442,9 +3350,7 @@ Args:
 
 ### POST /api/v1/feedbacks
 
-**Create Feedback**
-
-提交反馈
+**提交反馈**
 
 **请求:**
 
@@ -3461,7 +3367,7 @@ Args:
 
 ### GET /api/v1/feedbacks/pending-count
 
-**Get Pending Count**
+**获取待处理数**
 
 获取待处理数量
 
@@ -3469,15 +3375,13 @@ Args:
 
 ### GET /api/v1/feedbacks/statistics
 
-**Get Statistics**
-
-获取反馈统计
+**获取反馈统计**
 
 ---
 
 ### GET /api/v1/feedbacks/my
 
-**Get My Feedbacks**
+**获取我的反馈**
 
 获取我的反馈列表（用户端）
 
@@ -3489,9 +3393,7 @@ Args:
 
 ### GET /api/v1/feedbacks/{feedback_id}
 
-**Get Feedback**
-
-获取反馈详情
+**获取反馈详情**
 
 **参数:**
 
@@ -3501,9 +3403,7 @@ Args:
 
 ### DELETE /api/v1/feedbacks/{feedback_id}
 
-**Delete Feedback**
-
-删除反馈
+**删除反馈**
 
 **参数:**
 
@@ -3513,9 +3413,7 @@ Args:
 
 ### POST /api/v1/feedbacks/{feedback_id}/reply
 
-**Reply Feedback**
-
-回复反馈
+**回复反馈**
 
 **参数:**
 
@@ -3532,9 +3430,7 @@ Args:
 
 ### PATCH /api/v1/feedbacks/{feedback_id}/status
 
-**Update Feedback Status**
-
-更新反馈状态
+**更新反馈状态**
 
 **参数:**
 
@@ -3547,7 +3443,7 @@ Args:
 
 ### GET /api/v1/consultation-fees/types
 
-**Get Fee Types**
+**获取诊费类型列表**
 
 获取诊费类型列表
 - 不传 store_id：返回全局类型
@@ -3563,7 +3459,7 @@ Args:
 
 ### POST /api/v1/consultation-fees/types
 
-**Create Fee Type**
+**创建诊费类型**
 
 创建诊费类型
 - store_id 为空：创建全局类型
@@ -3584,9 +3480,7 @@ Args:
 
 ### GET /api/v1/consultation-fees/types/{fee_type_id}
 
-**Get Fee Type**
-
-获取诊费类型详情
+**获取诊费类型详情**
 
 **参数:**
 
@@ -3596,9 +3490,7 @@ Args:
 
 ### PUT /api/v1/consultation-fees/types/{fee_type_id}
 
-**Update Fee Type**
-
-更新诊费类型
+**更新诊费类型**
 
 **参数:**
 
@@ -3619,9 +3511,7 @@ Args:
 
 ### DELETE /api/v1/consultation-fees/types/{fee_type_id}
 
-**Delete Fee Type**
-
-删除诊费类型
+**删除诊费类型**
 
 **参数:**
 
@@ -3631,7 +3521,7 @@ Args:
 
 ### GET /api/v1/consultation-fees/templates
 
-**Get Fee Templates**
+**获取全局诊费模板列表**
 
 获取全局诊费模板列表（带类型信息）
 
@@ -3639,9 +3529,7 @@ Args:
 
 ### PUT /api/v1/consultation-fees/templates
 
-**Update Fee Templates**
-
-批量更新全局诊费模板
+**批量更新全局诊费模板**
 
 **请求:**
 
@@ -3651,9 +3539,7 @@ Args:
 
 ### POST /api/v1/consultation-fees/templates
 
-**Create Or Update Fee Template**
-
-创建或更新全局诊费模板
+**创建或更新全局诊费模板**
 
 **请求:**
 
@@ -3668,7 +3554,7 @@ Args:
 
 ### GET /api/v1/consultation-fees/store-templates/{store_id}
 
-**Get Store Fee Templates**
+**获取门店诊费模板列表**
 
 获取门店诊费模板列表（带类型信息）
 返回门店可用的所有诊费类型及其模板配置，包含全局模板金额作为参考
@@ -3681,9 +3567,7 @@ Args:
 
 ### POST /api/v1/consultation-fees/store-templates/{store_id}/batch
 
-**Batch Save Store Fee Templates**
-
-批量保存门店诊费模板
+**批量保存门店诊费模板**
 
 **参数:**
 
@@ -3700,9 +3584,7 @@ Args:
 
 ### DELETE /api/v1/consultation-fees/store-templates/{store_id}/{fee_type_id}
 
-**Delete Store Fee Template**
-
-删除门店诊费模板
+**删除门店诊费模板**
 
 **参数:**
 
@@ -3713,9 +3595,7 @@ Args:
 
 ### GET /api/v1/consultation-fees/doctors/{doctor_id}
 
-**Get Doctor Fee Setting**
-
-获取医生诊费设置
+**获取医生诊费设置**
 
 **参数:**
 
@@ -3725,7 +3605,7 @@ Args:
 
 ### GET /api/v1/consultation-fees/doctors/{doctor_id}/grouped
 
-**Get Doctor Fees Grouped**
+**获取医生诊费配置（分组）**
 
 获取医生诊费配置（按门店-科室分组）
 
@@ -3737,7 +3617,7 @@ Args:
 
 ### PUT /api/v1/consultation-fees/doctors/{doctor_id}/use-template
 
-**Update Doctor Use Template**
+**更新医生使用模板设置**
 
 更新医生是否使用诊费模板
 
@@ -3755,9 +3635,7 @@ Args:
 
 ### GET /api/v1/consultation-fees/doctors/{doctor_id}/fees
 
-**Get Doctor Fees**
-
-获取医生诊费配置列表
+**获取医生诊费配置列表**
 
 **参数:**
 
@@ -3769,9 +3647,7 @@ Args:
 
 ### POST /api/v1/consultation-fees/doctors/{doctor_id}/fees/batch
 
-**Batch Save Doctor Fees**
-
-批量保存医生诊费配置
+**批量保存医生诊费配置**
 
 **参数:**
 
@@ -3790,7 +3666,7 @@ Args:
 
 ### POST /api/v1/consultation-fees/doctors/{doctor_id}/apply-template
 
-**Apply Template To Doctor**
+**应用模板到医生**
 
 一键带入模板：将门店模板的金额应用到医生诊费配置
 优先使用门店模板，如果门店未配置则使用全局模板
@@ -3810,7 +3686,7 @@ Args:
 
 ### DELETE /api/v1/consultation-fees/doctors/{doctor_id}/fees/{store_id}/{department_id}
 
-**Delete Doctor Fees By Store Department**
+**删除医生门店科室诊费配置**
 
 删除医生在指定门店科室的所有诊费配置
 
@@ -3826,9 +3702,7 @@ Args:
 
 ### GET /api/v1/doctor-booking-settings
 
-**Get Doctor Booking Settings**
-
-获取医生预约设置列表
+**获取医生预约设置列表**
 
 **参数:**
 
@@ -3842,9 +3716,7 @@ Args:
 
 ### POST /api/v1/doctor-booking-settings
 
-**Create Doctor Booking Setting**
-
-创建医生预约设置
+**创建医生预约设置**
 
 **请求:**
 
@@ -3861,7 +3733,7 @@ Args:
 
 ### GET /api/v1/doctor-booking-settings/existing-doctors
 
-**Get Existing Doctor Ids**
+**获取已配置医生ID列表**
 
 获取指定门店已配置的医生ID列表（用于前端禁用已配置的医生）
 
@@ -3873,9 +3745,7 @@ Args:
 
 ### GET /api/v1/doctor-booking-settings/{setting_id}
 
-**Get Doctor Booking Setting**
-
-获取医生预约设置详情
+**获取医生预约设置详情**
 
 **参数:**
 
@@ -3885,9 +3755,7 @@ Args:
 
 ### PUT /api/v1/doctor-booking-settings/{setting_id}
 
-**Update Doctor Booking Setting**
-
-更新医生预约设置
+**更新医生预约设置**
 
 **参数:**
 
@@ -3906,9 +3774,7 @@ Args:
 
 ### DELETE /api/v1/doctor-booking-settings/{setting_id}
 
-**Delete Doctor Booking Setting**
-
-删除医生预约设置
+**删除医生预约设置**
 
 **参数:**
 
@@ -3918,9 +3784,7 @@ Args:
 
 ### PATCH /api/v1/doctor-booking-settings/{setting_id}/status
 
-**Update Doctor Booking Setting Status**
-
-更新医生预约设置状态
+**更新医生预约设置状态**
 
 **参数:**
 
@@ -3933,7 +3797,7 @@ Args:
 
 ### GET /api/v1/custom-schedules
 
-**Get Custom Schedules**
+**获取列表**
 
 获取自定义排班列表（template_id为NULL的排班）
 
@@ -3953,7 +3817,7 @@ Args:
 
 ### POST /api/v1/custom-schedules
 
-**Create Custom Schedules**
+**创建排班**
 
 创建自定义排班（支持批量）
 
@@ -3971,7 +3835,7 @@ Args:
 
 ### GET /api/v1/custom-schedules/effective
 
-**Get Effective Schedules**
+**获取生效**
 
 获取生效的自定义排班（template_id为NULL的排班）
 
@@ -3986,7 +3850,7 @@ Args:
 
 ### DELETE /api/v1/custom-schedules/{schedule_id}
 
-**Delete Custom Schedule**
+**删除排班**
 
 删除自定义排班（仅能删除template_id为NULL的排班）
 
@@ -4000,7 +3864,7 @@ Args:
 
 ### GET /api/v1/rest-days
 
-**Get Rest Days**
+**获取列表**
 
 获取休息日列表
 
@@ -4018,9 +3882,7 @@ Args:
 
 ### POST /api/v1/rest-days
 
-**Create Rest Day**
-
-添加休息日
+**添加休息日**
 
 **请求:**
 
@@ -4036,9 +3898,7 @@ Args:
 
 ### DELETE /api/v1/rest-days/{rest_day_id}
 
-**Delete Rest Day**
-
-删除休息日
+**删除休息日**
 
 **参数:**
 
@@ -4048,9 +3908,7 @@ Args:
 
 ### PUT /api/v1/rest-days/{rest_day_id}/cancel
 
-**Cancel Rest Day**
-
-取消休息日
+**取消休息日**
 
 **参数:**
 
@@ -4062,9 +3920,7 @@ Args:
 
 ### GET /api/v1/schedule-suspensions
 
-**Get Schedule Suspensions**
-
-获取停诊列表
+**获取停诊列表**
 
 **参数:**
 
@@ -4080,9 +3936,7 @@ Args:
 
 ### POST /api/v1/schedule-suspensions
 
-**Create Schedule Suspension**
-
-创建停诊
+**创建停诊**
 
 **请求:**
 
@@ -4099,7 +3953,7 @@ Args:
 
 ### GET /api/v1/schedule-suspensions/schedules
 
-**Get Available Schedules For Suspension**
+**获取可选排班列表**
 
 获取指定日期的可选排班（用于停诊选择）
 
@@ -4113,9 +3967,7 @@ Args:
 
 ### DELETE /api/v1/schedule-suspensions/{suspension_id}
 
-**Delete Schedule Suspension**
-
-删除停诊记录
+**删除停诊记录**
 
 **参数:**
 
@@ -4125,9 +3977,7 @@ Args:
 
 ### PUT /api/v1/schedule-suspensions/{suspension_id}/cancel
 
-**Cancel Schedule Suspension**
-
-取消停诊
+**取消停诊**
 
 **参数:**
 
@@ -4139,7 +3989,7 @@ Args:
 
 ### GET /api/v1/schedule-templates
 
-**Get Templates**
+**获取列表**
 
 获取排班模板列表
 
@@ -4156,7 +4006,7 @@ Args:
 
 ### POST /api/v1/schedule-templates
 
-**Create Template**
+**创建模板**
 
 创建排班模板
 
@@ -4175,7 +4025,7 @@ Args:
 
 ### GET /api/v1/schedule-templates/{template_id}
 
-**Get Template**
+**获取详情**
 
 获取排班模板详情
 
@@ -4187,7 +4037,7 @@ Args:
 
 ### PUT /api/v1/schedule-templates/{template_id}
 
-**Update Template**
+**更新模板**
 
 更新排班模板
 
@@ -4210,7 +4060,7 @@ Args:
 
 ### DELETE /api/v1/schedule-templates/{template_id}
 
-**Delete Template**
+**删除模板**
 
 删除排班模板
 
@@ -4222,7 +4072,7 @@ Args:
 
 ### POST /api/v1/schedule-templates/preview-generate
 
-**Preview Generate Schedules**
+**预览生成**
 
 预览生成排班（不实际写入数据库）
 
@@ -4238,7 +4088,7 @@ Args:
 
 ### POST /api/v1/schedule-templates/generate-with-capacity
 
-**Generate Schedules With Capacity**
+**批量生成**
 
 根据模板批量生成排班（支持自定义班次容量）
 
@@ -4255,7 +4105,7 @@ Args:
 
 ### POST /api/v1/schedule-templates/generate
 
-**Generate Schedules**
+**批量生成**
 
 根据模板批量生成排班
 
@@ -4271,7 +4121,7 @@ Args:
 
 ### POST /api/v1/schedule-templates/batch-add
 
-**Batch Add Schedules**
+**批量添加**
 
 批量添加排班（不依赖模板）
 
@@ -4290,7 +4140,7 @@ Args:
 
 ### GET /api/v1/schedule-templates/{template_id}/check-generated
 
-**Check Generated**
+**检查生成**
 
 检查规则是否已生成过排班
 
@@ -4304,7 +4154,7 @@ Args:
 
 ### POST /api/v1/schedule-templates/{template_id}/batch-delete
 
-**Batch Delete Schedules**
+**批量删除**
 
 批量删除规则生成的排班
 
@@ -4320,7 +4170,7 @@ Args:
 
 ### POST /api/v1/schedule-templates/{template_id}/batch-suspend
 
-**Batch Suspend Schedules**
+**批量停诊**
 
 批量停诊规则生成的排班
 
@@ -4336,7 +4186,7 @@ Args:
 
 ### GET /api/v1/schedule-templates/{template_id}/logs
 
-**Get Generation Logs**
+**获取历史**
 
 获取规则的生成历史记录
 
@@ -4350,7 +4200,7 @@ Args:
 
 ### POST /api/v1/schedule-templates/{template_id}/copy
 
-**Copy Template To Doctors**
+**复制规则**
 
 复制排班规则给其他医生
 
@@ -4377,7 +4227,7 @@ Args:
 
 ### GET /api/v1/blacklists
 
-**Get Blacklist List**
+**获取列表**
 
 获取黑名单列表
 
@@ -4393,9 +4243,7 @@ Args:
 
 ### POST /api/v1/blacklists
 
-**Add Blacklist**
-
-添加黑名单
+**添加黑名单**
 
 **请求:**
 
@@ -4411,7 +4259,7 @@ Args:
 
 ### DELETE /api/v1/blacklists/{blacklist_id}
 
-**Remove Blacklist**
+**移除黑名单**
 
 移除黑名单（解禁）
 
@@ -4423,7 +4271,7 @@ Args:
 
 ### POST /api/v1/blacklists/check
 
-**Check Blacklist**
+**检查黑名单**
 
 检查是否在黑名单中（公开接口，用于预约时检查）
 
@@ -4440,9 +4288,7 @@ Args:
 
 ### GET /api/v1/email-templates
 
-**Get Email Templates**
-
-获取邮件模板列表
+**获取邮件模板列表**
 
 **参数:**
 
@@ -4456,9 +4302,7 @@ Args:
 
 ### POST /api/v1/email-templates
 
-**Create Email Template**
-
-创建邮件模板
+**创建邮件模板**
 
 **请求:**
 
@@ -4475,7 +4319,7 @@ Args:
 
 ### GET /api/v1/email-templates/all
 
-**Get All Email Templates**
+**获取所有邮件模板**
 
 获取所有邮件模板（不分页）
 
@@ -4487,9 +4331,7 @@ Args:
 
 ### GET /api/v1/email-templates/{template_id}
 
-**Get Email Template**
-
-获取邮件模板详情
+**获取邮件模板详情**
 
 **参数:**
 
@@ -4499,9 +4341,7 @@ Args:
 
 ### PUT /api/v1/email-templates/{template_id}
 
-**Update Email Template**
-
-更新邮件模板
+**更新邮件模板**
 
 **参数:**
 
@@ -4522,9 +4362,7 @@ Args:
 
 ### DELETE /api/v1/email-templates/{template_id}
 
-**Delete Email Template**
-
-删除邮件模板
+**删除邮件模板**
 
 **参数:**
 
@@ -4534,9 +4372,7 @@ Args:
 
 ### POST /api/v1/email-templates/{template_id}/test
 
-**Send Test Email**
-
-发送测试邮件
+**发送测试邮件**
 
 **参数:**
 
@@ -4555,7 +4391,7 @@ Args:
 
 ### POST /api/v1/analytics/track
 
-**Track Event**
+**上报埋点**
 
 单条埋点数据上报
 此接口不需要认证，允许匿名用户上报
@@ -4575,7 +4411,7 @@ Args:
 
 ### POST /api/v1/analytics/batch
 
-**Batch Track Events**
+**批量上报**
 
 批量埋点数据上报
 此接口不需要认证，允许匿名用户上报
@@ -4590,7 +4426,7 @@ Args:
 
 ### GET /api/v1/analytics/logs
 
-**Get Behavior Logs**
+**获取日志列表**
 
 获取用户行为日志列表（管理员）
 
@@ -4608,7 +4444,7 @@ Args:
 
 ### GET /api/v1/analytics/overview
 
-**Get Behavior Overview**
+**获取概览统计**
 
 获取用户行为概览统计（管理员）
 
@@ -4623,9 +4459,7 @@ Args:
 
 ### GET /api/v1/data/export/doctors
 
-**Export Doctors**
-
-导出医生列表
+**导出医生列表**
 
 **参数:**
 
@@ -4637,9 +4471,7 @@ Args:
 
 ### GET /api/v1/data/export/patients
 
-**Export Patients**
-
-导出患者列表
+**导出患者列表**
 
 **参数:**
 
@@ -4649,9 +4481,7 @@ Args:
 
 ### GET /api/v1/data/export/departments
 
-**Export Departments**
-
-导出科室列表
+**导出科室列表**
 
 **参数:**
 
@@ -4662,9 +4492,7 @@ Args:
 
 ### GET /api/v1/data/export/stores
 
-**Export Stores**
-
-导出门店列表
+**导出门店列表**
 
 **参数:**
 
@@ -4674,73 +4502,55 @@ Args:
 
 ### GET /api/v1/data/template/doctors
 
-**Download Doctor Template**
-
-下载医生导入模板
+**下载医生导入模板**
 
 ---
 
 ### GET /api/v1/data/template/patients
 
-**Download Patient Template**
-
-下载患者导入模板
+**下载患者导入模板**
 
 ---
 
 ### GET /api/v1/data/template/departments
 
-**Download Department Template**
-
-下载科室导入模板
+**下载科室导入模板**
 
 ---
 
 ### GET /api/v1/data/template/stores
 
-**Download Store Template**
-
-下载门店导入模板
+**下载门店导入模板**
 
 ---
 
 ### POST /api/v1/data/import/doctors
 
-**Import Doctors**
-
-导入医生数据
+**导入医生数据**
 
 ---
 
 ### POST /api/v1/data/import/patients
 
-**Import Patients**
-
-导入患者数据
+**导入患者数据**
 
 ---
 
 ### POST /api/v1/data/import/departments
 
-**Import Departments**
-
-导入科室数据
+**导入科室数据**
 
 ---
 
 ### POST /api/v1/data/import/stores
 
-**Import Stores**
-
-导入门店数据
+**导入门店数据**
 
 ---
 
 ### GET /api/v1/data/export/schedule-templates
 
-**Export Schedule Templates**
-
-导出排班模板列表
+**导出排班模板列表**
 
 **参数:**
 
@@ -4752,9 +4562,7 @@ Args:
 
 ### GET /api/v1/data/export/users
 
-**Export Users**
-
-导出系统用户列表
+**导出系统用户列表**
 
 **参数:**
 
@@ -4765,9 +4573,7 @@ Args:
 
 ### GET /api/v1/data/export/logs
 
-**Export Logs**
-
-导出操作日志
+**导出操作日志**
 
 **参数:**
 
@@ -4780,9 +4586,7 @@ Args:
 
 ### GET /api/v1/data/export/feedbacks
 
-**Export Feedbacks**
-
-导出用户反馈
+**导出用户反馈**
 
 **参数:**
 
@@ -4793,7 +4597,7 @@ Args:
 
 ### GET /api/v1/data/export/rule-sets
 
-**Export Rule Sets**
+**导出规则组列表**
 
 导出规则组列表（多工作表）
 
@@ -4805,7 +4609,7 @@ Args:
 
 ### GET /api/v1/data/template/rule-sets
 
-**Download Rule Set Template**
+**下载规则组导入模板**
 
 下载规则组导入模板（多工作表）
 
@@ -4813,7 +4617,7 @@ Args:
 
 ### POST /api/v1/data/import/rule-sets
 
-**Import Rule Sets**
+**导入规则组数据**
 
 导入规则组数据（多工作表）
 
@@ -4823,7 +4627,7 @@ Args:
 
 ### GET /api/v1/booking-notices/public
 
-**Get Public Notices**
+**获取生效预约须知列表**
 
 获取生效的预约须知列表（公开接口，供小程序端调用）
 
@@ -4835,7 +4639,7 @@ Args:
 
 ### GET /api/v1/booking-notices
 
-**Get Notices**
+**获取预约须知列表**
 
 获取预约须知列表（管理端）
 
@@ -4850,9 +4654,7 @@ Args:
 
 ### POST /api/v1/booking-notices
 
-**Create Notice**
-
-创建预约须知
+**创建预约须知**
 
 **请求:**
 
@@ -4868,9 +4670,7 @@ Args:
 
 ### GET /api/v1/booking-notices/{notice_id}
 
-**Get Notice**
-
-获取预约须知详情
+**获取预约须知详情**
 
 **参数:**
 
@@ -4880,9 +4680,7 @@ Args:
 
 ### PUT /api/v1/booking-notices/{notice_id}
 
-**Update Notice**
-
-更新预约须知
+**更新预约须知**
 
 **参数:**
 
@@ -4902,9 +4700,7 @@ Args:
 
 ### DELETE /api/v1/booking-notices/{notice_id}
 
-**Delete Notice**
-
-删除预约须知
+**删除预约须知**
 
 **参数:**
 
@@ -4914,9 +4710,7 @@ Args:
 
 ### PATCH /api/v1/booking-notices/{notice_id}/status
 
-**Update Notice Status**
-
-更新预约须知状态
+**更新预约须知状态**
 
 **参数:**
 
@@ -4929,7 +4723,7 @@ Args:
 
 ### GET /api/v1/favorites
 
-**Get Favorites**
+**获取收藏列表**
 
 获取当前用户收藏列表
 
@@ -4943,9 +4737,7 @@ Args:
 
 ### POST /api/v1/favorites
 
-**Create Favorite**
-
-添加收藏
+**添加收藏**
 
 **请求:**
 
@@ -4958,9 +4750,7 @@ Args:
 
 ### GET /api/v1/favorites/check
 
-**Check Favorite**
-
-检查是否已收藏
+**检查是否已收藏**
 
 **参数:**
 
@@ -4971,7 +4761,7 @@ Args:
 
 ### DELETE /api/v1/favorites/{favorite_id}
 
-**Delete Favorite**
+**取消收藏**
 
 取消收藏（通过收藏ID）
 
@@ -4983,7 +4773,7 @@ Args:
 
 ### DELETE /api/v1/favorites/target/{target_type}/{target_id}
 
-**Delete Favorite By Target**
+**取消收藏**
 
 取消收藏（通过目标类型和ID）
 
@@ -4998,9 +4788,7 @@ Args:
 
 ### GET /api/v1/visit-type-configs/store/{store_id}
 
-**Get Store Visit Type Config**
-
-获取门店复诊规则配置
+**获取门店复诊规则配置**
 
 **参数:**
 
@@ -5010,7 +4798,7 @@ Args:
 
 ### PUT /api/v1/visit-type-configs/store/{store_id}
 
-**Update Store Visit Type Config**
+**更新门店复诊规则配置**
 
 更新门店复诊规则配置（不存在则创建）
 
@@ -5031,7 +4819,7 @@ Args:
 
 ### DELETE /api/v1/visit-type-configs/store/{store_id}
 
-**Delete Store Visit Type Config**
+**删除门店复诊规则配置**
 
 删除门店复诊规则配置（恢复默认）
 
@@ -5045,9 +4833,7 @@ Args:
 
 ### GET /api/v1/rule-sets
 
-**Get Rule Sets**
-
-获取规则组列表
+**获取规则组列表**
 
 **参数:**
 
@@ -5060,7 +4846,7 @@ Args:
 
 ### POST /api/v1/rule-sets
 
-**Create Rule Set**
+**创建规则组**
 
 创建规则组（仅超级管理员）
 
@@ -5079,9 +4865,7 @@ Args:
 
 ### GET /api/v1/rule-sets/{rule_set_id}
 
-**Get Rule Set**
-
-获取规则组详情
+**获取规则组详情**
 
 **参数:**
 
@@ -5091,7 +4875,7 @@ Args:
 
 ### PUT /api/v1/rule-sets/{rule_set_id}
 
-**Update Rule Set**
+**更新规则组**
 
 更新规则组（仅超级管理员）
 
@@ -5114,7 +4898,7 @@ Args:
 
 ### DELETE /api/v1/rule-sets/{rule_set_id}
 
-**Delete Rule Set**
+**删除规则组**
 
 删除规则组（仅超级管理员）
 
@@ -5126,7 +4910,7 @@ Args:
 
 ### POST /api/v1/rule-sets/{rule_set_id}/enable
 
-**Enable Rule Set**
+**启用规则组**
 
 启用规则组（仅超级管理员）
 
@@ -5138,7 +4922,7 @@ Args:
 
 ### POST /api/v1/rule-sets/{rule_set_id}/disable
 
-**Disable Rule Set**
+**禁用规则组**
 
 禁用规则组（仅超级管理员）
 
@@ -5150,7 +4934,7 @@ Args:
 
 ### POST /api/v1/rule-sets/preview
 
-**Preview Rule**
+**预览规则效果**
 
 预览规则效果
 
@@ -5170,7 +4954,7 @@ Args:
 
 ### POST /api/v1/rule-sets/{rule_set_id}/windows
 
-**Create Window**
+**创建时间窗**
 
 创建时间窗（仅超级管理员）
 
@@ -5193,7 +4977,7 @@ Args:
 
 ### PUT /api/v1/rule-sets/windows/{window_id}
 
-**Update Window**
+**更新时间窗**
 
 更新时间窗（仅超级管理员）
 
@@ -5216,7 +5000,7 @@ Args:
 
 ### DELETE /api/v1/rule-sets/windows/{window_id}
 
-**Delete Window**
+**删除时间窗**
 
 删除时间窗（仅超级管理员）
 
@@ -5228,7 +5012,7 @@ Args:
 
 ### PUT /api/v1/rule-sets/{rule_set_id}/booking-policy
 
-**Update Booking Policy**
+**更新预约策略**
 
 更新预约策略（仅超级管理员）
 
@@ -5253,7 +5037,7 @@ Args:
 
 ### PUT /api/v1/rule-sets/{rule_set_id}/checkin-policy
 
-**Update Checkin Policy**
+**更新签到策略**
 
 更新签到策略（仅超级管理员）
 
@@ -5278,7 +5062,7 @@ Args:
 
 ### PUT /api/v1/rule-sets/{rule_set_id}/capacity-policy
 
-**Update Capacity Policy**
+**更新容量策略**
 
 更新容量策略（仅超级管理员）
 
@@ -5305,9 +5089,7 @@ Args:
 
 ### GET /api/v1/shift-types
 
-**Get Shift Types**
-
-获取班次类型列表
+**获取班次类型列表**
 
 **参数:**
 
@@ -5320,7 +5102,7 @@ Args:
 
 ### POST /api/v1/shift-types
 
-**Create Shift Type**
+**创建班次类型**
 
 创建班次类型（仅超级管理员）
 
@@ -5337,7 +5119,7 @@ Args:
 
 ### GET /api/v1/shift-types/all
 
-**Get All Shift Types**
+**获取所有启用班次类型**
 
 获取所有启用的班次类型（用于下拉选择）
 
@@ -5345,9 +5127,7 @@ Args:
 
 ### GET /api/v1/shift-types/{shift_type_id}
 
-**Get Shift Type**
-
-获取班次类型详情
+**获取班次类型详情**
 
 **参数:**
 
@@ -5357,7 +5137,7 @@ Args:
 
 ### PUT /api/v1/shift-types/{shift_type_id}
 
-**Update Shift Type**
+**更新班次类型**
 
 更新班次类型（仅超级管理员）
 
@@ -5377,7 +5157,7 @@ Args:
 
 ### DELETE /api/v1/shift-types/{shift_type_id}
 
-**Delete Shift Type**
+**删除班次类型**
 
 删除班次类型（仅超级管理员）
 
@@ -5425,7 +5205,7 @@ Args:
 
 ### GET /api/v1/ws/online-doctors
 
-**Get Online Doctors**
+**获取在线医生列表**
 
 获取当前在线的医生列表（调试用）
 
@@ -5435,7 +5215,7 @@ Args:
 
 ### GET /api/v1/doctor-portal/me
 
-**Get My Info**
+**获取我的信息**
 
 获取当前医生信息
 
@@ -5443,7 +5223,7 @@ Args:
 
 ### GET /api/v1/doctor-portal/schedules
 
-**Get My Schedules**
+**获取排班列表**
 
 获取当前医生的排班列表
 
@@ -5459,7 +5239,7 @@ Args:
 
 ### GET /api/v1/doctor-portal/schedules/today
 
-**Get My Today Schedules**
+**获取今日排班**
 
 获取当前医生今日排班
 
@@ -5467,7 +5247,7 @@ Args:
 
 ### GET /api/v1/doctor-portal/appointments
 
-**Get My Appointments**
+**获取预约列表**
 
 获取当前医生的预约列表
 
@@ -5485,7 +5265,7 @@ Args:
 
 ### GET /api/v1/doctor-portal/appointments/today
 
-**Get My Today Appointments**
+**获取今日预约**
 
 获取当前医生今日预约
 
@@ -5493,7 +5273,7 @@ Args:
 
 ### GET /api/v1/doctor-portal/queue
 
-**Get My Queue**
+**获取叫号队列**
 
 获取当前医生的签到队列
 
@@ -5507,7 +5287,7 @@ Args:
 
 ### GET /api/v1/doctor-portal/queue/info
 
-**Get My Queue Info**
+**获取队列信息**
 
 获取当前医生的叫号队列统计信息
 
@@ -5515,7 +5295,7 @@ Args:
 
 ### PUT /api/v1/doctor-portal/appointments/{appointment_id}/call
 
-**Call Patient**
+**叫号**
 
 叫号 - 只能叫自己的患者
 
@@ -5527,7 +5307,7 @@ Args:
 
 ### PUT /api/v1/doctor-portal/appointments/{appointment_id}/complete
 
-**Complete Consultation**
+**完成就诊**
 
 完成就诊 - 只能操作自己的患者
 
@@ -5539,7 +5319,7 @@ Args:
 
 ### PUT /api/v1/doctor-portal/appointments/{appointment_id}/pass
 
-**Pass Patient**
+**过号**
 
 过号 - 只能操作自己的患者
 
@@ -5551,7 +5331,7 @@ Args:
 
 ### PUT /api/v1/doctor-portal/appointments/{appointment_id}/recall
 
-**Recall Patient**
+**重新叫号**
 
 重新叫号 - 只能操作自己的患者
 
@@ -5563,7 +5343,7 @@ Args:
 
 ### PUT /api/v1/doctor-portal/appointments/{appointment_id}/no-show
 
-**Mark Patient No Show**
+**标记爽约**
 
 标记爽约 - 只能操作自己的患者
 
@@ -5575,7 +5355,7 @@ Args:
 
 ### GET /api/v1/doctor-portal/statistics/today
 
-**Get My Today Statistics**
+**获取今日统计**
 
 获取当前医生今日统计数据
 
@@ -5583,7 +5363,7 @@ Args:
 
 ### GET /api/v1/doctor-portal/patients/{patient_id}/appointments
 
-**Get Patient History**
+**获取患者历史**
 
 获取患者在当前医生处的历史就诊记录
 
@@ -5600,7 +5380,7 @@ Args:
 
 ### POST /api/v1/doctor-portal/appointments/{appointment_id}/follow-up
 
-**Create Follow Up Booking**
+**创建复诊预约**
 
 为患者创建复诊预约
 

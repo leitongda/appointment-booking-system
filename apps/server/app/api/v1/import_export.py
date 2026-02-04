@@ -7,7 +7,7 @@ from datetime import date, datetime
 from io import BytesIO
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_permission
 from app.services.excel_service import ExcelExportService, ExcelImportService
 from app.services.import_service import ImportService
 from app.models.doctor import Doctor
@@ -21,7 +21,7 @@ router = APIRouter()
 
 # ==================== 导出接口 ====================
 
-@router.get("/export/doctors")
+@router.get("/export/doctors", summary="导出医生列表")
 async def export_doctors(
     store_id: Optional[str] = None,
     department_id: Optional[str] = None,
@@ -77,7 +77,7 @@ async def export_doctors(
     )
 
 
-@router.get("/export/patients")
+@router.get("/export/patients", summary="导出患者列表")
 async def export_patients(
     keyword: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
@@ -130,7 +130,7 @@ async def export_patients(
     )
 
 
-@router.get("/export/departments")
+@router.get("/export/departments", summary="导出科室列表")
 async def export_departments(
     store_id: Optional[str] = None,
     status: Optional[int] = None,
@@ -176,7 +176,7 @@ async def export_departments(
     )
 
 
-@router.get("/export/stores")
+@router.get("/export/stores", summary="导出门店列表")
 async def export_stores(
     status: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
@@ -218,7 +218,7 @@ async def export_stores(
 
 # ==================== 导入模板下载 ====================
 
-@router.get("/template/doctors")
+@router.get("/template/doctors", summary="下载医生导入模板")
 async def download_doctor_template(
     current_admin = Depends(get_current_admin),
 ):
@@ -249,7 +249,7 @@ async def download_doctor_template(
     )
 
 
-@router.get("/template/patients")
+@router.get("/template/patients", summary="下载患者导入模板")
 async def download_patient_template(
     current_admin = Depends(get_current_admin),
 ):
@@ -282,7 +282,7 @@ async def download_patient_template(
     )
 
 
-@router.get("/template/departments")
+@router.get("/template/departments", summary="下载科室导入模板")
 async def download_department_template(
     current_admin = Depends(get_current_admin),
 ):
@@ -312,7 +312,7 @@ async def download_department_template(
     )
 
 
-@router.get("/template/stores")
+@router.get("/template/stores", summary="下载门店导入模板")
 async def download_store_template(
     current_admin = Depends(get_current_admin),
 ):
@@ -343,11 +343,12 @@ async def download_store_template(
 
 # ==================== 导入接口 ====================
 
-@router.post("/import/doctors")
+@router.post("/import/doctors", summary="导入医生数据")
 async def import_doctors(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("doctor:create")),
 ):
     """导入医生数据"""
     if not file.filename.endswith(('.xlsx', '.xls')):
@@ -402,11 +403,12 @@ async def import_doctors(
     return result
 
 
-@router.post("/import/patients")
+@router.post("/import/patients", summary="导入患者数据")
 async def import_patients(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:create")),
 ):
     """导入患者数据"""
     if not file.filename.endswith(('.xlsx', '.xls')):
@@ -450,11 +452,12 @@ async def import_patients(
     return result
 
 
-@router.post("/import/departments")
+@router.post("/import/departments", summary="导入科室数据")
 async def import_departments(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("department:create")),
 ):
     """导入科室数据"""
     if not file.filename.endswith(('.xlsx', '.xls')):
@@ -501,11 +504,12 @@ async def import_departments(
     return result
 
 
-@router.post("/import/stores")
+@router.post("/import/stores", summary="导入门店数据")
 async def import_stores(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("store:create")),
 ):
     """导入门店数据"""
     if not file.filename.endswith(('.xlsx', '.xls')):
@@ -538,7 +542,7 @@ async def import_stores(
 
 # ==================== 排班模板导出 ====================
 
-@router.get("/export/schedule-templates")
+@router.get("/export/schedule-templates", summary="导出排班模板列表")
 async def export_schedule_templates(
     store_id: Optional[str] = None,
     doctor_id: Optional[str] = None,
@@ -608,7 +612,7 @@ async def export_schedule_templates(
 
 # ==================== 系统用户导出 ====================
 
-@router.get("/export/users")
+@router.get("/export/users", summary="导出系统用户列表")
 async def export_users(
     store_id: Optional[str] = None,
     status: Optional[int] = None,
@@ -667,7 +671,7 @@ async def export_users(
 
 # ==================== 操作日志导出 ====================
 
-@router.get("/export/logs")
+@router.get("/export/logs", summary="导出操作日志")
 async def export_logs(
     module: Optional[str] = None,
     log_result: Optional[str] = None,
@@ -727,7 +731,7 @@ async def export_logs(
 
 # ==================== 用户反馈导出 ====================
 
-@router.get("/export/feedbacks")
+@router.get("/export/feedbacks", summary="导出用户反馈")
 async def export_feedbacks(
     status: Optional[str] = None,
     feedback_type: Optional[str] = None,
@@ -778,7 +782,7 @@ async def export_feedbacks(
 
 # ==================== 规则组导入导出 ====================
 
-@router.get("/export/rule-sets")
+@router.get("/export/rule-sets", summary="导出规则组列表")
 async def export_rule_sets(
     enabled: Optional[bool] = None,
     db: AsyncSession = Depends(get_db),
@@ -926,7 +930,7 @@ async def export_rule_sets(
     )
 
 
-@router.get("/template/rule-sets")
+@router.get("/template/rule-sets", summary="下载规则组导入模板")
 async def download_rule_set_template(
     current_admin = Depends(get_current_admin),
 ):
@@ -1046,11 +1050,12 @@ async def download_rule_set_template(
     )
 
 
-@router.post("/import/rule-sets")
+@router.post("/import/rule-sets", summary="导入规则组数据")
 async def import_rule_sets(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("settings:edit")),
 ):
     """导入规则组数据（多工作表）"""
     if not file.filename.endswith(('.xlsx', '.xls')):

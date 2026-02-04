@@ -61,13 +61,13 @@ class ShiftTypeResponse(ShiftTypeBase):
 class RuleSetBase(BaseModel):
     """规则组基础模型"""
     name: str = Field(..., max_length=200, description="规则组名称")
-    enabled: bool = True
+    enabled: bool = Field(True, description="是否启用")
     priority: int = Field(100, ge=1, le=999, description="优先级(越小越优先)")
     time_source: str = Field('SERVER', description="时间来源: SERVER/CLIENT")
     timezone_source: str = Field('HOSPITAL', description="时区来源")
     compare_precision: str = Field('SECOND', description="比较精度")
-    default_open_inclusive: bool = True
-    default_close_inclusive: bool = False  # 与前端默认值保持一致
+    default_open_inclusive: bool = Field(True, description="默认开放边界包含")
+    default_close_inclusive: bool = Field(False, description="默认截止边界包含")
     rounding_mode: str = Field('NONE', description="取整模式")
     clock_skew_tolerance_sec: int = Field(5, ge=0, description="时钟偏差容忍度(秒)")
     description: Optional[str] = Field(None, description="描述")
@@ -94,18 +94,18 @@ class RuleSetUpdate(BaseModel):
         populate_by_name=True,
     )
 
-    name: Optional[str] = Field(None, max_length=200)
-    enabled: Optional[bool] = None
-    priority: Optional[int] = Field(None, ge=1, le=999)
-    description: Optional[str] = None
-    time_source: Optional[str] = None
-    timezone_source: Optional[str] = None
-    compare_precision: Optional[str] = None
-    default_open_inclusive: Optional[bool] = None
-    default_close_inclusive: Optional[bool] = None
-    rounding_mode: Optional[str] = None
-    clock_skew_tolerance_sec: Optional[int] = Field(None, ge=0)
-    shift_type_ids: Optional[List[str]] = None
+    name: Optional[str] = Field(None, max_length=200, description="规则组名称")
+    enabled: Optional[bool] = Field(None, description="是否启用")
+    priority: Optional[int] = Field(None, ge=1, le=999, description="优先级")
+    description: Optional[str] = Field(None, description="描述")
+    time_source: Optional[str] = Field(None, description="时间来源")
+    timezone_source: Optional[str] = Field(None, description="时区来源")
+    compare_precision: Optional[str] = Field(None, description="比较精度")
+    default_open_inclusive: Optional[bool] = Field(None, description="开放边界包含")
+    default_close_inclusive: Optional[bool] = Field(None, description="截止边界包含")
+    rounding_mode: Optional[str] = Field(None, description="取整模式")
+    clock_skew_tolerance_sec: Optional[int] = Field(None, ge=0, description="时钟偏差容忍度")
+    shift_type_ids: Optional[List[str]] = Field(None, description="班次类型ID列表")
 
 
 class RuleSetResponse(RuleSetBase):
@@ -150,8 +150,8 @@ class RuleWindowBase(BaseModel):
     close_inclusive: Optional[bool] = Field(None, description="截止边界包含")
     fail_policy: str = Field('REJECT', description="失败策略: REJECT/ALLOW_WITH_TAG/AUTO_TO_WAITLIST")
     fail_tag: Optional[str] = Field(None, max_length=100, description="失败标签")
-    enabled: bool = True
-    description: Optional[str] = None
+    enabled: bool = Field(True, description="是否启用")
+    description: Optional[str] = Field(None, description="描述")
 
 
 class RuleWindowCreate(RuleWindowBase):
@@ -169,14 +169,14 @@ class RuleWindowUpdate(BaseModel):
         populate_by_name=True,
     )
 
-    open_offset_sec: Optional[int] = None
-    close_offset_sec: Optional[int] = None
-    open_inclusive: Optional[bool] = None
-    close_inclusive: Optional[bool] = None
-    fail_policy: Optional[str] = None
-    fail_tag: Optional[str] = None
-    enabled: Optional[bool] = None
-    description: Optional[str] = None
+    open_offset_sec: Optional[int] = Field(None, description="开放偏移(秒)")
+    close_offset_sec: Optional[int] = Field(None, description="截止偏移(秒)")
+    open_inclusive: Optional[bool] = Field(None, description="开放边界包含")
+    close_inclusive: Optional[bool] = Field(None, description="截止边界包含")
+    fail_policy: Optional[str] = Field(None, description="失败策略")
+    fail_tag: Optional[str] = Field(None, description="失败标签")
+    enabled: Optional[bool] = Field(None, description="是否启用")
+    description: Optional[str] = Field(None, description="描述")
 
 
 class RuleWindowResponse(RuleWindowBase):
@@ -198,8 +198,8 @@ class RuleWindowResponse(RuleWindowBase):
 
 class RuleBookingPolicyBase(BaseModel):
     """预约策略基础模型"""
-    require_auth: bool = True
-    require_patient_profile_complete: bool = False
+    require_auth: bool = Field(True, description="是否需要认证")
+    require_patient_profile_complete: bool = Field(False, description="是否需要完善患者资料")
     per_user_per_shift: int = Field(1, ge=0, description="每用户每班次最大预约数")
     per_user_per_day: Optional[int] = Field(None, ge=0, description="每用户每天最大预约数")
     per_user_per_week: Optional[int] = Field(None, ge=0, description="每用户每周最大预约数")
@@ -232,10 +232,10 @@ class RuleBookingPolicyResponse(RuleBookingPolicyBase):
 
 class RuleCheckinPolicyBase(BaseModel):
     """签到策略基础模型"""
-    require_booking: bool = True
-    allow_onsite_booking: bool = False
+    require_booking: bool = Field(True, description="是否需要预约")
+    allow_onsite_booking: bool = Field(False, description="允许现场预约")
     max_times: int = Field(1, ge=1, description="允许签到次数")
-    audit_log: bool = True
+    audit_log: bool = Field(True, description="是否记录审计日志")
     grace_period_sec: int = Field(0, ge=0, description="宽限期(秒)")
     after_grace_status: Optional[str] = Field(None, description="宽限后状态: LATE/ON_TIME")
     no_checkin_after_close: str = Field('KEEP_BOOKED', description="截止后未签到处理: KEEP_BOOKED/AUTO_CANCEL/ABSENT")
@@ -267,10 +267,10 @@ class RuleCapacityPolicyBase(BaseModel):
     """容量策略基础模型"""
     total_capacity: int = Field(0, ge=0, description="总容量,0表示不限制")
     per_user_capacity: int = Field(1, ge=1, description="每用户容量")
-    waitlist_enabled: bool = False
+    waitlist_enabled: bool = Field(False, description="是否启用候补队列")
     waitlist_max_size: int = Field(0, ge=0, description="候补队列最大长度")
     waitlist_promote_policy: str = Field('MANUAL', description="候补递补策略: MANUAL/AUTO")
-    overbooking_enabled: bool = False
+    overbooking_enabled: bool = Field(False, description="是否允许超额预约")
     overbooking_max: int = Field(0, ge=0, description="超额最大数量")
 
 
@@ -321,13 +321,13 @@ class WindowCheckResult(BaseModel):
         by_alias=True
     )
 
-    allowed: bool
-    open_at: datetime
-    close_at: datetime
-    current_time: datetime
-    fail_policy: str
-    fail_tag: Optional[str] = None
-    message: str
+    allowed: bool = Field(..., description="是否允许操作")
+    open_at: datetime = Field(..., description="开放时间")
+    close_at: datetime = Field(..., description="截止时间")
+    current_time: datetime = Field(..., description="当前时间")
+    fail_policy: str = Field(..., description="失败策略")
+    fail_tag: Optional[str] = Field(None, description="失败标签")
+    message: str = Field(..., description="结果消息")
 
 
 class RulePreviewResponse(BaseModel):

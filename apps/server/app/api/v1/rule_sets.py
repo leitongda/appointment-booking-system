@@ -25,7 +25,7 @@ from app.core.config import settings
 router = APIRouter()
 
 
-@router.get("", response_model=PageResult[RuleSetDetailResponse])
+@router.get("", response_model=PageResult[RuleSetDetailResponse], summary="获取规则组列表")
 async def get_rule_sets(
     enabled: Optional[bool] = Query(None, description="是否启用"),
     shift_type_id: Optional[str] = Query(None, description="班次类型ID"),
@@ -45,7 +45,7 @@ async def get_rule_sets(
     return {"data": rule_sets, "total": total}
 
 
-@router.get("/{rule_set_id}", response_model=RuleSetDetailResponse)
+@router.get("/{rule_set_id}", response_model=RuleSetDetailResponse, summary="获取规则组详情")
 async def get_rule_set(
     rule_set_id: str,
     db: AsyncSession = Depends(get_db),
@@ -62,7 +62,7 @@ async def get_rule_set(
     return rule_set
 
 
-@router.post("", response_model=RuleSetDetailResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=RuleSetDetailResponse, status_code=status.HTTP_201_CREATED, summary="创建规则组")
 async def create_rule_set(
     data: RuleSetCreate,
     db: AsyncSession = Depends(get_db),
@@ -80,7 +80,7 @@ async def create_rule_set(
     return rule_set
 
 
-@router.put("/{rule_set_id}", response_model=RuleSetDetailResponse)
+@router.put("/{rule_set_id}", response_model=RuleSetDetailResponse, summary="更新规则组")
 async def update_rule_set(
     rule_set_id: str,
     data: RuleSetUpdate,
@@ -104,7 +104,7 @@ async def update_rule_set(
     return rule_set
 
 
-@router.delete("/{rule_set_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{rule_set_id}", status_code=status.HTTP_204_NO_CONTENT, summary="删除规则组")
 async def delete_rule_set(
     rule_set_id: str,
     db: AsyncSession = Depends(get_db),
@@ -121,7 +121,7 @@ async def delete_rule_set(
     return None
 
 
-@router.post("/{rule_set_id}/enable", status_code=status.HTTP_200_OK)
+@router.post("/{rule_set_id}/enable", status_code=status.HTTP_200_OK, summary="启用规则组")
 async def enable_rule_set(
     rule_set_id: str,
     db: AsyncSession = Depends(get_db),
@@ -138,7 +138,7 @@ async def enable_rule_set(
     return {"message": "启用成功"}
 
 
-@router.post("/{rule_set_id}/disable", status_code=status.HTTP_200_OK)
+@router.post("/{rule_set_id}/disable", status_code=status.HTTP_200_OK, summary="禁用规则组")
 async def disable_rule_set(
     rule_set_id: str,
     db: AsyncSession = Depends(get_db),
@@ -155,7 +155,7 @@ async def disable_rule_set(
     return {"message": "禁用成功"}
 
 
-@router.post("/preview", response_model=RulePreviewResponse)
+@router.post("/preview", response_model=RulePreviewResponse, summary="预览规则效果")
 async def preview_rule(
     data: RulePreviewRequest,
     db: AsyncSession = Depends(get_db),
@@ -190,7 +190,7 @@ async def preview_rule(
 
 # ==================== RuleWindow 独立管理 ====================
 
-@router.post("/{rule_set_id}/windows", response_model=RuleWindowResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/{rule_set_id}/windows", response_model=RuleWindowResponse, status_code=status.HTTP_201_CREATED, summary="创建时间窗")
 async def create_window(
     rule_set_id: str,
     data: RuleWindowCreate,
@@ -208,7 +208,7 @@ async def create_window(
     return window
 
 
-@router.put("/windows/{window_id}", response_model=RuleWindowResponse)
+@router.put("/windows/{window_id}", response_model=RuleWindowResponse, summary="更新时间窗")
 async def update_window(
     window_id: str,
     data: RuleWindowUpdate,
@@ -226,7 +226,7 @@ async def update_window(
     return window
 
 
-@router.delete("/windows/{window_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/windows/{window_id}", status_code=status.HTTP_204_NO_CONTENT, summary="删除时间窗")
 async def delete_window(
     window_id: str,
     db: AsyncSession = Depends(get_db),
@@ -245,7 +245,7 @@ async def delete_window(
 
 # ==================== Policy 独立管理 ====================
 
-@router.put("/{rule_set_id}/booking-policy", response_model=RuleBookingPolicyResponse)
+@router.put("/{rule_set_id}/booking-policy", response_model=RuleBookingPolicyResponse, summary="更新预约策略")
 async def update_booking_policy(
     rule_set_id: str,
     data: RuleBookingPolicyCreate,
@@ -270,7 +270,7 @@ async def update_booking_policy(
     return policy
 
 
-@router.put("/{rule_set_id}/checkin-policy", response_model=RuleCheckinPolicyResponse)
+@router.put("/{rule_set_id}/checkin-policy", response_model=RuleCheckinPolicyResponse, summary="更新签到策略")
 async def update_checkin_policy(
     rule_set_id: str,
     data: RuleCheckinPolicyCreate,
@@ -295,7 +295,7 @@ async def update_checkin_policy(
     return policy
 
 
-@router.put("/{rule_set_id}/capacity-policy", response_model=RuleCapacityPolicyResponse)
+@router.put("/{rule_set_id}/capacity-policy", response_model=RuleCapacityPolicyResponse, summary="更新容量策略")
 async def update_capacity_policy(
     rule_set_id: str,
     data: RuleCapacityPolicyCreate,

@@ -11,14 +11,22 @@ def to_camel(string: str) -> str:
 
 
 class AppointmentCreate(BaseModel):
+    """创建预约请求"""
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "scheduleId": "sch_abc123def456",
+                "patientId": "pat_xyz789abc",
+                "symptomDescription": "头痛三天，伴有轻微发热"
+            }
+        }
     )
     
-    schedule_id: str = Field(..., description="排班ID")
-    patient_id: str = Field(..., description="就诊人ID")
-    symptom_description: Optional[str] = Field(None, max_length=500, description="病情描述/预填信息")
+    schedule_id: str = Field(..., description="排班ID", examples=["sch_abc123def456"])
+    patient_id: str = Field(..., description="就诊人ID", examples=["pat_xyz789abc"])
+    symptom_description: Optional[str] = Field(None, max_length=500, description="病情描述/预填信息", examples=["头痛三天，伴有轻微发热"])
 
 
 class AppointmentResponse(BaseModel):
@@ -77,9 +85,14 @@ class AppointmentCancelRequest(BaseModel):
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "reason": "临时有事无法前往"
+            }
+        }
     )
     
-    reason: Optional[str] = Field(None, max_length=200, description="取消原因")
+    reason: Optional[str] = Field(None, max_length=200, description="取消原因", examples=["临时有事无法前往", "预约错误", "身体不适已恢复"])
 
 
 class AppointmentStatistics(BaseModel):

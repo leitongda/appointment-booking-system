@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 
 from app.db.session import get_db
+from app.api.deps import get_current_admin, require_permission
 from app.schemas.doctor_booking_setting import (
     DoctorBookingSettingCreate,
     DoctorBookingSettingUpdate,
@@ -16,7 +17,7 @@ from app.core.config import settings
 router = APIRouter()
 
 
-@router.get("", response_model=PageResponse[DoctorBookingSettingResponse])
+@router.get("", response_model=PageResponse[DoctorBookingSettingResponse], summary="获取医生预约设置列表")
 async def get_doctor_booking_settings(
     store_id: Optional[str] = None,
     doctor_id: Optional[str] = None,
@@ -44,7 +45,7 @@ async def get_doctor_booking_settings(
     )
 
 
-@router.get("/existing-doctors", response_model=List[str])
+@router.get("/existing-doctors", response_model=List[str], summary="获取已配置医生ID列表")
 async def get_existing_doctor_ids(
     store_id: str = Query(..., description="门店ID"),
     db: AsyncSession = Depends(get_db)
@@ -54,7 +55,7 @@ async def get_existing_doctor_ids(
     return await service.get_existing_doctor_ids(store_id)
 
 
-@router.get("/{setting_id}", response_model=DoctorBookingSettingResponse)
+@router.get("/{setting_id}", response_model=DoctorBookingSettingResponse, summary="获取医生预约设置详情")
 async def get_doctor_booking_setting(
     setting_id: str,
     db: AsyncSession = Depends(get_db)
@@ -72,10 +73,12 @@ async def get_doctor_booking_setting(
     return DoctorBookingSettingResponse.model_validate(setting)
 
 
-@router.post("", response_model=DoctorBookingSettingResponse)
+@router.post("", response_model=DoctorBookingSettingResponse, summary="创建医生预约设置")
 async def create_doctor_booking_setting(
     data: DoctorBookingSettingCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("doctor:update"))
 ):
     """创建医生预约设置"""
     service = DoctorBookingSettingService(db)
@@ -98,11 +101,13 @@ async def create_doctor_booking_setting(
         )
 
 
-@router.put("/{setting_id}", response_model=DoctorBookingSettingResponse)
+@router.put("/{setting_id}", response_model=DoctorBookingSettingResponse, summary="更新医生预约设置")
 async def update_doctor_booking_setting(
     setting_id: str,
     data: DoctorBookingSettingUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("doctor:update"))
 ):
     """更新医生预约设置"""
     service = DoctorBookingSettingService(db)
@@ -122,10 +127,12 @@ async def update_doctor_booking_setting(
         )
 
 
-@router.delete("/{setting_id}")
+@router.delete("/{setting_id}", summary="删除医生预约设置")
 async def delete_doctor_booking_setting(
     setting_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("doctor:delete"))
 ):
     """删除医生预约设置"""
     service = DoctorBookingSettingService(db)
@@ -140,11 +147,13 @@ async def delete_doctor_booking_setting(
     return {"message": "删除成功"}
 
 
-@router.patch("/{setting_id}/status")
+@router.patch("/{setting_id}/status", summary="更新医生预约设置状态")
 async def update_doctor_booking_setting_status(
     setting_id: str,
     new_status: int = Query(..., ge=0, le=1, description="状态: 0禁用 1启用"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("doctor:update"))
 ):
     """更新医生预约设置状态"""
     service = DoctorBookingSettingService(db)

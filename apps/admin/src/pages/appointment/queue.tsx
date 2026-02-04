@@ -1,11 +1,12 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { App, Card, Table, Tag, Space, Button, Select, DatePicker, Empty, Spin } from 'antd';
+import { App, Card, Table, Tag, Space, Button, Select, DatePicker, Empty, Spin, Switch, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { useAccess, useModel } from '@umijs/max';
 import { appointmentApi, storeApi, doctorApi } from '@hospital/api';
 import { TIME_SLOT_MAP } from '@hospital/shared';
 import type { CheckinQueueItem } from '@hospital/api';
+import { useListRequest } from '@/hooks/useListRequest';
 import dayjs from 'dayjs';
 
 const STATUS_MAP: Record<number, { text: string; color: string }> = {
@@ -29,11 +30,6 @@ const AppointmentQueuePage: React.FC = () => {
   const isSuperAdmin = access.canSuperAdmin;
   const showStoreFilter = isSuperAdmin || (currentUser?.storeIds?.length ?? 0) > 1;
 
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<CheckinQueueItem[]>([]);
-  const [stores, setStores] = useState<{ id: string; name: string }[]>([]);
-  const [doctors, setDoctors] = useState<{ id: string; name: string }[]>([]);
-  
   // 筛选条件
   const [selectedStoreId, setSelectedStoreId] = useState<string | undefined>(
     currentStore?.id || undefined
@@ -41,69 +37,79 @@ const AppointmentQueuePage: React.FC = () => {
   const [selectedDoctorId, setSelectedDoctorId] = useState<string | undefined>(undefined);
   const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs>(dayjs());
 
-  // 加载门店列表
-  useEffect(() => {
-    const loadStores = async () => {
-      try {
-        const result = await storeApi.getAll();
-        let storeList = result ?? [];
-        if (!isSuperAdmin && currentUser?.storeIds?.length) {
-          storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
-        }
-        setStores(storeList.map((s) => ({ id: s.id, name: s.name })));
-      } catch (error) {
-        console.error('加载门店失败', error);
-      }
-    };
+  // 轮询开关
+  const [pollingEnabled, setPollingEnabled] = useState(true);
 
-    if (showStoreFilter) {
-      loadStores();
+  // 使用 useListRequest 加载门店列表（带缓存）
+  const { data: storesData } = useListRequest(
+    () => storeApi.getAll(),
+    {
+      cacheKey: 'store-list-all',
+      staleTime: 60000, // 1分钟缓存
+      manual: !showStoreFilter,
     }
-  }, [isSuperAdmin, showStoreFilter, currentUser?.storeIds]);
+  );
 
-  // 加载医生列表
-  useEffect(() => {
-    const loadDoctors = async () => {
-      try {
-        const result = await doctorApi.getAll();
-        setDoctors((result ?? []).map((d) => ({ id: d.id, name: d.name })));
-      } catch (error) {
-        console.error('加载医生失败', error);
-      }
-    };
-    loadDoctors();
-  }, []);
+  // 使用 useListRequest 加载医生列表（带缓存）
+  const { data: doctorsData } = useListRequest(
+    () => doctorApi.getAll(),
+    {
+      cacheKey: 'doctor-list-all',
+      staleTime: 60000, // 1分钟缓存
+    }
+  );
 
-  // 加载签到队列
-  const loadQueue = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await appointmentApi.getCheckinQueue({
+  // 过滤门店列表
+  const filteredStores = useMemo(() => {
+    let storeList = storesData ?? [];
+    if (!isSuperAdmin && currentUser?.storeIds?.length) {
+      storeList = storeList.filter((s: any) => currentUser.storeIds?.includes(s.id));
+    }
+    return storeList.map((s: any) => ({ id: s.id, name: s.name }));
+  }, [storesData, isSuperAdmin, currentUser?.storeIds]);
+
+  // 医生列表
+  const doctors = useMemo(() => {
+    return (doctorsData ?? []).map((d: any) => ({ id: d.id, name: d.name }));
+  }, [doctorsData]);
+
+  // 使用 useListRequest 加载签到队列（带轮询）
+  const {
+    data: queueData,
+    loading,
+    refresh: refreshQueue,
+  } = useListRequest(
+    () =>
+      appointmentApi.getCheckinQueue({
         storeId: selectedStoreId,
         doctorId: selectedDoctorId,
         targetDate: selectedDate.format('YYYY-MM-DD'),
-      });
-      setData(result ?? []);
-    } catch (error: any) {
-      message.error(error.message || '加载失败');
-    } finally {
-      setLoading(false);
+      }),
+    {
+      // 轮询配置：每30秒自动刷新
+      pollingInterval: pollingEnabled ? 30000 : undefined,
+      // 页面隐藏时暂停轮询，节省资源
+      pollingWhenHidden: false,
+      // 错误重试
+      retryCount: 2,
+      retryInterval: 2000,
+      // 错误回调
+      onError: (error: any) => {
+        message.error(error.message || '加载失败');
+      },
+      // 刷新依赖：筛选条件变化时重新请求
+      refreshDeps: [selectedStoreId, selectedDoctorId, selectedDate],
     }
-  }, [selectedStoreId, selectedDoctorId, selectedDate, message]);
+  );
 
-  useEffect(() => {
-    loadQueue();
-    // 每30秒自动刷新
-    const timer = setInterval(loadQueue, 30000);
-    return () => clearInterval(timer);
-  }, [loadQueue]);
+  const data = queueData ?? [];
 
   // 叫号
   const handleCall = async (id: string) => {
     try {
       await appointmentApi.call(id);
       message.success('叫号成功');
-      loadQueue();
+      refreshQueue();
     } catch (error: any) {
       message.error(error.message || '操作失败');
     }
@@ -114,7 +120,7 @@ const AppointmentQueuePage: React.FC = () => {
     try {
       await appointmentApi.pass(id);
       message.success('已过号');
-      loadQueue();
+      refreshQueue();
     } catch (error: any) {
       message.error(error.message || '操作失败');
     }
@@ -125,7 +131,7 @@ const AppointmentQueuePage: React.FC = () => {
     try {
       await appointmentApi.recall(id);
       message.success('已重新叫号');
-      loadQueue();
+      refreshQueue();
     } catch (error: any) {
       message.error(error.message || '操作失败');
     }
@@ -136,7 +142,7 @@ const AppointmentQueuePage: React.FC = () => {
     try {
       await appointmentApi.complete(id);
       message.success('就诊完成');
-      loadQueue();
+      refreshQueue();
     } catch (error: any) {
       message.error(error.message || '操作失败');
     }
@@ -229,7 +235,8 @@ const AppointmentQueuePage: React.FC = () => {
                 </Button>
               </>
             )}
-            {status === 7 && (  /* 7=已过期(过号) */
+            {status === 7 && (
+              /* 7=已过期(过号) */
               <Button size="small" onClick={() => handleRecall(record.id)}>
                 重新叫号
               </Button>
@@ -243,7 +250,15 @@ const AppointmentQueuePage: React.FC = () => {
   return (
     <PageContainer>
       <Card>
-        <div style={{ marginBottom: 16, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        <div
+          style={{
+            marginBottom: 16,
+            display: 'flex',
+            gap: 16,
+            flexWrap: 'wrap',
+            alignItems: 'center',
+          }}
+        >
           {showStoreFilter && (
             <Select
               placeholder="选择门店"
@@ -251,7 +266,7 @@ const AppointmentQueuePage: React.FC = () => {
               style={{ width: 200 }}
               value={selectedStoreId}
               onChange={setSelectedStoreId}
-              options={stores.map((s) => ({ label: s.name, value: s.id }))}
+              options={filteredStores.map((s) => ({ label: s.name, value: s.id }))}
             />
           )}
           <Select
@@ -267,14 +282,20 @@ const AppointmentQueuePage: React.FC = () => {
             onChange={(date) => date && setSelectedDate(date)}
             allowClear={false}
           />
-          <Button onClick={loadQueue}>刷新</Button>
+          <Button onClick={refreshQueue}>刷新</Button>
+          <Tooltip title={pollingEnabled ? '自动刷新已开启（30秒）' : '自动刷新已关闭'}>
+            <Space>
+              <span style={{ color: '#666', fontSize: 12 }}>自动刷新</span>
+              <Switch size="small" checked={pollingEnabled} onChange={setPollingEnabled} />
+            </Space>
+          </Tooltip>
         </div>
 
-        {loading ? (
+        {loading && !data.length ? (
           <div style={{ textAlign: 'center', padding: 40 }}>
             <Spin tip="加载中..." />
           </div>
-        ) : data.length === 0 ? (
+        ) : !data.length ? (
           <Empty description="暂无签到患者" />
         ) : (
           <Table
@@ -283,6 +304,7 @@ const AppointmentQueuePage: React.FC = () => {
             dataSource={data}
             pagination={false}
             scroll={{ x: 900 }}
+            loading={loading}
           />
         )}
       </Card>
@@ -291,4 +313,3 @@ const AppointmentQueuePage: React.FC = () => {
 };
 
 export default AppointmentQueuePage;
-

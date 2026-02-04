@@ -36,7 +36,7 @@ export interface CheckinLogListResponse {
   data: CheckinLog[];
   total: number;
   page: number;
-  page_size: number;
+  pageSize: number;
 }
 
 export interface CheckinLogStatistics {
@@ -55,7 +55,18 @@ export const auditLogApi = {
    * 获取签到审计日志列表
    */
   async getCheckinLogs(params?: CheckinLogListParams): Promise<CheckinLogListResponse> {
-    return request.get('/audit-logs/checkin-logs', { params });
+    // 转换 camelCase 到 snake_case
+    const queryParams = params ? {
+      appointment_id: params.appointmentId,
+      patient_id: params.patientId,
+      status: params.status,
+      checkin_method: params.checkinMethod,
+      start_time: params.startTime,
+      end_time: params.endTime,
+      page: params.page,
+      page_size: params.pageSize,
+    } : undefined;
+    return request.get('/audit-logs/checkin-logs', { params: queryParams });
   },
 
   /**

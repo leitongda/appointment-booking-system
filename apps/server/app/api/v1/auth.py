@@ -6,6 +6,7 @@ from app.api.deps import get_current_user
 from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, RefreshTokenRequest, ChangePasswordRequest, LoginResponse, UserInfo
 from app.schemas.user import UserResponse
 from app.schemas.wechat import WechatLoginRequest, WechatLoginResponse, WechatPhoneRequest, WechatBindPhoneRequest, WechatBindUserInfoRequest
+from app.schemas.response import ErrorResponse
 from app.services.user_service import UserService
 from app.services.wechat_service import WechatService
 from app.core.security import create_access_token, create_refresh_token, decode_token, verify_password, get_password_hash
@@ -13,7 +14,15 @@ from app.core.config import settings
 
 router = APIRouter()
 
-@router.post("/login", response_model=LoginResponse, summary="用户登录")
+@router.post(
+    "/login",
+    response_model=LoginResponse,
+    summary="用户登录",
+    responses={
+        401: {"model": ErrorResponse, "description": "手机号或密码错误"},
+        403: {"model": ErrorResponse, "description": "账号已被禁用"},
+    }
+)
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     """用户登录"""
     user_service = UserService(db)
@@ -42,7 +51,14 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
         )
     )
 
-@router.post("/register", response_model=UserResponse, summary="用户注册")
+@router.post(
+    "/register",
+    response_model=UserResponse,
+    summary="用户注册",
+    responses={
+        400: {"model": ErrorResponse, "description": "手机号已注册"},
+    }
+)
 async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
     """用户注册"""
     user_service = UserService(db)

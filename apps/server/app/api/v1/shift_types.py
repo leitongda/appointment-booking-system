@@ -67,7 +67,7 @@ class ShiftTypeResponse(BaseModel):
 router = APIRouter()
 
 
-@router.get("", response_model=PageResult[ShiftTypeResponse])
+@router.get("", response_model=PageResult[ShiftTypeResponse], summary="获取班次类型列表")
 async def get_shift_types(
     enabled: Optional[bool] = Query(None, description="是否启用"),
     keyword: Optional[str] = Query(None, description="搜索关键词"),
@@ -87,7 +87,7 @@ async def get_shift_types(
     return PageResult(data=shift_types, total=total)
 
 
-@router.get("/all", response_model=list[ShiftTypeResponse])
+@router.get("/all", response_model=list[ShiftTypeResponse], summary="获取所有启用班次类型")
 async def get_all_shift_types(
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin)
@@ -98,7 +98,7 @@ async def get_all_shift_types(
     return shift_types
 
 
-@router.get("/{shift_type_id}", response_model=ShiftTypeResponse)
+@router.get("/{shift_type_id}", response_model=ShiftTypeResponse, summary="获取班次类型详情")
 async def get_shift_type(
     shift_type_id: str,
     db: AsyncSession = Depends(get_db),
@@ -115,7 +115,7 @@ async def get_shift_type(
     return shift_type
 
 
-@router.post("", response_model=ShiftTypeResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ShiftTypeResponse, status_code=status.HTTP_201_CREATED, summary="创建班次类型")
 async def create_shift_type(
     data: ShiftTypeCreate,
     db: AsyncSession = Depends(get_db),
@@ -139,7 +139,7 @@ async def create_shift_type(
     return shift_type
 
 
-@router.put("/{shift_type_id}", response_model=ShiftTypeResponse)
+@router.put("/{shift_type_id}", response_model=ShiftTypeResponse, summary="更新班次类型")
 async def update_shift_type(
     shift_type_id: str,
     data: ShiftTypeUpdate,
@@ -163,7 +163,7 @@ async def update_shift_type(
     return shift_type
 
 
-@router.delete("/{shift_type_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{shift_type_id}", status_code=status.HTTP_204_NO_CONTENT, summary="删除班次类型")
 async def delete_shift_type(
     shift_type_id: str,
     db: AsyncSession = Depends(get_db),

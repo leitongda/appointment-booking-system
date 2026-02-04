@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin, get_store_filter, check_store_access
+from app.api.deps import get_current_admin, get_store_filter, check_store_access, require_permission
 from app.schemas.store_visit_type_config import (
     StoreVisitTypeConfigCreate,
     StoreVisitTypeConfigUpdate,
@@ -29,7 +29,7 @@ def config_to_response(config) -> StoreVisitTypeConfigResponse:
     )
 
 
-@router.get("/store/{store_id}", response_model=ResponseModel)
+@router.get("/store/{store_id}", response_model=ResponseModel, summary="获取门店复诊规则配置")
 async def get_store_visit_type_config(
     store_id: str,
     db: AsyncSession = Depends(get_db),
@@ -56,12 +56,13 @@ async def get_store_visit_type_config(
     })
 
 
-@router.put("/store/{store_id}", response_model=ResponseModel)
+@router.put("/store/{store_id}", response_model=ResponseModel, summary="更新门店复诊规则配置")
 async def update_store_visit_type_config(
     store_id: str,
     data: StoreVisitTypeConfigUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("store:update"))
 ):
     """更新门店复诊规则配置（不存在则创建）"""
     # 检查门店访问权限
@@ -74,11 +75,12 @@ async def update_store_visit_type_config(
     return ResponseModel(data=config_to_response(config), message="配置更新成功")
 
 
-@router.delete("/store/{store_id}", response_model=ResponseModel)
+@router.delete("/store/{store_id}", response_model=ResponseModel, summary="删除门店复诊规则配置")
 async def delete_store_visit_type_config(
     store_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("store:update"))
 ):
     """删除门店复诊规则配置（恢复默认）"""
     # 检查门店访问权限

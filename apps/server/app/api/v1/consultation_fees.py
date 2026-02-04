@@ -20,7 +20,7 @@ router = APIRouter()
 
 # ========== 诊费类型相关 API ==========
 
-@router.get("/types", response_model=List[ConsultationFeeTypeResponse])
+@router.get("/types", response_model=List[ConsultationFeeTypeResponse], summary="获取诊费类型列表")
 async def get_fee_types(
     status: Optional[int] = Query(None, description="状态筛选"),
     store_id: Optional[str] = Query(None, description="门店ID，获取门店可用的诊费类型（全局+门店专属）"),
@@ -49,7 +49,7 @@ async def get_fee_types(
     ) for ft in fee_types]
 
 
-@router.get("/types/{fee_type_id}", response_model=ConsultationFeeTypeResponse)
+@router.get("/types/{fee_type_id}", response_model=ConsultationFeeTypeResponse, summary="获取诊费类型详情")
 async def get_fee_type(
     fee_type_id: str,
     db: AsyncSession = Depends(get_db)
@@ -76,7 +76,7 @@ async def get_fee_type(
     )
 
 
-@router.post("/types", response_model=ConsultationFeeTypeResponse)
+@router.post("/types", response_model=ConsultationFeeTypeResponse, summary="创建诊费类型")
 async def create_fee_type(
     data: ConsultationFeeTypeCreate,
     db: AsyncSession = Depends(get_db),
@@ -113,7 +113,7 @@ async def create_fee_type(
     )
 
 
-@router.put("/types/{fee_type_id}", response_model=ConsultationFeeTypeResponse)
+@router.put("/types/{fee_type_id}", response_model=ConsultationFeeTypeResponse, summary="更新诊费类型")
 async def update_fee_type(
     fee_type_id: str,
     data: ConsultationFeeTypeUpdate,
@@ -153,7 +153,7 @@ async def update_fee_type(
     )
 
 
-@router.delete("/types/{fee_type_id}")
+@router.delete("/types/{fee_type_id}", summary="删除诊费类型")
 async def delete_fee_type(
     fee_type_id: str,
     db: AsyncSession = Depends(get_db),
@@ -172,7 +172,7 @@ async def delete_fee_type(
 
 # ========== 全局诊费模板相关 API ==========
 
-@router.get("/templates", response_model=List[ConsultationFeeTemplateWithType])
+@router.get("/templates", response_model=List[ConsultationFeeTemplateWithType], summary="获取全局诊费模板列表")
 async def get_fee_templates(
     db: AsyncSession = Depends(get_db)
 ):
@@ -182,10 +182,12 @@ async def get_fee_templates(
     return [ConsultationFeeTemplateWithType(**t) for t in templates]
 
 
-@router.put("/templates")
+@router.put("/templates", summary="批量更新全局诊费模板")
 async def update_fee_templates(
     templates: List[dict],
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:consultation-fee"))
 ):
     """批量更新全局诊费模板"""
     service = ConsultationFeeService(db)
@@ -193,10 +195,12 @@ async def update_fee_templates(
     return {"message": "更新成功"}
 
 
-@router.post("/templates", response_model=ConsultationFeeTemplateResponse)
+@router.post("/templates", response_model=ConsultationFeeTemplateResponse, summary="创建或更新全局诊费模板")
 async def create_or_update_fee_template(
     data: ConsultationFeeTemplateCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:consultation-fee"))
 ):
     """创建或更新全局诊费模板"""
     service = ConsultationFeeService(db)
@@ -223,7 +227,7 @@ async def create_or_update_fee_template(
 
 # ========== 门店诊费模板相关 API ==========
 
-@router.get("/store-templates/{store_id}", response_model=List[StoreFeeTemplateWithType])
+@router.get("/store-templates/{store_id}", response_model=List[StoreFeeTemplateWithType], summary="获取门店诊费模板列表")
 async def get_store_fee_templates(
     store_id: str,
     db: AsyncSession = Depends(get_db)
@@ -237,11 +241,13 @@ async def get_store_fee_templates(
     return [StoreFeeTemplateWithType(**t) for t in templates]
 
 
-@router.post("/store-templates/{store_id}/batch")
+@router.post("/store-templates/{store_id}/batch", summary="批量保存门店诊费模板")
 async def batch_save_store_fee_templates(
     store_id: str,
     data: StoreFeeTemplateBatchCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:consultation-fee"))
 ):
     """批量保存门店诊费模板"""
     if data.store_id != store_id:
@@ -253,11 +259,13 @@ async def batch_save_store_fee_templates(
     return {"message": "保存成功"}
 
 
-@router.delete("/store-templates/{store_id}/{fee_type_id}")
+@router.delete("/store-templates/{store_id}/{fee_type_id}", summary="删除门店诊费模板")
 async def delete_store_fee_template(
     store_id: str,
     fee_type_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:consultation-fee"))
 ):
     """删除门店诊费模板"""
     service = ConsultationFeeService(db)
@@ -271,7 +279,7 @@ async def delete_store_fee_template(
 
 # ========== 医生诊费配置相关 API ==========
 
-@router.get("/doctors/{doctor_id}", response_model=DoctorFeeSettingResponse)
+@router.get("/doctors/{doctor_id}", response_model=DoctorFeeSettingResponse, summary="获取医生诊费设置")
 async def get_doctor_fee_setting(
     doctor_id: str,
     db: AsyncSession = Depends(get_db)
@@ -308,7 +316,7 @@ async def get_doctor_fee_setting(
     )
 
 
-@router.get("/doctors/{doctor_id}/grouped", response_model=List[StoreDepartmentFeeGroup])
+@router.get("/doctors/{doctor_id}/grouped", response_model=List[StoreDepartmentFeeGroup], summary="获取医生诊费配置（分组）")
 async def get_doctor_fees_grouped(
     doctor_id: str,
     db: AsyncSession = Depends(get_db)
@@ -319,11 +327,13 @@ async def get_doctor_fees_grouped(
     return groups
 
 
-@router.put("/doctors/{doctor_id}/use-template")
+@router.put("/doctors/{doctor_id}/use-template", summary="更新医生使用模板设置")
 async def update_doctor_use_template(
     doctor_id: str,
     data: DoctorFeeSettingUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("doctor:update"))
 ):
     """更新医生是否使用诊费模板"""
     service = ConsultationFeeService(db)
@@ -335,7 +345,7 @@ async def update_doctor_use_template(
     return {"message": "更新成功"}
 
 
-@router.get("/doctors/{doctor_id}/fees", response_model=List[DoctorConsultationFeeResponse])
+@router.get("/doctors/{doctor_id}/fees", response_model=List[DoctorConsultationFeeResponse], summary="获取医生诊费配置列表")
 async def get_doctor_fees(
     doctor_id: str,
     store_id: Optional[str] = Query(None, description="门店ID"),
@@ -364,11 +374,13 @@ async def get_doctor_fees(
     ) for f in fees]
 
 
-@router.post("/doctors/{doctor_id}/fees/batch")
+@router.post("/doctors/{doctor_id}/fees/batch", summary="批量保存医生诊费配置")
 async def batch_save_doctor_fees(
     doctor_id: str,
     data: DoctorConsultationFeeBatchCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("doctor:update"))
 ):
     """批量保存医生诊费配置"""
     if data.doctor_id != doctor_id:
@@ -380,11 +392,13 @@ async def batch_save_doctor_fees(
     return {"message": "保存成功"}
 
 
-@router.post("/doctors/{doctor_id}/apply-template")
+@router.post("/doctors/{doctor_id}/apply-template", summary="应用模板到医生")
 async def apply_template_to_doctor(
     doctor_id: str,
     data: ApplyTemplateRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("doctor:update"))
 ):
     """
     一键带入模板：将门店模板的金额应用到医生诊费配置
@@ -405,12 +419,14 @@ async def apply_template_to_doctor(
     }
 
 
-@router.delete("/doctors/{doctor_id}/fees/{store_id}/{department_id}")
+@router.delete("/doctors/{doctor_id}/fees/{store_id}/{department_id}", summary="删除医生门店科室诊费配置")
 async def delete_doctor_fees_by_store_department(
     doctor_id: str,
     store_id: str,
     department_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("doctor:update"))
 ):
     """删除医生在指定门店科室的所有诊费配置"""
     service = ConsultationFeeService(db)

@@ -5,7 +5,7 @@ from datetime import date
 import json
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_permission
 from app.schemas.schedule_suspension import (
     ScheduleSuspensionCreate,
     ScheduleSuspensionResponse,
@@ -18,7 +18,7 @@ from app.core.config import settings
 router = APIRouter()
 
 
-@router.get("", response_model=PageResponse[ScheduleSuspensionResponse])
+@router.get("", response_model=PageResponse[ScheduleSuspensionResponse], summary="获取停诊列表")
 async def get_schedule_suspensions(
     store_id: Optional[str] = None,
     doctor_id: Optional[str] = None,
@@ -73,7 +73,7 @@ async def get_schedule_suspensions(
     return PageResponse(data=result, total=total, page=page, page_size=page_size)
 
 
-@router.get("/schedules", response_model=List[AvailableScheduleForSuspension])
+@router.get("/schedules", response_model=List[AvailableScheduleForSuspension], summary="获取可选排班列表")
 async def get_available_schedules_for_suspension(
     store_id: str = Query(...),
     doctor_id: str = Query(...),
@@ -85,11 +85,12 @@ async def get_available_schedules_for_suspension(
     return await service.get_available_schedules(store_id, doctor_id, suspension_date)
 
 
-@router.post("", response_model=ScheduleSuspensionResponse)
+@router.post("", response_model=ScheduleSuspensionResponse, summary="创建停诊")
 async def create_schedule_suspension(
     data: ScheduleSuspensionCreate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:update"))
 ):
     """创建停诊"""
     service = ScheduleSuspensionService(db)
@@ -123,11 +124,12 @@ async def create_schedule_suspension(
     )
 
 
-@router.delete("/{suspension_id}")
+@router.delete("/{suspension_id}", summary="删除停诊记录")
 async def delete_schedule_suspension(
     suspension_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:delete"))
 ):
     """删除停诊记录"""
     service = ScheduleSuspensionService(db)
@@ -139,11 +141,12 @@ async def delete_schedule_suspension(
     return {"message": "删除成功"}
 
 
-@router.put("/{suspension_id}/cancel")
+@router.put("/{suspension_id}/cancel", summary="取消停诊")
 async def cancel_schedule_suspension(
     suspension_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:update"))
 ):
     """取消停诊"""
     service = ScheduleSuspensionService(db)

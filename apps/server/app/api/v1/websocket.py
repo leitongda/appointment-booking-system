@@ -109,7 +109,7 @@ async def doctor_websocket(
         await ws_manager.disconnect(websocket, doctor_id)
 
 
-@router.get("/online-doctors")
+@router.get("/online-doctors", summary="获取在线医生列表")
 async def get_online_doctors():
     """
     获取当前在线的医生列表（调试用）

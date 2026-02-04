@@ -101,7 +101,7 @@ WORKFLOW_DEFINITIONS: dict[str, dict[str, Any]] = {
             {"step": 6, "name": "检查重复预约", "method": "GET", "path_pattern": "/appointments/check-duplicate"},
             {"step": 7, "name": "创建预约", "method": "POST", "path_pattern": "/appointments", "exact": True},
             {"step": 8, "name": "查看预约详情", "method": "GET", "path_pattern": "/appointments/", "exclude": ["check", "today", "queue", "statistics", "by-no"]},
-            {"step": 9, "name": "取消预约", "method": "PUT", "path_pattern": "/cancel"},
+            {"step": 9, "name": "取消预约", "method": "PUT", "path_pattern": "/appointments/", "include": ["cancel"]},
         ]
     },
     "checkin": {
@@ -140,8 +140,8 @@ WORKFLOW_DEFINITIONS: dict[str, dict[str, Any]] = {
             {"step": 2, "name": "获取排班模板列表", "method": "GET", "path_pattern": "/schedule-templates", "exact": True},
             {"step": 3, "name": "创建排班模板", "method": "POST", "path_pattern": "/schedule-templates", "exact": True},
             {"step": 4, "name": "预览生成排班", "method": "POST", "path_pattern": "/preview-generate"},
-            {"step": 5, "name": "生成排班", "method": "POST", "path_pattern": "/generate", "exclude": ["preview"]},
-            {"step": 6, "name": "获取排班列表", "method": "GET", "path_pattern": "/schedules", "exact": True},
+            {"step": 5, "name": "生成排班", "method": "POST", "path_pattern": "/schedule-templates/generate"},
+            {"step": 6, "name": "获取排班列表", "method": "GET", "path_pattern": "/api/v1/schedules", "exact": True},
             {"step": 7, "name": "批量停诊", "method": "POST", "path_pattern": "/batch-suspend"},
             {"step": 8, "name": "批量恢复", "method": "POST", "path_pattern": "/batch-resume"},
             {"step": 9, "name": "添加休息日", "method": "POST", "path_pattern": "/rest-days", "exact": True},

@@ -5,7 +5,7 @@ from datetime import date
 import json
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_permission
 from app.schemas.rest_day import (
     RestDayCreate,
     RestDayResponse,
@@ -71,7 +71,8 @@ async def get_rest_days(
 async def create_rest_day(
     data: RestDayCreate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:create"))
 ):
     """添加休息日"""
     service = RestDayService(db)
@@ -112,7 +113,8 @@ async def create_rest_day(
 async def delete_rest_day(
     rest_day_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:delete"))
 ):
     """删除休息日"""
     service = RestDayService(db)
@@ -128,7 +130,8 @@ async def delete_rest_day(
 async def cancel_rest_day(
     rest_day_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:update"))
 ):
     """取消休息日"""
     service = RestDayService(db)

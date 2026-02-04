@@ -7,7 +7,7 @@ from datetime import date
 import json
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_permission
 from app.schemas.custom_schedule import (
     CustomScheduleCreate,
     CustomScheduleResponse,
@@ -226,7 +226,8 @@ async def get_effective_schedules(
 async def create_custom_schedules(
     data: CustomScheduleCreate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:create"))
 ):
     """创建自定义排班（支持批量）"""
     from app.schemas.schedule import ScheduleCreate
@@ -338,7 +339,8 @@ async def create_custom_schedules(
 async def delete_custom_schedule(
     schedule_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:delete"))
 ):
     """删除自定义排班（仅能删除template_id为NULL的排班）"""
     service = ScheduleService(db)

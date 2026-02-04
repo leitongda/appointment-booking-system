@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_permission
 from app.services.booking_notice_service import BookingNoticeService
 from app.schemas.booking_notice import (
     BookingNoticeCreate,
@@ -18,7 +18,7 @@ router = APIRouter()
 
 # ========== 公开接口 ==========
 
-@router.get("/public", response_model=List[BookingNoticeResponse])
+@router.get("/public", response_model=List[BookingNoticeResponse], summary="获取生效预约须知列表")
 async def get_public_notices(
     type: Optional[str] = Query(None, description="类型: BOOKING/VISIT/REFUND"),
     db: AsyncSession = Depends(get_db)
@@ -31,7 +31,7 @@ async def get_public_notices(
 
 # ========== 管理端接口 ==========
 
-@router.get("", response_model=dict)
+@router.get("", response_model=dict, summary="获取预约须知列表")
 async def get_notices(
     type: Optional[str] = Query(None, description="类型"),
     status: Optional[int] = Query(None, description="状态: 0禁用 1启用"),
@@ -57,7 +57,7 @@ async def get_notices(
     }
 
 
-@router.get("/{notice_id}", response_model=BookingNoticeResponse)
+@router.get("/{notice_id}", response_model=BookingNoticeResponse, summary="获取预约须知详情")
 async def get_notice(
     notice_id: str,
     db: AsyncSession = Depends(get_db),
@@ -73,11 +73,12 @@ async def get_notice(
     return notice
 
 
-@router.post("", response_model=BookingNoticeResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=BookingNoticeResponse, status_code=status.HTTP_201_CREATED, summary="创建预约须知")
 async def create_notice(
     data: BookingNoticeCreate,
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("content:notice:create"))
 ):
     """创建预约须知"""
     service = BookingNoticeService(db)
@@ -85,12 +86,13 @@ async def create_notice(
     return notice
 
 
-@router.put("/{notice_id}", response_model=BookingNoticeResponse)
+@router.put("/{notice_id}", response_model=BookingNoticeResponse, summary="更新预约须知")
 async def update_notice(
     notice_id: str,
     data: BookingNoticeUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("content:notice:update"))
 ):
     """更新预约须知"""
     service = BookingNoticeService(db)
@@ -102,11 +104,12 @@ async def update_notice(
     return notice
 
 
-@router.delete("/{notice_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{notice_id}", status_code=status.HTTP_204_NO_CONTENT, summary="删除预约须知")
 async def delete_notice(
     notice_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("content:notice:delete"))
 ):
     """删除预约须知"""
     service = BookingNoticeService(db)
@@ -116,16 +119,17 @@ async def delete_notice(
         raise HTTPException(status_code=404, detail="预约须知不存在")
 
 
-@router.patch("/{notice_id}/status", response_model=BookingNoticeResponse)
+@router.patch("/{notice_id}/status", response_model=BookingNoticeResponse, summary="更新预约须知状态")
 async def update_notice_status(
     notice_id: str,
-    status: int = Query(..., ge=0, le=1, description="状态: 0禁用 1启用"),
+    new_status: int = Query(..., ge=0, le=1, description="状态: 0禁用 1启用", alias="status"),
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("content:notice:update"))
 ):
     """更新预约须知状态"""
     service = BookingNoticeService(db)
-    notice = await service.update_status(notice_id, status, operator_id=current_admin.get("id"))
+    notice = await service.update_status(notice_id, new_status, operator_id=current_admin.get("id"))
     
     if not notice:
         raise HTTPException(status_code=404, detail="预约须知不存在")

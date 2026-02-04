@@ -5,7 +5,7 @@ from typing import Optional, List
 from datetime import date, timedelta
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_permission
 from app.schemas.schedule_template import (
     ScheduleTemplateCreate,
     ScheduleTemplateUpdate,
@@ -209,7 +209,8 @@ async def get_template(template_id: str, db: AsyncSession = Depends(get_db)):
 async def create_template(
     data: ScheduleTemplateCreate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:create"))
 ):
     """创建排班模板"""
     import logging
@@ -264,7 +265,8 @@ async def update_template(
     template_id: str,
     data: ScheduleTemplateUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:update"))
 ):
     """更新排班模板"""
     service = ScheduleTemplateService(db)
@@ -307,7 +309,8 @@ async def update_template(
 async def delete_template(
     template_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:delete"))
 ):
     """删除排班模板"""
     service = ScheduleTemplateService(db)
@@ -334,7 +337,8 @@ WEEKDAY_NAMES = {
 async def preview_generate_schedules(
     data: SchedulePreviewGenerateRequest,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:create"))
 ):
     """预览生成排班（不实际写入数据库）"""
     from app.utils.schedule_utils import (
@@ -430,7 +434,8 @@ async def preview_generate_schedules(
 async def generate_schedules_with_capacity(
     data: ScheduleGenerateWithCapacityRequest,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:create"))
 ):
     """根据模板批量生成排班（支持自定义班次容量）"""
     service = ScheduleTemplateService(db)
@@ -485,7 +490,8 @@ async def generate_schedules_with_capacity(
 async def generate_schedules(
     data: ScheduleGenerateRequest,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:create"))
 ):
     """根据模板批量生成排班"""
     service = ScheduleTemplateService(db)
@@ -528,7 +534,8 @@ async def generate_schedules(
 async def batch_add_schedules(
     data: ScheduleBatchAddRequest,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:create"))
 ):
     """批量添加排班（不依赖模板）"""
     service = ScheduleTemplateService(db)
@@ -565,7 +572,8 @@ async def batch_delete_schedules(
     template_id: str,
     data: Optional[BatchOperateRequest] = None,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:delete"))
 ):
     """批量删除规则生成的排班"""
     service = ScheduleTemplateService(db)
@@ -608,7 +616,8 @@ async def batch_suspend_schedules(
     template_id: str,
     data: Optional[BatchOperateRequest] = None,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:update"))
 ):
     """批量停诊规则生成的排班"""
     service = ScheduleTemplateService(db)
@@ -688,7 +697,8 @@ async def copy_template_to_doctors(
     template_id: str,
     data: ScheduleTemplateCopyRequest,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:create"))
 ):
     """复制排班规则给其他医生
     

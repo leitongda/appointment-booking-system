@@ -17,7 +17,7 @@ from app.core.config import settings
 router = APIRouter()
 
 
-@router.get("")
+@router.get("", summary="获取邮件模板列表")
 async def get_email_templates(
     template_type: Optional[EmailTemplateType] = Query(None, description="模板类型"),
     status: Optional[int] = Query(None, description="状态"),
@@ -46,7 +46,7 @@ async def get_email_templates(
     }
 
 
-@router.get("/all")
+@router.get("/all", summary="获取所有邮件模板")
 async def get_all_email_templates(
     status: Optional[int] = Query(None, description="状态"),
     db: AsyncSession = Depends(get_db),
@@ -58,7 +58,7 @@ async def get_all_email_templates(
     return [EmailTemplateListResponse.model_validate(t) for t in templates]
 
 
-@router.get("/{template_id}")
+@router.get("/{template_id}", summary="获取邮件模板详情")
 async def get_email_template(
     template_id: str,
     db: AsyncSession = Depends(get_db),
@@ -74,7 +74,7 @@ async def get_email_template(
     return EmailTemplateResponse.model_validate(template)
 
 
-@router.post("")
+@router.post("", summary="创建邮件模板")
 async def create_email_template(
     data: EmailTemplateCreate,
     db: AsyncSession = Depends(get_db),
@@ -91,7 +91,7 @@ async def create_email_template(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.put("/{template_id}")
+@router.put("/{template_id}", summary="更新邮件模板")
 async def update_email_template(
     template_id: str,
     data: EmailTemplateUpdate,
@@ -109,7 +109,7 @@ async def update_email_template(
     return EmailTemplateResponse.model_validate(template)
 
 
-@router.delete("/{template_id}")
+@router.delete("/{template_id}", summary="删除邮件模板")
 async def delete_email_template(
     template_id: str,
     db: AsyncSession = Depends(get_db),
@@ -126,7 +126,7 @@ async def delete_email_template(
     return {"message": "删除成功"}
 
 
-@router.post("/{template_id}/test")
+@router.post("/{template_id}/test", summary="发送测试邮件")
 async def send_test_email(
     template_id: str,
     data: EmailTestRequest,

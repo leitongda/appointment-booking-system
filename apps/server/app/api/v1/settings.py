@@ -226,7 +226,8 @@ async def get_sms_config(
 async def update_sms_config(
     data: SmsConfigUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("settings:sms")),
 ):
     """更新短信配置"""
     service = SettingsService(db)
@@ -275,7 +276,8 @@ async def get_email_config(
 async def update_email_config(
     data: EmailConfigUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("settings:email")),
 ):
     """更新邮件配置"""
     service = SettingsService(db)
@@ -346,7 +348,8 @@ async def get_booking_fields(
 async def update_booking_fields(
     data: BookingFieldsUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("settings:edit")),
 ):
     """更新预约选项配置"""
     service = SettingsService(db)
@@ -376,7 +379,8 @@ async def get_patient_card_config(
 async def update_patient_card_config(
     data: PatientCardConfigUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("settings:edit")),
 ):
     """更新就诊卡配置"""
     service = SettingsService(db)
@@ -415,7 +419,8 @@ async def get_image_config(
 async def update_image_config(
     data: ImageConfigUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("settings:edit")),
 ):
     """更新图片处理配置"""
     service = SettingsService(db)
@@ -476,7 +481,8 @@ async def get_time_periods(
 async def update_time_periods(
     data: TimePeriodsUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("settings:edit")),
 ):
     """更新时段配置
     
@@ -499,7 +505,8 @@ async def update_time_periods(
 async def delete_store_time_periods(
     store_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("settings:edit")),
 ):
     """删除门店自定义时段配置（恢复使用全局配置）"""
     service = SettingsService(db)

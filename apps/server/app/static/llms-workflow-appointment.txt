@@ -45,8 +45,6 @@
 
 - [PUT /api/v1/appointments/{appointment_id}/cancel](/api/v1/appointments/{appointment_id}/cancel): 取消预约
 - [PUT /api/v1/appointments/{appointment_id}/cancel-sign-in](/api/v1/appointments/{appointment_id}/cancel-sign-in): 取消签到（仅超级管理员）
-- [PUT /api/v1/rest-days/{rest_day_id}/cancel](/api/v1/rest-days/{rest_day_id}/cancel): 取消休息日
-- [PUT /api/v1/schedule-suspensions/{suspension_id}/cancel](/api/v1/schedule-suspensions/{suspension_id}/cancel): 取消停诊
 
 ## 相关文档
 

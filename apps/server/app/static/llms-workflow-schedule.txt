@@ -30,16 +30,12 @@
 
 ### 步骤 5: 生成排班
 
-- [POST /api/v1/doctors/generate-username](/api/v1/doctors/generate-username): 根据医生姓名生成唯一账号
 - [POST /api/v1/schedule-templates/generate-with-capacity](/api/v1/schedule-templates/generate-with-capacity): 根据模板批量生成排班（支持自定义班次容量）
 - [POST /api/v1/schedule-templates/generate](/api/v1/schedule-templates/generate): 根据模板批量生成排班
 
 ### 步骤 6: 获取排班列表
 
 - [GET /api/v1/schedules](/api/v1/schedules): 获取排班列表
-- [GET /api/v1/export/schedules](/api/v1/export/schedules): 导出排班记录
-- [GET /api/v1/schedule-suspensions/schedules](/api/v1/schedule-suspensions/schedules): 获取指定日期的可选排班（用于停诊选择）
-- [GET /api/v1/doctor-portal/schedules](/api/v1/doctor-portal/schedules): 获取当前医生的排班列表
 
 ### 步骤 7: 批量停诊
 

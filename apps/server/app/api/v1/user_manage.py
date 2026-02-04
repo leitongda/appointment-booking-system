@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin, get_store_filter
+from app.api.deps import get_current_admin, get_store_filter, require_permission
 from app.services.patient_service import UserManageService
 from app.schemas.response import PageResponse
 from app.schemas.user import PatientUpdate, FamilyMemberCreate
@@ -13,7 +13,7 @@ from app.core.config import settings
 router = APIRouter()
 
 
-@router.get("")
+@router.get("", summary="获取患者列表")
 async def get_users(
     keyword: Optional[str] = None,
     status: Optional[int] = None,
@@ -40,7 +40,7 @@ async def get_users(
     return PageResponse(data=items, total=total, page=page, page_size=page_size)
 
 
-@router.get("/{user_id}")
+@router.get("/{user_id}", summary="获取患者详情")
 async def get_user_detail(
     user_id: str,
     db: AsyncSession = Depends(get_db),
@@ -56,12 +56,13 @@ async def get_user_detail(
     return detail
 
 
-@router.put("/{user_id}/status")
+@router.put("/{user_id}/status", summary="更新用户状态")
 async def update_user_status(
     user_id: str,
     user_status: int = Query(..., ge=0, le=1, description="状态: 0禁用 1正常", alias="status"),
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:update")),
 ):
     """更新用户状态（禁用/启用）"""
     service = UserManageService(db)
@@ -77,13 +78,14 @@ async def update_user_status(
     return {"message": "状态更新成功"}
 
 
-@router.post("/{user_id}/points")
+@router.post("/{user_id}/points", summary="调整用户积分")
 async def adjust_user_points(
     user_id: str,
     amount: int = Query(..., description="调整积分数量（正数增加，负数减少）"),
     remark: str = Query(..., min_length=1, max_length=200, description="调整原因"),
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:update")),
 ):
     """调整用户积分"""
     service = UserManageService(db)
@@ -103,11 +105,12 @@ async def adjust_user_points(
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.delete("/{user_id}")
+@router.delete("/{user_id}", summary="删除用户")
 async def delete_user(
     user_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:delete")),
 ):
     """删除用户（患者）"""
     service = UserManageService(db)
@@ -125,12 +128,13 @@ async def delete_user(
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.put("/{user_id}")
+@router.put("/{user_id}", summary="更新用户信息")
 async def update_user(
     user_id: str,
     data: dict = Body(...),
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:update")),
 ):
     """更新用户基本信息"""
     service = UserManageService(db)
@@ -147,12 +151,13 @@ async def update_user(
 
 
 # ========== 就诊卡管理 ==========
-@router.post("/{user_id}/cards")
+@router.post("/{user_id}/cards", summary="添加就诊卡")
 async def create_card(
     user_id: str,
     data: FamilyMemberCreate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:update")),
 ):
     """为用户添加就诊卡"""
     service = UserManageService(db)
@@ -169,13 +174,14 @@ async def create_card(
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.put("/{user_id}/cards/{card_id}")
+@router.put("/{user_id}/cards/{card_id}", summary="更新就诊卡信息")
 async def update_card(
     user_id: str,
     card_id: str,
     data: PatientUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:update")),
 ):
     """更新就诊卡信息"""
     service = UserManageService(db)
@@ -192,12 +198,13 @@ async def update_card(
     return result
 
 
-@router.delete("/{user_id}/cards/{card_id}")
+@router.delete("/{user_id}/cards/{card_id}", summary="删除就诊卡")
 async def delete_card(
     user_id: str,
     card_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:delete")),
 ):
     """删除就诊卡"""
     service = UserManageService(db)

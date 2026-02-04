@@ -7,9 +7,9 @@ from fastapi.security.utils import get_authorization_scheme_param
 import pytz
 
 from app.db.session import get_db
-from app.api.deps import get_current_user, get_current_user_or_admin, get_store_filter, get_current_super_admin, get_current_admin, check_store_access
+from app.api.deps import get_current_user, get_current_user_or_admin, get_store_filter, get_current_super_admin, get_current_admin, check_store_access, require_permission
 from app.schemas.appointment import AppointmentCreate, AppointmentResponse, AppointmentCancelRequest, AppointmentStatistics
-from app.schemas.response import PageResponse
+from app.schemas.response import PageResponse, ErrorResponse
 from app.services.appointment_service import AppointmentService
 from app.services.settings_service import SettingsService
 from app.services.rule_engine_service import RuleEngineService
@@ -210,57 +210,32 @@ async def get_today_pending_appointments(
         minutes_until_close = None
 
         if a.schedule:
-            # 优先使用预约快照中的签到时间窗（与 sign_in 方法保持一致）
-            if a.checkin_open_at and a.checkin_close_at:
-                checkin_open = a.checkin_open_at
-                checkin_close = a.checkin_close_at
-                # 确保时间比较在同一时区下进行（与 sign_in 方法逻辑一致）
-                if checkin_open.tzinfo is None:
-                    checkin_open = local_tz.localize(checkin_open)
-                if checkin_close.tzinfo is None:
-                    checkin_close = local_tz.localize(checkin_close)
+            # 使用规则引擎检查签到时间窗
+            try:
+                window_check = await rule_engine.check_action_window(a.schedule, 'CHECKIN', now)
 
-                checkin_open_at = checkin_open
-                checkin_close_at = checkin_close
+                checkin_open_at = window_check.get('open_at')
+                checkin_close_at = window_check.get('close_at')
 
-                if now < checkin_open:
-                    signInStatus = 'early'
-                    minutes_until_open = int((checkin_open - now).total_seconds() / 60)
-                    signInMessage = f'未到签到时间，还需等待{minutes_until_open}分钟'
-                elif now > checkin_close:
-                    signInStatus = 'late'
-                    signInMessage = '已过签到时间'
+                if not window_check.get('allowed'):
+                    if now < window_check.get('open_at', now):
+                        signInStatus = 'early'
+                        if checkin_open_at:
+                            minutes_until_open = int((checkin_open_at - now).total_seconds() / 60)
+                            signInMessage = f'未到签到时间，还需等待{minutes_until_open}分钟'
+                        else:
+                            signInMessage = '未到签到时间'
+                    else:
+                        signInStatus = 'late'
+                        signInMessage = '已过签到时间'
                 else:
                     signInStatus = 'available'
-                    minutes_until_close = int((checkin_close - now).total_seconds() / 60)
-                    signInMessage = f'可以签到（余{minutes_until_close}分钟）'
-            else:
-                # 降级使用规则引擎检查签到时间窗
-                try:
-                    window_check = await rule_engine.check_action_window(a.schedule, 'CHECKIN', now)
-
-                    checkin_open_at = window_check.get('open_at')
-                    checkin_close_at = window_check.get('close_at')
-
-                    if not window_check.get('allowed'):
-                        if now < window_check.get('open_at', now):
-                            signInStatus = 'early'
-                            if checkin_open_at:
-                                minutes_until_open = int((checkin_open_at - now).total_seconds() / 60)
-                                signInMessage = f'未到签到时间，还需等待{minutes_until_open}分钟'
-                            else:
-                                signInMessage = '未到签到时间'
-                        else:
-                            signInStatus = 'late'
-                            signInMessage = '已过签到时间'
+                    if checkin_close_at:
+                        minutes_until_close = int((checkin_close_at - now).total_seconds() / 60)
+                        signInMessage = f'可以签到（余{minutes_until_close}分钟）'
                     else:
-                        signInStatus = 'available'
-                        if checkin_close_at:
-                            minutes_until_close = int((checkin_close_at - now).total_seconds() / 60)
-                            signInMessage = f'可以签到（余{minutes_until_close}分钟）'
-                        else:
-                            signInMessage = '可以签到'
-                except Exception:
+                        signInMessage = '可以签到'
+            except Exception:
                 # 规则引擎检查失败，降级使用门店配置
                 settings_service = SettingsService(db)
                 settings = await settings_service.get_booking_settings(store_id=store_id)
@@ -508,7 +483,14 @@ async def get_appointment_by_no(
         created_at=appointment.created_at
     )
 
-@router.get("/{appointment_id}", response_model=AppointmentResponse, summary="获取预约详情")
+@router.get(
+    "/{appointment_id}",
+    response_model=AppointmentResponse,
+    summary="获取预约详情",
+    responses={
+        404: {"model": ErrorResponse, "description": "预约不存在"},
+    }
+)
 async def get_appointment(
     appointment_id: str,
     db: AsyncSession = Depends(get_db),
@@ -548,7 +530,16 @@ async def get_appointment(
         created_at=appointment.created_at
     )
 
-@router.post("", response_model=AppointmentResponse, summary="创建预约")
+@router.post(
+    "",
+    response_model=AppointmentResponse,
+    summary="创建预约",
+    responses={
+        400: {"model": ErrorResponse, "description": "预约失败（号源已满/重复预约/黑名单等）"},
+        401: {"model": ErrorResponse, "description": "未登录或 Token 过期"},
+        404: {"model": ErrorResponse, "description": "排班不存在"},
+    }
+)
 async def create_appointment(
     data: AppointmentCreate,
     db: AsyncSession = Depends(get_db),
@@ -602,7 +593,14 @@ async def create_appointment(
         created_at=appointment.created_at
     )
 
-@router.put("/{appointment_id}/cancel", summary="取消预约")
+@router.put(
+    "/{appointment_id}/cancel",
+    summary="取消预约",
+    responses={
+        400: {"model": ErrorResponse, "description": "取消失败（已超过可取消时间/状态不允许取消）"},
+        404: {"model": ErrorResponse, "description": "预约不存在"},
+    }
+)
 async def cancel_appointment(
     appointment_id: str,
     data: AppointmentCancelRequest = None,
@@ -709,7 +707,8 @@ async def cancel_sign_in_appointment(
 async def call_appointment(
     appointment_id: str, 
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("appointment:manage"))
 ):
     """叫号（需要管理员权限）"""
     service = AppointmentService(db)
@@ -750,7 +749,8 @@ async def call_appointment(
 async def complete_appointment(
     appointment_id: str, 
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("appointment:manage"))
 ):
     """完成就诊（需要管理员权限）"""
     service = AppointmentService(db)
@@ -789,7 +789,8 @@ async def complete_appointment(
 async def pass_appointment(
     appointment_id: str, 
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("appointment:manage"))
 ):
     """过号（需要管理员权限）"""
     service = AppointmentService(db)
@@ -831,7 +832,8 @@ async def pass_appointment(
 async def recall_appointment(
     appointment_id: str, 
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("appointment:manage"))
 ):
     """重新叫号（需要管理员权限）"""
     service = AppointmentService(db)
@@ -873,7 +875,8 @@ async def recall_appointment(
 async def mark_no_show(
     appointment_id: str, 
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("appointment:manage"))
 ):
     """标记爽约（需要管理员权限）"""
     service = AppointmentService(db)

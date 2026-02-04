@@ -41,16 +41,16 @@ class PointLogResponse(BaseModel):
         from_attributes=True,
         by_alias=True,
     )
-    
-    id: str
-    user_id: Optional[str] = None
-    change_amount: Optional[int] = 0
-    balance: Optional[int] = 0
-    type: Optional[int] = 4
-    remark: Optional[str] = None
-    operator_id: Optional[str] = None
-    operator_name: Optional[str] = None
-    created_at: Optional[str] = None
+
+    id: str = Field(..., description="流水ID")
+    user_id: Optional[str] = Field(None, description="用户ID")
+    change_amount: Optional[int] = Field(0, description="变更积分数")
+    balance: Optional[int] = Field(0, description="变更后余额")
+    type: Optional[int] = Field(4, description="类型: 1消费 2充值 3赠送 4手动调整")
+    remark: Optional[str] = Field(None, description="备注")
+    operator_id: Optional[str] = Field(None, description="操作人ID")
+    operator_name: Optional[str] = Field(None, description="操作人姓名")
+    created_at: Optional[str] = Field(None, description="创建时间")
 
 
 class PointSummary(BaseModel):
@@ -60,7 +60,7 @@ class PointSummary(BaseModel):
         populate_by_name=True,
         by_alias=True,
     )
-    
-    current_points: int = 0
-    total_earned: int = 0
-    total_spent: int = 0
+
+    current_points: int = Field(0, description="当前积分")
+    total_earned: int = Field(0, description="累计获得积分")
+    total_spent: int = Field(0, description="累计消费积分")
