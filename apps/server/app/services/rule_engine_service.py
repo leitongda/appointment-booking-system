@@ -322,15 +322,18 @@ class RuleEngineService:
         action_name = action_names.get(action, action)
 
         # 判断是未开放还是已截止
-        current_time = datetime.now(pytz.UTC)
+        # 使用本地时区（与 sign_in 方法保持一致）
+        local_tz = pytz.timezone('Asia/Shanghai')
+        current_time = datetime.now(local_tz)
 
         # 确保 open_at 和 close_at 是带时区的
+        # 假设数据库中的无时区时间为本地时区（与 sign_in 方法保持一致）
         if open_at.tzinfo is None:
-            open_at = open_at.replace(tzinfo=pytz.UTC)
+            open_at = local_tz.localize(open_at)
         if close_at.tzinfo is None:
-            close_at = close_at.replace(tzinfo=pytz.UTC)
+            close_at = local_tz.localize(close_at)
         if current_time.tzinfo is None:
-            current_time = current_time.replace(tzinfo=pytz.UTC)
+            current_time = local_tz.localize(current_time)
 
         if current_time < open_at:
             return f"{action_name}未开放，开放时间：{open_at.strftime('%Y-%m-%d %H:%M')}"
@@ -770,10 +773,12 @@ class RuleEngineService:
             }
 
         # 确保时间带时区
+        # 使用本地时区（与 sign_in 方法保持一致）
+        local_tz = pytz.timezone('Asia/Shanghai')
         if checkin_close_at.tzinfo is None:
-            checkin_close_at = checkin_close_at.replace(tzinfo=pytz.UTC)
+            checkin_close_at = local_tz.localize(checkin_close_at)
         if current_time.tzinfo is None:
-            current_time = current_time.replace(tzinfo=pytz.UTC)
+            current_time = local_tz.localize(current_time)
 
         # 计算宽限期截止时间（签到窗口截止时间 + 宽限期秒数）
         grace_period_end = checkin_close_at + timedelta(seconds=policy.grace_period_sec)

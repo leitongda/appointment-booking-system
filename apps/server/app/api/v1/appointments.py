@@ -210,32 +210,57 @@ async def get_today_pending_appointments(
         minutes_until_close = None
 
         if a.schedule:
-            # 使用规则引擎检查签到时间窗
-            try:
-                window_check = await rule_engine.check_action_window(a.schedule, 'CHECKIN', now)
+            # 优先使用预约快照中的签到时间窗（与 sign_in 方法保持一致）
+            if a.checkin_open_at and a.checkin_close_at:
+                checkin_open = a.checkin_open_at
+                checkin_close = a.checkin_close_at
+                # 确保时间比较在同一时区下进行（与 sign_in 方法逻辑一致）
+                if checkin_open.tzinfo is None:
+                    checkin_open = local_tz.localize(checkin_open)
+                if checkin_close.tzinfo is None:
+                    checkin_close = local_tz.localize(checkin_close)
 
-                checkin_open_at = window_check.get('open_at')
-                checkin_close_at = window_check.get('close_at')
+                checkin_open_at = checkin_open
+                checkin_close_at = checkin_close
 
-                if not window_check.get('allowed'):
-                    if now < window_check.get('open_at', now):
-                        signInStatus = 'early'
-                        if checkin_open_at:
-                            minutes_until_open = int((checkin_open_at - now).total_seconds() / 60)
-                            signInMessage = f'未到签到时间，还需等待{minutes_until_open}分钟'
-                        else:
-                            signInMessage = '未到签到时间'
-                    else:
-                        signInStatus = 'late'
-                        signInMessage = '已过签到时间'
+                if now < checkin_open:
+                    signInStatus = 'early'
+                    minutes_until_open = int((checkin_open - now).total_seconds() / 60)
+                    signInMessage = f'未到签到时间，还需等待{minutes_until_open}分钟'
+                elif now > checkin_close:
+                    signInStatus = 'late'
+                    signInMessage = '已过签到时间'
                 else:
                     signInStatus = 'available'
-                    if checkin_close_at:
-                        minutes_until_close = int((checkin_close_at - now).total_seconds() / 60)
-                        signInMessage = f'可以签到（余{minutes_until_close}分钟）'
+                    minutes_until_close = int((checkin_close - now).total_seconds() / 60)
+                    signInMessage = f'可以签到（余{minutes_until_close}分钟）'
+            else:
+                # 降级使用规则引擎检查签到时间窗
+                try:
+                    window_check = await rule_engine.check_action_window(a.schedule, 'CHECKIN', now)
+
+                    checkin_open_at = window_check.get('open_at')
+                    checkin_close_at = window_check.get('close_at')
+
+                    if not window_check.get('allowed'):
+                        if now < window_check.get('open_at', now):
+                            signInStatus = 'early'
+                            if checkin_open_at:
+                                minutes_until_open = int((checkin_open_at - now).total_seconds() / 60)
+                                signInMessage = f'未到签到时间，还需等待{minutes_until_open}分钟'
+                            else:
+                                signInMessage = '未到签到时间'
+                        else:
+                            signInStatus = 'late'
+                            signInMessage = '已过签到时间'
                     else:
-                        signInMessage = '可以签到'
-            except Exception:
+                        signInStatus = 'available'
+                        if checkin_close_at:
+                            minutes_until_close = int((checkin_close_at - now).total_seconds() / 60)
+                            signInMessage = f'可以签到（余{minutes_until_close}分钟）'
+                        else:
+                            signInMessage = '可以签到'
+                except Exception:
                 # 规则引擎检查失败，降级使用门店配置
                 settings_service = SettingsService(db)
                 settings = await settings_service.get_booking_settings(store_id=store_id)
