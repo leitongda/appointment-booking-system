@@ -89,6 +89,7 @@ const PatientListPage = () => {
           {patients.map((patient) => (
             <Swipe
               key={patient.id}
+              className="patient-swipe-item"
               rightAction={
                 <Button type="danger" onClick={() => handleDelete(patient.id)}>
                   删除

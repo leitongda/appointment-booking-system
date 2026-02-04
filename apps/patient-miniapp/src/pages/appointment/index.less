@@ -26,6 +26,8 @@
 
 .list {
   padding: @page-padding;
+  // 确保列表区域有足够高度，以便下拉刷新正常工作
+  min-height: calc(100vh - 120rpx - env(safe-area-inset-bottom));
 }
 
 // -------------------------------------------
@@ -79,6 +81,21 @@
   &.status-cancelled {
     background: rgba(100, 116, 139, 0.1);
     color: @color-text-muted;
+  }
+
+  &.status-warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: @color-warning;  // 橙色，用于待支付
+  }
+
+  &.status-processing {
+    background: rgba(59, 130, 246, 0.1);
+    color: @color-info;  // 蓝色，用于就诊中
+  }
+
+  &.status-expired {
+    background: rgba(100, 116, 139, 0.1);
+    color: @color-text-placeholder;  // 浅灰色，区分于已取消
   }
 }
 

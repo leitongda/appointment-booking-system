@@ -30,6 +30,11 @@ const ProfileEditPage = () => {
   const [avatar, setAvatar] = useState('');
   const [gender, setGender] = useState(0);
 
+  // 手机号编辑
+  const [isEditingPhone, setIsEditingPhone] = useState(false);
+  const [newPhone, setNewPhone] = useState('');
+  const [phoneBinding, setPhoneBinding] = useState(false);
+
   // 字体模式
   const [fontMode] = useState<FontMode>(getFontMode());
 
@@ -103,6 +108,8 @@ const ProfileEditPage = () => {
 
     setUploading(true);
     try {
+      console.log('开始上传头像:', filePath);
+      
       const uploadResult = await Taro.uploadFile({
         url: `${API_BASE_URL}/users/avatar`,
         filePath: filePath,
@@ -112,20 +119,38 @@ const ProfileEditPage = () => {
         },
       });
 
-      if (uploadResult.statusCode === 200) {
-        const response = JSON.parse(uploadResult.data);
+      console.log('头像上传响应:', uploadResult.statusCode, uploadResult.data);
+
+      // 2xx 状态码都是成功
+      if (uploadResult.statusCode >= 200 && uploadResult.statusCode < 300) {
+        let response: any;
+        try {
+          response = JSON.parse(uploadResult.data);
+        } catch (parseError) {
+          console.error('解析响应失败:', uploadResult.data);
+          throw new Error('服务器响应格式错误');
+        }
+        
         // 服务端使用统一响应格式: { code, message, data: { url, key } }
         const avatarUrl = response.data?.url || response.url;
+        console.log('获取到头像URL:', avatarUrl);
+        
         if (avatarUrl) {
           setAvatar(avatarUrl);
           Taro.showToast({ title: '头像上传成功', icon: 'success' });
         } else {
-          throw new Error('上传响应格式错误');
+          console.error('响应中没有头像URL:', response);
+          throw new Error('上传成功但未获取到头像地址');
         }
       } else {
-        const errorResponse = JSON.parse(uploadResult.data);
-        // 错误响应也可能是统一格式: { code, message, data }
-        const errorMessage = errorResponse.message || errorResponse.detail || '上传失败';
+        let errorMessage = '上传失败';
+        try {
+          const errorResponse = JSON.parse(uploadResult.data);
+          // 错误响应也可能是统一格式: { code, message, data }
+          errorMessage = errorResponse.message || errorResponse.detail || '上传失败';
+        } catch {
+          errorMessage = `上传失败(${uploadResult.statusCode})`;
+        }
         throw new Error(errorMessage);
       }
     } catch (error: any) {
@@ -163,6 +188,58 @@ const ProfileEditPage = () => {
   const handleGenderChange = (e: any) => {
     const index = parseInt(e.detail.value, 10);
     setGender(index);
+  };
+
+  // 手机号编辑
+  const handlePhoneClick = () => {
+    setNewPhone(user?.phone || '');
+    setIsEditingPhone(true);
+  };
+
+  const handlePhoneInput = (e: any) => {
+    const value = e.detail.value.replace(/\D/g, '').slice(0, 11);
+    setNewPhone(value);
+  };
+
+  const handlePhoneCancel = (e: any) => {
+    e.stopPropagation();
+    setIsEditingPhone(false);
+    setNewPhone('');
+  };
+
+  const handlePhoneSave = async (e: any) => {
+    e.stopPropagation();
+    // 验证手机号格式
+    if (!/^1\d{10}$/.test(newPhone)) {
+      Taro.showToast({ title: '请输入正确的手机号', icon: 'none' });
+      return;
+    }
+
+    // 如果手机号没有变化
+    if (newPhone === user?.phone) {
+      setIsEditingPhone(false);
+      return;
+    }
+
+    setPhoneBinding(true);
+    try {
+      await userApi.bindPhone({ phone: newPhone });
+      
+      // 更新本地用户信息
+      if (user) {
+        const updatedUser = { ...user, phone: newPhone };
+        setUser(updatedUser);
+        setStorage(STORAGE_KEYS.USER_INFO, updatedUser);
+      }
+      
+      Taro.showToast({ title: '手机号绑定成功', icon: 'success' });
+      setIsEditingPhone(false);
+    } catch (error: any) {
+      console.error('绑定手机号失败', error);
+      Taro.showToast({ title: error.message || '绑定失败', icon: 'none' });
+    } finally {
+      setPhoneBinding(false);
+    }
   };
 
   // 保存资料
@@ -277,12 +354,38 @@ const ProfileEditPage = () => {
           </Picker>
         </View>
 
-        {/* 手机号（只读） */}
-        <View className="form-item">
+        {/* 手机号 */}
+        <View className="form-item" onClick={!isEditingPhone ? handlePhoneClick : undefined}>
           <Text className="form-label">手机号</Text>
-          <Text className="form-value">
-            {user?.phone ? user.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') : '未绑定'}
-          </Text>
+          {isEditingPhone ? (
+            <View className="phone-edit-wrapper">
+              <TaroInput
+                type="number"
+                className="form-input phone-input"
+                placeholder="请输入手机号"
+                value={newPhone}
+                onInput={handlePhoneInput}
+                maxlength={11}
+                focus
+              />
+              <View className="phone-actions">
+                <Text className="phone-action-btn cancel" onClick={(e) => handlePhoneCancel(e)}>取消</Text>
+                <Text 
+                  className={`phone-action-btn confirm ${phoneBinding ? 'disabled' : ''}`}
+                  onClick={(e) => !phoneBinding && handlePhoneSave(e)}
+                >
+                  {phoneBinding ? '保存中' : '确定'}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View className="form-value-wrapper">
+              <Text className="form-value">
+                {user?.phone ? user.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') : '未绑定'}
+              </Text>
+              <Text className="picker-arrow">›</Text>
+            </View>
+          )}
         </View>
       </View>
 

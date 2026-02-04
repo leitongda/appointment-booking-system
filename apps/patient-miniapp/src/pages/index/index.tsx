@@ -18,13 +18,14 @@ import { getToken } from '../../utils/auth';
 import { getThemePrimaryColor } from '../../utils/theme';
 import LoginPopup from '../../components/LoginPopup';
 import { getImageUrl } from '../../utils/url';
+import { triggerCheckinScan } from '../../utils/checkin';
 import './index.less';
 
 // 功能菜单配置
 const menus = [
   { icon: HospitalIcon, title: '预约挂号', path: '/pages/department/index' },
   { icon: CalendarIcon, title: '预约记录', path: '/pages/appointment/index' },
-  { icon: ScanIcon, title: '扫码签到', path: '/packageBooking/pages/checkin/scan' },
+  { icon: ScanIcon, title: '扫码签到', path: '', action: 'checkin' },
   { icon: ChatIcon, title: '我的客服', path: '/packageProfile/pages/feedback/index' },
 ];
 
@@ -38,9 +39,11 @@ const defaultBanners = [
 // 需要登录的菜单路径
 const requireLoginPaths = [
   '/pages/appointment/index',
-  '/packageBooking/pages/checkin/scan',
   '/packageProfile/pages/feedback/index',
 ];
+
+// 需要登录的 action
+const requireLoginActions = ['checkin'];
 
 const IndexPage = () => {
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -49,6 +52,7 @@ const IndexPage = () => {
   const [loading, setLoading] = useState(true);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
   const [pendingPatientCardNav, setPendingPatientCardNav] = useState(false);
+  const [pendingCheckinAction, setPendingCheckinAction] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -145,6 +149,12 @@ const IndexPage = () => {
       setPendingPatientCardNav(false);
       navigateToPatientPage();
     }
+    
+    // 如果是从扫码签到入口触发的登录，自动触发扫码
+    if (pendingCheckinAction) {
+      setPendingCheckinAction(false);
+      triggerCheckinScan();
+    }
   };
 
   const navigateTo = (path: string, checkLogin = false) => {
@@ -161,6 +171,35 @@ const IndexPage = () => {
       Taro.switchTab({ url: path });
     } else {
       Taro.navigateTo({ url: path });
+    }
+  };
+
+  // 处理菜单点击（支持 path 跳转和 action 操作）
+  const handleMenuClick = (menu: typeof menus[0]) => {
+    // 如果有 action，执行对应操作
+    if (menu.action) {
+      // 检查是否需要登录
+      if (requireLoginActions.includes(menu.action)) {
+        const token = getToken();
+        if (!token) {
+          if (menu.action === 'checkin') {
+            setPendingCheckinAction(true);
+          }
+          setShowLoginPopup(true);
+          return;
+        }
+      }
+      
+      // 执行 action
+      if (menu.action === 'checkin') {
+        triggerCheckinScan();
+      }
+      return;
+    }
+    
+    // 否则按路径跳转
+    if (menu.path) {
+      navigateTo(menu.path);
     }
   };
 
@@ -220,7 +259,7 @@ const IndexPage = () => {
           {menus.map((menu) => {
             const IconComponent = menu.icon;
             return (
-              <View key={menu.path} className="menu-item" onClick={() => navigateTo(menu.path)}>
+              <View key={menu.action || menu.path} className="menu-item" onClick={() => handleMenuClick(menu)}>
                 <View className="menu-icon-wrap">
                   <IconComponent size={28} color={getThemePrimaryColor()} />
                 </View>

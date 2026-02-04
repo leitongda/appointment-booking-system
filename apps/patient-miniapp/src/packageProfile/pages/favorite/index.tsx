@@ -140,6 +140,7 @@ const FavoritePage = () => {
           {favorites.map((favorite) => (
             <Swipe
               key={favorite.id}
+              className="favorite-swipe-item"
               rightAction={
                 <Button
                   type="danger"
@@ -182,9 +183,12 @@ const FavoritePage = () => {
         </View>
       )}
 
-      <View className="tip-text">
-        <Text>左滑可取消收藏</Text>
-      </View>
+      {/* 底部提示 - 仅在有收藏时显示 */}
+      {favorites.length > 0 && (
+        <View className="tip-text">
+          <Text>左滑可取消收藏</Text>
+        </View>
+      )}
 
       {/* 加载状态 */}
       {loadingMore && (

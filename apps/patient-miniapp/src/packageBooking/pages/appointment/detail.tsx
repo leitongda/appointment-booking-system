@@ -7,7 +7,8 @@ import type { TimePeriodConfig } from '@hospital/api';
 import { APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP, getPeriodNameFromTime } from '@hospital/shared';
 import { getToken } from '../../../utils/auth';
 import { getThemeGradient } from '../../../utils/theme';
-import { formatTime } from '../../../utils/url';
+import { formatTime, isAppointmentExpired } from '../../../utils/url';
+import { triggerCheckinScan } from '../../../utils/checkin';
 import LoginPopup from '../../../components/LoginPopup';
 import type { AppointmentDetail } from '@hospital/shared';
 import {
@@ -101,8 +102,8 @@ const AppointmentDetailPage = () => {
   };
 
   const handleSignIn = () => {
-    // 跳转到扫码签到页面
-    Taro.navigateTo({ url: '/packageBooking/pages/checkin/scan' });
+    // 直接触发扫码签到
+    triggerCheckinScan();
   };
 
   if (loading) {
@@ -197,7 +198,7 @@ const AppointmentDetailPage = () => {
       </View>
 
       {/* 底部操作 */}
-      {appointment.status === 1 && (
+      {appointment.status === 1 && !isAppointmentExpired(appointment.scheduleDate, appointment.endTime, appointment.timeSlot) && (
         <View className="actions">
           <Button className="btn-cancel" block onClick={handleCancel}>
             取消预约

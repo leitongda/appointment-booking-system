@@ -172,9 +172,74 @@
   text-align: right;
 }
 
+// 手机号显示容器（带箭头）
+.form-value-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  
+  .form-value {
+    flex: none;
+  }
+  
+  .picker-arrow {
+    font-size: @font-size-lg;
+    color: @color-text-placeholder;
+    margin-left: @spacing-2;
+  }
+}
+
+// 手机号编辑区域
+.phone-edit-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: @spacing-2;
+}
+
+.phone-input {
+  width: 100%;
+  max-width: 400rpx;
+}
+
+.phone-actions {
+  display: flex;
+  gap: @spacing-3;
+}
+
+.phone-action-btn {
+  font-size: @font-size-sm;
+  padding: @spacing-1 @spacing-3;
+  border-radius: @radius-sm;
+  
+  &.cancel {
+    color: @color-text-muted;
+    background: @color-bg-secondary;
+  }
+  
+  &.confirm {
+    color: @color-text-white;
+    background: @color-primary;
+    
+    &.disabled {
+      opacity: 0.6;
+    }
+  }
+}
+
 // -------------------------------------------
 // 性别选择
 // -------------------------------------------
+
+// Picker 组件需要设置 flex: 1 才能正确撑满剩余空间
+.form-item picker {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
 
 .gender-picker {
   flex: 1;

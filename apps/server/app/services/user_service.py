@@ -20,6 +20,9 @@ class UserService:
         return result.scalar_one_or_none()
     
     async def get_by_phone(self, phone: str) -> Optional[User]:
+        # 空值直接返回 None，避免查询 phone=NULL 的记录
+        if not phone or not phone.strip():
+            return None
         result = await self.db.execute(select(User).where(User.phone == phone))
         return result.scalar_one_or_none()
     
@@ -71,9 +74,13 @@ class UserService:
         return True
     
     async def create(self, data: UserCreate) -> User:
+        # 空字符串 phone 转为 None，避免唯一约束冲突
+        phone = data.phone.strip() if data.phone else None
+        phone = phone if phone else None  # 空字符串也转为 None
+        
         user = User(
             id=str(uuid.uuid4()),
-            phone=data.phone or "",
+            phone=phone,
             password_hash=get_password_hash(data.password) if data.password else "",
             openid=data.openid,
             unionid=data.unionid,

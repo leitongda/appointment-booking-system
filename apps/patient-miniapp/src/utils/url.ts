@@ -77,3 +77,38 @@ export const formatTime = (time: string | null | undefined): string => {
   return time;
 };
 
+/**
+ * 判断预约是否已过期
+ * 如果预约日期+结束时间已经过去，则视为过期
+ * 
+ * @param scheduleDate 预约日期（格式：YYYY-MM-DD）
+ * @param endTime 结束时间（格式：HH:MM 或 HH:MM:SS）
+ * @param timeSlot 时段（AM/PM），当没有 endTime 时使用
+ * @returns 是否已过期
+ */
+export const isAppointmentExpired = (
+  scheduleDate: string | undefined,
+  endTime: string | undefined,
+  timeSlot: string | undefined
+): boolean => {
+  if (!scheduleDate) return false;
+  
+  const now = new Date();
+  
+  // 如果有具体的结束时间，使用结束时间判断
+  if (endTime) {
+    const formattedEndTime = formatTime(endTime);
+    const appointmentEnd = new Date(`${scheduleDate}T${formattedEndTime}:00`);
+    return now > appointmentEnd;
+  }
+  
+  // 没有具体结束时间，根据时段判断
+  // 上午时段：12:00 前有效
+  // 下午/其他时段：当天 23:59 前有效
+  const endHour = timeSlot === 'AM' ? 12 : 23;
+  const endMinute = timeSlot === 'AM' ? 0 : 59;
+  const appointmentEnd = new Date(`${scheduleDate}T${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}:00`);
+  
+  return now > appointmentEnd;
+};
+

@@ -30,12 +30,47 @@
   gap: @spacing-3;
 }
 
+// -------------------------------------------
+// Swipe 样式覆盖
+// -------------------------------------------
+
+.favorite-swipe-item {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: @radius-xl;
+  overflow: hidden;
+
+  // Swipe 外层容器和内容都拉满
+  .nut-swipe,
+  .nut-swipe-cell,
+  .nut-swipe-cell__content {
+    width: 100% !important;
+    box-sizing: border-box;
+    display: block;
+  }
+
+  // 右侧滑出区域
+  [id^='swipe-right-'] {
+    width: 100% !important;
+  }
+
+  .nut-button--danger {
+    height: 100%;
+    border-radius: 0;
+    background: @color-danger;
+  }
+}
+
 .doctor-card {
   display: flex;
   align-items: center;
   padding: @card-padding;
-  .card-base();
+  background: @color-bg-white;
+  border-radius: @radius-xl;
+  box-shadow: 0 8rpx 40rpx -4rpx var(--shadow-color, rgba(196, 30, 58, 0.1));
   transition: all @transition-base;
+  width: 100%;
+  box-sizing: border-box;
   
   &:active {
     transform: scale(0.98);
@@ -115,7 +150,7 @@
 }
 
 // -------------------------------------------
-// 底部提示
+// 底部提示和加载状态
 // -------------------------------------------
 
 .tip-text {
@@ -130,6 +165,17 @@
   
   text {
     font-size: @font-size-xs;
+    color: @color-text-muted;
+  }
+}
+
+.loading-more,
+.no-more {
+  padding: @spacing-4 0;
+  text-align: center;
+  
+  text {
+    font-size: @font-size-sm;
     color: @color-text-muted;
   }
 }

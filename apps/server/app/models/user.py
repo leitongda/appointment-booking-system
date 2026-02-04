@@ -7,7 +7,7 @@ class User(Base, AuditMixin):
     __tablename__ = "users"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    phone = Column(String(20), unique=True, index=True, nullable=False)
+    phone = Column(String(20), unique=True, index=True, nullable=True)  # 微信用户可无手机号
     password_hash = Column(String(255), nullable=False)
     nickname = Column(String(50))
     avatar = Column(String(255))

@@ -325,10 +325,10 @@ async def wechat_bind_userinfo(data: WechatBindUserInfoRequest, db: AsyncSession
             await db.commit()
         await db.refresh(user)
     else:
-        # 创建新用户（不需要手机号）
+        # 创建新用户（不需要手机号，phone 传空会被 service 层转为 None）
         from app.schemas.user import UserCreate
         user = await user_service.create(UserCreate(
-            phone="",  # 不需要手机号
+            phone="",  # 微信用户无手机号，service 层会转为 None
             password="",
             openid=data.openid,
             unionid=getattr(data, 'unionid', None),

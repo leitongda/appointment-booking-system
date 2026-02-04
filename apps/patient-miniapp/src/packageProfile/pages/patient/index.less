@@ -23,6 +23,7 @@
 .patient-item {
   display: flex;
   flex-direction: column;
+  width: 100%;
   padding: @spacing-4;
   border-bottom: @border-width solid @color-divider;
   position: relative;
@@ -89,7 +90,23 @@
 // Swipe 样式覆盖
 // -------------------------------------------
 
-.nut-swipe-cell {
+.patient-swipe-item {
+  width: 100%;
+  box-sizing: border-box;
+
+  // Swipe 外层容器和内容都拉满
+  .nut-swipe-cell,
+  .nut-swipe-cell__content {
+    width: 100% !important;
+    box-sizing: border-box;
+    display: block;
+  }
+
+  // 右侧滑出区域（如 id: swipe-right-1 等），统一拉满宽度
+  [id^='swipe-right-'] {
+    width: 100% !important;
+  }
+
   .nut-button--danger {
     height: 100%;
     border-radius: 0;
