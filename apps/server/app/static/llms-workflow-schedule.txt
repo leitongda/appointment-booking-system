@@ -1,0 +1,64 @@
+# 排班管理流程
+
+> 管理员进行排班管理的完整流程
+
+- 基础路径: /api/v1
+- 认证方式: Bearer Token (JWT)
+
+---
+
+## 流程步骤
+
+### 步骤 1: 获取班次类型
+
+- [GET /api/v1/shift-types](/api/v1/shift-types): 获取班次类型列表
+- [GET /api/v1/shift-types/all](/api/v1/shift-types/all): 获取所有启用的班次类型（用于下拉选择）
+- [GET /api/v1/shift-types/{shift_type_id}](/api/v1/shift-types/{shift_type_id}): 获取班次类型详情
+
+### 步骤 2: 获取排班模板列表
+
+- [GET /api/v1/schedule-templates](/api/v1/schedule-templates): 获取排班模板列表
+- [GET /api/v1/data/export/schedule-templates](/api/v1/data/export/schedule-templates): 导出排班模板列表
+
+### 步骤 3: 创建排班模板
+
+- [POST /api/v1/schedule-templates](/api/v1/schedule-templates): 创建排班模板
+
+### 步骤 4: 预览生成排班
+
+- [POST /api/v1/schedule-templates/preview-generate](/api/v1/schedule-templates/preview-generate): 预览生成排班（不实际写入数据库）
+
+### 步骤 5: 生成排班
+
+- [POST /api/v1/doctors/generate-username](/api/v1/doctors/generate-username): 根据医生姓名生成唯一账号
+- [POST /api/v1/schedule-templates/generate-with-capacity](/api/v1/schedule-templates/generate-with-capacity): 根据模板批量生成排班（支持自定义班次容量）
+- [POST /api/v1/schedule-templates/generate](/api/v1/schedule-templates/generate): 根据模板批量生成排班
+
+### 步骤 6: 获取排班列表
+
+- [GET /api/v1/schedules](/api/v1/schedules): 获取排班列表
+- [GET /api/v1/export/schedules](/api/v1/export/schedules): 导出排班记录
+- [GET /api/v1/schedule-suspensions/schedules](/api/v1/schedule-suspensions/schedules): 获取指定日期的可选排班（用于停诊选择）
+- [GET /api/v1/doctor-portal/schedules](/api/v1/doctor-portal/schedules): 获取当前医生的排班列表
+
+### 步骤 7: 批量停诊
+
+- [POST /api/v1/schedules/batch-suspend](/api/v1/schedules/batch-suspend): 批量停诊排班
+- [POST /api/v1/schedule-templates/{template_id}/batch-suspend](/api/v1/schedule-templates/{template_id}/batch-suspend): 批量停诊规则生成的排班
+
+### 步骤 8: 批量恢复
+
+- [POST /api/v1/schedules/batch-resume](/api/v1/schedules/batch-resume): 批量恢复排班
+
+### 步骤 9: 添加休息日
+
+- [POST /api/v1/rest-days](/api/v1/rest-days): 添加休息日
+
+### 步骤 10: 创建停诊
+
+- [POST /api/v1/schedule-suspensions](/api/v1/schedule-suspensions): 创建停诊
+
+## 相关文档
+
+- [完整 API 文档](/llms.txt): 所有 API 端点的概览
+- [详细 API 文档](/llms-full.txt): 包含参数详情的完整文档

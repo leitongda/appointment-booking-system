@@ -1,0 +1,85 @@
+# 用户管理域
+
+> 用户认证、患者管理、就诊卡管理等用户相关功能
+
+- 基础路径: /api/v1
+- 认证方式: Bearer Token (JWT)
+
+本域包含 6 个模块，共 52 个端点。
+
+---
+
+## 认证
+
+- [POST /api/v1/auth/login](/api/v1/auth/login): 用户登录
+- [POST /api/v1/auth/register](/api/v1/auth/register): 用户注册
+- [POST /api/v1/auth/refresh](/api/v1/auth/refresh): 刷新Token
+- [POST /api/v1/auth/change-password](/api/v1/auth/change-password): 修改密码
+- [POST /api/v1/auth/wechat/login](/api/v1/auth/wechat/login): 微信小程序登录
+- [POST /api/v1/auth/wechat/phone](/api/v1/auth/wechat/phone): 微信获取手机号并自动登录/注册
+- [POST /api/v1/auth/wechat/bind-phone](/api/v1/auth/wechat/bind-phone): 微信绑定手机号（手动输入方式）
+- [POST /api/v1/auth/wechat/bind-userinfo](/api/v1/auth/wechat/bind-userinfo): 微信绑定用户信息（头像昵称）并完成登录
+
+## 用户
+
+- [GET /api/v1/users/profile](/api/v1/users/profile): 获取当前用户信息
+- [PUT /api/v1/users/profile](/api/v1/users/profile): 更新用户信息
+- [POST /api/v1/users/change-password](/api/v1/users/change-password): 修改密码
+- [POST /api/v1/users/bind-phone](/api/v1/users/bind-phone): 绑定/更换手机号
+- [POST /api/v1/users/avatar](/api/v1/users/avatar): 上传用户头像
+- [GET /api/v1/users/patients](/api/v1/users/patients): 获取就诊人列表
+- [POST /api/v1/users/patients](/api/v1/users/patients): 添加就诊人
+- [GET /api/v1/users/patients/{patient_id}](/api/v1/users/patients/{patient_id}): 获取就诊人详情
+- [PUT /api/v1/users/patients/{patient_id}](/api/v1/users/patients/{patient_id}): 更新就诊人
+- [DELETE /api/v1/users/patients/{patient_id}](/api/v1/users/patients/{patient_id}): 删除就诊人
+
+## 患者管理
+
+- [GET /api/v1/user-manage](/api/v1/user-manage): 获取患者（用户）列表
+- [GET /api/v1/user-manage/{user_id}](/api/v1/user-manage/{user_id}): 获取患者（用户）详情
+- [DELETE /api/v1/user-manage/{user_id}](/api/v1/user-manage/{user_id}): 删除用户（患者）
+- [PUT /api/v1/user-manage/{user_id}](/api/v1/user-manage/{user_id}): 更新用户基本信息
+- [PUT /api/v1/user-manage/{user_id}/status](/api/v1/user-manage/{user_id}/status): 更新用户状态（禁用/启用）
+- [POST /api/v1/user-manage/{user_id}/points](/api/v1/user-manage/{user_id}/points): 调整用户积分
+- [POST /api/v1/user-manage/{user_id}/cards](/api/v1/user-manage/{user_id}/cards): 为用户添加就诊卡
+- [PUT /api/v1/user-manage/{user_id}/cards/{card_id}](/api/v1/user-manage/{user_id}/cards/{card_id}): 更新就诊卡信息
+- [DELETE /api/v1/user-manage/{user_id}/cards/{card_id}](/api/v1/user-manage/{user_id}/cards/{card_id}): 删除就诊卡
+
+## 就诊卡管理
+
+- [POST /api/v1/patients](/api/v1/patients): 创建患者（管理员手动添加）
+- [GET /api/v1/patients](/api/v1/patients): 获取患者列表
+- [GET /api/v1/patients/blacklist](/api/v1/patients/blacklist): 获取黑名单列表
+- [GET /api/v1/patients/{patient_id}](/api/v1/patients/{patient_id}): 获取患者详情
+- [PUT /api/v1/patients/{patient_id}](/api/v1/patients/{patient_id}): 更新患者信息
+- [DELETE /api/v1/patients/{patient_id}](/api/v1/patients/{patient_id}): 删除患者（就诊卡）
+- [GET /api/v1/patients/{patient_id}/appointments](/api/v1/patients/{patient_id}/appointments): 获取患者预约记录
+- [GET /api/v1/patients/{patient_id}/consumption-records](/api/v1/patients/{patient_id}/consumption-records): 获取患者消费/项目记录
+- [GET /api/v1/patients/{patient_id}/points](/api/v1/patients/{patient_id}/points): 获取积分流水
+- [POST /api/v1/patients/{patient_id}/points](/api/v1/patients/{patient_id}/points): 调整积分（手动增减）
+- [GET /api/v1/patients/{patient_id}/points/summary](/api/v1/patients/{patient_id}/points/summary): 获取积分汇总
+- [PUT /api/v1/patients/{patient_id}/blacklist](/api/v1/patients/{patient_id}/blacklist): 加入黑名单
+- [DELETE /api/v1/patients/{patient_id}/blacklist](/api/v1/patients/{patient_id}/blacklist): 移出黑名单
+- [POST /api/v1/patients/{patient_id}/family-members](/api/v1/patients/{patient_id}/family-members): 为患者添加家庭成员（亲友）
+- [PUT /api/v1/patients/{patient_id}/family-members/{member_id}](/api/v1/patients/{patient_id}/family-members/{member_id}): 编辑家庭成员信息
+- [DELETE /api/v1/patients/{patient_id}/family-members/{member_id}](/api/v1/patients/{patient_id}/family-members/{member_id}): 删除家庭成员
+
+## 黑名单管理
+
+- [GET /api/v1/blacklists](/api/v1/blacklists): 获取黑名单列表
+- [POST /api/v1/blacklists](/api/v1/blacklists): 添加黑名单
+- [DELETE /api/v1/blacklists/{blacklist_id}](/api/v1/blacklists/{blacklist_id}): 移除黑名单（解禁）
+- [POST /api/v1/blacklists/check](/api/v1/blacklists/check): 检查是否在黑名单中（公开接口，用于预约时检查）
+
+## 用户收藏
+
+- [GET /api/v1/favorites](/api/v1/favorites): 获取当前用户收藏列表
+- [POST /api/v1/favorites](/api/v1/favorites): 添加收藏
+- [GET /api/v1/favorites/check](/api/v1/favorites/check): 检查是否已收藏
+- [DELETE /api/v1/favorites/{favorite_id}](/api/v1/favorites/{favorite_id}): 取消收藏（通过收藏ID）
+- [DELETE /api/v1/favorites/target/{target_type}/{target_id}](/api/v1/favorites/target/{target_type}/{target_id}): 取消收藏（通过目标类型和ID）
+
+## 相关文档
+
+- [完整 API 文档](/llms.txt): 所有 API 端点的概览
+- [详细 API 文档](/llms-full.txt): 包含参数详情的完整文档

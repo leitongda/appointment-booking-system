@@ -1,0 +1,35 @@
+# 数据分析域
+
+> 数据统计和用户行为分析
+
+- 基础路径: /api/v1
+- 认证方式: Bearer Token (JWT)
+
+本域包含 2 个模块，共 14 个端点。
+
+---
+
+## 数据统计
+
+- [GET /api/v1/statistics/overview](/api/v1/statistics/overview): 获取概览数据
+- [GET /api/v1/statistics/appointments/trend](/api/v1/statistics/appointments/trend): 获取预约趋势数据
+- [GET /api/v1/statistics/appointments/status](/api/v1/statistics/appointments/status): 获取预约状态统计
+- [GET /api/v1/statistics/departments/ranking](/api/v1/statistics/departments/ranking): 获取科室预约排行
+- [GET /api/v1/statistics/doctors/ranking](/api/v1/statistics/doctors/ranking): 获取医生预约排行
+- [GET /api/v1/statistics/time-slots/distribution](/api/v1/statistics/time-slots/distribution): 获取时段分布统计
+- [GET /api/v1/statistics/weekday/distribution](/api/v1/statistics/weekday/distribution): 获取星期分布统计
+- [GET /api/v1/statistics/revenue/trend](/api/v1/statistics/revenue/trend): 获取收入趋势
+- [GET /api/v1/statistics/appointments/summary](/api/v1/statistics/appointments/summary): 获取预约汇总统计（完成率/爽约率/取消率）
+- [GET /api/v1/statistics/stores/ranking](/api/v1/statistics/stores/ranking): 获取门店预约排行（只有超管可以看到所有门店排行）
+
+## 用户行为分析
+
+- [POST /api/v1/analytics/track](/api/v1/analytics/track): 单条埋点数据上报
+- [POST /api/v1/analytics/batch](/api/v1/analytics/batch): 批量埋点数据上报
+- [GET /api/v1/analytics/logs](/api/v1/analytics/logs): 获取用户行为日志列表（管理员）
+- [GET /api/v1/analytics/overview](/api/v1/analytics/overview): 获取用户行为概览统计（管理员）
+
+## 相关文档
+
+- [完整 API 文档](/llms.txt): 所有 API 端点的概览
+- [详细 API 文档](/llms-full.txt): 包含参数详情的完整文档

@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin, get_store_filter, check_store_access
+from app.api.deps import get_current_admin, get_store_filter, check_store_access, require_permission
 from app.services.patient_service import PatientManageService
 from app.services.point_service import PointService
 from app.schemas.response import PageResponse
@@ -15,7 +15,7 @@ from app.core.config import settings
 router = APIRouter()
 
 
-@router.post("")
+@router.post("", summary="创建患者")
 async def create_patient(
     data: PatientCreateByAdmin,
     db: AsyncSession = Depends(get_db),
@@ -35,7 +35,7 @@ async def create_patient(
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("")
+@router.get("", summary="获取患者列表")
 async def get_patients(
     keyword: Optional[str] = None,
     is_blacklist: Optional[bool] = None,
@@ -62,7 +62,7 @@ async def get_patients(
     return PageResponse(data=items, total=total, page=page, page_size=page_size)
 
 
-@router.get("/blacklist")
+@router.get("/blacklist", summary="获取黑名单列表")
 async def get_blacklist(
     store_id: Optional[str] = None,
     page: int = Query(1, ge=1),
@@ -81,7 +81,7 @@ async def get_blacklist(
     return PageResponse(data=items, total=total, page=page, page_size=page_size)
 
 
-@router.get("/{patient_id}")
+@router.get("/{patient_id}", summary="获取患者详情")
 async def get_patient_detail(
     patient_id: str,
     db: AsyncSession = Depends(get_db),
@@ -103,12 +103,13 @@ async def get_patient_detail(
     return detail
 
 
-@router.put("/{patient_id}")
+@router.put("/{patient_id}", summary="更新患者信息")
 async def update_patient(
     patient_id: str,
     data: PatientUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:update")),
 ):
     """更新患者信息"""
     service = PatientManageService(db)
@@ -126,11 +127,12 @@ async def update_patient(
     return result
 
 
-@router.delete("/{patient_id}")
+@router.delete("/{patient_id}", summary="删除患者")
 async def delete_patient(
     patient_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:delete")),
 ):
     """删除患者（就诊卡）"""
     service = PatientManageService(db)
@@ -151,7 +153,7 @@ async def delete_patient(
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/{patient_id}/appointments")
+@router.get("/{patient_id}/appointments", summary="获取患者预约记录")
 async def get_patient_appointments(
     patient_id: str,
     doctor_id: Optional[str] = None,
@@ -181,7 +183,7 @@ async def get_patient_appointments(
     return PageResponse(data=items, total=total, page=page, page_size=page_size)
 
 
-@router.get("/{patient_id}/consumption-records")
+@router.get("/{patient_id}/consumption-records", summary="获取消费记录")
 async def get_consumption_records(
     patient_id: str,
     item_name: Optional[str] = None,
@@ -201,7 +203,7 @@ async def get_consumption_records(
     return PageResponse(data=items, total=total, page=page, page_size=page_size)
 
 
-@router.get("/{patient_id}/points")
+@router.get("/{patient_id}/points", summary="获取积分流水")
 async def get_point_logs(
     patient_id: str,
     page: int = Query(1, ge=1),
@@ -225,7 +227,7 @@ async def get_point_logs(
     }
 
 
-@router.post("/{patient_id}/points")
+@router.post("/{patient_id}/points", summary="调整积分")
 async def adjust_points(
     patient_id: str,
     data: PointAdjustData,
@@ -251,7 +253,7 @@ async def adjust_points(
     return result
 
 
-@router.get("/{patient_id}/points/summary")
+@router.get("/{patient_id}/points/summary", summary="获取积分汇总")
 async def get_point_summary(
     patient_id: str,
     db: AsyncSession = Depends(get_db),
@@ -263,7 +265,7 @@ async def get_point_summary(
     return summary
 
 
-@router.put("/{patient_id}/blacklist")
+@router.put("/{patient_id}/blacklist", summary="加入黑名单")
 async def add_to_blacklist(
     patient_id: str,
     reason: Optional[str] = None,
@@ -280,7 +282,7 @@ async def add_to_blacklist(
     return {"message": "已加入黑名单"}
 
 
-@router.delete("/{patient_id}/blacklist")
+@router.delete("/{patient_id}/blacklist", summary="移出黑名单")
 async def remove_from_blacklist(
     patient_id: str,
     db: AsyncSession = Depends(get_db),
@@ -297,7 +299,7 @@ async def remove_from_blacklist(
 
 
 # ========== 家庭成员（亲友）管理 ==========
-@router.post("/{patient_id}/family-members")
+@router.post("/{patient_id}/family-members", summary="添加家庭成员")
 async def add_family_member(
     patient_id: str,
     data: FamilyMemberCreate,
@@ -315,7 +317,7 @@ async def add_family_member(
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.put("/{patient_id}/family-members/{member_id}")
+@router.put("/{patient_id}/family-members/{member_id}", summary="更新家庭成员")
 async def update_family_member(
     patient_id: str,
     member_id: str,
@@ -333,7 +335,7 @@ async def update_family_member(
     return result
 
 
-@router.delete("/{patient_id}/family-members/{member_id}")
+@router.delete("/{patient_id}/family-members/{member_id}", summary="删除家庭成员")
 async def delete_family_member(
     patient_id: str,
     member_id: str,

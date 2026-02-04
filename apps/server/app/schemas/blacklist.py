@@ -34,20 +34,20 @@ class BlacklistResponse(BaseModel):
         by_alias=True,
     )
     
-    id: str
-    user_id: Optional[str] = None
-    user_name: Optional[str] = None
-    user_phone: Optional[str] = None
-    store_id: Optional[str] = None
-    store_name: Optional[str] = None
-    keyword: Optional[str] = None
-    reason: Optional[str] = None
-    no_show_count: int = 0
-    source: int = 1  # 1手动 2自动
-    expire_at: Optional[datetime] = None
-    released_at: Optional[datetime] = None
-    status: int = 1
-    created_at: Optional[datetime] = None
+    id: str = Field(..., description="黑名单ID")
+    user_id: Optional[str] = Field(None, description="用户ID")
+    user_name: Optional[str] = Field(None, description="用户名称")
+    user_phone: Optional[str] = Field(None, description="用户手机号")
+    store_id: Optional[str] = Field(None, description="门店ID")
+    store_name: Optional[str] = Field(None, description="门店名称")
+    keyword: Optional[str] = Field(None, description="手机号或身份证关键词")
+    reason: Optional[str] = Field(None, description="黑名单原因")
+    no_show_count: int = Field(0, description="爽约次数")
+    source: int = Field(1, description="来源: 1手动添加 2自动添加")
+    expire_at: Optional[datetime] = Field(None, description="解禁时间")
+    released_at: Optional[datetime] = Field(None, description="实际解禁时间")
+    status: int = Field(1, description="状态: 0已解禁 1生效中")
+    created_at: Optional[datetime] = Field(None, description="创建时间")
 
 
 class BlacklistListParams(BaseModel):
@@ -60,8 +60,8 @@ class BlacklistListParams(BaseModel):
     keyword: Optional[str] = Field(None, description="搜索关键词（用户昵称/电话/身份证）")
     store_id: Optional[str] = Field(None, description="门店ID")
     status: Optional[int] = Field(None, description="状态: 1生效 0已解禁")
-    page: int = Field(1, ge=1)
-    page_size: int = Field(20, ge=1, le=settings.MAX_PAGE_SIZE)
+    page: int = Field(1, ge=1, description="页码")
+    page_size: int = Field(20, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量")
 
 
 class BlacklistCheckResult(BaseModel):
@@ -72,6 +72,6 @@ class BlacklistCheckResult(BaseModel):
         by_alias=True,
     )
     
-    is_blacklisted: bool = False
-    reason: Optional[str] = None
-    expire_at: Optional[datetime] = None
+    is_blacklisted: bool = Field(False, description="是否在黑名单中")
+    reason: Optional[str] = Field(None, description="黑名单原因")
+    expire_at: Optional[datetime] = Field(None, description="解禁时间")

@@ -1,11 +1,10 @@
-import { PlusOutlined } from '@ant-design/icons';
-import type { ActionType, ProColumns } from '@ant-design/pro-components';
+import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Button, App, Tag } from 'antd';
-import { useRef } from 'react';
-import { history, useAccess } from '@umijs/max';
+import { Tag } from 'antd';
 import { messageApi } from '@hospital/api';
-import { toProTableResult } from '@/utils/proTable';
+import { createListRequest } from '@/utils/proTable';
+import { useListPage } from '@/hooks/useListPage';
+import { CreateButton } from '@/components/ListOperations';
 import type { Message } from '@hospital/shared';
 
 const TYPE_MAP: Record<string, { text: string; color: string }> = {
@@ -16,8 +15,7 @@ const TYPE_MAP: Record<string, { text: string; color: string }> = {
 };
 
 const MessagePage: React.FC = () => {
-  const access = useAccess();
-  const actionRef = useRef<ActionType>();
+  const { actionRef } = useListPage();
 
   const columns: ProColumns<Message>[] = [
     { title: '标题', dataIndex: 'title', ellipsis: true },
@@ -54,21 +52,17 @@ const MessagePage: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        request={async (params) => {
-          const { current, pageSize, title, ...rest } = params;
-          return toProTableResult(await messageApi.getAllList({ ...rest, keyword: title, page: current, pageSize }));
-        }}
+        request={createListRequest(messageApi.getAllList, (params) => {
+          const { title, ...rest } = params;
+          return { ...rest, keyword: title };
+        })}
         toolBarRender={() => [
-          access.hasPermission('message:send') && (
-            <Button
-              key="add"
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => history.push('/message/create')}
-            >
-              发送消息
-            </Button>
-          ),
+          <CreateButton
+            key="add"
+            permission="message:send"
+            url="/message/create"
+            label="发送消息"
+          />,
         ]}
         pagination={{ defaultPageSize: 10 }}
         search={{ labelWidth: 'auto' }}

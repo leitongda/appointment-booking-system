@@ -73,29 +73,29 @@ async def get_checkin_logs(
     result = await db.execute(query)
     logs = result.scalars().all()
 
-    # 格式化返回
+    # 格式化返回（使用 camelCase 以便前端直接使用）
     items = []
     for log in logs:
         item = {
             "id": log.id,
-            "appointment_id": log.appointment_id,
-            "checkin_time": log.checkin_time.isoformat() if log.checkin_time else None,
-            "checkin_method": log.checkin_method,
-            "device_info": log.device_info,
-            "location_info": log.location_info,
-            "operator_id": log.operator_id,
-            "operator_type": log.operator_type,
+            "appointmentId": log.appointment_id,
+            "checkinTime": log.checkin_time.isoformat() if log.checkin_time else None,
+            "checkinMethod": log.checkin_method,
+            "deviceInfo": log.device_info,
+            "locationInfo": log.location_info,
+            "operatorId": log.operator_id,
+            "operatorType": log.operator_type,
             "status": log.status,
-            "fail_reason": log.fail_reason,
-            "created_at": log.created_at.isoformat() if log.created_at else None,
+            "failReason": log.fail_reason,
+            "createdAt": log.created_at.isoformat() if log.created_at else None,
         }
 
         # 尝试从关联的预约获取患者信息
         if log.appointment:
-            item["patient_name"] = getattr(log.appointment, 'patient_name', None)
-            item["patient_phone"] = getattr(log.appointment, 'patient_phone', None)
-            item["doctor_name"] = getattr(log.appointment, 'doctor_name', None)
-            item["department_name"] = getattr(log.appointment, 'department_name', None)
+            item["patientName"] = getattr(log.appointment, 'patient_name', None)
+            item["patientPhone"] = getattr(log.appointment, 'patient_phone', None)
+            item["doctorName"] = getattr(log.appointment, 'doctor_name', None)
+            item["departmentName"] = getattr(log.appointment, 'department_name', None)
 
         items.append(item)
 

@@ -4,7 +4,7 @@ from typing import Optional, List
 from pydantic import BaseModel
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin, get_store_filter, check_store_access
+from app.api.deps import get_current_admin, get_store_filter, check_store_access, require_permission
 from app.schemas.department import DepartmentCreate, DepartmentUpdate, DepartmentResponse, DepartmentTreeNode
 from app.schemas.doctor import DoctorListResponse
 from app.schemas.response import PageResponse
@@ -29,7 +29,7 @@ def _to_response(department) -> DepartmentResponse:
         data.store_name = department.store.name
     return data
 
-@router.get("", response_model=PageResponse[DepartmentResponse])
+@router.get("", response_model=PageResponse[DepartmentResponse], summary="获取科室列表")
 async def get_departments(
     name: Optional[str] = None,
     status: Optional[int] = None,
@@ -59,7 +59,7 @@ async def get_departments(
         page_size=page_size
     )
 
-@router.get("/tree", response_model=List[DepartmentTreeNode])
+@router.get("/tree", response_model=List[DepartmentTreeNode], summary="获取科室树")
 async def get_department_tree(
     status: Optional[int] = 1,
     store_id: Optional[str] = None,
@@ -72,7 +72,7 @@ async def get_department_tree(
     service = DepartmentService(db)
     return await service.get_tree(status=status, store_id=store_id)
 
-@router.get("/hot", response_model=List[DepartmentResponse])
+@router.get("/hot", response_model=List[DepartmentResponse], summary="获取热门科室")
 async def get_hot_departments(
     limit: int = Query(8, ge=1, le=20),
     store_id: Optional[str] = None,
@@ -84,7 +84,7 @@ async def get_hot_departments(
     return [_to_response(d) for d in departments]
 
 
-@router.get("/all", response_model=List[DepartmentResponse])
+@router.get("/all", response_model=List[DepartmentResponse], summary="获取所有科室")
 async def get_all_departments(
     store_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
@@ -106,11 +106,12 @@ async def get_all_departments(
     return [_to_response(d) for d in departments]
 
 
-@router.put("/batch-sort")
+@router.put("/batch-sort", summary="批量更新排序")
 async def batch_update_sort_order(
     data: BatchSortRequest,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("department:update"))
 ):
     """批量更新科室排序"""
     service = DepartmentService(db)
@@ -118,7 +119,7 @@ async def batch_update_sort_order(
     count = await service.batch_update_sort_order(items)
     return {"message": "排序更新成功", "count": count}
 
-@router.get("/{dept_id}", response_model=DepartmentResponse)
+@router.get("/{dept_id}", response_model=DepartmentResponse, summary="获取科室详情")
 async def get_department(
     dept_id: str, 
     db: AsyncSession = Depends(get_db),
@@ -137,11 +138,12 @@ async def get_department(
     
     return _to_response(department)
 
-@router.post("", response_model=DepartmentResponse)
+@router.post("", response_model=DepartmentResponse, summary="创建科室")
 async def create_department(
     data: DepartmentCreate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("department:create"))
 ):
     """创建科室"""
     # 检查门店访问权限
@@ -159,12 +161,13 @@ async def create_department(
     department = await service.create(data)
     return _to_response(department)
 
-@router.put("/{dept_id}", response_model=DepartmentResponse)
+@router.put("/{dept_id}", response_model=DepartmentResponse, summary="更新科室")
 async def update_department(
     dept_id: str,
     data: DepartmentUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("department:update"))
 ):
     """更新科室"""
     service = DepartmentService(db)
@@ -185,11 +188,12 @@ async def update_department(
     department = await service.update(dept_id, data)
     return _to_response(department)
 
-@router.delete("/{dept_id}")
+@router.delete("/{dept_id}", summary="删除科室")
 async def delete_department(
     dept_id: str, 
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("department:delete"))
 ):
     """删除科室"""
     service = DepartmentService(db)
@@ -212,7 +216,7 @@ async def delete_department(
     return {"message": "删除成功"}
 
 
-@router.get("/{dept_id}/doctors", response_model=List[DoctorListResponse])
+@router.get("/{dept_id}/doctors", response_model=List[DoctorListResponse], summary="获取科室医生")
 async def get_department_doctors(
     dept_id: str,
     db: AsyncSession = Depends(get_db),
@@ -256,7 +260,7 @@ async def get_department_doctors(
     return result
 
 
-@router.get("/{dept_id}/available-doctors", response_model=List[DoctorListResponse])
+@router.get("/{dept_id}/available-doctors", response_model=List[DoctorListResponse], summary="获取可绑定医生")
 async def get_available_doctors(
     dept_id: str,
     db: AsyncSession = Depends(get_db),
@@ -301,12 +305,13 @@ async def get_available_doctors(
     return result
 
 
-@router.put("/{dept_id}/doctors/batch")
+@router.put("/{dept_id}/doctors/batch", summary="批量绑定医生")
 async def batch_bind_doctors(
     dept_id: str,
     doctor_ids: List[str],
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("department:update"))
 ):
     """批量绑定医生到科室"""
     service = DepartmentService(db)

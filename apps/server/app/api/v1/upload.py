@@ -83,7 +83,7 @@ def _generate_thumbnail_key(original_key: str, size_name: str) -> str:
     return f"thumb_{size_name}_{original_key}"
 
 
-@router.post("", response_model=UploadResponse)
+@router.post("", response_model=UploadResponse, summary="上传图片")
 async def upload_image(
     file: UploadFile = File(...),
     folder: str = Form(default="images"),
@@ -192,7 +192,7 @@ async def upload_image(
         )
 
 
-@router.post("/transfer", response_model=UploadResponse)
+@router.post("/transfer", response_model=UploadResponse, summary="URL转存")
 async def transfer_from_url(
     data: TransferRequest,
     current_admin = Depends(get_current_admin),
@@ -231,7 +231,7 @@ async def transfer_from_url(
         )
 
 
-@router.delete("/{key:path}")
+@router.delete("/{key:path}", summary="删除图片")
 async def delete_image(
     key: str,
     current_admin = Depends(get_current_admin),

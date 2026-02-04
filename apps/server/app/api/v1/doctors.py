@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin, get_store_filter, check_store_access, get_current_doctor_by_token
+from app.api.deps import get_current_admin, get_store_filter, check_store_access, get_current_doctor_by_token, require_permission
 from app.models.doctor import Doctor
 from app.schemas.doctor import DoctorCreate, DoctorUpdate, DoctorResponse, DoctorListResponse
 from app.schemas.response import PageResponse
@@ -133,14 +133,14 @@ async def doctor_login(
     )
 
 
-@router.get("/me", response_model=DoctorResponse)
+@router.get("/me", response_model=DoctorResponse, summary="获取当前医生信息")
 async def get_current_doctor_info(
     doctor: Doctor = Depends(get_current_doctor_by_token),
 ):
     """获取当前登录医生信息"""
     return doctor_to_response(doctor)
 
-@router.get("", response_model=PageResponse[DoctorListResponse])
+@router.get("", response_model=PageResponse[DoctorListResponse], summary="获取医生列表")
 async def get_doctors(
     name: Optional[str] = None,
     store_id: Optional[str] = None,
@@ -172,7 +172,7 @@ async def get_doctors(
     
     return PageResponse(data=result, total=total, page=page, page_size=page_size)
 
-@router.get("/all", response_model=List[DoctorListResponse])
+@router.get("/all", response_model=List[DoctorListResponse], summary="获取所有医生")
 async def get_all_doctors(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
@@ -191,7 +191,7 @@ async def get_all_doctors(
     return [doctor_to_list_response(d) for d in doctors]
 
 
-@router.get("/recommended", response_model=List[DoctorListResponse])
+@router.get("/recommended", response_model=List[DoctorListResponse], summary="获取推荐医生")
 async def get_recommended_doctors(
     limit: int = Query(6, ge=1, le=settings.MAX_PAGE_SIZE),
     store_id: Optional[str] = None,
@@ -210,7 +210,7 @@ async def get_recommended_doctors(
     
     return [doctor_to_list_response(d, availability_map.get(d.id, False)) for d in doctors]
 
-@router.get("/by-department/{department_id}", response_model=List[DoctorListResponse])
+@router.get("/by-department/{department_id}", response_model=List[DoctorListResponse], summary="获取科室医生")
 async def get_doctors_by_department(
     department_id: str,
     store_id: Optional[str] = None,
@@ -230,7 +230,7 @@ async def get_doctors_by_department(
     return [doctor_to_list_response(d, availability_map.get(d.id, False)) for d in doctors]
 
 
-@router.get("/public/{doctor_id}", response_model=DoctorResponse)
+@router.get("/public/{doctor_id}", response_model=DoctorResponse, summary="获取医生详情(公开)")
 async def get_doctor_public(
     doctor_id: str,
     db: AsyncSession = Depends(get_db)
@@ -263,11 +263,12 @@ class BatchSortRequest(BaseModel):
     items: List[SortOrderItem]
 
 
-@router.put("/batch-sort")
+@router.put("/batch-sort", summary="批量更新排序")
 async def batch_update_sort_order(
     data: BatchSortRequest,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("doctor:update"))
 ):
     """批量更新医生排序"""
     service = DoctorService(db)
@@ -276,7 +277,7 @@ async def batch_update_sort_order(
     return {"message": "排序更新成功", "count": count}
 
 
-@router.get("/{doctor_id}", response_model=DoctorResponse)
+@router.get("/{doctor_id}", response_model=DoctorResponse, summary="获取医生详情")
 async def get_doctor(
     doctor_id: str, 
     db: AsyncSession = Depends(get_db),
@@ -295,11 +296,12 @@ async def get_doctor(
     
     return doctor_to_response(doctor)
 
-@router.post("", response_model=DoctorResponse)
+@router.post("", response_model=DoctorResponse, summary="创建医生")
 async def create_doctor(
     data: DoctorCreate, 
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("doctor:create"))
 ):
     """创建医生"""
     # 检查门店访问权限
@@ -321,12 +323,13 @@ async def create_doctor(
     
     return doctor_to_response(doctor)
 
-@router.put("/{doctor_id}", response_model=DoctorResponse)
+@router.put("/{doctor_id}", response_model=DoctorResponse, summary="更新医生")
 async def update_doctor(
     doctor_id: str,
     data: DoctorUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("doctor:update"))
 ):
     """更新医生"""
     service = DoctorService(db)
@@ -348,11 +351,12 @@ async def update_doctor(
     
     return doctor_to_response(doctor)
 
-@router.delete("/{doctor_id}")
+@router.delete("/{doctor_id}", summary="删除医生")
 async def delete_doctor(
     doctor_id: str, 
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("doctor:delete"))
 ):
     """删除医生"""
     service = DoctorService(db)
@@ -391,7 +395,7 @@ class GenerateUsernameResponse(BaseModel):
     username: str
 
 
-@router.post("/check-username", response_model=CheckUsernameResponse)
+@router.post("/check-username", response_model=CheckUsernameResponse, summary="检查账号是否存在")
 async def check_username(
     data: CheckUsernameRequest,
     db: AsyncSession = Depends(get_db),
@@ -412,7 +416,7 @@ async def check_username(
     return CheckUsernameResponse(exists=exists, suggestions=suggestions)
 
 
-@router.post("/generate-username", response_model=GenerateUsernameResponse)
+@router.post("/generate-username", response_model=GenerateUsernameResponse, summary="生成唯一账号")
 async def generate_username(
     data: GenerateUsernameRequest,
     db: AsyncSession = Depends(get_db),

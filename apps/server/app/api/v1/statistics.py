@@ -28,7 +28,7 @@ def _build_store_filter_condition(store_filter: Union[None, str, List[str]]):
     return Doctor.store_id == store_filter
 
 
-@router.get("/overview", response_model=ResponseModel)
+@router.get("/overview", response_model=ResponseModel, summary="获取概览数据")
 async def get_overview(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
@@ -111,7 +111,7 @@ async def get_overview(
     })
 
 
-@router.get("/appointments/trend", response_model=ResponseModel)
+@router.get("/appointments/trend", response_model=ResponseModel, summary="获取预约趋势")
 async def get_appointment_trend(
     days: int = Query(default=7, ge=1, le=30),
     db: AsyncSession = Depends(get_db),
@@ -156,7 +156,7 @@ async def get_appointment_trend(
     return ResponseModel(data=trend)
 
 
-@router.get("/appointments/status", response_model=ResponseModel)
+@router.get("/appointments/status", response_model=ResponseModel, summary="获取预约状态统计")
 async def get_appointment_status_stats(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
@@ -213,7 +213,7 @@ async def get_appointment_status_stats(
     return ResponseModel(data=data)
 
 
-@router.get("/departments/ranking", response_model=ResponseModel)
+@router.get("/departments/ranking", response_model=ResponseModel, summary="获取科室预约排行")
 async def get_department_ranking(
     limit: int = Query(default=10, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
@@ -254,7 +254,7 @@ async def get_department_ranking(
     return ResponseModel(data=data)
 
 
-@router.get("/doctors/ranking", response_model=ResponseModel)
+@router.get("/doctors/ranking", response_model=ResponseModel, summary="获取医生预约排行")
 async def get_doctor_ranking(
     limit: int = Query(default=10, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
@@ -304,7 +304,7 @@ async def get_doctor_ranking(
     return ResponseModel(data=data)
 
 
-@router.get("/time-slots/distribution", response_model=ResponseModel)
+@router.get("/time-slots/distribution", response_model=ResponseModel, summary="获取时段分布统计")
 async def get_time_slot_distribution(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
@@ -345,7 +345,7 @@ async def get_time_slot_distribution(
     return ResponseModel(data=data)
 
 
-@router.get("/weekday/distribution", response_model=ResponseModel)
+@router.get("/weekday/distribution", response_model=ResponseModel, summary="获取星期分布统计")
 async def get_weekday_distribution(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
@@ -386,7 +386,7 @@ async def get_weekday_distribution(
     return ResponseModel(data=data)
 
 
-@router.get("/revenue/trend", response_model=ResponseModel)
+@router.get("/revenue/trend", response_model=ResponseModel, summary="获取收入趋势")
 async def get_revenue_trend(
     days: int = Query(default=7, ge=1, le=30),
     db: AsyncSession = Depends(get_db),
@@ -419,7 +419,7 @@ async def get_revenue_trend(
     return ResponseModel(data=trend)
 
 
-@router.get("/appointments/summary", response_model=ResponseModel)
+@router.get("/appointments/summary", response_model=ResponseModel, summary="获取预约汇总统计")
 async def get_appointment_summary(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
@@ -480,7 +480,7 @@ async def get_appointment_summary(
     })
 
 
-@router.get("/stores/ranking", response_model=ResponseModel)
+@router.get("/stores/ranking", response_model=ResponseModel, summary="获取门店预约排行")
 async def get_store_ranking(
     limit: int = Query(default=10, ge=1, le=50),
     start_date: Optional[date] = None,

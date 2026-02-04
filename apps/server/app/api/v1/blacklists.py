@@ -5,7 +5,7 @@ from typing import Optional
 from datetime import datetime
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_permission
 from app.services.blacklist_service import BlacklistService
 from app.schemas.blacklist import BlacklistCreate
 from app.core.config import settings
@@ -13,7 +13,7 @@ from app.core.config import settings
 router = APIRouter()
 
 
-@router.get("")
+@router.get("", summary="获取列表")
 async def get_blacklist_list(
     keyword: Optional[str] = Query(None, description="搜索关键词"),
     store_id: Optional[str] = Query(None, description="门店ID"),
@@ -40,11 +40,12 @@ async def get_blacklist_list(
     }
 
 
-@router.post("")
+@router.post("", summary="添加黑名单")
 async def add_blacklist(
     data: BlacklistCreate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("blacklist:create")),
 ):
     """添加黑名单"""
     # 验证：必须有用户ID或关键词
@@ -59,11 +60,12 @@ async def add_blacklist(
     return {"message": "添加成功", "data": result}
 
 
-@router.delete("/{blacklist_id}")
+@router.delete("/{blacklist_id}", summary="移除黑名单")
 async def remove_blacklist(
     blacklist_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("blacklist:delete")),
 ):
     """移除黑名单（解禁）"""
     service = BlacklistService(db)
@@ -78,7 +80,7 @@ async def remove_blacklist(
     return {"message": "解禁成功"}
 
 
-@router.post("/check")
+@router.post("/check", summary="检查黑名单")
 async def check_blacklist(
     user_id: Optional[str] = None,
     phone: Optional[str] = None,

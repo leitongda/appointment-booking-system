@@ -17,7 +17,7 @@ from app.core.config import settings
 router = APIRouter()
 
 
-@router.get("", response_model=PageResponse[RestDayResponse])
+@router.get("", response_model=PageResponse[RestDayResponse], summary="获取列表")
 async def get_rest_days(
     store_id: Optional[str] = None,
     doctor_id: Optional[str] = None,
@@ -67,7 +67,7 @@ async def get_rest_days(
     return PageResponse(data=result, total=total, page=page, page_size=page_size)
 
 
-@router.post("", response_model=RestDayResponse)
+@router.post("", response_model=RestDayResponse, summary="添加休息日")
 async def create_rest_day(
     data: RestDayCreate,
     db: AsyncSession = Depends(get_db),
@@ -108,7 +108,7 @@ async def create_rest_day(
     )
 
 
-@router.delete("/{rest_day_id}")
+@router.delete("/{rest_day_id}", summary="删除休息日")
 async def delete_rest_day(
     rest_day_id: str,
     db: AsyncSession = Depends(get_db),
@@ -124,7 +124,7 @@ async def delete_rest_day(
     return {"message": "删除成功"}
 
 
-@router.put("/{rest_day_id}/cancel")
+@router.put("/{rest_day_id}/cancel", summary="取消休息日")
 async def cancel_rest_day(
     rest_day_id: str,
     db: AsyncSession = Depends(get_db),

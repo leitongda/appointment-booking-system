@@ -12,17 +12,19 @@ def to_camel(string: str) -> str:
 
 
 class FeedbackType(str, Enum):
-    SUGGESTION = "suggestion"
-    COMPLAINT = "complaint"
-    BUG = "bug"
-    OTHER = "other"
+    """反馈类型"""
+    SUGGESTION = "suggestion"   # 建议
+    COMPLAINT = "complaint"     # 投诉
+    BUG = "bug"                 # 问题反馈
+    OTHER = "other"             # 其他
 
 
 class FeedbackStatus(str, Enum):
-    PENDING = "pending"
-    PROCESSING = "processing"
-    RESOLVED = "resolved"
-    CLOSED = "closed"
+    """反馈状态"""
+    PENDING = "pending"         # 待处理
+    PROCESSING = "processing"   # 处理中
+    RESOLVED = "resolved"       # 已解决
+    CLOSED = "closed"           # 已关闭
 
 
 class FeedbackCreate(BaseModel):

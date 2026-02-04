@@ -82,6 +82,69 @@ Authorization: Bearer <token>
 | 429 | 请求过于频繁 |
 | 500 | 服务器内部错误 |
 
+### 1.5 常用枚举值
+
+#### 预约状态 (status)
+| 值 | 说明 |
+|----|------|
+| 0 | 待支付 |
+| 1 | 已预约 |
+| 2 | 已签到 |
+| 3 | 候诊中 |
+| 4 | 就诊中 |
+| 5 | 已完成 |
+| 6 | 已取消 |
+| 7 | 已过期 |
+| 8 | 已关闭 |
+
+#### 预约类型 (appointment_type)
+| 值 | 说明 |
+|----|------|
+| normal | 普通 |
+| urgent | 加急 |
+| expert | 专家 |
+| medical_insurance | 医保 |
+| self_pay | 自费 |
+
+#### 时段 (time_slot)
+| 值 | 说明 |
+|----|------|
+| AM / morning | 上午 |
+| PM / afternoon | 下午 |
+| evening | 晚上 |
+
+#### 性别 (gender)
+| 值 | 说明 |
+|----|------|
+| 0 | 未知 |
+| 1 | 男 |
+| 2 | 女 |
+
+#### 反馈类型 (feedback_type)
+| 值 | 说明 |
+|----|------|
+| suggestion | 建议 |
+| complaint | 投诉 |
+| bug | 问题反馈 |
+| other | 其他 |
+
+#### 反馈状态 (feedback_status)
+| 值 | 说明 |
+|----|------|
+| pending | 待处理 |
+| processing | 处理中 |
+| resolved | 已解决 |
+| closed | 已关闭 |
+
+#### 消息类型 (message_type)
+| 值 | 说明 |
+|----|------|
+| appointment | 预约通知 |
+| consultation | 就诊通知 |
+| schedule | 排班通知 |
+| system | 系统通知 |
+| stop_clinic | 停诊通知 |
+
 ---
 
 ## 二、API模块列表
@@ -132,26 +195,113 @@ Authorization: Bearer <token>
 ### 排班模块 `/api/v1/schedules`
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
-| GET | / | 获取排班列表 | 公开 |
-| GET | /available | 获取可预约排班 | 公开 |
+| GET | / | 获取排班列表 | 管理员 |
+| GET | /statistics | 获取排班统计（按门店、月份） | 管理员 |
+| GET | /available/:doctor_id | 获取可预约排班 | 公开 |
+| GET | /:id | 获取排班详情 | 管理员 |
 | POST | / | 创建排班 | 管理员 |
 | POST | /batch | 批量创建排班 | 管理员 |
-| POST | /generate | 根据模板生成 | 管理员 |
 | PUT | /:id | 更新排班 | 管理员 |
-| DELETE | /:id | 删除排班 | 管理员 |
-| PUT | /:id/suspend | 停诊 | 管理员/医生 |
+| POST | /batch-suspend | 批量停诊 | 管理员 |
+| POST | /batch-resume | 批量恢复 | 管理员 |
+| POST | /batch-delete | 批量删除 | 管理员 |
+
+### 排班模板模块 `/api/v1/schedule-templates`
+| 方法 | 路径 | 说明 | 权限 |
+|------|------|------|------|
+| GET | / | 获取排班模板列表 | 管理员 |
+| GET | /:id | 获取模板详情 | 管理员 |
+| POST | / | 创建排班模板 | 管理员 |
+| PUT | /:id | 更新模板 | 管理员 |
+| DELETE | /:id | 删除模板 | 管理员 |
+| POST | /:id/generate | 生成排班 | 管理员 |
+| POST | /preview | 预览生成排班 | 管理员 |
+| POST | /:id/copy | 复制模板 | 管理员 |
+
+### 门店模块 `/api/v1/stores`
+| 方法 | 路径 | 说明 | 权限 |
+|------|------|------|------|
+| GET | / | 获取门店列表 | 管理员 |
+| GET | /all | 获取所有门店 | 管理员 |
+| GET | /:id | 获取门店详情 | 管理员 |
+| POST | / | 创建门店 | 管理员 |
+| PUT | /:id | 更新门店 | 管理员 |
+| DELETE | /:id | 删除门店 | 管理员 |
+| PATCH | /:id/status | 更新门店状态 | 管理员 |
+
+### 规则管理模块 `/api/v1/rule-sets`
+| 方法 | 路径 | 说明 | 权限 |
+|------|------|------|------|
+| GET | / | 获取规则集列表 | 管理员 |
+| GET | /:id | 获取规则集详情 | 管理员 |
+| POST | / | 创建规则集 | 管理员 |
+| PUT | /:id | 更新规则集 | 管理员 |
+| DELETE | /:id | 删除规则集 | 管理员 |
+| POST | /:id/enable | 启用规则集 | 管理员 |
+| POST | /:id/disable | 禁用规则集 | 管理员 |
+| POST | /preview | 预览规则效果 | 管理员 |
+
+### 停诊调班模块 `/api/v1/leave-requests`
+| 方法 | 路径 | 说明 | 权限 |
+|------|------|------|------|
+| GET | / | 获取停诊调班列表 | 管理员 |
+| GET | /pending-count | 获取待审核数量 | 管理员 |
+| GET | /my | 获取我的申请 | 医生 |
+| GET | /:id | 获取申请详情 | 管理员/医生 |
+| POST | /stop-clinic | 申请停诊 | 医生 |
+| POST | /schedule-change | 申请调班 | 医生 |
+| POST | /:id/review | 审核申请 | 管理员 |
+| POST | /:id/cancel | 取消申请 | 医生 |
+
+### 反馈管理模块 `/api/v1/feedbacks`
+| 方法 | 路径 | 说明 | 权限 |
+|------|------|------|------|
+| GET | / | 获取反馈列表 | 管理员 |
+| GET | /pending-count | 获取待处理数量 | 管理员 |
+| GET | /my | 获取我的反馈 | 登录 |
+| GET | /:id | 获取反馈详情 | 管理员/本人 |
+| POST | / | 提交反馈 | 登录 |
+| POST | /:id/reply | 回复反馈 | 管理员 |
+| PATCH | /:id/status | 更新反馈状态 | 管理员 |
+
+### 消息中心模块 `/api/v1/messages`
+| 方法 | 路径 | 说明 | 权限 |
+|------|------|------|------|
+| GET | /my | 获取我的消息列表 | 登录 |
+| GET | /unread-count | 获取未读消息数 | 登录 |
+| PUT | /:id/read | 标记已读 | 登录 |
+| PUT | /batch-read | 批量标记已读 | 登录 |
+| DELETE | /:id | 删除消息 | 登录 |
+
+### 黑名单模块 `/api/v1/blacklists`
+| 方法 | 路径 | 说明 | 权限 |
+|------|------|------|------|
+| GET | / | 获取黑名单列表 | 管理员 |
+| POST | / | 添加黑名单 | 管理员 |
+| DELETE | /:id | 删除黑名单 | 管理员 |
+| POST | /check | 检查是否在黑名单 | 管理员 |
 
 ### 预约模块 `/api/v1/appointments`
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
 | GET | / | 获取预约列表 | 登录 |
+| GET | /today | 获取今日预约（医生端） | 医生 |
+| GET | /today-pending | 获取今日待签到预约 | 登录 |
+| GET | /queue | 获取签到队列 | 登录/管理员 |
+| GET | /queue/info | 获取叫号队列信息 | 医生 |
+| GET | /statistics | 预约统计 | 管理员 |
+| GET | /check-duplicate | 检查重复预约 | 登录 |
+| GET | /by-no/:appointment_no | 按预约号获取详情 | 登录 |
 | GET | /:id | 获取预约详情 | 登录 |
 | POST | / | 创建预约 | 登录 |
 | PUT | /:id/cancel | 取消预约 | 登录 |
 | PUT | /:id/sign-in | 签到 | 登录 |
-| PUT | /:id/call | 叫号 | 医生 |
-| PUT | /:id/complete | 完成就诊 | 医生 |
-| GET | /statistics | 预约统计 | 管理员 |
+| PUT | /:id/cancel-sign-in | 取消签到 | 超级管理员 |
+| PUT | /:id/call | 叫号 | 管理员 |
+| PUT | /:id/complete | 完成就诊 | 管理员 |
+| PUT | /:id/pass | 过号 | 管理员 |
+| PUT | /:id/recall | 重新叫号 | 管理员 |
+| PUT | /:id/no-show | 标记爽约 | 管理员 |
 
 ### 病历模块 `/api/v1/medical-records`
 | 方法 | 路径 | 说明 | 权限 |

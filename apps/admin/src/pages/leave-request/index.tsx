@@ -1,11 +1,13 @@
-import type { ActionType, ProColumns } from '@ant-design/pro-components';
+import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormTextArea, ProFormRadio } from '@ant-design/pro-components';
-import { App, Space, Tag, Drawer, Descriptions, Divider } from 'antd';
-import { EyeOutlined, AuditOutlined } from '@ant-design/icons';
-import { useRef, useState } from 'react';
-import { useModel, useAccess } from '@umijs/max';
+import { Tag, Drawer, Descriptions } from 'antd';
+import { AuditOutlined } from '@ant-design/icons';
+import { useState } from 'react';
+import { useModel } from '@umijs/max';
 import { leaveRequestApi } from '@hospital/api';
-import { toProTableResult } from '@/utils/proTable';
+import { createListRequest } from '@/utils/proTable';
+import { useListPage } from '@/hooks/useListPage';
+import { OperationButton, OperationGroup } from '@/components/ListOperations';
 import type { LeaveRequest } from '@hospital/shared';
 
 const TYPE_MAP: Record<string, string> = { stop_clinic: '停诊申请', schedule_change: '调班申请' };
@@ -18,10 +20,8 @@ const STATUS_MAP: Record<string, { text: string; color: string }> = {
 const PERIOD_MAP: Record<string, string> = { morning: '上午', afternoon: '下午', evening: '晚上' };
 
 const LeaveRequestPage: React.FC = () => {
-  const { message } = App.useApp();
   const { initialState } = useModel('@@initialState');
-  const access = useAccess();
-  const actionRef = useRef<ActionType>();
+  const { actionRef, message, reload } = useListPage();
   const [reviewOpen, setReviewOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [currentRecord, setCurrentRecord] = useState<LeaveRequest | null>(null);
@@ -32,7 +32,7 @@ const LeaveRequestPage: React.FC = () => {
       await leaveRequestApi.review(currentRecord.id, initialState.currentUser.id, values.status, values.comment);
       message.success('审核成功');
       setReviewOpen(false);
-      actionRef.current?.reload();
+      reload();
       return true;
     } catch (error: any) {
       message.error(error.message || '审核失败');
@@ -70,18 +70,22 @@ const LeaveRequestPage: React.FC = () => {
       width: 150,
       fixed: 'right',
       render: (_, record) => (
-        <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
-          {access.hasPermission('leave-request:list') && (
-            <a onClick={() => { setCurrentRecord(record); setDetailOpen(true); }} style={{ fontSize: 13 }}>
-              <EyeOutlined /> 详情
-            </a>
+        <OperationGroup>
+          <OperationButton
+            type="view"
+            permission="leave-request:list"
+            onClick={() => { setCurrentRecord(record); setDetailOpen(true); }}
+          />
+          {record.status === 'pending' && (
+            <OperationButton
+              type="custom"
+              permission="leave-request:approve"
+              icon={<AuditOutlined />}
+              label="审核"
+              onClick={() => { setCurrentRecord(record); setReviewOpen(true); }}
+            />
           )}
-          {access.hasPermission('leave-request:approve') && record.status === 'pending' && (
-            <a onClick={() => { setCurrentRecord(record); setReviewOpen(true); }} style={{ fontSize: 13 }}>
-              <AuditOutlined /> 审核
-            </a>
-          )}
-        </Space>
+        </OperationGroup>
       ),
     },
   ];
@@ -93,10 +97,7 @@ const LeaveRequestPage: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        request={async (params) => {
-          const { current, pageSize, ...rest } = params;
-          return toProTableResult(await leaveRequestApi.getList({ ...rest, page: current, pageSize }));
-        }}
+        request={createListRequest(leaveRequestApi.getList)}
         pagination={{ defaultPageSize: 10 }}
         search={{ labelWidth: 'auto' }}
       />

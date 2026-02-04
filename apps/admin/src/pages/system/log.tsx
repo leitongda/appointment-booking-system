@@ -1,11 +1,12 @@
-import type { ProColumns, ActionType } from '@ant-design/pro-components';
+import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { Tag, Modal, Typography, Space, Tooltip } from 'antd';
 import { adminApi, dataApi } from '@hospital/api';
-import { toProTableResult } from '@/utils/proTable';
+import { createListRequest } from '@/utils/proTable';
+import { useListPage } from '@/hooks/useListPage';
+import { OperationButton } from '@/components/ListOperations';
 import type { OperationLog } from '@hospital/api';
-import { useRef, useState } from 'react';
-import { EyeOutlined } from '@ant-design/icons';
+import { useState } from 'react';
 import ImportExport from '@/components/ImportExport';
 
 const { Paragraph, Text } = Typography;
@@ -37,7 +38,7 @@ const RESULT_OPTIONS = [
 ];
 
 const LogPage: React.FC = () => {
-  const actionRef = useRef<ActionType>();
+  const { actionRef } = useListPage();
   const [detailVisible, setDetailVisible] = useState(false);
   const [currentLog, setCurrentLog] = useState<OperationLog | null>(null);
 
@@ -148,11 +149,12 @@ const LogPage: React.FC = () => {
       valueType: 'option',
       width: 80,
       fixed: 'right',
-      render: (_, record) => [
-        <a key="detail" onClick={() => showDetail(record)}>
-          <EyeOutlined /> 详情
-        </a>,
-      ],
+      render: (_, record) => (
+        <OperationButton
+          type="view"
+          onClick={() => showDetail(record)}
+        />
+      ),
     },
   ];
 
@@ -164,10 +166,7 @@ const LogPage: React.FC = () => {
         rowKey="id"
         columns={columns}
         scroll={{ x: 1200 }}
-        request={async (params) => {
-          const { current, pageSize, ...rest } = params;
-          return toProTableResult(await adminApi.getLogs({ ...rest, page: current, pageSize }));
-        }}
+        request={createListRequest(adminApi.getLogs)}
         pagination={{ defaultPageSize: 20, showSizeChanger: true }}
         search={{
           labelWidth: 'auto',

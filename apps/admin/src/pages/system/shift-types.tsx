@@ -1,46 +1,30 @@
-import { PageContainer, ProTable, ProColumns, ActionType } from '@ant-design/pro-components';
-import { Button, message, Popconfirm, Space, Tag } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
-import { useState, useRef } from 'react';
-import { history } from '@umijs/max';
+import { PageContainer, ProTable, ProColumns } from '@ant-design/pro-components';
+import { Tag } from 'antd';
 import { shiftTypeApi } from '@hospital/api';
 import type { ShiftType } from '@hospital/shared';
+import { createListRequest } from '@/utils/proTable';
+import { useListPage } from '@/hooks/useListPage';
+import { CreateButton, OperationButton, OperationGroup } from '@/components/ListOperations';
 
 /**
  * 班次类型管理页面
  */
 const ShiftTypeListPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-
-  const handleDelete = async (id: string) => {
-    try {
-      setLoading(true);
-      await shiftTypeApi.delete(id);
-      message.success('删除成功');
-      actionRef.current?.reload();
-    } catch (error: any) {
-      message.error(error.message || '删除失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { actionRef, message, handleDelete, reload } = useListPage({
+    deleteFn: shiftTypeApi.delete,
+  });
 
   const handleToggleStatus = async (record: ShiftType) => {
     try {
-      setLoading(true);
       await shiftTypeApi.update(record.id, {
         enabled: !record.enabled,
       });
       message.success('更新成功');
-      actionRef.current?.reload();
+      reload();
     } catch (error: any) {
       message.error(error.message || '更新失败');
-    } finally {
-      setLoading(false);
     }
   };
-
-  const actionRef = useRef<ActionType>();
 
   const columns: ProColumns<ShiftType>[] = [
     {
@@ -85,33 +69,23 @@ const ShiftTypeListPage: React.FC = () => {
       width: 200,
       fixed: 'right',
       render: (_, record) => (
-        <Space>
-          <Button
-            type="link"
-            size="small"
-            onClick={() => history.push(`/system/shift-types/${record.id}/edit`)}
-          >
-            编辑
-          </Button>
-          <Button
-            type="link"
-            size="small"
+        <OperationGroup>
+          <OperationButton
+            type="edit"
+            url={`/system/shift-types/${record.id}/edit`}
+          />
+          <OperationButton
+            type="custom"
+            label={record.enabled ? '禁用' : '启用'}
             onClick={() => handleToggleStatus(record)}
-          >
-            {record.enabled ? '禁用' : '启用'}
-          </Button>
-          <Popconfirm
-            title="确认删除"
-            description="删除后无法恢复，确定要删除吗？"
-            onConfirm={() => handleDelete(record.id)}
-            okText="确定"
-            cancelText="取消"
-          >
-            <Button type="link" size="small" danger>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
+          />
+          <OperationButton
+            type="delete"
+            confirmText="确认删除"
+            confirmDescription="删除后无法恢复，确定要删除吗？"
+            onClick={() => handleDelete(record.id)}
+          />
+        </OperationGroup>
       ),
     },
   ];
@@ -124,36 +98,11 @@ const ShiftTypeListPage: React.FC = () => {
       <ProTable<ShiftType>
         actionRef={actionRef}
         rowKey="id"
-        loading={loading}
         columns={columns}
-        request={async (params) => {
-          const { current, pageSize, code, name, enabled } = params;
-
-          try {
-            const result = await shiftTypeApi.getList({
-              page: current,
-              pageSize: pageSize,
-              keyword: code || name,
-              enabled,
-            });
-
-            // 后端返回 PageResult 格式: { data, total }
-            const data = result.data || [];
-
-            return {
-              data: data,
-              success: true,
-              total: result.total || 0,
-            };
-          } catch (error: any) {
-            message.error(error.message || '加载数据失败');
-            return {
-              data: [],
-              success: false,
-              total: 0,
-            };
-          }
-        }}
+        request={createListRequest(shiftTypeApi.getList, (params) => {
+          const { code, name, ...rest } = params;
+          return { ...rest, keyword: code || name };
+        })}
         columnsState={{
           persistenceKey: 'shift-type-list-table',
           persistenceType: 'localStorage',
@@ -176,14 +125,11 @@ const ShiftTypeListPage: React.FC = () => {
         dateFormatter="string"
         headerTitle="班次类型列表"
         toolBarRender={() => [
-          <Button
+          <CreateButton
             key="create"
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => history.push('/system/shift-types/create')}
-          >
-            新增班次类型
-          </Button>,
+            url="/system/shift-types/create"
+            label="新增班次类型"
+          />,
         ]}
       />
     </PageContainer>

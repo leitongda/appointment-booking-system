@@ -15,6 +15,12 @@ const STATUS_MAP: Record<number, { text: string; color: string }> = {
   5: { text: '已完成', color: 'green' },
 };
 
+const CHECKIN_METHOD_MAP: Record<string, { text: string; color: string }> = {
+  QR_CODE: { text: '扫码', color: 'blue' },
+  MANUAL: { text: '后台', color: 'default' },
+  PHONE: { text: '手机端', color: 'green' },
+};
+
 const AppointmentQueuePage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
@@ -179,6 +185,16 @@ const AppointmentQueuePage: React.FC = () => {
       key: 'signInTime',
       width: 120,
       render: (val) => (val ? dayjs(val).format('HH:mm:ss') : '-'),
+    },
+    {
+      title: '签到方式',
+      dataIndex: 'checkinMethod',
+      key: 'checkinMethod',
+      width: 90,
+      render: (val) => {
+        const method = CHECKIN_METHOD_MAP[val];
+        return method ? <Tag color={method.color}>{method.text}</Tag> : '-';
+      },
     },
     {
       title: '状态',

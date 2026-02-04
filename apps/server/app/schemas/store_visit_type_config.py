@@ -11,14 +11,16 @@ def to_camel(string: str) -> str:
 
 
 class TimeUnit(str, Enum):
-    HOURS = "hours"
-    DAYS = "days"
+    """时间单位"""
+    HOURS = "hours"   # 小时
+    DAYS = "days"     # 天
 
 
 class VisitScope(str, Enum):
-    SAME_DOCTOR = "same_doctor"
-    SAME_DEPARTMENT = "same_department"
-    SAME_STORE = "same_store"
+    """复诊范围"""
+    SAME_DOCTOR = "same_doctor"           # 同医生
+    SAME_DEPARTMENT = "same_department"   # 同科室
+    SAME_STORE = "same_store"             # 同门店
 
 
 class StoreVisitTypeConfigBase(BaseModel):

@@ -23,7 +23,7 @@ from app.core.websocket import (
 
 router = APIRouter()
 
-@router.get("", response_model=PageResponse[AppointmentResponse])
+@router.get("", response_model=PageResponse[AppointmentResponse], summary="获取预约列表")
 async def get_appointments(
     status: Optional[int] = None,
     patient_id: Optional[str] = None,
@@ -106,12 +106,18 @@ async def get_appointments(
     
     return PageResponse(data=result, total=total, page=page, page_size=page_size)
 
-@router.get("/today")
+@router.get("/today", summary="获取今日预约")
 async def get_today_appointments(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin)
 ):
-    """获取今日预约（医生端）"""
+    """获取今日预约（医生端）
+    
+    返回当前医生今日的所有预约，包含复诊判断标记。
+    """
+    from app.models.doctor import Doctor
+    from app.services.visit_type_service import VisitTypeService
+    
     service = AppointmentService(db)
     # 假设 current_user 包含 doctor_id
     doctor_id = current_user.get("doctor_id")
@@ -119,10 +125,61 @@ async def get_today_appointments(
         return []
     
     appointments = await service.get_today_by_doctor(doctor_id)
-    return appointments
+    
+    # 获取医生信息（用于复诊判断）
+    doctor_result = await db.execute(select(Doctor).where(Doctor.id == doctor_id))
+    doctor = doctor_result.scalar_one_or_none()
+    
+    if not doctor:
+        return appointments
+    
+    # 为每个预约判断是否为复诊
+    visit_type_service = VisitTypeService(db)
+    result = []
+    for a in appointments:
+        is_follow_up = False
+        if a.patient_id and doctor.store_id and doctor.department_id:
+            try:
+                is_follow_up = await visit_type_service.is_follow_up_visit(
+                    patient_id=a.patient_id,
+                    store_id=doctor.store_id,
+                    doctor_id=doctor.id,
+                    department_id=doctor.department_id,
+                )
+            except Exception:
+                pass
+        
+        # 将 ORM 对象转换为字典并添加 isFollowUp 字段
+        appointment_dict = {
+            "id": a.id,
+            "appointmentNo": a.appointment_no,
+            "userId": a.user_id,
+            "patientId": a.patient_id,
+            "patientName": a.patient_name,
+            "patientPhone": a.patient_phone,
+            "doctorId": a.doctor_id,
+            "doctorName": a.doctor_name,
+            "doctorTitle": a.doctor_title,
+            "departmentName": a.department_name,
+            "scheduleId": a.schedule_id,
+            "scheduleDate": a.schedule.schedule_date.isoformat() if a.schedule and a.schedule.schedule_date else None,
+            "timeSlot": a.schedule.time_slot if a.schedule else None,
+            "queueNumber": a.queue_number,
+            "status": a.status,
+            "signInTime": a.sign_in_time.isoformat() if a.sign_in_time else None,
+            "callTime": a.call_time.isoformat() if a.call_time else None,
+            "completeTime": a.complete_time.isoformat() if a.complete_time else None,
+            "cancelTime": a.cancel_time.isoformat() if a.cancel_time else None,
+            "cancelReason": a.cancel_reason,
+            "createdAt": a.created_at.isoformat() if a.created_at else None,
+            "isFollowUp": is_follow_up,
+        }
+        result.append(appointment_dict)
+    
+    return result
 
 
-@router.get("/today-pending")
+@router.get("/today-pending", summary="获取今日待签到预约")
 async def get_today_pending_appointments(
     store_id: str = Query(..., description="门店ID"),
     db: AsyncSession = Depends(get_db),
@@ -247,7 +304,7 @@ async def get_today_pending_appointments(
     return result
 
 
-@router.get("/queue")
+@router.get("/queue", summary="获取签到队列")
 async def get_checkin_queue(
     store_id: Optional[str] = None,
     doctor_id: Optional[str] = None,
@@ -260,6 +317,8 @@ async def get_checkin_queue(
     用于管理后台和医生端查看当日已签到的患者队列
     按签到时间排序
     """
+    from app.models.rule_set import AppointmentCheckin
+    
     service = AppointmentService(db)
     
     # 如果是医生端，只能查看自己的队列
@@ -278,6 +337,23 @@ async def get_checkin_queue(
         target_date=target_date
     )
     
+    # 批量获取签到方式（从签到日志中获取最近一条成功记录）
+    appointment_ids = [a.id for a in appointments]
+    checkin_methods = {}
+    if appointment_ids:
+        checkin_result = await db.execute(
+            select(AppointmentCheckin.appointment_id, AppointmentCheckin.checkin_method)
+            .where(
+                AppointmentCheckin.appointment_id.in_(appointment_ids),
+                AppointmentCheckin.status == 'SUCCESS'
+            )
+            .order_by(AppointmentCheckin.checkin_time.desc())
+        )
+        for row in checkin_result:
+            # 只保留最近一条记录
+            if row.appointment_id not in checkin_methods:
+                checkin_methods[row.appointment_id] = row.checkin_method
+    
     result = []
     for a in appointments:
         result.append({
@@ -294,11 +370,12 @@ async def get_checkin_queue(
             "status": a.status,
             "signInTime": a.sign_in_time.isoformat() if a.sign_in_time else None,
             "callTime": a.call_time.isoformat() if a.call_time else None,
+            "checkinMethod": checkin_methods.get(a.id),
         })
     
     return result
 
-@router.get("/statistics", response_model=AppointmentStatistics)
+@router.get("/statistics", response_model=AppointmentStatistics, summary="获取预约统计")
 async def get_appointment_statistics(
     doctor_id: Optional[str] = None,
     start_date: Optional[date] = None,
@@ -313,7 +390,7 @@ async def get_appointment_statistics(
     service = AppointmentService(db)
     return await service.get_statistics(doctor_id=doctor_id, start_date=start_date, end_date=end_date)
 
-@router.get("/check-duplicate")
+@router.get("/check-duplicate", summary="检查重复预约")
 async def check_duplicate_appointment(
     schedule_id: str = Query(..., description="排班ID"),
     patient_id: str = Query(..., description="就诊人ID"),
@@ -362,7 +439,7 @@ async def check_duplicate_appointment(
         "appointments": result
     }
 
-@router.get("/by-no/{appointment_no}", response_model=AppointmentResponse)
+@router.get("/by-no/{appointment_no}", response_model=AppointmentResponse, summary="按预约号获取详情")
 async def get_appointment_by_no(
     appointment_no: str,
     db: AsyncSession = Depends(get_db),
@@ -406,7 +483,7 @@ async def get_appointment_by_no(
         created_at=appointment.created_at
     )
 
-@router.get("/{appointment_id}", response_model=AppointmentResponse)
+@router.get("/{appointment_id}", response_model=AppointmentResponse, summary="获取预约详情")
 async def get_appointment(
     appointment_id: str,
     db: AsyncSession = Depends(get_db),
@@ -446,7 +523,7 @@ async def get_appointment(
         created_at=appointment.created_at
     )
 
-@router.post("", response_model=AppointmentResponse)
+@router.post("", response_model=AppointmentResponse, summary="创建预约")
 async def create_appointment(
     data: AppointmentCreate,
     db: AsyncSession = Depends(get_db),
@@ -500,7 +577,7 @@ async def create_appointment(
         created_at=appointment.created_at
     )
 
-@router.put("/{appointment_id}/cancel")
+@router.put("/{appointment_id}/cancel", summary="取消预约")
 async def cancel_appointment(
     appointment_id: str,
     data: AppointmentCancelRequest = None,
@@ -522,7 +599,7 @@ async def cancel_appointment(
     
     return {"message": "取消成功"}
 
-@router.put("/{appointment_id}/sign-in")
+@router.put("/{appointment_id}/sign-in", summary="签到")
 async def sign_in_appointment(
     appointment_id: str,
     checkin_method: Optional[str] = Body(None, embed=True),
@@ -577,10 +654,10 @@ async def sign_in_appointment(
             import logging
             logging.getLogger(__name__).warning(f"WebSocket 通知失败: {e}")
 
-    return {"message": "签到成功", "queue_number": appointment.queue_number}
+    return {"message": "签到成功", "queueNumber": appointment.queue_number}
 
 
-@router.put("/{appointment_id}/cancel-sign-in")
+@router.put("/{appointment_id}/cancel-sign-in", summary="取消签到")
 async def cancel_sign_in_appointment(
     appointment_id: str,
     db: AsyncSession = Depends(get_db),
@@ -603,7 +680,7 @@ async def cancel_sign_in_appointment(
     return {"message": "取消签到成功"}
 
 
-@router.put("/{appointment_id}/call")
+@router.put("/{appointment_id}/call", summary="叫号")
 async def call_appointment(
     appointment_id: str, 
     db: AsyncSession = Depends(get_db),
@@ -644,7 +721,7 @@ async def call_appointment(
     
     return {"message": "已呼叫"}
 
-@router.put("/{appointment_id}/complete")
+@router.put("/{appointment_id}/complete", summary="完成就诊")
 async def complete_appointment(
     appointment_id: str, 
     db: AsyncSession = Depends(get_db),
@@ -683,7 +760,7 @@ async def complete_appointment(
     return {"message": "就诊完成"}
 
 
-@router.put("/{appointment_id}/pass")
+@router.put("/{appointment_id}/pass", summary="过号")
 async def pass_appointment(
     appointment_id: str, 
     db: AsyncSession = Depends(get_db),
@@ -725,7 +802,7 @@ async def pass_appointment(
     return {"message": "已过号"}
 
 
-@router.put("/{appointment_id}/recall")
+@router.put("/{appointment_id}/recall", summary="重新叫号")
 async def recall_appointment(
     appointment_id: str, 
     db: AsyncSession = Depends(get_db),
@@ -767,7 +844,7 @@ async def recall_appointment(
     return {"message": "已重新呼叫"}
 
 
-@router.put("/{appointment_id}/no-show")
+@router.put("/{appointment_id}/no-show", summary="标记爽约")
 async def mark_no_show(
     appointment_id: str, 
     db: AsyncSession = Depends(get_db),
@@ -809,7 +886,7 @@ async def mark_no_show(
     return {"message": "已标记爽约"}
 
 
-@router.get("/queue/info")
+@router.get("/queue/info", summary="获取叫号队列信息")
 async def get_queue_info(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin)

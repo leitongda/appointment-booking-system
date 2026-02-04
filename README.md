@@ -344,3 +344,11 @@ docker-compose down
 ## 🤝 贡献
 
 欢迎提交 Issue 和 Pull Request！
+
+
+
+# 启动 PostgreSQL
+brew services start postgresql@15
+
+# 启动 Redis
+brew services start redis

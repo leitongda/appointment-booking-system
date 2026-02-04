@@ -24,6 +24,8 @@ export interface Appointment {
   cancelTime?: string;
   cancelReason?: string;
   createdAt: string;
+  /** 是否为复诊 */
+  isFollowUp?: boolean;
 }
 
 /** 预约详情（与 Appointment 相同，用于语义区分） */

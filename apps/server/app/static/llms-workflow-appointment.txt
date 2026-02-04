@@ -1,0 +1,54 @@
+# 预约流程
+
+> 患者从查看医生到完成预约的完整流程
+
+- 基础路径: /api/v1
+- 认证方式: Bearer Token (JWT)
+
+---
+
+## 流程步骤
+
+### 步骤 1: 查看科室列表
+
+- [GET /api/v1/departments/tree](/api/v1/departments/tree): 获取科室树（公开接口，支持门店过滤）
+
+### 步骤 2: 查看科室下的医生
+
+- [GET /api/v1/doctors/by-department/{department_id}](/api/v1/doctors/by-department/{department_id}): 获取科室下的医生（公开接口，支持门店过滤）
+
+### 步骤 3: 查看医生详情
+
+- [GET /api/v1/doctors/public/{doctor_id}](/api/v1/doctors/public/{doctor_id}): 获取医生详情（公开接口，用于患者端查看医生信息）
+
+### 步骤 4: 获取可预约排班
+
+- [GET /api/v1/schedules/available/{doctor_id}](/api/v1/schedules/available/{doctor_id}): 获取可预约排班（增强版：包含规则引擎信息）
+
+### 步骤 5: 获取预约须知
+
+- [GET /api/v1/booking-notices/public](/api/v1/booking-notices/public): 获取生效的预约须知列表（公开接口，供小程序端调用）
+
+### 步骤 6: 检查重复预约
+
+- [GET /api/v1/appointments/check-duplicate](/api/v1/appointments/check-duplicate): 检查同一天同一时段是否有重复预约
+
+### 步骤 7: 创建预约
+
+- [POST /api/v1/appointments](/api/v1/appointments): 创建预约
+
+### 步骤 8: 查看预约详情
+
+- [GET /api/v1/appointments/{appointment_id}](/api/v1/appointments/{appointment_id}): 获取预约详情
+
+### 步骤 9: 取消预约
+
+- [PUT /api/v1/appointments/{appointment_id}/cancel](/api/v1/appointments/{appointment_id}/cancel): 取消预约
+- [PUT /api/v1/appointments/{appointment_id}/cancel-sign-in](/api/v1/appointments/{appointment_id}/cancel-sign-in): 取消签到（仅超级管理员）
+- [PUT /api/v1/rest-days/{rest_day_id}/cancel](/api/v1/rest-days/{rest_day_id}/cancel): 取消休息日
+- [PUT /api/v1/schedule-suspensions/{suspension_id}/cancel](/api/v1/schedule-suspensions/{suspension_id}/cancel): 取消停诊
+
+## 相关文档
+
+- [完整 API 文档](/llms.txt): 所有 API 端点的概览
+- [详细 API 文档](/llms-full.txt): 包含参数详情的完整文档

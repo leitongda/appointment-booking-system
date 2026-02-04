@@ -11,7 +11,7 @@ import hashlib
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.db.session import get_db
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_permission
 from app.models.admin import Admin, Permission
 
 security = HTTPBearer(auto_error=False)
@@ -423,7 +423,7 @@ async def store_admin_session(
 
 
 # ========== 管理员登录 ==========
-@router.get("/public-key")
+@router.get("/public-key", summary="获取RSA公钥")
 async def get_public_key():
     """获取 RSA 公钥（用于密码加密）"""
     from app.schemas.response import Response
@@ -439,7 +439,7 @@ async def get_public_key():
     ).model_dump()
 
 
-@router.post("/login")
+@router.post("/login", summary="管理员登录")
 async def admin_login(
     data: AdminLoginRequest,
     request: Request,
@@ -520,7 +520,7 @@ async def admin_login(
     return response.model_dump(by_alias=True)
 
 
-@router.get("/me", response_model=AdminResponse)
+@router.get("/me", response_model=AdminResponse, summary="获取当前管理员信息")
 async def get_current_admin_info(
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
@@ -567,7 +567,7 @@ async def get_current_admin_info(
     return build_admin_response(admin, permissions)
 
 
-@router.post("/logout")
+@router.post("/logout", summary="退出登录")
 async def admin_logout(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     current_admin: dict = Depends(get_current_admin),
@@ -638,7 +638,7 @@ class UpdateProfileRequest(BaseModel):
     avatar: Optional[str] = Field(None, max_length=255)
 
 
-@router.put("/me", response_model=AdminResponse)
+@router.put("/me", response_model=AdminResponse, summary="更新个人信息")
 async def update_current_admin_profile(
     data: UpdateProfileRequest,
     db: AsyncSession = Depends(get_db),
@@ -656,7 +656,7 @@ async def update_current_admin_profile(
     return build_admin_response(admin)
 
 
-@router.put("/me/change-password")
+@router.put("/me/change-password", summary="修改密码")
 async def change_current_admin_password(
     data: ChangePasswordRequest,
     db: AsyncSession = Depends(get_db),
@@ -687,7 +687,7 @@ class SwitchStoreRequest(BaseModel):
     store_id: str = Field(..., description="目标门店ID")
 
 
-@router.get("/me/stores")
+@router.get("/me/stores", summary="获取绑定门店")
 async def get_my_stores(
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
@@ -721,7 +721,7 @@ async def get_my_stores(
     }
 
 
-@router.put("/me/current-store")
+@router.put("/me/current-store", summary="切换当前门店")
 async def switch_current_store(
     data: SwitchStoreRequest,
     db: AsyncSession = Depends(get_db),
@@ -772,7 +772,7 @@ async def switch_current_store(
 
 
 # ========== 手机号登录 ==========
-@router.post("/phone-login")
+@router.post("/phone-login", summary="手机号登录")
 async def phone_login(
     data: PhoneLoginRequest,
     request: Request,
@@ -839,7 +839,7 @@ async def phone_login(
 
 
 # ========== 短信验证码登录 ==========
-@router.post("/sms/send")
+@router.post("/sms/send", summary="发送验证码")
 async def send_sms_code(
     data: SmsCodeRequest,
     db: AsyncSession = Depends(get_db),
@@ -865,7 +865,7 @@ async def send_sms_code(
     return {"message": "验证码已发送"}
 
 
-@router.post("/sms/login")
+@router.post("/sms/login", summary="验证码登录")
 async def sms_login(
     data: SmsLoginRequest,
     request: Request,
@@ -920,7 +920,7 @@ async def sms_login(
 # 内存存储扫码状态（生产环境应使用 Redis）
 _wechat_scan_tickets: dict = {}
 
-@router.get("/wechat/qrcode")
+@router.get("/wechat/qrcode", summary="获取微信登录二维码")
 async def get_wechat_qrcode():
     """获取微信扫码登录二维码
     
@@ -953,7 +953,7 @@ async def get_wechat_qrcode():
     return response.model_dump(by_alias=True)
 
 
-@router.get("/wechat/check")
+@router.get("/wechat/check", summary="检查扫码状态")
 async def check_wechat_scan(
     ticket: str = Query(...),
     request: Request = None,
@@ -1004,7 +1004,7 @@ async def check_wechat_scan(
     return WechatCheckResponse(status=ticket_data["status"]).model_dump(by_alias=True)
 
 
-@router.post("/wechat/confirm")
+@router.post("/wechat/confirm", summary="确认微信扫码")
 async def confirm_wechat_scan(
     ticket: str = Query(...),
     admin_id: str = Query(..., description="管理员ID（模拟扫码确认用）"),
@@ -1032,7 +1032,7 @@ async def confirm_wechat_scan(
 
 
 # ========== 角色管理 ==========
-@router.get("/roles", response_model=PageResponse[RoleResponse])
+@router.get("/roles", response_model=PageResponse[RoleResponse], summary="获取角色列表")
 async def get_roles(
     status: Optional[int] = None,
     keyword: Optional[str] = None,
@@ -1057,7 +1057,7 @@ async def get_roles(
     )
 
 
-@router.get("/roles/all", response_model=List[RoleResponse])
+@router.get("/roles/all", response_model=List[RoleResponse], summary="获取所有角色")
 async def get_all_roles(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
@@ -1068,7 +1068,7 @@ async def get_all_roles(
     return [build_role_response(item) for item in items]
 
 
-@router.get("/roles/{role_id}", response_model=RoleResponse)
+@router.get("/roles/{role_id}", response_model=RoleResponse, summary="获取角色详情")
 async def get_role(
     role_id: str,
     db: AsyncSession = Depends(get_db),
@@ -1082,11 +1082,12 @@ async def get_role(
     return build_role_response(role)
 
 
-@router.post("/roles", response_model=RoleResponse)
+@router.post("/roles", response_model=RoleResponse, summary="创建角色")
 async def create_role(
     data: RoleCreate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:role:create")),
 ):
     """创建角色"""
     service = RoleService(db)
@@ -1097,12 +1098,13 @@ async def create_role(
     return build_role_response(role)
 
 
-@router.put("/roles/{role_id}", response_model=RoleResponse)
+@router.put("/roles/{role_id}", response_model=RoleResponse, summary="更新角色")
 async def update_role(
     role_id: str,
     data: RoleUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:role:update")),
 ):
     """更新角色"""
     service = RoleService(db)
@@ -1115,12 +1117,13 @@ async def update_role(
     return build_role_response(role)
 
 
-@router.put("/roles/{role_id}/permissions")
+@router.put("/roles/{role_id}/permissions", summary="更新角色权限")
 async def update_role_permissions(
     role_id: str,
     permissions: List[str],
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:role:permission")),
 ):
     """更新角色权限"""
     service = RoleService(db)
@@ -1130,11 +1133,12 @@ async def update_role_permissions(
     return {"message": "权限更新成功"}
 
 
-@router.delete("/roles/{role_id}")
+@router.delete("/roles/{role_id}", summary="删除角色")
 async def delete_role(
     role_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:role:delete")),
 ):
     """删除角色"""
     service = RoleService(db)
@@ -1148,7 +1152,7 @@ async def delete_role(
 
 
 # ========== 管理员管理 ==========
-@router.get("/admins", response_model=PageResponse[AdminResponse])
+@router.get("/admins", response_model=PageResponse[AdminResponse], summary="获取管理员列表")
 async def get_admins(
     role_id: Optional[str] = None,
     status: Optional[int] = None,
@@ -1185,7 +1189,7 @@ async def get_admins(
     )
 
 
-@router.get("/admins/{admin_id}", response_model=AdminResponse)
+@router.get("/admins/{admin_id}", response_model=AdminResponse, summary="获取管理员详情")
 async def get_admin(
     admin_id: str,
     db: AsyncSession = Depends(get_db),
@@ -1199,11 +1203,12 @@ async def get_admin(
     return build_admin_response(admin)
 
 
-@router.post("/admins", response_model=AdminResponse)
+@router.post("/admins", response_model=AdminResponse, summary="创建管理员")
 async def create_admin(
     data: AdminCreate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:user:create")),
 ):
     """创建管理员"""
     from app.api.deps import get_store_filter, check_store_access
@@ -1226,12 +1231,13 @@ async def create_admin(
     return build_admin_response(admin)
 
 
-@router.put("/admins/{admin_id}", response_model=AdminResponse)
+@router.put("/admins/{admin_id}", response_model=AdminResponse, summary="更新管理员")
 async def update_admin(
     admin_id: str,
     data: AdminUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:user:update")),
 ):
     """更新管理员"""
     from app.api.deps import get_store_filter, check_store_access
@@ -1262,12 +1268,13 @@ async def update_admin(
     return build_admin_response(admin)
 
 
-@router.put("/admins/{admin_id}/reset-password")
+@router.put("/admins/{admin_id}/reset-password", summary="重置密码")
 async def reset_admin_password(
     admin_id: str,
     new_password: str = Query(..., min_length=6),
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:user:reset-password")),
 ):
     """重置管理员密码"""
     service = AdminService(db)
@@ -1277,11 +1284,12 @@ async def reset_admin_password(
     return {"message": "密码重置成功"}
 
 
-@router.delete("/admins/{admin_id}")
+@router.delete("/admins/{admin_id}", summary="删除管理员")
 async def delete_admin(
     admin_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:user:delete")),
 ):
     """删除管理员"""
     service = AdminService(db)
@@ -1295,7 +1303,7 @@ async def delete_admin(
 
 
 # ========== 操作日志 ==========
-@router.get("/logs", response_model=PageResponse[OperationLogResponse])
+@router.get("/logs", response_model=PageResponse[OperationLogResponse], summary="获取操作日志")
 async def get_operation_logs(
     admin_id: Optional[str] = None,
     module: Optional[str] = None,
@@ -1325,7 +1333,7 @@ async def get_operation_logs(
 
 
 # ========== 权限管理 ==========
-@router.get("/permissions/tree")
+@router.get("/permissions/tree", summary="获取权限树")
 async def get_permissions_tree(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
@@ -1336,7 +1344,7 @@ async def get_permissions_tree(
     return tree
 
 
-@router.get("/permissions/all")
+@router.get("/permissions/all", summary="获取所有权限")
 async def get_all_permissions(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
@@ -1358,7 +1366,7 @@ async def get_all_permissions(
     ]
 
 
-@router.post("/permissions")
+@router.post("/permissions", summary="创建权限")
 async def create_permission(
     data: PermissionCreate,
     db: AsyncSession = Depends(get_db),
@@ -1381,7 +1389,7 @@ async def create_permission(
     }
 
 
-@router.post("/permissions/batch")
+@router.post("/permissions/batch", summary="批量创建权限")
 async def batch_create_permissions(
     permissions: List[PermissionCreate],
     db: AsyncSession = Depends(get_db),
@@ -1393,7 +1401,7 @@ async def batch_create_permissions(
     return {"message": f"成功创建 {len(created)} 条权限"}
 
 
-@router.delete("/permissions/{code}")
+@router.delete("/permissions/{code}", summary="删除权限")
 async def delete_permission(
     code: str,
     db: AsyncSession = Depends(get_db),
@@ -1424,7 +1432,7 @@ class OnlineUserResponse(BaseModel):
         populate_by_name = True
 
 
-@router.get("/online-users")
+@router.get("/online-users", summary="获取在线用户")
 async def get_online_users(
     current_admin: dict = Depends(get_current_admin),
 ):
@@ -1452,7 +1460,7 @@ async def get_online_users(
     return result
 
 
-@router.post("/online-users/{admin_id}/kick")
+@router.post("/online-users/{admin_id}/kick", summary="强制用户下线")
 async def kick_online_user(
     admin_id: str,
     current_admin: dict = Depends(get_current_admin),
@@ -1550,7 +1558,7 @@ class LoginHistoryResponse(BaseModel):
         populate_by_name = True
 
 
-@router.get("/user-status")
+@router.get("/user-status", summary="获取用户状态")
 async def get_user_status(
     current_admin: dict = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
@@ -1613,7 +1621,7 @@ async def get_user_status(
     return user_status_list
 
 
-@router.get("/login-history/{admin_id}")
+@router.get("/login-history/{admin_id}", summary="获取登录历史")
 async def get_login_history(
     admin_id: str,
     page: int = Query(1, ge=1),

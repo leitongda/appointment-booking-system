@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 
 from app.db.session import get_db
+from app.api.deps import get_current_admin, get_current_user, require_permission
 from app.schemas.feedback import (
     FeedbackCreate, FeedbackReply, FeedbackResponse, FeedbackQuery,
     FeedbackType, FeedbackStatus
@@ -41,7 +42,7 @@ def parse_feedback_response(feedback) -> FeedbackResponse:
     )
 
 
-@router.get("", response_model=PageResponse[FeedbackResponse])
+@router.get("", response_model=PageResponse[FeedbackResponse], summary="获取反馈列表")
 async def get_feedbacks(
     user_id: Optional[str] = None,
     feedback_type: Optional[FeedbackType] = None,
@@ -49,7 +50,9 @@ async def get_feedbacks(
     keyword: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("feedback:list"))
 ):
     """获取反馈列表（管理端）"""
     service = FeedbackService(db)
@@ -71,22 +74,30 @@ async def get_feedbacks(
     )
 
 
-@router.get("/pending-count")
-async def get_pending_count(db: AsyncSession = Depends(get_db)):
+@router.get("/pending-count", summary="获取待处理数")
+async def get_pending_count(
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("feedback:list"))
+):
     """获取待处理数量"""
     service = FeedbackService(db)
     count = await service.get_pending_count()
     return {"count": count}
 
 
-@router.get("/statistics")
-async def get_statistics(db: AsyncSession = Depends(get_db)):
+@router.get("/statistics", summary="获取反馈统计")
+async def get_statistics(
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("feedback:list"))
+):
     """获取反馈统计"""
     service = FeedbackService(db)
     return await service.get_statistics()
 
 
-@router.get("/my", response_model=List[FeedbackResponse])
+@router.get("/my", response_model=List[FeedbackResponse], summary="获取我的反馈")
 async def get_my_feedbacks(
     user_id: str = Query(..., description="用户ID"),
     db: AsyncSession = Depends(get_db)
@@ -97,7 +108,7 @@ async def get_my_feedbacks(
     return [parse_feedback_response(f) for f in feedbacks]
 
 
-@router.get("/{feedback_id}", response_model=FeedbackResponse)
+@router.get("/{feedback_id}", response_model=FeedbackResponse, summary="获取反馈详情")
 async def get_feedback(
     feedback_id: str,
     db: AsyncSession = Depends(get_db)
@@ -115,7 +126,7 @@ async def get_feedback(
     return parse_feedback_response(feedback)
 
 
-@router.post("", response_model=FeedbackResponse)
+@router.post("", response_model=FeedbackResponse, summary="提交反馈")
 async def create_feedback(
     data: FeedbackCreate,
     db: AsyncSession = Depends(get_db)
@@ -126,15 +137,17 @@ async def create_feedback(
     return parse_feedback_response(feedback)
 
 
-@router.post("/{feedback_id}/reply", response_model=FeedbackResponse)
+@router.post("/{feedback_id}/reply", response_model=FeedbackResponse, summary="回复反馈")
 async def reply_feedback(
     feedback_id: str,
     data: FeedbackReply,
-    handler_id: str = Query(..., description="处理人ID"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("feedback:reply"))
 ):
     """回复反馈"""
     service = FeedbackService(db)
+    handler_id = current_admin.get("id")
     feedback = await service.reply(feedback_id, handler_id, data)
     
     if not feedback:
@@ -146,29 +159,33 @@ async def reply_feedback(
     return parse_feedback_response(feedback)
 
 
-@router.patch("/{feedback_id}/status")
+@router.patch("/{feedback_id}/status", summary="更新反馈状态")
 async def update_feedback_status(
     feedback_id: str,
-    status: FeedbackStatus = Query(..., description="状态"),
-    db: AsyncSession = Depends(get_db)
+    new_status: FeedbackStatus = Query(..., alias="status", description="状态"),
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("feedback:reply"))
 ):
     """更新反馈状态"""
     service = FeedbackService(db)
-    feedback = await service.update_status(feedback_id, status.value)
+    feedback = await service.update_status(feedback_id, new_status.value)
     
     if not feedback:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=404,
             detail="反馈不存在，请检查后重试"
         )
     
     return {"message": "状态更新成功"}
 
 
-@router.delete("/{feedback_id}")
+@router.delete("/{feedback_id}", summary="删除反馈")
 async def delete_feedback(
     feedback_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("feedback:delete"))
 ):
     """删除反馈"""
     service = FeedbackService(db)

@@ -66,7 +66,7 @@ def build_list_response(record) -> MedicalRecordListResponse:
     )
 
 
-@router.get("", response_model=PageResponse[MedicalRecordListResponse])
+@router.get("", response_model=PageResponse[MedicalRecordListResponse], summary="获取列表")
 async def get_medical_records(
     doctor_id: Optional[str] = None,
     patient_id: Optional[str] = None,
@@ -98,7 +98,7 @@ async def get_medical_records(
     return PageResponse(data=result, total=total, page=page, page_size=page_size)
 
 
-@router.get("/my", response_model=PageResponse[MedicalRecordListResponse])
+@router.get("/my", response_model=PageResponse[MedicalRecordListResponse], summary="获取我的列表")
 async def get_my_records(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
@@ -121,7 +121,7 @@ async def get_my_records(
     return PageResponse(data=result, total=total, page=page, page_size=page_size)
 
 
-@router.get("/patient/{patient_id}", response_model=PageResponse[MedicalRecordListResponse])
+@router.get("/patient/{patient_id}", response_model=PageResponse[MedicalRecordListResponse], summary="获取患者列表")
 async def get_patient_records(
     patient_id: str,
     page: int = Query(1, ge=1),
@@ -141,7 +141,7 @@ async def get_patient_records(
     return PageResponse(data=result, total=total, page=page, page_size=page_size)
 
 
-@router.get("/appointment/{appointment_id}", response_model=MedicalRecordResponse)
+@router.get("/appointment/{appointment_id}", response_model=MedicalRecordResponse, summary="根据预约获取")
 async def get_record_by_appointment(
     appointment_id: str,
     db: AsyncSession = Depends(get_db),
@@ -157,7 +157,7 @@ async def get_record_by_appointment(
     return build_record_response(record)
 
 
-@router.get("/{record_id}", response_model=MedicalRecordResponse)
+@router.get("/{record_id}", response_model=MedicalRecordResponse, summary="获取详情")
 async def get_medical_record(
     record_id: str,
     db: AsyncSession = Depends(get_db),
@@ -173,7 +173,7 @@ async def get_medical_record(
     return build_record_response(record)
 
 
-@router.post("", response_model=MedicalRecordResponse)
+@router.post("", response_model=MedicalRecordResponse, summary="创建病历")
 async def create_medical_record(
     data: MedicalRecordCreate,
     db: AsyncSession = Depends(get_db),
@@ -196,7 +196,7 @@ async def create_medical_record(
     return build_record_response(record)
 
 
-@router.put("/{record_id}", response_model=MedicalRecordResponse)
+@router.put("/{record_id}", response_model=MedicalRecordResponse, summary="更新病历")
 async def update_medical_record(
     record_id: str,
     data: MedicalRecordUpdate,
@@ -215,7 +215,7 @@ async def update_medical_record(
     return build_record_response(record)
 
 
-@router.delete("/{record_id}")
+@router.delete("/{record_id}", summary="删除病历")
 async def delete_medical_record(
     record_id: str,
     db: AsyncSession = Depends(get_db),

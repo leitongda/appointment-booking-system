@@ -19,9 +19,9 @@ logger = logging.getLogger(__name__)
 class WSMessageType(str, Enum):
     """WebSocket 消息类型"""
     # 系统消息
-    CONNECTED = "CONNECTED"
-    HEARTBEAT = "HEARTBEAT"
-    ERROR = "ERROR"
+    CONNECTED = "CONNECTED"      # 连接成功
+    HEARTBEAT = "HEARTBEAT"      # 心跳
+    ERROR = "ERROR"              # 错误
     
     # 预约相关
     PATIENT_SIGNED_IN = "PATIENT_SIGNED_IN"      # 患者签到

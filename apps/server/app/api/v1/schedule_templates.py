@@ -72,7 +72,7 @@ def parse_break_times_for_response(break_times_list: list) -> list:
     return result if result else None
 
 
-@router.get("", response_model=PageResponse[ScheduleTemplateResponse])
+@router.get("", response_model=PageResponse[ScheduleTemplateResponse], summary="获取列表")
 async def get_templates(
     store_id: Optional[str] = None,
     doctor_id: Optional[str] = None,
@@ -173,7 +173,7 @@ async def get_templates(
         )
 
 
-@router.get("/{template_id}", response_model=ScheduleTemplateResponse)
+@router.get("/{template_id}", response_model=ScheduleTemplateResponse, summary="获取详情")
 async def get_template(template_id: str, db: AsyncSession = Depends(get_db)):
     """获取排班模板详情"""
     service = ScheduleTemplateService(db)
@@ -205,7 +205,7 @@ async def get_template(template_id: str, db: AsyncSession = Depends(get_db)):
     )
 
 
-@router.post("", response_model=ScheduleTemplateResponse)
+@router.post("", response_model=ScheduleTemplateResponse, summary="创建模板")
 async def create_template(
     data: ScheduleTemplateCreate,
     db: AsyncSession = Depends(get_db),
@@ -259,7 +259,7 @@ async def create_template(
     )
 
 
-@router.put("/{template_id}", response_model=ScheduleTemplateResponse)
+@router.put("/{template_id}", response_model=ScheduleTemplateResponse, summary="更新模板")
 async def update_template(
     template_id: str,
     data: ScheduleTemplateUpdate,
@@ -303,7 +303,7 @@ async def update_template(
     )
 
 
-@router.delete("/{template_id}")
+@router.delete("/{template_id}", summary="删除模板")
 async def delete_template(
     template_id: str,
     db: AsyncSession = Depends(get_db),
@@ -330,7 +330,7 @@ WEEKDAY_NAMES = {
 }
 
 
-@router.post("/preview-generate", response_model=List[SchedulePreviewGenerateResponse])
+@router.post("/preview-generate", response_model=List[SchedulePreviewGenerateResponse], summary="预览生成")
 async def preview_generate_schedules(
     data: SchedulePreviewGenerateRequest,
     db: AsyncSession = Depends(get_db),
@@ -426,7 +426,7 @@ async def preview_generate_schedules(
     return results
 
 
-@router.post("/generate-with-capacity")
+@router.post("/generate-with-capacity", summary="批量生成")
 async def generate_schedules_with_capacity(
     data: ScheduleGenerateWithCapacityRequest,
     db: AsyncSession = Depends(get_db),
@@ -481,7 +481,7 @@ async def generate_schedules_with_capacity(
     return {"message": f"成功创建 {created_count} 条排班", "count": created_count}
 
 
-@router.post("/generate")
+@router.post("/generate", summary="批量生成")
 async def generate_schedules(
     data: ScheduleGenerateRequest,
     db: AsyncSession = Depends(get_db),
@@ -524,7 +524,7 @@ async def generate_schedules(
     return {"message": f"成功创建 {created_count} 条排班", "count": created_count}
 
 
-@router.post("/batch-add")
+@router.post("/batch-add", summary="批量添加")
 async def batch_add_schedules(
     data: ScheduleBatchAddRequest,
     db: AsyncSession = Depends(get_db),
@@ -541,7 +541,7 @@ async def batch_add_schedules(
     return {"message": f"成功创建 {created_count} 条排班", "count": created_count}
 
 
-@router.get("/{template_id}/check-generated", response_model=CheckGeneratedResponse)
+@router.get("/{template_id}/check-generated", response_model=CheckGeneratedResponse, summary="检查生成")
 async def check_generated(
     template_id: str,
     start_date: Optional[date] = Query(None, description="开始日期"),
@@ -560,7 +560,7 @@ async def check_generated(
     return await service.check_generated(template_id, start_date, end_date)
 
 
-@router.post("/{template_id}/batch-delete", response_model=BatchOperateResponse)
+@router.post("/{template_id}/batch-delete", response_model=BatchOperateResponse, summary="批量删除")
 async def batch_delete_schedules(
     template_id: str,
     data: Optional[BatchOperateRequest] = None,
@@ -603,7 +603,7 @@ async def batch_delete_schedules(
     )
 
 
-@router.post("/{template_id}/batch-suspend", response_model=BatchOperateResponse)
+@router.post("/{template_id}/batch-suspend", response_model=BatchOperateResponse, summary="批量停诊")
 async def batch_suspend_schedules(
     template_id: str,
     data: Optional[BatchOperateRequest] = None,
@@ -646,7 +646,7 @@ async def batch_suspend_schedules(
     )
 
 
-@router.get("/{template_id}/logs", response_model=PageResponse[ScheduleGenerationLogResponse])
+@router.get("/{template_id}/logs", response_model=PageResponse[ScheduleGenerationLogResponse], summary="获取历史")
 async def get_generation_logs(
     template_id: str,
     page: int = Query(1, ge=1),
@@ -683,7 +683,7 @@ async def get_generation_logs(
     return PageResponse(data=result, total=total, page=page, page_size=page_size)
 
 
-@router.post("/{template_id}/copy", response_model=ScheduleTemplateCopyResponse)
+@router.post("/{template_id}/copy", response_model=ScheduleTemplateCopyResponse, summary="复制规则")
 async def copy_template_to_doctors(
     template_id: str,
     data: ScheduleTemplateCopyRequest,

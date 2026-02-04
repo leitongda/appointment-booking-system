@@ -193,7 +193,7 @@ const CheckinSelectPage = () => {
     setSubmitting(true);
 
     try {
-      const result = await appointmentApi.signIn(selectedId);
+      const result = await appointmentApi.signIn(selectedId, { checkin_method: 'QR_CODE' });
 
       // 设置排队号并显示签到成功弹窗
       setQueueNumber(result.queueNumber);

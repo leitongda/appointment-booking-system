@@ -84,7 +84,7 @@ def _parse_user_agent(user_agent: str) -> dict:
 
 # ========== 埋点数据上报（无需认证） ==========
 
-@router.post("/track")
+@router.post("/track", summary="上报埋点")
 async def track_event(
     data: TrackEventRequest,
     request: Request,
@@ -138,7 +138,7 @@ async def track_event(
     return {"success": True}
 
 
-@router.post("/batch")
+@router.post("/batch", summary="批量上报")
 async def batch_track_events(
     data: BatchTrackRequest,
     request: Request,
@@ -189,7 +189,7 @@ async def batch_track_events(
 
 # ========== 行为统计查询（需要管理员认证） ==========
 
-@router.get("/logs", response_model=PageResponse[UserBehaviorLogResponse])
+@router.get("/logs", response_model=PageResponse[UserBehaviorLogResponse], summary="获取日志列表")
 async def get_behavior_logs(
     platform: Optional[str] = None,
     event_type: Optional[str] = None,
@@ -240,7 +240,7 @@ async def get_behavior_logs(
     )
 
 
-@router.get("/overview")
+@router.get("/overview", summary="获取概览统计")
 async def get_behavior_overview(
     platform: Optional[str] = None,
     days: int = Query(7, ge=1, le=90),

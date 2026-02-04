@@ -45,9 +45,9 @@ const CheckinAuditLogsPage: React.FC = () => {
       width: 100,
       valueType: 'select',
       valueEnum: {
-        QR_CODE: { text: '扫码签到' },
-        MANUAL: { text: '手动签到' },
-        PHONE: { text: '电话签到' },
+        QR_CODE: { text: '扫码签到', status: 'Processing' },
+        MANUAL: { text: '后台签到', status: 'Default' },
+        PHONE: { text: '手机端签到', status: 'Success' },
       },
     },
     {

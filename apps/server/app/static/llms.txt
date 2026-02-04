@@ -1,0 +1,511 @@
+# 医院挂号系统
+
+> 医院挂号系统 API
+
+- API 版本: 1.0.0
+- 基础路径: /api/v1
+- Swagger 文档: /docs
+- ReDoc 文档: /redoc
+- OpenAPI JSON: /api/v1/openapi.json
+
+## 认证
+
+- [POST /api/v1/auth/login](/api/v1/auth/login): 用户登录
+- [POST /api/v1/auth/register](/api/v1/auth/register): 用户注册
+- [POST /api/v1/auth/refresh](/api/v1/auth/refresh): 刷新Token
+- [POST /api/v1/auth/change-password](/api/v1/auth/change-password): 修改密码
+- [POST /api/v1/auth/wechat/login](/api/v1/auth/wechat/login): 微信小程序登录
+- [POST /api/v1/auth/wechat/phone](/api/v1/auth/wechat/phone): 微信获取手机号并自动登录/注册
+- [POST /api/v1/auth/wechat/bind-phone](/api/v1/auth/wechat/bind-phone): 微信绑定手机号（手动输入方式）
+- [POST /api/v1/auth/wechat/bind-userinfo](/api/v1/auth/wechat/bind-userinfo): 微信绑定用户信息（头像昵称）并完成登录
+
+## 文件上传
+
+- [POST /api/v1/upload](/api/v1/upload): 上传图片
+- [POST /api/v1/upload/transfer](/api/v1/upload/transfer): 从URL转存图片
+- [DELETE /api/v1/upload/{key}](/api/v1/upload/{key}): 删除图片
+
+## 用户
+
+- [GET /api/v1/users/profile](/api/v1/users/profile): 获取当前用户信息
+- [PUT /api/v1/users/profile](/api/v1/users/profile): 更新用户信息
+- [POST /api/v1/users/change-password](/api/v1/users/change-password): 修改密码
+- [POST /api/v1/users/bind-phone](/api/v1/users/bind-phone): 绑定/更换手机号
+- [POST /api/v1/users/avatar](/api/v1/users/avatar): 上传用户头像
+- [GET /api/v1/users/patients](/api/v1/users/patients): 获取就诊人列表
+- [POST /api/v1/users/patients](/api/v1/users/patients): 添加就诊人
+- [GET /api/v1/users/patients/{patient_id}](/api/v1/users/patients/{patient_id}): 获取就诊人详情
+- [PUT /api/v1/users/patients/{patient_id}](/api/v1/users/patients/{patient_id}): 更新就诊人
+- [DELETE /api/v1/users/patients/{patient_id}](/api/v1/users/patients/{patient_id}): 删除就诊人
+
+## 门店管理
+
+- [GET /api/v1/stores/by-code/{code}](/api/v1/stores/by-code/{code}): 通过编码获取门店（公开接口，无需登录）
+- [GET /api/v1/stores/check-unique](/api/v1/stores/check-unique): 检查门店名称或编码是否已存在
+- [GET /api/v1/stores](/api/v1/stores): 获取门店列表
+- [POST /api/v1/stores](/api/v1/stores): 创建门店（仅超级管理员）
+- [GET /api/v1/stores/all](/api/v1/stores/all): 获取所有营业中的门店（下拉选择用）
+- [GET /api/v1/stores/{store_id}](/api/v1/stores/{store_id}): 获取门店详情
+- [PUT /api/v1/stores/{store_id}](/api/v1/stores/{store_id}): 更新门店
+- [DELETE /api/v1/stores/{store_id}](/api/v1/stores/{store_id}): 删除门店（仅超级管理员）
+- [PATCH /api/v1/stores/{store_id}/status](/api/v1/stores/{store_id}/status): 更新门店状态
+- [GET /api/v1/stores/{store_id}/departments](/api/v1/stores/{store_id}/departments): 获取门店已绑定的科室列表
+- [PUT /api/v1/stores/{store_id}/departments/batch](/api/v1/stores/{store_id}/departments/batch): 批量绑定科室到门店
+- [GET /api/v1/stores/{store_id}/admins](/api/v1/stores/{store_id}/admins): 获取门店已绑定的管理员列表
+- [PUT /api/v1/stores/{store_id}/admins/batch](/api/v1/stores/{store_id}/admins/batch): 批量绑定管理员到门店
+- [GET /api/v1/stores/{store_id}/wechat-config](/api/v1/stores/{store_id}/wechat-config): 获取门店微信配置
+- [PUT /api/v1/stores/{store_id}/wechat-config](/api/v1/stores/{store_id}/wechat-config): 更新门店微信配置
+- [GET /api/v1/stores/{store_id}/checkin-qrcode](/api/v1/stores/{store_id}/checkin-qrcode): 获取门店签到二维码
+
+## 消息中心
+
+- [GET /api/v1/messages/my](/api/v1/messages/my): 获取我的消息列表
+- [GET /api/v1/messages/unread-count](/api/v1/messages/unread-count): 获取未读消息数量
+- [GET /api/v1/messages/{message_id}](/api/v1/messages/{message_id}): 获取消息详情
+- [DELETE /api/v1/messages/{message_id}](/api/v1/messages/{message_id}): 删除消息
+- [POST /api/v1/messages/read/{message_id}](/api/v1/messages/read/{message_id}): 标记消息为已读
+- [POST /api/v1/messages/read-all](/api/v1/messages/read-all): 标记所有消息为已读
+- [DELETE /api/v1/messages/clear/read](/api/v1/messages/clear/read): 清空已读消息
+- [GET /api/v1/messages](/api/v1/messages): 获取所有消息列表（管理端）
+- [POST /api/v1/messages/send](/api/v1/messages/send): 发送消息（管理端）
+- [POST /api/v1/messages/send-batch](/api/v1/messages/send-batch): 批量发送消息（管理端）
+- [GET /api/v1/messages/templates](/api/v1/messages/templates): 获取消息模板列表
+- [POST /api/v1/messages/templates](/api/v1/messages/templates): 创建消息模板
+- [PUT /api/v1/messages/templates/{template_id}](/api/v1/messages/templates/{template_id}): 更新消息模板
+- [DELETE /api/v1/messages/templates/{template_id}](/api/v1/messages/templates/{template_id}): 删除消息模板
+
+## 科室
+
+- [GET /api/v1/departments](/api/v1/departments): 获取科室列表
+- [POST /api/v1/departments](/api/v1/departments): 创建科室
+- [GET /api/v1/departments/tree](/api/v1/departments/tree): 获取科室树（公开接口，支持门店过滤）
+- [GET /api/v1/departments/hot](/api/v1/departments/hot): 获取热门科室（公开接口，不需要登录）
+- [GET /api/v1/departments/all](/api/v1/departments/all): 获取所有启用的科室（下拉选择用）
+- [PUT /api/v1/departments/batch-sort](/api/v1/departments/batch-sort): 批量更新科室排序
+- [GET /api/v1/departments/{dept_id}](/api/v1/departments/{dept_id}): 获取科室详情
+- [PUT /api/v1/departments/{dept_id}](/api/v1/departments/{dept_id}): 更新科室
+- [DELETE /api/v1/departments/{dept_id}](/api/v1/departments/{dept_id}): 删除科室
+- [GET /api/v1/departments/{dept_id}/doctors](/api/v1/departments/{dept_id}/doctors): 获取科室已绑定的医生列表
+- [GET /api/v1/departments/{dept_id}/available-doctors](/api/v1/departments/{dept_id}/available-doctors): 获取可绑定到此科室的医生列表（同门店的所有医生）
+- [PUT /api/v1/departments/{dept_id}/doctors/batch](/api/v1/departments/{dept_id}/doctors/batch): 批量绑定医生到科室
+
+## 医生
+
+- [POST /api/v1/doctors/login](/api/v1/doctors/login): 医生登录（支持手机号或账号登录）
+- [GET /api/v1/doctors/me](/api/v1/doctors/me): 获取当前登录医生信息
+- [GET /api/v1/doctors](/api/v1/doctors): 获取医生列表
+- [POST /api/v1/doctors](/api/v1/doctors): 创建医生
+- [GET /api/v1/doctors/all](/api/v1/doctors/all): 获取所有医生（管理端接口）
+- [GET /api/v1/doctors/recommended](/api/v1/doctors/recommended): 获取推荐医生（公开接口，支持门店过滤）
+- [GET /api/v1/doctors/by-department/{department_id}](/api/v1/doctors/by-department/{department_id}): 获取科室下的医生（公开接口，支持门店过滤）
+- [GET /api/v1/doctors/public/{doctor_id}](/api/v1/doctors/public/{doctor_id}): 获取医生详情（公开接口，用于患者端查看医生信息）
+- [PUT /api/v1/doctors/batch-sort](/api/v1/doctors/batch-sort): 批量更新医生排序
+- [GET /api/v1/doctors/{doctor_id}](/api/v1/doctors/{doctor_id}): 获取医生详情（管理端接口，需要管理员权限）
+- [PUT /api/v1/doctors/{doctor_id}](/api/v1/doctors/{doctor_id}): 更新医生
+- [DELETE /api/v1/doctors/{doctor_id}](/api/v1/doctors/{doctor_id}): 删除医生
+- [POST /api/v1/doctors/check-username](/api/v1/doctors/check-username): 检查医生账号是否已存在，如存在则返回推荐账号
+- [POST /api/v1/doctors/generate-username](/api/v1/doctors/generate-username): 根据医生姓名生成唯一账号
+
+## 排班
+
+- [GET /api/v1/schedules](/api/v1/schedules): 获取排班列表
+- [POST /api/v1/schedules](/api/v1/schedules): 创建排班
+- [GET /api/v1/schedules/statistics](/api/v1/schedules/statistics): 获取排班统计（按门店、月份）
+- [GET /api/v1/schedules/available/{doctor_id}](/api/v1/schedules/available/{doctor_id}): 获取可预约排班（增强版：包含规则引擎信息）
+- [GET /api/v1/schedules/{schedule_id}](/api/v1/schedules/{schedule_id}): 获取排班详情
+- [PUT /api/v1/schedules/{schedule_id}](/api/v1/schedules/{schedule_id}): 更新排班
+- [POST /api/v1/schedules/batch](/api/v1/schedules/batch): 批量创建排班
+- [POST /api/v1/schedules/batch-suspend](/api/v1/schedules/batch-suspend): 批量停诊排班
+- [POST /api/v1/schedules/batch-resume](/api/v1/schedules/batch-resume): 批量恢复排班
+- [POST /api/v1/schedules/batch-delete](/api/v1/schedules/batch-delete): 批量删除排班（只能删除没有任何预约记录的排班）
+
+## 预约
+
+- [GET /api/v1/appointments](/api/v1/appointments): 获取预约列表
+- [POST /api/v1/appointments](/api/v1/appointments): 创建预约
+- [GET /api/v1/appointments/today](/api/v1/appointments/today): 获取今日预约（医生端）
+- [GET /api/v1/appointments/today-pending](/api/v1/appointments/today-pending): 获取用户在指定门店的今日待签到预约（增强版：包含详细时间窗信息）
+- [GET /api/v1/appointments/queue](/api/v1/appointments/queue): 获取签到队列
+- [GET /api/v1/appointments/statistics](/api/v1/appointments/statistics): 获取预约统计（需要管理员权限）
+- [GET /api/v1/appointments/check-duplicate](/api/v1/appointments/check-duplicate): 检查同一天同一时段是否有重复预约
+- [GET /api/v1/appointments/by-no/{appointment_no}](/api/v1/appointments/by-no/{appointment_no}): 按预约号获取预约详情
+- [GET /api/v1/appointments/{appointment_id}](/api/v1/appointments/{appointment_id}): 获取预约详情
+- [PUT /api/v1/appointments/{appointment_id}/cancel](/api/v1/appointments/{appointment_id}/cancel): 取消预约
+- [PUT /api/v1/appointments/{appointment_id}/sign-in](/api/v1/appointments/{appointment_id}/sign-in): 签到
+- [PUT /api/v1/appointments/{appointment_id}/cancel-sign-in](/api/v1/appointments/{appointment_id}/cancel-sign-in): 取消签到（仅超级管理员）
+- [PUT /api/v1/appointments/{appointment_id}/call](/api/v1/appointments/{appointment_id}/call): 叫号（需要管理员权限）
+- [PUT /api/v1/appointments/{appointment_id}/complete](/api/v1/appointments/{appointment_id}/complete): 完成就诊（需要管理员权限）
+- [PUT /api/v1/appointments/{appointment_id}/pass](/api/v1/appointments/{appointment_id}/pass): 过号（需要管理员权限）
+- [PUT /api/v1/appointments/{appointment_id}/recall](/api/v1/appointments/{appointment_id}/recall): 重新叫号（需要管理员权限）
+- [PUT /api/v1/appointments/{appointment_id}/no-show](/api/v1/appointments/{appointment_id}/no-show): 标记爽约（需要管理员权限）
+- [GET /api/v1/appointments/queue/info](/api/v1/appointments/queue/info): 获取当前叫号队列信息（医生端）
+
+## 病历
+
+- [GET /api/v1/medical-records](/api/v1/medical-records): 获取病历列表
+- [POST /api/v1/medical-records](/api/v1/medical-records): 创建病历
+- [GET /api/v1/medical-records/my](/api/v1/medical-records/my): 获取当前医生的病历列表
+- [GET /api/v1/medical-records/patient/{patient_id}](/api/v1/medical-records/patient/{patient_id}): 获取患者的病历列表
+- [GET /api/v1/medical-records/appointment/{appointment_id}](/api/v1/medical-records/appointment/{appointment_id}): 根据预约ID获取病历
+- [GET /api/v1/medical-records/{record_id}](/api/v1/medical-records/{record_id}): 获取病历详情
+- [PUT /api/v1/medical-records/{record_id}](/api/v1/medical-records/{record_id}): 更新病历
+- [DELETE /api/v1/medical-records/{record_id}](/api/v1/medical-records/{record_id}): 删除病历
+
+## 内容管理
+
+- [GET /api/v1/content/news](/api/v1/content/news): 获取新闻列表
+- [POST /api/v1/content/news](/api/v1/content/news): 创建新闻
+- [GET /api/v1/content/news/published](/api/v1/content/news/published): 获取已发布新闻（前端展示）
+- [GET /api/v1/content/news/{news_id}](/api/v1/content/news/{news_id}): 获取新闻详情
+- [PUT /api/v1/content/news/{news_id}](/api/v1/content/news/{news_id}): 更新新闻
+- [DELETE /api/v1/content/news/{news_id}](/api/v1/content/news/{news_id}): 删除新闻
+- [GET /api/v1/content/notices](/api/v1/content/notices): 获取公告列表
+- [POST /api/v1/content/notices](/api/v1/content/notices): 创建公告
+- [GET /api/v1/content/notices/published](/api/v1/content/notices/published): 获取已发布公告（前端展示）
+- [GET /api/v1/content/notices/{notice_id}](/api/v1/content/notices/{notice_id}): 获取公告详情
+- [PUT /api/v1/content/notices/{notice_id}](/api/v1/content/notices/{notice_id}): 更新公告
+- [DELETE /api/v1/content/notices/{notice_id}](/api/v1/content/notices/{notice_id}): 删除公告
+- [GET /api/v1/content/banners](/api/v1/content/banners): 获取轮播图列表
+- [POST /api/v1/content/banners](/api/v1/content/banners): 创建轮播图
+- [GET /api/v1/content/banners/active](/api/v1/content/banners/active): 获取启用的轮播图（前端展示）
+- [PUT /api/v1/content/banners/{banner_id}](/api/v1/content/banners/{banner_id}): 更新轮播图
+- [DELETE /api/v1/content/banners/{banner_id}](/api/v1/content/banners/{banner_id}): 删除轮播图
+
+## 数据统计
+
+- [GET /api/v1/statistics/overview](/api/v1/statistics/overview): 获取概览数据
+- [GET /api/v1/statistics/appointments/trend](/api/v1/statistics/appointments/trend): 获取预约趋势数据
+- [GET /api/v1/statistics/appointments/status](/api/v1/statistics/appointments/status): 获取预约状态统计
+- [GET /api/v1/statistics/departments/ranking](/api/v1/statistics/departments/ranking): 获取科室预约排行
+- [GET /api/v1/statistics/doctors/ranking](/api/v1/statistics/doctors/ranking): 获取医生预约排行
+- [GET /api/v1/statistics/time-slots/distribution](/api/v1/statistics/time-slots/distribution): 获取时段分布统计
+- [GET /api/v1/statistics/weekday/distribution](/api/v1/statistics/weekday/distribution): 获取星期分布统计
+- [GET /api/v1/statistics/revenue/trend](/api/v1/statistics/revenue/trend): 获取收入趋势
+- [GET /api/v1/statistics/appointments/summary](/api/v1/statistics/appointments/summary): 获取预约汇总统计（完成率/爽约率/取消率）
+- [GET /api/v1/statistics/stores/ranking](/api/v1/statistics/stores/ranking): 获取门店预约排行（只有超管可以看到所有门店排行）
+
+## 权限管理
+
+- [GET /api/v1/admin/public-key](/api/v1/admin/public-key): 获取 RSA 公钥（用于密码加密）
+- [POST /api/v1/admin/login](/api/v1/admin/login): 管理员登录
+- [GET /api/v1/admin/me](/api/v1/admin/me): 获取当前登录管理员信息
+- [PUT /api/v1/admin/me](/api/v1/admin/me): 更新当前管理员个人信息
+- [POST /api/v1/admin/logout](/api/v1/admin/logout): 管理员退出登录
+- [PUT /api/v1/admin/me/change-password](/api/v1/admin/me/change-password): 修改当前管理员密码
+- [GET /api/v1/admin/me/stores](/api/v1/admin/me/stores): 获取当前用户绑定的门店列表
+- [PUT /api/v1/admin/me/current-store](/api/v1/admin/me/current-store): 切换当前门店
+- [POST /api/v1/admin/phone-login](/api/v1/admin/phone-login): 手机号+密码登录
+- [POST /api/v1/admin/sms/send](/api/v1/admin/sms/send): 发送登录验证码
+- [POST /api/v1/admin/sms/login](/api/v1/admin/sms/login): 短信验证码登录
+- [GET /api/v1/admin/wechat/qrcode](/api/v1/admin/wechat/qrcode): 获取微信扫码登录二维码
+- [GET /api/v1/admin/wechat/check](/api/v1/admin/wechat/check): 检查微信扫码状态
+- [POST /api/v1/admin/wechat/confirm](/api/v1/admin/wechat/confirm): 确认微信扫码（模拟接口，用于测试）
+- [GET /api/v1/admin/roles](/api/v1/admin/roles): 获取角色列表
+- [POST /api/v1/admin/roles](/api/v1/admin/roles): 创建角色
+- [GET /api/v1/admin/roles/all](/api/v1/admin/roles/all): 获取所有启用的角色（用于下拉选择）
+- [GET /api/v1/admin/roles/{role_id}](/api/v1/admin/roles/{role_id}): 获取角色详情
+- [PUT /api/v1/admin/roles/{role_id}](/api/v1/admin/roles/{role_id}): 更新角色
+- [DELETE /api/v1/admin/roles/{role_id}](/api/v1/admin/roles/{role_id}): 删除角色
+- [PUT /api/v1/admin/roles/{role_id}/permissions](/api/v1/admin/roles/{role_id}/permissions): 更新角色权限
+- [GET /api/v1/admin/admins](/api/v1/admin/admins): 获取管理员列表
+- [POST /api/v1/admin/admins](/api/v1/admin/admins): 创建管理员
+- [GET /api/v1/admin/admins/{admin_id}](/api/v1/admin/admins/{admin_id}): 获取管理员详情
+- [PUT /api/v1/admin/admins/{admin_id}](/api/v1/admin/admins/{admin_id}): 更新管理员
+- [DELETE /api/v1/admin/admins/{admin_id}](/api/v1/admin/admins/{admin_id}): 删除管理员
+- [PUT /api/v1/admin/admins/{admin_id}/reset-password](/api/v1/admin/admins/{admin_id}/reset-password): 重置管理员密码
+- [GET /api/v1/admin/logs](/api/v1/admin/logs): 获取操作日志列表
+- [GET /api/v1/admin/permissions/tree](/api/v1/admin/permissions/tree): 获取权限树形结构（用于角色权限分配）
+- [GET /api/v1/admin/permissions/all](/api/v1/admin/permissions/all): 获取所有权限（平铺列表）
+- [POST /api/v1/admin/permissions](/api/v1/admin/permissions): 创建权限（一般不需要手动创建，由初始化脚本管理）
+- [POST /api/v1/admin/permissions/batch](/api/v1/admin/permissions/batch): 批量创建权限
+- [DELETE /api/v1/admin/permissions/{code}](/api/v1/admin/permissions/{code}): 删除权限
+- [GET /api/v1/admin/online-users](/api/v1/admin/online-users): 获取在线用户列表
+- [POST /api/v1/admin/online-users/{admin_id}/kick](/api/v1/admin/online-users/{admin_id}/kick): 强制用户下线
+- [GET /api/v1/admin/user-status](/api/v1/admin/user-status): 获取所有用户状态列表（在线+离线）
+- [GET /api/v1/admin/login-history/{admin_id}](/api/v1/admin/login-history/{admin_id}): 获取指定用户的登录历史
+
+## 系统设置
+
+- [GET /api/v1/settings/booking](/api/v1/settings/booking): 获取预约设置
+- [PUT /api/v1/settings/booking](/api/v1/settings/booking): 更新预约设置
+- [GET /api/v1/settings/hospital](/api/v1/settings/hospital): 获取医院信息（公开接口）
+- [PUT /api/v1/settings/hospital](/api/v1/settings/hospital): 更新医院信息
+- [GET /api/v1/settings/wechat](/api/v1/settings/wechat): 获取微信配置
+- [PUT /api/v1/settings/wechat](/api/v1/settings/wechat): 更新微信配置
+- [GET /api/v1/settings/sms](/api/v1/settings/sms): 获取短信配置
+- [PUT /api/v1/settings/sms](/api/v1/settings/sms): 更新短信配置
+- [GET /api/v1/settings/email](/api/v1/settings/email): 获取邮件配置
+- [PUT /api/v1/settings/email](/api/v1/settings/email): 更新邮件配置
+- [GET /api/v1/settings/booking/rules](/api/v1/settings/booking/rules): 获取预约规则（公开接口，用于患者端）
+- [GET /api/v1/settings/booking-fields](/api/v1/settings/booking-fields): 获取预约选项配置（公开接口，用于动态渲染表单）
+- [PUT /api/v1/settings/booking-fields](/api/v1/settings/booking-fields): 更新预约选项配置
+- [GET /api/v1/settings/patient-card](/api/v1/settings/patient-card): 获取就诊卡配置（公开接口）
+- [PUT /api/v1/settings/patient-card](/api/v1/settings/patient-card): 更新就诊卡配置
+- [GET /api/v1/settings/image](/api/v1/settings/image): 获取图片处理配置
+- [PUT /api/v1/settings/image](/api/v1/settings/image): 更新图片处理配置
+- [GET /api/v1/settings/time-periods](/api/v1/settings/time-periods): 获取时段配置（公开接口）
+- [PUT /api/v1/settings/time-periods](/api/v1/settings/time-periods): 更新时段配置
+- [DELETE /api/v1/settings/time-periods/{store_id}](/api/v1/settings/time-periods/{store_id}): 删除门店自定义时段配置（恢复使用全局配置）
+
+## 就诊卡管理
+
+- [POST /api/v1/patients](/api/v1/patients): 创建患者（管理员手动添加）
+- [GET /api/v1/patients](/api/v1/patients): 获取患者列表
+- [GET /api/v1/patients/blacklist](/api/v1/patients/blacklist): 获取黑名单列表
+- [GET /api/v1/patients/{patient_id}](/api/v1/patients/{patient_id}): 获取患者详情
+- [PUT /api/v1/patients/{patient_id}](/api/v1/patients/{patient_id}): 更新患者信息
+- [DELETE /api/v1/patients/{patient_id}](/api/v1/patients/{patient_id}): 删除患者（就诊卡）
+- [GET /api/v1/patients/{patient_id}/appointments](/api/v1/patients/{patient_id}/appointments): 获取患者预约记录
+- [GET /api/v1/patients/{patient_id}/consumption-records](/api/v1/patients/{patient_id}/consumption-records): 获取患者消费/项目记录
+- [GET /api/v1/patients/{patient_id}/points](/api/v1/patients/{patient_id}/points): 获取积分流水
+- [POST /api/v1/patients/{patient_id}/points](/api/v1/patients/{patient_id}/points): 调整积分（手动增减）
+- [GET /api/v1/patients/{patient_id}/points/summary](/api/v1/patients/{patient_id}/points/summary): 获取积分汇总
+- [PUT /api/v1/patients/{patient_id}/blacklist](/api/v1/patients/{patient_id}/blacklist): 加入黑名单
+- [DELETE /api/v1/patients/{patient_id}/blacklist](/api/v1/patients/{patient_id}/blacklist): 移出黑名单
+- [POST /api/v1/patients/{patient_id}/family-members](/api/v1/patients/{patient_id}/family-members): 为患者添加家庭成员（亲友）
+- [PUT /api/v1/patients/{patient_id}/family-members/{member_id}](/api/v1/patients/{patient_id}/family-members/{member_id}): 编辑家庭成员信息
+- [DELETE /api/v1/patients/{patient_id}/family-members/{member_id}](/api/v1/patients/{patient_id}/family-members/{member_id}): 删除家庭成员
+
+## 患者管理
+
+- [GET /api/v1/user-manage](/api/v1/user-manage): 获取患者（用户）列表
+- [GET /api/v1/user-manage/{user_id}](/api/v1/user-manage/{user_id}): 获取患者（用户）详情
+- [DELETE /api/v1/user-manage/{user_id}](/api/v1/user-manage/{user_id}): 删除用户（患者）
+- [PUT /api/v1/user-manage/{user_id}](/api/v1/user-manage/{user_id}): 更新用户基本信息
+- [PUT /api/v1/user-manage/{user_id}/status](/api/v1/user-manage/{user_id}/status): 更新用户状态（禁用/启用）
+- [POST /api/v1/user-manage/{user_id}/points](/api/v1/user-manage/{user_id}/points): 调整用户积分
+- [POST /api/v1/user-manage/{user_id}/cards](/api/v1/user-manage/{user_id}/cards): 为用户添加就诊卡
+- [PUT /api/v1/user-manage/{user_id}/cards/{card_id}](/api/v1/user-manage/{user_id}/cards/{card_id}): 更新就诊卡信息
+- [DELETE /api/v1/user-manage/{user_id}/cards/{card_id}](/api/v1/user-manage/{user_id}/cards/{card_id}): 删除就诊卡
+
+## 数据导出
+
+- [GET /api/v1/export/appointments](/api/v1/export/appointments): 导出预约记录
+- [GET /api/v1/export/patients](/api/v1/export/patients): 导出患者列表
+- [GET /api/v1/export/schedules](/api/v1/export/schedules): 导出排班记录
+
+## 停诊调班
+
+- [GET /api/v1/leave-requests](/api/v1/leave-requests): 获取申请列表（管理端）
+- [GET /api/v1/leave-requests/pending-count](/api/v1/leave-requests/pending-count): 获取待审核数量
+- [GET /api/v1/leave-requests/my](/api/v1/leave-requests/my): 获取我的申请列表（医生端）
+- [GET /api/v1/leave-requests/{request_id}](/api/v1/leave-requests/{request_id}): 获取申请详情
+- [POST /api/v1/leave-requests/stop-clinic](/api/v1/leave-requests/stop-clinic): 创建停诊申请
+- [POST /api/v1/leave-requests/schedule-change](/api/v1/leave-requests/schedule-change): 创建调班申请
+- [POST /api/v1/leave-requests/{request_id}/review](/api/v1/leave-requests/{request_id}/review): 审核申请
+- [POST /api/v1/leave-requests/{request_id}/cancel](/api/v1/leave-requests/{request_id}/cancel): 取消申请
+
+## 用户反馈
+
+- [GET /api/v1/feedbacks](/api/v1/feedbacks): 获取反馈列表（管理端）
+- [POST /api/v1/feedbacks](/api/v1/feedbacks): 提交反馈
+- [GET /api/v1/feedbacks/pending-count](/api/v1/feedbacks/pending-count): 获取待处理数量
+- [GET /api/v1/feedbacks/statistics](/api/v1/feedbacks/statistics): 获取反馈统计
+- [GET /api/v1/feedbacks/my](/api/v1/feedbacks/my): 获取我的反馈列表（用户端）
+- [GET /api/v1/feedbacks/{feedback_id}](/api/v1/feedbacks/{feedback_id}): 获取反馈详情
+- [DELETE /api/v1/feedbacks/{feedback_id}](/api/v1/feedbacks/{feedback_id}): 删除反馈
+- [POST /api/v1/feedbacks/{feedback_id}/reply](/api/v1/feedbacks/{feedback_id}/reply): 回复反馈
+- [PATCH /api/v1/feedbacks/{feedback_id}/status](/api/v1/feedbacks/{feedback_id}/status): 更新反馈状态
+
+## 诊费管理
+
+- [GET /api/v1/consultation-fees/types](/api/v1/consultation-fees/types): 获取诊费类型列表
+- [POST /api/v1/consultation-fees/types](/api/v1/consultation-fees/types): 创建诊费类型
+- [GET /api/v1/consultation-fees/types/{fee_type_id}](/api/v1/consultation-fees/types/{fee_type_id}): 获取诊费类型详情
+- [PUT /api/v1/consultation-fees/types/{fee_type_id}](/api/v1/consultation-fees/types/{fee_type_id}): 更新诊费类型
+- [DELETE /api/v1/consultation-fees/types/{fee_type_id}](/api/v1/consultation-fees/types/{fee_type_id}): 删除诊费类型
+- [GET /api/v1/consultation-fees/templates](/api/v1/consultation-fees/templates): 获取全局诊费模板列表（带类型信息）
+- [PUT /api/v1/consultation-fees/templates](/api/v1/consultation-fees/templates): 批量更新全局诊费模板
+- [POST /api/v1/consultation-fees/templates](/api/v1/consultation-fees/templates): 创建或更新全局诊费模板
+- [GET /api/v1/consultation-fees/store-templates/{store_id}](/api/v1/consultation-fees/store-templates/{store_id}): 获取门店诊费模板列表（带类型信息）
+- [POST /api/v1/consultation-fees/store-templates/{store_id}/batch](/api/v1/consultation-fees/store-templates/{store_id}/batch): 批量保存门店诊费模板
+- [DELETE /api/v1/consultation-fees/store-templates/{store_id}/{fee_type_id}](/api/v1/consultation-fees/store-templates/{store_id}/{fee_type_id}): 删除门店诊费模板
+- [GET /api/v1/consultation-fees/doctors/{doctor_id}](/api/v1/consultation-fees/doctors/{doctor_id}): 获取医生诊费设置
+- [GET /api/v1/consultation-fees/doctors/{doctor_id}/grouped](/api/v1/consultation-fees/doctors/{doctor_id}/grouped): 获取医生诊费配置（按门店-科室分组）
+- [PUT /api/v1/consultation-fees/doctors/{doctor_id}/use-template](/api/v1/consultation-fees/doctors/{doctor_id}/use-template): 更新医生是否使用诊费模板
+- [GET /api/v1/consultation-fees/doctors/{doctor_id}/fees](/api/v1/consultation-fees/doctors/{doctor_id}/fees): 获取医生诊费配置列表
+- [POST /api/v1/consultation-fees/doctors/{doctor_id}/fees/batch](/api/v1/consultation-fees/doctors/{doctor_id}/fees/batch): 批量保存医生诊费配置
+- [POST /api/v1/consultation-fees/doctors/{doctor_id}/apply-template](/api/v1/consultation-fees/doctors/{doctor_id}/apply-template): 一键带入模板：将门店模板的金额应用到医生诊费配置
+- [DELETE /api/v1/consultation-fees/doctors/{doctor_id}/fees/{store_id}/{department_id}](/api/v1/consultation-fees/doctors/{doctor_id}/fees/{store_id}/{department_id}): 删除医生在指定门店科室的所有诊费配置
+
+## 医生预约设置
+
+- [GET /api/v1/doctor-booking-settings](/api/v1/doctor-booking-settings): 获取医生预约设置列表
+- [POST /api/v1/doctor-booking-settings](/api/v1/doctor-booking-settings): 创建医生预约设置
+- [GET /api/v1/doctor-booking-settings/existing-doctors](/api/v1/doctor-booking-settings/existing-doctors): 获取指定门店已配置的医生ID列表（用于前端禁用已配置的医生）
+- [GET /api/v1/doctor-booking-settings/{setting_id}](/api/v1/doctor-booking-settings/{setting_id}): 获取医生预约设置详情
+- [PUT /api/v1/doctor-booking-settings/{setting_id}](/api/v1/doctor-booking-settings/{setting_id}): 更新医生预约设置
+- [DELETE /api/v1/doctor-booking-settings/{setting_id}](/api/v1/doctor-booking-settings/{setting_id}): 删除医生预约设置
+- [PATCH /api/v1/doctor-booking-settings/{setting_id}/status](/api/v1/doctor-booking-settings/{setting_id}/status): 更新医生预约设置状态
+
+## 自定义排班
+
+- [GET /api/v1/custom-schedules](/api/v1/custom-schedules): 获取自定义排班列表（template_id为NULL的排班）
+- [POST /api/v1/custom-schedules](/api/v1/custom-schedules): 创建自定义排班（支持批量）
+- [GET /api/v1/custom-schedules/effective](/api/v1/custom-schedules/effective): 获取生效的自定义排班（template_id为NULL的排班）
+- [DELETE /api/v1/custom-schedules/{schedule_id}](/api/v1/custom-schedules/{schedule_id}): 删除自定义排班（仅能删除template_id为NULL的排班）
+
+## 休息日设置
+
+- [GET /api/v1/rest-days](/api/v1/rest-days): 获取休息日列表
+- [POST /api/v1/rest-days](/api/v1/rest-days): 添加休息日
+- [DELETE /api/v1/rest-days/{rest_day_id}](/api/v1/rest-days/{rest_day_id}): 删除休息日
+- [PUT /api/v1/rest-days/{rest_day_id}/cancel](/api/v1/rest-days/{rest_day_id}/cancel): 取消休息日
+
+## 停诊管理
+
+- [GET /api/v1/schedule-suspensions](/api/v1/schedule-suspensions): 获取停诊列表
+- [POST /api/v1/schedule-suspensions](/api/v1/schedule-suspensions): 创建停诊
+- [GET /api/v1/schedule-suspensions/schedules](/api/v1/schedule-suspensions/schedules): 获取指定日期的可选排班（用于停诊选择）
+- [DELETE /api/v1/schedule-suspensions/{suspension_id}](/api/v1/schedule-suspensions/{suspension_id}): 删除停诊记录
+- [PUT /api/v1/schedule-suspensions/{suspension_id}/cancel](/api/v1/schedule-suspensions/{suspension_id}/cancel): 取消停诊
+
+## 排班模板
+
+- [GET /api/v1/schedule-templates](/api/v1/schedule-templates): 获取排班模板列表
+- [POST /api/v1/schedule-templates](/api/v1/schedule-templates): 创建排班模板
+- [GET /api/v1/schedule-templates/{template_id}](/api/v1/schedule-templates/{template_id}): 获取排班模板详情
+- [PUT /api/v1/schedule-templates/{template_id}](/api/v1/schedule-templates/{template_id}): 更新排班模板
+- [DELETE /api/v1/schedule-templates/{template_id}](/api/v1/schedule-templates/{template_id}): 删除排班模板
+- [POST /api/v1/schedule-templates/preview-generate](/api/v1/schedule-templates/preview-generate): 预览生成排班（不实际写入数据库）
+- [POST /api/v1/schedule-templates/generate-with-capacity](/api/v1/schedule-templates/generate-with-capacity): 根据模板批量生成排班（支持自定义班次容量）
+- [POST /api/v1/schedule-templates/generate](/api/v1/schedule-templates/generate): 根据模板批量生成排班
+- [POST /api/v1/schedule-templates/batch-add](/api/v1/schedule-templates/batch-add): 批量添加排班（不依赖模板）
+- [GET /api/v1/schedule-templates/{template_id}/check-generated](/api/v1/schedule-templates/{template_id}/check-generated): 检查规则是否已生成过排班
+- [POST /api/v1/schedule-templates/{template_id}/batch-delete](/api/v1/schedule-templates/{template_id}/batch-delete): 批量删除规则生成的排班
+- [POST /api/v1/schedule-templates/{template_id}/batch-suspend](/api/v1/schedule-templates/{template_id}/batch-suspend): 批量停诊规则生成的排班
+- [GET /api/v1/schedule-templates/{template_id}/logs](/api/v1/schedule-templates/{template_id}/logs): 获取规则的生成历史记录
+- [POST /api/v1/schedule-templates/{template_id}/copy](/api/v1/schedule-templates/{template_id}/copy): 复制排班规则给其他医生
+
+## 黑名单管理
+
+- [GET /api/v1/blacklists](/api/v1/blacklists): 获取黑名单列表
+- [POST /api/v1/blacklists](/api/v1/blacklists): 添加黑名单
+- [DELETE /api/v1/blacklists/{blacklist_id}](/api/v1/blacklists/{blacklist_id}): 移除黑名单（解禁）
+- [POST /api/v1/blacklists/check](/api/v1/blacklists/check): 检查是否在黑名单中（公开接口，用于预约时检查）
+
+## 邮件模板
+
+- [GET /api/v1/email-templates](/api/v1/email-templates): 获取邮件模板列表
+- [POST /api/v1/email-templates](/api/v1/email-templates): 创建邮件模板
+- [GET /api/v1/email-templates/all](/api/v1/email-templates/all): 获取所有邮件模板（不分页）
+- [GET /api/v1/email-templates/{template_id}](/api/v1/email-templates/{template_id}): 获取邮件模板详情
+- [PUT /api/v1/email-templates/{template_id}](/api/v1/email-templates/{template_id}): 更新邮件模板
+- [DELETE /api/v1/email-templates/{template_id}](/api/v1/email-templates/{template_id}): 删除邮件模板
+- [POST /api/v1/email-templates/{template_id}/test](/api/v1/email-templates/{template_id}/test): 发送测试邮件
+
+## 用户行为分析
+
+- [POST /api/v1/analytics/track](/api/v1/analytics/track): 单条埋点数据上报
+- [POST /api/v1/analytics/batch](/api/v1/analytics/batch): 批量埋点数据上报
+- [GET /api/v1/analytics/logs](/api/v1/analytics/logs): 获取用户行为日志列表（管理员）
+- [GET /api/v1/analytics/overview](/api/v1/analytics/overview): 获取用户行为概览统计（管理员）
+
+## 数据导入导出
+
+- [GET /api/v1/data/export/doctors](/api/v1/data/export/doctors): 导出医生列表
+- [GET /api/v1/data/export/patients](/api/v1/data/export/patients): 导出患者列表
+- [GET /api/v1/data/export/departments](/api/v1/data/export/departments): 导出科室列表
+- [GET /api/v1/data/export/stores](/api/v1/data/export/stores): 导出门店列表
+- [GET /api/v1/data/template/doctors](/api/v1/data/template/doctors): 下载医生导入模板
+- [GET /api/v1/data/template/patients](/api/v1/data/template/patients): 下载患者导入模板
+- [GET /api/v1/data/template/departments](/api/v1/data/template/departments): 下载科室导入模板
+- [GET /api/v1/data/template/stores](/api/v1/data/template/stores): 下载门店导入模板
+- [POST /api/v1/data/import/doctors](/api/v1/data/import/doctors): 导入医生数据
+- [POST /api/v1/data/import/patients](/api/v1/data/import/patients): 导入患者数据
+- [POST /api/v1/data/import/departments](/api/v1/data/import/departments): 导入科室数据
+- [POST /api/v1/data/import/stores](/api/v1/data/import/stores): 导入门店数据
+- [GET /api/v1/data/export/schedule-templates](/api/v1/data/export/schedule-templates): 导出排班模板列表
+- [GET /api/v1/data/export/users](/api/v1/data/export/users): 导出系统用户列表
+- [GET /api/v1/data/export/logs](/api/v1/data/export/logs): 导出操作日志
+- [GET /api/v1/data/export/feedbacks](/api/v1/data/export/feedbacks): 导出用户反馈
+- [GET /api/v1/data/export/rule-sets](/api/v1/data/export/rule-sets): 导出规则组列表（多工作表）
+- [GET /api/v1/data/template/rule-sets](/api/v1/data/template/rule-sets): 下载规则组导入模板（多工作表）
+- [POST /api/v1/data/import/rule-sets](/api/v1/data/import/rule-sets): 导入规则组数据（多工作表）
+
+## 预约须知
+
+- [GET /api/v1/booking-notices/public](/api/v1/booking-notices/public): 获取生效的预约须知列表（公开接口，供小程序端调用）
+- [GET /api/v1/booking-notices](/api/v1/booking-notices): 获取预约须知列表（管理端）
+- [POST /api/v1/booking-notices](/api/v1/booking-notices): 创建预约须知
+- [GET /api/v1/booking-notices/{notice_id}](/api/v1/booking-notices/{notice_id}): 获取预约须知详情
+- [PUT /api/v1/booking-notices/{notice_id}](/api/v1/booking-notices/{notice_id}): 更新预约须知
+- [DELETE /api/v1/booking-notices/{notice_id}](/api/v1/booking-notices/{notice_id}): 删除预约须知
+- [PATCH /api/v1/booking-notices/{notice_id}/status](/api/v1/booking-notices/{notice_id}/status): 更新预约须知状态
+
+## 用户收藏
+
+- [GET /api/v1/favorites](/api/v1/favorites): 获取当前用户收藏列表
+- [POST /api/v1/favorites](/api/v1/favorites): 添加收藏
+- [GET /api/v1/favorites/check](/api/v1/favorites/check): 检查是否已收藏
+- [DELETE /api/v1/favorites/{favorite_id}](/api/v1/favorites/{favorite_id}): 取消收藏（通过收藏ID）
+- [DELETE /api/v1/favorites/target/{target_type}/{target_id}](/api/v1/favorites/target/{target_type}/{target_id}): 取消收藏（通过目标类型和ID）
+
+## 复诊规则配置
+
+- [GET /api/v1/visit-type-configs/store/{store_id}](/api/v1/visit-type-configs/store/{store_id}): 获取门店复诊规则配置
+- [PUT /api/v1/visit-type-configs/store/{store_id}](/api/v1/visit-type-configs/store/{store_id}): 更新门店复诊规则配置（不存在则创建）
+- [DELETE /api/v1/visit-type-configs/store/{store_id}](/api/v1/visit-type-configs/store/{store_id}): 删除门店复诊规则配置（恢复默认）
+
+## 规则管理
+
+- [GET /api/v1/rule-sets](/api/v1/rule-sets): 获取规则组列表
+- [POST /api/v1/rule-sets](/api/v1/rule-sets): 创建规则组（仅超级管理员）
+- [GET /api/v1/rule-sets/{rule_set_id}](/api/v1/rule-sets/{rule_set_id}): 获取规则组详情
+- [PUT /api/v1/rule-sets/{rule_set_id}](/api/v1/rule-sets/{rule_set_id}): 更新规则组（仅超级管理员）
+- [DELETE /api/v1/rule-sets/{rule_set_id}](/api/v1/rule-sets/{rule_set_id}): 删除规则组（仅超级管理员）
+- [POST /api/v1/rule-sets/{rule_set_id}/enable](/api/v1/rule-sets/{rule_set_id}/enable): 启用规则组（仅超级管理员）
+- [POST /api/v1/rule-sets/{rule_set_id}/disable](/api/v1/rule-sets/{rule_set_id}/disable): 禁用规则组（仅超级管理员）
+- [POST /api/v1/rule-sets/preview](/api/v1/rule-sets/preview): 预览规则效果
+- [POST /api/v1/rule-sets/{rule_set_id}/windows](/api/v1/rule-sets/{rule_set_id}/windows): 创建时间窗（仅超级管理员）
+- [PUT /api/v1/rule-sets/windows/{window_id}](/api/v1/rule-sets/windows/{window_id}): 更新时间窗（仅超级管理员）
+- [DELETE /api/v1/rule-sets/windows/{window_id}](/api/v1/rule-sets/windows/{window_id}): 删除时间窗（仅超级管理员）
+- [PUT /api/v1/rule-sets/{rule_set_id}/booking-policy](/api/v1/rule-sets/{rule_set_id}/booking-policy): 更新预约策略（仅超级管理员）
+- [PUT /api/v1/rule-sets/{rule_set_id}/checkin-policy](/api/v1/rule-sets/{rule_set_id}/checkin-policy): 更新签到策略（仅超级管理员）
+- [PUT /api/v1/rule-sets/{rule_set_id}/capacity-policy](/api/v1/rule-sets/{rule_set_id}/capacity-policy): 更新容量策略（仅超级管理员）
+
+## 班次类型
+
+- [GET /api/v1/shift-types](/api/v1/shift-types): 获取班次类型列表
+- [POST /api/v1/shift-types](/api/v1/shift-types): 创建班次类型（仅超级管理员）
+- [GET /api/v1/shift-types/all](/api/v1/shift-types/all): 获取所有启用的班次类型（用于下拉选择）
+- [GET /api/v1/shift-types/{shift_type_id}](/api/v1/shift-types/{shift_type_id}): 获取班次类型详情
+- [PUT /api/v1/shift-types/{shift_type_id}](/api/v1/shift-types/{shift_type_id}): 更新班次类型（仅超级管理员）
+- [DELETE /api/v1/shift-types/{shift_type_id}](/api/v1/shift-types/{shift_type_id}): 删除班次类型（仅超级管理员）
+
+## 审计日志
+
+- [GET /api/v1/audit-logs/checkin-logs](/api/v1/audit-logs/checkin-logs): 查询签到审计日志
+- [GET /api/v1/audit-logs/checkin-logs/statistics](/api/v1/audit-logs/checkin-logs/statistics): 获取签到审计日志统计
+
+## WebSocket
+
+- [GET /api/v1/ws/online-doctors](/api/v1/ws/online-doctors): 获取当前在线的医生列表（调试用）
+
+## 医生端
+
+- [GET /api/v1/doctor-portal/me](/api/v1/doctor-portal/me): 获取当前医生信息
+- [GET /api/v1/doctor-portal/schedules](/api/v1/doctor-portal/schedules): 获取当前医生的排班列表
+- [GET /api/v1/doctor-portal/schedules/today](/api/v1/doctor-portal/schedules/today): 获取当前医生今日排班
+- [GET /api/v1/doctor-portal/appointments](/api/v1/doctor-portal/appointments): 获取当前医生的预约列表
+- [GET /api/v1/doctor-portal/appointments/today](/api/v1/doctor-portal/appointments/today): 获取当前医生今日预约
+- [GET /api/v1/doctor-portal/queue](/api/v1/doctor-portal/queue): 获取当前医生的签到队列
+- [GET /api/v1/doctor-portal/queue/info](/api/v1/doctor-portal/queue/info): 获取当前医生的叫号队列统计信息
+- [PUT /api/v1/doctor-portal/appointments/{appointment_id}/call](/api/v1/doctor-portal/appointments/{appointment_id}/call): 叫号 - 只能叫自己的患者
+- [PUT /api/v1/doctor-portal/appointments/{appointment_id}/complete](/api/v1/doctor-portal/appointments/{appointment_id}/complete): 完成就诊 - 只能操作自己的患者
+- [PUT /api/v1/doctor-portal/appointments/{appointment_id}/pass](/api/v1/doctor-portal/appointments/{appointment_id}/pass): 过号 - 只能操作自己的患者
+- [PUT /api/v1/doctor-portal/appointments/{appointment_id}/recall](/api/v1/doctor-portal/appointments/{appointment_id}/recall): 重新叫号 - 只能操作自己的患者
+- [PUT /api/v1/doctor-portal/appointments/{appointment_id}/no-show](/api/v1/doctor-portal/appointments/{appointment_id}/no-show): 标记爽约 - 只能操作自己的患者
+- [GET /api/v1/doctor-portal/statistics/today](/api/v1/doctor-portal/statistics/today): 获取当前医生今日统计数据
+- [GET /api/v1/doctor-portal/patients/{patient_id}/appointments](/api/v1/doctor-portal/patients/{patient_id}/appointments): 获取患者在当前医生处的历史就诊记录
+- [POST /api/v1/doctor-portal/appointments/{appointment_id}/follow-up](/api/v1/doctor-portal/appointments/{appointment_id}/follow-up): 为患者创建复诊预约
+
+## 其他
+
+- [GET /health](/health): 健康检查
+- [GET /health/detailed](/health/detailed): 详细健康检查
+
+## Optional
+
+- [OpenAPI 规范 JSON](/api/v1/openapi.json): 包含所有端点的完整定义，适合程序化处理
+- [llms-full.txt](/llms-full.txt): 包含所有端点详细参数信息的完整版本

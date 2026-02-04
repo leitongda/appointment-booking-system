@@ -1,26 +1,14 @@
-import { PlusOutlined } from '@ant-design/icons';
-import type { ActionType, ProColumns } from '@ant-design/pro-components';
+import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space } from 'antd';
-import { useRef } from 'react';
-import { history, useAccess } from '@umijs/max';
 import { consultationFeeTypeApi } from '@hospital/api';
 import type { ConsultationFeeType } from '@hospital/shared';
+import { useListPage } from '@/hooks/useListPage';
+import { CreateButton, createOperationColumn } from '@/components/ListOperations';
 
 const ConsultationFeeTypesPage: React.FC = () => {
-  const { message } = App.useApp();
-  const access = useAccess();
-  const actionRef = useRef<ActionType>();
-
-  const handleDelete = async (id: string) => {
-    try {
-      await consultationFeeTypeApi.delete(id);
-      message.success('删除成功');
-      actionRef.current?.reload();
-    } catch (error: any) {
-      message.error(error.message || '删除失败');
-    }
-  };
+  const { actionRef, handleDelete } = useListPage({
+    deleteFn: consultationFeeTypeApi.delete,
+  });
 
   const columns: ProColumns<ConsultationFeeType>[] = [
     {
@@ -63,29 +51,15 @@ const ConsultationFeeTypesPage: React.FC = () => {
       width: 160,
       search: false,
     },
-    {
-      title: '操作',
-      valueType: 'option',
+    createOperationColumn<ConsultationFeeType>({
       width: 120,
-      render: (_, record) => (
-        <Space>
-          {access.hasPermission('system:consultation-fee') && (
-            <a onClick={() => history.push(`/system/consultation-fee-types/${record.id}/edit`)}>
-              编辑
-            </a>
-          )}
-          {access.hasPermission('system:consultation-fee') && (
-            <Popconfirm
-              title="确定删除该诊费类型吗？"
-              description="删除后相关诊费配置也会受影响"
-              onConfirm={() => handleDelete(record.id)}
-            >
-              <a style={{ color: '#ff4d4f' }}>删除</a>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
-    },
+      editUrl: (r) => `/system/consultation-fee-types/${r.id}/edit`,
+      editPermission: 'system:consultation-fee',
+      onDelete: handleDelete,
+      deletePermission: 'system:consultation-fee',
+      deleteConfirmText: '确定删除该诊费类型吗？',
+      deleteConfirmDescription: '删除后相关诊费配置也会受影响',
+    }),
   ];
 
   return (
@@ -105,16 +79,12 @@ const ConsultationFeeTypesPage: React.FC = () => {
           };
         }}
         toolBarRender={() => [
-          access.hasPermission('system:consultation-fee') && (
-            <Button
-              key="add"
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => history.push('/system/consultation-fee-types/create')}
-            >
-              新增诊费类型
-            </Button>
-          ),
+          <CreateButton
+            key="add"
+            permission="system:consultation-fee"
+            url="/system/consultation-fee-types/create"
+            label="新增诊费类型"
+          />,
         ]}
         pagination={false}
       />

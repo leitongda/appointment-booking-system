@@ -5,7 +5,7 @@ from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_permission
 from app.services.settings_service import SettingsService
 
 router = APIRouter()
@@ -66,7 +66,7 @@ class EmailConfigUpdate(BaseModel):
 
 
 # ========== 预约设置 ==========
-@router.get("/booking")
+@router.get("/booking", summary="获取预约设置")
 async def get_booking_settings(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
@@ -76,12 +76,13 @@ async def get_booking_settings(
     return await service.get_booking_settings()
 
 
-@router.put("/booking")
+@router.put("/booking", summary="更新预约设置")
 async def update_booking_settings(
     data: BookingSettingsUpdate,
     storeId: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("settings:edit")),
 ):
     """更新预约设置
 
@@ -124,7 +125,7 @@ async def update_booking_settings(
 
 
 # ========== 医院信息 ==========
-@router.get("/hospital")
+@router.get("/hospital", summary="获取医院信息")
 async def get_hospital_info(
     db: AsyncSession = Depends(get_db),
 ):
@@ -133,11 +134,12 @@ async def get_hospital_info(
     return await service.get_hospital_info()
 
 
-@router.put("/hospital")
+@router.put("/hospital", summary="更新医院信息")
 async def update_hospital_info(
     data: HospitalInfoUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("settings:edit")),
 ):
     """更新医院信息"""
     service = SettingsService(db)
@@ -163,7 +165,7 @@ async def update_hospital_info(
 
 
 # ========== 微信配置 ==========
-@router.get("/wechat")
+@router.get("/wechat", summary="获取微信配置")
 async def get_wechat_config(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
@@ -179,11 +181,12 @@ async def get_wechat_config(
     return config
 
 
-@router.put("/wechat")
+@router.put("/wechat", summary="更新微信配置")
 async def update_wechat_config(
     data: WechatConfigUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("settings:wechat")),
 ):
     """更新微信配置"""
     service = SettingsService(db)
@@ -205,7 +208,7 @@ async def update_wechat_config(
 
 
 # ========== 短信配置 ==========
-@router.get("/sms")
+@router.get("/sms", summary="获取短信配置")
 async def get_sms_config(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
@@ -219,7 +222,7 @@ async def get_sms_config(
     return config
 
 
-@router.put("/sms")
+@router.put("/sms", summary="更新短信配置")
 async def update_sms_config(
     data: SmsConfigUpdate,
     db: AsyncSession = Depends(get_db),
@@ -245,7 +248,7 @@ async def update_sms_config(
 
 
 # ========== 邮件配置 ==========
-@router.get("/email")
+@router.get("/email", summary="获取邮件配置")
 async def get_email_config(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
@@ -268,7 +271,7 @@ async def get_email_config(
     }
 
 
-@router.put("/email")
+@router.put("/email", summary="更新邮件配置")
 async def update_email_config(
     data: EmailConfigUpdate,
     db: AsyncSession = Depends(get_db),
@@ -290,7 +293,7 @@ async def update_email_config(
 
 
 # ========== 公开接口：获取预约规则 ==========
-@router.get("/booking/rules")
+@router.get("/booking/rules", summary="获取预约规则")
 async def get_booking_rules(
     storeId: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
@@ -330,7 +333,7 @@ class BookingFieldsUpdate(BaseModel):
     fields: list[BookingFieldUpdate]
 
 
-@router.get("/booking-fields")
+@router.get("/booking-fields", summary="获取预约选项配置")
 async def get_booking_fields(
     db: AsyncSession = Depends(get_db),
 ):
@@ -339,7 +342,7 @@ async def get_booking_fields(
     return await service.get_booking_fields()
 
 
-@router.put("/booking-fields")
+@router.put("/booking-fields", summary="更新预约选项配置")
 async def update_booking_fields(
     data: BookingFieldsUpdate,
     db: AsyncSession = Depends(get_db),
@@ -360,7 +363,7 @@ class PatientCardConfigUpdate(BaseModel):
     showOnHomepage: Optional[bool] = Field(None, description="首页是否展示")
 
 
-@router.get("/patient-card")
+@router.get("/patient-card", summary="获取就诊卡配置")
 async def get_patient_card_config(
     db: AsyncSession = Depends(get_db),
 ):
@@ -369,7 +372,7 @@ async def get_patient_card_config(
     return await service.get_patient_card_config()
 
 
-@router.put("/patient-card")
+@router.put("/patient-card", summary="更新就诊卡配置")
 async def update_patient_card_config(
     data: PatientCardConfigUpdate,
     db: AsyncSession = Depends(get_db),
@@ -398,7 +401,7 @@ class ImageConfigUpdate(BaseModel):
     compressQuality: Optional[int] = Field(None, ge=1, le=100, description="压缩质量 1-100")
 
 
-@router.get("/image")
+@router.get("/image", summary="获取图片处理配置")
 async def get_image_config(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
@@ -408,7 +411,7 @@ async def get_image_config(
     return await service.get_image_config()
 
 
-@router.put("/image")
+@router.put("/image", summary="更新图片处理配置")
 async def update_image_config(
     data: ImageConfigUpdate,
     db: AsyncSession = Depends(get_db),
@@ -446,7 +449,7 @@ class TimePeriodsResponse(BaseModel):
     isCustom: bool = Field(..., description="是否为门店自定义配置")
 
 
-@router.get("/time-periods")
+@router.get("/time-periods", summary="获取时段配置")
 async def get_time_periods(
     storeId: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
@@ -469,7 +472,7 @@ async def get_time_periods(
     }
 
 
-@router.put("/time-periods")
+@router.put("/time-periods", summary="更新时段配置")
 async def update_time_periods(
     data: TimePeriodsUpdate,
     db: AsyncSession = Depends(get_db),
@@ -492,7 +495,7 @@ async def update_time_periods(
     return {"message": "保存成功", "data": {"periods": result}}
 
 
-@router.delete("/time-periods/{store_id}")
+@router.delete("/time-periods/{store_id}", summary="删除门店时段配置")
 async def delete_store_time_periods(
     store_id: str,
     db: AsyncSession = Depends(get_db),

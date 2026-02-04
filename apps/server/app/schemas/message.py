@@ -12,11 +12,12 @@ def to_camel(string: str) -> str:
 
 
 class MessageType(str, Enum):
-    APPOINTMENT = "appointment"
-    CONSULTATION = "consultation"
-    SCHEDULE = "schedule"
-    SYSTEM = "system"
-    STOP_CLINIC = "stop_clinic"
+    """消息类型"""
+    APPOINTMENT = "appointment"       # 预约通知
+    CONSULTATION = "consultation"     # 就诊通知
+    SCHEDULE = "schedule"             # 排班通知
+    SYSTEM = "system"                 # 系统通知
+    STOP_CLINIC = "stop_clinic"       # 停诊通知
 
 
 class MessageBase(BaseModel):

@@ -13,9 +13,9 @@ def to_camel(string: str) -> str:
 
 class Platform(str, Enum):
     """平台枚举"""
-    ADMIN = "admin"
-    H5 = "h5"
-    MINIAPP = "miniapp"
+    ADMIN = "admin"       # 管理后台
+    H5 = "h5"             # H5页面
+    MINIAPP = "miniapp"   # 小程序
 
 
 class EventType(str, Enum):

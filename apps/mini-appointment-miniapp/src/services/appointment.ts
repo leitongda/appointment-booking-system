@@ -102,9 +102,11 @@ export function cancelAppointment(id: string, reason?: string) {
 
 /**
  * 签到
+ * @param id 预约ID
+ * @param checkinMethod 签到方式 (QR_CODE/MANUAL/PHONE)
  */
-export function signInAppointment(id: string) {
-  return put<SignInResponse>(`/appointments/${id}/sign-in`, {}, {
+export function signInAppointment(id: string, checkinMethod: string = 'QR_CODE') {
+  return put<SignInResponse>(`/appointments/${id}/sign-in`, { checkin_method: checkinMethod }, {
     showLoading: true,
     loadingText: '签到中...'
   });

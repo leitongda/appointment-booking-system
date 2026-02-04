@@ -110,6 +110,20 @@ export interface CheckinQueueItem {
   status: number;
   signInTime: string | null;
   callTime: string | null;
+  /** 签到方式: QR_CODE/MANUAL/PHONE */
+  checkinMethod?: string | null;
+}
+
+// 患者历史就诊记录项
+export interface PatientHistoryItem {
+  id: string;
+  appointmentNo: string;
+  scheduleDate: string | null;
+  timeSlot: string | null;
+  status: number;
+  completeTime: string | null;
+  symptomDescription: string | null;
+  hasMedicalRecord: boolean;
 }
 
 export const appointmentApi = {
@@ -173,8 +187,8 @@ export const appointmentApi = {
     return request.put(`/appointments/${id}/cancel`, { reason });
   },
 
-  signIn: (id: string): Promise<{ message: string; queueNumber: number }> => {
-    return request.put(`/appointments/${id}/sign-in`);
+  signIn: (id: string, data?: { checkin_method?: string }): Promise<{ message: string; queueNumber: number }> => {
+    return request.put(`/appointments/${id}/sign-in`, data);
   },
 
   /**
@@ -244,5 +258,39 @@ export const appointmentApi = {
       target_date: params.targetDate,
     } : undefined;
     return request.get('/appointments/queue', { params: queryParams });
+  },
+
+  /**
+   * 获取患者历史就诊记录（医生端）
+   * 返回该患者在当前医生处的历史预约
+   */
+  getPatientHistory: (patientId: string, params?: {
+    status?: number;
+    page?: number;
+    pageSize?: number;
+  }): Promise<{
+    items: PatientHistoryItem[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }> => {
+    const queryParams = params ? {
+      status: params.status,
+      page: params.page,
+      page_size: params.pageSize,
+    } : undefined;
+    return request.get(`/doctor-portal/patients/${patientId}/appointments`, { params: queryParams });
+  },
+
+  /**
+   * 创建复诊预约（医生端）
+   * 基于已完成的预约为患者创建复诊预约
+   */
+  createFollowUp: (appointmentId: string, scheduleId: string): Promise<{
+    message: string;
+    appointmentId: string;
+    appointmentNo: string;
+  }> => {
+    return request.post(`/doctor-portal/appointments/${appointmentId}/follow-up`, { schedule_id: scheduleId });
   },
 };

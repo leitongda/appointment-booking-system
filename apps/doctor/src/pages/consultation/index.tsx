@@ -1,10 +1,23 @@
 import { PageContainer, ProCard } from '@ant-design/pro-components';
-import { List, Avatar, Tag, Button, Empty, message, Row, Col, Badge, Popconfirm, Tooltip } from 'antd';
-import { UserOutlined, SoundOutlined, StopOutlined, CheckOutlined, ReloadOutlined, WifiOutlined, DisconnectOutlined } from '@ant-design/icons';
+import { List, Avatar, Tag, Button, Empty, message, Row, Col, Badge, Popconfirm, Tooltip, Drawer, Spin, Timeline, Modal, Select, Space } from 'antd';
+import { UserOutlined, SoundOutlined, StopOutlined, CheckOutlined, ReloadOutlined, WifiOutlined, DisconnectOutlined, HistoryOutlined, FileTextOutlined, CalendarOutlined, PlusOutlined } from '@ant-design/icons';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { history } from 'umi';
-import { appointmentApi } from '@hospital/api';
-import { TIME_SLOT_MAP } from '@hospital/shared';
+import { appointmentApi, scheduleApi } from '@hospital/api';
+import type { AvailableSchedule } from '@hospital/api';
+
+// 患者历史就诊记录项类型
+interface PatientHistoryItem {
+  id: string;
+  appointmentNo: string;
+  scheduleDate: string | null;
+  timeSlot: string | null;
+  status: number;
+  completeTime: string | null;
+  symptomDescription: string | null;
+  hasMedicalRecord: boolean;
+}
+import { APPOINTMENT_STATUS, APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP } from '@hospital/shared';
 import type { Appointment, QueueInfo } from '@hospital/shared';
 import { useWebSocket, ConnectionStatus, WSMessageType } from '@/hooks';
 
@@ -12,6 +25,20 @@ const ConsultationPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [currentPatient, setCurrentPatient] = useState<Appointment | null>(null);
+  
+  // 历史记录抽屉状态
+  const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyData, setHistoryData] = useState<PatientHistoryItem[]>([]);
+  const [selectedPatient, setSelectedPatient] = useState<Appointment | null>(null);
+  
+  // 复诊预约弹窗状态
+  const [followUpModalOpen, setFollowUpModalOpen] = useState(false);
+  const [followUpLoading, setFollowUpLoading] = useState(false);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [availableSchedules, setAvailableSchedules] = useState<AvailableSchedule[]>([]);
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string>('');
+  const [selectedAppointmentForFollowUp, setSelectedAppointmentForFollowUp] = useState<PatientHistoryItem | null>(null);
 
   // 获取医生 ID
   const doctorId = useMemo(() => {
@@ -32,7 +59,7 @@ const ConsultationPage: React.FC = () => {
     try {
       const data = await appointmentApi.getToday();
       setAppointments(data);
-      setCurrentPatient(data.find((a: Appointment) => a.status === 3) || null);
+      setCurrentPatient(data.find((a: Appointment) => a.status === APPOINTMENT_STATUS.SEEING) || null);
     } catch (error) {
       console.error('加载数据失败', error);
     } finally {
@@ -120,10 +147,77 @@ const ConsultationPage: React.FC = () => {
     }
   };
 
+  // 查看患者历史记录
+  const handleViewHistory = async (patient: Appointment) => {
+    if (!patient.patientId) {
+      message.warning('无法获取患者信息');
+      return;
+    }
+    
+    setSelectedPatient(patient);
+    setHistoryDrawerOpen(true);
+    setHistoryLoading(true);
+    
+    try {
+      const result = await appointmentApi.getPatientHistory(patient.patientId, {
+        pageSize: 20,
+      });
+      setHistoryData(result.items);
+    } catch (error: any) {
+      message.error(error.message || '加载历史记录失败');
+      setHistoryData([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  // 打开复诊预约弹窗
+  const handleOpenFollowUp = async (historyItem: PatientHistoryItem) => {
+    setSelectedAppointmentForFollowUp(historyItem);
+    setFollowUpModalOpen(true);
+    setScheduleLoading(true);
+    setSelectedScheduleId('');
+    
+    try {
+      // 加载当前医生的可用排班（未来14天）
+      const schedules = await scheduleApi.getAvailable(doctorId, 14);
+      setAvailableSchedules(schedules);
+    } catch (error: any) {
+      message.error(error.message || '加载排班失败');
+      setAvailableSchedules([]);
+    } finally {
+      setScheduleLoading(false);
+    }
+  };
+
+  // 创建复诊预约
+  const handleCreateFollowUp = async () => {
+    if (!selectedAppointmentForFollowUp || !selectedScheduleId) {
+      message.warning('请选择排班');
+      return;
+    }
+    
+    setFollowUpLoading(true);
+    try {
+      const result = await appointmentApi.createFollowUp(
+        selectedAppointmentForFollowUp.id,
+        selectedScheduleId
+      );
+      message.success(`复诊预约创建成功，预约号：${result.appointmentNo}`);
+      setFollowUpModalOpen(false);
+      setSelectedAppointmentForFollowUp(null);
+      setSelectedScheduleId('');
+    } catch (error: any) {
+      message.error(error.message || '创建复诊预约失败');
+    } finally {
+      setFollowUpLoading(false);
+    }
+  };
+
   // 候诊队列（已签到）
-  const waitingList = appointments.filter((a) => a.status === 2);
-  // 已过号 (7=EXPIRED)
-  const passedList = appointments.filter((a) => a.status === 7);
+  const waitingList = appointments.filter((a) => a.status === APPOINTMENT_STATUS.SIGNED);
+  // 已过号 (EXPIRED)
+  const passedList = appointments.filter((a) => a.status === APPOINTMENT_STATUS.EXPIRED);
 
   // 连接状态指示器
   const connectionIndicator = useMemo(() => {
@@ -175,6 +269,11 @@ const ConsultationPage: React.FC = () => {
                 <Avatar size={80} icon={<UserOutlined />} style={{ marginBottom: 20, backgroundColor: '#1890ff' }} />
                 <div style={{ fontSize: 24, fontWeight: 500, marginBottom: 8 }}>
                   {currentPatient.patientName}
+                  {currentPatient.isFollowUp ? (
+                    <Tag color="purple" style={{ marginLeft: 8, fontSize: 12 }}>复诊</Tag>
+                  ) : (
+                    <Tag color="green" style={{ marginLeft: 8, fontSize: 12 }}>初诊</Tag>
+                  )}
                 </div>
                 <div style={{ fontSize: 16, color: '#666', marginBottom: 8 }}>
                   {currentPatient.patientPhone?.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}
@@ -184,7 +283,13 @@ const ConsultationPage: React.FC = () => {
                     {TIME_SLOT_MAP[currentPatient.timeSlot || 'AM']} 第{currentPatient.queueNumber}号
                   </Tag>
                 </div>
-                <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+                <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <Button 
+                    icon={<HistoryOutlined />} 
+                    onClick={() => handleViewHistory(currentPatient)}
+                  >
+                    历史记录
+                  </Button>
                   <Popconfirm
                     title="确定过号吗？"
                     description="过号后患者需要重新排队。"
@@ -257,7 +362,12 @@ const ConsultationPage: React.FC = () => {
                       title={
                         <span style={{ fontSize: 16 }}>
                           {item.patientName}
-                          <Tag color="blue" style={{ marginLeft: 8 }}>第{item.queueNumber}号</Tag>
+                          {item.isFollowUp ? (
+                            <Tag color="purple" style={{ marginLeft: 8 }}>复诊</Tag>
+                          ) : (
+                            <Tag color="green" style={{ marginLeft: 8 }}>初诊</Tag>
+                          )}
+                          <Tag color="blue" style={{ marginLeft: 4 }}>第{item.queueNumber}号</Tag>
                         </span>
                       }
                       description={
@@ -297,7 +407,16 @@ const ConsultationPage: React.FC = () => {
               >
                 <List.Item.Meta
                   avatar={<Avatar icon={<UserOutlined />} />}
-                  title={item.patientName}
+                  title={
+                    <span>
+                      {item.patientName}
+                      {item.isFollowUp ? (
+                        <Tag color="purple" style={{ marginLeft: 8 }}>复诊</Tag>
+                      ) : (
+                        <Tag color="green" style={{ marginLeft: 8 }}>初诊</Tag>
+                      )}
+                    </span>
+                  }
                   description={`第${item.queueNumber}号`}
                 />
                 <Tag color="orange">已过号</Tag>
@@ -306,6 +425,125 @@ const ConsultationPage: React.FC = () => {
           />
         </ProCard>
       )}
+
+      {/* 患者历史记录抽屉 */}
+      <Drawer
+        title={`${selectedPatient?.patientName || '患者'}的就诊历史`}
+        open={historyDrawerOpen}
+        onClose={() => {
+          setHistoryDrawerOpen(false);
+          setSelectedPatient(null);
+          setHistoryData([]);
+        }}
+        width={480}
+      >
+        {historyLoading ? (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <Spin tip="加载中..." />
+          </div>
+        ) : historyData.length === 0 ? (
+          <Empty description="暂无就诊记录" />
+        ) : (
+          <Timeline
+            items={historyData.map((item) => ({
+              color: item.status === APPOINTMENT_STATUS.COMPLETED ? 'green' : 'gray',
+              children: (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ marginBottom: 8 }}>
+                    <Tag color="blue">{item.scheduleDate}</Tag>
+                    <Tag>{TIME_SLOT_MAP[item.timeSlot || 'AM']}</Tag>
+                    <Tag color={item.status === APPOINTMENT_STATUS.COMPLETED ? 'green' : 'default'}>
+                      {APPOINTMENT_STATUS_MAP[item.status] || '未知'}
+                    </Tag>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
+                    预约号：{item.appointmentNo}
+                  </div>
+                  {item.symptomDescription && (
+                    <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
+                      病情描述：{item.symptomDescription}
+                    </div>
+                  )}
+                  <Space size="small">
+                    {item.hasMedicalRecord && (
+                      <Button 
+                        size="small" 
+                        type="link" 
+                        icon={<FileTextOutlined />}
+                        style={{ padding: 0 }}
+                        onClick={() => history.push(`/medical-record/view?appointmentId=${item.id}`)}
+                      >
+                        查看病历
+                      </Button>
+                    )}
+                    {item.status === APPOINTMENT_STATUS.COMPLETED && (
+                      <Button 
+                        size="small" 
+                        type="link" 
+                        icon={<PlusOutlined />}
+                        style={{ padding: 0 }}
+                        onClick={() => handleOpenFollowUp(item)}
+                      >
+                        预约复诊
+                      </Button>
+                    )}
+                  </Space>
+                </div>
+              ),
+            }))}
+          />
+        )}
+      </Drawer>
+
+      {/* 复诊预约弹窗 */}
+      <Modal
+        title={
+          <span>
+            <CalendarOutlined style={{ marginRight: 8 }} />
+            为{selectedPatient?.patientName || '患者'}预约复诊
+          </span>
+        }
+        open={followUpModalOpen}
+        onCancel={() => {
+          setFollowUpModalOpen(false);
+          setSelectedAppointmentForFollowUp(null);
+          setSelectedScheduleId('');
+        }}
+        onOk={handleCreateFollowUp}
+        confirmLoading={followUpLoading}
+        okText="确认预约"
+        cancelText="取消"
+        okButtonProps={{ disabled: !selectedScheduleId }}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ color: '#666', marginBottom: 8 }}>
+            原预约号：{selectedAppointmentForFollowUp?.appointmentNo}
+          </p>
+          <p style={{ color: '#666' }}>
+            请选择复诊时间：
+          </p>
+        </div>
+        <Select
+          style={{ width: '100%' }}
+          placeholder="请选择排班"
+          loading={scheduleLoading}
+          value={selectedScheduleId || undefined}
+          onChange={(value) => setSelectedScheduleId(value)}
+          options={availableSchedules.map((s) => ({
+            value: s.id,
+            label: (
+              <span>
+                {s.scheduleDate} {TIME_SLOT_MAP[s.timeSlot || 'AM']}
+                <Tag color="blue" style={{ marginLeft: 8 }}>
+                  剩余 {s.availableSlots} 号
+                </Tag>
+              </span>
+            ),
+            disabled: s.availableSlots <= 0,
+          }))}
+          notFoundContent={scheduleLoading ? <Spin size="small" /> : <Empty description="暂无可用排班" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+        />
+      </Modal>
     </PageContainer>
   );
 };

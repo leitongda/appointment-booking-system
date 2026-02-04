@@ -1,35 +1,15 @@
-import { View, Text } from '@tarojs/components';
+import { View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import { useState, useEffect } from 'react';
-import { Button } from '@nutui/nutui-react-taro';
-import { ScanIcon } from '../../../components/Icons';
+import { useState, useEffect, useRef } from 'react';
 import { getToken } from '../../../utils/auth';
-import { getThemePrimaryColor } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import './scan.less';
 
 const CheckinScanPage = () => {
   const [showLoginPopup, setShowLoginPopup] = useState(false);
-  const [scanning, setScanning] = useState(false);
-
-  useEffect(() => {
-    // 检查登录状态
-    const token = getToken();
-    if (!token) {
-      setShowLoginPopup(true);
-    }
-  }, []);
+  const hasTriggeredScan = useRef(false);
 
   const handleScan = async () => {
-    // 检查登录状态
-    const token = getToken();
-    if (!token) {
-      setShowLoginPopup(true);
-      return;
-    }
-
-    setScanning(true);
-
     try {
       // 调用微信扫码 API
       const result = await Taro.scanCode({
@@ -41,13 +21,13 @@ const CheckinScanPage = () => {
 
       // 解析二维码内容
       const qrcodeContent = result.result;
-      
+
       // 检查是否是门店签到二维码
       if (qrcodeContent && qrcodeContent.startsWith('store-checkin:')) {
         const storeId = qrcodeContent.replace('store-checkin:', '');
-        
-        // 跳转到选择预约页面
-        Taro.navigateTo({
+
+        // 跳转到选择预约页面（使用 redirectTo 避免返回空白页）
+        Taro.redirectTo({
           url: `/packageBooking/pages/checkin/select?storeId=${storeId}`,
         });
       } else {
@@ -55,6 +35,10 @@ const CheckinScanPage = () => {
           title: '无效的签到二维码',
           icon: 'none',
         });
+        // 扫码结果无效，返回上一页
+        setTimeout(() => {
+          Taro.navigateBack();
+        }, 1500);
       }
     } catch (error: any) {
       console.error('[扫码签到] 扫码失败:', error);
@@ -64,53 +48,44 @@ const CheckinScanPage = () => {
           icon: 'none',
         });
       }
-    } finally {
-      setScanning(false);
+      // 扫码取消或失败，返回上一页
+      setTimeout(() => {
+        Taro.navigateBack();
+      }, 300);
     }
   };
 
+  const triggerScan = () => {
+    // 检查登录状态
+    const token = getToken();
+    if (!token) {
+      setShowLoginPopup(true);
+      return;
+    }
+    handleScan();
+  };
+
+  useEffect(() => {
+    // 避免重复触发
+    if (hasTriggeredScan.current) return;
+    hasTriggeredScan.current = true;
+
+    // 延迟一点触发扫码，确保页面已完成渲染
+    const timer = setTimeout(() => {
+      triggerScan();
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   const handleLoginSuccess = () => {
     setShowLoginPopup(false);
+    // 登录成功后直接触发扫码
+    handleScan();
   };
 
   return (
     <View className="checkin-scan-page">
-      <View className="scan-area">
-        <View className="scan-icon-wrap">
-          <ScanIcon size={80} color={getThemePrimaryColor()} />
-        </View>
-        <Text className="scan-title">扫码签到</Text>
-        <Text className="scan-desc">
-          请扫描门店提供的签到二维码，完成到店签到
-        </Text>
-      </View>
-
-      <View className="scan-tips">
-        <View className="tip-item">
-          <Text className="tip-num">1</Text>
-          <Text className="tip-text">确保您已有当日的预约</Text>
-        </View>
-        <View className="tip-item">
-          <Text className="tip-num">2</Text>
-          <Text className="tip-text">到达门店后扫描签到二维码</Text>
-        </View>
-        <View className="tip-item">
-          <Text className="tip-num">3</Text>
-          <Text className="tip-text">选择要签到的预约完成签到</Text>
-        </View>
-      </View>
-
-      <View className="scan-action">
-        <Button
-          type="primary"
-          block
-          loading={scanning}
-          onClick={handleScan}
-        >
-          {scanning ? '扫码中...' : '开始扫码'}
-        </Button>
-      </View>
-
       {/* 登录弹窗 */}
       <LoginPopup
         visible={showLoginPopup}

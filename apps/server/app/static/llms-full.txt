@@ -1,0 +1,5638 @@
+# 医院挂号系统
+
+> 医院挂号系统 API
+
+- API 版本: 1.0.0
+- 基础路径: /api/v1
+- 认证方式: Bearer Token (JWT)
+
+---
+
+## 认证
+
+### POST /api/v1/auth/login
+
+**用户登录**
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `LoginRequest`
+    - `phone` (string, 必填)
+    - `password` (string, 必填)
+
+---
+
+### POST /api/v1/auth/register
+
+**用户注册**
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `RegisterRequest`
+    - `phone` (string, 必填)
+    - `password` (string, 必填)
+    - `code` (any, 可选)
+
+---
+
+### POST /api/v1/auth/refresh
+
+**刷新Token**
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `RefreshTokenRequest`
+    - `refreshToken` (string, 必填)
+
+---
+
+### POST /api/v1/auth/change-password
+
+**修改密码**
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `app__schemas__auth__ChangePasswordRequest`
+    - `oldPassword` (string, 必填)
+    - `newPassword` (string, 必填)
+
+---
+
+### POST /api/v1/auth/wechat/login
+
+**微信登录**
+
+微信小程序登录
+- 通过 code 获取 openid 和 unionid
+- 如果用户已存在，返回 token
+- 如果是新用户，返回 openid，需要绑定手机号
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `WechatLoginRequest`
+    - `code` (string, 必填)
+    - `storeId` (any, 可选)
+
+---
+
+### POST /api/v1/auth/wechat/phone
+
+**微信获取手机号**
+
+微信获取手机号并自动登录/注册
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `WechatPhoneRequest`
+    - `code` (string, 必填)
+    - `openid` (string, 必填)
+    - `storeId` (any, 可选)
+
+---
+
+### POST /api/v1/auth/wechat/bind-phone
+
+**微信绑定手机号**
+
+微信绑定手机号（手动输入方式）
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `WechatBindPhoneRequest`
+    - `openid` (string, 必填)
+    - `phone` (string, 必填)
+    - `code` (any, 可选)
+
+---
+
+### POST /api/v1/auth/wechat/bind-userinfo
+
+**微信绑定用户信息**
+
+微信绑定用户信息（头像昵称）并完成登录
+- 不需要手机号，直接使用 openid 创建/更新用户
+- 同时存储微信原始信息到专用字段
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `WechatBindUserInfoRequest`
+    - `openid` (string, 必填)
+    - `nickname` (string, 必填)
+    - `avatar` (any, 可选)
+
+---
+
+## 文件上传
+
+### POST /api/v1/upload
+
+**Upload Image**
+
+上传图片
+
+- **file**: 图片文件（支持jpg, png, gif, webp, svg）
+- **folder**: 存储文件夹（默认images）
+- **generate_thumbnails**: 是否生成缩略图（默认false）
+
+返回图片URL和存储信息，如果启用缩略图则返回多尺寸URL
+
+---
+
+### POST /api/v1/upload/transfer
+
+**Transfer From Url**
+
+从URL转存图片
+
+下载外部图片并上传到存储服务
+
+- **url**: 外部图片URL
+- **folder**: 存储文件夹（默认images）
+
+返回新的图片URL和存储信息
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `TransferRequest`
+    - `url` (string, 必填)
+    - `folder` (any, 可选)
+
+---
+
+### DELETE /api/v1/upload/{key}
+
+**Delete Image**
+
+删除图片
+
+- **key**: 图片存储键名
+
+**参数:**
+
+  - `key` (path, string, 必填)
+
+---
+
+## 用户
+
+### GET /api/v1/users/profile
+
+**获取当前用户信息**
+
+---
+
+### PUT /api/v1/users/profile
+
+**更新用户信息**
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `UserUpdate`
+    - `nickname` (any, 可选)
+    - `avatar` (any, 可选)
+    - `gender` (any, 可选)
+
+---
+
+### POST /api/v1/users/change-password
+
+**修改密码**
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `app__schemas__user__ChangePasswordRequest`
+    - `oldPassword` (string, 必填)
+    - `newPassword` (string, 必填)
+
+---
+
+### POST /api/v1/users/bind-phone
+
+**绑定手机号**
+
+绑定/更换手机号
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `BindPhoneRequest`
+    - `phone` (string, 必填)
+    - `code` (any, 可选)
+
+---
+
+### POST /api/v1/users/avatar
+
+**上传头像**
+
+上传用户头像
+
+- **file**: 头像图片文件（支持jpg, png, gif, webp）
+
+返回头像URL，可用于更新用户资料
+
+---
+
+### GET /api/v1/users/patients
+
+**获取就诊人列表**
+
+---
+
+### POST /api/v1/users/patients
+
+**添加就诊人**
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `PatientCreate`
+    - `name` (string, 必填)
+    - `phone` (string, 必填)
+    - `idCard` (any, 可选)
+    - `gender` (any, 可选)
+    - `age` (any, 可选)
+    - ... 还有 11 个字段
+
+---
+
+### GET /api/v1/users/patients/{patient_id}
+
+**获取就诊人详情**
+
+**参数:**
+
+  - `patient_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/users/patients/{patient_id}
+
+**更新就诊人**
+
+**参数:**
+
+  - `patient_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `PatientUpdate`
+    - `name` (any, 可选)
+    - `phone` (any, 可选)
+    - `idCard` (any, 可选)
+    - `gender` (any, 可选)
+    - `age` (any, 可选)
+    - ... 还有 9 个字段
+
+---
+
+### DELETE /api/v1/users/patients/{patient_id}
+
+**删除就诊人**
+
+**参数:**
+
+  - `patient_id` (path, string, 必填)
+
+---
+
+## 门店管理
+
+### GET /api/v1/stores/by-code/{code}
+
+**Get Store By Code**
+
+通过编码获取门店（公开接口，无需登录）
+
+用于患者端H5/小程序初始化时验证门店
+
+**参数:**
+
+  - `code` (path, string, 必填)
+
+---
+
+### GET /api/v1/stores/check-unique
+
+**Check Unique**
+
+检查门店名称或编码是否已存在
+
+用于前端表单实时验证唯一性
+
+Args:
+    field: 检查字段，可选 "name" 或 "code"
+    value: 字段值
+    exclude_id: 编辑时排除当前门店ID
+    
+Returns:
+    { "exists": bool } - 是否已存在
+
+**参数:**
+
+  - `field` (query, string, 必填) - 检查字段: name 或 code
+  - `value` (query, string, 必填) - 字段值
+  - `exclude_id` (query, any, 可选) - 排除的门店ID（编辑时使用）
+
+---
+
+### GET /api/v1/stores
+
+**Get Stores**
+
+获取门店列表
+
+**参数:**
+
+  - `keyword` (query, any, 可选)
+  - `status` (query, any, 可选)
+  - `city` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/stores
+
+**Create Store**
+
+创建门店（仅超级管理员）
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `StoreCreate`
+    - `name` (string, 必填)
+    - `code` (any, 可选)
+    - `address` (any, 可选)
+    - `province` (any, 可选)
+    - `city` (any, 可选)
+    - ... 还有 17 个字段
+
+---
+
+### GET /api/v1/stores/all
+
+**Get All Stores**
+
+获取所有营业中的门店（下拉选择用）
+
+---
+
+### GET /api/v1/stores/{store_id}
+
+**Get Store**
+
+获取门店详情
+
+**参数:**
+
+  - `store_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/stores/{store_id}
+
+**Update Store**
+
+更新门店
+
+**参数:**
+
+  - `store_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `StoreUpdate`
+    - `name` (any, 可选)
+    - `code` (any, 可选)
+    - `address` (any, 可选)
+    - `province` (any, 可选)
+    - `city` (any, 可选)
+    - ... 还有 17 个字段
+
+---
+
+### DELETE /api/v1/stores/{store_id}
+
+**Delete Store**
+
+删除门店（仅超级管理员）
+
+**参数:**
+
+  - `store_id` (path, string, 必填)
+
+---
+
+### PATCH /api/v1/stores/{store_id}/status
+
+**Update Store Status**
+
+更新门店状态
+
+- 0: 停业（门店管理员可操作）
+- 1: 营业（门店管理员可操作）
+- 2: 禁用（仅超级管理员可操作，禁用后该门店所有人员无法登录）
+
+**参数:**
+
+  - `store_id` (path, string, 必填)
+  - `status` (query, integer, 必填) - 状态: 0-停业 1-营业 2-禁用
+
+---
+
+### GET /api/v1/stores/{store_id}/departments
+
+**Get Store Departments**
+
+获取门店已绑定的科室列表
+
+**参数:**
+
+  - `store_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/stores/{store_id}/departments/batch
+
+**Batch Bind Departments**
+
+批量绑定科室到门店
+
+**参数:**
+
+  - `store_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+
+---
+
+### GET /api/v1/stores/{store_id}/admins
+
+**Get Store Admins**
+
+获取门店已绑定的管理员列表
+
+**参数:**
+
+  - `store_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/stores/{store_id}/admins/batch
+
+**Batch Bind Admins**
+
+批量绑定管理员到门店
+
+**参数:**
+
+  - `store_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+
+---
+
+### GET /api/v1/stores/{store_id}/wechat-config
+
+**Get Store Wechat Config**
+
+获取门店微信配置
+
+权限：
+- 超级管理员：可获取任意门店配置
+- 门店管理员：只能获取自己关联门店的配置
+
+**参数:**
+
+  - `store_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/stores/{store_id}/wechat-config
+
+**Update Store Wechat Config**
+
+更新门店微信配置
+
+权限：
+- 超级管理员：可更新任意门店配置
+- 门店管理员（有 settings:wechat 权限）：只能更新自己关联门店的配置
+
+**参数:**
+
+  - `store_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `StoreWechatConfigUpdate`
+    - `appId` (any, 可选)
+    - `appSecret` (any, 可选)
+    - `mchId` (any, 可选)
+    - `apiKey` (any, 可选)
+    - `notifyUrl` (any, 可选)
+
+---
+
+### GET /api/v1/stores/{store_id}/checkin-qrcode
+
+**Get Store Checkin Qrcode**
+
+获取门店签到二维码
+
+返回二维码内容（用于前端生成二维码图片）
+二维码内容格式: store-checkin:{store_id}
+
+**参数:**
+
+  - `store_id` (path, string, 必填)
+
+---
+
+## 消息中心
+
+### GET /api/v1/messages/my
+
+**Get My Messages**
+
+获取我的消息列表
+
+**参数:**
+
+  - `message_type` (query, any, 可选)
+  - `is_read` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+  - `user_id` (query, string, 必填) - 用户ID
+  - `user_type` (query, string, 必填) - 用户类型: patient/doctor
+
+---
+
+### GET /api/v1/messages/unread-count
+
+**Get Unread Count**
+
+获取未读消息数量
+
+**参数:**
+
+  - `user_id` (query, string, 必填) - 用户ID
+  - `user_type` (query, string, 必填) - 用户类型
+
+---
+
+### GET /api/v1/messages/{message_id}
+
+**Get Message**
+
+获取消息详情
+
+**参数:**
+
+  - `message_id` (path, string, 必填)
+
+---
+
+### DELETE /api/v1/messages/{message_id}
+
+**Delete Message**
+
+删除消息
+
+**参数:**
+
+  - `message_id` (path, string, 必填)
+  - `user_id` (query, string, 必填) - 用户ID
+
+---
+
+### POST /api/v1/messages/read/{message_id}
+
+**Mark As Read**
+
+标记消息为已读
+
+**参数:**
+
+  - `message_id` (path, string, 必填)
+  - `user_id` (query, string, 必填) - 用户ID
+
+---
+
+### POST /api/v1/messages/read-all
+
+**Mark All As Read**
+
+标记所有消息为已读
+
+**参数:**
+
+  - `user_id` (query, string, 必填) - 用户ID
+  - `user_type` (query, string, 必填) - 用户类型
+  - `message_type` (query, any, 可选) - 消息类型
+
+---
+
+### DELETE /api/v1/messages/clear/read
+
+**Clear Read Messages**
+
+清空已读消息
+
+**参数:**
+
+  - `user_id` (query, string, 必填) - 用户ID
+  - `user_type` (query, string, 必填) - 用户类型
+
+---
+
+### GET /api/v1/messages
+
+**Get All Messages**
+
+获取所有消息列表（管理端）
+
+**参数:**
+
+  - `user_id` (query, any, 可选)
+  - `user_type` (query, any, 可选)
+  - `message_type` (query, any, 可选)
+  - `is_read` (query, any, 可选)
+  - `keyword` (query, any, 可选)
+  - `store_id` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/messages/send
+
+**Send Message**
+
+发送消息（管理端）
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `MessageCreate`
+    - `title` (string, 必填)
+    - `content` (any, 可选)
+    - `messageType` (any, 可选)
+    - `relatedId` (any, 可选)
+    - `userId` (string, 必填)
+    - ... 还有 2 个字段
+
+---
+
+### POST /api/v1/messages/send-batch
+
+**Send Batch Messages**
+
+批量发送消息（管理端）
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `MessageBatchCreate`
+    - `userIds` (array, 必填)
+    - `userType` (string, 必填)
+    - `title` (string, 必填)
+    - `content` (any, 可选)
+    - `messageType` (any, 可选)
+    - ... 还有 1 个字段
+
+---
+
+### GET /api/v1/messages/templates
+
+**Get Templates**
+
+获取消息模板列表
+
+**参数:**
+
+  - `status` (query, any, 可选)
+
+---
+
+### POST /api/v1/messages/templates
+
+**Create Template**
+
+创建消息模板
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `MessageTemplateCreate`
+    - `code` (string, 必填)
+    - `name` (string, 必填)
+    - `messageType` (any, 必填)
+    - `titleTemplate` (string, 必填)
+    - `contentTemplate` (string, 必填)
+    - ... 还有 2 个字段
+
+---
+
+### PUT /api/v1/messages/templates/{template_id}
+
+**Update Template**
+
+更新消息模板
+
+**参数:**
+
+  - `template_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `MessageTemplateUpdate`
+    - `name` (any, 可选)
+    - `titleTemplate` (any, 可选)
+    - `contentTemplate` (any, 可选)
+    - `description` (any, 可选)
+    - `status` (any, 可选)
+
+---
+
+### DELETE /api/v1/messages/templates/{template_id}
+
+**Delete Template**
+
+删除消息模板
+
+**参数:**
+
+  - `template_id` (path, string, 必填)
+
+---
+
+## 科室
+
+### GET /api/v1/departments
+
+**获取科室列表**
+
+**参数:**
+
+  - `name` (query, any, 可选)
+  - `status` (query, any, 可选)
+  - `parent_id` (query, any, 可选)
+  - `store_id` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/departments
+
+**创建科室**
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `DepartmentCreate`
+    - `name` (string, 必填)
+    - `parentId` (any, 可选)
+    - `description` (any, 可选)
+    - `sortOrder` (integer, 可选)
+    - `isHot` (integer, 可选)
+    - ... 还有 16 个字段
+
+---
+
+### GET /api/v1/departments/tree
+
+**获取科室树**
+
+获取科室树（公开接口，支持门店过滤）
+
+用于患者端显示科室列表
+
+**参数:**
+
+  - `status` (query, any, 可选)
+  - `store_id` (query, any, 可选)
+
+---
+
+### GET /api/v1/departments/hot
+
+**获取热门科室**
+
+获取热门科室（公开接口，不需要登录）
+
+**参数:**
+
+  - `limit` (query, integer, 可选)
+  - `store_id` (query, any, 可选)
+
+---
+
+### GET /api/v1/departments/all
+
+**获取所有科室**
+
+获取所有启用的科室（下拉选择用）
+
+用于管理后台选择器场景，返回所有启用状态的科室
+最大返回 1000 条
+
+**参数:**
+
+  - `store_id` (query, any, 可选)
+
+---
+
+### PUT /api/v1/departments/batch-sort
+
+**批量更新排序**
+
+批量更新科室排序
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `BatchSortRequest`
+    - `items` (array, 必填)
+
+---
+
+### GET /api/v1/departments/{dept_id}
+
+**获取科室详情**
+
+**参数:**
+
+  - `dept_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/departments/{dept_id}
+
+**更新科室**
+
+**参数:**
+
+  - `dept_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `DepartmentUpdate`
+    - `name` (any, 可选)
+    - `parentId` (any, 可选)
+    - `description` (any, 可选)
+    - `sortOrder` (any, 可选)
+    - `isHot` (any, 可选)
+    - ... 还有 16 个字段
+
+---
+
+### DELETE /api/v1/departments/{dept_id}
+
+**删除科室**
+
+**参数:**
+
+  - `dept_id` (path, string, 必填)
+
+---
+
+### GET /api/v1/departments/{dept_id}/doctors
+
+**获取科室医生**
+
+获取科室已绑定的医生列表
+
+**参数:**
+
+  - `dept_id` (path, string, 必填)
+
+---
+
+### GET /api/v1/departments/{dept_id}/available-doctors
+
+**获取可绑定医生**
+
+获取可绑定到此科室的医生列表（同门店的所有医生）
+
+**参数:**
+
+  - `dept_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/departments/{dept_id}/doctors/batch
+
+**批量绑定医生**
+
+批量绑定医生到科室
+
+**参数:**
+
+  - `dept_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+
+---
+
+## 医生
+
+### POST /api/v1/doctors/login
+
+**Doctor Login**
+
+医生登录（支持手机号或账号登录）
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `DoctorLoginRequest`
+    - `phone` (string, 必填)
+    - `password` (string, 必填)
+
+---
+
+### GET /api/v1/doctors/me
+
+**获取当前医生信息**
+
+获取当前登录医生信息
+
+---
+
+### GET /api/v1/doctors
+
+**获取医生列表**
+
+**参数:**
+
+  - `name` (query, any, 可选)
+  - `store_id` (query, any, 可选)
+  - `department_id` (query, any, 可选)
+  - `status` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/doctors
+
+**创建医生**
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `DoctorCreate`
+    - `storeId` (any, 可选)
+    - `departmentId` (string, 必填)
+    - `name` (string, 必填)
+    - `username` (any, 可选)
+    - `phone` (any, 可选)
+    - ... 还有 24 个字段
+
+---
+
+### GET /api/v1/doctors/all
+
+**获取所有医生**
+
+获取所有医生（管理端接口）
+
+用于管理后台需要获取完整医生列表的场景，如签到队列筛选
+
+---
+
+### GET /api/v1/doctors/recommended
+
+**获取推荐医生**
+
+获取推荐医生（公开接口，支持门店过滤）
+
+用于患者端首页推荐医生展示
+
+**参数:**
+
+  - `limit` (query, integer, 可选)
+  - `store_id` (query, any, 可选)
+
+---
+
+### GET /api/v1/doctors/by-department/{department_id}
+
+**获取科室医生**
+
+获取科室下的医生（公开接口，支持门店过滤）
+
+用于患者端查看科室医生列表
+
+**参数:**
+
+  - `department_id` (path, string, 必填)
+  - `store_id` (query, any, 可选)
+
+---
+
+### GET /api/v1/doctors/public/{doctor_id}
+
+**获取医生详情(公开)**
+
+获取医生详情（公开接口，用于患者端查看医生信息）
+
+无需登录即可访问，只返回已启用的医生信息
+
+**参数:**
+
+  - `doctor_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/doctors/batch-sort
+
+**批量更新排序**
+
+批量更新医生排序
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `BatchSortRequest`
+    - `items` (array, 必填)
+
+---
+
+### GET /api/v1/doctors/{doctor_id}
+
+**获取医生详情**
+
+获取医生详情（管理端接口，需要管理员权限）
+
+**参数:**
+
+  - `doctor_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/doctors/{doctor_id}
+
+**更新医生**
+
+**参数:**
+
+  - `doctor_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `DoctorUpdate`
+    - `storeId` (any, 可选)
+    - `departmentId` (any, 可选)
+    - `name` (any, 可选)
+    - `username` (any, 可选)
+    - `phone` (any, 可选)
+    - ... 还有 24 个字段
+
+---
+
+### DELETE /api/v1/doctors/{doctor_id}
+
+**删除医生**
+
+**参数:**
+
+  - `doctor_id` (path, string, 必填)
+
+---
+
+### POST /api/v1/doctors/check-username
+
+**检查账号是否存在**
+
+检查医生账号是否已存在，如存在则返回推荐账号
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `CheckUsernameRequest`
+    - `username` (string, 必填)
+    - `exclude_id` (any, 可选)
+
+---
+
+### POST /api/v1/doctors/generate-username
+
+**生成唯一账号**
+
+根据医生姓名生成唯一账号
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `GenerateUsernameRequest`
+    - `name` (string, 必填)
+
+---
+
+## 排班
+
+### GET /api/v1/schedules
+
+**获取排班列表**
+
+**参数:**
+
+  - `doctor_id` (query, any, 可选)
+  - `store_id` (query, any, 可选)
+  - `start_date` (query, any, 可选)
+  - `end_date` (query, any, 可选)
+  - `status` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/schedules
+
+**创建排班**
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `ScheduleCreate`
+    - `doctorId` (string, 必填)
+    - `storeId` (any, 可选)
+    - `scheduleDate` (string, 必填)
+    - `timeSlot` (any, 可选)
+    - `startTime` (any, 可选)
+    - ... 还有 5 个字段
+
+---
+
+### GET /api/v1/schedules/statistics
+
+**获取排班统计**
+
+获取排班统计（按门店、月份）
+
+**参数:**
+
+  - `store_id` (query, any, 可选) - 门店ID
+  - `year` (query, integer, 必填) - 年份
+  - `month` (query, integer, 必填) - 月份
+
+---
+
+### GET /api/v1/schedules/available/{doctor_id}
+
+**获取可预约排班**
+
+获取可预约排班（增强版：包含规则引擎信息）
+
+**参数:**
+
+  - `doctor_id` (path, string, 必填)
+  - `days` (query, integer, 可选)
+
+---
+
+### GET /api/v1/schedules/{schedule_id}
+
+**获取排班详情**
+
+**参数:**
+
+  - `schedule_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/schedules/{schedule_id}
+
+**更新排班**
+
+**参数:**
+
+  - `schedule_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `ScheduleUpdate`
+    - `totalSlots` (any, 可选)
+    - `startTime` (any, 可选)
+    - `endTime` (any, 可选)
+    - `appointmentType` (any, 可选)
+    - `status` (any, 可选)
+
+---
+
+### POST /api/v1/schedules/batch
+
+**批量创建排班**
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `ScheduleBatchCreate`
+    - `doctorId` (string, 必填)
+    - `startDate` (string, 必填)
+    - `endDate` (string, 必填)
+    - `timeSlots` (array, 必填)
+    - `totalSlots` (integer, 可选)
+    - ... 还有 1 个字段
+
+---
+
+### POST /api/v1/schedules/batch-suspend
+
+**批量停诊**
+
+批量停诊排班
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `BatchScheduleRequest`
+    - `schedule_ids` (array, 必填)
+    - `reason` (any, 可选)
+
+---
+
+### POST /api/v1/schedules/batch-resume
+
+**批量恢复排班**
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `BatchScheduleRequest`
+    - `schedule_ids` (array, 必填)
+    - `reason` (any, 可选)
+
+---
+
+### POST /api/v1/schedules/batch-delete
+
+**批量删除排班**
+
+批量删除排班（只能删除没有任何预约记录的排班）
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `BatchScheduleRequest`
+    - `schedule_ids` (array, 必填)
+    - `reason` (any, 可选)
+
+---
+
+## 预约
+
+### GET /api/v1/appointments
+
+**获取预约列表**
+
+获取预约列表
+
+Args:
+    keyword: 关键字搜索（预约编号/患者姓名/手机号）
+    doctor_id: 医生ID
+    department_id: 科室ID
+    created_start: 创建时间开始
+    created_end: 创建时间结束
+
+**参数:**
+
+  - `status` (query, any, 可选)
+  - `patient_id` (query, any, 可选)
+  - `store_id` (query, any, 可选)
+  - `start_date` (query, any, 可选)
+  - `end_date` (query, any, 可选)
+  - `keyword` (query, any, 可选)
+  - `doctor_id` (query, any, 可选)
+  - `department_id` (query, any, 可选)
+  - `created_start` (query, any, 可选)
+  - `created_end` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/appointments
+
+**创建预约**
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `AppointmentCreate`
+    - `scheduleId` (string, 必填)
+    - `patientId` (string, 必填)
+    - `symptomDescription` (any, 可选)
+
+---
+
+### GET /api/v1/appointments/today
+
+**获取今日预约**
+
+获取今日预约（医生端）
+
+返回当前医生今日的所有预约，包含复诊判断标记。
+
+---
+
+### GET /api/v1/appointments/today-pending
+
+**获取今日待签到预约**
+
+获取用户在指定门店的今日待签到预约（增强版：包含详细时间窗信息）
+
+用于患者扫码签到时选择要签到的预约
+
+**参数:**
+
+  - `store_id` (query, string, 必填) - 门店ID
+
+---
+
+### GET /api/v1/appointments/queue
+
+**获取签到队列**
+
+获取签到队列
+
+用于管理后台和医生端查看当日已签到的患者队列
+按签到时间排序
+
+**参数:**
+
+  - `store_id` (query, any, 可选)
+  - `doctor_id` (query, any, 可选)
+  - `target_date` (query, any, 可选)
+
+---
+
+### GET /api/v1/appointments/statistics
+
+**获取预约统计**
+
+获取预约统计（需要管理员权限）
+
+TODO: 添加门店过滤支持
+
+**参数:**
+
+  - `doctor_id` (query, any, 可选)
+  - `start_date` (query, any, 可选)
+  - `end_date` (query, any, 可选)
+
+---
+
+### GET /api/v1/appointments/check-duplicate
+
+**检查重复预约**
+
+检查同一天同一时段是否有重复预约
+
+返回该时段已有的预约列表，用于前端提醒用户
+
+**参数:**
+
+  - `schedule_id` (query, string, 必填) - 排班ID
+  - `patient_id` (query, string, 必填) - 就诊人ID
+
+---
+
+### GET /api/v1/appointments/by-no/{appointment_no}
+
+**按预约号获取详情**
+
+按预约号获取预约详情
+
+**参数:**
+
+  - `appointment_no` (path, string, 必填)
+
+---
+
+### GET /api/v1/appointments/{appointment_id}
+
+**获取预约详情**
+
+**参数:**
+
+  - `appointment_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/appointments/{appointment_id}/cancel
+
+**取消预约**
+
+**参数:**
+
+  - `appointment_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `AppointmentCancelRequest`
+    - `reason` (any, 可选)
+
+---
+
+### PUT /api/v1/appointments/{appointment_id}/sign-in
+
+**签到**
+
+签到
+
+权限验证：非管理员只能签到自己的预约（门店隔离）
+
+**参数:**
+
+  - `appointment_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `Body_sign_in_appointment_api_v1_appointments__appointment_id__sign_in_put`
+    - `checkin_method` (any, 可选)
+    - `device_info` (any, 可选)
+    - `location_info` (any, 可选)
+
+---
+
+### PUT /api/v1/appointments/{appointment_id}/cancel-sign-in
+
+**取消签到**
+
+取消签到（仅超级管理员）
+
+将状态从"已签到"恢复为"已预约"
+
+**参数:**
+
+  - `appointment_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/appointments/{appointment_id}/call
+
+**叫号**
+
+叫号（需要管理员权限）
+
+**参数:**
+
+  - `appointment_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/appointments/{appointment_id}/complete
+
+**完成就诊**
+
+完成就诊（需要管理员权限）
+
+**参数:**
+
+  - `appointment_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/appointments/{appointment_id}/pass
+
+**过号**
+
+过号（需要管理员权限）
+
+**参数:**
+
+  - `appointment_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/appointments/{appointment_id}/recall
+
+**重新叫号**
+
+重新叫号（需要管理员权限）
+
+**参数:**
+
+  - `appointment_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/appointments/{appointment_id}/no-show
+
+**标记爽约**
+
+标记爽约（需要管理员权限）
+
+**参数:**
+
+  - `appointment_id` (path, string, 必填)
+
+---
+
+### GET /api/v1/appointments/queue/info
+
+**获取叫号队列信息**
+
+获取当前叫号队列信息（医生端）
+
+---
+
+## 病历
+
+### GET /api/v1/medical-records
+
+**Get Medical Records**
+
+获取病历列表
+
+**参数:**
+
+  - `doctor_id` (query, any, 可选)
+  - `patient_id` (query, any, 可选)
+  - `department_id` (query, any, 可选)
+  - `start_date` (query, any, 可选)
+  - `end_date` (query, any, 可选)
+  - `status` (query, any, 可选)
+  - `keyword` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/medical-records
+
+**Create Medical Record**
+
+创建病历
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `MedicalRecordCreate`
+    - `appointmentId` (string, 必填)
+    - `chiefComplaint` (string, 必填)
+    - `presentIllness` (any, 可选)
+    - `pastHistory` (any, 可选)
+    - `allergyHistory` (any, 可选)
+    - ... 还有 8 个字段
+
+---
+
+### GET /api/v1/medical-records/my
+
+**Get My Records**
+
+获取当前医生的病历列表
+
+**参数:**
+
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### GET /api/v1/medical-records/patient/{patient_id}
+
+**Get Patient Records**
+
+获取患者的病历列表
+
+**参数:**
+
+  - `patient_id` (path, string, 必填)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### GET /api/v1/medical-records/appointment/{appointment_id}
+
+**Get Record By Appointment**
+
+根据预约ID获取病历
+
+**参数:**
+
+  - `appointment_id` (path, string, 必填)
+
+---
+
+### GET /api/v1/medical-records/{record_id}
+
+**Get Medical Record**
+
+获取病历详情
+
+**参数:**
+
+  - `record_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/medical-records/{record_id}
+
+**Update Medical Record**
+
+更新病历
+
+**参数:**
+
+  - `record_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `MedicalRecordUpdate`
+    - `chiefComplaint` (any, 可选)
+    - `presentIllness` (any, 可选)
+    - `pastHistory` (any, 可选)
+    - `allergyHistory` (any, 可选)
+    - `physicalExam` (any, 可选)
+    - ... 还有 7 个字段
+
+---
+
+### DELETE /api/v1/medical-records/{record_id}
+
+**Delete Medical Record**
+
+删除病历
+
+**参数:**
+
+  - `record_id` (path, string, 必填)
+
+---
+
+## 内容管理
+
+### GET /api/v1/content/news
+
+**Get News List**
+
+获取新闻列表
+
+**参数:**
+
+  - `type` (query, any, 可选)
+  - `status` (query, any, 可选)
+  - `keyword` (query, any, 可选)
+  - `store_id` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/content/news
+
+**Create News**
+
+创建新闻
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `NewsCreate`
+    - `title` (string, 必填)
+    - `type` (integer, 可选)
+    - `cover_image` (any, 可选)
+    - `summary` (any, 可选)
+    - `content` (string, 必填)
+    - ... 还有 2 个字段
+
+---
+
+### GET /api/v1/content/news/published
+
+**Get Published News**
+
+获取已发布新闻（前端展示）
+
+**参数:**
+
+  - `type` (query, any, 可选)
+  - `store_id` (query, any, 可选)
+  - `limit` (query, integer, 可选)
+
+---
+
+### GET /api/v1/content/news/{news_id}
+
+**Get News Detail**
+
+获取新闻详情
+
+**参数:**
+
+  - `news_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/content/news/{news_id}
+
+**Update News**
+
+更新新闻
+
+**参数:**
+
+  - `news_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `NewsCreate`
+    - `title` (string, 必填)
+    - `type` (integer, 可选)
+    - `cover_image` (any, 可选)
+    - `summary` (any, 可选)
+    - `content` (string, 必填)
+    - ... 还有 2 个字段
+
+---
+
+### DELETE /api/v1/content/news/{news_id}
+
+**Delete News**
+
+删除新闻
+
+**参数:**
+
+  - `news_id` (path, string, 必填)
+
+---
+
+### GET /api/v1/content/notices
+
+**Get Notice List**
+
+获取公告列表
+
+**参数:**
+
+  - `type` (query, any, 可选)
+  - `status` (query, any, 可选)
+  - `keyword` (query, any, 可选)
+  - `store_id` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/content/notices
+
+**Create Notice**
+
+创建公告
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `NoticeCreate`
+    - `title` (string, 必填)
+    - `type` (integer, 可选)
+    - `content` (string, 必填)
+    - `is_top` (integer, 可选)
+    - `status` (integer, 可选)
+
+---
+
+### GET /api/v1/content/notices/published
+
+**Get Published Notices**
+
+获取已发布公告（前端展示）
+
+**参数:**
+
+  - `store_id` (query, any, 可选)
+  - `limit` (query, integer, 可选)
+
+---
+
+### GET /api/v1/content/notices/{notice_id}
+
+**Get Notice Detail**
+
+获取公告详情
+
+**参数:**
+
+  - `notice_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/content/notices/{notice_id}
+
+**Update Notice**
+
+更新公告
+
+**参数:**
+
+  - `notice_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `NoticeCreate`
+    - `title` (string, 必填)
+    - `type` (integer, 可选)
+    - `content` (string, 必填)
+    - `is_top` (integer, 可选)
+    - `status` (integer, 可选)
+
+---
+
+### DELETE /api/v1/content/notices/{notice_id}
+
+**Delete Notice**
+
+删除公告
+
+**参数:**
+
+  - `notice_id` (path, string, 必填)
+
+---
+
+### GET /api/v1/content/banners
+
+**Get Banner List**
+
+获取轮播图列表
+
+**参数:**
+
+  - `position` (query, any, 可选)
+  - `status` (query, any, 可选)
+  - `store_id` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/content/banners
+
+**Create Banner**
+
+创建轮播图
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `BannerCreate`
+    - `title` (any, 可选)
+    - `image_url` (string, 必填)
+    - `link_type` (integer, 可选)
+    - `link_url` (any, 可选)
+    - `position` (string, 可选)
+    - ... 还有 2 个字段
+
+---
+
+### GET /api/v1/content/banners/active
+
+**Get Active Banners**
+
+获取启用的轮播图（前端展示）
+
+**参数:**
+
+  - `position` (query, string, 可选)
+  - `store_id` (query, any, 可选)
+
+---
+
+### PUT /api/v1/content/banners/{banner_id}
+
+**Update Banner**
+
+更新轮播图
+
+**参数:**
+
+  - `banner_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `BannerCreate`
+    - `title` (any, 可选)
+    - `image_url` (string, 必填)
+    - `link_type` (integer, 可选)
+    - `link_url` (any, 可选)
+    - `position` (string, 可选)
+    - ... 还有 2 个字段
+
+---
+
+### DELETE /api/v1/content/banners/{banner_id}
+
+**Delete Banner**
+
+删除轮播图
+
+**参数:**
+
+  - `banner_id` (path, string, 必填)
+
+---
+
+## 数据统计
+
+### GET /api/v1/statistics/overview
+
+**Get Overview**
+
+获取概览数据
+
+---
+
+### GET /api/v1/statistics/appointments/trend
+
+**Get Appointment Trend**
+
+获取预约趋势数据
+
+**参数:**
+
+  - `days` (query, integer, 可选)
+
+---
+
+### GET /api/v1/statistics/appointments/status
+
+**Get Appointment Status Stats**
+
+获取预约状态统计
+
+**参数:**
+
+  - `start_date` (query, any, 可选)
+  - `end_date` (query, any, 可选)
+
+---
+
+### GET /api/v1/statistics/departments/ranking
+
+**Get Department Ranking**
+
+获取科室预约排行
+
+**参数:**
+
+  - `limit` (query, integer, 可选)
+
+---
+
+### GET /api/v1/statistics/doctors/ranking
+
+**Get Doctor Ranking**
+
+获取医生预约排行
+
+**参数:**
+
+  - `limit` (query, integer, 可选)
+
+---
+
+### GET /api/v1/statistics/time-slots/distribution
+
+**Get Time Slot Distribution**
+
+获取时段分布统计
+
+---
+
+### GET /api/v1/statistics/weekday/distribution
+
+**Get Weekday Distribution**
+
+获取星期分布统计
+
+---
+
+### GET /api/v1/statistics/revenue/trend
+
+**Get Revenue Trend**
+
+获取收入趋势
+
+**参数:**
+
+  - `days` (query, integer, 可选)
+
+---
+
+### GET /api/v1/statistics/appointments/summary
+
+**Get Appointment Summary**
+
+获取预约汇总统计（完成率/爽约率/取消率）
+
+**参数:**
+
+  - `start_date` (query, any, 可选)
+  - `end_date` (query, any, 可选)
+  - `store_id` (query, any, 可选)
+
+---
+
+### GET /api/v1/statistics/stores/ranking
+
+**Get Store Ranking**
+
+获取门店预约排行（只有超管可以看到所有门店排行）
+
+**参数:**
+
+  - `limit` (query, integer, 可选)
+  - `start_date` (query, any, 可选)
+  - `end_date` (query, any, 可选)
+
+---
+
+## 权限管理
+
+### GET /api/v1/admin/public-key
+
+**获取RSA公钥**
+
+获取 RSA 公钥（用于密码加密）
+
+---
+
+### POST /api/v1/admin/login
+
+**管理员登录**
+
+管理员登录
+
+密码需要使用 RSA 公钥加密后传输（Base64编码）
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `AdminLoginRequest`
+    - `username` (string, 必填)
+    - `password` (string, 必填)
+    - `encrypted` (boolean, 可选)
+
+---
+
+### GET /api/v1/admin/me
+
+**获取当前管理员信息**
+
+获取当前登录管理员信息
+
+优化：减少重复数据库查询
+- get_current_admin 依赖已验证用户身份
+- 这里只需查询一次 Admin 并直接从 role 获取权限
+
+---
+
+### PUT /api/v1/admin/me
+
+**更新个人信息**
+
+更新当前管理员个人信息
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `UpdateProfileRequest`
+    - `name` (any, 可选)
+    - `phone` (any, 可选)
+    - `email` (any, 可选)
+    - `avatar` (any, 可选)
+
+---
+
+### POST /api/v1/admin/logout
+
+**退出登录**
+
+管理员退出登录
+
+将当前 Token 加入黑名单，并删除 Redis 会话，更新登录历史
+
+---
+
+### PUT /api/v1/admin/me/change-password
+
+**修改密码**
+
+修改当前管理员密码
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `app__api__v1__admin__ChangePasswordRequest`
+    - `old_password` (string, 必填)
+    - `new_password` (string, 必填)
+
+---
+
+### GET /api/v1/admin/me/stores
+
+**获取绑定门店**
+
+获取当前用户绑定的门店列表
+
+---
+
+### PUT /api/v1/admin/me/current-store
+
+**切换当前门店**
+
+切换当前门店
+
+只有绑定了多个门店的用户才能切换门店
+超级管理员可以切换到任意门店
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `SwitchStoreRequest`
+    - `store_id` (string, 必填)
+
+---
+
+### POST /api/v1/admin/phone-login
+
+**手机号登录**
+
+手机号+密码登录
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `PhoneLoginRequest`
+    - `phone` (string, 必填)
+    - `password` (string, 必填)
+    - `encrypted` (boolean, 可选)
+
+---
+
+### POST /api/v1/admin/sms/send
+
+**发送验证码**
+
+发送登录验证码
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `SmsCodeRequest`
+    - `phone` (string, 必填)
+
+---
+
+### POST /api/v1/admin/sms/login
+
+**验证码登录**
+
+短信验证码登录
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `SmsLoginRequest`
+    - `phone` (string, 必填)
+    - `code` (string, 必填)
+
+---
+
+### GET /api/v1/admin/wechat/qrcode
+
+**获取微信登录二维码**
+
+获取微信扫码登录二维码
+
+注意：此为模拟实现，实际需要接入微信开放平台
+
+---
+
+### GET /api/v1/admin/wechat/check
+
+**检查扫码状态**
+
+检查微信扫码状态
+
+前端需要轮询此接口，直到返回 confirmed 或 expired
+
+**参数:**
+
+  - `ticket` (query, string, 必填)
+
+---
+
+### POST /api/v1/admin/wechat/confirm
+
+**确认微信扫码**
+
+确认微信扫码（模拟接口，用于测试）
+
+实际项目中，这个接口应该由微信回调触发
+
+**参数:**
+
+  - `ticket` (query, string, 必填)
+  - `admin_id` (query, string, 必填) - 管理员ID（模拟扫码确认用）
+
+---
+
+### GET /api/v1/admin/roles
+
+**Get Roles**
+
+获取角色列表
+
+**参数:**
+
+  - `status` (query, any, 可选)
+  - `keyword` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/admin/roles
+
+**Create Role**
+
+创建角色
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `RoleCreate`
+    - `name` (string, 必填)
+    - `code` (string, 必填)
+    - `description` (any, 可选)
+    - `permissions` (any, 可选)
+    - `status` (integer, 可选)
+
+---
+
+### GET /api/v1/admin/roles/all
+
+**Get All Roles**
+
+获取所有启用的角色（用于下拉选择）
+
+---
+
+### GET /api/v1/admin/roles/{role_id}
+
+**Get Role**
+
+获取角色详情
+
+**参数:**
+
+  - `role_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/admin/roles/{role_id}
+
+**Update Role**
+
+更新角色
+
+**参数:**
+
+  - `role_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `RoleUpdate`
+    - `name` (any, 可选)
+    - `description` (any, 可选)
+    - `permissions` (any, 可选)
+    - `status` (any, 可选)
+
+---
+
+### DELETE /api/v1/admin/roles/{role_id}
+
+**Delete Role**
+
+删除角色
+
+**参数:**
+
+  - `role_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/admin/roles/{role_id}/permissions
+
+**Update Role Permissions**
+
+更新角色权限
+
+**参数:**
+
+  - `role_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+
+---
+
+### GET /api/v1/admin/admins
+
+**Get Admins**
+
+获取管理员列表
+
+**参数:**
+
+  - `role_id` (query, any, 可选)
+  - `status` (query, any, 可选)
+  - `keyword` (query, any, 可选)
+  - `store_id` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/admin/admins
+
+**Create Admin**
+
+创建管理员
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `AdminCreate`
+    - `username` (string, 必填)
+    - `password` (any, 可选)
+    - `name` (any, 可选)
+    - `phone` (any, 可选)
+    - `email` (any, 可选)
+    - ... 还有 5 个字段
+
+---
+
+### GET /api/v1/admin/admins/{admin_id}
+
+**Get Admin**
+
+获取管理员详情
+
+**参数:**
+
+  - `admin_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/admin/admins/{admin_id}
+
+**Update Admin**
+
+更新管理员
+
+**参数:**
+
+  - `admin_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `AdminUpdate`
+    - `username` (any, 可选)
+    - `password` (any, 可选)
+    - `name` (any, 可选)
+    - `phone` (any, 可选)
+    - `email` (any, 可选)
+    - ... 还有 5 个字段
+
+---
+
+### DELETE /api/v1/admin/admins/{admin_id}
+
+**Delete Admin**
+
+删除管理员
+
+**参数:**
+
+  - `admin_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/admin/admins/{admin_id}/reset-password
+
+**Reset Admin Password**
+
+重置管理员密码
+
+**参数:**
+
+  - `admin_id` (path, string, 必填)
+  - `new_password` (query, string, 必填)
+
+---
+
+### GET /api/v1/admin/logs
+
+**Get Operation Logs**
+
+获取操作日志列表
+
+**参数:**
+
+  - `admin_id` (query, any, 可选)
+  - `module` (query, any, 可选)
+  - `start_time` (query, any, 可选)
+  - `end_time` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### GET /api/v1/admin/permissions/tree
+
+**Get Permissions Tree**
+
+获取权限树形结构（用于角色权限分配）
+
+---
+
+### GET /api/v1/admin/permissions/all
+
+**Get All Permissions**
+
+获取所有权限（平铺列表）
+
+---
+
+### POST /api/v1/admin/permissions
+
+**Create Permission**
+
+创建权限（一般不需要手动创建，由初始化脚本管理）
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `PermissionCreate`
+    - `code` (string, 必填)
+    - `name` (string, 必填)
+    - `type` (string, 必填)
+    - `parent_code` (any, 可选)
+    - `icon` (any, 可选)
+    - ... 还有 1 个字段
+
+---
+
+### POST /api/v1/admin/permissions/batch
+
+**Batch Create Permissions**
+
+批量创建权限
+
+**请求:**
+
+  - **请求体**: application/json
+
+---
+
+### DELETE /api/v1/admin/permissions/{code}
+
+**Delete Permission**
+
+删除权限
+
+**参数:**
+
+  - `code` (path, string, 必填)
+
+---
+
+### GET /api/v1/admin/online-users
+
+**Get Online Users**
+
+获取在线用户列表
+
+所有管理员都可以查看在线用户列表
+
+---
+
+### POST /api/v1/admin/online-users/{admin_id}/kick
+
+**Kick Online User**
+
+强制用户下线
+
+将用户的 Token 加入黑名单，并删除会话，更新登录历史
+
+**参数:**
+
+  - `admin_id` (path, string, 必填)
+
+---
+
+### GET /api/v1/admin/user-status
+
+**Get User Status**
+
+获取所有用户状态列表（在线+离线）
+
+---
+
+### GET /api/v1/admin/login-history/{admin_id}
+
+**Get Login History**
+
+获取指定用户的登录历史
+
+**参数:**
+
+  - `admin_id` (path, string, 必填)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+## 系统设置
+
+### GET /api/v1/settings/booking
+
+**Get Booking Settings**
+
+获取预约设置
+
+---
+
+### PUT /api/v1/settings/booking
+
+**Update Booking Settings**
+
+更新预约设置
+
+Args:
+    data: 预约设置数据
+    storeId: 门店ID，如果提供则更新门店级别配置，否则更新全局配置
+
+**参数:**
+
+  - `storeId` (query, any, 可选)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `BookingSettingsUpdate`
+    - `advanceDays` (any, 可选)
+    - `sameDayBooking` (any, 可选)
+    - `cancelHours` (any, 可选)
+    - `perDayLimit` (any, 可选)
+    - `perDoctorLimit` (any, 可选)
+    - ... 还有 7 个字段
+
+---
+
+### GET /api/v1/settings/hospital
+
+**Get Hospital Info**
+
+获取医院信息（公开接口）
+
+---
+
+### PUT /api/v1/settings/hospital
+
+**Update Hospital Info**
+
+更新医院信息
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `HospitalInfoUpdate`
+    - `hospitalName` (any, 可选)
+    - `hospitalLevel` (any, 可选)
+    - `address` (any, 可选)
+    - `phone` (any, 可选)
+    - `workTime` (any, 可选)
+    - ... 还有 2 个字段
+
+---
+
+### GET /api/v1/settings/wechat
+
+**Get Wechat Config**
+
+获取微信配置
+
+---
+
+### PUT /api/v1/settings/wechat
+
+**Update Wechat Config**
+
+更新微信配置
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `WechatConfigUpdate`
+    - `appId` (any, 可选)
+    - `appSecret` (any, 可选)
+    - `mchId` (any, 可选)
+    - `apiKey` (any, 可选)
+    - `notifyUrl` (any, 可选)
+
+---
+
+### GET /api/v1/settings/sms
+
+**Get Sms Config**
+
+获取短信配置
+
+---
+
+### PUT /api/v1/settings/sms
+
+**Update Sms Config**
+
+更新短信配置
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `SmsConfigUpdate`
+    - `smsProvider` (any, 可选)
+    - `accessKeyId` (any, 可选)
+    - `accessKeySecret` (any, 可选)
+    - `signName` (any, 可选)
+    - `templateCode` (any, 可选)
+
+---
+
+### GET /api/v1/settings/email
+
+**Get Email Config**
+
+获取邮件配置
+
+---
+
+### PUT /api/v1/settings/email
+
+**Update Email Config**
+
+更新邮件配置
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `EmailConfigUpdate`
+    - `smtpHost` (any, 可选)
+    - `smtpPort` (any, 可选)
+    - `smtpUser` (any, 可选)
+    - `smtpPassword` (any, 可选)
+    - `smtpSsl` (any, 可选)
+    - ... 还有 2 个字段
+
+---
+
+### GET /api/v1/settings/booking/rules
+
+**Get Booking Rules**
+
+获取预约规则（公开接口，用于患者端）
+
+Args:
+    storeId: 门店ID，如果提供则返回门店级别配置，否则返回全局配置
+
+**参数:**
+
+  - `storeId` (query, any, 可选)
+
+---
+
+### GET /api/v1/settings/booking-fields
+
+**Get Booking Fields**
+
+获取预约选项配置（公开接口，用于动态渲染表单）
+
+---
+
+### PUT /api/v1/settings/booking-fields
+
+**Update Booking Fields**
+
+更新预约选项配置
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `BookingFieldsUpdate`
+    - `fields` (array, 必填)
+
+---
+
+### GET /api/v1/settings/patient-card
+
+**Get Patient Card Config**
+
+获取就诊卡配置（公开接口）
+
+---
+
+### PUT /api/v1/settings/patient-card
+
+**Update Patient Card Config**
+
+更新就诊卡配置
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `PatientCardConfigUpdate`
+    - `cardName` (any, 可选)
+    - `cardDescription` (any, 可选)
+    - `maxCardsPerUser` (any, 可选)
+    - `showOnHomepage` (any, 可选)
+
+---
+
+### GET /api/v1/settings/image
+
+**Get Image Config**
+
+获取图片处理配置
+
+---
+
+### PUT /api/v1/settings/image
+
+**Update Image Config**
+
+更新图片处理配置
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `ImageConfigUpdate`
+    - `thumbnailSizes` (any, 可选)
+    - `compressQuality` (any, 可选)
+
+---
+
+### GET /api/v1/settings/time-periods
+
+**Get Time Periods**
+
+获取时段配置（公开接口）
+
+如果提供 storeId，优先返回门店配置，没有则返回全局配置
+
+**参数:**
+
+  - `storeId` (query, any, 可选)
+
+---
+
+### PUT /api/v1/settings/time-periods
+
+**Update Time Periods**
+
+更新时段配置
+
+如果提供 storeId，则更新门店级别配置，否则更新全局配置
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `TimePeriodsUpdate`
+    - `storeId` (any, 可选)
+    - `periods` (array, 必填)
+
+---
+
+### DELETE /api/v1/settings/time-periods/{store_id}
+
+**Delete Store Time Periods**
+
+删除门店自定义时段配置（恢复使用全局配置）
+
+**参数:**
+
+  - `store_id` (path, string, 必填)
+
+---
+
+## 就诊卡管理
+
+### POST /api/v1/patients
+
+**创建患者**
+
+创建患者（管理员手动添加）
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `PatientCreateByAdmin`
+    - `name` (string, 必填)
+    - `phone` (string, 必填)
+    - `idCard` (any, 可选)
+    - `gender` (any, 可选)
+    - `age` (any, 可选)
+    - ... 还有 10 个字段
+
+---
+
+### GET /api/v1/patients
+
+**获取患者列表**
+
+**参数:**
+
+  - `keyword` (query, any, 可选)
+  - `is_blacklist` (query, any, 可选)
+  - `store_id` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### GET /api/v1/patients/blacklist
+
+**获取黑名单列表**
+
+**参数:**
+
+  - `store_id` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### GET /api/v1/patients/{patient_id}
+
+**获取患者详情**
+
+**参数:**
+
+  - `patient_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/patients/{patient_id}
+
+**更新患者信息**
+
+**参数:**
+
+  - `patient_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `PatientUpdate`
+    - `name` (any, 可选)
+    - `phone` (any, 可选)
+    - `idCard` (any, 可选)
+    - `gender` (any, 可选)
+    - `age` (any, 可选)
+    - ... 还有 9 个字段
+
+---
+
+### DELETE /api/v1/patients/{patient_id}
+
+**删除患者**
+
+删除患者（就诊卡）
+
+**参数:**
+
+  - `patient_id` (path, string, 必填)
+
+---
+
+### GET /api/v1/patients/{patient_id}/appointments
+
+**获取患者预约记录**
+
+**参数:**
+
+  - `patient_id` (path, string, 必填)
+  - `doctor_id` (query, any, 可选)
+  - `start_date` (query, any, 可选)
+  - `end_date` (query, any, 可选)
+  - `status` (query, any, 可选)
+  - `is_admin_booked` (query, any, 可选)
+  - `is_follow_up` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### GET /api/v1/patients/{patient_id}/consumption-records
+
+**获取消费记录**
+
+获取患者消费/项目记录
+
+**参数:**
+
+  - `patient_id` (path, string, 必填)
+  - `item_name` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### GET /api/v1/patients/{patient_id}/points
+
+**获取积分流水**
+
+**参数:**
+
+  - `patient_id` (path, string, 必填)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/patients/{patient_id}/points
+
+**调整积分**
+
+调整积分（手动增减）
+
+**参数:**
+
+  - `patient_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `PointAdjustData`
+    - `amount` (integer, 必填)
+    - `remark` (string, 必填)
+
+---
+
+### GET /api/v1/patients/{patient_id}/points/summary
+
+**获取积分汇总**
+
+**参数:**
+
+  - `patient_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/patients/{patient_id}/blacklist
+
+**加入黑名单**
+
+**参数:**
+
+  - `patient_id` (path, string, 必填)
+  - `reason` (query, any, 可选)
+
+---
+
+### DELETE /api/v1/patients/{patient_id}/blacklist
+
+**移出黑名单**
+
+**参数:**
+
+  - `patient_id` (path, string, 必填)
+
+---
+
+### POST /api/v1/patients/{patient_id}/family-members
+
+**添加家庭成员**
+
+为患者添加家庭成员（亲友）
+
+**参数:**
+
+  - `patient_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `FamilyMemberCreate`
+    - `name` (string, 必填)
+    - `phone` (string, 必填)
+    - `idCard` (any, 可选)
+    - `gender` (any, 可选)
+    - `age` (any, 可选)
+    - ... 还有 10 个字段
+
+---
+
+### PUT /api/v1/patients/{patient_id}/family-members/{member_id}
+
+**更新家庭成员**
+
+编辑家庭成员信息
+
+**参数:**
+
+  - `patient_id` (path, string, 必填)
+  - `member_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `PatientUpdate`
+    - `name` (any, 可选)
+    - `phone` (any, 可选)
+    - `idCard` (any, 可选)
+    - `gender` (any, 可选)
+    - `age` (any, 可选)
+    - ... 还有 9 个字段
+
+---
+
+### DELETE /api/v1/patients/{patient_id}/family-members/{member_id}
+
+**删除家庭成员**
+
+**参数:**
+
+  - `patient_id` (path, string, 必填)
+  - `member_id` (path, string, 必填)
+
+---
+
+## 患者管理
+
+### GET /api/v1/user-manage
+
+**Get Users**
+
+获取患者（用户）列表
+
+**参数:**
+
+  - `keyword` (query, any, 可选)
+  - `status` (query, any, 可选)
+  - `store_id` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### GET /api/v1/user-manage/{user_id}
+
+**Get User Detail**
+
+获取患者（用户）详情
+
+**参数:**
+
+  - `user_id` (path, string, 必填)
+
+---
+
+### DELETE /api/v1/user-manage/{user_id}
+
+**Delete User**
+
+删除用户（患者）
+
+**参数:**
+
+  - `user_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/user-manage/{user_id}
+
+**Update User**
+
+更新用户基本信息
+
+**参数:**
+
+  - `user_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+
+---
+
+### PUT /api/v1/user-manage/{user_id}/status
+
+**Update User Status**
+
+更新用户状态（禁用/启用）
+
+**参数:**
+
+  - `user_id` (path, string, 必填)
+  - `status` (query, integer, 必填) - 状态: 0禁用 1正常
+
+---
+
+### POST /api/v1/user-manage/{user_id}/points
+
+**Adjust User Points**
+
+调整用户积分
+
+**参数:**
+
+  - `user_id` (path, string, 必填)
+  - `amount` (query, integer, 必填) - 调整积分数量（正数增加，负数减少）
+  - `remark` (query, string, 必填) - 调整原因
+
+---
+
+### POST /api/v1/user-manage/{user_id}/cards
+
+**Create Card**
+
+为用户添加就诊卡
+
+**参数:**
+
+  - `user_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `FamilyMemberCreate`
+    - `name` (string, 必填)
+    - `phone` (string, 必填)
+    - `idCard` (any, 可选)
+    - `gender` (any, 可选)
+    - `age` (any, 可选)
+    - ... 还有 10 个字段
+
+---
+
+### PUT /api/v1/user-manage/{user_id}/cards/{card_id}
+
+**Update Card**
+
+更新就诊卡信息
+
+**参数:**
+
+  - `user_id` (path, string, 必填)
+  - `card_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `PatientUpdate`
+    - `name` (any, 可选)
+    - `phone` (any, 可选)
+    - `idCard` (any, 可选)
+    - `gender` (any, 可选)
+    - `age` (any, 可选)
+    - ... 还有 9 个字段
+
+---
+
+### DELETE /api/v1/user-manage/{user_id}/cards/{card_id}
+
+**Delete Card**
+
+删除就诊卡
+
+**参数:**
+
+  - `user_id` (path, string, 必填)
+  - `card_id` (path, string, 必填)
+
+---
+
+## 数据导出
+
+### GET /api/v1/export/appointments
+
+**Export Appointments**
+
+导出预约记录
+
+**参数:**
+
+  - `start_date` (query, any, 可选)
+  - `end_date` (query, any, 可选)
+  - `status` (query, any, 可选)
+  - `doctor_id` (query, any, 可选)
+
+---
+
+### GET /api/v1/export/patients
+
+**Export Patients**
+
+导出患者列表
+
+**参数:**
+
+  - `keyword` (query, any, 可选)
+
+---
+
+### GET /api/v1/export/schedules
+
+**Export Schedules**
+
+导出排班记录
+
+**参数:**
+
+  - `start_date` (query, any, 可选)
+  - `end_date` (query, any, 可选)
+  - `doctor_id` (query, any, 可选)
+
+---
+
+## 停诊调班
+
+### GET /api/v1/leave-requests
+
+**Get Leave Requests**
+
+获取申请列表（管理端）
+
+**参数:**
+
+  - `doctor_id` (query, any, 可选)
+  - `request_type` (query, any, 可选)
+  - `status` (query, any, 可选)
+  - `start_date` (query, any, 可选)
+  - `end_date` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### GET /api/v1/leave-requests/pending-count
+
+**Get Pending Count**
+
+获取待审核数量
+
+---
+
+### GET /api/v1/leave-requests/my
+
+**Get My Requests**
+
+获取我的申请列表（医生端）
+
+**参数:**
+
+  - `doctor_id` (query, string, 必填) - 医生ID
+  - `status` (query, any, 可选)
+
+---
+
+### GET /api/v1/leave-requests/{request_id}
+
+**Get Leave Request**
+
+获取申请详情
+
+**参数:**
+
+  - `request_id` (path, string, 必填)
+
+---
+
+### POST /api/v1/leave-requests/stop-clinic
+
+**Create Stop Clinic Request**
+
+创建停诊申请
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `StopClinicCreate`
+    - `doctorId` (string, 必填)
+    - `scheduleId` (any, 可选)
+    - `stopDate` (string, 必填)
+    - `stopPeriod` (any, 必填)
+    - `reason` (string, 必填)
+
+---
+
+### POST /api/v1/leave-requests/schedule-change
+
+**Create Schedule Change Request**
+
+创建调班申请
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `ScheduleChangeCreate`
+    - `doctorId` (string, 必填)
+    - `originalDate` (string, 必填)
+    - `originalPeriod` (any, 必填)
+    - `targetDate` (string, 必填)
+    - `targetPeriod` (any, 必填)
+    - ... 还有 1 个字段
+
+---
+
+### POST /api/v1/leave-requests/{request_id}/review
+
+**Review Request**
+
+审核申请
+
+**参数:**
+
+  - `request_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `ReviewRequest`
+    - `status` (any, 必填)
+    - `reviewComment` (any, 可选)
+
+---
+
+### POST /api/v1/leave-requests/{request_id}/cancel
+
+**Cancel Request**
+
+取消申请
+
+**参数:**
+
+  - `request_id` (path, string, 必填)
+  - `doctor_id` (query, string, 必填) - 医生ID
+
+---
+
+## 用户反馈
+
+### GET /api/v1/feedbacks
+
+**Get Feedbacks**
+
+获取反馈列表（管理端）
+
+**参数:**
+
+  - `user_id` (query, any, 可选)
+  - `feedback_type` (query, any, 可选)
+  - `status` (query, any, 可选)
+  - `keyword` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/feedbacks
+
+**Create Feedback**
+
+提交反馈
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `FeedbackCreate`
+    - `userId` (string, 必填)
+    - `userType` (string, 可选)
+    - `feedbackType` (any, 可选)
+    - `title` (string, 必填)
+    - `content` (string, 必填)
+    - ... 还有 2 个字段
+
+---
+
+### GET /api/v1/feedbacks/pending-count
+
+**Get Pending Count**
+
+获取待处理数量
+
+---
+
+### GET /api/v1/feedbacks/statistics
+
+**Get Statistics**
+
+获取反馈统计
+
+---
+
+### GET /api/v1/feedbacks/my
+
+**Get My Feedbacks**
+
+获取我的反馈列表（用户端）
+
+**参数:**
+
+  - `user_id` (query, string, 必填) - 用户ID
+
+---
+
+### GET /api/v1/feedbacks/{feedback_id}
+
+**Get Feedback**
+
+获取反馈详情
+
+**参数:**
+
+  - `feedback_id` (path, string, 必填)
+
+---
+
+### DELETE /api/v1/feedbacks/{feedback_id}
+
+**Delete Feedback**
+
+删除反馈
+
+**参数:**
+
+  - `feedback_id` (path, string, 必填)
+
+---
+
+### POST /api/v1/feedbacks/{feedback_id}/reply
+
+**Reply Feedback**
+
+回复反馈
+
+**参数:**
+
+  - `feedback_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `FeedbackReply`
+    - `reply` (string, 必填)
+    - `status` (any, 可选)
+
+---
+
+### PATCH /api/v1/feedbacks/{feedback_id}/status
+
+**Update Feedback Status**
+
+更新反馈状态
+
+**参数:**
+
+  - `feedback_id` (path, string, 必填)
+  - `status` (query, any, 必填) - 状态
+
+---
+
+## 诊费管理
+
+### GET /api/v1/consultation-fees/types
+
+**Get Fee Types**
+
+获取诊费类型列表
+- 不传 store_id：返回全局类型
+- 传 store_id：返回门店可用的类型（全局类型 + 门店专属类型）
+
+**参数:**
+
+  - `status` (query, any, 可选) - 状态筛选
+  - `store_id` (query, any, 可选) - 门店ID，获取门店可用的诊费类型（全局+门店专属）
+  - `include_global` (query, boolean, 可选) - 是否包含全局类型
+
+---
+
+### POST /api/v1/consultation-fees/types
+
+**Create Fee Type**
+
+创建诊费类型
+- store_id 为空：创建全局类型
+- store_id 有值：创建门店专属类型
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `ConsultationFeeTypeCreate`
+    - `storeId` (any, 可选)
+    - `name` (string, 必填)
+    - `code` (any, 可选)
+    - `description` (any, 可选)
+    - `sortOrder` (integer, 可选)
+    - ... 还有 1 个字段
+
+---
+
+### GET /api/v1/consultation-fees/types/{fee_type_id}
+
+**Get Fee Type**
+
+获取诊费类型详情
+
+**参数:**
+
+  - `fee_type_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/consultation-fees/types/{fee_type_id}
+
+**Update Fee Type**
+
+更新诊费类型
+
+**参数:**
+
+  - `fee_type_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `ConsultationFeeTypeUpdate`
+    - `storeId` (any, 可选)
+    - `name` (any, 可选)
+    - `code` (any, 可选)
+    - `description` (any, 可选)
+    - `sortOrder` (any, 可选)
+    - ... 还有 1 个字段
+
+---
+
+### DELETE /api/v1/consultation-fees/types/{fee_type_id}
+
+**Delete Fee Type**
+
+删除诊费类型
+
+**参数:**
+
+  - `fee_type_id` (path, string, 必填)
+
+---
+
+### GET /api/v1/consultation-fees/templates
+
+**Get Fee Templates**
+
+获取全局诊费模板列表（带类型信息）
+
+---
+
+### PUT /api/v1/consultation-fees/templates
+
+**Update Fee Templates**
+
+批量更新全局诊费模板
+
+**请求:**
+
+  - **请求体**: application/json
+
+---
+
+### POST /api/v1/consultation-fees/templates
+
+**Create Or Update Fee Template**
+
+创建或更新全局诊费模板
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `ConsultationFeeTemplateCreate`
+    - `feeTypeId` (string, 必填)
+    - `initialFee` (any, 可选)
+    - `followUpFee` (any, 可选)
+    - `status` (integer, 可选)
+
+---
+
+### GET /api/v1/consultation-fees/store-templates/{store_id}
+
+**Get Store Fee Templates**
+
+获取门店诊费模板列表（带类型信息）
+返回门店可用的所有诊费类型及其模板配置，包含全局模板金额作为参考
+
+**参数:**
+
+  - `store_id` (path, string, 必填)
+
+---
+
+### POST /api/v1/consultation-fees/store-templates/{store_id}/batch
+
+**Batch Save Store Fee Templates**
+
+批量保存门店诊费模板
+
+**参数:**
+
+  - `store_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `StoreFeeTemplateBatchCreate`
+    - `storeId` (string, 必填)
+    - `templates` (array, 必填)
+
+---
+
+### DELETE /api/v1/consultation-fees/store-templates/{store_id}/{fee_type_id}
+
+**Delete Store Fee Template**
+
+删除门店诊费模板
+
+**参数:**
+
+  - `store_id` (path, string, 必填)
+  - `fee_type_id` (path, string, 必填)
+
+---
+
+### GET /api/v1/consultation-fees/doctors/{doctor_id}
+
+**Get Doctor Fee Setting**
+
+获取医生诊费设置
+
+**参数:**
+
+  - `doctor_id` (path, string, 必填)
+
+---
+
+### GET /api/v1/consultation-fees/doctors/{doctor_id}/grouped
+
+**Get Doctor Fees Grouped**
+
+获取医生诊费配置（按门店-科室分组）
+
+**参数:**
+
+  - `doctor_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/consultation-fees/doctors/{doctor_id}/use-template
+
+**Update Doctor Use Template**
+
+更新医生是否使用诊费模板
+
+**参数:**
+
+  - `doctor_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `DoctorFeeSettingUpdate`
+    - `useFeeTemplate` (integer, 必填)
+
+---
+
+### GET /api/v1/consultation-fees/doctors/{doctor_id}/fees
+
+**Get Doctor Fees**
+
+获取医生诊费配置列表
+
+**参数:**
+
+  - `doctor_id` (path, string, 必填)
+  - `store_id` (query, any, 可选) - 门店ID
+  - `department_id` (query, any, 可选) - 科室ID
+
+---
+
+### POST /api/v1/consultation-fees/doctors/{doctor_id}/fees/batch
+
+**Batch Save Doctor Fees**
+
+批量保存医生诊费配置
+
+**参数:**
+
+  - `doctor_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `DoctorConsultationFeeBatchCreate`
+    - `doctorId` (string, 必填)
+    - `storeId` (string, 必填)
+    - `departmentId` (string, 必填)
+    - `fees` (array, 必填)
+
+---
+
+### POST /api/v1/consultation-fees/doctors/{doctor_id}/apply-template
+
+**Apply Template To Doctor**
+
+一键带入模板：将门店模板的金额应用到医生诊费配置
+优先使用门店模板，如果门店未配置则使用全局模板
+
+**参数:**
+
+  - `doctor_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `ApplyTemplateRequest`
+    - `storeId` (string, 必填)
+    - `departmentId` (string, 必填)
+
+---
+
+### DELETE /api/v1/consultation-fees/doctors/{doctor_id}/fees/{store_id}/{department_id}
+
+**Delete Doctor Fees By Store Department**
+
+删除医生在指定门店科室的所有诊费配置
+
+**参数:**
+
+  - `doctor_id` (path, string, 必填)
+  - `store_id` (path, string, 必填)
+  - `department_id` (path, string, 必填)
+
+---
+
+## 医生预约设置
+
+### GET /api/v1/doctor-booking-settings
+
+**Get Doctor Booking Settings**
+
+获取医生预约设置列表
+
+**参数:**
+
+  - `store_id` (query, any, 可选)
+  - `doctor_id` (query, any, 可选)
+  - `status` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/doctor-booking-settings
+
+**Create Doctor Booking Setting**
+
+创建医生预约设置
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `DoctorBookingSettingCreate`
+    - `storeId` (string, 必填)
+    - `doctorId` (string, 必填)
+    - `bookingStartOffset` (integer, 可选)
+    - `bookingRangeDays` (integer, 可选)
+    - `releaseTime` (string, 可选)
+    - ... 还有 1 个字段
+
+---
+
+### GET /api/v1/doctor-booking-settings/existing-doctors
+
+**Get Existing Doctor Ids**
+
+获取指定门店已配置的医生ID列表（用于前端禁用已配置的医生）
+
+**参数:**
+
+  - `store_id` (query, string, 必填) - 门店ID
+
+---
+
+### GET /api/v1/doctor-booking-settings/{setting_id}
+
+**Get Doctor Booking Setting**
+
+获取医生预约设置详情
+
+**参数:**
+
+  - `setting_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/doctor-booking-settings/{setting_id}
+
+**Update Doctor Booking Setting**
+
+更新医生预约设置
+
+**参数:**
+
+  - `setting_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `DoctorBookingSettingUpdate`
+    - `bookingStartOffset` (any, 可选)
+    - `bookingRangeDays` (any, 可选)
+    - `releaseTime` (any, 可选)
+    - `status` (any, 可选)
+
+---
+
+### DELETE /api/v1/doctor-booking-settings/{setting_id}
+
+**Delete Doctor Booking Setting**
+
+删除医生预约设置
+
+**参数:**
+
+  - `setting_id` (path, string, 必填)
+
+---
+
+### PATCH /api/v1/doctor-booking-settings/{setting_id}/status
+
+**Update Doctor Booking Setting Status**
+
+更新医生预约设置状态
+
+**参数:**
+
+  - `setting_id` (path, string, 必填)
+  - `new_status` (query, integer, 必填) - 状态: 0禁用 1启用
+
+---
+
+## 自定义排班
+
+### GET /api/v1/custom-schedules
+
+**Get Custom Schedules**
+
+获取自定义排班列表（template_id为NULL的排班）
+
+**参数:**
+
+  - `store_id` (query, any, 可选)
+  - `department_id` (query, any, 可选)
+  - `doctor_id` (query, any, 可选)
+  - `start_date` (query, any, 可选)
+  - `end_date` (query, any, 可选)
+  - `appointment_type` (query, any, 可选)
+  - `status` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/custom-schedules
+
+**Create Custom Schedules**
+
+创建自定义排班（支持批量）
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `CustomScheduleCreate`
+    - `storeId` (string, 必填)
+    - `departmentId` (string, 必填)
+    - `doctorId` (string, 必填)
+    - `scheduleDates` (array, 必填)
+    - `timePeriods` (array, 必填)
+
+---
+
+### GET /api/v1/custom-schedules/effective
+
+**Get Effective Schedules**
+
+获取生效的自定义排班（template_id为NULL的排班）
+
+**参数:**
+
+  - `store_id` (query, any, 可选)
+  - `doctor_id` (query, any, 可选)
+  - `start_date` (query, string, 必填)
+  - `end_date` (query, string, 必填)
+
+---
+
+### DELETE /api/v1/custom-schedules/{schedule_id}
+
+**Delete Custom Schedule**
+
+删除自定义排班（仅能删除template_id为NULL的排班）
+
+**参数:**
+
+  - `schedule_id` (path, string, 必填)
+
+---
+
+## 休息日设置
+
+### GET /api/v1/rest-days
+
+**Get Rest Days**
+
+获取休息日列表
+
+**参数:**
+
+  - `store_id` (query, any, 可选)
+  - `doctor_id` (query, any, 可选)
+  - `start_date` (query, any, 可选)
+  - `end_date` (query, any, 可选)
+  - `status` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/rest-days
+
+**Create Rest Day**
+
+添加休息日
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `RestDayCreate`
+    - `storeId` (string, 必填)
+    - `doctorIds` (any, 可选)
+    - `reason` (any, 可选)
+    - `startDate` (string, 必填)
+    - `endDate` (string, 必填)
+
+---
+
+### DELETE /api/v1/rest-days/{rest_day_id}
+
+**Delete Rest Day**
+
+删除休息日
+
+**参数:**
+
+  - `rest_day_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/rest-days/{rest_day_id}/cancel
+
+**Cancel Rest Day**
+
+取消休息日
+
+**参数:**
+
+  - `rest_day_id` (path, string, 必填)
+
+---
+
+## 停诊管理
+
+### GET /api/v1/schedule-suspensions
+
+**Get Schedule Suspensions**
+
+获取停诊列表
+
+**参数:**
+
+  - `store_id` (query, any, 可选)
+  - `doctor_id` (query, any, 可选)
+  - `start_date` (query, any, 可选)
+  - `end_date` (query, any, 可选)
+  - `status` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/schedule-suspensions
+
+**Create Schedule Suspension**
+
+创建停诊
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `ScheduleSuspensionCreate`
+    - `storeId` (string, 必填)
+    - `doctorId` (string, 必填)
+    - `title` (string, 必填)
+    - `suspensionDate` (string, 必填)
+    - `scheduleIds` (any, 可选)
+    - ... 还有 1 个字段
+
+---
+
+### GET /api/v1/schedule-suspensions/schedules
+
+**Get Available Schedules For Suspension**
+
+获取指定日期的可选排班（用于停诊选择）
+
+**参数:**
+
+  - `store_id` (query, string, 必填)
+  - `doctor_id` (query, string, 必填)
+  - `suspension_date` (query, string, 必填)
+
+---
+
+### DELETE /api/v1/schedule-suspensions/{suspension_id}
+
+**Delete Schedule Suspension**
+
+删除停诊记录
+
+**参数:**
+
+  - `suspension_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/schedule-suspensions/{suspension_id}/cancel
+
+**Cancel Schedule Suspension**
+
+取消停诊
+
+**参数:**
+
+  - `suspension_id` (path, string, 必填)
+
+---
+
+## 排班模板
+
+### GET /api/v1/schedule-templates
+
+**Get Templates**
+
+获取排班模板列表
+
+**参数:**
+
+  - `store_id` (query, any, 可选)
+  - `doctor_id` (query, any, 可选)
+  - `department_id` (query, any, 可选)
+  - `status` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/schedule-templates
+
+**Create Template**
+
+创建排班模板
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `ScheduleTemplateCreate`
+    - `name` (string, 必填)
+    - `storeId` (string, 必填)
+    - `doctorId` (string, 必填)
+    - `departmentId` (string, 必填)
+    - `weekdays` (array, 必填)
+    - ... 还有 7 个字段
+
+---
+
+### GET /api/v1/schedule-templates/{template_id}
+
+**Get Template**
+
+获取排班模板详情
+
+**参数:**
+
+  - `template_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/schedule-templates/{template_id}
+
+**Update Template**
+
+更新排班模板
+
+**参数:**
+
+  - `template_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `ScheduleTemplateUpdate`
+    - `name` (any, 可选)
+    - `storeId` (any, 可选)
+    - `doctorId` (any, 可选)
+    - `departmentId` (any, 可选)
+    - `weekdays` (any, 可选)
+    - ... 还有 8 个字段
+
+---
+
+### DELETE /api/v1/schedule-templates/{template_id}
+
+**Delete Template**
+
+删除排班模板
+
+**参数:**
+
+  - `template_id` (path, string, 必填)
+
+---
+
+### POST /api/v1/schedule-templates/preview-generate
+
+**Preview Generate Schedules**
+
+预览生成排班（不实际写入数据库）
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `SchedulePreviewGenerateRequest`
+    - `templateIds` (array, 必填)
+    - `startDate` (any, 可选)
+    - `endDate` (any, 可选)
+
+---
+
+### POST /api/v1/schedule-templates/generate-with-capacity
+
+**Generate Schedules With Capacity**
+
+根据模板批量生成排班（支持自定义班次容量）
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `ScheduleGenerateWithCapacityRequest`
+    - `templateIds` (array, 必填)
+    - `startDate` (any, 可选)
+    - `endDate` (any, 可选)
+    - `slotCapacities` (any, 可选)
+
+---
+
+### POST /api/v1/schedule-templates/generate
+
+**Generate Schedules**
+
+根据模板批量生成排班
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `ScheduleGenerateRequest`
+    - `templateIds` (array, 必填)
+    - `startDate` (any, 可选)
+    - `endDate` (any, 可选)
+
+---
+
+### POST /api/v1/schedule-templates/batch-add
+
+**Batch Add Schedules**
+
+批量添加排班（不依赖模板）
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `ScheduleBatchAddRequest`
+    - `storeId` (string, 必填)
+    - `doctorId` (string, 必填)
+    - `departmentId` (string, 必填)
+    - `appointmentType` (any, 可选)
+    - `startTime` (string, 必填)
+    - ... 还有 8 个字段
+
+---
+
+### GET /api/v1/schedule-templates/{template_id}/check-generated
+
+**Check Generated**
+
+检查规则是否已生成过排班
+
+**参数:**
+
+  - `template_id` (path, string, 必填)
+  - `start_date` (query, any, 可选) - 开始日期
+  - `end_date` (query, any, 可选) - 结束日期
+
+---
+
+### POST /api/v1/schedule-templates/{template_id}/batch-delete
+
+**Batch Delete Schedules**
+
+批量删除规则生成的排班
+
+**参数:**
+
+  - `template_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+
+---
+
+### POST /api/v1/schedule-templates/{template_id}/batch-suspend
+
+**Batch Suspend Schedules**
+
+批量停诊规则生成的排班
+
+**参数:**
+
+  - `template_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+
+---
+
+### GET /api/v1/schedule-templates/{template_id}/logs
+
+**Get Generation Logs**
+
+获取规则的生成历史记录
+
+**参数:**
+
+  - `template_id` (path, string, 必填)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/schedule-templates/{template_id}/copy
+
+**Copy Template To Doctors**
+
+复制排班规则给其他医生
+
+将指定规则的配置复制给其他医生，支持在复制时调整配置。
+
+**参数:**
+
+  - `template_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `ScheduleTemplateCopyRequest`
+    - `targetDoctorIds` (array, 必填)
+    - `name` (any, 可选)
+    - `weekdays` (any, 可选)
+    - `appointmentType` (any, 可选)
+    - `startTime` (any, 可选)
+    - ... 还有 5 个字段
+
+---
+
+## 黑名单管理
+
+### GET /api/v1/blacklists
+
+**Get Blacklist List**
+
+获取黑名单列表
+
+**参数:**
+
+  - `keyword` (query, any, 可选) - 搜索关键词
+  - `store_id` (query, any, 可选) - 门店ID
+  - `status` (query, any, 可选) - 状态: 1生效 0已解禁
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/blacklists
+
+**Add Blacklist**
+
+添加黑名单
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `BlacklistCreate`
+    - `userId` (any, 可选)
+    - `storeId` (any, 可选)
+    - `keyword` (any, 可选)
+    - `reason` (any, 可选)
+    - `expireAt` (any, 可选)
+
+---
+
+### DELETE /api/v1/blacklists/{blacklist_id}
+
+**Remove Blacklist**
+
+移除黑名单（解禁）
+
+**参数:**
+
+  - `blacklist_id` (path, string, 必填)
+
+---
+
+### POST /api/v1/blacklists/check
+
+**Check Blacklist**
+
+检查是否在黑名单中（公开接口，用于预约时检查）
+
+**参数:**
+
+  - `user_id` (query, any, 可选)
+  - `phone` (query, any, 可选)
+  - `id_card` (query, any, 可选)
+  - `store_id` (query, any, 可选)
+
+---
+
+## 邮件模板
+
+### GET /api/v1/email-templates
+
+**Get Email Templates**
+
+获取邮件模板列表
+
+**参数:**
+
+  - `template_type` (query, any, 可选) - 模板类型
+  - `status` (query, any, 可选) - 状态
+  - `keyword` (query, any, 可选) - 关键词搜索
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/email-templates
+
+**Create Email Template**
+
+创建邮件模板
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `EmailTemplateCreate`
+    - `code` (string, 必填)
+    - `name` (string, 必填)
+    - `templateType` (any, 可选)
+    - `subjectTemplate` (string, 必填)
+    - `contentTemplate` (string, 必填)
+    - ... 还有 2 个字段
+
+---
+
+### GET /api/v1/email-templates/all
+
+**Get All Email Templates**
+
+获取所有邮件模板（不分页）
+
+**参数:**
+
+  - `status` (query, any, 可选) - 状态
+
+---
+
+### GET /api/v1/email-templates/{template_id}
+
+**Get Email Template**
+
+获取邮件模板详情
+
+**参数:**
+
+  - `template_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/email-templates/{template_id}
+
+**Update Email Template**
+
+更新邮件模板
+
+**参数:**
+
+  - `template_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `EmailTemplateUpdate`
+    - `name` (any, 可选)
+    - `templateType` (any, 可选)
+    - `subjectTemplate` (any, 可选)
+    - `contentTemplate` (any, 可选)
+    - `description` (any, 可选)
+    - ... 还有 1 个字段
+
+---
+
+### DELETE /api/v1/email-templates/{template_id}
+
+**Delete Email Template**
+
+删除邮件模板
+
+**参数:**
+
+  - `template_id` (path, string, 必填)
+
+---
+
+### POST /api/v1/email-templates/{template_id}/test
+
+**Send Test Email**
+
+发送测试邮件
+
+**参数:**
+
+  - `template_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `EmailTestRequest`
+    - `toEmail` (string, 必填)
+    - `variables` (any, 可选)
+
+---
+
+## 用户行为分析
+
+### POST /api/v1/analytics/track
+
+**Track Event**
+
+单条埋点数据上报
+此接口不需要认证，允许匿名用户上报
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `TrackEventRequest`
+    - `platform` (any, 必填)
+    - `sessionId` (any, 可选)
+    - `eventType` (any, 必填)
+    - `pagePath` (any, 可选)
+    - `pageTitle` (any, 可选)
+    - ... 还有 7 个字段
+
+---
+
+### POST /api/v1/analytics/batch
+
+**Batch Track Events**
+
+批量埋点数据上报
+此接口不需要认证，允许匿名用户上报
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `BatchTrackRequest`
+    - `events` (array, 必填)
+
+---
+
+### GET /api/v1/analytics/logs
+
+**Get Behavior Logs**
+
+获取用户行为日志列表（管理员）
+
+**参数:**
+
+  - `platform` (query, any, 可选)
+  - `event_type` (query, any, 可选)
+  - `page_path` (query, any, 可选)
+  - `start_time` (query, any, 可选)
+  - `end_time` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### GET /api/v1/analytics/overview
+
+**Get Behavior Overview**
+
+获取用户行为概览统计（管理员）
+
+**参数:**
+
+  - `platform` (query, any, 可选)
+  - `days` (query, integer, 可选)
+
+---
+
+## 数据导入导出
+
+### GET /api/v1/data/export/doctors
+
+**Export Doctors**
+
+导出医生列表
+
+**参数:**
+
+  - `store_id` (query, any, 可选)
+  - `department_id` (query, any, 可选)
+  - `status` (query, any, 可选)
+
+---
+
+### GET /api/v1/data/export/patients
+
+**Export Patients**
+
+导出患者列表
+
+**参数:**
+
+  - `keyword` (query, any, 可选)
+
+---
+
+### GET /api/v1/data/export/departments
+
+**Export Departments**
+
+导出科室列表
+
+**参数:**
+
+  - `store_id` (query, any, 可选)
+  - `status` (query, any, 可选)
+
+---
+
+### GET /api/v1/data/export/stores
+
+**Export Stores**
+
+导出门店列表
+
+**参数:**
+
+  - `status` (query, any, 可选)
+
+---
+
+### GET /api/v1/data/template/doctors
+
+**Download Doctor Template**
+
+下载医生导入模板
+
+---
+
+### GET /api/v1/data/template/patients
+
+**Download Patient Template**
+
+下载患者导入模板
+
+---
+
+### GET /api/v1/data/template/departments
+
+**Download Department Template**
+
+下载科室导入模板
+
+---
+
+### GET /api/v1/data/template/stores
+
+**Download Store Template**
+
+下载门店导入模板
+
+---
+
+### POST /api/v1/data/import/doctors
+
+**Import Doctors**
+
+导入医生数据
+
+---
+
+### POST /api/v1/data/import/patients
+
+**Import Patients**
+
+导入患者数据
+
+---
+
+### POST /api/v1/data/import/departments
+
+**Import Departments**
+
+导入科室数据
+
+---
+
+### POST /api/v1/data/import/stores
+
+**Import Stores**
+
+导入门店数据
+
+---
+
+### GET /api/v1/data/export/schedule-templates
+
+**Export Schedule Templates**
+
+导出排班模板列表
+
+**参数:**
+
+  - `store_id` (query, any, 可选)
+  - `doctor_id` (query, any, 可选)
+  - `status` (query, any, 可选)
+
+---
+
+### GET /api/v1/data/export/users
+
+**Export Users**
+
+导出系统用户列表
+
+**参数:**
+
+  - `store_id` (query, any, 可选)
+  - `status` (query, any, 可选)
+
+---
+
+### GET /api/v1/data/export/logs
+
+**Export Logs**
+
+导出操作日志
+
+**参数:**
+
+  - `module` (query, any, 可选)
+  - `log_result` (query, any, 可选)
+  - `start_time` (query, any, 可选)
+  - `end_time` (query, any, 可选)
+
+---
+
+### GET /api/v1/data/export/feedbacks
+
+**Export Feedbacks**
+
+导出用户反馈
+
+**参数:**
+
+  - `status` (query, any, 可选)
+  - `feedback_type` (query, any, 可选)
+
+---
+
+### GET /api/v1/data/export/rule-sets
+
+**Export Rule Sets**
+
+导出规则组列表（多工作表）
+
+**参数:**
+
+  - `enabled` (query, any, 可选)
+
+---
+
+### GET /api/v1/data/template/rule-sets
+
+**Download Rule Set Template**
+
+下载规则组导入模板（多工作表）
+
+---
+
+### POST /api/v1/data/import/rule-sets
+
+**Import Rule Sets**
+
+导入规则组数据（多工作表）
+
+---
+
+## 预约须知
+
+### GET /api/v1/booking-notices/public
+
+**Get Public Notices**
+
+获取生效的预约须知列表（公开接口，供小程序端调用）
+
+**参数:**
+
+  - `type` (query, any, 可选) - 类型: BOOKING/VISIT/REFUND
+
+---
+
+### GET /api/v1/booking-notices
+
+**Get Notices**
+
+获取预约须知列表（管理端）
+
+**参数:**
+
+  - `type` (query, any, 可选) - 类型
+  - `status` (query, any, 可选) - 状态: 0禁用 1启用
+  - `page` (query, integer, 可选)
+  - `pageSize` (query, integer, 可选)
+
+---
+
+### POST /api/v1/booking-notices
+
+**Create Notice**
+
+创建预约须知
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `BookingNoticeCreate`
+    - `type` (string, 必填)
+    - `title` (any, 可选)
+    - `content` (any, 可选)
+    - `sortOrder` (integer, 可选)
+    - `status` (integer, 可选)
+
+---
+
+### GET /api/v1/booking-notices/{notice_id}
+
+**Get Notice**
+
+获取预约须知详情
+
+**参数:**
+
+  - `notice_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/booking-notices/{notice_id}
+
+**Update Notice**
+
+更新预约须知
+
+**参数:**
+
+  - `notice_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `BookingNoticeUpdate`
+    - `type` (any, 可选)
+    - `title` (any, 可选)
+    - `content` (any, 可选)
+    - `sortOrder` (any, 可选)
+    - `status` (any, 可选)
+
+---
+
+### DELETE /api/v1/booking-notices/{notice_id}
+
+**Delete Notice**
+
+删除预约须知
+
+**参数:**
+
+  - `notice_id` (path, string, 必填)
+
+---
+
+### PATCH /api/v1/booking-notices/{notice_id}/status
+
+**Update Notice Status**
+
+更新预约须知状态
+
+**参数:**
+
+  - `notice_id` (path, string, 必填)
+  - `status` (query, integer, 必填) - 状态: 0禁用 1启用
+
+---
+
+## 用户收藏
+
+### GET /api/v1/favorites
+
+**Get Favorites**
+
+获取当前用户收藏列表
+
+**参数:**
+
+  - `targetType` (query, any, 可选) - 收藏类型
+  - `page` (query, integer, 可选)
+  - `pageSize` (query, integer, 可选)
+
+---
+
+### POST /api/v1/favorites
+
+**Create Favorite**
+
+添加收藏
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `UserFavoriteCreate`
+    - `targetType` (string, 必填)
+    - `targetId` (string, 必填)
+
+---
+
+### GET /api/v1/favorites/check
+
+**Check Favorite**
+
+检查是否已收藏
+
+**参数:**
+
+  - `targetType` (query, string, 必填)
+  - `targetId` (query, string, 必填)
+
+---
+
+### DELETE /api/v1/favorites/{favorite_id}
+
+**Delete Favorite**
+
+取消收藏（通过收藏ID）
+
+**参数:**
+
+  - `favorite_id` (path, string, 必填)
+
+---
+
+### DELETE /api/v1/favorites/target/{target_type}/{target_id}
+
+**Delete Favorite By Target**
+
+取消收藏（通过目标类型和ID）
+
+**参数:**
+
+  - `target_type` (path, string, 必填)
+  - `target_id` (path, string, 必填)
+
+---
+
+## 复诊规则配置
+
+### GET /api/v1/visit-type-configs/store/{store_id}
+
+**Get Store Visit Type Config**
+
+获取门店复诊规则配置
+
+**参数:**
+
+  - `store_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/visit-type-configs/store/{store_id}
+
+**Update Store Visit Type Config**
+
+更新门店复诊规则配置（不存在则创建）
+
+**参数:**
+
+  - `store_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `StoreVisitTypeConfigUpdate`
+    - `timeLimit` (any, 可选)
+    - `timeUnit` (any, 可选)
+    - `scope` (any, 可选)
+    - `status` (any, 可选)
+
+---
+
+### DELETE /api/v1/visit-type-configs/store/{store_id}
+
+**Delete Store Visit Type Config**
+
+删除门店复诊规则配置（恢复默认）
+
+**参数:**
+
+  - `store_id` (path, string, 必填)
+
+---
+
+## 规则管理
+
+### GET /api/v1/rule-sets
+
+**Get Rule Sets**
+
+获取规则组列表
+
+**参数:**
+
+  - `enabled` (query, any, 可选) - 是否启用
+  - `shift_type_id` (query, any, 可选) - 班次类型ID
+  - `page` (query, integer, 可选) - 页码
+  - `page_size` (query, integer, 可选) - 每页数量
+
+---
+
+### POST /api/v1/rule-sets
+
+**Create Rule Set**
+
+创建规则组（仅超级管理员）
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `RuleSetCreate`
+    - `name` (string, 必填)
+    - `enabled` (boolean, 可选)
+    - `priority` (integer, 可选)
+    - `timeSource` (string, 可选)
+    - `timezoneSource` (string, 可选)
+    - ... 还有 11 个字段
+
+---
+
+### GET /api/v1/rule-sets/{rule_set_id}
+
+**Get Rule Set**
+
+获取规则组详情
+
+**参数:**
+
+  - `rule_set_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/rule-sets/{rule_set_id}
+
+**Update Rule Set**
+
+更新规则组（仅超级管理员）
+
+**参数:**
+
+  - `rule_set_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `RuleSetUpdate`
+    - `name` (any, 可选)
+    - `enabled` (any, 可选)
+    - `priority` (any, 可选)
+    - `description` (any, 可选)
+    - `timeSource` (any, 可选)
+    - ... 还有 7 个字段
+
+---
+
+### DELETE /api/v1/rule-sets/{rule_set_id}
+
+**Delete Rule Set**
+
+删除规则组（仅超级管理员）
+
+**参数:**
+
+  - `rule_set_id` (path, string, 必填)
+
+---
+
+### POST /api/v1/rule-sets/{rule_set_id}/enable
+
+**Enable Rule Set**
+
+启用规则组（仅超级管理员）
+
+**参数:**
+
+  - `rule_set_id` (path, string, 必填)
+
+---
+
+### POST /api/v1/rule-sets/{rule_set_id}/disable
+
+**Disable Rule Set**
+
+禁用规则组（仅超级管理员）
+
+**参数:**
+
+  - `rule_set_id` (path, string, 必填)
+
+---
+
+### POST /api/v1/rule-sets/preview
+
+**Preview Rule**
+
+预览规则效果
+
+根据输入的班次信息，计算各动作窗口的结果
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `RulePreviewRequest`
+    - `shiftTypeId` (string, 必填)
+    - `scheduleDate` (string, 必填)
+    - `startTime` (string, 必填)
+    - `endTime` (string, 必填)
+    - `currentTime` (any, 可选)
+
+---
+
+### POST /api/v1/rule-sets/{rule_set_id}/windows
+
+**Create Window**
+
+创建时间窗（仅超级管理员）
+
+**参数:**
+
+  - `rule_set_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `RuleWindowCreate`
+    - `action` (string, 必填)
+    - `referencePoint` (string, 必填)
+    - `openOffsetSec` (any, 可选)
+    - `closeOffsetSec` (any, 可选)
+    - `openInclusive` (any, 可选)
+    - ... 还有 5 个字段
+
+---
+
+### PUT /api/v1/rule-sets/windows/{window_id}
+
+**Update Window**
+
+更新时间窗（仅超级管理员）
+
+**参数:**
+
+  - `window_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `RuleWindowUpdate`
+    - `openOffsetSec` (any, 可选)
+    - `closeOffsetSec` (any, 可选)
+    - `openInclusive` (any, 可选)
+    - `closeInclusive` (any, 可选)
+    - `failPolicy` (any, 可选)
+    - ... 还有 3 个字段
+
+---
+
+### DELETE /api/v1/rule-sets/windows/{window_id}
+
+**Delete Window**
+
+删除时间窗（仅超级管理员）
+
+**参数:**
+
+  - `window_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/rule-sets/{rule_set_id}/booking-policy
+
+**Update Booking Policy**
+
+更新预约策略（仅超级管理员）
+
+如果策略不存在则创建，存在则更新
+
+**参数:**
+
+  - `rule_set_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `RuleBookingPolicyCreate`
+    - `requireAuth` (boolean, 可选)
+    - `requirePatientProfileComplete` (boolean, 可选)
+    - `perUserPerShift` (integer, 可选)
+    - `perUserPerDay` (any, 可选)
+    - `perUserPerWeek` (any, 可选)
+    - ... 还有 3 个字段
+
+---
+
+### PUT /api/v1/rule-sets/{rule_set_id}/checkin-policy
+
+**Update Checkin Policy**
+
+更新签到策略（仅超级管理员）
+
+如果策略不存在则创建，存在则更新
+
+**参数:**
+
+  - `rule_set_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `RuleCheckinPolicyCreate`
+    - `requireBooking` (boolean, 可选)
+    - `allowOnsiteBooking` (boolean, 可选)
+    - `maxTimes` (integer, 可选)
+    - `auditLog` (boolean, 可选)
+    - `gracePeriodSec` (integer, 可选)
+    - ... 还有 2 个字段
+
+---
+
+### PUT /api/v1/rule-sets/{rule_set_id}/capacity-policy
+
+**Update Capacity Policy**
+
+更新容量策略（仅超级管理员）
+
+如果策略不存在则创建，存在则更新
+
+**参数:**
+
+  - `rule_set_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `RuleCapacityPolicyCreate`
+    - `totalCapacity` (integer, 可选)
+    - `perUserCapacity` (integer, 可选)
+    - `waitlistEnabled` (boolean, 可选)
+    - `waitlistMaxSize` (integer, 可选)
+    - `waitlistPromotePolicy` (string, 可选)
+    - ... 还有 2 个字段
+
+---
+
+## 班次类型
+
+### GET /api/v1/shift-types
+
+**Get Shift Types**
+
+获取班次类型列表
+
+**参数:**
+
+  - `enabled` (query, any, 可选) - 是否启用
+  - `keyword` (query, any, 可选) - 搜索关键词
+  - `page` (query, integer, 可选) - 页码
+  - `page_size` (query, integer, 可选) - 每页数量
+
+---
+
+### POST /api/v1/shift-types
+
+**Create Shift Type**
+
+创建班次类型（仅超级管理员）
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `ShiftTypeCreate`
+    - `code` (string, 必填)
+    - `name` (string, 必填)
+    - `description` (any, 可选)
+    - `enabled` (boolean, 可选)
+
+---
+
+### GET /api/v1/shift-types/all
+
+**Get All Shift Types**
+
+获取所有启用的班次类型（用于下拉选择）
+
+---
+
+### GET /api/v1/shift-types/{shift_type_id}
+
+**Get Shift Type**
+
+获取班次类型详情
+
+**参数:**
+
+  - `shift_type_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/shift-types/{shift_type_id}
+
+**Update Shift Type**
+
+更新班次类型（仅超级管理员）
+
+**参数:**
+
+  - `shift_type_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `ShiftTypeUpdate`
+    - `name` (any, 可选)
+    - `description` (any, 可选)
+    - `enabled` (any, 可选)
+
+---
+
+### DELETE /api/v1/shift-types/{shift_type_id}
+
+**Delete Shift Type**
+
+删除班次类型（仅超级管理员）
+
+**参数:**
+
+  - `shift_type_id` (path, string, 必填)
+
+---
+
+## 审计日志
+
+### GET /api/v1/audit-logs/checkin-logs
+
+**Get Checkin Logs**
+
+查询签到审计日志
+
+**参数:**
+
+  - `appointment_id` (query, any, 可选) - 预约ID
+  - `patient_id` (query, any, 可选) - 患者ID
+  - `status` (query, any, 可选) - 状态
+  - `checkin_method` (query, any, 可选) - 签到方式
+  - `start_time` (query, any, 可选) - 开始时间
+  - `end_time` (query, any, 可选) - 结束时间
+  - `page` (query, integer, 可选) - 页码
+  - `page_size` (query, integer, 可选) - 每页数量
+
+---
+
+### GET /api/v1/audit-logs/checkin-logs/statistics
+
+**Get Checkin Log Statistics**
+
+获取签到审计日志统计
+
+**参数:**
+
+  - `start_date` (query, any, 可选) - 开始日期
+  - `end_date` (query, any, 可选) - 结束日期
+
+---
+
+## WebSocket
+
+### GET /api/v1/ws/online-doctors
+
+**Get Online Doctors**
+
+获取当前在线的医生列表（调试用）
+
+---
+
+## 医生端
+
+### GET /api/v1/doctor-portal/me
+
+**Get My Info**
+
+获取当前医生信息
+
+---
+
+### GET /api/v1/doctor-portal/schedules
+
+**Get My Schedules**
+
+获取当前医生的排班列表
+
+自动限制为当前医生的排班，门店隔离通过 doctor.store_id 实现
+
+**参数:**
+
+  - `start_date` (query, any, 可选)
+  - `end_date` (query, any, 可选)
+  - `status` (query, any, 可选)
+
+---
+
+### GET /api/v1/doctor-portal/schedules/today
+
+**Get My Today Schedules**
+
+获取当前医生今日排班
+
+---
+
+### GET /api/v1/doctor-portal/appointments
+
+**Get My Appointments**
+
+获取当前医生的预约列表
+
+自动限制为当前医生的预约
+
+**参数:**
+
+  - `status` (query, any, 可选)
+  - `start_date` (query, any, 可选)
+  - `end_date` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### GET /api/v1/doctor-portal/appointments/today
+
+**Get My Today Appointments**
+
+获取当前医生今日预约
+
+---
+
+### GET /api/v1/doctor-portal/queue
+
+**Get My Queue**
+
+获取当前医生的签到队列
+
+返回已签到等待叫号的患者列表
+
+**参数:**
+
+  - `target_date` (query, any, 可选)
+
+---
+
+### GET /api/v1/doctor-portal/queue/info
+
+**Get My Queue Info**
+
+获取当前医生的叫号队列统计信息
+
+---
+
+### PUT /api/v1/doctor-portal/appointments/{appointment_id}/call
+
+**Call Patient**
+
+叫号 - 只能叫自己的患者
+
+**参数:**
+
+  - `appointment_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/doctor-portal/appointments/{appointment_id}/complete
+
+**Complete Consultation**
+
+完成就诊 - 只能操作自己的患者
+
+**参数:**
+
+  - `appointment_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/doctor-portal/appointments/{appointment_id}/pass
+
+**Pass Patient**
+
+过号 - 只能操作自己的患者
+
+**参数:**
+
+  - `appointment_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/doctor-portal/appointments/{appointment_id}/recall
+
+**Recall Patient**
+
+重新叫号 - 只能操作自己的患者
+
+**参数:**
+
+  - `appointment_id` (path, string, 必填)
+
+---
+
+### PUT /api/v1/doctor-portal/appointments/{appointment_id}/no-show
+
+**Mark Patient No Show**
+
+标记爽约 - 只能操作自己的患者
+
+**参数:**
+
+  - `appointment_id` (path, string, 必填)
+
+---
+
+### GET /api/v1/doctor-portal/statistics/today
+
+**Get My Today Statistics**
+
+获取当前医生今日统计数据
+
+---
+
+### GET /api/v1/doctor-portal/patients/{patient_id}/appointments
+
+**Get Patient History**
+
+获取患者在当前医生处的历史就诊记录
+
+只返回该患者在当前医生处的历史预约，用于医生查看患者就诊历史。
+
+**参数:**
+
+  - `patient_id` (path, string, 必填)
+  - `status` (query, any, 可选)
+  - `page` (query, integer, 可选)
+  - `page_size` (query, integer, 可选)
+
+---
+
+### POST /api/v1/doctor-portal/appointments/{appointment_id}/follow-up
+
+**Create Follow Up Booking**
+
+为患者创建复诊预约
+
+基于原预约的患者信息，在指定排班下创建新的预约。
+原预约必须属于当前医生且已完成。
+
+**参数:**
+
+  - `appointment_id` (path, string, 必填)
+
+**请求:**
+
+  - **请求体**: application/json
+    - Schema: `FollowUpBookingRequest`
+    - `schedule_id` (string, 必填)
+
+---
+
+## 其他
+
+### GET /health
+
+**Health Check**
+
+健康检查
+
+---
+
+### GET /health/detailed
+
+**Detailed Health Check**
+
+详细健康检查
+
+---

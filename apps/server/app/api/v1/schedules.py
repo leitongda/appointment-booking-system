@@ -11,7 +11,7 @@ import logging
 from app.db.session import get_db
 
 logger = logging.getLogger(__name__)
-from app.api.deps import get_current_admin, get_store_filter, check_store_access
+from app.api.deps import get_current_admin, get_store_filter, check_store_access, require_permission
 from app.schemas.schedule import ScheduleCreate, ScheduleBatchCreate, ScheduleUpdate, ScheduleResponse, AvailableScheduleResponse
 from app.schemas.response import PageResponse
 from app.services.schedule_service import ScheduleService
@@ -25,6 +25,13 @@ from app.core.config import settings
 import json
 
 router = APIRouter()
+
+
+class BatchOperateResponse(BaseModel):
+    """批量操作响应"""
+    success: bool
+    affected_count: int
+    message: str
 
 
 async def _check_single_schedule_rest_day(
@@ -66,7 +73,7 @@ class SuspendRequest(BaseModel):
     reason: Optional[str] = Field(None, max_length=200, description="停诊原因")
     notify_patients: bool = Field(True, description="是否通知患者")
 
-@router.get("", response_model=PageResponse[ScheduleResponse])
+@router.get("", response_model=PageResponse[ScheduleResponse], summary="获取排班列表")
 async def get_schedules(
     doctor_id: Optional[str] = None,
     store_id: Optional[str] = None,
@@ -172,7 +179,7 @@ class ScheduleStatisticsResponse(BaseModel):
     items: List[ScheduleStatisticsItem]
 
 
-@router.get("/statistics", response_model=ScheduleStatisticsResponse)
+@router.get("/statistics", response_model=ScheduleStatisticsResponse, summary="获取排班统计")
 async def get_schedule_statistics(
     store_id: Optional[str] = Query(None, description="门店ID"),
     year: int = Query(..., ge=2020, le=2100, description="年份"),
@@ -298,7 +305,7 @@ async def get_schedule_statistics(
     )
 
 
-@router.get("/available/{doctor_id}", response_model=List[AvailableScheduleResponse])
+@router.get("/available/{doctor_id}", response_model=List[AvailableScheduleResponse], summary="获取可预约排班")
 async def get_available_schedules(
     doctor_id: str,
     days: int = Query(14, ge=1, le=30),
@@ -395,7 +402,7 @@ async def get_available_schedules(
 
     return result
 
-@router.get("/{schedule_id}", response_model=ScheduleResponse)
+@router.get("/{schedule_id}", response_model=ScheduleResponse, summary="获取排班详情")
 async def get_schedule(
     schedule_id: str,
     db: AsyncSession = Depends(get_db),
@@ -432,11 +439,12 @@ async def get_schedule(
         is_rest_day=is_rest_day
     )
 
-@router.post("", response_model=ScheduleResponse)
+@router.post("", response_model=ScheduleResponse, summary="创建排班")
 async def create_schedule(
     data: ScheduleCreate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:create"))
 ):
     """创建排班"""
     service = ScheduleService(db)
@@ -468,11 +476,12 @@ async def create_schedule(
         is_rest_day=is_rest_day
     )
 
-@router.post("/batch", response_model=BatchOperateResponse)
+@router.post("/batch", response_model=BatchOperateResponse, summary="批量创建排班")
 async def batch_create_schedules(
     data: ScheduleBatchCreate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:create"))
 ):
     """批量创建排班"""
     service = ScheduleService(db)
@@ -486,12 +495,13 @@ async def batch_create_schedules(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-@router.put("/{schedule_id}", response_model=ScheduleResponse)
+@router.put("/{schedule_id}", response_model=ScheduleResponse, summary="更新排班")
 async def update_schedule(
     schedule_id: str,
     data: ScheduleUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:update"))
 ):
     """更新排班"""
     service = ScheduleService(db)
@@ -532,18 +542,12 @@ class BatchScheduleRequest(BaseModel):
     reason: Optional[str] = Field(None, max_length=200, description="操作原因")
 
 
-class BatchOperateResponse(BaseModel):
-    """批量操作响应"""
-    success: bool
-    affected_count: int
-    message: str
-
-
-@router.post("/batch-suspend", response_model=BatchOperateResponse)
+@router.post("/batch-suspend", response_model=BatchOperateResponse, summary="批量停诊")
 async def batch_suspend_schedules(
     data: BatchScheduleRequest,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:update"))
 ):
     """批量停诊排班"""
     service = ScheduleService(db)
@@ -559,11 +563,12 @@ async def batch_suspend_schedules(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.post("/batch-resume", response_model=BatchOperateResponse)
+@router.post("/batch-resume", response_model=BatchOperateResponse, summary="批量恢复排班")
 async def batch_resume_schedules(
     data: BatchScheduleRequest,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:update"))
 ):
     """批量恢复排班"""
     service = ScheduleService(db)
@@ -579,11 +584,12 @@ async def batch_resume_schedules(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.post("/batch-delete", response_model=BatchOperateResponse)
+@router.post("/batch-delete", response_model=BatchOperateResponse, summary="批量删除排班")
 async def batch_delete_schedules(
     data: BatchScheduleRequest,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:delete"))
 ):
     """批量删除排班（只能删除没有任何预约记录的排班）"""
     service = ScheduleService(db)

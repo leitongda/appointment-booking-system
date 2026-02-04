@@ -16,20 +16,20 @@ export interface CheckinLogListParams {
 
 export interface CheckinLog {
   id: string;
-  appointment_id: string;
-  checkin_time: string;
-  checkin_method: string;
-  device_info?: string;
-  location_info?: string;
-  operator_id?: string;
-  operator_type?: string;
+  appointmentId: string;
+  checkinTime: string;
+  checkinMethod: string;
+  deviceInfo?: string;
+  locationInfo?: string;
+  operatorId?: string;
+  operatorType?: string;
   status: string;
-  fail_reason?: string;
-  patient_name?: string;
-  patient_phone?: string;
-  doctor_name?: string;
-  department_name?: string;
-  created_at?: string;
+  failReason?: string;
+  patientName?: string;
+  patientPhone?: string;
+  doctorName?: string;
+  departmentName?: string;
+  createdAt?: string;
 }
 
 export interface CheckinLogListResponse {

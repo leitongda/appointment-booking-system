@@ -12,11 +12,12 @@ def to_camel(string: str) -> str:
 
 
 class EmailTemplateType(str, Enum):
-    APPOINTMENT_CONFIRM = "appointment_confirm"
-    APPOINTMENT_REMIND = "appointment_remind"
-    APPOINTMENT_CANCEL = "appointment_cancel"
-    STOP_CLINIC = "stop_clinic"
-    CUSTOM = "custom"
+    """邮件模板类型"""
+    APPOINTMENT_CONFIRM = "appointment_confirm"   # 预约确认
+    APPOINTMENT_REMIND = "appointment_remind"     # 就诊提醒
+    APPOINTMENT_CANCEL = "appointment_cancel"     # 预约取消
+    STOP_CLINIC = "stop_clinic"                   # 停诊通知
+    CUSTOM = "custom"                             # 自定义
 
 
 class EmailTemplateBase(BaseModel):

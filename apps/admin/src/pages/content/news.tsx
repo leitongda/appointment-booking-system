@@ -1,27 +1,16 @@
-import { PlusOutlined } from '@ant-design/icons';
-import type { ActionType, ProColumns } from '@ant-design/pro-components';
+import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Tag, Image } from 'antd';
-import { useRef } from 'react';
-import { history, useAccess } from '@umijs/max';
+import { Tag, Image } from 'antd';
 import { contentApi } from '@hospital/api';
-import { toProTableResult } from '@/utils/proTable';
+import { createListRequest } from '@/utils/proTable';
+import { useListPage } from '@/hooks/useListPage';
+import { CreateButton, createOperationColumn } from '@/components/ListOperations';
 import type { News } from '@hospital/api';
 
 const NewsPage: React.FC = () => {
-  const { message } = App.useApp();
-  const access = useAccess();
-  const actionRef = useRef<ActionType>();
-
-  const handleDelete = async (id: string) => {
-    try {
-      await contentApi.deleteNews(id);
-      message.success('删除成功');
-      actionRef.current?.reload();
-    } catch (error: any) {
-      message.error(error.message || '删除失败');
-    }
-  };
+  const { actionRef, handleDelete } = useListPage({
+    deleteFn: contentApi.deleteNews,
+  });
 
   const columns: ProColumns<News>[] = [
     { title: '封面', dataIndex: 'coverImage', width: 80, search: false, render: (_, r) => r.coverImage ? <Image src={r.coverImage} width={60} /> : '-' },
@@ -31,23 +20,14 @@ const NewsPage: React.FC = () => {
     { title: '置顶', dataIndex: 'isTop', width: 70, search: false, render: (_, r) => r.isTop ? <Tag color="red">置顶</Tag> : '-' },
     { title: '状态', dataIndex: 'status', width: 80, valueEnum: { 1: { text: '发布', status: 'Success' }, 0: { text: '草稿', status: 'Default' } } },
     { title: '发布时间', dataIndex: 'publishTime', valueType: 'dateTime', width: 160, search: false },
-    {
-      title: '操作',
-      valueType: 'option',
+    createOperationColumn<News>({
       width: 120,
-      render: (_, record) => (
-        <Space>
-          {access.hasPermission('content:news:update') && (
-            <a onClick={() => history.push(`/content/news/${record.id}/edit`)}>编辑</a>
-          )}
-          {access.hasPermission('content:news:delete') && (
-            <Popconfirm title="确定删除吗？" onConfirm={() => handleDelete(record.id)}>
-              <a style={{ color: '#ff4d4f' }}>删除</a>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
-    },
+      editUrl: (r) => `/content/news/${r.id}/edit`,
+      editPermission: 'content:news:update',
+      onDelete: handleDelete,
+      deletePermission: 'content:news:delete',
+      deleteConfirmText: '确定删除吗？',
+    }),
   ];
 
   return (
@@ -57,21 +37,14 @@ const NewsPage: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        request={async (params) => {
-          const { current, pageSize, ...rest } = params;
-          return toProTableResult(await contentApi.getNewsList({ ...rest, page: current, pageSize }));
-        }}
+        request={createListRequest(contentApi.getNewsList)}
         toolBarRender={() => [
-          access.hasPermission('content:news:create') && (
-            <Button
-              key="add"
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => history.push('/content/news/create')}
-            >
-              发布新闻
-            </Button>
-          ),
+          <CreateButton
+            key="add"
+            permission="content:news:create"
+            url="/content/news/create"
+            label="发布新闻"
+          />,
         ]}
         pagination={{ defaultPageSize: 10 }}
       />

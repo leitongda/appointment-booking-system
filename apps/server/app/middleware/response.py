@@ -7,6 +7,15 @@ import json
 from typing import Callable
 
 
+# 不需要包装响应的路径（OpenAPI 文档相关）
+EXCLUDED_PATHS = {
+    "/docs",
+    "/redoc",
+    "/openapi.json",
+    "/api/v1/openapi.json",
+}
+
+
 class UnifiedResponseMiddleware(BaseHTTPMiddleware):
     """统一响应格式中间件
     
@@ -16,12 +25,18 @@ class UnifiedResponseMiddleware(BaseHTTPMiddleware):
         "message": "success",
         "data": ...
     }
+    
+    注意：OpenAPI 文档相关路径会被排除，不做包装处理。
     """
     
     def __init__(self, app: ASGIApp):
         super().__init__(app)
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        # 排除 OpenAPI 文档相关路径
+        if request.url.path in EXCLUDED_PATHS:
+            return await call_next(request)
+        
         response = await call_next(request)
         
         # 只处理 JSON 响应

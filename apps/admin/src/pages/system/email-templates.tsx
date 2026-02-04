@@ -1,35 +1,28 @@
-import { PlusOutlined, SendOutlined } from '@ant-design/icons';
-import type { ActionType, ProColumns } from '@ant-design/pro-components';
+import { SendOutlined } from '@ant-design/icons';
+import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormText } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Tag, Switch } from 'antd';
-import { useRef, useState } from 'react';
+import { Tag, Switch } from 'antd';
+import { useState } from 'react';
 import { history, useAccess } from '@umijs/max';
 import { emailTemplateApi, EMAIL_TEMPLATE_TYPE_OPTIONS } from '@hospital/api';
 import type { EmailTemplateListItem } from '@hospital/api';
-import { toProTableResult } from '@/utils/proTable';
+import { createListRequest } from '@/utils/proTable';
+import { useListPage } from '@/hooks/useListPage';
+import { CreateButton, OperationButton, OperationGroup } from '@/components/ListOperations';
 
 const EmailTemplatesPage: React.FC = () => {
-  const { message } = App.useApp();
   const access = useAccess();
-  const actionRef = useRef<ActionType>();
+  const { actionRef, message, handleDelete, reload } = useListPage({
+    deleteFn: emailTemplateApi.delete,
+  });
   const [testModalVisible, setTestModalVisible] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState<EmailTemplateListItem | null>(null);
-
-  const handleDelete = async (id: string) => {
-    try {
-      await emailTemplateApi.delete(id);
-      message.success('删除成功');
-      actionRef.current?.reload();
-    } catch (error: any) {
-      message.error(error.message || '删除失败');
-    }
-  };
 
   const handleStatusChange = async (id: string, status: boolean) => {
     try {
       await emailTemplateApi.update(id, { status: status ? 1 : 0 });
       message.success('状态更新成功');
-      actionRef.current?.reload();
+      reload();
     } catch (error: any) {
       message.error(error.message || '状态更新失败');
     }
@@ -114,24 +107,28 @@ const EmailTemplatesPage: React.FC = () => {
       width: 180,
       fixed: 'right',
       render: (_, record) => (
-        <Space>
-          {access.hasPermission('system:email-template:update') && (
-            <a onClick={() => history.push(`/system/email-templates/${record.id}/edit`)}>编辑</a>
-          )}
-          <a
+        <OperationGroup>
+          <OperationButton
+            type="edit"
+            permission="system:email-template:update"
+            url={`/system/email-templates/${record.id}/edit`}
+          />
+          <OperationButton
+            type="custom"
+            icon={<SendOutlined />}
+            label="测试"
             onClick={() => {
               setCurrentTemplate(record);
               setTestModalVisible(true);
             }}
-          >
-            <SendOutlined /> 测试
-          </a>
-          {access.hasPermission('system:email-template:delete') && (
-            <Popconfirm title="确定删除吗？" onConfirm={() => handleDelete(record.id)}>
-              <a style={{ color: '#ff4d4f' }}>删除</a>
-            </Popconfirm>
-          )}
-        </Space>
+          />
+          <OperationButton
+            type="delete"
+            permission="system:email-template:delete"
+            confirmText="确定删除吗？"
+            onClick={() => handleDelete(record.id)}
+          />
+        </OperationGroup>
       ),
     },
   ];
@@ -144,32 +141,24 @@ const EmailTemplatesPage: React.FC = () => {
         rowKey="id"
         columns={columns}
         scroll={{ x: 1200 }}
-        request={async (params) => {
-          const { current, pageSize, templateType, status, name, ...rest } = params;
-          const res = await emailTemplateApi.getList({
+        request={createListRequest(emailTemplateApi.getList, (params) => {
+          const { name, status, ...rest } = params;
+          return {
             ...rest,
-            templateType: templateType as any,
-            status: status !== undefined ? Number(status) : undefined,
             keyword: name,
-            page: current,
-            pageSize,
-          });
-          return toProTableResult(res);
-        }}
+            status: status !== undefined ? Number(status) : undefined,
+          };
+        })}
         search={{
           labelWidth: 'auto',
         }}
         toolBarRender={() => [
-          access.hasPermission('system:email-template:create') && (
-            <Button
-              key="add"
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => history.push('/system/email-templates/create')}
-            >
-              新增模板
-            </Button>
-          ),
+          <CreateButton
+            key="add"
+            permission="system:email-template:create"
+            url="/system/email-templates/create"
+            label="新增模板"
+          />,
         ]}
         pagination={{ defaultPageSize: 10 }}
       />
@@ -196,4 +185,3 @@ const EmailTemplatesPage: React.FC = () => {
 };
 
 export default EmailTemplatesPage;
-

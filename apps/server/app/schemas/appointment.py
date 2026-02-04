@@ -22,6 +22,7 @@ class AppointmentCreate(BaseModel):
 
 
 class AppointmentResponse(BaseModel):
+    """预约信息响应"""
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,
@@ -29,68 +30,71 @@ class AppointmentResponse(BaseModel):
         by_alias=True,
     )
     
-    id: str
-    appointment_no: Optional[str] = None
-    user_id: Optional[str] = None
-    patient_id: Optional[str] = None
-    patient_name: Optional[str] = None
-    patient_phone: Optional[str] = None
-    doctor_id: Optional[str] = None
-    doctor_name: Optional[str] = None
-    doctor_title: Optional[str] = None
-    department_name: Optional[str] = None
-    schedule_id: Optional[str] = None
-    schedule_date: Optional[date] = None
-    time_slot: Optional[str] = None
-    start_time: Optional[time] = None
-    end_time: Optional[time] = None
-    queue_number: Optional[int] = None
-    status: Optional[int] = None
-    sign_in_time: Optional[datetime] = None
-    call_time: Optional[datetime] = None
-    complete_time: Optional[datetime] = None
-    cancel_time: Optional[datetime] = None
-    cancel_reason: Optional[str] = None
-    symptom_description: Optional[str] = None
-    created_at: Optional[datetime] = None
+    id: str = Field(..., description="预约ID")
+    appointment_no: Optional[str] = Field(None, description="预约编号")
+    user_id: Optional[str] = Field(None, description="用户ID")
+    patient_id: Optional[str] = Field(None, description="就诊人ID")
+    patient_name: Optional[str] = Field(None, description="就诊人姓名")
+    patient_phone: Optional[str] = Field(None, description="就诊人手机号")
+    doctor_id: Optional[str] = Field(None, description="医生ID")
+    doctor_name: Optional[str] = Field(None, description="医生姓名")
+    doctor_title: Optional[str] = Field(None, description="医生职称")
+    department_name: Optional[str] = Field(None, description="科室名称")
+    schedule_id: Optional[str] = Field(None, description="排班ID")
+    schedule_date: Optional[date] = Field(None, description="就诊日期")
+    time_slot: Optional[str] = Field(None, description="时段: AM上午/PM下午")
+    start_time: Optional[time] = Field(None, description="开始时间")
+    end_time: Optional[time] = Field(None, description="结束时间")
+    queue_number: Optional[int] = Field(None, description="排队序号")
+    status: Optional[int] = Field(None, description="状态: 0待支付 1已预约 2已签到 3候诊中 4就诊中 5已完成 6已取消 7已过期 8已关闭")
+    sign_in_time: Optional[datetime] = Field(None, description="签到时间")
+    call_time: Optional[datetime] = Field(None, description="叫号时间")
+    complete_time: Optional[datetime] = Field(None, description="完成就诊时间")
+    cancel_time: Optional[datetime] = Field(None, description="取消时间")
+    cancel_reason: Optional[str] = Field(None, description="取消原因")
+    symptom_description: Optional[str] = Field(None, description="病情描述")
+    created_at: Optional[datetime] = Field(None, description="创建时间")
 
 
 class AppointmentListQuery(BaseModel):
+    """预约列表查询参数"""
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,
     )
     
-    status: Optional[int] = None
-    patient_id: Optional[str] = None
-    doctor_id: Optional[str] = None
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    page: int = Field(1, ge=1)
-    page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE)
+    status: Optional[int] = Field(None, description="状态: 0待支付 1已预约 2已签到 3候诊中 4就诊中 5已完成 6已取消 7已过期 8已关闭")
+    patient_id: Optional[str] = Field(None, description="就诊人ID")
+    doctor_id: Optional[str] = Field(None, description="医生ID")
+    start_date: Optional[date] = Field(None, description="开始日期")
+    end_date: Optional[date] = Field(None, description="结束日期")
+    page: int = Field(1, ge=1, description="页码")
+    page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量")
 
 
 class AppointmentCancelRequest(BaseModel):
+    """取消预约请求"""
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,
     )
     
-    reason: Optional[str] = Field(None, max_length=200)
+    reason: Optional[str] = Field(None, max_length=200, description="取消原因")
 
 
 class AppointmentStatistics(BaseModel):
+    """预约统计信息"""
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,
         by_alias=True,
     )
     
-    total: int = 0
-    pending: int = 0
-    signed_in: int = 0
-    in_progress: int = 0
-    completed: int = 0
-    cancelled: int = 0
-    no_show: int = 0
+    total: int = Field(0, description="总预约数")
+    pending: int = Field(0, description="待签到数")
+    signed_in: int = Field(0, description="已签到数")
+    in_progress: int = Field(0, description="就诊中数")
+    completed: int = Field(0, description="已完成数")
+    cancelled: int = Field(0, description="已取消数")
+    no_show: int = Field(0, description="爽约数")
 

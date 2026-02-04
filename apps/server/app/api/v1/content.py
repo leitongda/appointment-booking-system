@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin, get_store_filter
+from app.api.deps import get_current_admin, get_store_filter, require_permission
 from app.services.content_service import NewsService, NoticeService, BannerService
 from app.schemas.response import PageResponse
 from app.core.config import settings
@@ -96,7 +96,7 @@ class BannerResponse(BaseModel):
 
 
 # ========== 新闻管理 ==========
-@router.get("/news", response_model=PageResponse[NewsResponse])
+@router.get("/news", response_model=PageResponse[NewsResponse], summary="获取新闻列表")
 async def get_news_list(
     type: Optional[int] = None,
     status: Optional[int] = None,
@@ -130,7 +130,7 @@ async def get_news_list(
     )
 
 
-@router.get("/news/published", response_model=List[NewsResponse])
+@router.get("/news/published", response_model=List[NewsResponse], summary="获取已发布新闻")
 async def get_published_news(
     type: Optional[int] = None,
     store_id: Optional[str] = None,
@@ -143,7 +143,7 @@ async def get_published_news(
     return [NewsResponse.model_validate(item) for item in items]
 
 
-@router.get("/news/{news_id}", response_model=NewsResponse)
+@router.get("/news/{news_id}", response_model=NewsResponse, summary="获取新闻详情")
 async def get_news_detail(
     news_id: str,
     db: AsyncSession = Depends(get_db),
@@ -160,11 +160,12 @@ async def get_news_detail(
     return NewsResponse.model_validate(news)
 
 
-@router.post("/news", response_model=NewsResponse)
+@router.post("/news", response_model=NewsResponse, summary="创建新闻")
 async def create_news(
     data: NewsCreate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("content:news:create")),
 ):
     """创建新闻"""
     # 获取当前管理员的门店ID（非超管创建时自动关联门店）
@@ -177,12 +178,13 @@ async def create_news(
     return NewsResponse.model_validate(news)
 
 
-@router.put("/news/{news_id}", response_model=NewsResponse)
+@router.put("/news/{news_id}", response_model=NewsResponse, summary="更新新闻")
 async def update_news(
     news_id: str,
     data: NewsCreate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("content:news:update")),
 ):
     """更新新闻"""
     service = NewsService(db)
@@ -192,11 +194,12 @@ async def update_news(
     return NewsResponse.model_validate(news)
 
 
-@router.delete("/news/{news_id}")
+@router.delete("/news/{news_id}", summary="删除新闻")
 async def delete_news(
     news_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("content:news:delete")),
 ):
     """删除新闻"""
     service = NewsService(db)
@@ -207,7 +210,7 @@ async def delete_news(
 
 
 # ========== 公告管理 ==========
-@router.get("/notices", response_model=PageResponse[NoticeResponse])
+@router.get("/notices", response_model=PageResponse[NoticeResponse], summary="获取公告列表")
 async def get_notice_list(
     type: Optional[int] = None,
     status: Optional[int] = None,
@@ -241,7 +244,7 @@ async def get_notice_list(
     )
 
 
-@router.get("/notices/published", response_model=List[NoticeResponse])
+@router.get("/notices/published", response_model=List[NoticeResponse], summary="获取已发布公告")
 async def get_published_notices(
     store_id: Optional[str] = None,
     limit: int = Query(10, ge=1, le=50),
@@ -253,7 +256,7 @@ async def get_published_notices(
     return [NoticeResponse.model_validate(item) for item in items]
 
 
-@router.get("/notices/{notice_id}", response_model=NoticeResponse)
+@router.get("/notices/{notice_id}", response_model=NoticeResponse, summary="获取公告详情")
 async def get_notice_detail(
     notice_id: str,
     db: AsyncSession = Depends(get_db),
@@ -266,11 +269,12 @@ async def get_notice_detail(
     return NoticeResponse.model_validate(notice)
 
 
-@router.post("/notices", response_model=NoticeResponse)
+@router.post("/notices", response_model=NoticeResponse, summary="创建公告")
 async def create_notice(
     data: NoticeCreate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("content:notice:create")),
 ):
     """创建公告"""
     # 获取当前管理员的门店ID（非超管创建时自动关联门店）
@@ -283,12 +287,13 @@ async def create_notice(
     return NoticeResponse.model_validate(notice)
 
 
-@router.put("/notices/{notice_id}", response_model=NoticeResponse)
+@router.put("/notices/{notice_id}", response_model=NoticeResponse, summary="更新公告")
 async def update_notice(
     notice_id: str,
     data: NoticeCreate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("content:notice:update")),
 ):
     """更新公告"""
     service = NoticeService(db)
@@ -298,11 +303,12 @@ async def update_notice(
     return NoticeResponse.model_validate(notice)
 
 
-@router.delete("/notices/{notice_id}")
+@router.delete("/notices/{notice_id}", summary="删除公告")
 async def delete_notice(
     notice_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("content:notice:delete")),
 ):
     """删除公告"""
     service = NoticeService(db)
@@ -313,7 +319,7 @@ async def delete_notice(
 
 
 # ========== 轮播图管理 ==========
-@router.get("/banners", response_model=PageResponse[BannerResponse])
+@router.get("/banners", response_model=PageResponse[BannerResponse], summary="获取轮播图列表")
 async def get_banner_list(
     position: Optional[str] = None,
     status: Optional[int] = None,
@@ -345,7 +351,7 @@ async def get_banner_list(
     )
 
 
-@router.get("/banners/active", response_model=List[BannerResponse])
+@router.get("/banners/active", response_model=List[BannerResponse], summary="获取启用轮播图")
 async def get_active_banners(
     position: str = "home",
     store_id: Optional[str] = None,
@@ -357,11 +363,12 @@ async def get_active_banners(
     return [BannerResponse.model_validate(item) for item in items]
 
 
-@router.post("/banners", response_model=BannerResponse)
+@router.post("/banners", response_model=BannerResponse, summary="创建轮播图")
 async def create_banner(
     data: BannerCreate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("content:banner:create")),
 ):
     """创建轮播图"""
     # 获取当前管理员的门店ID（非超管创建时自动关联门店）
@@ -374,12 +381,13 @@ async def create_banner(
     return BannerResponse.model_validate(banner)
 
 
-@router.put("/banners/{banner_id}", response_model=BannerResponse)
+@router.put("/banners/{banner_id}", response_model=BannerResponse, summary="更新轮播图")
 async def update_banner(
     banner_id: str,
     data: BannerCreate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("content:banner:update")),
 ):
     """更新轮播图"""
     service = BannerService(db)
@@ -389,11 +397,12 @@ async def update_banner(
     return BannerResponse.model_validate(banner)
 
 
-@router.delete("/banners/{banner_id}")
+@router.delete("/banners/{banner_id}", summary="删除轮播图")
 async def delete_banner(
     banner_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("content:banner:delete")),
 ):
     """删除轮播图"""
     service = BannerService(db)

@@ -1,45 +1,44 @@
-import { PlusOutlined, EditOutlined, DeleteOutlined, MoreOutlined, KeyOutlined } from '@ant-design/icons';
-import type { ActionType, ProColumns } from '@ant-design/pro-components';
+import { KeyOutlined } from '@ant-design/icons';
+import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Button, App, Popconfirm, Space, Avatar, Tag, Divider, Dropdown } from 'antd';
-import type { MenuProps } from 'antd';
-import { useRef } from 'react';
-import { history, useAccess, useModel } from '@umijs/max';
+import { Avatar, Tag, Modal } from 'antd';
+import { useMemo } from 'react';
+import { useAccess, useModel } from '@umijs/max';
 import { adminApi, storeApi, dataApi } from '@hospital/api';
-import { toProTableResult } from '@/utils/proTable';
-import type { Admin } from '@hospital/api';
+import { createListRequest } from '@/utils/proTable';
+import { useListPage } from '@/hooks/useListPage';
+import {
+  CreateButton,
+  OperationButton,
+  OperationGroup,
+} from '@/components/ListOperations';
 import ImportExport from '@/components/ImportExport';
+import type { Admin } from '@hospital/api';
 
 const UserPage: React.FC = () => {
-  const { message } = App.useApp();
   const access = useAccess();
-  const actionRef = useRef<ActionType>();
+  const { actionRef, message, handleDelete, handleAction } = useListPage({
+    deleteFn: adminApi.deleteAdmin,
+  });
   const { initialState } = useModel('@@initialState');
-  const { currentUser, currentStore } = initialState ?? {};
+  const { currentUser } = initialState ?? {};
   const isSuperAdmin = access.canSuperAdmin;
   // 多门店管理员也可以看到门店筛选
   const showStoreFilter = isSuperAdmin || (currentUser?.storeIds?.length ?? 0) > 1;
 
-  const handleDelete = async (id: string) => {
-    try {
-      await adminApi.deleteAdmin(id);
-      message.success('删除成功');
-      actionRef.current?.reload();
-    } catch (error: any) {
-      message.error(error.message || '删除失败');
-    }
+  const handleResetPassword = (id: string) => {
+    Modal.confirm({
+      title: '确定重置密码为 123456 吗？',
+      onOk: async () => {
+        await handleAction(
+          () => adminApi.resetAdminPassword(id, '123456'),
+          { successText: '密码已重置为 123456', errorText: '重置失败' }
+        );
+      },
+    });
   };
 
-  const handleResetPassword = async (id: string) => {
-    try {
-      await adminApi.resetAdminPassword(id, '123456');
-      message.success('密码已重置为 123456');
-    } catch (error: any) {
-      message.error(error.message || '重置失败');
-    }
-  };
-
-  const columns: ProColumns<Admin>[] = [
+  const columns: ProColumns<Admin>[] = useMemo(() => [
     {
       title: '头像',
       dataIndex: 'avatar',
@@ -99,48 +98,34 @@ const UserPage: React.FC = () => {
       valueType: 'option',
       width: 180,
       fixed: 'right',
-      render: (_, record) => {
-        // 更多操作菜单项
-        const moreMenuItems: MenuProps['items'] = [
-          access.hasPermission('system:user:reset-password') && {
-            key: 'reset-password',
-            icon: <KeyOutlined />,
-            label: '重置密码',
-            onClick: () => {
-              Popconfirm.confirm({
-                title: '确定重置密码为 123456 吗？',
-                onConfirm: () => handleResetPassword(record.id),
-              });
+      render: (_, record) => (
+        <OperationGroup
+          moreItems={[
+            access.hasPermission('system:user:reset-password') && {
+              key: 'reset-password',
+              icon: <KeyOutlined />,
+              label: '重置密码',
+              onClick: () => handleResetPassword(record.id),
             },
-          },
-        ].filter(Boolean);
-
-        return (
-          <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
-            {access.hasPermission('system:user:update') && (
-              <a onClick={() => history.push(`/system/user/${record.id}/edit`)} style={{ fontSize: 13 }}>
-                <EditOutlined /> 编辑
-              </a>
-            )}
-            {access.hasPermission('system:user:delete') && record.roleCode !== 'SUPER_ADMIN' && (
-              <Popconfirm title="确定删除该用户吗？" onConfirm={() => handleDelete(record.id)}>
-                <a style={{ color: '#ff4d4f', fontSize: 13 }}>
-                  <DeleteOutlined /> 删除
-                </a>
-              </Popconfirm>
-            )}
-            {moreMenuItems.length > 0 && (
-              <Dropdown menu={{ items: moreMenuItems }} trigger={['click']}>
-                <a style={{ color: '#666', fontSize: 13 }}>
-                  <MoreOutlined /> 更多
-                </a>
-              </Dropdown>
-            )}
-          </Space>
-        );
-      },
+          ].filter(Boolean) as any}
+        >
+          <OperationButton
+            type="edit"
+            permission="system:user:update"
+            url={`/system/user/${record.id}/edit`}
+          />
+          {record.roleCode !== 'SUPER_ADMIN' && (
+            <OperationButton
+              type="delete"
+              permission="system:user:delete"
+              confirmText="确定删除该用户吗？"
+              onClick={() => handleDelete(record.id)}
+            />
+          )}
+        </OperationGroup>
+      ),
     },
-  ];
+  ], [showStoreFilter, isSuperAdmin, currentUser?.storeIds, access, handleDelete]);
 
   return (
     <PageContainer>
@@ -149,18 +134,14 @@ const UserPage: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        request={async (params) => {
-          const { current, pageSize, storeId, ...rest } = params;
-          const queryParams: any = { ...rest, page: current, pageSize };
+        request={createListRequest(adminApi.getAdmins, (params) => {
+          const { storeId, ...rest } = params;
           // 处理门店筛选
           if (storeId === 'null') {
-            // 查询全局用户（store_id 为空）
-            queryParams.storeId = '';
-          } else if (storeId) {
-            queryParams.storeId = storeId;
+            return { ...rest, storeId: '' };
           }
-          return toProTableResult(await adminApi.getAdmins(queryParams));
-        }}
+          return storeId ? { ...rest, storeId } : rest;
+        })}
         toolBarRender={() => [
           <ImportExport
             key="import-export"
@@ -168,16 +149,12 @@ const UserPage: React.FC = () => {
             exportUrl={dataApi.getExportUsersUrl()}
             showImport={false}
           />,
-          access.hasPermission('system:user:create') && (
-            <Button
-              key="add"
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => history.push('/system/user/create')}
-            >
-              新增用户
-            </Button>
-          ),
+          <CreateButton
+            key="add"
+            permission="system:user:create"
+            url="/system/user/create"
+            label="新增用户"
+          />,
         ]}
         pagination={{ defaultPageSize: 10 }}
       />
@@ -186,4 +163,3 @@ const UserPage: React.FC = () => {
 };
 
 export default UserPage;
-

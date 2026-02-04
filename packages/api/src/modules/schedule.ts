@@ -187,7 +187,7 @@ export const scheduleApi = {
     return request.post('/schedules', requestData);
   },
 
-  batchCreate: (data: ScheduleBatchCreateData): Promise<{ message: string }> => {
+  batchCreate: (data: ScheduleBatchCreateData): Promise<{ success: boolean; affectedCount: number; message: string }> => {
     return request.post('/schedules/batch', data);
   },
 

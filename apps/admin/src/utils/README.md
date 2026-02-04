@@ -1,5 +1,73 @@
 # Utils - 工具函数
 
+## proTable.ts - ProTable 请求工具
+
+提供 ProTable 的请求封装，支持错误重试、防抖、Loading 延迟等高级功能。
+
+### 核心函数
+
+#### toProTableResult
+
+将 API 响应转换为 ProTable 需要的格式。
+
+```typescript
+// 支持数组或分页对象
+const result = toProTableResult(apiResponse);
+// 返回 { data: T[], success: boolean, total: number }
+```
+
+#### createListRequest
+
+创建 ProTable 的 request 函数，自动处理参数转换和结果包装。
+
+**基础配置**
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `paramTransform` | `function` | - | 参数转换函数 |
+| `retryCount` | `number` | `0` | 错误重试次数 |
+| `retryDelay` | `number` | `1000` | 重试间隔（毫秒） |
+| `debounceWait` | `number` | - | 防抖等待时间（毫秒） |
+| `loadingDelay` | `number` | `0` | Loading 延迟显示时间（毫秒） |
+| `retryOnNetworkErrorOnly` | `boolean` | `true` | 仅在网络错误时重试 |
+| `onError` | `function` | - | 错误回调函数 |
+
+**使用示例**
+
+```tsx
+// 基础用法
+<ProTable request={createListRequest(api.getList)} />
+
+// 自定义参数转换
+<ProTable request={createListRequest(api.getList, {
+  paramTransform: (params) => ({ ...params, keyword: params.name }),
+})} />
+
+// 带重试和防抖
+<ProTable request={createListRequest(api.getList, {
+  retryCount: 2,       // 失败后重试 2 次
+  retryDelay: 1000,    // 重试间隔 1 秒
+  debounceWait: 300,   // 防抖 300ms
+  loadingDelay: 200,   // loading 至少显示 200ms
+})} />
+
+// 向后兼容：直接传函数
+<ProTable request={createListRequest(
+  api.getList,
+  (params) => ({ ...params, status: 1 })
+)} />
+```
+
+**配置项详解**
+
+| 功能 | 适用场景 | 示例 |
+|------|----------|------|
+| 错误重试 | 网络不稳定环境 | `retryCount: 3` |
+| 防抖 | 搜索输入框 | `debounceWait: 300` |
+| Loading 延迟 | 避免闪烁 | `loadingDelay: 200` |
+
+---
+
 ## request.ts - API 请求配置
 
 统一配置 `@hospital/api` 包的请求和响应拦截器。
@@ -98,4 +166,3 @@ export const setupRequestInterceptor = () => {
 - `apps/doctor/src/utils/request.ts` - 医生端配置  
 - `apps/patient-h5/src/utils/request.ts` - 患者端 H5 配置
 - `packages/api/src/request.ts` - 基础 axios 实例和配置方法
-

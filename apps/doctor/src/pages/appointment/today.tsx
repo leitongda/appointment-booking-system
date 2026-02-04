@@ -1,11 +1,11 @@
 import { PageContainer, ProTable, ProCard } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
-import { Tag, Button, Space, message, Row, Col, Statistic, Badge, Tooltip } from 'antd';
-import { SoundOutlined, CheckOutlined, UserOutlined, ClockCircleOutlined, WifiOutlined, DisconnectOutlined } from '@ant-design/icons';
+import { Tag, Button, Space, message, Row, Col, Statistic, Badge, Tooltip, Popconfirm } from 'antd';
+import { SoundOutlined, CheckOutlined, UserOutlined, ClockCircleOutlined, WifiOutlined, DisconnectOutlined, StopOutlined } from '@ant-design/icons';
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { history } from 'umi';
 import { appointmentApi } from '@hospital/api';
-import { APPOINTMENT_STATUS_MAP, APPOINTMENT_STATUS_COLOR, TIME_SLOT_MAP } from '@hospital/shared';
+import { APPOINTMENT_STATUS, APPOINTMENT_STATUS_MAP, APPOINTMENT_STATUS_COLOR, TIME_SLOT_MAP } from '@hospital/shared';
 import type { Appointment } from '@hospital/shared';
 import { useWebSocket, ConnectionStatus } from '@/hooks';
 
@@ -72,13 +72,24 @@ const TodayAppointmentPage: React.FC = () => {
     }
   };
 
+  const handlePass = async (appointment: Appointment) => {
+    try {
+      await appointmentApi.pass(appointment.id);
+      message.success('已过号');
+      loadData();
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error.message || '操作失败');
+    }
+  };
+
   // 统计
   const stats = {
     total: appointments.length,
-    pending: appointments.filter((a) => a.status === 1).length,
-    signedIn: appointments.filter((a) => a.status === 2).length,
-    inProgress: appointments.filter((a) => a.status === 3).length,
-    completed: appointments.filter((a) => a.status === 5).length,
+    pending: appointments.filter((a) => a.status === APPOINTMENT_STATUS.CONFIRMED).length,
+    signedIn: appointments.filter((a) => a.status === APPOINTMENT_STATUS.SIGNED).length,
+    inProgress: appointments.filter((a) => a.status === APPOINTMENT_STATUS.SEEING).length,
+    completed: appointments.filter((a) => a.status === APPOINTMENT_STATUS.COMPLETED).length,
   };
 
   const columns: ProColumns<Appointment>[] = [
@@ -88,7 +99,21 @@ const TodayAppointmentPage: React.FC = () => {
       width: 80, 
       render: (_, r) => <Tag color="blue">第{r.queueNumber}号</Tag> 
     },
-    { title: '患者姓名', dataIndex: 'patientName', width: 100 },
+    { 
+      title: '患者姓名', 
+      dataIndex: 'patientName', 
+      width: 140,
+      render: (_, r) => (
+        <Space>
+          {r.patientName}
+          {r.isFollowUp ? (
+            <Tag color="purple" style={{ marginLeft: 4 }}>复诊</Tag>
+          ) : (
+            <Tag color="green" style={{ marginLeft: 4 }}>初诊</Tag>
+          )}
+        </Space>
+      )
+    },
     { 
       title: '手机号', 
       dataIndex: 'patientPhone', 
@@ -120,10 +145,10 @@ const TodayAppointmentPage: React.FC = () => {
     { 
       title: '操作', 
       valueType: 'option',
-      width: 180, 
+      width: 220, 
       render: (_, r) => (
         <Space>
-          {r.status === 2 && (
+          {r.status === APPOINTMENT_STATUS.SIGNED && (
             <Button 
               size="small" 
               type="primary" 
@@ -133,17 +158,28 @@ const TodayAppointmentPage: React.FC = () => {
               呼叫
             </Button>
           )}
-          {r.status === 3 && (
-            <Button 
-              size="small" 
-              type="primary"
-              icon={<CheckOutlined />}
-              onClick={() => handleComplete(r.id)}
-            >
-              完成
-            </Button>
+          {r.status === APPOINTMENT_STATUS.SEEING && (
+            <>
+              <Button 
+                size="small" 
+                type="primary"
+                icon={<CheckOutlined />}
+                onClick={() => handleComplete(r.id)}
+              >
+                完成
+              </Button>
+              <Popconfirm
+                title="确定过号吗？"
+                description="过号后患者需要重新排队。"
+                onConfirm={() => handlePass(r)}
+              >
+                <Button size="small" icon={<StopOutlined />}>
+                  过号
+                </Button>
+              </Popconfirm>
+            </>
           )}
-          {(r.status === 3 || r.status === 5) && (
+          {(r.status === APPOINTMENT_STATUS.SEEING || r.status === APPOINTMENT_STATUS.COMPLETED) && (
             <Button 
               size="small"
               onClick={() => history.push(`/medical-record/create?appointmentId=${r.id}`)}

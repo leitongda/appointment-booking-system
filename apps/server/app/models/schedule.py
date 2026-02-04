@@ -1,3 +1,13 @@
+'''
+Author: Lei TongDa ebian123@qq.com
+Date: 2026-01-05 23:11:43
+LastEditors: Lei TongDa ebian123@qq.com
+LastEditTime: 2026-02-04 15:46:38
+FilePath: /appointment-booking-system/apps/server/app/models/schedule.py
+Description: 
+
+Copyright (c) 2026 by ${git_name_email}, All Rights Reserved. 
+'''
 from sqlalchemy import Column, String, Integer, Date, Time, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from app.db.base import Base, AuditMixin

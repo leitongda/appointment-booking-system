@@ -1,0 +1,44 @@
+# 签到流程
+
+> 患者到达门店后的签到流程
+
+- 基础路径: /api/v1
+- 认证方式: Bearer Token (JWT)
+
+---
+
+## 流程步骤
+
+### 步骤 1: 获取门店签到二维码
+
+- [GET /api/v1/stores/{store_id}/checkin-qrcode](/api/v1/stores/{store_id}/checkin-qrcode): 获取门店签到二维码
+
+### 步骤 2: 获取今日待签到预约
+
+- [GET /api/v1/appointments/today-pending](/api/v1/appointments/today-pending): 获取用户在指定门店的今日待签到预约（增强版：包含详细时间窗信息）
+
+### 步骤 3: 按预约号查询
+
+- [GET /api/v1/appointments/by-no/{appointment_no}](/api/v1/appointments/by-no/{appointment_no}): 按预约号获取预约详情
+
+### 步骤 4: 签到
+
+- [PUT /api/v1/appointments/{appointment_id}/sign-in](/api/v1/appointments/{appointment_id}/sign-in): 签到
+
+### 步骤 5: 取消签到
+
+- [PUT /api/v1/appointments/{appointment_id}/cancel-sign-in](/api/v1/appointments/{appointment_id}/cancel-sign-in): 取消签到（仅超级管理员）
+
+### 步骤 6: 查看签到队列
+
+- [GET /api/v1/appointments/queue](/api/v1/appointments/queue): 获取签到队列
+
+### 步骤 7: 获取队列信息
+
+- [GET /api/v1/appointments/queue/info](/api/v1/appointments/queue/info): 获取当前叫号队列信息（医生端）
+- [GET /api/v1/doctor-portal/queue/info](/api/v1/doctor-portal/queue/info): 获取当前医生的叫号队列统计信息
+
+## 相关文档
+
+- [完整 API 文档](/llms.txt): 所有 API 端点的概览
+- [详细 API 文档](/llms-full.txt): 包含参数详情的完整文档

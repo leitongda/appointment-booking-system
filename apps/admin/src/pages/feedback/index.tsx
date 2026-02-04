@@ -1,13 +1,15 @@
-import type { ActionType, ProColumns } from '@ant-design/pro-components';
+import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormTextArea } from '@ant-design/pro-components';
-import { App, Space, Tag, Button, Drawer, Descriptions, Image, Divider } from 'antd';
-import { EyeOutlined, MessageOutlined } from '@ant-design/icons';
-import { useRef, useState } from 'react';
-import { useModel, useAccess } from '@umijs/max';
+import { Tag, Drawer, Descriptions, Image } from 'antd';
+import { MessageOutlined } from '@ant-design/icons';
+import { useState } from 'react';
+import { useModel } from '@umijs/max';
 import { feedbackApi, dataApi } from '@hospital/api';
-import { toProTableResult } from '@/utils/proTable';
-import type { Feedback } from '@hospital/shared';
+import { createListRequest } from '@/utils/proTable';
+import { useListPage } from '@/hooks/useListPage';
+import { OperationButton, OperationGroup } from '@/components/ListOperations';
 import ImportExport from '@/components/ImportExport';
+import type { Feedback } from '@hospital/shared';
 
 const TYPE_MAP: Record<string, { text: string; color: string }> = {
   suggestion: { text: '建议', color: 'blue' },
@@ -24,10 +26,8 @@ const STATUS_MAP: Record<string, { text: string; color: string }> = {
 };
 
 const FeedbackPage: React.FC = () => {
-  const { message } = App.useApp();
   const { initialState } = useModel('@@initialState');
-  const access = useAccess();
-  const actionRef = useRef<ActionType>();
+  const { actionRef, message, reload } = useListPage();
   const [replyOpen, setReplyOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [currentRecord, setCurrentRecord] = useState<Feedback | null>(null);
@@ -38,7 +38,7 @@ const FeedbackPage: React.FC = () => {
       await feedbackApi.reply(currentRecord.id, initialState.currentUser.id, values.reply);
       message.success('回复成功');
       setReplyOpen(false);
-      actionRef.current?.reload();
+      reload();
       return true;
     } catch (error: any) {
       message.error(error.message || '回复失败');
@@ -76,18 +76,22 @@ const FeedbackPage: React.FC = () => {
       width: 150,
       fixed: 'right',
       render: (_, record) => (
-        <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
-          {access.hasPermission('feedback:list') && (
-            <a onClick={() => { setCurrentRecord(record); setDetailOpen(true); }} style={{ fontSize: 13 }}>
-              <EyeOutlined /> 详情
-            </a>
+        <OperationGroup>
+          <OperationButton
+            type="view"
+            permission="feedback:list"
+            onClick={() => { setCurrentRecord(record); setDetailOpen(true); }}
+          />
+          {record.status === 'pending' && (
+            <OperationButton
+              type="custom"
+              permission="feedback:reply"
+              icon={<MessageOutlined />}
+              label="回复"
+              onClick={() => { setCurrentRecord(record); setReplyOpen(true); }}
+            />
           )}
-          {access.hasPermission('feedback:reply') && record.status === 'pending' && (
-            <a onClick={() => { setCurrentRecord(record); setReplyOpen(true); }} style={{ fontSize: 13 }}>
-              <MessageOutlined /> 回复
-            </a>
-          )}
-        </Space>
+        </OperationGroup>
       ),
     },
   ];
@@ -99,10 +103,10 @@ const FeedbackPage: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        request={async (params) => {
-          const { current, pageSize, title, ...rest } = params;
-          return toProTableResult(await feedbackApi.getList({ ...rest, keyword: title, page: current, pageSize }));
-        }}
+        request={createListRequest(feedbackApi.getList, (params) => {
+          const { title, ...rest } = params;
+          return { ...rest, keyword: title };
+        })}
         pagination={{ defaultPageSize: 10 }}
         search={{ labelWidth: 'auto' }}
         toolBarRender={() => [

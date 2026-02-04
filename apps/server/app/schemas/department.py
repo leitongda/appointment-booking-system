@@ -10,6 +10,7 @@ def to_camel(string: str) -> str:
 
 
 class DepartmentBase(BaseModel):
+    """科室基础模型"""
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,  # 允许使用原始字段名或别名
@@ -17,10 +18,10 @@ class DepartmentBase(BaseModel):
     
     name: str = Field(..., max_length=100, description="科室名称")
     parent_id: Optional[str] = Field(None, description="父级科室ID")
-    description: Optional[str] = None
-    sort_order: int = Field(0, ge=0)
-    is_hot: int = Field(0, ge=0, le=1, description="是否热门")
-    status: int = Field(1, ge=0, le=1)
+    description: Optional[str] = Field(None, description="科室描述")
+    sort_order: int = Field(0, ge=0, description="排序序号")
+    is_hot: int = Field(0, ge=0, le=1, description="是否热门: 0否 1是")
+    status: int = Field(1, ge=0, le=1, description="状态: 0禁用 1启用")
     
     # 基础配置
     store_id: Optional[str] = Field(None, description="默认门店ID")
@@ -49,40 +50,41 @@ class DepartmentCreate(DepartmentBase):
     pass
 
 class DepartmentUpdate(BaseModel):
+    """更新科室请求"""
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,  # 允许使用原始字段名或别名
     )
     
-    name: Optional[str] = Field(None, max_length=100)
-    parent_id: Optional[str] = None
-    description: Optional[str] = None
-    sort_order: Optional[int] = Field(None, ge=0)
-    is_hot: Optional[int] = Field(None, ge=0, le=1)
-    status: Optional[int] = Field(None, ge=0, le=1)
+    name: Optional[str] = Field(None, max_length=100, description="科室名称")
+    parent_id: Optional[str] = Field(None, description="父级科室ID")
+    description: Optional[str] = Field(None, description="科室描述")
+    sort_order: Optional[int] = Field(None, ge=0, description="排序序号")
+    is_hot: Optional[int] = Field(None, ge=0, le=1, description="是否热门: 0否 1是")
+    status: Optional[int] = Field(None, ge=0, le=1, description="状态: 0禁用 1启用")
     
     # 基础配置
-    store_id: Optional[str] = None
-    tag: Optional[str] = Field(None, max_length=100)
-    enable_banner: Optional[int] = Field(None, ge=0, le=1)
-    enable_intro: Optional[int] = Field(None, ge=0, le=1)
-    is_final: Optional[int] = Field(None, ge=0, le=1)
-    is_recommended: Optional[int] = Field(None, ge=0, le=1)
+    store_id: Optional[str] = Field(None, description="默认门店ID")
+    tag: Optional[str] = Field(None, max_length=100, description="科室标签")
+    enable_banner: Optional[int] = Field(None, ge=0, le=1, description="是否开放banner: 0否 1是")
+    enable_intro: Optional[int] = Field(None, ge=0, le=1, description="是否开放科室简介: 0否 1是")
+    is_final: Optional[int] = Field(None, ge=0, le=1, description="是否终极科室: 0否 1是")
+    is_recommended: Optional[int] = Field(None, ge=0, le=1, description="是否推荐: 0否 1是")
     
     # 图片资源
-    banner_image: Optional[str] = Field(None, max_length=500)
-    icon: Optional[str] = Field(None, max_length=500)
-    intro_images: Optional[str] = None
+    banner_image: Optional[str] = Field(None, max_length=500, description="banner图片URL")
+    icon: Optional[str] = Field(None, max_length=500, description="科室图标URL")
+    intro_images: Optional[str] = Field(None, description="简介图片集JSON")
     
     # 详情内容
-    intro_content: Optional[str] = None
-    features: Optional[str] = None
-    appointment_notice: Optional[str] = None
+    intro_content: Optional[str] = Field(None, description="富文本简介")
+    features: Optional[str] = Field(None, description="科室特色JSON数组")
+    appointment_notice: Optional[str] = Field(None, description="预约须知")
     
     # 联系信息
-    phone: Optional[str] = Field(None, max_length=20)
-    location: Optional[str] = Field(None, max_length=100)
-    working_hours: Optional[str] = Field(None, max_length=200)
+    phone: Optional[str] = Field(None, max_length=20, description="科室电话")
+    location: Optional[str] = Field(None, max_length=100, description="位置/楼层")
+    working_hours: Optional[str] = Field(None, max_length=200, description="工作时间")
 
 class DepartmentResponse(BaseModel):
     """科室响应模型 - 所有字段都可为空以兼容历史数据"""
@@ -93,41 +95,42 @@ class DepartmentResponse(BaseModel):
         by_alias=True,  # 序列化时使用别名 (camelCase)
     )
     
-    id: str
-    name: str
-    parent_id: Optional[str] = None
-    description: Optional[str] = None
-    sort_order: Optional[int] = 0
-    is_hot: Optional[int] = 0
-    status: Optional[int] = 1
-    created_at: datetime
-    updated_at: datetime
+    id: str = Field(..., description="科室ID")
+    name: str = Field(..., description="科室名称")
+    parent_id: Optional[str] = Field(None, description="父级科室ID")
+    description: Optional[str] = Field(None, description="科室描述")
+    sort_order: Optional[int] = Field(0, description="排序序号")
+    is_hot: Optional[int] = Field(0, description="是否热门: 0否 1是")
+    status: Optional[int] = Field(1, description="状态: 0禁用 1启用")
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: datetime = Field(..., description="更新时间")
     
     # 基础配置
-    store_id: Optional[str] = None
-    store_name: Optional[str] = None
-    tag: Optional[str] = None
-    enable_banner: Optional[int] = 0
-    enable_intro: Optional[int] = 0
-    is_final: Optional[int] = 0
-    is_recommended: Optional[int] = 0
+    store_id: Optional[str] = Field(None, description="默认门店ID")
+    store_name: Optional[str] = Field(None, description="门店名称")
+    tag: Optional[str] = Field(None, description="科室标签")
+    enable_banner: Optional[int] = Field(0, description="是否开放banner: 0否 1是")
+    enable_intro: Optional[int] = Field(0, description="是否开放科室简介: 0否 1是")
+    is_final: Optional[int] = Field(0, description="是否终极科室: 0否 1是")
+    is_recommended: Optional[int] = Field(0, description="是否推荐: 0否 1是")
     
     # 图片资源
-    banner_image: Optional[str] = None
-    icon: Optional[str] = None
-    intro_images: Optional[str] = None
+    banner_image: Optional[str] = Field(None, description="banner图片URL")
+    icon: Optional[str] = Field(None, description="科室图标URL")
+    intro_images: Optional[str] = Field(None, description="简介图片集JSON")
     
     # 详情内容
-    intro_content: Optional[str] = None
-    features: Optional[str] = None
-    appointment_notice: Optional[str] = None
+    intro_content: Optional[str] = Field(None, description="富文本简介")
+    features: Optional[str] = Field(None, description="科室特色JSON数组")
+    appointment_notice: Optional[str] = Field(None, description="预约须知")
     
     # 联系信息
-    phone: Optional[str] = None
-    location: Optional[str] = None
-    working_hours: Optional[str] = None
+    phone: Optional[str] = Field(None, description="科室电话")
+    location: Optional[str] = Field(None, description="位置/楼层")
+    working_hours: Optional[str] = Field(None, description="工作时间")
 
 class DepartmentTreeNode(BaseModel):
+    """科室树节点"""
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,
@@ -135,10 +138,10 @@ class DepartmentTreeNode(BaseModel):
         by_alias=True,
     )
     
-    id: str
-    name: str
-    parent_id: Optional[str] = None
-    children: List['DepartmentTreeNode'] = []
+    id: str = Field(..., description="科室ID")
+    name: str = Field(..., description="科室名称")
+    parent_id: Optional[str] = Field(None, description="父级科室ID")
+    children: List['DepartmentTreeNode'] = Field(default=[], description="子科室列表")
 
 DepartmentTreeNode.model_rebuild()
 

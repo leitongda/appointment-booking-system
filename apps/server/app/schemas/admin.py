@@ -79,12 +79,12 @@ class AdminListResponse(BaseModel):
         alias_generator=to_camel,
     )
     
-    id: str
-    username: str
-    name: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    avatar: Optional[str] = None
-    role_id: Optional[str] = None
-    status: int = 1
-    created_at: Optional[datetime] = None
+    id: str = Field(..., description="管理员ID")
+    username: str = Field(..., description="用户名")
+    name: Optional[str] = Field(None, description="姓名")
+    phone: Optional[str] = Field(None, description="手机号")
+    email: Optional[str] = Field(None, description="邮箱")
+    avatar: Optional[str] = Field(None, description="头像URL")
+    role_id: Optional[str] = Field(None, description="角色ID")
+    status: int = Field(1, description="状态: 0禁用 1正常")
+    created_at: Optional[datetime] = Field(None, description="创建时间")

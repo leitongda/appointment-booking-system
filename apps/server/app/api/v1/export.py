@@ -13,7 +13,7 @@ from app.services.export_service import ExportService
 router = APIRouter()
 
 
-@router.get("/appointments")
+@router.get("/appointments", summary="导出预约记录")
 async def export_appointments(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,

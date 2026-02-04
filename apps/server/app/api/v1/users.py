@@ -29,7 +29,7 @@ class AvatarUploadResponse(BaseModel):
     url: str
     key: str
 
-@router.get("/profile", response_model=UserResponse)
+@router.get("/profile", response_model=UserResponse, summary="获取当前用户信息")
 async def get_profile(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -50,7 +50,7 @@ async def get_profile(
         status=user.status
     )
 
-@router.put("/profile", response_model=UserResponse)
+@router.put("/profile", response_model=UserResponse, summary="更新用户信息")
 async def update_profile(
     data: UserUpdate,
     db: AsyncSession = Depends(get_db),
@@ -72,7 +72,7 @@ async def update_profile(
         status=user.status
     )
 
-@router.post("/change-password")
+@router.post("/change-password", summary="修改密码")
 async def change_password(
     data: ChangePasswordRequest,
     db: AsyncSession = Depends(get_db),
@@ -92,7 +92,7 @@ async def change_password(
     return {"message": message}
 
 
-@router.post("/bind-phone")
+@router.post("/bind-phone", summary="绑定手机号")
 async def bind_phone(
     data: BindPhoneRequest,
     db: AsyncSession = Depends(get_db),
@@ -108,7 +108,7 @@ async def bind_phone(
     return {"message": message}
 
 
-@router.post("/avatar", response_model=AvatarUploadResponse)
+@router.post("/avatar", response_model=AvatarUploadResponse, summary="上传头像")
 async def upload_avatar(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
@@ -168,7 +168,7 @@ async def upload_avatar(
 
 
 # ========== 就诊人管理 ==========
-@router.get("/patients", response_model=List[PatientResponse])
+@router.get("/patients", response_model=List[PatientResponse], summary="获取就诊人列表")
 async def get_patients(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -178,7 +178,7 @@ async def get_patients(
     patients = await patient_service.get_by_user_id(current_user["id"])
     return [PatientResponse.model_validate(p) for p in patients]
 
-@router.get("/patients/{patient_id}", response_model=PatientResponse)
+@router.get("/patients/{patient_id}", response_model=PatientResponse, summary="获取就诊人详情")
 async def get_patient_detail(
     patient_id: str,
     db: AsyncSession = Depends(get_db),
@@ -193,7 +193,7 @@ async def get_patient_detail(
     
     return PatientResponse.model_validate(patient)
 
-@router.post("/patients", response_model=PatientResponse)
+@router.post("/patients", response_model=PatientResponse, summary="添加就诊人")
 async def add_patient(
     data: PatientCreate,
     db: AsyncSession = Depends(get_db),
@@ -204,7 +204,7 @@ async def add_patient(
     patient = await patient_service.create(current_user["id"], data)
     return PatientResponse.model_validate(patient)
 
-@router.put("/patients/{patient_id}", response_model=PatientResponse)
+@router.put("/patients/{patient_id}", response_model=PatientResponse, summary="更新就诊人")
 async def update_patient(
     patient_id: str,
     data: PatientUpdate,
@@ -220,7 +220,7 @@ async def update_patient(
     
     return PatientResponse.model_validate(patient)
 
-@router.delete("/patients/{patient_id}")
+@router.delete("/patients/{patient_id}", summary="删除就诊人")
 async def delete_patient(
     patient_id: str,
     db: AsyncSession = Depends(get_db),

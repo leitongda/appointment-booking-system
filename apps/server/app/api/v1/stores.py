@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_permission
 from app.schemas.store import (
     StoreCreate, StoreUpdate, StoreResponse, StoreListResponse, StoreQuery,
     StoreWechatConfigUpdate, StoreWechatConfigResponse
@@ -19,7 +19,7 @@ router = APIRouter()
 
 # ==================== 公开接口（无需登录） ====================
 
-@router.get("/by-code/{code}", response_model=StoreResponse)
+@router.get("/by-code/{code}", response_model=StoreResponse, summary="获取门店")
 async def get_store_by_code(
     code: str,
     db: AsyncSession = Depends(get_db)
@@ -46,7 +46,7 @@ async def get_store_by_code(
     return StoreResponse.model_validate(store)
 
 
-@router.get("/check-unique")
+@router.get("/check-unique", summary="检查唯一性")
 async def check_unique(
     field: str = Query(..., pattern="^(name|code)$", description="检查字段: name 或 code"),
     value: str = Query(..., min_length=1, description="字段值"),
@@ -78,7 +78,7 @@ async def check_unique(
 
 # ==================== 需要登录的接口 ====================
 
-@router.get("", response_model=PageResponse[StoreListResponse])
+@router.get("", response_model=PageResponse[StoreListResponse], summary="获取门店列表")
 async def get_stores(
     keyword: Optional[str] = None,
     status: Optional[int] = None,
@@ -148,7 +148,7 @@ async def get_stores(
     )
 
 
-@router.get("/all", response_model=List[StoreResponse])
+@router.get("/all", response_model=List[StoreResponse], summary="获取所有门店")
 async def get_all_stores(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
@@ -169,7 +169,7 @@ async def get_all_stores(
     return [StoreResponse.model_validate(s) for s in stores]
 
 
-@router.get("/{store_id}", response_model=StoreResponse)
+@router.get("/{store_id}", response_model=StoreResponse, summary="获取门店详情")
 async def get_store(
     store_id: str, 
     db: AsyncSession = Depends(get_db),
@@ -196,11 +196,12 @@ async def get_store(
     return StoreResponse.model_validate(store)
 
 
-@router.post("", response_model=StoreResponse)
+@router.post("", response_model=StoreResponse, summary="创建门店")
 async def create_store(
     data: StoreCreate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("store:create"))
 ):
     """创建门店（仅超级管理员）"""
     # 门店管理员不能创建门店
@@ -222,12 +223,13 @@ async def create_store(
         )
 
 
-@router.put("/{store_id}", response_model=StoreResponse)
+@router.put("/{store_id}", response_model=StoreResponse, summary="更新门店")
 async def update_store(
     store_id: str,
     data: StoreUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("store:update"))
 ):
     """更新门店"""
     # 门店管理员只能更新自己的门店
@@ -255,11 +257,12 @@ async def update_store(
         )
 
 
-@router.delete("/{store_id}")
+@router.delete("/{store_id}", summary="删除门店")
 async def delete_store(
     store_id: str, 
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("store:delete"))
 ):
     """删除门店（仅超级管理员）"""
     # 门店管理员不能删除门店
@@ -287,7 +290,7 @@ async def delete_store(
     return {"message": "删除成功"}
 
 
-@router.patch("/{store_id}/status")
+@router.patch("/{store_id}/status", summary="更新门店状态")
 async def update_store_status(
     store_id: str,
     new_status: int = Query(..., ge=0, le=2, alias="status", description="状态: 0-停业 1-营业 2-禁用"),
@@ -338,7 +341,7 @@ async def update_store_status(
     return {"message": "状态更新成功"}
 
 
-@router.get("/{store_id}/departments", response_model=List[DepartmentResponse])
+@router.get("/{store_id}/departments", response_model=List[DepartmentResponse], summary="获取科室列表")
 async def get_store_departments(
     store_id: str,
     db: AsyncSession = Depends(get_db),
@@ -367,7 +370,7 @@ async def get_store_departments(
     return [DepartmentResponse.model_validate(d) for d in departments]
 
 
-@router.put("/{store_id}/departments/batch")
+@router.put("/{store_id}/departments/batch", summary="批量绑定科室")
 async def batch_bind_departments(
     store_id: str,
     department_ids: List[str],
@@ -395,7 +398,7 @@ async def batch_bind_departments(
         )
 
 
-@router.get("/{store_id}/admins", response_model=List[AdminListResponse])
+@router.get("/{store_id}/admins", response_model=List[AdminListResponse], summary="获取管理员列表")
 async def get_store_admins(
     store_id: str,
     db: AsyncSession = Depends(get_db),
@@ -423,7 +426,7 @@ async def get_store_admins(
     return [AdminListResponse.model_validate(a) for a in admins]
 
 
-@router.put("/{store_id}/admins/batch")
+@router.put("/{store_id}/admins/batch", summary="批量绑定管理员")
 async def batch_bind_admins(
     store_id: str,
     admin_ids: List[str],
@@ -452,7 +455,7 @@ async def batch_bind_admins(
 
 # ==================== 门店微信配置 ====================
 
-@router.get("/{store_id}/wechat-config", response_model=StoreWechatConfigResponse)
+@router.get("/{store_id}/wechat-config", response_model=StoreWechatConfigResponse, summary="获取微信配置")
 async def get_store_wechat_config(
     store_id: str,
     db: AsyncSession = Depends(get_db),
@@ -493,7 +496,7 @@ async def get_store_wechat_config(
     )
 
 
-@router.put("/{store_id}/wechat-config")
+@router.put("/{store_id}/wechat-config", summary="更新微信配置")
 async def update_store_wechat_config(
     store_id: str,
     data: StoreWechatConfigUpdate,
@@ -554,7 +557,7 @@ async def update_store_wechat_config(
 
 # ==================== 签到二维码 ====================
 
-@router.get("/{store_id}/checkin-qrcode")
+@router.get("/{store_id}/checkin-qrcode", summary="获取签到二维码")
 async def get_store_checkin_qrcode(
     store_id: str,
     db: AsyncSession = Depends(get_db),

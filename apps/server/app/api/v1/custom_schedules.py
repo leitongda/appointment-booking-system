@@ -49,7 +49,7 @@ def _check_rest_day_for_schedule(
     return False
 
 
-@router.get("", response_model=PageResponse[CustomScheduleResponse])
+@router.get("", response_model=PageResponse[CustomScheduleResponse], summary="获取列表")
 async def get_custom_schedules(
     store_id: Optional[str] = None,
     department_id: Optional[str] = None,
@@ -147,7 +147,7 @@ async def get_custom_schedules(
     return PageResponse(data=result, total=total, page=page, page_size=page_size)
 
 
-@router.get("/effective", response_model=List[CustomScheduleResponse])
+@router.get("/effective", response_model=List[CustomScheduleResponse], summary="获取生效")
 async def get_effective_schedules(
     store_id: Optional[str] = None,
     doctor_id: Optional[str] = None,
@@ -222,7 +222,7 @@ async def get_effective_schedules(
     return result
 
 
-@router.post("", response_model=List[CustomScheduleResponse])
+@router.post("", response_model=List[CustomScheduleResponse], summary="创建排班")
 async def create_custom_schedules(
     data: CustomScheduleCreate,
     db: AsyncSession = Depends(get_db),
@@ -334,7 +334,7 @@ async def create_custom_schedules(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.delete("/{schedule_id}")
+@router.delete("/{schedule_id}", summary="删除排班")
 async def delete_custom_schedule(
     schedule_id: str,
     db: AsyncSession = Depends(get_db),

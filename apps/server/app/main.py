@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import PlainTextResponse
 from contextlib import asynccontextmanager
 import asyncio
 import logging
@@ -248,6 +249,53 @@ def create_app() -> FastAPI:
             checks["status"] = "degraded"
         
         return checks
+    
+    # ==================== LLMs.txt 支持 ====================
+    # llms.txt 是一个标准格式，帮助 LLM 理解 API 结构
+    # 参考: https://llmstxt.org/
+    
+    @app.get("/llms.txt", response_class=PlainTextResponse, include_in_schema=False)
+    async def get_llms_txt():
+        """提供 llms.txt 文件 - API 概览版"""
+        static_dir = Path(__file__).parent / "static"
+        llms_txt_path = static_dir / "llms.txt"
+        
+        if llms_txt_path.exists():
+            return llms_txt_path.read_text(encoding="utf-8")
+        
+        # 如果文件不存在，返回基础信息
+        return f"""# {settings.PROJECT_NAME}
+
+> 医院挂号系统 API
+
+- API 版本: 1.0.0
+- 基础路径: {settings.API_V1_STR}
+- Swagger 文档: /docs
+- ReDoc 文档: /redoc
+- OpenAPI JSON: {settings.API_V1_STR}/openapi.json
+
+请运行 `python scripts/generate_llms_txt.py` 生成完整的 llms.txt 文件。
+"""
+    
+    @app.get("/llms-full.txt", response_class=PlainTextResponse, include_in_schema=False)
+    async def get_llms_full_txt():
+        """提供 llms-full.txt 文件 - 包含完整端点详情"""
+        static_dir = Path(__file__).parent / "static"
+        llms_full_path = static_dir / "llms-full.txt"
+        
+        if llms_full_path.exists():
+            return llms_full_path.read_text(encoding="utf-8")
+        
+        # 如果文件不存在，返回提示
+        return f"""# {settings.PROJECT_NAME}
+
+> 医院挂号系统 API - 完整版
+
+请运行 `python scripts/generate_llms_txt.py` 生成完整的 llms-full.txt 文件。
+
+或者访问 OpenAPI 规范获取完整 API 定义:
+- {settings.API_V1_STR}/openapi.json
+"""
     
     return app
 

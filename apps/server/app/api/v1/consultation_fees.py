@@ -4,6 +4,7 @@ from typing import Optional, List
 from decimal import Decimal
 
 from app.db.session import get_db
+from app.api.deps import get_current_admin, require_permission
 from app.schemas.consultation_fee import (
     ConsultationFeeTypeCreate, ConsultationFeeTypeUpdate, ConsultationFeeTypeResponse,
     ConsultationFeeTemplateCreate, ConsultationFeeTemplateResponse, ConsultationFeeTemplateWithType,
@@ -78,7 +79,9 @@ async def get_fee_type(
 @router.post("/types", response_model=ConsultationFeeTypeResponse)
 async def create_fee_type(
     data: ConsultationFeeTypeCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:consultation-fee"))
 ):
     """
     创建诊费类型
@@ -114,7 +117,9 @@ async def create_fee_type(
 async def update_fee_type(
     fee_type_id: str,
     data: ConsultationFeeTypeUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:consultation-fee"))
 ):
     """更新诊费类型"""
     service = ConsultationFeeService(db)
@@ -151,7 +156,9 @@ async def update_fee_type(
 @router.delete("/types/{fee_type_id}")
 async def delete_fee_type(
     fee_type_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:consultation-fee"))
 ):
     """删除诊费类型"""
     service = ConsultationFeeService(db)

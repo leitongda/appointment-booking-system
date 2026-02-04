@@ -52,7 +52,7 @@ const AppointmentDetailPage: React.FC = () => {
 
   const handleSignIn = async () => {
     try {
-      const result = await appointmentApi.signIn(id!);
+      const result = await appointmentApi.signIn(id!, { checkin_method: 'PHONE' });
       Toast.show({ 
         content: `签到成功，您是第 ${result.queueNumber} 号`, 
         icon: 'success' 

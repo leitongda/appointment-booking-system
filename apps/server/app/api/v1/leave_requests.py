@@ -4,7 +4,7 @@ from typing import Optional, List
 from datetime import date
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin, get_store_filter
+from app.api.deps import get_current_admin, get_store_filter, require_permission, get_current_doctor_by_token
 from app.schemas.leave_request import (
     StopClinicCreate, ScheduleChangeCreate, ReviewRequest,
     LeaveRequestResponse, LeaveRequestQuery, RequestType, RequestStatus
@@ -16,7 +16,7 @@ from app.core.config import settings
 router = APIRouter()
 
 
-@router.get("", response_model=PageResponse[LeaveRequestResponse])
+@router.get("", response_model=PageResponse[LeaveRequestResponse], summary="获取申请列表")
 async def get_leave_requests(
     doctor_id: Optional[str] = None,
     request_type: Optional[RequestType] = None,
@@ -53,7 +53,7 @@ async def get_leave_requests(
     )
 
 
-@router.get("/pending-count")
+@router.get("/pending-count", summary="获取待审核数")
 async def get_pending_count(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
@@ -68,7 +68,7 @@ async def get_pending_count(
     return {"count": count}
 
 
-@router.get("/my", response_model=List[LeaveRequestResponse])
+@router.get("/my", response_model=List[LeaveRequestResponse], summary="获取我的申请")
 async def get_my_requests(
     doctor_id: str = Query(..., description="医生ID"),
     status: Optional[str] = None,
@@ -80,7 +80,7 @@ async def get_my_requests(
     return [LeaveRequestResponse.model_validate(r) for r in requests]
 
 
-@router.get("/{request_id}", response_model=LeaveRequestResponse)
+@router.get("/{request_id}", response_model=LeaveRequestResponse, summary="获取申请详情")
 async def get_leave_request(
     request_id: str,
     db: AsyncSession = Depends(get_db)
@@ -98,7 +98,7 @@ async def get_leave_request(
     return LeaveRequestResponse.model_validate(request)
 
 
-@router.post("/stop-clinic", response_model=LeaveRequestResponse)
+@router.post("/stop-clinic", response_model=LeaveRequestResponse, summary="创建停诊申请")
 async def create_stop_clinic_request(
     data: StopClinicCreate,
     db: AsyncSession = Depends(get_db)
@@ -109,7 +109,7 @@ async def create_stop_clinic_request(
     return LeaveRequestResponse.model_validate(request)
 
 
-@router.post("/schedule-change", response_model=LeaveRequestResponse)
+@router.post("/schedule-change", response_model=LeaveRequestResponse, summary="创建调班申请")
 async def create_schedule_change_request(
     data: ScheduleChangeCreate,
     db: AsyncSession = Depends(get_db)
@@ -120,15 +120,17 @@ async def create_schedule_change_request(
     return LeaveRequestResponse.model_validate(request)
 
 
-@router.post("/{request_id}/review", response_model=LeaveRequestResponse)
+@router.post("/{request_id}/review", response_model=LeaveRequestResponse, summary="审核申请")
 async def review_request(
     request_id: str,
     data: ReviewRequest,
-    reviewer_id: str = Query(..., description="审核人ID"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("leave-request:approve"))
 ):
     """审核申请"""
     service = LeaveRequestService(db)
+    reviewer_id = current_admin.get("id")
     
     try:
         request = await service.review(request_id, reviewer_id, data)
@@ -162,7 +164,7 @@ async def review_request(
         )
 
 
-@router.post("/{request_id}/cancel")
+@router.post("/{request_id}/cancel", summary="取消申请")
 async def cancel_request(
     request_id: str,
     doctor_id: str = Query(..., description="医生ID"),

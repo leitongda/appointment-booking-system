@@ -12,22 +12,25 @@ def to_camel(string: str) -> str:
 
 
 class RequestType(str, Enum):
-    STOP_CLINIC = "stop_clinic"
-    SCHEDULE_CHANGE = "schedule_change"
+    """申请类型"""
+    STOP_CLINIC = "stop_clinic"         # 停诊申请
+    SCHEDULE_CHANGE = "schedule_change" # 调班申请
 
 
 class RequestStatus(str, Enum):
-    PENDING = "pending"
-    APPROVED = "approved"
-    REJECTED = "rejected"
-    CANCELLED = "cancelled"
+    """申请状态"""
+    PENDING = "pending"       # 待审核
+    APPROVED = "approved"     # 已通过
+    REJECTED = "rejected"     # 已拒绝
+    CANCELLED = "cancelled"   # 已取消
 
 
 class Period(str, Enum):
-    MORNING = "morning"
-    AFTERNOON = "afternoon"
-    EVENING = "evening"
-    ALL = "all"
+    """时段"""
+    MORNING = "morning"       # 上午
+    AFTERNOON = "afternoon"   # 下午
+    EVENING = "evening"       # 晚上
+    ALL = "all"               # 全天
 
 
 # 停诊申请

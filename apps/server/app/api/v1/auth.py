@@ -13,7 +13,7 @@ from app.core.config import settings
 
 router = APIRouter()
 
-@router.post("/login", response_model=LoginResponse)
+@router.post("/login", response_model=LoginResponse, summary="用户登录")
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     """用户登录"""
     user_service = UserService(db)
@@ -42,7 +42,7 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
         )
     )
 
-@router.post("/register", response_model=UserResponse)
+@router.post("/register", response_model=UserResponse, summary="用户注册")
 async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
     """用户注册"""
     user_service = UserService(db)
@@ -64,7 +64,7 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
         status=user.status
     )
 
-@router.post("/refresh", response_model=TokenResponse)
+@router.post("/refresh", response_model=TokenResponse, summary="刷新Token")
 async def refresh_token(data: RefreshTokenRequest, db: AsyncSession = Depends(get_db)):
     """刷新Token"""
     payload = decode_token(data.refresh_token)
@@ -88,7 +88,7 @@ async def refresh_token(data: RefreshTokenRequest, db: AsyncSession = Depends(ge
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
     )
 
-@router.post("/change-password")
+@router.post("/change-password", summary="修改密码")
 async def change_password(
     data: ChangePasswordRequest,
     db: AsyncSession = Depends(get_db),
@@ -111,7 +111,7 @@ async def change_password(
 
 
 # ========== 微信登录 ==========
-@router.post("/wechat/login", response_model=WechatLoginResponse)
+@router.post("/wechat/login", response_model=WechatLoginResponse, summary="微信登录")
 async def wechat_login(data: WechatLoginRequest, db: AsyncSession = Depends(get_db)):
     """
     微信小程序登录
@@ -169,7 +169,7 @@ async def wechat_login(data: WechatLoginRequest, db: AsyncSession = Depends(get_
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.post("/wechat/phone", response_model=LoginResponse)
+@router.post("/wechat/phone", response_model=LoginResponse, summary="微信获取手机号")
 async def wechat_get_phone(data: WechatPhoneRequest, db: AsyncSession = Depends(get_db)):
     """
     微信获取手机号并自动登录/注册
@@ -229,7 +229,7 @@ async def wechat_get_phone(data: WechatPhoneRequest, db: AsyncSession = Depends(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.post("/wechat/bind-phone", response_model=LoginResponse)
+@router.post("/wechat/bind-phone", response_model=LoginResponse, summary="微信绑定手机号")
 async def wechat_bind_phone(data: WechatBindPhoneRequest, db: AsyncSession = Depends(get_db)):
     """
     微信绑定手机号（手动输入方式）
@@ -279,7 +279,7 @@ async def wechat_bind_phone(data: WechatBindPhoneRequest, db: AsyncSession = Dep
     )
 
 
-@router.post("/wechat/bind-userinfo", response_model=LoginResponse)
+@router.post("/wechat/bind-userinfo", response_model=LoginResponse, summary="微信绑定用户信息")
 async def wechat_bind_userinfo(data: WechatBindUserInfoRequest, db: AsyncSession = Depends(get_db)):
     """
     微信绑定用户信息（头像昵称）并完成登录

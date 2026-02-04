@@ -1,12 +1,12 @@
-import type { ActionType, ProColumns } from '@ant-design/pro-components';
+import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { App, Space, Tag, Avatar, Popconfirm, Divider } from 'antd';
-import { UserOutlined, DeleteOutlined, EyeOutlined, StopOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { useRef } from 'react';
-import { history, useAccess } from '@umijs/max';
+import { Tag, Avatar } from 'antd';
+import { UserOutlined, StopOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { userManageApi } from '@hospital/api';
 import type { UserListItem } from '@hospital/api';
-import { toProTableResult } from '@/utils/proTable';
+import { createListRequest } from '@/utils/proTable';
+import { useListPage } from '@/hooks/useListPage';
+import { OperationButton, OperationGroup } from '@/components/ListOperations';
 
 const STATUS_MAP: Record<number, { text: string; status: 'success' | 'error' }> = {
   0: { text: '禁用', status: 'error' },
@@ -14,28 +14,15 @@ const STATUS_MAP: Record<number, { text: string; status: 'success' | 'error' }> 
 };
 
 const UserManagePage: React.FC = () => {
-  const { message } = App.useApp();
-  const access = useAccess();
-  const actionRef = useRef<ActionType>();
+  const { actionRef, handleAction, handleDelete } = useListPage({
+    deleteFn: userManageApi.deleteUser,
+  });
 
   const handleUpdateStatus = async (id: string, status: number) => {
-    try {
-      await userManageApi.updateStatus(id, status);
-      message.success(status === 0 ? '已禁用' : '已启用');
-      actionRef.current?.reload();
-    } catch (error: any) {
-      message.error(error.message || '操作失败');
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      await userManageApi.deleteUser(id);
-      message.success('删除成功');
-      actionRef.current?.reload();
-    } catch (error: any) {
-      message.error(error.message || '删除失败');
-    }
+    await handleAction(
+      () => userManageApi.updateStatus(id, status),
+      { successText: status === 0 ? '已禁用' : '已启用', errorText: '操作失败', reloadOnSuccess: true }
+    );
   };
 
   const columns: ProColumns<UserListItem>[] = [
@@ -105,43 +92,40 @@ const UserManagePage: React.FC = () => {
       width: 220,
       fixed: 'right',
       render: (_, record) => (
-        <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
-          <a onClick={() => history.push(`/user/${record.id}`)} style={{ fontSize: 13 }}>
-            <EyeOutlined /> 详情
-          </a>
-          {access.hasPermission('user:update') && (
-            record.status === 1 ? (
-              <Popconfirm
-                title="确定禁用该用户吗？禁用后用户将无法预约"
-                onConfirm={() => handleUpdateStatus(record.id, 0)}
-              >
-                <a style={{ color: '#ff4d4f', fontSize: 13 }}>
-                  <StopOutlined /> 禁用
-                </a>
-              </Popconfirm>
-            ) : (
-              <Popconfirm
-                title="确定启用该用户吗？"
-                onConfirm={() => handleUpdateStatus(record.id, 1)}
-              >
-                <a style={{ color: '#52c41a', fontSize: 13 }}>
-                  <CheckCircleOutlined /> 启用
-                </a>
-              </Popconfirm>
-            )
+        <OperationGroup>
+          <OperationButton
+            type="view"
+            url={`/user/${record.id}`}
+          />
+          {record.status === 1 ? (
+            <OperationButton
+              type="custom"
+              permission="user:update"
+              icon={<StopOutlined />}
+              label="禁用"
+              danger
+              confirmText="确定禁用该用户吗？禁用后用户将无法预约"
+              onClick={() => handleUpdateStatus(record.id, 0)}
+            />
+          ) : (
+            <OperationButton
+              type="custom"
+              permission="user:update"
+              icon={<CheckCircleOutlined />}
+              label="启用"
+              style={{ color: '#52c41a' }}
+              confirmText="确定启用该用户吗？"
+              onClick={() => handleUpdateStatus(record.id, 1)}
+            />
           )}
-          {access.hasPermission('user:delete') && (
-            <Popconfirm
-              title="确定删除该用户吗？"
-              description="删除后用户的所有就诊卡将被一并删除，此操作不可恢复"
-              onConfirm={() => handleDelete(record.id)}
-            >
-              <a style={{ color: '#ff4d4f', fontSize: 13 }}>
-                <DeleteOutlined /> 删除
-              </a>
-            </Popconfirm>
-          )}
-        </Space>
+          <OperationButton
+            type="delete"
+            permission="user:delete"
+            confirmText="确定删除该用户吗？"
+            confirmDescription="删除后用户的所有就诊卡将被一并删除，此操作不可恢复"
+            onClick={() => handleDelete(record.id)}
+          />
+        </OperationGroup>
       ),
     },
   ];
@@ -154,19 +138,10 @@ const UserManagePage: React.FC = () => {
         rowKey="id"
         columns={columns}
         scroll={{ x: 1000 }}
-        request={async (params) => {
-          const { current, pageSize, phone, nickname, status, ...rest } = params;
-          const keyword = phone || nickname;
-          return toProTableResult(
-            await userManageApi.getList({
-              ...rest,
-              keyword,
-              status,
-              page: current,
-              pageSize,
-            })
-          );
-        }}
+        request={createListRequest(userManageApi.getList, (params) => {
+          const { phone, nickname, ...rest } = params;
+          return { ...rest, keyword: phone || nickname };
+        })}
         pagination={{ defaultPageSize: 10 }}
         search={{ labelWidth: 'auto' }}
       />
@@ -175,4 +150,3 @@ const UserManagePage: React.FC = () => {
 };
 
 export default UserManagePage;
-

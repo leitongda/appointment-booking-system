@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_permission
 from app.services.email_template_service import EmailTemplateService
 from app.services.email_service import EmailService
 from app.schemas.email_template import (
@@ -78,7 +78,8 @@ async def get_email_template(
 async def create_email_template(
     data: EmailTemplateCreate,
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:settings"))
 ):
     """创建邮件模板"""
     service = EmailTemplateService(db)
@@ -95,7 +96,8 @@ async def update_email_template(
     template_id: str,
     data: EmailTemplateUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:settings"))
 ):
     """更新邮件模板"""
     service = EmailTemplateService(db)
@@ -111,7 +113,8 @@ async def update_email_template(
 async def delete_email_template(
     template_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:settings"))
 ):
     """删除邮件模板"""
     service = EmailTemplateService(db)

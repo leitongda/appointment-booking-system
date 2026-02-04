@@ -20,6 +20,7 @@ const CLEAN_TARGETS = [
   '.swc',
   '.temp',
   '.rn_temp',
+  '.taro-cache',
   '*.log',
 ];
 

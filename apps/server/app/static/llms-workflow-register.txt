@@ -1,0 +1,47 @@
+# 患者注册流程
+
+> 新用户注册和添加就诊人的流程
+
+- 基础路径: /api/v1
+- 认证方式: Bearer Token (JWT)
+
+---
+
+## 流程步骤
+
+### 步骤 1: 微信登录
+
+- [POST /api/v1/auth/wechat/login](/api/v1/auth/wechat/login): 微信小程序登录
+
+### 步骤 2: 获取微信手机号
+
+- [POST /api/v1/auth/wechat/phone](/api/v1/auth/wechat/phone): 微信获取手机号并自动登录/注册
+
+### 步骤 3: 绑定手机号
+
+- [POST /api/v1/auth/wechat/bind-phone](/api/v1/auth/wechat/bind-phone): 微信绑定手机号（手动输入方式）
+
+### 步骤 4: 绑定用户信息
+
+- [POST /api/v1/auth/wechat/bind-userinfo](/api/v1/auth/wechat/bind-userinfo): 微信绑定用户信息（头像昵称）并完成登录
+
+### 步骤 5: 获取用户信息
+
+- [GET /api/v1/users/profile](/api/v1/users/profile): 获取当前用户信息
+
+### 步骤 6: 获取就诊人列表
+
+- [GET /api/v1/users/patients](/api/v1/users/patients): 获取就诊人列表
+
+### 步骤 7: 添加就诊人
+
+- [POST /api/v1/users/patients](/api/v1/users/patients): 添加就诊人
+
+### 步骤 8: 更新就诊人
+
+- [PUT /api/v1/users/patients/{patient_id}](/api/v1/users/patients/{patient_id}): 更新就诊人
+
+## 相关文档
+
+- [完整 API 文档](/llms.txt): 所有 API 端点的概览
+- [详细 API 文档](/llms-full.txt): 包含参数详情的完整文档
