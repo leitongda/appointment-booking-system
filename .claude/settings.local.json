@@ -97,7 +97,11 @@
       "Bash(pgrep:*)",
       "Bash(python:*)",
       "Bash(pnpm --filter admin build:*)",
-      "Bash(pnpm --filter admin dev:*)"
+      "Bash(pnpm --filter admin dev:*)",
+      "Bash(codex --version)",
+      "Bash(bun pm -g rm:*)",
+      "Bash(bun install:*)",
+      "Bash(bun remove:*)"
     ]
   },
   "statusLine": {
