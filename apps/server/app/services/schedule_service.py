@@ -192,14 +192,29 @@ class ScheduleService:
         await self.db.refresh(schedule)
         return schedule
     
-    async def batch_create(self, data: ScheduleBatchCreate) -> int:
-        """批量创建排班"""
-        # 先获取医生的 store_id
+    async def batch_create(self, data: ScheduleBatchCreate, operator_id: Optional[str] = None) -> int:
+        """
+        批量创建排班
+        
+        Args:
+            data: 批量创建数据
+            operator_id: 操作人ID（用于审计）
+            
+        Returns:
+            成功创建的数量
+            
+        Raises:
+            ValueError: 医生不存在
+        """
+        # 先获取医生信息并验证存在性
         doctor_result = await self.db.execute(
             select(Doctor).where(Doctor.id == data.doctor_id)
         )
         doctor = doctor_result.scalar_one_or_none()
-        store_id = doctor.store_id if doctor else None
+        if not doctor:
+            raise ValueError("医生不存在")
+        
+        store_id = doctor.store_id
         
         created_count = 0
         current_date = data.start_date
@@ -228,8 +243,10 @@ class ScheduleService:
                             time_slot=time_slot,
                             total_slots=data.total_slots,
                             booked_slots=0,
+                            appointment_type="normal",
                             status=1
                         )
+                        set_create_audit(schedule, operator_id)
                         self.db.add(schedule)
                         created_count += 1
             
@@ -326,6 +343,38 @@ class ScheduleService:
         
         return affected_count
     
+    async def delete(self, schedule_id: str) -> bool:
+        """
+        删除单个排班
+        
+        Args:
+            schedule_id: 排班ID
+            
+        Returns:
+            是否删除成功
+            
+        Raises:
+            ValueError: 排班不存在或有预约记录无法删除
+        """
+        from app.models.appointment import Appointment
+        
+        schedule = await self.get_by_id(schedule_id)
+        if not schedule:
+            raise ValueError("排班不存在")
+        
+        # 检查是否有预约记录
+        appointments_result = await self.db.execute(
+            select(Appointment.id).where(
+                Appointment.schedule_id == schedule_id
+            ).limit(1)
+        )
+        if appointments_result.scalar_one_or_none():
+            raise ValueError("该排班已有预约记录，无法删除")
+        
+        await self.db.delete(schedule)
+        await self.db.commit()
+        return True
+    
     async def batch_delete(self, schedule_ids: List[str]) -> int:
         """
         批量删除排班
@@ -374,7 +423,22 @@ class ScheduleService:
         return affected_count
     
     async def _check_rest_day(self, check_date: date, store_id: Optional[str] = None, doctor_id: Optional[str] = None) -> bool:
-        """检查指定日期是否为休息日"""
+        """
+        检查指定日期是否为休息日
+        
+        Args:
+            check_date: 要检查的日期
+            store_id: 门店ID（可选）
+            doctor_id: 医生ID（可选）
+            
+        Returns:
+            True 表示是休息日，False 表示不是
+        """
+        import json
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
         try:
             query = select(RestDay).where(
                 and_(
@@ -391,20 +455,20 @@ class ScheduleService:
             rest_days = result.scalars().all()
             
             for rd in rest_days:
-                # 如果没有指定医生ID，或者休息日配置为所有医生
+                # 如果没有指定医生ID，或者休息日配置为所有医生（doctor_ids 为 NULL）
                 if not doctor_id or rd.doctor_ids is None:
                     return True
                 # 检查医生是否在休息日列表中
                 try:
-                    import json
                     doctor_ids_list = json.loads(rd.doctor_ids)
                     if doctor_id in doctor_ids_list:
                         return True
-                except:
-                    pass
+                except (json.JSONDecodeError, TypeError) as e:
+                    logger.warning(f"解析休息日医生列表失败: rest_day_id={rd.id}, error={e}")
             
             return False
-        except Exception:
+        except Exception as e:
+            logger.error(f"检查休息日失败: date={check_date}, store_id={store_id}, error={e}")
             return False
     
     async def _create_schedule_if_not_exists(

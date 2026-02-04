@@ -66,22 +66,22 @@ class ScheduleResponse(BaseModel):
     )
     
     id: str
-    doctor_id: Optional[str] = None
+    doctor_id: str  # 必填字段
     store_id: Optional[str] = None
-    schedule_date: Optional[date] = None
+    schedule_date: date  # 必填字段
     time_slot: Optional[str] = None
     start_time: Optional[time] = None
     end_time: Optional[time] = None
-    total_slots: Optional[int] = 10
-    booked_slots: Optional[int] = 0
-    appointment_type: Optional[str] = "normal"
-    status: Optional[int] = 1
+    total_slots: int = 10  # 必填，有默认值
+    booked_slots: int = 0  # 必填，有默认值
+    appointment_type: str = "normal"  # 必填，有默认值
+    status: int = 1  # 必填，有默认值
     template_id: Optional[str] = None
     doctor_name: Optional[str] = None
     department_name: Optional[str] = None
     store_name: Optional[str] = None
     created_at: Optional[datetime] = None
-    is_rest_day: Optional[bool] = False  # 是否在休息日（后端计算）
+    is_rest_day: bool = False  # 是否在休息日（后端计算）
 
 
 class AvailableScheduleResponse(BaseModel):
@@ -93,21 +93,21 @@ class AvailableScheduleResponse(BaseModel):
     )
 
     id: str
-    schedule_date: Optional[date] = None
+    schedule_date: date  # 必填字段
     time_slot: Optional[str] = None
-    available_slots: Optional[int] = 0
+    available_slots: int = 0  # 必填，有默认值
     start_time: Optional[time] = None
     end_time: Optional[time] = None
-    appointment_type: Optional[str] = "normal"
+    appointment_type: str = "normal"  # 必填，有默认值
 
-    # 新增字段：规则引擎相关
-    total_slots: Optional[int] = None  # 总容量
+    # 规则引擎相关
+    total_slots: int = 0  # 总容量
     booking_open_at: Optional[datetime] = None  # 预约开放时间
     booking_close_at: Optional[datetime] = None  # 预约截止时间
-    booking_status: Optional[str] = None  # 预约状态：available/closing_soon/full/closed/not_open
-    capacity_percent: Optional[float] = None  # 容量百分比 (0-100)
-    urgency_level: Optional[str] = None  # 紧急程度：normal/medium/high
+    booking_status: str = "available"  # 预约状态：available/closing_soon/full/closed/not_open
+    capacity_percent: float = 100.0  # 容量百分比 (0-100)
+    urgency_level: str = "normal"  # 紧急程度：normal/medium/high/critical
     
-    # 新增字段：排班优先级相关
+    # 排班优先级相关
     template_id: Optional[str] = None  # 模板ID，为NULL表示自定义排班
-    is_rest_day: Optional[bool] = False  # 是否在休息日（后端计算，自定义排班始终为False）
+    is_rest_day: bool = False  # 是否在休息日（后端计算，自定义排班始终为False）

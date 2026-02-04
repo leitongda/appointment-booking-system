@@ -145,7 +145,8 @@ class RestDayService:
                     doctor_ids_list = json.loads(rd.doctor_ids)
                     if doctor_id in doctor_ids_list:
                         return rd
-                except:
+                except (json.JSONDecodeError, TypeError):
+                    # 解析失败时跳过该记录
                     pass
         
         return None

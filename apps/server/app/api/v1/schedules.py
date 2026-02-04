@@ -6,8 +6,11 @@ from datetime import date, datetime, timezone
 from calendar import monthrange
 from pydantic import BaseModel, Field
 import pytz
+import logging
 
 from app.db.session import get_db
+
+logger = logging.getLogger(__name__)
 from app.api.deps import get_current_admin, get_store_filter, check_store_access
 from app.schemas.schedule import ScheduleCreate, ScheduleBatchCreate, ScheduleUpdate, ScheduleResponse, AvailableScheduleResponse
 from app.schemas.response import PageResponse
@@ -334,9 +337,9 @@ async def get_available_schedules(
                     booking_status = 'closed'
                     booking_open_at = window_check.get('open_at')
                     booking_close_at = window_check.get('close_at')
-        except Exception:
-            # 规则引擎检查失败，使用默认状态
-            pass
+        except Exception as e:
+            # 规则引擎检查失败，记录日志并使用默认状态
+            logger.warning(f"规则引擎检查失败: schedule_id={s.id}, error={e}")
 
         # 如果已约满，覆盖状态
         if available == 0:
@@ -393,7 +396,11 @@ async def get_available_schedules(
     return result
 
 @router.get("/{schedule_id}", response_model=ScheduleResponse)
-async def get_schedule(schedule_id: str, db: AsyncSession = Depends(get_db)):
+async def get_schedule(
+    schedule_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
     """获取排班详情"""
     service = ScheduleService(db)
     schedule = await service.get_by_id(schedule_id)
@@ -426,7 +433,11 @@ async def get_schedule(schedule_id: str, db: AsyncSession = Depends(get_db)):
     )
 
 @router.post("", response_model=ScheduleResponse)
-async def create_schedule(data: ScheduleCreate, db: AsyncSession = Depends(get_db)):
+async def create_schedule(
+    data: ScheduleCreate,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
     """创建排班"""
     service = ScheduleService(db)
     
@@ -457,18 +468,30 @@ async def create_schedule(data: ScheduleCreate, db: AsyncSession = Depends(get_d
         is_rest_day=is_rest_day
     )
 
-@router.post("/batch")
-async def batch_create_schedules(data: ScheduleBatchCreate, db: AsyncSession = Depends(get_db)):
+@router.post("/batch", response_model=BatchOperateResponse)
+async def batch_create_schedules(
+    data: ScheduleBatchCreate,
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
     """批量创建排班"""
     service = ScheduleService(db)
-    created_count = await service.batch_create(data)
-    return {"message": f"成功创建 {created_count} 条排班"}
+    try:
+        created_count = await service.batch_create(data, operator_id=current_admin.id)
+        return BatchOperateResponse(
+            success=True,
+            affected_count=created_count,
+            message=f"成功创建 {created_count} 条排班"
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 @router.put("/{schedule_id}", response_model=ScheduleResponse)
 async def update_schedule(
     schedule_id: str,
     data: ScheduleUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
 ):
     """更新排班"""
     service = ScheduleService(db)
@@ -525,13 +548,15 @@ async def batch_suspend_schedules(
     """批量停诊排班"""
     service = ScheduleService(db)
     
-    affected_count = await service.batch_suspend(data.schedule_ids, data.reason)
-    
-    return BatchOperateResponse(
-        success=True,
-        affected_count=affected_count,
-        message=f"成功停诊 {affected_count} 条排班记录"
-    )
+    try:
+        affected_count = await service.batch_suspend(data.schedule_ids, data.reason)
+        return BatchOperateResponse(
+            success=True,
+            affected_count=affected_count,
+            message=f"成功停诊 {affected_count} 条排班记录"
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.post("/batch-resume", response_model=BatchOperateResponse)
@@ -543,13 +568,15 @@ async def batch_resume_schedules(
     """批量恢复排班"""
     service = ScheduleService(db)
     
-    affected_count = await service.batch_resume(data.schedule_ids)
-    
-    return BatchOperateResponse(
-        success=True,
-        affected_count=affected_count,
-        message=f"成功恢复 {affected_count} 条排班记录"
-    )
+    try:
+        affected_count = await service.batch_resume(data.schedule_ids)
+        return BatchOperateResponse(
+            success=True,
+            affected_count=affected_count,
+            message=f"成功恢复 {affected_count} 条排班记录"
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.post("/batch-delete", response_model=BatchOperateResponse)
@@ -561,15 +588,16 @@ async def batch_delete_schedules(
     """批量删除排班（只能删除没有任何预约记录的排班）"""
     service = ScheduleService(db)
     
-    affected_count = await service.batch_delete(data.schedule_ids)
-    
-    skipped = len(data.schedule_ids) - affected_count
-    message = f"成功删除 {affected_count} 条排班记录"
-    if skipped > 0:
-        message += f"，{skipped} 条因存在预约记录而跳过"
-    
-    return BatchOperateResponse(
-        success=True,
-        affected_count=affected_count,
-        message=message
-    )
+    try:
+        affected_count = await service.batch_delete(data.schedule_ids)
+        skipped = len(data.schedule_ids) - affected_count
+        message = f"成功删除 {affected_count} 条排班记录"
+        if skipped > 0:
+            message += f"，{skipped} 条因存在预约记录而跳过"
+        return BatchOperateResponse(
+            success=True,
+            affected_count=affected_count,
+            message=message
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

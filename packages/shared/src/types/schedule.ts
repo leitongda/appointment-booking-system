@@ -11,31 +11,31 @@ export interface Schedule {
   endTime?: string;
   totalSlots: number;
   bookedSlots: number;
-  appointmentType?: string;
+  appointmentType: string;  // 必填，默认 "normal"
   templateId?: string;
   status: number;
-  createdAt: string;
-  isRestDay?: boolean;  // 是否在休息日（后端计算）
+  createdAt?: string;  // 可选
+  isRestDay: boolean;  // 必填，默认 false
 }
 
 export interface AvailableSchedule {
   id: string;
   scheduleDate: string;
-  timeSlot: string;
+  timeSlot?: string;
   availableSlots: number;
   startTime?: string;
   endTime?: string;
-  appointmentType?: string;
+  appointmentType: string;
   // 规则引擎相关
-  totalSlots?: number;
+  totalSlots: number;
   bookingOpenAt?: string;
   bookingCloseAt?: string;
-  bookingStatus?: string;  // available/closing_soon/full/closed/not_open
-  capacityPercent?: number;
-  urgencyLevel?: string;  // normal/medium/high
+  bookingStatus: string;  // available/closing_soon/full/closed/not_open
+  capacityPercent: number;
+  urgencyLevel: string;  // normal/medium/high/critical
   // 排班优先级相关
   templateId?: string;  // 模板ID，为null/undefined表示自定义排班
-  isRestDay?: boolean;  // 是否在休息日（后端计算，自定义排班始终为false）
+  isRestDay: boolean;  // 是否在休息日（后端计算，自定义排班始终为false）
 }
 
 /**
