@@ -49,11 +49,20 @@ const SchedulePage: React.FC = () => {
     const daySchedules = getSchedulesByDate(date);
     if (daySchedules.length === 0) return null;
 
+    // 检查该日期是否有休息日的排班
+    const hasRestDay = daySchedules.some(s => s.isRestDay);
+
     return (
       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+        {hasRestDay && (
+          <li style={{ marginBottom: 4 }}>
+            <Tag color="orange" style={{ fontSize: 10 }}>休息日</Tag>
+          </li>
+        )}
         {daySchedules.map((s) => {
           const available = s.totalSlots - s.bookedSlots;
           const isSuspended = s.status === 0;
+          const isRestDay = s.isRestDay;
           
           return (
             <li 
@@ -67,9 +76,9 @@ const SchedulePage: React.FC = () => {
               }}
             >
               <Badge 
-                status={isSuspended ? 'error' : (available > 0 ? 'success' : 'default')} 
+                status={isSuspended ? 'error' : isRestDay ? 'warning' : (available > 0 ? 'success' : 'default')} 
                 text={
-                  <span style={{ fontSize: 12 }}>
+                  <span style={{ fontSize: 12, opacity: isRestDay ? 0.7 : 1 }}>
                     {TIME_SLOT_MAP[s.timeSlot]} 
                     {isSuspended ? (
                       <Tag color="red" style={{ marginLeft: 4, fontSize: 10 }}>停诊</Tag>
@@ -170,8 +179,9 @@ const SchedulePage: React.FC = () => {
         <div style={{ marginTop: 16, display: 'flex', gap: 24 }}>
           <span><Badge status="success" /> 有剩余号源</span>
           <span><Badge status="default" /> 已约满</span>
+          <span><Badge status="warning" /> 休息日</span>
           <span><Badge status="error" /> 停诊</span>
-          <span style={{ color: '#999', marginLeft: 'auto' }}>点击排班可申请停诊</span>
+          <span style={{ color: '#999', marginLeft: 'auto' }}>点击排班可申请停诊（休息日排班小程序端不可预约）</span>
         </div>
       </Spin>
 

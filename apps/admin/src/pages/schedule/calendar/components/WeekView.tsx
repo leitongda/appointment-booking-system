@@ -9,6 +9,7 @@ interface WeekViewProps {
   appointments: Appointment[];
   onAppointmentClick: (appointment: Appointment) => void;
   onCreateClick: (scheduleId: string) => void;
+  isRestDay?: (dateStr: string) => boolean;
 }
 
 // 生成30分钟时间轴 (08:00 - 21:00)
@@ -31,6 +32,7 @@ const WeekView: React.FC<WeekViewProps> = ({
   appointments,
   onAppointmentClick,
   onCreateClick,
+  isRestDay,
 }) => {
   // 计算本周的7天
   const weekDays = useMemo(() => {
@@ -107,15 +109,18 @@ const WeekView: React.FC<WeekViewProps> = ({
         <div className="week-header">
           <div className="header-cell time-column">时间</div>
           {weekDays.map((day, index) => {
-            const isToday = day.format('YYYY-MM-DD') === today;
+            const dateStr = day.format('YYYY-MM-DD');
+            const isToday = dateStr === today;
             const isWeekend = index === 0 || index === 6;
+            const isRest = isRestDay?.(dateStr) ?? false;
             return (
               <div
-                key={day.format('YYYY-MM-DD')}
-                className={`header-cell ${isToday ? 'today' : ''} ${isWeekend ? 'weekend' : ''}`}
+                key={dateStr}
+                className={`header-cell ${isToday ? 'today' : ''} ${isWeekend ? 'weekend' : ''} ${isRest ? 'rest-day' : ''}`}
               >
                 <div className="header-date">{day.format('MM/DD')}</div>
                 <div className="header-weekday">周{WEEKDAYS[day.day()]}</div>
+                {isRest && <div className="rest-day-badge">休息日</div>}
               </div>
             );
           })}

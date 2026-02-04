@@ -33,6 +33,7 @@ export interface CustomSchedule {
   bookedCount: number;
   status: number;
   createdAt: string;
+  isRestDay?: boolean;  // 是否在休息日（后端计算）
 }
 
 export interface CustomScheduleListParams {

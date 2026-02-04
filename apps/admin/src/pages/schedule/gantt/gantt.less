@@ -150,6 +150,7 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    position: relative;
 
     &:last-child {
       border-right: none;
@@ -157,6 +158,26 @@
 
     &.today {
       background: #f6ffed;
+    }
+
+    &.rest-day {
+      background: #fffbe6;
+      
+      &.today {
+        background: linear-gradient(135deg, #f6ffed 50%, #fffbe6 50%);
+      }
+    }
+
+    .rest-day-badge {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: #fa8c16;
+      color: #fff;
+      font-size: 10px;
+      padding: 1px 4px;
+      border-radius: 2px;
+      font-weight: 500;
     }
 
     .gantt-empty {

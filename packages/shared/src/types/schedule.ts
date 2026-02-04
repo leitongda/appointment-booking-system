@@ -15,6 +15,7 @@ export interface Schedule {
   templateId?: string;
   status: number;
   createdAt: string;
+  isRestDay?: boolean;  // 是否在休息日（后端计算）
 }
 
 export interface AvailableSchedule {
@@ -25,6 +26,16 @@ export interface AvailableSchedule {
   startTime?: string;
   endTime?: string;
   appointmentType?: string;
+  // 规则引擎相关
+  totalSlots?: number;
+  bookingOpenAt?: string;
+  bookingCloseAt?: string;
+  bookingStatus?: string;  // available/closing_soon/full/closed/not_open
+  capacityPercent?: number;
+  urgencyLevel?: string;  // normal/medium/high
+  // 排班优先级相关
+  templateId?: string;  // 模板ID，为null/undefined表示自定义排班
+  isRestDay?: boolean;  // 是否在休息日（后端计算，自定义排班始终为false）
 }
 
 /**
@@ -77,6 +88,7 @@ export interface CustomSchedule {
   bookedCount: number;
   status: number;
   createdAt: string;
+  isRestDay?: boolean;  // 是否在休息日（后端计算）
 }
 
 /**

@@ -24,26 +24,48 @@ from app.utils.schedule_utils import (
 logger = logging.getLogger(__name__)
 
 
-def is_rest_day(db: Session, check_date: date, store_id: str = None) -> bool:
-    """检查是否为休息日"""
+def is_rest_day(db: Session, check_date: date, store_id: str = None, doctor_id: str = None) -> bool:
+    """检查是否为休息日
+    
+    Args:
+        db: 数据库会话
+        check_date: 要检查的日期
+        store_id: 门店ID
+        doctor_id: 医生ID
+        
+    Returns:
+        True 表示是休息日，False 表示不是
+    """
+    import json
     try:
         query = select(RestDay).where(
             and_(
-                RestDay.rest_date == check_date,
-                RestDay.status == 1
+                RestDay.status == 1,
+                RestDay.start_date <= check_date,  # 修复：使用日期范围检查
+                RestDay.end_date >= check_date     # 修复：使用日期范围检查
             )
         )
         
-        # 如果指定了门店，还需要检查门店级别的休息日
+        # 如果指定了门店，过滤门店
         if store_id:
-            query = query.where(
-                (RestDay.store_id == None) | (RestDay.store_id == store_id)
-            )
-        else:
-            query = query.where(RestDay.store_id == None)
+            query = query.where(RestDay.store_id == store_id)
         
         result = db.execute(query)
-        return result.scalar_one_or_none() is not None
+        rest_days = result.scalars().all()
+        
+        for rd in rest_days:
+            # 如果没有指定医生，或者休息日配置为所有医生（doctor_ids 为 NULL）
+            if not doctor_id or rd.doctor_ids is None:
+                return True
+            # 检查医生是否在休息日列表中
+            try:
+                doctor_ids_list = json.loads(rd.doctor_ids)
+                if doctor_id in doctor_ids_list:
+                    return True
+            except (json.JSONDecodeError, TypeError):
+                pass
+        
+        return False
     except Exception:
         return False
 
@@ -109,9 +131,9 @@ def auto_generate_schedules_task():
                     if weekday in weekdays:
                         # 检查排班方式是否匹配
                         if should_generate_schedule(current_date, template.schedule_mode):
-                            # 检查是否为休息日
-                            if is_rest_day(db, current_date, template.store_id):
-                                logger.debug(f"跳过休息日: {current_date}")
+                            # 检查是否为休息日（传入医生ID以支持医生级别休息日）
+                            if is_rest_day(db, current_date, template.store_id, template.doctor_id):
+                                logger.debug(f"跳过休息日: {current_date}, doctor={template.doctor_id}")
                                 skipped_count += 1
                                 current_date += timedelta(days=1)
                                 continue
@@ -228,7 +250,8 @@ def generate_schedules_for_template(
                 # 检查星期是否匹配（支持多选）
                 if weekday in weekdays:
                     if should_generate_schedule(current_date, template.schedule_mode):
-                        if is_rest_day(db, current_date, template.store_id):
+                        # 检查是否为休息日（传入医生ID以支持医生级别休息日）
+                        if is_rest_day(db, current_date, template.store_id, template.doctor_id):
                             current_date += timedelta(days=1)
                             continue
                         

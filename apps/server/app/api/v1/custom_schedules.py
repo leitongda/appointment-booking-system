@@ -4,6 +4,7 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.orm import selectinload
 from typing import Optional, List
 from datetime import date
+import json
 
 from app.db.session import get_db
 from app.api.deps import get_current_admin
@@ -14,10 +15,38 @@ from app.schemas.custom_schedule import (
 from app.schemas.response import PageResponse
 from app.services.schedule_service import ScheduleService
 from app.models.schedule import Schedule
+from app.models.rest_day import RestDay
 from app.utils.schedule_utils import get_time_slot_from_time
 from app.core.config import settings
 
 router = APIRouter()
+
+
+def _check_rest_day_for_schedule(
+    schedule_date: date,
+    store_id: Optional[str],
+    doctor_id: str,
+    rest_days: list
+) -> bool:
+    """检查指定排班是否在休息日"""
+    for rd in rest_days:
+        # 检查日期是否在休息日范围内
+        if not (rd.start_date <= schedule_date <= rd.end_date):
+            continue
+        # 检查门店是否匹配
+        if store_id and rd.store_id != store_id:
+            continue
+        # 如果 doctor_ids 为空，表示门店所有医生休息
+        if rd.doctor_ids is None:
+            return True
+        # 检查医生是否在休息日列表中
+        try:
+            doctor_ids_list = json.loads(rd.doctor_ids)
+            if doctor_id in doctor_ids_list:
+                return True
+        except:
+            pass
+    return False
 
 
 @router.get("", response_model=PageResponse[CustomScheduleResponse])
@@ -74,8 +103,28 @@ async def get_custom_schedules(
     count_result = await db.execute(count_query)
     total = count_result.scalar() or 0
     
+    # 查询日期范围内的所有有效休息日
+    rest_days = []
+    if schedules and (start_date or end_date):
+        query_start = start_date or min(s.schedule_date for s in schedules)
+        query_end = end_date or max(s.schedule_date for s in schedules)
+        rest_day_conditions = [
+            RestDay.status == 1,
+            RestDay.start_date <= query_end,
+            RestDay.end_date >= query_start
+        ]
+        if store_id:
+            rest_day_conditions.append(RestDay.store_id == store_id)
+        rest_day_result = await db.execute(
+            select(RestDay).where(and_(*rest_day_conditions))
+        )
+        rest_days = rest_day_result.scalars().all()
+    
     result = []
     for s in schedules:
+        is_rest = _check_rest_day_for_schedule(
+            s.schedule_date, s.store_id, s.doctor_id, rest_days
+        )
         result.append(CustomScheduleResponse(
             id=s.id,
             store_id=s.store_id,
@@ -91,7 +140,8 @@ async def get_custom_schedules(
             max_patients=s.total_slots,
             booked_count=s.booked_slots,
             status=s.status,
-            created_at=s.created_at
+            created_at=s.created_at,
+            is_rest_day=is_rest
         ))
     
     return PageResponse(data=result, total=total, page=page, page_size=page_size)
@@ -130,8 +180,26 @@ async def get_effective_schedules(
     result_query = await db.execute(query)
     schedules = result_query.scalars().all()
     
+    # 查询日期范围内的所有有效休息日
+    rest_days = []
+    if schedules:
+        rest_day_conditions = [
+            RestDay.status == 1,
+            RestDay.start_date <= end_date,
+            RestDay.end_date >= start_date
+        ]
+        if store_id:
+            rest_day_conditions.append(RestDay.store_id == store_id)
+        rest_day_result = await db.execute(
+            select(RestDay).where(and_(*rest_day_conditions))
+        )
+        rest_days = rest_day_result.scalars().all()
+    
     result = []
     for s in schedules:
+        is_rest = _check_rest_day_for_schedule(
+            s.schedule_date, s.store_id, s.doctor_id, rest_days
+        )
         result.append(CustomScheduleResponse(
             id=s.id,
             store_id=s.store_id,
@@ -147,7 +215,8 @@ async def get_effective_schedules(
             max_patients=s.total_slots,
             booked_count=s.booked_slots,
             status=s.status,
-            created_at=s.created_at
+            created_at=s.created_at,
+            is_rest_day=is_rest
         ))
     
     return result
@@ -213,12 +282,34 @@ async def create_custom_schedules(
         
         # 重新加载关联数据
         result = []
+        
+        # 查询日期范围内的休息日（用于计算 is_rest_day）
+        rest_days = []
+        if created_schedules:
+            min_date = min(s.schedule_date for s in created_schedules)
+            max_date = max(s.schedule_date for s in created_schedules)
+            rest_day_result = await db.execute(
+                select(RestDay).where(
+                    and_(
+                        RestDay.status == 1,
+                        RestDay.start_date <= max_date,
+                        RestDay.end_date >= min_date,
+                        RestDay.store_id == data.store_id
+                    )
+                )
+            )
+            rest_days = rest_day_result.scalars().all()
+        
         for s in created_schedules:
             await db.refresh(s)
             # 重新加载关联数据
             await db.refresh(s, ["doctor", "store"])
             if s.doctor:
                 await db.refresh(s.doctor, ["department"])
+            
+            is_rest = _check_rest_day_for_schedule(
+                s.schedule_date, s.store_id, s.doctor_id, rest_days
+            )
             result.append(CustomScheduleResponse(
                 id=s.id,
                 store_id=s.store_id,
@@ -234,7 +325,8 @@ async def create_custom_schedules(
                 max_patients=s.total_slots,
                 booked_count=s.booked_slots,
                 status=s.status,
-                created_at=s.created_at
+                created_at=s.created_at,
+                is_rest_day=is_rest
             ))
         
         return result

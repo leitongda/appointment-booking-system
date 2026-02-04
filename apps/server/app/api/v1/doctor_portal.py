@@ -5,14 +5,17 @@
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, and_
 from typing import Optional, List
 from datetime import date, datetime
 from pydantic import BaseModel
+import json
 
 from app.db.session import get_db
 from app.api.deps import get_current_doctor_by_token
 from app.models.doctor import Doctor
 from app.models.appointment import Appointment
+from app.models.rest_day import RestDay
 from app.services.appointment_service import AppointmentService
 from app.services.schedule_service import ScheduleService
 from app.core.websocket import (
@@ -35,6 +38,7 @@ class DoctorScheduleResponse(BaseModel):
     total_slots: int
     booked_slots: int
     status: int
+    is_rest_day: Optional[bool] = False  # 是否在休息日（后端计算）
     
     class Config:
         from_attributes = True
@@ -94,6 +98,33 @@ async def get_my_info(
 
 # ========== 排班管理 ==========
 
+def _check_rest_day_for_schedule(
+    schedule_date: date,
+    store_id: Optional[str],
+    doctor_id: str,
+    rest_days: list
+) -> bool:
+    """检查指定排班是否在休息日"""
+    for rd in rest_days:
+        # 检查日期是否在休息日范围内
+        if not (rd.start_date <= schedule_date <= rd.end_date):
+            continue
+        # 检查门店是否匹配
+        if store_id and rd.store_id != store_id:
+            continue
+        # 如果 doctor_ids 为空，表示门店所有医生休息
+        if rd.doctor_ids is None:
+            return True
+        # 检查医生是否在休息日列表中
+        try:
+            doctor_ids_list = json.loads(rd.doctor_ids)
+            if doctor_id in doctor_ids_list:
+                return True
+        except:
+            pass
+    return False
+
+
 @router.get("/schedules", response_model=List[DoctorScheduleResponse])
 async def get_my_schedules(
     start_date: Optional[date] = None,
@@ -125,6 +156,21 @@ async def get_my_schedules(
         page_size=100  # 医生端一般不需要分页
     )
     
+    # 查询日期范围内的所有有效休息日
+    rest_days = []
+    if schedules:
+        rest_day_result = await db.execute(
+            select(RestDay).where(
+                and_(
+                    RestDay.status == 1,
+                    RestDay.start_date <= end_date,
+                    RestDay.end_date >= start_date,
+                    RestDay.store_id == doctor.store_id
+                )
+            )
+        )
+        rest_days = rest_day_result.scalars().all()
+    
     return [
         DoctorScheduleResponse(
             id=s.id,
@@ -135,6 +181,9 @@ async def get_my_schedules(
             total_slots=s.total_slots,
             booked_slots=s.booked_slots,
             status=s.status,
+            is_rest_day=_check_rest_day_for_schedule(
+                s.schedule_date, s.store_id, doctor.id, rest_days
+            ),
         )
         for s in schedules
     ]
@@ -158,6 +207,21 @@ async def get_my_today_schedules(
         page_size=10
     )
     
+    # 查询今日的休息日
+    rest_days = []
+    if schedules:
+        rest_day_result = await db.execute(
+            select(RestDay).where(
+                and_(
+                    RestDay.status == 1,
+                    RestDay.start_date <= today,
+                    RestDay.end_date >= today,
+                    RestDay.store_id == doctor.store_id
+                )
+            )
+        )
+        rest_days = rest_day_result.scalars().all()
+    
     return [
         DoctorScheduleResponse(
             id=s.id,
@@ -168,6 +232,9 @@ async def get_my_today_schedules(
             total_slots=s.total_slots,
             booked_slots=s.booked_slots,
             status=s.status,
+            is_rest_day=_check_rest_day_for_schedule(
+                s.schedule_date, s.store_id, doctor.id, rest_days
+            ),
         )
         for s in schedules
     ]

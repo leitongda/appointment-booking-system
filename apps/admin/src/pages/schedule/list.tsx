@@ -339,6 +339,14 @@ const ScheduleListPage: React.FC = () => {
       search: false,
     },
     {
+      title: '休息日',
+      dataIndex: 'isRestDay',
+      width: 80,
+      search: false,
+      render: (_, record) => 
+        record.isRestDay ? <Tag color="orange">休息日</Tag> : '-',
+    },
+    {
       title: '时段',
       dataIndex: 'timeSlot',
       width: 80,

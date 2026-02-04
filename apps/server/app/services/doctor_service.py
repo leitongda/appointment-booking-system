@@ -14,6 +14,7 @@ from app.models.department import Department
 from app.models.store import Store
 from app.models.user import User
 from app.models.schedule import Schedule
+from app.models.rest_day import RestDay
 from app.schemas.doctor import DoctorCreate, DoctorUpdate
 from app.core.security import get_password_hash, verify_password
 from app.utils.audit import set_create_audit, set_update_audit
@@ -323,7 +324,7 @@ class DoctorService:
         return count
     
     async def get_doctors_availability(self, doctor_ids: List[str], days: int = 7) -> Dict[str, bool]:
-        """批量获取医生的可预约号源状态
+        """批量获取医生的可预约号源状态（会过滤休息日）
         
         Args:
             doctor_ids: 医生ID列表
@@ -338,9 +339,14 @@ class DoctorService:
         today = date.today()
         end_date = today + timedelta(days=days)
         
-        # 查询未来days天内有可用号源的医生ID
-        result = await self.db.execute(
-            select(Schedule.doctor_id)
+        # 查询未来days天内有可用号源的排班（包含日期、门店信息用于休息日过滤）
+        schedules_result = await self.db.execute(
+            select(
+                Schedule.doctor_id,
+                Schedule.schedule_date,
+                Schedule.store_id,
+                Schedule.template_id,
+            )
             .where(
                 and_(
                     Schedule.doctor_id.in_(doctor_ids),
@@ -350,10 +356,60 @@ class DoctorService:
                     Schedule.booked_slots < Schedule.total_slots
                 )
             )
-            .distinct()
         )
+        schedules = schedules_result.all()
         
-        available_doctor_ids = set(result.scalars().all())
+        if not schedules:
+            return {doctor_id: False for doctor_id in doctor_ids}
+        
+        # 获取涉及的门店ID列表
+        store_ids = list(set(s.store_id for s in schedules if s.store_id))
+        
+        # 查询日期范围内的所有有效休息日
+        rest_days_result = await self.db.execute(
+            select(RestDay)
+            .where(
+                and_(
+                    RestDay.status == 1,
+                    RestDay.start_date <= end_date,
+                    RestDay.end_date >= today,
+                    RestDay.store_id.in_(store_ids) if store_ids else True
+                )
+            )
+        )
+        rest_days = rest_days_result.scalars().all()
+        
+        # 构建休息日检查函数
+        def is_rest_day(schedule_date: date, store_id: str, doctor_id: str) -> bool:
+            import json
+            for rd in rest_days:
+                # 检查日期是否在休息日范围内
+                if not (rd.start_date <= schedule_date <= rd.end_date):
+                    continue
+                # 检查门店是否匹配
+                if store_id and rd.store_id != store_id:
+                    continue
+                # 检查医生：如果 doctor_ids 为 NULL，表示门店所有医生休息
+                if rd.doctor_ids is None:
+                    return True
+                # 检查医生是否在休息日列表中
+                try:
+                    doctor_ids_list = json.loads(rd.doctor_ids)
+                    if doctor_id in doctor_ids_list:
+                        return True
+                except:
+                    pass
+            return False
+        
+        # 过滤休息日，找出真正有可用号源的医生
+        # 注意：自定义排班（template_id=None）不受休息日影响
+        available_doctor_ids = set()
+        for schedule in schedules:
+            # 自定义排班优先级高于休息日设置
+            if schedule.template_id is None:
+                available_doctor_ids.add(schedule.doctor_id)
+            elif not is_rest_day(schedule.schedule_date, schedule.store_id, schedule.doctor_id):
+                available_doctor_ids.add(schedule.doctor_id)
         
         # 构建结果字典
         return {

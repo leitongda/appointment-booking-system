@@ -56,12 +56,21 @@ const RestDayFormPage: React.FC = () => {
 
   const handleSubmit = async (values: any) => {
     try {
+      const { dateRange } = values;
+      // ProFormDateRangePicker 可能返回字符串或 dayjs 对象
+      const startDate = typeof dateRange[0] === 'string' 
+        ? dateRange[0] 
+        : dateRange[0].format('YYYY-MM-DD');
+      const endDate = typeof dateRange[1] === 'string' 
+        ? dateRange[1] 
+        : dateRange[1].format('YYYY-MM-DD');
+      
       await restDayApi.create({
         storeId: values.storeId,
         doctorIds: values.doctorIds,
         reason: values.reason,
-        startDate: values.dateRange[0].format('YYYY-MM-DD'),
-        endDate: values.dateRange[1].format('YYYY-MM-DD'),
+        startDate,
+        endDate,
       });
       message.success('添加成功');
       history.push('/schedule/rest-day');

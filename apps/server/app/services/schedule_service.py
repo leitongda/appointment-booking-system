@@ -63,7 +63,7 @@ class ScheduleService:
         return list(result.scalars().all()), count_result.scalar() or 0
     
     async def get_available(self, doctor_id: str, days: int = 14) -> List[Schedule]:
-        """获取可预约排班"""
+        """获取可预约排班（会过滤休息日）"""
         today = date.today()
         end_date = today + timedelta(days=days)
         
@@ -80,7 +80,42 @@ class ScheduleService:
             )
             .order_by(Schedule.schedule_date, Schedule.time_slot)
         )
-        return list(result.scalars().all())
+        schedules = list(result.scalars().all())
+        
+        # 过滤休息日的排班（自定义排班不受休息日影响）
+        filtered_schedules = []
+        for schedule in schedules:
+            # 自定义排班（template_id=None）优先级高于休息日设置，不过滤
+            if schedule.template_id is None:
+                filtered_schedules.append(schedule)
+                continue
+            
+            # 普通排班需要检查休息日
+            is_rest_day = await self._check_rest_day(
+                schedule.schedule_date, 
+                schedule.store_id, 
+                doctor_id
+            )
+            if not is_rest_day:
+                filtered_schedules.append(schedule)
+        
+        # 同时段去重：按 (日期, 开始时间, 结束时间) 分组，优先保留自定义排班
+        schedule_map = {}
+        for schedule in filtered_schedules:
+            key = (schedule.schedule_date, schedule.start_time, schedule.end_time)
+            if key not in schedule_map:
+                schedule_map[key] = schedule
+            elif schedule.template_id is None:
+                # 自定义排班优先级更高，覆盖已有的普通排班
+                schedule_map[key] = schedule
+        
+        # 按日期和时间排序返回
+        available_schedules = sorted(
+            schedule_map.values(), 
+            key=lambda s: (s.schedule_date, s.start_time or s.time_slot)
+        )
+        
+        return available_schedules
     
     async def create(self, data: ScheduleCreate, operator_id: Optional[str] = None) -> Schedule:
         # 如果没有提供 time_slot，根据 start_time 自动计算
@@ -104,8 +139,28 @@ class ScheduleService:
         existing = await self.db.execute(
             select(Schedule).where(and_(*conditions))
         )
-        if existing.scalar_one_or_none():
-            raise ValueError("该时段排班已存在")
+        existing_schedule = existing.scalar_one_or_none()
+        
+        if existing_schedule:
+            # 优先级处理：停诊 > 自定义排班 > 普通排班
+            is_new_custom = data.template_id is None
+            is_existing_normal = existing_schedule.template_id is not None
+            is_existing_suspended = existing_schedule.status == 0
+            
+            # 如果已存在的排班已停诊，任何新排班都不能覆盖（停诊优先级最高）
+            if is_existing_suspended:
+                raise ValueError("该时段已停诊，无法创建排班")
+            
+            if is_new_custom and is_existing_normal:
+                # 自定义排班覆盖普通排班（仅限未停诊的）
+                if existing_schedule.booked_slots > 0:
+                    raise ValueError("该时段普通排班已有预约，无法覆盖")
+                # 删除已存在的普通排班
+                await self.db.delete(existing_schedule)
+                await self.db.flush()  # 确保删除生效
+            else:
+                # 其他情况（自定义排班覆盖自定义排班、普通排班覆盖任何排班）都不允许
+                raise ValueError("该时段排班已存在")
         
         # 如果没有传递 store_id，从医生信息中获取
         store_id = data.store_id

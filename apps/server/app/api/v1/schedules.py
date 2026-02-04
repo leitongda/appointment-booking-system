@@ -17,9 +17,46 @@ from app.services.rule_engine_service import RuleEngineService
 from app.models.schedule import Schedule
 from app.models.doctor import Doctor
 from app.models.store import Store
+from app.models.rest_day import RestDay
 from app.core.config import settings
+import json
 
 router = APIRouter()
+
+
+async def _check_single_schedule_rest_day(
+    db: AsyncSession,
+    schedule_date: date,
+    store_id: Optional[str],
+    doctor_id: str
+) -> bool:
+    """检查单个排班是否在休息日"""
+    rest_day_result = await db.execute(
+        select(RestDay).where(
+            and_(
+                RestDay.status == 1,
+                RestDay.start_date <= schedule_date,
+                RestDay.end_date >= schedule_date
+            )
+        )
+    )
+    rest_days = rest_day_result.scalars().all()
+    
+    for rd in rest_days:
+        # 检查门店是否匹配
+        if store_id and rd.store_id != store_id:
+            continue
+        # 如果 doctor_ids 为空，表示门店所有医生休息
+        if rd.doctor_ids is None:
+            return True
+        # 检查医生是否在休息日列表中
+        try:
+            doctor_ids_list = json.loads(rd.doctor_ids)
+            if doctor_id in doctor_ids_list:
+                return True
+        except:
+            pass
+    return False
 
 
 class SuspendRequest(BaseModel):
@@ -50,8 +87,46 @@ async def get_schedules(
         status=status, page=page, page_size=page_size
     )
     
+    # 查询日期范围内的所有有效休息日（用于计算 is_rest_day）
+    rest_days = []
+    if schedules and (start_date or end_date):
+        query_start = start_date or min(s.schedule_date for s in schedules)
+        query_end = end_date or max(s.schedule_date for s in schedules)
+        rest_day_result = await db.execute(
+            select(RestDay).where(
+                and_(
+                    RestDay.status == 1,
+                    RestDay.start_date <= query_end,
+                    RestDay.end_date >= query_start
+                )
+            )
+        )
+        rest_days = rest_day_result.scalars().all()
+    
+    def check_rest_day(schedule_date, schedule_store_id, schedule_doctor_id) -> bool:
+        """检查指定排班是否在休息日"""
+        for rd in rest_days:
+            # 检查日期是否在休息日范围内
+            if not (rd.start_date <= schedule_date <= rd.end_date):
+                continue
+            # 检查门店是否匹配
+            if schedule_store_id and rd.store_id != schedule_store_id:
+                continue
+            # 如果 doctor_ids 为空，表示门店所有医生休息
+            if rd.doctor_ids is None:
+                return True
+            # 检查医生是否在休息日列表中
+            try:
+                doctor_ids_list = json.loads(rd.doctor_ids)
+                if schedule_doctor_id in doctor_ids_list:
+                    return True
+            except:
+                pass
+        return False
+    
     result = []
     for s in schedules:
+        is_rest = check_rest_day(s.schedule_date, s.store_id, s.doctor_id)
         result.append(ScheduleResponse(
             id=s.id,
             doctor_id=s.doctor_id,
@@ -67,7 +142,8 @@ async def get_schedules(
             appointment_type=s.appointment_type,
             template_id=s.template_id,
             status=s.status,
-            created_at=s.created_at
+            created_at=s.created_at,
+            is_rest_day=is_rest
         ))
     
     return PageResponse(data=result, total=total, page=page, page_size=page_size)
@@ -291,6 +367,11 @@ async def get_available_schedules(
         if booking_status == 'available' and capacity_percent < 30 and capacity_percent > 0:
             booking_status = 'closing_soon'
 
+        # 自定义排班（template_id=None）不受休息日影响，is_rest_day 始终为 False
+        # 这里的排班已经通过 get_available 过滤，所以能到这里的要么不是休息日，
+        # 要么是自定义排班（不受休息日影响）
+        is_rest_day_flag = False  # 已过滤，这里的排班都是可预约的
+        
         result.append(AvailableScheduleResponse(
             id=s.id,
             schedule_date=s.schedule_date,
@@ -304,7 +385,9 @@ async def get_available_schedules(
             booking_close_at=booking_close_at,
             booking_status=booking_status,
             capacity_percent=round(capacity_percent, 1),
-            urgency_level=urgency_level
+            urgency_level=urgency_level,
+            template_id=s.template_id,
+            is_rest_day=is_rest_day_flag
         ))
 
     return result
@@ -317,6 +400,11 @@ async def get_schedule(schedule_id: str, db: AsyncSession = Depends(get_db)):
     
     if not schedule:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班不存在，请检查后重试")
+    
+    # 检查是否在休息日
+    is_rest_day = await _check_single_schedule_rest_day(
+        db, schedule.schedule_date, schedule.store_id, schedule.doctor_id
+    )
     
     return ScheduleResponse(
         id=schedule.id,
@@ -333,7 +421,8 @@ async def get_schedule(schedule_id: str, db: AsyncSession = Depends(get_db)):
         appointment_type=schedule.appointment_type,
         template_id=schedule.template_id,
         status=schedule.status,
-        created_at=schedule.created_at
+        created_at=schedule.created_at,
+        is_rest_day=is_rest_day
     )
 
 @router.post("", response_model=ScheduleResponse)
@@ -345,6 +434,11 @@ async def create_schedule(data: ScheduleCreate, db: AsyncSession = Depends(get_d
         schedule = await service.create(data)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    
+    # 检查是否在休息日
+    is_rest_day = await _check_single_schedule_rest_day(
+        db, schedule.schedule_date, schedule.store_id, schedule.doctor_id
+    )
     
     return ScheduleResponse(
         id=schedule.id,
@@ -359,7 +453,8 @@ async def create_schedule(data: ScheduleCreate, db: AsyncSession = Depends(get_d
         appointment_type=schedule.appointment_type,
         template_id=schedule.template_id,
         status=schedule.status,
-        created_at=schedule.created_at
+        created_at=schedule.created_at,
+        is_rest_day=is_rest_day
     )
 
 @router.post("/batch")
@@ -386,6 +481,11 @@ async def update_schedule(
     if not schedule:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班不存在，请检查后重试")
     
+    # 检查是否在休息日
+    is_rest_day = await _check_single_schedule_rest_day(
+        db, schedule.schedule_date, schedule.store_id, schedule.doctor_id
+    )
+    
     return ScheduleResponse(
         id=schedule.id,
         doctor_id=schedule.doctor_id,
@@ -399,7 +499,8 @@ async def update_schedule(
         appointment_type=schedule.appointment_type,
         template_id=schedule.template_id,
         status=schedule.status,
-        created_at=schedule.created_at
+        created_at=schedule.created_at,
+        is_rest_day=is_rest_day
     )
 
 class BatchScheduleRequest(BaseModel):

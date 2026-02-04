@@ -122,6 +122,12 @@ const ScheduleCalendarPage: React.FC = () => {
     }
   }, [selectedDoctor, getDateRange]);
 
+  // 检查指定日期是否为休息日（从排班数据中获取，后端已计算）
+  const isRestDay = useCallback((dateStr: string): boolean => {
+    // 检查该日期的任何排班是否标记为休息日
+    return schedules.some(s => s.scheduleDate === dateStr && s.isRestDay);
+  }, [schedules]);
+
   // 刷新数据
   const refreshData = useCallback(() => {
     loadSchedules();
@@ -210,6 +216,7 @@ const ScheduleCalendarPage: React.FC = () => {
                     appointments={appointments}
                     onAppointmentClick={handleAppointmentClick}
                     onCreateClick={handleCreateClick}
+                    isRestDay={isRestDay}
                   />
                 ) : (
                   <MonthView
@@ -217,6 +224,7 @@ const ScheduleCalendarPage: React.FC = () => {
                     schedules={schedules}
                     appointments={appointments}
                     onDateClick={handleDateClick}
+                    isRestDay={isRestDay}
                   />
                 )}
               </div>

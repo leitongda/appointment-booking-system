@@ -11,6 +11,7 @@ from app.models.schedule import Schedule
 from app.models.user import Patient
 from app.models.doctor import Doctor
 from app.models.rule_set import AppointmentCheckin
+from app.models.rest_day import RestDay
 from app.schemas.appointment import AppointmentCreate, AppointmentStatistics
 from app.utils.audit import set_create_audit, set_update_audit
 from app.services.settings_service import SettingsService
@@ -216,6 +217,17 @@ class AppointmentService:
             raise ValueError("该排班已停诊")
         if schedule.booked_slots >= schedule.total_slots:
             raise ValueError("号源已满")
+
+        # 检查是否为休息日（自定义排班不受休息日影响）
+        # 自定义排班（template_id=None）优先级高于休息日设置
+        if schedule.template_id is not None:
+            is_rest_day = await self._check_rest_day(
+                schedule.schedule_date,
+                schedule.store_id,
+                schedule.doctor_id
+            )
+            if is_rest_day:
+                raise ValueError("该日期为休息日，无法预约")
 
         # 获取门店配置
         settings_service = SettingsService(self.db)
@@ -999,3 +1011,51 @@ class AppointmentService:
         
         result = await self.db.execute(query)
         return result.scalar() or 0
+
+    async def _check_rest_day(
+        self,
+        check_date: date,
+        store_id: Optional[str] = None,
+        doctor_id: Optional[str] = None
+    ) -> bool:
+        """检查指定日期是否为休息日
+        
+        Args:
+            check_date: 要检查的日期
+            store_id: 门店ID
+            doctor_id: 医生ID
+            
+        Returns:
+            True 表示是休息日，False 表示不是
+        """
+        try:
+            query = select(RestDay).where(
+                and_(
+                    RestDay.status == 1,
+                    RestDay.start_date <= check_date,
+                    RestDay.end_date >= check_date
+                )
+            )
+            
+            if store_id:
+                query = query.where(RestDay.store_id == store_id)
+            
+            result = await self.db.execute(query)
+            rest_days = result.scalars().all()
+            
+            for rd in rest_days:
+                # 如果没有指定医生ID，或者休息日配置为所有医生
+                if not doctor_id or rd.doctor_ids is None:
+                    return True
+                # 检查医生是否在休息日列表中
+                try:
+                    import json
+                    doctor_ids_list = json.loads(rd.doctor_ids)
+                    if doctor_id in doctor_ids_list:
+                        return True
+                except:
+                    pass
+            
+            return False
+        except Exception:
+            return False

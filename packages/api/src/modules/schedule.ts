@@ -135,8 +135,8 @@ export interface ScheduleStatisticsParams {
 export const scheduleApi = {
   getList: (params?: ScheduleListParams): Promise<PageResult<Schedule>> => {
     // 转换 camelCase 到 snake_case
-    // 确保 pageSize 不超过后端限制（100）
-    const safePageSize = params?.pageSize && params.pageSize > 100 ? 100 : params?.pageSize;
+    // 确保 pageSize 不超过后端限制（500）
+    const safePageSize = params?.pageSize && params.pageSize > 500 ? 500 : params?.pageSize;
     
     const queryParams = params ? {
       doctor_id: params.doctorId,

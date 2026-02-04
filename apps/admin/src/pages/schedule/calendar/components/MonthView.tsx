@@ -8,6 +8,7 @@ interface MonthViewProps {
   schedules: Schedule[];
   appointments: Appointment[];
   onDateClick: (date: Dayjs) => void;
+  isRestDay?: (dateStr: string) => boolean;
 }
 
 // 时段标签映射 - 支持两种格式
@@ -35,6 +36,7 @@ const MonthView: React.FC<MonthViewProps> = ({
   schedules,
   appointments,
   onDateClick,
+  isRestDay,
 }) => {
   // 获取某天的排班
   const getSchedulesByDate = (date: Dayjs): Schedule[] => {
@@ -66,7 +68,25 @@ const MonthView: React.FC<MonthViewProps> = ({
   };
 
   const dateCellRender = (date: Dayjs) => {
+    const dateStr = date.format('YYYY-MM-DD');
     const stats = getDateStats(date);
+    const isRest = isRestDay?.(dateStr) ?? false;
+    
+    // 如果是休息日，显示休息日标记
+    if (isRest) {
+      return (
+        <div className="month-cell-content rest-day">
+          <Tag color="orange" className="rest-day-tag">休息日</Tag>
+          {stats.schedules.length > 0 && (
+            <div className="cell-stats muted">
+              <span className="stat-item">
+                <span>{stats.schedules.length}个排班</span>
+              </span>
+            </div>
+          )}
+        </div>
+      );
+    }
     
     if (stats.schedules.length === 0) {
       return null;

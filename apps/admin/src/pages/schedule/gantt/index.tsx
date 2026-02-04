@@ -57,6 +57,7 @@ interface GanttTask {
   bookedSlots: number;
   status: number;
   progress: number; // 0-100
+  isRestDay?: boolean; // 是否在休息日（后端计算）
 }
 
 interface DoctorRow {
@@ -159,7 +160,7 @@ const ScheduleGanttPage: React.FC = () => {
     }
   };
 
-  // 加载排班数据（分页加载所有数据）
+  // 加载排班数据（分页加载所有数据，后端会返回 isRestDay 字段）
   const loadSchedules = useCallback(async () => {
     setLoading(true);
     try {
@@ -237,6 +238,7 @@ const ScheduleGanttPage: React.FC = () => {
         bookedSlots: schedule.bookedSlots,
         status: schedule.status,
         progress,
+        isRestDay: schedule.isRestDay,  // 直接使用后端返回的字段
       };
     });
   }, [schedules]);
@@ -345,20 +347,27 @@ const ScheduleGanttPage: React.FC = () => {
     const dateStr = date.format('YYYY-MM-DD');
     const tasksForDate = doctor.tasks.filter((t) => t.date === dateStr);
     const isToday = date.isSame(dayjs(), 'day');
+    // 从排班数据中获取 isRestDay（后端已计算）
+    const isRest = tasksForDate.some((t) => t.isRestDay);
 
     return (
-      <div 
-        key={dateStr} 
-        className={`gantt-cell ${isToday ? 'today' : ''}`}
+      <Tooltip
+        key={dateStr}
+        title={isRest ? '休息日 - 该日期已设置休息，小程序端不可预约' : undefined}
       >
-        {tasksForDate.length > 0 ? (
-          <div className="gantt-tasks">
-            {tasksForDate.map(renderTaskBlock)}
-          </div>
-        ) : (
-          <div className="gantt-empty">-</div>
-        )}
-      </div>
+        <div 
+          className={`gantt-cell ${isToday ? 'today' : ''} ${isRest ? 'rest-day' : ''}`}
+        >
+          {isRest && <div className="rest-day-badge">休</div>}
+          {tasksForDate.length > 0 ? (
+            <div className="gantt-tasks">
+              {tasksForDate.map(renderTaskBlock)}
+            </div>
+          ) : (
+            <div className="gantt-empty">{isRest ? '' : '-'}</div>
+          )}
+        </div>
+      </Tooltip>
     );
   };
 
@@ -433,6 +442,13 @@ const ScheduleGanttPage: React.FC = () => {
                 style={{ backgroundColor: '#ff4d4f' }} 
               />
               停诊
+            </span>
+            <span className="legend-item">
+              <span 
+                className="legend-color rest-day" 
+                style={{ backgroundColor: '#ffe7ba', border: '1px solid #fa8c16' }} 
+              />
+              休息日
             </span>
           </Space>
         </div>

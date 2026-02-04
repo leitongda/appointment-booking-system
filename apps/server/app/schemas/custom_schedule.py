@@ -63,6 +63,7 @@ class CustomScheduleResponse(BaseModel):
     booked_count: int
     status: int
     created_at: datetime
+    is_rest_day: Optional[bool] = False  # 是否在休息日（后端计算）
 
 
 class CustomScheduleListParams(BaseModel):

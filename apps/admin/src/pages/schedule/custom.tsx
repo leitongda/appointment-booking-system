@@ -102,6 +102,14 @@ const CustomSchedulePage: React.FC = () => {
       valueType: 'date',
     },
     {
+      title: '休息日',
+      dataIndex: 'isRestDay',
+      width: 80,
+      search: false,
+      render: (_, record) => 
+        record.isRestDay ? <Tag color="orange">休息日</Tag> : '-',
+    },
+    {
       title: '时段',
       width: 120,
       search: false,
@@ -167,6 +175,7 @@ const CustomSchedulePage: React.FC = () => {
     { title: '门店', dataIndex: 'storeName', width: 120 },
     { title: '医生', dataIndex: 'doctorName', width: 80 },
     { title: '日期', dataIndex: 'scheduleDate', width: 110 },
+    { title: '休息日', dataIndex: 'isRestDay', width: 80, render: (_, r) => r.isRestDay ? <Tag color="orange">休息日</Tag> : '-' },
     { title: '时段', width: 120, render: (_, r) => `${r.startTime?.slice(0, 5) || ''}-${r.endTime?.slice(0, 5) || ''}` },
     { title: '预约类型', dataIndex: 'appointmentType', width: 80, render: (_, r) => APPOINTMENT_TYPE_MAP[r.appointmentType] || r.appointmentType },
     { title: '预约人数', dataIndex: 'maxPatients', width: 80 },

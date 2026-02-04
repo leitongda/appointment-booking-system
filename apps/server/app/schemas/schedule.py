@@ -81,6 +81,7 @@ class ScheduleResponse(BaseModel):
     department_name: Optional[str] = None
     store_name: Optional[str] = None
     created_at: Optional[datetime] = None
+    is_rest_day: Optional[bool] = False  # 是否在休息日（后端计算）
 
 
 class AvailableScheduleResponse(BaseModel):
@@ -106,3 +107,7 @@ class AvailableScheduleResponse(BaseModel):
     booking_status: Optional[str] = None  # 预约状态：available/closing_soon/full/closed/not_open
     capacity_percent: Optional[float] = None  # 容量百分比 (0-100)
     urgency_level: Optional[str] = None  # 紧急程度：normal/medium/high
+    
+    # 新增字段：排班优先级相关
+    template_id: Optional[str] = None  # 模板ID，为NULL表示自定义排班
+    is_rest_day: Optional[bool] = False  # 是否在休息日（后端计算，自定义排班始终为False）
