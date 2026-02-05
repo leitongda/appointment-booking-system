@@ -84,7 +84,8 @@ const MessagePage: React.FC = () => {
     }
     
     if (message.relatedId) {
-      if (message.messageType === 'appointment') {
+      if (message.messageType === 'appointment' || message.messageType === 'stop_clinic') {
+        // 预约相关通知和停诊通知都跳转到预约详情
         history.push(`/appointment/${message.relatedId}`);
       } else if (message.messageType === 'consultation') {
         history.push(`/records/${message.relatedId}`);
@@ -130,6 +131,11 @@ const MessagePage: React.FC = () => {
       consultation: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        </svg>
+      ),
+      stop_clinic: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
         </svg>
       ),
       system: (

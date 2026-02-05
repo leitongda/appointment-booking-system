@@ -215,6 +215,8 @@ const MessagePage = () => {
     if (message.relatedId) {
       switch (message.messageType) {
         case 'appointment':
+        case 'stop_clinic':
+          // 预约相关通知和停诊通知都跳转到预约详情
           Taro.navigateTo({ url: `/packageBooking/pages/appointment/detail?id=${message.relatedId}` });
           break;
         case 'feedback':
