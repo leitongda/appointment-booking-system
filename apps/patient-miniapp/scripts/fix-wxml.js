@@ -55,7 +55,17 @@ function fixSingleWxss(filePath, silent = false) {
     return false;
   }
 
-  let content = fs.readFileSync(filePath, 'utf-8');
+  let content;
+  try {
+    content = fs.readFileSync(filePath, 'utf-8');
+  } catch (error) {
+    // 文件可能在 existsSync 检查后被删除（竞态条件）
+    if (error.code === 'ENOENT') {
+      return false;
+    }
+    throw error;
+  }
+  
   const originalContent = content;
 
   // 移除包含 >* 选择器的规则
@@ -71,7 +81,15 @@ function fixSingleWxss(filePath, silent = false) {
   content = content.replace(/;;+/g, ';');
 
   if (content !== originalContent) {
-    fs.writeFileSync(filePath, content, 'utf-8');
+    try {
+      fs.writeFileSync(filePath, content, 'utf-8');
+    } catch (error) {
+      // 文件可能在处理过程中被删除
+      if (error.code === 'ENOENT') {
+        return false;
+      }
+      throw error;
+    }
     return true;
   }
   return false;
