@@ -104,37 +104,34 @@ const IndexPage = () => {
     }
   };
 
-  const loadPatients = async () => {
+  // 加载就诊卡数据，返回是否有就诊卡（用于登录后立即判断跳转）
+  const loadPatients = async (): Promise<boolean> => {
     const token = getToken();
     if (!token) {
       setDefaultPatient(null);
-      return;
+      return false;
     }
     try {
       const patients = await userApi.getPatients();
       // 找到默认就诊卡，如果没有默认则取第一个
       const defaultOne = patients.find((p) => p.isDefault) || patients[0] || null;
       setDefaultPatient(defaultOne);
+      return patients.length > 0;
     } catch (error) {
       console.error('[首页] 加载就诊卡失败:', error);
       setDefaultPatient(null);
+      return false;
     }
   };
 
   // 跳转到就诊卡页面（根据是否有就诊卡决定跳转到列表还是新增）
-  const navigateToPatientPage = async () => {
-    try {
-      const patients = await userApi.getPatients();
-      if (patients.length > 0) {
-        // 有就诊卡，跳转到列表管理页面
-        Taro.navigateTo({ url: '/packageProfile/pages/patient/index' });
-      } else {
-        // 无就诊卡，跳转到新增页面
-        Taro.navigateTo({ url: '/packageProfile/pages/patient/edit' });
-      }
-    } catch (error) {
-      console.error('[首页] 获取就诊卡失败:', error);
-      // 出错时默认跳转到新增页面
+  // 优化：使用本地 defaultPatient 状态判断，避免每次点击都调用 API 导致延迟
+  const navigateToPatientPage = () => {
+    if (defaultPatient) {
+      // 有就诊卡，跳转到列表管理页面
+      Taro.navigateTo({ url: '/packageProfile/pages/patient/index' });
+    } else {
+      // 无就诊卡，跳转到新增页面
       Taro.navigateTo({ url: '/packageProfile/pages/patient/edit' });
     }
   };
@@ -142,18 +139,36 @@ const IndexPage = () => {
   // 登录成功回调
   const handleLoginSuccess = async () => {
     setShowLoginPopup(false);
-    await loadPatients();
     
-    // 如果是从就诊卡入口触发的登录，自动跳转
-    if (pendingPatientCardNav) {
-      setPendingPatientCardNav(false);
-      navigateToPatientPage();
+    // 如果有待处理的操作，显示 loading 提示
+    const hasPendingAction = pendingPatientCardNav || pendingCheckinAction;
+    if (hasPendingAction) {
+      Taro.showLoading({ title: '加载中...', mask: true });
     }
     
-    // 如果是从扫码签到入口触发的登录，自动触发扫码
-    if (pendingCheckinAction) {
-      setPendingCheckinAction(false);
-      triggerCheckinScan();
+    try {
+      const hasPatients = await loadPatients();
+      
+      // 如果是从就诊卡入口触发的登录，自动跳转
+      if (pendingPatientCardNav) {
+        setPendingPatientCardNav(false);
+        // 使用 loadPatients 返回值判断，避免 React 状态更新延迟问题
+        if (hasPatients) {
+          Taro.navigateTo({ url: '/packageProfile/pages/patient/index' });
+        } else {
+          Taro.navigateTo({ url: '/packageProfile/pages/patient/edit' });
+        }
+      }
+      
+      // 如果是从扫码签到入口触发的登录，自动触发扫码
+      if (pendingCheckinAction) {
+        setPendingCheckinAction(false);
+        triggerCheckinScan();
+      }
+    } finally {
+      if (hasPendingAction) {
+        Taro.hideLoading();
+      }
     }
   };
 
