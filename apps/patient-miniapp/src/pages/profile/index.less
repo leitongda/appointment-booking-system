@@ -189,8 +189,10 @@
 }
 
 .logout-btn {
-  // 使用危险幽灵按钮样式
-  .button-danger-ghost();
+  // 使用 NutUI CSS 变量覆盖 danger 按钮样式为 ghost 风格
+  --nut-button-danger-color: @color-danger !important;
+  --nut-button-danger-border-color: @color-danger !important;
+  --nut-button-danger-background-color: transparent !important;
   .button-lg();
   .button-block();
 }
