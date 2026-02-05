@@ -111,21 +111,29 @@
     opacity: 0.6;
   }
   
-  // 微信登录按钮
+  // 微信登录按钮 - 微信品牌绿色
   .wechat-btn {
-    height: @button-height-lg !important;
-    line-height: @button-height-lg !important;
-    border-radius: @radius-xl !important;
+    .button-lg();
+    .button-block();
     background: #07c160 !important;
-    border-color: #07c160 !important;
-    font-size: @font-size-base !important;
+    border: none !important;
+    border-radius: @radius-xl !important;
+    color: #ffffff !important;
     font-weight: @font-weight-semibold !important;
     box-shadow: 0 8rpx 24rpx rgba(7, 193, 96, 0.3) !important;
     margin-bottom: @spacing-4;
-    color: #ffffff !important;
-
+    transition: all @transition-base;
+    
     &:active {
       background: #06ad56 !important;
+      opacity: 0.9;
+      transform: translateY(2rpx);
+    }
+    
+    &[disabled] {
+      background: @color-bg-tertiary !important;
+      color: @color-text-muted !important;
+      box-shadow: none !important;
     }
   }
   
@@ -222,14 +230,10 @@
   
   // 确认按钮
   .confirm-btn {
+    .button-primary();
+    .button-lg();
+    .button-block();
     margin-bottom: @spacing-3;
-    height: @button-height-lg !important;
-    border-radius: @radius-xl !important;
-    .gradient-primary();
-    border: none !important;
-    font-size: @font-size-base !important;
-    font-weight: @font-weight-semibold !important;
-    box-shadow: @shadow-button !important;
   }
   
   // 跳过区域
@@ -237,14 +241,10 @@
     text-align: center;
     
     .skip-btn {
+      .button-text();
       display: inline-block;
       color: @color-text-muted;
       font-size: @font-size-sm;
-      padding: @spacing-2 @spacing-4;
-      
-      &:active {
-        opacity: 0.7;
-      }
     }
   }
 }

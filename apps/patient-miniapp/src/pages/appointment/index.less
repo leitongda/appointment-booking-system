@@ -164,22 +164,16 @@
   border-top: @border-width solid @color-divider;
 }
 
-.btn-cancel {
+.cancel-btn {
   .button-secondary();
+  .button-sm();
   min-width: 160rpx;
-  height: @button-height-sm;
-  font-size: @font-size-sm;
-  border-radius: @radius-lg;
-  padding: 0 @spacing-4;
 }
 
-.btn-signin {
+.signin-btn {
   .button-primary();
+  .button-sm();
   min-width: 160rpx;
-  height: @button-height-sm;
-  font-size: @font-size-sm;
-  border-radius: @radius-lg;
-  padding: 0 @spacing-4;
 }
 
 // -------------------------------------------
@@ -243,12 +237,8 @@
 
 .login-guide-btn {
   .button-primary();
-  width: 100%;
-  height: @button-height-lg;
-  font-size: @font-size-base;
-  font-weight: @font-weight-semibold;
-  border-radius: @radius-lg;
-  box-shadow: @shadow-button;
+  .button-lg();
+  .button-block();
 }
 
 // -------------------------------------------

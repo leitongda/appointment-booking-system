@@ -69,19 +69,39 @@
 // 按钮样式 (Button Styles)
 // -------------------------------------------
 
-// 主要按钮
+// 按钮尺寸 mixins
+.button-size(@height, @font-size: @font-size-base, @padding: @spacing-4) {
+  height: @height;
+  line-height: @height;
+  padding: 0 @padding;
+  font-size: @font-size;
+}
+
+.button-sm() {
+  .button-size(@button-height-sm, @font-size-sm, @spacing-3);
+}
+
+.button-md() {
+  .button-size(@button-height-md, @font-size-base, @spacing-4);
+}
+
+.button-lg() {
+  .button-size(@button-height-lg, @font-size-base, @spacing-4);
+}
+
+// 主要按钮 - 渐变背景，用于页面主要操作
 .button-primary() {
   .gradient-primary();
   color: @color-text-white;
   border: none;
-  border-radius: @radius-lg;
-  box-shadow: var(--shadow-button, 0 8rpx 28rpx 0 rgba(196, 30, 58, 0.3));
+  border-radius: @radius-xl;
+  box-shadow: var(--shadow-button, 0 8rpx 28rpx 0 rgba(30, 111, 217, 0.3));
   font-weight: @font-weight-semibold;
   transition: all @transition-base;
   
   &:active {
     transform: translateY(2rpx);
-    box-shadow: 0 4rpx 12rpx -2rpx var(--shadow-color, rgba(196, 30, 58, 0.06));
+    box-shadow: 0 4rpx 12rpx -2rpx rgba(0, 0, 0, 0.04);
     opacity: 0.95;
   }
   
@@ -91,52 +111,129 @@
     color: @color-text-muted;
     box-shadow: none;
     opacity: 1;
+    pointer-events: none;
   }
 }
 
-// 次要按钮
+// 次要按钮 - 白底边框，用于次要操作
 .button-secondary() {
   background: @color-bg-white;
   color: @color-text-secondary;
   border: @border-base;
-  border-radius: @radius-lg;
+  border-radius: @radius-xl;
   font-weight: @font-weight-medium;
   transition: all @transition-base;
   
   &:active {
     background: @color-bg-secondary;
-    border-color: @color-border;
+  }
+  
+  &[disabled],
+  &.disabled {
+    background: @color-bg-tertiary;
+    color: @color-text-placeholder;
+    pointer-events: none;
   }
 }
 
-// 文字按钮
+// 文字按钮 - 透明背景，用于轻量级操作
 .button-text() {
   background: transparent;
   color: var(--color-primary, @theme-primary);
   border: none;
+  border-radius: @radius-md;
   font-weight: @font-weight-medium;
+  padding: @spacing-2 @spacing-3;
+  transition: all @transition-base;
   
   &:active {
     opacity: 0.7;
+    background: var(--badge-bg, rgba(30, 111, 217, 0.08));
+  }
+  
+  &[disabled],
+  &.disabled {
+    color: @color-text-placeholder;
+    opacity: 0.5;
+    pointer-events: none;
   }
 }
 
-// 危险按钮
+// 危险按钮 - 红色背景，用于破坏性操作
 .button-danger() {
   background: @color-danger;
   color: @color-text-white;
   border: none;
-  border-radius: @radius-lg;
+  border-radius: @radius-xl;
   font-weight: @font-weight-semibold;
+  transition: all @transition-base;
   
   &:active {
     opacity: 0.9;
   }
+  
+  &[disabled],
+  &.disabled {
+    background: @color-bg-tertiary;
+    color: @color-text-muted;
+    opacity: 1;
+    pointer-events: none;
+  }
 }
 
-// 胶囊按钮
+// 幽灵按钮 - 透明背景+主色边框，用于次要 CTA
+.button-ghost() {
+  background: transparent;
+  color: var(--color-primary, @theme-primary);
+  border: @border-width solid var(--color-primary, @theme-primary);
+  border-radius: @radius-xl;
+  font-weight: @font-weight-medium;
+  transition: all @transition-base;
+  
+  &:active {
+    background: var(--badge-bg, rgba(30, 111, 217, 0.08));
+  }
+  
+  &[disabled],
+  &.disabled {
+    color: @color-text-placeholder;
+    border-color: @color-border;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}
+
+// 危险幽灵按钮 - 透明背景+红色边框
+.button-danger-ghost() {
+  background: transparent;
+  color: @color-danger;
+  border: @border-width solid @color-danger;
+  border-radius: @radius-xl;
+  font-weight: @font-weight-medium;
+  transition: all @transition-base;
+  
+  &:active {
+    background: rgba(239, 68, 68, 0.08);
+  }
+  
+  &[disabled],
+  &.disabled {
+    color: @color-text-placeholder;
+    border-color: @color-border;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}
+
+// 胶囊按钮修饰
 .button-capsule() {
   border-radius: @radius-full;
+}
+
+// 块级按钮修饰
+.button-block() {
+  display: block;
+  width: 100%;
 }
 
 // -------------------------------------------
@@ -496,6 +593,29 @@
 }
 
 // -------------------------------------------
+// 点击态样式 (Clickable States)
+// -------------------------------------------
+
+// 通用轻量点击态 - 用于需要快速响应反馈的元素
+.clickable() {
+  transition: opacity 0.1s ease, transform 0.1s ease;
+  
+  &:active {
+    opacity: 0.7;
+    transform: scale(0.98);
+  }
+}
+
+// 带背景变化的点击态 - 用于列表项、菜单项等
+.clickable-bg() {
+  transition: background-color 0.1s ease;
+  
+  &:active {
+    background-color: @color-bg-secondary;
+  }
+}
+
+// -------------------------------------------
 // 布局辅助 (Layout Helpers)
 // -------------------------------------------
 
@@ -529,6 +649,7 @@
 .page-container() {
   min-height: 100vh;
   background: @color-bg-base;
+  overflow-x: hidden;
 }
 
 // TabBar 页面容器（为底部导航预留空间）
@@ -537,6 +658,7 @@
   background: @color-bg-base;
   // TabBar 高度 100rpx + 额外间距 + 安全区
   padding-bottom: calc(120rpx + env(safe-area-inset-bottom));
+  overflow-x: hidden;
 }
 
 // 内容区域
@@ -590,9 +712,10 @@
   border-radius: @radius-xl !important;
   font-size: @font-size-base !important;
   font-weight: @font-weight-medium !important;
+  transition: all @transition-base !important;
 }
 
-// 主要按钮覆盖
+// 主要按钮覆盖 (type="primary")
 .nut-button--primary {
   .gradient-primary() !important;
   border: none !important;
@@ -600,23 +723,26 @@
   color: @color-text-white !important;
   font-size: @font-size-base !important;
   font-weight: @font-weight-semibold !important;
-  box-shadow: var(--shadow-button, 0 8rpx 28rpx 0 rgba(196, 30, 58, 0.3)) !important;
+  box-shadow: var(--shadow-button, 0 8rpx 28rpx 0 rgba(30, 111, 217, 0.3)) !important;
 
   &:active {
     transform: translateY(2rpx);
-    box-shadow: @shadow-sm !important;
+    box-shadow: 0 4rpx 12rpx -2rpx rgba(0, 0, 0, 0.04) !important;
+    opacity: 0.95;
   }
 
   &[disabled],
-  &.disabled {
+  &.nut-button--disabled {
     background: @color-bg-tertiary !important;
     color: @color-text-muted !important;
     box-shadow: none !important;
+    opacity: 1 !important;
+    pointer-events: none;
   }
 }
 
-// 次要按钮覆盖
-.nut-button--secondary {
+// 默认按钮覆盖 (type="default")
+.nut-button--default {
   background: @color-bg-white !important;
   border: @border-base !important;
   border-radius: @radius-xl !important;
@@ -627,9 +753,17 @@
   &:active {
     background: @color-bg-secondary !important;
   }
+
+  &[disabled],
+  &.nut-button--disabled {
+    background: @color-bg-tertiary !important;
+    color: @color-text-placeholder !important;
+    opacity: 1 !important;
+    pointer-events: none;
+  }
 }
 
-// 危险按钮覆盖
+// 危险按钮覆盖 (type="danger")
 .nut-button--danger {
   background: @color-danger !important;
   border: none !important;
@@ -641,4 +775,26 @@
   &:active {
     opacity: 0.9 !important;
   }
+
+  &[disabled],
+  &.nut-button--disabled {
+    background: @color-bg-tertiary !important;
+    color: @color-text-muted !important;
+    opacity: 1 !important;
+    pointer-events: none;
+  }
+}
+
+// 小尺寸按钮覆盖
+.nut-button--small {
+  height: @button-height-sm !important;
+  line-height: @button-height-sm !important;
+  font-size: @font-size-sm !important;
+  padding: 0 @spacing-3 !important;
+}
+
+// 大尺寸按钮覆盖
+.nut-button--large {
+  height: @button-height-lg !important;
+  line-height: @button-height-lg !important;
 }

@@ -49,18 +49,11 @@
     padding: @spacing-8 @page-padding;
 
     .logout-btn {
-      // 覆盖 type="danger" 的默认样式（红色实心按钮）
-      height: @button-height-lg;
-      background: @color-bg-white !important;
-      border: @border-width solid @color-danger !important;
-      color: @color-danger !important;
-      font-size: @font-size-base !important;
-      font-weight: @font-weight-medium !important;
-      border-radius: @radius-full !important;
-
-      &:active {
-        background: #FEF2F2 !important;
-      }
+      // 使用危险幽灵按钮样式
+      .button-danger-ghost();
+      .button-lg();
+      .button-block();
+      .button-capsule();
     }
   }
 }
@@ -100,10 +93,11 @@
   }
 
   .submit-btn {
+    .button-primary();
+    .button-lg();
+    .button-block();
+    .button-capsule();
     margin-top: @spacing-3;
-    height: @button-height-lg;
-    font-size: @font-size-base;
-    border-radius: @radius-full;
   }
 }
 

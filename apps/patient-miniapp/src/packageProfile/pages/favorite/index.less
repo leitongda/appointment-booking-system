@@ -132,20 +132,15 @@
 }
 
 .book-btn {
+  .button-ghost();
+  .button-sm();
   flex-shrink: 0;
-  padding: @spacing-2 @spacing-4;
-  background: var(--badge-bg, rgba(196, 30, 58, 0.08));
-  border: 2rpx solid var(--color-primary, @theme-primary);
-  border-radius: @radius-lg;
+  background: var(--badge-bg, rgba(30, 111, 217, 0.08));
   
   text {
     font-size: @font-size-sm;
     font-weight: @font-weight-medium;
     color: var(--color-primary, @theme-primary);
-  }
-  
-  &:active {
-    background: var(--badge-bg, rgba(196, 30, 58, 0.15));
   }
 }
 

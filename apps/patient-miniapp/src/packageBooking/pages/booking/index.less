@@ -47,13 +47,8 @@
 }
 
 .change-btn {
+  .button-text();
   font-size: @font-size-sm;
-  color: @color-primary;
-  font-weight: @font-weight-medium;
-  
-  &:active {
-    opacity: 0.7;
-  }
 }
 
 .selected-patient {
@@ -403,11 +398,9 @@
 }
 
 .submit-btn {
-  min-width: 240rpx;
-  width: 100%;
-  height: @button-height-lg;
   .button-primary();
-  font-size: @font-size-base;
-  border-radius: @radius-xl;
+  .button-lg();
+  .button-block();
+  min-width: 240rpx;
 }
 

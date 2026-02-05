@@ -212,19 +212,31 @@
 .phone-action-btn {
   font-size: @font-size-sm;
   padding: @spacing-1 @spacing-3;
-  border-radius: @radius-sm;
+  border-radius: @radius-md;
+  font-weight: @font-weight-medium;
+  transition: all @transition-base;
   
   &.cancel {
-    color: @color-text-muted;
+    color: @color-text-secondary;
     background: @color-bg-secondary;
+    
+    &:active {
+      background: @color-bg-tertiary;
+    }
   }
   
   &.confirm {
     color: @color-text-white;
-    background: @color-primary;
+    background: var(--color-primary, @color-primary);
+    
+    &:active {
+      opacity: 0.9;
+    }
     
     &.disabled {
-      opacity: 0.6;
+      background: @color-bg-tertiary;
+      color: @color-text-muted;
+      pointer-events: none;
     }
   }
 }
@@ -280,8 +292,8 @@
 
 .submit-btn {
   .button-primary();
-  width: 100%;
-  height: @button-height-lg;
+  .button-lg();
+  .button-block();
 }
 
 // -------------------------------------------
