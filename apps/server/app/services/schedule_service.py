@@ -4,13 +4,18 @@ from sqlalchemy.orm import selectinload, joinedload
 from typing import Optional, List, Tuple
 from datetime import date, timedelta, time
 import uuid
+import logging
 
 from app.models.schedule import Schedule
 from app.models.doctor import Doctor
 from app.models.rest_day import RestDay
+from app.models.appointment import Appointment
 from app.schemas.schedule import ScheduleCreate, ScheduleBatchCreate, ScheduleUpdate
 from app.utils.schedule_utils import get_time_slot_from_time
 from app.utils.audit import set_create_audit, set_update_audit
+from app.services.message_service import MessageService
+
+logger = logging.getLogger(__name__)
 
 class ScheduleService:
     def __init__(self, db: AsyncSession):
@@ -190,6 +195,16 @@ class ScheduleService:
         self.db.add(schedule)
         await self.db.commit()
         await self.db.refresh(schedule)
+        
+        # 发送排班创建通知给医生（仅自定义排班，即 template_id 为 None）
+        if data.template_id is None:
+            await self._send_schedule_notification_to_doctor(
+                doctor_id=data.doctor_id,
+                title="新增排班通知",
+                content=f"您有新增排班：{data.schedule_date.strftime('%Y年%m月%d日')}，请及时查看。",
+                schedule_id=schedule.id
+            )
+        
         return schedule
     
     async def batch_create(self, data: ScheduleBatchCreate, operator_id: Optional[str] = None) -> int:
@@ -253,6 +268,16 @@ class ScheduleService:
             current_date += timedelta(days=1)
         
         await self.db.commit()
+        
+        # 发送批量排班创建通知给医生
+        if created_count > 0:
+            await self._send_schedule_notification_to_doctor(
+                doctor_id=data.doctor_id,
+                title="批量排班通知",
+                content=f"您有 {created_count} 个新排班已创建（{data.start_date.strftime('%Y年%m月%d日')} 至 {data.end_date.strftime('%Y年%m月%d日')}），请及时查看。",
+                schedule_id=None
+            )
+        
         return created_count
     
     async def update(self, schedule_id: str, data: ScheduleUpdate, operator_id: Optional[str] = None) -> Optional[Schedule]:
@@ -290,7 +315,9 @@ class ScheduleService:
         
         # 查询符合条件的排班（只停诊正常状态的排班）
         result = await self.db.execute(
-            select(Schedule).where(
+            select(Schedule)
+            .options(selectinload(Schedule.doctor))
+            .where(
                 and_(
                     Schedule.id.in_(schedule_ids),
                     Schedule.status == 1  # 只停诊正常状态的排班
@@ -300,14 +327,112 @@ class ScheduleService:
         schedules = result.scalars().all()
         
         affected_count = 0
+        affected_schedule_ids = []
         for schedule in schedules:
             schedule.status = 0  # 设置为停诊状态
             affected_count += 1
+            affected_schedule_ids.append(schedule.id)
         
         if affected_count > 0:
             await self.db.commit()
+            
+            # 发送停诊通知给受影响的患者
+            await self._send_batch_suspend_notifications(schedules, reason)
         
         return affected_count
+    
+    async def _send_batch_suspend_notifications(
+        self,
+        schedules: List[Schedule],
+        reason: Optional[str] = None
+    ):
+        """发送批量停诊通知给受影响的患者和医生"""
+        try:
+            schedule_ids = [s.id for s in schedules]
+            if not schedule_ids:
+                return
+            
+            message_service = MessageService(self.db)
+            
+            # 1. 给医生发送停诊通知
+            doctor_schedules = {}  # doctor_id -> list of schedules
+            for schedule in schedules:
+                if schedule.doctor_id not in doctor_schedules:
+                    doctor_schedules[schedule.doctor_id] = []
+                doctor_schedules[schedule.doctor_id].append(schedule)
+            
+            for doctor_id, doc_schedules in doctor_schedules.items():
+                try:
+                    dates = sorted(set(s.schedule_date for s in doc_schedules))
+                    if len(dates) == 1:
+                        date_str = dates[0].strftime('%Y年%m月%d日')
+                    else:
+                        date_str = f"{dates[0].strftime('%Y年%m月%d日')} 至 {dates[-1].strftime('%Y年%m月%d日')}"
+                    
+                    reason_text = f"（原因：{reason}）" if reason else ""
+                    
+                    await message_service.send_schedule_notification(
+                        doctor_id=doctor_id,
+                        title="排班停诊通知",
+                        content=f"您的 {len(doc_schedules)} 个排班已被停诊（{date_str}）{reason_text}。如有疑问请联系管理员。",
+                        schedule_id=doc_schedules[0].id if len(doc_schedules) == 1 else None
+                    )
+                except Exception as e:
+                    logger.warning(f"医生停诊通知发送失败 (doctor_id={doctor_id}): {e}")
+            
+            # 2. 给患者发送停诊通知
+            appointments_result = await self.db.execute(
+                select(Appointment)
+                .options(selectinload(Appointment.schedule))
+                .where(
+                    and_(
+                        Appointment.schedule_id.in_(schedule_ids),
+                        Appointment.status.in_([1, 2])  # 1=已预约, 2=已签到
+                    )
+                )
+            )
+            appointments = appointments_result.scalars().all()
+            
+            if not appointments:
+                return
+            
+            # 构建 schedule_id 到 schedule 的映射
+            schedule_map = {s.id: s for s in schedules}
+            
+            for appointment in appointments:
+                try:
+                    schedule = schedule_map.get(appointment.schedule_id)
+                    if not schedule:
+                        continue
+                    
+                    doctor_name = schedule.doctor.name if schedule.doctor else appointment.doctor_name or "医生"
+                    schedule_date_str = schedule.schedule_date.strftime('%Y年%m月%d日')
+                    
+                    # 格式化时段显示
+                    time_slot_display = {
+                        'AM': '上午',
+                        'PM': '下午',
+                        'morning': '上午',
+                        'afternoon': '下午',
+                        'evening': '晚间',
+                        'NIGHT': '夜间',
+                    }.get(schedule.time_slot, schedule.time_slot or "")
+                    
+                    reason_text = f"原因：{reason}" if reason else "请重新预约其他时间"
+                    
+                    await message_service.send_stop_clinic_notification(
+                        user_id=appointment.user_id,
+                        user_type="patient",
+                        title="停诊通知",
+                        content=f"您预约的{doctor_name}医生（{schedule_date_str} {time_slot_display}）因故停诊。{reason_text}，给您带来不便敬请谅解。",
+                        appointment_id=appointment.id
+                    )
+                except Exception as e:
+                    logger.warning(f"停诊通知发送失败 (appointment_id={appointment.id}): {e}")
+                    
+        except Exception as e:
+            # 消息通知失败不影响停诊操作
+            logger.warning(f"批量停诊通知发送失败: {e}")
     
     async def batch_resume(self, schedule_ids: List[str]) -> int:
         """
@@ -659,4 +784,24 @@ class ScheduleService:
             check_rest_day=check_rest_day,
             auto_commit=True
         )
+    
+    async def _send_schedule_notification_to_doctor(
+        self,
+        doctor_id: str,
+        title: str,
+        content: str,
+        schedule_id: Optional[str] = None
+    ):
+        """发送排班相关通知给医生"""
+        try:
+            message_service = MessageService(self.db)
+            await message_service.send_schedule_notification(
+                doctor_id=doctor_id,
+                title=title,
+                content=content,
+                schedule_id=schedule_id
+            )
+        except Exception as e:
+            # 消息通知失败不影响主流程
+            logger.warning(f"排班通知发送失败 (doctor_id={doctor_id}): {e}")
 

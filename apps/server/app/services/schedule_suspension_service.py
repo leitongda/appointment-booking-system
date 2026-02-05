@@ -5,13 +5,18 @@ from typing import Optional, List
 from datetime import date
 import uuid
 import json
+import logging
 
 from app.models.schedule_suspension import ScheduleSuspension
 from app.models.schedule import Schedule
 from app.models.doctor import Doctor
 from app.models.store import Store
+from app.models.appointment import Appointment
 from app.schemas.schedule_suspension import ScheduleSuspensionCreate, AvailableScheduleForSuspension
 from app.utils.audit import set_create_audit, set_update_audit
+from app.services.message_service import MessageService
+
+logger = logging.getLogger(__name__)
 
 
 class ScheduleSuspensionService:
@@ -130,7 +135,96 @@ class ScheduleSuspensionService:
         
         await self.db.commit()
         await self.db.refresh(suspension)
+        
+        # 发送停诊通知给受影响的患者
+        await self._send_stop_clinic_notifications(suspension, data)
+        
         return suspension
+    
+    async def _send_stop_clinic_notifications(
+        self,
+        suspension: ScheduleSuspension,
+        data: ScheduleSuspensionCreate
+    ):
+        """发送停诊通知给受影响的患者"""
+        try:
+            # 获取受影响的排班 ID 列表
+            affected_schedule_ids = []
+            if data.schedule_ids:
+                affected_schedule_ids = data.schedule_ids
+            else:
+                # 如果没有指定排班 ID，获取该日期该医生的所有停诊排班
+                schedules_result = await self.db.execute(
+                    select(Schedule).where(
+                        and_(
+                            Schedule.doctor_id == data.doctor_id,
+                            Schedule.schedule_date == data.suspension_date,
+                            Schedule.status == 0  # 已停诊
+                        )
+                    )
+                )
+                schedules = schedules_result.scalars().all()
+                affected_schedule_ids = [s.id for s in schedules]
+            
+            if not affected_schedule_ids:
+                return
+            
+            # 获取这些排班关联的有效预约（已预约、已签到状态）
+            appointments_result = await self.db.execute(
+                select(Appointment)
+                .options(selectinload(Appointment.schedule))
+                .where(
+                    and_(
+                        Appointment.schedule_id.in_(affected_schedule_ids),
+                        Appointment.status.in_([1, 2])  # 1=已预约, 2=已签到
+                    )
+                )
+            )
+            appointments = appointments_result.scalars().all()
+            
+            if not appointments:
+                return
+            
+            # 获取医生信息
+            doctor_result = await self.db.execute(
+                select(Doctor).where(Doctor.id == data.doctor_id)
+            )
+            doctor = doctor_result.scalar_one_or_none()
+            doctor_name = doctor.name if doctor else "医生"
+            
+            # 发送消息通知
+            message_service = MessageService(self.db)
+            suspension_date_str = data.suspension_date.strftime('%Y年%m月%d日')
+            
+            for appointment in appointments:
+                try:
+                    # 格式化时段显示
+                    time_slot_display = ""
+                    if appointment.schedule:
+                        time_slot_display = {
+                            'AM': '上午',
+                            'PM': '下午',
+                            'morning': '上午',
+                            'afternoon': '下午',
+                            'evening': '晚间',
+                            'NIGHT': '夜间',
+                        }.get(appointment.schedule.time_slot, appointment.schedule.time_slot or "")
+                    
+                    title_text = data.title or "停诊通知"
+                    
+                    await message_service.send_stop_clinic_notification(
+                        user_id=appointment.user_id,
+                        user_type="patient",
+                        title=title_text,
+                        content=f"您预约的{doctor_name}医生（{suspension_date_str} {time_slot_display}）因故停诊。请重新预约其他时间，给您带来不便敬请谅解。",
+                        appointment_id=appointment.id
+                    )
+                except Exception as e:
+                    logger.warning(f"停诊通知发送失败 (appointment_id={appointment.id}): {e}")
+                    
+        except Exception as e:
+            # 消息通知失败不影响停诊操作
+            logger.warning(f"停诊通知批量发送失败: {e}")
     
     async def delete(self, suspension_id: str) -> bool:
         """删除停诊记录"""

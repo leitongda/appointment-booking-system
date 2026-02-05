@@ -16,6 +16,7 @@ from app.schemas.appointment import AppointmentCreate, AppointmentStatistics
 from app.utils.audit import set_create_audit, set_update_audit
 from app.services.settings_service import SettingsService
 from app.services.rule_engine_service import RuleEngineService
+from app.services.message_service import MessageService
 from app.core.redis import RedisCache
 import logging
 
@@ -401,6 +402,30 @@ class AppointmentService:
         # 设置 schedule 关联，以便 API 层可以访问排班信息
         appointment.schedule = schedule
         
+        # 发送预约成功消息通知
+        try:
+            message_service = MessageService(self.db)
+            # 格式化时段显示
+            time_slot_display = {
+                'AM': '上午',
+                'PM': '下午',
+                'morning': '上午',
+                'afternoon': '下午',
+                'evening': '晚间',
+                'NIGHT': '夜间',
+            }.get(schedule.time_slot, schedule.time_slot)
+            
+            await message_service.send_appointment_notification(
+                user_id=user_id,
+                user_type="patient",
+                title="预约成功",
+                content=f"您已成功预约{appointment.doctor_name}医生，就诊日期：{schedule.schedule_date.strftime('%Y年%m月%d日')} {time_slot_display}，排队号：{queue_number}号。请按时到院签到。",
+                appointment_id=appointment.id
+            )
+        except Exception as e:
+            # 消息通知失败不影响预约创建
+            logger.warning(f"预约成功消息通知发送失败: {e}")
+        
         return appointment
     
     async def cancel(self, appointment_id: str, user_id: str, reason: Optional[str] = None, is_admin: bool = False, operator_id: Optional[str] = None) -> Optional[Appointment]:
@@ -480,6 +505,36 @@ class AppointmentService:
                 print(f'候补自动递补失败: {e}')
 
         await self.db.refresh(appointment)
+        
+        # 发送取消预约消息通知
+        try:
+            message_service = MessageService(self.db)
+            # 格式化时段显示
+            time_slot_display = ""
+            if schedule:
+                time_slot_display = {
+                    'AM': '上午',
+                    'PM': '下午',
+                    'morning': '上午',
+                    'afternoon': '下午',
+                    'evening': '晚间',
+                    'NIGHT': '夜间',
+                }.get(schedule.time_slot, schedule.time_slot)
+            
+            cancel_reason_text = f"，取消原因：{reason}" if reason else ""
+            schedule_date_str = schedule.schedule_date.strftime('%Y年%m月%d日') if schedule else ""
+            
+            await message_service.send_appointment_notification(
+                user_id=appointment.user_id,
+                user_type="patient",
+                title="预约已取消",
+                content=f"您预约的{appointment.doctor_name}医生（{schedule_date_str} {time_slot_display}）已取消{cancel_reason_text}。",
+                appointment_id=appointment.id
+            )
+        except Exception as e:
+            # 消息通知失败不影响取消操作
+            logger.warning(f"取消预约消息通知发送失败: {e}")
+        
         return appointment
     
     async def sign_in(
@@ -724,6 +779,21 @@ class AppointmentService:
         
         await self.db.commit()
         await self.db.refresh(appointment)
+        
+        # 发送就诊完成消息通知
+        try:
+            message_service = MessageService(self.db)
+            await message_service.send_appointment_notification(
+                user_id=appointment.user_id,
+                user_type="patient",
+                title="就诊完成",
+                content=f"您在{appointment.doctor_name}医生处的就诊已完成。感谢您的信任，祝您早日康复！",
+                appointment_id=appointment.id
+            )
+        except Exception as e:
+            # 消息通知失败不影响就诊完成操作
+            logger.warning(f"就诊完成消息通知发送失败: {e}")
+        
         return appointment
 
     async def pass_number(self, appointment_id: str) -> Optional[Appointment]:

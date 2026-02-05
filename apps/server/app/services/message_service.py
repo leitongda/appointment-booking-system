@@ -8,7 +8,8 @@ import json
 from app.models.message import Message, MessageTemplate
 from app.schemas.message import (
     MessageCreate, MessageBatchCreate, MessageQuery,
-    MessageTemplateCreate, MessageTemplateUpdate, UnreadCountResponse
+    MessageTemplateCreate, MessageTemplateUpdate, UnreadCountResponse,
+    MessageType
 )
 from app.utils.audit import set_create_audit, set_update_audit
 
@@ -259,7 +260,7 @@ class MessageService:
             user_type=user_type,
             title=title,
             content=content,
-            message_type="appointment",
+            message_type=MessageType.APPOINTMENT,
             related_id=appointment_id
         )
         return await self.create(data)
@@ -277,7 +278,7 @@ class MessageService:
             user_type="doctor",
             title=title,
             content=content,
-            message_type="schedule",
+            message_type=MessageType.SCHEDULE,
             related_id=schedule_id
         )
         return await self.create(data)
@@ -295,7 +296,26 @@ class MessageService:
             user_type=user_type,
             title=title,
             content=content,
-            message_type="system"
+            message_type=MessageType.SYSTEM
+        )
+        return await self.create(data)
+    
+    async def send_stop_clinic_notification(
+        self,
+        user_id: str,
+        user_type: str,
+        title: str,
+        content: str,
+        appointment_id: Optional[str] = None
+    ) -> Message:
+        """发送停诊通知"""
+        data = MessageCreate(
+            user_id=user_id,
+            user_type=user_type,
+            title=title,
+            content=content,
+            message_type=MessageType.STOP_CLINIC,
+            related_id=appointment_id
         )
         return await self.create(data)
 
