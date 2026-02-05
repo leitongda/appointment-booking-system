@@ -106,6 +106,17 @@ const AppointmentDetailPage = () => {
     triggerCheckinScan();
   };
 
+  // 复制预约单号到剪贴板
+  const handleCopyAppointmentNo = () => {
+    if (!appointment?.appointmentNo) return;
+    Taro.setClipboardData({
+      data: appointment.appointmentNo,
+      success: () => {
+        Taro.showToast({ title: '单号已复制', icon: 'success' });
+      },
+    });
+  };
+
   if (loading) {
     return (
       <View className="appointment-detail-page">
@@ -145,9 +156,12 @@ const AppointmentDetailPage = () => {
       {/* 预约信息 */}
       <View className="section">
         <Text className="section-title">预约信息</Text>
-        <View className="info-row">
+        <View className="info-row" onClick={handleCopyAppointmentNo}>
           <Text className="label">预约单号</Text>
-          <Text className="value">{appointment.appointmentNo}</Text>
+          <Text className="value appointment-no-value">
+            {appointment.appointmentNo}
+            <Text className="copy-hint">点击复制</Text>
+          </Text>
         </View>
         <View className="info-row">
           <Text className="label">就诊日期</Text>
@@ -200,10 +214,10 @@ const AppointmentDetailPage = () => {
       {/* 底部操作 */}
       {appointment.status === 1 && !isAppointmentExpired(appointment.scheduleDate, appointment.endTime, appointment.timeSlot) && (
         <View className="actions">
-          <Button className="btn-cancel" block onClick={handleCancel}>
+          <Button className="cancel-btn" block onClick={handleCancel}>
             取消预约
           </Button>
-          <Button className="btn-primary" type="primary" block onClick={handleSignIn}>
+          <Button className="primary-btn" type="primary" block onClick={handleSignIn}>
             扫码签到
           </Button>
         </View>

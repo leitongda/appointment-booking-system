@@ -144,6 +144,21 @@
   font-weight: @font-weight-medium;
 }
 
+// 预约单号可点击复制
+.appointment-no-value {
+  display: flex;
+  align-items: center;
+  gap: @spacing-2;
+  
+  .copy-hint {
+    font-size: @font-size-xs;
+    color: @color-primary;
+    padding: 2rpx 8rpx;
+    background: fade(@color-primary, 10%);
+    border-radius: @radius-sm;
+  }
+}
+
 .fee {
   color: @color-price;
   font-weight: @font-weight-semibold;
@@ -160,20 +175,16 @@
   gap: @spacing-3;
 }
 
-.btn-cancel {
+.cancel-btn {
   flex: 1;
   .button-secondary();
-  height: @button-height-lg;
-  border-radius: @radius-xl;
-  font-size: @font-size-base;
+  .button-lg();
 }
 
-.btn-primary {
+.primary-btn {
   flex: 1;
   .button-primary();
-  height: @button-height-lg;
-  border-radius: @radius-xl;
-  font-size: @font-size-base;
+  .button-lg();
 }
 
 // -------------------------------------------

@@ -12,6 +12,14 @@ import { CalendarIcon } from '../../components/Icons';
 import type { Appointment } from '@hospital/shared';
 import './index.less';
 
+// 隐藏预约单号中间部分（保留前4位和后4位）
+const maskAppointmentNo = (no: string): string => {
+  if (!no || no.length <= 8) return no;
+  const prefix = no.slice(0, 4);
+  const suffix = no.slice(-4);
+  return `${prefix}****${suffix}`;
+};
+
 // 状态样式映射
 const getStatusClass = (status: number): string => {
   const classMap: Record<number, string> = {
@@ -160,7 +168,7 @@ const AppointmentPage = () => {
             appointments.map((item) => (
               <View key={item.id} className="card" onClick={() => handleViewDetail(item.id)}>
                 <View className="card-header">
-                  <Text className="appointment-no">预约单号：{item.appointmentNo}</Text>
+                  <Text className="appointment-no">预约单号：{maskAppointmentNo(item.appointmentNo)}</Text>
                   <Text className={`status ${getStatusClass(item.status)}`}>
                     {APPOINTMENT_STATUS_MAP[item.status]}
                   </Text>
@@ -186,14 +194,14 @@ const AppointmentPage = () => {
                 {item.status === 1 && !isAppointmentExpired(item.scheduleDate, item.endTime, item.timeSlot) && (
                   <View className="card-footer">
                     <Button
-                      className="btn-cancel"
+                      className="cancel-btn"
                       size="small"
                       onClick={(e) => { e.stopPropagation(); handleCancel(item.id); }}
                     >
                       取消预约
                     </Button>
                     <Button
-                      className="btn-signin"
+                      className="signin-btn"
                       type="primary"
                       size="small"
                       onClick={(e) => { e.stopPropagation(); handleSignIn(); }}

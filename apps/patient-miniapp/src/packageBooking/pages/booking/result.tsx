@@ -61,10 +61,10 @@ const BookingResultPage = () => {
 
       {/* 操作按钮 */}
       <View className="actions">
-        <Button className="btn-secondary" block onClick={handleViewDetail}>
+        <Button className="secondary-btn" block onClick={handleViewDetail}>
           查看预约详情
         </Button>
-        <Button className="btn-primary" type="primary" block onClick={handleBackHome}>
+        <Button className="primary-btn" type="primary" block onClick={handleBackHome}>
           返回首页
         </Button>
       </View>
