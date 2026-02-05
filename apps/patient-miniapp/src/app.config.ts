@@ -61,15 +61,27 @@ export default defineAppConfig({
       ],
     },
   ],
-  // 分包预下载规则
+  // 分包预下载规则 - 优化跳转延迟
   preloadRule: {
     'pages/index/index': {
       network: 'all',
-      packages: ['booking'],  // 进入首页时预下载预约子包
+      packages: ['booking', 'profile', 'other'],  // 首页预下载所有分包，用户最常从首页跳转
+    },
+    'pages/department/index': {
+      network: 'all',
+      packages: ['booking'],  // 科室页预下载预约包（用户接下来会选医生预约）
+    },
+    'pages/doctor/index': {
+      network: 'all',
+      packages: ['booking'],  // 医生列表页预下载预约包
     },
     'pages/profile/index': {
       network: 'all',
-      packages: ['profile'],  // 进入我的时预下载个人中心子包
+      packages: ['profile', 'other'],  // 我的页面预下载个人中心和其他子包
+    },
+    'pages/appointment/index': {
+      network: 'all',
+      packages: ['booking'],  // 预约列表页预下载预约详情等
     },
   },
   window: {
