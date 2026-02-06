@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, users, departments, doctors, schedules, appointments, content, statistics, medical_records, admin, settings, patients, export, stores, messages, leave_requests, feedbacks, consultation_fees, doctor_booking_settings, schedule_templates, custom_schedules, rest_days, schedule_suspensions, blacklists, upload, email_templates, analytics, import_export, user_manage, booking_notices, user_favorites, store_visit_type_configs, rule_sets, shift_types, audit_logs, websocket, doctor_portal
+from app.api.v1 import auth, users, departments, doctors, schedules, appointments, content, statistics, medical_records, admin, settings, patients, export, stores, messages, leave_requests, feedbacks, consultation_fees, doctor_booking_settings, schedule_templates, custom_schedules, rest_days, schedule_suspensions, blacklists, upload, email_templates, analytics, import_export, user_manage, booking_notices, user_favorites, store_visit_type_configs, rule_sets, shift_types, audit_logs, websocket, doctor_portal, store_email_recipients
 
 api_router = APIRouter()
 
@@ -40,3 +40,4 @@ api_router.include_router(shift_types.router, prefix="/shift-types", tags=["班�
 api_router.include_router(audit_logs.router, prefix="/audit-logs", tags=["审计日志"])
 api_router.include_router(websocket.router, prefix="/ws", tags=["WebSocket"])
 api_router.include_router(doctor_portal.router, prefix="/doctor-portal", tags=["医生端"])
+api_router.include_router(store_email_recipients.router, prefix="/store-email-recipients", tags=["门店邮件接收人"])
