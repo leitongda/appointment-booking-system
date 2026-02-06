@@ -199,6 +199,7 @@ export default [
       { path: '/system/email-templates', name: '邮件模板', component: './system/email-templates' },
       { path: '/system/email-templates/create', name: '新增邮件模板', component: './system/email-template-form', hideInMenu: true },
       { path: '/system/email-templates/:id/edit', name: '编辑邮件模板', component: './system/email-template-form', hideInMenu: true },
+      { path: '/system/email-recipients', name: '邮件接收人', component: './system/email-recipients' },
       { path: '/system/booking-notice', name: '预约须知', component: './system/booking-notice' },
       { path: '/system/rule-sets', name: '规则组管理', component: './system/rule-sets' },
       { path: '/system/rule-sets/create', name: '新增规则组', component: './system/rule-set-form', hideInMenu: true },

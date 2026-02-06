@@ -59,6 +59,7 @@ export { bookingNoticeApi } from './modules/booking-notice';
 export { storeVisitTypeConfigApi } from './modules/store-visit-type-config';
 export { ruleSetApi, shiftTypeApi } from './modules/rule-set';
 export { auditLogApi } from './modules/audit-log';
+export { storeEmailRecipientApi } from './modules/store-email-recipient';
 export type { 
   UserListItem, 
   UserDetail, 
@@ -269,3 +270,12 @@ export type {
   RuleWindowCreateData,
   RuleWindowUpdateData,
 } from '@hospital/shared';
+
+// Store Email Recipient types
+export type {
+  StoreEmailRecipient,
+  StoreEmailRecipientListParams,
+  StoreEmailRecipientCreateData,
+  StoreEmailRecipientUpdateData,
+  EventTypeOption,
+} from './modules/store-email-recipient';
