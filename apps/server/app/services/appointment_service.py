@@ -18,6 +18,7 @@ from app.services.settings_service import SettingsService
 from app.services.rule_engine_service import RuleEngineService
 from app.services.message_service import MessageService
 from app.core.redis import RedisCache
+from app.core.events import dispatch_event_email, EventType
 import logging
 
 logger = logging.getLogger(__name__)
@@ -38,7 +39,43 @@ APPOINTMENT_STATUS = {
 class AppointmentService:
     def __init__(self, db: AsyncSession):
         self.db = db
-    
+
+    def _dispatch_email_event(
+        self,
+        event_type: str,
+        appointment: 'Appointment',
+        schedule: Optional['Schedule'] = None,
+    ) -> None:
+        """分发邮件事件钩子（fire-and-forget）
+
+        从预约和排班对象中提取上下文，投递 Celery 异步任务。
+        """
+        try:
+            sched = schedule or getattr(appointment, 'schedule', None)
+            if not sched:
+                return
+
+            time_slot_map = {
+                'AM': '上午', 'PM': '下午', 'morning': '上午',
+                'afternoon': '下午', 'evening': '晚间', 'NIGHT': '夜间',
+            }
+            context = {
+                "patient_name": appointment.patient_name or "",
+                "doctor_name": appointment.doctor_name or "",
+                "department_name": appointment.department_name or "",
+                "appointment_no": appointment.appointment_no or "",
+                "appointment_date": (
+                    sched.schedule_date.strftime('%Y年%m月%d日')
+                    if sched.schedule_date else ""
+                ),
+                "appointment_time": time_slot_map.get(
+                    sched.time_slot, sched.time_slot or ""
+                ),
+            }
+            dispatch_event_email(sched.store_id, event_type, context)
+        except Exception as e:
+            logger.warning(f"邮件事件钩子分发失败: event={event_type}, error={e}")
+
     async def get_by_id(self, appointment_id: str) -> Optional[Appointment]:
         result = await self.db.execute(
             select(Appointment)
@@ -426,6 +463,9 @@ class AppointmentService:
             # 消息通知失败不影响预约创建
             logger.warning(f"预约成功消息通知发送失败: {e}")
         
+        # 邮件事件钩子：新预约
+        self._dispatch_email_event(EventType.APPOINTMENT_CREATED, appointment, schedule)
+        
         return appointment
     
     async def cancel(self, appointment_id: str, user_id: str, reason: Optional[str] = None, is_admin: bool = False, operator_id: Optional[str] = None) -> Optional[Appointment]:
@@ -534,6 +574,9 @@ class AppointmentService:
         except Exception as e:
             # 消息通知失败不影响取消操作
             logger.warning(f"取消预约消息通知发送失败: {e}")
+        
+        # 邮件事件钩子：预约取消
+        self._dispatch_email_event(EventType.APPOINTMENT_CANCELLED, appointment, schedule)
         
         return appointment
     
@@ -677,6 +720,10 @@ class AppointmentService:
 
             await self.db.commit()
             await self.db.refresh(appointment)
+
+            # 邮件事件钩子：患者签到
+            self._dispatch_email_event(EventType.CHECKIN, appointment)
+
             return appointment
 
         except Exception as e:
@@ -766,6 +813,10 @@ class AppointmentService:
         
         await self.db.commit()
         await self.db.refresh(appointment)
+
+        # 邮件事件钩子：叫号
+        self._dispatch_email_event(EventType.CALL_PATIENT, appointment)
+
         return appointment
     
     async def complete(self, appointment_id: str) -> Optional[Appointment]:
@@ -793,6 +844,9 @@ class AppointmentService:
         except Exception as e:
             # 消息通知失败不影响就诊完成操作
             logger.warning(f"就诊完成消息通知发送失败: {e}")
+        
+        # 邮件事件钩子：就诊完成
+        self._dispatch_email_event(EventType.VISIT_COMPLETED, appointment)
         
         return appointment
 
@@ -840,6 +894,10 @@ class AppointmentService:
         
         await self.db.commit()
         await self.db.refresh(appointment)
+
+        # 邮件事件钩子：爽约
+        self._dispatch_email_event(EventType.NO_SHOW, appointment)
+
         return appointment
 
     async def get_queue_info(self, doctor_id: str) -> dict:

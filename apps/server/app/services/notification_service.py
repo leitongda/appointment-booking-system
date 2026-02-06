@@ -9,6 +9,7 @@ from app.models.appointment import Appointment
 from app.models.schedule import Schedule
 from app.models.user import User, Patient
 from app.services.settings_service import SettingsService
+from app.core.events import dispatch_event_email, EventType
 
 
 class NotificationService:
@@ -82,6 +83,24 @@ class NotificationService:
                         "error": str(e)
                     })
         
+        # 邮件事件钩子：停诊通知
+        try:
+            time_slot_map = {'AM': '上午', 'PM': '下午', 'morning': '上午', 'afternoon': '下午'}
+            dispatch_event_email(
+                store_id=schedule.store_id,
+                event_type=EventType.SCHEDULE_SUSPENDED,
+                context={
+                    "doctor_name": schedule.doctor.name if schedule.doctor else "",
+                    "department_name": "",
+                    "appointment_date": str(schedule.schedule_date) if schedule.schedule_date else "",
+                    "appointment_time": time_slot_map.get(schedule.time_slot, schedule.time_slot or ""),
+                    "appointment_no": "",
+                    "patient_name": f"共 {len(appointments)} 位患者受影响",
+                },
+            )
+        except Exception:
+            pass  # fire-and-forget
+
         return {
             "notified_count": len(notified_users),
             "failed_count": len(failed_users),
