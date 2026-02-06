@@ -82,7 +82,6 @@ const Login: React.FC = () => {
       currentUser: currentUser as any,
       currentStore: currentStore || undefined,
       userStores: userStores,
-      isAggregateMode: !currentStore && currentUser?.canViewAllStores,
       settings: s?.settings || defaultSettings as any,
     }));
     

@@ -9,6 +9,7 @@ import {
   PayCircleOutlined,
 } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
+import { useModel } from '@umijs/max';
 import { statisticsApi } from '@hospital/api';
 import type {
   OverviewData,
@@ -33,6 +34,9 @@ const STATUS_MAP: Record<number, string> = {
 };
 
 const Dashboard: React.FC = () => {
+  const { initialState } = useModel('@@initialState');
+  const currentStoreId = initialState?.currentStore?.id;
+
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [statusStats, setStatusStats] = useState<StatusStatItem[]>([]);
@@ -42,7 +46,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [currentStoreId]); // 门店切换后重新加载数据
 
   const loadData = async () => {
     setLoading(true);

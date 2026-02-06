@@ -20,7 +20,7 @@ import { Badge, Tooltip, Popover, List, Empty, Spin, Button, Typography, Space, 
 import type { MenuProps } from 'antd';
 import { getSpacingMode, setSpacingMode, applySpacingCSSVariables, SPACING_LABELS } from '@/utils/spacing';
 import type { SpacingMode } from '@/utils/spacing';
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { messageApi, adminApi, storeApi } from '@hospital/api';
 import type { StoreInfo } from '@hospital/api';
 import dayjs from 'dayjs';
@@ -33,38 +33,60 @@ dayjs.locale('zh-cn');
 
 const { Text } = Typography;
 
+// 门店列表缓存 TTL（5 分钟）
+const STORE_CACHE_TTL = 5 * 60 * 1000;
+
 // 门店切换器组件
 export const StoreSwitcher: React.FC = () => {
-  const { message } = App.useApp();
-  const { initialState, setInitialState } = useModel('@@initialState');
+  const { message, modal } = App.useApp();
+  const { initialState } = useModel('@@initialState');
   const access = useAccess();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [stores, setStores] = useState<StoreInfo[]>([]);
   const [canViewAllStores, setCanViewAllStores] = useState(false);
   const [switching, setSwitching] = useState(false);
+  const [switchingStoreName, setSwitchingStoreName] = useState('');
   
   // 签到二维码弹窗状态
   const [qrcodeModalVisible, setQrcodeModalVisible] = useState(false);
   const [qrcodeContent, setQrcodeContent] = useState('');
   const [qrcodeLoading, setQrcodeLoading] = useState(false);
   
+  // 门店列表缓存
+  const storesCacheRef = useRef<{ stores: StoreInfo[]; canViewAllStores: boolean; timestamp: number } | null>(null);
+  
   const currentUser = initialState?.currentUser;
   const currentStore = initialState?.currentStore;
   const userStores = initialState?.userStores || [];
   const isSuperAdmin = currentUser?.isSuperAdmin || currentUser?.roleCode === 'SUPER_ADMIN';
   
-  // 判断是否只有一个门店（使用 initialState 中的数据，避免依赖异步加载）
-  const hasMultipleStores = userStores.length > 1;
+  // 判断是否可以切换门店：多门店绑定 或 超级管理员
+  const hasMultipleStores = userStores.length > 1 || isSuperAdmin;
 
-  // 加载门店列表
+  // 加载门店列表（带缓存）
   const loadStores = useCallback(async () => {
     if (!currentUser?.id) return;
+    
+    // 使用缓存（5 分钟内有效）
+    const cache = storesCacheRef.current;
+    if (cache && Date.now() - cache.timestamp < STORE_CACHE_TTL) {
+      setStores(cache.stores);
+      setCanViewAllStores(cache.canViewAllStores);
+      return;
+    }
+    
     setLoading(true);
     try {
       const result = await adminApi.getMyStores();
-      setStores(result.stores || []);
+      const fetchedStores = result.stores || [];
+      setStores(fetchedStores);
       setCanViewAllStores(result.canViewAllStores);
+      storesCacheRef.current = {
+        stores: fetchedStores,
+        canViewAllStores: result.canViewAllStores,
+        timestamp: Date.now(),
+      };
     } catch (error) {
       console.error('加载门店列表失败:', error);
     } finally {
@@ -79,8 +101,65 @@ export const StoreSwitcher: React.FC = () => {
     }
   }, [open, loadStores]);
 
-  // 切换门店
-  const handleSwitchStore = async (storeId: string) => {
+  // 检测当前是否在表单编辑页面
+  const isOnFormPage = useCallback(() => {
+    const { pathname } = history.location;
+    return /\/(create|edit)($|\/)/.test(pathname);
+  }, []);
+
+  // 执行门店切换
+  const doSwitchStore = useCallback(async (storeId: string) => {
+    const targetStore = stores.find(s => s.id === storeId);
+    setSwitching(true);
+    setSwitchingStoreName(targetStore?.name || '');
+    setOpen(false);
+    
+    try {
+      const result = await adminApi.switchStore(storeId);
+      if (result.currentStore) {
+        localStorage.setItem('currentStore', JSON.stringify(result.currentStore));
+      }
+      // 清除缓存，确保下次加载最新数据
+      storesCacheRef.current = null;
+      window.location.reload();
+    } catch (error: any) {
+      setSwitching(false);
+      setSwitchingStoreName('');
+      message.error(error.message || '切换门店失败');
+    }
+  }, [stores, message]);
+
+  // 执行切换到"全部门店"
+  const doSelectAllStores = useCallback(() => {
+    setSwitching(true);
+    setSwitchingStoreName('全部门店');
+    setOpen(false);
+    localStorage.removeItem('currentStore');
+    storesCacheRef.current = null;
+    window.location.reload();
+  }, []);
+
+  // 切换到"全部门店"模式（仅超级管理员，含表单页保护）
+  const handleSelectAllStores = useCallback(() => {
+    if (!currentStore) {
+      setOpen(false);
+      return;
+    }
+    if (isOnFormPage()) {
+      modal.confirm({
+        title: '切换门店',
+        content: '切换到「全部门店」将导致当前页面未保存的更改丢失，是否继续？',
+        okText: '确定切换',
+        cancelText: '取消',
+        onOk: doSelectAllStores,
+      });
+    } else {
+      doSelectAllStores();
+    }
+  }, [currentStore, isOnFormPage, modal, doSelectAllStores]);
+
+  // 切换门店（含表单页保护提示）
+  const handleSwitchStore = useCallback((storeId: string) => {
     // 点击已选中的门店，仅关闭面板，不触发切换
     if (storeId === currentStore?.id) {
       setOpen(false);
@@ -88,29 +167,23 @@ export const StoreSwitcher: React.FC = () => {
     }
     // 防止切换过程中重复点击
     if (switching) return;
-    setSwitching(true);
-    try {
-      const result = await adminApi.switchStore(storeId);
-      if (result.currentStore) {
-        localStorage.setItem('currentStore', JSON.stringify(result.currentStore));
-        setInitialState((prev) => ({
-          ...prev,
-          currentStore: result.currentStore,
-        }));
-        message.success(`已切换到 ${result.currentStore.name}`);
-      }
-      setOpen(false);
-      // 延迟刷新，让用户看到成功提示
-      setTimeout(() => {
-        window.location.reload();
-      }, 600);
-    } catch (error: any) {
-      setSwitching(false);
-      message.error(error.message || '切换门店失败');
-    }
-  };
 
-  // 只有一个门店的用户：显示静态信息（不显示切换功能）
+    // 在表单编辑页面时，提示用户确认
+    if (isOnFormPage()) {
+      const targetStore = stores.find(s => s.id === storeId);
+      modal.confirm({
+        title: '切换门店',
+        content: `切换到「${targetStore?.name || ''}」将导致当前页面未保存的更改丢失，是否继续？`,
+        okText: '确定切换',
+        cancelText: '取消',
+        onOk: () => doSwitchStore(storeId),
+      });
+    } else {
+      doSwitchStore(storeId);
+    }
+  }, [currentStore?.id, switching, isOnFormPage, stores, modal, doSwitchStore]);
+
+  // 只有一个门店且非超级管理员：显示静态信息（不显示切换功能）
   const showStaticInfo = !hasMultipleStores;
 
   // 打开签到二维码弹窗
@@ -187,19 +260,22 @@ export const StoreSwitcher: React.FC = () => {
     return actions.filter(action => access.hasPermission(action.permission));
   }, [access, currentStore?.id, handleOpenQrcode]);
 
-  // 超级管理员不显示门店切换器
-  if (isSuperAdmin) {
-    return null;
-  }
-
   // 渲染当前门店信息
   const renderCurrentStore = () => {
     if (!currentStore) {
+      // 超级管理员无门店选中时显示"全部门店"；普通用户显示"请选择门店"
+      const label = isSuperAdmin ? '全部门店' : '请选择门店';
+      const color = isSuperAdmin ? '#1890ff' : 'rgba(0, 0, 0, 0.45)';
+      const textColor = isSuperAdmin ? 'rgba(0, 0, 0, 0.85)' : 'rgba(0, 0, 0, 0.45)';
       return (
         <>
-          <ShopOutlined style={{ marginRight: 8, fontSize: 16, color: 'rgba(0, 0, 0, 0.45)' }} />
-          <span className={styles.storeName} style={{ color: 'rgba(0, 0, 0, 0.45)' }}>请选择门店</span>
-          <DownOutlined className={styles.storeDropdownIcon} />
+          {isSuperAdmin ? (
+            <AppstoreOutlined style={{ marginRight: 8, fontSize: 16, color }} />
+          ) : (
+            <ShopOutlined style={{ marginRight: 8, fontSize: 16, color }} />
+          )}
+          <span className={styles.storeName} style={{ color: textColor }}>{label}</span>
+          <DownOutlined className={`${styles.storeDropdownIcon} ${open ? styles.storeDropdownIconOpen : ''}`} />
         </>
       );
     }
@@ -212,7 +288,9 @@ export const StoreSwitcher: React.FC = () => {
           <ShopOutlined style={{ marginRight: 8, fontSize: 16, color: '#1890ff' }} />
         )}
         <span className={styles.storeName}>{currentStore.name}</span>
-        {(!showStaticInfo || hasStoreActions) && <DownOutlined className={styles.storeDropdownIcon} />}
+        {(!showStaticInfo || hasStoreActions) && (
+          <DownOutlined className={`${styles.storeDropdownIcon} ${open ? styles.storeDropdownIconOpen : ''}`} />
+        )}
       </>
     );
   };
@@ -242,8 +320,19 @@ export const StoreSwitcher: React.FC = () => {
       </div>
       {/* 门店列表：仅在可切换门店时显示 */}
       {!showStaticInfo && (
-        <Spin spinning={loading || switching} tip={switching ? '切换中...' : undefined}>
+        <Spin spinning={loading}>
           <div className={styles.storeList}>
+            {/* 超级管理员：显示"全部门店"选项 */}
+            {isSuperAdmin && (
+              <div
+                className={`${styles.storeItem} ${!currentStore ? styles.active : ''}`}
+                onClick={handleSelectAllStores}
+              >
+                <Avatar icon={<AppstoreOutlined />} size={32} className={styles.storeItemLogo} />
+                <span className={styles.storeItemName}>全部门店</span>
+                {!currentStore && <CheckOutlined className={styles.storeItemCheck} />}
+              </div>
+            )}
             {stores.map((store) => (
               <div
                 key={store.id}
@@ -297,7 +386,7 @@ export const StoreSwitcher: React.FC = () => {
         overlayClassName={styles.storeSwitcherPopover}
         arrow={{ pointAtCenter: true }}
       >
-        <Tooltip title={currentStore?.name || '未选择门店'} open={open ? false : undefined}>
+        <Tooltip title={currentStore?.name || (isSuperAdmin ? '全部门店' : '未选择门店')} open={open ? false : undefined}>
           <div className={styles.storeInfo}>
             {renderCurrentStore()}
           </div>
@@ -342,6 +431,16 @@ export const StoreSwitcher: React.FC = () => {
           )}
         </div>
       </Modal>
+
+      {/* 门店切换全屏过渡遮罩 */}
+      {switching && (
+        <div className={styles.storeSwitchingOverlay}>
+          <Spin size="large" />
+          <div className={styles.switchingText}>
+            正在切换到 {switchingStoreName}...
+          </div>
+        </div>
+      )}
     </>
   );
 };

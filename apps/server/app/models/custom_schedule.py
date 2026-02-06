@@ -1,3 +1,16 @@
+"""
+[已废弃] 自定义排班模型
+
+数据已通过 Alembic 迁移 021_merge_custom_schedules 合并到 schedules 表。
+schedules 表中 template_id IS NULL 的记录即为原自定义排班。
+
+此文件仍保留的原因：
+- custom_schedule_service.py 和 api/v1/custom_schedules.py 仍直接引用此模型
+- 前端 admin 和 packages/api 仍引用相关 API 和类型
+- 完全清理需要同步重构服务层、API 层和前端代码
+
+TODO: 在下一次排班模块重构时一并清理此文件及相关代码。
+"""
 from sqlalchemy import Column, String, Integer, Date, Time, ForeignKey
 from sqlalchemy.orm import relationship
 from app.db.base import Base, AuditMixin
@@ -5,7 +18,7 @@ import uuid
 
 
 class CustomSchedule(Base, AuditMixin):
-    """自定义排班（单日排班）模型"""
+    """[已废弃] 自定义排班（单日排班）模型 - 数据已合并到 schedules 表"""
     __tablename__ = "custom_schedules"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))

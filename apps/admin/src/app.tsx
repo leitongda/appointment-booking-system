@@ -231,7 +231,6 @@ export async function getInitialState(): Promise<{
   currentUser?: API.CurrentUser;
   currentStore?: StoreInfo;
   userStores?: StoreInfo[];
-  isAggregateMode?: boolean;
   loading?: boolean;
   fetchUserInfo?: () => Promise<API.CurrentUser | undefined>;
 }> {
@@ -255,14 +254,10 @@ export async function getInitialState(): Promise<{
     
     // 从 localStorage 获取登录时保存的门店信息
     let currentStore: StoreInfo | undefined;
-    let isAggregateMode = false;
     try {
       const storeData = localStorage.getItem('currentStore');
       if (storeData) {
         currentStore = JSON.parse(storeData);
-      } else if (currentUser?.canViewAllStores) {
-        // 没有选中门店且可以查看所有门店，则为聚合模式
-        isAggregateMode = true;
       }
     } catch (e) {
       console.error('Failed to parse store info', e);
@@ -276,7 +271,6 @@ export async function getInitialState(): Promise<{
       currentUser,
       currentStore,
       userStores,
-      isAggregateMode,
       settings: defaultSettings as Partial<LayoutSettings>,
     };
   }
