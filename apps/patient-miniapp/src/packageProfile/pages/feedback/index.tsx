@@ -13,6 +13,9 @@ const FeedbackPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [userId, setUserId] = useState('');
   const [showLoginPopup, setShowLoginPopup] = useState(false);
+  const trimmedLength = content.trim().length;
+  const minLength = 10;
+  const remainingToMin = Math.max(0, minLength - trimmedLength);
 
   useEffect(() => {
     // 检查登录状态并获取用户信息
@@ -52,7 +55,7 @@ const FeedbackPage = () => {
       return;
     }
 
-    if (content.trim().length < 10) {
+    if (trimmedLength < minLength) {
       Taro.showToast({ title: '反馈内容至少10个字', icon: 'none' });
       return;
     }
@@ -105,7 +108,14 @@ const FeedbackPage = () => {
           onInput={(e) => setContent(e.detail.value)}
           maxlength={300}
         />
-        <Text className="char-count">{content.length}/300</Text>
+        <View className="feedback-meta">
+          {remainingToMin > 0 ? (
+            <Text className="content-hint">至少再输入 {remainingToMin} 个字后可提交</Text>
+          ) : (
+            <Text className="content-hint ready">内容已满足提交要求</Text>
+          )}
+          <Text className={`char-count ${content.length >= 260 ? 'char-count-warn' : ''}`}>{content.length}/300</Text>
+        </View>
       </View>
 
       {/* 提交按钮 */}
@@ -114,7 +124,7 @@ const FeedbackPage = () => {
           type="primary"
           block
           loading={submitting}
-          disabled={!content.trim()}
+          disabled={trimmedLength < minLength}
           onClick={handleSubmit}
         >
           提交反馈
@@ -151,4 +161,3 @@ const FeedbackPage = () => {
 };
 
 export default FeedbackPage;
-

@@ -7,6 +7,9 @@ from pydantic import BaseModel, Field
 from datetime import datetime, timedelta
 import json
 import hashlib
+import logging
+
+logger = logging.getLogger(__name__)
 
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -735,13 +738,19 @@ async def switch_current_store(
     from app.api.deps import check_store_access
     
     target_store_id = data.store_id
+    store_ids = current_admin.get("store_ids", [])
     
     # 检查权限
     if not current_admin.get("is_super_admin"):
         if not check_store_access(current_admin, target_store_id):
+            # 添加日志帮助诊断
+            logger.warning(
+                f"门店切换权限检查失败: admin_id={current_admin.get('id')}, "
+                f"target_store_id={target_store_id}, bound_store_ids={store_ids}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="您无权访问此门店"
+                detail="您无权访问此门店，请确认您已绑定该门店"
             )
     
     # 更新当前门店

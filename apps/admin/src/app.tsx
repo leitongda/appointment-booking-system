@@ -1,5 +1,5 @@
 import { AvatarDropdown, AvatarName } from '@/components/RightContent';
-import { FullscreenButton, NotificationButton, RefreshButton, SpacingButton } from '@/components/HeaderActions';
+import { FullscreenButton, NotificationButton, RefreshButton, SpacingButton, StoreSwitcher } from '@/components/HeaderActions';
 import { getToken, removeToken, setStorage, STORAGE_KEYS, handleTokenExpired, initTracker, getTracker } from '@hospital/shared';
 import { adminApi, setBaseURL } from '@hospital/api';
 import type { Settings as LayoutSettings, MenuDataItem } from '@ant-design/pro-components';
@@ -303,6 +303,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
 
   return {
     actionsRender: () => [
+      <StoreSwitcher key="store" />,
       <SpacingButton key="spacing" />,
       <RefreshButton key="refresh" />,
       <NotificationButton key="notification" />,

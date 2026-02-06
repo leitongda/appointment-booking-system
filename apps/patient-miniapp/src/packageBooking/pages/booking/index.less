@@ -282,15 +282,16 @@
   font-size: @font-size-base;
   font-weight: @font-weight-medium;
   color: @color-text-primary;
-  margin-bottom: @spacing-2;
+  margin-bottom: @spacing-3;
   display: block;
 }
 
 .symptom-input {
   width: 100%;
-  min-height: 160rpx;
+  min-height: 180rpx;
   padding: @spacing-3;
   background: @color-bg-secondary;
+  border: @border-width solid @color-border;
   border-radius: @radius-lg;
   font-size: @font-size-base;
   color: @color-text-primary;
@@ -304,8 +305,11 @@
 
 .symptom-count {
   position: absolute;
-  right: 0;
+  right: @spacing-2;
   bottom: @spacing-2;
+  padding: 2rpx @spacing-2;
+  border-radius: @radius-full;
+  background: rgba(148, 163, 184, 0.12);
   font-size: @font-size-xs;
   color: @color-text-muted;
 }
@@ -403,4 +407,3 @@
   .button-block();
   min-width: 240rpx;
 }
-

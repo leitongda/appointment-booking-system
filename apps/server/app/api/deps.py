@@ -230,8 +230,8 @@ async def get_current_admin(
                 # 当前门店被禁用，自动切换到第一个可用门店
                 current_store = available_stores[0] if available_stores else None
             
-            # 是否可以查看所有绑定门店（超管可查看所有，门店管理员可聚合查看绑定门店）
-            can_view_all_stores = is_super_admin or (is_store_admin and len(store_ids) > 1)
+            # 是否可以查看所有绑定门店（超管可查看所有，绑定多门店的用户可切换门店）
+            can_view_all_stores = is_super_admin or len(store_ids) > 1
             
             # 解析权限列表
             permissions = []

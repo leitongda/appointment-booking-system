@@ -160,8 +160,8 @@ const StoreFeeTemplatesPage: React.FC = () => {
       width: 200,
       render: (_: any, record: StoreFeeTemplateWithType) => (
         <span style={{ color: '#999' }}>
-          初诊: ¥{record.globalInitialFee?.toFixed(2) ?? '0.00'} / 
-          复诊: ¥{record.globalFollowUpFee?.toFixed(2) ?? '0.00'}
+          初诊: ¥{Number(record.globalInitialFee || 0).toFixed(2)} / 
+          复诊: ¥{Number(record.globalFollowUpFee || 0).toFixed(2)}
         </span>
       ),
     },

@@ -152,9 +152,13 @@ const PatientEditPage = () => {
     }
   };
 
+  const relationshipText = getRelationshipText();
+  const relationshipIsPlaceholder = relationshipText === '请选择';
+
   return (
     <View className="patient-edit-page">
       <Form
+        className="patient-form"
         onFinish={handleSubmit}
       >
         {/* 基本信息卡片 */}
@@ -236,8 +240,8 @@ const PatientEditPage = () => {
             </View>
             <Picker mode="selector" range={RELATIONSHIP_OPTIONS} value={relationIndex} onChange={handleRelationChange}>
               <View className="picker-value">
-                <Text className={!formValues.relationship && !showCustomRelation ? 'placeholder' : ''}>
-                  {getRelationshipText()}
+                <Text className={relationshipIsPlaceholder ? 'placeholder' : ''}>
+                  {relationshipText}
                 </Text>
                 <Text className="picker-arrow">›</Text>
               </View>
@@ -247,6 +251,7 @@ const PatientEditPage = () => {
           {/* 自定义关系输入框 */}
           {showCustomRelation && (
             <View className="custom-relation-wrap">
+              <Text className="custom-relation-label">其他关系</Text>
               <TaroInput
                 className="custom-input"
                 placeholder="请输入与本人关系"
@@ -277,7 +282,7 @@ const PatientEditPage = () => {
         </View>
 
         <View className="submit-wrap">
-          <Button type="primary" block formType="submit" loading={loading}>
+          <Button type="primary" block formType="submit" loading={loading} className="submit-btn">
             保存
           </Button>
         </View>

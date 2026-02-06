@@ -53,10 +53,27 @@ const UserPage: React.FC = () => {
     // 超级管理员或多门店管理员可以看到门店列
     ...(showStoreFilter ? [{
       title: '所属门店',
-      dataIndex: 'storeName',
-      width: 120,
+      dataIndex: 'stores',
+      width: 200,
       search: false,
-      render: (_: any, record: Admin) => record.storeName || <Tag color="purple">全局</Tag>,
+      render: (_: any, record: Admin) => {
+        // 优先使用 stores 数组显示所有门店
+        if (record.stores && record.stores.length > 0) {
+          return (
+            <>
+              {record.stores.map((store) => (
+                <Tag key={store.id}>{store.name}</Tag>
+              ))}
+            </>
+          );
+        }
+        // 兼容旧数据：使用 storeName
+        if (record.storeName) {
+          return <Tag>{record.storeName}</Tag>;
+        }
+        // 无门店绑定
+        return <Tag color="purple">全局</Tag>;
+      },
     } as ProColumns<Admin>] : []),
     // 超级管理员或多门店管理员可以按门店筛选
     ...(showStoreFilter ? [{

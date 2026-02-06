@@ -42,6 +42,7 @@ export const StoreSwitcher: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [stores, setStores] = useState<StoreInfo[]>([]);
   const [canViewAllStores, setCanViewAllStores] = useState(false);
+  const [switching, setSwitching] = useState(false);
   
   // 签到二维码弹窗状态
   const [qrcodeModalVisible, setQrcodeModalVisible] = useState(false);
@@ -50,7 +51,11 @@ export const StoreSwitcher: React.FC = () => {
   
   const currentUser = initialState?.currentUser;
   const currentStore = initialState?.currentStore;
+  const userStores = initialState?.userStores || [];
   const isSuperAdmin = currentUser?.isSuperAdmin || currentUser?.roleCode === 'SUPER_ADMIN';
+  
+  // 判断是否只有一个门店（使用 initialState 中的数据，避免依赖异步加载）
+  const hasMultipleStores = userStores.length > 1;
 
   // 加载门店列表
   const loadStores = useCallback(async () => {
@@ -75,39 +80,38 @@ export const StoreSwitcher: React.FC = () => {
   }, [open, loadStores]);
 
   // 切换门店
-  const handleSwitchStore = async (storeId: string | null) => {
+  const handleSwitchStore = async (storeId: string) => {
+    // 点击已选中的门店，仅关闭面板，不触发切换
+    if (storeId === currentStore?.id) {
+      setOpen(false);
+      return;
+    }
+    // 防止切换过程中重复点击
+    if (switching) return;
+    setSwitching(true);
     try {
-      if (storeId === null) {
-        // 切换到"全部门店"模式
-        localStorage.removeItem('currentStore');
+      const result = await adminApi.switchStore(storeId);
+      if (result.currentStore) {
+        localStorage.setItem('currentStore', JSON.stringify(result.currentStore));
         setInitialState((prev) => ({
           ...prev,
-          currentStore: undefined,
-          isAggregateMode: true,
+          currentStore: result.currentStore,
         }));
-        message.success('已切换到全部门店模式');
-      } else {
-        const result = await adminApi.switchStore(storeId);
-        if (result.currentStore) {
-          localStorage.setItem('currentStore', JSON.stringify(result.currentStore));
-          setInitialState((prev) => ({
-            ...prev,
-            currentStore: result.currentStore,
-            isAggregateMode: false,
-          }));
-          message.success(`已切换到 ${result.currentStore.name}`);
-        }
+        message.success(`已切换到 ${result.currentStore.name}`);
       }
       setOpen(false);
-      // 刷新页面数据
-      window.location.reload();
+      // 延迟刷新，让用户看到成功提示
+      setTimeout(() => {
+        window.location.reload();
+      }, 600);
     } catch (error: any) {
+      setSwitching(false);
       message.error(error.message || '切换门店失败');
     }
   };
 
-  // 超级管理员或只有一个门店的用户：显示静态信息
-  const showStaticInfo = !canViewAllStores && stores.length <= 1;
+  // 只有一个门店的用户：显示静态信息（不显示切换功能）
+  const showStaticInfo = !hasMultipleStores;
 
   // 打开签到二维码弹窗
   const handleOpenQrcode = useCallback(async () => {
@@ -183,23 +187,20 @@ export const StoreSwitcher: React.FC = () => {
     return actions.filter(action => access.hasPermission(action.permission));
   }, [access, currentStore?.id, handleOpenQrcode]);
 
+  // 超级管理员不显示门店切换器
+  if (isSuperAdmin) {
+    return null;
+  }
+
   // 渲染当前门店信息
   const renderCurrentStore = () => {
-    if (isSuperAdmin && !currentStore) {
-      return (
-        <Tag color="purple" style={{ margin: 0 }}>
-          <ShopOutlined style={{ marginRight: 4 }} />
-          全局管理
-        </Tag>
-      );
-    }
-
     if (!currentStore) {
       return (
-        <Tag color="geekblue" style={{ margin: 0 }}>
-          <AppstoreOutlined style={{ marginRight: 4 }} />
-          全部门店
-        </Tag>
+        <>
+          <ShopOutlined style={{ marginRight: 8, fontSize: 16, color: 'rgba(0, 0, 0, 0.45)' }} />
+          <span className={styles.storeName} style={{ color: 'rgba(0, 0, 0, 0.45)' }}>请选择门店</span>
+          <DownOutlined className={styles.storeDropdownIcon} />
+        </>
       );
     }
 
@@ -211,7 +212,7 @@ export const StoreSwitcher: React.FC = () => {
           <ShopOutlined style={{ marginRight: 8, fontSize: 16, color: '#1890ff' }} />
         )}
         <span className={styles.storeName}>{currentStore.name}</span>
-        {!showStaticInfo && <DownOutlined className={styles.storeDropdownIcon} />}
+        {(!showStaticInfo || hasStoreActions) && <DownOutlined className={styles.storeDropdownIcon} />}
       </>
     );
   };
@@ -222,7 +223,7 @@ export const StoreSwitcher: React.FC = () => {
   
   if (showStaticInfo && !hasStoreActions) {
     return (
-      <Tooltip title={isSuperAdmin ? "超级管理员 - 可管理所有门店" : currentStore?.name}>
+      <Tooltip title={currentStore?.name || '未选择门店'}>
         <div className={styles.storeInfo}>
           {renderCurrentStore()}
         </div>
@@ -241,20 +242,8 @@ export const StoreSwitcher: React.FC = () => {
       </div>
       {/* 门店列表：仅在可切换门店时显示 */}
       {!showStaticInfo && (
-        <Spin spinning={loading}>
+        <Spin spinning={loading || switching} tip={switching ? '切换中...' : undefined}>
           <div className={styles.storeList}>
-            {/* 全部门店选项（仅多门店用户可见） */}
-            {canViewAllStores && (
-              <div
-                className={`${styles.storeItem} ${styles.allStoresItem} ${!currentStore ? styles.active : ''}`}
-                onClick={() => handleSwitchStore(null)}
-              >
-                <AppstoreOutlined className={styles.allStoresIcon} />
-                <span className={styles.storeItemName}>全部门店</span>
-                {!currentStore && <CheckOutlined className={styles.storeItemCheck} />}
-              </div>
-            )}
-            {/* 门店列表 */}
             {stores.map((store) => (
               <div
                 key={store.id}
@@ -308,9 +297,11 @@ export const StoreSwitcher: React.FC = () => {
         overlayClassName={styles.storeSwitcherPopover}
         arrow={{ pointAtCenter: true }}
       >
-        <div className={styles.storeInfo}>
-          {renderCurrentStore()}
-        </div>
+        <Tooltip title={currentStore?.name || '未选择门店'} open={open ? false : undefined}>
+          <div className={styles.storeInfo}>
+            {renderCurrentStore()}
+          </div>
+        </Tooltip>
       </Popover>
       
       {/* 签到二维码弹窗 */}

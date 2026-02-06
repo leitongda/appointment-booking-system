@@ -1,55 +1,63 @@
-// ===========================================
-// 设置页样式 - Corporate Trust Design System
-// ===========================================
-
 @import '../../../styles/variables.less';
 @import '../../../styles/mixins.less';
 
 .settings-page {
   .page-container();
-  padding-bottom: 120rpx;
+  padding: @spacing-3 @page-padding 140rpx;
 
   .section {
     margin-bottom: @spacing-3;
+  }
 
-    .section-title {
-      font-size: @font-size-xs;
-      color: @color-text-muted;
-      padding: @spacing-3 @page-padding @spacing-2;
-      display: block;
-      text-transform: uppercase;
-      letter-spacing: 1rpx;
-    }
+  .section-title {
+    position: relative;
+    display: block;
+    padding: 0 0 @spacing-2 @spacing-2;
+    font-size: @font-size-xs;
+    color: @color-text-muted;
+    letter-spacing: 1rpx;
+  }
 
-    .cell-group {
-      background: @color-bg-white;
+  .section-title::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 6rpx;
+    width: 4rpx;
+    height: 20rpx;
+    border-radius: @radius-full;
+    background: @gradient-primary;
+  }
 
-      .nut-cell {
-        padding: @spacing-4 @page-padding;
+  .cell-group {
+    .card-base();
+    overflow: hidden;
 
-        &::after {
-          left: @page-padding;
-          right: @page-padding;
-        }
+    .nut-cell {
+      min-height: 104rpx;
+      padding: @spacing-4;
 
-        .nut-cell__title {
-          font-size: @font-size-base;
-          color: @color-text-primary;
-        }
+      &::after {
+        left: @spacing-4;
+        right: @spacing-4;
+      }
 
-        .nut-cell__desc {
-          font-size: @font-size-xs;
-          color: @color-text-placeholder;
-        }
+      .nut-cell__title {
+        font-size: @font-size-base;
+        color: @color-text-primary;
+      }
+
+      .nut-cell__desc {
+        font-size: @font-size-xs;
+        color: @color-text-placeholder;
       }
     }
   }
 
   .logout-section {
-    padding: @spacing-8 @page-padding;
+    padding: @spacing-6 0 0;
 
     .logout-btn {
-      // 使用 NutUI CSS 变量覆盖 danger 按钮样式为 ghost 风格
       --nut-button-danger-color: @color-danger !important;
       --nut-button-danger-border-color: @color-danger !important;
       --nut-button-danger-background-color: transparent !important;
@@ -62,34 +70,47 @@
 
 .dialog-content {
   padding: @spacing-3 0;
+  display: flex;
+  flex-direction: column;
+  gap: @spacing-3;
 
-  // 同行布局表单项（Label 和输入框在同一行，输入框右对齐）
   .form-item {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: @spacing-4;
+    gap: @spacing-3;
+    margin-bottom: 0;
+  }
 
-    .form-label {
-      width: 140rpx;
-      flex-shrink: 0;
-      font-size: @font-size-base;
-      color: @color-text-primary;
+  .form-label {
+    width: 140rpx;
+    flex-shrink: 0;
+    font-size: @font-size-base;
+    color: @color-text-primary;
+    font-weight: @font-weight-medium;
+  }
+
+  .form-input {
+    flex: 1;
+    min-width: 0;
+    height: 72rpx;
+    padding: 0 @spacing-3;
+    border-radius: @radius-md;
+    background: @color-bg-secondary;
+    display: flex;
+    align-items: center;
+
+    .nut-input {
+      width: 100%;
     }
 
-    .form-input {
-      flex: 1;
+    .nut-input__input {
+      width: 100%;
       text-align: right;
+      font-size: @font-size-base;
+      color: @color-text-primary;
 
-      // NutUI Input 内部样式覆盖
-      .nut-input__input {
-        text-align: right;
-        font-size: @font-size-base;
-        color: @color-text-primary;
-
-        &::placeholder {
-          color: @color-text-placeholder;
-        }
+      &::placeholder {
+        color: @color-text-placeholder;
       }
     }
   }
@@ -99,61 +120,43 @@
     .button-lg();
     .button-block();
     .button-capsule();
-    margin-top: @spacing-3;
+    margin-top: @spacing-1;
   }
 }
 
-// -------------------------------------------
-// 长辈模式 - 字体放大 (+20%)
-// -------------------------------------------
-
 .settings-page.font-mode-elder {
-  .section {
-    .section-title {
-      font-size: @font-size-xs-elder;
+  .section-title {
+    font-size: @font-size-xs-elder;
+  }
+
+  .cell-group .nut-cell {
+    .nut-cell__title {
+      font-size: @font-size-base-elder;
     }
 
-    .cell-group {
-      .nut-cell {
-        .nut-cell__title {
-          font-size: @font-size-base-elder;
-        }
-
-        .nut-cell__desc {
-          font-size: @font-size-xs-elder;
-        }
-      }
+    .nut-cell__desc {
+      font-size: @font-size-xs-elder;
     }
   }
 
-  .logout-section {
-    .logout-btn {
-      font-size: @font-size-base-elder;
-    }
+  .logout-section .logout-btn {
+    font-size: @font-size-base-elder;
   }
 }
 
 .font-mode-elder .dialog-content {
-  .form-item {
-    .form-label {
-      font-size: @font-size-base-elder;
-    }
+  .form-label {
+    font-size: @font-size-base-elder;
+  }
 
-    .form-input {
-      .nut-input__input {
-        font-size: @font-size-base-elder;
-      }
-    }
+  .form-input .nut-input__input {
+    font-size: @font-size-base-elder;
   }
 
   .submit-btn {
     font-size: @font-size-base-elder;
   }
 }
-
-// -------------------------------------------
-// 主题选择器样式
-// -------------------------------------------
 
 .theme-picker {
   display: grid;
@@ -178,7 +181,7 @@
   .theme-color {
     width: 48rpx;
     height: 48rpx;
-    border-radius: 50%;
+    border-radius: @radius-full;
     margin-right: @spacing-2;
     flex-shrink: 0;
   }
