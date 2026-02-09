@@ -220,11 +220,25 @@
     .nickname-input {
       width: 100%;
       height: @input-height;
-      background: @color-bg-secondary;
+      background: @input-bg-idle;
+      border: none;
       border-radius: @radius-lg;
       padding: 0 @spacing-4;
       font-size: @font-size-base;
       color: @color-text-primary;
+      box-shadow: @input-inner-shadow;
+      transition: all @transition-input;
+
+      &::placeholder {
+        color: @color-text-placeholder;
+        font-weight: @font-weight-normal;
+      }
+
+      &:focus {
+        background: @input-bg-focus;
+        box-shadow: @input-focus-shadow;
+        transform: translateY(-1rpx);
+      }
     }
   }
   
