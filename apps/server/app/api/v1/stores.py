@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin, require_permission
+from app.api.deps import get_current_admin, require_permission, check_store_access
 from app.schemas.store import (
     StoreCreate, StoreUpdate, StoreResponse, StoreListResponse, StoreQuery,
     StoreWechatConfigUpdate, StoreWechatConfigResponse
@@ -156,17 +156,19 @@ async def get_all_stores(
     """获取所有营业中的门店（下拉选择用）"""
     service = StoreService(db)
     
-    # 门店管理员只能看到自己的门店
-    store_id = current_admin.get("store_id")
-    if store_id:
-        store = await service.get_by_id(store_id)
-        if store and store.status == 1:
-            return [StoreResponse.model_validate(store)]
-        return []
-    
     # 超级管理员可以看到所有门店
-    stores = await service.get_all_active()
-    return [StoreResponse.model_validate(s) for s in stores]
+    if current_admin.get("is_super_admin"):
+        stores = await service.get_all_active()
+        return [StoreResponse.model_validate(s) for s in stores]
+    
+    # 非超管只能看到自己绑定的门店
+    store_ids = current_admin.get("store_ids") or []
+    result = []
+    for sid in store_ids:
+        store = await service.get_by_id(sid)
+        if store and store.status == 1:
+            result.append(StoreResponse.model_validate(store))
+    return result
 
 
 @router.get("/{store_id}", response_model=StoreResponse, summary="获取门店详情")
@@ -176,9 +178,8 @@ async def get_store(
     current_admin = Depends(get_current_admin)
 ):
     """获取门店详情"""
-    # 门店管理员只能查看自己的门店
-    admin_store_id = current_admin.get("store_id")
-    if admin_store_id and admin_store_id != store_id:
+    # 权限检查：超级管理员可访问任意门店，其他用户只能访问绑定的门店
+    if not check_store_access(current_admin, store_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="您无权访问此门店"
@@ -204,8 +205,8 @@ async def create_store(
     _: None = Depends(require_permission("store:create"))
 ):
     """创建门店（仅超级管理员）"""
-    # 门店管理员不能创建门店
-    if current_admin.get("store_id"):
+    # 只有超级管理员可以创建门店
+    if not current_admin.get("is_super_admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="门店管理员无权创建门店，请联系超级管理员"
@@ -232,9 +233,8 @@ async def update_store(
     _: None = Depends(require_permission("store:update"))
 ):
     """更新门店"""
-    # 门店管理员只能更新自己的门店
-    admin_store_id = current_admin.get("store_id")
-    if admin_store_id and admin_store_id != store_id:
+    # 权限检查：超级管理员可更新任意门店，其他用户只能更新绑定的门店
+    if not check_store_access(current_admin, store_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="您无权修改此门店"
@@ -265,8 +265,8 @@ async def delete_store(
     _: None = Depends(require_permission("store:delete"))
 ):
     """删除门店（仅超级管理员）"""
-    # 门店管理员不能删除门店
-    if current_admin.get("store_id"):
+    # 只有超级管理员可以删除门店
+    if not current_admin.get("is_super_admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="门店管理员无权删除门店，请联系超级管理员"
@@ -321,14 +321,12 @@ async def update_store_status(
             detail="启用门店需要超级管理员权限"
         )
     
-    # 门店管理员只能更新自己的门店状态（非禁用操作）
-    if not is_super_admin:
-        admin_store_id = current_admin.get("store_id")
-        if admin_store_id and admin_store_id != store_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="您无权修改此门店状态"
-            )
+    # 门店管理员只能更新自己绑定门店的状态（非禁用操作）
+    if not is_super_admin and not check_store_access(current_admin, store_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="您无权修改此门店状态"
+        )
     
     store = await service.update_status(store_id, new_status)
     
@@ -348,9 +346,8 @@ async def get_store_departments(
     current_admin = Depends(get_current_admin)
 ):
     """获取门店已绑定的科室列表"""
-    # 门店管理员只能查看自己的门店
-    admin_store_id = current_admin.get("store_id")
-    if admin_store_id and admin_store_id != store_id:
+    # 权限检查：超级管理员可访问任意门店，其他用户只能访问绑定的门店
+    if not check_store_access(current_admin, store_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="您无权访问此门店"
@@ -378,9 +375,8 @@ async def batch_bind_departments(
     current_admin = Depends(get_current_admin)
 ):
     """批量绑定科室到门店"""
-    # 门店管理员只能操作自己的门店
-    admin_store_id = current_admin.get("store_id")
-    if admin_store_id and admin_store_id != store_id:
+    # 权限检查：超级管理员可操作任意门店，其他用户只能操作绑定的门店
+    if not check_store_access(current_admin, store_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="您无权操作此门店"
