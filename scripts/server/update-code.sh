@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# 服务器端脚本：拉取代码并重启服务
-# 在服务器上直接执行
+# 服务器端脚本：拉取代码、安装依赖、迁移数据库、重启服务
+# SSH 到服务器后直接执行
 
 set -e  # 遇到错误立即退出
 
@@ -11,36 +11,46 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# 项目目录（可根据实际情况修改）
-PROJECT_DIR=${PROJECT_DIR:-/www/hospital-booking}
+PROJECT_DIR="/www/wwwroot/appointment-booking-system"
 
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}  服务器更新脚本${NC}"
+echo -e "${GREEN}  服务器一键更新部署脚本${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 echo "项目目录: $PROJECT_DIR"
 echo ""
 
-# 进入项目目录
+# 1. 进入项目目录并拉取代码
+echo -e "${YELLOW}[1/5] 拉取最新代码...${NC}"
 cd "$PROJECT_DIR"
+git pull
+echo "代码已更新"
 
-echo -e "${YELLOW}[1/4] 拉取最新代码...${NC}"
-git fetch origin main
-git reset --hard origin/main
-echo "代码已更新到最新版本"
+# 2. 安装 Python 依赖
+echo -e "${YELLOW}[2/5] 安装 Python 依赖...${NC}"
+cd apps/server
+python3 -m pip install -r requirements.txt
+echo "依赖安装完成"
 
-echo -e "${YELLOW}[2/4] 停止旧容器...${NC}"
+# 3. 执行数据库迁移
+echo -e "${YELLOW}[3/5] 执行数据库迁移...${NC}"
+python3 -m alembic upgrade head
+echo "数据库迁移完成"
+
+# 4. 重新构建并启动容器
+echo -e "${YELLOW}[4/5] 重新构建并启动 Docker 容器...${NC}"
+cd "$PROJECT_DIR"
 docker compose down
-
-echo -e "${YELLOW}[3/4] 构建并启动新容器...${NC}"
 docker compose up -d --build
 
-echo -e "${YELLOW}[4/4] 清理未使用的镜像...${NC}"
+# 5. 清理并查看状态
+echo -e "${YELLOW}[5/5] 清理未使用的镜像...${NC}"
 docker image prune -f
 
 echo ""
-echo -e "${GREEN}✅ 更新完成！${NC}"
+echo -e "${GREEN}========================================${NC}"
+echo -e "${GREEN}  部署完成！${NC}"
+echo -e "${GREEN}========================================${NC}"
 echo ""
 echo "当前容器状态："
 docker compose ps
-

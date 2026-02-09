@@ -12,7 +12,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # 项目目录（可根据实际情况修改）
-PROJECT_DIR=${PROJECT_DIR:-/www/hospital-booking}
+PROJECT_DIR=${PROJECT_DIR:-/www/wwwroot/appointment-booking-system}
 
 echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}  Docker 重启脚本${NC}"
