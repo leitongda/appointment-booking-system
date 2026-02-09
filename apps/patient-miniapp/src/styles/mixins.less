@@ -418,14 +418,203 @@
   font-size: @font-size-base;
   color: @color-text-primary;
   transition: border-color @transition-base, box-shadow @transition-base;
-  
+
   &::placeholder {
     color: @color-text-placeholder;
   }
-  
+
   &:focus {
     border-color: var(--color-primary, @theme-primary);
     box-shadow: 0 0 0 4rpx var(--badge-bg, rgba(196, 30, 58, 0.1));
+  }
+}
+
+// -------------------------------------------
+// 现代化表单输入混入 (Modern Form Input Mixins)
+// -------------------------------------------
+
+// 现代化输入框 - 无边框设计，内阴影营造深度
+.input-field-modern() {
+  width: 100%;
+  height: @input-height;
+  padding: 0 @input-padding-h;
+  background: @input-bg-idle;
+  border: none;
+  border-radius: @radius-lg;
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  box-shadow: @input-inner-shadow;
+  transition: all @transition-input;
+
+  &::placeholder {
+    color: @color-text-placeholder;
+    font-weight: @font-weight-normal;
+  }
+
+  // 聚焦状态：纯白背景 + 柔和光晕
+  &:focus {
+    background: @input-bg-focus;
+    box-shadow: @input-focus-shadow;
+    transform: translateY(-1rpx);
+  }
+
+  // 错误状态：红色光晕
+  &.error,
+  &.nut-input--error {
+    background: @input-bg-idle;
+    box-shadow: @input-error-shadow;
+  }
+
+  // 禁用状态：灰色背景 + 无阴影
+  &[disabled],
+  &.disabled {
+    background: @input-bg-disabled;
+    box-shadow: none;
+    color: @color-text-muted;
+  }
+}
+
+// 现代化文本域
+.textarea-field-modern() {
+  width: 100%;
+  min-height: 200rpx;
+  padding: @input-padding-v @input-padding-h;
+  background: @input-bg-idle;
+  border: none;
+  border-radius: @radius-lg;
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  line-height: @line-height-relaxed;
+  box-shadow: @input-inner-shadow;
+  transition: all @transition-input;
+  box-sizing: border-box;
+
+  &::placeholder {
+    color: @color-text-placeholder;
+    font-weight: @font-weight-normal;
+  }
+
+  &:focus {
+    background: @input-bg-focus;
+    box-shadow: @input-focus-shadow;
+    transform: translateY(-1rpx);
+  }
+
+  &[disabled],
+  &.disabled {
+    background: @input-bg-disabled;
+    box-shadow: none;
+    color: @color-text-muted;
+  }
+}
+
+// 现代化选择器
+.picker-field-modern() {
+  .input-field-modern();
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+
+  .picker-value {
+    flex: 1;
+
+    &.placeholder {
+      color: @color-text-placeholder;
+    }
+  }
+
+  .picker-icon {
+    color: @color-text-muted;
+    font-size: @font-size-lg;
+    transition: transform @transition-input;
+    flex-shrink: 0;
+  }
+
+  &:active .picker-icon {
+    transform: translateX(4rpx);
+  }
+}
+
+// 现代化搜索框
+.search-field-modern() {
+  display: flex;
+  align-items: center;
+  height: @input-height;
+  padding: 0 @spacing-4;
+  background: @input-bg-idle;
+  border-radius: @radius-full;
+  box-shadow: @input-inner-shadow;
+  transition: all @transition-input;
+
+  .search-icon {
+    margin-right: @spacing-2;
+    color: @color-text-muted;
+    transition: transform @transition-spring, color @transition-input;
+    flex-shrink: 0;
+  }
+
+  .search-input {
+    flex: 1;
+    font-size: @font-size-base;
+    color: @color-text-primary;
+
+    &::placeholder {
+      color: @color-text-placeholder;
+    }
+  }
+
+  &:focus-within {
+    background: @input-bg-focus;
+    box-shadow: @input-focus-shadow;
+
+    .search-icon {
+      transform: scale(1.1);
+      color: var(--color-primary, @theme-primary);
+    }
+  }
+}
+
+// 现代表单分组
+.form-group-modern() {
+  margin-bottom: @form-group-gap;
+
+  .group-title {
+    display: block;
+    margin-bottom: @spacing-3;
+    font-size: @font-size-sm;
+    font-weight: @font-weight-semibold;
+    color: @color-text-secondary;
+    letter-spacing: 0.5rpx;
+  }
+}
+
+// 现代表单项（行布局）
+.form-item-row-modern() {
+  display: flex;
+  align-items: center;
+  min-height: @input-height;
+  padding: @spacing-2 0;
+  margin-bottom: @form-item-gap;
+
+  .item-label {
+    width: @form-label-width;
+    flex-shrink: 0;
+    font-size: @font-size-base;
+    color: @color-text-primary;
+    font-weight: @font-weight-medium;
+    line-height: @line-height-normal;
+
+    .required {
+      color: @color-danger;
+      margin-left: 4rpx;
+      font-weight: @font-weight-semibold;
+    }
+  }
+
+  .item-content {
+    flex: 1;
+    min-width: 0;
   }
 }
 
