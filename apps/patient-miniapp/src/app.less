@@ -158,10 +158,77 @@ view, text, image, scroll-view, swiper, swiper-item {
 .nut-radio {
   --nutui-radio-icon-checked-color: @color-primary;
   --nutui-radio-label-color: @color-text-primary;
-  
+
   .nut-radio__icon--checked {
     background: @gradient-primary;
     border-color: @color-primary;
+  }
+}
+
+// Input 组件 - 现代化样式覆盖
+.nut-input {
+  --nutui-input-font-size: @font-size-base;
+  --nutui-input-color: @color-text-primary;
+  --nutui-input-placeholder-color: @color-text-placeholder;
+
+  // 空闲状态
+  background: @input-bg-idle;
+  border: none;
+  border-radius: @radius-md;
+  box-shadow: @input-inner-shadow;
+  transition: all @transition-input;
+
+  // 聚焦状态
+  &:focus,
+  &.nut-input--focus {
+    background: @input-bg-focus;
+    box-shadow: @input-focus-shadow;
+  }
+
+  // 错误状态
+  &.nut-input--error {
+    background: @input-bg-idle;
+    box-shadow: @input-error-shadow;
+  }
+
+  // 禁用状态
+  &[disabled],
+  &.nut-input--disabled {
+    background: @input-bg-disabled;
+    box-shadow: none;
+    color: @color-text-muted;
+  }
+}
+
+// Textarea 组件
+.nut-textarea {
+  --nutui-textarea-font-size: @font-size-base;
+  --nutui-textarea-color: @color-text-primary;
+  --nutui-textarea-placeholder-color: @color-text-placeholder;
+  --nutui-textarea-padding: @input-padding-v @input-padding-h;
+
+  // 空闲状态
+  background: @input-bg-idle;
+  border: none;
+  border-radius: @radius-lg;
+  box-shadow: @input-inner-shadow;
+  transition: all @transition-input;
+  line-height: @line-height-relaxed;
+
+  // 聚焦状态
+  &:focus,
+  &.nut-textarea--focus {
+    background: @input-bg-focus;
+    box-shadow: @input-focus-shadow;
+    transform: translateY(-1rpx);
+  }
+
+  // 禁用状态
+  &[disabled],
+  &.nut-textarea--disabled {
+    background: @input-bg-disabled;
+    box-shadow: none;
+    color: @color-text-muted;
   }
 }
 
