@@ -22,12 +22,20 @@
   box-shadow: @shadow-sm;
   
   .nut-searchbar {
-    --nutui-searchbar-background: @color-bg-secondary;
-    --nutui-searchbar-input-background: @color-bg-secondary;
+    --nutui-searchbar-background: @input-bg-idle;
+    --nutui-searchbar-input-background: @input-bg-idle;
     --nutui-searchbar-input-text-color: @color-text-primary;
     --nutui-searchbar-input-placeholder-color: @color-text-placeholder;
     border-radius: @radius-full;
-    
+    box-shadow: @input-inner-shadow;
+    transition: all @transition-input;
+
+    &:focus-within {
+      --nutui-searchbar-background: @input-bg-focus;
+      --nutui-searchbar-input-background: @input-bg-focus;
+      box-shadow: @input-focus-shadow;
+    }
+
     .nut-searchbar__search-input {
       border-radius: @radius-full;
     }
