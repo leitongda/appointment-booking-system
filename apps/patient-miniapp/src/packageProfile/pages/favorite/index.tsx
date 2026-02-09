@@ -144,7 +144,6 @@ const FavoritePage = () => {
               rightAction={
                 <Button
                   type="danger"
-                  shape="square"
                   onClick={() => handleRemoveFavorite(favorite)}
                 >
                   取消收藏
