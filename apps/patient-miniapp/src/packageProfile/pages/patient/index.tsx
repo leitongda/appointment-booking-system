@@ -117,7 +117,7 @@ const PatientListPage = () => {
       )}
 
       <View className="footer">
-        <Button type="primary" block onClick={handleAdd}>
+        <Button type="primary" block onClick={handleAdd} className="add-btn">
           添加就诊人
         </Button>
       </View>
@@ -138,4 +138,3 @@ const PatientListPage = () => {
 };
 
 export default PatientListPage;
-

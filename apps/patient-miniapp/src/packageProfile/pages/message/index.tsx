@@ -1,6 +1,6 @@
 import { View, Text } from '@tarojs/components';
-import Taro, { usePullDownRefresh, useReachBottom } from '@tarojs/taro';
-import { Empty, Tabs, Button } from '@nutui/nutui-react-taro';
+import Taro, { useReachBottom } from '@tarojs/taro';
+import { Empty, Tabs, PullToRefresh } from '@nutui/nutui-react-taro';
 import { useState, useEffect, useCallback } from 'react';
 import { messageApi, userApi } from '@hospital/api';
 import type { Message, MessageType } from '@hospital/shared';
@@ -121,16 +121,11 @@ const MessagePage = () => {
     return loadMessages();
   }, []);
 
-  // 下拉刷新
-  usePullDownRefresh(() => {
-    if (userId) {
-      Promise.all([resetAndLoad(), loadUnreadCount(userId)]).finally(() => {
-        Taro.stopPullDownRefresh();
-      });
-    } else {
-      Taro.stopPullDownRefresh();
-    }
-  });
+  // Tab 内容区下拉刷新
+  const handleRefresh = async () => {
+    if (!userId) return;
+    await Promise.all([resetAndLoad(), loadUnreadCount(userId)]);
+  };
 
   const loadMessages = async () => {
     setLoading(true);
@@ -289,52 +284,54 @@ const MessagePage = () => {
         </Tabs>
       </View>
 
-      {/* 消息列表 */}
-      {messages.length === 0 ? (
-        <View className="empty-container">
-          <Empty description="暂无消息" />
-        </View>
-      ) : (
-        <View className="message-list">
-          {messages.map((message) => {
-            const IconComponent = iconMap[message.messageType] || BellIcon;
-            const isRead = message.isRead === 1;
-            return (
-              <View
-                key={message.id}
-                className={`message-item ${isRead ? 'read' : 'unread'}`}
-                onClick={() => handleMessageClick(message)}
-              >
-                <View className="message-icon">
-                  <IconComponent size={24} color={isRead ? '#9CA3AF' : getThemePrimaryColor()} />
-                </View>
-                <View className="message-content">
-                  <View className="message-header">
-                    <Text className="message-title">{message.title}</Text>
-                    <Text className="message-time">{formatTime(message.createdAt)}</Text>
+      <PullToRefresh onRefresh={handleRefresh}>
+        {/* 消息列表 */}
+        {messages.length === 0 ? (
+          <View className="empty-container">
+            <Empty description="暂无消息" />
+          </View>
+        ) : (
+          <View className="message-list">
+            {messages.map((message) => {
+              const IconComponent = iconMap[message.messageType] || BellIcon;
+              const isRead = message.isRead === 1;
+              return (
+                <View
+                  key={message.id}
+                  className={`message-item ${isRead ? 'read' : 'unread'}`}
+                  onClick={() => handleMessageClick(message)}
+                >
+                  <View className="message-icon">
+                    <IconComponent size={24} color={isRead ? '#9CA3AF' : getThemePrimaryColor()} />
                   </View>
-                  <Text className="message-text">{message.content || typeNameMap[message.messageType]}</Text>
+                  <View className="message-content">
+                    <View className="message-header">
+                      <Text className="message-title">{message.title}</Text>
+                      <Text className="message-time">{formatTime(message.createdAt)}</Text>
+                    </View>
+                    <Text className="message-text">{message.content || typeNameMap[message.messageType]}</Text>
+                  </View>
+                  {!isRead && <View className="unread-dot" />}
                 </View>
-                {!isRead && <View className="unread-dot" />}
-              </View>
-            );
-          })}
-        </View>
-      )}
+              );
+            })}
+          </View>
+        )}
 
-      {/* 加载状态 */}
-      {loadingMore && (
-        <View className="loading-more">
-          <Text>加载中...</Text>
-        </View>
-      )}
+        {/* 加载状态 */}
+        {loadingMore && (
+          <View className="loading-more">
+            <Text>加载中...</Text>
+          </View>
+        )}
 
-      {/* 没有更多数据 */}
-      {!hasMore && messages.length > 0 && (
-        <View className="no-more">
-          <Text>没有更多了</Text>
-        </View>
-      )}
+        {/* 没有更多数据 */}
+        {!hasMore && messages.length > 0 && (
+          <View className="no-more">
+            <Text>没有更多了</Text>
+          </View>
+        )}
+      </PullToRefresh>
 
       {/* 登录弹窗 */}
       <LoginPopup

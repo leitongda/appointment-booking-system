@@ -121,6 +121,7 @@ const FeedbackPage = () => {
       {/* 提交按钮 */}
       <View className="submit-wrap">
         <Button
+          className="submit-btn"
           type="primary"
           block
           loading={submitting}

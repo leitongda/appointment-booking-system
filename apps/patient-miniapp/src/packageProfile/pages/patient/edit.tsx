@@ -186,12 +186,14 @@ const PatientEditPage = () => {
             <View className="row-label">
               <Text className="label-text">性别</Text>
             </View>
-            <Picker mode="selector" range={GENDER_OPTIONS} value={genderIndex} onChange={handleGenderChange}>
-              <View className="picker-value">
-                <Text className={genderIndex === 0 ? 'placeholder' : ''}>{GENDER_OPTIONS[genderIndex]}</Text>
-                <Text className="picker-arrow">›</Text>
-              </View>
-            </Picker>
+            <View className="row-input">
+              <Picker mode="selector" range={GENDER_OPTIONS} value={genderIndex} onChange={handleGenderChange}>
+                <View className="picker-value">
+                  <Text className={genderIndex === 0 ? 'placeholder' : ''}>{GENDER_OPTIONS[genderIndex]}</Text>
+                  <Text className="picker-arrow">›</Text>
+                </View>
+              </Picker>
+            </View>
           </View>
 
           {/* 身份证号 - 同行布局（选填） */}
@@ -238,14 +240,16 @@ const PatientEditPage = () => {
             <View className="row-label">
               <Text className="label-text">与本人关系</Text>
             </View>
-            <Picker mode="selector" range={RELATIONSHIP_OPTIONS} value={relationIndex} onChange={handleRelationChange}>
-              <View className="picker-value">
-                <Text className={relationshipIsPlaceholder ? 'placeholder' : ''}>
-                  {relationshipText}
-                </Text>
-                <Text className="picker-arrow">›</Text>
-              </View>
-            </Picker>
+            <View className="row-input">
+              <Picker mode="selector" range={RELATIONSHIP_OPTIONS} value={relationIndex} onChange={handleRelationChange}>
+                <View className="picker-value">
+                  <Text className={relationshipIsPlaceholder ? 'placeholder' : ''}>
+                    {relationshipText}
+                  </Text>
+                  <Text className="picker-arrow">›</Text>
+                </View>
+              </Picker>
+            </View>
           </View>
           
           {/* 自定义关系输入框 */}

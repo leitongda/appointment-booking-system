@@ -1,7 +1,7 @@
 import { View, Text } from '@tarojs/components';
-import Taro, { usePullDownRefresh, useRouter } from '@tarojs/taro';
+import Taro, { useDidShow, usePullDownRefresh, useRouter } from '@tarojs/taro';
 import { Empty, Button, Tag } from '@nutui/nutui-react-taro';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { feedbackApi, userApi } from '@hospital/api';
 import type { Feedback } from '@hospital/shared';
 import { getToken } from '../../../utils/auth';
@@ -46,9 +46,9 @@ const FeedbackHistoryPage = () => {
   const [showLoginPopup, setShowLoginPopup] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(highlightId || null);
 
-  useEffect(() => {
+  useDidShow(() => {
     checkLoginAndLoad();
-  }, []);
+  });
 
   const checkLoginAndLoad = async () => {
     const token = getToken();
@@ -125,13 +125,6 @@ const FeedbackHistoryPage = () => {
 
   return (
     <View className="history-page">
-      {/* 提交新反馈按钮 */}
-      <View className="action-bar">
-        <Button type="primary" size="small" onClick={goToSubmit}>
-          提交新反馈
-        </Button>
-      </View>
-
       {/* 反馈列表 */}
       {feedbacks.length === 0 ? (
         <View className="empty-container">
@@ -192,6 +185,13 @@ const FeedbackHistoryPage = () => {
         </View>
       )}
 
+      {/* 提交新反馈按钮 */}
+      <View className="submit-wrap">
+        <Button className="submit-btn" type="primary" block onClick={goToSubmit}>
+          提交新反馈
+        </Button>
+      </View>
+
       {/* 登录弹窗 */}
       <LoginPopup
         visible={showLoginPopup}
@@ -208,4 +208,3 @@ const FeedbackHistoryPage = () => {
 };
 
 export default FeedbackHistoryPage;
-

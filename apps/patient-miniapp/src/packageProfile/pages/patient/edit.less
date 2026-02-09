@@ -2,21 +2,32 @@
 @import '../../../styles/mixins.less';
 
 @form-label-width: 176rpx;
+@row-control-height: @input-height;
+@row-control-radius: @radius-lg;
 
 .patient-edit-page {
   .page-container();
-  padding: @spacing-3 @page-padding 240rpx;
 }
 
 .patient-form {
   .nut-form {
     background: transparent;
   }
+  .nut-cell-group {
+    box-shadow: none;
+    background: transparent;
+  }
+  .nut-cell-group-wrap {
+    background: transparent;
+  }
 }
 
 .form-section {
-  .card-base();
-  margin-bottom: @spacing-3;
+  background: @color-bg-white;
+  border-radius: @radius-xl;
+  margin-bottom: @spacing-4;
+  border: @border-width solid @color-border-light;
+  box-shadow: @shadow-elevated-sm;
   overflow: hidden;
 
   .nut-switch {
@@ -25,33 +36,20 @@
 }
 
 .section-title {
-  position: relative;
   display: block;
-  padding: @spacing-4 @spacing-4 @spacing-3 @spacing-6;
+  padding: @spacing-4 @spacing-5 @spacing-3;
   font-size: @font-size-sm;
-  font-weight: @font-weight-semibold;
-  color: @color-text-secondary;
-  letter-spacing: 1rpx;
+  font-weight: @font-weight-bold;
+  color: @color-text-primary;
+  letter-spacing: 0.5rpx;
   border-bottom: @border-width solid @color-divider;
-
-  &::before {
-    content: '';
-    position: absolute;
-    left: @spacing-4;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 6rpx;
-    height: 28rpx;
-    border-radius: @radius-full;
-    background: @gradient-primary;
-  }
 }
 
 .form-item-row {
   display: flex;
   align-items: center;
-  min-height: 108rpx;
-  padding: @spacing-2 @spacing-4;
+  min-height: 116rpx;
+  padding: @spacing-2 @spacing-5;
   border-bottom: @border-width solid @color-divider;
   gap: @spacing-3;
 
@@ -84,19 +82,27 @@
   .row-input {
     flex: 1;
     min-width: 0;
+    box-sizing: border-box;
+
+    picker {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+    }
 
     .row-input-field {
       width: 100%;
-      height: 72rpx;
-      line-height: 72rpx;
-      padding: 0 @spacing-3;
-      border: none;
-      border-radius: @radius-md;
+      height: @row-control-height;
+      line-height: @row-control-height;
+      padding: 0 @input-padding-h;
+      box-sizing: border-box;
+      border: @border-width solid @color-border-light;
+      border-radius: @row-control-radius;
       background: @input-bg-idle;
       text-align: right;
       font-size: @font-size-base;
       color: @color-text-primary;
-      box-shadow: @input-inner-shadow;
       transition: all @transition-input;
 
       &::placeholder {
@@ -106,6 +112,7 @@
 
       &:focus {
         background: @input-bg-focus;
+        border-color: rgba(30, 111, 217, 0.28);
         box-shadow: @input-focus-shadow;
       }
     }
@@ -118,10 +125,11 @@
 
   .picker-value {
     width: 100%;
-    height: 72rpx;
-    padding: 0 @spacing-3;
-    border: none;
-    border-radius: @radius-md;
+    height: @row-control-height;
+    padding: 0 @input-padding-h;
+    box-sizing: border-box;
+    border: @border-width solid @color-border-light;
+    border-radius: @row-control-radius;
     background: @input-bg-idle;
     display: flex;
     align-items: center;
@@ -129,11 +137,14 @@
     gap: @spacing-2;
     font-size: @font-size-base;
     color: @color-text-primary;
-    box-shadow: @input-inner-shadow;
     transition: all @transition-input;
 
     .placeholder {
       color: @color-text-placeholder;
+    }
+
+    text {
+      min-width: 0;
     }
 
     .picker-arrow {
@@ -149,11 +160,6 @@
   }
 }
 
-.form-item-row picker {
-  flex: 1;
-  min-width: 0;
-}
-
 .form-item-switch {
   .row-label {
     width: auto;
@@ -162,7 +168,7 @@
 }
 
 .custom-relation-wrap {
-  padding: @spacing-3 @spacing-4 @spacing-4;
+  padding: @spacing-3 @spacing-5 @spacing-4;
   border-bottom: @border-width solid @color-divider;
 
   .custom-relation-label {
@@ -174,15 +180,14 @@
 
   .custom-input {
     width: 100%;
-    height: @input-height;
-    line-height: @input-height;
-    padding: 0 @spacing-3;
+    height: @row-control-height;
+    line-height: @row-control-height;
+    padding: 0 @input-padding-h;
     background: @input-bg-idle;
-    border: none;
-    border-radius: @radius-lg;
+    border: @border-width solid @color-border-light;
+    border-radius: @row-control-radius;
     font-size: @font-size-base;
     color: @color-text-primary;
-    box-shadow: @input-inner-shadow;
     transition: all @transition-input;
 
     &::placeholder {
@@ -192,18 +197,19 @@
 
     &:focus {
       background: @input-bg-focus;
+      border-color: rgba(30, 111, 217, 0.28);
       box-shadow: @input-focus-shadow;
     }
   }
 }
 
 .form-tip {
-  margin-top: @spacing-1;
-  padding: 0 @spacing-1;
+  margin: 0 0 @spacing-3;
+  padding: 0 @spacing-5;
   font-size: @font-size-xs;
-  color: @color-text-muted;
+  color: @color-text-secondary;
   line-height: @line-height-relaxed;
-  text-align: center;
+  text-align: left;
 }
 
 .submit-wrap {
@@ -212,9 +218,10 @@
   right: 0;
   bottom: 0;
   z-index: @z-index-fixed;
-  padding: @spacing-4 @page-padding;
-  padding-bottom: calc(@spacing-4 + env(safe-area-inset-bottom));
+  padding: @spacing-3 @page-padding;
+  padding-bottom: calc(@spacing-3 + env(safe-area-inset-bottom));
   background: @color-bg-white;
+  border-top: @border-width solid @color-border-light;
   box-shadow: @shadow-footer;
 }
 
