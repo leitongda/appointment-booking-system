@@ -370,6 +370,7 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
         lifespan=lifespan,
         openapi_tags=openapi_tags,
+        swagger_ui_parameters={"docExpansion": "none"},
         contact={
             "name": "技术支持",
         },
