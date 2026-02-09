@@ -94,10 +94,13 @@
     min-width: 0;
     height: 72rpx;
     padding: 0 @spacing-3;
+    border: none;
     border-radius: @radius-md;
-    background: @color-bg-secondary;
+    background: @input-bg-idle;
     display: flex;
     align-items: center;
+    box-shadow: @input-inner-shadow;
+    transition: all @transition-input;
 
     .nut-input {
       width: 100%;
@@ -111,7 +114,13 @@
 
       &::placeholder {
         color: @color-text-placeholder;
+        font-weight: @font-weight-normal;
       }
+    }
+
+    &:focus-within {
+      background: @input-bg-focus;
+      box-shadow: @input-focus-shadow;
     }
   }
 

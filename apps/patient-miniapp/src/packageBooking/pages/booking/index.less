@@ -290,16 +290,25 @@
   width: 100%;
   min-height: 180rpx;
   padding: @spacing-3;
-  background: @color-bg-secondary;
-  border: @border-width solid @color-border;
+  background: @input-bg-idle;
+  border: none;
   border-radius: @radius-lg;
   font-size: @font-size-base;
   color: @color-text-primary;
   line-height: @line-height-relaxed;
   box-sizing: border-box;
-  
+  box-shadow: @input-inner-shadow;
+  transition: all @transition-input;
+
   &::placeholder {
-    color: @color-text-muted;
+    color: @color-text-placeholder;
+    font-weight: @font-weight-normal;
+  }
+
+  &:focus {
+    background: @input-bg-focus;
+    box-shadow: @input-focus-shadow;
+    transform: translateY(-1rpx);
   }
 }
 

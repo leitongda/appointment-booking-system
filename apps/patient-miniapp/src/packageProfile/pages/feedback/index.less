@@ -58,18 +58,27 @@
   .textarea {
     width: 100%;
     min-height: 320rpx;
-    padding: @spacing-3;
-    background: @color-bg-secondary;
-    border: @border-width solid @color-border;
+    padding: @input-padding-v @input-padding-h;
+    background: @input-bg-idle;
+    border: none;
     border-radius: @radius-lg;
     box-sizing: border-box;
     font-size: @font-size-base;
     color: @color-text-primary;
     line-height: @line-height-relaxed;
+    box-shadow: @input-inner-shadow;
+    transition: all @transition-input;
 
     &::placeholder {
       font-size: @font-size-sm;
       color: @color-text-placeholder;
+      font-weight: @font-weight-normal;
+    }
+
+    &:focus {
+      background: @input-bg-focus;
+      box-shadow: @input-focus-shadow;
+      transform: translateY(-1rpx);
     }
   }
 
