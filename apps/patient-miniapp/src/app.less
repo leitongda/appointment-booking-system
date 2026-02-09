@@ -19,6 +19,14 @@ page {
   line-height: @line-height-normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  // NutUI 全局 CSS 变量覆盖（替换默认粉色 #ff0f23 / #ffadbe）
+  --nutui-color-primary: @color-primary;
+  --nutui-color-primary-stop-1: @color-primary;
+  --nutui-color-primary-stop-2: @color-secondary;
+  --nutui-button-primary-disabled: @color-bg-tertiary;
+  --nutui-color-primary-disabled-special: @color-bg-tertiary;
+  --nutui-button-primary-border-color: @color-primary;
 }
 
 // 确保所有 View 使用 border-box
@@ -30,50 +38,80 @@ view, text, image, scroll-view, swiper, swiper-item {
 // NutUI 主题覆盖
 // -------------------------------------------
 
-// 按钮组件
+// 按钮组件 - NutUI 3.x 覆盖
+// NutUI 3.x 使用 .nut-button-{type}[-{fill}][-disabled] 命名（非 BEM 双横线）
 .nut-button {
-  --nutui-button-border-radius: @radius-lg;
-  --nutui-button-default-border-color: @color-border;
-  --nutui-button-default-color: @color-text-secondary;
-  --nutui-button-default-background-color: @color-bg-white;
-  
-  &--primary {
-    --nutui-button-primary-background-color: @color-primary;
-    --nutui-button-primary-border-color: @color-primary;
-    background: @gradient-primary !important;
-    border: none !important;
-    box-shadow: @shadow-button;
-    
-    &:active {
-      opacity: 0.95;
-      transform: translateY(2rpx);
-    }
+  border-radius: @radius-lg !important;
+  font-weight: @font-weight-medium !important;
+}
+
+// 主要按钮 (primary solid) - 覆盖默认粉色渐变
+.nut-button-primary-solid {
+  background: @gradient-primary !important;
+  border-color: transparent !important;
+  box-shadow: @shadow-button;
+  font-weight: @font-weight-semibold !important;
+
+  &:active {
+    opacity: 0.95;
+    transform: translateY(2rpx);
+    box-shadow: 0 4rpx 12rpx -2rpx rgba(0, 0, 0, 0.04) !important;
   }
-  
-  &--danger {
-    --nutui-button-danger-background-color: @color-danger;
-    --nutui-button-danger-border-color: @color-danger;
+}
+
+// 主要按钮禁用态 - 覆盖默认粉色 #ffadbe
+.nut-button-primary-disabled,
+.nut-button-primary-disabled.nut-button-icononly,
+.nut-button-primary-solid-disabled {
+  background: @color-bg-tertiary !important;
+  border-color: @color-bg-tertiary !important;
+  color: @color-text-muted !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+
+// 禁用态子元素文字颜色
+.nut-button-primary-solid-disabled .nut-button-primary-children,
+.nut-button-primary-disabled .nut-button-primary-children {
+  color: @color-text-muted !important;
+}
+
+// 主要按钮描边 / 虚线 / 文本样式
+.nut-button-primary-outline,
+.nut-button-primary-dashed,
+.nut-button-primary-none {
+  color: @color-primary !important;
+  border-color: @color-primary !important;
+}
+
+// 主要按钮其他禁用变体
+.nut-button-primary-none-disabled,
+.nut-button-primary-outline-disabled,
+.nut-button-primary-dashed-disabled {
+  color: @color-text-muted !important;
+  border-color: @color-bg-tertiary !important;
+}
+
+// 默认按钮
+.nut-button-default-solid {
+  background: @color-bg-white !important;
+  border-color: @color-border !important;
+  color: @color-text-secondary !important;
+
+  &:active {
+    background: @color-bg-secondary !important;
   }
-  
-  &--default {
-    &:active {
-      background: @color-bg-secondary !important;
-    }
-  }
-  
-  // 小尺寸按钮
-  &--small {
-    --nutui-button-small-round-border-radius: @radius-md;
-    font-weight: @font-weight-medium;
-  }
-  
-  // 禁用态
-  &--disabled {
-    opacity: 1 !important;
-    background: @color-bg-tertiary !important;
-    color: @color-text-muted !important;
-    box-shadow: none !important;
-  }
+}
+
+// 危险按钮
+.nut-button-danger-solid {
+  background: @color-danger !important;
+  border-color: @color-danger !important;
+}
+
+// 小尺寸按钮
+.nut-button-small {
+  font-weight: @font-weight-medium !important;
 }
 
 // Cell 组件
