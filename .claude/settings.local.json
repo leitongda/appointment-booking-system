@@ -101,7 +101,9 @@
       "Bash(codex --version)",
       "Bash(bun pm -g rm:*)",
       "Bash(bun install:*)",
-      "Bash(bun remove:*)"
+      "Bash(bun remove:*)",
+      "Bash(wc:*)",
+      "Bash(xargs ls:*)"
     ]
   },
   "statusLine": {
