@@ -37,28 +37,29 @@ class TestRuleSetPermissions:
         assert response.status_code == status.HTTP_200_OK
 
     async def test_get_rule_set_detail_as_store_admin(
-        self, async_client: AsyncClient, store_admin_token: str
+        self, async_client: AsyncClient, store_admin_token: str, super_admin_token: str, test_shift_type: ShiftType
     ):
         """门店管理员查看规则组详情 - 应该成功"""
-        # 使用列表查询中的第一个规则组
-        list_response = await async_client.get(
+        # 先创建一个规则组
+        create_response = await async_client.post(
             "/api/v1/rule-sets",
+            headers={"Authorization": f"Bearer {super_admin_token}"},
+            json={
+                "name": "测试规则组",
+                "priority": 100,
+                "shiftTypeIds": [test_shift_type.id],
+                "enabled": True,
+            }
+        )
+        assert create_response.status_code == status.HTTP_201_CREATED
+        rule_set_id = create_response.json()["data"]["id"]
+
+        # 门店管理员查看详情
+        response = await async_client.get(
+            f"/api/v1/rule-sets/{rule_set_id}",
             headers={"Authorization": f"Bearer {store_admin_token}"}
         )
-        assert list_response.status_code == status.HTTP_200_OK
-        data = list_response.json()["data"]
-        # 检查 data 是列表还是包含 items 的对象
-        if isinstance(data, dict) and "items" in data:
-            rule_sets = data["items"]
-        else:
-            rule_sets = data
-        if rule_sets:
-            rule_set_id = rule_sets[0]["id"]
-            response = await async_client.get(
-                f"/api/v1/rule-sets/{rule_set_id}",
-                headers={"Authorization": f"Bearer {store_admin_token}"}
-            )
-            assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK
 
     async def test_update_rule_set_as_store_admin_forbidden(
         self, async_client: AsyncClient, store_admin_token: str, test_shift_type: ShiftType
