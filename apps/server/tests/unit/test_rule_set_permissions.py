@@ -46,7 +46,12 @@ class TestRuleSetPermissions:
             headers={"Authorization": f"Bearer {store_admin_token}"}
         )
         assert list_response.status_code == status.HTTP_200_OK
-        rule_sets = list_response.json()["data"]["items"]
+        data = list_response.json()["data"]
+        # 检查 data 是列表还是包含 items 的对象
+        if isinstance(data, dict) and "items" in data:
+            rule_sets = data["items"]
+        else:
+            rule_sets = data
         if rule_sets:
             rule_set_id = rule_sets[0]["id"]
             response = await async_client.get(
