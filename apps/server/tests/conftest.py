@@ -16,6 +16,7 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -313,6 +314,112 @@ def client(db_session: AsyncSession):
 
     # 清理依赖覆盖
     app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def async_client(db_session: AsyncSession):
+    """创建异步测试客户端（用于权限测试）"""
+    from httpx import AsyncClient, ASGITransport
+    from app.main import app
+    from app.db.session import get_db
+
+    # Override 数据库依赖
+    async def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+    # 清理依赖覆盖
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def super_admin_token(async_client: AsyncClient, test_super_admin: Admin) -> str:
+    """获取超级管理员 token"""
+    from app.core.security import create_access_token
+
+    # 使用与登录 API 相同的格式：sub 字段存储 admin_id
+    token = create_access_token({"sub": test_super_admin.id, "type": "admin"})
+    return token
+
+
+@pytest_asyncio.fixture
+async def store_admin_token(async_client: AsyncClient, test_store_admin: Admin) -> str:
+    """获取门店管理员 token"""
+    from app.core.security import create_access_token
+
+    # 使用与登录 API 相同的格式：sub 字段存储 admin_id
+    token = create_access_token({"sub": test_store_admin.id, "type": "admin"})
+    return token
+
+
+@pytest.fixture
+def test_rule_set_dict(db_session: AsyncSession, test_shift_type: ShiftType) -> dict:
+    """创建测试规则组（返回 dict）- 使用已有的 test_rule_set"""
+    import asyncio
+
+    async def create():
+        rule_set = RuleSet(
+            id=str(uuid4()),
+            name="测试规则组",
+            enabled=True,
+            priority=100,
+            time_source="SERVER",
+            timezone_source="HOSPITAL",
+            compare_precision="SECOND",
+            default_open_inclusive=True,
+            default_close_inclusive=False,
+            rounding_mode="NONE",
+            clock_skew_tolerance_sec=5,
+            description="测试规则组",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            created_by=str(uuid4()),
+            updated_by=str(uuid4()),
+        )
+        db_session.add(rule_set)
+        await db_session.commit()
+
+        # 创建新的班次类型关联，避免依赖异步 fixture
+        shift_type = ShiftType(
+            id=str(uuid4()),
+            code="TEST",
+            name="测试班次",
+            enabled=True,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+        db_session.add(shift_type)
+        await db_session.commit()
+
+        rule_set.shift_types.append(shift_type)
+        await db_session.commit()
+
+        await db_session.refresh(rule_set)
+
+        return {
+            "id": rule_set.id,
+            "name": rule_set.name,
+            "enabled": rule_set.enabled,
+            "priority": rule_set.priority,
+        }
+
+    return asyncio.run(create())
+
+
+@pytest.fixture
+def test_window_dict(test_rule_set_dict: dict) -> dict:
+    """创建测试时间窗（返回 dict）- 返回模拟数据"""
+    return {
+        "id": str(uuid4()),
+        "rule_set_id": test_rule_set_dict["id"],
+        "action": "BOOK",
+        "reference_point": "SHIFT_START",
+    }
 
 
 # ==================== 工具函数 ====================
