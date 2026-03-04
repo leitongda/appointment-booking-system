@@ -170,7 +170,9 @@ class WaitlistService:
             raise ValueError('只能取消等待中的候补')
 
         entry.status = 'CANCELLED'
-        entry.cancelled_at = datetime.utcnow()
+        import pytz
+        local_tz = pytz.timezone('Asia/Shanghai')
+        entry.cancelled_at = datetime.now(local_tz)
         entry.operator_id = operator_id or user_id
         set_update_audit(entry, operator_id or user_id)
 
@@ -340,17 +342,18 @@ class WaitlistService:
             ValueError: 如果创建预约失败
         """
         from app.schemas.appointment import AppointmentCreate
+        import pytz
 
-        # 更新候补状态
-        entry.status = 'PROMOTED'
-        entry.promoted_at = datetime.utcnow()
-        entry.operator_id = operator_id or 'SYSTEM'
-        entry.operator_type = 'SYSTEM' if auto_promote else 'ADMIN'
-        set_update_audit(entry, operator_id or 'SYSTEM')
+        local_tz = pytz.timezone('Asia/Shanghai')
 
-        # 创建预约
-        appointment_service = AppointmentService(self.db)
+        # 使用数据库事务确保原子性
+        # 先标记候补状态为"处理中"，防止并发递补
+        entry.status = 'PROCESSING'
+        await self.db.flush()
+
         try:
+            # 创建预约
+            appointment_service = AppointmentService(self.db)
             appointment = await appointment_service.create(
                 user_id=entry.user_id,
                 data=AppointmentCreate(
@@ -360,19 +363,27 @@ class WaitlistService:
                 ),
                 operator_id=operator_id
             )
-        except ValueError as e:
-            # 创建预约失败，将候补状态恢复为等待
+
+            # 预约创建成功，更新候补状态
+            entry.status = 'PROMOTED'
+            entry.promoted_at = datetime.now(local_tz)
+            entry.operator_id = operator_id or 'SYSTEM'
+            entry.operator_type = 'SYSTEM' if auto_promote else 'ADMIN'
+            set_update_audit(entry, operator_id or 'SYSTEM')
+
+            # 重新计算队列位置
+            await self._recalculate_positions(entry.schedule_id)
+
+            await self.db.commit()
+
+            return appointment
+
+        except Exception as e:
+            # 创建预约失败，回滚候补状态
             entry.status = 'WAITING'
             entry.promoted_at = None
-            await self.db.commit()
+            await self.db.rollback()
             raise ValueError(f'候补转预约失败: {e}')
-
-        # 重新计算队列位置
-        await self._recalculate_positions(entry.schedule_id)
-
-        await self.db.commit()
-
-        return appointment
 
     async def _recalculate_positions(self, schedule_id: str):
         """重新计算队列位置

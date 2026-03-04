@@ -476,7 +476,7 @@ class AppointmentService:
 
         # 非管理员只能取消自己的预约
         if not is_admin and appointment.user_id != user_id:
-            return None
+            raise ValueError("无权操作此预约")
 
         # 只有已预约或已签到状态可以取消
         if appointment.status not in [APPOINTMENT_STATUS['CONFIRMED'], APPOINTMENT_STATUS['SIGNED']]:
@@ -484,7 +484,9 @@ class AppointmentService:
 
         # 非管理员需要检查取消时间限制
         if not is_admin:
-            now = datetime.now()
+            import pytz
+            local_tz = pytz.timezone('Asia/Shanghai')
+            now = datetime.now(local_tz)
 
             # 优先使用规则快照中的取消时间窗
             if appointment.cancel_open_at and appointment.cancel_close_at:
@@ -519,17 +521,32 @@ class AppointmentService:
                     if now > cancel_deadline:
                         raise ValueError(f"就诊前{cancel_hours}小时内不可取消预约")
         
-        appointment.status = APPOINTMENT_STATUS['CANCELLED']
-        appointment.cancel_time = datetime.now()
-        appointment.cancel_reason = reason
-        set_update_audit(appointment, operator_id or user_id)
-
-        # 恢复号源
+        # 使用分布式锁保护取消操作（防止并发取消导致号源计数错误）
         schedule = appointment.schedule
-        if schedule:
-            schedule.booked_slots = max(0, schedule.booked_slots - 1)
+        lock_name = f"appointment:cancel:{appointment.schedule_id}" if schedule else f"appointment:cancel:{appointment_id}"
 
-        await self.db.commit()
+        async with RedisCache.distributed_lock(lock_name, timeout=10, retry_times=5):
+            # 重新获取预约和排班状态（在锁内确保数据最新）
+            appointment = await self.get_by_id(appointment_id)
+            if not appointment:
+                return None
+
+            # 再次检查状态（防止并发取消）
+            if appointment.status not in [APPOINTMENT_STATUS['CONFIRMED'], APPOINTMENT_STATUS['SIGNED']]:
+                raise ValueError("当前状态不可取消")
+
+            schedule = appointment.schedule
+
+            appointment.status = APPOINTMENT_STATUS['CANCELLED']
+            appointment.cancel_time = datetime.now()
+            appointment.cancel_reason = reason
+            set_update_audit(appointment, operator_id or user_id)
+
+            # 恢复号源
+            if schedule:
+                schedule.booked_slots = max(0, schedule.booked_slots - 1)
+
+            await self.db.commit()
 
         # 候补队列自动递补
         if schedule:

@@ -174,8 +174,8 @@ const CheckinSelectPage = () => {
   };
 
   const handleSelect = (id: string, signInStatus?: string) => {
-    // 只允许选择可签到的预约
-    if (signInStatus === 'early' || signInStatus === 'late') {
+    // 只允许选择可签到的预约（排除 early、late、error 状态）
+    if (signInStatus === 'early' || signInStatus === 'late' || signInStatus === 'error') {
       return;
     }
     setSelectedId(id);
@@ -244,7 +244,7 @@ const CheckinSelectPage = () => {
 
           <View className="appointment-list">
             {appointments.map((item) => {
-              const isDisabled = item.signInStatus === 'early' || item.signInStatus === 'late';
+              const isDisabled = item.signInStatus === 'early' || item.signInStatus === 'late' || item.signInStatus === 'error';
 
               // 计算实时倒计时
               let countdownInfo = null;

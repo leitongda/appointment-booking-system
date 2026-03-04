@@ -202,8 +202,8 @@ async def get_today_pending_appointments(
     result = []
 
     for a in appointments:
-        signInStatus = 'available'
-        signInMessage = ''
+        signInStatus = 'error'  # 默认为错误状态，只有明确允许时才改为可用
+        signInMessage = '签到状态异常，请联系工作人员'
         checkin_open_at = None
         checkin_close_at = None
         minutes_until_open = None
@@ -235,52 +235,66 @@ async def get_today_pending_appointments(
                         signInMessage = f'可以签到（余{minutes_until_close}分钟）'
                     else:
                         signInMessage = '可以签到'
-            except Exception:
-                # 规则引擎检查失败，降级使用门店配置
-                settings_service = SettingsService(db)
-                settings = await settings_service.get_booking_settings(store_id=store_id)
-                sign_in_advance_minutes = settings.get('signInAdvanceMinutes', 30)
-                sign_in_late_minutes = settings.get('signInLateMinutes', 30)
+            except Exception as e:
+                # 规则引擎检查失败，记录日志并降级使用门店配置
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f'规则引擎检查签到时间窗失败，降级使用门店配置: {e}')
 
-                # 计算班次开始时间
-                if a.schedule.start_time:
-                    visit_time = a.schedule.start_time
-                else:
-                    time_slot_start_map = {
-                        'AM': time(8, 0),
-                        'PM': time(14, 0),
-                        'morning': time(8, 0),
-                        'afternoon': time(14, 0),
-                        'evening': time(18, 0),
-                        'NIGHT': time(18, 0),
-                    }
-                    visit_time = time_slot_start_map.get(a.schedule.time_slot, time(8, 0))
+                try:
+                    settings_service = SettingsService(db)
+                    settings = await settings_service.get_booking_settings(store_id=store_id)
+                    sign_in_advance_minutes = settings.get('signInAdvanceMinutes', 30)
+                    sign_in_late_minutes = settings.get('signInLateMinutes', 30)
 
-                visit_datetime = datetime.combine(a.schedule.schedule_date, visit_time)
-                # 将 naive datetime 转换为带时区的 datetime，确保与 now 比较时类型一致
-                visit_datetime = local_tz.localize(visit_datetime)
+                    # 计算班次开始时间
+                    if a.schedule.start_time:
+                        visit_time = a.schedule.start_time
+                    else:
+                        time_slot_start_map = {
+                            'AM': time(8, 0),
+                            'PM': time(14, 0),
+                            'morning': time(8, 0),
+                            'afternoon': time(14, 0),
+                            'evening': time(18, 0),
+                            'NIGHT': time(18, 0),
+                        }
+                        visit_time = time_slot_start_map.get(a.schedule.time_slot, time(8, 0))
 
-                # 计算允许签到的时间窗口
-                sign_in_start = visit_datetime - timedelta(minutes=sign_in_advance_minutes)
-                sign_in_end = visit_datetime + timedelta(minutes=sign_in_late_minutes)
+                    visit_datetime = datetime.combine(a.schedule.schedule_date, visit_time)
+                    # 将 naive datetime 转换为带时区的 datetime，确保与 now 比较时类型一致
+                    visit_datetime = local_tz.localize(visit_datetime)
 
-                if now < sign_in_start:
-                    signInStatus = 'early'
-                    minutes_until_open = int((sign_in_start - now).total_seconds() / 60)
-                    signInMessage = f'未到签到时间，请等待{minutes_until_open}分钟'
-                    checkin_open_at = sign_in_start
-                    checkin_close_at = sign_in_end
-                elif now > sign_in_end:
-                    signInStatus = 'late'
-                    signInMessage = '已过签到时间'
-                    checkin_open_at = sign_in_start
-                    checkin_close_at = sign_in_end
-                else:
-                    signInStatus = 'available'
-                    minutes_until_close = int((sign_in_end - now).total_seconds() / 60)
-                    signInMessage = f'可以签到（余{minutes_until_close}分钟）'
-                    checkin_open_at = sign_in_start
-                    checkin_close_at = sign_in_end
+                    # 计算允许签到的时间窗口
+                    sign_in_start = visit_datetime - timedelta(minutes=sign_in_advance_minutes)
+                    sign_in_end = visit_datetime + timedelta(minutes=sign_in_late_minutes)
+
+                    if now < sign_in_start:
+                        signInStatus = 'early'
+                        minutes_until_open = int((sign_in_start - now).total_seconds() / 60)
+                        signInMessage = f'未到签到时间，请等待{minutes_until_open}分钟'
+                        checkin_open_at = sign_in_start
+                        checkin_close_at = sign_in_end
+                    elif now > sign_in_end:
+                        signInStatus = 'late'
+                        signInMessage = '已过签到时间'
+                        checkin_open_at = sign_in_start
+                        checkin_close_at = sign_in_end
+                    else:
+                        signInStatus = 'available'
+                        minutes_until_close = int((sign_in_end - now).total_seconds() / 60)
+                        signInMessage = f'可以签到（余{minutes_until_close}分钟）'
+                        checkin_open_at = sign_in_start
+                        checkin_close_at = sign_in_end
+                except Exception as fallback_error:
+                    # 降级也失败，保持 error 状态
+                    logger.error(f'签到时间窗降级处理失败: {fallback_error}')
+                    signInStatus = 'error'
+                    signInMessage = '签到状态异常，请联系工作人员'
+        else:
+            # 没有排班信息，无法判断签到时间窗
+            signInStatus = 'error'
+            signInMessage = '预约信息不完整，请联系工作人员'
 
         result.append({
             "id": a.id,

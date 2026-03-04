@@ -108,6 +108,10 @@
   &[data-status="late"]::before {
     background: #DC2626;
   }
+
+  &[data-status="error"]::before {
+    background: #F59E0B;
+  }
 }
 
 .card-icon {
@@ -294,6 +298,15 @@
     border: 1rpx solid rgba(220, 38, 38, 0.2);
     .status-text {
       color: #DC2626;
+      font-size: @font-size-xs;
+    }
+  }
+
+  &.error {
+    background: #FFFBEB;
+    border: 1rpx solid rgba(245, 158, 11, 0.3);
+    .status-text {
+      color: #D97706;
       font-size: @font-size-xs;
     }
   }
