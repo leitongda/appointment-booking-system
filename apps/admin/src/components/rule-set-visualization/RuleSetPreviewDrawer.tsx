@@ -3,9 +3,15 @@
  * 用于列表页查看规则组详情
  */
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Drawer, Space, Typography, Tag, Divider, Collapse } from 'antd';
 import type { RuleSet } from '@hospital/shared';
+import {
+  trackDrawerPreviewOpen,
+  trackDrawerPreviewClose,
+  getTimestamp,
+  type DrawerPreviewData,
+} from '@/utils/analytics';
 import RuleSetSummaryCard from './RuleSetSummaryCard';
 import RuleSetTimeline from './RuleSetTimeline';
 
@@ -178,6 +184,40 @@ const RuleSetPreviewDrawer: React.FC<RuleSetPreviewDrawerProps> = ({
   ruleSet,
   width = 600,
 }) => {
+  // 埋点：记录抽屉打开时间
+  const drawerOpenTimeRef = useRef<number>(0);
+
+  // 埋点：追踪抽屉打开和关闭
+  useEffect(() => {
+    if (open && ruleSet) {
+      drawerOpenTimeRef.current = Date.now();
+
+      // 埋点：追踪抽屉打开
+      const data: DrawerPreviewData = {
+        ruleSetId: ruleSet.id,
+        ruleSetName: ruleSet.name,
+        timestamp: getTimestamp(),
+      };
+      trackDrawerPreviewOpen(data);
+    }
+
+    // 清理：抽屉关闭时埋点
+    return () => {
+      if (open && ruleSet && drawerOpenTimeRef.current > 0) {
+        const viewDuration = Date.now() - drawerOpenTimeRef.current;
+
+        // 埋点：追踪抽屉关闭
+        const data: DrawerPreviewData = {
+          ruleSetId: ruleSet.id,
+          ruleSetName: ruleSet.name,
+          viewDuration,
+          timestamp: getTimestamp(),
+        };
+        trackDrawerPreviewClose(data);
+      }
+    };
+  }, [open, ruleSet]);
+
   if (!ruleSet) return null;
 
   return (
@@ -195,7 +235,20 @@ const RuleSetPreviewDrawer: React.FC<RuleSetPreviewDrawerProps> = ({
       }
       placement="right"
       open={open}
-      onClose={onClose}
+      onClose={() => {
+        // 抽屉关闭时的埋点
+        if (drawerOpenTimeRef.current > 0) {
+          const viewDuration = Date.now() - drawerOpenTimeRef.current;
+          const data: DrawerPreviewData = {
+            ruleSetId: ruleSet.id,
+            ruleSetName: ruleSet.name,
+            viewDuration,
+            timestamp: getTimestamp(),
+          };
+          trackDrawerPreviewClose(data);
+        }
+        onClose();
+      }}
       width={width}
       styles={{ body: { padding: '16px 24px' } }}
     >

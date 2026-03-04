@@ -1,8 +1,16 @@
 import { Modal, Form, Select, DatePicker, TimePicker, Button, Card, Tag, Statistic, Alert, Space, Row, Col, message, Spin } from 'antd';
 import type { RulePreviewResponse, WindowCheckResult, ShiftType, RuleSet } from '@hospital/shared';
 import { ruleSetApi } from '@hospital/api';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import dayjs from 'dayjs';
+import {
+  trackModalPreviewOpen,
+  trackModalPreviewStart,
+  trackModalPreviewSuccess,
+  trackModalPreviewFail,
+  getTimestamp,
+  type ModalPreviewData,
+} from '@/utils/analytics';
 
 const { RangePicker } = DatePicker;
 
@@ -96,7 +104,10 @@ const RulePreviewModal: React.FC<RulePreviewModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [previewResult, setPreviewResult] = useState<RulePreviewResponse | null>(null);
 
-  // 当打开 Modal 时，智能设置默认值
+  // 埋点：记录预览开始时间
+  const previewStartTimeRef = useRef<number>(0);
+
+  // 当打开 Modal 时，智能设置默认值并埋点
   useEffect(() => {
     if (open) {
       form.setFieldsValue({
@@ -106,6 +117,14 @@ const RulePreviewModal: React.FC<RulePreviewModalProps> = ({
         startTime: dayjs('08:00:00', 'HH:mm:ss'),
         endTime: dayjs('12:00:00', 'HH:mm:ss'),
       });
+
+      // 埋点：追踪 Modal 打开
+      const data: ModalPreviewData = {
+        ruleSetId: ruleSetData?.id,
+        ruleSetName: ruleSetData?.name,
+        timestamp: getTimestamp(),
+      };
+      trackModalPreviewOpen(data);
     }
   }, [open, ruleSetData, form]);
 
@@ -113,6 +132,18 @@ const RulePreviewModal: React.FC<RulePreviewModalProps> = ({
     try {
       const values = await form.validateFields();
       setLoading(true);
+      previewStartTimeRef.current = Date.now();
+
+      // 埋点：追踪预览开始
+      const startData: ModalPreviewData = {
+        ruleSetId: ruleSetData?.id,
+        ruleSetName: ruleSetData?.name,
+        shiftTypeId: values.shiftTypeId,
+        scheduleDate: dayjs(values.scheduleDate).format('YYYY-MM-DD'),
+        hasCurrentTime: !!values.currentTime,
+        timestamp: getTimestamp(),
+      };
+      trackModalPreviewStart(startData);
 
       const result = await ruleSetApi.preview({
         shiftTypeId: values.shiftTypeId,
@@ -124,8 +155,27 @@ const RulePreviewModal: React.FC<RulePreviewModalProps> = ({
 
       setPreviewResult(result);
       message.success('预览成功');
+
+      // 埋点：追踪预览成功
+      const previewDuration = Date.now() - previewStartTimeRef.current;
+      const successData: ModalPreviewData = {
+        ruleSetId: ruleSetData?.id,
+        ruleSetName: ruleSetData?.name,
+        previewDuration,
+        timestamp: getTimestamp(),
+      };
+      trackModalPreviewSuccess(successData);
     } catch (error: any) {
       message.error(error.message || '预览失败');
+
+      // 埋点：追踪预览失败
+      const failData: ModalPreviewData & { error?: string } = {
+        ruleSetId: ruleSetData?.id,
+        ruleSetName: ruleSetData?.name,
+        error: error.message || '未知错误',
+        timestamp: getTimestamp(),
+      };
+      trackModalPreviewFail(failData);
     } finally {
       setLoading(false);
     }

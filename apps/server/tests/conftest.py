@@ -29,6 +29,8 @@ from app.models.doctor import Doctor
 from app.models.schedule import Schedule
 from app.models.appointment import Appointment
 from app.models.store import Store
+from app.models.admin import Admin, Role
+from app.models.rule_set import RuleSet, ShiftType
 from app.services.appointment_service import AppointmentService
 
 
@@ -291,6 +293,28 @@ def appointment_service(db_session: AsyncSession) -> AppointmentService:
     return AppointmentService(db_session)
 
 
+# ==================== FastAPI Test Client ====================
+
+@pytest.fixture
+def client(db_session: AsyncSession):
+    """创建测试客户端"""
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    # Override 数据库依赖
+    async def override_get_db():
+        yield db_session
+
+    from app.db.session import get_db
+    app.dependency_overrides[get_db] = override_get_db
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+    # 清理依赖覆盖
+    app.dependency_overrides.clear()
+
+
 # ==================== 工具函数 ====================
 
 def generate_appointment_no() -> str:
@@ -310,3 +334,141 @@ def assert_schedule_booked_slots(schedule: Schedule, expected: int):
     assert schedule.booked_slots == expected, (
         f"Expected booked_slots {expected}, got {schedule.booked_slots}"
     )
+
+
+# ==================== 管理员和角色 Fixtures ====================
+
+@pytest_asyncio.fixture
+async def test_super_admin_role(db_session: AsyncSession) -> Role:
+    """创建测试超级管理员角色"""
+    import json
+    role = Role(
+        id=str(uuid4()),
+        name="超级管理员",
+        code="SUPER_ADMIN",
+        description="系统超级管理员",
+        status=1,
+        permissions=json.dumps(["*"]),
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(role)
+    await db_session.commit()
+    await db_session.refresh(role)
+    return role
+
+
+@pytest_asyncio.fixture
+async def test_store_admin_role(db_session: AsyncSession) -> Role:
+    """创建测试门店管理员角色"""
+    import json
+    role = Role(
+        id=str(uuid4()),
+        name="门店管理员",
+        code="STORE_ADMIN",
+        description="门店管理员",
+        status=1,
+        permissions=json.dumps([]),
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(role)
+    await db_session.commit()
+    await db_session.refresh(role)
+    return role
+
+
+@pytest_asyncio.fixture
+async def test_super_admin(db_session: AsyncSession, test_super_admin_role: Role, test_store: Store) -> Admin:
+    """创建测试超级管理员"""
+    import bcrypt
+    admin = Admin(
+        id=str(uuid4()),
+        username="superadmin",
+        password_hash=bcrypt.hashpw("password123".encode(), bcrypt.gensalt()).decode(),
+        name="超级管理员",
+        phone="13800138888",
+        role_id=test_super_admin_role.id,
+        current_store_id=test_store.id,
+        status=1,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(admin)
+    await db_session.commit()
+    await db_session.refresh(admin)
+    return admin
+
+
+@pytest_asyncio.fixture
+async def test_store_admin(db_session: AsyncSession, test_store_admin_role: Role, test_store: Store) -> Admin:
+    """创建测试门店管理员"""
+    import bcrypt
+    admin = Admin(
+        id=str(uuid4()),
+        username="storeadmin",
+        password_hash=bcrypt.hashpw("password123".encode(), bcrypt.gensalt()).decode(),
+        name="门店管理员",
+        phone="13800138999",
+        role_id=test_store_admin_role.id,
+        current_store_id=test_store.id,
+        status=1,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(admin)
+    await db_session.commit()
+    await db_session.refresh(admin)
+    return admin
+
+
+# ==================== 规则组 Fixtures ====================
+
+@pytest_asyncio.fixture
+async def test_shift_type(db_session: AsyncSession) -> ShiftType:
+    """创建测试班次类型"""
+    shift_type = ShiftType(
+        id=str(uuid4()),
+        code="OPD",
+        name="门诊",
+        description="普通门诊",
+        enabled=True,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(shift_type)
+    await db_session.commit()
+    await db_session.refresh(shift_type)
+    return shift_type
+
+
+@pytest_asyncio.fixture
+async def test_rule_set(db_session: AsyncSession, test_shift_type: ShiftType) -> RuleSet:
+    """创建测试规则组"""
+    rule_set = RuleSet(
+        id=str(uuid4()),
+        name="默认规则组",
+        enabled=True,
+        priority=100,
+        time_source="SERVER",
+        timezone_source="HOSPITAL",
+        compare_precision="SECOND",
+        default_open_inclusive=True,
+        default_close_inclusive=False,
+        rounding_mode="NONE",
+        clock_skew_tolerance_sec=5,
+        description="默认规则组",
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+        created_by=str(uuid4()),
+        updated_by=str(uuid4()),
+    )
+    db_session.add(rule_set)
+    await db_session.commit()
+
+    # 关联班次类型
+    rule_set.shift_types.append(test_shift_type)
+    await db_session.commit()
+
+    await db_session.refresh(rule_set)
+    return rule_set

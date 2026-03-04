@@ -89,13 +89,23 @@ export const getRuleSetColumns = (handlers: ColumnHandlers): ProColumns<RuleSet>
         {handlers.handleView && (
           <a onClick={() => handlers.handleView!(record)}>查看</a>
         )}
-        <a onClick={() => history.push(`/system/rule-sets/${record.id}/edit`)}>编辑</a>
-        <Popconfirm
-          title={record.enabled ? '确定禁用该规则组吗？' : '确定启用该规则组吗？'}
-          onConfirm={() => handlers.handleToggleEnabled(record)}
-        >
-          <a>{record.enabled ? '禁用' : '启用'}</a>
-        </Popconfirm>
+        {handlers.canSuperAdmin ? (
+          <a onClick={() => history.push(`/system/rule-sets/${record.id}/edit`)}>编辑</a>
+        ) : (
+          <a style={{ color: 'rgba(0, 0, 0, 0.25)', cursor: 'not-allowed' }}>编辑</a>
+        )}
+        {handlers.canSuperAdmin ? (
+          <Popconfirm
+            title={record.enabled ? '确定禁用该规则组吗？' : '确定启用该规则组吗？'}
+            onConfirm={() => handlers.handleToggleEnabled(record)}
+          >
+            <a>{record.enabled ? '禁用' : '启用'}</a>
+          </Popconfirm>
+        ) : (
+          <a style={{ color: 'rgba(0, 0, 0, 0.25)', cursor: 'not-allowed' }}>
+            {record.enabled ? '禁用' : '启用'}
+          </a>
+        )}
         {handlers.canSuperAdmin && (
           <Popconfirm
             title="确定删除该规则组吗？"

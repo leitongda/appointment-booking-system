@@ -3,11 +3,12 @@
  * 用于编辑页右侧实时显示当前配置效果
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Card, Space, Typography, Divider, Spin, TimePicker } from 'antd';
 import type { RuleSet, ShiftType } from '@hospital/shared';
 import dayjs, { type Dayjs } from 'dayjs';
 import { formatTime, calculateKeyTimes } from '@/utils/ruleSetFormatter';
+import { trackLivePreviewOpen, trackLivePreviewUpdate, getTimestamp, type LivePreviewData } from '@/utils/analytics';
 import RuleSetSummaryCard from './RuleSetSummaryCard';
 import RuleSetTimeline from './RuleSetTimeline';
 import GanttTimeline from './GanttTimeline';
@@ -92,6 +93,9 @@ const RuleSetLivePreview: React.FC<RuleSetLivePreviewProps> = ({
   exampleSchedule = DEFAULT_EXAMPLE_SCHEDULE,
   loading = false,
 }) => {
+  // 埋点：记录组件首次挂载
+  const hasTrackedOpen = useRef(false);
+
   // 用户可配置的班次时间状态
   const [shiftStartTime, setShiftStartTime] = useState<Dayjs>(DEFAULT_SHIFT_START);
   const [shiftEndTime, setShiftEndTime] = useState<Dayjs>(DEFAULT_SHIFT_END);
@@ -117,6 +121,34 @@ const RuleSetLivePreview: React.FC<RuleSetLivePreviewProps> = ({
       .filter((st) => formData.shiftTypes?.some((fst) => fst.id === st.id))
       .map((st) => st.name);
   }, [formData.shiftTypes, shiftTypes]);
+
+  // 埋点：追踪实时预览打开和更新
+  useEffect(() => {
+    // 首次打开埋点
+    if (!hasTrackedOpen.current && formData.name) {
+      const data: LivePreviewData = {
+        ruleSetId: formData.id,
+        ruleSetName: formData.name,
+        hasWindows: !!(formData.windows && formData.windows.length > 0),
+        hasShiftTypes: !!(formData.shiftTypes && formData.shiftTypes.length > 0),
+        timestamp: getTimestamp(),
+      };
+      trackLivePreviewOpen(data);
+      hasTrackedOpen.current = true;
+    }
+  }, [formData]);
+
+  // 追踪表单数据变化（实时预览更新）
+  useEffect(() => {
+    if (!hasTrackedOpen.current) return;
+
+    const data: LivePreviewData = {
+      ruleSetId: formData.id,
+      ruleSetName: formData.name,
+      timestamp: getTimestamp(),
+    };
+    trackLivePreviewUpdate(data);
+  }, [formData]);
 
   return (
     <Spin spinning={loading}>

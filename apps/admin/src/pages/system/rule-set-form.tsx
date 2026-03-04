@@ -9,6 +9,17 @@ import RuleWindowConfig from '../../components/RuleWindowConfig';
 import RulePreviewModal from './components/RulePreviewModal';
 import { RuleSetLivePreview, RuleSetSummaryCard } from '@/components/rule-set-visualization';
 import ResizableDivider from '@/components/ResizableDivider';
+import {
+  trackEditBeforePreview,
+  trackEditAfterPreview,
+  trackEditExitTab,
+  trackEditSave,
+  trackEditCancel,
+  getTimestamp,
+  getChangedFields,
+  type EditBehaviorData,
+  type EditTabType,
+} from '@/utils/analytics';
 
 // 侧边栏预览面板默认和限制宽度
 const DEFAULT_PREVIEW_WIDTH = 400;
@@ -43,6 +54,11 @@ const RuleSetFormPage: React.FC = () => {
   const [formValues, setFormValues] = useState<Partial<RuleSet>>({});
   const formRef = useRef<any>();
 
+  // 埋点：记录表单初始状态和当前 Tab
+  const initialFormDataRef = useRef<any>(null);
+  const beforePreviewFormDataRef = useRef<any>(null);
+  const [activeTab, setActiveTab] = useState<string>('basic');
+
   // 预览面板宽度状态
   const [previewWidth, setPreviewWidth] = useState(DEFAULT_PREVIEW_WIDTH);
 
@@ -70,11 +86,18 @@ const RuleSetFormPage: React.FC = () => {
   };
 
   useEffect(() => {
+    // 检查权限：只有超级管理员可以访问此页面
+    if (!access.canSuperAdmin) {
+      antMessage.error('只有超级管理员可以创建或编辑规则组');
+      history.push('/system/rule-sets');
+      return;
+    }
+
     loadShiftTypes();
     if (isEdit) {
       loadRuleSet();
     }
-  }, [id]);
+  }, [id, access.canSuperAdmin]);
 
   const loadShiftTypes = async () => {
     try {
@@ -120,6 +143,12 @@ const RuleSetFormPage: React.FC = () => {
   };
 
   const handleSubmit = async (values: any) => {
+    // 检查权限
+    if (!access.canSuperAdmin) {
+      antMessage.error('只有超级管理员可以创建或编辑规则组');
+      return;
+    }
+
     try {
       // 直接使用表单值，不再需要手动合并独立状态
       const data = {
@@ -134,6 +163,17 @@ const RuleSetFormPage: React.FC = () => {
         await ruleSetApi.create(data);
         antMessage.success('创建成功');
       }
+
+      // 埋点：追踪保存操作
+      const saveData: EditBehaviorData = {
+        ruleSetId: id,
+        ruleSetName: values.name,
+        tab: activeTab as EditTabType,
+        hasWindows: !!(values.windows && values.windows.length > 0),
+        timestamp: getTimestamp(),
+      };
+      trackEditSave(saveData);
+
       history.push('/system/rule-sets');
     } catch (error: any) {
       antMessage.error(error.message || '操作失败');
@@ -149,12 +189,16 @@ const RuleSetFormPage: React.FC = () => {
   // 初始化 formValues
   useEffect(() => {
     if (ruleSet) {
-      setFormValues({
+      const initialValues = {
         ...ruleSet,
         shiftTypeIds: ruleSet.shiftTypes?.map((st) => st.id) || [],
-      });
+      };
+      setFormValues(initialValues);
+      // 保存初始表单数据用于埋点对比
+      initialFormDataRef.current = initialValues;
     } else {
       setFormValues(RULE_SET_FORM_INITIAL_VALUES);
+      initialFormDataRef.current = RULE_SET_FORM_INITIAL_VALUES;
     }
   }, [ruleSet]);
 
@@ -207,20 +251,72 @@ const RuleSetFormPage: React.FC = () => {
               // 实时更新表单值用于预览
               setFormValues(allValues);
             }}
+            onTabChange={(key) => {
+              // 埋点：追踪 Tab 切换
+              const tabData: EditBehaviorData = {
+                ruleSetId: id,
+                ruleSetName: formValues.name,
+                tab: key as EditTabType,
+                changedFields: getChangedFields(initialFormDataRef.current, formValues),
+                hasWindows: !!(formValues.windows && formValues.windows.length > 0),
+                timestamp: getTimestamp(),
+              };
+              trackEditExitTab(tabData);
+              setActiveTab(key);
+            }}
             submitter={{
               render: (props, dom) => (
                 <FooterToolbar>
                   <Space>
                     <Button onClick={() => {
-                      // 传入当前表单数据
+                      // 保存预览前的表单状态
                       const values = formRef.current?.getFieldsValue();
+                      beforePreviewFormDataRef.current = { ...values };
+
+                      // 埋点：追踪预览前的编辑状态
+                      const beforeData: EditBehaviorData = {
+                        ruleSetId: id,
+                        ruleSetName: values.name,
+                        tab: activeTab as EditTabType,
+                        changedFields: getChangedFields(initialFormDataRef.current, values),
+                        hasWindows: !!(values.windows && values.windows.length > 0),
+                        timestamp: getTimestamp(),
+                      };
+                      trackEditBeforePreview(beforeData);
+
                       setCurrentFormData(values);
                       setPreviewModalOpen(true);
                     }}>
                       预览规则效果
                     </Button>
-                    <Button onClick={() => history.back()}>取消</Button>
-                    <Button type="primary" onClick={() => props.form?.submit()}>
+                    <Button onClick={() => {
+                      // 埋点：追踪取消操作
+                      const cancelData: EditBehaviorData = {
+                        ruleSetId: id,
+                        ruleSetName: formValues.name,
+                        tab: activeTab as EditTabType,
+                        timestamp: getTimestamp(),
+                      };
+                      trackEditCancel(cancelData);
+                      history.back();
+                    }}>取消</Button>
+                    <Button type="primary" onClick={() => {
+                      // 埋点：追踪预览后的编辑状态
+                      const currentValues = formRef.current?.getFieldsValue();
+                      const afterData: EditBehaviorData = {
+                        ruleSetId: id,
+                        ruleSetName: currentValues.name,
+                        tab: activeTab as EditTabType,
+                        changedFields: beforePreviewFormDataRef.current
+                          ? getChangedFields(beforePreviewFormDataRef.current, currentValues)
+                          : [],
+                        hasWindows: !!(currentValues.windows && currentValues.windows.length > 0),
+                        timestamp: getTimestamp(),
+                      };
+                      trackEditAfterPreview(afterData);
+
+                      props.form?.submit();
+                    }}>
                       {isEdit ? '保存' : '创建'}
                     </Button>
                   </Space>
