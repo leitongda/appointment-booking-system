@@ -133,6 +133,7 @@ htmlcov/
 
 # Uploaded files (runtime data)
 uploads/
+apps/server/var/
 
 # Lock files (keep pnpm-lock.yaml for version consistency)
 package-lock.json

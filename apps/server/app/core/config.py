@@ -99,14 +99,25 @@ class Settings(BaseSettings):
     RATE_LIMIT_PER_SECOND: int = 50   # 每秒最大请求数
     
     # 日志配置
+    RUNTIME_DATA_DIR: str = "var/server"
     LOG_LEVEL: str = "INFO"
-    LOG_DIR: str = "logs"
+    LOG_DIR: str = "var/server/logs"
     LOG_JSON_FORMAT: bool = False
 
     # 分页配置
     DEFAULT_PAGE_SIZE: int = 10        # 默认每页数量
     MAX_PAGE_SIZE: int = 500           # 最大每页数量
-    
+
+    # API 超时配置
+    API_TIMEOUT: int = 30              # API 调用超时（秒）
+    DB_QUERY_TIMEOUT: int = 10         # 数据库查询超时（秒）
+
+    # 规则引擎性能监控配置
+    RULE_PERFORMANCE_MONITORING_ENABLED: bool = True  # 是否启用性能监控
+    RULE_SLOW_QUERY_THRESHOLD: int = 100              # 慢查询阈值（毫秒）
+    RULE_METRICS_TTL: int = 86400 * 7                 # 指标保留时间（秒，默认7天）
+    RULE_SLOW_QUERY_TTL: int = 86400 * 30             # 慢查询保留时间（秒，默认30天）
+
     # 短信配置
     SMS_PROVIDER: str = "mock"  # mock, aliyun, tencent
     ALIYUN_ACCESS_KEY_ID: Optional[str] = None
@@ -118,7 +129,7 @@ class Settings(BaseSettings):
     STORAGE_TYPE: str = "local"  # local / minio / cos
     
     # 本地存储配置
-    LOCAL_UPLOAD_DIR: str = "uploads"  # 上传文件目录
+    LOCAL_UPLOAD_DIR: str = "var/server/uploads"  # 上传文件目录
     LOCAL_PUBLIC_URL: Optional[str] = None  # 公网访问URL（可选，如CDN域名）
     
     # MinIO 配置
