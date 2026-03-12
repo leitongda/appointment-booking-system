@@ -17,7 +17,7 @@
 
 ```env
 LOG_LEVEL=INFO          # 日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL
-LOG_DIR=logs            # 日志目录
+LOG_DIR=var/server/logs # 日志目录
 LOG_JSON_FORMAT=false   # 是否使用 JSON 格式
 ```
 
@@ -44,7 +44,7 @@ setup_logging(
 ## 日志文件
 
 ```
-logs/
+var/server/logs/
 ├── hospital.log         # 所有级别日志
 └── hospital_error.log   # 仅 ERROR 及以上
 ```
@@ -78,7 +78,7 @@ logger.critical("严重错误")
 ### 在服务中使用
 
 ```python
-# app/services/appointment_service.py
+# app/modules/appointments/service.py
 import logging
 
 logger = logging.getLogger(__name__)
@@ -200,6 +200,23 @@ logger.info("用户登录", extra={
 
 ---
 
+## 运行期目录说明
+
+当前日志默认写入：
+
+```text
+apps/server/var/server/logs/
+```
+
+如果本地仍存在以下目录：
+
+- `apps/server/logs/`
+- `apps/server/uploads/`
+
+它们通常是历史运行残留，不应再作为默认运行目录。
+
+---
+
 ## 第三方库日志
 
 已自动降低噪音库的日志级别：
@@ -227,4 +244,3 @@ logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
 4. **异常堆栈**：使用 `exc_info=True` 或 `logger.exception()`
 5. **敏感信息**：不要记录密码、Token 等敏感信息
 6. **性能考虑**：避免在日志中执行复杂计算
-

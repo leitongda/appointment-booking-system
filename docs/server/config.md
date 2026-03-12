@@ -52,9 +52,18 @@
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
+| `RUNTIME_DATA_DIR` | str | "var/server" | 运行期数据根目录 |
 | `LOG_LEVEL` | str | "INFO" | 日志级别 |
-| `LOG_DIR` | str | "logs" | 日志目录 |
+| `LOG_DIR` | str | "var/server/logs" | 日志目录 |
 | `LOG_JSON_FORMAT` | bool | false | 是否使用 JSON 格式 |
+
+### 存储配置
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `STORAGE_TYPE` | str | "local" | 存储类型 |
+| `LOCAL_UPLOAD_DIR` | str | "var/server/uploads" | 本地上传目录 |
+| `LOCAL_PUBLIC_URL` | str | None | 本地上传的公网访问地址 |
 
 ### 微信配置
 
@@ -98,6 +107,9 @@ DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/dbname
 REDIS_URL=redis://redis-host:6379/0
 LOG_LEVEL=WARNING
 LOG_JSON_FORMAT=true
+RUNTIME_DATA_DIR=var/server
+LOG_DIR=var/server/logs
+LOCAL_UPLOAD_DIR=var/server/uploads
 ```
 
 ### 动态属性
@@ -145,4 +157,4 @@ RATE_LIMIT_PER_MINUTE=100
 2. **不同环境**：使用不同的 `.env` 文件或环境变量
 3. **配置验证**：Pydantic 会自动验证配置类型
 4. **默认值**：为非敏感配置提供合理的默认值
-
+5. **运行期数据隔离**：日志和上传文件应落在 `var/server/` 之类的运行期目录，而不是源码目录
