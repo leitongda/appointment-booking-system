@@ -1,15 +1,31 @@
 // 导出请求配置函数和错误类
-export { 
-  setBaseURL, 
+export {
+  setBaseURL,
   getBaseURL,
   setHttpClient,
   getHttpClient,
-  setRequestInterceptor, 
-  setResponseInterceptor, 
+  setRequestInterceptor,
+  setResponseInterceptor,
   ApiError,
   request,
 } from './request';
 export type { HttpClient } from './request';
+
+// 导出性能监控和重试工具
+export {
+  getPerformanceMonitor,
+  createApiTimer,
+  getPerformanceSummary,
+  clearPerformanceData,
+} from './utils/performance';
+export type { PerformanceMetrics, PerformanceSummary, ApiTimer } from './utils/performance';
+
+export {
+  setupRetryInterceptor,
+  withRetry,
+  getRetryStats,
+} from './utils/retry';
+export type { RetryOptions, RetryStats } from './utils/retry';
 
 // 导出 API 配置
 export { API_CONFIG, getApiBaseUrl, setApiConfig, resetApiConfig } from './config';

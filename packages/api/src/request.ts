@@ -1,5 +1,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import type { ApiResponse } from '@hospital/shared';
+import { setupRetryInterceptor } from './utils/retry';
+import { createApiTimer } from './utils/performance';
 
 /**
  * API 业务错误类
@@ -75,9 +77,21 @@ const createDefaultInstance = (): AxiosInstance => {
 // 默认的 axios 实例
 const instance: AxiosInstance = createDefaultInstance();
 
+// 设置重试拦截器（为幂等操作启用自动重试）
+setupRetryInterceptor(instance, {
+  maxRetries: 3,
+  retryDelay: 1000,
+  retryDelayFactor: 2,
+  logRetry: true,
+});
+
 // 请求拦截器
 instance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // 创建计时器
+    const timer = createApiTimer(config.url || '', config.method || 'GET');
+    (config as any)._timer = timer;
+
     // Token 由各端自行设置
     return config;
   },
@@ -90,19 +104,25 @@ instance.interceptors.request.use(
 instance.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
     const { data } = response;
-    
+    const config = response.config as any;
+
+    // 记录成功请求
+    if (config._timer) {
+      config._timer.recordSuccess();
+    }
+
     // 如果 data 不是对象，直接返回
     if (!data || typeof data !== 'object') {
       return data;
     }
-    
+
     // 业务错误 - 抛出 ApiError 以便各端进行精细化处理
     // 2xx 状态码都是成功，不仅仅是 200（如 201 Created）
     if (data.code && (data.code < 200 || data.code >= 300)) {
       const requestUrl = response.config?.url || '';
       return Promise.reject(new ApiError(data.code, data.message || '请求失败', data.data, requestUrl));
     }
-    
+
     // 分页响应：包含 total 字段，返回 ProTable 直接可用的格式
     if ('total' in data && typeof data.total === 'number' && 'data' in data) {
       return {
@@ -113,12 +133,12 @@ instance.interceptors.response.use(
         pageSize: data.pageSize ?? data.page_size ?? 10,
       };
     }
-    
+
     // 统一响应格式：包含 code 和 data 字段
     if ('code' in data && 'data' in data) {
       return data.data;
     }
-    
+
     // 其他情况直接返回
     return data;
   },
@@ -131,12 +151,22 @@ instance.interceptors.response.use(
     const message = responseData?.detail || responseData?.data?.detail || responseData?.message || error.message || '网络错误';
     // 保存请求 URL，用于后续判断是否是登录接口等
     const requestUrl = error.config?.url || error.request?.responseURL || '';
-    
+    const config = error.config as any;
+
+    // 记录失败请求
+    if (config._timer) {
+      // 检查是否超时
+      if (status === 408) {
+        config._timer.markAsTimeout();
+      }
+      config._timer.recordFailure(message);
+    }
+
     // 如果有 HTTP 状态码，使用 ApiError 以便统一处理
     if (status) {
       return Promise.reject(new ApiError(status, message, responseData?.data, requestUrl));
     }
-    
+
     return Promise.reject(new Error(message));
   }
 );
