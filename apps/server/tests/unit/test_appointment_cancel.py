@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, patch, MagicMock
 import pytz
 from contextlib import asynccontextmanager
 
-from app.services.appointment_service import AppointmentService, APPOINTMENT_STATUS
+from app.modules.appointments.service import AppointmentService, APPOINTMENT_STATUS
 from app.models.appointment import Appointment
 from app.models.schedule import Schedule
 

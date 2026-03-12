@@ -32,7 +32,7 @@ from app.models.appointment import Appointment
 from app.models.store import Store
 from app.models.admin import Admin, Role
 from app.models.rule_set import RuleSet, ShiftType
-from app.services.appointment_service import AppointmentService
+from app.modules.appointments.service import AppointmentService
 
 
 # ==================== 测试配置 ====================

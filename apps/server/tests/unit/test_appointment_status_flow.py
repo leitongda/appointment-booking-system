@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock, patch, MagicMock
 from contextlib import asynccontextmanager
 
 from app.models.appointment import Appointment
-from app.services.appointment_service import AppointmentService, APPOINTMENT_STATUS
+from app.modules.appointments.service import AppointmentService, APPOINTMENT_STATUS
 
 
 @asynccontextmanager

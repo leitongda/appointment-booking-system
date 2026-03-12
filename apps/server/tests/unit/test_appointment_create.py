@@ -18,7 +18,7 @@ from sqlalchemy import select
 from app.models.appointment import Appointment
 from app.models.schedule import Schedule
 from app.schemas.appointment import AppointmentCreate
-from app.services.appointment_service import AppointmentService, APPOINTMENT_STATUS
+from app.modules.appointments.service import AppointmentService, APPOINTMENT_STATUS
 
 
 # ==================== 测试辅助函数 ====================
@@ -90,10 +90,10 @@ class TestCreateAppointmentSuccess:
         service = AppointmentService(db_session)
 
         # Mock 依赖项
-        with patch('app.services.appointment_service.RedisCache.distributed_lock') as mock_lock, \
-             patch('app.services.appointment_service.RuleEngineService') as mock_rule_engine_cls, \
-             patch('app.services.appointment_service.MessageService') as mock_msg_service_cls, \
-             patch('app.services.appointment_service.dispatch_event_email') as mock_dispatch:
+        with patch('app.modules.appointments.service.RedisCache.distributed_lock') as mock_lock, \
+             patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls, \
+             patch('app.modules.appointments.service.MessageService') as mock_msg_service_cls, \
+             patch('app.modules.appointments.service.dispatch_event_email') as mock_dispatch:
 
             # 配置分布式锁 mock
             mock_lock.return_value = create_mock_lock_context()
@@ -179,7 +179,7 @@ class TestCreateAppointmentScheduleFull:
         service = AppointmentService(db_session)
 
         # Mock 规则引擎（需要在排班检查之前）
-        with patch('app.services.appointment_service.RuleEngineService') as mock_rule_engine_cls:
+        with patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls:
             mock_rule_engine = MagicMock()
             mock_rule_engine_cls.return_value = mock_rule_engine
 
@@ -231,8 +231,8 @@ class TestCreateAppointmentScheduleFull:
             async def __aexit__(self, exc_type, exc_val, exc_tb):
                 return None
 
-        with patch('app.services.appointment_service.RedisCache.distributed_lock') as mock_lock, \
-             patch('app.services.appointment_service.RuleEngineService') as mock_rule_engine_cls:
+        with patch('app.modules.appointments.service.RedisCache.distributed_lock') as mock_lock, \
+             patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls:
 
             # 配置锁 mock 返回自定义上下文管理器
             mock_lock.return_value = MockLockContext(test_schedule)
@@ -287,8 +287,8 @@ class TestCreateAppointmentDuplicate:
         service = AppointmentService(db_session)
 
         # Mock 依赖项
-        with patch('app.services.appointment_service.RedisCache.distributed_lock') as mock_lock, \
-             patch('app.services.appointment_service.RuleEngineService') as mock_rule_engine_cls:
+        with patch('app.modules.appointments.service.RedisCache.distributed_lock') as mock_lock, \
+             patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls:
 
             # 配置分布式锁 mock
             mock_lock.return_value = create_mock_lock_context()
@@ -353,10 +353,10 @@ class TestCreateAppointmentDuplicate:
         service = AppointmentService(db_session)
 
         # Mock 依赖项
-        with patch('app.services.appointment_service.RedisCache.distributed_lock') as mock_lock, \
-             patch('app.services.appointment_service.RuleEngineService') as mock_rule_engine_cls, \
-             patch('app.services.appointment_service.MessageService') as mock_msg_service_cls, \
-             patch('app.services.appointment_service.dispatch_event_email') as mock_dispatch:
+        with patch('app.modules.appointments.service.RedisCache.distributed_lock') as mock_lock, \
+             patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls, \
+             patch('app.modules.appointments.service.MessageService') as mock_msg_service_cls, \
+             patch('app.modules.appointments.service.dispatch_event_email') as mock_dispatch:
 
             # 配置分布式锁 mock
             mock_lock.return_value = create_mock_lock_context()
@@ -419,10 +419,10 @@ class TestCreateAppointmentConcurrent:
         service = AppointmentService(db_session)
 
         # Mock 依赖项
-        with patch('app.services.appointment_service.RedisCache.distributed_lock') as mock_lock, \
-             patch('app.services.appointment_service.RuleEngineService') as mock_rule_engine_cls, \
-             patch('app.services.appointment_service.MessageService') as mock_msg_service_cls, \
-             patch('app.services.appointment_service.dispatch_event_email') as mock_dispatch:
+        with patch('app.modules.appointments.service.RedisCache.distributed_lock') as mock_lock, \
+             patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls, \
+             patch('app.modules.appointments.service.MessageService') as mock_msg_service_cls, \
+             patch('app.modules.appointments.service.dispatch_event_email') as mock_dispatch:
 
             # 配置分布式锁 mock
             mock_lock.return_value = create_mock_lock_context()
@@ -492,8 +492,8 @@ class TestCreateAppointmentConcurrent:
         def mock_lock_side_effect(*args, **kwargs):
             raise RuntimeError("无法获取分布式锁")
 
-        with patch('app.services.appointment_service.RedisCache.distributed_lock') as mock_lock, \
-             patch('app.services.appointment_service.RuleEngineService') as mock_rule_engine_cls:
+        with patch('app.modules.appointments.service.RedisCache.distributed_lock') as mock_lock, \
+             patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls:
 
             # 配置锁 mock 抛出异常
             mock_lock.side_effect = mock_lock_side_effect
@@ -577,10 +577,10 @@ class TestCreateAppointmentConcurrent:
                     patient_id=patient_id
                 )
 
-                with patch('app.services.appointment_service.RedisCache.distributed_lock') as mock_lock, \
-                     patch('app.services.appointment_service.RuleEngineService') as mock_rule_engine_cls, \
-                     patch('app.services.appointment_service.MessageService'), \
-                     patch('app.services.appointment_service.dispatch_event_email'):
+                with patch('app.modules.appointments.service.RedisCache.distributed_lock') as mock_lock, \
+                     patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls, \
+                     patch('app.modules.appointments.service.MessageService'), \
+                     patch('app.modules.appointments.service.dispatch_event_email'):
 
                     # 配置分布式锁 mock
                     mock_lock.return_value = create_mock_lock_context()
@@ -625,10 +625,10 @@ class TestCreateAppointmentConcurrent:
                     patient_id=patient.id
                 )
 
-                with patch('app.services.appointment_service.RedisCache.distributed_lock') as mock_lock, \
-                     patch('app.services.appointment_service.RuleEngineService') as mock_rule_engine_cls, \
-                     patch('app.services.appointment_service.MessageService'), \
-                     patch('app.services.appointment_service.dispatch_event_email'):
+                with patch('app.modules.appointments.service.RedisCache.distributed_lock') as mock_lock, \
+                     patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls, \
+                     patch('app.modules.appointments.service.MessageService'), \
+                     patch('app.modules.appointments.service.dispatch_event_email'):
 
                     mock_lock.return_value = create_mock_lock_context()
 
@@ -717,7 +717,7 @@ class TestCreateAppointmentValidation:
         service = AppointmentService(db_session)
 
         # Mock 规则引擎
-        with patch('app.services.appointment_service.RuleEngineService') as mock_rule_engine_cls:
+        with patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls:
             mock_rule_engine = MagicMock()
             mock_rule_engine_cls.return_value = mock_rule_engine
             default_mocks = create_default_rule_engine_mocks()
@@ -791,7 +791,7 @@ class TestCreateAppointmentRuleEngine:
         service = AppointmentService(db_session)
 
         # Mock 规则引擎返回拒绝
-        with patch('app.services.appointment_service.RuleEngineService') as mock_rule_engine_cls:
+        with patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls:
             mock_rule_engine = MagicMock()
             mock_rule_engine_cls.return_value = mock_rule_engine
 
@@ -842,7 +842,7 @@ class TestCreateAppointmentRuleEngine:
         service = AppointmentService(db_session)
 
         # Mock 规则引擎
-        with patch('app.services.appointment_service.RuleEngineService') as mock_rule_engine_cls:
+        with patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls:
 
             mock_rule_engine = MagicMock()
             mock_rule_engine_cls.return_value = mock_rule_engine

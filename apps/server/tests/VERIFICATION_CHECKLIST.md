@@ -3,13 +3,13 @@
 ## 后端 API 权限验证
 
 ### 文件位置
-`/Users/leijiadashao/leitond/appointment-booking-system/apps/server/app/api/v1/rule_sets.py`
+`/Users/leijiadashao/leitond/appointment-booking-system/apps/server/app/modules/rule_sets/router.py`
 
 ### 验证方法
 运行以下 Python 代码片段验证 API 权限配置：
 
 ```python
-from app.api.v1.rule_sets import router
+from app.modules.rule_sets.router import router
 from app.api.deps import get_current_admin, get_current_super_admin
 
 # 打印所有路由及其权限依赖

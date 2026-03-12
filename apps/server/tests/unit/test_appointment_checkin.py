@@ -11,7 +11,7 @@ from datetime import datetime, date, time, timedelta
 from unittest.mock import AsyncMock, patch, MagicMock
 import pytz
 
-from app.services.appointment_service import AppointmentService, APPOINTMENT_STATUS
+from app.modules.appointments.service import AppointmentService, APPOINTMENT_STATUS
 from app.models.appointment import Appointment
 from app.models.schedule import Schedule
 
@@ -113,7 +113,7 @@ class TestSignInSuccess:
 
             # Mock 规则引擎的签到策略检查（允许签到）
             with patch(
-                'app.services.appointment_service.RuleEngineService'
+                'app.modules.appointments.service.RuleEngineService'
             ) as mock_rule_engine:
                 mock_instance = MagicMock()
                 mock_rule_engine.return_value = mock_instance
