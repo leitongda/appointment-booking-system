@@ -103,7 +103,11 @@
       "Bash(bun install:*)",
       "Bash(bun remove:*)",
       "Bash(wc:*)",
-      "Bash(xargs ls:*)"
+      "Bash(xargs ls:*)",
+      "Bash(source:*)",
+      "Bash(uv run python:*)",
+      "Bash(uv run:*)",
+      "Bash(pytest:*)"
     ]
   },
   "statusLine": {
