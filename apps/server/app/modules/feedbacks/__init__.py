@@ -1,0 +1,1 @@
+"""Feedbacks domain module."""

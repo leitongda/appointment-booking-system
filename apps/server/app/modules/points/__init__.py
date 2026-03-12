@@ -1,0 +1,1 @@
+"""Points domain module."""

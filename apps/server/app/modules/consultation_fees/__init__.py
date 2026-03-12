@@ -1,0 +1,1 @@
+"""Consultation fees domain module."""

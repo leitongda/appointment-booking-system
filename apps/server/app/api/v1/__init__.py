@@ -1,43 +1,64 @@
+from dataclasses import dataclass
+from importlib import import_module
+
 from fastapi import APIRouter
-from app.api.v1 import auth, users, departments, doctors, schedules, appointments, content, statistics, medical_records, admin, settings, patients, export, stores, messages, leave_requests, feedbacks, consultation_fees, doctor_booking_settings, schedule_templates, custom_schedules, rest_days, schedule_suspensions, blacklists, upload, email_templates, analytics, import_export, user_manage, booking_notices, user_favorites, store_visit_type_configs, rule_sets, shift_types, audit_logs, websocket, doctor_portal, store_email_recipients
 
-api_router = APIRouter()
 
-api_router.include_router(auth.router, prefix="/auth", tags=["认证"])
-api_router.include_router(upload.router, prefix="/upload", tags=["文件上传"])
-api_router.include_router(users.router, prefix="/users", tags=["用户"])
-api_router.include_router(stores.router, prefix="/stores", tags=["门店管理"])
-api_router.include_router(messages.router, prefix="/messages", tags=["消息中心"])
-api_router.include_router(departments.router, prefix="/departments", tags=["科室"])
-api_router.include_router(doctors.router, prefix="/doctors", tags=["医生"])
-api_router.include_router(schedules.router, prefix="/schedules", tags=["排班"])
-api_router.include_router(appointments.router, prefix="/appointments", tags=["预约"])
-api_router.include_router(medical_records.router, prefix="/medical-records", tags=["病历"])
-api_router.include_router(content.router, prefix="/content", tags=["内容管理"])
-api_router.include_router(statistics.router, prefix="/statistics", tags=["数据统计"])
-api_router.include_router(admin.router, prefix="/admin", tags=["权限管理"])
-api_router.include_router(settings.router, prefix="/settings", tags=["系统设置"])
-api_router.include_router(patients.router, prefix="/patients", tags=["就诊卡管理"])
-api_router.include_router(user_manage.router, prefix="/user-manage", tags=["患者管理"])
-api_router.include_router(export.router, prefix="/export", tags=["数据导出"])
-api_router.include_router(leave_requests.router, prefix="/leave-requests", tags=["停诊调班"])
-api_router.include_router(feedbacks.router, prefix="/feedbacks", tags=["用户反馈"])
-api_router.include_router(consultation_fees.router, prefix="/consultation-fees", tags=["诊费管理"])
-api_router.include_router(doctor_booking_settings.router, prefix="/doctor-booking-settings", tags=["医生预约设置"])
-api_router.include_router(custom_schedules.router, prefix="/custom-schedules", tags=["自定义排班"])
-api_router.include_router(rest_days.router, prefix="/rest-days", tags=["休息日设置"])
-api_router.include_router(schedule_suspensions.router, prefix="/schedule-suspensions", tags=["停诊管理"])
-api_router.include_router(schedule_templates.router, prefix="/schedule-templates", tags=["排班模板"])
-api_router.include_router(blacklists.router, prefix="/blacklists", tags=["黑名单管理"])
-api_router.include_router(email_templates.router, prefix="/email-templates", tags=["邮件模板"])
-api_router.include_router(analytics.router, prefix="/analytics", tags=["用户行为分析"])
-api_router.include_router(import_export.router, prefix="/data", tags=["数据导入导出"])
-api_router.include_router(booking_notices.router, prefix="/booking-notices", tags=["预约须知"])
-api_router.include_router(user_favorites.router, prefix="/favorites", tags=["用户收藏"])
-api_router.include_router(store_visit_type_configs.router, prefix="/visit-type-configs", tags=["复诊规则配置"])
-api_router.include_router(rule_sets.router, prefix="/rule-sets", tags=["规则管理"])
-api_router.include_router(shift_types.router, prefix="/shift-types", tags=["班次类型"])
-api_router.include_router(audit_logs.router, prefix="/audit-logs", tags=["审计日志"])
-api_router.include_router(websocket.router, prefix="/ws", tags=["WebSocket"])
-api_router.include_router(doctor_portal.router, prefix="/doctor-portal", tags=["医生端"])
-api_router.include_router(store_email_recipients.router, prefix="/store-email-recipients", tags=["门店邮件接收人"])
+@dataclass(frozen=True)
+class RouterRegistration:
+    module: str
+    prefix: str
+    tags: list[str]
+
+
+ROUTER_REGISTRATIONS = [
+    RouterRegistration("app.modules.auth.router", "/auth", ["认证"]),
+    RouterRegistration("app.modules.upload.router", "/upload", ["文件上传"]),
+    RouterRegistration("app.modules.users.router", "/users", ["用户"]),
+    RouterRegistration("app.modules.stores.router", "/stores", ["门店管理"]),
+    RouterRegistration("app.modules.messages.router", "/messages", ["消息中心"]),
+    RouterRegistration("app.modules.departments.router", "/departments", ["科室"]),
+    RouterRegistration("app.modules.doctors.router", "/doctors", ["医生"]),
+    RouterRegistration("app.modules.schedules.router", "/schedules", ["排班"]),
+    RouterRegistration("app.modules.appointments.router", "/appointments", ["预约"]),
+    RouterRegistration("app.modules.medical_records.router", "/medical-records", ["病历"]),
+    RouterRegistration("app.modules.content.router", "/content", ["内容管理"]),
+    RouterRegistration("app.modules.statistics.router", "/statistics", ["数据统计"]),
+    RouterRegistration("app.modules.admin.router", "/admin", ["权限管理"]),
+    RouterRegistration("app.modules.settings.router", "/settings", ["系统设置"]),
+    RouterRegistration("app.modules.patients.router_manage", "/patients", ["就诊卡管理"]),
+    RouterRegistration("app.modules.patients.router_users", "/user-manage", ["患者管理"]),
+    RouterRegistration("app.modules.export.router", "/export", ["数据导出"]),
+    RouterRegistration("app.modules.leave_requests.router", "/leave-requests", ["停诊调班"]),
+    RouterRegistration("app.modules.feedbacks.router", "/feedbacks", ["用户反馈"]),
+    RouterRegistration("app.modules.consultation_fees.router", "/consultation-fees", ["诊费管理"]),
+    RouterRegistration("app.modules.doctor_booking_settings.router", "/doctor-booking-settings", ["医生预约设置"]),
+    RouterRegistration("app.modules.custom_schedules.router", "/custom-schedules", ["自定义排班"]),
+    RouterRegistration("app.modules.rest_days.router", "/rest-days", ["休息日设置"]),
+    RouterRegistration("app.modules.schedule_suspensions.router", "/schedule-suspensions", ["停诊管理"]),
+    RouterRegistration("app.modules.schedule_templates.router", "/schedule-templates", ["排班模板"]),
+    RouterRegistration("app.modules.blacklists.router", "/blacklists", ["黑名单管理"]),
+    RouterRegistration("app.modules.email_templates.router", "/email-templates", ["邮件模板"]),
+    RouterRegistration("app.modules.analytics.router", "/analytics", ["用户行为分析"]),
+    RouterRegistration("app.modules.import_export.router", "/data", ["数据导入导出"]),
+    RouterRegistration("app.modules.booking_notices.router", "/booking-notices", ["预约须知"]),
+    RouterRegistration("app.modules.user_favorites.router", "/favorites", ["用户收藏"]),
+    RouterRegistration("app.modules.store_visit_type_configs.router", "/visit-type-configs", ["复诊规则配置"]),
+    RouterRegistration("app.modules.rule_sets.router", "/rule-sets", ["规则管理"]),
+    RouterRegistration("app.modules.shift_types.router", "/shift-types", ["班次类型"]),
+    RouterRegistration("app.modules.audit_logs.router", "/audit-logs", ["审计日志"]),
+    RouterRegistration("app.modules.websocket.router", "/ws", ["WebSocket"]),
+    RouterRegistration("app.modules.doctor_portal.router", "/doctor-portal", ["医生端"]),
+    RouterRegistration("app.modules.store_email_recipients.router", "/store-email-recipients", ["门店邮件接收人"]),
+]
+
+
+def build_api_router() -> APIRouter:
+    router = APIRouter()
+    for registration in ROUTER_REGISTRATIONS:
+        module = import_module(registration.module)
+        router.include_router(module.router, prefix=registration.prefix, tags=registration.tags)
+    return router
+
+
+api_router = build_api_router()

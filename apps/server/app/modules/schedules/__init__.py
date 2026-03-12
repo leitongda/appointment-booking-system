@@ -1,0 +1,1 @@
+"""Schedules domain module."""

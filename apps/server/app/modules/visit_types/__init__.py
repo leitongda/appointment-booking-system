@@ -1,0 +1,1 @@
+"""Visit types domain module."""

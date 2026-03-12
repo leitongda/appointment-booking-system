@@ -79,6 +79,7 @@ class RedisCache:
     PREFIX_TOKEN_BLACKLIST = "token:blacklist:"  # Token 黑名单
     PREFIX_CACHE = "cache:"                # 通用缓存
     PREFIX_LOCK = "lock:"                  # 分布式锁
+    PREFIX_RULE_PERF = "rule_engine:"      # 规则引擎性能监控
     
     @staticmethod
     async def set(key: str, value: Any, expire: int = None) -> bool:
@@ -165,6 +166,126 @@ class RedisCache:
             return await client.incrby(key, amount)
         except Exception as e:
             logger.error(f"Redis INCR 失败: {key}, 错误: {e}")
+            return 0
+
+    @staticmethod
+    async def zadd(key: str, mapping: dict, expire: int = None) -> int:
+        """
+        有序集合添加元素
+
+        Args:
+            key: 键名
+            mapping: {member: score} 字典
+            expire: 过期时间（秒）
+        """
+        try:
+            client = await get_redis()
+            result = await client.zadd(key, mapping)
+            if expire:
+                await client.expire(key, expire)
+            return result
+        except Exception as e:
+            logger.error(f"Redis ZADD 失败: {key}, 错误: {e}")
+            return 0
+
+    @staticmethod
+    async def zrangebyscore(
+        key: str,
+        min_score: float,
+        max_score: float,
+        withscores: bool = False,
+        limit: int = None
+    ) -> list:
+        """
+        有序集合按分数范围查询
+
+        Args:
+            key: 键名
+            min_score: 最小分数
+            max_score: 最大分数
+            withscores: 是否返回分数
+            limit: 返回数量限制
+        """
+        try:
+            client = await get_redis()
+            if limit:
+                return await client.zrangebyscore(
+                    key, min_score, max_score,
+                    start=0, num=limit,
+                    withscores=withscores
+                )
+            return await client.zrangebyscore(
+                key, min_score, max_score,
+                withscores=withscores
+            )
+        except Exception as e:
+            logger.error(f"Redis ZRANGEBYSCORE 失败: {key}, 错误: {e}")
+            return []
+
+    @staticmethod
+    async def lpush(key: str, *values) -> int:
+        """
+        列表左侧推入元素
+
+        Args:
+            key: 键名
+            values: 要推入的值
+        """
+        try:
+            client = await get_redis()
+            return await client.lpush(key, *values)
+        except Exception as e:
+            logger.error(f"Redis LPUSH 失败: {key}, 错误: {e}")
+            return 0
+
+    @staticmethod
+    async def ltrim(key: str, start: int, stop: int) -> bool:
+        """
+        列表修剪
+
+        Args:
+            key: 键名
+            start: 起始位置
+            stop: 结束位置
+        """
+        try:
+            client = await get_redis()
+            await client.ltrim(key, start, stop)
+            return True
+        except Exception as e:
+            logger.error(f"Redis LTRIM 失败: {key}, 错误: {e}")
+            return False
+
+    @staticmethod
+    async def lrange(key: str, start: int, stop: int) -> list:
+        """
+        列表范围查询
+
+        Args:
+            key: 键名
+            start: 起始位置
+            stop: 结束位置
+        """
+        try:
+            client = await get_redis()
+            return await client.lrange(key, start, stop)
+        except Exception as e:
+            logger.error(f"Redis LRANGE 失败: {key}, 错误: {e}")
+            return []
+
+    @staticmethod
+    async def llen(key: str) -> int:
+        """
+        获取列表长度
+
+        Args:
+            key: 键名
+        """
+        try:
+            client = await get_redis()
+            return await client.llen(key)
+        except Exception as e:
+            logger.error(f"Redis LLEN 失败: {key}, 错误: {e}")
             return 0
     
     # ==================== 短信验证码相关 ====================

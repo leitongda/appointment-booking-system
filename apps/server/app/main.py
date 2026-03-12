@@ -1,11 +1,12 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import PlainTextResponse
-from contextlib import asynccontextmanager
 import asyncio
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1 import api_router
 from app.core.config import settings
@@ -159,9 +160,31 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
-    # OpenAPI Tag 分组描述
-    openapi_tags = [
-        # 认证与用户
+    app = FastAPI(
+        title=settings.PROJECT_NAME,
+        description=_build_openapi_description(),
+        version="1.0.0",
+        openapi_url=f"{settings.API_V1_STR}/openapi.json",
+        docs_url="/docs",
+        redoc_url="/redoc",
+        lifespan=lifespan,
+        openapi_tags=_build_openapi_tags(),
+        swagger_ui_parameters={"docExpansion": "none"},
+        contact={"name": "技术支持"},
+        license_info={"name": "私有协议"},
+    )
+
+    _configure_middlewares(app)
+    register_exception_handlers(app)
+    app.include_router(api_router, prefix=settings.API_V1_STR)
+    _configure_static_mounts(app)
+    _register_health_routes(app)
+    _register_llms_routes(app)
+    return app
+
+
+def _build_openapi_tags():
+    return [
         {
             "name": "认证",
             "description": "用户登录、注册、Token 刷新、微信授权等认证相关接口",
@@ -319,9 +342,9 @@ def create_app() -> FastAPI:
         },
     ]
 
-    app = FastAPI(
-        title=settings.PROJECT_NAME,
-        description="""
+
+def _build_openapi_description() -> str:
+    return """
 ## 医院预约挂号系统 API
 
 一套完整的医院预约挂号解决方案，支持多门店、多科室、多医生的排班预约管理。
@@ -363,44 +386,19 @@ def create_app() -> FastAPI:
 | 403 | 无权限 |
 | 404 | 资源不存在 |
 | 500 | 服务器内部错误 |
-        """,
-        version="1.0.0",
-        openapi_url=f"{settings.API_V1_STR}/openapi.json",
-        docs_url="/docs",
-        redoc_url="/redoc",
-        lifespan=lifespan,
-        openapi_tags=openapi_tags,
-        swagger_ui_parameters={"docExpansion": "none"},
-        contact={
-            "name": "技术支持",
-        },
-        license_info={
-            "name": "私有协议",
-        },
-    )
-    
-    # ==================== 注册中间件 ====================
-    # 注意：中间件的执行顺序是后注册的先执行（洋葱模型）
-    # 所以 CORS 放在最后注册，确保它最先处理请求（尤其是 OPTIONS 预检）
-    
-    # 1. 统一响应格式中间件（最内层）
+"""
+
+
+def _configure_middlewares(app: FastAPI) -> None:
     app.add_middleware(UnifiedResponseMiddleware)
-    
-    # 2. 操作日志中间件（记录管理员的写操作到数据库）
     app.add_middleware(OperationLogMiddleware)
-    
-    # 3. 请求日志中间件
     app.add_middleware(RequestLogMiddleware)
-    
-    # 4. 限流中间件
     app.add_middleware(
         RateLimitMiddleware,
         requests_per_minute=settings.RATE_LIMIT_PER_MINUTE,
         requests_per_second=settings.RATE_LIMIT_PER_SECOND,
-        enabled=settings.RATE_LIMIT_ENABLED
+        enabled=settings.RATE_LIMIT_ENABLED,
     )
-    
-    # 5. CORS 中间件（最外层，最先处理请求，确保 OPTIONS 预检能正确响应）
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.BACKEND_CORS_ORIGINS,
@@ -408,73 +406,64 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
-    # ==================== 注册异常处理器 ====================
-    register_exception_handlers(app)
-    
-    # ==================== 注册路由 ====================
-    app.include_router(api_router, prefix=settings.API_V1_STR)
-    
-    # ==================== 静态文件服务（本地存储模式） ====================
+
+
+def _configure_static_mounts(app: FastAPI) -> None:
     if settings.STORAGE_TYPE.lower() == "local":
         upload_dir = Path(settings.LOCAL_UPLOAD_DIR)
         upload_dir.mkdir(parents=True, exist_ok=True)
         app.mount("/uploads", StaticFiles(directory=str(upload_dir)), name="uploads")
         logger.info(f"静态文件服务已挂载: /uploads -> {upload_dir}")
-    
-    # ==================== 健康检查 ====================
+
+
+def _register_health_routes(app: FastAPI) -> None:
     @app.get("/health")
     async def health_check():
-        """健康检查"""
         return {"status": "ok"}
-    
+
     @app.get("/health/detailed")
     async def detailed_health_check():
-        """详细健康检查"""
-        from app.core.redis import get_redis
         from sqlalchemy import text
         from app.db.session import async_session_maker
-        
+
         checks = {
             "status": "ok",
             "database": "ok",
             "redis": "ok",
             "environment": settings.ENVIRONMENT,
         }
-        
-        # 检查数据库
+
         try:
             async with async_session_maker() as db:
                 await db.execute(text("SELECT 1"))
-        except Exception as e:
-            checks["database"] = f"error: {str(e)}"
+        except Exception as exc:
+            checks["database"] = f"error: {str(exc)}"
             checks["status"] = "degraded"
-        
-        # 检查 Redis
+
         try:
             redis = await get_redis()
             await redis.ping()
-        except Exception as e:
-            checks["redis"] = f"error: {str(e)}"
+        except Exception as exc:
+            checks["redis"] = f"error: {str(exc)}"
             checks["status"] = "degraded"
-        
+
         return checks
-    
-    # ==================== LLMs.txt 支持 ====================
-    # llms.txt 是一个标准格式，帮助 LLM 理解 API 结构
-    # 参考: https://llmstxt.org/
-    
+
+
+def _read_static_text(filename: str, fallback: str) -> str:
+    static_dir = Path(__file__).parent / "static"
+    file_path = static_dir / filename
+    if file_path.exists():
+        return file_path.read_text(encoding="utf-8")
+    return fallback
+
+
+def _register_llms_routes(app: FastAPI) -> None:
     @app.get("/llms.txt", response_class=PlainTextResponse, include_in_schema=False)
     async def get_llms_txt():
-        """提供 llms.txt 文件 - API 概览版"""
-        static_dir = Path(__file__).parent / "static"
-        llms_txt_path = static_dir / "llms.txt"
-        
-        if llms_txt_path.exists():
-            return llms_txt_path.read_text(encoding="utf-8")
-        
-        # 如果文件不存在，返回基础信息
-        return f"""# {settings.PROJECT_NAME}
+        return _read_static_text(
+            "llms.txt",
+            f"""# {settings.PROJECT_NAME}
 
 > 医院挂号系统 API
 
@@ -485,19 +474,14 @@ def create_app() -> FastAPI:
 - OpenAPI JSON: {settings.API_V1_STR}/openapi.json
 
 请运行 `python scripts/generate_llms_txt.py` 生成完整的 llms.txt 文件。
-"""
-    
+""",
+        )
+
     @app.get("/llms-full.txt", response_class=PlainTextResponse, include_in_schema=False)
     async def get_llms_full_txt():
-        """提供 llms-full.txt 文件 - 包含完整端点详情"""
-        static_dir = Path(__file__).parent / "static"
-        llms_full_path = static_dir / "llms-full.txt"
-        
-        if llms_full_path.exists():
-            return llms_full_path.read_text(encoding="utf-8")
-        
-        # 如果文件不存在，返回提示
-        return f"""# {settings.PROJECT_NAME}
+        return _read_static_text(
+            "llms-full.txt",
+            f"""# {settings.PROJECT_NAME}
 
 > 医院挂号系统 API - 完整版
 
@@ -505,9 +489,8 @@ def create_app() -> FastAPI:
 
 或者访问 OpenAPI 规范获取完整 API 定义:
 - {settings.API_V1_STR}/openapi.json
-"""
-    
-    return app
+""",
+        )
 
 
 app = create_app()

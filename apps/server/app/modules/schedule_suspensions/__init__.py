@@ -1,0 +1,1 @@
+"""Schedule suspensions domain module."""
