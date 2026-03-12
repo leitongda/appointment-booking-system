@@ -9,6 +9,7 @@ export { default as RuleSetLivePreview } from './RuleSetLivePreview';
 export { default as HorizontalTimeline } from './HorizontalTimeline';
 export { default as GanttTimeline } from './GanttTimeline';
 export { default as TimelineLegend } from './TimelineLegend';
+export { default as WindowTimelineCard } from './WindowTimelineCard';
 
 export type { RuleSetTimelineProps } from './RuleSetTimeline';
 export type { RuleSetSummaryCardProps } from './RuleSetSummaryCard';
@@ -17,3 +18,4 @@ export type { RuleSetLivePreviewProps } from './RuleSetLivePreview';
 export type { HorizontalTimelineProps } from './HorizontalTimeline';
 export type { GanttTimelineProps } from './GanttTimeline';
 export type { TimelineLegendProps } from './TimelineLegend';
+export type { WindowTimelineCardProps } from './WindowTimelineCard';

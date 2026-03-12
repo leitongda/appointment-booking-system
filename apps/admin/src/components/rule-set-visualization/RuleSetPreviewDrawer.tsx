@@ -4,7 +4,9 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { Drawer, Space, Typography, Tag, Divider, Collapse } from 'antd';
+import { Drawer, Space, Typography, Tag, Divider, Collapse, Grid } from 'antd';
+
+const { useBreakpoint } = Grid;
 import type { RuleSet } from '@hospital/shared';
 import {
   trackDrawerPreviewOpen,
@@ -184,6 +186,15 @@ const RuleSetPreviewDrawer: React.FC<RuleSetPreviewDrawerProps> = ({
   ruleSet,
   width = 600,
 }) => {
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
+  const isTablet = screens.md && !screens.lg;
+
+  // 根据屏幕尺寸计算抽屉宽度
+  const drawerWidth = isMobile ? (typeof window !== 'undefined' ? window.innerWidth * 0.95 : '95%') :
+    isTablet ? (typeof window !== 'undefined' ? window.innerWidth * 0.8 : '80%') :
+    width;
+
   // 埋点：记录抽屉打开时间
   const drawerOpenTimeRef = useRef<number>(0);
 
@@ -249,8 +260,8 @@ const RuleSetPreviewDrawer: React.FC<RuleSetPreviewDrawerProps> = ({
         }
         onClose();
       }}
-      width={width}
-      styles={{ body: { padding: '16px 24px' } }}
+      width={drawerWidth}
+      styles={{ body: { padding: isMobile ? '12px 16px' : '16px 24px' } }}
     >
       <Space direction="vertical" style={{ width: '100%' }} size="large">
         {/* 规则摘要 */}

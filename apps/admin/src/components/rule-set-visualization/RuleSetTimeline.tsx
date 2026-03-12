@@ -6,7 +6,8 @@
 import React, { useMemo } from 'react';
 import { Timeline, Space, Tag, Card, Typography, Row, Col } from 'antd';
 import type { RuleWindow } from '@hospital/shared';
-import { formatOffset, groupWindowsByAction } from '@/utils/ruleSetFormatter';
+import { formatOffset, groupWindowsByAction, calculateWindowTime } from '@/utils/ruleSetFormatter';
+import dayjs from 'dayjs';
 
 const { Text } = Typography;
 
@@ -17,6 +18,8 @@ export interface RuleSetTimelineProps {
   direction?: 'horizontal' | 'vertical';
   showReferenceLine?: boolean;
   compact?: boolean;
+  shiftStart?: Date;
+  shiftEnd?: Date;
 }
 
 // ==================== 常量定义 ====================
@@ -48,13 +51,70 @@ const REFERENCE_POINT_LABELS: Record<string, string> = {
 interface WindowTimelineItemProps {
   window: RuleWindow;
   compact?: boolean;
+  shiftStart?: Date;
+  shiftEnd?: Date;
 }
 
-const WindowTimelineItem: React.FC<WindowTimelineItemProps> = ({ window, compact }) => {
+const WindowTimelineItem: React.FC<WindowTimelineItemProps> = ({
+  window,
+  compact,
+  shiftStart,
+  shiftEnd
+}) => {
   const colorConfig = ACTION_COLORS[window.action] || ACTION_COLORS.BOOK;
   const refPointLabel = REFERENCE_POINT_LABELS[window.referencePoint] || window.referencePoint;
   const openOffset = formatOffset(window.openOffsetSec);
   const closeOffset = formatOffset(window.closeOffsetSec);
+
+  // 计算实际时间（如果提供了班次时间）
+  const actualTimeRange = useMemo(() => {
+    if (!shiftStart) return null;
+
+    const openTime = calculateWindowTime(
+      window.referencePoint,
+      window.openOffsetSec,
+      shiftStart,
+      shiftEnd || shiftStart
+    );
+    const closeTime = calculateWindowTime(
+      window.referencePoint,
+      window.closeOffsetSec,
+      shiftStart,
+      shiftEnd || shiftStart
+    );
+
+    const openStr = openTime ? dayjs(openTime).format('HH:mm') : '∞';
+    const closeStr = closeTime ? dayjs(closeTime).format('HH:mm') : '∞';
+
+    return { openStr, closeStr, openTime, closeTime };
+  }, [window, shiftStart, shiftEnd]);
+
+  // 生成友好描述
+  const friendlyDescription = useMemo(() => {
+    const parts: string[] = [];
+
+    if (window.openOffsetSec !== null) {
+      if (window.openOffsetSec < 0) {
+        parts.push(`${refPointLabel}${openOffset}开放`);
+      } else {
+        parts.push(`${refPointLabel}${openOffset}开放`);
+      }
+    } else {
+      parts.push('无最早开放时间');
+    }
+
+    if (window.closeOffsetSec !== null) {
+      if (window.closeOffsetSec < 0) {
+        parts.push(`${refPointLabel}${closeOffset}截止`);
+      } else {
+        parts.push(`${refPointLabel}${closeOffset}截止`);
+      }
+    } else {
+      parts.push('无最晚截止时间');
+    }
+
+    return parts.join('，');
+  }, [window, refPointLabel, openOffset, closeOffset]);
 
   return (
     <div
@@ -78,20 +138,50 @@ const WindowTimelineItem: React.FC<WindowTimelineItemProps> = ({ window, compact
         {!compact && (
           <Row gutter={16}>
             <Col span={12}>
-              <Text type="secondary">开放：</Text>
-              <Text>{openOffset}</Text>
+              <div>
+                <Text type="secondary">开放：</Text>
+                <Text style={{ color: '#52c41a', fontWeight: 500 }}>{openOffset}</Text>
+              </div>
+              {actualTimeRange && (
+                <Text type="secondary" style={{ fontSize: 11 }}>
+                  实际时间: {actualTimeRange.openStr}
+                </Text>
+              )}
             </Col>
             <Col span={12}>
-              <Text type="secondary">截止：</Text>
-              <Text>{closeOffset}</Text>
+              <div>
+                <Text type="secondary">截止：</Text>
+                <Text style={{ color: '#fa8c16', fontWeight: 500 }}>{closeOffset}</Text>
+              </div>
+              {actualTimeRange && (
+                <Text type="secondary" style={{ fontSize: 11 }}>
+                  实际时间: {actualTimeRange.closeStr}
+                </Text>
+              )}
             </Col>
           </Row>
         )}
 
         {compact && (
-          <Text type="secondary" style={{ fontSize: 11 }}>
-            {openOffset} / {closeOffset}
-          </Text>
+          <>
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              {openOffset} / {closeOffset}
+            </Text>
+            {actualTimeRange && (
+              <Text type="secondary" style={{ fontSize: 10 }}>
+                ({actualTimeRange.openStr} ~ {actualTimeRange.closeStr})
+              </Text>
+            )}
+          </>
+        )}
+
+        {/* 友好描述 */}
+        {!compact && (
+          <div>
+            <Text style={{ fontSize: 12, color: '#595959' }}>
+              {friendlyDescription}
+            </Text>
+          </div>
         )}
 
         {/* 失败策略 */}
@@ -119,6 +209,8 @@ const RuleSetTimeline: React.FC<RuleSetTimelineProps> = ({
   direction = 'vertical',
   showReferenceLine = true,
   compact = false,
+  shiftStart,
+  shiftEnd,
 }) => {
   // 按动作类型分组时间窗
   const groupedWindows = useMemo(() => groupWindowsByAction(windows), [windows]);
@@ -151,7 +243,13 @@ const RuleSetTimeline: React.FC<RuleSetTimelineProps> = ({
           >
             <Space direction="vertical" style={{ width: '100%' }} size="small">
               {groupedWindows.book.map((window) => (
-                <WindowTimelineItem key={window.id} window={window} compact={compact} />
+                <WindowTimelineItem
+                  key={window.id}
+                  window={window}
+                  compact={compact}
+                  shiftStart={shiftStart}
+                  shiftEnd={shiftEnd}
+                />
               ))}
             </Space>
           </Timeline.Item>
@@ -165,7 +263,13 @@ const RuleSetTimeline: React.FC<RuleSetTimelineProps> = ({
           >
             <Space direction="vertical" style={{ width: '100%' }} size="small">
               {groupedWindows.checkin.map((window) => (
-                <WindowTimelineItem key={window.id} window={window} compact={compact} />
+                <WindowTimelineItem
+                  key={window.id}
+                  window={window}
+                  compact={compact}
+                  shiftStart={shiftStart}
+                  shiftEnd={shiftEnd}
+                />
               ))}
             </Space>
           </Timeline.Item>
@@ -179,7 +283,13 @@ const RuleSetTimeline: React.FC<RuleSetTimelineProps> = ({
           >
             <Space direction="vertical" style={{ width: '100%' }} size="small">
               {groupedWindows.cancel.map((window) => (
-                <WindowTimelineItem key={window.id} window={window} compact={compact} />
+                <WindowTimelineItem
+                  key={window.id}
+                  window={window}
+                  compact={compact}
+                  shiftStart={shiftStart}
+                  shiftEnd={shiftEnd}
+                />
               ))}
             </Space>
           </Timeline.Item>
@@ -193,7 +303,13 @@ const RuleSetTimeline: React.FC<RuleSetTimelineProps> = ({
           >
             <Space direction="vertical" style={{ width: '100%' }} size="small">
               {groupedWindows.holdRelease.map((window) => (
-                <WindowTimelineItem key={window.id} window={window} compact={compact} />
+                <WindowTimelineItem
+                  key={window.id}
+                  window={window}
+                  compact={compact}
+                  shiftStart={shiftStart}
+                  shiftEnd={shiftEnd}
+                />
               ))}
             </Space>
           </Timeline.Item>
@@ -213,7 +329,13 @@ const RuleSetTimeline: React.FC<RuleSetTimelineProps> = ({
         >
           <Space direction="vertical" style={{ width: '100%' }} size="small">
             {groupedWindows.book.map((window) => (
-              <WindowTimelineItem key={window.id} window={window} compact={compact} />
+              <WindowTimelineItem
+                key={window.id}
+                window={window}
+                compact={compact}
+                shiftStart={shiftStart}
+                shiftEnd={shiftEnd}
+              />
             ))}
           </Space>
         </Card>
@@ -227,7 +349,13 @@ const RuleSetTimeline: React.FC<RuleSetTimelineProps> = ({
         >
           <Space direction="vertical" style={{ width: '100%' }} size="small">
             {groupedWindows.checkin.map((window) => (
-              <WindowTimelineItem key={window.id} window={window} compact={compact} />
+              <WindowTimelineItem
+                key={window.id}
+                window={window}
+                compact={compact}
+                shiftStart={shiftStart}
+                shiftEnd={shiftEnd}
+              />
             ))}
           </Space>
         </Card>
@@ -241,7 +369,13 @@ const RuleSetTimeline: React.FC<RuleSetTimelineProps> = ({
         >
           <Space direction="vertical" style={{ width: '100%' }} size="small">
             {groupedWindows.cancel.map((window) => (
-              <WindowTimelineItem key={window.id} window={window} compact={compact} />
+              <WindowTimelineItem
+                key={window.id}
+                window={window}
+                compact={compact}
+                shiftStart={shiftStart}
+                shiftEnd={shiftEnd}
+              />
             ))}
           </Space>
         </Card>
@@ -255,7 +389,13 @@ const RuleSetTimeline: React.FC<RuleSetTimelineProps> = ({
         >
           <Space direction="vertical" style={{ width: '100%' }} size="small">
             {groupedWindows.holdRelease.map((window) => (
-              <WindowTimelineItem key={window.id} window={window} compact={compact} />
+              <WindowTimelineItem
+                key={window.id}
+                window={window}
+                compact={compact}
+                shiftStart={shiftStart}
+                shiftEnd={shiftEnd}
+              />
             ))}
           </Space>
         </Card>

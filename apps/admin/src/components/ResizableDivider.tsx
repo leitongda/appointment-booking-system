@@ -4,6 +4,9 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { Grid } from 'antd';
+
+const { useBreakpoint } = Grid;
 
 interface ResizableDividerProps {
   /** 初始右侧面板宽度 */
@@ -34,6 +37,8 @@ const ResizableDivider: React.FC<ResizableDividerProps> = ({
   style,
   className,
 }) => {
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
   const [rightWidth, setRightWidth] = useState(initialRightWidth);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -96,70 +101,77 @@ const ResizableDivider: React.FC<ResizableDividerProps> = ({
         {leftContent}
       </div>
 
-      {/* 可拖拽分隔条 */}
-      <div
-        onMouseDown={handleMouseDown}
-        style={{
-          display: 'flex',
-          width: 8,
-          flexShrink: 0,
-          cursor: 'col-resize',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: isDragging ? '#e6f4ff' : 'transparent',
-          transition: isDragging ? 'none' : 'background-color 0.2s',
-          position: 'relative',
-          zIndex: 10,
-        }}
-        title="拖拽调整宽度"
-      >
-        {/* 分隔线 */}
+      {/* 可拖拽分隔条 - 仅在桌面端显示 */}
+      {!isMobile && (
         <div
+          onMouseDown={handleMouseDown}
           style={{
-            width: 2,
-            height: '100%',
-            minHeight: 200,
-            backgroundColor: isDragging ? '#1677ff' : '#d9d9d9',
-            borderRadius: 1,
-            transition: isDragging ? 'none' : 'background-color 0.2s',
-          }}
-        />
-        {/* 拖拽手柄指示器 */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: 6,
-            height: 40,
-            backgroundColor: isDragging ? '#1677ff' : '#bfbfbf',
-            borderRadius: 3,
             display: 'flex',
-            flexDirection: 'column',
+            width: 8,
+            flexShrink: 0,
+            cursor: 'col-resize',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 3,
+            backgroundColor: isDragging ? '#e6f4ff' : 'transparent',
             transition: isDragging ? 'none' : 'background-color 0.2s',
+            position: 'relative',
+            zIndex: 10,
           }}
+          title="拖拽调整宽度"
         >
-          {/* 三条横线作为拖拽指示 */}
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              style={{
-                width: 4,
-                height: 1,
-                backgroundColor: '#fff',
-                borderRadius: 0.5,
-              }}
-            />
-          ))}
+          {/* 分隔线 */}
+          <div
+            style={{
+              width: 2,
+              height: '100%',
+              minHeight: 200,
+              backgroundColor: isDragging ? '#1677ff' : '#d9d9d9',
+              borderRadius: 1,
+              transition: isDragging ? 'none' : 'background-color 0.2s',
+            }}
+          />
+          {/* 拖拽手柄指示器 */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 6,
+              height: 40,
+              backgroundColor: isDragging ? '#1677ff' : '#bfbfbf',
+              borderRadius: 3,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 3,
+              transition: isDragging ? 'none' : 'background-color 0.2s',
+            }}
+          >
+            {/* 三条横线作为拖拽指示 */}
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                style={{
+                  width: 4,
+                  height: 1,
+                  backgroundColor: '#fff',
+                  borderRadius: 0.5,
+                }}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 右侧内容 */}
-      <div style={{ width: rightWidth, flexShrink: 0, overflow: 'hidden', marginTop: 'calc(46px + 16px - 3px)' }}>
+      <div style={{
+        width: rightWidth,
+        flexShrink: 0,
+        overflow: 'hidden',
+        marginTop: 'calc(46px + 16px - 3px)'
+      }}>
         {rightContent}
       </div>
     </div>

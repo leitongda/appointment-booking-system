@@ -567,8 +567,8 @@ const HorizontalTimeline: React.FC<HorizontalTimelineProps> = ({
           const tooltipText = [
             `${colorConfig.label}时间窗`,
             `参考点: ${window.referencePoint === 'SHIFT_START' ? '班次开始' : window.referencePoint === 'SHIFT_END' ? '班次结束' : '预约创建'}`,
-            `开放: ${hasNoOpenLimit ? '∞ 不限制' : `${window.openOffsetSec >= 0 ? '+' : ''}${window.openOffsetSec}秒`}`,
-            `截止: ${hasNoCloseLimit ? '∞ 不限制' : `${window.closeOffsetSec >= 0 ? '+' : ''}${window.closeOffsetSec}秒`}`,
+            `开放: ${hasNoOpenLimit ? '∞ 不限制' : `${(window.openOffsetSec ?? 0) >= 0 ? '+' : ''}${window.openOffsetSec ?? 0}秒`}`,
+            `截止: ${hasNoCloseLimit ? '∞ 不限制' : `${(window.closeOffsetSec ?? 0) >= 0 ? '+' : ''}${window.closeOffsetSec ?? 0}秒`}`,
           ].join('\n');
 
           return (

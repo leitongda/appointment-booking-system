@@ -2,6 +2,7 @@ import type { ProColumns } from '@ant-design/pro-components';
 import { Popconfirm, Space, Tag } from 'antd';
 import { history } from '@umijs/max';
 import type { RuleSet } from '@hospital/shared';
+import { confirmDelete } from '@/components/ConfirmModal';
 
 interface ColumnHandlers {
   handleToggleEnabled: (record: RuleSet) => void;
@@ -107,13 +108,28 @@ export const getRuleSetColumns = (handlers: ColumnHandlers): ProColumns<RuleSet>
           </a>
         )}
         {handlers.canSuperAdmin && (
-          <Popconfirm
-            title="确定删除该规则组吗？"
-            description="删除后相关配置也会受影响"
-            onConfirm={() => handlers.handleDelete(record.id)}
+          <a
+            style={{ color: '#ff4d4f' }}
+            onClick={() => {
+              const shiftTypesText = record.shiftTypes && record.shiftTypes.length > 0
+                ? `影响班次类型：${record.shiftTypes.map(st => st.name).join('、')}`
+                : undefined;
+
+              confirmDelete({
+                title: '确认删除规则组',
+                content: (
+                  <div>
+                    <p>确定要删除规则组 <strong>{record.name}</strong> 吗？</p>
+                    <p style={{ marginTop: 8 }}>删除后相关配置也会受影响。</p>
+                  </div>
+                ),
+                alertMessage: shiftTypesText,
+                onOk: () => handlers.handleDelete(record.id),
+              });
+            }}
           >
-            <a style={{ color: '#ff4d4f' }}>删除</a>
-          </Popconfirm>
+            删除
+          </a>
         )}
       </Space>
     ),

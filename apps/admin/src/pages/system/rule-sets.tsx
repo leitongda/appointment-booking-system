@@ -1,18 +1,23 @@
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Button, App, Space, Modal, message } from 'antd';
+import { Button, App, Space, Modal, Grid } from 'antd';
 import { useRef, useState } from 'react';
 import { history, useAccess } from '@umijs/max';
+
+const { useBreakpoint } = Grid;
 import { ruleSetApi, dataApi } from '@hospital/api';
 import type { RuleSet } from '@hospital/shared';
 import ImportExport from '@/components/ImportExport';
 import { RuleSetPreviewDrawer } from '@/components/rule-set-visualization';
 import { getRuleSetColumns } from './components/RuleSetTableColumns';
+import { confirmDelete } from '@/components/ConfirmModal';
 
 const RuleSetsPage: React.FC = () => {
   const { message: antMessage } = App.useApp();
   const access = useAccess();
+  const screens = useBreakpoint();
+  const isMobile = !screens.md; // 小于 768px
   const actionRef = useRef<ActionType>();
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [selectedRows, setSelectedRows] = useState<RuleSet[]>([]);
@@ -53,7 +58,14 @@ const RuleSetsPage: React.FC = () => {
 
     Modal.confirm({
       title: '确认批量启用',
-      content: `确定要启用选中的 ${disabledRows.length} 条规则组吗？`,
+      content: (
+        <div>
+          <p>确定要启用选中的 <strong>{disabledRows.length}</strong> 条规则组吗？</p>
+          <p style={{ color: '#1890ff', marginTop: 8 }}>
+            启用后，规则组将立即生效，影响对应班次类型的预约流程。
+          </p>
+        </div>
+      ),
       onOk: async () => {
         try {
           await Promise.all(disabledRows.map(r => ruleSetApi.enable(r.id)));
@@ -77,7 +89,14 @@ const RuleSetsPage: React.FC = () => {
 
     Modal.confirm({
       title: '确认批量禁用',
-      content: `确定要禁用选中的 ${enabledRows.length} 条规则组吗？`,
+      content: (
+        <div>
+          <p>确定要禁用选中的 <strong>{enabledRows.length}</strong> 条规则组吗？</p>
+          <p style={{ color: '#1890ff', marginTop: 8 }}>
+            禁用后，规则组将不再生效，已创建的预约不受影响。
+          </p>
+        </div>
+      ),
       onOk: async () => {
         try {
           await Promise.all(enabledRows.map(r => ruleSetApi.disable(r.id)));
@@ -98,16 +117,26 @@ const RuleSetsPage: React.FC = () => {
       return;
     }
 
-    Modal.confirm({
+    // 收集所有受影响的班次类型
+    const affectedShiftTypes = new Set<string>();
+    selectedRows.forEach(row => {
+      row.shiftTypes?.forEach(st => {
+        affectedShiftTypes.add(st.name);
+      });
+    });
+    const shiftTypesList = Array.from(affectedShiftTypes).join('、');
+
+    confirmDelete({
       title: '确认批量删除',
       content: (
         <div>
           <p>确定要删除选中的 <strong>{selectedRows.length}</strong> 条规则组吗？</p>
-          <p style={{ color: '#ff4d4f' }}>⚠️ 删除后相关配置也会受影响，此操作不可恢复！</p>
+          {shiftTypesList && (
+            <p style={{ marginTop: 8 }}>这将影响以下班次类型：</p>
+          )}
         </div>
       ),
-      okText: '确认删除',
-      okType: 'danger',
+      alertMessage: shiftTypesList || undefined,
       onOk: async () => {
         try {
           await Promise.all(selectedRows.map(r => ruleSetApi.delete(r.id)));
@@ -169,15 +198,15 @@ const RuleSetsPage: React.FC = () => {
             onImportSuccess={() => actionRef.current?.reload()}
           />,
           selectedRowKeys.length > 0 && (
-            <Space key="batch-actions">
-              <Button size="small" onClick={handleBatchEnable}>
+            <Space key="batch-actions" wrap={isMobile}>
+              <Button size={isMobile ? 'middle' : 'small'} onClick={handleBatchEnable}>
                 批量启用
               </Button>
-              <Button size="small" onClick={handleBatchDisable}>
+              <Button size={isMobile ? 'middle' : 'small'} onClick={handleBatchDisable}>
                 批量禁用
               </Button>
               {access.canSuperAdmin && (
-                <Button danger size="small" onClick={handleBatchDelete}>
+                <Button danger size={isMobile ? 'middle' : 'small'} onClick={handleBatchDelete}>
                   批量删除
                 </Button>
               )}
@@ -190,7 +219,7 @@ const RuleSetsPage: React.FC = () => {
               icon={<PlusOutlined />}
               onClick={() => history.push('/system/rule-sets/create')}
             >
-              新增规则组
+              {isMobile ? '新增' : '新增规则组'}
             </Button>
           ),
         ]}
@@ -206,6 +235,7 @@ const RuleSetsPage: React.FC = () => {
         open={!!selectedRuleSet}
         onClose={() => setSelectedRuleSet(null)}
         ruleSet={selectedRuleSet}
+        width={isMobile ? window.innerWidth * 0.95 : 600}
       />
     </PageContainer>
   );
