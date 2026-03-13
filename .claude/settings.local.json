@@ -107,7 +107,10 @@
       "Bash(source:*)",
       "Bash(uv run python:*)",
       "Bash(uv run:*)",
-      "Bash(pytest:*)"
+      "Bash(pytest:*)",
+      "Bash(for agent in a902726 a4672c8 a287f2d a78a288 a47f916 acd6a75)",
+      "Bash(do)",
+      "Bash(done)"
     ]
   },
   "statusLine": {
