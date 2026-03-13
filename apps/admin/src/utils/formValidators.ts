@@ -4,14 +4,16 @@
  * 提供可复用的表单验证规则和函数
  */
 
+import { PATTERNS, MESSAGES, getCodePattern, getCodeMessage, type CodeFormatType } from '../constants/validation';
+
 /**
  * 用户名验证规则
  */
 export const usernameRules = {
   // 用户名格式验证
   pattern: {
-    pattern: /^[a-z0-9_]{4,20}$/,
-    message: '用户名只能包含小写字母、数字、下划线，长度4-20位',
+    pattern: PATTERNS.USERNAME,
+    message: MESSAGES.USERNAME,
   },
 
   // 用户名唯一性验证（需要传入检查函数）
@@ -38,8 +40,48 @@ export const usernameRules = {
  */
 export const phoneRules = {
   pattern: {
-    pattern: /^1[3-9]\d{9}$/,
-    message: '请输入正确的手机号',
+    pattern: PATTERNS.PHONE,
+    message: MESSAGES.PHONE,
+  },
+};
+
+/**
+ * 座机号验证规则
+ *
+ * @example
+ * ```tsx
+ * <Form.Item
+ *   name="landline"
+ *   rules={[landlineRules.pattern]}
+ * >
+ *   <Input />
+ * </Form.Item>
+ * ```
+ */
+export const landlineRules = {
+  pattern: {
+    pattern: PATTERNS.LANDLINE,
+    message: MESSAGES.LANDLINE,
+  },
+};
+
+/**
+ * 手机或座机验证规则
+ *
+ * @example
+ * ```tsx
+ * <Form.Item
+ *   name="phone"
+ *   rules={[phoneOrLandlineRules.pattern]}
+ * >
+ *   <Input />
+ * </Form.Item>
+ * ```
+ */
+export const phoneOrLandlineRules = {
+  pattern: {
+    pattern: PATTERNS.PHONE_OR_LANDLINE,
+    message: MESSAGES.PHONE_OR_LANDLINE,
   },
 };
 
@@ -48,8 +90,8 @@ export const phoneRules = {
  */
 export const idCardRules = {
   pattern: {
-    pattern: /(^\d{15}$)|(^\d{18}$)|(^\d{17}(\d|X|x)$)/,
-    message: '请输入正确的身份证号',
+    pattern: PATTERNS.ID_CARD,
+    message: MESSAGES.ID_CARD,
   },
 };
 
@@ -58,7 +100,7 @@ export const idCardRules = {
  */
 export const emailRules = {
   type: 'email' as const,
-  message: '请输入正确的邮箱地址',
+  message: MESSAGES.EMAIL,
 };
 
 /**
@@ -127,8 +169,53 @@ export const confirmPasswordRules = (passwordFieldName: string = 'password') => 
  */
 export const urlRules = {
   type: 'url' as const,
-  message: '请输入正确的URL地址',
+  message: MESSAGES.URL,
 };
+
+/**
+ * 时间格式验证规则 (HH:mm)
+ *
+ * @example
+ * ```tsx
+ * <Form.Item
+ *   name="startTime"
+ *   rules={[timeRules.pattern]}
+ * >
+ *   <TimePicker format="HH:mm" />
+ * </Form.Item>
+ * ```
+ */
+export const timeRules = {
+  pattern: {
+    pattern: PATTERNS.TIME,
+    message: MESSAGES.TIME,
+  },
+};
+
+/**
+ * 编码格式验证规则生成器
+ *
+ * 支持多种编码格式：小写、大写、slug、unicode
+ *
+ * @param format - 编码格式类型
+ * @returns 验证规则
+ *
+ * @example
+ * ```tsx
+ * <Form.Item
+ *   name="code"
+ *   rules={[codeRules('lower').pattern]}
+ * >
+ *   <Input />
+ * </Form.Item>
+ * ```
+ */
+export const codeRules = (format: CodeFormatType = 'slug') => ({
+  pattern: {
+    pattern: getCodePattern(format),
+    message: getCodeMessage(format),
+  },
+});
 
 /**
  * 数字范围验证器
@@ -209,10 +296,10 @@ export const requiredRules = (message = '该字段为必填项') => ({
  * ```tsx
  * <Form.Item
  *   name="plateNumber"
- *   rules={patternRules(
+ *   rules={[patternRules(
  *     /^[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼使领][A-Z][A-Z0-9]{5,6}$/,
  *     '请输入正确的车牌号'
- *   )}
+ *   )]}
  * >
  *   <Input />
  * </Form.Item>
@@ -221,6 +308,151 @@ export const requiredRules = (message = '该字段为必填项') => ({
 export const patternRules = (pattern: RegExp, message: string) => ({
   pattern,
   message,
+});
+
+/**
+ * 字段唯一性验证器
+ *
+ * 通用的字段唯一性验证，支持排除当前编辑项的ID
+ *
+ * @param checkFn - 检查函数，接收字段值和当前ID，返回检查结果
+ * @param options - 配置选项
+ * @returns 验证规则
+ *
+ * @example
+ * ```tsx
+ * // 基本用法
+ * <Form.Item
+ *   name="code"
+ *   rules={[uniqueField(
+ *     async (value) => {
+ *       const result = await checkCodeExists(value);
+ *       return !result.exists;
+ *     },
+ *     { message: '该编码已存在' }
+ *   )]}
+ * >
+ *   <Input />
+ * </Form.Item>
+ *
+ * // 编辑时排除当前项
+ * <Form.Item
+ *   name="code"
+ *   rules={[uniqueField(
+ *     async (value, currentId) => {
+ *       const result = await checkCodeExists(value, currentId);
+ *       return !result.exists;
+ *     },
+ *     {
+ *     message: '该编码已存在',
+ *     currentId: editingId,
+ *     idField: 'id'
+ *   }
+ *   )]}
+ * >
+ *   <Input />
+ * </Form.Item>
+ * ```
+ */
+export const uniqueField = (
+  checkFn: (value: any, currentId?: string | number) => Promise<boolean>,
+  options?: {
+    message?: string;
+    currentId?: string | number;
+    idField?: string;
+  }
+) => ({
+  validator: async (_: unknown, value: any) => {
+    if (!value) {
+      return Promise.resolve();
+    }
+
+    const { message = '该值已存在', currentId } = options || {};
+
+    try {
+      const valid = await checkFn(value, currentId);
+      if (!valid) {
+        return Promise.reject(new Error(message));
+      }
+      return Promise.resolve();
+    } catch (error) {
+      // 验证接口失败时不阻止提交
+      return Promise.resolve();
+    }
+  },
+});
+
+/**
+ * 组合多个验证规则
+ *
+ * 辅助函数，用于组合多个验证规则到一个数组中
+ *
+ * @param rules - 验证规则数组
+ * @returns 验证规则数组
+ *
+ * @example
+ * ```tsx
+ * <Form.Item
+ *   name="username"
+ *   rules={combinedRules(
+ *     requiredRules('请输入用户名'),
+ *     usernameRules.pattern,
+ *     uniqueField(checkUsername, { message: '用户名已存在' })
+ *   )}
+ * >
+ *   <Input />
+ * </Form.Item>
+ * ```
+ */
+export const combinedRules = (...rules: Array<Record<string, any>>) => {
+  return rules;
+};
+
+/**
+ * 条件验证规则
+ *
+ * 根据条件决定是否应用某个验证规则
+ *
+ * @param condition - 条件函数，接收表单所有值，返回是否应用规则
+ * @param rule - 要应用的条件规则
+ * @returns 验证规则
+ *
+ * @example
+ * ```tsx
+ * <Form.Item
+ *   name="phone"
+ *   rules={conditionalRule(
+ *     (allValues) => allValues.contactMethod === 'phone',
+ *     phoneRules.pattern
+ *   )}
+ * >
+ *   <Input />
+ * </Form.Item>
+ * ```
+ */
+export const conditionalRule = (
+  condition: (allValues: any) => boolean,
+  rule: Record<string, any>
+) => ({
+  validator: (_: unknown, value: any, allValues: any) => {
+    if (!condition(allValues)) {
+      return Promise.resolve();
+    }
+
+    // 如果规则有 pattern，进行正则验证
+    if (rule.pattern && value) {
+      if (!rule.pattern.test(value)) {
+        return Promise.reject(new Error(rule.message));
+      }
+    }
+
+    // 如果规则有 validator，调用它
+    if (rule.validator) {
+      return rule.validator(_, value, allValues);
+    }
+
+    return Promise.resolve();
+  },
 });
 
 /**
@@ -278,6 +510,10 @@ export const validators = {
   username: usernameRules,
   /** 手机号 */
   phone: phoneRules,
+  /** 座机号 */
+  landline: landlineRules,
+  /** 手机或座机 */
+  phoneOrLandline: phoneOrLandlineRules,
   /** 身份证 */
   idCard: idCardRules,
   /** 邮箱 */
@@ -288,6 +524,10 @@ export const validators = {
   confirmPassword: confirmPasswordRules,
   /** URL */
   url: urlRules,
+  /** 时间格式 */
+  time: timeRules,
+  /** 编码格式 */
+  code: codeRules,
   /** 数字范围 */
   numberRange: numberRangeRules,
   /** 字符串长度 */
@@ -296,4 +536,10 @@ export const validators = {
   pattern: patternRules,
   /** 异步验证 */
   async: asyncValidator,
+  /** 字段唯一性 */
+  uniqueField: uniqueField,
+  /** 组合规则 */
+  combined: combinedRules,
+  /** 条件规则 */
+  conditional: conditionalRule,
 };

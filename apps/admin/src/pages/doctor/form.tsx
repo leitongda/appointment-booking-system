@@ -1,13 +1,23 @@
-import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormSwitch, ProFormRadio, FooterToolbar } from '@ant-design/pro-components';
-import { Card, App, Form, Spin, Button, Space, Typography, Input } from 'antd';
+/**
+ * 医生表单页面（重构版）
+ *
+ * 使用基础设施：FormPage、PasswordField、ImageUploadCard、SwitchGroup
+ * 保留业务逻辑：账号生成、唯一性验证、门店权限控制
+ */
+import { ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormRadio, ProFormDependency } from '@ant-design/pro-components';
+import { Card, Input, Form, Typography } from 'antd';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { history, useParams, useModel, useAccess } from '@umijs/max';
 import { doctorApi, departmentApi, storeApi } from '@hospital/api';
 import { PAGINATION_CONFIG } from '@/constants/pagination';
 import type { Doctor, Department, Store } from '@hospital/shared';
-import ImageUpload from '@/components/ImageUpload';
 import RichTextEditor from '@/components/RichTextEditor';
 import { debounce } from 'lodash-es';
+
+// 基础设施导入
+import FormPage from '@/components/FormPage';
+import { PasswordField, ImageUploadCard, SwitchGroup } from '@/components/formFields';
+import { requiredRules, phoneRules, emailRules, stringLengthRules } from '@/utils/formValidators';
 
 const { Text, Link } = Typography;
 
@@ -30,8 +40,10 @@ const EDUCATION_OPTIONS = [
   { label: '博士后', value: '博士后' },
 ];
 
+/**
+ * 医生表单页面
+ */
 const DoctorFormPage: React.FC = () => {
-  const { message } = App.useApp();
   const { id } = useParams();
   const access = useAccess();
   const { initialState } = useModel('@@initialState');
@@ -54,6 +66,7 @@ const DoctorFormPage: React.FC = () => {
     }
   }, [id]);
 
+  // 加载科室列表
   const loadDepartments = async () => {
     try {
       const data = await departmentApi.getAll();
@@ -63,6 +76,7 @@ const DoctorFormPage: React.FC = () => {
     }
   };
 
+  // 加载门店列表
   const loadStores = async () => {
     try {
       const res = await storeApi.getList({ pageSize: PAGINATION_CONFIG.SELECT_MAX_SIZE, status: 1 });
@@ -77,7 +91,7 @@ const DoctorFormPage: React.FC = () => {
     }
   };
 
-  // 检查用户名是否重复
+  // 检查用户名是否重复（防抖）
   const checkUsername = useCallback(
     debounce(async (username: string) => {
       if (!username) {
@@ -104,11 +118,11 @@ const DoctorFormPage: React.FC = () => {
   // 根据姓名自动生成账号
   const handleNameChange = async (name: string) => {
     if (!name || isEdit) return;
-    
+
     // 只在新增时自动生成
     const currentUsername = formRef.current?.getFieldValue('username');
     if (currentUsername) return; // 如果已有账号则不覆盖
-    
+
     try {
       const res = await doctorApi.generateUsername(name);
       formRef.current?.setFieldValue('username', res.username);
@@ -126,22 +140,27 @@ const DoctorFormPage: React.FC = () => {
     setUsernameSuggestions([]);
   };
 
+  // 加载医生详情
   const loadDoctor = async () => {
     if (!id) return;
     setLoading(true);
     try {
       const data = await doctorApi.getDetailAdmin(id);
       setDoctor(data);
-    } catch (error: any) {
-      message.error('加载医生信息失败');
+    } catch (error) {
+      console.error('加载医生信息失败', error);
     } finally {
       setLoading(false);
     }
   };
 
+  // 表单提交处理
   const handleSubmit = async (values: any) => {
     // 排除确认密码字段
     const { confirmPassword, ...restValues } = values;
+
+    // SwitchGroup 自动处理了 boolean ↔ number 转换，这里不需要手动转换
+    // 但为了兼容现有逻辑，保留转换
     const data = {
       ...restValues,
       isRecommended: values.isRecommended ? 1 : 0,
@@ -152,17 +171,16 @@ const DoctorFormPage: React.FC = () => {
     try {
       if (isEdit && id) {
         await doctorApi.update(id, data);
-        message.success('更新成功');
       } else {
         await doctorApi.create(data);
-        message.success('创建成功');
       }
       history.push('/doctor/list');
     } catch (error: any) {
-      message.error(error.message || '操作失败');
+      throw error; // 抛出错误，让 FormPage 统一处理
     }
   };
 
+  // 初始值处理
   const initialValues = doctor ? {
     ...doctor,
     isRecommended: doctor.isRecommended === 1,
@@ -180,323 +198,305 @@ const DoctorFormPage: React.FC = () => {
     status: true,
   };
 
-  // 编辑模式下，等数据加载完再渲染表单（避免 initialValues 警告）
-  if (isEdit && loading) {
-    return (
-      <PageContainer title="编辑医生">
-        <Card>
-          <div style={{ textAlign: 'center', padding: '50px 0' }}>
-            <Spin tip="加载中..."><span /></Spin>
-          </div>
-        </Card>
-      </PageContainer>
-    );
-  }
-
   return (
-    <PageContainer title={isEdit ? '编辑医生' : '新增医生'}>
-      <ProForm
-        formRef={formRef}
-        onFinish={handleSubmit}
-        initialValues={initialValues}
-        submitter={{
-          render: (props) => (
-            <FooterToolbar>
-              <Space>
-                <Button onClick={() => history.back()}>取消</Button>
-                <Button type="primary" onClick={() => props.form?.submit()}>
-                  {isEdit ? '保存' : '创建'}
-                </Button>
-              </Space>
-            </FooterToolbar>
-          ),
-        }}
-      >
-        {/* 基础信息 */}
-        <Card title="基础信息" style={{ marginBottom: 16 }} loading={loading}>
-          <ProForm.Group>
-            <ProFormText
-              name="name"
-              label="医生姓名"
-              width="md"
-              rules={[{ required: true, message: '请输入医生姓名' }]}
-              fieldProps={{
-                onBlur: (e) => handleNameChange(e.target.value),
-              }}
-            />
-            <ProFormRadio.Group
-              name="gender"
-              label="性别"
-              options={GENDER_OPTIONS}
-            />
-            <ProFormSelect
-              name="storeId"
-              label="所属门店"
-              width="md"
-              options={(stores ?? []).map((s) => ({ label: s.name, value: s.id }))}
-              placeholder="请选择门店"
-              rules={[{ required: true, message: '请选择所属门店' }]}
-              disabled={!isSuperAdmin && (currentUser?.storeIds?.length ?? 0) <= 1}
-              initialValue={!isSuperAdmin && currentStore?.id ? currentStore.id : undefined}
-            />
-          </ProForm.Group>
-          <ProForm.Group>
-            <Form.Item
-              name="username"
-              label="医生账号"
-              rules={[{ required: true, message: '请输入医生账号' }]}
-              validateStatus={usernameError ? 'error' : undefined}
-              help={
-                usernameError ? (
-                  <div>
-                    <Text type="danger">{usernameError}</Text>
-                    {usernameSuggestions.length > 0 && (
-                      <div style={{ marginTop: 4 }}>
-                        <Text type="secondary">推荐账号：</Text>
-                        {usernameSuggestions.map((s, i) => (
-                          <Link key={s} onClick={() => handleSuggestionClick(s)} style={{ marginLeft: i > 0 ? 8 : 4 }}>
-                            {s}
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : undefined
-              }
-            >
-              <Input
-                style={{ width: 328 }}
-                placeholder="用于医生端登录，输入姓名后自动生成"
-                autoComplete="off"
-                onChange={(e) => checkUsername(e.target.value)}
-              />
-            </Form.Item>
-            {!isEdit && (
-              <>
-                <ProFormText.Password
-                  name="password"
-                  label="医生密码"
-                  width="md"
-                  placeholder="不填则默认为 123456"
-                  extra="不填写则使用默认密码：123456"
-                  fieldProps={{ autoComplete: 'new-password' }}
-                />
-                <ProFormText.Password
-                  name="confirmPassword"
-                  label="确认密码"
-                  width="md"
-                  placeholder="请再次输入密码"
-                  dependencies={['password']}
-                  rules={[
-                    ({ getFieldValue }) => ({
-                      validator(_, value) {
-                        const password = getFieldValue('password');
-                        if (!password && !value) {
-                          return Promise.resolve();
-                        }
-                        if (password && !value) {
-                          return Promise.reject(new Error('请再次输入密码'));
-                        }
-                        if (password !== value) {
-                          return Promise.reject(new Error('两次输入的密码不一致'));
-                        }
-                        return Promise.resolve();
-                      },
-                    }),
-                  ]}
-                  fieldProps={{ autoComplete: 'new-password' }}
-                />
-              </>
-            )}
-          </ProForm.Group>
-          <ProForm.Group>
-            <Form.Item
-              name="avatar"
-              label="医生头像"
-              tooltip="1:1比例，推荐尺寸：160px × 160px"
-            >
-              <ImageUpload
-                aspectRatio="1:1"
-                folder="doctor"
-                placeholder="上传头像"
-                width={120}
-                height={120}
-              />
-            </Form.Item>
-          </ProForm.Group>
-          <ProForm.Group>
-            <Form.Item
-              name="banner"
-              label="医生banner"
-              tooltip="16:9比例，若选择医生风格3，请务必上传banner图"
-            >
-              <ImageUpload
-                aspectRatio="16:9"
-                folder="doctor"
-                placeholder="上传Banner"
-                width={272}
-                height={153}
-              />
-            </Form.Item>
-          </ProForm.Group>
-          <ProForm.Group>
-            <ProFormSelect
-              name="departmentId"
-              label="所属科室"
-              width="md"
-              options={(departments ?? []).map((d) => ({ label: d.name, value: d.id }))}
-              rules={[{ required: true, message: '请选择科室' }]}
-            />
-            <ProFormText
-              name="title"
-              label="职称"
-              width="md"
-              placeholder="如：国家注册中医医师"
-            />
-            <ProFormDigit
-              name="yearsOfExperience"
-              label="医龄(年)"
-              width="sm"
-              min={0}
-              fieldProps={{ precision: 0 }}
-            />
-          </ProForm.Group>
-          <ProFormText name="phone" label="手机号" width="md" />
-        </Card>
+    <FormPage
+      title={isEdit ? '编辑医生' : '新增医生'}
+      loading={loading}
+      initialValues={initialValues}
+      onFinish={handleSubmit}
+      onCancel={() => history.back()}
+      saveText={isEdit ? '保存' : '创建'}
+      formRef={formRef}
+    >
+      {/* 基础信息 */}
+      <Card title="基础信息" style={{ marginBottom: 16 }}>
+        <ProForm.Group>
+          <ProFormText
+            name="name"
+            label="医生姓名"
+            width="md"
+            rules={[requiredRules('请输入医生姓名')]}
+            fieldProps={{
+              onBlur: (e) => handleNameChange(e.target.value),
+            }}
+          />
+          <ProFormRadio.Group
+            name="gender"
+            label="性别"
+            options={GENDER_OPTIONS}
+          />
+          <ProFormSelect
+            name="storeId"
+            label="所属门店"
+            width="md"
+            options={(stores ?? []).map((s) => ({ label: s.name, value: s.id }))}
+            placeholder="请选择门店"
+            rules={[requiredRules('请选择所属门店')]}
+            disabled={!isSuperAdmin && (currentUser?.storeIds?.length ?? 0) <= 1}
+            initialValue={!isSuperAdmin && currentStore?.id ? currentStore.id : undefined}
+          />
+        </ProForm.Group>
 
-        {/* 资质信息 */}
-        <Card title="资质信息" style={{ marginBottom: 16 }} loading={loading}>
-          <ProForm.Group>
-            <ProFormSelect
-              name="education"
-              label="学历"
-              width="sm"
-              options={EDUCATION_OPTIONS}
-              placeholder="请选择"
-            />
-            <ProFormText
-              name="graduateSchool"
-              label="毕业院校"
-              width="md"
-              placeholder="如：重庆市中医大学"
-            />
-          </ProForm.Group>
-          <ProForm.Group>
-            <ProFormText
-              name="licenseNumber"
-              label="执业证书编号"
-              width="md"
-              placeholder="请输入执业证书编号"
-            />
-          </ProForm.Group>
+        {/* 账号输入（带唯一性验证和推荐） */}
+        <ProForm.Group>
           <Form.Item
-            name="licenseImage"
-            label="执业证书图片"
+            name="username"
+            label="医生账号"
+            rules={[requiredRules('请输入医生账号')]}
+            validateStatus={usernameError ? 'error' : undefined}
+            help={
+              usernameError ? (
+                <div>
+                  <Text type="danger">{usernameError}</Text>
+                  {usernameSuggestions.length > 0 && (
+                    <div style={{ marginTop: 4 }}>
+                      <Text type="secondary">推荐账号：</Text>
+                      {usernameSuggestions.map((s, i) => (
+                        <Link key={s} onClick={() => handleSuggestionClick(s)} style={{ marginLeft: i > 0 ? 8 : 4 }}>
+                          {s}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : undefined
+            }
           >
-            <ImageUpload
-              aspectRatio="free"
-              folder="doctor"
-              placeholder="上传证书"
-              width={200}
-              height={150}
+            <Input
+              style={{ width: 328 }}
+              placeholder="用于医生端登录，输入姓名后自动生成"
+              autoComplete="off"
+              onChange={(e) => checkUsername(e.target.value)}
             />
           </Form.Item>
-          <ProFormTextArea
-            name="honors"
-            label="所获荣誉"
-            placeholder="如：国家认证的第三批老中医学术继承人"
-            fieldProps={{ rows: 3 }}
-          />
-        </Card>
+        </ProForm.Group>
 
-        {/* 坐诊设置 */}
-        <Card title="坐诊设置" style={{ marginBottom: 16 }} loading={loading}>
-          <ProFormText
-            name="scheduleDesc"
-            label="坐诊时间说明"
-            width="lg"
-            placeholder="如：每周一、三、五上午"
+        {/* 新增模式：使用 PasswordField 组件 */}
+        {!isEdit && (
+          <PasswordField
+            required={false}
+            strengthLevel="min"
+            showStrengthIndicator={false}
+            placeholder="不填则默认为 123456"
+            extra="不填写则使用默认密码：123456（如填写需至少6个字符）"
           />
-          <ProForm.Group>
-            <ProFormDigit
-              name="maxDailyAppointments"
-              label="每日最大接诊量"
-              width="sm"
-              min={0}
-              fieldProps={{ precision: 0 }}
-              tooltip="0表示不限制"
-              addonAfter="人"
-            />
-          </ProForm.Group>
-          <ProForm.Group>
-            <ProFormSwitch
-              name="onlineConsultEnabled"
-              label="支持在线问诊"
-            />
-            <ProFormDigit
-              name="onlineConsultFee"
-              label="在线问诊费用"
-              width="sm"
-              min={0}
-              addonAfter="元"
-            />
-          </ProForm.Group>
-        </Card>
+        )}
 
-        {/* 展示设置 */}
-        <Card title="展示设置" style={{ marginBottom: 16 }} loading={loading}>
-          <ProForm.Group>
-            <ProFormRadio.Group
-              name="pageStyle"
-              label="页面风格"
-              options={PAGE_STYLE_OPTIONS}
-              tooltip="选择医生详情页的展示风格"
-            />
-          </ProForm.Group>
-          <ProFormText
-            name="promoVideo"
-            label="宣传视频"
-            width="lg"
-            placeholder="视频URL"
+        {/* 使用 ImageUploadCard 组件 - 头像 */}
+        <ImageUploadCard
+          title="医生头像"
+          name="avatar"
+          aspectRatio="1:1"
+          width={120}
+          height={120}
+          folder="doctor"
+          placeholder="上传头像"
+          tooltip="1:1比例，推荐尺寸：160px × 160px"
+        />
+
+        {/* 使用 ImageUploadCard 组件 - Banner */}
+        <ImageUploadCard
+          title="医生 Banner"
+          name="banner"
+          aspectRatio="16:9"
+          width={272}
+          height={153}
+          folder="doctor"
+          placeholder="上传 Banner"
+          tooltip="16:9比例，若选择医生风格3，请务必上传banner图"
+        />
+
+        <ProForm.Group>
+          <ProFormSelect
+            name="departmentId"
+            label="所属科室"
+            width="md"
+            options={(departments ?? []).map((d) => ({ label: d.name, value: d.id }))}
+            rules={[requiredRules('请选择科室')]}
           />
           <ProFormText
-            name="tags"
-            label="标签"
-            width="lg"
-            placeholder="多个标签用逗号分隔，如：减肥,多囊,失眠"
-            tooltip="用于搜索和展示"
+            name="title"
+            label="职称"
+            width="md"
+            placeholder="如：国家注册中医医师"
           />
-          <ProFormTextArea
-            name="specialty"
-            label="擅长"
-            placeholder="医生擅长领域"
-            fieldProps={{ rows: 4 }}
+          <ProFormDigit
+            name="yearsOfExperience"
+            label="医龄(年)"
+            width="sm"
+            min={0}
+            fieldProps={{ precision: 0 }}
           />
-          <Form.Item
-            name="introduction"
-            label="医生介绍"
-          >
-            <RichTextEditor height={350} placeholder="请输入医生详细介绍..." />
-          </Form.Item>
-        </Card>
+        </ProForm.Group>
+        <ProFormText
+          name="phone"
+          label="手机号"
+          width="md"
+          rules={[phoneRules.pattern]}
+        />
+      </Card>
 
-        {/* 其他设置 */}
-        <Card title="其他设置" loading={loading}>
-          <ProForm.Group>
-            <ProFormDigit
-              name="sortOrder"
-              label="排序"
-              width="sm"
-              min={0}
-              fieldProps={{ precision: 0 }}
-              tooltip="数字越大越靠前"
-            />
-            <ProFormSwitch name="isRecommended" label="是否推荐" />
-            <ProFormSwitch name="status" label="启用状态" />
-          </ProForm.Group>
-        </Card>
-      </ProForm>
-    </PageContainer>
+      {/* 资质信息 */}
+      <Card title="资质信息" style={{ marginBottom: 16 }}>
+        <ProForm.Group>
+          <ProFormSelect
+            name="education"
+            label="学历"
+            width="sm"
+            options={EDUCATION_OPTIONS}
+            placeholder="请选择"
+          />
+          <ProFormText
+            name="graduateSchool"
+            label="毕业院校"
+            width="md"
+            placeholder="如：重庆市中医大学"
+          />
+        </ProForm.Group>
+        <ProForm.Group>
+          <ProFormText
+            name="licenseNumber"
+            label="执业证书编号"
+            width="md"
+            placeholder="请输入执业证书编号"
+          />
+        </ProForm.Group>
+
+        {/* 使用 ImageUploadCard 组件 - 执业证书 */}
+        <ImageUploadCard
+          title="执业证书图片"
+          name="licenseImage"
+          aspectRatio="free"
+          width={200}
+          height={150}
+          folder="doctor"
+          placeholder="上传证书"
+        />
+
+        <ProFormTextArea
+          name="honors"
+          label="所获荣誉"
+          placeholder="如：国家认证的第三批老中医学术继承人"
+          fieldProps={{ rows: 3 }}
+        />
+      </Card>
+
+      {/* 坐诊设置 */}
+      <Card title="坐诊设置" style={{ marginBottom: 16 }}>
+        <ProFormText
+          name="scheduleDesc"
+          label="坐诊时间说明"
+          width="lg"
+          placeholder="如：每周一、三、五上午"
+        />
+        <ProForm.Group>
+          <ProFormDigit
+            name="maxDailyAppointments"
+            label="每日最大接诊量"
+            width="sm"
+            min={0}
+            fieldProps={{ precision: 0 }}
+            tooltip="0表示不限制"
+            addonAfter="人"
+          />
+        </ProForm.Group>
+
+        {/* 在线问诊设置 */}
+        <ProFormDependency name={['onlineConsultEnabled']}>
+          {({ onlineConsultEnabled }) => (
+            <>
+              <SwitchGroup
+                gutter={16}
+                items={[
+                  {
+                    name: 'onlineConsultEnabled',
+                    label: '支持在线问诊',
+                    span: 12,
+                  },
+                ]}
+              />
+              {onlineConsultEnabled && (
+                <ProFormDigit
+                  name="onlineConsultFee"
+                  label="在线问诊费用"
+                  width="sm"
+                  min={0}
+                  addonAfter="元"
+                />
+              )}
+            </>
+          )}
+        </ProFormDependency>
+      </Card>
+
+      {/* 展示设置 */}
+      <Card title="展示设置" style={{ marginBottom: 16 }}>
+        <ProForm.Group>
+          <ProFormRadio.Group
+            name="pageStyle"
+            label="页面风格"
+            options={PAGE_STYLE_OPTIONS}
+            tooltip="选择医生详情页的展示风格"
+          />
+        </ProForm.Group>
+        <ProFormText
+          name="promoVideo"
+          label="宣传视频"
+          width="lg"
+          placeholder="视频URL"
+        />
+        <ProFormText
+          name="tags"
+          label="标签"
+          width="lg"
+          placeholder="多个标签用逗号分隔，如：减肥,多囊,失眠"
+          tooltip="用于搜索和展示"
+        />
+        <ProFormTextArea
+          name="specialty"
+          label="擅长"
+          placeholder="医生擅长领域"
+          fieldProps={{ rows: 4 }}
+        />
+        <Form.Item
+          name="introduction"
+          label="医生介绍"
+        >
+          <RichTextEditor height={350} placeholder="请输入医生详细介绍..." />
+        </Form.Item>
+      </Card>
+
+      {/* 其他设置 */}
+      <Card title="其他设置">
+        <ProForm.Group>
+          <ProFormDigit
+            name="sortOrder"
+            label="排序"
+            width="sm"
+            min={0}
+            fieldProps={{ precision: 0 }}
+            tooltip="数字越大越靠前"
+          />
+        </ProForm.Group>
+
+        {/* 使用 SwitchGroup 组件 */}
+        <SwitchGroup
+          gutter={16}
+          items={[
+            {
+              name: 'isRecommended',
+              label: '是否推荐',
+              span: 12,
+            },
+            {
+              name: 'status',
+              label: '启用状态',
+              span: 12,
+            },
+          ]}
+        />
+      </Card>
+    </FormPage>
   );
 };
 
