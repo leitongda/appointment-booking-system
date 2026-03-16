@@ -4,7 +4,7 @@
  * 使用基础设施：FormPage、ImageUploadCard、SwitchGroup
  * 保留业务逻辑：编码生成、唯一性验证、时间格式处理
  */
-import { ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect } from '@ant-design/pro-components';
+import { ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect } from '@ant-design/pro-components';
 import { Card } from 'antd';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { history, useParams } from '@umijs/max';
