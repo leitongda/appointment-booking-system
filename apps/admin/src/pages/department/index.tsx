@@ -180,6 +180,19 @@ const DepartmentPage: React.FC = () => {
     }
   }, [message]);
 
+  // 切换启用/禁用状态
+  const handleStatusChange = useCallback(async (id: string, checked: boolean) => {
+    try {
+      await departmentApi.update(id, { status: checked ? 1 : 0 });
+      message.success(checked ? '已启用' : '已禁用');
+      setDataSource((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, status: checked ? 1 : 0 } : item))
+      );
+    } catch (error: any) {
+      message.error(error.message || '操作失败');
+    }
+  }, [message]);
+
   // 拖拽排序处理
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -190,13 +203,19 @@ const DepartmentPage: React.FC = () => {
     if (oldIndex === -1 || newIndex === -1) return;
 
     const newData = arrayMove(dataSource, oldIndex, newIndex);
-    setDataSource(newData);
 
-    // 计算新的排序值（倒序，最大值在前）
+    // 计算新的排序值（从小到大，最小值在前）
     const sortItems = newData.map((item, index) => ({
       id: item.id,
-      sortOrder: newData.length - index,
+      sortOrder: index + 1,
     }));
+
+    // 更新本地数据的排序值
+    const updatedData = newData.map((item, index) => ({
+      ...item,
+      sortOrder: index + 1,
+    }));
+    setDataSource(updatedData);
 
     setSorting(true);
     try {
@@ -280,6 +299,19 @@ const DepartmentPage: React.FC = () => {
       render: () => <DragHandle />,
     },
     {
+      title: '门店筛选',
+      dataIndex: 'storeId',
+      hideInTable: true,
+      // 单门店用户隐藏门店筛选
+      hideInSearch: isSingleStore,
+      valueType: 'select',
+      fieldProps: {
+        options: storeFilterOptions,
+        allowClear: true,
+        placeholder: canViewAllStores ? '全部门店' : '请选择门店',
+      },
+    },
+    {
       title: '科室名称',
       dataIndex: 'name',
       ellipsis: true,
@@ -296,19 +328,6 @@ const DepartmentPage: React.FC = () => {
       render: (_, record) => record.storeName || '-',
     },
     {
-      title: '门店筛选',
-      dataIndex: 'storeId',
-      hideInTable: true,
-      // 单门店用户隐藏门店筛选
-      hideInSearch: isSingleStore,
-      valueType: 'select',
-      fieldProps: {
-        options: storeFilterOptions,
-        allowClear: true,
-        placeholder: canViewAllStores ? '全部门店' : '请选择门店',
-      },
-    },
-    {
       title: '科室标签',
       dataIndex: 'tag',
       ellipsis: true,
@@ -321,6 +340,7 @@ const DepartmentPage: React.FC = () => {
       dataIndex: 'sortOrder',
       width: 70,
       search: false,
+      hideInTable: true,
     },
     {
       title: '终极科室',
@@ -363,11 +383,15 @@ const DepartmentPage: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 80,
-      valueType: 'select',
-      valueEnum: {
-        1: { text: '启用', status: 'Success' },
-        0: { text: '禁用', status: 'Default' },
-      },
+      search: false,
+      render: (_, record) => (
+        <Switch
+          checked={record.status === 1}
+          onChange={(checked) => handleStatusChange(record.id, checked)}
+          disabled={!access.hasPermission('department:update')}
+          size="small"
+        />
+      ),
     },
     {
       title: '创建时间',
@@ -429,7 +453,7 @@ const DepartmentPage: React.FC = () => {
         );
       },
     },
-  ], [storeFilterOptions, isSingleStore, canViewAllStores, access, handleRecommendChange, handleHotChange, handleDelete]);
+  ], [storeFilterOptions, isSingleStore, canViewAllStores, access, handleRecommendChange, handleHotChange, handleStatusChange, handleDelete]);
 
   return (
     <PageContainer>

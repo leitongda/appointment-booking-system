@@ -44,7 +44,22 @@ export interface DepartmentCreateData {
 
 export const departmentApi = {
   getList: (params?: DepartmentListParams): Promise<PageResult<Department>> => {
-    return request.get('/departments', { params });
+    console.log('[departmentApi.getList] 原始参数:', params);
+    // 转换参数名为 snake_case，过滤空值和 'all'
+    const queryParams: Record<string, any> = {};
+
+    if (params?.name) queryParams.name = params.name;
+    if (params?.status !== undefined && params?.status !== null) queryParams.status = params.status;
+    if (params?.parentId) queryParams.parent_id = params.parentId;
+    // 门店筛选：排除 'all' 和空值
+    if (params?.storeId && params.storeId !== 'all' && params.storeId !== '') {
+      queryParams.store_id = params.storeId;
+    }
+    if (params?.page) queryParams.page = params.page;
+    if (params?.pageSize) queryParams.page_size = params.pageSize;
+
+    console.log('[departmentApi.getList] 转换后参数:', queryParams);
+    return request.get('/departments', { params: queryParams });
   },
 
   getTree: (status?: number): Promise<DepartmentTreeNode[]> => {
@@ -60,7 +75,7 @@ export const departmentApi = {
    * @param storeId 门店ID（可选）
    */
   getAll: (storeId?: string): Promise<Department[]> => {
-    return request.get('/departments/all', { params: { storeId } });
+    return request.get('/departments/all', { params: storeId ? { store_id: storeId } : undefined });
   },
 
   /**

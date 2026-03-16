@@ -82,7 +82,17 @@ export const doctorApi = {
   },
 
   getList: (params?: DoctorListParams): Promise<PageResult<Doctor>> => {
-    return request.get('/doctors', { params });
+    // 转换参数名为 snake_case
+    const queryParams: Record<string, any> = {};
+    if (params?.name) queryParams.name = params.name;
+    if (params?.storeId && params.storeId !== 'all' && params.storeId !== '') {
+      queryParams.store_id = params.storeId;
+    }
+    if (params?.departmentId) queryParams.department_id = params.departmentId;
+    if (params?.status !== undefined && params?.status !== null) queryParams.status = params.status;
+    if (params?.page) queryParams.page = params.page;
+    if (params?.pageSize) queryParams.page_size = params.pageSize;
+    return request.get('/doctors', { params: queryParams });
   },
 
   /**
