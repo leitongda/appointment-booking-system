@@ -67,6 +67,30 @@ export interface StoreRankingItem {
   count: number;
 }
 
+export interface StoreDashboardStats {
+  users: {
+    total: number;
+    todayNew: number;
+    yesterdayNew: number;
+    weekNew: number;
+    lastWeekNew: number;
+    weekGrowthRate: number;
+  };
+  visitors: {
+    todayPV: number;
+    todayUV: number;
+    yesterdayPV: number;
+    yesterdayUV: number;
+    pvWeekGrowthRate: number;
+    uvWeekGrowthRate: number;
+  };
+  appointments: {
+    todayCount: number;
+    yesterdayCount: number;
+    totalCheckins: number;
+  };
+}
+
 export const statisticsApi = {
   /**
    * 获取概览数据
@@ -126,5 +150,11 @@ export const statisticsApi = {
    */
   getStoreRanking: (params?: { limit?: number; startDate?: string; endDate?: string }) =>
     request.get<StoreRankingItem[]>('/statistics/stores/ranking', { params }),
+
+  /**
+   * 获取门店专属Dashboard统计
+   */
+  getStoreDashboardStats: (storeId: string) =>
+    request.get<StoreDashboardStats>('/statistics/store-dashboard', { params: { store_id: storeId } }),
 };
 
