@@ -13,6 +13,7 @@ import path from 'path';
 import CompressionPlugin from 'compression-webpack-plugin';
 import routes from './routes';
 import proxy from './proxy';
+import { APP_TITLE } from './appConfig';
 
 const {
   REACT_APP_ENV = 'dev',
@@ -50,7 +51,7 @@ export default defineConfig({
 
   // 布局配置
   layout: {
-    title: '医院挂号管理系统',
+    title: APP_TITLE,
     locale: false,
 
 
@@ -93,7 +94,7 @@ export default defineConfig({
   esbuildMinifyIIFE: true,
 
   // 网页标题
-  title: '医院挂号管理系统',
+  title: APP_TITLE,
 
   // favicon
   favicons: ['/favicon.ico'],

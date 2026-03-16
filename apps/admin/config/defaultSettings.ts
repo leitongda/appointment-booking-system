@@ -1,4 +1,5 @@
 import type { ProLayoutProps } from '@ant-design/pro-components';
+import { APP_TITLE, DEFAULT_LOGO } from './appConfig';
 
 /**
  * 默认配置
@@ -15,9 +16,9 @@ const Settings: ProLayoutProps & {
   fixedHeader: true,
   fixSiderbar: true,
   colorWeak: false,
-  title: '医院挂号管理系统',
+  title: APP_TITLE,
   pwa: false,
-  logo: '/logo.svg',
+  logo: DEFAULT_LOGO,
   iconfontUrl: '',
 
   // 侧边菜单类型

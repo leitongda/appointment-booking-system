@@ -5,10 +5,11 @@ import { history, useModel } from '@umijs/max';
 import { setToken, STORAGE_KEYS, setStorage, getStorage, removeStorage, removeToken, resetTokenExpiredState } from '@hospital/shared';
 import { adminApi } from '@hospital/api';
 import defaultSettings from '@config/defaultSettings';
-import { 
+import { APP_TITLE } from '@config/appConfig';
+import {
   AccountLogin, UserOutlined,
   PhoneLogin, MobileOutlined,
-  WechatLogin, WechatOutlined 
+  WechatLogin, WechatOutlined
 } from './components';
 import styles from './index.less';
 
@@ -138,7 +139,7 @@ const Login: React.FC = () => {
         <div className={styles.card}>
           <div className={styles.header}>
             <div className={styles.logo}><MedicineBoxOutlined /></div>
-            <h1 className={styles.title}>医院挂号管理系统</h1>
+            <h1 className={styles.title}>{APP_TITLE}</h1>
           </div>
           
           <Tabs

@@ -8,6 +8,7 @@ import { history, useLocation } from '@umijs/max';
 import { App, message, ConfigProvider, theme } from 'antd';
 import { useMemo } from 'react';
 import defaultSettings from '../config/defaultSettings';
+import { APP_TITLE } from '@config/appConfig';
 import { initApiConfig } from '@/utils/request';
 import { getSpacingMode, applySpacingCSSVariables, SPACING_CONFIG } from '@/utils/spacing';
 
@@ -323,7 +324,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
     },
     footerRender: () => (
       <div style={{ textAlign: 'center', padding: '16px 0', color: '#999' }}>
-        {currentStore?.name || '医院挂号管理系统'} ©{new Date().getFullYear()} 版权所有
+        {currentStore?.name || APP_TITLE} ©{new Date().getFullYear()} 版权所有
       </div>
     ),
     onPageChange: () => {
