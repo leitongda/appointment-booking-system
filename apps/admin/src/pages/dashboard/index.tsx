@@ -18,6 +18,7 @@ import type {
   DoctorRankingItem,
   StatusStatItem,
 } from '@hospital/api';
+import StoreSection from './components/StoreSection';
 
 const { Statistic } = StatisticCard;
 
@@ -46,7 +47,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [currentStoreId]); // 门店切换后重新加载数据
+  }, [currentStoreId]);
 
   const loadData = async () => {
     setLoading(true);
@@ -149,6 +150,9 @@ const Dashboard: React.FC = () => {
             </Col>
           </Row>
         </ProCard>
+
+        {/* 门店专属区域 */}
+        <StoreSection />
 
         {/* 预约状态分布 */}
         <ProCard title="预约状态分布" headerBordered style={{ marginBottom: 16 }}>
