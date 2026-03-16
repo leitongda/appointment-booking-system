@@ -37,7 +37,10 @@ class StoreQueryMixin:
         result = await self.db.execute(stmt)
         return (result.scalar() or 0) > 0
 
-    async def get_list(self, query: StoreQuery) -> tuple[List[Store], int]:
+    async def get_list(self, query: Optional[StoreQuery] = None) -> tuple[List[Store], int]:
+        if query is None:
+            query = StoreQuery()
+
         stmt = select(Store)
         count_stmt = select(func.count(Store.id))
 
