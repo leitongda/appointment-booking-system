@@ -390,18 +390,6 @@ const DoctorListPage: React.FC = () => {
       ),
     },
     {
-      title: '医生姓名',
-      dataIndex: 'name',
-      width: 100,
-    },
-    {
-      title: '性别',
-      dataIndex: 'gender',
-      width: 60,
-      search: false,
-      render: (_, record) => record.gender === 1 ? '男' : '女',
-    },
-    {
       title: '所属门店',
       dataIndex: 'storeId',
       width: 120,
@@ -424,6 +412,18 @@ const DoctorListPage: React.FC = () => {
         options: (departments ?? []).map((d) => ({ label: d.name, value: d.id })),
       },
       render: (_, record) => record.departmentName || '-',
+    },
+    {
+      title: '医生姓名',
+      dataIndex: 'name',
+      width: 100,
+    },
+    {
+      title: '性别',
+      dataIndex: 'gender',
+      width: 60,
+      search: false,
+      render: (_, record) => record.gender === 1 ? '男' : '女',
     },
     {
       title: '职称',
