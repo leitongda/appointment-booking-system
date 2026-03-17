@@ -19,7 +19,7 @@
  * - 统一表单页面布局
  * - 提高代码可读性和可维护性
  */
-import { ProFormText, ProFormSelect, ProFormDependency } from '@ant-design/pro-components';
+import { ProFormText, ProFormSelect, ProFormDependency, ProFormGroup } from '@ant-design/pro-components';
 import { Card, Alert } from 'antd';
 import { useEffect, useState } from 'react';
 import { useParams, useModel, useAccess, history } from '@umijs/max';
@@ -166,7 +166,7 @@ const UserFormPage: React.FC = () => {
     >
       {/* 账号信息 */}
       <Card title="账号信息" style={{ marginBottom: 16 }}>
-        <ProForm.Group>
+        <ProFormGroup>
           <ProFormText
             name="username"
             label="账号"
@@ -180,7 +180,7 @@ const UserFormPage: React.FC = () => {
             extra={isEdit ? '账号创建后不可修改' : '账号用于登录，创建后不可修改（至少3个字符）'}
             fieldProps={{ autoComplete: 'off' }}
           />
-        </ProForm.Group>
+        </ProFormGroup>
 
         {/* 新增模式：使用 PasswordField 组件 */}
         {!isEdit && (
@@ -208,7 +208,7 @@ const UserFormPage: React.FC = () => {
           showCrop={true}
         />
 
-        <ProForm.Group>
+        <ProFormGroup>
           <ProFormText
             name="name"
             label="用户名"
@@ -222,7 +222,7 @@ const UserFormPage: React.FC = () => {
             width="md"
             fieldProps={{ autoComplete: 'off' }}
           />
-        </ProForm.Group>
+        </ProFormGroup>
         <ProFormText
           name="email"
           label="邮箱"
@@ -233,7 +233,7 @@ const UserFormPage: React.FC = () => {
 
       {/* 权限设置 */}
       <Card title="权限设置">
-        <ProForm.Group>
+        <ProFormGroup>
           <ProFormSelect
             name="roleId"
             label="角色"
@@ -242,7 +242,7 @@ const UserFormPage: React.FC = () => {
             placeholder="请选择角色"
             rules={[requiredRules('请选择角色')]}
           />
-        </ProForm.Group>
+        </ProFormGroup>
 
         {/* 使用 SwitchGroup 组件 */}
         <SwitchGroup

@@ -14,7 +14,7 @@
  * - 统一的状态转换逻辑
  * - 提高代码可读性和可维护性
  */
-import { ProFormText, ProFormTextArea } from '@ant-design/pro-components';
+import { ProFormText, ProFormTextArea, ProFormGroup } from '@ant-design/pro-components';
 import { Card, message } from 'antd';
 import { useParams, history } from '@umijs/max';
 import { useEffect, useState } from 'react';
@@ -81,7 +81,7 @@ const RoleFormPage: React.FC = () => {
       saveText={isEdit ? '保存' : '创建'}
     >
       <Card title="角色信息">
-        <ProForm.Group>
+        <ProFormGroup>
           <ProFormText
             name="name"
             label="角色名称"
@@ -95,7 +95,7 @@ const RoleFormPage: React.FC = () => {
             rules={[requiredRules('请输入角色编码')]}
             disabled={isEdit}
           />
-        </ProForm.Group>
+        </ProFormGroup>
         <ProFormTextArea
           name="description"
           label="描述"

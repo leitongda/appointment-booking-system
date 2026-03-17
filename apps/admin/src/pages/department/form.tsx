@@ -15,7 +15,7 @@
  * - 提高代码可读性和可维护性
  */
 import { ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormGroup } from '@ant-design/pro-components';
-import { Card, Form, Divider } from 'antd';
+import { Card, Form, Row, Col } from 'antd';
 import { useParams, history, useModel, useAccess } from '@umijs/max';
 import { useEffect, useState } from 'react';
 import { departmentApi, storeApi } from '@hospital/api';
@@ -166,7 +166,7 @@ const DepartmentFormPage: React.FC = () => {
     >
       {/* 基础信息 */}
       <Card title="基础信息">
-        <ProForm.Group>
+        <ProFormGroup>
           <ProFormSelect
             name="storeId"
             label="门店选择"
@@ -189,8 +189,8 @@ const DepartmentFormPage: React.FC = () => {
             ]}
             allowClear
           />
-        </ProForm.Group>
-        <ProForm.Group>
+        </ProFormGroup>
+        <ProFormGroup>
           <ProFormText
             name="name"
             label="科室名称"
@@ -204,8 +204,8 @@ const DepartmentFormPage: React.FC = () => {
             width="md"
             placeholder="请输入科室标签，如：专家科室"
           />
-        </ProForm.Group>
-        <ProForm.Group>
+        </ProFormGroup>
+        <ProFormGroup>
           <ProFormDigit
             name="sortOrder"
             label="排序"
@@ -215,7 +215,7 @@ const DepartmentFormPage: React.FC = () => {
             max={9999}
             tooltip="排序数字越大越靠前"
           />
-        </ProForm.Group>
+        </ProFormGroup>
         <ProFormTextArea
           name="description"
           label="描述"
@@ -225,35 +225,41 @@ const DepartmentFormPage: React.FC = () => {
 
       {/* 图片设置 */}
       <Card title="图片设置">
-        <ProForm.Group>
-          <Form.Item name="icon" label="科室图标">
-            <ImageUpload
-              aspectRatio="1:1"
-              folder="department"
-              placeholder="上传图标"
-              width={100}
-              height={100}
-            />
-          </Form.Item>
-          <Form.Item name="bannerImage" label="Banner图片">
-            <ImageUpload
-              aspectRatio="16:9"
-              folder="department"
-              placeholder="上传Banner"
-              width={240}
-              height={135}
-            />
-          </Form.Item>
-          <Form.Item name="introImages" label="简介图片" tooltip="支持上传简介图片">
-            <ImageUpload
-              aspectRatio="free"
-              folder="department"
-              placeholder="上传简介图"
-              width={200}
-              height={150}
-            />
-          </Form.Item>
-        </ProForm.Group>
+        <Row gutter={24}>
+          <Col span={8}>
+            <Form.Item name="icon" label="科室图标">
+              <ImageUpload
+                aspectRatio="1:1"
+                folder="department"
+                placeholder="上传图标"
+                width={100}
+                height={100}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item name="bannerImage" label="Banner图片">
+              <ImageUpload
+                aspectRatio="16:9"
+                folder="department"
+                placeholder="上传Banner"
+                width={240}
+                height={135}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item name="introImages" label="简介图片" tooltip="支持上传简介图片">
+              <ImageUpload
+                aspectRatio="free"
+                folder="department"
+                placeholder="上传简介图"
+                width={200}
+                height={150}
+              />
+            </Form.Item>
+          </Col>
+        </Row>
       </Card>
 
       {/* 详情内容 */}
@@ -279,7 +285,7 @@ const DepartmentFormPage: React.FC = () => {
 
       {/* 联系信息 */}
       <Card title="联系信息">
-        <ProForm.Group>
+        <ProFormGroup>
           <ProFormText
             name="phone"
             label="科室电话"
@@ -292,7 +298,7 @@ const DepartmentFormPage: React.FC = () => {
             width="md"
             placeholder="请输入位置/楼层，如：门诊楼3楼"
           />
-        </ProForm.Group>
+        </ProFormGroup>
         <ProFormText
           name="workingHours"
           label="工作时间"
@@ -303,37 +309,41 @@ const DepartmentFormPage: React.FC = () => {
 
       {/* 开关设置 */}
       <Card title="开关设置">
-        {/* Banner 和简介开关 */}
         <SwitchGroup
+          gutter={16}
           items={[
-            { name: 'enableBanner', label: '是否开放banner' },
-            { name: 'enableIntro', label: '是否开放科室简介' },
-          ]}
-        />
-        <Divider style={{ margin: '12px 0' }} />
-
-        {/* 状态和终极科室开关 */}
-        <SwitchGroup
-          items={[
-            { name: 'status', label: '是否启用科室' },
+            {
+              name: 'status',
+              label: '启用状态',
+              span: 6,
+            },
             {
               name: 'isFinal',
-              label: '是否终极科室',
+              label: '终极科室',
               tooltip: '只有终极科室才能添加医生',
+              span: 6,
             },
-          ]}
-        />
-        <Divider style={{ margin: '12px 0' }} />
-
-        {/* 推荐和热门开关 */}
-        <SwitchGroup
-          items={[
             {
               name: 'isRecommended',
               label: '是否推荐',
               tooltip: '选择是则该科室名称及推荐医生将在首页展示',
+              span: 6,
             },
-            { name: 'isHot', label: '是否热门' },
+            {
+              name: 'isHot',
+              label: '是否热门',
+              span: 6,
+            },
+            {
+              name: 'enableBanner',
+              label: '开放Banner',
+              span: 6,
+            },
+            {
+              name: 'enableIntro',
+              label: '开放简介',
+              span: 6,
+            },
           ]}
         />
       </Card>

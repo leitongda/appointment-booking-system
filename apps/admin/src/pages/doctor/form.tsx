@@ -4,7 +4,7 @@
  * 使用基础设施：FormPage、PasswordField、ImageUploadCard、SwitchGroup
  * 保留业务逻辑：账号生成、唯一性验证、门店权限控制
  */
-import { ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormRadio, ProFormDependency } from '@ant-design/pro-components';
+import { ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormRadio, ProFormDependency, ProFormGroup } from '@ant-design/pro-components';
 import { Card, Input, Form, Typography } from 'antd';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { history, useParams, useModel, useAccess } from '@umijs/max';
@@ -210,7 +210,7 @@ const DoctorFormPage: React.FC = () => {
     >
       {/* 基础信息 */}
       <Card title="基础信息" style={{ marginBottom: 16 }}>
-        <ProForm.Group>
+        <ProFormGroup>
           <ProFormText
             name="name"
             label="医生姓名"
@@ -235,10 +235,10 @@ const DoctorFormPage: React.FC = () => {
             disabled={!isSuperAdmin && (currentUser?.storeIds?.length ?? 0) <= 1}
             initialValue={!isSuperAdmin && currentStore?.id ? currentStore.id : undefined}
           />
-        </ProForm.Group>
+        </ProFormGroup>
 
         {/* 账号输入（带唯一性验证和推荐） */}
-        <ProForm.Group>
+        <ProFormGroup>
           <Form.Item
             name="username"
             label="医生账号"
@@ -269,7 +269,7 @@ const DoctorFormPage: React.FC = () => {
               onChange={(e) => checkUsername(e.target.value)}
             />
           </Form.Item>
-        </ProForm.Group>
+        </ProFormGroup>
 
         {/* 新增模式：使用 PasswordField 组件 */}
         {!isEdit && (
@@ -306,7 +306,7 @@ const DoctorFormPage: React.FC = () => {
           tooltip="16:9比例，若选择医生风格3，请务必上传banner图"
         />
 
-        <ProForm.Group>
+        <ProFormGroup>
           <ProFormSelect
             name="departmentId"
             label="所属科室"
@@ -327,7 +327,7 @@ const DoctorFormPage: React.FC = () => {
             min={0}
             fieldProps={{ precision: 0 }}
           />
-        </ProForm.Group>
+        </ProFormGroup>
         <ProFormText
           name="phone"
           label="手机号"
@@ -338,7 +338,7 @@ const DoctorFormPage: React.FC = () => {
 
       {/* 资质信息 */}
       <Card title="资质信息" style={{ marginBottom: 16 }}>
-        <ProForm.Group>
+        <ProFormGroup>
           <ProFormSelect
             name="education"
             label="学历"
@@ -352,15 +352,15 @@ const DoctorFormPage: React.FC = () => {
             width="md"
             placeholder="如：重庆市中医大学"
           />
-        </ProForm.Group>
-        <ProForm.Group>
+        </ProFormGroup>
+        <ProFormGroup>
           <ProFormText
             name="licenseNumber"
             label="执业证书编号"
             width="md"
             placeholder="请输入执业证书编号"
           />
-        </ProForm.Group>
+        </ProFormGroup>
 
         {/* 使用 ImageUploadCard 组件 - 执业证书 */}
         <ImageUploadCard
@@ -389,7 +389,7 @@ const DoctorFormPage: React.FC = () => {
           width="lg"
           placeholder="如：每周一、三、五上午"
         />
-        <ProForm.Group>
+        <ProFormGroup>
           <ProFormDigit
             name="maxDailyAppointments"
             label="每日最大接诊量"
@@ -399,7 +399,7 @@ const DoctorFormPage: React.FC = () => {
             tooltip="0表示不限制"
             addonAfter="人"
           />
-        </ProForm.Group>
+        </ProFormGroup>
 
         {/* 在线问诊设置 */}
         <ProFormDependency name={['onlineConsultEnabled']}>
@@ -431,14 +431,14 @@ const DoctorFormPage: React.FC = () => {
 
       {/* 展示设置 */}
       <Card title="展示设置" style={{ marginBottom: 16 }}>
-        <ProForm.Group>
+        <ProFormGroup>
           <ProFormRadio.Group
             name="pageStyle"
             label="页面风格"
             options={PAGE_STYLE_OPTIONS}
             tooltip="选择医生详情页的展示风格"
           />
-        </ProForm.Group>
+        </ProFormGroup>
         <ProFormText
           name="promoVideo"
           label="宣传视频"
@@ -468,7 +468,7 @@ const DoctorFormPage: React.FC = () => {
 
       {/* 其他设置 */}
       <Card title="其他设置">
-        <ProForm.Group>
+        <ProFormGroup>
           <ProFormDigit
             name="sortOrder"
             label="排序"
@@ -477,7 +477,7 @@ const DoctorFormPage: React.FC = () => {
             fieldProps={{ precision: 0 }}
             tooltip="数字越大越靠前"
           />
-        </ProForm.Group>
+        </ProFormGroup>
 
         {/* 使用 SwitchGroup 组件 */}
         <SwitchGroup
