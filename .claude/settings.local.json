@@ -112,7 +112,8 @@
       "Bash(do)",
       "Bash(done)",
       "Bash(pnpm view:*)",
-      "Bash(pnpm run type-check:*)"
+      "Bash(pnpm run type-check:*)",
+      "Bash(pnpm list:*)"
     ]
   },
   "statusLine": {
