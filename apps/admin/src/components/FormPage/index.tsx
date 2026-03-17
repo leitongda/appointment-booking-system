@@ -10,7 +10,7 @@
 import { PageContainer, ProForm, FooterToolbar } from '@ant-design/pro-components';
 import { Card, Space, Button, Spin } from 'antd';
 import type { ProFormInstance } from '@ant-design/pro-components';
-import React, { ReactNode, useRef } from 'react';
+import React, { ReactNode, useRef, useEffect } from 'react';
 
 /**
  * 表单页面容器组件属性
@@ -79,6 +79,13 @@ const FormPage: React.FC<FormPageProps> = ({
 }) => {
   const internalFormRef = useRef<ProFormInstance>();
   const formRef = externalFormRef || internalFormRef;
+
+  // 监听 initialValues 变化，更新表单值
+  useEffect(() => {
+    if (initialValues && formRef.current) {
+      formRef.current.setFieldsValue(initialValues);
+    }
+  }, [initialValues]);
 
   // 处理表单提交
   const handleSubmit = async (values: any) => {

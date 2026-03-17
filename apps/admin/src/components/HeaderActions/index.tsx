@@ -61,8 +61,8 @@ export const StoreSwitcher: React.FC = () => {
   const userStores = initialState?.userStores || [];
   const isSuperAdmin = currentUser?.isSuperAdmin || currentUser?.roleCode === 'SUPER_ADMIN';
   
-  // 判断是否可以切换门店：多门店绑定 或 超级管理员
-  const hasMultipleStores = userStores.length > 1 || isSuperAdmin;
+  // 判断是否可以切换门店：非超级管理员 且 绑定多个门店
+  const hasMultipleStores = userStores.length > 1 && !isSuperAdmin;
 
   // 加载门店列表（带缓存）
   const loadStores = useCallback(async () => {
@@ -296,10 +296,10 @@ export const StoreSwitcher: React.FC = () => {
   };
 
   // 静态显示（不可切换门店，但仍需要显示门店管理功能区）
-  // 如果有门店管理功能权限，仍然需要显示 Popover
+  // 如果有门店管理功能权限，仍然需要显示 Popover（但超级管理员除外）
   const hasStoreActions = storeActions.length > 0 && currentStore;
-  
-  if (showStaticInfo && !hasStoreActions) {
+
+  if (showStaticInfo && (!hasStoreActions || isSuperAdmin)) {
     return (
       <Tooltip title={currentStore?.name || '未选择门店'}>
         <div className={styles.storeInfo}>
@@ -322,17 +322,6 @@ export const StoreSwitcher: React.FC = () => {
       {!showStaticInfo && (
         <Spin spinning={loading}>
           <div className={styles.storeList}>
-            {/* 超级管理员：显示"全部门店"选项 */}
-            {isSuperAdmin && (
-              <div
-                className={`${styles.storeItem} ${!currentStore ? styles.active : ''}`}
-                onClick={handleSelectAllStores}
-              >
-                <Avatar icon={<AppstoreOutlined />} size={32} className={styles.storeItemLogo} />
-                <span className={styles.storeItemName}>全部门店</span>
-                {!currentStore && <CheckOutlined className={styles.storeItemCheck} />}
-              </div>
-            )}
             {stores.map((store) => (
               <div
                 key={store.id}
