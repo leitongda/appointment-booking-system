@@ -2,7 +2,7 @@ import { View, Text, Button as TaroButton, Image, Input as TaroInput } from '@ta
 import Taro from '@tarojs/taro';
 import { Button } from '@nutui/nutui-react-taro';
 import { useState, useEffect, useCallback } from 'react';
-import { authApi } from '@hospital/api';
+import { authApi, userApi } from '@hospital/api';
 import { STORAGE_KEYS } from '@hospital/shared';
 import { setToken, setStorage } from '../utils/auth';
 import { getStoreId } from '../utils/store';
@@ -87,6 +87,12 @@ const LoginPopup: React.FC<LoginPopupProps> = ({
         }
         
         setToken(result.accessToken);
+        try {
+          const profile = await userApi.getProfile();
+          setStorage(STORAGE_KEYS.USER_INFO, profile);
+        } catch (profileError) {
+          console.error('登录后加载用户信息失败', profileError);
+        }
         Taro.showToast({ title: '登录成功', icon: 'success' });
         onClose();
         onSuccess?.();
@@ -283,4 +289,3 @@ const LoginPopup: React.FC<LoginPopupProps> = ({
 };
 
 export default LoginPopup;
-

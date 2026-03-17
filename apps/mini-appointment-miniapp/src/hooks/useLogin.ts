@@ -1,14 +1,14 @@
 import { useState, useCallback } from 'react';
 import Taro from '@tarojs/taro';
 import { wechatLogin, wechatPhoneLogin } from '@/services/auth';
-import { setToken, setStoreId } from '@/utils/request';
+import { checkLogin, clearAuth, setAuth } from '@/utils/auth';
 
 /**
  * 登录 Hook
  */
 export function useLogin() {
   const [loading, setLoading] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(checkLogin());
 
   // 微信登录
   const login = useCallback(async () => {
@@ -33,7 +33,10 @@ export function useLogin() {
 
       // 登录成功，保存 Token
       if (result.accessToken) {
-        setToken(result.accessToken);
+        setAuth({
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken
+        });
         setIsLoggedIn(true);
 
         return {
@@ -65,7 +68,11 @@ export function useLogin() {
       const result = await wechatPhoneLogin(code, openid, storeId);
 
       // 保存 Token
-      setToken(result.accessToken);
+      setAuth({
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        user: result.user
+      });
       setIsLoggedIn(true);
 
       return {
@@ -85,9 +92,7 @@ export function useLogin() {
 
   // 退出登录
   const logout = useCallback(() => {
-    Taro.removeStorageSync('access_token');
-    Taro.removeStorageSync('refresh_token');
-    Taro.removeStorageSync('user_info');
+    clearAuth();
     setIsLoggedIn(false);
   }, []);
 

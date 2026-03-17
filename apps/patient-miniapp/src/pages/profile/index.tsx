@@ -161,6 +161,7 @@ const ProfilePage = () => {
     try {
       const data = await userApi.getProfile();
       setUser(data);
+      setStorage(STORAGE_KEYS.USER_INFO, data);
       return true;
     } catch (error: any) {
       console.error('❌ loadProfile 失败:', error?.message || error);
@@ -236,10 +237,6 @@ const ProfilePage = () => {
         }
         
         setToken(result.accessToken);
-        
-        // 验证 Token 是否保存成功
-        const savedToken = Taro.getStorageSync('hospital_token');
-        
         Taro.showToast({ title: '登录成功', icon: 'success' });
         setIsLoggedIn(true);
         // 加载用户信息和统计数据

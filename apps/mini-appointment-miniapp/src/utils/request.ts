@@ -1,5 +1,7 @@
 import Taro from '@tarojs/taro';
 import type { RequestConfig, ApiResponse } from '@/types/api';
+import { STORAGE_KEYS } from '@/constants/index';
+import { getToken, clearAuth, checkLogin } from '@/utils/auth';
 
 // API 基础配置
 const API_BASE_URL = process.env.TARO_APP_API_BASE_URL || 'https://api.example.com';
@@ -9,9 +11,7 @@ const API_VERSION = process.env.TARO_APP_API_VERSION || 'v1';
 const REQUEST_TIMEOUT = 30000;
 
 // 存储 key
-const TOKEN_KEY = 'access_token';
-const REFRESH_TOKEN_KEY = 'refresh_token';
-const STORE_ID_KEY = 'store_id';
+const STORE_ID_KEY = STORAGE_KEYS.STORE_ID;
 
 /**
  * 获取完整的 API URL
@@ -25,41 +25,6 @@ function getFullUrl(url: string): string {
   const cleanUrl = url.startsWith('/') ? url.slice(1) : url;
   
   return `${API_BASE_URL}/api/${API_VERSION}/${cleanUrl}`;
-}
-
-/**
- * 获取 Token
- */
-function getToken(): string {
-  try {
-    return Taro.getStorageSync(TOKEN_KEY) || '';
-  } catch (error) {
-    console.error('Get token failed:', error);
-    return '';
-  }
-}
-
-/**
- * 设置 Token
- */
-export function setToken(token: string): void {
-  try {
-    Taro.setStorageSync(TOKEN_KEY, token);
-  } catch (error) {
-    console.error('Set token failed:', error);
-  }
-}
-
-/**
- * 清除 Token
- */
-export function clearToken(): void {
-  try {
-    Taro.removeStorageSync(TOKEN_KEY);
-    Taro.removeStorageSync(REFRESH_TOKEN_KEY);
-  } catch (error) {
-    console.error('Clear token failed:', error);
-  }
 }
 
 /**
@@ -137,14 +102,6 @@ function handleError(error: any): void {
   }
   
   showError(message);
-}
-
-/**
- * 检查登录状态
- */
-export function checkLogin(): boolean {
-  const token = getToken();
-  return !!token;
 }
 
 /**
@@ -237,7 +194,7 @@ async function request<T = any>(config: RequestConfig): Promise<T> {
       return result.data;
     } else if (result.code === 401) {
       // Token 过期或无效
-      clearToken();
+      clearAuth();
       navigateToLogin();
       throw new Error('登录已过期，请重新登录');
     } else {
@@ -313,8 +270,6 @@ export default {
   post,
   put,
   delete: del,
-  setToken,
-  clearToken,
   setStoreId,
   checkLogin,
   navigateToLogin

@@ -1,8 +1,8 @@
 import { View, Image, Text } from '@tarojs/components';
 import { useState, useEffect } from 'react';
-import Taro from '@tarojs/taro';
+import Taro, { useDidShow } from '@tarojs/taro';
 import { getUserProfile } from '@/services/user';
-import { checkLogin } from '@/utils/request';
+import { checkLogin, getCachedUser, setCachedUser } from '@/utils/auth';
 import type { User } from '@/types/api';
 import './index.scss';
 
@@ -11,20 +11,34 @@ export default function Profile() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    checkLoginAndLoadData();
+    setUser(getCachedUser());
   }, []);
+
+  useDidShow(() => {
+    checkLoginAndLoadData();
+  });
 
   const checkLoginAndLoadData = async () => {
     const loggedIn = checkLogin();
     setIsLoggedIn(loggedIn);
 
-    if (loggedIn) {
-      try {
-        const userData = await getUserProfile();
-        setUser(userData);
-      } catch (error) {
-        console.error('Load user profile failed:', error);
-      }
+    if (!loggedIn) {
+      setUser(null);
+      setCachedUser(null);
+      return;
+    }
+
+    const cachedUser = getCachedUser();
+    if (cachedUser) {
+      setUser(cachedUser);
+    }
+
+    try {
+      const userData = await getUserProfile();
+      setUser(userData);
+      setCachedUser(userData);
+    } catch (error) {
+      console.error('Load user profile failed:', error);
     }
   };
 

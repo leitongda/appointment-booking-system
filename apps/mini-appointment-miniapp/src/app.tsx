@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useLaunch } from '@tarojs/taro';
+import { checkLogin } from '@/utils/auth';
 import './app.scss';
 
 function App({ children }: { children?: React.ReactNode }) {
@@ -41,8 +42,7 @@ function App({ children }: { children?: React.ReactNode }) {
 
   // 检查登录状态
   const checkLoginStatus = () => {
-    const token = wx.getStorageSync('token');
-    if (token) {
+    if (checkLogin()) {
       console.log('User is logged in');
     }
   };
