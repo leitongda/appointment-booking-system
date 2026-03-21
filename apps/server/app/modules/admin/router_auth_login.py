@@ -91,7 +91,7 @@ async def admin_login(
 
     role_code = admin.role.code if admin.role else None
     is_super_admin = role_code == "SUPER_ADMIN"
-    available_stores = [s for s in admin.stores if s.status == 2] if admin.stores else []
+    available_stores = [s for s in admin.stores if s.status != 2] if admin.stores else []
     if not is_super_admin and admin.stores and not available_stores:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您所属的门店已被禁用，请联系管理员")
 
