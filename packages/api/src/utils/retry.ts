@@ -4,7 +4,6 @@
  */
 
 import { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
-import { createApiTimer } from './performance';
 
 /**
  * 重试配置选项

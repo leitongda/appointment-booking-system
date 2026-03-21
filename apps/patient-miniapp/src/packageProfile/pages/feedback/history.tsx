@@ -1,10 +1,11 @@
 import { View, Text } from '@tarojs/components';
 import Taro, { useDidShow, usePullDownRefresh, useRouter } from '@tarojs/taro';
 import { Empty, Button, Tag } from '@nutui/nutui-react-taro';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { feedbackApi, userApi } from '@hospital/api';
 import type { Feedback } from '@hospital/shared';
 import { getToken } from '../../../utils/auth';
+import { useProtectedPage } from '../../../hooks/useProtectedPage';
 import LoginPopup from '../../../components/LoginPopup';
 import './history.less';
 
@@ -14,14 +15,6 @@ const statusMap: Record<string, { text: string; color: string }> = {
   processing: { text: '处理中', color: '#1890ff' },
   resolved: { text: '已解决', color: '#52c41a' },
   closed: { text: '已关闭', color: '#999' },
-};
-
-// 反馈类型映射
-const typeMap: Record<string, string> = {
-  suggestion: '建议',
-  complaint: '投诉',
-  bug: '问题',
-  other: '其他',
 };
 
 // 格式化时间
@@ -43,36 +36,7 @@ const FeedbackHistoryPage = () => {
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState('');
-  const [showLoginPopup, setShowLoginPopup] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(highlightId || null);
-
-  useDidShow(() => {
-    checkLoginAndLoad();
-  });
-
-  const checkLoginAndLoad = async () => {
-    const token = getToken();
-    if (!token) {
-      Taro.showToast({ title: '请先登录', icon: 'none' });
-      setShowLoginPopup(true);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const user = await userApi.getProfile();
-      setUserId(user.id);
-      loadFeedbacks(user.id);
-    } catch (error) {
-      console.error('获取用户信息失败', error);
-      setLoading(false);
-    }
-  };
-
-  const handleLoginSuccess = () => {
-    setShowLoginPopup(false);
-    checkLoginAndLoad();
-  };
 
   usePullDownRefresh(() => {
     if (userId) {
@@ -84,7 +48,7 @@ const FeedbackHistoryPage = () => {
     }
   });
 
-  const loadFeedbacks = async (uid: string) => {
+  const loadFeedbacks = useCallback(async (uid: string) => {
     setLoading(true);
     try {
       const result = await feedbackApi.getMyList(uid);
@@ -105,7 +69,34 @@ const FeedbackHistoryPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [highlightId]);
+
+  const checkLoginAndLoad = useCallback(async () => {
+    setLoading(true);
+    try {
+      const user = await userApi.getProfile();
+      setUserId(user.id);
+      await loadFeedbacks(user.id);
+    } catch (error) {
+      console.error('获取用户信息失败', error);
+      setLoading(false);
+    }
+  }, [loadFeedbacks]);
+
+  const { showLoginPopup, handleLoginSuccess, handleLoginClose } = useProtectedPage({
+    load: checkLoginAndLoad,
+    clear: () => {
+      setUserId('');
+      setFeedbacks([]);
+      setLoading(false);
+    },
+  });
+
+  useDidShow(() => {
+    if (getToken()) {
+      void checkLoginAndLoad();
+    }
+  });
 
   const handleToggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
@@ -195,12 +186,7 @@ const FeedbackHistoryPage = () => {
       {/* 登录弹窗 */}
       <LoginPopup
         visible={showLoginPopup}
-        onClose={() => {
-          setShowLoginPopup(false);
-          if (!getToken()) {
-            Taro.navigateBack();
-          }
-        }}
+        onClose={handleLoginClose}
         onSuccess={handleLoginSuccess}
       />
     </View>

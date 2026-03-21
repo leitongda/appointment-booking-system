@@ -100,6 +100,9 @@
 
 .menu-icon-wrap {
   .icon-container(@icon-container-lg);
+  background: linear-gradient(135deg, var(--theme-primary-soft) 0%, var(--theme-primary-soft-2) 100%);
+  border: 2rpx solid var(--theme-border-accent, rgba(77, 124, 184, 0.16));
+  box-shadow: 0 8rpx 20rpx -12rpx var(--theme-shadow-accent, rgba(77, 124, 184, 0.12));
   margin-bottom: @spacing-2;
   font-size: 44rpx;
 }
@@ -175,7 +178,7 @@
   width: 72rpx;
   height: 72rpx;
   border-radius: @radius-lg;
-  background: rgba(196, 30, 58, 0.08);
+  background: var(--theme-primary-soft, rgba(77, 124, 184, 0.12));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -219,12 +222,12 @@
 
 .doctor-avatar {
   .avatar(@avatar-size-lg);
-  background: var(--gradient-light, linear-gradient(135deg, #DBEAFE 0%, #E0E7FF 100%));
+  background: linear-gradient(135deg, var(--theme-primary-soft, #EAF1F8) 0%, var(--theme-primary-soft-2, #DCE8F4) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 48rpx;
-  color: @color-primary;
+  color: var(--theme-primary);
 }
 
 .doctor-info {
@@ -282,8 +285,9 @@
   align-items: center;
   
   &.available {
-    background: #10B981;
-    color: #fff;
+    background: var(--theme-primary-soft, rgba(77, 124, 184, 0.12));
+    color: var(--theme-accent, #385E92);
+    border: 2rpx solid var(--theme-border-accent, rgba(77, 124, 184, 0.18));
   }
   
   &.unavailable {
@@ -319,7 +323,7 @@
     top: -40rpx;
     width: 160rpx;
     height: 160rpx;
-    background: linear-gradient(135deg, rgba(196, 30, 58, 0.08) 0%, rgba(16, 185, 129, 0.06) 100%);
+    background: linear-gradient(135deg, var(--theme-primary-soft, rgba(77, 124, 184, 0.08)) 0%, transparent 100%);
     border-radius: 50%;
   }
 }
@@ -328,14 +332,15 @@
   width: 88rpx;
   height: 88rpx;
   border-radius: @radius-xl;
-  background: var(--gradient-light, linear-gradient(135deg, #DBEAFE 0%, #E0E7FF 100%));
+  background: linear-gradient(135deg, var(--theme-primary-soft, #EAF1F8) 0%, var(--theme-primary-soft-2, #DCE8F4) 100%);
+  border: 2rpx solid var(--theme-border-accent, rgba(77, 124, 184, 0.16));
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   
   &.add-icon {
-    background: var(--gradient-primary, linear-gradient(135deg, #1E6FD9 0%, #4F46E5 100%));
+    background: linear-gradient(135deg, var(--theme-primary, #4D7CB8) 0%, var(--theme-accent, #385E92) 100%);
   }
 }
 

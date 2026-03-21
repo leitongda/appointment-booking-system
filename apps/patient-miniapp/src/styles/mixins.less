@@ -12,17 +12,17 @@
 
 // 主色渐变背景
 .gradient-primary() {
-  background: linear-gradient(135deg, var(--color-primary, @theme-primary) 0%, var(--color-secondary, @theme-secondary) 100%);
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
 }
 
 // 水平主色渐变
 .gradient-primary-horizontal() {
-  background: linear-gradient(90deg, var(--color-primary, @theme-primary) 0%, var(--color-secondary, @theme-secondary) 100%);
+  background: linear-gradient(90deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
 }
 
 // 浅色渐变背景
 .gradient-light() {
-  background: var(--gradient-light, linear-gradient(135deg, #DBEAFE 0%, #E0E7FF 100%));
+  background: linear-gradient(135deg, var(--theme-primary-soft, #DBEAFE) 0%, var(--theme-primary-soft-2, #E0E7FF) 100%);
 }
 
 // 深色渐变背景 (用于 CTA 区域)
@@ -36,9 +36,9 @@
 
 // 基础卡片
 .card-base() {
-  background: @color-bg-white;
+  background: var(--surface-card, @color-bg-white);
   border-radius: @radius-xl;
-  box-shadow: 0 8rpx 40rpx -4rpx var(--shadow-color, rgba(196, 30, 58, 0.1));
+  box-shadow: 0 8rpx 40rpx -4rpx var(--theme-shadow-accent, rgba(77, 124, 184, 0.12));
   transition: box-shadow @transition-base, transform @transition-base;
 }
 
@@ -48,7 +48,7 @@
   
   &:active {
     transform: translateY(4rpx);
-    box-shadow: 0 4rpx 12rpx -2rpx var(--shadow-color, rgba(196, 30, 58, 0.06));
+    box-shadow: 0 4rpx 12rpx -2rpx var(--theme-shadow-accent, rgba(77, 124, 184, 0.08));
   }
 }
 
@@ -95,7 +95,7 @@
   color: @color-text-white;
   border: none;
   border-radius: @radius-xl;
-  box-shadow: var(--shadow-button, 0 8rpx 28rpx 0 rgba(30, 111, 217, 0.3));
+  box-shadow: var(--shadow-button, 0 8rpx 28rpx 0 rgba(77, 124, 184, 0.24));
   font-weight: @font-weight-semibold;
   transition: all @transition-base;
   
@@ -139,7 +139,7 @@
 // 文字按钮 - 透明背景，用于轻量级操作
 .button-text() {
   background: transparent;
-  color: var(--color-primary, @theme-primary);
+  color: var(--theme-primary);
   border: none;
   border-radius: @radius-md;
   font-weight: @font-weight-medium;
@@ -148,7 +148,7 @@
   
   &:active {
     opacity: 0.7;
-    background: var(--badge-bg, rgba(30, 111, 217, 0.08));
+    background: var(--theme-primary-soft, rgba(77, 124, 184, 0.08));
   }
   
   &[disabled],
@@ -184,14 +184,14 @@
 // 幽灵按钮 - 透明背景+主色边框，用于次要 CTA
 .button-ghost() {
   background: transparent;
-  color: var(--color-primary, @theme-primary);
-  border: @border-width solid var(--color-primary, @theme-primary);
+  color: var(--theme-primary);
+  border: @border-width solid var(--theme-primary);
   border-radius: @radius-xl;
   font-weight: @font-weight-medium;
   transition: all @transition-base;
   
   &:active {
-    background: var(--badge-bg, rgba(30, 111, 217, 0.08));
+    background: var(--theme-primary-soft, rgba(77, 124, 184, 0.08));
   }
   
   &[disabled],
@@ -242,7 +242,7 @@
 
 // 渐变文字 (用于标题强调)
 .text-gradient() {
-  background: linear-gradient(135deg, var(--color-primary, @theme-primary) 0%, var(--color-secondary, @theme-secondary) 100%);
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -310,8 +310,8 @@
   align-items: center;
   justify-content: center;
   padding: 4rpx 16rpx;
-  background: var(--badge-bg, rgba(196, 30, 58, 0.1));
-  color: var(--color-primary, @theme-primary);
+  background: var(--theme-primary-soft, rgba(77, 124, 184, 0.12));
+  color: var(--theme-primary);
   font-size: @font-size-xs;
   font-weight: @font-weight-medium;
   border-radius: @radius-sm;
@@ -367,9 +367,9 @@
   justify-content: center;
   width: @size;
   height: @size;
-  background: var(--badge-bg, rgba(196, 30, 58, 0.08));
+  background: var(--theme-primary-soft, rgba(77, 124, 184, 0.08));
   border-radius: @radius-lg;
-  color: var(--color-primary, @theme-primary);
+  color: var(--theme-primary);
 }
 
 // 渐变图标容器
@@ -400,7 +400,7 @@
 .avatar-bordered(@size: @avatar-size-md) {
   .avatar(@size);
   border: 4rpx solid @color-bg-white;
-  box-shadow: 0 4rpx 12rpx -2rpx var(--shadow-color, rgba(196, 30, 58, 0.06));
+  box-shadow: 0 4rpx 12rpx -2rpx var(--theme-shadow-accent, rgba(77, 124, 184, 0.08));
 }
 
 // -------------------------------------------
@@ -424,8 +424,8 @@
   }
 
   &:focus {
-    border-color: var(--color-primary, @theme-primary);
-    box-shadow: 0 0 0 4rpx var(--badge-bg, rgba(196, 30, 58, 0.1));
+    border-color: var(--theme-primary);
+    box-shadow: 0 0 0 4rpx var(--theme-primary-soft, rgba(77, 124, 184, 0.1));
   }
 }
 
@@ -570,7 +570,7 @@
 
     .search-icon {
       transform: scale(1.1);
-      color: var(--color-primary, @theme-primary);
+      color: var(--theme-primary);
     }
   }
 }

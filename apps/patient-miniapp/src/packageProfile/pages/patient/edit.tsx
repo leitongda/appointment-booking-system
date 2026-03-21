@@ -1,9 +1,9 @@
 import { View, Text, Input as TaroInput, Picker } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
 import { Form, Button, Switch } from '@nutui/nutui-react-taro';
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { userApi } from '@hospital/api';
-import { getToken } from '../../../utils/auth';
+import { useProtectedPage } from '../../../hooks/useProtectedPage';
 import LoginPopup from '../../../components/LoginPopup';
 import type { Patient } from '@hospital/shared';
 import './edit.less';
@@ -25,39 +25,19 @@ const PatientEditPage = () => {
 
   const [loading, setLoading] = useState(false);
   const [formValues, setFormValues] = useState<Partial<PatientFormData>>({
-    gender: 1,
+    gender: 0,
     isDefault: false,
   });
-  const [showLoginPopup, setShowLoginPopup] = useState(false);
   
   // 性别和关系选择的索引
-  const [genderIndex, setGenderIndex] = useState(1); // 默认男
+  const [genderIndex, setGenderIndex] = useState(0); // 默认未知
   const [relationIndex, setRelationIndex] = useState(0); // 默认本人
   const [customRelation, setCustomRelation] = useState('');
   const [showCustomRelation, setShowCustomRelation] = useState(false);
 
-  useEffect(() => {
-    // 检查登录状态
-    const token = getToken();
-    if (!token) {
-      Taro.showToast({ title: '请先登录', icon: 'none' });
-      setShowLoginPopup(true);
-      return;
-    }
-    if (isEdit) {
-      loadPatient();
-    }
-  }, [id]);
+  const loadPatient = useCallback(async () => {
+    if (!isEdit) return;
 
-  // 登录成功后加载数据
-  const handleLoginSuccess = () => {
-    setShowLoginPopup(false);
-    if (isEdit) {
-      loadPatient();
-    }
-  };
-
-  const loadPatient = async () => {
     try {
       const data = await userApi.getPatientDetail(id!);
       setFormValues(data);
@@ -84,7 +64,12 @@ const PatientEditPage = () => {
     } catch (error) {
       console.error('加载就诊人信息失败', error);
     }
-  };
+  }, [id, isEdit]);
+
+  const { showLoginPopup, handleLoginSuccess, handleLoginClose } = useProtectedPage({
+    load: loadPatient,
+    deps: [id],
+  });
 
   // 处理性别选择
   const handleGenderChange = (e: any) => {
@@ -295,12 +280,7 @@ const PatientEditPage = () => {
       {/* 登录弹窗 */}
       <LoginPopup
         visible={showLoginPopup}
-        onClose={() => {
-          setShowLoginPopup(false);
-          if (!getToken()) {
-            Taro.navigateBack();
-          }
-        }}
+        onClose={handleLoginClose}
         onSuccess={handleLoginSuccess}
       />
     </View>

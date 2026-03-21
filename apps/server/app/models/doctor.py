@@ -16,7 +16,7 @@ class Doctor(Base, AuditMixin):
     username = Column(String(50), unique=True, index=True, comment="医生登录账号")
     phone = Column(String(20), unique=True, index=True, comment="手机号")
     password_hash = Column(String(255), comment="登录密码")
-    gender = Column(Integer, default=1, comment="性别 0女 1男")
+    gender = Column(Integer, default=0, comment="性别 0未知 1男 2女")
     avatar = Column(String(255), comment="头像URL")
     banner = Column(String(255), comment="医生banner图URL")
     title = Column(String(50), comment="职称")
@@ -57,4 +57,3 @@ class Doctor(Base, AuditMixin):
     department = relationship("Department", back_populates="doctors")
     schedules = relationship("Schedule", back_populates="doctor")
     consultation_fees = relationship("DoctorConsultationFee", back_populates="doctor", cascade="all, delete-orphan")
-

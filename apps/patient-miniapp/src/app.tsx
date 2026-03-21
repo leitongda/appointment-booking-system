@@ -6,22 +6,12 @@ import { View, Checkbox, CheckboxGroup, Label, Radio, RadioGroup } from '@tarojs
 // NutUI 样式按需加载 - 通过 babel-plugin-import 自动导入
 // 详情见 babel.config.js
 import './app.less';
-import { initTracker, getTracker, STORAGE_KEYS } from '@hospital/shared';
-import { setHttpClient, createTaroAdapter } from '@hospital/api';
-import { validateStoreConfig, getStoreId } from '@/utils/store';
-import { initThemeFromStore, getCurrentTheme, getThemeClass } from '@/utils/theme';
+import { initTracker, getTracker, STORAGE_KEYS, createStoreContext } from '@hospital/shared';
+import { setHttpClient, createTaroAdapter, storeApi, authApi } from '@hospital/api';
+import { validateStoreConfig, getStoreId, getStoreCode } from '@/utils/store';
+import { initThemeFromStore, getCurrentTheme, getThemeClass, subscribeThemeChange } from '@/utils/theme';
 import { initFontMode } from '@/utils/fontMode';
-
-/**
- * 获取 Token（小程序版本，使用 Taro Storage）
- */
-const getToken = (): string | null => {
-  try {
-    return Taro.getStorageSync(STORAGE_KEYS.TOKEN) || null;
-  } catch {
-    return null;
-  }
-};
+import { clearAuthSession, getRefreshToken, getToken, updateAccessToken } from '@/utils/auth';
 
 // API 配置
 // TARO_APP_API_URL 应该是完整的 API 基础 URL，如 https://api.example.com/api/v1
@@ -38,6 +28,51 @@ const apiBaseUrl = process.env.TARO_APP_API_URL || `${DEFAULT_API_HOST}${DEFAULT
 console.log("🚀 ~ process.env.TARO_APP_API_URL:", process.env.TARO_APP_API_URL)
 console.log("🚀 ~ apiBaseUrl:", apiBaseUrl)
 
+const STORE_ID_EXCLUDE_PATHS = ['/stores/by-code/', '/auth/', '/analytics/'];
+const SKIP_AUTH_REFRESH_PATHS = ['/auth/refresh', '/auth/wechat/', '/stores/by-code/', '/analytics/'];
+
+let refreshPromise: Promise<void> | null = null;
+
+const shouldSkipStoreId = (url = '') => STORE_ID_EXCLUDE_PATHS.some((path) => url.includes(path));
+const shouldSkipAuthRefresh = (url = '') => SKIP_AUTH_REFRESH_PATHS.some((path) => url.includes(path));
+
+const createRequestError = (message: string, code: number, data?: any, config?: any) => {
+  const error = new Error(message);
+  (error as any).code = code;
+  (error as any).data = data;
+  (error as any).config = config;
+  return error;
+};
+
+const refreshAccessToken = async () => {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    clearAuthSession('expired');
+    throw createRequestError('登录已失效，请重新登录', 401);
+  }
+
+  refreshPromise = (async () => {
+    try {
+      const result = await authApi.refreshToken(refreshToken);
+      updateAccessToken({
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      });
+    } catch (error) {
+      clearAuthSession('expired');
+      throw error;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+};
+
 // 设置 Taro 请求适配器（替换默认的 axios）
 const taroAdapter = createTaroAdapter(Taro as any, {
   baseURL: apiBaseUrl,
@@ -49,62 +84,104 @@ const taroAdapter = createTaroAdapter(Taro as any, {
 
 // 添加请求拦截器：自动添加 token 和 store_id
 if (taroAdapter.interceptors) {
-  taroAdapter.interceptors.request.use((config: any) => {
-    // 1. 添加 Authorization token
+  taroAdapter.interceptors.request.use(async (config: any) => {
+    const relativeUrl = config._relativeUrl || config.url;
+    config._relativeUrl = relativeUrl;
+
     const token = getToken();
     console.log(`🔐 [请求拦截器] URL: ${config.url}, Token: ${token ? token.substring(0, 20) + '...' : '无'}`);
-    if (token) {
+    if (token && !config.header?.Authorization) {
       config.header = {
         ...config.header,
         Authorization: `Bearer ${token}`,
       };
     }
-    
-    // 2. 自动添加 store_id 到 URL 参数（多门店隔离）
+
+    if (shouldSkipAuthRefresh(relativeUrl)) {
+      config._skipAuthRefresh = true;
+    }
+
     const storeId = getStoreId();
-    if (storeId && config.url) {
-      // 排除门店验证等不需要 store_id 的接口
-      const excludePaths = ['/stores/by-code/', '/auth/', '/analytics/'];
-      const shouldAddStoreId = !excludePaths.some(path => config.url.includes(path));
-      
-      if (shouldAddStoreId && config.method === 'GET') {
-        // 对于 GET 请求，将 store_id 添加到 URL
+    if (
+      storeId &&
+      config.url &&
+      config.method === 'GET' &&
+      !config._storeIdInjected &&
+      !shouldSkipStoreId(relativeUrl)
+    ) {
+      if (!config.url.includes('store_id=')) {
         const separator = config.url.includes('?') ? '&' : '?';
         config.url = `${config.url}${separator}store_id=${storeId}`;
       }
+      config._storeIdInjected = true;
     }
-    
+
     return config;
   });
-  
-  // 添加响应拦截器：解析服务端统一返回格式
-  // 注意：这里直接返回解包后的数据，而不是整个 response 对象
-  taroAdapter.interceptors.response.use((response: any) => {
+
+  taroAdapter.interceptors.response.use(async (response: any) => {
     const data = response.data;
-    
-    // 如果 data 不是对象，直接返回 data
+    const config = response.config || {};
+    const unauthorized =
+      response.statusCode === 401 ||
+      (data && typeof data === 'object' && data.code === 401);
+
+    if (unauthorized) {
+      if (config._skipAuthRefresh || config._retry) {
+        clearAuthSession('expired');
+        throw createRequestError(
+          data?.detail || data?.message || '登录已失效，请重新登录',
+          401,
+          data,
+          config
+        );
+      }
+
+      if (!getRefreshToken()) {
+        clearAuthSession('expired');
+        throw createRequestError('登录已失效，请重新登录', 401, data, config);
+      }
+
+      await refreshAccessToken();
+
+      const nextToken = getToken();
+      if (!nextToken) {
+        clearAuthSession('expired');
+        throw createRequestError('登录已失效，请重新登录', 401, data, config);
+      }
+
+      if (!taroAdapter.request) {
+        clearAuthSession('expired');
+        throw createRequestError('请求适配器不支持重试', 500, data, config);
+      }
+
+      return taroAdapter.request({
+        ...config,
+        _retry: true,
+        header: {
+          ...(config.header || {}),
+          Authorization: `Bearer ${nextToken}`,
+        },
+      });
+    }
+
     if (!data || typeof data !== 'object') {
       return data;
     }
-    
-    // 处理 HTTP 错误状态码
+
     if (response.statusCode >= 400) {
-      const message = data.detail || data.message || '请求失败';
-      const error = new Error(message);
-      (error as any).code = response.statusCode;
-      (error as any).data = data;
-      throw error;
+      throw createRequestError(
+        data.detail || data.message || '请求失败',
+        response.statusCode,
+        data,
+        config
+      );
     }
-    
-    // 处理业务错误（code 不是 2xx 成功状态码）
+
     if (data.code && (data.code < 200 || data.code >= 300)) {
-      const error = new Error(data.message || '请求失败');
-      (error as any).code = data.code;
-      (error as any).data = data.data;
-      throw error;
+      throw createRequestError(data.message || '请求失败', data.code, data.data, config);
     }
-    
-    // 分页响应：包含 total 字段，直接返回解包后的格式
+
     if ('total' in data && typeof data.total === 'number' && 'data' in data) {
       return {
         data: data.data,
@@ -114,13 +191,11 @@ if (taroAdapter.interceptors) {
         pageSize: data.pageSize ?? data.page_size ?? 10,
       };
     }
-    
-    // 统一响应格式：包含 code 和 data 字段，直接返回内部 data
+
     if ('code' in data && 'data' in data) {
       return data.data;
     }
-    
-    // 其他情况直接返回 data
+
     return data;
   });
 }
@@ -177,18 +252,48 @@ function App({ children }: PropsWithChildren) {
     if (isInitialized.current) return;
     isInitialized.current = true;
 
-    // 验证门店配置
-    validateStoreConfig();
+    const bootstrap = async () => {
+      validateStoreConfig();
 
-    // 初始化主题（从门店配置加载）
-    const themeConfig = initThemeFromStore();
-    console.log(`✓ 主题已初始化: ${themeConfig.primary}`);
-    setCurrentTheme(getCurrentTheme());
+      const storeId = getStoreId();
+      const storeCode = getStoreCode();
+      const cachedStoreContext = Taro.getStorageSync(STORAGE_KEYS.STORE_CONTEXT);
+      let storeTheme: string | undefined;
+      let effectiveStoreId = storeId || cachedStoreContext?.storeId || '';
 
-    // 初始化字体模式（从本地存储读取用户偏好）
-    const fontModeConfig = initFontMode();
-    console.log(`✓ 字体模式已初始化: ${fontModeConfig.name}`);
+      if (storeCode) {
+        try {
+          const store = await storeApi.getByCode(storeCode);
+          Taro.setStorageSync(STORAGE_KEYS.STORE_CONTEXT, createStoreContext(store));
+          storeTheme = store.themeStyle;
+          effectiveStoreId = store.id || effectiveStoreId;
+        } catch (error) {
+          console.error('加载门店主题失败:', error);
+        }
+      }
+
+      if (!storeTheme && cachedStoreContext?.storeId === effectiveStoreId) {
+        storeTheme = cachedStoreContext.storeTheme;
+      }
+
+      const themeConfig = initThemeFromStore(storeTheme, effectiveStoreId);
+      console.log(`✓ 主题已初始化: ${themeConfig.primary}`);
+      setCurrentTheme(getCurrentTheme());
+
+      const fontModeConfig = initFontMode();
+      console.log(`✓ 字体模式已初始化: ${fontModeConfig.name}`);
+    };
+
+    bootstrap();
   }, []);
+
+  useEffect(
+    () =>
+      subscribeThemeChange(({ themeName }) => {
+        setCurrentTheme(themeName);
+      }),
+    []
+  );
 
   // 监听页面显示，追踪页面访问
   useEffect(() => {
@@ -216,7 +321,7 @@ function App({ children }: PropsWithChildren) {
   const themeClass = getThemeClass(currentTheme);
 
   return (
-    <View className={`app-root theme-${themeClass}`}>
+    <View className={`app-root ${themeClass}`}>
       {children}
       <TaroComponentPlaceholder />
     </View>
@@ -224,4 +329,3 @@ function App({ children }: PropsWithChildren) {
 }
 
 export default App;
-

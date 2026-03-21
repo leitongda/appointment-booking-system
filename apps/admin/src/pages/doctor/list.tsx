@@ -6,6 +6,7 @@ import type { MenuProps } from 'antd';
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
 import { doctorApi, departmentApi, storeApi, dataApi } from '@hospital/api';
+import { GENDER_MAP } from '@/constants';
 import { toProTableResult } from '@/utils/proTable';
 import { PAGINATION_CONFIG } from '@/constants/pagination';
 import type { Doctor, Department, Store } from '@hospital/shared';
@@ -423,7 +424,7 @@ const DoctorListPage: React.FC = () => {
       dataIndex: 'gender',
       width: 60,
       search: false,
-      render: (_, record) => record.gender === 1 ? '男' : '女',
+      render: (_, record) => GENDER_MAP[record.gender] || '-',
     },
     {
       title: '职称',

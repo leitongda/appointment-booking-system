@@ -108,7 +108,7 @@
         transform: translateY(-50%);
         width: 6rpx;
         height: 32rpx;
-        background: @gradient-primary;
+        background: linear-gradient(135deg, var(--theme-primary, #4D7CB8) 0%, var(--theme-accent, #385E92) 100%);
         border-radius: @radius-full;
       }
     }
@@ -137,7 +137,8 @@
       .feature-icon {
         width: @icon-container-md;
         height: @icon-container-md;
-        background: rgba(196, 30, 58, 0.08);
+        background: var(--theme-primary-soft, rgba(77, 124, 184, 0.12));
+        border: 2rpx solid var(--theme-border-accent, rgba(77, 124, 184, 0.16));
         border-radius: @radius-lg;
         display: flex;
         align-items: center;

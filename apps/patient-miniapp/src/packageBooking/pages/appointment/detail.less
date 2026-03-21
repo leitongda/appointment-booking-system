@@ -115,7 +115,7 @@
     display: inline-block;
     width: 6rpx;
     height: 28rpx;
-    background: @gradient-primary;
+    background: linear-gradient(135deg, var(--theme-primary, #4D7CB8) 0%, var(--theme-accent, #385E92) 100%);
     border-radius: @radius-full;
     margin-right: @spacing-2;
     vertical-align: middle;
@@ -152,9 +152,9 @@
   
   .copy-hint {
     font-size: @font-size-xs;
-    color: @color-primary;
+    color: var(--theme-primary);
     padding: 2rpx 8rpx;
-    background: fade(@color-primary, 10%);
+    background: var(--theme-primary-soft, rgba(77, 124, 184, 0.12));
     border-radius: @radius-sm;
   }
 }

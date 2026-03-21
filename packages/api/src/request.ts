@@ -50,6 +50,7 @@ export class ApiError extends Error {
  */
 export interface HttpClient {
   defaults: { baseURL?: string };
+  request?: <T = any>(config: any) => Promise<T>;
   get: <T = any>(url: string, config?: AxiosRequestConfig) => Promise<T>;
   post: <T = any>(url: string, data?: any, config?: AxiosRequestConfig) => Promise<T>;
   put: <T = any>(url: string, data?: any, config?: AxiosRequestConfig) => Promise<T>;
@@ -253,4 +254,3 @@ export { request };
 
 // 默认导出 request 对象，确保所有模块使用 getHttpClient() 获取正确的客户端
 export default request;
-

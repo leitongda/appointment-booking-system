@@ -15,6 +15,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, MoreOutlined, EyeOutlined, 
 import { useRef, useState } from 'react';
 import { history, useAccess } from '@umijs/max';
 import { patientApi, dataApi } from '@hospital/api';
+import { GENDER_MAP, GENDER_OPTIONS } from '@/constants';
 import { toProTableResult } from '@/utils/proTable';
 import type { PatientListItem, PatientUpdateData } from '@hospital/api';
 import type { PatientCreateData } from '@hospital/api/src/modules/patient';
@@ -24,11 +25,6 @@ const SOURCE_MAP: Record<number, string> = {
   1: '用户添加',
   2: '管理员添加',
 };
-
-const GENDER_OPTIONS = [
-  { label: '男', value: 1 },
-  { label: '女', value: 2 },
-];
 
 const RELATIONSHIP_OPTIONS = [
   { label: '本人', value: '本人' },
@@ -114,7 +110,7 @@ const PatientPage: React.FC = () => {
       dataIndex: 'gender',
       width: 60,
       search: false,
-      render: (val) => (val === 1 ? '男' : val === 2 ? '女' : '-'),
+      render: (val) => GENDER_MAP[val as number] || '-',
     },
     { title: '年龄', dataIndex: 'age', width: 60, search: false, render: (val) => val ?? '-' },
     { title: '手机号', dataIndex: 'phone', width: 120 },

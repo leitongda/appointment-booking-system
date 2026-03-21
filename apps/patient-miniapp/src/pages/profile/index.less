@@ -16,12 +16,7 @@
 .header {
   position: relative;
   padding: @spacing-8 @page-padding @spacing-6;
-  // 从上到下浅色主题色背景渐变
-  background: linear-gradient(180deg,
-    rgba(45, 139, 86, 0.08) 0%,
-    rgba(45, 139, 86, 0.03) 50%,
-    transparent 100%
-  );
+  background: var(--theme-gradient-soft, linear-gradient(180deg, rgba(77, 124, 184, 0.14) 0%, rgba(77, 124, 184, 0.05) 55%, transparent 100%));
 }
 
 .header-content {
@@ -35,9 +30,9 @@
   width: @avatar-size-lg;
   height: @avatar-size-lg;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.6);
-  border: 4rpx solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+  border: 4rpx solid rgba(255, 255, 255, 0.88);
+  box-shadow: 0 10rpx 24rpx -10rpx var(--theme-shadow-accent, rgba(77, 124, 184, 0.16));
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -104,7 +99,7 @@
 .stat-value {
   font-size: @font-size-2xl;
   font-weight: @font-weight-bold;
-  color: @color-primary;
+  color: var(--theme-primary);
   margin-bottom: 4rpx;
 }
 
@@ -146,7 +141,8 @@
   width: @icon-container-md;
   height: @icon-container-md;
   border-radius: @radius-lg;
-  background: @color-bg-secondary;
+  background: linear-gradient(135deg, var(--theme-primary-soft, #EAF1F8) 0%, var(--theme-primary-soft-2, #DCE8F4) 100%);
+  border: 2rpx solid var(--theme-border-accent, rgba(77, 124, 184, 0.16));
   display: flex;
   align-items: center;
   justify-content: center;

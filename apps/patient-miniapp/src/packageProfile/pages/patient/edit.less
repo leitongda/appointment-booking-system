@@ -31,7 +31,7 @@
   overflow: hidden;
 
   .nut-switch {
-    --nutui-switch-open-background-color: var(--color-primary, @theme-primary);
+    --nutui-switch-open-background-color: var(--theme-primary);
   }
 }
 
@@ -112,7 +112,7 @@
 
       &:focus {
         background: @input-bg-focus;
-        border-color: rgba(30, 111, 217, 0.28);
+        border-color: var(--theme-border-accent, rgba(77, 124, 184, 0.28));
         box-shadow: @input-focus-shadow;
       }
     }
@@ -197,7 +197,7 @@
 
     &:focus {
       background: @input-bg-focus;
-      border-color: rgba(30, 111, 217, 0.28);
+      border-color: var(--theme-border-accent, rgba(77, 124, 184, 0.28));
       box-shadow: @input-focus-shadow;
     }
   }

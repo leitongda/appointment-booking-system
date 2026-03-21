@@ -46,7 +46,7 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
             phone=user.phone,
             nickname=user.nickname,
             avatar=user.avatar,
-            gender=user.gender or 0,
+            gender=user.gender if user.gender is not None else 0,
             status=user.status
         )
     )
@@ -237,7 +237,7 @@ async def wechat_get_phone(data: WechatPhoneRequest, db: AsyncSession = Depends(
                 phone=user.phone,
                 nickname=user.nickname,
                 avatar=user.avatar,
-                gender=user.gender or 0,
+                gender=user.gender if user.gender is not None else 0,
                 status=user.status
             )
         )
@@ -289,7 +289,7 @@ async def wechat_bind_phone(data: WechatBindPhoneRequest, db: AsyncSession = Dep
             phone=user.phone,
             nickname=user.nickname,
             avatar=user.avatar,
-            gender=user.gender or 0,
+            gender=user.gender if user.gender is not None else 0,
             status=user.status
         )
     )
@@ -349,7 +349,7 @@ async def wechat_bind_userinfo(data: WechatBindUserInfoRequest, db: AsyncSession
             phone=user.phone or "",
             nickname=user.nickname,
             avatar=user.avatar,
-            gender=user.gender or 0,
+            gender=user.gender if user.gender is not None else 0,
             status=user.status
         )
     )

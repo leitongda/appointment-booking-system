@@ -10,8 +10,8 @@
   align-items: center;
   // 微信标准 TabBar 高度约 50px = 100rpx
   height: 100rpx;
-  background-color: @color-bg-white;
-  border-top: 1rpx solid @color-border-light;
+  background-color: var(--surface-card, @color-bg-white);
+  border-top: 1rpx solid var(--border-subtle, @color-border-light);
   padding-bottom: env(safe-area-inset-bottom);
   box-sizing: content-box;
 
@@ -54,7 +54,7 @@
 
     &--active {
       // 主题色 - 使用 CSS 变量支持动态主题切换
-      color: var(--color-primary, @color-primary);
+      color: var(--theme-primary);
       font-weight: @font-weight-medium;
     }
   }

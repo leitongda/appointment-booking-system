@@ -42,7 +42,7 @@ async def import_doctors(
     depts_result = await db.execute(select(Department))
     depts = {d.name: d for d in depts_result.scalars().all()}
 
-    gender_map = {"男": 1, "女": 2}
+    gender_map = {"未知": 0, "男": 1, "女": 2}
 
     async def process_row(row_data):
         store_name = row_data.get("门店名称")
@@ -58,7 +58,7 @@ async def import_doctors(
 
         doctor = Doctor(
             name=row_data.get("姓名"),
-            gender=gender_map.get(row_data.get("性别"), 1),
+            gender=gender_map.get(row_data.get("性别"), 0),
             phone=row_data.get("手机号"),
             store_id=store.id,
             store_name=store.name,

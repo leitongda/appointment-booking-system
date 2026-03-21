@@ -3,11 +3,12 @@ import Taro, { useRouter, usePullDownRefresh } from '@tarojs/taro';
 import { Button } from '@nutui/nutui-react-taro';
 import { useState, useEffect, useMemo } from 'react';
 import { doctorApi, scheduleApi, favoriteApi, settingsApi } from '@hospital/api';
-import type { Doctor, AvailableSchedule } from '@hospital/shared';
+import type { AvailableSchedule } from '@hospital/api';
+import type { Doctor } from '@hospital/shared';
 import { APPOINTMENT_TYPE_MAP } from '@hospital/shared';
 import { DoctorIcon, HeartIcon, HeartOutlineIcon } from '../../../components/Icons';
 import { getToken } from '../../../utils/auth';
-import { getThemePrimaryColor } from '../../../utils/theme';
+import { useThemePrimaryColor } from '../../../utils/theme';
 import { getImageUrl, formatTime } from '../../../utils/url';
 import LoginPopup from '../../../components/LoginPopup';
 import './detail.less';
@@ -15,15 +16,14 @@ import './detail.less';
 const WEEKDAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
 const DoctorDetailPage = () => {
+  const primaryColor = useThemePrimaryColor();
   const router = useRouter();
   const { id } = router.params;
 
   const [loading, setLoading] = useState(true);
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [schedules, setSchedules] = useState<AvailableSchedule[]>([]);
-  const [advanceDays, setAdvanceDays] = useState<number>(10); // 可提前预约天数
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [bookingRules, setBookingRules] = useState<any>({}); // 预约规则
 
   // 时段选择状态（单选）
   const [selectedSlot, setSelectedSlot] = useState<'AM' | 'PM' | null>(null);
@@ -91,9 +91,7 @@ const DoctorDetailPage = () => {
         advanceBookingDirection: 'before',
         advanceBookingReference: 'end',
       }));
-      setBookingRules(rules);
       const days = rules.advanceDays || 10;
-      setAdvanceDays(days);
 
       // 使用配置的预约天数获取可用排班
       const scheduleData = await scheduleApi.getAvailable(id!, days);
@@ -376,13 +374,11 @@ const DoctorDetailPage = () => {
 
   // 跳转到预约确认页
   const navigateToBooking = (schedule: AvailableSchedule) => {
-    // 构建 URL 参数，包含具体班次时间
-    const params = new URLSearchParams({
-      doctorId: id!,
-      scheduleId: schedule.id,
-      date: schedule.scheduleDate,
-      timeSlot: schedule.timeSlot,
-    });
+    const params = new URLSearchParams();
+    params.set('doctorId', id!);
+    params.set('scheduleId', schedule.id);
+    params.set('date', schedule.scheduleDate);
+    params.set('timeSlot', schedule.timeSlot || '');
     if (schedule.startTime) {
       params.set('startTime', formatTime(schedule.startTime));
     }
@@ -437,7 +433,7 @@ const DoctorDetailPage = () => {
             {doctor.avatar ? (
               <Image src={getImageUrl(doctor.avatar)} mode="aspectFill" />
             ) : (
-              <DoctorIcon size={56} color={getThemePrimaryColor()} />
+              <DoctorIcon size={56} color={primaryColor} />
             )}
           </View>
           <View className="info-content">
@@ -569,7 +565,7 @@ const DoctorDetailPage = () => {
                 {doctor?.avatar ? (
                   <Image src={getImageUrl(doctor.avatar)} mode="aspectFill" />
                 ) : (
-                  <DoctorIcon size={32} color={getThemePrimaryColor()} />
+                  <DoctorIcon size={32} color={primaryColor} />
                 )}
               </View>
               <View className="slot-picker-doctor-info">
@@ -611,7 +607,7 @@ const DoctorDetailPage = () => {
                     </Text>
 
                     <Text className="slot-remain">
-                      {APPOINTMENT_TYPE_MAP[schedule.appointmentType] || '普通'} {status.message}
+                      {APPOINTMENT_TYPE_MAP[schedule.appointmentType || 'normal'] || '普通'} {status.message}
                     </Text>
 
                     {/* 倒计时 */}

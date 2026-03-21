@@ -34,7 +34,7 @@
   width: 180rpx;
   height: 180rpx;
   border-radius: @radius-xl;
-  background: var(--gradient-light, linear-gradient(135deg, #DBEAFE 0%, #E0E7FF 100%));
+  background: linear-gradient(135deg, var(--theme-primary-soft) 0%, var(--theme-primary-soft-2) 100%);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -185,7 +185,7 @@
     display: inline-block;
     width: 6rpx;
     height: 32rpx;
-    background: @gradient-primary;
+    background: linear-gradient(135deg, var(--theme-primary, #4D7CB8) 0%, var(--theme-accent, #385E92) 100%);
     border-radius: @radius-full;
     margin-right: @spacing-2;
   }
@@ -230,8 +230,8 @@
   transition: all @transition-base;
   
   &.active {
-    background: var(--badge-bg, rgba(196, 30, 58, 0.08));
-    border-color: var(--color-primary, @theme-primary);
+    background: var(--theme-primary-soft, rgba(77, 124, 184, 0.12));
+    border-color: var(--theme-border-accent, rgba(77, 124, 184, 0.18));
     border-width: 3rpx;
   }
   
@@ -246,7 +246,7 @@
   margin-bottom: 4rpx;
   
   .date-item.active & {
-    color: var(--color-primary, @theme-primary);
+    color: var(--theme-primary);
     font-weight: @font-weight-medium;
   }
 }
@@ -257,7 +257,7 @@
   color: @color-text-primary;
   
   .date-item.active & {
-    color: var(--color-primary, @theme-primary);
+    color: var(--theme-primary);
   }
 }
 
@@ -301,13 +301,13 @@
   
   // 选中状态：红色边框 + 红色文字
   &.selected {
-    border-color: var(--color-primary, @theme-primary);
+    border-color: var(--theme-border-accent, rgba(77, 124, 184, 0.18));
     border-width: 3rpx;
-    background: var(--badge-bg, rgba(196, 30, 58, 0.04));
+    background: var(--theme-primary-soft, rgba(77, 124, 184, 0.04));
     
     .slot-period,
     .slot-available {
-      color: var(--color-primary, @theme-primary);
+      color: var(--theme-primary);
     }
   }
   
@@ -368,8 +368,8 @@
 
 .doctor-tag {
   padding: 8rpx 20rpx;
-  background: rgba(196, 30, 58, 0.06);
-  color: @color-primary;
+  background: var(--theme-primary-soft, rgba(77, 124, 184, 0.08));
+  color: var(--theme-primary);
   font-size: @font-size-xs;
   border-radius: @radius-full;
 }
@@ -443,7 +443,7 @@
   width: 80rpx;
   height: 80rpx;
   border-radius: @radius-xl;
-  background: var(--gradient-light, linear-gradient(135deg, #DBEAFE 0%, #E0E7FF 100%));
+  background: linear-gradient(135deg, var(--theme-primary-soft, #EAF1F8) 0%, var(--theme-primary-soft-2, #DCE8F4) 100%);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -513,16 +513,16 @@
   
   // 选中状态
   &.selected {
-    border-color: var(--color-primary, @theme-primary);
+    border-color: var(--theme-border-accent, rgba(77, 124, 184, 0.18));
     border-width: 3rpx;
-    background: var(--badge-bg, rgba(196, 30, 58, 0.04));
+    background: var(--theme-primary-soft, rgba(77, 124, 184, 0.04));
     
     .slot-time {
-      color: var(--color-primary, @theme-primary);
+      color: var(--theme-primary);
     }
     
     .slot-remain {
-      color: var(--color-primary, @theme-primary);
+      color: var(--theme-primary);
     }
   }
   
@@ -649,7 +649,7 @@
     width: 96rpx;
     height: 96rpx;
     border-radius: @radius-xl;
-    background: var(--gradient-light, linear-gradient(135deg, #DBEAFE 0%, #E0E7FF 100%));
+    background: linear-gradient(135deg, var(--theme-primary-soft, #EAF1F8) 0%, var(--theme-primary-soft-2, #DCE8F4) 100%);
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -713,7 +713,7 @@
       color: @color-text-primary;
       
       &.highlight {
-        color: var(--color-primary, @theme-primary);
+        color: var(--theme-primary);
       }
       
       &.fee {

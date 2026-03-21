@@ -49,7 +49,7 @@ async def export_doctors(
     headers = ["姓名", "性别", "手机号", "所属门店", "所属科室", "职称", "擅长", "标签", "状态"]
     data = []
 
-    gender_map = {1: "男", 2: "女"}
+    gender_map = {0: "未知", 1: "男", 2: "女"}
     status_map = {0: "离职", 1: "在职"}
 
     for d in doctors:

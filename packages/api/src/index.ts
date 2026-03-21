@@ -91,6 +91,7 @@ export type { StoreAdmin } from './modules/store';
 
 // Auth types are re-exported from @hospital/shared
 export type { LoginParams, LoginResult } from '@hospital/shared';
+export type { WechatLoginResponse } from './modules/auth';
 export type { PatientCreateData } from './modules/user';
 export type { DepartmentListParams, DepartmentCreateData } from './modules/department';
 export type { DoctorListParams, DoctorCreateData } from './modules/doctor';
@@ -168,6 +169,7 @@ export type {
   EmailConfig,
   ThumbnailSize,
   ImageConfig,
+  TimePeriodConfig,
 } from './modules/settings';
 
 // Blacklist types
@@ -285,7 +287,7 @@ export type {
   RuleSetUpdateData,
   RuleWindowCreateData,
   RuleWindowUpdateData,
-} from '@hospital/shared';
+} from './modules/rule-set';
 
 // Store Email Recipient types
 export type {

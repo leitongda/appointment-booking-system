@@ -6,11 +6,12 @@ import type { Doctor } from '@hospital/shared';
 import { DoctorIcon } from '../../components/Icons';
 import { getImageUrl } from '../../utils/url';
 import { getToken } from '../../utils/auth';
-import { getThemePrimaryColor } from '../../utils/theme';
+import { useThemePrimaryColor } from '../../utils/theme';
 import LoginPopup from '../../components/LoginPopup';
 import './index.less';
 
 const DoctorListPage = () => {
+  const primaryColor = useThemePrimaryColor();
   const router = useRouter();
   const { departmentId } = router.params;
 
@@ -92,7 +93,7 @@ const DoctorListPage = () => {
                   {doctor.avatar ? (
                     <Image className="avatar" src={getImageUrl(doctor.avatar)} mode="aspectFill" />
                   ) : (
-                    <DoctorIcon size={36} color={getThemePrimaryColor()} />
+                    <DoctorIcon size={36} color={primaryColor} />
                   )}
                 </View>
                 <View className="info">

@@ -22,6 +22,7 @@ import { UserOutlined, ManOutlined, WomanOutlined, PlusOutlined, EditOutlined, D
 import { useEffect, useState } from 'react';
 import { history, useParams, useAccess } from '@umijs/max';
 import { userManageApi } from '@hospital/api';
+import { GENDER_MAP, GENDER_OPTIONS } from '@/constants';
 import type { UserDetail, UserCard, CardCreateData, CardUpdateData, UserUpdateData } from '@hospital/api';
 
 const { Title, Text } = Typography;
@@ -30,11 +31,6 @@ const SOURCE_MAP: Record<number, string> = {
   1: '用户添加',
   2: '管理员添加',
 };
-
-const GENDER_OPTIONS = [
-  { label: '男', value: 1 },
-  { label: '女', value: 2 },
-];
 
 const RELATIONSHIP_OPTIONS = [
   { label: '本人', value: '本人' },
@@ -194,7 +190,7 @@ const UserDetailPage: React.FC = () => {
       dataIndex: 'gender',
       key: 'gender',
       width: 60,
-      render: (val: number) => (val === 1 ? '男' : val === 2 ? '女' : '-'),
+      render: (val: number) => GENDER_MAP[val] || '-',
     },
     { title: '年龄', dataIndex: 'age', key: 'age', width: 60, render: (val: number) => val ?? '-' },
     { title: '手机号', dataIndex: 'phone', key: 'phone', width: 120 },
@@ -401,7 +397,7 @@ const UserDetailPage: React.FC = () => {
             <ProDescriptions.Item label="手机号">{user?.phone}</ProDescriptions.Item>
             <ProDescriptions.Item label="微信昵称">{user?.nickname || '微信用户'}</ProDescriptions.Item>
             <ProDescriptions.Item label="性别">
-              {user?.gender === 1 ? '男' : user?.gender === 2 ? '女' : '未知'}
+              {user?.gender !== undefined && user?.gender !== null ? GENDER_MAP[user.gender] || '未知' : '未知'}
             </ProDescriptions.Item>
             <ProDescriptions.Item label="OpenID">
               <Text copyable={{ text: user?.openid }} ellipsis style={{ maxWidth: 200 }}>
@@ -551,4 +547,3 @@ const UserDetailPage: React.FC = () => {
 };
 
 export default UserDetailPage;
-

@@ -9,6 +9,7 @@ import { Card, Input, Form, Typography } from 'antd';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { history, useParams, useModel, useAccess } from '@umijs/max';
 import { doctorApi, departmentApi, storeApi } from '@hospital/api';
+import { GENDER_OPTIONS } from '@/constants';
 import { PAGINATION_CONFIG } from '@/constants/pagination';
 import type { Doctor, Department, Store } from '@hospital/shared';
 import RichTextEditor from '@/components/RichTextEditor';
@@ -20,11 +21,6 @@ import { PasswordField, ImageUploadCard, SwitchGroup } from '@/components/formFi
 import { requiredRules, phoneRules, emailRules, stringLengthRules } from '@/utils/formValidators';
 
 const { Text, Link } = Typography;
-
-const GENDER_OPTIONS = [
-  { label: '男', value: 1 },
-  { label: '女', value: 0 },
-];
 
 const PAGE_STYLE_OPTIONS = [
   { label: '风格1', value: 1 },
@@ -187,7 +183,7 @@ const DoctorFormPage: React.FC = () => {
     onlineConsultEnabled: doctor.onlineConsultEnabled === 1,
     status: doctor.status === 1,
   } : {
-    gender: 1,
+    gender: 0,
     yearsOfExperience: 0,
     maxDailyAppointments: 0,
     onlineConsultEnabled: false,

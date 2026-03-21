@@ -1,9 +1,10 @@
 import { View, Text } from '@tarojs/components';
 import Taro, { usePullDownRefresh, useReachBottom } from '@tarojs/taro';
 import { Empty, Loading } from '@nutui/nutui-react-taro';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { medicalRecordApi } from '@hospital/api';
 import { getToken } from '../../../utils/auth';
+import { useProtectedPage } from '../../../hooks/useProtectedPage';
 import LoginPopup from '../../../components/LoginPopup';
 import type { MedicalRecordListItem } from '@hospital/api';
 import './index.less';
@@ -13,29 +14,9 @@ const PAGE_SIZE = 20;
 const RecordsPage = () => {
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<MedicalRecordListItem[]>([]);
-  const [showLoginPopup, setShowLoginPopup] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-
-  useEffect(() => {
-    // 检查登录状态
-    const token = getToken();
-    if (!token) {
-      Taro.showToast({ title: '请先登录', icon: 'none' });
-      setShowLoginPopup(true);
-      setLoading(false);
-      return;
-    }
-    loadRecords();
-  }, []);
-
-  // 页面显示时刷新数据
-  Taro.useDidShow(() => {
-    if (getToken()) {
-      resetAndLoad();
-    }
-  });
 
   // 上拉加载更多
   useReachBottom(() => {
@@ -44,19 +25,6 @@ const RecordsPage = () => {
     }
   });
 
-  // 登录成功后加载数据
-  const handleLoginSuccess = () => {
-    setShowLoginPopup(false);
-    loadRecords();
-  };
-
-  // 重置并加载
-  const resetAndLoad = useCallback(async () => {
-    setPage(1);
-    setHasMore(true);
-    return loadRecords();
-  }, []);
-
   // 下拉刷新
   usePullDownRefresh(() => {
     resetAndLoad().finally(() => {
@@ -64,7 +32,7 @@ const RecordsPage = () => {
     });
   });
 
-  const loadRecords = async () => {
+  const loadRecords = useCallback(async () => {
     try {
       const result = await medicalRecordApi.getList({ page: 1, pageSize: PAGE_SIZE });
       setRecords(result.data || []);
@@ -75,7 +43,35 @@ const RecordsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // 重置并加载
+  const resetAndLoad = useCallback(async () => {
+    setPage(1);
+    setHasMore(true);
+    return loadRecords();
+  }, [loadRecords]);
+
+  const {
+    showLoginPopup,
+    handleLoginSuccess,
+    handleLoginClose,
+  } = useProtectedPage({
+    load: resetAndLoad,
+    clear: () => {
+      setRecords([]);
+      setPage(1);
+      setHasMore(true);
+      setLoading(false);
+    },
+  });
+
+  // 页面显示时刷新数据
+  Taro.useDidShow(() => {
+    if (getToken()) {
+      void resetAndLoad();
+    }
+  });
 
   const loadMoreRecords = async () => {
     if (loadingMore || !hasMore) return;
@@ -167,12 +163,7 @@ const RecordsPage = () => {
       {/* 登录弹窗 */}
       <LoginPopup
         visible={showLoginPopup}
-        onClose={() => {
-          setShowLoginPopup(false);
-          if (!getToken()) {
-            Taro.navigateBack();
-          }
-        }}
+        onClose={handleLoginClose}
         onSuccess={handleLoginSuccess}
       />
     </View>

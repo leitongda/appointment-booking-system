@@ -1,10 +1,10 @@
 import { View, Text } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
 import { Tabs, Button, Empty, PullToRefresh } from '@nutui/nutui-react-taro';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { appointmentApi } from '@hospital/api';
 import { APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP } from '@hospital/shared';
-import { getToken } from '../../utils/auth';
+import { AUTH_EVENTS, getToken, subscribeAuthChange } from '../../utils/auth';
 import { formatTime, isAppointmentExpired } from '../../utils/url';
 import { triggerCheckinScan } from '../../utils/checkin';
 import LoginPopup from '../../components/LoginPopup';
@@ -43,28 +43,52 @@ const AppointmentPage = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
 
-  useEffect(() => {
-    // 检查登录状态
+  const checkAndLoad = useCallback(() => {
     const token = getToken();
     if (!token) {
       setIsLoggedIn(false);
+      setAppointments([]);
       setLoading(false);
       return;
     }
+
     setIsLoggedIn(true);
-    loadAppointments();
+    void loadAppointments();
   }, [activeTab]);
+
+  useEffect(() => {
+    checkAndLoad();
+  }, [checkAndLoad]);
+
+  useEffect(
+    () =>
+      subscribeAuthChange((payload) => {
+        if (payload.type === AUTH_EVENTS.LOGOUT || payload.type === AUTH_EVENTS.EXPIRED) {
+          setIsLoggedIn(false);
+          setAppointments([]);
+          setLoading(false);
+          setShowLoginPopup(false);
+          return;
+        }
+
+        if (payload.type === AUTH_EVENTS.LOGIN || payload.type === AUTH_EVENTS.UPDATED) {
+          checkAndLoad();
+        }
+      }),
+    [checkAndLoad]
+  );
 
   // 页面显示时更新 TabBar 选中状态
   useDidShow(() => {
     Taro.eventCenter.trigger('tabbar:change', 1);
+    checkAndLoad();
   });
 
   // 登录成功后刷新数据
   const handleLoginSuccess = () => {
     setIsLoggedIn(true);
     setShowLoginPopup(false);
-    loadAppointments();
+    checkAndLoad();
   };
 
   // 下拉刷新处理

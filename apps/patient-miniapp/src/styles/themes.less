@@ -1,152 +1,76 @@
 // ===========================================
-// Corporate Trust Design System - 主题配置
-// 支持门店主题动态切换
+// Patient Miniapp Theme Tokens
 // ===========================================
 
-// -------------------------------------------
-// 默认主题 (现代-蓝) - 应用到 page 元素
-// 注意：此默认值需与 theme.config.ts 中的 default 保持一致
-// -------------------------------------------
+page,
+.app-root {
+  --theme-primary: #4D7CB8;
+  --theme-primary-soft: #EAF1F8;
+  --theme-primary-soft-2: #DCE8F4;
+  --theme-accent: #385E92;
+  --theme-gradient-soft: linear-gradient(180deg, rgba(77, 124, 184, 0.14) 0%, rgba(77, 124, 184, 0.05) 55%, transparent 100%);
+  --theme-border-accent: rgba(77, 124, 184, 0.18);
+  --theme-shadow-accent: rgba(77, 124, 184, 0.16);
 
-page {
-  // 默认使用现代-蓝主题
-  --color-primary: #1E6FD9;
-  --color-primary-dark: #1557B0;
-  --color-primary-light: #3B82F6;
-  --color-secondary: #4F46E5;
-  --color-secondary-light: #6366F1;
-  --gradient-primary: linear-gradient(135deg, #1E6FD9 0%, #4F46E5 100%);
-  --gradient-primary-h: linear-gradient(90deg, #1E6FD9 0%, #4F46E5 100%);
-  --gradient-light: linear-gradient(135deg, #DBEAFE 0%, #E0E7FF 100%);
-  --shadow-color: rgba(30, 111, 217, 0.15);
-  --shadow-button: 0 8rpx 28rpx 0 rgba(30, 111, 217, 0.3);
-  --badge-bg: rgba(30, 111, 217, 0.1);
+  // 兼容旧变量命名，降低样式改造风险
+  --color-primary: var(--theme-primary);
+  --color-primary-dark: var(--theme-accent);
+  --color-primary-light: var(--theme-primary);
+  --color-secondary: var(--theme-accent);
+  --color-secondary-light: var(--theme-primary);
+  --gradient-primary: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
+  --gradient-primary-h: linear-gradient(90deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
+  --gradient-light: linear-gradient(135deg, var(--theme-primary-soft) 0%, var(--theme-primary-soft-2) 100%);
+  --shadow-color: var(--theme-shadow-accent);
+  --shadow-button: 0 10rpx 28rpx 0 var(--theme-shadow-accent);
+  --badge-bg: var(--theme-primary-soft);
+
+  // 中性色 token
+  --surface-page: #F7F9FC;
+  --surface-card: #FFFFFF;
+  --text-primary: #162033;
+  --text-secondary: #55627A;
+  --text-muted: #7B879C;
+  --border-subtle: #E8EDF4;
+  --surface-soft: #F4F6FA;
 }
 
-// -------------------------------------------
-// 主题样式 - 通过 app-root 的主题类应用
-// -------------------------------------------
-
-// 主题1: 中医-红 (朱砂红/丹朱)
-// 灵感：中医药典籍、朱砂、丹参
-.app-root.theme-tcm-red {
-  --color-primary: #C41E3A;           // 朱砂红
-  --color-primary-dark: #A31631;      // 暗朱红
-  --color-primary-light: #DC3545;     // 浅朱红
-  --color-secondary: #8B2942;         // 绛紫红
-  --color-secondary-light: #A23B55;   // 浅绛紫
-  --gradient-primary: linear-gradient(135deg, #C41E3A 0%, #8B2942 100%);
-  --gradient-primary-h: linear-gradient(90deg, #C41E3A 0%, #8B2942 100%);
-  --gradient-light: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
-  --shadow-color: rgba(196, 30, 58, 0.15);
-  --shadow-button: 0 8rpx 28rpx 0 rgba(196, 30, 58, 0.3);
-  --badge-bg: rgba(196, 30, 58, 0.1);
+.app-root.theme-red {
+  --theme-primary: #B85A5F;
+  --theme-primary-soft: #F5E8E8;
+  --theme-primary-soft-2: #EED9DA;
+  --theme-accent: #8E4348;
+  --theme-gradient-soft: linear-gradient(180deg, rgba(184, 90, 95, 0.12) 0%, rgba(184, 90, 95, 0.04) 55%, transparent 100%);
+  --theme-border-accent: rgba(184, 90, 95, 0.18);
+  --theme-shadow-accent: rgba(184, 90, 95, 0.16);
 }
 
-// 主题2: 中医-绿 (翡翠绿/青黛)
-// 灵感：中草药、翡翠、青竹
-.app-root.theme-tcm-green {
-  --color-primary: #2D8B56;           // 翡翠绿
-  --color-primary-dark: #1E6B42;      // 暗翡翠
-  --color-primary-light: #3DA868;     // 浅翡翠
-  --color-secondary: #0D5C38;         // 青黛绿
-  --color-secondary-light: #1A7A4C;   // 浅青黛
-  --gradient-primary: linear-gradient(135deg, #2D8B56 0%, #0D5C38 100%);
-  --gradient-primary-h: linear-gradient(90deg, #2D8B56 0%, #0D5C38 100%);
-  --gradient-light: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%);
-  --shadow-color: rgba(45, 139, 86, 0.15);
-  --shadow-button: 0 8rpx 28rpx 0 rgba(45, 139, 86, 0.3);
-  --badge-bg: rgba(45, 139, 86, 0.1);
+.app-root.theme-yellow {
+  --theme-primary: #A98B57;
+  --theme-primary-soft: #F6F0E3;
+  --theme-primary-soft-2: #EBDDCA;
+  --theme-accent: #8B7145;
+  --theme-gradient-soft: linear-gradient(180deg, rgba(169, 139, 87, 0.14) 0%, rgba(169, 139, 87, 0.05) 55%, transparent 100%);
+  --theme-border-accent: rgba(169, 139, 87, 0.18);
+  --theme-shadow-accent: rgba(169, 139, 87, 0.14);
 }
 
-// 主题3: 现代-蓝 (靛青/琉璃蓝)
-// 灵感：青花瓷、靛蓝、琉璃
-.app-root.theme-modern-blue {
-  --color-primary: #1E6FD9;           // 琉璃蓝
-  --color-primary-dark: #1557B0;      // 暗琉璃
-  --color-primary-light: #3B82F6;     // 浅琉璃
-  --color-secondary: #4F46E5;         // 靛青紫
-  --color-secondary-light: #6366F1;   // 浅靛青
-  --gradient-primary: linear-gradient(135deg, #1E6FD9 0%, #4F46E5 100%);
-  --gradient-primary-h: linear-gradient(90deg, #1E6FD9 0%, #4F46E5 100%);
-  --gradient-light: linear-gradient(135deg, #DBEAFE 0%, #E0E7FF 100%);
-  --shadow-color: rgba(30, 111, 217, 0.15);
-  --shadow-button: 0 8rpx 28rpx 0 rgba(30, 111, 217, 0.3);
-  --badge-bg: rgba(30, 111, 217, 0.1);
+.app-root.theme-blue {
+  --theme-primary: #4D7CB8;
+  --theme-primary-soft: #EAF1F8;
+  --theme-primary-soft-2: #DCE8F4;
+  --theme-accent: #385E92;
+  --theme-gradient-soft: linear-gradient(180deg, rgba(77, 124, 184, 0.14) 0%, rgba(77, 124, 184, 0.05) 55%, transparent 100%);
+  --theme-border-accent: rgba(77, 124, 184, 0.18);
+  --theme-shadow-accent: rgba(77, 124, 184, 0.16);
 }
 
-// 主题4: 简约-白 (玄墨/素雅)
-// 灵感：水墨画、宣纸、玄色
-.app-root.theme-minimal-white {
-  --color-primary: #374151;           // 玄墨灰
-  --color-primary-dark: #1F2937;      // 暗玄墨
-  --color-primary-light: #4B5563;     // 浅玄墨
-  --color-secondary: #6B7280;         // 银鼠灰
-  --color-secondary-light: #9CA3AF;   // 浅银鼠
-  --gradient-primary: linear-gradient(135deg, #374151 0%, #1F2937 100%);
-  --gradient-primary-h: linear-gradient(90deg, #374151 0%, #1F2937 100%);
-  --gradient-light: linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%);
-  --shadow-color: rgba(55, 65, 81, 0.12);
-  --shadow-button: 0 8rpx 28rpx 0 rgba(55, 65, 81, 0.25);
-  --badge-bg: rgba(55, 65, 81, 0.08);
-}
-
-// 主题5: 故宫红 (宫墙红/琉璃金)
-.app-root.theme-forbidden-city {
-  --color-primary: #9D2933;           // 宫墙红
-  --color-primary-dark: #7A1F28;      // 暗宫红
-  --color-primary-light: #B8323F;     // 浅宫红
-  --color-secondary: #C5A028;         // 琉璃金
-  --color-secondary-light: #D4B23D;   // 浅琉璃金
-  --gradient-primary: linear-gradient(135deg, #9D2933 0%, #7A1F28 100%);
-  --gradient-primary-h: linear-gradient(90deg, #9D2933 0%, #C5A028 100%);
-  --gradient-light: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
-  --shadow-color: rgba(157, 41, 51, 0.15);
-  --shadow-button: 0 8rpx 28rpx 0 rgba(157, 41, 51, 0.3);
-  --badge-bg: rgba(157, 41, 51, 0.1);
-}
-
-// 主题6: 青花瓷 (钴蓝/瓷白)
-.app-root.theme-blue-porcelain {
-  --color-primary: #2563EB;           // 钴蓝
-  --color-primary-dark: #1D4ED8;      // 暗钴蓝
-  --color-primary-light: #3B82F6;     // 浅钴蓝
-  --color-secondary: #1E40AF;         // 深青花
-  --color-secondary-light: #3B5998;   // 浅深青
-  --gradient-primary: linear-gradient(135deg, #2563EB 0%, #1E40AF 100%);
-  --gradient-primary-h: linear-gradient(90deg, #2563EB 0%, #1E40AF 100%);
-  --gradient-light: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
-  --shadow-color: rgba(37, 99, 235, 0.15);
-  --shadow-button: 0 8rpx 28rpx 0 rgba(37, 99, 235, 0.3);
-  --badge-bg: rgba(37, 99, 235, 0.1);
-}
-
-// 主题7: 茶韵 (茶褐/黛绿)
-.app-root.theme-tea {
-  --color-primary: #6B4423;           // 茶褐色
-  --color-primary-dark: #523318;      // 暗茶褐
-  --color-primary-light: #8B5A2B;     // 浅茶褐
-  --color-secondary: #4A5D23;         // 黛绿
-  --color-secondary-light: #5C7A2D;   // 浅黛绿
-  --gradient-primary: linear-gradient(135deg, #6B4423 0%, #4A5D23 100%);
-  --gradient-primary-h: linear-gradient(90deg, #6B4423 0%, #4A5D23 100%);
-  --gradient-light: linear-gradient(135deg, #FEF9E7 0%, #F7F3E3 100%);
-  --shadow-color: rgba(107, 68, 35, 0.15);
-  --shadow-button: 0 8rpx 28rpx 0 rgba(107, 68, 35, 0.3);
-  --badge-bg: rgba(107, 68, 35, 0.1);
-}
-
-// 主题8: 紫禁 (帝王紫/玄金)
-.app-root.theme-imperial-purple {
-  --color-primary: #6B21A8;           // 帝王紫
-  --color-primary-dark: #581C87;      // 暗帝紫
-  --color-primary-light: #7C3AED;     // 浅帝紫
-  --color-secondary: #9333EA;         // 藤紫
-  --color-secondary-light: #A855F7;   // 浅藤紫
-  --gradient-primary: linear-gradient(135deg, #6B21A8 0%, #9333EA 100%);
-  --gradient-primary-h: linear-gradient(90deg, #6B21A8 0%, #9333EA 100%);
-  --gradient-light: linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%);
-  --shadow-color: rgba(107, 33, 168, 0.15);
-  --shadow-button: 0 8rpx 28rpx 0 rgba(107, 33, 168, 0.3);
-  --badge-bg: rgba(107, 33, 168, 0.1);
+.app-root.theme-green {
+  --theme-primary: #5F8F74;
+  --theme-primary-soft: #EAF3EE;
+  --theme-primary-soft-2: #DCEADF;
+  --theme-accent: #466B56;
+  --theme-gradient-soft: linear-gradient(180deg, rgba(95, 143, 116, 0.14) 0%, rgba(95, 143, 116, 0.05) 55%, transparent 100%);
+  --theme-border-accent: rgba(95, 143, 116, 0.18);
+  --theme-shadow-accent: rgba(95, 143, 116, 0.16);
 }

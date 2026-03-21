@@ -1,10 +1,11 @@
 import { View, Text, Image, Input as TaroInput, Picker, Button as TaroButton } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { Button } from '@nutui/nutui-react-taro';
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { userApi } from '@hospital/api';
 import { STORAGE_KEYS } from '@hospital/shared';
 import { getToken, setStorage } from '../../../utils/auth';
+import { useProtectedPage } from '../../../hooks/useProtectedPage';
 import { getFontMode, type FontMode } from '../../../utils/fontMode';
 import { UserIcon } from '../../../components/Icons';
 import LoginPopup from '../../../components/LoginPopup';
@@ -23,7 +24,6 @@ const ProfileEditPage = () => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const [showLoginPopup, setShowLoginPopup] = useState(false);
 
   // 表单数据
   const [nickname, setNickname] = useState('');
@@ -38,40 +38,29 @@ const ProfileEditPage = () => {
   // 字体模式
   const [fontMode] = useState<FontMode>(getFontMode());
 
-  useEffect(() => {
-    checkLoginAndLoad();
-  }, []);
-
-  const checkLoginAndLoad = async () => {
-    const token = getToken();
-    if (!token) {
-      setLoading(false);
-      setShowLoginPopup(true);
-      return;
-    }
-    await loadProfile();
-  };
-
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     setLoading(true);
     try {
       const data = await userApi.getProfile();
       setUser(data);
       setNickname(data.nickname || '');
       setAvatar(data.avatar || '');
-      setGender(data.gender || 0);
+      setGender(data.gender ?? 0);
     } catch (error) {
       console.error('加载用户信息失败', error);
       Taro.showToast({ title: '加载失败', icon: 'none' });
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleLoginSuccess = () => {
-    setShowLoginPopup(false);
-    loadProfile();
-  };
+  const { showLoginPopup, handleLoginSuccess, handleLoginClose } = useProtectedPage({
+    load: loadProfile,
+    clear: () => {
+      setUser(null);
+      setLoading(false);
+    },
+  });
 
   // 获取微信头像
   const handleChooseWechatAvatar = (e: any) => {
@@ -419,12 +408,7 @@ const ProfileEditPage = () => {
       {/* 登录弹窗 */}
       <LoginPopup
         visible={showLoginPopup}
-        onClose={() => {
-          setShowLoginPopup(false);
-          if (!getToken()) {
-            Taro.navigateBack();
-          }
-        }}
+        onClose={handleLoginClose}
         onSuccess={handleLoginSuccess}
       />
     </View>
@@ -432,4 +416,3 @@ const ProfileEditPage = () => {
 };
 
 export default ProfileEditPage;
-

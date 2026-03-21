@@ -486,7 +486,7 @@ async def batch_create_schedules(
     """批量创建排班"""
     service = ScheduleService(db)
     try:
-        created_count = await service.batch_create(data, operator_id=current_admin.id)
+        created_count = await service.batch_create(data, operator_id=current_admin.get("id"))
         return BatchOperateResponse(
             success=True,
             affected_count=created_count,

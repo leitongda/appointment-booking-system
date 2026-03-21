@@ -1,12 +1,14 @@
 import { View, Text } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { Switch, Button, Cell, Dialog, Input } from '@nutui/nutui-react-taro';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { STORAGE_KEYS } from '@hospital/shared';
-import { getToken, removeToken, removeStorage } from '../../../utils/auth';
+import { clearAuthSession, getToken } from '../../../utils/auth';
 import { userApi } from '@hospital/api';
-import { getFontMode, applyFontMode, getFontModeClassName, type FontMode } from '../../../utils/fontMode';
-import { getCurrentTheme, applyTheme, getThemeList } from '../../../utils/theme';
+import { useProtectedPage } from '../../../hooks/useProtectedPage';
+import { getFontMode, applyFontMode, type FontMode } from '../../../utils/fontMode';
+import { getCurrentTheme, getCurrentThemeLabel, applyTheme, getThemeList, subscribeThemeChange } from '../../../utils/theme';
+import type { ThemeName } from '../../../config/theme.config';
 import LoginPopup from '../../../components/LoginPopup';
 import './index.less';
 
@@ -36,35 +38,31 @@ const SettingsPage = () => {
   const [newPhone, setNewPhone] = useState('');
   const [phoneLoading, setPhoneLoading] = useState(false);
 
-  // 登录弹窗
-  const [showLoginPopup, setShowLoginPopup] = useState(false);
+  useEffect(
+    () =>
+      subscribeThemeChange(({ themeName }) => {
+        setCurrentTheme(themeName);
+      }),
+    []
+  );
 
-  useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      Taro.showToast({ title: '请先登录', icon: 'none' });
-      setShowLoginPopup(true);
-      return;
-    }
-    setIsLoggedIn(true);
-    loadUserInfo();
-  }, []);
-
-  // 登录成功后加载用户信息
-  const handleLoginSuccess = () => {
-    setShowLoginPopup(false);
-    setIsLoggedIn(true);
-    loadUserInfo();
-  };
-
-  const loadUserInfo = async () => {
+  const loadUserInfo = useCallback(async () => {
     try {
       const user = await userApi.getProfile();
+      setIsLoggedIn(true);
       setUserPhone(user.phone || '');
     } catch (error) {
       console.error('获取用户信息失败', error);
     }
-  };
+  }, []);
+
+  const { showLoginPopup, handleLoginSuccess, handleLoginClose } = useProtectedPage({
+    load: loadUserInfo,
+    clear: () => {
+      setIsLoggedIn(false);
+      setUserPhone('');
+    },
+  });
 
   const handleClearCache = async () => {
     const result = await Taro.showModal({
@@ -74,12 +72,23 @@ const SettingsPage = () => {
 
     if (result.confirm) {
       try {
-        // 保留用户登录信息
         const token = getToken();
+        const storeContext = Taro.getStorageSync(STORAGE_KEYS.STORE_CONTEXT);
+        const themeStorageKey = storeContext?.storeId ? `${STORAGE_KEYS.CURRENT_THEME}:${storeContext.storeId}` : '';
+        const currentThemeValue = themeStorageKey ? Taro.getStorageSync(themeStorageKey) : '';
+        const fontModeValue = Taro.getStorageSync(STORAGE_KEYS.FONT_MODE);
         await Taro.clearStorage();
-        // 恢复登录信息
         if (token) {
           Taro.setStorageSync(STORAGE_KEYS.TOKEN, token);
+        }
+        if (storeContext) {
+          Taro.setStorageSync(STORAGE_KEYS.STORE_CONTEXT, storeContext);
+        }
+        if (themeStorageKey && currentThemeValue) {
+          Taro.setStorageSync(themeStorageKey, currentThemeValue);
+        }
+        if (fontModeValue) {
+          Taro.setStorageSync(STORAGE_KEYS.FONT_MODE, fontModeValue);
         }
         Taro.showToast({ title: '缓存已清除', icon: 'success' });
       } catch (error) {
@@ -163,8 +172,7 @@ const SettingsPage = () => {
     });
 
     if (result.confirm) {
-      removeToken();
-      removeStorage(STORAGE_KEYS.USER_INFO);
+      clearAuthSession('logout');
       Taro.showToast({ title: '已退出登录', icon: 'success' });
       // 退出后跳转到首页
       Taro.switchTab({ url: '/pages/index/index' });
@@ -187,7 +195,7 @@ const SettingsPage = () => {
   };
 
   // 切换主题
-  const handleThemeChange = (themeName: string) => {
+  const handleThemeChange = (themeName: ThemeName) => {
     applyTheme(themeName);
     setCurrentTheme(themeName);
     setShowThemePicker(false);
@@ -205,13 +213,13 @@ const SettingsPage = () => {
         <View className="cell-group">
           <Cell
             title="修改密码"
-            isLink
+            extra={<Text>›</Text>}
             onClick={handleChangePassword}
           />
           <Cell
             title="手机号绑定"
             description={userPhone ? userPhone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') : '未绑定'}
-            isLink
+            extra={<Text>›</Text>}
             onClick={handleBindPhone}
           />
         </View>
@@ -248,8 +256,8 @@ const SettingsPage = () => {
         <View className="cell-group">
           <Cell
             title="主题风格"
-            description={currentTheme}
-            isLink
+            description={getCurrentThemeLabel()}
+            extra={<Text>›</Text>}
             onClick={() => setShowThemePicker(true)}
           />
           <Cell
@@ -271,17 +279,17 @@ const SettingsPage = () => {
         <View className="cell-group">
           <Cell
             title="清除缓存"
-            isLink
+            extra={<Text>›</Text>}
             onClick={handleClearCache}
           />
           <Cell
             title="用户协议"
-            isLink
+            extra={<Text>›</Text>}
             onClick={() => handleViewAgreement('user')}
           />
           <Cell
             title="隐私政策"
-            isLink
+            extra={<Text>›</Text>}
             onClick={() => handleViewAgreement('privacy')}
           />
         </View>
@@ -386,12 +394,12 @@ const SettingsPage = () => {
         <View className="theme-picker">
           {themeList.map(theme => (
             <View
-              key={theme.name}
-              className={`theme-item ${currentTheme === theme.name ? 'active' : ''}`}
-              onClick={() => handleThemeChange(theme.name)}
+              key={theme.value}
+              className={`theme-item ${currentTheme === theme.value ? 'active' : ''}`}
+              onClick={() => handleThemeChange(theme.value)}
             >
               <View className="theme-color" style={{ background: theme.color }} />
-              <Text className="theme-name">{theme.name}</Text>
+              <Text className="theme-name">{theme.label}</Text>
             </View>
           ))}
         </View>
@@ -400,12 +408,7 @@ const SettingsPage = () => {
       {/* 登录弹窗 */}
       <LoginPopup
         visible={showLoginPopup}
-        onClose={() => {
-          setShowLoginPopup(false);
-          if (!getToken()) {
-            Taro.navigateBack();
-          }
-        }}
+        onClose={handleLoginClose}
         onSuccess={handleLoginSuccess}
       />
     </View>

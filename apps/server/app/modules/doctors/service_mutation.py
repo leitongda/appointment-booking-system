@@ -27,6 +27,7 @@ class DoctorMutationMixin:
                 phone=data.phone,
                 password_hash=password_hash,
                 nickname=data.name,
+                gender=data.gender,
                 status=1,
             )
             set_create_audit(user, operator_id)

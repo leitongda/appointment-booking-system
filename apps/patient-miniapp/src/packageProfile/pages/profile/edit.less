@@ -54,7 +54,7 @@
   width: 52rpx;
   height: 52rpx;
   border-radius: @radius-full;
-  background: var(--color-primary, @theme-primary);
+  background: var(--theme-primary);
   border: 4rpx solid @color-bg-white;
   display: flex;
   align-items: center;
@@ -97,8 +97,8 @@
   }
 
   .album-btn {
-    color: var(--color-primary, @theme-primary);
-    background: var(--badge-bg, rgba(30, 111, 217, 0.12));
+    color: var(--theme-primary);
+    background: var(--theme-primary-soft, rgba(77, 124, 184, 0.12));
   }
 }
 
@@ -247,7 +247,7 @@
 
   &.confirm {
     color: @color-text-white;
-    background: var(--color-primary, @theme-primary);
+    background: var(--theme-primary);
 
     &.disabled {
       background: @color-bg-tertiary;

@@ -1,12 +1,13 @@
 import { View, Text, Image } from '@tarojs/components';
 import Taro, { usePullDownRefresh, useReachBottom } from '@tarojs/taro';
 import { Button, Swipe, Empty } from '@nutui/nutui-react-taro';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { favoriteApi } from '@hospital/api';
 import type { Favorite } from '@hospital/api';
 import { DoctorIcon } from '../../../components/Icons';
 import { getToken } from '../../../utils/auth';
-import { getThemePrimaryColor } from '../../../utils/theme';
+import { useProtectedPage } from '../../../hooks/useProtectedPage';
+import { useThemePrimaryColor } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import { getImageUrl } from '../../../utils/url';
 import './index.less';
@@ -14,31 +15,12 @@ import './index.less';
 const PAGE_SIZE = 20;
 
 const FavoritePage = () => {
+  const primaryColor = useThemePrimaryColor();
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
-  const [showLoginPopup, setShowLoginPopup] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-
-  useEffect(() => {
-    // 检查登录状态
-    const token = getToken();
-    if (!token) {
-      Taro.showToast({ title: '请先登录', icon: 'none' });
-      setShowLoginPopup(true);
-      setLoading(false);
-      return;
-    }
-    loadFavorites();
-  }, []);
-
-  // 页面显示时刷新数据
-  Taro.useDidShow(() => {
-    if (getToken()) {
-      resetAndLoad();
-    }
-  });
 
   // 上拉加载更多
   useReachBottom(() => {
@@ -47,12 +29,6 @@ const FavoritePage = () => {
     }
   });
 
-  // 登录成功后加载数据
-  const handleLoginSuccess = () => {
-    setShowLoginPopup(false);
-    loadFavorites();
-  };
-
   // 下拉刷新
   usePullDownRefresh(() => {
     resetAndLoad().finally(() => {
@@ -60,14 +36,7 @@ const FavoritePage = () => {
     });
   });
 
-  // 重置并加载
-  const resetAndLoad = useCallback(async () => {
-    setPage(1);
-    setHasMore(true);
-    return loadFavorites();
-  }, []);
-
-  const loadFavorites = async () => {
+  const loadFavorites = useCallback(async () => {
     try {
       const result = await favoriteApi.getList({ targetType: 'doctor', page: 1, pageSize: PAGE_SIZE });
       setFavorites(result.data || []);
@@ -77,7 +46,35 @@ const FavoritePage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // 重置并加载
+  const resetAndLoad = useCallback(async () => {
+    setPage(1);
+    setHasMore(true);
+    return loadFavorites();
+  }, [loadFavorites]);
+
+  const {
+    showLoginPopup,
+    handleLoginSuccess,
+    handleLoginClose,
+  } = useProtectedPage({
+    load: resetAndLoad,
+    clear: () => {
+      setFavorites([]);
+      setPage(1);
+      setHasMore(true);
+      setLoading(false);
+    },
+  });
+
+  // 页面显示时刷新数据
+  Taro.useDidShow(() => {
+    if (getToken()) {
+      void resetAndLoad();
+    }
+  });
 
   const loadMoreFavorites = async () => {
     if (loadingMore || !hasMore) return;
@@ -158,7 +155,7 @@ const FavoritePage = () => {
                   {favorite.target?.avatar ? (
                     <Image src={getImageUrl(favorite.target.avatar)} mode="aspectFill" />
                   ) : (
-                    <DoctorIcon size={32} color={getThemePrimaryColor()} />
+                    <DoctorIcon size={32} color={primaryColor} />
                   )}
                 </View>
                 <View className="doctor-info">
@@ -206,12 +203,7 @@ const FavoritePage = () => {
       {/* 登录弹窗 */}
       <LoginPopup
         visible={showLoginPopup}
-        onClose={() => {
-          setShowLoginPopup(false);
-          if (!getToken()) {
-            Taro.navigateBack();
-          }
-        }}
+        onClose={handleLoginClose}
         onSuccess={handleLoginSuccess}
       />
     </View>
@@ -219,4 +211,3 @@ const FavoritePage = () => {
 };
 
 export default FavoritePage;
-

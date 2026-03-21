@@ -1,6 +1,6 @@
 import { View, Text, Swiper, SwiperItem, Image } from '@tarojs/components';
 import Taro, { usePullDownRefresh, useDidShow } from '@tarojs/taro';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { contentApi, doctorApi, userApi } from '@hospital/api';
 import type { Banner } from '@hospital/api';
 import type { Doctor, Patient } from '@hospital/shared';
@@ -14,8 +14,8 @@ import {
   AddUserIcon,
 } from '../../components/Icons';
 import { PageContainer } from '../../components/PageContainer';
-import { getToken } from '../../utils/auth';
-import { getThemePrimaryColor } from '../../utils/theme';
+import { AUTH_EVENTS, getToken, subscribeAuthChange } from '../../utils/auth';
+import { useThemePrimaryColor } from '../../utils/theme';
 import LoginPopup from '../../components/LoginPopup';
 import { getImageUrl } from '../../utils/url';
 import { triggerCheckinScan } from '../../utils/checkin';
@@ -45,10 +45,14 @@ const requireLoginPaths = [
 // 需要登录的 action
 const requireLoginActions = ['checkin'];
 
+type PatientLoadState = 'unauthenticated' | 'no_patient' | 'has_patient' | 'load_failed';
+
 const IndexPage = () => {
+  const primaryColor = useThemePrimaryColor();
   const [banners, setBanners] = useState<Banner[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [defaultPatient, setDefaultPatient] = useState<Patient | null>(null);
+  const [patientLoadState, setPatientLoadState] = useState<PatientLoadState>('unauthenticated');
   const [loading, setLoading] = useState(true);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
   const [pendingPatientCardNav, setPendingPatientCardNav] = useState(false);
@@ -60,7 +64,7 @@ const IndexPage = () => {
 
   // 页面显示时刷新就诊卡（可能用户新增了就诊卡）
   useDidShow(() => {
-    loadPatients();
+    void loadPatients();
     // 更新 TabBar 选中状态
     Taro.eventCenter.trigger('tabbar:change', 0);
   });
@@ -105,24 +109,46 @@ const IndexPage = () => {
   };
 
   // 加载就诊卡数据，返回是否有就诊卡（用于登录后立即判断跳转）
-  const loadPatients = async (): Promise<boolean> => {
+  const loadPatients = useCallback(async (): Promise<PatientLoadState> => {
     const token = getToken();
     if (!token) {
       setDefaultPatient(null);
-      return false;
+      setPatientLoadState('unauthenticated');
+      return 'unauthenticated';
     }
     try {
       const patients = await userApi.getPatients();
       // 找到默认就诊卡，如果没有默认则取第一个
       const defaultOne = patients.find((p) => p.isDefault) || patients[0] || null;
       setDefaultPatient(defaultOne);
-      return patients.length > 0;
+      const nextState: PatientLoadState = patients.length > 0 ? 'has_patient' : 'no_patient';
+      setPatientLoadState(nextState);
+      return nextState;
     } catch (error) {
       console.error('[首页] 加载就诊卡失败:', error);
       setDefaultPatient(null);
-      return false;
+      setPatientLoadState('load_failed');
+      return 'load_failed';
     }
-  };
+  }, []);
+
+  useEffect(
+    () =>
+      subscribeAuthChange((payload) => {
+        if (payload.type === AUTH_EVENTS.LOGOUT || payload.type === AUTH_EVENTS.EXPIRED) {
+          setDefaultPatient(null);
+          setPatientLoadState('unauthenticated');
+          setPendingPatientCardNav(false);
+          setPendingCheckinAction(false);
+          return;
+        }
+
+        if (payload.type === AUTH_EVENTS.LOGIN || payload.type === AUTH_EVENTS.UPDATED) {
+          void loadPatients();
+        }
+      }),
+    [loadPatients]
+  );
 
   // 跳转到就诊卡页面（根据是否有就诊卡决定跳转到列表还是新增）
   // 优化：使用本地 defaultPatient 状态判断，避免每次点击都调用 API 导致延迟
@@ -147,16 +173,17 @@ const IndexPage = () => {
     }
     
     try {
-      const hasPatients = await loadPatients();
+      const patientState = await loadPatients();
       
       // 如果是从就诊卡入口触发的登录，自动跳转
       if (pendingPatientCardNav) {
         setPendingPatientCardNav(false);
-        // 使用 loadPatients 返回值判断，避免 React 状态更新延迟问题
-        if (hasPatients) {
+        if (patientState === 'has_patient') {
           Taro.navigateTo({ url: '/packageProfile/pages/patient/index' });
-        } else {
+        } else if (patientState === 'no_patient') {
           Taro.navigateTo({ url: '/packageProfile/pages/patient/edit' });
+        } else if (patientState === 'load_failed') {
+          Taro.showToast({ title: '加载就诊人失败，请重试', icon: 'none' });
         }
       }
       
@@ -237,6 +264,12 @@ const IndexPage = () => {
       return;
     }
 
+    if (patientLoadState === 'load_failed') {
+      Taro.showToast({ title: '加载就诊人失败，请重试', icon: 'none' });
+      void loadPatients();
+      return;
+    }
+
     // 执行跳转逻辑
     navigateToPatientPage();
   };
@@ -276,7 +309,7 @@ const IndexPage = () => {
             return (
               <View key={menu.action || menu.path} className="menu-item" onClick={() => handleMenuClick(menu)}>
                 <View className="menu-icon-wrap">
-                  <IconComponent size={28} color={getThemePrimaryColor()} />
+                  <IconComponent size={28} color={primaryColor} />
                 </View>
                 <Text className="menu-title">{menu.title}</Text>
               </View>
@@ -290,7 +323,7 @@ const IndexPage = () => {
         {defaultPatient ? (
           <>
             <View className="card-icon">
-              <CardIcon size={32} color={getThemePrimaryColor()} />
+              <CardIcon size={32} color={primaryColor} />
             </View>
             <View className="card-info">
               <Text className="card-name">{defaultPatient.name}</Text>
@@ -334,7 +367,7 @@ const IndexPage = () => {
                   {doctor.avatar ? (
                     <Image className="avatar-image" src={getImageUrl(doctor.avatar)} mode="aspectFill" />
                   ) : (
-                    <DoctorIcon size={32} color={getThemePrimaryColor()} />
+                    <DoctorIcon size={32} color={primaryColor} />
                   )}
                 </View>
                 <View className="doctor-info">

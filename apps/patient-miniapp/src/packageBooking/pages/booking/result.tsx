@@ -1,30 +1,21 @@
 import { View, Text } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
-import { useState, useEffect } from 'react';
+import { useCallback } from 'react';
 import { Button } from '@nutui/nutui-react-taro';
 import { CheckIcon } from '../../../components/Icons';
-import { getToken } from '../../../utils/auth';
+import { useProtectedPage } from '../../../hooks/useProtectedPage';
 import LoginPopup from '../../../components/LoginPopup';
 import './result.less';
 
 const BookingResultPage = () => {
   const router = useRouter();
   const { appointmentNo } = router.params;
-  const [showLoginPopup, setShowLoginPopup] = useState(false);
 
-  useEffect(() => {
-    // 检查登录状态，防止直接访问
-    const token = getToken();
-    if (!token) {
-      Taro.showToast({ title: '请先登录', icon: 'none' });
-      setShowLoginPopup(true);
-    }
-  }, []);
-
-  // 登录成功回调
-  const handleLoginSuccess = () => {
-    setShowLoginPopup(false);
-  };
+  const noop = useCallback(async () => {}, []);
+  const { showLoginPopup, handleLoginSuccess, handleLoginClose } = useProtectedPage({
+    load: noop,
+    deps: [appointmentNo],
+  });
 
   const handleViewDetail = () => {
     Taro.redirectTo({ url: `/packageBooking/pages/appointment/detail?appointmentNo=${appointmentNo}` });
@@ -72,12 +63,7 @@ const BookingResultPage = () => {
       {/* 登录弹窗 */}
       <LoginPopup
         visible={showLoginPopup}
-        onClose={() => {
-          setShowLoginPopup(false);
-          if (!getToken()) {
-            Taro.navigateBack();
-          }
-        }}
+        onClose={handleLoginClose}
         onSuccess={handleLoginSuccess}
       />
     </View>

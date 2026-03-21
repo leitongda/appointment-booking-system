@@ -1,12 +1,12 @@
 import { View, Text, Image, Textarea } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
 import { Button, Radio } from '@nutui/nutui-react-taro';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { doctorApi, userApi, appointmentApi, bookingNoticeApi, settingsApi } from '@hospital/api';
 import type { BookingNotice, TimePeriodConfig } from '@hospital/api';
 import { TIME_SLOT_MAP, getPeriodNameFromTime } from '@hospital/shared';
-import { getToken } from '../../../utils/auth';
-import { getThemePrimaryColor } from '../../../utils/theme';
+import { useProtectedPage } from '../../../hooks/useProtectedPage';
+import { useThemePrimaryColor } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import type { Doctor, Patient } from '@hospital/shared';
 import { DoctorIcon, UserIcon } from '../../../components/Icons';
@@ -14,6 +14,7 @@ import { getImageUrl } from '../../../utils/url';
 import './index.less';
 
 const BookingPage = () => {
+  const primaryColor = useThemePrimaryColor();
   const router = useRouter();
   const { doctorId, scheduleId, date, timeSlot } = router.params;
   // 解码时间参数（URL 中的 %3A 需要解码为冒号）
@@ -25,7 +26,6 @@ const BookingPage = () => {
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
-  const [showLoginPopup, setShowLoginPopup] = useState(false);
   
   // 病情描述
   const [symptomDescription, setSymptomDescription] = useState('');
@@ -40,24 +40,7 @@ const BookingPage = () => {
   // 时段配置
   const [timePeriods, setTimePeriods] = useState<TimePeriodConfig[]>([]);
 
-  useEffect(() => {
-    // 检查登录状态
-    const token = getToken();
-    if (!token) {
-      setShowLoginPopup(true);
-      setLoading(false);
-      return;
-    }
-    loadData();
-  }, []);
-
-  // 登录成功后加载数据
-  const handleLoginSuccess = () => {
-    setShowLoginPopup(false);
-    loadData();
-  };
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [doctorData, patientsData, notices, hospitalInfo, timePeriodsRes] = await Promise.all([
         doctorApi.getDetail(doctorId!),
@@ -73,7 +56,7 @@ const BookingPage = () => {
       setTimePeriods(timePeriodsRes.periods || []);
       
       if (hospitalInfo) {
-        setHospitalName(hospitalInfo.name || '');
+        setHospitalName(hospitalInfo.hospitalName || '');
         setHospitalAddress(hospitalInfo.address || '');
       }
 
@@ -86,7 +69,18 @@ const BookingPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [doctorId]);
+
+  const { showLoginPopup, handleLoginSuccess, handleLoginClose } = useProtectedPage({
+    load: loadData,
+    clear: () => {
+      setDoctor(null);
+      setPatients([]);
+      setSelectedPatientId('');
+      setBookingNotices([]);
+      setLoading(false);
+    },
+  });
 
   // 获取选中的就诊人
   const selectedPatient = patients.find(p => p.id === selectedPatientId);
@@ -192,7 +186,7 @@ const BookingPage = () => {
             {selectedPatient ? (
               <View className="selected-patient">
                 <View className="patient-avatar">
-                  <UserIcon size={28} color={getThemePrimaryColor()} />
+                  <UserIcon size={28} color={primaryColor} />
                 </View>
                 <View className="patient-details">
                   <Text className="patient-name">{selectedPatient.name}</Text>
@@ -244,7 +238,7 @@ const BookingPage = () => {
             {doctor?.avatar ? (
               <Image src={getImageUrl(doctor.avatar)} mode="aspectFill" />
             ) : (
-              <DoctorIcon size={36} color={getThemePrimaryColor()} />
+              <DoctorIcon size={36} color={primaryColor} />
             )}
           </View>
           <View className="doctor-info">
@@ -342,13 +336,7 @@ const BookingPage = () => {
       {/* 登录弹窗 */}
       <LoginPopup
         visible={showLoginPopup}
-        onClose={() => {
-          setShowLoginPopup(false);
-          // 如果关闭登录弹窗且未登录，返回上一页
-          if (!getToken()) {
-            Taro.navigateBack();
-          }
-        }}
+        onClose={handleLoginClose}
         onSuccess={handleLoginSuccess}
       />
     </View>

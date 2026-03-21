@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { departmentApi } from '@hospital/api';
 import type { DepartmentTreeNode } from '@hospital/shared';
 import { SearchIcon, getDeptIcon } from '../../components/Icons';
-import { getThemePrimaryColor } from '../../utils/theme';
+import { useThemePrimaryColor } from '../../utils/theme';
 import './index.less';
 
 // 获取所有叶子科室（无子科室的科室）
@@ -29,6 +29,7 @@ const isFlatStructure = (departments: DepartmentTreeNode[]): boolean => {
 };
 
 const DepartmentPage = () => {
+  const primaryColor = useThemePrimaryColor();
   const [loading, setLoading] = useState(true);
   const [departments, setDepartments] = useState<DepartmentTreeNode[]>([]);
   const [activeIndex, setActiveIndex] = useState<number>(0);
@@ -129,10 +130,10 @@ const DepartmentPage = () => {
                 <View
                   key={dept.id}
                   className="flat-item"
-                  onClick={() => handleSelectDept(dept.id, dept.name)}
+                    onClick={() => handleSelectDept(dept.id, dept.name)}
                 >
                   <View className="flat-icon">
-                    <IconComponent size={28} color={getThemePrimaryColor()} />
+                    <IconComponent size={28} color={primaryColor} />
                   </View>
                   <Text className="flat-name">{dept.name}</Text>
                 </View>
@@ -184,7 +185,7 @@ const DepartmentPage = () => {
                 >
                   <View className="dept-content">
                     <View className="dept-icon">
-                      <IconComponent size={20} color={getThemePrimaryColor()} />
+                      <IconComponent size={20} color={primaryColor} />
                     </View>
                     <View>
                       <Text className="dept-name">{child.name}</Text>

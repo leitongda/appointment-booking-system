@@ -1,15 +1,14 @@
 import { View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import { useState, useEffect, useRef } from 'react';
-import { getToken } from '../../../utils/auth';
+import { useEffect, useRef, useCallback } from 'react';
+import { useProtectedPage } from '../../../hooks/useProtectedPage';
 import LoginPopup from '../../../components/LoginPopup';
 import './scan.less';
 
 const CheckinScanPage = () => {
-  const [showLoginPopup, setShowLoginPopup] = useState(false);
   const hasTriggeredScan = useRef(false);
 
-  const handleScan = async () => {
+  const handleScan = useCallback(async () => {
     try {
       // 调用微信扫码 API
       const result = await Taro.scanCode({
@@ -53,17 +52,12 @@ const CheckinScanPage = () => {
         Taro.navigateBack();
       }, 300);
     }
-  };
+  }, []);
 
-  const triggerScan = () => {
-    // 检查登录状态
-    const token = getToken();
-    if (!token) {
-      setShowLoginPopup(true);
-      return;
-    }
-    handleScan();
-  };
+  const { showLoginPopup, handleLoginSuccess, handleLoginClose, ensureAuthenticated } =
+    useProtectedPage({
+      load: handleScan,
+    });
 
   useEffect(() => {
     // 避免重复触发
@@ -72,29 +66,18 @@ const CheckinScanPage = () => {
 
     // 延迟一点触发扫码，确保页面已完成渲染
     const timer = setTimeout(() => {
-      triggerScan();
+      void ensureAuthenticated();
     }, 100);
 
     return () => clearTimeout(timer);
-  }, []);
-
-  const handleLoginSuccess = () => {
-    setShowLoginPopup(false);
-    // 登录成功后直接触发扫码
-    handleScan();
-  };
+  }, [ensureAuthenticated]);
 
   return (
     <View className="checkin-scan-page">
       {/* 登录弹窗 */}
       <LoginPopup
         visible={showLoginPopup}
-        onClose={() => {
-          setShowLoginPopup(false);
-          if (!getToken()) {
-            Taro.navigateBack();
-          }
-        }}
+        onClose={handleLoginClose}
         onSuccess={handleLoginSuccess}
       />
     </View>
@@ -102,4 +85,3 @@ const CheckinScanPage = () => {
 };
 
 export default CheckinScanPage;
-

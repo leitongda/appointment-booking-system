@@ -5,6 +5,8 @@
 
 import type { HttpClient } from '../request';
 
+type Awaitable<T> = T | Promise<T>;
+
 /**
  * 将 params 对象序列化为 URL 查询字符串
  */
@@ -26,19 +28,23 @@ const serializeParams = (params: Record<string, any>): string => {
   return parts.join('&');
 };
 
-// Taro 类型声明（避免直接依赖 @tarojs/taro）
-interface TaroRequestOption {
+export interface TaroRequestOption {
   url: string;
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD';
   data?: any;
   header?: Record<string, string>;
   timeout?: number;
+  _relativeUrl?: string;
+  _retry?: boolean;
+  _skipAuthRefresh?: boolean;
+  _storeIdInjected?: boolean;
 }
 
 interface TaroRequestResult<T = any> {
   data: T;
   statusCode: number;
   header: Record<string, string>;
+  config?: TaroRequestOption;
 }
 
 interface TaroStatic {
@@ -47,10 +53,9 @@ interface TaroStatic {
   setStorageSync: (key: string, value: string) => void;
 }
 
-// 拦截器类型
-type RequestInterceptor = (config: TaroRequestOption) => TaroRequestOption;
-type ResponseInterceptor<T = any> = (response: TaroRequestResult<T>) => any;
-type ErrorInterceptor = (error: any) => any;
+type RequestInterceptor = (config: TaroRequestOption) => Awaitable<TaroRequestOption>;
+type ResponseInterceptor<T = any> = (response: TaroRequestResult<T>) => Awaitable<any>;
+type ErrorInterceptor = (error: any) => Awaitable<any>;
 
 /**
  * Taro 适配器配置
@@ -64,6 +69,16 @@ export interface TaroAdapterConfig {
   headers?: Record<string, string>;
 }
 
+const isAbsoluteUrl = (url: string) => /^https?:\/\//.test(url);
+
+const normalizeUrl = (baseURL: string, url: string) => {
+  if (isAbsoluteUrl(url)) {
+    return url;
+  }
+
+  return `${baseURL}${url}`;
+};
+
 /**
  * 创建 Taro 请求适配器
  * @param Taro Taro 实例（需要在调用时传入，避免包依赖）
@@ -71,82 +86,103 @@ export interface TaroAdapterConfig {
  */
 export const createTaroAdapter = (Taro: TaroStatic, config: TaroAdapterConfig): HttpClient => {
   const { baseURL, timeout = 30000, headers: defaultHeaders = {} } = config;
-  
-  // 请求拦截器列表
+
   const requestInterceptors: { onFulfilled: RequestInterceptor; onRejected?: ErrorInterceptor }[] = [];
-  // 响应拦截器列表
   const responseInterceptors: { onFulfilled?: ResponseInterceptor; onRejected?: ErrorInterceptor }[] = [];
-  
-  /**
-   * 执行请求
-   */
-  const doRequest = async <T = any>(
-    method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
-    url: string,
-    data?: any,
-    customHeaders?: Record<string, string>
-  ): Promise<T> => {
-    // 构建请求配置
-    let requestConfig: TaroRequestOption = {
-      url: `${adapter.defaults.baseURL}${url}`,
-      method,
-      data,
+
+  const buildRequestConfig = (requestConfig: TaroRequestOption): TaroRequestOption => {
+    const relativeUrl = requestConfig._relativeUrl || requestConfig.url;
+
+    return {
+      timeout,
+      ...requestConfig,
+      _relativeUrl: relativeUrl,
+      url: normalizeUrl(adapter.defaults.baseURL || '', requestConfig.url),
       header: {
         'Content-Type': 'application/json',
         ...defaultHeaders,
-        ...customHeaders,
+        ...requestConfig.header,
       },
-      timeout,
     };
-    
-    // 执行请求拦截器
+  };
+
+  const runRequestInterceptors = async (configToRun: TaroRequestOption) => {
+    let currentConfig = configToRun;
     for (const interceptor of requestInterceptors) {
       try {
-        requestConfig = interceptor.onFulfilled(requestConfig);
+        currentConfig = await interceptor.onFulfilled(currentConfig);
       } catch (error) {
         if (interceptor.onRejected) {
-          return Promise.reject(interceptor.onRejected(error));
+          currentConfig = await interceptor.onRejected(error);
+          continue;
         }
         throw error;
       }
     }
-    
-    try {
-      const response = await Taro.request<T>(requestConfig);
-      
-      // 执行响应拦截器
-      let result: any = response;
-      for (const interceptor of responseInterceptors) {
-        if (interceptor.onFulfilled) {
-          result = interceptor.onFulfilled(result);
-        }
+    return currentConfig;
+  };
+
+  const runResponseInterceptors = async <T = any>(response: TaroRequestResult<T>) => {
+    let currentResult: any = response;
+    for (const interceptor of responseInterceptors) {
+      if (!interceptor.onFulfilled) continue;
+      const nextResult = await interceptor.onFulfilled(currentResult);
+      if (typeof nextResult !== 'undefined') {
+        currentResult = nextResult;
       }
-      
-      // 如果响应拦截器返回了处理后的数据，直接返回
-      if (result !== response) {
+    }
+    return currentResult;
+  };
+
+  const runErrorInterceptors = async (error: any) => {
+    let currentError = error;
+    for (const interceptor of responseInterceptors) {
+      if (!interceptor.onRejected) continue;
+
+      try {
+        return await interceptor.onRejected(currentError);
+      } catch (nextError) {
+        currentError = nextError;
+      }
+    }
+
+    throw currentError;
+  };
+
+  const execute = async <T = any>(requestConfig: TaroRequestOption): Promise<T> => {
+    let preparedConfig = buildRequestConfig(requestConfig);
+    preparedConfig = await runRequestInterceptors(preparedConfig);
+
+    try {
+      const response = await Taro.request<T>(preparedConfig);
+      const responseWithConfig: TaroRequestResult<T> = {
+        ...response,
+        config: preparedConfig,
+      };
+      const result = await runResponseInterceptors(responseWithConfig);
+
+      if (result !== responseWithConfig) {
         return result;
       }
-      
-      // 默认返回 data
-      return response.data;
+
+      return responseWithConfig.data as T;
     } catch (error) {
-      // 执行错误拦截器
-      for (const interceptor of responseInterceptors) {
-        if (interceptor.onRejected) {
-          return Promise.reject(interceptor.onRejected(error));
-        }
-      }
-      throw error;
+      return runErrorInterceptors(error);
     }
   };
-  
+
+  const request = <T = any>(requestConfig: TaroRequestOption): Promise<T> => {
+    return execute<T>(requestConfig);
+  };
+
   const adapter: HttpClient = {
     defaults: {
       baseURL,
     },
-    
+
+    request,
+
     get: <T = any>(url: string, config?: any): Promise<T> => {
-      // 处理 params 参数，将其序列化到 URL
       let finalUrl = url;
       if (config?.params && typeof config.params === 'object') {
         const queryString = serializeParams(config.params);
@@ -155,19 +191,33 @@ export const createTaroAdapter = (Taro: TaroStatic, config: TaroAdapterConfig): 
           finalUrl = `${url}${separator}${queryString}`;
         }
       }
-      return doRequest<T>('GET', finalUrl, undefined, config?.headers);
+
+      return execute<T>({
+        url: finalUrl,
+        method: 'GET',
+        header: config?.headers,
+      });
     },
-    
+
     post: <T = any>(url: string, data?: any, config?: any): Promise<T> => {
-      return doRequest<T>('POST', url, data, config?.headers);
+      return execute<T>({
+        url,
+        method: 'POST',
+        data,
+        header: config?.headers,
+      });
     },
-    
+
     put: <T = any>(url: string, data?: any, config?: any): Promise<T> => {
-      return doRequest<T>('PUT', url, data, config?.headers);
+      return execute<T>({
+        url,
+        method: 'PUT',
+        data,
+        header: config?.headers,
+      });
     },
-    
+
     delete: <T = any>(url: string, config?: any): Promise<T> => {
-      // 处理 params 参数，将其序列化到 URL
       let finalUrl = url;
       if (config?.params && typeof config.params === 'object') {
         const queryString = serializeParams(config.params);
@@ -176,14 +226,23 @@ export const createTaroAdapter = (Taro: TaroStatic, config: TaroAdapterConfig): 
           finalUrl = `${url}${separator}${queryString}`;
         }
       }
-      return doRequest<T>('DELETE', finalUrl, undefined, config?.headers);
+
+      return execute<T>({
+        url: finalUrl,
+        method: 'DELETE',
+        header: config?.headers,
+      });
     },
-    
+
     patch: <T = any>(url: string, data?: any, config?: any): Promise<T> => {
-      return doRequest<T>('PATCH', url, data, config?.headers);
+      return execute<T>({
+        url,
+        method: 'PATCH',
+        data,
+        header: config?.headers,
+      });
     },
-    
-    // 拦截器（模拟 axios 接口）
+
     interceptors: {
       request: {
         use: (onFulfilled: RequestInterceptor, onRejected?: ErrorInterceptor) => {
@@ -211,7 +270,7 @@ export const createTaroAdapter = (Taro: TaroStatic, config: TaroAdapterConfig): 
       } as any,
     },
   };
-  
+
   return adapter;
 };
 
@@ -236,4 +295,3 @@ export const setTaroToken = (Taro: TaroStatic, token: string, key: string = 'tok
     console.error('[TaroAdapter] Failed to save token:', error);
   }
 };
-

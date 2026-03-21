@@ -205,14 +205,14 @@ async def adjust_points(
     patient_id: str,
     data: PointAdjustData,
     db: AsyncSession = Depends(get_db),
-    current_admin=Depends(get_current_admin),
+    current_admin: dict = Depends(get_current_admin),
 ):
     service = PointService(db)
     result = await service.adjust_points(
         patient_id=patient_id,
         amount=data.amount,
         remark=data.remark,
-        operator_id=current_admin.id,
+        operator_id=current_admin.get("id"),
         log_type=4,
     )
     if not result:

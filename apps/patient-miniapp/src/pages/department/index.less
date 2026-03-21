@@ -95,7 +95,7 @@
   
   &.active {
     background: @color-bg-white;
-    color: @color-primary;
+    color: var(--theme-primary);
     font-weight: @font-weight-semibold;
     
     &::before {
@@ -106,7 +106,7 @@
       transform: translateY(-50%);
       width: 6rpx;
       height: 40rpx;
-      background: @gradient-primary;
+      background: linear-gradient(135deg, var(--theme-primary, #4D7CB8) 0%, var(--theme-accent, #385E92) 100%);
       border-radius: 0 @radius-full @radius-full 0;
     }
   }
@@ -162,7 +162,8 @@
   width: 64rpx;
   height: 64rpx;
   border-radius: @radius-md;
-  background: rgba(196, 30, 58, 0.08);
+  background: var(--theme-primary-soft, rgba(77, 124, 184, 0.12));
+  border: 2rpx solid var(--theme-border-accent, rgba(77, 124, 184, 0.16));
   display: flex;
   align-items: center;
   justify-content: center;

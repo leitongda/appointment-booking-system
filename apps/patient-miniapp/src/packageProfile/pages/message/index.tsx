@@ -5,8 +5,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { messageApi, userApi } from '@hospital/api';
 import type { Message, MessageType } from '@hospital/shared';
 import { BellIcon, CalendarIcon, InfoIcon, ClockIcon, CloseCircleIcon, ChatIcon } from '../../../components/Icons';
-import { getToken } from '../../../utils/auth';
-import { getThemePrimaryColor } from '../../../utils/theme';
+import { useProtectedPage } from '../../../hooks/useProtectedPage';
+import { useThemePrimaryColor } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import './index.less';
 
@@ -57,6 +57,7 @@ const formatTime = (dateStr: string) => {
 };
 
 const MessagePage = () => {
+  const primaryColor = useThemePrimaryColor();
   const [activeTab, setActiveTab] = useState('all');
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,19 +67,14 @@ const MessagePage = () => {
     appointment: 0,
     system: 0,
   });
-  const [showLoginPopup, setShowLoginPopup] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const PAGE_SIZE = 20;
 
   useEffect(() => {
-    checkLoginAndLoad();
-  }, []);
-
-  useEffect(() => {
     if (userId) {
-      resetAndLoad();
+      void resetAndLoad();
     }
   }, [activeTab, userId]);
 
@@ -89,45 +85,13 @@ const MessagePage = () => {
     }
   });
 
-  const checkLoginAndLoad = async () => {
-    const token = getToken();
-    if (!token) {
-      Taro.showToast({ title: '请先登录', icon: 'none' });
-      setShowLoginPopup(true);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const user = await userApi.getProfile();
-      setUserId(user.id);
-      loadUnreadCount(user.id);
-    } catch (error) {
-      console.error('获取用户信息失败', error);
-      setLoading(false);
-    }
-  };
-
-  // 登录成功后加载数据
-  const handleLoginSuccess = () => {
-    setShowLoginPopup(false);
-    checkLoginAndLoad();
-  };
-
-  // 重置并加载
-  const resetAndLoad = useCallback(async () => {
-    setPage(1);
-    setHasMore(true);
-    return loadMessages();
-  }, []);
-
   // Tab 内容区下拉刷新
   const handleRefresh = async () => {
     if (!userId) return;
     await Promise.all([resetAndLoad(), loadUnreadCount(userId)]);
   };
 
-  const loadMessages = async () => {
+  const loadMessages = useCallback(async () => {
     setLoading(true);
     try {
       const params: { page: number; pageSize: number; messageType?: string } = {
@@ -148,7 +112,7 @@ const MessagePage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
 
   const loadMoreMessages = async () => {
     if (loadingMore || !hasMore) return;
@@ -177,7 +141,7 @@ const MessagePage = () => {
     }
   };
 
-  const loadUnreadCount = async (uid: string) => {
+  const loadUnreadCount = useCallback(async (uid: string) => {
     try {
       const counts = await messageApi.getUnreadCount(uid, 'patient');
       setUnreadCounts({
@@ -188,7 +152,41 @@ const MessagePage = () => {
     } catch (error) {
       console.error('获取未读数量失败', error);
     }
-  };
+  }, []);
+
+  const resetAndLoad = useCallback(async () => {
+    setPage(1);
+    setHasMore(true);
+    return loadMessages();
+  }, [loadMessages]);
+
+  const checkLoginAndLoad = useCallback(async () => {
+    setLoading(true);
+    try {
+      const user = await userApi.getProfile();
+      setUserId(user.id);
+      await loadUnreadCount(user.id);
+    } catch (error) {
+      console.error('获取用户信息失败', error);
+      setLoading(false);
+    }
+  }, [loadUnreadCount]);
+
+  const {
+    showLoginPopup,
+    handleLoginSuccess,
+    handleLoginClose,
+  } = useProtectedPage({
+    load: checkLoginAndLoad,
+    clear: () => {
+      setUserId('');
+      setMessages([]);
+      setUnreadCounts({ total: 0, appointment: 0, system: 0 });
+      setPage(1);
+      setHasMore(true);
+      setLoading(false);
+    },
+  });
 
   const handleMessageClick = async (message: Message) => {
     // 如果未读，标记为已读
@@ -302,7 +300,7 @@ const MessagePage = () => {
                   onClick={() => handleMessageClick(message)}
                 >
                   <View className="message-icon">
-                    <IconComponent size={24} color={isRead ? '#9CA3AF' : getThemePrimaryColor()} />
+                    <IconComponent size={24} color={isRead ? '#9CA3AF' : primaryColor} />
                   </View>
                   <View className="message-content">
                     <View className="message-header">
@@ -336,12 +334,7 @@ const MessagePage = () => {
       {/* 登录弹窗 */}
       <LoginPopup
         visible={showLoginPopup}
-        onClose={() => {
-          setShowLoginPopup(false);
-          if (!getToken()) {
-            Taro.navigateBack();
-          }
-        }}
+        onClose={handleLoginClose}
         onSuccess={handleLoginSuccess}
       />
     </View>

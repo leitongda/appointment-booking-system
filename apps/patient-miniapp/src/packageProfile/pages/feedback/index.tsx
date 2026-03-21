@@ -1,9 +1,9 @@
 import { View, Text, Textarea } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { Button, Rate } from '@nutui/nutui-react-taro';
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { feedbackApi, userApi } from '@hospital/api';
-import { getToken } from '../../../utils/auth';
+import { useProtectedPage } from '../../../hooks/useProtectedPage';
 import LoginPopup from '../../../components/LoginPopup';
 import './index.less';
 
@@ -12,37 +12,23 @@ const FeedbackPage = () => {
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [userId, setUserId] = useState('');
-  const [showLoginPopup, setShowLoginPopup] = useState(false);
   const trimmedLength = content.trim().length;
   const minLength = 10;
   const remainingToMin = Math.max(0, minLength - trimmedLength);
 
-  useEffect(() => {
-    // 检查登录状态并获取用户信息
-    const token = getToken();
-    if (!token) {
-      Taro.showToast({ title: '请先登录', icon: 'none' });
-      setShowLoginPopup(true);
-      return;
-    }
-    
-    loadUserInfo();
-  }, []);
-
-  // 登录成功后加载用户信息
-  const handleLoginSuccess = () => {
-    setShowLoginPopup(false);
-    loadUserInfo();
-  };
-
-  const loadUserInfo = async () => {
+  const loadUserInfo = useCallback(async () => {
     try {
       const user = await userApi.getProfile();
       setUserId(user.id);
     } catch (error) {
       console.error('获取用户信息失败', error);
     }
-  };
+  }, []);
+
+  const { showLoginPopup, handleLoginSuccess, handleLoginClose } = useProtectedPage({
+    load: loadUserInfo,
+    clear: () => setUserId(''),
+  });
 
   const handleSubmit = async () => {
     if (!userId) {
@@ -149,12 +135,7 @@ const FeedbackPage = () => {
       {/* 登录弹窗 */}
       <LoginPopup
         visible={showLoginPopup}
-        onClose={() => {
-          setShowLoginPopup(false);
-          if (!getToken()) {
-            Taro.navigateBack();
-          }
-        }}
+        onClose={handleLoginClose}
         onSuccess={handleLoginSuccess}
       />
     </View>

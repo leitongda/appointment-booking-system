@@ -25,14 +25,14 @@ export {
   SCHEDULE_MODE_OPTIONS,
   EMAIL_TEMPLATE_TYPE_OPTIONS,
 } from './formFields';
+import { GENDER_MAP as SHARED_GENDER_MAP } from '@hospital/shared';
 
-/**
- * 性别选项
- */
-export const GENDER_OPTIONS = [
-  { label: '男', value: 1 },
-  { label: '女', value: 0 },
-] as const;
+export const GENDER_MAP = SHARED_GENDER_MAP;
+
+export const GENDER_OPTIONS = Object.entries(SHARED_GENDER_MAP).map(([value, label]) => ({
+  label,
+  value: Number(value),
+}));
 
 /**
  * 学历选项

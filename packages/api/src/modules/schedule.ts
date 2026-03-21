@@ -227,7 +227,7 @@ export const scheduleApi = {
    * @deprecated 请使用 scheduleSuspensionApi.create() 代替
    * 此方法为了保持向后兼容，内部会先获取排班详情，然后创建停诊记录
    */
-  suspend: async (id: string, reason?: string, notifyPatients: boolean = true): Promise<{
+  suspend: async (id: string, reason?: string, _notifyPatients: boolean = true): Promise<{
     message: string;
     notification?: {
       notifiedCount: number;

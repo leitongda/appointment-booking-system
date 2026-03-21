@@ -24,6 +24,7 @@ import { UserOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-d
 import { useEffect, useState, useRef } from 'react';
 import { history, useParams, useAccess } from '@umijs/max';
 import { patientApi, doctorApi } from '@hospital/api';
+import { GENDER_MAP, GENDER_OPTIONS } from '@/constants';
 import { toProTableResult } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
 import type {
@@ -64,11 +65,6 @@ const APPOINTMENT_STATUS_MAP: Record<number, { text: string; color: string }> = 
   7: { text: '已过期', color: 'default' },
   8: { text: '已关闭', color: 'default' },
 };
-
-const GENDER_OPTIONS = [
-  { label: '男', value: 1 },
-  { label: '女', value: 2 },
-];
 
 const RELATIONSHIP_OPTIONS = [
   { label: '本人', value: '本人' },
@@ -359,7 +355,7 @@ const PatientDetailPage: React.FC = () => {
       dataIndex: 'gender',
       key: 'gender',
       width: 60,
-      render: (val: number) => (val === 1 ? '男' : val === 2 ? '女' : '-'),
+      render: (val: number) => GENDER_MAP[val] || '-',
     },
     { title: '手机号', dataIndex: 'phone', key: 'phone', width: 120 },
     { title: '关系', dataIndex: 'relationship', key: 'relationship', width: 80 },
@@ -409,7 +405,7 @@ const PatientDetailPage: React.FC = () => {
             <ProDescriptions.Item label="姓名">{patient?.name}</ProDescriptions.Item>
             <ProDescriptions.Item label="联系电话">{patient?.phone}</ProDescriptions.Item>
             <ProDescriptions.Item label="性别">
-              {patient?.gender === 1 ? '男' : patient?.gender === 2 ? '女' : '-'}
+              {patient?.gender !== undefined && patient?.gender !== null ? GENDER_MAP[patient.gender] || '-' : '-'}
             </ProDescriptions.Item>
             <ProDescriptions.Item label="省/市/区">
               {[patient?.province, patient?.city, patient?.district].filter(Boolean).join('/') || '-'}
@@ -510,7 +506,7 @@ const PatientDetailPage: React.FC = () => {
                       {patient?.name}
                     </Title>
                     <Text type="secondary">
-                      {patient?.gender === 1 ? '男' : patient?.gender === 2 ? '女' : ''} {patient?.phone}
+                      {patient?.gender !== undefined && patient?.gender !== null ? GENDER_MAP[patient.gender] || '' : ''} {patient?.phone}
                     </Text>
                   </div>
                 </Space>
@@ -645,7 +641,7 @@ const PatientDetailPage: React.FC = () => {
                     <Title level={4} style={{ margin: 0 }}>
                       {patient?.name}
                     </Title>
-                    <Text>{patient?.gender === 1 ? '男' : patient?.gender === 2 ? '女' : ''}</Text>
+                    <Text>{patient?.gender !== undefined && patient?.gender !== null ? GENDER_MAP[patient.gender] || '' : ''}</Text>
                     <Text>{patient?.phone}</Text>
                     <Tag>{SOURCE_MAP[patient?.source || 1]}</Tag>
                     {patient?.isBlacklist && <Tag color="red">黑名单</Tag>}

@@ -2,12 +2,11 @@ import { View, Text, Button as TaroButton, Image, Input as TaroInput } from '@ta
 import Taro from '@tarojs/taro';
 import { Button } from '@nutui/nutui-react-taro';
 import { useState, useEffect, useCallback } from 'react';
-import { authApi, userApi } from '@hospital/api';
-import { STORAGE_KEYS } from '@hospital/shared';
-import { setToken, setStorage } from '../utils/auth';
+import { authApi } from '@hospital/api';
 import { getStoreId } from '../utils/store';
+import { applyWechatLoginResult, finalizeWechatUserBinding } from '../utils/wechatAuth';
 import { HospitalIcon } from './Icons';
-import { getThemePrimaryColor } from '../utils/theme';
+import { useThemePrimaryColor } from '../utils/theme';
 import './LoginPopup.less';
 
 export interface LoginPopupProps {
@@ -31,6 +30,7 @@ const LoginPopup: React.FC<LoginPopupProps> = ({
   onSuccess,
   onError,
 }) => {
+  const primaryColor = useThemePrimaryColor();
   const [wechatLoading, setWechatLoading] = useState(false);
   const [openid, setOpenid] = useState('');
   const [bindLoading, setBindLoading] = useState(false);
@@ -73,26 +73,13 @@ const LoginPopup: React.FC<LoginPopupProps> = ({
       // 2. 调用后端接口获取 openid
       const storeId = getStoreId();
       const result = await authApi.wechatLogin(code, storeId || undefined);
-      
-      if (result.isNewUser || result.needBindPhone) {
+
+      const resolution = await applyWechatLoginResult(result);
+      if (resolution.status === 'needs-profile') {
         // 新用户，显示设置头像昵称界面
-        setOpenid(result.openid);
+        setOpenid(resolution.openid);
         setShowUserInfo(true);
       } else {
-        // 已有用户，直接登录成功
-        
-        if (!result.accessToken) {
-          console.error("❌ accessToken 为空！");
-          throw new Error('登录失败：Token 为空');
-        }
-        
-        setToken(result.accessToken);
-        try {
-          const profile = await userApi.getProfile();
-          setStorage(STORAGE_KEYS.USER_INFO, profile);
-        } catch (profileError) {
-          console.error('登录后加载用户信息失败', profileError);
-        }
         Taro.showToast({ title: '登录成功', icon: 'success' });
         onClose();
         onSuccess?.();
@@ -132,10 +119,7 @@ const LoginPopup: React.FC<LoginPopupProps> = ({
     setBindLoading(true);
     try {
       const result = await authApi.wechatBindUserInfo(openid, nickname, avatar);
-      setToken(result.accessToken);
-      if (result.user) {
-        setStorage(STORAGE_KEYS.USER_INFO, result.user);
-      }
+      await finalizeWechatUserBinding(result);
       Taro.showToast({ title: '登录成功', icon: 'success' });
       onClose();
       onSuccess?.();
@@ -153,10 +137,7 @@ const LoginPopup: React.FC<LoginPopupProps> = ({
     setBindLoading(true);
     try {
       const result = await authApi.wechatBindUserInfo(openid, '微信用户', '');
-      setToken(result.accessToken);
-      if (result.user) {
-        setStorage(STORAGE_KEYS.USER_INFO, result.user);
-      }
+      await finalizeWechatUserBinding(result);
       Taro.showToast({ title: '登录成功', icon: 'success' });
       onClose();
       onSuccess?.();
@@ -184,7 +165,7 @@ const LoginPopup: React.FC<LoginPopupProps> = ({
           <>
             <View className="sheet-header">
               <View className="logo">
-                <HospitalIcon size={36} color={getThemePrimaryColor()} />
+                <HospitalIcon size={36} color={primaryColor} />
               </View>
               <Text className="sheet-title">登录医院挂号系统</Text>
               <Text className="sheet-subtitle">便捷预约，健康生活</Text>

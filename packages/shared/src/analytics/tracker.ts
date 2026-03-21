@@ -3,7 +3,7 @@
  * 支持页面访问、点击、搜索等事件追踪
  */
 
-import type { TrackerConfig, TrackEvent, Platform, EventType } from './types';
+import type { TrackerConfig, TrackEvent } from './types';
 
 // 声明微信小程序全局对象类型
 declare const wx: {
@@ -366,4 +366,3 @@ export function destroyTracker(): void {
     globalTracker = null;
   }
 }
-

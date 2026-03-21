@@ -1,225 +1,121 @@
 /**
  * 小程序主题配置
- * 统一管理所有主题颜色，支持轻松扩展新主题
- *
- * 开发说明：
- * 1. 修改 default 值可切换整个应用的默认主题
- * 2. 添加新主题只需在 themes 对象中添加配置
- * 3. 同时需要在 styles/themes.less 添加对应的 CSS 变量
+ * 收敛为 4 套轻量主题，统一通过 CSS 变量驱动关键业务组件配色。
  */
 
-/**
- * 主题配置类型
- */
+export type ThemeName = 'red' | 'yellow' | 'blue' | 'green';
+
 export interface ThemeConfig {
-  name: string;
-  nameEn: string;
+  key: ThemeName;
+  label: string;
+  className: string;
   primary: string;
-  primaryDark: string;
-  primaryLight: string;
-  secondary: string;
-  secondaryLight: string;
-  gradientPrimary: string;
-  gradientPrimaryH: string;
-  gradientLight: string;
-  shadowColor: string;
-  shadowButton: string;
-  badgeBg: string;
+  primarySoft: string;
+  primarySoft2: string;
+  accent: string;
+  gradientSoft: string;
+  borderAccent: string;
+  shadowAccent: string;
+  legacyValues: string[];
 }
 
-/**
- * 主题配置
- *
- * 开发快捷切换：修改 default 值即可更改整个应用的主题
- */
 export const THEME_CONFIG = {
-  // 默认主题（开发可通过修改此值切换默认主题）
-  default: '现代-蓝',
-
-  // 主题定义
+  default: 'blue' as ThemeName,
   themes: {
-    '中医-红': {
-      name: '中医-红',
-      nameEn: 'tcm-red',
-      primary: '#C41E3A',
-      primaryDark: '#A31631',
-      primaryLight: '#DC3545',
-      secondary: '#8B2942',
-      secondaryLight: '#A23B55',
-      gradientPrimary: 'linear-gradient(135deg, #C41E3A 0%, #8B2942 100%)',
-      gradientPrimaryH: 'linear-gradient(90deg, #C41E3A 0%, #8B2942 100%)',
-      gradientLight: 'linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)',
-      shadowColor: 'rgba(196, 30, 58, 0.15)',
-      shadowButton: '0 8rpx 28rpx 0 rgba(196, 30, 58, 0.3)',
-      badgeBg: 'rgba(196, 30, 58, 0.1)',
+    red: {
+      key: 'red',
+      label: '红',
+      className: 'theme-red',
+      primary: '#B85A5F',
+      primarySoft: '#F5E8E8',
+      primarySoft2: '#EED9DA',
+      accent: '#8E4348',
+      gradientSoft: 'linear-gradient(180deg, rgba(184, 90, 95, 0.12) 0%, rgba(184, 90, 95, 0.04) 55%, transparent 100%)',
+      borderAccent: 'rgba(184, 90, 95, 0.18)',
+      shadowAccent: 'rgba(184, 90, 95, 0.16)',
+      legacyValues: ['中医-红', '故宫红'],
     },
-
-    '中医-绿': {
-      name: '中医-绿',
-      nameEn: 'tcm-green',
-      primary: '#2D8B56',
-      primaryDark: '#1E6B42',
-      primaryLight: '#3DA868',
-      secondary: '#0D5C38',
-      secondaryLight: '#1A7A4C',
-      gradientPrimary: 'linear-gradient(135deg, #2D8B56 0%, #0D5C38 100%)',
-      gradientPrimaryH: 'linear-gradient(90deg, #2D8B56 0%, #0D5C38 100%)',
-      gradientLight: 'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)',
-      shadowColor: 'rgba(45, 139, 86, 0.15)',
-      shadowButton: '0 8rpx 28rpx 0 rgba(45, 139, 86, 0.3)',
-      badgeBg: 'rgba(45, 139, 86, 0.1)',
+    yellow: {
+      key: 'yellow',
+      label: '黄',
+      className: 'theme-yellow',
+      primary: '#A98B57',
+      primarySoft: '#F6F0E3',
+      primarySoft2: '#EBDDCA',
+      accent: '#8B7145',
+      gradientSoft: 'linear-gradient(180deg, rgba(169, 139, 87, 0.14) 0%, rgba(169, 139, 87, 0.05) 55%, transparent 100%)',
+      borderAccent: 'rgba(169, 139, 87, 0.18)',
+      shadowAccent: 'rgba(169, 139, 87, 0.14)',
+      legacyValues: ['简约-白', '茶韵'],
     },
-
-    '现代-蓝': {
-      name: '现代-蓝',
-      nameEn: 'modern-blue',
-      primary: '#1E6FD9',
-      primaryDark: '#1557B0',
-      primaryLight: '#3B82F6',
-      secondary: '#4F46E5',
-      secondaryLight: '#6366F1',
-      gradientPrimary: 'linear-gradient(135deg, #1E6FD9 0%, #4F46E5 100%)',
-      gradientPrimaryH: 'linear-gradient(90deg, #1E6FD9 0%, #4F46E5 100%)',
-      gradientLight: 'linear-gradient(135deg, #DBEAFE 0%, #E0E7FF 100%)',
-      shadowColor: 'rgba(30, 111, 217, 0.15)',
-      shadowButton: '0 8rpx 28rpx 0 rgba(30, 111, 217, 0.3)',
-      badgeBg: 'rgba(30, 111, 217, 0.1)',
+    blue: {
+      key: 'blue',
+      label: '蓝',
+      className: 'theme-blue',
+      primary: '#4D7CB8',
+      primarySoft: '#EAF1F8',
+      primarySoft2: '#DCE8F4',
+      accent: '#385E92',
+      gradientSoft: 'linear-gradient(180deg, rgba(77, 124, 184, 0.14) 0%, rgba(77, 124, 184, 0.05) 55%, transparent 100%)',
+      borderAccent: 'rgba(77, 124, 184, 0.18)',
+      shadowAccent: 'rgba(77, 124, 184, 0.16)',
+      legacyValues: ['现代-蓝', '青花瓷'],
     },
-
-    '简约-白': {
-      name: '简约-白',
-      nameEn: 'minimal-white',
-      primary: '#374151',
-      primaryDark: '#1F2937',
-      primaryLight: '#4B5563',
-      secondary: '#6B7280',
-      secondaryLight: '#9CA3AF',
-      gradientPrimary: 'linear-gradient(135deg, #374151 0%, #1F2937 100%)',
-      gradientPrimaryH: 'linear-gradient(90deg, #374151 0%, #1F2937 100%)',
-      gradientLight: 'linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%)',
-      shadowColor: 'rgba(55, 65, 81, 0.12)',
-      shadowButton: '0 8rpx 28rpx 0 rgba(55, 65, 81, 0.25)',
-      badgeBg: 'rgba(55, 65, 81, 0.08)',
-    },
-
-    '故宫红': {
-      name: '故宫红',
-      nameEn: 'forbidden-city',
-      primary: '#9D2933',
-      primaryDark: '#7A1F28',
-      primaryLight: '#B8323F',
-      secondary: '#C5A028',
-      secondaryLight: '#D4B23D',
-      gradientPrimary: 'linear-gradient(135deg, #9D2933 0%, #7A1F28 100%)',
-      gradientPrimaryH: 'linear-gradient(90deg, #9D2933 0%, #C5A028 100%)',
-      gradientLight: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
-      shadowColor: 'rgba(157, 41, 51, 0.15)',
-      shadowButton: '0 8rpx 28rpx 0 rgba(157, 41, 51, 0.3)',
-      badgeBg: 'rgba(157, 41, 51, 0.1)',
-    },
-
-    '青花瓷': {
-      name: '青花瓷',
-      nameEn: 'blue-porcelain',
-      primary: '#2563EB',
-      primaryDark: '#1D4ED8',
-      primaryLight: '#3B82F6',
-      secondary: '#1E40AF',
-      secondaryLight: '#3B5998',
-      gradientPrimary: 'linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)',
-      gradientPrimaryH: 'linear-gradient(90deg, #2563EB 0%, #1E40AF 100%)',
-      gradientLight: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)',
-      shadowColor: 'rgba(37, 99, 235, 0.15)',
-      shadowButton: '0 8rpx 28rpx 0 rgba(37, 99, 235, 0.3)',
-      badgeBg: 'rgba(37, 99, 235, 0.1)',
-    },
-
-    '茶韵': {
-      name: '茶韵',
-      nameEn: 'tea',
-      primary: '#6B4423',
-      primaryDark: '#523318',
-      primaryLight: '#8B5A2B',
-      secondary: '#4A5D23',
-      secondaryLight: '#5C7A2D',
-      gradientPrimary: 'linear-gradient(135deg, #6B4423 0%, #4A5D23 100%)',
-      gradientPrimaryH: 'linear-gradient(90deg, #6B4423 0%, #4A5D23 100%)',
-      gradientLight: 'linear-gradient(135deg, #FEF9E7 0%, #F7F3E3 100%)',
-      shadowColor: 'rgba(107, 68, 35, 0.15)',
-      shadowButton: '0 8rpx 28rpx 0 rgba(107, 68, 35, 0.3)',
-      badgeBg: 'rgba(107, 68, 35, 0.1)',
-    },
-
-    '紫禁': {
-      name: '紫禁',
-      nameEn: 'imperial-purple',
-      primary: '#6B21A8',
-      primaryDark: '#581C87',
-      primaryLight: '#7C3AED',
-      secondary: '#9333EA',
-      secondaryLight: '#A855F7',
-      gradientPrimary: 'linear-gradient(135deg, #6B21A8 0%, #9333EA 100%)',
-      gradientPrimaryH: 'linear-gradient(90deg, #6B21A8 0%, #9333EA 100%)',
-      gradientLight: 'linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%)',
-      shadowColor: 'rgba(107, 33, 168, 0.15)',
-      shadowButton: '0 8rpx 28rpx 0 rgba(107, 33, 168, 0.3)',
-      badgeBg: 'rgba(107, 33, 168, 0.1)',
+    green: {
+      key: 'green',
+      label: '绿',
+      className: 'theme-green',
+      primary: '#5F8F74',
+      primarySoft: '#EAF3EE',
+      primarySoft2: '#DCEADF',
+      accent: '#466B56',
+      gradientSoft: 'linear-gradient(180deg, rgba(95, 143, 116, 0.14) 0%, rgba(95, 143, 116, 0.05) 55%, transparent 100%)',
+      borderAccent: 'rgba(95, 143, 116, 0.18)',
+      shadowAccent: 'rgba(95, 143, 116, 0.16)',
+      legacyValues: ['中医-绿', '紫禁'],
     },
   },
-
-  /**
-   * 获取主题配置
-   * 如果指定主题不存在，回退到默认主题；如果默认主题也不存在，回退到第一个可用主题
-   */
-  getTheme(name: string): ThemeConfig {
-    // 尝试获取指定主题
-    const theme = this.themes[name as keyof typeof this.themes];
-    if (theme) return theme;
-
-    // 回退到默认主题
-    const defaultTheme = this.themes[this.default as keyof typeof this.themes];
-    if (defaultTheme) return defaultTheme;
-
-    // 回退到第一个可用主题（确保永远返回有效主题）
-    const firstThemeName = Object.keys(this.themes)[0];
-    return this.themes[firstThemeName as keyof typeof this.themes];
+  getTheme(name?: string | null): ThemeConfig {
+    const normalized = name ? normalizeThemeName(name) : this.default;
+    return this.themes[normalized];
   },
-
-  /**
-   * 获取所有主题名称列表
-   */
-  getThemeNames(): string[] {
-    return Object.keys(this.themes);
-  },
-
-  /**
-   * 获取主题列表（用于UI展示）
-   */
-  getThemeList(): Array<{ name: string; color: string }> {
-    return this.getThemeNames().map(name => ({
-      name,
-      color: this.themes[name as keyof typeof this.themes].primary,
+  getThemeList(): Array<{ value: ThemeName; label: string; color: string }> {
+    return (Object.keys(this.themes) as ThemeName[]).map((key) => ({
+      value: key,
+      label: this.themes[key].label,
+      color: this.themes[key].primary,
     }));
   },
+  getThemeNames(): ThemeName[] {
+    return Object.keys(this.themes) as ThemeName[];
+  },
 };
 
-/**
- * 主题名称到 CSS 类名的映射
- */
-export const THEME_CLASS_MAP: Record<string, string> = {
-  '中医-红': 'tcm-red',
-  '中医-绿': 'tcm-green',
-  '现代-蓝': 'modern-blue',
-  '简约-白': 'minimal-white',
-  '故宫红': 'forbidden-city',
-  '青花瓷': 'blue-porcelain',
-  '茶韵': 'tea',
-  '紫禁': 'imperial-purple',
-};
+const LEGACY_THEME_MAP: Record<string, ThemeName> = Object.values(THEME_CONFIG.themes).reduce<Record<string, ThemeName>>(
+  (acc, theme) => {
+    const key = theme.key as ThemeName;
+    acc[key] = key;
+    acc[theme.label] = key;
+    theme.legacyValues.forEach((value) => {
+      acc[value] = key;
+    });
+    return acc;
+  },
+  {}
+);
 
-/**
- * 获取主题对应的 CSS 类名
- */
-export function getThemeClass(themeName: string): string {
-  return THEME_CLASS_MAP[themeName] || THEME_CLASS_MAP[THEME_CONFIG.default];
+export function normalizeThemeName(name?: string | null): ThemeName {
+  if (!name) {
+    return THEME_CONFIG.default;
+  }
+
+  return LEGACY_THEME_MAP[name] || THEME_CONFIG.default;
+}
+
+export function getThemeLabel(name?: string | null): string {
+  return THEME_CONFIG.getTheme(name).label;
+}
+
+export function getThemeClass(themeName?: string | null): string {
+  return THEME_CONFIG.getTheme(themeName).className;
 }

@@ -9,7 +9,7 @@ import {
   ProfileIcon,
   ProfileOutlineIcon,
 } from '../components/Icons';
-import { getThemePrimaryColor } from '../utils/theme';
+import { useThemePrimaryColor } from '../utils/theme';
 import './index.less';
 
 // TabBar 配置
@@ -57,8 +57,7 @@ const INACTIVE_COLOR = '#9CA3AF';
 export default function CustomTabBar() {
   // 初始化时就根据当前路由设置正确的索引
   const [selected, setSelected] = useState(() => getSelectedIndex());
-  // 主题色
-  const [primaryColor, setPrimaryColor] = useState(() => getThemePrimaryColor());
+  const primaryColor = useThemePrimaryColor();
 
   // 监听来自页面的 TabBar 更新事件
   useEffect(() => {
@@ -75,8 +74,6 @@ export default function CustomTabBar() {
   useDidShow(() => {
     const index = getSelectedIndex();
     setSelected(index);
-    // 更新主题色（可能在设置页面切换了主题）
-    setPrimaryColor(getThemePrimaryColor());
   });
 
   const handleSwitch = (index: number, pagePath: string) => {

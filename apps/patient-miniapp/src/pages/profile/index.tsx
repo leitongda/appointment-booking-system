@@ -4,8 +4,9 @@ import { Button } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 import { userApi, appointmentApi, authApi, storeApi } from '@hospital/api';
 import { STORAGE_KEYS } from '@hospital/shared';
-import { getToken, removeToken, removeStorage, setToken, setStorage } from '../../utils/auth';
+import { clearAuthSession, getToken, setStorage, subscribeAuthChange } from '../../utils/auth';
 import { getStoreId } from '../../utils/store';
+import { applyWechatLoginResult, finalizeWechatUserBinding } from '../../utils/wechatAuth';
 import type { User } from '@hospital/shared';
 import {
   TeamIcon,
@@ -19,7 +20,7 @@ import {
 } from '../../components/Icons';
 import { PageContainer } from '../../components/PageContainer';
 import { getImageUrl } from '../../utils/url';
-import { getThemePrimaryColor } from '../../utils/theme';
+import { useThemePrimaryColor } from '../../utils/theme';
 import './index.less';
 
 // 图标组件类型
@@ -64,6 +65,7 @@ interface Stats {
 }
 
 const ProfilePage = () => {
+  const primaryColor = useThemePrimaryColor();
   const [user, setUser] = useState<User | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true); // 初始化状态
@@ -95,6 +97,18 @@ const ProfilePage = () => {
     checkLoginStatus();
     loadStoreInfo();
   }, []);
+
+  useEffect(
+    () =>
+      subscribeAuthChange((payload) => {
+        if (payload.type === 'auth:logout' || payload.type === 'auth:expired') {
+          setIsLoggedIn(false);
+          setUser(null);
+          setStats({ appointmentCount: 0, patientCount: 0, messageCount: 0 });
+        }
+      }),
+    []
+  );
   
   // 加载门店信息（获取电话号码）
   const loadStoreInfo = async () => {
@@ -142,8 +156,7 @@ const ProfilePage = () => {
         loadStats();
       } else {
         // token 无效，清除并重置状态
-        removeToken();
-        removeStorage(STORAGE_KEYS.USER_INFO);
+        clearAuthSession('expired');
         setIsLoggedIn(false);
         setUser(null);
         setStats({ appointmentCount: 0, patientCount: 0, messageCount: 0 });
@@ -220,23 +233,15 @@ const ProfilePage = () => {
       // 2. 调用后端接口获取 openid
       const storeId = getStoreId();
       const result = await authApi.wechatLogin(code, storeId || undefined);
-      
-      if (result.isNewUser || result.needBindPhone) {
+
+      const resolution = await applyWechatLoginResult(result);
+      if (resolution.status === 'needs-profile') {
         // 新用户，显示设置头像昵称弹窗
-        setOpenid(result.openid);
+        setOpenid(resolution.openid);
         setShowUserInfo(true);
         // 已注释：原来需要绑定手机号
         // setShowBindPhone(true);
       } else {
-        // 已有用户，直接登录成功
-        
-        if (!result.accessToken) {
-          console.error("❌ accessToken 为空！检查后端返回的数据结构");
-          Taro.showToast({ title: '登录失败：Token 为空', icon: 'none' });
-          return;
-        }
-        
-        setToken(result.accessToken);
         Taro.showToast({ title: '登录成功', icon: 'success' });
         setIsLoggedIn(true);
         // 加载用户信息和统计数据
@@ -276,10 +281,7 @@ const ProfilePage = () => {
     setBindLoading(true);
     try {
       const result = await authApi.wechatBindUserInfo(openid, nickname, avatar);
-      setToken(result.accessToken);
-      if (result.user) {
-        setStorage(STORAGE_KEYS.USER_INFO, result.user);
-      }
+      await finalizeWechatUserBinding(result);
       setShowUserInfo(false);
       Taro.showToast({ title: '登录成功', icon: 'success' });
       setIsLoggedIn(true);
@@ -297,10 +299,7 @@ const ProfilePage = () => {
     setBindLoading(true);
     try {
       const result = await authApi.wechatBindUserInfo(openid, '微信用户', '');
-      setToken(result.accessToken);
-      if (result.user) {
-        setStorage(STORAGE_KEYS.USER_INFO, result.user);
-      }
+      await finalizeWechatUserBinding(result);
       setShowUserInfo(false);
       Taro.showToast({ title: '登录成功', icon: 'success' });
       setIsLoggedIn(true);
@@ -379,8 +378,7 @@ const ProfilePage = () => {
     });
 
     if (result.confirm) {
-      removeToken();
-      removeStorage(STORAGE_KEYS.USER_INFO);
+      clearAuthSession('logout');
       setIsLoggedIn(false);
       setUser(null);
       setStats({ appointmentCount: 0, patientCount: 0, messageCount: 0 });
@@ -481,7 +479,7 @@ const ProfilePage = () => {
             {user?.avatar ? (
               <Image src={getImageUrl(user.avatar)} mode="aspectFill" />
             ) : (
-              <UserIcon size={40} color="#64748B" />
+              <UserIcon size={40} color={primaryColor} />
             )}
           </View>
           <View className="user-info">
@@ -528,7 +526,7 @@ const ProfilePage = () => {
                   onClick={() => handleMenuClick(item)}
                 >
                   <View className="menu-icon">
-                    <IconComponent size={22} color={getThemePrimaryColor()} />
+                    <IconComponent size={22} color={primaryColor} />
                   </View>
                   <View className="menu-content">
                     <Text className="menu-title">{item.title}</Text>

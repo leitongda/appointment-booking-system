@@ -19,7 +19,7 @@ const CheckinSuccessModal = ({ visible, queueNumber, onClose }: CheckinSuccessMo
       style={{ borderRadius: '24rpx', padding: 0 }}
       closeable={false}
       overlay={true}
-      onClickOverlay={onClose}
+      onClose={onClose}
     >
       <View className="checkin-success-modal">
         {/* 成功图标 */}

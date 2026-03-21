@@ -1,13 +1,13 @@
 import { View, Text } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button, Empty } from '@nutui/nutui-react-taro';
 import { appointmentApi } from '@hospital/api';
 import { TIME_SLOT_MAP } from '@hospital/shared';
 import type { PendingAppointment } from '@hospital/api';
 import { DoctorIcon, CheckCircleIcon } from '../../../components/Icons';
-import { getToken } from '../../../utils/auth';
-import { getThemePrimaryColor } from '../../../utils/theme';
+import { useProtectedPage } from '../../../hooks/useProtectedPage';
+import { useThemePrimaryColor } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import CheckinSuccessModal from '../../components/CheckinSuccessModal';
 import './select.less';
@@ -95,7 +95,14 @@ const formatCheckinTimeWindow = (openAt: string, closeAt: string): string => {
   return `${formatDateStr(openDate)} ${openTimeStr} - ${formatDateStr(closeDate)} ${closeTimeStr}`;
 };
 
+type CountdownInfo = {
+  type: 'waiting' | 'available';
+  text: string;
+  percent: number;
+};
+
 const CheckinSelectPage = () => {
+  const primaryColor = useThemePrimaryColor();
   const router = useRouter();
   const { storeId } = router.params;
 
@@ -103,7 +110,6 @@ const CheckinSelectPage = () => {
   const [appointments, setAppointments] = useState<PendingAppointment[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [showLoginPopup, setShowLoginPopup] = useState(false);
 
   // 新增：当前时间（用于智能倒计时）
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -112,36 +118,14 @@ const CheckinSelectPage = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [queueNumber, setQueueNumber] = useState(0);
 
-  useEffect(() => {
-    // 检查登录状态
-    const token = getToken();
-    if (!token) {
-      Taro.showToast({ title: '请先登录', icon: 'none' });
-      setShowLoginPopup(true);
-      setLoading(false);
-      return;
-    }
-    if (storeId) {
-      loadAppointments();
-    }
-  }, [storeId]);
-
-  // 登录成功后加载数据
-  const handleLoginSuccess = () => {
-    setShowLoginPopup(false);
-    if (storeId) {
-      loadAppointments();
-    }
-  };
-
   // 新增：智能倒计时（默认每分钟刷新，当有预约在1分钟内开放或关闭时切换为每秒刷新）
   useEffect(() => {
     if (appointments.length === 0) return;
 
     // 计算是否需要秒级刷新
     const needSecondPrecision = appointments.some(item => {
-      if (item.minutesUntilOpen !== null && item.minutesUntilOpen < 1) return true;
-      if (item.minutesUntilClose !== null && item.minutesUntilClose < 1) return true;
+      if (item.minutesUntilOpen != null && item.minutesUntilOpen < 1) return true;
+      if (item.minutesUntilClose != null && item.minutesUntilClose < 1) return true;
       return false;
     });
 
@@ -154,7 +138,12 @@ const CheckinSelectPage = () => {
     return () => clearInterval(timer);
   }, [appointments]);
 
-  const loadAppointments = async () => {
+  const loadAppointments = useCallback(async () => {
+    if (!storeId) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const data = await appointmentApi.getTodayPending(storeId!);
       setAppointments(data);
@@ -171,7 +160,17 @@ const CheckinSelectPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [storeId]);
+
+  const { showLoginPopup, handleLoginSuccess, handleLoginClose } = useProtectedPage({
+    load: loadAppointments,
+    clear: () => {
+      setAppointments([]);
+      setSelectedId(null);
+      setLoading(false);
+    },
+    deps: [storeId],
+  });
 
   const handleSelect = (id: string, signInStatus?: string) => {
     // 只允许选择可签到的预约（排除 early、late、error 状态）
@@ -247,7 +246,7 @@ const CheckinSelectPage = () => {
               const isDisabled = item.signInStatus === 'early' || item.signInStatus === 'late' || item.signInStatus === 'error';
 
               // 计算实时倒计时
-              let countdownInfo = null;
+              let countdownInfo: CountdownInfo | null = null;
               if (item.checkinOpenAt && item.checkinCloseAt) {
                 const openTime = new Date(item.checkinOpenAt);
                 const closeTime = new Date(item.checkinCloseAt);
@@ -280,7 +279,7 @@ const CheckinSelectPage = () => {
                   onClick={() => handleSelect(item.id, item.signInStatus)}
                 >
                   <View className="card-icon">
-                    <DoctorIcon size={40} color={getThemePrimaryColor()} />
+                    <DoctorIcon size={40} color={primaryColor} />
                   </View>
                   <View className="card-content">
                     <View className="card-header">
@@ -363,12 +362,7 @@ const CheckinSelectPage = () => {
       {/* 登录弹窗 */}
       <LoginPopup
         visible={showLoginPopup}
-        onClose={() => {
-          setShowLoginPopup(false);
-          if (!getToken()) {
-            Taro.navigateBack();
-          }
-        }}
+        onClose={handleLoginClose}
         onSuccess={handleLoginSuccess}
       />
 
@@ -383,4 +377,3 @@ const CheckinSelectPage = () => {
 };
 
 export default CheckinSelectPage;
-

@@ -9,8 +9,8 @@ import {
   RecordIcon,
   TeamIcon
 } from '../../../components/Icons';
-import { getThemePrimaryColor } from '../../../utils/theme';
-import { getStoreId, getStoreName } from '../../../utils/store';
+import { useThemePrimaryColor } from '../../../utils/theme';
+import { getStoreCode, getStoreName } from '../../../utils/store';
 import './index.less';
 
 /**
@@ -51,6 +51,7 @@ const formatWorkingHours = (store: Store): string => {
 };
 
 const AboutPage = () => {
+  const primaryColor = useThemePrimaryColor();
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -59,14 +60,14 @@ const AboutPage = () => {
   }, []);
 
   const loadStoreInfo = async () => {
-    const storeId = getStoreId();
-    if (!storeId) {
+    const storeCode = getStoreCode();
+    if (!storeCode) {
       setLoading(false);
       return;
     }
 
     try {
-      const storeData = await storeApi.getDetail(storeId);
+      const storeData = await storeApi.getByCode(storeCode);
       setStore(storeData);
     } catch (error) {
       console.error('获取门店信息失败', error);
@@ -86,7 +87,7 @@ const AboutPage = () => {
           {store?.logo ? (
             <Image className="store-logo" src={store.logo} mode="aspectFit" />
           ) : (
-            <HospitalIcon size={64} color={getThemePrimaryColor()} />
+            <HospitalIcon size={64} color={primaryColor} />
           )}
         </View>
         <Text className="app-name">{displayName}</Text>
@@ -99,7 +100,7 @@ const AboutPage = () => {
         <View className="feature-list">
           <View className="feature-item">
             <View className="feature-icon">
-              <CalendarIcon size={32} color={getThemePrimaryColor()} />
+              <CalendarIcon size={32} color={primaryColor} />
             </View>
             <View className="feature-content">
               <Text className="feature-title">在线预约</Text>
@@ -108,7 +109,7 @@ const AboutPage = () => {
           </View>
           <View className="feature-item">
             <View className="feature-icon">
-              <DoctorIcon size={32} color={getThemePrimaryColor()} />
+              <DoctorIcon size={32} color={primaryColor} />
             </View>
             <View className="feature-content">
               <Text className="feature-title">专家查询</Text>
@@ -117,7 +118,7 @@ const AboutPage = () => {
           </View>
           <View className="feature-item">
             <View className="feature-icon">
-              <RecordIcon size={32} color={getThemePrimaryColor()} />
+              <RecordIcon size={32} color={primaryColor} />
             </View>
             <View className="feature-content">
               <Text className="feature-title">就诊记录</Text>
@@ -126,7 +127,7 @@ const AboutPage = () => {
           </View>
           <View className="feature-item">
             <View className="feature-icon">
-              <TeamIcon size={32} color={getThemePrimaryColor()} />
+              <TeamIcon size={32} color={primaryColor} />
             </View>
             <View className="feature-content">
               <Text className="feature-title">就诊人管理</Text>

@@ -4,9 +4,11 @@
  */
 
 import React from 'react';
-import { ProFormCascader, type ProFormCascaderProps } from '@ant-design/pro-components';
+import { ProFormCascader } from '@ant-design/pro-components';
 import regionsData from '../../data/regions.json';
 import type { RegionOption, RegionCode } from '../../types/region';
+
+type ProFormCascaderProps = React.ComponentProps<typeof ProFormCascader>;
 
 /**
  * 地区选择器组件属性

@@ -129,10 +129,34 @@ export default defineConfig(async () => {
           .maxEntrypointSize(800 * 1024) // 800 KiB
           .hints(process.env.NODE_ENV === 'production' ? 'warning' : false);
 
+        // 屏蔽第三方依赖的已知构建噪音：
+        // 1. NutUI 包内大小写路径不一致导致的 CaseSensitiveModulesWarning
+        // 2. NutUI 依赖的 Sass @import 废弃告警
+        // 这些 warning 不影响 patient-miniapp 运行，也不来自项目源码。
+        chain.merge({
+          ignoreWarnings: [
+            (warning: any) => {
+              const message = warning?.message || '';
+              return (
+                message.includes('CaseSensitiveModulesWarning') &&
+                message.includes('@nutui/nutui-react-taro')
+              );
+            },
+            (warning: any) => {
+              const message = warning?.message || '';
+              return (
+                message.includes('Deprecation Warning') &&
+                message.includes('@nutui/nutui-react-taro') &&
+                message.includes('Sass @import rules are deprecated')
+              );
+            },
+          ],
+        });
+
         // 使用 Taro 默认的 splitChunks 配置
         // 注意：自定义 splitChunks 可能导致 chunk ID 和文件名不匹配
       },
-    },
+    } as any,
     h5: {
       publicPath: '/',
       staticDirectory: 'static',
@@ -154,5 +178,3 @@ export default defineConfig(async () => {
 
   return baseConfig;
 });
-
-

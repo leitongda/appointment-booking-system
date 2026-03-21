@@ -22,7 +22,7 @@ class DoctorBase(BaseModel):
     name: str = Field(..., max_length=50, description="医生姓名")
     username: Optional[str] = Field(None, max_length=50, description="医生登录账号")
     phone: Optional[str] = Field(None, max_length=20, description="手机号")
-    gender: int = Field(1, ge=0, le=1, description="性别 0女 1男")
+    gender: int = Field(0, ge=0, le=2, description="性别 0未知 1男 2女")
     avatar: Optional[str] = Field(None, description="头像URL")
     banner: Optional[str] = Field(None, description="医生banner图URL")
     title: Optional[str] = Field(None, max_length=50, description="职称")
@@ -71,7 +71,7 @@ class DoctorUpdate(BaseModel):
     name: Optional[str] = Field(None, max_length=50)
     username: Optional[str] = Field(None, max_length=50)
     phone: Optional[str] = Field(None, max_length=20)
-    gender: Optional[int] = Field(None, ge=0, le=1)
+    gender: Optional[int] = Field(None, ge=0, le=2)
     avatar: Optional[str] = None
     banner: Optional[str] = None
     title: Optional[str] = Field(None, max_length=50)
@@ -128,7 +128,7 @@ class DoctorResponse(BaseModel):
     name: str
     username: Optional[str] = None
     phone: Optional[str] = None
-    gender: Optional[int] = 1
+    gender: Optional[int] = 0
     avatar: Optional[str] = None
     banner: Optional[str] = None
     title: Optional[str] = None
@@ -180,7 +180,7 @@ class DoctorListResponse(BaseModel):
     avatar: Optional[str] = None
     banner: Optional[str] = None
     title: Optional[str] = None
-    gender: Optional[int] = 1
+    gender: Optional[int] = 0
     store_id: Optional[str] = None
     store_name: Optional[str] = None
     department_id: Optional[str] = None

@@ -1,10 +1,11 @@
 import { View, Text } from '@tarojs/components';
 import Taro, { usePullDownRefresh } from '@tarojs/taro';
 import { Button, Empty, Swipe } from '@nutui/nutui-react-taro';
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { userApi } from '@hospital/api';
 import { GENDER_MAP } from '@hospital/shared';
 import { getToken } from '../../../utils/auth';
+import { useProtectedPage } from '../../../hooks/useProtectedPage';
 import LoginPopup from '../../../components/LoginPopup';
 import type { Patient } from '@hospital/shared';
 import './index.less';
@@ -12,39 +13,13 @@ import './index.less';
 const PatientListPage = () => {
   const [loading, setLoading] = useState(true);
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [showLoginPopup, setShowLoginPopup] = useState(false);
-
-  useEffect(() => {
-    // 检查登录状态
-    const token = getToken();
-    if (!token) {
-      Taro.showToast({ title: '请先登录', icon: 'none' });
-      setShowLoginPopup(true);
-      setLoading(false);
-      return;
-    }
-    loadPatients();
+  const clearPatients = useCallback(() => {
+    setPatients([]);
+    setLoading(false);
   }, []);
 
-  // 登录成功后加载数据
-  const handleLoginSuccess = () => {
-    setShowLoginPopup(false);
-    loadPatients();
-  };
-
-  // 页面显示时刷新
-  Taro.useDidShow(() => {
-    loadPatients();
-  });
-
-  // 下拉刷新
-  usePullDownRefresh(() => {
-    loadPatients().finally(() => {
-      Taro.stopPullDownRefresh();
-    });
-  });
-
-  const loadPatients = async () => {
+  const loadPatients = useCallback(async () => {
+    setLoading(true);
     try {
       const data = await userApi.getPatients();
       setPatients(data);
@@ -53,7 +28,31 @@ const PatientListPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const { showLoginPopup, handleLoginSuccess, handleLoginClose } = useProtectedPage({
+    load: loadPatients,
+    clear: clearPatients,
+  });
+
+  // 页面显示时刷新
+  Taro.useDidShow(() => {
+    if (getToken()) {
+      void loadPatients();
+    }
+  });
+
+  // 下拉刷新
+  usePullDownRefresh(() => {
+    if (getToken()) {
+      loadPatients().finally(() => {
+        Taro.stopPullDownRefresh();
+      });
+      return;
+    }
+
+    Taro.stopPullDownRefresh();
+  });
 
   const handleDelete = async (id: string) => {
     const result = await Taro.showModal({
@@ -105,7 +104,7 @@ const PatientListPage = () => {
                   {patient.isDefault && <Text className="default-tag">默认</Text>}
                 </View>
                 <View className="patient-info">
-                  <Text>{GENDER_MAP[patient.gender || 0]}</Text>
+                  <Text>{GENDER_MAP[patient.gender ?? 0]}</Text>
                   <Text className="divider">|</Text>
                   <Text>{patient.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}</Text>
                 </View>
@@ -125,12 +124,7 @@ const PatientListPage = () => {
       {/* 登录弹窗 */}
       <LoginPopup
         visible={showLoginPopup}
-        onClose={() => {
-          setShowLoginPopup(false);
-          if (!getToken()) {
-            Taro.navigateBack();
-          }
-        }}
+        onClose={handleLoginClose}
         onSuccess={handleLoginSuccess}
       />
     </View>

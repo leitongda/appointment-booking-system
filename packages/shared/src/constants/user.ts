@@ -28,6 +28,12 @@ export const GENDER_MAP: Record<number, string> = {
   [GENDER.FEMALE]: '女',
 };
 
+export const GENDER_OPTIONS = [
+  { label: GENDER_MAP[GENDER.UNKNOWN], value: GENDER.UNKNOWN },
+  { label: GENDER_MAP[GENDER.MALE], value: GENDER.MALE },
+  { label: GENDER_MAP[GENDER.FEMALE], value: GENDER.FEMALE },
+];
+
 /**
  * 医生职称
  */
@@ -59,4 +65,3 @@ export const PATIENT_RELATIONSHIP = {
 } as const;
 
 export const PATIENT_RELATIONSHIPS = Object.values(PATIENT_RELATIONSHIP);
-

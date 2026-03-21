@@ -74,6 +74,8 @@ export function validateStoreConfig(): void {
     console.warn('  示例: TARO_APP_STORE_ID=123 pnpm build:weapp');
   } else {
     console.log(`✓ 门店配置: ${storeConfig.storeName} (${storeConfig.storeCode})`);
+    if (!storeConfig.storeCode) {
+      console.warn('⚠️ 当前未配置 TARO_APP_STORE_CODE，患者端将无法通过公开接口稳定拉取门店默认主题。');
+    }
   }
 }
-

@@ -38,7 +38,7 @@
   height: @avatar-size-lg;
   border-radius: @radius-xl;
   overflow: hidden;
-  background: var(--gradient-light, linear-gradient(135deg, #DBEAFE 0%, #E0E7FF 100%));
+  background: linear-gradient(135deg, var(--theme-primary-soft, #EAF1F8) 0%, var(--theme-primary-soft-2, #DCE8F4) 100%);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -105,8 +105,9 @@
   align-items: center;
   
   &.available {
-    background: rgba(16, 185, 129, 0.1);
-    color: #10B981;
+    background: var(--theme-primary-soft, rgba(77, 124, 184, 0.12));
+    color: var(--theme-accent, #385E92);
+    border: 2rpx solid var(--theme-border-accent, rgba(77, 124, 184, 0.18));
   }
   
   &.unavailable {
@@ -136,8 +137,8 @@
   color: @color-text-secondary;
   
   &.active {
-    background: rgba(196, 30, 58, 0.1);
-    color: @color-primary;
+    background: var(--theme-primary-soft, rgba(77, 124, 184, 0.12));
+    color: var(--theme-primary, #4D7CB8);
     font-weight: @font-weight-medium;
   }
 }

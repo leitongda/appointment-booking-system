@@ -70,7 +70,7 @@ async def update_store_visit_type_config(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权修改此门店配置")
     
     service = VisitTypeService(db)
-    config = await service.create_or_update(store_id, data, current_admin.id)
+    config = await service.create_or_update(store_id, data, current_admin.get("id"))
     
     return ResponseModel(data=config_to_response(config), message="配置更新成功")
 
@@ -94,4 +94,3 @@ async def delete_store_visit_type_config(
         await service.delete(config.id)
     
     return ResponseModel(message="配置已恢复默认")
-

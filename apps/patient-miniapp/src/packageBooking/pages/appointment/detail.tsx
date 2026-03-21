@@ -1,12 +1,12 @@
 import { View, Text } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
 import { Button } from '@nutui/nutui-react-taro';
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { appointmentApi, settingsApi } from '@hospital/api';
 import type { TimePeriodConfig } from '@hospital/api';
 import { APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP, getPeriodNameFromTime } from '@hospital/shared';
-import { getToken } from '../../../utils/auth';
-import { getThemeGradient } from '../../../utils/theme';
+import { useProtectedPage } from '../../../hooks/useProtectedPage';
+import { getThemeGradient, useThemeName } from '../../../utils/theme';
 import { formatTime, isAppointmentExpired } from '../../../utils/url';
 import { triggerCheckinScan } from '../../../utils/checkin';
 import LoginPopup from '../../../components/LoginPopup';
@@ -30,44 +30,16 @@ const StatusIconMap: Record<number, React.ComponentType<{ size?: number; color?:
   7: CloseCircleIcon,
 };
 
-// 状态颜色映射
-const statusStyleMap: Record<number, { background: string }> = {
-  1: { background: getThemeGradient() },
-  2: { background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' },
-  3: { background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' },
-  5: { background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' },
-  6: { background: 'linear-gradient(135deg, #64748B 0%, #475569 100%)' },
-  7: { background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)' },
-};
-
 const AppointmentDetailPage = () => {
+  const themeName = useThemeName();
   const router = useRouter();
   const { id, appointmentNo } = router.params;
 
   const [loading, setLoading] = useState(true);
   const [appointment, setAppointment] = useState<AppointmentDetail | null>(null);
-  const [showLoginPopup, setShowLoginPopup] = useState(false);
   const [timePeriods, setTimePeriods] = useState<TimePeriodConfig[]>([]);
 
-  useEffect(() => {
-    // 检查登录状态
-    const token = getToken();
-    if (!token) {
-      Taro.showToast({ title: '请先登录', icon: 'none' });
-      setShowLoginPopup(true);
-      setLoading(false);
-      return;
-    }
-    loadAppointment();
-  }, []);
-
-  // 登录成功后加载数据
-  const handleLoginSuccess = () => {
-    setShowLoginPopup(false);
-    loadAppointment();
-  };
-
-  const loadAppointment = async () => {
+  const loadAppointment = useCallback(async () => {
     try {
       const [data, timePeriodsRes] = await Promise.all([
         id
@@ -82,7 +54,16 @@ const AppointmentDetailPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [appointmentNo, id]);
+
+  const { showLoginPopup, handleLoginSuccess, handleLoginClose } = useProtectedPage({
+    load: loadAppointment,
+    clear: () => {
+      setAppointment(null);
+      setTimePeriods([]);
+      setLoading(false);
+    },
+  });
 
   const handleCancel = async () => {
     const result = await Taro.showModal({
@@ -134,6 +115,17 @@ const AppointmentDetailPage = () => {
   }
 
   const StatusIcon = StatusIconMap[appointment.status] || CalendarIcon;
+  const statusStyleMap: Record<number, { background: string }> = useMemo(
+    () => ({
+      1: { background: getThemeGradient(themeName) },
+      2: { background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' },
+      3: { background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' },
+      5: { background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' },
+      6: { background: 'linear-gradient(135deg, #64748B 0%, #475569 100%)' },
+      7: { background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)' },
+    }),
+    [themeName]
+  );
 
   return (
     <View className="appointment-detail-page">
@@ -226,12 +218,7 @@ const AppointmentDetailPage = () => {
       {/* 登录弹窗 */}
       <LoginPopup
         visible={showLoginPopup}
-        onClose={() => {
-          setShowLoginPopup(false);
-          if (!getToken()) {
-            Taro.navigateBack();
-          }
-        }}
+        onClose={handleLoginClose}
         onSuccess={handleLoginSuccess}
       />
     </View>

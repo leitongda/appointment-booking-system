@@ -14,6 +14,19 @@ import type {
   PageResult,
 } from '@hospital/shared';
 
+export type {
+  RuleSet,
+  RuleWindow,
+  RuleBookingPolicy,
+  RuleCheckinPolicy,
+  RuleCapacityPolicy,
+  ShiftType,
+  RulePreviewRequest,
+  RulePreviewResponse,
+  WindowCheckResult,
+  WindowOffsetConfig,
+} from '@hospital/shared';
+
 export interface RuleSetListParams {
   enabled?: boolean;
   shiftTypeId?: string;
