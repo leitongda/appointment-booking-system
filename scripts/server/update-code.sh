@@ -23,6 +23,13 @@ echo ""
 # 1. 进入项目目录并拉取代码
 echo -e "${YELLOW}[1/5] 拉取最新代码...${NC}"
 cd "$PROJECT_DIR"
+
+# 保护 uploads 目录：如果存在冲突，先丢弃本地更改
+if git diff --name-only apps/server/uploads/ 2>/dev/null | grep -q .; then
+    echo -e "${YELLOW}检测到 uploads 目录有本地更改，跳过这些文件...${NC}"
+    git checkout -- apps/server/uploads/
+fi
+
 git pull
 echo "代码已更新"
 
