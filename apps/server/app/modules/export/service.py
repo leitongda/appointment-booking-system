@@ -1,8 +1,8 @@
 """数据导出服务 - 已升级为 Excel 格式"""
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, or_
 from sqlalchemy.orm import selectinload
-from typing import Optional, List
+from typing import Optional, List, Union
 from datetime import date, datetime
 
 from app.models.appointment import Appointment
@@ -26,8 +26,16 @@ class ExportService:
         status: Optional[int] = None,
         doctor_id: Optional[str] = None,
         department_id: Optional[str] = None,
+        store_ids: Optional[Union[str, List[str]]] = None,
     ) -> tuple[bytes, str]:
-        """导出预约记录"""
+        """导出预约记录
+
+        Args:
+            store_ids: 门店过滤条件
+                - None: 不过滤（超管）
+                - str: 单个门店ID
+                - List[str]: 多个门店ID列表
+        """
         query = select(Appointment).options(
             selectinload(Appointment.schedule),
             selectinload(Appointment.patient),
@@ -45,6 +53,13 @@ class ExportService:
             conditions.append(Appointment.status == status)
         if doctor_id:
             conditions.append(Appointment.doctor_id == doctor_id)
+        # 门店过滤（空字符串或空列表不过滤）
+        if store_ids:
+            if isinstance(store_ids, list):
+                if store_ids:  # 非空列表才过滤
+                    conditions.append(Appointment.store_id.in_(store_ids))
+            else:
+                conditions.append(Appointment.store_id == store_ids)
 
         if conditions:
             query = query.where(and_(*conditions))
@@ -100,18 +115,26 @@ class ExportService:
     async def export_patients(
         self,
         keyword: Optional[str] = None,
+        store_ids: Optional[Union[str, List[str]]] = None,
     ) -> tuple[bytes, str]:
-        """导出患者列表"""
+        """导出患者列表
+
+        注意：患者表没有直接的 store_id 字段，此过滤条件暂不生效。
+        如需按门店过滤患者，需要通过预约记录关联查询。
+        """
         query = select(Patient)
 
+        conditions = []
         if keyword:
-            from sqlalchemy import or_
-            query = query.where(
+            conditions.append(
                 or_(
                     Patient.name.ilike(f"%{keyword}%"),
                     Patient.phone.ilike(f"%{keyword}%")
                 )
             )
+
+        if conditions:
+            query = query.where(and_(*conditions))
 
         query = query.order_by(Patient.created_at.desc())
 
@@ -154,8 +177,16 @@ class ExportService:
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
         doctor_id: Optional[str] = None,
+        store_ids: Optional[Union[str, List[str]]] = None,
     ) -> tuple[bytes, str]:
-        """导出排班记录"""
+        """导出排班记录
+
+        Args:
+            store_ids: 门店过滤条件
+                - None: 不过滤（超管）
+                - str: 单个门店ID
+                - List[str]: 多个门店ID列表
+        """
         query = select(Schedule).options(
             selectinload(Schedule.doctor).selectinload(Doctor.department)
         )
@@ -167,6 +198,13 @@ class ExportService:
             conditions.append(Schedule.schedule_date <= end_date)
         if doctor_id:
             conditions.append(Schedule.doctor_id == doctor_id)
+        # 门店过滤（空字符串或空列表不过滤）
+        if store_ids:
+            if isinstance(store_ids, list):
+                if store_ids:  # 非空列表才过滤
+                    conditions.append(Schedule.store_id.in_(store_ids))
+            else:
+                conditions.append(Schedule.store_id == store_ids)
 
         if conditions:
             query = query.where(and_(*conditions))

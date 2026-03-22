@@ -2,7 +2,7 @@
  * 数据导入导出 API
  */
 
-const BASE_URL = '/data';
+const BASE_URL = '/api/v1/data';
 
 export interface ImportResult {
   success_count: number;
@@ -26,7 +26,7 @@ export const dataApi = {
     if (params?.status !== undefined) searchParams.append('status', String(params.status));
     if (params?.doctorId) searchParams.append('doctor_id', params.doctorId);
     const query = searchParams.toString();
-    return `/export/appointments${query ? `?${query}` : ''}`;
+    return `/api/v1/export/appointments${query ? `?${query}` : ''}`;
   },
   
   /** 获取医生导出 URL */
@@ -51,6 +51,7 @@ export const dataApi = {
     if (params?.storeId) searchParams.append('store_id', params.storeId);
     if (params?.status !== undefined) searchParams.append('status', String(params.status));
     const query = searchParams.toString();
+    console.log("🚀 ~ BASE_URL:", BASE_URL)
     return `${BASE_URL}/export/departments${query ? `?${query}` : ''}`;
   },
 

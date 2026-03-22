@@ -56,6 +56,7 @@ const ImportExport: React.FC<ImportExportProps> = ({
 
   // 导出数据
   const handleExport = async () => {
+    console.log("🚀 ~ handleExport ~ exportUrl:", exportUrl)
     if (!exportUrl) return;
     
     setExporting(true);

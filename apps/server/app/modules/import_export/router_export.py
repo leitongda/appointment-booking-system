@@ -5,12 +5,13 @@ from io import BytesIO
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
-from typing import Optional
+from typing import Optional, Union, List
 
 from app.db.session import get_db
 from app.api.deps import get_current_admin
+from app.common.deps import get_store_filter, check_store_access
 from app.services.excel_service import ExcelExportService
 from app.models.doctor import Doctor
 from app.models.user import Patient
@@ -19,6 +20,30 @@ from app.models.store import Store
 
 
 router = APIRouter()
+
+
+def _apply_store_filter(
+    query,
+    model_store_field,
+    store_ids: Optional[Union[str, List[str]]]
+):
+    """应用门店过滤条件
+
+    Args:
+        store_ids:
+            - None 或空字符串: 不过滤（超管或未绑定门店）
+            - str: 单个门店ID
+            - List[str]: 多个门店ID列表（空列表不过滤）
+    """
+    # None 或空字符串不过滤
+    if not store_ids:
+        return query
+    if isinstance(store_ids, list):
+        # 空列表不过滤
+        if not store_ids:
+            return query
+        return query.where(model_store_field.in_(store_ids))
+    return query.where(model_store_field == store_ids)
 
 
 @router.get("/doctors", summary="导出医生列表")
@@ -30,13 +55,26 @@ async def export_doctors(
     current_admin = Depends(get_current_admin),
 ):
     """导出医生列表"""
+    # 获取门店过滤条件
+    filter_store_ids = get_store_filter(current_admin)
+
+    # 如果用户传了 store_id，验证权限
+    if store_id and not current_admin.get("is_super_admin"):
+        if not check_store_access(current_admin, store_id):
+            store_id = None  # 无权限访问该门店，忽略该参数
+
+    # 确定最终的门店过滤条件
+    # 优先使用用户传入的 store_id（已验证权限），否则使用自动过滤
+    final_store_ids = store_id if store_id else filter_store_ids
+
     query = select(Doctor).options(
         selectinload(Doctor.store),
         selectinload(Doctor.department),
     )
 
-    if store_id:
-        query = query.where(Doctor.store_id == store_id)
+    # 应用门店过滤
+    query = _apply_store_filter(query, Doctor.store_id, final_store_ids)
+
     if department_id:
         query = query.where(Doctor.department_id == department_id)
     if status is not None:
@@ -127,9 +165,21 @@ async def export_departments(
     current_admin = Depends(get_current_admin),
 ):
     """导出科室列表"""
+    # 获取门店过滤条件
+    filter_store_ids = get_store_filter(current_admin)
+
+    # 如果用户传了 store_id，验证权限
+    if store_id and not current_admin.get("is_super_admin"):
+        if not check_store_access(current_admin, store_id):
+            store_id = None
+
+    final_store_ids = store_id if store_id else filter_store_ids
+
     query = select(Department).options(selectinload(Department.store))
-    if store_id:
-        query = query.where(Department.store_id == store_id)
+
+    # 应用门店过滤
+    query = _apply_store_filter(query, Department.store_id, final_store_ids)
+
     if status is not None:
         query = query.where(Department.status == status)
     query = query.order_by(Department.sort_order)
@@ -164,7 +214,14 @@ async def export_stores(
     current_admin = Depends(get_current_admin),
 ):
     """导出门店列表"""
+    # 获取门店过滤条件
+    filter_store_ids = get_store_filter(current_admin)
+
     query = select(Store)
+
+    # 应用门店过滤（非超管只能导出自己绑定的门店）
+    query = _apply_store_filter(query, Store.id, filter_store_ids)
+
     if status is not None:
         query = query.where(Store.status == status)
     query = query.order_by(Store.created_at.desc())
@@ -205,14 +262,25 @@ async def export_schedule_templates(
     from app.models.schedule_template import ScheduleTemplate
     from sqlalchemy.orm import selectinload
 
+    # 获取门店过滤条件
+    filter_store_ids = get_store_filter(current_admin)
+
+    # 如果用户传了 store_id，验证权限
+    if store_id and not current_admin.get("is_super_admin"):
+        if not check_store_access(current_admin, store_id):
+            store_id = None
+
+    final_store_ids = store_id if store_id else filter_store_ids
+
     query = select(ScheduleTemplate).options(
         selectinload(ScheduleTemplate.store),
         selectinload(ScheduleTemplate.doctor),
         selectinload(ScheduleTemplate.department),
     )
 
-    if store_id:
-        query = query.where(ScheduleTemplate.store_id == store_id)
+    # 应用门店过滤
+    query = _apply_store_filter(query, ScheduleTemplate.store_id, final_store_ids)
+
     if doctor_id:
         query = query.where(ScheduleTemplate.doctor_id == doctor_id)
     if status is not None:
@@ -268,13 +336,28 @@ async def export_users(
     from app.models.admin import Admin, admin_stores
     from sqlalchemy.orm import selectinload
 
+    # 获取门店过滤条件
+    filter_store_ids = get_store_filter(current_admin)
+
+    # 如果用户传了 store_id，验证权限
+    if store_id and not current_admin.get("is_super_admin"):
+        if not check_store_access(current_admin, store_id):
+            store_id = None
+
+    final_store_ids = store_id if store_id else filter_store_ids
+
     query = select(Admin).options(
         selectinload(Admin.role),
         selectinload(Admin.stores),
     )
-    if store_id:
-        # 多对多关系，需要联表查询
-        query = query.join(admin_stores).where(admin_stores.c.store_id == store_id)
+
+    # 应用门店过滤（多对多关系）
+    if final_store_ids is not None:
+        if isinstance(final_store_ids, list):
+            query = query.join(admin_stores).where(admin_stores.c.store_id.in_(final_store_ids))
+        else:
+            query = query.join(admin_stores).where(admin_stores.c.store_id == final_store_ids)
+
     if status is not None:
         query = query.where(Admin.status == status)
     query = query.order_by(Admin.created_at.desc())
