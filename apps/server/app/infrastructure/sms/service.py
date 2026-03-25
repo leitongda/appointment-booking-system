@@ -8,6 +8,7 @@ from typing import Optional
 import logging
 
 from app.core.redis import cache, RedisCache
+from app.middleware.tenant_context import get_current_tenant_id
 
 logger = logging.getLogger(__name__)
 
@@ -27,32 +28,38 @@ class SmsService:
         return ''.join(random.choices(string.digits, k=length))
 
     @classmethod
-    async def send_code(cls, phone: str, code_type: str = "login") -> str:
+    async def send_code(cls, phone: str, code_type: str = "login", tenant_id: Optional[str] = None) -> str:
         """
         发送验证码
 
         Args:
             phone: 手机号
             code_type: 验证码类型（login/register/reset）
+            tenant_id: 租户ID（可选，用于租户隔离。如不提供则从当前上下文获取）
 
         Returns:
             验证码（仅用于开发调试）
 
         Raises:
-            ValueError: 发送过于频繁
+            ValueError: 发送过于频繁或缺少租户上下文
         """
-        # 检查发送频率
+        # 获取租户ID（用于缓存键隔离）
+        effective_tenant_id = tenant_id or get_current_tenant_id()
+        if not effective_tenant_id:
+            raise ValueError("缺少租户上下文，无法发送验证码")
+
+        # 检查发送频率（带租户隔离）
         can_send, remaining = await cache.check_sms_rate_limit(
-            phone, code_type, cls.SEND_INTERVAL_SECONDS
+            phone, code_type, cls.SEND_INTERVAL_SECONDS, effective_tenant_id
         )
         if not can_send:
-                    raise ValueError(f"发送过于频繁，请{remaining}秒后重试")
+            raise ValueError(f"发送过于频繁，请{remaining}秒后重试")
 
         # 生成验证码
         code = cls.generate_code()
 
-        # 存储验证码到 Redis
-        await cache.set_sms_code(phone, code, code_type, cls.CODE_EXPIRE_SECONDS)
+        # 存储验证码到 Redis（带租户隔离）
+        await cache.set_sms_code(phone, code, code_type, cls.CODE_EXPIRE_SECONDS, tenant_id=effective_tenant_id)
 
         # 发送短信
         await cls._do_send(phone, code, code_type)

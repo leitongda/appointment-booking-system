@@ -288,85 +288,105 @@ class RedisCache:
             logger.error(f"Redis LLEN 失败: {key}, 错误: {e}")
             return 0
     
-    # ==================== 短信验证码相关 ====================
-    
+    # ==================== 短信验证码相关（多租户隔离）====================
+
     @classmethod
     async def set_sms_code(
-        cls, 
-        phone: str, 
-        code: str, 
+        cls,
+        phone: str,
+        code: str,
         code_type: str = "login",
-        expire: int = 300
+        expire: int = 300,
+        tenant_id: str = None,
     ) -> bool:
         """
-        存储短信验证码
-        
+        存储短信验证码（支持多租户隔离）
+
         Args:
             phone: 手机号
             code: 验证码
             code_type: 类型（login/register/reset）
             expire: 过期时间（秒），默认 5 分钟
+            tenant_id: 租户ID（用于多租户隔离）
         """
-        key = f"{cls.PREFIX_SMS}{phone}:{code_type}"
+        # 构建包含租户ID的缓存键
+        effective_tenant_id = tenant_id or get_current_tenant_id()
+        if effective_tenant_id:
+            key = f"{cls.PREFIX_SMS}{effective_tenant_id}:{phone}:{code_type}"
+        else:
+            key = f"{cls.PREFIX_SMS}{phone}:{code_type}"
         data = {
             "code": code,
             "verified": False
         }
         return await cls.set(key, data, expire)
-    
+
     @classmethod
-    async def get_sms_code(cls, phone: str, code_type: str = "login") -> Optional[dict]:
-        """获取短信验证码"""
-        key = f"{cls.PREFIX_SMS}{phone}:{code_type}"
+    async def get_sms_code(cls, phone: str, code_type: str = "login", tenant_id: str = None) -> Optional[dict]:
+        """获取短信验证码（支持多租户隔离）"""
+        effective_tenant_id = tenant_id or get_current_tenant_id()
+        if effective_tenant_id:
+            key = f"{cls.PREFIX_SMS}{effective_tenant_id}:{phone}:{code_type}"
+        else:
+            key = f"{cls.PREFIX_SMS}{phone}:{code_type}"
         return await cls.get(key)
-    
+
     @classmethod
-    async def verify_sms_code(cls, phone: str, code: str, code_type: str = "login") -> bool:
+    async def verify_sms_code(cls, phone: str, code: str, code_type: str = "login", tenant_id: str = None) -> bool:
         """
-        验证短信验证码
-        
+        验证短信验证码（支持多租户隔离）
+
         Returns:
             验证是否成功
         """
-        key = f"{cls.PREFIX_SMS}{phone}:{code_type}"
+        effective_tenant_id = tenant_id or get_current_tenant_id()
+        if effective_tenant_id:
+            key = f"{cls.PREFIX_SMS}{effective_tenant_id}:{phone}:{code_type}"
+        else:
+            key = f"{cls.PREFIX_SMS}{phone}:{code_type}"
         data = await cls.get(key)
-        
+
         if not data:
             return False
-        
+
         if data.get("verified"):
             return False  # 已使用
-        
+
         if data.get("code") != code:
             return False
-        
+
         # 标记为已使用
         data["verified"] = True
         ttl = await cls.ttl(key)
         if ttl > 0:
             await cls.set(key, data, ttl)
-        
+
         return True
-    
+
     @classmethod
     async def check_sms_rate_limit(
-        cls, 
-        phone: str, 
+        cls,
+        phone: str,
         code_type: str = "login",
-        interval: int = 60
+        interval: int = 60,
+        tenant_id: str = None,
     ) -> tuple[bool, int]:
         """
-        检查短信发送频率
-        
+        检查短信发送频率（支持多租户隔离）
+
         Returns:
             (是否可以发送, 剩余等待秒数)
         """
-        key = f"{cls.PREFIX_SMS}{phone}:{code_type}:limit"
+        effective_tenant_id = tenant_id or get_current_tenant_id()
+        if effective_tenant_id:
+            key = f"{cls.PREFIX_SMS}{effective_tenant_id}:{phone}:{code_type}:limit"
+        else:
+            key = f"{cls.PREFIX_SMS}{phone}:{code_type}:limit"
         ttl = await cls.ttl(key)
-        
+
         if ttl > 0:
             return False, ttl
-        
+
         # 设置发送标记
         await cls.set(key, "1", interval)
         return True, 0
