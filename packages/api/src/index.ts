@@ -76,6 +76,8 @@ export { storeVisitTypeConfigApi } from './modules/store-visit-type-config';
 export { ruleSetApi, shiftTypeApi } from './modules/rule-set';
 export { auditLogApi } from './modules/audit-log';
 export { storeEmailRecipientApi } from './modules/store-email-recipient';
+export { tenantApi } from './modules/tenant';
+export { miniappPlatformApi } from './modules/miniapp-platform';
 export type { 
   UserListItem, 
   UserDetail, 
@@ -297,3 +299,34 @@ export type {
   StoreEmailRecipientUpdateData,
   EventTypeOption,
 } from './modules/store-email-recipient';
+
+// Tenant types
+export type {
+  SubscriptionPlan,
+  SubscriptionPlanCreateData,
+  SubscriptionPlanUpdateData,
+  Tenant,
+  TenantListParams,
+  TenantCreateData,
+  TenantUpdateData,
+  TenantSubscription,
+  TenantSubscriptionCreateData,
+  TenantUsageLog,
+  TenantUsageSummary,
+} from './modules/tenant';
+
+// Miniapp Platform types
+export type {
+  Company,
+  CompanyCreateData,
+  CompanyUpdateData,
+  CompanyListParams,
+  PaymentProfile,
+  PaymentProfileCreateData,
+  PaymentProfileUpdateData,
+  PaymentProfileListParams,
+  MiniappInstance,
+  MiniappInstanceCreateData,
+  MiniappInstanceUpdateData,
+  MiniappInstanceListParams,
+} from './modules/miniapp-platform';

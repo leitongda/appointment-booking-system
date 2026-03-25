@@ -34,12 +34,30 @@ export default defineConfig(async () => {
     // - TARO_APP_STORE_ID: 门店UUID，用于API请求过滤
     // - TARO_APP_STORE_CODE: 门店编码，用于显示和调试
     // - TARO_APP_STORE_NAME: 门店名称，用于页面显示
-    // 构建示例: TARO_APP_STORE_ID=xxx TARO_APP_STORE_CODE=beijing TARO_APP_STORE_NAME=北京门店 pnpm build:weapp
+    // 实例化配置说明：
+    // - TARO_APP_TEMPLATE_CODE: 模板编码（如: patient）
+    // - TARO_APP_TEMPLATE_VERSION: 模板版本（如: 1.0.0）
+    // - TARO_APP_TENANT_CODE: 租户编码（如: demo-hospital）
+    // - TARO_APP_MINIAPP_INSTANCE_ID: 小程序实例ID
+    // 构建示例:
+    //   TARO_APP_TEMPLATE_CODE=patient \
+    //   TARO_APP_TEMPLATE_VERSION=1.0.0 \
+    //   TARO_APP_TENANT_CODE=demo-hospital \
+    //   TARO_APP_MINIAPP_INSTANCE_ID=xxx \
+    //   TARO_APP_STORE_ID=default-store-id \
+    //   TARO_APP_API_URL=https://api.example.com \
+    //   pnpm build:weapp
     defineConstants: {
       'process.env.TARO_APP_API_URL': JSON.stringify(process.env.TARO_APP_API_URL || ''),
+      // 现有门店配置（保留兼容）
       'process.env.TARO_APP_STORE_ID': JSON.stringify(process.env.TARO_APP_STORE_ID || ''),
       'process.env.TARO_APP_STORE_CODE': JSON.stringify(process.env.TARO_APP_STORE_CODE || ''),
       'process.env.TARO_APP_STORE_NAME': JSON.stringify(process.env.TARO_APP_STORE_NAME || ''),
+      // 新增实例化配置
+      'process.env.TARO_APP_TEMPLATE_CODE': JSON.stringify(process.env.TARO_APP_TEMPLATE_CODE || ''),
+      'process.env.TARO_APP_TEMPLATE_VERSION': JSON.stringify(process.env.TARO_APP_TEMPLATE_VERSION || ''),
+      'process.env.TARO_APP_TENANT_CODE': JSON.stringify(process.env.TARO_APP_TENANT_CODE || ''),
+      'process.env.TARO_APP_MINIAPP_INSTANCE_ID': JSON.stringify(process.env.TARO_APP_MINIAPP_INSTANCE_ID || ''),
     },
     copy: {
       patterns: [

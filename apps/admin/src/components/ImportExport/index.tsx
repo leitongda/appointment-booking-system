@@ -54,6 +54,11 @@ const ImportExport: React.FC<ImportExportProps> = ({
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [selectedFile, setSelectedFile] = useState<RcFile | null>(null);
 
+  const isExcelFile = (file: RcFile) => {
+    const name = file.name.toLowerCase();
+    return name.endsWith('.xlsx') || name.endsWith('.xls');
+  };
+
   // 导出数据
   const handleExport = async () => {
     console.log("🚀 ~ handleExport ~ exportUrl:", exportUrl)
@@ -145,6 +150,10 @@ const ImportExport: React.FC<ImportExportProps> = ({
     accept: '.xlsx,.xls',
     maxCount: 1,
     beforeUpload: (file) => {
+      if (!isExcelFile(file)) {
+        message.error('请上传 .xlsx 或 .xls 格式的 Excel 文件');
+        return Upload.LIST_IGNORE;
+      }
       setSelectedFile(file);
       return false;
     },

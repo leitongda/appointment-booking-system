@@ -13,7 +13,7 @@ import {
 import { Card, App, Tabs, Spin, Table, Switch, Button, Input, Space, Popconfirm, Tag, Select, Form, Typography, Slider, Row, Col } from 'antd';
 import { PlusOutlined, SearchOutlined, DeleteOutlined, CalendarOutlined, CloseCircleOutlined, CheckCircleOutlined, StopOutlined, NumberOutlined } from '@ant-design/icons';
 import { useState, useEffect, useRef } from 'react';
-import { useAccess, useModel } from '@umijs/max';
+import { history, useAccess, useLocation, useModel } from '@umijs/max';
 import { settingsApi, blacklistApi, storeApi } from '@hospital/api';
 import { fetchAllData } from '@/utils/fetchAllData';
 import type { BookingSettings, HospitalInfo, BookingFieldConfig, PatientCardConfig, BlacklistItem, EmailConfig, ImageConfig, ThumbnailSize, WechatConfig } from '@hospital/api';
@@ -67,8 +67,27 @@ const DEFAULT_IMAGE_CONFIG: ImageConfig = {
   compressQuality: 85,
 };
 
+const TAB_PATH_TO_KEY: Record<string, string> = {
+  '/system/settings/booking': 'booking',
+  '/system/settings/blacklist': 'blacklist',
+  '/system/settings/wechat': 'wechat',
+  '/system/settings/base': 'hospital',
+};
+
+const TAB_KEY_TO_PATH: Record<string, string> = {
+  booking: '/system/settings/booking',
+  blacklist: '/system/settings/blacklist',
+  wechat: '/system/settings/wechat',
+  hospital: '/system/settings/base',
+  bookingFields: '/system/settings/base',
+  patientCard: '/system/settings/base',
+  email: '/system/settings/base',
+  image: '/system/settings/base',
+};
+
 const SettingsPage: React.FC = () => {
   const { message } = App.useApp();
+  const location = useLocation();
   const access = useAccess();
   const { initialState } = useModel('@@initialState');
   const { currentUser } = initialState ?? {};
@@ -93,6 +112,7 @@ const SettingsPage: React.FC = () => {
   const [wechatLoading, setWechatLoading] = useState(false);
   // 预约设置门店选择
   const [selectedBookingStoreId, setSelectedBookingStoreId] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<string>(TAB_PATH_TO_KEY[location.pathname] || 'booking');
   const canEdit = access.hasPermission('system:settings');
   const canEditWechat = isSuperAdmin || access.hasPermission('settings:wechat') || access.hasPermission('settings:edit');
 
@@ -100,6 +120,10 @@ const SettingsPage: React.FC = () => {
     loadSettings();
     loadStores();
   }, []);
+
+  useEffect(() => {
+    setActiveTab(TAB_PATH_TO_KEY[location.pathname] || 'booking');
+  }, [location.pathname]);
 
   const loadSettings = async () => {
     setLoading(true);
@@ -942,11 +966,19 @@ const SettingsPage: React.FC = () => {
     },
   ];
 
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    const targetPath = TAB_KEY_TO_PATH[key] || '/system/settings/base';
+    if (targetPath !== location.pathname) {
+      history.replace(targetPath);
+    }
+  };
+
   return (
     <PageContainer>
       <Spin spinning={loading}>
         <Card>
-          <Tabs items={items} />
+          <Tabs activeKey={activeTab} items={items} onChange={handleTabChange} />
         </Card>
       </Spin>
 

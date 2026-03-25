@@ -5,93 +5,207 @@
 export default function access(initialState: { currentUser?: API.CurrentUser } | undefined) {
   const { currentUser } = initialState ?? {};
   const permissions = currentUser?.permissions || [];
-  // 支持大小写不敏感的角色码检查
   const roleCode = currentUser?.roleCode?.toUpperCase();
   const isSuperAdmin = roleCode === 'SUPER_ADMIN' || currentUser?.isSuperAdmin;
   const isStoreAdmin = roleCode === 'STORE_ADMIN' || currentUser?.isStoreAdmin;
   const isStoreUser = roleCode === 'STORE_USER';
-  // 是否可以查看所有门店数据
   const canViewAllStores = currentUser?.canViewAllStores || isSuperAdmin;
-  // 检查是否有通配符权限
   const hasWildcard = permissions.includes('*');
 
-  /**
-   * 检查是否拥有指定权限
-   * @param permission 权限码，如 'doctor:create'
-   * @returns boolean
-   */
   const hasPermission = (permission: string): boolean => {
-    // 超级管理员或拥有通配符权限
     if (isSuperAdmin || hasWildcard) return true;
-    // 检查权限列表
     return permissions.includes(permission);
   };
 
-  /**
-   * 检查是否拥有指定权限中的任意一个
-   * @param permissionList 权限码列表
-   * @returns boolean
-   */
   const hasAnyPermission = (permissionList: string[]): boolean => {
     if (isSuperAdmin || hasWildcard) return true;
-    return permissionList.some((p) => permissions.includes(p));
+    return permissionList.some((permission) => permissions.includes(permission));
   };
 
-  /**
-   * 检查是否拥有所有指定权限
-   * @param permissionList 权限码列表
-   * @returns boolean
-   */
   const hasAllPermissions = (permissionList: string[]): boolean => {
     if (isSuperAdmin || hasWildcard) return true;
-    return permissionList.every((p) => permissions.includes(p));
+    return permissionList.every((permission) => permissions.includes(permission));
   };
 
+  const hasModuleAccess = (menuPermission: string, childPermissions: string[] = []): boolean => {
+    return hasPermission(menuPermission) || hasAnyPermission(childPermissions);
+  };
+
+  const canDashboard = hasPermission('dashboard') || hasPermission('dashboard:view');
+  const canStore = hasModuleAccess('store', ['store:list', 'store:create', 'store:update', 'store:delete']);
+  const canDepartment = hasModuleAccess('department', ['department:list', 'department:create', 'department:update', 'department:delete']);
+  const canDoctor = hasModuleAccess('doctor', [
+    'doctor:list',
+    'doctor:detail',
+    'doctor:create',
+    'doctor:update',
+    'doctor:delete',
+    'doctor:booking-setting',
+  ]);
+  const canSchedule = hasModuleAccess('schedule', [
+    'schedule:list',
+    'schedule:create',
+    'schedule:update',
+    'schedule:delete',
+    'schedule:template',
+    'schedule:custom',
+    'schedule:rest-day',
+    'schedule:suspension',
+    'schedule:statistics',
+  ]);
+  const canAppointment = hasModuleAccess('appointment', [
+    'appointment:list',
+    'appointment:detail',
+    'appointment:update',
+    'appointment:cancel',
+    'appointment:statistics',
+  ]);
+  const canPatient = hasModuleAccess('patient', [
+    'patient:list',
+    'patient:detail',
+    'patient:create',
+    'patient:update',
+    'patient:delete',
+  ]);
+  const canMedicalRecord = canPatient;
+  const canLeaveRequest = hasModuleAccess('leave-request', ['leave-request:list', 'leave-request:approve']);
+  const canFeedback = hasModuleAccess('feedback', ['feedback:list', 'feedback:reply', 'feedback:delete']);
+  const canMessage = hasModuleAccess('message', ['message:list', 'message:send', 'message:delete']);
+  const canContent = hasPermission('content') || hasAnyPermission([
+    'content:news',
+    'content:notice',
+    'content:banner',
+    'content:news:create',
+    'content:notice:create',
+    'content:banner:create',
+  ]);
+  const canRoleManagement =
+    isSuperAdmin &&
+    hasAnyPermission([
+      'system:role',
+      'system:role:create',
+      'system:role:update',
+      'system:role:delete',
+      'system:role:permission',
+    ]);
+  const canUserManagement = hasAnyPermission([
+    'system:user',
+    'system:user:create',
+    'system:user:update',
+    'system:user:delete',
+    'system:user:reset-password',
+  ]);
+  const canSystemLogs = isSuperAdmin || hasPermission('system:log');
+  const canCheckinAuditLogs = canSystemLogs;
+  const canOnlineUsers = canSystemLogs;
+  const canAnalytics = isSuperAdmin || hasAnyPermission(['statistics', 'statistics:view', 'system:log']);
+  const canBookingRules = hasPermission('system:settings');
+  const canBlacklistSettings = hasPermission('system:settings');
+  const canBasicSettings = hasPermission('system:settings');
+  const canWechatSettings = isSuperAdmin || hasAnyPermission(['system:settings', 'settings:wechat', 'settings:edit']);
+  const canShiftTypes = isSuperAdmin || hasPermission('system:settings');
+  const canRuleSets = isSuperAdmin;
+  const canConsultationFee = isSuperAdmin || hasPermission('system:consultation-fee');
+  const canEmailTemplates =
+    isSuperAdmin ||
+    hasAnyPermission([
+      'system:settings',
+      'system:email-template:create',
+      'system:email-template:update',
+      'system:email-template:delete',
+    ]);
+  const canEmailRecipients = isSuperAdmin || hasPermission('system:settings');
+  const canBookingNotice = isSuperAdmin || hasPermission('system:settings');
+  const canTenant = isSuperAdmin || hasAnyPermission(['tenant', 'tenant:list', 'tenant:create', 'tenant:update', 'tenant:delete']);
+  const canTenantPlans = isSuperAdmin || hasAnyPermission(['tenant:plan:view', 'tenant:plan:create', 'tenant:plan:update', 'tenant:plan:delete']);
+  const canMiniappPlatform = isSuperAdmin || hasAnyPermission([
+    'miniapp-platform',
+    'miniapp-platform:company',
+    'miniapp-platform:payment-profile',
+    'miniapp-platform:instance',
+  ]);
+
+  const canPlatformManagement = canTenant || canTenantPlans || canMiniappPlatform;
+  const canOrganizationManagement =
+    canStore ||
+    canDepartment ||
+    canRoleManagement ||
+    canUserManagement ||
+    canSystemLogs ||
+    canCheckinAuditLogs ||
+    canOnlineUsers ||
+    canAnalytics;
+  const canMedicalServices =
+    canDoctor ||
+    canSchedule ||
+    canAppointment ||
+    canPatient ||
+    canMedicalRecord ||
+    canLeaveRequest;
+  const canOperationsConfig =
+    canBookingRules ||
+    canBlacklistSettings ||
+    canBasicSettings ||
+    canWechatSettings ||
+    canShiftTypes ||
+    canRuleSets ||
+    canConsultationFee ||
+    canEmailTemplates ||
+    canEmailRecipients ||
+    canBookingNotice;
+  const canContentOperations = canContent || canMessage || canFeedback;
+
   return {
-    // ========== 角色权限 ==========
     canSuperAdmin: isSuperAdmin,
     canStoreAdmin: isStoreAdmin,
     canStoreUser: isStoreUser,
     canViewAllStores,
-    
-    // 已登录
+
     isLogin: !!currentUser,
-    // 权限检查函数
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
-    // 当前用户的权限列表
     permissions,
-    
-    // ========== 菜单权限（用于路由 access 配置）==========
-    // 仪表盘
-    canDashboard: hasPermission('dashboard') || hasPermission('dashboard:view'),
-    // 门店管理 - 超管可以看到门店列表，门店管理员/用户可通过顶部面板访问子页面
-    // 拥有 store 或 store:list 权限的用户可以访问门店子页面（诊费、复诊等）
-    canStore: isSuperAdmin || hasPermission('store') || hasPermission('store:list'),
+
+    canDashboard,
+    canPlatformManagement,
+    canOrganizationManagement,
+    canMedicalServices,
+    canOperationsConfig,
+    canContentOperations,
     canStoreCreate: isSuperAdmin,
     canStoreDelete: isSuperAdmin,
-    // 科室管理
-    canDepartment: hasPermission('department') || hasPermission('department:list'),
-    // 医生管理
-    canDoctor: hasPermission('doctor') || hasPermission('doctor:list'),
-    // 排班管理
-    canSchedule: hasPermission('schedule') || hasPermission('schedule:list'),
-    // 预约管理
-    canAppointment: hasPermission('appointment') || hasPermission('appointment:list'),
-    // 患者管理
-    canPatient: hasPermission('patient') || hasPermission('patient:list'),
-    // 停诊审核
-    canLeaveRequest: hasPermission('leave-request') || hasPermission('leave-request:list'),
-    // 用户反馈
-    canFeedback: hasPermission('feedback') || hasPermission('feedback:list'),
-    // 消息管理
-    canMessage: hasPermission('message') || hasPermission('message:list'),
-    // 内容管理
-    canContent: hasPermission('content') || hasAnyPermission(['content:news', 'content:notice', 'content:banner']),
-    // 系统设置 - 只有超管可以管理角色
-    canSystem: hasPermission('system') || hasAnyPermission(['system:role', 'system:user', 'system:settings', 'system:log']),
-    canManageRoles: isSuperAdmin && hasPermission('system:role'),
-    canManageUsers: hasPermission('system:user'),
+    canStore,
+    canDepartment,
+    canDoctor,
+    canSchedule,
+    canAppointment,
+    canPatient,
+    canMedicalRecord,
+    canLeaveRequest,
+    canFeedback,
+    canMessage,
+    canContent,
+    canSystem: canOrganizationManagement || canOperationsConfig,
+    canManageRoles: canRoleManagement,
+    canManageUsers: canUserManagement,
+    canRoleManagement,
+    canUserManagement,
+    canSystemLogs,
+    canCheckinAuditLogs,
+    canOnlineUsers,
+    canAnalytics,
+    canBookingRules,
+    canBlacklistSettings,
+    canBasicSettings,
+    canWechatSettings,
+    canShiftTypes,
+    canRuleSets,
+    canConsultationFee,
+    canEmailTemplates,
+    canEmailRecipients,
+    canBookingNotice,
+    canTenant,
+    canTenantPlans,
   };
 }

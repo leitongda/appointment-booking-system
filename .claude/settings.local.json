@@ -116,7 +116,11 @@
       "Bash(pnpm list:*)",
       "Bash(for endpoint in \"/api/v1/data/export/doctors\" \"/api/v1/data/export/patients\" \"/api/v1/data/export/departments\" \"/api/v1/data/export/stores\" \"/api/v1/data/export/schedule-templates\" \"/api/v1/data/export/users\" \"/api/v1/data/export/logs\" \"/api/v1/data/export/feedbacks\" \"/api/v1/data/export/rule-sets\" \"/api/v1/export/appointments\" \"/api/v1/export/patients\" \"/api/v1/export/schedules\")",
       "Bash(echo:*)",
-      "Bash(pnpm --filter @hospital/api build:*)"
+      "Bash(pnpm --filter @hospital/api build:*)",
+      "Bash(sort:*)",
+      "Bash(pnpm tsc:*)",
+      "Bash(__NEW_LINE_7c5bf704596b3d97__ awk '/^@pytest.fixture/{N}async def [a-z_]+/ {print NR+1}' fixtures.txt)",
+      "Bash(openspec list:*)"
     ]
   },
   "statusLine": {
