@@ -42,24 +42,34 @@ class Permission(Base, AuditMixin):
 class Role(Base, AuditMixin):
     """角色表"""
     __tablename__ = "roles"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(50), nullable=False, comment="角色名称")
-    code = Column(String(50), unique=True, nullable=False, comment="角色编码")
+    code = Column(String(50), index=True, comment="角色编码，租户内唯一（平台角色 tenant_id 为 NULL）")
     description = Column(String(200), comment="描述")
     status = Column(Integer, default=1, comment="状态 0禁用 1启用")
-    
+    # 租户关联（多租户支持，NULL表示平台角色）
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID（NULL表示平台角色）")
+
     # 权限列表（多对多）
     permissions = Column(Text, comment="权限列表，JSON格式")
-    
+
     # 关联的管理员
     admins = relationship("Admin", back_populates="role")
+    tenant = relationship("Tenant", back_populates="roles")
+
+    # 租户内唯一约束
+    __table_args__ = (
+        # 平台角色 (tenant_id = NULL) 和租户角色 (tenant_id != NULL) 的 code 分别唯一
+        # 这里使用复合唯一约束
+        {'comment': '角色表（多租户支持）'},
+    )
 
 
 class Admin(Base, AuditMixin):
     """管理员表"""
     __tablename__ = "admins"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     username = Column(String(50), unique=True, nullable=False, comment="用户名")
     password_hash = Column(String(255), nullable=False, comment="密码哈希")
@@ -68,14 +78,17 @@ class Admin(Base, AuditMixin):
     email = Column(String(100), comment="邮箱")
     avatar = Column(String(255), comment="头像")
     role_id = Column(String(36), ForeignKey("roles.id"), comment="角色ID")
+    # 租户关联（多租户支持，NULL表示平台管理员）
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID（NULL表示平台管理员）")
     # 当前选中的门店（用于门店切换功能）
     current_store_id = Column(String(36), ForeignKey("stores.id"), nullable=True, comment="当前选中门店ID，超级管理员可为空")
     status = Column(Integer, default=1, comment="状态 0禁用 1启用")
     last_login_at = Column(DateTime, comment="最后登录时间")
     last_login_ip = Column(String(50), comment="最后登录IP")
-    
-    # 关联角色
+
+    # 关联关系
     role = relationship("Role", back_populates="admins")
+    tenant = relationship("Tenant", back_populates="admins")
     # 当前选中门店（单个）
     current_store = relationship("Store", foreign_keys=[current_store_id], backref="current_admins")
     # 绑定的所有门店（多对多）

@@ -4,10 +4,15 @@ import string
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.middleware.tenant_context import get_current_tenant_id
+
 
 class PatientsServiceBase:
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    def _current_tenant_id(self) -> str | None:
+        return get_current_tenant_id()
 
     def _calculate_age(self, birthday: datetime):
         if not birthday:

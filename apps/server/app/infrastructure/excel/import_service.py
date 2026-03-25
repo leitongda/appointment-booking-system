@@ -1,55 +1,142 @@
 """Excel 导入基础服务"""
-from typing import List, Dict, Any, Optional, Tuple
+from datetime import date, datetime
 from io import BytesIO
+from typing import Any, Dict, List, Optional, Tuple
+from zipfile import BadZipFile
+
 from openpyxl import Workbook, load_workbook
 from openpyxl.comments import Comment
-from openpyxl.styles import Font, Alignment, PatternFill
+from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+from openpyxl.utils.exceptions import InvalidFileException
+
+try:
+    from xlrd import XL_CELL_BOOLEAN, XL_CELL_DATE, XL_CELL_NUMBER, open_workbook
+    from xlrd.biffh import XLRDError
+    from xlrd.compdoc import CompDocError
+    from xlrd.xldate import xldate_as_datetime
+except ImportError:  # pragma: no cover - 依赖缺失时保留 .xlsx 能力
+    XL_CELL_BOOLEAN = None
+    XL_CELL_DATE = None
+    XL_CELL_NUMBER = None
+    CompDocError = None
+    XLRDError = None
+    open_workbook = None
+    xldate_as_datetime = None
+
+
+class ExcelImportError(ValueError):
+    """Excel 导入解析异常"""
 
 
 class ExcelImportService:
     """Excel 导入基础服务"""
 
+    SUPPORTED_EXTENSIONS = (".xlsx", ".xls")
+
     @classmethod
-    def parse_excel(
+    def _get_extension(cls, filename: Optional[str]) -> str:
+        if not filename:
+            return ".xlsx"
+
+        lowered = filename.lower()
+        for extension in cls.SUPPORTED_EXTENSIONS:
+            if lowered.endswith(extension):
+                return extension
+
+        raise ExcelImportError("请上传 .xlsx 或 .xls 格式的 Excel 文件")
+
+    @classmethod
+    def _load_xlsx_workbook(cls, file_content: bytes):
+        """加载 .xlsx 工作簿并将底层解析异常转换为用户可理解的错误。"""
+        if not file_content:
+            raise ExcelImportError("导入文件不能为空，请重新上传")
+
+        try:
+            return load_workbook(filename=BytesIO(file_content), read_only=True)
+        except BadZipFile as exc:
+            raise ExcelImportError("Excel 文件无效或已损坏，请上传 .xlsx 或 .xls 格式的 Excel 文件") from exc
+        except InvalidFileException as exc:
+            raise ExcelImportError("Excel 文件无效或已损坏，请上传 .xlsx 或 .xls 格式的 Excel 文件") from exc
+
+    @classmethod
+    def _load_xls_workbook(cls, file_content: bytes):
+        """加载 .xls 工作簿。"""
+        if not file_content:
+            raise ExcelImportError("导入文件不能为空，请重新上传")
+
+        if open_workbook is None:
+            raise ExcelImportError(".xls 解析依赖未安装，请先安装 xlrd")
+
+        handled_errors = tuple(
+            error_type
+            for error_type in (XLRDError, CompDocError)
+            if error_type is not None
+        )
+
+        try:
+            return open_workbook(file_contents=file_content)
+        except handled_errors as exc:
+            raise ExcelImportError("Excel 文件无效或已损坏，请上传 .xlsx 或 .xls 格式的 Excel 文件") from exc
+
+    @classmethod
+    def _load_workbook(cls, file_content: bytes, filename: Optional[str] = None):
+        extension = cls._get_extension(filename)
+        if extension == ".xls":
+            return extension, cls._load_xls_workbook(file_content)
+        return extension, cls._load_xlsx_workbook(file_content)
+
+    @classmethod
+    def _normalize_xls_value(cls, cell, datemode: int) -> Any:
+        value = cell.value
+        if value in ("", None):
+            return None
+
+        if XL_CELL_DATE is not None and cell.ctype == XL_CELL_DATE:
+            converted = xldate_as_datetime(value, datemode)
+            if converted.time() == datetime.min.time():
+                return converted.date()
+            return converted
+
+        if XL_CELL_BOOLEAN is not None and cell.ctype == XL_CELL_BOOLEAN:
+            return bool(value)
+
+        if XL_CELL_NUMBER is not None and cell.ctype == XL_CELL_NUMBER and isinstance(value, float):
+            return int(value) if value.is_integer() else value
+
+        if isinstance(value, str):
+            value = value.strip()
+            return value or None
+
+        return value
+
+    @classmethod
+    def _parse_xlsx(
         cls,
-        file_content: bytes,
+        workbook,
         expected_headers: List[str],
         required_fields: Optional[List[str]] = None,
         sheet_index: int = 0
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        """
-        解析 Excel 文件
+        try:
+            ws = workbook.worksheets[sheet_index]
+        except IndexError as exc:
+            raise ExcelImportError("Excel 工作表不存在，请使用系统提供的导入模板") from exc
 
-        Args:
-            file_content: Excel 文件二进制内容
-            expected_headers: 期望的表头列表
-            required_fields: 必填字段列表
-            sheet_index: 工作表索引
-
-        Returns:
-            (valid_rows, error_rows) - 有效数据行和错误数据行
-        """
-        wb = load_workbook(filename=BytesIO(file_content), read_only=True)
-        ws = wb.worksheets[sheet_index]
-
-        # 读取表头
         headers = []
         for cell in ws[1]:
             headers.append(str(cell.value).strip() if cell.value else "")
 
-        # 验证表头
         header_mapping = cls._validate_headers(headers, expected_headers)
         if not header_mapping:
-            raise ValueError(f"表头不匹配，期望: {expected_headers}, 实际: {headers}")
+            raise ExcelImportError("导入模板表头不匹配，请使用系统提供的导入模板")
 
         valid_rows = []
         error_rows = []
         required_fields = required_fields or []
 
-        # 读取数据行
         for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), 2):
-            if not any(row):  # 跳过空行
+            if not any(row):
                 continue
 
             row_data = {}
@@ -59,14 +146,12 @@ class ExcelImportService:
                 col_idx = header_mapping.get(expected_header)
                 if col_idx is not None and col_idx < len(row):
                     value = row[col_idx]
-                    # 处理值
                     if isinstance(value, str):
                         value = value.strip()
                     row_data[expected_header] = value if value else None
                 else:
                     row_data[expected_header] = None
 
-            # 验证必填字段
             for field in required_fields:
                 if not row_data.get(field):
                     errors.append(f"'{field}' 为必填项")
@@ -81,8 +166,105 @@ class ExcelImportService:
                 row_data["_row"] = row_idx
                 valid_rows.append(row_data)
 
-        wb.close()
         return valid_rows, error_rows
+
+    @classmethod
+    def _parse_xls(
+        cls,
+        workbook,
+        expected_headers: List[str],
+        required_fields: Optional[List[str]] = None,
+        sheet_index: int = 0
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        try:
+            sheet = workbook.sheet_by_index(sheet_index)
+        except IndexError as exc:
+            raise ExcelImportError("Excel 工作表不存在，请使用系统提供的导入模板") from exc
+
+        if sheet.nrows == 0:
+            raise ExcelImportError("导入模板表头不匹配，请使用系统提供的导入模板")
+
+        headers = []
+        for cell in sheet.row(0):
+            value = cell.value.strip() if isinstance(cell.value, str) else cell.value
+            headers.append(str(value).strip() if value else "")
+
+        header_mapping = cls._validate_headers(headers, expected_headers)
+        if not header_mapping:
+            raise ExcelImportError("导入模板表头不匹配，请使用系统提供的导入模板")
+
+        valid_rows = []
+        error_rows = []
+        required_fields = required_fields or []
+
+        for row_idx in range(1, sheet.nrows):
+            row = sheet.row(row_idx)
+            row_values = [cls._normalize_xls_value(cell, workbook.datemode) for cell in row]
+            if not any(value not in (None, "") for value in row_values):
+                continue
+
+            row_data = {}
+            errors = []
+
+            for expected_header in expected_headers:
+                col_idx = header_mapping.get(expected_header)
+                if col_idx is not None and col_idx < len(row):
+                    row_data[expected_header] = row_values[col_idx]
+                else:
+                    row_data[expected_header] = None
+
+            for field in required_fields:
+                if not row_data.get(field):
+                    errors.append(f"'{field}' 为必填项")
+
+            if errors:
+                error_rows.append({
+                    "row": row_idx + 1,
+                    "data": row_data,
+                    "errors": errors,
+                })
+            else:
+                row_data["_row"] = row_idx + 1
+                valid_rows.append(row_data)
+
+        return valid_rows, error_rows
+
+    @classmethod
+    def _close_workbook(cls, extension: str, workbook) -> None:
+        if extension == ".xlsx" and hasattr(workbook, "close"):
+            workbook.close()
+            return
+        if extension == ".xls" and hasattr(workbook, "release_resources"):
+            workbook.release_resources()
+
+    @classmethod
+    def parse_excel(
+        cls,
+        file_content: bytes,
+        expected_headers: List[str],
+        required_fields: Optional[List[str]] = None,
+        sheet_index: int = 0,
+        filename: Optional[str] = None,
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """
+        解析 Excel 文件
+
+        Args:
+            file_content: Excel 文件二进制内容
+            expected_headers: 期望的表头列表
+            required_fields: 必填字段列表
+            sheet_index: 工作表索引
+
+        Returns:
+            (valid_rows, error_rows) - 有效数据行和错误数据行
+        """
+        extension, workbook = cls._load_workbook(file_content, filename=filename)
+        try:
+            if extension == ".xls":
+                return cls._parse_xls(workbook, expected_headers, required_fields, sheet_index)
+            return cls._parse_xlsx(workbook, expected_headers, required_fields, sheet_index)
+        finally:
+            cls._close_workbook(extension, workbook)
 
     @classmethod
     def _validate_headers(

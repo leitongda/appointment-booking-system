@@ -21,6 +21,16 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 class AppointmentBookingService(AppointmentServiceBase):
     async def create(self, user_id: str, data: AppointmentCreate, operator_id: Optional[str] = None) -> Appointment:
+        # 获取当前租户
+        from app.middleware.tenant_context import get_current_tenant_id
+        from app.models.user import User
+
+        current_tenant_id = get_current_tenant_id()
+
+        # 配额检查
+        from app.common.quota import check_quota
+        await check_quota(current_tenant_id, "appointments", self.db)
+
         schedule_result = await self.db.execute(
             select(Schedule)
             .options(selectinload(Schedule.doctor).selectinload(Doctor.department))
@@ -33,6 +43,10 @@ class AppointmentBookingService(AppointmentServiceBase):
             raise ValueError("该排班已停诊")
         if schedule.booked_slots >= schedule.total_slots:
             raise ValueError("号源已满")
+
+        # 租户一致性校验：排班必须属于当前租户
+        if current_tenant_id and schedule.tenant_id != current_tenant_id:
+            raise ValueError("排班不属于当前租户")
 
         if schedule.template_id is not None:
             is_rest_day = await self._check_rest_day(schedule.schedule_date, schedule.store_id, schedule.doctor_id)
@@ -83,12 +97,21 @@ class AppointmentBookingService(AppointmentServiceBase):
             if today_count >= per_day_limit:
                 raise ValueError(f"当日预约已达上限（最多{per_day_limit}次）")
 
+        # 租户一致性校验：获取用户并验证租户
+        user_result = await self.db.execute(select(User).where(User.id == user_id))
+        user = user_result.scalar_one_or_none()
+        if user and user.tenant_id != current_tenant_id:
+            raise ValueError("用户不属于当前租户")
+
         patient_result = await self.db.execute(
             select(Patient).where(Patient.id == data.patient_id, Patient.user_id == user_id)
         )
         patient = patient_result.scalar_one_or_none()
         if not patient:
             raise ValueError("就诊人不存在")
+        # 租户一致性校验：患者必须属于当前租户
+        if current_tenant_id and patient.tenant_id != current_tenant_id:
+            raise ValueError("就诊人不属于当前租户")
 
         lock_name = f"appointment:create:{data.schedule_id}"
         try:
@@ -142,6 +165,7 @@ class AppointmentBookingService(AppointmentServiceBase):
                     patient_id=data.patient_id,
                     doctor_id=schedule.doctor_id,
                     schedule_id=data.schedule_id,
+                    tenant_id=schedule.tenant_id,
                     queue_number=queue_number,
                     status=APPOINTMENT_STATUS["CONFIRMED"],
                     symptom_description=data.symptom_description,

@@ -19,6 +19,10 @@ class StoreMutationMixin:
             if existing:
                 raise ValueError(f"门店编码 {data.code} 已存在")
 
+        # 配额检查
+        from app.common.quota import check_quota
+        await check_quota(None, "stores", self.db)
+
         store_data = data.model_dump()
         if not store_data.get("password"):
             store_data["password"] = "123456"

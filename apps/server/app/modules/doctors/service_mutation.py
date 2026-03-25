@@ -17,6 +17,10 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 class DoctorMutationMixin:
     async def create(self, data: DoctorCreate, operator_id: Optional[str] = None) -> Doctor:
+        # 配额检查
+        from app.common.quota import check_quota
+        await check_quota(None, "doctors", self.db)
+
         user_id = None
         password = data.password or "123456"
         password_hash = get_password_hash(password)

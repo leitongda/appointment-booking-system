@@ -8,9 +8,11 @@ import json
 class ScheduleTemplate(Base, AuditMixin):
     """排班模板模型"""
     __tablename__ = "schedule_templates"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(100), nullable=False, comment="模板名称")
+    # 租户关联（多租户支持）
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
     store_id = Column(String(36), ForeignKey("stores.id"), nullable=False, comment="门店ID")
     doctor_id = Column(String(36), ForeignKey("doctors.id"), nullable=False, comment="医生ID")
     department_id = Column(String(36), ForeignKey("departments.id"), nullable=False, comment="科室ID")
@@ -24,7 +26,18 @@ class ScheduleTemplate(Base, AuditMixin):
     break_times = Column(Text, nullable=True, comment="排除时间段 JSON格式 [{startTime: '12:00', endTime: '13:30'}]")
     status = Column(Integer, default=1, comment="状态: 0禁用 1启用")
     last_generated_at = Column(DateTime, nullable=True, comment="上一次生成排班时间")
-    
+
+    # 关联关系
+    tenant = relationship("Tenant", back_populates="schedule_templates")
+    store = relationship("Store", backref="schedule_templates")
+    doctor = relationship("Doctor", backref="schedule_templates")
+    department = relationship("Department", backref="schedule_templates")
+    schedules = relationship("Schedule", back_populates="template")
+
+    __table_args__ = (
+        {'comment': '排班模板表（多租户支持）'},
+    )
+
     @property
     def weekday_list(self) -> list:
         """获取星期列表"""
@@ -72,9 +85,3 @@ class ScheduleTemplate(Base, AuditMixin):
             self.break_times = json.dumps(value)
         else:
             self.break_times = None
-    
-    # 关联关系
-    store = relationship("Store", backref="schedule_templates")
-    doctor = relationship("Doctor", backref="schedule_templates")
-    department = relationship("Department", backref="schedule_templates")
-    schedules = relationship("Schedule", back_populates="template")

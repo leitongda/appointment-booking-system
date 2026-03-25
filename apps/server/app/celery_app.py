@@ -102,6 +102,27 @@ celery_app.conf.update(
             "schedule": crontab(hour=3, minute=0),  # 每天凌晨3:00
             "options": {"queue": "scheduled"},
         },
+
+        # 租户用量统计 - 每天凌晨1点
+        "tenant-record-daily-usage": {
+            "task": "app.tasks.tenant_usage_task.record_daily_usage",
+            "schedule": crontab(hour=1, minute=0),  # 每天凌晨1:00
+            "options": {"queue": "scheduled"},
+        },
+
+        # 租户订阅到期检查 - 每天凌晨2点
+        "tenant-check-subscription-expiry": {
+            "task": "app.tasks.tenant_usage_task.check_subscription_expiry",
+            "schedule": crontab(hour=2, minute=0),  # 每天凌晨2:00
+            "options": {"queue": "scheduled"},
+        },
+
+        # 租户用量限制检查 - 每天凌晨4点
+        "tenant-check-usage-limits": {
+            "task": "app.tasks.tenant_usage_task.check_usage_limits",
+            "schedule": crontab(hour=4, minute=0),  # 每天凌晨4:00
+            "options": {"queue": "scheduled"},
+        },
     },
 )
 
@@ -115,5 +136,6 @@ celery_app.autodiscover_tasks([
     "app.tasks.cleanup_task",
     "app.tasks.operation_log_task",
     "app.tasks.behavior_log_task",
+    "app.tasks.tenant_usage_task",
 ])
 

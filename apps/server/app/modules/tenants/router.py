@@ -1,0 +1,487 @@
+"""租户管理路由"""
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional, List
+
+from app.db.session import get_db
+from app.common.deps import (
+    get_current_admin, require_permission, get_platform_admin,
+    require_platform_admin
+)
+from app.modules.tenants.schemas import (
+    TenantCreate, TenantUpdate, TenantResponse, TenantListResponse, TenantQuery,
+    TenantSubscriptionCreate, TenantSubscriptionResponse,
+    TenantUsageResponse, TenantUsageSummary, TenantUsageQuery,
+    SubscriptionPlanCreate, SubscriptionPlanUpdate, SubscriptionPlanResponse, SubscriptionPlanListResponse,
+)
+from app.modules.tenants.service import (
+    TenantService, TenantSubscriptionService, TenantUsageService, SubscriptionPlanService
+)
+from app.schemas.response import PageResponse
+from app.core.config import settings
+
+router = APIRouter()
+
+
+# ==================== 订阅计划管理（平台管理员） ====================
+
+@router.get("/plans", response_model=List[SubscriptionPlanListResponse], summary="获取订阅计划列表")
+async def get_subscription_plans(
+    status: Optional[int] = Query(None, ge=0, le=1, description="状态筛选"),
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin)
+):
+    """获取订阅计划列表
+
+    所有管理员都可以查看订阅计划列表。
+    """
+    service = SubscriptionPlanService(db)
+    plans = await service.get_list(status)
+    return [SubscriptionPlanListResponse.model_validate(p) for p in plans]
+
+
+@router.post("/plans", response_model=SubscriptionPlanResponse, summary="创建订阅计划")
+async def create_subscription_plan(
+    data: SubscriptionPlanCreate,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(require_platform_admin())
+):
+    """创建订阅计划（仅平台管理员）"""
+    service = SubscriptionPlanService(db)
+
+    try:
+        plan = await service.create(data)
+        return SubscriptionPlanResponse.model_validate(plan)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.get("/plans/{plan_id}", response_model=SubscriptionPlanResponse, summary="获取订阅计划详情")
+async def get_subscription_plan(
+    plan_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin)
+):
+    """获取订阅计划详情"""
+    service = SubscriptionPlanService(db)
+    plan = await service.get_by_id(plan_id)
+
+    if not plan:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="订阅计划不存在"
+        )
+
+    return SubscriptionPlanResponse.model_validate(plan)
+
+
+@router.put("/plans/{plan_id}", response_model=SubscriptionPlanResponse, summary="更新订阅计划")
+async def update_subscription_plan(
+    plan_id: str,
+    data: SubscriptionPlanUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(require_platform_admin())
+):
+    """更新订阅计划（仅平台管理员）"""
+    service = SubscriptionPlanService(db)
+
+    try:
+        plan = await service.update(plan_id, data)
+        if not plan:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="订阅计划不存在"
+            )
+        return SubscriptionPlanResponse.model_validate(plan)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.delete("/plans/{plan_id}", summary="删除订阅计划")
+async def delete_subscription_plan(
+    plan_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(require_platform_admin())
+):
+    """删除订阅计划（仅平台管理员）"""
+    service = SubscriptionPlanService(db)
+
+    try:
+        success = await service.delete(plan_id)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="订阅计划不存在"
+            )
+        return {"message": "删除成功"}
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+# ==================== 租户管理（平台管理员） ====================
+
+@router.get("", response_model=PageResponse[TenantListResponse], summary="获取租户列表")
+async def get_tenants(
+    keyword: Optional[str] = None,
+    status: Optional[int] = Query(None, ge=0, le=3, description="状态: 0-禁用 1-正常 2-欠费 3-试用"),
+    subscription_plan_id: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(require_platform_admin())
+):
+    """获取租户列表（仅平台管理员）"""
+    service = TenantService(db)
+    query = TenantQuery(
+        keyword=keyword,
+        status=status,
+        subscription_plan_id=subscription_plan_id,
+        page=page,
+        page_size=page_size
+    )
+
+    tenants, total = await service.get_list(query)
+
+    # 转换为列表响应
+    result = []
+    for tenant in tenants:
+        store_count = await service.get_store_count(tenant.id)
+        admin_count = await service.get_admin_count(tenant.id)
+
+        result.append(TenantListResponse(
+            id=tenant.id,
+            tenant_code=tenant.tenant_code,
+            name=tenant.name,
+            status=tenant.status,
+            subscription_plan_id=tenant.subscription_plan_id,
+            subscription_plan_name=tenant.subscription_plan.name if tenant.subscription_plan else None,
+            subscription_end_at=tenant.subscription_end_at,
+            store_count=store_count,
+            admin_count=admin_count,
+            created_at=tenant.created_at,
+        ))
+
+    return PageResponse(
+        data=result,
+        total=total,
+        page=page,
+        page_size=page_size
+    )
+
+
+@router.post("", response_model=TenantResponse, summary="创建租户")
+async def create_tenant(
+    data: TenantCreate,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(require_platform_admin())
+):
+    """创建租户（仅平台管理员）"""
+    service = TenantService(db)
+
+    try:
+        tenant = await service.create(data, created_by=current_admin.get("id"))
+        return TenantResponse(
+            **{c.name: getattr(tenant, c.name) for c in tenant.__table__.columns},
+            is_subscription_active=tenant.is_subscription_active(),
+            subscription_plan=SubscriptionPlanListResponse.model_validate(tenant.subscription_plan) if tenant.subscription_plan else None,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.get("/check-unique", summary="检查租户标识唯一性")
+async def check_tenant_code_unique(
+    tenant_code: str = Query(..., min_length=3, max_length=50, description="租户标识"),
+    exclude_id: Optional[str] = Query(None, description="排除的租户ID"),
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin)
+):
+    """检查租户标识是否已存在"""
+    service = TenantService(db)
+    exists = await service.check_code_exists(tenant_code, exclude_id)
+    return {"exists": exists}
+
+
+@router.get("/{tenant_id}", response_model=TenantResponse, summary="获取租户详情")
+async def get_tenant(
+    tenant_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin)
+):
+    """获取租户详情
+
+    平台管理员可以查看所有租户。
+    租户管理员只能查看自己的租户。
+    """
+    service = TenantService(db)
+    tenant = await service.get_by_id(tenant_id)
+
+    if not tenant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="租户不存在"
+        )
+
+    # 权限检查：非平台管理员只能查看自己的租户
+    if not current_admin.get("is_super_admin"):
+        admin_tenant_id = current_admin.get("tenant_id")
+        if admin_tenant_id != tenant_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="您无权访问此租户"
+            )
+
+    return TenantResponse(
+        **{c.name: getattr(tenant, c.name) for c in tenant.__table__.columns},
+        is_subscription_active=tenant.is_subscription_active(),
+        subscription_plan=SubscriptionPlanListResponse.model_validate(tenant.subscription_plan) if tenant.subscription_plan else None,
+    )
+
+
+@router.put("/{tenant_id}", response_model=TenantResponse, summary="更新租户")
+async def update_tenant(
+    tenant_id: str,
+    data: TenantUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin)
+):
+    """更新租户
+
+    平台管理员可以更新所有租户。
+    租户管理员只能更新自己的租户（部分字段）。
+    """
+    service = TenantService(db)
+    tenant = await service.get_by_id(tenant_id)
+
+    if not tenant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="租户不存在"
+        )
+
+    # 权限检查
+    is_platform_admin = current_admin.get("is_super_admin")
+    if not is_platform_admin:
+        admin_tenant_id = current_admin.get("tenant_id")
+        if admin_tenant_id != tenant_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="您无权修改此租户"
+            )
+        # 租户管理员只能修改部分字段
+        allowed_fields = {"name", "contact_name", "contact_phone", "contact_email", "address", "branding_config"}
+        update_data = data.model_dump(exclude_unset=True)
+        for field in list(update_data.keys()):
+            if field not in allowed_fields:
+                del update_data[field]
+        data = TenantUpdate(**update_data)
+
+    try:
+        tenant = await service.update(tenant_id, data, updated_by=current_admin.get("id"))
+        return TenantResponse(
+            **{c.name: getattr(tenant, c.name) for c in tenant.__table__.columns},
+            is_subscription_active=tenant.is_subscription_active(),
+            subscription_plan=SubscriptionPlanListResponse.model_validate(tenant.subscription_plan) if tenant.subscription_plan else None,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.delete("/{tenant_id}", summary="删除租户")
+async def delete_tenant(
+    tenant_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(require_platform_admin())
+):
+    """删除租户（仅平台管理员）"""
+    service = TenantService(db)
+
+    try:
+        success = await service.delete(tenant_id)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="租户不存在"
+            )
+        return {"message": "删除成功"}
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.post("/{tenant_id}/activate", summary="激活租户")
+async def activate_tenant(
+    tenant_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(require_platform_admin())
+):
+    """激活租户（仅平台管理员）"""
+    service = TenantService(db)
+    tenant = await service.activate(tenant_id)
+
+    if not tenant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="租户不存在"
+        )
+
+    return {"message": "租户已激活"}
+
+
+@router.post("/{tenant_id}/suspend", summary="暂停租户")
+async def suspend_tenant(
+    tenant_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(require_platform_admin())
+):
+    """暂停租户（仅平台管理员）"""
+    service = TenantService(db)
+    tenant = await service.suspend(tenant_id)
+
+    if not tenant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="租户不存在"
+        )
+
+    return {"message": "租户已暂停"}
+
+
+# ==================== 租户订阅管理 ====================
+
+@router.post("/{tenant_id}/subscriptions", response_model=TenantSubscriptionResponse, summary="创建租户订阅")
+async def create_tenant_subscription(
+    tenant_id: str,
+    data: TenantSubscriptionCreate,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(require_platform_admin())
+):
+    """创建租户订阅（仅平台管理员）"""
+    service = TenantSubscriptionService(db)
+
+    try:
+        subscription = await service.create_subscription(
+            tenant_id, data, created_by=current_admin.get("id")
+        )
+        return TenantSubscriptionResponse.model_validate(subscription)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.get("/{tenant_id}/subscriptions", response_model=List[TenantSubscriptionResponse], summary="获取租户订阅记录")
+async def get_tenant_subscriptions(
+    tenant_id: str,
+    limit: int = Query(10, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin)
+):
+    """获取租户订阅记录"""
+    # 权限检查
+    if not current_admin.get("is_super_admin"):
+        admin_tenant_id = current_admin.get("tenant_id")
+        if admin_tenant_id != tenant_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="您无权访问此租户的订阅记录"
+            )
+
+    service = TenantSubscriptionService(db)
+    subscriptions = await service.get_tenant_subscriptions(tenant_id, limit)
+    return [TenantSubscriptionResponse.model_validate(s) for s in subscriptions]
+
+
+# ==================== 租户用量统计 ====================
+
+@router.get("/{tenant_id}/usage", response_model=TenantUsageSummary, summary="获取租户用量汇总")
+async def get_tenant_usage(
+    tenant_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin)
+):
+    """获取租户用量汇总"""
+    # 权限检查
+    if not current_admin.get("is_super_admin"):
+        admin_tenant_id = current_admin.get("tenant_id")
+        if admin_tenant_id != tenant_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="您无权访问此租户的用量信息"
+            )
+
+    service = TenantUsageService(db)
+
+    try:
+        summary = await service.get_usage_summary(tenant_id)
+        return TenantUsageSummary(**summary)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+
+@router.get("/{tenant_id}/usage/logs", response_model=List[TenantUsageResponse], summary="获取租户用量日志")
+async def get_tenant_usage_logs(
+    tenant_id: str,
+    start_date: Optional[str] = Query(None, description="开始日期 (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="结束日期 (YYYY-MM-DD)"),
+    limit: int = Query(30, ge=1, le=90),
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin)
+):
+    """获取租户用量日志"""
+    from datetime import datetime as dt
+
+    # 权限检查
+    if not current_admin.get("is_super_admin"):
+        admin_tenant_id = current_admin.get("tenant_id")
+        if admin_tenant_id != tenant_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="您无权访问此租户的用量信息"
+            )
+
+    service = TenantUsageService(db)
+
+    # 解析日期
+    start = None
+    end = None
+    if start_date:
+        try:
+            start = dt.strptime(start_date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="开始日期格式错误，应为 YYYY-MM-DD"
+            )
+    if end_date:
+        try:
+            end = dt.strptime(end_date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="结束日期格式错误，应为 YYYY-MM-DD"
+            )
+
+    logs = await service.get_usage_logs(tenant_id, start, end, limit)
+    return [TenantUsageResponse.model_validate(log) for log in logs]

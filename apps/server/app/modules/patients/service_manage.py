@@ -29,8 +29,11 @@ class PatientManageService(PatientsServiceBase):
         page: int = 1,
         page_size: int = 10,
     ) -> Tuple[List[dict], int]:
+        tenant_id = self._current_tenant_id()
         query = select(Patient).options(selectinload(Patient.user))
         conditions = []
+        if tenant_id:
+            conditions.append(Patient.tenant_id == tenant_id)
         if keyword:
             conditions.append(
                 or_(
@@ -56,12 +59,15 @@ class PatientManageService(PatientsServiceBase):
 
         patient_data = []
         for patient in patients:
-            appointment_count = await self.db.scalar(select(func.count(Appointment.id)).where(Appointment.patient_id == patient.id))
-            no_show_count = await self.db.scalar(
-                select(func.count(Appointment.id)).where(
-                    and_(Appointment.patient_id == patient.id, Appointment.status == 8)
-                )
+            appointment_count_query = select(func.count(Appointment.id)).where(Appointment.patient_id == patient.id)
+            no_show_count_query = select(func.count(Appointment.id)).where(
+                and_(Appointment.patient_id == patient.id, Appointment.status == 8)
             )
+            if tenant_id:
+                appointment_count_query = appointment_count_query.where(Appointment.tenant_id == tenant_id)
+                no_show_count_query = no_show_count_query.where(Appointment.tenant_id == tenant_id)
+            appointment_count = await self.db.scalar(appointment_count_query)
+            no_show_count = await self.db.scalar(no_show_count_query)
             user = patient.user
             is_in_blacklist = user.status == 0 if user else False
             if is_blacklist is not None:
@@ -95,44 +101,64 @@ class PatientManageService(PatientsServiceBase):
         return patient_data, total or 0
 
     async def get_patient_store_id(self, patient_id: str) -> Optional[str]:
-        result = await self.db.execute(select(Patient.store_id).where(Patient.id == patient_id))
+        query = select(Patient.store_id).where(Patient.id == patient_id)
+        tenant_id = self._current_tenant_id()
+        if tenant_id:
+            query = query.where(Patient.tenant_id == tenant_id)
+        result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
     async def get_detail(self, patient_id: str) -> Optional[dict]:
-        result = await self.db.execute(select(Patient).options(selectinload(Patient.user)).where(Patient.id == patient_id))
+        tenant_id = self._current_tenant_id()
+        query = select(Patient).options(selectinload(Patient.user)).where(Patient.id == patient_id)
+        if tenant_id:
+            query = query.where(Patient.tenant_id == tenant_id)
+        result = await self.db.execute(query)
         patient = result.unique().scalar_one_or_none()
         if not patient:
             return None
 
         user = patient.user
-        appointment_count = await self.db.scalar(select(func.count(Appointment.id)).where(Appointment.patient_id == patient_id))
-        no_show_count = await self.db.scalar(
-            select(func.count(Appointment.id)).where(and_(Appointment.patient_id == patient_id, Appointment.status == 8))
-        )
-        completed_count = await self.db.scalar(
-            select(func.count(Appointment.id)).where(and_(Appointment.patient_id == patient_id, Appointment.status == 5))
-        )
+        appointment_count_query = select(func.count(Appointment.id)).where(Appointment.patient_id == patient_id)
+        no_show_count_query = select(func.count(Appointment.id)).where(and_(Appointment.patient_id == patient_id, Appointment.status == 8))
+        completed_count_query = select(func.count(Appointment.id)).where(and_(Appointment.patient_id == patient_id, Appointment.status == 5))
+        if tenant_id:
+            appointment_count_query = appointment_count_query.where(Appointment.tenant_id == tenant_id)
+            no_show_count_query = no_show_count_query.where(Appointment.tenant_id == tenant_id)
+            completed_count_query = completed_count_query.where(Appointment.tenant_id == tenant_id)
+        appointment_count = await self.db.scalar(appointment_count_query)
+        no_show_count = await self.db.scalar(no_show_count_query)
+        completed_count = await self.db.scalar(completed_count_query)
 
-        last_appointment = await self.db.execute(
+        last_appointment_query = (
             select(Appointment)
             .where(and_(Appointment.patient_id == patient_id, Appointment.status == 5))
             .order_by(Appointment.complete_time.desc())
             .limit(1)
         )
+        if tenant_id:
+            last_appointment_query = last_appointment_query.where(Appointment.tenant_id == tenant_id)
+        last_appointment = await self.db.execute(last_appointment_query)
         last_appt = last_appointment.scalar_one_or_none()
         last_visit_date = last_appt.complete_time.isoformat() if last_appt and last_appt.complete_time else None
 
+        family_query = select(Patient).where(Patient.user_id == patient.user_id)
+        if tenant_id:
+            family_query = family_query.where(Patient.tenant_id == tenant_id)
         family_result = await self.db.execute(
-            select(Patient).where(Patient.user_id == patient.user_id).order_by(Patient.is_default.desc(), Patient.created_at.asc())
+            family_query.order_by(Patient.is_default.desc(), Patient.created_at.asc())
         )
         family_members = family_result.scalars().all()
 
         family_data = []
         for member in family_members:
-            member_appt_count = await self.db.scalar(select(func.count(Appointment.id)).where(Appointment.patient_id == member.id))
-            member_no_show = await self.db.scalar(
-                select(func.count(Appointment.id)).where(and_(Appointment.patient_id == member.id, Appointment.status == 8))
-            )
+            member_appt_query = select(func.count(Appointment.id)).where(Appointment.patient_id == member.id)
+            member_no_show_query = select(func.count(Appointment.id)).where(and_(Appointment.patient_id == member.id, Appointment.status == 8))
+            if tenant_id:
+                member_appt_query = member_appt_query.where(Appointment.tenant_id == tenant_id)
+                member_no_show_query = member_no_show_query.where(Appointment.tenant_id == tenant_id)
+            member_appt_count = await self.db.scalar(member_appt_query)
+            member_no_show = await self.db.scalar(member_no_show_query)
             family_data.append(
                 {
                     "id": member.id,
@@ -186,7 +212,11 @@ class PatientManageService(PatientsServiceBase):
         }
 
     async def update_patient(self, patient_id: str, data: PatientUpdate, operator_id: Optional[str] = None) -> Optional[dict]:
-        result = await self.db.execute(select(Patient).where(Patient.id == patient_id))
+        query = select(Patient).where(Patient.id == patient_id)
+        tenant_id = self._current_tenant_id()
+        if tenant_id:
+            query = query.where(Patient.tenant_id == tenant_id)
+        result = await self.db.execute(query)
         patient = result.scalar_one_or_none()
         if not patient:
             return None
@@ -211,8 +241,11 @@ class PatientManageService(PatientsServiceBase):
         page: int = 1,
         page_size: int = 10,
     ) -> Tuple[List[dict], int]:
+        tenant_id = self._current_tenant_id()
         query = select(Appointment).where(Appointment.patient_id == patient_id)
         conditions = [Appointment.patient_id == patient_id]
+        if tenant_id:
+            conditions.append(Appointment.tenant_id == tenant_id)
         if doctor_id:
             conditions.append(Appointment.doctor_id == doctor_id)
         if status is not None:
@@ -267,8 +300,12 @@ class PatientManageService(PatientsServiceBase):
         page: int = 1,
         page_size: int = 10,
     ) -> Tuple[List[dict], int]:
-        query = select(Appointment).where(and_(Appointment.patient_id == patient_id, Appointment.status == 5))
-        count_query = select(func.count(Appointment.id)).where(and_(Appointment.patient_id == patient_id, Appointment.status == 5))
+        tenant_id = self._current_tenant_id()
+        conditions = [Appointment.patient_id == patient_id, Appointment.status == 5]
+        if tenant_id:
+            conditions.append(Appointment.tenant_id == tenant_id)
+        query = select(Appointment).where(and_(*conditions))
+        count_query = select(func.count(Appointment.id)).where(and_(*conditions))
         total = await self.db.scalar(count_query)
         query = query.order_by(Appointment.complete_time.desc()).offset((page - 1) * page_size).limit(page_size)
         result = await self.db.execute(query)
@@ -295,7 +332,11 @@ class PatientManageService(PatientsServiceBase):
         return records, total or 0
 
     async def add_to_blacklist(self, patient_id: str, reason: str = None) -> bool:
-        result = await self.db.execute(select(Patient).options(selectinload(Patient.user)).where(Patient.id == patient_id))
+        tenant_id = self._current_tenant_id()
+        query = select(Patient).options(selectinload(Patient.user)).where(Patient.id == patient_id)
+        if tenant_id:
+            query = query.where(Patient.tenant_id == tenant_id)
+        result = await self.db.execute(query)
         patient = result.unique().scalar_one_or_none()
         if not patient or not patient.user:
             return False
@@ -304,7 +345,11 @@ class PatientManageService(PatientsServiceBase):
         return True
 
     async def remove_from_blacklist(self, patient_id: str) -> bool:
-        result = await self.db.execute(select(Patient).options(selectinload(Patient.user)).where(Patient.id == patient_id))
+        tenant_id = self._current_tenant_id()
+        query = select(Patient).options(selectinload(Patient.user)).where(Patient.id == patient_id)
+        if tenant_id:
+            query = query.where(Patient.tenant_id == tenant_id)
+        result = await self.db.execute(query)
         patient = result.unique().scalar_one_or_none()
         if not patient or not patient.user:
             return False
@@ -318,7 +363,10 @@ class PatientManageService(PatientsServiceBase):
         page: int = 1,
         page_size: int = 10,
     ) -> Tuple[List[dict], int]:
+        tenant_id = self._current_tenant_id()
         conditions = [User.status == 0]
+        if tenant_id:
+            conditions.append(Patient.tenant_id == tenant_id)
         if store_id:
             conditions.append(or_(Patient.store_id == store_id, Patient.store_id.is_(None)))
         query = select(Patient).join(User).where(and_(*conditions))
@@ -330,9 +378,12 @@ class PatientManageService(PatientsServiceBase):
 
         patient_data = []
         for patient in patients:
-            no_show_count = await self.db.scalar(
-                select(func.count(Appointment.id)).where(and_(Appointment.patient_id == patient.id, Appointment.status == 8))
+            no_show_count_query = select(func.count(Appointment.id)).where(
+                and_(Appointment.patient_id == patient.id, Appointment.status == 8)
             )
+            if tenant_id:
+                no_show_count_query = no_show_count_query.where(Appointment.tenant_id == tenant_id)
+            no_show_count = await self.db.scalar(no_show_count_query)
             patient_data.append(
                 {
                     "id": patient.id,
@@ -351,17 +402,23 @@ class PatientManageService(PatientsServiceBase):
         store_id: Optional[str] = None,
         operator_id: Optional[str] = None,
     ) -> dict:
-        result = await self.db.execute(select(User).where(User.phone == data.phone))
+        tenant_id = self._current_tenant_id()
+        user_query = select(User).where(User.phone == data.phone)
+        if tenant_id:
+            user_query = user_query.where(User.tenant_id == tenant_id)
+        result = await self.db.execute(user_query)
         user = result.scalar_one_or_none()
         if user:
-            existing_patient = await self.db.execute(
-                select(Patient).where(and_(Patient.user_id == user.id, Patient.name == data.name))
-            )
+            existing_patient_query = select(Patient).where(and_(Patient.user_id == user.id, Patient.name == data.name))
+            if tenant_id:
+                existing_patient_query = existing_patient_query.where(Patient.tenant_id == tenant_id)
+            existing_patient = await self.db.execute(existing_patient_query)
             if existing_patient.scalar_one_or_none():
                 raise ValueError(f"该用户下已存在名为 {data.name} 的就诊人")
         else:
             user = User(
                 id=str(uuid.uuid4()),
+                tenant_id=tenant_id,
                 phone=data.phone,
                 password_hash=get_password_hash("123456"),
                 nickname=data.name,
@@ -380,6 +437,7 @@ class PatientManageService(PatientsServiceBase):
 
         patient = Patient(
             id=str(uuid.uuid4()),
+            tenant_id=tenant_id or user.tenant_id,
             user_id=user.id,
             store_id=store_id,
             name=data.name,
@@ -405,12 +463,19 @@ class PatientManageService(PatientsServiceBase):
         return await self.get_detail(patient.id)
 
     async def add_family_member(self, patient_id: str, data: FamilyMemberCreate, operator_id: Optional[str] = None) -> Optional[dict]:
-        result = await self.db.execute(select(Patient).where(Patient.id == patient_id))
+        tenant_id = self._current_tenant_id()
+        patient_query = select(Patient).where(Patient.id == patient_id)
+        if tenant_id:
+            patient_query = patient_query.where(Patient.tenant_id == tenant_id)
+        result = await self.db.execute(patient_query)
         patient = result.scalar_one_or_none()
         if not patient:
             return None
 
-        existing = await self.db.execute(select(Patient).where(and_(Patient.user_id == patient.user_id, Patient.name == data.name)))
+        existing_query = select(Patient).where(and_(Patient.user_id == patient.user_id, Patient.name == data.name))
+        if tenant_id:
+            existing_query = existing_query.where(Patient.tenant_id == tenant_id)
+        existing = await self.db.execute(existing_query)
         if existing.scalar_one_or_none():
             raise ValueError(f"该用户下已存在名为 {data.name} 的就诊人")
 
@@ -423,7 +488,9 @@ class PatientManageService(PatientsServiceBase):
 
         member = Patient(
             id=str(uuid.uuid4()),
+            tenant_id=patient.tenant_id,
             user_id=patient.user_id,
+            store_id=patient.store_id,
             name=data.name,
             phone=data.phone,
             id_card=data.id_card,
@@ -446,7 +513,10 @@ class PatientManageService(PatientsServiceBase):
         if data.is_default:
             from sqlalchemy import update
 
-            await self.db.execute(update(Patient).where(Patient.user_id == patient.user_id).values(is_default=False))
+            update_stmt = update(Patient).where(Patient.user_id == patient.user_id)
+            if tenant_id:
+                update_stmt = update_stmt.where(Patient.tenant_id == tenant_id)
+            await self.db.execute(update_stmt.values(is_default=False))
 
         self.db.add(member)
         await self.db.commit()
@@ -474,12 +544,19 @@ class PatientManageService(PatientsServiceBase):
         data: PatientUpdate,
         operator_id: Optional[str] = None,
     ) -> Optional[dict]:
-        result = await self.db.execute(select(Patient).where(Patient.id == patient_id))
+        tenant_id = self._current_tenant_id()
+        patient_query = select(Patient).where(Patient.id == patient_id)
+        if tenant_id:
+            patient_query = patient_query.where(Patient.tenant_id == tenant_id)
+        result = await self.db.execute(patient_query)
         patient = result.scalar_one_or_none()
         if not patient:
             return None
 
-        result = await self.db.execute(select(Patient).where(and_(Patient.id == member_id, Patient.user_id == patient.user_id)))
+        member_query = select(Patient).where(and_(Patient.id == member_id, Patient.user_id == patient.user_id))
+        if tenant_id:
+            member_query = member_query.where(Patient.tenant_id == tenant_id)
+        result = await self.db.execute(member_query)
         member = result.scalar_one_or_none()
         if not member:
             return None
@@ -507,17 +584,27 @@ class PatientManageService(PatientsServiceBase):
         }
 
     async def delete_family_member(self, patient_id: str, member_id: str) -> bool:
-        result = await self.db.execute(select(Patient).where(Patient.id == patient_id))
+        tenant_id = self._current_tenant_id()
+        patient_query = select(Patient).where(Patient.id == patient_id)
+        if tenant_id:
+            patient_query = patient_query.where(Patient.tenant_id == tenant_id)
+        result = await self.db.execute(patient_query)
         patient = result.scalar_one_or_none()
         if not patient or patient_id == member_id:
             return False
 
-        result = await self.db.execute(select(Patient).where(and_(Patient.id == member_id, Patient.user_id == patient.user_id)))
+        member_query = select(Patient).where(and_(Patient.id == member_id, Patient.user_id == patient.user_id))
+        if tenant_id:
+            member_query = member_query.where(Patient.tenant_id == tenant_id)
+        result = await self.db.execute(member_query)
         member = result.scalar_one_or_none()
         if not member:
             return False
 
-        appt_count = await self.db.scalar(select(func.count(Appointment.id)).where(Appointment.patient_id == member_id))
+        appt_count_query = select(func.count(Appointment.id)).where(Appointment.patient_id == member_id)
+        if tenant_id:
+            appt_count_query = appt_count_query.where(Appointment.tenant_id == tenant_id)
+        appt_count = await self.db.scalar(appt_count_query)
         if appt_count and appt_count > 0:
             raise ValueError("该就诊人有预约记录，无法删除")
 
@@ -526,24 +613,35 @@ class PatientManageService(PatientsServiceBase):
         return True
 
     async def delete_patient(self, patient_id: str) -> bool:
-        result = await self.db.execute(select(Patient).options(selectinload(Patient.user)).where(Patient.id == patient_id))
+        tenant_id = self._current_tenant_id()
+        patient_query = select(Patient).options(selectinload(Patient.user)).where(Patient.id == patient_id)
+        if tenant_id:
+            patient_query = patient_query.where(Patient.tenant_id == tenant_id)
+        result = await self.db.execute(patient_query)
         patient = result.unique().scalar_one_or_none()
         if not patient:
             return False
 
-        appt_count = await self.db.scalar(select(func.count(Appointment.id)).where(Appointment.patient_id == patient_id))
+        appt_count_query = select(func.count(Appointment.id)).where(Appointment.patient_id == patient_id)
+        if tenant_id:
+            appt_count_query = appt_count_query.where(Appointment.tenant_id == tenant_id)
+        appt_count = await self.db.scalar(appt_count_query)
         if appt_count and appt_count > 0:
             raise ValueError("该就诊卡有预约记录，无法删除")
 
         user_id = patient.user_id
-        card_count = await self.db.scalar(select(func.count(Patient.id)).where(Patient.user_id == user_id))
+        card_count_query = select(func.count(Patient.id)).where(Patient.user_id == user_id)
+        if tenant_id:
+            card_count_query = card_count_query.where(Patient.tenant_id == tenant_id)
+        card_count = await self.db.scalar(card_count_query)
         if card_count and card_count <= 1:
             raise ValueError("用户至少需要保留一张就诊卡")
 
         if patient.is_default:
-            other_card = await self.db.execute(
-                select(Patient).where(and_(Patient.user_id == user_id, Patient.id != patient_id)).limit(1)
-            )
+            other_card_query = select(Patient).where(and_(Patient.user_id == user_id, Patient.id != patient_id))
+            if tenant_id:
+                other_card_query = other_card_query.where(Patient.tenant_id == tenant_id)
+            other_card = await self.db.execute(other_card_query.limit(1))
             other = other_card.scalar_one_or_none()
             if other:
                 other.is_default = True

@@ -9,6 +9,7 @@ import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.infrastructure.wechat.config_resolver import WechatConfigResolver
 from app.infrastructure.wechat.token_manager import WechatTokenManager
 
 logger = logging.getLogger(__name__)
@@ -22,16 +23,23 @@ class WechatService:
 
     WECHAT_API_URL = "https://api.weixin.qq.com"
 
-    def __init__(self, db: AsyncSession, store_id: Optional[str] = None):
+    def __init__(
+        self,
+        db: AsyncSession,
+        store_id: Optional[str] = None,
+        miniapp_instance_id: Optional[str] = None,
+    ):
         """
         初始化微信服务
 
         Args:
             db: 数据库会话
             store_id: 门店ID，如果提供则从该门店读取微信配置
+            miniapp_instance_id: 小程序实例ID，如果提供则优先使用实例配置
         """
         self.db = db
         self.store_id = store_id
+        self.miniapp_instance_id = miniapp_instance_id
         self._app_id: Optional[str] = None
         self._app_secret: Optional[str] = None
         self._config_loaded = False
@@ -48,26 +56,29 @@ class WechatService:
             self._config_loaded = True
             return
 
-        # 从门店读取微信配置
-        if self.store_id:
-            from app.models.store import Store
-            from sqlalchemy import select
-
-            result = await self.db.execute(
-                select(Store).where(Store.id == self.store_id)
+        config = await WechatConfigResolver(self.db).resolve(
+            store_id=self.store_id,
+            miniapp_instance_id=self.miniapp_instance_id,
+        )
+        if config:
+            self._app_id = config.app_id
+            self._app_secret = config.app_secret
+            self._config_loaded = True
+            logger.debug(
+                "[微信配置] 已解析: source=%s, miniapp_instance_id=%s, store_id=%s",
+                config.source,
+                config.miniapp_instance_id,
+                config.store_id,
             )
-            store = result.scalar_one_or_none()
-
-            if store and store.wechat_app_id and store.wechat_app_secret:
-                self._app_id = store.wechat_app_id
-                self._app_secret = store.wechat_app_secret
-                self._config_loaded = True
-                logger.debug(f"[微信配置] 从门店加载: store_id={self.store_id}")
-                return
+            return
 
         # 未找到配置
         self._config_loaded = True
-        logger.warning(f"[微信配置] 未找到配置: store_id={self.store_id}")
+        logger.warning(
+            "[微信配置] 未找到配置: miniapp_instance_id=%s, store_id=%s",
+            self.miniapp_instance_id,
+            self.store_id,
+        )
 
     async def code2session(self, code: str) -> Dict[str, Any]:
         """

@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from sqlalchemy import and_, func, select
 
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.admin import Admin, admin_stores
 from app.models.department import Department
 from app.models.store import Store
@@ -12,19 +13,34 @@ from app.schemas.store import StoreQuery
 
 class StoreQueryMixin:
     async def get_by_id(self, store_id: str) -> Optional[Store]:
-        result = await self.db.execute(select(Store).where(Store.id == store_id))
+        stmt = select(Store).where(Store.id == store_id)
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            stmt = stmt.where(Store.tenant_id == tenant_id)
+        result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_code(self, code: str) -> Optional[Store]:
-        result = await self.db.execute(select(Store).where(Store.code == code))
+        stmt = select(Store).where(Store.code == code)
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            stmt = stmt.where(Store.tenant_id == tenant_id)
+        result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_name(self, name: str) -> Optional[Store]:
-        result = await self.db.execute(select(Store).where(Store.name == name))
+        stmt = select(Store).where(Store.name == name)
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            stmt = stmt.where(Store.tenant_id == tenant_id)
+        result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def check_name_exists(self, name: str, exclude_id: Optional[str] = None) -> bool:
         stmt = select(func.count(Store.id)).where(Store.name == name)
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            stmt = stmt.where(Store.tenant_id == tenant_id)
         if exclude_id:
             stmt = stmt.where(Store.id != exclude_id)
         result = await self.db.execute(stmt)
@@ -32,6 +48,9 @@ class StoreQueryMixin:
 
     async def check_code_exists(self, code: str, exclude_id: Optional[str] = None) -> bool:
         stmt = select(func.count(Store.id)).where(Store.code == code)
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            stmt = stmt.where(Store.tenant_id == tenant_id)
         if exclude_id:
             stmt = stmt.where(Store.id != exclude_id)
         result = await self.db.execute(stmt)
@@ -41,8 +60,12 @@ class StoreQueryMixin:
         if query is None:
             query = StoreQuery()
 
+        tenant_id = get_current_tenant_id()
         stmt = select(Store)
         count_stmt = select(func.count(Store.id))
+        if tenant_id:
+            stmt = stmt.where(Store.tenant_id == tenant_id)
+            count_stmt = count_stmt.where(Store.tenant_id == tenant_id)
 
         if query.keyword:
             keyword_filter = Store.name.contains(query.keyword) | Store.code.contains(query.keyword)
@@ -63,32 +86,41 @@ class StoreQueryMixin:
         return list(result.scalars().all()), count_result.scalar() or 0
 
     async def get_all_active(self) -> List[Store]:
-        result = await self.db.execute(
-            select(Store).where(Store.status == 1).order_by(Store.sort_order)
-        )
+        stmt = select(Store).where(Store.status == 1)
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            stmt = stmt.where(Store.tenant_id == tenant_id)
+        result = await self.db.execute(stmt.order_by(Store.sort_order))
         return list(result.scalars().all())
 
     async def get_department_count(self, store_id: str) -> int:
-        result = await self.db.execute(
-            select(func.count(Department.id)).where(Department.store_id == store_id)
-        )
+        stmt = select(func.count(Department.id)).where(Department.store_id == store_id)
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            stmt = stmt.where(Department.tenant_id == tenant_id)
+        result = await self.db.execute(stmt)
         return result.scalar() or 0
 
     async def get_departments(self, store_id: str) -> List[Department]:
+        stmt = select(Department).where(Department.store_id == store_id)
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            stmt = stmt.where(Department.tenant_id == tenant_id)
         result = await self.db.execute(
-            select(Department)
-            .where(Department.store_id == store_id)
-            .order_by(Department.sort_order.desc(), Department.created_at.desc())
+            stmt.order_by(Department.sort_order.desc(), Department.created_at.desc())
         )
         return list(result.scalars().all())
 
     async def get_admins(self, store_id: str) -> List[Admin]:
-        result = await self.db.execute(
+        stmt = (
             select(Admin)
             .join(admin_stores, Admin.id == admin_stores.c.admin_id)
             .where(admin_stores.c.store_id == store_id)
-            .order_by(Admin.created_at.desc())
         )
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            stmt = stmt.where(Admin.tenant_id == tenant_id)
+        result = await self.db.execute(stmt.order_by(Admin.created_at.desc()))
         return list(result.scalars().all())
 
     async def get_wechat_config(self, store_id: str) -> Optional[dict]:

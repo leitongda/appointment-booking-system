@@ -29,3 +29,15 @@ from app.models.store_visit_type_config import StoreVisitTypeConfig
 from app.models.waitlist import WaitlistEntry
 from app.models.store_email_recipient import StoreEmailRecipient
 from app.models.rule_set import ShiftType, RuleSet, RuleSetShiftType, RuleWindow, RuleBookingPolicy, RuleCheckinPolicy, RuleCapacityPolicy, AppointmentCheckin
+from app.models.tenant import Tenant, TenantSubscription, TenantUsageLog, SubscriptionPlan
+from app.models.miniapp_platform import (
+    AppTemplate,
+    BuildJob,
+    Company,
+    MiniappInstance,
+    PaymentProfile,
+    PaymentRoute,
+    ReleaseArtifact,
+    ReleaseJob,
+    TemplateVersion,
+)

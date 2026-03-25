@@ -90,19 +90,30 @@ class SmsService:
         #     await cls._send_tencent(phone, code, code_type)
 
     @classmethod
-    async def verify_code(cls, phone: str, code: str, code_type: str = "login") -> bool:
+    async def verify_code(
+        cls,
+        phone: str,
+        code: str,
+        code_type: str = "login",
+        tenant_id: Optional[str] = None
+    ) -> bool:
         """
-        验证验证码
+        验证验证码（支持多租户隔离）
 
         Args:
             phone: 手机号
             code: 验证码
             code_type: 验证码类型
+            tenant_id: 租户ID（可选，用于租户隔离验证）
 
         Returns:
             是否验证成功
         """
-        result = await cache.verify_sms_code(phone, code, code_type)
+        effective_tenant_id = tenant_id or get_current_tenant_id()
+        if not effective_tenant_id:
+            raise ValueError("缺少租户上下文，无法验证验证码")
+
+        result = await cache.verify_sms_code(phone, code, code_type, effective_tenant_id)
 
         if result:
             logger.info(f"[SMS] 验证码验证成功: {phone}")

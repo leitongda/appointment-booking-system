@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.events import EventType, dispatch_event_email
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.appointment import Appointment
 from app.models.rest_day import RestDay
 from app.models.schedule import Schedule
@@ -69,17 +70,23 @@ class AppointmentServiceBase:
             logger.warning(f"邮件事件钩子分发失败: event={event_type}, error={exc}")
 
     async def get_by_id(self, appointment_id: str) -> Optional[Appointment]:
-        result = await self.db.execute(
-            select(Appointment).options(selectinload(Appointment.schedule)).where(Appointment.id == appointment_id)
-        )
+        query = select(Appointment).options(selectinload(Appointment.schedule)).where(Appointment.id == appointment_id)
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            query = query.where(Appointment.tenant_id == tenant_id)
+        result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
     async def get_by_appointment_no(self, appointment_no: str) -> Optional[Appointment]:
-        result = await self.db.execute(
+        query = (
             select(Appointment)
             .options(selectinload(Appointment.schedule))
             .where(Appointment.appointment_no == appointment_no)
         )
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            query = query.where(Appointment.tenant_id == tenant_id)
+        result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
     async def get_list(
@@ -98,9 +105,13 @@ class AppointmentServiceBase:
         page: int = 1,
         page_size: int = 10,
     ) -> tuple[List[Appointment], int]:
+        tenant_id = get_current_tenant_id()
         query = select(Appointment).options(selectinload(Appointment.schedule))
         count_query = select(func.count(Appointment.id))
         schedule_joined = False
+        if tenant_id:
+            query = query.where(Appointment.tenant_id == tenant_id)
+            count_query = count_query.where(Appointment.tenant_id == tenant_id)
 
         if user_id:
             query = query.where(Appointment.user_id == user_id)
@@ -162,7 +173,7 @@ class AppointmentServiceBase:
 
     async def get_today_by_doctor(self, doctor_id: str) -> List[Appointment]:
         today = date.today()
-        result = await self.db.execute(
+        query = (
             select(Appointment)
             .join(Schedule)
             .where(
@@ -179,8 +190,11 @@ class AppointmentServiceBase:
                     ),
                 )
             )
-            .order_by(Appointment.queue_number)
         )
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            query = query.where(Appointment.tenant_id == tenant_id)
+        result = await self.db.execute(query.order_by(Appointment.queue_number))
         return list(result.scalars().all())
 
     async def get_statistics(
@@ -189,7 +203,10 @@ class AppointmentServiceBase:
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
     ) -> AppointmentStatistics:
+        tenant_id = get_current_tenant_id()
         base_query = select(Appointment.status, func.count(Appointment.id))
+        if tenant_id:
+            base_query = base_query.where(Appointment.tenant_id == tenant_id)
         if doctor_id:
             base_query = base_query.where(Appointment.doctor_id == doctor_id)
         base_query = base_query.group_by(Appointment.status)
@@ -207,7 +224,8 @@ class AppointmentServiceBase:
 
     async def get_queue_info(self, doctor_id: str) -> dict:
         today = date.today()
-        in_progress_result = await self.db.execute(
+        tenant_id = get_current_tenant_id()
+        in_progress_query = (
             select(Appointment)
             .join(Schedule)
             .options(selectinload(Appointment.patient))
@@ -219,9 +237,12 @@ class AppointmentServiceBase:
                 )
             )
         )
+        if tenant_id:
+            in_progress_query = in_progress_query.where(Appointment.tenant_id == tenant_id)
+        in_progress_result = await self.db.execute(in_progress_query)
         current = in_progress_result.scalar_one_or_none()
 
-        waiting_result = await self.db.execute(
+        waiting_query = (
             select(Appointment)
             .join(Schedule)
             .options(selectinload(Appointment.patient))
@@ -232,11 +253,13 @@ class AppointmentServiceBase:
                     Appointment.status == APPOINTMENT_STATUS["SIGNED"],
                 )
             )
-            .order_by(Appointment.sign_in_time)
         )
+        if tenant_id:
+            waiting_query = waiting_query.where(Appointment.tenant_id == tenant_id)
+        waiting_result = await self.db.execute(waiting_query.order_by(Appointment.sign_in_time))
         waiting_list = list(waiting_result.scalars().all())
 
-        passed_result = await self.db.execute(
+        passed_query = (
             select(Appointment)
             .join(Schedule)
             .options(selectinload(Appointment.patient))
@@ -247,8 +270,10 @@ class AppointmentServiceBase:
                     Appointment.status == APPOINTMENT_STATUS["EXPIRED"],
                 )
             )
-            .order_by(Appointment.queue_number)
         )
+        if tenant_id:
+            passed_query = passed_query.where(Appointment.tenant_id == tenant_id)
+        passed_result = await self.db.execute(passed_query.order_by(Appointment.queue_number))
         passed_list = list(passed_result.scalars().all())
 
         return {

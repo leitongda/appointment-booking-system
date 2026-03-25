@@ -18,6 +18,7 @@ from app.middleware.exception import register_exception_handlers
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.request_log import RequestLogMiddleware
 from app.middleware.operation_log import OperationLogMiddleware
+from app.middleware.tenant_context import TenantContextMiddleware
 from app.db.session import AsyncSessionLocal, engine
 from app.tasks.blacklist_task import auto_release_blacklist
 
@@ -340,6 +341,11 @@ def _build_openapi_tags():
             "name": "WebSocket",
             "description": "实时消息推送（叫号通知、签到通知等）",
         },
+        # 多租户
+        {
+            "name": "租户管理",
+            "description": "SaaS 多租户管理、订阅计划、用量统计（平台管理员）",
+        },
     ]
 
 
@@ -390,6 +396,8 @@ def _build_openapi_description() -> str:
 
 
 def _configure_middlewares(app: FastAPI) -> None:
+    # 租户上下文中间件（最先执行，最后返回）
+    app.add_middleware(TenantContextMiddleware)
     app.add_middleware(UnifiedResponseMiddleware)
     app.add_middleware(OperationLogMiddleware)
     app.add_middleware(RequestLogMiddleware)

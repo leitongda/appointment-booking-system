@@ -116,7 +116,7 @@ class AdminService:
         # 租户过滤（用于唯一性检查场景）
         effective_tenant_id = tenant_id or get_current_tenant_id()
         if effective_tenant_id:
-            query = query.where(Admin.tenant_id == effective_ttenant_id)
+            query = query.where(Admin.tenant_id == effective_tenant_id)
 
         result = await self.db.execute(query)
         return result.unique().scalar_one_or_none()
@@ -142,7 +142,7 @@ class AdminService:
         # 租户过滤（用于唯一性检查场景）
         effective_tenant_id = tenant_id or get_current_tenant_id()
         if effective_tenant_id:
-            query = query.where(Admin.tenant_id == effective_ttenant_id)
+            query = query.where(Admin.tenant_id == effective_tenant_id)
 
         result = await self.db.execute(query)
         return result.unique().scalar_one_or_none()
@@ -194,6 +194,10 @@ class AdminService:
         existing = await self.get_by_username(data["username"])
         if existing:
             raise ValueError("用户名已存在")
+
+        # 配额检查
+        from app.common.quota import check_quota
+        await check_quota(None, "admins", self.db)
 
         password = data.get("password") or "123456"
         store_ids = data.get("store_ids") or []

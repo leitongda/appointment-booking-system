@@ -135,7 +135,11 @@ async def wechat_login(data: WechatLoginRequest, db: AsyncSession = Depends(get_
     - 如果用户已存在，返回 token
     - 如果是新用户，返回 openid，需要绑定手机号
     """
-    wechat_service = WechatService(db, store_id=data.store_id)
+    wechat_service = WechatService(
+        db,
+        store_id=data.store_id,
+        miniapp_instance_id=data.miniapp_instance_id,
+    )
     user_service = UserService(db)
     
     try:
@@ -190,7 +194,11 @@ async def wechat_get_phone(data: WechatPhoneRequest, db: AsyncSession = Depends(
     """
     微信获取手机号并自动登录/注册
     """
-    wechat_service = WechatService(db, store_id=data.store_id)
+    wechat_service = WechatService(
+        db,
+        store_id=data.store_id,
+        miniapp_instance_id=data.miniapp_instance_id,
+    )
     user_service = UserService(db)
     
     try:

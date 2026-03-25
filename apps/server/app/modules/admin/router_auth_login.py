@@ -95,11 +95,25 @@ async def admin_login(
     if not is_super_admin and admin.stores and not available_stores:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您所属的门店已被禁用，请联系管理员")
 
+    # 检查租户状态（非平台管理员）
+    if admin.tenant_id and not is_super_admin:
+        if admin.tenant:
+            if admin.tenant.status == 0:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="租户已被禁用")
+            if admin.tenant.status == 2:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="租户已欠费，请续费后继续使用")
+
     client_ip = get_client_ip(request)
     user_agent = request.headers.get("user-agent", "")
     await service.update_login_info(admin.id, client_ip)
-    access_token = create_access_token(data={"sub": admin.id, "type": "admin"})
-    refresh_token = create_refresh_token(data={"sub": admin.id, "type": "admin"})
+
+    # 创建 JWT Token，包含租户信息
+    token_data = {"sub": admin.id, "type": "admin"}
+    if admin.tenant_id:
+        token_data["tenant_id"] = admin.tenant_id
+
+    access_token = create_access_token(data=token_data)
+    refresh_token = create_refresh_token(data=token_data)
     await store_admin_session(admin, access_token, client_ip, user_agent, db)
 
     response = AdminLoginResponse(
@@ -127,11 +141,27 @@ async def phone_login(
     if admin.status != 1:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
 
+    # 检查租户状态
+    role_code = admin.role.code if admin.role else None
+    is_super_admin = role_code == "SUPER_ADMIN"
+    if admin.tenant_id and not is_super_admin:
+        if admin.tenant:
+            if admin.tenant.status == 0:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="租户已被禁用")
+            if admin.tenant.status == 2:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="租户已欠费，请续费后继续使用")
+
     client_ip = get_client_ip(request)
     user_agent = request.headers.get("user-agent", "")
     await service.update_login_info(admin.id, client_ip)
-    access_token = create_access_token(data={"sub": admin.id, "type": "admin"})
-    refresh_token = create_refresh_token(data={"sub": admin.id, "type": "admin"})
+
+    # 创建 JWT Token，包含租户信息
+    token_data = {"sub": admin.id, "type": "admin"}
+    if admin.tenant_id:
+        token_data["tenant_id"] = admin.tenant_id
+
+    access_token = create_access_token(data=token_data)
+    refresh_token = create_refresh_token(data=token_data)
     await store_admin_session(admin, access_token, client_ip, user_agent, db)
     return _build_login_response(admin, access_token, refresh_token)
 
@@ -177,11 +207,27 @@ async def sms_login(
     if admin.status != 1:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
 
+    # 检查租户状态
+    role_code = admin.role.code if admin.role else None
+    is_super_admin = role_code == "SUPER_ADMIN"
+    if admin.tenant_id and not is_super_admin:
+        if admin.tenant:
+            if admin.tenant.status == 0:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="租户已被禁用")
+            if admin.tenant.status == 2:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="租户已欠费，请续费后继续使用")
+
     client_ip = get_client_ip(request)
     user_agent = request.headers.get("user-agent", "")
     await service.update_login_info(admin.id, client_ip)
-    access_token = create_access_token(data={"sub": admin.id, "type": "admin"})
-    refresh_token = create_refresh_token(data={"sub": admin.id, "type": "admin"})
+
+    # 创建 JWT Token，包含租户信息
+    token_data = {"sub": admin.id, "type": "admin"}
+    if admin.tenant_id:
+        token_data["tenant_id"] = admin.tenant_id
+
+    access_token = create_access_token(data=token_data)
+    refresh_token = create_refresh_token(data=token_data)
     await store_admin_session(admin, access_token, client_ip, user_agent, db)
     return _build_login_response(admin, access_token, refresh_token)
 
@@ -230,10 +276,26 @@ async def check_wechat_scan(
         service = AdminService(db)
         admin = await service.get_by_id(ticket_data["admin_id"])
         if admin and admin.status == 1:
+            # 检查租户状态
+            role_code = admin.role.code if admin.role else None
+            is_super_admin = role_code == "SUPER_ADMIN"
+            if admin.tenant_id and not is_super_admin:
+                if admin.tenant:
+                    if admin.tenant.status == 0:
+                        return WechatCheckResponse(status="error", error="租户已被禁用").model_dump(by_alias=True)
+                    if admin.tenant.status == 2:
+                        return WechatCheckResponse(status="error", error="租户已欠费，请续费后继续使用").model_dump(by_alias=True)
+
             client_ip = get_client_ip(request)
             await service.update_login_info(admin.id, client_ip)
-            access_token = create_access_token(data={"sub": admin.id, "type": "admin"})
-            refresh_token = create_refresh_token(data={"sub": admin.id, "type": "admin"})
+
+            # 创建 JWT Token，包含租户信息
+            token_data = {"sub": admin.id, "type": "admin"}
+            if admin.tenant_id:
+                token_data["tenant_id"] = admin.tenant_id
+
+            access_token = create_access_token(data=token_data)
+            refresh_token = create_refresh_token(data=token_data)
             del _wechat_scan_tickets[ticket]
             return WechatCheckResponse(
                 status="confirmed",

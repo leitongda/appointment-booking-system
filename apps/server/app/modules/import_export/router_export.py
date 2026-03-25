@@ -11,13 +11,13 @@ from typing import Optional, Union, List
 
 from app.db.session import get_db
 from app.api.deps import get_current_admin
-from app.common.deps import get_store_filter, check_store_access
+from app.common.deps import get_store_filter, check_store_access, get_tenant_filter
 from app.services.excel_service import ExcelExportService
 from app.models.doctor import Doctor
 from app.models.user import Patient
 from app.models.department import Department
 from app.models.store import Store
-
+from app.middleware.tenant_context import get_current_tenant_id
 
 router = APIRouter()
 
@@ -58,6 +58,9 @@ async def export_doctors(
     # 获取门店过滤条件
     filter_store_ids = get_store_filter(current_admin)
 
+    # 获取租户过滤条件（双重保险）
+    tenant_id = get_tenant_filter(current_admin)
+
     # 如果用户传了 store_id，验证权限
     if store_id and not current_admin.get("is_super_admin"):
         if not check_store_access(current_admin, store_id):
@@ -75,6 +78,10 @@ async def export_doctors(
     # 应用门店过滤
     query = _apply_store_filter(query, Doctor.store_id, final_store_ids)
 
+    # 添加租户过滤（双重保险）
+    if tenant_id:
+        query = query.where(Doctor.tenant_id == tenant_id)
+
     if department_id:
         query = query.where(Doctor.department_id == department_id)
     if status is not None:
@@ -84,7 +91,7 @@ async def export_doctors(
     result = await db.execute(query)
     doctors = result.unique().scalars().all()
 
-    headers = ["姓名", "性别", "手机号", "所属门店", "所属科室", "职称", "擅长", "标签", "状态"]
+    headers = ["姓名", "性别", "手机号", "门店名称", "科室名称", "职称", "擅长", "标签", "状态"]
     data = []
 
     gender_map = {0: "未知", 1: "男", 2: "女"}
@@ -118,7 +125,17 @@ async def export_patients(
     current_admin = Depends(get_current_admin),
 ):
     """导出患者列表"""
+    # 获取租户过滤
+    tenant_id = get_tenant_filter(current_admin)
+    if not tenant_id:
+        tenant_id = get_current_tenant_id()
+
     query = select(Patient)
+
+    # 添加租户过滤
+    if tenant_id:
+        query = query.where(Patient.tenant_id == tenant_id)
+
     if keyword:
         from sqlalchemy import or_
         query = query.where(
@@ -130,12 +147,11 @@ async def export_patients(
     query = query.order_by(Patient.created_at.desc())
     result = await db.execute(query)
     patients = result.scalars().all()
-    headers = ["就诊卡编号", "姓名", "手机号", "身份证号", "性别", "出生日期", "与本人关系", "省", "市", "区", "详细地址", "创建时间"]
+    headers = ["姓名", "手机号", "身份证号", "性别", "出生日期", "与本人关系", "省", "市", "区", "详细地址", "就诊卡编号", "创建时间"]
     data = []
     gender_map = {0: "未知", 1: "男", 2: "女"}
     for p in patients:
         data.append([
-            p.card_no or "",
             p.name,
             p.phone,
             p.id_card or "",
@@ -146,6 +162,7 @@ async def export_patients(
             p.city or "",
             p.district or "",
             p.address or "",
+            p.card_no or "",
             p.created_at.strftime("%Y-%m-%d %H:%M:%S") if p.created_at else "",
         ])
     excel_bytes = ExcelExportService.create_workbook(headers, data, "患者列表")
@@ -168,6 +185,9 @@ async def export_departments(
     # 获取门店过滤条件
     filter_store_ids = get_store_filter(current_admin)
 
+    # 获取租户过滤条件（双重保险）
+    tenant_id = get_tenant_filter(current_admin)
+
     # 如果用户传了 store_id，验证权限
     if store_id and not current_admin.get("is_super_admin"):
         if not check_store_access(current_admin, store_id):
@@ -180,12 +200,16 @@ async def export_departments(
     # 应用门店过滤
     query = _apply_store_filter(query, Department.store_id, final_store_ids)
 
+    # 添加租户过滤（双重保险）
+    if tenant_id:
+        query = query.where(Department.tenant_id == tenant_id)
+
     if status is not None:
         query = query.where(Department.status == status)
     query = query.order_by(Department.sort_order)
     result = await db.execute(query)
     departments = result.unique().scalars().all()
-    headers = ["科室名称", "所属门店", "科室标签", "排序", "是否终极科室", "是否推荐", "是否热门", "状态"]
+    headers = ["科室名称", "门店名称", "科室标签", "排序", "是否终极科室", "是否推荐", "是否热门", "状态"]
     data = []
     for d in departments:
         data.append([
@@ -217,10 +241,17 @@ async def export_stores(
     # 获取门店过滤条件
     filter_store_ids = get_store_filter(current_admin)
 
+    # 获取租户过滤条件（双重保险）
+    tenant_id = get_tenant_filter(current_admin)
+
     query = select(Store)
 
     # 应用门店过滤（非超管只能导出自己绑定的门店）
     query = _apply_store_filter(query, Store.id, filter_store_ids)
+
+    # 添加租户过滤（双重保险）
+    if tenant_id:
+        query = query.where(Store.tenant_id == tenant_id)
 
     if status is not None:
         query = query.where(Store.status == status)
@@ -265,6 +296,9 @@ async def export_schedule_templates(
     # 获取门店过滤条件
     filter_store_ids = get_store_filter(current_admin)
 
+    # 获取租户过滤条件（双重保险）
+    tenant_id = get_tenant_filter(current_admin)
+
     # 如果用户传了 store_id，验证权限
     if store_id and not current_admin.get("is_super_admin"):
         if not check_store_access(current_admin, store_id):
@@ -280,6 +314,10 @@ async def export_schedule_templates(
 
     # 应用门店过滤
     query = _apply_store_filter(query, ScheduleTemplate.store_id, final_store_ids)
+
+    # 添加租户过滤（双重保险）
+    if tenant_id:
+        query = query.where(ScheduleTemplate.tenant_id == tenant_id)
 
     if doctor_id:
         query = query.where(ScheduleTemplate.doctor_id == doctor_id)
@@ -406,8 +444,18 @@ async def export_logs(
     from app.models.admin import OperationLog
     from sqlalchemy import and_
 
+    # 获取租户过滤条件
+    tenant_id = get_tenant_filter(current_admin)
+    if not tenant_id:
+        tenant_id = get_current_tenant_id()
+
     query = select(OperationLog)
     conditions = []
+
+    # 添加租户过滤
+    if tenant_id:
+        conditions.append(OperationLog.tenant_id == tenant_id)
+
     if module:
         conditions.append(OperationLog.module == module)
     if log_result:
@@ -457,7 +505,17 @@ async def export_feedbacks(
     """导出用户反馈"""
     from app.models.feedback import Feedback
 
+    # 获取租户过滤条件
+    tenant_id = get_tenant_filter(current_admin)
+    if not tenant_id:
+        tenant_id = get_current_tenant_id()
+
     query = select(Feedback)
+
+    # 添加租户过滤
+    if tenant_id:
+        query = query.where(Feedback.tenant_id == tenant_id)
+
     if status:
         query = query.where(Feedback.status == status)
     if feedback_type:

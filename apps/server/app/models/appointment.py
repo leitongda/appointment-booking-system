@@ -14,6 +14,8 @@ class Appointment(Base, AuditMixin):
     doctor_id = Column(String(36), ForeignKey("doctors.id"), nullable=False)
     schedule_id = Column(String(36), ForeignKey("schedules.id"), nullable=False)
     rule_set_id = Column(String(36), ForeignKey("rule_sets.id"), nullable=True, comment="应用的规则组ID")
+    # 租户关联（多租户支持）
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
     queue_number = Column(Integer)  # 队列号
     status = Column(Integer, default=1)  # 0待支付 1已预约 2已签到 3候诊中 4就诊中 5已完成 6已取消 7已过期 8已关闭
     sign_in_time = Column(DateTime)
@@ -46,8 +48,29 @@ class Appointment(Base, AuditMixin):
     reminder_sent = Column(Integer, default=0, comment="是否已发送提醒: 0否 1是")
     reminder_sent_at = Column(DateTime, comment="提醒发送时间")
 
+    # 支付快照
+    payment_profile_id = Column(String(36), ForeignKey("payment_profiles.id"), nullable=True, index=True, comment="支付配置ID快照")
+    payment_miniapp_instance_id = Column(
+        String(36),
+        ForeignKey("miniapp_instances.id"),
+        nullable=True,
+        index=True,
+        comment="小程序实例ID快照",
+    )
+    payment_mode = Column(String(30), nullable=True, comment="支付模式快照")
+    payment_app_id = Column(String(100), nullable=True, comment="支付AppID快照")
+    payment_mch_id = Column(String(100), nullable=True, comment="支付商户号快照")
+    payment_sub_mchid = Column(String(100), nullable=True, comment="支付子商户号快照")
+    payment_notify_url = Column(String(255), nullable=True, comment="支付回调地址快照")
+
     # 关联关系
+    tenant = relationship("Tenant", back_populates="appointments")
     schedule = relationship("Schedule", back_populates="appointments")
     patient = relationship("Patient", backref="appointments")
     doctor = relationship("Doctor", backref="appointments")
+    payment_profile = relationship("PaymentProfile", backref="appointments")
+    payment_miniapp_instance = relationship("MiniappInstance", backref="appointments")
 
+    __table_args__ = (
+        {'comment': '预约表（多租户支持）'},
+    )

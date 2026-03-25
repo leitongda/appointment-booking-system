@@ -7,6 +7,7 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.orm import selectinload
 
 from app.core.security import verify_password
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.department import Department
 from app.models.doctor import Doctor
 from app.models.rest_day import RestDay
@@ -15,19 +16,27 @@ from app.models.schedule import Schedule
 
 class DoctorQueryMixin:
     async def get_by_phone(self, phone: str) -> Optional[Doctor]:
-        result = await self.db.execute(
+        query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
             .where(Doctor.phone == phone)
         )
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            query = query.where(Doctor.tenant_id == tenant_id)
+        result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
     async def get_by_username(self, username: str) -> Optional[Doctor]:
-        result = await self.db.execute(
+        query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
             .where(Doctor.username == username)
         )
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            query = query.where(Doctor.tenant_id == tenant_id)
+        result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
     async def authenticate(self, phone: str, password: str) -> Optional[Doctor]:
@@ -41,7 +50,11 @@ class DoctorQueryMixin:
         return doctor
 
     async def update_login_info(self, doctor_id: str, ip: str) -> None:
-        result = await self.db.execute(select(Doctor).where(Doctor.id == doctor_id))
+        query = select(Doctor).where(Doctor.id == doctor_id)
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            query = query.where(Doctor.tenant_id == tenant_id)
+        result = await self.db.execute(query)
         doctor = result.scalar_one_or_none()
         if doctor:
             from datetime import datetime
@@ -51,11 +64,15 @@ class DoctorQueryMixin:
             await self.db.commit()
 
     async def get_by_id(self, doctor_id: str) -> Optional[Doctor]:
-        result = await self.db.execute(
+        query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
             .where(Doctor.id == doctor_id)
         )
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            query = query.where(Doctor.tenant_id == tenant_id)
+        result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
     async def get_list(
@@ -67,8 +84,12 @@ class DoctorQueryMixin:
         page: int = 1,
         page_size: int = 10,
     ) -> tuple[List[Doctor], int]:
+        tenant_id = get_current_tenant_id()
         query = select(Doctor).options(selectinload(Doctor.department), selectinload(Doctor.store))
         count_query = select(func.count(Doctor.id))
+        if tenant_id:
+            query = query.where(Doctor.tenant_id == tenant_id)
+            count_query = count_query.where(Doctor.tenant_id == tenant_id)
 
         if name:
             query = query.where(Doctor.name.contains(name))
@@ -89,11 +110,14 @@ class DoctorQueryMixin:
         return list(result.scalars().all()), count_result.scalar() or 0
 
     async def get_recommended(self, limit: int = 6, store_id: Optional[str] = None) -> List[Doctor]:
+        tenant_id = get_current_tenant_id()
         query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
             .where(Doctor.is_recommended == 1, Doctor.status == 1)
         )
+        if tenant_id:
+            query = query.where(Doctor.tenant_id == tenant_id)
         if store_id:
             query = query.where(Doctor.store_id == store_id)
         query = query.order_by(Doctor.sort_order.desc()).limit(limit)
@@ -103,11 +127,14 @@ class DoctorQueryMixin:
     async def get_by_department(
         self, department_id: str, store_id: Optional[str] = None
     ) -> List[Doctor]:
+        tenant_id = get_current_tenant_id()
         query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
             .where(Doctor.department_id == department_id, Doctor.status == 1)
         )
+        if tenant_id:
+            query = query.where(Doctor.tenant_id == tenant_id)
         if store_id:
             query = query.where(Doctor.store_id == store_id)
         query = query.order_by(Doctor.sort_order.desc())
@@ -115,9 +142,12 @@ class DoctorQueryMixin:
         return list(result.scalars().all())
 
     async def get_all_active(self, store_id: Optional[str] = None) -> List[Doctor]:
+        tenant_id = get_current_tenant_id()
         query = select(Doctor).options(
             selectinload(Doctor.department), selectinload(Doctor.store)
         ).where(Doctor.status == 1)
+        if tenant_id:
+            query = query.where(Doctor.tenant_id == tenant_id)
         if store_id:
             query = query.where(Doctor.store_id == store_id)
         query = query.order_by(Doctor.sort_order.desc())
@@ -128,19 +158,23 @@ class DoctorQueryMixin:
         if not doctor_ids:
             return {}
 
+        tenant_id = get_current_tenant_id()
         today = date.today()
         end_date = today + timedelta(days=days)
-        schedules_result = await self.db.execute(
-            select(Schedule.doctor_id, Schedule.schedule_date, Schedule.store_id, Schedule.template_id).where(
-                and_(
-                    Schedule.doctor_id.in_(doctor_ids),
-                    Schedule.schedule_date >= today,
-                    Schedule.schedule_date <= end_date,
-                    Schedule.status == 1,
-                    Schedule.booked_slots < Schedule.total_slots,
-                )
+        schedules_query = select(
+            Schedule.doctor_id, Schedule.schedule_date, Schedule.store_id, Schedule.template_id
+        ).where(
+            and_(
+                Schedule.doctor_id.in_(doctor_ids),
+                Schedule.schedule_date >= today,
+                Schedule.schedule_date <= end_date,
+                Schedule.status == 1,
+                Schedule.booked_slots < Schedule.total_slots,
             )
         )
+        if tenant_id:
+            schedules_query = schedules_query.where(Schedule.tenant_id == tenant_id)
+        schedules_result = await self.db.execute(schedules_query)
         schedules = schedules_result.all()
 
         rest_days_result = await self.db.execute(

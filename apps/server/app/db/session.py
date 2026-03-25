@@ -80,3 +80,9 @@ def get_sync_db():
 def get_sync_db_session() -> Session:
     """获取同步数据库会话（需要手动关闭）"""
     return SessionLocal()
+
+
+async def get_async_db_context():
+    """异步生成器：获取异步数据库会话（用于同步上下文中调用异步代码）"""
+    async with async_session_maker() as session:
+        yield session
