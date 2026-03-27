@@ -1,6 +1,6 @@
 """微信 Token 管理器
 
-支持 access_token 的 Redis 缓存和分布式锁机制
+支持 access_token 的 Redis 缓存和分布式锁机制（多租户隔离）
 """
 import logging
 from typing import Optional
@@ -8,6 +8,7 @@ from typing import Optional
 import httpx
 
 from app.core.redis import cache, RedisCache, sync_cache, SyncRedisCache
+from app.middleware.tenant_context import get_current_tenant_id
 
 logger = logging.getLogger(__name__)
 
@@ -32,15 +33,17 @@ class WechatTokenManager:
         cls,
         app_id: str,
         app_secret: str,
-        force_refresh: bool = False
+        force_refresh: bool = False,
+        tenant_id: Optional[str] = None,
     ) -> str:
         """
-        获取微信 access_token（异步，带分布式锁）
+        获取微信 access_token（异步，带分布式锁，支持多租户隔离）
 
         Args:
             app_id: 小程序 AppID
             app_secret: 小程序 AppSecret
             force_refresh: 是否强制刷新
+            tenant_id: 租户ID（可选，不传则从上下文获取）
 
         Returns:
             access_token
@@ -51,9 +54,11 @@ class WechatTokenManager:
         if not app_id or not app_secret:
             raise ValueError("微信配置不完整，缺少 AppID 或 AppSecret")
 
+        effective_tenant_id = tenant_id or get_current_tenant_id()
+
         # 1. 如果不是强制刷新，先尝试从缓存获取
         if not force_refresh:
-            cached_token = await cache.get_wechat_token(app_id)
+            cached_token = await cache.get_wechat_token(app_id, tenant_id=effective_tenant_id)
             if cached_token:
                 logger.debug(f"[微信Token] 缓存命中: app_id={app_id}")
                 return cached_token
@@ -70,7 +75,7 @@ class WechatTokenManager:
             # 获取锁失败，等待一下再尝试从缓存获取（可能其他进程已刷新）
             import asyncio
             await asyncio.sleep(0.5)
-            cached_token = await cache.get_wechat_token(app_id)
+            cached_token = await cache.get_wechat_token(app_id, tenant_id=effective_tenant_id)
             if cached_token:
                 logger.info(f"[微信Token] 等待后缓存命中: app_id={app_id}")
                 return cached_token
@@ -79,7 +84,7 @@ class WechatTokenManager:
         try:
             # 3. 双重检查：获取锁后再次检查缓存（DCL 模式）
             if not force_refresh:
-                cached_token = await cache.get_wechat_token(app_id)
+                cached_token = await cache.get_wechat_token(app_id, tenant_id=effective_tenant_id)
                 if cached_token:
                     logger.info(f"[微信Token] DCL 缓存命中: app_id={app_id}")
                     return cached_token
@@ -89,7 +94,7 @@ class WechatTokenManager:
             token = await cls._fetch_access_token_from_wechat(app_id, app_secret)
 
             # 5. 缓存新 Token
-            await cache.set_wechat_token(app_id, token, cls.TOKEN_CACHE_EXPIRE)
+            await cache.set_wechat_token(app_id, token, cls.TOKEN_CACHE_EXPIRE, tenant_id=effective_tenant_id)
             logger.info(f"[微信Token] 已缓存新 Token: app_id={app_id}")
 
             return token
@@ -129,15 +134,17 @@ class WechatTokenManager:
         cls,
         app_id: str,
         app_secret: str,
-        force_refresh: bool = False
+        force_refresh: bool = False,
+        tenant_id: Optional[str] = None,
     ) -> str:
         """
-        获取微信 access_token（同步版本，用于 Celery 任务）
+        获取微信 access_token（同步版本，用于 Celery 任务，支持多租户隔离）
 
         Args:
             app_id: 小程序 AppID
             app_secret: 小程序 AppSecret
             force_refresh: 是否强制刷新
+            tenant_id: 租户ID（可选，Celery 任务中无上下文，需显式传入）
 
         Returns:
             access_token
@@ -149,7 +156,7 @@ class WechatTokenManager:
 
         # 1. 尝试从缓存获取
         if not force_refresh:
-            cached_token = sync_cache.get_wechat_token(app_id)
+            cached_token = sync_cache.get_wechat_token(app_id, tenant_id=tenant_id)
             if cached_token:
                 logger.debug(f"[微信Token] 同步缓存命中: app_id={app_id}")
                 return cached_token
@@ -164,7 +171,7 @@ class WechatTokenManager:
 
         if not lock_value:
             time.sleep(0.5)
-            cached_token = sync_cache.get_wechat_token(app_id)
+            cached_token = sync_cache.get_wechat_token(app_id, tenant_id=tenant_id)
             if cached_token:
                 return cached_token
             raise ValueError("获取微信 Token 失败：无法获取分布式锁")
@@ -172,7 +179,7 @@ class WechatTokenManager:
         try:
             # 3. 双重检查
             if not force_refresh:
-                cached_token = sync_cache.get_wechat_token(app_id)
+                cached_token = sync_cache.get_wechat_token(app_id, tenant_id=tenant_id)
                 if cached_token:
                     return cached_token
 
@@ -196,7 +203,7 @@ class WechatTokenManager:
                 raise ValueError("获取 access_token 失败: 返回数据中无 token")
 
             # 5. 缓存新 Token
-            sync_cache.set_wechat_token(app_id, token, cls.TOKEN_CACHE_EXPIRE)
+            sync_cache.set_wechat_token(app_id, token, cls.TOKEN_CACHE_EXPIRE, tenant_id=tenant_id)
             logger.info(f"[微信Token] 同步已缓存新 Token: app_id={app_id}")
 
             return token

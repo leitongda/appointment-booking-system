@@ -1,7 +1,7 @@
 from app.modules.schedule_templates.service import (
     ScheduleTemplateService as modular_schedule_template_service,
 )
-from app.services.schedule_template_service import (
+from app.modules.schedule_templates.service import (
     ScheduleTemplateService as legacy_schedule_template_service,
 )
 

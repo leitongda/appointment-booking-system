@@ -21,6 +21,20 @@ from app.schemas.appointment import AppointmentCreate
 from app.modules.appointments.service import AppointmentService, APPOINTMENT_STATUS
 
 
+# ==================== 租户上下文 Patches ====================
+
+def _tenant_patches(test_tenant_id):
+    """返回模拟租户上下文和配额检查的 patch 字典。
+
+    service_booking.create 在最顶部调用 get_current_tenant_id() 和
+    check_quota()，单元测试没有真实的租户上下文，因此需要 mock。
+    """
+    return {
+        'app.modules.appointments.service_booking.get_current_tenant_id': lambda: test_tenant_id,
+        'app.modules.appointments.service_booking.check_quota': AsyncMock(),
+    }
+
+
 # ==================== 测试辅助函数 ====================
 
 def create_mock_lock_context():
@@ -66,7 +80,8 @@ class TestCreateAppointmentSuccess:
         db_session,
         test_schedule,
         test_patient,
-        test_user
+        test_user,
+        test_tenant,
     ):
         """
         测试正常创建预约
@@ -90,10 +105,13 @@ class TestCreateAppointmentSuccess:
         service = AppointmentService(db_session)
 
         # Mock 依赖项
-        with patch('app.modules.appointments.service.RedisCache.distributed_lock') as mock_lock, \
+        tenant_patches = _tenant_patches(test_tenant.id)
+        with patch('app.modules.appointments.service.RedisCache.tenant_distributed_lock') as mock_lock, \
              patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls, \
              patch('app.modules.appointments.service.MessageService') as mock_msg_service_cls, \
-             patch('app.modules.appointments.service.dispatch_event_email') as mock_dispatch:
+             patch('app.modules.appointments.service.dispatch_event_email') as mock_dispatch, \
+             patch('app.middleware.tenant_context.get_current_tenant_id', return_value=test_tenant.id), \
+             patch('app.common.quota.check_quota', new_callable=AsyncMock):
 
             # 配置分布式锁 mock
             mock_lock.return_value = create_mock_lock_context()
@@ -200,7 +218,8 @@ class TestCreateAppointmentScheduleFull:
         db_session,
         test_schedule,
         test_patient,
-        test_user
+        test_user,
+        test_tenant,
     ):
         """
         测试在分布式锁内检测到号源已满
@@ -231,8 +250,10 @@ class TestCreateAppointmentScheduleFull:
             async def __aexit__(self, exc_type, exc_val, exc_tb):
                 return None
 
-        with patch('app.modules.appointments.service.RedisCache.distributed_lock') as mock_lock, \
-             patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls:
+        with patch('app.modules.appointments.service.RedisCache.tenant_distributed_lock') as mock_lock, \
+             patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls, \
+             patch('app.middleware.tenant_context.get_current_tenant_id', return_value=test_tenant.id), \
+             patch('app.common.quota.check_quota', new_callable=AsyncMock):
 
             # 配置锁 mock 返回自定义上下文管理器
             mock_lock.return_value = MockLockContext(test_schedule)
@@ -270,7 +291,8 @@ class TestCreateAppointmentDuplicate:
         test_schedule,
         test_patient,
         test_user,
-        test_appointment  # 使用已有的预约 fixture
+        test_appointment,  # 使用已有的预约 fixture
+        test_tenant,
     ):
         """
         测试同一排班重复预约被拦截
@@ -287,8 +309,10 @@ class TestCreateAppointmentDuplicate:
         service = AppointmentService(db_session)
 
         # Mock 依赖项
-        with patch('app.modules.appointments.service.RedisCache.distributed_lock') as mock_lock, \
-             patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls:
+        with patch('app.modules.appointments.service.RedisCache.tenant_distributed_lock') as mock_lock, \
+             patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls, \
+             patch('app.middleware.tenant_context.get_current_tenant_id', return_value=test_tenant.id), \
+             patch('app.common.quota.check_quota', new_callable=AsyncMock):
 
             # 配置分布式锁 mock
             mock_lock.return_value = create_mock_lock_context()
@@ -320,7 +344,8 @@ class TestCreateAppointmentDuplicate:
         self,
         db_session,
         test_schedule,
-        test_user
+        test_user,
+        test_tenant,
     ):
         """
         测试同一排班但不同就诊人可以预约
@@ -336,6 +361,7 @@ class TestCreateAppointmentDuplicate:
             phone="13800138003",
             id_card="110101199001015678",
             is_default=False,
+            tenant_id=test_tenant.id,
             created_at=datetime.now(),
             updated_at=datetime.now(),
         )
@@ -353,10 +379,12 @@ class TestCreateAppointmentDuplicate:
         service = AppointmentService(db_session)
 
         # Mock 依赖项
-        with patch('app.modules.appointments.service.RedisCache.distributed_lock') as mock_lock, \
+        with patch('app.modules.appointments.service.RedisCache.tenant_distributed_lock') as mock_lock, \
              patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls, \
              patch('app.modules.appointments.service.MessageService') as mock_msg_service_cls, \
-             patch('app.modules.appointments.service.dispatch_event_email') as mock_dispatch:
+             patch('app.modules.appointments.service.dispatch_event_email') as mock_dispatch, \
+             patch('app.middleware.tenant_context.get_current_tenant_id', return_value=test_tenant.id), \
+             patch('app.common.quota.check_quota', new_callable=AsyncMock):
 
             # 配置分布式锁 mock
             mock_lock.return_value = create_mock_lock_context()
@@ -400,7 +428,8 @@ class TestCreateAppointmentConcurrent:
         db_session,
         test_schedule,
         test_patient,
-        test_user
+        test_user,
+        test_tenant,
     ):
         """
         测试使用分布式锁创建预约
@@ -419,10 +448,12 @@ class TestCreateAppointmentConcurrent:
         service = AppointmentService(db_session)
 
         # Mock 依赖项
-        with patch('app.modules.appointments.service.RedisCache.distributed_lock') as mock_lock, \
+        with patch('app.modules.appointments.service.RedisCache.tenant_distributed_lock') as mock_lock, \
              patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls, \
              patch('app.modules.appointments.service.MessageService') as mock_msg_service_cls, \
-             patch('app.modules.appointments.service.dispatch_event_email') as mock_dispatch:
+             patch('app.modules.appointments.service.dispatch_event_email') as mock_dispatch, \
+             patch('app.middleware.tenant_context.get_current_tenant_id', return_value=test_tenant.id), \
+             patch('app.common.quota.check_quota', new_callable=AsyncMock):
 
             # 配置分布式锁 mock
             mock_lock.return_value = create_mock_lock_context()
@@ -455,12 +486,17 @@ class TestCreateAppointmentConcurrent:
         # 验证分布式锁被调用
         mock_lock.assert_called_once()
 
-        # 验证锁名称格式
+        # 验证锁名称格式（tenant_distributed_lock 的第一个参数仍为原始 lock_name）
         lock_call_args = mock_lock.call_args
         lock_name = lock_call_args[0][0] if lock_call_args[0] else lock_call_args[1].get('lock_name')
         expected_lock_prefix = f"appointment:create:{test_schedule.id}"
         assert lock_name == expected_lock_prefix, \
             f"锁名称应为 {expected_lock_prefix}，实际为 {lock_name}"
+
+        # 验证传入了 tenant_id
+        actual_tenant_id = lock_call_args[1].get('tenant_id')
+        assert actual_tenant_id == test_tenant.id, \
+            f"tenant_id 应为 {test_tenant.id}，实际为 {actual_tenant_id}"
 
         # 验证预约创建成功
         assert appointment is not None
@@ -472,7 +508,8 @@ class TestCreateAppointmentConcurrent:
         db_session,
         test_schedule,
         test_patient,
-        test_user
+        test_user,
+        test_tenant,
     ):
         """
         测试分布式锁获取失败时的处理
@@ -492,8 +529,10 @@ class TestCreateAppointmentConcurrent:
         def mock_lock_side_effect(*args, **kwargs):
             raise RuntimeError("无法获取分布式锁")
 
-        with patch('app.modules.appointments.service.RedisCache.distributed_lock') as mock_lock, \
-             patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls:
+        with patch('app.modules.appointments.service.RedisCache.tenant_distributed_lock') as mock_lock, \
+             patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls, \
+             patch('app.middleware.tenant_context.get_current_tenant_id', return_value=test_tenant.id), \
+             patch('app.common.quota.check_quota', new_callable=AsyncMock):
 
             # 配置锁 mock 抛出异常
             mock_lock.side_effect = mock_lock_side_effect
@@ -525,7 +564,8 @@ class TestCreateAppointmentConcurrent:
         self,
         db_session,
         test_schedule,
-        test_user
+        test_user,
+        test_tenant,
     ):
         """
         测试号源不超售
@@ -550,6 +590,7 @@ class TestCreateAppointmentConcurrent:
                 phone=f"1380013801{i}",
                 id_card=f"11010119900101123{i}",
                 is_default=False,
+                tenant_id=test_tenant.id,
                 created_at=datetime.now(),
                 updated_at=datetime.now(),
             )
@@ -577,10 +618,12 @@ class TestCreateAppointmentConcurrent:
                     patient_id=patient_id
                 )
 
-                with patch('app.modules.appointments.service.RedisCache.distributed_lock') as mock_lock, \
+                with patch('app.modules.appointments.service.RedisCache.tenant_distributed_lock') as mock_lock, \
                      patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls, \
                      patch('app.modules.appointments.service.MessageService'), \
-                     patch('app.modules.appointments.service.dispatch_event_email'):
+                     patch('app.modules.appointments.service.dispatch_event_email'), \
+                     patch('app.middleware.tenant_context.get_current_tenant_id', return_value=test_tenant.id), \
+                     patch('app.common.quota.check_quota', new_callable=AsyncMock):
 
                     # 配置分布式锁 mock
                     mock_lock.return_value = create_mock_lock_context()
@@ -625,10 +668,12 @@ class TestCreateAppointmentConcurrent:
                     patient_id=patient.id
                 )
 
-                with patch('app.modules.appointments.service.RedisCache.distributed_lock') as mock_lock, \
+                with patch('app.modules.appointments.service.RedisCache.tenant_distributed_lock') as mock_lock, \
                      patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls, \
                      patch('app.modules.appointments.service.MessageService'), \
-                     patch('app.modules.appointments.service.dispatch_event_email'):
+                     patch('app.modules.appointments.service.dispatch_event_email'), \
+                     patch('app.middleware.tenant_context.get_current_tenant_id', return_value=test_tenant.id), \
+                     patch('app.common.quota.check_quota', new_callable=AsyncMock):
 
                     mock_lock.return_value = create_mock_lock_context()
 
@@ -703,7 +748,8 @@ class TestCreateAppointmentValidation:
         self,
         db_session,
         test_schedule,
-        test_user
+        test_user,
+        test_tenant,
     ):
         """
         测试就诊人不存在时的错误处理
@@ -717,7 +763,9 @@ class TestCreateAppointmentValidation:
         service = AppointmentService(db_session)
 
         # Mock 规则引擎
-        with patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls:
+        with patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls, \
+             patch('app.middleware.tenant_context.get_current_tenant_id', return_value=test_tenant.id), \
+             patch('app.common.quota.check_quota', new_callable=AsyncMock):
             mock_rule_engine = MagicMock()
             mock_rule_engine_cls.return_value = mock_rule_engine
             default_mocks = create_default_rule_engine_mocks()
@@ -742,7 +790,8 @@ class TestCreateAppointmentValidation:
         db_session,
         test_schedule,
         test_patient,
-        test_user
+        test_user,
+        test_tenant,
     ):
         """
         测试排班已停诊时的错误处理

@@ -28,6 +28,7 @@ def test_build_admin_response_maps_store_fields_and_flags():
         last_login_at=None,
         last_login_ip=None,
         created_at="2026-03-10T00:00:00",
+        tenant_id="tenant-1",
     )
 
     response = build_admin_response(admin)

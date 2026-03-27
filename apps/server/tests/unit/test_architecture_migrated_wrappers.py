@@ -1,40 +1,55 @@
 from pathlib import Path
 
 
-SERVICE_WRAPPERS = {
-    "admin_service.py": {
-        "imports": ["from app.modules.admin.service_admins import AdminService"],
-        "allow_class": False,
-    },
-    "consultation_fee_service.py": [
-        "from app.modules.consultation_fees.service import ConsultationFeeService"
-    ],
-    "doctor_service.py": ["from app.modules.doctors.service import DoctorService"],
-    "excel_service.py": ["from app.infrastructure.excel.export_service import ExcelExportService"],
-    "image_processor.py": ["from app.infrastructure.image.processor import"],
-    "message_service.py": ["from app.modules.messages.service_messages import MessageService"],
-    "notification_service.py": [
-        "from app.infrastructure.notification.service import NotificationService"
-    ],
-    "rule_engine_service.py": ["from app.modules.rule_engine import RuleEngineService"],
-    "rule_set_import_service.py": [
-        "from app.modules.import_export.service_rule_set_import import RuleSetImportService"
-    ],
-    "rule_set_service.py": ["from app.modules.rule_sets.service import RuleSetService"],
-    "schedule_service.py": ["from app.modules.schedules.service import ScheduleService"],
-    "schedule_template_service.py": [
-        "from app.modules.schedule_templates.service import ScheduleTemplateService"
-    ],
-    "settings_service.py": ["from app.modules.settings.service import SettingsService"],
-    "sms_service.py": ["from app.infrastructure.sms.service import SmsService"],
-    "store_service.py": ["from app.modules.stores.service import StoreService"],
-    "waitlist_service.py": ["from app.modules.waitlist.service import WaitlistService"],
-    "wechat_service.py": ["from app.infrastructure.wechat.service import WechatService"],
-}
+# These wrapper files have been deleted as part of the module boundary refactor.
+# This test verifies they are gone and that code no longer references them.
+DELETED_WRAPPERS = [
+    "admin_service.py",
+    "blacklist_service.py",
+    "consultation_fee_service.py",
+    "custom_schedule_service.py",
+    "department_service.py",
+    "doctor_service.py",
+    "email_service.py",
+    "excel_service.py",
+    "export_service.py",
+    "feedback_service.py",
+    "image_processor.py",
+    "import_service.py",
+    "leave_request_service.py",
+    "medical_record_service.py",
+    "message_service.py",
+    "notification_service.py",
+    "point_service.py",
+    "revenue_service.py",
+    "rule_engine_service.py",
+    "rule_set_import_service.py",
+    "rule_set_service.py",
+    "schedule_service.py",
+    "schedule_suspension_service.py",
+    "schedule_template_service.py",
+    "settings_service.py",
+    "shift_type_service.py",
+    "sms_service.py",
+    "store_service.py",
+    "user_service.py",
+    "visit_type_service.py",
+    "waitlist_service.py",
+    "wechat_service.py",
+]
 
-
-def _read(path: Path) -> str:
-    return path.read_text(encoding="utf-8")
+# These files contain actual implementations and remain in app/services/
+REMAINING_IMPLEMENTATIONS = [
+    "__init__.py",
+    "booking_notice_service.py",
+    "content_service.py",
+    "doctor_booking_setting_service.py",
+    "email_template_service.py",
+    "rest_day_service.py",
+    "rule_performance_service.py",
+    "store_email_recipient_service.py",
+    "user_favorite_service.py",
+]
 
 
 def test_api_v1_only_contains_init():
@@ -50,24 +65,15 @@ def test_storage_compat_layer_removed():
     assert not list(storage_dir.glob("*.py"))
 
 
-def test_migrated_service_wrappers_stay_thin():
+def test_deleted_wrappers_no_longer_exist():
+    """验证所有兼容层 wrapper 文件已被删除"""
     services_dir = Path("app/services")
-    default_forbidden_tokens = ["class ", "async def "]
-    facade_forbidden_tokens = ["db.execute(", "db.scalar("]
+    for filename in DELETED_WRAPPERS:
+        assert not (services_dir / filename).exists(), f"{filename} should have been deleted"
 
-    for filename, config in SERVICE_WRAPPERS.items():
-        if isinstance(config, dict):
-            import_lines = config["imports"]
-            allow_class = config.get("allow_class", False)
-        else:
-            import_lines = config
-            allow_class = False
-        text = _read(services_dir / filename)
-        assert any(
-            marker in text for marker in ("from app.modules.", "from app.infrastructure.")
-        ), f"{filename} should delegate to app.modules or app.infrastructure"
-        for import_line in import_lines:
-            assert import_line in text
-        forbidden_tokens = facade_forbidden_tokens if allow_class else default_forbidden_tokens
-        for token in forbidden_tokens:
-            assert token not in text, f"{filename} should stay a thin wrapper; found {token}"
+
+def test_remaining_implementations_still_exist():
+    """验证包含实际业务逻辑的文件仍保留"""
+    services_dir = Path("app/services")
+    for filename in REMAINING_IMPLEMENTATIONS:
+        assert (services_dir / filename).exists(), f"{filename} should still exist"

@@ -17,16 +17,22 @@ class RuleSetImportService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def import_rule_sets(self, file_content: bytes) -> Dict[str, Any]:
+    async def import_rule_sets(self, file_content: bytes, tenant_id: Optional[str] = None) -> Dict[str, Any]:
         """
         导入规则组数据
 
         Args:
             file_content: Excel 文件内容
+            tenant_id: 租户ID，用于租户隔离
 
         Returns:
             导入结果统计
         """
+        if not tenant_id:
+            from app.middleware.tenant_context import get_current_tenant_id
+            tenant_id = get_current_tenant_id()
+        if not tenant_id:
+            raise ValueError("导入规则组需要租户上下文")
         # 解析多工作表 Excel
         wb = load_workbook(filename=BytesIO(file_content), read_only=True)
 
@@ -65,7 +71,8 @@ class RuleSetImportService:
                     windows_data,
                     booking_data,
                     checkin_data,
-                    capacity_data
+                    capacity_data,
+                    tenant_id=tenant_id,
                 )
                 success_count += 1
             except Exception as e:
@@ -235,12 +242,15 @@ class RuleSetImportService:
 
     async def _import_rule_set(self, rs_data: Dict, windows_data: List,
                                booking_data: List, checkin_data: List,
-                               capacity_data: List):
+                               capacity_data: List, tenant_id: str):
         """导入单个规则组及其关联数据"""
 
-        # 检查是否已存在
+        # 检查是否已存在（同一租户内名称不能重复）
         existing = await self.db.execute(
-            select(RuleSet).where(RuleSet.name == rs_data["规则组名称"])
+            select(RuleSet).where(
+                RuleSet.name == rs_data["规则组名称"],
+                RuleSet.tenant_id == tenant_id,
+            )
         )
         if existing.scalar():
             raise ValueError(f"规则组 '{rs_data['规则组名称']}' 已存在")
@@ -266,6 +276,7 @@ class RuleSetImportService:
             rounding_mode=rs_data.get("取整模式") or "NONE",
             clock_skew_tolerance_sec=int(rs_data.get("时钟偏差容忍度(秒)", 5) or 5),
             description=rs_data.get("描述"),
+            tenant_id=tenant_id,
         )
         self.db.add(rule_set)
         await self.db.flush()

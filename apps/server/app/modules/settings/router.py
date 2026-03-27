@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.db.session import get_db
 from app.api.deps import get_current_admin, require_permission
-from app.services.settings_service import SettingsService
+from app.modules.settings.service import SettingsService
 
 router = APIRouter()
 

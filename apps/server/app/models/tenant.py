@@ -101,7 +101,7 @@ class Tenant(Base, AuditMixin):
     departments = relationship("Department", back_populates="tenant")
     subscriptions = relationship("TenantSubscription", back_populates="tenant", order_by="desc(TenantSubscription.created_at)")
     usage_logs = relationship("TenantUsageLog", back_populates="tenant", order_by="desc(TenantUsageLog.usage_date)")
-    notifications = relationship("TenantNotification", order_by="desc(TenantNotification.created_at)")
+    notifications = relationship("TenantNotification", back_populates="tenant", order_by="desc(TenantNotification.created_at)")
 
     def get_effective_max_stores(self) -> int:
         """获取有效的门店上限（优先使用覆盖值）"""
@@ -256,7 +256,7 @@ class TenantNotification(Base):
     created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
 
     # 关联关系
-    tenant = relationship("Tenant")
+    tenant = relationship("Tenant", back_populates="notifications")
 
     __table_args__ = (
         {'comment': '租户通知表'},

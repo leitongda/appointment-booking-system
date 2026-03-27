@@ -6,6 +6,8 @@
 - 数据库查询延迟监控
 - 慢查询日志
 - 性能指标聚合（P50、P95、P99）
+
+所有 Redis key 均按租户隔离，格式: rule_engine:{tenant_id}:counter:{operation}
 """
 import asyncio
 import json
@@ -17,18 +19,20 @@ import time
 
 from app.core.redis import RedisCache
 from app.core.config import settings
+from app.middleware.tenant_context import get_current_tenant_id
 
 logger = logging.getLogger(__name__)
 
 
 class RulePerformanceService:
-    """规则引擎性能监控服务"""
+    """规则引擎性能监控服务（支持多租户隔离）"""
 
-    # Redis 键前缀
-    PREFIX_COUNTER = "rule_engine:counter:"      # 调用计数器
-    PREFIX_LATENCY = "rule_engine:latency:"      # 延迟统计
-    PREFIX_SLOW_QUERY = "rule_engine:slow:"      # 慢查询日志
-    PREFIX_STATS = "rule_engine:stats:"          # 聚合统计
+    # Redis 键前缀模板（tenant_id 在运行时插入）
+    PREFIX_TEMPLATE = "rule_engine:{tenant_id}:"  # 基础前缀模板
+    PREFIX_COUNTER = "counter:"                    # 调用计数器后缀
+    PREFIX_LATENCY = "latency:"                    # 延迟统计后缀
+    PREFIX_SLOW_QUERY = "slow:"                    # 慢查询日志后缀
+    PREFIX_STATS = "stats:"                        # 聚合统计后缀
 
     # 操作类型
     OP_GET_APPLICABLE_RULE_SET = "get_applicable_rule_set"
@@ -44,6 +48,9 @@ class RulePerformanceService:
     DEFAULT_METRICS_TTL = 86400 * 7     # 指标保留时间（7天）
     DEFAULT_SLOW_QUERY_TTL = 86400 * 30 # 慢查询保留时间（30天）
 
+    # 所有支持的操作类型
+    ALL_OPERATIONS = None  # 延迟初始化
+
     def __init__(self):
         """初始化性能监控服务"""
         self.enabled = settings.RULE_PERFORMANCE_MONITORING_ENABLED
@@ -51,12 +58,60 @@ class RulePerformanceService:
         self.metrics_ttl = settings.RULE_METRICS_TTL
         self.slow_query_ttl = settings.RULE_SLOW_QUERY_TTL
 
+    @classmethod
+    def _get_all_operations(cls) -> List[str]:
+        """获取所有操作类型列表"""
+        return [
+            cls.OP_GET_APPLICABLE_RULE_SET,
+            cls.OP_CHECK_ACTION_WINDOW,
+            cls.OP_GET_BOOKING_POLICY,
+            cls.OP_GET_CHECKIN_POLICY,
+            cls.OP_GET_CAPACITY_POLICY,
+            cls.OP_CHECK_CONFLICTS,
+            cls.OP_CHECK_CAPACITY,
+        ]
+
+    @staticmethod
+    def _resolve_tenant_id(tenant_id: Optional[str] = None) -> Optional[str]:
+        """解析有效的租户ID
+
+        优先使用显式传入的 tenant_id，否则从上下文获取。
+        """
+        return tenant_id or get_current_tenant_id()
+
+    def _build_base_prefix(self, tenant_id: Optional[str]) -> str:
+        """构建包含租户维度的基础前缀
+
+        Args:
+            tenant_id: 租户ID
+
+        Returns:
+            格式: rule_engine:{tenant_id}: 或 rule_engine:global:
+        """
+        effective_tenant_id = self._resolve_tenant_id(tenant_id)
+        if effective_tenant_id:
+            return f"rule_engine:{effective_tenant_id}:"
+        return "rule_engine:global:"
+
+    def _build_counter_key(self, operation: str, tenant_id: Optional[str] = None) -> str:
+        """构建计数器 key"""
+        return f"{self._build_base_prefix(tenant_id)}{self.PREFIX_COUNTER}{operation}"
+
+    def _build_latency_key(self, operation: str, tenant_id: Optional[str] = None) -> str:
+        """构建延迟统计 key"""
+        return f"{self._build_base_prefix(tenant_id)}{self.PREFIX_LATENCY}{operation}"
+
+    def _build_slow_query_key(self, operation: str, tenant_id: Optional[str] = None) -> str:
+        """构建慢查询 key"""
+        return f"{self._build_base_prefix(tenant_id)}{self.PREFIX_SLOW_QUERY}{operation}"
+
     async def record_call(
         self,
         operation: str,
         duration_ms: float,
         shift_type_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        tenant_id: Optional[str] = None
     ) -> None:
         """
         记录规则引擎调用
@@ -66,6 +121,7 @@ class RulePerformanceService:
             duration_ms: 执行耗时（毫秒）
             shift_type_id: 班次类型ID
             metadata: 额外的元数据
+            tenant_id: 租户ID（可选，不传则从上下文获取）
         """
         if not self.enabled:
             return
@@ -76,7 +132,8 @@ class RulePerformanceService:
                 operation=operation,
                 duration_ms=duration_ms,
                 shift_type_id=shift_type_id,
-                metadata=metadata
+                metadata=metadata,
+                tenant_id=tenant_id
             )
             task = asyncio.create_task(record_coro)
             if asyncio.iscoroutine(task):
@@ -94,17 +151,18 @@ class RulePerformanceService:
         operation: str,
         duration_ms: float,
         shift_type_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        tenant_id: Optional[str] = None
     ) -> None:
         """异步记录调用数据"""
         try:
             # 1. 更新调用计数器
-            counter_key = f"{self.PREFIX_COUNTER}{operation}"
+            counter_key = self._build_counter_key(operation, tenant_id)
             await RedisCache.incr(counter_key)
             await RedisCache.set(counter_key, await RedisCache.get(counter_key), self.metrics_ttl)
 
             # 2. 记录延迟数据（使用有序集合存储延迟值）
-            latency_key = f"{self.PREFIX_LATENCY}{operation}"
+            latency_key = self._build_latency_key(operation, tenant_id)
             client = await RedisCache.get_redis()
             timestamp = int(time.time() * 1000)  # 毫秒时间戳
             await client.zadd(latency_key, {str(timestamp): duration_ms})
@@ -116,7 +174,8 @@ class RulePerformanceService:
                     operation=operation,
                     duration_ms=duration_ms,
                     shift_type_id=shift_type_id,
-                    metadata=metadata
+                    metadata=metadata,
+                    tenant_id=tenant_id
                 )
 
         except Exception as e:
@@ -127,7 +186,8 @@ class RulePerformanceService:
         operation: str,
         duration_ms: float,
         shift_type_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        tenant_id: Optional[str] = None
     ) -> None:
         """记录慢查询"""
         try:
@@ -140,7 +200,7 @@ class RulePerformanceService:
             }
 
             # 使用列表存储慢查询日志
-            slow_key = f"{self.PREFIX_SLOW_QUERY}{operation}"
+            slow_key = self._build_slow_query_key(operation, tenant_id)
             client = await RedisCache.get_redis()
             await client.lpush(slow_key, json.dumps(slow_query_data, ensure_ascii=False))
 
@@ -160,7 +220,8 @@ class RulePerformanceService:
     async def get_performance_stats(
         self,
         operation: Optional[str] = None,
-        hours: int = 24
+        hours: int = 24,
+        tenant_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         获取性能统计信息
@@ -168,6 +229,7 @@ class RulePerformanceService:
         Args:
             operation: 操作类型，None 表示获取所有操作
             hours: 统计时间范围（小时）
+            tenant_id: 租户ID（可选，不传则从上下文获取）
 
         Returns:
             性能统计数据
@@ -176,19 +238,11 @@ class RulePerformanceService:
             return {"enabled": False}
 
         try:
-            operations = [operation] if operation else [
-                self.OP_GET_APPLICABLE_RULE_SET,
-                self.OP_CHECK_ACTION_WINDOW,
-                self.OP_GET_BOOKING_POLICY,
-                self.OP_GET_CHECKIN_POLICY,
-                self.OP_GET_CAPACITY_POLICY,
-                self.OP_CHECK_CONFLICTS,
-                self.OP_CHECK_CAPACITY,
-            ]
+            operations = [operation] if operation else self._get_all_operations()
 
             stats = {}
             for op in operations:
-                op_stats = await self._get_operation_stats(op, hours)
+                op_stats = await self._get_operation_stats(op, hours, tenant_id)
                 stats[op] = op_stats
 
             return {
@@ -208,16 +262,17 @@ class RulePerformanceService:
     async def _get_operation_stats(
         self,
         operation: str,
-        hours: int
+        hours: int,
+        tenant_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """获取单个操作的统计信息"""
         try:
             # 1. 调用次数
-            counter_key = f"{self.PREFIX_COUNTER}{operation}"
+            counter_key = self._build_counter_key(operation, tenant_id)
             count = await RedisCache.get(counter_key, 0)
 
             # 2. 延迟统计
-            latency_key = f"{self.PREFIX_LATENCY}{operation}"
+            latency_key = self._build_latency_key(operation, tenant_id)
             client = await RedisCache.get_redis()
 
             # 获取指定时间范围内的延迟数据
@@ -234,7 +289,7 @@ class RulePerformanceService:
             }
 
             # 3. 慢查询数量
-            slow_key = f"{self.PREFIX_SLOW_QUERY}{operation}"
+            slow_key = self._build_slow_query_key(operation, tenant_id)
             slow_count = await client.llen(slow_key)
 
             return {
@@ -312,7 +367,8 @@ class RulePerformanceService:
     async def get_slow_queries(
         self,
         operation: Optional[str] = None,
-        limit: int = 100
+        limit: int = 100,
+        tenant_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         获取慢查询列表
@@ -320,6 +376,7 @@ class RulePerformanceService:
         Args:
             operation: 操作类型，None 表示获取所有操作
             limit: 返回数量限制
+            tenant_id: 租户ID（可选，不传则从上下文获取）
 
         Returns:
             慢查询列表
@@ -328,21 +385,13 @@ class RulePerformanceService:
             return []
 
         try:
-            operations = [operation] if operation else [
-                self.OP_GET_APPLICABLE_RULE_SET,
-                self.OP_CHECK_ACTION_WINDOW,
-                self.OP_GET_BOOKING_POLICY,
-                self.OP_GET_CHECKIN_POLICY,
-                self.OP_GET_CAPACITY_POLICY,
-                self.OP_CHECK_CONFLICTS,
-                self.OP_CHECK_CAPACITY,
-            ]
+            operations = [operation] if operation else self._get_all_operations()
 
             all_slow_queries = []
             client = await RedisCache.get_redis()
 
             for op in operations:
-                slow_key = f"{self.PREFIX_SLOW_QUERY}{op}"
+                slow_key = self._build_slow_query_key(op, tenant_id)
                 # 获取最近的慢查询
                 slow_query_strs = await client.lrange(slow_key, 0, limit - 1)
 
@@ -365,12 +414,17 @@ class RulePerformanceService:
             logger.error(f"获取慢查询失败: {e}")
             return []
 
-    async def clear_metrics(self, operation: Optional[str] = None) -> Dict[str, bool]:
+    async def clear_metrics(
+        self,
+        operation: Optional[str] = None,
+        tenant_id: Optional[str] = None
+    ) -> Dict[str, bool]:
         """
         清除性能指标
 
         Args:
             operation: 操作类型，None 表示清除所有
+            tenant_id: 租户ID（可选，不传则从上下文获取）
 
         Returns:
             清除结果
@@ -379,26 +433,18 @@ class RulePerformanceService:
             return {"success": False, "message": "performance monitoring disabled"}
 
         try:
-            operations = [operation] if operation else [
-                self.OP_GET_APPLICABLE_RULE_SET,
-                self.OP_CHECK_ACTION_WINDOW,
-                self.OP_GET_BOOKING_POLICY,
-                self.OP_GET_CHECKIN_POLICY,
-                self.OP_GET_CAPACITY_POLICY,
-                self.OP_CHECK_CONFLICTS,
-                self.OP_CHECK_CAPACITY,
-            ]
+            operations = [operation] if operation else self._get_all_operations()
 
             client = await RedisCache.get_redis()
             deleted = 0
 
             for op in operations:
                 # 删除计数器
-                await RedisCache.delete(f"{self.PREFIX_COUNTER}{op}")
+                await RedisCache.delete(self._build_counter_key(op, tenant_id))
                 # 删除延迟数据
-                await client.delete(f"{self.PREFIX_LATENCY}{op}")
+                await client.delete(self._build_latency_key(op, tenant_id))
                 # 删除慢查询日志
-                await client.delete(f"{self.PREFIX_SLOW_QUERY}{op}")
+                await client.delete(self._build_slow_query_key(op, tenant_id))
                 deleted += 1
 
             return {

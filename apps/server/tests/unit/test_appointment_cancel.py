@@ -60,9 +60,9 @@ class TestCancelAppointmentSuccess:
 
         # Mock 候补递补和消息服务（WaitlistService 在函数内部导入）
         # Mock Redis 分布式锁（测试环境无 Redis）
-        with patch('app.services.waitlist_service.WaitlistService') as mock_waitlist_cls, \
-             patch('app.services.message_service.MessageService') as mock_msg_cls, \
-             patch('app.core.redis.RedisCache.distributed_lock', return_value=mock_distributed_lock()):
+        with patch('app.modules.waitlist.service.WaitlistService') as mock_waitlist_cls, \
+             patch('app.modules.messages.service_messages.MessageService') as mock_msg_cls, \
+             patch('app.core.redis.RedisCache.tenant_distributed_lock', return_value=mock_distributed_lock()):
 
             mock_waitlist = MagicMock()
             mock_waitlist_cls.return_value = mock_waitlist
@@ -108,9 +108,9 @@ class TestCancelAppointmentSuccess:
 
         # Mock 候补递补和消息服务（WaitlistService 在函数内部导入）
         # Mock Redis 分布式锁（测试环境无 Redis）
-        with patch('app.services.waitlist_service.WaitlistService') as mock_waitlist_cls, \
-             patch('app.services.message_service.MessageService') as mock_msg_cls, \
-             patch('app.core.redis.RedisCache.distributed_lock', return_value=mock_distributed_lock()):
+        with patch('app.modules.waitlist.service.WaitlistService') as mock_waitlist_cls, \
+             patch('app.modules.messages.service_messages.MessageService') as mock_msg_cls, \
+             patch('app.core.redis.RedisCache.tenant_distributed_lock', return_value=mock_distributed_lock()):
 
             mock_waitlist = MagicMock()
             mock_waitlist_cls.return_value = mock_waitlist
@@ -296,9 +296,9 @@ class TestCancelAppointmentConcurrent:
         mock_lock.__aenter__ = AsyncMock(return_value=None)
         mock_lock.__aexit__ = AsyncMock(return_value=None)
 
-        with patch('app.services.waitlist_service.WaitlistService') as mock_waitlist_cls, \
-             patch('app.services.message_service.MessageService') as mock_msg_cls, \
-             patch('app.core.redis.RedisCache.distributed_lock', return_value=mock_lock) as mock_dist_lock:
+        with patch('app.modules.waitlist.service.WaitlistService') as mock_waitlist_cls, \
+             patch('app.modules.messages.service_messages.MessageService') as mock_msg_cls, \
+             patch('app.core.redis.RedisCache.tenant_distributed_lock', return_value=mock_lock) as mock_dist_lock:
 
             mock_waitlist = MagicMock()
             mock_waitlist_cls.return_value = mock_waitlist

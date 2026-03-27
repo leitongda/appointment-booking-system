@@ -8,7 +8,7 @@ from app.api.deps import get_current_admin, get_store_filter, check_store_access
 from app.schemas.department import DepartmentCreate, DepartmentUpdate, DepartmentResponse, DepartmentTreeNode
 from app.schemas.doctor import DoctorListResponse
 from app.schemas.response import PageResponse
-from app.services.department_service import DepartmentService
+from app.modules.departments.service import DepartmentService
 from app.core.config import settings
 
 router = APIRouter()

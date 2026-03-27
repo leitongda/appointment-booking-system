@@ -7,6 +7,16 @@
 export { PAGINATION_CONFIG, getPageSize, DEFAULT_PAGINATION_PARAMS } from './pagination';
 
 export {
+  BREAKPOINTS,
+  RESPONSIVE_CONFIG,
+  TABLE_CONFIG,
+  MODAL_CONFIG,
+  FORM_LAYOUT,
+  type Breakpoint,
+  type ResponsiveConfig,
+} from './responsive';
+
+export {
   PATTERNS,
   MESSAGES,
   getCodePattern,

@@ -8,7 +8,7 @@ import httpx
 from app.models.appointment import Appointment
 from app.models.schedule import Schedule
 from app.models.user import User, Patient
-from app.services.settings_service import SettingsService
+from app.modules.settings.service import SettingsService
 from app.core.events import dispatch_event_email, EventType
 
 

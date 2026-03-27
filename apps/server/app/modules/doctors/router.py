@@ -8,7 +8,7 @@ from app.api.deps import get_current_admin, get_store_filter, check_store_access
 from app.models.doctor import Doctor
 from app.schemas.doctor import DoctorCreate, DoctorUpdate, DoctorResponse, DoctorListResponse
 from app.schemas.response import PageResponse
-from app.services.doctor_service import DoctorService
+from app.modules.doctors.service import DoctorService
 from app.core.security import create_access_token, create_refresh_token, verify_password
 from app.core.config import settings
 from app.utils.ip import get_client_ip

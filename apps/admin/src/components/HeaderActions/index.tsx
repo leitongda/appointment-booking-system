@@ -23,6 +23,7 @@ import type { SpacingMode } from '@/utils/spacing';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { messageApi, adminApi, storeApi } from '@hospital/api';
 import type { StoreInfo } from '@hospital/api';
+import TenantSwitcher from '@/components/TenantSwitcher';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/zh-cn';
@@ -886,6 +887,7 @@ export const SpacingButton: React.FC = () => {
 export const HeaderActions: React.FC = () => {
   return (
     <Space className={styles.headerActions} size={4}>
+      <TenantSwitcher />
       <StoreSwitcher />
       <SpacingButton />
       <RefreshButton />

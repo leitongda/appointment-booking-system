@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from sqlalchemy import select
 
-from app.services.rule_engine_service import RuleEngineService
+from app.modules.rule_engine import RuleEngineService
 from app.models.rule_set import (
     RuleSet, RuleWindow, RuleBookingPolicy, RuleCheckinPolicy,
     RuleCapacityPolicy, ShiftType, RuleSetShiftType

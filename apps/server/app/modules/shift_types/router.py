@@ -9,7 +9,7 @@ from typing import Optional
 
 from app.db.session import get_db
 from app.api.deps import get_current_user, get_current_admin, get_current_super_admin
-from app.services.shift_type_service import ShiftTypeService
+from app.modules.shift_types.service import ShiftTypeService
 from app.schemas.rule_set import PageResult
 from app.core.config import settings
 from app.modules.shift_types.schemas import ShiftTypeCreate, ShiftTypeResponse, ShiftTypeUpdate

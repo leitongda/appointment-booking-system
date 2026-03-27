@@ -14,7 +14,7 @@ from app.schemas.medical_record import (
     MedicalRecordUpdate,
 )
 from app.schemas.response import PageResponse
-from app.services.medical_record_service import MedicalRecordService
+from app.modules.medical_records.service import MedicalRecordService
 
 router = APIRouter()
 

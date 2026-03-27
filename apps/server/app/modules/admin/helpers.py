@@ -81,6 +81,7 @@ def build_admin_response(admin, permissions: List[str] = None) -> AdminResponse:
         status=admin.status,
         last_login_at=admin.last_login_at,
         last_login_ip=admin.last_login_ip,
+        tenant_id=admin.tenant_id,
         created_at=admin.created_at,
     )
 
@@ -133,7 +134,8 @@ async def store_admin_session(
         "login_history_id": login_history_id,
     }
 
-    await RedisCache.set_admin_session(admin.id, session_data, expire_seconds)
+    # 存储管理员会话，传递 tenant_id 实现多租户隔离
+    await RedisCache.set_admin_session(admin.id, session_data, expire_seconds, tenant_id=admin.tenant_id)
 
     if db:
         login_history = AdminLoginHistory(

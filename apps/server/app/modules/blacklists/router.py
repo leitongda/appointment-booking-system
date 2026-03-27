@@ -6,7 +6,7 @@ from datetime import datetime
 
 from app.db.session import get_db
 from app.api.deps import get_current_admin, require_permission
-from app.services.blacklist_service import BlacklistService
+from app.modules.blacklists.service import BlacklistService
 from app.schemas.blacklist import BlacklistCreate
 from app.core.config import settings
 

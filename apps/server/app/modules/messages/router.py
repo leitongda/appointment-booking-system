@@ -11,7 +11,8 @@ from app.schemas.message import (
     MessageType
 )
 from app.schemas.response import PageResponse
-from app.services.message_service import MessageService, MessageTemplateService
+from app.modules.messages.service_messages import MessageService
+from app.modules.messages.service_templates import MessageTemplateService
 from app.core.config import settings
 
 router = APIRouter()

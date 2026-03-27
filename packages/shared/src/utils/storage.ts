@@ -13,6 +13,8 @@ export const STORAGE_KEYS = {
   PHONE_LOGIN_TYPE: 'hospital_phone_login_type',
   /** 门店上下文 */
   STORE_CONTEXT: 'hospital_store_context',
+  /** 当前租户 ID（用于多租户切换） */
+  CURRENT_TENANT_ID: 'hospital_current_tenant_id',
   /** 当前主题 */
   CURRENT_THEME: 'hospital_current_theme',
   /** 字体模式 (standard | elder) */

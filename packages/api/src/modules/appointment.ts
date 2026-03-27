@@ -16,7 +16,14 @@ export interface AppointmentListParams {
   createdStart?: string;
   /** 创建时间结束 */
   createdEnd?: string;
+  /** 页码，默认1 */
   page?: number;
+  /**
+   * 每页数量
+   * - 默认 10
+   * - 常规上限 100
+   * - 扩展上限 500（需管理员权限 + 必须同时提供 startDate 和 endDate）
+   */
   pageSize?: number;
 }
 

@@ -195,9 +195,12 @@ class AdminService:
         if existing:
             raise ValueError("用户名已存在")
 
-        # 配额检查
+        # 获取租户ID
+        tenant_id = data.get("tenant_id") or get_current_tenant_id()
+
+        # 配额检查（使用租户ID）
         from app.common.quota import check_quota
-        await check_quota(None, "admins", self.db)
+        await check_quota(tenant_id, "admins", self.db)
 
         password = data.get("password") or "123456"
         store_ids = data.get("store_ids") or []
@@ -279,7 +282,8 @@ class AdminService:
         return await self.get_by_id(admin_id)
 
     async def reset_password(self, admin_id: str, new_password: str) -> bool:
-        admin = await self.db.get(Admin, admin_id)
+        # 租户过滤：通过 get_by_id 查询，确保不能跨租户重置密码
+        admin = await self.get_by_id(admin_id)
         if not admin:
             return False
         admin.password_hash = get_password_hash(new_password)
@@ -299,9 +303,12 @@ class AdminService:
             return False
 
         if admin.role and admin.role.code == "SUPER_ADMIN":
-            super_admin_count = await self.db.scalar(
-                select(func.count(Admin.id)).join(Role).where(Role.code == "SUPER_ADMIN")
-            )
+            # 租户过滤：只在当前租户范围内统计超级管理员数量
+            count_query = select(func.count(Admin.id)).join(Role).where(Role.code == "SUPER_ADMIN")
+            effective_tenant_id = get_current_tenant_id()
+            if effective_tenant_id:
+                count_query = count_query.where(Admin.tenant_id == effective_tenant_id)
+            super_admin_count = await self.db.scalar(count_query)
             if super_admin_count and super_admin_count <= 1:
                 raise ValueError("不能删除最后一个超级管理员")
 

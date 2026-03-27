@@ -29,10 +29,10 @@ async def test_user_login_success(async_client, db_session, test_user):
     )
 
     assert response.status_code == 200
-    data = response.json()
-    assert "access_token" in data
-    assert "refresh_token" in data
-    assert data["expires_in"] > 0
+    data = response.json()["data"]
+    assert "accessToken" in data
+    assert "refreshToken" in data
+    assert data["expiresIn"] > 0
     assert data["user"]["id"] == test_user.id
     assert data["user"]["phone"] == test_user.phone
 
@@ -52,7 +52,7 @@ async def test_admin_login_success(async_client, db_session, test_super_admin):
     )
 
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["data"]
     assert "accessToken" in data
     assert "refreshToken" in data
     assert data["admin"]["id"] == test_super_admin.id
@@ -79,7 +79,7 @@ async def test_doctor_login_success(async_client, db_session, test_doctor):
     )
 
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["data"]
     assert "access_token" in data
     assert "refresh_token" in data
     assert data["doctor"]["id"] == test_doctor.id
@@ -101,7 +101,7 @@ async def test_login_disabled_account(async_client, db_session, test_user):
     )
 
     assert response.status_code == 403
-    assert "禁用" in response.json().get("detail", "")
+    assert "禁用" in response.json().get("message", "")
 
 
 @pytest.mark.asyncio
@@ -120,7 +120,7 @@ async def test_admin_login_disabled_account(async_client, db_session, test_super
     )
 
     assert response.status_code == 403
-    assert "禁用" in response.json().get("detail", "")
+    assert "禁用" in response.json().get("message", "")
 
 
 @pytest.mark.asyncio
@@ -137,10 +137,10 @@ async def test_token_refresh_success(async_client, db_session, test_user):
     )
 
     assert response.status_code == 200
-    data = response.json()
-    assert "access_token" in data
-    assert "refresh_token" in data
-    assert data["expires_in"] > 0
+    data = response.json()["data"]
+    assert "accessToken" in data
+    assert "refreshToken" in data
+    assert data["expiresIn"] > 0
 
 
 @pytest.mark.asyncio
@@ -162,7 +162,7 @@ async def test_admin_token_refresh_success(async_client, db_session, test_super_
         pytest.skip("Admin refresh endpoint not implemented")
 
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["data"]
     assert "accessToken" in data
 
 

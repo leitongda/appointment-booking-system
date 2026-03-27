@@ -9,7 +9,7 @@ from app.schemas.store_visit_type_config import (
     StoreVisitTypeConfigResponse
 )
 from app.schemas.response import ResponseModel
-from app.services.visit_type_service import VisitTypeService
+from app.modules.visit_types.service import VisitTypeService
 
 router = APIRouter()
 

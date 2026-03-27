@@ -12,6 +12,7 @@ import uuid
 import time
 
 from app.core.config import settings
+from app.middleware.tenant_context import get_current_tenant_id
 
 logger = logging.getLogger(__name__)
 
@@ -391,30 +392,54 @@ class RedisCache:
         await cls.set(key, "1", interval)
         return True, 0
     
-    # ==================== 微信 Token 相关 ====================
-    
+    # ==================== 微信 Token 相关（多租户隔离）====================
+
+    @staticmethod
+    def _build_wechat_token_key(app_id: str, tenant_id: Optional[str] = None) -> str:
+        """构建微信 Token 的 Redis 键（支持多租户隔离）
+
+        Args:
+            app_id: 小程序 AppID
+            tenant_id: 租户ID（可选，不传则从上下文获取）
+
+        Returns:
+            包含租户维度的键，格式: wechat:token:{tenant_id}:{app_id}
+            如果没有租户上下文，则返回: wechat:token:{app_id}
+        """
+        effective_tenant_id = tenant_id or get_current_tenant_id()
+        if effective_tenant_id:
+            return f"{RedisCache.PREFIX_WECHAT_TOKEN}{effective_tenant_id}:{app_id}"
+        return f"{RedisCache.PREFIX_WECHAT_TOKEN}{app_id}"
+
     @classmethod
     async def set_wechat_token(
-        cls, 
-        app_id: str, 
-        token: str, 
-        expire: int = 7000
+        cls,
+        app_id: str,
+        token: str,
+        expire: int = 7000,
+        tenant_id: Optional[str] = None,
     ) -> bool:
         """
-        缓存微信 access_token
-        
+        缓存微信 access_token（支持多租户隔离）
+
         Args:
             app_id: 小程序 AppID
             token: access_token
             expire: 过期时间，默认 7000 秒（token 有效期 7200 秒）
+            tenant_id: 租户ID（可选，不传则从上下文获取）
         """
-        key = f"{cls.PREFIX_WECHAT_TOKEN}{app_id}"
+        key = cls._build_wechat_token_key(app_id, tenant_id)
         return await cls.set(key, token, expire)
-    
+
     @classmethod
-    async def get_wechat_token(cls, app_id: str) -> Optional[str]:
-        """获取微信 access_token"""
-        key = f"{cls.PREFIX_WECHAT_TOKEN}{app_id}"
+    async def get_wechat_token(cls, app_id: str, tenant_id: Optional[str] = None) -> Optional[str]:
+        """获取微信 access_token（支持多租户隔离）
+
+        Args:
+            app_id: 小程序 AppID
+            tenant_id: 租户ID（可选，不传则从上下文获取）
+        """
+        key = cls._build_wechat_token_key(app_id, tenant_id)
         return await cls.get(key)
     
     # ==================== 扫码登录相关 ====================
@@ -449,18 +474,36 @@ class RedisCache:
         key = f"{cls.PREFIX_SCAN_LOGIN}{scan_id}"
         return await cls.delete(key)
     
-    # ==================== 管理员会话管理 ====================
-    
+    # ==================== 管理员会话管理（多租户隔离）====================
+
+    @staticmethod
+    def _build_admin_session_key(admin_id: str, tenant_id: Optional[str] = None) -> str:
+        """构建管理员会话的 Redis 键（支持多租户隔离）
+
+        Args:
+            admin_id: 管理员 ID
+            tenant_id: 租户ID（可选，不传则从上下文获取）
+
+        Returns:
+            包含租户维度的键，格式: session:admin:{tenant_id}:{admin_id}
+            如果没有租户上下文（平台管理员），则返回: session:admin:{admin_id}
+        """
+        effective_tenant_id = tenant_id or get_current_tenant_id()
+        if effective_tenant_id:
+            return f"{RedisCache.PREFIX_ADMIN_SESSION}{effective_tenant_id}:{admin_id}"
+        return f"{RedisCache.PREFIX_ADMIN_SESSION}{admin_id}"
+
     @classmethod
     async def set_admin_session(
         cls,
         admin_id: str,
         session_data: dict,
-        expire: int = None
+        expire: int = None,
+        tenant_id: Optional[str] = None,
     ) -> bool:
         """
-        存储管理员会话信息
-        
+        存储管理员会话信息（支持多租户隔离）
+
         Args:
             admin_id: 管理员 ID
             session_data: 会话数据，包含:
@@ -475,30 +518,43 @@ class RedisCache:
                 - expires_at: Token 过期时间 (ISO 格式)
                 - device_info: 设备信息 dict
             expire: 过期时间（秒），默认与 Token 有效期一致
+            tenant_id: 租户ID（可选，用于多租户隔离，不传则从上下文获取）
         """
-        key = f"{cls.PREFIX_ADMIN_SESSION}{admin_id}"
+        key = cls._build_admin_session_key(admin_id, tenant_id)
         return await cls.set(key, session_data, expire)
-    
+
     @classmethod
-    async def get_admin_session(cls, admin_id: str) -> Optional[dict]:
-        """获取单个管理员会话信息"""
-        key = f"{cls.PREFIX_ADMIN_SESSION}{admin_id}"
-        return await cls.get(key)
-    
-    @classmethod
-    async def get_all_admin_sessions(cls) -> list[dict]:
+    async def get_admin_session(cls, admin_id: str, tenant_id: Optional[str] = None) -> Optional[dict]:
+        """获取单个管理员会话信息（支持多租户隔离）
+
+        Args:
+            admin_id: 管理员 ID
+            tenant_id: 租户ID（可选，不传则从上下文获取）
         """
-        获取所有在线管理员会话
-        
+        key = cls._build_admin_session_key(admin_id, tenant_id)
+        return await cls.get(key)
+
+    @classmethod
+    async def get_all_admin_sessions(cls, tenant_id: Optional[str] = None) -> list[dict]:
+        """
+        获取所有在线管理员会话（支持多租户隔离）
+
+        Args:
+            tenant_id: 租户ID（可选，不传则从上下文获取；平台管理员传 None 可查看所有租户）
+
         Returns:
             所有在线会话列表，每个元素包含会话数据和剩余 TTL
         """
         try:
             client = await get_redis()
-            # 使用 SCAN 命令获取所有管理员会话键
-            pattern = f"{cls.PREFIX_ADMIN_SESSION}*"
+            # 构建匹配模式：有租户上下文时仅扫描该租户的会话，否则扫描全部
+            effective_tenant_id = tenant_id or get_current_tenant_id()
+            if effective_tenant_id:
+                pattern = f"{cls.PREFIX_ADMIN_SESSION}{effective_tenant_id}:*"
+            else:
+                pattern = f"{cls.PREFIX_ADMIN_SESSION}*"
             sessions = []
-            
+
             cursor = 0
             while True:
                 cursor, keys = await client.scan(cursor, match=pattern, count=100)
@@ -509,45 +565,167 @@ class RedisCache:
                         ttl = await cls.ttl(key)
                         session_data["ttl"] = ttl if ttl > 0 else 0
                         sessions.append(session_data)
-                
+
                 if cursor == 0:
                     break
-            
+
             return sessions
         except Exception as e:
             logger.error(f"获取所有管理员会话失败: {e}")
             return []
-    
+
     @classmethod
-    async def delete_admin_session(cls, admin_id: str) -> bool:
-        """删除管理员会话"""
-        key = f"{cls.PREFIX_ADMIN_SESSION}{admin_id}"
+    async def delete_admin_session(cls, admin_id: str, tenant_id: Optional[str] = None) -> bool:
+        """删除管理员会话（支持多租户隔离）
+
+        Args:
+            admin_id: 管理员 ID
+            tenant_id: 租户ID（可选，不传则从上下文获取）
+        """
+        key = cls._build_admin_session_key(admin_id, tenant_id)
         return await cls.delete(key)
     
-    # ==================== Token 黑名单 ====================
-    
-    @classmethod
-    async def add_token_to_blacklist(cls, token_hash: str, expire: int) -> bool:
+    # ==================== Token 黑名单（多租户隔离）====================
+
+    @staticmethod
+    def _build_token_blacklist_key(token_hash: str, tenant_id: Optional[str] = None) -> str:
+        """构建 Token 黑名单的 Redis 键（支持多租户隔离）
+
+        Args:
+            token_hash: Token 的 hash 值
+            tenant_id: 租户ID（可选，不传则从上下文获取）
+
+        Returns:
+            包含租户维度的键，格式: token:blacklist:{tenant_id}:{token_hash}
+            如果没有租户上下文（平台管理员），则返回: token:blacklist:{token_hash}
         """
-        将 Token 加入黑名单
-        
+        effective_tenant_id = tenant_id or get_current_tenant_id()
+        if effective_tenant_id:
+            return f"{RedisCache.PREFIX_TOKEN_BLACKLIST}{effective_tenant_id}:{token_hash}"
+        return f"{RedisCache.PREFIX_TOKEN_BLACKLIST}{token_hash}"
+
+    @classmethod
+    async def add_token_to_blacklist(
+        cls,
+        token_hash: str,
+        expire: int,
+        tenant_id: Optional[str] = None,
+    ) -> bool:
+        """
+        将 Token 加入黑名单（支持多租户隔离）
+
         Args:
             token_hash: Token 的 hash 值
             expire: 过期时间（秒），应与 Token 剩余有效期一致
+            tenant_id: 租户ID（可选，用于多租户隔离，不传则从上下文获取）
         """
         if expire <= 0:
             return True  # Token 已过期，无需加入黑名单
-        key = f"{cls.PREFIX_TOKEN_BLACKLIST}{token_hash}"
+        key = cls._build_token_blacklist_key(token_hash, tenant_id)
         return await cls.set(key, "1", expire)
-    
+
     @classmethod
-    async def is_token_blacklisted(cls, token_hash: str) -> bool:
-        """检查 Token 是否在黑名单中"""
-        key = f"{cls.PREFIX_TOKEN_BLACKLIST}{token_hash}"
+    async def is_token_blacklisted(cls, token_hash: str, tenant_id: Optional[str] = None) -> bool:
+        """检查 Token 是否在黑名单中（支持多租户隔离）
+
+        Args:
+            token_hash: Token 的 hash 值
+            tenant_id: 租户ID（可选，不传则从上下文获取）
+        """
+        key = cls._build_token_blacklist_key(token_hash, tenant_id)
         return await cls.exists(key)
     
     # ==================== 分布式锁（异步）====================
-    
+
+    @classmethod
+    def _build_tenant_aware_lock_name(cls, lock_name: str, tenant_id: Optional[str] = None) -> str:
+        """构建包含租户维度的锁名称
+
+        Args:
+            lock_name: 原始锁名称
+            tenant_id: 租户ID（可选，不传则从上下文获取）
+
+        Returns:
+            包含租户维度的锁名称，格式: tenant:{tenant_id}:{lock_name}
+            如果没有租户上下文，则返回原始锁名称
+        """
+        if tenant_id is None:
+            from app.middleware.tenant_context import get_current_tenant_id
+            tenant_id = get_current_tenant_id()
+
+        if tenant_id:
+            return f"tenant:{tenant_id}:{lock_name}"
+        return lock_name
+
+    @classmethod
+    async def acquire_tenant_lock(
+        cls,
+        lock_name: str,
+        tenant_id: Optional[str] = None,
+        timeout: int = 10,
+        retry_times: int = 3,
+        retry_delay: float = 0.1
+    ) -> Optional[str]:
+        """获取租户隔离的分布式锁
+
+        自动在锁键中包含租户维度，确保不同租户的锁互不影响。
+
+        Args:
+            lock_name: 锁名称（不含租户前缀）
+            tenant_id: 租户ID（可选，不传则从上下文获取）
+            timeout: 锁超时时间（秒）
+            retry_times: 重试次数
+            retry_delay: 重试间隔（秒）
+
+        Returns:
+            成功返回锁标识符，失败返回 None
+        """
+        tenant_aware_name = cls._build_tenant_aware_lock_name(lock_name, tenant_id)
+        return await cls.acquire_lock(tenant_aware_name, timeout, retry_times, retry_delay)
+
+    @classmethod
+    async def release_tenant_lock(cls, lock_name: str, lock_value: str, tenant_id: Optional[str] = None) -> bool:
+        """释放租户隔离的分布式锁
+
+        Args:
+            lock_name: 锁名称（不含租户前缀）
+            lock_value: 锁标识符
+            tenant_id: 租户ID（可选，不传则从上下文获取）
+
+        Returns:
+            是否成功释放
+        """
+        tenant_aware_name = cls._build_tenant_aware_lock_name(lock_name, tenant_id)
+        return await cls.release_lock(tenant_aware_name, lock_value)
+
+    @classmethod
+    @asynccontextmanager
+    async def tenant_distributed_lock(
+        cls,
+        lock_name: str,
+        tenant_id: Optional[str] = None,
+        timeout: int = 10,
+        retry_times: int = 3
+    ):
+        """租户隔离的分布式锁上下文管理器
+
+        使用方式:
+            async with RedisCache.tenant_distributed_lock("appointment:create"):
+                # 执行需要互斥的操作
+                pass
+
+        锁键自动包含租户维度，不同租户的锁互不影响。
+        """
+        tenant_aware_name = cls._build_tenant_aware_lock_name(lock_name, tenant_id)
+        lock_value = await cls.acquire_lock(tenant_aware_name, timeout, retry_times)
+        if not lock_value:
+            raise RuntimeError(f"无法获取分布式锁: {tenant_aware_name}")
+
+        try:
+            yield lock_value
+        finally:
+            await cls.release_lock(tenant_aware_name, lock_value)
+
     @classmethod
     async def acquire_lock(
         cls,
@@ -759,16 +937,31 @@ class SyncRedisCache:
             logger.error(f"释放锁异常: {lock_name}, 错误: {e}")
             return False
     
+    @staticmethod
+    def _build_wechat_token_key(app_id: str, tenant_id: Optional[str] = None) -> str:
+        """构建微信 Token 的 Redis 键（支持多租户隔离）
+
+        注意: 同步版本用于 Celery 任务，没有 ContextVar 上下文，
+        只能通过显式传参传入 tenant_id。
+
+        Args:
+            app_id: 小程序 AppID
+            tenant_id: 租户ID（可选）
+        """
+        if tenant_id:
+            return f"{SyncRedisCache.PREFIX_WECHAT_TOKEN}{tenant_id}:{app_id}"
+        return f"{SyncRedisCache.PREFIX_WECHAT_TOKEN}{app_id}"
+
     @classmethod
-    def set_wechat_token(cls, app_id: str, token: str, expire: int = 7000) -> bool:
-        """缓存微信 access_token（同步）"""
-        key = f"{cls.PREFIX_WECHAT_TOKEN}{app_id}"
+    def set_wechat_token(cls, app_id: str, token: str, expire: int = 7000, tenant_id: Optional[str] = None) -> bool:
+        """缓存微信 access_token（同步，支持多租户隔离）"""
+        key = cls._build_wechat_token_key(app_id, tenant_id)
         return cls.set(key, token, expire)
-    
+
     @classmethod
-    def get_wechat_token(cls, app_id: str) -> Optional[str]:
-        """获取微信 access_token（同步）"""
-        key = f"{cls.PREFIX_WECHAT_TOKEN}{app_id}"
+    def get_wechat_token(cls, app_id: str, tenant_id: Optional[str] = None) -> Optional[str]:
+        """获取微信 access_token（同步，支持多租户隔离）"""
+        key = cls._build_wechat_token_key(app_id, tenant_id)
         return cls.get(key)
 
 

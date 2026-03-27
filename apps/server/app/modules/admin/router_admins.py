@@ -5,13 +5,13 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, require_permission
+from app.api.deps import check_store_access, get_current_admin, get_tenant_filter, require_permission
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.admin.helpers import build_admin_response
 from app.modules.admin.schemas import AdminCreate, AdminResponse, AdminUpdate
 from app.schemas.response import PageResponse
-from app.services.admin_service import AdminService
+from app.modules.admin.service_admins import AdminService
 
 router = APIRouter()
 
@@ -89,12 +89,17 @@ async def update_admin(
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("system:user:update")),
 ):
-    from app.api.deps import check_store_access, get_store_filter
+    from app.api.deps import get_store_filter
 
     service = AdminService(db)
     admin = await service.get_by_id(admin_id)
     if not admin:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在，请检查后重试")
+
+    # 租户校验：非超管只能修改本租户的管理员
+    tenant_filter = get_tenant_filter(current_admin)
+    if tenant_filter and admin.tenant_id != tenant_filter:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权修改其他租户的管理员")
 
     store_filter = get_store_filter(current_admin)
     if store_filter:
@@ -121,6 +126,16 @@ async def reset_admin_password(
     _: None = Depends(require_permission("system:user:reset-password")),
 ):
     service = AdminService(db)
+
+    # 租户校验：非超管只能重置本租户管理员的密码
+    tenant_filter = get_tenant_filter(current_admin)
+    if tenant_filter:
+        admin = await service.get_by_id(admin_id)
+        if not admin:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在，请检查后重试")
+        if admin.tenant_id != tenant_filter:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权重置其他租户管理员的密码")
+
     success = await service.reset_password(admin_id, new_password)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在，请检查后重试")
@@ -135,6 +150,16 @@ async def delete_admin(
     _: None = Depends(require_permission("system:user:delete")),
 ):
     service = AdminService(db)
+
+    # 租户校验：非超管只能删除本租户的管理员
+    tenant_filter = get_tenant_filter(current_admin)
+    if tenant_filter:
+        admin = await service.get_by_id(admin_id)
+        if not admin:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在，请检查后重试")
+        if admin.tenant_id != tenant_filter:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权删除其他租户的管理员")
+
     try:
         success = await service.delete(admin_id)
     except ValueError as exc:

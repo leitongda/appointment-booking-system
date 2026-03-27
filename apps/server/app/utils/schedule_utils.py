@@ -1,8 +1,11 @@
 """
 排班管理相关的工具函数
 """
-from datetime import date, time
+from datetime import date, time, timedelta
 from typing import List, Tuple, Optional, Dict, Any
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_month_week(d: date) -> int:
@@ -17,9 +20,43 @@ def get_year_week(d: date) -> int:
     return d.isocalendar()[1]
 
 
+def get_week_boundary_dates(d: date) -> Tuple[date, date]:
+    """获取指定日期所在周的边界日期（周一和周日）
+
+    Args:
+        d: 日期
+
+    Returns:
+        (周一日期, 周日日期)
+    """
+    weekday = d.isoweekday()  # 1-7 代表周一到周日
+    week_start = d - timedelta(days=weekday - 1)
+    week_end = week_start + timedelta(days=6)
+    return week_start, week_end
+
+
+def get_month_boundary_dates(d: date) -> Tuple[date, date]:
+    """获取指定日期所在月的边界日期
+
+    Args:
+        d: 日期
+
+    Returns:
+        (月初日期, 月末日期)
+    """
+    month_start = d.replace(day=1)
+    # 计算下个月的第一天，然后减一天得到月末
+    if d.month == 12:
+        month_end = d.replace(day=31)
+    else:
+        next_month_start = d.replace(month=d.month + 1, day=1)
+        month_end = next_month_start - timedelta(days=1)
+    return month_start, month_end
+
+
 def should_generate_schedule(d: date, schedule_mode: str) -> bool:
     """判断指定日期是否应该生成排班
-    
+
     Args:
         d: 日期
         schedule_mode: 排班方式
@@ -27,13 +64,13 @@ def should_generate_schedule(d: date, schedule_mode: str) -> bool:
             - month_week_1~5: 每月第N周
             - year_odd_week: 奇数周
             - year_even_week: 偶数周
-    
+
     Returns:
         是否应该生成排班
     """
     month_week = get_month_week(d)
     year_week = get_year_week(d)
-    
+
     if schedule_mode == "weekly":
         return True
     elif schedule_mode == "month_week_1":
@@ -51,6 +88,40 @@ def should_generate_schedule(d: date, schedule_mode: str) -> bool:
     elif schedule_mode == "year_even_week":
         return year_week % 2 == 0
     return False
+
+
+def is_cross_day_time(start_time: time, end_time: time) -> bool:
+    """检查时间段是否跨天
+
+    Args:
+        start_time: 开始时间
+        end_time: 结束时间
+
+    Returns:
+        是否跨天（如 23:00-01:00）
+    """
+    start_minutes = start_time.hour * 60 + start_time.minute
+    end_minutes = end_time.hour * 60 + end_time.minute
+    return end_minutes <= start_minutes
+
+
+def normalize_time_range(start_time: time, end_time: time) -> Tuple[time, time, bool]:
+    """规范化时间范围，处理跨天情况
+
+    Args:
+        start_time: 开始时间
+        end_time: 结束时间
+
+    Returns:
+        (规范化的开始时间, 规范化的结束时间, 是否跨天)
+    """
+    is_cross_day = is_cross_day_time(start_time, end_time)
+
+    if is_cross_day:
+        # 跨天情况：如 23:00-01:00，视为当天 23:00 到次日 01:00
+        logger.debug(f"检测到跨天时间段: {start_time} - {end_time}")
+
+    return start_time, end_time, is_cross_day
 
 
 def get_time_slot_from_time(start_time: time, periods: Optional[List[Dict[str, Any]]] = None) -> str:
@@ -246,75 +317,149 @@ def minutes_to_time(minutes: int) -> time:
 
 def parse_break_time(bt: Dict[str, Any]) -> Tuple[time, time]:
     """解析排除时间段
-    
+
     支持以下格式：
     - {"startTime": "12:00", "endTime": "13:30"}
     - {"start_time": "12:00", "end_time": "13:30"}
     - {"startTime": time(12, 0), "endTime": time(13, 30)}
+
+    边界条件处理：
+    - 开始时间等于结束时间：视为无效，返回 None
+    - 跨天时间：支持如 23:00-01:00 的跨天休息时间
     """
     start_key = "startTime" if "startTime" in bt else "start_time"
     end_key = "endTime" if "endTime" in bt else "end_time"
-    
+
     start_val = bt.get(start_key)
     end_val = bt.get(end_key)
-    
+
     # 如果是字符串，转换为 time 对象
     if isinstance(start_val, str):
         parts = start_val.split(":")
+        if len(parts) < 2:
+            raise ValueError(f"Invalid start time format: {start_val}")
         start_time = time(int(parts[0]), int(parts[1]))
     elif isinstance(start_val, time):
         start_time = start_val
     else:
         raise ValueError(f"Invalid start time format: {start_val}")
-    
+
     if isinstance(end_val, str):
         parts = end_val.split(":")
+        if len(parts) < 2:
+            raise ValueError(f"Invalid end time format: {end_val}")
         end_time = time(int(parts[0]), int(parts[1]))
     elif isinstance(end_val, time):
         end_time = end_val
     else:
         raise ValueError(f"Invalid end time format: {end_val}")
-    
+
+    # 边界条件：开始时间等于结束时间，视为无效
+    if start_time == end_time:
+        logger.warning(f"排除时间段的开始时间等于结束时间，将被忽略: {start_time} - {end_time}")
+        raise ValueError(f"Break time start equals end: {start_time}")
+
     return start_time, end_time
 
 
+def validate_break_times(break_times: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    """验证并过滤无效的排除时间段
+
+    Args:
+        break_times: 排除时间段列表
+
+    Returns:
+        有效的排除时间段列表
+    """
+    if not break_times:
+        return []
+
+    valid_breaks = []
+    for bt in break_times:
+        try:
+            start_time, end_time = parse_break_time(bt)
+            valid_breaks.append(bt)
+        except ValueError as e:
+            logger.warning(f"跳过无效的排除时间段: {bt}, 原因: {e}")
+            continue
+
+    return valid_breaks
+
+
 def get_working_periods(
-    start: time, 
-    end: time, 
+    start: time,
+    end: time,
     break_times: Optional[List[Dict[str, Any]]] = None
 ) -> List[Tuple[time, time]]:
     """根据排除时间段获取有效工作时间段
-    
+
     Args:
         start: 工作开始时间
         end: 工作结束时间
         break_times: 排除时间段列表，如 [{"startTime": "12:00", "endTime": "13:30"}]
-    
+
     Returns:
         有效工作时间段列表，如 [(09:00, 12:00), (13:30, 18:00)]
+
+    边界条件处理：
+        - 开始时间等于结束时间：返回空列表
+        - 跨天时间：正确处理如 22:00-02:00 的情况
+        - 排除时间超出工作时间范围：自动截断
+        - 重叠的排除时间：自动合并
     """
-    if not break_times:
-        return [(start, end)]
-    
     start_minutes = time_to_minutes(start)
     end_minutes = time_to_minutes(end)
-    
+
+    # 处理跨天情况
+    is_cross_day = end_minutes <= start_minutes
+    if is_cross_day:
+        # 跨天情况：将结束时间加24小时处理
+        end_minutes += 24 * 60
+        logger.debug(f"处理跨天工作时间: {start} - {end}")
+
+    # 边界条件：开始时间等于结束时间
+    if start_minutes == end_minutes:
+        logger.warning(f"工作开始时间等于结束时间: {start}")
+        return []
+
+    if not break_times:
+        return [(start, end)]
+
+    # 验证并过滤无效的排除时间段
+    valid_break_times = validate_break_times(break_times)
+    if not valid_break_times:
+        return [(start, end)]
+
     # 解析并排序排除时间段
     breaks = []
-    for bt in break_times:
+    for bt in valid_break_times:
         try:
             bt_start, bt_end = parse_break_time(bt)
             bt_start_min = time_to_minutes(bt_start)
             bt_end_min = time_to_minutes(bt_end)
-            # 只保留与工作时间有交集的排除时间
-            if bt_end_min > start_minutes and bt_start_min < end_minutes:
-                breaks.append((max(bt_start_min, start_minutes), min(bt_end_min, end_minutes)))
+
+            # 处理跨天的排除时间
+            if bt_end_min <= bt_start_min:
+                # 跨天排除时间，如 23:00-01:00
+                # 这种情况比较复杂，需要特殊处理
+                # 将跨天排除时间拆分为两段
+                # 23:00-24:00 和 00:00-01:00
+                breaks.append((bt_start_min, 24 * 60))
+                if bt_end_min > 0:
+                    breaks.append((0, bt_end_min))
+            else:
+                # 只保留与工作时间有交集的排除时间
+                if bt_end_min > start_minutes and bt_start_min < end_minutes:
+                    breaks.append((max(bt_start_min, start_minutes), min(bt_end_min, end_minutes)))
         except (ValueError, KeyError):
             continue
-    
+
+    if not breaks:
+        return [(start, end)]
+
     # 按开始时间排序
     breaks.sort(key=lambda x: x[0])
-    
+
     # 合并重叠的排除时间段
     merged_breaks = []
     for bt in breaks:
@@ -322,20 +467,24 @@ def get_working_periods(
             merged_breaks[-1] = (merged_breaks[-1][0], max(merged_breaks[-1][1], bt[1]))
         else:
             merged_breaks.append(bt)
-    
+
     # 生成有效工作时间段
     periods = []
     current_start = start_minutes
-    
+
     for bt_start, bt_end in merged_breaks:
         if current_start < bt_start:
-            periods.append((minutes_to_time(current_start), minutes_to_time(bt_start)))
-        current_start = bt_end
-    
+            period_start = minutes_to_time(current_start % (24 * 60))
+            period_end = minutes_to_time(bt_start % (24 * 60))
+            periods.append((period_start, period_end))
+        current_start = max(current_start, bt_end)
+
     # 添加最后一个时间段
     if current_start < end_minutes:
-        periods.append((minutes_to_time(current_start), minutes_to_time(end_minutes)))
-    
+        period_start = minutes_to_time(current_start % (24 * 60))
+        period_end = minutes_to_time(end_minutes % (24 * 60))
+        periods.append((period_start, period_end))
+
     return periods
 
 

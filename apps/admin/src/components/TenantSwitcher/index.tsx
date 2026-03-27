@@ -1,0 +1,200 @@
+/**
+ * 租户切换器组件
+ *
+ * 用于多租户架构下，平台管理员或跨租户管理员在不同租户之间切换。
+ * 选择租户后：
+ * 1. 将 tenantId 保存到 localStorage，请求拦截器会自动将其添加到 X-Tenant-ID Header
+ * 2. 清除门店缓存，确保下次加载正确的门店列表
+ * 3. 刷新页面以应用新的租户上下文
+ */
+import { BankOutlined, DownOutlined, CheckOutlined } from '@ant-design/icons';
+import { useModel } from '@umijs/max';
+import { Tooltip, Popover, Spin, Empty, Avatar } from 'antd';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { tenantApi } from '@hospital/api';
+import type { Tenant } from '@hospital/api';
+import styles from './index.less';
+
+// 租户列表缓存 TTL（5 分钟）
+const TENANT_CACHE_TTL = 5 * 60 * 1000;
+
+const TenantSwitcher: React.FC = () => {
+  const { initialState } = useModel('@@initialState');
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [switching, setSwitching] = useState(false);
+  const [switchingTenantName, setSwitchingTenantName] = useState('');
+
+  // 租户列表缓存
+  const tenantsCacheRef = useRef<{ tenants: Tenant[]; timestamp: number } | null>(null);
+
+  const currentUser = initialState?.currentUser;
+  const currentTenantId = initialState?.currentTenantId;
+  const isSuperAdmin = currentUser?.isSuperAdmin || currentUser?.roleCode === 'SUPER_ADMIN';
+
+  // 当前选中的租户名称
+  const currentTenantName = React.useMemo(() => {
+    if (!currentTenantId) return undefined;
+    const tenant = tenants.find(t => t.id === currentTenantId);
+    return tenant?.name;
+  }, [currentTenantId, tenants]);
+
+  // 加载租户列表（带缓存）
+  const loadTenants = useCallback(async () => {
+    // 使用缓存（5 分钟内有效）
+    const cache = tenantsCacheRef.current;
+    if (cache && Date.now() - cache.timestamp < TENANT_CACHE_TTL) {
+      setTenants(cache.tenants);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await tenantApi.getTenants({
+        page: 1,
+        pageSize: 200, // 获取全部租户
+        status: 1, // 仅正常状态的租户
+      });
+      const fetchedTenants = result?.data || [];
+      setTenants(fetchedTenants);
+      tenantsCacheRef.current = {
+        tenants: fetchedTenants,
+        timestamp: Date.now(),
+      };
+    } catch (error) {
+      console.error('加载租户列表失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 打开时加载租户列表
+  useEffect(() => {
+    if (open) {
+      loadTenants();
+    }
+  }, [open, loadTenants]);
+
+  // 执行租户切换
+  const doSwitchTenant = useCallback((tenantId: string) => {
+    const targetTenant = tenants.find(t => t.id === tenantId);
+    setSwitching(true);
+    setSwitchingTenantName(targetTenant?.name || '');
+    setOpen(false);
+
+    // 保存到 localStorage，请求拦截器会自动添加到 X-Tenant-ID Header
+    localStorage.setItem('hospital_current_tenant_id', tenantId);
+
+    // 清除门店缓存和当前门店，切换租户后门店列表需要重新加载
+    localStorage.removeItem('currentStore');
+
+    // 清除租户列表缓存
+    tenantsCacheRef.current = null;
+
+    // 刷新页面以应用新的租户上下文
+    window.location.reload();
+  }, [tenants]);
+
+  // 点击切换
+  const handleSwitchTenant = useCallback((tenantId: string) => {
+    // 点击已选中的租户，仅关闭面板
+    if (tenantId === currentTenantId) {
+      setOpen(false);
+      return;
+    }
+    // 防止切换过程中重复点击
+    if (switching) return;
+    doSwitchTenant(tenantId);
+  }, [currentTenantId, switching, doSwitchTenant]);
+
+  // 渲染触发按钮
+  const renderTrigger = () => {
+    // 有选中的租户
+    if (currentTenantId) {
+      return (
+        <>
+          <BankOutlined style={{ marginRight: 8, fontSize: 16, color: '#1890ff' }} />
+          <span className={styles.tenantName}>{currentTenantName || currentTenantId}</span>
+          <DownOutlined className={`${styles.tenantDropdownIcon} ${open ? styles.tenantDropdownIconOpen : ''}`} />
+        </>
+      );
+    }
+
+    // 未选择租户（平台管理员）
+    return (
+      <>
+        <BankOutlined style={{ marginRight: 8, fontSize: 16, color: 'rgba(0, 0, 0, 0.45)' }} />
+        <span className={styles.tenantName} style={{ color: 'rgba(0, 0, 0, 0.45)' }}>选择租户</span>
+        <DownOutlined className={`${styles.tenantDropdownIcon} ${open ? styles.tenantDropdownIconOpen : ''}`} />
+      </>
+    );
+  };
+
+  // 租户切换面板内容
+  const content = (
+    <div className={styles.tenantSwitcherPanel}>
+      <div className={styles.tenantSwitcherHeader}>
+        <span className={styles.headerTitle}>切换租户</span>
+      </div>
+      <Spin spinning={loading}>
+        <div className={styles.tenantList}>
+          {tenants.map((tenant) => (
+            <div
+              key={tenant.id}
+              className={`${styles.tenantItem} ${currentTenantId === tenant.id ? styles.active : ''}`}
+              onClick={() => handleSwitchTenant(tenant.id)}
+            >
+              <Avatar
+                icon={<BankOutlined />}
+                size={32}
+                className={styles.tenantItemLogo}
+                style={{ backgroundColor: currentTenantId === tenant.id ? '#1890ff' : '#87d068' }}
+              />
+              <div className={styles.tenantItemInfo}>
+                <span className={styles.tenantItemName}>{tenant.name}</span>
+                <span className={styles.tenantItemCode}>{tenant.tenantCode}</span>
+              </div>
+              {currentTenantId === tenant.id && <CheckOutlined className={styles.tenantItemCheck} />}
+            </div>
+          ))}
+          {tenants.length === 0 && !loading && (
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无可用租户" />
+          )}
+        </div>
+      </Spin>
+    </div>
+  );
+
+  return (
+    <>
+      <Popover
+        content={content}
+        trigger="click"
+        open={open}
+        onOpenChange={setOpen}
+        placement="bottomRight"
+        overlayClassName={styles.tenantSwitcherPopover}
+        arrow={{ pointAtCenter: true }}
+      >
+        <Tooltip title={currentTenantName || '切换租户'} open={open ? false : undefined}>
+          <div className={styles.tenantInfo}>
+            {renderTrigger()}
+          </div>
+        </Tooltip>
+      </Popover>
+
+      {/* 租户切换全屏过渡遮罩 */}
+      {switching && (
+        <div className={styles.tenantSwitchingOverlay}>
+          <Spin size="large" />
+          <div className={styles.switchingText}>
+            正在切换到 {switchingTenantName}...
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default TenantSwitcher;

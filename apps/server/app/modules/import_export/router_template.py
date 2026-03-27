@@ -9,7 +9,7 @@ from io import BytesIO
 
 from app.db.session import get_db
 from app.api.deps import get_current_admin
-from app.services.excel_service import ExcelImportService
+from app.infrastructure.excel.import_service import ExcelImportService
 
 router = APIRouter()
 

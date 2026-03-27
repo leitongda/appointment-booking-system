@@ -12,7 +12,7 @@ from app.modules.patients.service_manage import PatientManageService
 from app.schemas.point_log import PointAdjustData
 from app.schemas.response import PageResponse
 from app.schemas.user import FamilyMemberCreate, PatientCreateByAdmin, PatientUpdate
-from app.services.point_service import PointService
+from app.modules.points.service import PointService
 
 router = APIRouter()
 

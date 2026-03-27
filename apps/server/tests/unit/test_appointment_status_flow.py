@@ -348,9 +348,9 @@ class TestStatusTransitionEdgeCases:
         await db_session.refresh(appointment)
 
         # 取消预约（需要 mock Redis 分布式锁）
-        with patch('app.services.waitlist_service.WaitlistService') as mock_waitlist_cls, \
-             patch('app.services.message_service.MessageService') as mock_msg_cls, \
-             patch('app.core.redis.RedisCache.distributed_lock', return_value=mock_distributed_lock()):
+        with patch('app.modules.waitlist.service.WaitlistService') as mock_waitlist_cls, \
+             patch('app.modules.messages.service_messages.MessageService') as mock_msg_cls, \
+             patch('app.core.redis.RedisCache.tenant_distributed_lock', return_value=mock_distributed_lock()):
 
             mock_waitlist = MagicMock()
             mock_waitlist_cls.return_value = mock_waitlist

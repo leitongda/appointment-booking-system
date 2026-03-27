@@ -11,7 +11,7 @@ from app.schemas.store import (
 from app.schemas.department import DepartmentResponse
 from app.schemas.admin import AdminListResponse
 from app.schemas.response import PageResponse
-from app.services.store_service import StoreService
+from app.modules.stores.service import StoreService
 from app.core.config import settings
 
 router = APIRouter()

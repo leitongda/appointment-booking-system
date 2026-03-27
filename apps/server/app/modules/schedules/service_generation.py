@@ -11,7 +11,7 @@ from sqlalchemy import and_, select
 from app.models.doctor import Doctor
 from app.models.rest_day import RestDay
 from app.models.schedule import Schedule
-from app.services.message_service import MessageService
+from app.modules.messages.service_messages import MessageService
 from app.utils.schedule_utils import get_time_slot_from_time
 
 logger = logging.getLogger(__name__)

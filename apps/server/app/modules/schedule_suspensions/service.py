@@ -15,7 +15,7 @@ from app.models.store import Store
 from app.models.appointment import Appointment
 from app.schemas.schedule_suspension import ScheduleSuspensionCreate, AvailableScheduleForSuspension
 from app.utils.audit import set_create_audit, set_update_audit
-from app.services.message_service import MessageService
+from app.modules.messages.service_messages import MessageService
 
 logger = logging.getLogger(__name__)
 

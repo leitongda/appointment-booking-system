@@ -40,6 +40,14 @@ const Login: React.FC = () => {
     
     setToken(result.accessToken);
     setStorage(STORAGE_KEYS.REFRESH_TOKEN, result.refreshToken);
+
+    // 保存租户 ID 到 localStorage，请求拦截器会自动将其添加到 X-Tenant-ID Header
+    const tenantId = result.admin?.tenantId;
+    if (tenantId) {
+      localStorage.setItem('hospital_current_tenant_id', tenantId);
+    } else {
+      localStorage.removeItem('hospital_current_tenant_id');
+    }
     
     // 保存门店信息到 localStorage
     // 支持单门店 (result.store) 和多门店 (result.stores) 场景

@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_admin, require_permission
 from app.core.security import get_password_hash
 from app.db.session import get_db
-from app.services.import_service import ImportService
+from app.modules.import_export.service_import import ImportService
 from app.models.department import Department
 from app.models.doctor import Doctor
 from app.models.store import Store

@@ -9,7 +9,7 @@ from app.db.session import get_db
 from app.api.deps import get_current_doctor_by_token
 from app.models.doctor import Doctor
 from app.models.rest_day import RestDay
-from app.services.schedule_service import ScheduleService
+from app.modules.schedules.service import ScheduleService
 from app.modules.doctor_portal.schemas import DoctorScheduleResponse
 
 router = APIRouter()

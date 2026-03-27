@@ -27,6 +27,7 @@ class ShiftType(Base, AuditMixin):
     name = Column(String(100), nullable=False, comment="类型名称")
     description = Column(Text, comment="描述")
     enabled = Column(Boolean, nullable=False, default=True, comment="是否启用")
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
 
     # 关联关系
     schedules = relationship("Schedule", backref="shift_type")
@@ -41,6 +42,7 @@ class RuleSet(Base, AuditMixin):
     name = Column(String(200), nullable=False, comment="规则组名称")
     enabled = Column(Boolean, nullable=False, default=True, comment="是否启用")
     priority = Column(Integer, nullable=False, default=100, comment="优先级(越小越优先)")
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
 
     # 默认口径
     time_source = Column(String(20), nullable=False, default='SERVER', comment="时间来源: SERVER/CLIENT")

@@ -6,17 +6,21 @@ from app.models.store import Store
 
 
 @pytest.mark.asyncio
-async def test_store_by_code_public_endpoint(async_client, db_session):
+async def test_store_by_code_public_endpoint(async_client, db_session, test_tenant):
     store = Store(
         id=str(uuid4()),
         name="测试门店公开",
         code="store-public-code",
         status=1,
+        tenant_id=test_tenant.id,
     )
     db_session.add(store)
     await db_session.commit()
 
-    response = await async_client.get(f"/api/v1/stores/by-code/{store.code}")
+    response = await async_client.get(
+        f"/api/v1/stores/by-code/{store.code}",
+        headers={"X-Tenant-ID": test_tenant.id},
+    )
 
     assert response.status_code == 200
     payload = response.json()["data"]

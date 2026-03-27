@@ -17,9 +17,11 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 class DoctorMutationMixin:
     async def create(self, data: DoctorCreate, operator_id: Optional[str] = None) -> Doctor:
-        # 配额检查
+        # 配额检查（获取当前租户ID）
         from app.common.quota import check_quota
-        await check_quota(None, "doctors", self.db)
+        from app.middleware.tenant_context import get_current_tenant_id
+        tenant_id = get_current_tenant_id()
+        await check_quota(tenant_id, "doctors", self.db)
 
         user_id = None
         password = data.password or "123456"
@@ -41,6 +43,7 @@ class DoctorMutationMixin:
 
         doctor = Doctor(
             id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
             user_id=user_id,
             store_id=data.store_id,
             department_id=data.department_id,
@@ -108,7 +111,11 @@ class DoctorMutationMixin:
         return True
 
     async def check_username_exists(self, username: str, exclude_id: Optional[str] = None) -> bool:
+        from app.middleware.tenant_context import get_current_tenant_id
         query = select(Doctor).where(Doctor.username == username)
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            query = query.where(Doctor.tenant_id == tenant_id)
         if exclude_id:
             query = query.where(Doctor.id != exclude_id)
         result = await self.db.execute(query)
@@ -141,12 +148,17 @@ class DoctorMutationMixin:
         return suggestions
 
     async def batch_update_sort_order(self, items: List[dict]) -> int:
+        from app.middleware.tenant_context import get_current_tenant_id
+        tenant_id = get_current_tenant_id()
         count = 0
         for item in items:
             doctor_id = item.get("id")
             sort_order = item.get("sort_order")
             if doctor_id and sort_order is not None:
-                result = await self.db.execute(select(Doctor).where(Doctor.id == doctor_id))
+                query = select(Doctor).where(Doctor.id == doctor_id)
+                if tenant_id:
+                    query = query.where(Doctor.tenant_id == tenant_id)
+                result = await self.db.execute(query)
                 doctor = result.scalar_one_or_none()
                 if doctor:
                     doctor.sort_order = sort_order

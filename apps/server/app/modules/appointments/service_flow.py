@@ -9,9 +9,9 @@ from app.core.events import EventType
 from app.models.rule_set import AppointmentCheckin
 from app.models.schedule import Schedule
 from app.modules.appointments.common import APPOINTMENT_STATUS, AppointmentServiceBase, logger
-from app.services.message_service import MessageService
-from app.services.rule_engine_service import RuleEngineService
-from app.services.settings_service import SettingsService
+from app.modules.messages.service_messages import MessageService
+from app.modules.rule_engine import RuleEngineService
+from app.modules.settings.service import SettingsService
 
 
 class AppointmentFlowService(AppointmentServiceBase):

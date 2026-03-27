@@ -8,7 +8,7 @@ from app.db.session import get_db
 from app.api.deps import get_current_doctor_by_token
 from app.models.doctor import Doctor
 from app.modules.appointments.service import AppointmentService
-from app.services.visit_type_service import VisitTypeService
+from app.modules.visit_types.service import VisitTypeService
 from app.modules.doctor_portal.schemas import DoctorAppointmentResponse
 
 router = APIRouter()

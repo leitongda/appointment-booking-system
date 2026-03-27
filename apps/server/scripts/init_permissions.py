@@ -10,7 +10,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.db.session import AsyncSessionLocal
-from app.services.admin_service import PermissionService
+from app.modules.admin.service_permissions import PermissionService
 
 # 权限数据定义
 # type: menu - 菜单权限, button - 按钮/操作权限

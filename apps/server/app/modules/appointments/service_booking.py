@@ -13,9 +13,9 @@ from app.models.schedule import Schedule
 from app.models.user import Patient
 from app.modules.appointments.common import APPOINTMENT_STATUS, AppointmentServiceBase, logger
 from app.schemas.appointment import AppointmentCreate
-from app.services.message_service import MessageService
-from app.services.rule_engine_service import RuleEngineService
-from app.services.settings_service import SettingsService
+from app.modules.messages.service_messages import MessageService
+from app.modules.rule_engine import RuleEngineService
+from app.modules.settings.service import SettingsService
 from app.utils.audit import set_create_audit, set_update_audit
 
 
@@ -116,7 +116,7 @@ class AppointmentBookingService(AppointmentServiceBase):
         lock_name = f"appointment:create:{data.schedule_id}"
         try:
             redis_cache = self._compat("RedisCache", RedisCache)
-            async with redis_cache.distributed_lock(lock_name, timeout=10, retry_times=5):
+            async with redis_cache.tenant_distributed_lock(lock_name, tenant_id=current_tenant_id, timeout=10, retry_times=5):
                 if capacity_check_needed and capacity_policy:
                     capacity_result = await rule_engine.check_capacity_limits(
                         db=self.db,
@@ -228,6 +228,9 @@ class AppointmentBookingService(AppointmentServiceBase):
         is_admin: bool = False,
         operator_id: Optional[str] = None,
     ) -> Optional[Appointment]:
+        from app.middleware.tenant_context import get_current_tenant_id
+        current_tenant_id = get_current_tenant_id()
+
         appointment = await self.get_by_id(appointment_id)
         if not appointment:
             return None
@@ -273,7 +276,7 @@ class AppointmentBookingService(AppointmentServiceBase):
         lock_name = f"appointment:cancel:{appointment.schedule_id}" if schedule else f"appointment:cancel:{appointment_id}"
 
         redis_cache = self._compat("RedisCache", RedisCache)
-        async with redis_cache.distributed_lock(lock_name, timeout=10, retry_times=5):
+        async with redis_cache.tenant_distributed_lock(lock_name, tenant_id=current_tenant_id, timeout=10, retry_times=5):
             appointment = await self.get_by_id(appointment_id)
             if not appointment:
                 return None
@@ -291,7 +294,7 @@ class AppointmentBookingService(AppointmentServiceBase):
 
         if schedule:
             try:
-                from app.services.waitlist_service import WaitlistService
+                from app.modules.waitlist.service import WaitlistService
 
                 waitlist_service = WaitlistService(self.db)
                 await waitlist_service.auto_promote(schedule_id=appointment.schedule_id, reason="APPOINTMENT_CANCELLED")

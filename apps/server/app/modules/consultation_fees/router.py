@@ -13,7 +13,7 @@ from app.schemas.consultation_fee import (
     StoreFeeTemplateResponse, StoreFeeTemplateBatchCreate, StoreFeeTemplateWithType,
     ApplyTemplateRequest
 )
-from app.services.consultation_fee_service import ConsultationFeeService
+from app.modules.consultation_fees.service import ConsultationFeeService
 
 router = APIRouter()
 

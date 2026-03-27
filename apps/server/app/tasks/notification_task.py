@@ -16,7 +16,7 @@ from app.models.doctor import Doctor
 from app.models.department import Department
 from app.models.settings import SystemSetting as Settings
 from app.core.config import settings as app_settings
-from app.services.wechat_service import WechatTokenManager
+from app.infrastructure.wechat.token_manager import WechatTokenManager
 import httpx
 
 logger = logging.getLogger(__name__)

@@ -15,7 +15,7 @@ from app.db.session import get_db
 from app.models.admin import Admin, Permission
 from app.modules.admin.helpers import build_admin_response, build_stores_list
 from app.modules.admin.schemas import AdminResponse, StoreInfo, SwitchStoreRequest
-from app.services.admin_service import AdminService
+from app.modules.admin.service_admins import AdminService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -59,10 +59,12 @@ async def admin_logout(
     from app.models.admin import AdminLoginHistory
 
     admin_id = current_admin.get("id")
+    admin_tenant_id = current_admin.get("tenant_id")
     token = credentials.credentials
     token_hash = __import__("hashlib").sha256(token.encode()).hexdigest()[:32]
-    session = await RedisCache.get_admin_session(admin_id)
-    session_key = f"{RedisCache.PREFIX_ADMIN_SESSION}{admin_id}"
+    # 传递 tenant_id 实现多租户会话隔离
+    session = await RedisCache.get_admin_session(admin_id, tenant_id=admin_tenant_id)
+    session_key = RedisCache._build_admin_session_key(admin_id, tenant_id=admin_tenant_id)
     ttl = await RedisCache.ttl(session_key)
 
     if session:
@@ -84,8 +86,9 @@ async def admin_logout(
                 await db.commit()
 
     if ttl > 0:
-        await RedisCache.add_token_to_blacklist(token_hash, ttl)
-    await RedisCache.delete_admin_session(admin_id)
+        # 传递 tenant_id 实现多租户 Token 黑名单隔离
+        await RedisCache.add_token_to_blacklist(token_hash, ttl, tenant_id=admin_tenant_id)
+    await RedisCache.delete_admin_session(admin_id, tenant_id=admin_tenant_id)
     return {"message": "退出登录成功"}
 
 
@@ -95,7 +98,7 @@ async def get_my_stores(
     current_admin: dict = Depends(get_current_admin),
 ):
     if current_admin.get("is_super_admin"):
-        from app.services.store_service import StoreService
+        from app.modules.stores.service import StoreService
 
         store_service = StoreService(db)
         stores, _ = await store_service.get_list(None)

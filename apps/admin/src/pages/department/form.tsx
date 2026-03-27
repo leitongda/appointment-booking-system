@@ -4,32 +4,37 @@
  * 使用基础设施：
  * - FormPage 组件：统一表单页面布局
  * - SwitchGroup 组件：开关组
+ * - ImageUploadCard 组件：图片上传卡片
  * - useFormInitialValues hook：初始值处理
  * - useFormSubmit hook：提交处理
+ * - useResponsive hook：响应式支持
  * - 验证规则：requiredRules
  *
  * 优化效果：
  * - 代码从 330 行减少到 ~180 行（减少约 45%）
  * - 消除重复的样板代码
  * - 统一的状态转换逻辑（开关字段 0/1 ↔ boolean）
+ * - 响应式布局支持
  * - 提高代码可读性和可维护性
  */
 import { ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormGroup } from '@ant-design/pro-components';
-import { Card, Form, Row, Col } from 'antd';
+import { Card, Form, Row, Col, Grid } from 'antd';
 import { useParams, history, useModel, useAccess } from '@umijs/max';
 import { useEffect, useState } from 'react';
 import { departmentApi, storeApi } from '@hospital/api';
 import { fetchAllData } from '@/utils/fetchAllData';
 import type { Department, Store, DepartmentTreeNode } from '@hospital/shared';
-import ImageUpload from '@/components/ImageUpload';
 import RichTextEditor from '@/components/RichTextEditor';
 
 // 基础设施导入
 import FormPage from '@/components/FormPage';
-import { SwitchGroup } from '@/components/formFields';
+import { SwitchGroup, ImageUploadCard } from '@/components/formFields';
 import { useFormInitialValues } from '@/hooks/useFormInitialValues';
 import { useFormSubmit } from '@/hooks/useFormSubmit';
+import { useResponsive } from '@/hooks/useResponsive';
 import { requiredRules } from '@/utils/formValidators';
+
+const { useBreakpoint } = Grid;
 
 /**
  * 将树形结构扁平化为选项
@@ -69,6 +74,13 @@ const DepartmentFormPage: React.FC = () => {
   const [department, setDepartment] = useState<Department | null>(null);
   const [stores, setStores] = useState<Store[]>([]);
   const [departments, setDepartments] = useState<DepartmentTreeNode[]>([]);
+
+  // 响应式支持
+  const screens = useBreakpoint();
+  const { isMobile, isTablet } = useResponsive();
+
+  // 响应式栅格配置
+  const colSpan = isMobile ? 24 : isTablet ? 12 : 8;
 
   // 加载门店列表
   useEffect(() => {
@@ -170,7 +182,7 @@ const DepartmentFormPage: React.FC = () => {
           <ProFormSelect
             name="storeId"
             label="门店选择"
-            width="md"
+            width={isMobile ? 'lg' : 'md'}
             placeholder="请选择门店"
             options={stores.map((s) => ({ label: s.name, value: s.id }))}
             rules={[requiredRules('请选择门店')]}
@@ -181,7 +193,7 @@ const DepartmentFormPage: React.FC = () => {
           <ProFormSelect
             name="parentId"
             label="父级分类"
-            width="md"
+            width={isMobile ? 'lg' : 'md'}
             placeholder="顶级分类"
             options={[
               { label: '顶级分类', value: '' },
@@ -194,14 +206,14 @@ const DepartmentFormPage: React.FC = () => {
           <ProFormText
             name="name"
             label="科室名称"
-            width="md"
+            width={isMobile ? 'lg' : 'md'}
             placeholder="请输入科室名称"
             rules={[requiredRules('请输入科室名称')]}
           />
           <ProFormText
             name="tag"
             label="科室标签"
-            width="md"
+            width={isMobile ? 'lg' : 'md'}
             placeholder="请输入科室标签，如：专家科室"
           />
         </ProFormGroup>
@@ -209,7 +221,7 @@ const DepartmentFormPage: React.FC = () => {
           <ProFormDigit
             name="sortOrder"
             label="排序"
-            width="sm"
+            width={isMobile ? 'lg' : 'sm'}
             placeholder="数字越大越靠前"
             min={0}
             max={9999}
@@ -220,44 +232,51 @@ const DepartmentFormPage: React.FC = () => {
           name="description"
           label="描述"
           placeholder="请输入科室描述"
+          fieldProps={{ rows: isMobile ? 4 : 2 }}
         />
       </Card>
 
-      {/* 图片设置 */}
+      {/* 图片设置 - 使用 ImageUploadCard 组件 */}
       <Card title="图片设置">
-        <Row gutter={24}>
-          <Col span={8}>
-            <Form.Item name="icon" label="科室图标">
-              <ImageUpload
-                aspectRatio="1:1"
-                folder="department"
-                placeholder="上传图标"
-                width={100}
-                height={100}
-              />
-            </Form.Item>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} lg={8}>
+            <ImageUploadCard
+              title="科室图标"
+              name="icon"
+              aspectRatio="1:1"
+              width={isMobile ? 80 : 100}
+              height={isMobile ? 80 : 100}
+              folder="department"
+              placeholder="上传图标"
+              tooltip="1:1比例，推荐尺寸：160px x 160px"
+              cardStyle={{ marginBottom: 0 }}
+            />
           </Col>
-          <Col span={8}>
-            <Form.Item name="bannerImage" label="Banner图片">
-              <ImageUpload
-                aspectRatio="16:9"
-                folder="department"
-                placeholder="上传Banner"
-                width={240}
-                height={135}
-              />
-            </Form.Item>
+          <Col xs={24} sm={12} lg={8}>
+            <ImageUploadCard
+              title="Banner图片"
+              name="bannerImage"
+              aspectRatio="16:9"
+              width={isMobile ? '100%' : 240}
+              height={isMobile ? 135 : 135}
+              folder="department"
+              placeholder="上传Banner"
+              tooltip="16:9比例，用于科室详情页展示"
+              cardStyle={{ marginBottom: 0 }}
+            />
           </Col>
-          <Col span={8}>
-            <Form.Item name="introImages" label="简介图片" tooltip="支持上传简介图片">
-              <ImageUpload
-                aspectRatio="free"
-                folder="department"
-                placeholder="上传简介图"
-                width={200}
-                height={150}
-              />
-            </Form.Item>
+          <Col xs={24} sm={12} lg={8}>
+            <ImageUploadCard
+              title="简介图片"
+              name="introImages"
+              aspectRatio="free"
+              width={isMobile ? '100%' : 200}
+              height={isMobile ? 150 : 150}
+              folder="department"
+              placeholder="上传简介图"
+              tooltip="支持上传简介图片"
+              cardStyle={{ marginBottom: 0 }}
+            />
           </Col>
         </Row>
       </Card>
@@ -268,18 +287,19 @@ const DepartmentFormPage: React.FC = () => {
           name="introContent"
           label="科室简介"
         >
-          <RichTextEditor height={300} placeholder="请输入科室详细简介..." />
+          <RichTextEditor height={isMobile ? 250 : 300} placeholder="请输入科室详细简介..." />
         </Form.Item>
         <ProFormTextArea
           name="features"
           label="科室特色"
           placeholder="请输入科室特色，多个用逗号分隔"
+          fieldProps={{ rows: isMobile ? 4 : 2 }}
         />
         <ProFormTextArea
           name="appointmentNotice"
           label="预约须知"
           placeholder="请输入预约须知"
-          fieldProps={{ rows: 3 }}
+          fieldProps={{ rows: isMobile ? 4 : 3 }}
         />
       </Card>
 
@@ -289,13 +309,13 @@ const DepartmentFormPage: React.FC = () => {
           <ProFormText
             name="phone"
             label="科室电话"
-            width="md"
+            width={isMobile ? 'lg' : 'md'}
             placeholder="请输入科室电话"
           />
           <ProFormText
             name="location"
             label="位置/楼层"
-            width="md"
+            width={isMobile ? 'lg' : 'md'}
             placeholder="请输入位置/楼层，如：门诊楼3楼"
           />
         </ProFormGroup>
@@ -310,39 +330,39 @@ const DepartmentFormPage: React.FC = () => {
       {/* 开关设置 */}
       <Card title="开关设置">
         <SwitchGroup
-          gutter={16}
+          gutter={isMobile ? 8 : 16}
           items={[
             {
               name: 'status',
               label: '启用状态',
-              span: 6,
+              span: isMobile ? 24 : 6,
             },
             {
               name: 'isFinal',
               label: '终极科室',
               tooltip: '只有终极科室才能添加医生',
-              span: 6,
+              span: isMobile ? 24 : 6,
             },
             {
               name: 'isRecommended',
               label: '是否推荐',
               tooltip: '选择是则该科室名称及推荐医生将在首页展示',
-              span: 6,
+              span: isMobile ? 24 : 6,
             },
             {
               name: 'isHot',
               label: '是否热门',
-              span: 6,
+              span: isMobile ? 24 : 6,
             },
             {
               name: 'enableBanner',
               label: '开放Banner',
-              span: 6,
+              span: isMobile ? 24 : 6,
             },
             {
               name: 'enableIntro',
               label: '开放简介',
-              span: 6,
+              span: isMobile ? 24 : 6,
             },
           ]}
         />

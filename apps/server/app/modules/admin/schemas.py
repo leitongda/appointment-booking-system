@@ -121,6 +121,7 @@ class AdminResponse(BaseModel):
     status: int
     last_login_at: Optional[datetime] = Field(None, serialization_alias="lastLoginAt")
     last_login_ip: Optional[str] = Field(None, serialization_alias="lastLoginIp")
+    tenant_id: Optional[str] = Field(None, serialization_alias="tenantId")
     created_at: datetime = Field(..., serialization_alias="createdAt")
 
     model_config = {

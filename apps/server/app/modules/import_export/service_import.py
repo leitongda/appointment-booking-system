@@ -15,7 +15,7 @@ from app.infrastructure.excel.import_service import ExcelImportError
 from app.middleware.exception import BusinessError
 from app.middleware.tenant_context import get_current_tenant_id
 from app.common.tenant_filter import get_tenant_id_for_create
-from app.services.excel_service import ExcelImportService
+from app.infrastructure.excel.import_service import ExcelImportService
 
 logger = logging.getLogger(__name__)
 

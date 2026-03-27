@@ -7,8 +7,8 @@ from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, Refre
 from app.schemas.user import UserResponse
 from app.schemas.wechat import WechatLoginRequest, WechatLoginResponse, WechatPhoneRequest, WechatBindPhoneRequest, WechatBindUserInfoRequest
 from app.schemas.response import ErrorResponse
-from app.services.user_service import UserService
-from app.services.wechat_service import WechatService
+from app.modules.users.service import UserService
+from app.infrastructure.wechat.service import WechatService
 from app.core.security import create_access_token, create_refresh_token, decode_token, verify_password, get_password_hash
 from app.core.config import settings
 

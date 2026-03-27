@@ -15,7 +15,7 @@ from app.models.store import Store
 from app.models.user import Patient
 from app.schemas.response import ResponseModel
 from app.db.session import get_db
-from app.services.revenue_service import RevenueService
+from app.modules.revenue.service import RevenueService
 
 router = APIRouter()
 

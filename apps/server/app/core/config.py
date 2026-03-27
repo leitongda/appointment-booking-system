@@ -106,7 +106,8 @@ class Settings(BaseSettings):
 
     # 分页配置
     DEFAULT_PAGE_SIZE: int = 10        # 默认每页数量
-    MAX_PAGE_SIZE: int = 500           # 最大每页数量
+    MAX_PAGE_SIZE: int = 500           # 通用最大每页数量
+    APPOINTMENTS_MAX_PAGE_SIZE: int = 500  # 预约列表专用最大每页数量（需管理员权限+日期范围才能超过100）
 
     # API 超时配置
     API_TIMEOUT: int = 30              # API 调用超时（秒）

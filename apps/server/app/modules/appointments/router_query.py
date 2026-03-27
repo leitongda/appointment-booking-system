@@ -11,8 +11,12 @@ from app.api.deps import get_current_user, get_current_user_or_admin, get_store_
 from app.schemas.appointment import AppointmentResponse, AppointmentStatistics
 from app.schemas.response import PageResponse, ErrorResponse
 from app.modules.appointments.service import AppointmentService
-from app.services.rule_engine_service import RuleEngineService
+from app.modules.rule_engine import RuleEngineService
 from app.core.config import settings
+
+
+# 常规分页上限（超过此值需要管理员权限+日期范围）
+PAGE_SIZE_STANDARD_LIMIT = 100
 
 router = APIRouter()
 
@@ -30,11 +34,16 @@ async def get_appointments(
     created_start: Optional[datetime] = None,
     created_end: Optional[datetime] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
+    page_size: int = Query(10, ge=1, le=settings.APPOINTMENTS_MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin)
 ):
     """获取预约列表
+
+    分页规则：
+    - 默认 page_size=10
+    - 常规上限为 100
+    - 当 page_size > 100 时，需要管理员权限且必须提供 start_date 和 end_date
 
     Args:
         keyword: 关键字搜索（预约编号/患者姓名/手机号）
@@ -43,6 +52,28 @@ async def get_appointments(
         created_start: 创建时间开始
         created_end: 创建时间结束
     """
+    # 分页参数校验：超过100需要管理员权限+日期范围
+    if page_size > PAGE_SIZE_STANDARD_LIMIT:
+        is_admin = current_user.get("is_admin", False)
+        if not is_admin:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "code": "PAGE_SIZE_REQUIRES_ADMIN",
+                    "message": f"page_size > {PAGE_SIZE_STANDARD_LIMIT} 需要管理员权限",
+                    "hint": f"当前 page_size={page_size}，普通用户上限为 {PAGE_SIZE_STANDARD_LIMIT}"
+                }
+            )
+        if not start_date or not end_date:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "code": "PAGE_SIZE_REQUIRES_DATE_RANGE",
+                    "message": f"page_size > {PAGE_SIZE_STANDARD_LIMIT} 必须提供 start_date 和 end_date",
+                    "hint": "请提供日期范围以限制查询数据量"
+                }
+            )
+
     service = AppointmentService(db)
     # 管理员可以查看所有预约，普通用户只能查看自己的
     user_id = None if current_user.get("is_admin") else current_user["id"]
@@ -111,7 +142,7 @@ async def get_today_appointments(
     返回当前医生今日的所有预约，包含复诊判断标记。
     """
     from app.models.doctor import Doctor
-    from app.services.visit_type_service import VisitTypeService
+    from app.modules.visit_types.service import VisitTypeService
 
     service = AppointmentService(db)
     # 假设 current_user 包含 doctor_id

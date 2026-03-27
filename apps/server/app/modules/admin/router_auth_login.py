@@ -23,7 +23,7 @@ from app.modules.admin.schemas import (
     StoreInfo,
 )
 from app.schemas.response import Response
-from app.services.admin_service import AdminService
+from app.modules.admin.service_admins import AdminService
 from app.utils.ip import get_client_ip
 
 router = APIRouter()
@@ -173,7 +173,7 @@ async def send_sms_code(
     data: SmsCodeRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    from app.services.sms_service import SmsService
+    from app.infrastructure.sms.service import SmsService
 
     service = AdminService(db)
     admin = await service.get_by_phone(data.phone)
@@ -194,7 +194,7 @@ async def sms_login(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    from app.services.sms_service import SmsService
+    from app.infrastructure.sms.service import SmsService
 
     service = AdminService(db)
     is_valid = await SmsService.verify_code(data.phone, data.code, "login")

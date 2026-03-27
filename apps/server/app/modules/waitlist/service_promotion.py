@@ -7,7 +7,7 @@ import logging
 from app.models.waitlist import WaitlistEntry
 from app.models.schedule import Schedule
 from app.models.appointment import Appointment
-from app.services.rule_engine_service import RuleEngineService
+from app.modules.rule_engine import RuleEngineService
 from app.modules.appointments.service import AppointmentService
 from app.utils.audit import set_update_audit
 

@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.import_export.service_import import ImportService, SENSITIVE_FIELDS
 from app.middleware.exception import BusinessError
+from app.models.store import Store
 
 
 class TestImportServiceTenantIsolation:
@@ -144,7 +145,7 @@ class TestImportServiceTenantIsolation:
         row_data = {"store_id": "store-456"}
         result = await service._validate_row_tenant(
             row_data, 1,
-            model_class=MagicMock,
+            model_class=Store,
             id_field="store_id"
         )
 
@@ -168,7 +169,7 @@ class TestImportServiceTenantIsolation:
         row_data = {"store_id": "store-456"}
         result = await service._validate_row_tenant(
             row_data, 1,
-            model_class=MagicMock,
+            model_class=Store,
             id_field="store_id"
         )
 
@@ -191,7 +192,7 @@ class TestImportServiceTenantIsolation:
         row_data = {"store_id": "nonexistent-store"}
         result = await service._validate_row_tenant(
             row_data, 1,
-            model_class=MagicMock,
+            model_class=Store,
             id_field="store_id"
         )
 
@@ -226,8 +227,8 @@ class TestImportServiceTenantIsolation:
                         process_row_func=AsyncMock(),
                     )
 
-                assert "不允许的字段" in str(exc_info.value.detail)
-                assert "tenant_id" in str(exc_info.value.detail)
+                assert "不允许的字段" in str(exc_info.value.message)
+                assert "tenant_id" in str(exc_info.value.message)
 
     @pytest.mark.asyncio
     async def test_validate_and_import_requires_tenant_context(self):
@@ -252,7 +253,7 @@ class TestImportServiceTenantIsolation:
                         process_row_func=AsyncMock(),
                     )
 
-                assert "必须指定租户" in str(exc_info.value.detail)
+                assert "必须指定租户" in str(exc_info.value.message)
 
     @pytest.mark.asyncio
     async def test_validate_and_import_skips_tenant_validation(self):
@@ -268,7 +269,7 @@ class TestImportServiceTenantIsolation:
         with patch(
             "app.modules.import_export.service_import.ExcelImportService.parse_excel",
             return_value=(
-                [{"name": "测试", "_row": 2}],
+                [{"name": "测试"}],
                 []
             )
         ):
@@ -302,9 +303,9 @@ class TestImportServiceTenantIsolation:
             "app.modules.import_export.service_import.ExcelImportService.parse_excel",
             return_value=(
                 [
-                    {"name": "正常", "_row": 2},
-                    {"name": "跳过", "_row": 3},
-                    {"name": "正常2", "_row": 4},
+                    {"name": "正常"},
+                    {"name": "跳过"},
+                    {"name": "正常2"},
                 ],
                 []
             )
@@ -330,3 +331,201 @@ class TestImportServiceTenantIsolation:
 
         service._tenant_id = "tenant-123"
         assert service.tenant_id == "tenant-123"
+
+
+class TestRuleSetImportTenantIsolation:
+    """规则组导入服务租户隔离测试"""
+
+    @pytest.mark.asyncio
+    async def test_import_rule_sets_requires_tenant_id(self):
+        """测试导入规则组必须有租户上下文"""
+        from app.modules.import_export.service_rule_set_import import RuleSetImportService
+
+        db_mock = MagicMock(spec=AsyncSession)
+        service = RuleSetImportService(db_mock)
+
+        with patch(
+            "app.middleware.tenant_context.get_current_tenant_id",
+            return_value=None
+        ):
+            with pytest.raises(ValueError) as exc_info:
+                await service.import_rule_sets(b"fake-content")
+
+            assert "租户上下文" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_import_rule_sets_uses_explicit_tenant_id(self):
+        """测试显式传入 tenant_id 优先于上下文"""
+        from app.modules.import_export.service_rule_set_import import RuleSetImportService
+
+        db_mock = MagicMock(spec=AsyncSession)
+        db_mock.commit = AsyncMock()
+        service = RuleSetImportService(db_mock)
+
+        # 模拟 Excel 解析返回空数据（不需要真正解析）
+        with patch("app.modules.import_export.service_rule_set_import.load_workbook"):
+            with patch.object(service, '_parse_sheet', return_value=[]):
+                with patch.object(service, '_validate_rule_sets', return_value=[]):
+                    with patch.object(service, '_validate_references', return_value=[]):
+                        result = await service.import_rule_sets(
+                            b"fake-content", tenant_id="explicit-tenant"
+                        )
+
+                        assert result["success_count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_import_rule_set_filters_by_tenant_on_duplicate_check(self):
+        """测试导入时重名检查添加了租户过滤（防跨租户名称冲突）"""
+        from app.modules.import_export.service_rule_set_import import RuleSetImportService
+        from app.models.rule_set import RuleSet
+
+        db_mock = MagicMock(spec=AsyncSession)
+        service = RuleSetImportService(db_mock)
+
+        # 模拟：同名规则组在另一租户存在，当前租户不存在
+        mock_result = MagicMock()
+        mock_result.scalar.return_value = None  # 当前租户不存在同名
+        db_mock.execute = AsyncMock(return_value=mock_result)
+        db_mock.add = MagicMock()
+        db_mock.flush = AsyncMock()
+
+        rs_data = {
+            "_row": 2,
+            "规则组名称": "测试规则组",
+            "优先级": 100,
+            "是否启用": "是",
+        }
+
+        # 调用 _import_rule_set
+        await service._import_rule_set(
+            rs_data, [], [], [], [], tenant_id="tenant-A"
+        )
+
+        # 验证查询中包含 tenant_id 过滤
+        call_args = db_mock.execute.call_args_list[0]
+        from sqlalchemy import select
+        query = call_args[0][0]
+        # 验证查询条件包含 tenant_id
+        query_str = str(query)
+        assert "tenant_id" in query_str
+
+    @pytest.mark.asyncio
+    async def test_import_rule_set_sets_tenant_id_on_create(self):
+        """测试创建规则组时设置了 tenant_id"""
+        from app.modules.import_export.service_rule_set_import import RuleSetImportService
+
+        db_mock = MagicMock(spec=AsyncSession)
+        service = RuleSetImportService(db_mock)
+
+        # 模拟查询结果：不存在同名规则组
+        mock_result = MagicMock()
+        mock_result.scalar.return_value = None
+        db_mock.execute = AsyncMock(return_value=mock_result)
+        db_mock.add = MagicMock()
+        db_mock.flush = AsyncMock()
+
+        rs_data = {
+            "_row": 2,
+            "规则组名称": "测试规则组",
+            "优先级": 100,
+            "是否启用": "是",
+        }
+
+        await service._import_rule_set(
+            rs_data, [], [], [], [], tenant_id="tenant-ABC"
+        )
+
+        # 验证 db.add 被调用，且传入的对象有正确的 tenant_id
+        assert db_mock.add.called
+        added_obj = db_mock.add.call_args[0][0]
+        assert added_obj.tenant_id == "tenant-ABC"
+
+
+class TestExportServiceTenantIsolation:
+    """旧导出服务租户隔离测试"""
+
+    @pytest.mark.asyncio
+    async def test_export_appointments_filters_by_tenant(self):
+        """测试导出预约记录时添加了租户过滤"""
+        from app.modules.export.service import ExportService
+
+        db_mock = MagicMock(spec=AsyncSession)
+
+        # 模拟查询结果
+        mock_result = MagicMock()
+        mock_result.unique = MagicMock(return_value=mock_result)
+        mock_result.scalars.return_value.all.return_value = []
+        db_mock.execute = AsyncMock(return_value=mock_result)
+
+        service = ExportService(db_mock)
+        await service.export_appointments(tenant_id="tenant-A")
+
+        # 验证 db.execute 被调用
+        assert db_mock.execute.called
+        # 验证查询包含 tenant_id 条件
+        call_args = db_mock.execute.call_args_list[0]
+        query = call_args[0][0]
+        query_str = str(query)
+        assert "tenant_id" in query_str
+
+    @pytest.mark.asyncio
+    async def test_export_patients_filters_by_tenant(self):
+        """测试导出患者列表时添加了租户过滤"""
+        from app.modules.export.service import ExportService
+
+        db_mock = MagicMock(spec=AsyncSession)
+
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        db_mock.execute = AsyncMock(return_value=mock_result)
+
+        service = ExportService(db_mock)
+        await service.export_patients(tenant_id="tenant-A")
+
+        assert db_mock.execute.called
+        call_args = db_mock.execute.call_args_list[0]
+        query = call_args[0][0]
+        query_str = str(query)
+        assert "tenant_id" in query_str
+
+    @pytest.mark.asyncio
+    async def test_export_schedules_filters_by_tenant(self):
+        """测试导出排班记录时添加了租户过滤"""
+        from app.modules.export.service import ExportService
+
+        db_mock = MagicMock(spec=AsyncSession)
+
+        mock_result = MagicMock()
+        mock_result.unique = MagicMock(return_value=mock_result)
+        mock_result.scalars.return_value.all.return_value = []
+        db_mock.execute = AsyncMock(return_value=mock_result)
+
+        service = ExportService(db_mock)
+        await service.export_schedules(tenant_id="tenant-A")
+
+        assert db_mock.execute.called
+        call_args = db_mock.execute.call_args_list[0]
+        query = call_args[0][0]
+        query_str = str(query)
+        assert "tenant_id" in query_str
+
+    @pytest.mark.asyncio
+    async def test_export_appointments_without_tenant_id(self):
+        """测试不传 tenant_id 时导出预约记录不添加租户过滤（WHERE 子句）"""
+        from app.modules.export.service import ExportService
+
+        db_mock = MagicMock(spec=AsyncSession)
+
+        mock_result = MagicMock()
+        mock_result.unique = MagicMock(return_value=mock_result)
+        mock_result.scalars.return_value.all.return_value = []
+        db_mock.execute = AsyncMock(return_value=mock_result)
+
+        service = ExportService(db_mock)
+        await service.export_appointments()
+
+        call_args = db_mock.execute.call_args_list[0]
+        query = call_args[0][0]
+        query_str = str(query)
+        # 没有 tenant_id 过滤时，查询字符串中不应出现 WHERE 子句
+        assert "WHERE" not in query_str

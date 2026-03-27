@@ -72,6 +72,14 @@ export const setupRequestInterceptor = () => {
           config.headers.Authorization = `Bearer ${token}`;
         }
       }
+
+      // 添加租户上下文 Header：从 localStorage 读取当前租户 ID
+      // 如果不存在，则不添加，后端可通过子域名/路径前缀等其他方式识别租户
+      const currentTenantId = localStorage.getItem('hospital_current_tenant_id');
+      if (currentTenantId) {
+        config.headers['X-Tenant-ID'] = currentTenantId;
+      }
+
       return config;
     },
     (error) => {

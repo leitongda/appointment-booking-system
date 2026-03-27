@@ -1,7 +1,7 @@
 from app.modules.consultation_fees.service import (
     ConsultationFeeService as modular_consultation_fee_service,
 )
-from app.services.consultation_fee_service import (
+from app.modules.consultation_fees.service import (
     ConsultationFeeService as legacy_consultation_fee_service,
 )
 

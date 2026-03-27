@@ -10,9 +10,9 @@ from sqlalchemy.orm import selectinload
 from typing import Optional, Union, List
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_permission
 from app.common.deps import get_store_filter, check_store_access, get_tenant_filter
-from app.services.excel_service import ExcelExportService
+from app.infrastructure.excel.export_service import ExcelExportService
 from app.models.doctor import Doctor
 from app.models.user import Patient
 from app.models.department import Department
@@ -53,6 +53,7 @@ async def export_doctors(
     status: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    _: None = Depends(require_permission("doctor:export", "doctor:list")),
 ):
     """导出医生列表"""
     # 获取门店过滤条件
@@ -123,6 +124,7 @@ async def export_patients(
     keyword: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:export", "patient:list")),
 ):
     """导出患者列表"""
     # 获取租户过滤
@@ -180,6 +182,7 @@ async def export_departments(
     status: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    _: None = Depends(require_permission("department:export", "department:list")),
 ):
     """导出科室列表"""
     # 获取门店过滤条件
@@ -236,6 +239,7 @@ async def export_stores(
     status: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    _: None = Depends(require_permission("store:export", "store:list")),
 ):
     """导出门店列表"""
     # 获取门店过滤条件
@@ -288,6 +292,7 @@ async def export_schedule_templates(
     status: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule_template:export", "schedule_template:list")),
 ):
     """导出排班模板列表"""
     from app.models.schedule_template import ScheduleTemplate
@@ -369,6 +374,7 @@ async def export_users(
     status: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    _: None = Depends(require_permission("admin:export", "admin:list")),
 ):
     """导出系统用户列表"""
     from app.models.admin import Admin, admin_stores
@@ -439,6 +445,7 @@ async def export_logs(
     end_time: Optional[datetime] = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    _: None = Depends(require_permission("log:export", "log:list")),
 ):
     """导出操作日志"""
     from app.models.admin import OperationLog
@@ -501,6 +508,7 @@ async def export_feedbacks(
     feedback_type: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    _: None = Depends(require_permission("feedback:export", "feedback:list")),
 ):
     """导出用户反馈"""
     from app.models.feedback import Feedback
@@ -555,10 +563,16 @@ async def export_rule_sets(
     enabled: Optional[bool] = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    _: None = Depends(require_permission("rule_set:export", "rule_set:list")),
 ):
     """导出规则组列表（多工作表）"""
     from app.models.rule_set import RuleSet
     from sqlalchemy.orm import selectinload
+
+    # 获取租户过滤条件
+    tenant_id = get_tenant_filter(current_admin)
+    if not tenant_id:
+        tenant_id = get_current_tenant_id()
 
     # 查询所有规则组及其关联数据
     query = select(RuleSet).options(
@@ -567,6 +581,10 @@ async def export_rule_sets(
         selectinload(RuleSet.checkin_policy),
         selectinload(RuleSet.capacity_policy),
     )
+
+    # 添加租户过滤
+    if tenant_id:
+        query = query.where(RuleSet.tenant_id == tenant_id)
 
     if enabled is not None:
         query = query.where(RuleSet.enabled == enabled)

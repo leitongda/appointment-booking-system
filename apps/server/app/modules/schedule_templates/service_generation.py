@@ -22,7 +22,7 @@ from app.utils.schedule_utils import (
 
 class ScheduleTemplateGenerationMixin:
     async def generate_schedules(self, data: ScheduleGenerateRequest) -> int:
-        from app.services.schedule_service import ScheduleService
+        from app.modules.schedules.service import ScheduleService
 
         schedule_service = ScheduleService(self.db)
         created_count = 0

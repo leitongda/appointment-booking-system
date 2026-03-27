@@ -12,6 +12,10 @@ from app.schemas.response import PageResponse, ErrorResponse
 from app.modules.appointments.service import AppointmentService
 from app.core.config import settings
 
+
+# 常规分页上限（超过此值需要管理员权限+日期范围）
+PAGE_SIZE_STANDARD_LIMIT = 100
+
 router = APIRouter()
 
 # ==================== 根级别操作（保持在主路由器中以避免路径冲突） ====================
@@ -29,11 +33,39 @@ async def get_appointments(
     created_start: Optional[datetime] = None,
     created_end: Optional[datetime] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
+    page_size: int = Query(10, ge=1, le=settings.APPOINTMENTS_MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin)
 ):
-    """获取预约列表"""
+    """获取预约列表
+
+    分页规则：
+    - 默认 page_size=10
+    - 常规上限为 100
+    - 当 page_size > 100 时，需要管理员权限且必须提供 start_date 和 end_date
+    """
+    # 分页参数校验：超过100需要管理员权限+日期范围
+    if page_size > PAGE_SIZE_STANDARD_LIMIT:
+        is_admin = current_user.get("is_admin", False)
+        if not is_admin:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "code": "PAGE_SIZE_REQUIRES_ADMIN",
+                    "message": f"page_size > {PAGE_SIZE_STANDARD_LIMIT} 需要管理员权限",
+                    "hint": f"当前 page_size={page_size}，普通用户上限为 {PAGE_SIZE_STANDARD_LIMIT}"
+                }
+            )
+        if not start_date or not end_date:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "code": "PAGE_SIZE_REQUIRES_DATE_RANGE",
+                    "message": f"page_size > {PAGE_SIZE_STANDARD_LIMIT} 必须提供 start_date 和 end_date",
+                    "hint": "请提供日期范围以限制查询数据量"
+                }
+            )
+
     service = AppointmentService(db)
     user_id = None if current_user.get("is_admin") else current_user["id"]
 

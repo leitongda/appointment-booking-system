@@ -7,7 +7,7 @@ from app.api.deps import get_current_admin
 from app.core.logging import logger
 from app.db.session import get_db
 from app.modules.upload.schemas import ThumbnailInfo, TransferRequest, UploadResponse
-from app.services.image_processor import create_image_processor
+from app.infrastructure.image.processor import create_image_processor
 from app.infrastructure.storage import get_storage
 
 router = APIRouter()

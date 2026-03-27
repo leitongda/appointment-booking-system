@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_admin
 from app.db.session import get_db
 from app.modules.admin.schemas import ChangePasswordRequest, UpdateProfileRequest
-from app.services.admin_service import AdminService
+from app.modules.admin.service_admins import AdminService
 
 router = APIRouter()
 

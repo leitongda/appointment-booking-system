@@ -16,7 +16,7 @@ from app.schemas.feedback import (
     FeedbackType,
 )
 from app.schemas.response import PageResponse
-from app.services.feedback_service import FeedbackService
+from app.modules.feedbacks.service import FeedbackService
 
 router = APIRouter()
 

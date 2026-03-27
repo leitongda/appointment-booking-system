@@ -71,6 +71,8 @@ export interface Admin {
   isSuperAdmin?: boolean;
   isStoreAdmin?: boolean;
   canViewAllStores?: boolean;
+  // 租户信息（多租户支持）
+  tenantId?: string;
   // 其他字段
   status: number;
   lastLoginAt?: string;

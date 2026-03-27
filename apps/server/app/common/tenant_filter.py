@@ -3,7 +3,7 @@
 提供统一的租户过滤逻辑，用于业务查询中添加租户条件。
 """
 from typing import Optional, List, Type, Any
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, select
 from sqlalchemy.sql import Select
 from sqlalchemy.orm import Query
 

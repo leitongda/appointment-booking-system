@@ -1,16 +1,39 @@
 import React from 'react';
-import { Popconfirm } from 'antd';
+import { Popconfirm, Typography, Space } from 'antd';
 import {
   EyeOutlined,
   EditOutlined,
   DeleteOutlined,
+  ExclamationCircleOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import { useAccess, history } from '@umijs/max';
+import { confirmDelete, type DeleteImpactScope } from '@/components/ConfirmModal';
+
+const { Text } = Typography;
 
 /**
  * 操作按钮类型
  */
 export type OperationButtonType = 'view' | 'edit' | 'delete' | 'custom';
+
+/**
+ * 删除操作配置
+ */
+export interface DeleteOperationConfig {
+  /** 实体名称（如：科室、医生） */
+  entityName?: string;
+  /** 实体标识（如：科室名称） */
+  entityIdentifier?: string | ((record?: any) => string);
+  /** 影响范围 */
+  impactScope?: DeleteImpactScope | ((record?: any) => DeleteImpactScope);
+  /** 是否需要强制输入确认（默认 true） */
+  requireTyping?: boolean;
+  /** 自定义确认标题 */
+  confirmTitle?: string;
+  /** 自定义确认描述 */
+  confirmDescription?: string;
+}
 
 /**
  * 操作按钮配置
@@ -38,6 +61,10 @@ export interface OperationButtonProps {
   disabled?: boolean;
   /** 自定义样式 */
   style?: React.CSSProperties;
+  /** 删除操作详细配置（仅 type='delete' 时有效） */
+  deleteConfig?: DeleteOperationConfig;
+  /** 传递给删除回调的记录数据 */
+  record?: any;
 }
 
 /**
@@ -67,6 +94,22 @@ const defaultConfig: Record<Exclude<OperationButtonType, 'custom'>, { icon: Reac
  * />
  *
  * @example
+ * // 删除按钮（带影响范围）
+ * <OperationButton
+ *   type="delete"
+ *   permission="doctor:delete"
+ *   deleteConfig={{
+ *     entityName: '医生',
+ *     entityIdentifier: record.name,
+ *     impactScope: {
+ *       affectedCount: 15,
+ *       relatedEntities: ['关联的排班记录', '关联的预约记录'],
+ *     },
+ *   }}
+ *   onClick={() => handleDelete(record.id)}
+ * />
+ *
+ * @example
  * // 自定义按钮
  * <OperationButton
  *   type="custom"
@@ -88,6 +131,8 @@ export const OperationButton: React.FC<OperationButtonProps> = ({
   danger,
   disabled,
   style,
+  deleteConfig,
+  record,
 }) => {
   const access = useAccess();
 
@@ -111,6 +156,36 @@ export const OperationButton: React.FC<OperationButtonProps> = ({
     }
   };
 
+  // 处理删除操作（带增强确认）
+  const handleDeleteClick = () => {
+    if (!deleteConfig) {
+      // 没有详细配置，使用简单确认
+      handleClick();
+      return;
+    }
+
+    // 解析实体标识
+    const entityIdentifier = typeof deleteConfig.entityIdentifier === 'function'
+      ? deleteConfig.entityIdentifier(record)
+      : deleteConfig.entityIdentifier;
+
+    // 解析影响范围
+    const impactScope = typeof deleteConfig.impactScope === 'function'
+      ? deleteConfig.impactScope(record)
+      : deleteConfig.impactScope;
+
+    // 使用增强的确认删除对话框
+    confirmDelete({
+      title: deleteConfig.confirmTitle || '确认删除',
+      content: deleteConfig.confirmDescription,
+      entityName: deleteConfig.entityName || '记录',
+      entityIdentifier,
+      impactScope,
+      requireTyping: deleteConfig.requireTyping ?? true,
+      onOk: handleClick,
+    });
+  };
+
   // 按钮样式
   const buttonStyle: React.CSSProperties = {
     fontSize: 13,
@@ -121,7 +196,7 @@ export const OperationButton: React.FC<OperationButtonProps> = ({
   // 按钮内容
   const buttonContent = (
     <a
-      onClick={confirmText ? undefined : handleClick}
+      onClick={confirmText && !deleteConfig ? undefined : (deleteConfig ? handleDeleteClick : handleClick)}
       style={buttonStyle}
       className={disabled ? 'ant-btn-disabled' : undefined}
     >
@@ -129,17 +204,23 @@ export const OperationButton: React.FC<OperationButtonProps> = ({
     </a>
   );
 
-  // 需要确认的操作
-  if (confirmText && !disabled) {
+  // 需要确认的操作（普通确认，非删除或没有 deleteConfig）
+  if (confirmText && !disabled && !deleteConfig) {
     return (
       <Popconfirm
         title={confirmText}
         description={confirmDescription}
         onConfirm={handleClick}
+        icon={<ExclamationCircleOutlined style={{ color: '#faad14' }} />}
       >
         {buttonContent}
       </Popconfirm>
     );
+  }
+
+  // 删除操作且有 deleteConfig，点击时触发增强确认
+  if (type === 'delete' && deleteConfig && !disabled) {
+    return buttonContent;
   }
 
   return buttonContent;

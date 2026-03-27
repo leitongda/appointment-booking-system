@@ -32,6 +32,7 @@ from app.models.appointment import Appointment
 from app.models.store import Store
 from app.models.admin import Admin, Role
 from app.models.rule_set import RuleSet, ShiftType
+from app.models.tenant import Tenant, SubscriptionPlan
 from app.modules.appointments.service import AppointmentService
 
 
@@ -108,16 +109,64 @@ def mock_redis():
         yield mock
 
 
+@pytest_asyncio.fixture
+async def redis_client():
+    """创建 Redis 客户端 Mock（用于缓存隔离测试）"""
+    from redis.asyncio import Redis
+    client = AsyncMock(spec=Redis)
+    client.get.return_value = "mock_value"
+    client.set.return_value = True
+    client.eval.return_value = 1
+    client.delete.return_value = True
+    client.keys.return_value = []
+    client.scan.return_value = (0, [])
+    # 模拟 keys 方法返回匹配的键
+    async def mock_keys(pattern):
+        return []
+    client.keys = mock_keys
+    yield client
+
+
 # ==================== 测试数据 Fixtures ====================
 
 @pytest_asyncio.fixture
-async def test_store(db_session: AsyncSession) -> Store:
+async def test_tenant(db_session: AsyncSession) -> Tenant:
+    """创建测试租户"""
+    plan = SubscriptionPlan(
+        id=str(uuid4()),
+        plan_code="test_plan",
+        name="测试计划",
+        status=1,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(plan)
+    await db_session.flush()
+
+    tenant = Tenant(
+        id=str(uuid4()),
+        tenant_code="test_tenant",
+        name="测试租户",
+        status=1,
+        subscription_plan_id=plan.id,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(tenant)
+    await db_session.commit()
+    await db_session.refresh(tenant)
+    return tenant
+
+
+@pytest_asyncio.fixture
+async def test_store(db_session: AsyncSession, test_tenant: Tenant) -> Store:
     """创建测试门店"""
     store = Store(
         id=str(uuid4()),
         name="测试门店",
         address="测试地址",
         phone="13800138000",
+        tenant_id=test_tenant.id,
         status=1,
         created_at=datetime.now(),
         updated_at=datetime.now(),
@@ -129,12 +178,13 @@ async def test_store(db_session: AsyncSession) -> Store:
 
 
 @pytest_asyncio.fixture
-async def test_department(db_session: AsyncSession, test_store: Store) -> Department:
+async def test_department(db_session: AsyncSession, test_tenant: Tenant, test_store: Store) -> Department:
     """创建测试科室"""
     dept = Department(
         id=str(uuid4()),
         name="测试科室",
         store_id=test_store.id,
+        tenant_id=test_tenant.id,
         status=1,
         created_at=datetime.now(),
         updated_at=datetime.now(),
@@ -146,7 +196,7 @@ async def test_department(db_session: AsyncSession, test_store: Store) -> Depart
 
 
 @pytest_asyncio.fixture
-async def test_doctor(db_session: AsyncSession, test_department: Department, test_store: Store) -> Doctor:
+async def test_doctor(db_session: AsyncSession, test_tenant: Tenant, test_department: Department, test_store: Store) -> Doctor:
     """创建测试医生"""
     doctor = Doctor(
         id=str(uuid4()),
@@ -154,6 +204,7 @@ async def test_doctor(db_session: AsyncSession, test_department: Department, tes
         title="主治医师",
         department_id=test_department.id,
         store_id=test_store.id,
+        tenant_id=test_tenant.id,
         status=1,
         created_at=datetime.now(),
         updated_at=datetime.now(),
@@ -165,13 +216,14 @@ async def test_doctor(db_session: AsyncSession, test_department: Department, tes
 
 
 @pytest_asyncio.fixture
-async def test_user(db_session: AsyncSession) -> User:
+async def test_user(db_session: AsyncSession, test_tenant: Tenant) -> User:
     """创建测试用户"""
     user = User(
         id=str(uuid4()),
         phone="13800138001",
         password_hash="$2b$12$test_hash_not_for_production",  # 测试用密码哈希
         nickname="测试用户",
+        tenant_id=test_tenant.id,
         status=1,
         created_at=datetime.now(),
         updated_at=datetime.now(),
@@ -183,7 +235,7 @@ async def test_user(db_session: AsyncSession) -> User:
 
 
 @pytest_asyncio.fixture
-async def test_patient(db_session: AsyncSession, test_user: User) -> Patient:
+async def test_patient(db_session: AsyncSession, test_tenant: Tenant, test_user: User) -> Patient:
     """创建测试就诊人"""
     patient = Patient(
         id=str(uuid4()),
@@ -192,6 +244,7 @@ async def test_patient(db_session: AsyncSession, test_user: User) -> Patient:
         phone="13800138002",
         id_card="110101199001011234",
         is_default=True,
+        tenant_id=test_tenant.id,
         created_at=datetime.now(),
         updated_at=datetime.now(),
     )
@@ -202,13 +255,14 @@ async def test_patient(db_session: AsyncSession, test_user: User) -> Patient:
 
 
 @pytest_asyncio.fixture
-async def test_schedule(db_session: AsyncSession, test_doctor: Doctor, test_store: Store) -> Schedule:
+async def test_schedule(db_session: AsyncSession, test_tenant: Tenant, test_doctor: Doctor, test_store: Store) -> Schedule:
     """创建测试排班（明天上午）"""
     tomorrow = date.today() + timedelta(days=1)
     schedule = Schedule(
         id=str(uuid4()),
         doctor_id=test_doctor.id,
         store_id=test_store.id,
+        tenant_id=test_tenant.id,
         schedule_date=tomorrow,
         time_slot="AM",
         start_time=time(8, 0),
@@ -226,13 +280,14 @@ async def test_schedule(db_session: AsyncSession, test_doctor: Doctor, test_stor
 
 
 @pytest_asyncio.fixture
-async def test_schedule_full(db_session: AsyncSession, test_doctor: Doctor, test_store: Store) -> Schedule:
+async def test_schedule_full(db_session: AsyncSession, test_tenant: Tenant, test_doctor: Doctor, test_store: Store) -> Schedule:
     """创建已满的测试排班"""
     tomorrow = date.today() + timedelta(days=1)
     schedule = Schedule(
         id=str(uuid4()),
         doctor_id=test_doctor.id,
         store_id=test_store.id,
+        tenant_id=test_tenant.id,
         schedule_date=tomorrow,
         time_slot="AM",
         start_time=time(8, 0),
@@ -252,6 +307,7 @@ async def test_schedule_full(db_session: AsyncSession, test_doctor: Doctor, test
 @pytest_asyncio.fixture
 async def test_appointment(
     db_session: AsyncSession,
+    test_tenant: Tenant,
     test_schedule: Schedule,
     test_patient: Patient,
     test_doctor: Doctor,
@@ -265,6 +321,7 @@ async def test_appointment(
         patient_id=test_patient.id,
         doctor_id=test_doctor.id,
         schedule_id=test_schedule.id,
+        tenant_id=test_tenant.id,
         queue_number=1,
         status=1,  # 已预约
         patient_name=test_patient.name,
@@ -446,7 +503,7 @@ def assert_schedule_booked_slots(schedule: Schedule, expected: int):
 # ==================== 管理员和角色 Fixtures ====================
 
 @pytest_asyncio.fixture
-async def test_super_admin_role(db_session: AsyncSession) -> Role:
+async def test_super_admin_role(db_session: AsyncSession, test_tenant: Tenant) -> Role:
     """创建测试超级管理员角色"""
     import json
     role = Role(
@@ -454,6 +511,7 @@ async def test_super_admin_role(db_session: AsyncSession) -> Role:
         name="超级管理员",
         code="SUPER_ADMIN",
         description="系统超级管理员",
+        tenant_id=test_tenant.id,
         status=1,
         permissions=json.dumps(["*"]),
         created_at=datetime.now(),
@@ -466,7 +524,7 @@ async def test_super_admin_role(db_session: AsyncSession) -> Role:
 
 
 @pytest_asyncio.fixture
-async def test_store_admin_role(db_session: AsyncSession) -> Role:
+async def test_store_admin_role(db_session: AsyncSession, test_tenant: Tenant) -> Role:
     """创建测试门店管理员角色"""
     import json
     role = Role(
@@ -474,6 +532,7 @@ async def test_store_admin_role(db_session: AsyncSession) -> Role:
         name="门店管理员",
         code="STORE_ADMIN",
         description="门店管理员",
+        tenant_id=test_tenant.id,
         status=1,
         permissions=json.dumps([]),
         created_at=datetime.now(),
@@ -486,7 +545,7 @@ async def test_store_admin_role(db_session: AsyncSession) -> Role:
 
 
 @pytest_asyncio.fixture
-async def test_super_admin(db_session: AsyncSession, test_super_admin_role: Role, test_store: Store) -> Admin:
+async def test_super_admin(db_session: AsyncSession, test_tenant: Tenant, test_super_admin_role: Role, test_store: Store) -> Admin:
     """创建测试超级管理员"""
     import bcrypt
     admin = Admin(
@@ -497,6 +556,7 @@ async def test_super_admin(db_session: AsyncSession, test_super_admin_role: Role
         phone="13800138888",
         role_id=test_super_admin_role.id,
         current_store_id=test_store.id,
+        tenant_id=test_tenant.id,
         status=1,
         created_at=datetime.now(),
         updated_at=datetime.now(),
@@ -508,7 +568,7 @@ async def test_super_admin(db_session: AsyncSession, test_super_admin_role: Role
 
 
 @pytest_asyncio.fixture
-async def test_store_admin(db_session: AsyncSession, test_store_admin_role: Role, test_store: Store) -> Admin:
+async def test_store_admin(db_session: AsyncSession, test_tenant: Tenant, test_store_admin_role: Role, test_store: Store) -> Admin:
     """创建测试门店管理员"""
     import bcrypt
     admin = Admin(
@@ -519,6 +579,7 @@ async def test_store_admin(db_session: AsyncSession, test_store_admin_role: Role
         phone="13800138999",
         role_id=test_store_admin_role.id,
         current_store_id=test_store.id,
+        tenant_id=test_tenant.id,
         status=1,
         created_at=datetime.now(),
         updated_at=datetime.now(),

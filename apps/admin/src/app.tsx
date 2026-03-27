@@ -1,5 +1,6 @@
 import { AvatarDropdown, AvatarName } from '@/components/RightContent';
 import { FullscreenButton, NotificationButton, RefreshButton, SpacingButton, StoreSwitcher } from '@/components/HeaderActions';
+import TenantSwitcher from '@/components/TenantSwitcher';
 import { getToken, removeToken, setStorage, STORAGE_KEYS, handleTokenExpired, initTracker, getTracker } from '@hospital/shared';
 import { adminApi, setBaseURL } from '@hospital/api';
 import type { Settings as LayoutSettings, MenuDataItem } from '@ant-design/pro-components';
@@ -232,6 +233,7 @@ export async function getInitialState(): Promise<{
   currentUser?: API.CurrentUser;
   currentStore?: StoreInfo;
   userStores?: StoreInfo[];
+  currentTenantId?: string;
   loading?: boolean;
   fetchUserInfo?: () => Promise<API.CurrentUser | undefined>;
 }> {
@@ -252,7 +254,7 @@ export async function getInitialState(): Promise<{
   // 如果是登录页面，不执行获取用户信息
   if (location.pathname !== loginPath && token) {
     const currentUser = await fetchUserInfo();
-    
+
     // 从 localStorage 获取登录时保存的门店信息
     let currentStore: StoreInfo | undefined;
     try {
@@ -263,15 +265,19 @@ export async function getInitialState(): Promise<{
     } catch (e) {
       console.error('Failed to parse store info', e);
     }
-    
+
+    // 从 localStorage 获取当前租户 ID
+    const currentTenantId = localStorage.getItem('hospital_current_tenant_id') || undefined;
+
     // 获取用户绑定的门店列表
     const userStores = currentUser?.stores || [];
-    
+
     return {
       fetchUserInfo,
       currentUser,
       currentStore,
       userStores,
+      currentTenantId,
       settings: defaultSettings as Partial<LayoutSettings>,
     };
   }
@@ -298,6 +304,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
 
   return {
     actionsRender: () => [
+      <TenantSwitcher key="tenant" />,
       <StoreSwitcher key="store" />,
       <SpacingButton key="spacing" />,
       <RefreshButton key="refresh" />,

@@ -6,7 +6,7 @@ from email.utils import formataddr
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.settings_service import SettingsService
+from app.modules.settings.service import SettingsService
 from app.services.email_template_service import EmailTemplateService
 
 

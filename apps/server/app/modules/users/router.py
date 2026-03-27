@@ -17,7 +17,7 @@ from app.schemas.user import (
     UserUpdate,
 )
 from app.infrastructure.storage import get_storage
-from app.services.user_service import PatientService, UserService
+from app.modules.users.service import PatientService, UserService
 
 router = APIRouter()
 

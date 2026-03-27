@@ -13,7 +13,7 @@ from app.schemas.custom_schedule import (
     CustomScheduleResponse,
 )
 from app.schemas.response import PageResponse
-from app.services.schedule_service import ScheduleService
+from app.modules.schedules.service import ScheduleService
 from app.models.schedule import Schedule
 from app.models.rest_day import RestDay
 from app.utils.schedule_utils import get_time_slot_from_time

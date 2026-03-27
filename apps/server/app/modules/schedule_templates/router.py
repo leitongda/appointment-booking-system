@@ -27,7 +27,7 @@ from app.schemas.schedule_generation_log import (
     BatchOperateResponse,
 )
 from app.schemas.response import PageResponse
-from app.services.schedule_template_service import ScheduleTemplateService
+from app.modules.schedule_templates.service import ScheduleTemplateService
 from datetime import time as time_type
 from app.core.config import settings
 
@@ -348,7 +348,7 @@ async def preview_generate_schedules(
         should_generate_schedule,
         calculate_working_duration,
     )
-    from app.services.settings_service import SettingsService
+    from app.modules.settings.service import SettingsService
     
     service = ScheduleTemplateService(db)
     settings_service = SettingsService(db)

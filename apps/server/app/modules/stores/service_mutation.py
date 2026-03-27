@@ -19,13 +19,18 @@ class StoreMutationMixin:
             if existing:
                 raise ValueError(f"门店编码 {data.code} 已存在")
 
-        # 配额检查
+        # 配额检查（获取当前租户ID）
         from app.common.quota import check_quota
-        await check_quota(None, "stores", self.db)
+        from app.middleware.tenant_context import get_current_tenant_id
+        tenant_id = get_current_tenant_id()
+        await check_quota(tenant_id, "stores", self.db)
 
         store_data = data.model_dump()
         if not store_data.get("password"):
             store_data["password"] = "123456"
+
+        # 设置租户ID
+        store_data["tenant_id"] = tenant_id
 
         store = Store(id=str(uuid.uuid4()), **store_data)
         set_create_audit(store, operator_id)
@@ -80,9 +85,15 @@ class StoreMutationMixin:
         return store
 
     async def batch_bind_departments(self, store_id: str, department_ids: List[str]) -> int:
+        from app.middleware.tenant_context import get_current_tenant_id
         store = await self.get_by_id(store_id)
         if not store:
             raise ValueError("门店不存在")
+
+        # 租户隔离校验
+        tenant_id = get_current_tenant_id()
+        if tenant_id and store.tenant_id and store.tenant_id != tenant_id:
+            raise ValueError("无权操作此门店")
 
         current_departments = await self.get_departments(store_id)
         current_ids = {d.id for d in current_departments}
@@ -105,9 +116,15 @@ class StoreMutationMixin:
         return len(department_ids)
 
     async def batch_bind_admins(self, store_id: str, admin_ids: List[str]) -> int:
+        from app.middleware.tenant_context import get_current_tenant_id
         store = await self.get_by_id(store_id)
         if not store:
             raise ValueError("门店不存在")
+
+        # 租户隔离校验
+        tenant_id = get_current_tenant_id()
+        if tenant_id and store.tenant_id and store.tenant_id != tenant_id:
+            raise ValueError("无权操作此门店")
 
         current_admins = await self.get_admins(store_id)
         current_ids = {a.id for a in current_admins}

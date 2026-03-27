@@ -20,7 +20,7 @@ from app.modules.admin.schemas import (
     UserStatusResponse,
 )
 from app.schemas.response import PageResponse
-from app.services.admin_service import OperationLogService
+from app.modules.admin.service_logs import OperationLogService
 
 router = APIRouter()
 
@@ -57,7 +57,9 @@ async def get_operation_logs(
 async def get_online_users(
     current_admin: dict = Depends(get_current_admin),
 ):
-    sessions = await RedisCache.get_all_admin_sessions()
+    # 非超管仅查看当前租户的在线用户，超管可查看全部
+    tenant_id = None if current_admin.get("is_super_admin") else current_admin.get("tenant_id")
+    sessions = await RedisCache.get_all_admin_sessions(tenant_id=tenant_id)
     return [
         OnlineUserResponse(
             admin_id=session.get("admin_id", ""),
@@ -85,7 +87,12 @@ async def kick_online_user(
     if admin_id == current_admin.get("id"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="不能强制自己下线")
 
-    session = await RedisCache.get_admin_session(admin_id)
+    # 获取被踢管理员的租户ID，用于构建租户隔离的 Redis 键
+    result = await db.execute(select(Admin).where(Admin.id == admin_id))
+    target_admin = result.scalar_one_or_none()
+    target_tenant_id = target_admin.tenant_id if target_admin else None
+
+    session = await RedisCache.get_admin_session(admin_id, tenant_id=target_tenant_id)
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不在线，无法执行此操作")
 
@@ -107,11 +114,11 @@ async def kick_online_user(
             await db.commit()
 
     token_hash = session.get("token_hash")
-    session_key = f"{RedisCache.PREFIX_ADMIN_SESSION}{admin_id}"
+    session_key = RedisCache._build_admin_session_key(admin_id, tenant_id=target_tenant_id)
     ttl = await RedisCache.ttl(session_key)
     if token_hash and ttl > 0:
-        await RedisCache.add_token_to_blacklist(token_hash, ttl)
-    await RedisCache.delete_admin_session(admin_id)
+        await RedisCache.add_token_to_blacklist(token_hash, ttl, tenant_id=target_tenant_id)
+    await RedisCache.delete_admin_session(admin_id, tenant_id=target_tenant_id)
     return {"message": "用户已强制下线"}
 
 
@@ -120,7 +127,9 @@ async def get_user_status(
     current_admin: dict = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    sessions = await RedisCache.get_all_admin_sessions()
+    # 非超管仅查看当前租户的在线用户，超管可查看全部
+    tenant_id = None if current_admin.get("is_super_admin") else current_admin.get("tenant_id")
+    sessions = await RedisCache.get_all_admin_sessions(tenant_id=tenant_id)
     online_admin_ids = {s.get("admin_id") for s in sessions}
     session_map = {s.get("admin_id"): s for s in sessions}
 

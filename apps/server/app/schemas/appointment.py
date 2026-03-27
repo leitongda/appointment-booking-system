@@ -65,19 +65,22 @@ class AppointmentResponse(BaseModel):
 
 
 class AppointmentListQuery(BaseModel):
-    """预约列表查询参数"""
+    """预约列表查询参数
+
+    注意：当 page_size > 100 时，需要管理员权限且必须提供 start_date 和 end_date。
+    """
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,
     )
-    
+
     status: Optional[int] = Field(None, description="状态: 0待支付 1已预约 2已签到 3候诊中 4就诊中 5已完成 6已取消 7已过期 8已关闭")
     patient_id: Optional[str] = Field(None, description="就诊人ID")
     doctor_id: Optional[str] = Field(None, description="医生ID")
     start_date: Optional[date] = Field(None, description="开始日期")
     end_date: Optional[date] = Field(None, description="结束日期")
     page: int = Field(1, ge=1, description="页码")
-    page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量")
+    page_size: int = Field(10, ge=1, le=settings.APPOINTMENTS_MAX_PAGE_SIZE, description="每页数量（默认10，普通用户上限100，管理员+日期范围可至500）")
 
 
 class AppointmentCancelRequest(BaseModel):

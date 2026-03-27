@@ -9,7 +9,7 @@ from app.models.appointment import Appointment
 from app.models.schedule import Schedule
 from app.models.doctor import Doctor
 from app.models.consultation_fee import ConsultationFeeType, DoctorConsultationFee
-from app.services.visit_type_service import VisitTypeService
+from app.modules.visit_types.service import VisitTypeService
 
 
 class RevenueService:

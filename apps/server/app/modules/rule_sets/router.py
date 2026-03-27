@@ -20,8 +20,8 @@ from app.schemas.rule_set import (
     RuleCheckinPolicyCreate, RuleCheckinPolicyResponse,
     RuleCapacityPolicyCreate, RuleCapacityPolicyResponse
 )
-from app.services.rule_set_service import RuleSetService
-from app.services.rule_engine_service import RuleEngineService
+from app.modules.rule_sets.service import RuleSetService
+from app.modules.rule_engine import RuleEngineService
 from app.models.schedule import Schedule
 from app.core.config import settings
 

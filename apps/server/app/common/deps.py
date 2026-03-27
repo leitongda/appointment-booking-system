@@ -220,9 +220,10 @@ async def get_current_admin(
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="身份验证失败，请重新登录")
     
-    # 检查 Token 是否在黑名单中
+    # 检查 Token 是否在黑名单中（优先使用 payload 中的 tenant_id，确保多租户隔离）
     token_hash = hashlib.sha256(token.encode()).hexdigest()[:32]
-    if await RedisCache.is_token_blacklisted(token_hash):
+    token_tenant_id = payload.get("tenant_id")
+    if await RedisCache.is_token_blacklisted(token_hash, tenant_id=token_tenant_id):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="登录已失效，请重新登录")
     
     admin_id = payload.get("sub")
@@ -844,15 +845,7 @@ def get_tenant_filter(current_admin: dict) -> Optional[str]:
         return None
 
     # 租户管理员只能查看本租户数据
-    tenant_id = current_admin.get("tenant_id")
-    if not tenant_id:
-        # 如果管理员没有关联租户，尝试从门店推断
-        store_ids = current_admin.get("store_ids", [])
-        if store_ids:
-            # 有绑定门店但没有租户，返回 None（兼容旧数据）
-            return None
-
-    return tenant_id
+    return current_admin.get("tenant_id")
 
 
 async def check_tenant_access(
@@ -881,26 +874,16 @@ async def get_tenant_from_admin(
 ) -> Optional[dict]:
     """从当前管理员获取租户信息
 
-    如果管理员关联了租户，返回租户详情。
-    如果是平台管理员，返回 None。
+    如果管理员关联了租户，返回租户详情（含订阅计划状态）。
+    平台管理员（tenant_id 为 NULL）返回 None。
+
+    注意：tenant_id 直接从 admin 记录获取（P0 多租户修复后所有管理员均已关联 tenant_id），
+    不再通过门店反查推断。
     """
     if current_admin.get("is_super_admin"):
         return None
 
     tenant_id = current_admin.get("tenant_id")
-    if not tenant_id:
-        # 尝试从门店推断租户
-        store_ids = current_admin.get("store_ids", [])
-        if store_ids:
-            # 从第一个门店推断租户
-            from app.models.store import Store
-            result = await db.execute(
-                select(Store).where(Store.id == store_ids[0])
-            )
-            store = result.scalar_one_or_none()
-            if store and store.tenant_id:
-                tenant_id = store.tenant_id
-
     if not tenant_id:
         return None
 

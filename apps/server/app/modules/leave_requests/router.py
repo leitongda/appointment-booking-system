@@ -10,7 +10,7 @@ from app.schemas.leave_request import (
     LeaveRequestResponse, LeaveRequestQuery, RequestType, RequestStatus
 )
 from app.schemas.response import PageResponse
-from app.services.leave_request_service import LeaveRequestService
+from app.modules.leave_requests.service import LeaveRequestService
 from app.core.config import settings
 
 router = APIRouter()

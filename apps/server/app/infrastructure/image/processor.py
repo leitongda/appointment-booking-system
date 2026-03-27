@@ -210,7 +210,7 @@ async def get_image_settings(db) -> tuple[list, int]:
     Returns:
         tuple: (缩略图尺寸列表, 压缩质量)
     """
-    from app.services.settings_service import SettingsService
+    from app.modules.settings.service import SettingsService
 
     settings_service = SettingsService(db)
 

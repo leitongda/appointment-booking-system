@@ -7,7 +7,7 @@ from app.middleware.exception import (
     NotFoundError,
     register_exception_handlers
 )
-from app.middleware.rate_limit import RateLimitMiddleware, endpoint_limiter
+from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.request_log import RequestLogMiddleware
 from app.middleware.tenant_context import (
     TenantContextMiddleware,
@@ -26,7 +26,6 @@ __all__ = [
     "NotFoundError",
     "register_exception_handlers",
     "RateLimitMiddleware",
-    "endpoint_limiter",
     "RequestLogMiddleware",
     "TenantContextMiddleware",
     "TenantContext",

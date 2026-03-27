@@ -10,7 +10,7 @@ from app.models.schedule import Schedule
 from app.models.user import Patient
 from app.models.doctor import Doctor
 from app.models.department import Department
-from app.services.excel_service import ExcelExportService
+from app.infrastructure.excel.export_service import ExcelExportService
 
 
 class ExportService:
@@ -27,6 +27,7 @@ class ExportService:
         doctor_id: Optional[str] = None,
         department_id: Optional[str] = None,
         store_ids: Optional[Union[str, List[str]]] = None,
+        tenant_id: Optional[str] = None,
     ) -> tuple[bytes, str]:
         """导出预约记录
 
@@ -35,6 +36,7 @@ class ExportService:
                 - None: 不过滤（超管）
                 - str: 单个门店ID
                 - List[str]: 多个门店ID列表
+            tenant_id: 租户ID，用于租户隔离
         """
         query = select(Appointment).options(
             selectinload(Appointment.schedule),
@@ -42,6 +44,8 @@ class ExportService:
         )
 
         conditions = []
+        if tenant_id:
+            conditions.append(Appointment.tenant_id == tenant_id)
         if start_date:
             query = query.join(Schedule)
             conditions.append(Schedule.schedule_date >= start_date)
@@ -116,15 +120,21 @@ class ExportService:
         self,
         keyword: Optional[str] = None,
         store_ids: Optional[Union[str, List[str]]] = None,
+        tenant_id: Optional[str] = None,
     ) -> tuple[bytes, str]:
         """导出患者列表
 
         注意：患者表没有直接的 store_id 字段，此过滤条件暂不生效。
         如需按门店过滤患者，需要通过预约记录关联查询。
+
+        Args:
+            tenant_id: 租户ID，用于租户隔离
         """
         query = select(Patient)
 
         conditions = []
+        if tenant_id:
+            conditions.append(Patient.tenant_id == tenant_id)
         if keyword:
             conditions.append(
                 or_(
@@ -178,6 +188,7 @@ class ExportService:
         end_date: Optional[date] = None,
         doctor_id: Optional[str] = None,
         store_ids: Optional[Union[str, List[str]]] = None,
+        tenant_id: Optional[str] = None,
     ) -> tuple[bytes, str]:
         """导出排班记录
 
@@ -186,12 +197,15 @@ class ExportService:
                 - None: 不过滤（超管）
                 - str: 单个门店ID
                 - List[str]: 多个门店ID列表
+            tenant_id: 租户ID，用于租户隔离
         """
         query = select(Schedule).options(
             selectinload(Schedule.doctor).selectinload(Doctor.department)
         )
 
         conditions = []
+        if tenant_id:
+            conditions.append(Schedule.tenant_id == tenant_id)
         if start_date:
             conditions.append(Schedule.schedule_date >= start_date)
         if end_date:
