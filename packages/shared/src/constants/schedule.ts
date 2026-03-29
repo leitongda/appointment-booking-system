@@ -134,25 +134,39 @@ export const WEEKDAY_OPTIONS = [
 
 /**
  * 获取当前日期信息（用于显示）
+ * 使用 ISO 8601 标准计算周数，与后端保持一致
  */
 export function getDateInfo(date: Date = new Date()): {
   monthWeek: number;
   yearWeek: number;
   isOddWeek: boolean;
 } {
-  // 计算月内周数：1-7号为第1周，8-14号为第2周，以此类推
+  // 计算月内周数：1-7号为第1周，8-14号为第2周，以此类推（与后端一致）
   const monthWeek = Math.ceil(date.getDate() / 7);
-  
-  // 计算年内周数
-  const startOfYear = new Date(date.getFullYear(), 0, 1);
-  const days = Math.floor((date.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000));
-  const yearWeek = Math.ceil((days + startOfYear.getDay() + 1) / 7);
-  
+
+  // 计算年内周数（使用 ISO 8601 标准，与后端 d.isocalendar()[1] 保持一致）
+  // dayjs 的 isoWeek 返回 ISO 周数
+  const yearWeek = getIsoWeek(date);
+
   return {
     monthWeek,
     yearWeek,
     isOddWeek: yearWeek % 2 === 1,
   };
+}
+
+/**
+ * 获取 ISO 8601 标准的年内周数
+ * 与 Python 的 date.isocalendar()[1] 保持一致
+ */
+function getIsoWeek(date: Date): number {
+  // 使用临时 dayjs 对象计算 ISO 周数
+  // 这里避免直接导入 dayjs，使用纯 JS 实现
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
 }
 
 // 时间格式验证正则：HH:mm

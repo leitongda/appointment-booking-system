@@ -3,8 +3,9 @@ import type { ProFormInstance } from '@ant-design/pro-components';
 import { Card, App, Button, Space, Row, Col, Collapse, TimePicker, Divider, Typography } from 'antd';
 import { PlusOutlined, DeleteOutlined, SettingOutlined } from '@ant-design/icons';
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { history, useParams, useAccess, useModel } from '@umijs/max';
-import { scheduleTemplateApi, storeApi, departmentApi, doctorApi } from '@hospital/api';
+import { history, useParams, useAccess } from '@umijs/max';
+import { scheduleTemplateApi, departmentApi, doctorApi } from '@hospital/api';
+import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import { fetchAllData } from '@/utils/fetchAllData';
 import type { ScheduleTemplate, Doctor, Department, Store, BreakTime } from '@hospital/shared';
 import {
@@ -40,15 +41,12 @@ const ScheduleRuleFormPage: React.FC = () => {
   const { message } = App.useApp();
   const { id } = useParams();
   const access = useAccess();
-  const { initialState } = useModel('@@initialState');
-  const { currentUser } = initialState ?? {};
-  const isSuperAdmin = access.canSuperAdmin;
+  const { stores } = useStoreWithPermission({ enabledOnly: true });
   const isEdit = !!id;
   const [loading, setLoading] = useState(false);
   const [template, setTemplate] = useState<ScheduleTemplate | null>(null);
   const formRef = useRef<ProFormInstance>();
 
-  const [stores, setStores] = useState<Store[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [selectedDept, setSelectedDept] = useState<string>();
@@ -62,7 +60,6 @@ const ScheduleRuleFormPage: React.FC = () => {
   const dateInfo = useMemo(() => getDateInfo(), []);
 
   useEffect(() => {
-    loadStores();
     loadDepartments();
     if (isEdit) {
       loadTemplate();
@@ -76,20 +73,6 @@ const ScheduleRuleFormPage: React.FC = () => {
       setDoctors([]);
     }
   }, [selectedDept]);
-
-  const loadStores = async () => {
-    try {
-      const data = await storeApi.getAll();
-      let storeList = data ?? [];
-      // 非超管只显示其关联的门店
-      if (!isSuperAdmin && currentUser?.storeIds?.length) {
-        storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
-      }
-      setStores(storeList);
-    } catch (error) {
-      console.error('加载门店失败', error);
-    }
-  };
 
   const loadDepartments = async () => {
     try {

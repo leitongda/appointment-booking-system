@@ -2,37 +2,43 @@
  * 常量定义
  */
 
-// 预约状态
+// 预约状态（与后端API保持一致）
 export const APPOINTMENT_STATUS = {
-  PENDING: 1,      // 已预约
+  PENDING: 0,      // 待支付
+  CONFIRMED: 1,    // 已预约
   SIGNED_IN: 2,    // 已签到
-  IN_PROGRESS: 3,  // 就诊中
-  COMPLETED: 4,    // 已完成
-  CANCELLED: 5,    // 已取消
-  NO_SHOW: 6,      // 爽约
-  PASSED: 7        // 已过号
+  WAITING: 3,      // 候诊中
+  IN_PROGRESS: 4,  // 就诊中
+  COMPLETED: 5,    // 已完成
+  CANCELLED: 6,    // 已取消
+  EXPIRED: 7,      // 已过期
+  NO_SHOW: 8,      // 爽约
 } as const;
 
 // 预约状态文本映射
 export const APPOINTMENT_STATUS_TEXT = {
-  [APPOINTMENT_STATUS.PENDING]: '已预约',
+  [APPOINTMENT_STATUS.PENDING]: '待支付',
+  [APPOINTMENT_STATUS.CONFIRMED]: '已预约',
   [APPOINTMENT_STATUS.SIGNED_IN]: '已签到',
+  [APPOINTMENT_STATUS.WAITING]: '候诊中',
   [APPOINTMENT_STATUS.IN_PROGRESS]: '就诊中',
   [APPOINTMENT_STATUS.COMPLETED]: '已完成',
   [APPOINTMENT_STATUS.CANCELLED]: '已取消',
+  [APPOINTMENT_STATUS.EXPIRED]: '已过期',
   [APPOINTMENT_STATUS.NO_SHOW]: '爽约',
-  [APPOINTMENT_STATUS.PASSED]: '已过号'
 } as const;
 
 // 预约状态颜色
 export const APPOINTMENT_STATUS_COLOR = {
-  [APPOINTMENT_STATUS.PENDING]: '#1890ff',
+  [APPOINTMENT_STATUS.PENDING]: 'orange',
+  [APPOINTMENT_STATUS.CONFIRMED]: '#1890ff',
   [APPOINTMENT_STATUS.SIGNED_IN]: '#52c41a',
+  [APPOINTMENT_STATUS.WAITING]: '#722ed1',
   [APPOINTMENT_STATUS.IN_PROGRESS]: '#faad14',
-  [APPOINTMENT_STATUS.COMPLETED]: '#999999',
-  [APPOINTMENT_STATUS.CANCELLED]: '#f5222d',
+  [APPOINTMENT_STATUS.COMPLETED]: '#52c41a',
+  [APPOINTMENT_STATUS.CANCELLED]: '#d9d9d9',
+  [APPOINTMENT_STATUS.EXPIRED]: '#d9d9d9',
   [APPOINTMENT_STATUS.NO_SHOW]: '#f5222d',
-  [APPOINTMENT_STATUS.PASSED]: '#999999'
 } as const;
 
 // 性别

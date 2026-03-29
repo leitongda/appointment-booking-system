@@ -136,7 +136,6 @@ class AppointmentBookingService(AppointmentServiceBase):
                                 [
                                     APPOINTMENT_STATUS["CONFIRMED"],
                                     APPOINTMENT_STATUS["SIGNED"],
-                                    APPOINTMENT_STATUS["WAITING"],
                                 ]
                             ),
                         )

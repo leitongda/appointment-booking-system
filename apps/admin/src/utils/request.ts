@@ -101,18 +101,20 @@ export const setupResponseInterceptor = () => {
       if (error instanceof ApiError) {
         const { code, message: errorMessage } = error;
         
-        // 401 未授权 - 弹框确认后跳转到登录页
+        // 401 未授权 - 弹框确认后跳转登录页
         if (error.isUnauthorized()) {
+          // 登录页不弹框
+          if (window.location.pathname === '/login') return;
           handleTokenExpired(() => {
             Modal.confirm({
               title: '登录已过期',
               content: errorMessage || '您的登录已失效，请重新登录。',
               okText: '重新登录',
-              cancelText: '留在当前页',
-              closable: true,
+              cancelButtonProps: { style: { display: 'none' } },
+              closable: false,
               maskClosable: false,
               onOk: () => {
-                history.push('/login');
+                window.location.href = '/login';
               },
             });
           });

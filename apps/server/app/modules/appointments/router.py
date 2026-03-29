@@ -1,125 +1,17 @@
 """预约 API - 聚合路由"""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from typing import Optional
-from datetime import date, datetime
 
 from app.db.session import get_db
-from app.api.deps import get_current_user, get_current_user_or_admin, get_store_filter, get_current_admin
+from app.api.deps import get_current_user_or_admin
 from app.schemas.appointment import AppointmentCreate, AppointmentResponse, AppointmentCancelRequest
-from app.schemas.response import PageResponse, ErrorResponse
+from app.schemas.response import ErrorResponse
 from app.modules.appointments.service import AppointmentService
-from app.core.config import settings
 
-
-# 常规分页上限（超过此值需要管理员权限+日期范围）
-PAGE_SIZE_STANDARD_LIMIT = 100
 
 router = APIRouter()
 
 # ==================== 根级别操作（保持在主路由器中以避免路径冲突） ====================
-
-@router.get("", response_model=PageResponse[AppointmentResponse], summary="获取预约列表")
-async def get_appointments(
-    status_filter: Optional[int] = Query(None, alias="status"),
-    patient_id: Optional[str] = None,
-    store_id: Optional[str] = None,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    keyword: Optional[str] = None,
-    doctor_id: Optional[str] = None,
-    department_id: Optional[str] = None,
-    created_start: Optional[datetime] = None,
-    created_end: Optional[datetime] = None,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=settings.APPOINTMENTS_MAX_PAGE_SIZE),
-    db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user_or_admin)
-):
-    """获取预约列表
-
-    分页规则：
-    - 默认 page_size=10
-    - 常规上限为 100
-    - 当 page_size > 100 时，需要管理员权限且必须提供 start_date 和 end_date
-    """
-    # 分页参数校验：超过100需要管理员权限+日期范围
-    if page_size > PAGE_SIZE_STANDARD_LIMIT:
-        is_admin = current_user.get("is_admin", False)
-        if not is_admin:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail={
-                    "code": "PAGE_SIZE_REQUIRES_ADMIN",
-                    "message": f"page_size > {PAGE_SIZE_STANDARD_LIMIT} 需要管理员权限",
-                    "hint": f"当前 page_size={page_size}，普通用户上限为 {PAGE_SIZE_STANDARD_LIMIT}"
-                }
-            )
-        if not start_date or not end_date:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail={
-                    "code": "PAGE_SIZE_REQUIRES_DATE_RANGE",
-                    "message": f"page_size > {PAGE_SIZE_STANDARD_LIMIT} 必须提供 start_date 和 end_date",
-                    "hint": "请提供日期范围以限制查询数据量"
-                }
-            )
-
-    service = AppointmentService(db)
-    user_id = None if current_user.get("is_admin") else current_user["id"]
-
-    if current_user.get("is_admin"):
-        store_filter = get_store_filter(current_user)
-        if store_filter:
-            store_id = store_filter
-
-    appointments, total = await service.get_list(
-        user_id=user_id,
-        store_id=store_id,
-        status=status_filter,
-        patient_id=patient_id,
-        start_date=start_date,
-        end_date=end_date,
-        keyword=keyword,
-        doctor_id=doctor_id,
-        department_id=department_id,
-        created_start=created_start,
-        created_end=created_end,
-        page=page,
-        page_size=page_size
-    )
-
-    result = []
-    for a in appointments:
-        result.append(AppointmentResponse(
-            id=a.id,
-            appointment_no=a.appointment_no,
-            user_id=a.user_id,
-            patient_id=a.patient_id,
-            patient_name=a.patient_name,
-            patient_phone=a.patient_phone,
-            doctor_id=a.doctor_id,
-            doctor_name=a.doctor_name,
-            doctor_title=a.doctor_title,
-            department_name=a.department_name,
-            schedule_id=a.schedule_id,
-            schedule_date=a.schedule.schedule_date if a.schedule else None,
-            time_slot=a.schedule.time_slot if a.schedule else None,
-            start_time=a.schedule.start_time if a.schedule else None,
-            end_time=a.schedule.end_time if a.schedule else None,
-            queue_number=a.queue_number,
-            status=a.status,
-            sign_in_time=a.sign_in_time,
-            call_time=a.call_time,
-            complete_time=a.complete_time,
-            cancel_time=a.cancel_time,
-            cancel_reason=a.cancel_reason,
-            symptom_description=a.symptom_description,
-            created_at=a.created_at
-        ))
-
-    return PageResponse(data=result, total=total, page=page, page_size=page_size)
 
 
 @router.post(

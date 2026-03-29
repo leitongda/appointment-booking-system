@@ -7,8 +7,9 @@ import {
 import { Button, App, Space, Tag, Alert, Modal, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 import { useRef, useState, useEffect, useMemo } from 'react';
-import { history, useAccess, useModel } from '@umijs/max';
-import { scheduleTemplateApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
+import { history, useAccess } from '@umijs/max';
+import { scheduleTemplateApi, doctorApi, departmentApi } from '@hospital/api';
+import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import { toProTableResult } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
 import type { ScheduleTemplate, Doctor, Department, Store, SchedulePreviewGenerateResponse } from '@hospital/shared';
@@ -29,9 +30,7 @@ import CopyRuleModal, { CopyRuleFormData } from './components/CopyRuleModal';
 const ScheduleRulePage: React.FC = () => {
   const { message, modal } = App.useApp();
   const access = useAccess();
-  const { initialState } = useModel('@@initialState');
-  const { currentUser } = initialState ?? {};
-  const isSuperAdmin = access.canSuperAdmin;
+  const { stores } = useStoreWithPermission({ enabledOnly: true });
   const actionRef = useRef<ActionType>();
   const generateFormRef = useRef<ProFormInstance>();
   const batchAddFormRef = useRef<ProFormInstance>();
@@ -52,7 +51,6 @@ const ScheduleRulePage: React.FC = () => {
   const [editedCapacities, setEditedCapacities] = useState<Record<string, number>>({});
   const [generateLoading, setGenerateLoading] = useState(false);
 
-  const [stores, setStores] = useState<Store[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [selectedDept, setSelectedDept] = useState<string>();
@@ -71,7 +69,6 @@ const ScheduleRulePage: React.FC = () => {
   const dateInfo = useMemo(() => getDateInfo(), []);
 
   useEffect(() => {
-    loadStores();
     loadDepartments();
   }, []);
 
@@ -82,19 +79,6 @@ const ScheduleRulePage: React.FC = () => {
       setDoctors([]);
     }
   }, [selectedDept]);
-
-  const loadStores = async () => {
-    try {
-      const data = await storeApi.getAll();
-      let storeList = data ?? [];
-      if (!isSuperAdmin && currentUser?.storeIds?.length) {
-        storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
-      }
-      setStores(storeList);
-    } catch (error) {
-      console.error('加载门店失败', error);
-    }
-  };
 
   const loadDepartments = async () => {
     try {

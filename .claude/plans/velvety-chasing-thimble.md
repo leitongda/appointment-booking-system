@@ -1,210 +1,77 @@
-# 跨 Tab 状态同步方案（storage 事件监听）
+# 登录页排除 + 401 弹框不可取消
 
 ## Context
 
-当前系统的认证和上下文状态（token、租户、门店）存储在 localStorage 中，各 Tab 独立运行。当用户在 Tab B 登录/登出/切换租户/切换门店后，Tab A 无法感知变化，仍然使用旧的 token 和上下文发请求，导致：
-- 数据串租户/串门店
-- 旧 token 请求报 401，触发刚做好的弹框（但用户困惑）
-- 显示的用户名/权限/菜单与实际不一致
+两个问题：
+1. 登录过期弹框在登录页也会弹出（getInitialState 或拦截器在路由切换期间触发 401）
+2. 401 弹框有"留在当前页"按钮，但 token 已被清除，留下看到的是僵尸页面，所有操作都会失败
 
-## 覆盖场景
+## 改动方案
 
-| 场景 | 触发动作 | 期望行为 |
-|------|---------|---------|
-| Tab B 登录新用户 | token 变化 | Tab A 弹框"登录账号已变更"，确认后 reload |
-| Tab B 登录同用户 | token 更新 | Tab A 静默更新 token 快照，不弹框 |
-| Tab B 登出 | token 被移除 | Tab A 弹框"已在其他页面退出登录"，确认后跳 login |
-| Tab B 切换租户 | tenant_id 变化 | Tab A 弹框"租户已切换为 XXX"，确认后 reload |
-| Tab B 切换门店 | currentStore 变化 | Tab A 弹框"门店已切换为 XXX"，确认后 reload |
+### 核心原则
 
-## 实施方案
+- **登录页不弹框**：所有弹登录过期/身份变更弹框的地方，先判断当前路由是否为 `/login`，是则跳过弹框
+- **401 弹框强制跳转**：取消"留在当前页"按钮和关闭按钮，只保留"重新登录"
 
-### 第 1 步：新增 `packages/shared/src/utils/crossTabSync.ts`
+### 改动清单
 
-核心模块，提供发布-订阅式的跨 Tab 监听。
+#### 1. `apps/admin/src/utils/request.ts` — 2 处 401 弹框
 
-```typescript
-// 关键设计：
-// 1. 监听 window 'storage' 事件（仅跨 Tab 触发，同 Tab 不触发）
-// 2. 对比关键字段的新旧值，生成变更事件
-// 3. 通过订阅者回调通知各端
-// 4. 提供判断"是否为同一用户换 token"的逻辑（解码 JWT 的 sub 字段对比）
+**第 107 行（ApiError 401）和第 165 行（原始 Axios 401）**：
 
-export type CrossTabEvent =
-  | { type: 'auth-change'; action: 'login' | 'logout' | 'switch-user'; newUserId?: string }
-  | { type: 'tenant-change'; newTenantId: string; newTenantName?: string }
-  | { type: 'store-change'; newStoreId: string; newStoreName?: string };
+- 加 `history.location.pathname !== '/login'` 判断
+- 移除 `cancelText: '留在当前页'`、`closable: true` → `closable: false`
+- 加 `cancelButtonProps: { style: { display: 'none' } }`
+- `onOk` 改用 `window.location.href = '/login'` 而非 `history.push`（确保完全重置状态）
 
-type EventHandler = (event: CrossTabEvent) => void;
+#### 2. `apps/admin/src/app.tsx` — 1 处 UmiJS 拦截器 401
 
-// 监听的 localStorage keys
-const WATCHED_KEYS = [
-  'hospital_token',            // token
-  'hospital_current_tenant_id', // 租户 ID
-  'currentStore',              // 门店信息 JSON
-];
+**第 508 行**：
 
-export function initCrossTabSync(handler: EventHandler): () => void;
-// 返回 unsubscribe 函数
+- 同样加登录页排除判断
+- 同样移除"留在当前页"和关闭按钮
 
-export function destroyCrossTabSync(): void;
-```
+#### 3. `apps/admin/src/app.tsx` — handleCrossTabEvent
 
-**内部逻辑**：
-1. `initCrossTabSync` 注册 `window.addEventListener('storage', onStorageChange)`
-2. `onStorageChange` 中判断 `event.key` 是否在 `WATCHED_KEYS` 中
-3. 根据 key 类型解析事件：
-   - `hospital_token`：对比旧 token 和新 token 的 JWT sub（用户 ID），判断是 login/logout/switch-user
-   - `hospital_current_tenant_id`：读取新值生成 tenant-change
-   - `currentStore`：解析 JSON 读取 store id/name 生成 store-change
-4. 调用 handler 通知订阅者
-5. 同步更新本地快照（防止重复触发）
+**第 154 行**：
 
-### 第 2 步：导出新模块
+- `auth-change` 的 `logout` 分支加登录页排除（在登录页不需要弹"已在其他页面退出"）
+- `auth-change` 的 `switch-user` 分支同理
 
-**`packages/shared/src/utils/index.ts`** 添加：
-```typescript
-export * from './crossTabSync';
-```
+#### 4. `apps/doctor/src/app.tsx` — 2 处
 
-### 第 3 步：Admin 端集成 `apps/admin/src/app.tsx`
+- 401 UmiJS 拦截器（第 ~172 行）：加登录页排除，移除关闭按钮
+- 跨 Tab sync（第 18 行）：加登录页排除
 
-在 `rootContainer` 函数中初始化监听（应用最早的生命周期点）：
+### 修改文件清单
+
+| 文件 | 改动点 |
+|------|--------|
+| `apps/admin/src/utils/request.ts` | 2 处 401 弹框：加登录页排除 + 移除关闭/取消按钮 |
+| `apps/admin/src/app.tsx` | 1 处 UmiJS 401 + handleCrossTabEvent：加登录页排除 |
+| `apps/doctor/src/app.tsx` | 1 处 UmiJS 401 + 跨 Tab 回调：加登录页排除 |
+
+### 统一弹框配置模板
+
+401 登录过期弹框统一为：
 
 ```typescript
-import { initCrossTabSync, destroyCrossTabSync, CrossTabEvent } from '@hospital/shared';
+// 登录页不弹框
+if (window.location.pathname === '/login') return;
 
-export function rootContainer(container: any) {
-  // ... 现有主题逻辑 ...
-
-  // 初始化跨 Tab 状态同步
-  initCrossTabSync((event: CrossTabEvent) => {
-    handleCrossTabEvent(event);
-  });
-
-  return (
-    <ConfigProvider ...>
-      <App>{container}</App>
-    </ConfigProvider>
-  );
-}
-```
-
-新增 `handleCrossTabEvent` 函数（放在 app.tsx 顶层或单独文件）：
-
-```typescript
-function handleCrossTabEvent(event: CrossTabEvent) {
-  switch (event.type) {
-    case 'auth-change':
-      if (event.action === 'logout') {
-        Modal.confirm({
-          title: '登录状态变更',
-          content: '您已在其他页面退出登录，请重新登录。',
-          okText: '重新登录',
-          cancelButtonProps: { style: { display: 'none' } }, // 不允许关闭
-          closable: false,
-          maskClosable: false,
-          onOk: () => window.location.href = '/login',
-        });
-      } else if (event.action === 'switch-user') {
-        Modal.confirm({
-          title: '登录账号已变更',
-          content: '检测到您在其他页面切换了登录账号，当前页面需要刷新以保持一致。',
-          okText: '刷新页面',
-          cancelButtonProps: { style: { display: 'none' } },
-          closable: false,
-          maskClosable: false,
-          onOk: () => window.location.reload(),
-        });
-      } else {
-        // login（同用户换 token）— 静默更新快照，不弹框
-      }
-      break;
-
-    case 'tenant-change':
-      Modal.confirm({
-        title: '租户已切换',
-        content: `租户已切换为「${event.newTenantName || event.newTenantId}」，当前页面需要刷新以保持一致。`,
-        okText: '刷新页面',
-        cancelButtonProps: { style: { display: 'none' } },
-        closable: false,
-        maskClosable: false,
-        onOk: () => window.location.reload(),
-      });
-      break;
-
-    case 'store-change':
-      Modal.confirm({
-        title: '门店已切换',
-        content: `门店已切换为「${event.newStoreName || event.newStoreId}」，当前页面需要刷新以保持一致。`,
-        okText: '刷新页面',
-        cancelButtonProps: { style: { display: 'none' } },
-        closable: false,
-        maskClosable: false,
-        onOk: () => window.location.reload(),
-      });
-      break;
-  }
-}
-```
-
-### 第 4 步：Doctor 端集成 `apps/doctor/src/app.tsx`
-
-Doctor 端没有 `rootContainer`，在文件顶层（模块初始化阶段）注册监听：
-
-```typescript
-import { initCrossTabSync, destroyCrossTabSync } from '@hospital/shared';
-
-// 初始化跨 Tab 状态同步
-initCrossTabSync((event) => {
-  // doctor 端只关心 auth-change
-  if (event.type === 'auth-change') {
-    if (event.action === 'logout') {
-      Modal.confirm({
-        title: '登录状态变更',
-        content: '您已在其他页面退出登录，请重新登录。',
-        okText: '重新登录',
-        cancelButtonProps: { style: { display: 'none' } },
-        closable: false,
-        maskClosable: false,
-        onOk: () => window.location.href = '/login',
-      });
-    } else if (event.action === 'switch-user') {
-      Modal.confirm({
-        title: '登录账号已变更',
-        content: '检测到您在其他页面切换了登录账号，当前页面需要刷新。',
-        okText: '刷新页面',
-        cancelButtonProps: { style: { display: 'none' } },
-        closable: false,
-        maskClosable: false,
-        onOk: () => window.location.reload(),
-      });
-    }
-  }
+Modal.confirm({
+  title: '登录已过期',
+  content: '您的登录已失效，请重新登录。',
+  okText: '重新登录',
+  cancelButtonProps: { style: { display: 'none' } },
+  closable: false,
+  maskClosable: false,
+  onOk: () => { window.location.href = '/login'; },
 });
 ```
 
-## 修改文件清单
+## 验证
 
-| # | 文件 | 改动 |
-|---|------|------|
-| 1 | `packages/shared/src/utils/crossTabSync.ts` | **新建**。核心监听模块，约 120 行 |
-| 2 | `packages/shared/src/utils/index.ts` | 添加一行导出 |
-| 3 | `apps/admin/src/app.tsx` | rootContainer 中 initCrossTabSync + handleCrossTabEvent 函数 |
-| 4 | `apps/doctor/src/app.tsx` | 模块顶层 initCrossTabSync + 处理函数 |
-
-## 设计要点
-
-1. **同用户换 token 不弹框**：解析 JWT sub 字段对比用户 ID，一致则静默更新快照
-2. **登出不可取消**：`cancelButtonProps: { display: 'none' }` + `closable: false`，强制用户操作
-3. **租户/门店变更不可取消**：同上，数据一致性优先
-4. **防抖**：利用已有 `handleTokenExpired` 的防抖模式，crossTabSync 内部同样需要防重复弹框（storage 事件短时间内可能连续触发多次）
-5. **cleanup**：`initCrossTabSync` 返回 unsubscribe 函数，`destroyCrossTabSync` 在 SPA 销毁时调用
-
-## 验证方式
-
-1. 打开两个 Tab 都登录用户 A → Tab B 登出 → Tab A 应弹出"已退出登录"
-2. 打开两个 Tab 登录用户 A → Tab B 登录用户 B → Tab A 应弹出"账号已变更"
-3. 打开两个 Tab → Tab B 切换租户 → Tab A 应弹出"租户已切换"
-4. 打开两个 Tab → Tab B 切换门店 → Tab A 应弹出"门店已切换"
-5. 同用户重新登录（token 刷新）→ Tab A 不应弹框
+1. 在登录页，即使后端返回 401（如旧 token 残留），不应弹框
+2. 非登录页 401 → 弹框只有一个"重新登录"按钮，不可关闭
+3. 点击"重新登录" → 跳转到 /login 并完全刷新状态

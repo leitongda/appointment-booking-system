@@ -9,10 +9,11 @@ import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 dayjs.extend(isSameOrAfter);
 dayjs.extend(isSameOrBefore);
 import { useEffect, useState, useCallback } from 'react';
-import { scheduleApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
-import type { Schedule, Doctor, Department, Store } from '@hospital/shared';
+import { scheduleApi, doctorApi, departmentApi } from '@hospital/api';
+import type { Schedule, Doctor, Department } from '@hospital/shared';
 import { APPOINTMENT_TYPE_MAP, TIME_SLOT_MAP } from '@hospital/shared';
 import { useModel, useAccess } from '@umijs/max';
+import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 
 interface DaySchedules {
   [date: string]: Schedule[];
@@ -26,15 +27,13 @@ const ScheduleDetailCalendarPage: React.FC = () => {
   const [selectedDoctor, setSelectedDoctor] = useState<string>();
   const [selectedDepartment, setSelectedDepartment] = useState<string>();
   const [selectedStore, setSelectedStore] = useState<string>();
-  
+
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [stores, setStores] = useState<Store[]>([]);
-  
+
   const { initialState } = useModel('@@initialState');
   const access = useAccess();
-  const { currentUser } = initialState ?? {};
-  const isSuperAdmin = access.canSuperAdmin;
+  const { stores } = useStoreWithPermission({ enabledOnly: true });
 
   // 导航到上一个月/年
   const handlePrev = () => {
@@ -55,7 +54,6 @@ const ScheduleDetailCalendarPage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadStores();
     loadDepartments();
   }, []);
 
@@ -66,19 +64,6 @@ const ScheduleDetailCalendarPage: React.FC = () => {
       setDoctors([]);
     }
   }, [selectedDepartment]);
-
-  const loadStores = async () => {
-    try {
-      const data = await storeApi.getAll();
-      let storeList = data ?? [];
-      if (!isSuperAdmin && currentUser?.storeIds?.length) {
-        storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
-      }
-      setStores(storeList);
-    } catch (error) {
-      console.error('加载门店失败', error);
-    }
-  };
 
   const loadDepartments = async () => {
     try {

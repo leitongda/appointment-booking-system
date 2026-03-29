@@ -52,19 +52,37 @@ const BookingPage: React.FC = () => {
       return;
     }
 
-    const result = await Dialog.confirm({
-      content: '确定要预约吗？',
-    });
-
-    if (!result) return;
-
     setSubmitting(true);
     try {
+      // 重复预约检查
+      try {
+        const duplicateResult = await appointmentApi.checkDuplicate(scheduleId!, selectedPatientId);
+        if (duplicateResult.hasDuplicate && duplicateResult.appointments.length > 0) {
+          const existingAppt = duplicateResult.appointments[0];
+          const statusText = existingAppt.status === 1 ? '已预约' :
+                            existingAppt.status === 2 ? '已签到' :
+                            existingAppt.status === 4 ? '就诊中' : '候诊中';
+          const message = `您已有${statusText}的预约（${existingAppt.scheduleDate} ${existingAppt.timeSlot}），是否继续创建新预约？`;
+
+          const confirmResult = await Dialog.confirm({
+            content: message,
+          });
+
+          if (!confirmResult) {
+            setSubmitting(false);
+            return;
+          }
+        }
+      } catch (checkError: any) {
+        // 重复检查失败时，记录日志但不阻止预约流程
+        console.warn('重复预约检查失败，继续预约流程:', checkError);
+      }
+
       const appointment = await appointmentApi.create({
         scheduleId: scheduleId!,
         patientId: selectedPatientId,
       });
-      
+
       Toast.show({ content: '预约成功', icon: 'success' });
       history.replace(`/booking/confirm?appointmentNo=${appointment.appointmentNo}`);
     } catch (error: any) {

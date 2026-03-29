@@ -2,14 +2,12 @@
 预约状态流转单元测试
 
 测试用例覆盖：
-1. 完整状态流转：已预约 -> 已签到 -> 候诊中 -> 就诊中 -> 已完成
+1. 完整状态流转：已预约 -> 已签到 -> 就诊中 -> 已完成
 2. 非法状态流转验证：已取消状态无法再签到
 
 状态定义（与前端 packages/shared/src/constants/appointment.ts 保持一致）：
-- PENDING: 0      待支付
 - CONFIRMED: 1    已预约
 - SIGNED: 2       已签到
-- WAITING: 3      候诊中
 - SEEING: 4       就诊中
 - COMPLETED: 5    已完成
 - CANCELLED: 6    已取消
@@ -39,14 +37,10 @@ class TestAppointmentStatusConstants:
         验证后端状态常量与前端定义一致
         参考: packages/shared/src/constants/appointment.ts
         """
-        # 待支付
-        assert APPOINTMENT_STATUS['PENDING'] == 0
         # 已预约
         assert APPOINTMENT_STATUS['CONFIRMED'] == 1
         # 已签到
         assert APPOINTMENT_STATUS['SIGNED'] == 2
-        # 候诊中
-        assert APPOINTMENT_STATUS['WAITING'] == 3
         # 就诊中
         assert APPOINTMENT_STATUS['SEEING'] == 4
         # 已完成
@@ -72,8 +66,7 @@ class TestFullStatusFlow:
         """
         测试完整状态流转: 已预约(1) -> 已签到(2) -> 就诊中(4) -> 已完成(5)
 
-        注意: 当前实现中 call_patient 直接从 SIGNED(2) 跳到 SEEING(4)，
-        WAITING(3) 状态在当前服务中未使用。
+        注意: 当前实现中 call_patient 直接从 SIGNED(2) 跳到 SEEING(4)。
         """
         appointment = test_appointment
 

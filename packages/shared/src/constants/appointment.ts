@@ -2,10 +2,8 @@
  * 预约状态
  */
 export const APPOINTMENT_STATUS = {
-  PENDING: 0,      // 待支付
   CONFIRMED: 1,    // 已预约
   SIGNED: 2,       // 已签到
-  WAITING: 3,      // 候诊中
   SEEING: 4,       // 就诊中
   COMPLETED: 5,    // 已完成
   CANCELLED: 6,    // 已取消
@@ -14,10 +12,8 @@ export const APPOINTMENT_STATUS = {
 } as const;
 
 export const APPOINTMENT_STATUS_MAP: Record<number, string> = {
-  [APPOINTMENT_STATUS.PENDING]: '待支付',
   [APPOINTMENT_STATUS.CONFIRMED]: '已预约',
   [APPOINTMENT_STATUS.SIGNED]: '已签到',
-  [APPOINTMENT_STATUS.WAITING]: '候诊中',
   [APPOINTMENT_STATUS.SEEING]: '就诊中',
   [APPOINTMENT_STATUS.COMPLETED]: '已完成',
   [APPOINTMENT_STATUS.CANCELLED]: '已取消',
@@ -29,10 +25,8 @@ export const APPOINTMENT_STATUS_MAP: Record<number, string> = {
  * 预约状态颜色
  */
 export const APPOINTMENT_STATUS_COLOR: Record<number, string> = {
-  [APPOINTMENT_STATUS.PENDING]: 'orange',
   [APPOINTMENT_STATUS.CONFIRMED]: 'blue',
   [APPOINTMENT_STATUS.SIGNED]: 'cyan',
-  [APPOINTMENT_STATUS.WAITING]: 'purple',
   [APPOINTMENT_STATUS.SEEING]: 'processing',
   [APPOINTMENT_STATUS.COMPLETED]: 'green',
   [APPOINTMENT_STATUS.CANCELLED]: 'default',

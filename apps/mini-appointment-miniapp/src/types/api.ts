@@ -25,15 +25,17 @@ export interface RequestConfig {
   loadingText?: string;
 }
 
-// 预约状态枚举
+// 预约状态枚举（与后端API保持一致）
 export enum AppointmentStatus {
-  PENDING = 1,      // 已预约
+  PENDING = 0,      // 待支付
+  CONFIRMED = 1,    // 已预约
   SIGNED_IN = 2,    // 已签到
-  IN_PROGRESS = 3,  // 就诊中
-  COMPLETED = 4,    // 已完成
-  CANCELLED = 5,    // 已取消
-  NO_SHOW = 6,      // 爽约
-  PASSED = 7        // 已过号
+  WAITING = 3,      // 候诊中
+  IN_PROGRESS = 4,  // 就诊中
+  COMPLETED = 5,    // 已完成
+  CANCELLED = 6,    // 已取消
+  EXPIRED = 7,      // 已过期
+  NO_SHOW = 8,      // 爽约
 }
 
 // 预约信息

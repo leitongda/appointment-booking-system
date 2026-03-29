@@ -16,10 +16,8 @@ from app.schemas.appointment import AppointmentStatistics
 logger = logging.getLogger(__name__)
 
 APPOINTMENT_STATUS = {
-    "PENDING": 0,
     "CONFIRMED": 1,
     "SIGNED": 2,
-    "WAITING": 3,
     "SEEING": 4,
     "COMPLETED": 5,
     "CANCELLED": 6,
@@ -181,7 +179,6 @@ class AppointmentServiceBase:
                         [
                             APPOINTMENT_STATUS["CONFIRMED"],
                             APPOINTMENT_STATUS["SIGNED"],
-                            APPOINTMENT_STATUS["WAITING"],
                             APPOINTMENT_STATUS["SEEING"],
                         ]
                     ),
@@ -211,9 +208,9 @@ class AppointmentServiceBase:
         status_counts = dict(result.all())
         return AppointmentStatistics(
             total=sum(status_counts.values()),
-            pending=status_counts.get(1, 0),
+            confirmed=status_counts.get(1, 0),
             signed_in=status_counts.get(2, 0),
-            in_progress=status_counts.get(3, 0),
+            in_progress=status_counts.get(4, 0),
             completed=status_counts.get(5, 0),
             cancelled=status_counts.get(6, 0),
             no_show=status_counts.get(8, 0),  # NO_SHOW(爽约)
@@ -350,7 +347,6 @@ class AppointmentServiceBase:
                     Appointment.status.in_(
                         [
                             APPOINTMENT_STATUS["SIGNED"],
-                            APPOINTMENT_STATUS["WAITING"],
                             APPOINTMENT_STATUS["SEEING"],
                             APPOINTMENT_STATUS["COMPLETED"],
                         ]
@@ -386,7 +382,6 @@ class AppointmentServiceBase:
                         [
                             APPOINTMENT_STATUS["CONFIRMED"],
                             APPOINTMENT_STATUS["SIGNED"],
-                            APPOINTMENT_STATUS["WAITING"],
                         ]
                     ),
                 )
@@ -411,7 +406,6 @@ class AppointmentServiceBase:
                         [
                             APPOINTMENT_STATUS["CONFIRMED"],
                             APPOINTMENT_STATUS["SIGNED"],
-                            APPOINTMENT_STATUS["WAITING"],
                             APPOINTMENT_STATUS["SEEING"],
                         ]
                     ),

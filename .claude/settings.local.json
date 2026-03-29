@@ -120,7 +120,31 @@
       "Bash(sort:*)",
       "Bash(pnpm tsc:*)",
       "Bash(__NEW_LINE_7c5bf704596b3d97__ awk '/^@pytest.fixture/{N}async def [a-z_]+/ {print NR+1}' fixtures.txt)",
-      "Bash(openspec list:*)"
+      "Bash(openspec list:*)",
+      "Bash(test:*)",
+      "Bash(PGPASSWORD=hospital123 psql:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0ZGRkNDEwNy1lYjY3LTQxM2ItYmEwMy1lZWFjM2MwNTczNzkiLCJleHAiOjE3NzQ2ODMwNTIsInR5cGUiOiJhY2Nlc3MifQ.5OioUYnU8zjygOzW3p_MuQCZn_Ss9CvirhGEq7f5RUo\")",
+      "Bash(__NEW_LINE_24a7cb1adce0ebd2__ echo \"=== statistics/overview ===\")",
+      "Bash(__NEW_LINE_f4dd8850fcebfa43__ echo \"\")",
+      "Bash(__NEW_LINE_611788e421e383be__ echo \"=== statistics/overview ===\")",
+      "Bash(__NEW_LINE_611788e421e383be__ echo \"\")",
+      "Bash(__NEW_LINE_7e6a75432a3537e4__ echo \"=== statistics/overview ===\")",
+      "Bash(__NEW_LINE_f6397da5bd8b5ed2__ echo \"\")",
+      "Bash(__NEW_LINE_a4fed4bdd11f1626__ echo \"=== statistics/overview ===\")",
+      "Bash(__NEW_LINE_a4fed4bdd11f1626__ echo \"\")",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0ZGRkNDEwNy1lYjY3LTQxM2ItYmEwMy1lZWFjM2MwNTczNzkiLCJ0eXBlIjoiYWRtaW4iLCJleHAiOjE3NzQ2ODQ5MTN9.NIUVj75q8txhq1iDXQstJgXLYfC58Si0WgKj6UKB00A\")",
+      "Bash(__NEW_LINE_571a88646a8881a0__ echo \"=== statistics/overview ===\")",
+      "Bash(__NEW_LINE_571a88646a8881a0__ echo \"\")",
+      "Bash(tmux:*)",
+      "Bash(mypy app/modules/schedules/service_query.py --no-error-summary)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs",
+      "Bash(pnpm --filter @hospital/api exec tsc --noEmit)",
+      "Bash(pnpm lint:admin)",
+      "Bash(pnpm eslint:*)",
+      "Bash(pnpm exec:*)",
+      "Bash(pnpm --filter @hospital/shared build)",
+      "Bash(pnpm --filter @hospital/admin prebuild)"
     ]
   },
   "statusLine": {
@@ -128,6 +152,5 @@
     "command": "~/.claude/ccline/ccline",
     "padding": 0
   },
-  "planDir": "plans",
-  "defaultPlanPath": "./plans"
+  "plansDirectory": ".claude/plans"
 }

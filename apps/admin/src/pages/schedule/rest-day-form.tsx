@@ -22,43 +22,23 @@ import { ProFormSelect, ProFormText, ProFormDateRangePicker } from '@ant-design/
 import { Card, Alert } from 'antd';
 import { useEffect, useState } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
-import { restDayApi, storeApi, doctorApi } from '@hospital/api';
+import { restDayApi, doctorApi } from '@hospital/api';
 import { fetchAllData } from '@/utils/fetchAllData';
 
 // 基础设施导入
 import FormPage from '@/components/FormPage';
 import { requiredRules } from '@/utils/formValidators';
+import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import dayjs from 'dayjs';
 
 const RestDayFormPage: React.FC = () => {
   const access = useAccess();
   const { initialState } = useModel('@@initialState');
   const { currentUser } = initialState ?? {};
-  const isSuperAdmin = access.canSuperAdmin;
 
-  const [stores, setStores] = useState<any[]>([]);
+  const { stores } = useStoreWithPermission({ enabledOnly: true });
   const [doctors, setDoctors] = useState<any[]>([]);
   const [selectedStore, setSelectedStore] = useState<string>();
-
-  // 加载门店列表
-  useEffect(() => {
-    const loadStores = async () => {
-      try {
-        const allStores = await fetchAllData((page, pageSize) =>
-          storeApi.getList({ page, pageSize, status: 1 })
-        );
-        let storeList = allStores;
-        // 非超管只显示其关联的门店
-        if (!isSuperAdmin && currentUser?.storeIds?.length) {
-          storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
-        }
-        setStores(storeList);
-      } catch (error) {
-        console.error('加载门店失败', error);
-      }
-    };
-    loadStores();
-  }, [isSuperAdmin, currentUser?.storeIds]);
 
   // 加载医生列表
   useEffect(() => {
@@ -124,6 +104,8 @@ const RestDayFormPage: React.FC = () => {
           fieldProps={{
             onChange: (val) => setSelectedStore(val),
           }}
+          placeholder={stores.length === 0 ? '暂无可用门店' : '请选择门店'}
+          disabled={stores.length === 0}
         />
         <ProFormSelect
           name="doctorIds"

@@ -1,22 +1,18 @@
 import { PlusOutlined, StopOutlined, PlayCircleOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns, ProFormInstance } from '@ant-design/pro-components';
-import { PageContainer, ProTable, ModalForm, ProFormSelect, ProFormDatePicker, ProFormDigit } from '@ant-design/pro-components';
+import { PageContainer, ProTable, ModalForm, ProFormSelect, ProFormDatePicker, ProFormDigit, ProFormTimePicker } from '@ant-design/pro-components';
 import { Button, App, Space, Tag, Popconfirm, Alert } from 'antd';
 import { useRef, useState, useEffect } from 'react';
 import { useAccess, useModel } from '@umijs/max';
-import { scheduleApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
+import { scheduleApi, doctorApi, departmentApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
+import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import type { Schedule, Doctor, Department } from '@hospital/shared';
 import { APPOINTMENT_TYPE_MAP } from '@hospital/shared';
+import { APPOINTMENT_TYPE_OPTIONS } from '@/constants/formFields';
 import dayjs from 'dayjs';
 import { ScheduleMessages } from '../utils/message';
-
-const TIME_SLOTS = [
-  { label: '上午', value: 'morning' },
-  { label: '下午', value: 'afternoon' },
-  { label: '晚上', value: 'evening' },
-];
 
 const ScheduleDetailPage: React.FC = () => {
   const { message, modal } = App.useApp();
@@ -29,12 +25,13 @@ const ScheduleDetailPage: React.FC = () => {
   const [selectedDept, setSelectedDept] = useState<string>();
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [selectedRows, setSelectedRows] = useState<Schedule[]>([]);
-  
+
   const { initialState } = useModel('@@initialState');
   const { currentUser } = initialState ?? {};
   const isSuperAdmin = access.canSuperAdmin;
   // 多门店管理员也可以看到门店筛选
   const showStoreFilter = isSuperAdmin || (currentUser?.storeIds?.length ?? 0) > 1;
+  const { stores } = useStoreWithPermission({ enabledOnly: true });
 
   useEffect(() => {
     loadDepartments();
@@ -67,11 +64,16 @@ const ScheduleDetailPage: React.FC = () => {
 
   const handleSubmit = async (values: any) => {
     try {
+      const startTime = values.startTime ? (typeof values.startTime === 'string' ? values.startTime : values.startTime.format('HH:mm')) : undefined;
+      const endTime = values.endTime ? (typeof values.endTime === 'string' ? values.endTime : values.endTime.format('HH:mm')) : undefined;
+
       await scheduleApi.create({
         doctorId: values.doctorId,
         scheduleDate: values.scheduleDate ? dayjs(values.scheduleDate).format('YYYY-MM-DD') : values.scheduleDate,
-        timeSlot: values.timeSlot,
         totalSlots: values.totalSlots,
+        appointmentType: values.appointmentType || 'normal',
+        startTime,
+        endTime,
         status: 1,
       });
       message.success(ScheduleMessages.createSuccess);
@@ -223,20 +225,10 @@ const ScheduleDetailPage: React.FC = () => {
       hideInTable: true,
       valueType: 'select',
       request: async () => {
-        try {
-          const stores = await storeApi.getAll();
-          let storeList = stores ?? [];
-          // 非超管只显示其关联的门店
-          if (!isSuperAdmin && currentUser?.storeIds?.length) {
-            storeList = storeList.filter((s: any) => currentUser.storeIds?.includes(s.id));
-          }
-          return [
-            { label: '全部门店', value: '' },
-            ...storeList.map((s: any) => ({ label: s.name, value: s.id })),
-          ];
-        } catch {
-          return [];
-        }
+        return [
+          { label: '全部门店', value: '' },
+          ...stores.map((s) => ({ label: s.name, value: s.id })),
+        ];
       },
     } as ProColumns<Schedule>] : []),
     {
@@ -480,7 +472,7 @@ const ScheduleDetailPage: React.FC = () => {
         onOpenChange={setModalOpen}
         onFinish={handleSubmit}
         modalProps={{ destroyOnHidden: true }}
-        initialValues={{ totalSlots: 20 }}
+        initialValues={{ totalSlots: 20, appointmentType: 'normal' }}
       >
         <ProFormSelect
           name="departmentId"
@@ -501,10 +493,22 @@ const ScheduleDetailPage: React.FC = () => {
           rules={[{ required: true, message: '请选择日期' }]}
         />
         <ProFormSelect
-          name="timeSlot"
-          label="时段"
-          options={TIME_SLOTS}
-          rules={[{ required: true, message: '请选择时段' }]}
+          name="appointmentType"
+          label="预约类型"
+          options={APPOINTMENT_TYPE_OPTIONS}
+          rules={[{ required: true, message: '请选择预约类型' }]}
+        />
+        <ProFormTimePicker
+          name="startTime"
+          label="开始时间"
+          fieldProps={{ format: 'HH:mm' }}
+          rules={[{ required: true, message: '请选择开始时间' }]}
+        />
+        <ProFormTimePicker
+          name="endTime"
+          label="结束时间"
+          fieldProps={{ format: 'HH:mm' }}
+          rules={[{ required: true, message: '请选择结束时间' }]}
         />
         <ProFormDigit
           name="totalSlots"

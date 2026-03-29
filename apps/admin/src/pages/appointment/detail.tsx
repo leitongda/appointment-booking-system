@@ -93,8 +93,31 @@ const AppointmentDetailPage: React.FC = () => {
             <ProDescriptions.Item label="预约日期">{appointment?.scheduleDate}</ProDescriptions.Item>
             <ProDescriptions.Item label="预约时段">{TIME_SLOT_MAP[appointment?.timeSlot || ''] || '-'}</ProDescriptions.Item>
             <ProDescriptions.Item label="排队号码">{appointment?.queueNumber || '-'}</ProDescriptions.Item>
+            <ProDescriptions.Item label="门店名称">{appointment?.storeName || '-'}</ProDescriptions.Item>
           </ProDescriptions>
         </Card>
+
+        {/* 病情描述 */}
+        {appointment?.symptomDescription && (
+          <Card title="病情描述" style={{ marginTop: 16 }}>
+            <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{appointment.symptomDescription}</p>
+          </Card>
+        )}
+
+        {/* 签到方式 */}
+        {appointment?.checkInMethod && (
+          <Card title="签到信息" style={{ marginTop: 16 }}>
+            <ProDescriptions column={2}>
+              <ProDescriptions.Item label="签到方式">
+                {appointment.checkInMethod === 'QR_CODE' && <Tag color="blue">扫码签到</Tag>}
+                {appointment.checkInMethod === 'MANUAL' && <Tag color="green">手动签到</Tag>}
+                {appointment.checkInMethod === 'PHONE' && <Tag color="orange">电话签到</Tag>}
+                {!['QR_CODE', 'MANUAL', 'PHONE'].includes(appointment.checkInMethod) && appointment.checkInMethod}
+              </ProDescriptions.Item>
+              <ProDescriptions.Item label="签到时间">{appointment?.signInTime || '-'}</ProDescriptions.Item>
+            </ProDescriptions>
+          </Card>
+        )}
 
         <Card title="时间线" style={{ marginTop: 16 }}>
           <Timeline
@@ -126,21 +149,21 @@ const AppointmentDetailPage: React.FC = () => {
                   </div>
                 ),
               }] : []),
-              ...(appointment?.completedAt ? [{
+              ...(appointment?.completeTime ? [{
                 color: 'green',
                 children: (
                   <div>
                     <strong>完成就诊</strong>
-                    <p style={{ color: '#666', margin: 0 }}>{appointment.completedAt}</p>
+                    <p style={{ color: '#666', margin: 0 }}>{appointment.completeTime}</p>
                   </div>
                 ),
               }] : []),
-              ...(appointment?.cancelledAt ? [{
+              ...(appointment?.cancelTime ? [{
                 color: 'red',
                 children: (
                   <div>
                     <strong>已取消</strong>
-                    <p style={{ color: '#666', margin: 0 }}>{appointment.cancelledAt}</p>
+                    <p style={{ color: '#666', margin: 0 }}>{appointment.cancelTime}</p>
                     {appointment.cancelReason && <p style={{ color: '#999', margin: 0 }}>原因：{appointment.cancelReason}</p>}
                   </div>
                 ),

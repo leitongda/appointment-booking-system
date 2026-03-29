@@ -41,8 +41,8 @@ const Dashboard: React.FC = () => {
       setStatistics(stats);
       setTodayAppointments(appointments);
       
-      // 找到正在就诊的患者
-      const inProgress = appointments.find((a: Appointment) => a.status === 3);
+      // 找到正在就诊的患者（status=4 对应 SEEING 就诊中）
+      const inProgress = appointments.find((a: Appointment) => a.status === 4);
       setCurrentPatient(inProgress || null);
     } catch (error) {
       console.error('加载数据失败', error);

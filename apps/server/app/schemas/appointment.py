@@ -105,9 +105,9 @@ class AppointmentStatistics(BaseModel):
         populate_by_name=True,
         by_alias=True,
     )
-    
+
     total: int = Field(0, description="总预约数")
-    pending: int = Field(0, description="待签到数")
+    confirmed: int = Field(0, description="已预约数")
     signed_in: int = Field(0, description="已签到数")
     in_progress: int = Field(0, description="就诊中数")
     completed: int = Field(0, description="已完成数")

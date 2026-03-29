@@ -1,43 +1,19 @@
 import { SearchOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
 import { Button, Card, Form, Select, DatePicker, Table, Tag, Empty, Row, Col, Statistic } from 'antd';
-import { useState, useEffect } from 'react';
-import { useAccess, useModel } from '@umijs/max';
-import { scheduleApi, storeApi } from '@hospital/api';
-import { fetchAllData } from '@/utils/fetchAllData';
+import { useState } from 'react';
+import { useAccess } from '@umijs/max';
+import { scheduleApi } from '@hospital/api';
+import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import type { ScheduleStatisticsItem, ScheduleStatisticsResponse } from '@hospital/api';
 import dayjs from 'dayjs';
 
 const ScheduleStatisticsPage: React.FC = () => {
   const [form] = Form.useForm();
   const access = useAccess();
-  const { initialState } = useModel('@@initialState');
-  const { currentUser } = initialState ?? {};
-  const isSuperAdmin = access.canSuperAdmin;
-  const [stores, setStores] = useState<any[]>([]);
+  const { stores } = useStoreWithPermission({ enabledOnly: true });
   const [loading, setLoading] = useState(false);
   const [statistics, setStatistics] = useState<ScheduleStatisticsResponse | null>(null);
-
-  useEffect(() => {
-    loadStores();
-  }, []);
-
-  const loadStores = async () => {
-    try {
-      // 获取所有启用的门店
-      const allStores = await fetchAllData((page, pageSize) =>
-        storeApi.getList({ page, pageSize, status: 1 })
-      );
-      let storeList = allStores;
-      // 非超管只显示其关联的门店
-      if (!isSuperAdmin && currentUser?.storeIds?.length) {
-        storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
-      }
-      setStores(storeList);
-    } catch (error) {
-      console.error('加载门店失败', error);
-    }
-  };
 
   const handleQuery = async () => {
     const values = form.getFieldsValue();

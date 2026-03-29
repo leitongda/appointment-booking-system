@@ -81,21 +81,6 @@ class TestCallPatient:
         with pytest.raises(ValueError, match="患者未签到"):
             await appointment_service.call_patient(test_appointment.id)
 
-    @pytest.mark.asyncio
-    async def test_call_patient_from_waiting(
-        self,
-        db_session,
-        test_appointment: Appointment,
-        appointment_service: AppointmentService
-    ):
-        """从候诊中状态不可叫号（当前实现要求必须是 SIGNED）"""
-        test_appointment.status = APPOINTMENT_STATUS["WAITING"]
-        await db_session.commit()
-
-        with pytest.raises(ValueError, match="患者未签到"):
-            await appointment_service.call_patient(test_appointment.id)
-
-
 class TestComplete:
     """测试完成就诊功能"""
 

@@ -23,6 +23,12 @@ export interface Appointment {
   completeTime?: string;
   cancelTime?: string;
   cancelReason?: string;
+  /** 病情描述/症状描述 */
+  symptomDescription?: string;
+  /** 门店名称（需后端补充） */
+  storeName?: string;
+  /** 签到方式（需后端补充） */
+  checkInMethod?: string;
   createdAt: string;
   /** 是否为复诊 */
   isFollowUp?: boolean;

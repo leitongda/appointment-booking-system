@@ -2,10 +2,11 @@ import { PageContainer } from '@ant-design/pro-components';
 import { Card, Spin, DatePicker, Select, Space, Empty, Tooltip, Tag, Button, Drawer, Descriptions, Badge } from 'antd';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import dayjs, { Dayjs } from 'dayjs';
-import { scheduleApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
-import type { Schedule, Doctor, Department, Store } from '@hospital/shared';
+import { scheduleApi, doctorApi, departmentApi } from '@hospital/api';
+import type { Schedule, Doctor, Department } from '@hospital/shared';
 import { useModel, useAccess } from '@umijs/max';
 import { LeftOutlined, RightOutlined, ReloadOutlined } from '@ant-design/icons';
+import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import './gantt.less';
 
 const { RangePicker } = DatePicker;
@@ -68,8 +69,7 @@ const ScheduleGanttPage: React.FC = () => {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [stores, setStores] = useState<Store[]>([]);
-  
+
   // 筛选条件
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([
     dayjs().startOf('week'),
@@ -88,21 +88,7 @@ const ScheduleGanttPage: React.FC = () => {
   const access = useAccess();
   const isSuperAdmin = access.canSuperAdmin;
   const showStoreFilter = isSuperAdmin || (currentUser?.storeIds?.length ?? 0) > 1;
-
-  // 加载门店列表
-  const loadStores = async () => {
-    try {
-      const data = await storeApi.getAll();
-      let storeList = data ?? [];
-      // 非超级管理员只显示有权限的门店
-      if (!isSuperAdmin && currentUser?.storeIds?.length) {
-        storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
-      }
-      setStores(storeList);
-    } catch (error) {
-      console.error('加载门店失败', error);
-    }
-  };
+  const { stores } = useStoreWithPermission({ enabledOnly: true });
 
   // 加载科室列表
   const loadDepartments = async () => {
@@ -194,7 +180,6 @@ const ScheduleGanttPage: React.FC = () => {
   }, [dateRange, selectedStore, selectedDoctorId]);
 
   useEffect(() => {
-    loadStores();
     loadDepartments();
     loadDoctors();
   }, []);

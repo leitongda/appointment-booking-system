@@ -3,9 +3,10 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormSelect, ProFormText, ProFormDatePicker } from '@ant-design/pro-components';
 import { Button, App, Tag, Popconfirm, Checkbox, Space } from 'antd';
 import { useRef, useState, useEffect } from 'react';
-import { useAccess, useModel } from '@umijs/max';
-import { scheduleSuspensionApi, storeApi, doctorApi } from '@hospital/api';
+import { useAccess } from '@umijs/max';
+import { scheduleSuspensionApi, doctorApi } from '@hospital/api';
 import { fetchAllData } from '@/utils/fetchAllData';
+import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import { toProTableResult } from '@/utils/proTable';
 import type { ScheduleSuspension, AvailableScheduleForSuspension } from '@hospital/api';
 import { ScheduleMessages } from './utils/message';
@@ -13,12 +14,9 @@ import { ScheduleMessages } from './utils/message';
 const SuspensionPage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
-  const { initialState } = useModel('@@initialState');
-  const { currentUser } = initialState ?? {};
-  const isSuperAdmin = access.canSuperAdmin;
+  const { stores } = useStoreWithPermission({ enabledOnly: true });
   const actionRef = useRef<ActionType>();
   const [modalOpen, setModalOpen] = useState(false);
-  const [stores, setStores] = useState<any[]>([]);
   const [doctors, setDoctors] = useState<any[]>([]);
   const [selectedStore, setSelectedStore] = useState<string>();
   const [selectedDoctor, setSelectedDoctor] = useState<string>();
@@ -26,10 +24,6 @@ const SuspensionPage: React.FC = () => {
   const [availableSchedules, setAvailableSchedules] = useState<AvailableScheduleForSuspension[]>([]);
   const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
   const [selectedScheduleIds, setSelectedScheduleIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    loadStores();
-  }, []);
 
   useEffect(() => {
     if (selectedStore) {
@@ -42,23 +36,6 @@ const SuspensionPage: React.FC = () => {
       loadAvailableSchedules();
     }
   }, [selectedStore, selectedDoctor, selectedDate]);
-
-  const loadStores = async () => {
-    try {
-      // 获取所有启用的门店
-      const allStores = await fetchAllData((page, pageSize) =>
-        storeApi.getList({ page, pageSize, status: 1 })
-      );
-      let storeList = allStores;
-      // 非超管只显示其关联的门店
-      if (!isSuperAdmin && currentUser?.storeIds?.length) {
-        storeList = storeList.filter((s) => currentUser.storeIds?.includes(s.id));
-      }
-      setStores(storeList);
-    } catch (error) {
-      console.error('加载门店失败', error);
-    }
-  };
 
   const loadDoctorsByStore = async (storeId: string) => {
     try {
