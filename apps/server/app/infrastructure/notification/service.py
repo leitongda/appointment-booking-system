@@ -1,9 +1,14 @@
 """通知服务"""
+import logging
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
+from sqlalchemy.orm import selectinload
 from typing import Optional, List
 from datetime import datetime
 import httpx
+
+logger = logging.getLogger(__name__)
 
 from app.models.appointment import Appointment
 from app.models.schedule import Schedule
@@ -129,7 +134,7 @@ class NotificationService:
 
         if not access_key_id or not access_key_secret:
             # 短信配置不完整，记录日志但不抛出异常
-            print(f"[SMS] 短信配置不完整，跳过发送: {phone}")
+            logger.warning(f"[SMS] 短信配置不完整，跳过发送: {phone}")
             return
 
         time_slot_map = {'morning': '上午', 'afternoon': '下午', 'evening': '晚上'}
@@ -143,7 +148,7 @@ class NotificationService:
 
         # 这里可以根据不同的短信服务商调用不同的API
         # 目前只是记录日志，实际项目中需要接入短信服务商SDK
-        print(f"[SMS] 发送停诊通知: {phone} - {content}")
+        logger.info(f"[SMS] 发送停诊通知: {phone} - {content}")
 
         # TODO: 接入阿里云/腾讯云短信API
         # if provider == 'aliyun':
@@ -152,16 +157,116 @@ class NotificationService:
         #     await self._send_tencent_sms(phone, template_code, params)
 
     async def notify_appointment_success(self, appointment_id: str):
-        """预约成功通知"""
-        # TODO: 实现预约成功通知
-        pass
+        """预约成功通知
+
+        向患者发送预约成功的站内信通知。
+        """
+        appointment_result = await self.db.execute(
+            select(Appointment)
+            .options(selectinload(Appointment.schedule))
+            .where(Appointment.id == appointment_id)
+        )
+        appointment = appointment_result.scalar_one_or_none()
+        if not appointment:
+            logger.warning(f"预约成功通知失败: 预约 {appointment_id} 不存在")
+            return
+
+        schedule = appointment.schedule
+        time_slot_map = {'morning': '上午', 'afternoon': '下午', 'evening': '晚上'}
+        time_slot_text = time_slot_map.get(schedule.time_slot, schedule.time_slot) if schedule else ""
+        schedule_date_str = schedule.schedule_date.strftime('%Y年%m月%d日') if schedule and schedule.schedule_date else ""
+
+        content = (
+            f"您已成功预约{appointment.doctor_name or ''}医生，"
+            f"就诊日期：{schedule_date_str} {time_slot_text}，"
+            f"排队号：{appointment.queue_number}号。请按时到院签到。"
+        )
+
+        try:
+            from app.modules.messages.service_messages import MessageService
+            message_service = MessageService(self.db)
+            await message_service.send_appointment_notification(
+                user_id=appointment.user_id,
+                user_type="patient",
+                title="预约成功",
+                content=content,
+                appointment_id=appointment_id,
+            )
+            logger.info(f"预约成功通知已发送: appointment_id={appointment_id}")
+        except Exception as exc:
+            logger.warning(f"预约成功通知发送失败: appointment_id={appointment_id}, error={exc}")
 
     async def notify_appointment_remind(self, appointment_id: str):
-        """就诊提醒通知"""
-        # TODO: 实现就诊提醒通知
-        pass
+        """就诊提醒通知
+
+        在就诊前向患者发送提醒站内信。
+        """
+        appointment_result = await self.db.execute(
+            select(Appointment)
+            .options(selectinload(Appointment.schedule))
+            .where(Appointment.id == appointment_id)
+        )
+        appointment = appointment_result.scalar_one_or_none()
+        if not appointment:
+            logger.warning(f"就诊提醒通知失败: 预约 {appointment_id} 不存在")
+            return
+
+        schedule = appointment.schedule
+        time_slot_map = {'morning': '上午', 'afternoon': '下午', 'evening': '晚上'}
+        time_slot_text = time_slot_map.get(schedule.time_slot, schedule.time_slot) if schedule else ""
+        schedule_date_str = schedule.schedule_date.strftime('%Y年%m月%d日') if schedule and schedule.schedule_date else ""
+
+        content = (
+            f"温馨提示：您预约的{appointment.doctor_name or ''}医生，"
+            f"就诊日期：{schedule_date_str} {time_slot_text}，"
+            f"排队号：{appointment.queue_number}号。请准时到院签到就诊。"
+        )
+
+        try:
+            from app.modules.messages.service_messages import MessageService
+            message_service = MessageService(self.db)
+            await message_service.send_appointment_notification(
+                user_id=appointment.user_id,
+                user_type="patient",
+                title="就诊提醒",
+                content=content,
+                appointment_id=appointment_id,
+            )
+            logger.info(f"就诊提醒通知已发送: appointment_id={appointment_id}")
+        except Exception as exc:
+            logger.warning(f"就诊提醒通知发送失败: appointment_id={appointment_id}, error={exc}")
 
     async def notify_queue_call(self, appointment_id: str):
-        """叫号通知"""
-        # TODO: 实现叫号通知（小程序订阅消息）
-        pass
+        """叫号通知
+
+        当医生叫号时，向患者发送站内信通知，同时通过 WebSocket 推送给医生端。
+        """
+        appointment_result = await self.db.execute(
+            select(Appointment)
+            .options(selectinload(Appointment.schedule))
+            .where(Appointment.id == appointment_id)
+        )
+        appointment = appointment_result.scalar_one_or_none()
+        if not appointment:
+            logger.warning(f"叫号通知失败: 预约 {appointment_id} 不存在")
+            return
+
+        # 站内信通知患者
+        content = (
+            f"轮到您就诊了！{appointment.doctor_name or ''}医生正在呼叫您，"
+            f"排队号：{appointment.queue_number}号，请及时前往诊室。"
+        )
+
+        try:
+            from app.modules.messages.service_messages import MessageService
+            message_service = MessageService(self.db)
+            await message_service.send_appointment_notification(
+                user_id=appointment.user_id,
+                user_type="patient",
+                title="叫号通知",
+                content=content,
+                appointment_id=appointment_id,
+            )
+            logger.info(f"叫号通知已发送: appointment_id={appointment_id}")
+        except Exception as exc:
+            logger.warning(f"叫号站内信通知发送失败: appointment_id={appointment_id}, error={exc}")

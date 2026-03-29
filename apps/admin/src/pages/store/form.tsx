@@ -20,14 +20,14 @@ import { requiredRules, phoneOrLandlineRules, emailRules, stringLengthRules, cod
 
 // 风格选项 - 中国风主题预设
 const THEME_STYLE_OPTIONS = [
-  { label: '🔴 中医-红（朱砂红）', value: '中医-红' },
-  { label: '🟢 中医-绿（翡翠绿）', value: '中医-绿' },
-  { label: '🔵 现代-蓝（琉璃蓝）', value: '现代-蓝' },
-  { label: '⚪ 简约-白（玄墨灰）', value: '简约-白' },
-  { label: '🏯 故宫红（宫墙红）', value: '故宫红' },
-  { label: '🏺 青花瓷（钴蓝）', value: '青花瓷' },
-  { label: '🍵 茶韵（茶褐）', value: '茶韵' },
-  { label: '👑 紫禁（帝王紫）', value: '紫禁' },
+  { label: '中医-红（朱砂红）', value: '中医-红' },
+  { label: '中医-绿（翡翠绿）', value: '中医-绿' },
+  { label: '现代-蓝（琉璃蓝）', value: '现代-蓝' },
+  { label: '简约-白（玄墨灰）', value: '简约-白' },
+  { label: '故宫红（宫墙红）', value: '故宫红' },
+  { label: '青花瓷（钴蓝）', value: '青花瓷' },
+  { label: '茶韵（茶褐）', value: '茶韵' },
+  { label: '紫禁（帝王紫）', value: '紫禁' },
 ];
 
 /**

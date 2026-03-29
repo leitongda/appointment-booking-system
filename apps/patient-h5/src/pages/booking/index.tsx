@@ -1,4 +1,4 @@
-import { NavBar, Radio, Toast, Dialog, Skeleton, Empty } from 'antd-mobile';
+import { NavBar, Radio, Toast, Dialog, Skeleton, Empty, TextArea } from 'antd-mobile';
 import { history, useParams, useSearchParams } from 'umi';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
@@ -20,6 +20,7 @@ const BookingPage: React.FC = () => {
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
+  const [symptoms, setSymptoms] = useState<string>('');
 
   useEffect(() => {
     loadData();
@@ -81,6 +82,7 @@ const BookingPage: React.FC = () => {
       const appointment = await appointmentApi.create({
         scheduleId: scheduleId!,
         patientId: selectedPatientId,
+        description: symptoms || undefined,
       });
 
       Toast.show({ content: '预约成功', icon: 'success' });
@@ -208,6 +210,21 @@ const BookingPage: React.FC = () => {
                 </div>
               </Radio.Group>
             )}
+          </Card>
+        </motion.div>
+
+        {/* Symptoms Description */}
+        <motion.div variants={fadeInUp}>
+          <Card variant="default" padding="lg">
+            <h3 className="font-semibold text-foreground mb-4">病情描述</h3>
+            <TextArea
+              placeholder="请简要描述您的病情或症状（选填）"
+              value={symptoms}
+              onChange={(val) => setSymptoms(val)}
+              rows={3}
+              maxLength={500}
+              showCount
+            />
           </Card>
         </motion.div>
       </motion.div>

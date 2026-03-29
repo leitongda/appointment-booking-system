@@ -6,6 +6,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.api.deps import get_current_user, get_current_admin, get_current_super_admin, check_store_access, require_permission
 from app.modules.appointments.service import AppointmentService
+from app.modules.appointments.common import CHECKIN_METHOD
 from app.core.websocket import (
     notify_patient_signed_in,
     notify_doctor,
@@ -39,7 +40,7 @@ async def sign_in_appointment(
             appointment_id=appointment_id,
             user_id=current_user.get("id"),
             is_admin=current_user.get("is_admin", False),
-            checkin_method=checkin_method or 'MANUAL',
+            checkin_method=checkin_method or CHECKIN_METHOD["MANUAL"],
             device_info=device_info,
             location_info=location_info,
             operator_id=current_user.get("id"),

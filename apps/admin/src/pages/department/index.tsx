@@ -454,8 +454,6 @@ const DepartmentPage: React.FC = () => {
       },
     },
   ], [storeFilterOptions, isSingleStore, canViewAllStores, access, handleRecommendChange, handleHotChange, handleStatusChange, handleDelete]);
-console.log("🚀 ~ dataApi:", dataApi , dataApi.getExportDepartmentsUrl())
-
   return (
     <PageContainer>
       <DndContext

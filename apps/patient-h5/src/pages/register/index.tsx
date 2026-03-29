@@ -45,8 +45,8 @@ const RegisterPage: React.FC = () => {
     }
   };
 
-  const onFinish = async (values: { phone: string; password: string; code: string; name: string }) => {
-    if (values.password !== form.getFieldValue('confirmPassword')) {
+  const onFinish = async (values: { phone: string; password: string; code: string; name: string; confirmPassword: string }) => {
+    if (values.password !== values.confirmPassword) {
       Toast.show({ content: '两次密码输入不一致' });
       return;
     }

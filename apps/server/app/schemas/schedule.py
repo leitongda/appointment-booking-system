@@ -44,7 +44,7 @@ class ScheduleBatchCreate(ScheduleBase):
     doctor_id: str = Field(..., description="医生ID")
     start_date: date = Field(..., description="开始日期")
     end_date: date = Field(..., description="结束日期")
-    time_slots: List[str] = Field(..., description="时段列表: AM/PM")
+    time_slots: List[str] = Field(..., description="时段列表: morning/afternoon/evening")
     total_slots: int = Field(10, ge=1, description="每个时段的号源数量")
     weekdays: List[int] = Field(..., description="星期列表: 1周一 2周二 ... 7周日")
 
@@ -82,7 +82,7 @@ class ScheduleResponse(ScheduleBase):
     doctor_id: str = Field(..., description="医生ID")
     store_id: Optional[str] = Field(None, description="门店ID")
     schedule_date: date = Field(..., description="排班日期")
-    time_slot: Optional[str] = Field(None, description="时段: AM上午/PM下午")
+    time_slot: Optional[str] = Field(None, description="时段: morning上午/afternoon下午/evening晚间")
     start_time: Optional[time] = Field(None, description="开始时间")
     end_time: Optional[time] = Field(None, description="结束时间")
     total_slots: int = Field(10, description="总号源数量")
@@ -109,7 +109,7 @@ class AvailableScheduleResponse(ScheduleResponse):
 
     id: str = Field(..., description="排班ID")
     schedule_date: date = Field(..., description="排班日期")
-    time_slot: Optional[str] = Field(None, description="时段: AM上午/PM下午")
+    time_slot: Optional[str] = Field(None, description="时段: morning上午/afternoon下午/evening晚间")
     available_slots: int = Field(0, description="剩余可预约号源数量")
     start_time: Optional[time] = Field(None, description="开始时间")
     end_time: Optional[time] = Field(None, description="结束时间")

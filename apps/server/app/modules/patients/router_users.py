@@ -9,6 +9,7 @@ from app.api.deps import get_current_admin, get_store_filter, require_permission
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.patients.service_users import UserManageService
+from app.modules.points.service import PointService
 from app.schemas.response import PageResponse
 from app.schemas.user import FamilyMemberCreate, PatientUpdate
 
@@ -77,16 +78,31 @@ async def adjust_user_points(
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("patient:update")),
 ):
-    service = UserManageService(db)
+    from sqlalchemy import select
+    from app.models.user import Patient
+
+    # 查找用户的默认就诊卡
+    result = await db.execute(
+        select(Patient.id)
+        .where(Patient.user_id == user_id)
+        .order_by(Patient.is_default.desc(), Patient.created_at.asc())
+        .limit(1)
+    )
+    patient_id = result.scalar_one_or_none()
+    if not patient_id:
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="该用户没有就诊卡，无法调整积分")
+
+    point_service = PointService(db)
     try:
-        success = await service.adjust_points(
-            user_id=user_id,
+        result_data = await point_service.adjust_points(
+            patient_id=patient_id,
             amount=amount,
             remark=remark,
             operator_id=current_admin.get("id"),
+            log_type=4,
         )
-        if not success:
-            raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="用户不存在，请检查后重试")
+        if not result_data:
+            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail="积分调整失败，请检查积分余额是否充足")
         return {"message": "积分调整成功"}
     except ValueError as exc:
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

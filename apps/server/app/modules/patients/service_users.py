@@ -175,36 +175,6 @@ class UserManageService(PatientsServiceBase):
         await self.db.commit()
         return True
 
-    async def adjust_points(self, user_id: str, amount: int, remark: str, operator_id: Optional[str] = None) -> bool:
-        from app.models.point_log import PointLog
-
-        query = select(User).where(User.id == user_id)
-        tenant_id = self._current_tenant_id()
-        if tenant_id:
-            query = query.where(User.tenant_id == tenant_id)
-        result = await self.db.execute(query)
-        user = result.scalar_one_or_none()
-        if not user:
-            return False
-        new_points = (user.points or 0) + amount
-        if new_points < 0:
-            raise ValueError("积分不足")
-
-        user.points = new_points
-        set_update_audit(user, operator_id)
-        point_log = PointLog(
-            id=str(uuid.uuid4()),
-            user_id=user_id,
-            change_amount=amount,
-            balance=new_points,
-            remark=remark,
-            operator_id=operator_id,
-        )
-        set_create_audit(point_log, operator_id)
-        self.db.add(point_log)
-        await self.db.commit()
-        return True
-
     async def delete_user(self, user_id: str, operator_id: Optional[str] = None) -> bool:
         tenant_id = self._current_tenant_id()
         query = select(User).where(User.id == user_id)

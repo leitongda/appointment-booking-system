@@ -155,13 +155,8 @@ const DoctorFormPage: React.FC = () => {
     // 排除确认密码字段
     const { confirmPassword, ...restValues } = values;
 
-    // SwitchGroup 自动处理了 boolean ↔ number 转换，这里不需要手动转换
-    // 但为了兼容现有逻辑，保留转换
     const data = {
       ...restValues,
-      isRecommended: values.isRecommended ? 1 : 0,
-      onlineConsultEnabled: values.onlineConsultEnabled ? 1 : 0,
-      status: values.status ? 1 : 0,
     };
 
     try {

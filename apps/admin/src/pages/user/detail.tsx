@@ -401,7 +401,7 @@ const UserDetailPage: React.FC = () => {
             </ProDescriptions.Item>
             <ProDescriptions.Item label="OpenID">
               <Text copyable={{ text: user?.openid }} ellipsis style={{ maxWidth: 200 }}>
-                {user?.openid || '-'}
+                {user?.openid ? `${user.openid.slice(0, 8)}...` : '-'}
               </Text>
             </ProDescriptions.Item>
             <ProDescriptions.Item label="积分">{user?.points || 0}</ProDescriptions.Item>

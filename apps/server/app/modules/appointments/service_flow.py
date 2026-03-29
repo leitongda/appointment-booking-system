@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 from app.core.events import EventType
 from app.models.rule_set import AppointmentCheckin
 from app.models.schedule import Schedule
-from app.modules.appointments.common import APPOINTMENT_STATUS, AppointmentServiceBase, logger
+from app.modules.appointments.common import APPOINTMENT_STATUS, CHECKIN_METHOD, AppointmentServiceBase, logger
 from app.modules.messages.service_messages import MessageService
 from app.modules.rule_engine import RuleEngineService
 from app.modules.settings.service import SettingsService
@@ -20,7 +20,7 @@ class AppointmentFlowService(AppointmentServiceBase):
         appointment_id: str,
         user_id: Optional[str] = None,
         is_admin: bool = False,
-        checkin_method: str = "MANUAL",
+        checkin_method: str = CHECKIN_METHOD["MANUAL"],
         device_info: Optional[str] = None,
         location_info: Optional[str] = None,
         operator_id: Optional[str] = None,

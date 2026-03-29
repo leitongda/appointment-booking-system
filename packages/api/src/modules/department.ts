@@ -44,7 +44,6 @@ export interface DepartmentCreateData {
 
 export const departmentApi = {
   getList: (params?: DepartmentListParams): Promise<PageResult<Department>> => {
-    console.log('[departmentApi.getList] 原始参数:', params);
     // 转换参数名为 snake_case，过滤空值和 'all'
     const queryParams: Record<string, any> = {};
 
@@ -58,7 +57,6 @@ export const departmentApi = {
     if (params?.page) queryParams.page = params.page;
     if (params?.pageSize) queryParams.page_size = params.pageSize;
 
-    console.log('[departmentApi.getList] 转换后参数:', queryParams);
     return request.get('/departments', { params: queryParams });
   },
 

@@ -1,4 +1,4 @@
-import { NavBar, Form, Input, Picker, Switch, Toast, Dialog } from 'antd-mobile';
+import { NavBar, Form, Input, Picker, Switch, Toast, Dialog, TextArea, DatePicker } from 'antd-mobile';
 import { history, useSearchParams } from 'umi';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
@@ -15,6 +15,12 @@ const genderOptions = [[
 
 const relationshipOptions = [PATIENT_RELATIONSHIPS.map((r) => ({ label: r, value: r }))];
 
+const idCardTypeOptions = [[
+  { label: '居民身份证', value: 1 },
+  { label: '户口簿', value: 2 },
+  { label: '护照', value: 3 },
+]];
+
 const PatientEditPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const id = searchParams.get('id');
@@ -27,6 +33,8 @@ const PatientEditPage: React.FC = () => {
 
   const [genderVisible, setGenderVisible] = useState(false);
   const [relationVisible, setRelationVisible] = useState(false);
+  const [idCardTypeVisible, setIdCardTypeVisible] = useState(false);
+  const [birthdayVisible, setBirthdayVisible] = useState(false);
 
   useEffect(() => {
     if (isEdit) {
@@ -48,6 +56,13 @@ const PatientEditPage: React.FC = () => {
           gender: current.gender ? [current.gender] : undefined,
           relationship: current.relationship ? [current.relationship] : undefined,
           isDefault: current.isDefault,
+          birthday: current.birthday,
+          idCardType: current.idCardType ? [current.idCardType] : undefined,
+          ethnicity: current.ethnicity,
+          province: current.province,
+          city: current.city,
+          district: current.district,
+          address: current.address,
         });
       }
     } catch (error) {
@@ -72,6 +87,13 @@ const PatientEditPage: React.FC = () => {
       gender: values.gender?.[0],
       relationship: values.relationship?.[0],
       isDefault: values.isDefault || false,
+      birthday: values.birthday || undefined,
+      idCardType: values.idCardType?.[0],
+      ethnicity: values.ethnicity || undefined,
+      province: values.province || undefined,
+      city: values.city || undefined,
+      district: values.district || undefined,
+      address: values.address || undefined,
     };
 
     setSubmitting(true);
@@ -196,6 +218,83 @@ const PatientEditPage: React.FC = () => {
                     </span>
                   )}
                 </Picker>
+              </Form.Item>
+
+              <Form.Item
+                name="birthday"
+                label="出生日期"
+                trigger="onConfirm"
+                onClick={() => setBirthdayVisible(true)}
+              >
+                <DatePicker
+                  visible={birthdayVisible}
+                  onClose={() => setBirthdayVisible(false)}
+                  onConfirm={(val) => {
+                    const date = new Date(val);
+                    const formatted = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                    form.setFieldValue('birthday', formatted);
+                  }}
+                >
+                  {(value) => (
+                    <span className={value ? 'text-foreground' : 'text-muted-foreground'}>
+                      {value || '请选择'}
+                    </span>
+                  )}
+                </DatePicker>
+              </Form.Item>
+
+              <Form.Item
+                name="idCardType"
+                label="证件类型"
+                trigger="onConfirm"
+                onClick={() => setIdCardTypeVisible(true)}
+              >
+                <Picker
+                  columns={idCardTypeOptions}
+                  visible={idCardTypeVisible}
+                  onClose={() => setIdCardTypeVisible(false)}
+                >
+                  {(value) => (
+                    <span className={value?.[0]?.label ? 'text-foreground' : 'text-muted-foreground'}>
+                      {value?.[0]?.label || '请选择'}
+                    </span>
+                  )}
+                </Picker>
+              </Form.Item>
+
+              <Form.Item
+                name="ethnicity"
+                label="民族"
+              >
+                <Input placeholder="请输入民族" className="text-right" />
+              </Form.Item>
+
+              <Form.Item
+                name="province"
+                label="省"
+              >
+                <Input placeholder="请输入省份" className="text-right" />
+              </Form.Item>
+
+              <Form.Item
+                name="city"
+                label="市"
+              >
+                <Input placeholder="请输入城市" className="text-right" />
+              </Form.Item>
+
+              <Form.Item
+                name="district"
+                label="区"
+              >
+                <Input placeholder="请输入区县" className="text-right" />
+              </Form.Item>
+
+              <Form.Item
+                name="address"
+                label="详细地址"
+              >
+                <TextArea placeholder="请输入详细地址" rows={2} maxLength={255} showCount />
               </Form.Item>
 
               <Form.Item name="isDefault" label="设为默认" childElementPosition="right">

@@ -32,6 +32,12 @@ export interface Patient {
   birthday?: string;
   relationship?: string;
   isDefault: boolean;
+  province?: string;
+  city?: string;
+  district?: string;
+  idCardType?: number;
+  ethnicity?: string;
+  address?: string;
 }
 
 export interface Admin {

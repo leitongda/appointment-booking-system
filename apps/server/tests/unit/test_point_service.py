@@ -563,27 +563,28 @@ class TestGetPointSummary:
 
 
 class TestUserManageServicePoints:
-    """测试 UserManageService 的积分调整功能"""
+    """测试通过 UserManageService 路由入口的积分调整功能（已统一委托给 PointService）"""
 
     @pytest.mark.asyncio
     async def test_adjust_points_success(
         self,
         db_session,
         test_user,
+        test_patient,
     ):
-        """通过 UserManageService 调整积分"""
+        """通过 PointService 调整积分（UserManageService 入口已委托）"""
         test_user.points = 100
         await db_session.commit()
 
-        service = UserManageService(db_session)
+        service = PointService(db_session)
         result = await service.adjust_points(
-            user_id=test_user.id,
+            patient_id=test_patient.id,
             amount=50,
             remark="管理员调整",
             operator_id="admin-1",
         )
 
-        assert result is True
+        assert result is not None
 
         # 验证积分已更新
         await db_session.refresh(test_user)
@@ -591,34 +592,37 @@ class TestUserManageServicePoints:
 
     @pytest.mark.asyncio
     async def test_adjust_points_user_not_found(self, db_session):
-        """用户不存在时调整积分返回 False"""
-        service = UserManageService(db_session)
+        """患者不存在时调整积分返回 None"""
+        service = PointService(db_session)
         result = await service.adjust_points(
-            user_id="non-existent-id",
+            patient_id="non-existent-id",
             amount=50,
             remark="测试",
         )
 
-        assert result is False
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_adjust_points_insufficient_balance(
         self,
         db_session,
         test_user,
+        test_patient,
     ):
-        """积分不足时调整抛出异常"""
+        """积分不足时调整返回 None"""
         test_user.points = 50
         await db_session.commit()
 
-        service = UserManageService(db_session)
+        service = PointService(db_session)
 
-        with pytest.raises(ValueError, match="积分不足"):
-            await service.adjust_points(
-                user_id=test_user.id,
-                amount=-100,
-                remark="测试扣减",
-            )
+        result = await service.adjust_points(
+            patient_id=test_patient.id,
+            amount=-100,
+            remark="测试扣减",
+        )
+
+        # PointService 积分不足时返回 None（不抛异常）
+        assert result is None
 
         # 验证积分未变化
         await db_session.refresh(test_user)
@@ -629,14 +633,15 @@ class TestUserManageServicePoints:
         self,
         db_session,
         test_user,
+        test_patient,
     ):
         """调整积分时创建流水记录"""
         test_user.points = 100
         await db_session.commit()
 
-        service = UserManageService(db_session)
+        service = PointService(db_session)
         await service.adjust_points(
-            user_id=test_user.id,
+            patient_id=test_patient.id,
             amount=50,
             remark="测试流水",
             operator_id="admin-1",

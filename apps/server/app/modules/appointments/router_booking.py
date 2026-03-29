@@ -51,28 +51,7 @@ async def create_appointment(
         except Exception:
             pass  # WebSocket 通知失败不影响业务
 
-    return AppointmentResponse(
-        id=appointment.id,
-        appointment_no=appointment.appointment_no,
-        user_id=appointment.user_id,
-        patient_id=appointment.patient_id,
-        patient_name=appointment.patient_name,
-        patient_phone=appointment.patient_phone,
-        doctor_id=appointment.doctor_id,
-        doctor_name=appointment.doctor_name,
-        doctor_title=appointment.doctor_title,
-        department_name=appointment.department_name,
-        schedule_id=appointment.schedule_id,
-        schedule_date=appointment.schedule.schedule_date if appointment.schedule else None,
-        time_slot=appointment.schedule.time_slot if appointment.schedule else None,
-        start_time=appointment.schedule.start_time if appointment.schedule else None,
-        end_time=appointment.schedule.end_time if appointment.schedule else None,
-        queue_number=appointment.queue_number,
-        status=appointment.status,
-        sign_in_time=appointment.sign_in_time,
-        symptom_description=appointment.symptom_description,
-        created_at=appointment.created_at
-    )
+    return AppointmentResponse.from_appointment(appointment)
 
 
 @router.put(

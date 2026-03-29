@@ -102,32 +102,7 @@ async def get_appointments(
 
     result = []
     for a in appointments:
-        result.append(AppointmentResponse(
-            id=a.id,
-            appointment_no=a.appointment_no,
-            user_id=a.user_id,
-            patient_id=a.patient_id,
-            patient_name=a.patient_name,
-            patient_phone=a.patient_phone,
-            doctor_id=a.doctor_id,
-            doctor_name=a.doctor_name,
-            doctor_title=a.doctor_title,
-            department_name=a.department_name,
-            schedule_id=a.schedule_id,
-            schedule_date=a.schedule.schedule_date if a.schedule else None,
-            time_slot=a.schedule.time_slot if a.schedule else None,
-            start_time=a.schedule.start_time if a.schedule else None,
-            end_time=a.schedule.end_time if a.schedule else None,
-            queue_number=a.queue_number,
-            status=a.status,
-            sign_in_time=a.sign_in_time,
-            call_time=a.call_time,
-            complete_time=a.complete_time,
-            cancel_time=a.cancel_time,
-            cancel_reason=a.cancel_reason,
-            symptom_description=a.symptom_description,
-            created_at=a.created_at
-        ))
+        result.append(AppointmentResponse.from_appointment(a))
 
     return PageResponse(data=result, total=total, page=page, page_size=page_size)
 
@@ -448,32 +423,7 @@ async def get_appointment_by_no(
     if not current_user.get("is_admin") and appointment.user_id != current_user["id"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权查看此预约")
 
-    return AppointmentResponse(
-        id=appointment.id,
-        appointment_no=appointment.appointment_no,
-        user_id=appointment.user_id,
-        patient_id=appointment.patient_id,
-        patient_name=appointment.patient_name,
-        patient_phone=appointment.patient_phone,
-        doctor_id=appointment.doctor_id,
-        doctor_name=appointment.doctor_name,
-        doctor_title=appointment.doctor_title,
-        department_name=appointment.department_name,
-        schedule_id=appointment.schedule_id,
-        schedule_date=appointment.schedule.schedule_date if appointment.schedule else None,
-        time_slot=appointment.schedule.time_slot if appointment.schedule else None,
-        start_time=appointment.schedule.start_time if appointment.schedule else None,
-        end_time=appointment.schedule.end_time if appointment.schedule else None,
-        queue_number=appointment.queue_number,
-        status=appointment.status,
-        sign_in_time=appointment.sign_in_time,
-        call_time=appointment.call_time,
-        complete_time=appointment.complete_time,
-        cancel_time=appointment.cancel_time,
-        cancel_reason=appointment.cancel_reason,
-        symptom_description=appointment.symptom_description,
-        created_at=appointment.created_at
-    )
+    return AppointmentResponse.from_appointment(appointment)
 
 
 @router.get(
@@ -496,32 +446,7 @@ async def get_appointment(
     if not appointment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
 
-    return AppointmentResponse(
-        id=appointment.id,
-        appointment_no=appointment.appointment_no,
-        user_id=appointment.user_id,
-        patient_id=appointment.patient_id,
-        patient_name=appointment.patient_name,
-        patient_phone=appointment.patient_phone,
-        doctor_id=appointment.doctor_id,
-        doctor_name=appointment.doctor_name,
-        doctor_title=appointment.doctor_title,
-        department_name=appointment.department_name,
-        schedule_id=appointment.schedule_id,
-        schedule_date=appointment.schedule.schedule_date if appointment.schedule else None,
-        time_slot=appointment.schedule.time_slot if appointment.schedule else None,
-        start_time=appointment.schedule.start_time if appointment.schedule else None,
-        end_time=appointment.schedule.end_time if appointment.schedule else None,
-        queue_number=appointment.queue_number,
-        status=appointment.status,
-        sign_in_time=appointment.sign_in_time,
-        call_time=appointment.call_time,
-        complete_time=appointment.complete_time,
-        cancel_time=appointment.cancel_time,
-        cancel_reason=appointment.cancel_reason,
-        symptom_description=appointment.symptom_description,
-        created_at=appointment.created_at
-    )
+    return AppointmentResponse.from_appointment(appointment)
 
 
 @router.get("/queue/info", summary="获取叫号队列信息")

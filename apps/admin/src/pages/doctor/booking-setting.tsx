@@ -96,7 +96,7 @@ const DoctorBookingSettingPage: React.FC = () => {
   return (
     <PageContainer>
       <ProTable<DoctorBookingSetting>
-        headerTitle="医生预约设置"
+        headerTitle="预约设置"
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
@@ -117,7 +117,7 @@ const DoctorBookingSettingPage: React.FC = () => {
             icon={<PlusOutlined />}
             onClick={() => history.push('/medical-services/doctor/booking-setting/create')}
           >
-            添加医生预约管理
+            添加预约设置
           </Button>,
         ]}
         pagination={{ defaultPageSize: 10 }}

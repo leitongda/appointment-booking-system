@@ -25,6 +25,13 @@ APPOINTMENT_STATUS = {
     "NO_SHOW": 8,  # 爽约状态
 }
 
+# 签到方式常量
+CHECKIN_METHOD = {
+    "MANUAL": "MANUAL",      # 手动签到（默认）
+    "QR_CODE": "QR_CODE",    # 扫码签到
+    "PHONE": "PHONE",        # 手机签到（患者端自助）
+}
+
 
 class AppointmentServiceBase:
     def __init__(self, db: AsyncSession):
@@ -136,13 +143,12 @@ class AppointmentServiceBase:
             query = query.where(keyword_filter)
             count_query = count_query.where(keyword_filter)
         if department_id:
-            from app.models.department import Department
+            from app.models.doctor import Doctor
 
-            dept_result = await self.db.execute(select(Department.name).where(Department.id == department_id))
-            dept_name = dept_result.scalar_one_or_none()
-            if dept_name:
-                query = query.where(Appointment.department_name == dept_name)
-                count_query = count_query.where(Appointment.department_name == dept_name)
+            query = query.join(Doctor, Appointment.doctor_id == Doctor.id)
+            count_query = count_query.join(Doctor, Appointment.doctor_id == Doctor.id)
+            query = query.where(Doctor.department_id == department_id)
+            count_query = count_query.where(Doctor.department_id == department_id)
         if start_date or end_date:
             if not schedule_joined:
                 query = query.join(Schedule)

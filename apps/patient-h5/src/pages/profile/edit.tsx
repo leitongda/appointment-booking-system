@@ -25,8 +25,7 @@ const ProfileEditPage: React.FC = () => {
       const data = await userApi.getProfile();
       setUser(data);
       form.setFieldsValue({
-        nickname: data.nickname || data.name,
-        email: data.email,
+        nickname: data.nickname,
       });
       if (data.avatar) {
         setFileList([{ url: data.avatar }]);
@@ -58,7 +57,6 @@ const ProfileEditPage: React.FC = () => {
     const values = form.getFieldsValue();
     const updateData: Partial<User> = {
       nickname: values.nickname,
-      email: values.email,
     };
 
     // 如果有新上传的头像
@@ -123,16 +121,6 @@ const ProfileEditPage: React.FC = () => {
                 rules={[{ required: true, message: '请输入昵称' }]}
               >
                 <Input placeholder="请输入昵称" className="text-right" />
-              </Form.Item>
-
-              <Form.Item
-                name="email"
-                label="邮箱"
-                rules={[
-                  { type: 'email', message: '请输入正确的邮箱地址' },
-                ]}
-              >
-                <Input placeholder="请输入邮箱（选填）" type="email" className="text-right" />
               </Form.Item>
 
               <Form.Item label="手机号">

@@ -37,7 +37,7 @@ class AppointmentResponse(BaseModel):
         from_attributes=True,
         by_alias=True,
     )
-    
+
     id: str = Field(..., description="预约ID")
     appointment_no: Optional[str] = Field(None, description="预约编号")
     user_id: Optional[str] = Field(None, description="用户ID")
@@ -50,7 +50,7 @@ class AppointmentResponse(BaseModel):
     department_name: Optional[str] = Field(None, description="科室名称")
     schedule_id: Optional[str] = Field(None, description="排班ID")
     schedule_date: Optional[date] = Field(None, description="就诊日期")
-    time_slot: Optional[str] = Field(None, description="时段: AM上午/PM下午")
+    time_slot: Optional[str] = Field(None, description="时段: morning上午/afternoon下午/evening晚间")
     start_time: Optional[time] = Field(None, description="开始时间")
     end_time: Optional[time] = Field(None, description="结束时间")
     queue_number: Optional[int] = Field(None, description="排队序号")
@@ -62,6 +62,37 @@ class AppointmentResponse(BaseModel):
     cancel_reason: Optional[str] = Field(None, description="取消原因")
     symptom_description: Optional[str] = Field(None, description="病情描述")
     created_at: Optional[datetime] = Field(None, description="创建时间")
+
+    @classmethod
+    def from_appointment(cls, appointment) -> "AppointmentResponse":
+        """从 Appointment ORM 对象构造响应，自动提取排班关联字段。"""
+        schedule = getattr(appointment, "schedule", None)
+        return cls(
+            id=appointment.id,
+            appointment_no=appointment.appointment_no,
+            user_id=appointment.user_id,
+            patient_id=appointment.patient_id,
+            patient_name=appointment.patient_name,
+            patient_phone=appointment.patient_phone,
+            doctor_id=appointment.doctor_id,
+            doctor_name=appointment.doctor_name,
+            doctor_title=appointment.doctor_title,
+            department_name=appointment.department_name,
+            schedule_id=appointment.schedule_id,
+            schedule_date=schedule.schedule_date if schedule else None,
+            time_slot=schedule.time_slot if schedule else None,
+            start_time=schedule.start_time if schedule else None,
+            end_time=schedule.end_time if schedule else None,
+            queue_number=appointment.queue_number,
+            status=appointment.status,
+            sign_in_time=appointment.sign_in_time,
+            call_time=appointment.call_time,
+            complete_time=appointment.complete_time,
+            cancel_time=appointment.cancel_time,
+            cancel_reason=appointment.cancel_reason,
+            symptom_description=appointment.symptom_description,
+            created_at=appointment.created_at,
+        )
 
 
 class AppointmentListQuery(BaseModel):

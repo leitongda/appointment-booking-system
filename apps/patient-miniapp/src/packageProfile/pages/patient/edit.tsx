@@ -1,4 +1,4 @@
-import { View, Text, Input as TaroInput, Picker } from '@tarojs/components';
+import { View, Text, Input as TaroInput, Picker, Textarea } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
 import { Form, Button, Switch } from '@nutui/nutui-react-taro';
 import { useState, useCallback } from 'react';
@@ -18,6 +18,9 @@ const GENDER_VALUE_MAP: Record<number, number> = { 0: 0, 1: 1, 2: 2 };
 // 关系选项
 const RELATIONSHIP_OPTIONS = ['本人', '父亲', '母亲', '子女', '配偶', '其他'];
 
+// 证件类型选项
+const ID_CARD_TYPE_OPTIONS = ['居民身份证', '户口簿', '护照'];
+
 const PatientEditPage = () => {
   const router = useRouter();
   const { id } = router.params;
@@ -34,6 +37,8 @@ const PatientEditPage = () => {
   const [relationIndex, setRelationIndex] = useState(0); // 默认本人
   const [customRelation, setCustomRelation] = useState('');
   const [showCustomRelation, setShowCustomRelation] = useState(false);
+  const [idCardTypeIndex, setIdCardTypeIndex] = useState(0); // 默认居民身份证
+  const [birthday, setBirthday] = useState('');
 
   const loadPatient = useCallback(async () => {
     if (!isEdit) return;
@@ -61,6 +66,19 @@ const PatientEditPage = () => {
           setShowCustomRelation(true);
         }
       }
+
+      // 设置证件类型索引
+      if (data.idCardType !== undefined) {
+        const typeIndex = data.idCardType - 1; // idCardType 从 1 开始
+        if (typeIndex >= 0 && typeIndex < ID_CARD_TYPE_OPTIONS.length) {
+          setIdCardTypeIndex(typeIndex);
+        }
+      }
+
+      // 设置出生日期
+      if (data.birthday) {
+        setBirthday(data.birthday);
+      }
     } catch (error) {
       console.error('加载就诊人信息失败', error);
     }
@@ -82,7 +100,7 @@ const PatientEditPage = () => {
   const handleRelationChange = (e: any) => {
     const index = parseInt(e.detail.value, 10);
     setRelationIndex(index);
-    
+
     if (index === RELATIONSHIP_OPTIONS.length - 1) {
       // 选择"其他"
       setShowCustomRelation(true);
@@ -91,6 +109,21 @@ const PatientEditPage = () => {
       setCustomRelation('');
       setFormValues({ ...formValues, relationship: RELATIONSHIP_OPTIONS[index] });
     }
+  };
+
+  // 处理证件类型选择
+  const handleIdCardTypeChange = (e: any) => {
+    const index = parseInt(e.detail.value, 10);
+    setIdCardTypeIndex(index);
+    setFormValues({ ...formValues, idCardType: index + 1 });
+  };
+
+  // 处理出生日期选择
+  const handleBirthdayChange = (e: any) => {
+    const date = new Date(e.detail.value);
+    const formatted = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    setBirthday(formatted);
+    setFormValues({ ...formValues, birthday: formatted });
   };
 
   // 获取当前显示的关系文本
@@ -111,9 +144,16 @@ const PatientEditPage = () => {
       ...formValues,
       ...values,
       gender: GENDER_VALUE_MAP[genderIndex],
-      relationship: relationIndex === RELATIONSHIP_OPTIONS.length - 1 && !customRelation 
-        ? undefined 
+      relationship: relationIndex === RELATIONSHIP_OPTIONS.length - 1 && !customRelation
+        ? undefined
         : relationship,
+      idCardType: idCardTypeIndex + 1,
+      birthday: birthday || undefined,
+      province: formValues.province || undefined,
+      city: formValues.city || undefined,
+      district: formValues.district || undefined,
+      ethnicity: formValues.ethnicity || undefined,
+      address: formValues.address || undefined,
     };
 
     if (!formData.name || !formData.phone) {
@@ -211,6 +251,111 @@ const PatientEditPage = () => {
                 maxlength={11}
                 value={formValues.phone || ''}
                 onInput={(e) => setFormValues({ ...formValues, phone: e.detail.value })}
+              />
+            </View>
+          </View>
+
+          {/* 出生日期 */}
+          <View className="form-item-row">
+            <View className="row-label">
+              <Text className="label-text">出生日期</Text>
+            </View>
+            <View className="row-input">
+              <Picker mode="date" value={birthday || '2000-01-01'} onChange={handleBirthdayChange}>
+                <View className="picker-value">
+                  <Text className={birthday ? '' : 'placeholder'}>{birthday || '请选择'}</Text>
+                  <Text className="picker-arrow">›</Text>
+                </View>
+              </Picker>
+            </View>
+          </View>
+
+          {/* 证件类型 */}
+          <View className="form-item-row">
+            <View className="row-label">
+              <Text className="label-text">证件类型</Text>
+            </View>
+            <View className="row-input">
+              <Picker mode="selector" range={ID_CARD_TYPE_OPTIONS} value={idCardTypeIndex} onChange={handleIdCardTypeChange}>
+                <View className="picker-value">
+                  <Text>{ID_CARD_TYPE_OPTIONS[idCardTypeIndex]}</Text>
+                  <Text className="picker-arrow">›</Text>
+                </View>
+              </Picker>
+            </View>
+          </View>
+
+          {/* 民族 */}
+          <View className="form-item-row">
+            <View className="row-label">
+              <Text className="label-text">民族</Text>
+            </View>
+            <View className="row-input">
+              <TaroInput
+                className="row-input-field"
+                placeholder="请输入民族（默认汉族）"
+                value={formValues.ethnicity || ''}
+                onInput={(e) => setFormValues({ ...formValues, ethnicity: e.detail.value })}
+              />
+            </View>
+          </View>
+
+          {/* 省 */}
+          <View className="form-item-row">
+            <View className="row-label">
+              <Text className="label-text">省</Text>
+            </View>
+            <View className="row-input">
+              <TaroInput
+                className="row-input-field"
+                placeholder="请输入省份"
+                value={formValues.province || ''}
+                onInput={(e) => setFormValues({ ...formValues, province: e.detail.value })}
+              />
+            </View>
+          </View>
+
+          {/* 市 */}
+          <View className="form-item-row">
+            <View className="row-label">
+              <Text className="label-text">市</Text>
+            </View>
+            <View className="row-input">
+              <TaroInput
+                className="row-input-field"
+                placeholder="请输入城市"
+                value={formValues.city || ''}
+                onInput={(e) => setFormValues({ ...formValues, city: e.detail.value })}
+              />
+            </View>
+          </View>
+
+          {/* 区 */}
+          <View className="form-item-row">
+            <View className="row-label">
+              <Text className="label-text">区</Text>
+            </View>
+            <View className="row-input">
+              <TaroInput
+                className="row-input-field"
+                placeholder="请输入区县"
+                value={formValues.district || ''}
+                onInput={(e) => setFormValues({ ...formValues, district: e.detail.value })}
+              />
+            </View>
+          </View>
+
+          {/* 详细地址 */}
+          <View className="form-item-row">
+            <View className="row-label">
+              <Text className="label-text">详细地址</Text>
+            </View>
+            <View className="row-input">
+              <TaroInput
+                className="row-input-field"
+                placeholder="请输入详细地址"
+                value={formValues.address || ''}
+                onInput={(e) => setFormValues({ ...formValues, address: e.detail.value })}
               />
             </View>
           </View>

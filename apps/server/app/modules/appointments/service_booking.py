@@ -292,7 +292,7 @@ class AppointmentBookingService(AppointmentServiceBase):
                 waitlist_service = WaitlistService(self.db)
                 await waitlist_service.auto_promote(schedule_id=appointment.schedule_id, reason="APPOINTMENT_CANCELLED")
             except Exception as exc:
-                print(f"候补自动递补失败: {exc}")
+                logger.warning(f"候补自动递补失败: {exc}")
 
         await self.db.refresh(appointment)
 
