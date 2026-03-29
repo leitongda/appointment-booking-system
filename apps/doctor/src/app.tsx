@@ -1,7 +1,8 @@
-import { message, Dropdown, Avatar, Space } from 'antd';
+import { message, Dropdown, Avatar, Space, Modal } from 'antd';
 import type { RequestConfig, RunTimeLayoutConfig } from 'umi';
 import { history } from 'umi';
-import { getToken, removeToken } from '@hospital/shared';
+import { getToken, removeToken, initCrossTabSync, destroyCrossTabSync } from '@hospital/shared';
+import type { CrossTabEvent } from '@hospital/shared';
 import { doctorApi, setBaseURL } from '@hospital/api';
 import { UserOutlined, LogoutOutlined, SettingOutlined } from '@ant-design/icons';
 import { initApiConfig } from '@/utils/request';
@@ -12,6 +13,33 @@ setBaseURL(apiBaseUrl);
 
 // 初始化 API 请求配置（拦截器）
 initApiConfig();
+
+// 初始化跨 Tab 状态同步（医生端只关心认证变更）
+initCrossTabSync((event: CrossTabEvent) => {
+  if (event.type !== 'auth-change') return;
+
+  if (event.action === 'logout') {
+    Modal.confirm({
+      title: '登录状态变更',
+      content: '您已在其他页面退出登录，请重新登录。',
+      okText: '重新登录',
+      cancelButtonProps: { style: { display: 'none' } },
+      closable: false,
+      maskClosable: false,
+      onOk: () => { window.location.href = '/login'; },
+    });
+  } else if (event.action === 'switch-user') {
+    Modal.confirm({
+      title: '登录账号已变更',
+      content: '检测到您在其他页面切换了登录账号，当前页面需要刷新。',
+      okText: '刷新页面',
+      cancelButtonProps: { style: { display: 'none' } },
+      closable: false,
+      maskClosable: false,
+      onOk: () => { window.location.reload(); },
+    });
+  }
+});
 
 interface CurrentDoctor {
   id: string;
@@ -143,7 +171,15 @@ export const request: RequestConfig = {
       
       if (status === 401 || data?.code === 401) {
         removeToken();
-        history.push('/login');
+        Modal.confirm({
+          title: '登录已过期',
+          content: data?.message || '您的登录已失效，请重新登录。',
+          okText: '重新登录',
+          cancelButtonProps: { style: { display: 'none' } },
+          closable: false,
+          maskClosable: false,
+          onOk: () => { window.location.href = '/login'; },
+        });
         return response;
       }
       

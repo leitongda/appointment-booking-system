@@ -22,7 +22,7 @@ COMPOSITE_INDEXES = [
     # appointments
     ("appointments", "idx_appointments_tenant_status", ["tenant_id", "status"]),
     ("appointments", "idx_appointments_tenant_user", ["tenant_id", "user_id"]),
-    ("appointments", "idx_appointments_tenant_doctor_date", ["tenant_id", "doctor_id", "schedule_date"]),
+    ("appointments", "idx_appointments_tenant_doctor", ["tenant_id", "doctor_id"]),
     ("appointments", "idx_appointments_tenant_schedule", ["tenant_id", "schedule_id"]),
     # schedules
     ("schedules", "idx_schedules_tenant_doctor_date", ["tenant_id", "doctor_id", "schedule_date"]),
