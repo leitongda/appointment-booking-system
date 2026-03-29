@@ -64,12 +64,9 @@ class AppointmentFlowService(AppointmentServiceBase):
                         visit_time = schedule.start_time
                     else:
                         time_slot_start_map = {
-                            "AM": time(8, 0),
-                            "PM": time(14, 0),
                             "morning": time(8, 0),
                             "afternoon": time(14, 0),
                             "evening": time(18, 0),
-                            "NIGHT": time(18, 0),
                         }
                         visit_time = time_slot_start_map.get(schedule.time_slot, time(8, 0))
                     visit_datetime = local_tz.localize(datetime.combine(schedule.schedule_date, visit_time))

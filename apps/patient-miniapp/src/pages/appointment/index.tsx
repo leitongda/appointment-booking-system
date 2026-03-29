@@ -206,7 +206,7 @@ const AppointmentPage = () => {
                   <View className="time">
                     <Text className="date">{item.scheduleDate}</Text>
                     <Text className="slot">
-                      {TIME_SLOT_MAP[item.timeSlot || 'AM']}
+                      {TIME_SLOT_MAP[item.timeSlot || 'morning']}
                       {item.startTime && item.endTime && ` ${formatTime(item.startTime)}-${formatTime(item.endTime)}`}
                       {item.queueNumber && (
                         <Text className="queue-number">第{item.queueNumber}号</Text>

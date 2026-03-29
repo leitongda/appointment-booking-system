@@ -2,27 +2,33 @@
  * 排班时段
  */
 export const TIME_SLOT = {
-  AM: 'AM',       // 上午
-  PM: 'PM',       // 下午
-  NIGHT: 'NIGHT', // 夜间
+  MORNING: 'morning',       // 上午
+  AFTERNOON: 'afternoon',   // 下午
+  EVENING: 'evening',       // 晚间
 } as const;
 
 export const TIME_SLOT_MAP: Record<string, string> = {
-  [TIME_SLOT.AM]: '上午',
-  [TIME_SLOT.PM]: '下午',
-  [TIME_SLOT.NIGHT]: '夜间',
-  'morning': '上午',
-  'afternoon': '下午',
-  'evening': '晚上',
+  [TIME_SLOT.MORNING]: '上午',
+  [TIME_SLOT.AFTERNOON]: '下午',
+  [TIME_SLOT.EVENING]: '晚上',
 };
 
 /**
  * 默认时段时间
  */
 export const TIME_SLOT_RANGE: Record<string, { start: string; end: string }> = {
-  [TIME_SLOT.AM]: { start: '08:00', end: '12:00' },
-  [TIME_SLOT.PM]: { start: '14:00', end: '17:30' },
-  [TIME_SLOT.NIGHT]: { start: '18:00', end: '21:00' },
+  [TIME_SLOT.MORNING]: { start: '08:00', end: '12:00' },
+  [TIME_SLOT.AFTERNOON]: { start: '14:00', end: '17:30' },
+  [TIME_SLOT.EVENING]: { start: '18:00', end: '21:00' },
+};
+
+/**
+ * 时段显示标签（用于UI显示）
+ */
+export const TIME_SLOT_LABEL: Record<string, string> = {
+  [TIME_SLOT.MORNING]: '上午',
+  [TIME_SLOT.AFTERNOON]: '下午',
+  [TIME_SLOT.EVENING]: '晚上',
 };
 
 /**

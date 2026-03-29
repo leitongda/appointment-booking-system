@@ -198,7 +198,7 @@ const SchedulePage: React.FC = () => {
         <div style={{ marginBottom: 16 }}>
           <p>
             确定要停诊 <strong>{currentSchedule?.scheduleDate}</strong> 
-            <strong> {TIME_SLOT_MAP[currentSchedule?.timeSlot || 'AM']} </strong>的排班吗？
+            <strong> {TIME_SLOT_MAP[currentSchedule?.timeSlot || 'morning']} </strong>的排班吗？
           </p>
           {currentSchedule && currentSchedule.bookedSlots > 0 && (
             <Tag color="warning">该时段已有 {currentSchedule.bookedSlots} 人预约</Tag>

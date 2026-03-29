@@ -78,7 +78,7 @@ const MedicalRecordFormPage: React.FC = () => {
               {appointment.patientPhone?.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}
             </Descriptions.Item>
             <Descriptions.Item label="就诊时间">
-              {appointment.scheduleDate} {TIME_SLOT_MAP[appointment.timeSlot || 'AM']}
+              {appointment.scheduleDate} {TIME_SLOT_MAP[appointment.timeSlot || 'morning']}
             </Descriptions.Item>
             <Descriptions.Item label="预约单号">{appointment.appointmentNo}</Descriptions.Item>
             <Descriptions.Item label="队列号">

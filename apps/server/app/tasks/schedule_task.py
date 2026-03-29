@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 import logging
 import uuid
 
+import httpx
+
 from app.celery_app import celery_app
 from app.db.session import get_sync_db
 from app.models.tenant import Tenant
@@ -25,6 +27,59 @@ from app.utils.schedule_utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def send_alert_webhook(task_name: str, error_message: str, retry_count: int):
+    """发送失败告警到 Webhook
+
+    Args:
+        task_name: 任务名称
+        error_message: 错误信息
+        retry_count: 当前重试次数
+    """
+    webhook_url = settings.ALERT_WEBHOOK_URL
+    if not webhook_url:
+        logger.critical(
+            f"[告警] 任务失败: task={task_name}, retry={retry_count}, error={error_message}"
+        )
+        return
+
+    alert_data = {
+        "task_name": task_name,
+        "failed_time": datetime.now().isoformat(),
+        "error_message": error_message,
+        "retry_count": retry_count,
+        "severity": "critical" if retry_count >= 2 else "warning",
+    }
+
+    try:
+        with httpx.Client(timeout=10) as client:
+            response = client.post(webhook_url, json=alert_data)
+            response.raise_for_status()
+            logger.info(f"[告警] Webhook 发送成功: {webhook_url}")
+    except Exception as e:
+        logger.error(f"[告警] Webhook 发送失败: {e}")
+        # Webhook 发送失败不影响任务重试逻辑
+
+
+class AlertTask(celery_app.Task):
+    """支持失败告警的自定义任务基类"""
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        """任务失败时的回调，发送告警"""
+        retry_count = 0
+        try:
+            # 尝试从请求对象中获取重试次数
+            if hasattr(self, 'request') and hasattr(self.request, 'retries'):
+                retry_count = self.request.retries
+        except Exception:
+            retry_count = 0
+
+        send_alert_webhook(
+            task_name=self.name,
+            error_message=str(exc),
+            retry_count=retry_count
+        )
 
 
 def is_rest_day(db: Session, check_date: date, store_id: str = None, doctor_id: str = None) -> bool:
@@ -73,8 +128,13 @@ def is_rest_day(db: Session, check_date: date, store_id: str = None, doctor_id: 
         return False
 
 
-@celery_app.task(name="app.tasks.schedule_task.auto_generate_schedules_task")
-def auto_generate_schedules_task():
+@celery_app.task(
+    name="app.tasks.schedule_task.auto_generate_schedules_task",
+    base=AlertTask,
+    bind=True,
+    max_retries=3,
+)
+def auto_generate_schedules_task(self):
     """
     自动生成排班（多租户版本）
     每天凌晨2点执行
@@ -102,7 +162,8 @@ def auto_generate_schedules_task():
             tenants = result.scalars().all()
         except Exception as e:
             logger.error(f"查询租户列表失败: {e}")
-            raise
+            # 指数退避重试
+            raise self.retry(exc=e, countdown=60 * (self.request.retries + 1))
 
     if not tenants:
         logger.info("没有活跃租户，跳过排班生成")
@@ -225,6 +286,7 @@ def auto_generate_schedules_task():
                                     time_slot = get_time_slot_from_time(slot_start)
                                     schedule = Schedule(
                                         id=str(uuid.uuid4()),
+                                        tenant_id=tenant.id,
                                         doctor_id=template.doctor_id,
                                         store_id=template.store_id,
                                         template_id=template.id,
@@ -282,6 +344,8 @@ def auto_generate_schedules_task():
 
         except Exception as e:
             logger.error(f"租户 {tenant.name} 排班生成失败: {e}")
+            # 重试关键异常
+            raise self.retry(exc=e, countdown=60 * (self.request.retries + 1))
         finally:
             # 清除租户上下文
             clear_tenant_context()
@@ -393,6 +457,7 @@ def generate_schedules_for_template(
                                     time_slot = get_time_slot_from_time(slot_start)
                                     schedule = Schedule(
                                         id=str(uuid.uuid4()),
+                                        tenant_id=tenant_id,
                                         doctor_id=template.doctor_id,
                                         store_id=template.store_id,
                                         template_id=template.id,

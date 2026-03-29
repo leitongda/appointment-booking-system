@@ -166,8 +166,10 @@ class ScheduleStatisticsItem(BaseModel):
     doctor_name: str
     morning_slots: int = 0
     afternoon_slots: int = 0
+    evening_slots: int = 0
     morning_booked: int = 0
     afternoon_booked: int = 0
+    evening_booked: int = 0
 
 
 class ScheduleStatisticsResponse(BaseModel):
@@ -239,16 +241,21 @@ async def get_schedule_statistics(
             stats_dict[key] = {
                 "morning_slots": 0,
                 "afternoon_slots": 0,
+                "evening_slots": 0,
                 "morning_booked": 0,
-                "afternoon_booked": 0
+                "afternoon_booked": 0,
+                "evening_booked": 0
             }
-        
-        if s.time_slot in ["AM", "morning"]:
+
+        if s.time_slot == "morning":
             stats_dict[key]["morning_slots"] += s.total_slots
             stats_dict[key]["morning_booked"] += s.booked_slots
-        elif s.time_slot in ["PM", "afternoon"]:
+        elif s.time_slot == "afternoon":
             stats_dict[key]["afternoon_slots"] += s.total_slots
             stats_dict[key]["afternoon_booked"] += s.booked_slots
+        elif s.time_slot == "evening":
+            stats_dict[key]["evening_slots"] += s.total_slots
+            stats_dict[key]["evening_booked"] += s.booked_slots
     
     # 2. 获取自定义排班统计（template_id为NULL的排班）
     custom_result = await db.execute(
@@ -271,14 +278,19 @@ async def get_schedule_statistics(
             stats_dict[key] = {
                 "morning_slots": 0,
                 "afternoon_slots": 0,
+                "evening_slots": 0,
                 "morning_booked": 0,
-                "afternoon_booked": 0
+                "afternoon_booked": 0,
+                "evening_booked": 0
             }
-        
-        # 根据时间判断上午/下午
+
+        # 根据时间判断上午/下午/晚间
         if s.start_time and s.start_time.hour < 12:
             stats_dict[key]["morning_slots"] += s.total_slots
             stats_dict[key]["morning_booked"] += s.booked_slots
+        elif s.start_time and s.start_time.hour >= 18:
+            stats_dict[key]["evening_slots"] += s.total_slots
+            stats_dict[key]["evening_booked"] += s.booked_slots
         elif s.start_time:
             stats_dict[key]["afternoon_slots"] += s.total_slots
             stats_dict[key]["afternoon_booked"] += s.booked_slots
@@ -292,8 +304,10 @@ async def get_schedule_statistics(
             doctor_name=doctor_map.get(doctor_id, ""),
             morning_slots=stats["morning_slots"],
             afternoon_slots=stats["afternoon_slots"],
+            evening_slots=stats["evening_slots"],
             morning_booked=stats["morning_booked"],
-            afternoon_booked=stats["afternoon_booked"]
+            afternoon_booked=stats["afternoon_booked"],
+            evening_booked=stats["evening_booked"]
         ))
     
     return ScheduleStatisticsResponse(

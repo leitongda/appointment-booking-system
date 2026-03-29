@@ -174,7 +174,7 @@ const Dashboard: React.FC = () => {
                   {currentPatient.patientName}
                 </div>
                 <div style={{ color: '#666', marginBottom: 16 }}>
-                  {TIME_SLOT_MAP[currentPatient.timeSlot || 'AM']} 第{currentPatient.queueNumber}号
+                  {TIME_SLOT_MAP[currentPatient.timeSlot || 'morning']} 第{currentPatient.queueNumber}号
                 </div>
                 <Button type="primary" onClick={() => handleComplete(currentPatient.id)}>
                   完成就诊
@@ -237,7 +237,7 @@ const Dashboard: React.FC = () => {
                     <List.Item.Meta
                       avatar={<Avatar icon={<UserOutlined />} />}
                       title={item.patientName}
-                      description={`第${item.queueNumber}号 · ${TIME_SLOT_MAP[item.timeSlot || 'AM']}`}
+                      description={`第${item.queueNumber}号 · ${TIME_SLOT_MAP[item.timeSlot || 'morning']}`}
                     />
                     <Tag>待签到</Tag>
                   </List.Item>

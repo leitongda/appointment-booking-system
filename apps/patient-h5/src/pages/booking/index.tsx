@@ -126,7 +126,7 @@ const BookingPage: React.FC = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">时段</span>
-                <span className="text-foreground">{TIME_SLOT_MAP[timeSlot || 'AM']}</span>
+                <span className="text-foreground">{TIME_SLOT_MAP[timeSlot || 'morning']}</span>
               </div>
             </div>
           </Card>

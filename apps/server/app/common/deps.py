@@ -831,7 +831,7 @@ async def get_platform_admin(
     return current_admin
 
 
-def get_tenant_filter(current_admin: dict) -> Optional[str]:
+def get_tenant_filter(current_admin: dict = Depends(get_current_admin)) -> Optional[str]:
     """获取租户过滤条件
 
     用于数据查询时自动添加租户过滤。

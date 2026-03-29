@@ -164,7 +164,7 @@ const AppointmentDetailPage = () => {
           <Text className="value">
             {appointment.startTime 
               ? getPeriodNameFromTime(formatTime(appointment.startTime) || '', timePeriods) 
-              : TIME_SLOT_MAP[appointment.timeSlot || 'AM']
+              : TIME_SLOT_MAP[appointment.timeSlot || 'morning']
             }
             {appointment.startTime && appointment.endTime && ` (${formatTime(appointment.startTime)}-${formatTime(appointment.endTime)})`}
           </Text>

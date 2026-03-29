@@ -49,12 +49,9 @@ class AppointmentServiceBase:
                 return
 
             time_slot_map = {
-                "AM": "上午",
-                "PM": "下午",
                 "morning": "上午",
                 "afternoon": "下午",
                 "evening": "晚间",
-                "NIGHT": "夜间",
             }
             context = {
                 "patient_name": appointment.patient_name or "",

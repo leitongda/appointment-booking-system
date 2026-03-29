@@ -280,7 +280,7 @@ const ConsultationPage: React.FC = () => {
                 </div>
                 <div style={{ marginBottom: 24 }}>
                   <Tag color="blue" style={{ fontSize: 14, padding: '4px 12px' }}>
-                    {TIME_SLOT_MAP[currentPatient.timeSlot || 'AM']} 第{currentPatient.queueNumber}号
+                    {TIME_SLOT_MAP[currentPatient.timeSlot || 'morning']} 第{currentPatient.queueNumber}号
                   </Tag>
                 </div>
                 <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -451,7 +451,7 @@ const ConsultationPage: React.FC = () => {
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ marginBottom: 8 }}>
                     <Tag color="blue">{item.scheduleDate}</Tag>
-                    <Tag>{TIME_SLOT_MAP[item.timeSlot || 'AM']}</Tag>
+                    <Tag>{TIME_SLOT_MAP[item.timeSlot || 'morning']}</Tag>
                     <Tag color={item.status === APPOINTMENT_STATUS.COMPLETED ? 'green' : 'default'}>
                       {APPOINTMENT_STATUS_MAP[item.status] || '未知'}
                     </Tag>
@@ -533,7 +533,7 @@ const ConsultationPage: React.FC = () => {
             value: s.id,
             label: (
               <span>
-                {s.scheduleDate} {TIME_SLOT_MAP[s.timeSlot || 'AM']}
+                {s.scheduleDate} {TIME_SLOT_MAP[s.timeSlot || 'morning']}
                 <Tag color="blue" style={{ marginLeft: 8 }}>
                   剩余 {s.availableSlots} 号
                 </Tag>

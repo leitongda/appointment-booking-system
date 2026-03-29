@@ -114,8 +114,10 @@ export interface ScheduleStatisticsItem {
   doctorName: string;
   morningSlots: number;
   afternoonSlots: number;
+  eveningSlots: number;
   morningBooked: number;
   afternoonBooked: number;
+  eveningBooked: number;
 }
 
 export interface ScheduleStatisticsResponse {

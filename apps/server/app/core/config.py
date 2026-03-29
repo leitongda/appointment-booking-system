@@ -148,6 +148,9 @@ class Settings(BaseSettings):
     COS_REGION: str = "ap-guangzhou"
     COS_BUCKET: Optional[str] = None
     COS_CDN_DOMAIN: Optional[str] = None  # CDN加速域名（可选）
+
+    # 告警配置
+    ALERT_WEBHOOK_URL: Optional[str] = None  # 任务失败告警 Webhook URL
     
     model_config = SettingsConfigDict(
         env_file=_get_env_file(),

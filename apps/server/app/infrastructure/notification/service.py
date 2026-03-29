@@ -85,7 +85,7 @@ class NotificationService:
 
         # 邮件事件钩子：停诊通知
         try:
-            time_slot_map = {'AM': '上午', 'PM': '下午', 'morning': '上午', 'afternoon': '下午'}
+            time_slot_map = {'morning': '上午', 'afternoon': '下午', 'evening': '晚上'}
             dispatch_event_email(
                 store_id=schedule.store_id,
                 event_type=EventType.SCHEDULE_SUSPENDED,
@@ -132,7 +132,7 @@ class NotificationService:
             print(f"[SMS] 短信配置不完整，跳过发送: {phone}")
             return
 
-        time_slot_map = {'AM': '上午', 'PM': '下午'}
+        time_slot_map = {'morning': '上午', 'afternoon': '下午', 'evening': '晚上'}
         time_slot_text = time_slot_map.get(time_slot, time_slot)
 
         # 构建短信内容

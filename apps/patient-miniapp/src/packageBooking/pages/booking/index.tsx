@@ -113,7 +113,7 @@ const BookingPage = () => {
         
         const confirmResult = await Taro.showModal({
           title: '重复预约提醒',
-          content: `您在同一天${timeSlot === 'AM' ? '上午' : '下午'}已预约了${doctorNames}的号，是否继续预约？`,
+          content: `您在同一天${timeSlot === 'morning' ? '上午' : '下午'}已预约了${doctorNames}的号，是否继续预约？`,
           confirmText: '继续预约',
           cancelText: '取消',
         });
@@ -255,7 +255,7 @@ const BookingPage = () => {
           <View className="info-row">
             <Text className="label">预约时间</Text>
             <Text className="value">
-              {date} {startTime ? getPeriodNameFromTime(startTime, timePeriods) : TIME_SLOT_MAP[timeSlot || 'AM']}
+              {date} {startTime ? getPeriodNameFromTime(startTime, timePeriods) : TIME_SLOT_MAP[timeSlot || 'morning']}
               {startTime && endTime && ` (${startTime}-${endTime})`}
             </Text>
           </View>

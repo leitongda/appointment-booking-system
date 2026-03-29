@@ -175,7 +175,7 @@ const AppointmentDetailPage: React.FC = () => {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">就诊时段</span>
                 <span className="text-foreground">
-                  {TIME_SLOT_MAP[appointment.timeSlot || 'AM']} 第{appointment.queueNumber}号
+                  {TIME_SLOT_MAP[appointment.timeSlot || 'morning']} 第{appointment.queueNumber}号
                 </span>
               </div>
             </div>

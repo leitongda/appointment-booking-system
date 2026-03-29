@@ -105,8 +105,8 @@ export const isAppointmentExpired = (
   // 没有具体结束时间，根据时段判断
   // 上午时段：12:00 前有效
   // 下午/其他时段：当天 23:59 前有效
-  const endHour = timeSlot === 'AM' ? 12 : 23;
-  const endMinute = timeSlot === 'AM' ? 0 : 59;
+  const endHour = timeSlot === 'morning' ? 12 : 23;
+  const endMinute = timeSlot === 'morning' ? 0 : 59;
   const appointmentEnd = new Date(`${scheduleDate}T${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}:00`);
   
   return now > appointmentEnd;

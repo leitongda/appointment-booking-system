@@ -197,12 +197,9 @@ class AppointmentBookingService(AppointmentServiceBase):
             message_service_cls = self._compat("MessageService", MessageService)
             message_service = message_service_cls(self.db)
             time_slot_display = {
-                "AM": "上午",
-                "PM": "下午",
                 "morning": "上午",
                 "afternoon": "下午",
                 "evening": "晚间",
-                "NIGHT": "夜间",
             }.get(schedule.time_slot, schedule.time_slot)
             await message_service.send_appointment_notification(
                 user_id=user_id,
@@ -259,12 +256,9 @@ class AppointmentBookingService(AppointmentServiceBase):
                         visit_time = schedule.start_time
                     else:
                         time_slot_start_map = {
-                            "AM": time(8, 0),
-                            "PM": time(14, 0),
                             "morning": time(8, 0),
                             "afternoon": time(14, 0),
                             "evening": time(18, 0),
-                            "NIGHT": time(18, 0),
                         }
                         visit_time = time_slot_start_map.get(schedule.time_slot, time(8, 0))
                     visit_datetime = datetime.combine(schedule.schedule_date, visit_time)
@@ -309,12 +303,9 @@ class AppointmentBookingService(AppointmentServiceBase):
             time_slot_display = ""
             if schedule:
                 time_slot_display = {
-                    "AM": "上午",
-                    "PM": "下午",
                     "morning": "上午",
                     "afternoon": "下午",
                     "evening": "晚间",
-                    "NIGHT": "夜间",
                 }.get(schedule.time_slot, schedule.time_slot)
             cancel_reason_text = f"，取消原因：{reason}" if reason else ""
             schedule_date_str = schedule.schedule_date.strftime("%Y年%m月%d日") if schedule else ""

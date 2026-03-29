@@ -162,7 +162,7 @@ const AppointmentPage: React.FC = () => {
                       <div className="text-right">
                         <p className="font-medium text-foreground">{item.scheduleDate}</p>
                         <p className="text-sm text-muted-foreground mt-1">
-                          {TIME_SLOT_MAP[item.timeSlot || 'AM']}
+                          {TIME_SLOT_MAP[item.timeSlot || 'morning']}
                           {item.queueNumber && (
                             <span className="ml-2 text-accent">第{item.queueNumber}号</span>
                           )}

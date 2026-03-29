@@ -323,12 +323,9 @@ class ScheduleMutationMixin:
                     doctor_name = schedule.doctor.name if schedule.doctor else appointment.doctor_name or "医生"
                     schedule_date_str = schedule.schedule_date.strftime("%Y年%m月%d日")
                     time_slot_display = {
-                        "AM": "上午",
-                        "PM": "下午",
                         "morning": "上午",
                         "afternoon": "下午",
                         "evening": "晚间",
-                        "NIGHT": "夜间",
                     }.get(schedule.time_slot, schedule.time_slot or "")
                     reason_text = f"原因：{reason}" if reason else "请重新预约其他时间"
 

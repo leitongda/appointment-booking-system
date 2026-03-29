@@ -26,7 +26,7 @@ const DoctorDetailPage = () => {
   const [selectedDate, setSelectedDate] = useState<string>('');
 
   // 时段选择状态（单选）
-  const [selectedSlot, setSelectedSlot] = useState<'AM' | 'PM' | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<'morning' | 'afternoon' | null>(null);
   // 班次选择 Picker 状态
   const [showSlotPicker, setShowSlotPicker] = useState(false);
   // 选中的具体班次
@@ -249,12 +249,12 @@ const DoctorDetailPage = () => {
 
   // 获取上午/下午的排班汇总
   const timeSlotSummary = useMemo(() => {
-    const morning = selectedDateSchedules.filter(s => s.timeSlot === 'AM' || s.timeSlot === 'morning');
-    const afternoon = selectedDateSchedules.filter(s => s.timeSlot === 'PM' || s.timeSlot === 'afternoon');
-    
+    const morning = selectedDateSchedules.filter(s => s.timeSlot === 'morning');
+    const afternoon = selectedDateSchedules.filter(s => s.timeSlot === 'afternoon');
+
     const morningTotal = morning.reduce((sum, s) => sum + s.availableSlots, 0);
     const afternoonTotal = afternoon.reduce((sum, s) => sum + s.availableSlots, 0);
-    
+
     return {
       morning: { schedules: morning, available: morningTotal },
       afternoon: { schedules: afternoon, available: afternoonTotal },
@@ -275,7 +275,7 @@ const DoctorDetailPage = () => {
   // 获取选中时段的班次列表（用于 Picker 展示）
   const selectedSlotSchedules = useMemo(() => {
     if (!selectedSlot) return [];
-    return selectedSlot === 'AM'
+    return selectedSlot === 'morning'
       ? timeSlotSummary.morning.schedules
       : timeSlotSummary.afternoon.schedules;
   }, [selectedSlot, timeSlotSummary]);
@@ -332,8 +332,8 @@ const DoctorDetailPage = () => {
   };
 
   // 点击时段卡片 - 弹出班次选择 Picker
-  const handleTimeSlotClick = (slot: 'AM' | 'PM') => {
-    const summary = slot === 'AM' ? timeSlotSummary.morning : timeSlotSummary.afternoon;
+  const handleTimeSlotClick = (slot: 'morning' | 'afternoon') => {
+    const summary = slot === 'morning' ? timeSlotSummary.morning : timeSlotSummary.afternoon;
 
     // 检查是否有可预约的班次
     if (summary.available <= 0 || summary.schedules.length === 0) {
@@ -509,8 +509,8 @@ const DoctorDetailPage = () => {
 
             {/* 上午/下午时段选择 - 两列布局（单选，增强版） */}
             <View className="time-slots">
-              {['AM', 'PM'].map(slot => {
-                const summary = slot === 'AM' ? timeSlotSummary.morning : timeSlotSummary.afternoon;
+              {['morning', 'afternoon'].map(slot => {
+                const summary = slot === 'morning' ? timeSlotSummary.morning : timeSlotSummary.afternoon;
                 const slotStatus = getSlotSummary(summary.schedules);
                 const urgencyClass = slotStatus.urgency !== 'normal' ? `urgency-${slotStatus.urgency}` : '';
 
@@ -519,7 +519,7 @@ const DoctorDetailPage = () => {
                     key={slot}
                     className={`time-slot-card ${slotStatus.disabled ? 'full' : ''} ${selectedSlot === slot ? 'selected' : ''} ${slotStatus.status === 'closing-soon' ? 'closing-soon' : ''} ${urgencyClass}`}
                     data-urgency={slotStatus.urgency}
-                    onClick={() => !slotStatus.disabled && handleTimeSlotClick(slot as 'AM' | 'PM')}
+                    onClick={() => !slotStatus.disabled && handleTimeSlotClick(slot as 'morning' | 'afternoon')}
                   >
                     {/* 紧急程度徽章 */}
                     {slotStatus.urgency === 'high' && !slotStatus.disabled && (
@@ -532,7 +532,7 @@ const DoctorDetailPage = () => {
                     <Text className="slot-available">
                       {slotStatus.message}
                     </Text>
-                    <Text className="slot-period">{slot === 'AM' ? '上午' : '下午'}</Text>
+                    <Text className="slot-period">{slot === 'morning' ? '上午' : '下午'}</Text>
                     {doctor.departmentName && (
                       <Text className="slot-dept">{doctor.departmentName}</Text>
                     )}
@@ -555,7 +555,7 @@ const DoctorDetailPage = () => {
             <View className="slot-picker-header">
               <Text className="slot-picker-title">选择就诊班次</Text>
               <Text className="slot-picker-subtitle">
-                {selectedDateInfo?.formatted} {selectedDateInfo?.weekday} · {selectedSlot === 'AM' ? '上午' : '下午'}
+                {selectedDateInfo?.formatted} {selectedDateInfo?.weekday} · {selectedSlot === 'morning' ? '上午' : '下午'}
               </Text>
             </View>
             

@@ -124,7 +124,7 @@ const TodayAppointmentPage: React.FC = () => {
       title: '时段', 
       dataIndex: 'timeSlot', 
       width: 80, 
-      render: (_, r) => TIME_SLOT_MAP[r.timeSlot || 'AM'] 
+      render: (_, r) => TIME_SLOT_MAP[r.timeSlot || 'morning'] 
     },
     { 
       title: '状态', 
