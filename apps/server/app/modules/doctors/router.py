@@ -353,11 +353,13 @@ async def delete_doctor(
     if not check_store_access(current_admin, doctor.store_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权删除此医生")
     
-    success = await service.delete(doctor_id)
-    
-    if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在，请检查后重试")
-    
+    try:
+        success = await service.delete(doctor_id)
+        if not success:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="医生不存在，请检查后重试")
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
     return {"message": "删除成功"}
 
 
