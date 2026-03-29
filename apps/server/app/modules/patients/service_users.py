@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional, Tuple, List
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, or_, select, case
 
 from app.models.appointment import Appointment
 from app.models.user import Patient, User
@@ -47,33 +47,52 @@ class UserManageService(PatientsServiceBase):
         result = await self.db.execute(query)
         users = result.scalars().all()
 
-        user_data = []
-        for user in users:
-            card_count_query = select(func.count(Patient.id)).where(Patient.user_id == user.id)
-            if tenant_id:
-                card_count_query = card_count_query.where(Patient.tenant_id == tenant_id)
-            card_count = await self.db.scalar(card_count_query)
-            appointment_count_query = select(func.count(Appointment.id)).join(Patient, Appointment.patient_id == Patient.id).where(Patient.user_id == user.id)
-            if tenant_id:
-                appointment_count_query = appointment_count_query.where(
-                    Appointment.tenant_id == tenant_id,
-                    Patient.tenant_id == tenant_id,
-                )
-            appointment_count = await self.db.scalar(appointment_count_query)
-            user_data.append(
-                {
-                    "id": user.id,
-                    "phone": user.phone,
-                    "nickname": user.nickname or "微信用户",
-                    "avatar": user.avatar,
-                    "gender": user.gender,
-                    "status": user.status,
-                    "points": user.points or 0,
-                    "cardCount": card_count or 0,
-                    "appointmentCount": appointment_count or 0,
-                    "createdAt": user.created_at.isoformat() if user.created_at else None,
-                }
+        if not users:
+            return [], total or 0
+
+        user_ids = [u.id for u in users]
+
+        # 批量获取 cardCount
+        card_count_subq = (
+            select(Patient.user_id, func.count(Patient.id).label("cnt"))
+            .where(Patient.user_id.in_(user_ids))
+            .group_by(Patient.user_id)
+        )
+        if tenant_id:
+            card_count_subq = card_count_subq.where(Patient.tenant_id == tenant_id)
+        card_result = await self.db.execute(card_count_subq)
+        card_count_map = dict(card_result.all())
+
+        # 批量获取 appointmentCount（通过 Patient 关联）
+        appt_count_subq = (
+            select(Patient.user_id, func.count(Appointment.id).label("cnt"))
+            .join(Patient, Appointment.patient_id == Patient.id)
+            .where(Patient.user_id.in_(user_ids))
+            .group_by(Patient.user_id)
+        )
+        if tenant_id:
+            appt_count_subq = appt_count_subq.where(
+                Appointment.tenant_id == tenant_id,
+                Patient.tenant_id == tenant_id,
             )
+        appt_result = await self.db.execute(appt_count_subq)
+        appt_count_map = dict(appt_result.all())
+
+        user_data = [
+            {
+                "id": user.id,
+                "phone": user.phone,
+                "nickname": user.nickname or "微信用户",
+                "avatar": user.avatar,
+                "gender": user.gender,
+                "status": user.status,
+                "points": user.points or 0,
+                "cardCount": card_count_map.get(user.id, 0),
+                "appointmentCount": appt_count_map.get(user.id, 0),
+                "createdAt": user.created_at.isoformat() if user.created_at else None,
+            }
+            for user in users
+        ]
         return user_data, total or 0
 
     async def get_detail(self, user_id: str) -> Optional[dict]:
@@ -94,51 +113,62 @@ class UserManageService(PatientsServiceBase):
         )
         cards = cards_result.scalars().all()
 
-        cards_data = []
-        for card in cards:
-            appointment_count_query = select(func.count(Appointment.id)).where(Appointment.patient_id == card.id)
-            no_show_count_query = select(func.count(Appointment.id)).where(and_(Appointment.patient_id == card.id, Appointment.status == APPOINTMENT_STATUS["NO_SHOW"]))
-            if tenant_id:
-                appointment_count_query = appointment_count_query.where(Appointment.tenant_id == tenant_id)
-                no_show_count_query = no_show_count_query.where(Appointment.tenant_id == tenant_id)
-            appointment_count = await self.db.scalar(appointment_count_query)
-            no_show_count = await self.db.scalar(no_show_count_query)
-            cards_data.append(
-                {
-                    "id": card.id,
-                    "cardNo": card.card_no,
-                    "name": card.name,
-                    "phone": card.phone,
-                    "idCard": card.id_card,
-                    "gender": card.gender,
-                    "age": card.age,
-                    "birthday": card.birthday.isoformat() if card.birthday else None,
-                    "relationship": card.relationship,
-                    "isDefault": card.is_default,
-                    "source": card.source or 1,
-                    "appointmentCount": appointment_count or 0,
-                    "noShowCount": no_show_count or 0,
-                    "createdAt": card.created_at.isoformat() if card.created_at else None,
-                }
-            )
+        card_ids = [c.id for c in cards]
 
-        total_appointment_query = select(func.count(Appointment.id)).join(Patient, Appointment.patient_id == Patient.id).where(Patient.user_id == user_id)
-        total_no_show_query = (
-            select(func.count(Appointment.id))
-            .join(Patient, Appointment.patient_id == Patient.id)
-            .where(and_(Patient.user_id == user_id, Appointment.status == APPOINTMENT_STATUS["NO_SHOW"]))
-        )
-        if tenant_id:
-            total_appointment_query = total_appointment_query.where(
-                Appointment.tenant_id == tenant_id,
-                Patient.tenant_id == tenant_id,
+        if card_ids:
+            # 批量获取每张卡的 appointmentCount
+            card_appt_subq = (
+                select(Appointment.patient_id, func.count(Appointment.id).label("cnt"))
+                .where(Appointment.patient_id.in_(card_ids))
+                .group_by(Appointment.patient_id)
             )
-            total_no_show_query = total_no_show_query.where(
-                Appointment.tenant_id == tenant_id,
-                Patient.tenant_id == tenant_id,
+            if tenant_id:
+                card_appt_subq = card_appt_subq.where(Appointment.tenant_id == tenant_id)
+            card_appt_result = await self.db.execute(card_appt_subq)
+            card_appt_map = dict(card_appt_result.all())
+
+            # 批量获取每张卡的 noShowCount
+            card_noshow_subq = (
+                select(Appointment.patient_id, func.count(Appointment.id).label("cnt"))
+                .where(
+                    and_(
+                        Appointment.patient_id.in_(card_ids),
+                        Appointment.status == APPOINTMENT_STATUS["NO_SHOW"],
+                    )
+                )
+                .group_by(Appointment.patient_id)
             )
-        total_appointment_count = await self.db.scalar(total_appointment_query)
-        total_no_show_count = await self.db.scalar(total_no_show_query)
+            if tenant_id:
+                card_noshow_subq = card_noshow_subq.where(Appointment.tenant_id == tenant_id)
+            card_noshow_result = await self.db.execute(card_noshow_subq)
+            card_noshow_map = dict(card_noshow_result.all())
+        else:
+            card_appt_map = {}
+            card_noshow_map = {}
+
+        cards_data = [
+            {
+                "id": card.id,
+                "cardNo": card.card_no,
+                "name": card.name,
+                "phone": card.phone,
+                "idCard": card.id_card,
+                "gender": card.gender,
+                "age": card.age,
+                "birthday": card.birthday.isoformat() if card.birthday else None,
+                "relationship": card.relationship,
+                "isDefault": card.is_default,
+                "source": card.source or 1,
+                "appointmentCount": card_appt_map.get(card.id, 0),
+                "noShowCount": card_noshow_map.get(card.id, 0),
+                "createdAt": card.created_at.isoformat() if card.created_at else None,
+            }
+            for card in cards
+        ]
+
+        # 总预约数和总爽约数（通过所有卡汇总）
+        total_appointment_count = sum(card_appt_map.get(c.id, 0) for c in cards)
+        total_no_show_count = sum(card_noshow_map.get(c.id, 0) for c in cards)
 
         return {
             "id": user.id,
@@ -156,8 +186,8 @@ class UserManageService(PatientsServiceBase):
             "createdAt": user.created_at.isoformat() if user.created_at else None,
             "updatedAt": user.updated_at.isoformat() if user.updated_at else None,
             "cardCount": len(cards_data),
-            "appointmentCount": total_appointment_count or 0,
-            "noShowCount": total_no_show_count or 0,
+            "appointmentCount": total_appointment_count,
+            "noShowCount": total_no_show_count,
             "cards": cards_data,
         }
 
@@ -206,7 +236,7 @@ class UserManageService(PatientsServiceBase):
         await self.db.commit()
         return True
 
-    async def update_user(self, user_id: str, data: dict, operator_id: Optional[str] = None) -> Optional[dict]:
+    async def update_user(self, user_id: str, data, operator_id: Optional[str] = None) -> Optional[dict]:
         query = select(User).where(User.id == user_id)
         tenant_id = self._current_tenant_id()
         if tenant_id:
@@ -215,10 +245,12 @@ class UserManageService(PatientsServiceBase):
         user = result.scalar_one_or_none()
         if not user:
             return None
+        update_data = data.model_dump(exclude_unset=True)
         allowed_fields = ["nickname", "avatar", "gender", "phone"]
-        for key, value in data.items():
-            if key in allowed_fields and hasattr(user, key):
-                setattr(user, key, value)
+        for key, value in update_data.items():
+            field_name = key if hasattr(user, key) else None
+            if field_name and field_name in allowed_fields:
+                setattr(user, field_name, value)
         set_update_audit(user, operator_id)
         await self.db.commit()
         await self.db.refresh(user)

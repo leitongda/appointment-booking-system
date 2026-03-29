@@ -42,10 +42,23 @@ class UserUpdate(BaseModel):
         alias_generator=to_camel,
         populate_by_name=True,
     )
-    
+
     nickname: Optional[str] = Field(None, max_length=50)
     avatar: Optional[str] = None
     gender: Optional[int] = Field(None, ge=0, le=2)
+
+
+class AdminUserUpdate(BaseModel):
+    """管理员更新用户信息"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    nickname: Optional[str] = Field(None, max_length=50, description="昵称")
+    phone: Optional[str] = Field(None, min_length=11, max_length=11, description="手机号")
+    avatar: Optional[str] = Field(None, description="头像URL")
+    gender: Optional[int] = Field(None, ge=0, le=2, description="性别: 0未知 1男 2女")
 
 
 class ChangePasswordRequest(BaseModel):

@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, status as http_status
+from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin, get_store_filter, require_permission
@@ -11,7 +11,7 @@ from app.db.session import get_db
 from app.modules.patients.service_users import UserManageService
 from app.modules.points.service import PointService
 from app.schemas.response import PageResponse
-from app.schemas.user import FamilyMemberCreate, PatientUpdate
+from app.schemas.user import FamilyMemberCreate, PatientUpdate, AdminUserUpdate
 
 router = APIRouter()
 
@@ -128,7 +128,7 @@ async def delete_user(
 @router.put("/{user_id}", summary="更新用户信息")
 async def update_user(
     user_id: str,
-    data: dict = Body(...),
+    data: AdminUserUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("patient:update")),

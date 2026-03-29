@@ -5,6 +5,7 @@ from typing import List, Optional
 
 from sqlalchemy import and_, delete, func, select
 
+from app.core.security import get_password_hash
 from app.models.admin import Admin, admin_stores
 from app.models.department import Department
 from app.models.store import Store
@@ -26,8 +27,8 @@ class StoreMutationMixin:
         await check_quota(tenant_id, "stores", self.db)
 
         store_data = data.model_dump()
-        if not store_data.get("password"):
-            store_data["password"] = "123456"
+        plain_password = store_data.get("password") or "123456"
+        store_data["password"] = get_password_hash(plain_password)
 
         # 设置租户ID
         store_data["tenant_id"] = tenant_id
@@ -51,6 +52,10 @@ class StoreMutationMixin:
             existing = await self.get_by_code(update_data["code"])
             if existing and existing.id != store_id:
                 raise ValueError(f"门店编码 {update_data['code']} 已存在")
+
+        # 密码字段需要哈希处理
+        if "password" in update_data and update_data["password"]:
+            update_data["password"] = get_password_hash(update_data["password"])
 
         for field, value in update_data.items():
             setattr(store, field, value)

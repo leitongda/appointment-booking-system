@@ -20,7 +20,7 @@ import {
 } from 'antd';
 import { UserOutlined, ManOutlined, WomanOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
-import { history, useParams, useAccess } from '@umijs/max';
+import { history, useParams, useAccess, useSearchParams } from '@umijs/max';
 import { userManageApi } from '@hospital/api';
 import { GENDER_MAP, GENDER_OPTIONS } from '@/constants';
 import type { UserDetail, UserCard, CardCreateData, CardUpdateData, UserUpdateData } from '@hospital/api';
@@ -217,7 +217,7 @@ const UserDetailPage: React.FC = () => {
       width: 180,
       render: (_: any, record: UserCard) => (
         <Space>
-          <a onClick={() => history.push(`/medical-services/medical-card/${record.id}`)}>查看</a>
+          <a onClick={() => history.push(`/medical-services/medical-card/${record.id}?fromUserId=${id}`)}>查看</a>
           {access.hasPermission('user:update') && (
             <a onClick={() => { setCurrentCard(record); setEditCardModalVisible(true); }}>
               <EditOutlined /> 编辑
@@ -318,7 +318,7 @@ const UserDetailPage: React.FC = () => {
 
   return (
     <PageContainer
-      title="患者详情"
+      title="用户详情"
       extra={<Button onClick={() => history.push('/medical-services/user/list')}>返回列表</Button>}
     >
       <Spin spinning={loading}>

@@ -28,7 +28,7 @@ class Store(Base, AuditMixin):
     business_hours = Column(String(100), comment="营业时间描述")
     image = Column(String(255), comment="门店图片")
     logo = Column(String(255), comment="门店logo")
-    password = Column(String(100), comment="门店密码")
+    password = Column(String(255), comment="门店密码（bcrypt 哈希）")
     email = Column(String(100), comment="邮箱")
     theme_style = Column(String(50), comment="风格选择")
     sort_order = Column(Integer, default=0, comment="排序")

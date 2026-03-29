@@ -203,13 +203,13 @@ export default [
       },
       {
         path: '/medical-services/user',
-        name: '患者管理',
+        name: '用户管理',
         icon: 'team',
         access: 'canPatient',
         routes: [
           { path: '/medical-services/user', redirect: '/medical-services/user/list' },
-          { path: '/medical-services/user/list', name: '患者列表', component: './user' },
-          { path: '/medical-services/user/:id', name: '患者详情', component: './user/detail', hideInMenu: true },
+          { path: '/medical-services/user/list', name: '用户列表', component: './user' },
+          { path: '/medical-services/user/:id', name: '用户详情', component: './user/detail', hideInMenu: true },
         ],
       },
       {

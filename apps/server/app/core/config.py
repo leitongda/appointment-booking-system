@@ -151,6 +151,9 @@ class Settings(BaseSettings):
 
     # 告警配置
     ALERT_WEBHOOK_URL: Optional[str] = None  # 任务失败告警 Webhook URL
+
+    # 新用户默认密码（管理员代创建用户时使用）
+    DEFAULT_USER_PASSWORD: str = "Hospital@2024"
     
     model_config = SettingsConfigDict(
         env_file=_get_env_file(),

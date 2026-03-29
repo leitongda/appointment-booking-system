@@ -133,7 +133,7 @@ const UserManagePage: React.FC = () => {
   return (
     <PageContainer>
       <ProTable<UserListItem>
-        headerTitle="患者列表"
+        headerTitle="用户列表"
         actionRef={actionRef}
         rowKey="id"
         columns={columns}

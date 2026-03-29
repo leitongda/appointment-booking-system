@@ -20,6 +20,14 @@ export interface PatientListItem {
   isBlacklist: boolean;
   totalConsumption?: number;
   createdAt: string;
+  // 扩展字段（编辑表单使用）
+  idCardType?: number;
+  ethnicity?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  street?: string;
+  address?: string;
   // 所属患者信息
   userPhone?: string;
   userNickname?: string;

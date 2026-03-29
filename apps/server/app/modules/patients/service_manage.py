@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.security import get_password_hash
+from app.core.config import settings
 from app.models.appointment import Appointment
 from app.models.department import Department
 from app.models.doctor import Doctor
@@ -58,17 +59,40 @@ class PatientManageService(PatientsServiceBase):
         result = await self.db.execute(query)
         patients = result.unique().scalars().all()
 
+        if not patients:
+            return [], total or 0
+
+        patient_ids = [p.id for p in patients]
+
+        # 批量获取 appointmentCount
+        appt_count_subq = (
+            select(Appointment.patient_id, func.count(Appointment.id).label("cnt"))
+            .where(Appointment.patient_id.in_(patient_ids))
+            .group_by(Appointment.patient_id)
+        )
+        if tenant_id:
+            appt_count_subq = appt_count_subq.where(Appointment.tenant_id == tenant_id)
+        appt_result = await self.db.execute(appt_count_subq)
+        appt_count_map = dict(appt_result.all())
+
+        # 批量获取 noShowCount
+        noshow_count_subq = (
+            select(Appointment.patient_id, func.count(Appointment.id).label("cnt"))
+            .where(
+                and_(
+                    Appointment.patient_id.in_(patient_ids),
+                    Appointment.status == APPOINTMENT_STATUS["NO_SHOW"],
+                )
+            )
+            .group_by(Appointment.patient_id)
+        )
+        if tenant_id:
+            noshow_count_subq = noshow_count_subq.where(Appointment.tenant_id == tenant_id)
+        noshow_result = await self.db.execute(noshow_count_subq)
+        noshow_count_map = dict(noshow_result.all())
+
         patient_data = []
         for patient in patients:
-            appointment_count_query = select(func.count(Appointment.id)).where(Appointment.patient_id == patient.id)
-            no_show_count_query = select(func.count(Appointment.id)).where(
-                and_(Appointment.patient_id == patient.id, Appointment.status == APPOINTMENT_STATUS["NO_SHOW"])
-            )
-            if tenant_id:
-                appointment_count_query = appointment_count_query.where(Appointment.tenant_id == tenant_id)
-                no_show_count_query = no_show_count_query.where(Appointment.tenant_id == tenant_id)
-            appointment_count = await self.db.scalar(appointment_count_query)
-            no_show_count = await self.db.scalar(no_show_count_query)
             user = patient.user
             is_in_blacklist = user.status == 0 if user else False
             if is_blacklist is not None:
@@ -90,10 +114,17 @@ class PatientManageService(PatientsServiceBase):
                     "relationship": patient.relationship,
                     "isDefault": patient.is_default,
                     "source": patient.source or 1,
-                    "appointmentCount": appointment_count or 0,
-                    "noShowCount": no_show_count or 0,
+                    "appointmentCount": appt_count_map.get(patient.id, 0),
+                    "noShowCount": noshow_count_map.get(patient.id, 0),
                     "isBlacklist": is_in_blacklist,
                     "createdAt": patient.created_at.isoformat() if patient.created_at else None,
+                    "idCardType": patient.id_card_type or 1,
+                    "ethnicity": patient.ethnicity or "汉族",
+                    "province": patient.province,
+                    "city": patient.city,
+                    "district": patient.district,
+                    "street": patient.street,
+                    "address": patient.address,
                     "userPhone": user.phone if user else None,
                     "userNickname": user.nickname if user else None,
                 }
@@ -151,34 +182,57 @@ class PatientManageService(PatientsServiceBase):
         )
         family_members = family_result.scalars().all()
 
-        family_data = []
-        for member in family_members:
-            member_appt_query = select(func.count(Appointment.id)).where(Appointment.patient_id == member.id)
-            member_no_show_query = select(func.count(Appointment.id)).where(and_(Appointment.patient_id == member.id, Appointment.status == APPOINTMENT_STATUS["NO_SHOW"]))
-            if tenant_id:
-                member_appt_query = member_appt_query.where(Appointment.tenant_id == tenant_id)
-                member_no_show_query = member_no_show_query.where(Appointment.tenant_id == tenant_id)
-            member_appt_count = await self.db.scalar(member_appt_query)
-            member_no_show = await self.db.scalar(member_no_show_query)
-            family_data.append(
-                {
-                    "id": member.id,
-                    "userId": member.user_id,
-                    "cardNo": member.card_no,
-                    "name": member.name,
-                    "phone": member.phone,
-                    "idCard": member.id_card,
-                    "gender": member.gender,
-                    "birthday": member.birthday.isoformat() if member.birthday else None,
-                    "relationship": member.relationship,
-                    "isDefault": member.is_default,
-                    "appointmentCount": member_appt_count or 0,
-                    "noShowCount": member_no_show or 0,
-                    "totalConsumption": float(member.total_consumption or 0),
-                    "isBlacklist": user.status == 0 if user else False,
-                    "createdAt": member.created_at.isoformat() if member.created_at else None,
-                }
+        # 批量获取家庭成员的预约统计
+        member_ids = [m.id for m in family_members]
+        if member_ids:
+            member_appt_subq = (
+                select(Appointment.patient_id, func.count(Appointment.id).label("cnt"))
+                .where(Appointment.patient_id.in_(member_ids))
+                .group_by(Appointment.patient_id)
             )
+            if tenant_id:
+                member_appt_subq = member_appt_subq.where(Appointment.tenant_id == tenant_id)
+            member_appt_result = await self.db.execute(member_appt_subq)
+            member_appt_map = dict(member_appt_result.all())
+
+            member_noshow_subq = (
+                select(Appointment.patient_id, func.count(Appointment.id).label("cnt"))
+                .where(
+                    and_(
+                        Appointment.patient_id.in_(member_ids),
+                        Appointment.status == APPOINTMENT_STATUS["NO_SHOW"],
+                    )
+                )
+                .group_by(Appointment.patient_id)
+            )
+            if tenant_id:
+                member_noshow_subq = member_noshow_subq.where(Appointment.tenant_id == tenant_id)
+            member_noshow_result = await self.db.execute(member_noshow_subq)
+            member_noshow_map = dict(member_noshow_result.all())
+        else:
+            member_appt_map = {}
+            member_noshow_map = {}
+
+        family_data = [
+            {
+                "id": member.id,
+                "userId": member.user_id,
+                "cardNo": member.card_no,
+                "name": member.name,
+                "phone": member.phone,
+                "idCard": member.id_card,
+                "gender": member.gender,
+                "birthday": member.birthday.isoformat() if member.birthday else None,
+                "relationship": member.relationship,
+                "isDefault": member.is_default,
+                "appointmentCount": member_appt_map.get(member.id, 0),
+                "noShowCount": member_noshow_map.get(member.id, 0),
+                "totalConsumption": float(member.total_consumption or 0),
+                "isBlacklist": user.status == 0 if user else False,
+                "createdAt": member.created_at.isoformat() if member.created_at else None,
+            }
+            for member in family_members
+        ]
 
         return {
             "id": patient.id,
@@ -422,7 +476,7 @@ class PatientManageService(PatientsServiceBase):
                 id=str(uuid.uuid4()),
                 tenant_id=tenant_id,
                 phone=data.phone,
-                password_hash=get_password_hash("123456"),
+                password_hash=get_password_hash(settings.DEFAULT_USER_PASSWORD),
                 nickname=data.name,
                 status=1,
             )

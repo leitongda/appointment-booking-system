@@ -364,6 +364,13 @@ const PatientPage: React.FC = () => {
           idCard: currentPatient.idCard,
           birthday: currentPatient.birthday,
           relationship: currentPatient.relationship,
+          idCardType: currentPatient.idCardType,
+          ethnicity: currentPatient.ethnicity,
+          province: currentPatient.province,
+          city: currentPatient.city,
+          district: currentPatient.district,
+          street: currentPatient.street,
+          address: currentPatient.address,
         } : {}}
       >
         <ProForm.Group>

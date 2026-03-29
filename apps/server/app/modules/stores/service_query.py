@@ -101,6 +101,27 @@ class StoreQueryMixin:
         result = await self.db.execute(stmt)
         return result.scalar() or 0
 
+    async def get_department_counts_batch(self, store_ids: List[str]) -> dict[str, int]:
+        """批量查询多个门店的科室数量，解决 N+1 问题。
+
+        Returns:
+            dict: {store_id: count}
+        """
+        if not store_ids:
+            return {}
+        tenant_id = get_current_tenant_id()
+        stmt = (
+            select(Department.store_id, func.count(Department.id))
+            .where(Department.store_id.in_(store_ids))
+            .group_by(Department.store_id)
+        )
+        if tenant_id:
+            stmt = stmt.where(Department.tenant_id == tenant_id)
+        result = await self.db.execute(stmt)
+        counts = {row[0]: row[1] for row in result.all()}
+        # 没有科室的门店不会出现在结果中，补充为 0
+        return {sid: counts.get(sid, 0) for sid in store_ids}
+
     async def get_departments(self, store_id: str) -> List[Department]:
         stmt = select(Department).where(Department.store_id == store_id)
         tenant_id = get_current_tenant_id()

@@ -106,28 +106,38 @@ async def get_stores(
         for store_id in store_ids:
             store = await service.get_by_id(store_id)
             if store:
-                stores_result.append(StoreListResponse(
-                    id=store.id,
-                    name=store.name,
-                    code=store.code,
-                    address=store.address,
-                    phone=store.phone,
-                    logo=store.logo,
-                    theme_style=store.theme_style,
-                    status=store.status,
-                    department_count=await service.get_department_count(store.id),
-                    created_at=store.created_at
-                ))
-        return PageResponse(data=stores_result, total=len(stores_result), page=1, page_size=page_size)
-    
+                stores_result.append(store)
+
+        # 批量获取科室数量（1 次查询替代 N 次）
+        dept_counts = await service.get_department_counts_batch(
+            [s.id for s in stores_result]
+        )
+        result = [
+            StoreListResponse(
+                id=store.id,
+                name=store.name,
+                code=store.code,
+                address=store.address,
+                phone=store.phone,
+                logo=store.logo,
+                theme_style=store.theme_style,
+                status=store.status,
+                department_count=dept_counts.get(store.id, 0),
+                created_at=store.created_at,
+            )
+            for store in stores_result
+        ]
+        return PageResponse(data=result, total=len(result), page=1, page_size=page_size)
+
     # 超级管理员可以看到所有门店
     stores, total = await service.get_list(query)
-    
-    # 获取每个门店的科室数量
-    result = []
-    for store in stores:
-        dept_count = await service.get_department_count(store.id)
-        result.append(StoreListResponse(
+
+    # 批量获取科室数量（1 次查询替代 N 次）
+    dept_counts = await service.get_department_counts_batch(
+        [s.id for s in stores]
+    )
+    result = [
+        StoreListResponse(
             id=store.id,
             name=store.name,
             code=store.code,
@@ -136,15 +146,17 @@ async def get_stores(
             logo=store.logo,
             theme_style=store.theme_style,
             status=store.status,
-            department_count=dept_count,
-            created_at=store.created_at
-        ))
-    
+            department_count=dept_counts.get(store.id, 0),
+            created_at=store.created_at,
+        )
+        for store in stores
+    ]
+
     return PageResponse(
         data=result,
         total=total,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
 
 

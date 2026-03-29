@@ -22,9 +22,10 @@ import {
 } from 'antd';
 import { UserOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useEffect, useState, useRef } from 'react';
-import { history, useParams, useAccess } from '@umijs/max';
+import { history, useParams, useAccess, useSearchParams } from '@umijs/max';
 import { patientApi, doctorApi } from '@hospital/api';
 import { GENDER_MAP, GENDER_OPTIONS } from '@/constants';
+import { APPOINTMENT_STATUS_MAP as SHARED_STATUS_MAP, APPOINTMENT_STATUS_COLOR } from '@hospital/shared';
 import { toProTableResult } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
 import type {
@@ -53,17 +54,11 @@ const ID_CARD_TYPE_MAP: Record<number, string> = {
   3: '护照',
 };
 
-// 预约状态映射
-const APPOINTMENT_STATUS_MAP: Record<number, { text: string; color: string }> = {
-  0: { text: '待支付', color: 'orange' },
-  1: { text: '已预约', color: 'blue' },
-  2: { text: '已签到', color: 'cyan' },
-  3: { text: '候诊中', color: 'purple' },
-  4: { text: '就诊中', color: 'processing' },
-  5: { text: '已完成', color: 'green' },
-  6: { text: '已取消', color: 'default' },
-  7: { text: '已过期', color: 'default' },
-  8: { text: '已关闭', color: 'default' },
+// 预约状态渲染辅助函数
+const renderAppointmentStatus = (status: number) => {
+  const text = SHARED_STATUS_MAP[status] || '未知';
+  const color = APPOINTMENT_STATUS_COLOR[status] || 'default';
+  return <Tag color={color}>{text}</Tag>;
 };
 
 const RELATIONSHIP_OPTIONS = [
@@ -83,6 +78,7 @@ const ID_CARD_TYPE_OPTIONS = [
 
 const PatientDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const { message } = App.useApp();
   const access = useAccess();
   const [loading, setLoading] = useState(true);
@@ -272,17 +268,10 @@ const PatientDetailPage: React.FC = () => {
       dataIndex: 'status',
       width: 90,
       valueType: 'select',
-      valueEnum: {
-        0: '待支付',
-        1: '待就诊',
-        4: '已就诊',
-        6: '已取消',
-        7: '退款中',
-      },
-      render: (_, record) => {
-        const s = APPOINTMENT_STATUS_MAP[record.status] || { text: '未知', color: 'default' };
-        return <Tag color={s.color}>{s.text}</Tag>;
-      },
+      valueEnum: Object.fromEntries(
+        Object.entries(SHARED_STATUS_MAP).map(([k, v]) => [k, { text: v }])
+      ),
+      render: (_, record) => renderAppointmentStatus(record.status),
     },
     {
       title: '操作',
@@ -314,10 +303,7 @@ const PatientDetailPage: React.FC = () => {
       dataIndex: 'status',
       width: 90,
       search: false,
-      render: (_, record) => {
-        const s = APPOINTMENT_STATUS_MAP[record.status] || { text: '未知', color: 'default' };
-        return <Tag color={s.color}>{s.text}</Tag>;
-      },
+      render: (_, record) => renderAppointmentStatus(record.status),
     },
     {
       title: '操作',
@@ -372,7 +358,7 @@ const PatientDetailPage: React.FC = () => {
       width: 150,
       render: (_: any, record: PatientListItem) => (
         <Space>
-          <a onClick={() => history.push(`/medical-services/medical-card/${record.id}`)}>查看</a>
+          <a onClick={() => history.push(`/medical-services/medical-card/${record.id}?fromUserId=${patient?.userId || ''}`)}>查看</a>
           {access.hasPermission('patient:update') && (
             <a onClick={() => { setCurrentMember(record); setEditMemberModalVisible(true); }}>
               <EditOutlined /> 编辑
@@ -624,10 +610,16 @@ const PatientDetailPage: React.FC = () => {
     </>
   );
 
+  // 根据来源决定返回路径
+  const fromUserId = searchParams.get('fromUserId');
+  const backUrl = fromUserId
+    ? `/medical-services/user/${fromUserId}`
+    : '/medical-services/medical-card/list';
+
   return (
     <PageContainer
-      title="患者详情"
-      extra={<Button onClick={() => history.push('/medical-services/medical-card/list')}>返回列表</Button>}
+      title="就诊卡详情"
+      extra={<Button onClick={() => history.push(backUrl)}>返回列表</Button>}
     >
       <Spin spinning={loading}>
         {/* 头部信息卡片 */}

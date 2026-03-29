@@ -4,10 +4,11 @@
  * 使用基础设施：FormPage、ImageUploadCard、SwitchGroup
  * 保留业务逻辑：编码生成、唯一性验证、时间格式处理
  */
-import { ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect } from '@ant-design/pro-components';
+import { ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormTimePicker } from '@ant-design/pro-components';
 import { Card } from 'antd';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { history, useParams } from '@umijs/max';
+import dayjs from 'dayjs';
 import { storeApi } from '@hospital/api';
 import type { Store } from '@hospital/shared';
 import { pinyin } from 'pinyin-pro';
@@ -16,7 +17,7 @@ import { debounce } from 'lodash-es';
 // 基础设施导入
 import FormPage from '@/components/FormPage';
 import { ImageUploadCard, SwitchGroup } from '@/components/formFields';
-import { requiredRules, phoneOrLandlineRules, emailRules, stringLengthRules, codeRules, timeRules, combinedRules } from '@/utils/formValidators';
+import { requiredRules, phoneOrLandlineRules, emailRules, stringLengthRules, codeRules, combinedRules } from '@/utils/formValidators';
 
 // 风格选项 - 中国风主题预设
 const THEME_STYLE_OPTIONS = [
@@ -83,7 +84,10 @@ const StoreFormPage: React.FC = () => {
       // SwitchGroup 自动处理了 boolean ↔ number 转换，但为了兼容现有逻辑，保留转换
       const data = {
         ...values,
-        status: values.status ? 1 : 0
+        status: values.status ? 1 : 0,
+        // TimePicker 返回 dayjs 对象，转为 HH:mm:ss 字符串与后端 time 类型一致
+        openingTime: values.openingTime?.format?.('HH:mm:ss') ?? values.openingTime,
+        closingTime: values.closingTime?.format?.('HH:mm:ss') ?? values.closingTime,
       };
 
       if (isEdit && id) {
@@ -156,10 +160,10 @@ const StoreFormPage: React.FC = () => {
     [isEdit, id]
   );
 
-  // 格式化时间，从 HH:mm:ss 转换为 HH:mm
-  const formatTime = (time: string | undefined): string | undefined => {
+  // 格式化时间，从 HH:mm:ss 字符串转为 dayjs 对象（供 TimePicker 使用）
+  const formatTime = (time: string | undefined): dayjs.Dayjs | undefined => {
     if (!time) return undefined;
-    return time.slice(0, 5); // 取前5个字符 "HH:mm"
+    return dayjs(time, 'HH:mm:ss');
   };
 
   // 初始值处理
@@ -173,8 +177,8 @@ const StoreFormPage: React.FC = () => {
     sortOrder: 0,
     themeStyle: '中医-红',
     maxCardsPerUser: 5,
-    openingTime: '08:00',
-    closingTime: '18:00',
+    openingTime: dayjs('08:00', 'HH:mm'),
+    closingTime: dayjs('18:00', 'HH:mm'),
   };
 
   return (
@@ -322,19 +326,25 @@ const StoreFormPage: React.FC = () => {
       {/* 营业设置 */}
       <Card title="营业设置" style={{ marginBottom: 16 }}>
         <ProForm.Group>
-          <ProFormText
+          <ProFormTimePicker
             name="openingTime"
             label="开始营业时间"
             width="sm"
-            placeholder="如：08:00"
-            rules={[timeRules.pattern]}
+            rules={[{ required: true, message: '请选择开始营业时间' }]}
+            fieldProps={{
+              format: 'HH:mm',
+              minuteStep: 15,
+            }}
           />
-          <ProFormText
+          <ProFormTimePicker
             name="closingTime"
             label="结束营业时间"
             width="sm"
-            placeholder="如：18:00"
-            rules={[timeRules.pattern]}
+            rules={[{ required: true, message: '请选择结束营业时间' }]}
+            fieldProps={{
+              format: 'HH:mm',
+              minuteStep: 15,
+            }}
           />
         </ProForm.Group>
 
