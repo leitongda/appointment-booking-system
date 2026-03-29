@@ -36,9 +36,9 @@ class LeaveRequestService:
         # 门店过滤：通过医生关联门店
         if query.store_id:
             stmt = stmt.join(Doctor, LeaveRequest.doctor_id == Doctor.id)
-            stmt = stmt.where(Doctor.store_id == query.store_id)
+            stmt = stmt.where(Doctor.store_id == query.store_id, Doctor.deleted_at.is_(None))
             count_stmt = count_stmt.join(Doctor, LeaveRequest.doctor_id == Doctor.id)
-            count_stmt = count_stmt.where(Doctor.store_id == query.store_id)
+            count_stmt = count_stmt.where(Doctor.store_id == query.store_id, Doctor.deleted_at.is_(None))
 
         if query.doctor_id:
             stmt = stmt.where(LeaveRequest.doctor_id == query.doctor_id)
@@ -225,7 +225,7 @@ class LeaveRequestService:
         # 门店过滤
         if store_id:
             stmt = stmt.join(Doctor, LeaveRequest.doctor_id == Doctor.id)
-            stmt = stmt.where(Doctor.store_id == store_id)
+            stmt = stmt.where(Doctor.store_id == store_id, Doctor.deleted_at.is_(None))
 
         result = await self.db.execute(stmt)
         return result.scalar() or 0

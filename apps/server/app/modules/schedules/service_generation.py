@@ -80,7 +80,7 @@ class ScheduleGenerationMixin:
                 return None, False
 
         if not store_id:
-            doctor_result = await self.db.execute(select(Doctor).where(Doctor.id == doctor_id))
+            doctor_result = await self.db.execute(select(Doctor).where(Doctor.id == doctor_id, Doctor.deleted_at.is_(None)))
             doctor = doctor_result.scalar_one_or_none()
             if doctor:
                 store_id = doctor.store_id

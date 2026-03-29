@@ -88,7 +88,7 @@ class UserFavoriteService:
             result = await self.db.execute(
                 select(Doctor)
                 .options(selectinload(Doctor.department))
-                .where(Doctor.id == target_id)
+                .where(Doctor.id == target_id, Doctor.deleted_at.is_(None))
             )
             doctor = result.scalar_one_or_none()
             if doctor:

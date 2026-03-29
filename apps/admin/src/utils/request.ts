@@ -173,21 +173,22 @@ export const setupResponseInterceptor = () => {
         
         // 401 未授权
         if (status === 401) {
+          // 登录页不弹框
+          if (window.location.pathname === '/login') return;
           handleTokenExpired(() => {
             Modal.confirm({
               title: '登录已过期',
               content: errorMsg || '您的登录已失效，请重新登录。',
               okText: '重新登录',
-              cancelText: '留在当前页',
-              closable: true,
+              cancelButtonProps: { style: { display: 'none' } },
+              closable: false,
               maskClosable: false,
               onOk: () => {
-                history.push('/login');
+                window.location.href = '/login';
               },
             });
           });
-          return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
-        }
+          return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));        }
         
         // 密码解密错误（400状态码 + 解密失败消息）- 登录接口会自动重试，不显示错误
         if (status === 400 && errorMsg && (

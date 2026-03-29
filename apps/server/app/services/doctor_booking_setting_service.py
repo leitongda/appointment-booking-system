@@ -120,7 +120,7 @@ class DoctorBookingSettingService:
         
         # 验证医生存在
         doctor_result = await self.db.execute(
-            select(Doctor).where(Doctor.id == data.doctor_id)
+            select(Doctor).where(Doctor.id == data.doctor_id, Doctor.deleted_at.is_(None))
         )
         if not doctor_result.scalar_one_or_none():
             raise ValueError("医生不存在")

@@ -77,7 +77,7 @@ async def get_current_user(
         set_tenant_context(user.tenant_id)
 
     # 检查是否是医生
-    doctor_result = await db.execute(select(Doctor).where(Doctor.user_id == user_id))
+    doctor_result = await db.execute(select(Doctor).where(Doctor.user_id == user_id, Doctor.deleted_at.is_(None)))
     doctor = doctor_result.scalar_one_or_none()
 
     return {
@@ -106,7 +106,7 @@ async def get_current_doctor(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="医生信息不存在，请检查后重试")
     
     # 获取医生详情
-    result = await db.execute(select(Doctor).where(Doctor.id == doctor_id))
+    result = await db.execute(select(Doctor).where(Doctor.id == doctor_id, Doctor.deleted_at.is_(None)))
     doctor = result.scalar_one_or_none()
     
     if not doctor:
@@ -167,7 +167,7 @@ async def get_current_doctor_by_token(
             selectinload(Doctor.department),
             selectinload(Doctor.store)
         )
-        .where(Doctor.id == doctor_id)
+        .where(Doctor.id == doctor_id, Doctor.deleted_at.is_(None))
     )
     doctor = result.scalar_one_or_none()
 
@@ -575,7 +575,7 @@ async def get_current_user_or_admin(
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
         
         # 检查是否是医生
-        doctor_result = await db.execute(select(Doctor).where(Doctor.user_id == user_id))
+        doctor_result = await db.execute(select(Doctor).where(Doctor.user_id == user_id, Doctor.deleted_at.is_(None)))
         doctor = doctor_result.scalar_one_or_none()
         
         return {

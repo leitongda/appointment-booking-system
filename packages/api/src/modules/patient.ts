@@ -18,6 +18,7 @@ export interface PatientListItem {
   appointmentCount: number;
   noShowCount: number;
   isBlacklist: boolean;
+  totalConsumption?: number;
   createdAt: string;
   // 所属患者信息
   userPhone?: string;

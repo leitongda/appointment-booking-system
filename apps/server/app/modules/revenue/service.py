@@ -124,6 +124,9 @@ class RevenueService:
         if store_id:
             query = query.where(Doctor.store_id == store_id)
 
+        # 排除软删除的医生
+        query = query.where(Doctor.deleted_at.is_(None))
+
         result = await self.db.execute(query)
         appointments = result.scalars().all()
 
@@ -161,6 +164,9 @@ class RevenueService:
 
         if store_id:
             query = query.where(Doctor.store_id == store_id)
+
+        # 排除软删除的医生
+        query = query.where(Doctor.deleted_at.is_(None))
 
         result = await self.db.execute(query)
         appointments = result.scalars().all()

@@ -157,7 +157,7 @@ class RestDayService:
             return []
         
         result = await self.db.execute(
-            select(Doctor).where(Doctor.id.in_(doctor_ids))
+            select(Doctor).where(Doctor.id.in_(doctor_ids), Doctor.deleted_at.is_(None))
         )
         doctors = result.scalars().all()
         return [d.name for d in doctors]

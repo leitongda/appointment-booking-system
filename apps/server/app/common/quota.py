@@ -127,7 +127,7 @@ class QuotaChecker:
         # 统计当前医生数量
         from app.models.doctor import Doctor
         result = await self.db.execute(
-            select(func.count(Doctor.id)).where(Doctor.tenant_id == tenant.id)
+            select(func.count(Doctor.id)).where(Doctor.tenant_id == tenant.id, Doctor.deleted_at.is_(None))
         )
         current_count = result.scalar() or 0
 
@@ -211,7 +211,7 @@ class QuotaChecker:
         ) or 0
 
         doctors_count = await self.db.scalar(
-            select(func.count(Doctor.id)).where(Doctor.tenant_id == tenant.id)
+            select(func.count(Doctor.id)).where(Doctor.tenant_id == tenant.id, Doctor.deleted_at.is_(None))
         ) or 0
 
         # 统计本月预约数量

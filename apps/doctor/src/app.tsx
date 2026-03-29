@@ -170,6 +170,9 @@ export const request: RequestConfig = {
       const { data, status } = response;
       
       if (status === 401 || data?.code === 401) {
+        // 登录页不弹框
+        if (window.location.pathname === '/login') return response;
+
         removeToken();
         Modal.confirm({
           title: '登录已过期',

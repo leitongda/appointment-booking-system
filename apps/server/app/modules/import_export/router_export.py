@@ -76,6 +76,9 @@ async def export_doctors(
         selectinload(Doctor.department),
     )
 
+    # 软删除过滤
+    query = query.where(Doctor.deleted_at.is_(None))
+
     # 应用门店过滤
     query = _apply_store_filter(query, Doctor.store_id, final_store_ids)
 

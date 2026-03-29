@@ -91,8 +91,8 @@ async def get_custom_schedules(
     
     # 如果指定了department_id，需要通过doctor关联查询
     if department_id:
-        query = query.join(Doctor).where(Doctor.department_id == department_id)
-        count_query = count_query.join(Doctor).where(Doctor.department_id == department_id)
+        query = query.join(Doctor).where(Doctor.department_id == department_id, Doctor.deleted_at.is_(None))
+        count_query = count_query.join(Doctor).where(Doctor.department_id == department_id, Doctor.deleted_at.is_(None))
     
     query = query.order_by(Schedule.schedule_date, Schedule.start_time)
     query = query.offset((page - 1) * page_size).limit(page_size)

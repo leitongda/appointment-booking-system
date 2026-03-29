@@ -1,9 +1,10 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_
 from sqlalchemy.orm import selectinload
 from typing import Optional, List
 import uuid
 
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.department import Department
 from app.models.doctor import Doctor
 from app.schemas.department import DepartmentCreate, DepartmentUpdate, DepartmentTreeNode
@@ -14,10 +15,15 @@ class DepartmentService:
         self.db = db
 
     async def get_by_id(self, dept_id: str) -> Optional[Department]:
+        conditions = [Department.id == dept_id]
+        tenant_id = get_current_tenant_id()
+        if tenant_id is not None:
+            conditions.append(Department.tenant_id == tenant_id)
+
         result = await self.db.execute(
             select(Department)
             .options(selectinload(Department.store))
-            .where(Department.id == dept_id)
+            .where(and_(*conditions))
         )
         return result.scalar_one_or_none()
 
@@ -32,6 +38,12 @@ class DepartmentService:
     ) -> tuple[List[Department], int]:
         query = select(Department).options(selectinload(Department.store))
         count_query = select(func.count(Department.id))
+
+        # 租户过滤
+        tenant_id = get_current_tenant_id()
+        if tenant_id is not None:
+            query = query.where(Department.tenant_id == tenant_id)
+            count_query = count_query.where(Department.tenant_id == tenant_id)
 
         if name:
             query = query.where(Department.name.contains(name))
@@ -56,6 +68,12 @@ class DepartmentService:
 
     async def get_tree(self, status: Optional[int] = 1, store_id: Optional[str] = None) -> List[DepartmentTreeNode]:
         query = select(Department).order_by(Department.sort_order)
+
+        # 租户过滤
+        tenant_id = get_current_tenant_id()
+        if tenant_id is not None:
+            query = query.where(Department.tenant_id == tenant_id)
+
         if status is not None:
             query = query.where(Department.status == status)
         if store_id is not None:
@@ -78,9 +96,14 @@ class DepartmentService:
         return tree
 
     async def get_hot(self, limit: int = 8, store_id: Optional[str] = None) -> List[Department]:
-        query = select(Department).options(selectinload(Department.store)).where(
-            Department.is_hot == 1, Department.status == 1
-        )
+        conditions = [Department.is_hot == 1, Department.status == 1]
+
+        # 租户过滤
+        tenant_id = get_current_tenant_id()
+        if tenant_id is not None:
+            conditions.append(Department.tenant_id == tenant_id)
+
+        query = select(Department).options(selectinload(Department.store)).where(and_(*conditions))
         if store_id is not None:
             query = query.where(Department.store_id == store_id)
 
@@ -105,6 +128,12 @@ class DepartmentService:
         query = select(Department).options(selectinload(Department.store)).where(
             Department.status == 1
         )
+
+        # 租户过滤
+        tenant_id = get_current_tenant_id()
+        if tenant_id is not None:
+            query = query.where(Department.tenant_id == tenant_id)
+
         if store_id:
             query = query.where(Department.store_id == store_id)
         query = query.order_by(Department.sort_order.desc()).limit(limit)
@@ -116,8 +145,12 @@ class DepartmentService:
         parent_id = data.parent_id if data.parent_id else None
         store_id = data.store_id if data.store_id else None
 
+        # 获取当前租户ID
+        tenant_id = get_current_tenant_id()
+
         department = Department(
             id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
             name=data.name,
             parent_id=parent_id,
             description=data.description,
@@ -186,9 +219,13 @@ class DepartmentService:
         if not department:
             return False
 
-        # 检查是否有子科室
+        # 检查是否有子科室（带租户过滤）
+        conditions = [Department.parent_id == dept_id]
+        tenant_id = get_current_tenant_id()
+        if tenant_id is not None:
+            conditions.append(Department.tenant_id == tenant_id)
         result = await self.db.execute(
-            select(func.count(Department.id)).where(Department.parent_id == dept_id)
+            select(func.count(Department.id)).where(and_(*conditions))
         )
         if result.scalar() > 0:
             raise ValueError("该科室下有子科室，无法删除")
@@ -199,16 +236,24 @@ class DepartmentService:
 
     async def get_doctors(self, dept_id: str) -> List[Doctor]:
         """获取科室已绑定的医生列表"""
+        conditions = [Doctor.department_id == dept_id, Doctor.deleted_at.is_(None)]
+        tenant_id = get_current_tenant_id()
+        if tenant_id is not None:
+            conditions.append(Doctor.tenant_id == tenant_id)
         result = await self.db.execute(
             select(Doctor)
-            .where(Doctor.department_id == dept_id)
+            .where(and_(*conditions))
             .order_by(Doctor.sort_order.desc(), Doctor.created_at.desc())
         )
         return list(result.scalars().all())
 
     async def get_all_doctors(self, store_id: Optional[str] = None) -> List[Doctor]:
         """获取所有可绑定的医生列表"""
-        query = select(Doctor).where(Doctor.status == 1)
+        conditions = [Doctor.status == 1, Doctor.deleted_at.is_(None)]
+        tenant_id = get_current_tenant_id()
+        if tenant_id is not None:
+            conditions.append(Doctor.tenant_id == tenant_id)
+        query = select(Doctor).where(and_(*conditions))
         if store_id:
             query = query.where(Doctor.store_id == store_id)
         query = query.order_by(Doctor.sort_order.desc(), Doctor.name)
@@ -235,20 +280,25 @@ class DepartmentService:
         current_ids = {d.id for d in current_doctors}
         new_ids = set(doctor_ids)
 
-        # 需要解绑的医生（当前已绑定但不在新列表中）- 设为空科室不合适，这里保持不变
-        # 医生必须有科室，所以我们不能解绑，只能绑定新的
-
         # 需要绑定的医生（在新列表中但当前未绑定到此科室）
         to_bind = new_ids - current_ids
         if to_bind:
+            # 查询待绑定的医生，带租户过滤
+            conditions = [Doctor.id.in_(to_bind)]
+            tenant_id = get_current_tenant_id()
+            if tenant_id is not None:
+                conditions.append(Doctor.tenant_id == tenant_id)
             result = await self.db.execute(
-                select(Doctor).where(Doctor.id.in_(to_bind))
+                select(Doctor).where(and_(*conditions))
             )
             for doctor in result.scalars().all():
+                # 校验医生和科室是否属于同一门店
+                if department.store_id and doctor.store_id and doctor.store_id != department.store_id:
+                    raise ValueError(
+                        f"医生「{doctor.name}」所属门店与科室门店不一致，"
+                        "请先通过独立的门店调配接口修改医生门店归属"
+                    )
                 doctor.department_id = dept_id
-                # 同时更新门店，保持科室和医生门店一致
-                if department.store_id:
-                    doctor.store_id = department.store_id
 
         await self.db.commit()
         return len(doctor_ids)
@@ -262,14 +312,18 @@ class DepartmentService:
         Returns:
             更新的记录数量
         """
+        tenant_id = get_current_tenant_id()
         count = 0
         for item in items:
             dept_id = item.get('id')
             sort_order = item.get('sort_order')
 
             if dept_id and sort_order is not None:
+                conditions = [Department.id == dept_id]
+                if tenant_id is not None:
+                    conditions.append(Department.tenant_id == tenant_id)
                 result = await self.db.execute(
-                    select(Department).where(Department.id == dept_id)
+                    select(Department).where(and_(*conditions))
                 )
                 department = result.scalar_one_or_none()
                 if department:

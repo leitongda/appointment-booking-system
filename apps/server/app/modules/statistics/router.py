@@ -77,7 +77,7 @@ async def get_overview(
     )
     
     # 总医生数（按门店过滤）
-    doctors_query = select(func.count(Doctor.id)).where(Doctor.status == 1)
+    doctors_query = select(func.count(Doctor.id)).where(Doctor.status == 1, Doctor.deleted_at.is_(None))
     if store_condition is not None:
         doctors_query = doctors_query.where(store_condition)
     total_doctors = await db.scalar(doctors_query)

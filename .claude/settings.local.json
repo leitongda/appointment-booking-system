@@ -144,7 +144,8 @@
       "Bash(pnpm eslint:*)",
       "Bash(pnpm exec:*)",
       "Bash(pnpm --filter @hospital/shared build)",
-      "Bash(pnpm --filter @hospital/admin prebuild)"
+      "Bash(pnpm --filter @hospital/admin prebuild)",
+      "Bash(tsc --noEmit -p apps/admin/src/utils/request.ts -p apps/admin/tsconfig/config.ts)"
     ]
   },
   "statusLine": {

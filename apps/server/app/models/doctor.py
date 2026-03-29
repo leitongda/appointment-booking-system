@@ -1,5 +1,6 @@
 from sqlalchemy import Column, String, Integer, Text, Numeric, ForeignKey, DateTime, UniqueConstraint
 from sqlalchemy.orm import relationship
+from datetime import datetime
 from app.db.base import Base, AuditMixin
 import uuid
 
@@ -53,6 +54,9 @@ class Doctor(Base, AuditMixin):
 
     # 诊费设置
     use_fee_template = Column(Integer, default=0, comment="是否使用诊费模板 0否 1是")
+
+    # 软删除
+    deleted_at = Column(DateTime, nullable=True, comment="软删除时间")
 
     # 关联关系
     tenant = relationship("Tenant", back_populates="doctors")

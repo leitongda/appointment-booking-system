@@ -174,6 +174,7 @@ class PatientManageService(PatientsServiceBase):
                     "isDefault": member.is_default,
                     "appointmentCount": member_appt_count or 0,
                     "noShowCount": member_no_show or 0,
+                    "totalConsumption": float(member.total_consumption or 0),
                     "isBlacklist": user.status == 0 if user else False,
                     "createdAt": member.created_at.isoformat() if member.created_at else None,
                 }

@@ -214,7 +214,7 @@ async def get_schedule_statistics(
     
     # 获取门店下所有医生
     doctors_result = await db.execute(
-        select(Doctor).where(Doctor.store_id == store_id, Doctor.status == 1)
+        select(Doctor).where(Doctor.store_id == store_id, Doctor.status == 1, Doctor.deleted_at.is_(None))
     )
     doctors = doctors_result.scalars().all()
     doctor_map = {d.id: d.name for d in doctors}

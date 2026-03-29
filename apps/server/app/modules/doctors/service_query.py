@@ -19,7 +19,7 @@ class DoctorQueryMixin:
         query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
-            .where(Doctor.phone == phone)
+            .where(Doctor.phone == phone, Doctor.deleted_at.is_(None))
         )
         tenant_id = get_current_tenant_id()
         if tenant_id:
@@ -31,7 +31,7 @@ class DoctorQueryMixin:
         query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
-            .where(Doctor.username == username)
+            .where(Doctor.username == username, Doctor.deleted_at.is_(None))
         )
         tenant_id = get_current_tenant_id()
         if tenant_id:
@@ -50,7 +50,7 @@ class DoctorQueryMixin:
         return doctor
 
     async def update_login_info(self, doctor_id: str, ip: str) -> None:
-        query = select(Doctor).where(Doctor.id == doctor_id)
+        query = select(Doctor).where(Doctor.id == doctor_id, Doctor.deleted_at.is_(None))
         tenant_id = get_current_tenant_id()
         if tenant_id:
             query = query.where(Doctor.tenant_id == tenant_id)
@@ -67,7 +67,7 @@ class DoctorQueryMixin:
         query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
-            .where(Doctor.id == doctor_id)
+            .where(Doctor.id == doctor_id, Doctor.deleted_at.is_(None))
         )
         tenant_id = get_current_tenant_id()
         if tenant_id:
@@ -87,6 +87,11 @@ class DoctorQueryMixin:
         tenant_id = get_current_tenant_id()
         query = select(Doctor).options(selectinload(Doctor.department), selectinload(Doctor.store))
         count_query = select(func.count(Doctor.id))
+
+        # 软删除过滤
+        query = query.where(Doctor.deleted_at.is_(None))
+        count_query = count_query.where(Doctor.deleted_at.is_(None))
+
         if tenant_id:
             query = query.where(Doctor.tenant_id == tenant_id)
             count_query = count_query.where(Doctor.tenant_id == tenant_id)
@@ -114,7 +119,7 @@ class DoctorQueryMixin:
         query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
-            .where(Doctor.is_recommended == 1, Doctor.status == 1)
+            .where(Doctor.is_recommended == 1, Doctor.status == 1, Doctor.deleted_at.is_(None))
         )
         if tenant_id:
             query = query.where(Doctor.tenant_id == tenant_id)
@@ -131,7 +136,7 @@ class DoctorQueryMixin:
         query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
-            .where(Doctor.department_id == department_id, Doctor.status == 1)
+            .where(Doctor.department_id == department_id, Doctor.status == 1, Doctor.deleted_at.is_(None))
         )
         if tenant_id:
             query = query.where(Doctor.tenant_id == tenant_id)
@@ -145,7 +150,7 @@ class DoctorQueryMixin:
         tenant_id = get_current_tenant_id()
         query = select(Doctor).options(
             selectinload(Doctor.department), selectinload(Doctor.store)
-        ).where(Doctor.status == 1)
+        ).where(Doctor.status == 1, Doctor.deleted_at.is_(None))
         if tenant_id:
             query = query.where(Doctor.tenant_id == tenant_id)
         if store_id:

@@ -3,13 +3,16 @@
 import random
 import string
 import uuid
+from datetime import datetime
 from typing import List, Optional
 
 from pypinyin import lazy_pinyin
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 
 from app.core.security import get_password_hash
+from app.models.appointment import Appointment
 from app.models.doctor import Doctor
+from app.models.schedule import Schedule
 from app.models.user import User
 from app.schemas.doctor import DoctorCreate, DoctorUpdate
 from app.utils.audit import set_create_audit, set_update_audit
@@ -103,16 +106,41 @@ class DoctorMutationMixin:
         return doctor
 
     async def delete(self, doctor_id: str) -> bool:
+        """软删除医生
+
+        检查关联的排班和预约：
+        - 如果有未完成的预约，拒绝删除
+        - 使用软删除（设置 deleted_at），而非物理删除
+        """
         doctor = await self.get_by_id(doctor_id)
         if not doctor:
             return False
-        await self.db.delete(doctor)
+
+        # 检查是否有进行中的预约（状态: 0待支付, 1已预约, 2已签到, 3候诊中, 4就诊中）
+        active_appointment_statuses = [0, 1, 2, 3, 4]
+        appointment_count_result = await self.db.execute(
+            select(func.count(Appointment.id)).where(
+                and_(
+                    Appointment.doctor_id == doctor_id,
+                    Appointment.status.in_(active_appointment_statuses),
+                )
+            )
+        )
+        appointment_count = appointment_count_result.scalar() or 0
+        if appointment_count > 0:
+            raise ValueError(
+                f"该医生有 {appointment_count} 条进行中的预约，请先处理完毕后再删除"
+            )
+
+        # 软删除：设置 deleted_at
+        doctor.deleted_at = datetime.now()
+        doctor.status = 0  # 同时禁用
         await self.db.commit()
         return True
 
     async def check_username_exists(self, username: str, exclude_id: Optional[str] = None) -> bool:
         from app.middleware.tenant_context import get_current_tenant_id
-        query = select(Doctor).where(Doctor.username == username)
+        query = select(Doctor).where(Doctor.username == username, Doctor.deleted_at.is_(None))
         tenant_id = get_current_tenant_id()
         if tenant_id:
             query = query.where(Doctor.tenant_id == tenant_id)
@@ -155,7 +183,7 @@ class DoctorMutationMixin:
             doctor_id = item.get("id")
             sort_order = item.get("sort_order")
             if doctor_id and sort_order is not None:
-                query = select(Doctor).where(Doctor.id == doctor_id)
+                query = select(Doctor).where(Doctor.id == doctor_id, Doctor.deleted_at.is_(None))
                 if tenant_id:
                     query = query.where(Doctor.tenant_id == tenant_id)
                 result = await self.db.execute(query)

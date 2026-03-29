@@ -9,6 +9,7 @@ import string
 from app.models.user import User, Patient
 from app.schemas.user import UserCreate, UserUpdate, PatientCreate, PatientUpdate
 from app.core.security import get_password_hash, verify_password
+from app.middleware.tenant_context import get_current_tenant_id
 from app.utils.audit import set_create_audit, set_update_audit
 
 class UserService:
@@ -192,6 +193,7 @@ class PatientService:
 
         patient = Patient(
             id=str(uuid.uuid4()),
+            tenant_id=get_current_tenant_id(),
             user_id=user_id,
             name=data.name,
             phone=data.phone,

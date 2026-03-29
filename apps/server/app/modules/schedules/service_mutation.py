@@ -72,7 +72,7 @@ class ScheduleMutationMixin:
 
             store_id = data.store_id
             if not store_id:
-                doctor_result = await self.db.execute(select(Doctor).where(Doctor.id == data.doctor_id))
+                doctor_result = await self.db.execute(select(Doctor).where(Doctor.id == data.doctor_id, Doctor.deleted_at.is_(None)))
                 doctor = doctor_result.scalar_one_or_none()
                 if doctor:
                     store_id = doctor.store_id
@@ -112,7 +112,7 @@ class ScheduleMutationMixin:
         from app.middleware.tenant_context import get_current_tenant_id
         tenant_id = get_current_tenant_id()
 
-        doctor_result = await self.db.execute(select(Doctor).where(Doctor.id == data.doctor_id))
+        doctor_result = await self.db.execute(select(Doctor).where(Doctor.id == data.doctor_id, Doctor.deleted_at.is_(None)))
         doctor = doctor_result.scalar_one_or_none()
         if not doctor:
             raise ValueError("医生不存在")

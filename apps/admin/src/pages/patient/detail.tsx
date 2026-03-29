@@ -392,7 +392,7 @@ const PatientDetailPage: React.FC = () => {
   ];
 
   // 计算家庭成员总消费
-  const familyTotalConsumption = patient?.familyMembers?.reduce((sum, m) => sum, 0) || 0;
+  const familyTotalConsumption = patient?.familyMembers?.reduce((sum, m) => sum + (m.totalConsumption || 0), 0) || 0;
 
   const tabItems = [
     {
@@ -627,7 +627,7 @@ const PatientDetailPage: React.FC = () => {
   return (
     <PageContainer
       title="患者详情"
-      extra={<Button onClick={() => history.push('/medical-services/user/list')}>返回列表</Button>}
+      extra={<Button onClick={() => history.push('/medical-services/medical-card/list')}>返回列表</Button>}
     >
       <Spin spinning={loading}>
         {/* 头部信息卡片 */}

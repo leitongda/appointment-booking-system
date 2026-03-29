@@ -207,7 +207,7 @@ class ScheduleSuspensionService:
 
             # 获取医生信息
             doctor_result = await self.db.execute(
-                select(Doctor).where(Doctor.id == data.doctor_id)
+                select(Doctor).where(Doctor.id == data.doctor_id, Doctor.deleted_at.is_(None))
             )
             doctor = doctor_result.scalar_one_or_none()
             doctor_name = doctor.name if doctor else "医生"

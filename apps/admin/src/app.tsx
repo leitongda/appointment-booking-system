@@ -152,6 +152,9 @@ const loginPath = '/login';
  * 当其他 Tab 修改了 token/租户/门店时，弹框提示并刷新
  */
 function handleCrossTabEvent(event: CrossTabEvent) {
+  // 登录页不弹框
+  if (window.location.pathname === loginPath) return;
+
   switch (event.type) {
     case 'auth-change':
       if (event.action === 'logout') {
@@ -504,16 +507,18 @@ export const request: RequestConfig = {
 
       // 处理 HTTP 401 或业务码 401（无效 Token）
       if (status === 401 || data?.code === 401) {
+        // 登录页不弹框
+        if (window.location.pathname === loginPath) return response;
         handleTokenExpired(() => {
           Modal.confirm({
             title: '登录已过期',
             content: data?.message || '您的登录已失效，请重新登录。',
             okText: '重新登录',
-            cancelText: '留在当前页',
-            closable: true,
+            cancelButtonProps: { style: { display: 'none' } },
+            closable: false,
             maskClosable: false,
             onOk: () => {
-              history.push(loginPath);
+              window.location.href = loginPath;
             },
           });
         });

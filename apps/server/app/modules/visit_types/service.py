@@ -159,7 +159,7 @@ class VisitTypeService:
             # 获取该科室下所有医生的预约
             from app.models.doctor import Doctor
             doctor_result = await self.db.execute(
-                select(Doctor.id).where(Doctor.department_id == department_id)
+                select(Doctor.id).where(Doctor.department_id == department_id, Doctor.deleted_at.is_(None))
             )
             doctor_ids = [row[0] for row in doctor_result.fetchall()]
             if doctor_ids:
@@ -170,7 +170,7 @@ class VisitTypeService:
             # 同一门店 - 查询该门店下所有医生的预约
             from app.models.doctor import Doctor
             doctor_result = await self.db.execute(
-                select(Doctor.id).where(Doctor.store_id == store_id)
+                select(Doctor.id).where(Doctor.store_id == store_id, Doctor.deleted_at.is_(None))
             )
             doctor_ids = [row[0] for row in doctor_result.fetchall()]
             if doctor_ids:

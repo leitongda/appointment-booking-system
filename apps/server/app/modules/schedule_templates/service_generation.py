@@ -367,7 +367,7 @@ class ScheduleTemplateGenerationMixin:
         if not template:
             raise ValueError("原排班规则不存在")
 
-        doctor_result = await self.db.execute(select(Doctor).where(Doctor.id.in_(target_doctor_ids)))
+        doctor_result = await self.db.execute(select(Doctor).where(Doctor.id.in_(target_doctor_ids), Doctor.deleted_at.is_(None)))
         doctors = {d.id: d for d in doctor_result.scalars().all()}
         if not doctors:
             raise ValueError("未找到有效的目标医生")
