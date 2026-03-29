@@ -29,6 +29,17 @@ export const getRuleSetColumns = (handlers: ColumnHandlers): ProColumns<RuleSet>
   },
   {
     title: '班次类型',
+    dataIndex: 'shift_type_id',
+    width: 150,
+    hideInTable: true,
+    request: async () => {
+      const { shiftTypeApi } = await import('@hospital/api');
+      const data = await shiftTypeApi.getAll();
+      return data.map((st: any) => ({ label: st.name, value: st.id }));
+    },
+  },
+  {
+    title: '班次类型',
     dataIndex: 'shiftTypes',
     width: 150,
     search: false,
@@ -77,16 +88,12 @@ export const getRuleSetColumns = (handlers: ColumnHandlers): ProColumns<RuleSet>
     render: (_, record) => {
       const { enabled, isActive } = record;
       if (!enabled) {
-        return <Tag color="default">禁用</Tag>;
+        return <Tag color="default">已禁用</Tag>;
       }
       if (isActive) {
         return <Tag color="success">生效中</Tag>;
       }
-      return (
-        <Space size={4}>
-          <Tag color="orange">被覆盖</Tag>
-        </Space>
-      );
+      return <Tag color="orange">已被覆盖</Tag>;
     },
   },
   {
@@ -137,11 +144,10 @@ export const getRuleSetColumns = (handlers: ColumnHandlers): ProColumns<RuleSet>
                   <div>
                     <p>确定要删除规则组 <strong>{record.name}</strong> 吗？</p>
                     {shiftTypesText && (
-                      <p style={{ marginTop: 8 }}>这将影响以下班次类型：</p>
+                      <p style={{ marginTop: 8 }}>这将影响以下班次类型：{shiftTypesText}。</p>
                     )}
                   </div>
                 ),
-                alertMessage: shiftTypesText || undefined,
                 onOk: () => handlers.handleDelete(record.id),
               });
             }}

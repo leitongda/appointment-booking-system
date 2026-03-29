@@ -442,9 +442,9 @@ export const PRESET_HEALTH_CHECK: RuleSetPreset = {
     capacityPolicy: {
       totalCapacity: 50,
       perUserCapacity: 1,
-      waitlistEnabled: true,
-      waitlistMaxSize: 20,
-      waitlistPromotePolicy: 'AUTO',
+      waitlistEnabled: false, // 体检场景按批次进行，超额机制更合适，候补与超额不并用
+      waitlistMaxSize: 0,
+      waitlistPromotePolicy: 'MANUAL',
       overbookingEnabled: true, // 允许超额
       overbookingMax: 5,
     },
@@ -532,8 +532,8 @@ export const PRESET_EMERGENCY: RuleSetPreset = {
       waitlistEnabled: false,
       waitlistMaxSize: 0,
       waitlistPromotePolicy: 'MANUAL',
-      overbookingEnabled: true,
-      overbookingMax: 999,
+      overbookingEnabled: false, // 总容量为0（不限制）时超额无意义
+      overbookingMax: 0,
     },
     windows: [
       {

@@ -458,7 +458,7 @@ const TimeConfigTab: React.FC<TimeConfigTabProps> = ({ loading }) => {
     <>
       <Alert
         message="时间口径配置说明"
-        description="时间口径控制规则判断时使用的时间基准和精度参数，确保预约时间窗判断的准确性。"
+        description="时间口径定义规则组计算时间窗时的基准设置。通常使用默认值即可，仅在特殊业务场景下需要调整。"
         type="info"
         showIcon
         style={{ marginBottom: 16 }}

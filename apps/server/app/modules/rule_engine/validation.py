@@ -190,7 +190,7 @@ class RuleEngineValidationMixin:
         user_id: str,
         policy: RuleCapacityPolicy,
     ) -> Dict[str, Any]:
-        if policy.total_capacity:
+        if policy.total_capacity is not None and policy.total_capacity > 0:
             total_count = await db.execute(
                 select(func.count(Appointment.id)).where(
                     and_(

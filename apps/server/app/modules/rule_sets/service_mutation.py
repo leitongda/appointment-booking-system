@@ -3,7 +3,7 @@
 import uuid
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import and_, select
 
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.rule_set import (
@@ -26,6 +26,18 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 
 class RuleSetMutationMixin:
+    async def _get_rule_set_with_tenant(self, rule_set_id: str):
+        """根据 ID 查询规则组，同时过滤租户（与 service_query.get_by_id 保持一致）。"""
+        conditions = [RuleSet.id == rule_set_id]
+        tenant_id = get_current_tenant_id()
+        if tenant_id is not None:
+            conditions.append(RuleSet.tenant_id == tenant_id)
+
+        result = await self.db.execute(
+            select(RuleSet).where(and_(*conditions))
+        )
+        return result.scalar_one_or_none()
+
     async def create(
         self, data: RuleSetCreate, operator_id: Optional[str] = None
     ):
@@ -120,11 +132,9 @@ class RuleSetMutationMixin:
     async def update(
         self, rule_set_id: str, data: RuleSetUpdate, operator_id: Optional[str] = None
     ):
-        result = await self.db.execute(select(RuleSet).where(RuleSet.id == rule_set_id))
-        rule_set = result.scalar_one_or_none()
+        rule_set = await self._get_rule_set_with_tenant(rule_set_id)
         if not rule_set:
             return None
-
         if data.name is not None:
             rule_set.name = data.name
         if data.enabled is not None:
@@ -301,8 +311,7 @@ class RuleSetMutationMixin:
             self.db.add(policy)
 
     async def delete(self, rule_set_id: str) -> bool:
-        result = await self.db.execute(select(RuleSet).where(RuleSet.id == rule_set_id))
-        rule_set = result.scalar_one_or_none()
+        rule_set = await self._get_rule_set_with_tenant(rule_set_id)
         if not rule_set:
             return False
 
@@ -311,8 +320,7 @@ class RuleSetMutationMixin:
         return True
 
     async def enable(self, rule_set_id: str, operator_id: Optional[str] = None) -> bool:
-        result = await self.db.execute(select(RuleSet).where(RuleSet.id == rule_set_id))
-        rule_set = result.scalar_one_or_none()
+        rule_set = await self._get_rule_set_with_tenant(rule_set_id)
         if not rule_set:
             return False
 
@@ -322,8 +330,7 @@ class RuleSetMutationMixin:
         return True
 
     async def disable(self, rule_set_id: str, operator_id: Optional[str] = None) -> bool:
-        result = await self.db.execute(select(RuleSet).where(RuleSet.id == rule_set_id))
-        rule_set = result.scalar_one_or_none()
+        rule_set = await self._get_rule_set_with_tenant(rule_set_id)
         if not rule_set:
             return False
 
