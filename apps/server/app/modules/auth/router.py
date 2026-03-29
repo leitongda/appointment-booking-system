@@ -18,6 +18,43 @@ router = APIRouter()
     "/login",
     response_model=LoginResponse,
     summary="用户登录",
+    description="""用户通过手机号和密码登录系统。
+
+**功能说明：**
+- 验证用户手机号和密码
+- 检查账号状态是否正常
+- 生成访问令牌和刷新令牌
+- 返回用户基本信息
+
+**请求示例：**
+```json
+{
+  "phone": "13800138000",
+  "password": "password123"
+}
+```
+
+**响应示例：**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expires_in": 3600,
+  "user": {
+    "id": "user_123",
+    "phone": "13800138000",
+    "nickname": "张医生",
+    "avatar": "https://example.com/avatar.jpg",
+    "gender": 1,
+    "status": 1
+  }
+}
+```
+
+**错误响应：**
+- 401: 手机号或密码错误
+- 403: 账号已被禁用
+""",
     responses={
         401: {"model": ErrorResponse, "description": "手机号或密码错误"},
         403: {"model": ErrorResponse, "description": "账号已被禁用"},
@@ -55,6 +92,46 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     "/register",
     response_model=UserResponse,
     summary="用户注册",
+    description="""新用户注册账号。
+
+**功能说明：**
+- 验证手机号格式和唯一性
+- 创建用户账号
+- 默认状态为正常
+- 注册成功后可直接登录
+
+**请求示例：**
+```json
+{
+  "phone": "13800138000",
+  "password": "password123",
+  "nickname": "张医生",
+  "gender": 1
+}
+```
+
+**响应示例：**
+```json
+{
+  "id": "user_123",
+  "phone": "13800138000",
+  "nickname": "张医生",
+  "avatar": null,
+  "gender": 1,
+  "status": 1,
+  "created_at": "2024-01-15T10:30:00Z"
+}
+```
+
+**错误响应：**
+- 400: 手机号已注册或格式不正确
+
+**字段说明：**
+- phone: 手机号，11位数字，必须唯一
+- password: 密码，最少6位
+- nickname: 昵称，可选
+- gender: 性别，0-未知, 1-男, 2-女
+""",
     responses={
         400: {"model": ErrorResponse, "description": "手机号已注册"},
     }

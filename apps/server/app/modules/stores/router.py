@@ -19,7 +19,22 @@ router = APIRouter()
 
 # ==================== 公开接口（无需登录） ====================
 
-@router.get("/by-code/{code}", response_model=StoreResponse, summary="获取门店")
+@router.get(
+    "/by-code/{code}",
+    response_model=StoreResponse,
+    summary="获取门店",
+    description="""
+    通过门店编码获取门店信息（公开接口，无需登录）。
+
+    **适用场景**：患者端 H5/小程序初始化时验证门店。
+
+    **参数说明**：
+    - code: 门店编码（路径参数）
+
+    **业务规则**：
+    - 已停业（status != 1）的门店返回 400 错误
+    """,
+)
 async def get_store_by_code(
     code: str,
     db: AsyncSession = Depends(get_db)
@@ -46,7 +61,21 @@ async def get_store_by_code(
     return StoreResponse.model_validate(store)
 
 
-@router.get("/check-unique", summary="检查唯一性")
+@router.get(
+    "/check-unique",
+    summary="检查唯一性",
+    description="""
+    检查门店名称或编码是否已存在，用于前端表单实时校验。
+
+    **参数说明**：
+    - field: 检查字段，可选 "name"（名称）或 "code"（编码）
+    - value: 字段值
+    - exclude_id: 编辑时排除当前门店ID（可选）
+
+    **返回数据**：
+    - { "exists": bool } - 是否已存在
+    """,
+)
 async def check_unique(
     field: str = Query(..., pattern="^(name|code)$", description="检查字段: name 或 code"),
     value: str = Query(..., min_length=1, description="字段值"),
@@ -78,7 +107,26 @@ async def check_unique(
 
 # ==================== 需要登录的接口 ====================
 
-@router.get("", response_model=PageResponse[StoreListResponse], summary="获取门店列表")
+@router.get(
+    "",
+    response_model=PageResponse[StoreListResponse],
+    summary="获取门店列表",
+    description="""
+    获取门店列表（管理端），支持分页和筛选。
+
+    **支持筛选条件**：
+    - keyword: 关键字搜索（名称/地址）
+    - status: 按状态筛选（0=停业 1=营业 2=禁用）
+    - city: 按城市筛选
+
+    **数据隔离**：
+    - 门店管理员只能看到自己关联的门店（不分页，直接返回全量）
+    - 超级管理员可看到所有门店（分页）
+
+    **返回数据**：
+    - 包含每个门店的科室数量（department_count）
+    """,
+)
 async def get_stores(
     keyword: Optional[str] = None,
     status: Optional[int] = None,
@@ -160,7 +208,18 @@ async def get_stores(
     )
 
 
-@router.get("/all", response_model=List[StoreResponse], summary="获取所有门店")
+@router.get(
+    "/all",
+    response_model=List[StoreResponse],
+    summary="获取所有门店",
+    description="""
+    获取所有营业中的门店列表（不分页），用于管理后台下拉选择等场景。
+
+    **数据隔离**：
+    - 超级管理员可看到所有营业中的门店
+    - 非超管只能看到自己绑定且营业中的门店
+    """,
+)
 async def get_all_stores(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
@@ -183,7 +242,21 @@ async def get_all_stores(
     return result
 
 
-@router.get("/{store_id}", response_model=StoreResponse, summary="获取门店详情")
+@router.get(
+    "/{store_id}",
+    response_model=StoreResponse,
+    summary="获取门店详情",
+    description="""
+    获取门店详情（管理端接口）。
+
+    **权限要求**：管理员登录，受门店访问控制。
+    - 超级管理员可访问任意门店
+    - 门店管理员只能访问绑定的门店
+
+    **参数说明**：
+    - store_id: 门店ID（路径参数）
+    """,
+)
 async def get_store(
     store_id: str, 
     db: AsyncSession = Depends(get_db),
@@ -209,7 +282,20 @@ async def get_store(
     return StoreResponse.model_validate(store)
 
 
-@router.post("", response_model=StoreResponse, summary="创建门店")
+@router.post(
+    "",
+    response_model=StoreResponse,
+    summary="创建门店",
+    description="""
+    创建新门店。
+
+    **权限要求**：管理员权限（store:create），仅超级管理员可操作。
+
+    **业务规则**：
+    - 门店名称和编码必须唯一
+    - 创建后可绑定科室和管理员
+    """,
+)
 async def create_store(
     data: StoreCreate,
     db: AsyncSession = Depends(get_db),
@@ -236,7 +322,18 @@ async def create_store(
         )
 
 
-@router.put("/{store_id}", response_model=StoreResponse, summary="更新门店")
+@router.put(
+    "/{store_id}",
+    response_model=StoreResponse,
+    summary="更新门店",
+    description="""
+    更新门店信息。
+
+    **权限要求**：管理员权限（store:update），受门店访问控制。
+    - 超级管理员可更新任意门店
+    - 门店管理员只能更新绑定的门店
+    """,
+)
 async def update_store(
     store_id: str,
     data: StoreUpdate,
@@ -269,7 +366,18 @@ async def update_store(
         )
 
 
-@router.delete("/{store_id}", summary="删除门店")
+@router.delete(
+    "/{store_id}",
+    summary="删除门店",
+    description="""
+    删除门店（仅超级管理员）。
+
+    **权限要求**：管理员权限（store:delete），仅超级管理员可操作。
+
+    **业务规则**：
+    - 存在关联科室或医生的门店可能拒绝删除（由 service 层判断）
+    """,
+)
 async def delete_store(
     store_id: str, 
     db: AsyncSession = Depends(get_db),
@@ -302,7 +410,22 @@ async def delete_store(
     return {"message": "删除成功"}
 
 
-@router.patch("/{store_id}/status", summary="更新门店状态")
+@router.patch(
+    "/{store_id}/status",
+    summary="更新门店状态",
+    description="""
+    更新门店营业状态。
+
+    **参数说明**：
+    - store_id: 门店ID（路径参数）
+    - status: 新状态值（0=停业 1=营业 2=禁用）
+
+    **权限规则**：
+    - 停业(0)/营业(1): 门店管理员可操作（限本门店）
+    - 禁用(2): 仅超级管理员可操作，禁用后该门店所有人员无法登录
+    - 从禁用状态恢复: 仅超级管理员可操作
+    """,
+)
 async def update_store_status(
     store_id: str,
     new_status: int = Query(..., ge=0, le=2, alias="status", description="状态: 0-停业 1-营业 2-禁用"),
@@ -351,7 +474,19 @@ async def update_store_status(
     return {"message": "状态更新成功"}
 
 
-@router.get("/{store_id}/departments", response_model=List[DepartmentResponse], summary="获取科室列表")
+@router.get(
+    "/{store_id}/departments",
+    response_model=List[DepartmentResponse],
+    summary="获取科室列表",
+    description="""
+    获取门店已绑定的科室列表。
+
+    **权限要求**：管理员登录，受门店访问控制。
+
+    **参数说明**：
+    - store_id: 门店ID（路径参数）
+    """,
+)
 async def get_store_departments(
     store_id: str,
     db: AsyncSession = Depends(get_db),
@@ -379,7 +514,23 @@ async def get_store_departments(
     return [DepartmentResponse.model_validate(d) for d in departments]
 
 
-@router.put("/{store_id}/departments/batch", summary="批量绑定科室")
+@router.put(
+    "/{store_id}/departments/batch",
+    summary="批量绑定科室",
+    description="""
+    批量绑定科室到门店（全量覆盖模式）。
+
+    **权限要求**：管理员登录，受门店访问控制。
+
+    **参数说明**：
+    - store_id: 门店ID（路径参数）
+    - Body: 科室ID列表（数组）
+
+    **业务规则**：
+    - 传入的科室ID列表会完全替换当前绑定关系
+    - 无效的科室ID会被 service 层校验拒绝
+    """,
+)
 async def batch_bind_departments(
     store_id: str,
     department_ids: List[str],
@@ -406,7 +557,19 @@ async def batch_bind_departments(
         )
 
 
-@router.get("/{store_id}/admins", response_model=List[AdminListResponse], summary="获取管理员列表")
+@router.get(
+    "/{store_id}/admins",
+    response_model=List[AdminListResponse],
+    summary="获取管理员列表",
+    description="""
+    获取门店已绑定的管理员列表。
+
+    **权限要求**：仅超级管理员可查看。
+
+    **参数说明**：
+    - store_id: 门店ID（路径参数）
+    """,
+)
 async def get_store_admins(
     store_id: str,
     db: AsyncSession = Depends(get_db),
@@ -434,7 +597,23 @@ async def get_store_admins(
     return [AdminListResponse.model_validate(a) for a in admins]
 
 
-@router.put("/{store_id}/admins/batch", summary="批量绑定管理员")
+@router.put(
+    "/{store_id}/admins/batch",
+    summary="批量绑定管理员",
+    description="""
+    批量绑定管理员到门店（全量覆盖模式）。
+
+    **权限要求**：仅超级管理员可操作。
+
+    **参数说明**：
+    - store_id: 门店ID（路径参数）
+    - Body: 管理员ID列表（数组）
+
+    **业务规则**：
+    - 传入的管理员ID列表会完全替换当前绑定关系
+    - 无效的管理员ID会被 service 层校验拒绝
+    """,
+)
 async def batch_bind_admins(
     store_id: str,
     admin_ids: List[str],
@@ -463,7 +642,20 @@ async def batch_bind_admins(
 
 # ==================== 门店微信配置 ====================
 
-@router.get("/{store_id}/wechat-config", response_model=StoreWechatConfigResponse, summary="获取微信配置")
+@router.get(
+    "/{store_id}/wechat-config",
+    response_model=StoreWechatConfigResponse,
+    summary="获取微信配置",
+    description="""
+    获取门店的微信公众号/小程序配置信息。
+
+    **权限要求**：管理员登录，受门店访问控制。
+
+    **安全说明**：
+    - app_secret 和 api_key 等敏感字段返回掩码处理（显示为 ******）
+    - 用于管理后台微信配置页面回显
+    """,
+)
 async def get_store_wechat_config(
     store_id: str,
     db: AsyncSession = Depends(get_db),
@@ -504,7 +696,21 @@ async def get_store_wechat_config(
     )
 
 
-@router.put("/{store_id}/wechat-config", summary="更新微信配置")
+@router.put(
+    "/{store_id}/wechat-config",
+    summary="更新微信配置",
+    description="""
+    更新门店的微信配置信息。
+
+    **权限要求**：
+    - 超级管理员：可更新任意门店
+    - 门店管理员：需有 settings:wechat 或 settings:edit 权限，且只能更新本门店
+
+    **安全说明**：
+    - 传入值为 ****** 的字段会被忽略（前端未修改时不提交真实值）
+    - 只有传入非掩码值时才会更新对应字段
+    """,
+)
 async def update_store_wechat_config(
     store_id: str,
     data: StoreWechatConfigUpdate,
@@ -565,7 +771,24 @@ async def update_store_wechat_config(
 
 # ==================== 签到二维码 ====================
 
-@router.get("/{store_id}/checkin-qrcode", summary="获取签到二维码")
+@router.get(
+    "/{store_id}/checkin-qrcode",
+    summary="获取签到二维码",
+    description="""
+    获取门店签到二维码内容（管理端获取，用于生成二维码图片供患者扫描）。
+
+    **权限要求**：超级管理员或门店关联管理员。
+
+    **参数说明**：
+    - store_id: 门店ID（路径参数）
+
+    **返回数据**：
+    - storeId: 门店ID
+    - storeName: 门店名称
+    - qrcodeContent: 二维码内容（格式：store-checkin:{store_id}）
+    - description: 二维码使用说明
+    """,
+)
 async def get_store_checkin_qrcode(
     store_id: str,
     db: AsyncSession = Depends(get_db),

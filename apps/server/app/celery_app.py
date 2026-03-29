@@ -139,3 +139,7 @@ celery_app.autodiscover_tasks([
     "app.tasks.tenant_usage_task",
 ])
 
+# Flower 监控配置
+# 通过环境变量 FLOWER_BASIC_AUTH 配置认证，格式: username:password
+# 启动命令: celery -A app.celery_app flower --port=5555
+

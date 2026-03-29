@@ -92,7 +92,24 @@ def doctor_to_list_response(doctor, has_available_slots: bool = False) -> Doctor
     )
 
 
-@router.post("/login", response_model=DoctorLoginResponse)
+@router.post(
+    "/login",
+    response_model=DoctorLoginResponse,
+    summary="医生登录",
+    description="""
+    医生账号登录，支持手机号或账号密码方式。
+
+    **业务规则**：
+    - 账号被禁用（status != 1）时拒绝登录
+    - 所属门店被禁用（store.status == 2）时拒绝登录
+    - 登录成功后更新登录IP和最后登录时间
+    - 返回 accessToken 和 refreshToken，有效期由系统配置控制
+
+    **Token 说明**：
+    - accessToken: 用于接口鉴权，payload 中 type=doctor
+    - refreshToken: 用于刷新 accessToken
+    """,
+)
 async def doctor_login(
     data: DoctorLoginRequest,
     request: Request,
@@ -128,14 +145,46 @@ async def doctor_login(
     )
 
 
-@router.get("/me", response_model=DoctorResponse, summary="获取当前医生信息")
+@router.get(
+    "/me",
+    response_model=DoctorResponse,
+    summary="获取当前医生信息",
+    description="""
+    获取当前登录医生的完整信息（医生端专用）。
+
+    **权限要求**：需要医生 Token 认证。
+
+    **返回数据**：
+    - 包含医生基本信息、所属门店/科室、职称、排班描述等完整字段
+    """,
+)
 async def get_current_doctor_info(
     doctor: Doctor = Depends(get_current_doctor_by_token),
 ):
     """获取当前登录医生信息"""
     return doctor_to_response(doctor)
 
-@router.get("", response_model=PageResponse[DoctorListResponse], summary="获取医生列表")
+@router.get(
+    "",
+    response_model=PageResponse[DoctorListResponse],
+    summary="获取医生列表",
+    description="""
+    获取医生列表（管理端），支持分页和多条件筛选。
+
+    **支持筛选条件**：
+    - name: 按医生姓名模糊搜索
+    - store_id: 按门店筛选
+    - department_id: 按科室筛选
+    - status: 按状态筛选（1=启用 0=禁用）
+
+    **数据隔离**：
+    - 门店管理员只能查看本门店的医生
+    - 超级管理员可查看所有医生
+
+    **返回数据**：
+    - 包含 hasAvailableSlots 字段，标记该医生当前是否有可预约号源
+    """,
+)
 async def get_doctors(
     name: Optional[str] = None,
     store_id: Optional[str] = None,
@@ -167,7 +216,20 @@ async def get_doctors(
     
     return PageResponse(data=result, total=total, page=page, page_size=page_size)
 
-@router.get("/all", response_model=List[DoctorListResponse], summary="获取所有医生")
+@router.get(
+    "/all",
+    response_model=List[DoctorListResponse],
+    summary="获取所有医生",
+    description="""
+    获取所有启用状态的医生列表（不分页），用于管理后台下拉选择等场景。
+
+    **适用场景**：签到队列筛选、排班分配等需要完整医生列表的功能。
+
+    **数据隔离**：
+    - 门店管理员只能查看本门店的医生
+    - 超级管理员可查看所有医生
+    """,
+)
 async def get_all_doctors(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
@@ -186,7 +248,24 @@ async def get_all_doctors(
     return [doctor_to_list_response(d) for d in doctors]
 
 
-@router.get("/recommended", response_model=List[DoctorListResponse], summary="获取推荐医生")
+@router.get(
+    "/recommended",
+    response_model=List[DoctorListResponse],
+    summary="获取推荐医生",
+    description="""
+    获取推荐医生列表（公开接口，无需登录）。
+
+    **适用场景**：患者端首页推荐医生展示。
+
+    **参数说明**：
+    - limit: 返回数量（默认6，最大不超过系统配置）
+    - store_id: 按门店筛选（可选）
+
+    **返回数据**：
+    - 只返回 is_recommended=1 且 status=1 的医生
+    - 包含 hasAvailableSlots 字段标记号源状态
+    """,
+)
 async def get_recommended_doctors(
     limit: int = Query(6, ge=1, le=settings.MAX_PAGE_SIZE),
     store_id: Optional[str] = None,
@@ -205,7 +284,24 @@ async def get_recommended_doctors(
     
     return [doctor_to_list_response(d, availability_map.get(d.id, False)) for d in doctors]
 
-@router.get("/by-department/{department_id}", response_model=List[DoctorListResponse], summary="获取科室医生")
+@router.get(
+    "/by-department/{department_id}",
+    response_model=List[DoctorListResponse],
+    summary="获取科室医生",
+    description="""
+    获取指定科室下的医生列表（公开接口，无需登录）。
+
+    **适用场景**：患者端查看科室医生列表。
+
+    **参数说明**：
+    - department_id: 科室ID（路径参数）
+    - store_id: 按门店筛选（可选）
+
+    **返回数据**：
+    - 只返回 status=1 的医生
+    - 包含 hasAvailableSlots 字段标记号源状态
+    """,
+)
 async def get_doctors_by_department(
     department_id: str,
     store_id: Optional[str] = None,
@@ -225,7 +321,21 @@ async def get_doctors_by_department(
     return [doctor_to_list_response(d, availability_map.get(d.id, False)) for d in doctors]
 
 
-@router.get("/public/{doctor_id}", response_model=DoctorResponse, summary="获取医生详情(公开)")
+@router.get(
+    "/public/{doctor_id}",
+    response_model=DoctorResponse,
+    summary="获取医生详情(公开)",
+    description="""
+    获取医生详情（公开接口，用于患者端查看医生信息）。
+
+    **参数说明**：
+    - doctor_id: 医生ID（路径参数）
+
+    **业务规则**：
+    - 无需登录即可访问
+    - 只返回 status=1（已启用）的医生，禁用/删除的医生返回404
+    """,
+)
 async def get_doctor_public(
     doctor_id: str,
     db: AsyncSession = Depends(get_db)
@@ -247,7 +357,19 @@ async def get_doctor_public(
     return doctor_to_response(doctor)
 
 
-@router.put("/batch-sort", summary="批量更新排序")
+@router.put(
+    "/batch-sort",
+    summary="批量更新排序",
+    description="""
+    批量更新医生排序顺序。
+
+    **权限要求**：管理员权限（doctor:update）。
+
+    **参数说明**：
+    - items: 数组，每项包含 id（医生ID）和 sort_order（排序值）
+    - sort_order 值越小越靠前
+    """,
+)
 async def batch_update_sort_order(
     data: BatchSortRequest,
     db: AsyncSession = Depends(get_db),
@@ -261,7 +383,22 @@ async def batch_update_sort_order(
     return {"message": "排序更新成功", "count": count}
 
 
-@router.get("/{doctor_id}", response_model=DoctorResponse, summary="获取医生详情")
+@router.get(
+    "/{doctor_id}",
+    response_model=DoctorResponse,
+    summary="获取医生详情",
+    description="""
+    获取医生详情（管理端接口）。
+
+    **权限要求**：管理员登录，受门店访问控制（只能查看本门店医生）。
+
+    **参数说明**：
+    - doctor_id: 医生ID（路径参数）
+
+    **返回数据**：
+    - 包含医生完整信息、所属门店/科室名称、在线问诊配置等
+    """,
+)
 async def get_doctor(
     doctor_id: str, 
     db: AsyncSession = Depends(get_db),
@@ -280,7 +417,22 @@ async def get_doctor(
     
     return doctor_to_response(doctor)
 
-@router.post("", response_model=DoctorResponse, summary="创建医生")
+@router.post(
+    "",
+    response_model=DoctorResponse,
+    summary="创建医生",
+    description="""
+    创建医生账号。
+
+    **权限要求**：管理员权限（doctor:create）。
+
+    **业务规则**：
+    - 门店管理员只能在本门店创建医生（自动绑定 store_id）
+    - 超级管理员可指定任意门店
+    - store_id 为必填字段
+    - 创建后需重新加载关联关系以返回完整数据
+    """,
+)
 async def create_doctor(
     data: DoctorCreate, 
     db: AsyncSession = Depends(get_db),
@@ -307,7 +459,21 @@ async def create_doctor(
     
     return doctor_to_response(doctor)
 
-@router.put("/{doctor_id}", response_model=DoctorResponse, summary="更新医生")
+@router.put(
+    "/{doctor_id}",
+    response_model=DoctorResponse,
+    summary="更新医生",
+    description="""
+    更新医生信息。
+
+    **权限要求**：管理员权限（doctor:update），受门店访问控制。
+
+    **业务规则**：
+    - 只能更新本门店的医生信息
+    - 门店管理员不能修改医生的门店归属（store_id）
+    - 超级管理员可修改任意医生的门店归属
+    """,
+)
 async def update_doctor(
     doctor_id: str,
     data: DoctorUpdate,
@@ -335,7 +501,20 @@ async def update_doctor(
     
     return doctor_to_response(doctor)
 
-@router.delete("/{doctor_id}", summary="删除医生")
+@router.delete(
+    "/{doctor_id}",
+    summary="删除医生",
+    description="""
+    删除医生（软删除）。
+
+    **权限要求**：管理员权限（doctor:delete），受门店访问控制。
+
+    **业务规则**：
+    - 只能删除本门店的医生
+    - 存在关联排班记录时可能拒绝删除（由 service 层判断）
+    - 删除为软删除（设置 deleted_at 时间戳）
+    """,
+)
 async def delete_doctor(
     doctor_id: str, 
     db: AsyncSession = Depends(get_db),
@@ -363,7 +542,24 @@ async def delete_doctor(
     return {"message": "删除成功"}
 
 
-@router.post("/check-username", response_model=CheckUsernameResponse, summary="检查账号是否存在")
+@router.post(
+    "/check-username",
+    response_model=CheckUsernameResponse,
+    summary="检查账号是否存在",
+    description="""
+    检查医生登录账号是否已存在，如存在则返回推荐账号列表。
+
+    **适用场景**：管理后台创建/编辑医生时的实时账号校验。
+
+    **参数说明**：
+    - username: 待检查的账号名
+    - exclude_id: 排除的医生ID（编辑模式下排除自身）
+
+    **返回数据**：
+    - exists: 账号是否已存在
+    - suggestions: 推荐的替代账号列表（仅在存在重复时返回）
+    """,
+)
 async def check_username(
     data: CheckUsernameRequest,
     db: AsyncSession = Depends(get_db),
@@ -384,7 +580,22 @@ async def check_username(
     return CheckUsernameResponse(exists=exists, suggestions=suggestions)
 
 
-@router.post("/generate-username", response_model=GenerateUsernameResponse, summary="生成唯一账号")
+@router.post(
+    "/generate-username",
+    response_model=GenerateUsernameResponse,
+    summary="生成唯一账号",
+    description="""
+    根据医生姓名自动生成唯一的登录账号。
+
+    **适用场景**：管理后台创建医生时自动生成默认账号名。
+
+    **参数说明**：
+    - name: 医生姓名
+
+    **返回数据**：
+    - username: 生成的唯一账号名（基于姓名拼音 + 数字后缀）
+    """,
+)
 async def generate_username(
     data: GenerateUsernameRequest,
     db: AsyncSession = Depends(get_db),

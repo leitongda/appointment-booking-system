@@ -149,6 +149,10 @@ class Settings(BaseSettings):
     COS_BUCKET: Optional[str] = None
     COS_CDN_DOMAIN: Optional[str] = None  # CDN加速域名（可选）
 
+    # Flower 监控配置
+    FLOWER_PORT: int = 5555
+    FLOWER_BASIC_AUTH: Optional[str] = None  # 格式: username:password
+
     # 告警配置
     ALERT_WEBHOOK_URL: Optional[str] = None  # 任务失败告警 Webhook URL
 

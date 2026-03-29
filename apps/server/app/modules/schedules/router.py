@@ -73,7 +73,28 @@ class SuspendRequest(BaseModel):
     reason: Optional[str] = Field(None, max_length=200, description="停诊原因")
     notify_patients: bool = Field(True, description="是否通知患者")
 
-@router.get("", response_model=PageResponse[ScheduleResponse], summary="获取排班列表")
+@router.get(
+    "",
+    response_model=PageResponse[ScheduleResponse],
+    summary="获取排班列表",
+    description="""
+    获取排班列表（管理端），支持分页和多条件筛选。
+
+    **支持筛选条件**：
+    - doctor_id: 按医生筛选
+    - store_id: 按门店筛选
+    - start_date / end_date: 按排班日期范围筛选
+    - status: 按状态筛选（1=正常 0=停诊）
+
+    **数据隔离**：
+    - 门店管理员只能查看本门店的排班
+
+    **返回数据**：
+    - 包含医生姓名、科室名称等关联信息
+    - 包含 is_rest_day 字段，标记该排班日期是否在休息日范围内
+    - 休息日判断逻辑：全局休息日 + 门店级休息日 + 医生级休息日
+    """,
+)
 async def get_schedules(
     doctor_id: Optional[str] = None,
     store_id: Optional[str] = None,
@@ -181,7 +202,24 @@ class ScheduleStatisticsResponse(BaseModel):
     items: List[ScheduleStatisticsItem]
 
 
-@router.get("/statistics", response_model=ScheduleStatisticsResponse, summary="获取排班统计")
+@router.get(
+    "/statistics",
+    response_model=ScheduleStatisticsResponse,
+    summary="获取排班统计",
+    description="""
+    获取指定门店某月的排班统计数据，按医生和日期汇总。
+
+    **参数说明**：
+    - store_id: 门店ID（门店管理员自动取本门店，超级管理员必填）
+    - year: 年份（必填，2020-2100）
+    - month: 月份（必填，1-12）
+
+    **返回数据**：
+    - 按日期 + 医生维度汇总
+    - 分别统计上午（morning）、下午（afternoon）、晚间（evening）的号源总量和已预约量
+    - 同时包含自定义排班（非模板生成）的统计
+    """,
+)
 async def get_schedule_statistics(
     store_id: Optional[str] = Query(None, description="门店ID"),
     year: int = Query(..., ge=2020, le=2100, description="年份"),
@@ -321,7 +359,25 @@ async def get_schedule_statistics(
     )
 
 
-@router.get("/available/{doctor_id}", response_model=List[AvailableScheduleResponse], summary="获取可预约排班")
+@router.get(
+    "/available/{doctor_id}",
+    response_model=List[AvailableScheduleResponse],
+    summary="获取可预约排班",
+    description="""
+    获取指定医生的可预约排班（公开接口，患者端使用）。
+
+    **参数说明**：
+    - doctor_id: 医生ID（路径参数）
+    - days: 查询未来天数（默认14天，最大30天）
+
+    **返回数据**：
+    - 包含规则引擎计算的预约时间窗信息（booking_open_at / booking_close_at）
+    - booking_status: available（可预约）/ not_open（未开放）/ closed（已截止）/ full（约满）/ closing_soon（即将约满）
+    - capacity_percent: 剩余容量百分比
+    - urgency_level: 紧急程度（normal/medium/high/critical）
+    - is_rest_day: 是否在休息日（此处始终为 False，因为已过滤）
+    """,
+)
 async def get_available_schedules(
     doctor_id: str,
     days: int = Query(14, ge=1, le=30),
@@ -418,7 +474,21 @@ async def get_available_schedules(
 
     return result
 
-@router.get("/{schedule_id}", response_model=ScheduleResponse, summary="获取排班详情")
+@router.get(
+    "/{schedule_id}",
+    response_model=ScheduleResponse,
+    summary="获取排班详情",
+    description="""
+    获取排班详情（管理端接口）。
+
+    **参数说明**：
+    - schedule_id: 排班记录ID（路径参数）
+
+    **返回数据**：
+    - 包含医生姓名、科室名称等关联信息
+    - 包含 is_rest_day 字段，通过休息日配置判断
+    """,
+)
 async def get_schedule(
     schedule_id: str,
     db: AsyncSession = Depends(get_db),
@@ -455,7 +525,21 @@ async def get_schedule(
         is_rest_day=is_rest_day
     )
 
-@router.post("", response_model=ScheduleResponse, summary="创建排班")
+@router.post(
+    "",
+    response_model=ScheduleResponse,
+    summary="创建排班",
+    description="""
+    创建单条排班记录。
+
+    **权限要求**：管理员权限（schedule:create）。
+
+    **业务规则**：
+    - 同一医生同一天同一时段不可重复排班
+    - 需指定医生（doctor_id）、排班日期（schedule_date）、时段（time_slot）、号源数量（total_slots）
+    - 创建后自动检查是否与休息日冲突，返回 is_rest_day 标记
+    """,
+)
 async def create_schedule(
     data: ScheduleCreate,
     db: AsyncSession = Depends(get_db),
@@ -492,7 +576,21 @@ async def create_schedule(
         is_rest_day=is_rest_day
     )
 
-@router.post("/batch", response_model=BatchOperateResponse, summary="批量创建排班")
+@router.post(
+    "/batch",
+    response_model=BatchOperateResponse,
+    summary="批量创建排班",
+    description="""
+    批量创建排班记录，支持按日期范围和医生列表批量生成。
+
+    **权限要求**：管理员权限（schedule:create）。
+
+    **业务规则**：
+    - 自动跳过已存在排班的日期/时段（不报错）
+    - 休息日内的排班会自动跳过
+    - 返回实际创建的排班数量（affected_count）
+    """,
+)
 async def batch_create_schedules(
     data: ScheduleBatchCreate,
     db: AsyncSession = Depends(get_db),
@@ -511,7 +609,23 @@ async def batch_create_schedules(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-@router.put("/{schedule_id}", response_model=ScheduleResponse, summary="更新排班")
+@router.put(
+    "/{schedule_id}",
+    response_model=ScheduleResponse,
+    summary="更新排班",
+    description="""
+    更新排班信息。
+
+    **权限要求**：管理员权限（schedule:update）。
+
+    **业务规则**：
+    - 已有预约记录的排班，号源数量不可少于已预约数量（booked_slots）
+    - 更新后自动检查休息日冲突
+
+    **参数说明**：
+    - schedule_id: 排班记录ID（路径参数）
+    """,
+)
 async def update_schedule(
     schedule_id: str,
     data: ScheduleUpdate,
@@ -558,7 +672,25 @@ class BatchScheduleRequest(BaseModel):
     reason: Optional[str] = Field(None, max_length=200, description="操作原因")
 
 
-@router.post("/batch-suspend", response_model=BatchOperateResponse, summary="批量停诊")
+@router.post(
+    "/batch-suspend",
+    response_model=BatchOperateResponse,
+    summary="批量停诊",
+    description="""
+    批量将排班标记为停诊状态。
+
+    **权限要求**：管理员权限（schedule:update）。
+
+    **业务规则**：
+    - 停诊后对应排班不再对患者可见
+    - 已有预约的处理由 service 层决定（通知患者等）
+    - 返回实际影响的排班数量
+
+    **参数说明**：
+    - schedule_ids: 排班ID列表（必填，至少1个）
+    - reason: 停诊原因（可选，最大200字）
+    """,
+)
 async def batch_suspend_schedules(
     data: BatchScheduleRequest,
     db: AsyncSession = Depends(get_db),
@@ -583,7 +715,24 @@ async def batch_suspend_schedules(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.post("/batch-resume", response_model=BatchOperateResponse, summary="批量恢复排班")
+@router.post(
+    "/batch-resume",
+    response_model=BatchOperateResponse,
+    summary="批量恢复排班",
+    description="""
+    批量恢复已停诊的排班。
+
+    **权限要求**：管理员权限（schedule:update）。
+
+    **业务规则**：
+    - 恢复后排班重新对患者可见
+    - 只有已停诊状态的排班会受影响
+    - 返回实际恢复的排班数量
+
+    **参数说明**：
+    - schedule_ids: 排班ID列表（必填，至少1个）
+    """,
+)
 async def batch_resume_schedules(
     data: BatchScheduleRequest,
     db: AsyncSession = Depends(get_db),
@@ -607,7 +756,24 @@ async def batch_resume_schedules(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.post("/batch-delete", response_model=BatchOperateResponse, summary="批量删除排班")
+@router.post(
+    "/batch-delete",
+    response_model=BatchOperateResponse,
+    summary="批量删除排班",
+    description="""
+    批量删除排班记录。
+
+    **权限要求**：管理员权限（schedule:delete）。
+
+    **业务规则**：
+    - 只能删除没有任何预约记录的排班
+    - 存在预约记录的排班会自动跳过（不报错）
+    - 返回消息中包含实际删除数量和跳过数量
+
+    **参数说明**：
+    - schedule_ids: 排班ID列表（必填，至少1个）
+    """,
+)
 async def batch_delete_schedules(
     data: BatchScheduleRequest,
     db: AsyncSession = Depends(get_db),

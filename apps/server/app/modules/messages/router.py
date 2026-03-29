@@ -20,7 +20,50 @@ router = APIRouter()
 
 # ========== 用户消息接口 ==========
 
-@router.get("/my", response_model=PageResponse[MessageListResponse], summary="获取我的消息")
+@router.get(
+    "/my",
+    response_model=PageResponse[MessageListResponse],
+    summary="获取我的消息",
+    description="""获取当前用户的消息列表，支持多种过滤条件。
+
+**功能说明：**
+- 按用户ID和用户类型查询消息
+- 支持按消息类型和已读状态过滤
+- 支持分页查询
+- 消息按创建时间倒序排列
+
+**请求参数：**
+- user_id: 用户ID（必需）
+- user_type: 用户类型，patient/doctor（必需）
+- message_type: 消息类型（可选）
+- is_read: 已读状态，0-未读, 1-已读（可选）
+- page: 页码，默认1
+- page_size: 每页数量，默认10
+
+**响应示例：**
+```json
+{
+  "data": [
+    {
+      "id": "msg_123",
+      "title": "预约提醒",
+      "content": "您明天上午9点有预约",
+      "message_type": "appointment",
+      "is_read": 0,
+      "created_at": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "total": 50,
+  "page": 1,
+  "page_size": 10
+}
+```
+
+**多租户支持：**
+- 通过 store_id 实现租户隔离
+- user_id 跨租户唯一
+"""
+)
 async def get_my_messages(
     message_type: Optional[MessageType] = None,
     is_read: Optional[int] = Query(None, ge=0, le=1),
@@ -39,7 +82,7 @@ async def get_my_messages(
         page_size=page_size
     )
     messages, total = await service.get_user_messages(user_id, user_type, query)
-    
+
     return PageResponse(
         data=[MessageListResponse.model_validate(m) for m in messages],
         total=total,

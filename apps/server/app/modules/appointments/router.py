@@ -18,6 +18,18 @@ router = APIRouter()
     "",
     response_model=AppointmentResponse,
     summary="创建预约",
+    description="""
+    患者提交预约申请，系统自动分配号源并生成预约编号。
+
+    **业务规则**：
+    - 必须关联有效的排班记录（schedule_id），且排班有余量
+    - 同一患者同一天同一时段不可重复预约
+    - 预约需在规则引擎允许的时间窗口内（预约开放时间 ~ 预约截止时间）
+    - 创建成功后通过 WebSocket 通知对应医生端
+
+    **权限要求**：
+    - 患者用户或管理员均可调用
+    """,
     responses={
         400: {"model": ErrorResponse, "description": "预约失败"},
         404: {"model": ErrorResponse, "description": "排班不存在"},
@@ -59,6 +71,19 @@ async def create_appointment(
 @router.put(
     "/{appointment_id}/cancel",
     summary="取消预约",
+    description="""
+    取消指定预约，释放对应排班的号源。
+
+    **业务规则**：
+    - 只有"已预约"状态的预约可以取消
+    - 取消需在规则引擎允许的取消时间窗口内
+    - 管理员可取消任意预约，普通用户只能取消自己的预约
+    - 取消后对应排班的 booked_slots 自动减 1
+
+    **参数说明**：
+    - appointment_id: 预约记录ID（路径参数）
+    - reason: 取消原因（可选）
+    """,
     responses={
         400: {"model": ErrorResponse, "description": "取消失败"},
         404: {"model": ErrorResponse, "description": "预约不存在"},

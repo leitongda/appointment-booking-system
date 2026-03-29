@@ -21,7 +21,32 @@ PAGE_SIZE_STANDARD_LIMIT = 100
 router = APIRouter()
 
 
-@router.get("", response_model=PageResponse[AppointmentResponse], summary="获取预约列表")
+@router.get(
+    "",
+    response_model=PageResponse[AppointmentResponse],
+    summary="获取预约列表",
+    description="""
+    获取当前租户下的预约列表，支持分页和多条件筛选。
+
+    **支持筛选条件**：
+    - status: 按状态筛选（1=已预约 2=已签到 3=叫号中 4=就诊中 5=已完成 6=已取消 7=已过期 8=已爽约 9=过号）
+    - doctor_id: 按医生筛选
+    - department_id: 按科室筛选
+    - patient_id: 按患者筛选
+    - store_id: 按门店筛选
+    - start_date / end_date: 按排班日期范围筛选
+    - created_start / created_end: 按创建时间范围筛选
+    - keyword: 关键字搜索（预约编号/患者姓名/手机号）
+
+    **分页规则**：
+    - 默认 page_size=10，常规上限 100
+    - page_size > 100 时需要管理员权限，且必须提供 start_date 和 end_date
+
+    **数据隔离**：
+    - 管理员可查看所有预约（门店管理员仅查看本门店）
+    - 普通用户只能查看自己的预约
+    """,
+)
 async def get_appointments(
     status: Optional[int] = None,
     patient_id: Optional[str] = None,
@@ -107,7 +132,22 @@ async def get_appointments(
     return PageResponse(data=result, total=total, page=page, page_size=page_size)
 
 
-@router.get("/today", summary="获取今日预约")
+@router.get(
+    "/today",
+    summary="获取今日预约",
+    description="""
+    获取当前医生今日的所有预约列表（医生端专用）。
+
+    **业务规则**：
+    - 仅返回当前登录医生今日的预约
+    - 需要通过 Token 识别医生身份（doctor_id）
+    - 每条预约包含 isFollowUp 字段，标记是否为复诊患者
+
+    **返回数据**：
+    - 包含患者基本信息、预约编号、排班时间、状态流转时间等
+    - 复诊判断基于患者在该医生/科室的历史就诊记录
+    """,
+)
 async def get_today_appointments(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin)
@@ -180,7 +220,24 @@ async def get_today_appointments(
     return result
 
 
-@router.get("/today-pending", summary="获取今日待签到预约")
+@router.get(
+    "/today-pending",
+    summary="获取今日待签到预约",
+    description="""
+    获取当前用户在指定门店的今日待签到预约（患者端专用）。
+
+    **适用场景**：患者扫码签到时选择要签到的预约。
+
+    **参数说明**：
+    - store_id: 门店ID（必填），用于筛选该门店下的待签到预约
+
+    **返回数据**：
+    - 包含签到状态判断（signInStatus）：available（可签到）/ early（未到时间）/ late（已过时间）/ error（异常）
+    - signInMessage: 签到状态对应的提示信息
+    - 通过规则引擎计算签到时间窗（checkinOpenAt / checkinCloseAt）
+    - minutesUntilOpen / minutesUntilClose: 距离签到开放/截止的剩余分钟数
+    """,
+)
 async def get_today_pending_appointments(
     store_id: str = Query(..., description="门店ID"),
     db: AsyncSession = Depends(get_db),
@@ -268,7 +325,25 @@ async def get_today_pending_appointments(
     return result
 
 
-@router.get("/queue", summary="获取签到队列")
+@router.get(
+    "/queue",
+    summary="获取签到队列",
+    description="""
+    获取当日已签到的患者队列，按签到时间排序。
+
+    **适用场景**：管理后台和医生端查看当日叫号/就诊队列。
+
+    **参数说明**：
+    - store_id: 按门店筛选（可选）
+    - doctor_id: 按医生筛选（可选，医生端自动取当前医生）
+    - target_date: 指定日期（可选，默认今日）
+
+    **业务规则**：
+    - 医生端只能查看自己的队列（通过 Token 识别医生身份）
+    - 管理员可查看任意医生/门店的队列
+    - 返回数据包含签到方式（checkinMethod），如手动签到、扫码签到等
+    """,
+)
 async def get_checkin_queue(
     store_id: Optional[str] = None,
     doctor_id: Optional[str] = None,
@@ -340,7 +415,24 @@ async def get_checkin_queue(
     return result
 
 
-@router.get("/statistics", response_model=AppointmentStatistics, summary="获取预约统计")
+@router.get(
+    "/statistics",
+    response_model=AppointmentStatistics,
+    summary="获取预约统计",
+    description="""
+    获取预约统计数据，支持按医生和日期范围筛选。
+
+    **权限要求**：管理员权限。
+
+    **参数说明**：
+    - doctor_id: 按医生筛选（可选）
+    - start_date / end_date: 日期范围（可选）
+
+    **返回数据**：
+    - 各状态的预约数量统计（已预约、已签到、已完成、已取消、已爽约等）
+    - 用于管理后台的数据看板
+    """,
+)
 async def get_appointment_statistics(
     doctor_id: Optional[str] = None,
     start_date: Optional[date] = None,
@@ -356,7 +448,23 @@ async def get_appointment_statistics(
     return await service.get_statistics(doctor_id=doctor_id, start_date=start_date, end_date=end_date)
 
 
-@router.get("/check-duplicate", summary="检查重复预约")
+@router.get(
+    "/check-duplicate",
+    summary="检查重复预约",
+    description="""
+    检查同一患者在同一天同一时段是否已有预约。
+
+    **适用场景**：患者端提交预约前的重复校验，用于前端提醒。
+
+    **参数说明**：
+    - schedule_id: 排班ID（必填），用于获取日期和时段信息
+    - patient_id: 就诊人ID（必填）
+
+    **返回数据**：
+    - hasDuplicate: 是否存在重复预约
+    - appointments: 已有预约列表（包含医生、科室、状态等信息）
+    """,
+)
 async def check_duplicate_appointment(
     schedule_id: str = Query(..., description="排班ID"),
     patient_id: str = Query(..., description="就诊人ID"),
@@ -406,7 +514,21 @@ async def check_duplicate_appointment(
     }
 
 
-@router.get("/by-no/{appointment_no}", response_model=AppointmentResponse, summary="按预约号获取详情")
+@router.get(
+    "/by-no/{appointment_no}",
+    response_model=AppointmentResponse,
+    summary="按预约号获取详情",
+    description="""
+    通过预约编号查询预约详情。
+
+    **参数说明**：
+    - appointment_no: 预约编号（路径参数，如 AP20240101001）
+
+    **权限规则**：
+    - 管理员可查看任意预约
+    - 普通用户只能查看自己的预约（通过 user_id 校验）
+    """,
+)
 async def get_appointment_by_no(
     appointment_no: str,
     db: AsyncSession = Depends(get_db),
@@ -430,6 +552,16 @@ async def get_appointment_by_no(
     "/{appointment_id}",
     response_model=AppointmentResponse,
     summary="获取预约详情",
+    description="""
+    通过预约ID获取预约详情。
+
+    **参数说明**：
+    - appointment_id: 预约记录ID（路径参数）
+
+    **返回数据**：
+    - 包含患者、医生、门店、排班等关联信息
+    - 包含状态流转时间（签到时间、叫号时间、完成时间、取消时间等）
+    """,
     responses={
         404: {"model": ErrorResponse, "description": "预约不存在"},
     }
@@ -449,7 +581,20 @@ async def get_appointment(
     return AppointmentResponse.from_appointment(appointment)
 
 
-@router.get("/queue/info", summary="获取叫号队列信息")
+@router.get(
+    "/queue/info",
+    summary="获取叫号队列信息",
+    description="""
+    获取当前医生的叫号队列信息（医生端专用）。
+
+    **权限要求**：需要医生身份（Token 中包含 doctor_id）。
+
+    **返回数据**：
+    - 当前叫号患者信息
+    - 等候队列列表
+    - 已完成/已过号数量统计
+    """,
+)
 async def get_queue_info(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin)

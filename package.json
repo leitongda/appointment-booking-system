@@ -29,10 +29,17 @@
     "deploy:frontend": "node scripts/deploy-frontend.mjs",
     "lint": "turbo run lint",
     "test": "turbo run test",
+    "test:e2e": "playwright test",
+    "e2e:admin": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report",
     "clean": "turbo run clean && rm -rf node_modules",
     "clean:patient-miniapp-cache": "pnpm --filter @hospital/patient-miniapp clean:cache"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "chalk": "^5.3.0",
     "cli-progress": "^3.12.0",
     "figlet": "^1.8.0",

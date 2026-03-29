@@ -66,7 +66,38 @@ class EmailConfigUpdate(BaseModel):
 
 
 # ========== 预约设置 ==========
-@router.get("/booking", summary="获取预约设置")
+@router.get(
+    "/booking",
+    summary="获取预约设置",
+    description="""获取系统预约规则配置。
+
+**功能说明：**
+- 获取预约相关的全局配置
+- 包含提前预约天数、取消时限等规则
+- 返回默认配置值
+
+**响应示例：**
+```json
+{
+  "advanceDays": 10,
+  "sameDayBooking": true,
+  "cancelHours": 2,
+  "perDayLimit": 3,
+  "perDoctorLimit": 5,
+  "noShowLimit": 3,
+  "blacklistDays": 30,
+  "advanceBookingMinutes": 0,
+  "advanceBookingDirection": "before",
+  "advanceBookingReference": "end",
+  "signInAdvanceMinutes": 30,
+  "signInLateMinutes": 30
+}
+```
+
+**权限要求：**
+- 需要管理员权限
+"""
+)
 async def get_booking_settings(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),

@@ -25,9 +25,40 @@ router = APIRouter()
 
 # ==================== 订阅计划管理（平台管理员） ====================
 
-@router.get("/plans", response_model=List[SubscriptionPlanListResponse], summary="获取订阅计划列表")
+@router.get(
+    "/plans",
+    response_model=List[SubscriptionPlanListResponse],
+    summary="获取订阅计划列表",
+    description="""获取所有可用的订阅计划列表，包括计划名称、价格、配额限制等信息。
+
+**功能说明：**
+- 支持按状态筛选（启用/禁用）
+- 返回计划列表按排序字段排序
+- 包含价格信息和功能配额
+
+**权限要求：**
+- 所有管理员都可以查看订阅计划列表
+
+**返回示例：**
+```json
+[
+  {
+    "id": "plan_123",
+    "plan_code": "basic",
+    "name": "基础版",
+    "description": "适合小型诊所",
+    "price_monthly": 299.00,
+    "price_yearly": 2990.00,
+    "max_stores": 1,
+    "max_doctors": 10,
+    "max_appointments_per_month": 500
+  }
+]
+```
+"""
+)
 async def get_subscription_plans(
-    status: Optional[int] = Query(None, ge=0, le=1, description="状态筛选"),
+    status: Optional[int] = Query(None, ge=0, le=1, description="状态筛选: 0-禁用, 1-启用"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin)
 ):
@@ -40,7 +71,41 @@ async def get_subscription_plans(
     return [SubscriptionPlanListResponse.model_validate(p) for p in plans]
 
 
-@router.post("/plans", response_model=SubscriptionPlanResponse, summary="创建订阅计划")
+@router.post(
+    "/plans",
+    response_model=SubscriptionPlanResponse,
+    summary="创建订阅计划",
+    description="""创建新的订阅计划，仅限平台管理员操作。
+
+**功能说明：**
+- 创建新的订阅计划，设置价格和配额限制
+- 计划编码必须唯一
+- 支持设置月付和年付价格
+- 可配置功能开关和配额限制
+
+**权限要求：**
+- 仅平台管理员可操作
+
+**请求示例：**
+```json
+{
+  "plan_code": "premium",
+  "name": "高级版",
+  "description": "适合中型医院",
+  "price_monthly": 999.00,
+  "price_yearly": 9990.00,
+  "max_stores": 5,
+  "max_admins": 20,
+  "max_doctors": 100,
+  "max_appointments_per_month": 5000,
+  "features": {"online_payment": true, "wechat_integration": true}
+}
+```
+
+**错误响应：**
+- 400: 计划编码已存在
+"""
+)
 async def create_subscription_plan(
     data: SubscriptionPlanCreate,
     db: AsyncSession = Depends(get_db),
@@ -183,7 +248,67 @@ async def get_tenants(
     )
 
 
-@router.post("", response_model=TenantResponse, summary="创建租户")
+@router.post(
+    "",
+    response_model=TenantResponse,
+    summary="创建租户",
+    description="""创建新的租户（医院/诊所），仅限平台管理员操作。
+
+**功能说明：**
+- 创建新的租户账号
+- 分配订阅计划和配额
+- 设置联系信息和域名
+- 初始化租户配置
+
+**请求示例：**
+```json
+{
+  "tenant_code": "hospital_001",
+  "name": "示例医院",
+  "subscription_plan_id": "plan_basic",
+  "billing_cycle": "yearly",
+  "max_stores": 3,
+  "max_admins": 10,
+  "max_doctors": 50,
+  "is_trial": false,
+  "contact_name": "张经理",
+  "contact_phone": "13800138000",
+  "contact_email": "manager@hospital.com",
+  "address": "北京市朝阳区",
+  "custom_domain": "hospital.example.com",
+  "subdomain": "hospital"
+}
+```
+
+**响应示例：**
+```json
+{
+  "id": "tenant_123",
+  "tenant_code": "hospital_001",
+  "name": "示例医院",
+  "status": 1,
+  "subscription_plan_id": "plan_basic",
+  "subscription_end_at": "2025-01-15T10:30:00Z",
+  "max_stores": 3,
+  "max_admins": 10,
+  "max_doctors": 50,
+  "is_subscription_active": true,
+  "created_at": "2024-01-15T10:30:00Z"
+}
+```
+
+**错误响应：**
+- 400: 租户编码已存在或订阅计划不存在
+
+**权限要求：**
+- 仅平台管理员可操作
+
+**多租户说明：**
+- tenant_code 必须全局唯一
+- 用于子域名或路由识别
+- 创建后无法修改
+"""
+)
 async def create_tenant(
     data: TenantCreate,
     db: AsyncSession = Depends(get_db),

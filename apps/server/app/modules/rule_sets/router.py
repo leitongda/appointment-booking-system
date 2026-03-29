@@ -33,7 +33,22 @@ API_TIMEOUT = settings.API_TIMEOUT
 DB_QUERY_TIMEOUT = settings.DB_QUERY_TIMEOUT
 
 
-@router.get("", response_model=PageResult[RuleSetDetailResponse], summary="获取规则组列表")
+@router.get(
+    "",
+    response_model=PageResult[RuleSetDetailResponse],
+    summary="获取规则组列表",
+    description="""
+    获取规则组列表，支持分页和筛选。
+
+    **支持筛选条件**：
+    - enabled: 按启用状态筛选（true/false）
+    - shift_type_id: 按班次类型筛选
+
+    **返回数据**：
+    - 包含规则组基本信息及关联的时间窗、策略配置
+    - 带超时监控，记录查询耗时
+    """,
+)
 async def get_rule_sets(
     enabled: Optional[bool] = Query(None, description="是否启用"),
     shift_type_id: Optional[str] = Query(None, description="班次类型ID"),
@@ -72,7 +87,21 @@ async def get_rule_sets(
         raise
 
 
-@router.get("/performance", summary="获取规则引擎性能统计")
+@router.get(
+    "/performance",
+    summary="获取规则引擎性能统计",
+    description="""
+    获取规则引擎性能统计数据（仅超级管理员）。
+
+    **参数说明**：
+    - operation: 操作类型筛选（可选，不填则返回所有操作）
+    - hours: 统计时间范围（默认24小时，最大168小时即7天）
+
+    **返回数据**：
+    - 调用次数、延迟统计（P50/P95/P99/平均值/最大值/最小值）
+    - 慢查询数量、平均调用速率
+    """,
+)
 async def get_performance_stats(
     operation: Optional[str] = Query(None, description="操作类型"),
     hours: int = Query(24, ge=1, le=168, description="统计时间范围（小时）"),
@@ -104,7 +133,21 @@ async def get_performance_stats(
     return stats
 
 
-@router.get("/slow-queries", summary="获取规则引擎慢查询列表")
+@router.get(
+    "/slow-queries",
+    summary="获取规则引擎慢查询列表",
+    description="""
+    获取规则引擎慢查询列表（仅超级管理员），按时间倒序排列。
+
+    **参数说明**：
+    - operation: 按操作类型筛选（可选）
+    - limit: 返回数量限制（默认100，最大1000）
+
+    **返回数据**：
+    - total: 慢查询总数
+    - data: 慢查询详情列表
+    """,
+)
 async def get_slow_queries(
     operation: Optional[str] = Query(None, description="操作类型"),
     limit: int = Query(100, ge=1, le=1000, description="返回数量限制"),
@@ -135,7 +178,18 @@ async def get_slow_queries(
     }
 
 
-@router.delete("/performance/metrics", summary="清除性能指标")
+@router.delete(
+    "/performance/metrics",
+    summary="清除性能指标",
+    description="""
+    清除规则引擎性能指标数据（仅超级管理员）。
+
+    **参数说明**：
+    - operation: 按操作类型清除（可选，不填则清除所有操作的指标）
+
+    **适用场景**：性能调优时重置统计数据。
+    """,
+)
 async def clear_performance_metrics(
     operation: Optional[str] = Query(None, description="操作类型"),
     current_admin: dict = Depends(get_current_super_admin)
@@ -158,7 +212,24 @@ async def clear_performance_metrics(
     return result
 
 
-@router.get("/{rule_set_id}", response_model=RuleSetDetailResponse, summary="获取规则组详情")
+@router.get(
+    "/{rule_set_id}",
+    response_model=RuleSetDetailResponse,
+    summary="获取规则组详情",
+    description="""
+    获取规则组详情，包含关联的时间窗和策略配置。
+
+    **参数说明**：
+    - rule_set_id: 规则组ID（路径参数）
+
+    **返回数据**：
+    - 规则组基本信息
+    - 关联的时间窗列表（windows）
+    - 预约策略（booking_policy）
+    - 签到策略（checkin_policy）
+    - 容量策略（capacity_policy）
+    """,
+)
 async def get_rule_set(
     rule_set_id: str,
     db: AsyncSession = Depends(get_db),
@@ -197,7 +268,20 @@ async def get_rule_set(
         raise
 
 
-@router.post("", response_model=RuleSetDetailResponse, status_code=status.HTTP_201_CREATED, summary="创建规则组")
+@router.post(
+    "",
+    response_model=RuleSetDetailResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="创建规则组",
+    description="""
+    创建新的规则组（仅超级管理员）。
+
+    **业务规则**：
+    - 规则组名称在同一租户下必须唯一
+    - 可关联班次类型（shift_type_id）
+    - 创建时记录创建者（operator_id）
+    """,
+)
 async def create_rule_set(
     data: RuleSetCreate,
     db: AsyncSession = Depends(get_db),
@@ -215,7 +299,21 @@ async def create_rule_set(
     return rule_set
 
 
-@router.put("/{rule_set_id}", response_model=RuleSetDetailResponse, summary="更新规则组")
+@router.put(
+    "/{rule_set_id}",
+    response_model=RuleSetDetailResponse,
+    summary="更新规则组",
+    description="""
+    更新规则组信息（仅超级管理员）。
+
+    **参数说明**：
+    - rule_set_id: 规则组ID（路径参数）
+
+    **业务规则**：
+    - 记录最后更新者（operator_id）
+    - 已被排班引用的规则组修改后影响后续规则计算
+    """,
+)
 async def update_rule_set(
     rule_set_id: str,
     data: RuleSetUpdate,
@@ -239,7 +337,19 @@ async def update_rule_set(
     return rule_set
 
 
-@router.delete("/{rule_set_id}", status_code=status.HTTP_204_NO_CONTENT, summary="删除规则组")
+@router.delete(
+    "/{rule_set_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="删除规则组",
+    description="""
+    删除规则组（仅超级管理员）。
+
+    **业务规则**：
+    - 已被排班引用的规则组不允许删除（需先解除关联）
+    - 删除同时会清理关联的时间窗和策略配置
+    - 返回 204 No Content
+    """,
+)
 async def delete_rule_set(
     rule_set_id: str,
     db: AsyncSession = Depends(get_db),
@@ -256,7 +366,18 @@ async def delete_rule_set(
     return None
 
 
-@router.post("/{rule_set_id}/enable", status_code=status.HTTP_200_OK, summary="启用规则组")
+@router.post(
+    "/{rule_set_id}/enable",
+    status_code=status.HTTP_200_OK,
+    summary="启用规则组",
+    description="""
+    启用规则组（仅超级管理员）。
+
+    **业务规则**：
+    - 启用后规则组可被排班模板引用
+    - 记录操作者（operator_id）
+    """,
+)
 async def enable_rule_set(
     rule_set_id: str,
     db: AsyncSession = Depends(get_db),
@@ -273,7 +394,19 @@ async def enable_rule_set(
     return {"message": "启用成功"}
 
 
-@router.post("/{rule_set_id}/disable", status_code=status.HTTP_200_OK, summary="禁用规则组")
+@router.post(
+    "/{rule_set_id}/disable",
+    status_code=status.HTTP_200_OK,
+    summary="禁用规则组",
+    description="""
+    禁用规则组（仅超级管理员）。
+
+    **业务规则**：
+    - 禁用后规则组不再被新排班模板引用
+    - 已引用该规则组的排班不受影响（规则引擎运行时不检查 enabled 状态）
+    - 记录操作者（operator_id）
+    """,
+)
 async def disable_rule_set(
     rule_set_id: str,
     db: AsyncSession = Depends(get_db),
@@ -290,7 +423,29 @@ async def disable_rule_set(
     return {"message": "禁用成功"}
 
 
-@router.post("/preview", response_model=RulePreviewResponse, summary="预览规则效果")
+@router.post(
+    "/preview",
+    response_model=RulePreviewResponse,
+    summary="预览规则效果",
+    description="""
+    预览规则效果，根据输入的班次信息计算各动作窗口的结果。
+
+    **适用场景**：管理后台编辑规则时的实时预览。
+
+    **参数说明**：
+    - schedule_date: 排班日期
+    - start_time / end_time: 排班起止时间
+    - shift_type_id: 班次类型ID
+    - current_time: 模拟的当前时间（用于测试不同时间点的效果）
+
+    **返回数据**：
+    - book_window: 预约动作窗口检查结果
+    - checkin_window: 签到动作窗口检查结果
+    - cancel_window: 取消动作窗口检查结果
+
+    **超时保护**：API 调用超时 30s，数据库查询超时 10s。
+    """,
+)
 async def preview_rule(
     data: RulePreviewRequest,
     db: AsyncSession = Depends(get_db),
@@ -367,7 +522,25 @@ async def preview_rule(
 
 # ==================== RuleWindow 独立管理 ====================
 
-@router.post("/{rule_set_id}/windows", response_model=RuleWindowResponse, status_code=status.HTTP_201_CREATED, summary="创建时间窗")
+@router.post(
+    "/{rule_set_id}/windows",
+    response_model=RuleWindowResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="创建时间窗",
+    description="""
+    为指定规则组创建时间窗配置（仅超级管理员）。
+
+    **参数说明**：
+    - rule_set_id: 规则组ID（路径参数）
+    - action: 动作类型（BOOK/CHECKIN/CANCEL）
+    - open_offset_minutes: 开放偏移分钟数（相对于排班开始时间）
+    - close_offset_minutes: 截止偏移分钟数
+
+    **业务规则**：
+    - 规则组不存在时返回 404
+    - 记录创建者（operator_id）
+    """,
+)
 async def create_window(
     rule_set_id: str,
     data: RuleWindowCreate,
@@ -385,7 +558,21 @@ async def create_window(
     return window
 
 
-@router.put("/windows/{window_id}", response_model=RuleWindowResponse, summary="更新时间窗")
+@router.put(
+    "/windows/{window_id}",
+    response_model=RuleWindowResponse,
+    summary="更新时间窗",
+    description="""
+    更新时间窗配置（仅超级管理员）。
+
+    **参数说明**：
+    - window_id: 时间窗ID（路径参数）
+
+    **业务规则**：
+    - 时间窗不存在时返回 404
+    - 记录最后更新者（operator_id）
+    """,
+)
 async def update_window(
     window_id: str,
     data: RuleWindowUpdate,
@@ -403,7 +590,21 @@ async def update_window(
     return window
 
 
-@router.delete("/windows/{window_id}", status_code=status.HTTP_204_NO_CONTENT, summary="删除时间窗")
+@router.delete(
+    "/windows/{window_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="删除时间窗",
+    description="""
+    删除时间窗配置（仅超级管理员）。
+
+    **参数说明**：
+    - window_id: 时间窗ID（路径参数）
+
+    **业务规则**：
+    - 时间窗不存在时返回 404
+    - 返回 204 No Content
+    """,
+)
 async def delete_window(
     window_id: str,
     db: AsyncSession = Depends(get_db),
@@ -422,7 +623,22 @@ async def delete_window(
 
 # ==================== Policy 独立管理 ====================
 
-@router.put("/{rule_set_id}/booking-policy", response_model=RuleBookingPolicyResponse, summary="更新预约策略")
+@router.put(
+    "/{rule_set_id}/booking-policy",
+    response_model=RuleBookingPolicyResponse,
+    summary="更新预约策略",
+    description="""
+    更新规则组的预约策略（仅超级管理员）。
+
+    **业务规则**：
+    - 策略不存在则自动创建，存在则更新（upsert）
+    - 规则组不存在时返回 404
+    - 预约策略控制：提前预约天数限制、同日预约上限等
+
+    **参数说明**：
+    - rule_set_id: 规则组ID（路径参数）
+    """,
+)
 async def update_booking_policy(
     rule_set_id: str,
     data: RuleBookingPolicyCreate,
@@ -447,7 +663,22 @@ async def update_booking_policy(
     return policy
 
 
-@router.put("/{rule_set_id}/checkin-policy", response_model=RuleCheckinPolicyResponse, summary="更新签到策略")
+@router.put(
+    "/{rule_set_id}/checkin-policy",
+    response_model=RuleCheckinPolicyResponse,
+    summary="更新签到策略",
+    description="""
+    更新规则组的签到策略（仅超级管理员）。
+
+    **业务规则**：
+    - 策略不存在则自动创建，存在则更新（upsert）
+    - 规则组不存在时返回 404
+    - 签到策略控制：签到开放时间、签到截止时间、迟到处理等
+
+    **参数说明**：
+    - rule_set_id: 规则组ID（路径参数）
+    """,
+)
 async def update_checkin_policy(
     rule_set_id: str,
     data: RuleCheckinPolicyCreate,
@@ -472,7 +703,22 @@ async def update_checkin_policy(
     return policy
 
 
-@router.put("/{rule_set_id}/capacity-policy", response_model=RuleCapacityPolicyResponse, summary="更新容量策略")
+@router.put(
+    "/{rule_set_id}/capacity-policy",
+    response_model=RuleCapacityPolicyResponse,
+    summary="更新容量策略",
+    description="""
+    更新规则组的容量策略（仅超级管理员）。
+
+    **业务规则**：
+    - 策略不存在则自动创建，存在则更新（upsert）
+    - 规则组不存在时返回 404
+    - 容量策略控制：号源上限、超号规则、候补机制等
+
+    **参数说明**：
+    - rule_set_id: 规则组ID（路径参数）
+    """,
+)
 async def update_capacity_policy(
     rule_set_id: str,
     data: RuleCapacityPolicyCreate,
