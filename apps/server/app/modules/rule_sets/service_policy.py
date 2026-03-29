@@ -33,6 +33,7 @@ class RuleSetPolicyMixin:
         window = RuleWindow(
             id=str(uuid.uuid4()),
             rule_set_id=rule_set_id,
+            name=data.name,
             action=data.action,
             reference_point=data.reference_point,
             open_offset_sec=data.open_offset_sec,

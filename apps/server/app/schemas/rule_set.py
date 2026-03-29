@@ -106,6 +106,10 @@ class RuleSetUpdate(BaseModel):
     rounding_mode: Optional[str] = Field(None, description="取整模式")
     clock_skew_tolerance_sec: Optional[int] = Field(None, ge=0, description="时钟偏差容忍度")
     shift_type_ids: Optional[List[str]] = Field(None, description="班次类型ID列表")
+    windows: Optional[List['RuleWindowCreate']] = Field(None, description="时间窗配置")
+    booking_policy: Optional['RuleBookingPolicyCreate'] = Field(None, description="预约策略")
+    checkin_policy: Optional['RuleCheckinPolicyCreate'] = Field(None, description="签到策略")
+    capacity_policy: Optional['RuleCapacityPolicyCreate'] = Field(None, description="容量策略")
 
 
 class RuleSetResponse(RuleSetBase):
@@ -120,6 +124,7 @@ class RuleSetResponse(RuleSetBase):
     id: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    is_active: bool = Field(False, description="是否为实际生效的规则组（优先级最高的启用规则）")
 
 
 class RuleSetDetailResponse(RuleSetResponse):
@@ -142,6 +147,7 @@ class RuleSetDetailResponse(RuleSetResponse):
 
 class RuleWindowBase(BaseModel):
     """时间窗基础模型"""
+    name: Optional[str] = Field(None, max_length=200, description="时间窗名称")
     action: str = Field(..., description="动作类型: BOOK/CHECKIN/CANCEL")
     reference_point: str = Field(..., description="参考点: SHIFT_START/SHIFT_END/BOOKING_CREATED_AT")
     open_offset_sec: Optional[int] = Field(None, description="开放偏移(秒),NULL表示不限制")

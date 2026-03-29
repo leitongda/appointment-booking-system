@@ -89,6 +89,7 @@ class RuleWindow(Base, AuditMixin):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     rule_set_id = Column(String(36), ForeignKey("rule_sets.id", ondelete="CASCADE"), nullable=False)
 
+    name = Column(String(200), nullable=True, comment="时间窗名称")
     action = Column(String(30), nullable=False, comment="动作类型: BOOK/CHECKIN/CANCEL/HOLD_RELEASE")
     reference_point = Column(String(50), nullable=False, comment="参考点: SHIFT_START/SHIFT_END/BOOKING_CREATED_AT")
 

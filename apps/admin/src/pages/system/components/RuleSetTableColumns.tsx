@@ -16,7 +16,7 @@ interface ColumnHandlers {
  */
 export const getRuleSetColumns = (handlers: ColumnHandlers): ProColumns<RuleSet>[] => [
   {
-    title: '规则名称',
+    title: '规则组名称',
     dataIndex: 'name',
     ellipsis: true,
   },
@@ -50,6 +50,7 @@ export const getRuleSetColumns = (handlers: ColumnHandlers): ProColumns<RuleSet>
       CLIENT: { text: '客户端时间' },
     },
     search: false,
+    hideInTable: true,
   },
   {
     title: '比较精度',
@@ -62,15 +63,30 @@ export const getRuleSetColumns = (handlers: ColumnHandlers): ProColumns<RuleSet>
       MINUTE: { text: '分钟' },
     },
     search: false,
+    hideInTable: true,
   },
   {
     title: '状态',
     dataIndex: 'enabled',
-    width: 80,
+    width: 120,
     valueType: 'select',
     valueEnum: {
       true: { text: '启用', status: 'Success' },
       false: { text: '禁用', status: 'Default' },
+    },
+    render: (_, record) => {
+      const { enabled, isActive } = record;
+      if (!enabled) {
+        return <Tag color="default">禁用</Tag>;
+      }
+      if (isActive) {
+        return <Tag color="success">生效中</Tag>;
+      }
+      return (
+        <Space size={4}>
+          <Tag color="orange">被覆盖</Tag>
+        </Space>
+      );
     },
   },
   {
@@ -91,7 +107,7 @@ export const getRuleSetColumns = (handlers: ColumnHandlers): ProColumns<RuleSet>
           <a onClick={() => handlers.handleView!(record)}>查看</a>
         )}
         {handlers.canSuperAdmin ? (
-          <a onClick={() => history.push(`/system/rule-sets/${record.id}/edit`)}>编辑</a>
+          <a onClick={() => history.push(`/operations/system/rule-sets/${record.id}/edit`)}>编辑</a>
         ) : (
           <a style={{ color: 'rgba(0, 0, 0, 0.25)', cursor: 'not-allowed' }}>编辑</a>
         )}
@@ -112,7 +128,7 @@ export const getRuleSetColumns = (handlers: ColumnHandlers): ProColumns<RuleSet>
             style={{ color: '#ff4d4f' }}
             onClick={() => {
               const shiftTypesText = record.shiftTypes && record.shiftTypes.length > 0
-                ? `影响班次类型：${record.shiftTypes.map(st => st.name).join('、')}`
+                ? record.shiftTypes.map(st => st.name).join('、')
                 : undefined;
 
               confirmDelete({
@@ -120,10 +136,12 @@ export const getRuleSetColumns = (handlers: ColumnHandlers): ProColumns<RuleSet>
                 content: (
                   <div>
                     <p>确定要删除规则组 <strong>{record.name}</strong> 吗？</p>
-                    <p style={{ marginTop: 8 }}>删除后相关配置也会受影响。</p>
+                    {shiftTypesText && (
+                      <p style={{ marginTop: 8 }}>这将影响以下班次类型：</p>
+                    )}
                   </div>
                 ),
-                alertMessage: shiftTypesText,
+                alertMessage: shiftTypesText || undefined,
                 onOk: () => handlers.handleDelete(record.id),
               });
             }}

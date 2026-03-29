@@ -6,6 +6,7 @@ from typing import List, Optional, Tuple
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import selectinload
 
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.rule_set import (
     RuleBookingPolicy,
     RuleCapacityPolicy,
@@ -18,6 +19,39 @@ from app.models.rule_set import (
 from app.schemas.rule_set import RuleSetDetailResponse
 
 
+async def _get_active_rule_set_ids(db, shift_type_ids: List[str]) -> set:
+    """
+    获取每个班次类型下优先级最高的启用规则组 ID。
+
+    对于每个班次类型，查询所有启用的规则组，按 priority 升序排序，
+    取第一个（优先级最高）的规则组 ID。
+    """
+    if not shift_type_ids:
+        return set()
+
+    active_ids = set()
+    for shift_type_id in shift_type_ids:
+        # 查询该班次类型下所有启用的规则组，按 priority 升序
+        query = (
+            select(RuleSet.id)
+            .join(RuleSetShiftType, RuleSet.id == RuleSetShiftType.rule_set_id)
+            .where(
+                and_(
+                    RuleSetShiftType.shift_type_id == shift_type_id,
+                    RuleSet.enabled == True,
+                )
+            )
+            .order_by(RuleSet.priority.asc())
+            .limit(1)
+        )
+        result = await db.execute(query)
+        rule_set_id = result.scalar_one_or_none()
+        if rule_set_id:
+            active_ids.add(rule_set_id)
+
+    return active_ids
+
+
 class RuleSetQueryMixin:
     async def get_list(
         self,
@@ -27,6 +61,12 @@ class RuleSetQueryMixin:
         page_size: int = 10,
     ) -> Tuple[List[RuleSetDetailResponse], int]:
         conditions = []
+
+        # 租户过滤：tenant_id 为 None 时（超级管理员等场景）不添加过滤条件
+        tenant_id = get_current_tenant_id()
+        if tenant_id is not None:
+            conditions.append(RuleSet.tenant_id == tenant_id)
+
         if enabled is not None:
             conditions.append(RuleSet.enabled == enabled)
         if shift_type_id:
@@ -51,12 +91,40 @@ class RuleSetQueryMixin:
         query = query.offset((page - 1) * page_size).limit(page_size)
         result = await self.db.execute(query)
         rule_sets = result.scalars().all()
+
+        # 批量计算所有活跃规则组 ID（只查询启用状态，不使用筛选条件）
+        # 这样可以正确显示被筛选掉的规则组的活跃状态
+        active_conditions = [RuleSet.enabled == True]
+        if tenant_id is not None:
+            active_conditions.append(RuleSet.tenant_id == tenant_id)
+
+        # 获取当前租户下所有启用的规则组关联的班次类型
+        active_shift_types_query = (
+            select(ShiftType.id)
+            .join(RuleSetShiftType, ShiftType.id == RuleSetShiftType.shift_type_id)
+            .join(RuleSet, RuleSetShiftType.rule_set_id == RuleSet.id)
+            .where(and_(*active_conditions))
+            .distinct()
+        )
+        active_shift_types_result = await self.db.execute(active_shift_types_query)
+        active_shift_type_ids = [row[0] for row in active_shift_types_result.all()]
+
+        # 计算活跃规则组 ID
+        active_rule_set_ids = await _get_active_rule_set_ids(self.db, active_shift_type_ids)
+
         responses = []
         for rs in rule_sets:
-            responses.append(await self._to_detail_response(rs))
+            responses.append(await self._to_detail_response(rs, active_rule_set_ids))
         return responses, total
 
     async def get_by_id(self, rule_set_id: str) -> Optional[RuleSetDetailResponse]:
+        conditions = [RuleSet.id == rule_set_id]
+
+        # 租户过滤：tenant_id 为 None 时（超级管理员等场景）不添加过滤条件
+        tenant_id = get_current_tenant_id()
+        if tenant_id is not None:
+            conditions.append(RuleSet.tenant_id == tenant_id)
+
         result = await self.db.execute(
             select(RuleSet)
             .options(
@@ -66,17 +134,32 @@ class RuleSetQueryMixin:
                 selectinload(RuleSet.checkin_policy),
                 selectinload(RuleSet.capacity_policy),
             )
-            .where(RuleSet.id == rule_set_id)
+            .where(and_(*conditions))
         )
         rule_set = result.scalar_one_or_none()
         if not rule_set:
             return None
         return await self._to_detail_response(rule_set)
 
-    async def _to_detail_response(self, rule_set: RuleSet) -> RuleSetDetailResponse:
+    async def _to_detail_response(
+        self, rule_set: RuleSet, active_rule_set_ids: Optional[set] = None
+    ) -> RuleSetDetailResponse:
         await self.db.refresh(
             rule_set, ["shift_types", "windows", "booking_policy", "checkin_policy", "capacity_policy"]
         )
+
+        # 获取规则组关联的班次类型 ID 列表
+        shift_type_ids = []
+        if rule_set.shift_types:
+            for st in rule_set.shift_types:
+                shift_type_ids.append(st.id)
+
+        # 如果没有传入 active_rule_set_ids，则实时计算
+        if active_rule_set_ids is None:
+            active_rule_set_ids = await _get_active_rule_set_ids(self.db, shift_type_ids)
+
+        # 判断当前规则组是否为实际生效的规则组
+        is_active = rule_set.id in active_rule_set_ids if rule_set.enabled else False
 
         data = {
             "id": rule_set.id,
@@ -93,6 +176,7 @@ class RuleSetQueryMixin:
             "description": rule_set.description,
             "created_at": rule_set.created_at,
             "updated_at": rule_set.updated_at,
+            "is_active": is_active,
         }
 
         shift_types = []

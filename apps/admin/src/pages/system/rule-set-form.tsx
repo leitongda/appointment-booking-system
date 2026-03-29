@@ -24,7 +24,7 @@
  * - 提高代码可读性
  */
 import { PageContainer, ProForm, ProFormText, ProFormSelect, ProFormDigit, ProFormSwitch, ProFormTextArea, ProFormDependency, FooterToolbar } from '@ant-design/pro-components';
-import { Card, App, Button, Space, Row, Col, Tabs, message, Alert, Modal, Radio, Typography, Affix, Progress, Divider, Tag, Grid, Drawer } from 'antd';
+import { Card, App, Button, Space, Row, Col, Tabs, message, Alert, Modal, Radio, Typography, Affix, Progress, Divider, Tag, Grid, Drawer, Result } from 'antd';
 import { ThunderboltOutlined, CheckCircleOutlined, RightOutlined } from '@ant-design/icons';
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { history, useParams, useAccess } from '@umijs/max';
@@ -93,6 +93,8 @@ const CORE_REQUIRED_FIELDS: CoreFieldConfig[] = [
   { tab: 'time', field: 'comparePrecision', label: '比较精度' },
   { tab: 'time', field: 'roundingMode', label: '舍入模式' },
   { tab: 'time', field: 'clockSkewToleranceSec', label: '时钟容差' },
+  // 时间窗 (至少1个)
+  { tab: 'windows', field: 'windows', label: '时间窗配置' },
 ];
 
 // 侧边栏预览面板默认和限制宽度
@@ -136,45 +138,73 @@ const OnboardingCard: React.FC<OnboardingCardProps> = ({ visible, onClose, onSel
         </div>
 
         <Row gutter={16}>
-          <Col span={8}>
+          <Col xs={12} sm={8} md={4}>
             <Card
               size="small"
               style={{ background: 'rgba(255,255,255,0.15)', border: 'none' }}
               bodyStyle={{ color: 'white', textAlign: 'center' }}
             >
               <Text strong style={{ color: 'white', display: 'block', marginBottom: 8 }}>
-                1. 填写基础信息
+                1. 基础信息
               </Text>
               <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>
-                规则组名称、优先级（数字越小优先级越高）、选择班次类型
+                名称、优先级、班次类型
               </Text>
             </Card>
           </Col>
-          <Col span={8}>
+          <Col xs={12} sm={8} md={4}>
             <Card
               size="small"
               style={{ background: 'rgba(255,255,255,0.15)', border: 'none' }}
               bodyStyle={{ color: 'white', textAlign: 'center' }}
             >
               <Text strong style={{ color: 'white', display: 'block', marginBottom: 8 }}>
-                2. 配置时间口径
+                2. 时间口径
               </Text>
               <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>
-                设置时间来源、时区、比较精度等基础时间参数
+                时间来源、时区、精度
               </Text>
             </Card>
           </Col>
-          <Col span={8}>
+          <Col xs={12} sm={8} md={4}>
             <Card
               size="small"
               style={{ background: 'rgba(255,255,255,0.15)', border: 'none' }}
               bodyStyle={{ color: 'white', textAlign: 'center' }}
             >
               <Text strong style={{ color: 'white', display: 'block', marginBottom: 8 }}>
-                3. 使用预设模板
+                3. 时间窗
               </Text>
               <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>
-                一键应用专业配置，包含预约、签到、容量等完整策略
+                预约开放/截止时间
+              </Text>
+            </Card>
+          </Col>
+          <Col xs={12} sm={8} md={4}>
+            <Card
+              size="small"
+              style={{ background: 'rgba(255,255,255,0.15)', border: 'none' }}
+              bodyStyle={{ color: 'white', textAlign: 'center' }}
+            >
+              <Text strong style={{ color: 'white', display: 'block', marginBottom: 8 }}>
+                4. 预约策略
+              </Text>
+              <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>
+                限约规则、冲突处理
+              </Text>
+            </Card>
+          </Col>
+          <Col xs={12} sm={8} md={4}>
+            <Card
+              size="small"
+              style={{ background: 'rgba(255,255,255,0.15)', border: 'none' }}
+              bodyStyle={{ color: 'white', textAlign: 'center' }}
+            >
+              <Text strong style={{ color: 'white', display: 'block', marginBottom: 8 }}>
+                5. 预设模板
+              </Text>
+              <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>
+                一键应用完整配置
               </Text>
             </Card>
           </Col>
@@ -425,81 +455,90 @@ interface TimeConfigTabProps {
 
 const TimeConfigTab: React.FC<TimeConfigTabProps> = ({ loading }) => {
   return (
-    <Card style={{ marginBottom: 16 }} loading={loading}>
-      {/* 时间与精度配置 */}
-      <Row gutter={[24, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={12} sm={6}>
-          <ProFormSelect
-            name="timeSource"
-            label="时间来源"
-            width="xl"
-            options={TIME_SOURCE_OPTIONS}
-            rules={[{ required: true, message: '请选择时间来源' }]}
-            tooltip="用于判断时间窗的基准时间来源"
-          />
-        </Col>
-        <Col xs={12} sm={6}>
-          <ProFormSelect
-            name="timezoneSource"
-            label="时区来源"
-            width="xl"
-            options={TIMEZONE_SOURCE_OPTIONS}
-            rules={[{ required: true, message: '请选择时区来源' }]}
-            tooltip="用于时间判断的时区基准：医院配置时区使用统一标准时区，班次时区使用班次特定时区，用户时区使用用户所在地时区"
-          />
-        </Col>
-        <Col xs={12} sm={6}>
-          <ProFormSelect
-            name="comparePrecision"
-            label="比较精度"
-            width="xl"
-            options={COMPARE_PRECISION_OPTIONS}
-            rules={[{ required: true, message: '请选择比较精度' }]}
-            tooltip="时间比较的最小单位"
-          />
-        </Col>
-        <Col xs={12} sm={6}>
-          <ProFormSelect
-            name="roundingMode"
-            label="舍入模式"
-            width="xl"
-            options={ROUNDING_MODE_OPTIONS}
-            rules={[{ required: true, message: '请选择舍入模式' }]}
-            tooltip="时间比较时的舍入规则：不舍入使用精确时间，向下/向上取整到分钟可提高比较效率并减少时钟偏差影响"
-          />
-        </Col>
-      </Row>
+    <>
+      <Alert
+        message="时间口径配置说明"
+        description="时间口径控制规则判断时使用的时间基准和精度参数，确保预约时间窗判断的准确性。"
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+      />
+      <Card style={{ marginBottom: 16 }} loading={loading}>
+        {/* 时间与精度配置 */}
+        <Row gutter={[24, 16]} style={{ marginBottom: 16 }}>
+          <Col xs={12} sm={6}>
+            <ProFormSelect
+              name="timeSource"
+              label="时间来源"
+              width="xl"
+              options={TIME_SOURCE_OPTIONS}
+              rules={[{ required: true, message: '请选择时间来源' }]}
+              extra="决定用服务器时间还是客户端时间来判断预约窗口"
+            />
+          </Col>
+          <Col xs={12} sm={6}>
+            <ProFormSelect
+              name="timezoneSource"
+              label="时区来源"
+              width="xl"
+              options={TIMEZONE_SOURCE_OPTIONS}
+              rules={[{ required: true, message: '请选择时区来源' }]}
+              extra="统一使用医院时区、班次时区还是用户所在时区"
+            />
+          </Col>
+          <Col xs={12} sm={6}>
+            <ProFormSelect
+              name="comparePrecision"
+              label="比较精度"
+              width="xl"
+              options={COMPARE_PRECISION_OPTIONS}
+              rules={[{ required: true, message: '请选择比较精度' }]}
+              extra="精确到秒、毫秒或分钟"
+            />
+          </Col>
+          <Col xs={12} sm={6}>
+            <ProFormSelect
+              name="roundingMode"
+              label="舍入模式"
+              width="xl"
+              options={ROUNDING_MODE_OPTIONS}
+              rules={[{ required: true, message: '请选择舍入模式' }]}
+              extra="精确时间、向下取整到分钟、向上取整到分钟"
+            />
+          </Col>
+        </Row>
 
-      {/* 容差与边界配置 */}
-      <Row gutter={[24, 16]}>
-        <Col xs={24} sm={8}>
-          <ProFormDigit
-            name="clockSkewToleranceSec"
-            label="时钟容差(秒)"
-            width="xl"
-            min={0}
-            max={300}
-            fieldProps={{ precision: 0 }}
-            rules={[{ required: true, message: '请输入时钟容差' }]}
-            tooltip="允许客户端与服务端时间的最大偏差"
-          />
-        </Col>
-        <Col xs={12} sm={8}>
-          <ProFormSwitch
-            name="defaultOpenInclusive"
-            label="默认包含开放边界"
-            tooltip="默认情况下时间窗开放时间是否包含边界"
-          />
-        </Col>
-        <Col xs={12} sm={8}>
-          <ProFormSwitch
-            name="defaultCloseInclusive"
-            label="默认包含截止边界"
-            tooltip="默认情况下时间窗截止时间是否包含边界"
-          />
-        </Col>
-      </Row>
-    </Card>
+        {/* 容差与边界配置 */}
+        <Row gutter={[24, 16]}>
+          <Col xs={24} sm={8}>
+            <ProFormDigit
+              name="clockSkewToleranceSec"
+              label="时钟容差(秒)"
+              width="xl"
+              min={0}
+              max={300}
+              fieldProps={{ precision: 0 }}
+              rules={[{ required: true, message: '请输入时钟容差' }]}
+              extra="超过此偏差视为无效请求"
+            />
+          </Col>
+          <Col xs={12} sm={8}>
+            <ProFormSwitch
+              name="defaultOpenInclusive"
+              label="默认包含开放边界"
+              extra="边界时刻本身是否算在窗口内"
+            />
+          </Col>
+          <Col xs={12} sm={8}>
+            <ProFormSwitch
+              name="defaultCloseInclusive"
+              label="默认包含截止边界"
+              extra="边界时刻本身是否算在窗口内"
+            />
+          </Col>
+        </Row>
+      </Card>
+    </>
   );
 };
 
@@ -827,6 +866,7 @@ const RuleSetFormPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [ruleSet, setRuleSet] = useState<RuleSet | null>(null);
   const [shiftTypes, setShiftTypes] = useState<ShiftType[]>([]);
+  const [loadError, setLoadError] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [currentFormData, setCurrentFormData] = useState<any>(null);
   const [formValues, setFormValues] = useState<any>({});
@@ -925,7 +965,7 @@ const RuleSetFormPage: React.FC = () => {
     // 检查权限：只有超级管理员可以访问此页面
     if (!access.canSuperAdmin) {
       antMessage.error('只有超级管理员可以创建或编辑规则组');
-      history.push('/system/rule-sets');
+      history.push('/operations/system/rule-sets');
       return;
     }
 
@@ -954,6 +994,7 @@ const RuleSetFormPage: React.FC = () => {
   const loadRuleSet = async () => {
     if (!id) return;
     setLoading(true);
+    setLoadError(false);
     try {
       const data = await ruleSetApi.getById(id);
       setRuleSet(data);
@@ -979,6 +1020,7 @@ const RuleSetFormPage: React.FC = () => {
         windows: Array.isArray(data.windows) ? data.windows : [],
       });
     } catch (error: any) {
+      setLoadError(true);
       antMessage.error('加载规则组失败');
     } finally {
       setLoading(false);
@@ -992,6 +1034,34 @@ const RuleSetFormPage: React.FC = () => {
       return;
     }
 
+    // 保存前校验：如果没有配置时间窗，显示 Modal 警告
+    const hasWindows = values.windows && values.windows.length > 0;
+    if (!hasWindows) {
+      return new Promise<void>((resolve, reject) => {
+        Modal.confirm({
+          title: '未配置时间窗',
+          content: '您尚未配置任何时间窗规则。没有时间窗配置，用户将无法进行预约。是否继续保存？',
+          okText: '继续保存',
+          cancelText: '取消',
+          onOk: async () => {
+            try {
+              await performSubmit(values);
+              resolve();
+            } catch (error) {
+              reject(error);
+            }
+          },
+          onCancel: () => {
+            reject(new Error('用户取消操作'));
+          },
+        });
+      });
+    }
+
+    await performSubmit(values);
+  };
+
+  const performSubmit = async (values: any) => {
     try {
       // 直接使用表单值，不再需要手动合并独立状态
       const data = {
@@ -1002,12 +1072,26 @@ const RuleSetFormPage: React.FC = () => {
       if (isEdit && id) {
         await ruleSetApi.update(id, data);
         antMessage.success('更新成功');
+        // 编辑模式：停留在当前页面，不跳转
       } else {
-        await ruleSetApi.create(data);
+        // 创建模式：创建成功后跳转到编辑页
+        const result = await ruleSetApi.create(data);
         antMessage.success('创建成功');
+        // 埋点：追踪保存操作
+        const saveData: EditBehaviorData = {
+          ruleSetId: result.id,
+          ruleSetName: values.name,
+          tab: activeTab as EditTabType,
+          hasWindows: !!(values.windows && values.windows.length > 0),
+          timestamp: getTimestamp(),
+        };
+        trackEditSave(saveData);
+        // 使用 replace 跳转到编辑页，避免用户回退到空白创建页
+        history.replace(`/operations/system/rule-sets/${result.id}/edit`);
+        return;
       }
 
-      // 埋点：追踪保存操作
+      // 埋点：追踪保存操作（仅编辑模式）
       const saveData: EditBehaviorData = {
         ruleSetId: id,
         ruleSetName: values.name,
@@ -1016,8 +1100,6 @@ const RuleSetFormPage: React.FC = () => {
         timestamp: getTimestamp(),
       };
       trackEditSave(saveData);
-
-      history.push('/system/rule-sets');
     } catch (error: any) {
       antMessage.error(error.message || '操作失败');
       throw error;
@@ -1159,6 +1241,23 @@ const RuleSetFormPage: React.FC = () => {
 
   return (
     <PageContainer title={isEdit ? '编辑规则组' : '新增规则组'}>
+      {/* 加载失败时显示错误页面 */}
+      {isEdit && loadError && (
+        <Result
+          status="error"
+          title="加载规则组失败"
+          subTitle="无法加载规则组数据，请检查网络连接或稍后重试"
+          extra={[
+            <Button key="retry" type="primary" onClick={() => loadRuleSet()}>
+              重试
+            </Button>,
+            <Button key="back" onClick={() => history.back()}>
+              返回
+            </Button>,
+          ]}
+        />
+      )}
+
       {/* 引导卡片 */}
       <OnboardingCard
         visible={showOnboarding && !isEdit}
@@ -1166,18 +1265,31 @@ const RuleSetFormPage: React.FC = () => {
         onSelectPreset={() => setPresetModalOpen(true)}
       />
 
-      {/* 快速配置预设提示（仅新增时显示，非首次访问） */}
-      {!isEdit && !showOnboarding && (
+      {/* 快速配置预设提示（新增和编辑模式都显示） */}
+      {(!isEdit || !showOnboarding) && (
         <Alert
-          message="快速开始"
+          message={isEdit ? "快速重新配置" : "快速开始"}
           description={
             <Space>
-              <span>选择预设模板可快速配置规则组，节省配置时间</span>
+              <span>{isEdit ? "应用预设模板将覆盖当前配置，是否重新开始？" : "选择预设模板可快速配置规则组，节省配置时间"}</span>
               <Button
                 type="primary"
                 size="small"
                 icon={<ThunderboltOutlined />}
-                onClick={() => setPresetModalOpen(true)}
+                onClick={() => {
+                  if (isEdit) {
+                    // 编辑模式下需要额外确认
+                    Modal.confirm({
+                      title: '确认应用预设模板',
+                      content: '应用预设模板将覆盖当前配置，此操作不可撤销。是否继续？',
+                      okText: '继续',
+                      cancelText: '取消',
+                      onOk: () => setPresetModalOpen(true),
+                    });
+                  } else {
+                    setPresetModalOpen(true);
+                  }
+                }}
               >
                 选择预设模板
               </Button>
@@ -1189,6 +1301,9 @@ const RuleSetFormPage: React.FC = () => {
         />
       )}
 
+      {/* 表单内容区域：加载错误时不显示 */}
+      {!loadError && (
+        <>
       {/* 左右分栏布局：左侧表单，右侧可调整宽度的预览 */}
       {/* 小屏幕使用垂直布局，大屏幕使用左右分栏 */}
       {isMobile || isTablet ? (
@@ -1410,6 +1525,8 @@ const RuleSetFormPage: React.FC = () => {
         shiftTypes={shiftTypes}
         ruleSetData={currentFormData}
       />
+      </>
+      )}
 
       {/* 预设模板选择弹窗 */}
       <PresetModal
