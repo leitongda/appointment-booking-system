@@ -25,7 +25,7 @@ const TenantFormPage: React.FC = () => {
   const loadPlans = async () => {
     try {
       const res = await tenantApi.getPlans(1);
-      setPlans(res.data || []);
+      setPlans(Array.isArray(res) ? res : []);
     } catch (error) {
       console.error('加载订阅计划失败:', error);
     }
@@ -35,7 +35,7 @@ const TenantFormPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await tenantApi.getTenant(id);
-      const tenant = res.data;
+      const tenant = res;
       form.setFieldsValue({
         tenantCode: tenant.tenantCode,
         name: tenant.name,
@@ -78,7 +78,7 @@ const TenantFormPage: React.FC = () => {
     setCheckingCode(true);
     try {
       const res = await tenantApi.checkTenantCodeUnique(value, isEdit ? id : undefined);
-      if (res.data?.exists) {
+      if (res?.exists) {
         return Promise.reject(new Error('该租户标识已存在'));
       }
       return Promise.resolve();
@@ -98,7 +98,7 @@ const TenantFormPage: React.FC = () => {
         await tenantApi.createTenant(values as TenantCreateData);
         message.success('创建成功');
       }
-      history.push('/tenant');
+      history.push('/platform/tenant');
     } catch (error: any) {
       message.error(error.message || '操作失败');
     }

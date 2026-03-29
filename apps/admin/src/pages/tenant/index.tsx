@@ -43,7 +43,7 @@ const TenantPage: React.FC = () => {
       dataIndex: 'name',
       width: 150,
       render: (_, record) => (
-        <a onClick={() => history.push(`/tenant/${record.id}`)}>{record.name}</a>
+        <a onClick={() => history.push(`/platform/tenant/${record.id}`)}>{record.name}</a>
       ),
     },
     {
@@ -109,7 +109,7 @@ const TenantPage: React.FC = () => {
     },
     createOperationColumn<Tenant>({
       width: 200,
-      editUrl: (r) => `/tenant/${r.id}/edit`,
+      editUrl: (r) => `/platform/tenant/${r.id}/edit`,
       editPermission: 'tenant:update',
       onDelete: handleDelete,
       deletePermission: 'tenant:delete',
@@ -148,11 +148,11 @@ const TenantPage: React.FC = () => {
           <CreateButton
             key="add"
             permission="tenant:create"
-            url="/tenant/create"
+            url="/platform/tenant/create"
             label="新增租户"
           />,
           access.hasPermission('tenant:plan:view') && (
-            <Button key="plans" onClick={() => history.push('/tenant/plans')}>
+            <Button key="plans" onClick={() => history.push('/platform/tenant/plans')}>
               订阅计划
             </Button>
           ),

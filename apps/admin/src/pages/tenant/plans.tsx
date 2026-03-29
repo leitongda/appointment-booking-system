@@ -88,7 +88,7 @@ const SubscriptionPlanPage: React.FC = () => {
     },
     createOperationColumn<SubscriptionPlan>({
       width: 150,
-      editUrl: (r) => `/tenant/plans/${r.id}/edit`,
+      editUrl: (r) => `/platform/tenant/plans/${r.id}/edit`,
       editPermission: 'tenant:plan:update',
       onDelete: handleDelete,
       deletePermission: 'tenant:plan:delete',
@@ -109,10 +109,10 @@ const SubscriptionPlanPage: React.FC = () => {
           <CreateButton
             key="add"
             permission="tenant:plan:create"
-            url="/tenant/plans/create"
+            url="/platform/tenant/plans/create"
             label="新增计划"
           />,
-          <Button key="back" onClick={() => history.push('/tenant')}>
+          <Button key="back" onClick={() => history.push('/platform/tenant')}>
             返回租户列表
           </Button>,
         ]}

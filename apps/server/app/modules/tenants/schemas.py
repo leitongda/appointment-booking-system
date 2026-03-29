@@ -1,8 +1,10 @@
 """租户相关的 Pydantic Schema"""
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional, List
 from datetime import datetime, date
 from decimal import Decimal
+
+from app.schemas.response import to_camel
 
 
 # ==================== 订阅计划 ====================
@@ -56,7 +58,12 @@ class SubscriptionPlanResponse(SubscriptionPlanBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
 
 
 class SubscriptionPlanListResponse(BaseModel):
@@ -68,10 +75,18 @@ class SubscriptionPlanListResponse(BaseModel):
     price_yearly: Decimal
     max_stores: int
     max_admins: int
+    max_doctors: int
+    max_appointments_per_month: int
     status: int
     is_default: bool
+    sort_order: int = 0
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
 
 
 # ==================== 租户 ====================

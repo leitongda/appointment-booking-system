@@ -333,9 +333,9 @@ async def get_time_slot_distribution(
     result = await db.execute(query)
     
     slot_map = {
-        "AM": "上午",
-        "PM": "下午",
-        "NIGHT": "晚上",
+        "morning": "上午",
+        "afternoon": "下午",
+        "evening": "晚上",
     }
     
     data = [

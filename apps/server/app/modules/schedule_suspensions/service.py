@@ -16,6 +16,7 @@ from app.models.appointment import Appointment
 from app.schemas.schedule_suspension import ScheduleSuspensionCreate, AvailableScheduleForSuspension
 from app.utils.audit import set_create_audit, set_update_audit
 from app.modules.messages.service_messages import MessageService
+from app.middleware.tenant_context import get_current_tenant_id
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ class ScheduleSuspensionService:
         self.db = db
 
     async def get_by_id(self, suspension_id: str) -> Optional[ScheduleSuspension]:
-        result = await self.db.execute(
+        query = (
             select(ScheduleSuspension)
             .options(
                 selectinload(ScheduleSuspension.store),
@@ -33,6 +34,11 @@ class ScheduleSuspensionService:
             )
             .where(ScheduleSuspension.id == suspension_id)
         )
+        # 租户隔离
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            query = query.where(ScheduleSuspension.tenant_id == tenant_id)
+        result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
     async def get_list(
@@ -45,6 +51,7 @@ class ScheduleSuspensionService:
         page: int = 1,
         page_size: int = 10
     ) -> tuple[List[ScheduleSuspension], int]:
+        tenant_id = get_current_tenant_id()
         query = select(ScheduleSuspension).options(
             selectinload(ScheduleSuspension.store),
             selectinload(ScheduleSuspension.doctor)
@@ -52,6 +59,8 @@ class ScheduleSuspensionService:
         count_query = select(func.count(ScheduleSuspension.id))
 
         conditions = []
+        if tenant_id:
+            conditions.append(ScheduleSuspension.tenant_id == tenant_id)
         if store_id:
             conditions.append(ScheduleSuspension.store_id == store_id)
         if doctor_id:
@@ -77,8 +86,10 @@ class ScheduleSuspensionService:
 
     async def create(self, data: ScheduleSuspensionCreate, operator_id: Optional[str] = None) -> ScheduleSuspension:
         """创建停诊并自动更新相关排班状态"""
+        tenant_id = get_current_tenant_id()
         suspension = ScheduleSuspension(
             id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
             store_id=data.store_id,
             doctor_id=data.doctor_id,
             title=data.title,
@@ -93,8 +104,11 @@ class ScheduleSuspensionService:
         # 如果有指定的排班ID，更新这些排班的状态
         if data.schedule_ids:
             for schedule_id in data.schedule_ids:
+                schedule_conditions = [Schedule.id == schedule_id]
+                if tenant_id:
+                    schedule_conditions.append(Schedule.tenant_id == tenant_id)
                 schedule_result = await self.db.execute(
-                    select(Schedule).where(Schedule.id == schedule_id)
+                    select(Schedule).where(and_(*schedule_conditions))
                 )
                 schedule = schedule_result.scalar_one_or_none()
                 if schedule:
@@ -103,14 +117,15 @@ class ScheduleSuspensionService:
             # 如果没有指定排班ID，但有time_slots，更新匹配的排班
             if data.time_slots:
                 # 获取该日期所有排班
+                all_schedule_conditions = [
+                    Schedule.doctor_id == data.doctor_id,
+                    Schedule.schedule_date == data.suspension_date,
+                    Schedule.status == 1
+                ]
+                if tenant_id:
+                    all_schedule_conditions.append(Schedule.tenant_id == tenant_id)
                 all_schedules_result = await self.db.execute(
-                    select(Schedule).where(
-                        and_(
-                            Schedule.doctor_id == data.doctor_id,
-                            Schedule.schedule_date == data.suspension_date,
-                            Schedule.status == 1
-                        )
-                    )
+                    select(Schedule).where(and_(*all_schedule_conditions))
                 )
                 all_schedules = all_schedules_result.scalars().all()
 
@@ -121,14 +136,15 @@ class ScheduleSuspensionService:
                             schedule.status = 0
             else:
                 # 全天停诊，更新该日期所有排班
+                all_schedule_conditions = [
+                    Schedule.doctor_id == data.doctor_id,
+                    Schedule.schedule_date == data.suspension_date,
+                    Schedule.status == 1
+                ]
+                if tenant_id:
+                    all_schedule_conditions.append(Schedule.tenant_id == tenant_id)
                 all_schedules_result = await self.db.execute(
-                    select(Schedule).where(
-                        and_(
-                            Schedule.doctor_id == data.doctor_id,
-                            Schedule.schedule_date == data.suspension_date,
-                            Schedule.status == 1
-                        )
-                    )
+                    select(Schedule).where(and_(*all_schedule_conditions))
                 )
                 all_schedules = all_schedules_result.scalars().all()
                 for schedule in all_schedules:
@@ -149,20 +165,22 @@ class ScheduleSuspensionService:
     ):
         """发送停诊通知给受影响的患者"""
         try:
+            tenant_id = get_current_tenant_id()
             # 获取受影响的排班 ID 列表
             affected_schedule_ids = []
             if data.schedule_ids:
                 affected_schedule_ids = data.schedule_ids
             else:
                 # 如果没有指定排班 ID，获取该日期该医生的所有停诊排班
+                schedule_conditions = [
+                    Schedule.doctor_id == data.doctor_id,
+                    Schedule.schedule_date == data.suspension_date,
+                    Schedule.status == 0  # 已停诊
+                ]
+                if tenant_id:
+                    schedule_conditions.append(Schedule.tenant_id == tenant_id)
                 schedules_result = await self.db.execute(
-                    select(Schedule).where(
-                        and_(
-                            Schedule.doctor_id == data.doctor_id,
-                            Schedule.schedule_date == data.suspension_date,
-                            Schedule.status == 0  # 已停诊
-                        )
-                    )
+                    select(Schedule).where(and_(*schedule_conditions))
                 )
                 schedules = schedules_result.scalars().all()
                 affected_schedule_ids = [s.id for s in schedules]
@@ -171,15 +189,16 @@ class ScheduleSuspensionService:
                 return
 
             # 获取这些排班关联的有效预约（已预约、已签到状态）
+            appointment_conditions = [
+                Appointment.schedule_id.in_(affected_schedule_ids),
+                Appointment.status.in_([1, 2])  # 1=已预约, 2=已签到
+            ]
+            if tenant_id:
+                appointment_conditions.append(Appointment.tenant_id == tenant_id)
             appointments_result = await self.db.execute(
                 select(Appointment)
                 .options(selectinload(Appointment.schedule))
-                .where(
-                    and_(
-                        Appointment.schedule_id.in_(affected_schedule_ids),
-                        Appointment.status.in_([1, 2])  # 1=已预约, 2=已签到
-                    )
-                )
+                .where(and_(*appointment_conditions))
             )
             appointments = appointments_result.scalars().all()
 
@@ -203,12 +222,9 @@ class ScheduleSuspensionService:
                     time_slot_display = ""
                     if appointment.schedule:
                         time_slot_display = {
-                            'AM': '上午',
-                            'PM': '下午',
                             'morning': '上午',
                             'afternoon': '下午',
                             'evening': '晚间',
-                            'NIGHT': '夜间',
                         }.get(appointment.schedule.time_slot, appointment.schedule.time_slot or "")
 
                     title_text = data.title or "停诊通知"
@@ -248,8 +264,11 @@ class ScheduleSuspensionService:
             try:
                 schedule_ids_list = json.loads(suspension.schedule_ids)
                 for schedule_id in schedule_ids_list:
+                    schedule_conditions = [Schedule.id == schedule_id]
+                    if suspension.tenant_id:
+                        schedule_conditions.append(Schedule.tenant_id == suspension.tenant_id)
                     schedule_result = await self.db.execute(
-                        select(Schedule).where(Schedule.id == schedule_id)
+                        select(Schedule).where(and_(*schedule_conditions))
                     )
                     schedule = schedule_result.scalar_one_or_none()
                     if schedule:
@@ -260,14 +279,15 @@ class ScheduleSuspensionService:
             # 如果有time_slots，恢复匹配的排班
             try:
                 time_slots_list = json.loads(suspension.time_slots)
+                all_schedule_conditions = [
+                    Schedule.doctor_id == suspension.doctor_id,
+                    Schedule.schedule_date == suspension.suspension_date,
+                    Schedule.status == 0
+                ]
+                if suspension.tenant_id:
+                    all_schedule_conditions.append(Schedule.tenant_id == suspension.tenant_id)
                 all_schedules_result = await self.db.execute(
-                    select(Schedule).where(
-                        and_(
-                            Schedule.doctor_id == suspension.doctor_id,
-                            Schedule.schedule_date == suspension.suspension_date,
-                            Schedule.status == 0
-                        )
-                    )
+                    select(Schedule).where(and_(*all_schedule_conditions))
                 )
                 all_schedules = all_schedules_result.scalars().all()
                 for schedule in all_schedules:
@@ -279,14 +299,15 @@ class ScheduleSuspensionService:
                 pass
         else:
             # 全天停诊，恢复该日期所有排班
+            all_schedule_conditions = [
+                Schedule.doctor_id == suspension.doctor_id,
+                Schedule.schedule_date == suspension.suspension_date,
+                Schedule.status == 0
+            ]
+            if suspension.tenant_id:
+                all_schedule_conditions.append(Schedule.tenant_id == suspension.tenant_id)
             all_schedules_result = await self.db.execute(
-                select(Schedule).where(
-                    and_(
-                        Schedule.doctor_id == suspension.doctor_id,
-                        Schedule.schedule_date == suspension.suspension_date,
-                        Schedule.status == 0
-                    )
-                )
+                select(Schedule).where(and_(*all_schedule_conditions))
             )
             all_schedules = all_schedules_result.scalars().all()
             for schedule in all_schedules:
@@ -306,15 +327,20 @@ class ScheduleSuspensionService:
     ) -> List[AvailableScheduleForSuspension]:
         """获取指定日期的可选排班（用于停诊选择）"""
         schedules = []
+        tenant_id = get_current_tenant_id()
 
         # 1. 获取普通排班
+        normal_conditions = [
+            Schedule.doctor_id == doctor_id,
+            Schedule.schedule_date == suspension_date,
+            Schedule.status == 1
+        ]
+        if tenant_id:
+            normal_conditions.append(Schedule.tenant_id == tenant_id)
+
         normal_result = await self.db.execute(
             select(Schedule).where(
-                and_(
-                    Schedule.doctor_id == doctor_id,
-                    Schedule.schedule_date == suspension_date,
-                    Schedule.status == 1
-                )
+                and_(*normal_conditions)
             ).order_by(Schedule.start_time)
         )
         normal_schedules = normal_result.scalars().all()
@@ -333,14 +359,18 @@ class ScheduleSuspensionService:
             ))
 
         # 2. 获取自定义排班（template_id为NULL的排班）
+        custom_conditions = [
+            Schedule.doctor_id == doctor_id,
+            Schedule.schedule_date == suspension_date,
+            Schedule.status == 1,
+            Schedule.template_id.is_(None)  # 自定义排班
+        ]
+        if tenant_id:
+            custom_conditions.append(Schedule.tenant_id == tenant_id)
+
         custom_result = await self.db.execute(
             select(Schedule).where(
-                and_(
-                    Schedule.doctor_id == doctor_id,
-                    Schedule.schedule_date == suspension_date,
-                    Schedule.status == 1,
-                    Schedule.template_id.is_(None)  # 自定义排班
-                )
+                and_(*custom_conditions)
             ).order_by(Schedule.start_time)
         )
         custom_schedules = custom_result.scalars().all()
@@ -367,14 +397,17 @@ class ScheduleSuspensionService:
         time_slot: Optional[str] = None
     ) -> Optional[ScheduleSuspension]:
         """检查指定时间是否已停诊"""
+        tenant_id = get_current_tenant_id()
+        conditions = [
+            ScheduleSuspension.doctor_id == doctor_id,
+            ScheduleSuspension.suspension_date == suspension_date,
+            ScheduleSuspension.status == 1
+        ]
+        if tenant_id:
+            conditions.append(ScheduleSuspension.tenant_id == tenant_id)
+
         result = await self.db.execute(
-            select(ScheduleSuspension).where(
-                and_(
-                    ScheduleSuspension.doctor_id == doctor_id,
-                    ScheduleSuspension.suspension_date == suspension_date,
-                    ScheduleSuspension.status == 1
-                )
-            )
+            select(ScheduleSuspension).where(and_(*conditions))
         )
         suspensions = result.scalars().all()
 

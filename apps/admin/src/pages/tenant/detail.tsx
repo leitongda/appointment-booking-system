@@ -79,11 +79,11 @@ const TenantDetailPage: React.FC = () => {
           </Popconfirm>
         ),
         access.hasPermission('tenant:update') && (
-          <Button key="edit" onClick={() => history.push(`/tenant/${id}/edit`)}>
+          <Button key="edit" onClick={() => history.push(`/platform/tenant/${id}/edit`)}>
             编辑
           </Button>
         ),
-        <Button key="back" onClick={() => history.push('/tenant')}>
+        <Button key="back" onClick={() => history.push('/platform/tenant')}>
           返回
         </Button>,
       ].filter(Boolean)}

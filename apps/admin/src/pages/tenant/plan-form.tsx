@@ -22,7 +22,7 @@ const SubscriptionPlanFormPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await tenantApi.getPlan(id);
-      const plan = res.data;
+      const plan = res;
       form.setFieldsValue({
         planCode: plan.planCode,
         name: plan.name,
@@ -57,7 +57,7 @@ const SubscriptionPlanFormPage: React.FC = () => {
         await tenantApi.createPlan(values as SubscriptionPlanCreateData);
         message.success('创建成功');
       }
-      history.push('/tenant/plans');
+      history.push('/platform/tenant/plans');
     } catch (error: any) {
       message.error(error.message || '操作失败');
     }

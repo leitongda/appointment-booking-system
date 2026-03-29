@@ -5,10 +5,11 @@ Revises: 042_composite_indexes
 Create Date: 2026-03-27
 
 将核心业务表的 tenant_id 从 nullable=True 改为 nullable=False。
-无生产数据，无需回填。
+先回填 NULL 值再设 NOT NULL。
 roles 表保留 nullable（平台角色 tenant_id 为 NULL）。
 """
 from alembic import op
+import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
@@ -32,6 +33,11 @@ NOT_NULL_TABLES = [
 
 
 def upgrade() -> None:
+    # 回填 admins 表中 tenant_id 为 NULL 的行，关联到默认租户
+    op.execute(
+        "UPDATE admins SET tenant_id = (SELECT id FROM tenants WHERE tenant_code = 'default' LIMIT 1) "
+        "WHERE tenant_id IS NULL"
+    )
     for table, column in NOT_NULL_TABLES:
         op.alter_column(table, column, nullable=False)
 

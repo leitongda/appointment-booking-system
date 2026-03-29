@@ -78,7 +78,7 @@ class ExportService:
             0: '待支付', 1: '已预约', 2: '已签到', 3: '候诊中',
             4: '就诊中', 5: '已完成', 6: '已取消', 7: '已过期', 8: '已关闭'
         }
-        time_slot_map = {'morning': '上午', 'afternoon': '下午', 'evening': '晚上', 'AM': '上午', 'PM': '下午'}
+        time_slot_map = {'morning': '上午', 'afternoon': '下午', 'evening': '晚上'}
 
         # 构建 Excel
         headers = [
@@ -229,7 +229,7 @@ class ExportService:
         schedules = result.unique().scalars().all()
 
         status_map = {0: '停诊', 1: '正常'}
-        time_slot_map = {'morning': '上午', 'afternoon': '下午', 'evening': '晚上', 'AM': '上午', 'PM': '下午'}
+        time_slot_map = {'morning': '上午', 'afternoon': '下午', 'evening': '晚上'}
 
         headers = [
             '排班日期', '时段', '医生', '科室',

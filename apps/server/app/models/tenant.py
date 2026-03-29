@@ -96,6 +96,7 @@ class Tenant(Base, AuditMixin):
     doctors = relationship("Doctor", back_populates="tenant")
     schedules = relationship("Schedule", back_populates="tenant")
     schedule_templates = relationship("ScheduleTemplate", back_populates="tenant")
+    schedule_suspensions = relationship("ScheduleSuspension", back_populates="tenant")
     appointments = relationship("Appointment", back_populates="tenant")
     roles = relationship("Role", back_populates="tenant")
     departments = relationship("Department", back_populates="tenant")

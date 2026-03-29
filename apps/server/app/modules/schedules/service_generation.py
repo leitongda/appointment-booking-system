@@ -13,6 +13,7 @@ from app.models.rest_day import RestDay
 from app.models.schedule import Schedule
 from app.modules.messages.service_messages import MessageService
 from app.utils.schedule_utils import get_time_slot_from_time
+from app.middleware.tenant_context import get_current_tenant_id
 
 logger = logging.getLogger(__name__)
 
@@ -84,8 +85,10 @@ class ScheduleGenerationMixin:
             if doctor:
                 store_id = doctor.store_id
 
+        tenant_id = get_current_tenant_id()
         schedule = Schedule(
             id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
             doctor_id=doctor_id,
             store_id=store_id,
             template_id=template_id,

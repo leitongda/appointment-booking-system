@@ -420,7 +420,7 @@ async def tenant_schedule(
         doctor_id=tenant_doctor.id,
         store_id=tenant_store.id,
         schedule_date=tomorrow,
-        time_slot="AM",
+        time_slot="morning",
         start_time=time(8, 0),
         end_time=time(12, 0),
         total_slots=50,
