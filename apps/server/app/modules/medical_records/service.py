@@ -13,6 +13,7 @@ from app.models.doctor import Doctor
 from app.models.department import Department
 from app.schemas.medical_record import MedicalRecordCreate, MedicalRecordUpdate
 from app.utils.audit import set_create_audit, set_update_audit
+from app.middleware.tenant_context import get_current_tenant_id
 
 
 def generate_record_no() -> str:
@@ -27,6 +28,8 @@ class MedicalRecordService:
 
     async def create(self, doctor_id: str, data: MedicalRecordCreate) -> MedicalRecord:
         """创建病历"""
+        tenant_id = get_current_tenant_id()
+
         # 获取预约信息
         appointment = await self.db.get(Appointment, data.appointment_id)
         if not appointment:
@@ -46,6 +49,7 @@ class MedicalRecordService:
 
         record = MedicalRecord(
             id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
             record_no=generate_record_no(),
             appointment_id=data.appointment_id,
             patient_id=appointment.patient_id,
@@ -75,7 +79,7 @@ class MedicalRecordService:
 
     async def get_by_id(self, record_id: str) -> Optional[MedicalRecord]:
         """根据ID获取病历"""
-        result = await self.db.execute(
+        stmt = (
             select(MedicalRecord)
             .options(
                 joinedload(MedicalRecord.patient),
@@ -84,11 +88,15 @@ class MedicalRecordService:
             )
             .where(MedicalRecord.id == record_id)
         )
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            stmt = stmt.where(MedicalRecord.tenant_id == tenant_id)
+        result = await self.db.execute(stmt)
         return result.unique().scalar_one_or_none()
 
     async def get_by_appointment(self, appointment_id: str) -> Optional[MedicalRecord]:
         """根据预约ID获取病历"""
-        result = await self.db.execute(
+        stmt = (
             select(MedicalRecord)
             .options(
                 joinedload(MedicalRecord.patient),
@@ -97,6 +105,10 @@ class MedicalRecordService:
             )
             .where(MedicalRecord.appointment_id == appointment_id)
         )
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            stmt = stmt.where(MedicalRecord.tenant_id == tenant_id)
+        result = await self.db.execute(stmt)
         return result.unique().scalar_one_or_none()
 
     async def get_list(
@@ -119,6 +131,9 @@ class MedicalRecordService:
         )
 
         conditions = []
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            conditions.append(MedicalRecord.tenant_id == tenant_id)
 
         if doctor_id:
             conditions.append(MedicalRecord.doctor_id == doctor_id)

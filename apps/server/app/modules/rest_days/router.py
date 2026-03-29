@@ -40,6 +40,21 @@ async def get_rest_days(
         page_size=page_size
     )
     
+    # 批量获取医生姓名，避免 N+1 查询
+    doctor_ids_list = []
+    for rd in rest_days:
+        if rd.doctor_ids:
+            try:
+                doctor_ids = json.loads(rd.doctor_ids)
+                doctor_ids_list.append(doctor_ids)
+            except:
+                doctor_ids_list.append([])
+        else:
+            doctor_ids_list.append([])
+
+    # 批量查询所有医生姓名
+    doctor_names_batch = await service.get_doctor_names_batch(doctor_ids_list)
+
     result = []
     for rd in rest_days:
         doctor_ids = None
@@ -47,10 +62,11 @@ async def get_rest_days(
         if rd.doctor_ids:
             try:
                 doctor_ids = json.loads(rd.doctor_ids)
-                doctor_names = await service.get_doctor_names(doctor_ids)
+                key = tuple(sorted(doctor_ids))
+                doctor_names = doctor_names_batch.get(key, [])
             except:
                 pass
-        
+
         result.append(RestDayResponse(
             id=rd.id,
             store_id=rd.store_id,

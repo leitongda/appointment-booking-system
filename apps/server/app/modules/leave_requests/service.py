@@ -13,6 +13,7 @@ from app.schemas.leave_request import (
     StopClinicCreate, ScheduleChangeCreate, ReviewRequest, LeaveRequestQuery
 )
 from app.utils.audit import set_create_audit, set_update_audit
+from app.middleware.tenant_context import get_current_tenant_id
 
 
 class LeaveRequestService:
@@ -23,15 +24,23 @@ class LeaveRequestService:
 
     async def get_by_id(self, request_id: str) -> Optional[LeaveRequest]:
         """根据ID获取申请"""
-        result = await self.db.execute(
-            select(LeaveRequest).where(LeaveRequest.id == request_id)
-        )
+        stmt = select(LeaveRequest).where(LeaveRequest.id == request_id)
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            stmt = stmt.where(LeaveRequest.tenant_id == tenant_id)
+        result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_list(self, query: LeaveRequestQuery) -> tuple[List[LeaveRequest], int]:
         """获取申请列表"""
         stmt = select(LeaveRequest)
         count_stmt = select(func.count(LeaveRequest.id))
+
+        # 租户过滤
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            stmt = stmt.where(LeaveRequest.tenant_id == tenant_id)
+            count_stmt = count_stmt.where(LeaveRequest.tenant_id == tenant_id)
 
         # 门店过滤：通过医生关联门店
         if query.store_id:
@@ -70,6 +79,8 @@ class LeaveRequestService:
 
     async def create_stop_clinic(self, data: StopClinicCreate) -> LeaveRequest:
         """创建停诊申请"""
+        tenant_id = get_current_tenant_id()
+
         # 计算受影响的预约数
         affected = await self._count_affected_appointments(
             data.doctor_id,
@@ -79,6 +90,7 @@ class LeaveRequestService:
 
         request = LeaveRequest(
             id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
             doctor_id=data.doctor_id,
             request_type=RequestType.STOP_CLINIC.value,
             schedule_id=data.schedule_id,
@@ -96,6 +108,8 @@ class LeaveRequestService:
 
     async def create_schedule_change(self, data: ScheduleChangeCreate) -> LeaveRequest:
         """创建调班申请"""
+        tenant_id = get_current_tenant_id()
+
         # 计算受影响的预约数
         affected = await self._count_affected_appointments(
             data.doctor_id,
@@ -105,6 +119,7 @@ class LeaveRequestService:
 
         request = LeaveRequest(
             id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
             doctor_id=data.doctor_id,
             request_type=RequestType.SCHEDULE_CHANGE.value,
             original_date=data.original_date,
@@ -222,6 +237,11 @@ class LeaveRequestService:
             LeaveRequest.status == RequestStatus.PENDING.value
         )
 
+        # 租户过滤
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            stmt = stmt.where(LeaveRequest.tenant_id == tenant_id)
+
         # 门店过滤
         if store_id:
             stmt = stmt.join(Doctor, LeaveRequest.doctor_id == Doctor.id)
@@ -237,6 +257,10 @@ class LeaveRequestService:
     ) -> List[LeaveRequest]:
         """获取医生的申请列表"""
         stmt = select(LeaveRequest).where(LeaveRequest.doctor_id == doctor_id)
+
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            stmt = stmt.where(LeaveRequest.tenant_id == tenant_id)
 
         if status:
             stmt = stmt.where(LeaveRequest.status == status)

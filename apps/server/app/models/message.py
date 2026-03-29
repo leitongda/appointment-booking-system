@@ -18,8 +18,9 @@ class MessageType(str, enum.Enum):
 class Message(Base, AuditMixin):
     """消息模型"""
     __tablename__ = "messages"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
     store_id = Column(String(36), ForeignKey("stores.id"), nullable=True, index=True, comment="所属门店ID，NULL表示全局")
     user_id = Column(String(36), nullable=False, index=True, comment="接收用户ID")
     user_type = Column(String(20), nullable=False, comment="用户类型: patient/doctor")

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Text, Date, DateTime
+from sqlalchemy import Column, String, Integer, Text, Date, DateTime, ForeignKey
 from app.db.base import Base, AuditMixin
 import uuid
 import enum
@@ -21,8 +21,9 @@ class RequestStatus(str, enum.Enum):
 class LeaveRequest(Base, AuditMixin):
     """停诊/调班申请模型"""
     __tablename__ = "leave_requests"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
     doctor_id = Column(String(36), nullable=False, index=True, comment="医生ID")
     request_type = Column(String(20), nullable=False, comment="申请类型: stop_clinic/schedule_change")
     

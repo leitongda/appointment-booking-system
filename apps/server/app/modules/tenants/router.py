@@ -151,11 +151,16 @@ async def get_tenants(
 
     tenants, total = await service.get_list(query)
 
+    # 批量获取门店数和管理员数，避免 N+1 查询
+    tenant_ids = [t.id for t in tenants]
+    store_counts = await service.get_store_counts_batch(tenant_ids)
+    admin_counts = await service.get_admin_counts_batch(tenant_ids)
+
     # 转换为列表响应
     result = []
     for tenant in tenants:
-        store_count = await service.get_store_count(tenant.id)
-        admin_count = await service.get_admin_count(tenant.id)
+        store_count = store_counts.get(tenant.id, 0)
+        admin_count = admin_counts.get(tenant.id, 0)
 
         result.append(TenantListResponse(
             id=tenant.id,

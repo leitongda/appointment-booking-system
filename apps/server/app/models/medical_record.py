@@ -8,8 +8,9 @@ import uuid
 class MedicalRecord(Base, AuditMixin):
     """病历表"""
     __tablename__ = "medical_records"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
     record_no = Column(String(50), unique=True, nullable=False, comment="病历号")
     
     # 关联信息

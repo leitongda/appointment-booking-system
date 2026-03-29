@@ -10,6 +10,7 @@ from sqlalchemy import and_, func, select, update
 from app.models.message import Message
 from app.schemas.message import MessageBatchCreate, MessageCreate, MessageQuery, MessageType, UnreadCountResponse
 from app.utils.audit import set_create_audit
+from app.middleware.tenant_context import get_current_tenant_id
 
 
 class MessageService:
@@ -17,7 +18,11 @@ class MessageService:
         self.db = db
 
     async def get_by_id(self, message_id: str) -> Optional[Message]:
-        result = await self.db.execute(select(Message).where(Message.id == message_id))
+        stmt = select(Message).where(Message.id == message_id)
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            stmt = stmt.where(Message.tenant_id == tenant_id)
+        result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_user_messages(
@@ -27,6 +32,11 @@ class MessageService:
         count_stmt = select(func.count(Message.id)).where(
             and_(Message.user_id == user_id, Message.user_type == user_type)
         )
+
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            stmt = stmt.where(Message.tenant_id == tenant_id)
+            count_stmt = count_stmt.where(Message.tenant_id == tenant_id)
 
         if query.message_type:
             stmt = stmt.where(Message.message_type == query.message_type.value)
@@ -51,6 +61,11 @@ class MessageService:
     ) -> tuple[List[Message], int]:
         stmt = select(Message)
         count_stmt = select(func.count(Message.id))
+
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            stmt = stmt.where(Message.tenant_id == tenant_id)
+            count_stmt = count_stmt.where(Message.tenant_id == tenant_id)
 
         if user_id:
             stmt = stmt.where(Message.user_id == user_id)
@@ -82,10 +97,13 @@ class MessageService:
         return list(result.scalars().all()), count_result.scalar() or 0
 
     async def get_unread_count(self, user_id: str, user_type: str) -> UnreadCountResponse:
+        tenant_id = get_current_tenant_id()
+        base_condition = and_(Message.user_id == user_id, Message.user_type == user_type, Message.is_read == 0)
+        if tenant_id:
+            base_condition = and_(base_condition, Message.tenant_id == tenant_id)
+
         total_result = await self.db.execute(
-            select(func.count(Message.id)).where(
-                and_(Message.user_id == user_id, Message.user_type == user_type, Message.is_read == 0)
-            )
+            select(func.count(Message.id)).where(base_condition)
         )
         total = total_result.scalar() or 0
 
@@ -94,9 +112,7 @@ class MessageService:
             result = await self.db.execute(
                 select(func.count(Message.id)).where(
                     and_(
-                        Message.user_id == user_id,
-                        Message.user_type == user_type,
-                        Message.is_read == 0,
+                        base_condition,
                         Message.message_type == msg_type,
                     )
                 )
@@ -117,8 +133,10 @@ class MessageService:
         self, data: MessageCreate, store_id: Optional[str] = None, operator_id: Optional[str] = None
     ) -> Message:
         extra_data_str = json.dumps(data.extra_data) if data.extra_data else None
+        tenant_id = get_current_tenant_id()
         message = Message(
             id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
             store_id=store_id,
             user_id=data.user_id,
             user_type=data.user_type,
@@ -138,9 +156,11 @@ class MessageService:
         self, data: MessageBatchCreate, store_id: Optional[str] = None, operator_id: Optional[str] = None
     ) -> int:
         messages = []
+        tenant_id = get_current_tenant_id()
         for user_id in data.user_ids:
             message = Message(
                 id=str(uuid.uuid4()),
+                tenant_id=tenant_id,
                 store_id=store_id,
                 user_id=user_id,
                 user_type=data.user_type,
@@ -171,6 +191,9 @@ class MessageService:
         stmt = update(Message).where(
             and_(Message.user_id == user_id, Message.user_type == user_type, Message.is_read == 0)
         )
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            stmt = stmt.where(Message.tenant_id == tenant_id)
         if message_type:
             stmt = stmt.where(Message.message_type == message_type)
         stmt = stmt.values(is_read=1, read_at=datetime.utcnow())
@@ -187,11 +210,13 @@ class MessageService:
         return True
 
     async def delete_all_read(self, user_id: str, user_type: str) -> int:
-        result = await self.db.execute(
-            select(Message).where(
-                and_(Message.user_id == user_id, Message.user_type == user_type, Message.is_read == 1)
-            )
+        stmt = select(Message).where(
+            and_(Message.user_id == user_id, Message.user_type == user_type, Message.is_read == 1)
         )
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            stmt = stmt.where(Message.tenant_id == tenant_id)
+        result = await self.db.execute(stmt)
         messages = result.scalars().all()
         count = len(messages)
         for msg in messages:

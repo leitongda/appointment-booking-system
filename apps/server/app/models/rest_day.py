@@ -7,8 +7,9 @@ import uuid
 class RestDay(Base, AuditMixin):
     """休息日设置模型"""
     __tablename__ = "rest_days"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
     store_id = Column(String(36), ForeignKey("stores.id"), nullable=False, comment="门店ID")
     doctor_ids = Column(Text, nullable=True, comment="医生ID列表,JSON数组,NULL表示门店所有医生")
     reason = Column(String(255), comment="休息原因")

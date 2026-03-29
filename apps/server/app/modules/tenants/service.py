@@ -403,6 +403,44 @@ class TenantService:
         )
         return result.scalar() or 0
 
+    async def get_store_counts_batch(self, tenant_ids: List[str]) -> dict:
+        """批量获取租户的门店数量
+
+        Args:
+            tenant_ids: 租户ID列表
+
+        Returns:
+            {tenant_id: count} 的字典
+        """
+        if not tenant_ids:
+            return {}
+
+        result = await self.db.execute(
+            select(Store.tenant_id, func.count(Store.id).label("count"))
+            .where(Store.tenant_id.in_(tenant_ids))
+            .group_by(Store.tenant_id)
+        )
+        return {row.tenant_id: row.count for row in result.all()}
+
+    async def get_admin_counts_batch(self, tenant_ids: List[str]) -> dict:
+        """批量获取租户的管理员数量
+
+        Args:
+            tenant_ids: 租户ID列表
+
+        Returns:
+            {tenant_id: count} 的字典
+        """
+        if not tenant_ids:
+            return {}
+
+        result = await self.db.execute(
+            select(Admin.tenant_id, func.count(Admin.id).label("count"))
+            .where(Admin.tenant_id.in_(tenant_ids))
+            .group_by(Admin.tenant_id)
+        )
+        return {row.tenant_id: row.count for row in result.all()}
+
     async def get_doctor_count(self, tenant_id: str) -> int:
         """获取租户的医生数量"""
         # 通过门店关联获取医生数
