@@ -42,7 +42,7 @@ def make_appointment_data(
 
 
 def make_time_slot(
-    time_slot: str = "AM",
+    time_slot: str = "morning",
     start_hour: int = 8,
     end_hour: int = 12,
 ) -> dict:

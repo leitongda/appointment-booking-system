@@ -55,7 +55,7 @@ class TestFixtures:
     async def test_test_schedule_created(self, test_schedule):
         """验证测试排班创建"""
         assert test_schedule.id is not None
-        assert test_schedule.time_slot == "AM"
+        assert test_schedule.time_slot == "morning"
         assert test_schedule.total_slots == 10
         assert test_schedule.booked_slots == 0
 

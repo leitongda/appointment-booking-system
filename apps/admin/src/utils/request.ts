@@ -5,7 +5,7 @@
 import { setRequestInterceptor, setResponseInterceptor, ApiError } from '@hospital/api';
 import { getToken, handleTokenExpired } from '@hospital/shared';
 import { history } from '@umijs/max';
-import { message } from 'antd';
+import { message, Modal } from 'antd';
 import type { InternalAxiosRequestConfig } from 'axios';
 
 /**
@@ -101,11 +101,20 @@ export const setupResponseInterceptor = () => {
       if (error instanceof ApiError) {
         const { code, message: errorMessage } = error;
         
-        // 401 未授权 - 清除 token 并跳转到登录页
+        // 401 未授权 - 弹框确认后跳转到登录页
         if (error.isUnauthorized()) {
           handleTokenExpired(() => {
-            message.error(errorMessage || ERROR_MESSAGES[401]);
-            history.push('/login');
+            Modal.confirm({
+              title: '登录已过期',
+              content: errorMessage || '您的登录已失效，请重新登录。',
+              okText: '重新登录',
+              cancelText: '留在当前页',
+              closable: true,
+              maskClosable: false,
+              onOk: () => {
+                history.push('/login');
+              },
+            });
           });
           return Promise.reject(error);
         }
@@ -163,8 +172,17 @@ export const setupResponseInterceptor = () => {
         // 401 未授权
         if (status === 401) {
           handleTokenExpired(() => {
-            message.error(errorMsg);
-            history.push('/login');
+            Modal.confirm({
+              title: '登录已过期',
+              content: errorMsg || '您的登录已失效，请重新登录。',
+              okText: '重新登录',
+              cancelText: '留在当前页',
+              closable: true,
+              maskClosable: false,
+              onOk: () => {
+                history.push('/login');
+              },
+            });
           });
           return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
         }

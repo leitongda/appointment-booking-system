@@ -5,7 +5,7 @@
 import { setRequestInterceptor, setResponseInterceptor } from '@hospital/api';
 import { getToken, handleTokenExpired } from '@hospital/shared';
 import { history } from '@umijs/max';
-import { message } from 'antd';
+import { message, Modal } from 'antd';
 import type { InternalAxiosRequestConfig } from 'axios';
 import type { AxiosResponse } from 'axios';
 
@@ -66,11 +66,20 @@ export const setupResponseInterceptor = () => {
       if (response) {
         const { status, data } = response;
         
-        // 401 未授权 - 清除 token 并跳转到登录页
+        // 401 未授权 - 弹框确认后跳转到登录页
         if (status === 401) {
           handleTokenExpired(() => {
-            message.error('登录已过期，请重新登录');
-            history.push('/login');
+            Modal.confirm({
+              title: '登录已过期',
+              content: '您的登录已失效，请重新登录。',
+              okText: '重新登录',
+              cancelText: '留在当前页',
+              closable: true,
+              maskClosable: false,
+              onOk: () => {
+                history.push('/login');
+              },
+            });
           });
           return Promise.reject(new Error('登录已过期，请重新登录'));
         }
