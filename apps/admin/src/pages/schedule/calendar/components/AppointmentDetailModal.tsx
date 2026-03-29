@@ -45,7 +45,7 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
   };
 
   const handleViewDetail = () => {
-    history.push(`/appointment/${appointment.id}`);
+    history.push(`/medical-services/appointment/${appointment.id}`);
     onClose();
   };
 

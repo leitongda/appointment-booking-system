@@ -161,7 +161,7 @@ const DepartmentFormPage: React.FC = () => {
     },
     {
       switchFields,
-      onSuccess: () => history.push('/department/list'),
+      onSuccess: () => history.push('/organization/department/list'),
       successMessage: isEdit ? '更新成功' : '创建成功',
     }
   );

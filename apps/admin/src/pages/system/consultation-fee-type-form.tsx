@@ -69,7 +69,7 @@ const ConsultationFeeTypeFormPage: React.FC = () => {
     },
     {
       switchFields: ['status'],
-      onSuccess: () => history.push('/system/consultation-fee-types'),
+      onSuccess: () => history.push('/operations/system/consultation-fee-types'),
       successMessage: isEdit ? '更新成功' : '创建成功',
     }
   );

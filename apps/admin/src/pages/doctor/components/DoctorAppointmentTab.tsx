@@ -141,7 +141,7 @@ const DoctorAppointmentTab: React.FC<DoctorAppointmentTabProps> = ({ doctorId, d
       render: (_, record) => (
         <Space>
           {access.hasPermission?.('appointment:detail') && (
-            <a onClick={() => history.push(`/appointment/${record.id}`)}>详情</a>
+            <a onClick={() => history.push(`/medical-services/appointment/${record.id}`)}>详情</a>
           )}
           {record.status === 0 && (
             <>

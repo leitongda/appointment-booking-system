@@ -8,6 +8,7 @@ import { scheduleSuspensionApi, storeApi, doctorApi } from '@hospital/api';
 import { fetchAllData } from '@/utils/fetchAllData';
 import { toProTableResult } from '@/utils/proTable';
 import type { ScheduleSuspension, AvailableScheduleForSuspension } from '@hospital/api';
+import { ScheduleMessages } from './utils/message';
 
 const SuspensionPage: React.FC = () => {
   const { message } = App.useApp();
@@ -88,20 +89,20 @@ const SuspensionPage: React.FC = () => {
   const handleDelete = async (id: string) => {
     try {
       await scheduleSuspensionApi.delete(id);
-      message.success('删除成功');
+      message.success(ScheduleMessages.deleteSuccess);
       actionRef.current?.reload();
     } catch (error: any) {
-      message.error(error.message || '删除失败');
+      message.error(error.message || ScheduleMessages.deleteFailed);
     }
   };
 
   const handleCancel = async (id: string) => {
     try {
       await scheduleSuspensionApi.cancel(id);
-      message.success('取消成功');
+      message.success(ScheduleMessages.cancelSuccess);
       actionRef.current?.reload();
     } catch (error: any) {
-      message.error(error.message || '取消失败');
+      message.error(error.message || ScheduleMessages.operateFailed);
     }
   };
 
@@ -125,7 +126,7 @@ const SuspensionPage: React.FC = () => {
         scheduleIds: selectedScheduleIds.length > 0 ? selectedScheduleIds : undefined,
         timeSlots: selectedTimeSlots.length > 0 ? selectedTimeSlots : undefined,
       });
-      message.success('创建成功');
+      message.success(ScheduleMessages.createSuccess);
       setModalOpen(false);
       setSelectedTimeSlots([]);
       setSelectedScheduleIds([]);
@@ -133,7 +134,7 @@ const SuspensionPage: React.FC = () => {
       actionRef.current?.reload();
       return true;
     } catch (error: any) {
-      message.error(error.message || '创建失败');
+      message.error(error.message || ScheduleMessages.createFailed);
       return false;
     }
   };

@@ -10,16 +10,11 @@ import './gantt.less';
 
 const { RangePicker } = DatePicker;
 
-// 时段配置 - 支持两种格式的 timeSlot
+// 时段配置
 const TIME_SLOT_CONFIG: Record<string, { label: string; color: string; startHour: number; endHour: number }> = {
-  // 小写格式
   morning: { label: '上午', color: '#1890ff', startHour: 8, endHour: 12 },
   afternoon: { label: '下午', color: '#52c41a', startHour: 14, endHour: 18 },
   evening: { label: '晚上', color: '#722ed1', startHour: 19, endHour: 21 },
-  // 大写格式 (兼容旧数据)
-  AM: { label: '上午', color: '#1890ff', startHour: 8, endHour: 12 },
-  PM: { label: '下午', color: '#52c41a', startHour: 14, endHour: 18 },
-  NIGHT: { label: '晚上', color: '#722ed1', startHour: 19, endHour: 21 },
 };
 
 // 图例配置（只显示小写格式，避免重复）

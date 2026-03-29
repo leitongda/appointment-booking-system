@@ -290,13 +290,13 @@ const StorePage: React.FC = () => {
             key: 'fee',
             icon: <MoneyCollectOutlined />,
             label: '诊费模板',
-            onClick: () => history.push(`/store/${record.id}/fee-templates`),
+            onClick: () => history.push(`/organization/store/${record.id}/fee-templates`),
           },
           access.hasPermission('store:update') && {
             key: 'visit',
             icon: <ClockCircleOutlined />,
             label: '复诊配置',
-            onClick: () => history.push(`/store/${record.id}/visit-type-config`),
+            onClick: () => history.push(`/organization/store/${record.id}/visit-type-config`),
           },
           access.canSuperAdmin && {
             key: 'user',
@@ -310,7 +310,7 @@ const StorePage: React.FC = () => {
           <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
             {/* 常用操作直接显示 */}
             {access.hasPermission('store:update') && (
-              <a onClick={() => history.push(`/store/${record.id}/edit`)} style={{ fontSize: 13 }}>
+              <a onClick={() => history.push(`/organization/store/${record.id}/edit`)} style={{ fontSize: 13 }}>
                 <EditOutlined /> 编辑
               </a>
             )}
@@ -380,7 +380,7 @@ const StorePage: React.FC = () => {
               key="add"
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => history.push('/store/create')}
+              onClick={() => history.push('/organization/store/create')}
             >
               新增门店
             </Button>

@@ -22,6 +22,7 @@ import { PlusOutlined, CopyOutlined, DeleteOutlined } from '@ant-design/icons';
 import { ProFormSelect, ProFormDatePicker, ProFormDigit, ProFormTimePicker } from '@ant-design/pro-components';
 import { Card, Row, Col, Button, Space, message } from 'antd';
 import { useEffect, useState } from 'react';
+import { ScheduleMessages } from './utils/message';
 import { history, useAccess, useModel } from '@umijs/max';
 import { customScheduleApi, storeApi, departmentApi, doctorApi } from '@hospital/api';
 import { fetchAllData } from '@/utils/fetchAllData';
@@ -128,7 +129,7 @@ const CustomScheduleFormPage: React.FC = () => {
   // 删除时段
   const handleRemoveTimePeriod = (index: number) => {
     if (timePeriods.length === 1) {
-      message.warning('至少保留一个排班时段');
+      message.warning(ScheduleMessages.keepOneTimePeriod);
       return;
     }
     const newPeriods = [...timePeriods];
@@ -169,7 +170,7 @@ const CustomScheduleFormPage: React.FC = () => {
       timePeriods: formattedTimePeriods,
     });
 
-    history.push('/schedule/custom');
+    history.push('/medical-services/schedule/custom');
   };
 
   return (

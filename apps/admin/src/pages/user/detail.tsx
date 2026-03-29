@@ -175,7 +175,7 @@ const UserDetailPage: React.FC = () => {
     try {
       await userManageApi.deleteUser(id);
       message.success('删除成功');
-      history.push('/user/list');
+      history.push('/medical-services/user/list');
     } catch (error: any) {
       message.error(error.message || '删除失败');
     }
@@ -217,7 +217,7 @@ const UserDetailPage: React.FC = () => {
       width: 180,
       render: (_: any, record: UserCard) => (
         <Space>
-          <a onClick={() => history.push(`/medical-card/${record.id}`)}>查看</a>
+          <a onClick={() => history.push(`/medical-services/medical-card/${record.id}`)}>查看</a>
           {access.hasPermission('user:update') && (
             <a onClick={() => { setCurrentCard(record); setEditCardModalVisible(true); }}>
               <EditOutlined /> 编辑
@@ -319,7 +319,7 @@ const UserDetailPage: React.FC = () => {
   return (
     <PageContainer
       title="患者详情"
-      extra={<Button onClick={() => history.push('/user/list')}>返回列表</Button>}
+      extra={<Button onClick={() => history.push('/medical-services/user/list')}>返回列表</Button>}
     >
       <Spin spinning={loading}>
         {/* 头部信息卡片 */}

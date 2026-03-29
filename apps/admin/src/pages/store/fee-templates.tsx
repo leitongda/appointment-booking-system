@@ -191,17 +191,17 @@ const StoreFeeTemplatesPage: React.FC = () => {
         breadcrumb: {
           items: [
             { title: '门店管理' },
-            { title: '门店列表', href: '/store/list' },
+            { title: '门店列表', href: '/organization/store/list' },
             { title: '诊费模板' },
           ],
         },
       }}
       extra={
         <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => history.push('/store/list')}>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => history.push('/organization/store/list')}>
             返回门店列表
           </Button>
-          <Button onClick={() => history.push(`/store/${storeId}/fee-types`)}>
+          <Button onClick={() => history.push(`/organization/store/${storeId}/fee-types`)}>
             管理诊费类型
           </Button>
         </Space>

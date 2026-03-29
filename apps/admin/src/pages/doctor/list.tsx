@@ -498,7 +498,7 @@ const DoctorListPage: React.FC = () => {
             key: 'detail',
             icon: <EyeOutlined />,
             label: '详情',
-            onClick: () => history.push(`/doctor/${record.id}`),
+            onClick: () => history.push(`/medical-services/doctor/${record.id}`),
           },
           access.hasPermission('doctor:update') && {
             key: 'fee',
@@ -514,7 +514,7 @@ const DoctorListPage: React.FC = () => {
         return (
           <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
             {access.hasPermission('doctor:update') && (
-              <a onClick={() => history.push(`/doctor/${record.id}/edit`)} style={{ fontSize: 13 }}>
+              <a onClick={() => history.push(`/medical-services/doctor/${record.id}/edit`)} style={{ fontSize: 13 }}>
                 <EditOutlined /> 编辑
               </a>
             )}
@@ -580,7 +580,7 @@ const DoctorListPage: React.FC = () => {
               key="add"
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => history.push('/doctor/create')}
+              onClick={() => history.push('/medical-services/doctor/create')}
             >
               新增医生
             </Button>

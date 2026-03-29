@@ -68,21 +68,21 @@ const DEFAULT_IMAGE_CONFIG: ImageConfig = {
 };
 
 const TAB_PATH_TO_KEY: Record<string, string> = {
-  '/system/settings/booking': 'booking',
-  '/system/settings/blacklist': 'blacklist',
-  '/system/settings/wechat': 'wechat',
-  '/system/settings/base': 'hospital',
+  '/operations/system/settings/booking': 'booking',
+  '/operations/system/settings/blacklist': 'blacklist',
+  '/operations/system/settings/wechat': 'wechat',
+  '/operations/system/settings/base': 'hospital',
 };
 
 const TAB_KEY_TO_PATH: Record<string, string> = {
-  booking: '/system/settings/booking',
-  blacklist: '/system/settings/blacklist',
-  wechat: '/system/settings/wechat',
-  hospital: '/system/settings/base',
-  bookingFields: '/system/settings/base',
-  patientCard: '/system/settings/base',
-  email: '/system/settings/base',
-  image: '/system/settings/base',
+  booking: '/operations/system/settings/booking',
+  blacklist: '/operations/system/settings/blacklist',
+  wechat: '/operations/system/settings/wechat',
+  hospital: '/operations/system/settings/base',
+  bookingFields: '/operations/system/settings/base',
+  patientCard: '/operations/system/settings/base',
+  email: '/operations/system/settings/base',
+  image: '/operations/system/settings/base',
 };
 
 const SettingsPage: React.FC = () => {
@@ -968,7 +968,7 @@ const SettingsPage: React.FC = () => {
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);
-    const targetPath = TAB_KEY_TO_PATH[key] || '/system/settings/base';
+    const targetPath = TAB_KEY_TO_PATH[key] || '/operations/system/settings/base';
     if (targetPath !== location.pathname) {
       history.replace(targetPath);
     }

@@ -170,7 +170,7 @@ const DoctorFormPage: React.FC = () => {
       } else {
         await doctorApi.create(data);
       }
-      history.push('/doctor/list');
+      history.push('/medical-services/doctor/list');
     } catch (error: any) {
       throw error; // 抛出错误，让 FormPage 统一处理
     }

@@ -53,7 +53,7 @@ const TenantSwitcher: React.FC = () => {
     try {
       const result = await tenantApi.getTenants({
         page: 1,
-        pageSize: 200, // 获取全部租户
+        pageSize: 100, // 后端限制最大 100
         status: 1, // 仅正常状态的租户
       });
       const fetchedTenants = result?.data || [];

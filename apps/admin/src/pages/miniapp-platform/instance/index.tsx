@@ -43,7 +43,7 @@ const MiniappInstancePage: React.FC = () => {
       dataIndex: 'name',
       width: 180,
       render: (_, record) => (
-        <a onClick={() => history.push(`/miniapp-platform/instance/${record.id}`)}>{record.name}</a>
+        <a onClick={() => history.push(`/platform/miniapp-platform/instance/${record.id}`)}>{record.name}</a>
       ),
     },
     {
@@ -107,7 +107,7 @@ const MiniappInstancePage: React.FC = () => {
     },
     createOperationColumn<MiniappInstance>({
       width: 200,
-      editUrl: (r) => `/miniapp-platform/instance/${r.id}/edit`,
+      editUrl: (r) => `/platform/miniapp-platform/instance/${r.id}/edit`,
       onDelete: handleDelete,
       deleteConfirmText: '确定删除该实例吗？删除后数据将无法恢复！',
       canDelete: (r) => r.status === 0,
@@ -137,7 +137,7 @@ const MiniappInstancePage: React.FC = () => {
         toolBarRender={() => [
           <CreateButton
             key="add"
-            url="/miniapp-platform/instance/create"
+            url="/platform/miniapp-platform/instance/create"
             label="新增实例"
           />,
         ]}

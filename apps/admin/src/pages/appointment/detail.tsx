@@ -75,7 +75,7 @@ const AppointmentDetailPage: React.FC = () => {
               <Button danger>取消签到</Button>
             </Popconfirm>
           )}
-          <Button onClick={() => history.push('/appointment/list')}>返回列表</Button>
+          <Button onClick={() => history.push('/medical-services/appointment/list')}>返回列表</Button>
         </Space>
       }
     >

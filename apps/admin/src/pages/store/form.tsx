@@ -91,7 +91,7 @@ const StoreFormPage: React.FC = () => {
       } else {
         await storeApi.create(data);
       }
-      history.push('/store/list');
+      history.push('/organization/store/list');
     } catch (error) {
       throw error; // 抛出错误，让 FormPage 统一处理
     }

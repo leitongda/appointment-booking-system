@@ -7,6 +7,7 @@ import { history } from '@umijs/max';
 import { restDayApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { RestDay } from '@hospital/api';
+import { ScheduleMessages } from './utils/message';
 
 const RestDayPage: React.FC = () => {
   const { message } = App.useApp();
@@ -15,20 +16,20 @@ const RestDayPage: React.FC = () => {
   const handleDelete = async (id: string) => {
     try {
       await restDayApi.delete(id);
-      message.success('删除成功');
+      message.success(ScheduleMessages.deleteSuccess);
       actionRef.current?.reload();
     } catch (error: any) {
-      message.error(error.message || '删除失败');
+      message.error(error.message || ScheduleMessages.deleteFailed);
     }
   };
 
   const handleCancel = async (id: string) => {
     try {
       await restDayApi.cancel(id);
-      message.success('取消成功');
+      message.success(ScheduleMessages.cancelSuccess);
       actionRef.current?.reload();
     } catch (error: any) {
-      message.error(error.message || '取消失败');
+      message.error(error.message || ScheduleMessages.operateFailed);
     }
   };
 
@@ -144,7 +145,7 @@ const RestDayPage: React.FC = () => {
             key="add"
             type="primary"
             icon={<PlusOutlined />}
-            onClick={() => history.push('/schedule/rest-day/create')}
+            onClick={() => history.push('/medical-services/schedule/rest-day/create')}
           >
             添加
           </Button>,

@@ -175,13 +175,13 @@ const StoreFeeTypesPage: React.FC = () => {
         breadcrumb: {
           items: [
             { title: '门店管理' },
-            { title: '门店列表', href: '/store/list' },
+            { title: '门店列表', href: '/organization/store/list' },
             { title: '诊费类型' },
           ],
         },
       }}
       extra={
-        <Button icon={<ArrowLeftOutlined />} onClick={() => history.push('/store/list')}>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => history.push('/organization/store/list')}>
           返回门店列表
         </Button>
       }
@@ -213,7 +213,7 @@ const StoreFeeTypesPage: React.FC = () => {
           </Button>,
           <Button
             key="templates"
-            onClick={() => history.push(`/store/${storeId}/fee-templates`)}
+            onClick={() => history.push(`/organization/store/${storeId}/fee-templates`)}
           >
             配置诊费模板
           </Button>,

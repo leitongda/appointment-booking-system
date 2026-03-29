@@ -1,12 +1,13 @@
 import { AvatarDropdown, AvatarName } from '@/components/RightContent';
 import { FullscreenButton, NotificationButton, RefreshButton, SpacingButton, StoreSwitcher } from '@/components/HeaderActions';
 import TenantSwitcher from '@/components/TenantSwitcher';
-import { getToken, removeToken, setStorage, STORAGE_KEYS, handleTokenExpired, initTracker, getTracker } from '@hospital/shared';
+import { getToken, removeToken, setStorage, STORAGE_KEYS, handleTokenExpired, initTracker, getTracker, initCrossTabSync, destroyCrossTabSync } from '@hospital/shared';
+import type { CrossTabEvent } from '@hospital/shared';
 import { adminApi, setBaseURL } from '@hospital/api';
 import type { Settings as LayoutSettings, MenuDataItem } from '@ant-design/pro-components';
 import type { RunTimeLayoutConfig, RequestConfig } from '@umijs/max';
 import { history, useLocation } from '@umijs/max';
-import { App, message, ConfigProvider, theme } from 'antd';
+import { App, message, Modal, ConfigProvider, theme } from 'antd';
 import { useMemo } from 'react';
 import defaultSettings from '../config/defaultSettings';
 import { APP_TITLE } from '@config/appConfig';
@@ -38,53 +39,53 @@ interface DynamicMenuConfig {
 const dynamicMenuRules: DynamicMenuConfig[] = [
   // 科室管理
   {
-    pattern: /^\/department\/create$/,
-    parentPath: '/department',
-    menuItem: { name: '新增科室', path: '/department/create' },
+    pattern: /^\/organization\/department\/create$/,
+    parentPath: '/organization/department',
+    menuItem: { name: '新增科室', path: '/organization/department/create' },
   },
   {
-    pattern: /^\/department\/[^/]+\/edit$/,
-    parentPath: '/department',
-    menuItem: { name: '编辑科室', path: '/department/:id/edit' },
+    pattern: /^\/organization\/department\/[^/]+\/edit$/,
+    parentPath: '/organization/department',
+    menuItem: { name: '编辑科室', path: '/organization/department/:id/edit' },
   },
   // 门店管理
   {
-    pattern: /^\/store\/create$/,
-    parentPath: '/store',
-    menuItem: { name: '新增门店', path: '/store/create' },
+    pattern: /^\/organization\/store\/create$/,
+    parentPath: '/organization/store',
+    menuItem: { name: '新增门店', path: '/organization/store/create' },
   },
   {
-    pattern: /^\/store\/[^/]+\/edit$/,
-    parentPath: '/store',
-    menuItem: { name: '编辑门店', path: '/store/:id/edit' },
+    pattern: /^\/organization\/store\/[^/]+\/edit$/,
+    parentPath: '/organization/store',
+    menuItem: { name: '编辑门店', path: '/organization/store/:id/edit' },
   },
   // 医生管理
   {
-    pattern: /^\/doctor\/create$/,
-    parentPath: '/doctor',
-    menuItem: { name: '新增医生', path: '/doctor/create' },
+    pattern: /^\/medical-services\/doctor\/create$/,
+    parentPath: '/medical-services/doctor',
+    menuItem: { name: '新增医生', path: '/medical-services/doctor/create' },
   },
   {
-    pattern: /^\/doctor\/[^/]+\/edit$/,
-    parentPath: '/doctor',
-    menuItem: { name: '编辑医生', path: '/doctor/:id/edit' },
+    pattern: /^\/medical-services\/doctor\/[^/]+\/edit$/,
+    parentPath: '/medical-services/doctor',
+    menuItem: { name: '编辑医生', path: '/medical-services/doctor/:id/edit' },
   },
   {
     // 排除 list, create, booking-setting 等已知路由，只匹配实际的 ID
-    pattern: /^\/doctor\/(?!list$|create$|booking-setting)[^/]+$/,
-    parentPath: '/doctor',
-    menuItem: { name: '医生详情', path: '/doctor/:id' },
+    pattern: /^\/medical-services\/doctor\/(?!list$|create$|booking-setting)[^/]+$/,
+    parentPath: '/medical-services/doctor',
+    menuItem: { name: '医生详情', path: '/medical-services/doctor/:id' },
   },
   // 预约设置
   {
-    pattern: /^\/doctor\/booking-setting\/create$/,
-    parentPath: '/doctor',
-    menuItem: { name: '添加预约设置', path: '/doctor/booking-setting/create' },
+    pattern: /^\/medical-services\/doctor\/booking-setting\/create$/,
+    parentPath: '/medical-services/doctor',
+    menuItem: { name: '添加预约设置', path: '/medical-services/doctor/booking-setting/create' },
   },
   {
-    pattern: /^\/doctor\/booking-setting\/[^/]+\/edit$/,
-    parentPath: '/doctor',
-    menuItem: { name: '编辑预约设置', path: '/doctor/booking-setting/:id/edit' },
+    pattern: /^\/medical-services\/doctor\/booking-setting\/[^/]+\/edit$/,
+    parentPath: '/medical-services/doctor',
+    menuItem: { name: '编辑预约设置', path: '/medical-services/doctor/booking-setting/:id/edit' },
   },
 ];
 
@@ -129,7 +130,83 @@ const processMenuData = (menuData: MenuDataItem[], pathname: string): MenuDataIt
   });
 };
 
+/**
+ * 根据当前路径计算需要展开的父级菜单 key
+ * 例如 '/medical-services/doctor/create' -> ['/medical-services', '/medical-services/doctor']
+ */
+const computeParentOpenKeys = (pathname: string): string[] => {
+  const segments = pathname.split('/').filter(Boolean);
+  const keys: string[] = [];
+  let current = '';
+  for (let i = 0; i < segments.length - 1; i++) {
+    current += '/' + segments[i];
+    keys.push(current);
+  }
+  return keys;
+};
+
 const loginPath = '/login';
+
+/**
+ * 跨 Tab 状态变更处理
+ * 当其他 Tab 修改了 token/租户/门店时，弹框提示并刷新
+ */
+function handleCrossTabEvent(event: CrossTabEvent) {
+  switch (event.type) {
+    case 'auth-change':
+      if (event.action === 'logout') {
+        Modal.confirm({
+          title: '登录状态变更',
+          content: '您已在其他页面退出登录，请重新登录。',
+          okText: '重新登录',
+          cancelButtonProps: { style: { display: 'none' } },
+          closable: false,
+          maskClosable: false,
+          onOk: () => { window.location.href = loginPath; },
+        });
+      } else if (event.action === 'switch-user') {
+        Modal.confirm({
+          title: '登录账号已变更',
+          content: '检测到您在其他页面切换了登录账号，当前页面需要刷新以保持一致。',
+          okText: '刷新页面',
+          cancelButtonProps: { style: { display: 'none' } },
+          closable: false,
+          maskClosable: false,
+          onOk: () => { window.location.reload(); },
+        });
+      }
+      // login（同用户换 token）— 静默忽略
+      break;
+
+    case 'tenant-change':
+      Modal.confirm({
+        title: '租户已切换',
+        content: event.newTenantId
+          ? `租户已切换，当前页面需要刷新以保持一致。`
+          : '租户上下文已变更，当前页面需要刷新以保持一致。',
+        okText: '刷新页面',
+        cancelButtonProps: { style: { display: 'none' } },
+        closable: false,
+        maskClosable: false,
+        onOk: () => { window.location.reload(); },
+      });
+      break;
+
+    case 'store-change':
+      Modal.confirm({
+        title: '门店已切换',
+        content: event.newStoreName
+          ? `门店已切换为「${event.newStoreName}」，当前页面需要刷新以保持一致。`
+          : '门店已切换，当前页面需要刷新以保持一致。',
+        okText: '刷新页面',
+        cancelButtonProps: { style: { display: 'none' } },
+        closable: false,
+        maskClosable: false,
+        onOk: () => { window.location.reload(); },
+      });
+      break;
+  }
+}
 
 // 初始化 API 请求配置（拦截器）
 initApiConfig();
@@ -203,7 +280,10 @@ export function rootContainer(container: any) {
   if (typeof window !== 'undefined') {
     applySpacingCSSVariables(getSpacingMode());
   }
-  
+
+  // 初始化跨 Tab 状态同步
+  initCrossTabSync(handleCrossTabEvent);
+
   return (
     <ConfigProvider
       theme={{
@@ -292,8 +372,12 @@ export async function getInitialState(): Promise<{
  * ProLayout 运行时配置
  * @doc https://procomponents.ant.design/components/layout
  */
-export const layout: RunTimeLayoutConfig = ({ initialState }) => {
+export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) => {
   const { currentStore } = initialState || {};
+
+  // 菜单展开状态：保持已展开的菜单，路由变化时只追加不清除
+  const menuOpenKeys = (initialState as any)?.menuOpenKeys
+    || computeParentOpenKeys(history.location.pathname);
 
   // 门店用户：使用门店的 logo 和名称
   // 如果有门店信息，则覆盖默认设置
@@ -349,11 +433,22 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
         const fullPath = location.pathname + (location.search || '') + (location.hash || '');
         setStorage(STORAGE_KEYS.LAST_PATH, fullPath);
       }
-      
+
       // 追踪页面访问
       const tracker = getTracker();
       if (tracker) {
         tracker.trackPageView(location.pathname, document.title);
+      }
+
+      // 路由变化时，追加新路径的父级菜单 key（不清除已展开的菜单）
+      const newKeys = computeParentOpenKeys(location.pathname);
+      if (newKeys.length > 0) {
+        setInitialState?.((s: any) => {
+          const existingKeys = (s as any)?.menuOpenKeys || [];
+          const mergedKeys = [...new Set([...existingKeys, ...newKeys])];
+          if (mergedKeys.length === existingKeys.length) return s;
+          return { ...s, menuOpenKeys: mergedKeys };
+        });
       }
     },
     // 无权限时重定向到仪表盘
@@ -362,6 +457,13 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
       history.replace('/dashboard');
     },
     menuHeaderRender: undefined,
+    // 受控菜单展开状态：切换菜单不会导致其他已展开菜单收起
+    menuProps: {
+      openKeys: menuOpenKeys,
+      onOpenChange: (keys: string[]) => {
+        setInitialState?.((s: any) => ({ ...s, menuOpenKeys: keys }));
+      },
+    },
     // 动态菜单渲染：根据当前路由动态显示编辑/新增等隐藏菜单项
     menuDataRender: (menuData) => {
       const { pathname } = history.location;
@@ -403,8 +505,17 @@ export const request: RequestConfig = {
       // 处理 HTTP 401 或业务码 401（无效 Token）
       if (status === 401 || data?.code === 401) {
         handleTokenExpired(() => {
-          message.error(data?.message || '登录已过期，请重新登录');
-          history.push(loginPath);
+          Modal.confirm({
+            title: '登录已过期',
+            content: data?.message || '您的登录已失效，请重新登录。',
+            okText: '重新登录',
+            cancelText: '留在当前页',
+            closable: true,
+            maskClosable: false,
+            onOk: () => {
+              history.push(loginPath);
+            },
+          });
         });
         return response;
       }

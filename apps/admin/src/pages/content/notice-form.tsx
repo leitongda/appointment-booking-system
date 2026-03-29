@@ -82,7 +82,7 @@ const NoticeFormPage: React.FC = () => {
       switchFields: ['isTop', 'status'],
       successMessage: isEdit ? '更新成功' : '发布成功',
       onSuccess: () => {
-        history.push('/content/notice');
+        history.push('/content-center/content/notice');
       },
     }
   );

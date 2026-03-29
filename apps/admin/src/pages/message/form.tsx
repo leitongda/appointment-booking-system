@@ -23,7 +23,7 @@ const MessageFormPage: React.FC = () => {
         messageType: values.messageType,
       });
       message.success('发送成功');
-      history.push('/message');
+      history.push('/content-center/message');
     } catch (error: any) {
       message.error(error.message || '发送失败');
     }

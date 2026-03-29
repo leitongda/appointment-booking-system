@@ -11,24 +11,18 @@ interface MonthViewProps {
   isRestDay?: (dateStr: string) => boolean;
 }
 
-// 时段标签映射 - 支持两种格式
+// 时段标签映射
 const TIME_SLOT_LABELS: Record<string, string> = {
   morning: '上午',
   afternoon: '下午',
   evening: '晚上',
-  AM: '上午',
-  PM: '下午',
-  NIGHT: '晚上',
 };
 
-// 时段排序权重 - 支持两种格式
+// 时段排序权重
 const TIME_SLOT_SORT_ORDER: Record<string, number> = {
   morning: 0,
-  AM: 0,
   afternoon: 1,
-  PM: 1,
   evening: 2,
-  NIGHT: 2,
 };
 
 const MonthView: React.FC<MonthViewProps> = ({

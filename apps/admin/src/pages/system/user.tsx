@@ -129,7 +129,7 @@ const UserPage: React.FC = () => {
           <OperationButton
             type="edit"
             permission="system:user:update"
-            url={`/system/user/${record.id}/edit`}
+            url={`/organization/system/user/${record.id}/edit`}
           />
           {record.roleCode !== 'SUPER_ADMIN' && (
             <OperationButton
@@ -169,7 +169,7 @@ const UserPage: React.FC = () => {
           <CreateButton
             key="add"
             permission="system:user:create"
-            url="/system/user/create"
+            url="/organization/system/user/create"
             label="新增用户"
           />,
         ]}

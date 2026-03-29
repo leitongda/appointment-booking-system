@@ -10,6 +10,7 @@ import { fetchAllData } from '@/utils/fetchAllData';
 import type { Schedule, Doctor, Department } from '@hospital/shared';
 import { APPOINTMENT_TYPE_MAP } from '@hospital/shared';
 import dayjs from 'dayjs';
+import { ScheduleMessages } from '../utils/message';
 
 const TIME_SLOTS = [
   { label: '上午', value: 'morning' },
@@ -73,12 +74,12 @@ const ScheduleDetailPage: React.FC = () => {
         totalSlots: values.totalSlots,
         status: 1,
       });
-      message.success('创建成功');
+      message.success(ScheduleMessages.createSuccess);
       setModalOpen(false);
       actionRef.current?.reload();
       return true;
     } catch (error: any) {
-      message.error(error.message || '创建失败');
+      message.error(error.message || ScheduleMessages.createFailed);
       return false;
     }
   };
@@ -86,20 +87,20 @@ const ScheduleDetailPage: React.FC = () => {
   const handleSuspend = async (id: string) => {
     try {
       await scheduleApi.suspend(id, '管理员停诊');
-      message.success('停诊成功');
+      message.success(ScheduleMessages.suspendSuccess);
       actionRef.current?.reload();
     } catch (error: any) {
-      message.error(error.message || '操作失败');
+      message.error(error.message || ScheduleMessages.operateFailed);
     }
   };
 
   const handleResume = async (id: string) => {
     try {
       await scheduleApi.resume(id);
-      message.success('恢复成功');
+      message.success(ScheduleMessages.restoreSuccess);
       actionRef.current?.reload();
     } catch (error: any) {
-      message.error(error.message || '操作失败');
+      message.error(error.message || ScheduleMessages.operateFailed);
     }
   };
 
@@ -107,7 +108,7 @@ const ScheduleDetailPage: React.FC = () => {
   const handleBatchSuspend = () => {
     const normalRows = selectedRows.filter(r => r.status === 1);
     if (normalRows.length === 0) {
-      message.warning('请选择状态为"正常"的排班');
+      message.warning(ScheduleMessages.selectNormalStatus);
       return;
     }
     
@@ -134,7 +135,7 @@ const ScheduleDetailPage: React.FC = () => {
           setSelectedRows([]);
           actionRef.current?.reload();
         } catch (error: any) {
-          message.error(error.message || '批量停诊失败');
+          message.error(error.message || ScheduleMessages.batchSuspendFailed);
         }
       },
     });
@@ -144,7 +145,7 @@ const ScheduleDetailPage: React.FC = () => {
   const handleBatchResume = () => {
     const suspendedRows = selectedRows.filter(r => r.status === 0);
     if (suspendedRows.length === 0) {
-      message.warning('请选择状态为"停诊"的排班');
+      message.warning(ScheduleMessages.selectSuspendedStatus);
       return;
     }
     
@@ -170,7 +171,7 @@ const ScheduleDetailPage: React.FC = () => {
           setSelectedRows([]);
           actionRef.current?.reload();
         } catch (error: any) {
-          message.error(error.message || '批量恢复失败');
+          message.error(error.message || ScheduleMessages.batchResumeFailed);
         }
       },
     });
@@ -180,7 +181,7 @@ const ScheduleDetailPage: React.FC = () => {
   const handleBatchDelete = () => {
     const deletableRows = selectedRows.filter(r => r.bookedSlots === 0);
     if (deletableRows.length === 0) {
-      message.warning('选中的排班都有预约，无法删除');
+      message.warning(ScheduleMessages.cannotDeleteWithBooking);
       return;
     }
     
@@ -208,7 +209,7 @@ const ScheduleDetailPage: React.FC = () => {
           setSelectedRows([]);
           actionRef.current?.reload();
         } catch (error: any) {
-          message.error(error.message || '批量删除失败');
+          message.error(error.message || ScheduleMessages.batchDeleteFailed);
         }
       },
     });

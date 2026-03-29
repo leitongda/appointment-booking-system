@@ -191,7 +191,7 @@ const RolePermissionsPage: React.FC = () => {
     try {
       await adminApi.updateRolePermissions(id, checkedKeys);
       message.success('权限保存成功');
-      history.push('/system/role');
+      history.push('/organization/system/role');
     } catch (error: any) {
       message.error(error.message || '保存失败');
     } finally {
@@ -281,7 +281,7 @@ const RolePermissionsPage: React.FC = () => {
             </div>
 
             <FooterToolbar>
-              <Button onClick={() => history.push('/system/role')}>取消</Button>
+              <Button onClick={() => history.push('/organization/system/role')}>取消</Button>
               <Button type="primary" loading={saving} onClick={handleSave}>
                 保存权限
               </Button>

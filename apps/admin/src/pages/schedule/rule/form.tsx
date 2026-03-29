@@ -15,6 +15,7 @@ import {
 } from '@hospital/shared';
 import RulePreviewCalendar from '../components/RulePreviewCalendar';
 import dayjs from 'dayjs';
+import { ScheduleMessages } from '../utils/message';
 
 // 格式化时间为 HH:mm 格式
 const formatTime = (time: any): string | undefined => {
@@ -140,7 +141,7 @@ const ScheduleRuleFormPage: React.FC = () => {
         })));
       }
     } catch (error: any) {
-      message.error('加载排班规则信息失败');
+      message.error(error.message || ScheduleMessages.loadTemplateFailed);
     } finally {
       setLoading(false);
     }
@@ -151,9 +152,9 @@ const ScheduleRuleFormPage: React.FC = () => {
       // 使用 formatTime 函数格式化时间，支持字符串和 dayjs 对象
       const startTime = formatTime(values.startTime);
       const endTime = formatTime(values.endTime);
-      
+
       if (!startTime || !endTime) {
-        message.error('请填写有效的开始时间和结束时间');
+        message.error(ScheduleMessages.validTimeRequired);
         return;
       }
       
@@ -183,14 +184,14 @@ const ScheduleRuleFormPage: React.FC = () => {
 
       if (isEdit && id) {
         await scheduleTemplateApi.update(id, data);
-        message.success('更新成功');
+        message.success(ScheduleMessages.updateSuccess);
       } else {
         await scheduleTemplateApi.create(data);
-        message.success('创建成功');
+        message.success(ScheduleMessages.createSuccess);
       }
-      history.push('/schedule/rule');
+      history.push('/medical-services/schedule/rule');
     } catch (error: any) {
-      message.error(error.message || '操作失败');
+      message.error(error.message || ScheduleMessages.operateFailed);
     }
   };
 

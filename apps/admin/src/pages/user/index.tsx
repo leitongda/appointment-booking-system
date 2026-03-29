@@ -95,7 +95,7 @@ const UserManagePage: React.FC = () => {
         <OperationGroup>
           <OperationButton
             type="view"
-            url={`/user/${record.id}`}
+            url={`/medical-services/user/${record.id}`}
           />
           {record.status === 1 ? (
             <OperationButton

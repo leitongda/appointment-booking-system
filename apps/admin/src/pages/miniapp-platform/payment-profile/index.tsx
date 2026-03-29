@@ -39,7 +39,7 @@ const PaymentProfilePage: React.FC = () => {
       width: 180,
       render: (_, record) => (
         <div>
-          <a onClick={() => history.push(`/miniapp-platform/payment-profile/${record.id}`)}>{record.name}</a>
+          <a onClick={() => history.push(`/platform/miniapp-platform/payment-profile/${record.id}`)}>{record.name}</a>
           {record.isDefault && <Tag color="gold" style={{ marginLeft: 8 }}>默认</Tag>}
         </div>
       ),
@@ -102,7 +102,7 @@ const PaymentProfilePage: React.FC = () => {
     },
     createOperationColumn<PaymentProfile>({
       width: 180,
-      editUrl: (r) => `/miniapp-platform/payment-profile/${r.id}/edit`,
+      editUrl: (r) => `/platform/miniapp-platform/payment-profile/${r.id}/edit`,
       onDelete: handleDelete,
       deleteConfirmText: '确定删除该支付配置吗？',
       moreActions: (record) => [
@@ -126,7 +126,7 @@ const PaymentProfilePage: React.FC = () => {
         toolBarRender={() => [
           <CreateButton
             key="add"
-            url="/miniapp-platform/payment-profile/create"
+            url="/platform/miniapp-platform/payment-profile/create"
             label="新增支付配置"
           />,
         ]}

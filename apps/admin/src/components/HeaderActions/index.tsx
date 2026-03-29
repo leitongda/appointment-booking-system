@@ -234,7 +234,7 @@ export const StoreSwitcher: React.FC = () => {
         permission: 'store:update',
         onClick: () => {
           setOpen(false);
-          history.push(`/store/${currentStore?.id}/fee-templates`);
+          history.push(`/organization/store/${currentStore?.id}/fee-templates`);
         }
       },
       { 
@@ -244,7 +244,7 @@ export const StoreSwitcher: React.FC = () => {
         permission: 'store:update',
         onClick: () => {
           setOpen(false);
-          history.push(`/store/${currentStore?.id}/visit-type-config`);
+          history.push(`/organization/store/${currentStore?.id}/visit-type-config`);
         }
       },
       { 
@@ -254,7 +254,7 @@ export const StoreSwitcher: React.FC = () => {
         permission: 'store:update',
         onClick: () => {
           setOpen(false);
-          history.push(`/store/${currentStore?.id}/edit`);
+          history.push(`/organization/store/${currentStore?.id}/edit`);
         }
       },
     ];
@@ -604,7 +604,7 @@ export const NotificationButton: React.FC = () => {
   // 查看全部消息
   const handleViewAll = useCallback(() => {
     setOpen(false);
-    history.push('/message');
+    history.push('/content-center/message');
   }, []);
 
   // 消息类型映射

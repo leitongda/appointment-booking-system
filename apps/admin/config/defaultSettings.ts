@@ -22,7 +22,7 @@ const Settings: ProLayoutProps & {
   iconfontUrl: '',
 
   // 侧边菜单类型
-  siderMenuType: "sub",
+  siderMenuType: "group",
   
   token: {
     // 参考 https://procomponents.ant.design/components/layout#api

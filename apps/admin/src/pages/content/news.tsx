@@ -22,7 +22,7 @@ const NewsPage: React.FC = () => {
     { title: '发布时间', dataIndex: 'publishTime', valueType: 'dateTime', width: 160, search: false },
     createOperationColumn<News>({
       width: 120,
-      editUrl: (r) => `/content/news/${r.id}/edit`,
+      editUrl: (r) => `/content-center/content/news/${r.id}/edit`,
       editPermission: 'content:news:update',
       onDelete: handleDelete,
       deletePermission: 'content:news:delete',
@@ -42,7 +42,7 @@ const NewsPage: React.FC = () => {
           <CreateButton
             key="add"
             permission="content:news:create"
-            url="/content/news/create"
+            url="/content-center/content/news/create"
             label="发布新闻"
           />,
         ]}

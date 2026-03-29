@@ -21,7 +21,7 @@ const BannerPage: React.FC = () => {
     { title: '状态', dataIndex: 'status', width: 80, valueEnum: { 1: { text: '启用', status: 'Success' }, 0: { text: '禁用', status: 'Default' } } },
     createOperationColumn<Banner>({
       width: 120,
-      editUrl: (r) => `/content/banner/${r.id}/edit`,
+      editUrl: (r) => `/content-center/content/banner/${r.id}/edit`,
       editPermission: 'content:banner:update',
       onDelete: handleDelete,
       deletePermission: 'content:banner:delete',
@@ -41,7 +41,7 @@ const BannerPage: React.FC = () => {
           <CreateButton
             key="add"
             permission="content:banner:create"
-            url="/content/banner/create"
+            url="/content-center/content/banner/create"
             label="新增轮播图"
           />,
         ]}

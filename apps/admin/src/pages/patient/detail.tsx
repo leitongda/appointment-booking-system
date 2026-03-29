@@ -216,7 +216,7 @@ const PatientDetailPage: React.FC = () => {
     try {
       await patientApi.delete(id);
       message.success('删除成功');
-      history.push('/medical-card/list');
+      history.push('/medical-services/medical-card/list');
     } catch (error: any) {
       message.error(error.message || '删除失败');
     }
@@ -289,7 +289,7 @@ const PatientDetailPage: React.FC = () => {
       valueType: 'option',
       width: 60,
       render: (_, record) => (
-        <a onClick={() => history.push(`/appointment/${record.id}`)}>详情</a>
+        <a onClick={() => history.push(`/medical-services/appointment/${record.id}`)}>详情</a>
       ),
     },
   ];
@@ -323,7 +323,7 @@ const PatientDetailPage: React.FC = () => {
       title: '操作',
       valueType: 'option',
       width: 60,
-      render: (_, record) => <a onClick={() => history.push(`/appointment/${record.id}`)}>详情</a>,
+      render: (_, record) => <a onClick={() => history.push(`/medical-services/appointment/${record.id}`)}>详情</a>,
     },
   ];
 
@@ -372,7 +372,7 @@ const PatientDetailPage: React.FC = () => {
       width: 150,
       render: (_: any, record: PatientListItem) => (
         <Space>
-          <a onClick={() => history.push(`/medical-card/${record.id}`)}>查看</a>
+          <a onClick={() => history.push(`/medical-services/medical-card/${record.id}`)}>查看</a>
           {access.hasPermission('patient:update') && (
             <a onClick={() => { setCurrentMember(record); setEditMemberModalVisible(true); }}>
               <EditOutlined /> 编辑
@@ -627,7 +627,7 @@ const PatientDetailPage: React.FC = () => {
   return (
     <PageContainer
       title="患者详情"
-      extra={<Button onClick={() => history.push('/user/list')}>返回列表</Button>}
+      extra={<Button onClick={() => history.push('/medical-services/user/list')}>返回列表</Button>}
     >
       <Spin spinning={loading}>
         {/* 头部信息卡片 */}

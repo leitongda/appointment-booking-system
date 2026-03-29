@@ -95,7 +95,7 @@ const VisitTypeConfigPage = () => {
       title={`${store?.name || '门店'} - 复诊规则配置`}
       breadcrumb={{
         items: [
-          { title: <Link to="/store">门店管理</Link> },
+          { title: <Link to="/organization/store">门店管理</Link> },
           { title: '复诊规则配置' },
         ],
       }}
@@ -186,7 +186,7 @@ const VisitTypeConfigPage = () => {
               <Button onClick={handleReset}>
                 恢复默认
               </Button>
-              <Button onClick={() => history.push('/store')}>
+              <Button onClick={() => history.push('/organization/store')}>
                 返回
               </Button>
             </Space>

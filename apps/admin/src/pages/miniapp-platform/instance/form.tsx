@@ -128,7 +128,7 @@ const InstanceFormPage: React.FC = () => {
         await miniappPlatformApi.createMiniappInstance(values as MiniappInstanceCreateData);
         message.success('创建成功');
       }
-      history.push('/miniapp-platform/instance');
+      history.push('/platform/miniapp-platform/instance');
     } catch (error: any) {
       message.error(error.message || '操作失败');
     }

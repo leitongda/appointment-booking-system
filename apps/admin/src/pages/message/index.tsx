@@ -60,7 +60,7 @@ const MessagePage: React.FC = () => {
           <CreateButton
             key="add"
             permission="message:send"
-            url="/message/create"
+            url="/content-center/message/create"
             label="发送消息"
           />,
         ]}

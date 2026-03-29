@@ -81,7 +81,7 @@ const DoctorBookingSettingPage: React.FC = () => {
       width: 120,
       render: (_, record) => (
         <Space>
-          <a onClick={() => history.push(`/doctor/booking-setting/${record.id}/edit`)}>编辑</a>
+          <a onClick={() => history.push(`/medical-services/doctor/booking-setting/${record.id}/edit`)}>编辑</a>
           <Popconfirm
             title="确定删除该设置吗？"
             onConfirm={() => handleDelete(record.id)}
@@ -115,7 +115,7 @@ const DoctorBookingSettingPage: React.FC = () => {
             key="add"
             type="primary"
             icon={<PlusOutlined />}
-            onClick={() => history.push('/doctor/booking-setting/create')}
+            onClick={() => history.push('/medical-services/doctor/booking-setting/create')}
           >
             添加医生预约管理
           </Button>,

@@ -37,7 +37,7 @@ const RolePage: React.FC = () => {
     { title: '创建时间', dataIndex: 'createdAt', valueType: 'dateTime', width: 160, search: false },
     createOperationColumn<Role>({
       width: 180,
-      editUrl: (r) => `/system/role/${r.id}/edit`,
+      editUrl: (r) => `/organization/system/role/${r.id}/edit`,
       editPermission: 'system:role:update',
       onDelete: handleDelete,
       deletePermission: 'system:role:delete',
@@ -48,7 +48,7 @@ const RolePage: React.FC = () => {
           key: 'permissions',
           icon: <SafetyCertificateOutlined />,
           label: '分配权限',
-          onClick: () => history.push(`/system/role/${record.id}/permissions`),
+          onClick: () => history.push(`/organization/system/role/${record.id}/permissions`),
         },
       ].filter(Boolean) as any,
     }),
@@ -66,7 +66,7 @@ const RolePage: React.FC = () => {
           <CreateButton
             key="add"
             permission="system:role:create"
-            url="/system/role/create"
+            url="/organization/system/role/create"
             label="新增角色"
           />,
         ]}

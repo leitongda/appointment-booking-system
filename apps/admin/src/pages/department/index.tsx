@@ -428,7 +428,7 @@ const DepartmentPage: React.FC = () => {
               </a>
             )}
             {access.hasPermission('department:update') && (
-              <a onClick={() => history.push(`/department/${record.id}/edit`)} style={{ fontSize: 13 }}>
+              <a onClick={() => history.push(`/organization/department/${record.id}/edit`)} style={{ fontSize: 13 }}>
                 <EditOutlined /> 编辑
               </a>
             )}
@@ -505,7 +505,7 @@ console.log("🚀 ~ dataApi:", dataApi , dataApi.getExportDepartmentsUrl())
                   key="add"
                   type="primary"
                   icon={<PlusOutlined />}
-                  onClick={() => history.push('/department/create')}
+                  onClick={() => history.push('/organization/department/create')}
                 >
                   新增科室
                 </Button>

@@ -128,7 +128,7 @@ const DoctorBookingSettingFormPage: React.FC = () => {
         await doctorBookingSettingApi.create(data);
         message.success('创建成功');
       }
-      history.push('/doctor/booking-setting');
+      history.push('/medical-services/doctor/booking-setting');
     } catch (error: any) {
       message.error(error.message || '操作失败');
     }

@@ -76,23 +76,29 @@ const ScheduleStatisticsPage: React.FC = () => {
   const calculateSummary = (items: ScheduleStatisticsItem[]) => {
     let totalMorningSlots = 0;
     let totalAfternoonSlots = 0;
+    let totalEveningSlots = 0;
     let totalMorningBooked = 0;
     let totalAfternoonBooked = 0;
+    let totalEveningBooked = 0;
 
     items.forEach(item => {
       totalMorningSlots += item.morningSlots;
       totalAfternoonSlots += item.afternoonSlots;
+      totalEveningSlots += item.eveningSlots;
       totalMorningBooked += item.morningBooked;
       totalAfternoonBooked += item.afternoonBooked;
+      totalEveningBooked += item.eveningBooked;
     });
 
     return {
-      totalSlots: totalMorningSlots + totalAfternoonSlots,
-      totalBooked: totalMorningBooked + totalAfternoonBooked,
+      totalSlots: totalMorningSlots + totalAfternoonSlots + totalEveningSlots,
+      totalBooked: totalMorningBooked + totalAfternoonBooked + totalEveningBooked,
       morningSlots: totalMorningSlots,
       afternoonSlots: totalAfternoonSlots,
+      eveningSlots: totalEveningSlots,
       morningBooked: totalMorningBooked,
       afternoonBooked: totalAfternoonBooked,
+      eveningBooked: totalEveningBooked,
     };
   };
 
@@ -168,6 +174,34 @@ const ScheduleStatisticsPage: React.FC = () => {
         },
       ],
     },
+    {
+      title: '晚间',
+      children: [
+        {
+          title: '号源',
+          dataIndex: 'eveningSlots',
+          width: 80,
+          render: (val: number) => val || '-',
+        },
+        {
+          title: '已预约',
+          dataIndex: 'eveningBooked',
+          width: 80,
+          render: (val: number, record: ScheduleStatisticsItem) => {
+            if (!record.eveningSlots) return '-';
+            const rate = record.eveningSlots > 0 ? (val / record.eveningSlots * 100).toFixed(0) : 0;
+            return (
+              <span>
+                {val}
+                <Tag color={Number(rate) > 80 ? 'red' : Number(rate) > 50 ? 'orange' : 'green'} style={{ marginLeft: 4 }}>
+                  {rate}%
+                </Tag>
+              </span>
+            );
+          },
+        },
+      ],
+    },
   ];
 
   const summary = statistics ? calculateSummary(statistics.items) : null;
@@ -203,32 +237,57 @@ const ScheduleStatisticsPage: React.FC = () => {
       </Card>
 
       {statistics && summary && (
-        <Card title="统计汇总" style={{ marginBottom: 16 }}>
-          <Row gutter={16}>
-            <Col span={4}>
-              <Statistic title="门店" value={statistics.storeName} />
-            </Col>
-            <Col span={4}>
-              <Statistic title="月份" value={`${statistics.year}年${statistics.month}月`} />
-            </Col>
-            <Col span={4}>
-              <Statistic title="总号源" value={summary.totalSlots} />
-            </Col>
-            <Col span={4}>
-              <Statistic title="总预约" value={summary.totalBooked} />
-            </Col>
-            <Col span={4}>
-              <Statistic 
-                title="预约率" 
-                value={summary.totalSlots > 0 ? (summary.totalBooked / summary.totalSlots * 100).toFixed(1) : 0} 
-                suffix="%" 
-              />
-            </Col>
-            <Col span={4}>
-              <Statistic title="排班天数" value={Object.keys(groupByDate(statistics.items)).length} suffix="天" />
-            </Col>
-          </Row>
-        </Card>
+        <>
+          <Card title="统计汇总" style={{ marginBottom: 16 }}>
+            <Row gutter={16}>
+              <Col span={4}>
+                <Statistic title="门店" value={statistics.storeName} />
+              </Col>
+              <Col span={4}>
+                <Statistic title="月份" value={`${statistics.year}年${statistics.month}月`} />
+              </Col>
+              <Col span={4}>
+                <Statistic title="总号源" value={summary.totalSlots} />
+              </Col>
+              <Col span={4}>
+                <Statistic title="总预约" value={summary.totalBooked} />
+              </Col>
+              <Col span={4}>
+                <Statistic
+                  title="预约率"
+                  value={summary.totalSlots > 0 ? (summary.totalBooked / summary.totalSlots * 100).toFixed(1) : 0}
+                  suffix="%"
+                />
+              </Col>
+              <Col span={4}>
+                <Statistic title="排班天数" value={Object.keys(groupByDate(statistics.items)).length} suffix="天" />
+              </Col>
+            </Row>
+          </Card>
+
+          <Card title="时段统计" style={{ marginBottom: 16 }}>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Statistic title="上午号源" value={summary.morningSlots} />
+                <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+                  已预约: {summary.morningBooked} ({summary.morningSlots > 0 ? (summary.morningBooked / summary.morningSlots * 100).toFixed(1) : 0}%)
+                </div>
+              </Col>
+              <Col span={8}>
+                <Statistic title="下午号源" value={summary.afternoonSlots} />
+                <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+                  已预约: {summary.afternoonBooked} ({summary.afternoonSlots > 0 ? (summary.afternoonBooked / summary.afternoonSlots * 100).toFixed(1) : 0}%)
+                </div>
+              </Col>
+              <Col span={8}>
+                <Statistic title="晚间号源" value={summary.eveningSlots} />
+                <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+                  已预约: {summary.eveningBooked} ({summary.eveningSlots > 0 ? (summary.eveningBooked / summary.eveningSlots * 100).toFixed(1) : 0}%)
+                </div>
+              </Col>
+            </Row>
+          </Card>
+        </>
       )}
 
       <Card title="排班明细">
@@ -240,7 +299,7 @@ const ScheduleStatisticsPage: React.FC = () => {
             pagination={{ pageSize: 20 }}
             bordered
             size="small"
-            scroll={{ x: 800 }}
+            scroll={{ x: 1000 }}
           />
         ) : (
           <Empty description="暂无数据" />

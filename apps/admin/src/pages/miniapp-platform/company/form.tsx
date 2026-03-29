@@ -71,7 +71,7 @@ const CompanyFormPage: React.FC = () => {
         await miniappPlatformApi.createCompany(values as CompanyCreateData);
         message.success('创建成功');
       }
-      history.push('/miniapp-platform/company');
+      history.push('/platform/miniapp-platform/company');
     } catch (error: any) {
       message.error(error.message || '操作失败');
     }

@@ -13,6 +13,7 @@ import MonthView from './components/MonthView';
 import DayDetailDrawer from './components/DayDetailDrawer';
 import AppointmentDetailModal from './components/AppointmentDetailModal';
 import CreateAppointmentModal from './components/CreateAppointmentModal';
+import { ScheduleMessages } from '../utils/message';
 import './styles/calendar.less';
 
 export type ViewMode = 'week' | 'month';
@@ -89,7 +90,7 @@ const ScheduleCalendarPage: React.FC = () => {
 
       setSchedules(result.data || []);
     } catch (error) {
-      message.error('加载排班失败，请稍后重试');
+      message.error(ScheduleMessages.scheduleLoadFailed);
       console.error('加载排班失败', error);
     } finally {
       setLoading(false);
@@ -117,7 +118,7 @@ const ScheduleCalendarPage: React.FC = () => {
 
       setAppointments(result.data || []);
     } catch (error) {
-      message.error('加载预约失败，请稍后重试');
+      message.error(ScheduleMessages.appointmentLoadFailed);
       console.error('加载预约失败', error);
     }
   }, [selectedDoctor, getDateRange]);

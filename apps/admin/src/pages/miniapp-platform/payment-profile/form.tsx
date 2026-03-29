@@ -89,7 +89,7 @@ const PaymentProfileFormPage: React.FC = () => {
         await miniappPlatformApi.createPaymentProfile(values as PaymentProfileCreateData);
         message.success('创建成功');
       }
-      history.push('/miniapp-platform/payment-profile');
+      history.push('/platform/miniapp-platform/payment-profile');
     } catch (error: any) {
       message.error(error.message || '操作失败');
     }

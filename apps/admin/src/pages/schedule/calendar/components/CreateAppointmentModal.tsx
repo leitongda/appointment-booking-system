@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { scheduleApi, appointmentApi, patientApi } from '@hospital/api';
 import type { PatientListItem } from '@hospital/api';
 import type { Schedule } from '@hospital/shared';
+import { ScheduleMessages } from '../../utils/message';
 
 interface CreateAppointmentModalProps {
   open: boolean;
@@ -78,8 +79,8 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
         scheduleId,
         patientId: values.patientId,
       });
-      
-      message.success('预约创建成功');
+
+      message.success(ScheduleMessages.appointmentCreatedSuccess);
       form.resetFields();
       onSuccess();
       onClose();
@@ -88,7 +89,7 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
         // 表单验证错误
         return;
       }
-      message.error(error.message || '创建预约失败');
+      message.error(error.message || ScheduleMessages.appointmentCreateFailed);
     } finally {
       setLoading(false);
     }

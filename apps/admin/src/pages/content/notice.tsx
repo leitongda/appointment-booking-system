@@ -20,7 +20,7 @@ const NoticePage: React.FC = () => {
     { title: '发布时间', dataIndex: 'publishTime', valueType: 'dateTime', width: 160, search: false },
     createOperationColumn<Notice>({
       width: 120,
-      editUrl: (r) => `/content/notice/${r.id}/edit`,
+      editUrl: (r) => `/content-center/content/notice/${r.id}/edit`,
       editPermission: 'content:notice:update',
       onDelete: handleDelete,
       deletePermission: 'content:notice:delete',
@@ -40,7 +40,7 @@ const NoticePage: React.FC = () => {
           <CreateButton
             key="add"
             permission="content:notice:create"
-            url="/content/notice/create"
+            url="/content-center/content/notice/create"
             label="发布公告"
           />,
         ]}

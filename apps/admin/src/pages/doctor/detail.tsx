@@ -114,8 +114,8 @@ const DoctorDetailPage: React.FC = () => {
       title={doctor?.name ? `${doctor.name} - 医生详情` : '医生详情'}
       extra={
         <Space>
-          <Button onClick={() => history.push('/doctor/list')}>返回列表</Button>
-          <Button type="primary" onClick={() => history.push(`/doctor/${id}/edit`)}>编辑</Button>
+          <Button onClick={() => history.push('/medical-services/doctor/list')}>返回列表</Button>
+          <Button type="primary" onClick={() => history.push(`/medical-services/doctor/${id}/edit`)}>编辑</Button>
         </Space>
       }
     >

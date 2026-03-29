@@ -24,7 +24,7 @@ const CompanyPage: React.FC = () => {
       dataIndex: 'name',
       width: 200,
       render: (_, record) => (
-        <a onClick={() => history.push(`/miniapp-platform/company/${record.id}`)}>{record.name}</a>
+        <a onClick={() => history.push(`/platform/miniapp-platform/company/${record.id}`)}>{record.name}</a>
       ),
     },
     {
@@ -70,7 +70,7 @@ const CompanyPage: React.FC = () => {
     },
     createOperationColumn<Company>({
       width: 150,
-      editUrl: (r) => `/miniapp-platform/company/${r.id}/edit`,
+      editUrl: (r) => `/platform/miniapp-platform/company/${r.id}/edit`,
       onDelete: handleDelete,
       deleteConfirmText: '确定删除该公司吗？',
     }),
@@ -87,7 +87,7 @@ const CompanyPage: React.FC = () => {
         toolBarRender={() => [
           <CreateButton
             key="add"
-            url="/miniapp-platform/company/create"
+            url="/platform/miniapp-platform/company/create"
             label="新增公司"
           />,
         ]}

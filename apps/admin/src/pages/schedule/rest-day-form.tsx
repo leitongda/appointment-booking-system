@@ -96,7 +96,7 @@ const RestDayFormPage: React.FC = () => {
       endDate,
     });
 
-    history.push('/schedule/rest-day');
+    history.push('/medical-services/schedule/rest-day');
   };
 
   return (

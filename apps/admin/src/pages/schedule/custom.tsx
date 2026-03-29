@@ -8,6 +8,7 @@ import { customScheduleApi, storeApi, doctorApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import { APPOINTMENT_TYPE_MAP } from '@hospital/shared';
 import type { CustomSchedule } from '@hospital/api';
+import { ScheduleMessages } from './utils/message';
 
 const CustomSchedulePage: React.FC = () => {
   const { message } = App.useApp();
@@ -52,17 +53,17 @@ const CustomSchedulePage: React.FC = () => {
   const handleDelete = async (id: string) => {
     try {
       await customScheduleApi.delete(id);
-      message.success('删除成功');
+      message.success(ScheduleMessages.deleteSuccess);
       actionRef.current?.reload();
     } catch (error: any) {
-      message.error(error.message || '删除失败');
+      message.error(error.message || ScheduleMessages.deleteFailed);
     }
   };
 
   const handleQueryEffective = async () => {
     const values = form.getFieldsValue();
     if (!values.effectiveStartDate || !values.effectiveEndDate) {
-      message.warning('请选择查询日期范围');
+      message.warning(ScheduleMessages.selectDateRange);
       return;
     }
     try {
@@ -75,7 +76,7 @@ const CustomSchedulePage: React.FC = () => {
       setEffectiveSchedules(result);
       setEffectiveModalOpen(true);
     } catch (error: any) {
-      message.error(error.message || '查询失败');
+      message.error(error.message || ScheduleMessages.queryFailed);
     }
   };
 
@@ -243,7 +244,7 @@ const CustomSchedulePage: React.FC = () => {
               key="add"
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => history.push('/schedule/custom/create')}
+              onClick={() => history.push('/medical-services/schedule/custom/create')}
             >
               添加
             </Button>

@@ -61,7 +61,7 @@ const UserFormPage: React.FC = () => {
         await adminApi.createAdmin(data);
         message.success('创建成功');
       }
-      history.push('/system/user');
+      history.push('/organization/system/user');
     } catch (error: any) {
       message.error(error.message || '操作失败');
     } finally {
