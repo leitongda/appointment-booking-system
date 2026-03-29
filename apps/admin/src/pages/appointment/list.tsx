@@ -21,7 +21,7 @@ const STATUS_MAP: Record<number, { text: string; color: string }> = {
   5: { text: '已完成', color: 'green' },
   6: { text: '已取消', color: 'default' },
   7: { text: '已过期', color: 'default' },
-  8: { text: '已关闭', color: 'default' },
+  8: { text: '已爽约', color: 'red' },
 };
 
 const AppointmentListPage: React.FC = () => {
@@ -293,7 +293,7 @@ const AppointmentListPage: React.FC = () => {
               </a>
             </Popconfirm>
           )}
-          {record.status === 0 && access.hasPermission('appointment:update') && (
+          {record.status === 1 && access.hasPermission('appointment:update') && (
             <Popconfirm title="确定标记为爽约吗？" onConfirm={() => handleMarkNoShow(record.id)}>
               <a style={{ color: '#fa8c16', fontSize: 13 }}>
                 <ExclamationCircleOutlined /> 爽约

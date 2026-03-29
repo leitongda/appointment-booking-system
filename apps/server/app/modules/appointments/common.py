@@ -24,7 +24,7 @@ APPOINTMENT_STATUS = {
     "COMPLETED": 5,
     "CANCELLED": 6,
     "EXPIRED": 7,
-    "CLOSED": 8,
+    "NO_SHOW": 8,  # 爽约状态
 }
 
 
@@ -216,7 +216,7 @@ class AppointmentServiceBase:
             in_progress=status_counts.get(3, 0),
             completed=status_counts.get(5, 0),
             cancelled=status_counts.get(6, 0),
-            no_show=status_counts.get(7, 0),
+            no_show=status_counts.get(8, 0),  # NO_SHOW(爽约)
         )
 
     async def get_queue_info(self, doctor_id: str) -> dict:

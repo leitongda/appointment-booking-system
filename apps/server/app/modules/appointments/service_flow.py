@@ -180,6 +180,8 @@ class AppointmentFlowService(AppointmentServiceBase):
         appointment = await self.get_by_id(appointment_id)
         if not appointment:
             return None
+        if appointment.status not in [APPOINTMENT_STATUS["SIGNED"], APPOINTMENT_STATUS["SEEING"]]:
+            raise ValueError("只有已签到或就诊中状态的预约才能标记完成")
         appointment.status = APPOINTMENT_STATUS["COMPLETED"]
         appointment.complete_time = datetime.now()
         await self.db.commit()
@@ -228,7 +230,7 @@ class AppointmentFlowService(AppointmentServiceBase):
             return None
         if appointment.status not in [APPOINTMENT_STATUS["CONFIRMED"], APPOINTMENT_STATUS["EXPIRED"]]:
             raise ValueError("当前状态不可标记爽约")
-        appointment.status = APPOINTMENT_STATUS["CLOSED"]
+        appointment.status = APPOINTMENT_STATUS["NO_SHOW"]
         await self.db.commit()
         await self.db.refresh(appointment)
         self._dispatch_email_event(EventType.NO_SHOW, appointment)

@@ -9,6 +9,7 @@ from sqlalchemy import and_, func, or_, select
 from app.models.appointment import Appointment
 from app.models.user import Patient, User
 from app.modules.patients.common import PatientsServiceBase
+from app.modules.appointments.common import APPOINTMENT_STATUS
 from app.utils.audit import set_create_audit, set_update_audit
 
 
@@ -96,7 +97,7 @@ class UserManageService(PatientsServiceBase):
         cards_data = []
         for card in cards:
             appointment_count_query = select(func.count(Appointment.id)).where(Appointment.patient_id == card.id)
-            no_show_count_query = select(func.count(Appointment.id)).where(and_(Appointment.patient_id == card.id, Appointment.status == 8))
+            no_show_count_query = select(func.count(Appointment.id)).where(and_(Appointment.patient_id == card.id, Appointment.status == APPOINTMENT_STATUS["NO_SHOW"]))
             if tenant_id:
                 appointment_count_query = appointment_count_query.where(Appointment.tenant_id == tenant_id)
                 no_show_count_query = no_show_count_query.where(Appointment.tenant_id == tenant_id)
@@ -125,7 +126,7 @@ class UserManageService(PatientsServiceBase):
         total_no_show_query = (
             select(func.count(Appointment.id))
             .join(Patient, Appointment.patient_id == Patient.id)
-            .where(and_(Patient.user_id == user_id, Appointment.status == 8))
+            .where(and_(Patient.user_id == user_id, Appointment.status == APPOINTMENT_STATUS["NO_SHOW"]))
         )
         if tenant_id:
             total_appointment_query = total_appointment_query.where(
@@ -344,7 +345,7 @@ class UserManageService(PatientsServiceBase):
 
         appointment_count = await self.db.scalar(select(func.count(Appointment.id)).where(Appointment.patient_id == card_id))
         no_show_count = await self.db.scalar(
-            select(func.count(Appointment.id)).where(and_(Appointment.patient_id == card_id, Appointment.status == 8))
+            select(func.count(Appointment.id)).where(and_(Appointment.patient_id == card_id, Appointment.status == APPOINTMENT_STATUS["NO_SHOW"]))
         )
         return {
             "id": card.id,

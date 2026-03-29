@@ -144,9 +144,9 @@ class TestComplete:
         test_appointment: Appointment,
         appointment_service: AppointmentService
     ):
-        """从任意状态都可以完成（当前实现无状态检查）"""
-        # 设置为已预约状态
-        test_appointment.status = APPOINTMENT_STATUS["CONFIRMED"]
+        """只有已签到或就诊中状态才能完成"""
+        # 设置为已签到状态（前置状态检查要求 SIGNED 或 SEEING）
+        test_appointment.status = APPOINTMENT_STATUS["SIGNED"]
         await db_session.commit()
 
         # 创建 mock 对象
@@ -339,7 +339,7 @@ class TestMarkNoShow:
             result = await appointment_service.mark_no_show(test_appointment.id)
 
         assert result is not None
-        assert result.status == APPOINTMENT_STATUS["CLOSED"]
+        assert result.status == APPOINTMENT_STATUS["NO_SHOW"]
 
     @pytest.mark.asyncio
     async def test_mark_no_show_from_expired(
@@ -356,7 +356,7 @@ class TestMarkNoShow:
             result = await appointment_service.mark_no_show(test_appointment.id)
 
         assert result is not None
-        assert result.status == APPOINTMENT_STATUS["CLOSED"]
+        assert result.status == APPOINTMENT_STATUS["NO_SHOW"]
 
     @pytest.mark.asyncio
     async def test_mark_no_show_not_found(

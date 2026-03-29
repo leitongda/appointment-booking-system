@@ -16,6 +16,7 @@ from app.models.schedule import Schedule
 from app.models.store import Store
 from app.models.user import Patient, User
 from app.modules.patients.common import PatientsServiceBase
+from app.modules.appointments.common import APPOINTMENT_STATUS
 from app.schemas.user import FamilyMemberCreate, PatientCreateByAdmin, PatientUpdate
 from app.utils.audit import set_create_audit, set_update_audit
 
@@ -61,7 +62,7 @@ class PatientManageService(PatientsServiceBase):
         for patient in patients:
             appointment_count_query = select(func.count(Appointment.id)).where(Appointment.patient_id == patient.id)
             no_show_count_query = select(func.count(Appointment.id)).where(
-                and_(Appointment.patient_id == patient.id, Appointment.status == 8)
+                and_(Appointment.patient_id == patient.id, Appointment.status == APPOINTMENT_STATUS["NO_SHOW"])
             )
             if tenant_id:
                 appointment_count_query = appointment_count_query.where(Appointment.tenant_id == tenant_id)
@@ -120,7 +121,7 @@ class PatientManageService(PatientsServiceBase):
 
         user = patient.user
         appointment_count_query = select(func.count(Appointment.id)).where(Appointment.patient_id == patient_id)
-        no_show_count_query = select(func.count(Appointment.id)).where(and_(Appointment.patient_id == patient_id, Appointment.status == 8))
+        no_show_count_query = select(func.count(Appointment.id)).where(and_(Appointment.patient_id == patient_id, Appointment.status == APPOINTMENT_STATUS["NO_SHOW"]))
         completed_count_query = select(func.count(Appointment.id)).where(and_(Appointment.patient_id == patient_id, Appointment.status == 5))
         if tenant_id:
             appointment_count_query = appointment_count_query.where(Appointment.tenant_id == tenant_id)
@@ -153,7 +154,7 @@ class PatientManageService(PatientsServiceBase):
         family_data = []
         for member in family_members:
             member_appt_query = select(func.count(Appointment.id)).where(Appointment.patient_id == member.id)
-            member_no_show_query = select(func.count(Appointment.id)).where(and_(Appointment.patient_id == member.id, Appointment.status == 8))
+            member_no_show_query = select(func.count(Appointment.id)).where(and_(Appointment.patient_id == member.id, Appointment.status == APPOINTMENT_STATUS["NO_SHOW"]))
             if tenant_id:
                 member_appt_query = member_appt_query.where(Appointment.tenant_id == tenant_id)
                 member_no_show_query = member_no_show_query.where(Appointment.tenant_id == tenant_id)
@@ -379,7 +380,7 @@ class PatientManageService(PatientsServiceBase):
         patient_data = []
         for patient in patients:
             no_show_count_query = select(func.count(Appointment.id)).where(
-                and_(Appointment.patient_id == patient.id, Appointment.status == 8)
+                and_(Appointment.patient_id == patient.id, Appointment.status == APPOINTMENT_STATUS["NO_SHOW"])
             )
             if tenant_id:
                 no_show_count_query = no_show_count_query.where(Appointment.tenant_id == tenant_id)

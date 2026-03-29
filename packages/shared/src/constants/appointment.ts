@@ -10,7 +10,7 @@ export const APPOINTMENT_STATUS = {
   COMPLETED: 5,    // 已完成
   CANCELLED: 6,    // 已取消
   EXPIRED: 7,      // 已过期
-  CLOSED: 8,       // 已关闭
+  NO_SHOW: 8,      // 已爽约
 } as const;
 
 export const APPOINTMENT_STATUS_MAP: Record<number, string> = {
@@ -22,7 +22,7 @@ export const APPOINTMENT_STATUS_MAP: Record<number, string> = {
   [APPOINTMENT_STATUS.COMPLETED]: '已完成',
   [APPOINTMENT_STATUS.CANCELLED]: '已取消',
   [APPOINTMENT_STATUS.EXPIRED]: '已过期',
-  [APPOINTMENT_STATUS.CLOSED]: '已关闭',
+  [APPOINTMENT_STATUS.NO_SHOW]: '已爽约',
 };
 
 /**
@@ -37,7 +37,7 @@ export const APPOINTMENT_STATUS_COLOR: Record<number, string> = {
   [APPOINTMENT_STATUS.COMPLETED]: 'green',
   [APPOINTMENT_STATUS.CANCELLED]: 'default',
   [APPOINTMENT_STATUS.EXPIRED]: 'default',
-  [APPOINTMENT_STATUS.CLOSED]: 'default',
+  [APPOINTMENT_STATUS.NO_SHOW]: 'red',
 };
 
 /**

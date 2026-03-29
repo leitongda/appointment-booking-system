@@ -14,7 +14,7 @@ const STATUS_MAP: Record<number, { text: string; color: string }> = {
   5: { text: '已完成', color: 'green' },
   6: { text: '已取消', color: 'default' },
   7: { text: '已过期', color: 'default' },
-  8: { text: '已关闭', color: 'default' },
+  8: { text: '已爽约', color: 'red' },
 };
 
 const TIME_SLOT_MAP: Record<string, string> = {

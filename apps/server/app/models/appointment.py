@@ -17,7 +17,7 @@ class Appointment(Base, AuditMixin):
     # 租户关联（多租户支持）
     tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
     queue_number = Column(Integer)  # 队列号
-    status = Column(Integer, default=1)  # 0待支付 1已预约 2已签到 3候诊中 4就诊中 5已完成 6已取消 7已过期 8已关闭
+    status = Column(Integer, default=1)  # 0待支付 1已预约 2已签到 3候诊中 4就诊中 5已完成 6已取消 7已过期 8已爽约
     sign_in_time = Column(DateTime)
     call_time = Column(DateTime)
     complete_time = Column(DateTime)

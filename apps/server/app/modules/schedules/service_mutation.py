@@ -193,14 +193,17 @@ class ScheduleMutationMixin:
         return schedule
 
     async def batch_suspend(
-        self, schedule_ids: List[str], reason: Optional[str] = None
+        self, schedule_ids: List[str], reason: Optional[str] = None, operator_id: Optional[str] = None
     ) -> dict:
         """
         批量停诊排班
 
+        P0修复：统一停诊操作路径，创建 ScheduleSuspension 记录，确保可以通过停诊管理恢复
+
         Args:
             schedule_ids: 排班ID列表
             reason: 停诊原因
+            operator_id: 操作人ID
 
         Returns:
             包含详细结果的字典:
@@ -249,20 +252,67 @@ class ScheduleMutationMixin:
                 "reason": "排班不存在或已停诊"
             })
 
+        # P0修复：按门店和医生分组创建停诊记录
+        # 停诊记录按 (门店, 医生, 日期) 分组，每个分组创建一条停诊记录
+        from collections import defaultdict
+        from app.models.schedule_suspension import ScheduleSuspension
+        from app.utils.audit import set_create_audit
+
+        suspension_groups = defaultdict(list)  # key: (store_id, doctor_id, date), value: schedule_ids
+        schedule_map = {}  # schedule_id -> schedule
+
         for schedule in schedules:
             try:
-                schedule.status = 0
-                success_ids.append(schedule.id)
-                affected_count += 1
+                # 使用停诊管理服务创建停诊记录
+                # 按 (门店, 医生, 日期) 分组
+                group_key = (schedule.store_id, schedule.doctor_id, schedule.schedule_date)
+                suspension_groups[group_key].append(schedule.id)
+                schedule_map[schedule.id] = schedule
             except Exception as e:
                 failed_items.append({
                     "schedule_id": schedule.id,
                     "reason": str(e)
                 })
 
+        # 为每个分组创建停诊记录
+        for (store_id, doctor_id, suspension_date), sched_ids in suspension_groups.items():
+            try:
+                suspension = ScheduleSuspension(
+                    id=str(uuid.uuid4()),
+                    tenant_id=tenant_id,
+                    store_id=store_id,
+                    doctor_id=doctor_id,
+                    title=reason or "批量停诊",
+                    suspension_date=suspension_date,
+                    schedule_ids=json.dumps(sched_ids),
+                    time_slots=None,  # 批量停诊不指定时段，使用 schedule_ids
+                    status=1
+                )
+                set_create_audit(suspension, operator_id)
+                self.db.add(suspension)
+
+                # 更新排班状态
+                for sched_id in sched_ids:
+                    schedule = schedule_map.get(sched_id)
+                    if schedule:
+                        schedule.status = 0
+                        success_ids.append(sched_id)
+                        affected_count += 1
+            except Exception as e:
+                # 记录失败
+                for sched_id in sched_ids:
+                    failed_items.append({
+                        "schedule_id": sched_id,
+                        "reason": f"创建停诊记录失败: {str(e)}"
+                    })
+
         if affected_count > 0:
             await self.db.commit()
-            await self._send_batch_suspend_notifications(schedules, reason)
+            # 发送停诊通知
+            await self._send_batch_suspend_notifications(
+                [schedule_map[sid] for sid in success_ids if sid in schedule_map],
+                reason
+            )
 
         return {
             "success_count": affected_count,
@@ -341,12 +391,27 @@ class ScheduleMutationMixin:
         except Exception as e:
             logger.warning(f"批量停诊通知发送失败: {e}")
 
-    async def batch_resume(self, schedule_ids: List[str]) -> int:
+    async def batch_resume(self, schedule_ids: List[str], operator_id: Optional[str] = None) -> int:
+        """
+        批量恢复排班
+
+        P0修复：统一恢复操作路径，通过取消 ScheduleSuspension 记录来恢复排班
+
+        Args:
+            schedule_ids: 排班ID列表
+            operator_id: 操作人ID
+
+        Returns:
+            恢复的排班数量
+        """
         if not schedule_ids:
             return 0
 
         # 租户隔离：仅恢复当前租户下的排班
         from app.middleware.tenant_context import get_current_tenant_id
+        from app.models.schedule_suspension import ScheduleSuspension
+        from app.utils.audit import set_update_audit
+
         tenant_id = get_current_tenant_id()
         conditions = [Schedule.id.in_(schedule_ids), Schedule.status == 0]
         if tenant_id:
@@ -357,13 +422,120 @@ class ScheduleMutationMixin:
         )
         schedules = result.scalars().all()
 
+        if not schedules:
+            return 0
+
+        # P0修复：查找并取消相关的停诊记录
         affected_count = 0
+        processed_suspension_ids = set()
+
         for schedule in schedules:
-            schedule.status = 1
-            affected_count += 1
+            # 查找包含该排班ID的停诊记录
+            suspension_conditions = [
+                ScheduleSuspension.doctor_id == schedule.doctor_id,
+                ScheduleSuspension.suspension_date == schedule.schedule_date,
+                ScheduleSuspension.status == 1  # 仅处理生效中的停诊
+            ]
+            if tenant_id:
+                suspension_conditions.append(ScheduleSuspension.tenant_id == tenant_id)
+
+            suspensions_result = await self.db.execute(
+                select(ScheduleSuspension).where(and_(*suspension_conditions))
+            )
+            suspensions = suspensions_result.scalars().all()
+
+            for suspension in suspensions:
+                if suspension.id in processed_suspension_ids:
+                    continue
+
+                # 检查该停诊记录是否包含当前排班
+                should_cancel = False
+                if suspension.schedule_ids:
+                    try:
+                        suspension_schedule_ids = json.loads(suspension.schedule_ids)
+                        if schedule.id in suspension_schedule_ids:
+                            # 从 schedule_ids 中移除该排班
+                            suspension_schedule_ids.remove(schedule.id)
+                            if suspension_schedule_ids:
+                                suspension.schedule_ids = json.dumps(suspension_schedule_ids)
+                            else:
+                                # 如果没有其他排班了，取消整个停诊记录
+                                should_cancel = True
+                    except Exception:
+                        pass
+
+                    if not should_cancel:
+                        # 如果还有其他排班，只更新 schedule_ids
+                        set_update_audit(suspension, operator_id)
+                else:
+                    # 如果停诊记录没有指定 schedule_ids，说明是全天停诊
+                    # 需要检查该医生该日期是否还有其他停诊的排班
+                    other_suspended_result = await self.db.execute(
+                        select(Schedule).where(
+                            and_(
+                                Schedule.doctor_id == schedule.doctor_id,
+                                Schedule.schedule_date == schedule.schedule_date,
+                                Schedule.status == 0,
+                                Schedule.id != schedule.id  # 排除当前排班
+                            )
+                        )
+                    )
+                    other_suspended = other_suspended_result.scalars().first()
+
+                    if not other_suspended:
+                        # 没有其他停诊排班了，可以取消停诊记录
+                        should_cancel = True
+                    else:
+                        # 还有其他停诊排班，不取消停诊记录
+                        pass
+
+                if should_cancel:
+                    # 取消停诊记录
+                    suspension.status = 0
+                    set_update_audit(suspension, operator_id)
+                    # 恢复该停诊记录关联的所有排班
+                    if suspension.schedule_ids:
+                        try:
+                            suspension_schedule_ids = json.loads(suspension.schedule_ids)
+                            for sid in suspension_schedule_ids:
+                                s_result = await self.db.execute(
+                                    select(Schedule).where(Schedule.id == sid)
+                                )
+                                s = s_result.scalar_one_or_none()
+                                if s and s.status == 0:
+                                    s.status = 1
+                                    affected_count += 1
+                        except Exception:
+                            pass
+                    else:
+                        # 全天停诊，恢复该医生该日期所有停诊的排班
+                        all_suspended_result = await self.db.execute(
+                            select(Schedule).where(
+                                and_(
+                                    Schedule.doctor_id == suspension.doctor_id,
+                                    Schedule.schedule_date == suspension.suspension_date,
+                                    Schedule.status == 0
+                                )
+                            )
+                        )
+                        all_suspended = all_suspended_result.scalars().all()
+                        for s in all_suspended:
+                            s.status = 1
+                            affected_count += 1
+
+                    processed_suspension_ids.add(suspension.id)
+                else:
+                    # 只恢复当前排班
+                    schedule.status = 1
+                    affected_count += 1
+            else:
+                # 如果没有找到停诊记录，直接恢复排班状态
+                schedule.status = 1
+                affected_count += 1
 
         if affected_count > 0:
             await self.db.commit()
+
         return affected_count
 
     async def delete(self, schedule_id: str) -> bool:

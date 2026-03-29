@@ -17,6 +17,9 @@ from app.models.appointment import Appointment
 from app.models.message import Message
 from app.models.admin import Admin
 from app.models.settings import SystemSetting as Settings
+from app.models.tenant import Tenant
+from app.middleware.tenant_context import set_tenant_context, clear_tenant_context
+from app.modules.appointments.common import APPOINTMENT_STATUS
 import uuid
 
 logger = logging.getLogger(__name__)
@@ -185,166 +188,210 @@ def auto_release_blacklist_task():
 @celery_app.task(name="app.tasks.blacklist_task.mark_no_show_appointments_task")
 def mark_no_show_appointments_task():
     """
-    自动标记爽约的预约
+    自动标记爽约的预约（多租户版本）
     每30分钟执行一次
-    
+
     规则：
+    - 遍历所有活跃租户
     - 预约日期已过
     - 预约状态为"待就诊"（status=1）
     - 超过就诊结束时间仍未签到
     """
     logger.info("[定时任务] 开始执行：爽约自动标记")
-    marked_count = 0
-    blacklisted_count = 0
-    
+    total_marked_count = 0
+    total_blacklisted_count = 0
+
+    # 第一步：查询所有活跃租户
     with get_sync_db() as db:
         try:
-            now = datetime.now()
-            today = now.date()
-            current_time = now.time()
-            
-            # 获取配置
-            no_show_limit = int(_get_setting_value(db, 'booking', 'noShowLimit', 3))
-            blacklist_days = int(_get_setting_value(db, 'booking', 'blacklistDays', 30))
-            
-            # 查找需要标记为爽约的预约
-            # 条件：状态为待就诊(1)，且就诊日期已过 或 当天但已过就诊时间
-            from app.models.schedule import Schedule
-            
             result = db.execute(
-                select(Appointment, Schedule)
-                .join(Schedule, Appointment.schedule_id == Schedule.id)
-                .where(
-                    and_(
-                        Appointment.status == 1,  # 待就诊
-                        # 日期已过，或当天已过结束时间
-                        (
-                            (Schedule.schedule_date < today) |
-                            (
-                                (Schedule.schedule_date == today) &
-                                (Schedule.end_time < current_time)
-                            )
-                        )
-                    )
-                )
+                select(Tenant).where(Tenant.status.in_([1, 3]))  # 正常或试用状态
             )
-            
-            appointments_to_mark = result.all()
-            
-            for appointment, schedule in appointments_to_mark:
-                # 标记为爽约 (status=7)
-                appointment.status = 7
-                appointment.updated_at = now
-                marked_count += 1
-                
-                # 检查是否需要加入黑名单
-                user_id = appointment.user_id
-                
-                # 统计该用户的爽约次数
-                no_show_count = db.scalar(
-                    select(func.count(Appointment.id)).where(
+            tenants = result.scalars().all()
+        except Exception as e:
+            logger.error(f"查询租户列表失败: {e}")
+            return {"marked_count": 0, "blacklisted_count": 0}
+
+    if not tenants:
+        logger.info("没有活跃租户，跳过爽约标记")
+        return {"marked_count": 0, "blacklisted_count": 0}
+
+    logger.info(f"找到 {len(tenants)} 个活跃租户")
+
+    # 第二步：遍历每个租户，在其上下文中标记爽约
+    for tenant in tenants:
+        logger.info(f"开始处理租户: {tenant.name}({tenant.tenant_code}), id={tenant.id}")
+
+        # 设置当前租户上下文
+        set_tenant_context(tenant.id, tenant.tenant_code)
+
+        try:
+            with get_sync_db() as db:
+                marked_count = 0
+                blacklisted_count = 0
+                now = datetime.now()
+                today = now.date()
+                current_time = now.time()
+
+                # 获取配置
+                no_show_limit = int(_get_setting_value(db, 'booking', 'noShowLimit', 3))
+                blacklist_days = int(_get_setting_value(db, 'booking', 'blacklistDays', 30))
+
+                # 查找需要标记为爽约的预约（添加 tenant_id 过滤）
+                from app.models.schedule import Schedule
+
+                result = db.execute(
+                    select(Appointment, Schedule)
+                    .join(Schedule, Appointment.schedule_id == Schedule.id)
+                    .where(
                         and_(
-                            Appointment.user_id == user_id,
-                            Appointment.status == 8  # CLOSED(爽约)
-                        )
-                    )
-                )
-                
-                # 达到阈值，自动加入黑名单
-                if no_show_count and no_show_count >= no_show_limit:
-                    # 检查是否已在黑名单中
-                    existing_blacklist = db.scalar(
-                        select(Blacklist).where(
-                            and_(
-                                Blacklist.user_id == user_id,
-                                Blacklist.status == 1
+                            Appointment.tenant_id == tenant.id,
+                            Appointment.status == 1,  # 待就诊
+                            # 日期已过，或当天已过结束时间
+                            (
+                                (Schedule.schedule_date < today) |
+                                (
+                                    (Schedule.schedule_date == today) &
+                                    (Schedule.end_time < current_time)
+                                )
                             )
                         )
                     )
-                    
-                    if not existing_blacklist:
-                        expire_at = now + timedelta(days=blacklist_days)
-                        blacklist = Blacklist(
-                            id=str(uuid.uuid4()),
-                            type='user',
-                            user_id=user_id,
-                            reason=f'自动加入：爽约 {no_show_count} 次',
-                            expire_at=expire_at,
-                            status=1,
+                )
+
+                appointments_to_mark = result.all()
+
+                for appointment, schedule in appointments_to_mark:
+                    # 标记为爽约
+                    appointment.status = APPOINTMENT_STATUS["NO_SHOW"]
+                    appointment.updated_at = now
+                    marked_count += 1
+
+                    # 检查是否需要加入黑名单
+                    user_id = appointment.user_id
+
+                    # 统计该用户的爽约次数
+                    no_show_count = db.scalar(
+                        select(func.count(Appointment.id)).where(
+                            and_(
+                                Appointment.tenant_id == tenant.id,
+                                Appointment.user_id == user_id,
+                                Appointment.status == APPOINTMENT_STATUS["NO_SHOW"]
+                            )
                         )
-                        db.add(blacklist)
-                        blacklisted_count += 1
-                        
-                        # 发送通知
-                        user = db.get(User, user_id)
-                        user_info = user.nickname or user.phone if user else '未知用户'
-                        _notify_admins_sync(
-                            db,
-                            title='用户已自动加入黑名单',
-                            content=f'用户 {user_info} 因爽约 {no_show_count} 次，'
-                                   f'已自动加入黑名单，将于 {expire_at.strftime("%Y-%m-%d")} 自动解禁'
+                    )
+
+                    # 达到阈值，自动加入黑名单
+                    if no_show_count and no_show_count >= no_show_limit:
+                        # 检查是否已在黑名单中
+                        existing_blacklist = db.scalar(
+                            select(Blacklist).where(
+                                and_(
+                                    Blacklist.tenant_id == tenant.id,
+                                    Blacklist.user_id == user_id,
+                                    Blacklist.status == 1
+                                )
+                            )
                         )
-                        logger.info(f"用户 {user_info} 已加入黑名单")
-            
-            db.commit()
-            
+
+                        if not existing_blacklist:
+                            expire_at = now + timedelta(days=blacklist_days)
+                            blacklist = Blacklist(
+                                id=str(uuid.uuid4()),
+                                tenant_id=tenant.id,
+                                type='user',
+                                user_id=user_id,
+                                reason=f'自动加入：爽约 {no_show_count} 次',
+                                expire_at=expire_at,
+                                status=1,
+                            )
+                            db.add(blacklist)
+                            blacklisted_count += 1
+
+                            # 发送通知
+                            user = db.get(User, user_id)
+                            user_info = user.nickname or user.phone if user else '未知用户'
+                            _notify_admins_sync(
+                                db,
+                                title='用户已自动加入黑名单',
+                                content=f'用户 {user_info} 因爽约 {no_show_count} 次，'
+                                       f'已自动加入黑名单，将于 {expire_at.strftime("%Y-%m-%d")} 自动解禁'
+                            )
+                            logger.info(f"用户 {user_info} 已加入黑名单")
+
+                db.commit()
+                total_marked_count += marked_count
+                total_blacklisted_count += blacklisted_count
+
         except Exception as e:
-            db.rollback()
-            logger.error(f"爽约自动标记任务执行失败: {e}")
-            raise
-    
-    logger.info(f"[定时任务] 爽约自动标记完成，共标记 {marked_count} 条，"
-                f"新增黑名单 {blacklisted_count} 人")
+            logger.error(f"租户 {tenant.name} 爽约自动标记任务执行失败: {e}")
+        finally:
+            # 清除租户上下文
+            clear_tenant_context()
+
+    logger.info(f"[定时任务] 爽约自动标记完成，共标记 {total_marked_count} 条，"
+                f"新增黑名单 {total_blacklisted_count} 人")
     return {
-        "marked_count": marked_count,
-        "blacklisted_count": blacklisted_count
+        "marked_count": total_marked_count,
+        "blacklisted_count": total_blacklisted_count
     }
 
 
 @celery_app.task(name="app.tasks.blacklist_task.check_and_add_blacklist")
 def check_and_add_blacklist(user_id: str):
     """
-    检查用户爽约次数并自动加入黑名单
+    检查用户爽约次数并自动加入黑名单（多租户版本）
     在预约状态变更为爽约时调用（手动触发）
-    
+
     Args:
         user_id: 用户ID
     """
     logger.info(f"[任务] 检查用户黑名单状态: user_id={user_id}")
-    
+
+    # 从租户上下文获取租户ID
+    from app.middleware.tenant_context import get_current_tenant_id
+    tenant_id = get_current_tenant_id()
+
+    if not tenant_id:
+        logger.warning("无法获取租户上下文，跳过黑名单检查")
+        return {"blacklisted": False, "user_id": user_id, "reason": "无租户上下文"}
+
     with get_sync_db() as db:
         try:
             # 获取配置
             no_show_limit = int(_get_setting_value(db, 'booking', 'noShowLimit', 3))
             blacklist_days = int(_get_setting_value(db, 'booking', 'blacklistDays', 30))
-            
-            # 统计爽约次数
+
+            # 统计爽约次数（添加租户过滤）
             no_show_count = db.scalar(
                 select(func.count(Appointment.id)).where(
                     and_(
+                        Appointment.tenant_id == tenant_id,
                         Appointment.user_id == user_id,
-                        Appointment.status == 8  # CLOSED(爽约)
+                        Appointment.status == APPOINTMENT_STATUS["NO_SHOW"]
                     )
                 )
             )
-            
+
             if no_show_count and no_show_count >= no_show_limit:
-                # 检查是否已在黑名单
+                # 检查是否已在黑名单（添加租户过滤）
                 existing = db.scalar(
                     select(Blacklist).where(
                         and_(
+                            Blacklist.tenant_id == tenant_id,
                             Blacklist.user_id == user_id,
                             Blacklist.status == 1
                         )
                     )
                 )
-                
+
                 if not existing:
                     now = datetime.now()
                     expire_at = now + timedelta(days=blacklist_days)
-                    
+
                     blacklist = Blacklist(
                         id=str(uuid.uuid4()),
+                        tenant_id=tenant_id,
                         type='user',
                         user_id=user_id,
                         reason=f'自动加入：爽约 {no_show_count} 次',
@@ -352,7 +399,7 @@ def check_and_add_blacklist(user_id: str):
                         status=1,
                     )
                     db.add(blacklist)
-                    
+
                     # 发送通知
                     user = db.get(User, user_id)
                     user_info = user.nickname or user.phone if user else '未知用户'
@@ -362,13 +409,13 @@ def check_and_add_blacklist(user_id: str):
                         content=f'用户 {user_info} 因爽约 {no_show_count} 次，'
                                f'已自动加入黑名单'
                     )
-                    
+
                     db.commit()
                     logger.info(f"用户 {user_id} 已加入黑名单")
                     return {"blacklisted": True, "user_id": user_id}
-            
+
             return {"blacklisted": False, "user_id": user_id}
-            
+
         except Exception as e:
             db.rollback()
             logger.error(f"检查黑名单任务失败: {e}")

@@ -204,6 +204,13 @@ class ScheduleTemplateGenerationMixin:
         end_date: Optional[date] = None,
         future_only: bool = True,
     ) -> int:
+        """
+        批量停诊排班（统一使用 ScheduleService.batch_suspend）
+
+        P0修复：统一停诊操作路径，创建 ScheduleSuspension 记录
+        """
+        from app.modules.schedules.service import ScheduleService
+
         today = date.today()
         conditions = [Schedule.template_id == template_id, Schedule.status == 1]
         if future_only:
@@ -217,12 +224,20 @@ class ScheduleTemplateGenerationMixin:
         result = await self.db.execute(query)
         schedules = result.scalars().all()
 
-        affected_count = 0
-        for schedule in schedules:
-            schedule.status = 0
-            affected_count += 1
+        if not schedules:
+            return 0
 
-        if affected_count > 0:
+        # 使用统一的停诊服务
+        schedule_service = ScheduleService(self.db)
+        schedule_ids = [s.id for s in schedules]
+        result = await schedule_service.batch_suspend(
+            schedule_ids=schedule_ids,
+            reason=f"排班规则({template_id})批量停诊",
+            operator_id=operator_id
+        )
+
+        # 记录生成日志
+        if result.get("success_count", 0) > 0:
             log = ScheduleGenerationLog(
                 id=str(uuid.uuid4()),
                 template_id=template_id,
@@ -231,13 +246,13 @@ class ScheduleTemplateGenerationMixin:
                 action_type="suspend",
                 start_date=start_date or (today if future_only else None),
                 end_date=end_date,
-                affected_count=affected_count,
-                remark=f"批量停诊，停诊 {affected_count} 条记录",
+                affected_count=result["success_count"],
+                remark=f"批量停诊，停诊 {result['success_count']} 条记录",
             )
             self.db.add(log)
             await self.db.commit()
 
-        return affected_count
+        return result.get("success_count", 0)
 
     async def log_generation(
         self,

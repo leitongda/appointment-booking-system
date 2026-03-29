@@ -222,11 +222,12 @@ async def get_schedule_statistics(
     # 汇总统计数据
     stats_dict = {}  # key: (date, doctor_id)
     
-    # 1. 获取普通排班统计
+    # 1. 获取普通排班统计（添加 store_id 过滤，确保门店隔离）
     normal_result = await db.execute(
         select(Schedule)
         .where(
             and_(
+                Schedule.store_id == store_id,
                 Schedule.doctor_id.in_(list(doctor_map.keys())),
                 Schedule.schedule_date >= start_date,
                 Schedule.schedule_date <= end_date
@@ -257,12 +258,13 @@ async def get_schedule_statistics(
             stats_dict[key]["evening_slots"] += s.total_slots
             stats_dict[key]["evening_booked"] += s.booked_slots
     
-    # 2. 获取自定义排班统计（template_id为NULL的排班）
+    # 2. 获取自定义排班统计（template_id为NULL的排班，添加 doctor_id 过滤确保门店隔离）
     custom_result = await db.execute(
         select(Schedule)
         .where(
             and_(
                 Schedule.store_id == store_id,
+                Schedule.doctor_id.in_(list(doctor_map.keys())),  # 只查询该门店下的医生
                 Schedule.schedule_date >= start_date,
                 Schedule.schedule_date <= end_date,
                 Schedule.status == 1,
@@ -565,9 +567,13 @@ async def batch_suspend_schedules(
 ):
     """批量停诊排班"""
     service = ScheduleService(db)
-    
+
     try:
-        affected_count = await service.batch_suspend(data.schedule_ids, data.reason)
+        affected_count = await service.batch_suspend(
+            data.schedule_ids,
+            data.reason,
+            operator_id=current_admin.get("id")
+        )
         return BatchOperateResponse(
             success=True,
             affected_count=affected_count,
@@ -586,9 +592,12 @@ async def batch_resume_schedules(
 ):
     """批量恢复排班"""
     service = ScheduleService(db)
-    
+
     try:
-        affected_count = await service.batch_resume(data.schedule_ids)
+        affected_count = await service.batch_resume(
+            data.schedule_ids,
+            operator_id=current_admin.get("id")
+        )
         return BatchOperateResponse(
             success=True,
             affected_count=affected_count,

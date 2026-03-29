@@ -14,7 +14,7 @@
 - COMPLETED: 5    已完成
 - CANCELLED: 6    已取消
 - EXPIRED: 7      已过期
-- CLOSED: 8       已关闭
+- NO_SHOW: 8      已爽约
 """
 import pytest
 from datetime import datetime
@@ -55,8 +55,8 @@ class TestAppointmentStatusConstants:
         assert APPOINTMENT_STATUS['CANCELLED'] == 6
         # 已过期
         assert APPOINTMENT_STATUS['EXPIRED'] == 7
-        # 已关闭
-        assert APPOINTMENT_STATUS['CLOSED'] == 8
+        # 已爽约
+        assert APPOINTMENT_STATUS['NO_SHOW'] == 8
 
 
 class TestFullStatusFlow:

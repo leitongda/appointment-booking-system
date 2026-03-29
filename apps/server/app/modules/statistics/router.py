@@ -16,6 +16,7 @@ from app.models.user import Patient
 from app.schemas.response import ResponseModel
 from app.db.session import get_db
 from app.modules.revenue.service import RevenueService
+from app.modules.appointments.common import APPOINTMENT_STATUS
 
 router = APIRouter()
 
@@ -435,9 +436,9 @@ async def get_appointment_summary(
     query = (
         select(
             func.count(Appointment.id).label('total'),
-            func.sum(case((Appointment.status == 5, 1), else_=0)).label('completed'),
-            func.sum(case((Appointment.status == 8, 1), else_=0)).label('no_show'),  # 8=CLOSED(爽约)
-            func.sum(case((Appointment.status == 6, 1), else_=0)).label('cancelled'),
+            func.sum(case((Appointment.status == APPOINTMENT_STATUS["COMPLETED"], 1), else_=0)).label('completed'),
+            func.sum(case((Appointment.status == APPOINTMENT_STATUS["NO_SHOW"], 1), else_=0)).label('no_show'),
+            func.sum(case((Appointment.status == APPOINTMENT_STATUS["CANCELLED"], 1), else_=0)).label('cancelled'),
         )
         .select_from(Appointment)
         .join(Schedule, Appointment.schedule_id == Schedule.id)
