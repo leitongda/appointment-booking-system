@@ -1,6 +1,10 @@
 from pathlib import Path
 
 
+# 相对于本测试文件的 server 根目录
+_SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
+
+
 # These wrapper files have been deleted as part of the module boundary refactor.
 # This test verifies they are gone and that code no longer references them.
 DELETED_WRAPPERS = [
@@ -54,26 +58,26 @@ REMAINING_IMPLEMENTATIONS = [
 
 def test_api_v1_only_contains_init():
     """验证 api/v1 目录只保留 __init__.py 作为路由注册层"""
-    api_dir = Path("app/api/v1")
+    api_dir = _SERVER_ROOT / "app" / "api" / "v1"
     py_files = list(api_dir.glob("*.py"))
     assert len(py_files) == 1, f"api/v1 应只包含 __init__.py，但发现: {[f.name for f in py_files]}"
     assert py_files[0].name == "__init__.py"
 
 
 def test_storage_compat_layer_removed():
-    storage_dir = Path("app/services/storage")
+    storage_dir = _SERVER_ROOT / "app" / "services" / "storage"
     assert not list(storage_dir.glob("*.py"))
 
 
 def test_deleted_wrappers_no_longer_exist():
     """验证所有兼容层 wrapper 文件已被删除"""
-    services_dir = Path("app/services")
+    services_dir = _SERVER_ROOT / "app" / "services"
     for filename in DELETED_WRAPPERS:
         assert not (services_dir / filename).exists(), f"{filename} should have been deleted"
 
 
 def test_remaining_implementations_still_exist():
     """验证包含实际业务逻辑的文件仍保留"""
-    services_dir = Path("app/services")
+    services_dir = _SERVER_ROOT / "app" / "services"
     for filename in REMAINING_IMPLEMENTATIONS:
         assert (services_dir / filename).exists(), f"{filename} should still exist"
