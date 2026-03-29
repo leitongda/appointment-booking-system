@@ -1,64 +1,6 @@
 import request from '../request';
 import type { Schedule, PageResult } from '@hospital/shared';
-
-/**
- * 验证并格式化时间值
- * @param timeValue 时间值（可能是字符串、dayjs对象、Date对象或其他格式）
- * @returns 格式化后的 "HH:mm" 字符串，如果无效则返回 undefined
- */
-function formatTimeValue(timeValue: any): string | undefined {
-  if (!timeValue) return undefined;
-  
-  // 如果已经是有效的 "HH:mm" 格式字符串，直接返回
-  if (typeof timeValue === 'string') {
-    // 检查是否是 "Invalid Date" 字符串
-    if (timeValue === 'Invalid Date' || timeValue.toLowerCase().includes('invalid')) {
-      return undefined;
-    }
-    // 检查是否符合 "HH:mm" 格式
-    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-    if (timeRegex.test(timeValue)) {
-      return timeValue;
-    }
-    // 尝试从其他格式中提取时间（如 "HH:mm:ss"）
-    const timeMatch = timeValue.match(/([01]\d|2[0-3]):([0-5]\d)/);
-    if (timeMatch) {
-      return timeMatch[0];
-    }
-    return undefined;
-  }
-  
-  // 如果是 Date 对象
-  if (timeValue instanceof Date) {
-    if (!isNaN(timeValue.getTime())) {
-      const hours = String(timeValue.getHours()).padStart(2, '0');
-      const minutes = String(timeValue.getMinutes()).padStart(2, '0');
-      return `${hours}:${minutes}`;
-    }
-    return undefined;
-  }
-  
-  // 如果是对象且有 format 方法（可能是 dayjs 对象）
-  if (timeValue && typeof timeValue.format === 'function') {
-    try {
-      // 检查是否有 isValid 方法
-      if (timeValue.isValid && !timeValue.isValid()) {
-        return undefined;
-      }
-      const formatted = timeValue.format('HH:mm');
-      // 验证格式化后的结果
-      const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-      if (timeRegex.test(formatted)) {
-        return formatted;
-      }
-    } catch (e) {
-      // 如果格式化失败，返回 undefined
-      return undefined;
-    }
-  }
-  
-  return undefined;
-}
+import { formatTimeValue } from '../utils/formatTime';
 
 export interface ScheduleListParams {
   doctorId?: string;
@@ -225,77 +167,50 @@ export const scheduleApi = {
   },
 
   /**
-   * 停诊
-   * @deprecated 请使用 scheduleSuspensionApi.create() 代替
-   * 此方法为了保持向后兼容，内部会先获取排班详情，然后创建停诊记录
+   * 停诊（直接使用排班数据创建停诊记录）
    */
-  suspend: async (id: string, reason?: string, _notifyPatients: boolean = true): Promise<{
-    message: string;
-    notification?: {
-      notifiedCount: number;
-      failedCount: number;
-      message: string;
-    };
-  }> => {
-    // 先获取排班详情
-    const schedule: Schedule = await request.get(`/schedules/${id}`);
-    
+  suspendSchedule: async (schedule: { id: string; storeId?: string; doctorId: string; scheduleDate: string }, reason?: string): Promise<{ message: string }> => {
     if (!schedule.storeId) {
       throw new Error('排班缺少门店信息，无法停诊');
     }
-    
-    // 使用新的停诊API
+
     const { scheduleSuspensionApi } = await import('./schedule-suspension');
     await scheduleSuspensionApi.create({
       storeId: schedule.storeId,
       doctorId: schedule.doctorId,
       title: reason || '管理员停诊',
       suspensionDate: schedule.scheduleDate,
-      scheduleIds: [id],
+      scheduleIds: [schedule.id],
     });
-    
-    return {
-      message: '停诊成功',
-      // 注意：新API不返回notification信息，如果需要可以后续扩展
-      // notifyPatients 参数暂时忽略，因为新API会自动通知患者
-    };
+
+    return { message: '停诊成功' };
   },
 
   /**
-   * 恢复排班
-   * @deprecated 请使用 scheduleSuspensionApi.cancel() 代替
-   * 此方法为了保持向后兼容，会查找对应的停诊记录并取消
+   * 恢复排班（查找对应停诊记录并取消）
    */
-  resume: async (id: string): Promise<{ message: string }> => {
-    // 先获取排班详情
-    const schedule: Schedule = await request.get(`/schedules/${id}`);
-    
-    // 查找该排班的停诊记录
+  resumeSchedule: async (schedule: { id: string; doctorId: string; scheduleDate: string }): Promise<{ message: string }> => {
     const { scheduleSuspensionApi } = await import('./schedule-suspension');
     const suspensions = await scheduleSuspensionApi.getList({
       doctorId: schedule.doctorId,
       startDate: schedule.scheduleDate,
       endDate: schedule.scheduleDate,
-      status: 1, // 生效中的停诊
-      pageSize: 100, // 获取足够多的记录
+      status: 1,
+      pageSize: 100,
     });
-    
-    // 查找包含该排班ID的停诊记录，或者全天停诊的记录
+
     const suspension = suspensions.data?.find(s => {
       if (s.scheduleIds && s.scheduleIds.length > 0) {
-        return s.scheduleIds.includes(id);
+        return s.scheduleIds.includes(schedule.id);
       }
-      // 如果没有指定scheduleIds，说明是全天停诊
       return s.suspensionDate === schedule.scheduleDate;
     });
-    
+
     if (suspension) {
       await scheduleSuspensionApi.cancel(suspension.id);
-      return { message: '恢复成功' };
-    } else {
-      // 如果没有找到停诊记录，直接返回成功（可能排班状态已经是正常的）
-      return { message: '恢复成功' };
     }
+
+    return { message: '恢复成功' };
   },
 
   /**

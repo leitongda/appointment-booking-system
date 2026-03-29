@@ -7,12 +7,27 @@ from typing import Optional
 
 from sqlalchemy import select
 
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.schedule_template import ScheduleTemplate
 from app.schemas.schedule_template import ScheduleTemplateCreate, ScheduleTemplateUpdate
 from app.utils.audit import set_create_audit, set_update_audit
 
 
 class ScheduleTemplateMutationMixin:
+    async def _get_template_with_tenant(self, template_id: str) -> Optional[ScheduleTemplate]:
+        """根据 ID 查询排班模板，同时过滤租户（与 service_query 保持一致）。"""
+        from sqlalchemy import and_
+
+        conditions = [ScheduleTemplate.id == template_id]
+        tenant_id = get_current_tenant_id()
+        if tenant_id is not None:
+            conditions.append(ScheduleTemplate.tenant_id == tenant_id)
+
+        result = await self.db.execute(
+            select(ScheduleTemplate).where(and_(*conditions))
+        )
+        return result.scalar_one_or_none()
+
     async def create(self, data: ScheduleTemplateCreate) -> ScheduleTemplate:
         from app.models.department import Department
         from app.models.doctor import Doctor
@@ -81,6 +96,7 @@ class ScheduleTemplateMutationMixin:
         template = ScheduleTemplate(
             id=str(uuid.uuid4()),
             name=data.name,
+            tenant_id=get_current_tenant_id(),
             store_id=data.store_id,
             doctor_id=data.doctor_id,
             department_id=data.department_id,
@@ -107,7 +123,7 @@ class ScheduleTemplateMutationMixin:
     async def update(
         self, template_id: str, data: ScheduleTemplateUpdate, operator_id: Optional[str] = None
     ) -> Optional[ScheduleTemplate]:
-        template = await self.get_by_id(template_id)
+        template = await self._get_template_with_tenant(template_id)
         if not template:
             return None
 
@@ -160,7 +176,7 @@ class ScheduleTemplateMutationMixin:
         return template
 
     async def delete(self, template_id: str) -> bool:
-        template = await self.get_by_id(template_id)
+        template = await self._get_template_with_tenant(template_id)
         if not template:
             return False
 

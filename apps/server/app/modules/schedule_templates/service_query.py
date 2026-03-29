@@ -2,15 +2,22 @@
 
 from typing import List, Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import selectinload
 
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.schedule_generation_log import ScheduleGenerationLog
 from app.models.schedule_template import ScheduleTemplate
 
 
 class ScheduleTemplateQueryMixin:
-    async def get_by_id(self, template_id: str) -> Optional[ScheduleTemplate]:
+    async def _get_template_with_tenant(self, template_id: str) -> Optional[ScheduleTemplate]:
+        """根据 ID 查询排班模板，同时过滤租户。"""
+        conditions = [ScheduleTemplate.id == template_id]
+        tenant_id = get_current_tenant_id()
+        if tenant_id is not None:
+            conditions.append(ScheduleTemplate.tenant_id == tenant_id)
+
         result = await self.db.execute(
             select(ScheduleTemplate)
             .options(
@@ -18,9 +25,12 @@ class ScheduleTemplateQueryMixin:
                 selectinload(ScheduleTemplate.doctor),
                 selectinload(ScheduleTemplate.department),
             )
-            .where(ScheduleTemplate.id == template_id)
+            .where(and_(*conditions))
         )
         return result.scalar_one_or_none()
+
+    async def get_by_id(self, template_id: str) -> Optional[ScheduleTemplate]:
+        return await self._get_template_with_tenant(template_id)
 
     async def get_list(
         self,
@@ -37,6 +47,12 @@ class ScheduleTemplateQueryMixin:
             selectinload(ScheduleTemplate.department),
         )
         count_query = select(func.count(ScheduleTemplate.id))
+
+        # 租户隔离
+        tenant_id = get_current_tenant_id()
+        if tenant_id is not None:
+            query = query.where(ScheduleTemplate.tenant_id == tenant_id)
+            count_query = count_query.where(ScheduleTemplate.tenant_id == tenant_id)
 
         if store_id:
             query = query.where(ScheduleTemplate.store_id == store_id)
@@ -67,6 +83,11 @@ class ScheduleTemplateQueryMixin:
         page: int = 1,
         page_size: int = 10,
     ) -> tuple[List[ScheduleGenerationLog], int]:
+        # 先验证模板属于当前租户
+        template = await self._get_template_with_tenant(template_id)
+        if not template:
+            return [], 0
+
         query = select(ScheduleGenerationLog).where(
             ScheduleGenerationLog.template_id == template_id
         ).order_by(ScheduleGenerationLog.created_at.desc())

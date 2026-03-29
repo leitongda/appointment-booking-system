@@ -1,7 +1,7 @@
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Button, App, Space, Modal, Grid, Alert, Statistic, Card } from 'antd';
+import { Button, App, Space, Modal, Grid, Alert, Tag } from 'antd';
 import { useRef, useState } from 'react';
 import { history, useAccess } from '@umijs/max';
 
@@ -22,8 +22,8 @@ const RuleSetsPage: React.FC = () => {
   const [selectedRows, setSelectedRows] = useState<RuleSet[]>([]);
   const [selectedRuleSet, setSelectedRuleSet] = useState<RuleSet | null>(null);
 
-  // 统计信息（仅使用后端返回的 total，启用/禁用/生效中无全量数据，不再展示避免误导）
-  const [total, setTotal] = useState(0);
+  // 统计信息
+  const [stats, setStats] = useState({ total: 0, enabled: 0, disabled: 0 });
 
   const handleDelete = async (id: string) => {
     try {
@@ -176,9 +176,11 @@ const RuleSetsPage: React.FC = () => {
         closable
         style={{ marginBottom: 16 }}
       />
-      <Card size="small" style={{ marginBottom: 16, display: 'inline-block' }}>
-        <Statistic title="规则组总数" value={total} />
-      </Card>
+      <Space size={16} style={{ marginBottom: 16 }}>
+        <Tag color="blue" style={{ fontSize: 14, padding: '4px 12px' }}>总数: {stats.total}</Tag>
+        <Tag color="success" style={{ fontSize: 14, padding: '4px 12px' }}>已启用: {stats.enabled}</Tag>
+        <Tag color="default" style={{ fontSize: 14, padding: '4px 12px' }}>已禁用: {stats.disabled}</Tag>
+      </Space>
       <ProTable<RuleSet>
         headerTitle="规则组列表"
         actionRef={actionRef}
@@ -202,7 +204,12 @@ const RuleSetsPage: React.FC = () => {
             pageSize: params.pageSize,
           });
           // 更新统计信息
-          setTotal(result.total || 0);
+          const data = result.data || [];
+          setStats({
+            total: result.total || 0,
+            enabled: data.filter((r: RuleSet) => r.enabled).length,
+            disabled: data.filter((r: RuleSet) => !r.enabled).length,
+          });
           return {
             data: result.data || [],
             success: true,

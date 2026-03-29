@@ -578,6 +578,7 @@ const ScheduleRulePage: React.FC = () => {
       dataIndex: 'slotCount',
       width: 80,
       search: false,
+      hideInTable: true,
       render: (_, record) => `${record.slotCount || 1}个`,
     },
     {
@@ -585,6 +586,7 @@ const ScheduleRulePage: React.FC = () => {
       dataIndex: 'slotCapacity',
       width: 80,
       search: false,
+      hideInTable: true,
       render: (_, record) => record.slotCapacity || 10,
     },
     {
@@ -592,6 +594,7 @@ const ScheduleRulePage: React.FC = () => {
       dataIndex: 'scheduleMode',
       width: 100,
       search: false,
+      hideInTable: true,
       render: (_, record) => SCHEDULE_MODE_MAP[record.scheduleMode] || record.scheduleMode,
     },
     {
@@ -611,6 +614,7 @@ const ScheduleRulePage: React.FC = () => {
       dataIndex: 'lastGeneratedAt',
       width: 160,
       search: false,
+      hideInTable: true,
       render: (_, record) => {
         if (record.lastGeneratedAt) {
           return dayjs(record.lastGeneratedAt).format('YYYY-MM-DD HH:mm');

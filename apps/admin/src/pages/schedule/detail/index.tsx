@@ -86,9 +86,9 @@ const ScheduleDetailPage: React.FC = () => {
     }
   };
 
-  const handleSuspend = async (id: string) => {
+  const handleSuspend = async (record: Schedule) => {
     try {
-      await scheduleApi.suspend(id, '管理员停诊');
+      await scheduleApi.suspendSchedule(record, '管理员停诊');
       message.success(ScheduleMessages.suspendSuccess);
       actionRef.current?.reload();
     } catch (error: any) {
@@ -96,9 +96,9 @@ const ScheduleDetailPage: React.FC = () => {
     }
   };
 
-  const handleResume = async (id: string) => {
+  const handleResume = async (record: Schedule) => {
     try {
-      await scheduleApi.resume(id);
+      await scheduleApi.resumeSchedule(record);
       message.success(ScheduleMessages.restoreSuccess);
       actionRef.current?.reload();
     } catch (error: any) {
@@ -364,11 +364,11 @@ const ScheduleDetailPage: React.FC = () => {
         <Space>
           {access.hasPermission('schedule:update') && (
             record.status === 1 ? (
-              <Popconfirm title="确定停诊吗？" onConfirm={() => handleSuspend(record.id)}>
+              <Popconfirm title="确定停诊吗？" onConfirm={() => handleSuspend(record)}>
                 <a style={{ color: '#ff4d4f' }}>停诊</a>
               </Popconfirm>
             ) : (
-              <a onClick={() => handleResume(record.id)}>恢复</a>
+              <a onClick={() => handleResume(record)}>恢复</a>
             )
           )}
         </Space>

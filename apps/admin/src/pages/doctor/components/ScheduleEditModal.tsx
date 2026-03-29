@@ -51,10 +51,10 @@ const ScheduleEditModal: React.FC<ScheduleEditModalProps> = ({
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleSuspend = async (scheduleId: string) => {
+  const handleSuspend = async (schedule: Schedule) => {
     try {
       setLoading(true);
-      await scheduleApi.suspend(scheduleId, '管理员停诊', true);
+      await scheduleApi.suspendSchedule(schedule, '管理员停诊');
       message.success('停诊成功');
       onSuccess();
     } catch (error: any) {
@@ -64,10 +64,10 @@ const ScheduleEditModal: React.FC<ScheduleEditModalProps> = ({
     }
   };
 
-  const handleResume = async (scheduleId: string) => {
+  const handleResume = async (schedule: Schedule) => {
     try {
       setLoading(true);
-      await scheduleApi.resume(scheduleId);
+      await scheduleApi.resumeSchedule(schedule);
       message.success('恢复成功');
       onSuccess();
     } catch (error: any) {
@@ -185,12 +185,12 @@ const ScheduleEditModal: React.FC<ScheduleEditModalProps> = ({
                     <Popconfirm
                       key="suspend"
                       title="确定停诊吗？已预约的患者将收到通知。"
-                      onConfirm={() => handleSuspend(schedule.id)}
+                      onConfirm={() => handleSuspend(schedule)}
                     >
                       <a style={{ color: '#ff4d4f' }}>停诊</a>
                     </Popconfirm>
                   ) : (
-                    <a key="resume" onClick={() => handleResume(schedule.id)}>
+                    <a key="resume" onClick={() => handleResume(schedule)}>
                       恢复
                     </a>
                   ),

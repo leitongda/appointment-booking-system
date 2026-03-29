@@ -107,14 +107,9 @@ const SchedulePage: React.FC = () => {
 
     setSuspendLoading(true);
     try {
-      const result = await scheduleApi.suspend(currentSchedule.id, suspendReason, notifyPatients);
-      
-      if (result.notification) {
-        message.success(`停诊申请已提交，已通知 ${result.notification.notifiedCount} 位患者`);
-      } else {
-        message.success('停诊申请已提交');
-      }
-      
+      await scheduleApi.suspendSchedule(currentSchedule, suspendReason);
+      message.success('停诊申请已提交');
+
       setSuspendModalVisible(false);
       loadSchedules();
     } catch (error: any) {

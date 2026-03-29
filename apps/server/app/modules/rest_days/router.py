@@ -11,7 +11,7 @@ from app.schemas.rest_day import (
     RestDayResponse,
 )
 from app.schemas.response import PageResponse
-from app.services.rest_day_service import RestDayService
+from app.modules.rest_days.service import RestDayService
 from app.core.config import settings
 
 router = APIRouter()

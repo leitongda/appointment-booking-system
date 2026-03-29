@@ -1,6 +1,6 @@
 import { SearchOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
-import { Button, Card, Form, Select, DatePicker, Table, Tag, Empty, Row, Col, Statistic } from 'antd';
+import { Button, Card, Form, Select, DatePicker, Table, Tag, Empty, Row, Col, Statistic, message } from 'antd';
 import { useState } from 'react';
 import { useAccess } from '@umijs/max';
 import { scheduleApi } from '@hospital/api';
@@ -31,9 +31,33 @@ const ScheduleStatisticsPage: React.FC = () => {
       setStatistics(result);
     } catch (error: any) {
       console.error('查询失败', error);
+      message.error('查询统计数据失败');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExportCSV = () => {
+    if (!statistics || !statistics.items || statistics.items.length === 0) {
+      message.warning('暂无数据可导出');
+      return;
+    }
+
+    const headers = ['日期', '医生', '上午号源', '上午已预约', '下午号源', '下午已预约', '晚间号源', '晚间已预约'];
+    const rows = statistics.items.map(item =>
+      [item.scheduleDate, item.doctorName, item.morningSlots, item.morningBooked, item.afternoonSlots, item.afternoonBooked, item.eveningSlots, item.eveningBooked].join(',')
+    );
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const monthStr = `${statistics.year}${String(statistics.month).padStart(2, '0')}`;
+    link.href = url;
+    link.download = `排班统计_${statistics.storeName}_${monthStr}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // 按日期分组数据
@@ -197,13 +221,21 @@ const ScheduleStatisticsPage: React.FC = () => {
             <DatePicker.MonthPicker placeholder="选择月份" />
           </Form.Item>
           <Form.Item>
-            <Button 
-              type="primary" 
-              icon={<SearchOutlined />} 
+            <Button
+              type="primary"
+              icon={<SearchOutlined />}
               onClick={handleQuery}
               loading={loading}
             >
               查询
+            </Button>
+          </Form.Item>
+          <Form.Item>
+            <Button
+              onClick={handleExportCSV}
+              disabled={!statistics || !statistics.items || statistics.items.length === 0}
+            >
+              导出 CSV
             </Button>
           </Form.Item>
         </Form>

@@ -1,5 +1,5 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { Card, Spin, DatePicker, Select, Space, Empty, Tooltip, Tag, Button, Drawer, Descriptions, Badge } from 'antd';
+import { Card, Spin, DatePicker, Select, Space, Empty, Tooltip, Tag, Button, Drawer, Descriptions, Badge, App } from 'antd';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import dayjs, { Dayjs } from 'dayjs';
 import { scheduleApi, doctorApi, departmentApi } from '@hospital/api';
@@ -64,6 +64,7 @@ interface DoctorRow {
 }
 
 const ScheduleGanttPage: React.FC = () => {
+  const { message } = App.useApp();
   // 状态管理
   const [loading, setLoading] = useState(false);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -102,6 +103,7 @@ const ScheduleGanttPage: React.FC = () => {
       }
     } catch (error) {
       console.error('加载科室失败', error);
+      message.error('加载科室失败');
     }
   };
 
@@ -138,6 +140,7 @@ const ScheduleGanttPage: React.FC = () => {
       }
     } catch (error) {
       console.error('加载医生失败', error);
+      message.error('加载医生列表失败');
     }
   };
 
@@ -174,6 +177,7 @@ const ScheduleGanttPage: React.FC = () => {
       setSchedules(allSchedules);
     } catch (error) {
       console.error('加载排班失败', error);
+      message.error('加载排班数据失败');
     } finally {
       setLoading(false);
     }
