@@ -14,6 +14,7 @@ import {
   calculateWindowTime,
   type TimelineRange,
 } from '@/utils/ruleSetFormatter';
+import { isUnlimitedOffset } from '@/constants/rule-set';
 
 // ==================== 类型定义 ====================
 
@@ -275,11 +276,9 @@ const GanttTimeline: React.FC<GanttTimelineProps> = ({
         bookingCreatedAt
       );
 
-      // 判断是否"不限制"：null 表示不限制，undefined/NaN 等无效值也视为不限制
-      const hasNoOpenLimit = window.openOffsetSec == null || 
-        (typeof window.openOffsetSec === 'number' && !isFinite(window.openOffsetSec));
-      const hasNoCloseLimit = window.closeOffsetSec == null || 
-        (typeof window.closeOffsetSec === 'number' && !isFinite(window.closeOffsetSec));
+      // 判断是否"不限制"
+      const hasNoOpenLimit = isUnlimitedOffset(window.openOffsetSec);
+      const hasNoCloseLimit = isUnlimitedOffset(window.closeOffsetSec);
 
       // 确定显示的起止时间
       // 注意：openTime 表示"开放时间"（时间窗开始允许操作），closeTime 表示"截止时间"（时间窗停止允许操作）

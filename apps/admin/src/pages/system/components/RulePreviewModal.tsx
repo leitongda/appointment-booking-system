@@ -1,5 +1,5 @@
-import { Modal, Form, Select, DatePicker, TimePicker, Button, Card, Tag, Statistic, Alert, Space, Row, Col, message, Spin } from 'antd';
-import type { RulePreviewResponse, WindowCheckResult, ShiftType, RuleSet } from '@hospital/shared';
+import { Modal, Form, Select, DatePicker, TimePicker, Button, Card, Tag, Statistic, Alert, Space, Row, Col, message, Spin, Descriptions, Empty } from 'antd';
+import type { RulePreviewResponse, WindowCheckResult, ShiftType, RuleSet, RuleSetBrief } from '@hospital/shared';
 import { ruleSetApi } from '@hospital/api';
 import { useState, useEffect, useRef } from 'react';
 import dayjs from 'dayjs';
@@ -265,6 +265,42 @@ const RulePreviewModal: React.FC<RulePreviewModalProps> = ({
       {previewResult && (
         <Spin spinning={loading}>
           <Space direction="vertical" style={{ width: '100%', marginTop: 16 }} size="middle">
+            {/* 匹配规则组信息 */}
+            <Card title="匹配规则组" size="small">
+              {previewResult.matchedRuleSet ? (
+                <Descriptions column={2} size="small">
+                  <Descriptions.Item label="生效规则组">
+                    <Tag color="blue">{previewResult.matchedRuleSet.name}</Tag>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="优先级">
+                    {previewResult.matchedRuleSet.priority}
+                  </Descriptions.Item>
+                </Descriptions>
+              ) : (
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description="未找到匹配的规则组，将使用默认配置"
+                />
+              )}
+              {previewResult.candidateRuleSets.length > 1 && (
+                <div style={{ marginTop: 8 }}>
+                  <span style={{ color: '#888', fontSize: 12 }}>
+                    候选规则组（按优先级排序）：
+                  </span>
+                  <div style={{ marginTop: 4 }}>
+                    {previewResult.candidateRuleSets.map((rs: RuleSetBrief) => (
+                      <Tag
+                        key={rs.id}
+                        color={rs.id === previewResult.matchedRuleSet?.id ? 'blue' : 'default'}
+                      >
+                        {rs.name}（优先级 {rs.priority}）
+                      </Tag>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Card>
+
             <WindowResultCard title="预约窗口" result={previewResult.bookWindow} />
             <WindowResultCard title="签到窗口" result={previewResult.checkinWindow} />
             <WindowResultCard title="取消窗口" result={previewResult.cancelWindow} />

@@ -7,6 +7,7 @@ import React, { useMemo } from 'react';
 import { Timeline, Space, Tag, Card, Typography, Row, Col } from 'antd';
 import type { RuleWindow } from '@hospital/shared';
 import { formatOffset, groupWindowsByAction, calculateWindowTime } from '@/utils/ruleSetFormatter';
+import { ACTION_COLORS, REFERENCE_POINT_LABELS } from '@/constants/rule-set';
 import dayjs from 'dayjs';
 
 const { Text } = Typography;
@@ -21,27 +22,6 @@ export interface RuleSetTimelineProps {
   shiftStart?: Date;
   shiftEnd?: Date;
 }
-
-// ==================== 常量定义 ====================
-
-/**
- * 动作类型颜色配置
- */
-const ACTION_COLORS = {
-  BOOK: { primary: '#1890ff', light: '#e6f7ff', label: '预约' },
-  CHECKIN: { primary: '#52c41a', light: '#f6ffed', label: '签到' },
-  CANCEL: { primary: '#fa8c16', light: '#fff7e6', label: '取消' },
-  HOLD_RELEASE: { primary: '#722ed1', light: '#f9f0ff', label: '释放' },
-};
-
-/**
- * 参考点标签映射
- */
-const REFERENCE_POINT_LABELS: Record<string, string> = {
-  SHIFT_START: '班次开始时间',
-  SHIFT_END: '班次结束时间',
-  BOOKING_CREATED_AT: '预约创建时间',
-};
 
 // ==================== 子组件 ====================
 

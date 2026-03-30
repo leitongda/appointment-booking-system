@@ -11,6 +11,7 @@ import type {
   ShiftType,
   RulePreviewRequest,
   RulePreviewResponse,
+  RuleSetBrief,
   PageResult,
 } from '@hospital/shared';
 
@@ -23,6 +24,7 @@ export type {
   ShiftType,
   RulePreviewRequest,
   RulePreviewResponse,
+  RuleSetBrief,
   WindowCheckResult,
   WindowOffsetConfig,
 } from '@hospital/shared';
@@ -70,6 +72,8 @@ export interface RuleSetUpdateData {
   clockSkewToleranceSec?: number;
   description?: string;
   shiftTypeIds?: string[];
+  /** 乐观锁：期望的最后更新时间 */
+  expectedUpdatedAt?: string;
 }
 
 export interface RuleWindowCreateData {
@@ -96,6 +100,26 @@ export interface RuleWindowUpdateData {
   failTag?: string;
   enabled?: boolean;
   description?: string;
+}
+
+// ==================== 预设模板类型 ====================
+
+export interface RuleSetPresetResponse {
+  id: string;
+  name: string;
+  description?: string;
+  config: Record<string, any>;
+  isSystem: boolean;
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface RuleSetPresetCreateData {
+  name: string;
+  description?: string;
+  config: Record<string, any>;
+  sortOrder?: number;
 }
 
 /**
@@ -211,6 +235,36 @@ export const ruleSetApi = {
     data: Partial<RuleCapacityPolicy>
   ): Promise<RuleCapacityPolicy> {
     return request.put(`/rule-sets/${ruleSetId}/capacity-policy`, data);
+  },
+
+  // ==================== 预设模板管理 ====================
+
+  /**
+   * 获取预设模板列表
+   */
+  async getPresets(): Promise<RuleSetPresetResponse[]> {
+    return request.get('/rule-sets/presets');
+  },
+
+  /**
+   * 创建自定义预设模板
+   */
+  async createPreset(data: RuleSetPresetCreateData): Promise<RuleSetPresetResponse> {
+    return request.post('/rule-sets/presets', data);
+  },
+
+  /**
+   * 更新预设模板
+   */
+  async updatePreset(id: string, data: Partial<RuleSetPresetCreateData>): Promise<RuleSetPresetResponse> {
+    return request.put(`/rule-sets/presets/${id}`, data);
+  },
+
+  /**
+   * 删除预设模板
+   */
+  async deletePreset(id: string): Promise<void> {
+    return request.delete(`/rule-sets/presets/${id}`);
   },
 };
 

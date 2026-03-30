@@ -138,12 +138,24 @@ export interface WindowCheckResult {
 }
 
 /**
+ * 规则组简要信息（用于预览匹配结果）
+ */
+export interface RuleSetBrief {
+  id: string;
+  name: string;
+  priority: number;
+  enabled: boolean;
+}
+
+/**
  * 规则预览响应
  */
 export interface RulePreviewResponse {
   bookWindow: WindowCheckResult;
   checkinWindow: WindowCheckResult;
   cancelWindow: WindowCheckResult;
+  matchedRuleSet: RuleSetBrief | null;
+  candidateRuleSets: RuleSetBrief[];
 }
 
 /**

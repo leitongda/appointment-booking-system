@@ -14,6 +14,7 @@ import {
   calculateWindowTime,
   type TimelineRange,
 } from '@/utils/ruleSetFormatter';
+import { isUnlimitedOffset } from '@/constants/rule-set';
 
 // ==================== 类型定义 ====================
 
@@ -260,11 +261,9 @@ const HorizontalTimeline: React.FC<HorizontalTimelineProps> = ({
         bookingCreatedAt
       );
 
-      // 判断是否"不限制"：null 表示不限制，undefined/NaN 等无效值也视为不限制
-      const hasNoOpenLimit = window.openOffsetSec == null || 
-        (typeof window.openOffsetSec === 'number' && !isFinite(window.openOffsetSec));
-      const hasNoCloseLimit = window.closeOffsetSec == null || 
-        (typeof window.closeOffsetSec === 'number' && !isFinite(window.closeOffsetSec));
+      // 判断是否"不限制"
+      const hasNoOpenLimit = isUnlimitedOffset(window.openOffsetSec);
+      const hasNoCloseLimit = isUnlimitedOffset(window.closeOffsetSec);
 
       // 计算显示范围
       let displayStart = openTime || timelineRange.min;

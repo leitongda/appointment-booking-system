@@ -16,27 +16,7 @@ export interface TimelineLegendProps {
 
 // ==================== 常量定义 ====================
 
-/**
- * 动作类型颜色配置
- */
-const ACTION_COLORS = {
-  BOOK: {
-    primary: '#1890ff',
-    label: '预约时间窗',
-  },
-  CHECKIN: {
-    primary: '#52c41a',
-    label: '签到时间窗',
-  },
-  CANCEL: {
-    primary: '#fa8c16',
-    label: '取消时间窗',
-  },
-  HOLD_RELEASE: {
-    primary: '#722ed1',
-    label: '释放时间窗',
-  },
-};
+import { ACTION_COLORS } from '@/constants/rule-set';
 
 // ==================== 主组件 ====================
 

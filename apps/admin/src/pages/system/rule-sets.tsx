@@ -225,7 +225,7 @@ const RuleSetsPage: React.FC = () => {
             templateUrl={dataApi.getRuleSetTemplateUrl()}
             onImportSuccess={() => actionRef.current?.reload()}
           />,
-          selectedRowKeys.length > 0 && (
+          selectedRowKeys.length > 0 && access.canSuperAdmin && (
             <Space key="batch-actions" wrap={isMobile}>
               <Button size={isMobile ? 'middle' : 'small'} onClick={handleBatchEnable}>
                 批量启用
@@ -233,11 +233,9 @@ const RuleSetsPage: React.FC = () => {
               <Button size={isMobile ? 'middle' : 'small'} onClick={handleBatchDisable}>
                 批量禁用
               </Button>
-              {access.canSuperAdmin && (
-                <Button danger size={isMobile ? 'middle' : 'small'} onClick={handleBatchDelete}>
-                  批量删除
-                </Button>
-              )}
+              <Button danger size={isMobile ? 'middle' : 'small'} onClick={handleBatchDelete}>
+                批量删除
+              </Button>
             </Space>
           ),
           access.canSuperAdmin && (

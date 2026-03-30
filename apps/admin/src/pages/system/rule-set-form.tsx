@@ -1,27 +1,8 @@
 /**
- * 规则组表单页面（重构版）
+ * 规则组表单页面
  *
- * 代码行数：~800 行 (vs 原始 1746 行，减少约 54%)
- *
- * 使用基础设施：
- * - FormPage 组件：统一表单页面布局
- * - SwitchGroup 组件：开关组
- * - 子组件提取：将各个 Tab 内容提取为独立组件
- * - 常量导入：RULE_SET_FORM_INITIAL_VALUES, RULE_SET_PRESETS 等
- *
- * 保留的复杂业务逻辑：
- * - 核心配置完成度计算
- * - 埋点追踪
- * - 预设模板
- * - 引导流程
- * - 实时预览
- * - 响应式布局
- *
- * 优化效果：
- * - 提取子组件提高可维护性
- * - 统一表单页面布局
- * - 消除重复代码
- * - 提高代码可读性
+ * 结构：6个Tab（基础信息/时间口径/时间窗/预约策略/签到策略/容量策略）
+ * + 可选的实时预览面板 + 规则效果预览弹窗 + 预设模板
  */
 import { PageContainer, ProForm, ProFormText, ProFormSelect, ProFormDigit, ProFormSwitch, ProFormTextArea, ProFormDependency, FooterToolbar } from '@ant-design/pro-components';
 import { Card, App, Button, Space, Row, Col, Tabs, message, Alert, Modal, Radio, Typography, Affix, Progress, Divider, Tag, Grid, Drawer, Result } from 'antd';
@@ -59,6 +40,8 @@ import {
   WAITLIST_PROMOTE_POLICY_OPTIONS,
   RULE_SET_FORM_INITIAL_VALUES,
   RULE_SET_PRESETS,
+  fetchPresets,
+  clearPresetsCache,
   type RuleSetPreset,
 } from '@/constants/rule-set';
 
@@ -294,6 +277,24 @@ const CoreCompletionCard: React.FC<CoreCompletionCardProps> = ({
   );
 };
 
+/** 将后端 snake_case 预设配置转为前端 camelCase */
+function transformToCamelCase(obj: Record<string, any>): Record<string, any> {
+  if (!obj || typeof obj !== 'object') return obj;
+  const result: Record<string, any> = {};
+  for (const key of Object.keys(obj)) {
+    const camelKey = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+    const value = obj[key];
+    if (Array.isArray(value)) {
+      result[camelKey] = value.map(v => typeof v === 'object' && v !== null ? transformToCamelCase(v) : v);
+    } else if (typeof value === 'object' && value !== null) {
+      result[camelKey] = transformToCamelCase(value);
+    } else {
+      result[camelKey] = value;
+    }
+  }
+  return result;
+}
+
 /**
  * 预设模板选择弹窗组件
  */
@@ -316,6 +317,18 @@ const PresetModal: React.FC<PresetModalProps> = ({
   isMobile,
   isTablet,
 }) => {
+  const [presets, setPresets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setLoading(true);
+      fetchPresets()
+        .then(setPresets)
+        .finally(() => setLoading(false));
+    }
+  }, [open]);
+
   return (
     <Modal
       title="选择预设模板"
@@ -340,46 +353,56 @@ const PresetModal: React.FC<PresetModalProps> = ({
           选择一个预设模板，系统将自动填充规则配置。您仍可在应用后进行调整。
         </Text>
       </div>
-      <Radio.Group
-        value={selectedPreset}
-        onChange={(e) => onSelectPreset(e.target.value)}
-        style={{ width: '100%' }}
-      >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          {RULE_SET_PRESETS.map((preset) => (
-            <Card
-              key={preset.id}
-              size="small"
-              hoverable
-              style={{
-                border: selectedPreset === preset.id ? '2px solid #1890ff' : '1px solid #d9d9d9',
-                backgroundColor: selectedPreset === preset.id ? '#e6f7ff' : undefined,
-              }}
-              onClick={() => onSelectPreset(preset.id)}
-            >
-              <Radio value={preset.id}>
-                <Space direction="vertical" size={0}>
-                  <Text strong>{preset.name}</Text>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    {preset.description}
-                  </Text>
-                  <Space style={{ marginTop: 4 }}>
-                    <Text type="secondary" style={{ fontSize: 11 }}>
-                      优先级: {preset.config.priority}
-                    </Text>
-                    <Text type="secondary" style={{ fontSize: 11 }}>
-                      每日限约: {preset.config.bookingPolicy.perUserPerDay || '不限'}
-                    </Text>
-                    <Text type="secondary" style={{ fontSize: 11 }}>
-                      容量: {preset.config.capacityPolicy.totalCapacity || '不限'}
-                    </Text>
-                  </Space>
-                </Space>
-              </Radio>
-            </Card>
-          ))}
-        </Space>
-      </Radio.Group>
+      <Spin spinning={loading}>
+        <Radio.Group
+          value={selectedPreset}
+          onChange={(e) => onSelectPreset(e.target.value)}
+          style={{ width: '100%' }}
+        >
+          <Space direction="vertical" style={{ width: '100%' }}>
+            {presets.map((preset) => {
+              const config = preset.config || {};
+              const bookingPolicy = config.booking_policy || config.bookingPolicy || {};
+              const capacityPolicy = config.capacity_policy || config.capacityPolicy || {};
+              return (
+                <Card
+                  key={preset.id}
+                  size="small"
+                  hoverable
+                  style={{
+                    border: selectedPreset === preset.id ? '2px solid #1890ff' : '1px solid #d9d9d9',
+                    backgroundColor: selectedPreset === preset.id ? '#e6f7ff' : undefined,
+                  }}
+                  onClick={() => onSelectPreset(preset.id)}
+                >
+                  <Radio value={preset.id}>
+                    <Space direction="vertical" size={0}>
+                      <Space>
+                        <Text strong>{preset.name}</Text>
+                        {preset.isSystem && <Tag color="blue" style={{ fontSize: 10 }}>系统</Tag>}
+                      </Space>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        {preset.description}
+                      </Text>
+                      <Space style={{ marginTop: 4 }}>
+                        <Text type="secondary" style={{ fontSize: 11 }}>
+                          优先级: {config.priority}
+                        </Text>
+                        <Text type="secondary" style={{ fontSize: 11 }}>
+                          每日限约: {bookingPolicy.per_user_per_day ?? bookingPolicy.perUserPerDay ?? '不限'}
+                        </Text>
+                        <Text type="secondary" style={{ fontSize: 11 }}>
+                          容量: {capacityPolicy.total_capacity ?? capacityPolicy.totalCapacity || '不限'}
+                        </Text>
+                      </Space>
+                    </Space>
+                  </Radio>
+                </Card>
+              );
+            })}
+          </Space>
+        </Radio.Group>
+      </Spin>
     </Modal>
   );
 };
@@ -943,14 +966,17 @@ const RuleSetFormPage: React.FC = () => {
   };
 
   // 应用预设模板
-  const handleApplyPreset = (presetId: string) => {
-    const preset = RULE_SET_PRESETS.find(p => p.id === presetId);
+  const handleApplyPreset = async (presetId: string) => {
+    // 先从后端预设中查找，再回退到本地硬编码
+    const backendPresets = await fetchPresets();
+    const preset = backendPresets.find(p => p.id === presetId);
     if (preset) {
       // 保留用户已选择的班次类型
       const currentShiftTypeIds = formRef.current?.getFieldValue('shiftTypeIds') || [];
-      // 深拷贝预设配置以转换为可变类型
+      // 后端 config 是 snake_case，需要转为 camelCase 以匹配表单字段
+      const config = transformToCamelCase(preset.config);
       const newValues = JSON.parse(JSON.stringify({
-        ...preset.config,
+        ...config,
         shiftTypeIds: currentShiftTypeIds.length > 0 ? currentShiftTypeIds : [],
       }));
       formRef.current?.setFieldsValue(newValues);
@@ -1070,6 +1096,10 @@ const RuleSetFormPage: React.FC = () => {
       };
 
       if (isEdit && id) {
+        // 携带乐观锁字段：期望的最后更新时间
+        if (ruleSet?.updatedAt) {
+          data.expectedUpdatedAt = ruleSet.updatedAt;
+        }
         await ruleSetApi.update(id, data);
         antMessage.success('更新成功');
         // 编辑模式：停留在当前页面，不跳转
