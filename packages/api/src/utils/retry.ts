@@ -240,8 +240,20 @@ export function setupRetryInterceptor(
       // 仅首次请求分配 ID；重试时 mergeConfig 已携带该 ID，不覆盖
       if (!(requestConfig as any)._retryId) {
         const id = ++nextRetryId;
+        // 合并自定义选项（来自 withRetry）和全局默认
+        const customOptions = (requestConfig as any)._retryOptions as RetryOptions | undefined;
+        const finalRetryConfig = customOptions
+          ? {
+              ...config,
+              ...customOptions,
+              // 深合并嵌套的 circuitBreaker，避免部分覆盖导致字段丢失
+              ...(customOptions.circuitBreaker && {
+                circuitBreaker: { ...config.circuitBreaker, ...customOptions.circuitBreaker },
+              }),
+            }
+          : config;
+        retryStateMap.set(id, { count: 0, retryConfig: finalRetryConfig });
         (requestConfig as any)._retryId = id;
-        retryStateMap.set(id, { count: 0, retryConfig: config });
       }
     }
 
