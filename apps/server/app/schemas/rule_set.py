@@ -4,7 +4,7 @@
 包含请求/响应模型的 Pydantic 定义
 """
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, List, TypeVar, Generic
+from typing import Optional, List, Any, TypeVar, Generic
 from datetime import datetime, date, time
 
 
@@ -110,6 +110,7 @@ class RuleSetUpdate(BaseModel):
     booking_policy: Optional['RuleBookingPolicyCreate'] = Field(None, description="预约策略")
     checkin_policy: Optional['RuleCheckinPolicyCreate'] = Field(None, description="签到策略")
     capacity_policy: Optional['RuleCapacityPolicyCreate'] = Field(None, description="容量策略")
+    expected_updated_at: Optional[datetime] = Field(None, description="乐观锁：期望的最后更新时间")
 
 
 class RuleSetResponse(RuleSetBase):
@@ -336,6 +337,21 @@ class WindowCheckResult(BaseModel):
     message: str = Field(..., description="结果消息")
 
 
+class RuleSetBrief(BaseModel):
+    """规则组简要信息（用于预览匹配结果）"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+        by_alias=True
+    )
+
+    id: str
+    name: str
+    priority: int
+    enabled: bool
+
+
 class RulePreviewResponse(BaseModel):
     """规则预览响应"""
     model_config = ConfigDict(
@@ -348,6 +364,59 @@ class RulePreviewResponse(BaseModel):
     book_window: WindowCheckResult
     checkin_window: WindowCheckResult
     cancel_window: WindowCheckResult
+    matched_rule_set: Optional[RuleSetBrief] = Field(None, description="匹配到的规则组（优先级最高）")
+    candidate_rule_sets: List[RuleSetBrief] = Field(default_factory=list, description="所有候选规则组（按优先级排序）")
+
+
+# ==================== 预设模板模型 ====================
+
+class RuleSetPresetBase(BaseModel):
+    """预设模板基础模型"""
+    name: str = Field(..., max_length=100, description="预设名称")
+    description: Optional[str] = Field(None, description="描述")
+    config: dict[str, Any] = Field(..., description="完整规则组配置")
+
+
+class RuleSetPresetCreate(RuleSetPresetBase):
+    """创建预设模板"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    sort_order: int = Field(0, description="排序")
+
+
+class RuleSetPresetUpdate(BaseModel):
+    """更新预设模板"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    name: Optional[str] = Field(None, max_length=100, description="预设名称")
+    description: Optional[str] = Field(None, description="描述")
+    config: Optional[dict[str, Any]] = Field(None, description="完整规则组配置")
+    sort_order: Optional[int] = Field(None, description="排序")
+
+
+class RuleSetPresetResponse(BaseModel):
+    """预设模板响应"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+        by_alias=True
+    )
+
+    id: str
+    name: str
+    description: Optional[str] = None
+    config: dict[str, Any]
+    is_system: bool = False
+    sort_order: int = 0
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 # 更新前向引用

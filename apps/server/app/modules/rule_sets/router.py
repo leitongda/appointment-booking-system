@@ -18,7 +18,8 @@ from app.schemas.rule_set import (
     RuleWindowCreate, RuleWindowUpdate, RuleWindowResponse,
     RuleBookingPolicyCreate, RuleBookingPolicyResponse,
     RuleCheckinPolicyCreate, RuleCheckinPolicyResponse,
-    RuleCapacityPolicyCreate, RuleCapacityPolicyResponse
+    RuleCapacityPolicyCreate, RuleCapacityPolicyResponse,
+    RuleSetPresetCreate, RuleSetPresetUpdate, RuleSetPresetResponse,
 )
 from app.modules.rule_sets.service import RuleSetService
 from app.modules.rule_engine import RuleEngineService
@@ -212,6 +213,101 @@ async def clear_performance_metrics(
     return result
 
 
+# ==================== 预设模板管理 ====================
+
+@router.get(
+    "/presets",
+    response_model=list[RuleSetPresetResponse],
+    summary="获取预设模板列表",
+    description="获取系统预设模板和当前租户的自定义预设模板。",
+)
+async def get_presets(
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+):
+    """获取预设模板列表"""
+    service = RuleSetService(db)
+    presets = await service.get_presets()
+    return presets
+
+
+@router.post(
+    "/presets",
+    response_model=RuleSetPresetResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="创建自定义预设模板",
+    description="创建自定义预设模板（仅超级管理员）。",
+)
+async def create_preset(
+    data: RuleSetPresetCreate,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_super_admin),
+):
+    """创建自定义预设模板"""
+    service = RuleSetService(db)
+    preset = await service.create_preset(
+        name=data.name,
+        description=data.description,
+        config=data.config,
+        sort_order=data.sort_order,
+        operator_id=current_admin["id"],
+    )
+    return preset
+
+
+@router.put(
+    "/presets/{preset_id}",
+    response_model=RuleSetPresetResponse,
+    summary="更新预设模板",
+    description="更新自定义预设模板（系统预设不可修改，仅超级管理员）。",
+)
+async def update_preset(
+    preset_id: str,
+    data: RuleSetPresetUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_super_admin),
+):
+    """更新预设模板"""
+    service = RuleSetService(db)
+    preset = await service.update_preset(
+        preset_id=preset_id,
+        operator_id=current_admin["id"],
+        name=data.name,
+        description=data.description,
+        config=data.config,
+        sort_order=data.sort_order,
+    )
+    if not preset:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="预设模板不存在或为系统预设，不可修改",
+        )
+    return preset
+
+
+@router.delete(
+    "/presets/{preset_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="删除预设模板",
+    description="删除自定义预设模板（系统预设不可删除，仅超级管理员）。",
+)
+async def delete_preset(
+    preset_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_super_admin),
+):
+    """删除预设模板"""
+    service = RuleSetService(db)
+    success = await service.delete_preset(preset_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="预设模板不存在或为系统预设，不可删除",
+        )
+
+
+# ==================== 规则组 CRUD ====================
+
 @router.get(
     "/{rule_set_id}",
     response_model=RuleSetDetailResponse,
@@ -325,9 +421,16 @@ async def update_rule_set(
     try:
         rule_set = await service.update(rule_set_id, data, current_admin["id"])
     except ValueError as e:
+        # 乐观锁冲突返回 409，其他验证错误返回 400
+        error_msg = str(e)
+        if "已被其他操作修改" in error_msg or "请刷新后重试" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=error_msg
+            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+            detail=error_msg
         )
     if not rule_set:
         raise HTTPException(
@@ -474,6 +577,10 @@ async def preview_rule(
 
         current_time = data.current_time
 
+        # 获取候选规则组信息
+        candidates = await engine.get_candidate_rule_sets(data.shift_type_id)
+        matched = candidates[0] if candidates else None
+
         # 检查各动作窗口（带超时监控）
         book_result = await engine.check_action_window(schedule, 'BOOK', current_time)
         checkin_result = await engine.check_action_window(schedule, 'CHECKIN', current_time)
@@ -487,10 +594,21 @@ async def preview_rule(
             f"duration={duration:.2f}s"
         )
 
+        from app.schemas.rule_set import RuleSetBrief
         return RulePreviewResponse(
             book_window=book_result,
             checkin_window=checkin_result,
-            cancel_window=cancel_result
+            cancel_window=cancel_result,
+            matched_rule_set=RuleSetBrief(
+                id=matched.id, name=matched.name,
+                priority=matched.priority, enabled=matched.enabled,
+            ) if matched else None,
+            candidate_rule_sets=[
+                RuleSetBrief(
+                    id=rs.id, name=rs.name,
+                    priority=rs.priority, enabled=rs.enabled,
+                ) for rs in candidates
+            ],
         )
 
     except Exception as e:

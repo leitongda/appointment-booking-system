@@ -11,7 +11,7 @@
 - RuleCapacityPolicy: 容量策略
 - AppointmentCheckin: 签到日志
 """
-from sqlalchemy import Column, String, Integer, Boolean, Text, ForeignKey, Index, DateTime
+from sqlalchemy import Column, String, Integer, Boolean, Text, ForeignKey, Index, DateTime, JSON
 from sqlalchemy.orm import relationship
 from app.db.base import Base, AuditMixin
 from datetime import datetime
@@ -199,3 +199,229 @@ class AppointmentCheckin(Base):
         Index('idx_app_checkins_appointment', 'appointment_id'),
         Index('idx_app_checkins_time', 'checkin_time'),
     )
+
+
+class RuleSetPreset(Base, AuditMixin):
+    """规则组预设模板表"""
+    __tablename__ = "rule_set_presets"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID，null=全局系统预设")
+    name = Column(String(100), nullable=False, comment="预设名称")
+    description = Column(Text, comment="描述")
+    config = Column(JSON, nullable=False, comment="完整规则组配置（含 windows、policies）")
+    is_system = Column(Boolean, nullable=False, default=False, comment="系统预设不可删除/修改")
+    sort_order = Column(Integer, nullable=False, default=0, comment="排序")
+
+
+def get_system_presets() -> list[dict]:
+    """返回系统预设模板的种子数据"""
+    return [
+        {
+            "id": "standard-clinic",
+            "name": "标准门诊",
+            "description": "适用于普通门诊，提前7天开放预约，每日可预约3次",
+            "is_system": True,
+            "sort_order": 1,
+            "config": {
+                "name": "标准门诊规则",
+                "enabled": True,
+                "priority": 100,
+                "time_source": "SERVER",
+                "timezone_source": "HOSPITAL",
+                "compare_precision": "MINUTE",
+                "default_open_inclusive": True,
+                "default_close_inclusive": False,
+                "rounding_mode": "NONE",
+                "clock_skew_tolerance_sec": 5,
+                "booking_policy": {
+                    "require_auth": True,
+                    "require_patient_profile_complete": False,
+                    "per_user_per_shift": 1,
+                    "per_user_per_day": 3,
+                    "per_user_per_week": 10,
+                    "conflict_same_shift": "REJECT",
+                    "conflict_overlap_time": "REJECT",
+                    "conflict_same_type_same_day": "ALLOW",
+                },
+                "checkin_policy": {
+                    "require_booking": True,
+                    "allow_onsite_booking": False,
+                    "max_times": 1,
+                    "audit_log": True,
+                    "grace_period_sec": 900,
+                    "after_grace_status": "LATE",
+                    "no_checkin_after_close": "KEEP_BOOKED",
+                },
+                "capacity_policy": {
+                    "total_capacity": 30,
+                    "per_user_capacity": 1,
+                    "waitlist_enabled": False,
+                    "waitlist_max_size": 10,
+                    "waitlist_promote_policy": "MANUAL",
+                    "overbooking_enabled": False,
+                    "overbooking_max": 0,
+                },
+                "windows": [
+                    {"name": "预约时间窗", "action": "BOOK", "reference_point": "SHIFT_START", "open_offset_sec": -604800, "close_offset_sec": 0, "open_inclusive": True, "close_inclusive": False, "fail_policy": "REJECT", "enabled": True},
+                    {"name": "签到时间窗", "action": "CHECKIN", "reference_point": "SHIFT_START", "open_offset_sec": -1800, "close_offset_sec": 3600, "open_inclusive": True, "close_inclusive": True, "fail_policy": "REJECT", "enabled": True},
+                    {"name": "取消时间窗", "action": "CANCEL", "reference_point": "SHIFT_START", "open_offset_sec": -604800, "close_offset_sec": -7200, "open_inclusive": True, "close_inclusive": True, "fail_policy": "REJECT", "enabled": True},
+                ],
+            },
+        },
+        {
+            "id": "expert-clinic",
+            "name": "专家门诊",
+            "description": "适用于专家门诊，需完善档案，每日限约1次，支持候补",
+            "is_system": True,
+            "sort_order": 2,
+            "config": {
+                "name": "专家门诊规则",
+                "enabled": True,
+                "priority": 50,
+                "time_source": "SERVER",
+                "timezone_source": "HOSPITAL",
+                "compare_precision": "MINUTE",
+                "default_open_inclusive": True,
+                "default_close_inclusive": False,
+                "rounding_mode": "NONE",
+                "clock_skew_tolerance_sec": 5,
+                "booking_policy": {
+                    "require_auth": True,
+                    "require_patient_profile_complete": True,
+                    "per_user_per_shift": 1,
+                    "per_user_per_day": 1,
+                    "per_user_per_week": 3,
+                    "conflict_same_shift": "REJECT",
+                    "conflict_overlap_time": "REJECT",
+                    "conflict_same_type_same_day": "REJECT",
+                },
+                "checkin_policy": {
+                    "require_booking": True,
+                    "allow_onsite_booking": False,
+                    "max_times": 1,
+                    "audit_log": True,
+                    "grace_period_sec": 600,
+                    "after_grace_status": "LATE",
+                    "no_checkin_after_close": "ABSENT",
+                },
+                "capacity_policy": {
+                    "total_capacity": 15,
+                    "per_user_capacity": 1,
+                    "waitlist_enabled": True,
+                    "waitlist_max_size": 5,
+                    "waitlist_promote_policy": "AUTO",
+                    "overbooking_enabled": False,
+                    "overbooking_max": 0,
+                },
+                "windows": [
+                    {"name": "预约时间窗", "action": "BOOK", "reference_point": "SHIFT_START", "open_offset_sec": -259200, "close_offset_sec": -3600, "open_inclusive": True, "close_inclusive": False, "fail_policy": "REJECT", "enabled": True},
+                    {"name": "签到时间窗", "action": "CHECKIN", "reference_point": "SHIFT_START", "open_offset_sec": -1800, "close_offset_sec": 1800, "open_inclusive": True, "close_inclusive": True, "fail_policy": "REJECT", "enabled": True},
+                    {"name": "取消时间窗", "action": "CANCEL", "reference_point": "SHIFT_START", "open_offset_sec": -259200, "close_offset_sec": -14400, "open_inclusive": True, "close_inclusive": True, "fail_policy": "REJECT", "enabled": True},
+                ],
+            },
+        },
+        {
+            "id": "health-check",
+            "name": "体检预约",
+            "description": "适用于体检中心，需提前1天预约，可超额预订",
+            "is_system": True,
+            "sort_order": 3,
+            "config": {
+                "name": "体检预约规则",
+                "enabled": True,
+                "priority": 80,
+                "time_source": "SERVER",
+                "timezone_source": "HOSPITAL",
+                "compare_precision": "MINUTE",
+                "default_open_inclusive": True,
+                "default_close_inclusive": False,
+                "rounding_mode": "NONE",
+                "clock_skew_tolerance_sec": 5,
+                "booking_policy": {
+                    "require_auth": True,
+                    "require_patient_profile_complete": True,
+                    "per_user_per_shift": 1,
+                    "per_user_per_day": 1,
+                    "per_user_per_week": 1,
+                    "conflict_same_shift": "REJECT",
+                    "conflict_overlap_time": "REJECT",
+                    "conflict_same_type_same_day": "REJECT",
+                },
+                "checkin_policy": {
+                    "require_booking": True,
+                    "allow_onsite_booking": False,
+                    "max_times": 1,
+                    "audit_log": True,
+                    "grace_period_sec": 1800,
+                    "after_grace_status": "LATE",
+                    "no_checkin_after_close": "KEEP_BOOKED",
+                },
+                "capacity_policy": {
+                    "total_capacity": 50,
+                    "per_user_capacity": 1,
+                    "waitlist_enabled": False,
+                    "waitlist_max_size": 0,
+                    "waitlist_promote_policy": "MANUAL",
+                    "overbooking_enabled": True,
+                    "overbooking_max": 5,
+                },
+                "windows": [
+                    {"name": "预约时间窗", "action": "BOOK", "reference_point": "SHIFT_START", "open_offset_sec": -2592000, "close_offset_sec": -86400, "open_inclusive": True, "close_inclusive": False, "fail_policy": "REJECT", "enabled": True},
+                    {"name": "签到时间窗", "action": "CHECKIN", "reference_point": "SHIFT_START", "open_offset_sec": -3600, "close_offset_sec": 7200, "open_inclusive": True, "close_inclusive": True, "fail_policy": "REJECT", "enabled": True},
+                    {"name": "取消时间窗", "action": "CANCEL", "reference_point": "SHIFT_START", "open_offset_sec": -2592000, "close_offset_sec": -172800, "open_inclusive": True, "close_inclusive": True, "fail_policy": "REJECT", "enabled": True},
+                ],
+            },
+        },
+        {
+            "id": "emergency",
+            "name": "急诊",
+            "description": "适用于急诊，不限制预约次数，允许现场预约",
+            "is_system": True,
+            "sort_order": 4,
+            "config": {
+                "name": "急诊规则",
+                "enabled": True,
+                "priority": 10,
+                "time_source": "SERVER",
+                "timezone_source": "HOSPITAL",
+                "compare_precision": "MINUTE",
+                "default_open_inclusive": True,
+                "default_close_inclusive": True,
+                "rounding_mode": "NONE",
+                "clock_skew_tolerance_sec": 10,
+                "booking_policy": {
+                    "require_auth": True,
+                    "require_patient_profile_complete": False,
+                    "per_user_per_shift": 3,
+                    "per_user_per_day": 0,
+                    "per_user_per_week": 0,
+                    "conflict_same_shift": "ALLOW",
+                    "conflict_overlap_time": "ALLOW",
+                    "conflict_same_type_same_day": "ALLOW",
+                },
+                "checkin_policy": {
+                    "require_booking": False,
+                    "allow_onsite_booking": True,
+                    "max_times": 3,
+                    "audit_log": True,
+                    "grace_period_sec": 3600,
+                    "after_grace_status": "ON_TIME",
+                    "no_checkin_after_close": "KEEP_BOOKED",
+                },
+                "capacity_policy": {
+                    "total_capacity": 0,
+                    "per_user_capacity": 3,
+                    "waitlist_enabled": False,
+                    "waitlist_max_size": 0,
+                    "waitlist_promote_policy": "MANUAL",
+                    "overbooking_enabled": False,
+                    "overbooking_max": 0,
+                },
+                "windows": [
+                    {"name": "预约时间窗", "action": "BOOK", "reference_point": "SHIFT_START", "open_offset_sec": -86400, "close_offset_sec": 7200, "open_inclusive": True, "close_inclusive": True, "fail_policy": "ALLOW_WITH_TAG", "fail_tag": "紧急预约", "enabled": True},
+                    {"name": "签到时间窗", "action": "CHECKIN", "reference_point": "SHIFT_END", "open_offset_sec": -86400, "close_offset_sec": 0, "open_inclusive": True, "close_inclusive": True, "fail_policy": "ALLOW_WITH_TAG", "fail_tag": "超时签到", "enabled": True},
+                ],
+            },
+        },
+    ]

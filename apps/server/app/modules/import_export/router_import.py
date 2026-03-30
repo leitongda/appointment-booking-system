@@ -260,3 +260,26 @@ async def import_stores(
     )
 
     return result
+
+
+@router.post("/rule-sets", summary="导入规则组数据")
+async def import_rule_sets(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("rule_set:create")),
+):
+    """导入规则组数据（多工作表 Excel：规则组、时间窗、预约策略、签到策略、容量策略）"""
+    validate_excel_upload(file)
+
+    tenant_id = get_current_tenant_id()
+    if not tenant_id:
+        raise HTTPException(status_code=400, detail="导入操作需要租户上下文")
+
+    content = await file.read()
+
+    from app.modules.import_export.service_rule_set_import import RuleSetImportService
+    service = RuleSetImportService(db)
+    result = await service.import_rule_sets(content, tenant_id=tenant_id)
+
+    return result

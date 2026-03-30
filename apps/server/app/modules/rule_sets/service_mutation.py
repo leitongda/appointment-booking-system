@@ -3,7 +3,7 @@
 import uuid
 from typing import Optional
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, delete, select
 
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.rule_set import (
@@ -11,6 +11,7 @@ from app.models.rule_set import (
     RuleCapacityPolicy,
     RuleCheckinPolicy,
     RuleSet,
+    RuleSetPreset,
     RuleSetShiftType,
     RuleWindow,
 )
@@ -135,6 +136,12 @@ class RuleSetMutationMixin:
         rule_set = await self._get_rule_set_with_tenant(rule_set_id)
         if not rule_set:
             return None
+
+        # 乐观锁检查
+        if data.expected_updated_at is not None:
+            if rule_set.updated_at and rule_set.updated_at != data.expected_updated_at:
+                raise ValueError("规则组已被其他操作修改，请刷新后重试")
+
         if data.name is not None:
             rule_set.name = data.name
         if data.enabled is not None:
@@ -161,23 +168,18 @@ class RuleSetMutationMixin:
         set_update_audit(rule_set, operator_id)
 
         if data.shift_type_ids is not None:
-            old_relations = await self.db.execute(
-                select(RuleSetShiftType).where(RuleSetShiftType.rule_set_id == rule_set_id)
+            await self.db.execute(
+                delete(RuleSetShiftType).where(RuleSetShiftType.rule_set_id == rule_set_id)
             )
-            for old_rel in old_relations.scalars().all():
-                await self.db.delete(old_rel)
 
             for shift_type_id in data.shift_type_ids:
                 self.db.add(RuleSetShiftType(rule_set_id=rule_set.id, shift_type_id=shift_type_id))
 
         # 处理时间窗更新
         if data.windows is not None:
-            # 删除旧时间窗
-            old_windows = await self.db.execute(
-                select(RuleWindow).where(RuleWindow.rule_set_id == rule_set_id)
+            await self.db.execute(
+                delete(RuleWindow).where(RuleWindow.rule_set_id == rule_set_id)
             )
-            for old_window in old_windows.scalars().all():
-                await self.db.delete(old_window)
 
             # 创建新时间窗
             for window_data in data.windows:
@@ -336,5 +338,58 @@ class RuleSetMutationMixin:
 
         rule_set.enabled = False
         set_update_audit(rule_set, operator_id)
+        await self.db.commit()
+        return True
+
+    # ==================== 预设模板 ====================
+
+    async def create_preset(
+        self, name: str, description: Optional[str], config: dict,
+        sort_order: int = 0, operator_id: Optional[str] = None,
+    ) -> RuleSetPreset:
+        """创建自定义预设模板。"""
+        tenant_id = get_current_tenant_id()
+        preset = RuleSetPreset(
+            id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
+            name=name,
+            description=description,
+            config=config,
+            is_system=False,
+            sort_order=sort_order,
+        )
+        set_create_audit(preset, operator_id)
+        self.db.add(preset)
+        await self.db.commit()
+        return preset
+
+    async def update_preset(
+        self, preset_id: str, operator_id: Optional[str] = None, **kwargs,
+    ) -> Optional[RuleSetPreset]:
+        """更新自定义预设模板（系统预设不可修改）。"""
+        result = await self.db.execute(
+            select(RuleSetPreset).where(RuleSetPreset.id == preset_id)
+        )
+        preset = result.scalar_one_or_none()
+        if not preset or preset.is_system:
+            return None
+
+        for key, value in kwargs.items():
+            if value is not None and hasattr(preset, key):
+                setattr(preset, key, value)
+        set_update_audit(preset, operator_id)
+        await self.db.commit()
+        return preset
+
+    async def delete_preset(self, preset_id: str) -> bool:
+        """删除自定义预设模板（系统预设不可删除）。"""
+        result = await self.db.execute(
+            select(RuleSetPreset).where(RuleSetPreset.id == preset_id)
+        )
+        preset = result.scalar_one_or_none()
+        if not preset or preset.is_system:
+            return False
+
+        await self.db.delete(preset)
         await self.db.commit()
         return True

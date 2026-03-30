@@ -14,6 +14,11 @@ from app.modules.rule_engine.monitoring import monitor_performance
 class RuleEngineTimeWindowMixin:
     @monitor_performance("get_applicable_rule_set")
     async def get_applicable_rule_set(self, shift_type_id: str) -> Optional[RuleSet]:
+        candidates = await self.get_candidate_rule_sets(shift_type_id)
+        return candidates[0] if candidates else None
+
+    async def get_candidate_rule_sets(self, shift_type_id: str) -> list[RuleSet]:
+        """返回所有匹配班次类型的启用规则组，按优先级升序排列。"""
         result = await self.db.execute(
             select(RuleSet)
             .join(RuleSet.shift_types)
@@ -25,9 +30,8 @@ class RuleEngineTimeWindowMixin:
                 )
             )
             .order_by(RuleSet.priority.asc())
-            .limit(1)
         )
-        return result.scalar_one_or_none()
+        return list(result.scalars().all())
 
     @monitor_performance("check_action_window")
     async def check_action_window(

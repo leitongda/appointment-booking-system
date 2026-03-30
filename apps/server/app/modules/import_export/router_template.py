@@ -136,3 +136,129 @@ async def download_store_template(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=store_import_template.xlsx"}
     )
+
+
+@router.get("/rule-sets", summary="下载规则组导入模板")
+async def download_rule_set_template(
+    current_admin = Depends(get_current_admin),
+):
+    """下载规则组导入模板（多工作表：规则组、时间窗、预约策略、签到策略、容量策略）"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Comment
+
+    wb = Workbook()
+
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    required_fill = PatternFill(start_color="C00000", end_color="C00000", fill_type="solid")
+
+    sheets_config = {
+        "规则组": {
+            "headers": ["规则组名称", "优先级", "是否启用", "时间来源", "时区来源", "比较精度",
+                        "开放边界包含", "截止边界包含", "取整模式", "时钟偏差容忍度(秒)", "描述"],
+            "required": ["规则组名称"],
+            "sample": [
+                ["标准门诊规则", 100, "是", "SERVER", "HOSPITAL", "SECOND", "是", "否", "NONE", 5, "标准门诊预约规则"],
+            ],
+            "notes": {
+                "规则组名称": "必填，规则组名称",
+                "优先级": "数字，越小越优先，默认100",
+                "是否启用": "是/否",
+                "时间来源": "SERVER/CLIENT",
+                "时区来源": "HOSPITAL/SHIFT/USER",
+                "比较精度": "SECOND/MILLISECOND/MINUTE",
+                "取整模式": "NONE/CEIL/FLOOR/ROUND",
+            },
+        },
+        "时间窗": {
+            "headers": ["规则组名称", "动作类型", "参考点", "开放偏移(秒)", "截止偏移(秒)",
+                        "开放边界包含", "截止边界包含", "失败策略", "失败标签", "是否启用", "描述"],
+            "required": ["规则组名称", "动作类型", "参考点"],
+            "sample": [
+                ["标准门诊规则", "BOOK", "SHIFT_START", -604800, 0, "是", "否", "REJECT", "", "是", "提前7天开放预约"],
+                ["标准门诊规则", "CHECKIN", "SHIFT_START", -1800, 900, "是", "否", "REJECT", "", "是", "提前30分钟开放签到"],
+                ["标准门诊规则", "CANCEL", "SHIFT_START", -86400, 0, "是", "否", "REJECT", "", "是", "提前1天可取消"],
+            ],
+            "notes": {
+                "规则组名称": "必填，需与「规则组」表中的名称一致",
+                "动作类型": "BOOK/CHECKIN/CANCEL/HOLD_RELEASE",
+                "参考点": "SHIFT_START/SHIFT_END/BOOKING_CREATED_AT",
+                "开放偏移(秒)": "负数=提前，正数=延后",
+                "失败策略": "REJECT/ALLOW_WITH_TAG/AUTO_TO_WAITLIST",
+            },
+        },
+        "预约策略": {
+            "headers": ["规则组名称", "要求登录", "要求档案完整", "每用户每班次", "每用户每天", "每用户每周",
+                        "同班次冲突策略", "时间重叠策略", "同类型同日策略"],
+            "required": ["规则组名称"],
+            "sample": [
+                ["标准门诊规则", "是", "否", 1, 3, 10, "REJECT", "REJECT", "ALLOW"],
+            ],
+            "notes": {
+                "规则组名称": "必填，需与「规则组」表中的名称一致",
+                "同班次冲突策略": "REJECT/REPLACE",
+                "时间重叠策略": "REJECT/ALLOW",
+                "同类型同日策略": "REJECT/ALLOW",
+            },
+        },
+        "签到策略": {
+            "headers": ["规则组名称", "必须预约", "允许现场补约", "允许签到次数", "记录审计日志",
+                        "宽限期(秒)", "宽限后状态", "截止后未签到处理"],
+            "required": ["规则组名称"],
+            "sample": [
+                ["标准门诊规则", "是", "否", 1, "是", 900, "LATE", "KEEP_BOOKED"],
+            ],
+            "notes": {
+                "规则组名称": "必填，需与「规则组」表中的名称一致",
+                "宽限后状态": "LATE/ON_TIME",
+                "截止后未签到处理": "KEEP_BOOKED/AUTO_CANCEL/ABSENT",
+            },
+        },
+        "容量策略": {
+            "headers": ["规则组名称", "总容量", "每用户容量", "启用候补", "候补队列最大长度",
+                        "候补递补策略", "允许超额", "超额最大数量"],
+            "required": ["规则组名称"],
+            "sample": [
+                ["标准门诊规则", 50, 1, "否", 0, "MANUAL", "否", 0],
+            ],
+            "notes": {
+                "规则组名称": "必填，需与「规则组」表中的名称一致",
+                "总容量": "0表示不限制",
+                "候补递补策略": "MANUAL/AUTO",
+            },
+        },
+    }
+
+    # 删除默认工作表
+    default_sheet = wb.active
+    wb.remove(default_sheet)
+
+    for sheet_name, config in sheets_config.items():
+        ws = wb.create_sheet(title=sheet_name)
+        headers = config["headers"]
+        required = config.get("required", [])
+        notes = config.get("notes", {})
+
+        # 写入表头
+        for col_idx, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_idx, value=header)
+            cell.font = header_font
+            cell.fill = required_fill if header in required else header_fill
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            if header in notes:
+                cell.comment = Comment(notes[header], "system")
+
+        # 写入示例数据
+        for row_idx, row_data in enumerate(config.get("sample", []), 2):
+            for col_idx, value in enumerate(row_data, 1):
+                ws.cell(row=row_idx, column=col_idx, value=value)
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=rule_set_import_template.xlsx"}
+    )

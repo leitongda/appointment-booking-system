@@ -12,9 +12,11 @@ from app.models.rule_set import (
     RuleCapacityPolicy,
     RuleCheckinPolicy,
     RuleSet,
+    RuleSetPreset,
     RuleSetShiftType,
     RuleWindow,
     ShiftType,
+    get_system_presets,
 )
 from app.schemas.rule_set import RuleSetDetailResponse
 
@@ -81,7 +83,13 @@ class RuleSetQueryMixin:
         count_result = await self.db.execute(count_query)
         total = count_result.scalar_one() or 0
 
-        query = select(RuleSet).options(selectinload(RuleSet.shift_types))
+        query = select(RuleSet).options(
+            selectinload(RuleSet.shift_types),
+            selectinload(RuleSet.windows),
+            selectinload(RuleSet.booking_policy),
+            selectinload(RuleSet.checkin_policy),
+            selectinload(RuleSet.capacity_policy),
+        )
         if conditions:
             query = query.where(and_(*conditions))
         if shift_type_id:
@@ -144,9 +152,7 @@ class RuleSetQueryMixin:
     async def _to_detail_response(
         self, rule_set: RuleSet, active_rule_set_ids: Optional[set] = None
     ) -> RuleSetDetailResponse:
-        await self.db.refresh(
-            rule_set, ["shift_types", "windows", "booking_policy", "checkin_policy", "capacity_policy"]
-        )
+        # 关联数据已通过 selectinload 预加载，无需 refresh
 
         # 获取规则组关联的班次类型 ID 列表
         shift_type_ids = []
@@ -198,4 +204,53 @@ class RuleSetQueryMixin:
 
     async def get_window_by_id(self, window_id: str) -> Optional[RuleWindow]:
         result = await self.db.execute(select(RuleWindow).where(RuleWindow.id == window_id))
+        return result.scalar_one_or_none()
+
+    # ==================== 预设模板 ====================
+
+    async def ensure_system_presets(self) -> None:
+        """Lazy seed: 确保系统预设模板已初始化。"""
+        existing = await self.db.execute(
+            select(RuleSetPreset).where(RuleSetPreset.is_system == True)
+        )
+        if existing.scalars().first():
+            return
+
+        for preset_data in get_system_presets():
+            preset = RuleSetPreset(
+                id=preset_data["id"],
+                name=preset_data["name"],
+                description=preset_data["description"],
+                config=preset_data["config"],
+                is_system=True,
+                sort_order=preset_data["sort_order"],
+            )
+            self.db.add(preset)
+        await self.db.flush()
+
+    async def get_presets(self) -> List[RuleSetPreset]:
+        """获取预设模板列表（系统预设 + 当前租户自定义预设）。"""
+        await self.ensure_system_presets()
+
+        tenant_id = get_current_tenant_id()
+        conditions = [RuleSetPreset.is_system == True]
+        if tenant_id is not None:
+            # 系统预设 + 当前租户的自定义预设
+            conditions_with_tenant = [
+                (RuleSetPreset.is_system == True)
+                | ((RuleSetPreset.tenant_id == tenant_id) & (RuleSetPreset.is_system == False))
+            ]
+            query = select(RuleSetPreset).where(*conditions_with_tenant)
+        else:
+            query = select(RuleSetPreset).where(*conditions)
+
+        query = query.order_by(RuleSetPreset.sort_order.asc(), RuleSetPreset.created_at.asc())
+        result = await self.db.execute(query)
+        return list(result.scalars().all())
+
+    async def get_preset_by_id(self, preset_id: str) -> Optional[RuleSetPreset]:
+        """获取预设模板详情。"""
+        result = await self.db.execute(
+            select(RuleSetPreset).where(RuleSetPreset.id == preset_id)
+        )
         return result.scalar_one_or_none()
