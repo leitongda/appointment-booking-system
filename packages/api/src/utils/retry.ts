@@ -1,9 +1,75 @@
 /**
  * API 重试机制
- * 为幂等操作（GET 请求）提供自动重试和指数退避策略
+ * 为幂等操作（GET 请求）提供自动重试、指数退避、抖动和端点级熔断策略
  */
 
 import { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
+
+// ─── 端点熔断器 ─────────────────────────────────────────────
+
+/** 端点熔断器配置 */
+interface CircuitBreakerOptions {
+  /** 同一端点连续失败多少次后触发熔断，默认 5 */
+  failureThreshold: number;
+  /** 熔断持续时间（毫秒），默认 30000（30 秒） */
+  resetDuration: number;
+  /** 最多存储多少个端点的熔断状态，默认 100 */
+  maxEntries: number;
+}
+
+class EndpointCircuitBreaker {
+  private failures = new Map<string, { count: number; openUntil: number }>();
+  private options: Required<CircuitBreakerOptions>;
+
+  constructor(options: Partial<CircuitBreakerOptions> = {}) {
+    const defaults: Required<CircuitBreakerOptions> = {
+      failureThreshold: 5,
+      resetDuration: 30000,
+      maxEntries: 100,
+    };
+    this.options = { ...defaults, ...options };
+  }
+
+  /** 记录一次失败，返回该端点的连续失败次数 */
+  recordFailure(endpoint: string): number {
+    const entry = this.failures.get(endpoint) ?? { count: 0, openUntil: 0 };
+    entry.count += 1;
+
+    if (entry.count >= this.options.failureThreshold) {
+      entry.openUntil = Date.now() + this.options.resetDuration;
+    }
+
+    this.failures.set(endpoint, entry);
+
+    // LRU 淘汰，防止内存泄漏
+    if (this.failures.size > this.options.maxEntries) {
+      const oldestKey = this.failures.keys().next().value;
+      if (oldestKey !== undefined) this.failures.delete(oldestKey);
+    }
+
+    return entry.count;
+  }
+
+  /** 记录成功，重置该端点的连续失败计数 */
+  recordSuccess(endpoint: string): void {
+    this.failures.delete(endpoint);
+  }
+
+  /** 该端点当前是否处于熔断状态 */
+  isOpen(endpoint: string): boolean {
+    const entry = this.failures.get(endpoint);
+    if (!entry) return false;
+    // openUntil > 0 表示已触发熔断，检查是否已过期
+    if (entry.openUntil > 0 && Date.now() >= entry.openUntil) {
+      this.failures.delete(endpoint);
+      return false;
+    }
+    // openUntil > 0 且未过期 → 熔断中；openUntil === 0 → 尚未触发，不熔断
+    return entry.openUntil > 0;
+  }
+}
+
+// ─── 公共类型 ───────────────────────────────────────────────
 
 /**
  * 重试配置选项
@@ -17,30 +83,106 @@ export interface RetryOptions {
   retryDelayFactor?: number;
   /** 是否记录重试日志（默认 true） */
   logRetry?: boolean;
-  /** 自定义判断函数：决定是否重试（默认只重试网络错误和 5xx） */
+  /** 自定义判断函数：决定是否重试（默认重试网络错误、5xx、408、429） */
   shouldRetry?: (error: AxiosError) => boolean;
+  /** 重试延迟上限（毫秒，默认 30000） */
+  maxDelay?: number;
+  /** 是否在延迟中添加随机抖动（默认 true，防止 thundering herd） */
+  enableJitter?: boolean;
+  /** 是否启用端点级熔断（默认 true） */
+  enableCircuitBreaker?: boolean;
+  /** 熔断器配置（仅在 enableCircuitBreaker=true 时生效） */
+  circuitBreaker?: Partial<CircuitBreakerOptions>;
 }
 
-/**
- * 默认重试配置
- */
+// ─── 默认配置 ───────────────────────────────────────────────
+
 const DEFAULT_RETRY_OPTIONS: Required<RetryOptions> = {
   maxRetries: 3,
-  retryDelay: 1000, // 1s
-  retryDelayFactor: 2, // 指数退避：1s, 2s, 4s
+  retryDelay: 1000,
+  retryDelayFactor: 2,
   logRetry: true,
+  maxDelay: 30000,
+  enableJitter: true,
+  enableCircuitBreaker: true,
+  circuitBreaker: {
+    failureThreshold: 5,
+    resetDuration: 30000,
+    maxEntries: 100,
+  },
   shouldRetry: (error: AxiosError) => {
-    // 默认重试条件：
-    // 1. 网络错误（无响应）
-    // 2. 5xx 服务器错误
-    // 3. 408 请求超时
     const isNetworkError = !error.response;
     const isServerError = error.response?.status ? error.response.status >= 500 : false;
     const isTimeout = error.response?.status === 408;
-
-    return isNetworkError || isServerError || isTimeout;
+    const isRateLimited = error.response?.status === 429;
+    return isNetworkError || isServerError || isTimeout || isRateLimited;
   },
 };
+
+// ─── 辅助函数 ───────────────────────────────────────────────
+
+/** 从请求配置中提取端点标识 (METHOD + path) */
+function getEndpointKey(requestConfig: any): string {
+  const method = (requestConfig.method || 'GET').toUpperCase();
+  const url = (requestConfig.url || '').split('?')[0];
+  return `${method} ${url}`;
+}
+
+/** 计算 429 响应中 Retry-After 的毫秒值，无则返回 0 */
+function parseRetryAfterMs(error: AxiosError): number {
+  // 优先从 header 读取
+  const headerValue = error.response?.headers?.['retry-after'];
+  if (headerValue != null) {
+    const parsed = Number(headerValue);
+    if (!isNaN(parsed) && parsed > 0) return parsed * 1000;
+  }
+  // 回退到响应体
+  const data = error.response?.data as any;
+  if (data?.data?.retry_after) {
+    const parsed = Number(data.data.retry_after);
+    if (!isNaN(parsed) && parsed > 0) return parsed * 1000;
+  }
+  return 0;
+}
+
+/** 计算最终延迟（含 jitter + maxDelay + Retry-After） */
+function computeDelay(
+  retryCount: number,
+  retryDelay: number,
+  retryDelayFactor: number,
+  maxDelay: number,
+  enableJitter: boolean,
+  is429: boolean,
+  retryAfterMs: number,
+): number {
+  let delay = retryDelay * Math.pow(retryDelayFactor, retryCount);
+  delay = Math.min(delay, maxDelay);
+  if (enableJitter) {
+    delay += delay * 0.2 * Math.random(); // +0~20% 随机抖动
+  }
+  if (is429 && retryAfterMs > 0) {
+    delay = Math.max(delay, retryAfterMs);
+  }
+  return delay;
+}
+
+// ─── 重试状态外部跟踪 ─────────────────────────────────────────
+
+/** 自增请求 ID，用于跨 mergeConfig 追踪重试状态 */
+let nextRetryId = 0;
+
+/**
+ * 外部重试状态表。
+ * key = _retryId（数字，会被 mergeConfig 原样复制），
+ * value = { count, retryConfig }。
+ * 彻底摆脱对 config 上自定义属性持久化的依赖。
+ */
+const retryStateMap = new Map<number, {
+  count: number;
+  retryConfig: Required<RetryOptions>;
+}>();
+
+// ─── 核心：拦截器注册 ───────────────────────────────────────
 
 /**
  * 为 axios 实例添加重试拦截器
@@ -53,64 +195,116 @@ export function setupRetryInterceptor(
   options: RetryOptions = {}
 ): void {
   const config = { ...DEFAULT_RETRY_OPTIONS, ...options };
+  // 合并嵌套的 circuitBreaker 配置
+  if (config.enableCircuitBreaker) {
+    config.circuitBreaker = {
+      ...DEFAULT_RETRY_OPTIONS.circuitBreaker,
+      ...options.circuitBreaker,
+    };
+  }
 
-  // 请求拦截器：初始化重试计数
+  // 创建熔断器实例（闭包内共享）
+  const circuitBreaker = config.enableCircuitBreaker
+    ? new EndpointCircuitBreaker(config.circuitBreaker)
+    : null;
+
+  // ── 请求拦截器：为幂等请求分配唯一 retryId ──
   instance.interceptors.request.use((requestConfig) => {
-    // 只为幂等操作（GET、HEAD）添加重试支持
     const isIdempotent = ['GET', 'HEAD'].includes((requestConfig.method || '').toUpperCase());
 
     if (isIdempotent) {
-      (requestConfig as any)._retry = 0;
-      (requestConfig as any)._retryConfig = config;
       (requestConfig as any)._isIdempotent = true;
+      // 仅首次请求分配 ID；重试时 mergeConfig 已携带该 ID，不覆盖
+      if (!(requestConfig as any)._retryId) {
+        const id = ++nextRetryId;
+        (requestConfig as any)._retryId = id;
+        retryStateMap.set(id, { count: 0, retryConfig: config });
+      }
     }
 
     return requestConfig;
   }, undefined);
 
-  // 响应拦截器：处理重试逻辑
+  // ── 响应拦截器：成功时通知熔断器并清理状态 ──
   instance.interceptors.response.use(
-    (response) => response,
+    (response) => {
+      if (circuitBreaker) {
+        const endpoint = getEndpointKey(response.config);
+        circuitBreaker.recordSuccess(endpoint);
+      }
+      // 成功 → 清理重试状态
+      const retryId = (response.config as any)?._retryId;
+      if (retryId) retryStateMap.delete(retryId);
+      return response;
+    },
     async (error: AxiosError) => {
       const requestConfig = error.config as any;
 
-      // 检查是否应该重试
+      // 非幂等操作不重试
       if (!requestConfig?._isIdempotent) {
         return Promise.reject(error);
       }
 
-      const retryConfig = requestConfig._retryConfig as Required<RetryOptions>;
-      const currentRetry = requestConfig._retry || 0;
+      const retryId = requestConfig._retryId as number | undefined;
+      const state = retryId ? retryStateMap.get(retryId) : undefined;
+
+      // 没有重试状态（不应该发生），直接拒绝
+      if (!state) {
+        return Promise.reject(error);
+      }
+
+      const { retryConfig } = state;
+      const currentRetry = state.count;
+      const endpoint = getEndpointKey(requestConfig);
+
+      // 端点熔断检查
+      if (circuitBreaker && circuitBreaker.isOpen(endpoint)) {
+        if (retryConfig.logRetry) {
+          console.warn(`[API Retry] 端点已熔断，跳过重试: ${endpoint}`);
+        }
+        retryStateMap.delete(retryId);
+        return Promise.reject(error);
+      }
 
       // 判断是否应该重试
       if (currentRetry < retryConfig.maxRetries && retryConfig.shouldRetry(error)) {
-        requestConfig._retry = currentRetry + 1;
+        state.count = currentRetry + 1;
 
-        // 计算延迟时间（指数退避）
-        const delay = retryConfig.retryDelay * Math.pow(retryConfig.retryDelayFactor, currentRetry);
+        const is429 = error.response?.status === 429;
+        const retryAfterMs = is429 ? parseRetryAfterMs(error) : 0;
+
+        const delay = computeDelay(
+          currentRetry,
+          retryConfig.retryDelay,
+          retryConfig.retryDelayFactor,
+          retryConfig.maxDelay,
+          retryConfig.enableJitter,
+          is429,
+          retryAfterMs,
+        );
 
         // 记录重试日志
         if (retryConfig.logRetry) {
           console.warn(
-            `[API Retry] 请求重试 (${currentRetry + 1}/${retryConfig.maxRetries}): ` +
-            `${requestConfig.method?.toUpperCase()} ${requestConfig.url} - ` +
-            `延迟 ${delay}ms`
+            `[API Retry] 请求重试 (${state.count}/${retryConfig.maxRetries}): ` +
+            `${endpoint} - 延迟 ${Math.round(delay)}ms` +
+            (is429 ? ' (429 限流)' : '')
           );
         }
 
-        // 发送监控埋点（重试事件）
+        // 发送监控埋点
         trackRetryEvent({
           url: requestConfig.url,
           method: requestConfig.method,
-          retryCount: currentRetry + 1,
+          retryCount: state.count,
           maxRetries: retryConfig.maxRetries,
           delay,
           error: error.message,
         });
 
         // 标记计时器为已重试
-        if ((requestConfig as any)._timer) {
-          (requestConfig as any)._timer.markAsRetried(currentRetry + 1);
+        if (requestConfig._timer) {
+          requestConfig._timer.markAsRetried(state.count);
         }
 
         // 等待后重试
@@ -119,11 +313,15 @@ export function setupRetryInterceptor(
         return instance(requestConfig);
       }
 
+      // 达到最大重试次数或不应重试，记录失败到熔断器
+      if (retryConfig.shouldRetry(error)) {
+        circuitBreaker?.recordFailure(endpoint);
+      }
+
       // 达到最大重试次数，发送失败埋点
       if (currentRetry >= retryConfig.maxRetries && retryConfig.logRetry) {
         console.error(
-          `[API Retry] 重试失败: ${requestConfig.method?.toUpperCase()} ${requestConfig.url} - ` +
-          `已重试 ${currentRetry} 次`
+          `[API Retry] 重试失败: ${endpoint} - 已重试 ${currentRetry} 次`
         );
 
         trackRetryFailedEvent({
@@ -134,14 +332,15 @@ export function setupRetryInterceptor(
         });
       }
 
+      // 清理状态
+      retryStateMap.delete(retryId);
       return Promise.reject(error);
     }
   );
 }
 
-/**
- * 重试事件数据
- */
+// ─── 监控埋点（保持原有实现） ────────────────────────────────
+
 interface RetryEventData {
   url?: string;
   method?: string;
@@ -151,9 +350,6 @@ interface RetryEventData {
   error?: string;
 }
 
-/**
- * 重试失败事件数据
- */
 interface RetryFailedEventData {
   url?: string;
   method?: string;
@@ -161,15 +357,8 @@ interface RetryFailedEventData {
   error?: string;
 }
 
-/**
- * 发送重试事件埋点
- * 集成到现有 analytics 系统（如果可用）
- */
 function trackRetryEvent(data: RetryEventData): void {
-  // 这里可以集成到现有的 analytics 系统
-  // 如果有全局埋点工具，可以在这里调用
   try {
-    // 示例：发送到分析平台
     if (typeof window !== 'undefined' && (window as any).analytics) {
       (window as any).analytics.track('api_retry', {
         url: data.url,
@@ -182,14 +371,10 @@ function trackRetryEvent(data: RetryEventData): void {
       });
     }
   } catch (error) {
-    // 静默失败，不影响业务
     console.debug('Failed to track retry event:', error);
   }
 }
 
-/**
- * 发送重试失败埋点
- */
 function trackRetryFailedEvent(data: RetryFailedEventData): void {
   try {
     if (typeof window !== 'undefined' && (window as any).analytics) {
@@ -206,30 +391,34 @@ function trackRetryFailedEvent(data: RetryFailedEventData): void {
   }
 }
 
+// ─── 公共工具函数 ───────────────────────────────────────────
+
 /**
  * 为特定请求设置自定义重试配置
  *
- * @param config axios 请求配置
+ * @param axiosConfig axios 请求配置
  * @param options 重试配置
  */
 export function withRetry(
-  config: AxiosRequestConfig,
+  axiosConfig: AxiosRequestConfig,
   options: RetryOptions = {}
 ): AxiosRequestConfig {
-  const isIdempotent = ['GET', 'HEAD'].includes((config.method || '').toUpperCase());
+  const isIdempotent = ['GET', 'HEAD'].includes((axiosConfig.method || '').toUpperCase());
 
   if (!isIdempotent) {
     console.warn('[API Retry] 警告：仅为幂等操作（GET、HEAD）启用重试，当前方法不会重试');
   }
 
+  const retryConfig = { ...DEFAULT_RETRY_OPTIONS, ...options };
+  const id = ++nextRetryId;
+  retryStateMap.set(id, { count: 0, retryConfig });
+
   return {
-    ...config,
+    ...axiosConfig,
     // @ts-ignore - 添加自定义属性
     _isIdempotent: isIdempotent,
     // @ts-ignore
-    _retry: 0,
-    // @ts-ignore
-    _retryConfig: { ...DEFAULT_RETRY_OPTIONS, ...options },
+    _retryId: id,
   };
 }
 
@@ -244,11 +433,8 @@ export interface RetryStats {
 
 /**
  * 获取重试统计信息（简单实现）
- * 实际应用中可以配合后端上报或本地存储
  */
 export function getRetryStats(): RetryStats {
-  // 这里可以从本地存储或内存中获取统计信息
-  // 简单实现，返回默认值
   return {
     totalRetries: 0,
     totalFailures: 0,

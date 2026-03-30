@@ -69,7 +69,13 @@ const TenantSwitcher: React.FC = () => {
     }
   }, []);
 
-  // 打开时加载租户列表
+  // 挂载时加载租户列表（确保初始渲染有名称可显示）
+  useEffect(() => {
+    loadTenants();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 下拉打开时刷新（利用缓存，5 分钟内不会重复请求）
   useEffect(() => {
     if (open) {
       loadTenants();

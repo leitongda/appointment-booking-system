@@ -1,5 +1,5 @@
 import { AvatarDropdown, AvatarName } from '@/components/RightContent';
-import { FullscreenButton, NotificationButton, RefreshButton, SpacingButton, StoreSwitcher } from '@/components/HeaderActions';
+import { FullscreenButton, NotificationButton, RefreshButton, StoreSwitcher } from '@/components/HeaderActions';
 import TenantSwitcher from '@/components/TenantSwitcher';
 import { getToken, removeToken, setStorage, STORAGE_KEYS, handleTokenExpired, initTracker, getTracker, initCrossTabSync, destroyCrossTabSync } from '@hospital/shared';
 import type { CrossTabEvent } from '@hospital/shared';
@@ -393,7 +393,6 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
     actionsRender: () => [
       <TenantSwitcher key="tenant" />,
       <StoreSwitcher key="store" />,
-      <SpacingButton key="spacing" />,
       <RefreshButton key="refresh" />,
       <NotificationButton key="notification" />,
       <FullscreenButton key="fullscreen" />,

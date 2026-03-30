@@ -17,7 +17,7 @@ const RolePage: React.FC = () => {
 
   const columns: ProColumns<Role>[] = [
     { title: '角色名称', dataIndex: 'name', width: 150 },
-    { title: '角色编码', dataIndex: 'code', width: 120 },
+    { title: '角色编码', dataIndex: 'code', width: 160 },
     { title: '描述', dataIndex: 'description', ellipsis: true, search: false },
     {
       title: '权限数量',

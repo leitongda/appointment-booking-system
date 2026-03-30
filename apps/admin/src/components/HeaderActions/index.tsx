@@ -889,7 +889,6 @@ export const HeaderActions: React.FC = () => {
     <Space className={styles.headerActions} size={4}>
       <TenantSwitcher />
       <StoreSwitcher />
-      <SpacingButton />
       <RefreshButton />
       <NotificationButton />
       <FullscreenButton />

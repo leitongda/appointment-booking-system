@@ -145,6 +145,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     "message": "请求过于频繁，请稍后再试",
                     "data": None,
                 },
+                headers={"Retry-After": "1"},
             )
 
         # 按租户隔离的每分钟限流
@@ -160,6 +161,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     "message": "请求过于频繁，请稍后再试",
                     "data": None,
                 },
+                headers={"Retry-After": "60"},
             )
 
         return await call_next(request)

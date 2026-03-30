@@ -545,7 +545,9 @@ class TenantUsageService:
 
     async def get_usage_summary(self, tenant_id: str) -> dict:
         """获取租户用量汇总"""
-        tenant = await self.db.get(Tenant, tenant_id)
+        stmt = select(Tenant).where(Tenant.id == tenant_id).options(selectinload(Tenant.subscription_plan))
+        result = await self.db.execute(stmt)
+        tenant = result.scalar_one_or_none()
         if not tenant:
             raise ValueError("租户不存在")
 
@@ -663,10 +665,9 @@ class TenantUsageService:
 
         result = await self.db.execute(
             select(func.count(Appointment.id))
-            .join(Store, Appointment.store_id == Store.id)
             .where(
                 and_(
-                    Store.tenant_id == tenant_id,
+                    Appointment.tenant_id == tenant_id,
                     Appointment.created_at >= month_start
                 )
             )
@@ -680,10 +681,9 @@ class TenantUsageService:
 
         result = await self.db.execute(
             select(func.count(Appointment.id))
-            .join(Store, Appointment.store_id == Store.id)
             .where(
                 and_(
-                    Store.tenant_id == tenant_id,
+                    Appointment.tenant_id == tenant_id,
                     Appointment.created_at >= day_start,
                     Appointment.created_at <= day_end
                 )
