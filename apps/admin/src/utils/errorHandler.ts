@@ -97,10 +97,8 @@ export class ErrorHandler {
   private static handleApiError(error: ApiError, operation: string): void {
     const { message: messageApi } = this;
 
-    // 401 未授权
+    // 401 未授权 — 已由响应拦截器统一处理（弹框 + 清 token），此处不再重复提示
     if (error.isUnauthorized()) {
-      messageApi.error(error.message || '登录已过期，请重新登录');
-      // 触发登出逻辑（由拦截器处理）
       return;
     }
 

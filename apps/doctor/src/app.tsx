@@ -18,6 +18,9 @@ initApiConfig();
 initCrossTabSync((event: CrossTabEvent) => {
   if (event.type !== 'auth-change') return;
 
+  // 登录页不弹框
+  if (window.location.pathname === '/login') return;
+
   if (event.action === 'logout') {
     Modal.confirm({
       title: '登录状态变更',

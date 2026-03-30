@@ -392,7 +392,7 @@ const PresetModal: React.FC<PresetModalProps> = ({
                           每日限约: {bookingPolicy.per_user_per_day ?? bookingPolicy.perUserPerDay ?? '不限'}
                         </Text>
                         <Text type="secondary" style={{ fontSize: 11 }}>
-                          容量: {capacityPolicy.total_capacity ?? capacityPolicy.totalCapacity || '不限'}
+                          容量: {capacityPolicy.total_capacity ?? capacityPolicy.totalCapacity ?? '不限'}
                         </Text>
                       </Space>
                     </Space>

@@ -324,7 +324,9 @@ export async function getInitialState(): Promise<{
     try {
       const currentUser = await adminApi.getCurrentAdmin();
       return currentUser as API.CurrentUser;
-    } catch (error) {
+    } catch (error: any) {
+      // 401 已由响应拦截器处理（弹框 + 清 token），不再重复操作
+      if (error?.isUnauthorized?.()) return undefined;
       removeToken();
       history.push(loginPath);
     }

@@ -76,7 +76,9 @@ const Login: React.FC = () => {
       try {
         const user = await adminApi.getCurrentAdmin();
         return user as any;
-      } catch (error) {
+      } catch (error: any) {
+        // 401 已由响应拦截器处理（弹框 + 清 token），不再重复操作
+        if (error?.isUnauthorized?.()) return undefined;
         removeToken();
         history.push('/login');
         return undefined;
