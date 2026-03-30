@@ -45,7 +45,7 @@
     "figlet": "^1.8.0",
     "ora": "^8.1.1",
     "prompts": "^2.4.2",
-    "turbo": "^2.8.17"
+    "turbo": "^2.8.21"
   },
   "packageManager": "pnpm@10.27.0",
   "engines": {

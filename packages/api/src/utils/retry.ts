@@ -145,6 +145,29 @@ function parseRetryAfterMs(error: AxiosError): number {
   return 0;
 }
 
+/** 带取消支持的延迟等待，响应 AbortController 的 abort 信号 */
+function delayWithAbort(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) {
+      return reject(new DOMException('Aborted', 'AbortError'));
+    }
+
+    const timer = setTimeout(() => {
+      if (signal) signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+
+    if (signal) {
+      signal.addEventListener('abort', onAbort, { once: true });
+    }
+  });
+}
+
 /** 计算最终延迟（含 jitter + maxDelay + Retry-After） */
 function computeDelay(
   retryCount: number,
@@ -302,13 +325,20 @@ export function setupRetryInterceptor(
           error: error.message,
         });
 
-        // 标记计时器为已重试
+        // 标记计时器为已重试并记录当前尝试的失败
         if (requestConfig._timer) {
           requestConfig._timer.markAsRetried(state.count);
+          requestConfig._timer.recordFailure(error.message);
         }
 
-        // 等待后重试
-        await new Promise((resolve) => setTimeout(resolve, delay));
+        // 等待后重试（支持 AbortController 取消）
+        try {
+          await delayWithAbort(delay, requestConfig?.signal as AbortSignal | undefined);
+        } catch {
+          // 请求被取消，清理状态，不再重试
+          retryStateMap.delete(retryId);
+          return Promise.reject(error);
+        }
 
         return instance(requestConfig);
       }
@@ -409,16 +439,12 @@ export function withRetry(
     console.warn('[API Retry] 警告：仅为幂等操作（GET、HEAD）启用重试，当前方法不会重试');
   }
 
-  const retryConfig = { ...DEFAULT_RETRY_OPTIONS, ...options };
-  const id = ++nextRetryId;
-  retryStateMap.set(id, { count: 0, retryConfig });
-
   return {
     ...axiosConfig,
     // @ts-ignore - 添加自定义属性
     _isIdempotent: isIdempotent,
-    // @ts-ignore
-    _retryId: id,
+    // @ts-ignore - 自定义重试配置，由 request interceptor 读取
+    _retryOptions: options,
   };
 }
 
