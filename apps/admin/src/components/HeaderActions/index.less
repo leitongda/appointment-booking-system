@@ -116,25 +116,25 @@
   padding: 10px 16px;
   cursor: pointer;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background-color: #fafafa;
   }
-  
+
   &.active {
     background-color: rgba(24, 144, 255, 0.08);
-    
+
     .storeItemName {
       color: #1890ff;
       font-weight: 500;
     }
   }
-  
+
   .storeItemLogo {
     margin-right: 12px;
     flex-shrink: 0;
   }
-  
+
   .storeItemName {
     flex: 1;
     font-size: 14px;
@@ -143,89 +143,12 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  
+
   .storeItemCheck {
     color: #1890ff;
     font-size: 14px;
     flex-shrink: 0;
     margin-left: 8px;
-  }
-}
-
-
-// 门店管理功能区
-.storeActionsSection {
-  border-top: 1px solid #f0f0f0;
-  padding: 12px 16px;
-  background-color: #fafafa;
-  
-  .sectionTitle {
-    font-size: 12px;
-    color: rgba(0, 0, 0, 0.45);
-    margin-bottom: 10px;
-    font-weight: 500;
-  }
-  
-  .storeActionGrid {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding-bottom: 4px;
-    
-    // 隐藏滚动条但保留滚动功能
-    &::-webkit-scrollbar {
-      height: 0;
-      display: none;
-    }
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  
-  .storeActionItem {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    flex-shrink: 0;
-    min-width: 56px;
-    padding: 10px 8px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    background-color: #fff;
-    
-    &:hover {
-      background-color: rgba(24, 144, 255, 0.08);
-      
-      :global {
-        .anticon {
-          color: #1890ff;
-        }
-      }
-      
-      span {
-        color: #1890ff;
-      }
-    }
-    
-    &:active {
-      background-color: rgba(24, 144, 255, 0.12);
-    }
-    
-    :global {
-      .anticon {
-        font-size: 18px;
-        color: rgba(0, 0, 0, 0.65);
-        margin-bottom: 4px;
-        transition: color 0.2s ease;
-      }
-    }
-    
-    span {
-      font-size: 11px;
-      color: rgba(0, 0, 0, 0.65);
-      white-space: nowrap;
-      transition: color 0.2s ease;
-    }
   }
 }
 
