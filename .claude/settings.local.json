@@ -145,13 +145,36 @@
       "Bash(pnpm exec:*)",
       "Bash(pnpm --filter @hospital/shared build)",
       "Bash(pnpm --filter @hospital/admin prebuild)",
-      "Bash(tsc --noEmit -p apps/admin/src/utils/request.ts -p apps/admin/tsconfig/config.ts)"
+      "Bash(tsc --noEmit -p apps/admin/src/utils/request.ts -p apps/admin/tsconfig/config.ts)",
+      "Bash(grep -c '\"\"type\"\":\"\"result\"\"' /private/tmp/claude-501/-Users-leijiadashao-leitond-appointment-booking-system/f5e4dc41-1cb5-4d66-94ad-d3bdc2de27d7/tasks/ad465d987da5b95a1.output)",
+      "Bash(grep -c '\"\"type\"\":\"\"result\"\"' /private/tmp/claude-501/-Users-leijiadashao-leitond-appointment-booking-system/f5e4dc41-1cb5-4d66-94ad-d3bdc2de27d7/tasks/a708029ebc31d972a.output)",
+      "Bash(python3 -c \":*)",
+      "Bash(rm -f ~/.claude/teams/rule-set-p0-fix/config.json)",
+      "Bash(mkdir -p ~/.claude/teams/rule-set-p0-fix)",
+      "Bash(~/.claude/teams/rule-set-p0-fix/config.json)",
+      "Bash(/Users/leijiadashao/leitond/appointment-booking-system/reviews/rule-set-admin-review.md:*)",
+      "Bash(crontab -l)",
+      "Bash(launchctl list:*)",
+      "Bash(pnpm build:api)",
+      "Bash(pnpm --filter @hospital/api lint)",
+      "Bash(launchctl unload:*)",
+      "Bash(launchctl remove:*)",
+      "Bash(pnpm dlx:*)",
+      "Bash(node_modules/.bin/tsc --noEmit --project apps/admin/tsconfig.json)",
+      "Bash(grep '\"\"turbo\"\"' package.json)",
+      "Bash(pnpm:*)",
+      "Bash(node_modules/.pnpm/node_modules/.bin/vitest run:*)",
+      "Bash(apps/admin/node_modules/.bin/vitest run:*)",
+      "Bash(2)",
+      "Bash(/Users/leijiadashao/leitond/appointment-booking-system/node_modules/.bin/tsc --noEmit --project packages/api/tsconfig.json)",
+      "Bash(sleep 5 cat /private/tmp/claude-501/-Users-leijiadashao-leitond-appointment-booking-system/*.output)",
+      "Bash(awk -F'/' '{print NF-1}')",
+      "Bash(xargs -I {} bash -c 'echo \"$\\(basename {}\\): $\\(find {} -name \"*.tsx\" | wc -l\\)\"')",
+      "Bash(xargs -I {} bash -c 'echo \"$\\(basename {} .ts\\): $\\(grep -c \"export.*function\\\\|export.*const.*=\" {}\\)\"')",
+      "Read(//tmp/**)",
+      "Bash(mkdir -p /Users/leijiadashao/leitond/appointment-booking-system/apps/admin/public/fonts)",
+      "Bash(cp /Users/leijiadashao/Downloads/19_SourceHanSansCN/SubsetOTF/CN/SourceHanSansCN-Regular.otf /Users/leijiadashao/Downloads/19_SourceHanSansCN/SubsetOTF/CN/SourceHanSansCN-Medium.otf /Users/leijiadashao/Downloads/19_SourceHanSansCN/SubsetOTF/CN/SourceHanSansCN-Bold.otf /Users/leijiadashao/leitond/appointment-booking-system/apps/admin/public/fonts/)"
     ]
-  },
-  "statusLine": {
-    "type": "command",
-    "command": "~/.claude/ccline/ccline",
-    "padding": 0
   },
   "plansDirectory": ".claude/plans"
 }
