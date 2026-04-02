@@ -1,0 +1,10 @@
+export { defaultTheme } from './default';
+export { blueTheme } from './blue';
+export { greenTheme } from './green';
+export { roseTheme } from './rose';
+export { orangeTheme } from './orange';
+export { violetTheme } from './violet';
+export { catppuccinTheme } from './catppuccin';
+export { vercelTheme } from './vercel';
+export { natureTheme } from './nature';
+export { tangerineTheme } from './tangerine';
