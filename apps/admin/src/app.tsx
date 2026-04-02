@@ -7,7 +7,7 @@ import { adminApi, setBaseURL } from '@hospital/api';
 import type { Settings as LayoutSettings, MenuDataItem } from '@ant-design/pro-components';
 import type { RunTimeLayoutConfig, RequestConfig } from '@umijs/max';
 import { history, useLocation } from '@umijs/max';
-import { App, message, Modal, ConfigProvider, theme } from 'antd';
+import { App, Button, message, Modal, ConfigProvider, theme, notification } from 'antd';
 import { useMemo } from 'react';
 import defaultSettings from '../config/defaultSettings';
 import { APP_TITLE } from '@config/appConfig';
@@ -182,30 +182,34 @@ function handleCrossTabEvent(event: CrossTabEvent) {
       break;
 
     case 'tenant-change':
-      Modal.confirm({
-        title: '租户已切换',
-        content: event.newTenantId
-          ? `租户已切换，当前页面需要刷新以保持一致。`
-          : '租户上下文已变更，当前页面需要刷新以保持一致。',
-        okText: '刷新页面',
-        cancelButtonProps: { style: { display: 'none' } },
-        closable: false,
-        maskClosable: false,
-        onOk: () => { window.location.reload(); },
+      notification.warning({
+        key: 'tenant-change',
+        message: '租户已切换',
+        description: '当前页面需要刷新以保持一致',
+        placement: 'topRight',
+        duration: 15,
+        btn: (
+          <Button type="primary" size="small" onClick={() => window.location.reload()}>
+            立即刷新
+          </Button>
+        ),
       });
       break;
 
     case 'store-change':
-      Modal.confirm({
-        title: '门店已切换',
-        content: event.newStoreName
+      notification.warning({
+        key: 'store-change',
+        message: '门店已切换',
+        description: event.newStoreName
           ? `门店已切换为「${event.newStoreName}」，当前页面需要刷新以保持一致。`
           : '门店已切换，当前页面需要刷新以保持一致。',
-        okText: '刷新页面',
-        cancelButtonProps: { style: { display: 'none' } },
-        closable: false,
-        maskClosable: false,
-        onOk: () => { window.location.reload(); },
+        placement: 'topRight',
+        duration: 15,
+        btn: (
+          <Button type="primary" size="small" onClick={() => window.location.reload()}>
+            立即刷新
+          </Button>
+        ),
       });
       break;
   }
@@ -343,7 +347,7 @@ export async function getInitialState(): Promise<{
     // 从 localStorage 获取登录时保存的门店信息
     let currentStore: StoreInfo | undefined;
     try {
-      const storeData = localStorage.getItem('currentStore');
+      const storeData = localStorage.getItem('hospital_current_store');
       if (storeData) {
         currentStore = JSON.parse(storeData);
       }

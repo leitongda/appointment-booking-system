@@ -3,7 +3,13 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+
+def to_camel(string: str) -> str:
+    """将 snake_case 转换为 camelCase"""
+    components = string.split('_')
+    return components[0] + ''.join(x.title() for x in components[1:])
 
 
 class PermissionResponse(BaseModel):
@@ -55,8 +61,12 @@ class RoleResponse(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
 
 
 class AdminCreate(BaseModel):
@@ -117,7 +127,7 @@ class AdminResponse(BaseModel):
     permissions: Optional[List[str]] = None
     is_super_admin: bool = Field(False, serialization_alias="isSuperAdmin")
     is_store_admin: bool = Field(False, serialization_alias="isStoreAdmin")
-    can_view_all_stores: bool = Field(False, serialization_alias="canViewAllStores")
+    can_view_all_stores: bool = Field(False, serialization_alias="canSwitchStores", validation_alias="can_view_all_stores")
     status: int
     last_login_at: Optional[datetime] = Field(None, serialization_alias="lastLoginAt")
     last_login_ip: Optional[str] = Field(None, serialization_alias="lastLoginIp")
@@ -206,8 +216,12 @@ class OperationLogResponse(BaseModel):
     duration: Optional[int] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
 
 
 class ChangePasswordRequest(BaseModel):
@@ -224,6 +238,22 @@ class UpdateProfileRequest(BaseModel):
 
 class SwitchStoreRequest(BaseModel):
     store_id: str = Field(..., description="目标门店ID")
+
+
+class SwitchTenantRequest(BaseModel):
+    tenant_id: str = Field(..., description="目标租户ID")
+
+
+class TenantInfoResponse(BaseModel):
+    id: str
+    name: str
+    tenant_code: str = Field(..., serialization_alias="tenantCode")
+
+    model_config = {
+        "from_attributes": True,
+        "populate_by_name": True,
+        "serialize_by_alias": True,
+    }
 
 
 class OnlineUserResponse(BaseModel):

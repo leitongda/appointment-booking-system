@@ -7,11 +7,11 @@
  * 2. 清除门店缓存，确保下次加载正确的门店列表
  * 3. 刷新页面以应用新的租户上下文
  */
-import { BankOutlined, DownOutlined, CheckOutlined } from '@ant-design/icons';
-import { useModel } from '@umijs/max';
-import { Tooltip, Popover, Spin, Empty, Avatar } from 'antd';
+import { BankOutlined, DownOutlined, CheckOutlined, SearchOutlined } from '@ant-design/icons';
+import { history, useModel } from '@umijs/max';
+import { Tooltip, Popover, Spin, Empty, Avatar, Input, App } from 'antd';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { tenantApi } from '@hospital/api';
+import { tenantApi, adminApi } from '@hospital/api';
 import type { Tenant } from '@hospital/api';
 import styles from './index.less';
 
@@ -19,12 +19,14 @@ import styles from './index.less';
 const TENANT_CACHE_TTL = 5 * 60 * 1000;
 
 const TenantSwitcher: React.FC = () => {
+  const { modal, message } = App.useApp();
   const { initialState } = useModel('@@initialState');
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [switching, setSwitching] = useState(false);
   const [switchingTenantName, setSwitchingTenantName] = useState('');
+  const [searchText, setSearchText] = useState('');
 
   // 租户列表缓存
   const tenantsCacheRef = useRef<{ tenants: Tenant[]; timestamp: number } | null>(null);
@@ -32,6 +34,7 @@ const TenantSwitcher: React.FC = () => {
   const currentUser = initialState?.currentUser;
   const currentTenantId = initialState?.currentTenantId;
   const isSuperAdmin = currentUser?.isSuperAdmin || currentUser?.roleCode === 'SUPER_ADMIN';
+  const isPlatformAdmin = currentUser?.is_platform_admin || isSuperAdmin;
 
   // 当前选中的租户名称
   const currentTenantName = React.useMemo(() => {
@@ -79,30 +82,55 @@ const TenantSwitcher: React.FC = () => {
   useEffect(() => {
     if (open) {
       loadTenants();
+      setSearchText('');
     }
   }, [open, loadTenants]);
 
+  // 检测当前是否在表单编辑页面
+  const isOnFormPage = useCallback(() => {
+    const { pathname } = history.location;
+    return /\/(create|edit)($|\/)/.test(pathname);
+  }, []);
+
+  // 搜索过滤后的租户列表
+  const filteredTenants = React.useMemo(() => {
+    if (!searchText.trim()) return tenants;
+    const keyword = searchText.trim().toLowerCase();
+    return tenants.filter(
+      t => t.name?.toLowerCase().includes(keyword) || t.tenantCode?.toLowerCase().includes(keyword)
+    );
+  }, [tenants, searchText]);
+
+  // 非平台管理员不显示租户切换器
+  if (!isPlatformAdmin) {
+    return null;
+  }
+
   // 执行租户切换
-  const doSwitchTenant = useCallback((tenantId: string) => {
+  const doSwitchTenant = useCallback(async (tenantId: string) => {
     const targetTenant = tenants.find(t => t.id === tenantId);
     setSwitching(true);
     setSwitchingTenantName(targetTenant?.name || '');
     setOpen(false);
 
-    // 保存到 localStorage，请求拦截器会自动添加到 X-Tenant-ID Header
-    localStorage.setItem('hospital_current_tenant_id', tenantId);
+    try {
+      // 先调 API 验证租户存在且状态正常
+      await adminApi.switchTenant(tenantId);
 
-    // 清除门店缓存和当前门店，切换租户后门店列表需要重新加载
-    localStorage.removeItem('currentStore');
+      // API 成功后保存到 localStorage
+      localStorage.setItem('hospital_current_tenant_id', tenantId);
+      localStorage.removeItem('hospital_current_store');
+      tenantsCacheRef.current = null;
 
-    // 清除租户列表缓存
-    tenantsCacheRef.current = null;
-
-    // 刷新页面以应用新的租户上下文
-    window.location.reload();
+      window.location.reload();
+    } catch (error: any) {
+      setSwitching(false);
+      setSwitchingTenantName('');
+      message.error(error.message || '切换租户失败');
+    }
   }, [tenants]);
 
-  // 点击切换
+  // 点击切换（含表单页保护提示）
   const handleSwitchTenant = useCallback((tenantId: string) => {
     // 点击已选中的租户，仅关闭面板
     if (tenantId === currentTenantId) {
@@ -111,8 +139,21 @@ const TenantSwitcher: React.FC = () => {
     }
     // 防止切换过程中重复点击
     if (switching) return;
-    doSwitchTenant(tenantId);
-  }, [currentTenantId, switching, doSwitchTenant]);
+
+    // 在表单编辑页面时，提示用户确认
+    if (isOnFormPage()) {
+      const targetTenant = tenants.find(t => t.id === tenantId);
+      modal.confirm({
+        title: '切换租户',
+        content: `切换到「${targetTenant?.name || ''}」将导致当前页面未保存的更改丢失，是否继续？`,
+        okText: '确定切换',
+        cancelText: '取消',
+        onOk: () => doSwitchTenant(tenantId),
+      });
+    } else {
+      doSwitchTenant(tenantId);
+    }
+  }, [currentTenantId, switching, isOnFormPage, tenants, modal, doSwitchTenant]);
 
   // 渲染触发按钮
   const renderTrigger = () => {
@@ -143,9 +184,21 @@ const TenantSwitcher: React.FC = () => {
       <div className={styles.tenantSwitcherHeader}>
         <span className={styles.headerTitle}>切换租户</span>
       </div>
+      {tenants.length > 5 && (
+        <div className={styles.tenantSearchWrapper}>
+          <Input
+            prefix={<SearchOutlined />}
+            placeholder="搜索租户名称或编码"
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+            allowClear
+            size="small"
+          />
+        </div>
+      )}
       <Spin spinning={loading}>
         <div className={styles.tenantList}>
-          {tenants.map((tenant) => (
+          {filteredTenants.map((tenant) => (
             <div
               key={tenant.id}
               className={`${styles.tenantItem} ${currentTenantId === tenant.id ? styles.active : ''}`}
@@ -164,8 +217,8 @@ const TenantSwitcher: React.FC = () => {
               {currentTenantId === tenant.id && <CheckOutlined className={styles.tenantItemCheck} />}
             </div>
           ))}
-          {tenants.length === 0 && !loading && (
-            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无可用租户" />
+          {filteredTenants.length === 0 && !loading && (
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={searchText ? '未找到匹配的租户' : '暂无可用租户'} />
           )}
         </div>
       </Spin>

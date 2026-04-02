@@ -54,7 +54,7 @@ def build_admin_response(admin, permissions: List[str] = None) -> AdminResponse:
         store_ids = [s.id for s in admin.stores]
         stores = [StoreInfo(id=s.id, name=s.name, logo=s.logo, theme_style=s.theme_style) for s in admin.stores]
 
-    can_view_all_stores = is_super_admin or (is_store_admin and len(store_ids) > 1)
+    can_switch_stores = is_super_admin or (is_store_admin and len(store_ids) > 1)
     current_store = getattr(admin, "current_store", None) or getattr(admin, "store", None)
     current_store_id = getattr(admin, "current_store_id", None) or getattr(admin, "store_id", None)
 
@@ -77,7 +77,7 @@ def build_admin_response(admin, permissions: List[str] = None) -> AdminResponse:
         permissions=role_permissions,
         is_super_admin=is_super_admin,
         is_store_admin=is_store_admin,
-        can_view_all_stores=can_view_all_stores,
+        can_view_all_stores=can_switch_stores,
         status=admin.status,
         last_login_at=admin.last_login_at,
         last_login_ip=admin.last_login_ip,

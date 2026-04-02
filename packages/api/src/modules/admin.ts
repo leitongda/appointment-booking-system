@@ -1,4 +1,5 @@
 import { request } from '../request';
+import { withRetry } from '../utils/retry';
 import { rsaEncrypt, setPublicKey, getPublicKey, clearPublicKey } from './crypto';
 
 // ========== 公钥响应 ==========
@@ -70,7 +71,7 @@ export interface Admin {
   permissions?: string[];
   isSuperAdmin?: boolean;
   isStoreAdmin?: boolean;
-  canViewAllStores?: boolean;
+  canSwitchStores?: boolean;
   // 租户信息（多租户支持）
   tenantId?: string;
   // 其他字段
@@ -110,7 +111,7 @@ export interface AdminUpdateData {
 export interface MyStoresResult {
   stores: StoreInfo[];
   currentStoreId?: string;
-  canViewAllStores: boolean;
+  canSwitchStores: boolean;
 }
 
 export interface SwitchStoreResult {
@@ -243,7 +244,10 @@ export const adminApi = {
   // 获取 RSA 公钥
   getPublicKey: async (): Promise<string> => {
     console.log('📡 正在获取 RSA 公钥...');
-    const result = await request.get<PublicKeyResponse>(`${PREFIX}/public-key`);
+    const result = await request.get<PublicKeyResponse>(
+      `${PREFIX}/public-key`,
+      withRetry({ maxRetries: 1 })
+    );
     console.log('🚀 收到响应:', result);
     
     const publicKey = result.publicKey;
@@ -398,7 +402,16 @@ export const adminApi = {
 
   // 检查微信扫码状态
   checkWechatScan: (ticket: string): Promise<WechatCheckResult> => {
-    return request.get(`${PREFIX}/wechat/check`, { params: { ticket } });
+    return request.get(
+      `${PREFIX}/wechat/check`,
+      withRetry(
+        { params: { ticket } },
+        {
+          maxRetries: 0,
+          logRetry: false,
+        }
+      )
+    );
   },
 
   // ========== 角色管理 ==========
@@ -539,5 +552,9 @@ export const adminApi = {
   switchStore: (storeId: string): Promise<SwitchStoreResult> => {
     return request.put(`${PREFIX}/me/current-store`, { store_id: storeId });
   },
-};
 
+  // 切换当前租户（仅平台管理员）
+  switchTenant: (tenantId: string): Promise<{ message: string; tenant: { id: string; name: string; tenantCode: string } }> => {
+    return request.put(`${PREFIX}/me/current-tenant`, { tenant_id: tenantId });
+  },
+};

@@ -13,8 +13,9 @@ from app.core.config import settings
 from app.core.redis import RedisCache
 from app.db.session import get_db
 from app.models.admin import Admin, Permission
+from app.models.tenant import Tenant
 from app.modules.admin.helpers import build_admin_response, build_stores_list
-from app.modules.admin.schemas import AdminResponse, StoreInfo, SwitchStoreRequest
+from app.modules.admin.schemas import AdminResponse, StoreInfo, SwitchStoreRequest, SwitchTenantRequest, TenantInfoResponse
 from app.modules.admin.service_admins import AdminService
 
 router = APIRouter()
@@ -105,13 +106,13 @@ async def get_my_stores(
         return {
             "stores": [{"id": s.id, "name": s.name, "logo": s.logo, "themeStyle": s.theme_style} for s in stores],
             "currentStoreId": current_admin.get("current_store_id"),
-            "canViewAllStores": True,
+            "canSwitchStores": True,
         }
 
     return {
         "stores": current_admin.get("stores", []),
         "currentStoreId": current_admin.get("current_store_id"),
-        "canViewAllStores": current_admin.get("can_view_all_stores", False),
+        "canSwitchStores": current_admin.get("can_switch_stores", current_admin.get("can_view_all_stores", False)),
     }
 
 
@@ -140,4 +141,47 @@ async def switch_current_store(
     return {
         "message": "门店切换成功",
         "currentStore": {"id": store.id, "name": store.name, "logo": store.logo, "themeStyle": store.theme_style} if store else None,
+    }
+
+
+@router.put("/me/current-tenant", summary="切换当前租户")
+async def switch_current_tenant(
+    data: SwitchTenantRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+):
+    """切换当前管理员关联的租户（仅平台管理员可用）"""
+    # 权限校验：仅平台管理员可切换租户
+    if not current_admin.get("is_platform_admin"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="此操作仅限平台管理员")
+
+    target_tenant_id = data.tenant_id
+
+    # 查询目标租户
+    result = await db.execute(select(Tenant).where(Tenant.id == target_tenant_id))
+    tenant = result.scalar_one_or_none()
+
+    if not tenant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="租户不存在，请检查后重试")
+
+    # 状态校验：只允许切换到正常状态的租户
+    if tenant.status != 1:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="目标租户状态异常，无法切换")
+
+    # 更新管理员的租户关联
+    service = AdminService(db)
+    admin = await service.get_by_id(current_admin["id"])
+    if not admin:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在，请检查后重试")
+
+    admin.tenant_id = target_tenant_id
+    await db.commit()
+
+    return {
+        "message": "租户切换成功",
+        "tenant": {
+            "id": tenant.id,
+            "name": tenant.name,
+            "tenantCode": tenant.tenant_code,
+        },
     }

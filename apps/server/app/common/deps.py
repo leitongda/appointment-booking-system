@@ -309,7 +309,7 @@ async def get_current_admin(
                 current_store = available_stores[0] if available_stores else None
 
             # 是否可以查看所有绑定门店（超管可查看所有，绑定多门店的用户可切换门店）
-            can_view_all_stores = is_super_admin or len(store_ids) > 1
+            can_switch_stores = is_super_admin or len(store_ids) > 1
 
             # 解析权限列表
             permissions = []
@@ -352,7 +352,8 @@ async def get_current_admin(
                 "is_store_admin": is_store_admin,
                 "is_tenant_admin": is_tenant_admin,
                 "is_platform_admin": is_platform_admin,
-                "can_view_all_stores": can_view_all_stores,
+                "can_view_all_stores": can_switch_stores,
+                "can_switch_stores": can_switch_stores,
                 # 权限列表
                 "permissions": permissions,
             }
@@ -387,6 +388,7 @@ async def get_current_admin(
         "is_tenant_admin": False,
         "is_platform_admin": True,  # 旧用户默认为平台管理员
         "can_view_all_stores": True,
+        "can_switch_stores": True,
         "permissions": ["*"],  # 旧用户默认拥有所有权限
     }
 
@@ -793,7 +795,7 @@ async def get_current_tenant(
         "subscription_plan_id": tenant.subscription_plan_id,
         "subscription_start_at": tenant.subscription_start_at,
         "subscription_end_at": tenant.subscription_end_at,
-        "is_subscription_active": tenant.is_subscription_active(),
+        "is_subscription_active": tenant.is_subscription_active,
         "max_stores": tenant.get_effective_max_stores(),
         "max_admins": tenant.get_effective_max_admins(),
         "max_doctors": tenant.get_effective_max_doctors(),
@@ -904,7 +906,7 @@ async def get_tenant_from_admin(
         "name": tenant.name,
         "status": tenant.status,
         "subscription_plan_id": tenant.subscription_plan_id,
-        "is_subscription_active": tenant.is_subscription_active(),
+        "is_subscription_active": tenant.is_subscription_active,
     }
 
 

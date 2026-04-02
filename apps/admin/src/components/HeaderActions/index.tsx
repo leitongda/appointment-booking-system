@@ -44,7 +44,7 @@ export const StoreSwitcher: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [stores, setStores] = useState<StoreInfo[]>([]);
-  const [canViewAllStores, setCanViewAllStores] = useState(false);
+  const [canSwitchStores, setCanSwitchStores] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [switchingStoreName, setSwitchingStoreName] = useState('');
   
@@ -54,7 +54,7 @@ export const StoreSwitcher: React.FC = () => {
   const [qrcodeLoading, setQrcodeLoading] = useState(false);
   
   // 门店列表缓存
-  const storesCacheRef = useRef<{ stores: StoreInfo[]; canViewAllStores: boolean; timestamp: number } | null>(null);
+  const storesCacheRef = useRef<{ stores: StoreInfo[]; canSwitchStores: boolean; timestamp: number } | null>(null);
   
   const currentUser = initialState?.currentUser;
   const currentStore = initialState?.currentStore;
@@ -72,7 +72,7 @@ export const StoreSwitcher: React.FC = () => {
     const cache = storesCacheRef.current;
     if (cache && Date.now() - cache.timestamp < STORE_CACHE_TTL) {
       setStores(cache.stores);
-      setCanViewAllStores(cache.canViewAllStores);
+      setCanSwitchStores(cache.canSwitchStores);
       return;
     }
     
@@ -81,10 +81,10 @@ export const StoreSwitcher: React.FC = () => {
       const result = await adminApi.getMyStores();
       const fetchedStores = result.stores || [];
       setStores(fetchedStores);
-      setCanViewAllStores(result.canViewAllStores);
+      setCanSwitchStores(result.canSwitchStores);
       storesCacheRef.current = {
         stores: fetchedStores,
-        canViewAllStores: result.canViewAllStores,
+        canSwitchStores: result.canSwitchStores,
         timestamp: Date.now(),
       };
     } catch (error) {
@@ -117,7 +117,7 @@ export const StoreSwitcher: React.FC = () => {
     try {
       const result = await adminApi.switchStore(storeId);
       if (result.currentStore) {
-        localStorage.setItem('currentStore', JSON.stringify(result.currentStore));
+        localStorage.setItem('hospital_current_store', JSON.stringify(result.currentStore));
       }
       // 清除缓存，确保下次加载最新数据
       storesCacheRef.current = null;
@@ -134,7 +134,7 @@ export const StoreSwitcher: React.FC = () => {
     setSwitching(true);
     setSwitchingStoreName('全部门店');
     setOpen(false);
-    localStorage.removeItem('currentStore');
+    localStorage.removeItem('hospital_current_store');
     storesCacheRef.current = null;
     window.location.reload();
   }, []);

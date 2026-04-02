@@ -23,7 +23,7 @@ type EventHandler = (event: CrossTabEvent) => void;
 const WATCHED_KEYS = new Set([
   'hospital_token',
   'hospital_current_tenant_id',
-  'currentStore',
+  'hospital_current_store',
 ]);
 
 /** 防抖间隔（ms），同一事件在短时间内只触发一次回调 */
@@ -71,7 +71,7 @@ function onStorageChange(event: StorageEvent): void {
     case 'hospital_current_tenant_id':
       handleTenantChange(newValue);
       break;
-    case 'currentStore':
+    case 'hospital_current_store':
       handleStoreChange(newValue);
       break;
   }

@@ -9,7 +9,7 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
   const isSuperAdmin = roleCode === 'SUPER_ADMIN' || currentUser?.isSuperAdmin;
   const isStoreAdmin = roleCode === 'STORE_ADMIN' || currentUser?.isStoreAdmin;
   const isStoreUser = roleCode === 'STORE_USER';
-  const canViewAllStores = currentUser?.canViewAllStores || isSuperAdmin;
+  const canSwitchStores = currentUser?.canSwitchStores || isSuperAdmin;
   const hasWildcard = permissions.includes('*');
 
   const hasPermission = (permission: string): boolean => {
@@ -159,7 +159,7 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canSuperAdmin: isSuperAdmin,
     canStoreAdmin: isStoreAdmin,
     canStoreUser: isStoreUser,
-    canViewAllStores,
+    canSwitchStores,
 
     isLogin: !!currentUser,
     hasPermission,

@@ -36,5 +36,5 @@ def test_build_admin_response_maps_store_fields_and_flags():
     assert response.current_store_id == "store-1"
     assert response.store_id == "store-1"
     assert response.is_super_admin is True
-    assert response.can_view_all_stores is True
+    assert response.can_view_all_stores is True  # schema alias changed, field name kept
     assert response.stores[0].name == "总院"
