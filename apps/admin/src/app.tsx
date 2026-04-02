@@ -1,14 +1,14 @@
 import { AvatarDropdown, AvatarName } from '@/components/RightContent';
 import { FullscreenButton, NotificationButton, RefreshButton, StoreSwitcher } from '@/components/HeaderActions';
 import TenantSwitcher from '@/components/TenantSwitcher';
-import { getToken, removeToken, setStorage, STORAGE_KEYS, handleTokenExpired, initTracker, getTracker, initCrossTabSync, destroyCrossTabSync } from '@hospital/shared';
+import { getToken, removeToken, setStorage, getStorage, removeStorage, STORAGE_KEYS, handleTokenExpired, initTracker, getTracker, initCrossTabSync, destroyCrossTabSync } from '@hospital/shared';
 import type { CrossTabEvent } from '@hospital/shared';
 import { adminApi, setBaseURL } from '@hospital/api';
 import type { Settings as LayoutSettings, MenuDataItem } from '@ant-design/pro-components';
 import type { RunTimeLayoutConfig, RequestConfig } from '@umijs/max';
 import { history, useLocation } from '@umijs/max';
 import { App, Button, message, Modal, ConfigProvider, theme, notification } from 'antd';
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import defaultSettings from '../config/defaultSettings';
 import { APP_TITLE } from '@config/appConfig';
 import { initApiConfig } from '@/utils/request';
@@ -189,7 +189,13 @@ function handleCrossTabEvent(event: CrossTabEvent) {
         placement: 'topRight',
         duration: 15,
         btn: (
-          <Button type="primary" size="small" onClick={() => window.location.reload()}>
+          <Button type="primary" size="small" onClick={() => {
+            const { pathname, search, hash } = history.location;
+            if (!/\/(create|edit)($|\/)/.test(pathname)) {
+              setStorage(STORAGE_KEYS.SWITCH_REDIRECT_PATH, pathname + (search || '') + (hash || ''));
+            }
+            window.location.reload();
+          }}>
             立即刷新
           </Button>
         ),
@@ -206,7 +212,13 @@ function handleCrossTabEvent(event: CrossTabEvent) {
         placement: 'topRight',
         duration: 15,
         btn: (
-          <Button type="primary" size="small" onClick={() => window.location.reload()}>
+          <Button type="primary" size="small" onClick={() => {
+            const { pathname, search, hash } = history.location;
+            if (!/\/(create|edit)($|\/)/.test(pathname)) {
+              setStorage(STORAGE_KEYS.SWITCH_REDIRECT_PATH, pathname + (search || '') + (hash || ''));
+            }
+            window.location.reload();
+          }}>
             立即刷新
           </Button>
         ),
@@ -383,6 +395,18 @@ export async function getInitialState(): Promise<{
  */
 export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) => {
   const { currentStore } = initialState || {};
+
+  // 切换租户/门店后恢复之前的页面路径
+  React.useEffect(() => {
+    const redirectPath = getStorage<string>(STORAGE_KEYS.SWITCH_REDIRECT_PATH);
+    if (redirectPath) {
+      removeStorage(STORAGE_KEYS.SWITCH_REDIRECT_PATH);
+      const currentPath = history.location.pathname + (history.location.search || '');
+      if (redirectPath !== currentPath) {
+        history.push(redirectPath);
+      }
+    }
+  }, []);
 
   // 菜单展开状态：保持已展开的菜单，路由变化时只追加不清除
   const menuOpenKeys = (initialState as any)?.menuOpenKeys

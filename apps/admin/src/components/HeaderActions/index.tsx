@@ -26,6 +26,7 @@ import TenantSwitcher from '@/components/TenantSwitcher';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/zh-cn';
+import { setStorage, STORAGE_KEYS } from '@hospital/shared';
 import styles from './index.less';
 
 dayjs.extend(relativeTime);
@@ -121,6 +122,16 @@ export const StoreSwitcher: React.FC = () => {
       }
       // 清除缓存，确保下次加载最新数据
       storesCacheRef.current = null;
+
+      // 保存当前路径以便 reload 后恢复（排除表单编辑页）
+      const { pathname, search, hash } = history.location;
+      if (!/\/(create|edit)($|\/)/.test(pathname)) {
+        setStorage(STORAGE_KEYS.SWITCH_REDIRECT_PATH, pathname + (search || '') + (hash || ''));
+      } else {
+        const listPath = pathname.replace(/\/(create|edit)($|\/.*)/, '');
+        setStorage(STORAGE_KEYS.SWITCH_REDIRECT_PATH, listPath || '/dashboard');
+      }
+
       window.location.reload();
     } catch (error: any) {
       setSwitching(false);
@@ -136,6 +147,16 @@ export const StoreSwitcher: React.FC = () => {
     setOpen(false);
     localStorage.removeItem('hospital_current_store');
     storesCacheRef.current = null;
+
+    // 保存当前路径以便 reload 后恢复
+    const { pathname, search, hash } = history.location;
+    if (!/\/(create|edit)($|\/)/.test(pathname)) {
+      setStorage(STORAGE_KEYS.SWITCH_REDIRECT_PATH, pathname + (search || '') + (hash || ''));
+    } else {
+      const listPath = pathname.replace(/\/(create|edit)($|\/.*)/, '');
+      setStorage(STORAGE_KEYS.SWITCH_REDIRECT_PATH, listPath || '/dashboard');
+    }
+
     window.location.reload();
   }, []);
 

@@ -13,6 +13,7 @@ import { Tooltip, Popover, Spin, Empty, Avatar, Input, App } from 'antd';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { tenantApi, adminApi } from '@hospital/api';
 import type { Tenant } from '@hospital/api';
+import { setStorage, removeStorage, STORAGE_KEYS } from '@hospital/shared';
 import styles from './index.less';
 
 // 租户列表缓存 TTL（5 分钟）
@@ -122,13 +123,23 @@ const TenantSwitcher: React.FC = () => {
       localStorage.removeItem('hospital_current_store');
       tenantsCacheRef.current = null;
 
+      // 保存当前路径以便 reload 后恢复（排除表单编辑页）
+      const { pathname, search, hash } = history.location;
+      if (!/\/(create|edit)($|\/)/.test(pathname)) {
+        setStorage(STORAGE_KEYS.SWITCH_REDIRECT_PATH, pathname + (search || '') + (hash || ''));
+      } else {
+        // 表单页回退到列表页（去掉最后一段路径）
+        const listPath = pathname.replace(/\/(create|edit)($|\/.*)/, '');
+        setStorage(STORAGE_KEYS.SWITCH_REDIRECT_PATH, listPath || '/dashboard');
+      }
+
       window.location.reload();
     } catch (error: any) {
       setSwitching(false);
       setSwitchingTenantName('');
       message.error(error.message || '切换租户失败');
     }
-  }, [tenants]);
+  }, [tenants, message]);
 
   // 点击切换（含表单页保护提示）
   const handleSwitchTenant = useCallback((tenantId: string) => {

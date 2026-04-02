@@ -7,6 +7,8 @@ export const STORAGE_KEYS = {
   USER_INFO: 'hospital_user_info',
   /** 上次访问的页面路径 */
   LAST_PATH: 'hospital_last_path',
+  /** 切换租户/门店后需要恢复的页面路径 */
+  SWITCH_REDIRECT_PATH: 'hospital_switch_redirect',
   /** 登录方式 */
   LOGIN_TYPE: 'hospital_login_type',
   /** 手机号登录子方式 */
@@ -123,9 +125,32 @@ export const handleTokenExpired = (callback?: () => void): boolean => {
  */
 export const resetTokenExpiredState = (): void => {
   isTokenExpiredHandling = false;
+  isAuthExpired = false;
   if (tokenExpiredTimer) {
     clearTimeout(tokenExpiredTimer);
     tokenExpiredTimer = null;
   }
+};
+
+// ─── 全局"认证已失效"门控 ──────────────────────────────────
+
+/**
+ * 全局认证失效标记。
+ * 一旦设为 true，所有通过 @hospital/api 发出的请求都会被短路，
+ * 避免定时器/轮询/组件重渲染持续发出无效请求导致 "(1/3) 无限重复"。
+ *
+ * - 在 401 响应拦截器中通过 markAuthExpired() 设置
+ * - 在登录成功后通过 resetTokenExpiredState() 清除
+ */
+let isAuthExpired = false;
+
+/** 标记认证已失效（401 拦截器调用） */
+export const markAuthExpired = (): void => {
+  isAuthExpired = true;
+};
+
+/** 检查认证是否已失效（请求拦截器调用） */
+export const checkAuthExpired = (): boolean => {
+  return isAuthExpired;
 };
 
