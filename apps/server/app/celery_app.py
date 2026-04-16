@@ -57,6 +57,9 @@ celery_app.conf.update(
         "app.tasks.cleanup_task.*": {"queue": "scheduled"},
         "app.tasks.operation_log_task.*": {"queue": "default"},
         "app.tasks.behavior_log_task.*": {"queue": "default"},
+        "app.tasks.payment_task.*": {"queue": "scheduled"},
+        "app.tasks.payment_reconciliation.*": {"queue": "scheduled"},
+        "app.tasks.refund_sync.*": {"queue": "scheduled"},
     },
     
     # Beat 调度器配置（定时任务）
@@ -123,6 +126,27 @@ celery_app.conf.update(
             "schedule": crontab(hour=4, minute=0),  # 每天凌晨4:00
             "options": {"queue": "scheduled"},
         },
+
+        # 支付超时自动取消 - 每5分钟
+        "payment-cancel-expired-pending": {
+            "task": "app.tasks.payment_task.cancel_expired_pending_appointments",
+            "schedule": crontab(minute="*/5"),
+            "options": {"queue": "scheduled"},
+        },
+
+        # 支付状态主动对账 - 每15分钟
+        "payment-reconciliation": {
+            "task": "app.tasks.payment_reconciliation.reconcile_pending_payments",
+            "schedule": crontab(minute="*/15"),
+            "options": {"queue": "scheduled"},
+        },
+
+        # 退款状态主动同步 - 每30分钟
+        "refund-status-sync": {
+            "task": "app.tasks.refund_sync.sync_refund_statuses",
+            "schedule": crontab(minute="*/30"),
+            "options": {"queue": "scheduled"},
+        },
     },
 )
 
@@ -137,6 +161,9 @@ celery_app.autodiscover_tasks([
     "app.tasks.operation_log_task",
     "app.tasks.behavior_log_task",
     "app.tasks.tenant_usage_task",
+    "app.tasks.payment_task",
+    "app.tasks.payment_reconciliation",
+    "app.tasks.refund_sync",
 ])
 
 # Flower 监控配置
