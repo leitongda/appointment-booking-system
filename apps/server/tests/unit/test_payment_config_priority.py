@@ -629,16 +629,11 @@ async def test_disabled_profile_skipped(db_session):
         service = PaymentService(db_session)
         result = await service._resolve_payment_config(appointment=appointment)
 
-        # 当前实现：快照指向的配置存在但未检查状态
-        # 代码在 419-428 行直接返回找到的 profile，未检查 status
-        # 实际上会返回禁用的配置（这是待修复的问题）
-        # 测试当前行为：返回 disabled_profile
+        # 快照指向的配置已禁用，应跳过并降级到下一优先级 (miniapp_instance)
         assert result is not None
-        assert isinstance(result, PaymentProfile)
-        assert result.id == disabled_profile.id
-        assert result.status == 0  # 禁用状态也被返回
-
-        # TODO: 待改进 - 应该跳过禁用的配置，继续尝试其他来源
+        assert result.payment_profile_id == fallback_profile.id
+        assert result.mch_id == "fallback-mch"
+        assert result.source == "miniapp_instance_default"
 
 
 @pytest.mark.asyncio
