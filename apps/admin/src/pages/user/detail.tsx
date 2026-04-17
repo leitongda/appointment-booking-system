@@ -218,12 +218,12 @@ const UserDetailPage: React.FC = () => {
       render: (_: any, record: UserCard) => (
         <Space>
           <a onClick={() => history.push(`/medical-services/medical-card/${record.id}?fromUserId=${id}`)}>查看</a>
-          {access.hasPermission('user:update') && (
+          {access.hasPermission('patient:update') && (
             <a onClick={() => { setCurrentCard(record); setEditCardModalVisible(true); }}>
               <EditOutlined /> 编辑
             </a>
           )}
-          {access.hasPermission('user:delete') && (
+          {access.hasPermission('patient:delete') && (
             <Popconfirm
               title="确定删除该就诊卡吗？"
               description="删除后不可恢复"
@@ -353,7 +353,7 @@ const UserDetailPage: React.FC = () => {
             </Col>
             <Col flex="auto" style={{ textAlign: 'right' }}>
               <Space>
-                {access.hasPermission('user:update') && (
+                {access.hasPermission('patient:update') && (
                   <>
                     <Button icon={<EditOutlined />} onClick={() => setEditUserModalVisible(true)}>
                       编辑信息
@@ -376,7 +376,7 @@ const UserDetailPage: React.FC = () => {
                     )}
                   </>
                 )}
-                {access.hasPermission('user:delete') && (
+                {access.hasPermission('patient:delete') && (
                   <Popconfirm
                     title="确定删除该用户吗？"
                     description="删除后用户的所有就诊卡将被一并删除，此操作不可恢复"
@@ -419,7 +419,7 @@ const UserDetailPage: React.FC = () => {
         <Card 
           title={`就诊卡列表 (${user?.cardCount || 0}张)`}
           extra={
-            access.hasPermission('user:update') && (
+            access.hasPermission('patient:update') && (
               <Button
                 type="primary"
                 icon={<PlusOutlined />}

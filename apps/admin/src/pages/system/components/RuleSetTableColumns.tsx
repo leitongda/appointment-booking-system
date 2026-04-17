@@ -114,7 +114,7 @@ export const getRuleSetColumns = (handlers: ColumnHandlers): ProColumns<RuleSet>
           <a onClick={() => handlers.handleView!(record)}>查看</a>
         )}
         {handlers.canSuperAdmin ? (
-          <a onClick={() => history.push(`/operations/system/rule-sets/${record.id}/edit`)}>编辑</a>
+          <a onClick={() => history.push(`/configuration/rule-sets/${record.id}/edit`)}>编辑</a>
         ) : (
           <a style={{ color: 'rgba(0, 0, 0, 0.25)', cursor: 'not-allowed' }}>编辑</a>
         )}

@@ -66,8 +66,6 @@ export default defineConfig({
     token: {},
     siderMenuType: 'sub',
     splitMenus: false,
-
-
   },
 
   // 路由配置

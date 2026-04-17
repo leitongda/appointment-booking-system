@@ -105,12 +105,12 @@ const DepartmentPage: React.FC = () => {
 
   // 用户门店相关信息
   const userStores = initialState?.userStores || [];
-  const canViewAllStores = access.canViewAllStores;
-  const isSingleStore = !canViewAllStores && userStores.length <= 1;
+  const canSwitchStores = access.canSwitchStores;
+  const isSingleStore = !canSwitchStores && userStores.length <= 1;
 
   useEffect(() => {
     // 只有超管或多门店用户才需要加载门店列表
-    if (canViewAllStores || userStores.length > 1) {
+    if (canSwitchStores || userStores.length > 1) {
       loadStores();
     }
   }, []);
@@ -131,7 +131,7 @@ const DepartmentPage: React.FC = () => {
     const options: { label: string; value: string }[] = [];
     
     // 多门店用户或超管可以选择"全部"
-    if (canViewAllStores) {
+    if (canSwitchStores) {
       options.push({ label: '全部门店', value: 'all' });
     }
     
@@ -142,7 +142,7 @@ const DepartmentPage: React.FC = () => {
     });
     
     return options;
-  }, [stores, userStores, canViewAllStores, isSingleStore, access.canSuperAdmin]);
+  }, [stores, userStores, canSwitchStores, isSingleStore, access.canSuperAdmin]);
 
   const handleDelete = useCallback(async (id: string) => {
     try {
@@ -308,7 +308,7 @@ const DepartmentPage: React.FC = () => {
       fieldProps: {
         options: storeFilterOptions,
         allowClear: true,
-        placeholder: canViewAllStores ? '全部门店' : '请选择门店',
+        placeholder: canSwitchStores ? '全部门店' : '请选择门店',
       },
     },
     {
@@ -453,7 +453,7 @@ const DepartmentPage: React.FC = () => {
         );
       },
     },
-  ], [storeFilterOptions, isSingleStore, canViewAllStores, access, handleRecommendChange, handleHotChange, handleStatusChange, handleDelete]);
+  ], [storeFilterOptions, isSingleStore, canSwitchStores, access, handleRecommendChange, handleHotChange, handleStatusChange, handleDelete]);
   return (
     <PageContainer>
       <DndContext

@@ -397,7 +397,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
   const { currentStore } = initialState || {};
 
   // 切换租户/门店后恢复之前的页面路径
-  React.useEffect(() => {
+  useEffect(() => {
     const redirectPath = getStorage<string>(STORAGE_KEYS.SWITCH_REDIRECT_PATH);
     if (redirectPath) {
       removeStorage(STORAGE_KEYS.SWITCH_REDIRECT_PATH);

@@ -111,7 +111,7 @@ const EmailTemplatesPage: React.FC = () => {
           <OperationButton
             type="edit"
             permission="system:email-template:update"
-            url={`/operations/system/email-templates/${record.id}/edit`}
+            url={`/configuration/email-templates/${record.id}/edit`}
           />
           <OperationButton
             type="custom"
@@ -156,7 +156,7 @@ const EmailTemplatesPage: React.FC = () => {
           <CreateButton
             key="add"
             permission="system:email-template:create"
-            url="/operations/system/email-templates/create"
+            url="/configuration/email-templates/create"
             label="新增模板"
           />,
         ]}

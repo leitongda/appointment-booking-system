@@ -307,13 +307,13 @@ const DoctorListPage: React.FC = () => {
   const currentUser = initialState?.currentUser;
   const currentStore = initialState?.currentStore;
   const userStores = initialState?.userStores || [];
-  const canViewAllStores = access.canViewAllStores;
-  const isSingleStore = !canViewAllStores && userStores.length <= 1;
+  const canSwitchStores = access.canSwitchStores;
+  const isSingleStore = !canSwitchStores && userStores.length <= 1;
 
   useEffect(() => {
     loadDepartments();
     // 只有超管或多门店用户才需要加载门店列表
-    if (canViewAllStores || userStores.length > 1) {
+    if (canSwitchStores || userStores.length > 1) {
       loadStores();
     }
   }, []);
@@ -343,7 +343,7 @@ const DoctorListPage: React.FC = () => {
     const options: { label: string; value: string }[] = [];
 
     // 多门店用户或超管可以选择"全部"
-    if (canViewAllStores) {
+    if (canSwitchStores) {
       options.push({ label: '全部门店', value: 'all' });
     }
 
@@ -354,7 +354,7 @@ const DoctorListPage: React.FC = () => {
     });
     
     return options;
-  }, [stores, userStores, canViewAllStores, isSingleStore, access.canSuperAdmin]);
+  }, [stores, userStores, canSwitchStores, isSingleStore, access.canSuperAdmin]);
 
   const handleDelete = useCallback(async (id: string) => {
     try {
@@ -400,7 +400,7 @@ const DoctorListPage: React.FC = () => {
       hideInTable: isSingleStore,
       fieldProps: {
         options: storeFilterOptions,
-        placeholder: canViewAllStores ? '全部门店' : '请选择门店',
+        placeholder: canSwitchStores ? '全部门店' : '请选择门店',
       },
       render: (_, record) => record.storeName || '-',
     },

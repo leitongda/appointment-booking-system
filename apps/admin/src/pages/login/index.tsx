@@ -55,14 +55,14 @@ const Login: React.FC = () => {
     if (result.stores && result.stores.length > 0) {
       // 多门店管理员，默认选择第一个门店
       currentStore = result.stores[0];
-      localStorage.setItem('currentStore', JSON.stringify(currentStore));
+      localStorage.setItem('hospital_current_store', JSON.stringify(currentStore));
     } else if (result.store) {
       // 兼容旧的单门店返回
       currentStore = result.store;
-      localStorage.setItem('currentStore', JSON.stringify(currentStore));
+      localStorage.setItem('hospital_current_store', JSON.stringify(currentStore));
     } else {
       // 超级管理员没有门店
-      localStorage.removeItem('currentStore');
+      localStorage.removeItem('hospital_current_store');
     }
     
     message.success('登录成功！');

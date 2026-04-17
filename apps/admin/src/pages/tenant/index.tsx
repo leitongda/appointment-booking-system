@@ -17,18 +17,18 @@ const TENANT_STATUS_MAP: Record<number, { text: string; status: 'Success' | 'Err
 
 const TenantPage: React.FC = () => {
   const access = useAccess();
-  const { actionRef, handleDelete, refresh } = useListPage({
+  const { actionRef, handleDelete, reload } = useListPage({
     deleteFn: tenantApi.deleteTenant,
   });
 
   const handleActivate = async (tenantId: string) => {
     await tenantApi.activateTenant(tenantId);
-    refresh();
+    reload();
   };
 
   const handleSuspend = async (tenantId: string) => {
     await tenantApi.suspendTenant(tenantId);
-    refresh();
+    reload();
   };
 
   const columns: ProColumns<Tenant>[] = [

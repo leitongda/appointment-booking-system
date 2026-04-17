@@ -68,7 +68,7 @@ const ShiftTypeFormPage: React.FC = () => {
     },
     {
       switchFields: ['enabled'],
-      onSuccess: () => history.push('/operations/system/shift-types'),
+      onSuccess: () => history.push('/configuration/shift-types'),
       successMessage: isEdit ? '更新成功' : '创建成功',
     }
   );

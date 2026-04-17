@@ -102,6 +102,11 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
   const canBookingRules = hasPermission('system:settings');
   const canBlacklistSettings = hasPermission('system:settings');
   const canBasicSettings = hasPermission('system:settings');
+  const canBookingFields = hasPermission('system:settings');
+  const canPatientCardConfig = hasPermission('system:settings');
+  const canHospitalInfo = hasPermission('system:settings');
+  const canEmailConfig = hasPermission('system:settings');
+  const canImageConfig = hasPermission('system:settings');
   const canWechatSettings = isSuperAdmin || hasAnyPermission(['system:settings', 'settings:wechat', 'settings:edit']);
   const canShiftTypes = isSuperAdmin || hasPermission('system:settings');
   const canRuleSets = isSuperAdmin;
@@ -124,6 +129,7 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     'miniapp-platform:payment-profile',
     'miniapp-platform:instance',
   ]);
+  const canTenantUsage = canTenant;
 
   const canPlatformManagement = canTenant || canTenantPlans || canMiniappPlatform;
   const canOrganizationManagement =
@@ -146,6 +152,11 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canBookingRules ||
     canBlacklistSettings ||
     canBasicSettings ||
+    canBookingFields ||
+    canPatientCardConfig ||
+    canHospitalInfo ||
+    canEmailConfig ||
+    canImageConfig ||
     canWechatSettings ||
     canShiftTypes ||
     canRuleSets ||
@@ -153,6 +164,13 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canEmailTemplates ||
     canEmailRecipients ||
     canBookingNotice;
+  const canConfigurationCenter = canOperationsConfig;
+  const canSystemMonitoring =
+    canSystemLogs ||
+    canCheckinAuditLogs ||
+    canOnlineUsers ||
+    canAnalytics;
+  const canClinicalOperations = canMedicalServices;
   const canContentOperations = canContent || canMessage || canFeedback;
 
   return {
@@ -171,8 +189,11 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canPlatformManagement,
     canOrganizationManagement,
     canMedicalServices,
+    canClinicalOperations,
     canOperationsConfig,
+    canConfigurationCenter,
     canContentOperations,
+    canSystemMonitoring,
     canStoreCreate: isSuperAdmin,
     canStoreDelete: isSuperAdmin,
     canStore,
@@ -198,6 +219,11 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canBookingRules,
     canBlacklistSettings,
     canBasicSettings,
+    canBookingFields,
+    canPatientCardConfig,
+    canHospitalInfo,
+    canEmailConfig,
+    canImageConfig,
     canWechatSettings,
     canShiftTypes,
     canRuleSets,
@@ -207,5 +233,6 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canBookingNotice,
     canTenant,
     canTenantPlans,
+    canTenantUsage,
   };
 }

@@ -8,6 +8,7 @@ import { appointmentApi, storeApi, dataApi, doctorApi, departmentApi } from '@ho
 import { toProTableResult } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
 import { PAGINATION_CONFIG } from '@/constants/pagination';
+import { REFUND_STATUS_MAP, REFUND_STATUS_COLOR } from '@hospital/shared';
 import type { Appointment } from '@hospital/shared';
 import ImportExport from '@/components/ImportExport';
 import dayjs from 'dayjs';
@@ -248,6 +249,27 @@ const AppointmentListPage: React.FC = () => {
         return <Tag color={status.color}>{status.text}</Tag>;
       },
     },
+    {
+      title: '支付金额',
+      dataIndex: 'paymentAmount',
+      width: 100,
+      search: false,
+      render: (amount) => (amount ? `¥${Number(amount).toFixed(2)}` : '-'),
+    },
+    {
+      title: '退款状态',
+      dataIndex: 'refundStatus',
+      width: 100,
+      search: false,
+      render: (status) => {
+        if (!status) return '-';
+        return (
+          <Tag color={REFUND_STATUS_COLOR[status] || 'default'}>
+            {REFUND_STATUS_MAP[status] || status}
+          </Tag>
+        );
+      },
+    },
     // 创建时间范围选择器（仅搜索，不在表格中显示）
     {
       title: '创建时间',
@@ -306,6 +328,16 @@ const AppointmentListPage: React.FC = () => {
                 <CloseCircleOutlined /> 取消签到
               </a>
             </Popconfirm>
+          )}
+          {record.paymentAmount && record.paymentAmount > 0 &&
+           record.refundStatus !== 'refunded' &&
+           access.hasPermission('appointment:refund') && (
+            <a
+              onClick={() => history.push(`/medical-services/appointment/${record.id}`)}
+              style={{ color: '#1890ff', fontSize: 13 }}
+            >
+              退款
+            </a>
           )}
         </Space>
       ),

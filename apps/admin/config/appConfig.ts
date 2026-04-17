@@ -7,7 +7,8 @@
 /**
  * 系统标题
  */
-export const APP_TITLE = '医院挂号管理系统';
+// export const APP_TITLE = '医院挂号管理系统';
+export const APP_TITLE = '管理系统';
 
 /**
  * 默认 Logo 路径

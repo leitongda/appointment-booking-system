@@ -2,7 +2,7 @@ import { PageContainer } from '@ant-design/pro-components';
 import { ProForm, ProFormText, ProFormSelect, ProFormTextArea, ProFormDigit } from '@ant-design/pro-components';
 import { Card, message, Form, Row, Col } from 'antd';
 import { history, useParams, useSearchParams } from '@umijs/max';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { tenantApi } from '@hospital/api';
 import type { SubscriptionPlan, TenantCreateData, TenantUpdateData } from '@hospital/api';
 
@@ -14,17 +14,23 @@ const TenantFormPage: React.FC = () => {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(false);
   const [checkingCode, setCheckingCode] = useState(false);
+  const cancelledRef = useRef(false);
 
   useEffect(() => {
+    cancelledRef.current = false;
     loadPlans();
     if (isEdit) {
       loadTenant();
     }
+    return () => {
+      cancelledRef.current = true;
+    };
   }, [id]);
 
   const loadPlans = async () => {
     try {
       const res = await tenantApi.getPlans(1);
+      if (cancelledRef.current) return;
       setPlans(Array.isArray(res) ? res : []);
     } catch (error) {
       console.error('加载订阅计划失败:', error);
@@ -35,6 +41,7 @@ const TenantFormPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await tenantApi.getTenant(id);
+      if (cancelledRef.current) return;
       const tenant = res;
       form.setFieldsValue({
         tenantCode: tenant.tenantCode,
@@ -53,10 +60,13 @@ const TenantFormPage: React.FC = () => {
         subdomain: tenant.subdomain,
       });
     } catch (error) {
+      if (cancelledRef.current) return;
       message.error('加载租户信息失败');
       history.back();
     } finally {
-      setLoading(false);
+      if (!cancelledRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -122,10 +132,14 @@ const TenantFormPage: React.FC = () => {
                 name="tenantCode"
                 label="租户标识"
                 placeholder="请输入租户标识"
-                rules={[
-                  { required: true, message: '请输入租户标识' },
-                  { validator: checkTenantCode },
-                ]}
+                rules={
+                  isEdit
+                    ? []
+                    : [
+                        { required: true, message: '请输入租户标识' },
+                        { validator: checkTenantCode },
+                      ]
+                }
                 disabled={isEdit}
                 extra="只能包含小写字母、数字和连字符，长度 3-50"
                 validateDebounce={500}

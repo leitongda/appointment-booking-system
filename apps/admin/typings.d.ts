@@ -189,7 +189,7 @@ declare namespace API {
     permissions?: string[];
     isSuperAdmin?: boolean;
     isStoreAdmin?: boolean;
-    canViewAllStores?: boolean;
+    canSwitchStores?: boolean;
   }
 
   interface LoginParams {

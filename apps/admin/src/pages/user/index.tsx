@@ -100,7 +100,7 @@ const UserManagePage: React.FC = () => {
           {record.status === 1 ? (
             <OperationButton
               type="custom"
-              permission="user:update"
+              permission="patient:update"
               icon={<StopOutlined />}
               label="禁用"
               danger
@@ -110,7 +110,7 @@ const UserManagePage: React.FC = () => {
           ) : (
             <OperationButton
               type="custom"
-              permission="user:update"
+              permission="patient:update"
               icon={<CheckCircleOutlined />}
               label="启用"
               style={{ color: '#52c41a' }}
@@ -120,7 +120,7 @@ const UserManagePage: React.FC = () => {
           )}
           <OperationButton
             type="delete"
-            permission="user:delete"
+            permission="patient:delete"
             confirmText="确定删除该用户吗？"
             confirmDescription="删除后用户的所有就诊卡将被一并删除，此操作不可恢复"
             onClick={() => handleDelete(record.id)}

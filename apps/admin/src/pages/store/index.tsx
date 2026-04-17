@@ -256,7 +256,7 @@ const StorePage: React.FC = () => {
       render: (_, record) => record.logo ? <Avatar src={record.logo} size={42} /> : '-',
     },
     { title: '门店名称', dataIndex: 'name', width: 160, ellipsis: true },
-    { title: '门店编码', dataIndex: 'code', width: 110, search: false },
+    { title: '门店编码', dataIndex: 'code', width: 150, search: false },
     { title: '城市', dataIndex: 'city', width: 90, search: false },
     { title: '地址', dataIndex: 'address', width: 220, ellipsis: true, search: false },
     { title: '联系电话', dataIndex: 'phone', width: 130, search: false },
@@ -314,7 +314,7 @@ const StorePage: React.FC = () => {
                 <EditOutlined /> 编辑
               </a>
             )}
-            {access.hasPermission('store:read') && (
+            {access.hasPermission('store:list') && (
               <a onClick={() => handleOpenQrcodeModal(record)} style={{ fontSize: 13 }}>
                 <QrcodeOutlined /> 签到
               </a>

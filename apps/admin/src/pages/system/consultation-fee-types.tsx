@@ -53,7 +53,7 @@ const ConsultationFeeTypesPage: React.FC = () => {
     },
     createOperationColumn<ConsultationFeeType>({
       width: 120,
-      editUrl: (r) => `/operations/system/consultation-fee-types/${r.id}/edit`,
+      editUrl: (r) => `/configuration/consultation-fee-types/${r.id}/edit`,
       editPermission: 'system:consultation-fee',
       onDelete: handleDelete,
       deletePermission: 'system:consultation-fee',
@@ -82,7 +82,7 @@ const ConsultationFeeTypesPage: React.FC = () => {
           <CreateButton
             key="add"
             permission="system:consultation-fee"
-            url="/operations/system/consultation-fee-types/create"
+            url="/configuration/consultation-fee-types/create"
             label="新增诊费类型"
           />,
         ]}
