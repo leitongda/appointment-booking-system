@@ -25,6 +25,22 @@ import uuid
 logger = logging.getLogger(__name__)
 
 
+def _snake_to_camel(value: str) -> str:
+    parts = value.split('_')
+    return parts[0] + ''.join(part.capitalize() for part in parts[1:])
+
+
+def _camel_to_snake(value: str) -> str:
+    chars = []
+    for ch in value:
+        if ch.isupper():
+            chars.append('_')
+            chars.append(ch.lower())
+        else:
+            chars.append(ch)
+    return ''.join(chars).lstrip('_')
+
+
 async def auto_release_blacklist(db: AsyncSession) -> list[str]:
     """
     自动解禁到期的黑名单用户（异步版本，供 FastAPI 后台任务使用）
@@ -84,18 +100,27 @@ async def auto_release_blacklist(db: AsyncSession) -> list[str]:
 
 def _get_setting_value(db: Session, category: str, key: str, default=None):
     """从数据库获取配置值"""
+    candidate_keys = [key]
+    camel_key = _snake_to_camel(key)
+    snake_key = _camel_to_snake(key)
+    if camel_key not in candidate_keys:
+        candidate_keys.append(camel_key)
+    if snake_key not in candidate_keys:
+        candidate_keys.append(snake_key)
+
     try:
-        result = db.execute(
-            select(Settings).where(
-                and_(
-                    Settings.category == category,
-                    Settings.key == key
+        for candidate_key in candidate_keys:
+            result = db.execute(
+                select(Settings).where(
+                    and_(
+                        Settings.category == category,
+                        Settings.key == candidate_key
+                    )
                 )
             )
-        )
-        setting = result.scalar_one_or_none()
-        if setting:
-            return setting.value
+            setting = result.scalar_one_or_none()
+            if setting:
+                return setting.value
         return default
     except Exception:
         return default
@@ -234,8 +259,8 @@ def mark_no_show_appointments_task():
                 current_time = now.time()
 
                 # 获取配置
-                no_show_limit = int(_get_setting_value(db, 'booking', 'noShowLimit', 3))
-                blacklist_days = int(_get_setting_value(db, 'booking', 'blacklistDays', 30))
+                no_show_limit = int(_get_setting_value(db, 'booking', 'no_show_limit', 3))
+                blacklist_days = int(_get_setting_value(db, 'booking', 'blacklist_days', 30))
 
                 # 查找需要标记为爽约的预约（添加 tenant_id 过滤）
                 from app.models.schedule import Schedule
@@ -299,9 +324,10 @@ def mark_no_show_appointments_task():
                             blacklist = Blacklist(
                                 id=str(uuid.uuid4()),
                                 tenant_id=tenant.id,
-                                type='user',
                                 user_id=user_id,
                                 reason=f'自动加入：爽约 {no_show_count} 次',
+                                no_show_count=no_show_count,
+                                source=2,
                                 expire_at=expire_at,
                                 status=1,
                             )
@@ -359,8 +385,8 @@ def check_and_add_blacklist(user_id: str):
     with get_sync_db() as db:
         try:
             # 获取配置
-            no_show_limit = int(_get_setting_value(db, 'booking', 'noShowLimit', 3))
-            blacklist_days = int(_get_setting_value(db, 'booking', 'blacklistDays', 30))
+            no_show_limit = int(_get_setting_value(db, 'booking', 'no_show_limit', 3))
+            blacklist_days = int(_get_setting_value(db, 'booking', 'blacklist_days', 30))
 
             # 统计爽约次数（添加租户过滤）
             no_show_count = db.scalar(
@@ -374,7 +400,7 @@ def check_and_add_blacklist(user_id: str):
             )
 
             if no_show_count and no_show_count >= no_show_limit:
-                # 检查是否已在黑名单（添加租户过滤）
+                # Blacklist 当前按 user_id 唯一匹配用户，用户记录自身已带租户归属
                 existing = db.scalar(
                     select(Blacklist).where(
                         and_(
@@ -392,9 +418,10 @@ def check_and_add_blacklist(user_id: str):
                     blacklist = Blacklist(
                         id=str(uuid.uuid4()),
                         tenant_id=tenant_id,
-                        type='user',
                         user_id=user_id,
                         reason=f'自动加入：爽约 {no_show_count} 次',
+                        no_show_count=no_show_count,
+                        source=2,
                         expire_at=expire_at,
                         status=1,
                     )

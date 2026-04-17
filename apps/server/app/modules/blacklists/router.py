@@ -22,6 +22,7 @@ async def get_blacklist_list(
     page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    _: None = Depends(require_permission("blacklist:list")),
 ):
     """获取黑名单列表"""
     service = BlacklistService(db)
@@ -56,7 +57,10 @@ async def add_blacklist(
         )
     
     service = BlacklistService(db)
-    result = await service.create(data)
+    try:
+        result = await service.create(data)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     return {"message": "添加成功", "data": result}
 
 

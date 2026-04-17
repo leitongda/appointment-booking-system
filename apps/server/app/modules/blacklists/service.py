@@ -9,6 +9,7 @@ import uuid
 from app.models.blacklist import Blacklist
 from app.models.user import User, Patient
 from app.models.store import Store
+from app.middleware.tenant_context import get_current_tenant_id
 from app.schemas.blacklist import BlacklistCreate, BlacklistCheckResult
 from app.utils.audit import set_create_audit, set_update_audit
 
@@ -28,11 +29,15 @@ class BlacklistService:
         page_size: int = 20,
     ) -> Tuple[List[dict], int]:
         """获取黑名单列表"""
+        tenant_id = get_current_tenant_id()
         query = select(Blacklist).options(
             selectinload(Blacklist.user),
             selectinload(Blacklist.store)
         )
         conditions = []
+
+        if tenant_id:
+            conditions.append(Blacklist.tenant_id == tenant_id)
 
         # 关键词搜索（用户昵称/电话/身份证/黑名单关键词）
         if keyword:
@@ -98,8 +103,21 @@ class BlacklistService:
 
     async def create(self, data: BlacklistCreate, operator_id: Optional[str] = None) -> dict:
         """添加黑名单"""
+        tenant_id = get_current_tenant_id()
+
+        if tenant_id and data.user_id:
+            user = await self.db.scalar(select(User).where(User.id == data.user_id))
+            if not user or user.tenant_id != tenant_id:
+                raise ValueError("用户不属于当前租户")
+
+        if tenant_id and data.store_id:
+            store = await self.db.scalar(select(Store).where(Store.id == data.store_id))
+            if not store or store.tenant_id != tenant_id:
+                raise ValueError("门店不属于当前租户")
+
         blacklist = Blacklist(
             id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
             user_id=data.user_id,
             store_id=data.store_id,
             keyword=data.keyword,
@@ -135,9 +153,11 @@ class BlacklistService:
 
     async def remove(self, blacklist_id: str, operator_id: Optional[str] = None) -> bool:
         """移除黑名单（解禁）"""
-        result = await self.db.execute(
-            select(Blacklist).where(Blacklist.id == blacklist_id)
-        )
+        tenant_id = get_current_tenant_id()
+        query = select(Blacklist).where(Blacklist.id == blacklist_id)
+        if tenant_id:
+            query = query.where(Blacklist.tenant_id == tenant_id)
+        result = await self.db.execute(query)
         blacklist = result.scalar_one_or_none()
 
         if not blacklist:
@@ -151,9 +171,11 @@ class BlacklistService:
 
     async def delete(self, blacklist_id: str) -> bool:
         """删除黑名单记录"""
-        result = await self.db.execute(
-            select(Blacklist).where(Blacklist.id == blacklist_id)
-        )
+        tenant_id = get_current_tenant_id()
+        query = select(Blacklist).where(Blacklist.id == blacklist_id)
+        if tenant_id:
+            query = query.where(Blacklist.tenant_id == tenant_id)
+        result = await self.db.execute(query)
         blacklist = result.scalar_one_or_none()
 
         if not blacklist:
@@ -171,7 +193,11 @@ class BlacklistService:
         store_id: Optional[str] = None,
     ) -> BlacklistCheckResult:
         """检查是否在黑名单中"""
+        tenant_id = get_current_tenant_id()
         conditions = [Blacklist.status == 1]
+
+        if tenant_id:
+            conditions.append(Blacklist.tenant_id == tenant_id)
 
         # 检查是否过期
         now = datetime.now()
@@ -229,15 +255,15 @@ class BlacklistService:
         blacklist_days: int,
     ) -> Optional[dict]:
         """自动添加到黑名单（爽约触发）"""
+        tenant_id = get_current_tenant_id()
         # 检查是否已在黑名单中
-        existing = await self.db.execute(
-            select(Blacklist).where(
-                and_(
-                    Blacklist.user_id == user_id,
-                    Blacklist.status == 1
-                )
-            )
+        existing_query = select(Blacklist).where(
+            Blacklist.user_id == user_id,
+            Blacklist.status == 1,
         )
+        if tenant_id:
+            existing_query = existing_query.where(Blacklist.tenant_id == tenant_id)
+        existing = await self.db.execute(existing_query)
         if existing.scalar_one_or_none():
             return None
 
@@ -246,6 +272,7 @@ class BlacklistService:
 
         blacklist = Blacklist(
             id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
             user_id=user_id,
             reason=f'爽约{no_show_count}次，自动加入黑名单',
             no_show_count=no_show_count,
@@ -270,9 +297,10 @@ class BlacklistService:
     async def auto_release_expired(self) -> List[dict]:
         """自动解禁到期的黑名单"""
         now = datetime.now()
+        tenant_id = get_current_tenant_id()
 
         # 查询到期的黑名单
-        result = await self.db.execute(
+        query = (
             select(Blacklist)
             .options(selectinload(Blacklist.user))
             .where(
@@ -283,6 +311,9 @@ class BlacklistService:
                 )
             )
         )
+        if tenant_id:
+            query = query.where(Blacklist.tenant_id == tenant_id)
+        result = await self.db.execute(query)
         expired_list = result.unique().scalars().all()
 
         released = []
