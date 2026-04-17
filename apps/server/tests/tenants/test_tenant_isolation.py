@@ -21,6 +21,7 @@ from app.models.doctor import Doctor
 from app.models.store import Store
 from app.models.department import Department
 from app.models.admin import Admin, Role
+from app.models.blacklist import Blacklist
 from app.core.security import get_password_hash, create_access_token
 
 
@@ -457,6 +458,55 @@ async def test_blacklist_isolation(
     # 验证租户 A 的用户已被禁用
     await db_session.refresh(user_a)
     assert user_a.status == 0  # 已禁用
+
+
+@pytest.mark.asyncio
+async def test_blacklist_check_endpoint_isolated_by_tenant(
+    async_client: AsyncClient,
+    db_session: AsyncSession,
+    tenant_a: Tenant,
+    tenant_b: Tenant,
+):
+    """测试黑名单检查接口按租户隔离同手机号关键词"""
+    phone = "13800138123"
+
+    blacklist_a = Blacklist(
+        id=str(uuid.uuid4()),
+        tenant_id=tenant_a.id,
+        keyword=phone,
+        reason="租户A黑名单",
+        status=1,
+    )
+    blacklist_b = Blacklist(
+        id=str(uuid.uuid4()),
+        tenant_id=tenant_b.id,
+        keyword=phone,
+        reason="租户B黑名单",
+        status=1,
+    )
+    db_session.add_all([blacklist_a, blacklist_b])
+    await db_session.commit()
+
+    response_a = await async_client.post(
+        "/api/v1/blacklists/check",
+        params={"phone": phone},
+        headers={"X-Tenant-ID": tenant_a.id},
+    )
+    response_b = await async_client.post(
+        "/api/v1/blacklists/check",
+        params={"phone": phone},
+        headers={"X-Tenant-ID": tenant_b.id},
+    )
+
+    assert response_a.status_code == 200
+    assert response_b.status_code == 200
+
+    payload_a = response_a.json()["data"]
+    payload_b = response_b.json()["data"]
+    assert payload_a["is_blacklisted"] is True
+    assert payload_b["is_blacklisted"] is True
+    assert payload_a["reason"] == "租户A黑名单"
+    assert payload_b["reason"] == "租户B黑名单"
 
 
 @pytest.mark.asyncio

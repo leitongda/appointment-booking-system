@@ -431,5 +431,42 @@ async def delete_doctor_fees_by_store_department(
     """删除医生在指定门店科室的所有诊费配置"""
     service = ConsultationFeeService(db)
     count = await service.delete_doctor_fees_by_store_department(doctor_id, store_id, department_id)
-    
+
     return {"message": f"删除成功，共删除{count}条记录"}
+
+
+# ========== 小程序预约相关 API ==========
+
+
+@router.get("/amount", summary="获取诊费金额")
+async def get_consultation_fee_amount(
+    doctor_id: str = Query(..., description="医生ID"),
+    store_id: str = Query(..., description="门店ID"),
+    department_id: str = Query(..., description="科室ID"),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取诊费金额
+
+    小程序在预约页面获取诊费金额，按优先级查询：
+    1. 医生诊费配置
+    2. 门店诊费模板
+    3. 全局诊费模板
+
+    返回默认的初诊金额。
+    """
+    from app.modules.appointments.service_booking import AppointmentBookingService
+
+    service = AppointmentBookingService(db)
+
+    try:
+        amount = await service._get_consultation_fee(
+            doctor_id=doctor_id,
+            store_id=store_id,
+            department_id=department_id,
+        )
+        return {"amount": float(amount) if amount else 0.0}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取诊费金额失败: {str(e)}"
+        )

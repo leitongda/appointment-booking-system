@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import BinaryIO
+from typing import Optional
 
 
 @dataclass
@@ -69,3 +70,18 @@ class BaseStorage(ABC):
         if ".svg" in url_lower:
             return "image/svg+xml"
         return "image/jpeg"
+
+
+def build_tenant_storage_folder(folder: str, tenant_id: Optional[str] = None) -> str:
+    """为上传目录添加租户前缀。
+
+    没有租户上下文时保留原目录，便于平台级资源继续沿用旧路径。
+    """
+    normalized_folder = folder.strip("/") if folder else "images"
+    if not tenant_id:
+        return normalized_folder
+
+    tenant_prefix = f"tenants/{tenant_id}"
+    if normalized_folder == tenant_prefix or normalized_folder.startswith(f"{tenant_prefix}/"):
+        return normalized_folder
+    return f"{tenant_prefix}/{normalized_folder}"

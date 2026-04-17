@@ -32,6 +32,9 @@ async def get_news_list(
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(
+        require_permission("content:news", "content:news:create", "content:news:update", "content:news:delete")
+    ),
 ):
     store_filter = get_store_filter(current_admin)
     if store_filter:
@@ -135,6 +138,14 @@ async def get_notice_list(
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(
+        require_permission(
+            "content:notice",
+            "content:notice:create",
+            "content:notice:update",
+            "content:notice:delete",
+        )
+    ),
 ):
     store_filter = get_store_filter(current_admin)
     if store_filter:
@@ -234,6 +245,14 @@ async def get_banner_list(
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(
+        require_permission(
+            "content:banner",
+            "content:banner:create",
+            "content:banner:update",
+            "content:banner:delete",
+        )
+    ),
 ):
     store_filter = get_store_filter(current_admin)
     if store_filter:

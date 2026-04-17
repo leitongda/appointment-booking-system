@@ -1,7 +1,13 @@
 """小程序平台相关的 Pydantic Schema"""
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
+
+
+def to_camel(string: str) -> str:
+    """将 snake_case 转换为 camelCase"""
+    components = string.split('_')
+    return components[0] + ''.join(x.title() for x in components[1:])
 
 
 # ==================== Company (公司/结算主体) ====================
@@ -37,7 +43,12 @@ class CompanyResponse(CompanyBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
 
 
 class CompanyListResponse(BaseModel):
@@ -50,7 +61,12 @@ class CompanyListResponse(BaseModel):
     status: int
     created_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
 
 
 # ==================== PaymentProfile (支付配置) ====================
@@ -110,7 +126,12 @@ class PaymentProfileResponse(PaymentProfileBase):
     # 关联公司（简化版）
     company: Optional[CompanyListResponse] = None
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
 
 
 class PaymentProfileListResponse(BaseModel):
@@ -125,7 +146,12 @@ class PaymentProfileListResponse(BaseModel):
     company_name: Optional[str] = None
     created_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
 
 
 class PaymentProfileQuery(BaseModel):
@@ -185,7 +211,12 @@ class MiniappInstanceResponse(MiniappInstanceBase):
     default_store: Optional[dict] = Field(None, description="默认门店信息")
     default_payment_profile: Optional[PaymentProfileListResponse] = Field(None, description="默认支付配置")
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
 
 
 class MiniappInstanceListResponse(BaseModel):
@@ -201,7 +232,12 @@ class MiniappInstanceListResponse(BaseModel):
     payment_profile_name: Optional[str] = None
     created_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
 
 
 class MiniappInstanceQuery(BaseModel):

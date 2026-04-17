@@ -19,7 +19,7 @@ from app.models import custom_schedule, department, doctor, doctor_booking_setti
 from app.models import feedback, leave_request, medical_record, message, point_log
 from app.models import rest_day, schedule, schedule_suspension, schedule_template
 from app.models import settings, store, user
-from app.models import miniapp_platform, tenant
+from app.models import miniapp_platform, tenant, refund
 
 # this is the Alembic Config object
 config = context.config

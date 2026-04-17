@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin
+from app.common.deps import require_permission
 from app.db.session import get_db
 from app.modules.admin.schemas import PermissionCreate
 from app.modules.admin.service_permissions import PermissionService
@@ -17,6 +18,7 @@ router = APIRouter()
 async def get_permissions_tree(
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("system:role:permission")),
 ):
     service = PermissionService(db)
     return await service.get_tree()
@@ -26,6 +28,7 @@ async def get_permissions_tree(
 async def get_all_permissions(
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("system:role:permission")),
 ):
     service = PermissionService(db)
     permissions = await service.get_all()
@@ -48,6 +51,7 @@ async def create_permission(
     data: PermissionCreate,
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("system:role:permission")),
 ):
     service = PermissionService(db)
     try:
@@ -70,6 +74,7 @@ async def batch_create_permissions(
     permissions: List[PermissionCreate],
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("system:role:permission")),
 ):
     service = PermissionService(db)
     created = await service.batch_create([p.model_dump() for p in permissions])
@@ -81,6 +86,7 @@ async def delete_permission(
     code: str,
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("system:role:permission")),
 ):
     service = PermissionService(db)
     success = await service.delete(code)

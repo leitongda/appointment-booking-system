@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Response, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 
@@ -640,14 +640,28 @@ async def batch_bind_admins(
         )
 
 
-# ==================== 门店微信配置 ====================
+# ==================== 门店微信配置 (DEPRECATED) ====================
+# These endpoints are deprecated.  Migrate to:
+#   - MiniappInstance (POST /miniapp-platform/instances) for app_id/app_secret
+#   - PaymentProfile (POST /miniapp-platform/payment-profiles) for payment config
+#   - PaymentRoute (store-level routing) for store-to-profile binding
+
+_DEPRECATION_HEADER = {
+    "Deprecation": "true",
+    "Link": '</api/v1/miniapp-platform/payment-profiles>; rel="successor-version"',
+}
 
 @router.get(
     "/{store_id}/wechat-config",
     response_model=StoreWechatConfigResponse,
-    summary="获取微信配置",
+    summary="[DEPRECATED] 获取微信配置",
     description="""
     获取门店的微信公众号/小程序配置信息。
+
+    **DEPRECATED** — 此接口已废弃。请迁移到 miniapp-platform 管理 API:
+    - 小程序配置: POST /miniapp-platform/instances
+    - 支付配置: POST /miniapp-platform/payment-profiles
+    - 门店路由: POST /miniapp-platform/payment-routes
 
     **权限要求**：管理员登录，受门店访问控制。
 
@@ -657,6 +671,7 @@ async def batch_bind_admins(
     """,
 )
 async def get_store_wechat_config(
+    response: Response,
     store_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
@@ -687,6 +702,8 @@ async def get_store_wechat_config(
         )
     
     # 返回配置，敏感字段掩码处理
+    for k, v in _DEPRECATION_HEADER.items():
+        response.headers[k] = v
     return StoreWechatConfigResponse(
         app_id=store.wechat_app_id or '',
         app_secret='******' if store.wechat_app_secret else '',
@@ -698,9 +715,14 @@ async def get_store_wechat_config(
 
 @router.put(
     "/{store_id}/wechat-config",
-    summary="更新微信配置",
+    summary="[DEPRECATED] 更新微信配置",
     description="""
     更新门店的微信配置信息。
+
+    **DEPRECATED** — 此接口已废弃。请迁移到 miniapp-platform 管理 API:
+    - 小程序配置: POST /miniapp-platform/instances
+    - 支付配置: POST /miniapp-platform/payment-profiles
+    - 门店路由: POST /miniapp-platform/payment-routes
 
     **权限要求**：
     - 超级管理员：可更新任意门店
@@ -712,6 +734,7 @@ async def get_store_wechat_config(
     """,
 )
 async def update_store_wechat_config(
+    response: Response,
     store_id: str,
     data: StoreWechatConfigUpdate,
     db: AsyncSession = Depends(get_db),
@@ -765,7 +788,9 @@ async def update_store_wechat_config(
     
     if update_data:
         await service.update_wechat_config(store_id, update_data)
-    
+
+    for k, v in _DEPRECATION_HEADER.items():
+        response.headers[k] = v
     return {"message": "微信配置更新成功"}
 
 

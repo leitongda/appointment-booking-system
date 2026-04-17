@@ -136,6 +136,7 @@ class Tenant(Base, AuditMixin):
             return self.subscription_plan.max_appointments_per_month
         return 1000
 
+    @property
     def is_subscription_active(self) -> bool:
         """检查订阅是否有效"""
         if self.status == 0:  # 禁用

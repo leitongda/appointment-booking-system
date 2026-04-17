@@ -6,11 +6,55 @@
 2. 缓存键格式正确包含租户维度
 """
 import pytest
+import pytest_asyncio
 from unittest.mock import AsyncMock, patch
 
 from app.core.redis import RedisCache, cache
 from app.middleware.tenant_context import set_tenant_context, clear_tenant_context
 from app.infrastructure.sms.service import SmsService
+
+
+class _InMemoryRedisClient:
+    """最小化 Redis 测试替身，覆盖当前缓存隔离测试所需行为。"""
+
+    def __init__(self):
+        self._data = {}
+        self._ttl = {}
+
+    async def get(self, key):
+        return self._data.get(key)
+
+    async def set(self, key, value, ex=None, nx=False):
+        if nx and key in self._data:
+            return False
+        self._data[key] = value
+        if ex is not None:
+            self._ttl[key] = ex
+        return True
+
+    async def setex(self, key, expire, value):
+        self._data[key] = value
+        self._ttl[key] = expire
+        return True
+
+    async def delete(self, key):
+        self._data.pop(key, None)
+        self._ttl.pop(key, None)
+        return True
+
+    async def exists(self, key):
+        return int(key in self._data)
+
+    async def ttl(self, key):
+        return self._ttl.get(key, -1)
+
+
+@pytest_asyncio.fixture
+async def redis_client():
+    """将 app.core.redis.get_redis 绑定到内存 Redis 替身，避免真实网络依赖。"""
+    client = _InMemoryRedisClient()
+    with patch("app.core.redis.get_redis", new=AsyncMock(return_value=client)):
+        yield client
 
 
 @pytest.mark.asyncio

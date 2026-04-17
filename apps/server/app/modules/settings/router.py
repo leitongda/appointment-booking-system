@@ -200,6 +200,7 @@ async def update_hospital_info(
 async def get_wechat_config(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    _: None = Depends(require_permission("settings:wechat", "settings:edit")),
 ):
     """获取微信配置"""
     service = SettingsService(db)
@@ -243,6 +244,7 @@ async def update_wechat_config(
 async def get_sms_config(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    _: None = Depends(require_permission("settings:sms", "settings:edit")),
 ):
     """获取短信配置"""
     service = SettingsService(db)
@@ -284,6 +286,7 @@ async def update_sms_config(
 async def get_email_config(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    _: None = Depends(require_permission("settings:email", "settings:edit")),
 ):
     """获取邮件配置"""
     service = SettingsService(db)
@@ -440,6 +443,7 @@ class ImageConfigUpdate(BaseModel):
 async def get_image_config(
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    _: None = Depends(require_permission("settings:edit")),
 ):
     """获取图片处理配置"""
     service = SettingsService(db)
@@ -554,5 +558,4 @@ async def delete_store_time_periods(
         return {"message": "已恢复使用全局配置"}
     else:
         return {"message": "该门店未设置自定义配置"}
-
 

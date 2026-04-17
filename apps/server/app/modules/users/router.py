@@ -17,6 +17,7 @@ from app.schemas.user import (
     UserUpdate,
 )
 from app.infrastructure.storage import get_storage
+from app.infrastructure.storage.base import build_tenant_storage_folder
 from app.modules.users.service import PatientService, UserService
 
 router = APIRouter()
@@ -122,11 +123,12 @@ async def upload_avatar(
         storage = get_storage()
         content_type = file.content_type or "image/jpeg"
         filename = file.filename or "avatar.jpg"
+        tenant_folder = build_tenant_storage_folder("avatars", current_user.get("tenant_id"))
         result = await storage.upload(
             file=file.file,
             filename=filename,
             content_type=content_type,
-            folder="avatars",
+            folder=tenant_folder,
         )
         logger.info(f"User avatar uploaded: {result.key} by user {current_user.get('id')}")
         return AvatarUploadResponse(url=result.url, key=result.key)

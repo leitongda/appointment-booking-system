@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional, Tuple, List
 
-from sqlalchemy import and_, func, or_, select, case
+from sqlalchemy import and_, func, or_, select
 
 from app.models.appointment import Appointment
 from app.models.user import Patient, User
@@ -14,6 +14,35 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 
 class UserManageService(PatientsServiceBase):
+    async def get_user_store_ids(self, user_id: str) -> List[Optional[str]]:
+        query = select(Patient.store_id).where(Patient.user_id == user_id).distinct()
+        tenant_id = self._current_tenant_id()
+        if tenant_id:
+            query = query.where(Patient.tenant_id == tenant_id)
+        result = await self.db.execute(query)
+        return list(result.scalars().all())
+
+    async def get_card_store_id(self, user_id: str, card_id: str) -> Optional[str]:
+        query = select(Patient.store_id).where(and_(Patient.user_id == user_id, Patient.id == card_id))
+        tenant_id = self._current_tenant_id()
+        if tenant_id:
+            query = query.where(Patient.tenant_id == tenant_id)
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
+
+    async def get_default_patient_id(self, user_id: str) -> Optional[str]:
+        query = (
+            select(Patient.id)
+            .where(Patient.user_id == user_id)
+            .order_by(Patient.is_default.desc(), Patient.created_at.asc())
+            .limit(1)
+        )
+        tenant_id = self._current_tenant_id()
+        if tenant_id:
+            query = query.where(Patient.tenant_id == tenant_id)
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
+
     async def get_list(
         self,
         keyword: Optional[str] = None,
@@ -32,9 +61,12 @@ class UserManageService(PatientsServiceBase):
         if status is not None:
             conditions.append(User.status == status)
         if store_id:
-            users_with_cards_in_store = select(Patient.user_id).where(or_(Patient.store_id == store_id, Patient.store_id.is_(None))).distinct()
-            all_users_with_cards = select(Patient.user_id).distinct()
-            conditions.append(or_(User.id.in_(users_with_cards_in_store), ~User.id.in_(all_users_with_cards)))
+            inaccessible_users_query = select(Patient.user_id).where(
+                and_(Patient.store_id.is_not(None), Patient.store_id != store_id)
+            )
+            if tenant_id:
+                inaccessible_users_query = inaccessible_users_query.where(Patient.tenant_id == tenant_id)
+            conditions.append(~User.id.in_(inaccessible_users_query.distinct()))
         if conditions:
             query = query.where(and_(*conditions))
 
@@ -283,7 +315,10 @@ class UserManageService(PatientsServiceBase):
         if data.is_default:
             from sqlalchemy import update as sql_update
 
-            await self.db.execute(sql_update(Patient).where(Patient.user_id == user_id).values(is_default=False))
+            reset_default_query = sql_update(Patient).where(Patient.user_id == user_id)
+            if tenant_id:
+                reset_default_query = reset_default_query.where(Patient.tenant_id == tenant_id)
+            await self.db.execute(reset_default_query.values(is_default=False))
 
         card = Patient(
             id=str(uuid.uuid4()),
@@ -326,7 +361,11 @@ class UserManageService(PatientsServiceBase):
         }
 
     async def update_card(self, user_id: str, card_id: str, data, operator_id: Optional[str] = None) -> Optional[dict]:
-        result = await self.db.execute(select(Patient).where(and_(Patient.id == card_id, Patient.user_id == user_id)))
+        query = select(Patient).where(and_(Patient.id == card_id, Patient.user_id == user_id))
+        tenant_id = self._current_tenant_id()
+        if tenant_id:
+            query = query.where(Patient.tenant_id == tenant_id)
+        result = await self.db.execute(query)
         card = result.scalar_one_or_none()
         if not card:
             return None
@@ -335,9 +374,10 @@ class UserManageService(PatientsServiceBase):
         if update_data.get("is_default"):
             from sqlalchemy import update as sql_update
 
-            await self.db.execute(
-                sql_update(Patient).where(and_(Patient.user_id == user_id, Patient.id != card_id)).values(is_default=False)
-            )
+            reset_default_query = sql_update(Patient).where(and_(Patient.user_id == user_id, Patient.id != card_id))
+            if tenant_id:
+                reset_default_query = reset_default_query.where(Patient.tenant_id == tenant_id)
+            await self.db.execute(reset_default_query.values(is_default=False))
         for key, value in update_data.items():
             if hasattr(card, key):
                 setattr(card, key, value)
@@ -345,10 +385,19 @@ class UserManageService(PatientsServiceBase):
         await self.db.commit()
         await self.db.refresh(card)
 
-        appointment_count = await self.db.scalar(select(func.count(Appointment.id)).where(Appointment.patient_id == card_id))
-        no_show_count = await self.db.scalar(
-            select(func.count(Appointment.id)).where(and_(Appointment.patient_id == card_id, Appointment.status == APPOINTMENT_STATUS["NO_SHOW"]))
+        appointment_count_query = select(func.count(Appointment.id)).where(Appointment.patient_id == card_id)
+        if tenant_id:
+            appointment_count_query = appointment_count_query.where(Appointment.tenant_id == tenant_id)
+        appointment_count = await self.db.scalar(appointment_count_query)
+        no_show_count_query = select(func.count(Appointment.id)).where(
+            and_(
+                Appointment.patient_id == card_id,
+                Appointment.status == APPOINTMENT_STATUS["NO_SHOW"],
+            )
         )
+        if tenant_id:
+            no_show_count_query = no_show_count_query.where(Appointment.tenant_id == tenant_id)
+        no_show_count = await self.db.scalar(no_show_count_query)
         return {
             "id": card.id,
             "userId": card.user_id,
@@ -368,23 +417,34 @@ class UserManageService(PatientsServiceBase):
         }
 
     async def delete_card(self, user_id: str, card_id: str) -> bool:
-        result = await self.db.execute(select(Patient).where(and_(Patient.id == card_id, Patient.user_id == user_id)))
+        query = select(Patient).where(and_(Patient.id == card_id, Patient.user_id == user_id))
+        tenant_id = self._current_tenant_id()
+        if tenant_id:
+            query = query.where(Patient.tenant_id == tenant_id)
+        result = await self.db.execute(query)
         card = result.scalar_one_or_none()
         if not card:
             return False
 
-        card_count = await self.db.scalar(select(func.count(Patient.id)).where(Patient.user_id == user_id))
+        card_count_query = select(func.count(Patient.id)).where(Patient.user_id == user_id)
+        if tenant_id:
+            card_count_query = card_count_query.where(Patient.tenant_id == tenant_id)
+        card_count = await self.db.scalar(card_count_query)
         if card_count and card_count <= 1:
             raise ValueError("用户至少需要保留一张就诊卡")
 
-        appt_count = await self.db.scalar(select(func.count(Appointment.id)).where(Appointment.patient_id == card_id))
+        appt_count_query = select(func.count(Appointment.id)).where(Appointment.patient_id == card_id)
+        if tenant_id:
+            appt_count_query = appt_count_query.where(Appointment.tenant_id == tenant_id)
+        appt_count = await self.db.scalar(appt_count_query)
         if appt_count and appt_count > 0:
             raise ValueError("该就诊卡有预约记录，无法删除")
 
         if card.is_default:
-            other_card = await self.db.execute(
-                select(Patient).where(and_(Patient.user_id == user_id, Patient.id != card_id)).limit(1)
-            )
+            other_card_query = select(Patient).where(and_(Patient.user_id == user_id, Patient.id != card_id)).limit(1)
+            if tenant_id:
+                other_card_query = other_card_query.where(Patient.tenant_id == tenant_id)
+            other_card = await self.db.execute(other_card_query)
             other = other_card.scalar_one_or_none()
             if other:
                 other.is_default = True

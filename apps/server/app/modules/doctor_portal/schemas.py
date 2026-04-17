@@ -1,7 +1,13 @@
 from datetime import date, datetime
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+
+
+def to_camel(string: str) -> str:
+    """将 snake_case 转换为 camelCase"""
+    components = string.split('_')
+    return components[0] + ''.join(x.title() for x in components[1:])
 
 
 class DoctorScheduleResponse(BaseModel):
@@ -15,8 +21,12 @@ class DoctorScheduleResponse(BaseModel):
     status: int
     is_rest_day: Optional[bool] = False
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
 
 
 class DoctorAppointmentResponse(BaseModel):
@@ -35,8 +45,12 @@ class DoctorAppointmentResponse(BaseModel):
     symptom_description: Optional[str] = None
     is_follow_up: bool = False
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
 
 
 class QueuePatientResponse(BaseModel):
@@ -47,6 +61,13 @@ class QueuePatientResponse(BaseModel):
     status: int
     sign_in_time: Optional[datetime] = None
     call_time: Optional[datetime] = None
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
 
 
 class PatientHistoryResponse(BaseModel):
@@ -59,8 +80,12 @@ class PatientHistoryResponse(BaseModel):
     symptom_description: Optional[str] = None
     has_medical_record: bool = False
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
 
 
 class FollowUpBookingRequest(BaseModel):

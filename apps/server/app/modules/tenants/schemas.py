@@ -161,9 +161,14 @@ class TenantResponse(TenantBase):
     updated_at: Optional[datetime] = None
 
     # 计算字段
-    is_subscription_active: bool = Field(..., description="订阅是否有效")
+    is_subscription_active: bool = Field(default=False, description="订阅是否有效")
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
 
 
 class TenantListResponse(BaseModel):
@@ -179,7 +184,12 @@ class TenantListResponse(BaseModel):
     admin_count: int = Field(default=0, description="管理员数")
     created_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
 
 
 class TenantQuery(BaseModel):
@@ -218,7 +228,12 @@ class TenantSubscriptionResponse(BaseModel):
     auto_renew: bool
     created_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
 
 
 # ==================== 租户用量 ====================
@@ -247,7 +262,12 @@ class TenantUsageResponse(BaseModel):
     sms_sent_count: int = 0
     push_sent_count: int = 0
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
 
 
 class TenantUsageSummary(BaseModel):

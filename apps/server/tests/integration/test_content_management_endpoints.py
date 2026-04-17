@@ -76,7 +76,7 @@ async def test_content_news_crud_endpoints(async_client, db_session):
 
     assert update_response.status_code == 200
     assert update_response.json()["data"]["title"] == "更新后的新闻"
-    assert update_response.json()["data"]["is_top"] == 1
+    assert update_response.json()["data"]["isTop"] == 1
 
     assert delete_response.status_code == 200
     assert delete_response.json()["data"]["message"] == "删除成功"
@@ -137,7 +137,7 @@ async def test_content_notice_crud_endpoints(async_client, db_session):
 
     assert update_response.status_code == 200
     assert update_response.json()["data"]["title"] == "更新后的公告"
-    assert update_response.json()["data"]["is_top"] == 1
+    assert update_response.json()["data"]["isTop"] == 1
 
     assert delete_response.status_code == 200
     assert delete_response.json()["data"]["message"] == "删除成功"
@@ -197,7 +197,7 @@ async def test_content_banner_crud_endpoints(async_client, db_session):
 
     assert update_response.status_code == 200
     assert update_response.json()["data"]["title"] == "更新后的轮播图"
-    assert update_response.json()["data"]["link_type"] == 1
+    assert update_response.json()["data"]["linkType"] == 1
 
     assert delete_response.status_code == 200
     assert delete_response.json()["data"]["message"] == "删除成功"

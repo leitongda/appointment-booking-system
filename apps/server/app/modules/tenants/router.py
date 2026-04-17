@@ -319,11 +319,9 @@ async def create_tenant(
 
     try:
         tenant = await service.create(data, created_by=current_admin.get("id"))
-        return TenantResponse(
-            **{c.name: getattr(tenant, c.name) for c in tenant.__table__.columns},
-            is_subscription_active=tenant.is_subscription_active(),
-            subscription_plan=SubscriptionPlanListResponse.model_validate(tenant.subscription_plan) if tenant.subscription_plan else None,
-        )
+        resp = TenantResponse.model_validate(tenant)
+        resp.subscription_plan = SubscriptionPlanListResponse.model_validate(tenant.subscription_plan) if tenant.subscription_plan else None
+        return resp
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -373,11 +371,9 @@ async def get_tenant(
                 detail="您无权访问此租户"
             )
 
-    return TenantResponse(
-        **{c.name: getattr(tenant, c.name) for c in tenant.__table__.columns},
-        is_subscription_active=tenant.is_subscription_active(),
-        subscription_plan=SubscriptionPlanListResponse.model_validate(tenant.subscription_plan) if tenant.subscription_plan else None,
-    )
+    resp = TenantResponse.model_validate(tenant)
+    resp.subscription_plan = SubscriptionPlanListResponse.model_validate(tenant.subscription_plan) if tenant.subscription_plan else None
+    return resp
 
 
 @router.put("/{tenant_id}", response_model=TenantResponse, summary="更新租户")
@@ -420,11 +416,9 @@ async def update_tenant(
 
     try:
         tenant = await service.update(tenant_id, data, updated_by=current_admin.get("id"))
-        return TenantResponse(
-            **{c.name: getattr(tenant, c.name) for c in tenant.__table__.columns},
-            is_subscription_active=tenant.is_subscription_active(),
-            subscription_plan=SubscriptionPlanListResponse.model_validate(tenant.subscription_plan) if tenant.subscription_plan else None,
-        )
+        resp = TenantResponse.model_validate(tenant)
+        resp.subscription_plan = SubscriptionPlanListResponse.model_validate(tenant.subscription_plan) if tenant.subscription_plan else None
+        return resp
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

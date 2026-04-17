@@ -3,16 +3,23 @@ from typing import Optional, Tuple
 from jose import jwt, JWTError
 import bcrypt
 import base64
+import json
+import os
+import logging
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.backends import default_backend
 from app.core.config import settings
 
+logger = logging.getLogger(__name__)
 
 # RSA 密钥缓存
 _rsa_private_key = None
 _rsa_public_key = None
 _rsa_public_key_pem = None
+
+# 开发环境密钥对文件路径
+_RSA_KEYS_FILE = os.path.join(os.path.dirname(__file__), '..', '..', '.keys', 'rsa.json')
 
 
 def generate_rsa_key_pair() -> Tuple[bytes, bytes]:
@@ -22,41 +29,74 @@ def generate_rsa_key_pair() -> Tuple[bytes, bytes]:
         key_size=2048,
         backend=default_backend()
     )
-    
+
     private_pem = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.PKCS8,
         encryption_algorithm=serialization.NoEncryption()
     )
-    
+
     public_key = private_key.public_key()
     public_pem = public_key.public_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
-    
+
     return private_pem, public_pem
 
 
+def _load_keys_from_file() -> Tuple[Optional[bytes], Optional[bytes]]:
+    """从本地文件加载密钥对（开发环境）"""
+    if not os.path.exists(_RSA_KEYS_FILE):
+        return None, None
+    try:
+        with open(_RSA_KEYS_FILE, 'r') as f:
+            keys = json.load(f)
+        return keys['private'].encode(), keys['public'].encode()
+    except Exception as e:
+        logger.warning(f"加载本地密钥文件失败: {e}")
+        return None, None
+
+
+def _save_keys_to_file(private_pem: bytes, public_pem: bytes) -> None:
+    """将密钥对保存到本地文件（开发环境）"""
+    try:
+        os.makedirs(os.path.dirname(_RSA_KEYS_FILE), exist_ok=True)
+        with open(_RSA_KEYS_FILE, 'w') as f:
+            json.dump({'private': private_pem.decode(), 'public': public_pem.decode()}, f)
+        logger.info("RSA 密钥对已保存到 .keys/rsa.json")
+    except Exception as e:
+        logger.warning(f"保存密钥文件失败: {e}")
+
+
 def load_rsa_keys():
-    """加载或生成 RSA 密钥对"""
+    """加载或生成 RSA 密钥对
+
+    加载优先级：
+    1. 环境变量（生产环境）
+    2. 本地文件 .keys/rsa.json（开发环境，重启复用）
+    3. 首次生成并保存到文件
+    """
     global _rsa_private_key, _rsa_public_key, _rsa_public_key_pem
-    
+
     if _rsa_private_key is not None:
         return
-    
-    # 尝试从配置加载密钥
+
+    # 1. 优先从环境变量加载密钥
     if settings.RSA_PRIVATE_KEY and settings.RSA_PUBLIC_KEY:
-        # 处理环境变量中的换行符（可能是字面量 \n）
         private_key_str = settings.RSA_PRIVATE_KEY.replace('\\n', '\n')
         public_key_str = settings.RSA_PUBLIC_KEY.replace('\\n', '\n')
         private_pem = private_key_str.encode()
         public_pem = public_key_str.encode()
+    # 2. 开发环境从本地文件加载
     else:
-        # 生成新的密钥对（仅用于开发环境）
-        private_pem, public_pem = generate_rsa_key_pair()
-        print("警告: 使用自动生成的 RSA 密钥对，生产环境请配置 RSA_PRIVATE_KEY 和 RSA_PUBLIC_KEY")
-    
+        private_pem, public_pem = _load_keys_from_file()
+        if private_pem is None:
+            # 3. 首次生成并保存
+            private_pem, public_pem = generate_rsa_key_pair()
+            _save_keys_to_file(private_pem, public_pem)
+            print("警告: 使用自动生成的 RSA 密钥对，已保存到 .keys/rsa.json，生产环境请配置 RSA_PRIVATE_KEY 和 RSA_PUBLIC_KEY")
+
     _rsa_private_key = serialization.load_pem_private_key(
         private_pem,
         password=None,

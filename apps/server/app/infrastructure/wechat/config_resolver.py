@@ -1,7 +1,19 @@
-"""微信小程序配置兼容解析器。"""
+"""微信小程序配置兼容解析器。
+
+优先级:
+  1. MiniappInstance (app_id + app_secret via secret_ref)
+  2. (deprecated) Store.wechat_app_id / wechat_app_secret
+
+Migration note (2026-04):
+  Store-level ``wechat_*`` fields are deprecated.  Tenants should create a
+  ``MiniappInstance`` through the miniapp-platform admin API and link it to
+  the store's ``PaymentRoute`` / ``MiniappInstance.default_payment_profile_id``.
+  The store fallback path will be removed in a future major version.
+"""
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Optional
 
@@ -11,6 +23,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.secret_refs import resolve_secret_ref
 from app.models.miniapp_platform import MiniappInstance
 from app.models.store import Store
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -56,6 +70,12 @@ class WechatConfigResolver:
             )
             store = result.scalar_one_or_none()
             if store and store.wechat_app_id and store.wechat_app_secret:
+                logger.warning(
+                    "[DEPRECATION] WechatConfigResolver fell back to legacy "
+                    "store.wechat_app_id for store_id=%s.  Migrate to "
+                    "MiniappInstance to silence this warning.",
+                    store.id,
+                )
                 return MiniappWechatConfig(
                     app_id=store.wechat_app_id,
                     app_secret=store.wechat_app_secret,

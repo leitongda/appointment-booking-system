@@ -33,6 +33,7 @@ from app.models.store import Store
 from app.models.admin import Admin, Role
 from app.models.rule_set import RuleSet, ShiftType
 from app.models.tenant import Tenant, SubscriptionPlan
+from app.models.refund import RefundRecord
 from app.modules.appointments.service import AppointmentService
 
 

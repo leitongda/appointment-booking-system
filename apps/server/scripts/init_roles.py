@@ -34,22 +34,23 @@ SYSTEM_ROLES = [
             # 仪表盘
             "dashboard", "dashboard:view",
             # 门店（只能查看和编辑自己的门店）
-            "store", "store:list", "store:update",
+            "store", "store:list", "store:export", "store:update",
             # 科室管理
-            "department", "department:list", "department:create", "department:update", "department:delete",
+            "department", "department:list", "department:export", "department:create", "department:update", "department:delete",
             # 医生管理
-            "doctor", "doctor:list", "doctor:detail", "doctor:create", "doctor:update", "doctor:delete", "doctor:booking-setting",
+            "doctor", "doctor:list", "doctor:detail", "doctor:export", "doctor:create", "doctor:update", "doctor:delete", "doctor:booking-setting",
             # 排班管理
-            "schedule", "schedule:list", "schedule:create", "schedule:update", "schedule:delete", 
+            "schedule", "schedule:list", "schedule:export", "schedule:create", "schedule:update", "schedule:delete",
             "schedule:template", "schedule:custom", "schedule:rest-day", "schedule:suspension", "schedule:statistics",
+            "schedule_template:list", "schedule_template:export",
             # 预约管理
-            "appointment", "appointment:list", "appointment:detail", "appointment:update", "appointment:cancel", "appointment:statistics",
+            "appointment", "appointment:list", "appointment:detail", "appointment:export", "appointment:update", "appointment:cancel", "appointment:statistics", "appointment:refund", "appointment:manage",
             # 患者管理
-            "patient", "patient:list", "patient:detail", "patient:update", "patient:create",
+            "patient", "patient:list", "patient:detail", "patient:export", "patient:update", "patient:create",
             # 停诊审核
             "leave-request", "leave-request:list", "leave-request:approve",
             # 用户反馈
-            "feedback", "feedback:list", "feedback:reply", "feedback:delete",
+            "feedback", "feedback:list", "feedback:export", "feedback:reply", "feedback:delete",
             # 消息管理
             "message", "message:list", "message:send", "message:delete",
             # 内容管理
@@ -60,7 +61,10 @@ SYSTEM_ROLES = [
             "statistics", "statistics:view",
             # 系统设置（只能管理用户，不能管理角色）
             "system", "system:user", "system:user:create", "system:user:update", "system:user:delete", "system:user:reset-password",
-            "system:settings", "system:consultation-fee",
+            "admin:list", "admin:export",
+            "system:settings", "settings:edit", "settings:wechat", "settings:sms", "settings:email",
+            "blacklist:list", "blacklist:create", "blacklist:delete", "system:consultation-fee",
+            "system:log", "log:list", "log:export",
         ],
     },
     {
@@ -179,4 +183,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-

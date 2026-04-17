@@ -17,11 +17,23 @@ from app.modules.points.service import PointService
 router = APIRouter()
 
 
+async def _ensure_patient_store_access(
+    service: PatientManageService,
+    current_admin: dict,
+    patient_id: str,
+    detail_message: str = "您无权查看此患者信息",
+) -> None:
+    patient_store_id = await service.get_patient_store_id(patient_id)
+    if patient_store_id and not check_store_access(current_admin, patient_store_id):
+        raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=detail_message)
+
+
 @router.post("", summary="创建患者")
 async def create_patient(
     data: PatientCreateByAdmin,
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:create")),
 ):
     store_id = None
     if not current_admin.get("is_super_admin"):
@@ -43,6 +55,7 @@ async def get_patients(
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:list")),
 ):
     store_filter = get_store_filter(current_admin)
     if store_filter:
@@ -66,6 +79,7 @@ async def get_blacklist(
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:list")),
 ):
     store_filter = get_store_filter(current_admin)
     if store_filter:
@@ -81,11 +95,10 @@ async def get_patient_detail(
     patient_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:detail")),
 ):
     service = PatientManageService(db)
-    patient_store_id = await service.get_patient_store_id(patient_id)
-    if patient_store_id and not check_store_access(current_admin, patient_store_id):
-        raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail="您无权查看此患者信息")
+    await _ensure_patient_store_access(service, current_admin, patient_id)
 
     detail = await service.get_detail(patient_id)
     if not detail:
@@ -102,9 +115,7 @@ async def update_patient(
     _: None = Depends(require_permission("patient:update")),
 ):
     service = PatientManageService(db)
-    patient_store_id = await service.get_patient_store_id(patient_id)
-    if patient_store_id and not check_store_access(current_admin, patient_store_id):
-        raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail="您无权修改此患者信息")
+    await _ensure_patient_store_access(service, current_admin, patient_id, "您无权修改此患者信息")
 
     result = await service.update_patient(patient_id, data)
     if not result:
@@ -120,9 +131,7 @@ async def delete_patient(
     _: None = Depends(require_permission("patient:delete")),
 ):
     service = PatientManageService(db)
-    patient_store_id = await service.get_patient_store_id(patient_id)
-    if patient_store_id and not check_store_access(current_admin, patient_store_id):
-        raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail="您无权删除此患者")
+    await _ensure_patient_store_access(service, current_admin, patient_id, "您无权删除此患者")
 
     try:
         success = await service.delete_patient(patient_id)
@@ -146,8 +155,10 @@ async def get_patient_appointments(
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:detail")),
 ):
     service = PatientManageService(db)
+    await _ensure_patient_store_access(service, current_admin, patient_id)
     items, total = await service.get_appointments(
         patient_id=patient_id,
         doctor_id=doctor_id,
@@ -170,8 +181,10 @@ async def get_consumption_records(
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:detail")),
 ):
     service = PatientManageService(db)
+    await _ensure_patient_store_access(service, current_admin, patient_id)
     items, total = await service.get_consumption_records(
         patient_id=patient_id,
         item_name=item_name,
@@ -188,8 +201,11 @@ async def get_point_logs(
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:detail")),
 ):
     service = PointService(db)
+    manage_service = PatientManageService(db)
+    await _ensure_patient_store_access(manage_service, current_admin, patient_id)
     items, total, current_points = await service.get_point_logs(patient_id=patient_id, page=page, page_size=page_size)
     return {
         "data": items,
@@ -206,8 +222,11 @@ async def adjust_points(
     data: PointAdjustData,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:update")),
 ):
     service = PointService(db)
+    manage_service = PatientManageService(db)
+    await _ensure_patient_store_access(manage_service, current_admin, patient_id, "您无权调整此患者积分")
     result = await service.adjust_points(
         patient_id=patient_id,
         amount=data.amount,
@@ -228,8 +247,11 @@ async def get_point_summary(
     patient_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:detail")),
 ):
     service = PointService(db)
+    manage_service = PatientManageService(db)
+    await _ensure_patient_store_access(manage_service, current_admin, patient_id)
     return await service.get_point_summary(patient_id)
 
 
@@ -239,8 +261,10 @@ async def add_to_blacklist(
     reason: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:update")),
 ):
     service = PatientManageService(db)
+    await _ensure_patient_store_access(service, current_admin, patient_id, "您无权操作此患者黑名单状态")
     success = await service.add_to_blacklist(patient_id, reason)
     if not success:
         raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="患者不存在，请检查后重试")
@@ -252,8 +276,10 @@ async def remove_from_blacklist(
     patient_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:update")),
 ):
     service = PatientManageService(db)
+    await _ensure_patient_store_access(service, current_admin, patient_id, "您无权操作此患者黑名单状态")
     success = await service.remove_from_blacklist(patient_id)
     if not success:
         raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="患者不存在，请检查后重试")
@@ -266,8 +292,10 @@ async def add_family_member(
     data: FamilyMemberCreate,
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:update")),
 ):
     service = PatientManageService(db)
+    await _ensure_patient_store_access(service, current_admin, patient_id, "您无权修改此患者家庭成员")
     try:
         result = await service.add_family_member(patient_id, data)
         if not result:
@@ -284,8 +312,10 @@ async def update_family_member(
     data: PatientUpdate,
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:update")),
 ):
     service = PatientManageService(db)
+    await _ensure_patient_store_access(service, current_admin, patient_id, "您无权修改此患者家庭成员")
     result = await service.update_family_member(patient_id, member_id, data)
     if not result:
         raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="家庭成员不存在，请检查后重试")
@@ -298,8 +328,10 @@ async def delete_family_member(
     member_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:update")),
 ):
     service = PatientManageService(db)
+    await _ensure_patient_store_access(service, current_admin, patient_id, "您无权修改此患者家庭成员")
     try:
         success = await service.delete_family_member(patient_id, member_id)
         if not success:

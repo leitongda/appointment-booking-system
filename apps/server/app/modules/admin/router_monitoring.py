@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_admin
+from app.common.deps import require_permission
 from app.core.config import settings
 from app.core.redis import RedisCache
 from app.db.session import get_db
@@ -35,8 +36,10 @@ async def get_operation_logs(
     page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("system:log", "log:list")),
 ):
     service = OperationLogService(db)
+    tenant_id = None if current_admin.get("is_super_admin") else current_admin.get("tenant_id")
     items, total = await service.get_list(
         admin_id=admin_id,
         module=module,
@@ -44,6 +47,7 @@ async def get_operation_logs(
         end_time=end_time,
         page=page,
         page_size=page_size,
+        tenant_id=tenant_id,
     )
     return PageResponse(
         data=[OperationLogResponse.model_validate(item) for item in items],
@@ -56,6 +60,7 @@ async def get_operation_logs(
 @router.get("/online-users", summary="获取在线用户")
 async def get_online_users(
     current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:log", "log:list")),
 ):
     # 非超管仅查看当前租户的在线用户，超管可查看全部
     tenant_id = None if current_admin.get("is_super_admin") else current_admin.get("tenant_id")
@@ -81,6 +86,7 @@ async def kick_online_user(
     admin_id: str,
     current_admin: dict = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_permission("system:log", "log:list")),
 ):
     if not current_admin.get("is_super_admin"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要超级管理员权限")
@@ -126,6 +132,7 @@ async def kick_online_user(
 async def get_user_status(
     current_admin: dict = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_permission("system:log", "log:list")),
 ):
     # 非超管仅查看当前租户的在线用户，超管可查看全部
     tenant_id = None if current_admin.get("is_super_admin") else current_admin.get("tenant_id")
@@ -133,9 +140,11 @@ async def get_user_status(
     online_admin_ids = {s.get("admin_id") for s in sessions}
     session_map = {s.get("admin_id"): s for s in sessions}
 
-    result = await db.execute(
-        select(Admin).options(selectinload(Admin.role)).where(Admin.status == 1).order_by(Admin.created_at.desc())
-    )
+    admin_query = select(Admin).options(selectinload(Admin.role)).where(Admin.status == 1)
+    if tenant_id:
+        admin_query = admin_query.where(Admin.tenant_id == tenant_id)
+    admin_query = admin_query.order_by(Admin.created_at.desc())
+    result = await db.execute(admin_query)
     admins = result.scalars().all()
 
     user_status_list = []
@@ -183,7 +192,19 @@ async def get_login_history(
     page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     current_admin: dict = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_permission("system:log", "log:list")),
 ):
+    target_admin_result = await db.execute(select(Admin).where(Admin.id == admin_id))
+    target_admin = target_admin_result.scalar_one_or_none()
+    if not target_admin:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在，请检查后重试")
+
+    if (
+        not current_admin.get("is_super_admin")
+        and target_admin.tenant_id != current_admin.get("tenant_id")
+    ):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权查看该用户的登录历史")
+
     count_stmt = select(func.count(AdminLoginHistory.id)).where(AdminLoginHistory.admin_id == admin_id)
     total_result = await db.execute(count_stmt)
     total = total_result.scalar() or 0

@@ -1,4 +1,5 @@
 """租户管理服务"""
+from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import selectinload
@@ -7,6 +8,7 @@ from datetime import datetime, date, timedelta
 from decimal import Decimal
 import uuid
 
+from app.core.config import settings
 from app.models.tenant import Tenant, TenantSubscription, TenantUsageLog, SubscriptionPlan
 from app.models.store import Store
 from app.models.admin import Admin
@@ -335,60 +337,6 @@ class TenantService:
         await self.db.refresh(tenant)
         return tenant
 
-    async def get_list(self, query: TenantQuery, include_deleted: bool = False) -> Tuple[List[Tenant], int]:
-        """获取租户列表
-
-        Args:
-            query: 查询条件
-            include_deleted: 是否包含已软删除的租户
-
-        Returns:
-            (租户列表, 总数)
-        """
-        base_query = select(Tenant).options(selectinload(Tenant.subscription_plan))
-
-        # 默认过滤已软删除的租户
-        if not include_deleted:
-            base_query = base_query.where(Tenant.deleted_at.is_(None))
-
-        # 条件过滤
-        conditions = []
-        if query.keyword:
-            keyword = f"%{query.keyword}%"
-            conditions.append(
-                or_(
-                    Tenant.name.ilike(keyword),
-                    Tenant.tenant_code.ilike(keyword),
-                    Tenant.contact_name.ilike(keyword),
-                    Tenant.contact_phone.ilike(keyword),
-                )
-            )
-        if query.status is not None:
-            conditions.append(Tenant.status == query.status)
-        if query.subscription_plan_id:
-            conditions.append(Tenant.subscription_plan_id == query.subscription_plan_id)
-
-        if conditions:
-            base_query = base_query.where(and_(*conditions))
-
-        # 统计总数
-        count_query = select(func.count(Tenant.id))
-        if not include_deleted:
-            count_query = count_query.where(Tenant.deleted_at.is_(None))
-        if conditions:
-            count_query = count_query.where(and_(*conditions))
-        total_result = await self.db.execute(count_query)
-        total = total_result.scalar()
-
-        # 分页
-        offset = (query.page - 1) * query.page_size
-        base_query = base_query.order_by(Tenant.created_at.desc()).offset(offset).limit(query.page_size)
-
-        result = await self.db.execute(base_query)
-        tenants = list(result.scalars().all())
-
-        return tenants, total
-
     async def get_store_count(self, tenant_id: str) -> int:
         """获取租户的门店数量"""
         result = await self.db.execute(
@@ -714,5 +662,17 @@ class TenantUsageService:
 
     async def _get_storage_usage(self, tenant_id: str) -> Decimal:
         """获取存储使用量（MB）"""
-        # TODO: 实现存储使用量统计
-        return Decimal("0")
+        if settings.STORAGE_TYPE.lower() != "local":
+            return Decimal("0")
+
+        tenant_upload_dir = Path(settings.LOCAL_UPLOAD_DIR) / "tenants" / tenant_id
+        if not tenant_upload_dir.exists():
+            return Decimal("0")
+
+        total_bytes = 0
+        for path in tenant_upload_dir.rglob("*"):
+            if path.is_file():
+                total_bytes += path.stat().st_size
+
+        megabyte = Decimal(1024 * 1024)
+        return (Decimal(total_bytes) / megabyte).quantize(Decimal("0.0001"))

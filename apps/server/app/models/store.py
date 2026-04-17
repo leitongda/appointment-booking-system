@@ -34,12 +34,17 @@ class Store(Base, AuditMixin):
     sort_order = Column(Integer, default=0, comment="排序")
     status = Column(Integer, default=1, comment="状态: 0-停业 1-营业 2-禁用")
 
-    # 微信小程序配置
-    wechat_app_id = Column(String(100), comment="微信小程序AppID")
-    wechat_app_secret = Column(String(100), comment="微信小程序Secret")
-    wechat_mch_id = Column(String(100), comment="微信支付商户号")
-    wechat_api_key = Column(String(100), comment="微信支付API密钥")
-    wechat_notify_url = Column(String(255), comment="微信支付回调地址")
+    # 微信小程序/支付配置 (DEPRECATED — 迁移到 MiniappInstance + PaymentProfile)
+    # - wechat_app_id / wechat_app_secret: 仅 WechatConfigResolver 作 fallback，
+    #   新租户应创建 MiniappInstance 并通过 miniapp-platform 管理端配置。
+    # - wechat_mch_id / wechat_api_key / wechat_notify_url: 支付链路已完全迁移到
+    #   PaymentProfile + PaymentRoute，这些字段仅通过 Store admin API 暴露，
+    #   实际支付流程不再读取。
+    wechat_app_id = Column(String(100), comment="[DEPRECATED] 微信小程序AppID — 使用 MiniappInstance")
+    wechat_app_secret = Column(String(100), comment="[DEPRECATED] 微信小程序Secret — 使用 MiniappInstance")
+    wechat_mch_id = Column(String(100), comment="[DEPRECATED] 微信支付商户号 — 使用 PaymentProfile")
+    wechat_api_key = Column(String(100), comment="[DEPRECATED] 微信支付API密钥 — 使用 PaymentProfile")
+    wechat_notify_url = Column(String(255), comment="[DEPRECATED] 微信支付回调地址 — 使用 PaymentProfile")
 
     # 就诊卡配置
     max_cards_per_user = Column(Integer, default=5, comment="每用户可建就诊卡数量上限")

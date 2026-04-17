@@ -6,7 +6,7 @@ from typing import List, Optional, Tuple
 
 from sqlalchemy import and_, func, select
 
-from app.models.admin import OperationLog
+from app.models.admin import Admin, OperationLog
 
 
 class OperationLogService:
@@ -21,9 +21,17 @@ class OperationLogService:
         end_time: Optional[datetime] = None,
         page: int = 1,
         page_size: int = 20,
+        tenant_id: Optional[str] = None,
     ) -> Tuple[List[OperationLog], int]:
         query = select(OperationLog)
         conditions = []
+        joined_admin = False
+
+        if tenant_id:
+            query = query.join(Admin, Admin.id == OperationLog.admin_id)
+            joined_admin = True
+            conditions.append(Admin.tenant_id == tenant_id)
+
         if admin_id:
             conditions.append(OperationLog.admin_id == admin_id)
         if module:
@@ -36,6 +44,8 @@ class OperationLogService:
             query = query.where(and_(*conditions))
 
         count_query = select(func.count(OperationLog.id))
+        if joined_admin:
+            count_query = count_query.select_from(OperationLog).join(Admin, Admin.id == OperationLog.admin_id)
         if conditions:
             count_query = count_query.where(and_(*conditions))
         total = await self.db.scalar(count_query)

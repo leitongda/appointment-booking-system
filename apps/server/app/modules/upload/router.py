@@ -9,6 +9,7 @@ from app.db.session import get_db
 from app.modules.upload.schemas import ThumbnailInfo, TransferRequest, UploadResponse
 from app.infrastructure.image.processor import create_image_processor
 from app.infrastructure.storage import get_storage
+from app.infrastructure.storage.base import build_tenant_storage_folder
 
 router = APIRouter()
 
@@ -72,6 +73,7 @@ async def upload_image(
         storage = get_storage()
         content_type = file.content_type or "image/jpeg"
         filename = file.filename or "image.jpg"
+        tenant_folder = build_tenant_storage_folder(folder, current_admin.get("tenant_id"))
 
         if generate_thumbnails and content_type != "image/svg+xml":
             processor = await create_image_processor(db)
@@ -81,7 +83,7 @@ async def upload_image(
                 file=io.BytesIO(original_img.data),
                 filename=filename,
                 content_type=content_type,
-                folder=folder,
+                folder=tenant_folder,
             )
 
             thumbnail_infos = {}
@@ -116,7 +118,7 @@ async def upload_image(
             file=file.file,
             filename=filename,
             content_type=content_type,
-            folder=folder,
+            folder=tenant_folder,
         )
         logger.info(f"Image uploaded: {result.key} by admin {current_admin.get('id')}")
         return UploadResponse(
@@ -137,7 +139,8 @@ async def transfer_from_url(
 ):
     try:
         storage = get_storage()
-        result = await storage.upload_from_url(url=str(data.url), folder=data.folder or "images")
+        tenant_folder = build_tenant_storage_folder(data.folder or "images", current_admin.get("tenant_id"))
+        result = await storage.upload_from_url(url=str(data.url), folder=tenant_folder)
         logger.info(f"Image transferred from {data.url} to {result.key} by admin {current_admin.get('id')}")
         return UploadResponse(
             url=result.url,

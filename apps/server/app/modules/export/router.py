@@ -9,6 +9,7 @@ from io import BytesIO
 from app.db.session import get_db
 from app.api.deps import get_current_admin
 from app.common.deps import get_store_filter, get_tenant_filter
+from app.common.deps import require_permission
 from app.modules.export.service import ExportService
 from app.middleware.tenant_context import get_current_tenant_id
 
@@ -23,6 +24,7 @@ async def export_appointments(
     doctor_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    _: None = Depends(require_permission("appointment:export", "appointment:list")),
 ):
     """导出预约记录"""
     # 获取门店过滤条件
@@ -57,6 +59,7 @@ async def export_patients(
     keyword: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    _: None = Depends(require_permission("patient:export", "patient:list")),
 ):
     """导出患者列表"""
     # 获取租户过滤条件
@@ -84,6 +87,7 @@ async def export_schedules(
     doctor_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:export", "schedule:list")),
 ):
     """导出排班记录"""
     # 获取门店过滤条件

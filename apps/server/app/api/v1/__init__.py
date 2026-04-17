@@ -52,6 +52,8 @@ ROUTER_REGISTRATIONS = [
     RouterRegistration("app.modules.store_email_recipients.router", "/store-email-recipients", ["门店邮件接收人"]),
     RouterRegistration("app.modules.tenants.router", "/tenants", ["租户管理"]),
     RouterRegistration("app.modules.miniapp_platform.router", "/miniapp-platform", ["小程序平台管理"]),
+    RouterRegistration("app.modules.payments.router", "/payments", ["支付管理"]),
+    RouterRegistration("app.modules.refunds.router", "/refunds", ["退款管理"]),
 ]
 
 
