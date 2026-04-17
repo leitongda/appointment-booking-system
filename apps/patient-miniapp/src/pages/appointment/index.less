@@ -151,6 +151,22 @@
   font-weight: @font-weight-medium;
 }
 
+// 支付信息
+.payment-info {
+  margin-top: @spacing-3;
+  padding-top: @spacing-3;
+  border-top: @border-width solid @color-divider;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.payment-amount {
+  font-size: @font-size-xl;
+  font-weight: @font-weight-bold;
+  color: @color-danger;
+}
+
 // -------------------------------------------
 // 卡片底部操作
 // -------------------------------------------
@@ -171,6 +187,12 @@
 }
 
 .signin-btn {
+  .button-primary();
+  .button-sm();
+  min-width: 160rpx;
+}
+
+.pay-btn {
   .button-primary();
   .button-sm();
   min-width: 160rpx;

@@ -8,7 +8,7 @@
  * 3. 统一错误处理
  */
 import { setRequestInterceptor, setResponseInterceptor } from '@hospital/api';
-import { getToken, handleTokenExpired, STORE_CONTEXT_KEY, type StoreContext } from '@hospital/shared';
+import { getToken, handleTokenExpired, markAuthExpired, STORE_CONTEXT_KEY, type StoreContext } from '@hospital/shared';
 import { history } from 'umi';
 import { Toast } from 'antd-mobile';
 import type { InternalAxiosRequestConfig } from 'axios';
@@ -122,6 +122,7 @@ export const setupResponseInterceptor = () => {
         
         // 401 未授权 - 清除 token 并跳转到登录页
         if (status === 401) {
+          markAuthExpired();
           handleTokenExpired(() => {
             Toast.show({ icon: 'fail', content: '登录已过期，请重新登录' });
             history.push('/login');

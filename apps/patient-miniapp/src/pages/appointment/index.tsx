@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { appointmentApi } from '@hospital/api';
 import { APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP } from '@hospital/shared';
 import { AUTH_EVENTS, getToken, subscribeAuthChange } from '../../utils/auth';
+import { getPaymentPreparationFailure, getPaymentRequestFailure } from '../../utils/payment';
 import { formatTime, isAppointmentExpired } from '../../utils/url';
 import { triggerCheckinScan } from '../../utils/checkin';
 import LoginPopup from '../../components/LoginPopup';
@@ -102,10 +103,11 @@ const AppointmentPage = () => {
     setLoading(true);
     try {
       const statusMap: Record<string, number | undefined> = {
-        '0': undefined,
-        '1': 1,
-        '2': 5,
-        '3': 6,
+        '0': undefined,    // 全部
+        '1': 0,            // 待支付
+        '2': 1,            // 待就诊
+        '3': 5,            // 已完成
+        '4': 6,            // 已取消
       };
 
       const result = await appointmentApi.getList({
@@ -138,6 +140,39 @@ const AppointmentPage = () => {
     }
   };
 
+  const handlePay = async (appointment: Appointment) => {
+    // 如果已经有支付参数，直接调起支付
+    if (appointment.paymentAmount && appointment.paymentAmount > 0 && appointment.status === 0) {
+      let paymentParams;
+
+      try {
+        paymentParams = await appointmentApi.getPaymentParams(appointment.id);
+      } catch (error: any) {
+        const result = getPaymentPreparationFailure(error);
+        Taro.showToast({ title: result.message, icon: 'none' });
+        return;
+      }
+
+      try {
+        await Taro.requestPayment({
+          timeStamp: paymentParams.timeStamp,
+          nonceStr: paymentParams.nonceStr,
+          package: paymentParams.package,
+          signType: paymentParams.signType as any,
+          paySign: paymentParams.paySign,
+        });
+
+        Taro.showToast({ title: '支付成功', icon: 'success' });
+        loadAppointments();
+      } catch (error: any) {
+        const result = getPaymentRequestFailure(error);
+        if (result.status === 'failed') {
+          Taro.showToast({ title: result.message, icon: 'none' });
+        }
+      }
+    }
+  };
+
   const handleSignIn = () => {
     // 直接触发扫码签到
     triggerCheckinScan();
@@ -155,9 +190,10 @@ const AppointmentPage = () => {
           onChange={(value) => setActiveTab(value as string)}
         >
           <Tabs.TabPane title="全部" value="0" />
-          <Tabs.TabPane title="待就诊" value="1" />
-          <Tabs.TabPane title="已完成" value="2" />
-          <Tabs.TabPane title="已取消" value="3" />
+          <Tabs.TabPane title="待支付" value="1" />
+          <Tabs.TabPane title="待就诊" value="2" />
+          <Tabs.TabPane title="已完成" value="3" />
+          <Tabs.TabPane title="已取消" value="4" />
         </Tabs>
       </View>
 
@@ -213,8 +249,42 @@ const AppointmentPage = () => {
                       )}
                     </Text>
                   </View>
+                  {/* 待支付状态显示金额 */}
+                  {item.status === 0 && item.paymentAmount && item.paymentAmount > 0 && (
+                    <View className="payment-info">
+                      <Text className="payment-amount">¥{item.paymentAmount.toFixed(2)}</Text>
+                    </View>
+                  )}
                 </View>
 
+                {/* 待支付状态：显示去支付按钮 */}
+                {item.status === 0 && (
+                  <View className="card-footer">
+                    <Button
+                      className="pay-btn"
+                      type="primary"
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePay(item);
+                      }}
+                    >
+                      去支付
+                    </Button>
+                    <Button
+                      className="cancel-btn"
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCancel(item.id);
+                      }}
+                    >
+                      取消预约
+                    </Button>
+                  </View>
+                )}
+
+                {/* 已预约状态：显示签到和取消按钮 */}
                 {item.status === 1 && !isAppointmentExpired(item.scheduleDate, item.endTime, item.timeSlot) && (
                   <View className="card-footer">
                     <Button

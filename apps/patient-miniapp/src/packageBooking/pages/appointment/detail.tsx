@@ -4,10 +4,16 @@ import { Button } from '@nutui/nutui-react-taro';
 import { useMemo, useState, useCallback } from 'react';
 import { appointmentApi, settingsApi } from '@hospital/api';
 import type { TimePeriodConfig } from '@hospital/api';
-import { APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP, getPeriodNameFromTime } from '@hospital/shared';
+import {
+  APPOINTMENT_STATUS_MAP,
+  REFUND_STATUS_MAP,
+  TIME_SLOT_MAP,
+  getPeriodNameFromTime,
+} from '@hospital/shared';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
 import { getThemeGradient, useThemeName } from '../../../utils/theme';
 import { formatTime, isAppointmentExpired } from '../../../utils/url';
+import { buildBookingResultUrl, getPaymentPreparationFailure, getPaymentRequestFailure } from '../../../utils/payment';
 import { triggerCheckinScan } from '../../../utils/checkin';
 import LoginPopup from '../../../components/LoginPopup';
 import type { AppointmentDetail } from '@hospital/shared';
@@ -22,12 +28,15 @@ import './detail.less';
 
 // 状态图标映射
 const StatusIconMap: Record<number, React.ComponentType<{ size?: number; color?: string }>> = {
+  0: ClockIcon,
   1: CalendarIcon,
   2: CheckCircleIcon,
   3: ClockIcon,
+  4: ClockIcon,
   5: CheckIcon,
   6: CloseCircleIcon,
   7: CloseCircleIcon,
+  8: CloseCircleIcon,
 };
 
 const AppointmentDetailPage = () => {
@@ -87,6 +96,44 @@ const AppointmentDetailPage = () => {
     triggerCheckinScan();
   };
 
+  const handlePay = async () => {
+    if (!appointment || appointment.status !== 0) return;
+
+    let paymentParams;
+
+    try {
+      paymentParams = await appointmentApi.getPaymentParams(appointment.id);
+    } catch (error: any) {
+      const result = getPaymentPreparationFailure(error);
+      await Taro.showModal({
+        title: '暂无法发起支付',
+        content: result.message,
+        showCancel: false,
+      });
+      loadAppointment();
+      return;
+    }
+
+    try {
+      await Taro.requestPayment({
+        timeStamp: paymentParams.timeStamp,
+        nonceStr: paymentParams.nonceStr,
+        package: paymentParams.package,
+        signType: paymentParams.signType as any,
+        paySign: paymentParams.paySign,
+      });
+
+      Taro.redirectTo({
+        url: buildBookingResultUrl(appointment.appointmentNo, 'success'),
+      });
+    } catch (error: any) {
+      const result = getPaymentRequestFailure(error);
+      Taro.redirectTo({
+        url: buildBookingResultUrl(appointment.appointmentNo, result.status, result.message),
+      });
+    }
+  };
+
   // 复制预约单号到剪贴板
   const handleCopyAppointmentNo = () => {
     if (!appointment?.appointmentNo) return;
@@ -117,12 +164,15 @@ const AppointmentDetailPage = () => {
   const StatusIcon = StatusIconMap[appointment.status] || CalendarIcon;
   const statusStyleMap: Record<number, { background: string }> = useMemo(
     () => ({
+      0: { background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' },
       1: { background: getThemeGradient(themeName) },
       2: { background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' },
       3: { background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' },
+      4: { background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)' },
       5: { background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' },
       6: { background: 'linear-gradient(135deg, #64748B 0%, #475569 100%)' },
       7: { background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)' },
+      8: { background: 'linear-gradient(135deg, #64748B 0%, #475569 100%)' },
     }),
     [themeName]
   );
@@ -173,6 +223,36 @@ const AppointmentDetailPage = () => {
           <Text className="label">预约时间</Text>
           <Text className="value">{appointment.createdAt}</Text>
         </View>
+        {appointment.paymentAmount && appointment.paymentAmount > 0 && (
+          <View className="info-row">
+            <Text className="label">{appointment.status === 0 ? '待支付金额' : '支付金额'}</Text>
+            <Text className="value fee">¥{appointment.paymentAmount.toFixed(2)}</Text>
+          </View>
+        )}
+        {appointment.paymentTime && (
+          <View className="info-row">
+            <Text className="label">支付时间</Text>
+            <Text className="value value-break">{appointment.paymentTime}</Text>
+          </View>
+        )}
+        {appointment.paymentTransactionId && (
+          <View className="info-row">
+            <Text className="label">支付单号</Text>
+            <Text className="value value-break">{appointment.paymentTransactionId}</Text>
+          </View>
+        )}
+        {appointment.refundStatus && (
+          <View className="info-row">
+            <Text className="label">退款状态</Text>
+            <Text className="value">{REFUND_STATUS_MAP[appointment.refundStatus] || appointment.refundStatus}</Text>
+          </View>
+        )}
+        {appointment.refundedAmount !== undefined && appointment.refundedAmount > 0 && (
+          <View className="info-row">
+            <Text className="label">已退款金额</Text>
+            <Text className="value fee">¥{appointment.refundedAmount.toFixed(2)}</Text>
+          </View>
+        )}
       </View>
 
       {/* 医生信息 */}
@@ -204,6 +284,17 @@ const AppointmentDetailPage = () => {
       </View>
 
       {/* 底部操作 */}
+      {appointment.status === 0 && (
+        <View className="actions">
+          <Button className="cancel-btn" block onClick={handleCancel}>
+            取消预约
+          </Button>
+          <Button className="primary-btn" type="primary" block onClick={handlePay}>
+            去支付
+          </Button>
+        </View>
+      )}
+
       {appointment.status === 1 && !isAppointmentExpired(appointment.scheduleDate, appointment.endTime, appointment.timeSlot) && (
         <View className="actions">
           <Button className="cancel-btn" block onClick={handleCancel}>

@@ -7,16 +7,25 @@ import type { BookingNotice, TimePeriodConfig } from '@hospital/api';
 import { TIME_SLOT_MAP, getPeriodNameFromTime } from '@hospital/shared';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
 import { useThemePrimaryColor } from '../../../utils/theme';
+import {
+  buildBookingResultUrl,
+  getPaymentPreparationFailure,
+  getPaymentRequestFailure,
+} from '../../../utils/payment';
 import LoginPopup from '../../../components/LoginPopup';
 import type { Doctor, Patient } from '@hospital/shared';
 import { DoctorIcon, UserIcon } from '../../../components/Icons';
 import { getImageUrl } from '../../../utils/url';
 import './index.less';
 
+interface ConsultationFeeResponse {
+  amount: number; // 分
+}
+
 const BookingPage = () => {
   const primaryColor = useThemePrimaryColor();
   const router = useRouter();
-  const { doctorId, scheduleId, date, timeSlot } = router.params;
+  const { doctorId, scheduleId, date, timeSlot, storeId, departmentId } = router.params;
   // 解码时间参数（URL 中的 %3A 需要解码为冒号）
   const startTime = router.params.startTime ? decodeURIComponent(router.params.startTime) : undefined;
   const endTime = router.params.endTime ? decodeURIComponent(router.params.endTime) : undefined;
@@ -26,19 +35,22 @@ const BookingPage = () => {
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
-  
+
   // 病情描述
   const [symptomDescription, setSymptomDescription] = useState('');
-  
+
   // 预约须知
   const [bookingNotices, setBookingNotices] = useState<BookingNotice[]>([]);
-  
+
   // 医院信息
   const [hospitalName, setHospitalName] = useState('');
   const [hospitalAddress, setHospitalAddress] = useState('');
-  
+
   // 时段配置
   const [timePeriods, setTimePeriods] = useState<TimePeriodConfig[]>([]);
+
+  // 诊费
+  const [consultationFee, setConsultationFee] = useState<number | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -54,7 +66,7 @@ const BookingPage = () => {
       setPatients(patientsData);
       setBookingNotices(notices);
       setTimePeriods(timePeriodsRes.periods || []);
-      
+
       if (hospitalInfo) {
         setHospitalName(hospitalInfo.hospitalName || '');
         setHospitalAddress(hospitalInfo.address || '');
@@ -64,12 +76,27 @@ const BookingPage = () => {
       if (defaultPatient) {
         setSelectedPatientId(defaultPatient.id);
       }
+
+      // 获取诊费
+      if (storeId && departmentId) {
+        try {
+          const feeData = await appointmentApi.getConsultationFee({
+            doctorId: doctorId!,
+            storeId,
+            departmentId,
+          }) as ConsultationFeeResponse;
+          setConsultationFee(feeData.amount || null);
+        } catch (error) {
+          // 无诊费设置
+          setConsultationFee(null);
+        }
+      }
     } catch (error) {
       console.error('加载数据失败', error);
     } finally {
       setLoading(false);
     }
-  }, [doctorId]);
+  }, [doctorId, storeId, departmentId]);
 
   const { showLoginPopup, handleLoginSuccess, handleLoginClose } = useProtectedPage({
     load: loadData,
@@ -78,6 +105,7 @@ const BookingPage = () => {
       setPatients([]);
       setSelectedPatientId('');
       setBookingNotices([]);
+      setConsultationFee(null);
       setLoading(false);
     },
   });
@@ -89,28 +117,28 @@ const BookingPage = () => {
     // 严格检查参数有效性（避免空字符串或 undefined）
     const validScheduleId = scheduleId?.trim();
     const validPatientId = selectedPatientId?.trim();
-    
+
     if (!validScheduleId) {
       Taro.showToast({ title: '排班信息无效，请返回重新选择', icon: 'none' });
       return;
     }
-    
+
     if (!validPatientId) {
       Taro.showToast({ title: '请选择就诊人', icon: 'none' });
       return;
     }
 
     setSubmitting(true);
-    
+
     try {
       // 检查是否有同一天同一时段的重复预约
       const duplicateCheck = await appointmentApi.checkDuplicate(validScheduleId, validPatientId);
-      
+
       if (duplicateCheck.hasDuplicate) {
         // 有重复预约，提示用户确认
         const existingAppts = duplicateCheck.appointments;
         const doctorNames = existingAppts.map(a => a.doctorName || '未知医生').join('、');
-        
+
         const confirmResult = await Taro.showModal({
           title: '重复预约提醒',
           content: `您在同一天${timeSlot === 'morning' ? '上午' : '下午'}已预约了${doctorNames}的号，是否继续预约？`,
@@ -124,9 +152,13 @@ const BookingPage = () => {
         }
       } else {
         // 没有重复预约，正常确认
+        const confirmText = consultationFee
+          ? `确认支付 ¥${(consultationFee / 100).toFixed(2)} 并预约？`
+          : '确定要预约吗？';
+
         const result = await Taro.showModal({
           title: '确认预约',
-          content: '确定要预约吗？',
+          content: confirmText,
         });
 
         if (!result.confirm) {
@@ -136,16 +168,52 @@ const BookingPage = () => {
       }
 
       // 创建预约
-      const appointment = await appointmentApi.create({
+      const createResult = await appointmentApi.create({
         scheduleId: validScheduleId,
         patientId: validPatientId,
         symptomDescription: symptomDescription.trim() || undefined,
       });
 
-      Taro.showToast({ title: '预约成功', icon: 'success' });
-      Taro.redirectTo({
-        url: `/packageBooking/pages/booking/result?appointmentNo=${appointment.appointmentNo}`,
-      });
+      // 判断返回值类型
+      const appointment = 'appointment' in createResult ? createResult.appointment : createResult;
+      const paymentParams = 'payment_params' in createResult ? createResult.payment_params : undefined;
+      const paymentRequired =
+        'payment_required' in createResult ? Boolean(createResult.payment_required) : appointment.status === 0;
+
+      if (paymentRequired && paymentParams) {
+        // 需要支付，调用微信支付
+        try {
+          await Taro.requestPayment({
+            timeStamp: paymentParams.timeStamp,
+            nonceStr: paymentParams.nonceStr,
+            package: paymentParams.package,
+            signType: paymentParams.signType as any,
+            paySign: paymentParams.paySign,
+          });
+
+          Taro.redirectTo({
+            url: buildBookingResultUrl(appointment.appointmentNo, 'success'),
+          });
+        } catch (paymentError: any) {
+          const result = getPaymentRequestFailure(paymentError);
+          console.error('支付失败', paymentError);
+          Taro.redirectTo({
+            url: buildBookingResultUrl(appointment.appointmentNo, result.status, result.message),
+          });
+        }
+      } else if (paymentRequired) {
+        const result = getPaymentPreparationFailure(
+          null,
+          '订单已创建，但当前无法直接拉起支付，请前往预约详情重新支付。'
+        );
+        Taro.redirectTo({
+          url: buildBookingResultUrl(appointment.appointmentNo, result.status, result.message),
+        });
+      } else {
+        Taro.redirectTo({
+          url: buildBookingResultUrl(appointment.appointmentNo, 'confirmed', '预约已提交成功。'),
+        });
+      }
     } catch (error: any) {
       Taro.showToast({ title: error.message || '预约失败', icon: 'none' });
     } finally {
@@ -165,6 +233,10 @@ const BookingPage = () => {
     );
   }
 
+  const buttonText = consultationFee
+    ? `确认支付 ¥${(consultationFee / 100).toFixed(2)}`
+    : '确认预约';
+
   return (
     <View className="booking-page">
       {/* 顶部：就诊人信息卡片 */}
@@ -173,7 +245,7 @@ const BookingPage = () => {
           <Text className="patient-card-title">就诊人信息</Text>
           <Text className="change-btn" onClick={handleAddPatient}>+ 新增/切换</Text>
         </View>
-        
+
         {patients.length === 0 ? (
           <View className="empty-patient">
             <Text>请先添加就诊人</Text>
@@ -201,7 +273,7 @@ const BookingPage = () => {
                 <Text>请选择就诊人</Text>
               </View>
             )}
-            
+
             {/* 就诊人选择列表（可折叠或直接显示） */}
             {patients.length > 1 && (
               <View className="patient-list">
@@ -231,7 +303,7 @@ const BookingPage = () => {
       {/* 中间：预约信息 */}
       <View className="appointment-card">
         <Text className="card-title">预约信息</Text>
-        
+
         {/* 医生信息 */}
         <View className="doctor-row">
           <View className="doctor-avatar">
@@ -249,7 +321,7 @@ const BookingPage = () => {
             <Text className="doctor-dept">{doctor?.departmentName}</Text>
           </View>
         </View>
-        
+
         {/* 预约详情 */}
         <View className="info-list">
           <View className="info-row">
@@ -271,8 +343,15 @@ const BookingPage = () => {
               <Text className="value address">{hospitalAddress}</Text>
             </View>
           )}
+          {/* 诊费展示 */}
+          {consultationFee && (
+            <View className="info-row">
+              <Text className="label">诊费</Text>
+              <Text className="value fee">¥{(consultationFee / 100).toFixed(2)}</Text>
+            </View>
+          )}
         </View>
-        
+
         {/* 病情描述输入 */}
         <View className="symptom-section">
           <Text className="symptom-label">病情描述（选填）</Text>
@@ -301,7 +380,7 @@ const BookingPage = () => {
           </View>
         </View>
       )}
-      
+
       {/* 默认须知（如果没有配置的须知） */}
       {bookingNotices.length === 0 && (
         <View className="notice-card">
@@ -329,7 +408,7 @@ const BookingPage = () => {
           disabled={!selectedPatientId}
           onClick={handleSubmit}
         >
-          确认预约
+          {buttonText}
         </Button>
       </View>
 

@@ -3,8 +3,8 @@
  * 配置 @hospital/api 包的请求和响应拦截器
  */
 import { setRequestInterceptor, setResponseInterceptor } from '@hospital/api';
-import { getToken, handleTokenExpired } from '@hospital/shared';
-import { history } from '@umijs/max';
+import { getToken, handleTokenExpired, markAuthExpired } from '@hospital/shared';
+import { history } from 'umi';
 import { message, Modal } from 'antd';
 import type { InternalAxiosRequestConfig } from 'axios';
 import type { AxiosResponse } from 'axios';
@@ -68,6 +68,7 @@ export const setupResponseInterceptor = () => {
         
         // 401 未授权 - 弹框确认后跳转到登录页
         if (status === 401) {
+          markAuthExpired();
           handleTokenExpired(() => {
             Modal.confirm({
               title: '登录已过期',
