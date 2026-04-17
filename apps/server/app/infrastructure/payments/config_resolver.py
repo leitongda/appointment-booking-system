@@ -8,6 +8,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.miniapp_platform import MiniappInstance, PaymentProfile, PaymentRoute
 
 
@@ -33,9 +34,18 @@ class PaymentConfigResolver:
         miniapp_instance_id: Optional[str] = None,
         payment_profile_id: Optional[str] = None,
     ) -> Optional[PaymentRoutingConfig]:
+        tenant_id = get_current_tenant_id()
+
         if payment_profile_id:
-            profile = await self.db.get(PaymentProfile, payment_profile_id)
-            if profile and profile.status == 1:
+            stmt = select(PaymentProfile).where(
+                PaymentProfile.id == payment_profile_id,
+                PaymentProfile.status == 1,
+            )
+            if tenant_id:
+                stmt = stmt.where(PaymentProfile.tenant_id == tenant_id)
+            result = await self.db.execute(stmt)
+            profile = result.scalar_one_or_none()
+            if profile:
                 return self._serialize(profile, source="payment_profile")
 
         if store_id:
@@ -47,7 +57,11 @@ class PaymentConfigResolver:
                     PaymentRoute.status == 1,
                     PaymentProfile.status == 1,
                 )
-                .order_by(PaymentRoute.priority.desc(), PaymentRoute.created_at.desc())
+            )
+            if tenant_id:
+                route_stmt = route_stmt.where(PaymentRoute.tenant_id == tenant_id)
+            route_stmt = route_stmt.order_by(
+                PaymentRoute.priority.desc(), PaymentRoute.created_at.desc()
             )
             result = await self.db.execute(route_stmt)
             matched = result.first()
@@ -56,11 +70,37 @@ class PaymentConfigResolver:
                 return self._serialize(profile, source="store_route")
 
         if miniapp_instance_id:
-            instance = await self.db.get(MiniappInstance, miniapp_instance_id)
-            if instance and instance.status == 1 and instance.default_payment_profile_id:
-                profile = await self.db.get(PaymentProfile, instance.default_payment_profile_id)
-                if profile and profile.status == 1:
+            inst_stmt = select(MiniappInstance).where(
+                MiniappInstance.id == miniapp_instance_id,
+                MiniappInstance.status == 1,
+            )
+            if tenant_id:
+                inst_stmt = inst_stmt.where(MiniappInstance.tenant_id == tenant_id)
+            result = await self.db.execute(inst_stmt)
+            instance = result.scalar_one_or_none()
+            if instance and instance.default_payment_profile_id:
+                profile_stmt = select(PaymentProfile).where(
+                    PaymentProfile.id == instance.default_payment_profile_id,
+                    PaymentProfile.status == 1,
+                )
+                if tenant_id:
+                    profile_stmt = profile_stmt.where(PaymentProfile.tenant_id == tenant_id)
+                result = await self.db.execute(profile_stmt)
+                profile = result.scalar_one_or_none()
+                if profile:
                     return self._serialize(profile, source="miniapp_instance_default")
+
+        default_stmt = select(PaymentProfile).where(
+            PaymentProfile.is_default.is_(True),
+            PaymentProfile.status == 1,
+        )
+        if tenant_id:
+            default_stmt = default_stmt.where(PaymentProfile.tenant_id == tenant_id)
+        default_stmt = default_stmt.order_by(PaymentProfile.created_at.desc())
+        result = await self.db.execute(default_stmt)
+        profile = result.scalar_one_or_none()
+        if profile:
+            return self._serialize(profile, source="tenant_default")
 
         return None
 

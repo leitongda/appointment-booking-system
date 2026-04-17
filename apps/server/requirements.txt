@@ -70,3 +70,6 @@ xlrd>=2.0.1
 
 # 性能测试
 locust>=2.32.0
+
+# 微信支付 SDK
+wechatpayv3>=1.2.0
