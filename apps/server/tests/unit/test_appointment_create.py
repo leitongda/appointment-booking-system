@@ -16,7 +16,9 @@ import pytest
 from sqlalchemy import select
 
 from app.models.appointment import Appointment
+from app.models.blacklist import Blacklist
 from app.models.schedule import Schedule
+from app.models.settings import SystemSetting
 from app.schemas.appointment import AppointmentCreate
 from app.modules.appointments.service import AppointmentService, APPOINTMENT_STATUS
 
@@ -67,6 +69,21 @@ def create_default_rule_engine_mocks():
         'check_booking_conflicts': {'allowed': True, 'reason': ''},
         'check_capacity_limits': {'allowed': True, 'reason': ''},
     }
+
+
+async def create_booking_setting(db_session, key, value, store_id=None):
+    setting = SystemSetting(
+        id=str(uuid4()),
+        store_id=store_id,
+        category="booking",
+        key=key,
+        value=str(value).lower() if isinstance(value, bool) else str(value),
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(setting)
+    await db_session.commit()
+    return setting
 
 
 # ==================== 测试类 ====================
@@ -336,8 +353,8 @@ class TestCreateAppointmentDuplicate:
                 )
 
         # 验证错误信息
-        assert "已预约此时段" in str(exc_info.value), \
-            f"错误信息应包含'已预约此时段'，实际为: {exc_info.value}"
+        assert "同一天同一时段已有预约" in str(exc_info.value), \
+            f"错误信息应包含'同一天同一时段已有预约'，实际为: {exc_info.value}"
 
     @pytest.mark.asyncio
     async def test_create_appointment_different_patient_same_schedule(
@@ -418,6 +435,311 @@ class TestCreateAppointmentDuplicate:
         assert appointment is not None, "预约应创建成功"
         assert appointment.status == APPOINTMENT_STATUS['CONFIRMED'], "状态应为已预约"
 
+    @pytest.mark.asyncio
+    async def test_create_appointment_duplicate_same_day_pending_other_schedule(
+        self,
+        db_session,
+        test_schedule,
+        test_patient,
+        test_user,
+        test_doctor,
+        test_store,
+        test_tenant,
+    ):
+        duplicate_schedule = Schedule(
+            id=str(uuid4()),
+            doctor_id=test_doctor.id,
+            store_id=test_store.id,
+            tenant_id=test_tenant.id,
+            schedule_date=test_schedule.schedule_date,
+            time_slot=test_schedule.time_slot,
+            start_time=test_schedule.start_time,
+            end_time=test_schedule.end_time,
+            total_slots=10,
+            booked_slots=1,
+            status=1,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+        db_session.add(duplicate_schedule)
+        await db_session.flush()
+
+        pending_appointment = Appointment(
+            id=str(uuid4()),
+            appointment_no=f"YY{datetime.now().strftime('%Y%m%d%H%M%S')}{str(uuid4())[:4].upper()}",
+            user_id=test_user.id,
+            patient_id=test_patient.id,
+            doctor_id=test_doctor.id,
+            schedule_id=duplicate_schedule.id,
+            tenant_id=test_tenant.id,
+            queue_number=1,
+            status=0,
+            patient_name=test_patient.name,
+            patient_phone=test_patient.phone,
+            doctor_name=test_doctor.name,
+            doctor_title=test_doctor.title,
+            department_name="测试科室",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            created_by=test_user.id,
+        )
+        db_session.add(pending_appointment)
+        await db_session.commit()
+
+        appointment_data = AppointmentCreate(
+            schedule_id=test_schedule.id,
+            patient_id=test_patient.id,
+        )
+        service = AppointmentService(db_session)
+
+        with patch('app.modules.appointments.service.RedisCache.tenant_distributed_lock') as mock_lock, \
+             patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls, \
+             patch('app.middleware.tenant_context.get_current_tenant_id', return_value=test_tenant.id), \
+             patch('app.common.quota.check_quota', new_callable=AsyncMock):
+            mock_lock.return_value = create_mock_lock_context()
+            mock_rule_engine = MagicMock()
+            mock_rule_engine_cls.return_value = mock_rule_engine
+            default_mocks = create_default_rule_engine_mocks()
+            mock_rule_engine.check_action_window = AsyncMock(return_value=default_mocks['check_action_window'])
+            mock_rule_engine.get_applicable_rule_set = AsyncMock(return_value=default_mocks['get_applicable_rule_set'])
+
+            with pytest.raises(ValueError) as exc_info:
+                await service.create(user_id=test_user.id, data=appointment_data)
+
+        assert "同一天同一时段已有预约" in str(exc_info.value)
+
+
+class TestCreateAppointmentDefaultRules:
+    @pytest.mark.asyncio
+    async def test_create_appointment_counts_pending_for_per_day_limit(
+        self,
+        db_session,
+        test_schedule,
+        test_patient,
+        test_user,
+        test_doctor,
+        test_store,
+        test_tenant,
+    ):
+        await create_booking_setting(db_session, "per_day_limit", 1, store_id=test_store.id)
+
+        pending_schedule = Schedule(
+            id=str(uuid4()),
+            doctor_id=test_doctor.id,
+            store_id=test_store.id,
+            tenant_id=test_tenant.id,
+            schedule_date=test_schedule.schedule_date,
+            time_slot="afternoon",
+            start_time=time(14, 0),
+            end_time=time(18, 0),
+            total_slots=10,
+            booked_slots=1,
+            status=1,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+        db_session.add(pending_schedule)
+        await db_session.flush()
+
+        pending_appointment = Appointment(
+            id=str(uuid4()),
+            appointment_no=f"YY{datetime.now().strftime('%Y%m%d%H%M%S')}{str(uuid4())[:4].upper()}",
+            user_id=test_user.id,
+            patient_id=test_patient.id,
+            doctor_id=test_doctor.id,
+            schedule_id=pending_schedule.id,
+            tenant_id=test_tenant.id,
+            queue_number=1,
+            status=0,
+            patient_name=test_patient.name,
+            patient_phone=test_patient.phone,
+            doctor_name=test_doctor.name,
+            doctor_title=test_doctor.title,
+            department_name="测试科室",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            created_by=test_user.id,
+        )
+        db_session.add(pending_appointment)
+        await db_session.commit()
+
+        appointment_data = AppointmentCreate(schedule_id=test_schedule.id, patient_id=test_patient.id)
+        service = AppointmentService(db_session)
+
+        with patch('app.modules.appointments.service.RedisCache.tenant_distributed_lock') as mock_lock, \
+             patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls, \
+             patch('app.middleware.tenant_context.get_current_tenant_id', return_value=test_tenant.id), \
+             patch('app.common.quota.check_quota', new_callable=AsyncMock):
+            mock_lock.return_value = create_mock_lock_context()
+            mock_rule_engine = MagicMock()
+            mock_rule_engine_cls.return_value = mock_rule_engine
+            default_mocks = create_default_rule_engine_mocks()
+            mock_rule_engine.check_action_window = AsyncMock(return_value=default_mocks['check_action_window'])
+            mock_rule_engine.get_applicable_rule_set = AsyncMock(return_value=default_mocks['get_applicable_rule_set'])
+
+            with pytest.raises(ValueError) as exc_info:
+                await service.create(user_id=test_user.id, data=appointment_data)
+
+        assert "当日预约已达上限" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_create_appointment_rejects_same_day_when_disabled(
+        self,
+        db_session,
+        test_patient,
+        test_user,
+        test_doctor,
+        test_store,
+        test_tenant,
+    ):
+        await create_booking_setting(db_session, "same_day_booking", False, store_id=test_store.id)
+
+        today_schedule = Schedule(
+            id=str(uuid4()),
+            doctor_id=test_doctor.id,
+            store_id=test_store.id,
+            tenant_id=test_tenant.id,
+            schedule_date=date.today(),
+            time_slot="morning",
+            start_time=time(8, 0),
+            end_time=time(12, 0),
+            total_slots=10,
+            booked_slots=0,
+            status=1,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+        db_session.add(today_schedule)
+        await db_session.commit()
+
+        appointment_data = AppointmentCreate(schedule_id=today_schedule.id, patient_id=test_patient.id)
+        service = AppointmentService(db_session)
+
+        with patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls, \
+             patch('app.middleware.tenant_context.get_current_tenant_id', return_value=test_tenant.id), \
+             patch('app.common.quota.check_quota', new_callable=AsyncMock):
+            mock_rule_engine = MagicMock()
+            mock_rule_engine_cls.return_value = mock_rule_engine
+            default_mocks = create_default_rule_engine_mocks()
+            mock_rule_engine.check_action_window = AsyncMock(return_value=default_mocks['check_action_window'])
+            mock_rule_engine.get_applicable_rule_set = AsyncMock(return_value=default_mocks['get_applicable_rule_set'])
+
+            with pytest.raises(ValueError) as exc_info:
+                await service.create(user_id=test_user.id, data=appointment_data)
+
+        assert "当前不允许当天预约" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_create_appointment_rejects_per_doctor_limit(
+        self,
+        db_session,
+        test_schedule,
+        test_patient,
+        test_user,
+        test_doctor,
+        test_store,
+        test_tenant,
+    ):
+        await create_booking_setting(db_session, "per_doctor_limit", 1, store_id=test_store.id)
+
+        future_schedule = Schedule(
+            id=str(uuid4()),
+            doctor_id=test_doctor.id,
+            store_id=test_store.id,
+            tenant_id=test_tenant.id,
+            schedule_date=test_schedule.schedule_date + timedelta(days=1),
+            time_slot="afternoon",
+            start_time=time(14, 0),
+            end_time=time(18, 0),
+            total_slots=10,
+            booked_slots=1,
+            status=1,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+        db_session.add(future_schedule)
+        await db_session.flush()
+
+        existing_appointment = Appointment(
+            id=str(uuid4()),
+            appointment_no=f"YY{datetime.now().strftime('%Y%m%d%H%M%S')}{str(uuid4())[:4].upper()}",
+            user_id=test_user.id,
+            patient_id=test_patient.id,
+            doctor_id=test_doctor.id,
+            schedule_id=future_schedule.id,
+            tenant_id=test_tenant.id,
+            queue_number=1,
+            status=0,
+            patient_name=test_patient.name,
+            patient_phone=test_patient.phone,
+            doctor_name=test_doctor.name,
+            doctor_title=test_doctor.title,
+            department_name="测试科室",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            created_by=test_user.id,
+        )
+        db_session.add(existing_appointment)
+        await db_session.commit()
+
+        appointment_data = AppointmentCreate(schedule_id=test_schedule.id, patient_id=test_patient.id)
+        service = AppointmentService(db_session)
+
+        with patch('app.modules.appointments.service.RedisCache.tenant_distributed_lock') as mock_lock, \
+             patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls, \
+             patch('app.middleware.tenant_context.get_current_tenant_id', return_value=test_tenant.id), \
+             patch('app.common.quota.check_quota', new_callable=AsyncMock):
+            mock_lock.return_value = create_mock_lock_context()
+            mock_rule_engine = MagicMock()
+            mock_rule_engine_cls.return_value = mock_rule_engine
+            default_mocks = create_default_rule_engine_mocks()
+            mock_rule_engine.check_action_window = AsyncMock(return_value=default_mocks['check_action_window'])
+            mock_rule_engine.get_applicable_rule_set = AsyncMock(return_value=default_mocks['get_applicable_rule_set'])
+
+            with pytest.raises(ValueError) as exc_info:
+                await service.create(user_id=test_user.id, data=appointment_data)
+
+        assert "同一医生预约已达上限" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_create_appointment_rejects_blacklisted_user(
+        self,
+        db_session,
+        test_schedule,
+        test_patient,
+        test_user,
+        test_store,
+        test_tenant,
+    ):
+        blacklist = Blacklist(
+            id=str(uuid4()),
+            user_id=test_user.id,
+            store_id=test_store.id,
+            reason="黑名单用户禁止预约",
+            status=1,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+        db_session.add(blacklist)
+        await db_session.commit()
+
+        appointment_data = AppointmentCreate(schedule_id=test_schedule.id, patient_id=test_patient.id)
+        service = AppointmentService(db_session)
+
+        with patch('app.modules.appointments.service.RuleEngineService') as mock_rule_engine_cls, \
+             patch('app.middleware.tenant_context.get_current_tenant_id', return_value=test_tenant.id), \
+             patch('app.common.quota.check_quota', new_callable=AsyncMock):
+            mock_rule_engine = MagicMock()
+            mock_rule_engine_cls.return_value = mock_rule_engine
+            default_mocks = create_default_rule_engine_mocks()
+            mock_rule_engine.check_action_window = AsyncMock(return_value=default_mocks['check_action_window'])
+            mock_rule_engine.get_applicable_rule_set = AsyncMock(return_value=default_mocks['get_applicable_rule_set'])
+
+            with pytest.raises(ValueError) as exc_info:
+                await service.create(user_id=test_user.id, data=appointment_data)
+
+        assert "黑名单用户禁止预约" in str(exc_info.value)
+
 
 class TestCreateAppointmentConcurrent:
     """测试并发创建预约"""
@@ -484,19 +806,15 @@ class TestCreateAppointmentConcurrent:
             )
 
         # 验证分布式锁被调用
-        mock_lock.assert_called_once()
+        assert mock_lock.call_count == 2
+        lock_names = [call.args[0] for call in mock_lock.call_args_list]
+        assert f"appointment:create:user:{test_user.id}" in lock_names
+        assert f"appointment:create:{test_schedule.id}" in lock_names
 
-        # 验证锁名称格式（tenant_distributed_lock 的第一个参数仍为原始 lock_name）
-        lock_call_args = mock_lock.call_args
-        lock_name = lock_call_args[0][0] if lock_call_args[0] else lock_call_args[1].get('lock_name')
-        expected_lock_prefix = f"appointment:create:{test_schedule.id}"
-        assert lock_name == expected_lock_prefix, \
-            f"锁名称应为 {expected_lock_prefix}，实际为 {lock_name}"
-
-        # 验证传入了 tenant_id
-        actual_tenant_id = lock_call_args[1].get('tenant_id')
-        assert actual_tenant_id == test_tenant.id, \
-            f"tenant_id 应为 {test_tenant.id}，实际为 {actual_tenant_id}"
+        for call in mock_lock.call_args_list:
+            actual_tenant_id = call.kwargs.get('tenant_id')
+            assert actual_tenant_id == test_tenant.id, \
+                f"tenant_id 应为 {test_tenant.id}，实际为 {actual_tenant_id}"
 
         # 验证预约创建成功
         assert appointment is not None

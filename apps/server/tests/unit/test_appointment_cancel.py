@@ -133,6 +133,53 @@ class TestCancelAppointmentSuccess:
         assert result.status == APPOINTMENT_STATUS['CANCELLED']
         assert result.cancel_reason == "管理员取消"
 
+    @pytest.mark.asyncio
+    async def test_cancel_pending_appointment_success(
+        self,
+        db_session,
+        test_appointment: Appointment,
+        test_user,
+        appointment_service: AppointmentService
+    ):
+        """测试待支付预约可以正常取消并释放号源"""
+        test_appointment.status = 0
+        await db_session.commit()
+
+        schedule_result = await db_session.execute(
+            Schedule.__table__.select().where(Schedule.id == test_appointment.schedule_id)
+        )
+        schedule_row = schedule_result.first()
+        booked_slots_before = schedule_row.booked_slots
+
+        mock_lock = AsyncMock()
+        mock_lock.__aenter__ = AsyncMock(return_value=None)
+        mock_lock.__aexit__ = AsyncMock(return_value=None)
+
+        with patch('app.modules.messages.service_messages.MessageService') as mock_msg_cls, \
+             patch('app.core.redis.RedisCache.tenant_distributed_lock', return_value=mock_lock) as mock_dist_lock:
+            mock_msg = MagicMock()
+            mock_msg_cls.return_value = mock_msg
+            mock_msg.send_appointment_notification = AsyncMock()
+
+            result = await appointment_service.cancel(
+                appointment_id=test_appointment.id,
+                user_id=test_user.id,
+                reason="待支付取消",
+                is_admin=False
+            )
+
+        assert result is not None
+        assert result.status == APPOINTMENT_STATUS['CANCELLED']
+        assert result.cancel_reason == "待支付取消"
+        mock_dist_lock.assert_called_once()
+        assert mock_dist_lock.call_args.args[0] == f"appointment:cancel:{test_appointment.id}"
+
+        schedule_result = await db_session.execute(
+            Schedule.__table__.select().where(Schedule.id == test_appointment.schedule_id)
+        )
+        schedule_row = schedule_result.first()
+        assert schedule_row.booked_slots == booked_slots_before - 1
+
 
 class TestCancelAppointmentWrongStatus:
     """测试错误状态不可取消场景"""

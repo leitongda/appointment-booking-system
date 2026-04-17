@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey
+from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey, Numeric
 from sqlalchemy.orm import relationship
 from app.db.base import Base, AuditMixin
 from datetime import datetime
@@ -62,6 +62,13 @@ class Appointment(Base, AuditMixin):
     payment_mch_id = Column(String(100), nullable=True, comment="支付商户号快照")
     payment_sub_mchid = Column(String(100), nullable=True, comment="支付子商户号快照")
     payment_notify_url = Column(String(255), nullable=True, comment="支付回调地址快照")
+    payment_amount = Column(Numeric(10, 2), nullable=True, comment="支付金额(快照)")
+    payment_transaction_id = Column(String(100), nullable=True, comment="微信支付交易号/外部订单号")
+    paid_at = Column(DateTime, nullable=True, comment="支付完成时间")
+
+    # 退款相关
+    refund_status = Column(String(20), nullable=True, comment="退款状态: none/partial_refunded/refunded")
+    refund_amount = Column(Numeric(10, 2), nullable=True, default=0, comment="累计退款金额")
 
     # 关联关系
     tenant = relationship("Tenant", back_populates="appointments")

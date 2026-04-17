@@ -4,16 +4,27 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.api.deps import get_current_user_or_admin
-from app.schemas.appointment import AppointmentCreate, AppointmentCancelRequest, AppointmentResponse
+from app.schemas.appointment import (
+    AppointmentCancelRequest,
+    AppointmentCreate,
+    AppointmentPendingPaymentResponse,
+    AppointmentResponse,
+)
 from app.schemas.response import ErrorResponse
 from app.modules.appointments.service import AppointmentService
 
 router = APIRouter()
 
 
+def _serialize_created_appointment(result):
+    if isinstance(result, dict):
+        return AppointmentPendingPaymentResponse.from_result(result)
+    return AppointmentResponse.from_appointment(result)
+
+
 @router.post(
     "",
-    response_model=AppointmentResponse,
+    response_model=AppointmentResponse | AppointmentPendingPaymentResponse,
     summary="创建预约",
     responses={
         400: {"model": ErrorResponse, "description": "预约失败（号源已满/重复预约/黑名单等）"},
@@ -30,9 +41,11 @@ async def create_appointment(
     service = AppointmentService(db)
 
     try:
-        appointment = await service.create(current_user["id"], data)
+        result = await service.create(current_user["id"], data)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    appointment = result["appointment"] if isinstance(result, dict) else result
 
     # 发送 WebSocket 通知给医生（新预约）
     if appointment.doctor_id:
@@ -51,7 +64,7 @@ async def create_appointment(
         except Exception:
             pass  # WebSocket 通知失败不影响业务
 
-    return AppointmentResponse.from_appointment(appointment)
+    return _serialize_created_appointment(result)
 
 
 @router.put(

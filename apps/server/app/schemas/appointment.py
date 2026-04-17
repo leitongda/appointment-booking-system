@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import datetime, date, time
+from decimal import Decimal
 from app.core.config import settings
 
 
@@ -62,6 +63,17 @@ class AppointmentResponse(BaseModel):
     cancel_reason: Optional[str] = Field(None, description="取消原因")
     symptom_description: Optional[str] = Field(None, description="病情描述")
     created_at: Optional[datetime] = Field(None, description="创建时间")
+    payment_amount: Optional[float] = Field(None, description="支付金额（元）")
+    payment_time: Optional[datetime] = Field(None, description="支付完成时间")
+    payment_transaction_id: Optional[str] = Field(None, description="支付交易号")
+    refund_status: Optional[str] = Field(None, description="退款状态")
+    refunded_amount: Optional[float] = Field(None, description="已退款金额（元）")
+
+    @staticmethod
+    def _decimal_to_float(value: Optional[Decimal]) -> Optional[float]:
+        if value is None:
+            return None
+        return float(value)
 
     @classmethod
     def from_appointment(cls, appointment) -> "AppointmentResponse":
@@ -92,6 +104,44 @@ class AppointmentResponse(BaseModel):
             cancel_reason=appointment.cancel_reason,
             symptom_description=appointment.symptom_description,
             created_at=appointment.created_at,
+            payment_amount=cls._decimal_to_float(appointment.payment_amount),
+            payment_time=appointment.paid_at,
+            payment_transaction_id=appointment.payment_transaction_id,
+            refund_status=appointment.refund_status,
+            refunded_amount=cls._decimal_to_float(appointment.refund_amount),
+        )
+
+
+class AppointmentPaymentParams(BaseModel):
+    """预约创建后可直接使用的支付参数。"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        by_alias=True,
+    )
+
+    time_stamp: str = Field(..., description="支付时间戳")
+    nonce_str: str = Field(..., description="随机字符串")
+    package: str = Field(..., description="预支付会话标识")
+    sign_type: str = Field(..., description="签名类型")
+    pay_sign: str = Field(..., description="支付签名")
+
+
+class AppointmentPendingPaymentResponse(BaseModel):
+    """收费预约创建响应。"""
+    appointment: AppointmentResponse = Field(..., description="预约信息")
+    payment_required: bool = Field(True, description="是否需要支付")
+    payment_amount: Optional[float] = Field(None, description="支付金额（元）")
+    payment_params: Optional[AppointmentPaymentParams] = Field(None, description="支付参数")
+
+    @classmethod
+    def from_result(cls, result: dict) -> "AppointmentPendingPaymentResponse":
+        appointment = result["appointment"]
+        return cls(
+            appointment=AppointmentResponse.from_appointment(appointment),
+            payment_required=bool(result.get("payment_required", False)),
+            payment_amount=result.get("payment_amount"),
+            payment_params=result.get("payment_params"),
         )
 
 
@@ -144,4 +194,3 @@ class AppointmentStatistics(BaseModel):
     completed: int = Field(0, description="已完成数")
     cancelled: int = Field(0, description="已取消数")
     no_show: int = Field(0, description="爽约数")
-

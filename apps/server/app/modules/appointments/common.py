@@ -1,6 +1,6 @@
 from datetime import date, datetime
 import logging
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +31,13 @@ CHECKIN_METHOD = {
     "QR_CODE": "QR_CODE",    # 扫码签到
     "PHONE": "PHONE",        # 手机签到（患者端自助）
 }
+
+ACTIVE_APPOINTMENT_STATUSES = (
+    0,  # 待支付
+    APPOINTMENT_STATUS["CONFIRMED"],
+    APPOINTMENT_STATUS["SIGNED"],
+    APPOINTMENT_STATUS["SEEING"],
+)
 
 
 class AppointmentServiceBase:
@@ -202,6 +209,7 @@ class AppointmentServiceBase:
         doctor_id: Optional[str] = None,
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
+        store_id: Optional[Union[str, List[str]]] = None,
     ) -> AppointmentStatistics:
         tenant_id = get_current_tenant_id()
         base_query = select(Appointment.status, func.count(Appointment.id))
@@ -209,6 +217,17 @@ class AppointmentServiceBase:
             base_query = base_query.where(Appointment.tenant_id == tenant_id)
         if doctor_id:
             base_query = base_query.where(Appointment.doctor_id == doctor_id)
+        if start_date or end_date or store_id:
+            base_query = base_query.join(Schedule, Schedule.id == Appointment.schedule_id)
+        if start_date:
+            base_query = base_query.where(Schedule.schedule_date >= start_date)
+        if end_date:
+            base_query = base_query.where(Schedule.schedule_date <= end_date)
+        if store_id:
+            if isinstance(store_id, list):
+                base_query = base_query.where(Schedule.store_id.in_(store_id))
+            else:
+                base_query = base_query.where(Schedule.store_id == store_id)
         base_query = base_query.group_by(Appointment.status)
         result = await self.db.execute(base_query)
         status_counts = dict(result.all())
@@ -375,24 +394,24 @@ class AppointmentServiceBase:
         schedule_date: date,
         time_slot: str,
     ) -> List[Appointment]:
-        result = await self.db.execute(
+        query = (
             select(Appointment)
             .join(Schedule)
             .options(selectinload(Appointment.schedule))
             .where(
                 and_(
+                    Appointment.user_id == user_id,
                     Appointment.patient_id == patient_id,
                     Schedule.schedule_date == schedule_date,
                     Schedule.time_slot == time_slot,
-                    Appointment.status.in_(
-                        [
-                            APPOINTMENT_STATUS["CONFIRMED"],
-                            APPOINTMENT_STATUS["SIGNED"],
-                        ]
-                    ),
+                    Appointment.status.in_(ACTIVE_APPOINTMENT_STATUSES),
                 )
             )
         )
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            query = query.where(Appointment.tenant_id == tenant_id)
+        result = await self.db.execute(query)
         return list(result.scalars().all())
 
     async def _count_user_store_daily_appointments(
@@ -408,18 +427,33 @@ class AppointmentServiceBase:
                 and_(
                     Appointment.user_id == user_id,
                     Schedule.schedule_date == schedule_date,
-                    Appointment.status.in_(
-                        [
-                            APPOINTMENT_STATUS["CONFIRMED"],
-                            APPOINTMENT_STATUS["SIGNED"],
-                            APPOINTMENT_STATUS["SEEING"],
-                        ]
-                    ),
+                    Appointment.status.in_(ACTIVE_APPOINTMENT_STATUSES),
                 )
             )
         )
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            query = query.where(Appointment.tenant_id == tenant_id)
         if store_id:
             query = query.where(Schedule.store_id == store_id)
+        result = await self.db.execute(query)
+        return result.scalar() or 0
+
+    async def _count_user_doctor_active_appointments(
+        self,
+        user_id: str,
+        doctor_id: str,
+    ) -> int:
+        query = select(func.count(Appointment.id)).where(
+            and_(
+                Appointment.user_id == user_id,
+                Appointment.doctor_id == doctor_id,
+                Appointment.status.in_(ACTIVE_APPOINTMENT_STATUSES),
+            )
+        )
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            query = query.where(Appointment.tenant_id == tenant_id)
         result = await self.db.execute(query)
         return result.scalar() or 0
 

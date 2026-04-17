@@ -1,5 +1,5 @@
 """预约查询相关端点"""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
@@ -8,6 +8,7 @@ import pytz
 
 from app.db.session import get_db
 from app.api.deps import get_current_user, get_current_user_or_admin, get_store_filter, get_current_admin
+from app.common.deps import require_permission
 from app.schemas.appointment import AppointmentResponse, AppointmentStatistics
 from app.schemas.response import PageResponse, ErrorResponse
 from app.modules.appointments.service import AppointmentService
@@ -82,21 +83,19 @@ async def get_appointments(
         is_admin = current_user.get("is_admin", False)
         if not is_admin:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail={
-                    "code": "PAGE_SIZE_REQUIRES_ADMIN",
-                    "message": f"page_size > {PAGE_SIZE_STANDARD_LIMIT} 需要管理员权限",
-                    "hint": f"当前 page_size={page_size}，普通用户上限为 {PAGE_SIZE_STANDARD_LIMIT}"
-                }
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"page_size 超过 {PAGE_SIZE_STANDARD_LIMIT} 时仅管理员可请求，"
+                    f"当前 page_size={page_size}，普通用户上限为 {PAGE_SIZE_STANDARD_LIMIT}"
+                ),
             )
         if not start_date or not end_date:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail={
-                    "code": "PAGE_SIZE_REQUIRES_DATE_RANGE",
-                    "message": f"page_size > {PAGE_SIZE_STANDARD_LIMIT} 必须提供 start_date 和 end_date",
-                    "hint": "请提供日期范围以限制查询数据量"
-                }
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"page_size 超过 {PAGE_SIZE_STANDARD_LIMIT} 时必须同时提供 start_date 和 end_date，"
+                    "请补充日期范围以限制查询数据量"
+                ),
             )
 
     service = AppointmentService(db)
@@ -438,14 +437,19 @@ async def get_appointment_statistics(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("appointment:statistics")),
 ):
     """获取预约统计（需要管理员权限）
-
-    TODO: 添加门店过滤支持
     """
     service = AppointmentService(db)
-    return await service.get_statistics(doctor_id=doctor_id, start_date=start_date, end_date=end_date)
+    store_filter = get_store_filter(current_admin)
+    return await service.get_statistics(
+        doctor_id=doctor_id,
+        start_date=start_date,
+        end_date=end_date,
+        store_id=store_filter,
+    )
 
 
 @router.get(
@@ -476,8 +480,22 @@ async def check_duplicate_appointment(
     返回该时段已有的预约列表，用于前端提醒用户
     """
     from app.models.schedule import Schedule
+    from app.models.user import Patient
 
     service = AppointmentService(db)
+
+    patient_result = await db.execute(
+        select(Patient).where(
+            Patient.id == patient_id,
+            Patient.user_id == current_user["id"],
+        )
+    )
+    patient = patient_result.scalar_one_or_none()
+    if not patient:
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail="无权查询该就诊人",
+        )
 
     # 先获取排班信息以获取日期和时段
     schedule_result = await db.execute(
@@ -539,11 +557,11 @@ async def get_appointment_by_no(
     appointment = await service.get_by_appointment_no(appointment_no)
 
     if not appointment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
 
     # 验证权限：普通用户只能查看自己的预约
     if not current_user.get("is_admin") and appointment.user_id != current_user["id"]:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权查看此预约")
+        raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail="无权查看此预约")
 
     return AppointmentResponse.from_appointment(appointment)
 
@@ -576,7 +594,7 @@ async def get_appointment(
     appointment = await service.get_by_id(appointment_id)
 
     if not appointment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
 
     return AppointmentResponse.from_appointment(appointment)
 
@@ -602,7 +620,7 @@ async def get_queue_info(
     """获取当前叫号队列信息（医生端）"""
     doctor_id = current_user.get("doctor_id")
     if not doctor_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要医生权限，请联系管理员开通")
+        raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail="需要医生权限，请联系管理员开通")
 
     service = AppointmentService(db)
     return await service.get_queue_info(doctor_id)

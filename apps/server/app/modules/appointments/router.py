@@ -1,22 +1,34 @@
 """预约 API - 聚合路由"""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional
 
 from app.db.session import get_db
-from app.api.deps import get_current_user_or_admin
-from app.schemas.appointment import AppointmentCreate, AppointmentResponse, AppointmentCancelRequest
+from app.api.deps import get_current_user_or_admin, get_current_user
+from app.schemas.appointment import (
+    AppointmentCancelRequest,
+    AppointmentCreate,
+    AppointmentPendingPaymentResponse,
+    AppointmentResponse,
+)
 from app.schemas.response import ErrorResponse
 from app.modules.appointments.service import AppointmentService
 
 
 router = APIRouter()
 
+
+def _serialize_created_appointment(result):
+    if isinstance(result, dict):
+        return AppointmentPendingPaymentResponse.from_result(result)
+    return AppointmentResponse.from_appointment(result)
+
 # ==================== 根级别操作（保持在主路由器中以避免路径冲突） ====================
 
 
 @router.post(
     "",
-    response_model=AppointmentResponse,
+    response_model=AppointmentResponse | AppointmentPendingPaymentResponse,
     summary="创建预约",
     description="""
     患者提交预约申请，系统自动分配号源并生成预约编号。
@@ -44,9 +56,11 @@ async def create_appointment(
     service = AppointmentService(db)
 
     try:
-        appointment = await service.create(current_user["id"], data)
+        result = await service.create(current_user["id"], data)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    appointment = result["appointment"] if isinstance(result, dict) else result
 
     # 发送 WebSocket 通知
     if appointment.doctor_id:
@@ -65,7 +79,7 @@ async def create_appointment(
         except Exception:
             pass
 
-    return AppointmentResponse.from_appointment(appointment)
+    return _serialize_created_appointment(result)
 
 
 @router.put(
@@ -109,6 +123,112 @@ async def cancel_appointment(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在")
 
     return {"message": "取消成功"}
+
+
+@router.get(
+    "/{appointment_id}/payment-params",
+    summary="获取支付参数",
+    description="""
+    待支付订单重新获取支付参数（用户取消支付后重新发起）。
+
+    **业务规则**：
+    - 仅患者本人可调用
+    - 预约状态必须为待支付（status=0）
+    - 返回小程序调起支付所需的参数
+
+    **参数说明**：
+    - appointment_id: 预约记录ID（路径参数）
+    - openid: 微信用户openid（query参数，必需）
+    """,
+    responses={
+        400: {"model": ErrorResponse, "description": "参数错误或状态不正确"},
+        404: {"model": ErrorResponse, "description": "预约不存在"},
+    }
+)
+async def get_payment_params(
+    appointment_id: str,
+    openid: Optional[str] = Query(None, description="微信用户openid；未提供时自动读取当前登录用户绑定值"),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """获取支付参数（重新发起支付）"""
+    from sqlalchemy import select
+    from app.models.appointment import Appointment
+    from app.models.user import User
+    from app.middleware.tenant_context import get_current_tenant_id
+
+    # 1. 查询预约
+    stmt = select(Appointment).where(Appointment.id == appointment_id)
+    tenant_id = get_current_tenant_id()
+    if tenant_id:
+        stmt = stmt.where(Appointment.tenant_id == tenant_id)
+
+    result = await db.execute(stmt)
+    appointment = result.scalar_one_or_none()
+
+    if not appointment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="预约不存在，请检查后重试"
+        )
+
+    # 2. 验证权限：只能操作自己的预约
+    if appointment.user_id != current_user["id"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权操作此预约"
+        )
+
+    # 3. 验证预约状态：必须是待支付状态
+    if appointment.status != 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"预约状态不正确，当前状态不支持支付，请检查后重试"
+        )
+
+    # 4. 验证支付金额
+    if not appointment.payment_amount or appointment.payment_amount <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="支付金额无效，请检查后重试"
+        )
+
+    # 5. 优先使用显式传入的 openid，否则回退到当前登录用户已绑定的 openid
+    effective_openid = openid
+    if not effective_openid:
+        user_stmt = select(User).where(User.id == current_user["id"])
+        if tenant_id:
+            user_stmt = user_stmt.where(User.tenant_id == tenant_id)
+        user_result = await db.execute(user_stmt)
+        user = user_result.scalar_one_or_none()
+        effective_openid = user.openid if user else None
+
+    if not effective_openid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="当前账号未绑定微信 openid，请重新登录微信后再试"
+        )
+
+    # 6. 调用支付服务生成支付参数
+    try:
+        from app.modules.payments.service import PaymentService
+        payment_service = PaymentService(db)
+        payment_params = await payment_service.create_payment_order(
+            appointment_id=appointment_id,
+            openid=effective_openid,
+            miniapp_instance_id=appointment.payment_miniapp_instance_id,
+        )
+        return payment_params
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取支付参数失败: {str(e)}"
+        )
 
 
 # ==================== 聚合子模块路由 ====================
