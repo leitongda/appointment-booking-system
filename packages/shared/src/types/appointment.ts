@@ -32,6 +32,16 @@ export interface Appointment {
   createdAt: string;
   /** 是否为复诊 */
   isFollowUp?: boolean;
+  /** 支付金额（元） */
+  paymentAmount?: number;
+  /** 支付时间 */
+  paymentTime?: string;
+  /** 支付交易号 */
+  paymentTransactionId?: string;
+  /** 退款状态 */
+  refundStatus?: string;
+  /** 已退款金额（元） */
+  refundedAmount?: number;
 }
 
 /** 预约详情（与 Appointment 相同，用于语义区分） */

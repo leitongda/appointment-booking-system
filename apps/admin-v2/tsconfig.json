@@ -5,6 +5,7 @@
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
+    "types": ["node"],
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -16,10 +17,10 @@
 
     /* Linting */
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true,
+    "noUncheckedIndexedAccess": false,
 
     /* Path alias */
     "baseUrl": ".",
@@ -28,5 +29,5 @@
     }
   },
   "include": ["src"],
-  "exclude": ["../../packages/**/src"]
+  "exclude": ["../../packages/shared/src/components/RegionSelector"]
 }

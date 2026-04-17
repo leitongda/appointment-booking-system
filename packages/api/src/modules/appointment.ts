@@ -33,6 +33,30 @@ export interface AppointmentCreateData {
   symptomDescription?: string;
 }
 
+export interface PaymentParams {
+  timeStamp: string;
+  nonceStr: string;
+  package: string;
+  signType: string;
+  paySign: string;
+}
+
+export interface AppointmentCreatePaymentPayload {
+  appointment: Appointment;
+  payment_required: boolean;
+  payment_amount?: number;
+  payment_params?: PaymentParams | null;
+}
+
+export interface RefundRecord {
+  id: string;
+  refundNo: string;
+  refundAmount: number;
+  status: string;
+  refundReason?: string;
+  createdAt?: string;
+}
+
 // 重复预约检查结果
 export interface DuplicateAppointmentInfo {
   id: string;
@@ -143,11 +167,15 @@ export const appointmentApi = {
     if (!scheduleId?.trim() || !patientId?.trim()) {
       return Promise.reject(new Error('缺少必要参数：排班ID或就诊人ID'));
     }
-    return request.get('/appointments/check-duplicate', {
+    return request.get('/appointments/query/check-duplicate', {
       params: { schedule_id: scheduleId.trim(), patient_id: patientId.trim() }
     });
   },
 
+  /**
+   * 获取预约列表。
+   * 当 pageSize > 100 时，后端要求调用方具备管理员权限，且必须同时传 startDate 和 endDate。
+   */
   getList: (params?: AppointmentListParams): Promise<PageResult<Appointment>> => {
     // 转换 camelCase 到 snake_case
     const queryParams = params ? {
@@ -164,29 +192,29 @@ export const appointmentApi = {
       page: params.page,
       page_size: params.pageSize,
     } : undefined;
-    return request.get('/appointments', { params: queryParams });
+    return request.get('/appointments/query', { params: queryParams });
   },
 
   getToday: (): Promise<Appointment[]> => {
-    return request.get('/appointments/today');
+    return request.get('/appointments/query/today');
   },
 
   getStatistics: (params?: { doctorId?: string; startDate?: string; endDate?: string }): Promise<AppointmentStatistics> => {
-    return request.get('/appointments/statistics', { params });
+    return request.get('/appointments/query/statistics', { params });
   },
 
   getDetail: (id: string): Promise<Appointment> => {
-    return request.get(`/appointments/${id}`);
+    return request.get(`/appointments/query/${id}`);
   },
 
   /**
    * 按预约号获取预约详情
    */
   getDetailByNo: (appointmentNo: string): Promise<Appointment> => {
-    return request.get(`/appointments/by-no/${appointmentNo}`);
+    return request.get(`/appointments/query/by-no/${appointmentNo}`);
   },
 
-  create: (data: AppointmentCreateData): Promise<Appointment> => {
+  create: (data: AppointmentCreateData): Promise<Appointment | AppointmentCreatePaymentPayload> => {
     return request.post('/appointments', data);
   },
 
@@ -239,7 +267,7 @@ export const appointmentApi = {
    * 获取叫号队列信息
    */
   getQueueInfo: (): Promise<QueueInfo> => {
-    return request.get('/appointments/queue/info');
+    return request.get('/appointments/query/queue/info');
   },
 
   /**
@@ -247,7 +275,7 @@ export const appointmentApi = {
    * 用于患者扫码签到时选择要签到的预约
    */
   getTodayPending: (storeId: string): Promise<PendingAppointment[]> => {
-    return request.get('/appointments/today-pending', { params: { store_id: storeId } });
+    return request.get('/appointments/query/today-pending', { params: { store_id: storeId } });
   },
 
   /**
@@ -264,7 +292,7 @@ export const appointmentApi = {
       doctor_id: params.doctorId,
       target_date: params.targetDate,
     } : undefined;
-    return request.get('/appointments/queue', { params: queryParams });
+    return request.get('/appointments/query/queue', { params: queryParams });
   },
 
   /**
@@ -299,5 +327,41 @@ export const appointmentApi = {
     appointmentNo: string;
   }> => {
     return request.post(`/doctor-portal/appointments/${appointmentId}/follow-up`, { schedule_id: scheduleId });
+  },
+
+  /**
+   * 创建退款
+   */
+  createRefund: (data: { appointmentId: string; refundAmount: number; refundReason: string }) => {
+    return request.post('/refunds', {
+      appointment_id: data.appointmentId,
+      refund_amount: data.refundAmount,
+      refund_reason: data.refundReason,
+    });
+  },
+
+  /**
+   * 获取退款记录
+   */
+  getRefundRecords: (appointmentId: string): Promise<RefundRecord[]> => {
+    return request
+      .get<{ total: number; items: RefundRecord[] }>('/refunds', { params: { appointment_id: appointmentId } })
+      .then((result) => result.items ?? []);
+  },
+
+  /**
+   * 获取诊费
+   */
+  getConsultationFee: (params: { doctorId: string; storeId: string; departmentId: string }) => {
+    return request.get('/consultation-fees/amount', { params });
+  },
+
+  /**
+   * 获取支付参数（用于待支付订单重新发起支付）
+   */
+  getPaymentParams: (appointmentId: string, openid?: string): Promise<PaymentParams> => {
+    return request.get(`/appointments/${appointmentId}/payment-params`, {
+      params: openid ? { openid } : undefined,
+    });
   },
 };

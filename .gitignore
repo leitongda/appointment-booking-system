@@ -135,6 +135,9 @@ htmlcov/
 uploads/
 apps/server/var/
 
+# Dev RSA keys (auto-generated, per-machine)
+.keys/
+
 # Lock files (keep pnpm-lock.yaml for version consistency)
 package-lock.json
 yarn.lock

@@ -102,7 +102,7 @@ Authorization: Bearer <token>
 | 5 | 已完成 |
 | 6 | 已取消 |
 | 7 | 已过期 |
-| 8 | 已关闭 |
+| 8 | 已爽约 |
 
 #### 预约类型 (appointment_type)
 | 值 | 说明 |
@@ -151,6 +151,57 @@ Authorization: Bearer <token>
 | schedule | 排班通知 |
 | system | 系统通知 |
 | stop_clinic | 停诊通知 |
+
+---
+
+## 一点五、支付闭环完成情况（2026-04-17）
+
+### 已完成
+
+- `POST /appointments` 已支持免费预约与待支付预约两种返回形态
+- 待支付预约支持通过 `/appointments/:id/payment-params` 重新获取支付参数
+- 预约响应已透出支付金额、支付交易号、支付时间、退款状态、已退款金额
+- 退款接口字段已统一为 `appointment_id`、`refund_amount`、`refund_reason`，金额单位统一为“元”
+- 支付成功回调、退款回调、支付超时任务已增加幂等和竞态保护
+
+### 已验证
+
+- 支付创建、支付状态查询、退款创建的认证与归属校验已通过集成测试
+- 重试支付成功、越权拒绝、状态错误场景已通过集成测试
+- 支付回调重复通知、已过期晚到回调、超时竞争跳过场景已通过单元测试
+
+### 仍待补齐
+
+- _(无)_ — 支付/退款生命周期文档和手工联调清单已完成，见下方参考链接。
+
+### Legacy Store Wechat Config 兼容策略 (2026-04-17)
+
+Store 模型上的 `wechat_*` 字段已采用**软废弃**策略:
+
+| 字段 | 状态 | 替代方案 |
+|------|------|---------|
+| `wechat_app_id` | deprecated | MiniappInstance.app_id |
+| `wechat_app_secret` | deprecated | MiniappInstance.app_secret_ref |
+| `wechat_mch_id` | deprecated (已死代码) | PaymentProfile.mch_id |
+| `wechat_api_key` | deprecated (已死代码) | PaymentProfile (api_v3_key_ref) |
+| `wechat_notify_url` | deprecated (已死代码) | PaymentProfile.notify_url |
+
+运行时行为:
+- `WechatConfigResolver` 仍以 store 字段为 fallback，但会输出 `DEPRECATION` warning
+- `PaymentConfigResolver` 完全不读取 legacy store 字段
+- Store wechat-config GET/PUT API 响应头包含 `Deprecation: true`
+
+迁移路径:
+1. 通过 `POST /miniapp-platform/instances` 创建小程序实例 (app_id/app_secret)
+2. 通过 `POST /miniapp-platform/payment-profiles` 创建支付配置 (mch_id/cert)
+3. 通过 `POST /miniapp-platform/payment-routes` 绑定门店到支付配置
+4. 验证路由优先级: store_route > miniapp_instance_default > tenant_default
+5. 确认不再命中 store fallback 后可安全忽略 legacy 字段
+
+### 支付/退款文档参考
+
+- 生命周期文档: `docs/server/payment-lifecycle.md`
+- 手工联调清单: `docs/plans/payment-joint-debug-checklist.md`
 
 ---
 
@@ -500,4 +551,3 @@ GET /api/v1/schedules/available
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
 - OpenAPI JSON: `http://localhost:8000/api/v1/openapi.json`
-

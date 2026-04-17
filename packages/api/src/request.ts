@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import type { ApiResponse } from '@hospital/shared';
+import { checkAuthExpired } from '@hospital/shared';
 import { setupRetryInterceptor } from './utils/retry';
 import { createApiTimer } from './utils/performance';
 
@@ -89,6 +90,11 @@ setupRetryInterceptor(instance, {
 // 请求拦截器
 instance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // ── 全局门控：认证已失效后短路所有请求 ──
+    if (checkAuthExpired()) {
+      return Promise.reject(new Error('认证已失效，请重新登录'));
+    }
+
     // 创建计时器
     const timer = createApiTimer(config.url || '', config.method || 'GET');
     (config as any)._timer = timer;

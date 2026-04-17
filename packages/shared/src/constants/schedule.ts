@@ -199,7 +199,10 @@ export const DEFAULT_TIME_PERIODS: TimePeriod[] = [
  */
 function timeToMinutes(timeStr: string): number {
   if (!timeStr || !TIME_FORMAT_REGEX.test(timeStr)) return 0;
-  const [hours, minutes] = timeStr.split(':').map(Number);
+  const parts = timeStr.split(':').map(Number);
+  const hours = parts[0];
+  const minutes = parts[1];
+  if (hours === undefined || minutes === undefined) return 0;
   return hours * 60 + minutes;
 }
 
@@ -245,7 +248,10 @@ function getWorkingPeriods(
   const mergedBreaks: Array<[number, number]> = [];
   for (const bt of breaks) {
     if (mergedBreaks.length > 0 && bt[0] <= mergedBreaks[mergedBreaks.length - 1][1]) {
-      mergedBreaks[mergedBreaks.length - 1][1] = Math.max(mergedBreaks[mergedBreaks.length - 1][1], bt[1]);
+      const last = mergedBreaks[mergedBreaks.length - 1];
+      if (last && bt[1] !== undefined) {
+        last[1] = Math.max(last[1], bt[1]);
+      }
     } else {
       mergedBreaks.push([...bt]);
     }
@@ -513,12 +519,18 @@ export function splitTimeRange(
     return [[startTime, endTime]];
   }
 
-  const [startHour, startMinute] = startTime.split(':').map(Number);
-  const [endHour, endMinute] = endTime.split(':').map(Number);
-  
+  const startParts = startTime.split(':').map(Number);
+  const endParts = endTime.split(':').map(Number);
+  const startHour = startParts[0];
+  const startMinute = startParts[1];
+  const endHour = endParts[0];
+  const endMinute = endParts[1];
+
   // 验证解析后的数值是否有效
   if (
-    isNaN(startHour) || isNaN(startMinute) || 
+    startHour === undefined || startMinute === undefined ||
+    endHour === undefined || endMinute === undefined ||
+    isNaN(startHour) || isNaN(startMinute) ||
     isNaN(endHour) || isNaN(endMinute) ||
     startHour < 0 || startHour > 23 ||
     startMinute < 0 || startMinute > 59 ||

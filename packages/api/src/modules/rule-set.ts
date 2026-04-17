@@ -11,7 +11,6 @@ import type {
   ShiftType,
   RulePreviewRequest,
   RulePreviewResponse,
-  RuleSetBrief,
   PageResult,
 } from '@hospital/shared';
 
