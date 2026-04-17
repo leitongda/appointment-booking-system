@@ -50,7 +50,7 @@ const StoreFeeTypesPage: React.FC = () => {
 
   const handleEdit = (record: ConsultationFeeType) => {
     if (record.isGlobal) {
-      message.warning('全局类型不能编辑，请到系统设置中修改');
+      message.warning('全局类型不能编辑，请到配置中心 - 诊费类型中修改');
       return;
     }
     form.setFieldsValue({

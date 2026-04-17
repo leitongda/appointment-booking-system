@@ -72,17 +72,36 @@ const TAB_PATH_TO_KEY: Record<string, string> = {
   '/operations/system/settings/blacklist': 'blacklist',
   '/operations/system/settings/wechat': 'wechat',
   '/operations/system/settings/base': 'hospital',
+  '/configuration/booking-rules': 'booking',
+  '/configuration/blacklist': 'blacklist',
+  '/configuration/wechat': 'wechat',
+  '/configuration/booking-fields': 'bookingFields',
+  '/configuration/patient-card': 'patientCard',
+  '/configuration/hospital-info': 'hospital',
+  '/configuration/email-config': 'email',
+  '/configuration/image-config': 'image',
 };
 
 const TAB_KEY_TO_PATH: Record<string, string> = {
-  booking: '/operations/system/settings/booking',
-  blacklist: '/operations/system/settings/blacklist',
-  wechat: '/operations/system/settings/wechat',
-  hospital: '/operations/system/settings/base',
-  bookingFields: '/operations/system/settings/base',
-  patientCard: '/operations/system/settings/base',
-  email: '/operations/system/settings/base',
-  image: '/operations/system/settings/base',
+  booking: '/configuration/booking-rules',
+  blacklist: '/configuration/blacklist',
+  wechat: '/configuration/wechat',
+  hospital: '/configuration/hospital-info',
+  bookingFields: '/configuration/booking-fields',
+  patientCard: '/configuration/patient-card',
+  email: '/configuration/email-config',
+  image: '/configuration/image-config',
+};
+
+const TAB_KEY_TO_TITLE: Record<string, string> = {
+  booking: '预约规则',
+  blacklist: '黑名单管理',
+  wechat: '微信配置',
+  hospital: '医院信息',
+  bookingFields: '预约字段',
+  patientCard: '就诊卡配置',
+  email: '邮件配置',
+  image: '图片配置',
 };
 
 const SettingsPage: React.FC = () => {
@@ -113,12 +132,31 @@ const SettingsPage: React.FC = () => {
   // 预约设置门店选择
   const [selectedBookingStoreId, setSelectedBookingStoreId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<string>(TAB_PATH_TO_KEY[location.pathname] || 'booking');
-  const canEdit = access.hasPermission('system:settings');
-  const canEditWechat = isSuperAdmin || access.hasPermission('settings:wechat') || access.hasPermission('settings:edit');
+  const canEditSettings = access.hasPermission('system:settings') || access.hasPermission('settings:edit');
+  const canViewBooking = canEditSettings;
+  const canViewHospital = canEditSettings;
+  const canViewBookingFields = canEditSettings;
+  const canViewPatientCard = canEditSettings;
+  const canViewEmail = canEditSettings || access.hasPermission('settings:email');
+  const canEditEmail = canEditSettings || access.hasPermission('settings:email');
+  const canViewImage = canEditSettings;
+  const canEditImage = canEditSettings;
+  const canViewWechat = isSuperAdmin || access.hasPermission('settings:wechat') || access.hasPermission('settings:edit');
+  const canEditWechat = canViewWechat;
+  const canViewBlacklist =
+    canEditSettings ||
+    access.hasPermission('blacklist:list') ||
+    access.hasPermission('blacklist:create') ||
+    access.hasPermission('blacklist:delete');
+  const canAddBlacklist = canEditSettings || access.hasPermission('blacklist:create');
+  const canDeleteBlacklist = canEditSettings || access.hasPermission('blacklist:delete');
+  const isLegacySettingsRoute = location.pathname.startsWith('/operations/system/settings');
 
   useEffect(() => {
     loadSettings();
-    loadStores();
+    if (canViewBooking || canViewWechat || canViewBlacklist) {
+      loadStores();
+    }
   }, []);
 
   useEffect(() => {
@@ -128,28 +166,39 @@ const SettingsPage: React.FC = () => {
   const loadSettings = async () => {
     setLoading(true);
     try {
-      const [booking, hospital, fields, cardConfig, email, image, wechat] = await Promise.allSettled([
-        settingsApi.getBookingSettings(),
-        settingsApi.getHospitalInfo(),
-        settingsApi.getBookingFields(),
-        settingsApi.getPatientCardConfig(),
-        settingsApi.getEmailConfig(),
-        settingsApi.getImageConfig(),
-        settingsApi.getWechatConfig(),
-      ]);
-      if (booking.status === 'fulfilled') setBookingSettings(booking.value);
-      if (hospital.status === 'fulfilled') setHospitalInfo(hospital.value);
-      if (fields.status === 'fulfilled') setBookingFields(fields.value);
-      if (cardConfig.status === 'fulfilled') setPatientCardConfig(cardConfig.value);
-      if (email.status === 'fulfilled') setEmailConfig(email.value);
-      if (image.status === 'fulfilled') setImageConfig(image.value);
-      if (wechat.status === 'fulfilled') setWechatConfig(wechat.value);
+      const loaders: Promise<void>[] = [];
+
+      if (canViewBooking) {
+        loaders.push(settingsApi.getBookingSettings().then(setBookingSettings));
+      }
+      if (canViewHospital) {
+        loaders.push(settingsApi.getHospitalInfo().then(setHospitalInfo));
+      }
+      if (canViewBookingFields) {
+        loaders.push(settingsApi.getBookingFields().then(setBookingFields));
+      }
+      if (canViewPatientCard) {
+        loaders.push(settingsApi.getPatientCardConfig().then(setPatientCardConfig));
+      }
+      if (canViewEmail) {
+        loaders.push(settingsApi.getEmailConfig().then(setEmailConfig));
+      }
+      if (canViewImage) {
+        loaders.push(settingsApi.getImageConfig().then(setImageConfig));
+      }
+      if (canViewWechat) {
+        loaders.push(settingsApi.getWechatConfig().then(setWechatConfig));
+      }
+
+      await Promise.allSettled(loaders);
     } catch (error) {
       console.error('加载配置失败', error);
     } finally {
       setLoading(false);
     }
-    loadBlacklist();
+    if (canViewBlacklist) {
+      loadBlacklist();
+    }
   };
 
   const loadStores = async () => {
@@ -378,6 +427,7 @@ const SettingsPage: React.FC = () => {
           checked={record.enabled}
           checkedChildren="启用"
           unCheckedChildren="禁用"
+          disabled={!canEditSettings}
           onChange={(checked) => handleFieldChange(record.field, 'enabled', checked)}
         />
       ),
@@ -391,7 +441,7 @@ const SettingsPage: React.FC = () => {
           checked={record.required}
           checkedChildren="必填"
           unCheckedChildren="非必填"
-          disabled={!record.enabled}
+          disabled={!record.enabled || !canEditSettings}
           onChange={(checked) => handleFieldChange(record.field, 'required', checked)}
         />
       ),
@@ -437,7 +487,7 @@ const SettingsPage: React.FC = () => {
       title: '操作',
       width: 80,
       render: (_: any, record: BlacklistItem) =>
-        canEdit && record.status === 1 ? (
+        canDeleteBlacklist && record.status === 1 ? (
           <Popconfirm title="确定解禁该用户吗？" onConfirm={() => handleRemoveBlacklist(record.id)}>
             <a>解禁</a>
           </Popconfirm>
@@ -450,7 +500,7 @@ const SettingsPage: React.FC = () => {
   const items = [
     {
       key: 'booking',
-      label: '规则配置',
+      label: '预约规则',
       children: (
         <div>
           {/* 门店选择器 */}
@@ -474,6 +524,7 @@ const SettingsPage: React.FC = () => {
             onFinish={handleBookingSubmit}
             initialValues={{ ...DEFAULT_BOOKING_SETTINGS, ...bookingSettings }}
             submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
+            disabled={!canEditSettings}
           >
             <Space direction="vertical" style={{ width: '100%' }} size="large">
               {/* 预约时间限制 */}
@@ -629,6 +680,7 @@ const SettingsPage: React.FC = () => {
           onFinish={handleHospitalSubmit}
           initialValues={hospitalInfo || {}}
           submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
+          disabled={!canEditSettings}
         >
           <ProFormText name="hospitalName" label="医院名称" />
           <ProFormText name="hospitalLevel" label="医院等级" placeholder="如：三级甲等" />
@@ -642,7 +694,7 @@ const SettingsPage: React.FC = () => {
     },
     {
       key: 'bookingFields',
-      label: '预约选项配置',
+      label: '预约字段',
       children: (
         <Table
           columns={fieldColumns}
@@ -655,13 +707,14 @@ const SettingsPage: React.FC = () => {
     },
     {
       key: 'patientCard',
-      label: '建卡名称配置',
+      label: '就诊卡配置',
       children: (
         <ProForm
           key={loading ? 'patientCard-loading' : 'patientCard-loaded'}
           onFinish={handlePatientCardSubmit}
           initialValues={{ ...DEFAULT_PATIENT_CARD_CONFIG, ...patientCardConfig }}
           submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
+          disabled={!canEditSettings}
         >
           <ProFormText
             name="cardName"
@@ -689,7 +742,7 @@ const SettingsPage: React.FC = () => {
     },
     {
       key: 'blacklist',
-      label: '爽约黑名单',
+      label: '黑名单管理',
       children: (
         <div>
           <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
@@ -705,7 +758,7 @@ const SettingsPage: React.FC = () => {
                 allowClear
               />
             </Space>
-            {canEdit && (
+            {canAddBlacklist && (
               <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
                 添加黑名单
               </Button>
@@ -741,6 +794,7 @@ const SettingsPage: React.FC = () => {
           onFinish={handleEmailConfigSubmit}
           initialValues={{ ...DEFAULT_EMAIL_CONFIG, ...emailConfig }}
           submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
+          disabled={!canEditEmail}
         >
           <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
             配置SMTP服务器信息，用于发送邮件通知（如预约确认、就诊提醒等）。常见邮箱SMTP设置：QQ邮箱(smtp.qq.com:465)、163邮箱(smtp.163.com:465)、Gmail(smtp.gmail.com:587)
@@ -890,13 +944,14 @@ const SettingsPage: React.FC = () => {
     },
     {
       key: 'image',
-      label: '图片处理配置',
+      label: '图片配置',
       children: (
         <ProForm
           key={loading ? 'image-loading' : 'image-loaded'}
           onFinish={handleImageConfigSubmit}
           initialValues={{ ...DEFAULT_IMAGE_CONFIG, ...imageConfig }}
           submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
+          disabled={!canEditImage}
         >
           <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
             配置图片上传时的缩略图生成规则和压缩质量。上传时可选择是否生成缩略图。
@@ -968,17 +1023,51 @@ const SettingsPage: React.FC = () => {
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);
-    const targetPath = TAB_KEY_TO_PATH[key] || '/operations/system/settings/base';
+    const targetPath = TAB_KEY_TO_PATH[key] || '/configuration/hospital-info';
     if (targetPath !== location.pathname) {
       history.replace(targetPath);
     }
   };
 
+  const visibleItems = items.filter((item) => {
+    if (item.key === 'booking') return canViewBooking;
+    if (item.key === 'hospital') return canViewHospital;
+    if (item.key === 'bookingFields') return canViewBookingFields;
+    if (item.key === 'patientCard') return canViewPatientCard;
+    if (item.key === 'blacklist') return canViewBlacklist;
+    if (item.key === 'email') return canViewEmail;
+    if (item.key === 'wechat') return canViewWechat;
+    if (item.key === 'image') return canViewImage;
+    return true;
+  });
+
+  const activeItem = visibleItems.find((item) => item.key === activeTab) ?? visibleItems[0];
+
+  useEffect(() => {
+    if (!visibleItems.length) {
+      return;
+    }
+    if (!visibleItems.some((item) => item.key === activeTab)) {
+      handleTabChange(visibleItems[0].key);
+    }
+  }, [activeTab, visibleItems]);
+
   return (
-    <PageContainer>
+    <PageContainer
+      title={isLegacySettingsRoute ? undefined : TAB_KEY_TO_TITLE[activeTab] || '配置中心'}
+      subTitle={
+        isLegacySettingsRoute
+          ? undefined
+          : '配置中心按职责拆分为独立菜单入口，旧版聚合设置页仅保留兼容跳转。'
+      }
+    >
       <Spin spinning={loading}>
         <Card>
-          <Tabs activeKey={activeTab} items={items} onChange={handleTabChange} />
+          {isLegacySettingsRoute ? (
+            <Tabs activeKey={activeTab} items={visibleItems} onChange={handleTabChange} />
+          ) : (
+            activeItem?.children
+          )}
         </Card>
       </Spin>
 

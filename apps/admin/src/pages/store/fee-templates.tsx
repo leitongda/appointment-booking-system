@@ -245,7 +245,7 @@ const StoreFeeTemplatesPage: React.FC = () => {
 
           {templates.length === 0 && !loading && (
             <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
-              暂无诊费类型，请先到系统设置中添加全局诊费类型，或点击"管理诊费类型"创建门店专属类型
+              暂无诊费类型，请先到配置中心 - 诊费类型添加全局诊费类型，或点击"管理诊费类型"创建门店专属类型
             </div>
           )}
         </Spin>
