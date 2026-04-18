@@ -5,12 +5,13 @@
  * 确保所有页面（包括登录页）都能获取门店信息
  */
 import React from 'react';
-import { storeApi } from '@hospital/api';
-import { 
+import { storeApi, tenantApi } from '@hospital/api';
+import {
   type Store,
-  STORE_CONTEXT_KEY, 
-  createStoreContext 
+  STORE_CONTEXT_KEY,
+  createStoreContext
 } from '@hospital/shared';
+import { setTenantStatus } from '@/hooks/useTenantGuard';
 
 /**
  * 从 URL 获取门店编码并初始化门店上下文
@@ -21,18 +22,28 @@ const initStoreContext = async () => {
     // 从 URL 获取门店编码
     const urlParams = new URLSearchParams(window.location.search);
     const storeCode = urlParams.get('store');
-    
+
     if (storeCode) {
       console.log('[Store] 从 URL 获取门店编码:', storeCode);
-      
+
       // 调用 API 验证门店
       const storeData: Store = await storeApi.getByCode(storeCode);
-      
+
       // 创建门店上下文并存储到 localStorage
       const context = createStoreContext(storeData);
       localStorage.setItem(STORE_CONTEXT_KEY, JSON.stringify(context));
-      
+
       console.log('[Store] 门店上下文已初始化:', context.storeName);
+
+      // 并行获取租户公开状态
+      try {
+        const tenantPublic = await tenantApi.getCurrentTenantPublic();
+        setTenantStatus({
+          status: tenantPublic.status,
+          subscriptionEndAt: tenantPublic.subscriptionEndAt ?? null,
+          isSubscriptionActive: tenantPublic.isSubscriptionActive,
+        });
+      } catch { /* 获取失败不阻断启动 */ }
     } else {
       // 检查是否有缓存的门店信息
       const cached = localStorage.getItem(STORE_CONTEXT_KEY);

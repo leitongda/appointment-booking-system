@@ -67,10 +67,11 @@ const AppointmentDetailPage: React.FC = () => {
     switch (status) {
       case 1: return 0;
       case 2: return 1;
-      case 3: return 2;
+      case 4: return 2;
       case 5: return 3;
       case 6: return -1;
       case 7: return -1;
+      case 8: return -1;
       default: return 0;
     }
   };
@@ -86,7 +87,7 @@ const AppointmentDetailPage: React.FC = () => {
   };
 
   const getStatusColor = (status: number) => {
-    // 6=已取消, 7=已过期, 8=已关闭(爽约)
+    // 6=已取消, 7=已过期, 8=已爽约
     if (status === 6 || status === 7 || status === 8) return 'from-red-500 to-red-600';
     if (status === 5) return 'from-green-500 to-green-600';
     return 'from-accent to-accent-secondary';
@@ -124,10 +125,12 @@ const AppointmentDetailPage: React.FC = () => {
     );
   }
 
+  const isPendingPayment = appointment.status === 0;
   const isCancelled = appointment.status === 6;
   const isCompleted = appointment.status === 5;
-  const isNoShow = appointment.status === 8;  // 8=CLOSED(爽约)
-  const canCancel = appointment.status === 1;
+  const isExpired = appointment.status === 7;
+  const isNoShow = appointment.status === 8;  // 8=NO_SHOW(爽约)
+  const canCancel = appointment.status === 0 || appointment.status === 1;
   const canSignIn = appointment.status === 1;
 
   return (
@@ -145,6 +148,11 @@ const AppointmentDetailPage: React.FC = () => {
           <h2 className="text-2xl font-display mb-2">
             {APPOINTMENT_STATUS_MAP[appointment.status]}
           </h2>
+          {appointment.status === 0 && (
+            <p className="text-white/80">
+              订单已创建，请尽快完成支付，超时后系统会自动取消
+            </p>
+          )}
           {appointment.status === 2 && (
             <p className="text-white/80">
               您是第 {appointment.queueNumber} 号，请耐心等待叫号
@@ -175,12 +183,36 @@ const AppointmentDetailPage: React.FC = () => {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">就诊时段</span>
                 <span className="text-foreground">
-                  {TIME_SLOT_MAP[appointment.timeSlot || 'morning']} 第{appointment.queueNumber}号
+                  {TIME_SLOT_MAP[appointment.timeSlot || 'morning']}
+                  {appointment.queueNumber ? ` 第${appointment.queueNumber}号` : ''}
                 </span>
               </div>
+              {appointment.paymentAmount !== undefined && appointment.paymentAmount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">
+                    {appointment.status === 0 ? '待支付金额' : '支付金额'}
+                  </span>
+                  <span className="text-foreground font-medium">¥{appointment.paymentAmount.toFixed(2)}</span>
+                </div>
+              )}
+              {appointment.paymentTime && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">支付时间</span>
+                  <span className="text-foreground">{formatTime(appointment.paymentTime)}</span>
+                </div>
+              )}
             </div>
           </Card>
         </motion.div>
+
+        {isPendingPayment && (
+          <motion.div variants={fadeInUp}>
+            <InvertedSection
+              title="待支付提醒"
+              content="当前预约尚未完成支付。您可以先取消订单；如需继续支付，请前往支持支付的端重新发起。未支付订单超时后会自动取消。"
+            />
+          </motion.div>
+        )}
 
         {/* Patient Info */}
         <motion.div variants={fadeInUp}>
@@ -223,7 +255,7 @@ const AppointmentDetailPage: React.FC = () => {
         </motion.div>
 
         {/* Progress Steps */}
-        {!isCancelled && !isNoShow && (
+        {!isPendingPayment && !isCancelled && !isExpired && !isNoShow && (
           <motion.div variants={fadeInUp}>
             <Card variant="default" padding="lg">
               <h3 className="font-semibold text-foreground mb-4">就诊进度</h3>

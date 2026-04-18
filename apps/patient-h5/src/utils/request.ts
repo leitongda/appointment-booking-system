@@ -8,9 +8,9 @@
  * 3. 统一错误处理
  */
 import { setRequestInterceptor, setResponseInterceptor } from '@hospital/api';
-import { getToken, handleTokenExpired, markAuthExpired, STORE_CONTEXT_KEY, type StoreContext } from '@hospital/shared';
+import { getToken, handleTokenExpired, markAuthExpired, STORE_CONTEXT_KEY, type StoreContext, parseTenantError } from '@hospital/shared';
 import { history } from 'umi';
-import { Toast } from 'antd-mobile';
+import { Toast, Dialog } from 'antd-mobile';
 import type { InternalAxiosRequestConfig } from 'axios';
 import type { AxiosResponse } from 'axios';
 
@@ -130,8 +130,16 @@ export const setupResponseInterceptor = () => {
           return Promise.reject(new Error('登录已过期，请重新登录'));
         }
         
-        // 403 禁止访问
+        // 403 禁止访问 — 检查是否为租户暂停
         if (status === 403) {
+          const tenantReason = parseTenantError(data);
+          if (tenantReason) {
+            Dialog.alert({
+              content: data?.message || '该机构订阅已到期，暂不支持新预约，请联系机构续费。',
+              confirmText: '我知道了',
+            });
+            return Promise.reject(new Error(data?.message || '机构暂停服务'));
+          }
           console.warn('没有权限访问该资源');
           return Promise.reject(new Error(data?.data?.detail || '没有权限访问'));
         }

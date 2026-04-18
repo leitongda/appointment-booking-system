@@ -62,7 +62,8 @@ const BookingPage: React.FC = () => {
           const existingAppt = duplicateResult.appointments[0];
           const statusText = existingAppt.status === 1 ? '已预约' :
                             existingAppt.status === 2 ? '已签到' :
-                            existingAppt.status === 4 ? '就诊中' : '候诊中';
+                            existingAppt.status === 4 ? '就诊中' :
+                            existingAppt.status === 3 ? '历史候诊' : '已有进行中';
           const message = `您已有${statusText}的预约（${existingAppt.scheduleDate} ${existingAppt.timeSlot}），是否继续创建新预约？`;
 
           const confirmResult = await Dialog.confirm({
@@ -82,11 +83,24 @@ const BookingPage: React.FC = () => {
       const appointment = await appointmentApi.create({
         scheduleId: scheduleId!,
         patientId: selectedPatientId,
-        description: symptoms || undefined,
+        symptomDescription: symptoms.trim() || undefined,
       });
 
+      const createdAppointment = 'appointment' in appointment ? appointment.appointment : appointment;
+      const paymentRequired =
+        'payment_required' in appointment ? Boolean(appointment.payment_required) : createdAppointment.status === 0;
+
+      if (paymentRequired) {
+        Toast.show({
+          content: '预约已创建，请前往详情查看待支付状态并使用可支付端完成支付',
+          icon: 'success',
+        });
+        history.replace(`/appointment/${createdAppointment.id}`);
+        return;
+      }
+
       Toast.show({ content: '预约成功', icon: 'success' });
-      history.replace(`/booking/confirm?appointmentNo=${appointment.appointmentNo}`);
+      history.replace(`/booking/confirm?appointmentNo=${createdAppointment.appointmentNo}`);
     } catch (error: any) {
       Toast.show({ content: error.message || '预约失败', icon: 'fail' });
     } finally {

@@ -170,23 +170,32 @@ const AppointmentPage: React.FC = () => {
                       </div>
                     </div>
 
+                    {item.status === 0 && item.paymentAmount !== undefined && item.paymentAmount > 0 && (
+                      <div className="mt-3 flex justify-between items-center rounded-xl bg-yellow-50 px-3 py-2 text-sm">
+                        <span className="text-yellow-700">待支付金额</span>
+                        <span className="font-semibold text-yellow-700">¥{item.paymentAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+
                     {/* Actions */}
-                    {item.status === 1 && (
+                    {(item.status === 0 || item.status === 1) && (
                       <div className="flex gap-2 mt-4 pt-4 border-t border-border">
                         <Button 
                           variant="outline"
                           size="sm"
                           onClick={(e) => { e.stopPropagation(); handleCancel(item.id); }}
                         >
-                          取消预约
+                          {item.status === 0 ? '取消订单' : '取消预约'}
                         </Button>
-                        <Button 
-                          variant="primary"
-                          size="sm"
-                          onClick={(e) => { e.stopPropagation(); handleSignIn(item.id); }}
-                        >
-                          签到
-                        </Button>
+                        {item.status === 1 && (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={(e) => { e.stopPropagation(); handleSignIn(item.id); }}
+                          >
+                            签到
+                          </Button>
+                        )}
                       </div>
                     )}
                   </Card>
