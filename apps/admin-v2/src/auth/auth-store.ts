@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { adminApi, type Admin, type StoreInfo } from '@hospital/api';
+import { adminApi, type Admin, type StoreInfo, type TenantStatusInfo } from '@hospital/api';
 import {
   setToken,
   removeToken,
@@ -9,16 +9,22 @@ import {
   STORAGE_KEYS,
 } from '@hospital/shared';
 
+type TenantSuspendReason = 'overdue' | 'disabled' | 'trial_expired';
+
 interface AuthState {
   admin: Admin | null;
   currentStore: StoreInfo | null;
   userStores: StoreInfo[];
   isLoading: boolean;
+  tenantStatus: TenantStatusInfo | null;
+  suspendReason: TenantSuspendReason | null;
 
   login: (accessToken: string, refreshToken: string, admin: Admin, stores?: StoreInfo[]) => void;
   logout: () => Promise<void>;
   fetchCurrentUser: () => Promise<Admin | null>;
   setCurrentStore: (store: StoreInfo) => void;
+  markTenantSuspended: (reason: TenantSuspendReason) => void;
+  clearTenantSuspended: () => void;
   reset: () => void;
 }
 
@@ -27,6 +33,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   currentStore: null,
   userStores: [],
   isLoading: false,
+  tenantStatus: null,
+  suspendReason: null,
 
   login: (accessToken, refreshToken, admin, stores) => {
     setToken(accessToken);
@@ -80,6 +88,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         admin,
         currentStore,
         userStores,
+        tenantStatus: admin.tenant ?? null,
         isLoading: false,
       });
       return admin;
@@ -94,6 +103,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ currentStore: store });
   },
 
+  markTenantSuspended: (reason) => {
+    set({ suspendReason: reason });
+  },
+
+  clearTenantSuspended: () => {
+    set({ suspendReason: null });
+  },
+
   reset: () => {
     removeToken();
     removeStorage(STORAGE_KEYS.STORE_CONTEXT);
@@ -103,6 +120,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       admin: null,
       currentStore: null,
       userStores: [],
+      tenantStatus: null,
+      suspendReason: null,
     });
   },
 }));

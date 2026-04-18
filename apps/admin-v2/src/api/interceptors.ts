@@ -1,5 +1,5 @@
 import { setRequestInterceptor, setResponseInterceptor, ApiError } from '@hospital/api';
-import { getToken, handleTokenExpired, markAuthExpired, STORAGE_KEYS, getStorage } from '@hospital/shared';
+import { getToken, handleTokenExpired, markAuthExpired, STORAGE_KEYS, getStorage, shouldSilenceAuthExpiredFeedback, parseTenantError, markTenantSuspended } from '@hospital/shared';
 import { toast } from 'sonner';
 
 const ERROR_MESSAGES: Record<number, string> = {
@@ -29,10 +29,18 @@ const EXCLUDE_TOKEN_PATHS = [
   '/doctors/login',
 ];
 
+const getRequestPath = (url: string): string => {
+  try {
+    return new URL(url, window.location.origin).pathname;
+  } catch {
+    return url.split('?')[0];
+  }
+};
+
 const shouldAddToken = (url: string): boolean => {
+  const requestPath = getRequestPath(url);
   return !EXCLUDE_TOKEN_PATHS.some(path => {
-    const urlPath = url.split('?')[0];
-    return urlPath === path || urlPath?.startsWith(path + '/') || urlPath?.startsWith(path + '?');
+    return requestPath === path || requestPath.startsWith(path + '/');
   });
 };
 
@@ -68,7 +76,16 @@ export function setupResponseInterceptor() {
         const { code, message: errorMessage } = error;
 
         if (error.isUnauthorized()) {
-          if (window.location.pathname === '/login') {
+          const requestUrl = error.url || '';
+          const isProtectedRequest = !requestUrl || shouldAddToken(requestUrl);
+
+          if (!isProtectedRequest) {
+            return Promise.reject(error);
+          }
+
+          if (shouldSilenceAuthExpiredFeedback()) {
+            markAuthExpired();
+            handleTokenExpired();
             return Promise.reject(error);
           }
           markAuthExpired();
@@ -88,6 +105,12 @@ export function setupResponseInterceptor() {
         }
 
         if (error.isForbidden()) {
+          const tenantReason = parseTenantError(error);
+          if (tenantReason) {
+            markTenantSuspended(tenantReason);
+            window.location.href = '/tenant-suspended';
+            return Promise.reject(error);
+          }
           toast.error(errorMessage || ERROR_MESSAGES[403]);
           return Promise.reject(error);
         }
@@ -130,7 +153,19 @@ export function setupResponseInterceptor() {
         const errorMsg = data?.detail || data?.message || ERROR_MESSAGES[status] || '请求失败';
 
         if (status === 401) {
-          if (window.location.pathname === '/login') return;
+          const requestUrl = error?.config?.url || '';
+          const isProtectedRequest = !requestUrl || shouldAddToken(requestUrl);
+
+          if (!isProtectedRequest) {
+            return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
+          }
+
+          if (shouldSilenceAuthExpiredFeedback()) {
+            markAuthExpired();
+            handleTokenExpired();
+            return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
+          }
+          markAuthExpired();
           handleTokenExpired(() => {
             toast.error('登录已过期', {
               description: errorMsg || '您的登录已失效，请重新登录。',
@@ -143,10 +178,19 @@ export function setupResponseInterceptor() {
               duration: Infinity,
             });
           });
-          return Promise.reject(new ApiError(status, errorMsg, data, error?.config?.url));
+          return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
         }
 
         toast.error(errorMsg);
+        // 403 — 检查是否为租户暂停
+        if (status === 403) {
+          const tenantReason = parseTenantError(data);
+          if (tenantReason) {
+            markTenantSuspended(tenantReason);
+            window.location.href = '/tenant-suspended';
+            return Promise.reject(new ApiError(status, errorMsg, data, error?.config?.url));
+          }
+        }
         return Promise.reject(new ApiError(status, errorMsg, data, error?.config?.url));
       }
 

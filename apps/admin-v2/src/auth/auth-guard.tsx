@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/auth/auth-store';
-import { getToken } from '@hospital/shared';
+import { getToken, getTenantSuspendedReason } from '@hospital/shared';
 import { LOGIN_PATH } from '@/config/app';
 import { Loader2 } from 'lucide-react';
 
@@ -11,7 +11,7 @@ interface AuthGuardProps {
 
 export function AuthGuard({ children }: AuthGuardProps) {
   const location = useLocation();
-  const { admin, fetchCurrentUser, isLoading } = useAuthStore();
+  const { admin, fetchCurrentUser, isLoading, suspendReason, markTenantSuspended } = useAuthStore();
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
@@ -20,6 +20,11 @@ export function AuthGuard({ children }: AuthGuardProps) {
       fetchCurrentUser().finally(() => setInitialized(true));
     } else {
       setInitialized(true);
+    }
+    // 启动时从 localStorage 恢复暂停状态
+    const reason = getTenantSuspendedReason();
+    if (reason) {
+      markTenantSuspended(reason);
     }
   }, []);
 
@@ -39,6 +44,11 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
   if (!admin) {
     return <Navigate to={LOGIN_PATH} state={{ from: location }} replace />;
+  }
+
+  // 租户暂停时，只允许访问 tenant-suspended 页面
+  if (suspendReason && location.pathname !== '/tenant-suspended') {
+    return <Navigate to="/tenant-suspended" replace />;
   }
 
   return <>{children}</>;

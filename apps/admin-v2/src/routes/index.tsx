@@ -4,11 +4,16 @@ import AdminLayout from '@/layout/AdminLayout';
 import LoginPage from '@/pages/login';
 import DashboardPage from '@/pages/dashboard';
 import NotFoundPage from '@/pages/not-found';
+import TenantSuspendedPage from '@/pages/tenant-suspended';
 
 export const router = createBrowserRouter([
   {
     path: '/login',
     element: <LoginPage />,
+  },
+  {
+    path: '/tenant-suspended',
+    element: <TenantSuspendedPage />,
   },
   {
     path: '/404',
