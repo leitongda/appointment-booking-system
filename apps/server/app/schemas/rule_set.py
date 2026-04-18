@@ -419,6 +419,28 @@ class RuleSetPresetResponse(BaseModel):
     updated_at: Optional[datetime] = None
 
 
+# ==================== 审计日志模型 ====================
+
+class RuleSetAuditLogResponse(BaseModel):
+    """规则组审计日志响应"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+        by_alias=True,
+    )
+
+    id: str
+    rule_set_id: str
+    action: str
+    resource_type: str
+    resource_id: str
+    operator_id: Optional[str] = None
+    snapshot_before: Optional[str] = None
+    snapshot_after: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+
 # 更新前向引用
 RuleSetCreate.model_rebuild()
 RuleSetUpdate.model_rebuild()

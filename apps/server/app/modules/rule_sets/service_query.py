@@ -18,6 +18,7 @@ from app.models.rule_set import (
     ShiftType,
     get_system_presets,
 )
+from app.models.rule_set_audit import RuleSetAuditLog
 from app.schemas.rule_set import RuleSetDetailResponse
 
 
@@ -254,3 +255,27 @@ class RuleSetQueryMixin:
             select(RuleSetPreset).where(RuleSetPreset.id == preset_id)
         )
         return result.scalar_one_or_none()
+
+    async def get_audit_logs(
+        self, rule_set_id: str, page: int = 1, page_size: int = 20
+    ) -> Tuple[List[RuleSetAuditLog], int]:
+        conditions = [RuleSetAuditLog.rule_set_id == rule_set_id]
+
+        tenant_id = get_current_tenant_id()
+        if tenant_id is not None:
+            conditions.append(RuleSetAuditLog.tenant_id == tenant_id)
+
+        count_query = select(func.count(RuleSetAuditLog.id)).where(and_(*conditions))
+        count_result = await self.db.execute(count_query)
+        total = count_result.scalar_one() or 0
+
+        query = (
+            select(RuleSetAuditLog)
+            .where(and_(*conditions))
+            .order_by(RuleSetAuditLog.created_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        result = await self.db.execute(query)
+        logs = list(result.scalars().all())
+        return logs, total

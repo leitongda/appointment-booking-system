@@ -15,6 +15,7 @@ from app.models.rule_set import (
     RuleSetShiftType,
     RuleWindow,
 )
+from app.modules.rule_sets.audit_helpers import make_rule_set_audit, snapshot_rule_set
 from app.schemas.rule_set import (
     RuleBookingPolicyCreate,
     RuleCapacityPolicyCreate,
@@ -127,6 +128,18 @@ class RuleSetMutationMixin:
             set_create_audit(capacity_policy, operator_id)
             self.db.add(capacity_policy)
 
+        await self.db.flush()
+        self.db.add(
+            make_rule_set_audit(
+                rule_set_id=rule_set.id,
+                action="CREATE",
+                resource_type="rule_set",
+                resource_id=rule_set.id,
+                operator_id=operator_id,
+                snapshot_after=await snapshot_rule_set(self.db, rule_set.id),
+            )
+        )
+
         await self.db.commit()
         return await self.get_by_id(rule_set.id)
 
@@ -136,6 +149,8 @@ class RuleSetMutationMixin:
         rule_set = await self._get_rule_set_with_tenant(rule_set_id)
         if not rule_set:
             return None
+
+        snapshot_before = await snapshot_rule_set(self.db, rule_set.id)
 
         # 乐观锁检查
         if data.expected_updated_at is not None:
@@ -210,6 +225,19 @@ class RuleSetMutationMixin:
 
         if data.capacity_policy is not None:
             await self._upsert_capacity_policy(rule_set.id, data.capacity_policy, operator_id)
+
+        await self.db.flush()
+        self.db.add(
+            make_rule_set_audit(
+                rule_set_id=rule_set.id,
+                action="UPDATE",
+                resource_type="rule_set",
+                resource_id=rule_set.id,
+                operator_id=operator_id,
+                snapshot_before=snapshot_before,
+                snapshot_after=await snapshot_rule_set(self.db, rule_set.id),
+            )
+        )
 
         await self.db.commit()
         return await self.get_by_id(rule_set_id)
@@ -312,10 +340,21 @@ class RuleSetMutationMixin:
             set_create_audit(policy, operator_id)
             self.db.add(policy)
 
-    async def delete(self, rule_set_id: str) -> bool:
+    async def delete(self, rule_set_id: str, operator_id: Optional[str] = None) -> bool:
         rule_set = await self._get_rule_set_with_tenant(rule_set_id)
         if not rule_set:
             return False
+
+        self.db.add(
+            make_rule_set_audit(
+                rule_set_id=rule_set.id,
+                action="DELETE",
+                resource_type="rule_set",
+                resource_id=rule_set.id,
+                operator_id=operator_id,
+                snapshot_before=await snapshot_rule_set(self.db, rule_set.id),
+            )
+        )
 
         await self.db.delete(rule_set)
         await self.db.commit()
@@ -326,8 +365,23 @@ class RuleSetMutationMixin:
         if not rule_set:
             return False
 
+        snapshot_before = await snapshot_rule_set(self.db, rule_set.id)
         rule_set.enabled = True
         set_update_audit(rule_set, operator_id)
+
+        await self.db.flush()
+        self.db.add(
+            make_rule_set_audit(
+                rule_set_id=rule_set.id,
+                action="ENABLE",
+                resource_type="rule_set",
+                resource_id=rule_set.id,
+                operator_id=operator_id,
+                snapshot_before=snapshot_before,
+                snapshot_after=await snapshot_rule_set(self.db, rule_set.id),
+            )
+        )
+
         await self.db.commit()
         return True
 
@@ -336,8 +390,23 @@ class RuleSetMutationMixin:
         if not rule_set:
             return False
 
+        snapshot_before = await snapshot_rule_set(self.db, rule_set.id)
         rule_set.enabled = False
         set_update_audit(rule_set, operator_id)
+
+        await self.db.flush()
+        self.db.add(
+            make_rule_set_audit(
+                rule_set_id=rule_set.id,
+                action="DISABLE",
+                resource_type="rule_set",
+                resource_id=rule_set.id,
+                operator_id=operator_id,
+                snapshot_before=snapshot_before,
+                snapshot_after=await snapshot_rule_set(self.db, rule_set.id),
+            )
+        )
+
         await self.db.commit()
         return True
 

@@ -147,6 +147,13 @@ celery_app.conf.update(
             "schedule": crontab(minute="*/30"),
             "options": {"queue": "scheduled"},
         },
+
+        # 排班号源对账 - 每天凌晨3:30（与排班生成错开）
+        "schedule-booked-slots-reconciliation": {
+            "task": "app.tasks.schedule_reconciliation_task.reconcile_booked_slots",
+            "schedule": crontab(hour=3, minute=30),
+            "options": {"queue": "scheduled"},
+        },
     },
 )
 
@@ -164,6 +171,7 @@ celery_app.autodiscover_tasks([
     "app.tasks.payment_task",
     "app.tasks.payment_reconciliation",
     "app.tasks.refund_sync",
+    "app.tasks.schedule_reconciliation_task",
 ])
 
 # Flower 监控配置

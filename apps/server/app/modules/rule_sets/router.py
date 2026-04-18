@@ -20,6 +20,7 @@ from app.schemas.rule_set import (
     RuleCheckinPolicyCreate, RuleCheckinPolicyResponse,
     RuleCapacityPolicyCreate, RuleCapacityPolicyResponse,
     RuleSetPresetCreate, RuleSetPresetUpdate, RuleSetPresetResponse,
+    RuleSetAuditLogResponse,
 )
 from app.modules.rule_sets.service import RuleSetService
 from app.modules.rule_engine import RuleEngineService
@@ -460,7 +461,7 @@ async def delete_rule_set(
 ):
     """删除规则组（仅超级管理员）"""
     service = RuleSetService(db)
-    success = await service.delete(rule_set_id)
+    success = await service.delete(rule_set_id, current_admin["id"])
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -730,7 +731,7 @@ async def delete_window(
 ):
     """删除时间窗（仅超级管理员）"""
     service = RuleSetService(db)
-    success = await service.delete_window(window_id)
+    success = await service.delete_window(window_id, current_admin["id"])
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -860,3 +861,34 @@ async def update_capacity_policy(
     policy = await service.update_capacity_policy(rule_set_id, data, current_admin["id"])
     return policy
 
+
+# ==================== 审计日志 ====================
+
+@router.get(
+    "/{rule_set_id}/audit-logs",
+    response_model=PageResult[RuleSetAuditLogResponse],
+    summary="获取规则组审计日志",
+    description="""
+    获取指定规则组的变更历史记录。
+
+    **参数说明**：
+    - rule_set_id: 规则组ID（路径参数）
+    - page: 页码（默认1）
+    - page_size: 每页数量（默认20，最大100）
+
+    **返回数据**：
+    - 按时间倒序排列的审计日志列表
+    - 每条记录包含操作类型、资源类型、操作前后快照
+    """,
+)
+async def get_audit_logs(
+    rule_set_id: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+):
+    """获取规则组审计日志"""
+    service = RuleSetService(db)
+    logs, total = await service.get_audit_logs(rule_set_id, page=page, page_size=page_size)
+    return {"data": logs, "total": total}

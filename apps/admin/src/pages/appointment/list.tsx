@@ -1,8 +1,8 @@
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { App, Space, Tag, Popconfirm, Divider } from 'antd';
+import { App, Space, Tag, Popconfirm, Divider, Modal, Input } from 'antd';
 import { EyeOutlined, CloseCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-import { useRef, useMemo, useCallback } from 'react';
+import { useRef, useMemo, useCallback, useState } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
 import { appointmentApi, storeApi, dataApi, doctorApi, departmentApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
@@ -11,6 +11,7 @@ import { PAGINATION_CONFIG } from '@/constants/pagination';
 import { REFUND_STATUS_MAP, REFUND_STATUS_COLOR } from '@hospital/shared';
 import type { Appointment } from '@hospital/shared';
 import ImportExport from '@/components/ImportExport';
+import ListPageSkeleton from '@/components/ListPageSkeleton';
 import dayjs from 'dayjs';
 
 const STATUS_MAP: Record<number, { text: string; color: string }> = {
@@ -31,9 +32,10 @@ const AppointmentListPage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
   const actionRef = useRef<ActionType>();
+  const [initialLoading, setInitialLoading] = useState(true);
   
   const { initialState } = useModel('@@initialState');
-  const { currentUser, currentStore } = initialState ?? {};
+  const { currentUser } = initialState ?? {};
   const isSuperAdmin = access.canSuperAdmin;
   // 多门店管理员也可以看到门店筛选
   const showStoreFilter = isSuperAdmin || (currentUser?.storeIds?.length ?? 0) > 1;
@@ -46,6 +48,37 @@ const AppointmentListPage: React.FC = () => {
     } catch (error: any) {
       message.error(error.message || '操作失败');
     }
+  }, [message, actionRef]);
+
+  const handleCancelWithReason = useCallback((id: string) => {
+    let reasonValue = '';
+    Modal.confirm({
+      title: '取消预约',
+      icon: <CloseCircleOutlined />,
+      content: (
+        <Input.TextArea
+          rows={3}
+          placeholder="请输入取消原因"
+          onChange={(e) => { reasonValue = e.target.value; }}
+        />
+      ),
+      okText: '确定取消',
+      cancelText: '返回',
+      onOk: async () => {
+        if (!reasonValue.trim()) {
+          message.warning('请输入取消原因');
+          return Promise.reject();
+        }
+        try {
+          await appointmentApi.cancel(id, reasonValue.trim());
+          message.success('取消成功');
+          actionRef.current?.reload();
+        } catch (error: any) {
+          message.error(error.message || '操作失败');
+          return Promise.reject();
+        }
+      },
+    });
   }, [message, actionRef]);
 
   const handleMarkNoShow = useCallback(async (id: string) => {
@@ -317,6 +350,11 @@ const AppointmentListPage: React.FC = () => {
               </a>
             </Popconfirm>
           )}
+          {record.status === 1 && access.hasPermission('appointment:cancel') && (
+            <a style={{ color: '#ff4d4f', fontSize: 13 }} onClick={() => handleCancelWithReason(record.id)}>
+              <CloseCircleOutlined /> 取消
+            </a>
+          )}
           {record.status === 1 && access.hasPermission('appointment:update') && (
             <Popconfirm title="确定标记为爽约吗？" onConfirm={() => handleMarkNoShow(record.id)}>
               <a style={{ color: '#fa8c16', fontSize: 13 }}>
@@ -345,54 +383,61 @@ const AppointmentListPage: React.FC = () => {
         </Space>
       ),
     },
-  ], [showStoreFilter, access, handleCancel, handleMarkNoShow, handleCancelSignIn]);
+  ], [showStoreFilter, access, handleCancel, handleCancelWithReason, handleMarkNoShow, handleCancelSignIn]);
 
   return (
     <PageContainer>
-      <ProTable<Appointment>
-        headerTitle="预约列表"
-        actionRef={actionRef}
-        rowKey="id"
-        columns={columns}
-        request={async (params) => {
-          const { 
-            current, 
-            pageSize, 
-            keyword,
-            storeId,
-            doctorId,
-            departmentId,
-            startDate,
-            endDate,
-            createdStart,
-            createdEnd,
-            status,
-          } = params;
-          return toProTableResult(await appointmentApi.getList({
-            keyword: keyword || undefined,
-            storeId: storeId || undefined,
-            doctorId: doctorId || undefined,
-            departmentId: departmentId || undefined,
-            startDate: startDate || undefined,
-            endDate: endDate || undefined,
-            createdStart: createdStart || undefined,
-            createdEnd: createdEnd || undefined,
-            status: status !== undefined && status !== '' ? Number(status) : undefined,
-            page: current,
-            pageSize,
-          }));
-        }}
-        pagination={{ defaultPageSize: 10 }}
-        search={{ labelWidth: 'auto' }}
-        toolBarRender={() => [
-          <ImportExport
-            key="export"
-            moduleName="预约"
-            exportUrl={dataApi.getExportAppointmentsUrl()}
-            showImport={false}
-          />,
-        ]}
-      />
+      {initialLoading && <ListPageSkeleton filterCount={6} rowCount={6} />}
+      <div style={initialLoading ? { height: 0, overflow: 'hidden' } : undefined}>
+        <ProTable<Appointment>
+          headerTitle="预约列表"
+          actionRef={actionRef}
+          rowKey="id"
+          columns={columns}
+          request={async (params) => {
+            try {
+              const {
+                current,
+                pageSize,
+                keyword,
+                storeId,
+                doctorId,
+                departmentId,
+                startDate,
+                endDate,
+                createdStart,
+                createdEnd,
+                status,
+              } = params;
+              return toProTableResult(await appointmentApi.getList({
+                keyword: keyword || undefined,
+                storeId: storeId || undefined,
+                doctorId: doctorId || undefined,
+                departmentId: departmentId || undefined,
+                startDate: startDate || undefined,
+                endDate: endDate || undefined,
+                createdStart: createdStart || undefined,
+                createdEnd: createdEnd || undefined,
+                status: status !== undefined && status !== '' ? Number(status) : undefined,
+                page: current,
+                pageSize,
+              }));
+            } finally {
+              setInitialLoading(false);
+            }
+          }}
+          pagination={{ defaultPageSize: PAGINATION_CONFIG.DEFAULT_PAGE_SIZE }}
+          search={{ labelWidth: 'auto' }}
+          toolBarRender={() => [
+            <ImportExport
+              key="export"
+              moduleName="预约"
+              exportUrl={dataApi.getExportAppointmentsUrl()}
+              showImport={false}
+            />,
+          ]}
+        />
+      </div>
     </PageContainer>
   );
 };

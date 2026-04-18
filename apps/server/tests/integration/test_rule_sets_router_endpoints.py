@@ -7,6 +7,7 @@
 - 时间窗管理
 - 策略管理（预约/签到/容量）
 """
+import json
 import pytest
 from datetime import date, time, datetime, timedelta
 from uuid import uuid4
@@ -51,6 +52,16 @@ async def create_rule_set_with_shift_type(db_session, test_shift_type, **kwargs)
     await db_session.commit()
 
     return rule_set
+
+
+def override_admin():
+    return {
+        "id": "admin-1",
+        "is_admin": True,
+        "is_super_admin": True,
+        "permissions": ["*"],
+        "tenant_id": None,
+    }
 
 
 # ==================== 规则组 CRUD 测试 ====================
@@ -252,6 +263,58 @@ async def test_update_rule_set(async_client, db_session, test_shift_type):
         assert data["description"] == "更新后的描述"
     finally:
         app.dependency_overrides.pop(deps.get_current_super_admin, None)
+
+
+@pytest.mark.asyncio
+async def test_update_rule_set_audit_log_records_before_after_snapshots(
+    async_client, db_session, test_shift_type
+):
+    """测试规则组更新会记录正确的 before/after 快照。"""
+    rule_set = await create_rule_set_with_shift_type(
+        db_session,
+        test_shift_type,
+        name="原始名称",
+        description="原始描述",
+    )
+
+    async def override_get_current_super_admin():
+        return override_admin()
+
+    async def override_get_current_admin():
+        return override_admin()
+
+    app.dependency_overrides[deps.get_current_super_admin] = override_get_current_super_admin
+    app.dependency_overrides[deps.get_current_admin] = override_get_current_admin
+    try:
+        response = await async_client.put(
+            f"/api/v1/rule-sets/{rule_set.id}",
+            json={
+                "name": "更新后的名称",
+                "description": "更新后的描述",
+            },
+        )
+
+        assert response.status_code == 200
+
+        logs_response = await async_client.get(f"/api/v1/rule-sets/{rule_set.id}/audit-logs")
+        assert logs_response.status_code == 200
+
+        payload = logs_response.json()["data"]
+        assert payload["total"] >= 1
+        latest_log = payload["data"][0]
+        assert latest_log["action"] == "UPDATE"
+        assert latest_log["resourceType"] == "rule_set"
+
+        snapshot_before = json.loads(latest_log["snapshotBefore"])
+        snapshot_after = json.loads(latest_log["snapshotAfter"])
+
+        assert snapshot_before["name"] == "原始名称"
+        assert snapshot_after["name"] == "更新后的名称"
+        assert snapshot_before["description"] == "原始描述"
+        assert snapshot_after["description"] == "更新后的描述"
+    finally:
+        app.dependency_overrides.pop(deps.get_current_super_admin, None)
+        app.dependency_overrides.pop(deps.get_current_admin, None)
 
 
 @pytest.mark.asyncio
@@ -504,6 +567,51 @@ async def test_create_window(async_client, db_session, test_shift_type):
 
 
 @pytest.mark.asyncio
+async def test_create_window_writes_rule_set_audit_log(async_client, db_session, test_shift_type):
+    """测试独立时间窗接口也会写入规则组审计日志。"""
+    rule_set = await create_rule_set_with_shift_type(db_session, test_shift_type)
+
+    async def override_get_current_super_admin():
+        return override_admin()
+
+    async def override_get_current_admin():
+        return override_admin()
+
+    app.dependency_overrides[deps.get_current_super_admin] = override_get_current_super_admin
+    app.dependency_overrides[deps.get_current_admin] = override_get_current_admin
+    try:
+        response = await async_client.post(
+            f"/api/v1/rule-sets/{rule_set.id}/windows",
+            json={
+                "name": "预约时间窗",
+                "action": "BOOK",
+                "referencePoint": "SHIFT_START",
+                "openOffsetSec": -3600,
+                "closeOffsetSec": 0,
+                "enabled": True,
+            },
+        )
+
+        assert response.status_code == 201
+
+        logs_response = await async_client.get(f"/api/v1/rule-sets/{rule_set.id}/audit-logs")
+        assert logs_response.status_code == 200
+
+        latest_log = logs_response.json()["data"]["data"][0]
+        snapshot_before = json.loads(latest_log["snapshotBefore"])
+        snapshot_after = json.loads(latest_log["snapshotAfter"])
+
+        assert latest_log["resourceType"] == "window"
+        assert latest_log["action"] == "CREATE"
+        assert snapshot_before["windows"] == []
+        assert len(snapshot_after["windows"]) == 1
+        assert snapshot_after["windows"][0]["name"] == "预约时间窗"
+    finally:
+        app.dependency_overrides.pop(deps.get_current_super_admin, None)
+        app.dependency_overrides.pop(deps.get_current_admin, None)
+
+
+@pytest.mark.asyncio
 async def test_create_window_rule_set_not_found(async_client):
     """测试为不存在的规则组创建时间窗"""
     async def override_get_current_super_admin():
@@ -707,6 +815,55 @@ async def test_update_booking_policy(async_client, db_session, test_shift_type):
         assert data["ruleSetId"] == rule_set.id
     finally:
         app.dependency_overrides.pop(deps.get_current_super_admin, None)
+
+
+@pytest.mark.asyncio
+async def test_update_booking_policy_writes_rule_set_audit_log(
+    async_client, db_session, test_shift_type
+):
+    """测试独立策略接口也会写入规则组审计日志。"""
+    rule_set = await create_rule_set_with_shift_type(db_session, test_shift_type)
+
+    async def override_get_current_super_admin():
+        return override_admin()
+
+    async def override_get_current_admin():
+        return override_admin()
+
+    app.dependency_overrides[deps.get_current_super_admin] = override_get_current_super_admin
+    app.dependency_overrides[deps.get_current_admin] = override_get_current_admin
+    try:
+        response = await async_client.put(
+            f"/api/v1/rule-sets/{rule_set.id}/booking-policy",
+            json={
+                "requireAuth": True,
+                "requirePatientProfileComplete": True,
+                "perUserPerShift": 1,
+                "perUserPerDay": 1,
+                "perUserPerWeek": 2,
+                "conflictSameShift": "REJECT",
+                "conflictOverlapTime": "REJECT",
+                "conflictSameTypeSameDay": "ALLOW",
+            },
+        )
+
+        assert response.status_code == 200
+
+        logs_response = await async_client.get(f"/api/v1/rule-sets/{rule_set.id}/audit-logs")
+        assert logs_response.status_code == 200
+
+        latest_log = logs_response.json()["data"]["data"][0]
+        snapshot_before = json.loads(latest_log["snapshotBefore"])
+        snapshot_after = json.loads(latest_log["snapshotAfter"])
+
+        assert latest_log["resourceType"] == "booking_policy"
+        assert latest_log["action"] == "CREATE"
+        assert snapshot_before["booking_policy"] is None
+        assert snapshot_after["booking_policy"]["require_patient_profile_complete"] is True
+        assert snapshot_after["booking_policy"]["per_user_per_week"] == 2
+    finally:
+        app.dependency_overrides.pop(deps.get_current_super_admin, None)
+        app.dependency_overrides.pop(deps.get_current_admin, None)
 
 
 @pytest.mark.asyncio

@@ -5,6 +5,7 @@ from typing import Optional
 
 from sqlalchemy import select
 
+from app.modules.rule_sets.audit_helpers import make_rule_set_audit, snapshot_rule_set
 from app.models.rule_set import (
     RuleBookingPolicy,
     RuleCapacityPolicy,
@@ -30,6 +31,8 @@ class RuleSetPolicyMixin:
         if not result.scalar_one_or_none():
             return None
 
+        snapshot_before = await snapshot_rule_set(self.db, rule_set_id)
+
         window = RuleWindow(
             id=str(uuid.uuid4()),
             rule_set_id=rule_set_id,
@@ -47,6 +50,18 @@ class RuleSetPolicyMixin:
         )
         set_create_audit(window, operator_id)
         self.db.add(window)
+        await self.db.flush()
+        self.db.add(
+            make_rule_set_audit(
+                rule_set_id=rule_set_id,
+                action="CREATE",
+                resource_type="window",
+                resource_id=window.id,
+                operator_id=operator_id,
+                snapshot_before=snapshot_before,
+                snapshot_after=await snapshot_rule_set(self.db, rule_set_id),
+            )
+        )
         await self.db.commit()
         await self.db.refresh(window)
         return window
@@ -57,6 +72,8 @@ class RuleSetPolicyMixin:
         window = await self.get_window_by_id(window_id)
         if not window:
             return None
+
+        snapshot_before = await snapshot_rule_set(self.db, window.rule_set_id)
 
         if data.open_offset_sec is not None:
             window.open_offset_sec = data.open_offset_sec
@@ -76,26 +93,54 @@ class RuleSetPolicyMixin:
             window.description = data.description
 
         set_update_audit(window, operator_id)
+        await self.db.flush()
+        self.db.add(
+            make_rule_set_audit(
+                rule_set_id=window.rule_set_id,
+                action="UPDATE",
+                resource_type="window",
+                resource_id=window.id,
+                operator_id=operator_id,
+                snapshot_before=snapshot_before,
+                snapshot_after=await snapshot_rule_set(self.db, window.rule_set_id),
+            )
+        )
         await self.db.commit()
         await self.db.refresh(window)
         return window
 
-    async def delete_window(self, window_id: str) -> bool:
+    async def delete_window(self, window_id: str, operator_id: Optional[str] = None) -> bool:
         window = await self.get_window_by_id(window_id)
         if not window:
             return False
 
+        rule_set_id = window.rule_set_id
+        snapshot_before = await snapshot_rule_set(self.db, rule_set_id)
         await self.db.delete(window)
+        await self.db.flush()
+        self.db.add(
+            make_rule_set_audit(
+                rule_set_id=rule_set_id,
+                action="DELETE",
+                resource_type="window",
+                resource_id=window.id,
+                operator_id=operator_id,
+                snapshot_before=snapshot_before,
+                snapshot_after=await snapshot_rule_set(self.db, rule_set_id),
+            )
+        )
         await self.db.commit()
         return True
 
     async def update_booking_policy(
         self, rule_set_id: str, data: RuleBookingPolicyCreate, operator_id: Optional[str] = None
     ) -> Optional[RuleBookingPolicy]:
+        snapshot_before = await snapshot_rule_set(self.db, rule_set_id)
         result = await self.db.execute(
             select(RuleBookingPolicy).where(RuleBookingPolicy.rule_set_id == rule_set_id)
         )
         policy = result.scalar_one_or_none()
+        existed = policy is not None
 
         if policy:
             policy.require_auth = data.require_auth
@@ -122,6 +167,18 @@ class RuleSetPolicyMixin:
             set_create_audit(policy, operator_id)
             self.db.add(policy)
 
+        await self.db.flush()
+        self.db.add(
+            make_rule_set_audit(
+                rule_set_id=rule_set_id,
+                action="UPDATE" if existed else "CREATE",
+                resource_type="booking_policy",
+                resource_id=policy.rule_set_id,
+                operator_id=operator_id,
+                snapshot_before=snapshot_before,
+                snapshot_after=await snapshot_rule_set(self.db, rule_set_id),
+            )
+        )
         await self.db.commit()
         await self.db.refresh(policy)
         return policy
@@ -129,10 +186,12 @@ class RuleSetPolicyMixin:
     async def update_checkin_policy(
         self, rule_set_id: str, data: RuleCheckinPolicyCreate, operator_id: Optional[str] = None
     ) -> Optional[RuleCheckinPolicy]:
+        snapshot_before = await snapshot_rule_set(self.db, rule_set_id)
         result = await self.db.execute(
             select(RuleCheckinPolicy).where(RuleCheckinPolicy.rule_set_id == rule_set_id)
         )
         policy = result.scalar_one_or_none()
+        existed = policy is not None
 
         if policy:
             policy.require_booking = data.require_booking
@@ -157,6 +216,18 @@ class RuleSetPolicyMixin:
             set_create_audit(policy, operator_id)
             self.db.add(policy)
 
+        await self.db.flush()
+        self.db.add(
+            make_rule_set_audit(
+                rule_set_id=rule_set_id,
+                action="UPDATE" if existed else "CREATE",
+                resource_type="checkin_policy",
+                resource_id=policy.rule_set_id,
+                operator_id=operator_id,
+                snapshot_before=snapshot_before,
+                snapshot_after=await snapshot_rule_set(self.db, rule_set_id),
+            )
+        )
         await self.db.commit()
         await self.db.refresh(policy)
         return policy
@@ -164,10 +235,12 @@ class RuleSetPolicyMixin:
     async def update_capacity_policy(
         self, rule_set_id: str, data: RuleCapacityPolicyCreate, operator_id: Optional[str] = None
     ) -> Optional[RuleCapacityPolicy]:
+        snapshot_before = await snapshot_rule_set(self.db, rule_set_id)
         result = await self.db.execute(
             select(RuleCapacityPolicy).where(RuleCapacityPolicy.rule_set_id == rule_set_id)
         )
         policy = result.scalar_one_or_none()
+        existed = policy is not None
 
         if policy:
             policy.total_capacity = data.total_capacity
@@ -192,6 +265,18 @@ class RuleSetPolicyMixin:
             set_create_audit(policy, operator_id)
             self.db.add(policy)
 
+        await self.db.flush()
+        self.db.add(
+            make_rule_set_audit(
+                rule_set_id=rule_set_id,
+                action="UPDATE" if existed else "CREATE",
+                resource_type="capacity_policy",
+                resource_id=policy.rule_set_id,
+                operator_id=operator_id,
+                snapshot_before=snapshot_before,
+                snapshot_after=await snapshot_rule_set(self.db, rule_set_id),
+            )
+        )
         await self.db.commit()
         await self.db.refresh(policy)
         return policy

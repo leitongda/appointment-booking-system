@@ -1,5 +1,5 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { Card, Spin, message } from 'antd';
+import { Card, Skeleton, message } from 'antd';
 import { useState, useEffect, useCallback } from 'react';
 import dayjs, { Dayjs } from 'dayjs';
 import { scheduleApi, appointmentApi } from '@hospital/api';
@@ -25,6 +25,24 @@ export interface ScheduleSlot {
   bookedCount: number;
   status: 'available' | 'booked' | 'full' | 'suspended';
 }
+
+const CalendarSkeleton = () => (
+  <div style={{ padding: '24px' }}>
+    <Skeleton.Input active style={{ width: 200, marginBottom: 16 }} />
+    <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      {Array.from({ length: 7 }).map((_, i) => (
+        <Skeleton.Input key={i} active style={{ width: 120, height: 24 }} />
+      ))}
+    </div>
+    {Array.from({ length: 6 }).map((_, row) => (
+      <div key={row} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        {Array.from({ length: 7 }).map((_, col) => (
+          <Skeleton key={col} active paragraph={{ rows: 2, width: 80 }} title={false} style={{ width: 120, minHeight: 60 }} />
+        ))}
+      </div>
+    ))}
+  </div>
+);
 
 const STORAGE_KEY_VIEW_MODE = 'schedule_calendar_view_mode';
 
@@ -208,7 +226,7 @@ const ScheduleCalendarPage: React.FC = () => {
             />
 
             {/* 视图区域 */}
-            <Spin spinning={loading}>
+            {loading ? <CalendarSkeleton /> : (
               <div className="calendar-view-container">
                 {viewMode === 'week' ? (
                   <WeekView
@@ -229,7 +247,7 @@ const ScheduleCalendarPage: React.FC = () => {
                   />
                 )}
               </div>
-            </Spin>
+            )}
           </>
         )}
       </Card>

@@ -11,6 +11,7 @@ import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import type { Schedule, Doctor, Department } from '@hospital/shared';
 import { APPOINTMENT_TYPE_MAP } from '@hospital/shared';
 import { APPOINTMENT_TYPE_OPTIONS } from '@/constants/formFields';
+import ListPageSkeleton from '@/components/ListPageSkeleton';
 import dayjs from 'dayjs';
 import { ScheduleMessages } from '../utils/message';
 
@@ -25,6 +26,7 @@ const ScheduleDetailPage: React.FC = () => {
   const [selectedDept, setSelectedDept] = useState<string>();
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [selectedRows, setSelectedRows] = useState<Schedule[]>([]);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const { initialState } = useModel('@@initialState');
   const { currentUser } = initialState ?? {};
@@ -394,77 +396,85 @@ const ScheduleDetailPage: React.FC = () => {
         />
       )}
       
-      <ProTable<Schedule>
-        headerTitle="排班列表"
-        actionRef={actionRef}
-        formRef={formRef}
-        rowKey="id"
-        columns={columns}
-        scroll={{ x: 1200 }}
-        rowSelection={{
-          selectedRowKeys,
-          onChange: (keys, rows) => {
-            setSelectedRowKeys(keys as string[]);
-            setSelectedRows(rows);
-          },
-        }}
-        tableAlertRender={false}
-        tableAlertOptionRender={false}
-        request={async (params) => {
-          const { current, pageSize, ...rest } = params;
-          return toProTableResult(await scheduleApi.getList({
-            ...rest,
-            page: current,
-            pageSize,
-          }));
-        }}
-        toolBarRender={() => [
-          selectedRowKeys.length > 0 && access.hasPermission('schedule:update') && (
-            <Button
-              key="batchSuspend"
-              icon={<StopOutlined />}
-              danger
-              onClick={handleBatchSuspend}
-            >
-              批量停诊
-            </Button>
-          ),
-          selectedRowKeys.length > 0 && access.hasPermission('schedule:update') && (
-            <Button
-              key="batchResume"
-              icon={<PlayCircleOutlined />}
-              onClick={handleBatchResume}
-            >
-              批量恢复
-            </Button>
-          ),
-          selectedRowKeys.length > 0 && access.hasPermission('schedule:delete') && (
-            <Button
-              key="batchDelete"
-              icon={<DeleteOutlined />}
-              danger
-              onClick={handleBatchDelete}
-            >
-              批量删除
-            </Button>
-          ),
-          access.hasPermission('schedule:create') && (
-            <Button
-              key="add"
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setModalOpen(true)}
-            >
-              新增排班
-            </Button>
-          ),
-        ]}
-        pagination={{ defaultPageSize: 20 }}
-        search={{
-          labelWidth: 'auto',
-          defaultCollapsed: false,
-        }}
-      />
+      {initialLoading && <ListPageSkeleton filterCount={5} rowCount={6} />}
+
+      <div style={initialLoading ? { height: 0, overflow: 'hidden' } : undefined}>
+        <ProTable<Schedule>
+          headerTitle="排班列表"
+          actionRef={actionRef}
+          formRef={formRef}
+          rowKey="id"
+          columns={columns}
+          scroll={{ x: 1200 }}
+          rowSelection={{
+            selectedRowKeys,
+            onChange: (keys, rows) => {
+              setSelectedRowKeys(keys as string[]);
+              setSelectedRows(rows);
+            },
+          }}
+          tableAlertRender={false}
+          tableAlertOptionRender={false}
+          request={async (params) => {
+            try {
+              const { current, pageSize, ...rest } = params;
+              return toProTableResult(await scheduleApi.getList({
+                ...rest,
+                page: current,
+                pageSize,
+              }));
+            } finally {
+              setInitialLoading(false);
+            }
+          }}
+          toolBarRender={() => [
+            selectedRowKeys.length > 0 && access.hasPermission('schedule:update') && (
+              <Button
+                key="batchSuspend"
+                icon={<StopOutlined />}
+                danger
+                onClick={handleBatchSuspend}
+              >
+                批量停诊
+              </Button>
+            ),
+            selectedRowKeys.length > 0 && access.hasPermission('schedule:update') && (
+              <Button
+                key="batchResume"
+                icon={<PlayCircleOutlined />}
+                onClick={handleBatchResume}
+              >
+                批量恢复
+              </Button>
+            ),
+            selectedRowKeys.length > 0 && access.hasPermission('schedule:delete') && (
+              <Button
+                key="batchDelete"
+                icon={<DeleteOutlined />}
+                danger
+                onClick={handleBatchDelete}
+              >
+                批量删除
+              </Button>
+            ),
+            access.hasPermission('schedule:create') && (
+              <Button
+                key="add"
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setModalOpen(true)}
+              >
+                新增排班
+              </Button>
+            ),
+          ]}
+          pagination={{ defaultPageSize: 20 }}
+          search={{
+            labelWidth: 'auto',
+            defaultCollapsed: false,
+          }}
+        />
+      </div>
 
       <ModalForm
         title="新增排班"
@@ -523,4 +533,3 @@ const ScheduleDetailPage: React.FC = () => {
 };
 
 export default ScheduleDetailPage;
-
