@@ -231,8 +231,8 @@ const TodayAppointmentPage: React.FC = () => {
         </Col>
         <Col span={6}>
           <ProCard>
-            <Statistic 
-              title="候诊中" 
+            <Statistic
+              title="已签到"
               value={stats.signedIn}
               valueStyle={{ color: '#faad14' }}
               prefix={<ClockCircleOutlined />}

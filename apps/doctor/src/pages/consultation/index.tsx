@@ -101,7 +101,7 @@ const ConsultationPage: React.FC = () => {
     if (nextPatient) {
       await handleCall(nextPatient);
     } else {
-      message.info('暂无候诊患者');
+      message.info('暂无待诊患者');
     }
   };
 
@@ -214,7 +214,7 @@ const ConsultationPage: React.FC = () => {
     }
   };
 
-  // 候诊队列（已签到）
+  // 待诊队列（已签到）
   const waitingList = appointments.filter((a) => a.status === APPOINTMENT_STATUS.SIGNED);
   // 已过号 (EXPIRED)
   const passedList = appointments.filter((a) => a.status === APPOINTMENT_STATUS.EXPIRED);
@@ -315,14 +315,14 @@ const ConsultationPage: React.FC = () => {
           </ProCard>
         </Col>
 
-        {/* 候诊队列 */}
+        {/* 待诊队列 */}
         <Col xs={24} lg={14}>
           <ProCard 
-            title="候诊队列"
+            title="待诊队列"
             extra={
               <div>
                 <Badge count={waitingList.length} style={{ marginRight: 16 }}>
-                  <Tag>候诊中</Tag>
+                  <Tag>已签到</Tag>
                 </Badge>
                 <Button type="primary" onClick={handleCallNext} disabled={!waitingList.length}>
                   呼叫下一位
@@ -332,7 +332,7 @@ const ConsultationPage: React.FC = () => {
             style={{ minHeight: 400 }}
           >
             {waitingList.length === 0 ? (
-              <Empty description="暂无候诊患者" />
+              <Empty description="暂无待诊患者" />
             ) : (
               <List
                 dataSource={waitingList}

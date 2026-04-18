@@ -17,7 +17,7 @@ const StatisticsPage: React.FC = () => {
   const totalAppointments = trendData.reduce((sum, item) => sum + item.count, 0);
   const completedCount = statusData.find(s => s.status === 5)?.count || 0;
   const cancelledCount = statusData.find(s => s.status === 6)?.count || 0;
-  const noShowCount = statusData.find(s => s.status === 8)?.count || 0;  // 8=CLOSED(爽约)
+  const noShowCount = statusData.find(s => s.status === 8)?.count || 0;  // 8=NO_SHOW(爽约)
   const completionRate = totalAppointments > 0 ? ((completedCount / totalAppointments) * 100).toFixed(1) : '0';
   const noShowRate = totalAppointments > 0 ? ((noShowCount / totalAppointments) * 100).toFixed(1) : '0';
 
@@ -68,13 +68,15 @@ const StatisticsPage: React.FC = () => {
     yField: 'count',
     color: ({ name }: { name: string }) => {
       const colorMap: Record<string, string> = {
-        '待就诊': '#1890ff',
+        '待支付': '#FA8C16',
+        '已预约': '#1890ff',
         '已签到': '#13c2c2',
-        '候诊中': '#faad14',
+        '历史候诊': '#94A3B8',
         '就诊中': '#722ed1',
         '已完成': '#52c41a',
         '已取消': '#d9d9d9',
-        '爽约': '#ff4d4f',
+        '已过期': '#BFBFBF',
+        '已爽约': '#ff4d4f',
       };
       return colorMap[name] || '#1890ff';
     },

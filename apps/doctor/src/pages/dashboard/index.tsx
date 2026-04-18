@@ -13,7 +13,7 @@ const { Statistic } = StatisticCard;
 const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [statistics, setStatistics] = useState<AppointmentStatistics>({
-    total: 0, pending: 0, signedIn: 0, inProgress: 0, completed: 0, cancelled: 0, noShow: 0
+    total: 0, confirmed: 0, signedIn: 0, inProgress: 0, completed: 0, cancelled: 0, noShow: 0
   });
   const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
   const [currentPatient, setCurrentPatient] = useState<Appointment | null>(null);
@@ -80,7 +80,7 @@ const Dashboard: React.FC = () => {
     if (nextPatient) {
       await handleCall(nextPatient);
     } else {
-      message.info('暂无候诊患者');
+      message.info('暂无待诊患者');
     }
   };
 
@@ -94,7 +94,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // 候诊队列（已签到的）
+  // 待诊队列（已签到的）
   const waitingList = todayAppointments.filter((a) => a.status === 2);
   // 待签到
   const pendingList = todayAppointments.filter((a) => a.status === 1);
@@ -133,28 +133,28 @@ const Dashboard: React.FC = () => {
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={8}>
           <ProCard>
-            <Statistic 
-              title="今日预约" 
-              value={statistics.pending + statistics.signedIn + statistics.inProgress + statistics.completed} 
-              icon={<ClockCircleOutlined style={{ color: '#1890ff' }} />} 
+            <Statistic
+              title="今日预约"
+              value={statistics.confirmed + statistics.signedIn + statistics.inProgress + statistics.completed}
+              icon={<ClockCircleOutlined style={{ color: '#1890ff' }} />}
             />
           </ProCard>
         </Col>
         <Col xs={24} sm={8}>
           <ProCard>
-            <Statistic 
-              title="已就诊" 
-              value={statistics.completed} 
-              icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />} 
+            <Statistic
+              title="已就诊"
+              value={statistics.completed}
+              icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
             />
           </ProCard>
         </Col>
         <Col xs={24} sm={8}>
           <ProCard>
-            <Statistic 
-              title="候诊中" 
-              value={waitingList.length} 
-              icon={<UserOutlined style={{ color: '#faad14' }} />} 
+            <Statistic
+              title="已签到"
+              value={waitingList.length}
+              icon={<UserOutlined style={{ color: '#faad14' }} />}
             />
           </ProCard>
         </Col>
@@ -188,14 +188,14 @@ const Dashboard: React.FC = () => {
           </ProCard>
         </Col>
 
-        {/* 候诊队列 */}
+        {/* 待诊队列 */}
         <Col xs={24} lg={8}>
           <ProCard 
-            title="候诊队列" 
+            title="待诊队列"
             extra={<Badge count={waitingList.length} style={{ backgroundColor: '#faad14' }} />}
           >
             {waitingList.length === 0 ? (
-              <Empty description="暂无候诊患者" />
+              <Empty description="暂无待诊患者" />
             ) : (
               <List
                 size="small"
