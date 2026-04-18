@@ -4,11 +4,13 @@ import { Loading, Empty, Tag } from '@nutui/nutui-react-taro';
 import { useState, useCallback } from 'react';
 import { medicalRecordApi } from '@hospital/api';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
+import { useApplyThemeNavigationBar } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import type { MedicalRecord } from '@hospital/api';
 import './detail.less';
 
 const RecordDetailPage = () => {
+  useApplyThemeNavigationBar();
   const router = useRouter();
   const { id } = router.params;
 

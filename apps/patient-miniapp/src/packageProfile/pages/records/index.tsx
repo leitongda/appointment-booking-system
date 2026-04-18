@@ -5,6 +5,7 @@ import { useState, useCallback } from 'react';
 import { medicalRecordApi } from '@hospital/api';
 import { getToken } from '../../../utils/auth';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
+import { useApplyThemeNavigationBar } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import type { MedicalRecordListItem } from '@hospital/api';
 import './index.less';
@@ -12,6 +13,7 @@ import './index.less';
 const PAGE_SIZE = 20;
 
 const RecordsPage = () => {
+  useApplyThemeNavigationBar();
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<MedicalRecordListItem[]>([]);
   const [page, setPage] = useState(1);

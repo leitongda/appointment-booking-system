@@ -8,6 +8,7 @@ import { useState, useEffect, PropsWithChildren } from 'react';
 import Taro from '@tarojs/taro';
 import { STORAGE_KEYS } from '@hospital/shared';
 import type { FontMode } from '../utils/fontMode';
+import { applyThemeNavigationBar } from '../utils/theme';
 
 interface PageContainerProps extends PropsWithChildren {
   className?: string;
@@ -30,6 +31,8 @@ export function PageContainer({ className = '', children }: PageContainerProps) 
     } catch (error) {
       console.error('读取字体模式失败:', error);
     }
+
+    applyThemeNavigationBar();
   }, []);
 
   // 监听页面显示，重新读取字体模式（用户可能在设置页面切换了模式）
@@ -42,6 +45,8 @@ export function PageContainer({ className = '', children }: PageContainerProps) 
     } catch (error) {
       // 忽略读取错误
     }
+
+    applyThemeNavigationBar();
   });
 
   const fontModeClass = fontMode === 'elder' ? 'font-mode-elder' : '';
@@ -54,4 +59,3 @@ export function PageContainer({ className = '', children }: PageContainerProps) 
 }
 
 export default PageContainer;
-

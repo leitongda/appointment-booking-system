@@ -9,7 +9,7 @@ import {
   RecordIcon,
   TeamIcon
 } from '../../../components/Icons';
-import { useThemePrimaryColor } from '../../../utils/theme';
+import { useApplyThemeNavigationBar, useThemePrimaryColor } from '../../../utils/theme';
 import { getStoreCode, getStoreName } from '../../../utils/store';
 import './index.less';
 
@@ -52,6 +52,7 @@ const formatWorkingHours = (store: Store): string => {
 
 const AboutPage = () => {
   const primaryColor = useThemePrimaryColor();
+  useApplyThemeNavigationBar();
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);
 

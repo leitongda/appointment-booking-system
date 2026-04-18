@@ -6,6 +6,7 @@ import { feedbackApi, userApi } from '@hospital/api';
 import type { Feedback } from '@hospital/shared';
 import { getToken } from '../../../utils/auth';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
+import { useApplyThemeNavigationBar } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import './history.less';
 
@@ -30,6 +31,7 @@ const formatTime = (dateStr: string) => {
 };
 
 const FeedbackHistoryPage = () => {
+  useApplyThemeNavigationBar();
   const router = useRouter();
   const highlightId = router.params.id; // 从消息点击跳转时的反馈ID
   

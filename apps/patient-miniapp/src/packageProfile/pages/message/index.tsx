@@ -6,7 +6,7 @@ import { messageApi, userApi } from '@hospital/api';
 import type { Message, MessageType } from '@hospital/shared';
 import { BellIcon, CalendarIcon, InfoIcon, ClockIcon, CloseCircleIcon, ChatIcon } from '../../../components/Icons';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
-import { useThemePrimaryColor } from '../../../utils/theme';
+import { useApplyThemeNavigationBar, useThemePrimaryColor } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import './index.less';
 
@@ -58,6 +58,7 @@ const formatTime = (dateStr: string) => {
 
 const MessagePage = () => {
   const primaryColor = useThemePrimaryColor();
+  useApplyThemeNavigationBar();
   const [activeTab, setActiveTab] = useState('all');
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);

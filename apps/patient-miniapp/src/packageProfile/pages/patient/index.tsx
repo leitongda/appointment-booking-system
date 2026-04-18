@@ -6,11 +6,13 @@ import { userApi } from '@hospital/api';
 import { GENDER_MAP } from '@hospital/shared';
 import { getToken } from '../../../utils/auth';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
+import { useApplyThemeNavigationBar } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import type { Patient } from '@hospital/shared';
 import './index.less';
 
 const PatientListPage = () => {
+  useApplyThemeNavigationBar();
   const [loading, setLoading] = useState(true);
   const [patients, setPatients] = useState<Patient[]>([]);
   const clearPatients = useCallback(() => {

@@ -4,9 +4,11 @@ import { SearchBar, Empty } from '@nutui/nutui-react-taro';
 import { useState } from 'react';
 import { doctorApi, departmentApi } from '@hospital/api';
 import type { Doctor, Department } from '@hospital/shared';
+import { useApplyThemeNavigationBar } from '../../../utils/theme';
 import './index.less';
 
 const SearchPage = () => {
+  useApplyThemeNavigationBar();
   const [keyword, setKeyword] = useState('');
   const [searching, setSearching] = useState(false);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -107,4 +109,3 @@ const SearchPage = () => {
 };
 
 export default SearchPage;
-

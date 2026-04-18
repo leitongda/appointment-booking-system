@@ -2,10 +2,12 @@ import { View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useEffect, useRef, useCallback } from 'react';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
+import { useApplyThemeNavigationBar } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import './scan.less';
 
 const CheckinScanPage = () => {
+  useApplyThemeNavigationBar();
   const hasTriggeredScan = useRef(false);
 
   const handleScan = useCallback(async () => {

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { departmentApi } from '@hospital/api';
 import type { DepartmentTreeNode } from '@hospital/shared';
 import { SearchIcon, getDeptIcon } from '../../components/Icons';
-import { useThemePrimaryColor } from '../../utils/theme';
+import { useApplyThemeNavigationBar, useThemePrimaryColor } from '../../utils/theme';
 import './index.less';
 
 // 获取所有叶子科室（无子科室的科室）
@@ -30,6 +30,7 @@ const isFlatStructure = (departments: DepartmentTreeNode[]): boolean => {
 
 const DepartmentPage = () => {
   const primaryColor = useThemePrimaryColor();
+  useApplyThemeNavigationBar();
   const [loading, setLoading] = useState(true);
   const [departments, setDepartments] = useState<DepartmentTreeNode[]>([]);
   const [activeIndex, setActiveIndex] = useState<number>(0);

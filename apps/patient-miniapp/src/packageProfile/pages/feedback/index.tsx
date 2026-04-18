@@ -4,10 +4,12 @@ import { Button, Rate } from '@nutui/nutui-react-taro';
 import { useState, useCallback } from 'react';
 import { feedbackApi, userApi } from '@hospital/api';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
+import { useApplyThemeNavigationBar } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import './index.less';
 
 const FeedbackPage = () => {
+  useApplyThemeNavigationBar();
   const [rating, setRating] = useState(5);
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);

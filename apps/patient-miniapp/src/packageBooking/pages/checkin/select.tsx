@@ -7,7 +7,7 @@ import { TIME_SLOT_MAP } from '@hospital/shared';
 import type { PendingAppointment } from '@hospital/api';
 import { DoctorIcon, CheckCircleIcon } from '../../../components/Icons';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
-import { useThemePrimaryColor } from '../../../utils/theme';
+import { useApplyThemeNavigationBar, useThemePrimaryColor } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import CheckinSuccessModal from '../../components/CheckinSuccessModal';
 import './select.less';
@@ -103,6 +103,7 @@ type CountdownInfo = {
 
 const CheckinSelectPage = () => {
   const primaryColor = useThemePrimaryColor();
+  useApplyThemeNavigationBar();
   const router = useRouter();
   const { storeId } = router.params;
 

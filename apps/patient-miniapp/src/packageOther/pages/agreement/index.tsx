@@ -1,8 +1,10 @@
 import { View, Text, ScrollView } from '@tarojs/components';
 import { useRouter } from '@tarojs/taro';
+import { useApplyThemeNavigationBar } from '../../../utils/theme';
 import './index.less';
 
 const AgreementPage = () => {
+  useApplyThemeNavigationBar();
   const router = useRouter();
   const { type } = router.params;
   
@@ -178,4 +180,3 @@ const AgreementPage = () => {
 };
 
 export default AgreementPage;
-

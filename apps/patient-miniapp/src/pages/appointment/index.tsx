@@ -5,9 +5,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { appointmentApi } from '@hospital/api';
 import { APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP } from '@hospital/shared';
 import { AUTH_EVENTS, getToken, subscribeAuthChange } from '../../utils/auth';
-import { getPaymentPreparationFailure, getPaymentRequestFailure } from '../../utils/payment';
+import { getPaymentPreparationFailure, getPaymentRequestFailure, verifyPaymentResult } from '../../utils/payment';
 import { formatTime, isAppointmentExpired } from '../../utils/url';
 import { triggerCheckinScan } from '../../utils/checkin';
+import { useApplyThemeNavigationBar } from '../../utils/theme';
 import LoginPopup from '../../components/LoginPopup';
 import { CalendarIcon } from '../../components/Icons';
 import type { Appointment } from '@hospital/shared';
@@ -27,20 +28,22 @@ const getStatusClass = (status: number): string => {
     0: 'status-warning',     // 待支付 - 橙色
     1: 'status-pending',     // 已预约 - 红色
     2: 'status-confirmed',   // 已签到 - 绿色
-    3: 'status-pending',     // 候诊中 - 红色
+    3: 'status-expired',     // 历史候诊 - 灰色兼容态
     4: 'status-processing',  // 就诊中 - 蓝色
     5: 'status-completed',   // 已完成 - 绿色
     6: 'status-cancelled',   // 已取消 - 灰色
     7: 'status-expired',     // 已过期 - 浅灰色
-    8: 'status-cancelled',   // 已关闭 - 灰色
+    8: 'status-cancelled',   // 已爽约 - 灰色
   };
   return classMap[status] || '';
 };
 
 const AppointmentPage = () => {
+  useApplyThemeNavigationBar();
   const [activeTab, setActiveTab] = useState('0');
   const [loading, setLoading] = useState(true);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [pendingPaymentCount, setPendingPaymentCount] = useState(0);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
 
@@ -116,6 +119,18 @@ const AppointmentPage = () => {
         pageSize: 20,
       });
       setAppointments(result.data);
+
+      // 非"待支付"Tab 时查询待支付数量，用于显示提醒横幅
+      if (statusMap[activeTab] !== 0) {
+        try {
+          const pendingResult = await appointmentApi.getList({ status: 0, page: 1, pageSize: 1 });
+          setPendingPaymentCount(pendingResult.total || 0);
+        } catch {
+          setPendingPaymentCount(0);
+        }
+      } else {
+        setPendingPaymentCount(0);
+      }
     } catch (error) {
       console.error('加载预约列表失败', error);
     } finally {
@@ -141,35 +156,40 @@ const AppointmentPage = () => {
   };
 
   const handlePay = async (appointment: Appointment) => {
-    // 如果已经有支付参数，直接调起支付
-    if (appointment.paymentAmount && appointment.paymentAmount > 0 && appointment.status === 0) {
-      let paymentParams;
+    if (appointment.status !== 0) return;
 
-      try {
-        paymentParams = await appointmentApi.getPaymentParams(appointment.id);
-      } catch (error: any) {
-        const result = getPaymentPreparationFailure(error);
-        Taro.showToast({ title: result.message, icon: 'none' });
+    let paymentParams;
+
+    try {
+      paymentParams = await appointmentApi.getPaymentParams(appointment.id);
+    } catch (error: any) {
+      const result = getPaymentPreparationFailure(error);
+      Taro.showToast({ title: result.message, icon: 'none' });
+      return;
+    }
+
+    try {
+      await Taro.requestPayment({
+        timeStamp: paymentParams.timeStamp,
+        nonceStr: paymentParams.nonceStr,
+        package: paymentParams.package,
+        signType: paymentParams.signType as any,
+        paySign: paymentParams.paySign,
+      });
+
+      Taro.showToast({ title: '支付成功', icon: 'success' });
+      loadAppointments();
+    } catch (error: any) {
+      // 二次确认：微信支付可能实际成功但本地 Promise reject
+      const actuallyPaid = await verifyPaymentResult(appointmentApi.getPaymentStatus, appointment.id);
+      if (actuallyPaid) {
+        Taro.showToast({ title: '支付成功', icon: 'success' });
+        loadAppointments();
         return;
       }
 
-      try {
-        await Taro.requestPayment({
-          timeStamp: paymentParams.timeStamp,
-          nonceStr: paymentParams.nonceStr,
-          package: paymentParams.package,
-          signType: paymentParams.signType as any,
-          paySign: paymentParams.paySign,
-        });
-
-        Taro.showToast({ title: '支付成功', icon: 'success' });
-        loadAppointments();
-      } catch (error: any) {
-        const result = getPaymentRequestFailure(error);
-        if (result.status === 'failed') {
-          Taro.showToast({ title: result.message, icon: 'none' });
-        }
-      }
+      const result = getPaymentRequestFailure(error);
+      Taro.showToast({ title: result.message, icon: 'none' });
     }
   };
 
@@ -199,6 +219,18 @@ const AppointmentPage = () => {
 
       <PullToRefresh onRefresh={handleRefresh}>
         <View className="list">
+          {/* 待支付提醒横幅：在非"待支付"Tab 下展示 */}
+          {isLoggedIn && !loading && pendingPaymentCount > 0 && activeTab !== '1' && (
+            <View
+              className="pending-payment-banner"
+              onClick={() => setActiveTab('1')}
+            >
+              <Text className="banner-text">
+                您有 {pendingPaymentCount} 笔待支付订单，请及时完成支付
+              </Text>
+              <Text className="banner-action">查看</Text>
+            </View>
+          )}
           {!isLoggedIn ? (
             <View className="login-guide-wrapper">
               <View className="login-guide-card">

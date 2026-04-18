@@ -6,12 +6,13 @@ import type { Doctor } from '@hospital/shared';
 import { DoctorIcon } from '../../components/Icons';
 import { getImageUrl } from '../../utils/url';
 import { getToken } from '../../utils/auth';
-import { useThemePrimaryColor } from '../../utils/theme';
+import { useApplyThemeNavigationBar, useThemePrimaryColor } from '../../utils/theme';
 import LoginPopup from '../../components/LoginPopup';
 import './index.less';
 
 const DoctorListPage = () => {
   const primaryColor = useThemePrimaryColor();
+  useApplyThemeNavigationBar();
   const router = useRouter();
   const { departmentId } = router.params;
 

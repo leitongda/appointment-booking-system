@@ -8,8 +8,8 @@ import Taro from '@tarojs/taro';
 import { STORAGE_KEYS } from '@hospital/shared';
 import {
   THEME_CONFIG,
-  getThemeClass,
   getThemeLabel,
+  getThemeOptionLabel,
   normalizeThemeName,
   type ThemeConfig as ConfigThemeConfig,
   type ThemeName,
@@ -19,10 +19,15 @@ import { getStoreId } from '../utils/store';
 export interface ThemeConfig extends ConfigThemeConfig {}
 
 export const DEFAULT_THEME = THEME_CONFIG.default;
+export const FOLLOW_STORE_THEME = 'follow-store';
 const THEME_CHANGE_EVENT = 'theme:change';
+const THEME_NAVIGATION_FRONT_COLOR = '#000000';
+
+export type ThemeSelection = ThemeName | typeof FOLLOW_STORE_THEME;
 
 let currentThemeName: ThemeName = DEFAULT_THEME;
 let currentThemeConfig: ThemeConfig = THEME_CONFIG.getTheme(DEFAULT_THEME);
+let routeThemeSyncRegistered = false;
 
 function resolveStoreId(storeId?: string): string {
   if (storeId) {
@@ -54,11 +59,57 @@ function saveThemePreference(themeName: ThemeName, storeId?: string): void {
   }
 }
 
+function removeThemePreference(storeId?: string): void {
+  try {
+    Taro.removeStorageSync(getThemeStorageKey(storeId));
+  } catch (error) {
+    console.error('移除主题配置失败:', error);
+  }
+}
+
+function getSavedThemePreference(storeId?: string): ThemeName | null {
+  try {
+    const savedTheme = Taro.getStorageSync(getThemeStorageKey(storeId));
+    return savedTheme ? normalizeThemeName(savedTheme) : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveStoreTheme(storeTheme?: string | null, storeId = resolveStoreId()): ThemeName {
+  if (storeTheme) {
+    return normalizeThemeName(storeTheme);
+  }
+
+  try {
+    const storeContext = Taro.getStorageSync(STORAGE_KEYS.STORE_CONTEXT);
+    if (!storeContext) {
+      return DEFAULT_THEME;
+    }
+
+    if (!storeId || !storeContext.storeId || storeContext.storeId === storeId) {
+      return normalizeThemeName(storeContext.storeTheme);
+    }
+  } catch {
+    return DEFAULT_THEME;
+  }
+
+  return DEFAULT_THEME;
+}
+
 function emitThemeChange(): void {
   Taro.eventCenter.trigger(THEME_CHANGE_EVENT, {
     themeName: currentThemeName,
     themeConfig: currentThemeConfig,
   });
+}
+
+export function applyThemeNavigationBar(themeName?: string | null): void {
+  const themeConfig = getThemeConfig(themeName);
+  void Taro.setNavigationBarColor?.({
+    frontColor: THEME_NAVIGATION_FRONT_COLOR,
+    backgroundColor: themeConfig.primarySoft,
+  }).catch?.(() => undefined);
 }
 
 function setThemeState(themeName: ThemeName, options?: { persist?: boolean; storeId?: string }): ThemeConfig {
@@ -69,6 +120,7 @@ function setThemeState(themeName: ThemeName, options?: { persist?: boolean; stor
     saveThemePreference(themeName, options?.storeId);
   }
 
+  applyThemeNavigationBar(themeName);
   emitThemeChange();
   return currentThemeConfig;
 }
@@ -89,23 +141,27 @@ export function applyTheme(themeName: string, storeId = resolveStoreId()): Theme
   return setThemeState(normalizeThemeName(themeName), { persist: true, storeId });
 }
 
+export function getThemeSelection(storeId = resolveStoreId()): ThemeSelection {
+  return getSavedThemePreference(storeId) ?? FOLLOW_STORE_THEME;
+}
+
+export function getStoreDefaultThemeName(storeTheme?: string | null, storeId = resolveStoreId()): ThemeName {
+  return resolveStoreTheme(storeTheme, storeId);
+}
+
+export function resetThemeToStore(storeTheme?: string | null, storeId = resolveStoreId()): ThemeConfig {
+  removeThemePreference(storeId);
+  return setThemeState(resolveStoreTheme(storeTheme, storeId), { persist: false, storeId });
+}
+
 export function initThemeFromStore(storeTheme?: string | null, storeId = resolveStoreId()): ThemeConfig {
   try {
-    const savedTheme = Taro.getStorageSync(getThemeStorageKey(storeId));
+    const savedTheme = getSavedThemePreference(storeId);
     if (savedTheme) {
-      return setThemeState(normalizeThemeName(savedTheme), { persist: false, storeId });
+      return setThemeState(savedTheme, { persist: false, storeId });
     }
 
-    if (storeTheme) {
-      return setThemeState(normalizeThemeName(storeTheme), { persist: false, storeId });
-    }
-
-    const storeContext = Taro.getStorageSync(STORAGE_KEYS.STORE_CONTEXT);
-    if (storeContext?.storeTheme) {
-      return setThemeState(normalizeThemeName(storeContext.storeTheme), { persist: false, storeId });
-    }
-
-    return setThemeState(DEFAULT_THEME, { persist: false, storeId });
+    return setThemeState(resolveStoreTheme(storeTheme, storeId), { persist: false, storeId });
   } catch (error) {
     console.error('初始化主题失败:', error);
     return setThemeState(DEFAULT_THEME, { persist: false, storeId });
@@ -117,7 +173,7 @@ export function getCurrentTheme(): ThemeName {
 }
 
 export function getCurrentThemeLabel(): string {
-  return getThemeLabel(currentThemeName);
+  return getThemeOptionLabel(currentThemeName);
 }
 
 export function getCurrentThemeConfig(): ThemeConfig {
@@ -129,7 +185,26 @@ export function subscribeThemeChange(listener: (payload: { themeName: ThemeName;
   return () => Taro.eventCenter.off(THEME_CHANGE_EVENT, listener);
 }
 
-export { getThemeClass, getThemeLabel };
+export function registerThemeRouteSync(): void {
+  if (routeThemeSyncRegistered) {
+    return;
+  }
+
+  routeThemeSyncRegistered = true;
+
+  const globalWx = (globalThis as { wx?: { onAppRoute?: (listener: () => void) => void } }).wx;
+  if (typeof globalWx?.onAppRoute !== 'function') {
+    return;
+  }
+
+  globalWx.onAppRoute(() => {
+    setTimeout(() => {
+      applyThemeNavigationBar();
+    }, 0);
+  });
+}
+
+export { getThemeLabel, getThemeOptionLabel };
 
 export function useThemeName(): ThemeName {
   const [themeName, setThemeName] = useState<ThemeName>(getCurrentTheme());
@@ -159,6 +234,12 @@ export function useThemePrimaryColor(): string {
   return primaryColor;
 }
 
+export function useApplyThemeNavigationBar(themeName?: string | null): void {
+  Taro.useDidShow(() => {
+    applyThemeNavigationBar(themeName);
+  });
+}
+
 export function getThemeStyleObject(themeName?: string | null): Record<string, string> {
   const config = getThemeConfig(themeName);
   return {
@@ -169,6 +250,17 @@ export function getThemeStyleObject(themeName?: string | null): Record<string, s
     '--theme-gradient-soft': config.gradientSoft,
     '--theme-border-accent': config.borderAccent,
     '--theme-shadow-accent': config.shadowAccent,
+    '--color-primary': config.primary,
+    '--color-primary-dark': config.accent,
+    '--color-primary-light': config.primary,
+    '--color-secondary': config.accent,
+    '--color-secondary-light': config.primary,
+    '--gradient-primary': `linear-gradient(135deg, ${config.primary} 0%, ${config.accent} 100%)`,
+    '--gradient-primary-h': `linear-gradient(90deg, ${config.primary} 0%, ${config.accent} 100%)`,
+    '--gradient-light': `linear-gradient(135deg, ${config.primarySoft} 0%, ${config.primarySoft2} 100%)`,
+    '--shadow-color': config.shadowAccent,
+    '--shadow-button': `0 10rpx 28rpx 0 ${config.shadowAccent}`,
+    '--badge-bg': config.primarySoft,
   };
 }
 

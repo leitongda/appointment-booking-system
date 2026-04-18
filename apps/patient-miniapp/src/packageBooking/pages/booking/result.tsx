@@ -4,10 +4,12 @@ import { useCallback } from 'react';
 import { Button } from '@nutui/nutui-react-taro';
 import { CheckIcon, CloseIcon } from '../../../components/Icons';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
+import { useApplyThemeNavigationBar } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import './result.less';
 
 const BookingResultPage = () => {
+  useApplyThemeNavigationBar();
   const router = useRouter();
   const { appointmentNo, status = 'success', message } = router.params;
 

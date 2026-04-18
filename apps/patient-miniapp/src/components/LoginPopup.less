@@ -115,6 +115,12 @@
   .wechat-btn {
     .button-lg();
     .button-block();
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12rpx;
+    position: relative;
+    overflow: hidden;
     background: #07c160 !important;
     border: none !important;
     border-radius: @radius-xl !important;
@@ -122,18 +128,40 @@
     font-weight: @font-weight-semibold !important;
     box-shadow: 0 8rpx 24rpx rgba(7, 193, 96, 0.3) !important;
     margin-bottom: @spacing-4;
-    transition: all @transition-base;
+    transition: background-color @transition-base;
     
     &:active {
       background: #06ad56 !important;
-      opacity: 0.9;
-      transform: translateY(2rpx);
+    }
+
+    &.is-loading {
+      background: #07c160 !important;
+      pointer-events: none;
     }
     
     &[disabled] {
       background: @color-bg-tertiary !important;
       color: @color-text-muted !important;
       box-shadow: none !important;
+    }
+
+    .wechat-btn-spinner {
+      width: 28rpx;
+      height: 28rpx;
+      border-radius: 50%;
+      border: 4rpx solid rgba(255, 255, 255, 0.28);
+      border-top-color: #ffffff;
+      animation: wechat-btn-spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+
+    .wechat-btn-text {
+      display: block;
+      margin: 0;
+      padding: 0;
+      background: transparent !important;
+      color: inherit;
+      line-height: 1;
     }
   }
   
@@ -260,5 +288,15 @@
       color: @color-text-muted;
       font-size: @font-size-sm;
     }
+  }
+}
+
+@keyframes wechat-btn-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
   }
 }

@@ -11,9 +11,9 @@ import {
   getPeriodNameFromTime,
 } from '@hospital/shared';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
-import { getThemeGradient, useThemeName } from '../../../utils/theme';
+import { getThemeGradient, useApplyThemeNavigationBar, useThemeName } from '../../../utils/theme';
 import { formatTime, isAppointmentExpired } from '../../../utils/url';
-import { buildBookingResultUrl, getPaymentPreparationFailure, getPaymentRequestFailure } from '../../../utils/payment';
+import { buildBookingResultUrl, getPaymentPreparationFailure, getPaymentRequestFailure, verifyPaymentResult } from '../../../utils/payment';
 import { triggerCheckinScan } from '../../../utils/checkin';
 import LoginPopup from '../../../components/LoginPopup';
 import type { AppointmentDetail } from '@hospital/shared';
@@ -41,6 +41,7 @@ const StatusIconMap: Record<number, React.ComponentType<{ size?: number; color?:
 
 const AppointmentDetailPage = () => {
   const themeName = useThemeName();
+  useApplyThemeNavigationBar(themeName);
   const router = useRouter();
   const { id, appointmentNo } = router.params;
 
@@ -127,6 +128,15 @@ const AppointmentDetailPage = () => {
         url: buildBookingResultUrl(appointment.appointmentNo, 'success'),
       });
     } catch (error: any) {
+      // 二次确认：微信支付可能实际成功但本地 Promise reject
+      const actuallyPaid = await verifyPaymentResult(appointmentApi.getPaymentStatus, appointment.id);
+      if (actuallyPaid) {
+        Taro.redirectTo({
+          url: buildBookingResultUrl(appointment.appointmentNo, 'success'),
+        });
+        return;
+      }
+
       const result = getPaymentRequestFailure(error);
       Taro.redirectTo({
         url: buildBookingResultUrl(appointment.appointmentNo, result.status, result.message),
@@ -167,7 +177,7 @@ const AppointmentDetailPage = () => {
       0: { background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' },
       1: { background: getThemeGradient(themeName) },
       2: { background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' },
-      3: { background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' },
+      3: { background: 'linear-gradient(135deg, #94A3B8 0%, #64748B 100%)' },
       4: { background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)' },
       5: { background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' },
       6: { background: 'linear-gradient(135deg, #64748B 0%, #475569 100%)' },

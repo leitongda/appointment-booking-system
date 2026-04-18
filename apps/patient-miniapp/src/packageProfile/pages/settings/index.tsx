@@ -7,12 +7,25 @@ import { clearAuthSession, getToken } from '../../../utils/auth';
 import { userApi } from '@hospital/api';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
 import { getFontMode, applyFontMode, type FontMode } from '../../../utils/fontMode';
-import { getCurrentTheme, getCurrentThemeLabel, applyTheme, getThemeList, subscribeThemeChange } from '../../../utils/theme';
-import type { ThemeName } from '../../../config/theme.config';
+import {
+  FOLLOW_STORE_THEME,
+  getCurrentThemeLabel,
+  getStoreDefaultThemeName,
+  getThemeOptionLabel,
+  getThemeList,
+  getThemePrimaryColor,
+  getThemeSelection,
+  applyTheme,
+  resetThemeToStore,
+  subscribeThemeChange,
+  useApplyThemeNavigationBar,
+  type ThemeSelection,
+} from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import './index.less';
 
 const SettingsPage = () => {
+  useApplyThemeNavigationBar();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [notificationEnabled, setNotificationEnabled] = useState(true);
   const [systemNotificationEnabled, setSystemNotificationEnabled] = useState(true);
@@ -23,8 +36,7 @@ const SettingsPage = () => {
 
   // 主题选择
   const [showThemePicker, setShowThemePicker] = useState(false);
-  const [currentTheme, setCurrentTheme] = useState(getCurrentTheme());
-  const themeList = getThemeList();
+  const [themeSelection, setThemeSelection] = useState<ThemeSelection>(getThemeSelection());
 
   // 修改密码弹窗
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
@@ -40,11 +52,25 @@ const SettingsPage = () => {
 
   useEffect(
     () =>
-      subscribeThemeChange(({ themeName }) => {
-        setCurrentTheme(themeName);
+      subscribeThemeChange(() => {
+        setThemeSelection(getThemeSelection());
       }),
     []
   );
+
+  const storeDefaultTheme = getStoreDefaultThemeName();
+  const themeList = [
+    {
+      value: FOLLOW_STORE_THEME as ThemeSelection,
+      label: '跟随门店默认',
+      color: getThemePrimaryColor(storeDefaultTheme),
+      description: `当前门店默认：${getThemeOptionLabel(storeDefaultTheme)}`,
+    },
+    ...getThemeList().map((theme) => ({
+      ...theme,
+      description: '使用本机自定义主题',
+    })),
+  ];
 
   const loadUserInfo = useCallback(async () => {
     try {
@@ -195,9 +221,17 @@ const SettingsPage = () => {
   };
 
   // 切换主题
-  const handleThemeChange = (themeName: ThemeName) => {
-    applyTheme(themeName);
-    setCurrentTheme(themeName);
+  const handleThemeChange = (selection: ThemeSelection) => {
+    if (selection === FOLLOW_STORE_THEME) {
+      resetThemeToStore();
+      setThemeSelection(FOLLOW_STORE_THEME);
+      setShowThemePicker(false);
+      Taro.showToast({ title: '已恢复门店默认主题', icon: 'success' });
+      return;
+    }
+
+    applyTheme(selection);
+    setThemeSelection(selection);
     setShowThemePicker(false);
     Taro.showToast({ title: '主题已切换', icon: 'success' });
   };
@@ -256,7 +290,11 @@ const SettingsPage = () => {
         <View className="cell-group">
           <Cell
             title="主题风格"
-            description={getCurrentThemeLabel()}
+            description={
+              themeSelection === FOLLOW_STORE_THEME
+                ? `跟随门店默认 · ${getThemeOptionLabel(storeDefaultTheme)}`
+                : `${getCurrentThemeLabel()} · 已自定义`
+            }
             extra={<Text>›</Text>}
             onClick={() => setShowThemePicker(true)}
           />
@@ -392,14 +430,17 @@ const SettingsPage = () => {
         onClose={() => setShowThemePicker(false)}
       >
         <View className="theme-picker">
-          {themeList.map(theme => (
+          {themeList.map((theme) => (
             <View
               key={theme.value}
-              className={`theme-item ${currentTheme === theme.value ? 'active' : ''}`}
+              className={`theme-item ${themeSelection === theme.value ? 'active' : ''}`}
               onClick={() => handleThemeChange(theme.value)}
             >
               <View className="theme-color" style={{ background: theme.color }} />
-              <Text className="theme-name">{theme.label}</Text>
+              <View className="theme-meta">
+                <Text className="theme-name">{theme.label}</Text>
+                <Text className="theme-desc">{theme.description}</Text>
+              </View>
             </View>
           ))}
         </View>

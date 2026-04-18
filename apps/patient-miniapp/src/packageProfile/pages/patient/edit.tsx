@@ -4,6 +4,7 @@ import { Form, Button, Switch } from '@nutui/nutui-react-taro';
 import { useState, useCallback } from 'react';
 import { userApi } from '@hospital/api';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
+import { useApplyThemeNavigationBar } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import type { Patient } from '@hospital/shared';
 import './edit.less';
@@ -22,6 +23,7 @@ const RELATIONSHIP_OPTIONS = ['本人', '父亲', '母亲', '子女', '配偶', 
 const ID_CARD_TYPE_OPTIONS = ['居民身份证', '户口簿', '护照'];
 
 const PatientEditPage = () => {
+  useApplyThemeNavigationBar();
   const router = useRouter();
   const { id } = router.params;
   const isEdit = !!id;

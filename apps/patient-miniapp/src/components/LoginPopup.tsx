@@ -172,15 +172,15 @@ const LoginPopup: React.FC<LoginPopupProps> = ({
             </View>
             
             <View className="sheet-content">
-              <Button 
-                type="primary" 
-                block 
-                loading={wechatLoading}
-                onClick={handleWechatLogin}
-                className="wechat-btn"
+              <View
+                className={`wechat-btn ${wechatLoading ? 'is-loading' : ''}`}
+                onClick={!wechatLoading ? handleWechatLogin : undefined}
               >
-                微信一键登录
-              </Button>
+                {wechatLoading && <View className="wechat-btn-spinner" />}
+                <Text className="wechat-btn-text">
+                  {wechatLoading ? '登录中...' : '微信一键登录'}
+                </Text>
+              </View>
               
               <Text className="tip">首次登录将自动创建账号</Text>
               

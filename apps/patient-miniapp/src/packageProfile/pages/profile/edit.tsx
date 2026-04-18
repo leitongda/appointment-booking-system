@@ -7,6 +7,7 @@ import { STORAGE_KEYS } from '@hospital/shared';
 import { getToken, setStorage } from '../../../utils/auth';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
 import { getFontMode, type FontMode } from '../../../utils/fontMode';
+import { useApplyThemeNavigationBar } from '../../../utils/theme';
 import { UserIcon } from '../../../components/Icons';
 import LoginPopup from '../../../components/LoginPopup';
 import { getImageUrl } from '../../../utils/url';
@@ -20,6 +21,7 @@ const GENDER_OPTIONS = ['保密', '男', '女'];
 const API_BASE_URL = process.env.TARO_APP_API_URL || 'http://localhost:8000/api/v1';
 
 const ProfileEditPage = () => {
+  useApplyThemeNavigationBar();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);

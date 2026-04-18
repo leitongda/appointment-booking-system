@@ -46,7 +46,7 @@ view, text, image, scroll-view, swiper, swiper-item {
 }
 
 // 主要按钮 (primary solid) - 覆盖默认粉色渐变
-.nut-button-primary-solid {
+.nut-button.nut-button-primary-solid {
   background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%) !important;
   border-color: transparent !important;
   box-shadow: var(--shadow-button);
@@ -60,9 +60,9 @@ view, text, image, scroll-view, swiper, swiper-item {
 }
 
 // 主要按钮禁用态 - 覆盖默认粉色 #ffadbe
-.nut-button-primary-disabled,
-.nut-button-primary-disabled.nut-button-icononly,
-.nut-button-primary-solid-disabled {
+.nut-button.nut-button-primary-disabled,
+.nut-button.nut-button-primary-disabled.nut-button-icononly,
+.nut-button.nut-button-primary-solid-disabled {
   background: @color-bg-tertiary !important;
   border-color: @color-bg-tertiary !important;
   color: @color-text-muted !important;
@@ -77,23 +77,23 @@ view, text, image, scroll-view, swiper, swiper-item {
 }
 
 // 主要按钮描边 / 虚线 / 文本样式
-.nut-button-primary-outline,
-.nut-button-primary-dashed,
-.nut-button-primary-none {
+.nut-button.nut-button-primary-outline,
+.nut-button.nut-button-primary-dashed,
+.nut-button.nut-button-primary-none {
   color: var(--theme-primary) !important;
   border-color: var(--theme-primary) !important;
 }
 
 // 主要按钮其他禁用变体
-.nut-button-primary-none-disabled,
-.nut-button-primary-outline-disabled,
-.nut-button-primary-dashed-disabled {
+.nut-button.nut-button-primary-none-disabled,
+.nut-button.nut-button-primary-outline-disabled,
+.nut-button.nut-button-primary-dashed-disabled {
   color: @color-text-muted !important;
   border-color: @color-bg-tertiary !important;
 }
 
 // 默认按钮
-.nut-button-default-solid {
+.nut-button.nut-button-default-solid {
   background: @color-bg-white !important;
   border-color: @color-border !important;
   color: @color-text-secondary !important;
@@ -104,7 +104,7 @@ view, text, image, scroll-view, swiper, swiper-item {
 }
 
 // 危险按钮
-.nut-button-danger-solid {
+.nut-button.nut-button-danger-solid {
   background: @color-danger !important;
   border-color: @color-danger !important;
 }

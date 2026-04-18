@@ -7,7 +7,7 @@ import type { Favorite } from '@hospital/api';
 import { DoctorIcon } from '../../../components/Icons';
 import { getToken } from '../../../utils/auth';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
-import { useThemePrimaryColor } from '../../../utils/theme';
+import { useApplyThemeNavigationBar, useThemePrimaryColor } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import { getImageUrl } from '../../../utils/url';
 import './index.less';
@@ -16,6 +16,7 @@ const PAGE_SIZE = 20;
 
 const FavoritePage = () => {
   const primaryColor = useThemePrimaryColor();
+  useApplyThemeNavigationBar();
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [page, setPage] = useState(1);

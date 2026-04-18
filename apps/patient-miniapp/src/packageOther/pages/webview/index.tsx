@@ -1,7 +1,9 @@
 import { WebView } from '@tarojs/components';
 import { useRouter } from '@tarojs/taro';
+import { useApplyThemeNavigationBar } from '../../../utils/theme';
 
 const WebViewPage = () => {
+  useApplyThemeNavigationBar();
   const router = useRouter();
   const { url } = router.params;
 
@@ -17,4 +19,3 @@ const WebViewPage = () => {
 };
 
 export default WebViewPage;
-

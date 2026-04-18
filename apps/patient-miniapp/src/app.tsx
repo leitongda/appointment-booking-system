@@ -7,9 +7,16 @@ import { View, Checkbox, CheckboxGroup, Label, Radio, RadioGroup } from '@tarojs
 // 详情见 babel.config.js
 import './app.less';
 import { initTracker, getTracker, STORAGE_KEYS, createStoreContext } from '@hospital/shared';
-import { setHttpClient, createTaroAdapter, storeApi, authApi } from '@hospital/api';
+import { setHttpClient, createTaroAdapter, storeApi, authApi, tenantApi } from '@hospital/api';
 import { validateStoreConfig, getStoreId, getStoreCode } from '@/utils/store';
-import { initThemeFromStore, getCurrentTheme, getThemeClass, subscribeThemeChange } from '@/utils/theme';
+import { setTenantStatus } from '@/hooks/useTenantGuard';
+import {
+  initThemeFromStore,
+  getCurrentTheme,
+  getThemeStyleObject,
+  registerThemeRouteSync,
+  subscribeThemeChange,
+} from '@/utils/theme';
 import { initFontMode } from '@/utils/fontMode';
 import { clearAuthSession, getRefreshToken, getToken, updateAccessToken } from '@/utils/auth';
 
@@ -170,6 +177,22 @@ if (taroAdapter.interceptors) {
     }
 
     if (response.statusCode >= 400) {
+      // 租户暂停错误码识别
+      const errorCode = data?.error_code;
+      if (
+        response.statusCode === 403 &&
+        (errorCode === 'TENANT_SUSPENDED_WRITE' ||
+          errorCode === 'TENANT_OVERDUE' ||
+          errorCode === 'TENANT_DISABLED' ||
+          errorCode === 'TENANT_TRIAL_EXPIRED')
+      ) {
+        Taro.showModal({
+          title: '机构暂停服务',
+          content: data.message || '该机构订阅已到期，暂不支持新预约/支付，请联系机构续费。',
+          showCancel: false,
+          confirmText: '我知道了',
+        });
+      }
       throw createRequestError(
         data.detail || data.message || '请求失败',
         response.statusCode,
@@ -267,6 +290,16 @@ function App({ children }: PropsWithChildren) {
           Taro.setStorageSync(STORAGE_KEYS.STORE_CONTEXT, createStoreContext(store));
           storeTheme = store.themeStyle;
           effectiveStoreId = store.id || effectiveStoreId;
+
+          // 并行获取租户公开状态，写入全局供 useTenantGuard 使用
+          try {
+            const tenantPublic = await tenantApi.getCurrentTenantPublic();
+            setTenantStatus({
+              status: tenantPublic.status,
+              subscriptionEndAt: tenantPublic.subscriptionEndAt ?? null,
+              isSubscriptionActive: tenantPublic.isSubscriptionActive,
+            });
+          } catch { /* 获取失败不阻断启动 */ }
         } catch (error) {
           console.error('加载门店主题失败:', error);
         }
@@ -278,6 +311,7 @@ function App({ children }: PropsWithChildren) {
 
       const themeConfig = initThemeFromStore(storeTheme, effectiveStoreId);
       console.log(`✓ 主题已初始化: ${themeConfig.primary}`);
+      registerThemeRouteSync();
       setCurrentTheme(getCurrentTheme());
 
       const fontModeConfig = initFontMode();
@@ -317,11 +351,8 @@ function App({ children }: PropsWithChildren) {
     // 这里只处理初始页面
   }, []);
 
-  // 获取主题对应的 CSS 类名
-  const themeClass = getThemeClass(currentTheme);
-
   return (
-    <View className={`app-root ${themeClass}`}>
+    <View className="app-root" style={getThemeStyleObject(currentTheme)}>
       {children}
       <TaroComponentPlaceholder />
     </View>

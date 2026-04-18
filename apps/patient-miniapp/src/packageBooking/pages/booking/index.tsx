@@ -6,11 +6,13 @@ import { doctorApi, userApi, appointmentApi, bookingNoticeApi, settingsApi } fro
 import type { BookingNotice, TimePeriodConfig } from '@hospital/api';
 import { TIME_SLOT_MAP, getPeriodNameFromTime } from '@hospital/shared';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
-import { useThemePrimaryColor } from '../../../utils/theme';
+import { useTenantGuard } from '../../../hooks/useTenantGuard';
+import { useApplyThemeNavigationBar, useThemePrimaryColor } from '../../../utils/theme';
 import {
   buildBookingResultUrl,
   getPaymentPreparationFailure,
   getPaymentRequestFailure,
+  verifyPaymentResult,
 } from '../../../utils/payment';
 import LoginPopup from '../../../components/LoginPopup';
 import type { Doctor, Patient } from '@hospital/shared';
@@ -24,6 +26,7 @@ interface ConsultationFeeResponse {
 
 const BookingPage = () => {
   const primaryColor = useThemePrimaryColor();
+  useApplyThemeNavigationBar();
   const router = useRouter();
   const { doctorId, scheduleId, date, timeSlot, storeId, departmentId } = router.params;
   // 解码时间参数（URL 中的 %3A 需要解码为冒号）
@@ -112,8 +115,16 @@ const BookingPage = () => {
 
   // 获取选中的就诊人
   const selectedPatient = patients.find(p => p.id === selectedPatientId);
+  const { requireWritable } = useTenantGuard();
 
   const handleSubmit = async () => {
+    // 租户状态守卫：暂停时阻断写操作
+    try {
+      requireWritable();
+    } catch {
+      return;
+    }
+
     // 严格检查参数有效性（避免空字符串或 undefined）
     const validScheduleId = scheduleId?.trim();
     const validPatientId = selectedPatientId?.trim();
@@ -195,15 +206,26 @@ const BookingPage = () => {
             url: buildBookingResultUrl(appointment.appointmentNo, 'success'),
           });
         } catch (paymentError: any) {
-          const result = getPaymentRequestFailure(paymentError);
           console.error('支付失败', paymentError);
+
+          // 二次确认：微信支付可能实际成功但本地 Promise reject
+          const actuallyPaid = await verifyPaymentResult(appointmentApi.getPaymentStatus, appointment.id);
+          if (actuallyPaid) {
+            Taro.redirectTo({
+              url: buildBookingResultUrl(appointment.appointmentNo, 'success'),
+            });
+            return;
+          }
+
+          const result = getPaymentRequestFailure(paymentError);
           Taro.redirectTo({
             url: buildBookingResultUrl(appointment.appointmentNo, result.status, result.message),
           });
         }
       } else if (paymentRequired) {
+        const paymentParamError = 'payment_param_error' in createResult ? createResult.payment_param_error : undefined;
         const result = getPaymentPreparationFailure(
-          null,
+          paymentParamError ? { message: paymentParamError } : null,
           '订单已创建，但当前无法直接拉起支付，请前往预约详情重新支付。'
         );
         Taro.redirectTo({

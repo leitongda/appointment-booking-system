@@ -8,7 +8,7 @@ import type { Doctor } from '@hospital/shared';
 import { APPOINTMENT_TYPE_MAP } from '@hospital/shared';
 import { DoctorIcon, HeartIcon, HeartOutlineIcon } from '../../../components/Icons';
 import { getToken } from '../../../utils/auth';
-import { useThemePrimaryColor } from '../../../utils/theme';
+import { useApplyThemeNavigationBar, useThemePrimaryColor } from '../../../utils/theme';
 import { getImageUrl, formatTime } from '../../../utils/url';
 import LoginPopup from '../../../components/LoginPopup';
 import './detail.less';
@@ -17,6 +17,7 @@ const WEEKDAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五
 
 const DoctorDetailPage = () => {
   const primaryColor = useThemePrimaryColor();
+  useApplyThemeNavigationBar();
   const router = useRouter();
   const { id } = router.params;
 
