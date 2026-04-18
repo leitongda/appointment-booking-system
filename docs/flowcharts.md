@@ -489,8 +489,8 @@
 │           │                    │                    │                  │
 │           ▼                    ▼                    ▼                  │
 │    ┌─────────────┐     ┌─────────────┐      ┌─────────────┐            │
-│    │ CONFIRMED   │     │   CLOSED    │      │ CANCELLED   │            │
-│    │  已预约     │     │   已关闭    │      │  已取消     │            │
+│    │ CONFIRMED   │     │   EXPIRED   │      │ CANCELLED   │            │
+│    │  已预约     │     │   已过期    │      │  已取消     │            │
 │    └──────┬──────┘     │ (支付超时)  │      │ (用户取消)  │            │
 │           │            └─────────────┘      └─────────────┘            │
 │           │                                                            │
@@ -507,8 +507,8 @@
 │    │                                                                   │
 │    ▼                                                                   │
 │ ┌─────────────┐                                                        │
-│ │  WAITING    │                                                        │
-│ │  候诊中     │                                                        │
+│ │ LEGACY_WAIT │                                                        │
+│ │  历史候诊   │                                                        │
 │ └──────┬──────┘                                                        │
 │        │                                                               │
 │        ▼                                                               │
@@ -526,12 +526,12 @@
 │  │   0    │ PENDING   │ 待支付（需付费预约）           │               │
 │  │   1    │ CONFIRMED │ 已预约/待就诊                  │               │
 │  │   2    │ SIGNED    │ 已签到                         │               │
-│  │   3    │ WAITING   │ 候诊中                         │               │
+│  │   3    │ LEGACY    │ 历史候诊（遗留）               │               │
 │  │   4    │ SEEING    │ 就诊中                         │               │
 │  │   5    │ COMPLETED │ 已完成                         │               │
 │  │   6    │ CANCELLED │ 已取消                         │               │
 │  │   7    │ EXPIRED   │ 已过期                         │               │
-│  │   8    │ CLOSED    │ 已关闭（支付超时）             │               │
+│  │   8    │ NO_SHOW   │ 已爽约                         │               │
 │  │   9    │RESCHEDULED│ 已改约（停诊转移）             │               │
 │  └────────┴───────────┴────────────────────────────────┘               │
 │                                                                         │
@@ -711,24 +711,26 @@ stateDiagram-v2
     [*] --> CONFIRMED: 创建预约(免费)
     
     PENDING --> CONFIRMED: 支付成功
-    PENDING --> CLOSED: 支付超时
+    PENDING --> EXPIRED: 支付超时
     PENDING --> CANCELLED: 用户取消
     
     CONFIRMED --> SIGNED: 患者签到
     CONFIRMED --> CANCELLED: 用户取消
     CONFIRMED --> EXPIRED: 未签到过期
+    CONFIRMED --> NO_SHOW: 标记爽约
     CONFIRMED --> RESCHEDULED: 停诊改约
     
-    SIGNED --> WAITING: 进入候诊
+    SIGNED -.-> WAITING: 历史遗留
     
-    WAITING --> SEEING: 医生叫号
+    WAITING --> SEEING: 历史数据兼容
     
     SEEING --> COMPLETED: 完成就诊
+    EXPIRED --> NO_SHOW: 标记爽约
     
     COMPLETED --> [*]
     CANCELLED --> [*]
     EXPIRED --> [*]
-    CLOSED --> [*]
+    NO_SHOW --> [*]
 ```
 
 ---
@@ -742,4 +744,3 @@ stateDiagram-v2
 3. **使用 Microsoft Visio**：手动按照上述流程绘制
 
 建议使用 draw.io (diagrams.net)，免费且支持多种格式导出。
-

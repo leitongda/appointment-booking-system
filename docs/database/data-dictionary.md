@@ -688,7 +688,7 @@
 | `schedule_id` | String(36) | FK→schedules.id, NOT NULL | 排班ID |
 | `rule_set_id` | String(36) | FK→rule_sets.id, nullable | 应用的规则组ID |
 | `queue_number` | Integer | | 队列号 |
-| `status` | Integer | default=1 | 状态: 0待支付 1已预约 2已签到 3候诊中 4就诊中 5已完成 6已取消 7已过期 8已关闭 |
+| `status` | Integer | default=1 | 状态: 0待支付 1已预约 2已签到 3历史候诊(遗留) 4就诊中 5已完成 6已取消 7已过期 8已爽约 |
 | `sign_in_time` | DateTime | | 签到时间 |
 | `call_time` | DateTime | | 叫号时间 |
 | `complete_time` | DateTime | | 完成时间 |

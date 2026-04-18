@@ -260,7 +260,7 @@ result = await db.execute(
     .where(
         and_(
             Appointment.user_id == user_id,
-            Appointment.status.in_([1, 2, 3])
+            Appointment.status.in_([1, 2, 4])  # 已预约、已签到、就诊中
         )
     )
 )
@@ -391,4 +391,3 @@ alembic history
 4. **事务管理**：确保操作的原子性，异常时回滚
 5. **连接池**：合理配置连接池参数，避免连接耗尽
 6. **索引优化**：为常用查询字段添加索引
-

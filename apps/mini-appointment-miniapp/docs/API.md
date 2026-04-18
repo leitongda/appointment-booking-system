@@ -186,7 +186,7 @@ Authorization: Bearer {accessToken}  // 需要认证的接口
 
 ### 2.1 获取预约列表
 
-**接口**: `GET /appointments`
+**接口**: `GET /appointments/query`
 
 **说明**: 获取当前用户的预约列表
 
@@ -232,17 +232,19 @@ Authorization: Bearer {accessToken}  // 需要认证的接口
 **预约状态说明**:
 | 状态值 | 说明 |
 |--------|------|
+| 0 | 待支付 |
 | 1 | 已预约 |
 | 2 | 已签到 |
-| 3 | 就诊中 |
-| 4 | 已完成 |
-| 5 | 已取消 |
-| 6 | 爽约 |
-| 7 | 已过号 |
+| 3 | 历史候诊（遗留状态，不参与当前主流程） |
+| 4 | 就诊中 |
+| 5 | 已完成 |
+| 6 | 已取消 |
+| 7 | 已过期 / 已过号 |
+| 8 | 已爽约 |
 
 ### 2.2 获取预约详情
 
-**接口**: `GET /appointments/:id`
+**接口**: `GET /appointments/query/:id`
 
 **说明**: 根据预约 ID 获取详情
 
@@ -253,7 +255,7 @@ Authorization: Bearer {accessToken}  // 需要认证的接口
 
 ### 2.3 按预约号获取详情
 
-**接口**: `GET /appointments/by-no/:appointmentNo`
+**接口**: `GET /appointments/query/by-no/:appointmentNo`
 
 **说明**: 根据预约号获取详情
 
@@ -277,11 +279,32 @@ Authorization: Bearer {accessToken}  // 需要认证的接口
 }
 ```
 
-**响应数据**: 创建成功的预约对象
+**响应数据**:
+- 免费预约：直接返回预约对象
+- 付费预约：返回
+
+```json
+{
+  "appointment": {
+    "id": "string",
+    "appointmentNo": "string",
+    "status": 0
+  },
+  "payment_required": true,
+  "payment_amount": 50,
+  "payment_params": {
+    "timeStamp": "string",
+    "nonceStr": "string",
+    "package": "string",
+    "signType": "RSA",
+    "paySign": "string"
+  }
+}
+```
 
 ### 2.5 检查重复预约
 
-**接口**: `GET /appointments/check-duplicate`
+**接口**: `GET /appointments/query/check-duplicate`
 
 **说明**: 检查是否存在重复预约
 
@@ -349,7 +372,7 @@ Authorization: Bearer {accessToken}  // 需要认证的接口
 
 ### 2.8 获取今日待签到预约
 
-**接口**: `GET /appointments/today-pending`
+**接口**: `GET /appointments/query/today-pending`
 
 **说明**: 获取今日待签到的预约列表
 

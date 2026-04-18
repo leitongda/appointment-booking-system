@@ -97,7 +97,7 @@ Authorization: Bearer <token>
 | 0 | 待支付 |
 | 1 | 已预约 |
 | 2 | 已签到 |
-| 3 | 候诊中 |
+| 3 | 历史候诊（遗留状态，不参与当前主流程） |
 | 4 | 就诊中 |
 | 5 | 已完成 |
 | 6 | 已取消 |
@@ -342,15 +342,15 @@ Store 模型上的 `wechat_*` 字段已采用**软废弃**策略:
 ### 预约模块 `/api/v1/appointments`
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
-| GET | / | 获取预约列表 | 登录 |
-| GET | /today | 获取今日预约（医生端） | 医生 |
-| GET | /today-pending | 获取今日待签到预约 | 登录 |
-| GET | /queue | 获取签到队列 | 登录/管理员 |
-| GET | /queue/info | 获取叫号队列信息 | 医生 |
-| GET | /statistics | 预约统计 | 管理员 |
-| GET | /check-duplicate | 检查重复预约 | 登录 |
-| GET | /by-no/:appointment_no | 按预约号获取详情 | 登录 |
-| GET | /:id | 获取预约详情 | 登录 |
+| GET | /query | 获取预约列表 | 登录 |
+| GET | /query/today | 获取今日预约（医生端） | 医生 |
+| GET | /query/today-pending | 获取今日待签到预约 | 登录 |
+| GET | /query/queue | 获取签到队列 | 登录/管理员 |
+| GET | /query/queue/info | 获取叫号队列信息 | 医生 |
+| GET | /query/statistics | 预约统计 | 管理员 |
+| GET | /query/check-duplicate | 检查重复预约 | 登录 |
+| GET | /query/by-no/:appointment_no | 按预约号获取详情 | 登录 |
+| GET | /query/:id | 获取预约详情 | 登录 |
 | POST | / | 创建预约 | 登录 |
 | PUT | /:id/cancel | 取消预约 | 登录 |
 | PUT | /:id/sign-in | 签到 | 登录 |

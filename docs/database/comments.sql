@@ -394,7 +394,7 @@ COMMENT ON COLUMN appointments.doctor_id IS '医生ID';
 COMMENT ON COLUMN appointments.schedule_id IS '排班ID';
 COMMENT ON COLUMN appointments.rule_set_id IS '应用的规则组ID';
 COMMENT ON COLUMN appointments.queue_number IS '队列号';
-COMMENT ON COLUMN appointments.status IS '状态: 0待支付 1已预约 2已签到 3候诊中 4就诊中 5已完成 6已取消 7已过期 8已关闭';
+COMMENT ON COLUMN appointments.status IS '状态: 0待支付 1已预约 2已签到 3历史候诊(遗留) 4就诊中 5已完成 6已取消 7已过期 8已爽约';
 COMMENT ON COLUMN appointments.sign_in_time IS '签到时间';
 COMMENT ON COLUMN appointments.call_time IS '叫号时间';
 COMMENT ON COLUMN appointments.complete_time IS '完成时间';

@@ -12,6 +12,7 @@
 - [ ] 至少一个租户已配置 PaymentProfile (is_default=True, status=1)
 - [ ] PaymentProfile 的 `api_v3_key_ref` / `private_key_ref` / `cert_serial_no` 指向有效凭据
 - [ ] `notify_url` 可从微信服务器访问 (公网可回调)
+- [ ] `refund_notify_url` 已配置；若暂未配置，确认退款允许回退走 `notify_url`
 - [ ] 至少一个医生有排班且有余号
 
 ---
@@ -50,7 +51,7 @@
 
 **验证**:
 ```sql
-SELECT id, status, payment_amount, payment_profile_id, payment_mode
+SELECT id, appointment_no, status, payment_amount, payment_profile_id, payment_mode
 FROM appointments WHERE id = '<新预约ID>';
 ```
 
@@ -190,6 +191,7 @@ WHERE a.id = '<超时预约ID>';
 - RefundRecord: pending → processing → success
 - 预约 refund_status = "refunded"
 - 预约 refund_amount = 原支付金额
+- WeChat 退款优先使用 `refund_notify_url`，未配置时回退 `notify_url`
 
 **验证**:
 ```sql
@@ -232,25 +234,62 @@ FROM appointments WHERE id = '<预约ID>';
 - 预约 refund_amount 不增加
 - 日志记录 failed_reason
 
+### T14: 已支付取消自动退款
+
+**前置**: 一个已支付成功但未就诊的预约
+
+**步骤**:
+1. 调用取消预约接口
+2. 观察预约状态与退款记录
+
+**预期**:
+- 预约进入 `CANCELLED`
+- 同事务创建退款记录并调用微信退款
+- 若微信退款调用失败，取消整体回滚
+
+### T15: 晚到支付回调自动退款
+
+**前置**: 预约已因支付超时进入 `EXPIRED`
+
+**步骤**:
+1. 手动模拟支付成功回调晚到
+2. 查询预约与退款记录
+
+**预期**:
+- 预约主状态保持 `EXPIRED`
+- 自动创建全额退款记录
+- 退款原因为“支付回调晚到...”
+
 ---
 
 ## P6: 权限与安全
 
-### T14: 患者越权访问
+### T16: 患者越权访问
 
 **步骤**:
 1. 用户 A 尝试调用 用户 B 的预约的 `GET /appointments/:id/payment-params`
 
 **预期**: 403 Forbidden
 
-### T15: 非管理员退款
+### T17: 非管理员退款
 
 **步骤**:
 1. 普通用户调用 `POST /api/v1/refunds`
 
 **预期**: 403 Forbidden
 
-### T16: 未支付预约退款
+### T18: 门店管理员跨门店退款/查可退金额
+
+**步骤**:
+1. 门店管理员调用其他门店预约的 `GET /refunds/refundable-amount/{appointment_id}`
+2. 门店管理员调用其他门店预约的 `POST /refunds`
+3. 门店管理员调用其他门店退款的 `GET /refunds/{refund_id}` / `GET /refunds`
+
+**预期**:
+- 均返回 403 Forbidden
+- 列表接口不会混入其他门店退款记录
+
+### T19: 未支付预约退款
 
 **步骤**:
 1. 对 status=PENDING 的预约调用 `POST /api/v1/refunds`

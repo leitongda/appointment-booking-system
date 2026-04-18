@@ -30,7 +30,7 @@ export enum AppointmentStatus {
   PENDING = 0,      // 待支付
   CONFIRMED = 1,    // 已预约
   SIGNED_IN = 2,    // 已签到
-  WAITING = 3,      // 候诊中
+  WAITING = 3,      // 历史候诊（遗留死状态，仅兼容展示）
   IN_PROGRESS = 4,  // 就诊中
   COMPLETED = 5,    // 已完成
   CANCELLED = 6,    // 已取消

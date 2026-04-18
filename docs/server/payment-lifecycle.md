@@ -21,10 +21,10 @@
 
 | 类型 | 格式 | 示例 | 生成位置 |
 |------|------|------|---------|
-| 支付订单号 | `APPT{appointment.id}` | `APPT550e8400e29b41d4a716446655440000` | `PaymentService._generate_out_trade_no()` |
+| 支付订单号 | `appointment.appointment_no` | `YY20260418123045A1B2` | `PaymentService._generate_out_trade_no()` |
 | 退款单号 | `RF{YYYYMMDDHHMMSS}{6位hex}` | `RF20260416143000A1B2C3` | `RefundService._generate_refund_no()` |
 
-支付创建、支付回调、退款创建、退款回调均使用同一个 `APPT{id}` 作为 `out_trade_no`。
+支付创建、支付回调、退款创建、退款回调均复用同一个 `appointment_no` 作为 `out_trade_no`。
 
 ---
 
@@ -59,6 +59,10 @@
                                     │ 支付超时 (30 min)
                                     └──→ EXPIRED (status=7)
 ```
+
+说明:
+- 运行时主状态收口为 `0/1/2/4/5/6/7/8`
+- `WAITING(3)` 不参与当前支付/就诊主流程，按历史死状态处理
 
 ### 4.2 创建预约
 
@@ -164,7 +168,10 @@ payment_amount
 5. 在 router 层调用 WeChat `create_refund()` API
 6. WeChat 接受: `status → processing`; 拒绝: `status → failed`
 
-**注意**: 取消预约 (`PUT /appointments/:id/cancel`) **不会自动触发退款**，退款需管理员单独操作。
+**注意**:
+- 取消预约 (`PUT /appointments/:id/cancel`) 对已支付且未完成预约会同步发起退款
+- 若退款调用失败，取消整体回滚，避免出现“预约取消了但钱没退”的不一致
+- 已完成预约退款只保留后台管理员例外路径
 
 ### 5.3 退款回调
 
@@ -206,11 +213,16 @@ else:                          → refund_status = 'partial_refunded'
 
 ### 6.1 回调 URL 配置
 
-回调 URL 在 `PaymentProfile.notify_url` 中配置，由 `PaymentConfigResolver` 解析后冻结到预约快照。
+回调 URL 策略:
+
+- 支付回调: `PaymentProfile.notify_url`
+- 退款回调: `PaymentProfile.refund_notify_url`
+- 迁移兜底: 若未配置 `refund_notify_url`，退款回退使用 `notify_url`
 
 确认链路:
 ```
-PaymentProfile.notify_url → PaymentConfigResolver → appointment snapshot → WeChatPayService
+支付: PaymentProfile.notify_url → PaymentConfigResolver → appointment snapshot → WeChatPayService
+退款: PaymentProfile.refund_notify_url || notify_url → WeChatPayService.create_refund
 ```
 
 ### 6.2 常见问题
@@ -222,6 +234,7 @@ PaymentProfile.notify_url → PaymentConfigResolver → appointment snapshot →
 | 回调返回 500 | 签名验证失败 | 1) 检查 api_v3_key_ref / private_key_ref 是否正确; 2) 检查证书是否过期 |
 | 超时任务未执行 | Celery worker 未运行 | 1) `celery -A app.celery_app inspect active`; 2) 检查 beat 是否调度 |
 | 退款 "商户号不存在" | 快照中的商户号不正确 | 检查 appointment.payment_mch_id / payment_sub_mchid 是否正确 |
+| 退款回调收不到 | refund_notify_url 未配置或不可达 | 1) 检查 `refund_notify_url`; 2) 未配置时确认 `notify_url` 是否允许接收退款回调 |
 | 重复退款 | 累计校验未覆盖 pending 状态 | 确认 `active_refunds` 查询包含 `pending` |
 
 ### 6.3 日志关键字

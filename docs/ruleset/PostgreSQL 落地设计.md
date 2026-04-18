@@ -132,7 +132,7 @@ create table appointments (
   rule_set_id bigint null,          -- references rule_set(id)
   rule_set_version_id bigint null,  -- references rule_set_version(id) 可选
 
-  -- 状态：0待支付 1已预约 2已签到 3候诊中 4就诊中 5已完成 6已取消 7已过期 8已关闭
+  -- 状态：0待支付 1已预约 2已签到 3历史候诊(遗留) 4就诊中 5已完成 6已取消 7已过期 8已爽约
   status int not null check (status in (0,1,2,3,4,5,6,7,8)),
 
   queue_number int null,
@@ -187,7 +187,7 @@ create index idx_appointments_status_created on appointments (status, created_at
 -- 若允许改约/多次，别加这个约束
 create unique index uk_patient_schedule_active
   on appointments (patient_id, schedule_id)
-  where status in (0,1,2,3,4);  -- 活跃态：待支付/已预约/已签到/候诊中/就诊中
+  where status in (0,1,2,4);  -- 活跃态：待支付/已预约/已签到/就诊中
 ```
 
 > `uk_patient_schedule_active` 是医院常见强约束：同一患者同一班次不能同时存在多条“活跃预约”。
@@ -298,9 +298,9 @@ alter table appointments
 * 0 待支付
 * 1 已预约
 * 2 已签到
-* 3 候诊中
+* 3 历史候诊（遗留死状态，仅兼容历史数据）
 * 4 就诊中
-  （5 已完成、6 已取消、7 已过期、8 已关闭 不算活跃）
+  （5 已完成、6 已取消、7 已过期、8 已爽约 不算活跃）
 
 ```sql
 create unique index if not exists uk_appointments_patient_schedule_active
@@ -311,7 +311,7 @@ where status in (0,1,2,3,4);
 **效果：**
 
 * 同一人预约同一班次：会被数据库强制拦截 ✅
-* 已取消/过期/关闭后重新预约：不命中索引，允许 ✅
+* 已取消/过期/爽约后重新预约：不命中索引，允许 ✅
 
 > 注意：如果“待支付(0)”你们不想占唯一（允许重复下单只保留最后一条），那就把 0 从 where 里移除。
 
