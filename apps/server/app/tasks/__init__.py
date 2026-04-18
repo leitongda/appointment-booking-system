@@ -22,6 +22,8 @@ from app.tasks.notification_task import (
 )
 from app.tasks.schedule_task import (
     auto_generate_schedules_task,
+    generate_schedules_for_tenant_task,
+    summarize_auto_generate_schedules_task,
     generate_schedules_for_template,
 )
 from app.tasks.wechat_task import (
@@ -44,6 +46,8 @@ __all__ = [
     'send_appointment_reminder',
     # 排班任务
     'auto_generate_schedules_task',
+    'generate_schedules_for_tenant_task',
+    'summarize_auto_generate_schedules_task',
     'generate_schedules_for_template',
     # 微信任务
     'refresh_wechat_token_task',
