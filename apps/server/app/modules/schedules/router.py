@@ -15,7 +15,7 @@ from app.api.deps import get_current_admin, get_store_filter, check_store_access
 from app.schemas.schedule import ScheduleCreate, ScheduleBatchCreate, ScheduleUpdate, ScheduleResponse, AvailableScheduleResponse
 from app.schemas.response import PageResponse
 from app.modules.schedules.service import ScheduleService
-from app.infrastructure.notification.service import NotificationService
+
 from app.modules.rule_engine import RuleEngineService
 from app.models.schedule import Schedule
 from app.models.doctor import Doctor
