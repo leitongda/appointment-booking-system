@@ -1,26 +1,158 @@
 """租户管理路由"""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from typing import Optional, List
 
 from app.db.session import get_db
 from app.common.deps import (
     get_current_admin, require_permission, get_platform_admin,
-    require_platform_admin
+    require_platform_admin,
 )
+from app.middleware.tenant_context import get_current_tenant_id
+from app.models.tenant import Tenant
 from app.modules.tenants.schemas import (
     TenantCreate, TenantUpdate, TenantResponse, TenantListResponse, TenantQuery,
     TenantSubscriptionCreate, TenantSubscriptionResponse,
     TenantUsageResponse, TenantUsageSummary, TenantUsageQuery,
     SubscriptionPlanCreate, SubscriptionPlanUpdate, SubscriptionPlanResponse, SubscriptionPlanListResponse,
+    CurrentTenantResponse, CurrentTenantPublicResponse,
+    TenantNotificationResponse, TenantNotificationListResponse,
 )
 from app.modules.tenants.service import (
-    TenantService, TenantSubscriptionService, TenantUsageService, SubscriptionPlanService
+    TenantService, TenantSubscriptionService, TenantUsageService,
+    SubscriptionPlanService, TenantNotificationService,
 )
 from app.schemas.response import PageResponse
 from app.core.config import settings
 
 router = APIRouter()
+
+
+# ==================== 当前租户信息（前端消费） ====================
+
+@router.get("/me", response_model=CurrentTenantResponse, summary="获取当前租户信息（admin 用）")
+async def get_current_tenant_info(
+    current_admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取当前登录管理员所属租户的精简信息"""
+    tenant_id = current_admin.get("tenant_id")
+    if not tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前账号未关联租户")
+
+    result = await db.execute(
+        select(Tenant)
+        .options(selectinload(Tenant.subscription_plan))
+        .where(Tenant.id == tenant_id)
+    )
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="租户不存在")
+
+    days_until_expiry = None
+    if tenant.subscription_end_at:
+        delta = tenant.subscription_end_at - datetime.utcnow()
+        days_until_expiry = max(0, delta.days)
+
+    return CurrentTenantResponse(
+        id=tenant.id,
+        tenant_code=tenant.tenant_code,
+        name=tenant.name,
+        status=tenant.status,
+        subscription_plan_name=tenant.subscription_plan.name if tenant.subscription_plan else None,
+        subscription_end_at=tenant.subscription_end_at,
+        is_subscription_active=tenant.is_subscription_active,
+        days_until_expiry=days_until_expiry,
+        billing_cycle=tenant.billing_cycle or "monthly",
+        contact_phone=tenant.contact_phone,
+    )
+
+
+@router.get("/me/public", response_model=CurrentTenantPublicResponse, summary="获取当前租户公开信息（患者端匿名）")
+async def get_current_tenant_public(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """患者端通过 X-Tenant-ID/Header 获取租户状态（无需登录，不拦截任何 status）"""
+    from app.middleware.tenant_context import get_current_tenant_id as _get_tid
+
+    tenant_id = _get_tid() or getattr(request.state, 'tenant_id', None)
+    if not tenant_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="缺少租户上下文")
+
+    result = await db.execute(
+        select(Tenant).options(selectinload(Tenant.subscription_plan)).where(Tenant.id == tenant_id)
+    )
+    t = result.scalar_one_or_none()
+    if not t:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="租户不存在")
+
+    return CurrentTenantPublicResponse(
+        status=t.status,
+        subscription_end_at=t.subscription_end_at,
+        is_subscription_active=t.is_subscription_active,
+        name=t.name,
+    )
+
+
+@router.get("/me/notifications", response_model=TenantNotificationListResponse, summary="获取当前租户通知列表")
+async def get_my_notifications(
+    unread: bool = Query(False, description="仅未读"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=50),
+    current_admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取当前租户的通知列表 + 未读数"""
+    tenant_id = current_admin.get("tenant_id")
+    if not tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前账号未关联租户")
+
+    service = TenantNotificationService(db)
+    items, unread_count, total = await service.get_notifications(
+        tenant_id, unread_only=unread, page=page, page_size=page_size,
+    )
+    return TenantNotificationListResponse(
+        items=[TenantNotificationResponse.model_validate(n) for n in items],
+        unread_count=unread_count,
+        total=total,
+    )
+
+
+@router.post("/me/notifications/{notification_id}/read", summary="标记通知已读")
+async def mark_notification_read(
+    notification_id: str,
+    current_admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """标记单条通知为已读"""
+    tenant_id = current_admin.get("tenant_id")
+    if not tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前账号未关联租户")
+
+    service = TenantNotificationService(db)
+    ok = await service.mark_read(tenant_id, notification_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="通知不存在")
+    return {"message": "已标记为已读"}
+
+
+@router.post("/me/notifications/read-all", summary="标记全部通知已读")
+async def mark_all_notifications_read(
+    current_admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """标记当前租户的所有通知为已读"""
+    tenant_id = current_admin.get("tenant_id")
+    if not tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前账号未关联租户")
+
+    service = TenantNotificationService(db)
+    count = await service.mark_all_read(tenant_id)
+    return {"message": f"已标记 {count} 条通知为已读"}
 
 
 # ==================== 订阅计划管理（平台管理员） ====================

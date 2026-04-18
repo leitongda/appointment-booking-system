@@ -89,13 +89,50 @@ async def not_found_exception_handler(request: Request, exc: NotFoundError):
 
 
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    """HTTP 异常处理"""
+    """HTTP 异常处理
+
+    detail 为 dict 时透传 error_code / message / data，供前端结构化识别：
+        raise HTTPException(403, detail={
+            "error_code": "TENANT_OVERDUE",
+            "message": "租户已欠费，请续费后继续使用",
+        })
+    detail 为字符串时回落到原行为。
+    """
     logger.warning(f"HTTP异常: {exc.detail}, status={exc.status_code}, path={request.url.path}")
+    if isinstance(exc.detail, dict):
+        message = exc.detail.get("message") or "请求错误，请检查后重试"
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "code": exc.status_code,
+                "error_code": exc.detail.get("error_code"),
+                "message": message,
+                "data": exc.detail.get("data"),
+            },
+        )
     return create_error_response(
         exc.status_code,
         exc.detail if isinstance(exc.detail, str) else "请求错误，请检查后重试",
         status_code=exc.status_code
     )
+
+
+def raise_business_http_error(
+    status_code: int,
+    error_code: str,
+    message: str,
+    data: any = None,
+) -> None:
+    """抛出带结构化 error_code 的 HTTPException
+
+    供登录/鉴权依赖等需要前端按 code 分支的场景使用。
+    """
+    from fastapi import HTTPException
+
+    detail: dict = {"error_code": error_code, "message": message}
+    if data is not None:
+        detail["data"] = data
+    raise HTTPException(status_code=status_code, detail=detail)
 
 
 def _sanitize_error(error: dict) -> dict:

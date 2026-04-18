@@ -34,6 +34,7 @@ class Permission(Base, AuditMixin):
     code = Column(String(100), unique=True, nullable=False, comment="权限码，如 doctor:create")
     name = Column(String(100), nullable=False, comment="权限名称")
     type = Column(String(20), nullable=False, comment="类型: menu/button")
+    control_type = Column(String(20), nullable=True, comment="控制类型: page/tab/action/api")
     parent_code = Column(String(100), comment="父级权限码")
     icon = Column(String(50), comment="图标（菜单权限可用）")
     sort = Column(Integer, default=0, comment="排序号")
@@ -132,4 +133,3 @@ class AdminLoginHistory(Base):
     
     # 关联管理员
     admin = relationship("Admin", backref="login_history")
-

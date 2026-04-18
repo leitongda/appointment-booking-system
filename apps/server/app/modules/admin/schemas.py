@@ -17,6 +17,7 @@ class PermissionResponse(BaseModel):
     code: str
     name: str
     type: str
+    control_type: Optional[str] = Field(None, serialization_alias="controlType")
     parent_code: Optional[str] = Field(None, serialization_alias="parentCode")
     icon: Optional[str] = None
     sort: int = 0
@@ -31,6 +32,7 @@ class PermissionCreate(BaseModel):
     code: str = Field(..., max_length=100)
     name: str = Field(..., max_length=100)
     type: str = Field(..., max_length=20)
+    control_type: Optional[str] = Field(None, max_length=20)
     parent_code: Optional[str] = Field(None, max_length=100)
     icon: Optional[str] = Field(None, max_length=50)
     sort: int = Field(0, ge=0)
@@ -108,6 +110,20 @@ class StoreInfo(BaseModel):
     }
 
 
+class TenantStatusInfo(BaseModel):
+    status: int
+    subscription_plan_name: Optional[str] = Field(None, serialization_alias="subscriptionPlanName")
+    subscription_end_at: Optional[datetime] = Field(None, serialization_alias="subscriptionEndAt")
+    is_subscription_active: bool = Field(False, serialization_alias="isSubscriptionActive")
+    days_until_expiry: Optional[int] = Field(None, serialization_alias="daysUntilExpiry")
+    contact_phone: Optional[str] = Field(None, serialization_alias="contactPhone")
+
+    model_config = {
+        "populate_by_name": True,
+        "serialize_by_alias": True,
+    }
+
+
 class AdminResponse(BaseModel):
     id: str
     username: str
@@ -132,6 +148,7 @@ class AdminResponse(BaseModel):
     last_login_at: Optional[datetime] = Field(None, serialization_alias="lastLoginAt")
     last_login_ip: Optional[str] = Field(None, serialization_alias="lastLoginIp")
     tenant_id: Optional[str] = Field(None, serialization_alias="tenantId")
+    tenant: Optional[TenantStatusInfo] = None
     created_at: datetime = Field(..., serialization_alias="createdAt")
 
     model_config = {

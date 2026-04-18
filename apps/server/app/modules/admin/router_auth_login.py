@@ -2,6 +2,7 @@
 import json
 import logging
 from datetime import datetime
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
@@ -56,6 +57,62 @@ def _decrypt_password(raw_password: str, encrypted: bool, identifier: str) -> st
     except Exception as exc:
         logger.error(f"密码处理失败: {str(exc)}, {identifier}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="密码格式错误，请重新输入") from exc
+
+
+def _check_tenant_status_for_login(admin) -> None:
+    """登录入口：检查租户订阅状态，命中则抛结构化错误码（403）。"""
+    role_code = admin.role.code if admin.role else None
+    is_super_admin = role_code == "SUPER_ADMIN"
+    if not admin.tenant_id or is_super_admin or not admin.tenant:
+        return
+
+    from app.middleware.exception import raise_business_http_error
+    from app.common.error_codes import TenantErrorCode
+
+    if admin.tenant.status == 0:
+        raise_business_http_error(
+            status.HTTP_403_FORBIDDEN,
+            TenantErrorCode.TENANT_DISABLED,
+            "租户已被禁用",
+        )
+    if admin.tenant.status == 2:
+        raise_business_http_error(
+            status.HTTP_403_FORBIDDEN,
+            TenantErrorCode.TENANT_OVERDUE,
+            "租户已欠费，请续费后继续使用",
+        )
+    if (
+        admin.tenant.subscription_end_at is not None
+        and admin.tenant.subscription_end_at < datetime.utcnow()
+    ):
+        code = (
+            TenantErrorCode.TENANT_TRIAL_EXPIRED
+            if admin.tenant.status == 3
+            else TenantErrorCode.TENANT_OVERDUE
+        )
+        raise_business_http_error(
+            status.HTTP_403_FORBIDDEN,
+            code,
+            "订阅已到期，请续费后继续使用",
+        )
+
+
+def _tenant_status_error_for_wechat(admin) -> Optional[str]:
+    """微信扫码登录：返回错误文案；可正常登录返回 None。"""
+    role_code = admin.role.code if admin.role else None
+    is_super_admin = role_code == "SUPER_ADMIN"
+    if not admin.tenant_id or is_super_admin or not admin.tenant:
+        return None
+    if admin.tenant.status == 0:
+        return "租户已被禁用"
+    if admin.tenant.status == 2:
+        return "租户已欠费，请续费后继续使用"
+    if (
+        admin.tenant.subscription_end_at is not None
+        and admin.tenant.subscription_end_at < datetime.utcnow()
+    ):
+        return "订阅已到期，请续费后继续使用"
+    return None
 
 
 def _build_login_response(admin, access_token: str, refresh_token: str) -> dict:

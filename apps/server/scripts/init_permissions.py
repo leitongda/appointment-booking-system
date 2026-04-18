@@ -10,6 +10,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.db.session import AsyncSessionLocal
+from app.modules.admin.permission_metadata import infer_permission_control_type_for_seed
 from app.modules.admin.service_permissions import PermissionService
 
 # 权限数据定义
@@ -147,6 +148,9 @@ PERMISSIONS = [
     {"code": "rule_set:list", "name": "查看规则组列表", "type": "button", "parent_code": "system", "sort": 6},
     {"code": "rule_set:export", "name": "导出规则组", "type": "button", "parent_code": "system", "sort": 7},
 ]
+
+for permission in PERMISSIONS:
+    permission["control_type"] = infer_permission_control_type_for_seed(permission, PERMISSIONS)
 
 async def init_permissions():
     """初始化权限数据"""

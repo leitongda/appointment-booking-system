@@ -299,3 +299,69 @@ class TenantUsageQuery(BaseModel):
     """租户用量查询参数"""
     start_date: Optional[date] = None
     end_date: Optional[date] = None
+
+
+# ==================== 当前租户信息（admin + 患者端） ====================
+
+class CurrentTenantResponse(BaseModel):
+    """当前租户精简信息（admin 用 /tenants/me）"""
+    id: str
+    tenant_code: str = Field(..., serialization_alias="tenantCode")
+    name: str
+    status: int
+    subscription_plan_name: Optional[str] = Field(None, serialization_alias="subscriptionPlanName")
+    subscription_end_at: Optional[datetime] = Field(None, serialization_alias="subscriptionEndAt")
+    is_subscription_active: bool = Field(False, serialization_alias="isSubscriptionActive")
+    days_until_expiry: Optional[int] = Field(None, serialization_alias="daysUntilExpiry")
+    billing_cycle: str = Field(default="monthly", serialization_alias="billingCycle")
+    contact_phone: Optional[str] = Field(None, serialization_alias="contactPhone")
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        serialize_by_alias=True,
+    )
+
+
+class CurrentTenantPublicResponse(BaseModel):
+    """当前租户公开信息（患者端匿名可访问 /tenants/me/public）"""
+    status: int
+    subscription_end_at: Optional[datetime] = Field(None, serialization_alias="subscriptionEndAt")
+    is_subscription_active: bool = Field(False, serialization_alias="isSubscriptionActive")
+    name: Optional[str] = None
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        serialize_by_alias=True,
+    )
+
+
+class TenantNotificationResponse(BaseModel):
+    """租户通知"""
+    id: str
+    notification_type: str = Field(..., serialization_alias="notificationType")
+    title: str
+    content: str
+    is_read: bool = Field(False, serialization_alias="isRead")
+    read_at: Optional[datetime] = Field(None, serialization_alias="readAt")
+    priority: int = 0
+    extra_metadata: Optional[str] = Field(None, serialization_alias="extraMetadata")
+    created_at: datetime = Field(..., serialization_alias="createdAt")
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
+
+
+class TenantNotificationListResponse(BaseModel):
+    """通知列表 + 未读数"""
+    items: List[TenantNotificationResponse]
+    unread_count: int = Field(0, serialization_alias="unreadCount")
+    total: int = 0
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        serialize_by_alias=True,
+    )

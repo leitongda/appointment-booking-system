@@ -239,7 +239,7 @@ async def get_current_admin(
             select(Admin)
             .options(
                 selectinload(Admin.role),
-                selectinload(Admin.tenant),
+                selectinload(Admin.tenant).selectinload(Tenant.subscription_plan),
                 selectinload(Admin.current_store),
                 selectinload(Admin.stores)
             )
@@ -263,10 +263,44 @@ async def get_current_admin(
             tenant_info = None
             if admin.tenant_id and not is_platform_admin:
                 if admin.tenant:
+                    from app.middleware.exception import raise_business_http_error
+                    from app.common.error_codes import TenantErrorCode
+                    from datetime import datetime as _dt
+
                     if admin.tenant.status == 0:
-                        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="租户已被禁用")
+                        raise_business_http_error(
+                            status.HTTP_403_FORBIDDEN,
+                            TenantErrorCode.TENANT_DISABLED,
+                            "租户已被禁用",
+                        )
                     if admin.tenant.status == 2:
-                        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="租户已欠费，请续费后继续使用")
+                        raise_business_http_error(
+                            status.HTTP_403_FORBIDDEN,
+                            TenantErrorCode.TENANT_OVERDUE,
+                            "租户已欠费，请续费后继续使用",
+                        )
+                    # 防御：定时任务尚未把 status 改成 2 但订阅已到期的窗口期
+                    if (
+                        admin.tenant.status == 1
+                        and admin.tenant.subscription_end_at is not None
+                        and admin.tenant.subscription_end_at < _dt.utcnow()
+                    ):
+                        raise_business_http_error(
+                            status.HTTP_403_FORBIDDEN,
+                            TenantErrorCode.TENANT_OVERDUE,
+                            "订阅已到期，请续费后继续使用",
+                        )
+                    # 试用期到期同样按欠费处理（status=3 + 到期）
+                    if (
+                        admin.tenant.status == 3
+                        and admin.tenant.subscription_end_at is not None
+                        and admin.tenant.subscription_end_at < _dt.utcnow()
+                    ):
+                        raise_business_http_error(
+                            status.HTTP_403_FORBIDDEN,
+                            TenantErrorCode.TENANT_TRIAL_EXPIRED,
+                            "试用期已结束，请订阅后继续使用",
+                        )
                     tenant_info = {
                         "id": admin.tenant.id,
                         "tenant_code": admin.tenant.tenant_code,
@@ -1076,4 +1110,55 @@ def require_tenant_context() -> Callable:
             )
         return tenant
 
-    return check_tenant_context
+
+async def require_tenant_active_for_write(
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """写操作守卫：禁用/欠费/到期租户禁止写入
+
+    用于患者端预约创建、取消、改约、支付等写操作。
+    只读接口不要挂载本依赖，保证租户停服时仍可浏览。
+    依赖租户上下文（TenantContextMiddleware 解析的 X-Tenant-ID）。
+    """
+    from datetime import datetime as _dt
+    from app.middleware.exception import raise_business_http_error
+    from app.common.error_codes import TenantErrorCode
+
+    tenant_id = get_current_tenant_id()
+    if not tenant_id:
+        return  # 没有租户上下文的接口由其他守卫负责
+
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        return
+
+    if tenant.status == 0:
+        raise_business_http_error(
+            status.HTTP_403_FORBIDDEN,
+            TenantErrorCode.TENANT_DISABLED,
+            "该机构已暂停服务，请联系机构管理员",
+        )
+    if tenant.status == 2:
+        raise_business_http_error(
+            status.HTTP_403_FORBIDDEN,
+            TenantErrorCode.TENANT_SUSPENDED_WRITE,
+            "该机构订阅已到期，暂不支持新预约/支付，请联系机构续费",
+        )
+    if (
+        tenant.subscription_end_at is not None
+        and tenant.subscription_end_at < _dt.utcnow()
+    ):
+        # 试用期到期 vs 正式订阅到期，区分错误码
+        code = (
+            TenantErrorCode.TENANT_TRIAL_EXPIRED
+            if tenant.status == 3
+            else TenantErrorCode.TENANT_SUSPENDED_WRITE
+        )
+        raise_business_http_error(
+            status.HTTP_403_FORBIDDEN,
+            code,
+            "该机构订阅已到期，暂不支持新预约/支付，请联系机构续费",
+        )
+
+    return None

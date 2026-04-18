@@ -8,11 +8,38 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.models.admin import Admin, Permission
+from app.modules.admin.permission_metadata import infer_permission_control_type, normalize_control_type
 
 
 class PermissionService:
     def __init__(self, db):
         self.db = db
+
+    async def _resolve_permission_depth(self, parent_code: Optional[str]) -> int:
+        depth = 0
+        current_parent_code = parent_code
+        visited = set()
+
+        while current_parent_code and current_parent_code not in visited:
+            visited.add(current_parent_code)
+            depth += 1
+            parent = await self.get_by_code(current_parent_code)
+            current_parent_code = parent.parent_code if parent else None
+
+        return depth
+
+    async def _resolve_control_type(self, data: dict) -> str:
+        explicit = normalize_control_type(data.get("control_type"))
+        if explicit:
+            return explicit
+
+        depth = await self._resolve_permission_depth(data.get("parent_code"))
+        return infer_permission_control_type(
+            code=data["code"],
+            permission_type=data["type"],
+            depth=depth,
+            has_children=False,
+        )
 
     async def get_all(self) -> List[Permission]:
         query = select(Permission).order_by(Permission.sort.asc(), Permission.created_at.asc())
@@ -27,6 +54,7 @@ class PermissionService:
                 "code": p.code,
                 "name": p.name,
                 "type": p.type,
+                "controlType": p.control_type,
                 "parentCode": p.parent_code,
                 "icon": p.icon,
                 "sort": p.sort,
@@ -53,11 +81,13 @@ class PermissionService:
         if existing:
             raise ValueError("权限码已存在")
 
+        control_type = await self._resolve_control_type(data)
         permission = Permission(
             id=str(uuid.uuid4()),
             code=data["code"],
             name=data["name"],
             type=data["type"],
+            control_type=control_type,
             parent_code=data.get("parent_code"),
             icon=data.get("icon"),
             sort=data.get("sort", 0),
@@ -72,11 +102,13 @@ class PermissionService:
         for data in permissions_data:
             existing = await self.get_by_code(data["code"])
             if not existing:
+                control_type = await self._resolve_control_type(data)
                 permission = Permission(
                     id=str(uuid.uuid4()),
                     code=data["code"],
                     name=data["name"],
                     type=data["type"],
+                    control_type=control_type,
                     parent_code=data.get("parent_code"),
                     icon=data.get("icon"),
                     sort=data.get("sort", 0),

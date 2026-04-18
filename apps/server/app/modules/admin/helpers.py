@@ -35,6 +35,8 @@ def build_role_response(role) -> RoleResponse:
 
 
 def build_admin_response(admin, permissions: List[str] = None) -> AdminResponse:
+    from app.modules.admin.schemas import TenantStatusInfo
+
     role_permissions = []
     if permissions is not None:
         role_permissions = permissions
@@ -57,6 +59,23 @@ def build_admin_response(admin, permissions: List[str] = None) -> AdminResponse:
     can_switch_stores = is_super_admin or (is_store_admin and len(store_ids) > 1)
     current_store = getattr(admin, "current_store", None) or getattr(admin, "store", None)
     current_store_id = getattr(admin, "current_store_id", None) or getattr(admin, "store_id", None)
+
+    # 构建租户状态信息
+    tenant_status = None
+    tenant = getattr(admin, "tenant", None)
+    if tenant:
+        days_until_expiry = None
+        if tenant.subscription_end_at:
+            delta = tenant.subscription_end_at - datetime.utcnow()
+            days_until_expiry = max(0, delta.days)
+        tenant_status = TenantStatusInfo(
+            status=tenant.status,
+            subscription_plan_name=tenant.subscription_plan.name if tenant.subscription_plan else None,
+            subscription_end_at=tenant.subscription_end_at,
+            is_subscription_active=tenant.is_subscription_active,
+            days_until_expiry=days_until_expiry,
+            contact_phone=tenant.contact_phone,
+        )
 
     return AdminResponse(
         id=admin.id,
@@ -82,6 +101,7 @@ def build_admin_response(admin, permissions: List[str] = None) -> AdminResponse:
         last_login_at=admin.last_login_at,
         last_login_ip=admin.last_login_ip,
         tenant_id=admin.tenant_id,
+        tenant=tenant_status,
         created_at=admin.created_at,
     )
 
