@@ -1,15 +1,18 @@
-from datetime import datetime
+import json
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
+import pytest_asyncio
 
 from app.api import deps
 from app.core.security import create_access_token
 from app.main import app
 from app.models.appointment import Appointment
 from app.models.schedule import Schedule
+from app.models.store import Store
 from app.models.user import Patient
 from app.models.user import User
 
@@ -17,6 +20,119 @@ from app.models.user import User
 def response_data(response):
     payload = response.json()
     return payload.get("data", payload)
+
+
+@pytest_asyncio.fixture
+async def another_store(db_session, test_tenant):
+    store = Store(
+        id=str(uuid4()),
+        name="另一家门店",
+        address="另一家门店地址",
+        phone="13800138123",
+        tenant_id=test_tenant.id,
+        status=1,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(store)
+    await db_session.commit()
+    await db_session.refresh(store)
+    return store
+
+
+@pytest_asyncio.fixture
+async def another_user(db_session, test_tenant):
+    user = User(
+        id=str(uuid4()),
+        phone="13800138124",
+        password_hash="$2b$12$test_hash_not_for_production",
+        nickname="另一位用户",
+        tenant_id=test_tenant.id,
+        status=1,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest_asyncio.fixture
+async def another_patient(db_session, test_tenant, another_user):
+    patient = Patient(
+        id=str(uuid4()),
+        user_id=another_user.id,
+        name="另一位就诊人",
+        phone="13800138125",
+        id_card="110101199101011234",
+        is_default=True,
+        tenant_id=test_tenant.id,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(patient)
+    await db_session.commit()
+    await db_session.refresh(patient)
+    return patient
+
+
+@pytest_asyncio.fixture
+async def another_schedule(db_session, test_tenant, test_doctor, another_store):
+    schedule = Schedule(
+        id=str(uuid4()),
+        doctor_id=test_doctor.id,
+        store_id=another_store.id,
+        tenant_id=test_tenant.id,
+        schedule_date=date.today() + timedelta(days=2),
+        time_slot="afternoon",
+        start_time=time(13, 0),
+        end_time=time(17, 0),
+        total_slots=10,
+        booked_slots=0,
+        status=1,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(schedule)
+    await db_session.commit()
+    await db_session.refresh(schedule)
+    return schedule
+
+
+@pytest_asyncio.fixture
+async def another_appointment(
+    db_session,
+    test_tenant,
+    another_schedule,
+    another_patient,
+    test_doctor,
+    another_user,
+):
+    appointment = Appointment(
+        id=str(uuid4()),
+        appointment_no=f"YY{datetime.now().strftime('%Y%m%d%H%M%S')}{str(uuid4())[:4].upper()}",
+        user_id=another_user.id,
+        patient_id=another_patient.id,
+        doctor_id=test_doctor.id,
+        schedule_id=another_schedule.id,
+        tenant_id=test_tenant.id,
+        queue_number=2,
+        status=1,
+        patient_name=another_patient.name,
+        patient_phone=another_patient.phone,
+        doctor_name=test_doctor.name,
+        doctor_title=test_doctor.title,
+        department_name="测试科室",
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+        created_by=another_user.id,
+    )
+    db_session.add(appointment)
+    another_schedule.booked_slots += 1
+    await db_session.commit()
+    await db_session.refresh(appointment)
+    return appointment
 
 
 @pytest.mark.asyncio
@@ -170,6 +286,91 @@ async def test_appointments_query_includes_payment_fields(async_client, db_sessi
     assert appointment["paymentTransactionId"] == "txn-123"
     assert appointment["refundStatus"] == "partial_refunded"
     assert appointment["refundedAmount"] == 5.0
+
+
+@pytest.mark.asyncio
+async def test_get_appointment_detail_rejects_non_owner(async_client, test_user, another_appointment):
+    token = create_access_token({"sub": test_user.id})
+
+    response = await async_client.get(
+        f"/api/v1/appointments/query/{another_appointment.id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["message"] == "无权查看此预约"
+
+
+@pytest.mark.asyncio
+async def test_get_appointment_detail_rejects_cross_store_admin(
+    async_client,
+    db_session,
+    store_admin_token,
+    test_store_admin_role,
+    another_appointment,
+):
+    test_store_admin_role.permissions = json.dumps(["appointment:detail"])
+    await db_session.commit()
+
+    response = await async_client.get(
+        f"/api/v1/appointments/query/{another_appointment.id}",
+        headers={"Authorization": f"Bearer {store_admin_token}"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["message"] == "您无权查看此门店的预约"
+
+
+@pytest.mark.asyncio
+async def test_get_appointment_by_no_rejects_cross_store_admin(
+    async_client,
+    db_session,
+    store_admin_token,
+    test_store_admin_role,
+    another_appointment,
+):
+    test_store_admin_role.permissions = json.dumps(["appointment:detail"])
+    await db_session.commit()
+
+    response = await async_client.get(
+        f"/api/v1/appointments/query/by-no/{another_appointment.appointment_no}",
+        headers={"Authorization": f"Bearer {store_admin_token}"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["message"] == "您无权查看此门店的预约"
+
+
+@pytest.mark.asyncio
+async def test_get_appointment_detail_includes_store_and_checkin_fields(
+    async_client,
+    db_session,
+    test_user,
+    test_appointment,
+):
+    from app.models.rule_set import AppointmentCheckin
+
+    checkin_log = AppointmentCheckin(
+        id=str(uuid4()),
+        appointment_id=test_appointment.id,
+        checkin_method="QR_CODE",
+        status="SUCCESS",
+        checkin_time=datetime.now(),
+    )
+    db_session.add(checkin_log)
+    test_appointment.sign_in_time = datetime.now()
+    await db_session.commit()
+
+    token = create_access_token({"sub": test_user.id})
+    response = await async_client.get(
+        f"/api/v1/appointments/query/{test_appointment.id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    payload = response_data(response)
+    assert payload["storeName"] == "测试门店"
+    assert payload["checkInMethod"] == "QR_CODE"
 
 
 @pytest.mark.asyncio

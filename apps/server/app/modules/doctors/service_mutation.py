@@ -116,7 +116,7 @@ class DoctorMutationMixin:
         if not doctor:
             return False
 
-        # 检查是否有进行中的预约（状态: 0待支付, 1已预约, 2已签到, 3候诊中, 4就诊中）
+        # 检查是否有进行中的预约（状态: 0待支付, 1已预约, 2已签到, 4就诊中；兼容历史 WAITING(3)）
         active_appointment_statuses = [0, 1, 2, 3, 4]
         appointment_count_result = await self.db.execute(
             select(func.count(Appointment.id)).where(

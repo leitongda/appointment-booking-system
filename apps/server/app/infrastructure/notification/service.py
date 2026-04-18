@@ -38,13 +38,13 @@ class NotificationService:
         if not schedule:
             return {"notified_count": 0, "message": "排班不存在"}
 
-        # 查找该排班下的有效预约（状态：待就诊、已签到、候诊）
+        # 查找该排班下的有效预约（状态：已预约、已签到、就诊中，兼容历史 WAITING(3)）
         appointments_result = await self.db.execute(
             select(Appointment)
             .where(
                 and_(
                     Appointment.schedule_id == schedule_id,
-                    Appointment.status.in_([1, 2, 3])  # 已预约、已签到、候诊中
+                    Appointment.status.in_([1, 2, 3, 4])
                 )
             )
         )

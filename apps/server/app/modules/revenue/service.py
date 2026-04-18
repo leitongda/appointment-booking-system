@@ -102,7 +102,7 @@ class RevenueService:
         对于大数据量可以考虑使用缓存或定期聚合
         """
         if status_list is None:
-            status_list = [2, 3, 5]  # 已签到、候诊中、已完成
+            status_list = [2, 3, 4, 5]  # 已签到、就诊中、已完成；兼容历史 WAITING(3)
 
         if end_date is None:
             end_date = date.today()

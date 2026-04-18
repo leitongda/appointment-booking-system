@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.api.deps import get_current_user_or_admin
+from app.api.deps import get_current_user_or_admin, require_tenant_active_for_write
 from app.schemas.appointment import (
     AppointmentCancelRequest,
     AppointmentCreate,
@@ -35,7 +35,8 @@ def _serialize_created_appointment(result):
 async def create_appointment(
     data: AppointmentCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user_or_admin)
+    current_user: dict = Depends(get_current_user_or_admin),
+    _tenant_guard: None = Depends(require_tenant_active_for_write),
 ):
     """创建预约"""
     service = AppointmentService(db)
@@ -79,7 +80,8 @@ async def cancel_appointment(
     appointment_id: str,
     data: AppointmentCancelRequest = None,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user_or_admin)
+    current_user: dict = Depends(get_current_user_or_admin),
+    _tenant_guard: None = Depends(require_tenant_active_for_write),
 ):
     """取消预约"""
     service = AppointmentService(db)

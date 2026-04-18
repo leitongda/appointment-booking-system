@@ -49,14 +49,16 @@ class AppointmentResponse(BaseModel):
     doctor_name: Optional[str] = Field(None, description="医生姓名")
     doctor_title: Optional[str] = Field(None, description="医生职称")
     department_name: Optional[str] = Field(None, description="科室名称")
+    store_name: Optional[str] = Field(None, description="门店名称")
     schedule_id: Optional[str] = Field(None, description="排班ID")
     schedule_date: Optional[date] = Field(None, description="就诊日期")
     time_slot: Optional[str] = Field(None, description="时段: morning上午/afternoon下午/evening晚间")
     start_time: Optional[time] = Field(None, description="开始时间")
     end_time: Optional[time] = Field(None, description="结束时间")
     queue_number: Optional[int] = Field(None, description="排队序号")
-    status: Optional[int] = Field(None, description="状态: 0待支付 1已预约 2已签到 3候诊中 4就诊中 5已完成 6已取消 7已过期 8已关闭")
+    status: Optional[int] = Field(None, description="状态: 0待支付 1已预约 2已签到 3历史候诊(遗留) 4就诊中 5已完成 6已取消 7已过期 8已爽约")
     sign_in_time: Optional[datetime] = Field(None, description="签到时间")
+    check_in_method: Optional[str] = Field(None, description="签到方式")
     call_time: Optional[datetime] = Field(None, description="叫号时间")
     complete_time: Optional[datetime] = Field(None, description="完成就诊时间")
     cancel_time: Optional[datetime] = Field(None, description="取消时间")
@@ -75,10 +77,24 @@ class AppointmentResponse(BaseModel):
             return None
         return float(value)
 
+    @staticmethod
+    def _resolve_check_in_method(appointment) -> Optional[str]:
+        checkin_logs = getattr(appointment, "checkin_logs", None) or []
+        successful_logs = [log for log in checkin_logs if getattr(log, "status", None) == "SUCCESS"]
+        if not successful_logs:
+            return None
+
+        latest_log = max(
+            successful_logs,
+            key=lambda log: getattr(log, "checkin_time", None) or getattr(log, "created_at", None) or datetime.min,
+        )
+        return getattr(latest_log, "checkin_method", None)
+
     @classmethod
     def from_appointment(cls, appointment) -> "AppointmentResponse":
         """从 Appointment ORM 对象构造响应，自动提取排班关联字段。"""
         schedule = getattr(appointment, "schedule", None)
+        store = getattr(schedule, "store", None) if schedule else None
         return cls(
             id=appointment.id,
             appointment_no=appointment.appointment_no,
@@ -90,6 +106,7 @@ class AppointmentResponse(BaseModel):
             doctor_name=appointment.doctor_name,
             doctor_title=appointment.doctor_title,
             department_name=appointment.department_name,
+            store_name=store.name if store else None,
             schedule_id=appointment.schedule_id,
             schedule_date=schedule.schedule_date if schedule else None,
             time_slot=schedule.time_slot if schedule else None,
@@ -98,6 +115,7 @@ class AppointmentResponse(BaseModel):
             queue_number=appointment.queue_number,
             status=appointment.status,
             sign_in_time=appointment.sign_in_time,
+            check_in_method=cls._resolve_check_in_method(appointment),
             call_time=appointment.call_time,
             complete_time=appointment.complete_time,
             cancel_time=appointment.cancel_time,
@@ -155,7 +173,7 @@ class AppointmentListQuery(BaseModel):
         populate_by_name=True,
     )
 
-    status: Optional[int] = Field(None, description="状态: 0待支付 1已预约 2已签到 3候诊中 4就诊中 5已完成 6已取消 7已过期 8已关闭")
+    status: Optional[int] = Field(None, description="状态: 0待支付 1已预约 2已签到 3历史候诊(遗留) 4就诊中 5已完成 6已取消 7已过期 8已爽约")
     patient_id: Optional[str] = Field(None, description="就诊人ID")
     doctor_id: Optional[str] = Field(None, description="医生ID")
     start_date: Optional[date] = Field(None, description="开始日期")

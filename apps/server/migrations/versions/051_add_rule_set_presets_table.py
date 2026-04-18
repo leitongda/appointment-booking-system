@@ -25,7 +25,7 @@ def upgrade() -> None:
         sa.Column('name', sa.String(100), nullable=False, comment='预设名称'),
         sa.Column('description', sa.Text, nullable=True, comment='描述'),
         sa.Column('config', sa.JSON, nullable=False, comment='完整规则组配置'),
-        sa.Column('is_system', sa.Boolean, nullable=False, server_default=sa.text('0'), comment='系统预设不可删除/修改'),
+        sa.Column('is_system', sa.Boolean, nullable=False, server_default=sa.text('false'), comment='系统预设不可删除/修改'),
         sa.Column('sort_order', sa.Integer, nullable=False, server_default=sa.text('0'), comment='排序'),
         sa.Column('created_at', sa.DateTime, nullable=True),
         sa.Column('updated_at', sa.DateTime, nullable=True),

@@ -271,8 +271,9 @@ class AppointmentBookingService(AppointmentServiceBase):
 
         # === 如果需要支付，准备支付参数 ===
         payment_params = None
+        payment_param_error: Optional[str] = None
         if appointment.status == 0:  # 待支付
-            payment_params = await self._prepare_payment_params(
+            payment_params, payment_param_error = await self._prepare_payment_params(
                 appointment=appointment,
                 schedule=schedule,
                 user_openid=user.openid if user else None,
@@ -328,11 +329,14 @@ class AppointmentBookingService(AppointmentServiceBase):
         else:
             # 无需支付，或支付参数暂时未准备完成
             if appointment.status == 0:
+                # 把 payment_param_error 暴露给前端，避免用户看不到任何提示就被卡在"无支付参数"页面。
+                # None 表示业务合法 fallback（如缺 openid），有值表示后端调用支付服务时出错需要重试。
                 return {
                     "appointment": appointment,
                     "payment_required": True,
                     "payment_amount": float(appointment.payment_amount or 0),
                     "payment_params": None,
+                    "payment_param_error": payment_param_error,
                 }
             return appointment
 
@@ -385,17 +389,86 @@ class AppointmentBookingService(AppointmentServiceBase):
                 appointment = await self.get_by_id(appointment_id)
                 if not appointment:
                     return None
-                if appointment.status != 0:
-                    raise ValueError("预约状态已变更")
 
-                appointment.status = APPOINTMENT_STATUS["CANCELLED"]
-                appointment.cancel_time = datetime.now()
-                appointment.cancel_reason = reason
+                # 竞态保护：reload 后若发现微信回调已先到（写入了 payment_transaction_id），
+                # 转走"已支付取消 + 退款"流程，避免出现"取消成功但钱已扣"的资损。
+                if appointment.status != 0:
+                    if (
+                        appointment.payment_transaction_id
+                        and appointment.status in (
+                            APPOINTMENT_STATUS["CONFIRMED"],
+                            APPOINTMENT_STATUS["SIGNED"],
+                        )
+                    ):
+                        logger.info(
+                            "取消请求与支付回调竞态：回调先到，转走已支付退款流程: appointment_id=%s",
+                            appointment.id,
+                        )
+                    else:
+                        raise ValueError("预约状态已变更")
+                else:
+                    # 用条件 UPDATE 改 status=0 → CANCELLED，避免与并发回调互相覆盖。
+                    # rowcount=0 表示在锁内 reload 后到 UPDATE 之间被回调抢先（极小窗口），
+                    # 此时 reload 重判：若已支付则走退款，否则报错。
+                    from sqlalchemy import update as _update
+
+                    cancel_stmt = (
+                        _update(Appointment)
+                        .where(
+                            Appointment.id == appointment.id,
+                            Appointment.status == 0,
+                        )
+                        .values(
+                            status=APPOINTMENT_STATUS["CANCELLED"],
+                            cancel_time=datetime.now(),
+                            cancel_reason=reason,
+                        )
+                    )
+                    cancel_result = await self.db.execute(cancel_stmt)
+                    if cancel_result.rowcount == 0:
+                        await self.db.rollback()
+                        appointment = await self.get_by_id(appointment_id)
+                        if not (
+                            appointment
+                            and appointment.payment_transaction_id
+                            and appointment.status in (
+                                APPOINTMENT_STATUS["CONFIRMED"],
+                                APPOINTMENT_STATUS["SIGNED"],
+                            )
+                        ):
+                            raise ValueError("预约状态已变更")
+                        logger.info(
+                            "取消条件 UPDATE 失败，回调已落库，转走已支付退款流程: appointment_id=%s",
+                            appointment_id,
+                        )
+
+                # 重新加载以便补审计字段并联动 schedule.booked_slots / 退款触发
+                appointment = await self.get_by_id(appointment_id)
                 set_update_audit(appointment, operator_id or user_id)
 
                 schedule = appointment.schedule
+                # 已支付分支：触发退款（条件：当前状态非 CANCELLED 且已有 transaction_id）
+                if appointment.status != APPOINTMENT_STATUS["CANCELLED"] and (
+                    appointment.payment_amount
+                    and appointment.payment_amount > 0
+                    and appointment.payment_transaction_id
+                ):
+                    needs_refund = True
+                    appointment.status = APPOINTMENT_STATUS["CANCELLED"]
+                    appointment.cancel_time = datetime.now()
+                    appointment.cancel_reason = reason
+                else:
+                    needs_refund = False
+
                 if schedule:
                     schedule.booked_slots = max(0, schedule.booked_slots - 1)
+
+                if needs_refund:
+                    await self._refund_paid_appointment_on_cancel(
+                        appointment=appointment,
+                        operator_id=operator_id or user_id,
+                        reason=reason or "用户取消预约",
+                    )
 
                 await self.db.commit()
 
@@ -460,12 +533,29 @@ class AppointmentBookingService(AppointmentServiceBase):
                 raise ValueError("当前状态不可取消")
 
             schedule = appointment.schedule
+
+            # 已支付预约取消必须同步发起退款，避免「钱在商户账上、号源已释放」造成资损。
+            # 全额退款；若退款 service / 微信失败立即抛错，确保不会出现「取消了但没退款」的中间态。
+            needs_refund = bool(
+                appointment.payment_amount
+                and appointment.payment_amount > 0
+                and appointment.payment_transaction_id
+            )
+
             appointment.status = APPOINTMENT_STATUS["CANCELLED"]
             appointment.cancel_time = datetime.now()
             appointment.cancel_reason = reason
             set_update_audit(appointment, operator_id or user_id)
             if schedule:
                 schedule.booked_slots = max(0, schedule.booked_slots - 1)
+
+            if needs_refund:
+                await self._refund_paid_appointment_on_cancel(
+                    appointment=appointment,
+                    operator_id=operator_id or user_id,
+                    reason=reason or "用户取消预约",
+                )
+
             await self.db.commit()
 
         if schedule:
@@ -589,30 +679,101 @@ class AppointmentBookingService(AppointmentServiceBase):
         appointment: Appointment,
         schedule: Schedule,
         user_openid: Optional[str] = None,
-    ) -> Optional[dict]:
+    ) -> tuple[Optional[dict], Optional[str]]:
         """准备支付参数
 
-        优先直接生成可调起小程序支付的参数。
-        如果缺少 openid 或支付配置不可用，则保留待支付预约，稍后由重试支付接口补拉参数。
+        返回 (payment_params, error_code)：
+        - openid 缺失等业务合法 fallback 场景，返回 (None, None)，前端可由"重新发起支付"接口补拉。
+        - PaymentService 调用异常视为可恢复错误：返回 (None, error_code)，由调用方写入响应供前端提示，
+          同时以 logger.exception 全栈上报便于监控告警。
+        - 不再静默吞掉异常 — 任何错误都必须有明确反馈，避免"预约已落库占号但用户拿不到支付参数"。
         """
         if not user_openid:
-            logger.warning(f"预约创建时缺少用户 openid，跳过直出支付参数: appointment_id={appointment.id}")
-            return None
+            logger.warning(
+                "预约创建时缺少用户 openid，跳过直出支付参数: appointment_id=%s",
+                appointment.id,
+            )
+            return None, None
 
         try:
             from app.modules.payments.service import PaymentService
 
             payment_service = PaymentService(self.db)
-            return await payment_service.create_payment_order(
+            params = await payment_service.create_payment_order(
                 appointment_id=appointment.id,
                 openid=user_openid,
                 miniapp_instance_id=appointment.payment_miniapp_instance_id,
             )
-        except Exception as exc:
-            logger.warning(
-                "预约创建后生成支付参数失败: appointment_id=%s, store_id=%s, error=%s",
+            return params, None
+        except ValueError as exc:
+            # ValueError = 业务校验错误（如配置缺失、金额无效）— 用户重试无效，需明确反馈
+            logger.exception(
+                "预约创建后生成支付参数失败(业务错误): appointment_id=%s, store_id=%s",
                 appointment.id,
                 schedule.store_id,
-                exc,
             )
-            return None
+            return None, f"payment_config_error: {exc}"
+        except Exception:
+            # 其它异常（网络、微信下单失败等）— 可重试
+            logger.exception(
+                "预约创建后生成支付参数失败(系统错误): appointment_id=%s, store_id=%s",
+                appointment.id,
+                schedule.store_id,
+            )
+            return None, "payment_temporary_error"
+
+    async def _refund_paid_appointment_on_cancel(
+        self,
+        appointment: Appointment,
+        operator_id: str,
+        reason: str,
+    ) -> None:
+        """已支付预约在取消时同事务发起全额退款。
+
+        - 创建 RefundRecord(pending) → 调微信 → 标记 processing/failed
+        - 不在此处 commit；由调用方 cancel() 统一 commit，确保「取消 + 退款单」原子性
+        - 微信调用失败抛异常 → 上层事务回滚，预约不会进入 CANCELLED 状态，避免资损
+        """
+        from sqlalchemy import select as _select
+
+        from app.infrastructure.payments.wechat_pay_service import WeChatPayService
+        from app.models.miniapp_platform import PaymentProfile
+        from app.modules.refunds.service import RefundService
+
+        refund_service = RefundService(self.db)
+        refund_record = await refund_service.create_refund(
+            appointment_id=appointment.id,
+            refund_amount=appointment.payment_amount,
+            refund_reason=reason,
+            operator_id=operator_id,
+        )
+
+        if not refund_record.payment_profile_id:
+            raise ValueError("预约缺少支付配置快照，无法发起退款")
+
+        profile_result = await self.db.execute(
+            _select(PaymentProfile).where(PaymentProfile.id == refund_record.payment_profile_id)
+        )
+        profile = profile_result.scalar_one_or_none()
+        if not profile:
+            raise ValueError("退款关联的支付配置不存在")
+
+        wx_service = WeChatPayService(profile)
+        out_trade_no, transaction_id = await refund_service.ensure_refund_payment_reference(
+            refund_record
+        )
+
+        wx_result = await wx_service.create_refund(
+            out_trade_no=out_trade_no,
+            out_refund_no=refund_record.refund_no,
+            total=refund_record.original_amount,
+            refund=refund_record.refund_amount,
+            reason=refund_record.refund_reason or "",
+            notify_url=profile.refund_notify_url or profile.notify_url or "",
+            transaction_id=transaction_id,
+        )
+
+        refund_record.status = "processing"
+        if wx_result.get("refund_id"):
+            refund_record.wx_refund_id = wx_result.get("refund_id")
+        await refund_service.sync_appointment_refund_state(refund_record.appointment_id)

@@ -7,7 +7,13 @@ from datetime import date, datetime
 import pytz
 
 from app.db.session import get_db
-from app.api.deps import get_current_user, get_current_user_or_admin, get_store_filter, get_current_admin
+from app.api.deps import (
+    check_store_access,
+    get_current_admin,
+    get_current_user,
+    get_current_user_or_admin,
+    get_store_filter,
+)
 from app.common.deps import require_permission
 from app.schemas.appointment import AppointmentResponse, AppointmentStatistics
 from app.schemas.response import PageResponse, ErrorResponse
@@ -22,6 +28,27 @@ PAGE_SIZE_STANDARD_LIMIT = 100
 router = APIRouter()
 
 
+def _ensure_can_view_appointment(appointment, current_user: dict) -> None:
+    """校验当前用户/管理员是否有权查看目标预约。"""
+    if current_user.get("is_admin"):
+        if current_user.get("is_super_admin"):
+            return
+
+        store_id = appointment.schedule.store_id if appointment.schedule else None
+        if not check_store_access(current_user, store_id):
+            raise HTTPException(
+                status_code=http_status.HTTP_403_FORBIDDEN,
+                detail="您无权查看此门店的预约",
+            )
+        return
+
+    if appointment.user_id != current_user["id"]:
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail="无权查看此预约",
+        )
+
+
 @router.get(
     "",
     response_model=PageResponse[AppointmentResponse],
@@ -30,7 +57,7 @@ router = APIRouter()
     获取当前租户下的预约列表，支持分页和多条件筛选。
 
     **支持筛选条件**：
-    - status: 按状态筛选（1=已预约 2=已签到 3=叫号中 4=就诊中 5=已完成 6=已取消 7=已过期 8=已爽约 9=过号）
+    - status: 按状态筛选（0=待支付 1=已预约 2=已签到 4=就诊中 5=已完成 6=已取消 7=已过期/过号 8=已爽约；3 为历史遗留状态）
     - doctor_id: 按医生筛选
     - department_id: 按科室筛选
     - patient_id: 按患者筛选
@@ -540,7 +567,7 @@ async def check_duplicate_appointment(
     通过预约编号查询预约详情。
 
     **参数说明**：
-    - appointment_no: 预约编号（路径参数，如 AP20240101001）
+    - appointment_no: 预约编号（路径参数，如 YY20260418123045A1B2）
 
     **权限规则**：
     - 管理员可查看任意预约
@@ -559,9 +586,7 @@ async def get_appointment_by_no(
     if not appointment:
         raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
 
-    # 验证权限：普通用户只能查看自己的预约
-    if not current_user.get("is_admin") and appointment.user_id != current_user["id"]:
-        raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail="无权查看此预约")
+    _ensure_can_view_appointment(appointment, current_user)
 
     return AppointmentResponse.from_appointment(appointment)
 
@@ -595,6 +620,8 @@ async def get_appointment(
 
     if not appointment:
         raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="预约不存在，请检查后重试")
+
+    _ensure_can_view_appointment(appointment, current_user)
 
     return AppointmentResponse.from_appointment(appointment)
 

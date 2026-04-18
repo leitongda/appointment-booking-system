@@ -9,11 +9,17 @@ from sqlalchemy.orm import selectinload
 from app.core.events import EventType, dispatch_event_email
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.appointment import Appointment
+from app.models.rule_set import AppointmentCheckin  # noqa: F401
 from app.models.rest_day import RestDay
 from app.models.schedule import Schedule
 from app.schemas.appointment import AppointmentStatistics
 
 logger = logging.getLogger(__name__)
+
+APPOINTMENT_QUERY_OPTIONS = (
+    selectinload(Appointment.schedule).selectinload(Schedule.store),
+    selectinload(Appointment.checkin_logs),
+)
 
 APPOINTMENT_STATUS = {
     "CONFIRMED": 1,
@@ -79,7 +85,7 @@ class AppointmentServiceBase:
             logger.warning(f"邮件事件钩子分发失败: event={event_type}, error={exc}")
 
     async def get_by_id(self, appointment_id: str) -> Optional[Appointment]:
-        query = select(Appointment).options(selectinload(Appointment.schedule)).where(Appointment.id == appointment_id)
+        query = select(Appointment).options(*APPOINTMENT_QUERY_OPTIONS).where(Appointment.id == appointment_id)
         tenant_id = get_current_tenant_id()
         if tenant_id:
             query = query.where(Appointment.tenant_id == tenant_id)
@@ -89,7 +95,7 @@ class AppointmentServiceBase:
     async def get_by_appointment_no(self, appointment_no: str) -> Optional[Appointment]:
         query = (
             select(Appointment)
-            .options(selectinload(Appointment.schedule))
+            .options(*APPOINTMENT_QUERY_OPTIONS)
             .where(Appointment.appointment_no == appointment_no)
         )
         tenant_id = get_current_tenant_id()
@@ -115,7 +121,7 @@ class AppointmentServiceBase:
         page_size: int = 10,
     ) -> tuple[List[Appointment], int]:
         tenant_id = get_current_tenant_id()
-        query = select(Appointment).options(selectinload(Appointment.schedule))
+        query = select(Appointment).options(*APPOINTMENT_QUERY_OPTIONS)
         count_query = select(func.count(Appointment.id))
         schedule_joined = False
         if tenant_id:

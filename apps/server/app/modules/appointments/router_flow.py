@@ -127,7 +127,7 @@ async def cancel_sign_in_appointment(
     "/{appointment_id}/call",
     summary="叫号",
     description="""
-    叫号，通知患者前来就诊，将预约状态变更为"叫号中"。
+    叫号，通知患者前来就诊，将预约状态变更为"就诊中"。
 
     **权限要求**：管理员权限（appointment:manage），受门店访问控制。
 
@@ -188,7 +188,7 @@ async def call_appointment(
     **权限要求**：管理员权限（appointment:manage），受门店访问控制。
 
     **业务规则**：
-    - 只有"就诊中"或"叫号中"状态的预约可以完成
+    - 只有"已签到"或"就诊中"状态的预约可以完成
     - 完成后通过 WebSocket 通知医生端
     - 记录完成时间（completeTime）
     """,
@@ -241,7 +241,7 @@ async def complete_appointment(
     **权限要求**：管理员权限（appointment:manage），受门店访问控制。
 
     **业务规则**：
-    - 只有"叫号中"状态的预约可以过号
+    - 只有"已签到"或"就诊中"状态的预约可以过号
     - 过号后患者可通过"重新叫号"恢复
     - 通过 WebSocket 通知医生端
     """,
@@ -292,7 +292,7 @@ async def pass_appointment(
     "/{appointment_id}/recall",
     summary="重新叫号",
     description="""
-    对已过号的患者重新叫号，将状态恢复为"叫号中"。
+    对已过号的患者重新叫号，将状态恢复为"就诊中"。
 
     **权限要求**：管理员权限（appointment:manage），受门店访问控制。
 

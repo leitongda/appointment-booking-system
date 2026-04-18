@@ -199,12 +199,12 @@ async def get_appointment_status_stats(
         0: "待支付",
         1: "已预约",
         2: "已签到",
-        3: "候诊中",
+        3: "历史候诊",
         4: "就诊中",
         5: "已完成",
         6: "已取消",
         7: "已过期",
-        8: "已关闭",
+        8: "已爽约",
     }
     
     data = [
@@ -753,7 +753,7 @@ async def get_store_dashboard(
         )
     ) or 0
 
-    # 累计签到数（status >= 2 表示已签到）
+    # 累计签到数：统计真实已到院/接诊/完成状态，兼容历史遗留 WAITING(3) 数据
     total_checkins = await db.scalar(
         select(func.count(Appointment.id))
         .select_from(Appointment)
@@ -762,7 +762,7 @@ async def get_store_dashboard(
         .where(
             and_(
                 Doctor.store_id == store_id,
-                Appointment.status >= 2  # 已签到、候诊中、就诊中、已完成
+                Appointment.status.in_([2, 3, 4, 5])
             )
         )
     ) or 0
