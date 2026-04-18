@@ -3,8 +3,7 @@
  * 配置 @hospital/api 包的请求和响应拦截器
  */
 import { setRequestInterceptor, setResponseInterceptor, ApiError } from '@hospital/api';
-import { getToken, handleTokenExpired, markAuthExpired } from '@hospital/shared';
-import { history } from '@umijs/max';
+import { getToken, handleTokenExpired, markAuthExpired, shouldSilenceAuthExpiredFeedback, parseTenantError, markTenantSuspended } from '@hospital/shared';
 import { message, Modal } from 'antd';
 import type { InternalAxiosRequestConfig } from 'axios';
 
@@ -43,17 +42,25 @@ const EXCLUDE_TOKEN_PATHS = [
   '/doctors/login',
 ];
 
+const getRequestPath = (url: string): string => {
+  try {
+    return new URL(url, window.location.origin).pathname;
+  } catch {
+    return url.split('?')[0];
+  }
+};
+
 /**
  * 检查是否需要添加 token
  * 使用精确路径匹配，避免 /admin/login 错误匹配 /admin/login-history
  */
 const shouldAddToken = (url: string): boolean => {
+  const requestPath = getRequestPath(url);
   return !EXCLUDE_TOKEN_PATHS.some(path => {
-    // 精确匹配：路径完全相等，或者 url 以 path/ 开头（带参数的情况）
+    // 精确匹配：路径完全相等，或者路径以 path/ 开头（带参数的情况）
     // 例如：/admin/login 匹配 /admin/login 或 /admin/login?xxx
     // 但不匹配 /admin/login-history
-    const urlPath = url.split('?')[0]; // 去掉查询参数
-    return urlPath === path || urlPath.startsWith(path + '/') || urlPath.startsWith(path + '?');
+    return requestPath === path || requestPath.startsWith(path + '/');
   });
 };
 
@@ -103,11 +110,19 @@ export const setupResponseInterceptor = () => {
         
         // 401 未授权 - 弹框确认后跳转登录页
         if (error.isUnauthorized()) {
-          // 登录页的 401 是账号密码错误，不是 token 过期，直接透传
-          if (window.location.pathname === '/login') {
+          const requestUrl = error.url || '';
+          const isProtectedRequest = !requestUrl || shouldAddToken(requestUrl);
+
+          if (!isProtectedRequest) {
             return Promise.reject(error);
           }
-          // 非 login 页面：token 失效，标记认证过期并弹框
+
+          if (shouldSilenceAuthExpiredFeedback()) {
+            markAuthExpired();
+            handleTokenExpired();
+            return Promise.reject(error);
+          }
+
           markAuthExpired();
           handleTokenExpired(() => {
             Modal.confirm({
@@ -118,6 +133,7 @@ export const setupResponseInterceptor = () => {
               closable: false,
               maskClosable: false,
               onOk: () => {
+                Modal.destroyAll();
                 window.location.href = '/login';
               },
             });
@@ -127,6 +143,12 @@ export const setupResponseInterceptor = () => {
         
         // 403 禁止访问
         if (error.isForbidden()) {
+          const tenantReason = parseTenantError(error);
+          if (tenantReason) {
+            markTenantSuspended(tenantReason);
+            window.location.href = '/tenant-suspended';
+            return Promise.reject(error);
+          }
           message.error(errorMessage || ERROR_MESSAGES[403]);
           return Promise.reject(error);
         }
@@ -177,8 +199,18 @@ export const setupResponseInterceptor = () => {
         
         // 401 未授权
         if (status === 401) {
-          // 登录页不弹框
-          if (window.location.pathname === '/login') return;
+          const isProtectedRequest = !requestUrl || shouldAddToken(requestUrl);
+
+          if (!isProtectedRequest) {
+            return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
+          }
+
+          if (shouldSilenceAuthExpiredFeedback()) {
+            markAuthExpired();
+            handleTokenExpired();
+            return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
+          }
+          markAuthExpired();
           handleTokenExpired(() => {
             Modal.confirm({
               title: '登录已过期',
@@ -188,11 +220,13 @@ export const setupResponseInterceptor = () => {
               closable: false,
               maskClosable: false,
               onOk: () => {
+                Modal.destroyAll();
                 window.location.href = '/login';
               },
             });
           });
-          return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));        }
+          return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
+        }
         
         // 密码解密错误（400状态码 + 解密失败消息）- 登录接口会自动重试，不显示错误
         if (status === 400 && errorMsg && (
@@ -210,6 +244,15 @@ export const setupResponseInterceptor = () => {
         }
         
         // 显示错误消息
+        // 403 — 检查是否为租户暂停
+        if (status === 403) {
+          const tenantReason = parseTenantError(data);
+          if (tenantReason) {
+            markTenantSuspended(tenantReason);
+            window.location.href = '/tenant-suspended';
+            return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
+          }
+        }
         message.error(errorMsg);
         return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
       }
@@ -238,4 +281,3 @@ export const initApiConfig = () => {
   setupResponseInterceptor();
   console.log('✓ API 请求配置已初始化');
 };
-
