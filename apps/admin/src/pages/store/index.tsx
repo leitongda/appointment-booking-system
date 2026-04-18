@@ -11,6 +11,23 @@ import { toProTableResult } from '@/utils/proTable';
 import type { Store, DepartmentTreeNode } from '@hospital/shared';
 import ImportExport from '@/components/ImportExport';
 
+const themeStyleMetaMap = new Map<string, { label: string; color: string }>([
+  ['中医-红', { label: '红色主题', color: '#B85A5F' }],
+  ['故宫红', { label: '红色主题', color: '#B85A5F' }],
+  ['茶韵', { label: '黄色主题', color: '#A98B57' }],
+  ['简约-白', { label: '黄色主题', color: '#A98B57' }],
+  ['现代-蓝', { label: '蓝色主题', color: '#4D7CB8' }],
+  ['青花瓷', { label: '蓝色主题', color: '#4D7CB8' }],
+  ['中医-绿', { label: '绿色主题', color: '#5F8F74' }],
+  ['紫禁', { label: '绿色主题', color: '#5F8F74' }],
+]);
+
+const getThemeStyleMeta = (themeStyle?: string) =>
+  themeStyleMetaMap.get(themeStyle || '') || {
+    label: themeStyle || '未设置',
+    color: '#8c8c8c',
+  };
+
 // 将科室树转换为 Antd Tree 数据格式
 const convertToTreeData = (nodes: DepartmentTreeNode[]): TreeDataNode[] => {
   return nodes.map((node) => ({
@@ -260,7 +277,27 @@ const StorePage: React.FC = () => {
     { title: '城市', dataIndex: 'city', width: 90, search: false },
     { title: '地址', dataIndex: 'address', width: 220, ellipsis: true, search: false },
     { title: '联系电话', dataIndex: 'phone', width: 130, search: false },
-    { title: '风格', dataIndex: 'themeStyle', width: 80, search: false },
+    {
+      title: '风格',
+      dataIndex: 'themeStyle',
+      width: 120,
+      search: false,
+      render: (_, record) => {
+        const themeStyleMeta = getThemeStyleMeta(record.themeStyle);
+        return (
+          <Tag
+            style={{
+              marginInlineEnd: 0,
+              borderColor: `${themeStyleMeta.color}33`,
+              background: `${themeStyleMeta.color}12`,
+              color: themeStyleMeta.color,
+            }}
+          >
+            {themeStyleMeta.label}
+          </Tag>
+        );
+      },
+    },
     {
       title: '状态',
       dataIndex: 'status',

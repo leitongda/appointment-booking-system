@@ -27,7 +27,7 @@ const STATUS_MAP: Record<number, { text: string; color: string }> = {
   0: { text: '待支付', color: 'warning' },
   1: { text: '已预约', color: 'processing' },
   2: { text: '已签到', color: 'cyan' },
-  3: { text: '候诊中', color: 'purple' },
+  3: { text: '历史候诊', color: 'default' },
   4: { text: '就诊中', color: 'processing' },
   5: { text: '已完成', color: 'success' },
   6: { text: '已取消', color: 'default' },
@@ -181,4 +181,3 @@ const DayDetailDrawer: React.FC<DayDetailDrawerProps> = ({
 };
 
 export default DayDetailDrawer;
-

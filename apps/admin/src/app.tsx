@@ -1,8 +1,9 @@
 import { AvatarDropdown, AvatarName } from '@/components/RightContent';
 import { FullscreenButton, NotificationButton, RefreshButton, StoreSwitcher } from '@/components/HeaderActions';
 import TenantSwitcher from '@/components/TenantSwitcher';
-import { getToken, removeToken, setStorage, getStorage, removeStorage, STORAGE_KEYS, handleTokenExpired, initTracker, getTracker, initCrossTabSync, destroyCrossTabSync } from '@hospital/shared';
-import type { CrossTabEvent } from '@hospital/shared';
+import TenantStatusBanner from '@/components/TenantStatusBanner';
+import { getToken, removeToken, setStorage, getStorage, removeStorage, STORAGE_KEYS, handleTokenExpired, initTracker, getTracker, initCrossTabSync, destroyCrossTabSync, isPublicEntryRoute, shouldSilenceAuthExpiredFeedback, markAuthExpired, subscribeTenantSuspended } from '@hospital/shared';
+import type { CrossTabEvent, MiniappStoreThemeValue } from '@hospital/shared';
 import { adminApi, setBaseURL } from '@hospital/api';
 import type { Settings as LayoutSettings, MenuDataItem } from '@ant-design/pro-components';
 import type { RunTimeLayoutConfig, RequestConfig } from '@umijs/max';
@@ -152,8 +153,8 @@ const loginPath = '/login';
  * 当其他 Tab 修改了 token/租户/门店时，弹框提示并刷新
  */
 function handleCrossTabEvent(event: CrossTabEvent) {
-  // 登录页不弹框
-  if (window.location.pathname === loginPath) return;
+  // 公共入口页不弹框，避免用户已经回到登录页或根路由时再次被打断
+  if (isPublicEntryRoute()) return;
 
   switch (event.type) {
     case 'auth-change':
@@ -165,7 +166,10 @@ function handleCrossTabEvent(event: CrossTabEvent) {
           cancelButtonProps: { style: { display: 'none' } },
           closable: false,
           maskClosable: false,
-          onOk: () => { window.location.href = loginPath; },
+          onOk: () => {
+            Modal.destroyAll();
+            window.location.href = loginPath;
+          },
         });
       } else if (event.action === 'switch-user') {
         Modal.confirm({
@@ -320,7 +324,7 @@ interface StoreInfo {
   id: string;
   name: string;
   logo?: string;
-  themeStyle?: string;
+  themeStyle?: MiniappStoreThemeValue;
 }
 
 /**
@@ -394,7 +398,27 @@ export async function getInitialState(): Promise<{
  * @doc https://procomponents.ant.design/components/layout
  */
 export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) => {
+  const location = useLocation();
   const { currentStore } = initialState || {};
+
+  useEffect(() => {
+    if (!isPublicEntryRoute(location.pathname)) return;
+
+    Modal.destroyAll();
+    notification.destroy('tenant-change');
+    notification.destroy('store-change');
+  }, [location.pathname]);
+
+  // 跨标签租户暂停同步：其他标签收到 403 时，本标签同步跳转
+  useEffect(() => {
+    if (isPublicEntryRoute(location.pathname)) return;
+    const unsubscribe = subscribeTenantSuspended(() => {
+      if (location.pathname !== '/tenant-suspended') {
+        window.location.href = '/tenant-suspended';
+      }
+    });
+    return unsubscribe;
+  }, [location.pathname]);
 
   // 切换租户/门店后恢复之前的页面路径
   useEffect(() => {
@@ -503,7 +527,12 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
     },
     // 路由切换动画
     childrenRender: (children: React.ReactNode) => {
-      return <PageTransitionWrapper>{children}</PageTransitionWrapper>;
+      return (
+        <>
+          <TenantStatusBanner />
+          <PageTransitionWrapper>{children}</PageTransitionWrapper>
+        </>
+      );
     },
     ...initialState?.settings,
     ...storeCustomSettings,
@@ -536,8 +565,14 @@ export const request: RequestConfig = {
 
       // 处理 HTTP 401 或业务码 401（无效 Token）
       if (status === 401 || data?.code === 401) {
-        // 登录页不弹框
-        if (window.location.pathname === loginPath) return response;
+        if (shouldSilenceAuthExpiredFeedback()) {
+          if (getToken()) {
+            markAuthExpired();
+            handleTokenExpired();
+          }
+          return response;
+        }
+        markAuthExpired();
         handleTokenExpired(() => {
           Modal.confirm({
             title: '登录已过期',

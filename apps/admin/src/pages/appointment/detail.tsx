@@ -1,6 +1,7 @@
 import { PageContainer, ProDescriptions } from '@ant-design/pro-components';
 import { Card, Tag, Button, Space, Spin, Timeline, Divider, App, Popconfirm, Drawer, Form, InputNumber, Input, Table } from 'antd';
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { history, useParams, useAccess } from '@umijs/max';
 import { appointmentApi } from '@hospital/api';
 import { REFUND_STATUS_MAP, REFUND_STATUS_COLOR } from '@hospital/shared';
@@ -10,7 +11,7 @@ const STATUS_MAP: Record<number, { text: string; color: string }> = {
   0: { text: '待支付', color: 'orange' },
   1: { text: '已预约', color: 'blue' },
   2: { text: '已签到', color: 'cyan' },
-  3: { text: '候诊中', color: 'purple' },
+  3: { text: '历史候诊', color: 'default' },
   4: { text: '就诊中', color: 'processing' },
   5: { text: '已完成', color: 'green' },
   6: { text: '已取消', color: 'default' },
@@ -24,6 +25,8 @@ const TIME_SLOT_MAP: Record<string, string> = {
   evening: '晚上',
 };
 
+const REFUNDABLE_APPOINTMENT_STATUSES = new Set([1, 2, 4, 5]);
+
 interface RefundRecord {
   id: string;
   refundNo: string;
@@ -31,6 +34,8 @@ interface RefundRecord {
   status: string;
   refundReason: string;
   createdAt: string;
+  updatedAt?: string;
+  failedReason?: string;
 }
 
 const AppointmentDetailPage: React.FC = () => {
@@ -56,6 +61,11 @@ const AppointmentDetailPage: React.FC = () => {
     try {
       const data = await appointmentApi.getDetail(id);
       setAppointment(data);
+      if (data.paymentAmount && data.paymentAmount > 0) {
+        await loadRefundRecords();
+      } else {
+        setRefundRecords([]);
+      }
     } catch (error) {
       console.error('加载失败', error);
     } finally {
@@ -120,15 +130,86 @@ const AppointmentDetailPage: React.FC = () => {
     }
   };
 
-  const canRefund = appointment && appointment.paymentAmount && appointment.paymentAmount > 0 &&
-    appointment.refundStatus !== 'refunded';
+  const canRefund = Boolean(
+    appointment &&
+      appointment.paymentAmount &&
+      appointment.paymentAmount > 0 &&
+      REFUNDABLE_APPOINTMENT_STATUSES.has(appointment.status) &&
+      appointment.refundStatus !== 'refunded'
+  );
 
   const status = STATUS_MAP[appointment?.status ?? -1] || { text: '未知', color: 'default' };
+  const isCompletedRefundException = appointment?.status === 5;
+  const isPaymentTimeoutExpired =
+    appointment?.status === 7 && appointment?.cancelReason === '支付超时自动取消';
 
   // 可退金额 = 原支付金额 - 已退款金额
   const maxRefundAmount = appointment?.paymentAmount && appointment?.refundedAmount
     ? appointment.paymentAmount - appointment.refundedAmount
     : (appointment?.paymentAmount ?? 0);
+  const refundButtonLabel = isCompletedRefundException ? '例外完成退款' : '发起退款';
+
+  const refundTimelineItems = [...refundRecords]
+    .sort((left, right) => (left.createdAt || '').localeCompare(right.createdAt || ''))
+    .flatMap((record) => {
+      const isAutoRefund = (record.refundReason || '').includes('支付回调晚到');
+      const amountText = `¥${Number(record.refundAmount || 0).toFixed(2)}`;
+      const items: { color: string; children: ReactNode }[] = [
+        {
+          color: isAutoRefund ? 'gold' : 'orange',
+          children: (
+            <div>
+              <strong>{isAutoRefund ? '自动退款触发' : '退款发起'}</strong>
+              <p style={{ color: '#666', margin: 0 }}>{record.createdAt || '-'}</p>
+              <p style={{ color: '#999', margin: 0 }}>
+                {isAutoRefund ? record.refundReason : `${amountText} / ${record.refundReason || '未填写原因'}`}
+              </p>
+            </div>
+          ),
+        },
+      ];
+
+      if (record.status === 'processing') {
+        items.push({
+          color: 'processing',
+          children: (
+            <div>
+              <strong>退款处理中</strong>
+              <p style={{ color: '#666', margin: 0 }}>{record.updatedAt || record.createdAt || '-'}</p>
+              <p style={{ color: '#999', margin: 0 }}>{record.refundNo}</p>
+            </div>
+          ),
+        });
+      }
+
+      if (record.status === 'success') {
+        items.push({
+          color: 'green',
+          children: (
+            <div>
+              <strong>退款成功</strong>
+              <p style={{ color: '#666', margin: 0 }}>{record.updatedAt || record.createdAt || '-'}</p>
+              <p style={{ color: '#999', margin: 0 }}>{amountText}</p>
+            </div>
+          ),
+        });
+      }
+
+      if (record.status === 'failed') {
+        items.push({
+          color: 'red',
+          children: (
+            <div>
+              <strong>退款失败</strong>
+              <p style={{ color: '#666', margin: 0 }}>{record.updatedAt || record.createdAt || '-'}</p>
+              <p style={{ color: '#999', margin: 0 }}>{record.failedReason || '请检查退款回调或微信返回信息'}</p>
+            </div>
+          ),
+        });
+      }
+
+      return items;
+    });
 
   const refundColumns = [
     {
@@ -186,7 +267,7 @@ const AppointmentDetailPage: React.FC = () => {
           )}
           {canRefund && access.hasPermission('appointment:refund') && (
             <Button type="primary" onClick={handleOpenRefundDrawer}>
-              发起退款
+              {refundButtonLabel}
             </Button>
           )}
           <Button onClick={() => history.push('/medical-services/appointment/list')}>返回列表</Button>
@@ -261,7 +342,11 @@ const AppointmentDetailPage: React.FC = () => {
 
         {/* 退款记录 */}
         {appointment?.paymentAmount && appointment.paymentAmount > 0 && (
-          <Card title="退款记录" style={{ marginTop: 16 }}>
+          <Card
+            title="退款记录"
+            extra={isCompletedRefundException ? <Tag color="warning">已完成例外退款</Tag> : undefined}
+            style={{ marginTop: 16 }}
+          >
             <Table
               columns={refundColumns}
               dataSource={refundRecords}
@@ -294,6 +379,16 @@ const AppointmentDetailPage: React.FC = () => {
                   </div>
                 ),
               }] : []),
+              ...(isPaymentTimeoutExpired ? [{
+                color: 'red',
+                children: (
+                  <div>
+                    <strong>支付超时</strong>
+                    <p style={{ color: '#666', margin: 0 }}>{appointment?.cancelTime || '-'}</p>
+                    <p style={{ color: '#999', margin: 0 }}>系统自动过期并释放号源</p>
+                  </div>
+                ),
+              }] : []),
               ...(appointment?.signInTime ? [{
                 color: 'blue',
                 children: (
@@ -321,11 +416,12 @@ const AppointmentDetailPage: React.FC = () => {
                   </div>
                 ),
               }] : []),
-              ...(appointment?.cancelTime ? [{
+              ...refundTimelineItems,
+              ...(appointment?.cancelTime && !isPaymentTimeoutExpired ? [{
                 color: 'red',
                 children: (
                   <div>
-                    <strong>已取消</strong>
+                    <strong>{appointment?.status === 7 ? '已过期' : '已取消'}</strong>
                     <p style={{ color: '#666', margin: 0 }}>{appointment.cancelTime}</p>
                     {appointment.cancelReason && <p style={{ color: '#999', margin: 0 }}>原因：{appointment.cancelReason}</p>}
                   </div>
@@ -338,7 +434,7 @@ const AppointmentDetailPage: React.FC = () => {
 
       {/* 退款抽屉 */}
       <Drawer
-        title="发起退款"
+        title={refundButtonLabel}
         open={refundDrawerOpen}
         onClose={() => setRefundDrawerOpen(false)}
         width={480}
@@ -363,6 +459,13 @@ const AppointmentDetailPage: React.FC = () => {
           <ProDescriptions column={1} style={{ marginBottom: 16 }}>
             <ProDescriptions.Item label="预约编号">{appointment?.appointmentNo}</ProDescriptions.Item>
             <ProDescriptions.Item label="患者姓名">{appointment?.patientName}</ProDescriptions.Item>
+            <ProDescriptions.Item label="退款模式">
+              {isCompletedRefundException ? (
+                <Tag color="warning">已完成例外退款</Tag>
+              ) : (
+                <Tag color="blue">常规退款</Tag>
+              )}
+            </ProDescriptions.Item>
             <ProDescriptions.Item label="原支付金额">
               ¥{(appointment?.paymentAmount ?? 0).toFixed(2)}
             </ProDescriptions.Item>
@@ -405,6 +508,7 @@ const AppointmentDetailPage: React.FC = () => {
             label="退款原因"
             name="refundReason"
             rules={[{ required: true, message: '请输入退款原因' }]}
+            extra={isCompletedRefundException ? '已完成就诊退款属于例外操作，必须保留明确原因。' : undefined}
           >
             <Input.TextArea
               rows={4}

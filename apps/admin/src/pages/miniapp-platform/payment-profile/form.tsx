@@ -43,6 +43,7 @@ const PaymentProfileFormPage: React.FC = () => {
         mchId: profile.mchId,
         subMchid: profile.subMchid,
         notifyUrl: profile.notifyUrl,
+        refundNotifyUrl: profile.refundNotifyUrl,
         apiV3KeyRef: profile.apiV3KeyRef,
         certSerialNo: profile.certSerialNo,
         privateKeyRef: profile.privateKeyRef,
@@ -203,6 +204,16 @@ const PaymentProfileFormPage: React.FC = () => {
                 name="notifyUrl"
                 label="支付回调地址"
                 placeholder="请输入支付回调地址"
+              />
+            </Col>
+          </Row>
+
+          <Row gutter={24}>
+            <Col span={12}>
+              <ProFormText
+                name="refundNotifyUrl"
+                label="退款回调地址"
+                placeholder="请输入退款回调地址，不填则回退到支付回调地址"
               />
             </Col>
           </Row>

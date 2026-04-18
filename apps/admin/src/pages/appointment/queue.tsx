@@ -11,9 +11,10 @@ import dayjs from 'dayjs';
 
 const STATUS_MAP: Record<number, { text: string; color: string }> = {
   2: { text: '已签到', color: 'cyan' },
-  3: { text: '候诊中', color: 'purple' },
+  3: { text: '历史候诊', color: 'default' },
   4: { text: '就诊中', color: 'processing' },
   5: { text: '已完成', color: 'green' },
+  7: { text: '已过号', color: 'default' },
 };
 
 const CHECKIN_METHOD_MAP: Record<string, { text: string; color: string }> = {
@@ -225,7 +226,7 @@ const AppointmentQueuePage: React.FC = () => {
                 叫号
               </Button>
             )}
-            {status === 3 && (
+            {status === 4 && (
               <>
                 <Button size="small" type="primary" onClick={() => handleComplete(record.id)}>
                   完成

@@ -21,12 +21,12 @@ const STATUS_MAP: Record<number, { text: string; color: string }> = {
   0: { text: '待支付', color: 'orange' },
   1: { text: '已预约', color: 'blue' },
   2: { text: '已签到', color: 'cyan' },
-  3: { text: '候诊中', color: 'purple' },
+  3: { text: '历史候诊', color: 'default' },
   4: { text: '就诊中', color: 'processing' },
   5: { text: '已完成', color: 'green' },
   6: { text: '已取消', color: 'default' },
   7: { text: '已过期', color: 'default' },
-  8: { text: '已关闭', color: 'default' },
+  8: { text: '已爽约', color: 'red' },
 };
 
 const DoctorAppointmentTab: React.FC<DoctorAppointmentTabProps> = ({ doctorId, doctorName }) => {
@@ -181,7 +181,7 @@ const DoctorAppointmentTab: React.FC<DoctorAppointmentTabProps> = ({ doctorId, d
             loading={loadingStats}
             statistic={{
               title: '待就诊',
-              value: (statistics?.pending ?? 0) + (statistics?.signedIn ?? 0),
+              value: (statistics?.confirmed ?? 0) + (statistics?.signedIn ?? 0),
               icon: <ClockCircleOutlined style={{ color: '#faad14' }} />,
             }}
           />
@@ -242,4 +242,3 @@ const DoctorAppointmentTab: React.FC<DoctorAppointmentTabProps> = ({ doctorId, d
 };
 
 export default DoctorAppointmentTab;
-

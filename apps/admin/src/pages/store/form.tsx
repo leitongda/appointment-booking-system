@@ -5,12 +5,16 @@
  * 保留业务逻辑：编码生成、唯一性验证、时间格式处理
  */
 import { ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormTimePicker } from '@ant-design/pro-components';
-import { Card } from 'antd';
+import { Card, Space, Tag } from 'antd';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { history, useParams } from '@umijs/max';
 import dayjs from 'dayjs';
 import { storeApi } from '@hospital/api';
-import type { Store } from '@hospital/shared';
+import {
+  DEFAULT_MINIAPP_STORE_THEME,
+  MINIAPP_STORE_THEME_OPTIONS,
+  type Store,
+} from '@hospital/shared';
 import { pinyin } from 'pinyin-pro';
 import { debounce } from 'lodash-es';
 
@@ -19,17 +23,24 @@ import FormPage from '@/components/FormPage';
 import { ImageUploadCard, SwitchGroup } from '@/components/formFields';
 import { requiredRules, phoneOrLandlineRules, emailRules, stringLengthRules, codeRules, combinedRules } from '@/utils/formValidators';
 
-// 风格选项 - 中国风主题预设
-const THEME_STYLE_OPTIONS = [
-  { label: '中医-红（朱砂红）', value: '中医-红' },
-  { label: '中医-绿（翡翠绿）', value: '中医-绿' },
-  { label: '现代-蓝（琉璃蓝）', value: '现代-蓝' },
-  { label: '简约-白（玄墨灰）', value: '简约-白' },
-  { label: '故宫红（宫墙红）', value: '故宫红' },
-  { label: '青花瓷（钴蓝）', value: '青花瓷' },
-  { label: '茶韵（茶褐）', value: '茶韵' },
-  { label: '紫禁（帝王紫）', value: '紫禁' },
-];
+const themeStyleOptions = MINIAPP_STORE_THEME_OPTIONS.map((option) => ({
+  ...option,
+  label: (
+    <Space size={8}>
+      <span
+        style={{
+          width: 10,
+          height: 10,
+          borderRadius: 999,
+          backgroundColor: option.color,
+          display: 'inline-block',
+          boxShadow: `0 0 0 2px ${option.color}22`,
+        }}
+      />
+      <span>{option.label}</span>
+    </Space>
+  ),
+}));
 
 /**
  * 根据名称生成编码（拼音首字母 + 4位随机数）
@@ -175,7 +186,7 @@ const StoreFormPage: React.FC = () => {
   } : {
     status: true,
     sortOrder: 0,
-    themeStyle: '中医-红',
+    themeStyle: DEFAULT_MINIAPP_STORE_THEME,
     maxCardsPerUser: 5,
     openingTime: dayjs('08:00', 'HH:mm'),
     closingTime: dayjs('18:00', 'HH:mm'),
@@ -309,8 +320,25 @@ const StoreFormPage: React.FC = () => {
             name="themeStyle"
             label="风格选择"
             width="sm"
-            options={THEME_STYLE_OPTIONS}
+            options={themeStyleOptions}
             placeholder="请选择风格"
+            extra={
+              <Space size={8} wrap>
+                {MINIAPP_STORE_THEME_OPTIONS.map((option) => (
+                  <Tag
+                    key={option.value}
+                    style={{
+                      marginInlineEnd: 0,
+                      borderColor: `${option.color}33`,
+                      background: `${option.color}12`,
+                      color: option.color,
+                    }}
+                  >
+                    {option.label}
+                  </Tag>
+                ))}
+              </Space>
+            }
           />
           <ProFormDigit
             name="sortOrder"

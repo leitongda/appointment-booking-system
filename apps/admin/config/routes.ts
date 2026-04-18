@@ -12,6 +12,11 @@ export default [
     component: './login',
   },
   {
+    path: '/tenant-suspended',
+    layout: false,
+    component: './tenant-suspended',
+  },
+  {
     path: '/dashboard',
     name: '仪表盘',
     icon: 'dashboard',
@@ -27,6 +32,7 @@ export default [
       {
         path: '/platform/tenant',
         name: '租户管理',
+        icon: 'team',
         access: 'canTenant',
         routes: [
           { path: '/platform/tenant', redirect: '/platform/tenant/list' },
@@ -39,6 +45,7 @@ export default [
       {
         path: '/platform/tenant/plans',
         name: '订阅计划',
+        icon: 'profile',
         access: 'canTenantPlans',
         routes: [
           { path: '/platform/tenant/plans', component: './tenant/plans' },
@@ -49,6 +56,7 @@ export default [
       {
         path: '/platform/miniapp-platform',
         name: '小程序平台',
+        icon: 'appstore',
         access: 'canMiniappPlatform',
         routes: [
           {
@@ -121,6 +129,7 @@ export default [
       {
         path: '/organization/system/role',
         name: '角色权限',
+        icon: 'safetyCertificate',
         access: 'canRoleManagement',
         routes: [
           { path: '/organization/system/role', component: './system/role' },
@@ -132,6 +141,7 @@ export default [
       {
         path: '/organization/system/user',
         name: '后台用户',
+        icon: 'userSwitch',
         access: 'canUserManagement',
         routes: [
           { path: '/organization/system/user', component: './system/user' },
@@ -252,17 +262,18 @@ export default [
     icon: 'setting',
     access: 'canConfigurationCenter',
     routes: [
-      { path: '/configuration/booking-rules', name: '预约规则', component: './system/settings', access: 'canBookingRules' },
-      { path: '/configuration/blacklist', name: '黑名单管理', component: './system/settings', access: 'canBlacklistSettings' },
-      { path: '/configuration/wechat', name: '微信配置', component: './system/settings', access: 'canWechatSettings' },
-      { path: '/configuration/booking-fields', name: '预约字段', component: './system/settings', access: 'canBookingFields' },
-      { path: '/configuration/patient-card', name: '就诊卡配置', component: './system/settings', access: 'canPatientCardConfig' },
-      { path: '/configuration/hospital-info', name: '医院信息', component: './system/settings', access: 'canHospitalInfo' },
-      { path: '/configuration/email-config', name: '邮件配置', component: './system/settings', access: 'canEmailConfig' },
-      { path: '/configuration/image-config', name: '图片配置', component: './system/settings', access: 'canImageConfig' },
+      { path: '/configuration/booking-rules', name: '预约规则', icon: 'calendar', component: './system/settings', access: 'canBookingRules' },
+      { path: '/configuration/blacklist', name: '黑名单管理', icon: 'stop', component: './system/settings', access: 'canBlacklistSettings' },
+      { path: '/configuration/wechat', name: '微信配置', icon: 'wechat', component: './system/settings', access: 'canWechatSettings' },
+      { path: '/configuration/booking-fields', name: '预约字段', icon: 'form', component: './system/settings', access: 'canBookingFields' },
+      { path: '/configuration/patient-card', name: '就诊卡配置', icon: 'idcard', component: './system/settings', access: 'canPatientCardConfig' },
+      { path: '/configuration/hospital-info', name: '医院信息', icon: 'home', component: './system/settings', access: 'canHospitalInfo' },
+      { path: '/configuration/email-config', name: '邮件配置', icon: 'mail', component: './system/settings', access: 'canEmailConfig' },
+      { path: '/configuration/image-config', name: '图片配置', icon: 'picture', component: './system/settings', access: 'canImageConfig' },
       {
         path: '/configuration/shift-types',
         name: '班次类型',
+        icon: 'clockCircle',
         access: 'canShiftTypes',
         routes: [
           { path: '/configuration/shift-types', component: './system/shift-types' },
@@ -273,6 +284,7 @@ export default [
       {
         path: '/configuration/rule-sets',
         name: '规则组管理',
+        icon: 'cluster',
         access: 'canRuleSets',
         routes: [
           { path: '/configuration/rule-sets', component: './system/rule-sets' },
@@ -283,6 +295,7 @@ export default [
       {
         path: '/configuration/consultation-fee-types',
         name: '诊费类型',
+        icon: 'dollarCircle',
         access: 'canConsultationFee',
         routes: [
           { path: '/configuration/consultation-fee-types', component: './system/consultation-fee-types' },
@@ -290,11 +303,12 @@ export default [
           { path: '/configuration/consultation-fee-types/:id/edit', name: '编辑诊费类型', component: './system/consultation-fee-type-form', hideInMenu: true },
         ],
       },
-      { path: '/configuration/consultation-fee-templates', name: '诊费模板', component: './system/consultation-fee-templates', access: 'canConsultationFee' },
-      { path: '/configuration/booking-notice', name: '预约须知', component: './system/booking-notice', access: 'canBookingNotice' },
+      { path: '/configuration/consultation-fee-templates', name: '诊费模板', icon: 'fileDone', component: './system/consultation-fee-templates', access: 'canConsultationFee' },
+      { path: '/configuration/booking-notice', name: '预约须知', icon: 'fileText', component: './system/booking-notice', access: 'canBookingNotice' },
       {
         path: '/configuration/email-templates',
         name: '邮件模板',
+        icon: 'mail',
         access: 'canEmailTemplates',
         routes: [
           { path: '/configuration/email-templates', component: './system/email-templates' },
@@ -302,7 +316,7 @@ export default [
           { path: '/configuration/email-templates/:id/edit', name: '编辑邮件模板', component: './system/email-template-form', hideInMenu: true },
         ],
       },
-      { path: '/configuration/email-recipients', name: '邮件接收人', component: './system/email-recipients', access: 'canEmailRecipients' },
+      { path: '/configuration/email-recipients', name: '邮件接收人', icon: 'contacts', component: './system/email-recipients', access: 'canEmailRecipients' },
     ],
   },
   {
@@ -355,10 +369,10 @@ export default [
     icon: 'monitor',
     access: 'canSystemMonitoring',
     routes: [
-      { path: '/monitoring/log', name: '操作日志', component: './system/log', access: 'canSystemLogs' },
-      { path: '/monitoring/checkin-audit-logs', name: '签到审计', component: './system/checkin-audit-logs', access: 'canCheckinAuditLogs' },
-      { path: '/monitoring/online-users', name: '在线用户', component: './system/online-users', access: 'canOnlineUsers' },
-      { path: '/monitoring/analytics', name: '行为分析', component: './system/analytics', access: 'canAnalytics' },
+      { path: '/monitoring/log', name: '操作日志', icon: 'fileSearch', component: './system/log', access: 'canSystemLogs' },
+      { path: '/monitoring/checkin-audit-logs', name: '签到审计', icon: 'audit', component: './system/checkin-audit-logs', access: 'canCheckinAuditLogs' },
+      { path: '/monitoring/online-users', name: '在线用户', icon: 'usergroupAdd', component: './system/online-users', access: 'canOnlineUsers' },
+      { path: '/monitoring/analytics', name: '行为分析', icon: 'lineChart', component: './system/analytics', access: 'canAnalytics' },
     ],
   },
   {
