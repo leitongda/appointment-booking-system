@@ -173,7 +173,10 @@
       "Bash(xargs -I {} bash -c 'echo \"$\\(basename {} .ts\\): $\\(grep -c \"export.*function\\\\|export.*const.*=\" {}\\)\"')",
       "Read(//tmp/**)",
       "Bash(mkdir -p /Users/leijiadashao/leitond/appointment-booking-system/apps/admin/public/fonts)",
-      "Bash(cp /Users/leijiadashao/Downloads/19_SourceHanSansCN/SubsetOTF/CN/SourceHanSansCN-Regular.otf /Users/leijiadashao/Downloads/19_SourceHanSansCN/SubsetOTF/CN/SourceHanSansCN-Medium.otf /Users/leijiadashao/Downloads/19_SourceHanSansCN/SubsetOTF/CN/SourceHanSansCN-Bold.otf /Users/leijiadashao/leitond/appointment-booking-system/apps/admin/public/fonts/)"
+      "Bash(cp /Users/leijiadashao/Downloads/19_SourceHanSansCN/SubsetOTF/CN/SourceHanSansCN-Regular.otf /Users/leijiadashao/Downloads/19_SourceHanSansCN/SubsetOTF/CN/SourceHanSansCN-Medium.otf /Users/leijiadashao/Downloads/19_SourceHanSansCN/SubsetOTF/CN/SourceHanSansCN-Bold.otf /Users/leijiadashao/leitond/appointment-booking-system/apps/admin/public/fonts/)",
+      "Bash(pip3 install:*)",
+      "Bash(PYTHONPATH=/Users/leijiadashao/leitond/appointment-booking-system/apps/server python3:*)",
+      "Bash(./node_modules/.bin/eslint packages/shared/src/utils/tenantStatus.ts packages/shared/src/utils/tenantSuspend.ts packages/shared/src/utils/parseTenantError.ts packages/api/src/modules/tenant.ts packages/api/src/modules/admin.ts --ext .ts,.tsx)"
     ]
   },
   "plansDirectory": ".claude/plans"
