@@ -12,13 +12,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import check_store_access, get_current_user, get_current_user_or_admin
+from app.api.deps import check_store_access, get_current_user, get_current_user_or_admin, require_tenant_active_for_write
 from app.db.session import get_db
 from app.infrastructure.payments.schemas import (
     PaymentOrderCreate,
     PaymentOrderResponse,
-    RefundCreate,
-    RefundResponse,
 )
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.admin import Admin
@@ -112,6 +110,7 @@ async def create_payment_order(
     request_data: PaymentOrderCreate,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    _tenant_guard: None = Depends(require_tenant_active_for_write),
 ):
     """创建支付订单
 
@@ -173,38 +172,6 @@ async def wechat_payment_callback(
             status_code=500,
             content={"code": "FAILED", "message": "处理失败"},
         )
-
-
-@router.post("/refunds", response_model=RefundResponse)
-async def create_refund(
-    request_data: RefundCreate,
-    db: AsyncSession = Depends(get_db),
-    current_actor: dict = Depends(get_current_user_or_admin),
-):
-    """创建退款
-
-    需要认证。
-    """
-    service = PaymentService(db)
-    appointment = await _get_appointment_or_404(db, request_data.appointment_id)
-    await _require_admin_permission(db, current_actor, "appointment:refund")
-    _ensure_admin_can_access_appointment(appointment, current_actor)
-
-    try:
-        result = await service.create_refund(
-            appointment_id=request_data.appointment_id,
-            refund_amount=request_data.refund_amount,
-            reason=request_data.reason,
-        )
-        return result
-
-    except ValueError as e:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"创建退款失败: {e}")
-        from fastapi import HTTPException
-        raise HTTPException(status_code=500, detail="创建退款失败")
 
 
 @router.get("/orders/{appointment_id}", response_model=dict)

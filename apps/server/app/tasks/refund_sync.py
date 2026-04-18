@@ -6,6 +6,7 @@
 - 调用 RefundService.sync_appointment_refund_state() 聚合到 Appointment
 - 支持多租户隔离
 """
+import asyncio
 import logging
 from datetime import datetime, timedelta
 
@@ -76,8 +77,13 @@ def _sync_tenant_refunds(
     db, tenant_id: str, threshold: datetime
 ) -> int:
     """同步单个租户的退款状态。"""
+    from decimal import Decimal
+
+    from sqlalchemy import func
+
     from app.infrastructure.payments.wechat_pay_service import WeChatPayService
-    from app.modules.refunds.service import RefundService
+    from app.models.appointment import Appointment
+    from app.modules.refunds.service import COUNTED_REFUND_STATUSES
 
     # 查找需要同步的退款记录
     refund_records = db.execute(
@@ -104,8 +110,16 @@ def _sync_tenant_refunds(
                 continue
 
             # 调用微信退款查询接口
+            # WeChatPayService.query_refund 是 async def，必须 asyncio.run 包装。
+            # 直接调用只会拿到 coroutine 对象，refund_status_0 永远是 None，导致同步任务空跑。
             wxpay_service = WeChatPayService(payment_profile=payment_profile)
-            refund_info = wxpay_service.query_refund(refund_record.refund_no)
+            try:
+                refund_info = asyncio.run(wxpay_service.query_refund(refund_record.refund_no))
+            except Exception as query_exc:
+                logger.warning(
+                    f"查询微信退款失败: refund_no={refund_record.refund_no}, error={query_exc}"
+                )
+                continue
 
             if not refund_info:
                 logger.warning(
@@ -141,9 +155,10 @@ def _sync_tenant_refunds(
 
                 db.flush()
 
-                # 聚合到预约的退款状态
-                refund_service = RefundService(db)
-                refund_service.sync_appointment_refund_state(refund_record.appointment_id)
+                # 聚合到预约的退款状态（同步实现，避免给同步 session 传到 async 服务）
+                _sync_appointment_refund_state_sync(
+                    db, refund_record.appointment_id, tenant_id
+                )
 
                 logger.info(
                     f"退款状态同步成功: refund_no={refund_record.refund_no}, "
@@ -169,3 +184,40 @@ def _sync_tenant_refunds(
         db.commit()
 
     return synced
+
+
+def _sync_appointment_refund_state_sync(db, appointment_id: str, tenant_id: str) -> None:
+    """同步实现：按非失败退款记录聚合回写预约退款状态。
+
+    与 RefundService.sync_appointment_refund_state 的 async 版本保持一致的聚合规则。
+    """
+    from decimal import Decimal
+
+    from sqlalchemy import func
+
+    from app.models.appointment import Appointment
+    from app.modules.refunds.service import COUNTED_REFUND_STATUSES
+
+    apt = db.execute(
+        select(Appointment).where(Appointment.id == appointment_id)
+    ).scalar_one_or_none()
+    if not apt:
+        return
+
+    refund_stmt = select(func.coalesce(func.sum(RefundRecord.refund_amount), 0)).where(
+        RefundRecord.appointment_id == appointment_id,
+        RefundRecord.status.in_(COUNTED_REFUND_STATUSES),
+    )
+    if apt.tenant_id:
+        refund_stmt = refund_stmt.where(RefundRecord.tenant_id == apt.tenant_id)
+
+    aggregated = Decimal(str(db.execute(refund_stmt).scalar()))
+    apt.refund_amount = aggregated
+    payment_amount = apt.payment_amount or Decimal("0")
+    if aggregated <= 0:
+        apt.refund_status = "none"
+    elif payment_amount > 0 and aggregated >= payment_amount:
+        apt.refund_status = "refunded"
+    else:
+        apt.refund_status = "partial_refunded"
+    db.flush()

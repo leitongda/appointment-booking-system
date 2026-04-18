@@ -262,91 +262,11 @@ async def test_get_payment_order_status_rejects_cross_store_admin(
 
 
 @pytest.mark.asyncio
-async def test_create_refund_requires_auth(async_client, test_appointment):
+async def test_legacy_payments_refunds_endpoint_is_removed(async_client, test_appointment):
+    """旧的 /payments/refunds 已下线，统一走 /refunds（refunds 模块）。"""
     response = await async_client.post(
         "/api/v1/payments/refunds",
         json={"appointment_id": test_appointment.id, "refund_amount": "10.00", "reason": "用户申请"},
     )
-
-    assert response.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_create_refund_rejects_admin_without_permission(
-    async_client,
-    store_admin_token,
-    test_appointment,
-):
-    response = await async_client.post(
-        "/api/v1/payments/refunds",
-        headers={"Authorization": f"Bearer {store_admin_token}"},
-        json={"appointment_id": test_appointment.id, "refund_amount": "10.00", "reason": "用户申请"},
-    )
-
-    assert response.status_code == 403
-    assert response_message(response) == "需要权限: appointment:refund"
-
-
-@pytest.mark.asyncio
-async def test_create_refund_rejects_patient_actor(async_client, test_user, test_appointment):
-    token = create_access_token({"sub": test_user.id})
-
-    response = await async_client.post(
-        "/api/v1/payments/refunds",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"appointment_id": test_appointment.id, "refund_amount": "10.00", "reason": "用户申请"},
-    )
-
-    assert response.status_code == 403
-    assert response_message(response) == "需要管理员权限"
-
-
-@pytest.mark.asyncio
-async def test_create_refund_rejects_cross_store_admin_even_with_permission(
-    async_client,
-    db_session,
-    store_admin_token,
-    test_store_admin_role,
-    another_appointment,
-):
-    test_store_admin_role.permissions = json.dumps(["appointment:refund"])
-    await db_session.commit()
-
-    response = await async_client.post(
-        "/api/v1/payments/refunds",
-        headers={"Authorization": f"Bearer {store_admin_token}"},
-        json={"appointment_id": another_appointment.id, "refund_amount": "10.00", "reason": "用户申请"},
-    )
-
-    assert response.status_code == 403
-    assert response_message(response) == "您无权操作此门店的预约"
-
-
-@pytest.mark.asyncio
-async def test_create_refund_allows_super_admin(async_client, super_admin_token, test_appointment):
-    with patch(
-        "app.modules.payments.router.PaymentService.create_refund",
-        new_callable=AsyncMock,
-    ) as mock_create_refund:
-        mock_create_refund.return_value = {
-            "appointment_id": test_appointment.id,
-            "refund_amount": Decimal("10.00"),
-            "refund_status": "pending",
-            "refund_id": "refund-1",
-            "out_refund_no": "refund-no-1",
-        }
-
-        response = await async_client.post(
-            "/api/v1/payments/refunds",
-            headers={"Authorization": f"Bearer {super_admin_token}"},
-            json={"appointment_id": test_appointment.id, "refund_amount": "10.00", "reason": "用户申请"},
-        )
-
-    assert response.status_code == 200
-    payload = response_data(response)
-    assert payload["appointment_id"] == test_appointment.id
-    mock_create_refund.assert_awaited_once_with(
-        appointment_id=test_appointment.id,
-        refund_amount=Decimal("10.00"),
-        reason="用户申请",
-    )
+    # 路由已不存在 → FastAPI 返回 404 或 405
+    assert response.status_code in (404, 405)

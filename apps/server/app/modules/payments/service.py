@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import time
 import uuid
@@ -16,13 +15,9 @@ from sqlalchemy.orm import selectinload
 
 from app.infrastructure.payments.config_resolver import PaymentConfigResolver
 from app.infrastructure.payments.wechat_pay_service import WeChatPayService
-from app.infrastructure.payments.schemas import (
-    PaymentOrderCreate,
-    RefundCreate,
-)
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.appointment import Appointment
-from app.models.miniapp_platform import MiniappInstance, PaymentProfile
+from app.models.miniapp_platform import PaymentProfile
 from app.modules.appointments.common import APPOINTMENT_STATUS
 
 logger = logging.getLogger(__name__)
@@ -173,48 +168,31 @@ class PaymentService:
         Returns:
             处理结果
         """
-        # 1. 从回调数据中解密获取 out_trade_no
-        # 但解密需要 PaymentProfile，先解析出基本信息
-        import json
-
-        callback_data = json.loads(body.decode("utf-8"))
-        resource = callback_data.get("resource", {})
-
-        # 从 resource 中获取 out_trade_no（明文）
-        # 实际上 resource.ciphertext 是加密的，需要先解密
-        # 但我们需要先找到对应的 PaymentProfile
-
-        # 临时方案：先解析 header 获取序列号，然后查找对应的 PaymentProfile
-        # 这需要查询数据库
-        # HTTP headers 会被 FastAPI 转换为小写，需要同时检查两种情况
+        # 注意：不要在验签前解析 body 内容做任何业务判断。
+        # 仅从 header 取出证书序列号用于反查 PaymentProfile，反查严格按 tenant_id 隔离，
+        # 不做任何跨租户 fallback，避免被伪造请求触达其他租户的密钥。
         cert_serial_no = headers.get("Wechatpay-Serial") or headers.get("wechatpay-serial")
 
         if not cert_serial_no:
             raise ValueError("缺少 Wechatpay-Serial header")
 
-        # 查找对应的 PaymentProfile
+        tenant_id = get_current_tenant_id()
+        if not tenant_id:
+            # 回调路由必须能定位租户上下文（通过子域名 / 路径前缀 / Header），否则拒收。
+            raise ValueError("回调缺少租户上下文")
+
         stmt = select(PaymentProfile).where(
             PaymentProfile.cert_serial_no == cert_serial_no,
             PaymentProfile.status == 1,
+            PaymentProfile.tenant_id == tenant_id,
         )
-        tenant_id = get_current_tenant_id()
-        if tenant_id:
-            stmt = stmt.where(PaymentProfile.tenant_id == tenant_id)
-
         result = await self.db.execute(stmt)
         payment_profile = result.scalar_one_or_none()
 
         if not payment_profile:
-            # 尝试不过滤 tenant_id（回调可能不带租户上下文）
-            stmt = select(PaymentProfile).where(
-                PaymentProfile.cert_serial_no == cert_serial_no,
-                PaymentProfile.status == 1,
+            raise ValueError(
+                f"未找到支付配置: cert_serial_no={cert_serial_no}, tenant_id={tenant_id}"
             )
-            result = await self.db.execute(stmt)
-            payment_profile = result.scalar_one_or_none()
-
-        if not payment_profile:
-            raise ValueError(f"未找到支付配置: cert_serial_no={cert_serial_no}")
 
         # 2. 验签并解密
         wxpay_service = WeChatPayService(payment_profile=payment_profile)
@@ -230,6 +208,8 @@ class PaymentService:
 
         out_trade_no = resource.get("out_trade_no")
         transaction_id = resource.get("transaction_id")
+        callback_amount = resource.get("amount") or {}
+        callback_total_fen = callback_amount.get("total")
 
         if not out_trade_no:
             raise ValueError("回调数据缺少 out_trade_no")
@@ -240,7 +220,22 @@ class PaymentService:
         if not appointment:
             raise ValueError(f"未找到预约: out_trade_no={out_trade_no}")
 
-        callback_at = datetime.utcnow()
+        # 4.1 金额一致性校验：回调中的 total（单位:分）必须等于预约的 payment_amount*100
+        expected_total_fen = (
+            int(Decimal(str(appointment.payment_amount)) * Decimal("100"))
+            if appointment.payment_amount is not None
+            else None
+        )
+        if callback_total_fen is None or callback_total_fen != expected_total_fen:
+            logger.error(
+                "支付回调金额与预约金额不一致: out_trade_no=%s, callback=%s, expected=%s",
+                out_trade_no,
+                callback_total_fen,
+                expected_total_fen,
+            )
+            raise ValueError("回调金额与预约金额不一致")
+
+        callback_at = datetime.now()
 
         # 5. 优先尝试以条件更新完成结算，避免并发回调重复落库。
         if appointment.status == 0:
@@ -288,15 +283,37 @@ class PaymentService:
             return {"code": "SUCCESS", "message": "成功"}
 
         # 7. 超时后晚到的支付成功回调不再恢复预约状态，避免号源二次占用。
+        #    钱已被微信扣走，必须自动退款，否则会出现"号源已释放但用户钱被扣"的资损。
         if appointment and appointment.status == APPOINTMENT_STATUS["EXPIRED"]:
             logger.warning(
-                "支付成功回调到达时预约已过期，忽略状态变更: "
+                "支付成功回调到达时预约已过期，触发自动退款: "
                 f"appointment_id={appointment.id}, out_trade_no={out_trade_no}, "
                 f"transaction_id={transaction_id}"
             )
+            await self._auto_refund_on_late_callback(
+                appointment=appointment,
+                transaction_id=transaction_id,
+                callback_at=callback_at,
+                reason="支付回调晚到，预约已过期",
+            )
             return {"code": "SUCCESS", "message": "成功"}
 
-        # 8. 其他状态保守忽略，避免非待支付预约被回调覆盖。
+        # 8. 取消状态：与 cancel 竞态导致回调晚到。钱已扣，必须自动退款。
+        if appointment and appointment.status == APPOINTMENT_STATUS["CANCELLED"]:
+            logger.warning(
+                "支付成功回调到达时预约已取消，触发自动退款: "
+                f"appointment_id={appointment.id}, out_trade_no={out_trade_no}, "
+                f"transaction_id={transaction_id}"
+            )
+            await self._auto_refund_on_late_callback(
+                appointment=appointment,
+                transaction_id=transaction_id,
+                callback_at=callback_at,
+                reason="支付回调晚到，预约已被取消",
+            )
+            return {"code": "SUCCESS", "message": "成功"}
+
+        # 9. 其他状态保守忽略，避免非待支付预约被回调覆盖。
         if appointment:
             logger.warning(
                 "支付成功回调到达时预约状态非待支付，忽略状态变更: "
@@ -307,104 +324,82 @@ class PaymentService:
 
         return {"code": "SUCCESS", "message": "成功"}
 
-    async def create_refund(
+    async def _auto_refund_on_late_callback(
         self,
-        appointment_id: str,
-        refund_amount: Decimal,
-        reason: str = "",
-    ) -> dict:
-        """创建退款
+        appointment: Appointment,
+        transaction_id: Optional[str],
+        callback_at: datetime,
+        reason: str,
+    ) -> None:
+        """晚到的支付成功回调触发自动全额退款。
 
-        Args:
-            appointment_id: 预约ID
-            refund_amount: 退款金额（元）
-            reason: 退款原因
-
-        Returns:
-            退款结果
+        - 先把 transaction_id / paid_at 写入预约（满足 RefundService 的支付凭证校验）
+        - 再调 RefundService 创建 pending 退款 + WeChatPayService 调微信退款 → processing
+        - in-flight 去重命中（已存在 pending/processing 退款）则跳过，幂等。
+        - 任一步失败抛错，回调返回 FAILED，让微信稍后重试。
         """
-        # 1. 查询预约
-        stmt = (
-            select(Appointment)
-            .options(selectinload(Appointment.payment_profile))
-            .where(Appointment.id == appointment_id)
+        from app.infrastructure.payments.wechat_pay_service import WeChatPayService
+        from app.modules.refunds.service import IN_FLIGHT_REFUND_STATUSES, RefundService
+        from sqlalchemy import func as _func
+
+        if transaction_id and not appointment.payment_transaction_id:
+            appointment.payment_transaction_id = transaction_id
+        if not appointment.paid_at:
+            appointment.paid_at = callback_at
+        await self.db.flush()
+
+        # 幂等：若已有 in-flight 或 success 退款单，则不再重复创建
+        from app.models.refund import RefundRecord
+
+        existing_stmt = select(_func.count(RefundRecord.id)).where(
+            RefundRecord.appointment_id == appointment.id,
+            RefundRecord.status.in_(IN_FLIGHT_REFUND_STATUSES + ("success",)),
         )
-        tenant_id = get_current_tenant_id()
-        if tenant_id:
-            stmt = stmt.where(Appointment.tenant_id == tenant_id)
-
-        result = await self.db.execute(stmt)
-        appointment = result.scalar_one_or_none()
-
-        if not appointment:
-            raise ValueError(f"预约不存在: {appointment_id}")
-
-        # 2. 验证可退款状态
-        if appointment.status not in [1, 5]:  # 已预约、已完成
-            raise ValueError(f"预约状态不支持退款: {appointment.status}")
-
-        # 3. 验证退款金额
-        if not appointment.payment_amount:
-            raise ValueError("预约没有支付金额")
-
-        if refund_amount > appointment.payment_amount:
-            raise ValueError(f"退款金额不能超过支付金额")
-
-        # 检查已退款金额
-        already_refunded = appointment.refund_amount or Decimal("0")
-        if already_refunded + refund_amount > appointment.payment_amount:
-            raise ValueError(f"累计退款金额不能超过支付金额")
-
-        if not appointment.payment_transaction_id:
-            raise ValueError("缺少支付交易号")
-
-        if not appointment.payment_profile_id:
-            raise ValueError("缺少支付配置")
-
-        payment_profile = appointment.payment_profile
-        if not payment_profile:
-            raise ValueError("支付配置不存在")
-
-        # 4. 生成退款单号
-        out_refund_no = self._generate_out_refund_no(appointment)
-
-        # 5. 调用微信退款
-        wxpay_service = WeChatPayService(payment_profile=payment_profile)
-
-        out_trade_no = self._generate_out_trade_no(appointment)
-
-        try:
-            refund_result = await wxpay_service.create_refund(
-                out_trade_no=out_trade_no,
-                out_refund_no=out_refund_no,
-                total=appointment.payment_amount,
-                refund=refund_amount,
-                reason=reason,
-                notify_url=payment_profile.notify_url or "",
-                transaction_id=appointment.payment_transaction_id,
+        if appointment.tenant_id:
+            existing_stmt = existing_stmt.where(RefundRecord.tenant_id == appointment.tenant_id)
+        existing_count = (await self.db.execute(existing_stmt)).scalar() or 0
+        if existing_count > 0:
+            logger.info(
+                "自动退款跳过：已存在退款记录: appointment_id=%s",
+                appointment.id,
             )
-        except Exception as e:
-            logger.error(f"微信退款失败: {e}")
-            raise
+            await self.db.commit()
+            return
 
-        # 6. 更新预约退款信息
-        new_refund_amount = already_refunded + refund_amount
-        appointment.refund_amount = new_refund_amount
+        refund_service = RefundService(self.db)
+        refund_record = await refund_service.create_refund(
+            appointment_id=appointment.id,
+            refund_amount=appointment.payment_amount,
+            refund_reason=reason,
+            operator_id="system:late_callback",
+        )
 
-        if new_refund_amount >= appointment.payment_amount:
-            appointment.refund_status = "refunded"
-        else:
-            appointment.refund_status = "partial_refunded"
+        if not refund_record.payment_profile_id:
+            raise ValueError("自动退款失败：预约缺少支付配置快照")
 
+        profile_stmt = select(PaymentProfile).where(
+            PaymentProfile.id == refund_record.payment_profile_id
+        )
+        profile = (await self.db.execute(profile_stmt)).scalar_one_or_none()
+        if not profile:
+            raise ValueError("自动退款失败：支付配置不存在")
+
+        wx_service = WeChatPayService(profile)
+        out_trade_no, txn_id = await refund_service.ensure_refund_payment_reference(refund_record)
+        wx_result = await wx_service.create_refund(
+            out_trade_no=out_trade_no,
+            out_refund_no=refund_record.refund_no,
+            total=refund_record.original_amount,
+            refund=refund_record.refund_amount,
+            reason=refund_record.refund_reason or "",
+            notify_url=profile.refund_notify_url or profile.notify_url or "",
+            transaction_id=txn_id,
+        )
+        refund_record.status = "processing"
+        if wx_result.get("refund_id"):
+            refund_record.wx_refund_id = wx_result.get("refund_id")
+        await refund_service.sync_appointment_refund_state(refund_record.appointment_id)
         await self.db.commit()
-
-        return {
-            "appointment_id": appointment.id,
-            "refund_amount": float(refund_amount),
-            "refund_status": appointment.refund_status,
-            "refund_id": refund_result.get("refund_id"),
-            "out_refund_no": out_refund_no,
-        }
 
     async def _resolve_payment_config(
         self,
@@ -454,36 +449,41 @@ class PaymentService:
     async def _get_appointment_by_out_trade_no(
         self, out_trade_no: str
     ) -> Optional[Appointment]:
-        """根据商户订单号查找预约"""
-        # out_trade_no 格式: APPT{appointment_id}
-        if out_trade_no.startswith("APPT"):
-            appointment_id = out_trade_no[4:]
-            stmt = select(Appointment).where(Appointment.id == appointment_id)
-            tenant_id = get_current_tenant_id()
-            if tenant_id:
-                stmt = stmt.where(Appointment.tenant_id == tenant_id)
-            result = await self.db.execute(stmt)
-            appointment = result.scalar_one_or_none()
-            if appointment:
-                return appointment
+        """根据商户订单号查找预约。
 
+        当前规则使用 appointment_no（YY+yyyymmddHHMMSS+4位，22字符，满足微信 6-32 上限）。
+        历史数据可能仍是 APPT{uuid} 形式，按租户隔离同时兼容这两种格式。
+        """
+        tenant_id = get_current_tenant_id()
+
+        stmt = select(Appointment).where(Appointment.appointment_no == out_trade_no)
+        if tenant_id:
+            stmt = stmt.where(Appointment.tenant_id == tenant_id)
+        result = await self.db.execute(stmt)
+        appointment = result.scalar_one_or_none()
+        if appointment:
+            return appointment
+
+        if out_trade_no.startswith("APPT"):
+            legacy_id = out_trade_no[4:]
+            legacy_stmt = select(Appointment).where(Appointment.id == legacy_id)
             if tenant_id:
-                fallback_stmt = select(Appointment).where(Appointment.id == appointment_id)
-                fallback_result = await self.db.execute(fallback_stmt)
-                return fallback_result.scalar_one_or_none()
+                legacy_stmt = legacy_stmt.where(Appointment.tenant_id == tenant_id)
+            legacy_result = await self.db.execute(legacy_stmt)
+            return legacy_result.scalar_one_or_none()
 
         return None
 
     def _generate_out_trade_no(self, appointment: Appointment) -> str:
-        """生成商户订单号"""
-        # 格式: APPT{appointment_id}，确保唯一性且能反查
-        return f"APPT{appointment.id}"
+        """生成商户订单号。
 
-    def _generate_out_refund_no(self, appointment: Appointment) -> str:
-        """生成退款单号"""
-        # 格式: REF{appointment_id}{timestamp}
-        timestamp = int(time.time())
-        return f"REF{appointment.id}{timestamp}"
+        微信支付 V3 要求 out_trade_no 长度 6-32 字符。
+        appointment_no 形如 YY+yyyymmddHHMMSS+4 字符随机串=22 字符，符合要求且租户内唯一。
+        历史数据若曾使用 APPT+UUID(40字符)会被微信拒单，回调反查保留兼容。
+        """
+        if not appointment.appointment_no:
+            raise ValueError(f"预约缺少 appointment_no，无法生成商户订单号: {appointment.id}")
+        return appointment.appointment_no
 
     def _generate_miniapp_pay_sign(
         self,

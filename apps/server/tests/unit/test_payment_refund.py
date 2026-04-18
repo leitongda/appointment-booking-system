@@ -350,12 +350,16 @@ class TestAppointmentCreationPaymentStatus:
 
         service = AppointmentBookingService(db_session)
 
-        # Mock _prepare_payment_params 避免调用有源码 bug 的代码
+        # Mock _prepare_payment_params 避免调用真实支付服务
+        # 签名返回 (payment_params, error_code) — 见 P1-1 修复
         async def mock_prepare_payment_params(appointment, schedule, user_openid=None):
-            return {
-                "payment_config_id": str(uuid4()),
-                "payment_mode": "wechat_jsapi",
-            }
+            return (
+                {
+                    "payment_config_id": str(uuid4()),
+                    "payment_mode": "wechat_jsapi",
+                },
+                None,
+            )
 
         with patch('app.modules.appointments.service_booking.RedisCache.tenant_distributed_lock') as mock_lock, \
              patch('app.modules.appointments.service_booking.RuleEngineService') as mock_rule_engine_cls, \
@@ -655,7 +659,7 @@ class TestRefundServiceCreateRefund:
         assert refund.refund_reason == "患者要求退款"
         assert refund.mch_id == "test_mch_id"
         assert refund.sub_mchid == "test_sub_mchid"
-        assert refund.out_trade_no == f"APPT{test_appointment.id}"
+        assert refund.out_trade_no == test_appointment.appointment_no
 
         # 验证预约状态更新
         await db_session.refresh(test_appointment)
@@ -698,7 +702,7 @@ class TestRefundServiceCreateRefund:
 
         # 验证退款记录
         assert refund.refund_amount == Decimal("100.00")
-        assert refund.out_trade_no == f"APPT{test_appointment.id}"
+        assert refund.out_trade_no == test_appointment.appointment_no
 
         # 验证预约状态更新为全额退款
         await db_session.refresh(test_appointment)
@@ -1148,9 +1152,9 @@ class TestRefundServicePaymentReferenceRepair:
             legacy_refund
         )
 
-        assert out_trade_no == f"APPT{test_appointment.id}"
+        assert out_trade_no == test_appointment.appointment_no
         assert transaction_id == "wx_txn_legacy_fixed"
-        assert legacy_refund.out_trade_no == f"APPT{test_appointment.id}"
+        assert legacy_refund.out_trade_no == test_appointment.appointment_no
         assert legacy_refund.wx_transaction_id == "wx_txn_legacy_fixed"
         assert legacy_refund.payment_profile_id == test_appointment.payment_profile_id
 
@@ -1190,13 +1194,15 @@ class TestRefundServicePaymentReferenceRepair:
         test_appointment.payment_transaction_id = "wx_txn_plan"
         await db_session.commit()
 
+        # 历史脏数据：out_trade_no 写成 APPT{uuid} 旧格式，plan 应检测出需要改写
+        legacy_out_trade_no = f"APPT{test_appointment.id}"
         refund = RefundRecord(
             id=str(uuid4()),
             tenant_id=test_tenant.id,
             appointment_id=test_appointment.id,
             payment_profile_id=None,
             refund_no=f"RF{datetime.now().strftime('%Y%m%d%H%M%S')}PLAN",
-            out_trade_no=test_appointment.appointment_no,
+            out_trade_no=legacy_out_trade_no,
             wx_transaction_id=None,
             refund_amount=Decimal("10.00"),
             original_amount=Decimal("10.00"),
@@ -1213,7 +1219,7 @@ class TestRefundServicePaymentReferenceRepair:
         assert plan["repairable"] is True
         assert plan["issues"] == []
         assert plan["changes"] == {
-            "out_trade_no": f"APPT{test_appointment.id}",
+            "out_trade_no": test_appointment.appointment_no,
             "wx_transaction_id": "wx_txn_plan",
             "payment_profile_id": test_appointment.payment_profile_id,
         }
@@ -1289,7 +1295,7 @@ class TestRefundServicePaymentReferenceRepair:
         assert summary["would_update"] == 0
 
         await db_session.refresh(refund)
-        assert refund.out_trade_no == f"APPT{test_appointment.id}"
+        assert refund.out_trade_no == test_appointment.appointment_no
         assert refund.wx_transaction_id == "wx_txn_apply"
         assert refund.payment_profile_id == test_appointment.payment_profile_id
 

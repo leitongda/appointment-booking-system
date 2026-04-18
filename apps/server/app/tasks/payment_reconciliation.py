@@ -5,6 +5,7 @@
 - 如果微信侧已支付成功，更新本地状态为 CONFIRMED
 - 支持多租户隔离
 """
+import asyncio
 import logging
 from datetime import datetime, timedelta
 
@@ -109,12 +110,25 @@ def _reconcile_tenant_payments(
                 )
                 continue
 
-            # 生成商户订单号
-            out_trade_no = f"APPT{appointment.id}"
+            # 生成商户订单号（与 PaymentService._generate_out_trade_no 规则一致）
+            if not appointment.appointment_no:
+                logger.warning(
+                    f"预约 {appointment.id} 缺少 appointment_no，跳过对账"
+                )
+                continue
+            out_trade_no = appointment.appointment_no
 
             # 调用微信支付查询接口
+            # WeChatPayService.query_order 是 async def，必须在同步 worker 里 asyncio.run 包装。
+            # 否则只会拿到一个未 await 的 coroutine（truthy 但没有 .get），导致对账永久空跑。
             wxpay_service = WeChatPayService(payment_profile=payment_profile)
-            order_info = wxpay_service.query_order(out_trade_no)
+            try:
+                order_info = asyncio.run(wxpay_service.query_order(out_trade_no))
+            except Exception as query_exc:
+                logger.warning(
+                    f"查询微信订单失败: out_trade_no={out_trade_no}, error={query_exc}"
+                )
+                continue
 
             if not order_info:
                 logger.warning(

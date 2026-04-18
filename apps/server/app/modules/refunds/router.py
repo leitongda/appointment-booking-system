@@ -5,9 +5,18 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from app.common.deps import get_current_admin, require_permission
+from app.common.deps import (
+    check_store_access,
+    get_current_admin,
+    get_store_filter,
+    require_permission,
+)
 from app.db.session import get_db
+from app.middleware.tenant_context import get_current_tenant_id
+from app.models.appointment import Appointment
+from app.models.refund import RefundRecord
 from app.modules.refunds.schemas import (
     RefundCreate,
     RefundListResponse,
@@ -20,13 +29,60 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+async def _get_appointment_or_404(db: AsyncSession, appointment_id: str) -> Appointment:
+    stmt = (
+        select(Appointment)
+        .options(selectinload(Appointment.schedule))
+        .where(Appointment.id == appointment_id)
+    )
+    tenant_id = get_current_tenant_id()
+    if tenant_id:
+        stmt = stmt.where(Appointment.tenant_id == tenant_id)
+
+    result = await db.execute(stmt)
+    appointment = result.scalar_one_or_none()
+    if not appointment:
+        raise HTTPException(status_code=404, detail="预约不存在")
+    return appointment
+
+
+async def _get_refund_or_404(db: AsyncSession, refund_id: str) -> RefundRecord:
+    stmt = (
+        select(RefundRecord)
+        .options(selectinload(RefundRecord.appointment).selectinload(Appointment.schedule))
+        .where(RefundRecord.id == refund_id)
+    )
+    tenant_id = get_current_tenant_id()
+    if tenant_id:
+        stmt = stmt.where(RefundRecord.tenant_id == tenant_id)
+
+    result = await db.execute(stmt)
+    record = result.scalar_one_or_none()
+    if not record:
+        raise HTTPException(status_code=404, detail="退款记录不存在")
+    return record
+
+
+def _ensure_admin_can_access_appointment(current_admin: dict, appointment: Appointment) -> None:
+    if current_admin.get("is_super_admin"):
+        return
+
+    store_id = appointment.schedule.store_id if appointment.schedule else None
+    if not check_store_access(current_admin, store_id):
+        raise HTTPException(status_code=403, detail="您无权操作此门店的退款")
+
+
 @router.get("/refundable-amount/{appointment_id}", response_model=RefundableAmountResponse)
 async def get_refundable_amount(
     appointment_id: str,
     db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("appointment:refund")),
 ):
     """查询预约的可退款金额。"""
+    appointment = await _get_appointment_or_404(db, appointment_id)
+    _ensure_admin_can_access_appointment(current_admin, appointment)
+
     service = RefundService(db)
     result = await service.get_refundable_amount(appointment_id)
     return RefundableAmountResponse(**result)
@@ -47,6 +103,9 @@ async def create_refund(
     - 累计退款不超过原支付金额
     - RefundRecord + Appointment 同一事务
     """
+    appointment = await _get_appointment_or_404(db, data.appointment_id)
+    _ensure_admin_can_access_appointment(current_admin, appointment)
+
     service = RefundService(db)
     refund_record = await service.create_refund(
         appointment_id=data.appointment_id,
@@ -78,7 +137,7 @@ async def create_refund(
                     total=refund_record.original_amount,
                     refund=refund_record.refund_amount,
                     reason=refund_record.refund_reason or "",
-                    notify_url="",
+                    notify_url=profile.refund_notify_url or profile.notify_url or "",
                     transaction_id=transaction_id,
                 )
                 refund_record.status = "processing"
@@ -102,13 +161,20 @@ async def get_refund_records(
     page: int = 1,
     page_size: int = 20,
     db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("appointment:refund")),
 ):
     """查询退款记录列表。"""
+    if appointment_id:
+        appointment = await _get_appointment_or_404(db, appointment_id)
+        _ensure_admin_can_access_appointment(current_admin, appointment)
+
     service = RefundService(db)
+    store_filter = get_store_filter(current_admin, allow_all=True)
     records, total = await service.get_refund_records(
         appointment_id=appointment_id,
         status=status,
+        store_id=store_filter,
         page=page,
         page_size=page_size,
     )
@@ -122,14 +188,14 @@ async def get_refund_records(
 async def get_refund_detail(
     refund_id: str,
     db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("appointment:refund")),
 ):
     """获取退款详情。"""
-    service = RefundService(db)
-    record = await service.get_refund_by_id(refund_id)
-    if not record:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="退款记录不存在")
+    record = await _get_refund_or_404(db, refund_id)
+    appointment = record.appointment
+    if appointment:
+        _ensure_admin_can_access_appointment(current_admin, appointment)
     return record
 
 
@@ -142,12 +208,14 @@ async def wechat_refund_callback(
     微信退款回调（无需认证）。
 
     流程：
-    1. 验签
-    2. 解析退款结果
-    3. 更新 RefundRecord 状态
-    4. 更新 Appointment 退款状态
+    1. 验签前严格按租户 + 证书序列号反查 PaymentProfile，不做跨租户 fallback
+    2. 验签
+    3. 解析退款结果
+    4. 更新 RefundRecord 状态
+    5. 更新 Appointment 退款状态
     """
     from app.infrastructure.payments.wechat_pay_service import WeChatPayService
+    from app.middleware.tenant_context import get_current_tenant_id
     from app.models.miniapp_platform import PaymentProfile
 
     body = await request.body()
@@ -158,10 +226,21 @@ async def wechat_refund_callback(
     if not cert_serial_no:
         return {"code": "FAILED", "message": "缺少证书序列号"}
 
-    # 查找对应的 PaymentProfile
-    profile_stmt = select(PaymentProfile).where(
-        PaymentProfile.cert_serial_no == cert_serial_no,
-        PaymentProfile.status == 1,
+    tenant_id = get_current_tenant_id()
+    if not tenant_id:
+        return {"code": "FAILED", "message": "回调缺少租户上下文"}
+
+    # 严格按 tenant_id + cert_serial_no 反查；
+    # 多条匹配（如同一商户证书被多 PaymentProfile 复用）按最近创建优先。
+    profile_stmt = (
+        select(PaymentProfile)
+        .where(
+            PaymentProfile.cert_serial_no == cert_serial_no,
+            PaymentProfile.status == 1,
+            PaymentProfile.tenant_id == tenant_id,
+        )
+        .order_by(PaymentProfile.created_at.desc())
+        .limit(1)
     )
     profile_result = await db.execute(profile_stmt)
     profile = profile_result.scalar_one_or_none()

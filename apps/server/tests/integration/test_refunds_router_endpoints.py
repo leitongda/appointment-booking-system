@@ -170,6 +170,150 @@ async def multiple_refunds(db_session, test_tenant, paid_appointment):
     return refunds
 
 
+@pytest_asyncio.fixture
+async def another_store(db_session, test_tenant):
+    store = Store(
+        id=str(uuid4()),
+        name="另一家门店",
+        address="另一家门店地址",
+        phone="13800138123",
+        tenant_id=test_tenant.id,
+        status=1,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(store)
+    await db_session.commit()
+    await db_session.refresh(store)
+    return store
+
+
+@pytest_asyncio.fixture
+async def another_user(db_session, test_tenant):
+    user = User(
+        id=str(uuid4()),
+        phone="13800138124",
+        password_hash="$2b$12$test_hash_not_for_production",
+        nickname="另一位用户",
+        tenant_id=test_tenant.id,
+        status=1,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest_asyncio.fixture
+async def another_patient(db_session, test_tenant, another_user):
+    patient = Patient(
+        id=str(uuid4()),
+        user_id=another_user.id,
+        name="另一位就诊人",
+        phone="13800138125",
+        id_card="110101199101011234",
+        is_default=True,
+        tenant_id=test_tenant.id,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(patient)
+    await db_session.commit()
+    await db_session.refresh(patient)
+    return patient
+
+
+@pytest_asyncio.fixture
+async def another_schedule(db_session, test_tenant, test_doctor, another_store):
+    schedule = Schedule(
+        id=str(uuid4()),
+        doctor_id=test_doctor.id,
+        store_id=another_store.id,
+        tenant_id=test_tenant.id,
+        schedule_date=date.today() + timedelta(days=2),
+        time_slot="afternoon",
+        start_time=time(13, 0),
+        end_time=time(17, 0),
+        total_slots=10,
+        booked_slots=0,
+        status=1,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(schedule)
+    await db_session.commit()
+    await db_session.refresh(schedule)
+    return schedule
+
+
+@pytest_asyncio.fixture
+async def cross_store_paid_appointment(
+    db_session,
+    test_tenant,
+    another_schedule,
+    another_patient,
+    test_doctor,
+    another_user,
+):
+    appointment = Appointment(
+        id=str(uuid4()),
+        appointment_no=f"YY{datetime.now().strftime('%Y%m%d%H%M%S')}{str(uuid4())[:4].upper()}",
+        user_id=another_user.id,
+        patient_id=another_patient.id,
+        doctor_id=test_doctor.id,
+        schedule_id=another_schedule.id,
+        tenant_id=test_tenant.id,
+        queue_number=2,
+        status=1,
+        patient_name=another_patient.name,
+        patient_phone=another_patient.phone,
+        doctor_name=test_doctor.name,
+        doctor_title=test_doctor.title,
+        department_name="测试科室",
+        payment_amount=Decimal("30.00"),
+        payment_mch_id="1234567890",
+        payment_sub_mchid="sub123",
+        payment_transaction_id="wx_tx_cross_store",
+        payment_profile_id=str(uuid4()),
+        paid_at=datetime.now(),
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+        created_by=another_user.id,
+    )
+    db_session.add(appointment)
+    another_schedule.booked_slots += 1
+    await db_session.commit()
+    await db_session.refresh(appointment)
+    return appointment
+
+
+@pytest_asyncio.fixture
+async def cross_store_refund_record(db_session, test_tenant, cross_store_paid_appointment):
+    refund = RefundRecord(
+        id=str(uuid4()),
+        tenant_id=test_tenant.id,
+        appointment_id=cross_store_paid_appointment.id,
+        payment_profile_id=cross_store_paid_appointment.payment_profile_id,
+        refund_no=f"RF{datetime.now().strftime('%Y%m%d%H%M%S')}XSTORE",
+        out_trade_no=cross_store_paid_appointment.appointment_no,
+        wx_transaction_id=cross_store_paid_appointment.payment_transaction_id,
+        refund_amount=Decimal("10.00"),
+        original_amount=Decimal("30.00"),
+        refund_reason="跨门店退款记录",
+        status="success",
+        mch_id=cross_store_paid_appointment.payment_mch_id,
+        sub_mchid=cross_store_paid_appointment.payment_sub_mchid,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(refund)
+    await db_session.commit()
+    await db_session.refresh(refund)
+    return refund
+
+
 # ==================== 微信退款回调测试 ====================
 
 @pytest.mark.asyncio
@@ -209,6 +353,7 @@ async def test_refund_callback_success(async_client, db_session, test_tenant, re
                 headers={
                     "Wechatpay-Serial": payment_profile.cert_serial_no,
                     "Content-Type": "application/json",
+                    "X-Tenant-ID": test_tenant.id,
                 },
             )
 
@@ -253,6 +398,7 @@ async def test_refund_callback_abnormal(async_client, db_session, test_tenant, r
                 headers={
                     "Wechatpay-Serial": payment_profile.cert_serial_no,
                     "Content-Type": "application/json",
+                    "X-Tenant-ID": test_tenant.id,
                 },
             )
 
@@ -296,6 +442,7 @@ async def test_refund_callback_closed(async_client, db_session, test_tenant, ref
                 headers={
                     "Wechatpay-Serial": payment_profile.cert_serial_no,
                     "Content-Type": "application/json",
+                    "X-Tenant-ID": test_tenant.id,
                 },
             )
 
@@ -307,7 +454,7 @@ async def test_refund_callback_closed(async_client, db_session, test_tenant, ref
 
 
 @pytest.mark.asyncio
-async def test_refund_callback_ignores_non_refund_event(async_client, payment_profile):
+async def test_refund_callback_ignores_non_refund_event(async_client, test_tenant, payment_profile):
     """测试微信退款回调忽略非退款事件"""
     callback_data = {
         "event_type": "TRANSACTION.SUCCESS",
@@ -334,6 +481,7 @@ async def test_refund_callback_ignores_non_refund_event(async_client, payment_pr
                 headers={
                     "Wechatpay-Serial": payment_profile.cert_serial_no,
                     "Content-Type": "application/json",
+                    "X-Tenant-ID": test_tenant.id,
                 },
             )
 
@@ -364,7 +512,7 @@ async def test_refund_callback_missing_serial(async_client):
 
 
 @pytest.mark.asyncio
-async def test_refund_callback_profile_not_found(async_client):
+async def test_refund_callback_profile_not_found(async_client, test_tenant):
     """测试微信退款回调支付配置不存在"""
     callback_data = {
         "event_type": "REFUND.SUCCESS",
@@ -380,6 +528,7 @@ async def test_refund_callback_profile_not_found(async_client):
         headers={
             "Wechatpay-Serial": "non_existent_serial",
             "Content-Type": "application/json",
+            "X-Tenant-ID": test_tenant.id,
         },
     )
 
@@ -431,6 +580,30 @@ async def test_list_refunds_by_status(async_client, super_admin_token, multiple_
 
 
 @pytest.mark.asyncio
+async def test_list_refunds_filters_cross_store_records_for_store_admin(
+    async_client,
+    db_session,
+    store_admin_token,
+    test_store_admin_role,
+    refund_record,
+    cross_store_refund_record,
+):
+    test_store_admin_role.permissions = json.dumps(["appointment:refund"])
+    await db_session.commit()
+
+    response = await async_client.get(
+        "/api/v1/refunds",
+        headers={"Authorization": f"Bearer {store_admin_token}"},
+    )
+
+    assert response.status_code == 200
+    data = response_data(response)
+    returned_ids = {item["id"] for item in data["items"]}
+    assert refund_record.id in returned_ids
+    assert cross_store_refund_record.id not in returned_ids
+
+
+@pytest.mark.asyncio
 async def test_list_refunds_pagination(async_client, super_admin_token, multiple_refunds):
     """测试退款记录列表分页"""
     response = await async_client.get(
@@ -458,6 +631,26 @@ async def test_get_refund_detail(async_client, super_admin_token, refund_record)
     assert data["id"] == refund_record.id
     assert data["refund_no"] == refund_record.refund_no
     assert data["status"] == refund_record.status
+
+
+@pytest.mark.asyncio
+async def test_get_refund_detail_rejects_cross_store_admin(
+    async_client,
+    db_session,
+    store_admin_token,
+    test_store_admin_role,
+    cross_store_refund_record,
+):
+    test_store_admin_role.permissions = json.dumps(["appointment:refund"])
+    await db_session.commit()
+
+    response = await async_client.get(
+        f"/api/v1/refunds/{cross_store_refund_record.id}",
+        headers={"Authorization": f"Bearer {store_admin_token}"},
+    )
+
+    assert response.status_code == 403
+    assert response_message(response) == "您无权操作此门店的退款"
 
 
 @pytest.mark.asyncio
@@ -492,6 +685,71 @@ async def test_refundable_amount_endpoint(async_client, super_admin_token, db_se
     assert Decimal(str(data["refunded_amount"])) == Decimal("0")
     assert Decimal(str(data["refundable_amount"])) == Decimal("30.00")
     assert data["refund_status"] == "none"
+
+
+@pytest.mark.asyncio
+async def test_refundable_amount_rejects_cross_store_admin(
+    async_client,
+    db_session,
+    store_admin_token,
+    test_store_admin_role,
+    cross_store_paid_appointment,
+):
+    test_store_admin_role.permissions = json.dumps(["appointment:refund"])
+    await db_session.commit()
+
+    response = await async_client.get(
+        f"/api/v1/refunds/refundable-amount/{cross_store_paid_appointment.id}",
+        headers={"Authorization": f"Bearer {store_admin_token}"},
+    )
+
+    assert response.status_code == 403
+    assert response_message(response) == "您无权操作此门店的退款"
+
+
+@pytest.mark.asyncio
+async def test_list_refunds_by_appointment_rejects_cross_store_admin(
+    async_client,
+    db_session,
+    store_admin_token,
+    test_store_admin_role,
+    cross_store_paid_appointment,
+):
+    test_store_admin_role.permissions = json.dumps(["appointment:refund"])
+    await db_session.commit()
+
+    response = await async_client.get(
+        f"/api/v1/refunds?appointment_id={cross_store_paid_appointment.id}",
+        headers={"Authorization": f"Bearer {store_admin_token}"},
+    )
+
+    assert response.status_code == 403
+    assert response_message(response) == "您无权操作此门店的退款"
+
+
+@pytest.mark.asyncio
+async def test_create_refund_rejects_cross_store_admin(
+    async_client,
+    db_session,
+    store_admin_token,
+    test_store_admin_role,
+    cross_store_paid_appointment,
+):
+    test_store_admin_role.permissions = json.dumps(["appointment:refund"])
+    await db_session.commit()
+
+    response = await async_client.post(
+        "/api/v1/refunds",
+        headers={"Authorization": f"Bearer {store_admin_token}"},
+        json={
+            "appointment_id": cross_store_paid_appointment.id,
+            "refund_amount": "10.00",
+            "refund_reason": "跨门店越权退款",
+        },
+    )
+
+    assert response.status_code == 403
+    assert response_message(response) == "您无权操作此门店的退款"
 
 
 @pytest.mark.asyncio
@@ -611,6 +869,7 @@ async def test_refund_callback_syncs_appointment_refund_status(async_client, db_
                 headers={
                     "Wechatpay-Serial": payment_profile.cert_serial_no,
                     "Content-Type": "application/json",
+                    "X-Tenant-ID": test_tenant.id,
                 },
             )
 

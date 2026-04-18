@@ -119,6 +119,7 @@ class PaymentProfile(Base, AuditMixin):
     mch_id = Column(String(100), nullable=True, comment="直连商户号")
     sub_mchid = Column(String(100), nullable=True, comment="服务商模式子商户号")
     notify_url = Column(String(255), nullable=True, comment="支付回调地址")
+    refund_notify_url = Column(String(255), nullable=True, comment="退款回调地址")
     api_v3_key_ref = Column(String(255), nullable=True, comment="APIv3 Key引用")
     cert_serial_no = Column(String(100), nullable=True, comment="商户证书序列号")
     private_key_ref = Column(String(255), nullable=True, comment="商户私钥引用")

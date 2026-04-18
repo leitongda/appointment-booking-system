@@ -334,6 +334,7 @@ class PaymentProfileService:
             mch_id=data.mch_id,
             sub_mchid=data.sub_mchid,
             notify_url=data.notify_url,
+            refund_notify_url=data.refund_notify_url,
             api_v3_key_ref=data.api_v3_key_ref,
             cert_serial_no=data.cert_serial_no,
             private_key_ref=data.private_key_ref,

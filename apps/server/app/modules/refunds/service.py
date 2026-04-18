@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, Union
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,10 +11,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.appointment import Appointment
 from app.models.refund import RefundRecord
+from app.models.schedule import Schedule
 from app.modules.appointments.common import APPOINTMENT_STATUS
 
-ACTIVE_REFUND_STATUSES = ("pending", "processing", "success")
+COUNTED_REFUND_STATUSES = ("pending", "processing", "success")
+IN_FLIGHT_REFUND_STATUSES = ("pending", "processing")
 FINAL_REFUND_STATUSES = ("success", "failed")
+
+# 兼容旧名 — 历史调用方用作"金额累计聚合"语义；新代码请使用 COUNTED_REFUND_STATUSES。
+ACTIVE_REFUND_STATUSES = COUNTED_REFUND_STATUSES
 
 
 def _generate_refund_no() -> str:
@@ -186,7 +191,7 @@ class RefundService:
         self,
         appointment_id: str,
         *,
-        active_statuses: tuple[str, ...] = ACTIVE_REFUND_STATUSES,
+        active_statuses: tuple[str, ...] = COUNTED_REFUND_STATUSES,
     ) -> Optional[Appointment]:
         """按非失败退款记录聚合回写预约退款状态。"""
         stmt = select(Appointment).where(Appointment.id == appointment_id)
@@ -237,7 +242,7 @@ class RefundService:
         # 查询累计退款金额
         refund_stmt = select(func.coalesce(func.sum(RefundRecord.refund_amount), 0)).where(
             RefundRecord.appointment_id == appointment_id,
-            RefundRecord.status.in_(ACTIVE_REFUND_STATUSES),
+            RefundRecord.status.in_(COUNTED_REFUND_STATUSES),
         )
         if tenant_id:
             refund_stmt = refund_stmt.where(RefundRecord.tenant_id == tenant_id)
@@ -295,10 +300,24 @@ class RefundService:
         if not payment_amount or payment_amount <= 0:
             raise ValueError("预约未支付，无法退款")
 
-        # === 3. 累计退款金额校验 ===
+        # === 3a. 并发去重：同一预约不允许同时存在 pending/processing 退款 ===
+        # 防止用户重复点击或后台并发触发，导致同一笔钱被重复发起退款。
+        # 仅在金额上限校验之前拦截 — 避免"两条 pending 各退一半"绕开金额上限。
+        in_flight_stmt = select(func.count(RefundRecord.id)).where(
+            RefundRecord.appointment_id == appointment_id,
+            RefundRecord.status.in_(IN_FLIGHT_REFUND_STATUSES),
+        )
+        if tenant_id:
+            in_flight_stmt = in_flight_stmt.where(RefundRecord.tenant_id == tenant_id)
+        in_flight_result = await self.db.execute(in_flight_stmt)
+        in_flight_count = in_flight_result.scalar() or 0
+        if in_flight_count > 0:
+            raise ValueError("已有进行中的退款，请等待处理完成后再发起")
+
+        # === 3b. 累计退款金额校验（success 也计入累计，部分退款场景仍可补退）===
         refunded_stmt = select(func.coalesce(func.sum(RefundRecord.refund_amount), 0)).where(
             RefundRecord.appointment_id == appointment_id,
-            RefundRecord.status.in_(ACTIVE_REFUND_STATUSES),
+            RefundRecord.status.in_(COUNTED_REFUND_STATUSES),
         )
         if tenant_id:
             refunded_stmt = refunded_stmt.where(RefundRecord.tenant_id == tenant_id)
@@ -393,12 +412,15 @@ class RefundService:
         self,
         appointment_id: Optional[str] = None,
         status: Optional[str] = None,
+        store_id: Optional[Union[str, list[str]]] = None,
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[RefundRecord], int]:
         """查询退款记录列表。"""
         tenant_id = get_current_tenant_id()
 
+        query = select(RefundRecord).order_by(RefundRecord.created_at.desc())
+        count_stmt = select(func.count(RefundRecord.id))
         conditions = []
         if tenant_id:
             conditions.append(RefundRecord.tenant_id == tenant_id)
@@ -406,16 +428,25 @@ class RefundService:
             conditions.append(RefundRecord.appointment_id == appointment_id)
         if status:
             conditions.append(RefundRecord.status == status)
+        if store_id:
+            query = query.join(Appointment, RefundRecord.appointment_id == Appointment.id).join(
+                Schedule, Appointment.schedule_id == Schedule.id
+            )
+            count_stmt = count_stmt.join(Appointment, RefundRecord.appointment_id == Appointment.id).join(
+                Schedule, Appointment.schedule_id == Schedule.id
+            )
+            if isinstance(store_id, list):
+                conditions.append(Schedule.store_id.in_(store_id))
+            else:
+                conditions.append(Schedule.store_id == store_id)
 
         # 计数
-        count_stmt = select(func.count(RefundRecord.id))
         for cond in conditions:
             count_stmt = count_stmt.where(cond)
         count_result = await self.db.execute(count_stmt)
         total = count_result.scalar()
 
         # 分页查询
-        query = select(RefundRecord).order_by(RefundRecord.created_at.desc())
         for cond in conditions:
             query = query.where(cond)
         query = query.offset((page - 1) * page_size).limit(page_size)

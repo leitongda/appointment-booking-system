@@ -316,8 +316,9 @@ async def test_payment_callback_only_updates_matching_tenant(
         mock_wx_service_cls.return_value.verify_callback.return_value = {
             "event_type": "TRANSACTION.SUCCESS",
             "resource": {
-                "out_trade_no": f"APPT{appointment_a.id}",
+                "out_trade_no": appointment_a.appointment_no,
                 "transaction_id": "wx_txn_a",
+                "amount": {"total": 5000},
             },
         }
 
@@ -341,16 +342,16 @@ async def test_payment_callback_only_updates_matching_tenant(
 
 @pytest.mark.asyncio
 @pytest.mark.unit
-async def test_payment_callback_finds_profile_without_tenant_filter(
+async def test_payment_callback_requires_tenant_context(
     db_session, test_tenant
 ):
     """
-    测试支付回调无租户上下文时能通过 cert_serial_no 跨租户找到 PaymentProfile
+    P0-2 修复后：支付回调必须携带租户上下文，禁止跨租户 fallback。
 
     验证点:
     1. 回调无租户上下文（get_current_tenant_id() 返回 None）
-    2. 应能通过 cert_serial_no 找到正确的 PaymentProfile
-    3. 预约状态正确更新
+    2. 必须立即抛 ValueError("回调缺少租户上下文")，不会走到 PaymentProfile 反查
+    3. 预约状态保持原状
     """
     # 创建待支付预约
     store = Store(
@@ -472,26 +473,20 @@ async def test_payment_callback_finds_profile_without_tenant_filter(
     set_tenant_context(None, None)
     service = PaymentService(db_session)
 
-    with patch("app.modules.payments.service.WeChatPayService") as mock_wx_service_cls:
-        mock_wx_service_cls.return_value.verify_callback.return_value = {
-            "event_type": "TRANSACTION.SUCCESS",
-            "resource": {
-                "out_trade_no": f"APPT{appointment.id}",
-                "transaction_id": "wx_txn_fallback",
-            },
-        }
-
-        result = await service.handle_payment_callback(
+    with pytest.raises(ValueError) as exc_info:
+        await service.handle_payment_callback(
             headers={"Wechatpay-Serial": "SERIAL_FALLBACK"},
             body=b"{}",
         )
 
     clear_tenant_context()
 
-    # 验证预约已更新
+    assert "租户上下文" in str(exc_info.value)
+
+    # 验证预约状态未改变
     await db_session.refresh(appointment)
-    assert appointment.status == APPOINTMENT_STATUS["CONFIRMED"]
-    assert appointment.payment_transaction_id == "wx_txn_fallback"
+    assert appointment.status == 0
+    assert appointment.payment_transaction_id is None
 
 
 @pytest.mark.asyncio
@@ -1499,8 +1494,9 @@ async def test_payment_callback_idempotent_on_replay(
         mock_wx_service_cls.return_value.verify_callback.return_value = {
             "event_type": "TRANSACTION.SUCCESS",
             "resource": {
-                "out_trade_no": f"APPT{appointment.id}",
+                "out_trade_no": appointment.appointment_no,
                 "transaction_id": "wx_txn_original",  # 相同的交易号
+                "amount": {"total": 5000},
             },
         }
 
@@ -1520,8 +1516,9 @@ async def test_payment_callback_idempotent_on_replay(
         mock_wx_service_cls.return_value.verify_callback.return_value = {
             "event_type": "TRANSACTION.SUCCESS",
             "resource": {
-                "out_trade_no": f"APPT{appointment.id}",
+                "out_trade_no": appointment.appointment_no,
                 "transaction_id": "wx_txn_original",
+                "amount": {"total": 5000},
             },
         }
 
@@ -1545,12 +1542,11 @@ async def test_late_callback_after_manual_cancel(
     db_session, test_tenant
 ):
     """
-    测试已手动取消的预约收到支付回调应忽略
+    P1-5 修复后：已取消的预约收到支付成功回调，必须触发自动退款（钱已扣，号源已释放）。
 
     验证点:
-    1. 预约状态为 CANCELLED
-    2. 收到支付成功回调应忽略
-    3. 预约状态保持 CANCELLED
+    1. 预约状态保持 CANCELLED（不恢复）
+    2. 触发 _auto_refund_on_late_callback（这里 mock 隔离微信调用细节）
     """
     # 创建已取消的预约
     store = Store(
@@ -1675,13 +1671,16 @@ async def test_late_callback_after_manual_cancel(
     set_tenant_context(test_tenant.id, "test_tenant")
     service = PaymentService(db_session)
 
-    # 支付成功回调到达
-    with patch("app.modules.payments.service.WeChatPayService") as mock_wx_service_cls:
+    # 支付成功回调到达：必须触发自动退款
+    with patch("app.modules.payments.service.WeChatPayService") as mock_wx_service_cls, patch.object(
+        PaymentService, "_auto_refund_on_late_callback", autospec=True
+    ) as mock_auto_refund:
         mock_wx_service_cls.return_value.verify_callback.return_value = {
             "event_type": "TRANSACTION.SUCCESS",
             "resource": {
-                "out_trade_no": f"APPT{appointment.id}",
+                "out_trade_no": appointment.appointment_no,
                 "transaction_id": "wx_txn_late",
+                "amount": {"total": 5000},
             },
         }
 
@@ -1694,7 +1693,7 @@ async def test_late_callback_after_manual_cancel(
     assert result == {"code": "SUCCESS", "message": "成功"}
     # 预约状态保持已取消
     assert appointment.status == cancelled_status
-    assert appointment.payment_transaction_id is None
-    assert appointment.paid_at is None
+    # 自动退款流程被触发
+    mock_auto_refund.assert_awaited_once()
 
     clear_tenant_context()
