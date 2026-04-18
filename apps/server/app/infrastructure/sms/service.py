@@ -4,11 +4,14 @@
 """
 import random
 import string
+from datetime import datetime
 from typing import Optional
 import logging
 
 from app.core.redis import cache, RedisCache
 from app.middleware.tenant_context import get_current_tenant_id
+from app.db.session import get_sync_db_session
+from app.models.notification_log import NotificationLog
 
 logger = logging.getLogger(__name__)
 
@@ -73,15 +76,61 @@ class SmsService:
 
         TODO: 接入阿里云/腾讯云短信 SDK
         """
-        # 模拟发送短信（开发环境打印到控制台）
-        logger.info(f"[SMS] 向 {phone} 发送{code_type}验证码: {code}")
-        print(f"\n{'='*50}")
-        print(f"📱 短信验证码")
-        print(f"手机号: {phone}")
-        print(f"验证码: {code}")
-        print(f"类型: {code_type}")
-        print(f"有效期: {cls.CODE_EXPIRE_SECONDS // 60}分钟")
-        print(f"{'='*50}\n")
+        tenant_id = get_current_tenant_id()
+        sent_at = datetime.utcnow()
+
+        try:
+            # 模拟发送短信（开发环境打印到控制台）
+            logger.info(f"[SMS] 向 {phone} 发送{code_type}验证码: {code}")
+            print(f"\n{'='*50}")
+            print(f"📱 短信验证码")
+            print(f"手机号: {phone}")
+            print(f"验证码: {code}")
+            print(f"类型: {code_type}")
+            print(f"有效期: {cls.CODE_EXPIRE_SECONDS // 60}分钟")
+            print(f"{'='*50}\n")
+
+            # 记录发送成功日志
+            try:
+                db = get_sync_db_session()
+                try:
+                    log = NotificationLog(
+                        tenant_id=tenant_id,
+                        channel="sms",
+                        message_type=code_type,
+                        title=f"{code_type}验证码",
+                        content=f"验证码: {code}",
+                        status="sent",
+                        recipient=phone,
+                        sent_at=sent_at,
+                    )
+                    db.add(log)
+                    db.commit()
+                finally:
+                    db.close()
+            except Exception as e:
+                logger.error(f"创建短信通知日志失败: {e}")
+        except Exception as e:
+            # 记录发送失败日志
+            try:
+                db = get_sync_db_session()
+                try:
+                    log = NotificationLog(
+                        tenant_id=tenant_id,
+                        channel="sms",
+                        message_type=code_type,
+                        title=f"{code_type}验证码",
+                        status="failed",
+                        recipient=phone,
+                        error_message=str(e),
+                    )
+                    db.add(log)
+                    db.commit()
+                finally:
+                    db.close()
+            except Exception as log_error:
+                logger.error(f"创建短信失败日志失败: {log_error}")
+            raise
 
         # 生产环境接入短信服务商示例：
         # if settings.SMS_PROVIDER == 'aliyun':

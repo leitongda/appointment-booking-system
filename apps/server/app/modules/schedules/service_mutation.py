@@ -385,6 +385,12 @@ class ScheduleMutationMixin:
                         title="停诊通知",
                         content=f"您预约的{doctor_name}医生（{schedule_date_str} {time_slot_display}）因故停诊。{reason_text}，给您带来不便敬请谅解。",
                         appointment_id=appointment.id,
+                        template_variables={
+                            "doctor_name": doctor_name,
+                            "date": schedule_date_str,
+                            "time_slot": time_slot_display,
+                            "reason": reason or "",
+                        },
                     )
                 except Exception as e:
                     logger.warning(f"停诊通知发送失败 (appointment_id={appointment.id}): {e}")

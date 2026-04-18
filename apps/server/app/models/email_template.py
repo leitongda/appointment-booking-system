@@ -24,8 +24,9 @@ class EmailTemplateType(str, enum.Enum):
 class EmailTemplate(Base, AuditMixin):
     """邮件模板模型"""
     __tablename__ = "email_templates"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(36), nullable=True, index=True, comment="租户ID")
     code = Column(String(50), unique=True, nullable=False, comment="模板编码")
     name = Column(String(100), nullable=False, comment="模板名称")
     template_type = Column(String(30), default=EmailTemplateType.CUSTOM.value, comment="模板类型")

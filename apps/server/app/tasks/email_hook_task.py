@@ -8,6 +8,7 @@
 """
 import json
 import logging
+from datetime import datetime
 from typing import Dict, Any, List
 
 from sqlalchemy import select
@@ -17,6 +18,7 @@ from app.db.session import get_sync_db
 from app.models.store_email_recipient import StoreEmailRecipient
 from app.models.store import Store
 from app.models.email_template import EmailTemplate
+from app.models.notification_log import NotificationLog
 from app.models.settings import SystemSetting as Settings
 from app.core.events import EVENT_TYPE_LABELS
 
@@ -196,14 +198,52 @@ def process_event_email(self, store_id: str, event_type: str, context_data: Dict
             # 6. 逐个发送
             sent_count = 0
             failed_count = 0
+            logs = []
             for recipient in matched_recipients:
                 success = _send_email_sync(email_config, recipient.email, subject, content)
                 if success:
                     sent_count += 1
                     logger.info(f"[EmailHook] 发送成功: to={recipient.email}, event={event_type}")
+                    try:
+                        logs.append(NotificationLog(
+                            tenant_id=store.tenant_id,
+                            store_id=store_id,
+                            channel="email",
+                            message_type=event_type,
+                            title=subject,
+                            content=content,
+                            status="sent",
+                            recipient=recipient.email,
+                            related_id=context_data.get("appointment_id"),
+                            sent_at=datetime.utcnow(),
+                        ))
+                    except Exception as e:
+                        logger.error(f"[EmailHook] 创建日志失败: {e}")
                 else:
                     failed_count += 1
                     logger.warning(f"[EmailHook] 发送失败: to={recipient.email}, event={event_type}")
+                    try:
+                        logs.append(NotificationLog(
+                            tenant_id=store.tenant_id,
+                            store_id=store_id,
+                            channel="email",
+                            message_type=event_type,
+                            title=subject,
+                            content=content,
+                            status="failed",
+                            recipient=recipient.email,
+                            related_id=context_data.get("appointment_id"),
+                            error_message="SMTP发送失败",
+                        ))
+                    except Exception as e:
+                        logger.error(f"[EmailHook] 创建失败日志失败: {e}")
+
+            if logs:
+                try:
+                    db.add_all(logs)
+                    db.commit()
+                except Exception as e:
+                    logger.error(f"[EmailHook] 批量保存日志失败: {e}")
 
             logger.info(
                 f"[EmailHook] 处理完成: event={event_type}, store={store_id}, "

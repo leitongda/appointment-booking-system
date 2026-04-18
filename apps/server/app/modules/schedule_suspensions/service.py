@@ -234,7 +234,14 @@ class ScheduleSuspensionService:
                         user_type="patient",
                         title=title_text,
                         content=f"您预约的{doctor_name}医生（{suspension_date_str} {time_slot_display}）因故停诊。请重新预约其他时间，给您带来不便敬请谅解。",
-                        appointment_id=appointment.id
+                        appointment_id=appointment.id,
+                        template_code="stop_clinic_patient",
+                        template_variables={
+                            "doctor_name": doctor_name,
+                            "date": suspension_date_str,
+                            "time_slot": time_slot_display,
+                            "reason": data.reason or "",
+                        },
                     )
                 except Exception as e:
                     logger.warning(f"停诊通知发送失败 (appointment_id={appointment.id}): {e}")

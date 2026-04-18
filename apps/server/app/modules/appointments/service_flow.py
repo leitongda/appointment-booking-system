@@ -173,6 +173,70 @@ class AppointmentFlowService(AppointmentServiceBase):
         appointment.call_time = datetime.now()
         await self.db.commit()
         await self.db.refresh(appointment)
+
+        # 站内信通知（叫号）
+        try:
+            from app.modules.messages.service_messages import MessageService
+
+            _call_schedule = appointment.schedule
+            _call_queue = str(appointment.queue_number) if appointment.queue_number else ""
+            _call_time_slot = {
+                "morning": "上午",
+                "afternoon": "下午",
+                "evening": "晚间",
+            }.get(_call_schedule.time_slot, _call_schedule.time_slot or "") if _call_schedule else ""
+
+            message_service = MessageService(self.db)
+            await message_service.send_appointment_notification(
+                user_id=appointment.user_id,
+                user_type="patient",
+                title="叫号通知",
+                content=f"您的排队号为{_call_queue}号，{appointment.doctor_name or '医生'}医生正在叫您，请前往诊室就诊。",
+                appointment_id=appointment.id,
+                template_variables={
+                    "doctor_name": appointment.doctor_name or "医生",
+                    "appointment_date": _call_schedule.schedule_date.strftime("%Y年%m月%d日") if _call_schedule else "",
+                    "appointment_time": _call_time_slot,
+                    "queue_number": _call_queue,
+                },
+            )
+        except Exception as exc:
+            logger.warning(f"叫号站内信通知发送失败: {exc}")
+
+        # 微信订阅消息推送（叫号通知）
+        try:
+            from app.middleware.tenant_context import get_current_tenant_id
+            from app.models.user import User as _User
+            from app.tasks.notification_task import _send_wechat_notification
+
+            _call_tenant_id = get_current_tenant_id()
+            _call_user_result = await self.db.execute(
+                select(_User).where(_User.id == appointment.user_id)
+            )
+            _call_user = _call_user_result.scalar_one_or_none()
+            if _call_user and _call_user.openid:
+                _call_schedule = appointment.schedule
+                _call_queue = str(appointment.queue_number) if appointment.queue_number else ""
+                await _send_wechat_notification(
+                    db=self.db,
+                    tenant_id=_call_tenant_id or appointment.tenant_id,
+                    openid=_call_user.openid,
+                    template_id_config_key="queue_call_template_id",
+                    template_data={
+                        "thing1": {"value": (appointment.doctor_name or "医生")[:20]},
+                        "thing2": {"value": f"{_call_queue}号"},
+                        "thing3": {"value": "请前往诊室就诊"},
+                    },
+                    message_type="queue_call",
+                    title="叫号通知",
+                    user_id=appointment.user_id,
+                    store_id=_call_schedule.store_id if _call_schedule else None,
+                    related_id=appointment.id,
+                    page=f"pages/appointment/detail?id={appointment.id}",
+                )
+        except Exception as exc:
+            logger.warning(f"叫号微信推送失败（不影响主流程）: {exc}")
+
         self._dispatch_email_event(EventType.CALL_PATIENT, appointment)
         return appointment
 

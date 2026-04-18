@@ -79,6 +79,30 @@ MESSAGE_TEMPLATES = [
         "description": "调班申请通过时通知医生"
     },
     {
+        "code": "appointment_remind",
+        "name": "就诊提醒（站内信）",
+        "message_type": "appointment",
+        "title_template": "就诊提醒",
+        "content_template": "温馨提醒：您预约的{doctor_name}医生将于{appointment_date} {appointment_time}出诊，请准时到院。",
+        "description": "就诊前提醒患者"
+    },
+    {
+        "code": "queue_call",
+        "name": "叫号通知（站内信）",
+        "message_type": "appointment",
+        "title_template": "叫号通知",
+        "content_template": "您的排队号为{queue_number}号，{doctor_name}医生正在叫您，请前往诊室就诊。",
+        "description": "叫号时通知患者"
+    },
+    {
+        "code": "appointment_cancelled",
+        "name": "预约取消通知",
+        "message_type": "appointment",
+        "title_template": "预约取消通知",
+        "content_template": "您预约的{doctor_name}医生（{appointment_date} {appointment_time}）的预约已取消。",
+        "description": "预约取消后通知患者"
+    },
+    {
         "code": "feedback_reply",
         "name": "反馈回复通知",
         "message_type": "system",

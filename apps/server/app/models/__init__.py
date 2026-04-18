@@ -43,3 +43,5 @@ from app.models.miniapp_platform import (
     ReleaseJob,
     TemplateVersion,
 )
+from app.models.notification_log import NotificationLog
+from app.models.notification_preference import NotificationPreference

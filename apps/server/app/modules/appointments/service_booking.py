@@ -311,9 +311,48 @@ class AppointmentBookingService(AppointmentServiceBase):
                 title=title,
                 content=content,
                 appointment_id=appointment.id,
+                template_code="appointment_success" if appointment.status != 0 else None,
+                template_variables={
+                    "doctor_name": appointment.doctor_name or "医生",
+                    "date": schedule.schedule_date.strftime("%Y年%m月%d日"),
+                    "time_slot": time_slot_display,
+                    "queue_number": str(queue_number),
+                } if appointment.status != 0 else None,
             )
         except Exception as exc:
             logger.warning(f"预约消息通知发送失败: {exc}")
+
+        # === 微信订阅消息推送（预约成功） ===
+        if user and user.openid and appointment.status == APPOINTMENT_STATUS["CONFIRMED"]:
+            try:
+                from app.tasks.notification_task import _send_wechat_notification
+
+                time_slot_display_for_wx = {
+                    "morning": "上午",
+                    "afternoon": "下午",
+                    "evening": "晚间",
+                }.get(schedule.time_slot, schedule.time_slot)
+                wx_template_data = {
+                    "thing1": {"value": (appointment.doctor_name or "医生")[:20]},
+                    "time2": {"value": f"{schedule.schedule_date.strftime('%Y年%m月%d日')} {time_slot_display_for_wx}"},
+                    "thing3": {"value": f"排队号：{queue_number}号"},
+                }
+                await _send_wechat_notification(
+                    db=self.db,
+                    tenant_id=current_tenant_id,
+                    openid=user.openid,
+                    template_id_config_key="appointment_success_template_id",
+                    template_data=wx_template_data,
+                    message_type="appointment_success",
+                    title="预约成功",
+                    user_id=user_id,
+                    store_id=schedule.store_id,
+                    related_id=appointment.id,
+                    page=f"pages/appointment/detail?id={appointment.id}",
+                    notification_log_context={"appointment_no": appointment.appointment_no},
+                )
+            except Exception as exc:
+                logger.warning(f"预约成功微信推送失败（不影响主流程）: {exc}")
 
         self._dispatch_email_event(EventType.APPOINTMENT_CREATED, appointment, schedule)
 
@@ -483,9 +522,43 @@ class AppointmentBookingService(AppointmentServiceBase):
                     title="预约已取消",
                     content=f"您的待支付预约已取消。",
                     appointment_id=appointment.id,
+                    template_code="appointment_cancel",
+                    template_variables={
+                        "date": "待支付",
+                    },
                 )
             except Exception as exc:
                 logger.warning(f"取消预约消息通知发送失败: {exc}")
+
+            # 微信订阅消息推送（待支付预约取消）
+            try:
+                from app.middleware.tenant_context import get_current_tenant_id
+                _cancel_tenant_id = get_current_tenant_id()
+                from app.models.user import User as _User
+                _cancel_user_result = await self.db.execute(
+                    select(_User).where(_User.id == appointment.user_id)
+                )
+                _cancel_user = _cancel_user_result.scalar_one_or_none()
+                if _cancel_user and _cancel_user.openid:
+                    from app.tasks.notification_task import _send_wechat_notification
+                    await _send_wechat_notification(
+                        db=self.db,
+                        tenant_id=_cancel_tenant_id or appointment.tenant_id,
+                        openid=_cancel_user.openid,
+                        template_id_config_key="appointment_cancelled_template_id",
+                        template_data={
+                            "thing1": {"value": (appointment.doctor_name or "医生")[:20]},
+                            "time2": {"value": appointment.appointment_no or ""},
+                            "thing3": {"value": "待支付订单已取消"},
+                        },
+                        message_type="appointment_cancelled",
+                        title="预约已取消",
+                        user_id=appointment.user_id,
+                        store_id=appointment.store_id if hasattr(appointment, "store_id") else None,
+                        related_id=appointment.id,
+                    )
+            except Exception as exc:
+                logger.warning(f"取消预约微信推送失败（不影响主流程）: {exc}")
 
             return appointment
 
@@ -587,9 +660,55 @@ class AppointmentBookingService(AppointmentServiceBase):
                 title="预约已取消",
                 content=f"您预约的{appointment.doctor_name}医生（{schedule_date_str} {time_slot_display}）已取消{cancel_reason_text}。",
                 appointment_id=appointment.id,
+                template_code="appointment_cancel",
+                template_variables={
+                    "date": schedule_date_str,
+                    "doctor_name": appointment.doctor_name or "医生",
+                    "time_slot": time_slot_display,
+                    "reason": reason or "",
+                },
             )
         except Exception as exc:
             logger.warning(f"取消预约消息通知发送失败: {exc}")
+
+        # 微信订阅消息推送（已确认/已签到预约取消）
+        try:
+            from app.middleware.tenant_context import get_current_tenant_id as _get_tid
+            _cancel2_tenant_id = _get_tid()
+            from app.models.user import User as _User2
+            _cancel2_user_result = await self.db.execute(
+                select(_User2).where(_User2.id == appointment.user_id)
+            )
+            _cancel2_user = _cancel2_user_result.scalar_one_or_none()
+            if _cancel2_user and _cancel2_user.openid:
+                from app.tasks.notification_task import _send_wechat_notification
+                _cancel2_time_display = ""
+                _cancel2_date_str = ""
+                if schedule:
+                    _cancel2_time_display = {
+                        "morning": "上午",
+                        "afternoon": "下午",
+                        "evening": "晚间",
+                    }.get(schedule.time_slot, schedule.time_slot)
+                    _cancel2_date_str = schedule.schedule_date.strftime("%Y年%m月%d日")
+                await _send_wechat_notification(
+                    db=self.db,
+                    tenant_id=_cancel2_tenant_id or appointment.tenant_id,
+                    openid=_cancel2_user.openid,
+                    template_id_config_key="appointment_cancelled_template_id",
+                    template_data={
+                        "thing1": {"value": (appointment.doctor_name or "医生")[:20]},
+                        "time2": {"value": f"{_cancel2_date_str} {_cancel2_time_display}"},
+                        "thing3": {"value": f"取消原因：{reason or '用户取消'}"[:20]},
+                    },
+                    message_type="appointment_cancelled",
+                    title="预约已取消",
+                    user_id=appointment.user_id,
+                    store_id=schedule.store_id if schedule else None,
+                    related_id=appointment.id,
+                )
+        except Exception as exc:
+            logger.warning(f"取消预约微信推送失败（不影响主流程）: {exc}")
 
         self._dispatch_email_event(EventType.APPOINTMENT_CANCELLED, appointment, schedule)
         return appointment

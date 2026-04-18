@@ -1,9 +1,13 @@
 """
 通知相关定时任务
 - 预约提醒（就诊前发送微信消息/短信）
+- 通用微信订阅消息推送辅助函数
 """
 from datetime import datetime, timedelta
-from sqlalchemy import select, and_
+from typing import Optional
+
+from sqlalchemy import select, and_, text
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 import logging
 
@@ -14,14 +18,148 @@ from app.models.schedule import Schedule
 from app.models.user import User
 from app.models.doctor import Doctor
 from app.models.department import Department
+from app.models.notification_log import NotificationLog
 from app.models.settings import SystemSetting as Settings
 from app.models.tenant import Tenant
 from app.core.config import settings as app_settings
+from app.infrastructure.wechat.service import WechatService
 from app.infrastructure.wechat.token_manager import WechatTokenManager
 from app.middleware.tenant_context import set_tenant_context, clear_tenant_context
+from app.modules.settings.service import SettingsService
 import httpx
 
 logger = logging.getLogger(__name__)
+
+
+async def _send_wechat_notification(
+    db: AsyncSession,
+    tenant_id: str,
+    openid: str,
+    template_id_config_key: str,
+    template_data: dict,
+    message_type: str,
+    title: str,
+    user_id: Optional[str] = None,
+    store_id: Optional[str] = None,
+    related_id: Optional[str] = None,
+    page: str = "",
+    notification_log_context: Optional[dict] = None,
+) -> bool:
+    """通用微信订阅消息推送辅助函数。
+
+    从 system_settings 读取 template_id，调用 WechatService 发送，
+    并记录 NotificationLog。
+
+    Args:
+        db: 异步数据库会话
+        tenant_id: 租户 ID
+        openid: 用户 openid
+        template_id_config_key: system_settings 中的配置键名（category="wechat"）
+        template_data: 微信模板数据 dict
+        message_type: 消息类型（如 "appointment_success"）
+        title: 消息标题（写入 NotificationLog）
+        user_id: 接收用户 ID
+        store_id: 门店 ID
+        related_id: 关联业务 ID（如预约 ID）
+        page: 点击消息后跳转的小程序页面
+        notification_log_context: 额外写入 NotificationLog.extra_data 的上下文
+
+    Returns:
+        是否发送成功
+    """
+    # 偏好检查：用户禁用 wechat 通道时跳过推送
+    if user_id:
+        try:
+            _TYPE_FIELD_MAP = {
+                "appointment": "appointment_enabled",
+                "appointment_success": "appointment_enabled",
+                "appointment_reminder": "reminder_enabled",
+                "appointment_cancelled": "appointment_enabled",
+                "schedule": "reminder_enabled",
+                "stop_clinic": "stop_clinic_enabled",
+                "system": "system_enabled",
+                "consultation": "consultation_enabled",
+                "feedback": "feedback_enabled",
+                "queue_call": "appointment_enabled",
+            }
+            type_col = _TYPE_FIELD_MAP.get(message_type)
+            if type_col:
+                pref_stmt = text(
+                    f"SELECT wechat_enabled, {type_col} "
+                    f"FROM notification_preferences "
+                    f"WHERE user_id = :uid AND user_type = 'patient' "
+                    f"LIMIT 1"
+                )
+                pref_result = await db.execute(pref_stmt, {"uid": user_id})
+                pref_row = pref_result.first()
+                if pref_row is not None and (not pref_row[0] or not pref_row[1]):
+                    logger.debug(
+                        "[微信推送] 用户 %s 已禁用 wechat/%s，跳过", user_id, message_type,
+                    )
+                    return False
+        except Exception:
+            pass
+
+    # 读取 template_id
+    settings_service = SettingsService(db)
+    template_id = await settings_service.get_value(
+        category="wechat",
+        key=template_id_config_key,
+        default="",
+    )
+    if not template_id:
+        logger.debug(
+            "[微信推送] 模板未配置，跳过: key=%s, tenant_id=%s",
+            template_id_config_key,
+            tenant_id,
+        )
+        return False
+
+    success = False
+    error_msg = None
+    try:
+        wechat_service = WechatService(db)
+        success = await wechat_service.send_subscribe_message(
+            openid=openid,
+            template_id=template_id,
+            data=template_data,
+            page=page or None,
+        )
+        if not success:
+            error_msg = "微信推送返回失败"
+    except Exception as exc:
+        success = False
+        error_msg = str(exc)
+        logger.warning(
+            "[微信推送] 发送异常: type=%s, openid=%s, error=%s",
+            message_type,
+            openid,
+            exc,
+        )
+
+    # 记录 NotificationLog
+    try:
+        log = NotificationLog(
+            tenant_id=tenant_id,
+            store_id=store_id,
+            user_id=user_id,
+            user_type="patient",
+            channel="wechat",
+            message_type=message_type,
+            title=title,
+            status="sent" if success else "failed",
+            recipient=openid,
+            related_id=related_id,
+            sent_at=datetime.now() if success else None,
+            error_message=error_msg,
+            extra_data=notification_log_context,
+        )
+        db.add(log)
+        await db.flush()
+    except Exception as exc:
+        logger.warning("[微信推送] 写入 NotificationLog 失败: %s", exc)
+
+    return success
 
 
 def _get_wechat_config(db: Session) -> dict:
@@ -221,15 +359,48 @@ def send_appointment_reminder_task():
                         page=f"pages/appointment/detail?id={appointment.id}"
                     )
 
-                    if success:
-                        # 标记已发送
-                        appointment.reminder_sent = 1
-                        appointment.reminder_sent_at = now
-                        sent_count += 1
-                        logger.info(f"预约提醒发送成功: appointment_id={appointment.id}")
-                    else:
-                        failed_count += 1
-                        logger.warning(f"预约提醒发送失败: appointment_id={appointment.id}")
+                    try:
+                        if success:
+                            # 标记已发送
+                            appointment.reminder_sent = 1
+                            appointment.reminder_sent_at = now
+                            sent_count += 1
+                            logger.info(f"预约提醒发送成功: appointment_id={appointment.id}")
+
+                            log = NotificationLog(
+                                tenant_id=tenant.id,
+                                store_id=appointment.store_id,
+                                user_id=user.id,
+                                user_type="patient",
+                                channel="wechat",
+                                message_type="appointment_reminder",
+                                title="预约提醒",
+                                status="sent",
+                                recipient=user.openid,
+                                related_id=appointment.id,
+                                sent_at=now,
+                            )
+                            db.add(log)
+                        else:
+                            failed_count += 1
+                            logger.warning(f"预约提醒发送失败: appointment_id={appointment.id}")
+
+                            log = NotificationLog(
+                                tenant_id=tenant.id,
+                                store_id=appointment.store_id,
+                                user_id=user.id,
+                                user_type="patient",
+                                channel="wechat",
+                                message_type="appointment_reminder",
+                                title="预约提醒",
+                                status="failed",
+                                recipient=user.openid,
+                                related_id=appointment.id,
+                                error_message="微信推送失败",
+                            )
+                            db.add(log)
+                    except Exception as e:
+                        logger.error(f"创建通知日志失败: {e}")
 
                 db.commit()
                 total_sent_count += sent_count
@@ -316,12 +487,47 @@ def send_appointment_reminder(appointment_id: str):
                 data=message_data,
                 page=f"pages/appointment/detail?id={appointment.id}"
             )
-            
-            if success:
-                appointment.reminder_sent = 1
-                appointment.reminder_sent_at = datetime.now()
-                db.commit()
-            
+
+            try:
+                if success:
+                    appointment.reminder_sent = 1
+                    appointment.reminder_sent_at = datetime.now()
+                    db.commit()
+
+                    log = NotificationLog(
+                        tenant_id=appointment.tenant_id,
+                        store_id=appointment.store_id,
+                        user_id=user.id,
+                        user_type="patient",
+                        channel="wechat",
+                        message_type="appointment_reminder",
+                        title="预约提醒",
+                        status="sent",
+                        recipient=user.openid,
+                        related_id=appointment.id,
+                        sent_at=datetime.now(),
+                    )
+                    db.add(log)
+                    db.commit()
+                else:
+                    log = NotificationLog(
+                        tenant_id=appointment.tenant_id,
+                        store_id=appointment.store_id,
+                        user_id=user.id,
+                        user_type="patient",
+                        channel="wechat",
+                        message_type="appointment_reminder",
+                        title="预约提醒",
+                        status="failed",
+                        recipient=user.openid,
+                        related_id=appointment.id,
+                        error_message="微信推送失败",
+                    )
+                    db.add(log)
+                    db.commit()
+            except Exception as e:
+                logger.error(f"创建通知日志失败: {e}")
+
             return {"success": success, "appointment_id": appointment_id}
             
         except Exception as e:

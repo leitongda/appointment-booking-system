@@ -54,6 +54,8 @@ ROUTER_REGISTRATIONS = [
     RouterRegistration("app.modules.miniapp_platform.router", "/miniapp-platform", ["小程序平台管理"]),
     RouterRegistration("app.modules.payments.router", "/payments", ["支付管理"]),
     RouterRegistration("app.modules.refunds.router", "/refunds", ["退款管理"]),
+    RouterRegistration("app.modules.notification_logs.router", "/notification-logs", ["通知日志"]),
+    RouterRegistration("app.modules.notification_preferences.router", "/notification-preferences", ["通知偏好"]),
 ]
 
 
