@@ -120,16 +120,17 @@ export type {
 } from './modules/statistics';
 
 // Admin types
-export type { 
-  Admin, 
-  Role, 
-  Permission, 
-  AdminLoginParams, 
-  AdminLoginResult, 
-  OnlineUser, 
-  DeviceInfo, 
-  UserStatus, 
-  LoginHistory, 
+export type {
+  Admin,
+  TenantStatusInfo,
+  Role,
+  Permission,
+  AdminLoginParams,
+  AdminLoginResult,
+  OnlineUser,
+  DeviceInfo,
+  UserStatus,
+  LoginHistory,
   LoginHistoryResult,
   StoreInfo,
   MyStoresResult,
@@ -316,6 +317,10 @@ export type {
   TenantSubscriptionCreateData,
   TenantUsageLog,
   TenantUsageSummary,
+  CurrentTenant,
+  CurrentTenantPublic,
+  TenantNotification,
+  TenantNotificationList,
 } from './modules/tenant';
 
 // Miniapp Platform types

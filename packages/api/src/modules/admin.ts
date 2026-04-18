@@ -33,6 +33,7 @@ export interface Permission {
   code: string;
   name: string;
   type: 'menu' | 'button';
+  controlType?: 'page' | 'tab' | 'action' | 'api';
   parentCode?: string;
   icon?: string;
   sort: number;
@@ -48,6 +49,15 @@ export interface StoreInfo {
 }
 
 // ========== 管理员 ==========
+export interface TenantStatusInfo {
+  status: number;
+  subscriptionPlanName?: string;
+  subscriptionEndAt?: string;
+  isSubscriptionActive: boolean;
+  daysUntilExpiry?: number;
+  contactPhone?: string;
+}
+
 export interface Admin {
   id: string;
   username: string;
@@ -74,6 +84,7 @@ export interface Admin {
   canSwitchStores?: boolean;
   // 租户信息（多租户支持）
   tenantId?: string;
+  tenant?: TenantStatusInfo;
   // 其他字段
   status: number;
   lastLoginAt?: string;

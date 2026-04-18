@@ -25,9 +25,9 @@ export interface Appointment {
   cancelReason?: string;
   /** 病情描述/症状描述 */
   symptomDescription?: string;
-  /** 门店名称（需后端补充） */
+  /** 门店名称 */
   storeName?: string;
-  /** 签到方式（需后端补充） */
+  /** 签到方式 */
   checkInMethod?: string;
   createdAt: string;
   /** 是否为复诊 */
@@ -49,7 +49,7 @@ export type AppointmentDetail = Appointment;
 
 export interface AppointmentStatistics {
   total: number;
-  pending: number;
+  confirmed: number;
   signedIn: number;
   inProgress: number;
   completed: number;

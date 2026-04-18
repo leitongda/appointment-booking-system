@@ -204,6 +204,46 @@ export interface TenantUsageSummary {
   maxStorageMb: number;
 }
 
+// ========== 当前租户信息（前端消费） ==========
+
+export interface CurrentTenant {
+  id: string;
+  tenantCode: string;
+  name: string;
+  status: number;
+  subscriptionPlanName?: string;
+  subscriptionEndAt?: string;
+  isSubscriptionActive: boolean;
+  daysUntilExpiry?: number;
+  billingCycle: string;
+  contactPhone?: string;
+}
+
+export interface CurrentTenantPublic {
+  status: number;
+  subscriptionEndAt?: string;
+  isSubscriptionActive: boolean;
+  name?: string;
+}
+
+export interface TenantNotification {
+  id: string;
+  notificationType: string;
+  title: string;
+  content: string;
+  isRead: boolean;
+  readAt?: string;
+  priority: number;
+  extraMetadata?: string;
+  createdAt: string;
+}
+
+export interface TenantNotificationList {
+  items: TenantNotification[];
+  unreadCount: number;
+  total: number;
+}
+
 // ========== API ==========
 
 export const tenantApi = {
@@ -289,5 +329,31 @@ export const tenantApi = {
       limit: params.limit,
     } : undefined;
     return request.get(`/tenants/${tenantId}/usage/logs`, { params: queryParams });
+  },
+
+  // 当前租户信息（前端消费）
+  getCurrentTenant: (): Promise<CurrentTenant> => {
+    return request.get('/tenants/me');
+  },
+
+  getCurrentTenantPublic: (): Promise<CurrentTenantPublic> => {
+    return request.get('/tenants/me/public');
+  },
+
+  getMyNotifications: (params?: { unread?: boolean; page?: number; pageSize?: number }): Promise<TenantNotificationList> => {
+    const queryParams = params ? {
+      unread: params.unread,
+      page: params.page,
+      page_size: params.pageSize,
+    } : undefined;
+    return request.get('/tenants/me/notifications', { params: queryParams });
+  },
+
+  markNotificationRead: (notificationId: string): Promise<{ message: string }> => {
+    return request.post(`/tenants/me/notifications/${notificationId}/read`);
+  },
+
+  markAllNotificationsRead: (): Promise<{ message: string }> => {
+    return request.post('/tenants/me/notifications/read-all');
   },
 };

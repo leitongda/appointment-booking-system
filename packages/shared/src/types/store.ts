@@ -1,3 +1,5 @@
+import type { MiniappStoreThemeValue } from '../constants/miniapp-theme';
+
 export interface Store {
   id: string;
   name: string;
@@ -18,7 +20,7 @@ export interface Store {
   logo?: string;
   password?: string;
   email?: string;
-  themeStyle?: string;
+  themeStyle?: MiniappStoreThemeValue;
   sortOrder: number;
   status: number;
   departmentCount?: number;
@@ -66,7 +68,7 @@ export interface StoreContext {
   /** 门店logo */
   storeLogo?: string;
   /** 门店主题风格 */
-  storeTheme?: string;
+  storeTheme?: MiniappStoreThemeValue;
   /** 门店电话 */
   storePhone?: string;
   /** 门店地址 */

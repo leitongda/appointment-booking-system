@@ -49,6 +49,7 @@ export interface PaymentProfile {
   mchId?: string;
   subMchid?: string;
   notifyUrl?: string;
+  refundNotifyUrl?: string;
   apiV3KeyRef?: string;
   certSerialNo?: string;
   privateKeyRef?: string;
@@ -71,6 +72,7 @@ export interface PaymentProfileCreateData {
   mchId?: string;
   subMchid?: string;
   notifyUrl?: string;
+  refundNotifyUrl?: string;
   apiV3KeyRef?: string;
   certSerialNo?: string;
   privateKeyRef?: string;
@@ -85,6 +87,7 @@ export interface PaymentProfileUpdateData {
   mchId?: string;
   subMchid?: string;
   notifyUrl?: string;
+  refundNotifyUrl?: string;
   apiV3KeyRef?: string;
   certSerialNo?: string;
   privateKeyRef?: string;

@@ -46,6 +46,7 @@ export interface AppointmentCreatePaymentPayload {
   payment_required: boolean;
   payment_amount?: number;
   payment_params?: PaymentParams | null;
+  payment_param_error?: string | null;
 }
 
 export interface RefundRecord {
@@ -75,7 +76,7 @@ export interface CheckDuplicateResult {
 
 export interface AppointmentStatistics {
   total: number;
-  pending: number;
+  confirmed: number;
   signedIn: number;
   inProgress: number;
   completed: number;
@@ -363,5 +364,20 @@ export const appointmentApi = {
     return request.get(`/appointments/${appointmentId}/payment-params`, {
       params: openid ? { openid } : undefined,
     });
+  },
+
+  /**
+   * 查询支付订单状态（用于前端支付结果二次确认）
+   */
+  getPaymentStatus: (appointmentId: string): Promise<{
+    appointment_id: string;
+    status: number;
+    payment_amount: number;
+    payment_transaction_id: string | null;
+    paid_at: string | null;
+    refund_status: string | null;
+    refund_amount: number;
+  }> => {
+    return request.get(`/payments/orders/${appointmentId}`);
   },
 };
