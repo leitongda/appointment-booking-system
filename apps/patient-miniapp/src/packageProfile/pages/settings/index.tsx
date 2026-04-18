@@ -4,7 +4,8 @@ import { Switch, Button, Cell, Dialog, Input } from '@nutui/nutui-react-taro';
 import { useState, useEffect, useCallback } from 'react';
 import { STORAGE_KEYS } from '@hospital/shared';
 import { clearAuthSession, getToken } from '../../../utils/auth';
-import { userApi } from '@hospital/api';
+import { userApi, notificationPreferenceApi } from '@hospital/api';
+import type { NotificationPreference } from '@hospital/api';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
 import { getFontMode, applyFontMode, type FontMode } from '../../../utils/fontMode';
 import {
@@ -89,6 +90,38 @@ const SettingsPage = () => {
       setUserPhone('');
     },
   });
+
+  const [prefLoading, setPrefLoading] = useState(true);
+
+  Taro.useDidShow(() => {
+    notificationPreferenceApi.get()
+      .then((data: NotificationPreference) => {
+        setNotificationEnabled(data.appointmentEnabled);
+        setSystemNotificationEnabled(data.systemEnabled);
+      })
+      .catch(() => {})
+      .finally(() => setPrefLoading(false));
+  });
+
+  const handleNotificationChange = async (value: boolean) => {
+    setNotificationEnabled(value);
+    try {
+      await notificationPreferenceApi.update({ appointmentEnabled: value });
+    } catch {
+      setNotificationEnabled(!value);
+      Taro.showToast({ title: '设置失败', icon: 'none' });
+    }
+  };
+
+  const handleSystemNotificationChange = async (value: boolean) => {
+    setSystemNotificationEnabled(value);
+    try {
+      await notificationPreferenceApi.update({ systemEnabled: value });
+    } catch {
+      setSystemNotificationEnabled(!value);
+      Taro.showToast({ title: '设置失败', icon: 'none' });
+    }
+  };
 
   const handleClearCache = async () => {
     const result = await Taro.showModal({
@@ -268,7 +301,8 @@ const SettingsPage = () => {
             extra={
               <Switch
                 checked={notificationEnabled}
-                onChange={(value) => setNotificationEnabled(value)}
+                disabled={prefLoading}
+                onChange={(value) => handleNotificationChange(value)}
               />
             }
           />
@@ -277,7 +311,8 @@ const SettingsPage = () => {
             extra={
               <Switch
                 checked={systemNotificationEnabled}
-                onChange={(value) => setSystemNotificationEnabled(value)}
+                disabled={prefLoading}
+                onChange={(value) => handleSystemNotificationChange(value)}
               />
             }
           />

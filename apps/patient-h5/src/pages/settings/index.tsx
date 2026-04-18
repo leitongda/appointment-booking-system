@@ -1,13 +1,35 @@
 import { NavBar, Switch, Dialog, Toast } from 'antd-mobile';
 import { history } from 'umi';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { removeToken, removeStorage, STORAGE_KEYS } from '@hospital/shared';
+import { notificationPreferenceApi } from '@hospital/api';
+import type { NotificationPreference } from '@hospital/api';
 import { Card, Button } from '@/components/ui';
 import { fadeInUp, stagger } from '@/components/ui/animations';
 
 const SettingsPage: React.FC = () => {
   const [pushEnabled, setPushEnabled] = useState(true);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    notificationPreferenceApi.get()
+      .then((data: NotificationPreference) => {
+        setPushEnabled(data.appointmentEnabled);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handlePushChange = async (value: boolean) => {
+    setPushEnabled(value);
+    try {
+      await notificationPreferenceApi.update({ appointmentEnabled: value });
+    } catch {
+      setPushEnabled(!value);
+      Toast.show({ content: '设置失败' });
+    }
+  };
 
   const handleClearCache = async () => {
     const result = await Dialog.confirm({
@@ -77,7 +99,8 @@ const SettingsPage: React.FC = () => {
               </div>
               <Switch
                 checked={pushEnabled}
-                onChange={setPushEnabled}
+                onChange={handlePushChange}
+                disabled={loading}
                 style={{
                   '--checked-color': '#0052FF',
                 } as React.CSSProperties}

@@ -1,9 +1,10 @@
 import { View, Text } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Button } from '@nutui/nutui-react-taro';
 import { CheckIcon, CloseIcon } from '../../../components/Icons';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
+import { useSubscribeMessage } from '../../../hooks/useSubscribeMessage';
 import { useApplyThemeNavigationBar } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import './result.less';
@@ -19,12 +20,20 @@ const BookingResultPage = () => {
     deps: [appointmentNo, status],
   });
 
+  const { subscribeAppointment } = useSubscribeMessage();
+
   const resultMessage = message ? decodeURIComponent(message) : '';
   const isSuccess = status === 'success' || status === 'confirmed';
   const isFailed = status === 'failed';
   const isCancelled = status === 'cancelled';
   const isConfirmed = status === 'confirmed';
   const isUnavailable = status === 'unavailable';
+
+  useEffect(() => {
+    if (isSuccess) {
+      subscribeAppointment();
+    }
+  }, [isSuccess, subscribeAppointment]);
 
   const handleViewDetail = () => {
     if (!appointmentNo) return;

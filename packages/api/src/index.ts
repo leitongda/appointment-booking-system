@@ -78,15 +78,19 @@ export { auditLogApi } from './modules/audit-log';
 export { storeEmailRecipientApi } from './modules/store-email-recipient';
 export { tenantApi } from './modules/tenant';
 export { miniappPlatformApi } from './modules/miniapp-platform';
-export type { 
-  UserListItem, 
-  UserDetail, 
-  UserCard, 
+export { notificationLogApi } from './modules/notification-log';
+export { notificationPreferenceApi } from './modules/notification-preference';
+export type {
+  UserListItem,
+  UserDetail,
+  UserCard,
   UserListParams,
   UserUpdateData,
   CardCreateData,
   CardUpdateData,
 } from './modules/user-manage';
+export type { NotificationLog, NotificationLogListParams, NotificationLogStats } from './modules/notification-log';
+export type { NotificationPreference } from './modules/notification-preference';
 
 // Store types
 export type { StoreAdmin } from './modules/store';

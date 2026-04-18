@@ -6,6 +6,7 @@ import { doctorApi, userApi, appointmentApi, bookingNoticeApi, settingsApi } fro
 import type { BookingNotice, TimePeriodConfig } from '@hospital/api';
 import { TIME_SLOT_MAP, getPeriodNameFromTime } from '@hospital/shared';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
+import { useSubscribeMessage } from '../../../hooks/useSubscribeMessage';
 import { useTenantGuard } from '../../../hooks/useTenantGuard';
 import { useApplyThemeNavigationBar, useThemePrimaryColor } from '../../../utils/theme';
 import {
@@ -116,6 +117,7 @@ const BookingPage = () => {
   // 获取选中的就诊人
   const selectedPatient = patients.find(p => p.id === selectedPatientId);
   const { requireWritable } = useTenantGuard();
+  const { subscribeAppointment } = useSubscribeMessage();
 
   const handleSubmit = async () => {
     // 租户状态守卫：暂停时阻断写操作
@@ -190,6 +192,8 @@ const BookingPage = () => {
       const paymentParams = 'payment_params' in createResult ? createResult.payment_params : undefined;
       const paymentRequired =
         'payment_required' in createResult ? Boolean(createResult.payment_required) : appointment.status === 0;
+
+      subscribeAppointment();
 
       if (paymentRequired && paymentParams) {
         // 需要支付，调用微信支付

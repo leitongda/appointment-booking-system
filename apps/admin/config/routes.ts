@@ -370,6 +370,7 @@ export default [
     access: 'canSystemMonitoring',
     routes: [
       { path: '/monitoring/log', name: '操作日志', icon: 'fileSearch', component: './system/log', access: 'canSystemLogs' },
+      { path: '/monitoring/notification-logs', name: '通知日志', icon: 'bell', component: './system/notification-logs', access: 'canSystemLogs' },
       { path: '/monitoring/checkin-audit-logs', name: '签到审计', icon: 'audit', component: './system/checkin-audit-logs', access: 'canCheckinAuditLogs' },
       { path: '/monitoring/online-users', name: '在线用户', icon: 'usergroupAdd', component: './system/online-users', access: 'canOnlineUsers' },
       { path: '/monitoring/analytics', name: '行为分析', icon: 'lineChart', component: './system/analytics', access: 'canAnalytics' },
