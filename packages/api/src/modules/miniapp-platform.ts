@@ -175,6 +175,139 @@ export interface MiniappInstanceListParams {
   pageSize?: number;
 }
 
+// ========== AppTemplate (小程序模板) ==========
+
+export interface AppTemplate {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  category: string;
+  defaultConfig?: Record<string, any>;
+  status: number; // 0-禁用 1-启用
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface AppTemplateCreateData {
+  name: string;
+  code: string;
+  description?: string;
+  category: string;
+  defaultConfig?: Record<string, any>;
+}
+
+export interface AppTemplateUpdateData {
+  name?: string;
+  description?: string;
+  defaultConfig?: Record<string, any>;
+  status?: number;
+}
+
+export interface AppTemplateListParams {
+  category?: string;
+  status?: number;
+  page?: number;
+  pageSize?: number;
+}
+
+// ========== TemplateVersion (模板版本) ==========
+
+export interface TemplateVersion {
+  id: string;
+  templateId: string;
+  version: string;
+  sourceRef?: string;
+  schemaVersion?: string;
+  changelog?: string;
+  status: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface TemplateVersionCreateData {
+  version: string;
+  sourceRef?: string;
+  schemaVersion?: string;
+  changelog?: string;
+}
+
+// ========== BuildJob (构建任务) ==========
+
+export interface BuildJob {
+  id: string;
+  tenantId: string;
+  miniappInstanceId: string;
+  templateVersionId?: string;
+  triggerSource?: string;
+  buildParams?: Record<string, any>;
+  status: string;
+  startedAt?: string;
+  finishedAt?: string;
+  createdAt: string;
+  updatedAt?: string;
+  miniappInstance?: {
+    id: string;
+    name: string;
+  };
+  templateVersion?: {
+    id: string;
+    version: string;
+  };
+}
+
+export interface BuildJobCreateData {
+  miniappInstanceId: string;
+  templateVersionId?: string;
+  triggerSource?: string;
+  buildParams?: Record<string, any>;
+}
+
+export interface BuildJobListParams {
+  instanceId?: string;
+  status?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+// ========== ReleaseJob (发布任务) ==========
+
+export interface ReleaseJob {
+  id: string;
+  miniappInstanceId: string;
+  artifactId?: string;
+  action: 'upload' | 'submit_audit' | 'publish' | 'rollback';
+  targetVersion?: string;
+  result?: Record<string, any>;
+  status: string;
+  createdAt: string;
+  updatedAt?: string;
+  miniappInstance?: {
+    id: string;
+    name: string;
+  };
+  artifact?: {
+    id: string;
+    filePath: string;
+    checksum?: string;
+  };
+}
+
+export interface ReleaseJobCreateData {
+  miniappInstanceId: string;
+  artifactId?: string;
+  action: 'upload' | 'submit_audit' | 'publish' | 'rollback';
+  targetVersion?: string;
+}
+
+export interface ReleaseJobListParams {
+  instanceId?: string;
+  action?: string;
+  status?: string;
+  page?: number;
+  pageSize?: number;
+}
+
 // ========== API ==========
 
 export const miniappPlatformApi = {
@@ -311,5 +444,103 @@ export const miniappPlatformApi = {
     return request.get('/miniapp-platform/instances/check-unique', {
       params: { code, app_id: appId, exclude_id: excludeId },
     });
+  },
+
+  // ========== AppTemplate ==========
+  getTemplates: (params?: AppTemplateListParams): Promise<{
+    data: AppTemplate[];
+    total: number;
+    page: number;
+    pageSize: number;
+    message?: string;
+  }> => {
+    const queryParams = {
+      category: params?.category,
+      status: params?.status,
+      page: params?.page,
+      page_size: params?.pageSize,
+    };
+    return request.get('/miniapp-platform/templates', { params: queryParams });
+  },
+
+  getTemplate: (templateId: string): Promise<AppTemplate> => {
+    return request.get(`/miniapp-platform/templates/${templateId}`);
+  },
+
+  createTemplate: (data: AppTemplateCreateData): Promise<AppTemplate> => {
+    return request.post('/miniapp-platform/templates', data);
+  },
+
+  updateTemplate: (templateId: string, data: AppTemplateUpdateData): Promise<AppTemplate> => {
+    return request.put(`/miniapp-platform/templates/${templateId}`, data);
+  },
+
+  getTemplateVersions: (templateId: string, params?: { page?: number; pageSize?: number }): Promise<{
+    data: TemplateVersion[];
+    total: number;
+    page: number;
+    pageSize: number;
+    message?: string;
+  }> => {
+    const queryParams = {
+      page: params?.page,
+      page_size: params?.pageSize,
+    };
+    return request.get(`/miniapp-platform/templates/${templateId}/versions`, { params: queryParams });
+  },
+
+  createTemplateVersion: (templateId: string, data: TemplateVersionCreateData): Promise<TemplateVersion> => {
+    return request.post(`/miniapp-platform/templates/${templateId}/versions`, data);
+  },
+
+  // ========== BuildJob ==========
+  getBuildJobs: (params: BuildJobListParams): Promise<{
+    data: BuildJob[];
+    total: number;
+    page: number;
+    pageSize: number;
+    message?: string;
+  }> => {
+    const queryParams = {
+      instance_id: params.instanceId,
+      status: params.status,
+      page: params.page,
+      page_size: params.pageSize,
+    };
+    return request.get('/miniapp-platform/build-jobs', { params: queryParams });
+  },
+
+  getBuildJob: (jobId: string): Promise<BuildJob> => {
+    return request.get(`/miniapp-platform/build-jobs/${jobId}`);
+  },
+
+  createBuildJob: (data: BuildJobCreateData): Promise<BuildJob> => {
+    return request.post('/miniapp-platform/build-jobs', data);
+  },
+
+  // ========== ReleaseJob ==========
+  getReleaseJobs: (params: ReleaseJobListParams): Promise<{
+    data: ReleaseJob[];
+    total: number;
+    page: number;
+    pageSize: number;
+    message?: string;
+  }> => {
+    const queryParams = {
+      instance_id: params.instanceId,
+      action: params.action,
+      status: params.status,
+      page: params.page,
+      page_size: params.pageSize,
+    };
+    return request.get('/miniapp-platform/release-jobs', { params: queryParams });
+  },
+
+  getReleaseJob: (jobId: string): Promise<ReleaseJob> => {
+    return request.get(`/miniapp-platform/release-jobs/${jobId}`);
+  },
+
+  createReleaseJob: (data: ReleaseJobCreateData): Promise<ReleaseJob> => {
+    return request.post('/miniapp-platform/release-jobs', data);
   },
 };
