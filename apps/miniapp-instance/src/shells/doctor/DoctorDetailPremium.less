@@ -1,0 +1,417 @@
+@import '../../styles/variables.less';
+
+.doctor-detail-premium-page {
+  background-color: @bg-page;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.loading-state {
+  padding: @spacing-10;
+  text-align: center;
+  color: @text-tertiary;
+}
+
+// 顶部大图/渐变背景区域
+.doctor-header {
+  position: relative;
+  padding: @spacing-6 @page-padding @spacing-8;
+  overflow: hidden;
+}
+
+.header-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: @gradient-primary;
+  z-index: 0;
+}
+
+.header-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.doctor-avatar-wrap {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: @radius-full;
+  overflow: hidden;
+  border: 6rpx solid rgba(255, 255, 255, 0.3);
+  margin-bottom: @spacing-3;
+}
+
+.doctor-avatar {
+  width: 100%;
+  height: 100%;
+}
+
+.doctor-avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.doctor-name {
+  font-size: @font-size-3xl;
+  font-weight: @font-weight-bold;
+  color: @text-inverse;
+  margin-bottom: @spacing-2;
+}
+
+.doctor-title {
+  font-size: @font-size-lg;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: @spacing-1;
+}
+
+.doctor-dept {
+  font-size: @font-size-base;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.favorite-btn {
+  position: absolute;
+  top: @spacing-4;
+  right: @page-padding;
+  z-index: 2;
+  padding: @spacing-2;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: @radius-full;
+}
+
+// 内容区域
+.content {
+  flex: 1;
+  padding-bottom: @spacing-10;
+}
+
+.doctor-card {
+  margin: @spacing-4 @page-padding;
+  padding: @spacing-5;
+  background-color: @bg-card;
+  border-radius: @radius-lg;
+  box-shadow: @shadow-sm;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: @spacing-3 0;
+  border-bottom: @border-light;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  font-size: @font-size-base;
+  color: @text-secondary;
+}
+
+.info-value {
+  font-size: @font-size-base;
+  color: @text-primary;
+  font-weight: @font-weight-medium;
+}
+
+.section-title {
+  font-size: @font-size-lg;
+  font-weight: @font-weight-semibold;
+  color: @text-primary;
+  margin: @spacing-5 0 @spacing-3;
+}
+
+.specialty-text,
+.intro-text {
+  font-size: @font-size-base;
+  color: @text-secondary;
+  line-height: @line-height-relaxed;
+}
+
+.empty-text {
+  font-size: @font-size-base;
+  color: @text-tertiary;
+}
+
+// 服务项目
+.service-section {
+  margin: @spacing-4 @page-padding;
+  padding: @spacing-5;
+  background-color: @bg-card;
+  border-radius: @radius-lg;
+  box-shadow: @shadow-sm;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: @spacing-3;
+}
+
+.service-list {
+  display: flex;
+  flex-direction: column;
+  gap: @spacing-3;
+}
+
+.service-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: @spacing-3;
+  background-color: @color-bg-secondary;
+  border-radius: @radius-md;
+}
+
+.service-name {
+  font-size: @font-size-base;
+  color: @text-primary;
+}
+
+.service-price {
+  font-size: @font-size-lg;
+  color: @color-price;
+  font-weight: @font-weight-semibold;
+}
+
+// 患者评价
+.review-section {
+  margin: @spacing-4 @page-padding;
+  padding: @spacing-5;
+  background-color: @bg-card;
+  border-radius: @radius-lg;
+  box-shadow: @shadow-sm;
+}
+
+.empty-reviews {
+  padding: @spacing-6;
+  text-align: center;
+  color: @text-tertiary;
+}
+
+// 排班选择
+.schedule-section {
+  margin: @spacing-4 @page-padding;
+  padding: @spacing-5;
+  background-color: @bg-card;
+  border-radius: @radius-lg;
+  box-shadow: @shadow-sm;
+}
+
+.date-scroll {
+  margin-bottom: @spacing-4;
+}
+
+.date-list {
+  display: flex;
+  gap: @spacing-2;
+}
+
+.date-item {
+  flex-shrink: 0;
+  width: 120rpx;
+  padding: @spacing-3;
+  background-color: @color-bg-secondary;
+  border-radius: @radius-md;
+  text-align: center;
+  transition: all @transition-base;
+}
+
+.date-item.active {
+  background-color: @primary-color;
+}
+
+.date-weekday {
+  display: block;
+  font-size: @font-size-sm;
+  margin-bottom: @spacing-1;
+}
+
+.date-item .date-weekday {
+  color: @text-secondary;
+}
+
+.date-item.active .date-weekday {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.date-day {
+  display: block;
+  font-size: @font-size-lg;
+  font-weight: @font-weight-semibold;
+}
+
+.date-item .date-day {
+  color: @text-primary;
+}
+
+.date-item.active .date-day {
+  color: @text-inverse;
+}
+
+.schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: @spacing-3;
+}
+
+.schedule-item {
+  padding: @spacing-4;
+  background-color: @color-bg-secondary;
+  border-radius: @radius-md;
+  border: 2rpx solid transparent;
+  transition: all @transition-base;
+}
+
+.schedule-item:not(.disabled):active {
+  border-color: @primary-color;
+  background-color: @badge-bg;
+}
+
+.schedule-item.disabled {
+  opacity: 0.5;
+}
+
+.schedule-time {
+  display: flex;
+  align-items: center;
+  margin-bottom: @spacing-2;
+}
+
+.time-icon {
+  margin-right: @spacing-2;
+}
+
+.time-text {
+  font-size: @font-size-lg;
+  color: @text-primary;
+  font-weight: @font-weight-medium;
+}
+
+.schedule-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.schedule-type {
+  font-size: @font-size-sm;
+  color: @text-secondary;
+}
+
+.schedule-status {
+  font-size: @font-size-sm;
+  padding: @spacing-1 @spacing-2;
+  border-radius: @radius-sm;
+
+  &.full {
+    background-color: @color-bg-tertiary;
+    color: @text-tertiary;
+  }
+
+  &.closing-soon {
+    background-color: #FFF7E6;
+    color: @color-warning;
+  }
+
+  &.not-open,
+  &.closed {
+    background-color: @color-bg-tertiary;
+    color: @text-tertiary;
+  }
+}
+
+.schedule-countdown {
+  display: block;
+  font-size: @font-size-xs;
+  color: @color-danger;
+  margin-top: @spacing-2;
+}
+
+.no-schedule {
+  padding: @spacing-6;
+  text-align: center;
+  color: @text-tertiary;
+}
+
+// 预约确认弹窗
+.sheet-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: @z-index-modal;
+  display: flex;
+  align-items: flex-end;
+}
+
+.sheet-content {
+  width: 100%;
+  background-color: @bg-card;
+  border-radius: @radius-xl @radius-xl 0 0;
+  padding: @spacing-5;
+}
+
+.sheet-header {
+  text-align: center;
+  margin-bottom: @spacing-5;
+}
+
+.sheet-title {
+  font-size: @font-size-xl;
+  font-weight: @font-weight-semibold;
+  color: @text-primary;
+}
+
+.sheet-body {
+  margin-bottom: @spacing-5;
+}
+
+.sheet-row {
+  display: flex;
+  justify-content: space-between;
+  padding: @spacing-3 0;
+  border-bottom: @border-light;
+}
+
+.sheet-label {
+  font-size: @font-size-base;
+  color: @text-secondary;
+}
+
+.sheet-value {
+  font-size: @font-size-base;
+  color: @text-primary;
+  font-weight: @font-weight-medium;
+}
+
+.sheet-footer {
+  display: flex;
+  flex-direction: column;
+  gap: @spacing-3;
+}
+
+.confirm-btn {
+  width: 100%;
+}
+
+.cancel-btn {
+  text-align: center;
+  font-size: @font-size-base;
+  color: @text-tertiary;
+}

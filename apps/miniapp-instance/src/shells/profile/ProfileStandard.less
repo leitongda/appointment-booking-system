@@ -1,0 +1,316 @@
+@import '../../styles/variables.less';
+
+.profile-page {
+  background: @bg-page;
+}
+
+// ---- 头部区域 ----
+.header {
+  position: relative;
+  padding: @spacing-8 24rpx @spacing-6;
+  background: var(--theme-primary-soft, rgba(77, 124, 184, 0.14));
+}
+
+.header-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+}
+
+.avatar {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+  border: 4rpx solid rgba(255, 255, 255, 0.88);
+  box-shadow: 0 10rpx 24rpx -10rpx rgba(77, 124, 184, 0.16);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  image {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.user-info {
+  margin-left: @spacing-4;
+  color: @text-primary;
+  flex: 1;
+}
+
+.nickname {
+  font-size: @font-body-lg;
+  font-weight: 700;
+  display: block;
+  margin-bottom: @spacing-1;
+}
+
+.phone {
+  font-size: @font-body;
+  opacity: 0.85;
+}
+
+.login-arrow {
+  font-size: 48rpx;
+  color: @text-secondary;
+  opacity: 0.6;
+  margin-left: auto;
+}
+
+// ---- 统计卡片 ----
+.stats-card {
+  margin: -40rpx 24rpx @spacing-3;
+  padding: @spacing-4;
+  background: @bg-card;
+  border-radius: @radius-lg;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.06);
+  position: relative;
+  z-index: 10;
+  display: flex;
+  justify-content: space-around;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+
+  &:not(:last-child) {
+    border-right: 1rpx solid rgba(0, 0, 0, 0.06);
+  }
+}
+
+.stat-value {
+  font-size: @font-h2;
+  font-weight: 700;
+  color: var(--theme-primary, #4D7CB8);
+  margin-bottom: 4rpx;
+}
+
+.stat-label {
+  font-size: @font-caption;
+  color: @text-tertiary;
+}
+
+// ---- 菜单组 ----
+.menu-section {
+  margin: @spacing-3 24rpx;
+}
+
+.menu-card {
+  background: @bg-card;
+  border-radius: @radius-lg;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  padding: @spacing-4;
+  background: @bg-card;
+  transition: background 0.2s;
+
+  &:not(:last-child) {
+    border-bottom: 1rpx solid rgba(0, 0, 0, 0.06);
+  }
+
+  &:active {
+    background: @bg-grey;
+  }
+}
+
+.menu-icon {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: @radius-lg;
+  background: var(--theme-primary-soft, #EAF1F8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: @spacing-3;
+}
+
+.menu-content {
+  flex: 1;
+}
+
+.menu-title {
+  font-size: @font-body;
+  color: @text-primary;
+  font-weight: 500;
+}
+
+.menu-arrow {
+  font-size: @font-body-lg;
+  color: #D1D5DB;
+}
+
+// ---- 退出登录 ----
+.logout-wrap {
+  padding: @spacing-8 24rpx;
+}
+
+.logout-btn {
+  width: 100%;
+  border-radius: @radius-lg;
+}
+
+// ---- 版本信息 ----
+.version-info {
+  text-align: center;
+  padding: @spacing-4 0 @spacing-8;
+  font-size: @font-caption;
+  color: #D1D5DB;
+}
+
+// ---- 用户信息弹窗 ----
+.user-info-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+}
+
+.user-info-sheet {
+  width: 100%;
+  background: @bg-card;
+  border-radius: @radius-xl @radius-xl 0 0;
+  padding: @spacing-4;
+  padding-bottom: calc(@spacing-4 + env(safe-area-inset-bottom));
+
+  .sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding-bottom: @spacing-4;
+    border-bottom: 1rpx solid rgba(0, 0, 0, 0.06);
+    margin-bottom: @spacing-4;
+  }
+
+  .sheet-title {
+    font-size: @font-body-lg;
+    font-weight: 600;
+    color: @text-primary;
+  }
+
+  .sheet-close {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 48rpx;
+    color: @text-tertiary;
+    padding: @spacing-2;
+    line-height: 1;
+  }
+
+  .sheet-content {
+    .tip {
+      display: block;
+      text-align: center;
+      font-size: @font-body-sm;
+      color: @text-tertiary;
+      margin-bottom: @spacing-5;
+    }
+
+    .avatar-section {
+      display: flex;
+      justify-content: center;
+      margin-bottom: @spacing-5;
+
+      .avatar-btn {
+        width: 160rpx;
+        height: 160rpx;
+        padding: 0;
+        background: transparent;
+        border: none;
+        border-radius: 50%;
+        overflow: hidden;
+
+        &::after {
+          border: none;
+        }
+
+        .avatar-img {
+          width: 160rpx;
+          height: 160rpx;
+          border-radius: 50%;
+        }
+
+        .avatar-placeholder {
+          width: 160rpx;
+          height: 160rpx;
+          border-radius: 50%;
+          background: @bg-grey;
+          border: 4rpx dashed #D1D5DB;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+
+          .avatar-icon {
+            font-size: 56rpx;
+            color: @text-tertiary;
+            line-height: 1;
+          }
+
+          .avatar-text {
+            font-size: @font-caption;
+            color: @text-tertiary;
+            margin-top: @spacing-1;
+          }
+        }
+      }
+    }
+
+    .nickname-section {
+      margin-bottom: @spacing-5;
+
+      .label {
+        display: block;
+        color: @text-secondary;
+        font-size: @font-body-sm;
+        margin-bottom: @spacing-2;
+      }
+
+      .nickname-input {
+        width: 100%;
+        height: 88rpx;
+        background: @bg-grey;
+        border-radius: @radius-lg;
+        padding: 0 @spacing-4;
+        font-size: @font-body;
+        color: @text-primary;
+      }
+    }
+
+    .confirm-btn {
+      margin-bottom: @spacing-3;
+      border-radius: @radius-lg;
+    }
+
+    .skip-section {
+      text-align: center;
+
+      .skip-btn {
+        display: inline-block;
+        color: @text-tertiary;
+        font-size: @font-body-sm;
+        padding: @spacing-2;
+      }
+    }
+  }
+}

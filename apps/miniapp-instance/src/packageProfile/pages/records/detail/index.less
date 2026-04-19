@@ -1,0 +1,180 @@
+// ===========================================
+// 就诊记录详情页样式 - Corporate Trust Design System
+// ===========================================
+
+@import '../../../../styles/variables.less';
+@import '../../../../styles/mixins.less';
+
+.record-detail-page {
+  .page-container();
+  
+  &.loading-container {
+    .flex-center();
+    min-height: 100vh;
+  }
+}
+
+.loading {
+  .loading-state();
+}
+
+// -------------------------------------------
+// 头部
+// -------------------------------------------
+
+.header {
+  padding: @spacing-6 @page-padding;
+  .gradient-primary();
+  color: @color-text-white;
+  position: relative;
+  overflow: hidden;
+  
+  // 装饰球
+  &::before {
+    content: '';
+    position: absolute;
+    top: -60rpx;
+    right: -40rpx;
+    width: 200rpx;
+    height: 200rpx;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+  }
+  
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -30rpx;
+    left: 80rpx;
+    width: 120rpx;
+    height: 120rpx;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+  }
+}
+
+.date {
+  font-size: @font-size-xl;
+  font-weight: @font-weight-bold;
+  display: block;
+  margin-bottom: @spacing-1;
+  position: relative;
+  z-index: 1;
+}
+
+.dept {
+  font-size: @font-size-base;
+  opacity: 0.9;
+  position: relative;
+  z-index: 1;
+}
+
+// -------------------------------------------
+// 信息区块
+// -------------------------------------------
+
+.section {
+  .card-base();
+  margin: @page-padding;
+  padding: @card-padding;
+}
+
+.section-title {
+  .heading-card();
+  display: block;
+  margin-bottom: @spacing-3;
+  padding-bottom: @spacing-3;
+  border-bottom: @border-width solid @color-divider;
+  
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 6rpx;
+    height: 28rpx;
+    background: linear-gradient(135deg, var(--theme-primary, #4D7CB8) 0%, var(--theme-accent, #385E92) 100%);
+    border-radius: @radius-full;
+    margin-right: @spacing-2;
+    vertical-align: middle;
+  }
+}
+
+.info-row {
+  .flex-between();
+  padding: @spacing-3 0;
+  border-bottom: @border-width solid @color-divider;
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+}
+
+.label {
+  font-size: @font-size-base;
+  color: @color-text-muted;
+}
+
+.value {
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  font-weight: @font-weight-medium;
+  
+  &.fee {
+    color: @color-price;
+    font-weight: @font-weight-semibold;
+    font-size: @font-size-lg;
+  }
+}
+
+// -------------------------------------------
+// 信息块
+// -------------------------------------------
+
+.info-block {
+  margin-bottom: @spacing-4;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.block-label {
+  font-size: @font-size-sm;
+  color: @color-text-muted;
+  margin-bottom: @spacing-1;
+  display: block;
+}
+
+.block-value {
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  line-height: @line-height-relaxed;
+  
+  .nut-tag {
+    --nutui-tag-primary-background-color: var(--theme-primary);
+    font-size: @font-size-sm;
+  }
+}
+
+// -------------------------------------------
+// 处方和医嘱
+// -------------------------------------------
+
+.prescription,
+.advice {
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  line-height: @line-height-loose;
+  white-space: pre-wrap;
+}
+
+// -------------------------------------------
+// 诊断标签
+// -------------------------------------------
+
+.diagnosis-tag {
+  .badge-primary();
+  display: inline-block;
+  padding: @spacing-1 @spacing-3;
+  font-size: @font-size-base;
+}

@@ -1,0 +1,490 @@
+@import '../../styles/variables.less';
+
+.home-family {
+  padding-bottom: @spacing-4;
+
+  // 家庭切换器
+  .family-switcher {
+    background: @bg-card;
+    padding: @spacing-4 @page-padding @spacing-3;
+    margin-bottom: @spacing-2;
+    border-radius: 0 0 @radius-lg @radius-lg;
+
+    .patient-list {
+      display: flex;
+      white-space: nowrap;
+
+      .patient-item {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        margin-right: @spacing-3;
+        cursor: pointer;
+        transition: all @transition-base;
+
+        &.active {
+          .patient-avatar {
+            border: 3rpx solid @theme-primary;
+            transform: scale(1.08);
+            box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.12);
+          }
+
+          .patient-name {
+            color: @theme-primary;
+            font-weight: @font-weight-semibold;
+          }
+        }
+
+        &.add-patient {
+          .patient-avatar {
+            background: linear-gradient(135deg, @color-bg-secondary 0%, @color-bg-tertiary 100%);
+            border: 2rpx dashed @color-text-placeholder;
+          }
+
+          .add-icon {
+            font-size: @font-size-3xl;
+            color: @color-text-placeholder;
+            line-height: 1;
+          }
+        }
+
+        .patient-avatar {
+          width: @avatar-size-md;
+          height: @avatar-size-md;
+          border-radius: @radius-full;
+          background: @color-bg-secondary;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          transition: all @transition-base;
+          margin-bottom: @spacing-1;
+          border: 2rpx solid transparent;
+          position: relative;
+
+          .avatar-image {
+            width: 100%;
+            height: 100%;
+          }
+        }
+
+        .patient-name {
+          font-size: @font-size-sm;
+          color: @color-text-secondary;
+          white-space: nowrap;
+          max-width: 80rpx;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
+    }
+
+    .login-tip {
+      margin-top: @spacing-3;
+      text-align: center;
+
+      text {
+        font-size: @font-size-sm;
+        color: @color-text-placeholder;
+      }
+    }
+  }
+
+  // Banner 轮播
+  .banner {
+    height: 320rpx;
+    border-radius: @radius-lg;
+    overflow: hidden;
+    margin-bottom: @spacing-3;
+
+    .banner-item {
+      width: 100%;
+      height: 100%;
+      background: @gradient-light;
+
+      .banner-image {
+        width: 100%;
+        height: 100%;
+      }
+
+      .banner-content {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: @spacing-4;
+
+        .banner-title {
+          font-size: @font-size-2xl;
+          font-weight: @font-weight-bold;
+          color: @color-primary;
+        }
+      }
+    }
+  }
+
+  // 6宫格快捷入口（亲子儿科专用彩色圆形）
+  .menu-card {
+    background: @bg-card;
+    border-radius: @radius-lg;
+    padding: @spacing-4;
+    margin-bottom: @spacing-3;
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: @spacing-4;
+
+      .menu-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+
+        .menu-icon-wrap {
+          width: 80rpx;
+          height: 80rpx;
+          border-radius: @radius-full;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: @spacing-2;
+
+          // 彩色背景（按索引）
+          &:nth-child(1) .menu-icon-wrap-inner {
+            background: #5B9BD5; // 挂号 - 蓝
+          }
+          &:nth-child(2) .menu-icon-wrap-inner {
+            background: #7BC67E; // 儿保 - 绿
+          }
+          &:nth-child(3) .menu-icon-wrap-inner {
+            background: #F5A623; // 体检 - 橙
+          }
+          &:nth-child(4) .menu-icon-wrap-inner {
+            background: #E87398; // 疫苗 - 粉
+          }
+          &:nth-child(5) .menu-icon-wrap-inner {
+            background: #67C5CF; // 复诊 - 薄荷
+          }
+          &:nth-child(6) .menu-icon-wrap-inner {
+            background: #E8734A; // 急诊 - 红
+          }
+
+          .menu-icon-wrap-inner {
+            width: 100%;
+            height: 100%;
+            border-radius: @radius-full;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+        }
+
+        .menu-title {
+          font-size: @font-size-sm;
+          color: @color-text-primary;
+        }
+      }
+    }
+  }
+
+  // 按年龄分组的服务
+  .age-services-section {
+    background: @bg-card;
+    border-radius: @radius-lg;
+    padding: @spacing-4;
+    margin-bottom: @spacing-3;
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: @spacing-3;
+
+      .section-title {
+        font-size: @font-size-lg;
+        font-weight: @font-weight-semibold;
+        color: @color-text-primary;
+      }
+    }
+
+    .age-groups-scroll {
+      white-space: nowrap;
+
+      .age-groups {
+        display: inline-flex;
+        gap: @spacing-3;
+
+        .age-group-card {
+          display: inline-flex;
+          flex-direction: column;
+          background: @color-bg-secondary;
+          border-radius: @radius-lg;
+          padding: @spacing-3;
+          min-width: 240rpx;
+          white-space: normal;
+
+          .age-header {
+            margin-bottom: @spacing-2;
+            text-align: center;
+
+            .age-range {
+              font-size: @font-size-xl;
+              font-weight: @font-weight-bold;
+              color: @theme-primary;
+              display: block;
+            }
+
+            .age-label {
+              font-size: @font-size-sm;
+              color: @color-text-secondary;
+            }
+          }
+
+          .age-services {
+            display: flex;
+            flex-direction: column;
+            gap: @spacing-1;
+
+            .age-service-item {
+              background: @bg-card;
+              border-radius: @radius-md;
+              padding: @spacing-2;
+              text-align: center;
+              cursor: pointer;
+              transition: background @transition-fast;
+
+              &:hover {
+                background: @color-bg-tertiary;
+              }
+
+              .service-name {
+                font-size: @font-size-sm;
+                color: @color-text-primary;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 常见服务（3列活泼卡片）
+  .common-services-section {
+    background: @bg-card;
+    border-radius: @radius-lg;
+    padding: @spacing-4;
+    margin-bottom: @spacing-3;
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: @spacing-3;
+
+      .section-title {
+        font-size: @font-size-lg;
+        font-weight: @font-weight-semibold;
+        color: @color-text-primary;
+      }
+    }
+
+    .common-services-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: @spacing-3;
+
+      .common-service-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: @spacing-3;
+        border-radius: @radius-lg;
+        cursor: pointer;
+        transition: transform @transition-fast;
+
+        &:active {
+          transform: scale(0.96);
+        }
+
+        .service-icon {
+          width: 88rpx;
+          height: 88rpx;
+          border-radius: @radius-full;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: @spacing-2;
+
+          .service-icon-text {
+            font-size: @font-size-lg;
+            font-weight: @font-weight-semibold;
+            color: @color-text-primary;
+          }
+        }
+
+        .service-name {
+          font-size: @font-size-sm;
+          font-weight: @font-weight-medium;
+          color: @color-text-primary;
+          text-align: center;
+        }
+
+        // 彩色背景变体
+        &.variant-blue .service-icon {
+          background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);
+        }
+
+        &.variant-green .service-icon {
+          background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
+        }
+
+        &.variant-orange .service-icon {
+          background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%);
+        }
+
+        &.variant-pink .service-icon {
+          background: linear-gradient(135deg, #FCE4EC 0%, #F8BBD0 100%);
+        }
+
+        &.variant-purple .service-icon {
+          background: linear-gradient(135deg, #F3E5F5 0%, #E1BEE7 100%);
+        }
+
+        &.variant-cyan .service-icon {
+          background: linear-gradient(135deg, #E0F7FA 0%, #B2EBF2 100%);
+        }
+      }
+    }
+  }
+
+  // 推荐医生
+  .section {
+    background: @bg-card;
+    border-radius: @radius-lg;
+    padding: @spacing-4;
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: @spacing-3;
+
+      .section-title {
+        font-size: @font-size-lg;
+        font-weight: @font-weight-semibold;
+        color: @color-text-primary;
+      }
+
+      .section-more {
+        font-size: @font-size-sm;
+        color: @color-text-secondary;
+        cursor: pointer;
+      }
+    }
+
+    .doctor-list {
+      .doctor-card {
+        display: flex;
+        align-items: center;
+        padding: @spacing-3;
+        border-radius: @radius-lg;
+        background: @color-bg-secondary;
+        margin-bottom: @spacing-2;
+        cursor: pointer;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+
+        .doctor-avatar {
+          width: @avatar-size-lg;
+          height: @avatar-size-lg;
+          border-radius: @radius-lg;
+          background: @bg-card;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          margin-right: @spacing-3;
+
+          .avatar-image {
+            width: 100%;
+            height: 100%;
+          }
+        }
+
+        .doctor-info {
+          flex: 1;
+
+          .doctor-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: @spacing-1;
+
+            .doctor-name {
+              font-size: @font-size-lg;
+              font-weight: @font-weight-semibold;
+              color: @color-text-primary;
+              margin-right: @spacing-1;
+            }
+
+            .doctor-title {
+              font-size: @font-size-sm;
+              color: @color-text-secondary;
+            }
+          }
+
+          .doctor-dept {
+            font-size: @font-size-sm;
+            color: @color-text-secondary;
+            margin-bottom: @spacing-1;
+          }
+
+          .doctor-tags {
+            display: flex;
+            gap: @spacing-1;
+
+            .tag {
+              font-size: @font-size-xs;
+              padding: 4rpx 12rpx;
+              border-radius: @radius-sm;
+
+              &.specialty-tag {
+                background: @badge-bg;
+                color: @theme-primary;
+              }
+            }
+          }
+        }
+
+        .slot-tag {
+          padding: 8rpx 16rpx;
+          border-radius: @radius-full;
+          font-size: @font-size-xs;
+
+          &.available {
+            background: rgba(82, 196, 26, 0.1);
+            color: @color-success;
+          }
+
+          &.unavailable {
+            background: @color-bg-tertiary;
+            color: @color-text-placeholder;
+          }
+        }
+      }
+
+      .empty-doctors {
+        text-align: center;
+        padding: @spacing-6;
+
+        text {
+          font-size: @font-size-sm;
+          color: @color-text-placeholder;
+        }
+      }
+    }
+  }
+}

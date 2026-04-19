@@ -1,0 +1,95 @@
+@import '../../styles/variables.less';
+
+.department-page {
+  min-height: 100vh;
+  background: @bg-page;
+}
+
+.search-bar {
+  padding: @spacing-3 @spacing-4;
+  background: @bg-card;
+}
+
+.search-input {
+  display: flex;
+  align-items: center;
+  height: 72rpx;
+  background: @bg-grey;
+  border-radius: @radius-lg;
+  padding: 0 @spacing-3;
+}
+
+.search-icon {
+  margin-right: @spacing-2;
+}
+
+.placeholder {
+  font-size: @font-body-sm;
+  color: @text-tertiary;
+}
+
+.content {
+  padding: @spacing-3;
+}
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  color: @text-tertiary;
+  font-size: @font-body;
+}
+
+.dept-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: @spacing-3;
+}
+
+.dept-card {
+  background: linear-gradient(135deg, #FBF0F0 0%, @bg-card 100%);
+  border-radius: 20px;
+  padding: @spacing-4;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  transition: all 0.2s;
+
+  &:active {
+    transform: translateY(2rpx);
+    box-shadow: 0 2rpx 8rpx rgba(196, 144, 141, 0.1);
+  }
+}
+
+.dept-icon {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: @radius-full;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: @spacing-3;
+  box-shadow: 0 4rpx 12rpx rgba(196, 144, 141, 0.08);
+  flex-shrink: 0;
+}
+
+.dept-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 1;
+}
+
+.dept-name {
+  font-size: @font-body;
+  font-weight: 600;
+  color: @text-primary;
+  margin-bottom: 4rpx;
+}
+
+.dept-desc {
+  font-size: @font-caption;
+  color: @text-tertiary;
+}

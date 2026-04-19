@@ -1,0 +1,899 @@
+// ===========================================
+// Corporate Trust Design System - Mixins
+// 小程序样式混入 (支持动态主题)
+// ===========================================
+
+@import './variables.less';
+
+// -------------------------------------------
+// 渐变背景 (Gradient Backgrounds)
+// 使用 CSS 变量实现动态主题
+// -------------------------------------------
+
+// 主色渐变背景
+.gradient-primary() {
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
+}
+
+// 水平主色渐变
+.gradient-primary-horizontal() {
+  background: linear-gradient(90deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
+}
+
+// 浅色渐变背景
+.gradient-light() {
+  background: linear-gradient(135deg, var(--theme-primary-soft, #DBEAFE) 0%, var(--theme-primary-soft-2, #E0E7FF) 100%);
+}
+
+// 深色渐变背景 (用于 CTA 区域)
+.gradient-dark() {
+  background: @gradient-dark;
+}
+
+// -------------------------------------------
+// 卡片样式 (Card Styles)
+// -------------------------------------------
+
+// 基础卡片
+.card-base() {
+  background: var(--surface-card, @color-bg-white);
+  border-radius: @radius-xl;
+  box-shadow: 0 8rpx 40rpx -4rpx var(--theme-shadow-accent, rgba(77, 124, 184, 0.12));
+  transition: box-shadow @transition-base, transform @transition-base;
+}
+
+// 可点击卡片 (带按压效果)
+.card-interactive() {
+  .card-base();
+  
+  &:active {
+    transform: translateY(4rpx);
+    box-shadow: 0 4rpx 12rpx -2rpx var(--theme-shadow-accent, rgba(77, 124, 184, 0.08));
+  }
+}
+
+// 悬浮卡片 (用于重点内容)
+.card-elevated() {
+  .card-base();
+  box-shadow: 0 16rpx 48rpx -8rpx var(--shadow-color, rgba(196, 30, 58, 0.12));
+}
+
+// 扁平卡片 (无阴影)
+.card-flat() {
+  background: @color-bg-white;
+  border-radius: @radius-xl;
+  border: @border-base;
+}
+
+// -------------------------------------------
+// 按钮样式 (Button Styles)
+// -------------------------------------------
+
+// 按钮尺寸 mixins
+.button-size(@height, @font-size: @font-size-base, @padding: @spacing-4) {
+  height: @height;
+  line-height: @height;
+  padding: 0 @padding;
+  font-size: @font-size;
+}
+
+.button-sm() {
+  .button-size(@button-height-sm, @font-size-sm, @spacing-3);
+}
+
+.button-md() {
+  .button-size(@button-height-md, @font-size-base, @spacing-4);
+}
+
+.button-lg() {
+  .button-size(@button-height-lg, @font-size-base, @spacing-4);
+}
+
+// 主要按钮 - 渐变背景，用于页面主要操作
+.button-primary() {
+  .gradient-primary();
+  color: @color-text-white;
+  border: none;
+  border-radius: @radius-xl;
+  box-shadow: var(--shadow-button, 0 8rpx 28rpx 0 rgba(77, 124, 184, 0.24));
+  font-weight: @font-weight-semibold;
+  transition: all @transition-base;
+  
+  &:active {
+    transform: translateY(2rpx);
+    box-shadow: 0 4rpx 12rpx -2rpx rgba(0, 0, 0, 0.04);
+    opacity: 0.95;
+  }
+  
+  &[disabled],
+  &.disabled {
+    background: @color-bg-tertiary;
+    color: @color-text-muted;
+    box-shadow: none;
+    opacity: 1;
+    pointer-events: none;
+  }
+}
+
+// 次要按钮 - 白底边框，用于次要操作
+.button-secondary() {
+  background: @color-bg-white;
+  color: @color-text-secondary;
+  border: @border-base;
+  border-radius: @radius-xl;
+  font-weight: @font-weight-medium;
+  transition: all @transition-base;
+  
+  &:active {
+    background: @color-bg-secondary;
+  }
+  
+  &[disabled],
+  &.disabled {
+    background: @color-bg-tertiary;
+    color: @color-text-placeholder;
+    pointer-events: none;
+  }
+}
+
+// 文字按钮 - 透明背景，用于轻量级操作
+.button-text() {
+  background: transparent;
+  color: var(--theme-primary);
+  border: none;
+  border-radius: @radius-md;
+  font-weight: @font-weight-medium;
+  padding: @spacing-2 @spacing-3;
+  transition: all @transition-base;
+  
+  &:active {
+    opacity: 0.7;
+    background: var(--theme-primary-soft, rgba(77, 124, 184, 0.08));
+  }
+  
+  &[disabled],
+  &.disabled {
+    color: @color-text-placeholder;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}
+
+// 危险按钮 - 红色背景，用于破坏性操作
+.button-danger() {
+  background: @color-danger;
+  color: @color-text-white;
+  border: none;
+  border-radius: @radius-xl;
+  font-weight: @font-weight-semibold;
+  transition: all @transition-base;
+  
+  &:active {
+    opacity: 0.9;
+  }
+  
+  &[disabled],
+  &.disabled {
+    background: @color-bg-tertiary;
+    color: @color-text-muted;
+    opacity: 1;
+    pointer-events: none;
+  }
+}
+
+// 幽灵按钮 - 透明背景+主色边框，用于次要 CTA
+.button-ghost() {
+  background: transparent;
+  color: var(--theme-primary);
+  border: @border-width solid var(--theme-primary);
+  border-radius: @radius-xl;
+  font-weight: @font-weight-medium;
+  transition: all @transition-base;
+  
+  &:active {
+    background: var(--theme-primary-soft, rgba(77, 124, 184, 0.08));
+  }
+  
+  &[disabled],
+  &.disabled {
+    color: @color-text-placeholder;
+    border-color: @color-border;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}
+
+// 危险幽灵按钮 - 透明背景+红色边框
+.button-danger-ghost() {
+  background: transparent;
+  color: @color-danger;
+  border: @border-width solid @color-danger;
+  border-radius: @radius-xl;
+  font-weight: @font-weight-medium;
+  transition: all @transition-base;
+  
+  &:active {
+    background: rgba(239, 68, 68, 0.08);
+  }
+  
+  &[disabled],
+  &.disabled {
+    color: @color-text-placeholder;
+    border-color: @color-border;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}
+
+// 胶囊按钮修饰
+.button-capsule() {
+  border-radius: @radius-full;
+}
+
+// 块级按钮修饰
+.button-block() {
+  display: block;
+  width: 100%;
+}
+
+// -------------------------------------------
+// 文字样式 (Typography)
+// -------------------------------------------
+
+// 渐变文字 (用于标题强调)
+.text-gradient() {
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+// 页面标题
+.heading-page() {
+  font-size: @font-size-xl;
+  font-weight: @font-weight-bold;
+  color: @color-text-primary;
+  line-height: @line-height-tight;
+}
+
+// 卡片标题
+.heading-card() {
+  font-size: @font-size-lg;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
+  line-height: @line-height-snug;
+}
+
+// 区块标题
+.heading-section() {
+  font-size: @font-size-lg;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
+  line-height: @line-height-normal;
+}
+
+// 正文文字
+.text-body() {
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  line-height: @line-height-relaxed;
+}
+
+// 辅助文字
+.text-secondary() {
+  font-size: @font-size-sm;
+  color: @color-text-secondary;
+  line-height: @line-height-normal;
+}
+
+// 小号辅助文字
+.text-muted() {
+  font-size: @font-size-sm;
+  color: @color-text-muted;
+  line-height: @line-height-normal;
+}
+
+// 价格文字
+.text-price() {
+  font-size: @font-size-base;
+  font-weight: @font-weight-semibold;
+  color: @color-price;
+}
+
+// -------------------------------------------
+// 徽章/标签样式 (Badge/Tag Styles)
+// -------------------------------------------
+
+// 主色徽章
+.badge-primary() {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rpx 16rpx;
+  background: var(--theme-primary-soft, rgba(77, 124, 184, 0.12));
+  color: var(--theme-primary);
+  font-size: @font-size-xs;
+  font-weight: @font-weight-medium;
+  border-radius: @radius-sm;
+}
+
+// 成功徽章
+.badge-success() {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rpx 16rpx;
+  background: rgba(16, 185, 129, 0.1);
+  color: @color-success;
+  font-size: @font-size-xs;
+  font-weight: @font-weight-medium;
+  border-radius: @radius-sm;
+}
+
+// 警告徽章
+.badge-warning() {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rpx 16rpx;
+  background: rgba(245, 158, 11, 0.1);
+  color: @color-warning;
+  font-size: @font-size-xs;
+  font-weight: @font-weight-medium;
+  border-radius: @radius-sm;
+}
+
+// 危险徽章
+.badge-danger() {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rpx 16rpx;
+  background: rgba(239, 68, 68, 0.1);
+  color: @color-danger;
+  font-size: @font-size-xs;
+  font-weight: @font-weight-medium;
+  border-radius: @radius-sm;
+}
+
+// -------------------------------------------
+// 图标容器 (Icon Container)
+// -------------------------------------------
+
+// 主色图标容器
+.icon-container(@size: @icon-container-md) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: @size;
+  height: @size;
+  background: var(--theme-primary-soft, rgba(77, 124, 184, 0.08));
+  border-radius: @radius-lg;
+  color: var(--theme-primary);
+}
+
+// 渐变图标容器
+.icon-container-gradient(@size: @icon-container-md) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: @size;
+  height: @size;
+  .gradient-primary();
+  border-radius: @radius-lg;
+  color: @color-text-white;
+}
+
+// -------------------------------------------
+// 头像样式 (Avatar Styles)
+// -------------------------------------------
+
+.avatar(@size: @avatar-size-md) {
+  width: @size;
+  height: @size;
+  border-radius: 50%;
+  background: @color-bg-secondary;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.avatar-bordered(@size: @avatar-size-md) {
+  .avatar(@size);
+  border: 4rpx solid @color-bg-white;
+  box-shadow: 0 4rpx 12rpx -2rpx var(--theme-shadow-accent, rgba(77, 124, 184, 0.08));
+}
+
+// -------------------------------------------
+// 表单相关 (Form Elements)
+// -------------------------------------------
+
+// 输入框
+.input-base() {
+  width: 100%;
+  height: @input-height;
+  padding: 0 @spacing-4;
+  background: @color-bg-white;
+  border: @border-base;
+  border-radius: @radius-lg;
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  transition: border-color @transition-base, box-shadow @transition-base;
+
+  &::placeholder {
+    color: @color-text-placeholder;
+  }
+
+  &:focus {
+    border-color: var(--theme-primary);
+    box-shadow: 0 0 0 4rpx var(--theme-primary-soft, rgba(77, 124, 184, 0.1));
+  }
+}
+
+// -------------------------------------------
+// 现代化表单输入混入 (Modern Form Input Mixins)
+// -------------------------------------------
+
+// 现代化输入框 - 无边框设计，内阴影营造深度
+.input-field-modern() {
+  width: 100%;
+  height: @input-height;
+  padding: 0 @input-padding-h;
+  background: @input-bg-idle;
+  border: none;
+  border-radius: @radius-lg;
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  box-shadow: @input-inner-shadow;
+  transition: all @transition-input;
+
+  &::placeholder {
+    color: @color-text-placeholder;
+    font-weight: @font-weight-normal;
+  }
+
+  // 聚焦状态：纯白背景 + 柔和光晕
+  &:focus {
+    background: @input-bg-focus;
+    box-shadow: @input-focus-shadow;
+    transform: translateY(-1rpx);
+  }
+
+  // 错误状态：红色光晕
+  &.error,
+  &.nut-input--error {
+    background: @input-bg-idle;
+    box-shadow: @input-error-shadow;
+  }
+
+  // 禁用状态：灰色背景 + 无阴影
+  &[disabled],
+  &.disabled {
+    background: @input-bg-disabled;
+    box-shadow: none;
+    color: @color-text-muted;
+  }
+}
+
+// 现代化文本域
+.textarea-field-modern() {
+  width: 100%;
+  min-height: 200rpx;
+  padding: @input-padding-v @input-padding-h;
+  background: @input-bg-idle;
+  border: none;
+  border-radius: @radius-lg;
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  line-height: @line-height-relaxed;
+  box-shadow: @input-inner-shadow;
+  transition: all @transition-input;
+  box-sizing: border-box;
+
+  &::placeholder {
+    color: @color-text-placeholder;
+    font-weight: @font-weight-normal;
+  }
+
+  &:focus {
+    background: @input-bg-focus;
+    box-shadow: @input-focus-shadow;
+    transform: translateY(-1rpx);
+  }
+
+  &[disabled],
+  &.disabled {
+    background: @input-bg-disabled;
+    box-shadow: none;
+    color: @color-text-muted;
+  }
+}
+
+// 现代化选择器
+.picker-field-modern() {
+  .input-field-modern();
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+
+  .picker-value {
+    flex: 1;
+
+    &.placeholder {
+      color: @color-text-placeholder;
+    }
+  }
+
+  .picker-icon {
+    color: @color-text-muted;
+    font-size: @font-size-lg;
+    transition: transform @transition-input;
+    flex-shrink: 0;
+  }
+
+  &:active .picker-icon {
+    transform: translateX(4rpx);
+  }
+}
+
+// 现代化搜索框
+.search-field-modern() {
+  display: flex;
+  align-items: center;
+  height: @input-height;
+  padding: 0 @spacing-4;
+  background: @input-bg-idle;
+  border-radius: @radius-full;
+  box-shadow: @input-inner-shadow;
+  transition: all @transition-input;
+
+  .search-icon {
+    margin-right: @spacing-2;
+    color: @color-text-muted;
+    transition: transform @transition-spring, color @transition-input;
+    flex-shrink: 0;
+  }
+
+  .search-input {
+    flex: 1;
+    font-size: @font-size-base;
+    color: @color-text-primary;
+
+    &::placeholder {
+      color: @color-text-placeholder;
+    }
+  }
+
+  &:focus-within {
+    background: @input-bg-focus;
+    box-shadow: @input-focus-shadow;
+
+    .search-icon {
+      transform: scale(1.1);
+      color: var(--theme-primary);
+    }
+  }
+}
+
+// 现代表单分组
+.form-group-modern() {
+  margin-bottom: @form-group-gap;
+
+  .group-title {
+    display: block;
+    margin-bottom: @spacing-3;
+    font-size: @font-size-sm;
+    font-weight: @font-weight-semibold;
+    color: @color-text-secondary;
+    letter-spacing: 0.5rpx;
+  }
+}
+
+// 现代表单项（行布局）
+.form-item-row-modern() {
+  display: flex;
+  align-items: center;
+  min-height: @input-height;
+  padding: @spacing-2 0;
+  margin-bottom: @form-item-gap;
+
+  .item-label {
+    width: @form-label-width;
+    flex-shrink: 0;
+    font-size: @font-size-base;
+    color: @color-text-primary;
+    font-weight: @font-weight-medium;
+    line-height: @line-height-normal;
+
+    .required {
+      color: @color-danger;
+      margin-left: 4rpx;
+      font-weight: @font-weight-semibold;
+    }
+  }
+
+  .item-content {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+// 搜索框
+.search-bar() {
+  display: flex;
+  align-items: center;
+  height: 72rpx;
+  padding: 0 @spacing-4;
+  background: @color-bg-white;
+  border-radius: @radius-full;
+
+  .placeholder {
+    color: @color-text-placeholder;
+    font-size: @font-size-base;
+  }
+}
+
+// -------------------------------------------
+// 表单布局样式 (Form Layout Styles)
+// -------------------------------------------
+
+// 同行布局表单项（Label 和输入框在同一行，输入框右对齐）
+// 用于简单表单字段：姓名、性别、手机号、身份证号等
+.form-row-item(@label-width: @form-label-width) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: @spacing-4;
+
+  .form-row-label {
+    width: @label-width;
+    flex-shrink: 0;
+    color: @color-text-primary;
+    font-size: @font-size-base;
+    line-height: @line-height-normal;
+  }
+
+  .form-row-input-wrapper {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-left: @spacing-3;
+
+    .form-row-input-field {
+      text-align: right;
+      color: @color-text-primary;
+      font-size: @font-size-base;
+      width: 100%;
+
+      &::placeholder {
+        color: @color-text-placeholder;
+      }
+    }
+
+    // Picker 选择器样式
+    .form-row-picker {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      color: @color-text-primary;
+      font-size: @font-size-base;
+
+      &.placeholder {
+        color: @color-text-placeholder;
+      }
+    }
+  }
+}
+
+// 垂直布局表单项（Label 独占一行，输入框左对齐，灰色背景）
+// 用于复杂表单字段：病情描述、意见反馈、长文本输入等
+.form-column-item() {
+  margin-bottom: @spacing-4;
+
+  .form-column-label {
+    display: block;
+    margin-bottom: @spacing-2;
+    color: @color-text-primary;
+    font-size: @font-size-base;
+    line-height: @line-height-normal;
+  }
+
+  .form-column-input-wrapper {
+    width: 100%;
+
+    .form-column-input-field {
+      width: 100%;
+      background: @color-bg-secondary;
+      border-radius: @radius-lg;
+      padding: @spacing-3;
+      text-align: left;
+      color: @color-text-primary;
+      font-size: @font-size-base;
+      box-sizing: border-box;
+
+      &::placeholder {
+        color: @color-text-placeholder;
+      }
+    }
+
+    // Textarea 特殊样式
+    .form-column-textarea {
+      width: 100%;
+      min-height: 160rpx;
+      background: @color-bg-secondary;
+      border-radius: @radius-lg;
+      padding: @spacing-3;
+      text-align: left;
+      color: @color-text-primary;
+      font-size: @font-size-base;
+      box-sizing: border-box;
+      line-height: @line-height-relaxed;
+
+      &::placeholder {
+        color: @color-text-placeholder;
+      }
+    }
+  }
+}
+
+// -------------------------------------------
+// 列表项 (List Item)
+// -------------------------------------------
+
+.list-item() {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: @spacing-4 0;
+  border-bottom: @border-width solid @color-divider;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+  
+  &:active {
+    background: @color-bg-secondary;
+    margin: 0 -@spacing-4;
+    padding-left: @spacing-4;
+    padding-right: @spacing-4;
+  }
+}
+
+// -------------------------------------------
+// 装饰元素 (Decorative Elements)
+// -------------------------------------------
+
+// 背景装饰球 (使用主题色)
+.bg-blob(@size: 400rpx) {
+  position: absolute;
+  width: @size;
+  height: @size;
+  background: var(--shadow-color, rgba(196, 30, 58, 0.15));
+  border-radius: 50%;
+  filter: blur(60rpx);
+  pointer-events: none;
+}
+
+// 次要装饰球
+.bg-blob-secondary(@size: 300rpx) {
+  .bg-blob(@size);
+  opacity: 0.8;
+}
+
+// -------------------------------------------
+// 点击态样式 (Clickable States)
+// -------------------------------------------
+
+// 通用轻量点击态 - 用于需要快速响应反馈的元素
+.clickable() {
+  transition: opacity 0.1s ease, transform 0.1s ease;
+  
+  &:active {
+    opacity: 0.7;
+    transform: scale(0.98);
+  }
+}
+
+// 带背景变化的点击态 - 用于列表项、菜单项等
+.clickable-bg() {
+  transition: background-color 0.1s ease;
+  
+  &:active {
+    background-color: @color-bg-secondary;
+  }
+}
+
+// -------------------------------------------
+// 布局辅助 (Layout Helpers)
+// -------------------------------------------
+
+// Flex 居中
+.flex-center() {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// Flex 垂直居中
+.flex-align-center() {
+  display: flex;
+  align-items: center;
+}
+
+// Flex 两端对齐
+.flex-between() {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+// Flex 列布局
+.flex-column() {
+  display: flex;
+  flex-direction: column;
+}
+
+// 页面容器
+.page-container() {
+  min-height: 100vh;
+  background: @color-bg-base;
+  overflow-x: hidden;
+}
+
+// TabBar 页面容器（为底部导航预留空间）
+.page-container-tabbar() {
+  min-height: 100vh;
+  background: @color-bg-base;
+  // TabBar 高度 100rpx + 额外间距 + 安全区
+  padding-bottom: calc(120rpx + env(safe-area-inset-bottom));
+  overflow-x: hidden;
+}
+
+// 内容区域
+.content-section() {
+  padding: @page-padding;
+}
+
+// -------------------------------------------
+// 状态样式 (Status Styles)
+// -------------------------------------------
+
+// 空状态
+.empty-state() {
+  .flex-center();
+  flex-direction: column;
+  padding: @spacing-12 @spacing-4;
+  color: @color-text-muted;
+  font-size: @font-size-base;
+}
+
+// 加载状态
+.loading-state() {
+  .flex-center();
+  min-height: 400rpx;
+  color: @color-text-muted;
+  font-size: @font-size-base;
+}
+
+// -------------------------------------------
+// 固定底部栏 (Fixed Footer)
+// -------------------------------------------
+
+.fixed-footer() {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: @spacing-3 @spacing-4;
+  padding-bottom: calc(@spacing-3 + env(safe-area-inset-bottom));
+  background: @color-bg-white;
+  box-shadow: @shadow-footer;
+  z-index: @z-index-fixed;
+}
+
+// -------------------------------------------
+// NutUI 按钮样式覆盖 (Button Overrides)
+// -------------------------------------------
+// 注意：NutUI 3.x 使用 .nut-button-{type}[-{fill}][-disabled] 命名
+// 主要覆盖已移至 app.less 中统一管理，此处仅保留 mixin 定义

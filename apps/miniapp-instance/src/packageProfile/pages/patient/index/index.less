@@ -1,0 +1,142 @@
+// ===========================================
+// 就诊人列表页样式 - Corporate Trust Design System
+// ===========================================
+
+@import '../../../../styles/variables.less';
+@import '../../../../styles/mixins.less';
+
+.patient-list-page {
+  .page-container();
+  padding: @spacing-5 @page-padding 176rpx;
+}
+
+.list {
+  margin: 0;
+  background: @color-bg-white;
+  border-radius: @radius-xl;
+  border: @border-width solid @color-border-light;
+  box-shadow: @shadow-elevated-sm;
+  overflow: hidden;
+}
+
+// -------------------------------------------
+// 就诊人项
+// -------------------------------------------
+
+.patient-item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: @spacing-4 @spacing-5 @spacing-4 @spacing-4;
+  border-bottom: @border-width solid @color-divider;
+  position: relative;
+  background: @color-bg-white;
+  transition: background @transition-base;
+
+  &:last-child {
+    border-bottom: none;
+  }
+  
+  &:active {
+    background: @color-bg-secondary;
+  }
+}
+
+.patient-main {
+  display: flex;
+  align-items: center;
+  margin-bottom: @spacing-3;
+}
+
+.patient-name {
+  font-size: @font-size-lg;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
+}
+
+.relationship {
+  font-size: @font-size-xs;
+  color: @color-text-secondary;
+  background: @color-bg-secondary;
+  padding: 4rpx 16rpx;
+  border-radius: @radius-sm;
+  margin-left: @spacing-2;
+}
+
+.default-tag {
+  .badge-primary();
+  margin-left: @spacing-2;
+}
+
+.patient-info {
+  display: flex;
+  align-items: center;
+  font-size: @font-size-sm;
+  color: @color-text-muted;
+}
+
+.divider {
+  margin: 0 @spacing-2;
+  color: @color-border;
+}
+
+.arrow {
+  position: absolute;
+  right: @spacing-5;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: @font-size-xl;
+  color: @color-text-placeholder;
+}
+
+// -------------------------------------------
+// Swipe 样式覆盖
+// -------------------------------------------
+
+.patient-swipe-item {
+  width: 100%;
+  box-sizing: border-box;
+
+  // Swipe 外层容器和内容都拉满
+  .nut-swipe-cell,
+  .nut-swipe-cell__content {
+    width: 100% !important;
+    box-sizing: border-box;
+    display: block;
+  }
+
+  // 右侧滑出区域（如 id: swipe-right-1 等），统一拉满宽度
+  [id^='swipe-right-'] {
+    width: 100% !important;
+  }
+
+  .nut-button--danger {
+    height: 100%;
+    border-radius: 0;
+    background: @color-danger;
+  }
+}
+
+// -------------------------------------------
+// 底部按钮
+// -------------------------------------------
+
+.footer {
+  .fixed-footer();
+  border-top: @border-width solid @color-border-light;
+  box-shadow: @shadow-footer;
+}
+
+.add-btn {
+  .button-primary();
+  .button-lg();
+  .button-block();
+}
+
+// -------------------------------------------
+// 空状态
+// -------------------------------------------
+
+.nut-empty {
+  padding: @spacing-12 0;
+}

@@ -1,0 +1,378 @@
+@import '../../styles/variables.less';
+
+.profile-family {
+  padding-bottom: @spacing-6;
+
+  // 头部区域
+  .header {
+    background: linear-gradient(135deg, @theme-primary, @theme-primary-dark);
+    padding: @spacing-6 @page-padding @spacing-8;
+
+    .header-content {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+
+      .avatar {
+        width: @avatar-size-xl;
+        height: @avatar-size-xl;
+        border-radius: @radius-full;
+        background: rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        margin-right: @spacing-3;
+
+        image {
+          width: 100%;
+          height: 100%;
+        }
+      }
+
+      .user-info {
+        flex: 1;
+
+        .nickname {
+          display: block;
+          font-size: @font-size-xl;
+          font-weight: @font-weight-semibold;
+          color: @color-text-white;
+          margin-bottom: 4rpx;
+        }
+
+        .phone {
+          display: block;
+          font-size: @font-size-sm;
+          color: rgba(255, 255, 255, 0.8);
+        }
+      }
+
+      .login-arrow {
+        font-size: @font-size-xl;
+        color: rgba(255, 255, 255, 0.8);
+      }
+    }
+  }
+
+  // 家庭头像组
+  .family-avatars-section {
+    background: @bg-card;
+    margin: -@spacing-4 @page-padding @spacing-3;
+    border-radius: @radius-lg;
+    padding: @spacing-4;
+
+    .family-avatars {
+      display: flex;
+      gap: @spacing-3;
+      margin-bottom: @spacing-3;
+
+      .family-avatar-item {
+        width: @avatar-size-md;
+        height: @avatar-size-md;
+        border-radius: @radius-full;
+        overflow: hidden;
+        cursor: pointer;
+        flex-shrink: 0;
+
+        .family-avatar-img {
+          width: 100%;
+          height: 100%;
+        }
+
+        .family-avatar-placeholder {
+          width: 100%;
+          height: 100%;
+          background: @color-bg-secondary;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          &.add {
+            background: @color-bg-base;
+            border: 2rpx dashed @color-text-placeholder;
+
+            .add-icon {
+              font-size: @font-size-2xl;
+              color: @color-text-placeholder;
+            }
+          }
+
+          &.more {
+            background: @color-bg-secondary;
+
+            .more-text {
+              font-size: @font-size-xl;
+              color: @color-text-secondary;
+            }
+          }
+        }
+      }
+    }
+
+    .family-tip {
+      text-align: center;
+
+      text {
+        font-size: @font-size-sm;
+        color: @color-text-placeholder;
+      }
+    }
+  }
+
+  // 统计卡片
+  .stats-card {
+    display: flex;
+    background: @bg-card;
+    border-radius: @radius-lg;
+    padding: @spacing-5 @spacing-4;
+    margin: 0 @page-padding @spacing-3;
+    box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+
+    .stat-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      position: relative;
+
+      &:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        height: 60rpx;
+        width: 1rpx;
+        background: @color-divider;
+      }
+
+      .stat-value {
+        font-size: 48rpx;
+        font-weight: @font-weight-bold;
+        color: @theme-primary;
+        margin-bottom: 8rpx;
+        line-height: 1;
+      }
+
+      .stat-label {
+        font-size: @font-size-sm;
+        color: @color-text-secondary;
+      }
+    }
+  }
+
+  // 菜单列表
+  .menu-section {
+    margin-bottom: @spacing-3;
+
+    .menu-card {
+      background: @bg-card;
+      border-radius: @radius-lg;
+      overflow: hidden;
+
+      .menu-item {
+        display: flex;
+        align-items: center;
+        padding: @spacing-3 @spacing-4;
+        cursor: pointer;
+        transition: background @transition-fast;
+
+        &:active {
+          background: @color-bg-base;
+        }
+
+        &:not(:last-child) {
+          border-bottom: 1rpx solid @color-divider;
+        }
+
+        .menu-icon {
+          width: @icon-container-md;
+          height: @icon-container-md;
+          background: @color-bg-secondary;
+          border-radius: @radius-md;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-right: @spacing-3;
+        }
+
+        .menu-content {
+          flex: 1;
+
+          .menu-title {
+            display: block;
+            font-size: @font-size-base;
+            color: @color-text-primary;
+            margin-bottom: 4rpx;
+          }
+
+          .menu-desc {
+            display: block;
+            font-size: @font-size-xs;
+            color: @color-text-placeholder;
+          }
+        }
+
+        .menu-arrow {
+          font-size: @font-size-lg;
+          color: @color-text-placeholder;
+        }
+      }
+    }
+  }
+
+  // 退出登录
+  .logout-wrap {
+    padding: 0 @page-padding;
+
+    .logout-btn {
+      width: 100%;
+    }
+  }
+
+  // 版本信息
+  .version-info {
+    text-align: center;
+    padding: @spacing-4;
+
+    text {
+      font-size: @font-size-xs;
+      color: @color-text-placeholder;
+    }
+  }
+
+  // 用户信息弹窗
+  .user-info-mask {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: @z-index-modal;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: @spacing-4;
+  }
+
+  .user-info-sheet {
+    width: 100%;
+    max-width: 560rpx;
+    background: @bg-card;
+    border-radius: @radius-xl;
+    padding: @spacing-4;
+  }
+
+  .sheet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: @spacing-4;
+
+    .sheet-title {
+      font-size: @font-size-lg;
+      font-weight: @font-weight-semibold;
+      color: @color-text-primary;
+    }
+
+    .sheet-close {
+      font-size: @font-size-2xl;
+      color: @color-text-secondary;
+      cursor: pointer;
+      padding: @spacing-1;
+    }
+  }
+
+  .sheet-content {
+    .tip {
+      display: block;
+      font-size: @font-size-sm;
+      color: @color-text-secondary;
+      margin-bottom: @spacing-4;
+      text-align: center;
+    }
+
+    .avatar-section {
+      display: flex;
+      justify-content: center;
+      margin-bottom: @spacing-4;
+
+      .avatar-btn {
+        width: @avatar-size-xl;
+        height: @avatar-size-xl;
+        border-radius: @radius-full;
+        overflow: hidden;
+        background: transparent;
+        border: none;
+        padding: 0;
+
+        &::after {
+          border: none;
+        }
+
+        .avatar-img {
+          width: 100%;
+          height: 100%;
+        }
+
+        .avatar-placeholder {
+          width: 100%;
+          height: 100%;
+          background: @color-bg-secondary;
+          border-radius: @radius-full;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+
+          .avatar-icon {
+            font-size: @font-size-3xl;
+            color: @color-text-placeholder;
+            margin-bottom: 4rpx;
+          }
+
+          .avatar-text {
+            font-size: @font-size-xs;
+            color: @color-text-placeholder;
+          }
+        }
+      }
+    }
+
+    .nickname-section {
+      margin-bottom: @spacing-4;
+
+      .label {
+        display: block;
+        font-size: @font-size-sm;
+        color: @color-text-secondary;
+        margin-bottom: @spacing-2;
+      }
+
+      .nickname-input {
+        width: 100%;
+        height: @input-height;
+        background: @color-bg-secondary;
+        border-radius: @radius-md;
+        padding: 0 @spacing-3;
+      }
+    }
+
+    .confirm-btn {
+      margin-bottom: @spacing-3;
+    }
+
+    .skip-section {
+      text-align: center;
+
+      .skip-btn {
+        font-size: @font-size-sm;
+        color: @color-text-secondary;
+        cursor: pointer;
+      }
+    }
+  }
+}

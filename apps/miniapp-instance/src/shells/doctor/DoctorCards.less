@@ -1,0 +1,132 @@
+@import '../../styles/variables.less';
+
+.doctor-list-page {
+  min-height: 100vh;
+  background: @bg-page;
+}
+
+// ---- 加载/空状态 ----
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  color: @text-tertiary;
+  font-size: @font-body;
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  color: @text-tertiary;
+  font-size: @font-body-sm;
+}
+
+// ---- 医生列表 ----
+.doctor-list {
+  padding: 24rpx;
+}
+
+.doctor-card {
+  display: flex;
+  align-items: center;
+  background: @bg-card;
+  border-radius: @radius-lg;
+  padding: @spacing-4;
+  margin-bottom: @spacing-3;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+  transition: all 0.2s;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  &:active {
+    transform: translateY(2rpx);
+    box-shadow: 0 1rpx 4rpx rgba(0, 0, 0, 0.04);
+  }
+}
+
+.avatar-wrap {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: @radius-full;
+  overflow: hidden;
+  background: var(--theme-primary-soft, #EAF1F8);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar {
+  width: 100%;
+  height: 100%;
+}
+
+.info {
+  flex: 1;
+  margin-left: @spacing-3;
+  min-width: 0;
+}
+
+.name-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: @spacing-2;
+  margin-bottom: @spacing-1;
+}
+
+.name {
+  font-size: @font-body-lg;
+  font-weight: 600;
+  color: @text-primary;
+}
+
+.title {
+  font-size: @font-caption;
+  color: var(--theme-primary, #4D7CB8);
+  background: var(--theme-primary-soft, rgba(77, 124, 184, 0.12));
+  padding: 2rpx 12rpx;
+  border-radius: @radius-full;
+}
+
+.dept {
+  font-size: @font-body-sm;
+  color: @text-secondary;
+  margin-bottom: @spacing-1;
+}
+
+.spec {
+  font-size: @font-body-sm;
+  color: @text-tertiary;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// ---- 号源标签 ----
+.slot-tag {
+  flex-shrink: 0;
+  margin-left: @spacing-3;
+  padding: 8rpx 24rpx;
+  border-radius: @radius-full;
+  font-size: @font-body-sm;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+
+  &.available {
+    background: var(--theme-primary-soft, rgba(77, 124, 184, 0.12));
+    color: var(--theme-accent, #385E92);
+    border: 2rpx solid rgba(77, 124, 184, 0.18);
+  }
+
+  &.unavailable {
+    background: rgba(100, 116, 139, 0.1);
+    color: #64748B;
+  }
+}

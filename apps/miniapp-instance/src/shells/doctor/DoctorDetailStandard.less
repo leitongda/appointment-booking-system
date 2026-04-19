@@ -1,0 +1,395 @@
+@import '../../styles/variables.less';
+
+.doctor-detail-page {
+  min-height: 100vh;
+  background: @bg-page;
+}
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  color: @text-tertiary;
+  font-size: @font-body;
+}
+
+// ---- 医生信息 ----
+.doctor-info {
+  background: @bg-card;
+  padding: @spacing-4;
+  margin-bottom: @spacing-3;
+}
+
+.info-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: @spacing-4;
+}
+
+.avatar {
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: @radius-xl;
+  background: var(--theme-primary-soft, #EAF1F8);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: @spacing-3;
+
+  image {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.info-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: @spacing-2;
+  margin-bottom: @spacing-1;
+}
+
+.name {
+  font-size: @font-body-lg;
+  font-weight: 600;
+  color: @text-primary;
+}
+
+.title {
+  font-size: @font-caption;
+  color: var(--theme-primary, #4D7CB8);
+  background: var(--theme-primary-soft, rgba(77, 124, 184, 0.12));
+  padding: 2rpx 12rpx;
+  border-radius: @radius-full;
+}
+
+.dept {
+  font-size: @font-body-sm;
+  color: @text-secondary;
+}
+
+.favorite-btn {
+  width: 72rpx;
+  height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  &.active {
+    // 收藏状态
+  }
+}
+
+.info-section {
+  margin-bottom: @spacing-3;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.label {
+  display: block;
+  font-size: @font-body-sm;
+  color: @text-tertiary;
+  margin-bottom: @spacing-1;
+}
+
+.value {
+  font-size: @font-body;
+  color: @text-primary;
+  line-height: 1.6;
+}
+
+// ---- 排班选择 ----
+.schedule-section {
+  background: @bg-card;
+  padding: @spacing-4;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: @spacing-3;
+}
+
+.section-title {
+  font-size: @font-body-lg;
+  font-weight: 600;
+  color: @text-primary;
+}
+
+.scroll-hint {
+  font-size: @font-caption;
+  color: @text-tertiary;
+}
+
+.no-schedule {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200rpx;
+  color: @text-tertiary;
+  font-size: @font-body-sm;
+}
+
+// ---- 日期横向选择 ----
+.date-scroll {
+  white-space: nowrap;
+  margin-bottom: @spacing-3;
+}
+
+.date-list {
+  display: inline-flex;
+  gap: @spacing-2;
+  padding-bottom: @spacing-2;
+}
+
+.date-item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: @spacing-2 @spacing-4;
+  border-radius: @radius-lg;
+  background: @bg-grey;
+  min-width: 100rpx;
+  transition: all 0.2s;
+
+  &.active {
+    background: var(--theme-primary, #4D7CB8);
+    color: #fff;
+  }
+}
+
+.date-weekday {
+  font-size: @font-caption;
+  color: inherit;
+  margin-bottom: 4rpx;
+}
+
+.date-day {
+  font-size: @font-body;
+  font-weight: 500;
+  color: inherit;
+}
+
+.active .date-weekday,
+.active .date-day {
+  color: #fff;
+}
+
+// ---- 时段选择 ----
+.time-slots {
+  display: flex;
+  gap: @spacing-3;
+}
+
+.time-slot-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: @spacing-4;
+  border-radius: @radius-lg;
+  background: @bg-grey;
+  transition: all 0.2s;
+  position: relative;
+
+  &.full {
+    opacity: 0.5;
+  }
+
+  &.selected {
+    border: 2rpx solid var(--theme-primary, #4D7CB8);
+    background: var(--theme-primary-soft, #EAF1F8);
+  }
+}
+
+.slot-available {
+  font-size: @font-body-sm;
+  font-weight: 600;
+  color: var(--theme-primary, #4D7CB8);
+  margin-bottom: @spacing-1;
+}
+
+.slot-period {
+  font-size: @font-body;
+  font-weight: 500;
+  color: @text-primary;
+  margin-bottom: 4rpx;
+}
+
+.slot-dept {
+  font-size: @font-caption;
+  color: @text-tertiary;
+}
+
+// ---- 班次 Picker ----
+.slot-picker-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+}
+
+.slot-picker-sheet {
+  width: 100%;
+  background: @bg-card;
+  border-radius: @radius-xl @radius-xl 0 0;
+  padding: @spacing-4;
+  padding-bottom: calc(@spacing-4 + env(safe-area-inset-bottom));
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.slot-picker-indicator {
+  width: 64rpx;
+  height: 8rpx;
+  background: #E5E7EB;
+  border-radius: @radius-full;
+  margin: 0 auto @spacing-3;
+}
+
+.slot-picker-header {
+  margin-bottom: @spacing-3;
+}
+
+.slot-picker-title {
+  display: block;
+  font-size: @font-body-lg;
+  font-weight: 600;
+  color: @text-primary;
+  margin-bottom: 4rpx;
+}
+
+.slot-picker-subtitle {
+  font-size: @font-body-sm;
+  color: @text-tertiary;
+}
+
+.slot-picker-doctor {
+  display: flex;
+  align-items: center;
+  gap: @spacing-3;
+  padding: @spacing-3;
+  background: @bg-grey;
+  border-radius: @radius-lg;
+  margin-bottom: @spacing-4;
+}
+
+.slot-picker-doctor-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: @radius-lg;
+  overflow: hidden;
+  background: var(--theme-primary-soft, #EAF1F8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  image {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.slot-picker-doctor-name-row {
+  display: flex;
+  align-items: center;
+  gap: @spacing-2;
+}
+
+.slot-picker-doctor-name {
+  font-size: @font-body;
+  font-weight: 600;
+  color: @text-primary;
+}
+
+.slot-picker-doctor-title {
+  font-size: @font-caption;
+  color: var(--theme-primary, #4D7CB8);
+}
+
+.slot-picker-doctor-dept {
+  font-size: @font-caption;
+  color: @text-tertiary;
+}
+
+.slot-picker-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: @spacing-2;
+  margin-bottom: @spacing-4;
+}
+
+.slot-picker-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: @spacing-3 @spacing-2;
+  border-radius: @radius-lg;
+  background: @bg-grey;
+  transition: all 0.2s;
+  position: relative;
+
+  &.selected {
+    background: var(--theme-primary-soft, #EAF1F8);
+    border: 2rpx solid var(--theme-primary, #4D7CB8);
+  }
+
+  &.disabled {
+    opacity: 0.4;
+  }
+}
+
+.slot-time {
+  font-size: @font-body-sm;
+  color: @text-primary;
+  font-weight: 500;
+  margin-bottom: 4rpx;
+}
+
+.slot-remain {
+  font-size: @font-caption;
+  color: @text-secondary;
+  margin-bottom: 4rpx;
+}
+
+.slot-countdown {
+  font-size: @font-caption;
+  color: @color-warning;
+}
+
+.slot-picker-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: @spacing-2;
+}
+
+.slot-picker-next-btn {
+  width: 100%;
+  border-radius: @radius-lg;
+}
+
+.slot-picker-cancel-btn {
+  font-size: @font-body-sm;
+  color: @text-tertiary;
+  padding: @spacing-2;
+}

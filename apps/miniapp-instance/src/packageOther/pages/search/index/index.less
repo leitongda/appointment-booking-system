@@ -1,0 +1,187 @@
+// ===========================================
+// 搜索页样式 - Corporate Trust Design System
+// ===========================================
+
+@import '../../../styles/variables.less';
+@import '../../../styles/mixins.less';
+
+.search-page {
+  .page-container();
+}
+
+// -------------------------------------------
+// 搜索头部
+// -------------------------------------------
+
+.search-header {
+  background: @color-bg-white;
+  padding: @spacing-3 @page-padding;
+  position: sticky;
+  top: 0;
+  z-index: @z-index-sticky;
+  box-shadow: @shadow-sm;
+  
+  .nut-searchbar {
+    --nutui-searchbar-background: @input-bg-idle;
+    --nutui-searchbar-input-background: @input-bg-idle;
+    --nutui-searchbar-input-text-color: @color-text-primary;
+    --nutui-searchbar-input-placeholder-color: @color-text-placeholder;
+    border-radius: @radius-full;
+    box-shadow: @input-inner-shadow;
+    transition: all @transition-input;
+
+    &:focus-within {
+      --nutui-searchbar-background: @input-bg-focus;
+      --nutui-searchbar-input-background: @input-bg-focus;
+      box-shadow: @input-focus-shadow;
+    }
+
+    .nut-searchbar__search-input {
+      border-radius: @radius-full;
+    }
+  }
+}
+
+// -------------------------------------------
+// 提示
+// -------------------------------------------
+
+.tip {
+  .empty-state();
+  padding: @spacing-12 0;
+}
+
+// -------------------------------------------
+// 搜索结果
+// -------------------------------------------
+
+.search-result {
+  // Container
+}
+
+.result-section {
+  background: @color-bg-white;
+  margin-top: @spacing-3;
+  margin-left: @page-padding;
+  margin-right: @page-padding;
+  border-radius: @radius-xl;
+  padding: 0 @card-padding;
+  box-shadow: @shadow-base;
+}
+
+.section-title {
+  font-size: @font-size-base;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
+  padding: @spacing-3 0;
+  border-bottom: @border-width solid @color-divider;
+  display: flex;
+  align-items: center;
+  
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 6rpx;
+    height: 28rpx;
+    background: linear-gradient(135deg, var(--theme-primary, #4D7CB8) 0%, var(--theme-accent, #385E92) 100%);
+    border-radius: @radius-full;
+    margin-right: @spacing-2;
+  }
+}
+
+.result-item {
+  .flex-between();
+  padding: @spacing-4 0;
+  border-bottom: @border-width solid @color-divider;
+  transition: background @transition-base;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:active {
+    background: @color-bg-secondary;
+    margin: 0 -@card-padding;
+    padding-left: @card-padding;
+    padding-right: @card-padding;
+  }
+}
+
+.item-name {
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  font-weight: @font-weight-medium;
+}
+
+.arrow {
+  font-size: @font-size-xl;
+  color: @color-text-placeholder;
+}
+
+// -------------------------------------------
+// 医生搜索结果
+// -------------------------------------------
+
+.doctor-item {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.doctor-info {
+  display: flex;
+  align-items: center;
+  gap: @spacing-2;
+  margin-bottom: @spacing-1;
+}
+
+.doctor-title {
+  .badge-primary();
+}
+
+.doctor-dept {
+  font-size: @font-size-sm;
+  color: @color-text-muted;
+}
+
+// -------------------------------------------
+// 历史搜索 (可选)
+// -------------------------------------------
+
+.history-section {
+  padding: @page-padding;
+}
+
+.history-header {
+  .flex-between();
+  margin-bottom: @spacing-3;
+}
+
+.history-title {
+  font-size: @font-size-base;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
+}
+
+.history-clear {
+  font-size: @font-size-sm;
+  color: @color-text-muted;
+}
+
+.history-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: @spacing-2;
+}
+
+.history-tag {
+  padding: @spacing-1 @spacing-3;
+  background: @color-bg-white;
+  border-radius: @radius-full;
+  font-size: @font-size-sm;
+  color: @color-text-secondary;
+  box-shadow: @shadow-sm;
+  
+  &:active {
+    background: @color-bg-secondary;
+  }
+}

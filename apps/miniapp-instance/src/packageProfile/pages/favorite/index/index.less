@@ -1,0 +1,186 @@
+// ===========================================
+// 我的收藏页样式 - Corporate Trust Design System
+// ===========================================
+
+@import '../../../../styles/variables.less';
+@import '../../../../styles/mixins.less';
+
+.favorite-page {
+  .page-container();
+  padding: @page-padding;
+  padding-bottom: 120rpx;
+}
+
+.loading {
+  .loading-state();
+}
+
+.empty-wrapper {
+  .empty-state();
+  margin-top: 200rpx;
+}
+
+// -------------------------------------------
+// 收藏列表
+// -------------------------------------------
+
+.favorite-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: transparent;
+}
+
+// -------------------------------------------
+// Swipe 样式覆盖
+// -------------------------------------------
+
+.favorite-swipe-item {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: @spacing-3;
+
+  // Swipe 外层容器和内容都拉满
+  .nut-swipe-cell,
+  .nut-swipe-cell__content {
+    width: 100% !important;
+    box-sizing: border-box;
+    display: block;
+  }
+
+  // 右侧滑出区域
+  [id^='swipe-right-'] {
+    width: 100% !important;
+    display: flex;
+    align-items: stretch;
+  }
+
+  // 取消收藏按钮样式
+  .nut-button--danger {
+    height: 100%;
+    min-width: 140rpx;
+    padding: 0 @spacing-4;
+    border-radius: 0;
+    background: @color-danger;
+    font-size: @font-size-sm;
+    font-weight: @font-weight-medium;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.doctor-card {
+  display: flex;
+  align-items: center;
+  padding: @card-padding;
+  background: @color-bg-white;
+  border-radius: @radius-xl;
+  box-shadow: 0 8rpx 40rpx -4rpx var(--shadow-color, rgba(196, 30, 58, 0.1));
+  transition: all @transition-base;
+  width: 100%;
+  box-sizing: border-box;
+  
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+.doctor-avatar {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: @radius-xl;
+  background: linear-gradient(135deg, var(--theme-primary-soft, #EAF1F8) 0%, var(--theme-primary-soft-2, #DCE8F4) 100%);
+  border: 2rpx solid var(--theme-border-accent, rgba(77, 124, 184, 0.16));
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  
+  image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.doctor-info {
+  flex: 1;
+  margin-left: @spacing-3;
+  min-width: 0;
+}
+
+.doctor-name-row {
+  display: flex;
+  align-items: center;
+  gap: @spacing-2;
+  margin-bottom: @spacing-1;
+}
+
+.doctor-name {
+  font-size: @font-size-lg;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
+}
+
+.doctor-title {
+  .badge-primary();
+  font-size: @font-size-xs;
+}
+
+.doctor-dept {
+  font-size: @font-size-sm;
+  color: @color-text-secondary;
+  margin-bottom: @spacing-1;
+}
+
+.doctor-fee {
+  font-size: @font-size-base;
+  font-weight: @font-weight-medium;
+  color: @color-price;
+}
+
+.book-btn {
+  .button-ghost();
+  .button-sm();
+  flex-shrink: 0;
+  background: var(--theme-primary-soft, rgba(77, 124, 184, 0.08));
+  
+  text {
+    font-size: @font-size-sm;
+    font-weight: @font-weight-medium;
+    color: var(--theme-primary);
+  }
+}
+
+// -------------------------------------------
+// 底部提示和加载状态
+// -------------------------------------------
+
+.tip-text {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: @spacing-3;
+  padding-bottom: calc(@spacing-3 + env(safe-area-inset-bottom));
+  background: @color-bg-base;
+  text-align: center;
+  
+  text {
+    font-size: @font-size-xs;
+    color: @color-text-muted;
+  }
+}
+
+.loading-more,
+.no-more {
+  padding: @spacing-4 0;
+  text-align: center;
+  
+  text {
+    font-size: @font-size-sm;
+    color: @color-text-muted;
+  }
+}

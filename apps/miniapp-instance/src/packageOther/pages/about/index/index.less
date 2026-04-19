@@ -1,0 +1,271 @@
+// ===========================================
+// 关于我们页样式 - Corporate Trust Design System
+// ===========================================
+
+@import '../../../../styles/variables.less';
+@import '../../../../styles/mixins.less';
+
+.about-page {
+  .page-container();
+  padding-bottom: 120rpx;
+
+  // -------------------------------------------
+  // Logo 区域
+  // -------------------------------------------
+
+  .logo-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: @spacing-10 @page-padding @spacing-8;
+    .gradient-primary();
+    position: relative;
+    overflow: hidden;
+
+    // 装饰性背景球
+    &::before {
+      content: '';
+      position: absolute;
+      top: -80rpx;
+      right: -60rpx;
+      width: 280rpx;
+      height: 280rpx;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -40rpx;
+      left: 60rpx;
+      width: 160rpx;
+      height: 160rpx;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 50%;
+    }
+
+    .logo-wrap {
+      width: 160rpx;
+      height: 160rpx;
+      background: @color-bg-white;
+      border-radius: @radius-2xl;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: @spacing-4;
+      box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.15);
+      position: relative;
+      z-index: 1;
+      overflow: hidden;
+
+      .store-logo {
+        width: 100%;
+        height: 100%;
+      }
+    }
+
+    .app-name {
+      font-size: @font-size-xl;
+      font-weight: @font-weight-bold;
+      color: @color-text-white;
+      margin-bottom: @spacing-2;
+      position: relative;
+      z-index: 1;
+    }
+
+    .version {
+      font-size: @font-size-sm;
+      color: rgba(255, 255, 255, 0.8);
+      position: relative;
+      z-index: 1;
+    }
+  }
+
+  // -------------------------------------------
+  // 内容区块
+  // -------------------------------------------
+
+  .section {
+    .card-base();
+    margin: @page-padding;
+    padding: @card-padding;
+
+    .section-title {
+      font-size: @font-size-lg;
+      font-weight: @font-weight-semibold;
+      color: @color-text-primary;
+      margin-bottom: @spacing-4;
+      display: block;
+      position: relative;
+      padding-left: @spacing-3;
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 6rpx;
+        height: 32rpx;
+        background: linear-gradient(135deg, var(--theme-primary, #4D7CB8) 0%, var(--theme-accent, #385E92) 100%);
+        border-radius: @radius-full;
+      }
+    }
+  }
+
+  // -------------------------------------------
+  // 功能列表
+  // -------------------------------------------
+
+  .feature-list {
+    .feature-item {
+      display: flex;
+      align-items: flex-start;
+      padding: @spacing-4 0;
+      border-bottom: @border-width solid @color-divider;
+
+      &:first-child {
+        padding-top: 0;
+      }
+
+      &:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+
+      .feature-icon {
+        width: @icon-container-md;
+        height: @icon-container-md;
+        background: var(--theme-primary-soft, rgba(77, 124, 184, 0.12));
+        border: 2rpx solid var(--theme-border-accent, rgba(77, 124, 184, 0.16));
+        border-radius: @radius-lg;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: @spacing-3;
+        flex-shrink: 0;
+      }
+
+      .feature-content {
+        flex: 1;
+        padding-top: @spacing-1;
+
+        .feature-title {
+          font-size: @font-size-base;
+          font-weight: @font-weight-medium;
+          color: @color-text-primary;
+          display: block;
+          margin-bottom: @spacing-1;
+        }
+
+        .feature-desc {
+          font-size: @font-size-sm;
+          color: @color-text-muted;
+          display: block;
+          line-height: @line-height-relaxed;
+        }
+      }
+    }
+  }
+
+  // -------------------------------------------
+  // 联系信息
+  // -------------------------------------------
+
+  .contact-list {
+    .contact-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: @spacing-3 0;
+      border-bottom: @border-width solid @color-divider;
+
+      &:first-child {
+        padding-top: 0;
+      }
+
+      &:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+
+      .contact-label {
+        font-size: @font-size-base;
+        color: @color-text-muted;
+        flex-shrink: 0;
+        margin-right: @spacing-3;
+      }
+
+      .contact-value {
+        font-size: @font-size-base;
+        color: @color-text-primary;
+        font-weight: @font-weight-medium;
+        text-align: right;
+        word-break: break-all;
+      }
+    }
+  }
+
+  // -------------------------------------------
+  // 版权信息
+  // -------------------------------------------
+
+  .copyright {
+    text-align: center;
+    padding: @spacing-8 @page-padding;
+
+    text {
+      display: block;
+      font-size: @font-size-xs;
+      color: @color-text-placeholder;
+      line-height: @line-height-loose;
+    }
+  }
+}
+
+// -------------------------------------------
+// 长辈模式 - 字体放大 (+20%)
+// -------------------------------------------
+
+.about-page.font-mode-elder {
+  .logo-section {
+    .app-name {
+      font-size: @font-size-xl-elder;
+    }
+
+    .version {
+      font-size: @font-size-sm-elder;
+    }
+  }
+
+  .section {
+    .section-title {
+      font-size: @font-size-lg-elder;
+    }
+  }
+
+  .feature-list .feature-item .feature-content {
+    .feature-title {
+      font-size: @font-size-base-elder;
+    }
+
+    .feature-desc {
+      font-size: @font-size-sm-elder;
+    }
+  }
+
+  .contact-list .contact-item {
+    .contact-label {
+      font-size: @font-size-base-elder;
+    }
+
+    .contact-value {
+      font-size: @font-size-base-elder;
+    }
+  }
+
+  .copyright text {
+    font-size: @font-size-xs-elder;
+  }
+}

@@ -1,0 +1,36 @@
+// ===========================================
+// Patient Miniapp Theme Tokens
+// ===========================================
+
+page,
+.app-root {
+  --theme-primary: #4D7CB8;
+  --theme-primary-soft: #EAF1F8;
+  --theme-primary-soft-2: #DCE8F4;
+  --theme-accent: #385E92;
+  --theme-gradient-soft: linear-gradient(180deg, rgba(77, 124, 184, 0.14) 0%, rgba(77, 124, 184, 0.05) 55%, transparent 100%);
+  --theme-border-accent: rgba(77, 124, 184, 0.18);
+  --theme-shadow-accent: rgba(77, 124, 184, 0.16);
+
+  // 兼容旧变量命名，降低样式改造风险
+  --color-primary: var(--theme-primary);
+  --color-primary-dark: var(--theme-accent);
+  --color-primary-light: var(--theme-primary);
+  --color-secondary: var(--theme-accent);
+  --color-secondary-light: var(--theme-primary);
+  --gradient-primary: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
+  --gradient-primary-h: linear-gradient(90deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
+  --gradient-light: linear-gradient(135deg, var(--theme-primary-soft) 0%, var(--theme-primary-soft-2) 100%);
+  --shadow-color: var(--theme-shadow-accent);
+  --shadow-button: 0 10rpx 28rpx 0 var(--theme-shadow-accent);
+  --badge-bg: var(--theme-primary-soft);
+
+  // 中性色 token
+  --surface-page: #F7F9FC;
+  --surface-card: #FFFFFF;
+  --text-primary: #162033;
+  --text-secondary: #55627A;
+  --text-muted: #4A5870; // 深化以满足 WCAG AA (4.5:1)
+  --border-subtle: #E8EDF4;
+  --surface-soft: #F4F6FA;
+}

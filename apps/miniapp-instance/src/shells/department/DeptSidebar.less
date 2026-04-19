@@ -1,0 +1,231 @@
+@import '../../styles/variables.less';
+
+.department-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: @bg-card;
+}
+
+// ---- 搜索栏 ----
+.search-bar {
+  padding: @spacing-3 24rpx;
+  background: var(--theme-primary-soft, #EAF1F8);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -40rpx;
+    right: -30rpx;
+    width: 120rpx;
+    height: 120rpx;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+  }
+}
+
+.search-input {
+  position: relative;
+  z-index: 1;
+  height: 80rpx;
+  background: @bg-card;
+  border-radius: @radius-full;
+  display: flex;
+  align-items: center;
+  padding: 0 @spacing-4;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+
+.search-icon {
+  font-size: 32rpx;
+  margin-right: @spacing-2;
+  color: @text-tertiary;
+}
+
+.placeholder {
+  color: #9CA3AF;
+  font-size: @font-body;
+}
+
+// ---- 内容区域 ----
+.content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+// ---- 侧边栏 ----
+.sidebar {
+  width: 180rpx;
+  background: @bg-grey;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100rpx;
+  font-size: @font-body-sm;
+  color: @text-secondary;
+  position: relative;
+  transition: all 0.2s;
+
+  &.active {
+    background: @bg-card;
+    color: var(--theme-primary, #4D7CB8);
+    font-weight: 600;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 4rpx;
+      height: 40rpx;
+      background: linear-gradient(135deg, var(--theme-primary, #4D7CB8) 0%, var(--theme-accent, #385E92) 100%);
+      border-radius: 0 @radius-full @radius-full 0;
+    }
+  }
+
+  &:active:not(.active) {
+    background: rgba(0, 0, 0, 0.02);
+  }
+}
+
+// ---- 主内容区 ----
+.main {
+  flex: 1;
+  overflow-y: auto;
+  padding: @spacing-2 @spacing-3;
+  background: @bg-card;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.dept-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: @spacing-4 @spacing-3;
+  margin-bottom: @spacing-2;
+  background: @bg-page;
+  border-radius: @radius-lg;
+  transition: all 0.2s;
+
+  &:active {
+    background: @bg-grey;
+    transform: scale(0.98);
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.dept-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.dept-icon {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: @radius-md;
+  background: var(--theme-primary-soft, rgba(77, 124, 184, 0.12));
+  border: 2rpx solid rgba(77, 124, 184, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: @spacing-3;
+}
+
+.dept-name {
+  font-size: @font-body;
+  color: @text-primary;
+  font-weight: 500;
+}
+
+.arrow {
+  font-size: @font-body-lg;
+  color: #D1D5DB;
+  margin-left: @spacing-2;
+}
+
+// ---- 空状态 ----
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 400rpx;
+  color: @text-tertiary;
+  font-size: @font-body-sm;
+}
+
+// ---- 加载状态 ----
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: @text-tertiary;
+  font-size: @font-body;
+}
+
+// ---- 单层结构 - 平铺网格 ----
+.flat-content {
+  flex: 1;
+  padding: @spacing-4 24rpx;
+  overflow-y: auto;
+  background: @bg-grey;
+}
+
+.flat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: @spacing-3;
+}
+
+.flat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: @spacing-4 @spacing-2;
+  background: @bg-card;
+  border-radius: @radius-xl;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  transition: all 0.2s;
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+.flat-icon {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: @radius-lg;
+  background: var(--theme-primary-soft, rgba(77, 124, 184, 0.08));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: @spacing-2;
+}
+
+.flat-name {
+  font-size: @font-body-sm;
+  color: @text-primary;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.3;
+}

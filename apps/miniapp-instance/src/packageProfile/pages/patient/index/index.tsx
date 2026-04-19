@@ -1,0 +1,136 @@
+import { View, Text } from '@tarojs/components';
+import Taro, { usePullDownRefresh } from '@tarojs/taro';
+import { Button, Empty, Swipe } from '@nutui/nutui-react-taro';
+import { useState, useCallback } from 'react';
+import { userApi } from '@hospital/api';
+import { GENDER_MAP } from '@hospital/shared';
+import { getToken } from '../../../../utils/auth';
+import { useProtectedPage } from '../../../../hooks/useProtectedPage';
+import { useApplyThemeNavigationBar } from '../../../../utils/theme';
+import LoginPopup from '../../../../components/LoginPopup';
+import type { Patient } from '@hospital/shared';
+import './index.less';
+
+const PatientListPage = () => {
+  useApplyThemeNavigationBar();
+  const [loading, setLoading] = useState(true);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const clearPatients = useCallback(() => {
+    setPatients([]);
+    setLoading(false);
+  }, []);
+
+  const loadPatients = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await userApi.getPatients();
+      setPatients(data);
+    } catch (error) {
+      console.error('加载就诊人失败', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const { showLoginPopup, handleLoginSuccess, handleLoginClose } = useProtectedPage({
+    load: loadPatients,
+    clear: clearPatients,
+  });
+
+  // 页面显示时刷新
+  Taro.useDidShow(() => {
+    if (getToken()) {
+      void loadPatients();
+    }
+  });
+
+  // 下拉刷新
+  usePullDownRefresh(() => {
+    if (getToken()) {
+      loadPatients().finally(() => {
+        Taro.stopPullDownRefresh();
+      });
+      return;
+    }
+
+    Taro.stopPullDownRefresh();
+  });
+
+  const handleDelete = async (id: string) => {
+    const result = await Taro.showModal({
+      title: '删除就诊人',
+      content: '确定要删除该就诊人吗？',
+    });
+
+    if (!result.confirm) return;
+
+    try {
+      await userApi.deletePatient(id);
+      Taro.showToast({ title: '删除成功', icon: 'success' });
+      loadPatients();
+    } catch (error: any) {
+      Taro.showToast({ title: error.message || '删除失败', icon: 'none' });
+    }
+  };
+
+  const handleEdit = (id: string) => {
+    Taro.navigateTo({ url: `/packageProfile/pages/patient/edit?id=${id}` });
+  };
+
+  const handleAdd = () => {
+    Taro.navigateTo({ url: '/packageProfile/pages/patient/edit' });
+  };
+
+  return (
+    <View className="patient-list-page">
+      {patients.length === 0 && !loading ? (
+        <Empty description="暂无就诊人，请添加" />
+      ) : (
+        <View className="list">
+          {patients.map((patient) => (
+            <Swipe
+              key={patient.id}
+              className="patient-swipe-item"
+              rightAction={
+                <Button type="danger" onClick={() => handleDelete(patient.id)}>
+                  删除
+                </Button>
+              }
+            >
+              <View className="patient-item" onClick={() => handleEdit(patient.id)}>
+                <View className="patient-main">
+                  <Text className="patient-name">{patient.name}</Text>
+                  {patient.relationship && (
+                    <Text className="relationship">{patient.relationship}</Text>
+                  )}
+                  {patient.isDefault && <Text className="default-tag">默认</Text>}
+                </View>
+                <View className="patient-info">
+                  <Text>{GENDER_MAP[patient.gender ?? 0]}</Text>
+                  <Text className="divider">|</Text>
+                  <Text>{patient.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}</Text>
+                </View>
+                <Text className="arrow">›</Text>
+              </View>
+            </Swipe>
+          ))}
+        </View>
+      )}
+
+      <View className="footer">
+        <Button type="primary" block onClick={handleAdd} className="add-btn">
+          添加就诊人
+        </Button>
+      </View>
+
+      {/* 登录弹窗 */}
+      <LoginPopup
+        visible={showLoginPopup}
+        onClose={handleLoginClose}
+        onSuccess={handleLoginSuccess}
+      />
+    </View>
+  );
+};
+
+export default PatientListPage;

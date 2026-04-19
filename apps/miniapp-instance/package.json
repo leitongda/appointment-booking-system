@@ -1,0 +1,53 @@
+{
+  "name": "@hospital/miniapp-instance",
+  "version": "1.0.0",
+  "private": true,
+  "description": "多风格小程序模板生成器 — 支持通过模板配置生成不同风格的小程序实例",
+  "templateInfo": {
+    "name": "default",
+    "typescript": true,
+    "css": "less"
+  },
+  "scripts": {
+    "build:weapp": "NO_PROXY='*' taro build --type weapp --no-check && node scripts/fix-wxml.js",
+    "build:template": "node scripts/build-template.mjs",
+    "build:all": "node scripts/build-all.mjs",
+    "dev:weapp": "NO_PROXY='*' taro build --type weapp --watch --no-check & node scripts/fix-wxml.js --watch",
+    "dev:template": "node scripts/dev-template.mjs",
+    "dev:weapp:prod": "node scripts/clean.mjs && NO_PROXY='*' NODE_ENV=production taro build --type weapp --watch --no-check & node scripts/fix-wxml.js --watch",
+    "dev": "npm run dev:weapp",
+    "dev:local": "NO_PROXY='*' TARO_APP_API_URL=http://127.0.0.1:8000/api/v1 taro build --type weapp --watch --no-check & node scripts/fix-wxml.js --watch",
+    "dev:remote": "NO_PROXY='*' TARO_APP_API_URL=https://yy.aicm.online/api/v1 taro build --type weapp --watch --no-check & node scripts/fix-wxml.js --watch",
+    "clean": "rm -rf dist",
+    "clean:cache": "node scripts/clean.mjs",
+    "fix:wxml": "node scripts/fix-wxml.js"
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.23.8",
+    "@hospital/api": "workspace:*",
+    "@hospital/shared": "workspace:*",
+    "@nutui/nutui-react-taro": "3.0.18",
+    "@tarojs/components": "4.1.9",
+    "@tarojs/helper": "4.1.9",
+    "@tarojs/plugin-framework-react": "4.1.9",
+    "@tarojs/plugin-html": "4.1.9",
+    "@tarojs/plugin-platform-weapp": "4.1.9",
+    "@tarojs/react": "4.1.9",
+    "@tarojs/runtime": "4.1.9",
+    "@tarojs/shared": "4.1.9",
+    "@tarojs/taro": "4.1.9",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.23.7",
+    "@tarojs/cli": "4.1.9",
+    "@tarojs/taro-loader": "4.1.9",
+    "@tarojs/webpack5-runner": "4.1.9",
+    "@types/react": "^18.2.47",
+    "babel-plugin-import": "^1.13.8",
+    "babel-preset-taro": "4.1.9",
+    "less": "^4.2.0",
+    "typescript": "^5.3.3"
+  }
+}

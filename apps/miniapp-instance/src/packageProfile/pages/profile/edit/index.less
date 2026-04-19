@@ -1,0 +1,359 @@
+@import '../../../../styles/variables.less';
+@import '../../../../styles/mixins.less';
+
+.profile-edit-page {
+  .page-container();
+  padding: @spacing-3 @page-padding 220rpx;
+}
+
+.avatar-section {
+  .card-base();
+  padding: @spacing-5 @spacing-4 @spacing-4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: @spacing-3;
+}
+
+.avatar-wrapper {
+  position: relative;
+  margin-bottom: @spacing-4;
+}
+
+.avatar-container {
+  width: 176rpx;
+  height: 176rpx;
+  border-radius: @radius-full;
+  overflow: hidden;
+  background: @color-bg-secondary;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 4rpx solid @color-border;
+
+  .avatar-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .avatar-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: @color-bg-tertiary;
+  }
+}
+
+.avatar-edit-badge {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: @radius-full;
+  background: var(--theme-primary);
+  border: 4rpx solid @color-bg-white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .edit-icon {
+    color: @color-text-white;
+    font-size: 24rpx;
+    line-height: 1;
+  }
+}
+
+.avatar-actions {
+  width: 100%;
+  display: flex;
+  gap: @spacing-3;
+
+  .action-btn {
+    flex: 1;
+    height: 72rpx;
+    line-height: 72rpx;
+    text-align: center;
+    border-radius: @radius-full;
+    font-size: @font-size-sm;
+    font-weight: @font-weight-medium;
+    border: none;
+
+    &::after {
+      border: none;
+    }
+
+    &:active {
+      opacity: 0.8;
+    }
+  }
+
+  .wechat-btn {
+    color: #07C160;
+    background: rgba(7, 193, 96, 0.12);
+  }
+
+  .album-btn {
+    color: var(--theme-primary);
+    background: var(--theme-primary-soft, rgba(77, 124, 184, 0.12));
+  }
+}
+
+.form-section {
+  .card-base();
+  padding: 0 @spacing-4;
+  margin-bottom: @spacing-2;
+}
+
+.form-item {
+  display: flex;
+  align-items: center;
+  min-height: 108rpx;
+  padding: @spacing-2 0;
+  border-bottom: @border-width solid @color-divider;
+  gap: @spacing-3;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.form-label {
+  width: 168rpx;
+  flex-shrink: 0;
+  font-size: @font-size-base;
+  font-weight: @font-weight-medium;
+  color: @color-text-primary;
+}
+
+.form-input-wrapper {
+  flex: 1;
+  min-width: 0;
+  height: 72rpx;
+  padding: 0 @spacing-3;
+  border: none;
+  border-radius: @radius-md;
+  background: @input-bg-idle;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  box-shadow: @input-inner-shadow;
+  transition: all @transition-input;
+}
+
+.form-input {
+  width: 100%;
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  text-align: right;
+  line-height: 72rpx;
+
+  &::placeholder {
+    color: @color-text-placeholder;
+    font-weight: @font-weight-normal;
+  }
+}
+
+.form-input-wrapper:focus-within {
+  background: @input-bg-focus;
+  box-shadow: @input-focus-shadow;
+}
+
+.form-hint {
+  display: block;
+  padding: @spacing-2 @spacing-1 0;
+  font-size: @font-size-xs;
+  color: @color-text-muted;
+  line-height: @line-height-normal;
+}
+
+.form-value {
+  font-size: @font-size-base;
+  color: @color-text-muted;
+  text-align: right;
+}
+
+.form-value-wrapper {
+  flex: 1;
+  min-width: 0;
+  height: 72rpx;
+  padding: 0 @spacing-3;
+  border: none;
+  border-radius: @radius-md;
+  background: @input-bg-idle;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: @spacing-2;
+  box-shadow: @input-inner-shadow;
+
+  .form-value {
+    flex: none;
+  }
+}
+
+.phone-edit-wrapper {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: @spacing-2;
+}
+
+.phone-input {
+  width: 100%;
+  height: 72rpx;
+  line-height: 72rpx;
+  padding: 0 @spacing-3;
+  border: none;
+  border-radius: @radius-md;
+  background: @input-bg-idle;
+  box-shadow: @input-inner-shadow;
+  transition: all @transition-input;
+
+  &:focus {
+    background: @input-bg-focus;
+    box-shadow: @input-focus-shadow;
+  }
+
+  &::placeholder {
+    color: @color-text-placeholder;
+    font-weight: @font-weight-normal;
+  }
+}
+
+.phone-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: @spacing-2;
+}
+
+.phone-action-btn {
+  min-width: 96rpx;
+  text-align: center;
+  padding: @spacing-1 @spacing-2;
+  border-radius: @radius-md;
+  font-size: @font-size-sm;
+  font-weight: @font-weight-medium;
+
+  &.cancel {
+    color: @color-text-secondary;
+    background: @color-bg-secondary;
+  }
+
+  &.confirm {
+    color: @color-text-white;
+    background: var(--theme-primary);
+
+    &.disabled {
+      background: @color-bg-tertiary;
+      color: @color-text-muted;
+      pointer-events: none;
+    }
+  }
+}
+
+.form-item picker {
+  flex: 1;
+  min-width: 0;
+}
+
+.gender-picker {
+  width: 100%;
+  height: 72rpx;
+  padding: 0 @spacing-3;
+  border: none;
+  border-radius: @radius-md;
+  background: @input-bg-idle;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: @spacing-2;
+  box-shadow: @input-inner-shadow;
+  transition: all @transition-input;
+
+  .gender-value {
+    font-size: @font-size-base;
+    color: @color-text-primary;
+
+    &.placeholder {
+      color: @color-text-placeholder;
+      font-weight: @font-weight-normal;
+    }
+  }
+}
+
+.picker-arrow {
+  font-size: @font-size-lg;
+  color: @color-text-muted;
+  line-height: 1;
+  transition: transform @transition-input;
+}
+
+.gender-picker:active .picker-arrow {
+  transform: translateX(4rpx);
+}
+
+.submit-section {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: @z-index-fixed;
+  padding: @spacing-4 @page-padding;
+  padding-bottom: calc(@spacing-4 + env(safe-area-inset-bottom));
+  background: @color-bg-white;
+  box-shadow: @shadow-footer;
+}
+
+.submit-btn {
+  .button-primary();
+  .button-lg();
+  .button-block();
+}
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(255, 255, 255, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: @z-index-modal;
+
+  .loading-text {
+    font-size: @font-size-sm;
+    color: @color-text-muted;
+  }
+}
+
+.profile-edit-page.font-mode-elder {
+  .form-label {
+    font-size: @font-size-base-elder;
+  }
+
+  .form-input,
+  .form-value,
+  .gender-picker .gender-value {
+    font-size: @font-size-base-elder;
+  }
+
+  .submit-btn {
+    font-size: @font-size-base-elder;
+  }
+
+  .action-btn {
+    font-size: @font-size-sm-elder;
+  }
+
+  .form-hint {
+    font-size: @font-size-xs-elder;
+  }
+}

@@ -1,0 +1,100 @@
+@import '../../styles/variables.less';
+
+.dept-colorful {
+  .search-bar {
+    background: @bg-card;
+    padding: @spacing-3 @page-padding;
+    position: sticky;
+    top: 0;
+    z-index: @z-index-sticky;
+
+    .search-input {
+      display: flex;
+      align-items: center;
+      background: @color-bg-base;
+      border-radius: @radius-full;
+      padding: @spacing-2 @spacing-3;
+      cursor: pointer;
+
+      .search-icon {
+        margin-right: @spacing-2;
+      }
+
+      .placeholder {
+        font-size: @font-size-base;
+        color: @color-text-placeholder;
+      }
+    }
+  }
+
+  .content {
+    padding: @page-padding;
+    min-height: calc(100vh - 120rpx);
+
+    .loading-state {
+      text-align: center;
+      padding: @spacing-8;
+
+      text {
+        font-size: @font-size-base;
+        color: @color-text-secondary;
+      }
+    }
+
+    .colorful-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: @spacing-3;
+
+      .colorful-item {
+        aspect-ratio: 1;
+        border-radius: @radius-xl;
+        padding: @spacing-4;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: transform @transition-base;
+        position: relative;
+        overflow: hidden;
+
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(255, 255, 255, 0);
+          transition: background @transition-fast;
+        }
+
+          &:active {
+            transform: scale(0.95);
+          }
+
+          &:active::before {
+            background: rgba(255, 255, 255, 0.2);
+          }
+
+        .colorful-icon {
+          width: @icon-container-xl;
+          height: @icon-container-xl;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: @spacing-2;
+        }
+
+        .colorful-name {
+          font-size: @font-size-md;
+          font-weight: @font-weight-semibold;
+          color: #fff;
+          text-align: center;
+          line-height: 1.3;
+        }
+      }
+    }
+  }
+}

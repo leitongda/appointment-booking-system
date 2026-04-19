@@ -1,0 +1,453 @@
+@import '../../styles/variables.less';
+
+.doctor-detail-family {
+  background: @bg-page;
+  min-height: 100vh;
+  padding-bottom: @spacing-6;
+
+  .loading-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    font-size: @font-size-base;
+    color: @color-text-secondary;
+  }
+
+  // 医生信息
+  .doctor-info {
+    background: @bg-card;
+    padding: @spacing-4;
+    margin-bottom: @spacing-2;
+
+    .info-header {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: @spacing-3;
+
+      .avatar {
+        width: @avatar-size-xl;
+        height: @avatar-size-xl;
+        border-radius: @radius-lg;
+        background: @color-bg-secondary;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        margin-right: @spacing-3;
+
+        image {
+          width: 100%;
+          height: 100%;
+        }
+      }
+
+      .info-content {
+        flex: 1;
+
+        .name-row {
+          display: flex;
+          align-items: center;
+          margin-bottom: @spacing-1;
+
+          .name {
+            font-size: @font-size-xl;
+            font-weight: @font-weight-semibold;
+            color: @color-text-primary;
+            margin-right: @spacing-1;
+          }
+
+          .title {
+            font-size: @font-size-sm;
+            color: @color-text-secondary;
+            background: @color-bg-secondary;
+            padding: 4rpx 12rpx;
+            border-radius: @radius-sm;
+          }
+        }
+
+        .dept {
+          font-size: @font-size-sm;
+          color: @color-text-secondary;
+        }
+      }
+
+      .favorite-btn {
+        padding: @spacing-2;
+        cursor: pointer;
+
+        &.active {
+          transform: scale(1.1);
+        }
+      }
+    }
+
+    .age-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: @spacing-2;
+      margin-bottom: @spacing-3;
+
+      .age-tag {
+        display: flex;
+        align-items: center;
+        gap: 4rpx;
+        background: @badge-bg;
+        padding: 8rpx 16rpx;
+        border-radius: @radius-full;
+
+        .age-text {
+          font-size: @font-size-sm;
+          color: @theme-primary;
+        }
+      }
+    }
+
+    .info-section {
+      margin-bottom: @spacing-3;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      .label {
+        font-size: @font-size-sm;
+        font-weight: @font-weight-medium;
+        color: @color-text-secondary;
+        margin-bottom: @spacing-1;
+        display: block;
+      }
+
+      .value {
+        font-size: @font-size-base;
+        color: @color-text-primary;
+        line-height: @line-height-relaxed;
+      }
+    }
+  }
+
+  // 家长评价区域
+  .parent-reviews-section {
+    background: @bg-card;
+    padding: @spacing-4;
+    margin-bottom: @spacing-2;
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: @spacing-3;
+
+      .section-title {
+        font-size: @font-size-lg;
+        font-weight: @font-weight-semibold;
+        color: @color-text-primary;
+      }
+    }
+
+    .empty-reviews {
+      text-align: center;
+      padding: @spacing-4;
+
+      text {
+        font-size: @font-size-sm;
+        color: @color-text-placeholder;
+      }
+    }
+  }
+
+  // 排班选择
+  .schedule-section {
+    background: @bg-card;
+    padding: @spacing-4;
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: @spacing-3;
+
+      .section-title {
+        font-size: @font-size-lg;
+        font-weight: @font-weight-semibold;
+        color: @color-text-primary;
+      }
+
+      .scroll-hint {
+        font-size: @font-size-xs;
+        color: @color-text-placeholder;
+      }
+    }
+
+    .no-schedule {
+      text-align: center;
+      padding: @spacing-6;
+
+      text {
+        font-size: @font-size-base;
+        color: @color-text-secondary;
+      }
+    }
+
+    .date-scroll {
+      white-space: nowrap;
+      margin-bottom: @spacing-3;
+
+      .date-list {
+        display: inline-flex;
+        gap: @spacing-2;
+
+        .date-item {
+          display: inline-flex;
+          flex-direction: column;
+          align-items: center;
+          padding: @spacing-2 @spacing-3;
+          background: @color-bg-secondary;
+          border-radius: @radius-lg;
+          cursor: pointer;
+          transition: all @transition-fast;
+          min-width: 120rpx;
+
+          &.active {
+            background: @theme-primary;
+
+            .date-weekday,
+            .date-day {
+              color: @color-text-white;
+            }
+          }
+
+          .date-weekday {
+            font-size: @font-size-sm;
+            color: @color-text-secondary;
+            margin-bottom: 4rpx;
+          }
+
+          .date-day {
+            font-size: @font-size-md;
+            font-weight: @font-weight-semibold;
+            color: @color-text-primary;
+          }
+        }
+      }
+    }
+
+    .time-slots {
+      display: flex;
+      gap: @spacing-3;
+
+      .time-slot-card {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: @spacing-4;
+        background: @color-bg-secondary;
+        border-radius: @radius-lg;
+        cursor: pointer;
+        transition: all @transition-base;
+
+        &.full {
+          opacity: 0.5;
+        }
+
+        &.selected {
+          background: @theme-primary;
+
+          .slot-available,
+          .slot-period,
+          .slot-dept {
+            color: @color-text-white;
+          }
+        }
+
+        .slot-available {
+          font-size: @font-size-xl;
+          font-weight: @font-weight-bold;
+          color: @theme-primary;
+          margin-bottom: 4rpx;
+        }
+
+        .slot-period {
+          font-size: @font-size-base;
+          color: @color-text-primary;
+          margin-bottom: 4rpx;
+        }
+
+        .slot-dept {
+          font-size: @font-size-xs;
+          color: @color-text-secondary;
+        }
+      }
+    }
+  }
+
+  // 班次选择 Picker
+  .slot-picker-mask {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: @z-index-modal;
+    display: flex;
+    align-items: flex-end;
+  }
+
+  .slot-picker-sheet {
+    width: 100%;
+    background: @bg-card;
+    border-radius: @radius-xl @radius-xl 0 0;
+    padding: @spacing-4;
+    max-height: 80vh;
+    overflow-y: auto;
+    animation: slideUp @transition-base;
+  }
+
+  @keyframes slideUp {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  .slot-picker-indicator {
+    width: 80rpx;
+    height: 8rpx;
+    background: @color-bg-tertiary;
+    border-radius: @radius-full;
+    margin: 0 auto @spacing-4;
+  }
+
+  .slot-picker-header {
+    text-align: center;
+    margin-bottom: @spacing-4;
+
+    .slot-picker-title {
+      font-size: @font-size-lg;
+      font-weight: @font-weight-semibold;
+      color: @color-text-primary;
+      display: block;
+      margin-bottom: 4rpx;
+    }
+
+    .slot-picker-subtitle {
+      font-size: @font-size-sm;
+      color: @color-text-secondary;
+    }
+  }
+
+  .slot-picker-doctor {
+    display: flex;
+    align-items: center;
+    padding: @spacing-3;
+    background: @color-bg-secondary;
+    border-radius: @radius-lg;
+    margin-bottom: @spacing-4;
+
+    .slot-picker-doctor-avatar {
+      width: @avatar-size-md;
+      height: @avatar-size-md;
+      border-radius: @radius-md;
+      background: @bg-card;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      margin-right: @spacing-3;
+
+      image {
+        width: 100%;
+        height: 100%;
+      }
+    }
+
+    .slot-picker-doctor-info {
+      flex: 1;
+
+      .slot-picker-doctor-name-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 4rpx;
+
+        .slot-picker-doctor-name {
+          font-size: @font-size-base;
+          font-weight: @font-weight-semibold;
+          color: @color-text-primary;
+          margin-right: @spacing-1;
+        }
+
+        .slot-picker-doctor-title {
+          font-size: @font-size-xs;
+          color: @color-text-secondary;
+        }
+      }
+
+      .slot-picker-doctor-dept {
+        font-size: @font-size-sm;
+        color: @color-text-secondary;
+      }
+    }
+  }
+
+  .slot-picker-list {
+    display: flex;
+    flex-direction: column;
+    gap: @spacing-2;
+    margin-bottom: @spacing-4;
+
+    .slot-picker-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: @spacing-3;
+      background: @color-bg-secondary;
+      border-radius: @radius-lg;
+      cursor: pointer;
+
+      &.selected {
+        background: @badge-bg;
+        border: 2rpx solid @theme-primary;
+      }
+
+      &.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .slot-time {
+        font-size: @font-size-base;
+        font-weight: @font-weight-semibold;
+        color: @color-text-primary;
+      }
+
+      .slot-remain {
+        font-size: @font-size-sm;
+        color: @color-text-secondary;
+      }
+
+      .slot-countdown {
+        font-size: @font-size-xs;
+        color: @color-warning;
+      }
+    }
+  }
+
+  .slot-picker-footer {
+    .slot-picker-next-btn {
+      margin-bottom: @spacing-3;
+    }
+
+    .slot-picker-cancel-btn {
+      display: block;
+      text-align: center;
+      font-size: @font-size-base;
+      color: @color-text-secondary;
+      cursor: pointer;
+    }
+  }
+}

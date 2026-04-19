@@ -1,0 +1,273 @@
+@import '../../styles/variables.less';
+
+.appointment-page {
+  min-height: 100vh;
+  background: @bg-page;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 120rpx);
+}
+
+// ---- Tabs ----
+.tabs-wrapper {
+  background: @bg-card;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+// ---- 列表 ----
+.list {
+  padding: 24rpx;
+  min-height: calc(100vh - 120rpx - env(safe-area-inset-bottom));
+}
+
+// ---- 待支付提醒横幅 ----
+.pending-payment-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: @radius-lg;
+  padding: @spacing-3 @spacing-4;
+  margin-bottom: @spacing-3;
+
+  .banner-text {
+    font-size: @font-body-sm;
+    color: @color-warning;
+    font-weight: 500;
+  }
+
+  .banner-action {
+    font-size: @font-body-sm;
+    color: @color-warning;
+    font-weight: 600;
+    flex-shrink: 0;
+    margin-left: @spacing-2;
+  }
+}
+
+// ---- 预约卡片 ----
+.card {
+  background: @bg-card;
+  border-radius: @radius-lg;
+  padding: @spacing-4;
+  margin-bottom: @spacing-3;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+  transition: all 0.2s;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  &:active {
+    transform: translateY(2rpx);
+  }
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: @spacing-3;
+  border-bottom: 1rpx solid rgba(0, 0, 0, 0.06);
+  margin-bottom: @spacing-3;
+}
+
+.appointment-no {
+  font-size: @font-body-sm;
+  color: @text-tertiary;
+}
+
+.status {
+  font-size: @font-body-sm;
+  font-weight: 600;
+  padding: 4rpx 16rpx;
+  border-radius: @radius-full;
+
+  &.status-pending {
+    background: var(--theme-primary-soft, rgba(77, 124, 184, 0.12));
+    color: var(--theme-primary, #4D7CB8);
+  }
+
+  &.status-confirmed {
+    background: rgba(16, 185, 129, 0.1);
+    color: @color-success;
+  }
+
+  &.status-completed {
+    background: rgba(16, 185, 129, 0.1);
+    color: @color-success;
+  }
+
+  &.status-cancelled {
+    background: rgba(100, 116, 139, 0.1);
+    color: @text-tertiary;
+  }
+
+  &.status-warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: @color-warning;
+  }
+
+  &.status-processing {
+    background: rgba(59, 130, 246, 0.1);
+    color: @color-info;
+  }
+
+  &.status-expired {
+    background: rgba(100, 116, 139, 0.1);
+    color: #D1D5DB;
+  }
+}
+
+.card-body {
+  display: flex;
+  justify-content: space-between;
+}
+
+.info {
+  flex: 1;
+  min-width: 0;
+}
+
+.doctor-name {
+  font-size: @font-body-lg;
+  font-weight: 600;
+  color: @text-primary;
+  display: block;
+  margin-bottom: @spacing-1;
+}
+
+.dept-name {
+  font-size: @font-body;
+  color: @text-secondary;
+}
+
+.time {
+  text-align: right;
+  flex-shrink: 0;
+  margin-left: @spacing-3;
+}
+
+.date {
+  font-size: @font-body-lg;
+  font-weight: 600;
+  color: @text-primary;
+  display: block;
+  margin-bottom: @spacing-1;
+}
+
+.slot {
+  font-size: @font-body-sm;
+  color: @text-secondary;
+}
+
+.queue-number {
+  display: inline-block;
+  margin-left: @spacing-1;
+  padding: 2rpx 12rpx;
+  background: var(--theme-primary-soft, rgba(77, 124, 184, 0.12));
+  color: var(--theme-primary, #4D7CB8);
+  border-radius: @radius-full;
+  font-size: @font-caption;
+  font-weight: 500;
+}
+
+// ---- 支付信息 ----
+.payment-info {
+  margin-top: @spacing-3;
+  padding-top: @spacing-3;
+  border-top: 1rpx solid rgba(0, 0, 0, 0.06);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.payment-amount {
+  font-size: @font-body-lg;
+  font-weight: 700;
+  color: @color-danger;
+}
+
+// ---- 卡片底部操作 ----
+.card-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: @spacing-3;
+  margin-top: @spacing-4;
+  padding-top: @spacing-3;
+  border-top: 1rpx solid rgba(0, 0, 0, 0.06);
+}
+
+.cancel-btn {
+  min-width: 160rpx;
+}
+
+.signin-btn {
+  min-width: 160rpx;
+}
+
+.pay-btn {
+  min-width: 160rpx;
+}
+
+// ---- 空状态 ----
+.empty-wrapper {
+  padding: @spacing-8 0;
+}
+
+// ---- 未登录引导 ----
+.login-guide-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: @spacing-8 24rpx;
+  min-height: 60vh;
+}
+
+.login-guide-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: @bg-card;
+  border-radius: @radius-xl;
+  padding: @spacing-8 @spacing-6;
+  width: 100%;
+  max-width: 600rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.06);
+}
+
+.login-guide-icon {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--theme-primary, #4D7CB8) 0%, var(--theme-accent, #385E92) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: @spacing-5;
+}
+
+.login-guide-title {
+  font-size: @font-body-lg;
+  font-weight: 600;
+  color: @text-primary;
+  margin-bottom: @spacing-2;
+}
+
+.login-guide-desc {
+  font-size: @font-body-sm;
+  color: @text-tertiary;
+  text-align: center;
+  line-height: 1.5;
+}
+
+// ---- 加载状态 ----
+.loading-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: @spacing-8 0;
+  color: @text-tertiary;
+  font-size: @font-body;
+}
