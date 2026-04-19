@@ -2,14 +2,21 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_, update
 from sqlalchemy.orm import selectinload
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Dict, Any
 from datetime import datetime
+import json
 
-from app.models.miniapp_platform import Company, PaymentProfile, MiniappInstance
+from app.models.miniapp_platform import (
+    Company, PaymentProfile, MiniappInstance,
+    AppTemplate, TemplateVersion, BuildJob, ReleaseArtifact, ReleaseJob
+)
 from app.modules.miniapp_platform.schemas import (
     CompanyCreate, CompanyUpdate,
     PaymentProfileCreate, PaymentProfileUpdate, PaymentProfileQuery,
     MiniappInstanceCreate, MiniappInstanceUpdate, MiniappInstanceQuery,
+)
+from app.schemas.miniapp_template import (
+    BuildJobCreate, ReleaseJobCreate
 )
 from app.common.tenant_filter import add_tenant_filter
 from app.middleware.tenant_context import get_current_tenant_id
@@ -738,3 +745,443 @@ class MiniappInstanceService:
         await self.db.refresh(instance)
 
         return instance
+
+
+class AppTemplateService:
+    """模板管理服务"""
+
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def get_by_id(self, template_id: str) -> Optional[AppTemplate]:
+        """获取模板详情"""
+        result = await self.db.execute(
+            select(AppTemplate).where(AppTemplate.id == template_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_code(self, code: str) -> Optional[AppTemplate]:
+        """按编码获取模板"""
+        result = await self.db.execute(
+            select(AppTemplate).where(AppTemplate.code == code)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_list(
+        self,
+        category: Optional[str] = None,
+        status: Optional[int] = None,
+        skip: int = 0,
+        limit: int = 20
+    ) -> Tuple[List[AppTemplate], int]:
+        """获取模板列表"""
+        conditions = []
+
+        # 分类过滤
+        if category:
+            conditions.append(AppTemplate.category == category)
+
+        # 状态过滤
+        if status is not None:
+            conditions.append(AppTemplate.status == status)
+
+        # 构建查询
+        base_query = select(AppTemplate)
+        if conditions:
+            base_query = base_query.where(and_(*conditions))
+
+        # 统计总数
+        count_query = select(func.count(AppTemplate.id))
+        if conditions:
+            count_query = count_query.where(and_(*conditions))
+        total_result = await self.db.execute(count_query)
+        total = total_result.scalar()
+
+        # 分页
+        base_query = base_query.order_by(AppTemplate.created_at.desc()).offset(skip).limit(limit)
+        result = await self.db.execute(base_query)
+        templates = list(result.scalars().all())
+
+        return templates, total
+
+    async def create(
+        self,
+        name: str,
+        code: str,
+        description: Optional[str],
+        category: str,
+        default_config: Optional[Dict[str, Any]],
+        operator_id: Optional[str] = None
+    ) -> AppTemplate:
+        """创建模板"""
+        # 检查编码唯一性
+        existing = await self.get_by_code(code)
+        if existing:
+            raise ValueError(f"模板编码 '{code}' 已存在")
+
+        template = AppTemplate(
+            name=name,
+            code=code,
+            description=description,
+            category=category,
+            default_config=json.dumps(default_config) if default_config else None,
+            status=1,
+            created_by=operator_id,
+        )
+
+        self.db.add(template)
+        await self.db.commit()
+        await self.db.refresh(template)
+
+        return template
+
+    async def update(
+        self,
+        template_id: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        default_config: Optional[Dict[str, Any]] = None,
+        status: Optional[int] = None,
+        operator_id: Optional[str] = None
+    ) -> Optional[AppTemplate]:
+        """更新模板"""
+        template = await self.get_by_id(template_id)
+        if not template:
+            return None
+
+        if name is not None:
+            template.name = name
+        if description is not None:
+            template.description = description
+        if default_config is not None:
+            template.default_config = json.dumps(default_config)
+        if status is not None:
+            template.status = status
+
+        template.updated_by = operator_id
+        await self.db.commit()
+        await self.db.refresh(template)
+
+        return template
+
+    async def get_versions(
+        self,
+        template_id: str,
+        skip: int = 0,
+        limit: int = 20
+    ) -> Tuple[List[TemplateVersion], int]:
+        """获取模板版本列表"""
+        # 统计总数
+        count_query = select(func.count(TemplateVersion.id)).where(
+            TemplateVersion.template_id == template_id
+        )
+        total_result = await self.db.execute(count_query)
+        total = total_result.scalar()
+
+        # 查询版本列表
+        base_query = select(TemplateVersion).where(
+            TemplateVersion.template_id == template_id
+        ).order_by(
+            TemplateVersion.created_at.desc()
+        ).offset(skip).limit(limit)
+
+        result = await self.db.execute(base_query)
+        versions = list(result.scalars().all())
+
+        return versions, total
+
+    async def create_version(
+        self,
+        template_id: str,
+        version: str,
+        source_ref: Optional[str] = None,
+        schema_version: Optional[str] = None,
+        changelog: Optional[str] = None,
+        operator_id: Optional[str] = None
+    ) -> TemplateVersion:
+        """创建模板版本"""
+        # 检查版本号唯一性
+        existing_query = select(TemplateVersion).where(
+            and_(
+                TemplateVersion.template_id == template_id,
+                TemplateVersion.version == version
+            )
+        )
+        existing_result = await self.db.execute(existing_query)
+        if existing_result.scalar_one_or_none():
+            raise ValueError(f"模板版本 '{version}' 已存在")
+
+        template_version = TemplateVersion(
+            template_id=template_id,
+            version=version,
+            source_ref=source_ref,
+            schema_version=schema_version,
+            changelog=changelog,
+            status=1,
+            created_by=operator_id,
+        )
+
+        self.db.add(template_version)
+        await self.db.commit()
+        await self.db.refresh(template_version)
+
+        return template_version
+
+
+class BuildJobService:
+    """构建任务服务"""
+
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def get_by_id(self, job_id: str) -> Optional[BuildJob]:
+        """获取构建任务详情"""
+        result = await self.db.execute(
+            select(BuildJob)
+            .options(
+                selectinload(BuildJob.miniapp_instance),
+                selectinload(BuildJob.template_version),
+            )
+            .where(BuildJob.id == job_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_list(
+        self,
+        tenant_id: str,
+        instance_id: Optional[str] = None,
+        status: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 20
+    ) -> Tuple[List[BuildJob], int]:
+        """获取构建任务列表"""
+        conditions = [BuildJob.tenant_id == tenant_id]
+
+        # 实例过滤
+        if instance_id:
+            conditions.append(BuildJob.miniapp_instance_id == instance_id)
+
+        # 状态过滤
+        if status:
+            conditions.append(BuildJob.status == status)
+
+        # 构建查询
+        base_query = select(BuildJob).options(
+            selectinload(BuildJob.miniapp_instance),
+            selectinload(BuildJob.template_version),
+        )
+        if conditions:
+            base_query = base_query.where(and_(*conditions))
+
+        # 统计总数
+        count_query = select(func.count(BuildJob.id)).where(and_(*conditions))
+        total_result = await self.db.execute(count_query)
+        total = total_result.scalar()
+
+        # 分页
+        base_query = base_query.order_by(BuildJob.created_at.desc()).offset(skip).limit(limit)
+        result = await self.db.execute(base_query)
+        jobs = list(result.scalars().all())
+
+        return jobs, total
+
+    async def create(
+        self,
+        tenant_id: str,
+        data: BuildJobCreate,
+        operator_id: Optional[str] = None
+    ) -> BuildJob:
+        """创建构建任务"""
+        # 验证实例是否存在且属于当前租户
+        instance = await self.db.execute(
+            select(MiniappInstance).where(
+                and_(
+                    MiniappInstance.id == data.miniapp_instance_id,
+                    MiniappInstance.tenant_id == tenant_id
+                )
+            )
+        )
+        instance_obj = instance.scalar_one_or_none()
+        if not instance_obj:
+            raise ValueError("小程序实例不存在或不属于当前租户")
+
+        # 验证模板版本是否存在
+        if data.template_version_id:
+            version = await self.db.get(TemplateVersion, data.template_version_id)
+            if not version:
+                raise ValueError("模板版本不存在")
+
+        job = BuildJob(
+            tenant_id=tenant_id,
+            miniapp_instance_id=data.miniapp_instance_id,
+            template_version_id=data.template_version_id,
+            trigger_source=data.trigger_source,
+            build_params=json.dumps(data.build_params) if data.build_params else None,
+            status="pending",
+            created_by=operator_id,
+        )
+
+        self.db.add(job)
+        await self.db.commit()
+        await self.db.refresh(job)
+
+        return job
+
+    async def update_status(
+        self,
+        job_id: str,
+        status: str,
+        started_at: Optional[datetime] = None,
+        finished_at: Optional[datetime] = None,
+        **kwargs
+    ) -> Optional[BuildJob]:
+        """更新构建任务状态"""
+        job = await self.get_by_id(job_id)
+        if not job:
+            return None
+
+        job.status = status
+        if started_at:
+            job.started_at = started_at
+        if finished_at:
+            job.finished_at = finished_at
+
+        for key, value in kwargs.items():
+            if hasattr(job, key):
+                setattr(job, key, value)
+
+        await self.db.commit()
+        await self.db.refresh(job)
+
+        return job
+
+
+class ReleaseJobService:
+    """发布任务服务"""
+
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def get_by_id(self, job_id: str) -> Optional[ReleaseJob]:
+        """获取发布任务详情"""
+        result = await self.db.execute(
+            select(ReleaseJob)
+            .options(
+                selectinload(ReleaseJob.miniapp_instance),
+                selectinload(ReleaseJob.artifact),
+            )
+            .where(ReleaseJob.id == job_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_list(
+        self,
+        tenant_id: str,
+        instance_id: Optional[str] = None,
+        action: Optional[str] = None,
+        status: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 20
+    ) -> Tuple[List[ReleaseJob], int]:
+        """获取发布任务列表"""
+        conditions = []
+
+        # 实例过滤（需要关联查询）
+        if instance_id:
+            conditions.append(ReleaseJob.miniapp_instance_id == instance_id)
+
+        # 动作过滤
+        if action:
+            conditions.append(ReleaseJob.action == action)
+
+        # 状态过滤
+        if status:
+            conditions.append(ReleaseJob.status == status)
+
+        # 构建查询
+        base_query = select(ReleaseJob).options(
+            selectinload(ReleaseJob.miniapp_instance),
+            selectinload(ReleaseJob.artifact),
+        )
+        if conditions:
+            base_query = base_query.where(and_(*conditions))
+
+        # 统计总数
+        count_query = select(func.count(ReleaseJob.id))
+        if conditions:
+            count_query = count_query.where(and_(*conditions))
+        total_result = await self.db.execute(count_query)
+        total = total_result.scalar()
+
+        # 分页
+        base_query = base_query.order_by(ReleaseJob.created_at.desc()).offset(skip).limit(limit)
+        result = await self.db.execute(base_query)
+        jobs = list(result.scalars().all())
+
+        return jobs, total
+
+    async def create(
+        self,
+        tenant_id: str,
+        data: ReleaseJobCreate,
+        operator_id: Optional[str] = None
+    ) -> ReleaseJob:
+        """创建发布任务"""
+        # 验证实例是否存在且属于当前租户
+        instance = await self.db.execute(
+            select(MiniappInstance).where(
+                and_(
+                    MiniappInstance.id == data.miniapp_instance_id,
+                    MiniappInstance.tenant_id == tenant_id
+                )
+            )
+        )
+        instance_obj = instance.scalar_one_or_none()
+        if not instance_obj:
+            raise ValueError("小程序实例不存在或不属于当前租户")
+
+        # 验证制品是否存在
+        if data.artifact_id:
+            artifact = await self.db.get(ReleaseArtifact, data.artifact_id)
+            if not artifact:
+                raise ValueError("发布制品不存在")
+
+        job = ReleaseJob(
+            miniapp_instance_id=data.miniapp_instance_id,
+            artifact_id=data.artifact_id,
+            action=data.action,
+            target_version=data.target_version,
+            status="pending",
+            created_by=operator_id,
+        )
+
+        self.db.add(job)
+        await self.db.commit()
+        await self.db.refresh(job)
+
+        return job
+
+    async def update_status(
+        self,
+        job_id: str,
+        status: str,
+        result: Optional[Dict[str, Any]] = None,
+        **kwargs
+    ) -> Optional[ReleaseJob]:
+        """更新发布任务状态"""
+        job = await self.get_by_id(job_id)
+        if not job:
+            return None
+
+        job.status = status
+        if result is not None:
+            job.result = json.dumps(result)
+
+        for key, value in kwargs.items():
+            if hasattr(job, key):
+                setattr(job, key, value)
+
+        await self.db.commit()
+        await self.db.refresh(job)
+
+        return job
