@@ -1,13 +1,57 @@
 import { PageContainer } from '@ant-design/pro-components';
 import { ProForm, ProFormText, ProFormSelect, ProFormTextArea, ProFormDependency } from '@ant-design/pro-components';
-import { Card, message, Form, Row, Col, Divider } from 'antd';
-import { history, useParams } from '@umijs/max';
+import { Card, message, Form, Row, Col, Divider, Radio, Tag } from 'antd';
+import { history, useParams, useSearchParams } from '@umijs/max';
 import { useEffect, useState } from 'react';
 import { miniappPlatformApi, storeApi } from '@hospital/api';
 import type { MiniappInstanceCreateData, MiniappInstanceUpdateData, Store } from '@hospital/api';
 
+const TEMPLATE_LIST = [
+  {
+    code: 'modern-general',
+    name: '现代综合医疗',
+    description: '适用于综合医院，提供完整的预约挂号、在线问诊、健康档案等功能',
+    color: '#4D7CB8',
+    category: '综合医疗',
+    features: ['在线预约', '在线问诊', '健康档案', '报告查询'],
+  },
+  {
+    code: 'elderly-tcm',
+    name: '长辈友好/中医康养',
+    description: '大字体设计，简洁操作流程，专注于中医诊疗和康养服务',
+    color: '#8B6F47',
+    category: '长辈友好',
+    features: ['大字体设计', '中医诊疗', '康养服务', '简单操作'],
+  },
+  {
+    code: 'premium-specialty',
+    name: '高端专科门诊',
+    description: '简约大气设计，适用于高端专科诊所，提供VIP服务体验',
+    color: '#8B7355',
+    category: '专科门诊',
+    features: ['VIP服务', '专科诊疗', '预约管理', '会员体系'],
+  },
+  {
+    code: 'family-pediatrics',
+    name: '亲子儿科',
+    description: '温馨可爱风格，专注于儿科诊疗，支持家属关联和儿童健康管理',
+    color: '#5B9BD5',
+    category: '儿科',
+    features: ['儿童健康', '家属关联', '疫苗提醒', '成长记录'],
+  },
+  {
+    code: 'womens-health',
+    name: '女性健康',
+    description: '优雅柔和设计，专注于女性健康管理，提供妇科和产后康复服务',
+    color: '#C4908D',
+    category: '女性健康',
+    features: ['女性健康', '妇科服务', '产后康复', '健康咨询'],
+  },
+];
+
 const InstanceFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const isEdit = !!id;
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -15,18 +59,17 @@ const InstanceFormPage: React.FC = () => {
   const [paymentProfiles, setPaymentProfiles] = useState<any[]>([]);
   const [checkingCode, setCheckingCode] = useState(false);
   const [checkingAppId, setCheckingAppId] = useState(false);
-
-  // 模拟模板数据（实际应该从 API 获取）
-  const templates = [
-    { label: '患者端', value: 'patient' },
-    { label: '医生端', value: 'doctor' },
-  ];
+  const [selectedTemplate, setSelectedTemplate] = useState<string | undefined>(
+    searchParams.get('template') || undefined
+  );
 
   useEffect(() => {
     loadStores();
     loadPaymentProfiles();
     if (isEdit) {
       loadInstance();
+    } else if (selectedTemplate) {
+      form.setFieldValue('templateId', selectedTemplate);
     }
   }, [id]);
 
@@ -208,24 +251,107 @@ const InstanceFormPage: React.FC = () => {
 
           <Divider>模板配置</Divider>
 
-          <Row gutter={24}>
-            <Col span={12}>
-              <ProFormSelect
-                name="templateId"
-                label="模板"
-                options={templates}
-                placeholder="请选择模板"
-                rules={[{ required: true, message: '请选择模板' }]}
-              />
-            </Col>
-            <Col span={12}>
-              <ProFormText
-                name="templateVersionId"
-                label="模板版本"
-                placeholder="请输入模板版本ID"
-              />
-            </Col>
-          </Row>
+          {!isEdit && (
+            <>
+              <Form.Item label="选择模板" name="templateId" rules={[{ required: true, message: '请选择模板' }]}>
+                <Radio.Group
+                  value={selectedTemplate}
+                  onChange={(e) => {
+                    setSelectedTemplate(e.target.value);
+                    form.setFieldValue('templateId', e.target.value);
+                  }}
+                  style={{ width: '100%' }}
+                >
+                  <Row gutter={[16, 16]}>
+                    {TEMPLATE_LIST.map((template) => (
+                      <Col key={template.code} span={8}>
+                        <Radio value={template.code} style={{ display: 'none' }} />
+                        <Card
+                          hoverable
+                          onClick={() => {
+                            setSelectedTemplate(template.code);
+                            form.setFieldValue('templateId', template.code);
+                          }}
+                          style={{
+                            height: '100%',
+                            border: selectedTemplate === template.code ? '2px solid #1890ff' : '1px solid #d9d9d9',
+                            cursor: 'pointer',
+                          }}
+                          bodyStyle={{ padding: '12px' }}
+                        >
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              marginBottom: 8,
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: 40,
+                                height: 40,
+                                background: template.color,
+                                borderRadius: 4,
+                                marginRight: 12,
+                              }}
+                            />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 'bold', fontSize: 14 }}>{template.name}</div>
+                              <Tag size="small" color="blue">{template.category}</Tag>
+                            </div>
+                            {selectedTemplate === template.code && (
+                              <div style={{ color: '#1890ff', fontSize: 18 }}>✓</div>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
+                            {template.description}
+                          </div>
+                          <div>
+                            {template.features?.slice(0, 3).map((feature, index) => (
+                              <Tag key={index} size="small" style={{ fontSize: 11, marginBottom: 4 }}>
+                                {feature}
+                              </Tag>
+                            ))}
+                          </div>
+                        </Card>
+                      </Col>
+                    ))}
+                  </Row>
+                </Radio.Group>
+              </Form.Item>
+              {selectedTemplate && (
+                <Form.Item label="">
+                  <Card size="small" style={{ background: '#f0f5ff' }}>
+                    <div style={{ fontSize: 12, color: '#666' }}>
+                      <strong>已选模板：</strong>
+                      {TEMPLATE_LIST.find(t => t.code === selectedTemplate)?.name}
+                    </div>
+                  </Card>
+                </Form.Item>
+              )}
+            </>
+          )}
+
+          {isEdit && (
+            <Row gutter={24}>
+              <Col span={12}>
+                <ProFormSelect
+                  name="templateId"
+                  label="模板"
+                  options={TEMPLATE_LIST.map(t => ({ label: t.name, value: t.code }))}
+                  placeholder="请选择模板"
+                  rules={[{ required: true, message: '请选择模板' }]}
+                />
+              </Col>
+              <Col span={12}>
+                <ProFormText
+                  name="templateVersionId"
+                  label="模板版本"
+                  placeholder="请输入模板版本ID"
+                />
+              </Col>
+            </Row>
+          )}
 
           <Divider>默认配置</Divider>
 

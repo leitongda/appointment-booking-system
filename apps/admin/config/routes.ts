@@ -89,6 +89,21 @@ export default [
               { path: '/platform/miniapp-platform/instance/:id/edit', name: '编辑实例', component: './miniapp-platform/instance/form', hideInMenu: true },
             ],
           },
+          {
+            path: '/platform/miniapp-platform/template',
+            name: '模板管理',
+            component: './miniapp-platform/template/index',
+          },
+          {
+            path: '/platform/miniapp-platform/build',
+            name: '构建管理',
+            component: './miniapp-platform/build/index',
+          },
+          {
+            path: '/platform/miniapp-platform/release',
+            name: '发布管理',
+            component: './miniapp-platform/release/index',
+          },
         ],
       },
     ],
