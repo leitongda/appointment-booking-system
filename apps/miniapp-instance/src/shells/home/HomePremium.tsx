@@ -181,7 +181,8 @@ export function HomePremium() {
   };
 
   const handleServiceClick = (service: typeof featuredServices[0]) => {
-    // TODO: 对接 API - 根据服务ID跳转到对应科室
+    // TODO: 后端需要新增服务-科室映射 API
+    // 目前使用预定义的 path 进行跳转
     navigateTo(service.path || '/pages/department/index');
   };
 

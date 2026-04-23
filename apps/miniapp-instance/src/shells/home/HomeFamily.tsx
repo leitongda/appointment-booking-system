@@ -32,7 +32,8 @@ const menus = [
 ];
 
 // 常见服务（3列活泼卡片）
-// TODO: 对接 API - 从后端获取常见服务列表
+// TODO: 后端需要新增常见服务列表 API
+// 目前使用本地 mock 数据
 const commonServices = [
   { id: '1', name: '感冒护理', variant: 'blue' as const, path: '/pages/department/index?dept=cold' },
   { id: '2', name: '发烧处理', variant: 'orange' as const, path: '/pages/department/index?dept=fever' },

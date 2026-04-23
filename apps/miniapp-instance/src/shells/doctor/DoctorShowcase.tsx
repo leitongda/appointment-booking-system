@@ -1,7 +1,7 @@
 import { View, Text, Image, ScrollView } from '@tarojs/components';
 import Taro, { usePullDownRefresh, useReachBottom } from '@tarojs/taro';
 import { useState, useEffect } from 'react';
-import { doctorApi } from '@hospital/api';
+import { doctorApi, favoriteApi } from '@hospital/api';
 import type { Doctor } from '@hospital/shared';
 import { DoctorIcon, HeartIcon, HeartOutlineIcon } from '../../components/Icons';
 import { getToken } from '../../utils/auth';
@@ -103,7 +103,7 @@ export function DoctorShowcase(props: DoctorShowcaseProps) {
     const isFavorited = favorites.has(doctorId);
     try {
       if (isFavorited) {
-        // TODO: 调用取消收藏 API
+        await favoriteApi.removeByTarget('doctor', doctorId);
         setFavorites(prev => {
           const next = new Set(prev);
           next.delete(doctorId);
@@ -111,7 +111,7 @@ export function DoctorShowcase(props: DoctorShowcaseProps) {
         });
         Taro.showToast({ title: '已取消收藏', icon: 'none' });
       } else {
-        // TODO: 调用收藏 API
+        await favoriteApi.add({ targetType: 'doctor', targetId: doctorId });
         setFavorites(prev => new Set(prev).add(doctorId));
         Taro.showToast({ title: '收藏成功', icon: 'success' });
       }

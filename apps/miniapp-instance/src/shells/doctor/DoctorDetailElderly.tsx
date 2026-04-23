@@ -1,7 +1,7 @@
 import { View, Text, Image } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useState, useEffect } from 'react';
-import { doctorApi } from '@hospital/api';
+import { doctorApi, scheduleApi } from '@hospital/api';
 import type { Doctor } from '@hospital/shared';
 import { PageContainer } from '../../components/PageContainer';
 import { useTemplate } from '../../contexts/TemplateContext';
@@ -37,16 +37,34 @@ export function DoctorDetailElderly() {
     try {
       const data = await doctorApi.getDetail(doctorId);
       setDoctor(data);
-      // TODO: 加载排班数据后筛选有号的日期
-      // 这里先用 mock 数据展示壳层结构
-      const mockSlots: ScheduleSlot[] = [
-        { date: '2026-04-20', dateLabel: '4月20日 周日', period: '上午', hasSlots: true },
-        { date: '2026-04-21', dateLabel: '4月21日 周一', period: '上午', hasSlots: true },
-        { date: '2026-04-22', dateLabel: '4月22日 周二', period: '下午', hasSlots: true },
-      ];
-      setAvailableSlots(mockSlots);
-      if (mockSlots.length > 0) {
-        setSelectedSlot(mockSlots[0]);
+
+      // 加载排班数据，筛选有号的日期
+      const schedules = await scheduleApi.getAvailable(doctorId, 7);
+
+      // 将排班数据转换为 Slot 格式
+      const slots: ScheduleSlot[] = schedules
+        .filter(s => s.availableSlots > 0) // 只显示有号的日期
+        .map(s => {
+          const date = new Date(s.scheduleDate);
+          const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+          const dateLabel = `${date.getMonth() + 1}月${date.getDate()}日 ${weekdays[date.getDay()]}`;
+
+          // 根据 timeSlot 确定时段
+          let period = '上午';
+          if (s.timeSlot === 'afternoon') period = '下午';
+          else if (s.timeSlot === 'evening') period = '晚上';
+
+          return {
+            date: s.scheduleDate,
+            dateLabel,
+            period,
+            hasSlots: s.availableSlots > 0,
+          };
+        });
+
+      setAvailableSlots(slots);
+      if (slots.length > 0) {
+        setSelectedSlot(slots[0]);
       }
     } catch {
       Taro.showToast({ title: '加载医生信息失败', icon: 'none' });

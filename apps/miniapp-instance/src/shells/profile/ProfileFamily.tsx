@@ -2,7 +2,7 @@ import { View, Text, Image, Button as TaroButton, Input as TaroInput } from '@ta
 import Taro, { useDidShow } from '@tarojs/taro';
 import { Button } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
-import { userApi, appointmentApi, authApi, storeApi } from '@hospital/api';
+import { userApi, appointmentApi, authApi, storeApi, favoriteApi } from '@hospital/api';
 import { STORAGE_KEYS } from '@hospital/shared';
 import { clearAuthSession, getToken, setStorage, subscribeAuthChange } from '../../utils/auth';
 import { getStoreId } from '../../utils/store';
@@ -187,13 +187,14 @@ export function ProfileFamily() {
   const loadStats = async () => {
     if (!getToken()) return;
     try {
-      const appointmentsResult = await appointmentApi.getList({ pageSize: 1 }).catch(() => ({ total: 0, data: [] }));
-      // TODO: 对接 API - 获取真实统计数据
-      // appointmentCount: 预约数，babyCount: 宝宝数(患者数)，reminderCount: 待提醒数
+      const [appointmentsResult, favoritesResult] = await Promise.all([
+        appointmentApi.getList({ pageSize: 1 }).catch(() => ({ total: 0, data: [] })),
+        favoriteApi.getList({ targetType: 'doctor', pageSize: 1 }).catch(() => ({ total: 0, data: [] })),
+      ]);
       setStats({
         appointmentCount: appointmentsResult.total || 0,
         visitCount: patients.length || 0, // 使用就诊人数作为宝宝数
-        favoriteCount: 0, // 待提醒数暂无接口
+        favoriteCount: favoritesResult.total || 0, // 收藏医生数量
       });
     } catch {
       // 忽略
@@ -337,8 +338,9 @@ export function ProfileFamily() {
       return;
     }
     if (item.action === 'vaccine-record') {
-      // TODO: 对接 API - 跳转到疫苗记录页面
-      Taro.navigateTo({ url: '/packageProfile/pages/vaccine/index' });
+      // TODO: 后端需要新增疫苗记录 API
+      // 目前跳转到就诊记录页面作为占位
+      Taro.showToast({ title: '疫苗记录功能开发中', icon: 'none' });
       return;
     }
 

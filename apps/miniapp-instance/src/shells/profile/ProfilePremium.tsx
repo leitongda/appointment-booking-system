@@ -2,7 +2,7 @@ import { View, Text, Image, Button as TaroButton, Input as TaroInput } from '@ta
 import Taro, { useDidShow } from '@tarojs/taro';
 import { Button } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
-import { userApi, appointmentApi, authApi, storeApi } from '@hospital/api';
+import { userApi, appointmentApi, authApi, storeApi, favoriteApi } from '@hospital/api';
 import { STORAGE_KEYS } from '@hospital/shared';
 import { clearAuthSession, getToken, setStorage, subscribeAuthChange } from '../../utils/auth';
 import { getStoreId } from '../../utils/store';
@@ -173,14 +173,15 @@ export function ProfilePremium() {
   const loadStats = async () => {
     if (!getToken()) return;
     try {
-      const [appointmentsResult, patients] = await Promise.all([
+      const [appointmentsResult, patients, favorites] = await Promise.all([
         appointmentApi.getList({ pageSize: 1 }).catch(() => ({ total: 0, data: [] })),
         userApi.getPatients().catch(() => []),
+        favoriteApi.getList({ targetType: 'doctor', pageSize: 1 }).catch(() => ({ total: 0, data: [] })),
       ]);
       setStats({
         appointmentCount: appointmentsResult.total || 0,
         patientCount: patients.length,
-        favoriteCount: 0, // TODO: 收藏数量
+        favoriteCount: favorites.total || 0,
       });
     } catch {
       // 忽略

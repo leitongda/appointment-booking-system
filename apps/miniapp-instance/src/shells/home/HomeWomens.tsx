@@ -62,7 +62,8 @@ export function HomeWomens() {
   const [loading, setLoading] = useState(true);
 
   // 健康提醒数据
-  // TODO: 对接 API - 从后端获取健康提醒数据
+  // TODO: 后端需要新增健康提醒 API
+  // 目前使用本地 mock 数据
   const [healthReminder, setHealthReminder] = useState<{
     nextCheckDate?: string;
     lastCheckDate?: string;
