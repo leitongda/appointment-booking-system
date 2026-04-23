@@ -87,6 +87,8 @@ export function DoctorCards() {
               key={doctor.id}
               className="doctor-card"
               onClick={() => handleSelectDoctor(doctor.id)}
+              aria-label={`选择医生${doctor.name}`}
+              role="button"
             >
               <View className="avatar-wrap">
                 {doctor.avatar ? (

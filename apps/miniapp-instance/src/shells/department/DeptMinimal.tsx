@@ -6,6 +6,7 @@ import type { DepartmentTreeNode } from '@hospital/shared';
 import { SearchIcon, getDeptIcon } from '../../components/Icons';
 import { useApplyThemeNavigationBar } from '../../utils/theme';
 import { useThemePrimaryColor } from '../../utils/theme';
+import { LoadFailedErrorState, DepartmentEmptyState } from '../../components/EmptyState';
 import './DeptMinimal.less';
 
 /**
@@ -19,6 +20,7 @@ export function DeptMinimal() {
   const [loading, setLoading] = useState(true);
   const [departments, setDepartments] = useState<DepartmentTreeNode[]>([]);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     loadDepartments();
@@ -31,12 +33,14 @@ export function DeptMinimal() {
   });
 
   const loadDepartments = async () => {
+    setError(false);
     try {
       const data = await departmentApi.getList();
       setDepartments(data);
-      setLoading(false);
     } catch (error) {
       console.error('[科室] 加载失败', error);
+      setError(true);
+    } finally {
       setLoading(false);
     }
   };
@@ -60,7 +64,7 @@ export function DeptMinimal() {
     return (
       <View className="department-page">
         <View className="search-bar">
-          <View className="search-input" onClick={handleSearch}>
+          <View className="search-input" onClick={handleSearch} aria-label="搜索科室" role="button">
             <View className="search-icon">
               <SearchIcon size={16} color="#9CA3AF" />
             </View>
@@ -69,6 +73,24 @@ export function DeptMinimal() {
         </View>
         <View className="content">
           <View className="loading-state">加载中...</View>
+        </View>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View className="department-page">
+        <View className="search-bar">
+          <View className="search-input" onClick={handleSearch} aria-label="搜索科室" role="button">
+            <View className="search-icon">
+              <SearchIcon size={16} color="#9CA3AF" />
+            </View>
+            <Text className="placeholder">搜索科室</Text>
+          </View>
+        </View>
+        <View className="content">
+          <LoadFailedErrorState onRetry={loadDepartments} />
         </View>
       </View>
     );
@@ -95,6 +117,8 @@ export function DeptMinimal() {
                   key={dept.id}
                   className="dept-item"
                   onClick={() => handleSelectDept(dept)}
+                  aria-label={`选择${dept.name}科室`}
+                  role="button"
                 >
                   <View className="dept-icon">
                     <IconComponent size={24} color={primaryColor} />
@@ -105,9 +129,7 @@ export function DeptMinimal() {
               );
             })
           ) : (
-            <View className="empty-state">
-              <Text>暂无科室</Text>
-            </View>
+            <DepartmentEmptyState />
           )}
         </View>
       </View>

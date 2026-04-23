@@ -355,7 +355,7 @@ export function ProfileStandard() {
     <PageContainer className="profile-page">
       {/* 头部区域 */}
       <View className="header">
-        <View className="header-content" onClick={handleHeaderClick}>
+        <View className="header-content" onClick={handleHeaderClick} aria-label={isLoggedIn ? '编辑个人信息' : '点击登录'} role="button">
           <View className="avatar">
             {user?.avatar ? (
               <Image src={getImageUrl(user.avatar)} mode="aspectFill" />
@@ -379,15 +379,15 @@ export function ProfileStandard() {
 
       {/* 统计卡片 */}
       <View className="stats-card">
-        <View className="stat-item" onClick={() => handleStatClick('appointment')}>
+        <View className="stat-item" onClick={() => handleStatClick('appointment')} aria-label="查看预约次数" role="button">
           <Text className="stat-value">{stats.appointmentCount}</Text>
           <Text className="stat-label">预约次数</Text>
         </View>
-        <View className="stat-item" onClick={() => handleStatClick('patient')}>
+        <View className="stat-item" onClick={() => handleStatClick('patient')} aria-label="管理就诊人" role="button">
           <Text className="stat-value">{stats.patientCount}</Text>
           <Text className="stat-label">就诊人</Text>
         </View>
-        <View className="stat-item" onClick={() => handleStatClick('message')}>
+        <View className="stat-item" onClick={() => handleStatClick('message')} aria-label="查看消息" role="button">
           <Text className="stat-value">{stats.messageCount}</Text>
           <Text className="stat-label">消息</Text>
         </View>
@@ -404,6 +404,8 @@ export function ProfileStandard() {
                   key={itemIndex}
                   className="menu-item"
                   onClick={() => handleMenuClick(item)}
+                  aria-label={item.title}
+                  role="button"
                 >
                   <View className="menu-icon">
                     <IconComponent size={22} color={primaryColor} />

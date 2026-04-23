@@ -339,6 +339,8 @@ export function DoctorDetailStandard() {
           <View
             className={`favorite-btn ${isFavorited ? 'active' : ''}`}
             onClick={handleToggleFavorite}
+            aria-label={isFavorited ? '取消收藏' : '收藏医生'}
+            role="button"
           >
             {isFavorited ? (
               <HeartIcon size={24} color="#EF4444" />
@@ -386,6 +388,8 @@ export function DoctorDetailStandard() {
                     key={item.date}
                     className={`date-item ${selectedDate === item.date ? 'active' : ''}`}
                     onClick={() => handleDateSelect(item.date)}
+                    aria-label={`选择${item.weekday}${item.formatted}`}
+                    role="button"
                   >
                     <Text className="date-weekday">{item.weekday}</Text>
                     <Text className="date-day">{item.formatted}</Text>
@@ -405,6 +409,8 @@ export function DoctorDetailStandard() {
                     key={slot}
                     className={`time-slot-card ${slotStatus.disabled ? 'full' : ''} ${selectedSlot === slot ? 'selected' : ''}`}
                     onClick={() => !slotStatus.disabled && handleTimeSlotClick(slot)}
+                    aria-label={slotStatus.disabled ? `${slot === 'morning' ? '上午' : '下午'}已约满` : `选择${slot === 'morning' ? '上午' : '下午'}时段`}
+                    role={slotStatus.disabled ? undefined : 'button'}
                   >
                     <Text className="slot-available">{slotStatus.message}</Text>
                     <Text className="slot-period">{slot === 'morning' ? '上午' : '下午'}</Text>
@@ -462,6 +468,8 @@ export function DoctorDetailStandard() {
                     key={schedule.id}
                     className={`slot-picker-item ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}`}
                     onClick={() => !isDisabled && handleSelectSchedule(schedule.id)}
+                    aria-label={isDisabled ? status.message : `选择${formatTime(schedule.startTime)}~${formatTime(schedule.endTime)}班次`}
+                    role={isDisabled ? undefined : 'button'}
                   >
                     <Text className="slot-time">
                       {formatTime(schedule.startTime) || '--:--'}~{formatTime(schedule.endTime) || '--:--'}

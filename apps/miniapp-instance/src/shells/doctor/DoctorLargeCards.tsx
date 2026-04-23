@@ -6,6 +6,7 @@ import type { Doctor } from '@hospital/shared';
 import { PageContainer } from '../../components/PageContainer';
 import { useTemplate } from '../../contexts/TemplateContext';
 import { getImageUrl } from '../../utils/url';
+import { DoctorEmptyState, LoadFailedErrorState } from '../../components/EmptyState';
 
 /** 医生列表壳层 -- 大尺寸卡片
  * 卡片高度 240rpx，所有文字 >= 32rpx，操作按钮超大 100rpx 高
@@ -14,6 +15,7 @@ export function DoctorLargeCards() {
   const { tokens, tone } = useTemplate();
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [departmentName, setDepartmentName] = useState('');
 
   useDidShow(() => {
@@ -26,13 +28,14 @@ export function DoctorLargeCards() {
   });
 
   const loadDoctors = async (departmentId?: string) => {
+    setError(false);
     try {
       const data = departmentId
         ? await doctorApi.getByDepartment(departmentId)
         : await doctorApi.getRecommended(20);
       setDoctors(data);
     } catch {
-      Taro.showToast({ title: '加载医生失败', icon: 'none' });
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -55,14 +58,19 @@ export function DoctorLargeCards() {
           {departmentName ? `${departmentName}医生` : '推荐医生'}
         </Text>
 
-        {!loading && doctors.length === 0 && (
+        {error && !loading && (
+          <View style={{ marginBottom: '24rpx' }}>
+            <LoadFailedErrorState onRetry={() => loadDoctors(Taro.getCurrentInstance().router?.params?.departmentId as string)} />
+          </View>
+        )}
+        {!error && !loading && doctors.length === 0 && (
           <View style={{
             padding: '64rpx',
             backgroundColor: '#FFFFFF',
             borderRadius: '24rpx',
             textAlign: 'center',
           }}>
-            <Text style={{ fontSize: '36rpx', color: '#9CA3AF' }}>暂无医生信息</Text>
+            <DoctorEmptyState />
           </View>
         )}
 

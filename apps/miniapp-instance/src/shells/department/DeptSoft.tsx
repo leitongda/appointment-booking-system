@@ -6,6 +6,7 @@ import type { DepartmentTreeNode } from '@hospital/shared';
 import { SearchIcon, getDeptIcon } from '../../components/Icons';
 import { useTemplate } from '../../contexts/TemplateContext';
 import { useThemePrimaryColor, useApplyThemeNavigationBar } from '../../utils/theme';
+import { LoadFailedErrorState, DepartmentEmptyState } from '../../components/EmptyState';
 import './DeptSoft.less';
 
 const getLeafDepartments = (departments: DepartmentTreeNode[]): DepartmentTreeNode[] => {
@@ -35,6 +36,7 @@ export function DeptSoft() {
   const [departments, setDepartments] = useState<DepartmentTreeNode[]>([]);
   const [flatDepartments, setFlatDepartments] = useState<DepartmentTreeNode[]>([]);
   const [redirecting, setRedirecting] = useState(false);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     loadDepartments();
@@ -47,6 +49,7 @@ export function DeptSoft() {
   });
 
   const loadDepartments = async () => {
+    setError(false);
     try {
       const data = await departmentApi.getTree();
       const leaves = getLeafDepartments(data);
@@ -67,9 +70,10 @@ export function DeptSoft() {
         setFlatDepartments(leaves);
       }
       setDepartments(data);
-      setLoading(false);
     } catch (error) {
       console.error('[科室] 加载失败', error);
+      setError(true);
+    } finally {
       setLoading(false);
     }
   };
@@ -102,10 +106,46 @@ export function DeptSoft() {
     );
   }
 
+  if (error) {
+    return (
+      <View className="department-page">
+        <View className="search-bar">
+          <View className="search-input">
+            <View className="search-icon">
+              <SearchIcon size={16} color="#9CA3AF" />
+            </View>
+            <Text className="placeholder">搜索科室/医生</Text>
+          </View>
+        </View>
+        <View className="content">
+          <LoadFailedErrorState onRetry={loadDepartments} />
+        </View>
+      </View>
+    );
+  }
+
+  if (flatDepartments.length === 0) {
+    return (
+      <View className="department-page">
+        <View className="search-bar">
+          <View className="search-input">
+            <View className="search-icon">
+              <SearchIcon size={16} color="#9CA3AF" />
+            </View>
+            <Text className="placeholder">搜索科室/医生</Text>
+          </View>
+        </View>
+        <View className="content">
+          <DepartmentEmptyState />
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View className="department-page">
       <View className="search-bar">
-        <View className="search-input" onClick={handleSearch}>
+        <View className="search-input" onClick={handleSearch} aria-label="搜索科室或医生" role="button">
           <View className="search-icon">
             <SearchIcon size={16} color="#9CA3AF" />
           </View>
@@ -122,6 +162,8 @@ export function DeptSoft() {
                 key={dept.id}
                 className="dept-card"
                 onClick={() => handleSelectDept(dept.id, dept.name)}
+                aria-label={`选择${dept.name}科室`}
+                role="button"
               >
                 <View className="dept-icon">
                   <IconComponent size={24} color={primaryColor} />

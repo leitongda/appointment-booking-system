@@ -1,4 +1,5 @@
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, type ReactNode, useEffect } from 'react';
+import Taro from '@tarojs/taro';
 import { loadTemplate } from '../templates/loader';
 import type { MiniappStyleTemplate, DesignTokenSet, CopyToneConfig } from '../templates/types';
 
@@ -18,6 +19,17 @@ interface TemplateProviderProps {
 export function TemplateProvider({ children }: TemplateProviderProps) {
   const template = loadTemplate();
   const templateCode = template.code;
+
+  useEffect(() => {
+    const envTemplateCode = process.env.TARO_APP_TEMPLATE_CODE || 'modern-general';
+    if (templateCode !== envTemplateCode) {
+      Taro.showToast({
+        title: '已切换到默认主题',
+        icon: 'none',
+        duration: 2000,
+      });
+    }
+  }, [templateCode]);
 
   return (
     <TemplateContext.Provider

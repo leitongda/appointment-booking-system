@@ -12,6 +12,7 @@
     "build:weapp": "NO_PROXY='*' taro build --type weapp --no-check && node scripts/fix-wxml.js",
     "build:template": "node scripts/build-template.mjs",
     "build:all": "node scripts/build-all.mjs",
+    "audit:bundle": "node scripts/audit-bundle-size.mjs",
     "dev:weapp": "NO_PROXY='*' taro build --type weapp --watch --no-check & node scripts/fix-wxml.js --watch",
     "dev:template": "node scripts/dev-template.mjs",
     "dev:weapp:prod": "node scripts/clean.mjs && NO_PROXY='*' NODE_ENV=production taro build --type weapp --watch --no-check & node scripts/fix-wxml.js --watch",

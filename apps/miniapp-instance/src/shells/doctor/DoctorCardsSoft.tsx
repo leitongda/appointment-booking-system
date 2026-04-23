@@ -7,6 +7,7 @@ import { DoctorIcon, StarIcon, HeartIcon } from '../../components/Icons';
 import { getToken } from '../../utils/auth';
 import { useThemePrimaryColor, useApplyThemeNavigationBar } from '../../utils/theme';
 import { getImageUrl } from '../../utils/url';
+import { DoctorEmptyState, LoadFailedErrorState } from '../../components/EmptyState';
 import './DoctorCardsSoft.less';
 
 // 女性健康模板专用评价标签
@@ -26,6 +27,7 @@ export function DoctorCardsSoft() {
 
   const [loading, setLoading] = useState(true);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (departmentId) {
@@ -44,11 +46,13 @@ export function DoctorCardsSoft() {
   });
 
   const loadDoctors = async () => {
+    setError(false);
     try {
       const data = await doctorApi.getByDepartment(departmentId!);
       setDoctors(data);
     } catch (error) {
       console.error('[医生列表] 加载失败', error);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -72,12 +76,18 @@ export function DoctorCardsSoft() {
     );
   }
 
+  if (error) {
+    return (
+      <View className="doctor-list-page">
+        <LoadFailedErrorState onRetry={loadDoctors} />
+      </View>
+    );
+  }
+
   return (
     <View className="doctor-list-page">
       {doctors.length === 0 ? (
-        <View className="empty-state">
-          <Text>暂无医生</Text>
-        </View>
+        <DoctorEmptyState />
       ) : (
         <View className="doctor-list">
           {doctors.map(doctor => (
@@ -85,6 +95,8 @@ export function DoctorCardsSoft() {
               key={doctor.id}
               className="doctor-card"
               onClick={() => handleSelectDoctor(doctor.id)}
+              aria-label={`选择医生${doctor.name}`}
+              role="button"
             >
               <View className="avatar-wrap">
                 {doctor.avatar ? (

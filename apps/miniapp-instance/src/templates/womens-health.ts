@@ -34,9 +34,9 @@ export const womensHealth: MiniappStyleTemplate = {
   },
 
   designTokens: {
-    primary: '#945050', // 进一步深化以满足 WCAG AA (4.5:1)
+    primary: '#703030', // 进一步深化以满足 WCAG AA (4.5:1)
     primarySoft: '#FBF0F0',
-    accent: '#703030',
+    accent: '#502020', // 进一步深化以保持层次感
     bodyFontSize: 30,
     displayFontSize: 60,
     radiusMd: 20,

@@ -1,5 +1,6 @@
 import { Component, ComponentType, ReactNode } from 'react';
 import { View, Button, Text } from '@tarojs/components';
+import Taro from '@tarojs/taro';
 import { useTemplate } from '../contexts/TemplateContext';
 import './ShellErrorBoundary.less';
 
@@ -37,16 +38,22 @@ export class ShellErrorBoundary extends Component<Props, State> {
     this.setState({ hasError: false, error: undefined });
   };
 
+  handleBackToHome = () => {
+    Taro.switchTab({ url: '/pages/index/index' }).catch(() => {
+      Taro.reLaunch({ url: '/pages/index/index' });
+    });
+  };
+
   render() {
     if (this.state.hasError) {
-      return <ErrorFallback error={this.state.error} onRetry={this.handleRetry} />;
+      return <ErrorFallback error={this.state.error} onRetry={this.handleRetry} onBackToHome={this.handleBackToHome} />;
     }
 
     return this.props.children;
   }
 }
 
-function ErrorFallback({ error, onRetry }: { error?: Error; onRetry: () => void }) {
+function ErrorFallback({ error, onRetry, onBackToHome }: { error?: Error; onRetry: () => void; onBackToHome: () => void }) {
   const { template } = useTemplate();
   const primaryColor = template.designTokens.primary;
 
@@ -54,18 +61,26 @@ function ErrorFallback({ error, onRetry }: { error?: Error; onRetry: () => void 
     <View className="shell-error-fallback">
       <View className="shell-error-icon">⚠️</View>
       <View className="shell-error-title" style={{ color: primaryColor }}>
-        页面加载异常
+        页面加载出现问题
       </View>
       <View className="shell-error-desc">
         {error?.message || '页面组件加载失败，请稍后重试'}
       </View>
-      <Button
-        className="shell-error-retry-btn"
-        style={{ backgroundColor: primaryColor }}
-        onClick={onRetry}
-      >
-        点击重试
-      </Button>
+      <View className="shell-error-actions">
+        <Button
+          className="shell-error-retry-btn"
+          style={{ backgroundColor: primaryColor }}
+          onClick={onRetry}
+        >
+          重新加载
+        </Button>
+        <Button
+          className="shell-error-back-btn"
+          onClick={onBackToHome}
+        >
+          返回首页
+        </Button>
+      </View>
     </View>
   );
 }

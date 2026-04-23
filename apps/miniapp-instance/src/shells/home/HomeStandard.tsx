@@ -203,8 +203,8 @@ export function HomeStandard() {
         return (
           <Swiper key={mod.id} className="banner" autoplay circular indicatorDots indicatorActiveColor="#fff">
             {banners.map(banner => (
-              <SwiperItem key={banner.id} onClick={() => handleBannerClick(banner)}>
-                <View className="banner-item">
+              <SwiperItem key={banner.id}>
+                <View className="banner-item" onClick={() => handleBannerClick(banner)} aria-label={`查看${banner.title || '轮播'}详情`} role="button">
                   {banner.imageUrl ? (
                     <Image className="banner-image" src={getImageUrl(banner.imageUrl)} mode="aspectFill" />
                   ) : (
@@ -225,7 +225,7 @@ export function HomeStandard() {
               {menus.map(menu => {
                 const IconComponent = menu.icon;
                 return (
-                  <View key={menu.action || menu.path} className="menu-item" onClick={() => handleMenuClick(menu)}>
+                  <View key={menu.action || menu.path} className="menu-item" onClick={() => handleMenuClick(menu)} aria-label={menu.title} role="button">
                     <View className="menu-icon-wrap">
                       <IconComponent size={28} color={primaryColor} />
                     </View>
@@ -239,7 +239,7 @@ export function HomeStandard() {
 
       case 'patient_card':
         return (
-          <View key={mod.id} className="patient-card-entry" onClick={handlePatientCardClick}>
+          <View key={mod.id} className="patient-card-entry" onClick={handlePatientCardClick} aria-label={defaultPatient ? `查看就诊卡${defaultPatient.name}` : '添加就诊卡'} role="button">
             {defaultPatient ? (
               <>
                 <View className="card-icon">
@@ -273,14 +273,14 @@ export function HomeStandard() {
           <View key={mod.id} className="section">
             <View className="section-header">
               <Text className="section-title">推荐医生</Text>
-              <Text className="section-more" onClick={() => navigateTo('/pages/doctor/index')}>
+              <Text className="section-more" onClick={() => navigateTo('/pages/doctor/index')} aria-label="查看更多推荐医生" role="button">
                 更多
               </Text>
             </View>
             <View className="doctor-list">
               {doctors.length > 0 ? (
                 doctors.map(doctor => (
-                  <View key={doctor.id} className="doctor-card" onClick={() => handleDoctorClick(doctor.id)}>
+                  <View key={doctor.id} className="doctor-card" onClick={() => handleDoctorClick(doctor.id)} aria-label={`查看医生${doctor.name}的详情`} role="button">
                     <View className="doctor-avatar">
                       {doctor.avatar ? (
                         <Image className="avatar-image" src={getImageUrl(doctor.avatar)} mode="aspectFill" />

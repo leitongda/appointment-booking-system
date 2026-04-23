@@ -5,6 +5,7 @@ import { departmentApi } from '@hospital/api';
 import type { DepartmentTreeNode } from '@hospital/shared';
 import { SearchIcon, getDeptIcon } from '../../components/Icons';
 import { useThemePrimaryColor, useApplyThemeNavigationBar } from '../../utils/theme';
+import { LoadFailedErrorState, DepartmentEmptyState } from '../../components/EmptyState';
 import './DeptColorful.less';
 
 // 获取所有叶子科室
@@ -56,6 +57,7 @@ export function DeptColorful() {
   const [loading, setLoading] = useState(true);
   const [departments, setDepartments] = useState<DepartmentTreeNode[]>([]);
   const [redirecting, setRedirecting] = useState(false);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     loadDepartments();
@@ -68,6 +70,7 @@ export function DeptColorful() {
   });
 
   const loadDepartments = async () => {
+    setError(false);
     try {
       const data = await departmentApi.getTree();
       const leaves = getLeafDepartments(data);
@@ -83,9 +86,10 @@ export function DeptColorful() {
       }
 
       setDepartments(leaves);
-      setLoading(false);
     } catch (error) {
       console.error('[科室] 加载失败', error);
+      setError(true);
+    } finally {
       setLoading(false);
     }
   };
@@ -114,6 +118,42 @@ export function DeptColorful() {
         </View>
         <View className="content">
           <View className="loading-state">{redirecting ? '正在跳转...' : '加载中...'}</View>
+        </View>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View className="department-page dept-colorful">
+        <View className="search-bar">
+          <View className="search-input">
+            <View className="search-icon">
+              <SearchIcon size={16} color="#9CA3AF" />
+            </View>
+            <Text className="placeholder">搜索科室/医生</Text>
+          </View>
+        </View>
+        <View className="content">
+          <LoadFailedErrorState onRetry={loadDepartments} />
+        </View>
+      </View>
+    );
+  }
+
+  if (departments.length === 0) {
+    return (
+      <View className="department-page dept-colorful">
+        <View className="search-bar">
+          <View className="search-input">
+            <View className="search-icon">
+              <SearchIcon size={16} color="#9CA3AF" />
+            </View>
+            <Text className="placeholder">搜索科室/医生</Text>
+          </View>
+        </View>
+        <View className="content">
+          <DepartmentEmptyState />
         </View>
       </View>
     );

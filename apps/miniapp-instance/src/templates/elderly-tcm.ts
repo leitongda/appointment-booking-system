@@ -37,9 +37,9 @@ export const elderlyTcm: MiniappStyleTemplate = {
   },
 
   designTokens: {
-    primary: '#8B6F47',
+    primary: '#6B5235', // 深化以满足 WCAG AA (4.5:1 对比度)
     primarySoft: '#F5EDE0',
-    accent: '#6B5235',
+    accent: '#4B3828', // 进一步深化以保持层次感
     bodyFontSize: 36,
     displayFontSize: 72,
     radiusMd: 24,

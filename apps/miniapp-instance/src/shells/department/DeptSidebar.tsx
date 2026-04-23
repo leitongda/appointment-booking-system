@@ -157,7 +157,7 @@ export function DeptSidebar() {
     return (
       <View className="department-page">
         <View className="search-bar">
-          <View className="search-input" onClick={handleSearch}>
+          <View className="search-input" onClick={handleSearch} aria-label="搜索科室或医生" role="button">
             <View className="search-icon">
               <SearchIcon size={16} color="#9CA3AF" />
             </View>
@@ -173,6 +173,8 @@ export function DeptSidebar() {
                   key={dept.id}
                   className="flat-item"
                   onClick={() => handleSelectDept(dept.id, dept.name)}
+                  aria-label={`选择${dept.name}科室`}
+                  role="button"
                 >
                   <View className="flat-icon">
                     <IconComponent size={28} color={primaryColor} />
@@ -207,6 +209,8 @@ export function DeptSidebar() {
               key={dept.id}
               className={`sidebar-item ${index === activeIndex ? 'active' : ''}`}
               onClick={() => setActiveIndex(index)}
+              aria-label={`切换到${dept.name}`}
+              role="button"
             >
               <Text>{dept.name}</Text>
             </View>
@@ -223,6 +227,8 @@ export function DeptSidebar() {
                   key={child.id}
                   className="dept-item"
                   onClick={() => handleSelectDept(child.id, child.name)}
+                  aria-label={`选择${child.name}科室`}
+                  role="button"
                 >
                   <View className="dept-content">
                     <View className="dept-icon">

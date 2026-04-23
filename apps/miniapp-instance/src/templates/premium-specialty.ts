@@ -35,9 +35,9 @@ export const premiumSpecialty: MiniappStyleTemplate = {
   },
 
   designTokens: {
-    primary: '#7B6345', // 深化棕色以满足 WCAG AA (4.5:1)
+    primary: '#5B4730', // 进一步深化以满足 WCAG AA (4.5:1)
     primarySoft: '#F6F0E3',
-    accent: '#5B4730',
+    accent: '#3B2F20', // 进一步深化以保持层次感
     bodyFontSize: 28,
     displayFontSize: 56,
     radiusMd: 12,
