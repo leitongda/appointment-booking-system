@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 from app.core.security import get_password_hash, verify_password
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.admin import Admin, Role, admin_stores
+from app.models.tenant import Tenant
 from app.utils.audit import set_create_audit, set_update_audit
 
 
@@ -29,7 +30,7 @@ class AdminService:
     ) -> Tuple[List[Admin], int]:
         query = select(Admin).options(
             selectinload(Admin.role),
-            selectinload(Admin.tenant),
+            selectinload(Admin.tenant).selectinload(Tenant.subscription_plan),
             selectinload(Admin.current_store),
             selectinload(Admin.stores),
         )
@@ -80,7 +81,7 @@ class AdminService:
             select(Admin)
             .options(
                 selectinload(Admin.role),
-                selectinload(Admin.tenant),
+                selectinload(Admin.tenant).selectinload(Tenant.subscription_plan),
                 selectinload(Admin.current_store),
                 selectinload(Admin.stores),
             )
@@ -106,7 +107,7 @@ class AdminService:
             select(Admin)
             .options(
                 selectinload(Admin.role),
-                selectinload(Admin.tenant),
+                selectinload(Admin.tenant).selectinload(Tenant.subscription_plan),
                 selectinload(Admin.current_store),
                 selectinload(Admin.stores),
             )
@@ -132,7 +133,7 @@ class AdminService:
             select(Admin)
             .options(
                 selectinload(Admin.role),
-                selectinload(Admin.tenant),
+                selectinload(Admin.tenant).selectinload(Tenant.subscription_plan),
                 selectinload(Admin.current_store),
                 selectinload(Admin.stores),
             )
@@ -153,7 +154,7 @@ class AdminService:
             select(Admin)
             .options(
                 selectinload(Admin.role),
-                selectinload(Admin.tenant),
+                selectinload(Admin.tenant).selectinload(Tenant.subscription_plan),
                 selectinload(Admin.current_store),
                 selectinload(Admin.stores),
             )
@@ -167,7 +168,7 @@ class AdminService:
             select(Admin)
             .options(
                 selectinload(Admin.role),
-                selectinload(Admin.tenant),
+                selectinload(Admin.tenant).selectinload(Tenant.subscription_plan),
                 selectinload(Admin.current_store),
                 selectinload(Admin.stores),
             )
