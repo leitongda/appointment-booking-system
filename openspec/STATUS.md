@@ -1,6 +1,6 @@
 # OpenSpec 项目状态追踪
 
-> 最后更新： 2026-04-17
+> 最后更新： 2026-04-23
 > 维护者: Team 6
 
 ---
@@ -23,8 +23,6 @@
 
 | Change ID | 状态 | 优先级 | 完成度 | 说明 |
 |-----------|------|--------|--------|------|
-| `fix-payment-closure-and-refund-flow` | 已完成待归档 | P0 | 100% | 支付创建、重试支付、退款闭环、回调幂等、超时竞态、legacy 兼容策略和联调文档均已完成 |
-| `update-appointment-list-page-size` | 已完成待归档 | P1 | 100% | 预约列表分页上限、条件校验与测试已完成，待后续归档 |
 | `refactor-admin-menu-information-architecture` | 待对齐 | P1 | 0% | Admin 菜单信息架构重构 - 依赖团队确认命名、拆分顺序和兼容策略 |
 | `add-template-driven-miniapp-platform` | 待立项 | P2 | 0% | 模板驱动的小程序实例平台 - 需要单独的产品/发布/运维负责人 |
 
@@ -34,6 +32,9 @@
 |-----------|---------|--------|------|
 | `add-schedule-rule-enhancements` | 2026-03-27 | P1 | 排班规则功能增强 (批量删除/停诊、生成历史、前端交互) |
 | `refactor-server-module-boundaries` | 2026-03-27 | P1 | 服务端模块边界重构 (services/ 迁移到 modules/ 结构，删除兼容层) |
+| `fix-payment-closure-and-refund-flow` | 2026-04-23 | P0 | 支付创建、重试支付、退款闭环、回调幂等、超时竞态、legacy 兼容策略和联调文档均已完成 |
+| `update-appointment-list-page-size` | 2026-04-23 | P1 | 预约列表分页上限、条件校验与测试已完成 |
+| `enhance-schedule-rule-management` | 2026-04-23 | P1 | 与已归档的 add-schedule-rule-enhancements 功能重复，作为重复项归档 |
 
 ---
 
@@ -110,22 +111,15 @@
 - 先完成团队对齐会议并将结论写回 proposal/tasks
 - 对齐完成后，再分为“路由/权限骨架”和“settings 内容拆分”两批推进
 
-### 4. enhance-schedule-rule-management (重复/待归档)
+### 4. enhance-schedule-rule-management (已归档)
 
-**文件位置:** `/openspec/changes/enhance-schedule-rule-management/`
+**归档位置:** `/openspec/changes/archive/2026-04-23-enhance-schedule-rule-management/`
 
-**说明:** 与 `add-schedule-rule-enhancements` 功能重复，建议归档此 change 并保留 `add-schedule-rule-enhancements`。
+**说明:** 与 `add-schedule-rule-enhancements` 功能重复，作为重复项归档。不再按此 change 开发，后续排班规则相关需求应基于已归档的 `add-schedule-rule-enhancements` 成果继续提出新 change。
 
-**执行结论:**
-- 不再按此 change 开发
-- 若需归档，保留历史文档即可，不再继续更新任务勾选状态
-- 后续排班规则相关需求应基于已归档的 `add-schedule-rule-enhancements` 成果继续提出新 change
+### 5. update-appointment-list-page-size (已归档)
 
----
-
-### 5. update-appointment-list-page-size (已完成待归档)
-
-**文件位置:** `/openspec/changes/update-appointment-list-page-size/`
+**归档位置:** `/openspec/changes/archive/2026-04-23-update-appointment-list-page-size/`
 
 **任务清单状态:**
 - [x] 1.1.1 在 `apps/server/app/core/config.py` 增加 `APPOINTMENTS_MAX_PAGE_SIZE`
@@ -138,8 +132,11 @@
 - [x] 2.2 补充 `packages/api/src/modules/appointment.ts` 注释说明
 - [x] 3.1 补充后端集成测试，覆盖 4 个核心场景
 
-**待办事项:**
-- 按 OpenSpec 流程进入后续归档
+### 6. fix-payment-closure-and-refund-flow (已归档)
+
+**归档位置:** `/openspec/changes/archive/2026-04-23-fix-payment-closure-and-refund-flow/`
+
+**说明:** 支付创建、重试支付、退款闭环、回调幂等、超时竞态、legacy 兼容策略和联调文档均已完成。
 
 ---
 
@@ -178,57 +175,24 @@
 
 1. ~~**归档 add-schedule-rule-enhancements**~~ 已完成 (2026-03-27)
 2. ~~**归档 refactor-server-module-boundaries**~~ 已完成 (2026-03-27)
+3. ~~**归档 fix-payment-closure-and-refund-flow**~~ 已完成 (2026-04-23)
+4. ~~**归档 update-appointment-list-page-size**~~ 已完成 (2026-04-23)
+5. ~~**归档 enhance-schedule-rule-management**~~ 已完成 (2026-04-23)
 
 ### 需要团队决策 (本周)
 
-3. **refactor-admin-menu-information-architecture 对齐会议**
+6. **refactor-admin-menu-information-architecture 对齐会议**
    - 确认菜单命名方案
    - 确认 settings 拆分优先级
    - 确认兼容性处理策略
 
-4. **fix-payment-closure-and-refund-flow 归档准备**
-   - 复核文档与 OpenSpec 任务清单一致
-   - 确认 legacy `stores.wechat_*` 软废弃策略可接受
-   - 按 OpenSpec 流程安排后续归档
-
 ### 下一周期规划
 
-5. **P1 多租户改造完善**
+7. **P1 多租户改造完善**
    - 已完成，当前转入维护期
 
-6. **update-appointment-list-page-size**
-   - 已完成，后续可按节奏归档
-
-7. **refactor-admin-menu-information-architecture**
+8. **refactor-admin-menu-information-architecture**
    - 团队对齐完成后拆成两批推进
 
-8. **add-template-driven-miniapp-platform**
+9. **add-template-driven-miniapp-platform**
    - 单独立项，避免与 backlog 清理工作并行耦合
-
-### 9. fix-payment-closure-and-refund-flow（已完成待归档 - 100%）
-
-**文件位置:** `/openspec/changes/fix-payment-closure-and-refund-flow/`
-
-**本轮已完成:**
-- [x] `POST /appointments` 免费/付费两种返回契约已统一并通过集成测试
-- [x] 支付订单创建 / 支付状态查询 / 退款创建的权限与归属校验已落地并通过集成测试
-- [x] 重试支付接口支持从当前登录用户绑定的 `openid` 自动回退
-- [x] 患者端待支付列表与预约详情页均可重新发起支付，支付取消/失败会进入对应结果页
-- [x] `AppointmentResponse` 已补齐支付金额、支付时间、支付交易号、退款状态、已退款金额
-- [x] `packages/shared`、`packages/api`、患者端预约列表、管理端预约页已按“元”统一支付/退款金额语义
-- [x] 管理端退款提交改为发送后端真实字段名（`appointment_id` / `refund_amount` / `refund_reason`）
-- [x] 退款记录统一复用 `APPT{appointment.id}` 作为 `out_trade_no`
-- [x] 退款发起失败、退款成功回调、退款失败回调都会重新聚合回写预约退款状态
-- [x] 退款回调对重复终态通知增加幂等保护，并补齐单元测试覆盖部分退款、全额退款和冲突回调场景
-- [x] 支付成功回调仅结算待支付预约，重复成功回调按幂等成功处理
-- [x] 支付超时任务改为条件更新，避免与晚到支付成功回调互相覆盖，并修正号源释放字段为 `booked_slots`
-- [x] 新增支付回调/超时任务单元测试，覆盖重复回调、已过期晚到回调和超时竞争跳过场景
-- [x] 重试支付接口已补齐成功、越权拒绝、状态错误三类集成测试
-- [x] 支付配置解析已补齐租户默认支付配置回退
-- [x] 单测已固定“显式小程序实例优先于门店路由”的运行时解析顺序
-- [x] `PaymentProfile/PaymentRoute` 与 legacy `stores.wechat_*` 兼容顺序已按软废弃策略收口
-- [x] 支付/退款生命周期文档与手工联调清单已补齐
-
-**归档前检查:**
-- [ ] 走一次 OpenSpec 归档流程
-- [ ] 与团队确认 soft-deprecation 文案是否需要同步到运维/发布说明
