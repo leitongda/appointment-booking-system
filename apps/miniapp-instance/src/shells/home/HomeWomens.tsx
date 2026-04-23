@@ -1,7 +1,7 @@
 import { View, Text, Swiper, SwiperItem, Image, ScrollView } from '@tarojs/components';
 import Taro, { usePullDownRefresh, useDidShow } from '@tarojs/taro';
 import { useState, useEffect, useCallback } from 'react';
-import { contentApi, doctorApi, userApi } from '@hospital/api';
+import { contentApi, doctorApi, userApi, commonServiceApi } from '@hospital/api';
 import type { Banner } from '@hospital/api';
 import type { Doctor, Patient } from '@hospital/shared';
 import {
@@ -62,8 +62,6 @@ export function HomeWomens() {
   const [loading, setLoading] = useState(true);
 
   // 健康提醒数据
-  // TODO: 后端需要新增健康提醒 API
-  // 目前使用本地 mock 数据
   const [healthReminder, setHealthReminder] = useState<{
     nextCheckDate?: string;
     lastCheckDate?: string;
@@ -111,6 +109,27 @@ export function HomeWomens() {
       setBanners(bannersData.length > 0 ? bannersData : defaultBanners as any);
       setDoctors(doctorsData);
       await loadPatients();
+
+      // 加载健康提醒
+      if (getToken()) {
+        const reminder = await commonServiceApi.getMyHealthReminder().catch(() => null);
+        if (reminder && reminder.hasData) {
+          setHealthReminder({
+            nextCheckDate: reminder.nextCheckDate,
+            lastCheckDate: reminder.lastCheckDate,
+            reminderContent: reminder.reminderContent || reminder.tips?.[0],
+            hasData: true,
+          });
+        }
+      } else {
+        const config = await commonServiceApi.getHealthReminderConfig().catch(() => []);
+        if (config.length > 0) {
+          setHealthReminder({
+            reminderContent: config[0].content,
+            hasData: false,
+          });
+        }
+      }
     } catch (error) {
       console.error('[首页] 加载数据失败', error);
     } finally {

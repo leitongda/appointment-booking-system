@@ -1,7 +1,8 @@
 import { View, Text, Swiper, SwiperItem, Image, ScrollView } from '@tarojs/components';
 import Taro, { usePullDownRefresh, useDidShow } from '@tarojs/taro';
 import { useState, useEffect, useCallback } from 'react';
-import { contentApi, doctorApi, userApi } from '@hospital/api';
+import { contentApi, doctorApi, userApi, commonServiceApi } from '@hospital/api';
+import type { CommonServiceItem } from '@hospital/api';
 import type { Banner } from '@hospital/api';
 import type { Doctor, Patient } from '@hospital/shared';
 import {
@@ -31,10 +32,8 @@ const menus = [
   { icon: DoctorIcon, title: '疫苗接种', path: '/packageOther/pages/webview/index' },
 ];
 
-// 常见服务（3列活泼卡片）
-// TODO: 后端需要新增常见服务列表 API
-// 目前使用本地 mock 数据
-const commonServices = [
+// 常见服务默认数据（API 返回为空时使用）
+const defaultServices = [
   { id: '1', name: '感冒护理', variant: 'blue' as const, path: '/pages/department/index?dept=cold' },
   { id: '2', name: '发烧处理', variant: 'orange' as const, path: '/pages/department/index?dept=fever' },
   { id: '3', name: '腹泻应对', variant: 'green' as const, path: '/pages/department/index?dept=diarrhea' },
@@ -74,6 +73,7 @@ export function HomeFamily() {
   const [patientLoadState, setPatientLoadState] = useState<PatientLoadState>('unauthenticated');
   const [loading, setLoading] = useState(true);
   const [pendingCheckinAction, setPendingCheckinAction] = useState(false);
+  const [commonServices, setCommonServices] = useState<{ id: string; name: string; variant: string; path: string }[]>(defaultServices);
 
   // 获取可见模块排序
   const modules = template.homeSchema.filter(m => m.visible).sort((a, b) => a.order - b.order);
@@ -95,13 +95,22 @@ export function HomeFamily() {
 
   const loadData = async () => {
     try {
-      const [bannersData, doctorsData] = await Promise.all([
+      const [bannersData, doctorsData, servicesData] = await Promise.all([
         contentApi.getActiveBanners('home').catch(() => []),
         doctorApi.getRecommended(4).catch(() => []),
+        commonServiceApi.getCommonServices().then(r => r.items).catch(() => []),
       ]);
 
       setBanners(bannersData.length > 0 ? bannersData : defaultBanners as any);
       setDoctors(doctorsData);
+      if (servicesData.length > 0) {
+        setCommonServices(servicesData.map(s => ({
+          id: s.id,
+          name: s.name,
+          variant: s.variant || 'blue',
+          path: s.linkUrl || (s.departmentId ? `/pages/department/index?dept=${s.departmentId}` : '/pages/department/index'),
+        })));
+      }
       await loadPatients();
     } catch (error) {
       console.error('[首页] 加载数据失败', error);

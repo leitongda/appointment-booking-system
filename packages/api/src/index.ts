@@ -44,6 +44,8 @@ export { scheduleApi } from './modules/schedule';
 export { appointmentApi } from './modules/appointment';
 export { medicalRecordApi } from './modules/medical-record';
 export { contentApi } from './modules/content';
+export { commonServiceApi } from './modules/common-service';
+export type { CommonServiceItem, CommonServiceListResponse, HealthReminderConfig, UserHealthReminder } from './modules/common-service';
 export { statisticsApi } from './modules/statistics';
 export { adminApi } from './modules/admin';
 export { settingsApi } from './modules/settings';

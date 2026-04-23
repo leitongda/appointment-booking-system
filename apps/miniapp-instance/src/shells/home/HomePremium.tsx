@@ -1,7 +1,7 @@
 import { View, Text, Swiper, SwiperItem, Image, ScrollView, RichText } from '@tarojs/components';
 import Taro, { usePullDownRefresh, useDidShow } from '@tarojs/taro';
 import { useState, useEffect, useCallback } from 'react';
-import { contentApi, doctorApi, userApi } from '@hospital/api';
+import { contentApi, doctorApi, userApi, commonServiceApi } from '@hospital/api';
 import type { Banner } from '@hospital/api';
 import type { Doctor, Patient } from '@hospital/shared';
 import {
@@ -29,8 +29,8 @@ const menus = [
   { icon: ScanIcon, title: '联系客服', action: 'contact' },
 ];
 
-// 特色服务配置（可从后端获取）
-const featuredServices = [
+// 特色服务配置（优先从后端获取，fallback 到本地默认）
+const defaultFeaturedServices = [
   { id: '1', title: '口腔种植', icon: DoctorIcon, desc: '数字化种植 精准修复', path: '/pages/department/index?dept=implant' },
   { id: '2', title: '正畸矫治', icon: CalendarIcon, desc: '隐形矫正 美丽笑容', path: '/pages/department/index?dept=orthodontics' },
   { id: '3', title: '美学修复', icon: CardIcon, desc: '全瓷贴面 美白修复', path: '/pages/department/index?dept=cosmetic' },
@@ -62,6 +62,7 @@ export function HomePremium() {
   const [patientLoadState, setPatientLoadState] = useState<PatientLoadState>('unauthenticated');
   const [loading, setLoading] = useState(true);
   const [brandStory, setBrandStory] = useState<{ title: string; content: string } | null>(null);
+  const [featuredServices, setFeaturedServices] = useState(defaultFeaturedServices);
 
   // 获取可见模块排序
   const modules = template.homeSchema.filter(m => m.visible).sort((a, b) => a.order - b.order);
@@ -96,6 +97,18 @@ export function HomePremium() {
       const brandContent = await contentApi.getActiveBanners('brand-story').catch(() => []);
       if (brandContent.length > 0) {
         setBrandStory({ title: '关于我们', content: brandContent[0].description || '' });
+      }
+
+      // 加载特色服务（从常见服务 API 获取，支持科室映射）
+      const servicesData = await commonServiceApi.getCommonServices().then(r => r.items).catch(() => []);
+      if (servicesData.length > 0) {
+        setFeaturedServices(servicesData.map(s => ({
+          id: s.id,
+          title: s.name,
+          icon: DoctorIcon,
+          desc: s.description || '',
+          path: s.linkUrl || (s.departmentId ? `/pages/department/index?dept=${s.departmentId}` : '/pages/department/index'),
+        })));
       }
     } catch (error) {
       console.error('[首页] 加载数据失败', error);
@@ -181,8 +194,6 @@ export function HomePremium() {
   };
 
   const handleServiceClick = (service: typeof featuredServices[0]) => {
-    // TODO: 后端需要新增服务-科室映射 API
-    // 目前使用预定义的 path 进行跳转
     navigateTo(service.path || '/pages/department/index');
   };
 
