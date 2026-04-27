@@ -991,7 +991,7 @@ const RuleSetFormPage: React.FC = () => {
     // 检查权限：只有超级管理员可以访问此页面
     if (!access.canSuperAdmin) {
       antMessage.error('只有超级管理员可以创建或编辑规则组');
-      history.push('/configuration/rule-sets');
+      history.push('/organization/medical-config/rule-sets');
       return;
     }
 
@@ -1117,7 +1117,7 @@ const RuleSetFormPage: React.FC = () => {
         };
         trackEditSave(saveData);
         // 使用 replace 跳转到编辑页，避免用户回退到空白创建页
-        history.replace(`/configuration/rule-sets/${result.id}/edit`);
+        history.replace(`/organization/medical-config/rule-sets/${result.id}/edit`);
         return;
       }
 

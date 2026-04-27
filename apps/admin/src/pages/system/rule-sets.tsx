@@ -243,7 +243,7 @@ const RuleSetsPage: React.FC = () => {
               key="add"
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => history.push('/configuration/rule-sets/create')}
+              onClick={() => history.push('/organization/medical-config/rule-sets/create')}
             >
               {isMobile ? '新增' : '新增规则组'}
             </Button>

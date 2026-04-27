@@ -143,7 +143,7 @@ const UserFormPage: React.FC = () => {
       switchFields: ['status'],
       successMessage: isEdit ? '更新成功' : '创建成功',
       onSuccess: () => {
-        history.push('/organization/system/user');
+        history.push('/organization/staff');
       },
     }
   );

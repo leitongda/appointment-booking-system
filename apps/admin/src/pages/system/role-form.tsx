@@ -65,7 +65,7 @@ const RoleFormPage: React.FC = () => {
     },
     {
       switchFields: ['status'],
-      onSuccess: () => history.push('/organization/system/role'),
+      onSuccess: () => history.push('/system/role'),
       successMessage: isEdit ? '更新成功' : '创建成功',
     }
   );

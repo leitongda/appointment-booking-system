@@ -72,6 +72,7 @@ const TAB_PATH_TO_KEY: Record<string, string> = {
   '/operations/system/settings/blacklist': 'blacklist',
   '/operations/system/settings/wechat': 'wechat',
   '/operations/system/settings/base': 'hospital',
+  // 旧路径（重定向兼容）
   '/configuration/booking-rules': 'booking',
   '/configuration/blacklist': 'blacklist',
   '/configuration/wechat': 'wechat',
@@ -80,17 +81,26 @@ const TAB_PATH_TO_KEY: Record<string, string> = {
   '/configuration/hospital-info': 'hospital',
   '/configuration/email-config': 'email',
   '/configuration/image-config': 'image',
+  // 新路径
+  '/organization/medical-config/booking-rules': 'booking',
+  '/organization/medical-config/booking-fields': 'bookingFields',
+  '/organization/medical-config/patient-card': 'patientCard',
+  '/system/config/hospital-info': 'hospital',
+  '/system/config/wechat': 'wechat',
+  '/system/config/email-config': 'email',
+  '/system/config/image-config': 'image',
+  '/system/blacklist': 'blacklist',
 };
 
 const TAB_KEY_TO_PATH: Record<string, string> = {
-  booking: '/configuration/booking-rules',
-  blacklist: '/configuration/blacklist',
-  wechat: '/configuration/wechat',
-  hospital: '/configuration/hospital-info',
-  bookingFields: '/configuration/booking-fields',
-  patientCard: '/configuration/patient-card',
-  email: '/configuration/email-config',
-  image: '/configuration/image-config',
+  booking: '/organization/medical-config/booking-rules',
+  blacklist: '/system/blacklist',
+  wechat: '/system/config/wechat',
+  hospital: '/system/config/hospital-info',
+  bookingFields: '/organization/medical-config/booking-fields',
+  patientCard: '/organization/medical-config/patient-card',
+  email: '/system/config/email-config',
+  image: '/system/config/image-config',
 };
 
 const TAB_KEY_TO_TITLE: Record<string, string> = {
@@ -1023,7 +1033,7 @@ const SettingsPage: React.FC = () => {
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);
-    const targetPath = TAB_KEY_TO_PATH[key] || '/configuration/hospital-info';
+    const targetPath = TAB_KEY_TO_PATH[key] || '/system/config/hospital-info';
     if (targetPath !== location.pathname) {
       history.replace(targetPath);
     }

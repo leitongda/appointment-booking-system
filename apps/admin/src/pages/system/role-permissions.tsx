@@ -307,7 +307,7 @@ const RolePermissionsPage: React.FC = () => {
       await adminApi.updateRolePermissions(id, checkedKeys);
       setInitialCheckedKeys(checkedKeys);
       message.success('权限保存成功');
-      history.push('/organization/system/role');
+      history.push('/system/role');
     } catch (error: any) {
       message.error(error.message || '保存失败');
     } finally {
@@ -387,7 +387,7 @@ const RolePermissionsPage: React.FC = () => {
 
   const handleCancel = () => {
     if (!hasChanges) {
-      history.push('/organization/system/role');
+      history.push('/system/role');
       return;
     }
 
@@ -397,7 +397,7 @@ const RolePermissionsPage: React.FC = () => {
       okText: '放弃并离开',
       cancelText: '继续编辑',
       okButtonProps: { danger: true },
-      onOk: () => history.push('/organization/system/role'),
+      onOk: () => history.push('/system/role'),
     });
   };
 

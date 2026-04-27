@@ -212,7 +212,7 @@ const PatientDetailPage: React.FC = () => {
     try {
       await patientApi.delete(id);
       message.success('删除成功');
-      history.push('/medical-services/medical-card/list');
+      history.push('/medical-services/patient/card/list');
     } catch (error: any) {
       message.error(error.message || '删除失败');
     }
@@ -358,7 +358,7 @@ const PatientDetailPage: React.FC = () => {
       width: 150,
       render: (_: any, record: PatientListItem) => (
         <Space>
-          <a onClick={() => history.push(`/medical-services/medical-card/${record.id}?fromUserId=${patient?.userId || ''}`)}>查看</a>
+          <a onClick={() => history.push(`/medical-services/patient/card/${record.id}?fromUserId=${patient?.userId || ''}`)}>查看</a>
           {access.hasPermission('patient:update') && (
             <a onClick={() => { setCurrentMember(record); setEditMemberModalVisible(true); }}>
               <EditOutlined /> 编辑
@@ -613,8 +613,8 @@ const PatientDetailPage: React.FC = () => {
   // 根据来源决定返回路径
   const fromUserId = searchParams.get('fromUserId');
   const backUrl = fromUserId
-    ? `/medical-services/user/${fromUserId}`
-    : '/medical-services/medical-card/list';
+    ? `/medical-services/patient/${fromUserId}`
+    : '/medical-services/patient/card/list';
 
   return (
     <PageContainer

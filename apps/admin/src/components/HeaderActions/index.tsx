@@ -98,7 +98,7 @@ export const StoreQuickActions: React.FC = () => {
       icon: <MoneyCollectOutlined />,
       label: '诊费设置',
       onClick: () => {
-        history.push(`/organization/store/${currentStore?.id}/fee-templates`);
+        history.push('/medical-services/consultation-fee/templates');
       },
     },
     {

@@ -184,7 +184,7 @@ const PatientPage: React.FC = () => {
         return (
           <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
             {access.hasPermission('patient:detail') && (
-              <a onClick={() => history.push(`/medical-services/medical-card/${record.id}`)} style={{ fontSize: 13 }}>
+              <a onClick={() => history.push(`/medical-services/patient/card/${record.id}`)} style={{ fontSize: 13 }}>
                 <EyeOutlined /> 详情
               </a>
             )}

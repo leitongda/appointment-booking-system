@@ -72,7 +72,6 @@ const dynamicMenuRules: DynamicMenuConfig[] = [
     menuItem: { name: '编辑医生', path: '/medical-services/doctor/:id/edit' },
   },
   {
-    // 排除 list, create, booking-setting 等已知路由，只匹配实际的 ID
     pattern: /^\/medical-services\/doctor\/(?!list$|create$|booking-setting)[^/]+$/,
     parentPath: '/medical-services/doctor',
     menuItem: { name: '医生详情', path: '/medical-services/doctor/:id' },
@@ -87,6 +86,33 @@ const dynamicMenuRules: DynamicMenuConfig[] = [
     pattern: /^\/medical-services\/doctor\/booking-setting\/[^/]+\/edit$/,
     parentPath: '/medical-services/doctor',
     menuItem: { name: '编辑预约设置', path: '/medical-services/doctor/booking-setting/:id/edit' },
+  },
+  // 角色权限
+  {
+    pattern: /^\/system\/role\/create$/,
+    parentPath: '/system/role',
+    menuItem: { name: '新增角色', path: '/system/role/create' },
+  },
+  {
+    pattern: /^\/system\/role\/[^/]+\/edit$/,
+    parentPath: '/system/role',
+    menuItem: { name: '编辑角色', path: '/system/role/:id/edit' },
+  },
+  {
+    pattern: /^\/system\/role\/[^/]+\/permissions$/,
+    parentPath: '/system/role',
+    menuItem: { name: '分配权限', path: '/system/role/:id/permissions' },
+  },
+  // 员工管理
+  {
+    pattern: /^\/organization\/staff\/create$/,
+    parentPath: '/organization/staff',
+    menuItem: { name: '新增员工', path: '/organization/staff/create' },
+  },
+  {
+    pattern: /^\/organization\/staff\/[^/]+\/edit$/,
+    parentPath: '/organization/staff',
+    menuItem: { name: '编辑员工', path: '/organization/staff/:id/edit' },
   },
 ];
 

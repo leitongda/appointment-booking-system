@@ -31,7 +31,7 @@ export interface CreateButtonProps {
  *
  * @example
  * // 基础用法
- * <CreateButton permission="patient:create" url="/medical-services/medical-card/create" label="新增就诊卡" />
+ * <CreateButton permission="patient:create" url="/medical-services/patient/card/create" label="新增就诊卡" />
  *
  * @example
  * // 自定义点击

@@ -72,7 +72,7 @@ const ShiftTypeListPage: React.FC = () => {
         <OperationGroup>
           <OperationButton
             type="edit"
-            url={`/configuration/shift-types/${record.id}/edit`}
+            url={`/organization/medical-config/shift-types/${record.id}/edit`}
           />
           <OperationButton
             type="custom"
@@ -127,7 +127,7 @@ const ShiftTypeListPage: React.FC = () => {
         toolBarRender={() => [
           <CreateButton
             key="create"
-            url="/configuration/shift-types/create"
+            url="/organization/medical-config/shift-types/create"
             label="新增班次类型"
           />,
         ]}

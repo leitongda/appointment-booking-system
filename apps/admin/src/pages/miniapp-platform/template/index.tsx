@@ -6,7 +6,7 @@ import {
   AppstoreOutlined,
   EyeOutlined,
   CheckCircleOutlined,
-  MedicationOutlined,
+  MedicineBoxOutlined,
   HeartOutlined,
   UserOutlined,
   ExperimentOutlined,
@@ -19,7 +19,7 @@ import type { AppTemplate } from '@hospital/api';
 const { Text, Paragraph } = Typography;
 
 const TEMPLATE_CATEGORY_MAP: Record<string, { text: string; color: string; icon: React.ReactNode }> = {
-  general: { text: '综合医疗', color: 'blue', icon: <MedicationOutlined /> },
+  general: { text: '综合医疗', color: 'blue', icon: <MedicineBoxOutlined /> },
   elderly: { text: '长辈友好', color: 'orange', icon: <HeartOutlined /> },
   specialty: { text: '专科门诊', color: 'purple', icon: <ExperimentOutlined /> },
   pediatrics: { text: '儿科', color: 'cyan', icon: <UserOutlined /> },

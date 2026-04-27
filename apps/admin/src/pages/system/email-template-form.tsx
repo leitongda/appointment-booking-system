@@ -87,7 +87,7 @@ const EmailTemplateFormPage: React.FC = () => {
       switchFields: ['status'],
       successMessage: isEdit ? '更新成功' : '创建成功',
       onSuccess: () => {
-        history.push('/configuration/email-templates');
+        history.push('/system/config/email-templates');
       },
     }
   );

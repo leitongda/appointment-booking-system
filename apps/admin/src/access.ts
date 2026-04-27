@@ -131,47 +131,51 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
   ]);
   const canTenantUsage = canTenant;
 
+  const canMedicalConfig =
+    canShiftTypes ||
+    canRuleSets ||
+    canBookingRules ||
+    canBookingFields ||
+    canBookingNotice ||
+    canPatientCardConfig;
+  const canSystemConfig =
+    canHospitalInfo ||
+    canWechatSettings ||
+    canEmailConfig ||
+    canImageConfig ||
+    canEmailTemplates ||
+    canEmailRecipients;
   const canPlatformManagement = canTenant || canTenantPlans || canMiniappPlatform;
   const canOrganizationManagement =
     canStore ||
     canDepartment ||
-    canRoleManagement ||
     canUserManagement ||
-    canSystemLogs ||
-    canCheckinAuditLogs ||
-    canOnlineUsers ||
-    canAnalytics;
-  const canMedicalServices =
+    canMedicalConfig;
+  const canClinicalOperations =
     canDoctor ||
     canSchedule ||
     canAppointment ||
     canPatient ||
     canMedicalRecord ||
-    canLeaveRequest;
-  const canOperationsConfig =
-    canBookingRules ||
+    canLeaveRequest ||
+    canConsultationFee;
+  const canContentOperations =
+    canContent ||
+    canMessage ||
+    canFeedback ||
+    canAnalytics;
+  const canSystemManagement =
+    canRoleManagement ||
+    canSystemConfig ||
     canBlacklistSettings ||
-    canBasicSettings ||
-    canBookingFields ||
-    canPatientCardConfig ||
-    canHospitalInfo ||
-    canEmailConfig ||
-    canImageConfig ||
-    canWechatSettings ||
-    canShiftTypes ||
-    canRuleSets ||
-    canConsultationFee ||
-    canEmailTemplates ||
-    canEmailRecipients ||
-    canBookingNotice;
-  const canConfigurationCenter = canOperationsConfig;
+    canSystemLogs ||
+    canCheckinAuditLogs ||
+    canOnlineUsers;
   const canSystemMonitoring =
     canSystemLogs ||
     canCheckinAuditLogs ||
-    canOnlineUsers ||
-    canAnalytics;
-  const canClinicalOperations = canMedicalServices;
-  const canContentOperations = canContent || canMessage || canFeedback;
+    canOnlineUsers;
+  const canConfigurationCenter = canMedicalConfig || canSystemConfig || canBlacklistSettings;
 
   return {
     canSuperAdmin: isSuperAdmin,
@@ -188,12 +192,13 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canDashboard,
     canPlatformManagement,
     canOrganizationManagement,
-    canMedicalServices,
     canClinicalOperations,
-    canOperationsConfig,
-    canConfigurationCenter,
     canContentOperations,
+    canSystemManagement,
     canSystemMonitoring,
+    canMedicalConfig,
+    canSystemConfig,
+    canConfigurationCenter,
     canStoreCreate: isSuperAdmin,
     canStoreDelete: isSuperAdmin,
     canStore,
@@ -207,7 +212,7 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canFeedback,
     canMessage,
     canContent,
-    canSystem: canOrganizationManagement || canOperationsConfig,
+    canSystem: canOrganizationManagement || canSystemManagement,
     canManageRoles: canRoleManagement,
     canManageUsers: canUserManagement,
     canRoleManagement,

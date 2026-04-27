@@ -1,32 +1,27 @@
 /**
- * 路由配置
+ * 路由配置 — 业务流程导向分组（方案 A）
+ *
+ * 一级菜单：
+ *   仪表盘 / 平台管理 / 医疗服务 / 组织架构 / 运营中心 / 系统管理
+ *
  * @name 配置名称
  * @icon 菜单图标
  * @access 权限配置
  * @hideInMenu 隐藏菜单
  */
 export default [
-  {
-    path: '/login',
-    layout: false,
-    component: './login',
-  },
-  {
-    path: '/tenant-suspended',
-    layout: false,
-    component: './tenant-suspended',
-  },
-  {
-    path: '/dashboard',
-    name: '仪表盘',
-    icon: 'dashboard',
-    component: './dashboard',
-    access: 'canDashboard',
-  },
+  // ==================== 认证页面 ====================
+  { path: '/login', layout: false, component: './login' },
+  { path: '/tenant-suspended', layout: false, component: './tenant-suspended' },
+
+  // ==================== 仪表盘 ====================
+  { path: '/dashboard', name: '仪表盘', icon: 'dashboard', component: './dashboard', access: 'canDashboard' },
+
+  // ==================== 平台管理（SaaS 超管）====================
   {
     path: '/platform',
     name: '平台管理',
-    icon: 'cluster',
+    icon: 'cloudServer',
     access: 'canPlatformManagement',
     routes: [
       {
@@ -108,67 +103,11 @@ export default [
       },
     ],
   },
-  {
-    path: '/organization',
-    name: '组织管理',
-    icon: 'apartment',
-    access: 'canOrganizationManagement',
-    routes: [
-      {
-        path: '/organization/store',
-        name: '门店管理',
-        icon: 'shop',
-        access: 'canStore',
-        routes: [
-          { path: '/organization/store', redirect: '/organization/store/list' },
-          { path: '/organization/store/list', name: '门店列表', component: './store' },
-          { path: '/organization/store/create', name: '新增门店', component: './store/form', hideInMenu: true },
-          { path: '/organization/store/:id/edit', name: '编辑门店', component: './store/form', hideInMenu: true },
-          { path: '/organization/store/:storeId/fee-types', name: '门店诊费类型', component: './store/fee-types', hideInMenu: true },
-          { path: '/organization/store/:storeId/fee-templates', name: '门店诊费模板', component: './store/fee-templates', hideInMenu: true },
-          { path: '/organization/store/:storeId/visit-type-config', name: '复诊规则配置', component: './store/visit-type-config', hideInMenu: true },
-        ],
-      },
-      {
-        path: '/organization/department',
-        name: '科室管理',
-        icon: 'apartment',
-        access: 'canDepartment',
-        routes: [
-          { path: '/organization/department', redirect: '/organization/department/list' },
-          { path: '/organization/department/list', name: '科室列表', component: './department' },
-          { path: '/organization/department/create', name: '新增科室', component: './department/form', hideInMenu: true },
-          { path: '/organization/department/:id/edit', name: '编辑科室', component: './department/form', hideInMenu: true },
-        ],
-      },
-      {
-        path: '/organization/system/role',
-        name: '角色权限',
-        icon: 'safetyCertificate',
-        access: 'canRoleManagement',
-        routes: [
-          { path: '/organization/system/role', component: './system/role' },
-          { path: '/organization/system/role/create', name: '新增角色', component: './system/role-form', hideInMenu: true },
-          { path: '/organization/system/role/:id/edit', name: '编辑角色', component: './system/role-form', hideInMenu: true },
-          { path: '/organization/system/role/:id/permissions', name: '分配权限', component: './system/role-permissions', hideInMenu: true },
-        ],
-      },
-      {
-        path: '/organization/system/user',
-        name: '后台用户',
-        icon: 'userSwitch',
-        access: 'canUserManagement',
-        routes: [
-          { path: '/organization/system/user', component: './system/user' },
-          { path: '/organization/system/user/create', name: '新增用户', component: './system/user-form', hideInMenu: true },
-          { path: '/organization/system/user/:id/edit', name: '编辑用户', component: './system/user-form', hideInMenu: true },
-        ],
-      },
-    ],
-  },
+
+  // ==================== 医疗服务（核心业务域）====================
   {
     path: '/medical-services',
-    name: '诊疗运营',
+    name: '医疗服务',
     icon: 'medicineBox',
     access: 'canClinicalOperations',
     routes: [
@@ -206,6 +145,7 @@ export default [
           { path: '/medical-services/schedule/rest-day', name: '休息日设置', component: './schedule/rest-day' },
           { path: '/medical-services/schedule/rest-day/create', name: '添加休息日', component: './schedule/rest-day-form', hideInMenu: true },
           { path: '/medical-services/schedule/suspension', name: '停诊管理', component: './schedule/suspension' },
+          { path: '/medical-services/schedule/leave-request', name: '停诊审核', component: './leave-request', access: 'canLeaveRequest' },
           { path: '/medical-services/schedule/statistics', name: '排班统计', component: './schedule/statistics' },
         ],
       },
@@ -223,25 +163,16 @@ export default [
         ],
       },
       {
-        path: '/medical-services/user',
-        name: '用户管理',
-        icon: 'team',
+        path: '/medical-services/patient',
+        name: '患者管理',
+        icon: 'usergroupAdd',
         access: 'canPatient',
         routes: [
-          { path: '/medical-services/user', redirect: '/medical-services/user/list' },
-          { path: '/medical-services/user/list', name: '用户列表', component: './user' },
-          { path: '/medical-services/user/:id', name: '用户详情', component: './user/detail', hideInMenu: true },
-        ],
-      },
-      {
-        path: '/medical-services/medical-card',
-        name: '就诊卡管理',
-        icon: 'idcard',
-        access: 'canPatient',
-        routes: [
-          { path: '/medical-services/medical-card', redirect: '/medical-services/medical-card/list' },
-          { path: '/medical-services/medical-card/list', name: '就诊卡列表', component: './patient' },
-          { path: '/medical-services/medical-card/:id', name: '就诊卡详情', component: './patient/detail', hideInMenu: true },
+          { path: '/medical-services/patient', redirect: '/medical-services/patient/list' },
+          { path: '/medical-services/patient/list', name: '患者列表', component: './user' },
+          { path: '/medical-services/patient/:id', name: '患者详情', component: './user/detail', hideInMenu: true },
+          { path: '/medical-services/patient/card/list', name: '就诊卡列表', component: './patient' },
+          { path: '/medical-services/patient/card/:id', name: '就诊卡详情', component: './patient/detail', hideInMenu: true },
         ],
       },
       {
@@ -252,91 +183,106 @@ export default [
         access: 'canMedicalRecord',
       },
       {
-        path: '/medical-services/leave-request',
-        name: '停诊审核',
-        icon: 'exception',
-        component: './leave-request',
-        access: 'canLeaveRequest',
-      },
-    ],
-  },
-  {
-    path: '/operations/system/settings',
-    hideInMenu: true,
-    routes: [
-      { path: '/operations/system/settings', redirect: '/configuration/booking-rules' },
-      { path: '/operations/system/settings/booking', redirect: '/configuration/booking-rules' },
-      { path: '/operations/system/settings/blacklist', redirect: '/configuration/blacklist' },
-      { path: '/operations/system/settings/wechat', redirect: '/configuration/wechat' },
-      { path: '/operations/system/settings/base', redirect: '/configuration/hospital-info' },
-    ],
-  },
-  {
-    path: '/configuration',
-    name: '配置中心',
-    icon: 'setting',
-    access: 'canConfigurationCenter',
-    routes: [
-      { path: '/configuration/booking-rules', name: '预约规则', icon: 'calendar', component: './system/settings', access: 'canBookingRules' },
-      { path: '/configuration/blacklist', name: '黑名单管理', icon: 'stop', component: './system/settings', access: 'canBlacklistSettings' },
-      { path: '/configuration/wechat', name: '微信配置', icon: 'wechat', component: './system/settings', access: 'canWechatSettings' },
-      { path: '/configuration/booking-fields', name: '预约字段', icon: 'form', component: './system/settings', access: 'canBookingFields' },
-      { path: '/configuration/patient-card', name: '就诊卡配置', icon: 'idcard', component: './system/settings', access: 'canPatientCardConfig' },
-      { path: '/configuration/hospital-info', name: '医院信息', icon: 'home', component: './system/settings', access: 'canHospitalInfo' },
-      { path: '/configuration/email-config', name: '邮件配置', icon: 'mail', component: './system/settings', access: 'canEmailConfig' },
-      { path: '/configuration/image-config', name: '图片配置', icon: 'picture', component: './system/settings', access: 'canImageConfig' },
-      {
-        path: '/configuration/shift-types',
-        name: '班次类型',
-        icon: 'clockCircle',
-        access: 'canShiftTypes',
-        routes: [
-          { path: '/configuration/shift-types', component: './system/shift-types' },
-          { path: '/configuration/shift-types/create', name: '新增班次类型', component: './system/shift-type-form', hideInMenu: true },
-          { path: '/configuration/shift-types/:id/edit', name: '编辑班次类型', component: './system/shift-type-form', hideInMenu: true },
-        ],
-      },
-      {
-        path: '/configuration/rule-sets',
-        name: '规则组管理',
-        icon: 'cluster',
-        access: 'canRuleSets',
-        routes: [
-          { path: '/configuration/rule-sets', component: './system/rule-sets' },
-          { path: '/configuration/rule-sets/create', name: '新增规则组', component: './system/rule-set-form', hideInMenu: true },
-          { path: '/configuration/rule-sets/:id/edit', name: '编辑规则组', component: './system/rule-set-form', hideInMenu: true },
-        ],
-      },
-      {
-        path: '/configuration/consultation-fee-types',
-        name: '诊费类型',
+        path: '/medical-services/consultation-fee',
+        name: '诊费管理',
         icon: 'dollarCircle',
         access: 'canConsultationFee',
         routes: [
-          { path: '/configuration/consultation-fee-types', component: './system/consultation-fee-types' },
-          { path: '/configuration/consultation-fee-types/create', name: '新增诊费类型', component: './system/consultation-fee-type-form', hideInMenu: true },
-          { path: '/configuration/consultation-fee-types/:id/edit', name: '编辑诊费类型', component: './system/consultation-fee-type-form', hideInMenu: true },
+          { path: '/medical-services/consultation-fee/types', name: '诊费类型', component: './system/consultation-fee-types' },
+          { path: '/medical-services/consultation-fee/types/create', name: '新增诊费类型', component: './system/consultation-fee-type-form', hideInMenu: true },
+          { path: '/medical-services/consultation-fee/types/:id/edit', name: '编辑诊费类型', component: './system/consultation-fee-type-form', hideInMenu: true },
+          { path: '/medical-services/consultation-fee/templates', name: '诊费模板', component: './system/consultation-fee-templates' },
         ],
       },
-      { path: '/configuration/consultation-fee-templates', name: '诊费模板', icon: 'fileDone', component: './system/consultation-fee-templates', access: 'canConsultationFee' },
-      { path: '/configuration/booking-notice', name: '预约须知', icon: 'fileText', component: './system/booking-notice', access: 'canBookingNotice' },
-      {
-        path: '/configuration/email-templates',
-        name: '邮件模板',
-        icon: 'mail',
-        access: 'canEmailTemplates',
-        routes: [
-          { path: '/configuration/email-templates', component: './system/email-templates' },
-          { path: '/configuration/email-templates/create', name: '新增邮件模板', component: './system/email-template-form', hideInMenu: true },
-          { path: '/configuration/email-templates/:id/edit', name: '编辑邮件模板', component: './system/email-template-form', hideInMenu: true },
-        ],
-      },
-      { path: '/configuration/email-recipients', name: '邮件接收人', icon: 'contacts', component: './system/email-recipients', access: 'canEmailRecipients' },
     ],
   },
+
+  // ==================== 组织架构 ====================
+  {
+    path: '/organization',
+    name: '组织架构',
+    icon: 'apartment',
+    access: 'canOrganizationManagement',
+    routes: [
+      {
+        path: '/organization/store',
+        name: '门店管理',
+        icon: 'shop',
+        access: 'canStore',
+        routes: [
+          { path: '/organization/store', redirect: '/organization/store/list' },
+          { path: '/organization/store/list', name: '门店列表', component: './store' },
+          { path: '/organization/store/create', name: '新增门店', component: './store/form', hideInMenu: true },
+          { path: '/organization/store/:id/edit', name: '编辑门店', component: './store/form', hideInMenu: true },
+          { path: '/organization/store/:storeId/fee-types', name: '门店诊费类型', redirect: '/medical-services/consultation-fee/types', hideInMenu: true },
+          { path: '/organization/store/:storeId/fee-templates', name: '门店诊费模板', redirect: '/medical-services/consultation-fee/templates', hideInMenu: true },
+          { path: '/organization/store/:storeId/visit-type-config', name: '复诊规则配置', component: './store/visit-type-config', hideInMenu: true },
+        ],
+      },
+      {
+        path: '/organization/department',
+        name: '科室管理',
+        icon: 'build',
+        access: 'canDepartment',
+        routes: [
+          { path: '/organization/department', redirect: '/organization/department/list' },
+          { path: '/organization/department/list', name: '科室列表', component: './department' },
+          { path: '/organization/department/create', name: '新增科室', component: './department/form', hideInMenu: true },
+          { path: '/organization/department/:id/edit', name: '编辑科室', component: './department/form', hideInMenu: true },
+        ],
+      },
+      {
+        path: '/organization/medical-config',
+        name: '医疗配置',
+        icon: 'tool',
+        access: 'canMedicalConfig',
+        routes: [
+          { path: '/organization/medical-config/booking-rules', name: '预约规则', icon: 'clockCircle', component: './system/settings', access: 'canBookingRules' },
+          { path: '/organization/medical-config/booking-fields', name: '预约字段', icon: 'orderedList', component: './system/settings', access: 'canBookingFields' },
+          { path: '/organization/medical-config/booking-notice', name: '预约须知', icon: 'fileDone', component: './system/booking-notice', access: 'canBookingNotice' },
+          { path: '/organization/medical-config/patient-card', name: '就诊卡配置', icon: 'idcard', component: './system/settings', access: 'canPatientCardConfig' },
+          {
+            path: '/organization/medical-config/shift-types',
+            name: '班次类型',
+            icon: 'clockCircle',
+            access: 'canShiftTypes',
+            routes: [
+              { path: '/organization/medical-config/shift-types', component: './system/shift-types' },
+              { path: '/organization/medical-config/shift-types/create', name: '新增班次类型', component: './system/shift-type-form', hideInMenu: true },
+              { path: '/organization/medical-config/shift-types/:id/edit', name: '编辑班次类型', component: './system/shift-type-form', hideInMenu: true },
+            ],
+          },
+          {
+            path: '/organization/medical-config/rule-sets',
+            name: '规则组管理',
+            icon: 'cluster',
+            access: 'canRuleSets',
+            routes: [
+              { path: '/organization/medical-config/rule-sets', component: './system/rule-sets' },
+              { path: '/organization/medical-config/rule-sets/create', name: '新增规则组', component: './system/rule-set-form', hideInMenu: true },
+              { path: '/organization/medical-config/rule-sets/:id/edit', name: '编辑规则组', component: './system/rule-set-form', hideInMenu: true },
+            ],
+          },
+        ],
+      },
+      {
+        path: '/organization/staff',
+        name: '员工管理',
+        icon: 'userSwitch',
+        access: 'canUserManagement',
+        routes: [
+          { path: '/organization/staff', component: './system/user' },
+          { path: '/organization/staff/create', name: '新增员工', component: './system/user-form', hideInMenu: true },
+          { path: '/organization/staff/:id/edit', name: '编辑员工', component: './system/user-form', hideInMenu: true },
+        ],
+      },
+    ],
+  },
+
+  // ==================== 运营中心 ====================
   {
     path: '/content-center',
-    name: '内容运营',
+    name: '运营中心',
     icon: 'notification',
     access: 'canContentOperations',
     routes: [
@@ -376,19 +322,124 @@ export default [
         component: './feedback',
         access: 'canFeedback',
       },
+      {
+        path: '/content-center/statistics',
+        name: '数据统计',
+        icon: 'lineChart',
+        component: './system/analytics',
+        access: 'canAnalytics',
+      },
+    ],
+  },
+
+  // ==================== 系统管理 ====================
+  {
+    path: '/system',
+    name: '系统管理',
+    icon: 'setting',
+    access: 'canSystemManagement',
+    routes: [
+      {
+        path: '/system/role',
+        name: '角色权限',
+        icon: 'safetyCertificate',
+        access: 'canRoleManagement',
+        routes: [
+          { path: '/system/role', component: './system/role' },
+          { path: '/system/role/create', name: '新增角色', component: './system/role-form', hideInMenu: true },
+          { path: '/system/role/:id/edit', name: '编辑角色', component: './system/role-form', hideInMenu: true },
+          { path: '/system/role/:id/permissions', name: '分配权限', component: './system/role-permissions', hideInMenu: true },
+        ],
+      },
+      {
+        path: '/system/config',
+        name: '系统配置',
+        icon: 'control',
+        access: 'canSystemConfig',
+        routes: [
+          { path: '/system/config/hospital-info', name: '医院信息', icon: 'home', component: './system/settings', access: 'canHospitalInfo' },
+          { path: '/system/config/wechat', name: '微信配置', icon: 'wechat', component: './system/settings', access: 'canWechatSettings' },
+          { path: '/system/config/email-config', name: '邮件配置', icon: 'mail', component: './system/settings', access: 'canEmailConfig' },
+          { path: '/system/config/image-config', name: '图片配置', icon: 'picture', component: './system/settings', access: 'canImageConfig' },
+          {
+            path: '/system/config/email-templates',
+            name: '邮件模板',
+            icon: 'form',
+            access: 'canEmailTemplates',
+            routes: [
+              { path: '/system/config/email-templates', component: './system/email-templates' },
+              { path: '/system/config/email-templates/create', name: '新增邮件模板', component: './system/email-template-form', hideInMenu: true },
+              { path: '/system/config/email-templates/:id/edit', name: '编辑邮件模板', component: './system/email-template-form', hideInMenu: true },
+            ],
+          },
+          { path: '/system/config/email-recipients', name: '邮件接收人', icon: 'contacts', component: './system/email-recipients', access: 'canEmailRecipients' },
+        ],
+      },
+      {
+        path: '/system/blacklist',
+        name: '黑名单管理',
+        icon: 'stop',
+        component: './system/settings',
+        access: 'canBlacklistSettings',
+      },
+      {
+        path: '/system/monitoring',
+        name: '系统监控',
+        icon: 'monitor',
+        access: 'canSystemMonitoring',
+        routes: [
+          { path: '/system/monitoring/log', name: '操作日志', icon: 'fileSearch', component: './system/log', access: 'canSystemLogs' },
+          { path: '/system/monitoring/notification-logs', name: '通知日志', icon: 'alert', component: './system/notification-logs', access: 'canSystemLogs' },
+          { path: '/system/monitoring/checkin-audit-logs', name: '签到审计', icon: 'audit', component: './system/checkin-audit-logs', access: 'canCheckinAuditLogs' },
+          { path: '/system/monitoring/online-users', name: '在线用户', icon: 'team', component: './system/online-users', access: 'canOnlineUsers' },
+        ],
+      },
+    ],
+  },
+
+  // ==================== 旧路径重定向 ====================
+  {
+    path: '/configuration',
+    hideInMenu: true,
+    routes: [
+      { path: '/configuration', redirect: '/organization/medical-config/booking-rules' },
+      { path: '/configuration/consultation-fee-types', redirect: '/medical-services/consultation-fee/types' },
+      { path: '/configuration/consultation-fee-templates', redirect: '/medical-services/consultation-fee/templates' },
+      { path: '/configuration/shift-types', redirect: '/organization/medical-config/shift-types' },
+      { path: '/configuration/rule-sets', redirect: '/organization/medical-config/rule-sets' },
+      { path: '/configuration/booking-rules', redirect: '/organization/medical-config/booking-rules' },
+      { path: '/configuration/booking-fields', redirect: '/organization/medical-config/booking-fields' },
+      { path: '/configuration/booking-notice', redirect: '/organization/medical-config/booking-notice' },
+      { path: '/configuration/patient-card', redirect: '/organization/medical-config/patient-card' },
+      { path: '/configuration/blacklist', redirect: '/system/blacklist' },
+      { path: '/configuration/hospital-info', redirect: '/system/config/hospital-info' },
+      { path: '/configuration/wechat', redirect: '/system/config/wechat' },
+      { path: '/configuration/email-config', redirect: '/system/config/email-config' },
+      { path: '/configuration/image-config', redirect: '/system/config/image-config' },
+      { path: '/configuration/email-templates', redirect: '/system/config/email-templates' },
+      { path: '/configuration/email-recipients', redirect: '/system/config/email-recipients' },
     ],
   },
   {
     path: '/monitoring',
-    name: '系统监控',
-    icon: 'monitor',
-    access: 'canSystemMonitoring',
+    hideInMenu: true,
     routes: [
-      { path: '/monitoring/log', name: '操作日志', icon: 'fileSearch', component: './system/log', access: 'canSystemLogs' },
-      { path: '/monitoring/notification-logs', name: '通知日志', icon: 'bell', component: './system/notification-logs', access: 'canSystemLogs' },
-      { path: '/monitoring/checkin-audit-logs', name: '签到审计', icon: 'audit', component: './system/checkin-audit-logs', access: 'canCheckinAuditLogs' },
-      { path: '/monitoring/online-users', name: '在线用户', icon: 'usergroupAdd', component: './system/online-users', access: 'canOnlineUsers' },
-      { path: '/monitoring/analytics', name: '行为分析', icon: 'lineChart', component: './system/analytics', access: 'canAnalytics' },
+      { path: '/monitoring/log', redirect: '/system/monitoring/log' },
+      { path: '/monitoring/notification-logs', redirect: '/system/monitoring/notification-logs' },
+      { path: '/monitoring/checkin-audit-logs', redirect: '/system/monitoring/checkin-audit-logs' },
+      { path: '/monitoring/online-users', redirect: '/system/monitoring/online-users' },
+      { path: '/monitoring/analytics', redirect: '/content-center/statistics' },
+    ],
+  },
+  {
+    path: '/operations/system/settings',
+    hideInMenu: true,
+    routes: [
+      { path: '/operations/system/settings', redirect: '/organization/medical-config/booking-rules' },
+      { path: '/operations/system/settings/booking', redirect: '/organization/medical-config/booking-rules' },
+      { path: '/operations/system/settings/blacklist', redirect: '/system/blacklist' },
+      { path: '/operations/system/settings/wechat', redirect: '/system/config/wechat' },
+      { path: '/operations/system/settings/base', redirect: '/system/config/hospital-info' },
     ],
   },
   {
@@ -399,13 +450,8 @@ export default [
       { path: '/account/settings', name: '个人设置', component: './account/settings' },
     ],
   },
-  {
-    path: '/',
-    redirect: '/dashboard',
-  },
-  {
-    path: '*',
-    layout: false,
-    component: './404',
-  },
+
+  // ==================== 默认路由 ====================
+  { path: '/', redirect: '/dashboard' },
+  { path: '*', layout: false, component: './404' },
 ];
