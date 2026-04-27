@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_current_active_user
+from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.modules.common_services.schemas import (
     CommonServiceListResponse,
@@ -74,7 +74,7 @@ async def get_health_reminder_config(
 async def get_my_health_reminder(
     store_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """获取当前用户的健康提醒信息
 

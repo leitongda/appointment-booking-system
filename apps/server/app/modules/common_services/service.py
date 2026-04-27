@@ -9,7 +9,17 @@ from app.models.common_service import CommonService, HealthReminder
 from app.models.appointment import Appointment
 from app.models.user import Patient
 from app.middleware.tenant_context import get_current_tenant_id
-from app.utils.string import safe_json_loads
+
+
+def safe_json_loads(value):
+    if isinstance(value, (list, dict)):
+        return value
+    if not value:
+        return []
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        return []
 
 
 class CommonServiceService:
