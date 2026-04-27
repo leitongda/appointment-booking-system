@@ -71,6 +71,8 @@ class RuleSetBase(BaseModel):
     rounding_mode: str = Field('NONE', description="取整模式")
     clock_skew_tolerance_sec: int = Field(5, ge=0, description="时钟偏差容忍度(秒)")
     description: Optional[str] = Field(None, description="描述")
+    store_id: Optional[str] = Field(None, description="门店ID")
+    department_id: Optional[str] = Field(None, description="科室ID")
 
 
 class RuleSetCreate(RuleSetBase):
@@ -105,6 +107,8 @@ class RuleSetUpdate(BaseModel):
     default_close_inclusive: Optional[bool] = Field(None, description="截止边界包含")
     rounding_mode: Optional[str] = Field(None, description="取整模式")
     clock_skew_tolerance_sec: Optional[int] = Field(None, ge=0, description="时钟偏差容忍度")
+    store_id: Optional[str] = Field(None, description="门店ID")
+    department_id: Optional[str] = Field(None, description="科室ID")
     shift_type_ids: Optional[List[str]] = Field(None, description="班次类型ID列表")
     windows: Optional[List['RuleWindowCreate']] = Field(None, description="时间窗配置")
     booking_policy: Optional['RuleBookingPolicyCreate'] = Field(None, description="预约策略")
@@ -126,6 +130,8 @@ class RuleSetResponse(RuleSetBase):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     is_active: bool = Field(False, description="是否为实际生效的规则组（优先级最高的启用规则）")
+    store_name: Optional[str] = Field(None, description="门店名称")
+    department_name: Optional[str] = Field(None, description="科室名称")
 
 
 class RuleSetDetailResponse(RuleSetResponse):
@@ -438,6 +444,7 @@ class RuleSetAuditLogResponse(BaseModel):
     operator_id: Optional[str] = None
     snapshot_before: Optional[str] = None
     snapshot_after: Optional[str] = None
+    changes: Optional[str] = None
     created_at: Optional[datetime] = None
 
 

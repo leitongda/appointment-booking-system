@@ -8,6 +8,7 @@ interface ColumnHandlers {
   handleToggleEnabled: (record: RuleSet) => void;
   handleDelete: (id: string) => void;
   handleView?: (record: RuleSet) => void;
+  handleAudit?: (record: RuleSet) => void;
   canSuperAdmin: boolean;
 }
 
@@ -106,12 +107,15 @@ export const getRuleSetColumns = (handlers: ColumnHandlers): ProColumns<RuleSet>
   {
     title: '操作',
     valueType: 'option',
-    width: 220,
+    width: 260,
     fixed: 'right',
     render: (_, record) => (
       <Space>
         {handlers.handleView && (
           <a onClick={() => handlers.handleView!(record)}>查看</a>
+        )}
+        {handlers.handleAudit && (
+          <a onClick={() => handlers.handleAudit!(record)}>变更历史</a>
         )}
         {handlers.canSuperAdmin ? (
           <a onClick={() => history.push(`/organization/medical-config/rule-sets/${record.id}/edit`)}>编辑</a>

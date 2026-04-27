@@ -6,6 +6,7 @@ from typing import Optional
 
 from sqlalchemy import and_, delete, func, select
 
+from app.core.redis import RedisCache
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.rule_set import (
     RuleBookingPolicy,
@@ -16,7 +17,14 @@ from app.models.rule_set import (
     RuleSetShiftType,
     RuleWindow,
 )
-from app.modules.rule_sets.audit_helpers import make_rule_set_audit, snapshot_rule_set
+from app.modules.rule_engine.cache import RuleCache
+import json
+
+from app.modules.rule_sets.audit_helpers import (
+    compute_rule_set_diff,
+    make_rule_set_audit,
+    snapshot_rule_set,
+)
 from app.schemas.rule_set import (
     RuleBookingPolicyCreate,
     RuleCapacityPolicyCreate,
@@ -29,6 +37,51 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 
 class RuleSetMutationMixin:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._rule_cache: Optional[RuleCache] = None
+
+    @property
+    def rule_cache(self) -> RuleCache:
+        """Lazy init of rule cache."""
+        if self._rule_cache is None:
+            self._rule_cache = RuleCache(RedisCache())
+        return self._rule_cache
+
+    async def _invalidate_rule_set_cache(self, rule_set_id: str) -> None:
+        """使规则组的缓存失效（包括门店/科室级缓存）。"""
+        try:
+            # 查询规则组本身，获取 store_id 和 department_id
+            rule_set_result = await self.db.execute(
+                select(RuleSet.store_id, RuleSet.department_id).where(
+                    RuleSet.id == rule_set_id
+                )
+            )
+            rule_set_info = rule_set_result.first()
+            if not rule_set_info:
+                return
+
+            store_id, department_id = rule_set_info
+
+            # 查询规则组关联的 shift_type_ids
+            result = await self.db.execute(
+                select(RuleSetShiftType.shift_type_id).where(
+                    RuleSetShiftType.rule_set_id == rule_set_id
+                )
+            )
+            shift_type_ids = [row[0] for row in result.all()]
+            tenant_id = get_current_tenant_id()
+
+            # 使用 v2 方法失效所有相关缓存
+            await self.rule_cache.invalidate_v2(
+                tenant_id,
+                shift_type_ids,
+                store_ids=[store_id] if store_id else None,
+                department_ids=[department_id] if department_id else None,
+            )
+        except Exception:
+            # 缓存失效失败不应阻塞主流程
+            pass
     async def _get_rule_set_with_tenant(self, rule_set_id: str):
         """根据 ID 查询规则组，同时过滤租户和软删除（与 service_query.get_by_id 保持一致）。"""
         conditions = [RuleSet.id == rule_set_id, RuleSet.deleted_at.is_(None)]
@@ -58,6 +111,8 @@ class RuleSetMutationMixin:
             clock_skew_tolerance_sec=data.clock_skew_tolerance_sec,
             description=data.description,
             tenant_id=get_current_tenant_id(),
+            store_id=data.store_id,
+            department_id=data.department_id,
         )
         set_create_audit(rule_set, operator_id)
         self.db.add(rule_set)
@@ -130,6 +185,7 @@ class RuleSetMutationMixin:
             self.db.add(capacity_policy)
 
         await self.db.flush()
+        snapshot_after = await snapshot_rule_set(self.db, rule_set.id)
         self.db.add(
             make_rule_set_audit(
                 rule_set_id=rule_set.id,
@@ -137,11 +193,16 @@ class RuleSetMutationMixin:
                 resource_type="rule_set",
                 resource_id=rule_set.id,
                 operator_id=operator_id,
-                snapshot_after=await snapshot_rule_set(self.db, rule_set.id),
+                snapshot_after=snapshot_after,
+                changes=json.dumps({"created": True}, ensure_ascii=False),
             )
         )
 
         await self.db.commit()
+
+        # 缓存失效
+        await self._invalidate_rule_set_cache(rule_set.id)
+
         return await self.get_by_id(rule_set.id)
 
     async def update(
@@ -180,6 +241,10 @@ class RuleSetMutationMixin:
             rule_set.rounding_mode = data.rounding_mode
         if data.clock_skew_tolerance_sec is not None:
             rule_set.clock_skew_tolerance_sec = data.clock_skew_tolerance_sec
+        if data.store_id is not None:
+            rule_set.store_id = data.store_id
+        if data.department_id is not None:
+            rule_set.department_id = data.department_id
 
         set_update_audit(rule_set, operator_id)
 
@@ -228,6 +293,9 @@ class RuleSetMutationMixin:
             await self._upsert_capacity_policy(rule_set.id, data.capacity_policy, operator_id)
 
         await self.db.flush()
+        snapshot_after = await snapshot_rule_set(self.db, rule_set.id)
+        diff = compute_rule_set_diff(snapshot_before, snapshot_after)
+        changes_json = json.dumps(diff, ensure_ascii=False) if diff else None
         self.db.add(
             make_rule_set_audit(
                 rule_set_id=rule_set.id,
@@ -236,11 +304,16 @@ class RuleSetMutationMixin:
                 resource_id=rule_set.id,
                 operator_id=operator_id,
                 snapshot_before=snapshot_before,
-                snapshot_after=await snapshot_rule_set(self.db, rule_set.id),
+                snapshot_after=snapshot_after,
+                changes=changes_json,
             )
         )
 
         await self.db.commit()
+
+        # 缓存失效（包括 shift_type_ids 变更的情况）
+        await self._invalidate_rule_set_cache(rule_set_id)
+
         return await self.get_by_id(rule_set_id)
 
     async def _upsert_booking_policy(
@@ -374,6 +447,7 @@ class RuleSetMutationMixin:
                 parts.append(f"{appointment_count} 个预约")
             raise ValueError(f"该规则组已被{'、'.join(parts)}引用，无法删除。请先禁用规则组。")
 
+        snapshot_before = await snapshot_rule_set(self.db, rule_set.id)
         self.db.add(
             make_rule_set_audit(
                 rule_set_id=rule_set.id,
@@ -381,7 +455,8 @@ class RuleSetMutationMixin:
                 resource_type="rule_set",
                 resource_id=rule_set.id,
                 operator_id=operator_id,
-                snapshot_before=await snapshot_rule_set(self.db, rule_set.id),
+                snapshot_before=snapshot_before,
+                changes=json.dumps({"deleted": True}, ensure_ascii=False),
             )
         )
 
@@ -401,6 +476,9 @@ class RuleSetMutationMixin:
         set_update_audit(rule_set, operator_id)
 
         await self.db.flush()
+        snapshot_after = await snapshot_rule_set(self.db, rule_set.id)
+        diff = compute_rule_set_diff(snapshot_before, snapshot_after)
+        changes_json = json.dumps(diff, ensure_ascii=False) if diff else None
         self.db.add(
             make_rule_set_audit(
                 rule_set_id=rule_set.id,
@@ -409,7 +487,8 @@ class RuleSetMutationMixin:
                 resource_id=rule_set.id,
                 operator_id=operator_id,
                 snapshot_before=snapshot_before,
-                snapshot_after=await snapshot_rule_set(self.db, rule_set.id),
+                snapshot_after=snapshot_after,
+                changes=changes_json,
             )
         )
 
@@ -426,6 +505,9 @@ class RuleSetMutationMixin:
         set_update_audit(rule_set, operator_id)
 
         await self.db.flush()
+        snapshot_after = await snapshot_rule_set(self.db, rule_set.id)
+        diff = compute_rule_set_diff(snapshot_before, snapshot_after)
+        changes_json = json.dumps(diff, ensure_ascii=False) if diff else None
         self.db.add(
             make_rule_set_audit(
                 rule_set_id=rule_set.id,
@@ -434,7 +516,8 @@ class RuleSetMutationMixin:
                 resource_id=rule_set.id,
                 operator_id=operator_id,
                 snapshot_before=snapshot_before,
-                snapshot_after=await snapshot_rule_set(self.db, rule_set.id),
+                snapshot_after=snapshot_after,
+                changes=changes_json,
             )
         )
 

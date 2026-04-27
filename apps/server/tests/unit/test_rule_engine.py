@@ -10,7 +10,7 @@
 import pytest
 from datetime import datetime, date, time, timedelta
 from uuid import uuid4
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from sqlalchemy import select
 
@@ -2013,3 +2013,1019 @@ class TestCheckCapacityLimits:
 
         # 验证结果：应该允许（无容量限制）
         assert result["allowed"] is True
+
+
+# ==================== 测试参考时间计算 ====================
+
+class TestGetReferenceTime:
+    """测试参考时间计算"""
+
+    def test_reference_time_shift_start_with_start_at(self):
+        """测试 SHIFT_START + start_at 有值 → 返回 start_at"""
+        import pytz
+        from app.modules.rule_engine.time_windows import RuleEngineTimeWindowMixin
+
+        mixin = RuleEngineTimeWindowMixin()
+        tz = pytz.timezone('Asia/Shanghai')
+        schedule_date = date.today() + timedelta(days=1)
+        start_at = tz.localize(datetime.combine(schedule_date, time(8, 0)))
+
+        schedule = MagicMock()
+        schedule.start_at = start_at
+        schedule.start_time = time(8, 0)
+        schedule.schedule_date = schedule_date
+        schedule.end_at = None
+        schedule.end_time = None
+        schedule.timezone = 'Asia/Shanghai'
+
+        result = mixin._get_reference_time(schedule, "SHIFT_START", None)
+
+        assert result == start_at
+
+    def test_reference_time_shift_start_with_start_time(self):
+        """测试 SHIFT_START + 无 start_at 有 start_time → combine date + start_time"""
+        import pytz
+        from app.modules.rule_engine.time_windows import RuleEngineTimeWindowMixin
+
+        mixin = RuleEngineTimeWindowMixin()
+        tz = pytz.timezone('Asia/Shanghai')
+        schedule_date = date.today() + timedelta(days=1)
+
+        schedule = MagicMock()
+        schedule.start_at = None
+        schedule.start_time = time(8, 0)
+        schedule.schedule_date = schedule_date
+        schedule.end_at = None
+        schedule.end_time = None
+        schedule.timezone = 'Asia/Shanghai'
+
+        result = mixin._get_reference_time(schedule, "SHIFT_START", None)
+
+        expected = tz.localize(datetime.combine(schedule_date, time(8, 0)))
+        assert result == expected
+
+    def test_reference_time_shift_end_with_end_at(self):
+        """测试 SHIFT_END + end_at 有值 → 返回 end_at"""
+        import pytz
+        from app.modules.rule_engine.time_windows import RuleEngineTimeWindowMixin
+
+        mixin = RuleEngineTimeWindowMixin()
+        tz = pytz.timezone('Asia/Shanghai')
+        schedule_date = date.today() + timedelta(days=1)
+        end_at = tz.localize(datetime.combine(schedule_date, time(12, 0)))
+
+        schedule = MagicMock()
+        schedule.start_at = None
+        schedule.start_time = None
+        schedule.schedule_date = schedule_date
+        schedule.end_at = end_at
+        schedule.end_time = time(12, 0)
+        schedule.timezone = 'Asia/Shanghai'
+
+        result = mixin._get_reference_time(schedule, "SHIFT_END", None)
+
+        assert result == end_at
+
+    def test_reference_time_shift_end_with_end_time(self):
+        """测试 SHIFT_END + 无 end_at 有 end_time → combine date + end_time"""
+        import pytz
+        from app.modules.rule_engine.time_windows import RuleEngineTimeWindowMixin
+
+        mixin = RuleEngineTimeWindowMixin()
+        tz = pytz.timezone('Asia/Shanghai')
+        schedule_date = date.today() + timedelta(days=1)
+
+        schedule = MagicMock()
+        schedule.start_at = None
+        schedule.start_time = None
+        schedule.schedule_date = schedule_date
+        schedule.end_at = None
+        schedule.end_time = time(12, 0)
+        schedule.timezone = 'Asia/Shanghai'
+
+        result = mixin._get_reference_time(schedule, "SHIFT_END", None)
+
+        expected = tz.localize(datetime.combine(schedule_date, time(12, 0)))
+        assert result == expected
+
+    def test_reference_time_booking_created_at_with_value(self):
+        """测试 BOOKING_CREATED_AT + 有值 → 直接返回"""
+        import pytz
+        from app.modules.rule_engine.time_windows import RuleEngineTimeWindowMixin
+
+        mixin = RuleEngineTimeWindowMixin()
+        tz = pytz.timezone('Asia/Shanghai')
+        booking_created_at = tz.localize(datetime.now())
+
+        schedule = MagicMock()
+        schedule.start_at = None
+        schedule.start_time = None
+        schedule.schedule_date = date.today()
+        schedule.end_at = None
+        schedule.end_time = None
+        schedule.timezone = 'Asia/Shanghai'
+
+        result = mixin._get_reference_time(schedule, "BOOKING_CREATED_AT", booking_created_at)
+
+        assert result == booking_created_at
+
+    def test_reference_time_booking_created_at_no_value(self):
+        """测试 BOOKING_CREATED_AT + 无值 → 回退到 now"""
+        import pytz
+        from app.modules.rule_engine.time_windows import RuleEngineTimeWindowMixin
+
+        mixin = RuleEngineTimeWindowMixin()
+        tz = pytz.timezone('Asia/Shanghai')
+
+        schedule = MagicMock()
+        schedule.start_at = None
+        schedule.start_time = None
+        schedule.schedule_date = date.today()
+        schedule.end_at = None
+        schedule.end_time = None
+        schedule.timezone = 'Asia/Shanghai'
+
+        result = mixin._get_reference_time(schedule, "BOOKING_CREATED_AT", None)
+
+        # 结果应该是 Asia/Shanghai 时区的当前时间
+        assert result.tzinfo.zone == 'Asia/Shanghai'
+        # 允许 1 秒误差
+        assert abs((datetime.now(tz) - result).total_seconds()) < 1
+
+    def test_reference_time_default_fallback(self):
+        """测试默认回退 → 回退到 start_at 或 now"""
+        import pytz
+        from app.modules.rule_engine.time_windows import RuleEngineTimeWindowMixin
+
+        mixin = RuleEngineTimeWindowMixin()
+        tz = pytz.timezone('Asia/Shanghai')
+        schedule_date = date.today() + timedelta(days=1)
+        start_at = tz.localize(datetime.combine(schedule_date, time(8, 0)))
+
+        schedule = MagicMock()
+        schedule.start_at = start_at
+        schedule.start_time = time(8, 0)
+        schedule.schedule_date = schedule_date
+        schedule.end_at = None
+        schedule.end_time = None
+        schedule.timezone = 'Asia/Shanghai'
+
+        # 使用未知的 reference_point
+        result = mixin._get_reference_time(schedule, "UNKNOWN_POINT", None)
+
+        # 应该回退到 start_at
+        assert result == start_at
+
+
+# ==================== 测试时间窗口边界判断 ====================
+
+class TestIsInWindow:
+    """测试时间窗口边界判断"""
+
+    def test_is_in_window_open_inclusive_true_at_boundary(self):
+        """测试 current_time 恰好等于 open_at，open_inclusive=True → True"""
+        import pytz
+        from app.modules.rule_engine.time_windows import RuleEngineTimeWindowMixin
+
+        mixin = RuleEngineTimeWindowMixin()
+        tz = pytz.timezone('Asia/Shanghai')
+        base_time = tz.localize(datetime(2026, 4, 27, 10, 0, 0))
+
+        result = mixin._is_in_window(
+            current_time=base_time,
+            open_at=base_time,
+            close_at=tz.localize(datetime(2026, 4, 27, 12, 0, 0)),
+            open_inclusive=True,
+            close_inclusive=False
+        )
+
+        assert result is True
+
+    def test_is_in_window_open_inclusive_false_at_boundary(self):
+        """测试 current_time 恰好等于 open_at，open_inclusive=False → False"""
+        import pytz
+        from app.modules.rule_engine.time_windows import RuleEngineTimeWindowMixin
+
+        mixin = RuleEngineTimeWindowMixin()
+        tz = pytz.timezone('Asia/Shanghai')
+        base_time = tz.localize(datetime(2026, 4, 27, 10, 0, 0))
+
+        result = mixin._is_in_window(
+            current_time=base_time,
+            open_at=base_time,
+            close_at=tz.localize(datetime(2026, 4, 27, 12, 0, 0)),
+            open_inclusive=False,
+            close_inclusive=False
+        )
+
+        assert result is False
+
+    def test_is_in_window_close_inclusive_true_at_boundary(self):
+        """测试 current_time 恰好等于 close_at，close_inclusive=True → True"""
+        import pytz
+        from app.modules.rule_engine.time_windows import RuleEngineTimeWindowMixin
+
+        mixin = RuleEngineTimeWindowMixin()
+        tz = pytz.timezone('Asia/Shanghai')
+        base_time = tz.localize(datetime(2026, 4, 27, 12, 0, 0))
+
+        result = mixin._is_in_window(
+            current_time=base_time,
+            open_at=tz.localize(datetime(2026, 4, 27, 10, 0, 0)),
+            close_at=base_time,
+            open_inclusive=True,
+            close_inclusive=True
+        )
+
+        assert result is True
+
+    def test_is_in_window_close_inclusive_false_at_boundary(self):
+        """测试 current_time 恰好等于 close_at，close_inclusive=False → False"""
+        import pytz
+        from app.modules.rule_engine.time_windows import RuleEngineTimeWindowMixin
+
+        mixin = RuleEngineTimeWindowMixin()
+        tz = pytz.timezone('Asia/Shanghai')
+        base_time = tz.localize(datetime(2026, 4, 27, 12, 0, 0))
+
+        result = mixin._is_in_window(
+            current_time=base_time,
+            open_at=tz.localize(datetime(2026, 4, 27, 10, 0, 0)),
+            close_at=base_time,
+            open_inclusive=True,
+            close_inclusive=False
+        )
+
+        assert result is False
+
+    def test_is_in_window_in_middle(self):
+        """测试 current_time 在窗口中间 → True"""
+        import pytz
+        from app.modules.rule_engine.time_windows import RuleEngineTimeWindowMixin
+
+        mixin = RuleEngineTimeWindowMixin()
+        tz = pytz.timezone('Asia/Shanghai')
+
+        result = mixin._is_in_window(
+            current_time=tz.localize(datetime(2026, 4, 27, 11, 0, 0)),
+            open_at=tz.localize(datetime(2026, 4, 27, 10, 0, 0)),
+            close_at=tz.localize(datetime(2026, 4, 27, 12, 0, 0)),
+            open_inclusive=True,
+            close_inclusive=True
+        )
+
+        assert result is True
+
+    def test_is_in_window_before_open(self):
+        """测试 current_time 远早于 open_at → False"""
+        import pytz
+        from app.modules.rule_engine.time_windows import RuleEngineTimeWindowMixin
+
+        mixin = RuleEngineTimeWindowMixin()
+        tz = pytz.timezone('Asia/Shanghai')
+
+        result = mixin._is_in_window(
+            current_time=tz.localize(datetime(2026, 4, 27, 8, 0, 0)),
+            open_at=tz.localize(datetime(2026, 4, 27, 10, 0, 0)),
+            close_at=tz.localize(datetime(2026, 4, 27, 12, 0, 0)),
+            open_inclusive=True,
+            close_inclusive=True
+        )
+
+        assert result is False
+
+    def test_is_in_window_after_close(self):
+        """测试 current_time 远晚于 close_at → False"""
+        import pytz
+        from app.modules.rule_engine.time_windows import RuleEngineTimeWindowMixin
+
+        mixin = RuleEngineTimeWindowMixin()
+        tz = pytz.timezone('Asia/Shanghai')
+
+        result = mixin._is_in_window(
+            current_time=tz.localize(datetime(2026, 4, 27, 14, 0, 0)),
+            open_at=tz.localize(datetime(2026, 4, 27, 10, 0, 0)),
+            close_at=tz.localize(datetime(2026, 4, 27, 12, 0, 0)),
+            open_inclusive=True,
+            close_inclusive=True
+        )
+
+        assert result is False
+
+
+# ==================== 测试时间窗集成测试 ====================
+
+class TestCheckActionWindowIntegration:
+    """测试时间窗集成测试"""
+
+    @pytest.mark.asyncio
+    async def test_check_action_window_no_shift_type_id(self, db_session):
+        """测试无 shift_type_id → 返回默认允许"""
+        from app.modules.rule_engine import RuleEngineService
+
+        schedule = MagicMock()
+        schedule.shift_type_id = None
+        schedule.start_at = None
+        schedule.start_time = time(8, 0)
+        schedule.schedule_date = date.today() + timedelta(days=1)
+        schedule.timezone = 'Asia/Shanghai'
+
+        service = RuleEngineService(db_session)
+        result = await service.check_action_window(schedule, "BOOK")
+
+        assert result["allowed"] is True
+        assert result["fail_policy"] == "ALLOW"
+        assert result["message"] == "使用默认配置"
+
+    @pytest.mark.asyncio
+    async def test_check_action_window_no_matching_rule_set(self, db_session):
+        """测试有 shift_type_id 但无匹配规则组 → 返回默认允许"""
+        from app.modules.rule_engine import RuleEngineService
+        from app.modules.rule_engine.cache import RuleCache
+
+        shift_type_id = str(uuid4())
+
+        schedule = MagicMock()
+        schedule.shift_type_id = shift_type_id
+        schedule.start_at = None
+        schedule.start_time = time(8, 0)
+        schedule.schedule_date = date.today() + timedelta(days=1)
+        schedule.timezone = 'Asia/Shanghai'
+        schedule.store_id = None
+        schedule.department_id = None
+
+        # Mock rule_cache 返回空列表
+        mock_rule_cache = AsyncMock(spec=RuleCache)
+        mock_rule_cache.get_rule_sets_v2.return_value = None  # 缓存未命中
+
+        service = RuleEngineService(db_session)
+        service._rule_cache = mock_rule_cache
+
+        # 设置租户上下文
+        from app.middleware.tenant_context import set_tenant_context
+        set_tenant_context("test_tenant_id")
+
+        result = await service.check_action_window(schedule, "BOOK")
+
+        assert result["allowed"] is True
+        assert result["fail_policy"] == "ALLOW"
+        assert result["message"] == "使用默认配置"
+
+    @pytest.mark.asyncio
+    async def test_check_action_window_no_time_windows(self, db_session):
+        """测试有规则组但无时间窗 → 返回默认允许"""
+        from app.modules.rule_engine import RuleEngineService
+        from app.modules.rule_engine.cache import RuleCache
+
+        # 创建班次类型
+        shift_type = create_shift_type()
+        db_session.add(shift_type)
+
+        # 创建规则组
+        rule_set = create_rule_set()
+        db_session.add(rule_set)
+
+        # 关联规则组和班次类型
+        association = RuleSetShiftType(
+            rule_set_id=rule_set.id,
+            shift_type_id=shift_type.id
+        )
+        db_session.add(association)
+        await db_session.commit()
+
+        schedule = MagicMock()
+        schedule.shift_type_id = shift_type.id
+        schedule.start_at = None
+        schedule.start_time = time(8, 0)
+        schedule.schedule_date = date.today() + timedelta(days=1)
+        schedule.timezone = 'Asia/Shanghai'
+        schedule.store_id = None
+        schedule.department_id = None
+
+        # Mock rule_cache 返回空列表
+        mock_rule_cache = AsyncMock(spec=RuleCache)
+        mock_rule_cache.get_rule_sets_v2.return_value = None  # 缓存未命中
+
+        service = RuleEngineService(db_session)
+        service._rule_cache = mock_rule_cache
+
+        # 设置租户上下文
+        from app.middleware.tenant_context import set_tenant_context
+        set_tenant_context("test_tenant_id")
+
+        result = await service.check_action_window(schedule, "BOOK")
+
+        assert result["allowed"] is True
+        assert result["fail_policy"] == "ALLOW"
+        assert result["message"] == "使用默认配置"
+
+    @pytest.mark.asyncio
+    async def test_check_action_window_single_window_match(self, db_session):
+        """测试单个时间窗匹配 → allowed=True"""
+        import pytz
+        from app.modules.rule_engine import RuleEngineService
+        from app.modules.rule_engine.cache import RuleCache
+
+        # 创建班次类型
+        shift_type = create_shift_type()
+        db_session.add(shift_type)
+
+        # 创建规则组
+        rule_set = create_rule_set()
+        db_session.add(rule_set)
+
+        # 关联规则组和班次类型
+        association = RuleSetShiftType(
+            rule_set_id=rule_set.id,
+            shift_type_id=shift_type.id
+        )
+        db_session.add(association)
+
+        # 创建时间窗
+        window = create_rule_window(
+            rule_set_id=rule_set.id,
+            action="BOOK",
+            reference_point="SHIFT_START",
+            open_offset_sec=-86400,  # 前1天
+            close_offset_sec=-3600,  # 前1小时
+        )
+        db_session.add(window)
+        await db_session.commit()
+
+        # 创建排班
+        tz = pytz.timezone('Asia/Shanghai')
+        tomorrow = date.today() + timedelta(days=1)
+        schedule_start = tz.localize(datetime.combine(tomorrow, time(8, 0)))
+
+        schedule = MagicMock()
+        schedule.shift_type_id = shift_type.id
+        schedule.start_at = schedule_start
+        schedule.start_time = time(8, 0)
+        schedule.schedule_date = tomorrow
+        schedule.timezone = 'Asia/Shanghai'
+        schedule.store_id = None
+        schedule.department_id = None
+
+        # Mock rule_cache 返回空列表
+        mock_rule_cache = AsyncMock(spec=RuleCache)
+        mock_rule_cache.get_rule_sets_v2.return_value = None  # 缓存未命中
+
+        service = RuleEngineService(db_session)
+        service._rule_cache = mock_rule_cache
+
+        # 设置租户上下文
+        from app.middleware.tenant_context import set_tenant_context
+        set_tenant_context("test_tenant_id")
+
+        current_time = schedule_start - timedelta(hours=12)  # 在窗口内
+        result = await service.check_action_window(schedule, "BOOK", current_time)
+
+        assert result["allowed"] is True
+        assert result["fail_policy"] == "ALLOW"
+        assert result["message"] == "操作允许"
+
+    @pytest.mark.asyncio
+    async def test_check_action_window_single_window_no_match(self, db_session):
+        """测试单个时间窗不匹配 → allowed=False + fail_policy"""
+        import pytz
+        from app.modules.rule_engine import RuleEngineService
+        from app.modules.rule_engine.cache import RuleCache
+
+        # 创建班次类型
+        shift_type = create_shift_type()
+        db_session.add(shift_type)
+
+        # 创建规则组
+        rule_set = create_rule_set()
+        db_session.add(rule_set)
+
+        # 关联规则组和班次类型
+        association = RuleSetShiftType(
+            rule_set_id=rule_set.id,
+            shift_type_id=shift_type.id
+        )
+        db_session.add(association)
+
+        # 创建时间窗
+        window = create_rule_window(
+            rule_set_id=rule_set.id,
+            action="BOOK",
+            reference_point="SHIFT_START",
+            open_offset_sec=-86400,  # 前1天
+            close_offset_sec=-3600,  # 前1小时
+            fail_policy="REJECT",
+        )
+        db_session.add(window)
+        await db_session.commit()
+
+        # 创建排班
+        tz = pytz.timezone('Asia/Shanghai')
+        tomorrow = date.today() + timedelta(days=1)
+        schedule_start = tz.localize(datetime.combine(tomorrow, time(8, 0)))
+
+        schedule = MagicMock()
+        schedule.shift_type_id = shift_type.id
+        schedule.start_at = schedule_start
+        schedule.start_time = time(8, 0)
+        schedule.schedule_date = tomorrow
+        schedule.timezone = 'Asia/Shanghai'
+        schedule.store_id = None
+        schedule.department_id = None
+
+        # Mock rule_cache 返回空列表
+        mock_rule_cache = AsyncMock(spec=RuleCache)
+        mock_rule_cache.get_rule_sets_v2.return_value = None  # 缓存未命中
+
+        service = RuleEngineService(db_session)
+        service._rule_cache = mock_rule_cache
+
+        # 设置租户上下文
+        from app.middleware.tenant_context import set_tenant_context
+        set_tenant_context("test_tenant_id")
+
+        current_time = schedule_start - timedelta(minutes=30)  # 在窗口外（已过截止时间）
+        result = await service.check_action_window(schedule, "BOOK", current_time)
+
+        assert result["allowed"] is False
+        assert result["fail_policy"] == "REJECT"
+        assert result["message"] is not None
+
+    @pytest.mark.asyncio
+    async def test_check_action_window_multiple_windows_and_logic_all_match(self, db_session):
+        """测试多个时间窗 AND 逻辑（全部匹配才允许）"""
+        import pytz
+        from app.modules.rule_engine import RuleEngineService
+        from app.modules.rule_engine.cache import RuleCache
+
+        # 创建班次类型
+        shift_type = create_shift_type()
+        db_session.add(shift_type)
+
+        # 创建规则组
+        rule_set = create_rule_set()
+        db_session.add(rule_set)
+
+        # 关联规则组和班次类型
+        association = RuleSetShiftType(
+            rule_set_id=rule_set.id,
+            shift_type_id=shift_type.id
+        )
+        db_session.add(association)
+
+        # 创建两个时间窗
+        window1 = create_rule_window(
+            rule_set_id=rule_set.id,
+            action="BOOK",
+            reference_point="SHIFT_START",
+            open_offset_sec=-86400,  # 前1天
+            close_offset_sec=-3600,  # 前1小时
+        )
+        window2 = create_rule_window(
+            rule_set_id=rule_set.id,
+            action="BOOK",
+            reference_point="SHIFT_END",
+            open_offset_sec=-2 * 86400,  # 班次结束前2天
+            close_offset_sec=-7200,  # 班次结束前2小时
+        )
+        db_session.add_all([window1, window2])
+        await db_session.commit()
+
+        # 创建排班
+        tz = pytz.timezone('Asia/Shanghai')
+        tomorrow = date.today() + timedelta(days=1)
+        schedule_start = tz.localize(datetime.combine(tomorrow, time(8, 0)))
+        schedule_end = tz.localize(datetime.combine(tomorrow, time(12, 0)))
+
+        schedule = MagicMock()
+        schedule.shift_type_id = shift_type.id
+        schedule.start_at = schedule_start
+        schedule.end_at = schedule_end
+        schedule.start_time = time(8, 0)
+        schedule.end_time = time(12, 0)
+        schedule.schedule_date = tomorrow
+        schedule.timezone = 'Asia/Shanghai'
+        schedule.store_id = None
+        schedule.department_id = None
+
+        # Mock rule_cache 返回空列表
+        mock_rule_cache = AsyncMock(spec=RuleCache)
+        mock_rule_cache.get_rule_sets_v2.return_value = None  # 缓存未命中
+
+        service = RuleEngineService(db_session)
+        service._rule_cache = mock_rule_cache
+
+        # 设置租户上下文
+        from app.middleware.tenant_context import set_tenant_context
+        set_tenant_context("test_tenant_id")
+
+        current_time = schedule_start - timedelta(hours=12)  # 两个窗口都满足
+        result = await service.check_action_window(schedule, "BOOK", current_time)
+
+        assert result["allowed"] is True
+        assert result["fail_policy"] == "ALLOW"
+
+
+# ==================== 测试消息生成 ====================
+
+class TestGenerateWindowMessage:
+    """测试消息生成"""
+
+    def test_generate_message_allowed_true(self):
+        """测试 allowed=True → "操作允许\""""
+        import pytz
+        from app.modules.rule_engine.time_windows import RuleEngineTimeWindowMixin
+
+        mixin = RuleEngineTimeWindowMixin()
+        tz = pytz.timezone('Asia/Shanghai')
+        open_at = tz.localize(datetime(2026, 4, 27, 10, 0, 0))
+        close_at = tz.localize(datetime(2026, 4, 27, 12, 0, 0))
+
+        result = mixin._generate_window_message(
+            allowed=True,
+            open_at=open_at,
+            close_at=close_at,
+            action="BOOK",
+            fail_policy="ALLOW"
+        )
+
+        assert result == "操作允许"
+
+    def test_generate_message_before_open(self):
+        """测试 allowed=False + current < open → 包含"未开放\""""
+        import pytz
+        from app.modules.rule_engine.time_windows import RuleEngineTimeWindowMixin
+
+        mixin = RuleEngineTimeWindowMixin()
+        tz = pytz.timezone('Asia/Shanghai')
+        open_at = tz.localize(datetime(2026, 4, 27, 10, 0, 0))
+        close_at = tz.localize(datetime(2026, 4, 27, 12, 0, 0))
+
+        # Mock datetime.now 返回早于 open_at 的时间
+        with patch('app.modules.rule_engine.time_windows.datetime') as mock_datetime:
+            mock_datetime.now.return_value = tz.localize(datetime(2026, 4, 27, 9, 0, 0))
+
+            result = mixin._generate_window_message(
+                allowed=False,
+                open_at=open_at,
+                close_at=close_at,
+                action="BOOK",
+                fail_policy="REJECT"
+            )
+
+            assert "未开放" in result or "开放时间" in result
+
+    def test_generate_message_after_close(self):
+        """测试 allowed=False + current > close → 包含"已截止\""""
+        import pytz
+        from app.modules.rule_engine.time_windows import RuleEngineTimeWindowMixin
+
+        mixin = RuleEngineTimeWindowMixin()
+        tz = pytz.timezone('Asia/Shanghai')
+        open_at = tz.localize(datetime(2026, 4, 27, 10, 0, 0))
+        close_at = tz.localize(datetime(2026, 4, 27, 12, 0, 0))
+
+        # Mock datetime.now 返回晚于 close_at 的时间
+        with patch('app.modules.rule_engine.time_windows.datetime') as mock_datetime:
+            mock_datetime.now.return_value = tz.localize(datetime(2026, 4, 27, 13, 0, 0))
+
+            result = mixin._generate_window_message(
+                allowed=False,
+                open_at=open_at,
+                close_at=close_at,
+                action="BOOK",
+                fail_policy="REJECT"
+            )
+
+            assert "已截止" in result or "截止时间" in result
+
+    def test_generate_message_action_book(self):
+        """测试 action 映射：BOOK→预约"""
+        import pytz
+        from app.modules.rule_engine.time_windows import RuleEngineTimeWindowMixin
+
+        mixin = RuleEngineTimeWindowMixin()
+        tz = pytz.timezone('Asia/Shanghai')
+        open_at = tz.localize(datetime(2026, 4, 27, 10, 0, 0))
+        close_at = tz.localize(datetime(2026, 4, 27, 12, 0, 0))
+
+        # Mock datetime.now 返回早于 open_at 的时间
+        with patch('app.modules.rule_engine.time_windows.datetime') as mock_datetime:
+            mock_datetime.now.return_value = tz.localize(datetime(2026, 4, 27, 9, 0, 0))
+
+            result = mixin._generate_window_message(
+                allowed=False,
+                open_at=open_at,
+                close_at=close_at,
+                action="BOOK",
+                fail_policy="REJECT"
+            )
+
+            assert "预约" in result
+
+    def test_generate_message_action_checkin(self):
+        """测试 action 映射：CHECKIN→签到"""
+        import pytz
+        from app.modules.rule_engine.time_windows import RuleEngineTimeWindowMixin
+
+        mixin = RuleEngineTimeWindowMixin()
+        tz = pytz.timezone('Asia/Shanghai')
+        open_at = tz.localize(datetime(2026, 4, 27, 10, 0, 0))
+        close_at = tz.localize(datetime(2026, 4, 27, 12, 0, 0))
+
+        # Mock datetime.now 返回早于 open_at 的时间
+        with patch('app.modules.rule_engine.time_windows.datetime') as mock_datetime:
+            mock_datetime.now.return_value = tz.localize(datetime(2026, 4, 27, 9, 0, 0))
+
+            result = mixin._generate_window_message(
+                allowed=False,
+                open_at=open_at,
+                close_at=close_at,
+                action="CHECKIN",
+                fail_policy="REJECT"
+            )
+
+            assert "签到" in result
+
+    def test_generate_message_action_cancel(self):
+        """测试 action 映射：CANCEL→取消"""
+        import pytz
+        from app.modules.rule_engine.time_windows import RuleEngineTimeWindowMixin
+
+        mixin = RuleEngineTimeWindowMixin()
+        tz = pytz.timezone('Asia/Shanghai')
+        open_at = tz.localize(datetime(2026, 4, 27, 10, 0, 0))
+        close_at = tz.localize(datetime(2026, 4, 27, 12, 0, 0))
+
+        # Mock datetime.now 返回早于 open_at 的时间
+        with patch('app.modules.rule_engine.time_windows.datetime') as mock_datetime:
+            mock_datetime.now.return_value = tz.localize(datetime(2026, 4, 27, 9, 0, 0))
+
+            result = mixin._generate_window_message(
+                allowed=False,
+                open_at=open_at,
+                close_at=close_at,
+                action="CANCEL",
+                fail_policy="REJECT"
+            )
+
+            assert "取消" in result
+
+
+# ==================== 测试默认窗口 ====================
+
+class TestGetDefaultWindowResult:
+    """测试默认窗口"""
+
+    def test_default_window_result(self):
+        """测试返回默认窗口结果"""
+        import pytz
+        from app.modules.rule_engine.time_windows import RuleEngineTimeWindowMixin
+
+        mixin = RuleEngineTimeWindowMixin()
+        tz = pytz.timezone('Asia/Shanghai')
+        current_time = tz.localize(datetime(2026, 4, 27, 10, 0, 0))
+
+        schedule = MagicMock()
+
+        result = mixin._get_default_window_result(schedule, "BOOK", current_time)
+
+        assert result["allowed"] is True
+        assert result["close_at"] == current_time + timedelta(days=365)
+        assert result["fail_policy"] == "ALLOW"
+        assert result["message"] == "使用默认配置"
+
+
+# ==================== 测试候选规则组查询 ====================
+
+class TestGetCandidateRuleSets:
+    """测试候选规则组查询"""
+
+    @pytest.mark.asyncio
+    async def test_get_candidate_rule_sets_returns_match(self, db_session):
+        """测试返回匹配的规则组列表"""
+        from app.modules.rule_engine import RuleEngineService
+        from app.modules.rule_engine.cache import RuleCache
+
+        # 创建班次类型
+        shift_type = create_shift_type()
+        db_session.add(shift_type)
+
+        # 创建多个规则组
+        rule_set1 = create_rule_set(name="规则组1", priority=50)
+        rule_set2 = create_rule_set(name="规则组2", priority=100)
+        db_session.add_all([rule_set1, rule_set2])
+
+        # 关联规则组和班次类型
+        association1 = RuleSetShiftType(
+            rule_set_id=rule_set1.id,
+            shift_type_id=shift_type.id
+        )
+        association2 = RuleSetShiftType(
+            rule_set_id=rule_set2.id,
+            shift_type_id=shift_type.id
+        )
+        db_session.add_all([association1, association2])
+        await db_session.commit()
+
+        # Mock rule_cache 和 tenant context
+        mock_rule_cache = AsyncMock(spec=RuleCache)
+        mock_rule_cache.get_rule_sets_v2.return_value = None  # 缓存未命中
+        mock_rule_cache.set_rule_sets_v2 = AsyncMock()
+
+        service = RuleEngineService(db_session)
+        service._rule_cache = mock_rule_cache
+
+        # 设置租户上下文
+        from app.middleware.tenant_context import set_tenant_context
+        set_tenant_context("test_tenant_id")
+
+        result = await service.get_candidate_rule_sets(shift_type.id)
+
+        assert len(result) == 2
+        assert any(rs.id == rule_set1.id for rs in result)
+        assert any(rs.id == rule_set2.id for rs in result)
+
+    @pytest.mark.asyncio
+    async def test_get_candidate_rule_sets_sorted_by_priority(self, db_session):
+        """测试按 priority 升序排序"""
+        from app.modules.rule_engine import RuleEngineService
+        from app.modules.rule_engine.cache import RuleCache
+
+        # 创建班次类型
+        shift_type = create_shift_type()
+        db_session.add(shift_type)
+
+        # 创建多个规则组（不同优先级）
+        rule_set_low = create_rule_set(name="低优先级", priority=100)
+        rule_set_high = create_rule_set(name="高优先级", priority=10)
+        rule_set_mid = create_rule_set(name="中优先级", priority=50)
+        db_session.add_all([rule_set_low, rule_set_high, rule_set_mid])
+
+        # 关联规则组和班次类型
+        for rs in [rule_set_low, rule_set_high, rule_set_mid]:
+            association = RuleSetShiftType(
+                rule_set_id=rs.id,
+                shift_type_id=shift_type.id
+            )
+            db_session.add(association)
+        await db_session.commit()
+
+        # Mock rule_cache 和 tenant context
+        mock_rule_cache = AsyncMock(spec=RuleCache)
+        mock_rule_cache.get_rule_sets_v2.return_value = None  # 缓存未命中
+        mock_rule_cache.set_rule_sets_v2 = AsyncMock()
+
+        service = RuleEngineService(db_session)
+        service._rule_cache = mock_rule_cache
+
+        # 设置租户上下文
+        from app.middleware.tenant_context import set_tenant_context
+        set_tenant_context("test_tenant_id")
+
+        result = await service.get_candidate_rule_sets(shift_type.id)
+
+        # 验证排序：priority 升序
+        assert len(result) == 3
+        assert result[0].id == rule_set_high.id
+        assert result[1].id == rule_set_mid.id
+        assert result[2].id == rule_set_low.id
+
+    @pytest.mark.asyncio
+    async def test_get_candidate_rule_sets_filters_deleted_at(self, db_session):
+        """测试过滤 deleted_at"""
+        from app.modules.rule_engine import RuleEngineService
+        from app.modules.rule_engine.cache import RuleCache
+        from datetime import datetime
+
+        # 创建班次类型
+        shift_type = create_shift_type()
+        db_session.add(shift_type)
+
+        # 创建规则组（一个已删除）
+        rule_set_active = create_rule_set(name="活动规则组", priority=100)
+        rule_set_deleted = create_rule_set(name="已删除规则组", priority=50)
+        rule_set_deleted.deleted_at = datetime.now()
+        db_session.add_all([rule_set_active, rule_set_deleted])
+
+        # 关联规则组和班次类型
+        association1 = RuleSetShiftType(
+            rule_set_id=rule_set_active.id,
+            shift_type_id=shift_type.id
+        )
+        association2 = RuleSetShiftType(
+            rule_set_id=rule_set_deleted.id,
+            shift_type_id=shift_type.id
+        )
+        db_session.add_all([association1, association2])
+        await db_session.commit()
+
+        # Mock rule_cache 和 tenant context
+        mock_rule_cache = AsyncMock(spec=RuleCache)
+        mock_rule_cache.get_rule_sets_v2.return_value = None  # 缓存未命中
+        mock_rule_cache.set_rule_sets_v2 = AsyncMock()
+
+        service = RuleEngineService(db_session)
+        service._rule_cache = mock_rule_cache
+
+        # 设置租户上下文
+        from app.middleware.tenant_context import set_tenant_context
+        set_tenant_context("test_tenant_id")
+
+        result = await service.get_candidate_rule_sets(shift_type.id)
+
+        # 应该只返回未删除的规则组
+        assert len(result) == 1
+        assert result[0].id == rule_set_active.id
+
+    @pytest.mark.asyncio
+    async def test_get_candidate_rule_sets_filters_disabled(self, db_session):
+        """测试过滤 disabled"""
+        from app.modules.rule_engine import RuleEngineService
+        from app.modules.rule_engine.cache import RuleCache
+
+        # 创建班次类型
+        shift_type = create_shift_type()
+        db_session.add(shift_type)
+
+        # 创建规则组（一个禁用）
+        rule_set_enabled = create_rule_set(name="启用规则组", priority=100, enabled=True)
+        rule_set_disabled = create_rule_set(name="禁用规则组", priority=50, enabled=False)
+        db_session.add_all([rule_set_enabled, rule_set_disabled])
+
+        # 关联规则组和班次类型
+        association1 = RuleSetShiftType(
+            rule_set_id=rule_set_enabled.id,
+            shift_type_id=shift_type.id
+        )
+        association2 = RuleSetShiftType(
+            rule_set_id=rule_set_disabled.id,
+            shift_type_id=shift_type.id
+        )
+        db_session.add_all([association1, association2])
+        await db_session.commit()
+
+        # Mock rule_cache 和 tenant context
+        mock_rule_cache = AsyncMock(spec=RuleCache)
+        mock_rule_cache.get_rule_sets_v2.return_value = None  # 缓存未命中
+        mock_rule_cache.set_rule_sets_v2 = AsyncMock()
+
+        service = RuleEngineService(db_session)
+        service._rule_cache = mock_rule_cache
+
+        # 设置租户上下文
+        from app.middleware.tenant_context import set_tenant_context
+        set_tenant_context("test_tenant_id")
+
+        result = await service.get_candidate_rule_sets(shift_type.id)
+
+        # 应该只返回启用的规则组
+        assert len(result) == 1
+        assert result[0].id == rule_set_enabled.id
+
+    @pytest.mark.asyncio
+    async def test_get_candidate_rule_sets_filters_disabled_shift_type(self, db_session):
+        """测试过滤禁用的班次类型"""
+        from app.modules.rule_engine import RuleEngineService
+        from app.modules.rule_engine.cache import RuleCache
+
+        # 创建禁用的班次类型
+        shift_type_disabled = create_shift_type(code="DISABLED", name="禁用班次", enabled=False)
+        shift_type_enabled = create_shift_type(code="ENABLED", name="启用班次", enabled=True)
+        db_session.add_all([shift_type_disabled, shift_type_enabled])
+
+        # 创建规则组
+        rule_set1 = create_rule_set(name="规则组1", priority=100)
+        rule_set2 = create_rule_set(name="规则组2", priority=50)
+        db_session.add_all([rule_set1, rule_set2])
+
+        # 关联规则组和班次类型
+        association1 = RuleSetShiftType(
+            rule_set_id=rule_set1.id,
+            shift_type_id=shift_type_disabled.id
+        )
+        association2 = RuleSetShiftType(
+            rule_set_id=rule_set2.id,
+            shift_type_id=shift_type_enabled.id
+        )
+        db_session.add_all([association1, association2])
+        await db_session.commit()
+
+        # Mock rule_cache 和 tenant context
+        mock_rule_cache = AsyncMock(spec=RuleCache)
+        mock_rule_cache.get_rule_sets_v2.return_value = None  # 缓存未命中
+        mock_rule_cache.set_rule_sets_v2 = AsyncMock()
+
+        service = RuleEngineService(db_session)
+        service._rule_cache = mock_rule_cache
+
+        # 设置租户上下文
+        from app.middleware.tenant_context import set_tenant_context
+        set_tenant_context("test_tenant_id")
+
+        # 查询禁用班次类型应返回空
+        result_disabled = await service.get_candidate_rule_sets(shift_type_disabled.id)
+        assert len(result_disabled) == 0
+
+        # 查询启用班次类型应返回规则组
+        result_enabled = await service.get_candidate_rule_sets(shift_type_enabled.id)
+        assert len(result_enabled) == 1

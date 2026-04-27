@@ -163,6 +163,9 @@ const RuleSetsPage: React.FC = () => {
     handleToggleEnabled,
     handleDelete,
     handleView: (record) => setSelectedRuleSet(record),
+    handleAudit: (record) => {
+      history.push(`/organization/medical-config/rule-sets/${record.id}/audit?name=${encodeURIComponent(record.name || '')}`);
+    },
     canSuperAdmin: access.canSuperAdmin,
   });
 

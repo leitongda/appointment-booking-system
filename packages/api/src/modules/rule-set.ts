@@ -12,6 +12,7 @@ import type {
   RulePreviewRequest,
   RulePreviewResponse,
   PageResult,
+  RuleSetAuditLog,
 } from '@hospital/shared';
 
 export type {
@@ -26,6 +27,7 @@ export type {
   RuleSetBrief,
   WindowCheckResult,
   WindowOffsetConfig,
+  RuleSetAuditLog,
 } from '@hospital/shared';
 
 export interface RuleSetListParams {
@@ -264,6 +266,18 @@ export const ruleSetApi = {
    */
   async deletePreset(id: string): Promise<void> {
     return request.delete(`/rule-sets/presets/${id}`);
+  },
+
+  // ==================== 审计日志 ====================
+
+  /**
+   * 获取规则组审计日志
+   */
+  async getAuditLogs(ruleSetId: string, params?: {
+    page?: number;
+    pageSize?: number;
+  }): Promise<PageResult<RuleSetAuditLog>> {
+    return request.get(`/rule-sets/${ruleSetId}/audit-logs`, { params });
   },
 };
 

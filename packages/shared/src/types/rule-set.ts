@@ -166,3 +166,19 @@ export interface WindowOffsetConfig {
   unit: 'second' | 'minute' | 'hour' | 'day';
   direction: 'before' | 'after';  // 提前/延后
 }
+
+/**
+ * 规则组审计日志
+ */
+export interface RuleSetAuditLog {
+  id: string;
+  ruleSetId: string;
+  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'ENABLE' | 'DISABLE';
+  resourceType: string;
+  resourceId: string;
+  operatorId?: string;
+  snapshotBefore?: string;
+  snapshotAfter?: string;
+  changes?: string;
+  createdAt: string;
+}

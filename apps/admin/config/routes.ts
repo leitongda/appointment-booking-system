@@ -261,6 +261,7 @@ export default [
               { path: '/organization/medical-config/rule-sets', component: './system/rule-sets' },
               { path: '/organization/medical-config/rule-sets/create', name: '新增规则组', component: './system/rule-set-form', hideInMenu: true },
               { path: '/organization/medical-config/rule-sets/:id/edit', name: '编辑规则组', component: './system/rule-set-form', hideInMenu: true },
+              { path: '/organization/medical-config/rule-sets/:id/audit', name: '变更历史', component: './system/rule-set-audit', hideInMenu: true },
             ],
           },
         ],

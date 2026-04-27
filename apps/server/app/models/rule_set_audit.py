@@ -19,4 +19,5 @@ class RuleSetAuditLog(Base):
     operator_id = Column(String(36), nullable=True)
     snapshot_before = Column(Text, nullable=True)
     snapshot_after = Column(Text, nullable=True)
+    changes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

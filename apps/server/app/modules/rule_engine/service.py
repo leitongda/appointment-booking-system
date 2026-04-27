@@ -16,3 +16,5 @@ class RuleEngineService(
 
     def __init__(self, db: AsyncSession):
         self.db = db
+        # 初始化 TimeWindowMixin 中的缓存属性
+        RuleEngineTimeWindowMixin.__init__(self)

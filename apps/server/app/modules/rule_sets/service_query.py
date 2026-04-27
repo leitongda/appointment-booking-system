@@ -19,6 +19,8 @@ from app.models.rule_set import (
     get_system_presets,
 )
 from app.models.rule_set_audit import RuleSetAuditLog
+from app.models.store import Store
+from app.models.department import Department
 from app.schemas.rule_set import RuleSetDetailResponse
 
 
@@ -61,6 +63,8 @@ class RuleSetQueryMixin:
         self,
         enabled: Optional[bool] = None,
         shift_type_id: Optional[str] = None,
+        store_id: Optional[str] = None,
+        department_id: Optional[str] = None,
         page: int = 1,
         page_size: int = 10,
     ) -> Tuple[List[RuleSetDetailResponse], int]:
@@ -75,6 +79,10 @@ class RuleSetQueryMixin:
             conditions.append(RuleSet.enabled == enabled)
         if shift_type_id:
             conditions.append(ShiftType.id == shift_type_id)
+        if store_id:
+            conditions.append(RuleSet.store_id == store_id)
+        if department_id:
+            conditions.append(RuleSet.department_id == department_id)
 
         count_query = select(func.count(RuleSet.id))
         if conditions:
@@ -185,7 +193,26 @@ class RuleSetQueryMixin:
             "created_at": rule_set.created_at,
             "updated_at": rule_set.updated_at,
             "is_active": is_active,
+            "store_id": rule_set.store_id,
+            "department_id": rule_set.department_id,
         }
+
+        # 获取门店和科室名称
+        store_name = None
+        department_name = None
+        if rule_set.store_id:
+            store_result = await self.db.execute(
+                select(Store.name).where(Store.id == rule_set.store_id)
+            )
+            store_name = store_result.scalar_one_or_none()
+        if rule_set.department_id:
+            dept_result = await self.db.execute(
+                select(Department.name).where(Department.id == rule_set.department_id)
+            )
+            department_name = dept_result.scalar_one_or_none()
+
+        data["store_name"] = store_name
+        data["department_name"] = department_name
 
         shift_types = []
         if rule_set.shift_types:

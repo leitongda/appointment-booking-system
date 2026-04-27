@@ -56,8 +56,14 @@ class RuleSet(Base, AuditMixin):
     description = Column(Text, comment="描述")
     deleted_at = Column(DateTime(timezone=True), nullable=True, comment="软删除时间")
 
+    # 门店/科室级支持
+    store_id = Column(String(36), ForeignKey("stores.id"), nullable=True, index=True, comment="门店ID（可选，为空表示租户级）")
+    department_id = Column(String(36), ForeignKey("departments.id"), nullable=True, index=True, comment="科室ID（可选，为空表示门店级）")
+
     # 关联关系
     shift_types = relationship("ShiftType", secondary="rule_set_shift_types", back_populates="rule_sets")
+    store = relationship("Store", backref="rule_sets")
+    department = relationship("Department", backref="rule_sets")
     windows = relationship("RuleWindow", back_populates="rule_set", cascade="all, delete-orphan")
     booking_policy = relationship("RuleBookingPolicy", back_populates="rule_set", uselist=False, cascade="all, delete-orphan")
     checkin_policy = relationship("RuleCheckinPolicy", back_populates="rule_set", uselist=False, cascade="all, delete-orphan")

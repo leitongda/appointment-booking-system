@@ -1,38 +1,199 @@
 """Time-window evaluation logic for the rule engine."""
 
 from datetime import date, datetime, time, timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List, Union
 
 import pytz
 from sqlalchemy import and_, select
 
+from app.core.redis import RedisCache
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.rule_set import RuleSet, RuleWindow, ShiftType
 from app.models.schedule import Schedule
+from app.modules.rule_engine.cache import CachedRuleSet, CachedRuleWindow, RuleCache
 from app.modules.rule_engine.monitoring import monitor_performance
 
 
 class RuleEngineTimeWindowMixin:
+    """Mixin 提供时间窗评估逻辑。
+
+    注意：此 mixin 的 __init__ 不调用 super().__init__，以避免 MRO 问题。
+    使用此 mixin 的类应负责调用 RuleEngineTimeWindowMixin.__init__。
+    """
+    def __init__(self, *args, **kwargs):
+        self._rule_cache: Optional[RuleCache] = None
+
+    @property
+    def rule_cache(self) -> RuleCache:
+        """Lazy init of rule cache."""
+        if self._rule_cache is None:
+            self._rule_cache = RuleCache(RedisCache())
+        return self._rule_cache
     @monitor_performance("get_applicable_rule_set")
-    async def get_applicable_rule_set(self, shift_type_id: str) -> Optional[RuleSet]:
-        candidates = await self.get_candidate_rule_sets(shift_type_id)
+    async def get_applicable_rule_set(
+        self, shift_type_id: str, schedule: Optional[Schedule] = None
+    ) -> Optional[RuleSet]:
+        candidates = await self.get_candidate_rule_sets(shift_type_id, schedule)
         return candidates[0] if candidates else None
 
-    async def get_candidate_rule_sets(self, shift_type_id: str) -> list[RuleSet]:
-        """返回所有匹配班次类型的启用规则组，按优先级升序排列。"""
+    async def get_candidate_rule_sets(
+        self, shift_type_id: str, schedule: Optional[Schedule] = None
+    ) -> list[RuleSet | CachedRuleSet]:
+        """
+        返回所有匹配班次类型的启用规则组，按优先级升序排列。
+
+        支持门店/科室级匹配（多层级）：
+        1. 如果排班有 department_id，优先匹配 department_id 相同的规则组
+        2. 如果排班有 store_id，进一步匹配 store_id 相同的规则组（department_id 为空）
+        3. 回退到租户级规则组（store_id 和 department_id 都为空）
+        4. 最终按 priority 升序排序返回所有匹配的候选
+
+        优先从缓存读取，缓存未命中则查询数据库并回填缓存。
+        """
+        tenant_id = get_current_tenant_id()
+
+        # 获取排班的 store_id 和 department_id（安全处理）
+        store_id = None
+        department_id = None
+        if schedule is not None:
+            # 安全获取 store_id
+            store_id = getattr(schedule, "store_id", None)
+            if store_id is not None and not isinstance(store_id, str):
+                store_id = None  # 非字符串值忽略（排除 Mock/MagicMock）
+
+            # 安全获取 department_id
+            # 注意：不访问 schedule.doctor 以避免触发 SQLAlchemy 延迟加载
+            department_id = getattr(schedule, "department_id", None)
+            if department_id is not None and not isinstance(department_id, str):
+                department_id = None  # 非字符串值忽略
+
+        # 尝试从缓存获取（使用扩展的缓存 key）
+        cached_rule_sets = await self.rule_cache.get_rule_sets_v2(
+            tenant_id, shift_type_id, store_id, department_id
+        )
+        if cached_rule_sets is not None:
+            return cached_rule_sets
+
+        # 缓存未命中，查询数据库
+        base_conditions = and_(
+            RuleSet.enabled == True,
+            RuleSet.deleted_at.is_(None),
+            ShiftType.id == shift_type_id,
+            ShiftType.enabled == True,
+        )
+
+        candidates = []
+
+        # 第一优先级：科室级匹配（department_id 相同）
+        if department_id:
+            result = await self.db.execute(
+                select(RuleSet)
+                .join(RuleSet.shift_types)
+                .where(
+                    and_(
+                        base_conditions,
+                        RuleSet.department_id == department_id,
+                    )
+                )
+                .order_by(RuleSet.priority.asc())
+            )
+            candidates.extend(list(result.scalars().all()))
+
+        # 第二优先级：门店级匹配（store_id 相同，但 department_id 为空）
+        if store_id:
+            result = await self.db.execute(
+                select(RuleSet)
+                .join(RuleSet.shift_types)
+                .where(
+                    and_(
+                        base_conditions,
+                        RuleSet.store_id == store_id,
+                        RuleSet.department_id.is_(None),
+                    )
+                )
+                .order_by(RuleSet.priority.asc())
+            )
+            candidates.extend(list(result.scalars().all()))
+
+        # 第三优先级：租户级匹配（store_id 和 department_id 都为空）
         result = await self.db.execute(
             select(RuleSet)
             .join(RuleSet.shift_types)
             .where(
                 and_(
-                    RuleSet.enabled == True,
-                    RuleSet.deleted_at.is_(None),
-                    ShiftType.id == shift_type_id,
-                    ShiftType.enabled == True,
+                    base_conditions,
+                    RuleSet.store_id.is_(None),
+                    RuleSet.department_id.is_(None),
                 )
             )
             .order_by(RuleSet.priority.asc())
         )
-        return list(result.scalars().all())
+        candidates.extend(list(result.scalars().all()))
+
+        # 去重并按优先级排序
+        seen = set()
+        unique_candidates = []
+        for rs in candidates:
+            if rs.id not in seen:
+                seen.add(rs.id)
+                unique_candidates.append(rs)
+
+        rule_sets = sorted(unique_candidates, key=lambda x: x.priority)
+
+        # 回填缓存
+        if rule_sets:
+            cached_sets = await self._build_cached_rule_sets(rule_sets)
+            await self.rule_cache.set_rule_sets_v2(
+                tenant_id, shift_type_id, store_id, department_id, cached_sets
+            )
+
+        return rule_sets
+
+    async def _build_cached_rule_sets(self, rule_sets: List[RuleSet]) -> List[CachedRuleSet]:
+        """从 ORM 对象构建可缓存的规则集列表。"""
+        cached_sets = []
+        for rs in rule_sets:
+            # 查询该规则组的所有时间窗
+            windows_result = await self.db.execute(
+                select(RuleWindow).where(RuleWindow.rule_set_id == rs.id)
+            )
+            windows = windows_result.scalars().all()
+
+            cached_set = CachedRuleSet(
+                id=rs.id,
+                name=rs.name,
+                enabled=rs.enabled,
+                priority=rs.priority,
+                time_source=rs.time_source,
+                timezone_source=rs.timezone_source,
+                compare_precision=rs.compare_precision,
+                default_open_inclusive=rs.default_open_inclusive,
+                default_close_inclusive=rs.default_close_inclusive,
+                rounding_mode=rs.rounding_mode,
+                clock_skew_tolerance_sec=rs.clock_skew_tolerance_sec,
+                tenant_id=rs.tenant_id,
+                store_id=getattr(rs, "store_id", None),
+                department_id=getattr(rs, "department_id", None),
+                description=rs.description,
+                windows=[
+                    CachedRuleWindow(
+                        id=w.id,
+                        name=w.name,
+                        action=w.action,
+                        reference_point=w.reference_point,
+                        open_offset_sec=w.open_offset_sec,
+                        close_offset_sec=w.close_offset_sec,
+                        open_inclusive=w.open_inclusive,
+                        close_inclusive=w.close_inclusive,
+                        fail_policy=w.fail_policy,
+                        fail_tag=w.fail_tag,
+                        enabled=w.enabled,
+                    )
+                    for w in windows
+                ],
+            )
+            cached_sets.append(cached_set)
+        return cached_sets
 
     @monitor_performance("check_action_window")
     async def check_action_window(
@@ -53,20 +214,24 @@ class RuleEngineTimeWindowMixin:
         if not shift_type_id:
             return self._get_default_window_result(schedule, action, current_time)
 
-        rule_set = await self.get_applicable_rule_set(shift_type_id)
+        rule_set = await self.get_applicable_rule_set(shift_type_id, schedule)
         if not rule_set:
             return self._get_default_window_result(schedule, action, current_time)
 
-        result = await self.db.execute(
-            select(RuleWindow).where(
-                and_(
-                    RuleWindow.rule_set_id == rule_set.id,
-                    RuleWindow.action == action,
-                    RuleWindow.enabled == True,
+        # 获取时间窗：优先使用缓存的 windows，否则查询数据库
+        if isinstance(rule_set, CachedRuleSet):
+            windows = [w for w in rule_set.windows if w.action == action and w.enabled]
+        else:
+            result = await self.db.execute(
+                select(RuleWindow).where(
+                    and_(
+                        RuleWindow.rule_set_id == rule_set.id,
+                        RuleWindow.action == action,
+                        RuleWindow.enabled == True,
+                    )
                 )
             )
-        )
-        windows = result.scalars().all()
+            windows = result.scalars().all()
 
         if not windows:
             return self._get_default_window_result(schedule, action, current_time)
