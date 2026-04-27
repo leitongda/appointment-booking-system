@@ -25,6 +25,7 @@ class RuleEngineTimeWindowMixin:
             .where(
                 and_(
                     RuleSet.enabled == True,
+                    RuleSet.deleted_at.is_(None),
                     ShiftType.id == shift_type_id,
                     ShiftType.enabled == True,
                 )

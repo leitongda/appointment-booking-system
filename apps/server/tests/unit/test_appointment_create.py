@@ -805,16 +805,14 @@ class TestCreateAppointmentConcurrent:
                 data=appointment_data
             )
 
-        # 验证分布式锁被调用
-        assert mock_lock.call_count == 2
-        lock_names = [call.args[0] for call in mock_lock.call_args_list]
-        assert f"appointment:create:user:{test_user.id}" in lock_names
-        assert f"appointment:create:{test_schedule.id}" in lock_names
+        # 验证分布式锁被调用（优化后仅排班锁）
+        assert mock_lock.call_count == 1
+        lock_name = mock_lock.call_args_list[0].args[0]
+        assert lock_name == f"appointment:create:{test_schedule.id}"
 
-        for call in mock_lock.call_args_list:
-            actual_tenant_id = call.kwargs.get('tenant_id')
-            assert actual_tenant_id == test_tenant.id, \
-                f"tenant_id 应为 {test_tenant.id}，实际为 {actual_tenant_id}"
+        actual_tenant_id = mock_lock.call_args_list[0].kwargs.get('tenant_id')
+        assert actual_tenant_id == test_tenant.id, \
+            f"tenant_id 应为 {test_tenant_id}，实际为 {actual_tenant_id}"
 
         # 验证预约创建成功
         assert appointment is not None

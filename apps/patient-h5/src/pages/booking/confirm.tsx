@@ -1,23 +1,40 @@
 import { NavBar } from 'antd-mobile';
 import { history, useSearchParams } from 'umi';
 import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
 import { Card, Button, GradientText } from '@/components/ui';
 import { fadeInUp, stagger, scaleIn } from '@/components/ui/animations';
+import { settingsApi } from '@hospital/api';
+import type { BookingRules } from '@hospital/api';
 
 const BookingConfirmPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const appointmentNo = searchParams.get('appointmentNo');
+  const storeId = searchParams.get('storeId');
+  const [rules, setRules] = useState<BookingRules | null>(null);
+
+  useEffect(() => {
+    settingsApi.getBookingRules(storeId || undefined).then(setRules).catch(() => {});
+  }, [storeId]);
+
+  const checkinText = rules
+    ? `就诊当天请提前${rules.signInAdvanceMinutes}分钟到达医院签到`
+    : '就诊当天请提前到达医院签到';
+
+  const cancelText = rules
+    ? `如需取消预约，请至少提前${rules.cancelHours}小时操作`
+    : '如需取消预约，请提前操作';
 
   return (
     <div className="min-h-screen bg-background">
-      <NavBar 
-        onBack={() => history.push('/home')} 
+      <NavBar
+        onBack={() => history.push('/home')}
         backArrow={false}
         className="!bg-card border-b border-border"
       >
         预约结果
       </NavBar>
-      
+
       {/* Success Icon & Message */}
       <motion.div
         className="flex flex-col items-center pt-12 pb-8 px-4"
@@ -33,19 +50,19 @@ const BookingConfirmPage: React.FC = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
           </svg>
         </motion.div>
-        
-        <motion.h1 
+
+        <motion.h1
           variants={fadeInUp}
           className="font-display text-2xl text-foreground mb-2"
         >
           预约<GradientText>成功</GradientText>
         </motion.h1>
-        
-        <motion.p 
+
+        <motion.p
           variants={fadeInUp}
           className="text-muted-foreground text-center"
         >
-          请按时到院就诊，提前15分钟到达进行签到
+          请按时到院就诊，提前到达进行签到
         </motion.p>
       </motion.div>
 
@@ -78,15 +95,11 @@ const BookingConfirmPage: React.FC = () => {
               </li>
               <li className="flex items-start gap-2">
                 <span className="w-5 h-5 rounded-full bg-accent/10 text-accent text-xs flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
-                <span>就诊当天请提前15分钟到达医院签到</span>
+                <span>{checkinText}</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="w-5 h-5 rounded-full bg-accent/10 text-accent text-xs flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
-                <span>如需取消预约，请至少提前2小时操作</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-accent/10 text-accent text-xs flex items-center justify-center flex-shrink-0 mt-0.5">4</span>
-                <span>无故爽约超过3次将被加入黑名单</span>
+                <span>{cancelText}</span>
               </li>
             </ul>
           </div>
@@ -94,21 +107,21 @@ const BookingConfirmPage: React.FC = () => {
       </motion.div>
 
       {/* Actions */}
-      <motion.div 
+      <motion.div
         className="px-4 py-6 space-y-3"
         variants={fadeInUp}
         initial="hidden"
         animate="visible"
       >
-        <Button 
+        <Button
           variant="outline"
-          block 
+          block
           onClick={() => history.push('/appointment')}
         >
           查看预约
         </Button>
-        <Button 
-          block 
+        <Button
+          block
           onClick={() => history.push('/home')}
         >
           返回首页

@@ -1,9 +1,10 @@
 """Rule-set CRUD and enable/disable operations."""
 
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import and_, delete, select
+from sqlalchemy import and_, delete, func, select
 
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.rule_set import (
@@ -29,8 +30,8 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 class RuleSetMutationMixin:
     async def _get_rule_set_with_tenant(self, rule_set_id: str):
-        """根据 ID 查询规则组，同时过滤租户（与 service_query.get_by_id 保持一致）。"""
-        conditions = [RuleSet.id == rule_set_id]
+        """根据 ID 查询规则组，同时过滤租户和软删除（与 service_query.get_by_id 保持一致）。"""
+        conditions = [RuleSet.id == rule_set_id, RuleSet.deleted_at.is_(None)]
         tenant_id = get_current_tenant_id()
         if tenant_id is not None:
             conditions.append(RuleSet.tenant_id == tenant_id)
@@ -345,6 +346,34 @@ class RuleSetMutationMixin:
         if not rule_set:
             return False
 
+        # 引用检查：排班表是否有记录关联此规则组
+        from app.models.schedule import Schedule
+
+        schedule_count_result = await self.db.execute(
+            select(func.count(Schedule.id)).where(Schedule.shift_type_id.in_(
+                select(RuleSetShiftType.shift_type_id).where(
+                    RuleSetShiftType.rule_set_id == rule_set_id
+                )
+            ))
+        )
+        schedule_count = schedule_count_result.scalar() or 0
+
+        # 检查预约表是否有记录关联此规则组
+        from app.models.appointment import Appointment
+
+        appointment_count_result = await self.db.execute(
+            select(func.count(Appointment.id)).where(Appointment.rule_set_id == rule_set_id)
+        )
+        appointment_count = appointment_count_result.scalar() or 0
+
+        if schedule_count > 0 or appointment_count > 0:
+            parts = []
+            if schedule_count > 0:
+                parts.append(f"{schedule_count} 个排班")
+            if appointment_count > 0:
+                parts.append(f"{appointment_count} 个预约")
+            raise ValueError(f"该规则组已被{'、'.join(parts)}引用，无法删除。请先禁用规则组。")
+
         self.db.add(
             make_rule_set_audit(
                 rule_set_id=rule_set.id,
@@ -356,7 +385,9 @@ class RuleSetMutationMixin:
             )
         )
 
-        await self.db.delete(rule_set)
+        # 软删除
+        rule_set.deleted_at = datetime.now(timezone.utc)
+        rule_set.enabled = False
         await self.db.commit()
         return True
 

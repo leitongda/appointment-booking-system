@@ -148,121 +148,118 @@ class AppointmentBookingService(AppointmentServiceBase):
         schedule_lock_name = f"appointment:create:{data.schedule_id}"
         try:
             redis_cache = self._compat("RedisCache", RedisCache)
+
+            # 锁外预检查：用户维度的只读校验（无需原子性保证）
+            if not rule_set:
+                per_day_limit = await settings_service.get_value("booking", "per_day_limit", 3, store_id=store_id)
+                today_count = await self._count_user_store_daily_appointments(user_id, store_id, schedule.schedule_date)
+                if today_count >= per_day_limit:
+                    raise ValueError(f"当日预约已达上限（最多{per_day_limit}次）")
+
+                duplicate_same_day = await self.check_duplicate_same_day(
+                    user_id=user_id,
+                    patient_id=data.patient_id,
+                    schedule_date=schedule.schedule_date,
+                    time_slot=schedule.time_slot,
+                )
+                if duplicate_same_day:
+                    raise ValueError("该就诊人同一天同一时段已有预约")
+
+                per_doctor_limit = await settings_service.get_value(
+                    "booking",
+                    "per_doctor_limit",
+                    1,
+                    store_id=store_id,
+                )
+                doctor_count = await self._count_user_doctor_active_appointments(user_id, schedule.doctor_id)
+                if doctor_count >= per_doctor_limit:
+                    raise ValueError(f"同一医生预约已达上限（最多{per_doctor_limit}次）")
+
+            # 排班锁：保护容量检查和预约创建的原子性
             async with redis_cache.tenant_distributed_lock(
-                user_lock_name,
+                schedule_lock_name,
                 tenant_id=current_tenant_id,
-                timeout=10,
-                retry_times=5,
+                timeout=5,
+                retry_times=3,
             ):
-                if not rule_set:
-                    per_day_limit = await settings_service.get_value("booking", "per_day_limit", 3, store_id=store_id)
-                    today_count = await self._count_user_store_daily_appointments(user_id, store_id, schedule.schedule_date)
-                    if today_count >= per_day_limit:
-                        raise ValueError(f"当日预约已达上限（最多{per_day_limit}次）")
-
-                    duplicate_same_day = await self.check_duplicate_same_day(
+                if capacity_check_needed and capacity_policy:
+                    capacity_result = await rule_engine.check_capacity_limits(
+                        db=self.db,
+                        shift_id=data.schedule_id,
                         user_id=user_id,
-                        patient_id=data.patient_id,
-                        schedule_date=schedule.schedule_date,
-                        time_slot=schedule.time_slot,
+                        policy=capacity_policy,
                     )
-                    if duplicate_same_day:
-                        raise ValueError("该就诊人同一天同一时段已有预约")
+                    if not capacity_result["allowed"]:
+                        raise ValueError(capacity_result["reason"])
 
-                    per_doctor_limit = await settings_service.get_value(
-                        "booking",
-                        "per_doctor_limit",
-                        1,
-                        store_id=store_id,
-                    )
-                    doctor_count = await self._count_user_doctor_active_appointments(user_id, schedule.doctor_id)
-                    if doctor_count >= per_doctor_limit:
-                        raise ValueError(f"同一医生预约已达上限（最多{per_doctor_limit}次）")
-
-                async with redis_cache.tenant_distributed_lock(
-                    schedule_lock_name,
-                    tenant_id=current_tenant_id,
-                    timeout=10,
-                    retry_times=5,
-                ):
-                    if capacity_check_needed and capacity_policy:
-                        capacity_result = await rule_engine.check_capacity_limits(
-                            db=self.db,
-                            shift_id=data.schedule_id,
-                            user_id=user_id,
-                            policy=capacity_policy,
-                        )
-                        if not capacity_result["allowed"]:
-                            raise ValueError(capacity_result["reason"])
-
-                    existing = await self.db.execute(
-                        select(Appointment).where(
-                            and_(
-                                Appointment.patient_id == data.patient_id,
-                                Appointment.schedule_id == data.schedule_id,
-                                Appointment.status.in_(ACTIVE_APPOINTMENT_STATUSES),
-                            )
+                existing = await self.db.execute(
+                    select(Appointment).where(
+                        and_(
+                            Appointment.patient_id == data.patient_id,
+                            Appointment.schedule_id == data.schedule_id,
+                            Appointment.status.in_(ACTIVE_APPOINTMENT_STATUSES),
                         )
                     )
-                    if existing.scalar_one_or_none():
-                        raise ValueError("该就诊人已预约此时段")
+                )
+                if existing.scalar_one_or_none():
+                    raise ValueError("该就诊人已预约此时段")
 
-                    schedule_refresh = await self.db.execute(select(Schedule).where(Schedule.id == data.schedule_id))
-                    schedule_current = schedule_refresh.scalar_one_or_none()
-                    if schedule_current and schedule_current.booked_slots >= schedule_current.total_slots:
-                        raise ValueError("号源已满")
+                schedule_refresh = await self.db.execute(select(Schedule).where(Schedule.id == data.schedule_id))
+                schedule_current = schedule_refresh.scalar_one_or_none()
+                if schedule_current and schedule_current.booked_slots >= schedule_current.total_slots:
+                    raise ValueError("号源已满")
 
-                    appointment_no = f"YY{datetime.now().strftime('%Y%m%d%H%M%S')}{str(uuid.uuid4())[:4].upper()}"
-                    queue_result = await self.db.execute(
-                        select(func.max(Appointment.queue_number)).where(Appointment.schedule_id == data.schedule_id)
-                    )
-                    max_queue = queue_result.scalar() or 0
-                    queue_number = max_queue + 1
+                appointment_no = f"YY{datetime.now().strftime('%Y%m%d%H%M%S')}{str(uuid.uuid4())[:4].upper()}"
+                queue_result = await self.db.execute(
+                    select(func.max(Appointment.queue_number)).where(Appointment.schedule_id == data.schedule_id)
+                )
+                max_queue = queue_result.scalar() or 0
+                queue_number = max_queue + 1
 
-                    doctor = schedule.doctor
+                doctor = schedule.doctor
 
-                    consultation_fee = await self._get_consultation_fee(
-                        doctor_id=schedule.doctor_id,
-                        store_id=schedule.store_id,
-                        department_id=doctor.department_id if doctor else None,
-                    )
+                consultation_fee = await self._get_consultation_fee(
+                    doctor_id=schedule.doctor_id,
+                    store_id=schedule.store_id,
+                    department_id=doctor.department_id if doctor else None,
+                )
 
-                    if consultation_fee and consultation_fee > 0:
-                        appointment_status = 0
-                    else:
-                        appointment_status = APPOINTMENT_STATUS["CONFIRMED"]
+                if consultation_fee and consultation_fee > 0:
+                    appointment_status = 0
+                else:
+                    appointment_status = APPOINTMENT_STATUS["CONFIRMED"]
 
-                    appointment = Appointment(
-                        id=str(uuid.uuid4()),
-                        appointment_no=appointment_no,
-                        user_id=user_id,
-                        patient_id=data.patient_id,
-                        doctor_id=schedule.doctor_id,
-                        schedule_id=data.schedule_id,
-                        tenant_id=schedule.tenant_id,
-                        queue_number=queue_number,
-                        status=appointment_status,
-                        symptom_description=data.symptom_description,
-                        patient_name=patient.name,
-                        patient_phone=patient.phone,
-                        doctor_name=doctor.name if doctor else None,
-                        doctor_title=doctor.title if doctor else None,
-                        department_name=doctor.department.name if doctor and doctor.department else None,
-                        rule_set_id=rule_set.id if rule_set else None,
-                        book_open_at=book_result["open_at"],
-                        book_close_at=book_result["close_at"],
-                        checkin_open_at=checkin_result["open_at"],
-                        checkin_close_at=checkin_result["close_at"],
-                        cancel_open_at=cancel_result["open_at"],
-                        cancel_close_at=cancel_result["close_at"],
-                        checkin_count=0,
-                        payment_amount=consultation_fee,
-                    )
-                    set_create_audit(appointment, operator_id or user_id)
-                    self.db.add(appointment)
-                    schedule.booked_slots += 1
-                    await self.db.commit()
-                    await self.db.refresh(appointment)
+                appointment = Appointment(
+                    id=str(uuid.uuid4()),
+                    appointment_no=appointment_no,
+                    user_id=user_id,
+                    patient_id=data.patient_id,
+                    doctor_id=schedule.doctor_id,
+                    schedule_id=data.schedule_id,
+                    tenant_id=schedule.tenant_id,
+                    queue_number=queue_number,
+                    status=appointment_status,
+                    symptom_description=data.symptom_description,
+                    patient_name=patient.name,
+                    patient_phone=patient.phone,
+                    doctor_name=doctor.name if doctor else None,
+                    doctor_title=doctor.title if doctor else None,
+                    department_name=doctor.department.name if doctor and doctor.department else None,
+                    rule_set_id=rule_set.id if rule_set else None,
+                    book_open_at=book_result["open_at"],
+                    book_close_at=book_result["close_at"],
+                    checkin_open_at=checkin_result["open_at"],
+                    checkin_close_at=checkin_result["close_at"],
+                    cancel_open_at=cancel_result["open_at"],
+                    cancel_close_at=cancel_result["close_at"],
+                    checkin_count=0,
+                    payment_amount=consultation_fee,
+                )
+                set_create_audit(appointment, operator_id or user_id)
+                self.db.add(appointment)
+                schedule.booked_slots += 1
+                await self.db.commit()
+                await self.db.refresh(appointment)
         except RuntimeError as exc:
             logger.warning(f"预约创建获取锁失败: user_lock={user_lock_name}, schedule_lock={schedule_lock_name}, 错误: {exc}")
             raise ValueError("系统繁忙，请稍后重试")

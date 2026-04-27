@@ -1,12 +1,14 @@
 import { View, Text } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@nutui/nutui-react-taro';
 import { CheckIcon, CloseIcon } from '../../../components/Icons';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
 import { useSubscribeMessage } from '../../../hooks/useSubscribeMessage';
 import { useApplyThemeNavigationBar } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
+import { settingsApi } from '@hospital/api';
+import type { BookingRules } from '@hospital/api';
 import './result.less';
 
 const BookingResultPage = () => {
@@ -19,6 +21,11 @@ const BookingResultPage = () => {
     load: noop,
     deps: [appointmentNo, status],
   });
+
+  const [bookingRules, setBookingRules] = useState<BookingRules | null>(null);
+  useEffect(() => {
+    settingsApi.getBookingRules().then(setBookingRules).catch(() => {});
+  }, []);
 
   const { subscribeAppointment } = useSubscribeMessage();
 
@@ -85,10 +92,10 @@ const BookingResultPage = () => {
             <Text>1. 请于就诊当天携带有效身份证件到院</Text>
           </View>
           <View className="notice-item">
-            <Text>2. 就诊当天请提前30分钟到达医院进行签到</Text>
+            <Text>2. 就诊当天请提前{bookingRules?.signInAdvanceMinutes || 30}分钟到达医院进行签到</Text>
           </View>
           <View className="notice-item">
-            <Text>3. 如需取消请提前24小时操作</Text>
+            <Text>3. 如需取消请提前{bookingRules?.cancelHours || 24}小时操作</Text>
           </View>
         </View>
       )}

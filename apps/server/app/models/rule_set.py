@@ -54,6 +54,7 @@ class RuleSet(Base, AuditMixin):
     clock_skew_tolerance_sec = Column(Integer, nullable=False, default=5, comment="时钟偏差容忍度(秒)")
 
     description = Column(Text, comment="描述")
+    deleted_at = Column(DateTime(timezone=True), nullable=True, comment="软删除时间")
 
     # 关联关系
     shift_types = relationship("ShiftType", secondary="rule_set_shift_types", back_populates="rule_sets")

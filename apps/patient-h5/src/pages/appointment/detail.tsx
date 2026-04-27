@@ -2,7 +2,8 @@ import { NavBar, Steps, Dialog, Toast, Skeleton, Empty } from 'antd-mobile';
 import { history, useParams } from 'umi';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { appointmentApi } from '@hospital/api';
+import { appointmentApi, settingsApi } from '@hospital/api';
+import type { BookingRules } from '@hospital/api';
 import { APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP } from '@hospital/shared';
 import type { Appointment } from '@hospital/shared';
 import { Card, Button, InvertedSection } from '@/components/ui';
@@ -14,6 +15,7 @@ const AppointmentDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [loading, setLoading] = useState(true);
   const [appointment, setAppointment] = useState<Appointment | null>(null);
+  const [bookingRules, setBookingRules] = useState<BookingRules | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -30,11 +32,15 @@ const AppointmentDetailPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+    settingsApi.getBookingRules().then(setBookingRules).catch(() => {});
   };
 
   const handleCancel = async () => {
-    const result = await Dialog.confirm({ 
-      content: '确定要取消预约吗？取消后号源将被释放。',
+    const cancelNote = bookingRules
+      ? `\n\n请在就诊前${bookingRules.cancelHours}小时内完成取消，否则可能影响后续预约。`
+      : '';
+    const result = await Dialog.confirm({
+      content: `确定要取消预约吗？取消后号源将被释放。${cancelNote}`,
       confirmText: '确定取消',
       cancelText: '再想想',
     });

@@ -42,6 +42,7 @@ async def _get_active_rule_set_ids(db, shift_type_ids: List[str]) -> set:
                 and_(
                     RuleSetShiftType.shift_type_id == shift_type_id,
                     RuleSet.enabled == True,
+                    RuleSet.deleted_at.is_(None),
                 )
             )
             .order_by(RuleSet.priority.asc())
@@ -63,7 +64,7 @@ class RuleSetQueryMixin:
         page: int = 1,
         page_size: int = 10,
     ) -> Tuple[List[RuleSetDetailResponse], int]:
-        conditions = []
+        conditions = [RuleSet.deleted_at.is_(None)]
 
         # 租户过滤：tenant_id 为 None 时（超级管理员等场景）不添加过滤条件
         tenant_id = get_current_tenant_id()
@@ -127,7 +128,7 @@ class RuleSetQueryMixin:
         return responses, total
 
     async def get_by_id(self, rule_set_id: str) -> Optional[RuleSetDetailResponse]:
-        conditions = [RuleSet.id == rule_set_id]
+        conditions = [RuleSet.id == rule_set_id, RuleSet.deleted_at.is_(None)]
 
         # 租户过滤：tenant_id 为 None 时（超级管理员等场景）不添加过滤条件
         tenant_id = get_current_tenant_id()

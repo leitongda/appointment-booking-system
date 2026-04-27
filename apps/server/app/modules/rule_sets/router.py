@@ -449,8 +449,9 @@ async def update_rule_set(
     删除规则组（仅超级管理员）。
 
     **业务规则**：
-    - 已被排班引用的规则组不允许删除（需先解除关联）
-    - 删除同时会清理关联的时间窗和策略配置
+    - 已被排班或预约引用的规则组不允许删除（请先禁用规则组）
+    - 删除操作为软删除，记录保留在数据库中
+    - 历史预约仍可基于快照正常使用
     - 返回 204 No Content
     """,
 )
@@ -461,7 +462,13 @@ async def delete_rule_set(
 ):
     """删除规则组（仅超级管理员）"""
     service = RuleSetService(db)
-    success = await service.delete(rule_set_id, current_admin["id"])
+    try:
+        success = await service.delete(rule_set_id, current_admin["id"])
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e),
+        )
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
