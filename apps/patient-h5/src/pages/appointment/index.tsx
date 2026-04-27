@@ -7,6 +7,7 @@ import { APPOINTMENT_STATUS_MAP, APPOINTMENT_STATUS_COLOR, TIME_SLOT_MAP } from 
 import type { Appointment } from '@hospital/shared';
 import { Card, Button } from '@/components/ui';
 import { fadeInUp, stagger } from '@/components/ui/animations';
+import { announce } from '@/components/ui/toast-live';
 
 const AppointmentPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -61,19 +62,26 @@ const AppointmentPage: React.FC = () => {
     try {
       await appointmentApi.cancel(id);
       Toast.show({ content: '取消成功', icon: 'success' });
+      announce('取消预约成功');
       loadAppointments(true);
     } catch (error: any) {
-      Toast.show({ content: error.message || '取消失败', icon: 'fail' });
+      const msg = error.message || '取消失败';
+      Toast.show({ content: msg, icon: 'fail' });
+      announce(msg);
     }
   };
 
   const handleSignIn = async (id: string) => {
     try {
       const result = await appointmentApi.signIn(id, { checkin_method: 'PHONE' });
-      Toast.show({ content: `签到成功，您是第${result.queueNumber}号`, icon: 'success' });
+      const msg = `签到成功，您是第${result.queueNumber}号`;
+      Toast.show({ content: msg, icon: 'success' });
+      announce(msg);
       loadAppointments(true);
     } catch (error: any) {
-      Toast.show({ content: error.message || '签到失败', icon: 'fail' });
+      const msg = error.message || '签到失败';
+      Toast.show({ content: msg, icon: 'fail' });
+      announce(msg);
     }
   };
 
@@ -90,7 +98,7 @@ const AppointmentPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" role="main">
       {/* Header */}
       <div className="bg-gradient-to-r from-accent to-accent-secondary px-4 pt-12 pb-4">
         <h1 className="text-white text-xl font-display">我的预约</h1>
@@ -115,7 +123,7 @@ const AppointmentPage: React.FC = () => {
       <PullToRefresh onRefresh={() => loadAppointments(true)}>
         <div className="p-4">
           {appointments.length === 0 && !loading ? (
-            <div className="flex items-center justify-center h-64">
+            <div className="flex items-center justify-center h-64" role="status">
               <Empty description="暂无预约记录" />
             </div>
           ) : (
@@ -124,27 +132,34 @@ const AppointmentPage: React.FC = () => {
               variants={stagger}
               initial="hidden"
               animate="visible"
+              role="list"
+              aria-label="预约列表"
             >
               {appointments.map((item) => (
                 <motion.div
                   key={item.id}
                   variants={fadeInUp}
                   whileTap={{ scale: 0.98 }}
+                  role="listitem"
                 >
-                  <Card 
-                    variant="default" 
+                  <Card
+                    variant="default"
                     padding="md"
                     hoverable
                     animated={false}
                     className="cursor-pointer"
                     onClick={() => history.push(`/appointment/${item.id}`)}
+                    aria-label={`${item.doctorName} ${item.departmentName} ${APPOINTMENT_STATUS_MAP[item.status]} ${item.scheduleDate}`}
                   >
                     {/* Header */}
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm text-muted-foreground">
                         预约单号：{item.appointmentNo}
                       </span>
-                      <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(item.status)}`}>
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full ${getStatusColor(item.status)}`}
+                        aria-label={`状态：${APPOINTMENT_STATUS_MAP[item.status]}`}
+                      >
                         {APPOINTMENT_STATUS_MAP[item.status]}
                       </span>
                     </div>
@@ -180,10 +195,11 @@ const AppointmentPage: React.FC = () => {
                     {/* Actions */}
                     {(item.status === 0 || item.status === 1) && (
                       <div className="flex gap-2 mt-4 pt-4 border-t border-border">
-                        <Button 
+                        <Button
                           variant="outline"
                           size="sm"
                           onClick={(e) => { e.stopPropagation(); handleCancel(item.id); }}
+                          aria-label={`取消${item.doctorName}的预约`}
                         >
                           {item.status === 0 ? '取消订单' : '取消预约'}
                         </Button>
@@ -192,6 +208,7 @@ const AppointmentPage: React.FC = () => {
                             variant="primary"
                             size="sm"
                             onClick={(e) => { e.stopPropagation(); handleSignIn(item.id); }}
+                            aria-label={`签到${item.doctorName}的预约`}
                           >
                             签到
                           </Button>

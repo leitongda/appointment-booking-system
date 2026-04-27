@@ -64,10 +64,13 @@ const initStoreContext = async () => {
 initStoreContext();
 
 /**
- * 修改根组件（可选）
- * 如果需要在所有页面外包裹 Provider，可以在这里实现
+ * 修改根组件
+ * 设置 html lang 属性为 zh-CN，确保屏幕阅读器正确识别语言
  */
 export function rootContainer(container: React.ReactNode) {
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = 'zh-CN';
+  }
   return container;
 }
 

@@ -9,6 +9,8 @@ export interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'children'>
   icon?: React.ReactNode;
   iconPosition?: 'left' | 'right';
   block?: boolean;
+  /** aria-label for icon-only buttons */
+  'aria-label'?: string;
   children: React.ReactNode;
 }
 
@@ -56,6 +58,7 @@ export const Button: React.FC<ButtonProps> = ({
   children,
   className = '',
   disabled,
+  'aria-label': ariaLabel,
   ...props
 }) => {
   const isDisabled = disabled || loading;
@@ -76,6 +79,9 @@ export const Button: React.FC<ButtonProps> = ({
       whileHover={isDisabled ? undefined : buttonHover}
       whileTap={isDisabled ? undefined : buttonTap}
       disabled={isDisabled}
+      aria-disabled={isDisabled || undefined}
+      aria-label={ariaLabel}
+      aria-busy={loading || undefined}
       {...props}
     >
       {loading && (

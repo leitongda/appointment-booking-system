@@ -8,6 +8,7 @@ import { APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP } from '@hospital/shared';
 import type { Appointment } from '@hospital/shared';
 import { Card, Button, InvertedSection } from '@/components/ui';
 import { fadeInUp, stagger } from '@/components/ui/animations';
+import { announce } from '@/components/ui/toast-live';
 
 const { Step } = Steps;
 
@@ -28,7 +29,9 @@ const AppointmentDetailPage: React.FC = () => {
       const data = await appointmentApi.getDetail(id!);
       setAppointment(data);
     } catch (error: any) {
-      Toast.show({ content: error.message || '加载失败', icon: 'fail' });
+      const msg = error.message || '加载失败';
+      Toast.show({ content: msg, icon: 'fail' });
+      announce(msg);
     } finally {
       setLoading(false);
     }
@@ -49,9 +52,12 @@ const AppointmentDetailPage: React.FC = () => {
       try {
         await appointmentApi.cancel(id!);
         Toast.show({ content: '取消成功', icon: 'success' });
+        announce('取消预约成功');
         loadData();
       } catch (error: any) {
-        Toast.show({ content: error.message || '取消失败', icon: 'fail' });
+        const msg = error.message || '取消失败';
+        Toast.show({ content: msg, icon: 'fail' });
+        announce(msg);
       }
     }
   };
@@ -59,13 +65,14 @@ const AppointmentDetailPage: React.FC = () => {
   const handleSignIn = async () => {
     try {
       const result = await appointmentApi.signIn(id!, { checkin_method: 'PHONE' });
-      Toast.show({ 
-        content: `签到成功，您是第 ${result.queueNumber} 号`, 
-        icon: 'success' 
-      });
+      const msg = `签到成功，您是第 ${result.queueNumber} 号`;
+      Toast.show({ content: msg, icon: 'success' });
+      announce(msg);
       loadData();
     } catch (error: any) {
-      Toast.show({ content: error.message || '签到失败', icon: 'fail' });
+      const msg = error.message || '签到失败';
+      Toast.show({ content: msg, icon: 'fail' });
+      announce(msg);
     }
   };
 
@@ -140,7 +147,7 @@ const AppointmentDetailPage: React.FC = () => {
   const canSignIn = appointment.status === 1;
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-24" role="main">
       <NavBar 
         onBack={() => history.back()}
         className="!bg-transparent absolute top-0 left-0 right-0 z-20 text-white"
@@ -151,7 +158,7 @@ const AppointmentDetailPage: React.FC = () => {
       {/* Status Header */}
       <div className={`bg-gradient-to-r ${getStatusColor(appointment.status)} pt-16 pb-8 px-4`}>
         <div className="text-center text-white">
-          <h2 className="text-2xl font-display mb-2">
+          <h2 className="text-2xl font-display mb-2" aria-label={`预约状态：${APPOINTMENT_STATUS_MAP[appointment.status]}`}>
             {APPOINTMENT_STATUS_MAP[appointment.status]}
           </h2>
           {appointment.status === 0 && (
@@ -265,8 +272,9 @@ const AppointmentDetailPage: React.FC = () => {
           <motion.div variants={fadeInUp}>
             <Card variant="default" padding="lg">
               <h3 className="font-semibold text-foreground mb-4">就诊进度</h3>
-              <Steps 
-                current={getStepsCurrent(appointment.status)} 
+              <div role="group" aria-label="就诊进度">
+              <Steps
+                current={getStepsCurrent(appointment.status)}
                 direction="vertical"
                 style={{
                   '--adm-color-primary': '#0052FF',
@@ -289,6 +297,7 @@ const AppointmentDetailPage: React.FC = () => {
                   description={appointment.completeTime ? formatTime(appointment.completeTime) : ''} 
                 />
               </Steps>
+              </div>
             </Card>
           </motion.div>
         )}
@@ -319,12 +328,12 @@ const AppointmentDetailPage: React.FC = () => {
       {(canCancel || canSignIn) && (
         <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 flex gap-3 safe-area-inset-bottom">
           {canCancel && (
-            <Button variant="outline" block onClick={handleCancel}>
+            <Button variant="outline" block onClick={handleCancel} aria-label="取消此预约">
               取消预约
             </Button>
           )}
           {canSignIn && (
-            <Button block onClick={handleSignIn}>
+            <Button block onClick={handleSignIn} aria-label="签到就诊">
               签到
             </Button>
           )}

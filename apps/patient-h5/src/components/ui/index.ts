@@ -25,4 +25,7 @@ export type { RadialGlowProps } from './RadialGlow';
 // Animation utilities
 export * from './animations';
 
+// Accessibility
+export { LiveRegion, announce } from './toast-live';
+
 

@@ -26,7 +26,7 @@ const BookingConfirmPage: React.FC = () => {
     : '如需取消预约，请提前操作';
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" role="main">
       <NavBar
         onBack={() => history.push('/home')}
         backArrow={false}
@@ -88,16 +88,16 @@ const BookingConfirmPage: React.FC = () => {
               </svg>
               温馨提示
             </h4>
-            <ul className="space-y-3 text-sm text-muted-foreground">
-              <li className="flex items-start gap-2">
+            <ul className="space-y-3 text-sm text-muted-foreground" role="list">
+              <li className="flex items-start gap-2" role="listitem">
                 <span className="w-5 h-5 rounded-full bg-accent/10 text-accent text-xs flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
                 <span>请携带本人有效身份证件</span>
               </li>
-              <li className="flex items-start gap-2">
+              <li className="flex items-start gap-2" role="listitem">
                 <span className="w-5 h-5 rounded-full bg-accent/10 text-accent text-xs flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
                 <span>{checkinText}</span>
               </li>
-              <li className="flex items-start gap-2">
+              <li className="flex items-start gap-2" role="listitem">
                 <span className="w-5 h-5 rounded-full bg-accent/10 text-accent text-xs flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
                 <span>{cancelText}</span>
               </li>
@@ -117,12 +117,14 @@ const BookingConfirmPage: React.FC = () => {
           variant="outline"
           block
           onClick={() => history.push('/appointment')}
+          aria-label="查看我的预约列表"
         >
           查看预约
         </Button>
         <Button
           block
           onClick={() => history.push('/home')}
+          aria-label="返回首页"
         >
           返回首页
         </Button>

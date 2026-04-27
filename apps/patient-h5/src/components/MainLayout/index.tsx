@@ -6,6 +6,7 @@ import { initApiConfig } from '@/utils/request';
 import { initTracker, getTracker, getToken } from '@hospital/shared';
 import { setBaseURL } from '@hospital/api';
 import { StoreProvider } from '@/components/StoreProvider';
+import { LiveRegion } from '@/components/ui';
 
 // 设置 API 基础路径（从环境变量读取，支持动态配置）
 const apiBaseUrl = process.env.API_BASE_URL || '/api/v1';
@@ -80,18 +81,21 @@ const Layout: React.FC = () => {
   return (
     <StoreProvider>
       <div className="flex flex-col h-screen bg-background">
+        {/* Global a11y live region for screen reader announcements */}
+        <LiveRegion />
         {/* Main content area */}
-        <div className="flex-1 overflow-y-auto overscroll-contain">
+        <div className="flex-1 overflow-y-auto overscroll-contain" role="main">
           <Outlet />
         </div>
 
         {/* Tab bar */}
         {showTabBar && (
           <div className="flex-shrink-0 border-t border-border bg-card safe-area-inset-bottom">
-            <TabBar 
-              activeKey={location.pathname} 
+            <TabBar
+              activeKey={location.pathname}
               onChange={(key) => history.push(key)}
               className="!bg-transparent"
+              aria-label="主导航"
             >
               {tabs.map((tab) => (
                 <TabBar.Item 

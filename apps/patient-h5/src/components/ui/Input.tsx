@@ -21,6 +21,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
   ...props
 }, ref) => {
   const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
+  const hintId = error || hint ? `${inputId}-hint` : undefined;
 
   const variantStyles = {
     default: `
@@ -54,6 +55,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
         <input
           ref={ref}
           id={inputId}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={hintId}
           className={`
             w-full
             h-12
@@ -79,7 +82,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
         )}
       </div>
       {(error || hint) && (
-        <p className={`mt-2 text-sm ${error ? 'text-red-500' : 'text-muted-foreground'}`}>
+        <p id={hintId} className={`mt-2 text-sm ${error ? 'text-red-500' : 'text-muted-foreground'}`}>
           {error || hint}
         </p>
       )}
@@ -108,6 +111,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(({
   ...props
 }, ref) => {
   const textareaId = id || `textarea-${Math.random().toString(36).substr(2, 9)}`;
+  const hintId = error || hint ? `${textareaId}-hint` : undefined;
 
   const variantStyles = {
     default: `
@@ -136,6 +140,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(({
         ref={ref}
         id={textareaId}
         rows={rows}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={hintId}
         className={`
           w-full
           p-4
@@ -152,7 +158,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(({
         {...props}
       />
       {(error || hint) && (
-        <p className={`mt-2 text-sm ${error ? 'text-red-500' : 'text-muted-foreground'}`}>
+        <p id={hintId} className={`mt-2 text-sm ${error ? 'text-red-500' : 'text-muted-foreground'}`}>
           {error || hint}
         </p>
       )}

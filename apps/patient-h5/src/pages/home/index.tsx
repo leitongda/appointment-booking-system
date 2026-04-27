@@ -115,13 +115,14 @@ const HomePage: React.FC = () => {
   const displayBanners = banners.length > 0 ? banners : null;
 
   return (
-    <div className="min-h-screen bg-background pb-4">
+    <div className="min-h-screen bg-background pb-4" role="main">
       {/* Search bar with gradient header */}
       <div className="bg-gradient-to-r from-accent to-accent-secondary px-4 pt-12 pb-6">
-        <SearchBar 
-          placeholder="搜索科室/医生" 
+        <SearchBar
+          placeholder="搜索科室/医生"
           onFocus={handleSearchFocus}
           className="!rounded-full"
+          aria-label="搜索科室或医生"
           style={{
             '--background': 'rgba(255, 255, 255, 0.95)',
             '--border-radius': '9999px',
@@ -197,6 +198,10 @@ const HomePage: React.FC = () => {
                   variants={fadeInUp}
                   className="flex flex-col items-center py-3 cursor-pointer active:opacity-70 transition-opacity"
                   onClick={() => history.push(menu.path)}
+                  role="link"
+                  tabIndex={0}
+                  aria-label={`进入${menu.title}`}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); history.push(menu.path); } }}
                 >
                   <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent to-accent-secondary flex items-center justify-center text-white shadow-accent mb-2">
                     {menu.icon}
@@ -224,20 +229,27 @@ const HomePage: React.FC = () => {
               onClick={() => history.push('/department')}
               className="text-sm text-accent hover:text-accent-secondary transition-colors"
             >
-              查看全部 →
+              查看全部
+              <span aria-hidden="true"> →</span>
             </button>
           </div>
-          
+
           {loading ? (
             <Skeleton.Paragraph lineCount={2} animated />
           ) : (
-            <Grid columns={4} gap={8}>
+            <Grid columns={4} gap={8} role="list" aria-label="热门科室列表">
               {hotDepts.map((dept) => (
-                <Grid.Item 
-                  key={dept.id} 
+                <Grid.Item
+                  key={dept.id}
                   onClick={() => history.push(`/doctor?departmentId=${dept.id}&departmentName=${encodeURIComponent(dept.name)}`)}
                 >
-                  <div className="text-center py-3 rounded-xl bg-muted hover:bg-accent/5 transition-colors cursor-pointer active:bg-accent/10">
+                  <div
+                    className="text-center py-3 rounded-xl bg-muted hover:bg-accent/5 transition-colors cursor-pointer active:bg-accent/10"
+                    role="link"
+                    tabIndex={0}
+                    aria-label={`进入${dept.name}科室`}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); history.push(`/doctor?departmentId=${dept.id}&departmentName=${encodeURIComponent(dept.name)}`); } }}
+                  >
                     <span className="text-sm text-foreground">{dept.name}</span>
                   </div>
                 </Grid.Item>
@@ -262,21 +274,26 @@ const HomePage: React.FC = () => {
               onClick={() => history.push('/doctor')}
               className="text-sm text-accent hover:text-accent-secondary transition-colors"
             >
-              查看全部 →
+              查看全部
+              <span aria-hidden="true"> →</span>
             </button>
           </div>
-          
+
           {loading ? (
             <Skeleton.Paragraph lineCount={4} animated />
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3" role="list" aria-label="推荐医生列表">
               {recommendDoctors.map((doctor) => (
-                <motion.div 
+                <motion.div
                   key={doctor.id}
                   className="flex items-center gap-3 p-3 rounded-xl bg-muted hover:bg-accent/5 transition-all cursor-pointer active:scale-[0.99]"
                   onClick={() => history.push(`/doctor/${doctor.id}`)}
                   whileHover={{ y: -2 }}
                   whileTap={{ scale: 0.98 }}
+                  role="link"
+                  tabIndex={0}
+                  aria-label={`查看${doctor.name}${doctor.title ? ` ${doctor.title}` : ''} ${doctor.departmentName}的详情`}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); history.push(`/doctor/${doctor.id}`); } }}
                 >
                   <Image 
                     src={doctor.avatar || ''} 
