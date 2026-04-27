@@ -464,6 +464,7 @@ class RuleSetMutationMixin:
         rule_set.deleted_at = datetime.now(timezone.utc)
         rule_set.enabled = False
         await self.db.commit()
+        await self._invalidate_rule_set_cache(rule_set_id)
         return True
 
     async def enable(self, rule_set_id: str, operator_id: Optional[str] = None) -> bool:
@@ -493,6 +494,7 @@ class RuleSetMutationMixin:
         )
 
         await self.db.commit()
+        await self._invalidate_rule_set_cache(rule_set_id)
         return True
 
     async def disable(self, rule_set_id: str, operator_id: Optional[str] = None) -> bool:
@@ -522,6 +524,7 @@ class RuleSetMutationMixin:
         )
 
         await self.db.commit()
+        await self._invalidate_rule_set_cache(rule_set_id)
         return True
 
     # ==================== 预设模板 ====================
