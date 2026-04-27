@@ -26,7 +26,7 @@ from app.schemas.schedule_template import (
     ScheduleGenerateRequest,
     ScheduleBatchAddRequest,
 )
-from app.schemas.custom_schedule import (
+from app.schemas.schedule import (
     TimePeriod,
     CustomScheduleCreate,
     CustomScheduleResponse,

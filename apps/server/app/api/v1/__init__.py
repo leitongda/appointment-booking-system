@@ -34,7 +34,6 @@ ROUTER_REGISTRATIONS = [
     RouterRegistration("app.modules.feedbacks.router", "/feedbacks", ["用户反馈"]),
     RouterRegistration("app.modules.consultation_fees.router", "/consultation-fees", ["诊费管理"]),
     RouterRegistration("app.modules.doctor_booking_settings.router", "/doctor-booking-settings", ["医生预约设置"]),
-    RouterRegistration("app.modules.custom_schedules.router", "/custom-schedules", ["自定义排班"]),
     RouterRegistration("app.modules.rest_days.router", "/rest-days", ["休息日设置"]),
     RouterRegistration("app.modules.schedule_suspensions.router", "/schedule-suspensions", ["停诊管理"]),
     RouterRegistration("app.modules.schedule_templates.router", "/schedule-templates", ["排班模板"]),
