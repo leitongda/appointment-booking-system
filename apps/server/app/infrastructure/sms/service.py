@@ -12,6 +12,7 @@ from app.core.redis import cache, RedisCache
 from app.middleware.tenant_context import get_current_tenant_id
 from app.db.session import get_sync_db_session
 from app.models.notification_log import NotificationLog
+from .factory import get_sms_provider
 
 logger = logging.getLogger(__name__)
 
@@ -72,44 +73,39 @@ class SmsService:
     @classmethod
     async def _do_send(cls, phone: str, code: str, code_type: str):
         """
-        实际发送短信
-
-        TODO: 接入阿里云/腾讯云短信 SDK
+        实际发送短信（委托给 provider）
         """
         tenant_id = get_current_tenant_id()
         sent_at = datetime.utcnow()
 
         try:
-            # 模拟发送短信（开发环境打印到控制台）
-            logger.info(f"[SMS] 向 {phone} 发送{code_type}验证码: {code}")
-            print(f"\n{'='*50}")
-            print(f"📱 短信验证码")
-            print(f"手机号: {phone}")
-            print(f"验证码: {code}")
-            print(f"类型: {code_type}")
-            print(f"有效期: {cls.CODE_EXPIRE_SECONDS // 60}分钟")
-            print(f"{'='*50}\n")
+            # 委托给 provider 发送
+            provider = get_sms_provider()
+            success = await provider.send_verification_code(phone, code, code_type)
 
-            # 记录发送成功日志
-            try:
-                db = get_sync_db_session()
+            if success:
+                # 记录发送成功日志
                 try:
-                    log = NotificationLog(
-                        tenant_id=tenant_id,
-                        channel="sms",
-                        message_type=code_type,
-                        title=f"{code_type}验证码",
-                        content=f"验证码: {code}",
-                        status="sent",
-                        recipient=phone,
-                        sent_at=sent_at,
-                    )
-                    db.add(log)
-                    db.commit()
-                finally:
-                    db.close()
-            except Exception as e:
-                logger.error(f"创建短信通知日志失败: {e}")
+                    db = get_sync_db_session()
+                    try:
+                        log = NotificationLog(
+                            tenant_id=tenant_id,
+                            channel="sms",
+                            message_type=code_type,
+                            title=f"{code_type}验证码",
+                            content=f"验证码: {code}",
+                            status="sent",
+                            recipient=phone,
+                            sent_at=sent_at,
+                        )
+                        db.add(log)
+                        db.commit()
+                    finally:
+                        db.close()
+                except Exception as e:
+                    logger.error(f"创建短信通知日志失败: {e}")
+            else:
+                raise ValueError("短信发送失败")
         except Exception as e:
             # 记录发送失败日志
             try:
@@ -131,12 +127,6 @@ class SmsService:
             except Exception as log_error:
                 logger.error(f"创建短信失败日志失败: {log_error}")
             raise
-
-        # 生产环境接入短信服务商示例：
-        # if settings.SMS_PROVIDER == 'aliyun':
-        #     await cls._send_aliyun(phone, code, code_type)
-        # elif settings.SMS_PROVIDER == 'tencent':
-        #     await cls._send_tencent(phone, code, code_type)
 
     @classmethod
     async def verify_code(
@@ -170,67 +160,3 @@ class SmsService:
             logger.warning(f"[SMS] 验证码验证失败: {phone}")
 
         return result
-
-    # ==================== 阿里云短信 ====================
-
-    @classmethod
-    async def _send_aliyun(cls, phone: str, code: str, code_type: str):
-        """
-        阿里云短信发送
-
-        需要安装: pip install alibabacloud_dysmsapi20170525
-        """
-        # from alibabacloud_dysmsapi20170525.client import Client
-        # from alibabacloud_dysmsapi20170525 import models as sms_models
-        # from alibabacloud_tea_openapi import models as open_api_models
-        #
-        # config = open_api_models.Config(
-        #     access_key_id=settings.ALIYUN_ACCESS_KEY_ID,
-        #     access_key_secret=settings.ALIYUN_ACCESS_KEY_SECRET
-        # )
-        # config.endpoint = 'dysmsapi.aliyuncs.com'
-        #
-        # client = Client(config)
-        #
-        # request = sms_models.SendSmsRequest(
-        #     phone_numbers=phone,
-        #     sign_name=settings.SMS_SIGN_NAME,
-        #     template_code=settings.SMS_TEMPLATE_CODE,
-        #     template_param=f'{{"code":"{code}"}}'
-        # )
-        #
-        # response = client.send_sms(request)
-        # if response.body.code != 'OK':
-        #     raise ValueError(f"短信发送失败: {response.body.message}")
-        pass
-
-    # ==================== 腾讯云短信 ====================
-
-    @classmethod
-    async def _send_tencent(cls, phone: str, code: str, code_type: str):
-        """
-        腾讯云短信发送
-
-        需要安装: pip install tencentcloud-sdk-python
-        """
-        # from tencentcloud.common import credential
-        # from tencentcloud.sms.v20210111 import sms_client, models
-        #
-        # cred = credential.Credential(
-        #     settings.TENCENT_SECRET_ID,
-        #     settings.TENCENT_SECRET_KEY
-        # )
-        #
-        # client = sms_client.SmsClient(cred, "ap-guangzhou")
-        #
-        # req = models.SendSmsRequest()
-        # req.SmsSdkAppId = settings.SMS_SDK_APP_ID
-        # req.SignName = settings.SMS_SIGN_NAME
-        # req.TemplateId = settings.SMS_TEMPLATE_ID
-        # req.PhoneNumberSet = [f"+86{phone}"]
-        # req.TemplateParamSet = [code]
-        #
-        # resp = client.SendSms(req)
-        # if resp.SendStatusSet[0].Code != "Ok":
-        #     raise ValueError(f"短信发送失败: {resp.SendStatusSet[0].Message}")
-        pass
