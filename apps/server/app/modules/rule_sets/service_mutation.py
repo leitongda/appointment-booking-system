@@ -51,9 +51,9 @@ class RuleSetMutationMixin:
     async def _invalidate_rule_set_cache(self, rule_set_id: str) -> None:
         """使规则组的缓存失效（包括门店/科室级缓存）。"""
         try:
-            # 查询规则组本身，获取 store_id 和 department_id
+            # 查询规则组本身，获取 store_id、department_id 和 doctor_id
             rule_set_result = await self.db.execute(
-                select(RuleSet.store_id, RuleSet.department_id).where(
+                select(RuleSet.store_id, RuleSet.department_id, RuleSet.doctor_id).where(
                     RuleSet.id == rule_set_id
                 )
             )
@@ -61,7 +61,7 @@ class RuleSetMutationMixin:
             if not rule_set_info:
                 return
 
-            store_id, department_id = rule_set_info
+            store_id, department_id, doctor_id = rule_set_info
 
             # 查询规则组关联的 shift_type_ids
             result = await self.db.execute(
@@ -78,6 +78,7 @@ class RuleSetMutationMixin:
                 shift_type_ids,
                 store_ids=[store_id] if store_id else None,
                 department_ids=[department_id] if department_id else None,
+                doctor_ids=[doctor_id] if doctor_id else None,
             )
         except Exception:
             # 缓存失效失败不应阻塞主流程
@@ -113,6 +114,7 @@ class RuleSetMutationMixin:
             tenant_id=get_current_tenant_id(),
             store_id=data.store_id,
             department_id=data.department_id,
+            doctor_id=data.doctor_id,
         )
         set_create_audit(rule_set, operator_id)
         self.db.add(rule_set)
@@ -245,6 +247,8 @@ class RuleSetMutationMixin:
             rule_set.store_id = data.store_id
         if data.department_id is not None:
             rule_set.department_id = data.department_id
+        if data.doctor_id is not None:
+            rule_set.doctor_id = data.doctor_id
 
         set_update_audit(rule_set, operator_id)
 

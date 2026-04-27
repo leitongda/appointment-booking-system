@@ -2353,6 +2353,7 @@ class TestCheckActionWindowIntegration:
         schedule.timezone = 'Asia/Shanghai'
         schedule.store_id = None
         schedule.department_id = None
+        schedule.doctor_id = None
 
         # Mock rule_cache 返回空列表
         mock_rule_cache = AsyncMock(spec=RuleCache)
@@ -2401,6 +2402,7 @@ class TestCheckActionWindowIntegration:
         schedule.timezone = 'Asia/Shanghai'
         schedule.store_id = None
         schedule.department_id = None
+        schedule.doctor_id = None
 
         # Mock rule_cache 返回空列表
         mock_rule_cache = AsyncMock(spec=RuleCache)
@@ -2465,6 +2467,7 @@ class TestCheckActionWindowIntegration:
         schedule.timezone = 'Asia/Shanghai'
         schedule.store_id = None
         schedule.department_id = None
+        schedule.doctor_id = None
 
         # Mock rule_cache 返回空列表
         mock_rule_cache = AsyncMock(spec=RuleCache)
@@ -2531,6 +2534,7 @@ class TestCheckActionWindowIntegration:
         schedule.timezone = 'Asia/Shanghai'
         schedule.store_id = None
         schedule.department_id = None
+        schedule.doctor_id = None
 
         # Mock rule_cache 返回空列表
         mock_rule_cache = AsyncMock(spec=RuleCache)
@@ -2606,6 +2610,7 @@ class TestCheckActionWindowIntegration:
         schedule.timezone = 'Asia/Shanghai'
         schedule.store_id = None
         schedule.department_id = None
+        schedule.doctor_id = None
 
         # Mock rule_cache 返回空列表
         mock_rule_cache = AsyncMock(spec=RuleCache)

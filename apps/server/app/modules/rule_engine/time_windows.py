@@ -42,19 +42,21 @@ class RuleEngineTimeWindowMixin:
         """
         返回所有匹配班次类型的启用规则组，按优先级升序排列。
 
-        支持门店/科室级匹配（多层级）：
-        1. 如果排班有 department_id，优先匹配 department_id 相同的规则组
-        2. 如果排班有 store_id，进一步匹配 store_id 相同的规则组（department_id 为空）
-        3. 回退到租户级规则组（store_id 和 department_id 都为空）
-        4. 最终按 priority 升序排序返回所有匹配的候选
+        支持门店/科室/医生级匹配（多层级）：
+        1. 如果排班有 doctor_id，优先匹配 doctor_id 相同的规则组（最高优先级）
+        2. 如果排班有 department_id，匹配 department_id 相同的规则组
+        3. 如果排班有 store_id，匹配 store_id 相同的规则组（department_id 为空）
+        4. 回退到租户级规则组（store_id、department_id、doctor_id 都为空）
+        5. 最终按 priority 升序排序返回所有匹配的候选
 
         优先从缓存读取，缓存未命中则查询数据库并回填缓存。
         """
         tenant_id = get_current_tenant_id()
 
-        # 获取排班的 store_id 和 department_id（安全处理）
+        # 获取排班的 store_id、department_id 和 doctor_id（安全处理）
         store_id = None
         department_id = None
+        doctor_id = None
         if schedule is not None:
             # 安全获取 store_id
             store_id = getattr(schedule, "store_id", None)
@@ -67,9 +69,14 @@ class RuleEngineTimeWindowMixin:
             if department_id is not None and not isinstance(department_id, str):
                 department_id = None  # 非字符串值忽略
 
+            # 安全获取 doctor_id
+            doctor_id = getattr(schedule, "doctor_id", None)
+            if doctor_id is not None and not isinstance(doctor_id, str):
+                doctor_id = None  # 非字符串值忽略
+
         # 尝试从缓存获取（使用扩展的缓存 key）
         cached_rule_sets = await self.rule_cache.get_rule_sets_v2(
-            tenant_id, shift_type_id, store_id, department_id
+            tenant_id, shift_type_id, store_id, department_id, doctor_id
         )
         if cached_rule_sets is not None:
             return cached_rule_sets
@@ -84,7 +91,23 @@ class RuleEngineTimeWindowMixin:
 
         candidates = []
 
-        # 第一优先级：科室级匹配（department_id 相同）
+        # 第一优先级：医生级匹配（doctor_id 相同，同时匹配 department_id）
+        if doctor_id and department_id:
+            result = await self.db.execute(
+                select(RuleSet)
+                .join(RuleSet.shift_types)
+                .where(
+                    and_(
+                        base_conditions,
+                        RuleSet.doctor_id == doctor_id,
+                        RuleSet.department_id == department_id,
+                    )
+                )
+                .order_by(RuleSet.priority.asc())
+            )
+            candidates.extend(list(result.scalars().all()))
+
+        # 第二优先级：科室级匹配（department_id 相同，doctor_id 为空）
         if department_id:
             result = await self.db.execute(
                 select(RuleSet)
@@ -93,13 +116,14 @@ class RuleEngineTimeWindowMixin:
                     and_(
                         base_conditions,
                         RuleSet.department_id == department_id,
+                        RuleSet.doctor_id.is_(None),
                     )
                 )
                 .order_by(RuleSet.priority.asc())
             )
             candidates.extend(list(result.scalars().all()))
 
-        # 第二优先级：门店级匹配（store_id 相同，但 department_id 为空）
+        # 第三优先级：门店级匹配（store_id 相同，但 department_id 和 doctor_id 为空）
         if store_id:
             result = await self.db.execute(
                 select(RuleSet)
@@ -109,13 +133,14 @@ class RuleEngineTimeWindowMixin:
                         base_conditions,
                         RuleSet.store_id == store_id,
                         RuleSet.department_id.is_(None),
+                        RuleSet.doctor_id.is_(None),
                     )
                 )
                 .order_by(RuleSet.priority.asc())
             )
             candidates.extend(list(result.scalars().all()))
 
-        # 第三优先级：租户级匹配（store_id 和 department_id 都为空）
+        # 第四优先级：租户级匹配（store_id、department_id、doctor_id 都为空）
         result = await self.db.execute(
             select(RuleSet)
             .join(RuleSet.shift_types)
@@ -124,6 +149,7 @@ class RuleEngineTimeWindowMixin:
                     base_conditions,
                     RuleSet.store_id.is_(None),
                     RuleSet.department_id.is_(None),
+                    RuleSet.doctor_id.is_(None),
                 )
             )
             .order_by(RuleSet.priority.asc())
@@ -144,7 +170,8 @@ class RuleEngineTimeWindowMixin:
         if rule_sets:
             cached_sets = await self._build_cached_rule_sets(rule_sets)
             await self.rule_cache.set_rule_sets_v2(
-                tenant_id, shift_type_id, store_id, department_id, cached_sets
+                tenant_id, shift_type_id, store_id, department_id, cached_sets,
+                doctor_id=doctor_id,
             )
 
         return rule_sets
@@ -174,6 +201,7 @@ class RuleEngineTimeWindowMixin:
                 tenant_id=rs.tenant_id,
                 store_id=getattr(rs, "store_id", None),
                 department_id=getattr(rs, "department_id", None),
+                doctor_id=getattr(rs, "doctor_id", None),
                 description=rs.description,
                 windows=[
                     CachedRuleWindow(

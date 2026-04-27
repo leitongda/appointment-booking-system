@@ -77,6 +77,7 @@ class CachedRuleSet:
     tenant_id: Optional[str] = None
     store_id: Optional[str] = None
     department_id: Optional[str] = None
+    doctor_id: Optional[str] = None
     description: Optional[str] = None
     windows: List[CachedRuleWindow] = field(default_factory=list)
 
@@ -98,6 +99,7 @@ class CachedRuleSet:
             tenant_id=data.get("tenant_id"),
             store_id=data.get("store_id"),
             department_id=data.get("department_id"),
+            doctor_id=data.get("doctor_id"),
             description=data.get("description"),
             windows=windows,
         )
@@ -118,6 +120,7 @@ class CachedRuleSet:
             "tenant_id": self.tenant_id,
             "store_id": self.store_id,
             "department_id": self.department_id,
+            "doctor_id": self.doctor_id,
             "description": self.description,
             "windows": [w.to_dict() for w in self.windows],
         }
@@ -140,17 +143,21 @@ class RuleCache:
         shift_type_id: str,
         store_id: Optional[str] = None,
         department_id: Optional[str] = None,
+        doctor_id: Optional[str] = None,
     ) -> str:
         """
-        Build cache key for rule set with store/department support.
+        Build cache key for rule set with store/department/doctor support.
 
-        新版本缓存 key，支持门店/科室级规则：
+        新版本缓存 key，支持门店/科室/医生级规则：
+        - 如果有 doctor_id，格式: rule:{tenant_id}:ruleset:{shift_type_id}:doc:{doctor_id}
         - 如果有 department_id，格式: rule:{tenant_id}:ruleset:{shift_type_id}:dept:{department_id}
         - 如果有 store_id，格式: rule:{tenant_id}:ruleset:{shift_type_id}:store:{store_id}
         - 否则（租户级），格式: rule:{tenant_id}:ruleset:{shift_type_id}
         """
         tenant_part = f"{tenant_id}:" if tenant_id else ""
-        if department_id:
+        if doctor_id:
+            return f"{CACHE_PREFIX}:{tenant_part}ruleset:{shift_type_id}:doc:{doctor_id}"
+        elif department_id:
             return f"{CACHE_PREFIX}:{tenant_part}ruleset:{shift_type_id}:dept:{department_id}"
         elif store_id:
             return f"{CACHE_PREFIX}:{tenant_part}ruleset:{shift_type_id}:store:{store_id}"
@@ -175,9 +182,10 @@ class RuleCache:
         shift_type_id: str,
         store_id: Optional[str] = None,
         department_id: Optional[str] = None,
+        doctor_id: Optional[str] = None,
     ) -> Optional[List[CachedRuleSet]]:
-        """Get cached rule sets for a shift type with store/department support."""
-        key = self._make_key_v2(tenant_id, shift_type_id, store_id, department_id)
+        """Get cached rule sets for a shift type with store/department/doctor support."""
+        key = self._make_key_v2(tenant_id, shift_type_id, store_id, department_id, doctor_id)
         try:
             data = await self._redis.get(key)
             if data:
@@ -208,9 +216,10 @@ class RuleCache:
         store_id: Optional[str],
         department_id: Optional[str],
         rule_sets: List[CachedRuleSet],
+        doctor_id: Optional[str] = None,
     ) -> None:
-        """Cache rule sets for a shift type with store/department support."""
-        key = self._make_key_v2(tenant_id, shift_type_id, store_id, department_id)
+        """Cache rule sets for a shift type with store/department/doctor support."""
+        key = self._make_key_v2(tenant_id, shift_type_id, store_id, department_id, doctor_id)
         try:
             serialized = json.dumps([rs.to_dict() for rs in rule_sets], default=str)
             await self._redis.set(key, serialized, ex=CACHE_TTL)
@@ -237,14 +246,16 @@ class RuleCache:
         shift_type_ids: List[str],
         store_ids: Optional[List[str]] = None,
         department_ids: Optional[List[str]] = None,
+        doctor_ids: Optional[List[str]] = None,
     ) -> None:
         """
-        Invalidate cached rule sets for given shift types with store/department support.
+        Invalidate cached rule sets for given shift types with store/department/doctor support.
 
         当规则组变更时，需要失效所有相关缓存：
         - 基础租户级缓存
         - 所有门店级缓存（如果有 store_ids）
         - 所有科室级缓存（如果有 department_ids）
+        - 所有医生级缓存（如果有 doctor_ids）
         """
         # 失效基础租户级缓存
         for shift_type_id in shift_type_ids:
@@ -269,6 +280,16 @@ class RuleCache:
             for shift_type_id in shift_type_ids:
                 for dept_id in department_ids:
                     key = self._make_key_v2(tenant_id, shift_type_id, department_id=dept_id)
+                    try:
+                        await self._redis.delete(key)
+                    except Exception:
+                        pass
+
+        # 失效医生级缓存
+        if doctor_ids:
+            for shift_type_id in shift_type_ids:
+                for doc_id in doctor_ids:
+                    key = self._make_key_v2(tenant_id, shift_type_id, doctor_id=doc_id)
                     try:
                         await self._redis.delete(key)
                     except Exception:
