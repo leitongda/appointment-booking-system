@@ -68,6 +68,7 @@ export default defineConfig({
       { path: '/medical-record/create', name: '填写病历', component: '@/pages/medical-record/form', hideInMenu: true },
     ]},
     { path: '/statistics', name: '数据统计', icon: 'BarChartOutlined', component: '@/pages/statistics' },
+    { path: '/rules', name: '预约规则', icon: 'SafetyCertificateOutlined', component: '@/pages/rules' },
     { path: '/message', name: '消息中心', icon: 'BellOutlined', component: '@/pages/message' },
   ],
   proxy: {

@@ -29,6 +29,11 @@ export interface DoctorListParams {
   pageSize?: number;
 }
 
+export interface DoctorRuleSetListParams {
+  page?: number;
+  pageSize?: number;
+}
+
 export interface DoctorCreateData {
   // 基础信息
   storeId?: string;
@@ -185,5 +190,13 @@ export const doctorApi = {
     return request.put('/doctors/batch-sort', {
       items: items.map(item => ({ id: item.id, sort_order: item.sortOrder })),
     });
+  },
+
+  /**
+   * 获取当前医生关联的预约规则组（只读）
+   * 医生端专用，需要医生 token
+   */
+  getMyRuleSets: (params?: DoctorRuleSetListParams): Promise<any> => {
+    return request.get('/doctor-portal/rule-sets', { params });
   },
 };
