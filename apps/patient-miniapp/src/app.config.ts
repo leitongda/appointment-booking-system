@@ -30,6 +30,8 @@ export default defineAppConfig({
         'pages/appointment/detail',  // 预约详情
         'pages/checkin/scan',        // 扫码签到
         'pages/checkin/select',      // 选择预约签到
+        'pages/waitlist/index',      // 候补列表
+        'pages/waitlist/detail',     // 候补详情
       ],
     },
     {

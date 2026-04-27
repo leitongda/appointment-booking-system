@@ -82,6 +82,14 @@ export { tenantApi } from './modules/tenant';
 export { miniappPlatformApi } from './modules/miniapp-platform';
 export { notificationLogApi } from './modules/notification-log';
 export { notificationPreferenceApi } from './modules/notification-preference';
+export { waitlistApi } from './modules/waitlist';
+export type {
+  WaitlistEntry,
+  WaitlistStatus,
+  JoinWaitlistParams,
+  MyWaitlistParams,
+  WaitlistPageResult,
+} from './modules/waitlist';
 export type {
   UserListItem,
   UserDetail,

@@ -49,6 +49,8 @@ export default defineConfig({
         { path: '/booking/confirm', component: '@/pages/booking/confirm' },
         { path: '/appointment', component: '@/pages/appointment' },
         { path: '/appointment/:id', component: '@/pages/appointment/detail' },
+        { path: '/waitlist', component: '@/pages/waitlist' },
+        { path: '/waitlist/:id', component: '@/pages/waitlist/detail' },
         { path: '/records', component: '@/pages/records' },
         { path: '/records/:id', component: '@/pages/records/detail' },
         { path: '/profile', component: '@/pages/profile' },
