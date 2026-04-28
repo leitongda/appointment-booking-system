@@ -13,7 +13,16 @@ from app.models.behavior_log import UserBehaviorLog
 logger = logging.getLogger(__name__)
 
 
-@celery_app.task(name="app.tasks.behavior_log_task.save_behavior_log")
+@celery_app.task(
+    name="app.tasks.behavior_log_task.save_behavior_log",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=120,
+    soft_time_limit=90,
+)
 def save_behavior_log(log_data: dict):
     """
     保存用户行为日志到数据库
@@ -32,6 +41,7 @@ def save_behavior_log(log_data: dict):
             
             log = UserBehaviorLog(
                 id=str(uuid.uuid4()),
+                tenant_id=log_data.get("tenant_id"),
                 platform=log_data.get("platform"),
                 user_id=log_data.get("user_id"),
                 session_id=log_data.get("session_id"),
@@ -63,7 +73,16 @@ def save_behavior_log(log_data: dict):
             raise
 
 
-@celery_app.task(name="app.tasks.behavior_log_task.batch_save_behavior_logs")
+@celery_app.task(
+    name="app.tasks.behavior_log_task.batch_save_behavior_logs",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=180,
+    soft_time_limit=150,
+)
 def batch_save_behavior_logs(logs_data: list):
     """
     批量保存用户行为日志到数据库
@@ -84,6 +103,7 @@ def batch_save_behavior_logs(logs_data: list):
                 
                 log = UserBehaviorLog(
                     id=str(uuid.uuid4()),
+                    tenant_id=log_data.get("tenant_id"),
                     platform=log_data.get("platform"),
                     user_id=log_data.get("user_id"),
                     session_id=log_data.get("session_id"),

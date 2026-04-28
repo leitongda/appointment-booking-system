@@ -12,7 +12,16 @@ from app.models.admin import OperationLog
 logger = logging.getLogger(__name__)
 
 
-@celery_app.task(name="app.tasks.operation_log_task.save_operation_log")
+@celery_app.task(
+    name="app.tasks.operation_log_task.save_operation_log",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=120,
+    soft_time_limit=90,
+)
 def save_operation_log(log_data: dict):
     """
     保存操作日志到数据库
@@ -37,6 +46,7 @@ def save_operation_log(log_data: dict):
         try:
             log = OperationLog(
                 id=str(uuid.uuid4()),
+                tenant_id=log_data.get("tenant_id"),
                 admin_id=log_data.get("admin_id"),
                 admin_name=log_data.get("admin_name"),
                 module=log_data.get("module"),
@@ -51,32 +61,42 @@ def save_operation_log(log_data: dict):
             )
             db.add(log)
             db.commit()
-            
+
             logger.debug(f"操作日志保存成功: id={log.id}")
             return {"success": True, "log_id": log.id}
-            
+
         except Exception as e:
             db.rollback()
             logger.error(f"操作日志保存失败: {e}")
             raise
 
 
-@celery_app.task(name="app.tasks.operation_log_task.batch_save_operation_logs")
+@celery_app.task(
+    name="app.tasks.operation_log_task.batch_save_operation_logs",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=180,
+    soft_time_limit=150,
+)
 def batch_save_operation_logs(logs_data: list):
     """
     批量保存操作日志到数据库
-    
+
     Args:
         logs_data: 日志数据列表
     """
     logger.debug(f"[任务] 批量保存操作日志: {len(logs_data)} 条")
-    
+
     with get_sync_db() as db:
         try:
             saved_count = 0
             for log_data in logs_data:
                 log = OperationLog(
                     id=str(uuid.uuid4()),
+                    tenant_id=log_data.get("tenant_id"),
                     admin_id=log_data.get("admin_id"),
                     admin_name=log_data.get("admin_name"),
                     module=log_data.get("module"),

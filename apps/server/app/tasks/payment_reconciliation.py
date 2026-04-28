@@ -31,8 +31,13 @@ RECONCILIATION_MAX_MINUTES = 60
     name="payment.reconciliation",
     queue="scheduled",
     bind=True,
+    autoretry_for=(Exception,),
     max_retries=2,
-    default_retry_delay=60,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=600,
+    soft_time_limit=480,
 )
 def reconcile_pending_payments(self):
     """

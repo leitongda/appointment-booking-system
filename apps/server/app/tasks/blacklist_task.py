@@ -149,7 +149,16 @@ def _notify_admins_sync(db: Session, title: str, content: str):
         logger.error(f"发送管理员通知失败: {e}")
 
 
-@celery_app.task(name="app.tasks.blacklist_task.auto_release_blacklist_task")
+@celery_app.task(
+    name="app.tasks.blacklist_task.auto_release_blacklist_task",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=300,
+    soft_time_limit=240,
+)
 def auto_release_blacklist_task():
     """
     自动解禁到期的黑名单用户
@@ -210,7 +219,16 @@ def auto_release_blacklist_task():
     return {"released_count": released_count}
 
 
-@celery_app.task(name="app.tasks.blacklist_task.mark_no_show_appointments_task")
+@celery_app.task(
+    name="app.tasks.blacklist_task.mark_no_show_appointments_task",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=600,
+    soft_time_limit=480,
+)
 def mark_no_show_appointments_task():
     """
     自动标记爽约的预约（多租户版本）
@@ -363,7 +381,16 @@ def mark_no_show_appointments_task():
     }
 
 
-@celery_app.task(name="app.tasks.blacklist_task.check_and_add_blacklist")
+@celery_app.task(
+    name="app.tasks.blacklist_task.check_and_add_blacklist",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=180,
+    soft_time_limit=150,
+)
 def check_and_add_blacklist(user_id: str):
     """
     检查用户爽约次数并自动加入黑名单（多租户版本）

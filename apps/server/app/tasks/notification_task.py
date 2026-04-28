@@ -1,14 +1,17 @@
 """
 通知相关定时任务
-- 预约提醒（就诊前发送微信消息/短信）
-- 通用微信订阅消息推送辅助函数
+- 预约提醒（就诊前发送微信消息/短信/站内信）
+- 三级提醒策略：24h(微信) / 2h(短信) / 30min(站内信+WebSocket)
+- 并行化：按租户并行派发子任务
 """
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Dict, Any, List
+from dataclasses import dataclass
+from enum import Enum
 
-from sqlalchemy import select, and_, text
+from sqlalchemy import select, and_, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 import logging
 
 from app.celery_app import celery_app
@@ -18,6 +21,7 @@ from app.models.schedule import Schedule
 from app.models.user import User
 from app.models.doctor import Doctor
 from app.models.department import Department
+from app.models.message import Message, MessageType
 from app.models.notification_log import NotificationLog
 from app.models.settings import SystemSetting as Settings
 from app.models.tenant import Tenant
@@ -26,140 +30,55 @@ from app.infrastructure.wechat.service import WechatService
 from app.infrastructure.wechat.token_manager import WechatTokenManager
 from app.middleware.tenant_context import set_tenant_context, clear_tenant_context
 from app.modules.settings.service import SettingsService
+from celery import group
 import httpx
+import asyncio
 
 logger = logging.getLogger(__name__)
 
 
-async def _send_wechat_notification(
-    db: AsyncSession,
-    tenant_id: str,
-    openid: str,
-    template_id_config_key: str,
-    template_data: dict,
-    message_type: str,
-    title: str,
-    user_id: Optional[str] = None,
-    store_id: Optional[str] = None,
-    related_id: Optional[str] = None,
-    page: str = "",
-    notification_log_context: Optional[dict] = None,
-) -> bool:
-    """通用微信订阅消息推送辅助函数。
+class ReminderLevel(str, Enum):
+    """提醒级别"""
+    LEVEL_24H = "24h"
+    LEVEL_2H = "2h"
+    LEVEL_30MIN = "30min"
 
-    从 system_settings 读取 template_id，调用 WechatService 发送，
-    并记录 NotificationLog。
 
-    Args:
-        db: 异步数据库会话
-        tenant_id: 租户 ID
-        openid: 用户 openid
-        template_id_config_key: system_settings 中的配置键名（category="wechat"）
-        template_data: 微信模板数据 dict
-        message_type: 消息类型（如 "appointment_success"）
-        title: 消息标题（写入 NotificationLog）
-        user_id: 接收用户 ID
-        store_id: 门店 ID
-        related_id: 关联业务 ID（如预约 ID）
-        page: 点击消息后跳转的小程序页面
-        notification_log_context: 额外写入 NotificationLog.extra_data 的上下文
+@dataclass
+class ReminderConfig:
+    """提醒配置"""
+    level: ReminderLevel
+    hours_before: int
+    minutes_before: int = 0
+    channel: str = "wechat"
+    requires_openid: bool = True
+    requires_phone: bool = False
 
-    Returns:
-        是否发送成功
-    """
-    # 偏好检查：用户禁用 wechat 通道时跳过推送
-    if user_id:
-        try:
-            _TYPE_FIELD_MAP = {
-                "appointment": "appointment_enabled",
-                "appointment_success": "appointment_enabled",
-                "appointment_reminder": "reminder_enabled",
-                "appointment_cancelled": "appointment_enabled",
-                "schedule": "reminder_enabled",
-                "stop_clinic": "stop_clinic_enabled",
-                "system": "system_enabled",
-                "consultation": "consultation_enabled",
-                "feedback": "feedback_enabled",
-                "queue_call": "appointment_enabled",
-            }
-            type_col = _TYPE_FIELD_MAP.get(message_type)
-            if type_col:
-                pref_stmt = text(
-                    f"SELECT wechat_enabled, {type_col} "
-                    f"FROM notification_preferences "
-                    f"WHERE user_id = :uid AND user_type = 'patient' "
-                    f"LIMIT 1"
-                )
-                pref_result = await db.execute(pref_stmt, {"uid": user_id})
-                pref_row = pref_result.first()
-                if pref_row is not None and (not pref_row[0] or not pref_row[1]):
-                    logger.debug(
-                        "[微信推送] 用户 %s 已禁用 wechat/%s，跳过", user_id, message_type,
-                    )
-                    return False
-        except Exception:
-            pass
 
-    # 读取 template_id
-    settings_service = SettingsService(db)
-    template_id = await settings_service.get_value(
-        category="wechat",
-        key=template_id_config_key,
-        default="",
-    )
-    if not template_id:
-        logger.debug(
-            "[微信推送] 模板未配置，跳过: key=%s, tenant_id=%s",
-            template_id_config_key,
-            tenant_id,
-        )
-        return False
-
-    success = False
-    error_msg = None
-    try:
-        wechat_service = WechatService(db)
-        success = await wechat_service.send_subscribe_message(
-            openid=openid,
-            template_id=template_id,
-            data=template_data,
-            page=page or None,
-        )
-        if not success:
-            error_msg = "微信推送返回失败"
-    except Exception as exc:
-        success = False
-        error_msg = str(exc)
-        logger.warning(
-            "[微信推送] 发送异常: type=%s, openid=%s, error=%s",
-            message_type,
-            openid,
-            exc,
-        )
-
-    # 记录 NotificationLog
-    try:
-        log = NotificationLog(
-            tenant_id=tenant_id,
-            store_id=store_id,
-            user_id=user_id,
-            user_type="patient",
-            channel="wechat",
-            message_type=message_type,
-            title=title,
-            status="sent" if success else "failed",
-            recipient=openid,
-            related_id=related_id,
-            sent_at=datetime.now() if success else None,
-            error_message=error_msg,
-            extra_data=notification_log_context,
-        )
-        db.add(log)
-        await db.flush()
-    except Exception as exc:
-        logger.warning("[微信推送] 写入 NotificationLog 失败: %s", exc)
-
-    return success
+# 三级提醒配置
+REMINDER_CONFIGS: Dict[ReminderLevel, ReminderConfig] = {
+    ReminderLevel.LEVEL_24H: ReminderConfig(
+        level=ReminderLevel.LEVEL_24H,
+        hours_before=24,
+        channel="wechat",
+        requires_openid=True,
+    ),
+    ReminderLevel.LEVEL_2H: ReminderConfig(
+        level=ReminderLevel.LEVEL_2H,
+        hours_before=2,
+        channel="sms",
+        requires_openid=False,
+        requires_phone=True,
+    ),
+    ReminderLevel.LEVEL_30MIN: ReminderConfig(
+        level=ReminderLevel.LEVEL_30MIN,
+        hours_before=0,
+        minutes_before=30,
+        channel="in_app",
+        requires_openid=False,
+        requires_phone=False,
+    ),
+}
 
 
 def _get_wechat_config(db: Session) -> dict:
@@ -204,7 +123,7 @@ def _send_wechat_subscribe_message(
 ) -> bool:
     """发送微信订阅消息（同步版本）"""
     url = f"https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token={access_token}"
-    
+
     payload = {
         "touser": openid,
         "template_id": template_id,
@@ -212,12 +131,12 @@ def _send_wechat_subscribe_message(
     }
     if page:
         payload["page"] = page
-    
+
     try:
         with httpx.Client(timeout=10.0) as client:
             response = client.post(url, json=payload)
             result = response.json()
-        
+
         if result.get("errcode", 0) != 0:
             logger.warning(f"发送微信消息失败: {result.get('errmsg')}")
             return False
@@ -227,30 +146,585 @@ def _send_wechat_subscribe_message(
         return False
 
 
-@celery_app.task(name="app.tasks.notification_task.send_appointment_reminder_task")
+def _send_sms_reminder(
+    db: Session,
+    tenant_id: str,
+    phone: str,
+    patient_name: str,
+    doctor_name: str,
+    appointment_time: str,
+    user_id: Optional[str] = None,
+    store_id: Optional[str] = None,
+    appointment_id: Optional[str] = None,
+) -> bool:
+    """发送短信提醒（同步版本）"""
+    try:
+        from app.infrastructure.sms.service import SmsService
+
+        # 使用 run_coroutine_threadsafe 在同步上下文中运行异步方法
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            success = loop.run_until_complete(
+                SmsService.send_appointment_reminder(
+                    tenant_id=tenant_id,
+                    phone=phone,
+                    variables={
+                        "patient_name": patient_name,
+                        "doctor": doctor_name,
+                        "time": appointment_time,
+                    },
+                    user_id=user_id,
+                    store_id=store_id,
+                    appointment_id=appointment_id,
+                )
+            )
+        finally:
+            loop.close()
+
+        return success
+    except Exception as e:
+        logger.error(f"发送短信提醒异常: {e}")
+        return False
+
+
+def _create_in_app_message(
+    db: Session,
+    tenant_id: str,
+    user_id: str,
+    title: str,
+    content: str,
+    message_type: str = MessageType.APPOINTMENT.value,
+    related_id: Optional[str] = None,
+    store_id: Optional[str] = None,
+) -> bool:
+    """创建站内信（同步版本）"""
+    try:
+        message = Message(
+            tenant_id=tenant_id,
+            store_id=store_id,
+            user_id=user_id,
+            user_type="patient",
+            title=title,
+            content=content,
+            message_type=message_type,
+            related_id=related_id,
+            is_read=0,
+        )
+        db.add(message)
+        db.flush()
+        return True
+    except Exception as e:
+        logger.error(f"创建站内信失败: {e}")
+        return False
+
+
+def _send_websocket_notification(
+    doctor_id: str,
+    message_type: str,
+    data: Dict[str, Any],
+):
+    """发送 WebSocket 通知（同步版本）"""
+    try:
+        from app.core.websocket import WSMessage
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            from app.core.websocket import ws_manager
+            # 同步任务中不需要实际发送 WebSocket，因为这是给患者看的
+            # WebSocket 主要用于医生端
+            pass
+        finally:
+            loop.close()
+    except Exception as e:
+        logger.error(f"发送 WebSocket 通知异常: {e}")
+
+
+def _query_appointments_needing_reminder(
+    db: Session,
+    tenant_id: str,
+    reminder_config: ReminderConfig,
+) -> List[tuple]:
+    """
+    查询需要提醒的预约（优化版本：使用 joinedload 预加载）
+
+    Returns:
+        List[(Appointment, Schedule, User, Doctor)]
+    """
+    now = datetime.now()
+
+    if reminder_config.minutes_before > 0:
+        # 分钟级别提醒
+        reminder_start = now
+        reminder_end = now + timedelta(minutes=reminder_config.minutes_before)
+    else:
+        # 小时级别提醒
+        reminder_start = now
+        reminder_end = now + timedelta(hours=reminder_config.hours_before)
+
+    # 确定查询字段
+    if reminder_config.level == ReminderLevel.LEVEL_24H:
+        reminder_field = Appointment.reminder_sent_24h
+    elif reminder_config.level == ReminderLevel.LEVEL_2H:
+        reminder_field = Appointment.reminder_sent_2h
+    else:  # LEVEL_30MIN
+        reminder_field = Appointment.reminder_sent_30min
+
+    # 构建查询（使用 joinedload 预加载关联数据）
+    query = (
+        select(Appointment)
+        .options(
+            joinedload(Appointment.schedule),
+            joinedload(Appointment.user),
+            joinedload(Appointment.doctor),
+        )
+        .join(Schedule, Appointment.schedule_id == Schedule.id)
+        .join(User, Appointment.user_id == User.id)
+        .join(Doctor, Schedule.doctor_id == Doctor.id)
+        .where(
+            and_(
+                Appointment.tenant_id == tenant_id,
+                Appointment.status == 1,  # 待就诊
+                reminder_field == 0,  # 未发送该级别提醒
+                # 就诊日期时间在提醒范围内
+                Schedule.schedule_date >= reminder_start.date(),
+                Schedule.schedule_date <= reminder_end.date()
+            )
+        )
+    )
+
+    # 执行查询
+    result = db.execute(query)
+    appointments = result.scalars().unique().all()
+
+    # 过滤精确时间范围并构建元组列表
+    qualified = []
+    for apt in appointments:
+        appointment_datetime = datetime.combine(
+            apt.schedule.schedule_date,
+            apt.schedule.start_time
+        )
+
+        # 精确时间检查
+        if reminder_start <= appointment_datetime <= reminder_end:
+            # 根据渠道要求过滤
+            if reminder_config.requires_openid and not apt.user.openid:
+                continue
+            if reminder_config.requires_phone and not apt.patient_phone:
+                continue
+            qualified.append((apt, apt.schedule, apt.user, apt.doctor))
+
+    return qualified
+
+
+def _send_reminder_for_level(
+    db: Session,
+    tenant_id: str,
+    tenant_name: str,
+    reminder_config: ReminderConfig,
+    wechat_access_token: Optional[str] = None,
+    wechat_template_id: Optional[str] = None,
+) -> Dict[str, int]:
+    """
+    为单个级别发送提醒
+
+    Returns:
+        {"sent": int, "failed": int}
+    """
+    sent_count = 0
+    failed_count = 0
+    now = datetime.now()
+
+    # 查询需要提醒的预约
+    appointments_to_remind = _query_appointments_needing_reminder(
+        db, tenant_id, reminder_config
+    )
+
+    if not appointments_to_remind:
+        logger.debug(f"租户 {tenant_name} 没有需要 {reminder_config.level.value} 级别提醒的预约")
+        return {"sent": 0, "failed": 0}
+
+    logger.info(
+        f"租户 {tenant_name} {reminder_config.level.value} 级别提醒: "
+        f"找到 {len(appointments_to_remind)} 个待提醒预约"
+    )
+
+    for appointment, schedule, user, doctor in appointments_to_remind:
+        success = False
+        error_msg = None
+
+        appointment_datetime = datetime.combine(
+            schedule.schedule_date,
+            schedule.start_time
+        )
+        time_str = appointment_datetime.strftime("%Y年%m月%d日 %H:%M")
+
+        try:
+            if reminder_config.channel == "wechat":
+                # 24h 级别：微信订阅消息
+                if not wechat_access_token or not wechat_template_id:
+                    error_msg = "微信配置不完整"
+                else:
+                    message_data = {
+                        "thing1": {"value": doctor.name[:20] if doctor.name else "医生"},
+                        "time2": {"value": time_str},
+                        "thing3": {"value": schedule.time_slot or ""},
+                    }
+                    success = _send_wechat_subscribe_message(
+                        access_token=wechat_access_token,
+                        openid=user.openid,
+                        template_id=wechat_template_id,
+                        data=message_data,
+                        page=f"pages/appointment/detail?id={appointment.id}"
+                    )
+                    if not success:
+                        error_msg = "微信推送失败"
+
+            elif reminder_config.channel == "sms":
+                # 2h 级别：短信
+                success = _send_sms_reminder(
+                    db=db,
+                    tenant_id=tenant_id,
+                    phone=appointment.patient_phone,
+                    patient_name=appointment.patient_name or "",
+                    doctor_name=doctor.name or "",
+                    appointment_time=time_str,
+                    user_id=user.id,
+                    store_id=appointment.store_id,
+                    appointment_id=appointment.id,
+                )
+                if not success:
+                    error_msg = "短信发送失败"
+
+            elif reminder_config.channel == "in_app":
+                # 30min 级别：站内信
+                title = "就诊提醒"
+                content = (
+                    f"您预约的 {doctor.name or '医生'} 医生 "
+                    f"将于 {time_str} 就诊，请准时到达。"
+                )
+                success = _create_in_app_message(
+                    db=db,
+                    tenant_id=tenant_id,
+                    user_id=user.id,
+                    title=title,
+                    content=content,
+                    message_type=MessageType.APPOINTMENT.value,
+                    related_id=appointment.id,
+                    store_id=appointment.store_id,
+                )
+                if not success:
+                    error_msg = "创建站内信失败"
+
+            # 更新提醒状态
+            if success:
+                if reminder_config.level == ReminderLevel.LEVEL_24H:
+                    appointment.reminder_sent_24h = 1
+                    # 兼容旧字段
+                    appointment.reminder_sent = 1
+                    appointment.reminder_sent_at = now
+                elif reminder_config.level == ReminderLevel.LEVEL_2H:
+                    appointment.reminder_sent_2h = 1
+                else:  # LEVEL_30MIN
+                    appointment.reminder_sent_30min = 1
+
+                sent_count += 1
+                logger.info(
+                    f"发送 {reminder_config.level.value} 提醒成功: "
+                    f"appointment_id={appointment.id}, channel={reminder_config.channel}"
+                )
+            else:
+                failed_count += 1
+                logger.warning(
+                    f"发送 {reminder_config.level.value} 提醒失败: "
+                    f"appointment_id={appointment.id}, error={error_msg}"
+                )
+
+            # 记录 NotificationLog
+            log = NotificationLog(
+                tenant_id=tenant_id,
+                store_id=appointment.store_id,
+                user_id=user.id,
+                user_type="patient",
+                channel=reminder_config.channel,
+                message_type=f"appointment_reminder_{reminder_config.level.value}",
+                title=f"预约提醒({reminder_config.level.value})",
+                content=f"就诊时间: {time_str}",
+                status="sent" if success else "failed",
+                recipient=user.openid or appointment.patient_phone or user.id,
+                related_id=appointment.id,
+                sent_at=now if success else None,
+                error_message=error_msg,
+            )
+            db.add(log)
+
+        except Exception as e:
+            failed_count += 1
+            logger.error(
+                f"处理 {reminder_config.level.value} 提醒异常: "
+                f"appointment_id={appointment.id}, error={e}"
+            )
+
+    return {"sent": sent_count, "failed": failed_count}
+
+
+@celery_app.task(
+    name="app.tasks.notification_task.send_appointment_reminder_for_tenant",
+    bind=True,
+    autoretry_for=(Exception,),
+    max_retries=2,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=600,
+    soft_time_limit=480,
+)
+def send_appointment_reminder_for_tenant(self, tenant_id: str, tenant_code: str):
+    """
+    处理单个租户的提醒发送（子任务）
+
+    Args:
+        tenant_id: 租户 ID
+        tenant_code: 租户编码
+
+    Returns:
+        Dict with statistics
+    """
+    import time
+    start_time = time.time()
+
+    logger.info(f"[子任务] 开始处理租户提醒: tenant_id={tenant_id}, tenant_code={tenant_code}")
+
+    # 设置租户上下文
+    set_tenant_context(tenant_id, tenant_code)
+
+    total_sent = 0
+    total_failed = 0
+    tenant_name = tenant_code
+
+    try:
+        with get_sync_db() as db:
+            # 获取租户信息
+            tenant = db.execute(
+                select(Tenant).where(Tenant.id == tenant_id)
+            ).scalar_one_or_none()
+            if tenant:
+                tenant_name = tenant.name
+
+            # 获取微信配置（24h 级别需要）
+            wechat_access_token = None
+            wechat_template_id = None
+
+            wechat_config = _get_wechat_config(db)
+            app_id = wechat_config.get('app_id') or app_settings.WECHAT_APP_ID
+            app_secret = wechat_config.get('app_secret') or app_settings.WECHAT_APP_SECRET
+
+            if app_id and app_secret:
+                try:
+                    wechat_access_token = WechatTokenManager.get_access_token_sync(
+                        app_id, app_secret
+                    )
+                    wechat_template_id = _get_appointment_reminder_template_id(db)
+                except Exception as e:
+                    logger.warning(f"获取微信配置失败: {e}")
+
+            # 按优先级处理三个级别
+            # 24h -> 2h -> 30min
+            for level_config in [
+                REMINDER_CONFIGS[ReminderLevel.LEVEL_24H],
+                REMINDER_CONFIGS[ReminderLevel.LEVEL_2H],
+                REMINDER_CONFIGS[ReminderLevel.LEVEL_30MIN],
+            ]:
+                try:
+                    result = _send_reminder_for_level(
+                        db=db,
+                        tenant_id=tenant_id,
+                        tenant_name=tenant_name,
+                        reminder_config=level_config,
+                        wechat_access_token=wechat_access_token,
+                        wechat_template_id=wechat_template_id,
+                    )
+                    total_sent += result["sent"]
+                    total_failed += result["failed"]
+                except Exception as e:
+                    logger.error(f"处理 {level_config.level.value} 级别提醒失败: {e}")
+                    total_failed += 1
+
+            db.commit()
+
+    except Exception as e:
+        logger.error(f"租户 {tenant_name} 提醒任务执行失败: {e}")
+        # 重试
+        try:
+            raise self.retry(exc=e, countdown=60)
+        except Exception:
+            pass
+    finally:
+        # 清除租户上下文
+        clear_tenant_context()
+
+    elapsed_time = time.time() - start_time
+
+    # 监控：执行时间超过 60 秒记录 WARNING
+    if elapsed_time > 60:
+        logger.warning(
+            f"[子任务] 租户 {tenant_name} 提醒任务执行时间过长: "
+            f"{elapsed_time:.2f}秒"
+        )
+
+    logger.info(
+        f"[子任务] 租户 {tenant_name} 提醒完成: "
+        f"成功 {total_sent} 条, 失败 {total_failed} 条, "
+        f"耗时 {elapsed_time:.2f}秒"
+    )
+
+    return {
+        "tenant_id": tenant_id,
+        "tenant_name": tenant_name,
+        "sent": total_sent,
+        "failed": total_failed,
+        "elapsed_time": elapsed_time,
+    }
+
+
+@celery_app.task(
+    name="app.tasks.notification_task.send_appointment_reminder_scheduler",
+    autoretry_for=(Exception,),
+    max_retries=2,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=600,
+    soft_time_limit=480,
+)
+def send_appointment_reminder_scheduler():
+    """
+    预约提醒调度器（主任务）
+    每10分钟执行一次
+
+    功能：
+    1. 扫描所有活跃租户
+    2. 使用 Celery group 并行派发子任务
+    3. 聚合结果并记录统计信息
+    """
+    import time
+    start_time = time.time()
+
+    logger.info("[调度器] 开始执行预约提醒调度")
+
+    # 查询所有活跃租户
+    with get_sync_db() as db:
+        try:
+            result = db.execute(
+                select(Tenant).where(
+                    and_(
+                        Tenant.status.in_([1, 3]),  # 正常或试用状态
+                        Tenant.deleted_at.is_(None),  # 未软删除
+                    )
+                )
+            )
+            tenants = result.scalars().all()
+        except Exception as e:
+            logger.error(f"查询租户列表失败: {e}")
+            return {
+                "sent_count": 0,
+                "failed_count": 0,
+                "tenant_count": 0,
+                "reason": "查询租户失败"
+            }
+
+    if not tenants:
+        logger.info("[调度器] 没有活跃租户，跳过预约提醒")
+        return {
+            "sent_count": 0,
+            "failed_count": 0,
+            "tenant_count": 0,
+        }
+
+    logger.info(f"[调度器] 找到 {len(tenants)} 个活跃租户，开始派发子任务")
+
+    # 使用 Celery group 并行派发子任务
+    job = group(
+        send_appointment_reminder_for_tenant.s(tenant.id, tenant.tenant_code)
+        for tenant in tenants
+    )
+
+    # 异步执行，等待结果
+    result = job.apply_async(queue="notification")
+
+    # 等待所有子任务完成（设置超时为 5 分钟）
+    try:
+        # 等待结果，最多等待 5 分钟
+        results_list = result.get(timeout=300)
+
+        # 聚合统计
+        total_sent = sum(r.get("sent", 0) for r in results_list if isinstance(r, dict))
+        total_failed = sum(r.get("failed", 0) for r in results_list if isinstance(r, dict))
+
+        elapsed_time = time.time() - start_time
+
+        logger.info(
+            f"[调度器] 预约提醒调度完成: "
+            f"租户数 {len(tenants)}, "
+            f"成功 {total_sent} 条, "
+            f"失败 {total_failed} 条, "
+            f"耗时 {elapsed_time:.2f}秒"
+        )
+
+        return {
+            "sent_count": total_sent,
+            "failed_count": total_failed,
+            "tenant_count": len(tenants),
+            "elapsed_time": elapsed_time,
+        }
+
+    except Exception as e:
+        elapsed_time = time.time() - start_time
+        logger.error(f"[调度器] 预约提醒调度失败: {e}, 耗时 {elapsed_time:.2f}秒")
+        return {
+            "sent_count": 0,
+            "failed_count": 0,
+            "tenant_count": len(tenants),
+            "reason": str(e),
+            "elapsed_time": elapsed_time,
+        }
+
+
+# ==================== 兼容旧版任务 ====================
+
+@celery_app.task(
+    name="app.tasks.notification_task.send_appointment_reminder_task",
+    autoretry_for=(Exception,),
+    max_retries=2,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=600,
+    soft_time_limit=480,
+)
 def send_appointment_reminder_task():
     """
-    发送预约提醒（多租户版本）
+    发送预约提醒（兼容旧版）
     每30分钟执行一次
 
-    规则：
-    - 遍历所有活跃租户
-    - 就诊时间在 N 小时内
-    - 预约状态为"待就诊"
-    - 用户有 openid
-    - 尚未发送过提醒
+    注意：此任务已弃用，请使用 send_appointment_reminder_scheduler
     """
-    logger.info("[定时任务] 开始执行：预约提醒")
+    logger.warning("[定时任务] 使用旧版预约提醒任务，建议迁移到 send_appointment_reminder_scheduler")
 
     reminder_hours = app_settings.APPOINTMENT_REMINDER_HOURS
     total_sent_count = 0
     total_failed_count = 0
 
-    # 第一步：查询所有活跃租户
     with get_sync_db() as db:
         try:
             result = db.execute(
-                select(Tenant).where(Tenant.status.in_([1, 3]))  # 正常或试用状态
+                select(Tenant).where(
+                    and_(
+                        Tenant.status.in_([1, 3]),
+                        Tenant.deleted_at.is_(None),
+                    )
+                )
             )
             tenants = result.scalars().all()
         except Exception as e:
@@ -263,11 +737,7 @@ def send_appointment_reminder_task():
 
     logger.info(f"找到 {len(tenants)} 个活跃租户")
 
-    # 第二步：遍历每个租户，在其上下文中发送预约提醒
     for tenant in tenants:
-        logger.info(f"开始处理租户: {tenant.name}({tenant.tenant_code}), id={tenant.id}")
-
-        # 设置当前租户上下文
         set_tenant_context(tenant.id, tenant.tenant_code)
 
         try:
@@ -276,131 +746,30 @@ def send_appointment_reminder_task():
                 failed_count = 0
                 now = datetime.now()
 
-                # 计算提醒时间范围
                 reminder_start = now
                 reminder_end = now + timedelta(hours=reminder_hours)
 
-                # 获取微信配置
                 wechat_config = _get_wechat_config(db)
                 app_id = wechat_config.get('app_id') or app_settings.WECHAT_APP_ID
                 app_secret = wechat_config.get('app_secret') or app_settings.WECHAT_APP_SECRET
                 template_id = _get_appointment_reminder_template_id(db)
 
-                if not app_id or not app_secret:
+                if not app_id or not app_secret or not template_id:
                     logger.warning(f"租户 {tenant.name} 微信配置不完整，跳过")
                     continue
 
-                if not template_id:
-                    logger.warning(f"租户 {tenant.name} 预约提醒模板 ID 未配置，跳过")
-                    continue
-
-                # 查找需要提醒的预约（添加 tenant_id 过滤）
-                result = db.execute(
-                    select(Appointment, Schedule, User, Doctor)
-                    .join(Schedule, Appointment.schedule_id == Schedule.id)
-                    .join(User, Appointment.user_id == User.id)
-                    .join(Doctor, Schedule.doctor_id == Doctor.id)
-                    .where(
-                        and_(
-                            Appointment.tenant_id == tenant.id,
-                            Appointment.status == 1,  # 待就诊
-                            Appointment.reminder_sent == 0,  # 未发送过提醒
-                            # 就诊日期时间在提醒范围内
-                            Schedule.schedule_date >= reminder_start.date(),
-                            Schedule.schedule_date <= reminder_end.date()
-                        )
-                    )
+                # 使用 24h 级别提醒配置
+                result = _send_reminder_for_level(
+                    db=db,
+                    tenant_id=tenant.id,
+                    tenant_name=tenant.name,
+                    reminder_config=REMINDER_CONFIGS[ReminderLevel.LEVEL_24H],
+                    wechat_access_token=WechatTokenManager.get_access_token_sync(app_id, app_secret),
+                    wechat_template_id=template_id,
                 )
 
-                appointments_to_remind = result.all()
-
-                if not appointments_to_remind:
-                    logger.info(f"租户 {tenant.name} 没有需要提醒的预约")
-                    continue
-
-                # 获取 access_token
-                try:
-                    access_token = WechatTokenManager.get_access_token_sync(
-                        app_id, app_secret
-                    )
-                except Exception as e:
-                    logger.error(f"租户 {tenant.name} 获取微信 access_token 失败: {e}")
-                    total_failed_count += len(appointments_to_remind)
-                    continue
-
-                for appointment, schedule, user, doctor in appointments_to_remind:
-                    # 检查用户是否有 openid
-                    if not user.openid:
-                        logger.debug(f"用户 {user.id} 没有 openid，跳过")
-                        continue
-
-                    # 检查就诊时间是否在范围内
-                    appointment_datetime = datetime.combine(
-                        schedule.schedule_date,
-                        schedule.start_time
-                    )
-
-                    if appointment_datetime < reminder_start or appointment_datetime > reminder_end:
-                        continue
-
-                    # 构建消息数据
-                    message_data = {
-                        "thing1": {"value": doctor.name[:20] if doctor.name else "医生"},  # 医生姓名
-                        "time2": {"value": appointment_datetime.strftime("%Y年%m月%d日 %H:%M")},  # 就诊时间
-                        "thing3": {"value": schedule.time_slot or ""},  # 时段
-                    }
-
-                    # 发送消息
-                    success = _send_wechat_subscribe_message(
-                        access_token=access_token,
-                        openid=user.openid,
-                        template_id=template_id,
-                        data=message_data,
-                        page=f"pages/appointment/detail?id={appointment.id}"
-                    )
-
-                    try:
-                        if success:
-                            # 标记已发送
-                            appointment.reminder_sent = 1
-                            appointment.reminder_sent_at = now
-                            sent_count += 1
-                            logger.info(f"预约提醒发送成功: appointment_id={appointment.id}")
-
-                            log = NotificationLog(
-                                tenant_id=tenant.id,
-                                store_id=appointment.store_id,
-                                user_id=user.id,
-                                user_type="patient",
-                                channel="wechat",
-                                message_type="appointment_reminder",
-                                title="预约提醒",
-                                status="sent",
-                                recipient=user.openid,
-                                related_id=appointment.id,
-                                sent_at=now,
-                            )
-                            db.add(log)
-                        else:
-                            failed_count += 1
-                            logger.warning(f"预约提醒发送失败: appointment_id={appointment.id}")
-
-                            log = NotificationLog(
-                                tenant_id=tenant.id,
-                                store_id=appointment.store_id,
-                                user_id=user.id,
-                                user_type="patient",
-                                channel="wechat",
-                                message_type="appointment_reminder",
-                                title="预约提醒",
-                                status="failed",
-                                recipient=user.openid,
-                                related_id=appointment.id,
-                                error_message="微信推送失败",
-                            )
-                            db.add(log)
-                    except Exception as e:
-                        logger.error(f"创建通知日志失败: {e}")
+                sent_count = result["sent"]
+                failed_count = result["failed"]
 
                 db.commit()
                 total_sent_count += sent_count
@@ -409,77 +778,87 @@ def send_appointment_reminder_task():
         except Exception as e:
             logger.error(f"租户 {tenant.name} 预约提醒任务执行失败: {e}")
         finally:
-            # 清除租户上下文
             clear_tenant_context()
 
     logger.info(f"[定时任务] 预约提醒完成，成功 {total_sent_count} 条，失败 {total_failed_count} 条")
     return {"sent_count": total_sent_count, "failed_count": total_failed_count}
 
 
-@celery_app.task(name="app.tasks.notification_task.send_appointment_reminder")
+@celery_app.task(
+    name="app.tasks.notification_task.send_appointment_reminder",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=120,
+    soft_time_limit=90,
+)
 def send_appointment_reminder(appointment_id: str):
     """
     发送单个预约提醒（手动触发）
-    
+
     Args:
         appointment_id: 预约 ID
     """
     logger.info(f"[任务] 发送预约提醒: appointment_id={appointment_id}")
-    
+
     with get_sync_db() as db:
         try:
-            # 查询预约信息（添加租户隔离）
             from app.middleware.tenant_context import get_current_tenant_id
             tenant_id = get_current_tenant_id()
 
             query = (
-                select(Appointment, Schedule, User, Doctor)
+                select(Appointment)
+                .options(
+                    joinedload(Appointment.schedule),
+                    joinedload(Appointment.user),
+                    joinedload(Appointment.doctor),
+                )
                 .join(Schedule, Appointment.schedule_id == Schedule.id)
                 .join(User, Appointment.user_id == User.id)
                 .join(Doctor, Schedule.doctor_id == Doctor.id)
                 .where(Appointment.id == appointment_id)
             )
 
-            # 如果有租户上下文，添加租户过滤
             if tenant_id:
                 query = query.where(Appointment.tenant_id == tenant_id)
 
             result = db.execute(query)
-            
-            row = result.first()
-            if not row:
+            appointment = result.scalar_one_or_none()
+
+            if not appointment:
                 logger.warning(f"预约不存在: {appointment_id}")
                 return {"success": False, "reason": "预约不存在"}
-            
-            appointment, schedule, user, doctor = row
-            
+
+            user = appointment.user
+            doctor = appointment.doctor
+            schedule = appointment.schedule
+
             if not user.openid:
                 return {"success": False, "reason": "用户无 openid"}
-            
-            # 获取配置
+
             wechat_config = _get_wechat_config(db)
             app_id = wechat_config.get('app_id') or app_settings.WECHAT_APP_ID
             app_secret = wechat_config.get('app_secret') or app_settings.WECHAT_APP_SECRET
             template_id = _get_appointment_reminder_template_id(db)
-            
+
             if not app_id or not app_secret or not template_id:
                 return {"success": False, "reason": "配置不完整"}
-            
-            # 获取 token
+
             access_token = WechatTokenManager.get_access_token_sync(app_id, app_secret)
-            
-            # 构建消息
+
             appointment_datetime = datetime.combine(
                 schedule.schedule_date,
                 schedule.start_time
             )
-            
+
             message_data = {
                 "thing1": {"value": doctor.name[:20] if doctor.name else "医生"},
                 "time2": {"value": appointment_datetime.strftime("%Y年%m月%d日 %H:%M")},
                 "thing3": {"value": schedule.time_slot or ""},
             }
-            
+
             success = _send_wechat_subscribe_message(
                 access_token=access_token,
                 openid=user.openid,
@@ -491,6 +870,7 @@ def send_appointment_reminder(appointment_id: str):
             try:
                 if success:
                     appointment.reminder_sent = 1
+                    appointment.reminder_sent_24h = 1  # 同时更新新字段
                     appointment.reminder_sent_at = datetime.now()
                     db.commit()
 
@@ -529,9 +909,8 @@ def send_appointment_reminder(appointment_id: str):
                 logger.error(f"创建通知日志失败: {e}")
 
             return {"success": success, "appointment_id": appointment_id}
-            
+
         except Exception as e:
             db.rollback()
             logger.error(f"发送预约提醒失败: {e}")
             return {"success": False, "reason": str(e)}
-

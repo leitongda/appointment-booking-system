@@ -28,8 +28,13 @@ PAYMENT_TIMEOUT_MINUTES = 30
     name="payment.cancel_expired_pending",
     queue="scheduled",
     bind=True,
+    autoretry_for=(Exception,),
     max_retries=2,
-    default_retry_delay=60,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=300,
+    soft_time_limit=240,
 )
 def cancel_expired_pending_appointments(self):
     """

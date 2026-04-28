@@ -31,7 +31,16 @@ def _get_wechat_config(db: Session) -> dict:
         return {}
 
 
-@celery_app.task(name="app.tasks.wechat_task.refresh_wechat_token_task")
+@celery_app.task(
+    name="app.tasks.wechat_task.refresh_wechat_token_task",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=120,
+    soft_time_limit=90,
+)
 def refresh_wechat_token_task():
     """
     主动刷新微信 access_token
@@ -79,7 +88,16 @@ def refresh_wechat_token_task():
             }
 
 
-@celery_app.task(name="app.tasks.wechat_task.refresh_wechat_token")
+@celery_app.task(
+    name="app.tasks.wechat_task.refresh_wechat_token",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=120,
+    soft_time_limit=90,
+)
 def refresh_wechat_token(app_id: str = None, app_secret: str = None):
     """
     刷新微信 Token（手动触发）

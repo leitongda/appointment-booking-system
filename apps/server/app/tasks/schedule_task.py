@@ -336,7 +336,13 @@ def _generate_schedules_for_tenant(
     name="app.tasks.schedule_task.auto_generate_schedules_task",
     base=AlertTask,
     bind=True,
+    autoretry_for=(Exception,),
     max_retries=3,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=600,
+    soft_time_limit=480,
 )
 def auto_generate_schedules_task(self):
     """自动生成排班调度器。"""
@@ -391,6 +397,13 @@ def auto_generate_schedules_task(self):
 @celery_app.task(
     name="app.tasks.schedule_task.generate_schedules_for_tenant_task",
     base=AlertTask,
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=600,
+    soft_time_limit=480,
 )
 def generate_schedules_for_tenant_task(
     tenant_id: str,
@@ -410,6 +423,13 @@ def generate_schedules_for_tenant_task(
 @celery_app.task(
     name="app.tasks.schedule_task.summarize_auto_generate_schedules_task",
     base=AlertTask,
+    autoretry_for=(Exception,),
+    max_retries=2,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=180,
+    soft_time_limit=150,
 )
 def summarize_auto_generate_schedules_task(
     tenant_results: list[dict] | None,
@@ -445,7 +465,16 @@ def summarize_auto_generate_schedules_task(
     return summary
 
 
-@celery_app.task(name="app.tasks.schedule_task.generate_schedules_for_template")
+@celery_app.task(
+    name="app.tasks.schedule_task.generate_schedules_for_template",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=600,
+    soft_time_limit=480,
+)
 def generate_schedules_for_template(
     template_id: str,
     start_date: str,

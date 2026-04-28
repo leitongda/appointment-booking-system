@@ -120,8 +120,13 @@ def _render_simple_template(event_type: str, context: Dict[str, Any]) -> tuple:
 @celery_app.task(
     name="app.tasks.email_hook_task.process_event_email",
     bind=True,
+    autoretry_for=(Exception,),
     max_retries=2,
-    default_retry_delay=60,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=180,
+    soft_time_limit=150,
 )
 def process_event_email(self, store_id: str, event_type: str, context_data: Dict[str, Any]):
     """

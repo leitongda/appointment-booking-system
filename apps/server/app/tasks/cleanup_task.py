@@ -17,7 +17,16 @@ from app.models.message import Message
 logger = logging.getLogger(__name__)
 
 
-@celery_app.task(name="app.tasks.cleanup_task.cleanup_expired_data_task")
+@celery_app.task(
+    name="app.tasks.cleanup_task.cleanup_expired_data_task",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=300,
+    soft_time_limit=240,
+)
 def cleanup_expired_data_task():
     """
     清理过期数据
@@ -92,7 +101,16 @@ def cleanup_expired_data_task():
     return results
 
 
-@celery_app.task(name="app.tasks.cleanup_task.cleanup_redis_cache")
+@celery_app.task(
+    name="app.tasks.cleanup_task.cleanup_redis_cache",
+    autoretry_for=(Exception,),
+    max_retries=2,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=120,
+    soft_time_limit=90,
+)
 def cleanup_redis_cache(pattern: str = None):
     """
     清理 Redis 缓存（手动触发）
@@ -121,7 +139,16 @@ def cleanup_redis_cache(pattern: str = None):
         return {"cleaned": 0, "error": str(e)}
 
 
-@celery_app.task(name="app.tasks.cleanup_task.cleanup_old_messages")
+@celery_app.task(
+    name="app.tasks.cleanup_task.cleanup_old_messages",
+    autoretry_for=(Exception,),
+    max_retries=2,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=180,
+    soft_time_limit=150,
+)
 def cleanup_old_messages(days: int = 90, message_type: str = None):
     """
     清理旧消息（手动触发）

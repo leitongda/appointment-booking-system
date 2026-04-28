@@ -37,6 +37,10 @@ celery_app.conf.update(
     # Worker 配置
     worker_prefetch_multiplier=1,
     worker_max_tasks_per_child=1000,
+
+    # 任务超时配置
+    task_soft_time_limit=300,  # 软超时：5分钟后抛出 SoftTimeLimitExceeded
+    task_time_limit=600,  # 硬超时：10分钟后强制终止任务
     
     # 队列配置
     task_queues=(
@@ -71,12 +75,19 @@ celery_app.conf.update(
             "options": {"queue": "scheduled"},
         },
         
-        # 预约提醒 - 每30分钟检查
-        "appointment-reminder": {
-            "task": "app.tasks.notification_task.send_appointment_reminder_task",
-            "schedule": crontab(minute="*/30"),  # 每30分钟
+        # 预约提醒调度器 - 每10分钟检查（三级提醒：24h/2h/30min）
+        "appointment-reminder-scheduler": {
+            "task": "app.tasks.notification_task.send_appointment_reminder_scheduler",
+            "schedule": crontab(minute="*/10"),  # 每10分钟
             "options": {"queue": "notification"},
         },
+
+        # 预约提醒（旧版兼容）- 已禁用，由新版 appointment-reminder-scheduler 替代
+        # "appointment-reminder-legacy": {
+        #     "task": "app.tasks.notification_task.send_appointment_reminder_task",
+        #     "schedule": crontab(minute="*/30"),
+        #     "options": {"queue": "notification"},
+        # },
         
         # 爽约自动检测 - 每30分钟检查
         "no-show-auto-mark": {
@@ -154,6 +165,13 @@ celery_app.conf.update(
             "schedule": crontab(hour=3, minute=30),
             "options": {"queue": "scheduled"},
         },
+
+        # 失败通知自动重试 - 每5分钟
+        "retry-failed-notifications": {
+            "task": "app.tasks.notification_retry_task.retry_failed_notifications",
+            "schedule": crontab(minute="*/5"),
+            "options": {"queue": "notification"},
+        },
     },
 )
 
@@ -162,6 +180,7 @@ celery_app.autodiscover_tasks([
     "app.tasks.blacklist_task",
     "app.tasks.schedule_task",
     "app.tasks.notification_task",
+    "app.tasks.notification_retry_task",
     "app.tasks.email_hook_task",
     "app.tasks.wechat_task",
     "app.tasks.cleanup_task",

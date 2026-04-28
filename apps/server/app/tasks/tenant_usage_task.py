@@ -67,7 +67,16 @@ def _count_active_doctors(db: Session, tenant_id: str) -> int:
     ) or 0
 
 
-@celery_app.task(name="app.tasks.tenant_usage_task.record_daily_usage")
+@celery_app.task(
+    name="app.tasks.tenant_usage_task.record_daily_usage",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=600,
+    soft_time_limit=480,
+)
 def record_daily_usage():
     """
     记录每日租户用量（每天凌晨执行）
@@ -143,7 +152,16 @@ def record_daily_usage():
             raise
 
 
-@celery_app.task(name="app.tasks.tenant_usage_task.check_subscription_expiry")
+@celery_app.task(
+    name="app.tasks.tenant_usage_task.check_subscription_expiry",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=600,
+    soft_time_limit=480,
+)
 def check_subscription_expiry():
     """
     检查订阅到期（每天执行）
@@ -222,7 +240,16 @@ def check_subscription_expiry():
             raise
 
 
-@celery_app.task(name="app.tasks.tenant_usage_task.check_usage_limits")
+@celery_app.task(
+    name="app.tasks.tenant_usage_task.check_usage_limits",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=600,
+    soft_time_limit=480,
+)
 def check_usage_limits():
     """
     检查用量限制（每天执行）
@@ -280,7 +307,16 @@ def check_usage_limits():
             raise
 
 
-@celery_app.task(name="app.tasks.tenant_usage_task.get_tenant_usage_summary")
+@celery_app.task(
+    name="app.tasks.tenant_usage_task.get_tenant_usage_summary",
+    autoretry_for=(Exception,),
+    max_retries=2,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=180,
+    soft_time_limit=150,
+)
 def get_tenant_usage_summary(tenant_id: str):
     """
     获取租户用量汇总（按需调用）

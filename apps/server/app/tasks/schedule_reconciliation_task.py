@@ -25,8 +25,13 @@ logger = logging.getLogger(__name__)
     name="app.tasks.schedule_reconciliation_task.reconcile_booked_slots",
     queue="scheduled",
     bind=True,
+    autoretry_for=(Exception,),
     max_retries=1,
-    default_retry_delay=120,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    time_limit=600,
+    soft_time_limit=480,
 )
 def reconcile_booked_slots(self):
     """
