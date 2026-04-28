@@ -9,6 +9,7 @@ interface MonthViewProps {
   appointments: Appointment[];
   onDateClick: (date: Dayjs) => void;
   isRestDay?: (dateStr: string) => boolean;
+  isOverridden?: (schedule: Schedule) => boolean;
 }
 
 // 时段标签映射
@@ -31,6 +32,7 @@ const MonthView: React.FC<MonthViewProps> = ({
   appointments,
   onDateClick,
   isRestDay,
+  isOverridden,
 }) => {
   // 获取某天的排班
   const getSchedulesByDate = (date: Dayjs): Schedule[] => {
@@ -69,7 +71,7 @@ const MonthView: React.FC<MonthViewProps> = ({
     // 如果是休息日，显示休息日标记
     if (isRest) {
       return (
-        <div className="month-cell-content rest-day">
+        <div className="month-cell-content rest-day" aria-label={`${dateStr} 休息日 ${stats.schedules.length}个排班`}>
           <Tag color="orange" className="rest-day-tag">休息日</Tag>
           {stats.schedules.length > 0 && (
             <div className="cell-stats muted">
@@ -92,8 +94,10 @@ const MonthView: React.FC<MonthViewProps> = ({
                 (TIME_SLOT_SORT_ORDER[b.timeSlot] ?? 3)
     );
 
+    const ariaLabel = `${dateStr} ${stats.availableSlots > 0 ? `剩余号源${stats.availableSlots}个` : ''} ${stats.bookedSlots > 0 ? `已预约${stats.bookedSlots}个` : ''} ${stats.hasSuspended ? '有停诊排班' : ''}`;
+
     return (
-      <div className="month-cell-content">
+      <div className="month-cell-content" aria-label={ariaLabel}>
         <div className="cell-stats">
           {stats.availableSlots > 0 && (
             <span className="stat-item">
@@ -111,18 +115,20 @@ const MonthView: React.FC<MonthViewProps> = ({
         <div className="cell-slots">
           {sortedSchedules.slice(0, 3).map(s => {
             const available = s.totalSlots - s.bookedSlots;
+            const overridden = isOverridden?.(s) ?? false;
             let color = 'success';
-            if (s.status === 0) color = 'default';
+            if (overridden || s.status === 0) color = 'default';
             else if (available <= 0) color = 'error';
             else if (available <= s.totalSlots * 0.2) color = 'warning';
-            
+
             return (
-              <Tag 
-                key={s.id} 
-                color={color} 
-                className="slot-tag"
+              <Tag
+                key={s.id}
+                color={color}
+                className={`slot-tag${overridden ? ' overridden' : ''}`}
+                title={overridden ? '已被自定义排班覆盖' : undefined}
               >
-                {TIME_SLOT_LABELS[s.timeSlot] || s.timeSlot}
+                {overridden ? '覆盖' : (TIME_SLOT_LABELS[s.timeSlot] || s.timeSlot)}
               </Tag>
             );
           })}

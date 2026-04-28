@@ -9,7 +9,7 @@
  */
 import { BankOutlined, DownOutlined, CheckOutlined, SearchOutlined } from '@ant-design/icons';
 import { history, useModel } from '@umijs/max';
-import { Tooltip, Popover, Spin, Empty, Avatar, Input, App } from 'antd';
+import { Tooltip, Popover, Spin, Empty, Avatar, Input, App, theme } from 'antd';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { tenantApi, adminApi } from '@hospital/api';
 import type { Tenant } from '@hospital/api';
@@ -22,6 +22,7 @@ const TENANT_CACHE_TTL = 5 * 60 * 1000;
 const TenantSwitcher: React.FC = () => {
   const { modal, message } = App.useApp();
   const { initialState } = useModel('@@initialState');
+  const { token } = theme.useToken();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -174,7 +175,7 @@ const TenantSwitcher: React.FC = () => {
     if (currentTenantId) {
       return (
         <>
-          <BankOutlined style={{ marginRight: 8, fontSize: 16, color: '#1890ff' }} />
+          <BankOutlined style={{ marginRight: 8, fontSize: 16, color: token.colorPrimary }} />
           <span className={styles.tenantName}>{currentTenantName || currentTenantId}</span>
           <DownOutlined className={`${styles.tenantDropdownIcon} ${open ? styles.tenantDropdownIconOpen : ''}`} />
         </>
@@ -184,8 +185,8 @@ const TenantSwitcher: React.FC = () => {
     // 未选择租户（平台管理员）
     return (
       <>
-        <BankOutlined style={{ marginRight: 8, fontSize: 16, color: 'rgba(0, 0, 0, 0.45)' }} />
-        <span className={styles.tenantName} style={{ color: 'rgba(0, 0, 0, 0.45)' }}>选择租户</span>
+        <BankOutlined style={{ marginRight: 8, fontSize: 16, color: token.colorTextTertiary }} />
+        <span className={styles.tenantName} style={{ color: token.colorTextTertiary }}>选择租户</span>
         <DownOutlined className={`${styles.tenantDropdownIcon} ${open ? styles.tenantDropdownIconOpen : ''}`} />
       </>
     );
@@ -221,7 +222,7 @@ const TenantSwitcher: React.FC = () => {
                 icon={<BankOutlined />}
                 size={32}
                 className={styles.tenantItemLogo}
-                style={{ backgroundColor: currentTenantId === tenant.id ? '#1890ff' : '#87d068' }}
+                style={{ backgroundColor: currentTenantId === tenant.id ? token.colorPrimary : token.colorSuccess }}
               />
               <div className={styles.tenantItemInfo}>
                 <span className={styles.tenantItemName}>{tenant.name}</span>

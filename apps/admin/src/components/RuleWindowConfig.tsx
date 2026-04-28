@@ -1,9 +1,10 @@
-import { Card, Space, Button, Typography, Form, Select, InputNumber, Input, Row, Col, Tooltip, Tabs, Empty, Popconfirm, Grid, Divider, Alert } from 'antd';
+import { Card, Space, Button, Typography, Form, Select, InputNumber, Input, Row, Col, Tooltip, Tabs, Empty, Popconfirm, Grid, Divider, Alert, theme } from 'antd';
 import { PlusOutlined, DeleteOutlined, QuestionCircleOutlined, EyeOutlined } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
 
 const { useBreakpoint } = Grid;
+const { useToken } = theme;
 import {
   WINDOW_ACTION_OPTIONS,
   WINDOW_REFERENCE_POINT_OPTIONS,
@@ -175,6 +176,7 @@ interface WindowFormContentProps {
 
 const WindowFormContent: React.FC<WindowFormContentProps> = ({ field, remove }) => {
   const screens = useBreakpoint();
+  const { token } = useToken();
   const isMobile = !screens.md;
   const action = Form.useWatch(['windows', field.name, 'action']);
   const openOffsetSec = Form.useWatch(['windows', field.name, 'openOffsetSec']);
@@ -207,7 +209,7 @@ const WindowFormContent: React.FC<WindowFormContentProps> = ({ field, remove }) 
                 <Space>
                   动作类型
                   <Tooltip title="选择要限制的操作类型：预约-创建新预约，签到-签到操作，取消-取消预约，释放-释放占位号">
-                    <QuestionCircleOutlined style={{ color: '#1890ff' }} />
+                    <QuestionCircleOutlined style={{ color: token.colorPrimary }} />
                   </Tooltip>
                 </Space>
               }
@@ -223,7 +225,7 @@ const WindowFormContent: React.FC<WindowFormContentProps> = ({ field, remove }) 
                 <Space>
                   参考点
                   <Tooltip title="时间窗口的计算基准：班次开始/结束时间基于班次时间表，预约创建时间基于用户操作时间">
-                    <QuestionCircleOutlined style={{ color: '#1890ff' }} />
+                    <QuestionCircleOutlined style={{ color: token.colorPrimary }} />
                   </Tooltip>
                 </Space>
               }
@@ -271,7 +273,7 @@ const WindowFormContent: React.FC<WindowFormContentProps> = ({ field, remove }) 
                 <Space>
                   包含开放边界
                   <Tooltip title="是否包含开放时刻：包含表示到达开放时刻即可操作，不包含表示必须过开放时刻才能操作">
-                    <QuestionCircleOutlined style={{ color: '#1890ff' }} />
+                    <QuestionCircleOutlined style={{ color: token.colorPrimary }} />
                   </Tooltip>
                 </Space>
               }
@@ -292,7 +294,7 @@ const WindowFormContent: React.FC<WindowFormContentProps> = ({ field, remove }) 
                 <Space>
                   包含截止边界
                   <Tooltip title="是否包含截止时刻：包含表示截止时刻仍可操作，不包含表示必须在截止时刻前完成操作">
-                    <QuestionCircleOutlined style={{ color: '#1890ff' }} />
+                    <QuestionCircleOutlined style={{ color: token.colorPrimary }} />
                   </Tooltip>
                 </Space>
               }
@@ -313,7 +315,7 @@ const WindowFormContent: React.FC<WindowFormContentProps> = ({ field, remove }) 
                 <Space>
                   失败策略
                   <Tooltip title="操作不在时间窗内的处理方式：拒绝-禁止操作并提示错误，允许并打标签-允许操作但标记特殊状态，自动候补-添加到候补队列">
-                    <QuestionCircleOutlined style={{ color: '#1890ff' }} />
+                    <QuestionCircleOutlined style={{ color: token.colorPrimary }} />
                   </Tooltip>
                 </Space>
               }
@@ -473,6 +475,7 @@ const WindowTabsContent: React.FC<WindowTabsContentProps> = ({
   setActiveKey,
 }) => {
   const screens = useBreakpoint();
+  const { token } = useToken();
   const isMobile = !screens.md;
   const isTablet = screens.md && !screens.lg;
 
@@ -498,7 +501,7 @@ const WindowTabsContent: React.FC<WindowTabsContentProps> = ({
         }}>
           <div style={{ fontWeight: 500, fontSize: isMobile ? 12 : 14 }}>{name}</div>
           {actionLabel && (
-            <div style={{ fontSize: isMobile ? 10 : 11, color: '#8c8c8c' }}>{actionLabel}</div>
+            <div style={{ fontSize: isMobile ? 10 : 11, color: token.colorTextSecondary }}>{actionLabel}</div>
           )}
         </div>
       ),
@@ -563,6 +566,7 @@ interface WindowTimelineVisualizationProps {
 
 const WindowTimelineVisualization: React.FC<WindowTimelineVisualizationProps> = ({ fields }) => {
   const screens = useBreakpoint();
+  const { token } = useToken();
   const isMobile = !screens.md;
 
   // 使用 useWatch 获取所有 windows 的数据
@@ -610,7 +614,7 @@ const WindowTimelineVisualization: React.FC<WindowTimelineVisualizationProps> = 
       </div>
 
       {/* 时间关系说明 */}
-      <div style={{ marginTop: 16, padding: 12, backgroundColor: '#f0f5ff', borderRadius: 6, borderLeft: '3px solid #1890ff' }}>
+      <div style={{ marginTop: 16, padding: 12, backgroundColor: token.colorInfoBg, borderRadius: 6, borderLeft: `3px solid ${token.colorInfo}` }}>
         <Text type="secondary" style={{ fontSize: 12 }}>
           提示：时间轴显示各时间窗相对于班次开始时间（8:00）的开放和截止时间。
           绿色表示开放时间偏移，红色表示截止时间偏移。多个时间窗组合时，系统会取最严格的限制。

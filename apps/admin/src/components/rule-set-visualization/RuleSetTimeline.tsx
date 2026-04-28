@@ -4,7 +4,7 @@
  */
 
 import React, { useMemo } from 'react';
-import { Timeline, Space, Tag, Card, Typography, Row, Col } from 'antd';
+import { Timeline, Space, Tag, Card, Typography, Row, Col, theme } from 'antd';
 import type { RuleWindow } from '@hospital/shared';
 import { formatOffset, groupWindowsByAction, calculateWindowTime } from '@/utils/ruleSetFormatter';
 import { ACTION_COLORS, REFERENCE_POINT_LABELS } from '@/constants/rule-set';
@@ -41,6 +41,7 @@ const WindowTimelineItem: React.FC<WindowTimelineItemProps> = ({
   shiftStart,
   shiftEnd
 }) => {
+  const { token } = theme.useToken();
   const colorConfig = ACTION_COLORS[window.action] || ACTION_COLORS.BOOK;
   const refPointLabel = REFERENCE_POINT_LABELS[window.referencePoint] || window.referencePoint;
   const openOffset = formatOffset(window.openOffsetSec);
@@ -120,7 +121,7 @@ const WindowTimelineItem: React.FC<WindowTimelineItemProps> = ({
             <Col span={12}>
               <div>
                 <Text type="secondary">开放：</Text>
-                <Text style={{ color: '#52c41a', fontWeight: 500 }}>{openOffset}</Text>
+                <Text style={{ color: token.colorSuccess, fontWeight: 500 }}>{openOffset}</Text>
               </div>
               {actualTimeRange && (
                 <Text type="secondary" style={{ fontSize: 11 }}>
@@ -131,7 +132,7 @@ const WindowTimelineItem: React.FC<WindowTimelineItemProps> = ({
             <Col span={12}>
               <div>
                 <Text type="secondary">截止：</Text>
-                <Text style={{ color: '#fa8c16', fontWeight: 500 }}>{closeOffset}</Text>
+                <Text style={{ color: token.colorWarning, fontWeight: 500 }}>{closeOffset}</Text>
               </div>
               {actualTimeRange && (
                 <Text type="secondary" style={{ fontSize: 11 }}>
@@ -158,7 +159,7 @@ const WindowTimelineItem: React.FC<WindowTimelineItemProps> = ({
         {/* 友好描述 */}
         {!compact && (
           <div>
-            <Text style={{ fontSize: 12, color: '#595959' }}>
+            <Text style={{ fontSize: 12, color: token.colorTextSecondary }}>
               {friendlyDescription}
             </Text>
           </div>

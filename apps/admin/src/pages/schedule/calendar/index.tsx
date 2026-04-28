@@ -147,6 +147,20 @@ const ScheduleCalendarPage: React.FC = () => {
     return schedules.some(s => s.scheduleDate === dateStr && s.isRestDay);
   }, [schedules]);
 
+  // 判断某条排班是否被自定义排班覆盖（同医生、同日期、同时间段存在自定义排班）
+  const isOverridden = useCallback((schedule: Schedule): boolean => {
+    if (schedule.effectiveStatus === 'overridden') return true;
+    if (schedule.templateId == null) return false; // 自定义排班不会被覆盖
+    // 在已加载数据中查找同时间段自定义排班
+    return schedules.some(s =>
+      s.id !== schedule.id &&
+      s.templateId == null && // 自定义排班
+      s.doctorId === schedule.doctorId &&
+      s.scheduleDate === schedule.scheduleDate &&
+      (s.startTime === schedule.startTime || s.timeSlot === schedule.timeSlot)
+    );
+  }, [schedules]);
+
   // 刷新数据
   const refreshData = useCallback(() => {
     loadSchedules();
@@ -236,6 +250,7 @@ const ScheduleCalendarPage: React.FC = () => {
                     onAppointmentClick={handleAppointmentClick}
                     onCreateClick={handleCreateClick}
                     isRestDay={isRestDay}
+                    isOverridden={isOverridden}
                   />
                 ) : (
                   <MonthView
@@ -244,6 +259,7 @@ const ScheduleCalendarPage: React.FC = () => {
                     appointments={appointments}
                     onDateClick={handleDateClick}
                     isRestDay={isRestDay}
+                    isOverridden={isOverridden}
                   />
                 )}
               </div>

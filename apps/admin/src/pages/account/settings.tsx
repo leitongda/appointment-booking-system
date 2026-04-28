@@ -1,12 +1,27 @@
-import { PageContainer, ProForm, ProFormText } from '@ant-design/pro-components';
-import { Card, App, Row, Col, Typography, Space, Spin } from 'antd';
+import { PageContainer, ProForm, ProFormText, ProFormSwitch } from '@ant-design/pro-components';
+import { Card, App, Row, Col, Typography, Space, Spin, Switch, TimePicker, Divider } from 'antd';
 import { useState, useEffect } from 'react';
 import { useModel } from '@umijs/max';
-import { adminApi } from '@hospital/api';
-import type { Admin } from '@hospital/api';
+import { adminApi, notificationPreferenceApi } from '@hospital/api';
+import type { Admin, NotificationPreference } from '@hospital/api';
 import ImageUpload from '@/components/ImageUpload';
+import {
+  BellOutlined,
+  ClockCircleOutlined,
+  CustomerServiceOutlined,
+  MessageOutlined,
+  MoonOutlined,
+  NotificationOutlined,
+} from '@ant-design/icons';
+import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
+
+interface QuietHoursConfig {
+  enabled: boolean;
+  startTime: dayjs.Dayjs | null;
+  endTime: dayjs.Dayjs | null;
+}
 
 const AccountSettingsPage: React.FC = () => {
   const { message } = App.useApp();
@@ -16,8 +31,17 @@ const AccountSettingsPage: React.FC = () => {
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>();
   const [avatarSaving, setAvatarSaving] = useState(false);
 
+  const [notificationPreference, setNotificationPreference] = useState<NotificationPreference | null>(null);
+  const [notificationLoading, setNotificationLoading] = useState(false);
+  const [quietHours, setQuietHours] = useState<QuietHoursConfig>({
+    enabled: false,
+    startTime: null,
+    endTime: null,
+  });
+
   useEffect(() => {
     loadAdmin();
+    loadNotificationPreferences();
   }, []);
 
   const loadAdmin = async () => {
@@ -73,6 +97,93 @@ const AccountSettingsPage: React.FC = () => {
       }
     } catch (error: any) {
       message.error(error.message || '保存失败');
+    }
+  };
+
+  const loadNotificationPreferences = async () => {
+    try {
+      setNotificationLoading(true);
+      const data = await notificationPreferenceApi.get();
+      setNotificationPreference(data);
+
+      const hasQuietHours = data.quietHoursStart || data.quietHoursEnd;
+      setQuietHours({
+        enabled: !!hasQuietHours,
+        startTime: data.quietHoursStart
+          ? dayjs(data.quietHoursStart, 'HH:mm')
+          : null,
+        endTime: data.quietHoursEnd ? dayjs(data.quietHoursEnd, 'HH:mm') : null,
+      });
+    } catch (error) {
+      console.error('加载通知偏好失败', error);
+    } finally {
+      setNotificationLoading(false);
+    }
+  };
+
+  const handleNotificationToggle = async (
+    key: keyof NotificationPreference,
+    value: boolean
+  ) => {
+    if (!notificationPreference) return;
+
+    try {
+      const updated = await notificationPreferenceApi.update({ [key]: value });
+      setNotificationPreference(updated);
+      message.success('设置已保存');
+    } catch (error) {
+      message.error('保存失败');
+      setNotificationPreference({ ...notificationPreference });
+    }
+  };
+
+  const handleQuietHoursToggle = async (enabled: boolean) => {
+    if (!notificationPreference) return;
+
+    try {
+      const updates: Partial<NotificationPreference> = {
+        quietHoursStart: enabled ? '22:00' : undefined,
+        quietHoursEnd: enabled ? '08:00' : undefined,
+      };
+      const updated = await notificationPreferenceApi.update(updates);
+      setNotificationPreference(updated);
+      setQuietHours({
+        ...quietHours,
+        enabled,
+        startTime: enabled ? dayjs('22:00', 'HH:mm') : null,
+        endTime: enabled ? dayjs('08:00', 'HH:mm') : null,
+      });
+      message.success('设置已保存');
+    } catch (error) {
+      message.error('保存失败');
+      setQuietHours({ ...quietHours, enabled: !enabled });
+    }
+  };
+
+  const handleQuietHoursTimeChange = async (
+    field: 'start' | 'end',
+    time: dayjs.Dayjs | null
+  ) => {
+    if (!notificationPreference) return;
+
+    const newQuietHours = { ...quietHours };
+    if (field === 'start') {
+      newQuietHours.startTime = time;
+    } else {
+      newQuietHours.endTime = time;
+    }
+
+    try {
+      const updates: Partial<NotificationPreference> = {
+        quietHoursStart: newQuietHours.startTime?.format('HH:mm'),
+        quietHoursEnd: newQuietHours.endTime?.format('HH:mm'),
+      };
+      const updated = await notificationPreferenceApi.update(updates);
+      setNotificationPreference(updated);
+      setQuietHours(newQuietHours);
+      message.success('设置已保存');
+    } catch (error) {
+      message.error('保存失败');
     }
   };
 
@@ -152,6 +263,129 @@ const AccountSettingsPage: React.FC = () => {
               fieldProps={{ autoComplete: 'off' }}
             />
           </ProForm>
+        </Card>
+
+        <Card title="通知设置" loading={notificationLoading} style={{ marginTop: 16 }}>
+          {notificationPreference && (
+            <>
+              <div style={{ marginBottom: 16 }}>
+                <Typography.Title level={5} style={{ marginBottom: 12 }}>
+                  <NotificationOutlined /> 通知类型
+                </Typography.Title>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Space>
+                      <BellOutlined />
+                      <span>预约通知</span>
+                    </Space>
+                    <Switch
+                      checked={notificationPreference.appointmentEnabled}
+                      onChange={(v) => handleNotificationToggle('appointmentEnabled', v)}
+                    />
+                  </div>
+                  <Divider style={{ margin: '8px 0' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Space>
+                      <ClockCircleOutlined />
+                      <span>提醒通知</span>
+                    </Space>
+                    <Switch
+                      checked={notificationPreference.reminderEnabled}
+                      onChange={(v) => handleNotificationToggle('reminderEnabled', v)}
+                    />
+                  </div>
+                  <Divider style={{ margin: '8px 0' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Space>
+                      <CustomerServiceOutlined />
+                      <span>系统通知</span>
+                    </Space>
+                    <Switch
+                      checked={notificationPreference.systemEnabled}
+                      onChange={(v) => handleNotificationToggle('systemEnabled', v)}
+                    />
+                  </div>
+                </Space>
+              </div>
+
+              <Divider />
+
+              <div style={{ marginBottom: 16 }}>
+                <Typography.Title level={5} style={{ marginBottom: 12 }}>
+                  <MessageOutlined /> 通知渠道
+                </Typography.Title>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Space>
+                      <CustomerServiceOutlined />
+                      <span>短信通知</span>
+                    </Space>
+                    <Switch
+                      checked={notificationPreference.smsEnabled}
+                      onChange={(v) => handleNotificationToggle('smsEnabled', v)}
+                    />
+                  </div>
+                  <Divider style={{ margin: '8px 0' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Space>
+                      <MessageOutlined />
+                      <span>站内通知</span>
+                    </Space>
+                    <Switch
+                      checked={notificationPreference.inAppEnabled}
+                      onChange={(v) => handleNotificationToggle('inAppEnabled', v)}
+                    />
+                  </div>
+                </Space>
+              </div>
+
+              <Divider />
+
+              <div>
+                <Typography.Title level={5} style={{ marginBottom: 12 }}>
+                  <MoonOutlined /> 免打扰时段
+                </Typography.Title>
+                <div style={{ marginBottom: 12 }}>
+                  <Switch
+                    checked={quietHours.enabled}
+                    onChange={handleQuietHoursToggle}
+                    checkedChildren="已启用"
+                    unCheckedChildren="已关闭"
+                  />
+                  <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
+                    启用后在设定时间段内不接收通知
+                  </Typography.Text>
+                </div>
+
+                {quietHours.enabled && (
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <div style={{ marginBottom: 8 }}>
+                        <Typography.Text strong>开始时间</Typography.Text>
+                      </div>
+                      <TimePicker
+                        value={quietHours.startTime}
+                        onChange={(time) => handleQuietHoursTimeChange('start', time)}
+                        format="HH:mm"
+                        style={{ width: '100%' }}
+                      />
+                    </Col>
+                    <Col span={12}>
+                      <div style={{ marginBottom: 8 }}>
+                        <Typography.Text strong>结束时间</Typography.Text>
+                      </div>
+                      <TimePicker
+                        value={quietHours.endTime}
+                        onChange={(time) => handleQuietHoursTimeChange('end', time)}
+                        format="HH:mm"
+                        style={{ width: '100%' }}
+                      />
+                    </Col>
+                  </Row>
+                )}
+              </div>
+            </>
+          )}
         </Card>
       </Spin>
     </PageContainer>

@@ -4,6 +4,7 @@
 @status-full: #F44336;
 @status-suspended: #9E9E9E;
 @status-rest-day: #fa8c16;
+@status-overridden: #b0b0b0;
 
 // 日历主容器
 .schedule-calendar-card {
@@ -112,6 +113,10 @@
 
       &.suspended {
         background: @status-suspended;
+      }
+
+      &.overridden {
+        background: @status-overridden;
       }
     }
   }
@@ -297,6 +302,18 @@
 
     &:hover {
       background: fade(@status-suspended, 10%);
+    }
+  }
+
+  &.overridden {
+    .slot-indicator {
+      background: @status-overridden;
+    }
+
+    cursor: not-allowed;
+
+    &:hover {
+      background: fade(@status-overridden, 10%);
     }
   }
 

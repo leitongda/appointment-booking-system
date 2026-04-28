@@ -4,7 +4,7 @@
  */
 
 import React, { useMemo } from 'react';
-import { Card, Space, Typography, Row, Col, Tag, Divider, Tooltip } from 'antd';
+import { Card, Space, Typography, Row, Col, Tag, Divider, Tooltip, theme } from 'antd';
 import { ClockCircleOutlined, ArrowRightOutlined, MinusOutlined } from '@ant-design/icons';
 import type { RuleWindow } from '@hospital/shared';
 import { formatOffset, calculateWindowTime } from '@/utils/ruleSetFormatter';
@@ -90,6 +90,7 @@ const WindowTimelineCard: React.FC<WindowTimelineCardProps> = ({
   compact = false,
   highlightOnHover = true,
 }) => {
+  const { token } = theme.useToken();
   const colorConfig = ACTION_COLORS[window.action] || ACTION_COLORS.BOOK;
   const refPointLabel = REFERENCE_POINT_LABELS[window.referencePoint] || window.referencePoint;
 
@@ -151,17 +152,17 @@ const WindowTimelineCard: React.FC<WindowTimelineCardProps> = ({
               {/* 开放时间 */}
               <Col xs={24} sm={11}>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 11, color: '#8c8c8c', marginBottom: 4 }}>开放时间</div>
+                  <div style={{ fontSize: 11, color: token.colorTextTertiary, marginBottom: 4 }}>开放时间</div>
                   <div style={{
                     padding: '6px 12px',
-                    backgroundColor: '#f6ffed',
-                    border: '1px solid #b7eb8f',
+                    backgroundColor: token.colorSuccessBg,
+                    border: `1px solid ${token.colorSuccessBorder}`,
                     borderRadius: '4px',
-                    color: '#52c41a',
+                    color: token.colorSuccess,
                     fontWeight: 500,
                   }}>
                     {window.openOffsetSec === null ? (
-                      <span style={{ color: '#8c8c8c' }}>∞ 不限制</span>
+                      <span style={{ color: token.colorTextTertiary }}>∞ 不限制</span>
                     ) : (
                       <>
                         <ClockCircleOutlined style={{ marginRight: 4 }} />
@@ -174,19 +175,19 @@ const WindowTimelineCard: React.FC<WindowTimelineCardProps> = ({
 
               {/* 分隔符 */}
               <Col xs={24} sm={2} style={{ textAlign: 'center' }}>
-                <ArrowRightOutlined style={{ color: '#d9d9d9', fontSize: 16 }} />
+                <ArrowRightOutlined style={{ color: token.colorBorderSecondary, fontSize: 16 }} />
               </Col>
 
               {/* 参考点 */}
               <Col xs={24} sm={11}>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 11, color: '#8c8c8c', marginBottom: 4 }}>参考点</div>
+                  <div style={{ fontSize: 11, color: token.colorTextTertiary, marginBottom: 4 }}>参考点</div>
                   <div style={{
                     padding: '6px 12px',
-                    backgroundColor: '#e6f7ff',
-                    border: '1px solid #91d5ff',
+                    backgroundColor: token.colorInfoBg,
+                    border: `1px solid ${token.colorInfoBorder}`,
                     borderRadius: '4px',
-                    color: '#1890ff',
+                    color: token.colorInfo,
                     fontWeight: 500,
                   }}>
                     {refPointLabel}
@@ -197,17 +198,17 @@ const WindowTimelineCard: React.FC<WindowTimelineCardProps> = ({
               {/* 截止时间 */}
               <Col xs={24} sm={11}>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 11, color: '#8c8c8c', marginBottom: 4 }}>截止时间</div>
+                  <div style={{ fontSize: 11, color: token.colorTextTertiary, marginBottom: 4 }}>截止时间</div>
                   <div style={{
                     padding: '6px 12px',
-                    backgroundColor: '#fff7e6',
-                    border: '1px solid #ffd591',
+                    backgroundColor: token.colorWarningBg,
+                    border: `1px solid ${token.colorWarningBorder}`,
                     borderRadius: '4px',
-                    color: '#fa8c16',
+                    color: token.colorWarning,
                     fontWeight: 500,
                   }}>
                     {window.closeOffsetSec === null ? (
-                      <span style={{ color: '#8c8c8c' }}>∞ 不限制</span>
+                      <span style={{ color: token.colorTextTertiary }}>∞ 不限制</span>
                     ) : (
                       <>
                         <ClockCircleOutlined style={{ marginRight: 4 }} />
@@ -225,7 +226,7 @@ const WindowTimelineCard: React.FC<WindowTimelineCardProps> = ({
               <Text type="secondary" style={{ fontSize: 12 }}>
                 实际时间范围（以班次 8:00 为基准）
               </Text>
-              <div style={{ marginTop: 4, fontSize: 13, fontWeight: 500, color: '#262626' }}>
+              <div style={{ marginTop: 4, fontSize: 13, fontWeight: 500, color: token.colorText }}>
                 {actualTimeRange}
               </div>
             </div>
@@ -237,11 +238,11 @@ const WindowTimelineCard: React.FC<WindowTimelineCardProps> = ({
           <Row gutter={8}>
             <Col span={12}>
               <Text type="secondary" style={{ fontSize: 11 }}>开放：</Text>
-              <Text style={{ fontSize: 12, color: '#52c41a' }}>{openOffset}</Text>
+              <Text style={{ fontSize: 12, color: token.colorSuccess }}>{openOffset}</Text>
             </Col>
             <Col span={12}>
               <Text type="secondary" style={{ fontSize: 11 }}>截止：</Text>
-              <Text style={{ fontSize: 12, color: '#fa8c16' }}>{closeOffset}</Text>
+              <Text style={{ fontSize: 12, color: token.colorWarning }}>{closeOffset}</Text>
             </Col>
           </Row>
         )}
@@ -250,7 +251,7 @@ const WindowTimelineCard: React.FC<WindowTimelineCardProps> = ({
         {!compact && friendlyDescriptions.length > 0 && (
           <div style={{ marginTop: 8 }}>
             {friendlyDescriptions.map((desc, index) => (
-              <div key={index} style={{ fontSize: 13, color: '#595959', marginBottom: 4 }}>
+              <div key={index} style={{ fontSize: 13, color: token.colorTextSecondary, marginBottom: 4 }}>
                 • {desc}
               </div>
             ))}

@@ -1,7 +1,7 @@
 import { PlusOutlined, StopOutlined, PlayCircleOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns, ProFormInstance } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormSelect, ProFormDatePicker, ProFormDigit, ProFormTimePicker } from '@ant-design/pro-components';
-import { Button, App, Space, Tag, Popconfirm, Alert } from 'antd';
+import { Button, App, Space, Tag, Popconfirm, Alert, Tooltip } from 'antd';
 import { useRef, useState, useEffect } from 'react';
 import { useAccess, useModel } from '@umijs/max';
 import { scheduleApi, doctorApi, departmentApi } from '@hospital/api';
@@ -349,12 +349,25 @@ const ScheduleDetailPage: React.FC = () => {
       },
     },
     {
-      title: '状态',
-      dataIndex: 'status',
-      width: 80,
-      valueEnum: {
-        1: { text: '正常', status: 'Success' },
-        0: { text: '停诊', status: 'Error' },
+      title: '生效状态',
+      dataIndex: 'effectiveStatus',
+      width: 110,
+      search: false,
+      render: (_, record) => {
+        const status = record.effectiveStatus || (record.status === 0 ? 'suspended' : 'active');
+        const statusMap: Record<string, { text: string; color: string; tooltip: string }> = {
+          active: { text: '正常', color: 'success', tooltip: '该排班正常生效，患者可预约' },
+          suspended: { text: '停诊', color: 'error', tooltip: '该排班已停诊，患者不可预约' },
+          rest_day: { text: '休息日', color: 'orange', tooltip: '该日期为休息日，模板排班会被隐藏' },
+          custom: { text: '自定义', color: 'processing', tooltip: '自定义排班，优先级最高，不受休息日影响' },
+          overridden: { text: '被覆盖', color: 'default', tooltip: '该模板排班已被同时间段的自定义排班覆盖，患者不可见此排班' },
+        };
+        const info = statusMap[status] || statusMap.active;
+        return (
+          <Tooltip title={info.tooltip}>
+            <Tag color={info.color}>{info.text}</Tag>
+          </Tooltip>
+        );
       },
     },
     {

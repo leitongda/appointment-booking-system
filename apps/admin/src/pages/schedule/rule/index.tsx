@@ -8,7 +8,7 @@ import { Button, App, Space, Tag, Alert, Modal, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 import { useRef, useState, useEffect, useMemo } from 'react';
 import { history, useAccess } from '@umijs/max';
-import { scheduleTemplateApi, doctorApi, departmentApi } from '@hospital/api';
+import { scheduleTemplateApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import { toProTableResult } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
@@ -25,7 +25,7 @@ import dayjs from 'dayjs';
 import HistoryLogsModal from './components/HistoryLogsModal';
 import BatchAddModal from './components/BatchAddModal';
 import GenerateScheduleModal from './components/GenerateScheduleModal';
-import CopyRuleModal, { CopyRuleFormData } from './components/CopyRuleModal';
+import CopyRuleModal, { CopyRuleFormData, CrossStoreMapping } from './components/CopyRuleModal';
 
 const ScheduleRulePage: React.FC = () => {
   const { message, modal } = App.useApp();
@@ -64,6 +64,13 @@ const ScheduleRulePage: React.FC = () => {
   const [copyLoading, setCopyLoading] = useState(false);
   const [allDoctors, setAllDoctors] = useState<Doctor[]>([]);
   const [copyDeptFilter, setCopyDeptFilter] = useState<string | undefined>(undefined);
+  // 跨院区复制状态
+  const [copyMode, setCopyMode] = useState<'same-store' | 'cross-store'>('same-store');
+  const [allStores, setAllStores] = useState<Store[]>([]);
+  const [targetStoreId, setTargetStoreId] = useState<string | undefined>(undefined);
+  const [targetStoreDepartments, setTargetStoreDepartments] = useState<Department[]>([]);
+  const [targetStoreDoctors, setTargetStoreDoctors] = useState<Doctor[]>([]);
+  const [crossStoreMappings, setCrossStoreMappings] = useState<CrossStoreMapping[]>([]);
 
   // 当前日期信息
   const dateInfo = useMemo(() => getDateInfo(), []);
@@ -109,6 +116,28 @@ const ScheduleRulePage: React.FC = () => {
     }
   };
 
+  const loadAllStores = async () => {
+    try {
+      const data = await storeApi.getAll();
+      setAllStores(data ?? []);
+    } catch (error) {
+      console.error('加载门店失败', error);
+    }
+  };
+
+  const loadTargetStoreData = async (storeId: string) => {
+    try {
+      const [depts, docs] = await Promise.all([
+        departmentApi.getAll(storeId),
+        doctorApi.getByStore(storeId),
+      ]);
+      setTargetStoreDepartments(depts ?? []);
+      setTargetStoreDoctors(docs ?? []);
+    } catch (error) {
+      console.error('加载目标门店数据失败', error);
+    }
+  };
+
   const handleOpenCopyModal = async (record: ScheduleTemplate) => {
     setCopySourceTemplate(record);
     setCopyFormData({
@@ -125,8 +154,13 @@ const ScheduleRulePage: React.FC = () => {
     setCopyStep(0);
     setCopyTargetDoctorIds([]);
     setCopyDeptFilter(undefined);
+    setCopyMode('same-store');
+    setTargetStoreId(undefined);
+    setTargetStoreDepartments([]);
+    setTargetStoreDoctors([]);
+    setCrossStoreMappings([]);
     setCopyModalOpen(true);
-    await loadAllDoctors();
+    await Promise.all([loadAllDoctors(), loadAllStores()]);
   };
 
   const handleCopyNextStep = () => {
@@ -138,11 +172,6 @@ const ScheduleRulePage: React.FC = () => {
   };
 
   const handleConfirmCopy = async () => {
-    if (copyTargetDoctorIds.length === 0) {
-      message.error(ScheduleMessages.selectTargetDoctor);
-      return;
-    }
-
     if (!copySourceTemplate || !copyFormData) {
       message.error(ScheduleMessages.copySourceNotFound);
       return;
@@ -150,19 +179,56 @@ const ScheduleRulePage: React.FC = () => {
 
     setCopyLoading(true);
     try {
-      const result = await scheduleTemplateApi.copy(copySourceTemplate.id, {
-        targetDoctorIds: copyTargetDoctorIds,
-        name: copyFormData.name,
-        weekdays: copyFormData.weekdays,
-        appointmentType: copyFormData.appointmentType,
-        startTime: copyFormData.startTime,
-        endTime: copyFormData.endTime,
-        slotCount: copyFormData.slotCount,
-        slotCapacity: copyFormData.slotCapacity,
-        scheduleMode: copyFormData.scheduleMode,
-        breakTimes: copyFormData.breakTimes,
-      });
-      message.success(result.message);
+      if (copyMode === 'same-store') {
+        if (copyTargetDoctorIds.length === 0) {
+          message.error(ScheduleMessages.selectTargetDoctor);
+          setCopyLoading(false);
+          return;
+        }
+        const result = await scheduleTemplateApi.copy(copySourceTemplate.id, {
+          targetDoctorIds: copyTargetDoctorIds,
+          name: copyFormData.name,
+          weekdays: copyFormData.weekdays,
+          appointmentType: copyFormData.appointmentType,
+          startTime: copyFormData.startTime,
+          endTime: copyFormData.endTime,
+          slotCount: copyFormData.slotCount,
+          slotCapacity: copyFormData.slotCapacity,
+          scheduleMode: copyFormData.scheduleMode,
+          breakTimes: copyFormData.breakTimes,
+        });
+        message.success(result.message);
+      } else {
+        const validMappings = crossStoreMappings.filter(
+          (m) => m.targetDepartmentId && m.targetDoctorId
+        );
+        if (validMappings.length === 0) {
+          message.error('请至少配置一个有效的科室/医生映射');
+          setCopyLoading(false);
+          return;
+        }
+        const result = await scheduleTemplateApi.copyCrossStore(copySourceTemplate.id, {
+          targetStoreId: targetStoreId!,
+          mappings: validMappings.map((m) => ({
+            sourceDepartmentId: m.sourceDepartmentId,
+            targetDepartmentId: m.targetDepartmentId!,
+            targetDoctorId: m.targetDoctorId!,
+          })),
+          name: copyFormData.name,
+          weekdays: copyFormData.weekdays,
+          appointmentType: copyFormData.appointmentType,
+          startTime: copyFormData.startTime,
+          endTime: copyFormData.endTime,
+          slotCount: copyFormData.slotCount,
+          slotCapacity: copyFormData.slotCapacity,
+          scheduleMode: copyFormData.scheduleMode,
+          breakTimes: copyFormData.breakTimes,
+        });
+        message.success(result.message);
+        if (result.failedMappings && result.failedMappings.length > 0) {
+          message.warning(`${result.failedMappings.length} 条映射因校验失败被跳过`);
+        }
+      }
       setCopyModalOpen(false);
       actionRef.current?.reload();
     } catch (error: any) {
@@ -767,6 +833,11 @@ const ScheduleRulePage: React.FC = () => {
           setCopyFormData(null);
           setCopyStep(0);
           setCopyTargetDoctorIds([]);
+          setCopyMode('same-store');
+          setTargetStoreId(undefined);
+          setTargetStoreDepartments([]);
+          setTargetStoreDoctors([]);
+          setCrossStoreMappings([]);
         }}
         onNextStep={handleCopyNextStep}
         onPrevStep={handleCopyPrevStep}
@@ -783,6 +854,29 @@ const ScheduleRulePage: React.FC = () => {
         deptFilter={copyDeptFilter}
         onDeptFilterChange={setCopyDeptFilter}
         filteredDoctors={filteredDoctors}
+        copyMode={copyMode}
+        onCopyModeChange={(mode) => {
+          setCopyMode(mode);
+          if (mode === 'cross-store' && targetStoreId) {
+            loadTargetStoreData(targetStoreId);
+          }
+        }}
+        stores={allStores}
+        targetStoreId={targetStoreId}
+        onTargetStoreIdChange={(storeId) => {
+          setTargetStoreId(storeId);
+          if (storeId) {
+            loadTargetStoreData(storeId);
+          } else {
+            setTargetStoreDepartments([]);
+            setTargetStoreDoctors([]);
+            setCrossStoreMappings([]);
+          }
+        }}
+        targetStoreDepartments={targetStoreDepartments}
+        targetStoreDoctors={targetStoreDoctors}
+        crossStoreMappings={crossStoreMappings}
+        onCrossStoreMappingsChange={setCrossStoreMappings}
       />
     </PageContainer>
   );

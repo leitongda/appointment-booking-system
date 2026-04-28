@@ -4,7 +4,7 @@
  */
 
 import React, { useMemo, useRef, useState, useEffect } from 'react';
-import { Empty } from 'antd';
+import { Empty, theme } from 'antd';
 import dayjs from 'dayjs';
 import type { RuleWindow } from '@hospital/shared';
 import {
@@ -80,15 +80,11 @@ const WINDOW_COLORS: Record<string, WindowColorConfig> = {
 };
 
 const TIMELINE_CONFIG = {
-  // 班次背景
-  shiftBackground: '#f5f5f5',
-  shiftBorder: '#bfbfbf',
-  shiftLabelColor: '#8c8c8c',
+  // 班次背景 - 将在组件中使用 token
+  // shiftBackground, shiftBorder, shiftLabelColor 在运行时从 token 获取
 
-  // 坐标轴
-  axisColor: '#d9d9d9',
-  tickColor: '#bfbfbf',
-  textColor: '#8c8c8c',
+  // 坐标轴 - 将在组件中使用 token
+  // axisColor, tickColor, textColor 在运行时从 token 获取
 
   // 不限制状态样式
   unlimitedDashArray: '4 4',  // 虚线样式
@@ -123,6 +119,7 @@ const HorizontalTimeline: React.FC<HorizontalTimelineProps> = ({
   style,
   className,
 }) => {
+  const { token } = theme.useToken();
   const svgRef = useRef<SVGSVGElement>(null);
   const [svgWidth, setSvgWidth] = useState(0);
   const [isReady, setIsReady] = useState(false);
@@ -222,6 +219,13 @@ const HorizontalTimeline: React.FC<HorizontalTimelineProps> = ({
 
     return {
       ...TIMELINE_CONFIG,
+      // 从 token 获取颜色配置
+      shiftBackground: token.colorFillAlter,
+      shiftBorder: token.colorBorderSecondary,
+      shiftLabelColor: token.colorTextTertiary,
+      axisColor: token.colorBorderSecondary,
+      tickColor: token.colorBorderSecondary,
+      textColor: token.colorTextTertiary,
       barHeight,
       barSpacing,
       totalHeight: Math.max(height, timelineHeight),
@@ -232,7 +236,7 @@ const HorizontalTimeline: React.FC<HorizontalTimelineProps> = ({
       containerWidth,
       needsScroll: chartWidth > containerWidth,
     };
-  }, [enabledWindows.length, compact, height, svgWidth, timelineRange, timeTicks.length]);
+  }, [enabledWindows.length, compact, height, svgWidth, timelineRange, timeTicks.length, token]);
 
   // 坐标转换：时间转 X 坐标
   const timeToX = (time: Date): number => {
@@ -452,11 +456,11 @@ const HorizontalTimeline: React.FC<HorizontalTimelineProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#fafafa',
+          backgroundColor: token.colorBgContainer,
           borderRadius: 4,
         }}
       >
-        <span style={{ color: '#8c8c8c' }}>加载时间轴...</span>
+        <span style={{ color: token.colorTextTertiary }}>加载时间轴...</span>
       </div>
     );
   }
@@ -733,9 +737,9 @@ const HorizontalTimeline: React.FC<HorizontalTimelineProps> = ({
             flexWrap: 'wrap',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', fontSize: 12, color: '#595959' }}>
+          <div style={{ display: 'flex', alignItems: 'center', fontSize: 12, color: token.colorTextSecondary }}>
             <svg width={16} height={12} style={{ marginRight: 4 }}>
-              <rect width={16} height={12} fill={TIMELINE_CONFIG.shiftBackground} stroke={TIMELINE_CONFIG.shiftBorder} rx={2} />
+              <rect width={16} height={12} fill={token.colorFillAlter} stroke={token.colorBorderSecondary} rx={2} />
             </svg>
             班次时间
           </div>
@@ -744,7 +748,7 @@ const HorizontalTimeline: React.FC<HorizontalTimelineProps> = ({
             if (!colorConfig) return null;
 
             return (
-              <div key={action} style={{ display: 'flex', alignItems: 'center', fontSize: 12, color: '#595959' }}>
+              <div key={action} style={{ display: 'flex', alignItems: 'center', fontSize: 12, color: token.colorTextSecondary }}>
                 <svg width={16} height={12} style={{ marginRight: 4 }}>
                   <rect width={16} height={12} fill={colorConfig.fill} stroke={colorConfig.stroke} rx={2} />
                 </svg>
@@ -753,10 +757,10 @@ const HorizontalTimeline: React.FC<HorizontalTimelineProps> = ({
             );
           })}
           {/* 不限制图例 */}
-          <div style={{ display: 'flex', alignItems: 'center', fontSize: 12, color: '#595959' }}>
+          <div style={{ display: 'flex', alignItems: 'center', fontSize: 12, color: token.colorTextSecondary }}>
             <svg width={24} height={12} style={{ marginRight: 4 }}>
-              <line x1={0} y1={6} x2={24} y2={6} stroke="#ff4d4f" strokeWidth={2} strokeDasharray="4 4" />
-              <text x={12} y={7} textAnchor="middle" fontSize={10} fill="#ff4d4f" fontWeight="bold">∞</text>
+              <line x1={0} y1={6} x2={24} y2={6} stroke={token.colorError} strokeWidth={2} strokeDasharray="4 4" />
+              <text x={12} y={7} textAnchor="middle" fontSize={10} fill={token.colorError} fontWeight="bold">∞</text>
             </svg>
             不限制
           </div>

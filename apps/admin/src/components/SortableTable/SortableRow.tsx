@@ -2,6 +2,7 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { HolderOutlined } from '@ant-design/icons';
+import { theme } from 'antd';
 
 interface SortableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {
   'data-row-key'?: string;
@@ -55,13 +56,14 @@ export const DragHandleContext = React.createContext<DragHandleContextType>({});
 // 拖拽手柄组件
 export const DragHandle: React.FC = () => {
   const { setActivatorNodeRef, listeners } = React.useContext(DragHandleContext);
+  const { token } = theme.useToken();
 
   return (
     <HolderOutlined
       ref={setActivatorNodeRef}
       style={{
         cursor: 'grab',
-        color: '#999',
+        color: token.colorTextTertiary,
         fontSize: 16,
         touchAction: 'none',
       }}

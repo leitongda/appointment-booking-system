@@ -10,6 +10,7 @@ interface WeekViewProps {
   onAppointmentClick: (appointment: Appointment) => void;
   onCreateClick: (scheduleId: string) => void;
   isRestDay?: (dateStr: string) => boolean;
+  isOverridden?: (schedule: Schedule) => boolean;
 }
 
 // 生成30分钟时间轴 (08:00 - 21:00)
@@ -33,6 +34,7 @@ const WeekView: React.FC<WeekViewProps> = ({
   onAppointmentClick,
   onCreateClick,
   isRestDay,
+  isOverridden,
 }) => {
   // 计算本周的7天
   const weekDays = useMemo(() => {
@@ -88,10 +90,10 @@ const WeekView: React.FC<WeekViewProps> = ({
 
   return (
     <div className="week-view">
-      <div className="week-grid">
+      <div className="week-grid" role="grid" aria-label="排班周视图">
         {/* 表头 */}
-        <div className="week-header">
-          <div className="header-cell time-column">时间</div>
+        <div className="week-header" role="row">
+          <div className="header-cell time-column" role="columnheader">时间</div>
           {weekDays.map((day, index) => {
             const dateStr = day.format('YYYY-MM-DD');
             const isToday = dateStr === today;
@@ -101,6 +103,8 @@ const WeekView: React.FC<WeekViewProps> = ({
               <div
                 key={dateStr}
                 className={`header-cell ${isToday ? 'today' : ''} ${isWeekend ? 'weekend' : ''} ${isRest ? 'rest-day' : ''}`}
+                role="columnheader"
+                aria-label={`${day.format('YYYY年MM月DD日')} 周${WEEKDAYS[day.day()]}${isToday ? ' 今天' : ''}${isRest ? ' 休息日' : ''}`}
               >
                 <div className="header-date">{day.format('MM/DD')}</div>
                 <div className="header-weekday">周{WEEKDAYS[day.day()]}</div>
@@ -112,8 +116,8 @@ const WeekView: React.FC<WeekViewProps> = ({
 
         {/* 时间行 */}
         {TIME_SLOTS.map((timeSlot) => (
-          <div key={timeSlot} className="time-row">
-            <div className="time-cell">{timeSlot}</div>
+          <div key={timeSlot} className="time-row" role="row">
+            <div className="time-cell" role="rowheader">{timeSlot}</div>
             {weekDays.map((day, index) => {
               const isToday = day.format('YYYY-MM-DD') === today;
               const isWeekend = index === 0 || index === 6;
@@ -124,12 +128,15 @@ const WeekView: React.FC<WeekViewProps> = ({
                 <div
                   key={`${day.format('YYYY-MM-DD')}-${timeSlot}`}
                   className={`slot-cell ${isToday ? 'today' : ''} ${isWeekend ? 'weekend' : ''}`}
+                  aria-label={`${day.format('MM月DD日')} ${timeSlot} ${schedule ? '有排班' : '无排班'}`}
+                  role="gridcell"
                 >
                   <TimeSlotCell
                     schedule={schedule}
                     appointments={slotAppointments}
                     onAppointmentClick={onAppointmentClick}
                     onCreateClick={onCreateClick}
+                    isOverridden={schedule ? isOverridden?.(schedule) : false}
                   />
                 </div>
               );

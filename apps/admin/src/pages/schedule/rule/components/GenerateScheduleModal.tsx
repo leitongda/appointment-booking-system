@@ -1,5 +1,5 @@
-import { Modal, Button, Space, Alert, Table, InputNumber, Tabs } from 'antd';
-import { EyeOutlined } from '@ant-design/icons';
+import { Modal, Button, Space, Alert, Table, InputNumber, Tabs, Tag, Tooltip } from 'antd';
+import { EyeOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { ProForm, ProFormDatePicker } from '@ant-design/pro-components';
 import type { ProFormInstance } from '@ant-design/pro-components';
 import type { ScheduleTemplate, SchedulePreviewGenerateResponse } from '@hospital/shared';
@@ -155,12 +155,31 @@ const GenerateScheduleModal: React.FC<GenerateScheduleModalProps> = ({
         </ProForm>
       ) : (
         <div>
-          <Alert
-            message={`预览：共 ${previewData.reduce((acc, p) => acc + p.totalCount, 0)} 个班次，可修改每个班次的可预约人数`}
-            type="success"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
+          {(() => {
+            const totalSlots = previewData.reduce((acc, p) => acc + p.totalCount, 0);
+            const warningSlots = previewData.reduce(
+              (acc, p) => acc + p.slots.filter((s) => s.ruleValidation && s.ruleValidation.length > 0).length,
+              0
+            );
+            return (
+              <Alert
+                message={
+                  <span>
+                    预览：共 <strong>{totalSlots}</strong> 个班次，可修改每个班次的可预约人数
+                    {warningSlots > 0 && (
+                      <span style={{ marginLeft: 12, color: '#fa8c16' }}>
+                        （<ExclamationCircleOutlined style={{ marginRight: 4 }} />
+                        {warningSlots} 个班次存在规则限制）
+                      </span>
+                    )}
+                  </span>
+                }
+                type={warningSlots > 0 ? 'warning' : 'success'}
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+            );
+          })()}
 
           {previewData.map((preview) => {
             // 按时段分组
@@ -226,6 +245,27 @@ const GenerateScheduleModal: React.FC<GenerateScheduleModalProps> = ({
                                 );
                               },
                             },
+                            {
+                              title: '规则校验',
+                              width: 100,
+                              render: (_, record) => {
+                                const warnings = record.ruleValidation;
+                                if (warnings && warnings.length > 0) {
+                                  return (
+                                    <Tooltip title={warnings.join('；')}>
+                                      <Tag color="warning" icon={<ExclamationCircleOutlined />}>
+                                        {warnings.length}项限制
+                                      </Tag>
+                                    </Tooltip>
+                                  );
+                                }
+                                return (
+                                  <Tag color="success" icon={<CheckCircleOutlined />}>
+                                    通过
+                                  </Tag>
+                                );
+                              },
+                            },
                           ]}
                         />
                       ),
@@ -262,6 +302,27 @@ const GenerateScheduleModal: React.FC<GenerateScheduleModalProps> = ({
                               }}
                               style={{ width: 80 }}
                             />
+                          );
+                        },
+                      },
+                      {
+                        title: '规则校验',
+                        width: 100,
+                        render: (_, record) => {
+                          const warnings = record.ruleValidation;
+                          if (warnings && warnings.length > 0) {
+                            return (
+                              <Tooltip title={warnings.join('；')}>
+                                <Tag color="warning" icon={<ExclamationCircleOutlined />}>
+                                  {warnings.length}项限制
+                                </Tag>
+                              </Tooltip>
+                            );
+                          }
+                          return (
+                            <Tag color="success" icon={<CheckCircleOutlined />}>
+                              通过
+                            </Tag>
                           );
                         },
                       },

@@ -4,7 +4,7 @@
  */
 
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
-import { Empty } from 'antd';
+import { Empty, theme } from 'antd';
 import dayjs from 'dayjs';
 import type { RuleWindow } from '@hospital/shared';
 import {
@@ -84,14 +84,6 @@ const CONFIG = {
   minTickWidth: 100,       // 每个刻度的最小宽度（像素）
   tickIntervalSeconds: 1800, // 刻度间隔（30分钟）
 
-  // 样式
-  shiftBackground: '#f5f5f5',
-  shiftBorder: '#bfbfbf',
-  axisColor: '#d9d9d9',
-  tickColor: '#bfbfbf',
-  textColor: '#595959',
-  gridLineColor: '#f0f0f0',
-
   // 不限制状态样式
   unlimitedDashArray: '4 4',
   infinitySymbolSize: 12,
@@ -112,6 +104,7 @@ const GanttTimeline: React.FC<GanttTimelineProps> = ({
   style,
   className,
 }) => {
+  const { token } = theme.useToken();
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(800); // 设置默认初始宽度
@@ -204,8 +197,15 @@ const GanttTimeline: React.FC<GanttTimelineProps> = ({
       totalWidth,
       totalHeight: Math.max(height, totalHeight),
       needsScroll: totalWidth > containerWidth,
+      // 从 token 获取颜色配置
+      shiftBackground: token.colorFillAlter,
+      shiftBorder: token.colorBorderSecondary,
+      axisColor: token.colorBorderSecondary,
+      tickColor: token.colorBorderSecondary,
+      textColor: token.colorTextSecondary,
+      gridLineColor: token.colorBorder,
     };
-  }, [containerWidth, timelineRange, enabledWindows.length, height]);
+  }, [containerWidth, timelineRange, enabledWindows.length, height, token]);
 
   // 坐标转换：时间转 X 坐标
   const timeToX = useCallback((time: Date): number => {
@@ -504,7 +504,7 @@ const GanttTimeline: React.FC<GanttTimelineProps> = ({
                   y1={CONFIG.paddingTop}
                   x2={sep.x}
                   y2={layout.totalHeight - CONFIG.paddingBottom}
-                  stroke={sep.isShiftDay ? '#1890ff' : '#8c8c8c'}
+                  stroke={sep.isShiftDay ? token.colorPrimary : token.colorTextTertiary}
                   strokeWidth={1}
                   strokeDasharray="4 2"
                   opacity={0.5}
@@ -515,7 +515,7 @@ const GanttTimeline: React.FC<GanttTimelineProps> = ({
                   y={CONFIG.paddingTop + 20}
                   textAnchor="start"
                   fontSize={10}
-                  fill={sep.isShiftDay ? '#1890ff' : '#8c8c8c'}
+                  fill={sep.isShiftDay ? token.colorPrimary : token.colorTextTertiary}
                   fontWeight={sep.isShiftDay ? 600 : 400}
                   opacity={0.8}
                   style={{ pointerEvents: 'none' }}
@@ -693,7 +693,7 @@ const GanttTimeline: React.FC<GanttTimelineProps> = ({
             if (!colorConfig) return null;
 
             return (
-              <div key={action} style={{ display: 'flex', alignItems: 'center', fontSize: 12, color: '#595959' }}>
+              <div key={action} style={{ display: 'flex', alignItems: 'center', fontSize: 12, color: token.colorTextSecondary }}>
                 <svg width={16} height={12} style={{ marginRight: 4 }}>
                   <rect width={16} height={12} fill={colorConfig.fill} stroke={colorConfig.stroke} rx={2} />
                 </svg>
@@ -702,10 +702,10 @@ const GanttTimeline: React.FC<GanttTimelineProps> = ({
             );
           })}
           {/* 不限制图例 */}
-          <div style={{ display: 'flex', alignItems: 'center', fontSize: 12, color: '#595959' }}>
+          <div style={{ display: 'flex', alignItems: 'center', fontSize: 12, color: token.colorTextSecondary }}>
             <svg width={24} height={12} style={{ marginRight: 4 }}>
-              <line x1={0} y1={6} x2={24} y2={6} stroke="#ff4d4f" strokeWidth={2} strokeDasharray="4 4" />
-              <text x={12} y={7} textAnchor="middle" fontSize={10} fill="#ff4d4f" fontWeight="bold">∞</text>
+              <line x1={0} y1={6} x2={24} y2={6} stroke={token.colorError} strokeWidth={2} strokeDasharray="4 4" />
+              <text x={12} y={7} textAnchor="middle" fontSize={10} fill={token.colorError} fontWeight="bold">∞</text>
             </svg>
             不限制
           </div>

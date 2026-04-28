@@ -4,7 +4,7 @@
  */
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { Card, Space, Typography, Divider, Spin, TimePicker } from 'antd';
+import { Card, Space, Typography, Divider, Spin, TimePicker, theme } from 'antd';
 import type { RuleSet, ShiftType } from '@hospital/shared';
 import dayjs, { type Dayjs } from 'dayjs';
 import { formatTime, calculateKeyTimes } from '@/utils/ruleSetFormatter';
@@ -54,18 +54,19 @@ interface KeyTimesListProps {
 }
 
 const KeyTimesList: React.FC<KeyTimesListProps> = ({ keyTimes, baseDate }) => {
+  const { token } = theme.useToken();
   const formatKeyTime = (time?: Date) => {
     if (!time) return '不限制';
     return formatTime(time);
   };
 
   const items: { label: string; time?: Date; color?: string }[] = [
-    { label: '预约开放', time: keyTimes.bookOpen, color: '#1890ff' },
-    { label: '预约截止', time: keyTimes.bookClose, color: '#1890ff' },
-    { label: '签到开放', time: keyTimes.checkinOpen, color: '#52c41a' },
-    { label: '签到截止', time: keyTimes.checkinClose, color: '#52c41a' },
-    { label: '取消开放', time: keyTimes.cancelOpen, color: '#fa8c16' },
-    { label: '取消截止', time: keyTimes.cancelClose, color: '#fa8c16' },
+    { label: '预约开放', time: keyTimes.bookOpen, color: token.colorInfo },
+    { label: '预约截止', time: keyTimes.bookClose, color: token.colorInfo },
+    { label: '签到开放', time: keyTimes.checkinOpen, color: token.colorSuccess },
+    { label: '签到截止', time: keyTimes.checkinClose, color: token.colorSuccess },
+    { label: '取消开放', time: keyTimes.cancelOpen, color: token.colorWarning },
+    { label: '取消截止', time: keyTimes.cancelClose, color: token.colorWarning },
   ];
 
   return (

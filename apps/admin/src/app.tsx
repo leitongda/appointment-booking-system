@@ -2,7 +2,7 @@ import { AvatarDropdown, AvatarName } from '@/components/RightContent';
 import { FullscreenButton, NotificationButton, RefreshButton, StoreSwitcher } from '@/components/HeaderActions';
 import TenantSwitcher from '@/components/TenantSwitcher';
 import TenantStatusBanner from '@/components/TenantStatusBanner';
-import { getToken, removeToken, setStorage, getStorage, removeStorage, STORAGE_KEYS, handleTokenExpired, initTracker, getTracker, initCrossTabSync, destroyCrossTabSync, isPublicEntryRoute, shouldSilenceAuthExpiredFeedback, markAuthExpired, subscribeTenantSuspended } from '@hospital/shared';
+import { getToken, removeToken, setStorage, getStorage, removeStorage, STORAGE_KEYS, handleTokenExpired, initTracker, getTracker, initCrossTabSync, destroyCrossTabSync, isPublicEntryRoute, shouldSilenceAuthExpiredFeedback, markAuthExpired, subscribeTenantSuspended, initPerformanceMonitoring, recordRouteChange } from '@hospital/shared';
 import type { CrossTabEvent, MiniappStoreThemeValue } from '@hospital/shared';
 import { adminApi, setBaseURL } from '@hospital/api';
 import type { Settings as LayoutSettings, MenuDataItem } from '@ant-design/pro-components';
@@ -273,6 +273,15 @@ initTracker({
   debug: process.env.NODE_ENV === 'development',
 });
 
+// 初始化前端性能监控
+initPerformanceMonitoring({
+  report: {
+    enabled: true,
+    flushInterval: 30000, // 30 秒批量上报
+    batchSize: 20,
+  },
+});
+
 /**
  * 页面过渡动画包装组件
  */
@@ -332,6 +341,25 @@ export function rootContainer(container: any) {
 
   // 初始化跨 Tab 状态同步
   initCrossTabSync(handleCrossTabEvent);
+
+  // 记录初始路由性能
+  let routeStartTime = performance.now();
+  let lastPathname = window.location.pathname;
+
+  // 监听路由变化（使用 Umi 的 history 监听）
+  const unlisten = history.listen(({ location }) => {
+    const routeEndTime = performance.now();
+    const routeDuration = routeEndTime - routeStartTime;
+
+    // 记录路由切换性能（排除登录页等公共页面）
+    const publicPaths = ['/login', '/404', '/403', '/tenant-suspended'];
+    if (!publicPaths.includes(lastPathname)) {
+      recordRouteChange(lastPathname, routeDuration);
+    }
+
+    routeStartTime = performance.now();
+    lastPathname = location.pathname;
+  });
 
   return (
     <ConfigProvider

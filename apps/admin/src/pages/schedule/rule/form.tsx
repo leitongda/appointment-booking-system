@@ -1,6 +1,6 @@
 import { PageContainer, ProForm, ProFormText, ProFormSelect, ProFormDigit, ProFormTimePicker, ProFormRadio, ProFormCheckbox, FooterToolbar } from '@ant-design/pro-components';
 import type { ProFormInstance } from '@ant-design/pro-components';
-import { Card, App, Button, Space, Row, Col, Collapse, TimePicker, Divider, Typography } from 'antd';
+import { Card, App, Button, Space, Row, Col, Collapse, TimePicker, Divider, Typography, Steps, Alert } from 'antd';
 import { PlusOutlined, DeleteOutlined, SettingOutlined } from '@ant-design/icons';
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { history, useParams, useAccess } from '@umijs/max';
@@ -56,8 +56,23 @@ const ScheduleRuleFormPage: React.FC = () => {
   
   // 排除时间段（午休时间等）
   const [breakTimes, setBreakTimes] = useState<{ startTime?: any; endTime?: any }[]>([]);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [showGuide, setShowGuide] = useState(false);
 
   const dateInfo = useMemo(() => getDateInfo(), []);
+
+  // 首次访问显示引导提示
+  useEffect(() => {
+    const hasSeenGuide = localStorage.getItem('schedule_rule_form_guide_seen');
+    if (!hasSeenGuide) {
+      setShowGuide(true);
+    }
+  }, []);
+
+  const dismissGuide = () => {
+    localStorage.setItem('schedule_rule_form_guide_seen', 'true');
+    setShowGuide(false);
+  };
 
   useEffect(() => {
     loadDepartments();
@@ -182,6 +197,27 @@ const ScheduleRuleFormPage: React.FC = () => {
     setFormValues(allValues);
   };
 
+  const stepFields: string[][] = [
+    ['name', 'storeId', 'departmentId', 'doctorId'],
+    ['weekdays', 'appointmentType', 'startTime', 'endTime', 'slotCount', 'slotCapacity', 'scheduleMode'],
+    [], // 高级设置无必填
+  ];
+
+  const handleStepChange = async (nextStep: number) => {
+    if (nextStep > currentStep) {
+      const fieldsToValidate = stepFields[currentStep];
+      if (fieldsToValidate.length > 0) {
+        try {
+          await formRef.current?.validateFields(fieldsToValidate);
+        } catch {
+          message.error('请完善当前步骤的必填信息');
+          return;
+        }
+      }
+    }
+    setCurrentStep(nextStep);
+  };
+
   const initialValues = template ? {
     ...template,
     startTime: template.startTime ? dayjs(template.startTime, 'HH:mm') : undefined,
@@ -222,6 +258,30 @@ const ScheduleRuleFormPage: React.FC = () => {
 
         {/* 右侧表单 */}
         <Col span={12}>
+          {showGuide && (
+            <Alert
+              message="排班规则配置引导"
+              description="创建排班规则分为 3 步：基本信息 → 时间配置 → 高级设置。填写过程中左侧日历会实时预览排班效果。"
+              type="info"
+              showIcon
+              closable
+              onClose={dismissGuide}
+              style={{ marginBottom: 16 }}
+            />
+          )}
+
+          <Steps
+            current={currentStep}
+            onChange={handleStepChange}
+            size="small"
+            style={{ marginBottom: 16 }}
+            items={[
+              { title: '基本信息', description: '名称、门店、医生' },
+              { title: '时间配置', description: '星期、时段、班次' },
+              { title: '高级设置', description: '排除时间等' },
+            ]}
+          />
+
           <ProForm
             formRef={formRef}
             onFinish={handleSubmit}
@@ -231,16 +291,29 @@ const ScheduleRuleFormPage: React.FC = () => {
               render: (props, dom) => (
                 <FooterToolbar>
                   <Space>
+                    {currentStep > 0 && (
+                      <Button onClick={() => handleStepChange(currentStep - 1)}>
+                        上一步
+                      </Button>
+                    )}
+                    {currentStep < 2 && (
+                      <Button type="primary" onClick={() => handleStepChange(currentStep + 1)}>
+                        下一步
+                      </Button>
+                    )}
+                    {currentStep === 2 && (
+                      <Button type="primary" onClick={() => props.form?.submit()}>
+                        {isEdit ? '保存' : '创建'}
+                      </Button>
+                    )}
                     <Button onClick={() => history.back()}>取消</Button>
-                    <Button type="primary" onClick={() => props.form?.submit()}>
-                      {isEdit ? '保存' : '创建'}
-                    </Button>
                   </Space>
                 </FooterToolbar>
               ),
             }}
           >
-            <Card title="基础信息" style={{ marginBottom: 16 }} loading={loading}>
+            <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>
+              <Card title="基础信息" style={{ marginBottom: 16 }} loading={loading}>
               <ProFormText
                 name="name"
                 label="规则名称"
@@ -280,7 +353,9 @@ const ScheduleRuleFormPage: React.FC = () => {
                 extra={!selectedDept ? '请先选择科室' : undefined}
               />
             </Card>
+            </div>
 
+            <div style={{ display: currentStep === 1 ? 'block' : 'none' }}>
             <Card title="排班设置" style={{ marginBottom: 16 }} loading={loading}>
               <ProFormCheckbox.Group
                 name="weekdays"
@@ -342,7 +417,9 @@ const ScheduleRuleFormPage: React.FC = () => {
                 rules={[{ required: true, message: '请选择排班方式' }]}
               />
             </Card>
-            
+            </div>
+
+            <div style={{ display: currentStep === 2 ? 'block' : 'none' }}>
             <Collapse
               items={[
                 {
@@ -422,6 +499,7 @@ const ScheduleRuleFormPage: React.FC = () => {
               ]}
               style={{ marginBottom: 16 }}
             />
+            </div>
           </ProForm>
         </Col>
       </Row>

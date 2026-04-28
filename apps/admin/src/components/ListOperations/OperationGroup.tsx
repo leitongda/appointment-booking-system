@@ -1,5 +1,5 @@
 import React from 'react';
-import { Space, Divider, Dropdown } from 'antd';
+import { Space, Divider, Dropdown, theme } from 'antd';
 import type { MenuProps } from 'antd';
 import { MoreOutlined } from '@ant-design/icons';
 
@@ -46,6 +46,7 @@ export const OperationGroup: React.FC<OperationGroupProps> = ({
   size = 4,
   showDivider = true,
 }) => {
+  const { token } = theme.useToken();
   // 过滤掉 null/undefined/false 的子元素
   const validChildren = React.Children.toArray(children).filter(Boolean);
 
@@ -60,7 +61,7 @@ export const OperationGroup: React.FC<OperationGroupProps> = ({
       {validChildren}
       {validMoreItems.length > 0 && (
         <Dropdown menu={{ items: validMoreItems }} trigger={['click']}>
-          <a style={{ color: '#666', fontSize: 13 }}>
+          <a style={{ color: token.colorTextSecondary, fontSize: 13 }}>
             <MoreOutlined /> 更多
           </a>
         </Dropdown>

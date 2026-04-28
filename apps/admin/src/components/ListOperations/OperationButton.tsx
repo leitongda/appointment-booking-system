@@ -1,5 +1,5 @@
 import React from 'react';
-import { Popconfirm, Typography, Space } from 'antd';
+import { Popconfirm, Typography, Space, theme } from 'antd';
 import {
   EyeOutlined,
   EditOutlined,
@@ -134,6 +134,7 @@ export const OperationButton: React.FC<OperationButtonProps> = ({
   deleteConfig,
   record,
 }) => {
+  const { token } = theme.useToken();
   const access = useAccess();
 
   // 权限检查
@@ -189,7 +190,7 @@ export const OperationButton: React.FC<OperationButtonProps> = ({
   // 按钮样式
   const buttonStyle: React.CSSProperties = {
     fontSize: 13,
-    color: finalDanger ? '#ff4d4f' : undefined,
+    color: finalDanger ? token.colorError : undefined,
     ...style,
   };
 
@@ -211,7 +212,7 @@ export const OperationButton: React.FC<OperationButtonProps> = ({
         title={confirmText}
         description={confirmDescription}
         onConfirm={handleClick}
-        icon={<ExclamationCircleOutlined style={{ color: '#faad14' }} />}
+        icon={<ExclamationCircleOutlined style={{ color: token.colorWarning }} />}
       >
         {buttonContent}
       </Popconfirm>
