@@ -614,6 +614,8 @@ async def test_shift_type(db_session: AsyncSession) -> ShiftType:
 @pytest_asyncio.fixture
 async def test_rule_set(db_session: AsyncSession, test_shift_type: ShiftType) -> RuleSet:
     """创建测试规则组"""
+    from app.models.rule_set import RuleSetShiftType
+
     rule_set = RuleSet(
         id=str(uuid4()),
         name="默认规则组",
@@ -635,8 +637,12 @@ async def test_rule_set(db_session: AsyncSession, test_shift_type: ShiftType) ->
     db_session.add(rule_set)
     await db_session.commit()
 
-    # 关联班次类型
-    rule_set.shift_types.append(test_shift_type)
+    # 使用 RuleSetShiftType 关联表来建立关联，避免 lazy loading
+    rule_set_shift_type = RuleSetShiftType(
+        rule_set_id=rule_set.id,
+        shift_type_id=test_shift_type.id,
+    )
+    db_session.add(rule_set_shift_type)
     await db_session.commit()
 
     await db_session.refresh(rule_set)
