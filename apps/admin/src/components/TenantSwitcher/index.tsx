@@ -75,7 +75,9 @@ const TenantSwitcher: React.FC = () => {
 
   // 挂载时加载租户列表（确保初始渲染有名称可显示）
   useEffect(() => {
-    loadTenants();
+    if (isPlatformAdmin) {
+      loadTenants();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
