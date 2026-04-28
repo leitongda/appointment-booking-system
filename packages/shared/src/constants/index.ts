@@ -4,3 +4,4 @@ export * from './schedule';
 export * from './user';
 export * from './common';
 export * from './miniapp-theme';
+export * from './message';

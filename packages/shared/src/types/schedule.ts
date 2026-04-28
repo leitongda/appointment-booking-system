@@ -16,6 +16,15 @@ export interface Schedule {
   status: number;
   createdAt?: string;  // 可选
   isRestDay: boolean;  // 必填，默认 false
+  /**
+   * 生效状态（后端计算）
+   * - active: 正常生效
+   * - suspended: 停诊
+   * - rest_day: 在休息日（模板排班会被隐藏）
+   * - custom: 自定义排班（最高优先级）
+   * - overridden: 被自定义排班覆盖（模板排班）
+   */
+  effectiveStatus?: string;
 }
 
 export interface AvailableSchedule {
@@ -160,6 +169,7 @@ export interface ScheduleSlotPreview {
   slotCapacity: number;
   weekday: number;
   weekdayName: string;
+  ruleValidation?: string[];  // 规则引擎校验警告信息
 }
 
 /**

@@ -1,15 +1,18 @@
 /**
  * Umi 运行时配置
- * 
+ *
  * 用于在应用启动时初始化门店上下文
  * 确保所有页面（包括登录页）都能获取门店信息
  */
 import React from 'react';
+import { history } from '@umijs/max';
 import { storeApi, tenantApi } from '@hospital/api';
 import {
   type Store,
   STORE_CONTEXT_KEY,
-  createStoreContext
+  createStoreContext,
+  initPerformanceMonitoring,
+  recordRouteChange,
 } from '@hospital/shared';
 import { setTenantStatus } from '@/hooks/useTenantGuard';
 
@@ -63,14 +66,41 @@ const initStoreContext = async () => {
 // 在应用启动时初始化门店（非阻塞）
 initStoreContext();
 
+// 初始化前端性能监控
+initPerformanceMonitoring({
+  report: {
+    enabled: true,
+    flushInterval: 30000, // 30 秒批量上报
+    batchSize: 20,
+  },
+});
+
 /**
  * 修改根组件
  * 设置 html lang 属性为 zh-CN，确保屏幕阅读器正确识别语言
+ * 同时初始化路由性能监控
  */
 export function rootContainer(container: React.ReactNode) {
   if (typeof document !== 'undefined') {
     document.documentElement.lang = 'zh-CN';
   }
+
+  // 记录初始路由性能
+  let routeStartTime = performance.now();
+  let lastPathname = window.location.pathname;
+
+  // 监听路由变化
+  const unlisten = history.listen(({ location }) => {
+    const routeEndTime = performance.now();
+    const routeDuration = routeEndTime - routeStartTime;
+
+    // 记录路由切换性能
+    recordRouteChange(lastPathname, routeDuration);
+
+    routeStartTime = performance.now();
+    lastPathname = location.pathname;
+  });
+
   return container;
 }
 
