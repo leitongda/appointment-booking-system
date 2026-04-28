@@ -90,8 +90,10 @@ setupRetryInterceptor(instance, {
 // 请求拦截器
 instance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // ── 全局门控：认证已失效后短路所有请求 ──
-    if (checkAuthExpired()) {
+    // ── 全局门控：认证已失效后短路所有请求（登录/公钥等白名单除外） ──
+    const url = config.url || '';
+    const isAuthWhitelisted = url.includes('/login') || url.includes('/public-key') || url.includes('/public');
+    if (checkAuthExpired() && !isAuthWhitelisted) {
       return Promise.reject(new Error('认证已失效，请重新登录'));
     }
 
@@ -161,7 +163,7 @@ instance.interceptors.response.use(
     const config = error.config as any;
 
     // 记录失败请求
-    if (config._timer) {
+    if (config?._timer) {
       // 检查是否超时
       if (status === 408) {
         config._timer.markAsTimeout();
