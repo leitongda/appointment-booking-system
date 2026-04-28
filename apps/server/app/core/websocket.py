@@ -5,6 +5,7 @@ WebSocket 连接管理器
 import json
 import asyncio
 import logging
+import uuid
 from typing import Dict, Set, Optional, Any
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -12,6 +13,8 @@ from enum import Enum
 from fastapi import WebSocket, WebSocketDisconnect
 
 from app.core.redis import get_redis
+from app.core.redis import RedisCache
+from app.middleware.tenant_context import get_current_tenant_id
 
 logger = logging.getLogger(__name__)
 
@@ -47,37 +50,46 @@ class WSMessage:
     type: WSMessageType
     data: Dict[str, Any] = field(default_factory=dict)
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
-    
+    message_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+
     def to_json(self) -> str:
         return json.dumps({
             "type": self.type.value if isinstance(self.type, WSMessageType) else self.type,
             "data": self.data,
-            "timestamp": self.timestamp
+            "timestamp": self.timestamp,
+            "message_id": self.message_id
         }, ensure_ascii=False)
-    
+
     @classmethod
     def from_json(cls, data: str) -> "WSMessage":
         obj = json.loads(data)
         return cls(
             type=obj.get("type", ""),
             data=obj.get("data", {}),
-            timestamp=obj.get("timestamp", "")
+            timestamp=obj.get("timestamp", ""),
+            message_id=obj.get("message_id", "")
         )
 
 
 class ConnectionManager:
     """
     WebSocket 连接管理器
-    
+
     支持：
     - 按医生 ID 管理连接
     - Redis Pub/Sub 多实例广播
     - 心跳检测
+    - 消息确认机制
+    - 未确认消息缓存
     """
-    
+
     # Redis 频道前缀
     CHANNEL_PREFIX = "ws:doctor:"
     CHANNEL_BROADCAST = "ws:broadcast"
+
+    # 消息缓存相关
+    MSG_CACHE_PREFIX = "ws:pending_msg:"  # 未确认消息缓存前缀
+    MSG_CACHE_TTL = 300  # 消息缓存 5 分钟
     
     def __init__(self):
         # 本地连接映射：doctor_id -> Set[WebSocket]
@@ -170,26 +182,57 @@ class ConnectionManager:
         
         logger.info(f"医生 {doctor_id} 断开 WebSocket 连接")
     
-    async def send_to_doctor(self, doctor_id: str, message: WSMessage):
+    async def send_to_doctor(
+        self,
+        doctor_id: str,
+        message: WSMessage,
+        require_ack: bool = True,
+        tenant_id: Optional[str] = None
+    ):
         """
         发送消息给指定医生（本地 + Redis 广播）
+
+        Args:
+            doctor_id: 医生 ID
+            message: 消息对象
+            require_ack: 是否需要确认（默认 True）
+            tenant_id: 租户 ID（用于多租户隔离消息缓存）
         """
         # 先发送本地连接
         await self._send_local(doctor_id, message)
-        
+
         # 通过 Redis 广播到其他实例
         await self._publish_to_redis(doctor_id, message)
+
+        # 如果需要确认，缓存消息
+        if require_ack:
+            await self.cache_pending_message(doctor_id, message, tenant_id)
     
-    async def broadcast_to_all(self, message: WSMessage):
+    async def broadcast_to_all(
+        self,
+        message: WSMessage,
+        require_ack: bool = True,
+        tenant_id: Optional[str] = None
+    ):
         """
         广播消息给所有在线医生
+
+        Args:
+            message: 消息对象
+            require_ack: 是否需要确认（默认 True）
+            tenant_id: 租户 ID
         """
         # 发送到所有本地连接
         for doctor_id in self._connections.keys():
             await self._send_local(doctor_id, message)
-        
+
         # 通过 Redis 广播
         await self._publish_to_redis_broadcast(message)
+
+        # 如果需要确认，为每个在线医生缓存消息
+        if require_ack:
+            for doctor_id in self._connections.keys():
+                await self.cache_pending_message(doctor_id, message, tenant_id)
     
     async def _send_local(self, doctor_id: str, message: WSMessage):
         """
@@ -337,24 +380,140 @@ class ConnectionManager:
         """检查医生是否在线"""
         return doctor_id in self._connections and len(self._connections[doctor_id]) > 0
 
+    # ==================== 消息确认与缓存机制 ====================
+
+    async def cache_pending_message(
+        self,
+        doctor_id: str,
+        message: WSMessage,
+        tenant_id: Optional[str] = None
+    ) -> bool:
+        """
+        缓存未确认的消息到 Redis
+
+        Args:
+            doctor_id: 医生 ID
+            message: 消息对象
+            tenant_id: 租户 ID（用于多租户隔离，未传入时自动从上下文获取）
+
+        Returns:
+            是否成功缓存
+        """
+        try:
+            # 如果未传入 tenant_id，尝试从上下文获取
+            effective_tenant_id = tenant_id or get_current_tenant_id() or "default"
+            cache_key = f"{self.MSG_CACHE_PREFIX}{effective_tenant_id}:{doctor_id}:{message.message_id}"
+            message_data = {
+                "message_id": message.message_id,
+                "type": message.type.value if isinstance(message.type, WSMessageType) else message.type,
+                "data": message.data,
+                "timestamp": message.timestamp,
+                "doctor_id": doctor_id,
+                "tenant_id": effective_tenant_id
+            }
+            return await RedisCache.set(cache_key, message_data, self.MSG_CACHE_TTL)
+        except Exception as e:
+            logger.error(f"缓存消息失败: {e}")
+            return False
+
+    async def remove_pending_message(
+        self,
+        message_id: str,
+        doctor_id: str,
+        tenant_id: Optional[str] = None
+    ) -> bool:
+        """
+        移除已确认的消息缓存
+
+        Args:
+            message_id: 消息 ID
+            doctor_id: 医生 ID
+            tenant_id: 租户 ID（未传入时自动从上下文获取）
+
+        Returns:
+            是否成功移除
+        """
+        try:
+            # 如果未传入 tenant_id，尝试从上下文获取
+            effective_tenant_id = tenant_id or get_current_tenant_id() or "default"
+            cache_key = f"{self.MSG_CACHE_PREFIX}{effective_tenant_id}:{doctor_id}:{message_id}"
+            return await RedisCache.delete(cache_key)
+        except Exception as e:
+            logger.error(f"移除消息缓存失败: {e}")
+            return False
+
+    async def get_pending_messages(
+        self,
+        doctor_id: str,
+        tenant_id: Optional[str] = None
+    ) -> list[Dict[str, Any]]:
+        """
+        获取医生的所有未确认消息
+
+        Args:
+            doctor_id: 医生 ID
+            tenant_id: 租户 ID（未传入时自动从上下文获取）
+
+        Returns:
+            未确认消息列表
+        """
+        try:
+            # 如果未传入 tenant_id，尝试从上下文获取
+            effective_tenant_id = tenant_id or get_current_tenant_id() or "default"
+            redis = await get_redis()
+            pattern = f"{self.MSG_CACHE_PREFIX}{effective_tenant_id}:{doctor_id}:*"
+            messages = []
+
+            cursor = 0
+            while True:
+                cursor, keys = await redis.scan(cursor, match=pattern, count=100)
+                if keys:
+                    # 获取所有消息数据
+                    values = await redis.mget(keys)
+                    for value in values:
+                        if value:
+                            try:
+                                messages.append(json.loads(value))
+                            except json.JSONDecodeError:
+                                pass
+
+                if cursor == 0:
+                    break
+
+            # 按时间戳排序
+            messages.sort(key=lambda x: x.get("timestamp", ""))
+            return messages
+        except Exception as e:
+            logger.error(f"获取未确认消息失败: {e}")
+            return []
+
 
 # 全局连接管理器实例
 ws_manager = ConnectionManager()
+manager = ws_manager  # 向后兼容别名
 
 
 # ==================== 便捷发送函数 ====================
 
-async def notify_doctor(doctor_id: str, message_type: WSMessageType, data: Dict[str, Any] = None):
+async def notify_doctor(
+    doctor_id: str,
+    message_type: WSMessageType,
+    data: Dict[str, Any] = None,
+    require_ack: bool = True,
+    tenant_id: Optional[str] = None
+):
     """
     向指定医生发送通知
-    
+
     Args:
         doctor_id: 医生 ID
         message_type: 消息类型
         data: 消息数据
+        require_ack: 是否需要确认（默认 True，保持兼容性）
+        tenant_id: 租户 ID（用于多租户隔离）
     """
     message = WSMessage(type=message_type, data=data or {})
-    await ws_manager.send_to_doctor(doctor_id, message)
+    await ws_manager.send_to_doctor(doctor_id, message, require_ack, tenant_id)
 
 
 async def notify_patient_signed_in(doctor_id: str, appointment_data: Dict[str, Any]):
@@ -377,11 +536,25 @@ async def notify_leave_request_reviewed(doctor_id: str, review_data: Dict[str, A
     await notify_doctor(doctor_id, WSMessageType.LEAVE_REQUEST_REVIEWED, review_data)
 
 
-async def broadcast_system_message(message: str, title: str = "系统通知"):
-    """广播系统消息给所有在线医生"""
+async def broadcast_system_message(
+    message: str,
+    title: str = "系统通知",
+    require_ack: bool = True,
+    tenant_id: Optional[str] = None
+):
+    """广播系统消息给所有在线医生
+
+    Args:
+        message: 消息内容
+        title: 消息标题
+        require_ack: 是否需要确认（默认 True，保持兼容性）
+        tenant_id: 租户 ID（用于多租户隔离）
+    """
     await ws_manager.broadcast_to_all(
         WSMessage(
             type=WSMessageType.SYSTEM_MESSAGE,
             data={"title": title, "message": message}
-        )
+        ),
+        require_ack,
+        tenant_id
     )
