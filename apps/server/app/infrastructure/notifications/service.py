@@ -1,14 +1,19 @@
 """租户通知服务
 
 提供订阅到期提醒、用量警告、欠费通知等功能。
+同时通过外部渠道（邮件/短信）推送高优先级告警。
 """
 import json
+import logging
 from datetime import datetime, timedelta, date
 from typing import Optional, List, Dict, Any
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.tenant import Tenant, TenantNotification, TenantUsageLog
+from app.models.admin import Admin
+
+logger = logging.getLogger(__name__)
 
 
 class TenantNotificationService:
@@ -63,7 +68,82 @@ class TenantNotificationService:
         self.db.add(notification)
         await self.db.commit()
         await self.db.refresh(notification)
+
+        # 高优先级通知推送外部渠道（邮件/短信）
+        if priority >= 1:
+            await self._dispatch_external(notification)
+
         return notification
+
+    async def _dispatch_external(self, notification: TenantNotification) -> None:
+        """通过外部渠道推送通知给租户联系人（邮件 + 短信）。
+
+        仅对重要(priority>=1)和紧急(priority==2)通知启用外部推送。
+        """
+        tenant_id = notification.tenant_id
+        try:
+            # 获取租户联系人信息
+            result = await self.db.execute(
+                select(Tenant).where(Tenant.id == tenant_id)
+            )
+            tenant = result.scalar_one_or_none()
+            if not tenant:
+                return
+
+            # 邮件推送
+            if tenant.contact_email:
+                await self._send_email_alert(tenant, notification)
+
+            # 短信推送（仅紧急通知）
+            if notification.priority == 2 and tenant.contact_phone:
+                await self._send_sms_alert(tenant, notification)
+
+        except Exception as e:
+            logger.error(f"外部告警推送失败 tenant={tenant_id}: {e}")
+
+    async def _send_email_alert(self, tenant: Tenant, notification: TenantNotification) -> None:
+        """通过邮件发送租户告警"""
+        try:
+            from app.infrastructure.email.service import EmailService
+            email_service = EmailService(self.db)
+
+            variables = {
+                "tenant_name": tenant.name,
+                "notification_title": notification.title,
+                "notification_content": notification.content,
+                "priority_label": ["普通", "重要", "紧急"][notification.priority] if notification.priority <= 2 else "通知",
+            }
+
+            # 优先使用告警模板，fallback 到直接发送
+            success = await email_service.send_by_template(
+                template_code="tenant_alert",
+                to_email=tenant.contact_email,
+                variables=variables,
+            )
+            if not success:
+                # fallback: 直接发送
+                await email_service.send_direct(
+                    to_email=tenant.contact_email,
+                    subject=f"[{tenant.name}] {notification.title}",
+                    body=notification.content,
+                )
+            logger.info(f"租户告警邮件已发送: tenant={tenant.id}, to={tenant.contact_email}")
+        except Exception as e:
+            logger.error(f"租户告警邮件发送失败: tenant={tenant.id}, error={e}")
+
+    async def _send_sms_alert(self, tenant: Tenant, notification: TenantNotification) -> None:
+        """通过短信发送租户紧急告警"""
+        try:
+            from app.infrastructure.sms.factory import SMSFactory
+            sms_service = SMSFactory.create()
+            if not sms_service:
+                return
+
+            message = f"【{tenant.name}】{notification.title}: {notification.content[:100]}"
+            await sms_service.send(tenant.contact_phone, message)
+            logger.info(f"租户告警短信已发送: tenant={tenant.id}, to={tenant.contact_phone}")
+        except Exception as e:
+            logger.error(f"租户告警短信发送失败: tenant={tenant.id}, error={e}")
 
     async def get_unread_notifications(
         self,

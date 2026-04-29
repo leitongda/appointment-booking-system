@@ -16,10 +16,8 @@ def get_sms_provider() -> SmsProvider:
     if provider == 'mock':
         return MockSmsProvider()
     elif provider == 'aliyun':
-        # TODO: 实现 AliyunSmsProvider
-        # from .aliyun_provider import AliyunSmsProvider
-        # return AliyunSmsProvider()
-        return MockSmsProvider()
+        from .providers.aliyun_provider import AliyunSmsProvider
+        return AliyunSmsProvider()
     elif provider == 'tencent':
         # TODO: 实现 TencentSmsProvider
         # from .tencent_provider import TencentSmsProvider
