@@ -9,6 +9,7 @@ from app.models.schedule import Schedule
 from app.models.rest_day import RestDay
 from app.modules.rule_engine import RuleEngineService
 from app.utils.audit import set_create_audit, set_update_audit
+from app.middleware.tenant_context import get_current_tenant_id
 
 
 class WaitlistMutationMixin:
@@ -105,6 +106,7 @@ class WaitlistMutationMixin:
         # 创建候补记录
         entry = WaitlistEntry(
             id=str(uuid.uuid4()),
+            tenant_id=get_current_tenant_id(),
             user_id=user_id,
             patient_id=patient_id,
             schedule_id=schedule_id,

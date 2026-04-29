@@ -70,7 +70,96 @@ class ScheduleQueryMixin:
 
         result = await self.db.execute(query)
         count_result = await self.db.execute(count_query)
-        return list(result.scalars().all()), count_result.scalar() or 0
+        schedules = list(result.scalars().all())
+        total_count = count_result.scalar() or 0
+
+        # 计算生效状态
+        if schedules:
+            await self._compute_effective_status(schedules)
+
+        return schedules, total_count
+
+    async def _compute_effective_status(self, schedules: List[Schedule]) -> None:
+        """为排班列表计算生效状态（直接修改 Schedule 对象的附加属性）。"""
+        if not schedules:
+            return
+
+        # 收集日期范围和医生ID
+        min_date = min(s.schedule_date for s in schedules)
+        max_date = max(s.schedule_date for s in schedules)
+        doctor_ids = {s.doctor_id for s in schedules}
+        store_ids = {s.store_id for s in schedules if s.store_id}
+
+        # 批量加载休息日（加租户过滤）
+        tenant_id = get_current_tenant_id()
+        rest_day_conditions = [
+            RestDay.status == 1,
+            RestDay.start_date <= max_date,
+            RestDay.end_date >= min_date,
+        ]
+        if tenant_id:
+            rest_day_conditions.append(RestDay.tenant_id == tenant_id)
+        rest_days_result = await self.db.execute(
+            select(RestDay).where(and_(*rest_day_conditions))
+        )
+        all_rest_days = list(rest_days_result.scalars().all())
+
+        # 批量加载该日期范围内的自定义排班（用于判断"被覆盖"，加租户过滤）
+        custom_conditions = [
+            Schedule.template_id.is_(None),
+            Schedule.status == 1,
+            Schedule.schedule_date >= min_date,
+            Schedule.schedule_date <= max_date,
+            Schedule.doctor_id.in_(list(doctor_ids)),
+        ]
+        if tenant_id:
+            custom_conditions.append(Schedule.tenant_id == tenant_id)
+        custom_result = await self.db.execute(
+            select(Schedule).where(and_(*custom_conditions))
+        )
+        custom_schedules = list(custom_result.scalars().all())
+        # 构建覆盖查找键: (doctor_id, date, start_time, end_time)
+        custom_keys = {
+            (s.doctor_id, s.schedule_date, s.start_time, s.end_time)
+            for s in custom_schedules
+            if s.start_time and s.end_time
+        }
+        custom_slot_keys = {
+            (s.doctor_id, s.schedule_date, s.time_slot)
+            for s in custom_schedules
+        }
+
+        for schedule in schedules:
+            # 1. 停诊
+            if schedule.status == 0:
+                schedule.effective_status = "suspended"
+                continue
+
+            # 2. 自定义排班（最高优先级）
+            if schedule.template_id is None:
+                schedule.effective_status = "custom"
+                continue
+
+            # 3. 休息日检查（仅模板排班）
+            is_rest = self._is_rest_day_cached(
+                all_rest_days, schedule.schedule_date, schedule.store_id, schedule.doctor_id
+            )
+            if is_rest:
+                schedule.effective_status = "rest_day"
+                continue
+
+            # 4. 被自定义排班覆盖检查
+            if schedule.start_time and schedule.end_time:
+                if (schedule.doctor_id, schedule.schedule_date, schedule.start_time, schedule.end_time) in custom_keys:
+                    schedule.effective_status = "overridden"
+                    continue
+            elif schedule.time_slot:
+                if (schedule.doctor_id, schedule.schedule_date, schedule.time_slot) in custom_slot_keys:
+                    schedule.effective_status = "overridden"
+                    continue
+
+            # 5. 正常生效
+            schedule.effective_status = "active"
 
     async def get_available(self, doctor_id: str, days: int = 14) -> List[Schedule]:
         tenant_id = get_current_tenant_id()

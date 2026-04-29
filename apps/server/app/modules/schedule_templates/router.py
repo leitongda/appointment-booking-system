@@ -18,6 +18,8 @@ from app.schemas.schedule_template import (
     ScheduleGenerateWithCapacityRequest,
     ScheduleTemplateCopyRequest,
     ScheduleTemplateCopyResponse,
+    ScheduleTemplateCrossStoreCopyRequest,
+    ScheduleTemplateCrossStoreCopyResponse,
     BreakTime,
 )
 from app.schemas.schedule_generation_log import (
@@ -349,32 +351,34 @@ async def preview_generate_schedules(
         calculate_working_duration,
     )
     from app.modules.settings.service import SettingsService
-    
+    from app.modules.schedules.service import ScheduleService
+
     service = ScheduleTemplateService(db)
     settings_service = SettingsService(db)
-    
+    schedule_service = ScheduleService(db)
+
     # 处理日期默认值
     start_date = data.start_date if data.start_date else date.today()
     end_date = data.end_date if data.end_date else start_date + timedelta(days=30)
-    
+
     results = []
-    
+
     for template_id in data.template_ids:
         template = await service.get_by_id(template_id)
         if not template or template.status != 1:
             continue
-        
+
         # 获取星期列表
         weekdays = template.weekday_list
         if not weekdays:
             continue
-        
+
         # 获取门店的时段配置
         time_periods = await settings_service.get_time_periods(store_id=template.store_id)
-        
+
         # 获取排除时间列表
         break_times = template.break_times_list or []
-        
+
         # 计算每日有效工作时长
         daily_duration = calculate_working_duration(
             template.start_time,
@@ -383,7 +387,16 @@ async def preview_generate_schedules(
         )
         daily_hours = daily_duration // 60
         daily_minutes = daily_duration % 60
-        
+
+        # 规则引擎校验（模板级别，所有槽位共享）
+        rule_warnings = await schedule_service.validate_template_rules(
+            shift_type_id=template.shift_type_id if hasattr(template, 'shift_type_id') else None,
+            slot_capacity=template.slot_capacity,
+            store_id=template.store_id,
+            department_id=template.department_id if hasattr(template, 'department_id') else None,
+            doctor_id=template.doctor_id,
+        )
+
         # 均分时间生成多个班次
         time_slots = split_time_range_with_breaks(
             template.start_time,
@@ -391,13 +404,13 @@ async def preview_generate_schedules(
             template.slot_count,
             break_times
         )
-        
+
         slots = []
         current_date = start_date
-        
+
         while current_date <= end_date:
             weekday = current_date.isoweekday()
-            
+
             if weekday in weekdays:
                 if should_generate_schedule(current_date, template.schedule_mode):
                     for slot_start, slot_end in time_slots:
@@ -411,11 +424,12 @@ async def preview_generate_schedules(
                             period_name=period_name,
                             slot_capacity=template.slot_capacity,
                             weekday=weekday,
-                            weekday_name=WEEKDAY_NAMES.get(weekday, f"星期{weekday}")
+                            weekday_name=WEEKDAY_NAMES.get(weekday, f"星期{weekday}"),
+                            rule_validation=rule_warnings if rule_warnings else None,
                         ))
-            
+
             current_date += timedelta(days=1)
-        
+
         results.append(SchedulePreviewGenerateResponse(
             slots=slots,
             total_count=len(slots),
@@ -426,7 +440,7 @@ async def preview_generate_schedules(
             daily_duration_hours=daily_hours,
             daily_duration_minutes=daily_minutes
         ))
-    
+
     return results
 
 
@@ -744,4 +758,65 @@ async def copy_template_to_doctors(
     return ScheduleTemplateCopyResponse(
         message=f"成功复制 {created_count} 条规则",
         created_count=created_count
+    )
+
+
+@router.post("/{template_id}/copy-cross-store", response_model=ScheduleTemplateCrossStoreCopyResponse, summary="跨院区复制规则")
+async def copy_template_cross_store(
+    template_id: str,
+    data: ScheduleTemplateCrossStoreCopyRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:create"))
+):
+    """跨院区复制排班规则
+
+    将指定规则复制到目标门店，支持科室/医生映射和配置调整。
+    """
+    service = ScheduleTemplateService(db)
+
+    # 先检查模板是否存在
+    template = await service.get_by_id(template_id)
+    if not template:
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="排班规则不存在")
+
+    # 构建覆盖配置
+    overrides = {}
+    if data.name is not None:
+        overrides['name'] = data.name
+    if data.weekdays is not None:
+        overrides['weekdays'] = data.weekdays
+    if data.appointment_type is not None:
+        overrides['appointment_type'] = data.appointment_type
+    if data.start_time is not None:
+        overrides['start_time'] = data.start_time
+    if data.end_time is not None:
+        overrides['end_time'] = data.end_time
+    if data.slot_count is not None:
+        overrides['slot_count'] = data.slot_count
+    if data.slot_capacity is not None:
+        overrides['slot_capacity'] = data.slot_capacity
+    if data.schedule_mode is not None:
+        overrides['schedule_mode'] = data.schedule_mode
+    if data.break_times is not None:
+        overrides['break_times'] = data.break_times
+
+    try:
+        created_count, failed_mappings = await service.copy_to_store(
+            template_id=template_id,
+            target_store_id=data.target_store_id,
+            mappings=[m.model_dump() for m in data.mappings],
+            overrides=overrides if overrides else None
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    message = f"成功复制 {created_count} 条规则"
+    if failed_mappings:
+        message += f"，{len(failed_mappings)} 条映射失败"
+
+    return ScheduleTemplateCrossStoreCopyResponse(
+        message=message,
+        created_count=created_count,
+        failed_mappings=failed_mappings if failed_mappings else None
     )

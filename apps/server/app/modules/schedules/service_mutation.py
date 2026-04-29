@@ -6,6 +6,7 @@ from datetime import date
 from typing import List, Optional
 
 from sqlalchemy import and_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.core.redis import RedisCache
@@ -94,7 +95,11 @@ class ScheduleMutationMixin:
             )
             set_create_audit(schedule, operator_id)
             self.db.add(schedule)
-            await self.db.commit()
+            try:
+                await self.db.commit()
+            except IntegrityError:
+                await self.db.rollback()
+                raise ValueError("该时段排班已存在（并发冲突）")
             await self.db.refresh(schedule)
 
         # 在锁外发送通知，避免阻塞

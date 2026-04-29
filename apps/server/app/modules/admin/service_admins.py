@@ -204,6 +204,19 @@ class AdminService:
         await check_quota(tenant_id, "admins", self.db)
 
         password = data.get("password") or "123456"
+
+        # 密码策略校验
+        from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
+        policy = await get_tenant_password_policy(self.db, tenant_id)
+        validator = PasswordPolicyValidator(policy)
+        is_valid, errors = validator.validate(
+            password,
+            username=data.get("username"),
+            phone=data.get("phone"),
+        )
+        if not is_valid:
+            raise ValueError("; ".join(errors))
+
         store_ids = data.get("store_ids") or []
         current_store_id = data.get("store_id") or data.get("current_store_id")
         if current_store_id and current_store_id not in store_ids:
@@ -255,6 +268,19 @@ class AdminService:
             if existing:
                 raise ValueError("用户名已存在")
 
+        # 密码策略校验
+        if data.get("password"):
+            from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
+            policy = await get_tenant_password_policy(self.db, admin.tenant_id)
+            validator = PasswordPolicyValidator(policy)
+            is_valid, errors = validator.validate(
+                data["password"],
+                username=admin.username,
+                phone=admin.phone,
+            )
+            if not is_valid:
+                raise ValueError("; ".join(errors))
+
         store_ids = data.pop("store_ids", None)
         if "store_id" in data:
             current_store_id = data.pop("store_id")
@@ -287,6 +313,19 @@ class AdminService:
         admin = await self.get_by_id(admin_id)
         if not admin:
             return False
+
+        # 密码策略校验
+        from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
+        policy = await get_tenant_password_policy(self.db, admin.tenant_id)
+        validator = PasswordPolicyValidator(policy)
+        is_valid, errors = validator.validate(
+            new_password,
+            username=admin.username,
+            phone=admin.phone,
+        )
+        if not is_valid:
+            raise ValueError("; ".join(errors))
+
         admin.password_hash = get_password_hash(new_password)
         await self.db.commit()
         return True

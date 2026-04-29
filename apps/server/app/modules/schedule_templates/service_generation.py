@@ -454,3 +454,163 @@ class ScheduleTemplateGenerationMixin:
 
         await self.db.commit()
         return created_count
+
+    async def copy_to_store(
+        self,
+        template_id: str,
+        target_store_id: str,
+        mappings: List[dict],
+        overrides: dict = None,
+    ) -> tuple[int, List[dict]]:
+        """跨院区复制排班规则
+
+        Args:
+            template_id: 源模板ID
+            target_store_id: 目标门店ID
+            mappings: 映射列表，每项包含 source_department_id, target_department_id, target_doctor_id
+            overrides: 可选的配置覆盖
+
+        Returns:
+            (created_count, failed_mappings)
+        """
+        from app.models.doctor import Doctor
+        from app.models.department import Department
+        from app.models.store import Store
+        from app.middleware.tenant_context import get_current_tenant_id
+
+        template = await self.get_by_id(template_id)
+        if not template:
+            raise ValueError("原排班规则不存在")
+
+        tenant_id = get_current_tenant_id()
+
+        # 验证目标门店存在且属于同一租户
+        store_conditions = [Store.id == target_store_id]
+        if tenant_id is not None:
+            store_conditions.append(Store.tenant_id == tenant_id)
+
+        store_result = await self.db.execute(select(Store).where(and_(*store_conditions)))
+        target_store = store_result.scalar_one_or_none()
+        if not target_store:
+            raise ValueError("目标门店不存在或无权限访问")
+
+        overrides = overrides or {}
+        created_count = 0
+        failed_mappings: List[dict] = []
+
+        # 预加载目标门店的所有有效医生（同一租户内）
+        doctor_conditions = [
+            Doctor.store_id == target_store_id,
+            Doctor.deleted_at.is_(None),
+        ]
+        if tenant_id is not None:
+            doctor_conditions.append(Doctor.tenant_id == tenant_id)
+
+        doctor_result = await self.db.execute(
+            select(Doctor).where(and_(*doctor_conditions))
+        )
+        target_doctors = {d.id: d for d in doctor_result.scalars().all()}
+
+        # 预加载目标门店的所有科室
+        dept_conditions = [Department.store_id == target_store_id]
+        if tenant_id is not None:
+            dept_conditions.append(Department.tenant_id == tenant_id)
+
+        dept_result = await self.db.execute(
+            select(Department).where(and_(*dept_conditions))
+        )
+        target_departments = {d.id: d for d in dept_result.scalars().all()}
+
+        # 处理 break_times
+        break_times_json = template.break_times
+        if "break_times" in overrides and overrides["break_times"] is not None:
+            break_times_list = []
+            for bt in overrides["break_times"]:
+                if hasattr(bt, "start_time"):
+                    bt_dict = {
+                        "startTime": bt.start_time.strftime("%H:%M")
+                        if hasattr(bt.start_time, "strftime")
+                        else str(bt.start_time),
+                        "endTime": bt.end_time.strftime("%H:%M")
+                        if hasattr(bt.end_time, "strftime")
+                        else str(bt.end_time),
+                    }
+                elif isinstance(bt, dict):
+                    start_time = bt.get("start_time") or bt.get("startTime")
+                    end_time = bt.get("end_time") or bt.get("endTime")
+                    bt_dict = {
+                        "startTime": start_time.strftime("%H:%M")
+                        if hasattr(start_time, "strftime")
+                        else str(start_time),
+                        "endTime": end_time.strftime("%H:%M")
+                        if hasattr(end_time, "strftime")
+                        else str(end_time),
+                    }
+                else:
+                    bt_dict = bt
+                break_times_list.append(bt_dict)
+            break_times_json = json.dumps(break_times_list)
+
+        start_time = overrides.get("start_time") or template.start_time
+        end_time = overrides.get("end_time") or template.end_time
+        if isinstance(start_time, str):
+            try:
+                start_time = datetime.strptime(start_time, "%H:%M").time()
+            except ValueError:
+                start_time = datetime.strptime(start_time, "%H:%M:%S").time()
+        if isinstance(end_time, str):
+            try:
+                end_time = datetime.strptime(end_time, "%H:%M").time()
+            except ValueError:
+                end_time = datetime.strptime(end_time, "%H:%M:%S").time()
+
+        weekdays = overrides.get("weekdays") or template.weekday_list
+        weekdays_json = json.dumps(weekdays) if isinstance(weekdays, list) else template.weekdays
+
+        for mapping in mappings:
+            target_doctor_id = mapping.get("target_doctor_id")
+            target_department_id = mapping.get("target_department_id")
+
+            doctor = target_doctors.get(target_doctor_id)
+            department = target_departments.get(target_department_id)
+
+            if not doctor:
+                failed_mappings.append({**mapping, "reason": "目标医生不存在或不在目标门店"})
+                continue
+            if not department:
+                failed_mappings.append({**mapping, "reason": "目标科室不存在或不在目标门店"})
+                continue
+            if doctor.department_id != target_department_id:
+                failed_mappings.append({**mapping, "reason": "目标医生不属于目标科室"})
+                continue
+
+            base_name = overrides.get("name") or template.name
+            new_name = f"{base_name}（{doctor.name}）"
+
+            new_template = ScheduleTemplate(
+                id=str(uuid.uuid4()),
+                name=new_name,
+                tenant_id=tenant_id,
+                store_id=target_store_id,
+                doctor_id=target_doctor_id,
+                department_id=target_department_id,
+                weekdays=weekdays_json,
+                appointment_type=overrides.get("appointment_type") or template.appointment_type,
+                start_time=start_time,
+                end_time=end_time,
+                slot_count=overrides.get("slot_count")
+                if overrides.get("slot_count") is not None
+                else template.slot_count,
+                slot_capacity=overrides.get("slot_capacity")
+                if overrides.get("slot_capacity") is not None
+                else template.slot_capacity,
+                schedule_mode=overrides.get("schedule_mode") or template.schedule_mode,
+                break_times=break_times_json,
+                status=1,
+            )
+            set_create_audit(new_template, None)
+            self.db.add(new_template)
+            created_count += 1
+
+        await self.db.commit()
+        return created_count, failed_mappings

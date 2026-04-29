@@ -4,9 +4,10 @@ import json
 import logging
 import uuid
 from datetime import date, time, timedelta
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from sqlalchemy import and_, select
+from sqlalchemy.exc import IntegrityError
 
 from app.models.doctor import Doctor
 from app.models.rest_day import RestDay
@@ -49,6 +50,66 @@ class ScheduleGenerationMixin:
         except Exception as e:
             logger.error(f"检查休息日失败: date={check_date}, store_id={store_id}, error={e}")
             return False
+
+    async def _validate_slot_against_rules(
+        self,
+        shift_type_id: Optional[str],
+        slot_capacity: int,
+        store_id: Optional[str] = None,
+        department_id: Optional[str] = None,
+        doctor_id: Optional[str] = None,
+    ) -> List[str]:
+        """校验排班槽位是否符合规则引擎约束，返回警告列表。
+
+        检查项：
+        1. 规则集是否存在
+        2. 预约时间窗是否配置
+        3. 容量策略是否与模板一致
+        """
+        warnings: List[str] = []
+
+        if not shift_type_id:
+            warnings.append("未关联班次类型，无法校验规则约束")
+            return warnings
+
+        try:
+            from app.modules.rule_engine.service import RuleEngineService
+            rule_engine = RuleEngineService(self.db)
+
+            rule_set = await rule_engine.get_applicable_rule_set(shift_type_id)
+            if not rule_set:
+                warnings.append("未配置适用的规则集，患者预约时将不受时间窗和策略限制")
+                return warnings
+
+            # 检查预约时间窗
+            from app.models.rule_set import RuleWindow
+            windows_result = await self.db.execute(
+                select(RuleWindow).where(
+                    and_(
+                        RuleWindow.rule_set_id == rule_set.id,
+                        RuleWindow.action == "BOOK",
+                        RuleWindow.enabled == True,
+                    )
+                )
+            )
+            book_window = windows_result.scalar_one_or_none()
+            if not book_window:
+                warnings.append("未配置预约时间窗(BOOK)，患者可能随时预约或无法预约")
+
+            # 检查容量策略
+            capacity_policy = await rule_engine.get_capacity_policy(shift_type_id)
+            if capacity_policy and capacity_policy.total_capacity > 0:
+                if slot_capacity > capacity_policy.total_capacity:
+                    warnings.append(
+                        f"模板号源容量({slot_capacity})超过规则容量限制({capacity_policy.total_capacity})，"
+                        f"超出部分可能无法预约"
+                    )
+
+        except Exception as e:
+            logger.warning(f"规则引擎校验失败: {e}")
+            warnings.append(f"规则引擎校验异常: {e}")
+
+        return warnings
 
     async def _create_schedule_if_not_exists(
         self,
@@ -102,6 +163,12 @@ class ScheduleGenerationMixin:
             status=1,
         )
         self.db.add(schedule)
+        try:
+            await self.db.flush()
+        except IntegrityError:
+            await self.db.rollback()
+            logger.info(f"排班已存在（数据库唯一约束兜底）: doctor={doctor_id}, date={schedule_date}, time={start_time}-{end_time}")
+            return None, False
         return schedule, True
 
     async def _generate_from_template_internal(
@@ -125,6 +192,17 @@ class ScheduleGenerationMixin:
         weekdays = template.weekday_list
         if not weekdays:
             return 0
+
+        # 在模板级别执行一次规则引擎校验
+        rule_warnings = await self._validate_slot_against_rules(
+            shift_type_id=template.shift_type_id if hasattr(template, 'shift_type_id') else None,
+            slot_capacity=template.slot_capacity,
+            store_id=template.store_id,
+            department_id=template.department_id if hasattr(template, 'department_id') else None,
+            doctor_id=template.doctor_id,
+        )
+        if rule_warnings:
+            logger.warning(f"模板 {template_id} 规则引擎校验警告: {'; '.join(rule_warnings)}")
 
         break_times = template.break_times_list or []
         time_slots = split_time_range_with_breaks(
@@ -156,7 +234,11 @@ class ScheduleGenerationMixin:
             current_date += timedelta(days=1)
 
         if auto_commit:
-            await self.db.commit()
+            try:
+                await self.db.commit()
+            except IntegrityError:
+                await self.db.rollback()
+                logger.warning(f"模板 {template_id} 生成排班时遇到并发冲突，部分记录可能已被其他任务创建")
         return created_count
 
     async def generate_from_template(
@@ -172,6 +254,23 @@ class ScheduleGenerationMixin:
             end_date=end_date,
             check_rest_day=check_rest_day,
             auto_commit=True,
+        )
+
+    async def validate_template_rules(
+        self,
+        shift_type_id: Optional[str],
+        slot_capacity: int,
+        store_id: Optional[str] = None,
+        department_id: Optional[str] = None,
+        doctor_id: Optional[str] = None,
+    ) -> List[str]:
+        """公开接口：校验模板配置是否符合规则引擎约束。供预览 API 调用。"""
+        return await self._validate_slot_against_rules(
+            shift_type_id=shift_type_id,
+            slot_capacity=slot_capacity,
+            store_id=store_id,
+            department_id=department_id,
+            doctor_id=doctor_id,
         )
 
     async def _send_schedule_notification_to_doctor(

@@ -1,6 +1,7 @@
 import io
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin
@@ -153,11 +154,55 @@ async def transfer_from_url(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
 
 
+def _extract_tenant_id_from_key(key: str) -> str | None:
+    """从存储 key 中提取租户 ID。
+
+    租户文件的 key 格式为 tenants/{tenant_id}/...，
+    平台级文件没有 tenants/ 前缀。
+    """
+    prefix = "tenants/"
+    if key.startswith(prefix):
+        remainder = key[len(prefix):]
+        # 第一个 / 之前的部分即为 tenant_id
+        tenant_id = remainder.split("/", 1)[0] if "/" in remainder else remainder
+        return tenant_id
+    return None
+
+
+def _validate_tenant_access(key: str, current_admin: dict) -> None:
+    """校验当前管理员是否有权操作指定 key 的文件。
+
+    - 平台管理员 (无 tenant_id) 可操作所有文件
+    - 租户管理员只能操作本租户目录下的文件
+    """
+    file_tenant_id = _extract_tenant_id_from_key(key)
+    admin_tenant_id = current_admin.get("tenant_id")
+
+    # 文件不属于任何租户目录 → 允许（平台级资源）
+    if file_tenant_id is None:
+        return
+
+    # 管理员无租户（平台管理员）→ 允许
+    if not admin_tenant_id:
+        return
+
+    # 租户匹配 → 允许
+    if str(admin_tenant_id) == str(file_tenant_id):
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="无权操作其他租户的文件",
+    )
+
+
 @router.delete("/{key:path}", summary="删除图片")
 async def delete_image(
     key: str,
     current_admin=Depends(get_current_admin),
 ):
+    _validate_tenant_access(key, current_admin)
+
     try:
         storage = get_storage()
         success = await storage.delete(key)
@@ -170,3 +215,83 @@ async def delete_image(
     except Exception as exc:
         logger.error(f"Delete failed: {exc}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+
+
+# ---------- 文件下载（仅 local 存储模式） ----------
+
+# MIME 类型映射
+_MIME_TYPES: dict[str, str] = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".svg": "image/svg+xml",
+}
+
+
+def _get_content_type_from_ext(key: str) -> str:
+    ext = key.rsplit(".", 1)[-1].lower() if "." in key else ""
+    return _MIME_TYPES.get(f".{ext}", "application/octet-stream")
+
+
+def _resolve_local_file(key: str):
+    """解析本地文件路径，若文件不存在返回 None。"""
+    from pathlib import Path
+    from app.core.config import settings
+
+    upload_dir = Path(settings.LOCAL_UPLOAD_DIR)
+    file_path = (upload_dir / key).resolve()
+
+    # 防路径穿越：确保解析后的路径仍在 upload_dir 内
+    if not str(file_path).startswith(str(upload_dir.resolve())):
+        return None
+
+    if file_path.is_file():
+        return file_path
+    return None
+
+
+@router.get("/files/{key:path}", summary="下载文件（带租户校验）", include_in_schema=False)
+async def download_file(
+    key: str,
+):
+    """文件下载端点，仅用于 local 存储模式。
+
+    租户校验逻辑：
+    - 从 URL 路径中提取文件所属的 tenant_id（tenants/{tid}/...）
+    - 从请求头中获取当前租户上下文（TenantContextMiddleware 已设置）
+    - 如果文件属于某租户且请求上下文有租户信息，则必须匹配
+    - 无租户上下文的请求（如患者端公开访问）暂时放行
+
+    对于 MinIO/COS 模式，文件 URL 直接指向对象存储，不经过此端点。
+    """
+    from app.middleware.tenant_context import get_current_tenant_id
+    from app.core.config import settings
+
+    # 非 local 存储模式不接受此端点
+    if settings.STORAGE_TYPE.lower() != "local":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="此端点仅用于本地存储模式")
+
+    # 租户路径校验
+    file_tenant_id = _extract_tenant_id_from_key(key)
+    request_tenant_id = get_current_tenant_id()
+
+    if file_tenant_id and request_tenant_id:
+        if str(file_tenant_id) != str(request_tenant_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权访问其他租户的文件",
+            )
+
+    # 解析本地文件
+    file_path = _resolve_local_file(key)
+    if file_path is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在")
+
+    content_type = _get_content_type_from_ext(key)
+    return FileResponse(
+        path=str(file_path),
+        media_type=content_type,
+        headers={"Cache-Control": "public, max-age=86400"},
+    )

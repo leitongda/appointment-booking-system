@@ -9,6 +9,7 @@ from app.models.feedback import Feedback, FeedbackStatus
 from app.models.message import Message, MessageType
 from app.schemas.feedback import FeedbackCreate, FeedbackReply, FeedbackQuery
 from app.utils.audit import set_create_audit, set_update_audit
+from app.middleware.tenant_context import get_current_tenant_id
 
 
 class FeedbackService:
@@ -17,17 +18,25 @@ class FeedbackService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    def _tenant_filter(self, stmt):
+        """为查询添加租户过滤"""
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            return stmt.where(Feedback.tenant_id == tenant_id)
+        return stmt
+
     async def get_by_id(self, feedback_id: str) -> Optional[Feedback]:
         """根据ID获取反馈"""
-        result = await self.db.execute(
+        stmt = self._tenant_filter(
             select(Feedback).where(Feedback.id == feedback_id)
         )
+        result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_list(self, query: FeedbackQuery) -> tuple[List[Feedback], int]:
         """获取反馈列表"""
-        stmt = select(Feedback)
-        count_stmt = select(func.count(Feedback.id))
+        stmt = self._tenant_filter(select(Feedback))
+        count_stmt = self._tenant_filter(select(func.count(Feedback.id)))
 
         if query.user_id:
             stmt = stmt.where(Feedback.user_id == query.user_id)
@@ -56,11 +65,12 @@ class FeedbackService:
 
     async def get_user_feedbacks(self, user_id: str) -> List[Feedback]:
         """获取用户的反馈列表"""
-        result = await self.db.execute(
+        stmt = self._tenant_filter(
             select(Feedback)
             .where(Feedback.user_id == user_id)
             .order_by(Feedback.created_at.desc())
         )
+        result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
     async def create(self, data: FeedbackCreate) -> Feedback:
@@ -69,6 +79,7 @@ class FeedbackService:
 
         feedback = Feedback(
             id=str(uuid.uuid4()),
+            tenant_id=get_current_tenant_id(),
             user_id=data.user_id,
             user_type=data.user_type,
             feedback_type=data.feedback_type.value,
@@ -104,6 +115,7 @@ class FeedbackService:
         # 创建消息通知给用户
         message = Message(
             id=str(uuid.uuid4()),
+            tenant_id=feedback.tenant_id,
             user_id=feedback.user_id,
             user_type=feedback.user_type or "patient",
             title="您的反馈已收到回复",
@@ -147,33 +159,41 @@ class FeedbackService:
 
     async def get_pending_count(self) -> int:
         """获取待处理数量"""
-        result = await self.db.execute(
+        stmt = self._tenant_filter(
             select(func.count(Feedback.id)).where(
                 Feedback.status == FeedbackStatus.PENDING.value
             )
         )
+        result = await self.db.execute(stmt)
         return result.scalar() or 0
 
     async def get_statistics(self) -> dict:
         """获取反馈统计"""
+        tenant_id = get_current_tenant_id()
+
         # 总数
-        total_result = await self.db.execute(select(func.count(Feedback.id)))
+        total_stmt = select(func.count(Feedback.id))
+        if tenant_id:
+            total_stmt = total_stmt.where(Feedback.tenant_id == tenant_id)
+        total_result = await self.db.execute(total_stmt)
         total = total_result.scalar() or 0
 
         # 各状态数量
         status_counts = {}
         for status in ['pending', 'processing', 'resolved', 'closed']:
-            result = await self.db.execute(
-                select(func.count(Feedback.id)).where(Feedback.status == status)
-            )
+            stmt = select(func.count(Feedback.id)).where(Feedback.status == status)
+            if tenant_id:
+                stmt = stmt.where(Feedback.tenant_id == tenant_id)
+            result = await self.db.execute(stmt)
             status_counts[status] = result.scalar() or 0
 
         # 各类型数量
         type_counts = {}
         for fb_type in ['suggestion', 'complaint', 'bug', 'other']:
-            result = await self.db.execute(
-                select(func.count(Feedback.id)).where(Feedback.feedback_type == fb_type)
-            )
+            stmt = select(func.count(Feedback.id)).where(Feedback.feedback_type == fb_type)
+            if tenant_id:
+                stmt = stmt.where(Feedback.tenant_id == tenant_id)
+            result = await self.db.execute(stmt)
             type_counts[fb_type] = result.scalar() or 0
 
         return {

@@ -20,7 +20,10 @@ from app.schemas.behavior_log import (
     SearchKeywordStats,
     DailyStats,
     BehaviorOverview,
+    TenantActivityStats,
+    TenantActivityDaily,
 )
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.behavior_log import UserBehaviorLog
 from app.schemas.response import PageResponse
 from app.utils.ip import get_client_ip
@@ -407,5 +410,128 @@ async def get_behavior_overview(
         top_clicks=top_clicks,
         top_keywords=top_keywords,
         daily_stats=daily_stats
+    )
+
+
+@router.get("/tenant-activity", response_model=TenantActivityStats, summary="租户活跃度统计")
+async def get_tenant_activity_stats(
+    days: int = Query(30, ge=1, le=90, description="统计天数"),
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """获取租户活跃度统计（DAU/WAU/MAU）"""
+    tenant_id = get_current_tenant_id()
+
+    # 构建基础条件
+    base_conditions = []
+    if tenant_id:
+        base_conditions.append(UserBehaviorLog.tenant_id == tenant_id)
+
+    end_date = datetime.now().date()
+    start_date = end_date - timedelta(days=days - 1)
+
+    daily_stats = []
+    for i in range(days):
+        current_date = end_date - timedelta(days=i)
+        date_start = datetime.combine(current_date, datetime.min.time())
+        date_end = datetime.combine(current_date, datetime.max.time())
+
+        day_conditions = base_conditions + [
+            UserBehaviorLog.created_at >= date_start,
+            UserBehaviorLog.created_at <= date_end,
+        ]
+
+        # DAU: 当日独立用户数
+        dau = await db.scalar(
+            select(func.count(func.distinct(UserBehaviorLog.user_id)))
+            .where(and_(*day_conditions, UserBehaviorLog.user_id.isnot(None)))
+        ) or 0
+
+        # 当日会话数
+        total_sessions = await db.scalar(
+            select(func.count(func.distinct(UserBehaviorLog.session_id)))
+            .where(and_(*day_conditions))
+        ) or 0
+
+        # 当日新用户数（首次出现）
+        # 简化处理：user_id 非空且该 user_id 在此之前未出现过
+        subquery = select(func.distinct(UserBehaviorLog.user_id)).where(
+            and_(
+                *base_conditions,
+                UserBehaviorLog.created_at < date_start,
+                UserBehaviorLog.user_id.isnot(None),
+            )
+        )
+        new_users = await db.scalar(
+            select(func.count(func.distinct(UserBehaviorLog.user_id)))
+            .where(
+                and_(
+                    *day_conditions,
+                    UserBehaviorLog.user_id.isnot(None),
+                    UserBehaviorLog.user_id.notin_(subquery),
+                )
+            )
+        ) or 0
+
+        daily_stats.append(TenantActivityDaily(
+            date=current_date.isoformat(),
+            dau=dau,
+            total_sessions=total_sessions,
+            new_users=new_users,
+        ))
+
+    # 按日期正序排列
+    daily_stats.reverse()
+
+    # 计算当前 DAU/WAU/MAU
+    today_start = datetime.combine(end_date, datetime.min.time())
+    today_end = datetime.combine(end_date, datetime.max.time())
+    week_start = datetime.combine(end_date - timedelta(days=6), datetime.min.time())
+    month_start = datetime.combine(end_date - timedelta(days=29), datetime.min.time())
+
+    current_dau = await db.scalar(
+        select(func.count(func.distinct(UserBehaviorLog.user_id)))
+        .where(
+            and_(
+                *base_conditions,
+                UserBehaviorLog.created_at >= today_start,
+                UserBehaviorLog.created_at <= today_end,
+                UserBehaviorLog.user_id.isnot(None),
+            )
+        )
+    ) or 0
+
+    current_wau = await db.scalar(
+        select(func.count(func.distinct(UserBehaviorLog.user_id)))
+        .where(
+            and_(
+                *base_conditions,
+                UserBehaviorLog.created_at >= week_start,
+                UserBehaviorLog.created_at <= today_end,
+                UserBehaviorLog.user_id.isnot(None),
+            )
+        )
+    ) or 0
+
+    current_mau = await db.scalar(
+        select(func.count(func.distinct(UserBehaviorLog.user_id)))
+        .where(
+            and_(
+                *base_conditions,
+                UserBehaviorLog.created_at >= month_start,
+                UserBehaviorLog.created_at <= today_end,
+                UserBehaviorLog.user_id.isnot(None),
+            )
+        )
+    ) or 0
+
+    return TenantActivityStats(
+        tenant_id=tenant_id,
+        start_date=start_date.isoformat(),
+        end_date=end_date.isoformat(),
+        current_dau=current_dau,
+        current_wau=current_wau,
+        current_mau=current_mau,
+        daily_stats=daily_stats,
     )
 

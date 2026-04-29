@@ -1,19 +1,25 @@
 """Message template service."""
 
 import uuid
+import logging
 from typing import List, Optional
 
 from sqlalchemy import select, or_
+from jinja2 import Environment, BaseLoader, TemplateSyntaxError
+from jinja2.sandbox import SandboxedEnvironment
 
 from app.models.message import MessageTemplate
 from app.middleware.tenant_context import get_current_tenant_id
 from app.schemas.message import MessageTemplateCreate, MessageTemplateUpdate
 from app.utils.audit import set_create_audit, set_update_audit
 
+logger = logging.getLogger(__name__)
+
 
 class MessageTemplateService:
     def __init__(self, db):
         self.db = db
+        self.env = SandboxedEnvironment(loader=BaseLoader())
 
     def _tenant_filter(self, stmt):
         tenant_id = get_current_tenant_id()
@@ -116,8 +122,28 @@ class MessageTemplateService:
     def render_template(self, template: MessageTemplate, variables: dict) -> tuple[str, str]:
         title = template.title_template
         content = template.content_template
-        for key, value in variables.items():
-            placeholder = f"{{{key}}}"
-            title = title.replace(placeholder, str(value))
-            content = content.replace(placeholder, str(value))
-        return title, content
+
+        try:
+            title_tmpl = self.env.from_string(title)
+            content_tmpl = self.env.from_string(content)
+            rendered_title = title_tmpl.render(**variables)
+            rendered_content = content_tmpl.render(**variables)
+
+            # 如果渲染后仍包含单花括号占位符，执行简单替换（向后兼容）
+            if "{" in rendered_title or "{" in rendered_content:
+                for key, value in variables.items():
+                    placeholder = f"{{{key}}}"
+                    rendered_title = rendered_title.replace(placeholder, str(value))
+                    rendered_content = rendered_content.replace(placeholder, str(value))
+
+            return rendered_title, rendered_content
+        except TemplateSyntaxError as e:
+            logger.debug(f"模板语法错误，回退到简单替换: {e}")
+            for key, value in variables.items():
+                placeholder = f"{{{key}}}"
+                title = title.replace(placeholder, str(value))
+                content = content.replace(placeholder, str(value))
+            return title, content
+        except Exception as e:
+            logger.warning(f"模板渲染失败: {e}")
+            return title, content

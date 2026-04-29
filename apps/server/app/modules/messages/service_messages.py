@@ -4,7 +4,7 @@ import json
 import logging
 import uuid
 from datetime import datetime
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -13,9 +13,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.message import Message
 from app.models.notification_log import NotificationLog
+from app.models.user import User
 from app.schemas.message import MessageBatchCreate, MessageCreate, MessageQuery, MessageType, UnreadCountResponse
+from app.schemas.notification import NotificationEvent, NotificationContent
 from app.utils.audit import set_create_audit
 from app.middleware.tenant_context import get_current_tenant_id
+from app.infrastructure.sms.service import SmsService
+from app.infrastructure.notifications.dispatcher import NotificationDispatcher
 
 
 _CHANNEL_FIELD_MAP = {
@@ -26,11 +30,15 @@ _CHANNEL_FIELD_MAP = {
 
 _TYPE_FIELD_MAP = {
     "appointment": "appointment_enabled",
+    "appointment_success": "appointment_enabled",
+    "appointment_reminder": "reminder_enabled",
+    "appointment_cancelled": "appointment_enabled",
     "schedule": "reminder_enabled",
     "stop_clinic": "stop_clinic_enabled",
     "system": "system_enabled",
     "consultation": "consultation_enabled",
     "feedback": "feedback_enabled",
+    "queue_call": "appointment_enabled",
 }
 
 
@@ -59,9 +67,81 @@ async def _check_preference(
         return True
 
 
+async def _send_sms_notification(
+    db: AsyncSession,
+    tenant_id: str,
+    user_id: str,
+    message_type: str,
+    template_variables: Dict[str, str],
+    related_id: Optional[str] = None,
+) -> bool:
+    """
+    发送短信通知（辅助函数）
+
+    Args:
+        db: 数据库会话
+        tenant_id: 租户ID
+        user_id: 用户ID
+        message_type: 消息类型（appointment_success/appointment_reminder/appointment_cancelled/stop_clinic）
+        template_variables: 模板变量
+        related_id: 关联业务ID
+
+    Returns:
+        是否发送成功
+    """
+    try:
+        # 检查短信偏好
+        if not await _check_preference(db, user_id, "patient", "sms", message_type):
+            logger.debug(f"用户 {user_id} 已禁用 sms/{message_type} 通知，跳过")
+            return False
+
+        # 获取用户手机号
+        user_result = await db.execute(
+            select(User.phone).where(User.id == user_id)
+        )
+        user_phone = user_result.scalar_one_or_none()
+
+        if not user_phone:
+            logger.debug(f"用户 {user_id} 无手机号，跳过短信发送")
+            return False
+
+        # 根据消息类型调用对应的 SmsService 方法
+        sms_method_map = {
+            "appointment_success": SmsService.send_appointment_success,
+            "appointment_reminder": SmsService.send_appointment_reminder,
+            "appointment_cancelled": SmsService.send_appointment_cancelled,
+            "stop_clinic": SmsService.send_stop_clinic_notice,
+        }
+
+        sms_method = sms_method_map.get(message_type)
+        if not sms_method:
+            logger.warning(f"未知的短信消息类型: {message_type}")
+            return False
+
+        return await sms_method(
+            tenant_id=tenant_id,
+            phone=user_phone,
+            variables=template_variables,
+            user_id=user_id,
+            related_id=related_id,
+        )
+
+    except Exception as e:
+        logger.error(f"短信通知发送失败: user_id={user_id}, type={message_type}, error={e}")
+        return False
+
+
 class MessageService:
     def __init__(self, db):
         self.db = db
+        self._dispatcher: Optional[NotificationDispatcher] = None
+
+    @property
+    def dispatcher(self) -> NotificationDispatcher:
+        """获取通知分发器实例（延迟初始化）"""
+        if self._dispatcher is None:
+            self._dispatcher = NotificationDispatcher(self.db)
+        return self._dispatcher
 
     async def _render_from_template(self, code: str, variables: dict) -> Tuple[Optional[str], Optional[str]]:
         """从模板渲染标题和内容，返回 (title, content)。
@@ -344,57 +424,187 @@ class MessageService:
         self, user_id: str, user_type: str, title: str, content: str, appointment_id: str,
         template_code: Optional[str] = None, template_variables: Optional[dict] = None,
     ) -> Optional[Message]:
-        if not await _check_preference(self.db, user_id, user_type, "in_app", "appointment"):
-            logger.debug("用户 %s 已禁用 in_app/appointment 通知，跳过", user_id)
+        """发送预约通知（向后兼容方法）
+
+        内部使用 NotificationDispatcher 进行统一分发。
+        """
+        tenant_id = get_current_tenant_id()
+        if not tenant_id:
+            logger.warning("缺少租户上下文，无法发送通知")
             return None
 
+        # 确定消息类型
+        message_type_map = {
+            "预约成功": "appointment_success",
+            "就诊提醒": "appointment_reminder",
+            "叫号通知": "queue_call",
+            "预约已取消": "appointment_cancelled",
+        }
+        message_type = message_type_map.get(title, "appointment")
+
+        # 渲染模板
+        rendered_title, rendered_content = title, content
         code = template_code or self._TITLE_TEMPLATE_CODE_MAP.get(title)
         if code and template_variables:
             rendered_title, rendered_content = await self._render_from_template(
                 code, template_variables
             )
-            if rendered_title is not None:
-                title, content = rendered_title, rendered_content
+            if rendered_title is None:
+                rendered_title, rendered_content = title, content
 
-        data = MessageCreate(
-            user_id=user_id,
-            user_type=user_type,
-            title=title,
-            content=content,
-            message_type=MessageType.APPOINTMENT,
+        # 获取接收人信息
+        recipient_phone = None
+        recipient_openid = None
+        if user_type == "patient":
+            user_result = await self.db.execute(
+                select(User.phone, User.openid).where(User.id == user_id)
+            )
+            user_info = await user_result.first()
+            if user_info:
+                recipient_phone, recipient_openid = user_info
+
+        # 创建通知事件
+        event = NotificationEvent(
+            tenant_id=tenant_id,
+            recipient_id=user_id,
+            recipient_type=user_type,
+            recipient_phone=recipient_phone,
+            recipient_openid=recipient_openid,
+            template_code=code or message_type,
+            variables=template_variables or {},
+            message_type=message_type,
             related_id=appointment_id,
+            title=rendered_title,
+            content=rendered_content,
         )
-        return await self.create(data)
+
+        # 使用分发器发送
+        dispatch_result = await self.dispatcher.dispatch(event)
+
+        # 返回站内信 Message（向后兼容）
+        in_app_result = dispatch_result.results.get("in_app")
+        if in_app_result and in_app_result.success:
+            # 查询创建的 Message
+            msg_result = await self.db.execute(
+                select(Message).where(
+                    and_(
+                        Message.user_id == user_id,
+                        Message.related_id == appointment_id,
+                        Message.message_type == MessageType.APPOINTMENT.value,
+                    )
+                ).order_by(Message.created_at.desc()).limit(1)
+            )
+            return msg_result.scalar_one_or_none()
+
+        return None
 
     async def send_schedule_notification(
         self, doctor_id: str, title: str, content: str, schedule_id: Optional[str] = None,
         template_code: Optional[str] = None, template_variables: Optional[dict] = None,
     ) -> Optional[Message]:
-        if not await _check_preference(self.db, doctor_id, "doctor", "in_app", "schedule"):
-            logger.debug("用户 %s 已禁用 in_app/schedule 通知，跳过", doctor_id)
+        """发送排班通知（向后兼容方法）
+
+        内部使用 NotificationDispatcher 进行统一分发。
+        """
+        tenant_id = get_current_tenant_id()
+        if not tenant_id:
+            logger.warning("缺少租户上下文，无法发送通知")
             return None
 
-        # 尝试模板渲染，失败则使用调用方传入的 fallback
+        # 渲染模板
+        rendered_title, rendered_content = title, content
         if template_code and template_variables:
             rendered_title, rendered_content = await self._render_from_template(
                 template_code, template_variables
             )
-            if rendered_title is not None:
-                title, content = rendered_title, rendered_content
+            if rendered_title is None:
+                rendered_title, rendered_content = title, content
 
-        data = MessageCreate(
-            user_id=doctor_id,
-            user_type="doctor",
-            title=title,
-            content=content,
-            message_type=MessageType.SCHEDULE,
+        # 创建通知事件
+        event = NotificationEvent(
+            tenant_id=tenant_id,
+            recipient_id=doctor_id,
+            recipient_type="doctor",
+            template_code=template_code or "schedule",
+            variables=template_variables or {},
+            message_type="schedule",
             related_id=schedule_id,
+            title=rendered_title,
+            content=rendered_content,
         )
-        return await self.create(data)
+
+        # 使用分发器发送
+        dispatch_result = await self.dispatcher.dispatch(event)
+
+        # 返回站内信 Message（向后兼容）
+        in_app_result = dispatch_result.results.get("in_app")
+        if in_app_result and in_app_result.success:
+            msg_result = await self.db.execute(
+                select(Message).where(
+                    and_(
+                        Message.user_id == doctor_id,
+                        Message.related_id == schedule_id if schedule_id else True,
+                        Message.message_type == MessageType.SCHEDULE.value,
+                    )
+                ).order_by(Message.created_at.desc()).limit(1)
+            )
+            return msg_result.scalar_one_or_none()
+
+        return None
 
     async def send_system_notification(
         self, user_id: str, user_type: str, title: str, content: str
     ) -> Message:
+        """发送系统通知（向后兼容方法）
+
+        内部使用 NotificationDispatcher 进行统一分发。
+        """
+        tenant_id = get_current_tenant_id()
+        if not tenant_id:
+            logger.warning("缺少租户上下文，无法发送通知")
+            # 降级：直接创建站内信
+            data = MessageCreate(
+                user_id=user_id,
+                user_type=user_type,
+                title=title,
+                content=content,
+                message_type=MessageType.SYSTEM,
+            )
+            return await self.create(data)
+
+        # 创建通知事件
+        event = NotificationEvent(
+            tenant_id=tenant_id,
+            recipient_id=user_id,
+            recipient_type=user_type,
+            template_code="system",
+            variables={},
+            message_type="system",
+            title=title,
+            content=content,
+        )
+
+        # 使用分发器发送
+        dispatch_result = await self.dispatcher.dispatch(event)
+
+        # 返回站内信 Message（向后兼容）
+        in_app_result = dispatch_result.results.get("in_app")
+        if in_app_result and in_app_result.success:
+            msg_result = await self.db.execute(
+                select(Message).where(
+                    and_(
+                        Message.user_id == user_id,
+                        Message.user_type == user_type,
+                        Message.message_type == MessageType.SYSTEM.value,
+                        Message.title == title,
+                    )
+                ).order_by(Message.created_at.desc()).limit(1)
+            )
+            message = msg_result.scalar_one_or_none()
+            if message:
+                return message
+
+        # 降级：直接创建站内信
         data = MessageCreate(
             user_id=user_id,
             user_type=user_type,
@@ -414,24 +624,66 @@ class MessageService:
         template_code: Optional[str] = None,
         template_variables: Optional[dict] = None,
     ) -> Optional[Message]:
-        if not await _check_preference(self.db, user_id, user_type, "in_app", "stop_clinic"):
-            logger.debug("用户 %s 已禁用 in_app/stop_clinic 通知，跳过", user_id)
+        """发送停诊通知（向后兼容方法）
+
+        内部使用 NotificationDispatcher 进行统一分发。
+        """
+        tenant_id = get_current_tenant_id()
+        if not tenant_id:
+            logger.warning("缺少租户上下文，无法发送通知")
             return None
 
+        # 渲染模板
+        rendered_title, rendered_content = title, content
         code = template_code or "stop_clinic_patient"
         if code and template_variables:
             rendered_title, rendered_content = await self._render_from_template(
                 code, template_variables
             )
-            if rendered_title is not None:
-                title, content = rendered_title, rendered_content
+            if rendered_title is None:
+                rendered_title, rendered_content = title, content
 
-        data = MessageCreate(
-            user_id=user_id,
-            user_type=user_type,
-            title=title,
-            content=content,
-            message_type=MessageType.STOP_CLINIC,
+        # 获取接收人信息
+        recipient_phone = None
+        recipient_openid = None
+        if user_type == "patient":
+            user_result = await self.db.execute(
+                select(User.phone, User.openid).where(User.id == user_id)
+            )
+            user_info = await user_result.first()
+            if user_info:
+                recipient_phone, recipient_openid = user_info
+
+        # 创建通知事件
+        event = NotificationEvent(
+            tenant_id=tenant_id,
+            recipient_id=user_id,
+            recipient_type=user_type,
+            recipient_phone=recipient_phone,
+            recipient_openid=recipient_openid,
+            template_code=code,
+            variables=template_variables or {},
+            message_type="stop_clinic",
             related_id=appointment_id,
+            title=rendered_title,
+            content=rendered_content,
         )
-        return await self.create(data)
+
+        # 使用分发器发送
+        dispatch_result = await self.dispatcher.dispatch(event)
+
+        # 返回站内信 Message（向后兼容）
+        in_app_result = dispatch_result.results.get("in_app")
+        if in_app_result and in_app_result.success:
+            msg_result = await self.db.execute(
+                select(Message).where(
+                    and_(
+                        Message.user_id == user_id,
+                        Message.related_id == appointment_id if appointment_id else True,
+                        Message.message_type == MessageType.STOP_CLINIC.value,
+                    )
+                ).order_by(Message.created_at.desc()).limit(1)
+            )
+            return msg_result.scalar_one_or_none()
+
+        return None

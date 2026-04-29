@@ -77,6 +77,20 @@ async def change_password(
     current_user: dict = Depends(get_current_user),
 ):
     user_service = UserService(db)
+    user = await user_service.get_by_id(current_user["id"])
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在，请检查后重试")
+
+    # 密码策略校验
+    from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
+    from app.middleware.tenant_context import get_current_tenant_id
+    tenant_id = get_current_tenant_id()
+    policy = await get_tenant_password_policy(db, tenant_id)
+    validator = PasswordPolicyValidator(policy)
+    is_valid, errors = validator.validate(data.new_password, phone=user.phone)
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="; ".join(errors))
+
     success, message = await user_service.change_password(
         current_user["id"], data.old_password, data.new_password
     )

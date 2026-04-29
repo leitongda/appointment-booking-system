@@ -40,6 +40,19 @@ async def change_current_admin_password(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在，请检查后重试")
     if not verify_password(data.old_password, admin.password_hash):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="原密码错误，请重新输入")
+
+    # 密码策略校验
+    from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
+    policy = await get_tenant_password_policy(db, admin.tenant_id)
+    validator = PasswordPolicyValidator(policy)
+    is_valid, errors = validator.validate(
+        data.new_password,
+        username=admin.username,
+        phone=admin.phone,
+    )
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="; ".join(errors))
+
     admin.password_hash = get_password_hash(data.new_password)
     await db.commit()
     return {"message": "密码修改成功"}

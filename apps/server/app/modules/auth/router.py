@@ -139,15 +139,25 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
 async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
     """用户注册"""
     user_service = UserService(db)
-    
+
     # 检查手机号是否已注册
     existing = await user_service.get_by_phone(data.phone)
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="手机号已注册，请直接登录")
-    
+
+    # 密码策略校验（用户注册使用当前租户上下文）
+    from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
+    from app.middleware.tenant_context import get_current_tenant_id
+    tenant_id = get_current_tenant_id()
+    policy = await get_tenant_password_policy(db, tenant_id)
+    validator = PasswordPolicyValidator(policy)
+    is_valid, errors = validator.validate(data.password, phone=data.phone)
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="; ".join(errors))
+
     from app.schemas.user import UserCreate
     user = await user_service.create(UserCreate(phone=data.phone, password=data.password))
-    
+
     return UserResponse(
         id=user.id,
         phone=user.phone,
@@ -190,16 +200,26 @@ async def change_password(
     """修改密码"""
     user_service = UserService(db)
     user = await user_service.get_by_id(current_user["id"])
-    
+
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在，请检查后重试")
-    
+
     if not verify_password(data.old_password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="原密码错误，请重新输入")
-    
+
+    # 密码策略校验
+    from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
+    from app.middleware.tenant_context import get_current_tenant_id
+    tenant_id = get_current_tenant_id()
+    policy = await get_tenant_password_policy(db, tenant_id)
+    validator = PasswordPolicyValidator(policy)
+    is_valid, errors = validator.validate(data.new_password, phone=user.phone)
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="; ".join(errors))
+
     user.password_hash = get_password_hash(data.new_password)
     await db.commit()
-    
+
     return {"message": "密码修改成功"}
 
 

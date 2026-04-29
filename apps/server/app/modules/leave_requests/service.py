@@ -205,31 +205,91 @@ class LeaveRequestService:
     async def _handle_approved_request(self, request: LeaveRequest):
         """处理通过的申请"""
         if request.request_type == RequestType.STOP_CLINIC.value:
-            # 停诊：更新排班状态
-            if request.schedule_id:
-                schedule_result = await self.db.execute(
-                    select(Schedule).where(Schedule.id == request.schedule_id)
-                )
-                schedule = schedule_result.scalar_one_or_none()
-                if schedule:
-                    schedule.status = 0  # 停诊
+            await self._handle_stop_clinic(request)
+        elif request.request_type == RequestType.SCHEDULE_CHANGE.value:
+            await self._handle_schedule_change(request)
 
-            # 取消相关预约（实际应发送通知给患者）
-            # 这里简化处理，只更新状态
-            await self.db.execute(
+    async def _handle_stop_clinic(self, request: LeaveRequest):
+        """处理停诊申请通过"""
+        # 停诊：更新排班状态
+        if request.schedule_id:
+            schedule_result = await self.db.execute(
+                select(Schedule).where(Schedule.id == request.schedule_id)
+            )
+            schedule = schedule_result.scalar_one_or_none()
+            if schedule:
+                schedule.status = 0
+
+        # 取消受影响的预约
+        if request.stop_date:
+            cancel_stmt = (
                 select(Appointment).where(
                     and_(
                         Appointment.doctor_id == request.doctor_id,
-                        Appointment.appointment_date == request.stop_date,
-                        Appointment.status.in_(['pending', 'confirmed'])
+                        Appointment.schedule_id.isnot(None),
+                        Appointment.status.in_([0, 1]),
                     )
                 )
             )
+            appointments = (await self.db.execute(cancel_stmt)).scalars().all()
+            for apt in appointments:
+                # 通过 schedule 关联判断日期和时段
+                if apt.schedule_id:
+                    sched = (await self.db.execute(
+                        select(Schedule).where(Schedule.id == apt.schedule_id)
+                    )).scalar_one_or_none()
+                    if sched and sched.schedule_date == request.stop_date:
+                        if request.stop_period == 'all' or sched.time_slot == request.stop_period:
+                            apt.status = 6  # 已取消
+                            apt.cancel_reason = f"医生停诊（审批单 {request.id}）"
 
-        elif request.request_type == RequestType.SCHEDULE_CHANGE.value:
-            # 调班：交换排班
-            # 实际实现需要更复杂的逻辑
-            pass
+    async def _handle_schedule_change(self, request: LeaveRequest):
+        """处理调班申请通过：交换原时段和目标时段的排班"""
+        if not request.original_date or not request.target_date:
+            return
+
+        # 查找原时段的排班
+        orig_schedules = (await self.db.execute(
+            select(Schedule).where(
+                and_(
+                    Schedule.doctor_id == request.doctor_id,
+                    Schedule.schedule_date == request.original_date,
+                    Schedule.time_slot == request.original_period,
+                    Schedule.status == 1,
+                )
+            )
+        )).scalars().all()
+
+        # 查找目标时段的排班
+        target_schedules = (await self.db.execute(
+            select(Schedule).where(
+                and_(
+                    Schedule.doctor_id == request.doctor_id,
+                    Schedule.schedule_date == request.target_date,
+                    Schedule.time_slot == request.target_period,
+                    Schedule.status == 1,
+                )
+            )
+        )).scalars().all()
+
+        # 交换排班的日期和时段
+        if orig_schedules and target_schedules:
+            orig = orig_schedules[0]
+            target = target_schedules[0]
+            orig.schedule_date, target.schedule_date = target.schedule_date, orig.schedule_date
+            orig.time_slot, target.time_slot = target.time_slot, orig.time_slot
+            orig.start_time, target.start_time = target.start_time, orig.start_time
+            orig.end_time, target.end_time = target.end_time, orig.end_time
+        elif orig_schedules:
+            # 目标时段无排班，仅移动原排班到目标日期时段
+            orig = orig_schedules[0]
+            orig.schedule_date = request.target_date
+            orig.time_slot = request.target_period
+        elif target_schedules:
+            # 原时段无排班（可能已被删除），仅移动目标排班到原日期时段
+            target = target_schedules[0]
+            target.schedule_date = request.original_date
+            target.time_slot = request.original_period
 
     async def get_pending_count(self, store_id: Optional[str] = None) -> int:
         """获取待审核数量"""

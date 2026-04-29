@@ -6,7 +6,6 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
-from fastapi.staticfiles import StaticFiles
 
 from app.api.v1 import api_router
 from app.core.config import settings
@@ -420,8 +419,57 @@ def _configure_static_mounts(app: FastAPI) -> None:
     if settings.STORAGE_TYPE.lower() == "local":
         upload_dir = Path(settings.LOCAL_UPLOAD_DIR)
         upload_dir.mkdir(parents=True, exist_ok=True)
-        app.mount("/uploads", StaticFiles(directory=str(upload_dir)), name="uploads")
-        logger.info(f"静态文件服务已挂载: /uploads -> {upload_dir}")
+        # 使用带租户校验的文件服务替代直接 StaticFiles 挂载
+        from app.middleware.tenant_context import get_current_tenant_id
+
+        @app.get("/uploads/{file_path:path}", include_in_schema=False)
+        async def _serve_upload_file(file_path: str):
+            """带租户校验的本地文件访问端点。
+
+            替代直接 StaticFiles 挂载，在返回文件前校验请求租户与文件所属租户是否匹配。
+            租户文件的路径格式为 tenants/{tenant_id}/...，
+            无租户上下文的公开请求（如患者端）允许访问。
+            """
+            from fastapi.responses import FileResponse as FR
+            from starlette.responses import Response
+
+            full_path = (upload_dir / file_path).resolve()
+
+            # 防路径穿越
+            if not str(full_path).startswith(str(upload_dir.resolve())):
+                return Response(status_code=403)
+
+            if not full_path.is_file():
+                return Response(status_code=404)
+
+            # 租户校验：从文件路径中提取 tenant_id，与请求上下文对比
+            prefix = "tenants/"
+            if file_path.startswith(prefix):
+                remainder = file_path[len(prefix):]
+                file_tenant_id = remainder.split("/", 1)[0] if "/" in remainder else remainder
+                request_tenant_id = get_current_tenant_id()
+
+                # 双方都有租户信息时必须匹配
+                if file_tenant_id and request_tenant_id:
+                    if str(file_tenant_id) != str(request_tenant_id):
+                        return Response(status_code=403)
+
+            # 推断 Content-Type
+            ext = file_path.rsplit(".", 1)[-1].lower() if "." in file_path else ""
+            mime_map = {
+                "jpg": "image/jpeg", "jpeg": "image/jpeg",
+                "png": "image/png", "gif": "image/gif",
+                "webp": "image/webp", "svg": "image/svg+xml",
+            }
+            content_type = mime_map.get(ext, "application/octet-stream")
+
+            return FR(
+                path=str(full_path),
+                media_type=content_type,
+                headers={"Cache-Control": "public, max-age=86400"},
+            )
+
+        logger.info(f"文件服务已挂载（带租户校验）: /uploads -> {upload_dir}")
 
 
 def _register_health_routes(app: FastAPI) -> None:

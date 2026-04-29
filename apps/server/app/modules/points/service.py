@@ -9,6 +9,7 @@ from app.models.user import User, Patient
 from app.models.point_log import PointLog
 from app.models.admin import Admin
 from app.utils.audit import set_create_audit
+from app.middleware.tenant_context import get_current_tenant_id
 
 
 class PointService:
@@ -27,6 +28,13 @@ class PointService:
         patient = result.unique().scalar_one_or_none()
         return patient.user if patient else None
 
+    def _tenant_filter(self, stmt):
+        """为查询添加租户过滤"""
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            return stmt.where(PointLog.tenant_id == tenant_id)
+        return stmt
+
     async def get_point_logs(
         self,
         patient_id: str,
@@ -44,9 +52,9 @@ class PointService:
             return [], 0, 0
 
         # 查询积分流水
-        query = select(PointLog).where(PointLog.user_id == user.id)
+        query = self._tenant_filter(select(PointLog).where(PointLog.user_id == user.id))
 
-        count_query = select(func.count(PointLog.id)).where(PointLog.user_id == user.id)
+        count_query = self._tenant_filter(select(func.count(PointLog.id)).where(PointLog.user_id == user.id))
         total = await self.db.scalar(count_query)
 
         query = query.order_by(PointLog.created_at.desc())
@@ -117,6 +125,7 @@ class PointService:
         # 创建积分流水记录
         point_log = PointLog(
             id=str(uuid.uuid4()),
+            tenant_id=get_current_tenant_id(),
             user_id=user.id,
             change_amount=amount,
             balance=new_balance,

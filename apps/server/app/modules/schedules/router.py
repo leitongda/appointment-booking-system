@@ -12,7 +12,7 @@ from app.db.session import get_db
 
 logger = logging.getLogger(__name__)
 from app.api.deps import get_current_admin, get_store_filter, check_store_access, require_permission
-from app.schemas.schedule import ScheduleCreate, ScheduleBatchCreate, ScheduleUpdate, ScheduleResponse, AvailableScheduleResponse, CustomScheduleCreate, CustomScheduleResponse
+from app.schemas.schedule import ScheduleCreate, ScheduleBatchCreate, ScheduleUpdate, ScheduleResponse, AvailableScheduleResponse, CustomScheduleCreate, CustomScheduleResponse, UtilizationTrendResponse, DoctorWorkloadResponse, PeakHourHeatmapResponse
 from app.schemas.response import PageResponse
 from app.modules.schedules.service import ScheduleService
 
@@ -201,7 +201,8 @@ async def get_schedules(
             template_id=s.template_id,
             status=s.status,
             created_at=s.created_at,
-            is_rest_day=is_rest
+            is_rest_day=is_rest,
+            effective_status=getattr(s, 'effective_status', 'active'),
         ))
     
     return PageResponse(data=result, total=total, page=page, page_size=page_size)
@@ -383,6 +384,313 @@ async def get_schedule_statistics(
         year=year,
         month=month,
         items=items
+    )
+
+
+# ========== 排班统计增强端点 ==========
+
+
+@router.get(
+    "/statistics/utilization-trend",
+    response_model=UtilizationTrendResponse,
+    summary="排班利用率趋势",
+    description="""
+    获取指定门店在某日期范围内的排班利用率趋势。
+
+    **参数说明**：
+    - store_id: 门店ID（门店管理员自动取本门店，超级管理员必填）
+    - start_date: 开始日期（必填）
+    - end_date: 结束日期（必填）
+    - granularity: 粒度，week（周）或 month（月），默认 week
+
+    **返回数据**：
+    - 按周或按月汇总的总号源、已预约号源、利用率
+    """,
+)
+async def get_utilization_trend(
+    store_id: Optional[str] = Query(None, description="门店ID"),
+    start_date: date = Query(..., description="开始日期"),
+    end_date: date = Query(..., description="结束日期"),
+    granularity: str = Query("week", pattern="^(week|month)$", description="粒度: week / month"),
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """排班利用率趋势"""
+    # 门店过滤
+    store_filter = get_store_filter(current_admin)
+    if store_filter:
+        store_id = store_filter
+    elif not store_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请选择门店")
+
+    # 检查门店访问权限
+    if not check_store_access(current_admin, store_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权访问此门店数据")
+
+    # 获取门店信息
+    store_result = await db.execute(select(Store).where(Store.id == store_id))
+    store = store_result.scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="门店不存在")
+
+    # 查询该日期范围内的所有排班（status=1 且 template_id 不为 NULL，排除自定义排班重复统计）
+    result = await db.execute(
+        select(Schedule)
+        .where(
+            and_(
+                Schedule.store_id == store_id,
+                Schedule.schedule_date >= start_date,
+                Schedule.schedule_date <= end_date,
+                Schedule.status == 1,
+            )
+        )
+    )
+    schedules = result.scalars().all()
+
+    from collections import defaultdict
+    period_stats = defaultdict(lambda: {"total_slots": 0, "booked_slots": 0})
+
+    for s in schedules:
+        if granularity == "month":
+            period_key = s.schedule_date.strftime("%Y-%m")
+        else:
+            # ISO week: YYYY-WNN
+            year_num, week_num, _ = s.schedule_date.isocalendar()
+            period_key = f"{year_num}-W{week_num:02d}"
+        period_stats[period_key]["total_slots"] += s.total_slots
+        period_stats[period_key]["booked_slots"] += s.booked_slots
+
+    items = []
+    for period in sorted(period_stats.keys()):
+        stats = period_stats[period]
+        total = stats["total_slots"]
+        booked = stats["booked_slots"]
+        rate = round(booked / total * 100, 1) if total > 0 else 0.0
+        items.append({
+            "period": period,
+            "total_slots": total,
+            "booked_slots": booked,
+            "utilization_rate": rate,
+        })
+
+    return UtilizationTrendResponse(
+        store_id=store_id,
+        store_name=store.name,
+        granularity=granularity,
+        items=items
+    )
+
+
+@router.get(
+    "/statistics/doctor-workload",
+    response_model=DoctorWorkloadResponse,
+    summary="医生工作量对比",
+    description="""
+    获取指定门店在某日期范围内各医生的工作量对比数据。
+
+    **参数说明**：
+    - store_id: 门店ID（门店管理员自动取本门店，超级管理员必填）
+    - start_date: 开始日期（必填）
+    - end_date: 结束日期（必填）
+
+    **返回数据**：
+    - 每位医生的总号源、已预约、已完成预约、利用率、排班天数
+    """,
+)
+async def get_doctor_workload(
+    store_id: Optional[str] = Query(None, description="门店ID"),
+    start_date: date = Query(..., description="开始日期"),
+    end_date: date = Query(..., description="结束日期"),
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """医生工作量对比"""
+    # 门店过滤
+    store_filter = get_store_filter(current_admin)
+    if store_filter:
+        store_id = store_filter
+    elif not store_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请选择门店")
+
+    if not check_store_access(current_admin, store_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权访问此门店数据")
+
+    store_result = await db.execute(select(Store).where(Store.id == store_id))
+    store = store_result.scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="门店不存在")
+
+    # 获取门店下所有医生
+    doctors_result = await db.execute(
+        select(Doctor).where(Doctor.store_id == store_id, Doctor.status == 1, Doctor.deleted_at.is_(None))
+    )
+    doctors = doctors_result.scalars().all()
+    doctor_map = {d.id: d for d in doctors}
+
+    # 查询排班数据
+    schedule_result = await db.execute(
+        select(Schedule).where(
+            and_(
+                Schedule.store_id == store_id,
+                Schedule.schedule_date >= start_date,
+                Schedule.schedule_date <= end_date,
+                Schedule.status == 1,
+            )
+        )
+    )
+    schedules = schedule_result.scalars().all()
+
+    # 查询已完成预约数量（status=5 已完成），通过 schedule 关联过滤门店和日期
+    from app.models.appointment import Appointment
+    appointment_result = await db.execute(
+        select(Appointment.doctor_id, func.count(Appointment.id))
+        .join(Schedule, Appointment.schedule_id == Schedule.id)
+        .where(
+            and_(
+                Schedule.store_id == store_id,
+                Schedule.schedule_date >= start_date,
+                Schedule.schedule_date <= end_date,
+                Appointment.status == 5,
+            )
+        )
+        .group_by(Appointment.doctor_id)
+    )
+    completed_map = {row[0]: row[1] for row in appointment_result.all()}
+
+    from collections import defaultdict
+    doc_stats = defaultdict(lambda: {
+        "total_slots": 0,
+        "booked_slots": 0,
+        "schedule_days": set(),
+    })
+
+    for s in schedules:
+        if s.doctor_id not in doctor_map:
+            continue
+        doc_stats[s.doctor_id]["total_slots"] += s.total_slots
+        doc_stats[s.doctor_id]["booked_slots"] += s.booked_slots
+        doc_stats[s.doctor_id]["schedule_days"].add(s.schedule_date)
+
+    items = []
+    for doctor_id, d in doctor_map.items():
+        stats = doc_stats[doctor_id]
+        total = stats["total_slots"]
+        booked = stats["booked_slots"]
+        rate = round(booked / total * 100, 1) if total > 0 else 0.0
+        items.append({
+            "doctor_id": doctor_id,
+            "doctor_name": d.name,
+            "department_name": d.department.name if d.department else None,
+            "total_slots": total,
+            "booked_slots": booked,
+            "completed_appointments": completed_map.get(doctor_id, 0),
+            "utilization_rate": rate,
+            "schedule_days": len(stats["schedule_days"]),
+        })
+
+    # 按利用率降序排列
+    items.sort(key=lambda x: x["utilization_rate"], reverse=True)
+
+    return DoctorWorkloadResponse(
+        store_id=store_id,
+        store_name=store.name,
+        start_date=start_date,
+        end_date=end_date,
+        items=items
+    )
+
+
+@router.get(
+    "/statistics/peak-hours",
+    response_model=PeakHourHeatmapResponse,
+    summary="高峰时段热力图",
+    description="""
+    获取指定门店在某日期范围内的预约高峰时段热力图数据。
+
+    **参数说明**：
+    - store_id: 门店ID（门店管理员自动取本门店，超级管理员必填）
+    - start_date: 开始日期（必填）
+    - end_date: 结束日期（必填）
+
+    **返回数据**：
+    - X轴: 星期（1-7），Y轴: 小时（0-23），值: 预约率
+    - 基于 start_time 的小时和 schedule_date 的星期进行聚合
+    """,
+)
+async def get_peak_hours(
+    store_id: Optional[str] = Query(None, description="门店ID"),
+    start_date: date = Query(..., description="开始日期"),
+    end_date: date = Query(..., description="结束日期"),
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+):
+    """高峰时段热力图"""
+    # 门店过滤
+    store_filter = get_store_filter(current_admin)
+    if store_filter:
+        store_id = store_filter
+    elif not store_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请选择门店")
+
+    if not check_store_access(current_admin, store_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权访问此门店数据")
+
+    store_result = await db.execute(select(Store).where(Store.id == store_id))
+    store = store_result.scalar_one_or_none()
+    if not store:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="门店不存在")
+
+    # 查询排班数据
+    schedule_result = await db.execute(
+        select(Schedule).where(
+            and_(
+                Schedule.store_id == store_id,
+                Schedule.schedule_date >= start_date,
+                Schedule.schedule_date <= end_date,
+                Schedule.status == 1,
+            )
+        )
+    )
+    schedules = schedule_result.scalars().all()
+
+    from collections import defaultdict
+    cell_stats = defaultdict(lambda: {"total_slots": 0, "booked_slots": 0})
+
+    for s in schedules:
+        day_of_week = s.schedule_date.isoweekday()  # 1=周一 ... 7=周日
+        hour = s.start_time.hour if s.start_time else (
+            8 if s.time_slot == "morning" else (
+                14 if s.time_slot == "afternoon" else (
+                    19 if s.time_slot == "evening" else 0
+                )
+            )
+        )
+        key = (day_of_week, hour)
+        cell_stats[key]["total_slots"] += s.total_slots
+        cell_stats[key]["booked_slots"] += s.booked_slots
+
+    cells = []
+    for day_of_week in range(1, 8):
+        for hour in range(24):
+            key = (day_of_week, hour)
+            stats = cell_stats.get(key, {"total_slots": 0, "booked_slots": 0})
+            total = stats["total_slots"]
+            booked = stats["booked_slots"]
+            rate = round(booked / total * 100, 1) if total > 0 else 0.0
+            cells.append({
+                "day_of_week": day_of_week,
+                "hour": hour,
+                "total_slots": total,
+                "booked_slots": booked,
+                "booking_rate": rate,
+            })
+
+    return PeakHourHeatmapResponse(
+        store_id=store_id,
+        store_name=store.name,
+        start_date=start_date,
+        end_date=end_date,
+        cells=cells
     )
 
 
