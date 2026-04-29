@@ -1,16 +1,18 @@
 """审计日志 API"""
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, desc, func
 from sqlalchemy.orm import selectinload
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.db.session import get_db
 from app.api.deps import get_current_admin
 from app.models.rule_set import AppointmentCheckin
 from app.models.appointment import Appointment
 from app.core.config import settings
+from app.middleware.tenant_context import get_current_tenant_id
 
 router = APIRouter()
 
@@ -29,14 +31,18 @@ async def get_checkin_logs(
     current_admin = Depends(get_current_admin),
 ):
     """查询签到审计日志"""
+    tenant_id = get_current_tenant_id()
 
-    # 构建查询
+    # 构建 with appointment join
     query = select(AppointmentCheckin).options(
         selectinload(AppointmentCheckin.appointment)
-    )
+    ).join(Appointment, AppointmentCheckin.appointment_id == Appointment.id)
 
-    # 筛选条件
     conditions = []
+
+    # 租户过滤
+    if tenant_id:
+        conditions.append(Appointment.tenant_id == tenant_id)
 
     if appointment_id:
         conditions.append(AppointmentCheckin.appointment_id == appointment_id)
@@ -54,8 +60,6 @@ async def get_checkin_logs(
         conditions.append(AppointmentCheckin.checkin_time <= end_time)
 
     if patient_id:
-        # 需要关联预约表查询
-        query = query.join(Appointment, AppointmentCheckin.appointment_id == Appointment.id)
         conditions.append(Appointment.patient_id == patient_id)
 
     if conditions:
@@ -73,7 +77,7 @@ async def get_checkin_logs(
     result = await db.execute(query)
     logs = result.scalars().all()
 
-    # 格式化返回（使用 camelCase 以便前端直接使用）
+    # 格式化返回
     items = []
     for log in logs:
         item = {
@@ -90,7 +94,6 @@ async def get_checkin_logs(
             "createdAt": log.created_at.isoformat() if log.created_at else None,
         }
 
-        # 尝试从关联的预约获取患者信息
         if log.appointment:
             item["patientName"] = getattr(log.appointment, 'patient_name', None)
             item["patientPhone"] = getattr(log.appointment, 'patient_phone', None)
@@ -115,15 +118,16 @@ async def get_checkin_log_statistics(
     current_admin = Depends(get_current_admin),
 ):
     """获取签到审计日志统计"""
+    tenant_id = get_current_tenant_id()
 
-    # 构建查询
     query = select(
         AppointmentCheckin.status,
         func.count(AppointmentCheckin.id).label('count')
-    )
+    ).join(Appointment, AppointmentCheckin.appointment_id == Appointment.id)
 
-    # 日期范围筛选
     conditions = []
+    if tenant_id:
+        conditions.append(Appointment.tenant_id == tenant_id)
     if start_date:
         conditions.append(AppointmentCheckin.checkin_time >= start_date)
     if end_date:
@@ -147,3 +151,102 @@ async def get_checkin_log_statistics(
         ],
         "total": sum(row.count for row in stats)
     }
+
+
+@router.get("/export", summary="导出审计日志")
+async def export_audit_logs(
+    format: str = Query("json", pattern="^(json|csv)$", description="导出格式: json / csv"),
+    tenant_id: Optional[str] = Query(None, description="租户ID（平台管理员可指定）"),
+    event_type: Optional[str] = Query(None, description="事件类型筛选"),
+    start_date: Optional[str] = Query(None, description="开始日期 YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="结束日期 YYYY-MM-DD"),
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+):
+    """导出审计日志（支持 JSON / CSV 格式）
+
+    租户管理员导出本租户日志，平台管理员可指定 tenant_id。
+    """
+    import io
+    import json as _json
+
+    from app.models.tenant_audit_log import TenantAuditLog
+    from fastapi import HTTPException, status
+
+    # 确定租户范围
+    if not current_admin.get("is_super_admin"):
+        tid = current_admin.get("tenant_id")
+        if not tid:
+            raise HTTPException(status_code=403, detail="未关联租户")
+    else:
+        tid = tenant_id
+        if not tid:
+            raise HTTPException(status_code=400, detail="请指定 tenant_id")
+
+    query = select(TenantAuditLog).where(TenantAuditLog.tenant_id == tid)
+
+    if event_type:
+        query = query.where(TenantAuditLog.event_type == event_type)
+    if start_date:
+        try:
+            sd = datetime.strptime(start_date, "%Y-%m-%d")
+            query = query.where(TenantAuditLog.created_at >= sd)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="开始日期格式错误")
+    if end_date:
+        try:
+            ed = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+            query = query.where(TenantAuditLog.created_at < ed)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="结束日期格式错误")
+
+    query = query.order_by(TenantAuditLog.created_at.desc()).limit(10000)
+    result = await db.execute(query)
+    logs = list(result.scalars().all())
+
+    if format == "csv":
+        import csv
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["ID", "事件类型", "操作人", "资源类型", "资源ID", "操作", "创建时间", "变更前", "变更后"])
+        for log in logs:
+            writer.writerow([
+                log.id,
+                log.event_type,
+                log.actor_name or log.actor_id or "",
+                log.resource_type,
+                log.resource_id,
+                log.action,
+                log.created_at.isoformat() if log.created_at else "",
+                log.before_data or "",
+                log.after_data or "",
+            ])
+        output.seek(0)
+        return StreamingResponse(
+            io.BytesIO(output.getvalue().encode("utf-8-sig")),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=audit_logs_{tid[:8]}.csv"},
+        )
+
+    # JSON 格式
+    data = [
+        {
+            "id": log.id,
+            "event_type": log.event_type,
+            "actor_id": log.actor_id,
+            "actor_name": log.actor_name,
+            "resource_type": log.resource_type,
+            "resource_id": log.resource_id,
+            "action": log.action,
+            "before_data": _json.loads(log.before_data) if log.before_data else None,
+            "after_data": _json.loads(log.after_data) if log.after_data else None,
+            "created_at": log.created_at.isoformat() if log.created_at else None,
+        }
+        for log in logs
+    ]
+    content = _json.dumps(data, ensure_ascii=False, indent=2)
+    return StreamingResponse(
+        io.BytesIO(content.encode("utf-8")),
+        media_type="application/json",
+        headers={"Content-Disposition": f"attachment; filename=audit_logs_{tid[:8]}.json"},
+    )

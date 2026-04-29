@@ -1,10 +1,111 @@
 """租户相关的 Pydantic Schema"""
+import json
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional, List
 from datetime import datetime, date
 from decimal import Decimal
 
 from app.schemas.response import to_camel
+
+
+# ==================== 密码策略 ====================
+
+class PasswordPolicy(BaseModel):
+    """租户密码策略配置"""
+    min_length: int = Field(default=6, ge=4, le=32, description="最小长度")
+    max_length: int = Field(default=20, ge=8, le=64, description="最大长度")
+    require_uppercase: bool = Field(default=False, description="要求大写字母")
+    require_lowercase: bool = Field(default=False, description="要求小写字母")
+    require_digit: bool = Field(default=False, description="要求数字")
+    require_special: bool = Field(default=False, description="要求特殊字符")
+    special_chars: str = Field(default="!@#$%^&*", description="允许的特殊字符集")
+    disallow_username: bool = Field(default=False, description="禁止包含用户名")
+    disallow_phone: bool = Field(default=False, description="禁止包含手机号")
+    max_repeated_chars: int = Field(default=0, ge=0, le=10, description="最大允许连续重复字符数（0表示不限制）")
+    history_count: int = Field(default=0, ge=0, le=10, description="密码历史检查次数（0表示不检查）")
+    expiry_days: int = Field(default=0, ge=0, le=365, description="密码过期天数（0表示不过期）")
+
+    @field_validator("max_length")
+    @classmethod
+    def validate_max_length(cls, v: int, info) -> int:
+        values = info.data
+        if "min_length" in values and v < values["min_length"]:
+            raise ValueError("max_length 不能小于 min_length")
+        return v
+
+    model_config = ConfigDict(extra="ignore")
+
+
+# ==================== 功能开关 (Features) ====================
+
+class TenantFeatures(BaseModel):
+    """租户/订阅计划 功能开关配置
+
+    所有功能开关均为布尔值，默认 False（关闭）。
+    允许额外字段以保持向前兼容——新功能可由业务方自由添加，
+    老数据中缺少的字段会自动补 False。
+    """
+    # 预约与排班
+    basic_appointment: bool = Field(default=False, description="基础预约功能")
+    basic_schedule: bool = Field(default=False, description="基础排班功能")
+
+    # 统计
+    basic_statistics: bool = Field(default=False, description="基础统计")
+    advanced_statistics: bool = Field(default=False, description="高级数据分析")
+
+    # 集成
+    wechat_integration: bool = Field(default=False, description="微信集成")
+    sms_notification: bool = Field(default=False, description="短信通知")
+
+    # 数据
+    export_data: bool = Field(default=False, description="数据导出")
+
+    # 高级
+    api_access: bool = Field(default=False, description="API 开放接口")
+    custom_branding: bool = Field(default=False, description="自定义品牌")
+    priority_support: bool = Field(default=False, description="优先技术支持")
+    sso: bool = Field(default=False, description="单点登录(SSO)")
+    online_payment: bool = Field(default=False, description="在线支付")
+
+    # 灰度 / 实验性
+    beta_features: bool = Field(default=False, description="灰度功能总开关")
+    beta_ai_assistant: bool = Field(default=False, description="AI 辅助（实验性）")
+    beta_analytics_v2: bool = Field(default=False, description="新版数据分析（实验性）")
+
+    model_config = ConfigDict(extra="allow")
+
+
+def _validate_features_json(v: Optional[str]) -> Optional[str]:
+    """校验 features 字段：字符串 -> 解析为 TenantFeatures -> 序列化回规范 JSON。
+
+    - None / 空字符串 -> None（合法）
+    - 合法 JSON 但值类型不符（非 bool）-> 抛出校验错误
+    - 非法 JSON -> 抛出校验错误
+    - 校验通过后返回 **规范化的 JSON 字符串**（key 排序，保证幂等）
+    """
+    if v is None or v.strip() == "":
+        return None
+    try:
+        parsed = json.loads(v)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"features 不是合法的 JSON: {exc}") from exc
+
+    if not isinstance(parsed, dict):
+        raise ValueError("features 必须是一个 JSON 对象 (dict)，例如 {\"basic_appointment\": true}")
+
+    # 用 TenantFeatures 做结构化校验（extra="allow" 保证新字段不报错）
+    try:
+        features_model = TenantFeatures(**parsed)
+    except Exception as exc:
+        raise ValueError(f"features 结构校验失败: {exc}") from exc
+
+    # 额外检查：所有值必须是布尔类型（防止传入奇怪的类型）
+    for key, value in parsed.items():
+        if not isinstance(value, bool):
+            raise ValueError(f"features[\"{key}\"] 的值必须是布尔类型 (true/false)，当前值: {repr(value)}")
+
+    # 返回规范化 JSON（保留所有字段，包括额外字段）
+    return json.dumps(parsed, sort_keys=True, ensure_ascii=False)
 
 
 # ==================== 订阅计划 ====================
@@ -28,6 +129,11 @@ class SubscriptionPlanBase(BaseModel):
     features: Optional[str] = Field(None, description="功能开关配置(JSON)")
     is_default: bool = Field(default=False, description="是否为默认计划")
 
+    @field_validator("features")
+    @classmethod
+    def validate_features(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_features_json(v)
+
 
 class SubscriptionPlanCreate(SubscriptionPlanBase):
     """创建订阅计划"""
@@ -48,6 +154,11 @@ class SubscriptionPlanUpdate(BaseModel):
     features: Optional[str] = None
     status: Optional[int] = Field(None, ge=0, le=1)
     is_default: Optional[bool] = None
+
+    @field_validator("features")
+    @classmethod
+    def validate_features(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_features_json(v)
 
 
 class SubscriptionPlanResponse(SubscriptionPlanBase):
@@ -122,7 +233,32 @@ class TenantCreate(TenantBase):
     max_appointments_per_month: Optional[int] = Field(None, ge=0, description="月预约上限（覆盖计划）")
     features: Optional[str] = Field(None, description="功能开关(JSON)")
     branding_config: Optional[str] = Field(None, description="品牌配置(JSON)")
+    password_policy: Optional[str] = Field(None, description="密码策略(JSON)")
+    tags: Optional[str] = Field(None, description="租户标签(JSON数组)")
+    log_retention_days: Optional[int] = Field(None, ge=7, le=365, description="日志保留天数")
     is_trial: bool = Field(default=False, description="是否为试用租户")
+
+    @field_validator("features")
+    @classmethod
+    def validate_features(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_features_json(v)
+
+    @field_validator("password_policy")
+    @classmethod
+    def validate_password_policy(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or v.strip() == "":
+            return None
+        try:
+            parsed = json.loads(v)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"password_policy 不是合法的 JSON: {exc}") from exc
+        if not isinstance(parsed, dict):
+            raise ValueError("password_policy 必须是一个 JSON 对象")
+        try:
+            PasswordPolicy(**parsed)
+        except Exception as exc:
+            raise ValueError(f"password_policy 结构校验失败: {exc}") from exc
+        return json.dumps(parsed, sort_keys=True, ensure_ascii=False)
 
 
 class TenantUpdate(BaseModel):
@@ -140,6 +276,31 @@ class TenantUpdate(BaseModel):
     max_appointments_per_month: Optional[int] = Field(None, ge=0)
     features: Optional[str] = None
     branding_config: Optional[str] = None
+    password_policy: Optional[str] = None
+    tags: Optional[str] = None
+    log_retention_days: Optional[int] = Field(None, ge=7, le=365, description="日志保留天数")
+
+    @field_validator("features")
+    @classmethod
+    def validate_features(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_features_json(v)
+
+    @field_validator("password_policy")
+    @classmethod
+    def validate_password_policy(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or v.strip() == "":
+            return None
+        try:
+            parsed = json.loads(v)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"password_policy 不是合法的 JSON: {exc}") from exc
+        if not isinstance(parsed, dict):
+            raise ValueError("password_policy 必须是一个 JSON 对象")
+        try:
+            PasswordPolicy(**parsed)
+        except Exception as exc:
+            raise ValueError(f"password_policy 结构校验失败: {exc}") from exc
+        return json.dumps(parsed, sort_keys=True, ensure_ascii=False)
 
 
 class TenantResponse(TenantBase):
@@ -157,6 +318,9 @@ class TenantResponse(TenantBase):
     max_appointments_per_month: Optional[int] = None
     features: Optional[str] = None
     branding_config: Optional[str] = None
+    password_policy: Optional[str] = None
+    tags: Optional[str] = None
+    log_retention_days: Optional[int] = 90
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -183,6 +347,7 @@ class TenantListResponse(BaseModel):
     store_count: int = Field(default=0, description="门店数")
     admin_count: int = Field(default=0, description="管理员数")
     created_at: datetime
+    tags: Optional[str] = None
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -197,6 +362,7 @@ class TenantQuery(BaseModel):
     keyword: Optional[str] = None
     status: Optional[int] = None
     subscription_plan_id: Optional[str] = None
+    tags: Optional[str] = Field(None, description="标签筛选(逗号分隔)")
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=10, ge=1, le=100)
 
@@ -301,6 +467,43 @@ class TenantUsageQuery(BaseModel):
     end_date: Optional[date] = None
 
 
+class UsageTrendItem(BaseModel):
+    """用量趋势单项"""
+    period: str = Field(..., description="周期标识，如 2026-W17 或 2026-04")
+    appointment_count: int = 0
+    new_user_count: int = 0
+    active_user_count: int = 0
+    sms_sent_count: int = 0
+    push_sent_count: int = 0
+    storage_used_mb: Decimal = Decimal("0")
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
+
+
+class TenantUsageTrends(BaseModel):
+    """租户用量趋势响应"""
+    tenant_id: str
+    period_type: str = Field(..., description="周期类型: week / month")
+    current_period: Optional[UsageTrendItem] = None
+    previous_period: Optional[UsageTrendItem] = None
+    trends: List[UsageTrendItem] = []
+
+    # 同比/环比变化率（百分比）
+    appointment_change_rate: Optional[float] = Field(None, description="预约量环比变化率(%)")
+    new_user_change_rate: Optional[float] = Field(None, description="新用户环比变化率(%)")
+    active_user_change_rate: Optional[float] = Field(None, description="活跃用户环比变化率(%)")
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
+
+
 # ==================== 当前租户信息（admin + 患者端） ====================
 
 class CurrentTenantResponse(BaseModel):
@@ -364,4 +567,152 @@ class TenantNotificationListResponse(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
         serialize_by_alias=True,
+    )
+
+
+# ==================== 跨租户数据迁移 ====================
+
+class TenantMigrateRequest(BaseModel):
+    """跨租户数据迁移请求"""
+    source_tenant_id: str = Field(..., description="源租户ID")
+    preserve_ids: bool = Field(default=False, description="是否保留原始ID")
+    entity_types: Optional[List[str]] = Field(
+        default=None,
+        description="要迁移的实体类型列表，None表示全部"
+    )
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel,
+    )
+
+
+class TenantMigrateResponse(BaseModel):
+    """跨租户数据迁移响应"""
+    target_tenant_id: str = Field(..., serialization_alias="targetTenantId")
+    source_tenant_id: str = Field(..., serialization_alias="sourceTenantId")
+    duration_ms: int = Field(..., serialization_alias="durationMs")
+    copied: dict = Field(default_factory=dict, description="各实体类型成功复制数量")
+    failures: List[dict] = Field(default_factory=list, description="失败记录列表")
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        serialize_by_alias=True,
+    )
+
+
+# ==================== 租户管理员仪表板 ====================
+
+class TenantDashboardResponse(BaseModel):
+    """租户管理员仪表板"""
+    tenant_id: str
+    tenant_name: str
+    status: int
+    plan_name: Optional[str] = None
+    subscription_end_at: Optional[datetime] = None
+    is_subscription_active: bool = False
+    days_until_expiry: Optional[int] = None
+
+    store_usage: dict = Field(default_factory=dict)
+    admin_usage: dict = Field(default_factory=dict)
+    doctor_usage: dict = Field(default_factory=dict)
+    appointment_usage: dict = Field(default_factory=dict)
+
+    today_appointments: int = 0
+    today_new_users: int = 0
+    active_doctors: int = 0
+
+    alerts: List[dict] = Field(default_factory=list)
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
+
+
+# ==================== 租户自助注册 ====================
+
+class TenantSelfRegisterRequest(BaseModel):
+    """租户自助注册请求"""
+    tenant_code: str = Field(..., min_length=3, max_length=50, pattern=r"^[a-z0-9-]+$")
+    name: str = Field(..., min_length=2, max_length=100)
+    contact_name: str = Field(..., min_length=2, max_length=100)
+    contact_phone: str = Field(..., min_length=11, max_length=20)
+    contact_email: Optional[str] = Field(None, max_length=100)
+    admin_username: str = Field(..., min_length=2, max_length=50)
+    admin_password: str = Field(..., min_length=6, max_length=20)
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel,
+    )
+
+
+class TenantSelfRegisterResponse(BaseModel):
+    """租户自助注册响应"""
+    tenant_id: str
+    tenant_code: str
+    name: str
+    admin_id: str
+    message: str = "注册成功，试用期已激活"
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
+
+
+# ==================== 迁移前预检 ====================
+
+class TenantMigratePrecheckRequest(BaseModel):
+    """迁移前预检请求"""
+    source_tenant_id: str = Field(..., description="源租户ID")
+    entity_types: Optional[List[str]] = Field(default=None, description="要迁移的实体类型列表")
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel,
+    )
+
+
+class PrecheckQuotaItem(BaseModel):
+    """预检配额项"""
+    resource_name: str
+    current_count: int
+    max_count: int
+    source_count: int
+    would_exceed: bool
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel,
+        by_alias=True,
+    )
+
+
+class TenantMigratePrecheckResponse(BaseModel):
+    """迁移前预检响应"""
+    can_migrate: bool = Field(..., serialization_alias="canMigrate")
+    warnings: List[str] = Field(default_factory=list)
+    quota_checks: List[PrecheckQuotaItem] = Field(default_factory=list)
+    entity_counts: dict = Field(default_factory=dict)
+    estimated_duration_ms: int = Field(default=0, serialization_alias="estimatedDurationMs")
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        serialize_by_alias=True,
+    )
+
+
+# ==================== 租户标签 ====================
+
+class TenantTagsUpdate(BaseModel):
+    """租户标签更新"""
+    tags: List[str] = Field(..., description="标签列表")
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel,
     )

@@ -1,5 +1,5 @@
 """租户管理路由"""
-from datetime import datetime
+from datetime import datetime, date
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,10 +16,14 @@ from app.models.tenant import Tenant
 from app.modules.tenants.schemas import (
     TenantCreate, TenantUpdate, TenantResponse, TenantListResponse, TenantQuery,
     TenantSubscriptionCreate, TenantSubscriptionResponse,
-    TenantUsageResponse, TenantUsageSummary, TenantUsageQuery,
+    TenantUsageResponse, TenantUsageSummary, TenantUsageQuery, TenantUsageTrends,
     SubscriptionPlanCreate, SubscriptionPlanUpdate, SubscriptionPlanResponse, SubscriptionPlanListResponse,
     CurrentTenantResponse, CurrentTenantPublicResponse,
     TenantNotificationResponse, TenantNotificationListResponse,
+    TenantMigrateRequest, TenantMigrateResponse,
+    TenantMigratePrecheckRequest, TenantMigratePrecheckResponse,
+    TenantDashboardResponse, TenantSelfRegisterRequest, TenantSelfRegisterResponse,
+    PasswordPolicy, TenantTagsUpdate,
 )
 from app.modules.tenants.service import (
     TenantService, TenantSubscriptionService, TenantUsageService,
@@ -29,6 +33,24 @@ from app.schemas.response import PageResponse
 from app.core.config import settings
 
 router = APIRouter()
+
+
+# ==================== 租户自助注册（公开） ====================
+
+@router.post("/register", response_model=TenantSelfRegisterResponse, summary="租户自助注册")
+async def register_tenant(
+    data: TenantSelfRegisterRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """自助注册租户（公开接口，无需认证）
+    注册后自动创建试用租户（14天试用期）并创建管理员账号。
+    """
+    service = TenantService(db)
+    try:
+        result = await service.register_tenant(data)
+        return TenantSelfRegisterResponse(**result)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # ==================== 当前租户信息（前端消费） ====================
@@ -98,6 +120,50 @@ async def get_current_tenant_public(
     )
 
 
+@router.get("/me/features", summary="获取当前租户有效功能开关")
+async def get_current_tenant_features(
+    current_admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """返回当前租户合并后的功能开关（订阅计划 + 租户覆盖）"""
+    tenant_id = current_admin.get("tenant_id")
+    if not tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前账号未关联租户")
+
+    from app.common.feature_flags import FeatureFlagService
+    features = await FeatureFlagService.get_tenant_features(db, tenant_id)
+    return {"tenant_id": tenant_id, "features": features}
+
+
+@router.get("/me/beta-features", summary="获取当前租户灰度功能")
+async def get_current_tenant_beta_features(
+    current_admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """返回当前租户启用的灰度功能列表"""
+    tenant_id = current_admin.get("tenant_id")
+    if not tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前账号未关联租户")
+
+    from app.common.feature_flags import FeatureFlagService
+    beta = await FeatureFlagService.get_beta_features(db, tenant_id)
+    return {"tenant_id": tenant_id, "beta_features": beta}
+
+
+@router.get("/me/sessions", summary="获取当前租户活跃会话数")
+async def get_my_active_sessions(
+    current_admin: dict = Depends(get_current_admin),
+):
+    """获取当前租户的活跃会话数"""
+    tenant_id = current_admin.get("tenant_id")
+    if not tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前账号未关联租户")
+
+    from app.common.session_limiter import SessionLimiter
+    count = await SessionLimiter.get_active_count(tenant_id)
+    return {"active_sessions": count}
+
+
 @router.get("/me/notifications", response_model=TenantNotificationListResponse, summary="获取当前租户通知列表")
 async def get_my_notifications(
     unread: bool = Query(False, description="仅未读"),
@@ -153,6 +219,116 @@ async def mark_all_notifications_read(
     service = TenantNotificationService(db)
     count = await service.mark_all_read(tenant_id)
     return {"message": f"已标记 {count} 条通知为已读"}
+
+
+@router.get("/me/dashboard", response_model=TenantDashboardResponse, summary="租户管理员仪表板")
+async def get_tenant_dashboard(
+    current_admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取当前租户的仪表板数据（配额用量、今日统计、告警）"""
+    tenant_id = current_admin.get("tenant_id")
+    if not tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前账号未关联租户")
+
+    result = await db.execute(
+        select(Tenant).options(selectinload(Tenant.subscription_plan)).where(Tenant.id == tenant_id)
+    )
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="租户不存在")
+
+    usage_svc = TenantUsageService(db)
+    summary = await usage_svc.get_usage_summary(tenant_id)
+
+    today = date.today()
+    today_appts = await usage_svc._get_day_appointment_count(tenant_id, today)
+    today_users = await usage_svc._get_day_new_user_count(tenant_id, today)
+    active_docs = await usage_svc._get_doctor_count(tenant_id)
+
+    alerts = []
+    if tenant.subscription_end_at:
+        days_left = (tenant.subscription_end_at - datetime.utcnow()).days
+        if days_left <= 7:
+            alerts.append({"level": "warning", "message": f"订阅将在 {days_left} 天后到期"})
+    if summary["store_usage_rate"] >= 80:
+        alerts.append({"level": "info", "message": f"门店使用率已达 {summary['store_usage_rate']}%"})
+    if summary["doctor_usage_rate"] >= 80:
+        alerts.append({"level": "info", "message": f"医生使用率已达 {summary['doctor_usage_rate']}%"})
+    if summary["appointment_usage_rate"] >= 80:
+        alerts.append({"level": "warning", "message": f"月预约使用率已达 {summary['appointment_usage_rate']}%"})
+
+    days_until_expiry = None
+    if tenant.subscription_end_at:
+        days_until_expiry = max(0, (tenant.subscription_end_at - datetime.utcnow()).days)
+
+    return TenantDashboardResponse(
+        tenant_id=tenant.id,
+        tenant_name=tenant.name,
+        status=tenant.status,
+        plan_name=tenant.subscription_plan.name if tenant.subscription_plan else None,
+        subscription_end_at=tenant.subscription_end_at,
+        is_subscription_active=tenant.is_subscription_active,
+        days_until_expiry=days_until_expiry,
+        store_usage={"current": summary["current_store_count"], "max": summary["max_stores"], "rate": summary["store_usage_rate"]},
+        admin_usage={"current": summary["current_admin_count"], "max": summary["max_admins"], "rate": summary["admin_usage_rate"]},
+        doctor_usage={"current": summary["current_doctor_count"], "max": summary["max_doctors"], "rate": summary["doctor_usage_rate"]},
+        appointment_usage={"current": summary["current_month_appointments"], "max": summary["max_appointments_per_month"], "rate": summary["appointment_usage_rate"]},
+        today_appointments=today_appts,
+        today_new_users=today_users,
+        active_doctors=active_docs,
+        alerts=alerts,
+    )
+
+
+# ==================== 租户标签管理 ====================
+
+@router.get("/tags", summary="获取所有租户标签")
+async def get_all_tenant_tags(
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(require_platform_admin()),
+):
+    """获取平台下所有租户使用过的标签（去重）"""
+    import json as _json
+
+    result = await db.execute(
+        select(Tenant.tags).where(
+            Tenant.tags != None,
+            Tenant.deleted_at.is_(None),
+        )
+    )
+    all_tags = set()
+    for (tags_json,) in result.all():
+        if tags_json:
+            try:
+                tags = _json.loads(tags_json)
+                if isinstance(tags, list):
+                    all_tags.update(t for t in tags if isinstance(t, str))
+            except (_json.JSONDecodeError, TypeError):
+                pass
+
+    return {"tags": sorted(all_tags)}
+
+
+@router.put("/{tenant_id}/tags", summary="更新租户标签")
+async def update_tenant_tags(
+    tenant_id: str,
+    data: TenantTagsUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(require_platform_admin()),
+):
+    """更新租户标签（仅平台管理员）"""
+    import json as _json
+
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="租户不存在")
+
+    tenant.tags = _json.dumps(data.tags, ensure_ascii=False)
+    tenant.updated_by = current_admin.get("id")
+    await db.commit()
+    return {"tenant_id": tenant_id, "tags": data.tags}
 
 
 # ==================== 订阅计划管理（平台管理员） ====================
@@ -620,6 +796,122 @@ async def suspend_tenant(
     return {"message": "租户已暂停"}
 
 
+@router.post(
+    "/{tenant_id}/migrate/precheck",
+    response_model=TenantMigratePrecheckResponse,
+    summary="迁移前预检",
+)
+async def precheck_tenant_migration(
+    tenant_id: str,
+    data: TenantMigratePrecheckRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(require_platform_admin()),
+):
+    """迁移前预检：检查目标租户配额、源数据量等（仅平台管理员）"""
+    service = TenantService(db)
+    try:
+        result = await service.precheck_migration(
+            target_tenant_id=tenant_id,
+            source_tenant_id=data.source_tenant_id,
+            entity_types=data.entity_types,
+        )
+        return TenantMigratePrecheckResponse(**result)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post(
+    "/{tenant_id}/migrate",
+    response_model=TenantMigrateResponse,
+    summary="跨租户数据迁移",
+    description="""将源租户的配置类数据迁移到目标租户，仅限平台管理员操作。
+
+**支持迁移的实体类型：**
+- stores: 门店
+- departments: 科室
+- doctors: 医生
+- schedule_templates: 排班模板
+- doctor_booking_settings: 医生预约设置
+- booking_notices: 预约须知
+- email_templates: 邮件模板
+- message_templates: 消息模板
+- rest_days: 休息日
+- blacklists: 黑名单
+- store_visit_type_configs: 门店复诊规则配置
+- store_email_recipients: 门店邮件接收人
+- consultation_fee_templates: 诊费模板
+- rule_sets: 规则组（含 windows、booking_policy、checkin_policy、capacity_policy、shift_types 关联）
+
+**配额检查：**
+- 迁移前会自动检查目标租户的门店数和医生数配额是否足够
+- 如果配额不足，返回 400 错误
+
+**ID 处理：**
+- 默认生成新的 UUID，避免冲突
+- 设置 preserve_ids=true 可保留原始 ID（需谨慎使用）
+
+**请求示例：**
+```json
+{
+  "sourceTenantId": "tenant_abc123",
+  "preserveIds": false,
+  "entityTypes": ["stores", "departments", "doctors"]
+}
+```
+
+**响应示例：**
+```json
+{
+  "targetTenantId": "tenant_xyz789",
+  "sourceTenantId": "tenant_abc123",
+  "durationMs": 1250,
+  "copied": {
+    "stores": 2,
+    "departments": 5,
+    "doctors": 10
+  },
+  "failures": []
+}
+```
+""",
+)
+async def migrate_tenant_data(
+    tenant_id: str,
+    data: TenantMigrateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(require_platform_admin()),
+):
+    """跨租户数据迁移（仅平台管理员）"""
+    service = TenantService(db)
+
+    try:
+        result = await service.migrate_data(
+            target_tenant_id=tenant_id,
+            source_tenant_id=data.source_tenant_id,
+            preserve_ids=data.preserve_ids,
+            entity_types=data.entity_types,
+            created_by=current_admin.get("id"),
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"迁移失败: {str(e)}",
+        )
+
+    return TenantMigrateResponse(
+        target_tenant_id=tenant_id,
+        source_tenant_id=data.source_tenant_id,
+        duration_ms=result["duration_ms"],
+        copied=result["copied"],
+        failures=result["failures"],
+    )
+
+
 # ==================== 租户订阅管理 ====================
 
 @router.post("/{tenant_id}/subscriptions", response_model=TenantSubscriptionResponse, summary="创建租户订阅")
@@ -637,6 +929,9 @@ async def create_tenant_subscription(
             tenant_id, data, created_by=current_admin.get("id")
         )
         return TenantSubscriptionResponse.model_validate(subscription)
+    except HTTPException:
+        # 降级配额检查抛出的 HTTPException 直接透传
+        raise
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -741,3 +1036,86 @@ async def get_tenant_usage_logs(
 
     logs = await service.get_usage_logs(tenant_id, start, end, limit)
     return [TenantUsageResponse.model_validate(log) for log in logs]
+
+
+@router.get("/{tenant_id}/usage/trends", response_model=TenantUsageTrends, summary="获取租户用量趋势")
+async def get_tenant_usage_trends(
+    tenant_id: str,
+    period_type: str = Query("week", pattern="^(week|month)$", description="周期类型: week / month"),
+    periods: int = Query(8, ge=2, le=24, description="返回周期数"),
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin)
+):
+    """获取租户用量趋势（周/月同比环比）"""
+    # 权限检查
+    if not current_admin.get("is_super_admin"):
+        admin_tenant_id = current_admin.get("tenant_id")
+        if admin_tenant_id != tenant_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="您无权访问此租户的用量信息"
+            )
+
+    service = TenantUsageService(db)
+    trends_data = await service.get_usage_trends(tenant_id, period_type=period_type, periods=periods)
+    return TenantUsageTrends(**trends_data)
+
+
+# ==================== 租户密码策略 ====================
+
+@router.get("/{tenant_id}/password-policy", response_model=PasswordPolicy, summary="获取租户密码策略")
+async def get_tenant_password_policy_endpoint(
+    tenant_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+):
+    """获取租户密码策略配置
+
+    平台管理员可查看所有租户；租户管理员只能查看本租户。
+    """
+    if not current_admin.get("is_super_admin"):
+        admin_tenant_id = current_admin.get("tenant_id")
+        if admin_tenant_id != tenant_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="您无权访问此租户的密码策略"
+            )
+
+    from app.modules.tenants.password_policy import get_tenant_password_policy
+    policy = await get_tenant_password_policy(db, tenant_id)
+    return PasswordPolicy(**policy)
+
+
+@router.put("/{tenant_id}/password-policy", response_model=PasswordPolicy, summary="更新租户密码策略")
+async def update_tenant_password_policy_endpoint(
+    tenant_id: str,
+    data: PasswordPolicy,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+):
+    """更新租户密码策略配置
+
+    平台管理员可更新所有租户；租户管理员只能更新本租户。
+    """
+    if not current_admin.get("is_super_admin"):
+        admin_tenant_id = current_admin.get("tenant_id")
+        if admin_tenant_id != tenant_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="您无权修改此租户的密码策略"
+            )
+
+    service = TenantService(db)
+    tenant = await service.get_by_id(tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="租户不存在")
+
+    import json
+    tenant.password_policy = json.dumps(data.model_dump(), sort_keys=True, ensure_ascii=False)
+    tenant.updated_by = current_admin.get("id")
+    await db.commit()
+    await db.refresh(tenant)
+
+    from app.modules.tenants.password_policy import get_tenant_password_policy
+    policy = await get_tenant_password_policy(db, tenant_id)
+    return PasswordPolicy(**policy)
