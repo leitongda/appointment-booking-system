@@ -153,7 +153,7 @@ class BehaviorOverview(BaseModel):
         populate_by_name=True,
         by_alias=True,
     )
-    
+
     total_page_views: int = 0
     total_unique_users: int = 0
     total_clicks: int = 0
@@ -163,3 +163,36 @@ class BehaviorOverview(BaseModel):
     top_clicks: List[ClickStats] = []
     top_keywords: List[SearchKeywordStats] = []
     daily_stats: List[DailyStats] = []
+
+
+class TenantActivityDaily(BaseModel):
+    """租户每日活跃度"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        by_alias=True,
+    )
+
+    date: str
+    dau: int = 0
+    wau: Optional[int] = None
+    mau: Optional[int] = None
+    new_users: int = 0
+    total_sessions: int = 0
+
+
+class TenantActivityStats(BaseModel):
+    """租户活跃度统计响应"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        by_alias=True,
+    )
+
+    tenant_id: Optional[str] = None
+    start_date: str
+    end_date: str
+    current_dau: int = 0
+    current_wau: int = 0
+    current_mau: int = 0
+    daily_stats: List[TenantActivityDaily] = []

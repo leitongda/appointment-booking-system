@@ -23,6 +23,7 @@ class NotificationStatus(str, Enum):
     PENDING = "pending"
     SENT = "sent"
     FAILED = "failed"
+    PERMANENTLY_FAILED = "permanently_failed"
 
 
 class NotificationLogCreate(BaseModel):
@@ -68,6 +69,8 @@ class NotificationLogResponse(BaseModel):
     recipient: Optional[str] = None
     related_id: Optional[str] = None
     retry_count: Optional[int] = None
+    max_retries: Optional[int] = None
+    next_retry_at: Optional[datetime] = None
     sent_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     extra_data: Optional[dict] = None
@@ -106,3 +109,49 @@ class NotificationLogStats(BaseModel):
     failure_rate: float = 0.0
     by_channel: dict = Field(default_factory=dict)
     by_type: dict = Field(default_factory=dict)
+
+
+class NotificationUsageStats(BaseModel):
+    """通知用量统计"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        by_alias=True,
+    )
+
+    period: dict
+    total: int
+    by_channel: dict = Field(default_factory=dict)
+    by_type: dict = Field(default_factory=dict)
+    by_status: dict = Field(default_factory=dict)
+    daily_trend: list = Field(default_factory=list)
+
+
+class NotificationQuotaInfo(BaseModel):
+    """通知配额信息"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        by_alias=True,
+    )
+
+    tenant_id: str
+    quotas: dict = Field(default_factory=dict)
+    usage: dict = Field(default_factory=dict)
+    remaining: dict = Field(default_factory=dict)
+    usage_percent: dict = Field(default_factory=dict)
+    period_start: str
+    period_end: str
+
+
+class NotificationQuotaUpdate(BaseModel):
+    """通知配额更新"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    sms_monthly_limit: Optional[int] = None
+    email_monthly_limit: Optional[int] = None
+    wechat_monthly_limit: Optional[int] = None
+    in_app_monthly_limit: Optional[int] = None

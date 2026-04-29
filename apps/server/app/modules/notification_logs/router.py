@@ -12,10 +12,15 @@ from app.schemas.notification_log import (
     NotificationLogStats,
     NotificationChannel,
     NotificationStatus,
+    NotificationUsageStats,
+    NotificationQuotaInfo,
+    NotificationQuotaUpdate,
 )
 from app.schemas.response import PageResponse
 from app.modules.notification_logs.service import NotificationLogService
+from app.infrastructure.notifications.quota import NotificationQuotaService
 from app.core.config import settings
+from app.middleware.tenant_context import get_current_tenant_id
 
 router = APIRouter()
 
@@ -116,3 +121,98 @@ async def retry_notification(
         )
 
     return {"message": "重试功能待实现，需要根据具体通道集成"}
+
+
+@router.get("/usage-stats", response_model=dict, summary="获取通知用量统计")
+async def get_notification_usage_stats(
+    period: str = Query("month", description="统计周期: day/week/month"),
+    tenant_id: Optional[str] = Query(None, description="租户ID，不传则使用当前租户"),
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:monitoring")),
+):
+    """获取通知用量统计"""
+    effective_tenant_id = tenant_id or get_current_tenant_id()
+    if not effective_tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无法确定租户ID",
+        )
+
+    service = NotificationLogService(db)
+    return await service.get_usage_stats(tenant_id=effective_tenant_id, period=period)
+
+
+@router.get("/quota", response_model=NotificationQuotaInfo, summary="获取通知配额信息")
+async def get_notification_quota(
+    tenant_id: Optional[str] = Query(None, description="租户ID，不传则使用当前租户"),
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:monitoring")),
+):
+    """获取通知配额信息"""
+    effective_tenant_id = tenant_id or get_current_tenant_id()
+    if not effective_tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无法确定租户ID",
+        )
+
+    quota_service = NotificationQuotaService(db)
+    quota_info = await quota_service.get_quota_info(effective_tenant_id)
+
+    return NotificationQuotaInfo(**quota_info)
+
+
+@router.put("/quota", summary="更新通知配额设置")
+async def update_notification_quota(
+    quota_update: NotificationQuotaUpdate,
+    tenant_id: Optional[str] = Query(None, description="租户ID，不传则使用当前租户"),
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("system:config")),
+):
+    """更新通知配额设置（管理员）
+
+    注意：当前实现将配额存储在 system_settings 中，
+    更好的方案是在 Tenant 或 SubscriptionPlan 中添加配额字段。
+    """
+    effective_tenant_id = tenant_id or get_current_tenant_id()
+    if not effective_tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无法确定租户ID",
+        )
+
+    from app.models.settings import SystemSetting
+
+    update_count = 0
+    for field, value in quota_update.model_dump(exclude_unset=True).items():
+        if value is not None:
+            # 检查是否已存在
+            result = await db.execute(
+                select(SystemSetting).where(
+                    SystemSetting.category == "notification_quota",
+                    SystemSetting.key == field,
+                )
+            )
+            setting = result.scalar_one_or_none()
+
+            if setting:
+                setting.value = str(value)
+            else:
+                new_setting = SystemSetting(
+                    category="notification_quota",
+                    key=field,
+                    value=str(value),
+                    description=f"{field} 配额",
+                )
+                db.add(new_setting)
+            update_count += 1
+
+    await db.commit()
+
+    return {
+        "message": f"成功更新 {update_count} 个配额设置",
+        "updated_count": update_count,
+    }

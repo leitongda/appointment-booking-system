@@ -3,6 +3,7 @@
 - 清理过期的临时数据
 - 清理过期的验证码
 - 清理过期的登录 session
+- 清理租户过期日志
 """
 from datetime import datetime, timedelta
 from sqlalchemy import select, and_, delete
@@ -13,6 +14,7 @@ from app.celery_app import celery_app
 from app.db.session import get_sync_db
 from app.core.redis import get_sync_redis
 from app.models.message import Message
+from app.models.tenant import Tenant
 
 logger = logging.getLogger(__name__)
 
@@ -185,4 +187,79 @@ def cleanup_old_messages(days: int = 90, message_type: str = None):
             db.rollback()
             logger.error(f"清理消息失败: {e}")
             return {"cleaned": 0, "error": str(e)}
+
+
+@celery_app.task(
+    name="app.tasks.cleanup_task.cleanup_tenant_logs",
+    autoretry_for=(Exception,),
+    max_retries=2,
+    retry_backoff=True,
+    time_limit=600,
+    soft_time_limit=480,
+)
+def cleanup_tenant_logs():
+    """清理租户过期日志（每天执行）
+
+    根据每个租户配置的 log_retention_days 清理：
+    - 操作日志 (operation_logs)
+    - 租户审计日志 (tenant_audit_logs)
+    """
+    from app.models.admin import OperationLog
+    from app.models.tenant_audit_log import TenantAuditLog
+
+    logger.info("[定时任务] 开始清理租户过期日志")
+
+    with get_sync_db() as db:
+        try:
+            result = db.execute(
+                select(Tenant).where(Tenant.status.in_([1, 3]))
+            )
+            tenants = result.scalars().all()
+            total_cleaned = 0
+
+            for tenant in tenants:
+                try:
+                    retention_days = tenant.log_retention_days or 90
+                    cutoff = datetime.utcnow() - timedelta(days=retention_days)
+
+                    op_count = db.execute(
+                        delete(OperationLog).where(
+                            and_(
+                                OperationLog.tenant_id == tenant.id,
+                                OperationLog.created_at < cutoff,
+                            )
+                        )
+                    ).rowcount
+
+                    audit_count = db.execute(
+                        delete(TenantAuditLog).where(
+                            and_(
+                                TenantAuditLog.tenant_id == tenant.id,
+                                TenantAuditLog.created_at < cutoff,
+                            )
+                        )
+                    ).rowcount
+
+                    cleaned = op_count + audit_count
+                    total_cleaned += cleaned
+
+                    if cleaned > 0:
+                        logger.info(
+                            f"租户 {tenant.name}: 清理 {cleaned} 条过期日志 "
+                            f"(op={op_count}, audit={audit_count})"
+                        )
+
+                except Exception as e:
+                    logger.error(f"清理租户 {tenant.id} 日志失败: {e}")
+                    db.rollback()
+                    continue
+
+            db.commit()
+            logger.info(f"[定时任务] 日志清理完成，共清理 {total_cleaned} 条")
+            return {"total_cleaned": total_cleaned}
+
+        except Exception as e:
+            db.rollback()
+            logger.error(f"[定时任务] 日志清理失败: {e}")
+            raise
 

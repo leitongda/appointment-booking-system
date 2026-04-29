@@ -161,7 +161,7 @@ class ScheduleSlotPreview(BaseModel):
         alias_generator=to_camel,
         populate_by_name=True,
     )
-    
+
     schedule_date: date = Field(..., description="排班日期")
     start_time: time = Field(..., description="开始时间")
     end_time: time = Field(..., description="结束时间")
@@ -170,6 +170,7 @@ class ScheduleSlotPreview(BaseModel):
     slot_capacity: int = Field(..., description="可预约人数")
     weekday: int = Field(..., description="星期几 1-7")
     weekday_name: str = Field(..., description="星期名称")
+    rule_validation: Optional[List[str]] = Field(default=None, description="规则校验警告列表，null表示未校验")
 
 
 class SchedulePreviewGenerateRequest(BaseModel):
@@ -253,6 +254,51 @@ class ScheduleTemplateCopyResponse(BaseModel):
         alias_generator=to_camel,
         populate_by_name=True,
     )
-    
+
     message: str = Field(..., description="提示消息")
     created_count: int = Field(..., description="创建数量")
+
+
+class CrossStoreDoctorMapping(BaseModel):
+    """跨院区复制时的医生映射项"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    source_department_id: str = Field(..., description="源科室ID")
+    target_department_id: str = Field(..., description="目标科室ID")
+    target_doctor_id: str = Field(..., description="目标医生ID")
+
+
+class ScheduleTemplateCrossStoreCopyRequest(BaseModel):
+    """跨院区复制排班规则请求"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    target_store_id: str = Field(..., description="目标门店ID")
+    mappings: List[CrossStoreDoctorMapping] = Field(..., description="科室/医生映射列表")
+    # 可调整的配置字段（覆盖原规则配置）
+    name: Optional[str] = Field(None, max_length=100, description="规则名称（可选，不填则自动生成）")
+    weekdays: Optional[List[int]] = Field(None, description="星期数组 1-7")
+    appointment_type: Optional[str] = Field(None, description="预约类型")
+    start_time: Optional[time] = Field(None, description="开始时间")
+    end_time: Optional[time] = Field(None, description="结束时间")
+    slot_count: Optional[int] = Field(None, ge=1, le=50, description="班次数量")
+    slot_capacity: Optional[int] = Field(None, ge=1, le=200, description="每班次人数")
+    schedule_mode: Optional[str] = Field(None, description="排班方式")
+    break_times: Optional[List[BreakTime]] = Field(None, description="排除时间段列表")
+
+
+class ScheduleTemplateCrossStoreCopyResponse(BaseModel):
+    """跨院区复制排班规则响应"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    message: str = Field(..., description="提示消息")
+    created_count: int = Field(..., description="创建数量")
+    failed_mappings: Optional[List[CrossStoreDoctorMapping]] = Field(None, description="失败的映射列表")

@@ -97,6 +97,7 @@ class ScheduleResponse(ScheduleBase):
     store_name: Optional[str] = Field(None, description="门店名称")
     created_at: Optional[datetime] = Field(None, description="创建时间")
     is_rest_day: bool = Field(False, description="是否在休息日")
+    effective_status: str = Field("active", description="生效状态: active正常生效/suspended停诊/rest_day休息日(隐藏)/custom自定义排班/overridden被覆盖")
 
 
 class AvailableScheduleResponse(ScheduleResponse):
@@ -270,3 +271,91 @@ class EffectiveScheduleParams(BaseModel):
     doctor_id: Optional[str] = Field(None, description="医生ID")
     start_date: date = Field(..., description="开始日期")
     end_date: date = Field(..., description="结束日期")
+
+
+# ========== 排班统计增强 Schema ==========
+
+
+class UtilizationTrendItem(BaseModel):
+    """利用率趋势项"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    period: str = Field(..., description="周期标识，如 '2026-W17' 或 '2026-04'")
+    total_slots: int = Field(0, description="总号源数")
+    booked_slots: int = Field(0, description="已预约号源数")
+    utilization_rate: float = Field(0.0, description="利用率百分比(0-100)")
+
+
+class UtilizationTrendResponse(BaseModel):
+    """利用率趋势响应"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    store_id: str = Field(..., description="门店ID")
+    store_name: str = Field(..., description="门店名称")
+    granularity: str = Field(..., description="粒度: week周 / month月")
+    items: List[UtilizationTrendItem] = Field(default_factory=list, description="趋势数据列表")
+
+
+class DoctorWorkloadItem(BaseModel):
+    """医生工作量对比项"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    doctor_id: str = Field(..., description="医生ID")
+    doctor_name: str = Field(..., description="医生姓名")
+    department_name: Optional[str] = Field(None, description="科室名称")
+    total_slots: int = Field(0, description="总号源数")
+    booked_slots: int = Field(0, description="已预约号源数")
+    completed_appointments: int = Field(0, description="已完成预约数")
+    utilization_rate: float = Field(0.0, description="利用率百分比(0-100)")
+    schedule_days: int = Field(0, description="排班天数")
+
+
+class DoctorWorkloadResponse(BaseModel):
+    """医生工作量对比响应"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    store_id: str = Field(..., description="门店ID")
+    store_name: str = Field(..., description="门店名称")
+    start_date: date = Field(..., description="开始日期")
+    end_date: date = Field(..., description="结束日期")
+    items: List[DoctorWorkloadItem] = Field(default_factory=list, description="医生工作量列表")
+
+
+class PeakHourCell(BaseModel):
+    """高峰时段热力图单元格"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    day_of_week: int = Field(..., description="星期: 1周一 ... 7周日")
+    hour: int = Field(..., description="小时: 0-23")
+    total_slots: int = Field(0, description="总号源数")
+    booked_slots: int = Field(0, description="已预约号源数")
+    booking_rate: float = Field(0.0, description="预约率百分比(0-100)")
+
+
+class PeakHourHeatmapResponse(BaseModel):
+    """高峰时段热力图响应"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    store_id: str = Field(..., description="门店ID")
+    store_name: str = Field(..., description="门店名称")
+    start_date: date = Field(..., description="开始日期")
+    end_date: date = Field(..., description="结束日期")
+    cells: List[PeakHourCell] = Field(default_factory=list, description="热力图单元格列表")

@@ -56,6 +56,9 @@ ROUTER_REGISTRATIONS = [
     RouterRegistration("app.modules.refunds.router", "/refunds", ["退款管理"]),
     RouterRegistration("app.modules.notification_logs.router", "/notification-logs", ["通知日志"]),
     RouterRegistration("app.modules.notification_preferences.router", "/notification-preferences", ["通知偏好"]),
+    RouterRegistration("app.modules.platform_announcements.router", "/platform-announcements", ["平台公告"]),
+    RouterRegistration("app.modules.support_tickets.router", "/support-tickets", ["工单支持"]),
+    RouterRegistration("app.modules.backup.router", "/backup", ["数据备份"]),
 ]
 
 
