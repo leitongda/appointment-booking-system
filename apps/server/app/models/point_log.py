@@ -1,5 +1,5 @@
 """积分流水模型"""
-from sqlalchemy import Column, String, Integer, ForeignKey
+from sqlalchemy import Column, String, Integer, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from app.db.base import Base, AuditMixin
 import uuid
@@ -8,8 +8,9 @@ import uuid
 class PointLog(Base, AuditMixin):
     """积分流水记录"""
     __tablename__ = "point_logs"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     change_amount = Column(Integer, nullable=False)  # 变更积分（正增负减）
     balance = Column(Integer, nullable=False)  # 变更后余额

@@ -1,5 +1,5 @@
 """用户行为日志模型"""
-from sqlalchemy import Column, String, Integer, Text, DateTime
+from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey
 from app.db.base import Base
 from datetime import datetime
 import uuid
@@ -10,6 +10,7 @@ class UserBehaviorLog(Base):
     __tablename__ = "user_behavior_logs"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
     platform = Column(String(20), nullable=False, comment="平台: admin/h5/miniapp")
     user_id = Column(String(36), nullable=True, comment="用户ID")
     session_id = Column(String(64), nullable=True, comment="会话ID")

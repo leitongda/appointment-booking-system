@@ -31,6 +31,7 @@ from app.models.store_email_recipient import StoreEmailRecipient
 from app.models.rule_set import ShiftType, RuleSet, RuleSetShiftType, RuleWindow, RuleBookingPolicy, RuleCheckinPolicy, RuleCapacityPolicy, AppointmentCheckin
 from app.models.rule_set_audit import RuleSetAuditLog
 from app.models.tenant import Tenant, TenantSubscription, TenantUsageLog, SubscriptionPlan
+from app.models.tenant_audit_log import TenantAuditLog
 from app.models.refund import RefundRecord
 from app.models.miniapp_platform import (
     AppTemplate,
@@ -45,3 +46,5 @@ from app.models.miniapp_platform import (
 )
 from app.models.notification_log import NotificationLog
 from app.models.notification_preference import NotificationPreference
+from app.models.platform_announcement import PlatformAnnouncement
+from app.models.support_ticket import SupportTicket

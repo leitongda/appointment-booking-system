@@ -99,8 +99,9 @@ class Admin(Base, AuditMixin):
 class OperationLog(Base):
     """操作日志表"""
     __tablename__ = "operation_logs"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
     admin_id = Column(String(36), ForeignKey("admins.id"), comment="操作人ID")
     admin_name = Column(String(50), comment="操作人姓名")
     module = Column(String(50), comment="模块")

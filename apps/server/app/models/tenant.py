@@ -77,6 +77,13 @@ class Tenant(Base, AuditMixin):
     # 品牌配置
     branding_config = Column(Text, comment="品牌配置(JSON): logo, 主题色等")
 
+    # 密码策略
+    password_policy = Column(Text, comment="密码策略(JSON)")
+
+    # 标签/分组
+    tags = Column(Text, nullable=True, comment="租户标签(JSON数组)")
+    log_retention_days = Column(Integer, nullable=True, default=90, server_default="90", comment="日志保留天数(默认90)")
+
     # 联系信息
     contact_name = Column(String(100), comment="联系人姓名")
     contact_phone = Column(String(20), comment="联系电话")

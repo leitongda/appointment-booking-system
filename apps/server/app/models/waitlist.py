@@ -20,6 +20,7 @@ class WaitlistEntry(Base):
     __tablename__ = 'waitlist_entries'
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), comment='候补ID')
+    tenant_id = Column(String(36), ForeignKey('tenants.id'), nullable=True, index=True, comment='租户ID')
 
     # 关联信息
     user_id = Column(String(36), nullable=False, index=True, comment='用户ID')

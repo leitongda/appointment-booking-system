@@ -9,6 +9,7 @@ class UserFavorite(Base, AuditMixin):
     __tablename__ = "user_favorites"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, comment="用户ID")
     target_type = Column(String(20), nullable=False, comment="收藏类型: doctor/department")
     target_id = Column(String(36), nullable=False, comment="收藏目标ID")

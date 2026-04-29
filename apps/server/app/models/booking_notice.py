@@ -1,5 +1,5 @@
 """预约须知模型"""
-from sqlalchemy import Column, String, Integer, Text
+from sqlalchemy import Column, String, Integer, Text, ForeignKey
 from app.db.base import Base, AuditMixin
 import uuid
 
@@ -9,6 +9,7 @@ class BookingNotice(Base, AuditMixin):
     __tablename__ = "booking_notices"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
     type = Column(String(50), nullable=False, comment="类型: BOOKING/VISIT/REFUND")
     title = Column(String(100), nullable=True, comment="标题")
     content = Column(Text, nullable=True, comment="内容")

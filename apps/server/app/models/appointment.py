@@ -44,9 +44,12 @@ class Appointment(Base, AuditMixin):
     doctor_title = Column(String(50), nullable=True, comment="医生职称(快照)")
     department_name = Column(String(100), nullable=True, comment="科室名称(快照)")
 
-    # 提醒相关
-    reminder_sent = Column(Integer, default=0, comment="是否已发送提醒: 0否 1是")
-    reminder_sent_at = Column(DateTime, comment="提醒发送时间")
+    # 提醒相关（三级提醒策略）
+    reminder_sent = Column(Integer, default=0, comment="是否已发送提醒: 0否 1是（兼容旧版本）")
+    reminder_sent_at = Column(DateTime, comment="提醒发送时间（兼容旧版本）")
+    reminder_sent_24h = Column(Integer, default=0, comment="24h级别提醒是否已发送: 0否 1是")
+    reminder_sent_2h = Column(Integer, default=0, comment="2h级别提醒是否已发送: 0否 1是")
+    reminder_sent_30min = Column(Integer, default=0, comment="30min级别提醒是否已发送: 0否 1是")
 
     # 支付快照
     payment_profile_id = Column(String(36), ForeignKey("payment_profiles.id"), nullable=True, index=True, comment="支付配置ID快照")
