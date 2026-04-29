@@ -10,6 +10,7 @@ import logging
 import uuid
 
 from app.utils.ip import get_client_ip
+from app.middleware.tenant_context import get_current_tenant_id
 
 logger = logging.getLogger("request")
 
@@ -40,8 +41,9 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
         method = request.method
         path = request.url.path
         query = str(request.query_params) if request.query_params else ""
-        
-        logger.info(f"[{request_id}] --> {method} {path} {query} | IP: {client_ip}")
+        tenant_id = get_current_tenant_id()
+
+        logger.info(f"[{request_id}] [tenant:{tenant_id}] --> {method} {path} {query} | IP: {client_ip}")
         
         # 处理请求
         try:
@@ -54,7 +56,7 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
             status_code = response.status_code
             log_func = logger.info if status_code < 400 else logger.warning
             log_func(
-                f"[{request_id}] <-- {method} {path} | "
+                f"[{request_id}] [tenant:{tenant_id}] <-- {method} {path} | "
                 f"Status: {status_code} | "
                 f"Duration: {duration_ms:.2f}ms"
             )
@@ -68,7 +70,7 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             duration_ms = (time.time() - start_time) * 1000
             logger.error(
-                f"[{request_id}] <-- {method} {path} | "
+                f"[{request_id}] [tenant:{tenant_id}] <-- {method} {path} | "
                 f"Error: {type(e).__name__}: {str(e)} | "
                 f"Duration: {duration_ms:.2f}ms"
             )

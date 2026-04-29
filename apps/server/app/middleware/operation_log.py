@@ -13,6 +13,7 @@ import json
 from app.core.security import decode_token
 from app.core.config import settings
 from app.utils.ip import get_client_ip as _get_client_ip_util
+from app.middleware.tenant_context import get_current_tenant_id
 
 logger = logging.getLogger(__name__)
 
@@ -238,6 +239,7 @@ class OperationLogMiddleware(BaseHTTPMiddleware):
         log_data = {
             "admin_id": admin_id,
             "admin_name": admin_name,
+            "tenant_id": get_current_tenant_id(),
             "module": _get_module_name(request.url.path),
             "action": _get_action_name(request.method, request.url.path),
             "method": request.method,
@@ -245,7 +247,7 @@ class OperationLogMiddleware(BaseHTTPMiddleware):
             "params": json.dumps(_sanitize_params(request_body), ensure_ascii=False) if request_body else None,
             "result": result,
             "ip": _get_client_ip(request),
-            "user_agent": request.headers.get("User-Agent", "")[:500],  # 截断过长的 UA
+            "user_agent": request.headers.get("User-Agent", "")[:500],
             "duration": duration_ms,
         }
         
