@@ -109,9 +109,10 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
 
       const menuItems = [
         {
-          key: 'settings',
+          key: 'notification-settings',
           icon: <SettingOutlined />,
-          label: '个人设置',
+          label: '通知设置',
+          onClick: () => history.push('/settings/notification'),
         },
         {
           type: 'divider' as const,

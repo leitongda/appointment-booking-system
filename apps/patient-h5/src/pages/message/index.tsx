@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Tabs, Badge, Empty, PullToRefresh, InfiniteScroll, SwipeAction, Toast, Dialog } from 'antd-mobile';
 import { history } from 'umi';
 import { motion } from 'framer-motion';
 import { messageApi } from '@hospital/api';
 import type { Message, UnreadCount } from '@hospital/shared';
+import { PATIENT_MESSAGE_TABS } from '@hospital/shared';
 import { Card } from '@/components/ui';
 import { fadeInUp, stagger } from '@/components/ui/animations';
+import { announce } from '@/components/ui/toast-live';
 
 const MessagePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -107,7 +109,7 @@ const MessagePage: React.FC = () => {
     const result = await Dialog.confirm({
       content: '确定将所有消息标记为已读吗？',
     });
-    
+
     if (result) {
       try {
         const messageType = activeTab === 'all' ? undefined : activeTab;
@@ -115,11 +117,23 @@ const MessagePage: React.FC = () => {
         setMessages(prev => prev.map(m => ({ ...m, isRead: 1 })));
         loadUnreadCount();
         Toast.show({ content: '已全部标记为已读' });
+        announce('已将全部消息标记为已读');
       } catch (error) {
         Toast.show({ content: '操作失败' });
       }
     }
   };
+
+  // 键盘导航处理
+  const handleMessageKeyDown = useCallback((message: Message, e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleRead(message);
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      handleDelete(message.id);
+    }
+  }, [handleRead, handleDelete]);
 
   const getMessageIcon = (type: string) => {
     const icons: Record<string, React.ReactNode> = {
@@ -160,12 +174,14 @@ const MessagePage: React.FC = () => {
     return `${date.getMonth() + 1}月${date.getDate()}日`;
   };
 
-  const tabs = [
-    { key: 'all', title: '全部', badge: unreadCount?.total },
-    { key: 'appointment', title: '预约', badge: unreadCount?.appointment },
-    { key: 'consultation', title: '就诊', badge: unreadCount?.consultation },
-    { key: 'system', title: '系统', badge: unreadCount?.system },
-  ];
+  const tabs = PATIENT_MESSAGE_TABS.map(tab => ({
+    key: tab.key,
+    title: tab.label,
+    badge: tab.key === 'all' ? unreadCount?.total :
+           tab.key === 'appointment' ? unreadCount?.appointment :
+           tab.key === 'consultation' ? unreadCount?.consultation :
+           unreadCount?.system,
+  }));
 
   return (
     <div className="min-h-screen bg-background">
@@ -174,30 +190,36 @@ const MessagePage: React.FC = () => {
         <div className="flex items-center justify-between px-4 pt-12 pb-2">
           <h1 className="font-display text-xl text-foreground">消息中心</h1>
           {unreadCount && unreadCount.total > 0 && (
-            <button 
+            <button
               onClick={handleReadAll}
               className="text-sm text-accent hover:text-accent-secondary transition-colors"
+              aria-label={`标记全部${unreadCount.total}条消息为已读`}
             >
               全部已读
             </button>
           )}
         </div>
-        <Tabs 
-          activeKey={activeTab} 
+        <Tabs
+          activeKey={activeTab}
           onChange={setActiveTab}
           style={{
             '--active-line-color': '#0052FF',
             '--active-title-color': '#0052FF',
           } as React.CSSProperties}
+          aria-label="消息分类标签"
         >
           {tabs.map(tab => (
-            <Tabs.Tab 
-              key={tab.key} 
+            <Tabs.Tab
+              key={tab.key}
               title={
                 <Badge content={tab.badge && tab.badge > 0 ? tab.badge : null}>
-                  {tab.title}
+                  <span aria-label={`${tab.title}, ${tab.badge && tab.badge > 0 ? `${tab.badge}条未读` : '无未读消息'}`}>
+                    {tab.title}
+                  </span>
                 </Badge>
               }
+              aria-label={tab.badge && tab.badge > 0 ? `${tab.label}, ${tab.badge}条未读` : tab.label}
+              aria-selected={activeTab === tab.key}
             />
           ))}
         </Tabs>
@@ -225,27 +247,40 @@ const MessagePage: React.FC = () => {
                         text: '删除',
                         color: 'danger',
                         onClick: () => handleDelete(message.id),
+                        'aria-label': `删除消息: ${message.title}`,
                       },
                     ]}
                   >
-                    <Card 
+                    <Card
                       variant={message.isRead === 0 ? 'default' : 'flat'}
                       padding="md"
                       animated={false}
                       className={`cursor-pointer ${message.isRead === 0 ? 'border-l-4 border-l-accent' : ''}`}
                       onClick={() => handleRead(message)}
+                      tabIndex={0}
+                      onKeyDown={(e) => handleMessageKeyDown(message, e)}
+                      role="button"
+                      aria-label={
+                        message.isRead === 0
+                          ? `未读消息: ${message.title}, ${message.content}, ${formatTime(message.createdAt)}`
+                          : `消息: ${message.title}, ${message.content}, ${formatTime(message.createdAt)}`
+                      }
+                      aria-selected={message.isRead === 0}
                     >
                       <div className="flex gap-3">
                         <div className={`
                           w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0
                           ${message.isRead === 0 ? 'bg-accent text-white' : 'bg-muted text-muted-foreground'}
-                        `}>
+                        `} aria-hidden="true">
                           {getMessageIcon(message.messageType)}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
                             <h3 className={`font-medium truncate ${message.isRead === 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
                               {message.title}
+                              {message.isRead === 0 && (
+                                <span className="sr-only">（未读）</span>
+                              )}
                             </h3>
                             <span className="text-xs text-muted-foreground ml-2 flex-shrink-0">
                               {formatTime(message.createdAt)}

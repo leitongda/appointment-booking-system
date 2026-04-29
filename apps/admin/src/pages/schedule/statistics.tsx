@@ -464,7 +464,7 @@ const ScheduleStatisticsPage: React.FC = () => {
 
       {/* 增强统计区域 */}
       <Card title="统计增强分析" style={{ marginTop: 16 }}>
-        <Form layout="inline" style={{ marginBottom: 16 }}>
+        <Form form={form} layout="inline" style={{ marginBottom: 16 }}>
           <Form.Item name="dateRange" label="日期范围" rules={[{ required: true }]}>
             <DatePicker.RangePicker placeholder={['开始日期', '结束日期']} />
           </Form.Item>

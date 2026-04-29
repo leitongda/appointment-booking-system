@@ -1,9 +1,10 @@
 import { PageContainer } from '@ant-design/pro-components';
 import { Tabs, List, Badge, Tag, Empty, Button, Spin, message as antMessage, Modal, Tooltip } from 'antd';
-import { BellOutlined, CalendarOutlined, MedicineBoxOutlined, NotificationOutlined, CheckOutlined, WifiOutlined, DisconnectOutlined } from '@ant-design/icons';
+import { BellOutlined, CalendarOutlined, MedicineBoxOutlined, NotificationOutlined, CheckOutlined, WifiOutlined, DisconnectOutlined, CheckCircleOutlined, LoadingOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { messageApi } from '@hospital/api';
 import type { Message, UnreadCount } from '@hospital/shared';
+import { DOCTOR_MESSAGE_TABS } from '@hospital/shared';
 import { useWebSocket, ConnectionStatus } from '@/hooks';
 
 const MessagePage: React.FC = () => {
@@ -102,6 +103,8 @@ const MessagePage: React.FC = () => {
     Modal.confirm({
       title: '确认',
       content: '确定将所有消息标记为已读吗？',
+      okButtonProps: { 'aria-label': '确认将所有消息标记为已读' },
+      cancelButtonProps: { 'aria-label': '取消操作' },
       onOk: async () => {
         try {
           const messageType = activeTab === 'all' ? undefined : activeTab;
@@ -160,32 +163,65 @@ const MessagePage: React.FC = () => {
     return `${date.getMonth() + 1}月${date.getDate()}日 ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
   };
 
-  const tabItems = [
-    { key: 'all', label: <Badge count={unreadCount?.total} size="small" offset={[8, 0]}>全部</Badge> },
-    { key: 'schedule', label: <Badge count={unreadCount?.schedule} size="small" offset={[8, 0]}>排班</Badge> },
-    { key: 'appointment', label: <Badge count={unreadCount?.appointment} size="small" offset={[8, 0]}>预约</Badge> },
-    { key: 'system', label: <Badge count={unreadCount?.system} size="small" offset={[8, 0]}>系统</Badge> },
-  ];
+  const tabItems = DOCTOR_MESSAGE_TABS.map(tab => {
+    const count = tab.key === 'all' ? unreadCount?.total :
+      tab.key === 'schedule' ? unreadCount?.schedule :
+      tab.key === 'appointment' ? unreadCount?.appointment :
+      unreadCount?.system;
+    return {
+      key: tab.key,
+      label: (
+        <Badge count={count} size="small" offset={[8, 0]}>
+          {tab.label}
+        </Badge>
+      ),
+      'aria-label': count > 0 ? `${tab.label}, ${count}条未读` : tab.label,
+    };
+  });
 
   // 连接状态指示器
   const connectionIndicator = useMemo(() => {
     if (wsStatus === ConnectionStatus.CONNECTED) {
       return (
         <Tooltip title="实时连接正常">
-          <Tag color="success" icon={<WifiOutlined />}>实时</Tag>
+          <Tag
+            color="success"
+            icon={<CheckCircleOutlined />}
+            aria-label="WebSocket 已连接"
+            role="status"
+            aria-live="polite"
+          >
+            实时
+          </Tag>
         </Tooltip>
       );
     }
     if (wsStatus === ConnectionStatus.CONNECTING || wsStatus === ConnectionStatus.RECONNECTING) {
       return (
         <Tooltip title="正在连接...">
-          <Tag color="processing" icon={<WifiOutlined />}>连接中</Tag>
+          <Tag
+            color="processing"
+            icon={<LoadingOutlined />}
+            aria-label="WebSocket 正在连接"
+            role="status"
+            aria-live="polite"
+          >
+            连接中
+          </Tag>
         </Tooltip>
       );
     }
     return (
       <Tooltip title="实时连接已断开，点击重连">
-        <Tag color="error" icon={<DisconnectOutlined />} style={{ cursor: 'pointer' }} onClick={reconnect}>
+        <Tag
+          color="error"
+          icon={<CloseCircleOutlined />}
+          style={{ cursor: 'pointer' }}
+          onClick={reconnect}
+          aria-label="WebSocket 连接已断开，点击重连"
+          role="status"
+          aria-live="assertive"
+        >
           离线
         </Tag>
       </Tooltip>
@@ -198,7 +234,11 @@ const MessagePage: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {connectionIndicator}
           {unreadCount && unreadCount.total > 0 && (
-            <Button icon={<CheckOutlined />} onClick={handleReadAll}>
+            <Button
+              icon={<CheckOutlined />}
+              onClick={handleReadAll}
+              aria-label={`标记全部${unreadCount.total}条消息为已读`}
+            >
               全部已读
             </Button>
           )}
@@ -225,28 +265,49 @@ const MessagePage: React.FC = () => {
               onChange: loadMessages,
               showSizeChanger: false,
             }}
+            role="list"
+            aria-label="消息列表"
             renderItem={(item) => (
               <List.Item
-                style={{ 
+                style={{
                   background: item.isRead === 0 ? '#fafafa' : '#fff',
                   padding: '16px',
                   cursor: 'pointer',
                 }}
                 onClick={() => handleRead(item)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleRead(item);
+                  }
+                }}
+                role="listitem"
+                aria-label={
+                  item.isRead === 0
+                    ? `未读消息: ${item.title}, ${item.content}, ${formatTime(item.createdAt)}`
+                    : `消息: ${item.title}, ${item.content}, ${formatTime(item.createdAt)}`
+                }
                 actions={[
-                  <a key="delete" style={{ color: '#ff4d4f' }} onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete(item.id);
-                  }}>删除</a>
+                  <a
+                    key="delete"
+                    style={{ color: '#ff4d4f' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(item.id);
+                    }}
+                    aria-label={`删除消息: ${item.title}`}
+                  >
+                    删除
+                  </a>
                 ]}
               >
                 <List.Item.Meta
                   avatar={
-                    <Badge dot={item.isRead === 0}>
-                      <div style={{ 
-                        width: 40, 
-                        height: 40, 
-                        borderRadius: '50%', 
+                    <Badge dot={item.isRead === 0} aria-hidden="true">
+                      <div style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
                         background: '#f5f5f5',
                         display: 'flex',
                         alignItems: 'center',
@@ -259,7 +320,10 @@ const MessagePage: React.FC = () => {
                   }
                   title={
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontWeight: item.isRead === 0 ? 600 : 400 }}>{item.title}</span>
+                      <span style={{ fontWeight: item.isRead === 0 ? 600 : 400 }}>
+                        {item.title}
+                        {item.isRead === 0 && <span style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', borderWidth: 0 }}>（未读）</span>}
+                      </span>
                       {getMessageTypeTag(item.messageType)}
                     </div>
                   }

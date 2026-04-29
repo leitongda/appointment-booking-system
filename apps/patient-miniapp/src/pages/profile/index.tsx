@@ -2,7 +2,7 @@ import { View, Text, Image, Button as TaroButton, Input as TaroInput } from '@ta
 import Taro, { useDidShow } from '@tarojs/taro';
 import { Button } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
-import { userApi, appointmentApi, authApi, storeApi } from '@hospital/api';
+import { userApi, appointmentApi, authApi, storeApi, messageApi } from '@hospital/api';
 import { STORAGE_KEYS } from '@hospital/shared';
 import { clearAuthSession, getToken, setStorage, subscribeAuthChange } from '../../utils/auth';
 import { getStoreId } from '../../utils/store';
@@ -189,17 +189,18 @@ const ProfilePage = () => {
   const loadStats = async () => {
     // 再次检查 token，避免无效请求
     if (!getToken()) return;
-    
+
     try {
-      const [appointmentsResult, patients] = await Promise.all([
+      const [appointmentsResult, patients, unreadCount] = await Promise.all([
         appointmentApi.getList({ pageSize: 1 }).catch(() => ({ total: 0, data: [] })),
         userApi.getPatients().catch(() => []),
+        messageApi.getUnreadCount(user?.id || '', 'patient').catch(() => ({ total: 0 })),
       ]);
-      
+
       setStats({
         appointmentCount: appointmentsResult.total || 0,
         patientCount: patients.length,
-        messageCount: 0, // 消息模块待实现
+        messageCount: unreadCount.total || 0,
       });
     } catch (error) {
       console.error('加载统计数据失败', error);
@@ -519,6 +520,8 @@ const ProfilePage = () => {
           <View className="menu-card">
             {group.items.map((item, itemIndex) => {
               const IconComponent = item.icon;
+              // 动态显示消息未读数
+              const showUnreadBadge = item.path === '/packageProfile/pages/message/index' && stats.messageCount > 0;
               return (
                 <View
                   key={itemIndex}
@@ -532,6 +535,9 @@ const ProfilePage = () => {
                     <Text className="menu-title">{item.title}</Text>
                   </View>
                   {item.badge && <Text className="menu-badge">{item.badge}</Text>}
+                  {showUnreadBadge && (
+                    <View className="menu-badge-dot">{stats.messageCount > 99 ? '99+' : stats.messageCount}</View>
+                  )}
                   <Text className="menu-arrow">›</Text>
                 </View>
               );

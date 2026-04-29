@@ -223,6 +223,9 @@ export type {
   ScheduleGenerationLog,
   ScheduleTemplateCopyData,
   ScheduleTemplateCopyResult,
+  CrossStoreDoctorMapping,
+  ScheduleTemplateCrossStoreCopyData,
+  ScheduleTemplateCrossStoreCopyResult,
 } from './modules/schedule-template';
 
 // Custom Schedule types

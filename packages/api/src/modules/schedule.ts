@@ -76,6 +76,55 @@ export interface ScheduleStatisticsParams {
   month: number;
 }
 
+export interface UtilizationTrendItem {
+  period: string;
+  totalSlots: number;
+  bookedSlots: number;
+  utilizationRate: number;
+}
+
+export interface UtilizationTrendResponse {
+  storeId: string;
+  storeName: string;
+  granularity: string;
+  items: UtilizationTrendItem[];
+}
+
+export interface DoctorWorkloadItem {
+  doctorId: string;
+  doctorName: string;
+  departmentName?: string;
+  totalSlots: number;
+  bookedSlots: number;
+  completedAppointments: number;
+  utilizationRate: number;
+  scheduleDays: number;
+}
+
+export interface DoctorWorkloadResponse {
+  storeId: string;
+  storeName: string;
+  startDate: string;
+  endDate: string;
+  items: DoctorWorkloadItem[];
+}
+
+export interface PeakHourCell {
+  dayOfWeek: number;
+  hour: number;
+  totalSlots: number;
+  bookedSlots: number;
+  bookingRate: number;
+}
+
+export interface PeakHourHeatmapResponse {
+  storeId: string;
+  storeName: string;
+  startDate: string;
+  endDate: string;
+  cells: PeakHourCell[];
+}
+
 export const scheduleApi = {
   getList: (params?: ScheduleListParams): Promise<PageResult<Schedule>> => {
     // 转换 camelCase 到 snake_case
@@ -246,5 +295,39 @@ export const scheduleApi = {
     return request.post('/schedules/batch-delete', {
       schedule_ids: scheduleIds,
     });
+  },
+
+  /**
+   * 排班利用率趋势
+   */
+  getUtilizationTrend: (params: {
+    storeId: string;
+    startDate: string;
+    endDate: string;
+    granularity?: string;
+  }): Promise<UtilizationTrendResponse> => {
+    return request.get('/schedules/statistics/utilization-trend', { params });
+  },
+
+  /**
+   * 医生工作量对比
+   */
+  getDoctorWorkload: (params: {
+    storeId: string;
+    startDate: string;
+    endDate: string;
+  }): Promise<DoctorWorkloadResponse> => {
+    return request.get('/schedules/statistics/doctor-workload', { params });
+  },
+
+  /**
+   * 高峰时段热力图
+   */
+  getPeakHours: (params: {
+    storeId: string;
+    startDate: string;
+    endDate: string;
+  }): Promise<PeakHourHeatmapResponse> => {
+    return request.get('/schedules/statistics/peak-hours', { params });
   },
 };

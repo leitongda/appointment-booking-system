@@ -70,3 +70,29 @@ export const getBirthdayByIdCard = (idCard: string): string => {
   return `${year}-${month}-${day}`;
 };
 
+/**
+ * 格式化相对时间（消息列表常用）
+ *
+ * 1小时内: "刚刚" / "X分钟前"
+ * 24小时内: "X小时前"
+ * 7天内: "X天前"
+ * 超过7天: 返回日期部分 (YYYY-MM-DD)
+ */
+export const formatRelativeTime = (dateStr: string): string => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  const diff = Date.now() - date.getTime();
+
+  if (diff < 3600000) {
+    const minutes = Math.floor(diff / 60000);
+    return minutes <= 0 ? '刚刚' : `${minutes}分钟前`;
+  }
+  if (diff < 86400000) {
+    return `${Math.floor(diff / 3600000)}小时前`;
+  }
+  if (diff < 604800000) {
+    return `${Math.floor(diff / 86400000)}天前`;
+  }
+  return dateStr.substring(0, 10);
+};
+

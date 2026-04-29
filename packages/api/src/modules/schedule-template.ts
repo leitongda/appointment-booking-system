@@ -135,6 +135,32 @@ export interface ScheduleTemplateCopyResult {
   createdCount: number;
 }
 
+export interface CrossStoreDoctorMapping {
+  sourceDepartmentId: string;
+  targetDepartmentId: string;
+  targetDoctorId: string;
+}
+
+export interface ScheduleTemplateCrossStoreCopyData {
+  targetStoreId: string;
+  mappings: CrossStoreDoctorMapping[];
+  name?: string;
+  weekdays?: number[];
+  appointmentType?: string;
+  startTime?: string;
+  endTime?: string;
+  slotCount?: number;
+  slotCapacity?: number;
+  scheduleMode?: string;
+  breakTimes?: BreakTime[];
+}
+
+export interface ScheduleTemplateCrossStoreCopyResult {
+  message: string;
+  createdCount: number;
+  failedMappings?: CrossStoreDoctorMapping[];
+}
+
 export const scheduleTemplateApi = {
   /**
    * 获取排班模板列表
@@ -404,5 +430,44 @@ export const scheduleTemplateApi = {
       }));
     }
     return request.post(`/schedule-templates/${id}/copy`, requestData);
+  },
+
+  /**
+   * 跨院区复制排班规则
+   */
+  copyCrossStore: (id: string, data: ScheduleTemplateCrossStoreCopyData): Promise<ScheduleTemplateCrossStoreCopyResult> => {
+    const requestData: Record<string, any> = {
+      target_store_id: data.targetStoreId,
+      mappings: data.mappings.map(m => ({
+        source_department_id: m.sourceDepartmentId,
+        target_department_id: m.targetDepartmentId,
+        target_doctor_id: m.targetDoctorId,
+      })),
+    };
+    if (data.name !== undefined) requestData.name = data.name;
+    if (data.weekdays !== undefined) requestData.weekdays = data.weekdays;
+    if (data.appointmentType !== undefined) requestData.appointment_type = data.appointmentType;
+    if (data.startTime !== undefined) {
+      const formattedStartTime = formatTimeValue(data.startTime);
+      if (formattedStartTime) {
+        requestData.start_time = formattedStartTime;
+      }
+    }
+    if (data.endTime !== undefined) {
+      const formattedEndTime = formatTimeValue(data.endTime);
+      if (formattedEndTime) {
+        requestData.end_time = formattedEndTime;
+      }
+    }
+    if (data.slotCount !== undefined) requestData.slot_count = data.slotCount;
+    if (data.slotCapacity !== undefined) requestData.slot_capacity = data.slotCapacity;
+    if (data.scheduleMode !== undefined) requestData.schedule_mode = data.scheduleMode;
+    if (data.breakTimes !== undefined) {
+      requestData.break_times = data.breakTimes?.map(bt => ({
+        start_time: formatTimeValue(bt.startTime) || bt.startTime,
+        end_time: formatTimeValue(bt.endTime) || bt.endTime,
+      }));
+    }
+    return request.post(`/schedule-templates/${id}/copy-cross-store`, requestData);
   },
 };

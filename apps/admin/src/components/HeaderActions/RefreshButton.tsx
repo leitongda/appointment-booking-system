@@ -1,17 +1,19 @@
 import { ReloadOutlined } from '@ant-design/icons';
 import { Tooltip } from 'antd';
 import { useState, useCallback } from 'react';
+import { useModel } from 'umi';
 import styles from './index.less';
 
 export const RefreshButton: React.FC = () => {
   const [spinning, setSpinning] = useState(false);
+  const { refresh } = useModel('@@initialState');
 
   const handleRefresh = useCallback(() => {
     setSpinning(true);
-    setTimeout(() => {
-      window.location.reload();
-    }, 300);
-  }, []);
+    refresh?.().finally(() => {
+      setSpinning(false);
+    });
+  }, [refresh]);
 
   return (
     <Tooltip title="刷新页面">

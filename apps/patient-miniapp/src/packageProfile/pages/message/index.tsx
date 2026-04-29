@@ -4,6 +4,8 @@ import { Empty, Tabs, PullToRefresh } from '@nutui/nutui-react-taro';
 import { useState, useEffect, useCallback } from 'react';
 import { messageApi, userApi } from '@hospital/api';
 import type { Message, MessageType } from '@hospital/shared';
+import { PATIENT_MESSAGE_TABS, type PatientMessageTabKey } from '@hospital/shared';
+import { formatRelativeTime } from '@hospital/shared';
 import { BellIcon, CalendarIcon, InfoIcon, ClockIcon, CloseCircleIcon, ChatIcon } from '../../../components/Icons';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
 import { useApplyThemeNavigationBar, useThemePrimaryColor } from '../../../utils/theme';
@@ -30,42 +32,17 @@ const typeNameMap: Record<MessageType | string, string> = {
   feedback: '反馈回复',
 };
 
-// 格式化时间
-const formatTime = (dateStr: string) => {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  
-  // 1小时内
-  if (diff < 3600000) {
-    const minutes = Math.floor(diff / 60000);
-    return minutes <= 0 ? '刚刚' : `${minutes}分钟前`;
-  }
-  // 24小时内
-  if (diff < 86400000) {
-    const hours = Math.floor(diff / 3600000);
-    return `${hours}小时前`;
-  }
-  // 7天内
-  if (diff < 604800000) {
-    const days = Math.floor(diff / 86400000);
-    return `${days}天前`;
-  }
-  // 超过7天显示日期
-  return dateStr.substring(0, 10);
-};
-
 const MessagePage = () => {
   const primaryColor = useThemePrimaryColor();
   useApplyThemeNavigationBar();
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState<PatientMessageTabKey>('all');
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState('');
   const [unreadCounts, setUnreadCounts] = useState({
     total: 0,
     appointment: 0,
+    consultation: 0,
     system: 0,
   });
   const [page, setPage] = useState(1);
@@ -93,9 +70,12 @@ const MessagePage = () => {
   };
 
   const loadMessages = useCallback(async () => {
+    if (!userId) return;
     setLoading(true);
     try {
-      const params: { page: number; pageSize: number; messageType?: string } = {
+      const params: { userId?: string; userType?: string; page: number; pageSize: number; messageType?: string } = {
+        userId,
+        userType: 'patient',
         page: 1,
         pageSize: PAGE_SIZE,
       };
@@ -113,15 +93,17 @@ const MessagePage = () => {
     } finally {
       setLoading(false);
     }
-  }, [activeTab]);
+  }, [activeTab, userId]);
 
   const loadMoreMessages = async () => {
-    if (loadingMore || !hasMore) return;
+    if (loadingMore || !hasMore || !userId) return;
 
     setLoadingMore(true);
     try {
       const nextPage = page + 1;
-      const params: { page: number; pageSize: number; messageType?: string } = {
+      const params: { userId?: string; userType?: string; page: number; pageSize: number; messageType?: string } = {
+        userId,
+        userType: 'patient',
         page: nextPage,
         pageSize: PAGE_SIZE,
       };
@@ -148,6 +130,7 @@ const MessagePage = () => {
       setUnreadCounts({
         total: counts.total || 0,
         appointment: counts.appointment || 0,
+        consultation: counts.consultation || 0,
         system: counts.system || 0,
       });
     } catch (error) {
@@ -182,7 +165,7 @@ const MessagePage = () => {
     clear: () => {
       setUserId('');
       setMessages([]);
-      setUnreadCounts({ total: 0, appointment: 0, system: 0 });
+      setUnreadCounts({ total: 0, appointment: 0, consultation: 0, system: 0 });
       setPage(1);
       setHasMore(true);
       setLoading(false);
@@ -213,6 +196,10 @@ const MessagePage = () => {
           // 预约相关通知和停诊通知都跳转到预约详情
           Taro.navigateTo({ url: `/packageBooking/pages/appointment/detail?id=${message.relatedId}` });
           break;
+        case 'consultation':
+          // 就诊通知跳转到就诊记录详情
+          Taro.navigateTo({ url: `/packageProfile/pages/records/detail?id=${message.relatedId}` });
+          break;
         case 'feedback':
           // 跳转到反馈历史页面查看详情
           Taro.navigateTo({ url: `/packageProfile/pages/feedback/history?id=${message.relatedId}` });
@@ -241,10 +228,18 @@ const MessagePage = () => {
     }
 
     try {
-      await messageApi.markAllAsRead(userId, 'patient');
-      Taro.showToast({ title: '已全部标记为已读', icon: 'success' });
-      loadMessages();
-      loadUnreadCount(userId);
+      const result = await Taro.showModal({
+        title: '确认操作',
+        content: '确定将所有消息标记为已读吗？',
+      });
+
+      if (result.confirm) {
+        const messageType = activeTab === 'all' ? undefined : activeTab;
+        await messageApi.markAllAsRead(userId, 'patient', messageType);
+        Taro.showToast({ title: '已全部标记为已读', icon: 'success' });
+        loadMessages();
+        loadUnreadCount(userId);
+      }
     } catch (error) {
       Taro.showToast({ title: '操作失败', icon: 'none' });
     }
@@ -262,24 +257,51 @@ const MessagePage = () => {
     <View className="message-page">
       {/* 头部操作栏 */}
       <View className="header-bar">
-        <Text className="unread-count">
+        <Text className="unread-count" role="status" aria-live="polite">
           {unreadCounts.total > 0 ? `${unreadCounts.total}条未读` : '无未读消息'}
         </Text>
-        <Text className="mark-all-btn" onClick={handleMarkAllRead}>
+        <Text
+          className="mark-all-btn"
+          onClick={handleMarkAllRead}
+          role="button"
+          aria-label={`标记全部${unreadCounts.total}条消息为已读`}
+        >
           全部已读
         </Text>
       </View>
 
       {/* 分类标签 */}
-      <View className="tabs-wrapper">
+      <View className="tabs-wrapper" role="tablist" aria-label="消息分类标签">
         <Tabs
           value={activeTab}
           onChange={(value) => setActiveTab(value as string)}
         >
-          <Tabs.TabPane title="全部" value="all" />
-          <Tabs.TabPane title="预约" value="appointment" />
-          <Tabs.TabPane title="反馈" value="feedback" />
-          <Tabs.TabPane title="系统" value="system" />
+          {PATIENT_MESSAGE_TABS.map((tab) => {
+            const badgeCount =
+              tab.key === 'all' ? unreadCounts.total :
+              tab.key === 'appointment' ? unreadCounts.appointment :
+              tab.key === 'consultation' ? unreadCounts.consultation :
+              unreadCounts.system;
+            return (
+              <Tabs.TabPane
+                key={tab.key}
+                title={
+                  <View className="tab-title">
+                    <Text>{tab.label}</Text>
+                    {badgeCount > 0 && (
+                      <View className="tab-badge" aria-label={`${badgeCount}条未读`}>
+                        {badgeCount > 99 ? '99+' : badgeCount}
+                      </View>
+                    )}
+                  </View>
+                }
+                value={tab.key}
+                role="tab"
+                aria-label={badgeCount > 0 ? `${tab.label}，${badgeCount}条未读` : tab.label}
+                aria-selected={activeTab === tab.key}
+              />
+            );
+          })}
         </Tabs>
       </View>
 
@@ -290,7 +312,7 @@ const MessagePage = () => {
             <Empty description="暂无消息" />
           </View>
         ) : (
-          <View className="message-list">
+          <View className="message-list" role="list" aria-label="消息列表">
             {messages.map((message) => {
               const IconComponent = iconMap[message.messageType] || BellIcon;
               const isRead = message.isRead === 1;
@@ -299,18 +321,29 @@ const MessagePage = () => {
                   key={message.id}
                   className={`message-item ${isRead ? 'read' : 'unread'}`}
                   onClick={() => handleMessageClick(message)}
+                  role="listitem"
+                  aria-label={
+                    !isRead
+                      ? `未读消息：${message.title}，${message.content || typeNameMap[message.messageType]}，${formatRelativeTime(message.createdAt)}`
+                      : `消息：${message.title}，${message.content || typeNameMap[message.messageType]}，${formatRelativeTime(message.createdAt)}`
+                  }
                 >
-                  <View className="message-icon">
+                  <View className="message-icon" aria-hidden="true">
                     <IconComponent size={24} color={isRead ? '#9CA3AF' : primaryColor} />
                   </View>
                   <View className="message-content">
                     <View className="message-header">
-                      <Text className="message-title">{message.title}</Text>
-                      <Text className="message-time">{formatTime(message.createdAt)}</Text>
+                      <Text className="message-title">
+                        {message.title}
+                        {!isRead && <Text style={{ fontSize: '12px', color: '#999' }}>（未读）</Text>}
+                      </Text>
+                      <Text className="message-time">{formatRelativeTime(message.createdAt)}</Text>
                     </View>
                     <Text className="message-text">{message.content || typeNameMap[message.messageType]}</Text>
                   </View>
-                  {!isRead && <View className="unread-dot" />}
+                  {!isRead && (
+                    <View className="unread-dot" aria-label="未读消息" />
+                  )}
                 </View>
               );
             })}

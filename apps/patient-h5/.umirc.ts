@@ -56,6 +56,7 @@ export default defineConfig({
         { path: '/profile', component: '@/pages/profile' },
         { path: '/profile/patient', component: '@/pages/profile/patient' },
         { path: '/profile/patient/edit', component: '@/pages/profile/patient/edit' },
+        { path: '/profile/notification-settings', component: '@/pages/profile/notification-settings' },
         { path: '/message', component: '@/pages/message' },
         { path: '/feedback', component: '@/pages/feedback' },
       ],
