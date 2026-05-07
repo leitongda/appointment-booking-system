@@ -12,6 +12,7 @@ from app.middleware.tenant_context import get_current_tenant_id
 from app.models.admin import Admin, Role, admin_stores
 from app.models.tenant import Tenant
 from app.utils.audit import set_create_audit, set_update_audit
+from app.common.account_sync import AccountSyncService
 
 
 class AdminService:
@@ -254,6 +255,11 @@ class AdminService:
                     )
                 )
 
+        # 双写同步: Admin -> accounts + account_admins
+        await AccountSyncService.sync_admin_to_account(
+            self.db, admin.id, operator_id=operator_id
+        )
+
         await self.db.commit()
         return await self.get_by_id(admin.id)
 
@@ -305,6 +311,12 @@ class AdminService:
                 admin.current_store_id = store_ids[0] if store_ids else None
 
         set_update_audit(admin, operator_id)
+
+        # 双写同步: Admin -> accounts + account_admins
+        await AccountSyncService.sync_admin_to_account(
+            self.db, admin_id, operator_id=operator_id
+        )
+
         await self.db.commit()
         return await self.get_by_id(admin_id)
 
@@ -327,6 +339,12 @@ class AdminService:
             raise ValueError("; ".join(errors))
 
         admin.password_hash = get_password_hash(new_password)
+
+        # 双写同步: 密码变更同步到 accounts
+        await AccountSyncService.sync_admin_to_account(
+            self.db, admin_id, operator_id=None
+        )
+
         await self.db.commit()
         return True
 
@@ -335,6 +353,12 @@ class AdminService:
         if admin:
             admin.last_login_at = datetime.now()
             admin.last_login_ip = ip
+
+            # 双写同步: 登录信息同步到 accounts
+            await AccountSyncService.update_admin_login_info(
+                self.db, admin_id, ip
+            )
+
             await self.db.commit()
 
     async def delete(self, admin_id: str) -> bool:
@@ -353,5 +377,11 @@ class AdminService:
                 raise ValueError("不能删除最后一个超级管理员")
 
         await self.db.delete(admin)
+
+        # 双写同步: 从 accounts 删除对应记录
+        await AccountSyncService.delete_admin_from_account(
+            self.db, admin_id
+        )
+
         await self.db.commit()
         return True

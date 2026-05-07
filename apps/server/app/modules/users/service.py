@@ -11,6 +11,7 @@ from app.schemas.user import UserCreate, UserUpdate, PatientCreate, PatientUpdat
 from app.core.security import get_password_hash, verify_password
 from app.middleware.tenant_context import get_current_tenant_id
 from app.utils.audit import set_create_audit, set_update_audit
+from app.common.account_sync import AccountSyncService
 
 class UserService:
     def __init__(self, db: AsyncSession):
@@ -71,6 +72,12 @@ class UserService:
         user.wechat_synced_at = datetime.now()
 
         set_update_audit(user, operator_id)
+
+        # 双写同步: User -> accounts + account_users
+        await AccountSyncService.sync_user_to_account(
+            self.db, user_id, operator_id=operator_id
+        )
+
         await self.db.commit()
         return True
 
@@ -94,6 +101,12 @@ class UserService:
         )
         set_create_audit(user, None)
         self.db.add(user)
+
+        # 双写同步: User -> accounts + account_users
+        await AccountSyncService.sync_user_to_account(
+            self.db, user.id, operator_id=None
+        )
+
         await self.db.commit()
         await self.db.refresh(user)
         return user
@@ -108,6 +121,12 @@ class UserService:
             setattr(user, field, value)
 
         set_update_audit(user, operator_id)
+
+        # 双写同步: User -> accounts + account_users
+        await AccountSyncService.sync_user_to_account(
+            self.db, user_id, operator_id=operator_id
+        )
+
         await self.db.commit()
         await self.db.refresh(user)
         return user
@@ -133,6 +152,12 @@ class UserService:
         # 设置新密码
         user.password_hash = get_password_hash(new_password)
         set_update_audit(user, user_id)
+
+        # 双写同步: 密码变更同步到 accounts
+        await AccountSyncService.sync_user_to_account(
+            self.db, user_id, operator_id=user_id
+        )
+
         await self.db.commit()
         return True, "密码修改成功"
 
@@ -149,6 +174,12 @@ class UserService:
 
         user.phone = phone
         set_update_audit(user, user_id)
+
+        # 双写同步: 手机号变更同步到 accounts
+        await AccountSyncService.sync_user_to_account(
+            self.db, user_id, operator_id=user_id
+        )
+
         await self.db.commit()
         return True, "手机号绑定成功"
 

@@ -58,8 +58,14 @@ class OperationLogService:
     async def create(self, data: dict) -> OperationLog:
         log = OperationLog(
             id=str(uuid.uuid4()),
+            # 新字段：角色相关
+            actor_id=data.get("actor_id"),
+            actor_name=data.get("actor_name"),
+            actor_role=data.get("actor_role"),
+            # 保留旧字段以向后兼容
             admin_id=data.get("admin_id"),
             admin_name=data.get("admin_name"),
+            tenant_id=data.get("tenant_id"),
             module=data.get("module"),
             action=data.get("action"),
             method=data.get("method"),

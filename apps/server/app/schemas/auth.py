@@ -105,9 +105,32 @@ class ChangePasswordRequest(BaseModel):
         alias_generator=to_camel,
         populate_by_name=True,
     )
-    
+
     old_password: str = Field(..., min_length=6, description="旧密码")
     new_password: str = Field(..., min_length=6, max_length=20, description="新密码")
+
+
+class ForgotPasswordRequest(BaseModel):
+    """忘记密码请求"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    phone: str = Field(..., min_length=11, max_length=11, description="手机号")
+    verification_code: str = Field(..., min_length=4, max_length=6, description="验证码")
+    new_password: str = Field(..., min_length=6, max_length=20, description="新密码")
+
+
+class SendCodeRequest(BaseModel):
+    """发送验证码请求"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    phone: str = Field(..., min_length=11, max_length=11, description="手机号")
+    code_type: str = Field(default="reset", description="验证码类型：login/register/reset")
 
 
 class WechatLoginRequest(BaseModel):

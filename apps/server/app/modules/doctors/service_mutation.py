@@ -16,6 +16,7 @@ from app.models.schedule import Schedule
 from app.models.user import User
 from app.schemas.doctor import DoctorCreate, DoctorUpdate
 from app.utils.audit import set_create_audit, set_update_audit
+from app.common.account_sync import AccountSyncService
 
 
 class DoctorMutationMixin:
@@ -80,6 +81,12 @@ class DoctorMutationMixin:
         )
         set_create_audit(doctor, operator_id)
         self.db.add(doctor)
+
+        # 双写同步: Doctor -> accounts + account_doctors
+        await AccountSyncService.sync_doctor_to_account(
+            self.db, doctor.id, operator_id=operator_id
+        )
+
         await self.db.commit()
         await self.db.refresh(doctor)
         return doctor
@@ -101,6 +108,12 @@ class DoctorMutationMixin:
                 setattr(doctor, field, value)
 
         set_update_audit(doctor, operator_id)
+
+        # 双写同步: Doctor -> accounts + account_doctors
+        await AccountSyncService.sync_doctor_to_account(
+            self.db, doctor_id, operator_id=operator_id
+        )
+
         await self.db.commit()
         await self.db.refresh(doctor)
         return doctor
@@ -135,6 +148,12 @@ class DoctorMutationMixin:
         # 软删除：设置 deleted_at
         doctor.deleted_at = datetime.now()
         doctor.status = 0  # 同时禁用
+
+        # 双写同步: 软删除同步到 accounts + account_doctors
+        await AccountSyncService.soft_delete_doctor_from_account(
+            self.db, doctor_id
+        )
+
         await self.db.commit()
         return True
 

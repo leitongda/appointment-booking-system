@@ -42,3 +42,8 @@ class GenerateUsernameRequest(BaseModel):
 
 class GenerateUsernameResponse(BaseModel):
     username: str
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str

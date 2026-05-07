@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.utils.ip import get_client_ip
 from app.modules.doctors.schemas import (
     BatchSortRequest,
+    ChangePasswordRequest,
     CheckUsernameRequest,
     CheckUsernameResponse,
     DoctorLoginRequest,
@@ -605,3 +606,73 @@ async def generate_username(
     service = DoctorService(db)
     username = await service.generate_username(data.name)
     return GenerateUsernameResponse(username=username)
+
+
+@router.post(
+    "/change-password",
+    summary="医生修改密码",
+    description="""
+    修改当前登录医生的密码。
+
+    **权限要求**：需要医生 Token 认证。
+
+    **业务规则**：
+    - 需要验证旧密码正确性
+    - 新密码长度 6-20 位
+    - 遵循租户密码策略
+    - 修改成功后不强制退出登录
+
+    **参数说明**：
+    - old_password: 原密码
+    - new_password: 新密码（6-20位）
+    """,
+)
+async def change_doctor_password(
+    data: ChangePasswordRequest,
+    db: AsyncSession = Depends(get_db),
+    current_doctor: Doctor = Depends(get_current_doctor_by_token),
+):
+    """医生修改密码"""
+    from app.core.security import get_password_hash, verify_password
+    from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
+
+    # 验证旧密码
+    if not verify_password(data.old_password, current_doctor.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="原密码错误，请重新输入"
+        )
+
+    # 验证新旧密码不能相同
+    if data.old_password == data.new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="新密码不能与原密码相同"
+        )
+
+    # 密码长度验证
+    if not (6 <= len(data.new_password) <= 20):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="密码长度必须为6-20位"
+        )
+
+    # 密码策略校验
+    policy = await get_tenant_password_policy(db, current_doctor.tenant_id)
+    validator = PasswordPolicyValidator(policy)
+    is_valid, errors = validator.validate(
+        data.new_password,
+        username=current_doctor.username,
+        phone=current_doctor.phone,
+    )
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="; ".join(errors)
+        )
+
+    # 更新密码
+    current_doctor.password_hash = get_password_hash(data.new_password)
+    await db.commit()
+
+    return {"message": "密码修改成功"}

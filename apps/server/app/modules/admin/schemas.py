@@ -220,6 +220,11 @@ class AdminLoginResponse(BaseModel):
 
 class OperationLogResponse(BaseModel):
     id: str
+    # 新字段：角色相关
+    actor_id: Optional[str] = None
+    actor_name: Optional[str] = None
+    actor_role: Optional[str] = None
+    # 保留旧字段以向后兼容
     admin_id: Optional[str] = None
     admin_name: Optional[str] = None
     module: Optional[str] = None

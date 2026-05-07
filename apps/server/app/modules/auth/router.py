@@ -3,7 +3,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.api.deps import get_current_user
-from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, RefreshTokenRequest, ChangePasswordRequest, LoginResponse, UserInfo
+from app.schemas.auth import (
+    LoginRequest,
+    RegisterRequest,
+    TokenResponse,
+    RefreshTokenRequest,
+    ChangePasswordRequest,
+    LoginResponse,
+    UserInfo,
+    ForgotPasswordRequest,
+    SendCodeRequest,
+)
 from app.schemas.user import UserResponse
 from app.schemas.wechat import WechatLoginRequest, WechatLoginResponse, WechatPhoneRequest, WechatBindPhoneRequest, WechatBindUserInfoRequest
 from app.schemas.response import ErrorResponse
@@ -11,6 +21,7 @@ from app.modules.users.service import UserService
 from app.infrastructure.wechat.service import WechatService
 from app.core.security import create_access_token, create_refresh_token, decode_token, verify_password, get_password_hash
 from app.core.config import settings
+from app.common.account_sync import AccountSyncService
 
 router = APIRouter()
 
@@ -207,6 +218,14 @@ async def change_password(
     if not verify_password(data.old_password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="原密码错误，请重新输入")
 
+    # 验证新旧密码不能相同
+    if data.old_password == data.new_password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="新密码不能与原密码相同")
+
+    # 密码长度验证
+    if not (6 <= len(data.new_password) <= 20):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="密码长度必须为6-20位")
+
     # 密码策略校验
     from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
     from app.middleware.tenant_context import get_current_tenant_id
@@ -218,9 +237,138 @@ async def change_password(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="; ".join(errors))
 
     user.password_hash = get_password_hash(data.new_password)
+
+    # 双写同步: 密码变更同步到 accounts
+    await AccountSyncService.sync_user_to_account(
+        db, user.id, operator_id=current_user["id"]
+    )
+
     await db.commit()
 
     return {"message": "密码修改成功"}
+
+
+@router.post("/send-code", summary="发送验证码")
+async def send_code(
+    data: SendCodeRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    发送短信验证码
+
+    **功能说明**：
+    - 发送验证码到指定手机号
+    - 支持登录、注册、重置密码等场景
+    - 60秒内不能重复发送
+
+    **请求示例**：
+    ```json
+    {
+      "phone": "13800138000",
+      "codeType": "reset"
+    }
+    ```
+
+    **验证码类型**：
+    - login: 登录验证码
+    - register: 注册验证码
+    - reset: 重置密码验证码
+    """
+    from app.infrastructure.sms.service import SmsService
+    import re
+
+    # 验证手机号格式
+    if not re.match(r'^1\d{10}$', data.phone):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="手机号格式不正确")
+
+    # 检查用户是否存在（重置密码场景需要验证）
+    user_service = UserService(db)
+    if data.code_type == "reset":
+        user = await user_service.get_by_phone(data.phone)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="该手机号未注册")
+
+    try:
+        code = await SmsService.send_code(data.phone, data.code_type)
+        # 开发环境返回验证码，生产环境不返回
+        from app.core.config import settings
+        if settings.DEBUG:
+            return {"message": "验证码发送成功", "code": code}
+        return {"message": "验证码发送成功"}
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/forgot-password", summary="忘记密码")
+async def forgot_password(
+    data: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    通过手机号和验证码重置密码
+
+    **功能说明**：
+    - 验证手机号和验证码
+    - 重置用户密码
+    - 无需旧密码即可重置
+
+    **请求示例**：
+    ```json
+    {
+      "phone": "13800138000",
+      "verificationCode": "123456",
+      "newPassword": "newpass123"
+    }
+    ```
+
+    **业务规则**：
+    - 验证码必须正确且未过期
+    - 新密码需符合密码策略
+    - 密码长度 6-20 位
+    """
+    from app.infrastructure.sms.service import SmsService
+    from app.middleware.tenant_context import get_current_tenant_id
+    import re
+
+    # 验证手机号格式
+    if not re.match(r'^1\d{10}$', data.phone):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="手机号格式不正确")
+
+    # 验证密码长度
+    if not (6 <= len(data.new_password) <= 20):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="密码长度必须为6-20位")
+
+    # 查找用户
+    user_service = UserService(db)
+    user = await user_service.get_by_phone(data.phone)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="该手机号未注册")
+
+    # 验证验证码
+    tenant_id = get_current_tenant_id()
+    is_valid = await SmsService.verify_code(data.phone, data.verification_code, "reset", tenant_id)
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码错误或已过期")
+
+    # 密码策略校验
+    from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
+    policy = await get_tenant_password_policy(db, tenant_id)
+    validator = PasswordPolicyValidator(policy)
+    is_valid, errors = validator.validate(data.new_password, phone=user.phone)
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="; ".join(errors))
+
+    # 更新密码
+    user.password_hash = get_password_hash(data.new_password)
+
+    # 双写同步: 密码重置同步到 accounts
+    await AccountSyncService.sync_user_to_account(
+        db, user.id, operator_id=None
+    )
+
+    await db.commit()
+
+    return {"message": "密码重置成功，请使用新密码登录"}
 
 
 # ========== 微信登录 ==========
@@ -313,6 +461,8 @@ async def wechat_get_phone(data: WechatPhoneRequest, db: AsyncSession = Depends(
             update_data = {}
             if not user.openid:
                 user.openid = data.openid
+                # 双写同步: openid 更新
+                await AccountSyncService.sync_user_to_account(db, user.id)
                 await db.commit()
             if hasattr(data, 'unionid') and data.unionid:
                 update_data["unionid"] = data.unionid
@@ -370,6 +520,8 @@ async def wechat_bind_phone(data: WechatBindPhoneRequest, db: AsyncSession = Dep
         if user.openid and user.openid != data.openid:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该手机号已绑定其他微信账号")
         user.openid = data.openid
+        # 双写同步: openid 绑定同步
+        await AccountSyncService.sync_user_to_account(db, user.id)
         await db.commit()
         await db.refresh(user)
     else:
