@@ -22,6 +22,35 @@ from app.infrastructure.sms.service import SmsService
 from app.infrastructure.notifications.dispatcher import NotificationDispatcher
 
 
+# ---------------------------------------------------------------------------
+# 统一账号辅助：Account 表优先 + 旧表 fallback
+# ---------------------------------------------------------------------------
+
+async def _get_user_contact_info(db: AsyncSession, user_id: str) -> Tuple[Optional[str], Optional[str]]:
+    """获取用户联系方式 (phone, openid)，Account 表优先"""
+    try:
+        from app.models.account import Account, AccountUser
+        result = await db.execute(
+            select(Account.phone, AccountUser.openid)
+            .join(AccountUser, Account.id == AccountUser.account_id, isouter=True)
+            .where(Account.id == user_id)
+        )
+        row = result.first()
+        if row and row[0]:
+            return row[0], row[1]
+    except Exception:
+        pass
+
+    # fallback 到旧表
+    user_result = await db.execute(
+        select(User.phone, User.openid).where(User.id == user_id)
+    )
+    user_info = user_result.first()
+    if user_info:
+        return user_info[0], user_info[1]
+    return None, None
+
+
 _CHANNEL_FIELD_MAP = {
     "in_app": "in_app_enabled",
     "sms": "sms_enabled",
@@ -95,11 +124,8 @@ async def _send_sms_notification(
             logger.debug(f"用户 {user_id} 已禁用 sms/{message_type} 通知，跳过")
             return False
 
-        # 获取用户手机号
-        user_result = await db.execute(
-            select(User.phone).where(User.id == user_id)
-        )
-        user_phone = user_result.scalar_one_or_none()
+        # 获取用户手机号（Account 表优先）
+        user_phone, _ = await _get_user_contact_info(db, user_id)
 
         if not user_phone:
             logger.debug(f"用户 {user_id} 无手机号，跳过短信发送")
@@ -452,16 +478,10 @@ class MessageService:
             if rendered_title is None:
                 rendered_title, rendered_content = title, content
 
-        # 获取接收人信息
-        recipient_phone = None
-        recipient_openid = None
-        if user_type == "patient":
-            user_result = await self.db.execute(
-                select(User.phone, User.openid).where(User.id == user_id)
-            )
-            user_info = await user_result.first()
-            if user_info:
-                recipient_phone, recipient_openid = user_info
+        # 获取接收人信息（Account 表优先）
+        recipient_phone, recipient_openid = await _get_user_contact_info(
+            self.db, user_id
+        )
 
         # 创建通知事件
         event = NotificationEvent(
@@ -643,16 +663,10 @@ class MessageService:
             if rendered_title is None:
                 rendered_title, rendered_content = title, content
 
-        # 获取接收人信息
-        recipient_phone = None
-        recipient_openid = None
-        if user_type == "patient":
-            user_result = await self.db.execute(
-                select(User.phone, User.openid).where(User.id == user_id)
-            )
-            user_info = await user_result.first()
-            if user_info:
-                recipient_phone, recipient_openid = user_info
+        # 获取接收人信息（Account 表优先）
+        recipient_phone, recipient_openid = await _get_user_contact_info(
+            self.db, user_id
+        )
 
         # 创建通知事件
         event = NotificationEvent(

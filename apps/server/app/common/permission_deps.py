@@ -1,12 +1,20 @@
 """权限相关依赖
 
 提供权限检查、门店访问控制等依赖函数。
+支持 admin/doctor/user 三种角色的统一权限检查。
+
+设计说明：
+- require_permission / require_all_permissions: 仅 Admin 角色使用（依赖 get_current_admin）
+- require_account_permission / require_account_all_permissions: 统一多角色使用（依赖 get_current_account）
 """
 from typing import Callable, Union, List, Optional
-from fastapi import HTTPException, Depends
+from fastapi import HTTPException, Depends, status
 
 # 重新导出认证依赖，因为权限依赖依赖它们
 from app.common.auth_deps import get_current_admin
+from app.common.auth_unified import get_current_account
+from app.common.auth_types import AccountInfo, RoleType
+from app.common.role_permissions import check_permission_match
 
 
 def get_store_filter(current_admin: dict, allow_all: bool = False) -> Union[None, str, List[str]]:
@@ -89,9 +97,13 @@ def get_effective_store_id(current_admin: dict, requested_store_id: Optional[str
     return current_store_id
 
 
+# ============================================================
+# Admin 专用权限检查（保持向后兼容，已有路由继续使用）
+# ============================================================
+
 def require_permission(*permissions: str) -> Callable:
     """
-    创建权限检查依赖
+    创建 Admin 权限检查依赖（保持向后兼容）
 
     用法:
         @router.post("")
@@ -120,15 +132,15 @@ def require_permission(*permissions: str) -> Callable:
         if current_admin.get("is_super_admin"):
             return None
 
-        admin_permissions = current_admin.get("permissions", [])
+        admin_permissions = set(current_admin.get("permissions", []))
 
         # 检查是否拥有通配符权限
         if "*" in admin_permissions:
             return None
 
-        # 检查是否拥有所需权限之一
+        # 检查是否拥有所需权限之一（支持通配符匹配）
         for perm in permissions:
-            if perm in admin_permissions:
+            if check_permission_match(perm, admin_permissions):
                 return None
 
         # 没有权限，抛出异常
@@ -142,7 +154,7 @@ def require_permission(*permissions: str) -> Callable:
 
 def require_all_permissions(*permissions: str) -> Callable:
     """
-    创建权限检查依赖（需要满足所有权限）
+    创建 Admin 权限检查依赖（需要满足所有权限，保持向后兼容）
 
     用法:
         @router.delete("")
@@ -163,18 +175,156 @@ def require_all_permissions(*permissions: str) -> Callable:
         if current_admin.get("is_super_admin"):
             return None
 
-        admin_permissions = current_admin.get("permissions", [])
+        admin_permissions = set(current_admin.get("permissions", []))
 
         # 检查是否拥有通配符权限
         if "*" in admin_permissions:
             return None
 
-        # 检查是否拥有所有需要的权限
-        missing = [p for p in permissions if p not in admin_permissions]
+        # 检查是否拥有所有需要的权限（支持通配符匹配）
+        missing = [p for p in permissions if not check_permission_match(p, admin_permissions)]
         if missing:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"缺少权限: {', '.join(missing)}"
+            )
+
+        return None
+
+    return check_all_permissions
+
+
+# ============================================================
+# 统一多角色权限检查（admin/doctor/user 均可使用）
+# ============================================================
+
+def _extract_permissions(account: AccountInfo) -> List[str]:
+    """从 AccountInfo 中提取权限列表
+
+    根据 role_type 从对应的 info 中获取 permissions 字段。
+    - Admin: 从数据库 Role.permissions 加载
+    - Doctor: 从 DOCTOR_PERMISSIONS 硬编码配置加载
+    - User: 从 USER_PERMISSIONS 硬编码配置加载
+    """
+    if account.role_type == RoleType.ADMIN and account.admin_info:
+        return account.admin_info.permissions or []
+    elif account.role_type == RoleType.DOCTOR and account.doctor_info:
+        return account.doctor_info.permissions or []
+    elif account.role_type == RoleType.USER and account.user_info:
+        return account.user_info.permissions or []
+    return []
+
+
+def require_account_permission(*permissions: str) -> Callable:
+    """
+    创建统一权限检查依赖（支持 admin/doctor/user 三种角色）
+
+    与 require_permission 不同，此函数通过 get_current_account 获取账号信息，
+    自动根据角色类型加载对应的权限列表进行检查。
+
+    用法:
+        # 医生端路由
+        @router.get("/schedule")
+        async def get_my_schedule(
+            ...,
+            _: None = Depends(require_account_permission("doctor:schedule:view"))
+        ):
+            ...
+
+        # 患者端路由
+        @router.post("/appointment")
+        async def create_appointment(
+            ...,
+            _: None = Depends(require_account_permission("patient:appointment:create"))
+        ):
+            ...
+
+    权限检查逻辑：
+    - Admin: 从数据库 Role.permissions 加载（超级管理员拥有全部权限）
+    - Doctor: 从 DOCTOR_PERMISSIONS 硬编码配置加载
+    - User: 从 USER_PERMISSIONS 硬编码配置加载
+    - 支持通配符: "*" 匹配全部, "prefix:*" 匹配前缀下的所有权限
+
+    Args:
+        *permissions: 需要的权限码，满足其中一个即可
+
+    Returns:
+        FastAPI 依赖函数
+    """
+    async def check_permission(
+        current_account: AccountInfo = Depends(get_current_account),
+    ) -> None:
+        # 超级管理员拥有所有权限
+        if current_account.is_super_admin:
+            return None
+
+        account_permissions = set(_extract_permissions(current_account))
+
+        # 检查是否拥有通配符权限
+        if "*" in account_permissions:
+            return None
+
+        # 检查是否拥有所需权限之一（支持通配符匹配）
+        for perm in permissions:
+            if check_permission_match(perm, account_permissions):
+                return None
+
+        # 没有权限，抛出异常
+        role_names = {
+            RoleType.ADMIN: "管理员",
+            RoleType.DOCTOR: "医生",
+            RoleType.USER: "用户",
+        }
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"需要权限: {', '.join(permissions)}（当前角色: {role_names.get(current_account.role_type, '未知')}）"
+        )
+
+    return check_permission
+
+
+def require_account_all_permissions(*permissions: str) -> Callable:
+    """
+    创建统一权限检查依赖（需要满足所有权限，支持 admin/doctor/user）
+
+    用法:
+        @router.delete("")
+        async def delete_all(
+            ...,
+            _: None = Depends(require_account_all_permissions("doctor:delete", "doctor:list"))
+        ):
+            ...
+
+    Args:
+        *permissions: 需要的权限码，必须全部满足
+
+    Returns:
+        FastAPI 依赖函数
+    """
+    async def check_all_permissions(
+        current_account: AccountInfo = Depends(get_current_account),
+    ) -> None:
+        # 超级管理员拥有所有权限
+        if current_account.is_super_admin:
+            return None
+
+        account_permissions = set(_extract_permissions(current_account))
+
+        # 检查是否拥有通配符权限
+        if "*" in account_permissions:
+            return None
+
+        # 检查是否拥有所有需要的权限（支持通配符匹配）
+        missing = [p for p in permissions if not check_permission_match(p, account_permissions)]
+        if missing:
+            role_names = {
+                RoleType.ADMIN: "管理员",
+                RoleType.DOCTOR: "医生",
+                RoleType.USER: "用户",
+            }
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"缺少权限: {', '.join(missing)}（当前角色: {role_names.get(current_account.role_type, '未知')}）"
             )
 
         return None

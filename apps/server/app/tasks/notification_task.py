@@ -30,6 +30,11 @@ from app.infrastructure.wechat.service import WechatService
 from app.infrastructure.wechat.token_manager import WechatTokenManager
 from app.middleware.tenant_context import set_tenant_context, clear_tenant_context
 from app.modules.settings.service import SettingsService
+from app.common.sync_account_helper import (
+    get_account_phone,
+    get_account_openid,
+    get_user_info_for_reminder,
+)
 from celery import group
 import httpx
 import asyncio
@@ -157,7 +162,18 @@ def _send_sms_reminder(
     store_id: Optional[str] = None,
     appointment_id: Optional[str] = None,
 ) -> bool:
-    """发送短信提醒（同步版本）"""
+    """发送短信提醒（同步版本）
+
+    如果传入的 phone 为空，尝试从 Account 表获取手机号 fallback。
+    """
+    # Account 表优先获取手机号 fallback
+    if not phone and user_id:
+        phone = get_account_phone(db, user_id, "user") or ""
+
+    if not phone:
+        logger.warning(f"无法获取手机号，跳过短信发送: user_id={user_id}, appointment_id={appointment_id}")
+        return False
+
     try:
         from app.infrastructure.sms.service import SmsService
 
@@ -309,8 +325,13 @@ def _query_appointments_needing_reminder(
         # 精确时间检查
         if reminder_start <= appointment_datetime <= reminder_end:
             # 根据渠道要求过滤
-            if reminder_config.requires_openid and not apt.user.openid:
-                continue
+            if reminder_config.requires_openid:
+                # 先检查旧表 user.openid，如果为空则尝试 Account 表 fallback
+                openid = apt.user.openid
+                if not openid:
+                    openid = get_account_openid(db, apt.user.id, "user")
+                if not openid:
+                    continue
             if reminder_config.requires_phone and not apt.patient_phone:
                 continue
             qualified.append((apt, apt.schedule, apt.user, apt.doctor))
@@ -366,6 +387,16 @@ def _send_reminder_for_level(
                 if not wechat_access_token or not wechat_template_id:
                     error_msg = "微信配置不完整"
                 else:
+                    # 获取 openid：旧表优先，Account 表 fallback
+                    openid = user.openid or get_account_openid(db, user.id, "user")
+                    if not openid:
+                        error_msg = "用户无 openid"
+                        failed_count += 1
+                        logger.warning(
+                            f"发送 {reminder_config.level.value} 提醒失败: "
+                            f"appointment_id={appointment.id}, error={error_msg}"
+                        )
+                        continue
                     message_data = {
                         "thing1": {"value": doctor.name[:20] if doctor.name else "医生"},
                         "time2": {"value": time_str},
@@ -373,7 +404,7 @@ def _send_reminder_for_level(
                     }
                     success = _send_wechat_subscribe_message(
                         access_token=wechat_access_token,
-                        openid=user.openid,
+                        openid=openid,
                         template_id=wechat_template_id,
                         data=message_data,
                         page=f"pages/appointment/detail?id={appointment.id}"

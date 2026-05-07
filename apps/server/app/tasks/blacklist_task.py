@@ -19,6 +19,7 @@ from app.models.admin import Admin
 from app.models.settings import SystemSetting as Settings
 from app.models.tenant import Tenant
 from app.middleware.tenant_context import set_tenant_context, clear_tenant_context
+from app.common.sync_account_helper import get_account_name
 from app.modules.appointments.common import APPOINTMENT_STATUS
 import uuid
 
@@ -127,17 +128,44 @@ def _get_setting_value(db: Session, category: str, key: str, default=None):
 
 
 def _notify_admins_sync(db: Session, title: str, content: str):
-    """发送消息通知给所有管理员（同步版本）"""
+    """发送消息通知给所有管理员（同步版本，Account 表优先）"""
     try:
-        result = db.execute(
-            select(Admin).where(Admin.status == 1)
-        )
-        admins = result.scalars().all()
-        
-        for admin in admins:
+        # 尝试从租户上下文获取 tenant_id
+        try:
+            from app.middleware.tenant_context import get_current_tenant_id
+            current_tenant_id = get_current_tenant_id()
+        except Exception:
+            current_tenant_id = None
+
+        # 优先从 Account 表获取管理员列表
+        admin_ids = []
+        try:
+            from app.models.account import Account, AccountAdmin
+            query = (
+                select(Account.id)
+                .join(AccountAdmin, Account.id == AccountAdmin.account_id)
+                .where(Account.status == 1)
+            )
+            if current_tenant_id:
+                query = query.where(Account.tenant_id == current_tenant_id)
+            account_result = db.execute(query)
+            admin_ids = [row[0] for row in account_result.all()]
+        except Exception:
+            pass
+
+        # fallback 到旧表
+        if not admin_ids:
+            query = select(Admin).where(Admin.status == 1)
+            if current_tenant_id:
+                query = query.where(Admin.tenant_id == current_tenant_id)
+            result = db.execute(query)
+            admins = result.scalars().all()
+            admin_ids = [a.id for a in admins]
+
+        for aid in admin_ids:
             message = Message(
                 id=str(uuid.uuid4()),
-                user_id=admin.id,
+                user_id=aid,
                 user_type='admin',
                 title=title,
                 content=content,
@@ -189,12 +217,10 @@ def auto_release_blacklist_task():
                 record.status = 0
                 record.updated_at = now
                 
-                # 获取用户信息
+                # 获取用户信息（Account 表优先）
                 user_info = "未知用户"
                 if record.user_id:
-                    user = db.get(User, record.user_id)
-                    if user:
-                        user_info = user.nickname or user.phone or "未知用户"
+                    user_info = get_account_name(db, record.user_id, "user") or "未知用户"
                 elif record.keyword:
                     user_info = record.keyword
                 
@@ -352,9 +378,8 @@ def mark_no_show_appointments_task():
                             db.add(blacklist)
                             blacklisted_count += 1
 
-                            # 发送通知
-                            user = db.get(User, user_id)
-                            user_info = user.nickname or user.phone if user else '未知用户'
+                            # 发送通知（Account 表优先获取用户名）
+                            user_info = get_account_name(db, user_id, "user") or '未知用户'
                             _notify_admins_sync(
                                 db,
                                 title='用户已自动加入黑名单',
@@ -454,9 +479,8 @@ def check_and_add_blacklist(user_id: str):
                     )
                     db.add(blacklist)
 
-                    # 发送通知
-                    user = db.get(User, user_id)
-                    user_info = user.nickname or user.phone if user else '未知用户'
+                    # 发送通知（Account 表优先获取用户名）
+                    user_info = get_account_name(db, user_id, "user") or '未知用户'
                     _notify_admins_sync(
                         db,
                         title='用户已自动加入黑名单',

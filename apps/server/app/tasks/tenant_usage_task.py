@@ -19,6 +19,7 @@ from app.models.admin import Admin
 from app.models.doctor import Doctor
 from app.models.appointment import Appointment
 from app.models.user import User, Patient
+from app.common.sync_account_helper import count_tenant_accounts
 
 logger = logging.getLogger(__name__)
 
@@ -337,11 +338,11 @@ def get_tenant_usage_summary(tenant_id: str):
             select(func.count(Store.id)).where(Store.tenant_id == tenant_id)
         ) or 0
 
-        admin_count = db.scalar(
-            select(func.count(Admin.id)).where(Admin.tenant_id == tenant_id)
-        ) or 0
-
-        doctor_count = _count_active_doctors(db, tenant_id)
+        # 尝试从 Account 表统计，无数据则 fallback 到旧表
+        # count_tenant_accounts 内部已实现 Account 优先 + 旧表 fallback 策略
+        account_counts = count_tenant_accounts(db, tenant_id)
+        admin_count = account_counts["admin_count"]
+        doctor_count = account_counts["doctor_count"]
 
         # 本月预约数
         month_start = date.today().replace(day=1)
