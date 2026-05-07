@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 
 from app.middleware.tenant_context import get_current_tenant_id
@@ -40,12 +41,14 @@ class QuotaChecker:
         self.db = db
 
     async def _get_tenant(self, tenant_id: Optional[str] = None) -> Optional[Tenant]:
-        """获取租户对象"""
+        """获取租户对象（预加载 subscription_plan 避免懒加载）"""
         effective_tenant_id = tenant_id or get_current_tenant_id()
         if not effective_tenant_id:
             return None
         result = await self.db.execute(
-            select(Tenant).where(Tenant.id == effective_tenant_id)
+            select(Tenant)
+            .options(selectinload(Tenant.subscription_plan))
+            .where(Tenant.id == effective_tenant_id)
         )
         return result.scalar_one_or_none()
 

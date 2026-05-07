@@ -34,6 +34,7 @@ class DoctorMutationMixin:
         if data.phone:
             user = User(
                 id=str(uuid.uuid4()),
+                tenant_id=tenant_id,
                 phone=data.phone,
                 password_hash=password_hash,
                 nickname=data.name,
@@ -81,6 +82,7 @@ class DoctorMutationMixin:
         )
         set_create_audit(doctor, operator_id)
         self.db.add(doctor)
+        await self.db.flush()
 
         # 双写同步: Doctor -> accounts + account_doctors
         await AccountSyncService.sync_doctor_to_account(
