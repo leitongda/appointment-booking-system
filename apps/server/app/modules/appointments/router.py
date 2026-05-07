@@ -66,14 +66,16 @@ async def create_appointment(
     if appointment.doctor_id:
         try:
             from app.core.websocket import notify_new_appointment
+            from app.schemas.appointment import AppointmentResponse
+            _schedule = AppointmentResponse._safe_get_relation(appointment, "schedule")
             await notify_new_appointment(
                 doctor_id=appointment.doctor_id,
                 appointment_data={
                     "appointment_id": appointment.id,
                     "patient_name": appointment.patient_name,
                     "queue_number": appointment.queue_number,
-                    "schedule_date": appointment.schedule.schedule_date.isoformat() if appointment.schedule else None,
-                    "time_slot": appointment.schedule.time_slot if appointment.schedule else None,
+                    "schedule_date": _schedule.schedule_date.isoformat() if _schedule else None,
+                    "time_slot": _schedule.time_slot if _schedule else None,
                 }
             )
         except Exception:

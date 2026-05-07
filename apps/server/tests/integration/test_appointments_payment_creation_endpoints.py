@@ -47,7 +47,7 @@ async def test_create_appointment_keeps_free_path_shape(async_client, test_appoi
     finally:
         app.dependency_overrides.pop(deps.get_current_user_or_admin, None)
 
-    assert response.status_code == 200
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
     payload = response_data(response)
     assert payload["appointmentNo"] == test_appointment.appointment_no
     assert "appointment" not in payload

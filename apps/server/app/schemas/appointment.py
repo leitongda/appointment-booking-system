@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import datetime, date, time
 from decimal import Decimal
+from sqlalchemy import inspect as sa_inspect
 from app.core.config import settings
 
 
@@ -79,7 +80,7 @@ class AppointmentResponse(BaseModel):
 
     @staticmethod
     def _resolve_check_in_method(appointment) -> Optional[str]:
-        checkin_logs = getattr(appointment, "checkin_logs", None) or []
+        checkin_logs = AppointmentResponse._safe_get_relation(appointment, "checkin_logs") or []
         successful_logs = [log for log in checkin_logs if getattr(log, "status", None) == "SUCCESS"]
         if not successful_logs:
             return None
@@ -90,11 +91,22 @@ class AppointmentResponse(BaseModel):
         )
         return getattr(latest_log, "checkin_method", None)
 
+    @staticmethod
+    def _safe_get_relation(obj, attr: str):
+        """安全获取 SQLAlchemy 关系属性，避免在 async 上下文中触发懒加载"""
+        try:
+            state = sa_inspect(obj)
+            if attr in state.unloaded:
+                return None
+        except Exception:
+            pass
+        return getattr(obj, attr, None)
+
     @classmethod
     def from_appointment(cls, appointment) -> "AppointmentResponse":
         """从 Appointment ORM 对象构造响应，自动提取排班关联字段。"""
-        schedule = getattr(appointment, "schedule", None)
-        store = getattr(schedule, "store", None) if schedule else None
+        schedule = cls._safe_get_relation(appointment, "schedule")
+        store = cls._safe_get_relation(schedule, "store") if schedule else None
         return cls(
             id=appointment.id,
             appointment_no=appointment.appointment_no,
