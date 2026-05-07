@@ -199,4 +199,14 @@ export const doctorApi = {
   getMyRuleSets: (params?: DoctorRuleSetListParams): Promise<any> => {
     return request.get('/doctor-portal/rule-sets', { params });
   },
+
+  /**
+   * 医生修改密码
+   */
+  changePassword: (data: { oldPassword: string; newPassword: string }): Promise<{ message: string }> => {
+    return request.post('/doctors/change-password', {
+      old_password: data.oldPassword,
+      new_password: data.newPassword,
+    });
+  },
 };

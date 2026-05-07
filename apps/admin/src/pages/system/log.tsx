@@ -51,8 +51,24 @@ const LogPage: React.FC = () => {
     {
       title: '操作人',
       dataIndex: 'adminName',
-      width: 100,
+      width: 120,
       ellipsis: true,
+      render: (_, record) => (
+        <Space size="small">
+          {record.actorRole && (
+            <Tag color={
+              record.actorRole === 'admin' ? 'blue' :
+              record.actorRole === 'doctor' ? 'green' :
+              'default'
+            }>
+              {record.actorRole === 'admin' ? '管理员' :
+               record.actorRole === 'doctor' ? '医生' :
+               '用户'}
+            </Tag>
+          )}
+          <span>{record.actorName || record.adminName || '-'}</span>
+        </Space>
+      ),
     },
     {
       title: '模块',
@@ -194,7 +210,20 @@ const LogPage: React.FC = () => {
           <Space direction="vertical" style={{ width: '100%' }} size="middle">
             <div>
               <Text type="secondary">操作人：</Text>
-              <Text strong>{currentLog.adminName || '-'}</Text>
+              <Space size="small">
+                {currentLog.actorRole && (
+                  <Tag color={
+                    currentLog.actorRole === 'admin' ? 'blue' :
+                    currentLog.actorRole === 'doctor' ? 'green' :
+                    'default'
+                  }>
+                    {currentLog.actorRole === 'admin' ? '管理员' :
+                     currentLog.actorRole === 'doctor' ? '医生' :
+                     '用户'}
+                  </Tag>
+                )}
+                <Text strong>{currentLog.actorName || currentLog.adminName || '-'}</Text>
+              </Space>
             </div>
             <div>
               <Text type="secondary">模块：</Text>

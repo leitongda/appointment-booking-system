@@ -12,6 +12,108 @@ export interface WechatLoginResponse {
   expiresIn?: number;
 }
 
+// ============================================================
+// 统一账号类型（对应后端 auth_types.py 的 AccountInfo）
+// ============================================================
+
+/** 角色类型枚举 */
+export type RoleType = 'admin' | 'doctor' | 'user';
+
+/** 管理员角色额外信息 */
+export interface AdminAccountInfo {
+  roleId?: string;
+  roleCode?: string;
+  roleName?: string;
+  permissions?: string[];
+  currentStoreId?: string;
+  currentStoreName?: string;
+  currentStoreLogo?: string;
+  currentStoreTheme?: string;
+  storeIds?: string[];
+  stores?: { id: string; name: string; logo?: string }[];
+  tenantId?: string;
+  tenantName?: string;
+  tenantCode?: string;
+  tenantStatus?: number;
+  isSuperAdmin?: boolean;
+  isStoreAdmin?: boolean;
+  isTenantAdmin?: boolean;
+  isPlatformAdmin?: boolean;
+  canViewAllStores?: boolean;
+  canSwitchStores?: boolean;
+}
+
+/** 医生角色额外信息 */
+export interface DoctorAccountInfo {
+  id?: string;
+  name?: string;
+  departmentId?: string;
+  departmentName?: string;
+  title?: string;
+  storeId?: string;
+  storeName?: string;
+  permissions?: string[];
+}
+
+/** 患者/用户角色额外信息 */
+export interface UserAccountInfo {
+  openid?: string;
+  points?: number;
+  isDoctor?: boolean;
+  doctorId?: string;
+  permissions?: string[];
+}
+
+/** 统一账号信息（对应后端 AccountInfo.to_dict() 的返回格式） */
+export interface AccountInfo {
+  // 基础信息
+  id: string;
+  roleType: RoleType;
+  tenantId?: string;
+  phone?: string;
+  name?: string;
+  nickname?: string;
+  avatar?: string;
+  status: number;
+
+  // 管理员角色标志（扁平化，由后端 to_dict 合并）
+  username?: string;
+  isAdmin?: boolean;
+  isDoctor?: boolean;
+  permissions?: string[];
+
+  // 管理员特有字段（扁平化后直接在顶层）
+  roleId?: string;
+  roleCode?: string;
+  roleName?: string;
+  currentStoreId?: string;
+  currentStoreName?: string;
+  storeIds?: string[];
+  stores?: { id: string; name: string; logo?: string }[];
+  isSuperAdmin?: boolean;
+  isStoreAdmin?: boolean;
+  isTenantAdmin?: boolean;
+  isPlatformAdmin?: boolean;
+  canSwitchStores?: boolean;
+
+  // 医生特有字段（嵌套在 doctor 字段中）
+  doctor?: DoctorAccountInfo;
+  doctorId?: string;
+
+  // 用户特有字段（扁平化后直接在顶层）
+  gender?: number;
+  openid?: string;
+  points?: number;
+
+  // 租户信息
+  tenant?: {
+    id?: string;
+    name?: string;
+    tenantCode?: string;
+    status?: number;
+  };
+}
+
 /**
  * 用户登录
  */
@@ -102,6 +204,43 @@ export const doctorLogin = (data: { phone: string; password: string }): Promise<
   return request.post('/doctors/login', data);
 };
 
+/**
+ * 用户修改密码
+ */
+export const changePassword = (data: { oldPassword: string; newPassword: string }): Promise<{ message: string }> => {
+  return request.post(`${PREFIX}/change-password`, {
+    old_password: data.oldPassword,
+    new_password: data.newPassword,
+  });
+};
+
+/**
+ * 发送验证码
+ */
+export const sendAuthCode = (phone: string, codeType: 'login' | 'register' | 'reset' = 'reset'): Promise<{ message: string; code?: string }> => {
+  return request.post(`${PREFIX}/send-code`, { phone, code_type: codeType });
+};
+
+/**
+ * 忘记密码（通过验证码重置）
+ */
+export const forgotPassword = (data: { phone: string; verificationCode: string; newPassword: string }): Promise<{ message: string }> => {
+  return request.post(`${PREFIX}/forgot-password`, {
+    phone: data.phone,
+    verification_code: data.verificationCode,
+    new_password: data.newPassword,
+  });
+};
+
+/**
+ * 获取统一账号信息（对应后端 get_current_account）
+ * 返回 AccountInfo 格式的数据，包含角色类型、权限等信息
+ * 注意：后端可能尚未暴露此路由，目前为预留接口
+ */
+export const getAccountMe = (): Promise<AccountInfo> => {
+  return request.get(`${PREFIX}/account/me`);
+};
+
 export const authApi = {
   login,
   register,
@@ -114,4 +253,9 @@ export const authApi = {
   wechatBindUserInfo,
   adminLogin,
   doctorLogin,
+  changePassword,
+  sendAuthCode,
+  forgotPassword,
+  /** 获取统一账号信息（预留，后端路由就绪后可用） */
+  getAccountMe,
 };

@@ -1,10 +1,11 @@
-import { message, Dropdown, Avatar, Space, Modal } from 'antd';
+import { message, Dropdown, Avatar, Space, Modal, Form, Input } from 'antd';
 import type { RequestConfig, RunTimeLayoutConfig } from 'umi';
 import { history } from 'umi';
+import { useState, useCallback } from 'react';
 import { getToken, removeToken, initCrossTabSync, destroyCrossTabSync } from '@hospital/shared';
 import type { CrossTabEvent } from '@hospital/shared';
 import { doctorApi, setBaseURL } from '@hospital/api';
-import { UserOutlined, LogoutOutlined, SettingOutlined } from '@ant-design/icons';
+import { UserOutlined, LogoutOutlined, SettingOutlined, LockOutlined } from '@ant-design/icons';
 import { initApiConfig } from '@/utils/request';
 
 // 设置 API 基础路径（从环境变量读取，支持动态配置）
@@ -54,6 +55,9 @@ interface CurrentDoctor {
   departmentName?: string;
   storeId?: string;
   storeName?: string;
+  // 统一账号字段（兼容后端 AccountInfo.to_dict() 返回格式）
+  roleType?: 'admin' | 'doctor' | 'user';
+  permissions?: string[];
 }
 
 export async function getInitialState(): Promise<{ currentDoctor?: CurrentDoctor }> {
@@ -70,7 +74,7 @@ export async function getInitialState(): Promise<{ currentDoctor?: CurrentDoctor
   try {
     // 使用医生专用 API 获取当前登录医生信息
     const doctor = await doctorApi.getMe();
-    return { 
+    return {
       currentDoctor: {
         id: doctor.id,
         name: doctor.name,
@@ -81,6 +85,10 @@ export async function getInitialState(): Promise<{ currentDoctor?: CurrentDoctor
         departmentName: doctor.departmentName,
         storeId: doctor.storeId,
         storeName: doctor.storeName,
+        // 兼容统一账号格式：默认 roleType 为 doctor，permissions 为空数组
+        // 后端切换到统一 AccountInfo 后会直接返回这些字段
+        roleType: (doctor as any).roleType || 'doctor',
+        permissions: (doctor as any).permissions || [],
       }
     };
   } catch (error) {
@@ -90,6 +98,10 @@ export async function getInitialState(): Promise<{ currentDoctor?: CurrentDoctor
 }
 
 export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) => {
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [form] = Form.useForm();
+
   const handleLogout = () => {
     removeToken();
     localStorage.removeItem('doctor');
@@ -97,6 +109,40 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
     history.push('/login');
     message.success('已退出登录');
   };
+
+  const handleChangePassword = useCallback(async (values: { oldPassword: string; newPassword: string; confirmPassword: string }) => {
+    if (values.newPassword !== values.confirmPassword) {
+      message.error('两次输入的新密码不一致');
+      return;
+    }
+
+    // 验证密码长度
+    if (!values.oldPassword || values.newPassword.length < 6 || values.newPassword.length > 20) {
+      message.error('密码长度必须为6-20位');
+      return;
+    }
+
+    // 验证新旧密码不能相同
+    if (values.oldPassword === values.newPassword) {
+      message.error('新密码不能与原密码相同');
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      await doctorApi.changePassword({
+        oldPassword: values.oldPassword,
+        newPassword: values.newPassword,
+      });
+      message.success('密码修改成功');
+      setPasswordModalVisible(false);
+      form.resetFields();
+    } catch (error: any) {
+      message.error(error.message || '密码修改失败');
+    } finally {
+      setPasswordLoading(false);
+    }
+  }, [form]);
 
   return {
     logo: '/logo.svg',
@@ -115,6 +161,12 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
           onClick: () => history.push('/settings/notification'),
         },
         {
+          key: 'change-password',
+          icon: <LockOutlined />,
+          label: '修改密码',
+          onClick: () => setPasswordModalVisible(true),
+        },
+        {
           type: 'divider' as const,
         },
         {
@@ -126,21 +178,82 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
       ];
 
       return (
-        <Dropdown menu={{ items: menuItems }} placement="bottomRight">
-          <Space style={{ cursor: 'pointer', padding: '0 12px' }}>
-            <Avatar 
-              size="small" 
-              icon={<UserOutlined />} 
-              src={initialState.currentDoctor.avatar}
-            />
-            <span>{initialState.currentDoctor.name}</span>
-            {initialState.currentDoctor.title && (
-              <span style={{ color: '#999', fontSize: 12 }}>
-                ({initialState.currentDoctor.title})
-              </span>
-            )}
-          </Space>
-        </Dropdown>
+        <>
+          <Dropdown menu={{ items: menuItems }} placement="bottomRight">
+            <Space style={{ cursor: 'pointer', padding: '0 12px' }}>
+              <Avatar
+                size="small"
+                icon={<UserOutlined />}
+                src={initialState.currentDoctor.avatar}
+              />
+              <span>{initialState.currentDoctor.name}</span>
+              {initialState.currentDoctor.title && (
+                <span style={{ color: '#999', fontSize: 12 }}>
+                  ({initialState.currentDoctor.title})
+                </span>
+              )}
+            </Space>
+          </Dropdown>
+
+          {/* 修改密码弹窗 */}
+          <Modal
+            title="修改密码"
+            open={passwordModalVisible}
+            onCancel={() => {
+              setPasswordModalVisible(false);
+              form.resetFields();
+            }}
+            onOk={() => form.submit()}
+            confirmLoading={passwordLoading}
+            destroyOnClose
+          >
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleChangePassword}
+            >
+              <Form.Item
+                name="oldPassword"
+                label="原密码"
+                rules={[
+                  { required: true, message: '请输入原密码' },
+                  { min: 6, message: '密码至少6位' },
+                ]}
+              >
+                <Input.Password placeholder="请输入原密码" />
+              </Form.Item>
+              <Form.Item
+                name="newPassword"
+                label="新密码"
+                rules={[
+                  { required: true, message: '请输入新密码' },
+                  { min: 6, message: '密码至少6位' },
+                  { max: 20, message: '密码最多20位' },
+                ]}
+              >
+                <Input.Password placeholder="请输入新密码" />
+              </Form.Item>
+              <Form.Item
+                name="confirmPassword"
+                label="确认新密码"
+                dependencies={['newPassword']}
+                rules={[
+                  { required: true, message: '请确认新密码' },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (!value || getFieldValue('newPassword') === value) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(new Error('两次输入的密码不一致'));
+                    },
+                  }),
+                ]}
+              >
+                <Input.Password placeholder="请再次输入新密码" />
+              </Form.Item>
+            </Form>
+          </Modal>
+        </>
       );
     },
     onPageChange: () => {

@@ -44,10 +44,7 @@ const LoginPage: React.FC = () => {
   };
 
   const handleForgotPassword = () => {
-    Dialog.alert({
-      content: '请联系医院客服重置密码：400-xxx-xxxx',
-      confirmText: '我知道了',
-    });
+    history.push('/login/forgot-password');
   };
 
   const handleRegister = () => {

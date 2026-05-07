@@ -173,6 +173,11 @@ declare namespace API {
     name?: string;
     avatar?: string;
     phone?: string;
+    // 统一账号字段（后端 AccountInfo.to_dict() 返回）
+    roleType?: 'admin' | 'doctor' | 'user';
+    tenantId?: string;
+    email?: string;
+    // 角色信息
     roleId?: string;
     roleName?: string;
     roleCode?: string;
@@ -189,7 +194,24 @@ declare namespace API {
     permissions?: string[];
     isSuperAdmin?: boolean;
     isStoreAdmin?: boolean;
+    isTenantAdmin?: boolean;
+    isPlatformAdmin?: boolean;
     canSwitchStores?: boolean;
+    // 租户状态（多租户支持）
+    tenant?: {
+      id?: string;
+      name?: string;
+      tenantCode?: string;
+      status?: number;
+      subscriptionPlanName?: string;
+      subscriptionEndAt?: string;
+      isSubscriptionActive?: boolean;
+    };
+    // 其他字段
+    status?: number;
+    lastLoginAt?: string;
+    lastLoginIp?: string;
+    createdAt?: string;
   }
 
   interface LoginParams {

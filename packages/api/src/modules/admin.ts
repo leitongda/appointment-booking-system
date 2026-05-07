@@ -172,6 +172,11 @@ export interface WechatCheckResult {
 // ========== 操作日志 ==========
 export interface OperationLog {
   id: string;
+  // 新字段：角色相关
+  actorId?: string;
+  actorName?: string;
+  actorRole?: 'admin' | 'doctor' | 'user';
+  // 保留旧字段以向后兼容
   adminId?: string;
   adminName?: string;
   module?: string;

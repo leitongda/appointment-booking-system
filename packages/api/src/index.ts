@@ -107,7 +107,14 @@ export type { StoreAdmin } from './modules/store';
 
 // Auth types are re-exported from @hospital/shared
 export type { LoginParams, LoginResult } from '@hospital/shared';
-export type { WechatLoginResponse } from './modules/auth';
+export type {
+  WechatLoginResponse,
+  AccountInfo,
+  RoleType,
+  AdminAccountInfo,
+  DoctorAccountInfo,
+  UserAccountInfo,
+} from './modules/auth';
 export type { PatientCreateData } from './modules/user';
 export type { DepartmentListParams, DepartmentCreateData } from './modules/department';
 export type { DoctorListParams, DoctorCreateData } from './modules/doctor';

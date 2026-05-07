@@ -34,6 +34,7 @@ from app.models.admin import Admin, Role
 from app.models.rule_set import RuleSet, ShiftType
 from app.models.tenant import Tenant, SubscriptionPlan
 from app.models.refund import RefundRecord
+from app.models.account import Account, AccountAdmin, AccountDoctor, AccountUser
 from app.modules.appointments.service import AppointmentService
 
 
@@ -647,3 +648,144 @@ async def test_rule_set(db_session: AsyncSession, test_shift_type: ShiftType) ->
 
     await db_session.refresh(rule_set)
     return rule_set
+
+
+# ==================== 统一账号 Fixtures ====================
+
+
+@pytest_asyncio.fixture
+async def sample_account(db_session: AsyncSession, test_tenant: Tenant) -> Account:
+    """创建基础 Account 记录"""
+    account = Account(
+        id=str(uuid4()),
+        tenant_id=test_tenant.id,
+        phone="13800000001",
+        username="test_account",
+        password_hash="$2b$12$test_hash_not_for_production",
+        nickname="测试账号",
+        name="测试账号",
+        gender=0,
+        status=1,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(account)
+    await db_session.commit()
+    await db_session.refresh(account)
+    return account
+
+
+@pytest_asyncio.fixture
+async def sample_admin_account(
+    db_session: AsyncSession,
+    test_tenant: Tenant,
+    test_store: Store,
+    test_super_admin_role: Role,
+) -> Account:
+    """创建 Account + AccountAdmin 记录"""
+    account_id = str(uuid4())
+    account = Account(
+        id=account_id,
+        tenant_id=test_tenant.id,
+        phone="13800000010",
+        username="test_admin_account",
+        password_hash="$2b$12$test_hash_not_for_production",
+        nickname="管理员账号",
+        name="管理员账号",
+        gender=0,
+        status=1,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(account)
+    await db_session.flush()
+
+    account_admin = AccountAdmin(
+        account_id=account_id,
+        role_id=test_super_admin_role.id,
+        current_store_id=test_store.id,
+        email="admin@example.com",
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(account_admin)
+    await db_session.commit()
+    await db_session.refresh(account)
+    return account
+
+
+@pytest_asyncio.fixture
+async def sample_doctor_account(
+    db_session: AsyncSession,
+    test_tenant: Tenant,
+    test_store: Store,
+    test_department: Department,
+) -> Account:
+    """创建 Account + AccountDoctor 记录"""
+    account_id = str(uuid4())
+    account = Account(
+        id=account_id,
+        tenant_id=test_tenant.id,
+        phone="13800000020",
+        username="test_doctor_account",
+        password_hash="$2b$12$test_hash_not_for_production",
+        nickname="医生账号",
+        name="医生账号",
+        gender=1,
+        status=1,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(account)
+    await db_session.flush()
+
+    account_doctor = AccountDoctor(
+        account_id=account_id,
+        store_id=test_store.id,
+        department_id=test_department.id,
+        title="主治医师",
+        years_of_experience=5,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(account_doctor)
+    await db_session.commit()
+    await db_session.refresh(account)
+    return account
+
+
+@pytest_asyncio.fixture
+async def sample_user_account(
+    db_session: AsyncSession,
+    test_tenant: Tenant,
+) -> Account:
+    """创建 Account + AccountUser 记录"""
+    account_id = str(uuid4())
+    account = Account(
+        id=account_id,
+        tenant_id=test_tenant.id,
+        phone="13800000030",
+        username="13800000030",
+        password_hash="$2b$12$test_hash_not_for_production",
+        nickname="用户账号",
+        name="用户账号",
+        gender=0,
+        status=1,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(account)
+    await db_session.flush()
+
+    account_user = AccountUser(
+        account_id=account_id,
+        tenant_id=test_tenant.id,
+        openid="test_openid_fixture",
+        points=50,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db_session.add(account_user)
+    await db_session.commit()
+    await db_session.refresh(account)
+    return account

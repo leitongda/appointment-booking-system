@@ -397,7 +397,12 @@ export async function getInitialState(): Promise<{
   const fetchUserInfo = async () => {
     try {
       const currentUser = await adminApi.getCurrentAdmin();
-      return currentUser as API.CurrentUser;
+      // 兼容统一账号格式：如果后端返回了 roleType，直接使用；否则默认为 admin
+      const user = currentUser as API.CurrentUser;
+      if (!user.roleType) {
+        user.roleType = 'admin';
+      }
+      return user;
     } catch (error: any) {
       // 401 已由响应拦截器处理（弹框 + 清 token），不再重复操作
       if (error?.isUnauthorized?.()) return undefined;

@@ -6,6 +6,14 @@ export interface User {
   gender: number;
   status: number;
   createdAt?: string;
+  // 统一账号字段（兼容后端 AccountInfo.to_dict() 返回格式）
+  roleType?: 'admin' | 'doctor' | 'user';
+  permissions?: string[];
+  // 用户额外信息（AccountInfo.to_dict() 扁平化后的字段）
+  openid?: string;
+  points?: number;
+  isDoctor?: boolean;
+  doctorId?: string;
 }
 
 export interface LoginParams {
