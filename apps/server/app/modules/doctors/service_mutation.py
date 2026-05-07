@@ -110,6 +110,7 @@ class DoctorMutationMixin:
                 setattr(doctor, field, value)
 
         set_update_audit(doctor, operator_id)
+        await self.db.flush()
 
         # 双写同步: Doctor -> accounts + account_doctors
         await AccountSyncService.sync_doctor_to_account(
@@ -150,6 +151,7 @@ class DoctorMutationMixin:
         # 软删除：设置 deleted_at
         doctor.deleted_at = datetime.now()
         doctor.status = 0  # 同时禁用
+        await self.db.flush()
 
         # 双写同步: 软删除同步到 accounts + account_doctors
         await AccountSyncService.soft_delete_doctor_from_account(

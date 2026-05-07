@@ -311,6 +311,7 @@ class AdminService:
                 admin.current_store_id = store_ids[0] if store_ids else None
 
         set_update_audit(admin, operator_id)
+        await self.db.flush()
 
         # 双写同步: Admin -> accounts + account_admins
         await AccountSyncService.sync_admin_to_account(
@@ -339,6 +340,7 @@ class AdminService:
             raise ValueError("; ".join(errors))
 
         admin.password_hash = get_password_hash(new_password)
+        await self.db.flush()
 
         # 双写同步: 密码变更同步到 accounts
         await AccountSyncService.sync_admin_to_account(
@@ -353,6 +355,7 @@ class AdminService:
         if admin:
             admin.last_login_at = datetime.now()
             admin.last_login_ip = ip
+            await self.db.flush()
 
             # 双写同步: 登录信息同步到 accounts
             await AccountSyncService.update_admin_login_info(
@@ -377,6 +380,7 @@ class AdminService:
                 raise ValueError("不能删除最后一个超级管理员")
 
         await self.db.delete(admin)
+        await self.db.flush()
 
         # 双写同步: 从 accounts 删除对应记录
         await AccountSyncService.delete_admin_from_account(

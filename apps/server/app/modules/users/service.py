@@ -72,6 +72,7 @@ class UserService:
         user.wechat_synced_at = datetime.now()
 
         set_update_audit(user, operator_id)
+        await self.db.flush()
 
         # 双写同步: User -> accounts + account_users
         await AccountSyncService.sync_user_to_account(
@@ -86,8 +87,12 @@ class UserService:
         phone = data.phone.strip() if data.phone else None
         phone = phone if phone else None  # 空字符串也转为 None
 
+        from app.middleware.tenant_context import get_current_tenant_id
+        tenant_id = get_current_tenant_id()
+
         user = User(
             id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
             phone=phone,
             password_hash=get_password_hash(data.password) if data.password else "",
             openid=data.openid,
@@ -101,6 +106,7 @@ class UserService:
         )
         set_create_audit(user, None)
         self.db.add(user)
+        await self.db.flush()
 
         # 双写同步: User -> accounts + account_users
         await AccountSyncService.sync_user_to_account(
@@ -121,6 +127,7 @@ class UserService:
             setattr(user, field, value)
 
         set_update_audit(user, operator_id)
+        await self.db.flush()
 
         # 双写同步: User -> accounts + account_users
         await AccountSyncService.sync_user_to_account(
@@ -152,6 +159,7 @@ class UserService:
         # 设置新密码
         user.password_hash = get_password_hash(new_password)
         set_update_audit(user, user_id)
+        await self.db.flush()
 
         # 双写同步: 密码变更同步到 accounts
         await AccountSyncService.sync_user_to_account(
@@ -174,6 +182,7 @@ class UserService:
 
         user.phone = phone
         set_update_audit(user, user_id)
+        await self.db.flush()
 
         # 双写同步: 手机号变更同步到 accounts
         await AccountSyncService.sync_user_to_account(

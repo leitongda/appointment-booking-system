@@ -237,6 +237,7 @@ async def change_password(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="; ".join(errors))
 
     user.password_hash = get_password_hash(data.new_password)
+    await db.flush()
 
     # 双写同步: 密码变更同步到 accounts
     await AccountSyncService.sync_user_to_account(
@@ -360,6 +361,7 @@ async def forgot_password(
 
     # 更新密码
     user.password_hash = get_password_hash(data.new_password)
+    await db.flush()
 
     # 双写同步: 密码重置同步到 accounts
     await AccountSyncService.sync_user_to_account(
@@ -461,6 +463,7 @@ async def wechat_get_phone(data: WechatPhoneRequest, db: AsyncSession = Depends(
             update_data = {}
             if not user.openid:
                 user.openid = data.openid
+                await db.flush()
                 # 双写同步: openid 更新
                 await AccountSyncService.sync_user_to_account(db, user.id)
                 await db.commit()
@@ -520,6 +523,7 @@ async def wechat_bind_phone(data: WechatBindPhoneRequest, db: AsyncSession = Dep
         if user.openid and user.openid != data.openid:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该手机号已绑定其他微信账号")
         user.openid = data.openid
+        await db.flush()
         # 双写同步: openid 绑定同步
         await AccountSyncService.sync_user_to_account(db, user.id)
         await db.commit()
