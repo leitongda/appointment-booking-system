@@ -1,6 +1,11 @@
 """认证依赖
 
 提供用户、医生、管理员的认证依赖函数。
+
+【重构说明】
+原有 7 个认证函数已重构为 3 个统一函数（在 auth_unified.py 中）。
+本文件保留旧函数作为包装器，调用新的统一函数，确保向后兼容。
+渐进式迁移期间，现有 API 路由无需修改。
 """
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -8,14 +13,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from typing import Optional
-import hashlib
-import json
 
 from app.db.session import get_db
 from app.core.security import decode_token
 from app.core.redis import RedisCache
 from app.models.user import User
 from app.models.doctor import Doctor
+from app.models.admin import Admin
 from app.models.tenant import Tenant
 from jose import jwt, JWTError
 from app.core.config import settings
@@ -24,6 +28,13 @@ from app.middleware.tenant_context import (
     get_current_tenant_code,
     set_tenant_context,
 )
+
+# 导入新的统一认证函数
+from app.common.auth_unified import (
+    get_current_account,
+    get_optional_account as get_optional_account_unified,
+)
+from app.common.auth_types import RoleType
 
 security = HTTPBearer(
     auto_error=False,
@@ -38,12 +49,16 @@ async def get_current_user(
 ) -> dict:
     """获取当前用户（增强版，包含租户校验）
 
+    【重构】现在调用统一的 get_current_account 函数，
+    然后转换为旧格式的 dict 返回，确保向后兼容。
+
     多租户支持：
     - 用户必须属于当前请求的租户
     - 如果请求有租户上下文，验证用户的 tenant_id 是否匹配
     - 同一手机号可在不同租户分别注册
     """
-    # 处理未提供 Authorization header 的情况
+    from app.common.auth_unified import _get_user_account
+
     if not credentials:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="未提供身份凭证，请先登录")
 
@@ -57,50 +72,21 @@ async def get_current_user(
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="身份验证失败，请重新登录")
 
-    # 从数据库获取用户
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
+    # 调用统一函数
+    account = await _get_user_account(user_id, db)
 
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号不存在，请检查后重试")
-
-    if user.status != 1:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
-
-    # 多租户校验：如果请求有租户上下文，验证用户是否属于该租户
-    current_tenant_id = get_current_tenant_id()
-    current_tenant_code = get_current_tenant_code()
-    if current_tenant_id and user.tenant_id:
-        if user.tenant_id != current_tenant_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="用户不属于当前租户"
-            )
-    elif not current_tenant_id and not current_tenant_code and user.tenant_id:
-        set_tenant_context(user.tenant_id)
-
-    # 检查是否是医生
-    doctor_result = await db.execute(select(Doctor).where(Doctor.user_id == user_id, Doctor.deleted_at.is_(None)))
-    doctor = doctor_result.scalar_one_or_none()
-
-    return {
-        "id": user.id,
-        "phone": user.phone,
-        "nickname": user.nickname,
-        "avatar": user.avatar,
-        "gender": user.gender,
-        "status": user.status,
-        "tenant_id": user.tenant_id,
-        "doctor_id": doctor.id if doctor else None,
-        "is_doctor": doctor is not None,
-    }
+    # 转换为旧格式（保持兼容）
+    return account.to_dict()
 
 
 async def get_current_doctor(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> dict:
-    """获取当前医生用户（通过 User 表关联）"""
+    """获取当前医生用户（通过 User 表关联）
+
+    【重构】验证用户是否是医生，如果是则返回医生信息。
+    """
     if not current_user.get("is_doctor"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要医生权限，请联系管理员开通")
 
@@ -108,23 +94,17 @@ async def get_current_doctor(
     if not doctor_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="医生信息不存在，请检查后重试")
 
-    # 获取医生详情
-    result = await db.execute(select(Doctor).where(Doctor.id == doctor_id, Doctor.deleted_at.is_(None)))
-    doctor = result.scalar_one_or_none()
-
-    if not doctor:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="医生信息不存在，请检查后重试")
-
-    if doctor.status != 1:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="医生账号已被禁用，请联系管理员")
+    # 调用统一函数获取医生信息
+    from app.common.auth_unified import _get_doctor_account
+    account = await _get_doctor_account(doctor_id, db)
 
     return {
         **current_user,
         "doctor": {
-            "id": doctor.id,
-            "name": doctor.name,
-            "department_id": doctor.department_id,
-            "title": doctor.title,
+            "id": account.id,
+            "name": account.name,
+            "department_id": account.doctor_info.department_id if account.doctor_info else None,
+            "title": account.doctor_info.title if account.doctor_info else None,
         }
     }
 
@@ -138,11 +118,14 @@ async def get_current_doctor_by_token(
     用于医生端登录后的接口认证
     医生登录 token 的 sub 是 doctor.id，type 是 "doctor"
 
+    【重构】现在调用统一的 _get_doctor_account 函数，
+    然后从数据库加载 Doctor 对象返回（保持返回类型不变）。
+
     多租户支持：
     - 医生必须属于当前请求的租户
     - 如果请求有租户上下文，验证医生的 tenant_id 是否匹配
     """
-    from app.core.security import decode_token
+    from app.common.auth_unified import _get_doctor_account
 
     if not credentials:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="未提供身份凭证，请先登录")
@@ -163,7 +146,10 @@ async def get_current_doctor_by_token(
     if token_type != "doctor":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的医生凭证，请使用医生账号登录")
 
-    # 获取医生详情，同时加载关联的科室和门店
+    # 调用统一函数验证
+    await _get_doctor_account(doctor_id, db)
+
+    # 获取 Doctor 对象（保持返回类型不变）
     result = await db.execute(
         select(Doctor)
         .options(
@@ -177,25 +163,6 @@ async def get_current_doctor_by_token(
     if not doctor:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="医生账号不存在，请检查后重试")
 
-    if doctor.status != 1:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="医生账号已被禁用，请联系管理员")
-
-    # 检查门店状态
-    if doctor.store and doctor.store.status == 2:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您所属的门店已被禁用，请联系管理员")
-
-    # 多租户校验：如果请求有租户上下文，验证医生是否属于该租户
-    current_tenant_id = get_current_tenant_id()
-    current_tenant_code = get_current_tenant_code()
-    if current_tenant_id and doctor.tenant_id:
-        if doctor.tenant_id != current_tenant_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="医生不属于当前租户"
-            )
-    elif not current_tenant_id and not current_tenant_code and doctor.tenant_id:
-        set_tenant_context(doctor.tenant_id)
-
     return doctor
 
 
@@ -205,13 +172,16 @@ async def get_current_admin(
 ) -> dict:
     """获取当前管理员（增强版，包含门店和角色信息）
 
+    【重构】现在调用统一的 _get_admin_account 函数，
+    然后转换为旧格式的 dict 返回，确保向后兼容。
+
     返回值包含：
     - current_store_id: 当前选中的门店ID
     - store_ids: 绑定的所有门店ID列表
     - can_view_all_stores: 是否可以查看所有门店（超管或多门店用户）
     - is_store_admin: 是否是门店管理员角色
     """
-    from app.models.admin import Admin
+    from app.common.auth_unified import _get_admin_account
 
     # 处理未提供 Authorization header 的情况
     if not credentials:
@@ -223,12 +193,6 @@ async def get_current_admin(
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="身份验证失败，请重新登录")
 
-    # 检查 Token 是否在黑名单中（优先使用 payload 中的 tenant_id，确保多租户隔离）
-    token_hash = hashlib.sha256(token.encode()).hexdigest()[:32]
-    token_tenant_id = payload.get("tenant_id")
-    if await RedisCache.is_token_blacklisted(token_hash, tenant_id=token_tenant_id):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="登录已失效，请重新登录")
-
     admin_id = payload.get("sub")
     token_type = payload.get("type", "")
 
@@ -237,165 +201,11 @@ async def get_current_admin(
 
     # 检查是否是管理员 token
     if token_type == "admin" or "admin" in str(payload):
-        # 从 Admin 表获取管理员，同时加载关联的角色、租户、当前门店和所有绑定门店
-        result = await db.execute(
-            select(Admin)
-            .options(
-                selectinload(Admin.role),
-                selectinload(Admin.tenant).selectinload(Tenant.subscription_plan),
-                selectinload(Admin.current_store),
-                selectinload(Admin.stores)
-            )
-            .where(Admin.id == admin_id)
-        )
-        admin = result.scalar_one_or_none()
+        # 调用统一函数
+        account = await _get_admin_account(admin_id, db, token)
+        return account.to_dict()
 
-        if admin:
-            if admin.status != 1:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
-
-            # 判断角色类型
-            role_code = admin.role.code if admin.role else None
-            role_name = admin.role.name if admin.role else None
-            is_super_admin = role_code == "SUPER_ADMIN" or role_name == "超级管理员"
-            is_store_admin = role_code == "STORE_ADMIN" or role_name == "门店管理员"
-            is_tenant_admin = role_code == "TENANT_ADMIN" or role_name == "租户管理员"
-            is_platform_admin = role_code == "PLATFORM_ADMIN" or role_name == "平台管理员" or is_super_admin
-
-            # 检查租户状态（非平台管理员需要检查租户）
-            tenant_info = None
-            if admin.tenant_id and not is_platform_admin:
-                if admin.tenant:
-                    from app.middleware.exception import raise_business_http_error
-                    from app.common.error_codes import TenantErrorCode
-                    from datetime import datetime as _dt
-
-                    if admin.tenant.status == 0:
-                        raise_business_http_error(
-                            status.HTTP_403_FORBIDDEN,
-                            TenantErrorCode.TENANT_DISABLED,
-                            "租户已被禁用",
-                        )
-                    if admin.tenant.status == 2:
-                        raise_business_http_error(
-                            status.HTTP_403_FORBIDDEN,
-                            TenantErrorCode.TENANT_OVERDUE,
-                            "租户已欠费，请续费后继续使用",
-                        )
-                    # 防御：定时任务尚未把 status 改成 2 但订阅已到期的窗口期
-                    if (
-                        admin.tenant.status == 1
-                        and admin.tenant.subscription_end_at is not None
-                        and admin.tenant.subscription_end_at < _dt.utcnow()
-                    ):
-                        raise_business_http_error(
-                            status.HTTP_403_FORBIDDEN,
-                            TenantErrorCode.TENANT_OVERDUE,
-                            "订阅已到期，请续费后继续使用",
-                        )
-                    # 试用期到期同样按欠费处理（status=3 + 到期）
-                    if (
-                        admin.tenant.status == 3
-                        and admin.tenant.subscription_end_at is not None
-                        and admin.tenant.subscription_end_at < _dt.utcnow()
-                    ):
-                        raise_business_http_error(
-                            status.HTTP_403_FORBIDDEN,
-                            TenantErrorCode.TENANT_TRIAL_EXPIRED,
-                            "试用期已结束，请订阅后继续使用",
-                        )
-                    tenant_info = {
-                        "id": admin.tenant.id,
-                        "tenant_code": admin.tenant.tenant_code,
-                        "name": admin.tenant.name,
-                        "status": admin.tenant.status,
-                    }
-
-            current_tenant_id = get_current_tenant_id()
-            current_tenant_code = get_current_tenant_code()
-            if admin.tenant_id and not current_tenant_id and not current_tenant_code:
-                set_tenant_context(
-                    admin.tenant_id,
-                    admin.tenant.tenant_code if admin.tenant else None,
-                )
-
-            # 新增：强制校验租户一致性
-            # 非超管用户：验证请求上下文租户与账号租户一致
-            if admin.tenant_id and not is_super_admin:
-                if current_tenant_id and current_tenant_id != admin.tenant_id:
-                    raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
-                        detail="当前请求的租户与账号不匹配",
-                        headers={"WWW-Authenticate": "Bearer"},
-                    )
-
-            # 过滤禁用门店（status=2 表示禁用）
-            available_stores = [s for s in admin.stores if s.status != 2] if admin.stores else []
-
-            # 非超级管理员：如果所有绑定门店都被禁用，拒绝访问
-            if not is_super_admin and admin.stores and not available_stores:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您所属的门店已被禁用，请联系管理员")
-
-            # 获取绑定的可用门店ID列表
-            store_ids = [s.id for s in available_stores]
-
-            # 检查当前选中门店是否可用
-            current_store = admin.current_store
-            if current_store and current_store.status == 2:
-                # 当前门店被禁用，自动切换到第一个可用门店
-                current_store = available_stores[0] if available_stores else None
-
-            # 是否可以查看所有绑定门店（超管可查看所有，绑定多门店的用户可切换门店）
-            can_switch_stores = is_super_admin or len(store_ids) > 1
-
-            # 解析权限列表
-            permissions = []
-            if is_super_admin:
-                # 超级管理员拥有所有权限
-                permissions = ["*"]
-            elif admin.role and admin.role.permissions:
-                try:
-                    permissions = json.loads(admin.role.permissions)
-                except (json.JSONDecodeError, TypeError):
-                    permissions = []
-
-            return {
-                "id": admin.id,
-                "username": admin.username,
-                "name": admin.name or "管理员",
-                "phone": admin.phone,
-                "status": admin.status,
-                "role_id": admin.role_id,
-                "role_code": role_code,
-                "role_name": admin.role.name if admin.role else None,
-                # 租户信息
-                "tenant_id": admin.tenant_id,
-                "tenant": tenant_info,
-                # 多门店支持（只返回可用门店）
-                "current_store_id": current_store.id if current_store else None,
-                "current_store_name": current_store.name if current_store else None,
-                "current_store_logo": current_store.logo if current_store else None,
-                "current_store_theme": current_store.theme_style if current_store else None,
-                "store_ids": store_ids,
-                "stores": [{"id": s.id, "name": s.name, "logo": s.logo} for s in available_stores],
-                # 兼容旧字段
-                "store_id": current_store.id if current_store else None,
-                "store_name": current_store.name if current_store else None,
-                "store_logo": current_store.logo if current_store else None,
-                "store_theme": current_store.theme_style if current_store else None,
-                # 权限标志
-                "is_admin": True,
-                "is_super_admin": is_super_admin,
-                "is_store_admin": is_store_admin,
-                "is_tenant_admin": is_tenant_admin,
-                "is_platform_admin": is_platform_admin,
-                "can_view_all_stores": can_switch_stores,
-                "can_switch_stores": can_switch_stores,
-                # 权限列表
-                "permissions": permissions,
-            }
-
-    # 兼容旧的 User 表管理员
+    # 兼容旧的 User 表管理员（遗留代码）
     result = await db.execute(select(User).where(User.id == admin_id))
     user = result.scalar_one_or_none()
 
@@ -433,7 +243,10 @@ async def get_current_admin(
 async def get_current_super_admin(
     current_admin: dict = Depends(get_current_admin)
 ) -> dict:
-    """获取当前超级管理员（仅超级管理员可访问）"""
+    """获取当前超级管理员（仅超级管理员可访问）
+
+    【重构】保持原有逻辑，检查是否是超级管理员。
+    """
     if not current_admin.get("is_super_admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -446,11 +259,14 @@ async def get_optional_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db)
 ) -> dict | None:
-    """获取可选的当前用户（用于不强制登录的接口）"""
-    try:
-        return await get_current_user(credentials, db)
-    except HTTPException:
-        return None
+    """获取可选的当前用户（用于不强制登录的接口）
+
+    【重构】调用统一的 get_optional_account_unified 函数。
+    """
+    account = await get_optional_account_unified(credentials, db)
+    if account:
+        return account.to_dict()
+    return None
 
 
 async def get_current_user_or_admin(
@@ -460,137 +276,13 @@ async def get_current_user_or_admin(
     """
     获取当前用户或管理员
     同时支持普通用户和管理员访问的 API 使用此依赖
-    """
-    from app.models.admin import Admin
 
-    # 处理未提供 Authorization header 的情况
+    【重构】调用统一的 get_current_account 函数，
+    然后转换为旧格式的 dict 返回。
+    """
     if not credentials:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="未提供身份凭证，请先登录")
 
-    token = credentials.credentials
-
-    # 先检查 token 是否过期，提供更明确的错误信息
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="登录已过期，请重新登录")
-    except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="身份验证失败，请重新登录")
-
-    user_id = payload.get("sub")
-    token_type = payload.get("type", "")
-
-    if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="身份验证失败，请重新登录")
-
-    # 优先检查是否是管理员
-    if token_type == "admin" or "admin" in str(payload):
-        result = await db.execute(
-            select(Admin)
-            .options(
-                selectinload(Admin.role),
-                selectinload(Admin.current_store),
-                selectinload(Admin.stores)
-            )
-            .where(Admin.id == user_id)
-        )
-        admin = result.scalar_one_or_none()
-
-        if admin:
-            if admin.status != 1:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
-
-            role_code = admin.role.code if admin.role else None
-            role_name = admin.role.name if admin.role else None
-            is_super_admin = role_code == "SUPER_ADMIN" or role_name == "超级管理员"
-            is_store_admin = role_code == "STORE_ADMIN" or role_name == "门店管理员"
-            store_ids = [s.id for s in admin.stores] if admin.stores else []
-
-            return {
-                "id": admin.id,
-                "username": admin.username,
-                "name": admin.name or "管理员",
-                "phone": admin.phone,
-                "status": admin.status,
-                "role_id": admin.role_id,
-                "role_code": role_code,
-                "current_store_id": admin.current_store_id,
-                "store_ids": store_ids,
-                "store_id": admin.current_store_id,
-                "store_name": admin.current_store.name if admin.current_store else None,
-                "is_admin": True,
-                "is_super_admin": is_super_admin,
-                "is_store_admin": is_store_admin,
-                "is_doctor": False,
-                "doctor_id": None,
-            }
-
-    # 尝试从 User 表获取
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-
-    if user:
-        if user.status != 1:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
-
-        # 检查是否是医生
-        doctor_result = await db.execute(select(Doctor).where(Doctor.user_id == user_id, Doctor.deleted_at.is_(None)))
-        doctor = doctor_result.scalar_one_or_none()
-
-        return {
-            "id": user.id,
-            "phone": user.phone,
-            "nickname": user.nickname,
-            "avatar": user.avatar,
-            "gender": user.gender,
-            "status": user.status,
-            "doctor_id": doctor.id if doctor else None,
-            "is_doctor": doctor is not None,
-            "is_admin": False,
-            "is_super_admin": False,
-            "store_id": None,
-            "store_ids": [],
-        }
-
-    # 再次尝试 Admin 表（兼容旧 token）
-    result = await db.execute(
-        select(Admin)
-        .options(
-            selectinload(Admin.role),
-            selectinload(Admin.current_store),
-            selectinload(Admin.stores)
-        )
-        .where(Admin.id == user_id)
-    )
-    admin = result.scalar_one_or_none()
-
-    if admin:
-        if admin.status != 1:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
-
-        role_code = admin.role.code if admin.role else None
-        role_name = admin.role.name if admin.role else None
-        is_super_admin = role_code == "SUPER_ADMIN" or role_name == "超级管理员"
-        is_store_admin = role_code == "STORE_ADMIN" or role_name == "门店管理员"
-        store_ids = [s.id for s in admin.stores] if admin.stores else []
-
-        return {
-            "id": admin.id,
-            "username": admin.username,
-            "name": admin.name or "管理员",
-            "phone": admin.phone,
-            "status": admin.status,
-            "role_id": admin.role_id,
-            "role_code": role_code,
-            "current_store_id": admin.current_store_id,
-            "store_ids": store_ids,
-            "store_id": admin.current_store_id,
-            "store_name": admin.current_store.name if admin.current_store else None,
-            "is_admin": True,
-            "is_super_admin": is_super_admin,
-            "is_store_admin": is_store_admin,
-            "is_doctor": False,
-            "doctor_id": None,
-        }
-
-    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号不存在，请检查后重试")
+    # 调用统一函数
+    account = await get_current_account(credentials, db)
+    return account.to_dict()

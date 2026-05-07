@@ -59,6 +59,7 @@ ROUTER_REGISTRATIONS = [
     RouterRegistration("app.modules.platform_announcements.router", "/platform-announcements", ["平台公告"]),
     RouterRegistration("app.modules.support_tickets.router", "/support-tickets", ["工单支持"]),
     RouterRegistration("app.modules.backup.router", "/backup", ["数据备份"]),
+    RouterRegistration("app.modules.accounts.router", "/accounts", ["统一账号"]),
 ]
 
 

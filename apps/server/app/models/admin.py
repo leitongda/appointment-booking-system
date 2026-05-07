@@ -1,5 +1,5 @@
 """管理员和角色模型"""
-from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey, Table
+from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey, Table, Boolean
 from sqlalchemy.orm import relationship
 from app.db.base import Base, AuditMixin
 from datetime import datetime
@@ -41,7 +41,7 @@ class Permission(Base, AuditMixin):
 
 
 class Role(Base, AuditMixin):
-    """角色表"""
+    """角色表（统一支持 admin/doctor/user 三种角色类型）"""
     __tablename__ = "roles"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -49,10 +49,14 @@ class Role(Base, AuditMixin):
     code = Column(String(50), index=True, comment="角色编码，租户内唯一（平台角色 tenant_id 为 NULL）")
     description = Column(String(200), comment="描述")
     status = Column(Integer, default=1, comment="状态 0禁用 1启用")
+    # 角色类型：admin / doctor / user
+    role_type = Column(String(20), nullable=False, server_default="admin", comment="角色类型: admin/doctor/user")
+    # 是否为该角色类型的默认角色（每个 tenant + role_type 最多一个默认角色）
+    is_default = Column(Boolean, nullable=False, server_default="0", comment="是否为默认角色")
     # 租户关联（多租户支持，NULL表示平台角色）
     tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID（NULL表示平台角色）")
 
-    # 权限列表（多对多）
+    # 权限列表（JSON格式，对 admin 角色从数据库加载；doctor/user 暂用硬编码）
     permissions = Column(Text, comment="权限列表，JSON格式")
 
     # 关联的管理员
@@ -63,7 +67,7 @@ class Role(Base, AuditMixin):
     __table_args__ = (
         # 平台角色 (tenant_id = NULL) 和租户角色 (tenant_id != NULL) 的 code 分别唯一
         # 这里使用复合唯一约束
-        {'comment': '角色表（多租户支持）'},
+        {'comment': '角色表（多租户支持，统一角色类型）'},
     )
 
 
@@ -102,8 +106,13 @@ class OperationLog(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
-    admin_id = Column(String(36), ForeignKey("admins.id"), comment="操作人ID")
-    admin_name = Column(String(50), comment="操作人姓名")
+    # 保留旧字段以向后兼容
+    admin_id = Column(String(36), ForeignKey("admins.id"), comment="操作人ID(兼容旧版)")
+    admin_name = Column(String(50), comment="操作人姓名(兼容旧版)")
+    # 新增角色相关字段
+    actor_id = Column(String(36), comment="操作者ID")
+    actor_name = Column(String(50), comment="操作者姓名")
+    actor_role = Column(String(20), comment="操作者角色: admin/doctor/user")
     module = Column(String(50), comment="模块")
     action = Column(String(100), comment="操作")
     method = Column(String(10), comment="请求方法")

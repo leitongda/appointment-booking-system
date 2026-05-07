@@ -48,3 +48,4 @@ from app.models.notification_log import NotificationLog
 from app.models.notification_preference import NotificationPreference
 from app.models.platform_announcement import PlatformAnnouncement
 from app.models.support_ticket import SupportTicket
+from app.models.account import Account, AccountAdmin, AccountDoctor, AccountUser

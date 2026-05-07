@@ -174,22 +174,38 @@ def _get_client_ip(request: Request) -> str:
     return _get_client_ip_util(request)
 
 
-def _extract_admin_from_token(request: Request) -> tuple:
-    """从请求中提取管理员信息"""
+def _extract_actor_from_token(request: Request) -> tuple:
+    """从请求中提取操作者信息（支持多角色）
+
+    Returns:
+        (actor_id, actor_name, actor_role)
+    """
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
-        return None, None
-    
+        return None, None, None
+
     token = auth_header[7:]  # 移除 "Bearer " 前缀
-    
+
     try:
         payload = decode_token(token)
-        if payload:
-            return payload.get("sub"), payload.get("name")
+        if not payload:
+            return None, None, None
+
+        actor_id = payload.get("sub")
+        token_type = payload.get("type", "")
+
+        # 根据Token类型判断角色
+        if token_type == "admin" or "admin" in str(payload):
+            return actor_id, payload.get("name"), "admin"
+        elif token_type == "doctor":
+            return actor_id, payload.get("name"), "doctor"
+        else:
+            # 默认为普通用户
+            return actor_id, payload.get("nickname") or payload.get("name"), "user"
     except Exception as e:
         logger.debug(f"解析 Token 失败: {e}")
-    
-    return None, None
+
+    return None, None, None
 
 
 class OperationLogMiddleware(BaseHTTPMiddleware):
@@ -223,8 +239,8 @@ class OperationLogMiddleware(BaseHTTPMiddleware):
         except Exception:
             pass
         
-        # 获取管理员信息
-        admin_id, admin_name = _extract_admin_from_token(request)
+        # 获取操作者信息（支持多角色）
+        actor_id, actor_name, actor_role = _extract_actor_from_token(request)
         
         # 处理请求
         response = await call_next(request)
@@ -237,8 +253,13 @@ class OperationLogMiddleware(BaseHTTPMiddleware):
         
         # 构建日志数据
         log_data = {
-            "admin_id": admin_id,
-            "admin_name": admin_name,
+            # 新字段：角色相关
+            "actor_id": actor_id,
+            "actor_name": actor_name,
+            "actor_role": actor_role,
+            # 保留旧字段以向后兼容
+            "admin_id": actor_id if actor_role == "admin" else None,
+            "admin_name": actor_name if actor_role == "admin" else None,
             "tenant_id": get_current_tenant_id(),
             "module": _get_module_name(request.url.path),
             "action": _get_action_name(request.method, request.url.path),

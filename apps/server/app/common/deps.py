@@ -45,6 +45,8 @@ from app.common.permission_deps import (
     get_effective_store_id,
     require_permission,
     require_all_permissions,
+    require_account_permission,
+    require_account_all_permissions,
 )
 
 __all__ = [
@@ -78,4 +80,6 @@ __all__ = [
     "get_effective_store_id",
     "require_permission",
     "require_all_permissions",
+    "require_account_permission",
+    "require_account_all_permissions",
 ]
