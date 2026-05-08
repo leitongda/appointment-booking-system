@@ -7,6 +7,7 @@ services:
     build:
       context: ./apps/server
       dockerfile: Dockerfile
+    image: hospital_backend:latest
     container_name: hospital_backend
     restart: always
     environment:
@@ -34,6 +35,7 @@ services:
     build:
       context: ./apps/server
       dockerfile: Dockerfile
+    image: hospital_backend:latest
     container_name: hospital_celery_worker
     restart: always
     environment:
@@ -49,6 +51,7 @@ services:
     build:
       context: ./apps/server
       dockerfile: Dockerfile
+    image: hospital_backend:latest
     container_name: hospital_celery_beat
     restart: always
     environment:
@@ -64,6 +67,7 @@ services:
     build:
       context: ./apps/server
       dockerfile: Dockerfile
+    image: hospital_backend:latest
     container_name: hospital_celery_flower
     restart: always
     environment:
