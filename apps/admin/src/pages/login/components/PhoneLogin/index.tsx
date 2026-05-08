@@ -37,7 +37,10 @@ const PhoneLogin: React.FC<PhoneLoginProps> = ({ onSuccess }) => {
       }
       onSuccess(result);
     } catch (error: any) {
-      message.error(error.message || '登录失败');
+      // ApiError 已由响应拦截器显示错误提示，此处仅处理未被拦截器捕获的错误
+      if (typeof error?.code !== 'number') {
+        message.error(error.message || '登录失败');
+      }
     } finally {
       setLoading(false);
     }
@@ -71,7 +74,10 @@ const PhoneLogin: React.FC<PhoneLoginProps> = ({ onSuccess }) => {
       message.success('验证码已发送');
       setCountdown(60);
     } catch (error: any) {
-      message.error(error.message || '发送失败');
+      // ApiError 已由响应拦截器显示错误提示，此处仅处理未被拦截器捕获的错误
+      if (typeof error?.code !== 'number') {
+        message.error(error.message || '发送失败');
+      }
     } finally {
       setSmsLoading(false);
     }
