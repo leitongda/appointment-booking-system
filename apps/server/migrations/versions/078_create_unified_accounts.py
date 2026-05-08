@@ -272,10 +272,13 @@ def upgrade() -> None:
 
     # ===================================================================
     # 6. 数据迁移：从旧表迁移到新表
+    # 同一手机号可能同时存在于 admins / doctors / users，
+    # accounts 的 uq_accounts_tenant_phone 唯一约束只允许一条记录。
+    # 策略：admins 优先写入 accounts；doctors / users 遇冲突跳过，
+    #       扩展表通过 JOIN accounts(tenant_id, phone) 关联到已有账号。
     # ===================================================================
 
-    # 6a. 迁移 admins -> accounts + account_admins
-    # 管理员没有 nickname，name 放入 accounts.name
+    # 6a. 迁移 admins -> accounts + account_admins（优先级最高）
     op.execute("""
         INSERT INTO accounts (id, tenant_id, phone, username, password_hash,
                               nickname, name, avatar, gender, status,
@@ -297,7 +300,6 @@ def upgrade() -> None:
     """)
 
     # 6b. 迁移 doctors -> accounts + account_doctors
-    # 医生没有 nickname，name 放入 accounts.name
     op.execute("""
         INSERT INTO accounts (id, tenant_id, phone, username, password_hash,
                               nickname, name, avatar, gender, status,
@@ -308,8 +310,10 @@ def upgrade() -> None:
                last_login_at, last_login_ip,
                created_at, updated_at, created_by, updated_by
         FROM doctors
+        ON CONFLICT DO NOTHING
     """)
 
+    # account_doctors: 关联到正确的 account（可能与 admin 共享手机号）
     op.execute("""
         INSERT INTO account_doctors (
             account_id, store_id, department_id,
@@ -323,20 +327,21 @@ def upgrade() -> None:
             created_at, updated_at, created_by, updated_by
         )
         SELECT
-            id, store_id, department_id,
-            banner, title, years_of_experience,
-            education, graduate_school, license_number, license_image, honors,
-            schedule_desc, max_daily_appointments,
-            online_consult_enabled, online_consult_fee,
-            page_style, promo_video, tags, specialty, introduction,
-            is_recommended, sort_order,
-            use_fee_template, deleted_at,
-            created_at, updated_at, created_by, updated_by
-        FROM doctors
+            a.id, d.store_id, d.department_id,
+            d.banner, d.title, d.years_of_experience,
+            d.education, d.graduate_school, d.license_number, d.license_image, d.honors,
+            d.schedule_desc, d.max_daily_appointments,
+            d.online_consult_enabled, d.online_consult_fee,
+            d.page_style, d.promo_video, d.tags, d.specialty, d.introduction,
+            d.is_recommended, d.sort_order,
+            d.use_fee_template, d.deleted_at,
+            d.created_at, d.updated_at, d.created_by, d.updated_by
+        FROM doctors d
+        JOIN accounts a ON a.tenant_id = d.tenant_id
+            AND a.phone IS NOT DISTINCT FROM d.phone
     """)
 
     # 6c. 迁移 users -> accounts + account_users
-    # users 有 nickname 但没有 name/username/last_login_at/last_login_ip
     op.execute("""
         INSERT INTO accounts (id, tenant_id, phone, username, password_hash,
                               nickname, name, avatar, gender, status,
@@ -347,8 +352,10 @@ def upgrade() -> None:
                NULL, NULL,
                created_at, updated_at, created_by, updated_by
         FROM users
+        ON CONFLICT DO NOTHING
     """)
 
+    # account_users: 关联到正确的 account（可能与 admin/doctor 共享手机号）
     op.execute("""
         INSERT INTO account_users (
             account_id, tenant_id,
@@ -357,11 +364,13 @@ def upgrade() -> None:
             created_at, updated_at, created_by, updated_by
         )
         SELECT
-            id, tenant_id,
-            openid, unionid, wechat_nickname, wechat_avatar, wechat_synced_at,
-            points,
-            created_at, updated_at, created_by, updated_by
-        FROM users
+            a.id, u.tenant_id,
+            u.openid, u.unionid, u.wechat_nickname, u.wechat_avatar, u.wechat_synced_at,
+            u.points,
+            u.created_at, u.updated_at, u.created_by, u.updated_by
+        FROM users u
+        JOIN accounts a ON a.tenant_id = u.tenant_id
+            AND a.phone IS NOT DISTINCT FROM u.phone
     """)
 
 
