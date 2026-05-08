@@ -24,6 +24,18 @@ def upgrade() -> None:
         sa.Column("email", sa.String(100), nullable=True, comment="邮箱（租户内唯一）"),
     )
     op.create_index("ix_users_email", "users", ["email"])
+    # 去重：同一 tenant_id 内保留最早创建的记录的 email，其余置 NULL
+    op.execute(sa.text("""
+        UPDATE users u
+        SET email = NULL
+        WHERE email IS NOT NULL
+          AND id NOT IN (
+              SELECT MIN(u2.id)
+              FROM users u2
+              WHERE u2.email IS NOT NULL
+              GROUP BY u2.tenant_id, u2.email
+          )
+    """))
     op.create_unique_constraint(
         "uq_users_tenant_email", "users", ["tenant_id", "email"],
     )
