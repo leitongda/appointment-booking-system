@@ -390,6 +390,7 @@ class AccountSyncService:
             account = await db.get(Account, user_id)
             if account:
                 account.phone = user.phone
+                account.email = user.email
                 account.username = user.phone  # 用户用手机号作登录账号
                 account.password_hash = user.password_hash
                 account.nickname = user.nickname
@@ -404,6 +405,7 @@ class AccountSyncService:
                     id=user.id,
                     tenant_id=user.tenant_id,
                     phone=user.phone,
+                    email=user.email,
                     username=user.phone,
                     password_hash=user.password_hash,
                     nickname=user.nickname,

@@ -51,6 +51,10 @@ const LoginPage: React.FC = () => {
     history.push('/register');
   };
 
+  const handleEmailLogin = () => {
+    history.push('/login/email-login');
+  };
+
   return (
     <div className="min-h-screen bg-background relative overflow-hidden flex flex-col justify-center px-6 py-12">
       {/* Background decorative elements */}
@@ -158,17 +162,23 @@ const LoginPage: React.FC = () => {
           </Form>
 
           {/* Footer Links */}
-          <motion.div 
+          <motion.div
             className="flex justify-between mt-6 pt-6 border-t border-border"
             variants={fadeInUp}
           >
-            <button 
+            <button
               onClick={handleForgotPassword}
               className="text-sm text-muted-foreground hover:text-accent transition-colors"
             >
               忘记密码
             </button>
-            <button 
+            <button
+              onClick={handleEmailLogin}
+              className="text-sm text-muted-foreground hover:text-accent transition-colors"
+            >
+              邮箱登录
+            </button>
+            <button
               onClick={handleRegister}
               className="text-sm text-accent hover:text-accent-secondary transition-colors font-medium"
             >

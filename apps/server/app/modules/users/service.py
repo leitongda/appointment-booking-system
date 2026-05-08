@@ -28,6 +28,19 @@ class UserService:
         result = await self.db.execute(select(User).where(User.phone == phone))
         return result.scalar_one_or_none()
 
+    async def get_by_email(self, email: str) -> Optional[User]:
+        """通过邮箱获取用户（租户内查找）"""
+        if not email or not email.strip():
+            return None
+        email = email.strip().lower()
+        from app.middleware.tenant_context import get_current_tenant_id
+        tenant_id = get_current_tenant_id()
+        stmt = select(User).where(User.email == email)
+        if tenant_id:
+            stmt = stmt.where(User.tenant_id == tenant_id)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_by_openid(self, openid: str) -> Optional[User]:
         result = await self.db.execute(select(User).where(User.openid == openid))
         return result.scalar_one_or_none()
@@ -94,6 +107,7 @@ class UserService:
             id=str(uuid.uuid4()),
             tenant_id=tenant_id,
             phone=phone,
+            email=data.email,
             password_hash=get_password_hash(data.password) if data.password else "",
             openid=data.openid,
             unionid=data.unionid,

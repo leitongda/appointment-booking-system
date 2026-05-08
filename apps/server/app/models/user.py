@@ -10,6 +10,7 @@ class User(Base, AuditMixin):
     # 租户关联（多租户支持，同一微信用户可在不同租户分别绑定账号）
     tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
     phone = Column(String(20), index=True, nullable=True)  # 微信用户可无手机号，租户内唯一
+    email = Column(String(100), index=True, nullable=True, comment="邮箱（租户内唯一）")
     password_hash = Column(String(255), nullable=False)
     nickname = Column(String(50))
     avatar = Column(String(255))
@@ -32,6 +33,7 @@ class User(Base, AuditMixin):
     # 租户内唯一约束
     __table_args__ = (
         UniqueConstraint('tenant_id', 'phone', name='uq_users_tenant_phone'),
+        UniqueConstraint('tenant_id', 'email', name='uq_users_tenant_email'),
         UniqueConstraint('tenant_id', 'openid', name='uq_users_tenant_openid'),
         UniqueConstraint('tenant_id', 'unionid', name='uq_users_tenant_unionid'),
         {'comment': '用户表（多租户支持）'},

@@ -48,13 +48,13 @@ def _send_email_sync(config: dict, to_email: str, subject: str, content: str) ->
     from email.mime.multipart import MIMEMultipart
     from email.utils import formataddr
 
-    smtp_host = config.get("smtp_host", "")
-    smtp_port = int(config.get("smtp_port", 465))
-    smtp_user = config.get("smtp_user", "")
-    smtp_password = config.get("smtp_password", "")
-    smtp_ssl = config.get("smtp_ssl", "true").lower() in ("true", "1", "yes")
-    sender_name = config.get("sender_name", "")
-    sender_email = config.get("sender_email", smtp_user)
+    smtp_host = config.get("host", "")
+    smtp_port = int(config.get("port", 587))
+    smtp_user = config.get("username", "")
+    smtp_password = config.get("password", "")
+    smtp_ssl = config.get("use_tls", "true") in (True, "true", "1", "yes")
+    sender_name = config.get("from_name", "")
+    sender_email = config.get("from_email", smtp_user)
 
     if not smtp_host or not smtp_user or not smtp_password:
         logger.warning("[EmailHook] SMTP 配置不完整，跳过发送")

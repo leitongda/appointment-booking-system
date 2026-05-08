@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { MobileOutlined, SafetyOutlined } from '@ant-design/icons';
-import { App, Form, Input, Button } from 'antd';
-import { adminApi } from '@hospital/api';
+import { MobileOutlined, SafetyOutlined, MailOutlined } from '@ant-design/icons';
+import { App, Form, Input, Button, Segmented } from 'antd';
+import { adminApi, authApi } from '@hospital/api';
 import styles from './index.less';
+
+type VerifyType = 'phone' | 'email';
 
 interface PhoneLoginProps {
   onSuccess: (result: any) => void;
@@ -15,12 +17,24 @@ const PhoneLogin: React.FC<PhoneLoginProps> = ({ onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [smsLoading, setSmsLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [verifyType, setVerifyType] = useState<VerifyType>('phone');
 
-  // 手机号+验证码登录
-  const handlePhoneSmsLogin = async (values: { phone: string; code: string }) => {
+  // 切换类型时重置表单
+  useEffect(() => {
+    form.resetFields();
+    setCountdown(0);
+  }, [verifyType, form]);
+
+  // 登录
+  const handleLogin = async (values: { account: string; code: string }) => {
     setLoading(true);
     try {
-      const result = await adminApi.smsLogin(values);
+      let result: any;
+      if (verifyType === 'phone') {
+        result = await adminApi.smsLogin({ phone: values.account, code: values.code });
+      } else {
+        result = await authApi.emailLogin({ email: values.account, code: values.code });
+      }
       onSuccess(result);
     } catch (error: any) {
       message.error(error.message || '登录失败');
@@ -30,16 +44,30 @@ const PhoneLogin: React.FC<PhoneLoginProps> = ({ onSuccess }) => {
   };
 
   // 发送验证码
-  const handleSendSms = async () => {
+  const handleSendCode = async () => {
     try {
-      const phone = form.getFieldValue('phone');
-      if (!phone || !/^1\d{10}$/.test(phone)) {
-        message.error('请输入正确的手机号');
+      const account = form.getFieldValue('account');
+      if (!account) {
+        message.error(verifyType === 'phone' ? '请输入手机号' : '请输入邮箱');
+        return;
+      }
+
+      if (verifyType === 'phone' && !/^1\d{10}$/.test(account)) {
+        message.error('手机号格式不正确');
+        return;
+      }
+
+      if (verifyType === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(account)) {
+        message.error('邮箱格式不正确');
         return;
       }
 
       setSmsLoading(true);
-      await adminApi.sendSmsCode(phone);
+      if (verifyType === 'phone') {
+        await adminApi.sendSmsCode(account);
+      } else {
+        await authApi.sendEmailCode(account, 'login');
+      }
       message.success('验证码已发送');
       setCountdown(60);
     } catch (error: any) {
@@ -59,23 +87,41 @@ const PhoneLogin: React.FC<PhoneLoginProps> = ({ onSuccess }) => {
 
   return (
     <div className={styles.phoneLogin}>
+      <div className={styles.phoneLoginTypeSwitch}>
+        <Segmented
+          options={[
+            { label: '手机号', value: 'phone' },
+            { label: '邮箱', value: 'email' },
+          ]}
+          value={verifyType}
+          onChange={(val) => setVerifyType(val as VerifyType)}
+        />
+      </div>
+
       <Form
         form={form}
-        onFinish={handlePhoneSmsLogin}
+        onFinish={handleLogin}
         size="large"
         className={styles.loginForm}
       >
         <Form.Item
-          name="phone"
-          rules={[
-            { required: true, message: '请输入手机号' },
-            { pattern: /^1\d{10}$/, message: '手机号格式不正确' }
-          ]}
+          name="account"
+          rules={
+            verifyType === 'phone'
+              ? [
+                  { required: true, message: '请输入手机号' },
+                  { pattern: /^1\d{10}$/, message: '手机号格式不正确' },
+                ]
+              : [
+                  { required: true, message: '请输入邮箱' },
+                  { type: 'email', message: '邮箱格式不正确' },
+                ]
+          }
         >
           <Input
-            prefix={<MobileOutlined />}
-            placeholder="请输入手机号"
-            maxLength={11}
+            prefix={verifyType === 'phone' ? <MobileOutlined /> : <MailOutlined />}
+            placeholder={verifyType === 'phone' ? '请输入手机号' : '请输入邮箱'}
+            maxLength={verifyType === 'phone' ? 11 : undefined}
           />
         </Form.Item>
 
@@ -93,7 +139,7 @@ const PhoneLogin: React.FC<PhoneLoginProps> = ({ onSuccess }) => {
                 size="small"
                 disabled={countdown > 0}
                 loading={smsLoading}
-                onClick={handleSendSms}
+                onClick={handleSendCode}
                 style={{ padding: 0 }}
               >
                 {countdown > 0 ? `${countdown}s` : '获取验证码'}

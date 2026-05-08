@@ -30,6 +30,7 @@ class UserCreate(BaseModel):
     )
     
     phone: str = Field("", max_length=11, description="手机号，微信用户可为空")
+    email: Optional[str] = Field(None, max_length=100, description="邮箱")
     password: str = Field("", max_length=20, description="密码，微信用户可为空")
     openid: Optional[str] = Field(None, max_length=100, description="微信 openid")
     unionid: Optional[str] = Field(None, max_length=100, description="微信开放平台统一ID")

@@ -43,13 +43,13 @@ class EmailService:
         """
         config = await self.get_email_config()
 
-        smtp_host = config.get('smtp_host', '')
-        smtp_port = config.get('smtp_port', 465)
-        smtp_user = config.get('smtp_user', '')
-        smtp_password = config.get('smtp_password', '')
-        smtp_ssl = config.get('smtp_ssl', True)
-        sender_name = config.get('sender_name', '')
-        sender_email = config.get('sender_email', smtp_user)
+        smtp_host = config.get('host', '')
+        smtp_port = config.get('port', 587)
+        smtp_user = config.get('username', '')
+        smtp_password = config.get('password', '')
+        smtp_ssl = config.get('use_tls', True)
+        sender_name = config.get('from_name', '')
+        sender_email = config.get('from_email', smtp_user)
 
         if not smtp_host or not smtp_user or not smtp_password:
             raise ValueError("邮件配置不完整，请先配置SMTP服务器信息")
@@ -115,6 +115,56 @@ class EmailService:
             raise ValueError(f"邮件模板 {template_code} 已禁用")
 
         subject, content = self.template_service.render_template(template, variables)
+
+        return await self.send_email(to_email, subject, content, is_html=True)
+
+    async def send_verification_code_email(
+        self,
+        to_email: str,
+        code: str,
+        code_type: str = "login",
+    ) -> bool:
+        """
+        发送邮箱验证码
+
+        Args:
+            to_email: 收件人邮箱
+            code: 验证码
+            code_type: 验证码类型（login/register/reset）
+
+        Returns:
+            是否发送成功
+        """
+        type_labels = {
+            "login": "登录",
+            "register": "注册",
+            "reset": "重置密码",
+            "bind": "绑定",
+        }
+        label = type_labels.get(code_type, "验证")
+
+        subject = f"【预约挂号系统】{label}验证码"
+        content = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: 'Microsoft YaHei', Arial, sans-serif; background: #f5f5f5; padding: 20px;">
+  <div style="max-width: 480px; margin: 0 auto; background: #fff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <h2 style="color: #333; margin-bottom: 20px;">{label}验证码</h2>
+    <p style="color: #666; font-size: 14px; line-height: 1.6;">
+      您正在进行<span style="font-weight: bold; color: #1890ff;">{label}</span>操作，验证码如下：
+    </p>
+    <div style="background: #f0f7ff; border-radius: 6px; padding: 16px; text-align: center; margin: 20px 0;">
+      <span style="font-size: 28px; font-weight: bold; color: #1890ff; letter-spacing: 6px;">{code}</span>
+    </div>
+    <p style="color: #999; font-size: 12px; line-height: 1.6;">
+      验证码 5 分钟内有效，请勿泄露给他人。<br>
+      如非本人操作，请忽略此邮件。
+    </p>
+    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+    <p style="color: #ccc; font-size: 11px; text-align: center;">预约挂号系统</p>
+  </div>
+</body>
+</html>"""
 
         return await self.send_email(to_email, subject, content, is_html=True)
 

@@ -5,7 +5,9 @@ from datetime import datetime
 
 from app.db.session import get_db
 from app.api.deps import get_current_admin, get_store_filter, check_store_access, get_current_doctor_by_token, require_permission
+from sqlalchemy import select
 from app.models.doctor import Doctor
+from app.models.account import Account
 from app.schemas.doctor import DoctorCreate, DoctorUpdate, DoctorResponse, DoctorListResponse
 from app.schemas.response import PageResponse
 from app.modules.doctors.service import DoctorService
@@ -138,11 +140,21 @@ async def doctor_login(
     access_token = create_access_token(data={"sub": doctor.id, "type": "doctor"})
     refresh_token = create_refresh_token(data={"sub": doctor.id, "type": "doctor"})
     
+    doctor_resp = doctor_to_response(doctor)
+    # 从统一账号表补充 email
+    if doctor.phone:
+        stmt = select(Account.email).where(
+            Account.phone == doctor.phone,
+            Account.tenant_id == doctor.tenant_id,
+        )
+        result = await db.execute(stmt)
+        doctor_resp.email = result.scalar_one_or_none()
+
     return DoctorLoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        doctor=doctor_to_response(doctor),
+        doctor=doctor_resp,
     )
 
 
@@ -161,9 +173,19 @@ async def doctor_login(
 )
 async def get_current_doctor_info(
     doctor: Doctor = Depends(get_current_doctor_by_token),
+    db: AsyncSession = Depends(get_db),
 ):
     """获取当前登录医生信息"""
-    return doctor_to_response(doctor)
+    resp = doctor_to_response(doctor)
+    # 从统一账号表补充 email
+    if doctor.phone:
+        stmt = select(Account.email).where(
+            Account.phone == doctor.phone,
+            Account.tenant_id == doctor.tenant_id,
+        )
+        result = await db.execute(stmt)
+        resp.email = result.scalar_one_or_none()
+    return resp
 
 @router.get(
     "",

@@ -1,5 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.db.session import get_db
 from app.api.deps import get_current_user
@@ -13,13 +16,20 @@ from app.schemas.auth import (
     UserInfo,
     ForgotPasswordRequest,
     SendCodeRequest,
+    EmailSendCodeRequest,
+    EmailLoginRequest,
+    EmailBindRequest,
+    EmailUnbindRequest,
+    EmailChangeRequest,
 )
 from app.schemas.user import UserResponse
 from app.schemas.wechat import WechatLoginRequest, WechatLoginResponse, WechatPhoneRequest, WechatBindPhoneRequest, WechatBindUserInfoRequest
 from app.schemas.response import ErrorResponse
 from app.modules.users.service import UserService
 from app.infrastructure.wechat.service import WechatService
+from app.infrastructure.email.service import EmailService
 from app.core.security import create_access_token, create_refresh_token, decode_token, verify_password, get_password_hash
+from app.core.redis import RedisCache
 from app.core.config import settings
 from app.common.account_sync import AccountSyncService
 
@@ -614,3 +624,279 @@ async def wechat_bind_userinfo(data: WechatBindUserInfoRequest, db: AsyncSession
             status=user.status
         )
     )
+
+
+# ==================== 邮箱认证相关 ====================
+
+def _validate_email_format(email: str) -> bool:
+    """简单邮箱格式校验"""
+    import re
+    if not email or not email.strip():
+        return False
+    return bool(re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email))
+
+
+def _normalize_email(email: str) -> str:
+    """规范化邮箱：去空格、转小写"""
+    return email.strip().lower()
+
+
+@router.post("/email/send-code", summary="发送邮箱验证码")
+async def email_send_code(
+    data: EmailSendCodeRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    发送邮箱验证码
+
+    **功能说明**：
+    - 发送验证码到指定邮箱
+    - 支持登录、注册、重置密码、绑定等场景
+    - 60秒内不能重复发送
+
+    **验证码类型**：
+    - login: 登录验证码
+    - register: 注册验证码
+    - reset: 重置密码验证码
+    - bind: 绑定邮箱验证码
+    """
+    import re
+
+    if not _validate_email_format(data.email):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="邮箱格式不正确")
+
+    data.email = _normalize_email(data.email)
+
+    # 重置密码场景需要验证邮箱是否已绑定
+    user_service = UserService(db)
+    if data.code_type == "reset":
+        user = await user_service.get_by_email(data.email)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="该邮箱未注册")
+
+    # 检查发送频率
+    can_send, wait_seconds = await RedisCache.check_email_rate_limit(data.email, data.code_type)
+    if not can_send:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"发送过于频繁，请{wait_seconds}秒后重试",
+        )
+
+    # 生成并存储验证码
+    from app.infrastructure.sms.service import SmsService
+    code = SmsService.generate_code()
+    await RedisCache.set_email_code(data.email, code, data.code_type)
+
+    # 发送邮件
+    try:
+        email_service = EmailService(db)
+        await email_service.send_verification_code_email(data.email, code, data.code_type)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="验证码发送失败，请稍后重试",
+        )
+
+    # 开发环境返回验证码
+    if settings.DEBUG:
+        return {"message": "验证码发送成功", "code": code}
+    return {"message": "验证码发送成功"}
+
+
+@router.post("/email/login", response_model=LoginResponse, summary="邮箱验证码登录")
+async def email_login(
+    data: EmailLoginRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    邮箱验证码登录（支持自动注册）
+
+    **功能说明**：
+    - 通过邮箱 + 验证码登录
+    - 若邮箱未注册且当前租户允许，自动注册新用户（仅患者类型）
+    - 若邮箱已绑定已有账号，直接登录
+
+    **业务规则**：
+    - 管理员/医生邮箱必须已绑定才能登录，不支持自动注册
+    - 患者邮箱未注册时自动创建新账号
+    """
+    if not _validate_email_format(data.email):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="邮箱格式不正确")
+
+    data.email = _normalize_email(data.email)
+
+    # 校验验证码
+    is_valid = await RedisCache.verify_email_code(data.email, data.code, "login")
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码错误或已过期")
+
+    user_service = UserService(db)
+    user = await user_service.get_by_email(data.email)
+
+    if not user:
+        # 邮箱未注册 → 自动注册新用户（患者）
+        from app.schemas.user import UserCreate
+        user = await user_service.create(UserCreate(
+            email=data.email,
+            password="",  # 邮箱注册用户无密码
+            nickname=f"用户{data.email.split('@')[0]}",
+        ))
+
+    if user.status != 1:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
+
+    # 登录信息更新（Account 表，通过双写同步处理）
+    # 注意: User 模型无 last_login_at/ip 字段，由 AccountSyncService 同步到 Account 表
+
+    # 生成 token
+    access_token = create_access_token(data={"sub": user.id})
+    refresh_token = create_refresh_token(data={"sub": user.id})
+
+    return LoginResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        user=UserInfo(
+            id=user.id,
+            phone=user.phone or "",
+            nickname=user.nickname,
+            avatar=user.avatar,
+            gender=user.gender if user.gender is not None else 0,
+            status=user.status,
+        ),
+    )
+
+
+@router.post("/email/bind", summary="绑定邮箱")
+async def email_bind(
+    data: EmailBindRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    绑定邮箱到当前账号
+
+    **功能说明**：
+    - 需要已登录状态
+    - 验证邮箱验证码后绑定
+    - 一个邮箱在同一租户下只能绑定一个账号
+    """
+    if not _validate_email_format(data.email):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="邮箱格式不正确")
+
+    data.email = _normalize_email(data.email)
+
+    # 校验验证码
+    is_valid = await RedisCache.verify_email_code(data.email, data.code, "bind")
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码错误或已过期")
+
+    # 检查邮箱是否已被其他账号绑定
+    user_service = UserService(db)
+    existing = await user_service.get_by_email(data.email)
+    if existing and existing.id != current_user["id"]:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该邮箱已被其他账号绑定")
+
+    # 更新 User 表
+    user = await user_service.get_by_id(current_user["id"])
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
+    user.email = data.email
+    await db.flush()
+
+    # 双写同步到 Account 表
+    await AccountSyncService.sync_user_to_account(db, user.id, operator_id=user.id)
+
+    await db.commit()
+    return {"message": "邮箱绑定成功"}
+
+
+@router.post("/email/unbind", summary="解绑邮箱")
+async def email_unbind(
+    data: EmailUnbindRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    解绑当前账号的邮箱
+
+    **功能说明**：
+    - 需要已登录状态
+    - 需要验证码确认（发送到当前绑定的邮箱）
+    """
+    user_service = UserService(db)
+    user = await user_service.get_by_id(current_user["id"])
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
+
+    if not user.email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前账号未绑定邮箱")
+
+    # 校验验证码（发送到当前绑定的邮箱）
+    is_valid = await RedisCache.verify_email_code(user.email, data.code, "bind")
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码错误或已过期")
+
+    # 清除邮箱
+    user.email = None
+    await db.flush()
+
+    # 双写同步
+    await AccountSyncService.sync_user_to_account(db, user.id, operator_id=user.id)
+
+    await db.commit()
+    return {"message": "邮箱解绑成功"}
+
+
+@router.post("/email/change", summary="换绑邮箱")
+async def email_change(
+    data: EmailChangeRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    换绑邮箱
+
+    **功能说明**：
+    - 需要已登录状态
+    - 需要新旧邮箱的验证码同时确认
+    - 新邮箱不能已被其他账号绑定
+    """
+    if not _validate_email_format(data.new_email):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="新邮箱格式不正确")
+
+    data.new_email = _normalize_email(data.new_email)
+
+    user_service = UserService(db)
+    user = await user_service.get_by_id(current_user["id"])
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
+
+    if not user.email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前账号未绑定邮箱，请先绑定")
+
+    # 校验旧邮箱验证码
+    is_old_valid = await RedisCache.verify_email_code(user.email, data.old_email_code, "bind")
+    if not is_old_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前邮箱验证码错误或已过期")
+
+    # 校验新邮箱验证码
+    is_new_valid = await RedisCache.verify_email_code(data.new_email, data.new_email_code, "bind")
+    if not is_new_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="新邮箱验证码错误或已过期")
+
+    # 检查新邮箱是否已被其他账号绑定
+    existing = await user_service.get_by_email(data.new_email)
+    if existing and existing.id != current_user["id"]:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="新邮箱已被其他账号绑定")
+
+    # 更新邮箱
+    user.email = data.new_email
+    await db.flush()
+
+    # 双写同步
+    await AccountSyncService.sync_user_to_account(db, user.id, operator_id=user.id)
+
+    await db.commit()
+    return {"message": "邮箱换绑成功"}

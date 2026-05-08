@@ -128,6 +128,7 @@ class DoctorResponse(BaseModel):
     name: str
     username: Optional[str] = None
     phone: Optional[str] = None
+    email: Optional[str] = None
     gender: Optional[int] = 0
     avatar: Optional[str] = None
     banner: Optional[str] = None

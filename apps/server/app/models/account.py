@@ -36,6 +36,7 @@ class Account(Base, AuditMixin):
 
     # --- 认证字段 ---
     phone = Column(String(20), index=True, comment="手机号")
+    email = Column(String(100), index=True, comment="邮箱（租户内唯一）")
     username = Column(String(50), index=True, comment="用户名/登录账号")
     password_hash = Column(String(255), comment="密码哈希")
 
@@ -58,6 +59,7 @@ class Account(Base, AuditMixin):
     __table_args__ = (
         UniqueConstraint("tenant_id", "phone", name="uq_accounts_tenant_phone"),
         UniqueConstraint("tenant_id", "username", name="uq_accounts_tenant_username"),
+        UniqueConstraint("tenant_id", "email", name="uq_accounts_tenant_email"),
         {"comment": "统一账号主表"},
     )
 

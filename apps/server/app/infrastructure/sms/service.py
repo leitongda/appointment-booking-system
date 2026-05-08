@@ -3,7 +3,7 @@
 支持 Redis 缓存存储，可接入阿里云、腾讯云等短信服务
 包含验证码发送和业务通知功能
 """
-import random
+import secrets
 import string
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -33,7 +33,7 @@ class SmsService:
     @classmethod
     def generate_code(cls, length: int = 6) -> str:
         """生成随机验证码"""
-        return ''.join(random.choices(string.digits, k=length))
+        return ''.join(secrets.choice(string.digits) for _ in range(length))
 
     @classmethod
     async def send_code(cls, phone: str, code_type: str = "login", tenant_id: Optional[str] = None) -> str:

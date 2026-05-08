@@ -241,6 +241,70 @@ export const getAccountMe = (): Promise<AccountInfo> => {
   return request.get(`${PREFIX}/account/me`);
 };
 
+// ==================== 邮箱认证相关 ====================
+
+/**
+ * 发送邮箱验证码
+ */
+export const sendEmailCode = (
+  email: string,
+  codeType: 'login' | 'register' | 'reset' | 'bind' = 'login',
+): Promise<{ message: string; code?: string }> => {
+  return request.post(`${PREFIX}/email/send-code`, { email, code_type: codeType });
+};
+
+/**
+ * 邮箱验证码登录（支持自动注册）
+ */
+export const emailLogin = (data: {
+  email: string;
+  code: string;
+}): Promise<LoginResult> => {
+  return request.post(`${PREFIX}/email/login`, {
+    email: data.email,
+    code: data.code,
+  });
+};
+
+/**
+ * 绑定邮箱
+ */
+export const emailBind = (data: {
+  email: string;
+  code: string;
+}): Promise<{ message: string }> => {
+  return request.post(`${PREFIX}/email/bind`, {
+    email: data.email,
+    code: data.code,
+  });
+};
+
+/**
+ * 解绑邮箱
+ */
+export const emailUnbind = (data: {
+  code: string;
+}): Promise<{ message: string }> => {
+  return request.post(`${PREFIX}/email/unbind`, {
+    code: data.code,
+  });
+};
+
+/**
+ * 换绑邮箱
+ */
+export const emailChange = (data: {
+  newEmail: string;
+  newEmailCode: string;
+  oldEmailCode: string;
+}): Promise<{ message: string }> => {
+  return request.post(`${PREFIX}/email/change`, {
+    new_email: data.newEmail,
+    new_email_code: data.newEmailCode,
+    old_email_code: data.oldEmailCode,
+  });
+};
+
 export const authApi = {
   login,
   register,
@@ -258,4 +322,9 @@ export const authApi = {
   forgotPassword,
   /** 获取统一账号信息（预留，后端路由就绪后可用） */
   getAccountMe,
+  sendEmailCode,
+  emailLogin,
+  emailBind,
+  emailUnbind,
+  emailChange,
 };

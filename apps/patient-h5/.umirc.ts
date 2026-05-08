@@ -18,6 +18,9 @@ export default defineConfig({
     'process.env.API_BASE_URL': API_BASE_URL,
   },
   npmClient: 'pnpm',
+  mfsu: {
+    exclude: [/dayjs/],
+  },
   plugins: [
     '@umijs/plugins/dist/model',
     '@umijs/plugins/dist/request',
@@ -64,6 +67,7 @@ export default defineConfig({
     },
     { path: '/login', component: '@/pages/login' },
     { path: '/login/forgot-password', component: '@/pages/login/forgot-password' },
+    { path: '/login/email-login', component: '@/pages/login/email-login' },
     { path: '/register', component: '@/pages/register' },
     { path: '/search', component: '@/pages/search' },
     { path: '/settings', component: '@/pages/settings' },

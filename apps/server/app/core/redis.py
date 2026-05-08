@@ -72,6 +72,7 @@ class RedisCache:
     
     # 缓存键前缀
     PREFIX_SMS = "sms:"                    # 短信验证码
+    PREFIX_EMAIL = "email:"                # 邮箱验证码
     PREFIX_WECHAT_TOKEN = "wechat:token:"  # 微信 access_token
     PREFIX_WECHAT_LOCK = "wechat:lock:"    # 微信 Token 刷新锁
     PREFIX_SCAN_LOGIN = "scan:login:"      # 扫码登录
@@ -391,7 +392,94 @@ class RedisCache:
         # 设置发送标记
         await cls.set(key, "1", interval)
         return True, 0
-    
+
+    # ==================== 邮箱验证码相关（多租户隔离）====================
+
+    @classmethod
+    async def set_email_code(
+        cls,
+        email: str,
+        code: str,
+        code_type: str = "login",
+        expire: int = 300,
+        tenant_id: str = None,
+    ) -> bool:
+        """存储邮箱验证码（支持多租户隔离）"""
+        effective_tenant_id = tenant_id or get_current_tenant_id()
+        if effective_tenant_id:
+            key = f"{cls.PREFIX_EMAIL}{effective_tenant_id}:{email}:{code_type}"
+        else:
+            key = f"{cls.PREFIX_EMAIL}{email}:{code_type}"
+        data = {
+            "code": code,
+            "verified": False,
+        }
+        return await cls.set(key, data, expire)
+
+    @classmethod
+    async def get_email_code(cls, email: str, code_type: str = "login", tenant_id: str = None) -> Optional[dict]:
+        """获取邮箱验证码（支持多租户隔离）"""
+        effective_tenant_id = tenant_id or get_current_tenant_id()
+        if effective_tenant_id:
+            key = f"{cls.PREFIX_EMAIL}{effective_tenant_id}:{email}:{code_type}"
+        else:
+            key = f"{cls.PREFIX_EMAIL}{email}:{code_type}"
+        return await cls.get(key)
+
+    @classmethod
+    async def verify_email_code(cls, email: str, code: str, code_type: str = "login", tenant_id: str = None) -> bool:
+        """验证邮箱验证码（支持多租户隔离）"""
+        effective_tenant_id = tenant_id or get_current_tenant_id()
+        if effective_tenant_id:
+            key = f"{cls.PREFIX_EMAIL}{effective_tenant_id}:{email}:{code_type}"
+        else:
+            key = f"{cls.PREFIX_EMAIL}{email}:{code_type}"
+        data = await cls.get(key)
+
+        if not data:
+            return False
+
+        if data.get("verified"):
+            return False  # 已使用
+
+        if data.get("code") != code:
+            return False
+
+        # 标记为已使用
+        data["verified"] = True
+        ttl = await cls.ttl(key)
+        if ttl > 0:
+            await cls.set(key, data, ttl)
+
+        return True
+
+    @classmethod
+    async def check_email_rate_limit(
+        cls,
+        email: str,
+        code_type: str = "login",
+        interval: int = 60,
+        tenant_id: str = None,
+    ) -> tuple[bool, int]:
+        """检查邮箱验证码发送频率（支持多租户隔离）
+
+        Returns:
+            (是否可以发送, 剩余等待秒数)
+        """
+        effective_tenant_id = tenant_id or get_current_tenant_id()
+        if effective_tenant_id:
+            key = f"{cls.PREFIX_EMAIL}{effective_tenant_id}:{email}:{code_type}:limit"
+        else:
+            key = f"{cls.PREFIX_EMAIL}{email}:{code_type}:limit"
+        ttl = await cls.ttl(key)
+
+        if ttl > 0:
+            return False, ttl
+
+        # 设置发送标记
+        await cls.set(key, "1", interval)
+        return True, 0
+
     # ==================== 微信 Token 相关（多租户隔离）====================
 
     @staticmethod

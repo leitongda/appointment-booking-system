@@ -41,6 +41,28 @@ echo "依赖安装完成"
 
 # 3. 执行数据库迁移
 echo -e "${YELLOW}[3/5] 执行数据库迁移...${NC}"
+# 扩宽 alembic_version.version_num 列宽（部分迁移 ID 超过 32 字符）
+python3 -c "
+import asyncio, os
+from dotenv import load_dotenv
+load_dotenv()
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import text
+
+async def fix():
+    url = os.getenv('DATABASE_URL', '')
+    if not url:
+        print('DATABASE_URL 未配置，跳过列宽调整')
+        return
+    engine = create_async_engine(url)
+    async with engine.begin() as conn:
+        await conn.execute(text(
+            \"ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(64)\"
+        ))
+    await engine.dispose()
+    print('alembic_version.version_num 已扩宽至 VARCHAR(64)')
+asyncio.run(fix())
+" 2>/dev/null || true
 python3 -m alembic upgrade head
 echo "数据库迁移完成"
 

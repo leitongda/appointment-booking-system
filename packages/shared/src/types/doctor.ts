@@ -10,6 +10,7 @@ export interface Doctor {
   name: string;
   username?: string;
   phone?: string;
+  email?: string;
   gender: number;
   avatar?: string;
   banner?: string;

@@ -125,7 +125,7 @@ const Login: React.FC = () => {
       label: (
         <span>
           <MobileOutlined />
-          手机号登录
+          验证码登录
         </span>
       ),
       children: <PhoneLogin onSuccess={handleLoginSuccess} />,

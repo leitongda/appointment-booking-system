@@ -1,11 +1,13 @@
-import { message, Dropdown, Avatar, Space, Modal, Form, Input } from 'antd';
+import { message, Dropdown, Avatar, Space, Modal, Form, Input, Button, Typography } from 'antd';
 import type { RequestConfig, RunTimeLayoutConfig } from 'umi';
 import { history } from 'umi';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { getToken, removeToken, initCrossTabSync, destroyCrossTabSync } from '@hospital/shared';
 import type { CrossTabEvent } from '@hospital/shared';
-import { doctorApi, setBaseURL } from '@hospital/api';
-import { UserOutlined, LogoutOutlined, SettingOutlined, LockOutlined } from '@ant-design/icons';
+import { doctorApi, authApi, setBaseURL } from '@hospital/api';
+import {
+  UserOutlined, LogoutOutlined, SettingOutlined, LockOutlined, MailOutlined,
+} from '@ant-design/icons';
 import { initApiConfig } from '@/utils/request';
 
 // 设置 API 基础路径（从环境变量读取，支持动态配置）
@@ -49,6 +51,7 @@ interface CurrentDoctor {
   id: string;
   name: string;
   phone?: string;
+  email?: string;
   avatar?: string;
   title?: string;
   departmentId?: string;
@@ -79,6 +82,7 @@ export async function getInitialState(): Promise<{ currentDoctor?: CurrentDoctor
         id: doctor.id,
         name: doctor.name,
         phone: doctor.phone,
+        email: doctor.email,
         avatar: doctor.avatar,
         title: doctor.title,
         departmentId: doctor.departmentId,
@@ -101,6 +105,18 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [form] = Form.useForm();
+
+  // 邮箱管理状态
+  const [emailModalVisible, setEmailModalVisible] = useState(false);
+  const [emailModalType, setEmailModalType] = useState<'bind' | 'unbind' | 'change'>('bind');
+  const [emailForm] = Form.useForm();
+  const [emailCodeSending, setEmailCodeSending] = useState(false);
+  const [emailCodeCountdown, setEmailCodeCountdown] = useState(0);
+  const [emailOldCodeSending, setEmailOldCodeSending] = useState(false);
+  const [emailOldCodeCountdown, setEmailOldCodeCountdown] = useState(0);
+  const [emailSubmitting, setEmailSubmitting] = useState(false);
+  const emailTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const emailOldTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const handleLogout = () => {
     removeToken();
@@ -144,6 +160,143 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
     }
   }, [form]);
 
+  // ========== 邮箱管理 ==========
+
+  const refreshDoctorInfo = async () => {
+    try {
+      const doctor = await doctorApi.getMe();
+      setInitialState({
+        currentDoctor: {
+          id: doctor.id,
+          name: doctor.name,
+          phone: doctor.phone,
+          email: doctor.email,
+          avatar: doctor.avatar,
+          title: doctor.title,
+          departmentId: doctor.departmentId,
+          departmentName: doctor.departmentName,
+          storeId: doctor.storeId,
+          storeName: doctor.storeName,
+          roleType: (doctor as any).roleType || 'doctor',
+          permissions: (doctor as any).permissions || [],
+        },
+      } as any);
+    } catch {}
+  };
+
+  const openEmailModal = (type: 'bind' | 'unbind' | 'change') => {
+    setEmailModalType(type);
+    setEmailModalVisible(true);
+    emailForm.resetFields();
+    setEmailCodeCountdown(0);
+    setEmailOldCodeCountdown(0);
+    if (emailTimerRef.current) {
+      clearInterval(emailTimerRef.current);
+      emailTimerRef.current = null;
+    }
+    if (emailOldTimerRef.current) {
+      clearInterval(emailOldTimerRef.current);
+      emailOldTimerRef.current = null;
+    }
+  };
+
+  const handleSendEmailCode = async (target: 'new' | 'old' = 'new') => {
+    try {
+      if (target === 'new') {
+        const email = emailForm.getFieldValue('email');
+        if (!email) {
+          message.error('请先输入邮箱');
+          return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          message.error('邮箱格式不正确');
+          return;
+        }
+        setEmailCodeSending(true);
+        await authApi.sendEmailCode(email, 'bind');
+        message.success('验证码已发送');
+        setEmailCodeCountdown(60);
+        emailTimerRef.current = setInterval(() => {
+          setEmailCodeCountdown((prev) => {
+            if (prev <= 1) {
+              if (emailTimerRef.current) {
+                clearInterval(emailTimerRef.current);
+                emailTimerRef.current = null;
+              }
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      } else {
+        if (!initialState?.currentDoctor?.email) {
+          message.error('当前未绑定邮箱');
+          return;
+        }
+        setEmailOldCodeSending(true);
+        await authApi.sendEmailCode(initialState.currentDoctor.email, 'bind');
+        message.success('验证码已发送到当前邮箱');
+        setEmailOldCodeCountdown(60);
+        emailOldTimerRef.current = setInterval(() => {
+          setEmailOldCodeCountdown((prev) => {
+            if (prev <= 1) {
+              if (emailOldTimerRef.current) {
+                clearInterval(emailOldTimerRef.current);
+                emailOldTimerRef.current = null;
+              }
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      }
+    } catch (error: any) {
+      message.error(error.message || '发送验证码失败');
+    } finally {
+      setEmailCodeSending(false);
+      setEmailOldCodeSending(false);
+    }
+  };
+
+  const handleEmailSubmit = async () => {
+    try {
+      const values = await emailForm.validateFields();
+      setEmailSubmitting(true);
+
+      if (emailModalType === 'bind') {
+        await authApi.emailBind({ email: values.email, code: values.code });
+        message.success('邮箱绑定成功');
+      } else if (emailModalType === 'unbind') {
+        await authApi.emailUnbind({ code: values.code });
+        message.success('邮箱解绑成功');
+      } else if (emailModalType === 'change') {
+        await authApi.emailChange({
+          newEmail: values.email,
+          newEmailCode: values.code,
+          oldEmailCode: values.oldCode,
+        });
+        message.success('邮箱换绑成功');
+      }
+
+      setEmailModalVisible(false);
+      await refreshDoctorInfo();
+    } catch (error: any) {
+      if (error.message) {
+        message.error(error.message);
+      }
+    } finally {
+      setEmailSubmitting(false);
+    }
+  };
+
+  const getEmailModalTitle = () => {
+    switch (emailModalType) {
+      case 'bind': return '绑定邮箱';
+      case 'unbind': return '解绑邮箱';
+      case 'change': return '更换邮箱';
+    }
+  };
+
   return {
     logo: '/logo.svg',
     title: '医生工作站',
@@ -159,6 +312,32 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
           icon: <SettingOutlined />,
           label: '通知设置',
           onClick: () => history.push('/settings/notification'),
+        },
+        {
+          key: 'email-management',
+          icon: <MailOutlined />,
+          label: '邮箱管理',
+          onClick: () => {
+            if (initialState.currentDoctor.email) {
+              // 已绑定：显示操作选择
+              Modal.confirm({
+                title: '邮箱管理',
+                content: (
+                  <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                    <div style={{ fontSize: 14, color: '#999', marginBottom: 4 }}>当前绑定邮箱</div>
+                    <div style={{ fontSize: 16, fontWeight: 500 }}>{initialState.currentDoctor.email}</div>
+                  </div>
+                ),
+                okText: '更换邮箱',
+                cancelText: '解绑邮箱',
+                cancelButtonProps: { danger: true },
+                onOk: () => openEmailModal('change'),
+                onCancel: () => openEmailModal('unbind'),
+              });
+            } else {
+              openEmailModal('bind');
+            }
+          },
         },
         {
           key: 'change-password',
@@ -250,6 +429,157 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
                 ]}
               >
                 <Input.Password placeholder="请再次输入新密码" />
+              </Form.Item>
+            </Form>
+          </Modal>
+
+          {/* 邮箱管理弹窗 */}
+          <Modal
+            title={getEmailModalTitle()}
+            open={emailModalVisible}
+            onCancel={() => setEmailModalVisible(false)}
+            footer={null}
+            destroyOnClose
+            width={480}
+          >
+            <Form
+              form={emailForm}
+              layout="vertical"
+              onFinish={handleEmailSubmit}
+            >
+              {emailModalType === 'bind' && (
+                <>
+                  <Form.Item
+                    name="email"
+                    label="邮箱地址"
+                    rules={[
+                      { required: true, message: '请输入邮箱' },
+                      { type: 'email', message: '邮箱格式不正确' },
+                    ]}
+                  >
+                    <Input placeholder="请输入邮箱地址" prefix={<MailOutlined />} />
+                  </Form.Item>
+                  <Form.Item
+                    name="code"
+                    label="验证码"
+                    rules={[{ required: true, message: '请输入验证码' }]}
+                  >
+                    <Input
+                      placeholder="请输入验证码"
+                      maxLength={6}
+                      suffix={
+                        <Button
+                          type="link"
+                          size="small"
+                          disabled={emailCodeCountdown > 0}
+                          loading={emailCodeSending}
+                          onClick={() => handleSendEmailCode('new')}
+                          style={{ padding: 0 }}
+                        >
+                          {emailCodeCountdown > 0 ? `${emailCodeCountdown}s` : '获取验证码'}
+                        </Button>
+                      }
+                    />
+                  </Form.Item>
+                </>
+              )}
+
+              {emailModalType === 'unbind' && (
+                <>
+                  <Typography.Paragraph type="secondary">
+                    验证码将发送到当前绑定的邮箱：<Typography.Text strong>{initialState?.currentDoctor?.email}</Typography.Text>
+                  </Typography.Paragraph>
+                  <Form.Item
+                    name="code"
+                    label="验证码"
+                    rules={[{ required: true, message: '请输入验证码' }]}
+                  >
+                    <Input
+                      placeholder="请输入验证码"
+                      maxLength={6}
+                      suffix={
+                        <Button
+                          type="link"
+                          size="small"
+                          disabled={emailCodeCountdown > 0}
+                          loading={emailCodeSending}
+                          onClick={() => handleSendEmailCode('new')}
+                          style={{ padding: 0 }}
+                        >
+                          {emailCodeCountdown > 0 ? `${emailCodeCountdown}s` : '获取验证码'}
+                        </Button>
+                      }
+                    />
+                  </Form.Item>
+                </>
+              )}
+
+              {emailModalType === 'change' && (
+                <>
+                  <Form.Item
+                    name="email"
+                    label="新邮箱地址"
+                    rules={[
+                      { required: true, message: '请输入新邮箱' },
+                      { type: 'email', message: '邮箱格式不正确' },
+                    ]}
+                  >
+                    <Input placeholder="请输入新邮箱地址" prefix={<MailOutlined />} />
+                  </Form.Item>
+                  <Form.Item
+                    name="code"
+                    label="新邮箱验证码"
+                    rules={[{ required: true, message: '请输入新邮箱验证码' }]}
+                  >
+                    <Input
+                      placeholder="请输入新邮箱验证码"
+                      maxLength={6}
+                      suffix={
+                        <Button
+                          type="link"
+                          size="small"
+                          disabled={emailCodeCountdown > 0}
+                          loading={emailCodeSending}
+                          onClick={() => handleSendEmailCode('new')}
+                          style={{ padding: 0 }}
+                        >
+                          {emailCodeCountdown > 0 ? `${emailCodeCountdown}s` : '获取验证码'}
+                        </Button>
+                      }
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name="oldCode"
+                    label={`旧邮箱验证码（${initialState?.currentDoctor?.email || '当前邮箱'}）`}
+                    rules={[{ required: true, message: '请输入旧邮箱验证码' }]}
+                  >
+                    <Input
+                      placeholder="请输入旧邮箱验证码"
+                      maxLength={6}
+                      suffix={
+                        <Button
+                          type="link"
+                          size="small"
+                          disabled={emailOldCodeCountdown > 0}
+                          loading={emailOldCodeSending}
+                          onClick={() => handleSendEmailCode('old')}
+                          style={{ padding: 0 }}
+                        >
+                          {emailOldCodeCountdown > 0 ? `${emailOldCodeCountdown}s` : '获取验证码'}
+                        </Button>
+                      }
+                    />
+                  </Form.Item>
+                </>
+              )}
+
+              <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+                <Space>
+                  <Button onClick={() => setEmailModalVisible(false)}>取消</Button>
+                  <Button type="primary" htmlType="submit" loading={emailSubmitting}>
+                    确认
+                  </Button>
+                </Space>
               </Form.Item>
             </Form>
           </Modal>
