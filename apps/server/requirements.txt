@@ -37,25 +37,11 @@ Jinja2>=3.1.0
 # 邮件发送
 aiosmtplib>=3.0.0
 
-# 开发
-pytest>=8.3.0
-pytest-asyncio>=0.24.0
-pytest-cov>=6.0.0
-aiosqlite>=0.20.0  # 测试用 SQLite 异步驱动
-
-# ==================== 新增依赖 ====================
-
 # MinIO 存储
 minio>=7.2.0
 
-# 阿里云短信 SDK（可选，按需安装）
+# 阿里云短信 SDK
 alibabacloud_dysmsapi20170525==3.0.0
-
-# 腾讯云短信 SDK（可选，按需安装）
-# tencentcloud-sdk-python==3.0.1000
-
-# 腾讯云 COS SDK（可选，按需安装）
-# cos-python-sdk-v5>=1.9.30
 
 # 图片处理
 Pillow>=10.0.0
@@ -69,9 +55,6 @@ pypinyin>=0.51.0
 # Excel 处理
 openpyxl>=3.1.0
 xlrd>=2.0.1
-
-# 性能测试
-locust>=2.32.0
 
 # 微信支付 SDK
 wechatpayv3>=1.2.0
