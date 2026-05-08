@@ -1,0 +1,150 @@
+# Booking Domain
+
+> Core booking and scheduling functions, including appointment creation, schedule management, and rule configuration
+
+- Base Path: /api/v1
+- Authentication: Bearer Token (JWT)
+
+This domain contains 11 modules with 105 endpoints.
+
+---
+
+## 预约
+
+- [POST /api/v1/appointments](/api/v1/appointments): 创建预约
+- [PUT /api/v1/appointments/{appointment_id}/cancel](/api/v1/appointments/{appointment_id}/cancel): 取消预约
+- [GET /api/v1/appointments/{appointment_id}/payment-params](/api/v1/appointments/{appointment_id}/payment-params): 获取支付参数
+- [GET /api/v1/appointments/query](/api/v1/appointments/query): 获取预约列表
+- [GET /api/v1/appointments/query/today](/api/v1/appointments/query/today): 获取今日预约
+- [GET /api/v1/appointments/query/today-pending](/api/v1/appointments/query/today-pending): 获取今日待签到预约
+- [GET /api/v1/appointments/query/queue](/api/v1/appointments/query/queue): 获取签到队列
+- [GET /api/v1/appointments/query/statistics](/api/v1/appointments/query/statistics): 获取预约统计
+- [GET /api/v1/appointments/query/check-duplicate](/api/v1/appointments/query/check-duplicate): 检查重复预约
+- [GET /api/v1/appointments/query/by-no/{appointment_no}](/api/v1/appointments/query/by-no/{appointment_no}): 按预约号获取详情
+- [GET /api/v1/appointments/query/{appointment_id}](/api/v1/appointments/query/{appointment_id}): 获取预约详情
+- [GET /api/v1/appointments/query/queue/info](/api/v1/appointments/query/queue/info): 获取叫号队列信息
+- [PUT /api/v1/appointments/{appointment_id}/sign-in](/api/v1/appointments/{appointment_id}/sign-in): 签到
+- [PUT /api/v1/appointments/{appointment_id}/cancel-sign-in](/api/v1/appointments/{appointment_id}/cancel-sign-in): 取消签到
+- [PUT /api/v1/appointments/{appointment_id}/call](/api/v1/appointments/{appointment_id}/call): 叫号
+- [PUT /api/v1/appointments/{appointment_id}/complete](/api/v1/appointments/{appointment_id}/complete): 完成就诊
+- [PUT /api/v1/appointments/{appointment_id}/pass](/api/v1/appointments/{appointment_id}/pass): 过号
+- [PUT /api/v1/appointments/{appointment_id}/recall](/api/v1/appointments/{appointment_id}/recall): 重新叫号
+- [PUT /api/v1/appointments/{appointment_id}/no-show](/api/v1/appointments/{appointment_id}/no-show): 标记爽约
+
+## 排班
+
+- [GET /api/v1/schedules](/api/v1/schedules): 获取排班列表
+- [POST /api/v1/schedules](/api/v1/schedules): 创建排班
+- [GET /api/v1/schedules/statistics](/api/v1/schedules/statistics): 获取排班统计
+- [GET /api/v1/schedules/statistics/utilization-trend](/api/v1/schedules/statistics/utilization-trend): 排班利用率趋势
+- [GET /api/v1/schedules/statistics/doctor-workload](/api/v1/schedules/statistics/doctor-workload): 医生工作量对比
+- [GET /api/v1/schedules/statistics/peak-hours](/api/v1/schedules/statistics/peak-hours): 高峰时段热力图
+- [GET /api/v1/schedules/available/{doctor_id}](/api/v1/schedules/available/{doctor_id}): 获取可预约排班
+- [GET /api/v1/schedules/{schedule_id}](/api/v1/schedules/{schedule_id}): 获取排班详情
+- [PUT /api/v1/schedules/{schedule_id}](/api/v1/schedules/{schedule_id}): 更新排班
+- [POST /api/v1/schedules/batch](/api/v1/schedules/batch): 批量创建排班
+- [POST /api/v1/schedules/batch-suspend](/api/v1/schedules/batch-suspend): 批量停诊
+- [POST /api/v1/schedules/batch-resume](/api/v1/schedules/batch-resume): 批量恢复排班
+- [POST /api/v1/schedules/batch-delete](/api/v1/schedules/batch-delete): 批量删除排班
+- [GET /api/v1/schedules/custom-schedules](/api/v1/schedules/custom-schedules): 获取自定义排班列表
+- [POST /api/v1/schedules/custom-schedules](/api/v1/schedules/custom-schedules): 创建自定义排班
+- [GET /api/v1/schedules/custom-schedules/effective](/api/v1/schedules/custom-schedules/effective): 获取生效的自定义排班
+- [DELETE /api/v1/schedules/custom-schedules/{schedule_id}](/api/v1/schedules/custom-schedules/{schedule_id}): 删除自定义排班
+
+## 排班模板
+
+- [GET /api/v1/schedule-templates](/api/v1/schedule-templates): 获取列表
+- [POST /api/v1/schedule-templates](/api/v1/schedule-templates): 创建模板
+- [GET /api/v1/schedule-templates/{template_id}](/api/v1/schedule-templates/{template_id}): 获取详情
+- [PUT /api/v1/schedule-templates/{template_id}](/api/v1/schedule-templates/{template_id}): 更新模板
+- [DELETE /api/v1/schedule-templates/{template_id}](/api/v1/schedule-templates/{template_id}): 删除模板
+- [POST /api/v1/schedule-templates/preview-generate](/api/v1/schedule-templates/preview-generate): 预览生成
+- [POST /api/v1/schedule-templates/generate-with-capacity](/api/v1/schedule-templates/generate-with-capacity): 批量生成
+- [POST /api/v1/schedule-templates/generate](/api/v1/schedule-templates/generate): 批量生成
+- [POST /api/v1/schedule-templates/batch-add](/api/v1/schedule-templates/batch-add): 批量添加
+- [GET /api/v1/schedule-templates/{template_id}/check-generated](/api/v1/schedule-templates/{template_id}/check-generated): 检查生成
+- [POST /api/v1/schedule-templates/{template_id}/batch-delete](/api/v1/schedule-templates/{template_id}/batch-delete): 批量删除
+- [POST /api/v1/schedule-templates/{template_id}/batch-suspend](/api/v1/schedule-templates/{template_id}/batch-suspend): 批量停诊
+- [GET /api/v1/schedule-templates/{template_id}/logs](/api/v1/schedule-templates/{template_id}/logs): 获取历史
+- [POST /api/v1/schedule-templates/{template_id}/copy](/api/v1/schedule-templates/{template_id}/copy): 复制规则
+- [POST /api/v1/schedule-templates/{template_id}/copy-cross-store](/api/v1/schedule-templates/{template_id}/copy-cross-store): 跨院区复制规则
+
+## 停诊管理
+
+- [GET /api/v1/schedule-suspensions](/api/v1/schedule-suspensions): 获取停诊列表
+- [POST /api/v1/schedule-suspensions](/api/v1/schedule-suspensions): 创建停诊
+- [GET /api/v1/schedule-suspensions/schedules](/api/v1/schedule-suspensions/schedules): 获取可选排班列表
+- [DELETE /api/v1/schedule-suspensions/{suspension_id}](/api/v1/schedule-suspensions/{suspension_id}): 删除停诊记录
+- [PUT /api/v1/schedule-suspensions/{suspension_id}/cancel](/api/v1/schedule-suspensions/{suspension_id}/cancel): 取消停诊
+
+## 休息日设置
+
+- [GET /api/v1/rest-days](/api/v1/rest-days): 获取列表
+- [POST /api/v1/rest-days](/api/v1/rest-days): 添加休息日
+- [DELETE /api/v1/rest-days/{rest_day_id}](/api/v1/rest-days/{rest_day_id}): 删除休息日
+- [PUT /api/v1/rest-days/{rest_day_id}/cancel](/api/v1/rest-days/{rest_day_id}/cancel): 取消休息日
+
+## 规则管理
+
+- [GET /api/v1/rule-sets](/api/v1/rule-sets): 获取规则组列表
+- [POST /api/v1/rule-sets](/api/v1/rule-sets): 创建规则组
+- [GET /api/v1/rule-sets/performance](/api/v1/rule-sets/performance): 获取规则引擎性能统计
+- [GET /api/v1/rule-sets/slow-queries](/api/v1/rule-sets/slow-queries): 获取规则引擎慢查询列表
+- [DELETE /api/v1/rule-sets/performance/metrics](/api/v1/rule-sets/performance/metrics): 清除性能指标
+- [GET /api/v1/rule-sets/presets](/api/v1/rule-sets/presets): 获取预设模板列表
+- [POST /api/v1/rule-sets/presets](/api/v1/rule-sets/presets): 创建自定义预设模板
+- [PUT /api/v1/rule-sets/presets/{preset_id}](/api/v1/rule-sets/presets/{preset_id}): 更新预设模板
+- [DELETE /api/v1/rule-sets/presets/{preset_id}](/api/v1/rule-sets/presets/{preset_id}): 删除预设模板
+- [GET /api/v1/rule-sets/{rule_set_id}](/api/v1/rule-sets/{rule_set_id}): 获取规则组详情
+- [PUT /api/v1/rule-sets/{rule_set_id}](/api/v1/rule-sets/{rule_set_id}): 更新规则组
+- [DELETE /api/v1/rule-sets/{rule_set_id}](/api/v1/rule-sets/{rule_set_id}): 删除规则组
+- [POST /api/v1/rule-sets/{rule_set_id}/enable](/api/v1/rule-sets/{rule_set_id}/enable): 启用规则组
+- [POST /api/v1/rule-sets/{rule_set_id}/disable](/api/v1/rule-sets/{rule_set_id}/disable): 禁用规则组
+- [POST /api/v1/rule-sets/preview](/api/v1/rule-sets/preview): 预览规则效果
+- [POST /api/v1/rule-sets/{rule_set_id}/windows](/api/v1/rule-sets/{rule_set_id}/windows): 创建时间窗
+- [PUT /api/v1/rule-sets/windows/{window_id}](/api/v1/rule-sets/windows/{window_id}): 更新时间窗
+- [DELETE /api/v1/rule-sets/windows/{window_id}](/api/v1/rule-sets/windows/{window_id}): 删除时间窗
+- [PUT /api/v1/rule-sets/{rule_set_id}/booking-policy](/api/v1/rule-sets/{rule_set_id}/booking-policy): 更新预约策略
+- [PUT /api/v1/rule-sets/{rule_set_id}/checkin-policy](/api/v1/rule-sets/{rule_set_id}/checkin-policy): 更新签到策略
+- [PUT /api/v1/rule-sets/{rule_set_id}/capacity-policy](/api/v1/rule-sets/{rule_set_id}/capacity-policy): 更新容量策略
+- [GET /api/v1/rule-sets/{rule_set_id}/audit-logs](/api/v1/rule-sets/{rule_set_id}/audit-logs): 获取规则组审计日志
+
+## 班次类型
+
+- [GET /api/v1/shift-types](/api/v1/shift-types): 获取班次类型列表
+- [POST /api/v1/shift-types](/api/v1/shift-types): 创建班次类型
+- [GET /api/v1/shift-types/all](/api/v1/shift-types/all): 获取所有启用班次类型
+- [GET /api/v1/shift-types/{shift_type_id}](/api/v1/shift-types/{shift_type_id}): 获取班次类型详情
+- [PUT /api/v1/shift-types/{shift_type_id}](/api/v1/shift-types/{shift_type_id}): 更新班次类型
+- [DELETE /api/v1/shift-types/{shift_type_id}](/api/v1/shift-types/{shift_type_id}): 删除班次类型
+
+## 医生预约设置
+
+- [GET /api/v1/doctor-booking-settings](/api/v1/doctor-booking-settings): 获取医生预约设置列表
+- [POST /api/v1/doctor-booking-settings](/api/v1/doctor-booking-settings): 创建医生预约设置
+- [GET /api/v1/doctor-booking-settings/existing-doctors](/api/v1/doctor-booking-settings/existing-doctors): 获取已配置医生ID列表
+- [GET /api/v1/doctor-booking-settings/{setting_id}](/api/v1/doctor-booking-settings/{setting_id}): 获取医生预约设置详情
+- [PUT /api/v1/doctor-booking-settings/{setting_id}](/api/v1/doctor-booking-settings/{setting_id}): 更新医生预约设置
+- [DELETE /api/v1/doctor-booking-settings/{setting_id}](/api/v1/doctor-booking-settings/{setting_id}): 删除医生预约设置
+- [PATCH /api/v1/doctor-booking-settings/{setting_id}/status](/api/v1/doctor-booking-settings/{setting_id}/status): 更新医生预约设置状态
+
+## 复诊规则配置
+
+- [GET /api/v1/visit-type-configs/store/{store_id}](/api/v1/visit-type-configs/store/{store_id}): 获取门店复诊规则配置
+- [PUT /api/v1/visit-type-configs/store/{store_id}](/api/v1/visit-type-configs/store/{store_id}): 更新门店复诊规则配置
+- [DELETE /api/v1/visit-type-configs/store/{store_id}](/api/v1/visit-type-configs/store/{store_id}): 删除门店复诊规则配置
+
+## 预约须知
+
+- [GET /api/v1/booking-notices/public](/api/v1/booking-notices/public): 获取生效预约须知列表
+- [GET /api/v1/booking-notices](/api/v1/booking-notices): 获取预约须知列表
+- [POST /api/v1/booking-notices](/api/v1/booking-notices): 创建预约须知
+- [GET /api/v1/booking-notices/{notice_id}](/api/v1/booking-notices/{notice_id}): 获取预约须知详情
+- [PUT /api/v1/booking-notices/{notice_id}](/api/v1/booking-notices/{notice_id}): 更新预约须知
+- [DELETE /api/v1/booking-notices/{notice_id}](/api/v1/booking-notices/{notice_id}): 删除预约须知
+- [PATCH /api/v1/booking-notices/{notice_id}/status](/api/v1/booking-notices/{notice_id}/status): 更新预约须知状态
+
+## Related Documentation
+
+- [API Overview](/llms-en.txt): Overview of all API endpoints
+- [Full API Documentation](/llms-full-en.txt): Complete documentation with parameter details

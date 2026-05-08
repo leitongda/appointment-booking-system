@@ -5,38 +5,42 @@
 - 基础路径: /api/v1
 - 认证方式: Bearer Token (JWT)
 
-本域包含 3 个模块，共 31 个端点。
+本域包含 3 个模块，共 35 个端点。
 
 ---
 
 ## 病历
 
-- [GET /api/v1/medical-records](/api/v1/medical-records): 获取病历列表
+- [GET /api/v1/medical-records](/api/v1/medical-records): 获取列表
 - [POST /api/v1/medical-records](/api/v1/medical-records): 创建病历
-- [GET /api/v1/medical-records/my](/api/v1/medical-records/my): 获取当前医生的病历列表
-- [GET /api/v1/medical-records/patient/{patient_id}](/api/v1/medical-records/patient/{patient_id}): 获取患者的病历列表
-- [GET /api/v1/medical-records/appointment/{appointment_id}](/api/v1/medical-records/appointment/{appointment_id}): 根据预约ID获取病历
-- [GET /api/v1/medical-records/{record_id}](/api/v1/medical-records/{record_id}): 获取病历详情
+- [GET /api/v1/medical-records/my](/api/v1/medical-records/my): 获取我的列表
+- [GET /api/v1/medical-records/patient/{patient_id}](/api/v1/medical-records/patient/{patient_id}): 获取患者列表
+- [GET /api/v1/medical-records/appointment/{appointment_id}](/api/v1/medical-records/appointment/{appointment_id}): 根据预约获取
+- [GET /api/v1/medical-records/{record_id}](/api/v1/medical-records/{record_id}): 获取详情
 - [PUT /api/v1/medical-records/{record_id}](/api/v1/medical-records/{record_id}): 更新病历
 - [DELETE /api/v1/medical-records/{record_id}](/api/v1/medical-records/{record_id}): 删除病历
 
 ## 医生端
 
 - [GET /api/v1/doctor-portal/me](/api/v1/doctor-portal/me): 获取当前医生信息
+- [PUT /api/v1/doctor-portal/me](/api/v1/doctor-portal/me): 更新当前医生个人信息
 - [GET /api/v1/doctor-portal/schedules](/api/v1/doctor-portal/schedules): 获取当前医生的排班列表
 - [GET /api/v1/doctor-portal/schedules/today](/api/v1/doctor-portal/schedules/today): 获取当前医生今日排班
 - [GET /api/v1/doctor-portal/appointments](/api/v1/doctor-portal/appointments): 获取当前医生的预约列表
 - [GET /api/v1/doctor-portal/appointments/today](/api/v1/doctor-portal/appointments/today): 获取当前医生今日预约
+- [GET /api/v1/doctor-portal/appointments/statistics/today](/api/v1/doctor-portal/appointments/statistics/today): 获取当前医生今日统计数据
+- [GET /api/v1/doctor-portal/appointments/statistics/trend](/api/v1/doctor-portal/appointments/statistics/trend): 获取当前医生的预约趋势数据
+- [GET /api/v1/doctor-portal/appointments/statistics/status](/api/v1/doctor-portal/appointments/statistics/status): 获取当前医生的预约状态分布
 - [GET /api/v1/doctor-portal/queue](/api/v1/doctor-portal/queue): 获取当前医生的签到队列
 - [GET /api/v1/doctor-portal/queue/info](/api/v1/doctor-portal/queue/info): 获取当前医生的叫号队列统计信息
-- [PUT /api/v1/doctor-portal/appointments/{appointment_id}/call](/api/v1/doctor-portal/appointments/{appointment_id}/call): 叫号 - 只能叫自己的患者
-- [PUT /api/v1/doctor-portal/appointments/{appointment_id}/complete](/api/v1/doctor-portal/appointments/{appointment_id}/complete): 完成就诊 - 只能操作自己的患者
-- [PUT /api/v1/doctor-portal/appointments/{appointment_id}/pass](/api/v1/doctor-portal/appointments/{appointment_id}/pass): 过号 - 只能操作自己的患者
-- [PUT /api/v1/doctor-portal/appointments/{appointment_id}/recall](/api/v1/doctor-portal/appointments/{appointment_id}/recall): 重新叫号 - 只能操作自己的患者
-- [PUT /api/v1/doctor-portal/appointments/{appointment_id}/no-show](/api/v1/doctor-portal/appointments/{appointment_id}/no-show): 标记爽约 - 只能操作自己的患者
-- [GET /api/v1/doctor-portal/statistics/today](/api/v1/doctor-portal/statistics/today): 获取当前医生今日统计数据
+- [PUT /api/v1/doctor-portal/queue/{appointment_id}/call](/api/v1/doctor-portal/queue/{appointment_id}/call): 叫号 - 只能叫自己的患者
+- [PUT /api/v1/doctor-portal/queue/{appointment_id}/complete](/api/v1/doctor-portal/queue/{appointment_id}/complete): 完成就诊 - 只能操作自己的患者
+- [PUT /api/v1/doctor-portal/queue/{appointment_id}/pass](/api/v1/doctor-portal/queue/{appointment_id}/pass): 过号 - 只能操作自己的患者
+- [PUT /api/v1/doctor-portal/queue/{appointment_id}/recall](/api/v1/doctor-portal/queue/{appointment_id}/recall): 重新叫号 - 只能操作自己的患者
+- [PUT /api/v1/doctor-portal/queue/{appointment_id}/no-show](/api/v1/doctor-portal/queue/{appointment_id}/no-show): 标记爽约 - 只能操作自己的患者
 - [GET /api/v1/doctor-portal/patients/{patient_id}/appointments](/api/v1/doctor-portal/patients/{patient_id}/appointments): 获取患者在当前医生处的历史就诊记录
-- [POST /api/v1/doctor-portal/appointments/{appointment_id}/follow-up](/api/v1/doctor-portal/appointments/{appointment_id}/follow-up): 为患者创建复诊预约
+- [POST /api/v1/doctor-portal/patients/appointments/{appointment_id}/follow-up](/api/v1/doctor-portal/patients/appointments/{appointment_id}/follow-up): 为患者创建复诊预约
+- [GET /api/v1/doctor-portal/rule-sets](/api/v1/doctor-portal/rule-sets): 获取直接关联到当前医生的规则组列表（只读）。
 
 ## 停诊调班
 

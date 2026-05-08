@@ -19,6 +19,7 @@
 
 - [GET /api/v1/schedule-templates](/api/v1/schedule-templates): 获取排班模板列表
 - [GET /api/v1/data/export/schedule-templates](/api/v1/data/export/schedule-templates): 导出排班模板列表
+- [GET /api/v1/data/export/schedule-templates](/api/v1/data/export/schedule-templates): 导出排班模板列表
 
 ### 步骤 3: 创建排班模板
 
@@ -35,16 +36,16 @@
 
 ### 步骤 6: 获取排班列表
 
-- [GET /api/v1/schedules](/api/v1/schedules): 获取排班列表
+- [GET /api/v1/schedules](/api/v1/schedules): 获取排班列表（管理端），支持分页和多条件筛选。
 
 ### 步骤 7: 批量停诊
 
-- [POST /api/v1/schedules/batch-suspend](/api/v1/schedules/batch-suspend): 批量停诊排班
+- [POST /api/v1/schedules/batch-suspend](/api/v1/schedules/batch-suspend): 批量将排班标记为停诊状态。
 - [POST /api/v1/schedule-templates/{template_id}/batch-suspend](/api/v1/schedule-templates/{template_id}/batch-suspend): 批量停诊规则生成的排班
 
 ### 步骤 8: 批量恢复
 
-- [POST /api/v1/schedules/batch-resume](/api/v1/schedules/batch-resume): 批量恢复排班
+- [POST /api/v1/schedules/batch-resume](/api/v1/schedules/batch-resume): 批量恢复已停诊的排班。
 
 ### 步骤 9: 添加休息日
 

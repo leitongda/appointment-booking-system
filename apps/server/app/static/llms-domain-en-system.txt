@@ -1,0 +1,119 @@
+# System Management Domain
+
+> System-level functions including permission management, system settings, and data import/export
+
+- Base Path: /api/v1
+- Authentication: Bearer Token (JWT)
+
+This domain contains 6 modules with 86 endpoints.
+
+---
+
+## 权限管理
+
+- [GET /api/v1/admin/public-key](/api/v1/admin/public-key): 获取RSA公钥
+- [POST /api/v1/admin/login](/api/v1/admin/login): 管理员登录
+- [POST /api/v1/admin/phone-login](/api/v1/admin/phone-login): 手机号登录
+- [POST /api/v1/admin/sms/send](/api/v1/admin/sms/send): 发送验证码
+- [POST /api/v1/admin/sms/login](/api/v1/admin/sms/login): 验证码登录
+- [GET /api/v1/admin/wechat/qrcode](/api/v1/admin/wechat/qrcode): 获取微信登录二维码
+- [GET /api/v1/admin/wechat/check](/api/v1/admin/wechat/check): 检查扫码状态
+- [POST /api/v1/admin/wechat/confirm](/api/v1/admin/wechat/confirm): 确认微信扫码
+- [GET /api/v1/admin/me](/api/v1/admin/me): 获取当前管理员信息
+- [PUT /api/v1/admin/me](/api/v1/admin/me): 更新个人信息
+- [POST /api/v1/admin/logout](/api/v1/admin/logout): 退出登录
+- [GET /api/v1/admin/me/stores](/api/v1/admin/me/stores): 获取绑定门店
+- [PUT /api/v1/admin/me/current-store](/api/v1/admin/me/current-store): 切换当前门店
+- [PUT /api/v1/admin/me/current-tenant](/api/v1/admin/me/current-tenant): 切换当前租户
+- [PUT /api/v1/admin/me/change-password](/api/v1/admin/me/change-password): 修改密码
+- [GET /api/v1/admin/roles](/api/v1/admin/roles): 获取角色列表
+- [POST /api/v1/admin/roles](/api/v1/admin/roles): 创建角色
+- [GET /api/v1/admin/roles/all](/api/v1/admin/roles/all): 获取所有角色
+- [GET /api/v1/admin/roles/{role_id}](/api/v1/admin/roles/{role_id}): 获取角色详情
+- [PUT /api/v1/admin/roles/{role_id}](/api/v1/admin/roles/{role_id}): 更新角色
+- [DELETE /api/v1/admin/roles/{role_id}](/api/v1/admin/roles/{role_id}): 删除角色
+- [PUT /api/v1/admin/roles/{role_id}/permissions](/api/v1/admin/roles/{role_id}/permissions): 更新角色权限
+- [GET /api/v1/admin/permissions/tree](/api/v1/admin/permissions/tree): 获取权限树
+- [GET /api/v1/admin/permissions/all](/api/v1/admin/permissions/all): 获取所有权限
+- [POST /api/v1/admin/permissions](/api/v1/admin/permissions): 创建权限
+- [POST /api/v1/admin/permissions/batch](/api/v1/admin/permissions/batch): 批量创建权限
+- [DELETE /api/v1/admin/permissions/{code}](/api/v1/admin/permissions/{code}): 删除权限
+- [GET /api/v1/admin/admins](/api/v1/admin/admins): 获取管理员列表
+- [POST /api/v1/admin/admins](/api/v1/admin/admins): 创建管理员
+- [GET /api/v1/admin/admins/{admin_id}](/api/v1/admin/admins/{admin_id}): 获取管理员详情
+- [PUT /api/v1/admin/admins/{admin_id}](/api/v1/admin/admins/{admin_id}): 更新管理员
+- [DELETE /api/v1/admin/admins/{admin_id}](/api/v1/admin/admins/{admin_id}): 删除管理员
+- [PUT /api/v1/admin/admins/{admin_id}/reset-password](/api/v1/admin/admins/{admin_id}/reset-password): 重置密码
+- [GET /api/v1/admin/logs](/api/v1/admin/logs): 获取操作日志
+- [GET /api/v1/admin/online-users](/api/v1/admin/online-users): 获取在线用户
+- [POST /api/v1/admin/online-users/{admin_id}/kick](/api/v1/admin/online-users/{admin_id}/kick): 强制用户下线
+- [GET /api/v1/admin/user-status](/api/v1/admin/user-status): 获取用户状态
+- [GET /api/v1/admin/login-history/{admin_id}](/api/v1/admin/login-history/{admin_id}): 获取登录历史
+
+## 系统设置
+
+- [GET /api/v1/settings/booking](/api/v1/settings/booking): 获取预约设置
+- [PUT /api/v1/settings/booking](/api/v1/settings/booking): 更新预约设置
+- [GET /api/v1/settings/hospital](/api/v1/settings/hospital): 获取医院信息
+- [PUT /api/v1/settings/hospital](/api/v1/settings/hospital): 更新医院信息
+- [GET /api/v1/settings/wechat](/api/v1/settings/wechat): 获取微信配置
+- [PUT /api/v1/settings/wechat](/api/v1/settings/wechat): 更新微信配置
+- [GET /api/v1/settings/sms](/api/v1/settings/sms): 获取短信配置
+- [PUT /api/v1/settings/sms](/api/v1/settings/sms): 更新短信配置
+- [GET /api/v1/settings/email](/api/v1/settings/email): 获取邮件配置
+- [PUT /api/v1/settings/email](/api/v1/settings/email): 更新邮件配置
+- [GET /api/v1/settings/booking/rules](/api/v1/settings/booking/rules): 获取预约规则
+- [GET /api/v1/settings/booking-fields](/api/v1/settings/booking-fields): 获取预约选项配置
+- [PUT /api/v1/settings/booking-fields](/api/v1/settings/booking-fields): 更新预约选项配置
+- [GET /api/v1/settings/patient-card](/api/v1/settings/patient-card): 获取就诊卡配置
+- [PUT /api/v1/settings/patient-card](/api/v1/settings/patient-card): 更新就诊卡配置
+- [GET /api/v1/settings/image](/api/v1/settings/image): 获取图片处理配置
+- [PUT /api/v1/settings/image](/api/v1/settings/image): 更新图片处理配置
+- [GET /api/v1/settings/time-periods](/api/v1/settings/time-periods): 获取时段配置
+- [PUT /api/v1/settings/time-periods](/api/v1/settings/time-periods): 更新时段配置
+- [DELETE /api/v1/settings/time-periods/{store_id}](/api/v1/settings/time-periods/{store_id}): 删除门店时段配置
+
+## 审计日志
+
+- [GET /api/v1/audit-logs/checkin-logs](/api/v1/audit-logs/checkin-logs): Get Checkin Logs
+- [GET /api/v1/audit-logs/checkin-logs/statistics](/api/v1/audit-logs/checkin-logs/statistics): Get Checkin Log Statistics
+- [GET /api/v1/audit-logs/export](/api/v1/audit-logs/export): 导出审计日志
+
+## 数据导入导出
+
+- [GET /api/v1/data/export/doctors](/api/v1/data/export/doctors): 导出医生列表
+- [GET /api/v1/data/export/patients](/api/v1/data/export/patients): 导出患者列表
+- [GET /api/v1/data/export/departments](/api/v1/data/export/departments): 导出科室列表
+- [GET /api/v1/data/export/stores](/api/v1/data/export/stores): 导出门店列表
+- [GET /api/v1/data/export/schedule-templates](/api/v1/data/export/schedule-templates): 导出排班模板列表
+- [GET /api/v1/data/export/users](/api/v1/data/export/users): 导出系统用户列表
+- [GET /api/v1/data/export/logs](/api/v1/data/export/logs): 导出操作日志
+- [GET /api/v1/data/export/feedbacks](/api/v1/data/export/feedbacks): 导出用户反馈
+- [GET /api/v1/data/export/rule-sets](/api/v1/data/export/rule-sets): 导出规则组列表
+- [POST /api/v1/data/import/doctors](/api/v1/data/import/doctors): 导入医生数据
+- [POST /api/v1/data/import/patients](/api/v1/data/import/patients): 导入患者数据
+- [POST /api/v1/data/import/departments](/api/v1/data/import/departments): 导入科室数据
+- [POST /api/v1/data/import/stores](/api/v1/data/import/stores): 导入门店数据
+- [POST /api/v1/data/import/rule-sets](/api/v1/data/import/rule-sets): 导入规则组数据
+- [GET /api/v1/data/template/doctors](/api/v1/data/template/doctors): 下载医生导入模板
+- [GET /api/v1/data/template/patients](/api/v1/data/template/patients): 下载患者导入模板
+- [GET /api/v1/data/template/departments](/api/v1/data/template/departments): 下载科室导入模板
+- [GET /api/v1/data/template/stores](/api/v1/data/template/stores): 下载门店导入模板
+- [GET /api/v1/data/template/rule-sets](/api/v1/data/template/rule-sets): 下载规则组导入模板
+
+## 数据导出
+
+- [GET /api/v1/export/appointments](/api/v1/export/appointments): 导出预约记录
+- [GET /api/v1/export/patients](/api/v1/export/patients): Export Patients
+- [GET /api/v1/export/schedules](/api/v1/export/schedules): Export Schedules
+
+## 文件上传
+
+- [POST /api/v1/upload](/api/v1/upload): 上传图片
+- [POST /api/v1/upload/transfer](/api/v1/upload/transfer): URL转存
+- [DELETE /api/v1/upload/{key}](/api/v1/upload/{key}): 删除图片
+
+## Related Documentation
+
+- [API Overview](/llms-en.txt): Overview of all API endpoints
+- [Full API Documentation](/llms-full-en.txt): Complete documentation with parameter details

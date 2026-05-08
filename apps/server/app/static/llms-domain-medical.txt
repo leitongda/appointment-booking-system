@@ -5,26 +5,27 @@
 - 基础路径: /api/v1
 - 认证方式: Bearer Token (JWT)
 
-本域包含 4 个模块，共 60 个端点。
+本域包含 4 个模块，共 62 个端点。
 
 ---
 
 ## 医生
 
-- [POST /api/v1/doctors/login](/api/v1/doctors/login): 医生登录（支持手机号或账号登录）
-- [GET /api/v1/doctors/me](/api/v1/doctors/me): 获取当前登录医生信息
-- [GET /api/v1/doctors](/api/v1/doctors): 获取医生列表
-- [POST /api/v1/doctors](/api/v1/doctors): 创建医生
-- [GET /api/v1/doctors/all](/api/v1/doctors/all): 获取所有医生（管理端接口）
-- [GET /api/v1/doctors/recommended](/api/v1/doctors/recommended): 获取推荐医生（公开接口，支持门店过滤）
-- [GET /api/v1/doctors/by-department/{department_id}](/api/v1/doctors/by-department/{department_id}): 获取科室下的医生（公开接口，支持门店过滤）
-- [GET /api/v1/doctors/public/{doctor_id}](/api/v1/doctors/public/{doctor_id}): 获取医生详情（公开接口，用于患者端查看医生信息）
-- [PUT /api/v1/doctors/batch-sort](/api/v1/doctors/batch-sort): 批量更新医生排序
-- [GET /api/v1/doctors/{doctor_id}](/api/v1/doctors/{doctor_id}): 获取医生详情（管理端接口，需要管理员权限）
-- [PUT /api/v1/doctors/{doctor_id}](/api/v1/doctors/{doctor_id}): 更新医生
-- [DELETE /api/v1/doctors/{doctor_id}](/api/v1/doctors/{doctor_id}): 删除医生
-- [POST /api/v1/doctors/check-username](/api/v1/doctors/check-username): 检查医生账号是否已存在，如存在则返回推荐账号
-- [POST /api/v1/doctors/generate-username](/api/v1/doctors/generate-username): 根据医生姓名生成唯一账号
+- [POST /api/v1/doctors/login](/api/v1/doctors/login): 医生账号登录，支持手机号或账号密码方式。
+- [GET /api/v1/doctors/me](/api/v1/doctors/me): 获取当前登录医生的完整信息（医生端专用）。
+- [GET /api/v1/doctors](/api/v1/doctors): 获取医生列表（管理端），支持分页和多条件筛选。
+- [POST /api/v1/doctors](/api/v1/doctors): 创建医生账号。
+- [GET /api/v1/doctors/all](/api/v1/doctors/all): 获取所有启用状态的医生列表（不分页），用于管理后台下拉选择等场景。
+- [GET /api/v1/doctors/recommended](/api/v1/doctors/recommended): 获取推荐医生列表（公开接口，无需登录）。
+- [GET /api/v1/doctors/by-department/{department_id}](/api/v1/doctors/by-department/{department_id}): 获取指定科室下的医生列表（公开接口，无需登录）。
+- [GET /api/v1/doctors/public/{doctor_id}](/api/v1/doctors/public/{doctor_id}): 获取医生详情（公开接口，用于患者端查看医生信息）。
+- [PUT /api/v1/doctors/batch-sort](/api/v1/doctors/batch-sort): 批量更新医生排序顺序。
+- [GET /api/v1/doctors/{doctor_id}](/api/v1/doctors/{doctor_id}): 获取医生详情（管理端接口）。
+- [PUT /api/v1/doctors/{doctor_id}](/api/v1/doctors/{doctor_id}): 更新医生信息。
+- [DELETE /api/v1/doctors/{doctor_id}](/api/v1/doctors/{doctor_id}): 删除医生（软删除）。
+- [POST /api/v1/doctors/check-username](/api/v1/doctors/check-username): 检查医生登录账号是否已存在，如存在则返回推荐账号列表。
+- [POST /api/v1/doctors/generate-username](/api/v1/doctors/generate-username): 根据医生姓名自动生成唯一的登录账号。
+- [POST /api/v1/doctors/change-password](/api/v1/doctors/change-password): 修改当前登录医生的密码。
 
 ## 科室
 
@@ -43,22 +44,22 @@
 
 ## 门店管理
 
-- [GET /api/v1/stores/by-code/{code}](/api/v1/stores/by-code/{code}): 通过编码获取门店（公开接口，无需登录）
-- [GET /api/v1/stores/check-unique](/api/v1/stores/check-unique): 检查门店名称或编码是否已存在
-- [GET /api/v1/stores](/api/v1/stores): 获取门店列表
-- [POST /api/v1/stores](/api/v1/stores): 创建门店（仅超级管理员）
-- [GET /api/v1/stores/all](/api/v1/stores/all): 获取所有营业中的门店（下拉选择用）
-- [GET /api/v1/stores/{store_id}](/api/v1/stores/{store_id}): 获取门店详情
-- [PUT /api/v1/stores/{store_id}](/api/v1/stores/{store_id}): 更新门店
-- [DELETE /api/v1/stores/{store_id}](/api/v1/stores/{store_id}): 删除门店（仅超级管理员）
-- [PATCH /api/v1/stores/{store_id}/status](/api/v1/stores/{store_id}/status): 更新门店状态
-- [GET /api/v1/stores/{store_id}/departments](/api/v1/stores/{store_id}/departments): 获取门店已绑定的科室列表
-- [PUT /api/v1/stores/{store_id}/departments/batch](/api/v1/stores/{store_id}/departments/batch): 批量绑定科室到门店
-- [GET /api/v1/stores/{store_id}/admins](/api/v1/stores/{store_id}/admins): 获取门店已绑定的管理员列表
-- [PUT /api/v1/stores/{store_id}/admins/batch](/api/v1/stores/{store_id}/admins/batch): 批量绑定管理员到门店
-- [GET /api/v1/stores/{store_id}/wechat-config](/api/v1/stores/{store_id}/wechat-config): 获取门店微信配置
-- [PUT /api/v1/stores/{store_id}/wechat-config](/api/v1/stores/{store_id}/wechat-config): 更新门店微信配置
-- [GET /api/v1/stores/{store_id}/checkin-qrcode](/api/v1/stores/{store_id}/checkin-qrcode): 获取门店签到二维码
+- [GET /api/v1/stores/by-code/{code}](/api/v1/stores/by-code/{code}): 通过门店编码获取门店信息（公开接口，无需登录）。
+- [GET /api/v1/stores/check-unique](/api/v1/stores/check-unique): 检查门店名称或编码是否已存在，用于前端表单实时校验。
+- [GET /api/v1/stores](/api/v1/stores): 获取门店列表（管理端），支持分页和筛选。
+- [POST /api/v1/stores](/api/v1/stores): 创建新门店。
+- [GET /api/v1/stores/all](/api/v1/stores/all): 获取所有营业中的门店列表（不分页），用于管理后台下拉选择等场景。
+- [GET /api/v1/stores/{store_id}](/api/v1/stores/{store_id}): 获取门店详情（管理端接口）。
+- [PUT /api/v1/stores/{store_id}](/api/v1/stores/{store_id}): 更新门店信息。
+- [DELETE /api/v1/stores/{store_id}](/api/v1/stores/{store_id}): 删除门店（仅超级管理员）。
+- [PATCH /api/v1/stores/{store_id}/status](/api/v1/stores/{store_id}/status): 更新门店营业状态。
+- [GET /api/v1/stores/{store_id}/departments](/api/v1/stores/{store_id}/departments): 获取门店已绑定的科室列表。
+- [PUT /api/v1/stores/{store_id}/departments/batch](/api/v1/stores/{store_id}/departments/batch): 批量绑定科室到门店（全量覆盖模式）。
+- [GET /api/v1/stores/{store_id}/admins](/api/v1/stores/{store_id}/admins): 获取门店已绑定的管理员列表。
+- [PUT /api/v1/stores/{store_id}/admins/batch](/api/v1/stores/{store_id}/admins/batch): 批量绑定管理员到门店（全量覆盖模式）。
+- [GET /api/v1/stores/{store_id}/wechat-config](/api/v1/stores/{store_id}/wechat-config): 获取门店的微信公众号/小程序配置信息。
+- [PUT /api/v1/stores/{store_id}/wechat-config](/api/v1/stores/{store_id}/wechat-config): 更新门店的微信配置信息。
+- [GET /api/v1/stores/{store_id}/checkin-qrcode](/api/v1/stores/{store_id}/checkin-qrcode): 获取门店签到二维码内容（管理端获取，用于生成二维码图片供患者扫描）。
 
 ## 诊费管理
 
@@ -80,6 +81,7 @@
 - [POST /api/v1/consultation-fees/doctors/{doctor_id}/fees/batch](/api/v1/consultation-fees/doctors/{doctor_id}/fees/batch): 批量保存医生诊费配置
 - [POST /api/v1/consultation-fees/doctors/{doctor_id}/apply-template](/api/v1/consultation-fees/doctors/{doctor_id}/apply-template): 一键带入模板：将门店模板的金额应用到医生诊费配置
 - [DELETE /api/v1/consultation-fees/doctors/{doctor_id}/fees/{store_id}/{department_id}](/api/v1/consultation-fees/doctors/{doctor_id}/fees/{store_id}/{department_id}): 删除医生在指定门店科室的所有诊费配置
+- [GET /api/v1/consultation-fees/amount](/api/v1/consultation-fees/amount): 获取诊费金额
 
 ## 相关文档
 

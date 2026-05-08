@@ -1,0 +1,57 @@
+# Appointment Booking Workflow
+
+> Complete workflow for patients from viewing doctors to completing appointment booking
+
+- Base Path: /api/v1
+- Authentication: Bearer Token (JWT)
+
+---
+
+## Workflow Steps
+
+### Step 1: View Department List
+
+- [GET /api/v1/departments/tree](/api/v1/departments/tree): 获取科室树
+
+### Step 2: View Doctors in Department
+
+- [GET /api/v1/doctors/by-department/{department_id}](/api/v1/doctors/by-department/{department_id}): 获取科室医生
+
+### Step 3: View Doctor Details
+
+- [GET /api/v1/doctors/public/{doctor_id}](/api/v1/doctors/public/{doctor_id}): 获取医生详情(公开)
+
+### Step 4: Get Available Schedules
+
+- [GET /api/v1/schedules/available/{doctor_id}](/api/v1/schedules/available/{doctor_id}): 获取可预约排班
+
+### Step 5: Get Booking Notices
+
+- [GET /api/v1/booking-notices/public](/api/v1/booking-notices/public): 获取生效预约须知列表
+
+### Step 6: Check Duplicate Appointment
+
+- *No matching endpoints*
+
+### Step 7: Create Appointment
+
+- [POST /api/v1/appointments](/api/v1/appointments): 创建预约
+
+### Step 8: View Appointment Details
+
+- [GET /api/v1/appointments/{appointment_id}/payment-params](/api/v1/appointments/{appointment_id}/payment-params): 获取支付参数
+- [GET /api/v1/appointments/query](/api/v1/appointments/query): 获取预约列表
+- [GET /api/v1/appointments/query/{appointment_id}](/api/v1/appointments/query/{appointment_id}): 获取预约详情
+- [GET /api/v1/appointments/query](/api/v1/appointments/query): 获取预约列表
+- [GET /api/v1/appointments/query/{appointment_id}](/api/v1/appointments/query/{appointment_id}): 获取预约详情
+
+### Step 9: Cancel Appointment
+
+- [PUT /api/v1/appointments/{appointment_id}/cancel](/api/v1/appointments/{appointment_id}/cancel): 取消预约
+- [PUT /api/v1/appointments/{appointment_id}/cancel-sign-in](/api/v1/appointments/{appointment_id}/cancel-sign-in): 取消签到
+- [PUT /api/v1/appointments/{appointment_id}/cancel-sign-in](/api/v1/appointments/{appointment_id}/cancel-sign-in): 取消签到
+
+## Related Documentation
+
+- [API Overview](/llms-en.txt): Overview of all API endpoints
+- [Full API Documentation](/llms-full-en.txt): Complete documentation with parameter details

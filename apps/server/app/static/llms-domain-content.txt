@@ -13,26 +13,30 @@
 
 - [GET /api/v1/content/news](/api/v1/content/news): 获取新闻列表
 - [POST /api/v1/content/news](/api/v1/content/news): 创建新闻
-- [GET /api/v1/content/news/published](/api/v1/content/news/published): 获取已发布新闻（前端展示）
+- [GET /api/v1/content/news/published](/api/v1/content/news/published): 获取已发布新闻
 - [GET /api/v1/content/news/{news_id}](/api/v1/content/news/{news_id}): 获取新闻详情
 - [PUT /api/v1/content/news/{news_id}](/api/v1/content/news/{news_id}): 更新新闻
 - [DELETE /api/v1/content/news/{news_id}](/api/v1/content/news/{news_id}): 删除新闻
 - [GET /api/v1/content/notices](/api/v1/content/notices): 获取公告列表
 - [POST /api/v1/content/notices](/api/v1/content/notices): 创建公告
-- [GET /api/v1/content/notices/published](/api/v1/content/notices/published): 获取已发布公告（前端展示）
+- [GET /api/v1/content/notices/published](/api/v1/content/notices/published): 获取已发布公告
 - [GET /api/v1/content/notices/{notice_id}](/api/v1/content/notices/{notice_id}): 获取公告详情
 - [PUT /api/v1/content/notices/{notice_id}](/api/v1/content/notices/{notice_id}): 更新公告
 - [DELETE /api/v1/content/notices/{notice_id}](/api/v1/content/notices/{notice_id}): 删除公告
 - [GET /api/v1/content/banners](/api/v1/content/banners): 获取轮播图列表
 - [POST /api/v1/content/banners](/api/v1/content/banners): 创建轮播图
-- [GET /api/v1/content/banners/active](/api/v1/content/banners/active): 获取启用的轮播图（前端展示）
+- [GET /api/v1/content/banners/active](/api/v1/content/banners/active): 获取启用轮播图
 - [PUT /api/v1/content/banners/{banner_id}](/api/v1/content/banners/{banner_id}): 更新轮播图
 - [DELETE /api/v1/content/banners/{banner_id}](/api/v1/content/banners/{banner_id}): 删除轮播图
 
 ## 消息中心
 
-- [GET /api/v1/messages/my](/api/v1/messages/my): 获取我的消息列表
+- [GET /api/v1/messages/my](/api/v1/messages/my): 获取当前用户的消息列表，支持多种过滤条件。
 - [GET /api/v1/messages/unread-count](/api/v1/messages/unread-count): 获取未读消息数量
+- [GET /api/v1/messages/templates](/api/v1/messages/templates): 获取消息模板列表
+- [POST /api/v1/messages/templates](/api/v1/messages/templates): 创建消息模板
+- [PUT /api/v1/messages/templates/{template_id}](/api/v1/messages/templates/{template_id}): 更新消息模板
+- [DELETE /api/v1/messages/templates/{template_id}](/api/v1/messages/templates/{template_id}): 删除消息模板
 - [GET /api/v1/messages/{message_id}](/api/v1/messages/{message_id}): 获取消息详情
 - [DELETE /api/v1/messages/{message_id}](/api/v1/messages/{message_id}): 删除消息
 - [POST /api/v1/messages/read/{message_id}](/api/v1/messages/read/{message_id}): 标记消息为已读
@@ -41,16 +45,12 @@
 - [GET /api/v1/messages](/api/v1/messages): 获取所有消息列表（管理端）
 - [POST /api/v1/messages/send](/api/v1/messages/send): 发送消息（管理端）
 - [POST /api/v1/messages/send-batch](/api/v1/messages/send-batch): 批量发送消息（管理端）
-- [GET /api/v1/messages/templates](/api/v1/messages/templates): 获取消息模板列表
-- [POST /api/v1/messages/templates](/api/v1/messages/templates): 创建消息模板
-- [PUT /api/v1/messages/templates/{template_id}](/api/v1/messages/templates/{template_id}): 更新消息模板
-- [DELETE /api/v1/messages/templates/{template_id}](/api/v1/messages/templates/{template_id}): 删除消息模板
 
 ## 邮件模板
 
 - [GET /api/v1/email-templates](/api/v1/email-templates): 获取邮件模板列表
 - [POST /api/v1/email-templates](/api/v1/email-templates): 创建邮件模板
-- [GET /api/v1/email-templates/all](/api/v1/email-templates/all): 获取所有邮件模板（不分页）
+- [GET /api/v1/email-templates/all](/api/v1/email-templates/all): 获取所有邮件模板
 - [GET /api/v1/email-templates/{template_id}](/api/v1/email-templates/{template_id}): 获取邮件模板详情
 - [PUT /api/v1/email-templates/{template_id}](/api/v1/email-templates/{template_id}): 更新邮件模板
 - [DELETE /api/v1/email-templates/{template_id}](/api/v1/email-templates/{template_id}): 删除邮件模板
@@ -58,11 +58,11 @@
 
 ## 用户反馈
 
-- [GET /api/v1/feedbacks](/api/v1/feedbacks): 获取反馈列表（管理端）
+- [GET /api/v1/feedbacks](/api/v1/feedbacks): 获取反馈列表
 - [POST /api/v1/feedbacks](/api/v1/feedbacks): 提交反馈
-- [GET /api/v1/feedbacks/pending-count](/api/v1/feedbacks/pending-count): 获取待处理数量
+- [GET /api/v1/feedbacks/pending-count](/api/v1/feedbacks/pending-count): 获取待处理数
 - [GET /api/v1/feedbacks/statistics](/api/v1/feedbacks/statistics): 获取反馈统计
-- [GET /api/v1/feedbacks/my](/api/v1/feedbacks/my): 获取我的反馈列表（用户端）
+- [GET /api/v1/feedbacks/my](/api/v1/feedbacks/my): 获取我的反馈
 - [GET /api/v1/feedbacks/{feedback_id}](/api/v1/feedbacks/{feedback_id}): 获取反馈详情
 - [DELETE /api/v1/feedbacks/{feedback_id}](/api/v1/feedbacks/{feedback_id}): 删除反馈
 - [POST /api/v1/feedbacks/{feedback_id}/reply](/api/v1/feedbacks/{feedback_id}/reply): 回复反馈

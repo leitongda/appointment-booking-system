@@ -5,43 +5,51 @@
 - 基础路径: /api/v1
 - 认证方式: Bearer Token (JWT)
 
-本域包含 11 个模块，共 92 个端点。
+本域包含 11 个模块，共 105 个端点。
 
 ---
 
 ## 预约
 
-- [GET /api/v1/appointments](/api/v1/appointments): 获取预约列表
-- [POST /api/v1/appointments](/api/v1/appointments): 创建预约
-- [GET /api/v1/appointments/today](/api/v1/appointments/today): 获取今日预约（医生端）
-- [GET /api/v1/appointments/today-pending](/api/v1/appointments/today-pending): 获取用户在指定门店的今日待签到预约（增强版：包含详细时间窗信息）
-- [GET /api/v1/appointments/queue](/api/v1/appointments/queue): 获取签到队列
-- [GET /api/v1/appointments/statistics](/api/v1/appointments/statistics): 获取预约统计（需要管理员权限）
-- [GET /api/v1/appointments/check-duplicate](/api/v1/appointments/check-duplicate): 检查同一天同一时段是否有重复预约
-- [GET /api/v1/appointments/by-no/{appointment_no}](/api/v1/appointments/by-no/{appointment_no}): 按预约号获取预约详情
-- [GET /api/v1/appointments/{appointment_id}](/api/v1/appointments/{appointment_id}): 获取预约详情
-- [PUT /api/v1/appointments/{appointment_id}/cancel](/api/v1/appointments/{appointment_id}/cancel): 取消预约
-- [PUT /api/v1/appointments/{appointment_id}/sign-in](/api/v1/appointments/{appointment_id}/sign-in): 签到
-- [PUT /api/v1/appointments/{appointment_id}/cancel-sign-in](/api/v1/appointments/{appointment_id}/cancel-sign-in): 取消签到（仅超级管理员）
-- [PUT /api/v1/appointments/{appointment_id}/call](/api/v1/appointments/{appointment_id}/call): 叫号（需要管理员权限）
-- [PUT /api/v1/appointments/{appointment_id}/complete](/api/v1/appointments/{appointment_id}/complete): 完成就诊（需要管理员权限）
-- [PUT /api/v1/appointments/{appointment_id}/pass](/api/v1/appointments/{appointment_id}/pass): 过号（需要管理员权限）
-- [PUT /api/v1/appointments/{appointment_id}/recall](/api/v1/appointments/{appointment_id}/recall): 重新叫号（需要管理员权限）
-- [PUT /api/v1/appointments/{appointment_id}/no-show](/api/v1/appointments/{appointment_id}/no-show): 标记爽约（需要管理员权限）
-- [GET /api/v1/appointments/queue/info](/api/v1/appointments/queue/info): 获取当前叫号队列信息（医生端）
+- [POST /api/v1/appointments](/api/v1/appointments): 患者提交预约申请，系统自动分配号源并生成预约编号。
+- [PUT /api/v1/appointments/{appointment_id}/cancel](/api/v1/appointments/{appointment_id}/cancel): 取消指定预约，释放对应排班的号源。
+- [GET /api/v1/appointments/{appointment_id}/payment-params](/api/v1/appointments/{appointment_id}/payment-params): 待支付订单重新获取支付参数（用户取消支付后重新发起）。
+- [GET /api/v1/appointments/query](/api/v1/appointments/query): 获取当前租户下的预约列表，支持分页和多条件筛选。
+- [GET /api/v1/appointments/query/today](/api/v1/appointments/query/today): 获取当前医生今日的所有预约列表（医生端专用）。
+- [GET /api/v1/appointments/query/today-pending](/api/v1/appointments/query/today-pending): 获取当前用户在指定门店的今日待签到预约（患者端专用）。
+- [GET /api/v1/appointments/query/queue](/api/v1/appointments/query/queue): 获取当日已签到的患者队列，按签到时间排序。
+- [GET /api/v1/appointments/query/statistics](/api/v1/appointments/query/statistics): 获取预约统计数据，支持按医生和日期范围筛选。
+- [GET /api/v1/appointments/query/check-duplicate](/api/v1/appointments/query/check-duplicate): 检查同一患者在同一天同一时段是否已有预约。
+- [GET /api/v1/appointments/query/by-no/{appointment_no}](/api/v1/appointments/query/by-no/{appointment_no}): 通过预约编号查询预约详情。
+- [GET /api/v1/appointments/query/{appointment_id}](/api/v1/appointments/query/{appointment_id}): 通过预约ID获取预约详情。
+- [GET /api/v1/appointments/query/queue/info](/api/v1/appointments/query/queue/info): 获取当前医生的叫号队列信息（医生端专用）。
+- [PUT /api/v1/appointments/{appointment_id}/sign-in](/api/v1/appointments/{appointment_id}/sign-in): 患者签到，将预约状态从"已预约"变更为"已签到"，分配签到序号。
+- [PUT /api/v1/appointments/{appointment_id}/cancel-sign-in](/api/v1/appointments/{appointment_id}/cancel-sign-in): 取消签到，将预约状态从"已签到"恢复为"已预约"。
+- [PUT /api/v1/appointments/{appointment_id}/call](/api/v1/appointments/{appointment_id}/call): 叫号，通知患者前来就诊，将预约状态变更为"就诊中"。
+- [PUT /api/v1/appointments/{appointment_id}/complete](/api/v1/appointments/{appointment_id}/complete): 结束就诊，将预约状态变更为"已完成"。
+- [PUT /api/v1/appointments/{appointment_id}/pass](/api/v1/appointments/{appointment_id}/pass): 过号处理，将预约状态变更为"已过号"。
+- [PUT /api/v1/appointments/{appointment_id}/recall](/api/v1/appointments/{appointment_id}/recall): 对已过号的患者重新叫号，将状态恢复为"就诊中"。
+- [PUT /api/v1/appointments/{appointment_id}/no-show](/api/v1/appointments/{appointment_id}/no-show): 标记预约为爽约状态。
 
 ## 排班
 
-- [GET /api/v1/schedules](/api/v1/schedules): 获取排班列表
-- [POST /api/v1/schedules](/api/v1/schedules): 创建排班
-- [GET /api/v1/schedules/statistics](/api/v1/schedules/statistics): 获取排班统计（按门店、月份）
-- [GET /api/v1/schedules/available/{doctor_id}](/api/v1/schedules/available/{doctor_id}): 获取可预约排班（增强版：包含规则引擎信息）
-- [GET /api/v1/schedules/{schedule_id}](/api/v1/schedules/{schedule_id}): 获取排班详情
-- [PUT /api/v1/schedules/{schedule_id}](/api/v1/schedules/{schedule_id}): 更新排班
-- [POST /api/v1/schedules/batch](/api/v1/schedules/batch): 批量创建排班
-- [POST /api/v1/schedules/batch-suspend](/api/v1/schedules/batch-suspend): 批量停诊排班
-- [POST /api/v1/schedules/batch-resume](/api/v1/schedules/batch-resume): 批量恢复排班
-- [POST /api/v1/schedules/batch-delete](/api/v1/schedules/batch-delete): 批量删除排班（只能删除没有任何预约记录的排班）
+- [GET /api/v1/schedules](/api/v1/schedules): 获取排班列表（管理端），支持分页和多条件筛选。
+- [POST /api/v1/schedules](/api/v1/schedules): 创建单条排班记录。
+- [GET /api/v1/schedules/statistics](/api/v1/schedules/statistics): 获取指定门店某月的排班统计数据，按医生和日期汇总。
+- [GET /api/v1/schedules/statistics/utilization-trend](/api/v1/schedules/statistics/utilization-trend): 获取指定门店在某日期范围内的排班利用率趋势。
+- [GET /api/v1/schedules/statistics/doctor-workload](/api/v1/schedules/statistics/doctor-workload): 获取指定门店在某日期范围内各医生的工作量对比数据。
+- [GET /api/v1/schedules/statistics/peak-hours](/api/v1/schedules/statistics/peak-hours): 获取指定门店在某日期范围内的预约高峰时段热力图数据。
+- [GET /api/v1/schedules/available/{doctor_id}](/api/v1/schedules/available/{doctor_id}): 获取指定医生的可预约排班（公开接口，患者端使用）。
+- [GET /api/v1/schedules/{schedule_id}](/api/v1/schedules/{schedule_id}): 获取排班详情（管理端接口）。
+- [PUT /api/v1/schedules/{schedule_id}](/api/v1/schedules/{schedule_id}): 更新排班信息。
+- [POST /api/v1/schedules/batch](/api/v1/schedules/batch): 批量创建排班记录，支持按日期范围和医生列表批量生成。
+- [POST /api/v1/schedules/batch-suspend](/api/v1/schedules/batch-suspend): 批量将排班标记为停诊状态。
+- [POST /api/v1/schedules/batch-resume](/api/v1/schedules/batch-resume): 批量恢复已停诊的排班。
+- [POST /api/v1/schedules/batch-delete](/api/v1/schedules/batch-delete): 批量删除排班记录。
+- [GET /api/v1/schedules/custom-schedules](/api/v1/schedules/custom-schedules): 获取自定义排班列表（template_id为NULL的排班）。
+- [POST /api/v1/schedules/custom-schedules](/api/v1/schedules/custom-schedules): 创建自定义排班（支持批量）。
+- [GET /api/v1/schedules/custom-schedules/effective](/api/v1/schedules/custom-schedules/effective): 获取生效的自定义排班（template_id为NULL的排班）。
+- [DELETE /api/v1/schedules/custom-schedules/{schedule_id}](/api/v1/schedules/custom-schedules/{schedule_id}): 删除自定义排班（仅能删除template_id为NULL的排班）。
 
 ## 排班模板
 
@@ -59,13 +67,7 @@
 - [POST /api/v1/schedule-templates/{template_id}/batch-suspend](/api/v1/schedule-templates/{template_id}/batch-suspend): 批量停诊规则生成的排班
 - [GET /api/v1/schedule-templates/{template_id}/logs](/api/v1/schedule-templates/{template_id}/logs): 获取规则的生成历史记录
 - [POST /api/v1/schedule-templates/{template_id}/copy](/api/v1/schedule-templates/{template_id}/copy): 复制排班规则给其他医生
-
-## 自定义排班
-
-- [GET /api/v1/custom-schedules](/api/v1/custom-schedules): 获取自定义排班列表（template_id为NULL的排班）
-- [POST /api/v1/custom-schedules](/api/v1/custom-schedules): 创建自定义排班（支持批量）
-- [GET /api/v1/custom-schedules/effective](/api/v1/custom-schedules/effective): 获取生效的自定义排班（template_id为NULL的排班）
-- [DELETE /api/v1/custom-schedules/{schedule_id}](/api/v1/custom-schedules/{schedule_id}): 删除自定义排班（仅能删除template_id为NULL的排班）
+- [POST /api/v1/schedule-templates/{template_id}/copy-cross-store](/api/v1/schedule-templates/{template_id}/copy-cross-store): 跨院区复制排班规则
 
 ## 停诊管理
 
@@ -84,20 +86,28 @@
 
 ## 规则管理
 
-- [GET /api/v1/rule-sets](/api/v1/rule-sets): 获取规则组列表
-- [POST /api/v1/rule-sets](/api/v1/rule-sets): 创建规则组（仅超级管理员）
-- [GET /api/v1/rule-sets/{rule_set_id}](/api/v1/rule-sets/{rule_set_id}): 获取规则组详情
-- [PUT /api/v1/rule-sets/{rule_set_id}](/api/v1/rule-sets/{rule_set_id}): 更新规则组（仅超级管理员）
-- [DELETE /api/v1/rule-sets/{rule_set_id}](/api/v1/rule-sets/{rule_set_id}): 删除规则组（仅超级管理员）
-- [POST /api/v1/rule-sets/{rule_set_id}/enable](/api/v1/rule-sets/{rule_set_id}/enable): 启用规则组（仅超级管理员）
-- [POST /api/v1/rule-sets/{rule_set_id}/disable](/api/v1/rule-sets/{rule_set_id}/disable): 禁用规则组（仅超级管理员）
-- [POST /api/v1/rule-sets/preview](/api/v1/rule-sets/preview): 预览规则效果
-- [POST /api/v1/rule-sets/{rule_set_id}/windows](/api/v1/rule-sets/{rule_set_id}/windows): 创建时间窗（仅超级管理员）
-- [PUT /api/v1/rule-sets/windows/{window_id}](/api/v1/rule-sets/windows/{window_id}): 更新时间窗（仅超级管理员）
-- [DELETE /api/v1/rule-sets/windows/{window_id}](/api/v1/rule-sets/windows/{window_id}): 删除时间窗（仅超级管理员）
-- [PUT /api/v1/rule-sets/{rule_set_id}/booking-policy](/api/v1/rule-sets/{rule_set_id}/booking-policy): 更新预约策略（仅超级管理员）
-- [PUT /api/v1/rule-sets/{rule_set_id}/checkin-policy](/api/v1/rule-sets/{rule_set_id}/checkin-policy): 更新签到策略（仅超级管理员）
-- [PUT /api/v1/rule-sets/{rule_set_id}/capacity-policy](/api/v1/rule-sets/{rule_set_id}/capacity-policy): 更新容量策略（仅超级管理员）
+- [GET /api/v1/rule-sets](/api/v1/rule-sets): 获取规则组列表，支持分页和筛选。
+- [POST /api/v1/rule-sets](/api/v1/rule-sets): 创建新的规则组（仅超级管理员）。
+- [GET /api/v1/rule-sets/performance](/api/v1/rule-sets/performance): 获取规则引擎性能统计数据（仅超级管理员）。
+- [GET /api/v1/rule-sets/slow-queries](/api/v1/rule-sets/slow-queries): 获取规则引擎慢查询列表（仅超级管理员），按时间倒序排列。
+- [DELETE /api/v1/rule-sets/performance/metrics](/api/v1/rule-sets/performance/metrics): 清除规则引擎性能指标数据（仅超级管理员）。
+- [GET /api/v1/rule-sets/presets](/api/v1/rule-sets/presets): 获取系统预设模板和当前租户的自定义预设模板。
+- [POST /api/v1/rule-sets/presets](/api/v1/rule-sets/presets): 创建自定义预设模板（仅超级管理员）。
+- [PUT /api/v1/rule-sets/presets/{preset_id}](/api/v1/rule-sets/presets/{preset_id}): 更新自定义预设模板（系统预设不可修改，仅超级管理员）。
+- [DELETE /api/v1/rule-sets/presets/{preset_id}](/api/v1/rule-sets/presets/{preset_id}): 删除自定义预设模板（系统预设不可删除，仅超级管理员）。
+- [GET /api/v1/rule-sets/{rule_set_id}](/api/v1/rule-sets/{rule_set_id}): 获取规则组详情，包含关联的时间窗和策略配置。
+- [PUT /api/v1/rule-sets/{rule_set_id}](/api/v1/rule-sets/{rule_set_id}): 更新规则组信息（仅超级管理员）。
+- [DELETE /api/v1/rule-sets/{rule_set_id}](/api/v1/rule-sets/{rule_set_id}): 删除规则组（仅超级管理员）。
+- [POST /api/v1/rule-sets/{rule_set_id}/enable](/api/v1/rule-sets/{rule_set_id}/enable): 启用规则组（仅超级管理员）。
+- [POST /api/v1/rule-sets/{rule_set_id}/disable](/api/v1/rule-sets/{rule_set_id}/disable): 禁用规则组（仅超级管理员）。
+- [POST /api/v1/rule-sets/preview](/api/v1/rule-sets/preview): 预览规则效果，根据输入的班次信息计算各动作窗口的结果。
+- [POST /api/v1/rule-sets/{rule_set_id}/windows](/api/v1/rule-sets/{rule_set_id}/windows): 为指定规则组创建时间窗配置（仅超级管理员）。
+- [PUT /api/v1/rule-sets/windows/{window_id}](/api/v1/rule-sets/windows/{window_id}): 更新时间窗配置（仅超级管理员）。
+- [DELETE /api/v1/rule-sets/windows/{window_id}](/api/v1/rule-sets/windows/{window_id}): 删除时间窗配置（仅超级管理员）。
+- [PUT /api/v1/rule-sets/{rule_set_id}/booking-policy](/api/v1/rule-sets/{rule_set_id}/booking-policy): 更新规则组的预约策略（仅超级管理员）。
+- [PUT /api/v1/rule-sets/{rule_set_id}/checkin-policy](/api/v1/rule-sets/{rule_set_id}/checkin-policy): 更新规则组的签到策略（仅超级管理员）。
+- [PUT /api/v1/rule-sets/{rule_set_id}/capacity-policy](/api/v1/rule-sets/{rule_set_id}/capacity-policy): 更新规则组的容量策略（仅超级管理员）。
+- [GET /api/v1/rule-sets/{rule_set_id}/audit-logs](/api/v1/rule-sets/{rule_set_id}/audit-logs): 获取指定规则组的变更历史记录。
 
 ## 班次类型
 
@@ -126,8 +136,8 @@
 
 ## 预约须知
 
-- [GET /api/v1/booking-notices/public](/api/v1/booking-notices/public): 获取生效的预约须知列表（公开接口，供小程序端调用）
-- [GET /api/v1/booking-notices](/api/v1/booking-notices): 获取预约须知列表（管理端）
+- [GET /api/v1/booking-notices/public](/api/v1/booking-notices/public): 获取生效预约须知列表
+- [GET /api/v1/booking-notices](/api/v1/booking-notices): 获取预约须知列表
 - [POST /api/v1/booking-notices](/api/v1/booking-notices): 创建预约须知
 - [GET /api/v1/booking-notices/{notice_id}](/api/v1/booking-notices/{notice_id}): 获取预约须知详情
 - [PUT /api/v1/booking-notices/{notice_id}](/api/v1/booking-notices/{notice_id}): 更新预约须知

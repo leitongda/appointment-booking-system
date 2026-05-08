@@ -1,0 +1,48 @@
+# Patient Check-in Workflow
+
+> Workflow for patient check-in after arriving at the store
+
+- Base Path: /api/v1
+- Authentication: Bearer Token (JWT)
+
+---
+
+## Workflow Steps
+
+### Step 1: Get Store Check-in QR Code
+
+- [GET /api/v1/stores/{store_id}/checkin-qrcode](/api/v1/stores/{store_id}/checkin-qrcode): 获取签到二维码
+
+### Step 2: Get Today's Pending Check-in Appointments
+
+- *No matching endpoints*
+
+### Step 3: Query by Appointment Number
+
+- *No matching endpoints*
+
+### Step 4: Check In
+
+- [PUT /api/v1/appointments/{appointment_id}/sign-in](/api/v1/appointments/{appointment_id}/sign-in): 签到
+- [PUT /api/v1/appointments/{appointment_id}/sign-in](/api/v1/appointments/{appointment_id}/sign-in): 签到
+
+### Step 5: Cancel Check-in
+
+- [PUT /api/v1/appointments/{appointment_id}/cancel-sign-in](/api/v1/appointments/{appointment_id}/cancel-sign-in): 取消签到
+- [PUT /api/v1/appointments/{appointment_id}/cancel-sign-in](/api/v1/appointments/{appointment_id}/cancel-sign-in): 取消签到
+
+### Step 6: View Check-in Queue
+
+- *No matching endpoints*
+
+### Step 7: Get Queue Info
+
+- [GET /api/v1/appointments/query/queue/info](/api/v1/appointments/query/queue/info): 获取叫号队列信息
+- [GET /api/v1/appointments/query/queue/info](/api/v1/appointments/query/queue/info): 获取叫号队列信息
+- [GET /api/v1/doctor-portal/queue/info](/api/v1/doctor-portal/queue/info): 获取队列信息
+- [GET /api/v1/doctor-portal/queue/info](/api/v1/doctor-portal/queue/info): 获取队列信息
+
+## Related Documentation
+
+- [API Overview](/llms-en.txt): Overview of all API endpoints
+- [Full API Documentation](/llms-full-en.txt): Complete documentation with parameter details

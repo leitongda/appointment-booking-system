@@ -1,0 +1,89 @@
+# Medical Resources Domain
+
+> Management of medical resources including doctors, departments, stores, and consultation fees
+
+- Base Path: /api/v1
+- Authentication: Bearer Token (JWT)
+
+This domain contains 4 modules with 62 endpoints.
+
+---
+
+## 医生
+
+- [POST /api/v1/doctors/login](/api/v1/doctors/login): 医生登录
+- [GET /api/v1/doctors/me](/api/v1/doctors/me): 获取当前医生信息
+- [GET /api/v1/doctors](/api/v1/doctors): 获取医生列表
+- [POST /api/v1/doctors](/api/v1/doctors): 创建医生
+- [GET /api/v1/doctors/all](/api/v1/doctors/all): 获取所有医生
+- [GET /api/v1/doctors/recommended](/api/v1/doctors/recommended): 获取推荐医生
+- [GET /api/v1/doctors/by-department/{department_id}](/api/v1/doctors/by-department/{department_id}): 获取科室医生
+- [GET /api/v1/doctors/public/{doctor_id}](/api/v1/doctors/public/{doctor_id}): 获取医生详情(公开)
+- [PUT /api/v1/doctors/batch-sort](/api/v1/doctors/batch-sort): 批量更新排序
+- [GET /api/v1/doctors/{doctor_id}](/api/v1/doctors/{doctor_id}): 获取医生详情
+- [PUT /api/v1/doctors/{doctor_id}](/api/v1/doctors/{doctor_id}): 更新医生
+- [DELETE /api/v1/doctors/{doctor_id}](/api/v1/doctors/{doctor_id}): 删除医生
+- [POST /api/v1/doctors/check-username](/api/v1/doctors/check-username): 检查账号是否存在
+- [POST /api/v1/doctors/generate-username](/api/v1/doctors/generate-username): 生成唯一账号
+- [POST /api/v1/doctors/change-password](/api/v1/doctors/change-password): 医生修改密码
+
+## 科室
+
+- [GET /api/v1/departments](/api/v1/departments): 获取科室列表
+- [POST /api/v1/departments](/api/v1/departments): 创建科室
+- [GET /api/v1/departments/tree](/api/v1/departments/tree): 获取科室树
+- [GET /api/v1/departments/hot](/api/v1/departments/hot): 获取热门科室
+- [GET /api/v1/departments/all](/api/v1/departments/all): 获取所有科室
+- [PUT /api/v1/departments/batch-sort](/api/v1/departments/batch-sort): 批量更新排序
+- [GET /api/v1/departments/{dept_id}](/api/v1/departments/{dept_id}): 获取科室详情
+- [PUT /api/v1/departments/{dept_id}](/api/v1/departments/{dept_id}): 更新科室
+- [DELETE /api/v1/departments/{dept_id}](/api/v1/departments/{dept_id}): 删除科室
+- [GET /api/v1/departments/{dept_id}/doctors](/api/v1/departments/{dept_id}/doctors): 获取科室医生
+- [GET /api/v1/departments/{dept_id}/available-doctors](/api/v1/departments/{dept_id}/available-doctors): 获取可绑定医生
+- [PUT /api/v1/departments/{dept_id}/doctors/batch](/api/v1/departments/{dept_id}/doctors/batch): 批量绑定医生
+
+## 门店管理
+
+- [GET /api/v1/stores/by-code/{code}](/api/v1/stores/by-code/{code}): 获取门店
+- [GET /api/v1/stores/check-unique](/api/v1/stores/check-unique): 检查唯一性
+- [GET /api/v1/stores](/api/v1/stores): 获取门店列表
+- [POST /api/v1/stores](/api/v1/stores): 创建门店
+- [GET /api/v1/stores/all](/api/v1/stores/all): 获取所有门店
+- [GET /api/v1/stores/{store_id}](/api/v1/stores/{store_id}): 获取门店详情
+- [PUT /api/v1/stores/{store_id}](/api/v1/stores/{store_id}): 更新门店
+- [DELETE /api/v1/stores/{store_id}](/api/v1/stores/{store_id}): 删除门店
+- [PATCH /api/v1/stores/{store_id}/status](/api/v1/stores/{store_id}/status): 更新门店状态
+- [GET /api/v1/stores/{store_id}/departments](/api/v1/stores/{store_id}/departments): 获取科室列表
+- [PUT /api/v1/stores/{store_id}/departments/batch](/api/v1/stores/{store_id}/departments/batch): 批量绑定科室
+- [GET /api/v1/stores/{store_id}/admins](/api/v1/stores/{store_id}/admins): 获取管理员列表
+- [PUT /api/v1/stores/{store_id}/admins/batch](/api/v1/stores/{store_id}/admins/batch): 批量绑定管理员
+- [GET /api/v1/stores/{store_id}/wechat-config](/api/v1/stores/{store_id}/wechat-config): [DEPRECATED] 获取微信配置
+- [PUT /api/v1/stores/{store_id}/wechat-config](/api/v1/stores/{store_id}/wechat-config): [DEPRECATED] 更新微信配置
+- [GET /api/v1/stores/{store_id}/checkin-qrcode](/api/v1/stores/{store_id}/checkin-qrcode): 获取签到二维码
+
+## 诊费管理
+
+- [GET /api/v1/consultation-fees/types](/api/v1/consultation-fees/types): 获取诊费类型列表
+- [POST /api/v1/consultation-fees/types](/api/v1/consultation-fees/types): 创建诊费类型
+- [GET /api/v1/consultation-fees/types/{fee_type_id}](/api/v1/consultation-fees/types/{fee_type_id}): 获取诊费类型详情
+- [PUT /api/v1/consultation-fees/types/{fee_type_id}](/api/v1/consultation-fees/types/{fee_type_id}): 更新诊费类型
+- [DELETE /api/v1/consultation-fees/types/{fee_type_id}](/api/v1/consultation-fees/types/{fee_type_id}): 删除诊费类型
+- [GET /api/v1/consultation-fees/templates](/api/v1/consultation-fees/templates): 获取全局诊费模板列表
+- [PUT /api/v1/consultation-fees/templates](/api/v1/consultation-fees/templates): 批量更新全局诊费模板
+- [POST /api/v1/consultation-fees/templates](/api/v1/consultation-fees/templates): 创建或更新全局诊费模板
+- [GET /api/v1/consultation-fees/store-templates/{store_id}](/api/v1/consultation-fees/store-templates/{store_id}): 获取门店诊费模板列表
+- [POST /api/v1/consultation-fees/store-templates/{store_id}/batch](/api/v1/consultation-fees/store-templates/{store_id}/batch): 批量保存门店诊费模板
+- [DELETE /api/v1/consultation-fees/store-templates/{store_id}/{fee_type_id}](/api/v1/consultation-fees/store-templates/{store_id}/{fee_type_id}): 删除门店诊费模板
+- [GET /api/v1/consultation-fees/doctors/{doctor_id}](/api/v1/consultation-fees/doctors/{doctor_id}): 获取医生诊费设置
+- [GET /api/v1/consultation-fees/doctors/{doctor_id}/grouped](/api/v1/consultation-fees/doctors/{doctor_id}/grouped): 获取医生诊费配置（分组）
+- [PUT /api/v1/consultation-fees/doctors/{doctor_id}/use-template](/api/v1/consultation-fees/doctors/{doctor_id}/use-template): 更新医生使用模板设置
+- [GET /api/v1/consultation-fees/doctors/{doctor_id}/fees](/api/v1/consultation-fees/doctors/{doctor_id}/fees): 获取医生诊费配置列表
+- [POST /api/v1/consultation-fees/doctors/{doctor_id}/fees/batch](/api/v1/consultation-fees/doctors/{doctor_id}/fees/batch): 批量保存医生诊费配置
+- [POST /api/v1/consultation-fees/doctors/{doctor_id}/apply-template](/api/v1/consultation-fees/doctors/{doctor_id}/apply-template): 应用模板到医生
+- [DELETE /api/v1/consultation-fees/doctors/{doctor_id}/fees/{store_id}/{department_id}](/api/v1/consultation-fees/doctors/{doctor_id}/fees/{store_id}/{department_id}): 删除医生门店科室诊费配置
+- [GET /api/v1/consultation-fees/amount](/api/v1/consultation-fees/amount): 获取诊费金额
+
+## Related Documentation
+
+- [API Overview](/llms-en.txt): Overview of all API endpoints
+- [Full API Documentation](/llms-full-en.txt): Complete documentation with parameter details

@@ -1,0 +1,59 @@
+# Clinical Service Domain
+
+> Clinical services including medical records, doctor portal operations, and schedule adjustments
+
+- Base Path: /api/v1
+- Authentication: Bearer Token (JWT)
+
+This domain contains 3 modules with 35 endpoints.
+
+---
+
+## 病历
+
+- [GET /api/v1/medical-records](/api/v1/medical-records): 获取列表
+- [POST /api/v1/medical-records](/api/v1/medical-records): 创建病历
+- [GET /api/v1/medical-records/my](/api/v1/medical-records/my): 获取我的列表
+- [GET /api/v1/medical-records/patient/{patient_id}](/api/v1/medical-records/patient/{patient_id}): 获取患者列表
+- [GET /api/v1/medical-records/appointment/{appointment_id}](/api/v1/medical-records/appointment/{appointment_id}): 根据预约获取
+- [GET /api/v1/medical-records/{record_id}](/api/v1/medical-records/{record_id}): 获取详情
+- [PUT /api/v1/medical-records/{record_id}](/api/v1/medical-records/{record_id}): 更新病历
+- [DELETE /api/v1/medical-records/{record_id}](/api/v1/medical-records/{record_id}): 删除病历
+
+## 医生端
+
+- [GET /api/v1/doctor-portal/me](/api/v1/doctor-portal/me): 获取我的信息
+- [PUT /api/v1/doctor-portal/me](/api/v1/doctor-portal/me): 更新我的信息
+- [GET /api/v1/doctor-portal/schedules](/api/v1/doctor-portal/schedules): 获取排班列表
+- [GET /api/v1/doctor-portal/schedules/today](/api/v1/doctor-portal/schedules/today): 获取今日排班
+- [GET /api/v1/doctor-portal/appointments](/api/v1/doctor-portal/appointments): 获取预约列表
+- [GET /api/v1/doctor-portal/appointments/today](/api/v1/doctor-portal/appointments/today): 获取今日预约
+- [GET /api/v1/doctor-portal/appointments/statistics/today](/api/v1/doctor-portal/appointments/statistics/today): 获取今日统计
+- [GET /api/v1/doctor-portal/appointments/statistics/trend](/api/v1/doctor-portal/appointments/statistics/trend): 获取预约趋势
+- [GET /api/v1/doctor-portal/appointments/statistics/status](/api/v1/doctor-portal/appointments/statistics/status): 获取预约状态统计
+- [GET /api/v1/doctor-portal/queue](/api/v1/doctor-portal/queue): 获取叫号队列
+- [GET /api/v1/doctor-portal/queue/info](/api/v1/doctor-portal/queue/info): 获取队列信息
+- [PUT /api/v1/doctor-portal/queue/{appointment_id}/call](/api/v1/doctor-portal/queue/{appointment_id}/call): 叫号
+- [PUT /api/v1/doctor-portal/queue/{appointment_id}/complete](/api/v1/doctor-portal/queue/{appointment_id}/complete): 完成就诊
+- [PUT /api/v1/doctor-portal/queue/{appointment_id}/pass](/api/v1/doctor-portal/queue/{appointment_id}/pass): 过号
+- [PUT /api/v1/doctor-portal/queue/{appointment_id}/recall](/api/v1/doctor-portal/queue/{appointment_id}/recall): 重新叫号
+- [PUT /api/v1/doctor-portal/queue/{appointment_id}/no-show](/api/v1/doctor-portal/queue/{appointment_id}/no-show): 标记爽约
+- [GET /api/v1/doctor-portal/patients/{patient_id}/appointments](/api/v1/doctor-portal/patients/{patient_id}/appointments): 获取患者历史
+- [POST /api/v1/doctor-portal/patients/appointments/{appointment_id}/follow-up](/api/v1/doctor-portal/patients/appointments/{appointment_id}/follow-up): 创建复诊预约
+- [GET /api/v1/doctor-portal/rule-sets](/api/v1/doctor-portal/rule-sets): 获取我的预约规则
+
+## 停诊调班
+
+- [GET /api/v1/leave-requests](/api/v1/leave-requests): 获取申请列表
+- [GET /api/v1/leave-requests/pending-count](/api/v1/leave-requests/pending-count): 获取待审核数
+- [GET /api/v1/leave-requests/my](/api/v1/leave-requests/my): 获取我的申请
+- [GET /api/v1/leave-requests/{request_id}](/api/v1/leave-requests/{request_id}): 获取申请详情
+- [POST /api/v1/leave-requests/stop-clinic](/api/v1/leave-requests/stop-clinic): 创建停诊申请
+- [POST /api/v1/leave-requests/schedule-change](/api/v1/leave-requests/schedule-change): 创建调班申请
+- [POST /api/v1/leave-requests/{request_id}/review](/api/v1/leave-requests/{request_id}/review): 审核申请
+- [POST /api/v1/leave-requests/{request_id}/cancel](/api/v1/leave-requests/{request_id}/cancel): 取消申请
+
+## Related Documentation
+
+- [API Overview](/llms-en.txt): Overview of all API endpoints
+- [Full API Documentation](/llms-full-en.txt): Complete documentation with parameter details

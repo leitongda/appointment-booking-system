@@ -11,31 +11,35 @@
 
 ### 步骤 1: 获取门店签到二维码
 
-- [GET /api/v1/stores/{store_id}/checkin-qrcode](/api/v1/stores/{store_id}/checkin-qrcode): 获取门店签到二维码
+- [GET /api/v1/stores/{store_id}/checkin-qrcode](/api/v1/stores/{store_id}/checkin-qrcode): 获取门店签到二维码内容（管理端获取，用于生成二维码图片供患者扫描）。
 
 ### 步骤 2: 获取今日待签到预约
 
-- [GET /api/v1/appointments/today-pending](/api/v1/appointments/today-pending): 获取用户在指定门店的今日待签到预约（增强版：包含详细时间窗信息）
+- *暂无匹配的端点*
 
 ### 步骤 3: 按预约号查询
 
-- [GET /api/v1/appointments/by-no/{appointment_no}](/api/v1/appointments/by-no/{appointment_no}): 按预约号获取预约详情
+- *暂无匹配的端点*
 
 ### 步骤 4: 签到
 
-- [PUT /api/v1/appointments/{appointment_id}/sign-in](/api/v1/appointments/{appointment_id}/sign-in): 签到
+- [PUT /api/v1/appointments/{appointment_id}/sign-in](/api/v1/appointments/{appointment_id}/sign-in): 患者签到，将预约状态从"已预约"变更为"已签到"，分配签到序号。
+- [PUT /api/v1/appointments/{appointment_id}/sign-in](/api/v1/appointments/{appointment_id}/sign-in): 患者签到，将预约状态从"已预约"变更为"已签到"，分配签到序号。
 
 ### 步骤 5: 取消签到
 
-- [PUT /api/v1/appointments/{appointment_id}/cancel-sign-in](/api/v1/appointments/{appointment_id}/cancel-sign-in): 取消签到（仅超级管理员）
+- [PUT /api/v1/appointments/{appointment_id}/cancel-sign-in](/api/v1/appointments/{appointment_id}/cancel-sign-in): 取消签到，将预约状态从"已签到"恢复为"已预约"。
+- [PUT /api/v1/appointments/{appointment_id}/cancel-sign-in](/api/v1/appointments/{appointment_id}/cancel-sign-in): 取消签到，将预约状态从"已签到"恢复为"已预约"。
 
 ### 步骤 6: 查看签到队列
 
-- [GET /api/v1/appointments/queue](/api/v1/appointments/queue): 获取签到队列
+- *暂无匹配的端点*
 
 ### 步骤 7: 获取队列信息
 
-- [GET /api/v1/appointments/queue/info](/api/v1/appointments/queue/info): 获取当前叫号队列信息（医生端）
+- [GET /api/v1/appointments/query/queue/info](/api/v1/appointments/query/queue/info): 获取当前医生的叫号队列信息（医生端专用）。
+- [GET /api/v1/appointments/query/queue/info](/api/v1/appointments/query/queue/info): 获取当前医生的叫号队列信息（医生端专用）。
+- [GET /api/v1/doctor-portal/queue/info](/api/v1/doctor-portal/queue/info): 获取当前医生的叫号队列统计信息
 - [GET /api/v1/doctor-portal/queue/info](/api/v1/doctor-portal/queue/info): 获取当前医生的叫号队列统计信息
 
 ## 相关文档

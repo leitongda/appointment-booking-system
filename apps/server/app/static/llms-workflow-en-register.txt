@@ -1,0 +1,47 @@
+# Patient Registration Workflow
+
+> Workflow for new user registration and adding patients
+
+- Base Path: /api/v1
+- Authentication: Bearer Token (JWT)
+
+---
+
+## Workflow Steps
+
+### Step 1: WeChat Login
+
+- [POST /api/v1/auth/wechat/login](/api/v1/auth/wechat/login): 微信登录
+
+### Step 2: Get WeChat Phone Number
+
+- [POST /api/v1/auth/wechat/phone](/api/v1/auth/wechat/phone): 微信获取手机号
+
+### Step 3: Bind Phone Number
+
+- [POST /api/v1/auth/wechat/bind-phone](/api/v1/auth/wechat/bind-phone): 微信绑定手机号
+
+### Step 4: Bind User Info
+
+- [POST /api/v1/auth/wechat/bind-userinfo](/api/v1/auth/wechat/bind-userinfo): 微信绑定用户信息
+
+### Step 5: Get User Profile
+
+- [GET /api/v1/users/profile](/api/v1/users/profile): 获取当前用户信息
+
+### Step 6: Get Patient List
+
+- [GET /api/v1/users/patients](/api/v1/users/patients): 获取就诊人列表
+
+### Step 7: Add Patient
+
+- [POST /api/v1/users/patients](/api/v1/users/patients): 添加就诊人
+
+### Step 8: Update Patient
+
+- [PUT /api/v1/users/patients/{patient_id}](/api/v1/users/patients/{patient_id}): 更新就诊人
+
+## Related Documentation
+
+- [API Overview](/llms-en.txt): Overview of all API endpoints
+- [Full API Documentation](/llms-full-en.txt): Complete documentation with parameter details

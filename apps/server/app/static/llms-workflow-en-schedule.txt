@@ -1,0 +1,61 @@
+# Schedule Management Workflow
+
+> Complete workflow for administrators to manage schedules
+
+- Base Path: /api/v1
+- Authentication: Bearer Token (JWT)
+
+---
+
+## Workflow Steps
+
+### Step 1: Get Shift Types
+
+- [GET /api/v1/shift-types](/api/v1/shift-types): 获取班次类型列表
+- [GET /api/v1/shift-types/all](/api/v1/shift-types/all): 获取所有启用班次类型
+- [GET /api/v1/shift-types/{shift_type_id}](/api/v1/shift-types/{shift_type_id}): 获取班次类型详情
+
+### Step 2: Get Schedule Templates
+
+- [GET /api/v1/schedule-templates](/api/v1/schedule-templates): 获取列表
+- [GET /api/v1/data/export/schedule-templates](/api/v1/data/export/schedule-templates): 导出排班模板列表
+- [GET /api/v1/data/export/schedule-templates](/api/v1/data/export/schedule-templates): 导出排班模板列表
+
+### Step 3: Create Schedule Template
+
+- [POST /api/v1/schedule-templates](/api/v1/schedule-templates): 创建模板
+
+### Step 4: Preview Generated Schedules
+
+- [POST /api/v1/schedule-templates/preview-generate](/api/v1/schedule-templates/preview-generate): 预览生成
+
+### Step 5: Generate Schedules
+
+- [POST /api/v1/schedule-templates/generate-with-capacity](/api/v1/schedule-templates/generate-with-capacity): 批量生成
+- [POST /api/v1/schedule-templates/generate](/api/v1/schedule-templates/generate): 批量生成
+
+### Step 6: Get Schedule List
+
+- [GET /api/v1/schedules](/api/v1/schedules): 获取排班列表
+
+### Step 7: Batch Suspend
+
+- [POST /api/v1/schedules/batch-suspend](/api/v1/schedules/batch-suspend): 批量停诊
+- [POST /api/v1/schedule-templates/{template_id}/batch-suspend](/api/v1/schedule-templates/{template_id}/batch-suspend): 批量停诊
+
+### Step 8: Batch Resume
+
+- [POST /api/v1/schedules/batch-resume](/api/v1/schedules/batch-resume): 批量恢复排班
+
+### Step 9: Add Rest Day
+
+- [POST /api/v1/rest-days](/api/v1/rest-days): 添加休息日
+
+### Step 10: Create Schedule Suspension
+
+- [POST /api/v1/schedule-suspensions](/api/v1/schedule-suspensions): 创建停诊
+
+## Related Documentation
+
+- [API Overview](/llms-en.txt): Overview of all API endpoints
+- [Full API Documentation](/llms-full-en.txt): Complete documentation with parameter details

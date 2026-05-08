@@ -515,6 +515,8 @@ def _read_static_text(filename: str, fallback: str) -> str:
 
 
 def _register_llms_routes(app: FastAPI) -> None:
+    static_dir = Path(__file__).parent / "static"
+
     @app.get("/llms.txt", response_class=PlainTextResponse, include_in_schema=False)
     async def get_llms_txt():
         return _read_static_text(
@@ -546,6 +548,68 @@ def _register_llms_routes(app: FastAPI) -> None:
 或者访问 OpenAPI 规范获取完整 API 定义:
 - {settings.API_V1_STR}/openapi.json
 """,
+        )
+
+    @app.get("/llms-en.txt", response_class=PlainTextResponse, include_in_schema=False)
+    async def get_llms_en_txt():
+        return _read_static_text(
+            "llms-en.txt",
+            f"""# {settings.PROJECT_NAME}
+
+> Hospital Booking System API
+
+Please run `python scripts/generate_llms_txt.py` to generate llms-en.txt file.
+""",
+        )
+
+    @app.get("/llms-full-en.txt", response_class=PlainTextResponse, include_in_schema=False)
+    async def get_llms_full_en_txt():
+        return _read_static_text(
+            "llms-full-en.txt",
+            f"""# {settings.PROJECT_NAME}
+
+> Hospital Booking System API - Full Version
+
+Please run `python scripts/generate_llms_txt.py` to generate llms-full-en.txt file.
+""",
+        )
+
+    # 注册所有 llms-domain-*.txt 和 llms-workflow-*.txt 文件的路由（包括英文版本）
+    seen_routes = set()
+    for llms_file in sorted(static_dir.glob("llms-domain-*.txt")) + sorted(static_dir.glob("llms-workflow-*.txt")) + sorted(static_dir.glob("llms-domain-en-*.txt")) + sorted(static_dir.glob("llms-workflow-en-*.txt")):
+        filename = llms_file.name
+        route_path = f"/{filename}"
+
+        # 避免重复注册
+        if route_path in seen_routes:
+            continue
+        seen_routes.add(route_path)
+
+        def _make_handler(fname: str):
+            async def handler():
+                return _read_static_text(fname, f"文件 {fname} 不存在，请运行 `python scripts/generate_llms_txt.py` 生成。")
+            return handler
+
+        app.add_api_route(
+            route_path,
+            _make_handler(filename),
+            response_class=PlainTextResponse,
+            include_in_schema=False,
+        )
+
+    # 注册语义描述文件路由
+    @app.get("/llms-semantic.md", response_class=PlainTextResponse, include_in_schema=False)
+    async def get_llms_semantic():
+        return _read_static_text(
+            "llms-semantic.md",
+            "# Semantic Description\n\nPlease create llms-semantic.md file.",
+        )
+
+    @app.get("/llms-semantic-cn.md", response_class=PlainTextResponse, include_in_schema=False)
+    async def get_llms_semantic_cn():
+        return _read_static_text(
+            "llms-semantic-cn.md",
+            "# 语义描述\n\n请创建 llms-semantic-cn.md 文件。",
         )
 
 

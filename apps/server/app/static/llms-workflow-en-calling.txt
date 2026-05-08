@@ -1,0 +1,71 @@
+# Doctor Calling Workflow
+
+> Workflow for doctor portal calling and visit management
+
+- Base Path: /api/v1
+- Authentication: Bearer Token (JWT)
+
+---
+
+## Workflow Steps
+
+### Step 1: Get Check-in Queue
+
+- [GET /api/v1/doctor-portal/queue](/api/v1/doctor-portal/queue): 获取叫号队列
+- [GET /api/v1/doctor-portal/queue](/api/v1/doctor-portal/queue): 获取叫号队列
+
+### Step 2: Get Queue Statistics
+
+- [GET /api/v1/doctor-portal/queue/info](/api/v1/doctor-portal/queue/info): 获取队列信息
+- [GET /api/v1/doctor-portal/queue/info](/api/v1/doctor-portal/queue/info): 获取队列信息
+
+### Step 3: Call Patient
+
+- [PUT /api/v1/appointments/{appointment_id}/call](/api/v1/appointments/{appointment_id}/call): 叫号
+- [PUT /api/v1/appointments/{appointment_id}/call](/api/v1/appointments/{appointment_id}/call): 叫号
+- [PUT /api/v1/doctor-portal/queue/{appointment_id}/call](/api/v1/doctor-portal/queue/{appointment_id}/call): 叫号
+- [PUT /api/v1/doctor-portal/queue/{appointment_id}/call](/api/v1/doctor-portal/queue/{appointment_id}/call): 叫号
+
+### Step 4: Complete Visit
+
+- [PUT /api/v1/appointments/{appointment_id}/complete](/api/v1/appointments/{appointment_id}/complete): 完成就诊
+- [PUT /api/v1/appointments/{appointment_id}/complete](/api/v1/appointments/{appointment_id}/complete): 完成就诊
+- [PUT /api/v1/doctor-portal/queue/{appointment_id}/complete](/api/v1/doctor-portal/queue/{appointment_id}/complete): 完成就诊
+- [PUT /api/v1/doctor-portal/queue/{appointment_id}/complete](/api/v1/doctor-portal/queue/{appointment_id}/complete): 完成就诊
+
+### Step 5: Pass Patient
+
+- [PUT /api/v1/appointments/{appointment_id}/pass](/api/v1/appointments/{appointment_id}/pass): 过号
+- [PUT /api/v1/appointments/{appointment_id}/pass](/api/v1/appointments/{appointment_id}/pass): 过号
+- [PUT /api/v1/doctor-portal/queue/{appointment_id}/pass](/api/v1/doctor-portal/queue/{appointment_id}/pass): 过号
+- [PUT /api/v1/doctor-portal/queue/{appointment_id}/pass](/api/v1/doctor-portal/queue/{appointment_id}/pass): 过号
+- [PUT /api/v1/tenants/{tenant_id}/password-policy](/api/v1/tenants/{tenant_id}/password-policy): 更新租户密码策略
+
+### Step 6: Recall Patient
+
+- [PUT /api/v1/appointments/{appointment_id}/recall](/api/v1/appointments/{appointment_id}/recall): 重新叫号
+- [PUT /api/v1/appointments/{appointment_id}/recall](/api/v1/appointments/{appointment_id}/recall): 重新叫号
+- [PUT /api/v1/doctor-portal/queue/{appointment_id}/recall](/api/v1/doctor-portal/queue/{appointment_id}/recall): 重新叫号
+- [PUT /api/v1/doctor-portal/queue/{appointment_id}/recall](/api/v1/doctor-portal/queue/{appointment_id}/recall): 重新叫号
+
+### Step 7: Mark as No-show
+
+- [PUT /api/v1/appointments/{appointment_id}/no-show](/api/v1/appointments/{appointment_id}/no-show): 标记爽约
+- [PUT /api/v1/appointments/{appointment_id}/no-show](/api/v1/appointments/{appointment_id}/no-show): 标记爽约
+- [PUT /api/v1/doctor-portal/queue/{appointment_id}/no-show](/api/v1/doctor-portal/queue/{appointment_id}/no-show): 标记爽约
+- [PUT /api/v1/doctor-portal/queue/{appointment_id}/no-show](/api/v1/doctor-portal/queue/{appointment_id}/no-show): 标记爽约
+
+### Step 8: View Patient History
+
+- [GET /api/v1/doctor-portal/patients/{patient_id}/appointments](/api/v1/doctor-portal/patients/{patient_id}/appointments): 获取患者历史
+- [GET /api/v1/doctor-portal/patients/{patient_id}/appointments](/api/v1/doctor-portal/patients/{patient_id}/appointments): 获取患者历史
+
+### Step 9: Create Follow-up Appointment
+
+- [POST /api/v1/doctor-portal/patients/appointments/{appointment_id}/follow-up](/api/v1/doctor-portal/patients/appointments/{appointment_id}/follow-up): 创建复诊预约
+- [POST /api/v1/doctor-portal/patients/appointments/{appointment_id}/follow-up](/api/v1/doctor-portal/patients/appointments/{appointment_id}/follow-up): 创建复诊预约
+
+## Related Documentation
+
+- [API Overview](/llms-en.txt): Overview of all API endpoints
+- [Full API Documentation](/llms-full-en.txt): Complete documentation with parameter details

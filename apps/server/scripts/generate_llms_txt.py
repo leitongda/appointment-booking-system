@@ -28,7 +28,7 @@ from app.core.config import settings
 
 
 # =============================================================================
-# 业务域映射配置
+# 业务域映射配置（中文）
 # =============================================================================
 DOMAIN_MAPPING: dict[str, dict[str, Any]] = {
     "booking": {
@@ -84,9 +84,66 @@ DOMAIN_MAPPING: dict[str, dict[str, Any]] = {
     },
 }
 
+# =============================================================================
+# 业务域映射配置（英文）
+# =============================================================================
+DOMAIN_MAPPING_EN: dict[str, dict[str, Any]] = {
+    "booking": {
+        "name": "Booking Domain",
+        "desc": "Core booking and scheduling functions, including appointment creation, schedule management, and rule configuration",
+        "tags": [
+            "预约", "排班", "排班模板", "自定义排班", "停诊管理",
+            "休息日设置", "规则管理", "班次类型", "医生预约设置", "复诊规则配置",
+            "预约须知"
+        ]
+    },
+    "user": {
+        "name": "User Domain",
+        "desc": "User authentication, patient management, medical card management and other user-related functions",
+        "tags": [
+            "认证", "用户", "患者管理", "就诊卡管理", "黑名单管理", "用户收藏"
+        ]
+    },
+    "medical": {
+        "name": "Medical Resources Domain",
+        "desc": "Management of medical resources including doctors, departments, stores, and consultation fees",
+        "tags": [
+            "医生", "科室", "门店管理", "诊费管理"
+        ]
+    },
+    "service": {
+        "name": "Clinical Service Domain",
+        "desc": "Clinical services including medical records, doctor portal operations, and schedule adjustments",
+        "tags": [
+            "病历", "医生端", "停诊调班"
+        ]
+    },
+    "system": {
+        "name": "System Management Domain",
+        "desc": "System-level functions including permission management, system settings, and data import/export",
+        "tags": [
+            "权限管理", "系统设置", "审计日志", "数据导入导出", "数据导出", "文件上传"
+        ]
+    },
+    "content": {
+        "name": "Content & Notification Domain",
+        "desc": "Content management and message notification functions",
+        "tags": [
+            "内容管理", "消息中心", "邮件模板", "用户反馈"
+        ]
+    },
+    "analytics": {
+        "name": "Analytics Domain",
+        "desc": "Data statistics and user behavior analysis",
+        "tags": [
+            "数据统计", "用户行为分析"
+        ]
+    },
+}
+
 
 # =============================================================================
-# 业务流程定义
+# 业务流程定义（中文）
 # =============================================================================
 WORKFLOW_DEFINITIONS: dict[str, dict[str, Any]] = {
     "appointment": {
@@ -160,6 +217,85 @@ WORKFLOW_DEFINITIONS: dict[str, dict[str, Any]] = {
             {"step": 6, "name": "获取就诊人列表", "method": "GET", "path_pattern": "/users/patients", "exact": True},
             {"step": 7, "name": "添加就诊人", "method": "POST", "path_pattern": "/users/patients", "exact": True},
             {"step": 8, "name": "更新就诊人", "method": "PUT", "path_pattern": "/users/patients/"},
+        ]
+    },
+}
+
+# =============================================================================
+# 业务流程定义（英文）
+# =============================================================================
+WORKFLOW_DEFINITIONS_EN: dict[str, dict[str, Any]] = {
+    "appointment": {
+        "name": "Appointment Booking Workflow",
+        "desc": "Complete workflow for patients from viewing doctors to completing appointment booking",
+        "steps": [
+            {"step": 1, "name": "View Department List", "method": "GET", "path_pattern": "/departments/tree"},
+            {"step": 2, "name": "View Doctors in Department", "method": "GET", "path_pattern": "/doctors/by-department/"},
+            {"step": 3, "name": "View Doctor Details", "method": "GET", "path_pattern": "/doctors/public/"},
+            {"step": 4, "name": "Get Available Schedules", "method": "GET", "path_pattern": "/schedules/available/"},
+            {"step": 5, "name": "Get Booking Notices", "method": "GET", "path_pattern": "/booking-notices/public"},
+            {"step": 6, "name": "Check Duplicate Appointment", "method": "GET", "path_pattern": "/appointments/check-duplicate"},
+            {"step": 7, "name": "Create Appointment", "method": "POST", "path_pattern": "/appointments", "exact": True},
+            {"step": 8, "name": "View Appointment Details", "method": "GET", "path_pattern": "/appointments/", "exclude": ["check", "today", "queue", "statistics", "by-no"]},
+            {"step": 9, "name": "Cancel Appointment", "method": "PUT", "path_pattern": "/appointments/", "include": ["cancel"]},
+        ]
+    },
+    "checkin": {
+        "name": "Patient Check-in Workflow",
+        "desc": "Workflow for patient check-in after arriving at the store",
+        "steps": [
+            {"step": 1, "name": "Get Store Check-in QR Code", "method": "GET", "path_pattern": "/stores/", "include": ["checkin-qrcode"]},
+            {"step": 2, "name": "Get Today's Pending Check-in Appointments", "method": "GET", "path_pattern": "/appointments/today-pending"},
+            {"step": 3, "name": "Query by Appointment Number", "method": "GET", "path_pattern": "/appointments/by-no/"},
+            {"step": 4, "name": "Check In", "method": "PUT", "path_pattern": "/sign-in"},
+            {"step": 5, "name": "Cancel Check-in", "method": "PUT", "path_pattern": "/cancel-sign-in"},
+            {"step": 6, "name": "View Check-in Queue", "method": "GET", "path_pattern": "/appointments/queue", "exact": True},
+            {"step": 7, "name": "Get Queue Info", "method": "GET", "path_pattern": "/queue/info"},
+        ]
+    },
+    "calling": {
+        "name": "Doctor Calling Workflow",
+        "desc": "Workflow for doctor portal calling and visit management",
+        "steps": [
+            {"step": 1, "name": "Get Check-in Queue", "method": "GET", "path_pattern": "/doctor-portal/queue", "exact": True},
+            {"step": 2, "name": "Get Queue Statistics", "method": "GET", "path_pattern": "/doctor-portal/queue/info"},
+            {"step": 3, "name": "Call Patient", "method": "PUT", "path_pattern": "/call"},
+            {"step": 4, "name": "Complete Visit", "method": "PUT", "path_pattern": "/complete"},
+            {"step": 5, "name": "Pass Patient", "method": "PUT", "path_pattern": "/pass"},
+            {"step": 6, "name": "Recall Patient", "method": "PUT", "path_pattern": "/recall"},
+            {"step": 7, "name": "Mark as No-show", "method": "PUT", "path_pattern": "/no-show"},
+            {"step": 8, "name": "View Patient History", "method": "GET", "path_pattern": "/doctor-portal/patients/"},
+            {"step": 9, "name": "Create Follow-up Appointment", "method": "POST", "path_pattern": "/follow-up"},
+        ]
+    },
+    "schedule": {
+        "name": "Schedule Management Workflow",
+        "desc": "Complete workflow for administrators to manage schedules",
+        "steps": [
+            {"step": 1, "name": "Get Shift Types", "method": "GET", "path_pattern": "/shift-types"},
+            {"step": 2, "name": "Get Schedule Templates", "method": "GET", "path_pattern": "/schedule-templates", "exact": True},
+            {"step": 3, "name": "Create Schedule Template", "method": "POST", "path_pattern": "/schedule-templates", "exact": True},
+            {"step": 4, "name": "Preview Generated Schedules", "method": "POST", "path_pattern": "/preview-generate"},
+            {"step": 5, "name": "Generate Schedules", "method": "POST", "path_pattern": "/schedule-templates/generate"},
+            {"step": 6, "name": "Get Schedule List", "method": "GET", "path_pattern": "/api/v1/schedules", "exact": True},
+            {"step": 7, "name": "Batch Suspend", "method": "POST", "path_pattern": "/batch-suspend"},
+            {"step": 8, "name": "Batch Resume", "method": "POST", "path_pattern": "/batch-resume"},
+            {"step": 9, "name": "Add Rest Day", "method": "POST", "path_pattern": "/rest-days", "exact": True},
+            {"step": 10, "name": "Create Schedule Suspension", "method": "POST", "path_pattern": "/schedule-suspensions", "exact": True},
+        ]
+    },
+    "register": {
+        "name": "Patient Registration Workflow",
+        "desc": "Workflow for new user registration and adding patients",
+        "steps": [
+            {"step": 1, "name": "WeChat Login", "method": "POST", "path_pattern": "/auth/wechat/login"},
+            {"step": 2, "name": "Get WeChat Phone Number", "method": "POST", "path_pattern": "/auth/wechat/phone"},
+            {"step": 3, "name": "Bind Phone Number", "method": "POST", "path_pattern": "/auth/wechat/bind-phone"},
+            {"step": 4, "name": "Bind User Info", "method": "POST", "path_pattern": "/auth/wechat/bind-userinfo"},
+            {"step": 5, "name": "Get User Profile", "method": "GET", "path_pattern": "/users/profile"},
+            {"step": 6, "name": "Get Patient List", "method": "GET", "path_pattern": "/users/patients", "exact": True},
+            {"step": 7, "name": "Add Patient", "method": "POST", "path_pattern": "/users/patients", "exact": True},
+            {"step": 8, "name": "Update Patient", "method": "PUT", "path_pattern": "/users/patients/"},
         ]
     },
 }
@@ -246,7 +382,7 @@ def format_request_body(request_body: dict, schemas: dict) -> str:
                 req_str = "必填" if prop_name in required else "可选"
                 lines.append(f"    - `{prop_name}` ({prop_type}, {req_str})")
             if len(props) > 5:
-                lines.append(f"    - ... 还有 {len(props) - 5} 个字段")
+                lines.append(f"    - ... 还有 {len(props) - 5} 个字段（完整字段定义请参考 {settings.API_V1_STR}/openapi.json）")
     
     return "\n".join(lines)
 
@@ -257,25 +393,36 @@ def generate_llms_txt(schema: dict, endpoints_by_tag: dict[str, list[dict]]) -> 
     title = info.get("title", "API")
     description = info.get("description", "")
     version = info.get("version", "1.0.0")
-    
+
     lines = [
         f"# {title}",
         "",
-        f"> {description}",
-        "",
+    ]
+
+    # 提取 description 中的纯文本摘要（跳过 Markdown 标记）
+    if description:
+        for line in description.split("\n"):
+            line = line.strip()
+            # 跳过空行和 Markdown 标记（#、|、-、```等）
+            if line and not line.startswith("#") and not line.startswith("|") and not line.startswith("-") and not line.startswith("```"):
+                lines.append(f"> {line}")
+                lines.append("")
+                break
+
+    lines.extend([
         f"- API 版本: {version}",
         f"- 基础路径: {settings.API_V1_STR}",
         f"- Swagger 文档: /docs",
         f"- ReDoc 文档: /redoc",
         f"- OpenAPI JSON: {settings.API_V1_STR}/openapi.json",
         "",
-    ]
-    
+    ])
+
     # 按 tag 输出端点列表
     for tag, endpoints in endpoints_by_tag.items():
         lines.append(f"## {tag}")
         lines.append("")
-        
+
         for ep in endpoints:
             method = ep["method"]
             path = ep["path"]
@@ -286,19 +433,81 @@ def generate_llms_txt(schema: dict, endpoints_by_tag: dict[str, list[dict]]) -> 
             # 截断过长的描述
             if len(desc) > 60:
                 desc = desc[:57] + "..."
-            
+
             desc_part = f": {desc}" if desc else ""
             lines.append(f"- [{method} {path}]({path}){desc_part}")
-        
+
         lines.append("")
-    
+
     # Optional 部分
     lines.append("## Optional")
     lines.append("")
     lines.append(f"- [OpenAPI 规范 JSON]({settings.API_V1_STR}/openapi.json): 包含所有端点的完整定义，适合程序化处理")
     lines.append(f"- [llms-full.txt](/llms-full.txt): 包含所有端点详细参数信息的完整版本")
     lines.append("")
-    
+
+    return "\n".join(lines)
+
+
+def generate_llms_txt_en(schema: dict, endpoints_by_tag: dict[str, list[dict]]) -> str:
+    """生成 llms-en.txt 英文概览版"""
+    info = schema.get("info", {})
+    title = info.get("title", "API")
+    description = info.get("description", "")
+    version = info.get("version", "1.0.0")
+
+    lines = [
+        f"# {title}",
+        "",
+    ]
+
+    # 提取 description 中的纯文本摘要（跳过 Markdown 标记）
+    if description:
+        for line in description.split("\n"):
+            line = line.strip()
+            # 跳过空行和 Markdown 标记（#、|、-、```等）
+            if line and not line.startswith("#") and not line.startswith("|") and not line.startswith("-") and not line.startswith("```"):
+                lines.append(f"> {line}")
+                lines.append("")
+                break
+
+    lines.extend([
+        f"- API Version: {version}",
+        f"- Base Path: {settings.API_V1_STR}",
+        f"- Swagger Docs: /docs",
+        f"- ReDoc Docs: /redoc",
+        f"- OpenAPI JSON: {settings.API_V1_STR}/openapi.json",
+        "",
+    ])
+
+    # 按 tag 输出端点列表
+    for tag, endpoints in endpoints_by_tag.items():
+        lines.append(f"## {tag}")
+        lines.append("")
+
+        for ep in endpoints:
+            method = ep["method"]
+            path = ep["path"]
+            # 优先使用英文 summary，只取第一行
+            desc = ep["summary"] or ep["description"] or ""
+            if desc:
+                desc = desc.split("\n")[0].strip()
+            # 截断过长的描述
+            if len(desc) > 60:
+                desc = desc[:57] + "..."
+
+            desc_part = f": {desc}" if desc else ""
+            lines.append(f"- [{method} {path}]({path}){desc_part}")
+
+        lines.append("")
+
+    # Optional 部分
+    lines.append("## Optional")
+    lines.append("")
+    lines.append(f"- [OpenAPI JSON]({settings.API_V1_STR}/openapi.json): Complete API definition for programmatic access")
+    lines.append(f"- [llms-full-en.txt](/llms-full-en.txt): Full version with detailed parameter information")
+    lines.append("")
+
     return "\n".join(lines)
 
 
@@ -309,25 +518,36 @@ def generate_llms_full_txt(schema: dict, endpoints_by_tag: dict[str, list[dict]]
     description = info.get("description", "")
     version = info.get("version", "1.0.0")
     schemas = schema.get("components", {}).get("schemas", {})
-    
+
     lines = [
         f"# {title}",
         "",
-        f"> {description}",
-        "",
+    ]
+
+    # 提取 description 中的纯文本摘要（跳过 Markdown 标记）
+    if description:
+        for line in description.split("\n"):
+            line = line.strip()
+            # 跳过空行和 Markdown 标记（#、|、-、```等）
+            if line and not line.startswith("#") and not line.startswith("|") and not line.startswith("-") and not line.startswith("```"):
+                lines.append(f"> {line}")
+                lines.append("")
+                break
+
+    lines.extend([
         f"- API 版本: {version}",
         f"- 基础路径: {settings.API_V1_STR}",
         f"- 认证方式: Bearer Token (JWT)",
         "",
         "---",
         "",
-    ]
-    
+    ])
+
     # 按 tag 输出详细端点信息
     for tag, endpoints in endpoints_by_tag.items():
         lines.append(f"## {tag}")
         lines.append("")
-        
+
         for ep in endpoints:
             method = ep["method"]
             path = ep["path"]
@@ -335,18 +555,18 @@ def generate_llms_full_txt(schema: dict, endpoints_by_tag: dict[str, list[dict]]
             description = ep["description"] or ""
             parameters = ep["parameters"]
             request_body = ep["request_body"]
-            
+
             lines.append(f"### {method} {path}")
             lines.append("")
-            
+
             if summary:
                 lines.append(f"**{summary}**")
                 lines.append("")
-            
+
             if description and description != summary:
                 lines.append(description)
                 lines.append("")
-            
+
             # 参数
             if parameters:
                 lines.append("**参数:**")
@@ -354,7 +574,7 @@ def generate_llms_full_txt(schema: dict, endpoints_by_tag: dict[str, list[dict]]
                 for param in parameters:
                     lines.append(format_parameter(param))
                 lines.append("")
-            
+
             # 请求体
             if request_body:
                 body_str = format_request_body(request_body, schemas)
@@ -363,10 +583,89 @@ def generate_llms_full_txt(schema: dict, endpoints_by_tag: dict[str, list[dict]]
                     lines.append("")
                     lines.append(body_str)
                     lines.append("")
-            
+
             lines.append("---")
             lines.append("")
-    
+
+    return "\n".join(lines)
+
+
+def generate_llms_full_txt_en(schema: dict, endpoints_by_tag: dict[str, list[dict]]) -> str:
+    """生成 llms-full-en.txt 英文完整版"""
+    info = schema.get("info", {})
+    title = info.get("title", "API")
+    description = info.get("description", "")
+    version = info.get("version", "1.0.0")
+    schemas = schema.get("components", {}).get("schemas", {})
+
+    lines = [
+        f"# {title}",
+        "",
+    ]
+
+    # 提取 description 中的纯文本摘要（跳过 Markdown 标记）
+    if description:
+        for line in description.split("\n"):
+            line = line.strip()
+            # 跳过空行和 Markdown 标记（#、|、-、```等）
+            if line and not line.startswith("#") and not line.startswith("|") and not line.startswith("-") and not line.startswith("```"):
+                lines.append(f"> {line}")
+                lines.append("")
+                break
+
+    lines.extend([
+        f"- API Version: {version}",
+        f"- Base Path: {settings.API_V1_STR}",
+        f"- Authentication: Bearer Token (JWT)",
+        "",
+        "---",
+        "",
+    ])
+
+    # 按 tag 输出详细端点信息
+    for tag, endpoints in endpoints_by_tag.items():
+        lines.append(f"## {tag}")
+        lines.append("")
+
+        for ep in endpoints:
+            method = ep["method"]
+            path = ep["path"]
+            summary = ep["summary"] or ""
+            description = ep["description"] or ""
+            parameters = ep["parameters"]
+            request_body = ep["request_body"]
+
+            lines.append(f"### {method} {path}")
+            lines.append("")
+
+            if summary:
+                lines.append(f"**{summary}**")
+                lines.append("")
+
+            if description and description != summary:
+                lines.append(description)
+                lines.append("")
+
+            # 参数
+            if parameters:
+                lines.append("**Parameters:**")
+                lines.append("")
+                for param in parameters:
+                    lines.append(format_parameter(param))
+                lines.append("")
+
+            # 请求体
+            if request_body:
+                body_str = format_request_body(request_body, schemas)
+                if body_str:
+                    lines.append("**Request:**")
+                    lines.append("")
+                    lines.append(body_str)
+                    lines.append("")
+
+            lines.append("---")
+            lines.append("")
+
     return "\n".join(lines)
 
 
@@ -379,7 +678,7 @@ def generate_domain_file(
     name = domain_config["name"]
     desc = domain_config["desc"]
     tags = domain_config["tags"]
-    
+
     lines = [
         f"# {name}",
         "",
@@ -389,27 +688,27 @@ def generate_domain_file(
         f"- 认证方式: Bearer Token (JWT)",
         "",
     ]
-    
+
     # 统计端点数量
     total_endpoints = 0
     for tag in tags:
         if tag in endpoints_by_tag:
             total_endpoints += len(endpoints_by_tag[tag])
-    
+
     lines.append(f"本域包含 {len(tags)} 个模块，共 {total_endpoints} 个端点。")
     lines.append("")
     lines.append("---")
     lines.append("")
-    
+
     # 按 tag 输出端点列表
     for tag in tags:
         if tag not in endpoints_by_tag:
             continue
-        
+
         endpoints = endpoints_by_tag[tag]
         lines.append(f"## {tag}")
         lines.append("")
-        
+
         for ep in endpoints:
             method = ep["method"]
             path = ep["path"]
@@ -418,19 +717,83 @@ def generate_domain_file(
                 desc = desc.split("\n")[0].strip()
             if len(desc) > 60:
                 desc = desc[:57] + "..."
-            
+
             desc_part = f": {desc}" if desc else ""
             lines.append(f"- [{method} {path}]({path}){desc_part}")
-        
+
         lines.append("")
-    
+
     # 添加关联说明
     lines.append("## 相关文档")
     lines.append("")
     lines.append("- [完整 API 文档](/llms.txt): 所有 API 端点的概览")
     lines.append("- [详细 API 文档](/llms-full.txt): 包含参数详情的完整文档")
     lines.append("")
-    
+
+    return "\n".join(lines)
+
+
+def generate_domain_file_en(
+    domain_key: str,
+    domain_config: dict,
+    endpoints_by_tag: dict[str, list[dict]]
+) -> str:
+    """生成单个业务域的 llms-domain-en-*.txt 英文文件"""
+    name = domain_config["name"]
+    desc = domain_config["desc"]
+    tags = domain_config["tags"]
+
+    lines = [
+        f"# {name}",
+        "",
+        f"> {desc}",
+        "",
+        f"- Base Path: {settings.API_V1_STR}",
+        f"- Authentication: Bearer Token (JWT)",
+        "",
+    ]
+
+    # 统计端点数量
+    total_endpoints = 0
+    for tag in tags:
+        if tag in endpoints_by_tag:
+            total_endpoints += len(endpoints_by_tag[tag])
+
+    lines.append(f"This domain contains {len(tags)} modules with {total_endpoints} endpoints.")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+
+    # 按 tag 输出端点列表
+    for tag in tags:
+        if tag not in endpoints_by_tag:
+            continue
+
+        endpoints = endpoints_by_tag[tag]
+        lines.append(f"## {tag}")
+        lines.append("")
+
+        for ep in endpoints:
+            method = ep["method"]
+            path = ep["path"]
+            desc = ep["summary"] or ep["description"] or ""
+            if desc:
+                desc = desc.split("\n")[0].strip()
+            if len(desc) > 60:
+                desc = desc[:57] + "..."
+
+            desc_part = f": {desc}" if desc else ""
+            lines.append(f"- [{method} {path}]({path}){desc_part}")
+
+        lines.append("")
+
+    # 添加关联说明
+    lines.append("## Related Documentation")
+    lines.append("")
+    lines.append("- [API Overview](/llms-en.txt): Overview of all API endpoints")
+    lines.append("- [Full API Documentation](/llms-full-en.txt): Complete documentation with parameter details")
+    lines.append("")
+
     return "\n".join(lines)
 
 
@@ -440,7 +803,7 @@ def generate_domain_files(
 ) -> list[str]:
     """生成所有业务域文件"""
     generated_files = []
-    
+
     for domain_key, domain_config in DOMAIN_MAPPING.items():
         content = generate_domain_file(domain_key, domain_config, endpoints_by_tag)
         filename = f"llms-domain-{domain_key}.txt"
@@ -448,7 +811,25 @@ def generate_domain_files(
         filepath.write_text(content, encoding="utf-8")
         generated_files.append(filename)
         print(f"  ✅ {filename}")
-    
+
+    return generated_files
+
+
+def generate_domain_files_en(
+    endpoints_by_tag: dict[str, list[dict]],
+    output_dir: Path
+) -> list[str]:
+    """生成所有英文业务域文件"""
+    generated_files = []
+
+    for domain_key, domain_config in DOMAIN_MAPPING_EN.items():
+        content = generate_domain_file_en(domain_key, domain_config, endpoints_by_tag)
+        filename = f"llms-domain-en-{domain_key}.txt"
+        filepath = output_dir / filename
+        filepath.write_text(content, encoding="utf-8")
+        generated_files.append(filename)
+        print(f"  ✅ {filename}")
+
     return generated_files
 
 
@@ -495,7 +876,7 @@ def generate_workflow_file(
     name = workflow_config["name"]
     desc = workflow_config["desc"]
     steps = workflow_config["steps"]
-    
+
     lines = [
         f"# {name}",
         "",
@@ -509,21 +890,21 @@ def generate_workflow_file(
         "## 流程步骤",
         "",
     ]
-    
+
     # 按步骤顺序匹配端点
     for step in steps:
         step_num = step["step"]
         step_name = step["name"]
-        
+
         lines.append(f"### 步骤 {step_num}: {step_name}")
         lines.append("")
-        
+
         # 查找匹配的端点
         matched_endpoints = []
         for ep in all_endpoints:
             if match_endpoint_to_step(ep, step):
                 matched_endpoints.append(ep)
-        
+
         if matched_endpoints:
             for ep in matched_endpoints:
                 method = ep["method"]
@@ -533,21 +914,86 @@ def generate_workflow_file(
                     desc = desc.split("\n")[0].strip()
                 if len(desc) > 60:
                     desc = desc[:57] + "..."
-                
+
                 desc_part = f": {desc}" if desc else ""
                 lines.append(f"- [{method} {path}]({path}){desc_part}")
         else:
             lines.append(f"- *暂无匹配的端点*")
-        
+
         lines.append("")
-    
+
     # 添加关联说明
     lines.append("## 相关文档")
     lines.append("")
     lines.append("- [完整 API 文档](/llms.txt): 所有 API 端点的概览")
     lines.append("- [详细 API 文档](/llms-full.txt): 包含参数详情的完整文档")
     lines.append("")
-    
+
+    return "\n".join(lines)
+
+
+def generate_workflow_file_en(
+    workflow_key: str,
+    workflow_config: dict,
+    all_endpoints: list[dict]
+) -> str:
+    """生成单个业务流程的 llms-workflow-en-*.txt 英文文件"""
+    name = workflow_config["name"]
+    desc = workflow_config["desc"]
+    steps = workflow_config["steps"]
+
+    lines = [
+        f"# {name}",
+        "",
+        f"> {desc}",
+        "",
+        f"- Base Path: {settings.API_V1_STR}",
+        f"- Authentication: Bearer Token (JWT)",
+        "",
+        "---",
+        "",
+        "## Workflow Steps",
+        "",
+    ]
+
+    # 按步骤顺序匹配端点
+    for step in steps:
+        step_num = step["step"]
+        step_name = step["name"]
+
+        lines.append(f"### Step {step_num}: {step_name}")
+        lines.append("")
+
+        # 查找匹配的端点
+        matched_endpoints = []
+        for ep in all_endpoints:
+            if match_endpoint_to_step(ep, step):
+                matched_endpoints.append(ep)
+
+        if matched_endpoints:
+            for ep in matched_endpoints:
+                method = ep["method"]
+                path = ep["path"]
+                desc = ep["summary"] or ep["description"] or ""
+                if desc:
+                    desc = desc.split("\n")[0].strip()
+                if len(desc) > 60:
+                    desc = desc[:57] + "..."
+
+                desc_part = f": {desc}" if desc else ""
+                lines.append(f"- [{method} {path}]({path}){desc_part}")
+        else:
+            lines.append(f"- *No matching endpoints*")
+
+        lines.append("")
+
+    # 添加关联说明
+    lines.append("## Related Documentation")
+    lines.append("")
+    lines.append("- [API Overview](/llms-en.txt): Overview of all API endpoints")
+    lines.append("- [Full API Documentation](/llms-full-en.txt): Complete documentation with parameter details")
+    lines.append("")
+
     return "\n".join(lines)
 
 
@@ -560,9 +1006,9 @@ def generate_workflow_files(
     all_endpoints = []
     for endpoints in endpoints_by_tag.values():
         all_endpoints.extend(endpoints)
-    
+
     generated_files = []
-    
+
     for workflow_key, workflow_config in WORKFLOW_DEFINITIONS.items():
         content = generate_workflow_file(workflow_key, workflow_config, all_endpoints)
         filename = f"llms-workflow-{workflow_key}.txt"
@@ -570,7 +1016,30 @@ def generate_workflow_files(
         filepath.write_text(content, encoding="utf-8")
         generated_files.append(filename)
         print(f"  ✅ {filename}")
-    
+
+    return generated_files
+
+
+def generate_workflow_files_en(
+    endpoints_by_tag: dict[str, list[dict]],
+    output_dir: Path
+) -> list[str]:
+    """生成所有英文业务流程文件"""
+    # 将所有端点展平为一个列表
+    all_endpoints = []
+    for endpoints in endpoints_by_tag.values():
+        all_endpoints.extend(endpoints)
+
+    generated_files = []
+
+    for workflow_key, workflow_config in WORKFLOW_DEFINITIONS_EN.items():
+        content = generate_workflow_file_en(workflow_key, workflow_config, all_endpoints)
+        filename = f"llms-workflow-en-{workflow_key}.txt"
+        filepath = output_dir / filename
+        filepath.write_text(content, encoding="utf-8")
+        generated_files.append(filename)
+        print(f"  ✅ {filename}")
+
     return generated_files
 
 
@@ -579,48 +1048,73 @@ def main():
     # 获取 OpenAPI schema
     print("正在获取 OpenAPI schema...")
     schema = get_openapi_schema()
-    
+
     # 按 tag 分组端点
     print("正在分析 API 端点...")
     paths = schema.get("paths", {})
     endpoints_by_tag = group_endpoints_by_tag(paths)
-    
+
     total_endpoints = sum(len(eps) for eps in endpoints_by_tag.values())
     print(f"发现 {len(endpoints_by_tag)} 个分类，共 {total_endpoints} 个端点")
-    
+
     # 生成文件
     output_dir = Path(__file__).parent.parent / "app" / "static"
     output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # 1. 生成主文件 llms.txt
+
+    # 1. 生成主文件 llms.txt（中文）
     print("\n📄 生成主文件...")
     llms_txt = generate_llms_txt(schema, endpoints_by_tag)
     llms_txt_path = output_dir / "llms.txt"
     llms_txt_path.write_text(llms_txt, encoding="utf-8")
     print(f"  ✅ llms.txt")
-    
-    # 2. 生成完整版 llms-full.txt
+
+    # 2. 生成完整版 llms-full.txt（中文）
     llms_full_txt = generate_llms_full_txt(schema, endpoints_by_tag)
     llms_full_txt_path = output_dir / "llms-full.txt"
     llms_full_txt_path.write_text(llms_full_txt, encoding="utf-8")
     print(f"  ✅ llms-full.txt")
-    
-    # 3. 生成业务域文件
+
+    # 3. 生成英文主文件 llms-en.txt
+    print("\n📄 生成英文主文件...")
+    llms_en_txt = generate_llms_txt_en(schema, endpoints_by_tag)
+    llms_en_txt_path = output_dir / "llms-en.txt"
+    llms_en_txt_path.write_text(llms_en_txt, encoding="utf-8")
+    print(f"  ✅ llms-en.txt")
+
+    # 4. 生成英文完整版 llms-full-en.txt
+    llms_full_en_txt = generate_llms_full_txt_en(schema, endpoints_by_tag)
+    llms_full_en_txt_path = output_dir / "llms-full-en.txt"
+    llms_full_en_txt_path.write_text(llms_full_en_txt, encoding="utf-8")
+    print(f"  ✅ llms-full-en.txt")
+
+    # 5. 生成业务域文件（中文）
     print("\n📂 生成业务域文件...")
     domain_files = generate_domain_files(endpoints_by_tag, output_dir)
-    
-    # 4. 生成业务流程文件
+
+    # 6. 生成英文业务域文件
+    print("\n📂 生成英文业务域文件...")
+    domain_files_en = generate_domain_files_en(endpoints_by_tag, output_dir)
+
+    # 7. 生成业务流程文件（中文）
     print("\n🔄 生成业务流程文件...")
     workflow_files = generate_workflow_files(endpoints_by_tag, output_dir)
-    
+
+    # 8. 生成英文业务流程文件
+    print("\n🔄 生成英文业务流程文件...")
+    workflow_files_en = generate_workflow_files_en(endpoints_by_tag, output_dir)
+
     # 汇总
-    total_files = 2 + len(domain_files) + len(workflow_files)
+    total_files = 4 + len(domain_files) + len(domain_files_en) + len(workflow_files) + len(workflow_files_en)
     print(f"\n✅ 完成！共生成 {total_files} 个文件")
     print("\n可通过以下端点访问：")
-    print("  - GET /llms.txt (主文件)")
-    print("  - GET /llms-full.txt (完整版)")
-    print("  - GET /llms-domain-{domain}.txt (业务域文件)")
-    print("  - GET /llms-workflow-{workflow}.txt (业务流程文件)")
+    print("  - GET /llms.txt (中文主文件)")
+    print("  - GET /llms-full.txt (中文完整版)")
+    print("  - GET /llms-en.txt (英文主文件)")
+    print("  - GET /llms-full-en.txt (英文完整版)")
+    print("  - GET /llms-domain-{domain}.txt (中文业务域文件)")
+    print("  - GET /llms-domain-en-{domain}.txt (英文业务域文件)")
+    print("  - GET /llms-workflow-{workflow}.txt (中文业务流程文件)")
+    print("  - GET /llms-workflow-en-{workflow}.txt (英文业务流程文件)")
 
 
 if __name__ == "__main__":
