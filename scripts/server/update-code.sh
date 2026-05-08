@@ -36,7 +36,7 @@ echo "代码已更新"
 # 2. 安装 Python 依赖
 echo -e "${YELLOW}[2/5] 安装 Python 依赖...${NC}"
 cd apps/server
-python3 -m pip install -r requirements.txt -q
+python3 -m pip install -r requirements.txt -q -i https://pypi.tuna.tsinghua.edu.cn/simple
 echo "依赖安装完成"
 
 # 3. 执行数据库迁移
