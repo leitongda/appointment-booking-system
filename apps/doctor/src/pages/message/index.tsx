@@ -1,11 +1,12 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { Tabs, List, Badge, Tag, Empty, Button, Spin, message as antMessage, Modal, Tooltip } from 'antd';
-import { BellOutlined, CalendarOutlined, MedicineBoxOutlined, NotificationOutlined, CheckOutlined, WifiOutlined, DisconnectOutlined, CheckCircleOutlined, LoadingOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { Tabs, List, Badge, Tag, Empty, Button, Spin, message as antMessage, Modal } from 'antd';
+import { BellOutlined, CalendarOutlined, MedicineBoxOutlined, NotificationOutlined, CheckOutlined } from '@ant-design/icons';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { messageApi } from '@hospital/api';
 import type { Message, UnreadCount } from '@hospital/shared';
 import { DOCTOR_MESSAGE_TABS } from '@hospital/shared';
 import { useWebSocket, ConnectionStatus } from '@/hooks';
+import { ConnectionTag, ConnectionBanner } from '@/components/ConnectionStatus';
 
 const MessagePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -179,60 +180,11 @@ const MessagePage: React.FC = () => {
     };
   });
 
-  // 连接状态指示器
-  const connectionIndicator = useMemo(() => {
-    if (wsStatus === ConnectionStatus.CONNECTED) {
-      return (
-        <Tooltip title="实时连接正常">
-          <Tag
-            color="success"
-            icon={<CheckCircleOutlined />}
-            aria-label="WebSocket 已连接"
-            role="status"
-            aria-live="polite"
-          >
-            实时
-          </Tag>
-        </Tooltip>
-      );
-    }
-    if (wsStatus === ConnectionStatus.CONNECTING || wsStatus === ConnectionStatus.RECONNECTING) {
-      return (
-        <Tooltip title="正在连接...">
-          <Tag
-            color="processing"
-            icon={<LoadingOutlined />}
-            aria-label="WebSocket 正在连接"
-            role="status"
-            aria-live="polite"
-          >
-            连接中
-          </Tag>
-        </Tooltip>
-      );
-    }
-    return (
-      <Tooltip title="实时连接已断开，点击重连">
-        <Tag
-          color="error"
-          icon={<CloseCircleOutlined />}
-          style={{ cursor: 'pointer' }}
-          onClick={reconnect}
-          aria-label="WebSocket 连接已断开，点击重连"
-          role="status"
-          aria-live="assertive"
-        >
-          离线
-        </Tag>
-      </Tooltip>
-    );
-  }, [wsStatus, reconnect]);
-
   return (
     <PageContainer
       extra={
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {connectionIndicator}
+          <ConnectionTag status={wsStatus} onReconnect={reconnect} />
           {unreadCount && unreadCount.total > 0 && (
             <Button
               icon={<CheckOutlined />}
@@ -245,7 +197,8 @@ const MessagePage: React.FC = () => {
         </div>
       }
     >
-      <Tabs 
+      <ConnectionBanner status={wsStatus} onReconnect={reconnect} />
+      <Tabs
         activeKey={activeTab} 
         onChange={setActiveTab}
         items={tabItems}

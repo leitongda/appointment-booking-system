@@ -27,12 +27,11 @@ const SchedulePage: React.FC = () => {
       const startDate = currentMonth.startOf('month').format('YYYY-MM-DD');
       const endDate = currentMonth.endOf('month').format('YYYY-MM-DD');
       
-      const result = await scheduleApi.getList({
+      const result = await scheduleApi.getMyList({
         startDate,
         endDate,
-        pageSize: 100,
       });
-      setSchedules(result.data || []);
+      setSchedules(result || []);
     } catch (error) {
       console.error('加载排班失败', error);
     } finally {

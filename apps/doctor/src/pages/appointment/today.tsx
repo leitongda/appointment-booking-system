@@ -1,13 +1,14 @@
 import { PageContainer, ProTable, ProCard } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
-import { Tag, Button, Space, message, Row, Col, Statistic, Badge, Tooltip, Popconfirm } from 'antd';
-import { SoundOutlined, CheckOutlined, UserOutlined, ClockCircleOutlined, WifiOutlined, DisconnectOutlined, StopOutlined } from '@ant-design/icons';
+import { Tag, Button, Space, message, Row, Col, Statistic, Badge, Popconfirm } from 'antd';
+import { SoundOutlined, CheckOutlined, UserOutlined, ClockCircleOutlined, StopOutlined } from '@ant-design/icons';
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { history } from 'umi';
 import { appointmentApi } from '@hospital/api';
 import { APPOINTMENT_STATUS, APPOINTMENT_STATUS_MAP, APPOINTMENT_STATUS_COLOR, TIME_SLOT_MAP } from '@hospital/shared';
 import type { Appointment } from '@hospital/shared';
 import { useWebSocket, ConnectionStatus } from '@/hooks';
+import { ConnectionTag, ConnectionBanner } from '@/components/ConnectionStatus';
 
 const TodayAppointmentPage: React.FC = () => {
   const actionRef = useRef<ActionType>();
@@ -192,33 +193,11 @@ const TodayAppointmentPage: React.FC = () => {
     },
   ];
 
-  // 连接状态指示器
-  const connectionIndicator = useMemo(() => {
-    if (wsStatus === ConnectionStatus.CONNECTED) {
-      return (
-        <Tooltip title="实时连接正常">
-          <Tag color="success" icon={<WifiOutlined />}>实时</Tag>
-        </Tooltip>
-      );
-    }
-    if (wsStatus === ConnectionStatus.CONNECTING || wsStatus === ConnectionStatus.RECONNECTING) {
-      return (
-        <Tooltip title="正在连接...">
-          <Tag color="processing" icon={<WifiOutlined />}>连接中</Tag>
-        </Tooltip>
-      );
-    }
-    return (
-      <Tooltip title="实时连接已断开，点击重连">
-        <Tag color="error" icon={<DisconnectOutlined />} style={{ cursor: 'pointer' }} onClick={reconnect}>
-          离线
-        </Tag>
-      </Tooltip>
-    );
-  }, [wsStatus, reconnect]);
-
   return (
-    <PageContainer extra={connectionIndicator}>
+    <PageContainer
+      extra={<ConnectionTag status={wsStatus} onReconnect={reconnect} />}
+    >
+      <ConnectionBanner status={wsStatus} onReconnect={reconnect} />
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}>
           <ProCard>

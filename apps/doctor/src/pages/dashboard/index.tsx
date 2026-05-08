@@ -1,12 +1,13 @@
 import { PageContainer, ProCard, StatisticCard } from '@ant-design/pro-components';
-import { Col, Row, List, Avatar, Tag, Button, Empty, message, Badge, Tooltip } from 'antd';
-import { UserOutlined, CheckCircleOutlined, ClockCircleOutlined, BellOutlined, WifiOutlined, DisconnectOutlined } from '@ant-design/icons';
+import { Col, Row, List, Avatar, Tag, Button, Empty, message, Badge } from 'antd';
+import { UserOutlined, CheckCircleOutlined, ClockCircleOutlined, BellOutlined } from '@ant-design/icons';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { history } from 'umi';
 import { appointmentApi } from '@hospital/api';
 import { APPOINTMENT_STATUS_MAP, APPOINTMENT_STATUS_COLOR, TIME_SLOT_MAP } from '@hospital/shared';
 import type { Appointment, AppointmentStatistics } from '@hospital/shared';
 import { useWebSocket, ConnectionStatus } from '@/hooks';
+import { ConnectionTag, ConnectionBanner } from '@/components/ConnectionStatus';
 
 const { Statistic } = StatisticCard;
 
@@ -99,36 +100,12 @@ const Dashboard: React.FC = () => {
   // 待签到
   const pendingList = todayAppointments.filter((a) => a.status === 1);
 
-  // 连接状态指示器
-  const connectionIndicator = useMemo(() => {
-    if (wsStatus === ConnectionStatus.CONNECTED) {
-      return (
-        <Tooltip title="实时连接正常">
-          <Tag color="success" icon={<WifiOutlined />}>实时</Tag>
-        </Tooltip>
-      );
-    }
-    if (wsStatus === ConnectionStatus.CONNECTING || wsStatus === ConnectionStatus.RECONNECTING) {
-      return (
-        <Tooltip title="正在连接...">
-          <Tag color="processing" icon={<WifiOutlined />}>连接中</Tag>
-        </Tooltip>
-      );
-    }
-    return (
-      <Tooltip title="实时连接已断开，点击重连">
-        <Tag color="error" icon={<DisconnectOutlined />} style={{ cursor: 'pointer' }} onClick={reconnect}>
-          离线
-        </Tag>
-      </Tooltip>
-    );
-  }, [wsStatus, reconnect]);
-
   return (
-    <PageContainer 
+    <PageContainer
       loading={loading}
-      extra={connectionIndicator}
+      extra={<ConnectionTag status={wsStatus} onReconnect={reconnect} />}
     >
+      <ConnectionBanner status={wsStatus} onReconnect={reconnect} />
       {/* 统计卡片 */}
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={8}>

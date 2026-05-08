@@ -308,6 +308,12 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
 
       const menuItems = [
         {
+          key: 'profile',
+          icon: <UserOutlined />,
+          label: '个人资料',
+          onClick: () => history.push('/profile'),
+        },
+        {
           key: 'notification-settings',
           icon: <SettingOutlined />,
           label: '通知设置',

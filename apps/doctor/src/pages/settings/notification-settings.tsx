@@ -1,3 +1,4 @@
+import { PageContainer } from '@ant-design/pro-components';
 import {
   Card,
   Form,
@@ -9,13 +10,12 @@ import {
   Space,
   Typography,
   Divider,
+  Row,
+  Col,
 } from 'antd';
 import { useState, useEffect } from 'react';
 import {
   BellOutlined,
-  ClockCircleOutlined,
-  CustomerServiceOutlined,
-  MessageOutlined,
   MoonOutlined,
   NotificationOutlined,
   SaveOutlined,
@@ -24,7 +24,7 @@ import { notificationPreferenceApi } from '@hospital/api';
 import type { NotificationPreference } from '@hospital/api';
 import dayjs from 'dayjs';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 interface QuietHoursConfig {
   enabled: boolean;
@@ -36,9 +36,6 @@ const NotificationSettingsPage: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [preference, setPreference] = useState<NotificationPreference | null>(
-    null
-  );
   const [quietHours, setQuietHours] = useState<QuietHoursConfig>({
     enabled: false,
     startTime: null,
@@ -53,7 +50,6 @@ const NotificationSettingsPage: React.FC = () => {
     try {
       setLoading(true);
       const data = await notificationPreferenceApi.get();
-      setPreference(data);
       form.setFieldsValue({
         appointmentEnabled: data.appointmentEnabled,
         systemEnabled: data.systemEnabled,
@@ -109,22 +105,18 @@ const NotificationSettingsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <Spin size="large" tip="加载中..." />
-      </div>
+      <PageContainer>
+        <div style={{ textAlign: 'center', paddingTop: 200 }}>
+          <Spin size="large" tip="加载中..." />
+        </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <div className="max-w-3xl mx-auto">
-        <div className="mb-6">
-          <Title level={3}>通知设置</Title>
-          <Text type="secondary">管理您的通知偏好和免打扰时段</Text>
-        </div>
-
+    <PageContainer>
+      <div style={{ maxWidth: 720, margin: '0 auto' }}>
         <Form form={form} layout="vertical">
-          {/* Notification Types */}
           <Card
             title={
               <Space>
@@ -132,7 +124,7 @@ const NotificationSettingsPage: React.FC = () => {
                 <span>通知类型</span>
               </Space>
             }
-            className="mb-4"
+            style={{ marginBottom: 16 }}
           >
             <Form.Item
               name="appointmentEnabled"
@@ -147,11 +139,11 @@ const NotificationSettingsPage: React.FC = () => {
                 }
               />
             </Form.Item>
-            <Text type="secondary" className="text-sm">
+            <Text type="secondary" style={{ fontSize: 14 }}>
               接收新预约、预约变更等通知
             </Text>
 
-            <Divider className="my-4" />
+            <Divider style={{ margin: '16px 0' }} />
 
             <Form.Item
               name="systemEnabled"
@@ -166,12 +158,11 @@ const NotificationSettingsPage: React.FC = () => {
                 }
               />
             </Form.Item>
-            <Text type="secondary" className="text-sm">
+            <Text type="secondary" style={{ fontSize: 14 }}>
               接收系统公告、维护通知等
             </Text>
           </Card>
 
-          {/* Notification Channels */}
           <Card
             title={
               <Space>
@@ -179,7 +170,7 @@ const NotificationSettingsPage: React.FC = () => {
                 <span>通知渠道</span>
               </Space>
             }
-            className="mb-4"
+            style={{ marginBottom: 16 }}
           >
             <Form.Item
               name="smsEnabled"
@@ -194,11 +185,11 @@ const NotificationSettingsPage: React.FC = () => {
                 }
               />
             </Form.Item>
-            <Text type="secondary" className="text-sm">
+            <Text type="secondary" style={{ fontSize: 14 }}>
               通过手机短信接收通知
             </Text>
 
-            <Divider className="my-4" />
+            <Divider style={{ margin: '16px 0' }} />
 
             <Form.Item
               name="inAppEnabled"
@@ -213,12 +204,11 @@ const NotificationSettingsPage: React.FC = () => {
                 }
               />
             </Form.Item>
-            <Text type="secondary" className="text-sm">
+            <Text type="secondary" style={{ fontSize: 14 }}>
               在医生工作台内接收通知
             </Text>
           </Card>
 
-          {/* Quiet Hours */}
           <Card
             title={
               <Space>
@@ -226,9 +216,9 @@ const NotificationSettingsPage: React.FC = () => {
                 <span>免打扰时段</span>
               </Space>
             }
-            className="mb-4"
+            style={{ marginBottom: 16 }}
           >
-            <div className="mb-4">
+            <div style={{ marginBottom: 16 }}>
               <Switch
                 checked={quietHours.enabled}
                 onChange={(checked) =>
@@ -237,15 +227,15 @@ const NotificationSettingsPage: React.FC = () => {
                 checkedChildren="已启用"
                 unCheckedChildren="已关闭"
               />
-              <Text type="secondary" className="ml-2 text-sm">
+              <Text type="secondary" style={{ marginLeft: 8, fontSize: 14 }}>
                 启用后在设定时间段内不接收通知
               </Text>
             </div>
 
             {quietHours.enabled && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="mb-2">
+              <Row gutter={16}>
+                <Col span={12}>
+                  <div style={{ marginBottom: 8 }}>
                     <Text strong>开始时间</Text>
                   </div>
                   <TimePicker
@@ -254,12 +244,12 @@ const NotificationSettingsPage: React.FC = () => {
                       setQuietHours({ ...quietHours, startTime: time })
                     }
                     format="HH:mm"
-                    className="w-full"
+                    style={{ width: '100%' }}
                     placeholder="选择开始时间"
                   />
-                </div>
-                <div>
-                  <div className="mb-2">
+                </Col>
+                <Col span={12}>
+                  <div style={{ marginBottom: 8 }}>
                     <Text strong>结束时间</Text>
                   </div>
                   <TimePicker
@@ -268,31 +258,32 @@ const NotificationSettingsPage: React.FC = () => {
                       setQuietHours({ ...quietHours, endTime: time })
                     }
                     format="HH:mm"
-                    className="w-full"
+                    style={{ width: '100%' }}
                     placeholder="选择结束时间"
                   />
-                </div>
-              </div>
+                </Col>
+              </Row>
             )}
           </Card>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-3">
-            <Button onClick={loadPreferences} disabled={saving}>
-              重置
-            </Button>
-            <Button
-              type="primary"
-              icon={<SaveOutlined />}
-              onClick={handleSave}
-              loading={saving}
-            >
-              保存设置
-            </Button>
+          <div style={{ textAlign: 'right' }}>
+            <Space>
+              <Button onClick={loadPreferences} disabled={saving}>
+                重置
+              </Button>
+              <Button
+                type="primary"
+                icon={<SaveOutlined />}
+                onClick={handleSave}
+                loading={saving}
+              >
+                保存设置
+              </Button>
+            </Space>
           </div>
         </Form>
       </div>
-    </div>
+    </PageContainer>
   );
 };
 

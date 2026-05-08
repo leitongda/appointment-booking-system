@@ -1,8 +1,9 @@
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
-import { Button, Tag, Modal, Descriptions, Divider, message } from 'antd';
-import { EyeOutlined } from '@ant-design/icons';
+import { Button, Tag, Modal, Descriptions, Divider, message, Space } from 'antd';
+import { EyeOutlined, EditOutlined } from '@ant-design/icons';
 import { useRef, useState } from 'react';
+import { history } from 'umi';
 import { medicalRecordApi } from '@hospital/api';
 import type { MedicalRecordListItem, MedicalRecord } from '@hospital/api';
 
@@ -49,19 +50,30 @@ const MedicalRecordListPage: React.FC = () => {
       },
     },
     { title: '创建时间', dataIndex: 'createdAt', width: 180, valueType: 'dateTime', search: false },
-    { 
-      title: '操作', 
+    {
+      title: '操作',
       valueType: 'option',
-      width: 80,
+      width: 140,
       render: (_, record) => (
-        <Button 
-          type="link" 
-          icon={<EyeOutlined />} 
-          loading={detailLoading}
-          onClick={() => handleView(record)}
-        >
-          查看
-        </Button>
+        <Space>
+          <Button
+            type="link"
+            icon={<EyeOutlined />}
+            loading={detailLoading}
+            onClick={() => handleView(record)}
+          >
+            查看
+          </Button>
+          {record.status === 1 && (
+            <Button
+              type="link"
+              icon={<EditOutlined />}
+              onClick={() => history.push(`/medical-record/create?recordId=${record.id}`)}
+            >
+              编辑
+            </Button>
+          )}
+        </Space>
       )
     },
   ];

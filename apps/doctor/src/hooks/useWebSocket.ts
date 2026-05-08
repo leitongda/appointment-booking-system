@@ -245,16 +245,20 @@ export const useWebSocket = (options: UseWebSocketOptions) => {
         setStatus(ConnectionStatus.DISCONNECTED);
         stopHeartbeat();
 
-        // 如果不是手动关闭且需要自动重连
+        // 如果不是手动关闭且需要自动重连（指数退避 + 抖动）
         if (!isManualCloseRef.current && autoReconnect) {
           if (reconnectAttemptsRef.current < maxReconnectAttempts) {
             reconnectAttemptsRef.current++;
+            const attempt = reconnectAttemptsRef.current;
+            const baseDelay = reconnectInterval * Math.pow(2, attempt - 1);
+            const cappedDelay = Math.min(baseDelay, 30000);
+            const jitter = cappedDelay * (0.5 + Math.random() * 0.5);
             setStatus(ConnectionStatus.RECONNECTING);
-            console.log(`WebSocket 将在 ${reconnectInterval}ms 后尝试第 ${reconnectAttemptsRef.current} 次重连...`);
-            
+            console.log(`WebSocket 将在 ${Math.round(jitter)}ms 后尝试第 ${attempt} 次重连...`);
+
             reconnectTimerRef.current = setTimeout(() => {
               connect();
-            }, reconnectInterval);
+            }, jitter);
           } else {
             console.error('WebSocket 重连次数已达上限');
             setStatus(ConnectionStatus.ERROR);

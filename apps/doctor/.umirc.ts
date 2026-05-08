@@ -70,6 +70,7 @@ export default defineConfig({
     { path: '/statistics', name: '数据统计', icon: 'BarChartOutlined', component: '@/pages/statistics' },
     { path: '/rules', name: '预约规则', icon: 'SafetyCertificateOutlined', component: '@/pages/rules' },
     { path: '/message', name: '消息中心', icon: 'BellOutlined', component: '@/pages/message' },
+    { path: '/profile', name: '个人资料', component: '@/pages/profile', hideInMenu: true },
     { path: '/settings/notification', name: '通知设置', icon: 'SettingOutlined', component: '@/pages/settings/notification-settings' },
   ],
   proxy: {

@@ -29,8 +29,8 @@ const StatisticsPage: React.FC = () => {
     setLoading(true);
     try {
       const [trend, status] = await Promise.all([
-        statisticsApi.getAppointmentTrend(days),
-        statisticsApi.getAppointmentStatusStats(),
+        statisticsApi.getMyAppointmentTrend(days),
+        statisticsApi.getMyAppointmentStatusStats(),
       ]);
       setTrendData(trend);
       setStatusData(status);

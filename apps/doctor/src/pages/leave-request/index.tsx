@@ -11,8 +11,18 @@ const LeaveRequestPage: React.FC = () => {
   const [stopModalVisible, setStopModalVisible] = useState(false);
   const [changeModalVisible, setChangeModalVisible] = useState(false);
   
-  // 模拟医生ID
-  const doctorId = localStorage.getItem('doctorId') || '';
+  const doctorId = (() => {
+    try {
+      const doctorStr = localStorage.getItem('doctor');
+      if (doctorStr) {
+        const doctor = JSON.parse(doctorStr);
+        return doctor.id || doctor.doctorId || '';
+      }
+    } catch (e) {
+      console.error('解析医生信息失败:', e);
+    }
+    return '';
+  })();
 
   const handleStopClinic = async (values: any) => {
     try {

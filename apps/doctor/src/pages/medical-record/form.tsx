@@ -1,59 +1,118 @@
 import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormSelect, ProFormDigit } from '@ant-design/pro-components';
 import { Card, message, Button, Space, Descriptions, Tag, Divider } from 'antd';
 import { history, useSearchParams } from 'umi';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { appointmentApi, medicalRecordApi } from '@hospital/api';
 import { TIME_SLOT_MAP } from '@hospital/shared';
 import type { Appointment } from '@hospital/shared';
+import type { ProFormInstance } from '@ant-design/pro-components';
 
 const MedicalRecordFormPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const appointmentId = searchParams.get('appointmentId');
+  const recordId = searchParams.get('recordId');
+  const isEdit = !!recordId;
+  const formRef = useRef<ProFormInstance>();
   const [appointment, setAppointment] = useState<Appointment | null>(null);
+  const [record, setRecord] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (appointmentId) {
-      loadAppointment();
-    }
-  }, [appointmentId]);
+    loadData();
+  }, [appointmentId, recordId]);
 
-  const loadAppointment = async () => {
+  const loadData = async () => {
+    setLoading(true);
     try {
-      const data = await appointmentApi.getDetail(appointmentId!);
-      setAppointment(data);
+      if (recordId) {
+        // 编辑模式：加载病历详情
+        const recordData = await medicalRecordApi.getDetail(recordId);
+        setRecord(recordData);
+
+        // 如果病历已提交（status=2），不允许编辑
+        if (recordData.status === 2) {
+          message.warning('已提交的病历不允许编辑');
+          history.push('/medical-record/list');
+          return;
+        }
+
+        // 加载关联的预约信息
+        if (recordData.appointmentId) {
+          const appointmentData = await appointmentApi.getDetail(recordData.appointmentId);
+          setAppointment(appointmentData);
+        }
+
+        // 填充表单
+        setTimeout(() => {
+          formRef.current?.setFieldsValue({
+            chiefComplaint: recordData.chiefComplaint,
+            presentIllness: recordData.presentIllness,
+            pastHistory: recordData.pastHistory,
+            allergyHistory: recordData.allergyHistory,
+            physicalExam: recordData.physicalExam,
+            auxiliaryExam: recordData.auxiliaryExam,
+            diagnosis: recordData.diagnosis,
+            treatment: recordData.treatment,
+            prescription: recordData.prescription,
+            advice: recordData.advice,
+            totalFee: recordData.totalFee,
+          });
+        }, 100);
+      } else if (appointmentId) {
+        // 新建模式：加载预约信息
+        const data = await appointmentApi.getDetail(appointmentId);
+        setAppointment(data);
+      }
     } catch (error) {
-      message.error('加载预约信息失败');
+      message.error('加载信息失败');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSubmit = async (values: any) => {
-    if (!appointmentId) {
-      message.error('预约ID不能为空');
-      return;
-    }
-
     setSubmitting(true);
     try {
-      await medicalRecordApi.create({
-        appointmentId,
-        chiefComplaint: values.chiefComplaint,
-        presentIllness: values.presentIllness,
-        pastHistory: values.pastHistory,
-        allergyHistory: values.allergyHistory,
-        physicalExam: values.physicalExam,
-        auxiliaryExam: values.auxiliaryExam,
-        diagnosis: values.diagnosis,
-        treatment: values.treatment,
-        prescription: values.prescription,
-        advice: values.advice,
-        totalFee: values.totalFee,
-        status: values.status || 2,
-      });
-      message.success('病历保存成功');
+      if (isEdit && recordId) {
+        // 编辑模式：更新病历
+        await medicalRecordApi.update(recordId, {
+          chiefComplaint: values.chiefComplaint,
+          presentIllness: values.presentIllness,
+          pastHistory: values.pastHistory,
+          allergyHistory: values.allergyHistory,
+          physicalExam: values.physicalExam,
+          auxiliaryExam: values.auxiliaryExam,
+          diagnosis: values.diagnosis,
+          treatment: values.treatment,
+          prescription: values.prescription,
+          advice: values.advice,
+          totalFee: values.totalFee,
+          status: values.status || record?.status || 1,
+        });
+        message.success('病历更新成功');
+      } else if (appointmentId) {
+        // 新建模式：创建病历
+        await medicalRecordApi.create({
+          appointmentId,
+          chiefComplaint: values.chiefComplaint,
+          presentIllness: values.presentIllness,
+          pastHistory: values.pastHistory,
+          allergyHistory: values.allergyHistory,
+          physicalExam: values.physicalExam,
+          auxiliaryExam: values.auxiliaryExam,
+          diagnosis: values.diagnosis,
+          treatment: values.treatment,
+          prescription: values.prescription,
+          advice: values.advice,
+          totalFee: values.totalFee,
+          status: values.status || 2,
+        });
+        message.success('病历保存成功');
+      } else {
+        message.error('缺少必要参数');
+        return;
+      }
       history.push('/medical-record/list');
     } catch (error: any) {
       message.error(error.message || '保存失败');
@@ -63,11 +122,11 @@ const MedicalRecordFormPage: React.FC = () => {
   };
 
   return (
-    <PageContainer 
-      title="填写病历"
+    <PageContainer
+      title={isEdit ? '编辑病历' : '填写病历'}
       loading={loading}
       extra={
-        <Button onClick={() => history.push('/consultation')}>返回就诊</Button>
+        <Button onClick={() => history.back()}>返回</Button>
       }
     >
       {appointment && (
@@ -91,6 +150,7 @@ const MedicalRecordFormPage: React.FC = () => {
 
       <Card title="病历内容">
         <ProForm
+          formRef={formRef}
           onFinish={handleSubmit}
           submitter={{
             render: (props, doms) => (

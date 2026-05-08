@@ -1,6 +1,6 @@
 import { PageContainer, ProCard } from '@ant-design/pro-components';
-import { List, Avatar, Tag, Button, Empty, message, Row, Col, Badge, Popconfirm, Tooltip, Drawer, Spin, Timeline, Modal, Select, Space } from 'antd';
-import { UserOutlined, SoundOutlined, StopOutlined, CheckOutlined, ReloadOutlined, WifiOutlined, DisconnectOutlined, HistoryOutlined, FileTextOutlined, CalendarOutlined, PlusOutlined } from '@ant-design/icons';
+import { List, Avatar, Tag, Button, Empty, message, Row, Col, Badge, Popconfirm, Drawer, Spin, Timeline, Modal, Select, Space } from 'antd';
+import { UserOutlined, SoundOutlined, StopOutlined, CheckOutlined, ReloadOutlined, HistoryOutlined, FileTextOutlined, CalendarOutlined, PlusOutlined } from '@ant-design/icons';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { history } from 'umi';
 import { appointmentApi, scheduleApi } from '@hospital/api';
@@ -20,6 +20,7 @@ interface PatientHistoryItem {
 import { APPOINTMENT_STATUS, APPOINTMENT_STATUS_MAP, TIME_SLOT_MAP } from '@hospital/shared';
 import type { Appointment, QueueInfo } from '@hospital/shared';
 import { useWebSocket, ConnectionStatus, WSMessageType } from '@/hooks';
+import { ConnectionTag, ConnectionBanner } from '@/components/ConnectionStatus';
 
 const ConsultationPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -219,43 +220,19 @@ const ConsultationPage: React.FC = () => {
   // 已过号 (EXPIRED)
   const passedList = appointments.filter((a) => a.status === APPOINTMENT_STATUS.EXPIRED);
 
-  // 连接状态指示器
-  const connectionIndicator = useMemo(() => {
-    if (wsStatus === ConnectionStatus.CONNECTED) {
-      return (
-        <Tooltip title="实时连接正常">
-          <Tag color="success" icon={<WifiOutlined />}>实时</Tag>
-        </Tooltip>
-      );
-    }
-    if (wsStatus === ConnectionStatus.CONNECTING || wsStatus === ConnectionStatus.RECONNECTING) {
-      return (
-        <Tooltip title="正在连接...">
-          <Tag color="processing" icon={<WifiOutlined />}>连接中</Tag>
-        </Tooltip>
-      );
-    }
-    return (
-      <Tooltip title="实时连接已断开，点击重连">
-        <Tag color="error" icon={<DisconnectOutlined />} style={{ cursor: 'pointer' }} onClick={reconnect}>
-          离线
-        </Tag>
-      </Tooltip>
-    );
-  }, [wsStatus, reconnect]);
-
   return (
-    <PageContainer 
+    <PageContainer
       loading={loading}
       extra={
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {connectionIndicator}
+          <ConnectionTag status={wsStatus} onReconnect={reconnect} />
           <Button icon={<ReloadOutlined />} onClick={loadData}>
             刷新
           </Button>
         </div>
       }
     >
+      <ConnectionBanner status={wsStatus} onReconnect={reconnect} />
       <Row gutter={16}>
         {/* 当前就诊 */}
         <Col xs={24} lg={10}>
