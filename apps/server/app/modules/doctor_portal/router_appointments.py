@@ -1,12 +1,15 @@
 """预约查询相关端点"""
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import date
+from sqlalchemy import select, func
+from datetime import date, timedelta
 from typing import Optional, List
 
 from app.db.session import get_db
 from app.api.deps import get_current_doctor_by_token
 from app.models.doctor import Doctor
+from app.models.appointment import Appointment
+from app.models.schedule import Schedule
 from app.modules.appointments.service import AppointmentService
 from app.modules.visit_types.service import VisitTypeService
 from app.modules.doctor_portal.schemas import DoctorAppointmentResponse
@@ -144,3 +147,96 @@ async def get_my_today_statistics(
         "cancelled": stats.cancelled,
         "no_show": stats.no_show,
     }
+
+
+@router.get("/statistics/trend", summary="获取预约趋势")
+async def get_my_appointment_trend(
+    days: int = Query(default=7, ge=1, le=30),
+    doctor: Doctor = Depends(get_current_doctor_by_token),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取当前医生的预约趋势数据"""
+    today = date.today()
+    start_date = today - timedelta(days=days - 1)
+
+    query = (
+        select(
+            func.date(Appointment.created_at).label('date'),
+            func.count(Appointment.id).label('count')
+        )
+        .select_from(Appointment)
+        .join(Schedule, Appointment.schedule_id == Schedule.id)
+        .where(
+            Schedule.doctor_id == doctor.id,
+            func.date(Appointment.created_at) >= start_date,
+            func.date(Appointment.created_at) <= today,
+        )
+        .group_by(func.date(Appointment.created_at))
+        .order_by(func.date(Appointment.created_at))
+    )
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    # 构建完整的日期序列（含零值日期）
+    date_count_map = {str(row.date): row.count for row in rows}
+    trend = []
+    for i in range(days):
+        d = start_date + timedelta(days=i)
+        date_str = d.isoformat()
+        trend.append({
+            "date": date_str,
+            "count": date_count_map.get(date_str, 0),
+        })
+
+    return trend
+
+
+@router.get("/statistics/status", summary="获取预约状态统计")
+async def get_my_appointment_status_stats(
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    doctor: Doctor = Depends(get_current_doctor_by_token),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取当前医生的预约状态分布"""
+    query = (
+        select(
+            Appointment.status,
+            func.count(Appointment.id).label('count')
+        )
+        .select_from(Appointment)
+        .join(Schedule, Appointment.schedule_id == Schedule.id)
+        .where(Schedule.doctor_id == doctor.id)
+    )
+
+    if start_date:
+        query = query.where(func.date(Appointment.created_at) >= start_date)
+    if end_date:
+        query = query.where(func.date(Appointment.created_at) <= end_date)
+
+    query = query.group_by(Appointment.status)
+    result = await db.execute(query)
+    rows = result.all()
+
+    # 状态映射
+    status_map = {
+        0: "待支付",
+        1: "已预约",
+        2: "已签到",
+        3: "候诊中",
+        4: "就诊中",
+        5: "已完成",
+        6: "已取消",
+        7: "已过期",
+        8: "已爽约",
+    }
+
+    return [
+        {
+            "status": row.status,
+            "name": status_map.get(row.status, "未知"),
+            "count": row.count,
+        }
+        for row in rows
+    ]

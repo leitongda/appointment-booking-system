@@ -12,6 +12,8 @@ def to_camel(string: str) -> str:
 
 class DoctorScheduleResponse(BaseModel):
     id: str
+    doctor_id: Optional[str] = None
+    store_id: Optional[str] = None
     schedule_date: date
     time_slot: str
     start_time: Optional[datetime] = None

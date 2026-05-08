@@ -10,7 +10,8 @@ from .router_rules import router as rules_router
 
 router = APIRouter()
 
-# 聚合子模块路由，router.include_router(profile_router, tags=["医生信息"])
+# 聚合子模块路由
+router.include_router(profile_router, tags=["医生信息"])
 router.include_router(schedules_router, prefix="/schedules", tags=["排班管理"])
 router.include_router(appointments_router, prefix="/appointments", tags=["预约管理"])
 router.include_router(queue_router, prefix="/queue", tags=["叫号管理"])

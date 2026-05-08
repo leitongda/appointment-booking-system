@@ -1,12 +1,29 @@
 """医生个人信息相关端点"""
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
+from typing import Optional
 
 from app.db.session import get_db
 from app.api.deps import get_current_doctor_by_token
 from app.models.doctor import Doctor
 
 router = APIRouter()
+
+
+class DoctorProfileUpdate(BaseModel):
+    """医生个人信息更新请求"""
+    title: Optional[str] = None
+    specialty: Optional[str] = None
+    introduction: Optional[str] = None
+    avatar: Optional[str] = None
+    gender: Optional[int] = None
+    years_of_experience: Optional[int] = None
+    education: Optional[str] = None
+    graduate_school: Optional[str] = None
+    license_number: Optional[str] = None
+    honors: Optional[str] = None
+    schedule_desc: Optional[str] = None
 
 
 @router.get("/me", summary="获取我的信息")
@@ -18,12 +35,59 @@ async def get_my_info(
         "id": doctor.id,
         "name": doctor.name,
         "phone": doctor.phone,
+        "email": doctor.email if hasattr(doctor, 'email') else None,
         "title": doctor.title,
         "avatar": doctor.avatar,
+        "gender": doctor.gender,
+        "years_of_experience": doctor.years_of_experience,
+        "education": doctor.education,
+        "graduate_school": doctor.graduate_school,
+        "license_number": doctor.license_number,
+        "honors": doctor.honors,
         "store_id": doctor.store_id,
         "store_name": doctor.store.name if doctor.store else None,
         "department_id": doctor.department_id,
         "department_name": doctor.department.name if doctor.department else None,
         "specialty": doctor.specialty,
         "introduction": doctor.introduction,
+        "schedule_desc": doctor.schedule_desc,
     }
+
+
+@router.put("/me", summary="更新我的信息")
+async def update_my_info(
+    data: DoctorProfileUpdate,
+    doctor: Doctor = Depends(get_current_doctor_by_token),
+    db: AsyncSession = Depends(get_db),
+):
+    """更新当前医生个人信息
+
+    仅允许更新个人展示相关字段，不允许修改姓名、手机、所属门店/科室等管理字段
+    """
+    update_fields = data.model_dump(exclude_unset=True)
+
+    if not update_fields:
+        return {"message": "无更新内容"}
+
+    for field, value in update_fields.items():
+        if hasattr(doctor, field):
+            setattr(doctor, field, value)
+
+    await db.commit()
+    await db.refresh(doctor)
+
+    return {"message": "更新成功", "doctor": {
+        "id": doctor.id,
+        "name": doctor.name,
+        "title": doctor.title,
+        "avatar": doctor.avatar,
+        "gender": doctor.gender,
+        "years_of_experience": doctor.years_of_experience,
+        "education": doctor.education,
+        "graduate_school": doctor.graduate_school,
+        "license_number": doctor.license_number,
+        "honors": doctor.honors,
+        "specialty": doctor.specialty,
+        "introduction": doctor.introduction,
+        "schedule_desc": doctor.schedule_desc,
+    }}

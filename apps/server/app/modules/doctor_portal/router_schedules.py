@@ -89,6 +89,8 @@ async def get_my_schedules(
     return [
         DoctorScheduleResponse(
             id=s.id,
+            doctor_id=doctor.id,
+            store_id=doctor.store_id,
             schedule_date=s.schedule_date,
             time_slot=s.time_slot,
             start_time=s.start_time,
@@ -138,6 +140,8 @@ async def get_my_today_schedules(
     return [
         DoctorScheduleResponse(
             id=s.id,
+            doctor_id=doctor.id,
+            store_id=doctor.store_id,
             schedule_date=s.schedule_date,
             time_slot=s.time_slot,
             start_time=s.start_time,
