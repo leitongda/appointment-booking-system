@@ -33,11 +33,13 @@ NOT_NULL_TABLES = [
 
 
 def upgrade() -> None:
-    # 回填 admins 表中 tenant_id 为 NULL 的行，关联到默认租户
-    op.execute(
-        "UPDATE admins SET tenant_id = (SELECT id FROM tenants WHERE tenant_code = 'default' LIMIT 1) "
-        "WHERE tenant_id IS NULL"
-    )
+    # 回填所有表中 tenant_id 为 NULL 的行，关联到默认租户
+    for table, column in NOT_NULL_TABLES:
+        op.execute(
+            f"UPDATE {table} SET tenant_id = "
+            f"(SELECT id FROM tenants WHERE tenant_code = 'default' LIMIT 1) "
+            f"WHERE tenant_id IS NULL"
+        )
     for table, column in NOT_NULL_TABLES:
         op.alter_column(table, column, nullable=False)
 
