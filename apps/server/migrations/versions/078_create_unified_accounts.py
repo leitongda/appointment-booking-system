@@ -339,6 +339,7 @@ def upgrade() -> None:
         FROM doctors d
         JOIN accounts a ON a.tenant_id = d.tenant_id
             AND a.phone IS NOT DISTINCT FROM d.phone
+        ON CONFLICT (account_id) DO NOTHING
     """)
 
     # 6c. 迁移 users -> accounts + account_users
@@ -371,6 +372,7 @@ def upgrade() -> None:
         FROM users u
         JOIN accounts a ON a.tenant_id = u.tenant_id
             AND a.phone IS NOT DISTINCT FROM u.phone
+        ON CONFLICT (account_id) DO NOTHING
     """)
 
 
