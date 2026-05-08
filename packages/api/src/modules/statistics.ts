@@ -110,6 +110,18 @@ export const statisticsApi = {
     request.get<StatusStatItem[]>('/statistics/appointments/status', { params }),
 
   /**
+   * 获取医生端预约趋势（doctor-portal 端点）
+   */
+  getMyAppointmentTrend: (days = 7) =>
+    request.get<TrendItem[]>('/doctor-portal/statistics/trend', { params: { days } }),
+
+  /**
+   * 获取医生端预约状态统计（doctor-portal 端点）
+   */
+  getMyAppointmentStatusStats: (params?: { startDate?: string; endDate?: string }) =>
+    request.get<StatusStatItem[]>('/doctor-portal/statistics/status', { params }),
+
+  /**
    * 获取科室排行
    */
   getDepartmentRanking: (limit = 10) =>

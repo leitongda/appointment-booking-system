@@ -126,6 +126,17 @@ export interface PeakHourHeatmapResponse {
 }
 
 export const scheduleApi = {
+  /**
+   * 获取医生端排班列表（doctor-portal 端点，自动限制为当前医生）
+   */
+  getMyList: (params?: { startDate?: string; endDate?: string; status?: number }): Promise<Schedule[]> => {
+    return request.get('/doctor-portal/schedules', { params: {
+      start_date: params?.startDate,
+      end_date: params?.endDate,
+      status: params?.status,
+    }});
+  },
+
   getList: (params?: ScheduleListParams): Promise<PageResult<Schedule>> => {
     // 转换 camelCase 到 snake_case
     // 确保 pageSize 不超过后端限制（500）

@@ -297,6 +297,27 @@ export const appointmentApi = {
   },
 
   /**
+   * 获取医生端预约列表（doctor-portal 端点）
+   * 自动限制为当前医生的预约
+   */
+  getMyAppointments: (params?: {
+    status?: number;
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<Appointment[]> => {
+    const queryParams = params ? {
+      status: params.status,
+      start_date: params.startDate,
+      end_date: params.endDate,
+      page: params.page,
+      page_size: params.pageSize,
+    } : undefined;
+    return request.get('/doctor-portal/appointments', { params: queryParams });
+  },
+
+  /**
    * 获取患者历史就诊记录（医生端）
    * 返回该患者在当前医生处的历史预约
    */

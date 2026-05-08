@@ -86,6 +86,44 @@ export const doctorApi = {
     return request.get('/doctors/me');
   },
 
+  /**
+   * 获取医生端个人信息（doctor-portal 端点，含更多字段）
+   */
+  getMyProfile: (): Promise<Doctor> => {
+    return request.get('/doctor-portal/me');
+  },
+
+  /**
+   * 更新医生端个人信息
+   */
+  updateMyProfile: (data: {
+    title?: string;
+    specialty?: string;
+    introduction?: string;
+    avatar?: string;
+    gender?: number;
+    yearsOfExperience?: number;
+    education?: string;
+    graduateSchool?: string;
+    licenseNumber?: string;
+    honors?: string;
+    scheduleDesc?: string;
+  }): Promise<{ message: string; doctor: Doctor }> => {
+    const requestData: Record<string, any> = {};
+    if (data.title !== undefined) requestData.title = data.title;
+    if (data.specialty !== undefined) requestData.specialty = data.specialty;
+    if (data.introduction !== undefined) requestData.introduction = data.introduction;
+    if (data.avatar !== undefined) requestData.avatar = data.avatar;
+    if (data.gender !== undefined) requestData.gender = data.gender;
+    if (data.yearsOfExperience !== undefined) requestData.years_of_experience = data.yearsOfExperience;
+    if (data.education !== undefined) requestData.education = data.education;
+    if (data.graduateSchool !== undefined) requestData.graduate_school = data.graduateSchool;
+    if (data.licenseNumber !== undefined) requestData.license_number = data.licenseNumber;
+    if (data.honors !== undefined) requestData.honors = data.honors;
+    if (data.scheduleDesc !== undefined) requestData.schedule_desc = data.scheduleDesc;
+    return request.put('/doctor-portal/me', requestData);
+  },
+
   getList: (params?: DoctorListParams): Promise<PageResult<Doctor>> => {
     // 转换参数名为 snake_case
     const queryParams: Record<string, any> = {};
