@@ -31,18 +31,23 @@ jobs:
           script: |
             # 进入项目目录
             cd ${{ env.PROJECT_DIR }}
-            
+
             # 拉取最新代码
             git fetch origin main
             git reset --hard origin/main
-            
+
+            # 重新生成 llms 文档（确保与 API 同步）
+            cd apps/server
+            python scripts/generate_llms_txt.py
+            cd ../..
+
             # 停止旧容器并构建新镜像启动
             docker compose down
             docker compose up -d --build
-            
+
             # 清理未使用的镜像（可选，释放磁盘空间）
             docker image prune -f
-            
+
             # 输出部署状态
             echo "✅ Server 部署完成！"
             docker compose ps
