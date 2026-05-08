@@ -3,7 +3,12 @@
  * 提供页面性能指标采集和上报功能
  */
 
-// 导出指标采集
+// 本地导入（供本模块函数使用）
+import { initMetrics, destroyMetrics } from './metrics';
+import { initReporter, stopReporter } from './reporter';
+import type { ReportConfig } from './reporter';
+
+// 重导出指标采集
 export {
   getMetricsCollector,
   initMetrics,
@@ -19,7 +24,7 @@ export type {
   MetricType,
 } from './metrics';
 
-// 导出上报器
+// 重导出上报器
 export {
   getReporter,
   initReporter,
