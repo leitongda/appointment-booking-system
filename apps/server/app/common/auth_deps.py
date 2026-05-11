@@ -17,7 +17,6 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.security import decode_token
 from app.core.redis import RedisCache
-from app.models.user import User
 from app.models.doctor import Doctor
 from app.models.admin import Admin
 from app.models.tenant import Tenant
@@ -199,45 +198,16 @@ async def get_current_admin(
     if not admin_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="身份验证失败，请重新登录")
 
-    # 检查是否是管理员 token
-    if token_type == "admin" or "admin" in str(payload):
-        # 调用统一函数
-        account = await _get_admin_account(admin_id, db, token)
-        return account.to_dict()
+    # 严格要求管理员 token
+    if token_type != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="需要管理员权限，请使用管理员账号登录",
+        )
 
-    # 兼容旧的 User 表管理员（遗留代码）
-    result = await db.execute(select(User).where(User.id == admin_id))
-    user = result.scalar_one_or_none()
-
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号不存在，请检查后重试")
-
-    if user.status != 1:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
-
-    return {
-        "id": user.id,
-        "phone": user.phone,
-        "name": user.nickname or "管理员",
-        "status": user.status,
-        "role_id": None,
-        "role_code": None,
-        "tenant_id": None,
-        "tenant": None,
-        "current_store_id": None,
-        "store_ids": [],
-        "stores": [],
-        "store_id": None,
-        "store_name": None,
-        "is_admin": True,
-        "is_super_admin": True,  # 旧用户默认为超级管理员
-        "is_store_admin": False,
-        "is_tenant_admin": False,
-        "is_platform_admin": True,  # 旧用户默认为平台管理员
-        "can_view_all_stores": True,
-        "can_switch_stores": True,
-        "permissions": ["*"],  # 旧用户默认拥有所有权限
-    }
+    # 调用统一函数
+    account = await _get_admin_account(admin_id, db, token)
+    return account.to_dict()
 
 
 async def get_current_super_admin(

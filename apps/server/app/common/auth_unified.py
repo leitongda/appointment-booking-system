@@ -523,7 +523,7 @@ async def get_current_account(
     token_type = payload.get("type", "")
 
     # 根据 Token 类型分发到不同的认证逻辑
-    if token_type == "admin" or "admin" in str(payload):
+    if token_type == "admin":
         return await _get_admin_account(account_id, db, token)
     elif token_type == "doctor":
         return await _get_doctor_account(account_id, db)

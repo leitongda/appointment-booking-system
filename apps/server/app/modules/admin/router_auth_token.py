@@ -10,6 +10,7 @@ import json
 
 from app.api.deps import get_current_admin
 from app.core.config import settings
+from app.core.security import create_access_token, create_refresh_token, decode_token
 from app.core.redis import RedisCache
 from app.db.session import get_db
 from app.models.admin import Admin, Permission
@@ -17,10 +18,63 @@ from app.models.tenant import Tenant
 from app.modules.admin.helpers import build_admin_response, build_stores_list
 from app.modules.admin.schemas import AdminResponse, StoreInfo, SwitchStoreRequest, SwitchTenantRequest, TenantInfoResponse
 from app.modules.admin.service_admins import AdminService
+from app.schemas.auth import RefreshTokenRequest, TokenResponse
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 security = HTTPBearer(auto_error=False)
+
+
+def _build_admin_access_token_payload(admin: Admin) -> dict:
+    payload = {"sub": admin.id, "type": "admin"}
+    if admin.tenant_id:
+        payload["tenant_id"] = admin.tenant_id
+    return payload
+
+
+def _build_admin_refresh_token_payload(admin: Admin) -> dict:
+    payload = {"sub": admin.id, "type": "refresh", "role_type": "admin"}
+    if admin.tenant_id:
+        payload["tenant_id"] = admin.tenant_id
+    return payload
+
+
+@router.post("/refresh", response_model=TokenResponse, summary="刷新管理员Token")
+async def refresh_admin_token(
+    data: RefreshTokenRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    payload = decode_token(data.refresh_token)
+    if not payload:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="身份验证失败，请重新登录")
+
+    token_type = payload.get("type")
+    role_type = payload.get("role_type")
+    is_new_refresh = token_type == "refresh" and role_type == "admin"
+    is_legacy_refresh = token_type == "admin"
+    if not (is_new_refresh or is_legacy_refresh):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的刷新凭证，请重新登录")
+
+    admin_id = payload.get("sub")
+    if not admin_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的刷新凭证，请重新登录")
+
+    service = AdminService(db)
+    admin = await service.get_by_id(admin_id)
+    if not admin or admin.status != 1:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号不存在或已被禁用，请检查后重试")
+
+    token_tenant_id = payload.get("tenant_id")
+    if token_tenant_id and token_tenant_id != admin.tenant_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="租户信息不匹配，请重新登录")
+
+    access_token = create_access_token(data=_build_admin_access_token_payload(admin))
+    refresh_token = create_refresh_token(data=_build_admin_refresh_token_payload(admin))
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
 
 
 @router.get("/me", response_model=AdminResponse, summary="获取当前管理员信息")

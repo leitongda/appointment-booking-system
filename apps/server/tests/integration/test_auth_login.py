@@ -148,22 +148,38 @@ async def test_admin_token_refresh_success(async_client, db_session, test_super_
     """管理员 Token 刷新成功"""
     from app.core.security import create_refresh_token
 
-    # 创建有效的 refresh token
-    refresh_token = create_refresh_token({"sub": test_super_admin.id, "type": "admin"})
+    # 创建有效的 refresh token（新格式）
+    refresh_token = create_refresh_token({"sub": test_super_admin.id, "type": "refresh", "role_type": "admin"})
 
     response = await async_client.post(
         "/api/v1/admin/refresh",
         json={"refreshToken": refresh_token},
     )
 
-    # 注意：管理员 refresh 端点可能不存在，需要检查实际 API
-    # 如果不存在，这个测试会被跳过或修改为测试其他端点
-    if response.status_code == 404:
-        pytest.skip("Admin refresh endpoint not implemented")
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert "accessToken" in data
+    assert "refreshToken" in data
+    assert data["expiresIn"] > 0
+
+
+@pytest.mark.asyncio
+async def test_doctor_token_refresh_success(async_client, db_session, test_doctor):
+    """医生 Token 刷新成功"""
+    from app.core.security import create_refresh_token
+
+    refresh_token = create_refresh_token({"sub": test_doctor.id, "type": "refresh", "role_type": "doctor"})
+
+    response = await async_client.post(
+        "/api/v1/doctors/refresh",
+        json={"refreshToken": refresh_token},
+    )
 
     assert response.status_code == 200
     data = response.json()["data"]
     assert "accessToken" in data
+    assert "refreshToken" in data
+    assert data["expiresIn"] > 0
 
 
 @pytest.mark.asyncio

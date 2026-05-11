@@ -133,6 +133,20 @@ def _build_login_response(admin, access_token: str, refresh_token: str) -> dict:
     return response.model_dump(by_alias=True)
 
 
+def _build_admin_access_token_payload(admin) -> dict:
+    payload = {"sub": admin.id, "type": "admin"}
+    if admin.tenant_id:
+        payload["tenant_id"] = admin.tenant_id
+    return payload
+
+
+def _build_admin_refresh_token_payload(admin) -> dict:
+    payload = {"sub": admin.id, "type": "refresh", "role_type": "admin"}
+    if admin.tenant_id:
+        payload["tenant_id"] = admin.tenant_id
+    return payload
+
+
 def _validate_email_format(email: str) -> bool:
     import re
 
@@ -192,13 +206,8 @@ async def admin_login(
     user_agent = request.headers.get("user-agent", "")
     await service.update_login_info(admin.id, client_ip)
 
-    # 创建 JWT Token，包含租户信息
-    token_data = {"sub": admin.id, "type": "admin"}
-    if admin.tenant_id:
-        token_data["tenant_id"] = admin.tenant_id
-
-    access_token = create_access_token(data=token_data)
-    refresh_token = create_refresh_token(data=token_data)
+    access_token = create_access_token(data=_build_admin_access_token_payload(admin))
+    refresh_token = create_refresh_token(data=_build_admin_refresh_token_payload(admin))
     await store_admin_session(admin, access_token, client_ip, user_agent, db)
 
     response = AdminLoginResponse(
@@ -240,13 +249,8 @@ async def phone_login(
     user_agent = request.headers.get("user-agent", "")
     await service.update_login_info(admin.id, client_ip)
 
-    # 创建 JWT Token，包含租户信息
-    token_data = {"sub": admin.id, "type": "admin"}
-    if admin.tenant_id:
-        token_data["tenant_id"] = admin.tenant_id
-
-    access_token = create_access_token(data=token_data)
-    refresh_token = create_refresh_token(data=token_data)
+    access_token = create_access_token(data=_build_admin_access_token_payload(admin))
+    refresh_token = create_refresh_token(data=_build_admin_refresh_token_payload(admin))
     await store_admin_session(admin, access_token, client_ip, user_agent, db)
     return _build_login_response(admin, access_token, refresh_token)
 
@@ -306,13 +310,8 @@ async def sms_login(
     user_agent = request.headers.get("user-agent", "")
     await service.update_login_info(admin.id, client_ip)
 
-    # 创建 JWT Token，包含租户信息
-    token_data = {"sub": admin.id, "type": "admin"}
-    if admin.tenant_id:
-        token_data["tenant_id"] = admin.tenant_id
-
-    access_token = create_access_token(data=token_data)
-    refresh_token = create_refresh_token(data=token_data)
+    access_token = create_access_token(data=_build_admin_access_token_payload(admin))
+    refresh_token = create_refresh_token(data=_build_admin_refresh_token_payload(admin))
     await store_admin_session(admin, access_token, client_ip, user_agent, db)
     return _build_login_response(admin, access_token, refresh_token)
 
@@ -378,12 +377,8 @@ async def admin_email_login(
     user_agent = request.headers.get("user-agent", "")
     await service.update_login_info(admin.id, client_ip)
 
-    token_data = {"sub": admin.id, "type": "admin"}
-    if admin.tenant_id:
-        token_data["tenant_id"] = admin.tenant_id
-
-    access_token = create_access_token(data=token_data)
-    refresh_token = create_refresh_token(data=token_data)
+    access_token = create_access_token(data=_build_admin_access_token_payload(admin))
+    refresh_token = create_refresh_token(data=_build_admin_refresh_token_payload(admin))
     await store_admin_session(admin, access_token, client_ip, user_agent, db)
     return _build_login_response(admin, access_token, refresh_token)
 
@@ -445,13 +440,8 @@ async def check_wechat_scan(
             client_ip = get_client_ip(request)
             await service.update_login_info(admin.id, client_ip)
 
-            # 创建 JWT Token，包含租户信息
-            token_data = {"sub": admin.id, "type": "admin"}
-            if admin.tenant_id:
-                token_data["tenant_id"] = admin.tenant_id
-
-            access_token = create_access_token(data=token_data)
-            refresh_token = create_refresh_token(data=token_data)
+            access_token = create_access_token(data=_build_admin_access_token_payload(admin))
+            refresh_token = create_refresh_token(data=_build_admin_refresh_token_payload(admin))
             del _wechat_scan_tickets[ticket]
             return WechatCheckResponse(
                 status="confirmed",

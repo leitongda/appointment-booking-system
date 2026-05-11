@@ -103,7 +103,12 @@ async def update_admin(
 
     store_filter = get_store_filter(current_admin)
     if store_filter:
-        if not check_store_access(current_admin, admin.store_id):
+        target_store_ids = [s.id for s in (admin.stores or [])]
+        if not target_store_ids and admin.current_store_id:
+            target_store_ids = [admin.current_store_id]
+        if not target_store_ids or not any(
+            check_store_access(current_admin, target_store_id) for target_store_id in target_store_ids
+        ):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权修改此用户")
         if data.store_id and data.store_id != store_filter:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权修改用户的门店归属")
