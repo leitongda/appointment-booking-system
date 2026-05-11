@@ -147,19 +147,18 @@ const SettingsPage: React.FC = () => {
   const canViewHospital = canEditSettings;
   const canViewBookingFields = canEditSettings;
   const canViewPatientCard = canEditSettings;
-  const canViewEmail = canEditSettings || access.hasPermission('settings:email');
-  const canEditEmail = canEditSettings || access.hasPermission('settings:email');
-  const canViewImage = canEditSettings;
-  const canEditImage = canEditSettings;
+  const canViewEmail = access.hasPermission('settings:email') || access.hasPermission('settings:edit');
+  const canEditEmail = canViewEmail;
+  const canViewImage = access.hasPermission('settings:edit');
+  const canEditImage = canViewImage;
   const canViewWechat = isSuperAdmin || access.hasPermission('settings:wechat') || access.hasPermission('settings:edit');
   const canEditWechat = canViewWechat;
   const canViewBlacklist =
-    canEditSettings ||
     access.hasPermission('blacklist:list') ||
     access.hasPermission('blacklist:create') ||
     access.hasPermission('blacklist:delete');
-  const canAddBlacklist = canEditSettings || access.hasPermission('blacklist:create');
-  const canDeleteBlacklist = canEditSettings || access.hasPermission('blacklist:delete');
+  const canAddBlacklist = access.hasPermission('blacklist:create');
+  const canDeleteBlacklist = access.hasPermission('blacklist:delete');
   const isLegacySettingsRoute = location.pathname.startsWith('/operations/system/settings');
 
   useEffect(() => {

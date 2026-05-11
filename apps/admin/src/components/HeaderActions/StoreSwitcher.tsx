@@ -28,7 +28,7 @@ export const StoreSwitcher: React.FC = () => {
   const userStores = initialState?.userStores || [];
   const isSuperAdmin = currentUser?.isSuperAdmin || currentUser?.roleCode === 'SUPER_ADMIN';
 
-  const hasMultipleStores = userStores.length > 1 && !isSuperAdmin;
+  const hasMultipleStores = userStores.length > 1;
 
   const loadStores = useCallback(async () => {
     if (!currentUser?.id) return;
@@ -155,7 +155,12 @@ export const StoreSwitcher: React.FC = () => {
     }
   }, [currentStore?.id, switching, isOnFormPage, stores, modal, doSwitchStore]);
 
-  const showStaticInfo = !hasMultipleStores;
+  // 非超级管理员且没有门店时，不显示任何内容
+  if (!isSuperAdmin && !currentStore) {
+    return null;
+  }
+
+  const showStaticInfo = !hasMultipleStores && !isSuperAdmin;
 
   const renderCurrentStore = () => {
     if (!currentStore) {

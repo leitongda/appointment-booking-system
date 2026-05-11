@@ -2,7 +2,7 @@ import { PageContainer, ProForm, ProFormText, ProFormSwitch } from '@ant-design/
 import { Card, App, Row, Col, Typography, Space, Spin, Switch, TimePicker, Divider, Modal, Form, Input, Button, Tag } from 'antd';
 import { useState, useEffect, useRef } from 'react';
 import { useModel } from '@umijs/max';
-import { adminApi, authApi, notificationPreferenceApi } from '@hospital/api';
+import { adminApi, notificationPreferenceApi } from '@hospital/api';
 import type { Admin, NotificationPreference } from '@hospital/api';
 import ImageUpload from '@/components/ImageUpload';
 import {
@@ -238,7 +238,7 @@ const AccountSettingsPage: React.FC = () => {
           return;
         }
         setEmailCodeSending(true);
-        await authApi.sendEmailCode(email, 'bind');
+        await adminApi.sendProfileEmailCode(email);
         message.success('验证码已发送');
         setEmailCodeCountdown(60);
         emailTimerRef.current = setInterval(() => {
@@ -260,7 +260,7 @@ const AccountSettingsPage: React.FC = () => {
           return;
         }
         setEmailOldCodeSending(true);
-        await authApi.sendEmailCode(admin.email, 'bind');
+        await adminApi.sendProfileEmailCode(admin.email);
         message.success('验证码已发送到当前邮箱');
         setEmailOldCodeCountdown(60);
         emailOldTimerRef.current = setInterval(() => {
@@ -290,13 +290,13 @@ const AccountSettingsPage: React.FC = () => {
       setEmailSubmitting(true);
 
       if (emailModalType === 'bind') {
-        await authApi.emailBind({ email: values.email, code: values.code });
+        await adminApi.bindEmail({ email: values.email, code: values.code });
         message.success('邮箱绑定成功');
       } else if (emailModalType === 'unbind') {
-        await authApi.emailUnbind({ code: values.code });
+        await adminApi.unbindEmail({ code: values.code });
         message.success('邮箱解绑成功');
       } else if (emailModalType === 'change') {
-        await authApi.emailChange({
+        await adminApi.changeEmail({
           newEmail: values.email,
           newEmailCode: values.code,
           oldEmailCode: values.oldCode,
@@ -722,4 +722,3 @@ const AccountSettingsPage: React.FC = () => {
 };
 
 export default AccountSettingsPage;
-

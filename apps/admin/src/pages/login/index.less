@@ -9,7 +9,7 @@
 .background {
   position: absolute;
   inset: 0;
-  background-image: url('/bg.png');
+  background-image: url('/bg.webp');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -64,21 +64,25 @@
   :global {
     .ant-tabs-nav {
       margin-bottom: 24px;
-      
+
       &::before {
         border-bottom: 1px solid #fff;
       }
     }
-    
+
+    .ant-tabs-content-holder {
+      min-height: 300px;
+    }
+
     .ant-tabs-tab {
       padding: 12px 0;
       font-size: 15px;
-      
+
       .anticon {
         margin-right: 6px;
       }
     }
-    
+
     .ant-tabs-tab-active {
       font-weight: 500;
     }

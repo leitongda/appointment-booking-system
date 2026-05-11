@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MobileOutlined, SafetyOutlined, MailOutlined } from '@ant-design/icons';
 import { App, Form, Input, Button, Segmented } from 'antd';
-import { adminApi, authApi } from '@hospital/api';
+import { adminApi } from '@hospital/api';
 import styles from './index.less';
 
 type VerifyType = 'phone' | 'email';
@@ -33,7 +33,7 @@ const PhoneLogin: React.FC<PhoneLoginProps> = ({ onSuccess }) => {
       if (verifyType === 'phone') {
         result = await adminApi.smsLogin({ phone: values.account, code: values.code });
       } else {
-        result = await authApi.emailLogin({ email: values.account, code: values.code });
+        result = await adminApi.emailLogin({ email: values.account, code: values.code });
       }
       onSuccess(result);
     } catch (error: any) {
@@ -69,7 +69,7 @@ const PhoneLogin: React.FC<PhoneLoginProps> = ({ onSuccess }) => {
       if (verifyType === 'phone') {
         await adminApi.sendSmsCode(account);
       } else {
-        await authApi.sendEmailCode(account, 'login');
+        await adminApi.sendEmailCode(account);
       }
       message.success('验证码已发送');
       setCountdown(60);
