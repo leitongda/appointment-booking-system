@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user_or_admin
 from app.core.config import settings
 from app.db.session import get_db
 from app.schemas.medical_record import (
@@ -76,7 +76,7 @@ async def get_medical_records(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_or_admin),
 ):
     service = MedicalRecordService(db)
     records, total = await service.get_list(
@@ -98,7 +98,7 @@ async def get_my_records(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_or_admin),
 ):
     doctor_id = current_user.get("doctor_id")
     if not doctor_id:
@@ -114,7 +114,7 @@ async def get_patient_records(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_or_admin),
 ):
     service = MedicalRecordService(db)
     records, total = await service.get_patient_records(patient_id=patient_id, page=page, page_size=page_size)
@@ -125,7 +125,7 @@ async def get_patient_records(
 async def get_record_by_appointment(
     appointment_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_or_admin),
 ):
     service = MedicalRecordService(db)
     record = await service.get_by_appointment(appointment_id)
@@ -138,7 +138,7 @@ async def get_record_by_appointment(
 async def get_medical_record(
     record_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_or_admin),
 ):
     service = MedicalRecordService(db)
     record = await service.get_by_id(record_id)
@@ -151,7 +151,7 @@ async def get_medical_record(
 async def create_medical_record(
     data: MedicalRecordCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_or_admin),
 ):
     doctor_id = current_user.get("doctor_id")
     if not doctor_id:
@@ -170,7 +170,7 @@ async def update_medical_record(
     record_id: str,
     data: MedicalRecordUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_or_admin),
 ):
     service = MedicalRecordService(db)
     record = await service.update(record_id, data)
@@ -184,7 +184,7 @@ async def update_medical_record(
 async def delete_medical_record(
     record_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_or_admin),
 ):
     service = MedicalRecordService(db)
     success = await service.delete(record_id)

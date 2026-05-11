@@ -4,6 +4,7 @@ from datetime import datetime, date, timedelta
 from typing import Optional, List
 from sqlalchemy import select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.common_service import CommonService, HealthReminder
 from app.models.appointment import Appointment
@@ -50,7 +51,9 @@ class CommonServiceService:
         if status is not None:
             conditions.append(CommonService.status == status)
 
-        query = select(CommonService).where(and_(*conditions))
+        query = select(CommonService).options(
+            selectinload(CommonService.department),
+        ).where(and_(*conditions))
         query = query.order_by(CommonService.sort_order.asc())
 
         result = await self.db.execute(query)

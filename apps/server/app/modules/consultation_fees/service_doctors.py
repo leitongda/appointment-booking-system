@@ -25,6 +25,7 @@ class ConsultationFeeDoctorMixin:
         query = select(DoctorConsultationFee).options(
             selectinload(DoctorConsultationFee.doctor),
             selectinload(DoctorConsultationFee.store),
+            selectinload(DoctorConsultationFee.department),
             selectinload(DoctorConsultationFee.fee_type),
         )
         if doctor_id:
@@ -45,6 +46,7 @@ class ConsultationFeeDoctorMixin:
             .options(
                 selectinload(DoctorConsultationFee.doctor),
                 selectinload(DoctorConsultationFee.store),
+                selectinload(DoctorConsultationFee.department),
                 selectinload(DoctorConsultationFee.fee_type),
             )
             .where(DoctorConsultationFee.id == fee_id)
