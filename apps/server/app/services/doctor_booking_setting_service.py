@@ -6,6 +6,7 @@ import uuid
 from app.models.doctor_booking_setting import DoctorBookingSetting
 from app.models.store import Store
 from app.models.doctor import Doctor
+from app.middleware.tenant_context import get_current_tenant_id
 from app.schemas.doctor_booking_setting import (
     DoctorBookingSettingCreate,
     DoctorBookingSettingUpdate,
@@ -19,11 +20,20 @@ class DoctorBookingSettingService:
     
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    def _tenant_id(self) -> Optional[str]:
+        return get_current_tenant_id()
     
     async def get_by_id(self, setting_id: str) -> Optional[DoctorBookingSetting]:
         """根据ID获取设置"""
+        stmt = select(DoctorBookingSetting).join(Store, DoctorBookingSetting.store_id == Store.id).where(
+            DoctorBookingSetting.id == setting_id
+        )
+        tenant_id = self._tenant_id()
+        if tenant_id:
+            stmt = stmt.where(Store.tenant_id == tenant_id)
         result = await self.db.execute(
-            select(DoctorBookingSetting).where(DoctorBookingSetting.id == setting_id)
+            stmt
         )
         return result.scalar_one_or_none()
     
@@ -33,14 +43,40 @@ class DoctorBookingSettingService:
         doctor_id: str
     ) -> Optional[DoctorBookingSetting]:
         """根据门店ID和医生ID获取设置"""
+        stmt = select(DoctorBookingSetting).join(Store, DoctorBookingSetting.store_id == Store.id).where(
+            and_(
+                DoctorBookingSetting.store_id == store_id,
+                DoctorBookingSetting.doctor_id == doctor_id
+            )
+        )
+        tenant_id = self._tenant_id()
+        if tenant_id:
+            stmt = stmt.where(Store.tenant_id == tenant_id)
         result = await self.db.execute(
-            select(DoctorBookingSetting).where(
+            stmt
+        )
+        return result.scalar_one_or_none()
+
+    async def get_effective_for_store_and_doctor(
+        self,
+        store_id: str,
+        doctor_id: str,
+    ) -> Optional[DoctorBookingSetting]:
+        stmt = (
+            select(DoctorBookingSetting)
+            .join(Store, DoctorBookingSetting.store_id == Store.id)
+            .where(
                 and_(
                     DoctorBookingSetting.store_id == store_id,
-                    DoctorBookingSetting.doctor_id == doctor_id
+                    DoctorBookingSetting.doctor_id == doctor_id,
+                    DoctorBookingSetting.status == 1,
                 )
             )
         )
+        tenant_id = self._tenant_id()
+        if tenant_id:
+            stmt = stmt.where(Store.tenant_id == tenant_id)
+        result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
     
     async def get_list(
@@ -61,6 +97,16 @@ class DoctorBookingSettingService:
         
         # 计数查询
         count_stmt = select(func.count(DoctorBookingSetting.id))
+
+        tenant_id = self._tenant_id()
+        if tenant_id:
+            stmt = stmt.where(Store.tenant_id == tenant_id)
+            count_stmt = (
+                count_stmt
+                .select_from(DoctorBookingSetting)
+                .join(Store, DoctorBookingSetting.store_id == Store.id)
+                .where(Store.tenant_id == tenant_id)
+            )
         
         # 门店筛选
         if query.store_id:
@@ -115,15 +161,22 @@ class DoctorBookingSettingService:
         store_result = await self.db.execute(
             select(Store).where(Store.id == data.store_id)
         )
-        if not store_result.scalar_one_or_none():
+        store = store_result.scalar_one_or_none()
+        if not store:
             raise ValueError("门店不存在")
+        tenant_id = self._tenant_id()
+        if tenant_id and store.tenant_id != tenant_id:
+            raise ValueError("门店不存在或无权限访问")
         
         # 验证医生存在
         doctor_result = await self.db.execute(
             select(Doctor).where(Doctor.id == data.doctor_id, Doctor.deleted_at.is_(None))
         )
-        if not doctor_result.scalar_one_or_none():
+        doctor = doctor_result.scalar_one_or_none()
+        if not doctor:
             raise ValueError("医生不存在")
+        if doctor.store_id != data.store_id:
+            raise ValueError("所选医生不属于当前门店")
         
         setting = DoctorBookingSetting(
             id=str(uuid.uuid4()),
@@ -169,8 +222,21 @@ class DoctorBookingSettingService:
         """获取指定门店已配置的医生ID列表"""
         result = await self.db.execute(
             select(DoctorBookingSetting.doctor_id)
+            .join(Store, DoctorBookingSetting.store_id == Store.id)
             .where(DoctorBookingSetting.store_id == store_id)
         )
+        tenant_id = self._tenant_id()
+        if tenant_id:
+            result = await self.db.execute(
+                select(DoctorBookingSetting.doctor_id)
+                .join(Store, DoctorBookingSetting.store_id == Store.id)
+                .where(
+                    and_(
+                        DoctorBookingSetting.store_id == store_id,
+                        Store.tenant_id == tenant_id,
+                    )
+                )
+            )
         return [row[0] for row in result.all()]
     
     async def update_status(

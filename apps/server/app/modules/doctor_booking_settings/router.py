@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 
 from app.db.session import get_db
-from app.api.deps import get_current_admin, require_permission
+from app.api.deps import get_current_admin, get_store_filter, check_store_access, require_permission
 from app.schemas.doctor_booking_setting import (
     DoctorBookingSettingCreate,
     DoctorBookingSettingUpdate,
@@ -24,9 +24,14 @@ async def get_doctor_booking_settings(
     status: Optional[int] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("doctor:booking-setting"))
 ):
     """获取医生预约设置列表"""
+    store_filter = get_store_filter(current_admin)
+    if store_filter:
+        store_id = store_filter
     service = DoctorBookingSettingService(db)
     query = DoctorBookingSettingQuery(
         store_id=store_id,
@@ -48,9 +53,13 @@ async def get_doctor_booking_settings(
 @router.get("/existing-doctors", response_model=List[str], summary="获取已配置医生ID列表")
 async def get_existing_doctor_ids(
     store_id: str = Query(..., description="门店ID"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("doctor:booking-setting"))
 ):
     """获取指定门店已配置的医生ID列表（用于前端禁用已配置的医生）"""
+    if not check_store_access(current_admin, store_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权访问此门店")
     service = DoctorBookingSettingService(db)
     return await service.get_existing_doctor_ids(store_id)
 
@@ -58,7 +67,9 @@ async def get_existing_doctor_ids(
 @router.get("/{setting_id}", response_model=DoctorBookingSettingResponse, summary="获取医生预约设置详情")
 async def get_doctor_booking_setting(
     setting_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("doctor:booking-setting"))
 ):
     """获取医生预约设置详情"""
     service = DoctorBookingSettingService(db)
@@ -69,6 +80,8 @@ async def get_doctor_booking_setting(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="设置不存在，请检查后重试"
         )
+    if not check_store_access(current_admin, setting.store_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权访问此门店设置")
     
     return DoctorBookingSettingResponse.model_validate(setting)
 
@@ -81,6 +94,8 @@ async def create_doctor_booking_setting(
     _: None = Depends(require_permission("doctor:update"))
 ):
     """创建医生预约设置"""
+    if not check_store_access(current_admin, data.store_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权操作此门店")
     service = DoctorBookingSettingService(db)
     
     try:
@@ -111,6 +126,9 @@ async def update_doctor_booking_setting(
 ):
     """更新医生预约设置"""
     service = DoctorBookingSettingService(db)
+    existing = await service.get_by_id(setting_id)
+    if existing and not check_store_access(current_admin, existing.store_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权修改此门店设置")
     
     try:
         setting = await service.update(setting_id, data)
@@ -136,6 +154,9 @@ async def delete_doctor_booking_setting(
 ):
     """删除医生预约设置"""
     service = DoctorBookingSettingService(db)
+    existing = await service.get_by_id(setting_id)
+    if existing and not check_store_access(current_admin, existing.store_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权删除此门店设置")
     success = await service.delete(setting_id)
     
     if not success:
@@ -157,6 +178,9 @@ async def update_doctor_booking_setting_status(
 ):
     """更新医生预约设置状态"""
     service = DoctorBookingSettingService(db)
+    existing = await service.get_by_id(setting_id)
+    if existing and not check_store_access(current_admin, existing.store_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权修改此门店设置")
     setting = await service.update_status(setting_id, new_status)
     
     if not setting:
