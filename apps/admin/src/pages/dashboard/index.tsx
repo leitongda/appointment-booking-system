@@ -1,5 +1,5 @@
 import { PageContainer, ProCard, StatisticCard } from '@ant-design/pro-components';
-import { Col, Row, Table, Empty, Spin } from 'antd';
+import { Col, Row, Table, Empty, Spin, Tabs } from 'antd';
 import {
   CalendarOutlined,
   CheckCircleOutlined,
@@ -8,31 +8,39 @@ import {
   RiseOutlined,
   PayCircleOutlined,
 } from '@ant-design/icons';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense, lazy, ComponentType } from 'react';
 import { useModel } from '@umijs/max';
 import { statisticsApi } from '@hospital/api';
 import type {
   OverviewData,
   TrendItem,
+  RevenueTrendItem,
+  StatusStatItem,
   DepartmentRankingItem,
   DoctorRankingItem,
-  StatusStatItem,
+  TimeSlotItem,
+  WeekdayItem,
 } from '@hospital/api';
 import StoreSection from './components/StoreSection';
 
 const { Statistic } = StatisticCard;
 
-const STATUS_MAP: Record<number, string> = {
-  0: '待支付',
-  1: '已预约',
-  2: '已签到',
-  3: '历史候诊',
-  4: '就诊中',
-  5: '已完成',
-  6: '已取消',
-  7: '已过期',
-  8: '已爽约',
-};
+// 懒加载图表组件
+const Line = lazy(() =>
+  import('@ant-design/charts').then(m => ({ default: m.Line as ComponentType<any> }))
+);
+const Column = lazy(() =>
+  import('@ant-design/charts').then(m => ({ default: m.Column as ComponentType<any> }))
+);
+const Pie = lazy(() =>
+  import('@ant-design/charts').then(m => ({ default: m.Pie as ComponentType<any> }))
+);
+
+const ChartLoading = ({ height = 300 }: { height?: number }) => (
+  <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ color: '#999' }}>图表加载中...</div>
+  </div>
+);
 
 const Dashboard: React.FC = () => {
   const { initialState } = useModel('@@initialState');
@@ -42,6 +50,9 @@ const Dashboard: React.FC = () => {
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [statusStats, setStatusStats] = useState<StatusStatItem[]>([]);
   const [trendData, setTrendData] = useState<TrendItem[]>([]);
+  const [revenueTrendData, setRevenueTrendData] = useState<RevenueTrendItem[]>([]);
+  const [timeSlotData, setTimeSlotData] = useState<TimeSlotItem[]>([]);
+  const [weekdayData, setWeekdayData] = useState<WeekdayItem[]>([]);
   const [deptRanking, setDeptRanking] = useState<DepartmentRankingItem[]>([]);
   const [doctorRanking, setDoctorRanking] = useState<DoctorRankingItem[]>([]);
 
@@ -52,25 +63,89 @@ const Dashboard: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [overviewRes, trendRes, statusRes, deptRes, doctorRes] = await Promise.allSettled([
-        statisticsApi.getOverview(),
-        statisticsApi.getAppointmentTrend(14),
-        statisticsApi.getAppointmentStatusStats(),
-        statisticsApi.getDepartmentRanking(10),
-        statisticsApi.getDoctorRanking(10),
+      const results = await Promise.allSettled([
+        statisticsApi.getOverview(),               // 0
+        statisticsApi.getAppointmentTrend(14),     // 1
+        statisticsApi.getAppointmentStatusStats(), // 2
+        statisticsApi.getDepartmentRanking(10),    // 3
+        statisticsApi.getDoctorRanking(10),        // 4
+        statisticsApi.getRevenueTrend(14),         // 5
+        statisticsApi.getTimeSlotDistribution(),   // 6
+        statisticsApi.getWeekdayDistribution(),    // 7
       ]);
 
-      if (overviewRes.status === 'fulfilled') setOverview(overviewRes.value);
-      if (trendRes.status === 'fulfilled') setTrendData(trendRes.value);
-      if (statusRes.status === 'fulfilled') setStatusStats(statusRes.value);
-      if (deptRes.status === 'fulfilled') setDeptRanking(deptRes.value);
-      if (doctorRes.status === 'fulfilled') setDoctorRanking(doctorRes.value);
+      if (results[0].status === 'fulfilled') setOverview(results[0].value);
+      if (results[1].status === 'fulfilled') setTrendData(results[1].value);
+      if (results[2].status === 'fulfilled') setStatusStats(results[2].value);
+      if (results[3].status === 'fulfilled') setDeptRanking(results[3].value);
+      if (results[4].status === 'fulfilled') setDoctorRanking(results[4].value);
+      if (results[5].status === 'fulfilled') setRevenueTrendData(results[5].value);
+      if (results[6].status === 'fulfilled') setTimeSlotData(results[6].value);
+      if (results[7].status === 'fulfilled') setWeekdayData(results[7].value);
     } catch (error) {
       console.error('加载数据失败', error);
     } finally {
       setLoading(false);
     }
   };
+
+  // 图表配置
+  const appointmentTrendConfig = trendData.length > 0 ? {
+    data: trendData.map(item => ({ date: item.date.slice(5), count: item.count })),
+    xField: 'date',
+    yField: 'count',
+    smooth: true,
+    area: { style: { fillOpacity: 0.15 } },
+    point: { size: 3 },
+    yAxis: { min: 0 },
+    tooltip: { formatter: (d: any) => ({ name: '预约数', value: d.count }) },
+    height: 280,
+  } : null;
+
+  const revenueTrendConfig = revenueTrendData.length > 0 ? {
+    data: revenueTrendData.map(item => ({ date: item.date.slice(5), revenue: item.revenue })),
+    xField: 'date',
+    yField: 'revenue',
+    smooth: true,
+    area: { style: { fillOpacity: 0.15 } },
+    point: { size: 3 },
+    yAxis: { min: 0, label: { formatter: (v: string) => `${Number(v).toLocaleString()}` } },
+    tooltip: { formatter: (d: any) => ({ name: '收入', value: `${d.revenue.toLocaleString()} 元` }) },
+    height: 280,
+  } : null;
+
+  const statusPieConfig = statusStats.length > 0 ? {
+    data: statusStats.map(item => ({ name: item.name, count: item.count })),
+    angleField: 'count',
+    colorField: 'name',
+    innerRadius: 0.6,
+    label: { text: 'name', position: 'outside' as const },
+    legend: { position: 'right' as const },
+    tooltip: { formatter: (d: any) => ({ name: d.name, value: d.count }) },
+    statistic: {
+      title: { style: { fontSize: '14px' }, content: '总计' },
+      content: { style: { fontSize: '20px', fontWeight: 'bold' }, content: statusStats.reduce((s, i) => s + i.count, 0).toString() },
+    },
+    height: 280,
+  } : null;
+
+  const timeSlotConfig = timeSlotData.length > 0 ? {
+    data: timeSlotData.map(item => ({ name: item.name, count: item.count })),
+    xField: 'name',
+    yField: 'count',
+    label: { position: 'top' as const },
+    color: '#1890ff',
+    height: 280,
+  } : null;
+
+  const weekdayConfig = weekdayData.length > 0 ? {
+    data: weekdayData.map(item => ({ name: item.name, count: item.count })),
+    xField: 'name',
+    yField: 'count',
+    label: { position: 'top' as const },
+    color: '#52c41a',
+    height: 280,
+  } : null;
 
   const deptColumns = [
     { title: '排名', dataIndex: 'rank', width: 60, render: (_: any, __: any, index: number) => index + 1 },
@@ -92,7 +167,7 @@ const Dashboard: React.FC = () => {
         {/* 核心指标 */}
         <ProCard title="核心指标" headerBordered style={{ marginBottom: 16 }}>
           <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12} lg={6}>
+            <Col xs={24} sm={12} lg={4}>
               <ProCard hoverable>
                 <Statistic
                   title="今日预约"
@@ -101,7 +176,7 @@ const Dashboard: React.FC = () => {
                 />
               </ProCard>
             </Col>
-            <Col xs={24} sm={12} lg={6}>
+            <Col xs={24} sm={12} lg={4}>
               <ProCard hoverable>
                 <Statistic
                   title="今日就诊"
@@ -110,7 +185,7 @@ const Dashboard: React.FC = () => {
                 />
               </ProCard>
             </Col>
-            <Col xs={24} sm={12} lg={6}>
+            <Col xs={24} sm={12} lg={4}>
               <ProCard hoverable>
                 <Statistic
                   title="总患者数"
@@ -119,7 +194,7 @@ const Dashboard: React.FC = () => {
                 />
               </ProCard>
             </Col>
-            <Col xs={24} sm={12} lg={6}>
+            <Col xs={24} sm={12} lg={4}>
               <ProCard hoverable>
                 <Statistic
                   title="医生数量"
@@ -128,7 +203,7 @@ const Dashboard: React.FC = () => {
                 />
               </ProCard>
             </Col>
-            <Col xs={24} sm={12}>
+            <Col xs={24} sm={12} lg={4}>
               <ProCard hoverable>
                 <Statistic
                   title="本月预约"
@@ -137,7 +212,7 @@ const Dashboard: React.FC = () => {
                 />
               </ProCard>
             </Col>
-            <Col xs={24} sm={12}>
+            <Col xs={24} sm={12} lg={4}>
               <ProCard hoverable>
                 <Statistic
                   title="本月收入"
@@ -151,48 +226,79 @@ const Dashboard: React.FC = () => {
           </Row>
         </ProCard>
 
+        {/* 趋势 + 状态分布 */}
+        <Row gutter={16} style={{ marginBottom: 16 }}>
+          <Col xs={24} lg={16}>
+            <ProCard title="趋势分析" headerBordered>
+              <Tabs
+                items={[
+                  {
+                    key: 'appointment',
+                    label: '预约趋势',
+                    children: appointmentTrendConfig ? (
+                      <Suspense fallback={<ChartLoading />}>
+                        <Line {...appointmentTrendConfig} />
+                      </Suspense>
+                    ) : (
+                      <Empty description="暂无数据" style={{ padding: 40 }} />
+                    ),
+                  },
+                  {
+                    key: 'revenue',
+                    label: '收入趋势',
+                    children: revenueTrendConfig ? (
+                      <Suspense fallback={<ChartLoading />}>
+                        <Line {...revenueTrendConfig} />
+                      </Suspense>
+                    ) : (
+                      <Empty description="暂无数据" style={{ padding: 40 }} />
+                    ),
+                  },
+                ]}
+              />
+            </ProCard>
+          </Col>
+          <Col xs={24} lg={8}>
+            <ProCard title="预约状态分布" headerBordered style={{ height: '100%' }}>
+              {statusPieConfig ? (
+                <Suspense fallback={<ChartLoading />}>
+                  <Pie {...statusPieConfig} />
+                </Suspense>
+              ) : (
+                <Empty description="暂无数据" style={{ padding: 40 }} />
+              )}
+            </ProCard>
+          </Col>
+        </Row>
+
+        {/* 时段分布 + 星期分布 */}
+        <Row gutter={16} style={{ marginBottom: 16 }}>
+          <Col xs={24} lg={12}>
+            <ProCard title="时段分布" headerBordered>
+              {timeSlotConfig ? (
+                <Suspense fallback={<ChartLoading />}>
+                  <Column {...timeSlotConfig} />
+                </Suspense>
+              ) : (
+                <Empty description="暂无数据" style={{ padding: 40 }} />
+              )}
+            </ProCard>
+          </Col>
+          <Col xs={24} lg={12}>
+            <ProCard title="星期分布" headerBordered>
+              {weekdayConfig ? (
+                <Suspense fallback={<ChartLoading />}>
+                  <Column {...weekdayConfig} />
+                </Suspense>
+              ) : (
+                <Empty description="暂无数据" style={{ padding: 40 }} />
+              )}
+            </ProCard>
+          </Col>
+        </Row>
+
         {/* 门店专属区域 */}
         <StoreSection />
-
-        {/* 预约状态分布 */}
-        <ProCard title="预约状态分布" headerBordered style={{ marginBottom: 16 }}>
-          <Row gutter={[16, 16]}>
-            {statusStats.map((item) => (
-              <Col key={item.status} xs={8} sm={6} md={4}>
-                <Statistic title={item.name || STATUS_MAP[item.status]} value={item.count} />
-              </Col>
-            ))}
-          </Row>
-        </ProCard>
-
-        {/* 趋势分析 */}
-        <ProCard title="近14天预约趋势" headerBordered style={{ marginBottom: 16 }}>
-          {trendData.length > 0 ? (
-            <div style={{ display: 'flex', alignItems: 'flex-end', height: 200, gap: 8, padding: '0 16px', overflowX: 'auto' }}>
-              {trendData.map((item, index) => {
-                const max = Math.max(...trendData.map((d) => d.count), 1);
-                const height = (item.count / max) * 160;
-                return (
-                  <div key={index} style={{ minWidth: 40, textAlign: 'center' }}>
-                    <div
-                      style={{
-                        height: height || 4,
-                        background: 'linear-gradient(180deg, #1890ff 0%, #69c0ff 100%)',
-                        borderRadius: '4px 4px 0 0',
-                        marginBottom: 4,
-                        transition: 'height 0.3s',
-                      }}
-                    />
-                    <div style={{ fontSize: 11, color: '#666' }}>{item.count}</div>
-                    <div style={{ fontSize: 10, color: '#999' }}>{item.date.slice(5)}</div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <Empty description="暂无数据" style={{ padding: 40 }} />
-          )}
-        </ProCard>
 
         {/* 排行榜 */}
         <ProCard title="排行榜" headerBordered>

@@ -1,5 +1,5 @@
-import React, { useState, from 'react';
-import { QRCode, Button, message, App, from 'antd';
+import React, { useState, useEffect } from 'react';
+import { QRCode, Button, App, Spin, Empty } from 'antd';
 import { ProCard } from '@ant-design/pro-components';
 import { storeApi } from '@hospital/api';
 
@@ -8,7 +8,7 @@ interface CheckinQrcodeCardProps {
   storeName?: string;
 }
 
-const CheckinQrcodeCard: React.FC<CheckinQrcodeCardProps> {
+const CheckinQrcodeCard: React.FC<CheckinQrcodeCardProps> = ({ storeId, storeName }) => {
   const { message } = App.useApp();
   const [qrcodeContent, setQrcodeContent] = useState('');
   const [qrcodeLoading, setQrcodeLoading] = useState(false);
@@ -25,14 +25,14 @@ const CheckinQrcodeCard: React.FC<CheckinQrcodeCardProps> {
     try {
       const result = await storeApi.getCheckinQrcode(storeId);
       setQrcodeContent(result.qrcodeContent);
-    } catch (error) {
-      message.error('获取二维码失败');
+    } catch (error: any) {
+      message.error(error.message || '获取二维码失败');
     } finally {
       setQrcodeLoading(false);
     }
   };
 
-  const handleDownloadQrcode = () => {
+  const handleDownload = () => {
     const canvas = document.querySelector('#store-checkin-qrcode canvas') as HTMLCanvasElement;
     if (canvas) {
       const link = document.createElement('a');
@@ -43,29 +43,24 @@ const CheckinQrcodeCard: React.FC<CheckinQrcodeCardProps> {
   };
 
   return (
-    <ProCard
-      title="签到二维码"
-      hoverable
-      style={{ textAlign: 'center', padding: 16 }}
-    >
+    <ProCard hoverable style={{ textAlign: 'center', padding: 16 }}>
       <Spin spinning={qrcodeLoading} tip="加载中..." />
       {qrcodeContent ? (
-        <>
+        <div id="store-checkin-qrcode">
           <QRCode
-            id="store-checkin-qrcode"
             value={qrcodeContent}
             size={200}
             style={{ margin: '0 auto' }}
           />
-          <div style={{ marginTop: 16, color: '#666' }}>
+          <div style={{ marginTop: 16, color: '#666', fontSize: 12 }}>
             请使用微信扫描此二维码进行签到
           </div>
-          <Button type="primary" onClick={handleDownloadQrcode}>
+          <Button type="link" size="small" onClick={handleDownload}>
             下载二维码
           </Button>
-        </>
+        </div>
       ) : (
-        <Empty description="获取二维码失败" />
+        !qrcodeLoading && <Empty description="获取二维码失败" />
       )}
     </ProCard>
   );

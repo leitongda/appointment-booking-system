@@ -1,86 +1,65 @@
 import React from 'react';
-import { StatisticCard, Typography, from 'antd';
-import { EyeOutlined, from '@ant-design/icons';
+import { ProCard, StatisticCard } from '@ant-design/pro-components';
+import { EyeOutlined, UserOutlined } from '@ant-design/icons';
 import type { StoreDashboardStats } from '@hospital/api';
+
+const { Statistic } = StatisticCard;
 
 interface VisitorStatsCardProps {
   stats: StoreDashboardStats['visitors'];
 }
 
-const VisitorStatsCard: React.FC<VisitorStatsCardProps> {
+const VisitorStatsCard: React.FC<VisitorStatsCardProps> = ({ stats }) => {
+  const pvRate = stats?.pvWeekGrowthRate;
+  const uvRate = stats?.uvWeekGrowthRate;
+
+  const formatRate = (rate: number | undefined) => {
+    if (rate == null) return { text: '-', color: '#999' };
+    return {
+      text: `${rate >= 0 ? '+' : ''}${rate.toFixed(1)}%`,
+      color: rate >= 0 ? '#52c41a' : '#f5222d',
+    };
+  };
+
+  const pvGrowth = formatRate(pvRate);
+  const uvGrowth = formatRate(uvRate);
+
   return (
-    <ProCard title="访客统计" hoverable>
+    <ProCard hoverable>
       <StatisticCard.Group>
         <Statistic
           title="今日PV"
           value={stats?.todayPV ?? 0}
-          icon={<EyeOutlined style={{ fontSize: 24, color: '#1890ff' }}
+          icon={<EyeOutlined style={{ fontSize: 24, color: '#1890ff' }} />}
         />
         <Statistic
           title="今日UV"
           value={stats?.todayUV ?? 0}
-          icon={<UserOutlined style={{ fontSize: 24, color: '#52c41a' }}
+          icon={<UserOutlined style={{ fontSize: 24, color: '#52c41a' }} />}
         />
         <Statistic
           title="昨日PV"
           value={stats?.yesterdayPV ?? 0}
-          icon={<EyeOutlined style={{ fontSize: 24, color: '#722ed1' }}
+          icon={<EyeOutlined style={{ fontSize: 24, color: '#722ed1' }} />}
         />
         <Statistic
           title="昨日UV"
           value={stats?.yesterdayUV ?? 0}
-          icon={<EyeOutlined style={{ fontSize: 24, color: '#52c41a' }
+          icon={<UserOutlined style={{ fontSize: 24, color: '#52c41a' }} />}
         />
         <Statistic
           title="PV周环比"
-          value={stats?.pvWeekGrowthRate ? `${stats.pvWeekGrowthRate >= 0 ? '-' : '+'}%stats.pvWeekGrowthRate.toFixed(1) : '%`
-    42          suffix={<span style={{ color: stats.pvWeekGrowthRate >= 0 ? '#52c41a' : '#f52218' }}
-    43          />
-    44        <Statistic
-    45          title="UV周环比"
-    46          value={stats?.uvWeekGrowthRate ? `${stats.uvWeekGrowthRate >= 0 ? '-' : '+'}%stats.uvWeekGrowthRate.toFixed(1) : '%`}
-    47          suffix={<span style={{ color: stats.uvWeekGrowthRate >= 0 ? '#52c41a' : '#f52218' }}
-    48          }
-    49        </ProCard>
-    50          suffix={<span style={{ color: stats.uvWeekGrowthRate >= 0 ? '#52c41a' : '#f52218' }}
-    51          }
-    52        </ProCard>
-    53
-    54
-    55
-      </StatisticCard>
-    56      </StatisticCard>
-    57      </Statistic
-    58      </Statistic
-    59      </StatisticCard>
-    60      </ProCard>
-    61      );
-    62
-    63
-    64
-    65
-    66
-    67
-    68
-    69
-    70
-    71
-    72
-    73
-    74
-    75
-    76
-    77
-    78      </StatisticCard>
-    79    </StatisticCard>
-    80      </StatisticCard>
-    81    </StatisticCard>
-    82    </ProCard>
-    83
+          value={pvGrowth.text}
+          suffix={<span style={{ color: pvGrowth.color, fontSize: 12 }}>{pvRate != null ? (pvRate >= 0 ? '↑' : '↓') : ''}</span>}
+        />
+        <Statistic
+          title="UV周环比"
+          value={uvGrowth.text}
+          suffix={<span style={{ color: uvGrowth.color, fontSize: 12 }}>{uvRate != null ? (uvRate >= 0 ? '↑' : '↓') : ''}</span>}
+        />
+      </StatisticCard.Group>
+    </ProCard>
   );
-    84
 };
 
-    85
 export default VisitorStatsCard;
-    86

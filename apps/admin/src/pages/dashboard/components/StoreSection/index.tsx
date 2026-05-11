@@ -1,70 +1,65 @@
 import React, { useState, useEffect } from 'react';
-import { QRCode, App, Spin, Empty } from 'antd';
+import { Row, Col, Spin } from 'antd';
 import { ProCard } from '@ant-design/pro-components';
 import { useModel } from '@umijs/max';
-import { storeApi } from '@hospital/api';
+import { statisticsApi } from '@hospital/api';
+import type { StoreDashboardStats } from '@hospital/api';
+import AppointmentStatsCard from './AppointmentStatsCard';
+import UserStatsCard from './UserStatsCard';
+import VisitorStatsCard from './VisitorStatsCard';
+import CheckinQrcodeCard from './CheckinQrcodeCard';
 
-interface CheckinQrcodeCardProps {
-  storeId: string;
-  storeName?: string;
-}
-
-const CheckinQrcodeCard: React.FC<CheckinQrcodeCardProps> = ({ storeId, storeName }) => {
-  const { message } = App.useApp();
-  const [qrcodeContent, setQrcodeContent] = useState('');
-  const [qrcodeLoading, setQrcodeLoading] = useState(false);
-
+const StoreSection: React.FC = () => {
   const { initialState } = useModel('@@initialState');
   const currentStore = initialState?.currentStore;
+  const storeId = currentStore?.id;
+  const storeName = currentStore?.name;
+
+  const [loading, setLoading] = useState(false);
+  const [storeStats, setStoreStats] = useState<StoreDashboardStats | null>(null);
 
   useEffect(() => {
-    if (storeId) {
-      loadQrcode();
-    }
+    if (!storeId) return;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const data = await statisticsApi.getStoreDashboardStats(storeId);
+        setStoreStats(data);
+      } catch {
+        // 静默失败，不影响其他区域
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, [storeId]);
 
-  const loadQrcode = async () => {
-    if (!storeId) return;
-    setQrcodeLoading(true);
-    try {
-      const result = await storeApi.getCheckinQrcode(storeId);
-      setQrcodeContent(result.qrcodeContent);
-    } catch (error: any) {
-      message.error(error.message || '获取二维码失败');
-    } finally {
-      setQrcodeLoading(false);
-    }
-  };
-
-  const handleDownload = () => {
-    const canvas = document.querySelector('#store-checkin-qrcode canvas') as HTMLCanvasElement;
-    if (canvas) {
-      const link = document.createElement('a');
-      link.download = `签到二维码-${storeName || currentStore?.name || '门店'}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    }
-  };
+  if (!storeId) return null;
 
   return (
-    <ProCard title="签到二维码" hoverable style={{ textAlign: 'center', padding: 16 }}>
-      <Spin spinning={qrcodeLoading} tip="加载中..." />
-      {qrcodeContent ? (
-        <div id="store-checkin-qrcode">
-          <QRCode
-            value={qrcodeContent}
-            size={200}
-            style={{ margin: '0 auto' }}
-          />
-          <div style={{ marginTop: 16, color: '#666' }}>
-            请使用微信扫描此二维码进行签到
-          </div>
-        </div>
-      ) : (
-        <Empty description="获取二维码失败" />
-      )}
+    <ProCard title="门店专属区域" headerBordered style={{ marginBottom: 16 }}>
+      <Spin spinning={loading}>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} lg={18}>
+            <Row gutter={[16, 16]}>
+              <Col xs={24} md={8}>
+                <AppointmentStatsCard stats={storeStats?.appointments} />
+              </Col>
+              <Col xs={24} md={8}>
+                <UserStatsCard stats={storeStats?.users} />
+              </Col>
+              <Col xs={24} md={8}>
+                <VisitorStatsCard stats={storeStats?.visitors} />
+              </Col>
+            </Row>
+          </Col>
+          <Col xs={24} lg={6}>
+            <CheckinQrcodeCard storeId={storeId} storeName={storeName} />
+          </Col>
+        </Row>
+      </Spin>
     </ProCard>
   );
 };
 
-export default CheckinQrcodeCard;
+export default StoreSection;
