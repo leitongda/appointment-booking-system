@@ -288,9 +288,9 @@ const SettingsPage: React.FC = () => {
   };
 
   // 门店选择变化时加载配置
-  const handleBookingStoreChange = (storeId: string) => {
+  const handleBookingStoreChange = async (storeId: string) => {
+    await loadStoreBookingSettings(storeId);
     setSelectedBookingStoreId(storeId);
-    loadStoreBookingSettings(storeId);
   };
 
   const handleHospitalSubmit = async (values: any) => {
@@ -518,13 +518,12 @@ const SettingsPage: React.FC = () => {
             <Select
               style={{ width: 300 }}
               placeholder="全局配置（不选择门店）"
-              value={selectedBookingStoreId || undefined}
+              value={selectedBookingStoreId}
               onChange={handleBookingStoreChange}
               options={[
                 { label: '全局配置（默认）', value: '' },
                 ...stores.map((s) => ({ label: s.name, value: s.id }))
               ]}
-              allowClear
             />
           </div>
 

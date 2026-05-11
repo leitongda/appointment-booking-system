@@ -17,6 +17,7 @@ const PRELOAD_CHUNKS = [
   'vendors',
   'antd-lib',
   'utils-lib',
+  'router-lib',
 ];
 
 // 需要prefetch的chunks（可能很快需要）

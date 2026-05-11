@@ -12,6 +12,7 @@ import { App, Button, message, Modal, ConfigProvider, theme, notification } from
 import { useMemo, useEffect } from 'react';
 import defaultSettings from '../config/defaultSettings';
 import { APP_TITLE } from '@config/appConfig';
+import useIllustrationTheme from './illustrationTheme';
 import { initApiConfig } from '@/utils/request';
 import { getSpacingMode, applySpacingCSSVariables, SPACING_CONFIG } from '@/utils/spacing';
 
@@ -360,6 +361,7 @@ export function rootContainer(container: any) {
     routeStartTime = performance.now();
     lastPathname = location.pathname;
   });
+  const configProps = useIllustrationTheme();
 
   return (
     <ConfigProvider
@@ -367,6 +369,9 @@ export function rootContainer(container: any) {
         algorithm,
         token: tokenConfig,
       }}
+
+      {...configProps}
+      
     >
       <App>{container}</App>
     </ConfigProvider>

@@ -131,10 +131,10 @@ export default defineConfig({
         maxInitialRequests: 30,
         automaticNameDelimiter: '-',
         cacheGroups: {
-          // antd 相关库单独打包
+          // antd 核心生态（antd + icons + rc-* 组件 + cssinjs + fast-color）
           antd: {
             name: 'antd-lib',
-            test: /[\\/]node_modules[\\/](antd|@ant-design\/icons)[\\/]/,
+            test: /[\\/]node_modules[\\/](@ant-design[\\/](icons|cssinjs|fast-color)|antd|rc-[a-z-]+)[\\/]/,
             priority: 30,
             chunks: 'all',
           },
@@ -150,7 +150,7 @@ export default defineConfig({
             name: 'charts-lib',
             test: /[\\/]node_modules[\\/](@ant-design[\\/]charts|@ant-design[\\/]plots|@antv)[\\/]/,
             priority: 20,
-            chunks: 'async', // 仅异步加载
+            chunks: 'async',
           },
           // 富文本编辑器 - 仅在内容管理页面使用
           wangeditor: {
@@ -180,11 +180,25 @@ export default defineConfig({
             priority: 22,
             chunks: 'async',
           },
+          // html2canvas - 间接依赖，无页面直接使用，按需加载
+          html2canvas: {
+            name: 'html2canvas-lib',
+            test: /[\\/]node_modules[\\/]html2canvas[\\/]/,
+            priority: 22,
+            chunks: 'async',
+          },
           // React 相关
           react: {
             name: 'react-lib',
             test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
             priority: 40,
+            chunks: 'all',
+          },
+          // 路由库
+          router: {
+            name: 'router-lib',
+            test: /[\\/]node_modules[\\/](react-router|react-router-dom|@remix-run[\\/]router|history)[\\/]/,
+            priority: 15,
             chunks: 'all',
           },
           // 其他常用工具库

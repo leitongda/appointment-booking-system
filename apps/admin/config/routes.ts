@@ -24,6 +24,7 @@ export default [
     icon: 'cloudServer',
     access: 'canPlatformManagement',
     routes: [
+      { path: '/platform', redirect: '/platform/tenant' },
       {
         path: '/platform/tenant',
         name: '租户管理',
@@ -54,6 +55,7 @@ export default [
         icon: 'appstore',
         access: 'canMiniappPlatform',
         routes: [
+          { path: '/platform/miniapp-platform', redirect: '/platform/miniapp-platform/company' },
           {
             path: '/platform/miniapp-platform/company',
             name: '公司管理',
@@ -111,6 +113,7 @@ export default [
     icon: 'medicineBox',
     access: 'canClinicalOperations',
     routes: [
+      { path: '/medical-services', redirect: '/medical-services/doctor' },
       {
         path: '/medical-services/doctor',
         name: '医生管理',
@@ -188,6 +191,7 @@ export default [
         icon: 'dollarCircle',
         access: 'canConsultationFee',
         routes: [
+          { path: '/medical-services/consultation-fee', redirect: '/medical-services/consultation-fee/types' },
           { path: '/medical-services/consultation-fee/types', name: '诊费类型', component: './system/consultation-fee-types' },
           { path: '/medical-services/consultation-fee/types/create', name: '新增诊费类型', component: './system/consultation-fee-type-form', hideInMenu: true },
           { path: '/medical-services/consultation-fee/types/:id/edit', name: '编辑诊费类型', component: './system/consultation-fee-type-form', hideInMenu: true },
@@ -204,6 +208,7 @@ export default [
     icon: 'apartment',
     access: 'canOrganizationManagement',
     routes: [
+      { path: '/organization', redirect: '/organization/store' },
       {
         path: '/organization/store',
         name: '门店管理',
@@ -237,6 +242,7 @@ export default [
         icon: 'tool',
         access: 'canMedicalConfig',
         routes: [
+          { path: '/organization/medical-config', redirect: '/organization/medical-config/booking-rules' },
           { path: '/organization/medical-config/booking-rules', name: '预约规则', icon: 'clockCircle', component: './system/settings', access: 'canBookingRules' },
           { path: '/organization/medical-config/booking-fields', name: '预约字段', icon: 'orderedList', component: './system/settings', access: 'canBookingFields' },
           { path: '/organization/medical-config/booking-notice', name: '预约须知', icon: 'fileDone', component: './system/booking-notice', access: 'canBookingNotice' },
@@ -287,6 +293,7 @@ export default [
     icon: 'notification',
     access: 'canContentOperations',
     routes: [
+      { path: '/content-center', redirect: '/content-center/content' },
       {
         path: '/content-center/content',
         name: '内容管理',
@@ -340,6 +347,7 @@ export default [
     icon: 'setting',
     access: 'canSystemManagement',
     routes: [
+      { path: '/system', redirect: '/system/role' },
       {
         path: '/system/role',
         name: '角色权限',
@@ -358,6 +366,7 @@ export default [
         icon: 'control',
         access: 'canSystemConfig',
         routes: [
+          { path: '/system/config', redirect: '/system/config/hospital-info' },
           { path: '/system/config/hospital-info', name: '医院信息', icon: 'home', component: './system/settings', access: 'canHospitalInfo' },
           { path: '/system/config/wechat', name: '微信配置', icon: 'wechat', component: './system/settings', access: 'canWechatSettings' },
           { path: '/system/config/email-config', name: '邮件配置', icon: 'mail', component: './system/settings', access: 'canEmailConfig' },
@@ -389,6 +398,7 @@ export default [
         icon: 'monitor',
         access: 'canSystemMonitoring',
         routes: [
+          { path: '/system/monitoring', redirect: '/system/monitoring/log' },
           { path: '/system/monitoring/log', name: '操作日志', icon: 'fileSearch', component: './system/log', access: 'canSystemLogs' },
           { path: '/system/monitoring/notification-logs', name: '通知日志', icon: 'alert', component: './system/notification-logs', access: 'canSystemLogs' },
           { path: '/system/monitoring/checkin-audit-logs', name: '签到审计', icon: 'audit', component: './system/checkin-audit-logs', access: 'canCheckinAuditLogs' },
