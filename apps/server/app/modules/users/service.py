@@ -21,11 +21,31 @@ class UserService:
         result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
 
-    async def get_by_phone(self, phone: str) -> Optional[User]:
+    async def get_by_phone(
+        self,
+        phone: str,
+        tenant_id: Optional[str] = None,
+        strict_tenant: bool = False,
+    ) -> Optional[User]:
         # 空值直接返回 None，避免查询 phone=NULL 的记录
         if not phone or not phone.strip():
             return None
-        result = await self.db.execute(select(User).where(User.phone == phone))
+
+        effective_tenant_id = tenant_id or get_current_tenant_id()
+        stmt = select(User).where(User.phone == phone)
+        if effective_tenant_id:
+            result = await self.db.execute(stmt.where(User.tenant_id == effective_tenant_id))
+            return result.scalar_one_or_none()
+
+        # 无租户上下文时，认证链路必须避免跨租户误命中
+        if strict_tenant:
+            result = await self.db.execute(stmt.order_by(User.created_at.desc()).limit(2))
+            rows = list(result.scalars().all())
+            if len(rows) > 1:
+                raise ValueError("检测到多个租户账号，请通过 X-Tenant-ID 指定租户后重试")
+            return rows[0] if rows else None
+
+        result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_email(self, email: str) -> Optional[User]:
@@ -41,13 +61,45 @@ class UserService:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_openid(self, openid: str) -> Optional[User]:
-        result = await self.db.execute(select(User).where(User.openid == openid))
+    async def get_by_openid(
+        self,
+        openid: str,
+        tenant_id: Optional[str] = None,
+        strict_tenant: bool = False,
+    ) -> Optional[User]:
+        effective_tenant_id = tenant_id or get_current_tenant_id()
+        stmt = select(User).where(User.openid == openid)
+        if effective_tenant_id:
+            result = await self.db.execute(stmt.where(User.tenant_id == effective_tenant_id))
+            return result.scalar_one_or_none()
+        if strict_tenant:
+            result = await self.db.execute(stmt.order_by(User.created_at.desc()).limit(2))
+            rows = list(result.scalars().all())
+            if len(rows) > 1:
+                raise ValueError("检测到多个租户账号，请通过 X-Tenant-ID 指定租户后重试")
+            return rows[0] if rows else None
+        result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_unionid(self, unionid: str) -> Optional[User]:
+    async def get_by_unionid(
+        self,
+        unionid: str,
+        tenant_id: Optional[str] = None,
+        strict_tenant: bool = False,
+    ) -> Optional[User]:
         """通过 unionid 获取用户（跨应用关联）"""
-        result = await self.db.execute(select(User).where(User.unionid == unionid))
+        effective_tenant_id = tenant_id or get_current_tenant_id()
+        stmt = select(User).where(User.unionid == unionid)
+        if effective_tenant_id:
+            result = await self.db.execute(stmt.where(User.tenant_id == effective_tenant_id))
+            return result.scalar_one_or_none()
+        if strict_tenant:
+            result = await self.db.execute(stmt.order_by(User.created_at.desc()).limit(2))
+            rows = list(result.scalars().all())
+            if len(rows) > 1:
+                raise ValueError("检测到多个租户账号，请通过 X-Tenant-ID 指定租户后重试")
+            return rows[0] if rows else None
+        result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def update_wechat_info(self, user_id: str, data: dict, operator_id: Optional[str] = None) -> bool:
@@ -153,7 +205,7 @@ class UserService:
         return user
 
     async def authenticate(self, phone: str, password: str) -> Optional[User]:
-        user = await self.get_by_phone(phone)
+        user = await self.get_by_phone(phone, strict_tenant=True)
         if not user:
             return None
         if not user.password_hash:

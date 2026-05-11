@@ -38,19 +38,38 @@ def _is_dual_write_enabled() -> bool:
     return settings.ACCOUNT_DUAL_WRITE_ENABLED
 
 
-async def _get_default_role_id(db: AsyncSession, role_type: str) -> Optional[str]:
-    """查询某角色类型的默认 role_id"""
-    result = await db.execute(
+async def _get_default_role_id(
+    db: AsyncSession,
+    role_type: str,
+    tenant_id: Optional[str] = None,
+) -> Optional[str]:
+    """查询某角色类型的默认 role_id（租户优先，平台兜底）"""
+    if tenant_id:
+        tenant_result = await db.execute(
+            select(Role.id).where(
+                and_(
+                    Role.role_type == role_type,
+                    Role.is_default == True,
+                    Role.status == 1,
+                    Role.tenant_id == tenant_id,
+                )
+            ).limit(1)
+        )
+        tenant_role_id = tenant_result.scalar_one_or_none()
+        if tenant_role_id:
+            return tenant_role_id
+
+    platform_result = await db.execute(
         select(Role.id).where(
             and_(
                 Role.role_type == role_type,
                 Role.is_default == True,
                 Role.status == 1,
+                Role.tenant_id.is_(None),
             )
         ).limit(1)
     )
-    row = result.scalar_one_or_none()
-    return row
+    return platform_result.scalar_one_or_none()
 
 
 class AccountSyncService:
@@ -271,7 +290,7 @@ class AccountSyncService:
             await db.flush()
 
             # --- upsert account_doctors 扩展表 ---
-            default_role_id = await _get_default_role_id(db, "doctor")
+            default_role_id = await _get_default_role_id(db, "doctor", doctor.tenant_id)
 
             account_doctor = await db.get(AccountDoctor, doctor_id)
             if account_doctor:
@@ -421,7 +440,7 @@ class AccountSyncService:
             await db.flush()
 
             # --- upsert account_users 扩展表 ---
-            default_role_id = await _get_default_role_id(db, "user")
+            default_role_id = await _get_default_role_id(db, "user", user.tenant_id)
 
             account_user = await db.get(AccountUser, user_id)
             if account_user:

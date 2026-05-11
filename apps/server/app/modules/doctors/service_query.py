@@ -16,7 +16,11 @@ from app.models.schedule import Schedule
 
 
 class DoctorQueryMixin:
-    async def get_by_phone(self, phone: str) -> Optional[Doctor]:
+    async def get_by_phone(
+        self,
+        phone: str,
+        strict_tenant: bool = False,
+    ) -> Optional[Doctor]:
         query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
@@ -25,10 +29,24 @@ class DoctorQueryMixin:
         tenant_id = get_current_tenant_id()
         if tenant_id:
             query = query.where(Doctor.tenant_id == tenant_id)
+            result = await self.db.execute(query)
+            return result.scalar_one_or_none()
+
+        if strict_tenant:
+            result = await self.db.execute(query.order_by(Doctor.created_at.desc()).limit(2))
+            rows = list(result.scalars().all())
+            if len(rows) > 1:
+                raise ValueError("检测到多个租户医生账号，请通过 X-Tenant-ID 指定租户后重试")
+            return rows[0] if rows else None
+
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_by_username(self, username: str) -> Optional[Doctor]:
+    async def get_by_username(
+        self,
+        username: str,
+        strict_tenant: bool = False,
+    ) -> Optional[Doctor]:
         query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
@@ -37,13 +55,23 @@ class DoctorQueryMixin:
         tenant_id = get_current_tenant_id()
         if tenant_id:
             query = query.where(Doctor.tenant_id == tenant_id)
+            result = await self.db.execute(query)
+            return result.scalar_one_or_none()
+
+        if strict_tenant:
+            result = await self.db.execute(query.order_by(Doctor.created_at.desc()).limit(2))
+            rows = list(result.scalars().all())
+            if len(rows) > 1:
+                raise ValueError("检测到多个租户医生账号，请通过 X-Tenant-ID 指定租户后重试")
+            return rows[0] if rows else None
+
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
     async def authenticate(self, phone: str, password: str) -> Optional[Doctor]:
-        doctor = await self.get_by_phone(phone)
+        doctor = await self.get_by_phone(phone, strict_tenant=True)
         if not doctor:
-            doctor = await self.get_by_username(phone)
+            doctor = await self.get_by_username(phone, strict_tenant=True)
         if not doctor or not doctor.password_hash:
             return None
         if not verify_password(password, doctor.password_hash):
