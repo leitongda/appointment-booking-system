@@ -11,7 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_admin
 from app.core.config import settings
 from app.core.security import create_access_token, create_refresh_token, get_rsa_public_key, rsa_decrypt
+from app.core.redis import RedisCache
 from app.db.session import get_db
+from app.infrastructure.email.service import EmailService
 from app.models.admin import Admin, Permission
 from app.modules.admin.helpers import build_admin_response, build_stores_list, store_admin_session
 from app.modules.admin.schemas import (
@@ -23,6 +25,7 @@ from app.modules.admin.schemas import (
     SmsLoginRequest,
     StoreInfo,
 )
+from app.schemas.auth import EmailLoginRequest, EmailSendCodeRequest
 from app.schemas.response import Response
 from app.modules.admin.service_admins import AdminService
 from app.utils.ip import get_client_ip
@@ -128,6 +131,31 @@ def _build_login_response(admin, access_token: str, refresh_token: str) -> dict:
         stores=stores_list,
     )
     return response.model_dump(by_alias=True)
+
+
+def _validate_email_format(email: str) -> bool:
+    import re
+
+    if not email or not email.strip():
+        return False
+    return bool(re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", email))
+
+
+def _normalize_email(email: str) -> str:
+    return email.strip().lower()
+
+
+async def _get_unique_admin_by_email(service: AdminService, email: str) -> Admin:
+    admins = await service.list_by_email_global(email)
+    if not admins:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该邮箱未绑定管理员账号，请使用其他方式登录")
+    if len(admins) > 1:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该邮箱绑定了多个管理员账号，请使用手机号或账号密码登录")
+
+    admin = admins[0]
+    if admin.status != 1:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
+    return admin
 
 
 # ==================== 账号密码登录 ====================
@@ -279,6 +307,77 @@ async def sms_login(
     await service.update_login_info(admin.id, client_ip)
 
     # 创建 JWT Token，包含租户信息
+    token_data = {"sub": admin.id, "type": "admin"}
+    if admin.tenant_id:
+        token_data["tenant_id"] = admin.tenant_id
+
+    access_token = create_access_token(data=token_data)
+    refresh_token = create_refresh_token(data=token_data)
+    await store_admin_session(admin, access_token, client_ip, user_agent, db)
+    return _build_login_response(admin, access_token, refresh_token)
+
+
+@router.post("/email/send-code", summary="发送管理员邮箱验证码")
+async def send_admin_email_code(
+    data: EmailSendCodeRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    if not _validate_email_format(data.email):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="邮箱格式不正确")
+
+    data.email = _normalize_email(data.email)
+    service = AdminService(db)
+    await _get_unique_admin_by_email(service, data.email)
+
+    can_send, wait_seconds = await RedisCache.check_email_rate_limit(data.email, "admin_login")
+    if not can_send:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"发送过于频繁，请{wait_seconds}秒后重试",
+        )
+
+    from app.infrastructure.sms.service import SmsService
+
+    code = SmsService.generate_code()
+    await RedisCache.set_email_code(data.email, code, "admin_login")
+
+    try:
+        email_service = EmailService(db)
+        await email_service.send_verification_code_email(data.email, code, "admin_login")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="验证码发送失败，请稍后重试",
+        ) from exc
+
+    if settings.DEBUG:
+        return {"message": "验证码发送成功", "code": code}
+    return {"message": "验证码发送成功"}
+
+
+@router.post("/email/login", summary="管理员邮箱验证码登录")
+async def admin_email_login(
+    data: EmailLoginRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    if not _validate_email_format(data.email):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="邮箱格式不正确")
+
+    data.email = _normalize_email(data.email)
+
+    is_valid = await RedisCache.verify_email_code(data.email, data.code, "admin_login")
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码错误或已过期，请重新获取")
+
+    service = AdminService(db)
+    admin = await _get_unique_admin_by_email(service, data.email)
+    _check_tenant_status_for_login(admin)
+
+    client_ip = get_client_ip(request)
+    user_agent = request.headers.get("user-agent", "")
+    await service.update_login_info(admin.id, client_ip)
+
     token_data = {"sub": admin.id, "type": "admin"}
     if admin.tenant_id:
         token_data["tenant_id"] = admin.tenant_id

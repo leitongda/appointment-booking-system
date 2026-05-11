@@ -177,6 +177,21 @@ class AdminService:
         )
         return result.unique().scalar_one_or_none()
 
+    async def list_by_email_global(self, email: str) -> List[Admin]:
+        """根据邮箱查询管理员列表（全局查询，用于邮箱登录/绑定唯一性校验）"""
+        normalized_email = email.strip().lower()
+        result = await self.db.execute(
+            select(Admin)
+            .options(
+                selectinload(Admin.role),
+                selectinload(Admin.tenant).selectinload(Tenant.subscription_plan),
+                selectinload(Admin.current_store),
+                selectinload(Admin.stores),
+            )
+            .where(func.lower(Admin.email) == normalized_email)
+        )
+        return list(result.unique().scalars().all())
+
     async def authenticate(self, username: str, password: str) -> Optional[Admin]:
         """用户名密码认证（全局查询，用于登录）"""
         admin = await self.get_by_username_global(username)

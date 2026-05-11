@@ -137,9 +137,11 @@ class EmailService:
         """
         type_labels = {
             "login": "登录",
+            "admin_login": "管理员登录",
             "register": "注册",
             "reset": "重置密码",
             "bind": "绑定",
+            "admin_bind": "管理员邮箱绑定",
         }
         label = type_labels.get(code_type, "验证")
 

@@ -31,7 +31,12 @@ async def get_current_admin_info(
     admin_id = current_admin["id"]
     result = await db.execute(
         select(Admin)
-        .options(selectinload(Admin.role), selectinload(Admin.current_store), selectinload(Admin.stores))
+        .options(
+            selectinload(Admin.role),
+            selectinload(Admin.current_store),
+            selectinload(Admin.stores),
+            selectinload(Admin.tenant).selectinload(Tenant.subscription_plan),
+        )
         .where(Admin.id == admin_id)
     )
     admin = result.unique().scalar_one_or_none()
