@@ -8,10 +8,11 @@ from app.api import deps
 from app.common.auth_types import AccountInfo, RoleType, UserInfo
 from app.common.auth_unified import get_current_account
 from app.main import app
+from app.models.account import Account
 from app.models.admin import Admin
 from app.models.doctor import Doctor
 from app.models.user import User
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, verify_password
 
 
 @pytest.mark.asyncio
@@ -72,6 +73,252 @@ async def test_auth_account_me_endpoint(async_client):
     assert payload["nickname"] == "统一账号用户"
     assert payload["openid"] == "wx-openid"
     assert payload["points"] == 12
+
+
+@pytest.mark.asyncio
+async def test_accounts_me_endpoint(async_client):
+    async def override_get_current_account():
+        return AccountInfo(
+            id="doctor-1",
+            role_type=RoleType.DOCTOR,
+            tenant_id="tenant-1",
+            phone="13800138066",
+            name="统一账号医生",
+            avatar="https://example.com/doctor.png",
+            status=1,
+        )
+
+    app.dependency_overrides[get_current_account] = override_get_current_account
+    try:
+        response = await async_client.get("/api/v1/accounts/me")
+    finally:
+        app.dependency_overrides.pop(get_current_account, None)
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["id"] == "doctor-1"
+    assert payload["roleType"] == "doctor"
+    assert payload["name"] == "统一账号医生"
+
+
+@pytest.mark.asyncio
+async def test_accounts_change_password_syncs_user_legacy(async_client, db_session, test_tenant):
+    user_id = str(uuid4())
+    old_password = "old_password123"
+    new_password = "new_password456"
+    old_hash = get_password_hash(old_password)
+
+    user = User(
+        id=user_id,
+        tenant_id=test_tenant.id,
+        phone="13800138601",
+        password_hash=old_hash,
+        nickname="账号用户",
+        status=1,
+    )
+    account = Account(
+        id=user_id,
+        tenant_id=test_tenant.id,
+        phone="13800138601",
+        password_hash=old_hash,
+        nickname="账号用户",
+        name="账号用户",
+        status=1,
+    )
+    db_session.add(user)
+    db_session.add(account)
+    await db_session.commit()
+
+    async def override_get_current_account():
+        return AccountInfo(
+            id=user_id,
+            role_type=RoleType.USER,
+            tenant_id=test_tenant.id,
+            phone=user.phone,
+            name=user.nickname,
+            status=1,
+        )
+
+    app.dependency_overrides[get_current_account] = override_get_current_account
+    try:
+        response = await async_client.post(
+            "/api/v1/accounts/me/change-password",
+            json={"old_password": old_password, "new_password": new_password},
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_account, None)
+
+    assert response.status_code == 200
+    await db_session.refresh(user)
+    await db_session.refresh(account)
+    assert verify_password(new_password, user.password_hash)
+    assert verify_password(new_password, account.password_hash)
+
+
+@pytest.mark.asyncio
+async def test_accounts_change_password_syncs_admin_legacy(async_client, db_session, test_tenant):
+    admin_id = str(uuid4())
+    old_password = "old_password123"
+    new_password = "new_password456"
+    old_hash = get_password_hash(old_password)
+
+    admin = Admin(
+        id=admin_id,
+        username="account-admin",
+        password_hash=old_hash,
+        name="账号管理员",
+        phone="13800138602",
+        tenant_id=test_tenant.id,
+        status=1,
+    )
+    account = Account(
+        id=admin_id,
+        tenant_id=test_tenant.id,
+        phone="13800138602",
+        username="account-admin",
+        password_hash=old_hash,
+        nickname="账号管理员",
+        name="账号管理员",
+        status=1,
+    )
+    db_session.add(admin)
+    db_session.add(account)
+    await db_session.commit()
+
+    async def override_get_current_account():
+        return AccountInfo(
+            id=admin_id,
+            role_type=RoleType.ADMIN,
+            tenant_id=test_tenant.id,
+            phone=admin.phone,
+            name=admin.name,
+            status=1,
+        )
+
+    app.dependency_overrides[get_current_account] = override_get_current_account
+    try:
+        response = await async_client.post(
+            "/api/v1/accounts/me/change-password",
+            json={"old_password": old_password, "new_password": new_password},
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_account, None)
+
+    assert response.status_code == 200
+    await db_session.refresh(admin)
+    await db_session.refresh(account)
+    assert verify_password(new_password, admin.password_hash)
+    assert verify_password(new_password, account.password_hash)
+
+
+@pytest.mark.asyncio
+async def test_accounts_change_password_syncs_doctor_legacy(async_client, db_session, test_tenant):
+    doctor_id = str(uuid4())
+    old_password = "old_password123"
+    new_password = "new_password456"
+    old_hash = get_password_hash(old_password)
+
+    doctor = Doctor(
+        id=doctor_id,
+        tenant_id=test_tenant.id,
+        name="账号医生",
+        phone="13800138603",
+        username="account-doctor",
+        password_hash=old_hash,
+        department_id=str(uuid4()),
+        store_id=str(uuid4()),
+        status=1,
+    )
+    account = Account(
+        id=doctor_id,
+        tenant_id=test_tenant.id,
+        phone="13800138603",
+        username="account-doctor",
+        password_hash=old_hash,
+        nickname="账号医生",
+        name="账号医生",
+        status=1,
+    )
+    db_session.add(doctor)
+    db_session.add(account)
+    await db_session.commit()
+
+    async def override_get_current_account():
+        return AccountInfo(
+            id=doctor_id,
+            role_type=RoleType.DOCTOR,
+            tenant_id=test_tenant.id,
+            phone=doctor.phone,
+            name=doctor.name,
+            status=1,
+        )
+
+    app.dependency_overrides[get_current_account] = override_get_current_account
+    try:
+        response = await async_client.post(
+            "/api/v1/accounts/me/change-password",
+            json={"old_password": old_password, "new_password": new_password},
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_account, None)
+
+    assert response.status_code == 200
+    await db_session.refresh(doctor)
+    await db_session.refresh(account)
+    assert verify_password(new_password, doctor.password_hash)
+    assert verify_password(new_password, account.password_hash)
+
+
+@pytest.mark.asyncio
+async def test_accounts_email_bind_syncs_user_legacy(async_client, db_session, test_tenant):
+    user_id = str(uuid4())
+    user = User(
+        id=user_id,
+        tenant_id=test_tenant.id,
+        phone="13800138604",
+        password_hash=get_password_hash("old_password123"),
+        nickname="邮箱用户",
+        status=1,
+    )
+    account = Account(
+        id=user_id,
+        tenant_id=test_tenant.id,
+        phone="13800138604",
+        password_hash=get_password_hash("old_password123"),
+        nickname="邮箱用户",
+        name="邮箱用户",
+        status=1,
+    )
+    db_session.add(user)
+    db_session.add(account)
+    await db_session.commit()
+
+    async def override_get_current_account():
+        return AccountInfo(
+            id=user_id,
+            role_type=RoleType.USER,
+            tenant_id=test_tenant.id,
+            phone=user.phone,
+            name=user.nickname,
+            status=1,
+        )
+
+    verify_mock = AsyncMock(return_value=True)
+    app.dependency_overrides[get_current_account] = override_get_current_account
+    try:
+        with patch("app.modules.accounts.router.RedisCache.verify_email_code", verify_mock):
+            response = await async_client.post(
+                "/api/v1/accounts/me/email/bind",
+                json={"email": "account-user@example.com", "code": "123456"},
+            )
+    finally:
+        app.dependency_overrides.pop(get_current_account, None)
+
+    assert response.status_code == 200
+    await db_session.refresh(user)
+    await db_session.refresh(account)
+    assert user.email == "account-user@example.com"
+    assert account.email == "account-user@example.com"
 
 
 @pytest.mark.asyncio

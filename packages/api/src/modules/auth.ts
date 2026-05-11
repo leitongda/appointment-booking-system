@@ -147,11 +147,16 @@ export const refreshToken = (refreshToken: string): Promise<LoginResult> => {
   return request.post(`${PREFIX}/refresh`, { refresh_token: refreshToken });
 };
 
+export type SmsCodeType = 'login' | 'register' | 'reset';
+
 /**
- * 发送验证码
+ * 发送短信验证码（统一入口）
  */
-export const sendCode = (phone: string, type: 'login' | 'register' = 'login'): Promise<void> => {
-  return request.post(`${PREFIX}/send-code`, { phone, type });
+export const sendCode = (
+  phone: string,
+  codeType: SmsCodeType = 'reset',
+): Promise<{ message: string; code?: string }> => {
+  return request.post(`${PREFIX}/send-code`, { phone, code_type: codeType });
 };
 
 /**
@@ -206,19 +211,20 @@ export const doctorLogin = (data: { phone: string; password: string }): Promise<
 
 /**
  * 用户修改密码
+ * @deprecated 请改用 userApi.changePassword（/users/change-password）
  */
 export const changePassword = (data: { oldPassword: string; newPassword: string }): Promise<{ message: string }> => {
-  return request.post(`${PREFIX}/change-password`, {
+  return request.post('/users/change-password', {
     old_password: data.oldPassword,
     new_password: data.newPassword,
   });
 };
 
 /**
- * 发送验证码
+ * @deprecated 请改用 sendCode
  */
-export const sendAuthCode = (phone: string, codeType: 'login' | 'register' | 'reset' = 'reset'): Promise<{ message: string; code?: string }> => {
-  return request.post(`${PREFIX}/send-code`, { phone, code_type: codeType });
+export const sendAuthCode = (phone: string, codeType: SmsCodeType = 'reset'): Promise<{ message: string; code?: string }> => {
+  return sendCode(phone, codeType);
 };
 
 /**
@@ -237,7 +243,7 @@ export const forgotPassword = (data: { phone: string; verificationCode: string; 
  * 返回 AccountInfo 格式的数据，包含角色类型、权限等信息
  */
 export const getAccountMe = (): Promise<AccountInfo> => {
-  return request.get(`${PREFIX}/account/me`);
+  return request.get(`/accounts/me`);
 };
 
 // ==================== 邮箱认证相关 ====================

@@ -10,10 +10,13 @@ from app.models.doctor import Doctor
 from app.models.account import Account
 from app.schemas.doctor import DoctorCreate, DoctorUpdate, DoctorResponse, DoctorListResponse
 from app.schemas.response import PageResponse
+from app.schemas.auth import EmailSendCodeRequest, EmailBindRequest, EmailUnbindRequest, EmailChangeRequest, RefreshTokenRequest, TokenResponse
 from app.modules.doctors.service import DoctorService
 from app.common.account_sync import AccountSyncService
-from app.core.security import create_access_token, create_refresh_token, verify_password
+from app.core.security import create_access_token, create_refresh_token, decode_token
+from app.core.redis import RedisCache
 from app.core.config import settings
+from app.infrastructure.email.service import EmailService
 from app.utils.ip import get_client_ip
 from app.modules.doctors.schemas import (
     BatchSortRequest,
@@ -27,6 +30,47 @@ from app.modules.doctors.schemas import (
 )
 
 router = APIRouter()
+
+
+def _build_doctor_access_token_payload(doctor: Doctor) -> dict:
+    payload = {"sub": doctor.id, "type": "doctor"}
+    if doctor.tenant_id:
+        payload["tenant_id"] = doctor.tenant_id
+    return payload
+
+
+def _build_doctor_refresh_token_payload(doctor: Doctor) -> dict:
+    payload = {"sub": doctor.id, "type": "refresh", "role_type": "doctor"}
+    if doctor.tenant_id:
+        payload["tenant_id"] = doctor.tenant_id
+    return payload
+
+
+def _validate_email_format(email: str) -> bool:
+    import re
+
+    if not email or not email.strip():
+        return False
+    return bool(re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", email))
+
+
+def _normalize_email(email: str) -> str:
+    return email.strip().lower()
+
+
+async def _get_doctor_account(db: AsyncSession, doctor: Doctor) -> Optional[Account]:
+    account = await db.get(Account, doctor.id)
+    if account:
+        return account
+    if doctor.phone:
+        result = await db.execute(
+            select(Account).where(
+                Account.phone == doctor.phone,
+                Account.tenant_id == doctor.tenant_id,
+            )
+        )
+        return result.scalar_one_or_none()
+    return None
 
 
 def doctor_to_response(doctor) -> DoctorResponse:
@@ -121,7 +165,10 @@ async def doctor_login(
 ):
     """医生登录（支持手机号或账号登录）"""
     service = DoctorService(db)
-    doctor = await service.authenticate(data.phone, data.password)
+    try:
+        doctor = await service.authenticate(data.phone, data.password)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     
     if not doctor:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号或密码错误，请检查后重试")
@@ -138,18 +185,14 @@ async def doctor_login(
     await service.update_login_info(doctor.id, client_ip)
     
     # 生成Token
-    access_token = create_access_token(data={"sub": doctor.id, "type": "doctor"})
-    refresh_token = create_refresh_token(data={"sub": doctor.id, "type": "doctor"})
+    access_token = create_access_token(data=_build_doctor_access_token_payload(doctor))
+    refresh_token = create_refresh_token(data=_build_doctor_refresh_token_payload(doctor))
     
     doctor_resp = doctor_to_response(doctor)
     # 从统一账号表补充 email
-    if doctor.phone:
-        stmt = select(Account.email).where(
-            Account.phone == doctor.phone,
-            Account.tenant_id == doctor.tenant_id,
-        )
-        result = await db.execute(stmt)
-        doctor_resp.email = result.scalar_one_or_none()
+    account = await _get_doctor_account(db, doctor)
+    if account:
+        doctor_resp.email = account.email
 
     return DoctorLoginResponse(
         access_token=access_token,
@@ -179,14 +222,198 @@ async def get_current_doctor_info(
     """获取当前登录医生信息"""
     resp = doctor_to_response(doctor)
     # 从统一账号表补充 email
-    if doctor.phone:
-        stmt = select(Account.email).where(
-            Account.phone == doctor.phone,
-            Account.tenant_id == doctor.tenant_id,
-        )
-        result = await db.execute(stmt)
-        resp.email = result.scalar_one_or_none()
+    account = await _get_doctor_account(db, doctor)
+    if account:
+        resp.email = account.email
     return resp
+
+
+@router.post("/refresh", response_model=TokenResponse, summary="刷新医生Token")
+async def doctor_refresh_token(
+    data: RefreshTokenRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    payload = decode_token(data.refresh_token)
+    if not payload:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="身份验证失败，请重新登录")
+
+    token_type = payload.get("type")
+    role_type = payload.get("role_type")
+    is_new_refresh = token_type == "refresh" and role_type == "doctor"
+    is_legacy_refresh = token_type == "doctor"
+    if not (is_new_refresh or is_legacy_refresh):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的刷新凭证，请重新登录")
+
+    doctor_id = payload.get("sub")
+    if not doctor_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的刷新凭证，请重新登录")
+
+    service = DoctorService(db)
+    doctor = await service.get_by_id(doctor_id)
+    if not doctor or doctor.status != 1 or doctor.deleted_at is not None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号不存在或已被禁用，请检查后重试")
+
+    token_tenant_id = payload.get("tenant_id")
+    if token_tenant_id and token_tenant_id != doctor.tenant_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="租户信息不匹配，请重新登录")
+
+    access_token = create_access_token(data=_build_doctor_access_token_payload(doctor))
+    refresh_token = create_refresh_token(data=_build_doctor_refresh_token_payload(doctor))
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+
+
+@router.post(
+    "/me/email/send-code",
+    summary="发送医生邮箱验证码（兼容接口）",
+    deprecated=True,
+)
+async def send_current_doctor_email_code(
+    data: EmailSendCodeRequest,
+    db: AsyncSession = Depends(get_db),
+    current_doctor: Doctor = Depends(get_current_doctor_by_token),
+):
+    account = await _get_doctor_account(db, current_doctor)
+    if not account:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="账号未同步，请联系管理员处理")
+
+    target_email = data.email or account.email
+    if not target_email or not _validate_email_format(target_email):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="邮箱格式不正确")
+
+    target_email = _normalize_email(target_email)
+    can_send, wait_seconds = await RedisCache.check_email_rate_limit(target_email, "doctor_bind")
+    if not can_send:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"发送过于频繁，请{wait_seconds}秒后重试",
+        )
+
+    from app.infrastructure.sms.service import SmsService
+
+    code = SmsService.generate_code()
+    await RedisCache.set_email_code(target_email, code, "doctor_bind")
+
+    try:
+        email_service = EmailService(db)
+        await email_service.send_verification_code_email(target_email, code, "doctor_bind")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="验证码发送失败，请稍后重试",
+        ) from exc
+
+    if settings.DEBUG:
+        return {"message": "验证码发送成功", "code": code}
+    return {"message": "验证码发送成功"}
+
+
+@router.post(
+    "/me/email/bind",
+    summary="绑定医生邮箱（兼容接口）",
+    deprecated=True,
+)
+async def bind_current_doctor_email(
+    data: EmailBindRequest,
+    db: AsyncSession = Depends(get_db),
+    current_doctor: Doctor = Depends(get_current_doctor_by_token),
+):
+    if not _validate_email_format(data.email):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="邮箱格式不正确")
+
+    email = _normalize_email(data.email)
+    is_valid = await RedisCache.verify_email_code(email, data.code, "doctor_bind")
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码错误或已过期")
+
+    existing = await db.execute(
+        select(Account).where(
+            Account.tenant_id == current_doctor.tenant_id,
+            Account.email == email,
+        )
+    )
+    existing_account = existing.scalar_one_or_none()
+    if existing_account and existing_account.id != current_doctor.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该邮箱已被其他账号绑定")
+
+    account = await _get_doctor_account(db, current_doctor)
+    if not account:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="账号未同步，请联系管理员处理")
+
+    account.email = email
+    await db.commit()
+    return {"message": "邮箱绑定成功"}
+
+
+@router.post(
+    "/me/email/unbind",
+    summary="解绑医生邮箱（兼容接口）",
+    deprecated=True,
+)
+async def unbind_current_doctor_email(
+    data: EmailUnbindRequest,
+    db: AsyncSession = Depends(get_db),
+    current_doctor: Doctor = Depends(get_current_doctor_by_token),
+):
+    account = await _get_doctor_account(db, current_doctor)
+    if not account:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="账号未同步，请联系管理员处理")
+    if not account.email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前账号未绑定邮箱")
+
+    is_valid = await RedisCache.verify_email_code(account.email, data.code, "doctor_bind")
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码错误或已过期")
+
+    account.email = None
+    await db.commit()
+    return {"message": "邮箱解绑成功"}
+
+
+@router.post(
+    "/me/email/change",
+    summary="更换医生邮箱（兼容接口）",
+    deprecated=True,
+)
+async def change_current_doctor_email(
+    data: EmailChangeRequest,
+    db: AsyncSession = Depends(get_db),
+    current_doctor: Doctor = Depends(get_current_doctor_by_token),
+):
+    if not _validate_email_format(data.new_email):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="新邮箱格式不正确")
+
+    new_email = _normalize_email(data.new_email)
+    account = await _get_doctor_account(db, current_doctor)
+    if not account:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="账号未同步，请联系管理员处理")
+    if not account.email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前账号未绑定邮箱，请先绑定")
+
+    old_valid = await RedisCache.verify_email_code(account.email, data.old_email_code, "doctor_bind")
+    if not old_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前邮箱验证码错误或已过期")
+
+    new_valid = await RedisCache.verify_email_code(new_email, data.new_email_code, "doctor_bind")
+    if not new_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="新邮箱验证码错误或已过期")
+
+    existing = await db.execute(
+        select(Account).where(
+            Account.tenant_id == current_doctor.tenant_id,
+            Account.email == new_email,
+        )
+    )
+    existing_account = existing.scalar_one_or_none()
+    if existing_account and existing_account.id != current_doctor.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="新邮箱已被其他账号绑定")
+
+    account.email = new_email
+    await db.commit()
+    return {"message": "邮箱换绑成功"}
 
 @router.get(
     "",

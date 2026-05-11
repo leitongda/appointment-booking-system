@@ -48,7 +48,11 @@ def _camelize_keys(value):
     return value
 
 
-@router.get("/account/me", summary="获取统一账号信息")
+@router.get(
+    "/account/me",
+    summary="获取统一账号信息（兼容接口）",
+    deprecated=True,
+)
 async def get_account_me(
     account: AccountInfo = Depends(get_current_account),
 ):
@@ -108,7 +112,10 @@ async def get_account_me(
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     """用户登录"""
     user_service = UserService(db)
-    user = await user_service.authenticate(data.phone, data.password)
+    try:
+        user = await user_service.authenticate(data.phone, data.password)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="手机号或密码错误，请检查后重试")
@@ -186,14 +193,28 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
     user_service = UserService(db)
 
     # 检查手机号是否已注册
-    existing = await user_service.get_by_phone(data.phone)
+    try:
+        existing = await user_service.get_by_phone(data.phone, strict_tenant=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="手机号已注册，请直接登录")
 
-    # 密码策略校验（用户注册使用当前租户上下文）
-    from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
+    # 密码策略/验证码校验使用当前租户上下文
     from app.middleware.tenant_context import get_current_tenant_id
     tenant_id = get_current_tenant_id()
+
+    # 注册必须校验验证码
+    if not data.code:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请先获取并填写验证码")
+
+    from app.infrastructure.sms.service import SmsService
+    is_code_valid = await SmsService.verify_code(data.phone, data.code, "register", tenant_id)
+    if not is_code_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码错误或已过期，请重新获取")
+
+    # 密码策略校验
+    from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
     policy = await get_tenant_password_policy(db, tenant_id)
     validator = PasswordPolicyValidator(policy)
     is_valid, errors = validator.validate(data.password, phone=data.phone)
@@ -236,7 +257,11 @@ async def refresh_token(data: RefreshTokenRequest, db: AsyncSession = Depends(ge
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
     )
 
-@router.post("/change-password", summary="修改密码")
+@router.post(
+    "/change-password",
+    summary="修改密码（兼容接口）",
+    deprecated=True,
+)
 async def change_password(
     data: ChangePasswordRequest,
     db: AsyncSession = Depends(get_db),
@@ -319,7 +344,10 @@ async def send_code(
     # 检查用户是否存在（重置密码场景需要验证）
     user_service = UserService(db)
     if data.code_type == "reset":
-        user = await user_service.get_by_phone(data.phone)
+        try:
+            user = await user_service.get_by_phone(data.phone, strict_tenant=True)
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="该手机号未注册")
 
@@ -375,7 +403,10 @@ async def forgot_password(
 
     # 查找用户
     user_service = UserService(db)
-    user = await user_service.get_by_phone(data.phone)
+    try:
+        user = await user_service.get_by_phone(data.phone, strict_tenant=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="该手机号未注册")
 
@@ -435,9 +466,9 @@ async def wechat_login(data: WechatLoginRequest, db: AsyncSession = Depends(get_
         # 优先通过 unionid 查找用户（跨应用关联）
         user = None
         if unionid:
-            user = await user_service.get_by_unionid(unionid)
+            user = await user_service.get_by_unionid(unionid, strict_tenant=True)
         if not user:
-            user = await user_service.get_by_openid(openid)
+            user = await user_service.get_by_openid(openid, strict_tenant=True)
         
         if user:
             # 已有用户，更新 unionid（如果之前没有）
@@ -490,7 +521,7 @@ async def wechat_get_phone(data: WechatPhoneRequest, db: AsyncSession = Depends(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="获取手机号失败，请重试")
         
         # 查找或创建用户
-        user = await user_service.get_by_phone(phone)
+        user = await user_service.get_by_phone(phone, strict_tenant=True)
         
         if user:
             # 更新 openid 和 unionid
@@ -550,7 +581,10 @@ async def wechat_bind_phone(data: WechatBindPhoneRequest, db: AsyncSession = Dep
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="手机号格式不正确，请检查后重试")
     
     # 查找或创建用户
-    user = await user_service.get_by_phone(data.phone)
+    try:
+        user = await user_service.get_by_phone(data.phone, strict_tenant=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     
     if user:
         # 更新 openid
@@ -600,7 +634,10 @@ async def wechat_bind_userinfo(data: WechatBindUserInfoRequest, db: AsyncSession
     user_service = UserService(db)
     
     # 查找或创建用户
-    user = await user_service.get_by_openid(data.openid)
+    try:
+        user = await user_service.get_by_openid(data.openid, strict_tenant=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     
     if user:
         # 更新用户信息和微信信息
@@ -792,7 +829,11 @@ async def email_login(
     )
 
 
-@router.post("/email/bind", summary="绑定邮箱")
+@router.post(
+    "/email/bind",
+    summary="绑定邮箱（兼容接口）",
+    deprecated=True,
+)
 async def email_bind(
     data: EmailBindRequest,
     db: AsyncSession = Depends(get_db),
@@ -836,7 +877,11 @@ async def email_bind(
     return {"message": "邮箱绑定成功"}
 
 
-@router.post("/email/unbind", summary="解绑邮箱")
+@router.post(
+    "/email/unbind",
+    summary="解绑邮箱（兼容接口）",
+    deprecated=True,
+)
 async def email_unbind(
     data: EmailUnbindRequest,
     db: AsyncSession = Depends(get_db),
@@ -873,7 +918,11 @@ async def email_unbind(
     return {"message": "邮箱解绑成功"}
 
 
-@router.post("/email/change", summary="换绑邮箱")
+@router.post(
+    "/email/change",
+    summary="换绑邮箱（兼容接口）",
+    deprecated=True,
+)
 async def email_change(
     data: EmailChangeRequest,
     db: AsyncSession = Depends(get_db),

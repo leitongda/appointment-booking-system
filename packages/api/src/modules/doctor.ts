@@ -1,5 +1,6 @@
 import request from '../request';
 import type { Doctor, PageResult } from '@hospital/shared';
+import { accountApi } from './account';
 
 /**
  * 将 camelCase 字符串转换为 snake_case
@@ -242,9 +243,48 @@ export const doctorApi = {
    * 医生修改密码
    */
   changePassword: (data: { oldPassword: string; newPassword: string }): Promise<{ message: string }> => {
-    return request.post('/doctors/change-password', {
-      old_password: data.oldPassword,
-      new_password: data.newPassword,
-    });
+    return accountApi.changePassword(data);
+  },
+
+  /**
+   * 医生刷新 Token
+   */
+  refreshToken: (refreshToken: string): Promise<{ accessToken?: string; refreshToken?: string; expiresIn?: number }> => {
+    return request.post('/doctors/refresh', { refresh_token: refreshToken });
+  },
+
+  /**
+   * 发送医生邮箱验证码
+   */
+  sendEmailCode: (email: string): Promise<{ message: string; code?: string }> => {
+    return accountApi.sendEmailCode(email);
+  },
+
+  /**
+   * 发送医生当前绑定邮箱验证码（解绑/换绑旧邮箱）
+   */
+  sendCurrentEmailCode: (): Promise<{ message: string; code?: string }> => {
+    return accountApi.sendEmailCode();
+  },
+
+  /**
+   * 绑定医生邮箱
+   */
+  emailBind: (data: { email: string; code: string }): Promise<{ message: string }> => {
+    return accountApi.emailBind(data);
+  },
+
+  /**
+   * 解绑医生邮箱
+   */
+  emailUnbind: (data: { code: string }): Promise<{ message: string }> => {
+    return accountApi.emailUnbind(data);
+  },
+
+  /**
+   * 更换医生邮箱
+   */
+  emailChange: (data: { newEmail: string; newEmailCode: string; oldEmailCode: string }): Promise<{ message: string }> => {
+    return accountApi.emailChange(data);
   },
 };
