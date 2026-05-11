@@ -64,6 +64,8 @@ export interface ScheduleTemplate {
   doctorName?: string;
   departmentId: string;
   departmentName?: string;
+  shiftTypeId?: string;
+  shiftTypeName?: string;
   weekdays: number[];  // 星期数组，如 [1,2,3,4,5]
   appointmentType: string;
   startTime: string;

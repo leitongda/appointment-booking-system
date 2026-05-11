@@ -16,6 +16,7 @@ export interface ScheduleTemplateCreateData {
   storeId: string;
   doctorId: string;
   departmentId: string;
+  shiftTypeId: string;
   weekdays: number[];
   appointmentType: string;
   startTime: string;
@@ -31,6 +32,7 @@ export interface ScheduleTemplateUpdateData {
   storeId?: string;
   doctorId?: string;
   departmentId?: string;
+  shiftTypeId?: string;
   weekdays?: number[];
   appointmentType?: string;
   startTime?: string;
@@ -85,6 +87,7 @@ export interface ScheduleBatchAddData {
   storeId: string;
   doctorId: string;
   departmentId: string;
+  shiftTypeId: string;
   appointmentType: string;
   startTime: string;
   endTime: string;
@@ -120,6 +123,7 @@ export interface ScheduleGenerateWithCapacityData {
 export interface ScheduleTemplateCopyData {
   targetDoctorIds: string[];
   name?: string;
+  shiftTypeId?: string;
   weekdays?: number[];
   appointmentType?: string;
   startTime?: string;
@@ -145,6 +149,7 @@ export interface ScheduleTemplateCrossStoreCopyData {
   targetStoreId: string;
   mappings: CrossStoreDoctorMapping[];
   name?: string;
+  shiftTypeId?: string;
   weekdays?: number[];
   appointmentType?: string;
   startTime?: string;
@@ -207,6 +212,7 @@ export const scheduleTemplateApi = {
       store_id: data.storeId,
       doctor_id: data.doctorId,
       department_id: data.departmentId,
+      shift_type_id: data.shiftTypeId,
       weekdays: data.weekdays,
       appointment_type: data.appointmentType,
       start_time: formattedStartTime,
@@ -227,6 +233,7 @@ export const scheduleTemplateApi = {
     if (data.storeId !== undefined) requestData.store_id = data.storeId;
     if (data.doctorId !== undefined) requestData.doctor_id = data.doctorId;
     if (data.departmentId !== undefined) requestData.department_id = data.departmentId;
+    if (data.shiftTypeId !== undefined) requestData.shift_type_id = data.shiftTypeId;
     if (data.weekdays !== undefined) requestData.weekdays = data.weekdays;
     if (data.appointmentType !== undefined) requestData.appointment_type = data.appointmentType;
     
@@ -304,6 +311,7 @@ export const scheduleTemplateApi = {
       store_id: data.storeId,
       doctor_id: data.doctorId,
       department_id: data.departmentId,
+      shift_type_id: data.shiftTypeId,
       appointment_type: data.appointmentType,
       start_time: formattedStartTime,
       end_time: formattedEndTime,
@@ -406,6 +414,7 @@ export const scheduleTemplateApi = {
       target_doctor_ids: data.targetDoctorIds,
     };
     if (data.name !== undefined) requestData.name = data.name;
+    if (data.shiftTypeId !== undefined) requestData.shift_type_id = data.shiftTypeId;
     if (data.weekdays !== undefined) requestData.weekdays = data.weekdays;
     if (data.appointmentType !== undefined) requestData.appointment_type = data.appointmentType;
     if (data.startTime !== undefined) {
@@ -445,6 +454,7 @@ export const scheduleTemplateApi = {
       })),
     };
     if (data.name !== undefined) requestData.name = data.name;
+    if (data.shiftTypeId !== undefined) requestData.shift_type_id = data.shiftTypeId;
     if (data.weekdays !== undefined) requestData.weekdays = data.weekdays;
     if (data.appointmentType !== undefined) requestData.appointment_type = data.appointmentType;
     if (data.startTime !== undefined) {

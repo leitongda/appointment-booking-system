@@ -46,6 +46,44 @@ class ScheduleTemplateGenerationMixin:
         return created_count
 
     async def batch_add_schedules(self, data: ScheduleBatchAddRequest) -> int:
+        from app.models.department import Department
+        from app.models.rule_set import ShiftType
+        from app.models.store import Store
+
+        store_result = await self.db.execute(select(Store).where(Store.id == data.store_id))
+        store = store_result.scalar_one_or_none()
+        if not store:
+            raise ValueError("门店不存在")
+
+        doctor_result = await self.db.execute(
+            select(Doctor).where(Doctor.id == data.doctor_id, Doctor.deleted_at.is_(None))
+        )
+        doctor = doctor_result.scalar_one_or_none()
+        if not doctor:
+            raise ValueError("医生不存在")
+
+        department_result = await self.db.execute(
+            select(Department).where(Department.id == data.department_id)
+        )
+        department = department_result.scalar_one_or_none()
+        if not department:
+            raise ValueError("科室不存在")
+
+        shift_type_result = await self.db.execute(
+            select(ShiftType).where(ShiftType.id == data.shift_type_id, ShiftType.enabled == True)
+        )
+        if not shift_type_result.scalar_one_or_none():
+            raise ValueError("班次类型不存在或已禁用")
+
+        if doctor.store_id != data.store_id:
+            raise ValueError("所选医生不属于当前门店")
+        if doctor.department_id != data.department_id:
+            raise ValueError("所选医生不属于当前科室")
+        if getattr(department, "store_id", None) and department.store_id != data.store_id:
+            raise ValueError("所选科室不属于当前门店")
+        if data.start_time >= data.end_time:
+            raise ValueError("结束时间必须晚于开始时间")
+
         now = datetime.now()
         break_times_json = None
         break_times_list = []
@@ -68,6 +106,7 @@ class ScheduleTemplateGenerationMixin:
             store_id=data.store_id,
             doctor_id=data.doctor_id,
             department_id=data.department_id,
+            shift_type_id=data.shift_type_id,
             weekdays=json.dumps(data.weekdays) if data.weekdays else "[]",
             appointment_type=data.appointment_type.value,
             start_time=data.start_time,
@@ -109,6 +148,7 @@ class ScheduleTemplateGenerationMixin:
                             doctor_id=data.doctor_id,
                             store_id=data.store_id,
                             template_id=template_id,
+                            shift_type_id=data.shift_type_id,
                             schedule_date=current_date,
                             time_slot=time_slot,
                             start_time=slot_start,
@@ -340,11 +380,12 @@ class ScheduleTemplateGenerationMixin:
                                 time_slot=time_slot,
                                 start_time=slot_start,
                                 end_time=slot_end,
-                                total_slots=capacity,
-                                appointment_type=template.appointment_type,
-                                booked_slots=0,
-                                status=1,
-                            )
+                                    total_slots=capacity,
+                                    appointment_type=template.appointment_type,
+                                    booked_slots=0,
+                                    shift_type_id=template.shift_type_id,
+                                    status=1,
+                                )
                             self.db.add(schedule)
                             created_count += 1
                 current_date += timedelta(days=1)
@@ -434,6 +475,7 @@ class ScheduleTemplateGenerationMixin:
                 store_id=template.store_id,
                 doctor_id=doctor_id,
                 department_id=doctor.department_id,
+                shift_type_id=overrides.get("shift_type_id") or template.shift_type_id,
                 weekdays=weekdays_json,
                 appointment_type=overrides.get("appointment_type") or template.appointment_type,
                 start_time=start_time,
@@ -594,6 +636,7 @@ class ScheduleTemplateGenerationMixin:
                 store_id=target_store_id,
                 doctor_id=target_doctor_id,
                 department_id=target_department_id,
+                shift_type_id=overrides.get("shift_type_id") or template.shift_type_id,
                 weekdays=weekdays_json,
                 appointment_type=overrides.get("appointment_type") or template.appointment_type,
                 start_time=start_time,

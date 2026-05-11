@@ -24,6 +24,7 @@ class ScheduleTemplateQueryMixin:
                 selectinload(ScheduleTemplate.store),
                 selectinload(ScheduleTemplate.doctor),
                 selectinload(ScheduleTemplate.department),
+                selectinload(ScheduleTemplate.shift_type),
             )
             .where(and_(*conditions))
         )
@@ -45,6 +46,7 @@ class ScheduleTemplateQueryMixin:
             selectinload(ScheduleTemplate.store),
             selectinload(ScheduleTemplate.doctor),
             selectinload(ScheduleTemplate.department),
+            selectinload(ScheduleTemplate.shift_type),
         )
         count_query = select(func.count(ScheduleTemplate.id))
 

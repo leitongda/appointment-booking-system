@@ -32,6 +32,7 @@ class ScheduleTemplateMutationMixin:
         from app.models.department import Department
         from app.models.doctor import Doctor
         from app.models.store import Store
+        from app.models.rule_set import ShiftType
 
         if not data.name or not data.name.strip():
             raise ValueError("模板名称不能为空")
@@ -41,6 +42,8 @@ class ScheduleTemplateMutationMixin:
             raise ValueError("医生ID不能为空")
         if not data.department_id:
             raise ValueError("科室ID不能为空")
+        if not data.shift_type_id:
+            raise ValueError("班次类型不能为空")
         if not data.weekdays or len(data.weekdays) == 0:
             raise ValueError("星期数组不能为空")
         if not data.start_time:
@@ -53,14 +56,29 @@ class ScheduleTemplateMutationMixin:
             raise ValueError("门店不存在")
 
         doctor_result = await self.db.execute(select(Doctor).where(Doctor.id == data.doctor_id, Doctor.deleted_at.is_(None)))
-        if not doctor_result.scalar_one_or_none():
+        doctor = doctor_result.scalar_one_or_none()
+        if not doctor:
             raise ValueError("医生不存在")
 
         department_result = await self.db.execute(
             select(Department).where(Department.id == data.department_id)
         )
-        if not department_result.scalar_one_or_none():
+        department = department_result.scalar_one_or_none()
+        if not department:
             raise ValueError("科室不存在")
+
+        shift_type_result = await self.db.execute(
+            select(ShiftType).where(ShiftType.id == data.shift_type_id, ShiftType.enabled == True)
+        )
+        if not shift_type_result.scalar_one_or_none():
+            raise ValueError("班次类型不存在或已禁用")
+
+        if doctor.store_id != data.store_id:
+            raise ValueError("所选医生不属于当前门店")
+        if doctor.department_id != data.department_id:
+            raise ValueError("所选医生不属于当前科室")
+        if getattr(department, "store_id", None) and department.store_id != data.store_id:
+            raise ValueError("所选科室不属于当前门店")
 
         start_time = data.start_time
         end_time = data.end_time
@@ -77,20 +95,35 @@ class ScheduleTemplateMutationMixin:
             except ValueError:
                 end_time = datetime.strptime(end_time, "%H:%M:%S").time()
 
+        if start_time >= end_time:
+            raise ValueError("结束时间必须晚于开始时间")
+
         break_times_json = None
         if data.break_times:
             break_times_list = []
+            normalized_breaks = []
             for bt in data.break_times:
+                bt_start = bt.start_time
+                bt_end = bt.end_time
+                if bt_start >= bt_end:
+                    raise ValueError("排除时间段结束时间必须晚于开始时间")
+                if bt_start < start_time or bt_end > end_time:
+                    raise ValueError("排除时间段必须在排班时间范围内")
+                normalized_breaks.append((bt_start, bt_end))
                 break_times_list.append(
                     {
-                        "startTime": bt.start_time.strftime("%H:%M")
-                        if hasattr(bt.start_time, "strftime")
-                        else str(bt.start_time),
-                        "endTime": bt.end_time.strftime("%H:%M")
-                        if hasattr(bt.end_time, "strftime")
-                        else str(bt.end_time),
+                        "startTime": bt_start.strftime("%H:%M")
+                        if hasattr(bt_start, "strftime")
+                        else str(bt_start),
+                        "endTime": bt_end.strftime("%H:%M")
+                        if hasattr(bt_end, "strftime")
+                        else str(bt_end),
                     }
                 )
+            normalized_breaks.sort(key=lambda item: item[0])
+            for previous, current in zip(normalized_breaks, normalized_breaks[1:]):
+                if current[0] < previous[1]:
+                    raise ValueError("排除时间段不能重叠")
             break_times_json = json.dumps(break_times_list)
 
         template = ScheduleTemplate(
@@ -100,6 +133,7 @@ class ScheduleTemplateMutationMixin:
             store_id=data.store_id,
             doctor_id=data.doctor_id,
             department_id=data.department_id,
+            shift_type_id=data.shift_type_id,
             weekdays=json.dumps(data.weekdays),
             appointment_type=data.appointment_type.value
             if hasattr(data.appointment_type, "value")
@@ -136,33 +170,56 @@ class ScheduleTemplateMutationMixin:
         if "weekdays" in update_data and update_data["weekdays"] is not None:
             update_data["weekdays"] = json.dumps(update_data["weekdays"])
 
+        if "start_time" in update_data or "end_time" in update_data:
+            start_time = update_data.get("start_time", template.start_time)
+            end_time = update_data.get("end_time", template.end_time)
+            if start_time >= end_time:
+                raise ValueError("结束时间必须晚于开始时间")
+
         if "break_times" in update_data:
             if update_data["break_times"] is not None:
                 break_times_list = []
+                normalized_breaks = []
+                start_time = update_data.get("start_time", template.start_time)
+                end_time = update_data.get("end_time", template.end_time)
                 for bt in update_data["break_times"]:
                     if hasattr(bt, "start_time"):
+                        bt_start = bt.start_time
+                        bt_end = bt.end_time
                         bt_dict = {
-                            "startTime": bt.start_time.strftime("%H:%M")
-                            if hasattr(bt.start_time, "strftime")
-                            else str(bt.start_time),
-                            "endTime": bt.end_time.strftime("%H:%M")
-                            if hasattr(bt.end_time, "strftime")
-                            else str(bt.end_time),
+                            "startTime": bt_start.strftime("%H:%M")
+                            if hasattr(bt_start, "strftime")
+                            else str(bt_start),
+                            "endTime": bt_end.strftime("%H:%M")
+                            if hasattr(bt_end, "strftime")
+                            else str(bt_end),
                         }
                     elif isinstance(bt, dict):
-                        start_time = bt.get("start_time") or bt.get("startTime")
-                        end_time = bt.get("end_time") or bt.get("endTime")
+                        bt_start = bt.get("start_time") or bt.get("startTime")
+                        bt_end = bt.get("end_time") or bt.get("endTime")
                         bt_dict = {
-                            "startTime": start_time.strftime("%H:%M")
-                            if hasattr(start_time, "strftime")
-                            else str(start_time),
-                            "endTime": end_time.strftime("%H:%M")
-                            if hasattr(end_time, "strftime")
-                            else str(end_time),
+                            "startTime": bt_start.strftime("%H:%M")
+                            if hasattr(bt_start, "strftime")
+                            else str(bt_start),
+                            "endTime": bt_end.strftime("%H:%M")
+                            if hasattr(bt_end, "strftime")
+                            else str(bt_end),
                         }
                     else:
                         bt_dict = bt
+                        bt_start = None
+                        bt_end = None
+                    if bt_start is not None and bt_end is not None:
+                        if bt_start >= bt_end:
+                            raise ValueError("排除时间段结束时间必须晚于开始时间")
+                        if bt_start < start_time or bt_end > end_time:
+                            raise ValueError("排除时间段必须在排班时间范围内")
+                        normalized_breaks.append((bt_start, bt_end))
                     break_times_list.append(bt_dict)
+                normalized_breaks.sort(key=lambda item: item[0])
+                for previous, current in zip(normalized_breaks, normalized_breaks[1:]):
+                    if current[0] < previous[1]:
+                        raise ValueError("排除时间段不能重叠")
                 update_data["break_times"] = json.dumps(break_times_list)
             else:
                 update_data["break_times"] = None

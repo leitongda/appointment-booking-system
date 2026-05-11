@@ -158,6 +158,8 @@ async def get_templates(
                     store_name=store_name,
                     doctor_name=doctor_name,
                     department_name=department_name,
+                    shift_type_id=t.shift_type_id,
+                    shift_type_name=t.shift_type.name if t.shift_type else None,
                     created_at=t.created_at,
                     updated_at=t.updated_at
                 ))
@@ -202,6 +204,8 @@ async def get_template(template_id: str, db: AsyncSession = Depends(get_db)):
         store_name=template.store.name if template.store else None,
         doctor_name=template.doctor.name if template.doctor else None,
         department_name=template.department.name if template.department else None,
+        shift_type_id=template.shift_type_id,
+        shift_type_name=template.shift_type.name if template.shift_type else None,
         created_at=template.created_at,
         updated_at=template.updated_at
     )
@@ -257,6 +261,8 @@ async def create_template(
         store_name=template.store.name if template.store else None,
         doctor_name=template.doctor.name if template.doctor else None,
         department_name=template.department.name if template.department else None,
+        shift_type_id=template.shift_type_id,
+        shift_type_name=template.shift_type.name if template.shift_type else None,
         created_at=template.created_at,
         updated_at=template.updated_at
     )
@@ -302,6 +308,8 @@ async def update_template(
         store_name=template.store.name if template.store else None,
         doctor_name=template.doctor.name if template.doctor else None,
         department_name=template.department.name if template.department else None,
+        shift_type_id=template.shift_type_id,
+        shift_type_name=template.shift_type.name if template.shift_type else None,
         created_at=template.created_at,
         updated_at=template.updated_at
     )

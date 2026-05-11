@@ -122,6 +122,7 @@ class ScheduleGenerationMixin:
         total_slots: int,
         appointment_type: str = "normal",
         template_id: Optional[str] = None,
+        shift_type_id: Optional[str] = None,
         check_rest_day: bool = True,
         check_duplicate: bool = True,
     ) -> Tuple[Optional[Schedule], bool]:
@@ -153,6 +154,7 @@ class ScheduleGenerationMixin:
             doctor_id=doctor_id,
             store_id=store_id,
             template_id=template_id,
+            shift_type_id=shift_type_id,
             schedule_date=schedule_date,
             time_slot=time_slot,
             start_time=start_time,
@@ -226,6 +228,7 @@ class ScheduleGenerationMixin:
                         total_slots=template.slot_capacity,
                         appointment_type=template.appointment_type,
                         template_id=template.id,
+                        shift_type_id=template.shift_type_id,
                         check_rest_day=check_rest_day,
                         check_duplicate=True,
                     )

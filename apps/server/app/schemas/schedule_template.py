@@ -53,6 +53,7 @@ class ScheduleTemplateBase(BaseModel):
     store_id: str = Field(..., description="门店ID")
     doctor_id: str = Field(..., description="医生ID")
     department_id: str = Field(..., description="科室ID")
+    shift_type_id: str = Field(..., description="班次类型ID")
     weekdays: List[int] = Field(..., description="星期数组 1-7，如[1,2,3,4,5]")
     appointment_type: AppointmentType = Field(default=AppointmentType.NORMAL, description="预约类型")
     start_time: time = Field(..., description="开始时间")
@@ -79,6 +80,7 @@ class ScheduleTemplateUpdate(BaseModel):
     store_id: Optional[str] = None
     doctor_id: Optional[str] = None
     department_id: Optional[str] = None
+    shift_type_id: Optional[str] = None
     weekdays: Optional[List[int]] = Field(None, description="星期数组 1-7")
     appointment_type: Optional[AppointmentType] = None
     start_time: Optional[time] = None
@@ -104,6 +106,7 @@ class ScheduleTemplateResponse(BaseModel):
     store_id: Optional[str] = None
     doctor_id: Optional[str] = None
     department_id: Optional[str] = None
+    shift_type_id: Optional[str] = None
     weekdays: Optional[List[int]] = None
     appointment_type: Optional[str] = "normal"
     start_time: Optional[time] = None
@@ -116,6 +119,7 @@ class ScheduleTemplateResponse(BaseModel):
     store_name: Optional[str] = None
     doctor_name: Optional[str] = None
     department_name: Optional[str] = None
+    shift_type_name: Optional[str] = None
     last_generated_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -143,6 +147,7 @@ class ScheduleBatchAddRequest(BaseModel):
     store_id: str = Field(..., description="门店ID")
     doctor_id: str = Field(..., description="医生ID")
     department_id: str = Field(..., description="科室ID")
+    shift_type_id: str = Field(..., description="班次类型ID")
     appointment_type: AppointmentType = Field(default=AppointmentType.NORMAL, description="预约类型")
     start_time: time = Field(..., description="开始时间")
     end_time: time = Field(..., description="结束时间")
@@ -238,6 +243,7 @@ class ScheduleTemplateCopyRequest(BaseModel):
     target_doctor_ids: List[str] = Field(..., description="目标医生ID列表")
     # 可调整的配置字段（覆盖原规则配置）
     name: Optional[str] = Field(None, max_length=100, description="规则名称（可选，不填则自动生成）")
+    shift_type_id: Optional[str] = Field(None, description="班次类型ID")
     weekdays: Optional[List[int]] = Field(None, description="星期数组 1-7")
     appointment_type: Optional[str] = Field(None, description="预约类型")
     start_time: Optional[time] = Field(None, description="开始时间")
@@ -282,6 +288,7 @@ class ScheduleTemplateCrossStoreCopyRequest(BaseModel):
     mappings: List[CrossStoreDoctorMapping] = Field(..., description="科室/医生映射列表")
     # 可调整的配置字段（覆盖原规则配置）
     name: Optional[str] = Field(None, max_length=100, description="规则名称（可选，不填则自动生成）")
+    shift_type_id: Optional[str] = Field(None, description="班次类型ID")
     weekdays: Optional[List[int]] = Field(None, description="星期数组 1-7")
     appointment_type: Optional[str] = Field(None, description="预约类型")
     start_time: Optional[time] = Field(None, description="开始时间")
