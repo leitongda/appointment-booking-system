@@ -11,15 +11,18 @@ export default {
     '/api': {
       target: PROXY_TARGET,
       changeOrigin: true,
+      secure: false,
       pathRewrite: { '^/api': '/api' },
     },
     '/uploads': {
       target: PROXY_TARGET,
       changeOrigin: true,
+      secure: false,
     },
     '/_AMapService': {
       target: PROXY_TARGET,
       changeOrigin: true,
+      secure: false,
     },
   },
   test: {

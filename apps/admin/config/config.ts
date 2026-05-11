@@ -152,6 +152,34 @@ export default defineConfig({
             priority: 20,
             chunks: 'async', // 仅异步加载
           },
+          // 富文本编辑器 - 仅在内容管理页面使用
+          wangeditor: {
+            name: 'wangeditor-lib',
+            test: /[\\/]node_modules[\\/]@wangeditor[\\/]/,
+            priority: 22,
+            chunks: 'async',
+          },
+          // 拖拽排序库 - 仅在医生列表和科室排序使用
+          dndKit: {
+            name: 'dnd-kit-lib',
+            test: /[\\/]node_modules[\\/]@dnd-kit[\\/]/,
+            priority: 22,
+            chunks: 'async',
+          },
+          // 拼音转换 - 仅在门店表单使用
+          pinyin: {
+            name: 'pinyin-lib',
+            test: /[\\/]node_modules[\\/]pinyin-pro[\\/]/,
+            priority: 22,
+            chunks: 'async',
+          },
+          // 图片裁剪 - 仅在图片上传组件使用
+          imageCrop: {
+            name: 'image-crop-lib',
+            test: /[\\/]node_modules[\\/]react-image-crop[\\/]/,
+            priority: 22,
+            chunks: 'async',
+          },
           // React 相关
           react: {
             name: 'react-lib',
@@ -181,8 +209,24 @@ export default defineConfig({
             priority: 5,
             reuseExistingChunk: true,
           },
+          // 公共CSS提取
+          commonStyles: {
+            name: 'common-styles',
+            type: 'css/mini-extract',
+            test: /\.css$/,
+            chunks: 'all',
+            minChunks: 2,
+            priority: 1,
+          },
         },
       });
     }
   },
+
+  // 预加载关键资源（Umi内置配置）
+  links: [
+    // 字体预加载
+    // { rel: 'preload', href: '/fonts/SourceHanSansCN-Regular.woff2', as: 'font', type: 'font/woff2', crossorigin: 'anonymous' },
+    // { rel: 'preload', href: '/fonts/SourceHanSansCN-Bold.woff2', as: 'font', type: 'font/woff2', crossorigin: 'anonymous' },
+  ],
 });

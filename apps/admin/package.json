@@ -7,7 +7,7 @@
     "dev": "NODE_OPTIONS='--require ./scripts/fix-network.js' HOST=127.0.0.1 PORT=8005 max dev",
     "dev:local": "NODE_OPTIONS='--require ./scripts/fix-network.js' HOST=127.0.0.1 PORT=8005 max dev",
     "dev:remote": "bash scripts/dev-remote.sh",
-    "build": "max build",
+    "build": "max build && node scripts/inject-preload.js",
     "postinstall": "max setup",
     "lint": "eslint src --ext .ts,.tsx",
     "test": "vitest",
