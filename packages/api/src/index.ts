@@ -37,6 +37,7 @@ export type { TaroAdapterConfig } from './adapters';
 
 // 导出 API 模块
 export { authApi } from './modules/auth';
+export { accountApi } from './modules/account';
 export { userApi } from './modules/user';
 export { departmentApi } from './modules/department';
 export { doctorApi } from './modules/doctor';

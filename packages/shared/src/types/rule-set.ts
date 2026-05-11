@@ -32,6 +32,12 @@ export interface RuleSet {
   roundingMode: 'NONE' | 'FLOOR_TO_MINUTE' | 'CEIL_TO_MINUTE';
   clockSkewToleranceSec: number;
   description?: string;
+  storeId?: string;
+  storeName?: string;
+  departmentId?: string;
+  departmentName?: string;
+  doctorId?: string;
+  doctorName?: string;
   // 生效状态
   isActive?: boolean;  // 是否为实际生效的规则组（优先级最高的启用规则）
   // 关联数据
