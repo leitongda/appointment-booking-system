@@ -351,6 +351,48 @@ export const adminApi = {
     });
   },
 
+  // 发送管理员邮箱验证码
+  sendEmailCode: (email: string): Promise<{ message: string; code?: string }> => {
+    return request.post(`${PREFIX}/email/send-code`, { email, code_type: 'login' });
+  },
+
+  // 管理员邮箱验证码登录
+  emailLogin: (data: { email: string; code: string }): Promise<AdminLoginResult> => {
+    return request.post(`${PREFIX}/email/login`, {
+      email: data.email,
+      code: data.code,
+    });
+  },
+
+  // 当前管理员发送邮箱绑定验证码
+  sendProfileEmailCode: (email: string): Promise<{ message: string; code?: string }> => {
+    return request.post(`${PREFIX}/me/email/send-code`, { email, code_type: 'bind' });
+  },
+
+  // 绑定当前管理员邮箱
+  bindEmail: (data: { email: string; code: string }): Promise<{ message: string }> => {
+    return request.post(`${PREFIX}/me/email/bind`, {
+      email: data.email,
+      code: data.code,
+    });
+  },
+
+  // 解绑当前管理员邮箱
+  unbindEmail: (data: { code: string }): Promise<{ message: string }> => {
+    return request.post(`${PREFIX}/me/email/unbind`, {
+      code: data.code,
+    });
+  },
+
+  // 更换当前管理员邮箱
+  changeEmail: (data: { newEmail: string; newEmailCode: string; oldEmailCode: string }): Promise<{ message: string }> => {
+    return request.post(`${PREFIX}/me/email/change`, {
+      new_email: data.newEmail,
+      new_email_code: data.newEmailCode,
+      old_email_code: data.oldEmailCode,
+    });
+  },
+
   // 获取管理员详情（用于编辑）
   getAdminDetail: (id: string): Promise<Admin> => {
     return request.get(`${PREFIX}/admins/${id}`);

@@ -235,7 +235,6 @@ export const forgotPassword = (data: { phone: string; verificationCode: string; 
 /**
  * 获取统一账号信息（对应后端 get_current_account）
  * 返回 AccountInfo 格式的数据，包含角色类型、权限等信息
- * 注意：后端可能尚未暴露此路由，目前为预留接口
  */
 export const getAccountMe = (): Promise<AccountInfo> => {
   return request.get(`${PREFIX}/account/me`);

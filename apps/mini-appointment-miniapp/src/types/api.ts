@@ -131,6 +131,8 @@ export interface User {
   nickname?: string;
   avatar?: string;
   phone?: string;
+  email?: string;
+  hasPassword?: boolean;
   createdAt: string;
   updatedAt: string;
 }

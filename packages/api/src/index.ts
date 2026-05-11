@@ -138,6 +138,7 @@ export type {
   WeekdayItem,
   AppointmentSummary,
   StoreRankingItem,
+  StoreDashboardStats,
 } from './modules/statistics';
 
 // Admin types
