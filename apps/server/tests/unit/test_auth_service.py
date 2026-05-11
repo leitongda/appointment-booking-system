@@ -262,6 +262,16 @@ class TestUserServiceAuth:
         user = await service.authenticate("19999999999", "password")
         assert user is None
 
+    async def test_authenticate_user_without_password(self, db_session, test_user):
+        """测试无密码账号不会触发密码校验异常"""
+        test_user.password_hash = ""
+        await db_session.commit()
+
+        service = UserService(db_session)
+        user = await service.authenticate("13800138001", "any_password")
+
+        assert user is None
+
     async def test_change_password_success(self, db_session, test_user):
         """测试修改密码成功"""
         from app.core.security import get_password_hash

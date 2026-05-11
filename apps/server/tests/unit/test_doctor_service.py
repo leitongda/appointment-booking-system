@@ -98,11 +98,14 @@ class TestDoctorQueryMixin:
     async def test_update_login_info(self, db_session, test_doctor):
         """测试更新登录信息"""
         service = DoctorService(db_session)
-        await service.update_login_info(test_doctor.id, "192.168.1.1")
+        sync_mock = AsyncMock()
+        with patch("app.modules.doctors.service_query.AccountSyncService.sync_doctor_to_account", sync_mock):
+            await service.update_login_info(test_doctor.id, "192.168.1.1")
 
         await db_session.refresh(test_doctor)
         assert test_doctor.last_login_ip == "192.168.1.1"
         assert test_doctor.last_login_at is not None
+        sync_mock.assert_awaited_once_with(db_session, test_doctor.id, operator_id=None)
 
     async def test_get_list(self, db_session, test_tenant, test_doctor):
         """测试获取医生列表"""
