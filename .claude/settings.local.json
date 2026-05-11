@@ -235,7 +235,22 @@
       "Bash(ssh-keygen -l -f ~/.ssh/github_deploy_key)",
       "Bash(ssh-keyscan -p 443 ssh.github.com)",
       "Bash(GIT_SSH_COMMAND=\"ssh -p 443\" git push *)",
-      "Bash(awk '{print $NF}')"
+      "Bash(awk '{print $NF}')",
+      "Bash(awk '/^## / { if \\(section\\) print section \": \" count \" lines\"; section=$0; count=0; next } { count++ } END { print section \": \" count \" lines\" }' llms.txt)",
+      "WebFetch(domain:llmstxt.org)",
+      "Bash(pip show *)",
+      "Bash(awk '{print $9}')",
+      "Bash(awk '-F|' '{print $1, $2, $NF}')",
+      "Bash(awk '{print $5, $9}')",
+      "Bash(brew install *)",
+      "Bash(woff2_compress SourceHanSansCN-Regular.otf)",
+      "Bash(woff2_compress SourceHanSansCN-Medium.otf)",
+      "Bash(woff2_compress SourceHanSansCN-Bold.otf)",
+      "Bash(cwebp -q 80 bg.png -o bg.webp)",
+      "Bash(cwebp -q 80 /Users/leijiadashao/leitond/appointment-booking-system/apps/admin/public/bg.png -o /Users/leijiadashao/leitond/appointment-booking-system/apps/admin/public/bg.webp)",
+      "Bash(md5 -r /Users/leijiadashao/leitond/appointment-booking-system/apps/admin/dist/p__*.chunk.css)",
+      "Bash(file /Users/leijiadashao/leitond/appointment-booking-system/apps/admin/public/favicon*)",
+      "Bash(awk '{print $1}')"
     ]
   },
   "plansDirectory": ".claude/plans"
