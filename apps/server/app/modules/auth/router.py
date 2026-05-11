@@ -21,6 +21,7 @@ from app.schemas.auth import (
     EmailBindRequest,
     EmailUnbindRequest,
     EmailChangeRequest,
+    to_camel,
 )
 from app.schemas.user import UserResponse
 from app.schemas.wechat import WechatLoginRequest, WechatLoginResponse, WechatPhoneRequest, WechatBindPhoneRequest, WechatBindUserInfoRequest
@@ -32,8 +33,31 @@ from app.core.security import create_access_token, create_refresh_token, decode_
 from app.core.redis import RedisCache
 from app.core.config import settings
 from app.common.account_sync import AccountSyncService
+from app.common.auth_types import AccountInfo
+from app.common.auth_unified import get_current_account
 
 router = APIRouter()
+
+
+def _camelize_keys(value):
+    """递归将 dict key 从 snake_case 转为 camelCase。"""
+    if isinstance(value, dict):
+        return {to_camel(key): _camelize_keys(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_camelize_keys(item) for item in value]
+    return value
+
+
+@router.get("/account/me", summary="获取统一账号信息")
+async def get_account_me(
+    account: AccountInfo = Depends(get_current_account),
+):
+    """获取当前登录账号的统一视图。
+
+    返回 AccountInfo.to_dict() 的结果，供前端统一读取当前账号的
+    角色、权限、租户和基础资料。
+    """
+    return _camelize_keys(account.to_dict())
 
 @router.post(
     "/login",

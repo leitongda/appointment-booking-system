@@ -109,11 +109,13 @@ class UserResponse(BaseModel):
     
     id: str = Field(..., description="用户ID")
     phone: Optional[str] = Field(None, description="手机号")
+    email: Optional[str] = Field(None, description="邮箱")
     nickname: Optional[str] = Field(None, description="昵称")
     avatar: Optional[str] = Field(None, description="头像URL")
     gender: Optional[int] = Field(0, description="性别: 0未知 1男 2女")
     status: Optional[int] = Field(1, description="状态: 0禁用 1正常")
     points: int = Field(0, description="积分")
+    has_password: bool = Field(False, description="是否已设置密码")
 
 # ========== 就诊人相关 ==========
 class PatientBase(BaseModel):
@@ -334,4 +336,3 @@ class PatientDetailResponse(BaseModel):
     
     # 家庭成员
     family_members: List[PatientListItemResponse] = []
-

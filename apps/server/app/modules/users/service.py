@@ -156,6 +156,8 @@ class UserService:
         user = await self.get_by_phone(phone)
         if not user:
             return None
+        if not user.password_hash:
+            return None
         if not verify_password(password, user.password_hash):
             return None
         return user

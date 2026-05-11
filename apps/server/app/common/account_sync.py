@@ -93,6 +93,7 @@ class AccountSyncService:
             if account:
                 # 更新已有记录
                 account.phone = admin.phone
+                account.email = admin.email
                 account.username = admin.username
                 account.password_hash = admin.password_hash
                 account.name = admin.name
@@ -110,6 +111,7 @@ class AccountSyncService:
                     id=admin.id,
                     tenant_id=admin.tenant_id,
                     phone=admin.phone,
+                    email=admin.email,
                     username=admin.username,
                     password_hash=admin.password_hash,
                     nickname=admin.name,

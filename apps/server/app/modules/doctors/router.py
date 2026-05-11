@@ -11,6 +11,7 @@ from app.models.account import Account
 from app.schemas.doctor import DoctorCreate, DoctorUpdate, DoctorResponse, DoctorListResponse
 from app.schemas.response import PageResponse
 from app.modules.doctors.service import DoctorService
+from app.common.account_sync import AccountSyncService
 from app.core.security import create_access_token, create_refresh_token, verify_password
 from app.core.config import settings
 from app.utils.ip import get_client_ip
@@ -695,6 +696,13 @@ async def change_doctor_password(
 
     # 更新密码
     current_doctor.password_hash = get_password_hash(data.new_password)
+    await db.flush()
+
+    # 双写同步: 密码变更同步到 accounts
+    await AccountSyncService.sync_doctor_to_account(
+        db, current_doctor.id, operator_id=current_doctor.id
+    )
+
     await db.commit()
 
     return {"message": "密码修改成功"}

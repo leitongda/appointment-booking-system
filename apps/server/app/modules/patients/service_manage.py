@@ -16,6 +16,7 @@ from app.models.doctor import Doctor
 from app.models.schedule import Schedule
 from app.models.store import Store
 from app.models.user import Patient, User
+from app.common.account_sync import AccountSyncService
 from app.modules.patients.common import PatientsServiceBase
 from app.modules.appointments.common import APPOINTMENT_STATUS
 from app.schemas.user import FamilyMemberCreate, PatientCreateByAdmin, PatientUpdate
@@ -483,6 +484,11 @@ class PatientManageService(PatientsServiceBase):
             set_create_audit(user, operator_id)
             self.db.add(user)
             await self.db.flush()
+
+            # 双写同步: 后台代建患者账号同步到 accounts
+            await AccountSyncService.sync_user_to_account(
+                self.db, user.id, operator_id=operator_id
+            )
 
         birthday = None
         if data.birthday:

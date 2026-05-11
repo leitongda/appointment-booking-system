@@ -19,6 +19,7 @@ from app.schemas.user import (
 from app.infrastructure.storage import get_storage
 from app.infrastructure.storage.base import build_tenant_storage_folder
 from app.modules.users.service import PatientService, UserService
+from app.schemas.user import UserUpdate as UserUpdateSchema
 
 router = APIRouter()
 
@@ -43,10 +44,12 @@ async def get_profile(
     return UserResponse(
         id=user.id,
         phone=user.phone,
+        email=user.email,
         nickname=user.nickname,
         avatar=user.avatar,
         gender=user.gender,
         status=user.status,
+        has_password=bool(user.password_hash),
     )
 
 
@@ -63,10 +66,12 @@ async def update_profile(
     return UserResponse(
         id=user.id,
         phone=user.phone,
+        email=user.email,
         nickname=user.nickname,
         avatar=user.avatar,
         gender=user.gender,
         status=user.status,
+        has_password=bool(user.password_hash),
     )
 
 
@@ -143,6 +148,12 @@ async def upload_avatar(
             filename=filename,
             content_type=content_type,
             folder=tenant_folder,
+        )
+        user_service = UserService(db)
+        await user_service.update(
+            current_user["id"],
+            UserUpdateSchema(avatar=result.url),
+            operator_id=current_user.get("id"),
         )
         logger.info(f"User avatar uploaded: {result.key} by user {current_user.get('id')}")
         return AvatarUploadResponse(url=result.url, key=result.key)

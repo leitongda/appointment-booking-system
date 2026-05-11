@@ -7,6 +7,7 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.orm import selectinload
 
 from app.core.security import verify_password
+from app.common.account_sync import AccountSyncService
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.department import Department
 from app.models.doctor import Doctor
@@ -61,6 +62,13 @@ class DoctorQueryMixin:
 
             doctor.last_login_at = datetime.now()
             doctor.last_login_ip = ip
+            await self.db.flush()
+
+            # 双写同步: 登录信息同步到 accounts
+            await AccountSyncService.sync_doctor_to_account(
+                self.db, doctor_id, operator_id=None
+            )
+
             await self.db.commit()
 
     async def get_by_id(self, doctor_id: str) -> Optional[Doctor]:

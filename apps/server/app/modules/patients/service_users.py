@@ -8,6 +8,7 @@ from sqlalchemy import and_, func, or_, select
 
 from app.models.appointment import Appointment
 from app.models.user import Patient, User
+from app.common.account_sync import AccountSyncService
 from app.modules.patients.common import PatientsServiceBase
 from app.modules.appointments.common import APPOINTMENT_STATUS
 from app.utils.audit import set_create_audit, set_update_audit
@@ -114,11 +115,13 @@ class UserManageService(PatientsServiceBase):
             {
                 "id": user.id,
                 "phone": user.phone,
+                "email": user.email,
                 "nickname": user.nickname or "微信用户",
                 "avatar": user.avatar,
                 "gender": user.gender,
                 "status": user.status,
                 "points": user.points or 0,
+                "hasPassword": bool(user.password_hash),
                 "cardCount": card_count_map.get(user.id, 0),
                 "appointmentCount": appt_count_map.get(user.id, 0),
                 "createdAt": user.created_at.isoformat() if user.created_at else None,
@@ -205,6 +208,7 @@ class UserManageService(PatientsServiceBase):
         return {
             "id": user.id,
             "phone": user.phone,
+            "email": user.email,
             "nickname": user.nickname or "微信用户",
             "avatar": user.avatar,
             "gender": user.gender,
@@ -215,6 +219,7 @@ class UserManageService(PatientsServiceBase):
             "wechatSyncedAt": user.wechat_synced_at.isoformat() if user.wechat_synced_at else None,
             "status": user.status,
             "points": user.points or 0,
+            "hasPassword": bool(user.password_hash),
             "createdAt": user.created_at.isoformat() if user.created_at else None,
             "updatedAt": user.updated_at.isoformat() if user.updated_at else None,
             "cardCount": len(cards_data),
@@ -234,6 +239,13 @@ class UserManageService(PatientsServiceBase):
             return False
         user.status = status
         set_update_audit(user, operator_id)
+        await self.db.flush()
+
+        # 双写同步: 状态变更同步到 accounts
+        await AccountSyncService.sync_user_to_account(
+            self.db, user_id, operator_id=operator_id
+        )
+
         await self.db.commit()
         return True
 
@@ -264,6 +276,10 @@ class UserManageService(PatientsServiceBase):
         cards = cards_result.scalars().all()
         for card in cards:
             await self.db.delete(card)
+
+        # 双写同步: 删除同步到 accounts
+        await AccountSyncService.delete_user_from_account(self.db, user_id)
+
         await self.db.delete(user)
         await self.db.commit()
         return True
@@ -284,6 +300,13 @@ class UserManageService(PatientsServiceBase):
             if field_name and field_name in allowed_fields:
                 setattr(user, field_name, value)
         set_update_audit(user, operator_id)
+        await self.db.flush()
+
+        # 双写同步: 用户资料更新同步到 accounts
+        await AccountSyncService.sync_user_to_account(
+            self.db, user_id, operator_id=operator_id
+        )
+
         await self.db.commit()
         await self.db.refresh(user)
         return await self.get_detail(user_id)
