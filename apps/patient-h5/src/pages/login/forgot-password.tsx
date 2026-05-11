@@ -26,7 +26,7 @@ const ForgotPasswordPage: React.FC = () => {
 
     setSendingCode(true);
     try {
-      const result = await authApi.sendAuthCode(phone, 'reset');
+      const result = await authApi.sendCode(phone, 'reset');
       Toast.show({
         content: `验证码已发送${result.code ? '：' + result.code : ''}`,
         icon: 'success',

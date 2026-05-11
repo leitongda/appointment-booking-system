@@ -4,7 +4,7 @@ import { history } from 'umi';
 import { useState, useCallback, useRef } from 'react';
 import { getToken, removeToken, initCrossTabSync, destroyCrossTabSync } from '@hospital/shared';
 import type { CrossTabEvent } from '@hospital/shared';
-import { doctorApi, authApi, setBaseURL } from '@hospital/api';
+import { doctorApi, setBaseURL } from '@hospital/api';
 import {
   UserOutlined, LogoutOutlined, SettingOutlined, LockOutlined, MailOutlined,
 } from '@ant-design/icons';
@@ -213,7 +213,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
           return;
         }
         setEmailCodeSending(true);
-        await authApi.sendEmailCode(email, 'bind');
+        await doctorApi.sendEmailCode(email);
         message.success('验证码已发送');
         setEmailCodeCountdown(60);
         emailTimerRef.current = setInterval(() => {
@@ -234,7 +234,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
           return;
         }
         setEmailOldCodeSending(true);
-        await authApi.sendEmailCode(initialState.currentDoctor.email, 'bind');
+        await doctorApi.sendCurrentEmailCode();
         message.success('验证码已发送到当前邮箱');
         setEmailOldCodeCountdown(60);
         emailOldTimerRef.current = setInterval(() => {
@@ -264,13 +264,13 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
       setEmailSubmitting(true);
 
       if (emailModalType === 'bind') {
-        await authApi.emailBind({ email: values.email, code: values.code });
+        await doctorApi.emailBind({ email: values.email, code: values.code });
         message.success('邮箱绑定成功');
       } else if (emailModalType === 'unbind') {
-        await authApi.emailUnbind({ code: values.code });
+        await doctorApi.emailUnbind({ code: values.code });
         message.success('邮箱解绑成功');
       } else if (emailModalType === 'change') {
-        await authApi.emailChange({
+        await doctorApi.emailChange({
           newEmail: values.email,
           newEmailCode: values.code,
           oldEmailCode: values.oldCode,

@@ -2,7 +2,7 @@ import { Form, Input, Toast, NavBar } from 'antd-mobile';
 import { history } from 'umi';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { authApi } from '@hospital/api';
+import { userApi } from '@hospital/api';
 import { Button, Card, GradientText } from '@/components/ui';
 import { fadeInUp } from '@/components/ui/animations';
 
@@ -30,7 +30,7 @@ const ChangePasswordPage: React.FC = () => {
 
     setLoading(true);
     try {
-      await authApi.changePassword({
+      await userApi.changePassword({
         oldPassword: values.oldPassword,
         newPassword: values.newPassword,
       });
