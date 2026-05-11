@@ -2,7 +2,7 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { App, Space, Tag, Popconfirm, Divider, Modal, Input } from 'antd';
 import { EyeOutlined, CloseCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-import { useRef, useMemo, useCallback, useState } from 'react';
+import { useRef, useMemo, useCallback, useState, useEffect } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
 import { appointmentApi, storeApi, dataApi, doctorApi, departmentApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
@@ -33,12 +33,47 @@ const AppointmentListPage: React.FC = () => {
   const access = useAccess();
   const actionRef = useRef<ActionType>();
   const [initialLoading, setInitialLoading] = useState(true);
-  
+  const [autoStoreId, setAutoStoreId] = useState<string>();
+  const [autoDoctorId, setAutoDoctorId] = useState<string>();
+
   const { initialState } = useModel('@@initialState');
   const { currentUser } = initialState ?? {};
   const isSuperAdmin = access.canSuperAdmin;
   // 多门店管理员也可以看到门店筛选
   const showStoreFilter = isSuperAdmin || (currentUser?.storeIds?.length ?? 0) > 1;
+
+  // 预加载：如果只有一个门店/医生选项，自动选中
+  useEffect(() => {
+    const prefetchDefaults = async () => {
+      const storeTask = showStoreFilter
+        ? storeApi.getAll()
+            .then((stores) => {
+              let storeList = stores ?? [];
+              if (!isSuperAdmin && currentUser?.storeIds?.length) {
+                storeList = storeList.filter((s: any) => currentUser.storeIds?.includes(s.id));
+              }
+              if (storeList.length === 1) {
+                setAutoStoreId(storeList[0].id);
+              }
+            })
+            .catch(() => {})
+        : Promise.resolve();
+
+      const doctorTask = fetchAllData((page, pageSize) =>
+        doctorApi.getList({ page, pageSize })
+      )
+        .then((doctors) => {
+          if (doctors.length === 1) {
+            setAutoDoctorId(doctors[0].id);
+          }
+        })
+        .catch(() => {});
+
+      await Promise.allSettled([storeTask, doctorTask]);
+      setInitialLoading(false);
+    };
+    prefetchDefaults();
+  }, []);
 
   const handleCancel = useCallback(async (id: string) => {
     try {
@@ -127,6 +162,7 @@ const AppointmentListPage: React.FC = () => {
       dataIndex: 'storeId',
       hideInTable: true,
       valueType: 'select',
+      initialValue: autoStoreId,
       request: async () => {
         try {
           const stores = await storeApi.getAll();
@@ -175,6 +211,7 @@ const AppointmentListPage: React.FC = () => {
       dataIndex: 'doctorId',
       hideInTable: true,
       valueType: 'select',
+      initialValue: autoDoctorId,
       fieldProps: {
         showSearch: true,
         optionFilterProp: 'label',
@@ -383,48 +420,44 @@ const AppointmentListPage: React.FC = () => {
         </Space>
       ),
     },
-  ], [showStoreFilter, access, handleCancel, handleCancelWithReason, handleMarkNoShow, handleCancelSignIn]);
+  ], [showStoreFilter, access, autoStoreId, autoDoctorId, handleCancel, handleCancelWithReason, handleMarkNoShow, handleCancelSignIn]);
 
   return (
     <PageContainer>
       {initialLoading && <ListPageSkeleton filterCount={6} rowCount={6} />}
-      <div style={initialLoading ? { height: 0, overflow: 'hidden' } : undefined}>
+      {!initialLoading && (
         <ProTable<Appointment>
           headerTitle="预约列表"
           actionRef={actionRef}
           rowKey="id"
           columns={columns}
           request={async (params) => {
-            try {
-              const {
-                current,
-                pageSize,
-                keyword,
-                storeId,
-                doctorId,
-                departmentId,
-                startDate,
-                endDate,
-                createdStart,
-                createdEnd,
-                status,
-              } = params;
-              return toProTableResult(await appointmentApi.getList({
-                keyword: keyword || undefined,
-                storeId: storeId || undefined,
-                doctorId: doctorId || undefined,
-                departmentId: departmentId || undefined,
-                startDate: startDate || undefined,
-                endDate: endDate || undefined,
-                createdStart: createdStart || undefined,
-                createdEnd: createdEnd || undefined,
-                status: status !== undefined && status !== '' ? Number(status) : undefined,
-                page: current,
-                pageSize,
-              }));
-            } finally {
-              setInitialLoading(false);
-            }
+            const {
+              current,
+              pageSize,
+              keyword,
+              storeId,
+              doctorId,
+              departmentId,
+              startDate,
+              endDate,
+              createdStart,
+              createdEnd,
+              status,
+            } = params;
+            return toProTableResult(await appointmentApi.getList({
+              keyword: keyword || undefined,
+              storeId: storeId || undefined,
+              doctorId: doctorId || undefined,
+              departmentId: departmentId || undefined,
+              startDate: startDate || undefined,
+              endDate: endDate || undefined,
+              createdStart: createdStart || undefined,
+              createdEnd: createdEnd || undefined,
+              status: status !== undefined && status !== '' ? Number(status) : undefined,
+              page: current,
+              pageSize,
+            }));
           }}
           pagination={{ defaultPageSize: PAGINATION_CONFIG.DEFAULT_PAGE_SIZE }}
           search={{ labelWidth: 'auto' }}
@@ -437,7 +470,7 @@ const AppointmentListPage: React.FC = () => {
             />,
           ]}
         />
-      </div>
+      )}
     </PageContainer>
   );
 };
