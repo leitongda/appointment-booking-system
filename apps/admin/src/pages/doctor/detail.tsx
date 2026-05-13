@@ -21,10 +21,6 @@ const DoctorDetailPage: React.FC = () => {
   // 从 URL 参数获取当前 tab，默认为 basic
   const activeTab = searchParams.get('tab') || 'basic';
 
-  useEffect(() => {
-    if (id) loadDoctor();
-  }, [id]);
-
   const loadDoctor = async () => {
     if (!id) return;
     setLoading(true);
@@ -37,6 +33,10 @@ const DoctorDetailPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (id) loadDoctor();
+  }, [id]);
 
   const handleTabChange = (key: string) => {
     setSearchParams({ tab: key });

@@ -120,8 +120,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ doctorId, onDateCli
 
   const getScheduleText = (schedule: Schedule) => {
     const slotLabel = TIME_SLOT_LABELS[schedule.timeSlot] || schedule.timeSlot;
-    const available = schedule.totalSlots - schedule.bookedSlots;
-    
+
     if (schedule.status === 0) {
       return `${slotLabel} 停诊`;
     }

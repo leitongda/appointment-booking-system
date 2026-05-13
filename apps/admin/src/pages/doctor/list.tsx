@@ -304,11 +304,27 @@ const DoctorListPage: React.FC = () => {
   const [recommendSortModalOpen, setRecommendSortModalOpen] = useState(false);
 
   // 用户门店相关信息
-  const currentUser = initialState?.currentUser;
-  const currentStore = initialState?.currentStore;
   const userStores = initialState?.userStores || [];
   const canSwitchStores = access.canSwitchStores;
   const isSingleStore = !canSwitchStores && userStores.length <= 1;
+
+  async function loadDepartments() {
+    try {
+      const data = await departmentApi.getAll();
+      setDepartments(data ?? []);
+    } catch (error) {
+      console.error('加载科室失败', error);
+    }
+  }
+
+  async function loadStores() {
+    try {
+      const res = await storeApi.getList({ pageSize: PAGINATION_CONFIG.SELECT_MAX_SIZE });
+      setStores(res.data ?? []);
+    } catch (error) {
+      console.error('加载门店失败', error);
+    }
+  }
 
   useEffect(() => {
     loadDepartments();
@@ -317,24 +333,6 @@ const DoctorListPage: React.FC = () => {
       loadStores();
     }
   }, []);
-
-  const loadDepartments = async () => {
-    try {
-      const data = await departmentApi.getAll();
-      setDepartments(data ?? []);
-    } catch (error) {
-      console.error('加载科室失败', error);
-    }
-  };
-
-  const loadStores = async () => {
-    try {
-      const res = await storeApi.getList({ pageSize: PAGINATION_CONFIG.SELECT_MAX_SIZE });
-      setStores(res.data ?? []);
-    } catch (error) {
-      console.error('加载门店失败', error);
-    }
-  };
 
   // 构建门店筛选选项
   const storeFilterOptions = useMemo(() => {

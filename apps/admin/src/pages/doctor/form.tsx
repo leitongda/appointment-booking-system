@@ -18,7 +18,7 @@ import { debounce } from 'lodash-es';
 // 基础设施导入
 import FormPage from '@/components/FormPage';
 import { PasswordField, ImageUploadCard, SwitchGroup } from '@/components/formFields';
-import { requiredRules, phoneRules, emailRules, stringLengthRules } from '@/utils/formValidators';
+import { requiredRules, phoneRules } from '@/utils/formValidators';
 
 const { Text, Link } = Typography;
 
@@ -54,16 +54,8 @@ const DoctorFormPage: React.FC = () => {
   const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
   const formRef = useRef<any>(null);
 
-  useEffect(() => {
-    loadDepartments();
-    loadStores();
-    if (isEdit) {
-      loadDoctor();
-    }
-  }, [id]);
-
   // 加载科室列表
-  const loadDepartments = async () => {
+  async function loadDepartments() {
     try {
       const data = await departmentApi.getAll();
       setDepartments(data ?? []);
@@ -73,7 +65,7 @@ const DoctorFormPage: React.FC = () => {
   };
 
   // 加载门店列表
-  const loadStores = async () => {
+  async function loadStores() {
     try {
       const res = await storeApi.getList({ pageSize: PAGINATION_CONFIG.SELECT_MAX_SIZE, status: 1 });
       let storeList = res.data ?? [];
@@ -85,7 +77,7 @@ const DoctorFormPage: React.FC = () => {
     } catch (error) {
       console.error('加载门店失败', error);
     }
-  };
+  }
 
   // 检查用户名是否重复（防抖）
   const checkUsername = useCallback(
@@ -137,7 +129,7 @@ const DoctorFormPage: React.FC = () => {
   };
 
   // 加载医生详情
-  const loadDoctor = async () => {
+  async function loadDoctor() {
     if (!id) return;
     setLoading(true);
     try {
@@ -148,27 +140,31 @@ const DoctorFormPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    loadDepartments();
+    loadStores();
+    if (isEdit) {
+      loadDoctor();
+    }
+  }, [id]);
 
   // 表单提交处理
   const handleSubmit = async (values: any) => {
     // 排除确认密码字段
-    const { confirmPassword, ...restValues } = values;
+    const { confirmPassword: _confirmPassword, ...restValues } = values;
 
     const data = {
       ...restValues,
     };
 
-    try {
-      if (isEdit && id) {
-        await doctorApi.update(id, data);
-      } else {
-        await doctorApi.create(data);
-      }
-      history.push('/medical-services/doctor/list');
-    } catch (error: any) {
-      throw error; // 抛出错误，让 FormPage 统一处理
+    if (isEdit && id) {
+      await doctorApi.update(id, data);
+    } else {
+      await doctorApi.create(data);
     }
+    history.push('/medical-services/doctor/list');
   };
 
   // 初始值处理

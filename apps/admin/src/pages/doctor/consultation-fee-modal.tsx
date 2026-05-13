@@ -3,7 +3,7 @@ import { PlusOutlined, DeleteOutlined, ImportOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react';
 import { useAccess, useModel } from '@umijs/max';
 import { consultationFeeTypeApi, consultationFeeTemplateApi, doctorConsultationFeeApi, storeApi, departmentApi } from '@hospital/api';
-import type { ConsultationFeeType, ConsultationFeeTemplateWithType, StoreDepartmentFeeGroup, Store, Department, DoctorConsultationFeeItem } from '@hospital/shared';
+import type { ConsultationFeeType, ConsultationFeeTemplateWithType, Store, Department, DoctorConsultationFeeItem } from '@hospital/shared';
 
 interface DoctorConsultationFeeModalProps {
   open: boolean;
@@ -47,12 +47,6 @@ const DoctorConsultationFeeModal: React.FC<DoctorConsultationFeeModalProps> = ({
   const [selectedStoreId, setSelectedStoreId] = useState<string | undefined>();
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | undefined>();
 
-  useEffect(() => {
-    if (open && doctorId) {
-      loadData();
-    }
-  }, [open, doctorId]);
-
   const loadData = async () => {
     setLoading(true);
     try {
@@ -94,6 +88,12 @@ const DoctorConsultationFeeModal: React.FC<DoctorConsultationFeeModalProps> = ({
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (open && doctorId) {
+      loadData();
+    }
+  }, [open, doctorId]);
 
   const handleUseFeeTemplateChange = async (checked: boolean) => {
     setUseFeeTemplate(checked);

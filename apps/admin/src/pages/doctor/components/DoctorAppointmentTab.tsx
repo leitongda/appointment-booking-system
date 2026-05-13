@@ -35,10 +35,6 @@ const DoctorAppointmentTab: React.FC<DoctorAppointmentTabProps> = ({ doctorId, d
   const [statistics, setStatistics] = useState<AppointmentStatistics | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
 
-  useEffect(() => {
-    loadStatistics();
-  }, [doctorId]);
-
   const loadStatistics = async () => {
     if (!doctorId) return;
     
@@ -52,6 +48,10 @@ const DoctorAppointmentTab: React.FC<DoctorAppointmentTabProps> = ({ doctorId, d
       setLoadingStats(false);
     }
   };
+
+  useEffect(() => {
+    loadStatistics();
+  }, [doctorId]);
 
   const handleCancel = async (id: string) => {
     try {

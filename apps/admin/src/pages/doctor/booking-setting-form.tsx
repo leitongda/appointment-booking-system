@@ -1,6 +1,6 @@
 import { PageContainer, ProForm, ProFormSelect, ProFormDigit, ProFormTimePicker, FooterToolbar } from '@ant-design/pro-components';
 import type { ProFormInstance } from '@ant-design/pro-components';
-import { Card, App, Button, Space, Spin, Alert, Descriptions, Typography, Tag } from 'antd';
+import { Card, App, Button, Space, Alert, Descriptions, Typography, Tag } from 'antd';
 import { ClockCircleOutlined, CalendarOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { history, useParams, useAccess, useModel } from '@umijs/max';
@@ -16,7 +16,7 @@ const DoctorBookingSettingFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const access = useAccess();
   const { initialState } = useModel('@@initialState');
-  const { currentUser, currentStore } = initialState ?? {};
+  const { currentUser } = initialState ?? {};
   const isSuperAdmin = access.canSuperAdmin;
   const isEdit = !!id;
   const [loading, setLoading] = useState(false);
@@ -36,26 +36,7 @@ const DoctorBookingSettingFormPage: React.FC = () => {
     releaseTime: dayjs('00:00', 'HH:mm'),
   });
 
-  useEffect(() => {
-    loadStores();
-    if (isEdit) {
-      loadSetting();
-    }
-  }, [id]);
-
-  useEffect(() => {
-    if (selectedStoreId) {
-      loadDoctorsByStore(selectedStoreId);
-      if (!isEdit) {
-        loadExistingDoctorIds(selectedStoreId);
-      }
-    } else {
-      setDoctors([]);
-      setExistingDoctorIds([]);
-    }
-  }, [selectedStoreId]);
-
-  const loadStores = async () => {
+  async function loadStores() {
     try {
       const data = await storeApi.getAll();
       let storeList = data ?? [];
@@ -67,58 +48,33 @@ const DoctorBookingSettingFormPage: React.FC = () => {
     } catch (error) {
       console.error('加载门店失败', error);
     }
-  };
+  }
 
-  const loadDoctorsByStore = async (storeId: string) => {
+  async function loadDoctorsByStore(storeId: string) {
     try {
       const data = await doctorApi.getByStore(storeId);
       setDoctors(data ?? []);
     } catch (error) {
       console.error('加载医生失败', error);
     }
-  };
+  }
 
-  const loadExistingDoctorIds = async (storeId: string) => {
+  async function loadExistingDoctorIds(storeId: string) {
     try {
       const ids = await doctorBookingSettingApi.getExistingDoctorIds(storeId);
       setExistingDoctorIds(ids ?? []);
     } catch (error) {
       console.error('加载已配置医生失败', error);
     }
-  };
+  }
 
-  const previewResult = useMemo(() => {
-    const { bookingStartOffset = 0, bookingRangeDays = 14, releaseTime } = previewValues;
-    const today = dayjs();
-    const startDate = today.add(bookingStartOffset, 'day');
-    const endDate = startDate.add(bookingRangeDays - 1, 'day');
-    const offsetLabel = bookingStartOffset === 0
-      ? '当天'
-      : bookingStartOffset === 1
-        ? '第2天'
-        : `第${bookingStartOffset + 1}天`;
-    const releaseTimeStr = releaseTime?.isValid()
-      ? releaseTime.format('HH:mm')
-      : '00:00';
-    const isImmediate = releaseTimeStr === '00:00';
-
-    return {
-      startDate,
-      endDate,
-      offsetLabel,
-      releaseTimeStr,
-      isImmediate,
-      today,
-    };
-  }, [previewValues]);
-
-  const getValidReleaseTime = (timeStr?: string) => {
+  function getValidReleaseTime(timeStr?: string) {
     if (!timeStr) return dayjs('00:00', 'HH:mm');
     const parsed = dayjs(timeStr, 'HH:mm');
     return parsed.isValid() ? parsed : dayjs('00:00', 'HH:mm');
-  };
+  }
 
-  const loadSetting = async () => {
+  async function loadSetting() {
     if (!id) return;
     setLoading(true);
     try {
@@ -146,7 +102,51 @@ const DoctorBookingSettingFormPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    loadStores();
+    if (isEdit) {
+      loadSetting();
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (selectedStoreId) {
+      loadDoctorsByStore(selectedStoreId);
+      if (!isEdit) {
+        loadExistingDoctorIds(selectedStoreId);
+      }
+    } else {
+      setDoctors([]);
+      setExistingDoctorIds([]);
+    }
+  }, [selectedStoreId]);
+
+  const previewResult = useMemo(() => {
+    const { bookingStartOffset = 0, bookingRangeDays = 14, releaseTime } = previewValues;
+    const today = dayjs();
+    const startDate = today.add(bookingStartOffset, 'day');
+    const endDate = startDate.add(bookingRangeDays - 1, 'day');
+    const offsetLabel = bookingStartOffset === 0
+      ? '当天'
+      : bookingStartOffset === 1
+        ? '第2天'
+        : `第${bookingStartOffset + 1}天`;
+    const releaseTimeStr = releaseTime?.isValid()
+      ? releaseTime.format('HH:mm')
+      : '00:00';
+    const isImmediate = releaseTimeStr === '00:00';
+
+    return {
+      startDate,
+      endDate,
+      offsetLabel,
+      releaseTimeStr,
+      isImmediate,
+      today,
+    };
+  }, [previewValues]);
 
   const handleSubmit = async (values: any) => {
     try {
@@ -205,7 +205,7 @@ const DoctorBookingSettingFormPage: React.FC = () => {
           }));
         }}
         submitter={{
-          render: (props, dom) => (
+          render: (props, _dom) => (
             <FooterToolbar>
               <Space>
                 <Button onClick={() => history.back()}>取消</Button>
