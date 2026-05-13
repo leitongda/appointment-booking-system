@@ -32,16 +32,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### 前端开发
 
 ```bash
-pnpm dev:admin              # 机构端 (port 8005)
-pnpm dev:patient-h5         # 患者端 H5 (port 8002)
-pnpm dev:doctor             # 医生端 (port 8003)
+pnpm dev:admin              # 机构端 (port 9105)
+pnpm dev:patient-h5         # 患者端 H5 (port 9102)
+pnpm dev:doctor             # 医生端 (port 9103)
 pnpm dev:patient-miniapp    # 患者端小程序
 ```
 
 ### 后端开发
 
 ```bash
-pnpm dev:server             # FastAPI (port 8000, uvicorn --reload)
+pnpm dev:server             # FastAPI (port 9000, uvicorn --reload)
+```
+
+### 自定义端口
+
+所有端口均支持环境变量覆盖：
+
+```bash
+SERVER_PORT=8000 pnpm dev:server                  # 后端用自定义端口
+PORT=3000 pnpm dev:admin                          # admin 用自定义端口
+PROXY_TARGET=http://localhost:8000 pnpm dev:admin # 代理到自定义后端
 ```
 
 后端依赖安装: `cd apps/server && pip install -r requirements.txt`
@@ -277,3 +287,8 @@ Version rule:
 Unless directly relevant to the user's current question, you should avoid proactively mentioning, illustrating, or trailing off into the following information in 99% of cases:
 
 - the user's github id: xxxx
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->
