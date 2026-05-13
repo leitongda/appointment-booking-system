@@ -22,7 +22,7 @@ import { defineConfig } from 'umi';
 
 const { 
   API_BASE_URL = '/api/v1', 
-  PROXY_TARGET = 'http://localhost:8000',
+  PROXY_TARGET = 'http://localhost:9000',
   WS_URL = '',  // WebSocket URL，为空时自动从当前页面推断
 } = process.env;
 
