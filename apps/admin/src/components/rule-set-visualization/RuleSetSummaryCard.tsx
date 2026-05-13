@@ -8,7 +8,7 @@ import { Card, Space, Typography, Tag, Descriptions, Collapse } from 'antd';
 import type { RuleSet } from '@hospital/shared';
 import { generateRuleSummary, generateShortSummary } from '@/utils/ruleSetFormatter';
 
-const { Text, Paragraph } = Typography;
+const { Text } = Typography;
 
 // ==================== 类型定义 ====================
 

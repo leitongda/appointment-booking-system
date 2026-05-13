@@ -12,7 +12,7 @@ import {
   WINDOW_DEFAULT_VALUES,
 } from '@/constants/rule-set';
 import { RuleSetTimeline } from '@/components/rule-set-visualization';
-import { formatOffset as formatOffsetUtil, calculateWindowTime } from '@/utils/ruleSetFormatter';
+import { formatOffset as formatOffsetUtil } from '@/utils/ruleSetFormatter';
 
 const { Text } = Typography;
 
@@ -75,7 +75,7 @@ const unitToSeconds = (value: number | null, unit: TimeUnit): number | null => {
 /**
  * 生成默认时间窗名称
  */
-const generateDefaultWindowName = (action: string, index: number): string => {
+const generateDefaultWindowName = (action: string, _index: number): string => {
   const actionLabel = ACTION_LABELS[action] || action || '未命名';
   return `${actionLabel}时间窗`;
 };
@@ -177,8 +177,8 @@ interface WindowFormContentProps {
 const WindowFormContent: React.FC<WindowFormContentProps> = ({ field, remove }) => {
   const screens = useBreakpoint();
   const { token } = useToken();
-  const isMobile = !screens.md;
-  const action = Form.useWatch(['windows', field.name, 'action']);
+  const _isMobile = !screens.md;
+  const _action = Form.useWatch(['windows', field.name, 'action']);
   const openOffsetSec = Form.useWatch(['windows', field.name, 'openOffsetSec']);
   const closeOffsetSec = Form.useWatch(['windows', field.name, 'closeOffsetSec']);
   const failPolicy = Form.useWatch(['windows', field.name, 'failPolicy']);
@@ -384,6 +384,174 @@ const WindowFormContent: React.FC<WindowFormContentProps> = ({ field, remove }) 
 };
 
 /**
+ * 时间窗 Tabs 内容组件 - 使用 Form.useWatch 获取实时数据
+ */
+interface WindowTabsContentProps {
+  fields: any[];
+  add: (defaultValue?: any) => void;
+  remove: (index: number) => void;
+  activeKey: string;
+  setActiveKey: (key: string) => void;
+}
+
+const WindowTabsContent: React.FC<WindowTabsContentProps> = ({
+  fields,
+  add,
+  remove,
+  activeKey,
+  setActiveKey,
+}) => {
+  const screens = useBreakpoint();
+  const { token } = useToken();
+  const isMobile = !screens.md;
+  const isTablet = screens.md && !screens.lg;
+
+  // 使用 useWatch 获取所有 windows 的数据
+  const windows = Form.useWatch('windows') || [];
+
+  // 生成 tab 项
+  const tabItems = fields.map((field, index) => {
+    const windowData = windows[index] || {};
+    const name = windowData.name || generateDefaultWindowName(windowData.action, index);
+    const action = windowData.action;
+    const actionLabel = ACTION_LABELS[action] || '';
+
+    return {
+      key: String(index),
+      label: (
+        <div style={{
+          maxWidth: isMobile ? 100 : isTablet ? 120 : 150,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          textAlign: 'left',
+        }}>
+          <div style={{ fontWeight: 500, fontSize: isMobile ? 12 : 14 }}>{name}</div>
+          {actionLabel && (
+            <div style={{ fontSize: isMobile ? 10 : 11, color: token.colorTextSecondary }}>{actionLabel}</div>
+          )}
+        </div>
+      ),
+      children: (
+        <WindowFormContent
+          key={field.key}
+          field={field}
+          remove={(name) => {
+            remove(name);
+            // 删除后调整 activeKey
+            if (fields.length > 1) {
+              const newIndex = Math.min(index, fields.length - 2);
+              setActiveKey(String(newIndex));
+            }
+          }}
+        />
+      ),
+    };
+  });
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <Tabs
+        activeKey={activeKey}
+        onChange={setActiveKey}
+        tabPlacement={isMobile ? 'top' : 'left'}
+        items={tabItems}
+        style={{ minHeight: isMobile ? 300 : 400 }}
+        tabBarStyle={{ width: isMobile ? 'auto' : isTablet ? 120 : 180 }}
+        tabBarExtraContent={{
+          left: !isMobile && (
+            <div style={{ padding: '8px 0', marginBottom: 8 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                共 {fields.length} 个时间窗
+              </Text>
+            </div>
+          ),
+        }}
+      />
+      <Button
+        type="dashed"
+        onClick={() => {
+          add({ ...WINDOW_DEFAULT_VALUES, name: `时间窗 ${fields.length + 1}` });
+          setActiveKey(String(fields.length));
+        }}
+        block
+        icon={<PlusOutlined />}
+        style={{ height: isMobile ? 44 : 40 }}
+      >
+        添加时间窗
+      </Button>
+    </div>
+  );
+};
+
+/**
+ * 时间轴可视化组件 - 显示时间窗的时间关系
+ */
+interface WindowTimelineVisualizationProps {
+  fields: any[];
+}
+
+const WindowTimelineVisualization: React.FC<WindowTimelineVisualizationProps> = ({ fields: _fields }) => {
+  const screens = useBreakpoint();
+  const { token } = useToken();
+  const isMobile = !screens.md;
+
+  // 使用 useWatch 获取所有 windows 的数据
+  const windows = Form.useWatch('windows') || [];
+
+  // 示例班次时间（默认 8:00 - 12:00）
+  const baseDate = dayjs().startOf('day').toDate();
+  const shiftStart = dayjs(baseDate).hour(8).minute(0).second(0).toDate();
+  const shiftEnd = dayjs(baseDate).hour(12).minute(0).second(0).toDate();
+
+  // 过滤启用的时间窗
+  const enabledWindows = windows.filter((w: any) => w.enabled !== false);
+
+  if (enabledWindows.length === 0) {
+    return (
+      <Alert
+        title="暂无已启用的时间窗"
+        description="启用时间窗后，此处将显示时间轴可视化"
+        type="info"
+        showIcon
+      />
+    );
+  }
+
+  return (
+    <div>
+      <Text strong style={{ fontSize: 14, marginBottom: 12, display: 'block' }}>
+        时间轴预览（以班次开始时间 8:00 为基准）
+      </Text>
+
+      {/* 垂直时间轴展示 */}
+      <div style={{
+        padding: isMobile ? '12px' : '16px',
+        backgroundColor: '#fafafa',
+        borderRadius: '6px',
+        marginTop: 12,
+      }}>
+        <RuleSetTimeline
+          windows={enabledWindows}
+          direction="vertical"
+          compact={isMobile}
+          shiftStart={shiftStart}
+          shiftEnd={shiftEnd}
+        />
+      </div>
+
+      {/* 时间关系说明 */}
+      <div style={{ marginTop: 16, padding: 12, backgroundColor: token.colorInfoBg, borderRadius: 6, borderLeft: `3px solid ${token.colorInfo}` }}>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          提示：时间轴显示各时间窗相对于班次开始时间（8:00）的开放和截止时间。
+          绿色表示开放时间偏移，红色表示截止时间偏移。多个时间窗组合时，系统会取最严格的限制。
+        </Text>
+      </div>
+    </div>
+  );
+};
+
+/**
  * 时间窗配置组件 - 使用竖向 Tabs 展示
  */
 const RuleWindowConfig: React.FC = () => {
@@ -453,174 +621,6 @@ const RuleWindowConfig: React.FC = () => {
         }}
       </Form.List>
     </Card>
-  );
-};
-
-/**
- * 时间窗 Tabs 内容组件 - 使用 Form.useWatch 获取实时数据
- */
-interface WindowTabsContentProps {
-  fields: any[];
-  add: (defaultValue?: any) => void;
-  remove: (index: number) => void;
-  activeKey: string;
-  setActiveKey: (key: string) => void;
-}
-
-const WindowTabsContent: React.FC<WindowTabsContentProps> = ({
-  fields,
-  add,
-  remove,
-  activeKey,
-  setActiveKey,
-}) => {
-  const screens = useBreakpoint();
-  const { token } = useToken();
-  const isMobile = !screens.md;
-  const isTablet = screens.md && !screens.lg;
-
-  // 使用 useWatch 获取所有 windows 的数据
-  const windows = Form.useWatch('windows') || [];
-
-  // 生成 tab 项
-  const tabItems = fields.map((field, index) => {
-    const windowData = windows[index] || {};
-    const name = windowData.name || generateDefaultWindowName(windowData.action, index);
-    const action = windowData.action;
-    const actionLabel = ACTION_LABELS[action] || '';
-
-    return {
-      key: String(index),
-      label: (
-        <div style={{
-          maxWidth: isMobile ? 100 : isTablet ? 120 : 150,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          textAlign: 'left',
-        }}>
-          <div style={{ fontWeight: 500, fontSize: isMobile ? 12 : 14 }}>{name}</div>
-          {actionLabel && (
-            <div style={{ fontSize: isMobile ? 10 : 11, color: token.colorTextSecondary }}>{actionLabel}</div>
-          )}
-        </div>
-      ),
-      children: (
-        <WindowFormContent 
-          key={field.key} 
-          field={field} 
-          remove={(name) => {
-            remove(name);
-            // 删除后调整 activeKey
-            if (fields.length > 1) {
-              const newIndex = Math.min(index, fields.length - 2);
-              setActiveKey(String(newIndex));
-            }
-          }} 
-        />
-      ),
-    };
-  });
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <Tabs
-        activeKey={activeKey}
-        onChange={setActiveKey}
-        tabPlacement={isMobile ? 'top' : 'left'}
-        items={tabItems}
-        style={{ minHeight: isMobile ? 300 : 400 }}
-        tabBarStyle={{ width: isMobile ? 'auto' : isTablet ? 120 : 180 }}
-        tabBarExtraContent={{
-          left: !isMobile && (
-            <div style={{ padding: '8px 0', marginBottom: 8 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                共 {fields.length} 个时间窗
-              </Text>
-            </div>
-          ),
-        }}
-      />
-      <Button
-        type="dashed"
-        onClick={() => {
-          add({ ...WINDOW_DEFAULT_VALUES, name: `时间窗 ${fields.length + 1}` });
-          setActiveKey(String(fields.length));
-        }}
-        block
-        icon={<PlusOutlined />}
-        style={{ height: isMobile ? 44 : 40 }}
-      >
-        添加时间窗
-      </Button>
-    </div>
-  );
-};
-
-/**
- * 时间轴可视化组件 - 显示时间窗的时间关系
- */
-interface WindowTimelineVisualizationProps {
-  fields: any[];
-}
-
-const WindowTimelineVisualization: React.FC<WindowTimelineVisualizationProps> = ({ fields }) => {
-  const screens = useBreakpoint();
-  const { token } = useToken();
-  const isMobile = !screens.md;
-
-  // 使用 useWatch 获取所有 windows 的数据
-  const windows = Form.useWatch('windows') || [];
-
-  // 示例班次时间（默认 8:00 - 12:00）
-  const baseDate = dayjs().startOf('day').toDate();
-  const shiftStart = dayjs(baseDate).hour(8).minute(0).second(0).toDate();
-  const shiftEnd = dayjs(baseDate).hour(12).minute(0).second(0).toDate();
-
-  // 过滤启用的时间窗
-  const enabledWindows = windows.filter((w: any) => w.enabled !== false);
-
-  if (enabledWindows.length === 0) {
-    return (
-      <Alert
-        title="暂无已启用的时间窗"
-        description="启用时间窗后，此处将显示时间轴可视化"
-        type="info"
-        showIcon
-      />
-    );
-  }
-
-  return (
-    <div>
-      <Text strong style={{ fontSize: 14, marginBottom: 12, display: 'block' }}>
-        时间轴预览（以班次开始时间 8:00 为基准）
-      </Text>
-
-      {/* 垂直时间轴展示 */}
-      <div style={{
-        padding: isMobile ? '12px' : '16px',
-        backgroundColor: '#fafafa',
-        borderRadius: '6px',
-        marginTop: 12,
-      }}>
-        <RuleSetTimeline
-          windows={enabledWindows}
-          direction="vertical"
-          compact={isMobile}
-          shiftStart={shiftStart}
-          shiftEnd={shiftEnd}
-        />
-      </div>
-
-      {/* 时间关系说明 */}
-      <div style={{ marginTop: 16, padding: 12, backgroundColor: token.colorInfoBg, borderRadius: 6, borderLeft: `3px solid ${token.colorInfo}` }}>
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          提示：时间轴显示各时间窗相对于班次开始时间（8:00）的开放和截止时间。
-          绿色表示开放时间偏移，红色表示截止时间偏移。多个时间窗组合时，系统会取最严格的限制。
-        </Text>
-      </div>
-    </div>
   );
 };
 

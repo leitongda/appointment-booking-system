@@ -4,8 +4,8 @@
  */
 
 import React, { useMemo } from 'react';
-import { Card, Space, Typography, Row, Col, Tag, Divider, Tooltip, theme } from 'antd';
-import { ClockCircleOutlined, ArrowRightOutlined, MinusOutlined } from '@ant-design/icons';
+import { Card, Space, Typography, Row, Col, Tag, Divider, theme } from 'antd';
+import { ClockCircleOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import type { RuleWindow } from '@hospital/shared';
 import { formatOffset, calculateWindowTime } from '@/utils/ruleSetFormatter';
 import { ACTION_COLORS, REFERENCE_POINT_LABELS } from '@/constants/rule-set';

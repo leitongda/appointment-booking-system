@@ -1,16 +1,13 @@
 import React from 'react';
-import { Popconfirm, Typography, Space, theme } from 'antd';
+import { Popconfirm, theme } from 'antd';
 import {
   EyeOutlined,
   EditOutlined,
   DeleteOutlined,
   ExclamationCircleOutlined,
-  WarningOutlined,
 } from '@ant-design/icons';
 import { useAccess, history } from '@umijs/max';
 import { confirmDelete, type DeleteImpactScope } from '@/components/ConfirmModal';
-
-const { Text } = Typography;
 
 /**
  * 操作按钮类型

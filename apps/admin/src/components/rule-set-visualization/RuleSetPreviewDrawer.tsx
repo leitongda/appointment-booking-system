@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { Drawer, Space, Typography, Tag, Divider, Collapse, Grid } from 'antd';
+import { Drawer, Space, Typography, Tag, Divider, Grid } from 'antd';
 
 const { useBreakpoint } = Grid;
 import type { RuleSet } from '@hospital/shared';

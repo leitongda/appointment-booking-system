@@ -1,5 +1,5 @@
 import { ShopOutlined, DownOutlined, AppstoreOutlined, CheckOutlined } from '@ant-design/icons';
-import { useModel, useAccess } from '@umijs/max';
+import { useModel } from '@umijs/max';
 import { Tooltip, Popover, Spin, Empty, Avatar, App, theme } from 'antd';
 import { history } from '@umijs/max';
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -17,7 +17,7 @@ export const StoreSwitcher: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [stores, setStores] = useState<StoreInfo[]>([]);
-  const [canSwitchStores, setCanSwitchStores] = useState(false);
+  const [_canSwitchStores, setCanSwitchStores] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [switchingStoreName, setSwitchingStoreName] = useState('');
 
@@ -97,42 +97,6 @@ export const StoreSwitcher: React.FC = () => {
       message.error(error.message || '切换门店失败');
     }
   }, [stores, message]);
-
-  const doSelectAllStores = useCallback(() => {
-    setSwitching(true);
-    setSwitchingStoreName('全部门店');
-    setOpen(false);
-    localStorage.removeItem('hospital_current_store');
-    storesCacheRef.current = null;
-
-    const { pathname, search, hash } = history.location;
-    if (!/\/(create|edit)($|\/)/.test(pathname)) {
-      setStorage(STORAGE_KEYS.SWITCH_REDIRECT_PATH, pathname + (search || '') + (hash || ''));
-    } else {
-      const listPath = pathname.replace(/\/(create|edit)($|\/.*)/, '');
-      setStorage(STORAGE_KEYS.SWITCH_REDIRECT_PATH, listPath || '/dashboard');
-    }
-
-    window.location.reload();
-  }, []);
-
-  const handleSelectAllStores = useCallback(() => {
-    if (!currentStore) {
-      setOpen(false);
-      return;
-    }
-    if (isOnFormPage()) {
-      modal.confirm({
-        title: '切换门店',
-        content: '切换到「全部门店」将导致当前页面未保存的更改丢失，是否继续？',
-        okText: '确定切换',
-        cancelText: '取消',
-        onOk: doSelectAllStores,
-      });
-    } else {
-      doSelectAllStores();
-    }
-  }, [currentStore, isOnFormPage, modal, doSelectAllStores]);
 
   const handleSwitchStore = useCallback((storeId: string) => {
     if (storeId === currentStore?.id) {

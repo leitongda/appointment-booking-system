@@ -549,7 +549,7 @@ const HorizontalTimeline: React.FC<HorizontalTimelineProps> = ({
 
         {/* 时间窗条形图 */}
         {windowRenderData.map((data) => {
-          const { window, windowId, x1, x2, y, width, colorConfig, hasNoOpenLimit, hasNoCloseLimit, extendsBefore, extendsAfter } = data;
+          const { window, windowId, x1, x2, y, width: _width, colorConfig, hasNoOpenLimit, hasNoCloseLimit, extendsBefore, extendsAfter } = data;
 
           // 安全检查：确保坐标有效
           if (!isFinite(x1) || !isFinite(x2) || !isFinite(y)) {

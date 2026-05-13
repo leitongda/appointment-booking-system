@@ -188,7 +188,7 @@ const WindowTimelineItem: React.FC<WindowTimelineItemProps> = ({
 const RuleSetTimeline: React.FC<RuleSetTimelineProps> = ({
   windows,
   direction = 'vertical',
-  showReferenceLine = true,
+  showReferenceLine: _showReferenceLine = true,
   compact = false,
   shiftStart,
   shiftEnd,

@@ -6,14 +6,11 @@ import {
   SettingOutlined,
 } from '@ant-design/icons';
 import { history, useModel, useAccess } from '@umijs/max';
-import { Tooltip, Dropdown, Modal, QRCode, Button, Spin, Empty, Avatar, App, theme } from 'antd';
+import { Tooltip, Dropdown, Modal, QRCode, Button, Spin, Empty, App, theme } from 'antd';
 import type { MenuProps } from 'antd';
 import { useState, useCallback } from 'react';
 import { storeApi } from '@hospital/api';
 import styles from './index.less';
-
-// 门店列表缓存 TTL（5 分钟）
-const STORE_CACHE_TTL = 5 * 60 * 1000;
 
 export const StoreQuickActions: React.FC = () => {
   const { message } = App.useApp();
@@ -27,10 +24,6 @@ export const StoreQuickActions: React.FC = () => {
 
   const currentStore = initialState?.currentStore;
   const isSuperAdmin = initialState?.currentUser?.isSuperAdmin || initialState?.currentUser?.roleCode === 'SUPER_ADMIN';
-
-  if (!currentStore || isSuperAdmin) {
-    return null;
-  }
 
   const handleOpenQrcode = useCallback(async () => {
     if (!currentStore?.id) {
@@ -58,6 +51,10 @@ export const StoreQuickActions: React.FC = () => {
       link.click();
     }
   }, [currentStore?.name]);
+
+  if (!currentStore || isSuperAdmin) {
+    return null;
+  }
 
   const menuItems: MenuProps['items'] = [
     {

@@ -209,7 +209,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   // 及时销毁 editor
   useEffect(() => {
     return () => {
-      if (editor == null) return;
+      if (editor === null || editor === undefined) return;
       editor.destroy();
       setEditor(null);
     };

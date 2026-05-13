@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
-import { Button, Dropdown, Modal, Upload, message, Space, Alert, Table, Progress, Typography } from 'antd';
+import { Button, Dropdown, Modal, Upload, message, Space, Alert, Table } from 'antd';
 import { DownloadOutlined, UploadOutlined, FileExcelOutlined, MoreOutlined } from '@ant-design/icons';
 import type { UploadProps, MenuProps } from 'antd';
 import type { RcFile } from 'antd/es/upload';
 import { request } from '@umijs/max';
 import { getToken } from '@hospital/shared';
-
-const { Text } = Typography;
 
 export interface ImportExportProps {
   /** 模块名称，用于显示 */

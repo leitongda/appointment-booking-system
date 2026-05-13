@@ -31,12 +31,6 @@ export interface GanttTimelineProps {
 
 // ==================== 常量定义 ====================
 
-const ACTION_LABELS: Record<string, string> = {
-  BOOK: '预约',
-  CHECKIN: '签到',
-  CANCEL: '取消',
-  HOLD_RELEASE: '释放',
-};
 
 const WINDOW_COLORS: Record<string, {
   fill: string;
@@ -108,7 +102,6 @@ const GanttTimeline: React.FC<GanttTimelineProps> = ({
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(800); // 设置默认初始宽度
-  const [isReady, setIsReady] = useState(false);
 
   // 响应式处理
   useEffect(() => {
@@ -119,7 +112,6 @@ const GanttTimeline: React.FC<GanttTimelineProps> = ({
         const width = element.getBoundingClientRect().width;
         const newWidth = Math.max(width, 600);
         setContainerWidth(newWidth);
-        setIsReady(true);
       }
     };
 
@@ -528,7 +520,7 @@ const GanttTimeline: React.FC<GanttTimelineProps> = ({
 
           {/* 时间窗行 */}
           {windowRenderData.map((data) => {
-            const { window, windowId, x1, x2, y, barHeight, width, colorConfig, hasNoOpenLimit, hasNoCloseLimit, displayStart, displayEnd } = data;
+            const { window, windowId, x1, x2, y, barHeight, width: _width, colorConfig, hasNoOpenLimit, hasNoCloseLimit, displayStart, displayEnd } = data;
 
             // 限制在图表范围内
             const chartLeft = CONFIG.labelWidth;

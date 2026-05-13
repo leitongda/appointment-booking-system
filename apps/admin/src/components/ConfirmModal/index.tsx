@@ -1,5 +1,5 @@
 import { Modal, Input, Alert, Space, Typography, Divider, Grid } from 'antd';
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import {
   ExclamationCircleOutlined,
   WarningOutlined,
@@ -7,7 +7,7 @@ import {
   StopOutlined,
 } from '@ant-design/icons';
 
-const { useBreakpoint } = Grid;
+const { useBreakpoint: _useBreakpoint } = Grid;
 const { Text } = Typography;
 
 const CONFIRM_TEXT = 'CONFIRM';
@@ -49,7 +49,7 @@ export interface ConfirmDeleteOptions {
 /**
  * 生成影响范围描述
  */
-const generateImpactDescription = (impactScope: DeleteImpactScope, entityName?: string): React.ReactNode => {
+const generateImpactDescription = (impactScope: DeleteImpactScope, _entityName?: string): React.ReactNode => {
   const items: React.ReactNode[] = [];
 
   if (impactScope.customDescription) {

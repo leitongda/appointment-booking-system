@@ -35,9 +35,9 @@ const WindowBar: React.FC<WindowBarProps> = ({
   const refPointLabel = REFERENCE_POINT_LABELS[window.referencePoint] || window.referencePoint;
 
   // 判断是否"不限制"：null 表示不限制，undefined/NaN 等无效值也视为不限制
-  const hasNoOpenLimit = window.openOffsetSec == null || 
+  const hasNoOpenLimit = window.openOffsetSec === null || window.openOffsetSec === undefined ||
     (typeof window.openOffsetSec === 'number' && !isFinite(window.openOffsetSec));
-  const hasNoCloseLimit = window.closeOffsetSec == null || 
+  const hasNoCloseLimit = window.closeOffsetSec === null || window.closeOffsetSec === undefined ||
     (typeof window.closeOffsetSec === 'number' && !isFinite(window.closeOffsetSec));
 
   // 构建 Tooltip 内容

@@ -13,7 +13,7 @@ import { Tooltip, Popover, Spin, Empty, Avatar, Input, App, theme } from 'antd';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { tenantApi, adminApi } from '@hospital/api';
 import type { Tenant } from '@hospital/api';
-import { setStorage, removeStorage, STORAGE_KEYS } from '@hospital/shared';
+import { setStorage, STORAGE_KEYS } from '@hospital/shared';
 import styles from './index.less';
 
 // 租户列表缓存 TTL（5 分钟）
@@ -105,11 +105,6 @@ const TenantSwitcher: React.FC = () => {
     );
   }, [tenants, searchText]);
 
-  // 非平台管理员不显示租户切换器
-  if (!isPlatformAdmin) {
-    return null;
-  }
-
   // 执行租户切换
   const doSwitchTenant = useCallback(async (tenantId: string) => {
     const targetTenant = tenants.find(t => t.id === tenantId);
@@ -168,6 +163,11 @@ const TenantSwitcher: React.FC = () => {
       doSwitchTenant(tenantId);
     }
   }, [currentTenantId, switching, isOnFormPage, tenants, modal, doSwitchTenant]);
+
+  // 非平台管理员不显示租户切换器
+  if (!isPlatformAdmin) {
+    return null;
+  }
 
   // 渲染触发按钮
   const renderTrigger = () => {

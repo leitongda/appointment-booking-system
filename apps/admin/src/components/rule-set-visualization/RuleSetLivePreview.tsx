@@ -10,7 +10,6 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { formatTime, calculateKeyTimes } from '@/utils/ruleSetFormatter';
 import { trackLivePreviewOpen, trackLivePreviewUpdate, getTimestamp, type LivePreviewData } from '@/utils/analytics';
 import RuleSetSummaryCard from './RuleSetSummaryCard';
-import RuleSetTimeline from './RuleSetTimeline';
 import GanttTimeline from './GanttTimeline';
 
 const { Text, Title } = Typography;
@@ -53,7 +52,7 @@ interface KeyTimesListProps {
   baseDate: Date;
 }
 
-const KeyTimesList: React.FC<KeyTimesListProps> = ({ keyTimes, baseDate }) => {
+const KeyTimesList: React.FC<KeyTimesListProps> = ({ keyTimes, baseDate: _baseDate }) => {
   const { token } = theme.useToken();
   const formatKeyTime = (time?: Date) => {
     if (!time) return '不限制';

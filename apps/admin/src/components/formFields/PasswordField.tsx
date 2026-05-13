@@ -125,9 +125,9 @@ function calculatePasswordStrength(password: string, level: PasswordStrengthConf
   }
 
   // 特殊字符检查
-  if (level.requireSpecialChar && /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+  if (level.requireSpecialChar && /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
     score += 25;
-  } else if (!level.requireSpecialChar && /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+  } else if (!level.requireSpecialChar && /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
     score += 15;
   }
 
@@ -194,7 +194,7 @@ function generatePasswordRules(
 
   if (config.requireSpecialChar) {
     rules.push({
-      pattern: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/,
+      pattern: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/,
       message: '密码必须包含特殊字符',
     });
   }

@@ -8,6 +8,14 @@ interface SortableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {
   'data-row-key'?: string;
 }
 
+// 创建 Context 用于传递拖拽手柄的 props
+interface DragHandleContextType {
+  setActivatorNodeRef?: (element: HTMLElement | null) => void;
+  listeners?: Record<string, any>;
+}
+
+export const DragHandleContext = React.createContext<DragHandleContextType>({});
+
 export const SortableRow: React.FC<SortableRowProps> = ({ children, style, ...props }) => {
   const id = props['data-row-key'] || '';
 
@@ -44,14 +52,6 @@ export const SortableRow: React.FC<SortableRowProps> = ({ children, style, ...pr
     </DragHandleContext.Provider>
   );
 };
-
-// 创建 Context 用于传递拖拽手柄的 props
-interface DragHandleContextType {
-  setActivatorNodeRef?: (element: HTMLElement | null) => void;
-  listeners?: Record<string, any>;
-}
-
-export const DragHandleContext = React.createContext<DragHandleContextType>({});
 
 // 拖拽手柄组件
 export const DragHandle: React.FC = () => {
