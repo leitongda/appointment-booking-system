@@ -10,7 +10,7 @@
  */
 import { defineConfig } from 'umi';
 
-const { API_BASE_URL = '/api/v1', PROXY_TARGET = 'http://localhost:8000' } = process.env;
+const { API_BASE_URL = '/api/v1', PROXY_TARGET = 'http://localhost:9000' } = process.env;
 
 export default defineConfig({
   // 定义全局环境变量

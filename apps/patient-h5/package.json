@@ -4,7 +4,7 @@
   "private": true,
   "description": "医院挂号系统 - 患者端H5",
   "scripts": {
-    "dev": "NODE_OPTIONS='--require ./scripts/fix-network.js' HOST=127.0.0.1 PORT=8002 umi dev",
+    "dev": "NODE_OPTIONS='--require ./scripts/fix-network.js' HOST=127.0.0.1 PORT=${PORT:-9102} umi dev",
     "build": "umi build",
     "postinstall": "umi setup",
     "lint": "eslint src --ext .ts,.tsx",
