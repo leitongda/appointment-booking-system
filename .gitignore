@@ -112,6 +112,12 @@ htmlcov/
 .nyc_output/
 .vitest/
 
+# Playwright E2E
+e2e-report/
+test-results/
+blob-report/
+playwright-report/
+
 # ============================================
 # Linting & Formatting
 # ============================================
