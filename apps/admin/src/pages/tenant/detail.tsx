@@ -1,5 +1,5 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { Card, Descriptions, Tag, Statistic, Row, Col, Button, Space, Tabs, Table, message, Popconfirm } from 'antd';
+import { Card, Descriptions, Tag, Statistic, Row, Col, Button, Tabs, Table, message, Popconfirm } from 'antd';
 import { history, useParams, useAccess } from '@umijs/max';
 import { useEffect, useState } from 'react';
 import { tenantApi } from '@hospital/api';
@@ -21,10 +21,6 @@ const TenantDetailPage: React.FC = () => {
   const [usageLogs, setUsageLogs] = useState<TenantUsageLog[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadData();
-  }, [id]);
-
   const loadData = async () => {
     setLoading(true);
     try {
@@ -45,6 +41,10 @@ const TenantDetailPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadData();
+  }, [id]);
 
   const handleActivate = async () => {
     await tenantApi.activateTenant(id);

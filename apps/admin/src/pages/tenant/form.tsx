@@ -8,26 +8,15 @@ import type { SubscriptionPlan, TenantCreateData, TenantUpdateData } from '@hosp
 
 const TenantFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const [searchParams] = useSearchParams();
+  const [_searchParams] = useSearchParams();
   const isEdit = !!id;
   const [form] = Form.useForm();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(false);
-  const [checkingCode, setCheckingCode] = useState(false);
+  const [_checkingCode, setCheckingCode] = useState(false);
   const cancelledRef = useRef(false);
 
-  useEffect(() => {
-    cancelledRef.current = false;
-    loadPlans();
-    if (isEdit) {
-      loadTenant();
-    }
-    return () => {
-      cancelledRef.current = true;
-    };
-  }, [id]);
-
-  const loadPlans = async () => {
+  async function loadPlans() {
     try {
       const res = await tenantApi.getPlans(1);
       if (cancelledRef.current) return;
@@ -35,9 +24,9 @@ const TenantFormPage: React.FC = () => {
     } catch (error) {
       console.error('加载订阅计划失败:', error);
     }
-  };
+  }
 
-  const loadTenant = async () => {
+  async function loadTenant() {
     setLoading(true);
     try {
       const res = await tenantApi.getTenant(id);
@@ -68,7 +57,18 @@ const TenantFormPage: React.FC = () => {
         setLoading(false);
       }
     }
-  };
+  }
+
+  useEffect(() => {
+    cancelledRef.current = false;
+    loadPlans();
+    if (isEdit) {
+      loadTenant();
+    }
+    return () => {
+      cancelledRef.current = true;
+    };
+  }, [id]);
 
   const checkTenantCode = async (_: any, value: string) => {
     if (!value) return Promise.resolve();

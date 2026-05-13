@@ -1,19 +1,12 @@
 import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Tag, Button, Space, Popconfirm } from 'antd';
+import { Tag, Button, Popconfirm } from 'antd';
 import { history, useAccess } from '@umijs/max';
 import { tenantApi } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
 import { useListPage } from '@/hooks/useListPage';
 import { CreateButton, createOperationColumn } from '@/components/ListOperations';
 import type { Tenant } from '@hospital/api';
-
-const TENANT_STATUS_MAP: Record<number, { text: string; status: 'Success' | 'Error' | 'Warning' | 'Default' }> = {
-  0: { text: '已禁用', status: 'Default' },
-  1: { text: '正常', status: 'Success' },
-  2: { text: '已欠费', status: 'Error' },
-  3: { text: '试用中', status: 'Warning' },
-};
 
 const TenantPage: React.FC = () => {
   const access = useAccess();

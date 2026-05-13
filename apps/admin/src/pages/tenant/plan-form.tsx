@@ -1,22 +1,16 @@
 import { PageContainer } from '@ant-design/pro-components';
 import { ProForm, ProFormText, ProFormDigit, ProFormTextArea, ProFormSwitch, ProFormSelect } from '@ant-design/pro-components';
-import { Card, message, Form, Row, Col, InputNumber } from 'antd';
+import { Card, message, Form, Row, Col } from 'antd';
 import { history, useParams } from '@umijs/max';
 import { useEffect, useState } from 'react';
 import { tenantApi } from '@hospital/api';
-import type { SubscriptionPlanCreateData, SubscriptionPlanUpdateData, SubscriptionPlan } from '@hospital/api';
+import type { SubscriptionPlanCreateData, SubscriptionPlanUpdateData } from '@hospital/api';
 
 const SubscriptionPlanFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const isEdit = !!id;
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (isEdit) {
-      loadPlan();
-    }
-  }, [id]);
 
   const loadPlan = async () => {
     setLoading(true);
@@ -47,6 +41,12 @@ const SubscriptionPlanFormPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (isEdit) {
+      loadPlan();
+    }
+  }, [id]);
 
   const handleSubmit = async (values: any) => {
     try {
