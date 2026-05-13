@@ -15,11 +15,11 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         '/api': {
-          target: env.PROXY_TARGET || 'http://localhost:8000',
+          target: env.PROXY_TARGET || 'http://localhost:9000',
           changeOrigin: true,
         },
         '/uploads': {
-          target: env.PROXY_TARGET || 'http://localhost:8000',
+          target: env.PROXY_TARGET || 'http://localhost:9000',
           changeOrigin: true,
         },
       },
