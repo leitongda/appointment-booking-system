@@ -67,14 +67,6 @@ const StoreFormPage: React.FC = () => {
   // 标记编码是否被用户手动修改过
   const [codeManuallyEdited, setCodeManuallyEdited] = useState(false);
 
-  useEffect(() => {
-    if (isEdit) {
-      loadStore();
-      // 编辑模式下，认为编码已被手动设置
-      setCodeManuallyEdited(true);
-    }
-  }, [id]);
-
   // 加载门店详情
   const loadStore = async () => {
     if (!id) return;
@@ -89,27 +81,31 @@ const StoreFormPage: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    if (isEdit) {
+      loadStore();
+      // 编辑模式下，认为编码已被手动设置
+      setCodeManuallyEdited(true);
+    }
+  }, [id]);
+
   // 表单提交处理
   const handleSubmit = async (values: any) => {
-    try {
-      // SwitchGroup 自动处理了 boolean ↔ number 转换，但为了兼容现有逻辑，保留转换
-      const data = {
-        ...values,
-        status: values.status ? 1 : 0,
-        // TimePicker 返回 dayjs 对象，转为 HH:mm:ss 字符串与后端 time 类型一致
-        openingTime: values.openingTime?.format?.('HH:mm:ss') ?? values.openingTime,
-        closingTime: values.closingTime?.format?.('HH:mm:ss') ?? values.closingTime,
-      };
+    // SwitchGroup 自动处理了 boolean ↔ number 转换，但为了兼容现有逻辑，保留转换
+    const data = {
+      ...values,
+      status: values.status ? 1 : 0,
+      // TimePicker 返回 dayjs 对象，转为 HH:mm:ss 字符串与后端 time 类型一致
+      openingTime: values.openingTime?.format?.('HH:mm:ss') ?? values.openingTime,
+      closingTime: values.closingTime?.format?.('HH:mm:ss') ?? values.closingTime,
+    };
 
-      if (isEdit && id) {
-        await storeApi.update(id, data);
-      } else {
-        await storeApi.create(data);
-      }
-      history.push('/organization/store/list');
-    } catch (error) {
-      throw error; // 抛出错误，让 FormPage 统一处理
+    if (isEdit && id) {
+      await storeApi.update(id, data);
+    } else {
+      await storeApi.create(data);
     }
+    history.push('/organization/store/list');
   };
 
   // 名称变化时自动生成编码

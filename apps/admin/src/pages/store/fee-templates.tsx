@@ -3,7 +3,7 @@ import { PageContainer } from '@ant-design/pro-components';
 import { Card, App, Table, InputNumber, Button, Spin, Space, Tag, Tooltip, Alert } from 'antd';
 import { useState, useEffect } from 'react';
 import { history, useParams } from '@umijs/max';
-import { storeFeeTemplateApi, storeApi, consultationFeeTemplateApi } from '@hospital/api';
+import { storeFeeTemplateApi, storeApi } from '@hospital/api';
 import type { StoreFeeTemplateWithType, Store, StoreFeeTemplateItem } from '@hospital/shared';
 
 const StoreFeeTemplatesPage: React.FC = () => {
@@ -13,12 +13,6 @@ const StoreFeeTemplatesPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [templates, setTemplates] = useState<StoreFeeTemplateWithType[]>([]);
   const [store, setStore] = useState<Store | null>(null);
-
-  useEffect(() => {
-    if (storeId) {
-      loadData();
-    }
-  }, [storeId]);
 
   const loadData = async () => {
     setLoading(true);
@@ -35,6 +29,12 @@ const StoreFeeTemplatesPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (storeId) {
+      loadData();
+    }
+  }, [storeId]);
 
   const handleValueChange = (index: number, field: 'initialFee' | 'followUpFee', value: number | null) => {
     const newTemplates = [...templates];
@@ -215,7 +215,7 @@ const StoreFeeTemplatesPage: React.FC = () => {
               <li>门店诊费模板用于为该门店的医生提供默认诊费金额</li>
               <li>医生设置诊费时，可以一键带入门店模板中的金额</li>
               <li>如果门店未配置某个诊费类型的模板，医生一键带入时会使用全局模板的金额</li>
-              <li>门店可以创建专属的诊费类型，请点击"管理诊费类型"按钮</li>
+              <li>门店可以创建专属的诊费类型，请点击&quot;管理诊费类型&quot;按钮</li>
             </ul>
           }
           type="info"
@@ -245,7 +245,7 @@ const StoreFeeTemplatesPage: React.FC = () => {
 
           {templates.length === 0 && !loading && (
             <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
-              暂无诊费类型，请先到配置中心 - 诊费类型添加全局诊费类型，或点击"管理诊费类型"创建门店专属类型
+              暂无诊费类型，请先到配置中心 - 诊费类型添加全局诊费类型，或点击&quot;管理诊费类型&quot;创建门店专属类型
             </div>
           )}
         </Spin>

@@ -17,12 +17,6 @@ const StoreFeeTypesPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [store, setStore] = useState<Store | null>(null);
 
-  useEffect(() => {
-    if (storeId) {
-      loadStore();
-    }
-  }, [storeId]);
-
   const loadStore = async () => {
     try {
       const data = await storeApi.getDetail(storeId!);
@@ -31,6 +25,12 @@ const StoreFeeTypesPage: React.FC = () => {
       message.error('加载门店信息失败');
     }
   };
+
+  useEffect(() => {
+    if (storeId) {
+      loadStore();
+    }
+  }, [storeId]);
 
   const handleDelete = async (id: string) => {
     try {

@@ -6,7 +6,6 @@ import type { TreeDataNode, TreeProps, TransferProps, MenuProps } from 'antd';
 import { useRef, useState, useCallback } from 'react';
 import { history, useAccess } from '@umijs/max';
 import { storeApi, departmentApi, adminApi, dataApi } from '@hospital/api';
-import type { StoreAdmin } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { Store, DepartmentTreeNode } from '@hospital/shared';
 import ImportExport from '@/components/ImportExport';

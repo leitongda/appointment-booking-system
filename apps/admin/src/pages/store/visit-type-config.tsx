@@ -1,5 +1,5 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { Card, Form, InputNumber, Select, Switch, Button, Spin, Space, Alert, App, Breadcrumb } from 'antd';
+import { Card, Form, InputNumber, Select, Switch, Button, Space, Alert, App } from 'antd';
 import { useParams, history, Link } from '@umijs/max';
 import { useEffect, useState } from 'react';
 import { storeApi, storeVisitTypeConfigApi } from '@hospital/api';
@@ -13,7 +13,7 @@ const VisitTypeConfigPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [store, setStore] = useState<Store | null>(null);
-  const [config, setConfig] = useState<StoreVisitTypeConfig | null>(null);
+  const [_config, setConfig] = useState<StoreVisitTypeConfig | null>(null);
 
   // 加载数据
   useEffect(() => {
