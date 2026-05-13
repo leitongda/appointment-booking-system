@@ -4,7 +4,7 @@
  */
 
 // 从环境变量读取代理目标，默认为本地开发环境
-const PROXY_TARGET = process.env.PROXY_TARGET || 'http://localhost:8000';
+const PROXY_TARGET = process.env.PROXY_TARGET || 'http://localhost:9000';
 
 export default {
   dev: {

@@ -4,8 +4,8 @@
   "private": true,
   "description": "医院挂号系统 - 机构端后台管理系统",
   "scripts": {
-    "dev": "NODE_OPTIONS='--require ./scripts/fix-network.js' HOST=127.0.0.1 PORT=8005 max dev",
-    "dev:local": "NODE_OPTIONS='--require ./scripts/fix-network.js' HOST=127.0.0.1 PORT=8005 max dev",
+    "dev": "NODE_OPTIONS='--require ./scripts/fix-network.js' HOST=127.0.0.1 PORT=${PORT:-9105} max dev",
+    "dev:local": "NODE_OPTIONS='--require ./scripts/fix-network.js' HOST=127.0.0.1 PORT=${PORT:-9105} max dev",
     "dev:remote": "bash scripts/dev-remote.sh",
     "build": "max build && node scripts/inject-preload.js",
     "postinstall": "max setup",
