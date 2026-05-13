@@ -4,8 +4,8 @@ import { defineConfig, devices } from '@playwright/test';
  * E2E 测试配置
  *
  * 测试环境变量：
- * - E2E_ADMIN_URL: Admin 端地址（默认 http://localhost:8005）
- * - E2E_API_BASE_URL: 后端 API 地址（默认 http://localhost:8000）
+ * - E2E_ADMIN_URL: Admin 端地址（默认 http://localhost:9105）
+ * - E2E_API_BASE_URL: 后端 API 地址（默认 http://localhost:9000）
  */
 export default defineConfig({
   testDir: './apps/admin/e2e',

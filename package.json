@@ -25,7 +25,7 @@
     "build:mini-appointment": "cd apps/mini-appointment-miniapp && pnpm run build:weapp",
     "dev:doctor": "turbo run dev --filter=@hospital/doctor",
     "dev:temp-registration": "turbo run dev --filter=@hospital/temp-registration",
-    "dev:server": "cd apps/server && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+    "dev:server": "cd apps/server && uvicorn app.main:app --reload --host 0.0.0.0 --port ${SERVER_PORT:-9000}",
     "build": "turbo run build",
     "build:admin": "turbo run build --filter=@hospital/admin",
     "build:admin-v2": "turbo run build --filter=@hospital/admin-v2",

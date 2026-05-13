@@ -9,22 +9,22 @@
     "dev": {
       "cache": false,
       "persistent": true,
-      "env": ["PROXY_TARGET", "HOST", "PORT"]
+      "env": ["PROXY_TARGET", "HOST", "PORT", "SERVER_PORT"]
     },
     "dev:prod": {
       "cache": false,
       "persistent": true,
-      "env": ["PROXY_TARGET", "HOST", "PORT"]
+      "env": ["PROXY_TARGET", "HOST", "PORT", "SERVER_PORT"]
     },
     "dev:local": {
       "cache": false,
       "persistent": true,
-      "env": ["PROXY_TARGET", "HOST", "PORT"]
+      "env": ["PROXY_TARGET", "HOST", "PORT", "SERVER_PORT"]
     },
     "dev:remote": {
       "cache": false,
       "persistent": true,
-      "env": ["PROXY_TARGET", "HOST", "PORT"]
+      "env": ["PROXY_TARGET", "HOST", "PORT", "SERVER_PORT"]
     },
     "lint": {
       "dependsOn": ["^build"]
