@@ -386,29 +386,23 @@ const PatientDetailPage: React.FC = () => {
       label: '档案详情',
       children: (
         <Card>
-          <ProDescriptions column={2}>
-            <ProDescriptions.Item label="用户昵称">{patient?.nickname || '微信用户'}</ProDescriptions.Item>
-            <ProDescriptions.Item label="姓名">{patient?.name}</ProDescriptions.Item>
-            <ProDescriptions.Item label="联系电话">{patient?.phone}</ProDescriptions.Item>
-            <ProDescriptions.Item label="性别">
-              {patient?.gender !== undefined && patient?.gender !== null ? GENDER_MAP[patient.gender] || '-' : '-'}
-            </ProDescriptions.Item>
-            <ProDescriptions.Item label="省/市/区">
-              {[patient?.province, patient?.city, patient?.district].filter(Boolean).join('/') || '-'}
-            </ProDescriptions.Item>
-            <ProDescriptions.Item label="街道/社区">{patient?.street || '-'}</ProDescriptions.Item>
-            <ProDescriptions.Item label="就诊卡编号">{patient?.cardNo || '-'}</ProDescriptions.Item>
-            <ProDescriptions.Item label="证件类型">
-              {ID_CARD_TYPE_MAP[patient?.idCardType || 1] || '-'}
-            </ProDescriptions.Item>
-            <ProDescriptions.Item label="证件号">{patient?.idCard || '-'}</ProDescriptions.Item>
-            <ProDescriptions.Item label="民族">{patient?.ethnicity || '汉族'}</ProDescriptions.Item>
-            <ProDescriptions.Item label="出生日期">{patient?.birthday || '-'}</ProDescriptions.Item>
-            <ProDescriptions.Item label="年龄">{patient?.age ?? '-'}</ProDescriptions.Item>
-            <ProDescriptions.Item label="关系">{patient?.relationship || '-'}</ProDescriptions.Item>
-            <ProDescriptions.Item label="详细地址" span={2}>{patient?.address || '-'}</ProDescriptions.Item>
-            <ProDescriptions.Item label="来源">{SOURCE_MAP[patient?.source || 1] || '-'}</ProDescriptions.Item>
-          </ProDescriptions>
+          <ProDescriptions column={2} columns={[
+            { key: '0', title: '用户昵称', render: () => patient?.nickname || '微信用户' },
+            { key: '1', title: '姓名', render: () => patient?.name },
+            { key: '2', title: '联系电话', render: () => patient?.phone },
+            { key: '3', title: '性别', render: () => patient?.gender !== undefined && patient?.gender !== null ? GENDER_MAP[patient.gender] || '-' : '-' },
+            { key: '4', title: '省/市/区', render: () => [patient?.province, patient?.city, patient?.district].filter(Boolean).join('/') || '-' },
+            { key: '5', title: '街道/社区', render: () => patient?.street || '-' },
+            { key: '6', title: '就诊卡编号', render: () => patient?.cardNo || '-' },
+            { key: '7', title: '证件类型', render: () => ID_CARD_TYPE_MAP[patient?.idCardType || 1] || '-' },
+            { key: '8', title: '证件号', render: () => patient?.idCard || '-' },
+            { key: '9', title: '民族', render: () => patient?.ethnicity || '汉族' },
+            { key: '10', title: '出生日期', render: () => patient?.birthday || '-' },
+            { key: '11', title: '年龄', render: () => patient?.age ?? '-' },
+            { key: '12', title: '关系', render: () => patient?.relationship || '-' },
+            { key: '13', title: '详细地址', span: 2, render: () => patient?.address || '-' },
+            { key: '14', title: '来源', render: () => SOURCE_MAP[patient?.source || 1] || '-' },
+          ]} />
         </Card>
       ),
     },

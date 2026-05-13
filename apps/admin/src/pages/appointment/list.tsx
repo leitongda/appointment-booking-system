@@ -374,7 +374,7 @@ const AppointmentListPage: React.FC = () => {
       width: 200,
       fixed: 'right',
       render: (_, record) => (
-        <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
+        <Space size={4} separator={<Divider type="vertical" style={{ margin: 0 }} />}>
           {access.hasPermission('appointment:detail') && (
             <a onClick={() => history.push(`/medical-services/appointment/${record.id}`)} style={{ fontSize: 13 }}>
               <EyeOutlined /> 详情

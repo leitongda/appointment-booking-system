@@ -136,29 +136,27 @@ const FeedbackPage: React.FC = () => {
         width={500}
       >
         {currentRecord && (
-          <Descriptions column={1} bordered size="small">
-            <Descriptions.Item label="标题">{currentRecord.title}</Descriptions.Item>
-            <Descriptions.Item label="类型">{TYPE_MAP[currentRecord.feedbackType || 'other'].text}</Descriptions.Item>
-            <Descriptions.Item label="状态">{STATUS_MAP[currentRecord.status || 'pending'].text}</Descriptions.Item>
-            <Descriptions.Item label="内容">{currentRecord.content}</Descriptions.Item>
-            <Descriptions.Item label="联系方式">{currentRecord.contact || '-'}</Descriptions.Item>
-            {currentRecord.images && currentRecord.images.length > 0 && (
-              <Descriptions.Item label="图片">
+          <Descriptions column={1} bordered size="small" items={[
+            { key: '0', label: '标题', children: currentRecord.title },
+            { key: '1', label: '类型', children: TYPE_MAP[currentRecord.feedbackType || 'other'].text },
+            { key: '2', label: '状态', children: STATUS_MAP[currentRecord.status || 'pending'].text },
+            { key: '3', label: '内容', children: currentRecord.content },
+            { key: '4', label: '联系方式', children: currentRecord.contact || '-' },
+            ...(currentRecord.images && currentRecord.images.length > 0 ? [{
+              key: '5',
+              label: '图片',
+              children: (
                 <Image.PreviewGroup>
                   {currentRecord.images.map((img, i) => (
                     <Image key={i} src={img} width={80} style={{ marginRight: 8 }} />
                   ))}
                 </Image.PreviewGroup>
-              </Descriptions.Item>
-            )}
-            <Descriptions.Item label="提交时间">{currentRecord.createdAt}</Descriptions.Item>
-            {currentRecord.reply && (
-              <Descriptions.Item label="回复内容">{currentRecord.reply}</Descriptions.Item>
-            )}
-            {currentRecord.repliedAt && (
-              <Descriptions.Item label="回复时间">{currentRecord.repliedAt}</Descriptions.Item>
-            )}
-          </Descriptions>
+              ),
+            }] : []),
+            { key: '6', label: '提交时间', children: currentRecord.createdAt },
+            ...(currentRecord.reply ? [{ key: '7', label: '回复内容', children: currentRecord.reply }] : []),
+            ...(currentRecord.repliedAt ? [{ key: '8', label: '回复时间', children: currentRecord.repliedAt }] : []),
+          ]} />
         )}
       </Drawer>
     </PageContainer>

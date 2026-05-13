@@ -66,7 +66,7 @@ const BatchAddModal: React.FC<BatchAddModalProps> = ({
       width={600}
     >
       <Alert
-        message={`当前为本月第${dateInfo.monthWeek}周，本年第${dateInfo.yearWeek}周（${dateInfo.isOddWeek ? '奇数' : '偶数'}周）`}
+        title={`当前为本月第${dateInfo.monthWeek}周，本年第${dateInfo.yearWeek}周（${dateInfo.isOddWeek ? '奇数' : '偶数'}周）`}
         type="info"
         showIcon
         style={{ marginBottom: 16 }}

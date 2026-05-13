@@ -124,17 +124,17 @@ const LeaveRequestPage: React.FC = () => {
 
       <Drawer title="申请详情" open={detailOpen} onClose={() => setDetailOpen(false)} width={450}>
         {currentRecord && (
-          <Descriptions column={1} bordered size="small">
-            <Descriptions.Item label="医生">{currentRecord.doctorName}</Descriptions.Item>
-            <Descriptions.Item label="科室">{currentRecord.departmentName}</Descriptions.Item>
-            <Descriptions.Item label="类型">{TYPE_MAP[currentRecord.requestType]}</Descriptions.Item>
-            <Descriptions.Item label="日期">{currentRecord.stopDate}</Descriptions.Item>
-            <Descriptions.Item label="时段">{PERIOD_MAP[currentRecord.stopPeriod]}</Descriptions.Item>
-            <Descriptions.Item label="原因">{currentRecord.reason}</Descriptions.Item>
-            <Descriptions.Item label="状态">{STATUS_MAP[currentRecord.status]?.text}</Descriptions.Item>
-            {currentRecord.reviewComment && <Descriptions.Item label="审核意见">{currentRecord.reviewComment}</Descriptions.Item>}
-            {currentRecord.reviewedAt && <Descriptions.Item label="审核时间">{currentRecord.reviewedAt}</Descriptions.Item>}
-          </Descriptions>
+          <Descriptions column={1} bordered size="small" items={[
+            { key: '0', label: '医生', children: currentRecord.doctorName },
+            { key: '1', label: '科室', children: currentRecord.departmentName },
+            { key: '2', label: '类型', children: TYPE_MAP[currentRecord.requestType] },
+            { key: '3', label: '日期', children: currentRecord.stopDate },
+            { key: '4', label: '时段', children: PERIOD_MAP[currentRecord.stopPeriod] },
+            { key: '5', label: '原因', children: currentRecord.reason },
+            { key: '6', label: '状态', children: STATUS_MAP[currentRecord.status]?.text },
+            ...(currentRecord.reviewComment ? [{ key: '7', label: '审核意见', children: currentRecord.reviewComment }] : []),
+            ...(currentRecord.reviewedAt ? [{ key: '8', label: '审核时间', children: currentRecord.reviewedAt }] : []),
+          ]} />
         )}
       </Drawer>
     </PageContainer>

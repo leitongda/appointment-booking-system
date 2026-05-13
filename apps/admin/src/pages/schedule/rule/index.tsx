@@ -1,4 +1,4 @@
-import { PlusOutlined, ThunderboltOutlined, DeleteOutlined, StopOutlined, HistoryOutlined, CalendarOutlined, CopyOutlined } from '@ant-design/icons';
+import { PlusOutlined, ThunderboltOutlined, DeleteOutlined, StopOutlined, HistoryOutlined, CalendarOutlined, CopyOutlined, SettingOutlined, AppstoreOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns, ProFormInstance } from '@ant-design/pro-components';
 import {
   PageContainer,
@@ -717,7 +717,7 @@ const ScheduleRulePage: React.FC = () => {
   return (
     <PageContainer>
       <Alert
-        message={
+        title={
           <span>
             当前日期：{new Date().toLocaleDateString('zh-CN')}，
             为本月第<strong>{dateInfo.monthWeek}</strong>周，
@@ -760,6 +760,20 @@ const ScheduleRulePage: React.FC = () => {
               生成排班 ({selectedTemplates.length})
             </Button>
           ),
+          <Button
+            key="rule-sets"
+            icon={<SettingOutlined />}
+            onClick={() => history.push('/organization/medical-config/rule-sets')}
+          >
+            规则组管理
+          </Button>,
+          <Button
+            key="shift-types"
+            icon={<AppstoreOutlined />}
+            onClick={() => history.push('/organization/medical-config/shift-types')}
+          >
+            班次类型
+          </Button>,
           access.hasPermission('schedule:template') && (
             <Button
               key="batch"

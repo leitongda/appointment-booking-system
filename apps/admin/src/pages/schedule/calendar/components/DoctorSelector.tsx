@@ -84,7 +84,7 @@ const DoctorSelector: React.FC<DoctorSelectorProps> = ({ selectedDoctor, onSelec
           <div className="doctor-details" style={{ marginLeft: 12 }}>
             <div className="doctor-name">{selectedDoctor.name}</div>
             <div className="doctor-meta">
-              <Space split="|">
+              <Space separator="|">
                 <span>{selectedDoctor.departmentName || '-'}</span>
                 <span>{selectedDoctor.title || '-'}</span>
               </Space>

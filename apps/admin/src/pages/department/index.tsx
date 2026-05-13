@@ -421,7 +421,7 @@ const DepartmentPage: React.FC = () => {
         ].filter(Boolean);
 
         return (
-          <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
+          <Space size={4} separator={<Divider type="vertical" style={{ margin: 0 }} />}>
             {access.hasPermission('department:update') && record.isFinal === 1 && (
               <a onClick={() => handleOpenBindModal(record)} style={{ fontSize: 13 }}>
                 <UserOutlined /> 医生
@@ -563,7 +563,7 @@ const DepartmentPage: React.FC = () => {
                       </Space>
                     }
                     description={
-                      <Space direction="vertical" size={0}>
+                      <Space size={0}>
                         {doctor.departmentName && (
                           <span style={{ color: '#999' }}>
                             当前科室: {doctor.departmentName}

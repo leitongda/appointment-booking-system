@@ -4,7 +4,8 @@ import { Card, App, Button, Space, Row, Col, Collapse, TimePicker, Divider, Typo
 import { PlusOutlined, DeleteOutlined, SettingOutlined } from '@ant-design/icons';
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { history, useParams, useAccess } from '@umijs/max';
-import { scheduleTemplateApi, departmentApi, doctorApi } from '@hospital/api';
+import { scheduleTemplateApi, departmentApi, doctorApi, shiftTypeApi } from '@hospital/api';
+import type { ShiftType } from '@hospital/shared';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import { fetchAllData } from '@/utils/fetchAllData';
 import type { ScheduleTemplate, Doctor, Department, Store, BreakTime } from '@hospital/shared';
@@ -49,6 +50,7 @@ const ScheduleRuleFormPage: React.FC = () => {
 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [shiftTypes, setShiftTypes] = useState<ShiftType[]>([]);
   const [selectedDept, setSelectedDept] = useState<string>();
 
   // 表单值，用于实时更新日历预览
@@ -76,6 +78,7 @@ const ScheduleRuleFormPage: React.FC = () => {
 
   useEffect(() => {
     loadDepartments();
+    loadShiftTypes();
     if (isEdit) {
       loadTemplate();
     }
@@ -107,6 +110,15 @@ const ScheduleRuleFormPage: React.FC = () => {
       setDoctors(data ?? []);
     } catch (error) {
       console.error('加载医生失败', error);
+    }
+  };
+
+  const loadShiftTypes = async () => {
+    try {
+      const data = await shiftTypeApi.getEnabled();
+      setShiftTypes(data ?? []);
+    } catch (error) {
+      console.error('加载班次类型失败', error);
     }
   };
 
@@ -170,6 +182,7 @@ const ScheduleRuleFormPage: React.FC = () => {
         storeId: values.storeId,
         doctorId: values.doctorId,
         departmentId: values.departmentId,
+        shiftTypeId: values.shiftTypeId,
         weekdays: values.weekdays || [],
         appointmentType: values.appointmentType,
         startTime,
@@ -260,7 +273,7 @@ const ScheduleRuleFormPage: React.FC = () => {
         <Col span={12}>
           {showGuide && (
             <Alert
-              message="排班规则配置引导"
+              title="排班规则配置引导"
               description="创建排班规则分为 3 步：基本信息 → 时间配置 → 高级设置。填写过程中左侧日历会实时预览排班效果。"
               type="info"
               showIcon
@@ -276,9 +289,9 @@ const ScheduleRuleFormPage: React.FC = () => {
             size="small"
             style={{ marginBottom: 16 }}
             items={[
-              { title: '基本信息', description: '名称、门店、医生' },
-              { title: '时间配置', description: '星期、时段、班次' },
-              { title: '高级设置', description: '排除时间等' },
+              { title: '基本信息', content: '名称、门店、医生' },
+              { title: '时间配置', content: '星期、时段、班次' },
+              { title: '高级设置', content: '排除时间等' },
             ]}
           />
 
@@ -351,6 +364,24 @@ const ScheduleRuleFormPage: React.FC = () => {
                 rules={[{ required: true, message: '请选择医生' }]}
                 disabled={!selectedDept}
                 extra={!selectedDept ? '请先选择科室' : undefined}
+              />
+              <ProFormSelect
+                name="shiftTypeId"
+                label="班次类型"
+                width="md"
+                options={shiftTypes.filter(st => st.enabled).map((st) => ({ label: st.name, value: st.id }))}
+                rules={[{ required: true, message: '请选择班次类型' }]}
+                placeholder="请选择班次类型"
+                extra={
+                  <Button
+                    type="link"
+                    size="small"
+                    style={{ padding: 0, height: 'auto' }}
+                    onClick={() => window.open('/organization/medical-config/shift-types', '_blank')}
+                  >
+                    管理班次类型
+                  </Button>
+                }
               />
             </Card>
             </div>

@@ -310,7 +310,7 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
   return (
     <div>
       <Alert
-        message={
+        title={
           <span>
             当前日期：{dayjs().format('YYYY-MM-DD')}，
             为本月第<strong>{dateInfo.monthWeek}</strong>周，

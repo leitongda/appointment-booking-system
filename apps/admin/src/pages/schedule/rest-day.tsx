@@ -120,7 +120,7 @@ const RestDayPage: React.FC = () => {
   return (
     <PageContainer>
       <Alert
-        message="排班权重说明"
+        title="排班权重说明"
         description="停诊 > 自定义排班 > 休息日设置 > 普通排班"
         type="info"
         showIcon

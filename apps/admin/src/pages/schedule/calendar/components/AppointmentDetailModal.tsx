@@ -64,41 +64,23 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
       }
       className="appointment-detail-modal"
     >
-      <Descriptions column={1} bordered size="small">
-        <Descriptions.Item label="患者姓名">
-          {maskName(appointment.patientName || '')}
-        </Descriptions.Item>
-        <Descriptions.Item label="手机号">
-          {maskPhone(appointment.patientPhone || '')}
-        </Descriptions.Item>
-        <Descriptions.Item label="预约日期">
-          {appointment.scheduleDate || '-'}
-        </Descriptions.Item>
-        <Descriptions.Item label="预约时段">
-          {appointment.timeSlot === 'morning' ? '上午' : 
-           appointment.timeSlot === 'afternoon' ? '下午' : 
-           appointment.timeSlot === 'evening' ? '晚上' : '-'}
-        </Descriptions.Item>
-        <Descriptions.Item label="状态">
-          <Tag color={statusInfo.color}>{statusInfo.text}</Tag>
-        </Descriptions.Item>
-        <Descriptions.Item label="医生">
-          {appointment.doctorName || '-'}
-        </Descriptions.Item>
-        <Descriptions.Item label="科室">
-          {appointment.departmentName || '-'}
-        </Descriptions.Item>
-        {appointment.queueNumber && (
-          <Descriptions.Item label="排队号">
-            {appointment.queueNumber}
-          </Descriptions.Item>
-        )}
-        <Descriptions.Item label="创建时间">
-          {appointment.createdAt 
-            ? dayjs(appointment.createdAt).format('YYYY-MM-DD HH:mm')
-            : '-'}
-        </Descriptions.Item>
-      </Descriptions>
+      <Descriptions column={1} bordered size="small" items={[
+        { key: '0', label: '患者姓名', children: maskName(appointment.patientName || '') },
+        { key: '1', label: '手机号', children: maskPhone(appointment.patientPhone || '') },
+        { key: '2', label: '预约日期', children: appointment.scheduleDate || '-' },
+        { key: '3', label: '预约时段', children: (
+          appointment.timeSlot === 'morning' ? '上午' :
+           appointment.timeSlot === 'afternoon' ? '下午' :
+           appointment.timeSlot === 'evening' ? '晚上' : '-'
+        ) },
+        { key: '4', label: '状态', children: <Tag color={statusInfo.color}>{statusInfo.text}</Tag> },
+        { key: '5', label: '医生', children: appointment.doctorName || '-' },
+        { key: '6', label: '科室', children: appointment.departmentName || '-' },
+        ...(appointment.queueNumber ? [{ key: '7', label: '排队号', children: appointment.queueNumber }] : []),
+        { key: '8', label: '创建时间', children: appointment.createdAt
+          ? dayjs(appointment.createdAt).format('YYYY-MM-DD HH:mm')
+          : '-' },
+      ]} />
     </Modal>
   );
 };

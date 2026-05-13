@@ -276,45 +276,39 @@ const AppointmentDetailPage: React.FC = () => {
     >
       <Spin spinning={loading}>
         <Card title="基本信息">
-          <ProDescriptions column={2}>
-            <ProDescriptions.Item label="预约编号" copyable>{appointment?.appointmentNo}</ProDescriptions.Item>
-            <ProDescriptions.Item label="当前状态">
-              <Tag color={status.color}>{status.text}</Tag>
-            </ProDescriptions.Item>
-            <ProDescriptions.Item label="患者姓名">{appointment?.patientName}</ProDescriptions.Item>
-            <ProDescriptions.Item label="患者手机">{appointment?.patientPhone || '-'}</ProDescriptions.Item>
-            <ProDescriptions.Item label="预约医生">{appointment?.doctorName}</ProDescriptions.Item>
-            <ProDescriptions.Item label="所属科室">{appointment?.departmentName}</ProDescriptions.Item>
-            <ProDescriptions.Item label="预约日期">{appointment?.scheduleDate}</ProDescriptions.Item>
-            <ProDescriptions.Item label="预约时段">{TIME_SLOT_MAP[appointment?.timeSlot || ''] || '-'}</ProDescriptions.Item>
-            <ProDescriptions.Item label="排队号码">{appointment?.queueNumber || '-'}</ProDescriptions.Item>
-            <ProDescriptions.Item label="门店名称">{appointment?.storeName || '-'}</ProDescriptions.Item>
-          </ProDescriptions>
+          <ProDescriptions column={2} columns={[
+            { key: '0', title: '预约编号', dataIndex: 'appointmentNo', copyable: true },
+            { key: '1', title: '当前状态', render: () => <Tag color={status.color}>{status.text}</Tag> },
+            { key: '2', title: '患者姓名', dataIndex: 'patientName' },
+            { key: '3', title: '患者手机', render: () => appointment?.patientPhone || '-' },
+            { key: '4', title: '预约医生', dataIndex: 'doctorName' },
+            { key: '5', title: '所属科室', dataIndex: 'departmentName' },
+            { key: '6', title: '预约日期', dataIndex: 'scheduleDate' },
+            { key: '7', title: '预约时段', render: () => TIME_SLOT_MAP[appointment?.timeSlot || ''] || '-' },
+            { key: '8', title: '排队号码', render: () => appointment?.queueNumber || '-' },
+            { key: '9', title: '门店名称', render: () => appointment?.storeName || '-' },
+          ]} />
         </Card>
 
         {/* 支付信息 */}
         {appointment?.paymentAmount && appointment.paymentAmount > 0 && (
           <Card title="支付信息" style={{ marginTop: 16 }}>
-            <ProDescriptions column={2}>
-              <ProDescriptions.Item label="支付金额">
-                ¥{appointment.paymentAmount.toFixed(2)}
-              </ProDescriptions.Item>
-              <ProDescriptions.Item label="支付时间">{appointment.paymentTime || '-'}</ProDescriptions.Item>
-              <ProDescriptions.Item label="交易单号">
-                <span style={{ fontFamily: 'monospace' }}>{appointment.paymentTransactionId || '-'}</span>
-              </ProDescriptions.Item>
-              <ProDescriptions.Item label="退款状态">
-                {appointment.refundStatus && (
-                  <Tag color={REFUND_STATUS_COLOR[appointment.refundStatus] || 'default'}>
-                    {REFUND_STATUS_MAP[appointment.refundStatus] || appointment.refundStatus}
-                  </Tag>
-                )}
-                {!appointment.refundStatus && '-'}
-              </ProDescriptions.Item>
-              <ProDescriptions.Item label="已退款金额">
-                {appointment.refundedAmount ? `¥${appointment.refundedAmount.toFixed(2)}` : '-'}
-              </ProDescriptions.Item>
-            </ProDescriptions>
+            <ProDescriptions column={2} columns={[
+              { key: '0', title: '支付金额', render: () => `¥${appointment.paymentAmount.toFixed(2)}` },
+              { key: '1', title: '支付时间', render: () => appointment.paymentTime || '-' },
+              { key: '2', title: '交易单号', render: () => <span style={{ fontFamily: 'monospace' }}>{appointment.paymentTransactionId || '-'}</span> },
+              { key: '3', title: '退款状态', render: () => (
+                <>
+                  {appointment.refundStatus && (
+                    <Tag color={REFUND_STATUS_COLOR[appointment.refundStatus] || 'default'}>
+                      {REFUND_STATUS_MAP[appointment.refundStatus] || appointment.refundStatus}
+                    </Tag>
+                  )}
+                  {!appointment.refundStatus && '-'}
+                </>
+              ) },
+              { key: '4', title: '已退款金额', render: () => appointment.refundedAmount ? `¥${appointment.refundedAmount.toFixed(2)}` : '-' },
+            ]} />
           </Card>
         )}
 
@@ -328,15 +322,17 @@ const AppointmentDetailPage: React.FC = () => {
         {/* 签到方式 */}
         {appointment?.checkInMethod && (
           <Card title="签到信息" style={{ marginTop: 16 }}>
-            <ProDescriptions column={2}>
-              <ProDescriptions.Item label="签到方式">
-                {appointment.checkInMethod === 'QR_CODE' && <Tag color="blue">扫码签到</Tag>}
-                {appointment.checkInMethod === 'MANUAL' && <Tag color="green">手动签到</Tag>}
-                {appointment.checkInMethod === 'PHONE' && <Tag color="orange">电话签到</Tag>}
-                {!['QR_CODE', 'MANUAL', 'PHONE'].includes(appointment.checkInMethod) && appointment.checkInMethod}
-              </ProDescriptions.Item>
-              <ProDescriptions.Item label="签到时间">{appointment?.signInTime || '-'}</ProDescriptions.Item>
-            </ProDescriptions>
+            <ProDescriptions column={2} columns={[
+              { key: '0', title: '签到方式', render: () => (
+                <>
+                  {appointment.checkInMethod === 'QR_CODE' && <Tag color="blue">扫码签到</Tag>}
+                  {appointment.checkInMethod === 'MANUAL' && <Tag color="green">手动签到</Tag>}
+                  {appointment.checkInMethod === 'PHONE' && <Tag color="orange">电话签到</Tag>}
+                  {!['QR_CODE', 'MANUAL', 'PHONE'].includes(appointment.checkInMethod) && appointment.checkInMethod}
+                </>
+              ) },
+              { key: '1', title: '签到时间', render: () => appointment?.signInTime || '-' },
+            ]} />
           </Card>
         )}
 
@@ -456,28 +452,24 @@ const AppointmentDetailPage: React.FC = () => {
         }
       >
         <Form form={form} layout="vertical">
-          <ProDescriptions column={1} style={{ marginBottom: 16 }}>
-            <ProDescriptions.Item label="预约编号">{appointment?.appointmentNo}</ProDescriptions.Item>
-            <ProDescriptions.Item label="患者姓名">{appointment?.patientName}</ProDescriptions.Item>
-            <ProDescriptions.Item label="退款模式">
-              {isCompletedRefundException ? (
+          <ProDescriptions column={1} style={{ marginBottom: 16 }} columns={[
+            { key: '0', title: '预约编号', render: () => appointment?.appointmentNo },
+            { key: '1', title: '患者姓名', render: () => appointment?.patientName },
+            { key: '2', title: '退款模式', render: () => (
+              isCompletedRefundException ? (
                 <Tag color="warning">已完成例外退款</Tag>
               ) : (
                 <Tag color="blue">常规退款</Tag>
-              )}
-            </ProDescriptions.Item>
-            <ProDescriptions.Item label="原支付金额">
-              ¥{(appointment?.paymentAmount ?? 0).toFixed(2)}
-            </ProDescriptions.Item>
-            <ProDescriptions.Item label="已退款金额">
-              ¥{(appointment?.refundedAmount ?? 0).toFixed(2)}
-            </ProDescriptions.Item>
-            <ProDescriptions.Item label="可退金额">
+              )
+            ) },
+            { key: '3', title: '原支付金额', render: () => `¥${(appointment?.paymentAmount ?? 0).toFixed(2)}` },
+            { key: '4', title: '已退款金额', render: () => `¥${(appointment?.refundedAmount ?? 0).toFixed(2)}` },
+            { key: '5', title: '可退金额', render: () => (
               <span style={{ color: '#ff4d4f', fontWeight: 'bold' }}>
                 ¥{maxRefundAmount.toFixed(2)}
               </span>
-            </ProDescriptions.Item>
-          </ProDescriptions>
+            ) },
+          ]} />
 
           <Divider />
 

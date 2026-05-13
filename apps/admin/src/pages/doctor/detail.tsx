@@ -60,15 +60,15 @@ const DoctorDetailPage: React.FC = () => {
           </Space>
         </div>
       </div>
-      <ProDescriptions column={2}>
-        <ProDescriptions.Item label="所属科室">{doctor?.departmentName || '-'}</ProDescriptions.Item>
-        <ProDescriptions.Item label="手机号">{doctor?.phone || '-'}</ProDescriptions.Item>
-        <ProDescriptions.Item label="排序">{doctor?.sortOrder || 0}</ProDescriptions.Item>
-        <ProDescriptions.Item label="专长" span={2}>{doctor?.specialty || '-'}</ProDescriptions.Item>
-        <ProDescriptions.Item label="简介" span={2}>{doctor?.introduction || '-'}</ProDescriptions.Item>
-        <ProDescriptions.Item label="创建时间">{doctor?.createdAt}</ProDescriptions.Item>
-        <ProDescriptions.Item label="更新时间">{doctor?.updatedAt || '-'}</ProDescriptions.Item>
-      </ProDescriptions>
+      <ProDescriptions column={2} items={[
+        { key: '0', label: '所属科室', children: doctor?.departmentName || '-' },
+        { key: '1', label: '手机号', children: doctor?.phone || '-' },
+        { key: '2', label: '排序', children: doctor?.sortOrder || 0 },
+        { key: '3', label: '专长', span: 2, children: doctor?.specialty || '-' },
+        { key: '4', label: '简介', span: 2, children: doctor?.introduction || '-' },
+        { key: '5', label: '创建时间', children: doctor?.createdAt },
+        { key: '6', label: '更新时间', children: doctor?.updatedAt || '-' },
+      ]} />
     </Card>
   );
 

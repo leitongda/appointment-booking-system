@@ -204,7 +204,7 @@ const ScheduleEditModal: React.FC<ScheduleEditModalProps> = ({
                     </Space>
                   }
                   description={
-                    <Space split="·">
+                    <Space separator="·">
                       <span>
                         时间: {schedule.startTime || '-'} - {schedule.endTime || '-'}
                       </span>

@@ -78,7 +78,7 @@ const GenerateScheduleModal: React.FC<GenerateScheduleModalProps> = ({
         >
           {currentTemplate ? (
             <Alert
-              message={
+              title={
                 <div>
                   <div>规则：<strong>{currentTemplate.name}</strong></div>
                   <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
@@ -96,7 +96,7 @@ const GenerateScheduleModal: React.FC<GenerateScheduleModalProps> = ({
             />
           ) : (
             <Alert
-              message={`已选择 ${selectedTemplates.length} 个规则`}
+              title={`已选择 ${selectedTemplates.length} 个规则`}
               type="info"
               showIcon
               style={{ marginBottom: 16 }}
@@ -147,7 +147,7 @@ const GenerateScheduleModal: React.FC<GenerateScheduleModalProps> = ({
             extra="可选，不填写默认生成到1年后（预览默认30天）"
           />
           <Alert
-            message="点击「预览班次」可查看并编辑每个班次的可预约人数，或直接点击「直接生成」使用默认设置"
+            title="点击「预览班次」可查看并编辑每个班次的可预约人数，或直接点击「直接生成」使用默认设置"
             type="info"
             showIcon
             style={{ marginTop: 8 }}
@@ -163,7 +163,7 @@ const GenerateScheduleModal: React.FC<GenerateScheduleModalProps> = ({
             );
             return (
               <Alert
-                message={
+                title={
                   <span>
                     预览：共 <strong>{totalSlots}</strong> 个班次，可修改每个班次的可预约人数
                     {warningSlots > 0 && (

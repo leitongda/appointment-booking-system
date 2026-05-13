@@ -127,7 +127,7 @@ const PatientPage: React.FC = () => {
       width: 120,
       search: false,
       render: (_, record) => (
-        <Space direction="vertical" size={0}>
+        <Space size={0}>
           <span>{record.userNickname || '微信用户'}</span>
           <span style={{ color: '#999', fontSize: 12 }}>{record.userPhone}</span>
         </Space>
@@ -182,7 +182,7 @@ const PatientPage: React.FC = () => {
         ].filter(Boolean);
 
         return (
-          <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
+          <Space size={4} separator={<Divider type="vertical" style={{ margin: 0 }} />}>
             {access.hasPermission('patient:detail') && (
               <a onClick={() => history.push(`/medical-services/patient/card/${record.id}`)} style={{ fontSize: 13 }}>
                 <EyeOutlined /> 详情

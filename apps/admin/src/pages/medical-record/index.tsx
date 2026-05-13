@@ -233,40 +233,32 @@ const MedicalRecordPage: React.FC = () => {
       >
         <Spin spinning={detailLoading}>
           {currentRecord ? (
-            <Descriptions column={2} bordered size="small">
-              <Descriptions.Item label="病历号">{currentRecord.recordNo}</Descriptions.Item>
-              <Descriptions.Item label="状态">
+            <Descriptions column={2} bordered size="small" items={[
+              { key: '0', label: '病历号', children: currentRecord.recordNo },
+              { key: '1', label: '状态', children: (
                 <Tag color={STATUS_MAP[currentRecord.status]?.color || 'default'}>
                   {STATUS_MAP[currentRecord.status]?.text || '未知'}
                 </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="患者">{currentRecord.patientName || '-'}</Descriptions.Item>
-              <Descriptions.Item label="手机号">{currentRecord.patientPhone || '-'}</Descriptions.Item>
-              <Descriptions.Item label="医生">{currentRecord.doctorName || '-'}</Descriptions.Item>
-              <Descriptions.Item label="科室">{currentRecord.departmentName || '-'}</Descriptions.Item>
-              <Descriptions.Item label="就诊日期">
-                {currentRecord.visitDate ? dayjs(currentRecord.visitDate).format('YYYY-MM-DD HH:mm') : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="总费用">
-                {typeof currentRecord.totalFee === 'number' ? `¥${currentRecord.totalFee}` : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="主诉" span={2}>{currentRecord.chiefComplaint || '-'}</Descriptions.Item>
-              <Descriptions.Item label="现病史" span={2}>{currentRecord.presentIllness || '-'}</Descriptions.Item>
-              <Descriptions.Item label="既往史" span={2}>{currentRecord.pastHistory || '-'}</Descriptions.Item>
-              <Descriptions.Item label="过敏史" span={2}>{currentRecord.allergyHistory || '-'}</Descriptions.Item>
-              <Descriptions.Item label="体格检查" span={2}>{currentRecord.physicalExam || '-'}</Descriptions.Item>
-              <Descriptions.Item label="辅助检查" span={2}>{currentRecord.auxiliaryExam || '-'}</Descriptions.Item>
-              <Descriptions.Item label="诊断" span={2}>{currentRecord.diagnosis || '-'}</Descriptions.Item>
-              <Descriptions.Item label="治疗方案" span={2}>{currentRecord.treatment || '-'}</Descriptions.Item>
-              <Descriptions.Item label="处方" span={2}>{currentRecord.prescription || '-'}</Descriptions.Item>
-              <Descriptions.Item label="医嘱" span={2}>{currentRecord.advice || '-'}</Descriptions.Item>
-              <Descriptions.Item label="创建时间">
-                {currentRecord.createdAt ? dayjs(currentRecord.createdAt).format('YYYY-MM-DD HH:mm:ss') : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="更新时间">
-                {currentRecord.updatedAt ? dayjs(currentRecord.updatedAt).format('YYYY-MM-DD HH:mm:ss') : '-'}
-              </Descriptions.Item>
-            </Descriptions>
+              ) },
+              { key: '2', label: '患者', children: currentRecord.patientName || '-' },
+              { key: '3', label: '手机号', children: currentRecord.patientPhone || '-' },
+              { key: '4', label: '医生', children: currentRecord.doctorName || '-' },
+              { key: '5', label: '科室', children: currentRecord.departmentName || '-' },
+              { key: '6', label: '就诊日期', children: currentRecord.visitDate ? dayjs(currentRecord.visitDate).format('YYYY-MM-DD HH:mm') : '-' },
+              { key: '7', label: '总费用', children: typeof currentRecord.totalFee === 'number' ? `¥${currentRecord.totalFee}` : '-' },
+              { key: '8', label: '主诉', span: 2, children: currentRecord.chiefComplaint || '-' },
+              { key: '9', label: '现病史', span: 2, children: currentRecord.presentIllness || '-' },
+              { key: '10', label: '既往史', span: 2, children: currentRecord.pastHistory || '-' },
+              { key: '11', label: '过敏史', span: 2, children: currentRecord.allergyHistory || '-' },
+              { key: '12', label: '体格检查', span: 2, children: currentRecord.physicalExam || '-' },
+              { key: '13', label: '辅助检查', span: 2, children: currentRecord.auxiliaryExam || '-' },
+              { key: '14', label: '诊断', span: 2, children: currentRecord.diagnosis || '-' },
+              { key: '15', label: '治疗方案', span: 2, children: currentRecord.treatment || '-' },
+              { key: '16', label: '处方', span: 2, children: currentRecord.prescription || '-' },
+              { key: '17', label: '医嘱', span: 2, children: currentRecord.advice || '-' },
+              { key: '18', label: '创建时间', children: currentRecord.createdAt ? dayjs(currentRecord.createdAt).format('YYYY-MM-DD HH:mm:ss') : '-' },
+              { key: '19', label: '更新时间', children: currentRecord.updatedAt ? dayjs(currentRecord.updatedAt).format('YYYY-MM-DD HH:mm:ss') : '-' },
+            ]} />
           ) : null}
         </Spin>
       </Drawer>

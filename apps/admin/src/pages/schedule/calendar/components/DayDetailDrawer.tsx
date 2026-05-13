@@ -135,7 +135,7 @@ const DayDetailDrawer: React.FC<DayDetailDrawerProps> = ({
                           </Tag>
                         </div>
                         <div className="appointment-meta">
-                          <Space split="·">
+                          <Space separator="·">
                             <span>{maskPhone(appointment.patientPhone || '')}</span>
                             <span>{appointment.timeSlot === 'morning' ? '上午' : 
                                    appointment.timeSlot === 'afternoon' ? '下午' : 

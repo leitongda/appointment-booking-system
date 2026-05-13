@@ -481,18 +481,22 @@ const ScheduleStatisticsPage: React.FC = () => {
           </Form.Item>
         </Form>
 
-        <Tabs activeKey={activeTab} onChange={setActiveTab}>
-          <Tabs.TabPane tab="利用率趋势" key="trend">
-            {trendData && trendData.items.length > 0 && trendConfig ? (
+        <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
+          {
+            key: 'trend',
+            label: '利用率趋势',
+            children: trendData && trendData.items.length > 0 && trendConfig ? (
               <Suspense fallback={<ChartLoading />}>
                 <Line {...trendConfig} />
               </Suspense>
             ) : (
               <Empty description="暂无数据，请先查询" />
-            )}
-          </Tabs.TabPane>
-          <Tabs.TabPane tab="医生工作量对比" key="workload">
-            {workloadData && workloadData.items.length > 0 && workloadConfig ? (
+            ),
+          },
+          {
+            key: 'workload',
+            label: '医生工作量对比',
+            children: workloadData && workloadData.items.length > 0 && workloadConfig ? (
               <>
                 <Suspense fallback={<ChartLoading />}>
                   <Column {...workloadConfig} />
@@ -508,18 +512,20 @@ const ScheduleStatisticsPage: React.FC = () => {
               </>
             ) : (
               <Empty description="暂无数据，请先查询" />
-            )}
-          </Tabs.TabPane>
-          <Tabs.TabPane tab="高峰时段热力图" key="heatmap">
-            {heatmapData && heatmapData.cells.length > 0 && heatmapConfig ? (
+            ),
+          },
+          {
+            key: 'heatmap',
+            label: '高峰时段热力图',
+            children: heatmapData && heatmapData.cells.length > 0 && heatmapConfig ? (
               <Suspense fallback={<ChartLoading />}>
                 <Heatmap {...heatmapConfig} />
               </Suspense>
             ) : (
               <Empty description="暂无数据，请先查询" />
-            )}
-          </Tabs.TabPane>
-        </Tabs>
+            ),
+          },
+        ]} />
       </Card>
     </PageContainer>
   );

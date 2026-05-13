@@ -112,7 +112,7 @@ const DoctorScheduleTab: React.FC<DoctorScheduleTabProps> = ({ doctorId, doctorN
       }
     >
       <Alert
-        message="点击日历中的日期可以查看和编辑当天的排班"
+        title="点击日历中的日期可以查看和编辑当天的排班"
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
@@ -144,7 +144,7 @@ const DoctorScheduleTab: React.FC<DoctorScheduleTabProps> = ({ doctorId, doctorN
       >
         {templates.length === 0 ? (
           <Alert
-            message="该医生暂无排班模板"
+            title="该医生暂无排班模板"
             description="请先在「排班管理 - 排班模板」中为该医生创建排班模板"
             type="warning"
             showIcon
@@ -153,7 +153,7 @@ const DoctorScheduleTab: React.FC<DoctorScheduleTabProps> = ({ doctorId, doctorN
         ) : (
           <>
             <Alert
-              message={`找到 ${templates.length} 个可用模板`}
+              title={`找到 ${templates.length} 个可用模板`}
               type="info"
               showIcon
               style={{ marginBottom: 16 }}

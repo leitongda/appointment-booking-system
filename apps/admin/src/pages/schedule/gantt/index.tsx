@@ -397,11 +397,11 @@ const ScheduleGanttPage: React.FC = () => {
               onChange={(dates) => dates && setDateRange(dates as [Dayjs, Dayjs])}
               allowClear={false}
             />
-            <Button.Group>
+            <Space.Compact>
               <Button icon={<LeftOutlined />} onClick={navigatePrev} />
               <Button onClick={navigateToday}>本周</Button>
               <Button icon={<RightOutlined />} onClick={navigateNext} />
-            </Button.Group>
+            </Space.Compact>
             <Button icon={<ReloadOutlined />} onClick={loadSchedules}>
               刷新
             </Button>
@@ -497,35 +497,27 @@ const ScheduleGanttPage: React.FC = () => {
           const taskSlotConfig = getSlotConfig(selectedTask.timeSlot);
           const taskStatusConfig = STATUS_CONFIG[selectedTask.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG[1];
           return (
-            <Descriptions column={1} bordered size="small">
-              <Descriptions.Item label="医生">{selectedTask.doctorName}</Descriptions.Item>
-              <Descriptions.Item label="科室">{selectedTask.departmentName || '-'}</Descriptions.Item>
-              <Descriptions.Item label="日期">{selectedTask.date}</Descriptions.Item>
-              <Descriptions.Item label="时段">
-                <Tag color={taskSlotConfig.color}>
-                  {taskSlotConfig.label}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="时间">
-                {selectedTask.startTime} - {selectedTask.endTime}
-              </Descriptions.Item>
-              <Descriptions.Item label="总号源">{selectedTask.totalSlots}</Descriptions.Item>
-              <Descriptions.Item label="已预约">{selectedTask.bookedSlots}</Descriptions.Item>
-              <Descriptions.Item label="剩余">
-                {selectedTask.totalSlots - selectedTask.bookedSlots}
-              </Descriptions.Item>
-              <Descriptions.Item label="预约率">
+            <Descriptions column={1} bordered size="small" items={[
+              { key: '0', label: '医生', children: selectedTask.doctorName },
+              { key: '1', label: '科室', children: selectedTask.departmentName || '-' },
+              { key: '2', label: '日期', children: selectedTask.date },
+              { key: '3', label: '时段', children: <Tag color={taskSlotConfig.color}>{taskSlotConfig.label}</Tag> },
+              { key: '4', label: '时间', children: `${selectedTask.startTime} - ${selectedTask.endTime}` },
+              { key: '5', label: '总号源', children: selectedTask.totalSlots },
+              { key: '6', label: '已预约', children: selectedTask.bookedSlots },
+              { key: '7', label: '剩余', children: selectedTask.totalSlots - selectedTask.bookedSlots },
+              { key: '8', label: '预约率', children: (
                 <span style={{ color: selectedTask.progress >= 80 ? '#ff4d4f' : '#52c41a' }}>
                   {selectedTask.progress}%
                 </span>
-              </Descriptions.Item>
-              <Descriptions.Item label="状态">
-                <Badge 
+              ) },
+              { key: '9', label: '状态', children: (
+                <Badge
                   status={taskStatusConfig.color as any}
                   text={taskStatusConfig.text}
                 />
-              </Descriptions.Item>
-            </Descriptions>
+              ) },
+            ]} />
           );
         })()}
       </Drawer>

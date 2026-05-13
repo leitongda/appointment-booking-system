@@ -283,7 +283,7 @@ const DoctorConsultationFeeModal: React.FC<DoctorConsultationFeeModalProps> = ({
           </Space>
           {useFeeTemplate && (
             <Alert
-              message="已启用诊费模板，该医生所有门店都将使用全局诊费模板配置"
+              title="已启用诊费模板，该医生所有门店都将使用全局诊费模板配置"
               type="info"
               showIcon
               style={{ marginTop: 8 }}
@@ -296,7 +296,7 @@ const DoctorConsultationFeeModal: React.FC<DoctorConsultationFeeModalProps> = ({
             <Divider orientation="left">自定义诊费配置</Divider>
             
             <Alert
-              message="一键带入模板功能"
+              title="一键带入模板功能"
               description="点击每个配置卡片中的「带入模板」按钮，可自动从门店诊费模板导入金额。如果门店未配置模板，将使用全局模板的金额。"
               type="info"
               showIcon

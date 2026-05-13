@@ -395,7 +395,7 @@ const ScheduleDetailPage: React.FC = () => {
     <PageContainer>
       {selectedRowKeys.length > 0 && (
         <Alert
-          message={
+          title={
             <Space>
               <span>已选择 <strong>{selectedRowKeys.length}</strong> 项</span>
               <Button size="small" onClick={() => { setSelectedRowKeys([]); setSelectedRows([]); }}>

@@ -512,7 +512,7 @@ const DoctorListPage: React.FC = () => {
         ].filter(Boolean);
 
         return (
-          <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
+          <Space size={4} separator={<Divider type="vertical" style={{ margin: 0 }} />}>
             {access.hasPermission('doctor:update') && (
               <a onClick={() => history.push(`/medical-services/doctor/${record.id}/edit`)} style={{ fontSize: 13 }}>
                 <EditOutlined /> 编辑

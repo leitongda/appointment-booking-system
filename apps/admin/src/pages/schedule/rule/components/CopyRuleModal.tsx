@@ -229,7 +229,7 @@ const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
       {step === 0 && formData && (
         <div>
           <Alert
-            message={
+            title={
               <div>
                 复制来源：<strong>{sourceTemplate?.name}</strong>
                 <span style={{ marginLeft: 16, color: '#666' }}>
@@ -312,7 +312,7 @@ const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
       {step === 1 && copyMode === 'same-store' && (
         <div>
           <Alert
-            message="选择要复制规则的目标医生，可选择多个医生"
+            title="选择要复制规则的目标医生，可选择多个医生"
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
@@ -365,7 +365,7 @@ const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
       {step === 1 && copyMode === 'cross-store' && (
         <div>
           <Alert
-            message="选择目标门店，并为源科室配置对应的目标科室和医生"
+            title="选择目标门店，并为源科室配置对应的目标科室和医生"
             type="info"
             showIcon
             style={{ marginBottom: 16 }}

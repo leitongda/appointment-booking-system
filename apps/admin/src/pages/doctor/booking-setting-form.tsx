@@ -1,11 +1,15 @@
 import { PageContainer, ProForm, ProFormSelect, ProFormDigit, ProFormTimePicker, FooterToolbar } from '@ant-design/pro-components';
 import type { ProFormInstance } from '@ant-design/pro-components';
-import { Card, App, Button, Space, Spin } from 'antd';
-import { useEffect, useState, useRef } from 'react';
+import { Card, App, Button, Space, Spin, Alert, Descriptions, Typography, Tag } from 'antd';
+import { ClockCircleOutlined, CalendarOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { history, useParams, useAccess, useModel } from '@umijs/max';
 import { doctorBookingSettingApi, storeApi, doctorApi } from '@hospital/api';
 import type { DoctorBookingSetting, Store, Doctor } from '@hospital/shared';
 import dayjs from 'dayjs';
+import type { Dayjs } from 'dayjs';
+
+const { Text } = Typography;
 
 const DoctorBookingSettingFormPage: React.FC = () => {
   const { message } = App.useApp();
@@ -22,6 +26,15 @@ const DoctorBookingSettingFormPage: React.FC = () => {
   const [existingDoctorIds, setExistingDoctorIds] = useState<string[]>([]);
   const [selectedStoreId, setSelectedStoreId] = useState<string>();
   const formRef = useRef<ProFormInstance>();
+  const [previewValues, setPreviewValues] = useState<{
+    bookingStartOffset?: number;
+    bookingRangeDays?: number;
+    releaseTime?: Dayjs;
+  }>({
+    bookingStartOffset: 0,
+    bookingRangeDays: 14,
+    releaseTime: dayjs('00:00', 'HH:mm'),
+  });
 
   useEffect(() => {
     loadStores();
@@ -74,6 +87,31 @@ const DoctorBookingSettingFormPage: React.FC = () => {
     }
   };
 
+  const previewResult = useMemo(() => {
+    const { bookingStartOffset = 0, bookingRangeDays = 14, releaseTime } = previewValues;
+    const today = dayjs();
+    const startDate = today.add(bookingStartOffset, 'day');
+    const endDate = startDate.add(bookingRangeDays - 1, 'day');
+    const offsetLabel = bookingStartOffset === 0
+      ? '当天'
+      : bookingStartOffset === 1
+        ? '第2天'
+        : `第${bookingStartOffset + 1}天`;
+    const releaseTimeStr = releaseTime?.isValid()
+      ? releaseTime.format('HH:mm')
+      : '00:00';
+    const isImmediate = releaseTimeStr === '00:00';
+
+    return {
+      startDate,
+      endDate,
+      offsetLabel,
+      releaseTimeStr,
+      isImmediate,
+      today,
+    };
+  }, [previewValues]);
+
   const getValidReleaseTime = (timeStr?: string) => {
     if (!timeStr) return dayjs('00:00', 'HH:mm');
     const parsed = dayjs(timeStr, 'HH:mm');
@@ -90,12 +128,18 @@ const DoctorBookingSettingFormPage: React.FC = () => {
         setSelectedStoreId(data.storeId);
       }
       // 异步加载完成后，使用 setFieldsValue 更新表单值
+      const releaseTimeVal = getValidReleaseTime(data.releaseTime);
       formRef.current?.setFieldsValue({
         storeId: data.storeId,
         doctorId: data.doctorId,
         bookingStartOffset: data.bookingStartOffset,
         bookingRangeDays: data.bookingRangeDays,
-        releaseTime: getValidReleaseTime(data.releaseTime),
+        releaseTime: releaseTimeVal,
+      });
+      setPreviewValues({
+        bookingStartOffset: data.bookingStartOffset,
+        bookingRangeDays: data.bookingRangeDays,
+        releaseTime: releaseTimeVal,
       });
     } catch (error: any) {
       message.error('加载预约设置失败');
@@ -152,6 +196,14 @@ const DoctorBookingSettingFormPage: React.FC = () => {
         formRef={formRef}
         onFinish={handleSubmit}
         initialValues={initialValues}
+        onValuesChange={(changedValues, allValues) => {
+          setPreviewValues((prev) => ({
+            ...prev,
+            bookingStartOffset: allValues.bookingStartOffset ?? prev.bookingStartOffset,
+            bookingRangeDays: allValues.bookingRangeDays ?? prev.bookingRangeDays,
+            releaseTime: allValues.releaseTime ?? prev.releaseTime,
+          }));
+        }}
         submitter={{
           render: (props, dom) => (
             <FooterToolbar>
@@ -239,6 +291,67 @@ const DoctorBookingSettingFormPage: React.FC = () => {
               minuteStep: 5,
             }}
           />
+        </Card>
+
+        <Card
+          title={
+            <Space>
+              <InfoCircleOutlined />
+              <span>配置预览</span>
+            </Space>
+          }
+          size="small"
+          style={{ marginTop: 16 }}
+          styles={{ body: { padding: '16px 24px' } }}
+        >
+          <Alert
+            type="info"
+            showIcon
+            icon={<CalendarOutlined />}
+            style={{ marginBottom: 12 }}
+            title={
+              <Text>
+                患者可预约{' '}
+                <Text strong>
+                  {previewResult.startDate.format('M月D日(dd)')}
+                </Text>
+                {' '}~{' '}
+                <Text strong>
+                  {previewResult.endDate.format('M月D日(dd)')}
+                </Text>
+                {' '}的排班
+                <Text type="secondary" style={{ marginLeft: 8 }}>
+                  (共 {previewValues.bookingRangeDays ?? 14} 天)
+                </Text>
+              </Text>
+            }
+          />
+          <Descriptions size="small" column={{ xs: 1, sm: 2, md: 3 }}>
+            <Descriptions.Item label="开始日期">
+              <Tag color="blue">{previewResult.offsetLabel}</Tag>
+              <Text type="secondary" style={{ marginLeft: 4 }}>
+                ({previewResult.startDate.format('YYYY-MM-DD')})
+              </Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="截止日期">
+              <Text strong>{previewResult.endDate.format('YYYY-MM-DD')}</Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="放号规则">
+              {previewResult.isImmediate ? (
+                <Space size={4}>
+                  <ClockCircleOutlined />
+                  <Text>全天开放，不限制放号时间</Text>
+                </Space>
+              ) : (
+                <Space size={4}>
+                  <ClockCircleOutlined />
+                  <Text>
+                    每天 <Text strong>{previewResult.releaseTimeStr}</Text> 释放新号源
+                  </Text>
+                </Space>
+              )}
+            </Descriptions.Item>
+          </Descriptions>
         </Card>
       </ProForm>
     </PageContainer>
