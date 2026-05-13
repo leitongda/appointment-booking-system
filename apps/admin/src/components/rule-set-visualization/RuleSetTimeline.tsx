@@ -106,7 +106,7 @@ const WindowTimelineItem: React.FC<WindowTimelineItemProps> = ({
         borderLeft: `3px solid ${colorConfig.primary}`,
       }}
     >
-      <Space direction="vertical" size={compact ? 'small' : 'middle'} style={{ width: '100%' }}>
+      <Space size={compact ? 'small' : 'middle'} style={{ width: '100%' }}>
         {/* 动作类型与参考点 */}
         <div>
           <Tag color={colorConfig.primary}>{colorConfig.label}</Tag>
@@ -215,100 +215,96 @@ const RuleSetTimeline: React.FC<RuleSetTimelineProps> = ({
   // 垂直时间轴模式
   if (direction === 'vertical') {
     return (
-      <Timeline mode="left">
-        {groupedWindows.book.length > 0 && (
-          <Timeline.Item
-            key="book"
-            color={ACTION_COLORS.BOOK.primary}
-            label={<Text strong>{ACTION_COLORS.BOOK.label}</Text>}
-          >
-            <Space direction="vertical" style={{ width: '100%' }} size="small">
-              {groupedWindows.book.map((window) => (
-                <WindowTimelineItem
-                  key={window.id}
-                  window={window}
-                  compact={compact}
-                  shiftStart={shiftStart}
-                  shiftEnd={shiftEnd}
-                />
-              ))}
-            </Space>
-          </Timeline.Item>
-        )}
-
-        {groupedWindows.checkin.length > 0 && (
-          <Timeline.Item
-            key="checkin"
-            color={ACTION_COLORS.CHECKIN.primary}
-            label={<Text strong>{ACTION_COLORS.CHECKIN.label}</Text>}
-          >
-            <Space direction="vertical" style={{ width: '100%' }} size="small">
-              {groupedWindows.checkin.map((window) => (
-                <WindowTimelineItem
-                  key={window.id}
-                  window={window}
-                  compact={compact}
-                  shiftStart={shiftStart}
-                  shiftEnd={shiftEnd}
-                />
-              ))}
-            </Space>
-          </Timeline.Item>
-        )}
-
-        {groupedWindows.cancel.length > 0 && (
-          <Timeline.Item
-            key="cancel"
-            color={ACTION_COLORS.CANCEL.primary}
-            label={<Text strong>{ACTION_COLORS.CANCEL.label}</Text>}
-          >
-            <Space direction="vertical" style={{ width: '100%' }} size="small">
-              {groupedWindows.cancel.map((window) => (
-                <WindowTimelineItem
-                  key={window.id}
-                  window={window}
-                  compact={compact}
-                  shiftStart={shiftStart}
-                  shiftEnd={shiftEnd}
-                />
-              ))}
-            </Space>
-          </Timeline.Item>
-        )}
-
-        {groupedWindows.holdRelease.length > 0 && (
-          <Timeline.Item
-            key="holdRelease"
-            color={ACTION_COLORS.HOLD_RELEASE.primary}
-            label={<Text strong>{ACTION_COLORS.HOLD_RELEASE.label}</Text>}
-          >
-            <Space direction="vertical" style={{ width: '100%' }} size="small">
-              {groupedWindows.holdRelease.map((window) => (
-                <WindowTimelineItem
-                  key={window.id}
-                  window={window}
-                  compact={compact}
-                  shiftStart={shiftStart}
-                  shiftEnd={shiftEnd}
-                />
-              ))}
-            </Space>
-          </Timeline.Item>
-        )}
-      </Timeline>
+      <Timeline
+        mode="left"
+        items={[
+          groupedWindows.book.length > 0 ? {
+            key: '0',
+            color: ACTION_COLORS.BOOK.primary,
+            label: <Text strong>{ACTION_COLORS.BOOK.label}</Text>,
+            children: (
+              <Space style={{ width: '100%' }} size="small">
+                {groupedWindows.book.map((window) => (
+                  <WindowTimelineItem
+                    key={window.id}
+                    window={window}
+                    compact={compact}
+                    shiftStart={shiftStart}
+                    shiftEnd={shiftEnd}
+                  />
+                ))}
+              </Space>
+            ),
+          } : null,
+          groupedWindows.checkin.length > 0 ? {
+            key: '1',
+            color: ACTION_COLORS.CHECKIN.primary,
+            label: <Text strong>{ACTION_COLORS.CHECKIN.label}</Text>,
+            children: (
+              <Space style={{ width: '100%' }} size="small">
+                {groupedWindows.checkin.map((window) => (
+                  <WindowTimelineItem
+                    key={window.id}
+                    window={window}
+                    compact={compact}
+                    shiftStart={shiftStart}
+                    shiftEnd={shiftEnd}
+                  />
+                ))}
+              </Space>
+            ),
+          } : null,
+          groupedWindows.cancel.length > 0 ? {
+            key: '2',
+            color: ACTION_COLORS.CANCEL.primary,
+            label: <Text strong>{ACTION_COLORS.CANCEL.label}</Text>,
+            children: (
+              <Space style={{ width: '100%' }} size="small">
+                {groupedWindows.cancel.map((window) => (
+                  <WindowTimelineItem
+                    key={window.id}
+                    window={window}
+                    compact={compact}
+                    shiftStart={shiftStart}
+                    shiftEnd={shiftEnd}
+                  />
+                ))}
+              </Space>
+            ),
+          } : null,
+          groupedWindows.holdRelease.length > 0 ? {
+            key: '3',
+            color: ACTION_COLORS.HOLD_RELEASE.primary,
+            label: <Text strong>{ACTION_COLORS.HOLD_RELEASE.label}</Text>,
+            children: (
+              <Space style={{ width: '100%' }} size="small">
+                {groupedWindows.holdRelease.map((window) => (
+                  <WindowTimelineItem
+                    key={window.id}
+                    window={window}
+                    compact={compact}
+                    shiftStart={shiftStart}
+                    shiftEnd={shiftEnd}
+                  />
+                ))}
+              </Space>
+            ),
+          } : null,
+        ].filter(Boolean)}
+      />
     );
   }
 
   // 水平时间轴模式（用于紧凑展示）
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="middle">
+    <Space style={{ width: '100%' }} size="middle">
       {groupedWindows.book.length > 0 && (
         <Card
           size="small"
           title={<Tag color={ACTION_COLORS.BOOK.primary}>{ACTION_COLORS.BOOK.label}</Tag>}
           styles={{ body: { padding: (compact ? '8px' : '12px') } }}
         >
-          <Space direction="vertical" style={{ width: '100%' }} size="small">
+          <Space style={{ width: '100%' }} size="small">
             {groupedWindows.book.map((window) => (
               <WindowTimelineItem
                 key={window.id}
@@ -328,7 +324,7 @@ const RuleSetTimeline: React.FC<RuleSetTimelineProps> = ({
           title={<Tag color={ACTION_COLORS.CHECKIN.primary}>{ACTION_COLORS.CHECKIN.label}</Tag>}
           styles={{ body: { padding: (compact ? '8px' : '12px') } }}
         >
-          <Space direction="vertical" style={{ width: '100%' }} size="small">
+          <Space style={{ width: '100%' }} size="small">
             {groupedWindows.checkin.map((window) => (
               <WindowTimelineItem
                 key={window.id}
@@ -348,7 +344,7 @@ const RuleSetTimeline: React.FC<RuleSetTimelineProps> = ({
           title={<Tag color={ACTION_COLORS.CANCEL.primary}>{ACTION_COLORS.CANCEL.label}</Tag>}
           styles={{ body: { padding: (compact ? '8px' : '12px') } }}
         >
-          <Space direction="vertical" style={{ width: '100%' }} size="small">
+          <Space style={{ width: '100%' }} size="small">
             {groupedWindows.cancel.map((window) => (
               <WindowTimelineItem
                 key={window.id}
@@ -368,7 +364,7 @@ const RuleSetTimeline: React.FC<RuleSetTimelineProps> = ({
           title={<Tag color={ACTION_COLORS.HOLD_RELEASE.primary}>{ACTION_COLORS.HOLD_RELEASE.label}</Tag>}
           styles={{ body: { padding: (compact ? '8px' : '12px') } }}
         >
-          <Space direction="vertical" style={{ width: '100%' }} size="small">
+          <Space style={{ width: '100%' }} size="small">
             {groupedWindows.holdRelease.map((window) => (
               <WindowTimelineItem
                 key={window.id}

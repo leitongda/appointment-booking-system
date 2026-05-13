@@ -247,7 +247,7 @@ const TenantSwitcher: React.FC = () => {
         open={open}
         onOpenChange={setOpen}
         placement="bottomRight"
-        overlayClassName={styles.tenantSwitcherPopover}
+        classNames={{ root: styles.tenantSwitcherPopover }}
         arrow={{ pointAtCenter: true }}
       >
         <Tooltip title={currentTenantName || '切换租户'} open={open ? false : undefined}>

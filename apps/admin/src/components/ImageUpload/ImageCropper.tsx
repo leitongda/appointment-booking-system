@@ -517,7 +517,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
         </div>
 
         {/* 控制器 */}
-        <Space direction="vertical" style={{ width: '100%' }} size={8}>
+        <Space style={{ width: '100%' }} size={8}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <span style={{ width: 70, flexShrink: 0 }}>缩放:</span>
             <Slider

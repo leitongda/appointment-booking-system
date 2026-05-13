@@ -261,7 +261,7 @@ const PasswordField: React.FC<PasswordFieldProps> = ({
   const defaultExtra = strengthLevel !== 'min' ? buildExtra() : undefined;
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }}>
+    <Space style={{ width: '100%' }}>
       {/* 密码输入框 */}
       <ProFormText.Password
         name={passwordName}

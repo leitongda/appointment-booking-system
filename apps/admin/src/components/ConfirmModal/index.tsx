@@ -165,8 +165,8 @@ export const confirmDelete = (options: ConfirmDeleteOptions) => {
   // 基础警告信息
   const defaultWarning = (
     <Alert
-      message={
-        <Space direction="vertical" size={0}>
+      title={
+        <Space size={0}>
           <Text strong>删除后果说明：</Text>
           <Text>1. {entityDescription}将被永久删除，无法恢复</Text>
           <Text>2. 相关的历史数据和统计报表可能受到影响</Text>
@@ -185,7 +185,7 @@ export const confirmDelete = (options: ConfirmDeleteOptions) => {
   // 自定义警告（如果有 alertMessage）
   const customAlert = alertMessage ? (
     <Alert
-      message={alertMessage}
+      title={alertMessage}
       type="warning"
       showIcon
       style={{ marginTop: 12 }}
@@ -194,7 +194,7 @@ export const confirmDelete = (options: ConfirmDeleteOptions) => {
 
   // 确认输入框
   const confirmInput = requireTyping ? (
-    <Space direction="vertical" style={{ width: '100%', marginTop: 16 }}>
+    <Space style={{ width: '100%', marginTop: 16 }}>
       <div>
         请输入 <Text keyboard strong style={{ color: '#ff4d4f' }}>{CONFIRM_TEXT}</Text> 以确认删除操作：
       </div>

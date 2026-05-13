@@ -41,13 +41,13 @@ const PolicyDetails: React.FC<PolicyDetailsProps> = ({ ruleSet }) => {
   const { bookingPolicy, checkinPolicy, capacityPolicy } = ruleSet;
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="middle">
+    <Space style={{ width: '100%' }} size="middle">
       {/* 预约策略 */}
       {bookingPolicy && (
         <div>
           <Text strong>预约策略</Text>
           <div style={{ marginTop: 8, padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '6px' }}>
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Space size="small" style={{ width: '100%' }}>
               <div>
                 <Text type="secondary">前置条件：</Text>
                 <div style={{ marginLeft: 12 }}>
@@ -96,7 +96,7 @@ const PolicyDetails: React.FC<PolicyDetailsProps> = ({ ruleSet }) => {
         <div>
           <Text strong>签到策略</Text>
           <div style={{ marginTop: 8, padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '6px' }}>
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Space size="small" style={{ width: '100%' }}>
               <div>
                 <Text type="secondary">前置条件：</Text>
                 <div style={{ marginLeft: 12 }}>
@@ -134,7 +134,7 @@ const PolicyDetails: React.FC<PolicyDetailsProps> = ({ ruleSet }) => {
         <div>
           <Text strong>容量策略</Text>
           <div style={{ marginTop: 8, padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '6px' }}>
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Space size="small" style={{ width: '100%' }}>
               <div>
                 <Text type="secondary">基础容量：</Text>
                 <div style={{ marginLeft: 12 }}>
@@ -263,7 +263,7 @@ const RuleSetPreviewDrawer: React.FC<RuleSetPreviewDrawerProps> = ({
       width={drawerWidth}
       styles={{ body: { padding: isMobile ? '12px 16px' : '16px 24px' } }}
     >
-      <Space direction="vertical" style={{ width: '100%' }} size="large">
+      <Space style={{ width: '100%' }} size="large">
         {/* 规则摘要 */}
         <RuleSetSummaryCard ruleSet={ruleSet} variant="default" />
 

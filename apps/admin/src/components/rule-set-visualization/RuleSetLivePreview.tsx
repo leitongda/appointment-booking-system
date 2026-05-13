@@ -70,7 +70,7 @@ const KeyTimesList: React.FC<KeyTimesListProps> = ({ keyTimes, baseDate }) => {
   ];
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="small">
+    <Space style={{ width: '100%' }} size="small">
       {items.map((item) => (
         <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between' }}>
           <Text type="secondary">{item.label}：</Text>
@@ -162,7 +162,7 @@ const RuleSetLivePreview: React.FC<RuleSetLivePreviewProps> = ({
         size="small"
         styles={{ body: { padding: '16px' } }}
       >
-        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+        <Space style={{ width: '100%' }} size="middle">
           {/* 班次时间配置 */}
           <div>
             <Text type="secondary">班次时间配置：</Text>

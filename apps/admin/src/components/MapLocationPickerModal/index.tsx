@@ -48,12 +48,12 @@ const AddressInputModal: React.FC<AddressInputModalProps> = ({
       onCancel={onCancel}
       onOk={handleOk}
       width={width}
-      destroyOnClose={false}
+      destroyOnHidden={false}
       okText="确定"
       cancelText="取消"
       okButtonProps={{ disabled: !tempLocation?.address }}
     >
-      <Space direction="vertical" style={{ width: '100%' }} size="large">
+      <Space style={{ width: '100%' }} size="large">
         <div>
           <Text strong style={{ marginBottom: 8, display: 'block' }}>
             请输入完整的机构地址
@@ -67,7 +67,7 @@ const AddressInputModal: React.FC<AddressInputModalProps> = ({
 
         {tempLocation?.address && (
           <div style={{ padding: '12px 16px', background: '#f6f8fa', borderRadius: '6px' }}>
-            <Space direction="vertical" size={4}>
+            <Space size={4}>
               <div>
                 <EnvironmentOutlined style={{ marginRight: 8, color: '#1890ff' }} />
                 <Text strong>地址预览：</Text>

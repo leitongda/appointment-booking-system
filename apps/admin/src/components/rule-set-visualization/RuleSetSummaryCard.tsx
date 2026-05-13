@@ -34,7 +34,7 @@ const RuleSetSummaryCard: React.FC<RuleSetSummaryCardProps> = ({
   if (variant === 'compact') {
     return (
       <Card size="small" styles={{ body: { padding: '12px 16px' } }}>
-        <Space direction="vertical" size="small" style={{ width: '100%' }}>
+        <Space size="small" style={{ width: '100%' }}>
           <div>
             <Text strong>{ruleSet.name}</Text>
             {ruleSet.priority && (
@@ -71,7 +71,7 @@ const RuleSetSummaryCard: React.FC<RuleSetSummaryCardProps> = ({
       }
       size="small"
     >
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      <Space style={{ width: '100%' }} size="middle">
         {/* 短摘要 */}
         {shortSummary && (
           <div
@@ -89,11 +89,11 @@ const RuleSetSummaryCard: React.FC<RuleSetSummaryCardProps> = ({
 
         {/* 基础信息 */}
         {summary.basic.length > 0 && (
-          <Descriptions size="small" column={1}>
-            {summary.basic.map((item, index) => (
-              <Descriptions.Item key={index} label="">{item}</Descriptions.Item>
-            ))}
-          </Descriptions>
+          <Descriptions size="small" column={1} items={summary.basic.map((item, index) => ({
+            key: String(index),
+            label: '',
+            children: item,
+          }))} />
         )}
 
         {/* 时间窗摘要 */}
@@ -106,7 +106,7 @@ const RuleSetSummaryCard: React.FC<RuleSetSummaryCardProps> = ({
                 key: 'windows',
                 label: <Text strong>时间窗配置</Text>,
                 children: (
-                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                  <Space size="small" style={{ width: '100%' }}>
                     {summary.windows.map((item, index) => (
                       <div key={index} style={{ paddingLeft: 12 }}>
                         <Text type="secondary">• </Text>
@@ -133,7 +133,7 @@ const RuleSetSummaryCard: React.FC<RuleSetSummaryCardProps> = ({
                     key: 'booking',
                     label: <Text strong>预约策略</Text>,
                     children: (
-                      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                      <Space size="small" style={{ width: '100%' }}>
                         {summary.policies.booking!.map((item, index) => (
                           <div key={index}>
                             <Text>{item}</Text>
@@ -151,7 +151,7 @@ const RuleSetSummaryCard: React.FC<RuleSetSummaryCardProps> = ({
                     key: 'checkin',
                     label: <Text strong>签到策略</Text>,
                     children: (
-                      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                      <Space size="small" style={{ width: '100%' }}>
                         {summary.policies.checkin!.map((item, index) => (
                           <div key={index}>
                             <Text>{item}</Text>
@@ -169,7 +169,7 @@ const RuleSetSummaryCard: React.FC<RuleSetSummaryCardProps> = ({
                     key: 'capacity',
                     label: <Text strong>容量策略</Text>,
                     children: (
-                      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                      <Space size="small" style={{ width: '100%' }}>
                         {summary.policies.capacity!.map((item, index) => (
                           <div key={index}>
                             <Text>{item}</Text>

@@ -272,9 +272,9 @@ const ImportExport: React.FC<ImportExportProps> = ({
           width={600}
           destroyOnHidden
         >
-          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <Space style={{ width: '100%' }} size="middle">
             <Alert
-              message="导入说明"
+              title="导入说明"
               description={
                 <ul style={{ margin: 0, paddingLeft: 20 }}>
                   <li>请先下载导入模板，按模板格式填写数据</li>
@@ -303,7 +303,7 @@ const ImportExport: React.FC<ImportExportProps> = ({
             {importResult && importResult.fail_count > 0 && (
               <>
                 <Alert
-                  message={`导入结果：成功 ${importResult.success_count} 条，失败 ${importResult.fail_count} 条`}
+                  title={`导入结果：成功 ${importResult.success_count} 条，失败 ${importResult.fail_count} 条`}
                   type="warning"
                   showIcon
                 />
@@ -344,9 +344,9 @@ const ImportExport: React.FC<ImportExportProps> = ({
         width={600}
         destroyOnHidden
       >
-        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+        <Space style={{ width: '100%' }} size="middle">
           <Alert
-            message="导入说明"
+            title="导入说明"
             description={
               <ul style={{ margin: 0, paddingLeft: 20 }}>
                 <li>请先下载导入模板，按模板格式填写数据</li>
@@ -375,7 +375,7 @@ const ImportExport: React.FC<ImportExportProps> = ({
           {importResult && importResult.fail_count > 0 && (
             <>
               <Alert
-                message={`导入结果：成功 ${importResult.success_count} 条，失败 ${importResult.fail_count} 条`}
+                title={`导入结果：成功 ${importResult.success_count} 条，失败 ${importResult.fail_count} 条`}
                 type="warning"
                 showIcon
               />

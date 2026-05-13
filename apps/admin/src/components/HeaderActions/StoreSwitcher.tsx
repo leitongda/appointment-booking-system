@@ -243,7 +243,7 @@ export const StoreSwitcher: React.FC = () => {
         open={open}
         onOpenChange={setOpen}
         placement="bottomRight"
-        overlayClassName={styles.storeSwitcherPopover}
+        classNames={{ root: styles.storeSwitcherPopover }}
         arrow={{ pointAtCenter: true }}
       >
         <Tooltip title={currentStore?.name || (isSuperAdmin ? '全部门店' : '未选择门店')} open={open ? false : undefined}>

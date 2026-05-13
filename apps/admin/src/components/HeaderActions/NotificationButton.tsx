@@ -353,7 +353,7 @@ export const NotificationButton: React.FC = () => {
         }
       }}
       placement="bottomRight"
-      overlayClassName={styles.notificationPopover}
+      classNames={{ root: styles.notificationPopover }}
       arrow={false}
       destroyOnHidden
     >

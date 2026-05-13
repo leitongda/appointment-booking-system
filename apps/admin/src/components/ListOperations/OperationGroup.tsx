@@ -56,7 +56,7 @@ export const OperationGroup: React.FC<OperationGroupProps> = ({
   return (
     <Space
       size={size}
-      split={showDivider ? <Divider type="vertical" style={{ margin: 0 }} /> : undefined}
+      separator={showDivider ? <Divider type="vertical" style={{ margin: 0 }} /> : undefined}
     >
       {validChildren}
       {validMoreItems.length > 0 && (

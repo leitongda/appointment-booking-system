@@ -118,7 +118,7 @@ const WindowTimelineCard: React.FC<WindowTimelineCardProps> = ({
         transition: highlightOnHover ? 'all 0.3s' : 'none',
         cursor: highlightOnHover ? 'pointer' : 'default',
       }}
-      bodyStyle={{ padding: compact ? '12px' : '16px' }}
+      styles={{ body: { padding: compact ? '12px' : '16px' } }}
       onMouseEnter={highlightOnHover ? (e) => {
         e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
         e.currentTarget.style.transform = 'translateY(-2px)';
@@ -128,7 +128,7 @@ const WindowTimelineCard: React.FC<WindowTimelineCardProps> = ({
         e.currentTarget.style.transform = 'translateY(0)';
       } : undefined}
     >
-      <Space direction="vertical" size={compact ? 'small' : 'middle'} style={{ width: '100%' }}>
+      <Space size={compact ? 'small' : 'middle'} style={{ width: '100%' }}>
         {/* 标题行：动作类型 + 参考点 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Space>

@@ -11,7 +11,7 @@ const ListPageSkeleton: FC<ListPageSkeletonProps> = ({
   rowCount = 6,
 }) => {
   return (
-    <Card bordered={false}>
+    <Card variant="borderless">
       <Space wrap size={12} style={{ width: '100%', marginBottom: 24 }}>
         {Array.from({ length: filterCount }).map((_, index) => (
           <Skeleton.Input

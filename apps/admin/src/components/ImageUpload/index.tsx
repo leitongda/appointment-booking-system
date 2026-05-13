@@ -246,7 +246,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
 
   return (
     <div>
-      <Space direction="vertical" size={8}>
+      <Space size={8}>
         {renderUploadArea()}
         
         {/* URL转存输入 */}

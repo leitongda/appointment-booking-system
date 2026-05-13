@@ -185,7 +185,7 @@ const WindowFormContent: React.FC<WindowFormContentProps> = ({ field, remove }) 
 
   return (
     <div style={{ padding: '16px 0' }}>
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      <Space style={{ width: '100%' }} size="middle">
         {/* 自定义名称 */}
         <Row gutter={16}>
           <Col span={24}>
@@ -527,7 +527,7 @@ const WindowTabsContent: React.FC<WindowTabsContentProps> = ({
       <Tabs
         activeKey={activeKey}
         onChange={setActiveKey}
-        tabPosition={isMobile ? 'top' : 'left'}
+        tabPlacement={isMobile ? 'top' : 'left'}
         items={tabItems}
         style={{ minHeight: isMobile ? 300 : 400 }}
         tabBarStyle={{ width: isMobile ? 'auto' : isTablet ? 120 : 180 }}
@@ -583,7 +583,7 @@ const WindowTimelineVisualization: React.FC<WindowTimelineVisualizationProps> = 
   if (enabledWindows.length === 0) {
     return (
       <Alert
-        message="暂无已启用的时间窗"
+        title="暂无已启用的时间窗"
         description="启用时间窗后，此处将显示时间轴可视化"
         type="info"
         showIcon
