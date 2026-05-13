@@ -1,4 +1,4 @@
-import { PageContainer, ProForm, ProFormText, ProFormSwitch } from '@ant-design/pro-components';
+import { PageContainer, ProForm, ProFormText } from '@ant-design/pro-components';
 import { Card, App, Row, Col, Typography, Space, Spin, Switch, TimePicker, Divider, Modal, Form, Input, Button, Tag } from 'antd';
 import { useState, useEffect, useRef } from 'react';
 import { useModel } from '@umijs/max';
@@ -55,16 +55,7 @@ const AccountSettingsPage: React.FC = () => {
   const emailTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const emailOldTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    loadAdmin();
-    loadNotificationPreferences();
-    return () => {
-      if (emailTimerRef.current) clearInterval(emailTimerRef.current);
-      if (emailOldTimerRef.current) clearInterval(emailOldTimerRef.current);
-    };
-  }, []);
-
-  const loadAdmin = async () => {
+  async function loadAdmin() {
     setLoading(true);
     try {
       const data = await adminApi.getCurrentAdmin();
@@ -120,7 +111,7 @@ const AccountSettingsPage: React.FC = () => {
     }
   };
 
-  const loadNotificationPreferences = async () => {
+  async function loadNotificationPreferences() {
     try {
       setNotificationLoading(true);
       const data = await notificationPreferenceApi.get();
@@ -139,7 +130,16 @@ const AccountSettingsPage: React.FC = () => {
     } finally {
       setNotificationLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    loadAdmin();
+    loadNotificationPreferences();
+    return () => {
+      if (emailTimerRef.current) clearInterval(emailTimerRef.current);
+      if (emailOldTimerRef.current) clearInterval(emailOldTimerRef.current);
+    };
+  }, []);
 
   const handleNotificationToggle = async (
     key: keyof NotificationPreference,

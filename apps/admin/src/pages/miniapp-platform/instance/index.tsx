@@ -1,18 +1,11 @@
 import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Tag, Button, Space } from 'antd';
 import { history } from '@umijs/max';
 import { miniappPlatformApi } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
 import { useListPage } from '@/hooks/useListPage';
 import { CreateButton, createOperationColumn } from '@/components/ListOperations';
 import type { MiniappInstance } from '@hospital/api';
-
-const INSTANCE_STATUS_MAP: Record<number, { text: string; status: 'Success' | 'Error' | 'Default' }> = {
-  0: { text: '已禁用', status: 'Error' },
-  1: { text: '已启用', status: 'Success' },
-  2: { text: '已归档', status: 'Default' },
-};
 
 const MiniappInstancePage: React.FC = () => {
   const { actionRef, handleDelete, refresh } = useListPage({

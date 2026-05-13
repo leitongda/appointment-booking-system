@@ -76,11 +76,8 @@ const DepartmentFormPage: React.FC = () => {
   const [departments, setDepartments] = useState<DepartmentTreeNode[]>([]);
 
   // 响应式支持
-  const screens = useBreakpoint();
-  const { isMobile, isTablet } = useResponsive();
-
-  // 响应式栅格配置
-  const colSpan = isMobile ? 24 : isTablet ? 12 : 8;
+  useBreakpoint();
+  const { isMobile } = useResponsive();
 
   // 加载门店列表
   useEffect(() => {

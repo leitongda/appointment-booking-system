@@ -1,6 +1,5 @@
 import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Tag } from 'antd';
 import { history } from '@umijs/max';
 import { miniappPlatformApi } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
@@ -8,13 +7,8 @@ import { useListPage } from '@/hooks/useListPage';
 import { CreateButton, createOperationColumn } from '@/components/ListOperations';
 import type { Company } from '@hospital/api';
 
-const COMPANY_STATUS_MAP: Record<number, { text: string; status: 'Success' | 'Error' }> = {
-  0: { text: '已禁用', status: 'Error' },
-  1: { text: '已启用', status: 'Success' },
-};
-
 const CompanyPage: React.FC = () => {
-  const { actionRef, handleDelete, refresh } = useListPage({
+  const { actionRef, handleDelete } = useListPage({
     deleteFn: miniappPlatformApi.deleteCompany,
   });
 

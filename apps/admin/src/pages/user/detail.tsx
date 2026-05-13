@@ -20,7 +20,7 @@ import {
 } from 'antd';
 import { UserOutlined, ManOutlined, WomanOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
-import { history, useParams, useAccess, useSearchParams } from '@umijs/max';
+import { history, useParams, useAccess } from '@umijs/max';
 import { userManageApi } from '@hospital/api';
 import { GENDER_MAP, GENDER_OPTIONS } from '@/constants';
 import type { UserDetail, UserCard, CardCreateData, CardUpdateData, UserUpdateData } from '@hospital/api';
@@ -65,12 +65,6 @@ const UserDetailPage: React.FC = () => {
   const [editCardModalVisible, setEditCardModalVisible] = useState(false);
   const [currentCard, setCurrentCard] = useState<UserCard | null>(null);
 
-  useEffect(() => {
-    if (id) {
-      loadUser();
-    }
-  }, [id]);
-
   const loadUser = async () => {
     if (!id) return;
     setLoading(true);
@@ -83,6 +77,12 @@ const UserDetailPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (id) {
+      loadUser();
+    }
+  }, [id]);
 
   const handleUpdateStatus = async (status: number) => {
     if (!id) return;

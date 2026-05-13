@@ -1,5 +1,5 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { Card, Tag, Button, Row, Col, message, Modal, Space, Typography, Divider } from 'antd';
+import { Card, Tag, Button, Row, Col, Modal, Space, Typography, Divider } from 'antd';
 import { history } from '@umijs/max';
 import { useState, useEffect } from 'react';
 import {
@@ -79,10 +79,6 @@ const TemplatePage: React.FC = () => {
   const [templates, setTemplates] = useState<TemplateWithStatic[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadTemplates();
-  }, []);
-
   const loadTemplates = async () => {
     setLoading(true);
     try {
@@ -131,6 +127,10 @@ const TemplatePage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadTemplates();
+  }, []);
 
   const handleSelectTemplate = (template: TemplateWithStatic) => {
     Modal.confirm({

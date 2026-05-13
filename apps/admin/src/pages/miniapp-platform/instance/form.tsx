@@ -1,5 +1,5 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { ProForm, ProFormText, ProFormSelect, ProFormTextArea, ProFormDependency } from '@ant-design/pro-components';
+import { ProForm, ProFormText, ProFormSelect, ProFormTextArea } from '@ant-design/pro-components';
 import { Card, message, Form, Row, Col, Divider, Radio, Tag } from 'antd';
 import { history, useParams, useSearchParams } from '@umijs/max';
 import { useEffect, useState } from 'react';
@@ -57,41 +57,31 @@ const InstanceFormPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [stores, setStores] = useState<Store[]>([]);
   const [paymentProfiles, setPaymentProfiles] = useState<any[]>([]);
-  const [checkingCode, setCheckingCode] = useState(false);
-  const [checkingAppId, setCheckingAppId] = useState(false);
+  const [_checkingCode, setCheckingCode] = useState(false);
+  const [_checkingAppId, setCheckingAppId] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string | undefined>(
     searchParams.get('template') || undefined
   );
 
-  useEffect(() => {
-    loadStores();
-    loadPaymentProfiles();
-    if (isEdit) {
-      loadInstance();
-    } else if (selectedTemplate) {
-      form.setFieldValue('templateId', selectedTemplate);
-    }
-  }, [id]);
-
-  const loadStores = async () => {
+  async function loadStores() {
     try {
       const res = await storeApi.getStores({ page: 1, pageSize: 100 });
       setStores(res.data?.data || []);
     } catch (error) {
       console.error('加载门店列表失败:', error);
     }
-  };
+  }
 
-  const loadPaymentProfiles = async () => {
+  async function loadPaymentProfiles() {
     try {
       const res = await miniappPlatformApi.getPaymentProfiles({ page: 1, pageSize: 100 });
       setPaymentProfiles(res.data?.data || []);
     } catch (error) {
       console.error('加载支付配置失败:', error);
     }
-  };
+  }
 
-  const loadInstance = async () => {
+  async function loadInstance() {
     setLoading(true);
     try {
       const res = await miniappPlatformApi.getMiniappInstance(id);
@@ -114,7 +104,17 @@ const InstanceFormPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    loadStores();
+    loadPaymentProfiles();
+    if (isEdit) {
+      loadInstance();
+    } else if (selectedTemplate) {
+      form.setFieldValue('templateId', selectedTemplate);
+    }
+  }, [id]);
 
   const checkCode = async (_: any, value: string) => {
     if (!value) return Promise.resolve();

@@ -14,7 +14,6 @@ import type {
   StoreRankingItem,
   TimeSlotItem,
 } from '@hospital/api';
-import dayjs from 'dayjs';
 
 const { Statistic } = StatisticCard;
 const { RangePicker } = DatePicker;
@@ -35,12 +34,7 @@ const AppointmentStatisticsPage: React.FC = () => {
   const [doctorRanking, setDoctorRanking] = useState<DoctorRankingItem[]>([]);
   const [timeSlotStats, setTimeSlotStats] = useState<TimeSlotItem[]>([]);
 
-  useEffect(() => {
-    loadStores();
-    loadData();
-  }, []);
-
-  const loadStores = async () => {
+  async function loadStores() {
     try {
       // 获取所有启用的门店
       const allStores = await fetchAllData((page, pageSize) =>
@@ -57,7 +51,7 @@ const AppointmentStatisticsPage: React.FC = () => {
     }
   };
 
-  const loadData = async (params?: { startDate?: string; endDate?: string; storeId?: string }) => {
+  async function loadData(params?: { startDate?: string; endDate?: string; storeId?: string }) {
     setLoading(true);
     try {
       const [summaryRes, trendRes, statusRes, storeRes, deptRes, doctorRes, timeRes] = await Promise.allSettled([
@@ -69,7 +63,7 @@ const AppointmentStatisticsPage: React.FC = () => {
         statisticsApi.getDoctorRanking(10),
         statisticsApi.getTimeSlotDistribution(),
       ]);
-      
+
       if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value);
       if (trendRes.status === 'fulfilled') setTrendData(trendRes.value);
       if (statusRes.status === 'fulfilled') setStatusStats(statusRes.value);
@@ -82,7 +76,12 @@ const AppointmentStatisticsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    loadStores();
+    loadData();
+  }, []);
 
   const handleSearch = () => {
     const values = form.getFieldsValue();

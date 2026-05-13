@@ -51,11 +51,20 @@ const AppointmentDetailPage: React.FC = () => {
   const [refundRecordsLoading, setRefundRecordsLoading] = useState(false);
   const [form] = Form.useForm();
 
-  useEffect(() => {
-    if (id) loadAppointment();
-  }, [id]);
+  async function loadRefundRecords() {
+    if (!id) return;
+    setRefundRecordsLoading(true);
+    try {
+      const data = await appointmentApi.getRefundRecords(id);
+      setRefundRecords(data);
+    } catch (error) {
+      console.error('加载退款记录失败', error);
+    } finally {
+      setRefundRecordsLoading(false);
+    }
+  }
 
-  const loadAppointment = async () => {
+  async function loadAppointment() {
     if (!id) return;
     setLoading(true);
     try {
@@ -71,20 +80,11 @@ const AppointmentDetailPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const loadRefundRecords = async () => {
-    if (!id) return;
-    setRefundRecordsLoading(true);
-    try {
-      const data = await appointmentApi.getRefundRecords(id);
-      setRefundRecords(data);
-    } catch (error) {
-      console.error('加载退款记录失败', error);
-    } finally {
-      setRefundRecordsLoading(false);
-    }
-  };
+  useEffect(() => {
+    if (id) loadAppointment();
+  }, [id]);
 
   const handleCancelSignIn = async () => {
     if (!id) return;

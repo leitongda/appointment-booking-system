@@ -1,22 +1,12 @@
 import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Tag, Button, Dropdown } from 'antd';
+import { Tag } from 'antd';
 import { history } from '@umijs/max';
 import { miniappPlatformApi } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
 import { useListPage } from '@/hooks/useListPage';
 import { CreateButton, createOperationColumn } from '@/components/ListOperations';
 import type { PaymentProfile } from '@hospital/api';
-
-const PAYMENT_MODE_MAP: Record<string, { text: string; color: string }> = {
-  direct: { text: '直连', color: 'blue' },
-  service_provider: { text: '服务商', color: 'green' },
-};
-
-const PROFILE_STATUS_MAP: Record<number, { text: string; status: 'Success' | 'Error' }> = {
-  0: { text: '已禁用', status: 'Error' },
-  1: { text: '已启用', status: 'Success' },
-};
 
 const PaymentProfilePage: React.FC = () => {
   const { actionRef, handleDelete, refresh } = useListPage({

@@ -35,7 +35,7 @@ const MessageFormPage: React.FC = () => {
         onFinish={handleSubmit}
         initialValues={{ userType: 'patient', messageType: 'system' }}
         submitter={{
-          render: (props, dom) => (
+          render: (props, _dom) => (
             <FooterToolbar>
               <Space>
                 <Button onClick={() => history.back()}>取消</Button>

@@ -1,5 +1,5 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { ProForm, ProFormText, ProFormTextArea, ProFormSelect } from '@ant-design/pro-components';
+import { ProForm, ProFormText } from '@ant-design/pro-components';
 import { Card, message, Form, Row, Col } from 'antd';
 import { history, useParams } from '@umijs/max';
 import { useEffect, useState } from 'react';
@@ -11,13 +11,7 @@ const CompanyFormPage: React.FC = () => {
   const isEdit = !!id;
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [checkingCode, setCheckingCode] = useState(false);
-
-  useEffect(() => {
-    if (isEdit) {
-      loadCompany();
-    }
-  }, [id]);
+  const [_checkingCode, setCheckingCode] = useState(false);
 
   const loadCompany = async () => {
     setLoading(true);
@@ -38,6 +32,12 @@ const CompanyFormPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (isEdit) {
+      loadCompany();
+    }
+  }, [id]);
 
   const checkCompanyCode = async (_: any, value: string) => {
     if (!value) return Promise.resolve();

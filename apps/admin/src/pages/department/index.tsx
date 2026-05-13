@@ -1,4 +1,4 @@
-import { PlusOutlined, UserOutlined, HolderOutlined, EditOutlined, DeleteOutlined, MoreOutlined, SettingOutlined } from '@ant-design/icons';
+import { PlusOutlined, UserOutlined, HolderOutlined, EditOutlined, DeleteOutlined, MoreOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { Button, App, Popconfirm, Space, Tag, Modal, Spin, Empty, Checkbox, Avatar, List, Switch, Divider, Dropdown } from 'antd';
@@ -108,13 +108,6 @@ const DepartmentPage: React.FC = () => {
   const canSwitchStores = access.canSwitchStores;
   const isSingleStore = !canSwitchStores && userStores.length <= 1;
 
-  useEffect(() => {
-    // 只有超管或多门店用户才需要加载门店列表
-    if (canSwitchStores || userStores.length > 1) {
-      loadStores();
-    }
-  }, []);
-
   const loadStores = async () => {
     try {
       const res = await storeApi.getList({ pageSize: PAGINATION_CONFIG.SELECT_MAX_SIZE, status: 1 });
@@ -123,6 +116,13 @@ const DepartmentPage: React.FC = () => {
       console.error('加载门店失败', error);
     }
   };
+
+  useEffect(() => {
+    // 只有超管或多门店用户才需要加载门店列表
+    if (canSwitchStores || userStores.length > 1) {
+      loadStores();
+    }
+  }, []);
 
   // 构建门店筛选选项
   const storeFilterOptions = useMemo(() => {

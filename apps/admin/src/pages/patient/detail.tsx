@@ -100,14 +100,7 @@ const PatientDetailPage: React.FC = () => {
   const [editMemberModalVisible, setEditMemberModalVisible] = useState(false);
   const [currentMember, setCurrentMember] = useState<PatientListItem | null>(null);
 
-  useEffect(() => {
-    if (id) {
-      loadPatient();
-      loadDoctors();
-    }
-  }, [id]);
-
-  const loadPatient = async () => {
+  async function loadPatient() {
     if (!id) return;
     setLoading(true);
     try {
@@ -118,9 +111,9 @@ const PatientDetailPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const loadDoctors = async () => {
+  async function loadDoctors() {
     try {
       const doctors = await fetchAllData((page, pageSize) =>
         doctorApi.getList({ page, pageSize })
@@ -129,7 +122,14 @@ const PatientDetailPage: React.FC = () => {
     } catch (error) {
       console.error('加载医生失败', error);
     }
-  };
+  }
+
+  useEffect(() => {
+    if (id) {
+      loadPatient();
+      loadDoctors();
+    }
+  }, [id]);
 
   const handleAdjustPoints = async (values: { amount: number; remark: string }) => {
     if (!id) return;

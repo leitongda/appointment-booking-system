@@ -1,5 +1,5 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { ProForm, ProFormText, ProFormSelect, ProFormTextArea, ProFormSwitch } from '@ant-design/pro-components';
+import { ProForm, ProFormText, ProFormSelect, ProFormSwitch } from '@ant-design/pro-components';
 import { Card, message, Form, Row, Col, Divider } from 'antd';
 import { history, useParams } from '@umijs/max';
 import { useEffect, useState } from 'react';
@@ -11,26 +11,19 @@ const PaymentProfileFormPage: React.FC = () => {
   const isEdit = !!id;
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [checkingCode, setCheckingCode] = useState(false);
+  const [_checkingCode, setCheckingCode] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
 
-  useEffect(() => {
-    loadCompanies();
-    if (isEdit) {
-      loadProfile();
-    }
-  }, [id]);
-
-  const loadCompanies = async () => {
+  async function loadCompanies() {
     try {
       const res = await miniappPlatformApi.getCompanies({ page: 1, pageSize: 100 });
       setCompanies(res.data?.data || []);
     } catch (error) {
       console.error('加载公司列表失败:', error);
     }
-  };
+  }
 
-  const loadProfile = async () => {
+  async function loadProfile() {
     setLoading(true);
     try {
       const res = await miniappPlatformApi.getPaymentProfile(id);
@@ -56,7 +49,14 @@ const PaymentProfileFormPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    loadCompanies();
+    if (isEdit) {
+      loadProfile();
+    }
+  }, [id]);
 
   const checkProfileCode = async (_: any, value: string) => {
     if (!value) return Promise.resolve();
