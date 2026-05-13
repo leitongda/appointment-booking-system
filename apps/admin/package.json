@@ -9,7 +9,7 @@
     "dev:remote": "bash scripts/dev-remote.sh",
     "build": "max build && node scripts/inject-preload.js",
     "postinstall": "max setup",
-    "lint": "eslint src --ext .ts,.tsx",
+    "lint": "max lint",
     "test": "vitest",
     "clean": "rm -rf dist .umi .umi-production"
   },
