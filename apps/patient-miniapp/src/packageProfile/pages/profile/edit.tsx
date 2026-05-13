@@ -18,7 +18,7 @@ import './edit.less';
 const GENDER_OPTIONS = ['保密', '男', '女'];
 
 // API 基础 URL
-const API_BASE_URL = process.env.TARO_APP_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL = process.env.TARO_APP_API_URL || 'http://localhost:9000/api/v1';
 
 const ProfileEditPage = () => {
   useApplyThemeNavigationBar();

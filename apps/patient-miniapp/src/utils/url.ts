@@ -7,14 +7,14 @@
 const getApiHost = (): string => {
   if (process.env.TARO_APP_API_URL) {
     // 从完整的 API URL 中提取 host
-    // 例如 http://127.0.0.1:8000/api/v1 -> http://127.0.0.1:8000
+    // 例如 http://127.0.0.1:9000/api/v1 -> http://127.0.0.1:9000
     const url = process.env.TARO_APP_API_URL;
     const match = url.match(/^(https?:\/\/[^/]+)/);
     return match ? match[1] : url;
   }
-  return process.env.NODE_ENV === 'production' 
-    ? 'https://api.example.com' 
-    : 'http://127.0.0.1:8000';
+  return process.env.NODE_ENV === 'production'
+    ? 'https://api.example.com'
+    : 'http://127.0.0.1:9000';
 };
 
 /**
@@ -26,7 +26,7 @@ const getApiHost = (): string => {
  * 
  * @example
  * getFullUrl('/uploads/doctor/202512/xxx.jpg')
- * // => 'http://127.0.0.1:8000/uploads/doctor/202512/xxx.jpg'
+ * // => 'http://127.0.0.1:9000/uploads/doctor/202512/xxx.jpg'
  * 
  * getFullUrl('https://example.com/image.jpg')
  * // => 'https://example.com/image.jpg'
