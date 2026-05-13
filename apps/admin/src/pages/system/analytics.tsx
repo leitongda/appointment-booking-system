@@ -1,6 +1,6 @@
 import { useState, useEffect, Suspense, lazy, ComponentType } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
-import { Card, Row, Col, Statistic, Table, Select, Typography, Space, Tag, Spin } from 'antd';
+import { Card, Row, Col, Statistic, Table, Select, Typography, Space, Spin } from 'antd';
 import {
   EyeOutlined,
   UserOutlined,

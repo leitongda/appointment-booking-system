@@ -12,7 +12,7 @@ import {
   type ModalPreviewData,
 } from '@/utils/analytics';
 
-const { RangePicker } = DatePicker;
+const { RangePicker: _RangePicker } = DatePicker;
 
 interface RulePreviewModalProps {
   open: boolean;

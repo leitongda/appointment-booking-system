@@ -3,7 +3,6 @@ import { Table, Card, App, Popconfirm, Button, Tag, Space, Tooltip, Typography, 
 import {
   DesktopOutlined,
   MobileOutlined,
-  TabletOutlined,
   WindowsOutlined,
   AppleOutlined,
   ReloadOutlined,
@@ -114,7 +113,7 @@ const UserStatusPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<UserStatus[]>([]);
   const [filter, setFilter] = useState<'all' | 'online' | 'offline'>('all');
-  const [tick, setTick] = useState(0);
+  const [_tick, setTick] = useState(0);
   
   // 登录历史抽屉
   const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
@@ -205,14 +204,6 @@ const UserStatusPage: React.FC = () => {
     }
   };
 
-  // 查看登录历史
-  const handleViewHistory = async (user: UserStatus) => {
-    setCurrentUser(user);
-    setHistoryDrawerOpen(true);
-    setHistoryPage(1);
-    await loadHistory(user.adminId, 1);
-  };
-
   // 加载登录历史
   const loadHistory = async (adminId: string, page: number) => {
     setHistoryLoading(true);
@@ -225,6 +216,14 @@ const UserStatusPage: React.FC = () => {
     } finally {
       setHistoryLoading(false);
     }
+  };
+
+  // 查看登录历史
+  const handleViewHistory = async (user: UserStatus) => {
+    setCurrentUser(user);
+    setHistoryDrawerOpen(true);
+    setHistoryPage(1);
+    await loadHistory(user.adminId, 1);
   };
 
   // 过滤后的用户列表

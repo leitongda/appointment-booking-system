@@ -3,7 +3,7 @@ import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormText } from '@ant-design/pro-components';
 import { Tag, Switch } from 'antd';
 import { useState } from 'react';
-import { history, useAccess } from '@umijs/max';
+import { useAccess } from '@umijs/max';
 import { emailTemplateApi, EMAIL_TEMPLATE_TYPE_OPTIONS } from '@hospital/api';
 import type { EmailTemplateListItem } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';

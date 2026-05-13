@@ -10,14 +10,14 @@ import {
   ProFormList,
   ModalForm,
 } from '@ant-design/pro-components';
-import { Card, App, Tabs, Spin, Table, Switch, Button, Input, Space, Popconfirm, Tag, Select, Form, Typography, Slider, Row, Col } from 'antd';
-import { PlusOutlined, SearchOutlined, DeleteOutlined, CalendarOutlined, CloseCircleOutlined, CheckCircleOutlined, StopOutlined, NumberOutlined } from '@ant-design/icons';
-import { useState, useEffect, useRef } from 'react';
+import { Card, App, Tabs, Spin, Table, Switch, Button, Input, Space, Popconfirm, Tag, Select, Typography, Row, Col } from 'antd';
+import { PlusOutlined, DeleteOutlined, CalendarOutlined, CloseCircleOutlined, CheckCircleOutlined, StopOutlined, NumberOutlined } from '@ant-design/icons';
+import { useState, useEffect } from 'react';
 import { history, useAccess, useLocation, useModel } from '@umijs/max';
 import { settingsApi, blacklistApi, storeApi } from '@hospital/api';
 import { fetchAllData } from '@/utils/fetchAllData';
-import type { BookingSettings, HospitalInfo, BookingFieldConfig, PatientCardConfig, BlacklistItem, EmailConfig, ImageConfig, ThumbnailSize, WechatConfig } from '@hospital/api';
-import type { StoreWechatConfig, Store } from '@hospital/shared';
+import type { BookingSettings, HospitalInfo, BookingFieldConfig, PatientCardConfig, BlacklistItem, EmailConfig, ImageConfig, WechatConfig } from '@hospital/api';
+import type { StoreWechatConfig } from '@hospital/shared';
 
 const { Text } = Typography;
 
@@ -135,7 +135,7 @@ const SettingsPage: React.FC = () => {
   const [stores, setStores] = useState<any[]>([]);
   const [emailConfig, setEmailConfig] = useState<EmailConfig | null>(null);
   const [imageConfig, setImageConfig] = useState<ImageConfig | null>(null);
-  const [wechatConfig, setWechatConfig] = useState<WechatConfig | null>(null);
+  const [_wechatConfig, setWechatConfig] = useState<WechatConfig | null>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [storeWechatConfig, setStoreWechatConfig] = useState<StoreWechatConfig | null>(null);
   const [wechatLoading, setWechatLoading] = useState(false);
@@ -161,18 +161,21 @@ const SettingsPage: React.FC = () => {
   const canDeleteBlacklist = access.hasPermission('blacklist:delete');
   const isLegacySettingsRoute = location.pathname.startsWith('/operations/system/settings');
 
-  useEffect(() => {
-    loadSettings();
-    if (canViewBooking || canViewWechat || canViewBlacklist) {
-      loadStores();
+  async function loadBlacklist(page = 1, keyword = '') {
+    setBlacklistLoading(true);
+    try {
+      const res = await blacklistApi.getList({ page, pageSize: 20, keyword: keyword || undefined });
+      setBlacklist(res.data ?? []);
+      setBlacklistTotal(res.total ?? 0);
+      setBlacklistPage(page);
+    } catch (error) {
+      console.error('加载黑名单失败', error);
+    } finally {
+      setBlacklistLoading(false);
     }
-  }, []);
+  }
 
-  useEffect(() => {
-    setActiveTab(TAB_PATH_TO_KEY[location.pathname] || 'booking');
-  }, [location.pathname]);
-
-  const loadSettings = async () => {
+  async function loadSettings() {
     setLoading(true);
     try {
       const loaders: Promise<void>[] = [];
@@ -208,9 +211,9 @@ const SettingsPage: React.FC = () => {
     if (canViewBlacklist) {
       loadBlacklist();
     }
-  };
+  }
 
-  const loadStores = async () => {
+  async function loadStores() {
     try {
       // 获取所有启用的门店
       const allStores = await fetchAllData((page, pageSize) =>
@@ -225,40 +228,21 @@ const SettingsPage: React.FC = () => {
     } catch (error) {
       console.error('加载门店失败', error);
     }
-  };
+  }
 
-  const loadBlacklist = async (page = 1, keyword = '') => {
-    setBlacklistLoading(true);
-    try {
-      const res = await blacklistApi.getList({ page, pageSize: 20, keyword: keyword || undefined });
-      setBlacklist(res.data ?? []);
-      setBlacklistTotal(res.total ?? 0);
-      setBlacklistPage(page);
-    } catch (error) {
-      console.error('加载黑名单失败', error);
-    } finally {
-      setBlacklistLoading(false);
+  useEffect(() => {
+    loadSettings();
+    if (canViewBooking || canViewWechat || canViewBlacklist) {
+      loadStores();
     }
-  };
+  }, []);
 
-  const handleBookingSubmit = async (values: any) => {
-    try {
-      await settingsApi.updateBookingSettings(values, selectedBookingStoreId || undefined);
-      message.success('保存成功');
-      // 重新加载配置
-      if (selectedBookingStoreId) {
-        await loadStoreBookingSettings(selectedBookingStoreId);
-      } else {
-        const settings = await settingsApi.getBookingSettings();
-        setBookingSettings(settings);
-      }
-    } catch (error: any) {
-      message.error(error.message || '保存失败');
-    }
-  };
+  useEffect(() => {
+    setActiveTab(TAB_PATH_TO_KEY[location.pathname] || 'booking');
+  }, [location.pathname]);
 
   // 加载门店预约设置
-  const loadStoreBookingSettings = async (storeId: string) => {
+  async function loadStoreBookingSettings(storeId: string) {
     if (!storeId) {
       // 加载全局配置
       const settings = await settingsApi.getBookingSettings();
@@ -284,6 +268,22 @@ const SettingsPage: React.FC = () => {
       });
     } catch (error: any) {
       console.error('加载门店预约设置失败', error);
+    }
+  }
+
+  const handleBookingSubmit = async (values: any) => {
+    try {
+      await settingsApi.updateBookingSettings(values, selectedBookingStoreId || undefined);
+      message.success('保存成功');
+      // 重新加载配置
+      if (selectedBookingStoreId) {
+        await loadStoreBookingSettings(selectedBookingStoreId);
+      } else {
+        const settings = await settingsApi.getBookingSettings();
+        setBookingSettings(settings);
+      }
+    } catch (error: any) {
+      message.error(error.message || '保存失败');
     }
   };
 
@@ -343,15 +343,6 @@ const SettingsPage: React.FC = () => {
         thumbnailSizes: values.thumbnailSizes,
         compressQuality: values.compressQuality,
       });
-      message.success('保存成功');
-    } catch (error: any) {
-      message.error(error.message || '保存失败');
-    }
-  };
-
-  const handleWechatConfigSubmit = async (values: any) => {
-    try {
-      await settingsApi.updateWechatConfig(values);
       message.success('保存成功');
     } catch (error: any) {
       message.error(error.message || '保存失败');

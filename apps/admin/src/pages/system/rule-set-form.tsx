@@ -5,9 +5,9 @@
  * + 可选的实时预览面板 + 规则效果预览弹窗 + 预设模板
  */
 import { PageContainer, ProForm, ProFormText, ProFormSelect, ProFormDigit, ProFormSwitch, ProFormTextArea, ProFormDependency, FooterToolbar } from '@ant-design/pro-components';
-import { Card, App, Button, Space, Row, Col, Tabs, message, Alert, Modal, Radio, Typography, Affix, Progress, Divider, Tag, Grid, Drawer, Result } from 'antd';
+import { Card, App, Button, Space, Row, Col, Tabs, message, Alert, Modal, Radio, Typography, Affix, Progress, Divider, Tag, Grid, Drawer, Result, Spin } from 'antd';
 import { ThunderboltOutlined, CheckCircleOutlined, RightOutlined } from '@ant-design/icons';
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { history, useParams, useAccess } from '@umijs/max';
 
 const { useBreakpoint } = Grid;
@@ -16,7 +16,7 @@ import type { RuleSet, ShiftType, Department, Doctor } from '@hospital/shared';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import RuleWindowConfig from '../../components/RuleWindowConfig';
 import RulePreviewModal from './components/RulePreviewModal';
-import { RuleSetLivePreview, RuleSetSummaryCard } from '@/components/rule-set-visualization';
+import { RuleSetLivePreview } from '@/components/rule-set-visualization';
 import ResizableDivider from '@/components/ResizableDivider';
 import {
   trackEditBeforePreview,
@@ -29,7 +29,6 @@ import {
   type EditBehaviorData,
   type EditTabType,
 } from '@/utils/analytics';
-import { SwitchGroup } from '@/components/formFields';
 import {
   TIME_SOURCE_OPTIONS,
   TIMEZONE_SOURCE_OPTIONS,
@@ -40,10 +39,7 @@ import {
   NO_CHECKIN_AFTER_CLOSE_OPTIONS,
   WAITLIST_PROMOTE_POLICY_OPTIONS,
   RULE_SET_FORM_INITIAL_VALUES,
-  RULE_SET_PRESETS,
   fetchPresets,
-  clearPresetsCache,
-  type RuleSetPreset,
 } from '@/constants/rule-set';
 
 const { Text, Title } = Typography;
@@ -55,9 +51,6 @@ const STORAGE_KEY_FIRST_VISIT = 'rule-set-form-first-visit';
 
 // 核心配置 Tab 列表
 const CORE_CONFIG_TABS = ['basic', 'time', 'windows'];
-
-// 高级策略 Tab 列表
-const ADVANCED_STRATEGY_TABS = ['booking', 'checkin', 'capacity'];
 
 // 核心配置必填字段列表（用于计算完成度）
 interface CoreFieldConfig {
@@ -85,7 +78,6 @@ const CORE_REQUIRED_FIELDS: CoreFieldConfig[] = [
 const DEFAULT_PREVIEW_WIDTH = 400;
 const MIN_PREVIEW_WIDTH = 300;
 const MAX_PREVIEW_WIDTH = 600;
-const XXL_PREVIEW_WIDTH = 480; // xxl (>= 1440px) 默认宽度
 const XXL_MAX_PREVIEW_WIDTH = 700; // xxl 最大宽度
 
 // ==================== 辅助组件 ====================
@@ -1087,37 +1079,16 @@ const RuleSetFormPage: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    // 检查权限：只有超级管理员可以访问此页面
-    if (!access.canSuperAdmin) {
-      antMessage.error('只有超级管理员可以创建或编辑规则组');
-      history.push('/organization/medical-config/rule-sets');
-      return;
-    }
-
-    loadShiftTypes();
-    if (isEdit) {
-      loadRuleSet();
-    } else {
-      // 新增模式下检查是否首次访问
-      const hasVisited = localStorage.getItem(STORAGE_KEY_FIRST_VISIT);
-      if (!hasVisited) {
-        setShowOnboarding(true);
-        localStorage.setItem(STORAGE_KEY_FIRST_VISIT, 'true');
-      }
-    }
-  }, [id, access.canSuperAdmin]);
-
-  const loadShiftTypes = async () => {
+  async function loadShiftTypes() {
     try {
       const data = await shiftTypeApi.getAll();
       setShiftTypes(data.filter((st) => st.enabled));
     } catch (error) {
       console.error('加载班次类型失败', error);
     }
-  };
+  }
 
-  const loadRuleSet = async () => {
+  async function loadRuleSet() {
     if (!id) return;
     setLoading(true);
     setLoadError(false);
@@ -1167,43 +1138,30 @@ const RuleSetFormPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const handleSubmit = async (values: any) => {
-    // 检查权限
+  useEffect(() => {
+    // 检查权限：只有超级管理员可以访问此页面
     if (!access.canSuperAdmin) {
       antMessage.error('只有超级管理员可以创建或编辑规则组');
+      history.push('/organization/medical-config/rule-sets');
       return;
     }
 
-    // 保存前校验：如果没有配置时间窗，显示 Modal 警告
-    const hasWindows = values.windows && values.windows.length > 0;
-    if (!hasWindows) {
-      return new Promise<void>((resolve, reject) => {
-        Modal.confirm({
-          title: '未配置时间窗',
-          content: '您尚未配置任何时间窗规则。没有时间窗配置，用户将无法进行预约。是否继续保存？',
-          okText: '继续保存',
-          cancelText: '取消',
-          onOk: async () => {
-            try {
-              await performSubmit(values);
-              resolve();
-            } catch (error) {
-              reject(error);
-            }
-          },
-          onCancel: () => {
-            reject(new Error('用户取消操作'));
-          },
-        });
-      });
+    loadShiftTypes();
+    if (isEdit) {
+      loadRuleSet();
+    } else {
+      // 新增模式下检查是否首次访问
+      const hasVisited = localStorage.getItem(STORAGE_KEY_FIRST_VISIT);
+      if (!hasVisited) {
+        setShowOnboarding(true);
+        localStorage.setItem(STORAGE_KEY_FIRST_VISIT, 'true');
+      }
     }
+  }, [id, access.canSuperAdmin]);
 
-    await performSubmit(values);
-  };
-
-  const performSubmit = async (values: any) => {
+  async function performSubmit(values: any) {
     try {
       // 直接使用表单值，不再需要手动合并独立状态
       const data = {
@@ -1250,6 +1208,40 @@ const RuleSetFormPage: React.FC = () => {
       antMessage.error(error.message || '操作失败');
       throw error;
     }
+  }
+
+  const handleSubmit = async (values: any) => {
+    // 检查权限
+    if (!access.canSuperAdmin) {
+      antMessage.error('只有超级管理员可以创建或编辑规则组');
+      return;
+    }
+
+    // 保存前校验：如果没有配置时间窗，显示 Modal 警告
+    const hasWindows = values.windows && values.windows.length > 0;
+    if (!hasWindows) {
+      return new Promise<void>((resolve, reject) => {
+        Modal.confirm({
+          title: '未配置时间窗',
+          content: '您尚未配置任何时间窗规则。没有时间窗配置，用户将无法进行预约。是否继续保存？',
+          okText: '继续保存',
+          cancelText: '取消',
+          onOk: async () => {
+            try {
+              await performSubmit(values);
+              resolve();
+            } catch (error) {
+              reject(error);
+            }
+          },
+          onCancel: () => {
+            reject(new Error('用户取消操作'));
+          },
+        });
+      });
+    }
+
+    await performSubmit(values);
   };
 
   const initialValues = ruleSet ? {
@@ -1489,7 +1481,7 @@ const RuleSetFormPage: React.FC = () => {
               setActiveTab(key);
             }}
             submitter={{
-              render: (props, dom) => (
+              render: (props, _dom) => (
                 <FooterToolbar>
                   <Space wrap>
                     <Button
@@ -1602,7 +1594,7 @@ const RuleSetFormPage: React.FC = () => {
                 setActiveTab(key);
               }}
               submitter={{
-                render: (props, dom) => (
+                render: (props, _dom) => (
                   <FooterToolbar>
                     <Space>
                       <Button onClick={() => {

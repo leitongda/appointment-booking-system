@@ -39,7 +39,7 @@ import {
 } from 'antd';
 import './role-permissions.less';
 import type { TreeDataNode, TreeProps } from 'antd';
-import { useEffect, useState, useCallback, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { history, useParams } from '@umijs/max';
 import { adminApi } from '@hospital/api';
 import type { Role } from '@hospital/api';
@@ -245,14 +245,7 @@ const RolePermissionsPage: React.FC = () => {
   const [activeControlTypes, setActiveControlTypes] = useState<PermissionControlType[]>(CONTROL_TYPE_ORDER);
   const [onlySelected, setOnlySelected] = useState(false);
 
-  useEffect(() => {
-    if (id) {
-      loadRole();
-      loadPermissionsTree();
-    }
-  }, [id]);
-
-  const loadRole = async () => {
+  async function loadRole() {
     if (!id) return;
     setLoading(true);
     try {
@@ -265,9 +258,9 @@ const RolePermissionsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const loadPermissionsTree = useCallback(async () => {
+  async function loadPermissionsTree() {
     try {
       const tree = await adminApi.getPermissionsTree();
       const normalizedTree = normalizePermissionsTree(tree);
@@ -276,7 +269,14 @@ const RolePermissionsPage: React.FC = () => {
     } catch (error: any) {
       message.error(error.message || '加载权限列表失败');
     }
-  }, [message]);
+  }
+
+  useEffect(() => {
+    if (id) {
+      loadRole();
+      loadPermissionsTree();
+    }
+  }, [id]);
 
   useEffect(() => {
     if (!permissionsTree.length) return;
@@ -299,6 +299,25 @@ const RolePermissionsPage: React.FC = () => {
     });
     setExpandedKeys(getAllKeys(nextTree));
   }, [permissionsTree, checkedKeys, searchKeyword, activeControlTypes, onlySelected]);
+
+  const checkedKeySet = new Set(checkedKeys);
+  const filteredPermissionsTree = filterPermissionsTree(permissionsTree, {
+    keyword: searchKeyword,
+    controlTypes: activeControlTypes,
+    checkedKeys: checkedKeySet,
+    onlySelected,
+  });
+  const visiblePermissionCodes = collectPermissionCodes(filteredPermissionsTree);
+  const selectedTypeSummary = countSelectedByControlType(permissionsTree, checkedKeySet);
+  const visibleTypeSummary = countVisibleByControlType(filteredPermissionsTree);
+  const coveredModules = countCoveredModules(permissionsTree, checkedKeySet);
+  const permissionMap = flattenPermissionMap(permissionsTree);
+  const initialCheckedSet = new Set(initialCheckedKeys);
+  const addedCodes = checkedKeys.filter((code) => !initialCheckedSet.has(code));
+  const removedCodes = initialCheckedKeys.filter((code) => !checkedKeySet.has(code));
+  const hasChanges = addedCodes.length > 0 || removedCodes.length > 0;
+  const addedTypeSummary = summarizeCodesByControlType(addedCodes, permissionMap);
+  const removedTypeSummary = summarizeCodesByControlType(removedCodes, permissionMap);
 
   const handlePersist = async () => {
     if (!id) return;
@@ -405,25 +424,6 @@ const RolePermissionsPage: React.FC = () => {
     const checkedKeysValue = Array.isArray(checked) ? checked : checked.checked;
     setCheckedKeys(checkedKeysValue as string[]);
   };
-
-  const checkedKeySet = new Set(checkedKeys);
-  const filteredPermissionsTree = filterPermissionsTree(permissionsTree, {
-    keyword: searchKeyword,
-    controlTypes: activeControlTypes,
-    checkedKeys: checkedKeySet,
-    onlySelected,
-  });
-  const visiblePermissionCodes = collectPermissionCodes(filteredPermissionsTree);
-  const selectedTypeSummary = countSelectedByControlType(permissionsTree, checkedKeySet);
-  const visibleTypeSummary = countVisibleByControlType(filteredPermissionsTree);
-  const coveredModules = countCoveredModules(permissionsTree, checkedKeySet);
-  const permissionMap = flattenPermissionMap(permissionsTree);
-  const initialCheckedSet = new Set(initialCheckedKeys);
-  const addedCodes = checkedKeys.filter((code) => !initialCheckedSet.has(code));
-  const removedCodes = initialCheckedKeys.filter((code) => !checkedKeySet.has(code));
-  const hasChanges = addedCodes.length > 0 || removedCodes.length > 0;
-  const addedTypeSummary = summarizeCodesByControlType(addedCodes, permissionMap);
-  const removedTypeSummary = summarizeCodesByControlType(removedCodes, permissionMap);
 
   const toggleControlType = (controlType: PermissionControlType, checked: boolean) => {
     if (checked) {

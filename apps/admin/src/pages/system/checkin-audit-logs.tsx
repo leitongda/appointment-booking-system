@@ -1,6 +1,5 @@
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { PageContainer, ProTable, StatsAction } from '@ant-design/pro-components';
-import { Tag, Space } from 'antd';
+import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { useRef } from 'react';
 import { auditLogApi } from '@hospital/api';
 

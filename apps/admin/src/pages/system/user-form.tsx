@@ -124,7 +124,7 @@ const UserFormPage: React.FC = () => {
   const { handleSubmit, submitting } = useFormSubmit<Admin>(
     async (values) => {
       // 排除确认密码字段
-      const { confirmPassword, storeIds, ...restValues } = values as any;
+      const { confirmPassword: _confirmPassword, storeIds, ...restValues } = values as any;
       const data = {
         ...restValues,
         // 多门店绑定

@@ -13,10 +13,6 @@ const ConsultationFeeTemplatesPage: React.FC = () => {
   const [templates, setTemplates] = useState<ConsultationFeeTemplateWithType[]>([]);
   const canEdit = access.hasPermission('system:consultation-fee');
 
-  useEffect(() => {
-    loadTemplates();
-  }, []);
-
   const loadTemplates = async () => {
     setLoading(true);
     try {
@@ -28,6 +24,10 @@ const ConsultationFeeTemplatesPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadTemplates();
+  }, []);
 
   const handleValueChange = (index: number, field: 'initialFee' | 'followUpFee', value: number | null) => {
     const newTemplates = [...templates];

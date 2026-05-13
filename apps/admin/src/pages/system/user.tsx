@@ -17,7 +17,7 @@ import type { Admin } from '@hospital/api';
 
 const UserPage: React.FC = () => {
   const access = useAccess();
-  const { actionRef, message, handleDelete, handleAction } = useListPage({
+  const { actionRef, handleDelete, handleAction } = useListPage({
     deleteFn: adminApi.deleteAdmin,
   });
   const { initialState } = useModel('@@initialState');
