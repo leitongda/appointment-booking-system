@@ -4,7 +4,7 @@ import {
   PageContainer,
   ProTable,
 } from '@ant-design/pro-components';
-import { Button, App, Space, Tag, Alert, Modal, Dropdown } from 'antd';
+import { Button, App, Space, Tag, Alert, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 import { useRef, useState, useEffect, useMemo } from 'react';
 import { history, useAccess } from '@umijs/max';
@@ -16,7 +16,6 @@ import type { ScheduleTemplate, Doctor, Department, Store, SchedulePreviewGenera
 import { ScheduleMessages } from '../utils/message';
 import {
   APPOINTMENT_TYPE_MAP,
-  APPOINTMENT_TYPE_OPTIONS,
   SCHEDULE_MODE_MAP,
   WEEKDAY_MAP,
   getDateInfo,
@@ -75,6 +74,24 @@ const ScheduleRulePage: React.FC = () => {
   // 当前日期信息
   const dateInfo = useMemo(() => getDateInfo(), []);
 
+  async function loadDepartments() {
+    try {
+      const data = await departmentApi.getAll();
+      setDepartments(data ?? []);
+    } catch (error) {
+      console.error('加载科室失败', error);
+    }
+  }
+
+  async function loadDoctorsByDept(deptId: string) {
+    try {
+      const data = await doctorApi.getByDepartment(deptId);
+      setDoctors(data ?? []);
+    } catch (error) {
+      console.error('加载医生失败', error);
+    }
+  }
+
   useEffect(() => {
     loadDepartments();
   }, []);
@@ -86,24 +103,6 @@ const ScheduleRulePage: React.FC = () => {
       setDoctors([]);
     }
   }, [selectedDept]);
-
-  const loadDepartments = async () => {
-    try {
-      const data = await departmentApi.getAll();
-      setDepartments(data ?? []);
-    } catch (error) {
-      console.error('加载科室失败', error);
-    }
-  };
-
-  const loadDoctorsByDept = async (deptId: string) => {
-    try {
-      const data = await doctorApi.getByDepartment(deptId);
-      setDoctors(data ?? []);
-    } catch (error) {
-      console.error('加载医生失败', error);
-    }
-  };
 
   const loadAllDoctors = async () => {
     try {

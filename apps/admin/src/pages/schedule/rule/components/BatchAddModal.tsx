@@ -1,4 +1,4 @@
-import { ModalForm, ProForm, ProFormSelect, ProFormTimePicker, ProFormDigit, ProFormCheckbox, ProFormRadio, ProFormDateRangePicker } from '@ant-design/pro-components';
+import { ModalForm, ProFormSelect, ProFormTimePicker, ProFormDigit, ProFormCheckbox, ProFormRadio, ProFormDateRangePicker } from '@ant-design/pro-components';
 import { Alert } from 'antd';
 import type { ProFormInstance } from '@ant-design/pro-components';
 import type { Store, Department, Doctor } from '@hospital/shared';

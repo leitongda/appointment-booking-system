@@ -1,5 +1,3 @@
-import { message } from 'antd';
-
 /** 排班模块统一消息提示 */
 export const ScheduleMessages = {
   // === 成功 ===

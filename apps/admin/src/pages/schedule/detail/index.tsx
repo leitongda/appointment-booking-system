@@ -35,6 +35,25 @@ const ScheduleDetailPage: React.FC = () => {
   const showStoreFilter = isSuperAdmin || (currentUser?.storeIds?.length ?? 0) > 1;
   const { stores } = useStoreWithPermission({ enabledOnly: true });
 
+  async function loadDepartments() {
+    try {
+      // 获取所有启用的科室
+      const allDepts = await departmentApi.getAll();
+      setDepartments(allDepts);
+    } catch (error) {
+      console.error('加载科室失败', error);
+    }
+  }
+
+  async function loadDoctorsByDept(deptId: string) {
+    try {
+      const data = await doctorApi.getByDepartment(deptId);
+      setDoctors(data ?? []);
+    } catch (error) {
+      console.error('加载医生失败', error);
+    }
+  }
+
   useEffect(() => {
     loadDepartments();
   }, []);
@@ -44,25 +63,6 @@ const ScheduleDetailPage: React.FC = () => {
       loadDoctorsByDept(selectedDept);
     }
   }, [selectedDept]);
-
-  const loadDepartments = async () => {
-    try {
-      // 获取所有启用的科室
-      const allDepts = await departmentApi.getAll();
-      setDepartments(allDepts);
-    } catch (error) {
-      console.error('加载科室失败', error);
-    }
-  };
-
-  const loadDoctorsByDept = async (deptId: string) => {
-    try {
-      const data = await doctorApi.getByDepartment(deptId);
-      setDoctors(data ?? []);
-    } catch (error) {
-      console.error('加载医生失败', error);
-    }
-  };
 
   const handleSubmit = async (values: any) => {
     try {

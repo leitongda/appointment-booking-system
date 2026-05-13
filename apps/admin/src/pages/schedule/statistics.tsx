@@ -28,7 +28,7 @@ const ChartLoading = ({ height = 300 }: { height?: number }) => (
 
 const ScheduleStatisticsPage: React.FC = () => {
   const [form] = Form.useForm();
-  const access = useAccess();
+  useAccess();
   const { stores } = useStoreWithPermission({ enabledOnly: true });
   const [loading, setLoading] = useState(false);
   const [statistics, setStatistics] = useState<ScheduleStatisticsResponse | null>(null);

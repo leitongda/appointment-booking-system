@@ -1,6 +1,5 @@
-import { Calendar, Badge, Tag } from 'antd';
+import { Calendar, Tag } from 'antd';
 import type { Dayjs } from 'dayjs';
-import dayjs from 'dayjs';
 import type { Schedule, Appointment } from '@hospital/shared';
 
 interface MonthViewProps {
@@ -41,7 +40,7 @@ const MonthView: React.FC<MonthViewProps> = ({
   };
 
   // 获取某天的预约数量
-  const getAppointmentCountByDate = (date: Dayjs): number => {
+  const _getAppointmentCountByDate = (date: Dayjs): number => {
     const dateStr = date.format('YYYY-MM-DD');
     return appointments.filter(a => a.scheduleDate === dateStr).length;
   };

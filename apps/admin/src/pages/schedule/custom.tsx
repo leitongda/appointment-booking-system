@@ -2,7 +2,7 @@ import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm } from '@ant-design/pro-components';
 import { Button, App, Tag, Popconfirm, Card, Form, DatePicker, Select } from 'antd';
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState } from 'react';
 import { history, useAccess } from '@umijs/max';
 import { customScheduleApi, doctorApi } from '@hospital/api';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';

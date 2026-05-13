@@ -16,19 +16,7 @@ const DoctorSelector: React.FC<DoctorSelectorProps> = ({ selectedDoctor, onSelec
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [selectedDeptId, setSelectedDeptId] = useState<string>();
 
-  useEffect(() => {
-    loadDepartments();
-  }, []);
-
-  useEffect(() => {
-    if (selectedDeptId) {
-      loadDoctors(selectedDeptId);
-    } else {
-      setDoctors([]);
-    }
-  }, [selectedDeptId]);
-
-  const loadDepartments = async () => {
+  async function loadDepartments() {
     try {
       // 获取所有启用的科室
       const deptList = await fetchAllData((page, pageSize) =>
@@ -42,9 +30,9 @@ const DoctorSelector: React.FC<DoctorSelectorProps> = ({ selectedDoctor, onSelec
     } catch (error) {
       console.error('加载科室失败', error);
     }
-  };
+  }
 
-  const loadDoctors = async (deptId: string) => {
+  async function loadDoctors(deptId: string) {
     setLoading(true);
     try {
       const data = await doctorApi.getByDepartment(deptId);
@@ -59,7 +47,19 @@ const DoctorSelector: React.FC<DoctorSelectorProps> = ({ selectedDoctor, onSelec
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    loadDepartments();
+  }, []);
+
+  useEffect(() => {
+    if (selectedDeptId) {
+      loadDoctors(selectedDeptId);
+    } else {
+      setDoctors([]);
+    }
+  }, [selectedDeptId]);
 
   const handleDeptChange = (deptId: string) => {
     setSelectedDeptId(deptId);

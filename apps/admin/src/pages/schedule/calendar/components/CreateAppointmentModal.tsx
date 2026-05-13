@@ -31,12 +31,6 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
   const [patients, setPatients] = useState<PatientListItem[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
 
-  useEffect(() => {
-    if (open && scheduleId) {
-      loadScheduleDetail();
-    }
-  }, [open, scheduleId]);
-
   const loadScheduleDetail = async () => {
     if (!scheduleId) return;
     try {
@@ -46,6 +40,12 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
       console.error('加载排班详情失败', error);
     }
   };
+
+  useEffect(() => {
+    if (open && scheduleId) {
+      loadScheduleDetail();
+    }
+  }, [open, scheduleId]);
 
   // 搜索患者
   const handleSearchPatient = async (value: string) => {

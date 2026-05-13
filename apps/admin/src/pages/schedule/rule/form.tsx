@@ -8,7 +8,7 @@ import { scheduleTemplateApi, departmentApi, doctorApi, shiftTypeApi } from '@ho
 import type { ShiftType } from '@hospital/shared';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import { fetchAllData } from '@/utils/fetchAllData';
-import type { ScheduleTemplate, Doctor, Department, Store, BreakTime } from '@hospital/shared';
+import type { ScheduleTemplate, Doctor, Department, BreakTime } from '@hospital/shared';
 import {
   APPOINTMENT_TYPE_OPTIONS,
   SCHEDULE_MODE_OPTIONS,
@@ -41,7 +41,7 @@ const formatTime = (time: any): string | undefined => {
 const ScheduleRuleFormPage: React.FC = () => {
   const { message } = App.useApp();
   const { id } = useParams();
-  const access = useAccess();
+  useAccess();
   const { stores } = useStoreWithPermission({ enabledOnly: true });
   const isEdit = !!id;
   const [loading, setLoading] = useState(false);
@@ -61,7 +61,7 @@ const ScheduleRuleFormPage: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [showGuide, setShowGuide] = useState(false);
 
-  const dateInfo = useMemo(() => getDateInfo(), []);
+  const _dateInfo = useMemo(() => getDateInfo(), []);
 
   // 首次访问显示引导提示
   useEffect(() => {
@@ -76,23 +76,7 @@ const ScheduleRuleFormPage: React.FC = () => {
     setShowGuide(false);
   };
 
-  useEffect(() => {
-    loadDepartments();
-    loadShiftTypes();
-    if (isEdit) {
-      loadTemplate();
-    }
-  }, [id]);
-
-  useEffect(() => {
-    if (selectedDept) {
-      loadDoctorsByDept(selectedDept);
-    } else {
-      setDoctors([]);
-    }
-  }, [selectedDept]);
-
-  const loadDepartments = async () => {
+  async function loadDepartments() {
     try {
       // 获取所有启用的科室
       const allDepts = await fetchAllData((page, pageSize) =>
@@ -102,27 +86,27 @@ const ScheduleRuleFormPage: React.FC = () => {
     } catch (error) {
       console.error('加载科室失败', error);
     }
-  };
+  }
 
-  const loadDoctorsByDept = async (deptId: string) => {
+  async function loadDoctorsByDept(deptId: string) {
     try {
       const data = await doctorApi.getByDepartment(deptId);
       setDoctors(data ?? []);
     } catch (error) {
       console.error('加载医生失败', error);
     }
-  };
+  }
 
-  const loadShiftTypes = async () => {
+  async function loadShiftTypes() {
     try {
       const data = await shiftTypeApi.getEnabled();
       setShiftTypes(data ?? []);
     } catch (error) {
       console.error('加载班次类型失败', error);
     }
-  };
+  }
 
-  const loadTemplate = async () => {
+  async function loadTemplate() {
     if (!id) return;
     setLoading(true);
     try {
@@ -155,7 +139,23 @@ const ScheduleRuleFormPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    loadDepartments();
+    loadShiftTypes();
+    if (isEdit) {
+      loadTemplate();
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (selectedDept) {
+      loadDoctorsByDept(selectedDept);
+    } else {
+      setDoctors([]);
+    }
+  }, [selectedDept]);
 
   const handleSubmit = async (values: any) => {
     try {
@@ -301,7 +301,7 @@ const ScheduleRuleFormPage: React.FC = () => {
             onValuesChange={handleValuesChange}
             initialValues={initialValues}
             submitter={{
-              render: (props, dom) => (
+              render: (props, _dom) => (
                 <FooterToolbar>
                   <Space>
                     {currentStep > 0 && (

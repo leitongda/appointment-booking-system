@@ -13,7 +13,7 @@ import { ScheduleMessages } from './utils/message';
 
 const SuspensionPage: React.FC = () => {
   const { message } = App.useApp();
-  const access = useAccess();
+  useAccess();
   const { stores } = useStoreWithPermission({ enabledOnly: true });
   const actionRef = useRef<ActionType>();
   const [modalOpen, setModalOpen] = useState(false);
@@ -24,6 +24,32 @@ const SuspensionPage: React.FC = () => {
   const [availableSchedules, setAvailableSchedules] = useState<AvailableScheduleForSuspension[]>([]);
   const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
   const [selectedScheduleIds, setSelectedScheduleIds] = useState<string[]>([]);
+
+  async function loadDoctorsByStore(storeId: string) {
+    try {
+      // 获取该门店所有在职医生
+      const allDoctors = await fetchAllData((page, pageSize) =>
+        doctorApi.getList({ storeId, page, pageSize, status: 1 })
+      );
+      setDoctors(allDoctors);
+    } catch (error) {
+      console.error('加载医生失败', error);
+    }
+  }
+
+  async function loadAvailableSchedules() {
+    if (!selectedStore || !selectedDoctor || !selectedDate) return;
+    try {
+      const result = await scheduleSuspensionApi.getAvailableSchedules(
+        selectedStore,
+        selectedDoctor,
+        selectedDate
+      );
+      setAvailableSchedules(result);
+    } catch (error: any) {
+      console.error('加载排班失败', error);
+    }
+  }
 
   useEffect(() => {
     if (selectedStore) {
@@ -36,32 +62,6 @@ const SuspensionPage: React.FC = () => {
       loadAvailableSchedules();
     }
   }, [selectedStore, selectedDoctor, selectedDate]);
-
-  const loadDoctorsByStore = async (storeId: string) => {
-    try {
-      // 获取该门店所有在职医生
-      const allDoctors = await fetchAllData((page, pageSize) =>
-        doctorApi.getList({ storeId, page, pageSize, status: 1 })
-      );
-      setDoctors(allDoctors);
-    } catch (error) {
-      console.error('加载医生失败', error);
-    }
-  };
-
-  const loadAvailableSchedules = async () => {
-    if (!selectedStore || !selectedDoctor || !selectedDate) return;
-    try {
-      const result = await scheduleSuspensionApi.getAvailableSchedules(
-        selectedStore,
-        selectedDoctor,
-        selectedDate
-      );
-      setAvailableSchedules(result);
-    } catch (error: any) {
-      console.error('加载排班失败', error);
-    }
-  };
 
   const handleDelete = async (id: string) => {
     try {

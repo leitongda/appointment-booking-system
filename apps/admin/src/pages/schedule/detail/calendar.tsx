@@ -1,5 +1,5 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { Calendar, Badge, Tooltip, Spin, Tag, Select, Space, Button } from 'antd';
+import { Calendar, Tooltip, Spin, Select, Space, Button, Badge } from 'antd';
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
@@ -31,8 +31,8 @@ const ScheduleDetailCalendarPage: React.FC = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
 
-  const { initialState } = useModel('@@initialState');
-  const access = useAccess();
+  useModel('@@initialState');
+  useAccess();
   const { stores } = useStoreWithPermission({ enabledOnly: true });
 
   // 导航到上一个月/年
@@ -53,6 +53,24 @@ const ScheduleDetailCalendarPage: React.FC = () => {
     }
   };
 
+  async function loadDepartments() {
+    try {
+      const data = await departmentApi.getAll();
+      setDepartments(data ?? []);
+    } catch (error) {
+      console.error('加载科室失败', error);
+    }
+  }
+
+  async function loadDoctorsByDept(deptId: string) {
+    try {
+      const data = await doctorApi.getByDepartment(deptId);
+      setDoctors(data ?? []);
+    } catch (error) {
+      console.error('加载医生失败', error);
+    }
+  }
+
   useEffect(() => {
     loadDepartments();
   }, []);
@@ -64,24 +82,6 @@ const ScheduleDetailCalendarPage: React.FC = () => {
       setDoctors([]);
     }
   }, [selectedDepartment]);
-
-  const loadDepartments = async () => {
-    try {
-      const data = await departmentApi.getAll();
-      setDepartments(data ?? []);
-    } catch (error) {
-      console.error('加载科室失败', error);
-    }
-  };
-
-  const loadDoctorsByDept = async (deptId: string) => {
-    try {
-      const data = await doctorApi.getByDepartment(deptId);
-      setDoctors(data ?? []);
-    } catch (error) {
-      console.error('加载医生失败', error);
-    }
-  };
 
   const loadSchedules = useCallback(async (date: Dayjs, mode: 'month' | 'year') => {
     setLoading(true);
@@ -190,7 +190,7 @@ const ScheduleDetailCalendarPage: React.FC = () => {
           const timeRange = schedule.startTime && schedule.endTime
             ? `${schedule.startTime}-${schedule.endTime}`
             : TIME_SLOT_MAP[schedule.timeSlot] || schedule.timeSlot;
-          const available = schedule.totalSlots - schedule.bookedSlots;
+          const _available = schedule.totalSlots - schedule.bookedSlots;
           
           return (
             <Tooltip
@@ -330,7 +330,7 @@ const ScheduleDetailCalendarPage: React.FC = () => {
         <Calendar
           value={currentDate}
           onPanelChange={handlePanelChange}
-          headerRender={({ value, type, onChange, onTypeChange }) => {
+          headerRender={({ value, type, onChange: _onChange, onTypeChange }) => {
             const year = value.year();
             const month = value.month();
             const displayText = type === 'year' 

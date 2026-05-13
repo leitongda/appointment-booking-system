@@ -44,10 +44,8 @@ interface TimePeriodConfig {
 }
 
 const CustomScheduleFormPage: React.FC = () => {
-  const access = useAccess();
-  const { initialState } = useModel('@@initialState');
-  const { currentUser } = initialState ?? {};
-  const isSuperAdmin = access.canSuperAdmin;
+  useAccess();
+  const { initialState: _initialState } = useModel('@@initialState');
 
   const { stores } = useStoreWithPermission({ enabledOnly: true });
   const [departments, setDepartments] = useState<any[]>([]);

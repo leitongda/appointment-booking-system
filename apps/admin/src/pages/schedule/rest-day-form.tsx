@@ -29,12 +29,10 @@ import { fetchAllData } from '@/utils/fetchAllData';
 import FormPage from '@/components/FormPage';
 import { requiredRules } from '@/utils/formValidators';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
-import dayjs from 'dayjs';
 
 const RestDayFormPage: React.FC = () => {
-  const access = useAccess();
-  const { initialState } = useModel('@@initialState');
-  const { currentUser } = initialState ?? {};
+  useAccess();
+  const { initialState: _initialState } = useModel('@@initialState');
 
   const { stores } = useStoreWithPermission({ enabledOnly: true });
   const [doctors, setDoctors] = useState<any[]>([]);

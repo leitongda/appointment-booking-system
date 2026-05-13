@@ -339,7 +339,7 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
         <Calendar
           value={currentDate}
           onPanelChange={handlePanelChange}
-          headerRender={({ value, type, onChange, onTypeChange }) => {
+          headerRender={({ value, type, onChange: _onChange, onTypeChange }) => {
             const year = value.year();
             const month = value.month();
             const displayText = type === 'year' 
