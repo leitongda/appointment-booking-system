@@ -392,27 +392,25 @@ const UserDetailPage: React.FC = () => {
 
         {/* 基本信息 */}
         <Card title="基本信息" style={{ marginBottom: 16 }}>
-          <ProDescriptions column={3}>
-            <ProDescriptions.Item label="用户ID">{user?.id}</ProDescriptions.Item>
-            <ProDescriptions.Item label="手机号">{user?.phone}</ProDescriptions.Item>
-            <ProDescriptions.Item label="微信昵称">{user?.nickname || '微信用户'}</ProDescriptions.Item>
-            <ProDescriptions.Item label="性别">
-              {user?.gender !== undefined && user?.gender !== null ? GENDER_MAP[user.gender] || '未知' : '未知'}
-            </ProDescriptions.Item>
-            <ProDescriptions.Item label="OpenID">
+          <ProDescriptions column={3} columns={[
+            { key: '0', title: '用户ID', render: () => user?.id },
+            { key: '1', title: '手机号', render: () => user?.phone },
+            { key: '2', title: '微信昵称', render: () => user?.nickname || '微信用户' },
+            { key: '3', title: '性别', render: () => user?.gender !== undefined && user?.gender !== null ? GENDER_MAP[user.gender] || '未知' : '未知' },
+            { key: '4', title: 'OpenID', render: () => (
               <Text copyable={{ text: user?.openid }} ellipsis style={{ maxWidth: 200 }}>
                 {user?.openid ? `${user.openid.slice(0, 8)}...` : '-'}
               </Text>
-            </ProDescriptions.Item>
-            <ProDescriptions.Item label="积分">{user?.points || 0}</ProDescriptions.Item>
-            <ProDescriptions.Item label="状态">
+            ) },
+            { key: '5', title: '积分', render: () => user?.points || 0 },
+            { key: '6', title: '状态', render: () => (
               <Tag color={user?.status === 1 ? 'green' : 'red'}>
                 {user?.status === 1 ? '正常' : '禁用'}
               </Tag>
-            </ProDescriptions.Item>
-            <ProDescriptions.Item label="注册时间">{user?.createdAt}</ProDescriptions.Item>
-            <ProDescriptions.Item label="更新时间">{user?.updatedAt}</ProDescriptions.Item>
-          </ProDescriptions>
+            ) },
+            { key: '7', title: '注册时间', render: () => user?.createdAt },
+            { key: '8', title: '更新时间', render: () => user?.updatedAt },
+          ]} />
         </Card>
 
         {/* 就诊卡列表 */}

@@ -266,7 +266,7 @@ const UserFormPage: React.FC = () => {
               if (isSuperAdminRole) {
                 return (
                   <Alert
-                    message="超级管理员不需要绑定门店，可管理所有门店数据"
+                    title="超级管理员不需要绑定门店，可管理所有门店数据"
                     type="info"
                     showIcon
                     style={{ marginBottom: 16, marginTop: 16 }}
@@ -305,7 +305,7 @@ const UserFormPage: React.FC = () => {
         {/* 门店管理员创建用户时显示提示 */}
         {!isSuperAdmin && currentStore && (
           <Alert
-            message={`用户将自动归属到门店：${currentStore.name}`}
+            title={`用户将自动归属到门店：${currentStore.name}`}
             type="info"
             showIcon
             style={{ marginTop: 16 }}

@@ -103,7 +103,7 @@ const NotificationLogsPage: React.FC = () => {
             <Statistic
               title="成功"
               value={stats?.sent || 0}
-              valueStyle={{ color: '#3f8600' }}
+              styles={{ content: { color: '#3f8600' } }}
             />
           </Card>
         </Col>
@@ -112,7 +112,7 @@ const NotificationLogsPage: React.FC = () => {
             <Statistic
               title="失败"
               value={stats?.failed || 0}
-              valueStyle={{ color: '#cf1322' }}
+              styles={{ content: { color: '#cf1322' } }}
             />
           </Card>
         </Col>
@@ -123,7 +123,7 @@ const NotificationLogsPage: React.FC = () => {
               value={stats?.failureRate || 0}
               precision={2}
               suffix="%"
-              valueStyle={{ color: (stats?.failureRate || 0) > 5 ? '#cf1322' : '#3f8600' }}
+              styles={{ content: { color: (stats?.failureRate || 0) > 5 ? '#cf1322' : '#3f8600' } }}
             />
           </Card>
         </Col>

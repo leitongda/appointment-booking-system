@@ -189,7 +189,7 @@ const AnalyticsPage: React.FC = () => {
                 title="页面访问量 (PV)"
                 value={data?.total_page_views || 0}
                 prefix={<EyeOutlined />}
-                valueStyle={{ color: '#1890ff' }}
+                styles={{ content: { color: '#1890ff' } }}
               />
             </Card>
           </Col>
@@ -199,7 +199,7 @@ const AnalyticsPage: React.FC = () => {
                 title="独立访客数 (UV)"
                 value={data?.total_unique_users || 0}
                 prefix={<UserOutlined />}
-                valueStyle={{ color: '#52c41a' }}
+                styles={{ content: { color: '#52c41a' } }}
               />
             </Card>
           </Col>
@@ -209,7 +209,7 @@ const AnalyticsPage: React.FC = () => {
                 title="点击次数"
                 value={data?.total_clicks || 0}
                 prefix={<AimOutlined />}
-                valueStyle={{ color: '#faad14' }}
+                styles={{ content: { color: '#faad14' } }}
               />
             </Card>
           </Col>
@@ -219,7 +219,7 @@ const AnalyticsPage: React.FC = () => {
                 title="搜索次数"
                 value={data?.total_searches || 0}
                 prefix={<SearchOutlined />}
-                valueStyle={{ color: '#722ed1' }}
+                styles={{ content: { color: '#722ed1' } }}
               />
             </Card>
           </Col>

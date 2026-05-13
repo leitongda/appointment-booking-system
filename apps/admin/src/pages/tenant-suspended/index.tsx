@@ -39,7 +39,7 @@ const TenantSuspendedPage: React.FC = () => {
         title={title}
         subTitle={description}
         extra={[
-          <Space direction="vertical" key="info" style={{ marginBottom: 24 }}>
+          <Space key="info" style={{ marginBottom: 24 }}>
             {tenant?.subscriptionEndAt && (
               <Text type="secondary">
                 到期时间：{new Date(tenant.subscriptionEndAt).toLocaleDateString('zh-CN')}

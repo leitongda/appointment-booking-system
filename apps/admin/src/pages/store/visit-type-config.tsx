@@ -102,7 +102,7 @@ const VisitTypeConfigPage = () => {
     >
       <Card loading={loading}>
         <Alert
-          message="复诊规则说明"
+          title="复诊规则说明"
           description={
             <ul style={{ margin: 0, paddingLeft: 20 }}>
               <li>复诊规则用于判断患者预约时是初诊还是复诊，从而确定诊费金额</li>

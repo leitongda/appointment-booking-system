@@ -456,7 +456,7 @@ const RolePermissionsPage: React.FC = () => {
       subTitle="按模块理解权限，再按页面、视图、操作和接口能力精确授权"
     >
       <div className="permission-page">
-        <Card loading={loading} bordered={false} className="permission-intro-card">
+        <Card loading={loading} variant="borderless" className="permission-intro-card">
           <Alert
             type={hasChanges ? 'warning' : 'info'}
             showIcon
@@ -488,14 +488,14 @@ const RolePermissionsPage: React.FC = () => {
           <>
             <Row gutter={[16, 16]} className="permission-overview-row">
               <Col xs={24} sm={12} xl={8}>
-                <Card className="summary-card summary-card-selected" bordered={false}>
+                <Card className="summary-card summary-card-selected" variant="borderless">
                   <Statistic title="已选权限" value={checkedKeys.length} suffix={`/ ${collectPermissionCodes(permissionsTree).length}`} />
                   <Text type="secondary">覆盖 {coveredModules} 个业务模块</Text>
                 </Card>
               </Col>
               {CONTROL_TYPE_ORDER.map((controlType) => (
                 <Col xs={24} sm={12} xl={4} key={controlType}>
-                  <Card className={`summary-card summary-card-${controlType}`} bordered={false}>
+                  <Card className={`summary-card summary-card-${controlType}`} variant="borderless">
                     <div className="summary-card-header">
                       <span className="summary-card-icon">{CONTROL_TYPE_ICONS[controlType]}</span>
                       <Text>{CONTROL_TYPE_LABELS[controlType]}</Text>
@@ -507,7 +507,7 @@ const RolePermissionsPage: React.FC = () => {
               ))}
             </Row>
 
-            <Card bordered={false} className="permission-toolbar-card">
+            <Card variant="borderless" className="permission-toolbar-card">
               <div className="permission-toolbar">
                 <Input
                   allowClear
@@ -550,7 +550,7 @@ const RolePermissionsPage: React.FC = () => {
             </Card>
 
             {filteredPermissionsTree.length === 0 ? (
-              <Card bordered={false} className="permission-result-card">
+              <Card variant="borderless" className="permission-result-card">
                 <Empty
                   description="当前筛选条件下没有可分配的权限"
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -566,7 +566,7 @@ const RolePermissionsPage: React.FC = () => {
                   return (
                     <Card
                       key={module.code}
-                      bordered={false}
+                      variant="borderless"
                       className="permission-module-card"
                       title={
                         <div className="module-card-title">

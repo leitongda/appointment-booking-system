@@ -53,19 +53,19 @@ const WindowResultCard: React.FC<{
       size="small"
     >
       {result.allowed ? (
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space style={{ width: '100%' }}>
           <Row gutter={16}>
             <Col span={12}>
-              <Statistic title="开放时间" value={formatTime(result.openAt)} valueStyle={{ fontSize: 14 }} />
+              <Statistic title="开放时间" value={formatTime(result.openAt)} styles={{ content: { fontSize: 14 } }} />
             </Col>
             <Col span={12}>
-              <Statistic title="截止时间" value={formatTime(result.closeAt)} valueStyle={{ fontSize: 14 }} />
+              <Statistic title="截止时间" value={formatTime(result.closeAt)} styles={{ content: { fontSize: 14 } }} />
             </Col>
           </Row>
           <Statistic
             title="当前时间"
             value={formatTime(result.currentTime)}
-            valueStyle={{ fontSize: 14 }}
+            styles={{ content: { fontSize: 14 } }}
           />
         </Space>
       ) : (
@@ -264,18 +264,22 @@ const RulePreviewModal: React.FC<RulePreviewModalProps> = ({
 
       {previewResult && (
         <Spin spinning={loading}>
-          <Space direction="vertical" style={{ width: '100%', marginTop: 16 }} size="middle">
+          <Space style={{ width: '100%', marginTop: 16 }} size="middle">
             {/* 匹配规则组信息 */}
             <Card title="匹配规则组" size="small">
               {previewResult.matchedRuleSet ? (
-                <Descriptions column={2} size="small">
-                  <Descriptions.Item label="生效规则组">
-                    <Tag color="blue">{previewResult.matchedRuleSet.name}</Tag>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="优先级">
-                    {previewResult.matchedRuleSet.priority}
-                  </Descriptions.Item>
-                </Descriptions>
+                <Descriptions column={2} size="small" items={[
+                  {
+                    key: '0',
+                    label: '生效规则组',
+                    children: <Tag color="blue">{previewResult.matchedRuleSet.name}</Tag>,
+                  },
+                  {
+                    key: '1',
+                    label: '优先级',
+                    children: previewResult.matchedRuleSet.priority,
+                  },
+                ]} />
               ) : (
                 <Empty
                   image={Empty.PRESENTED_IMAGE_SIMPLE}

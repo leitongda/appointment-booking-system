@@ -207,7 +207,7 @@ const LogPage: React.FC = () => {
         width={700}
       >
         {currentLog && (
-          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <Space style={{ width: '100%' }} size="middle">
             <div>
               <Text type="secondary">操作人：</Text>
               <Space size="small">

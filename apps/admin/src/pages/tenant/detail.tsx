@@ -97,34 +97,30 @@ const TenantDetailPage: React.FC = () => {
                   key: 'overview',
                   label: '租户概览',
                   children: (
-                    <Descriptions column={2}>
-                      <Descriptions.Item label="租户标识">{tenant.tenantCode}</Descriptions.Item>
-                      <Descriptions.Item label="状态">
+                    <Descriptions column={2} items={[
+                      { key: '0', label: '租户标识', children: tenant.tenantCode },
+                      { key: '1', label: '状态', children: (
                         <Tag color={TENANT_STATUS_MAP[tenant.status]?.color}>
                           {TENANT_STATUS_MAP[tenant.status]?.text}
                         </Tag>
-                      </Descriptions.Item>
-                      <Descriptions.Item label="订阅计划">
-                        {tenant.subscriptionPlanName ? (
+                      ) },
+                      { key: '2', label: '订阅计划', children: (
+                        tenant.subscriptionPlanName ? (
                           <Tag color="blue">{tenant.subscriptionPlanName}</Tag>
                         ) : (
                           <Tag>未订阅</Tag>
-                        )}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="计费周期">
-                        {tenant.billingCycle === 'yearly' ? '年付' : '月付'}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="订阅到期">
-                        {tenant.subscriptionEndAt || '-'}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="创建时间">{tenant.createdAt}</Descriptions.Item>
-                      <Descriptions.Item label="联系人">{tenant.contactName || '-'}</Descriptions.Item>
-                      <Descriptions.Item label="联系电话">{tenant.contactPhone || '-'}</Descriptions.Item>
-                      <Descriptions.Item label="联系邮箱">{tenant.contactEmail || '-'}</Descriptions.Item>
-                      <Descriptions.Item label="详细地址" span={2}>{tenant.address || '-'}</Descriptions.Item>
-                      <Descriptions.Item label="子域名">{tenant.subdomain || '-'}</Descriptions.Item>
-                      <Descriptions.Item label="自定义域名">{tenant.customDomain || '-'}</Descriptions.Item>
-                    </Descriptions>
+                        )
+                      ) },
+                      { key: '3', label: '计费周期', children: tenant.billingCycle === 'yearly' ? '年付' : '月付' },
+                      { key: '4', label: '订阅到期', children: tenant.subscriptionEndAt || '-' },
+                      { key: '5', label: '创建时间', children: tenant.createdAt },
+                      { key: '6', label: '联系人', children: tenant.contactName || '-' },
+                      { key: '7', label: '联系电话', children: tenant.contactPhone || '-' },
+                      { key: '8', label: '联系邮箱', children: tenant.contactEmail || '-' },
+                      { key: '9', label: '详细地址', span: 2, children: tenant.address || '-' },
+                      { key: '10', label: '子域名', children: tenant.subdomain || '-' },
+                      { key: '11', label: '自定义域名', children: tenant.customDomain || '-' },
+                    ]} />
                   ),
                 },
                 {
@@ -223,14 +219,14 @@ const TenantDetailPage: React.FC = () => {
                 <Statistic
                   title="本月完成"
                   value={usage?.monthCompletedCount || 0}
-                  valueStyle={{ color: '#3f8600' }}
+                  styles={{ content: { color: '#3f8600' } }}
                 />
               </Col>
               <Col span={12}>
                 <Statistic
                   title="本月取消"
                   value={usage?.monthCancelledCount || 0}
-                  valueStyle={{ color: '#cf1322' }}
+                  styles={{ content: { color: '#cf1322' } }}
                 />
               </Col>
               <Col span={24}>
@@ -245,20 +241,12 @@ const TenantDetailPage: React.FC = () => {
           </Card>
 
           <Card title="配额限制" style={{ marginTop: 24 }} loading={loading}>
-            <Descriptions column={1} size="small">
-              <Descriptions.Item label="最大门店数">
-                {tenant.maxStores || '使用计划默认值'}
-              </Descriptions.Item>
-              <Descriptions.Item label="最大管理员数">
-                {tenant.maxAdmins || '使用计划默认值'}
-              </Descriptions.Item>
-              <Descriptions.Item label="最大医生数">
-                {tenant.maxDoctors || '使用计划默认值'}
-              </Descriptions.Item>
-              <Descriptions.Item label="月预约上限">
-                {tenant.maxAppointmentsPerMonth || '使用计划默认值'}
-              </Descriptions.Item>
-            </Descriptions>
+            <Descriptions column={1} size="small" items={[
+              { key: '0', label: '最大门店数', children: tenant.maxStores || '使用计划默认值' },
+              { key: '1', label: '最大管理员数', children: tenant.maxAdmins || '使用计划默认值' },
+              { key: '2', label: '最大医生数', children: tenant.maxDoctors || '使用计划默认值' },
+              { key: '3', label: '月预约上限', children: tenant.maxAppointmentsPerMonth || '使用计划默认值' },
+            ]} />
           </Card>
         </Col>
       </Row>

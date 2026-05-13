@@ -352,7 +352,7 @@ const AccountSettingsPage: React.FC = () => {
               </Spin>
             </Col>
             <Col>
-              <Space direction="vertical" size={4}>
+              <Space size={4}>
                 <Title level={4} style={{ margin: 0 }}>
                   {admin?.name || admin?.username}
                 </Title>
@@ -447,7 +447,7 @@ const AccountSettingsPage: React.FC = () => {
                 <Typography.Title level={5} style={{ marginBottom: 12 }}>
                   <NotificationOutlined /> 通知类型
                 </Typography.Title>
-                <Space direction="vertical" style={{ width: '100%' }}>
+                <Space style={{ width: '100%' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Space>
                       <BellOutlined />
@@ -489,7 +489,7 @@ const AccountSettingsPage: React.FC = () => {
                 <Typography.Title level={5} style={{ marginBottom: 12 }}>
                   <MessageOutlined /> 通知渠道
                 </Typography.Title>
-                <Space direction="vertical" style={{ width: '100%' }}>
+                <Space style={{ width: '100%' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Space>
                       <CustomerServiceOutlined />
@@ -569,7 +569,7 @@ const AccountSettingsPage: React.FC = () => {
           open={emailModalVisible}
           onCancel={() => setEmailModalVisible(false)}
           footer={null}
-          destroyOnClose
+          destroyOnHidden
           width={480}
         >
           <Form

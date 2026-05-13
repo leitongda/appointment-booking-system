@@ -344,7 +344,7 @@ const StorePage: React.FC = () => {
         ].filter(Boolean);
 
         return (
-          <Space size={4} split={<Divider type="vertical" style={{ margin: 0 }} />}>
+          <Space size={4} separator={<Divider type="vertical" style={{ margin: 0 }} />}>
             {/* 常用操作直接显示 */}
             {access.hasPermission('store:update') && (
               <a onClick={() => history.push(`/organization/store/${record.id}/edit`)} style={{ fontSize: 13 }}>

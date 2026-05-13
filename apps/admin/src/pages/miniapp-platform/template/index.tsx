@@ -224,7 +224,7 @@ const TemplatePage: React.FC = () => {
               <Card
                 hoverable
                 style={{ height: '100%', borderRadius: '8px', overflow: 'hidden' }}
-                bodyStyle={{ padding: '16px' }}
+                styles={{ body: { padding: '16px' } }}
                 cover={
                   <div
                     style={{

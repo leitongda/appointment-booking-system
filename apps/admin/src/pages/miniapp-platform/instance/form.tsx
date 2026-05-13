@@ -277,7 +277,7 @@ const InstanceFormPage: React.FC = () => {
                             border: selectedTemplate === template.code ? '2px solid #1890ff' : '1px solid #d9d9d9',
                             cursor: 'pointer',
                           }}
-                          bodyStyle={{ padding: '12px' }}
+                          styles={{ body: { padding: '12px' } }}
                         >
                           <div
                             style={{

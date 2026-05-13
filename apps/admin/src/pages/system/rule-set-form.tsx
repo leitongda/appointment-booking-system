@@ -11,8 +11,9 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { history, useParams, useAccess } from '@umijs/max';
 
 const { useBreakpoint } = Grid;
-import { ruleSetApi, shiftTypeApi } from '@hospital/api';
-import type { RuleSet, ShiftType } from '@hospital/shared';
+import { ruleSetApi, shiftTypeApi, departmentApi, doctorApi } from '@hospital/api';
+import type { RuleSet, ShiftType, Department, Doctor } from '@hospital/shared';
+import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import RuleWindowConfig from '../../components/RuleWindowConfig';
 import RulePreviewModal from './components/RulePreviewModal';
 import { RuleSetLivePreview, RuleSetSummaryCard } from '@/components/rule-set-visualization';
@@ -108,9 +109,9 @@ const OnboardingCard: React.FC<OnboardingCardProps> = ({ visible, onClose, onSel
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         border: 'none',
       }}
-      bodyStyle={{ color: 'white' }}
+      styles={{ body: { color: 'white' } }}
     >
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Space size="large" style={{ width: '100%' }}>
         <div>
           <Title level={4} style={{ color: 'white', marginBottom: 8 }}>
             欢迎使用规则组配置
@@ -125,7 +126,7 @@ const OnboardingCard: React.FC<OnboardingCardProps> = ({ visible, onClose, onSel
             <Card
               size="small"
               style={{ background: 'rgba(255,255,255,0.15)', border: 'none' }}
-              bodyStyle={{ color: 'white', textAlign: 'center' }}
+              styles={{ body: { color: 'white', textAlign: 'center' } }}
             >
               <Text strong style={{ color: 'white', display: 'block', marginBottom: 8 }}>
                 1. 基础信息
@@ -139,7 +140,7 @@ const OnboardingCard: React.FC<OnboardingCardProps> = ({ visible, onClose, onSel
             <Card
               size="small"
               style={{ background: 'rgba(255,255,255,0.15)', border: 'none' }}
-              bodyStyle={{ color: 'white', textAlign: 'center' }}
+              styles={{ body: { color: 'white', textAlign: 'center' } }}
             >
               <Text strong style={{ color: 'white', display: 'block', marginBottom: 8 }}>
                 2. 时间口径
@@ -153,7 +154,7 @@ const OnboardingCard: React.FC<OnboardingCardProps> = ({ visible, onClose, onSel
             <Card
               size="small"
               style={{ background: 'rgba(255,255,255,0.15)', border: 'none' }}
-              bodyStyle={{ color: 'white', textAlign: 'center' }}
+              styles={{ body: { color: 'white', textAlign: 'center' } }}
             >
               <Text strong style={{ color: 'white', display: 'block', marginBottom: 8 }}>
                 3. 时间窗
@@ -167,7 +168,7 @@ const OnboardingCard: React.FC<OnboardingCardProps> = ({ visible, onClose, onSel
             <Card
               size="small"
               style={{ background: 'rgba(255,255,255,0.15)', border: 'none' }}
-              bodyStyle={{ color: 'white', textAlign: 'center' }}
+              styles={{ body: { color: 'white', textAlign: 'center' } }}
             >
               <Text strong style={{ color: 'white', display: 'block', marginBottom: 8 }}>
                 4. 预约策略
@@ -181,7 +182,7 @@ const OnboardingCard: React.FC<OnboardingCardProps> = ({ visible, onClose, onSel
             <Card
               size="small"
               style={{ background: 'rgba(255,255,255,0.15)', border: 'none' }}
-              bodyStyle={{ color: 'white', textAlign: 'center' }}
+              styles={{ body: { color: 'white', textAlign: 'center' } }}
             >
               <Text strong style={{ color: 'white', display: 'block', marginBottom: 8 }}>
                 5. 预设模板
@@ -246,7 +247,7 @@ const CoreCompletionCard: React.FC<CoreCompletionCardProps> = ({
         borderColor: isCoreCompleted ? '#b7eb8f' : '#ffd591',
       }}
     >
-      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+      <Space size="small" style={{ width: '100%' }}>
         <Space>
           {isCoreCompleted ? (
             <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 16 }} />
@@ -359,7 +360,7 @@ const PresetModal: React.FC<PresetModalProps> = ({
           onChange={(e) => onSelectPreset(e.target.value)}
           style={{ width: '100%' }}
         >
-          <Space direction="vertical" style={{ width: '100%' }}>
+          <Space style={{ width: '100%' }}>
             {presets.map((preset) => {
               const config = preset.config || {};
               const bookingPolicy = config.booking_policy || config.bookingPolicy || {};
@@ -376,7 +377,7 @@ const PresetModal: React.FC<PresetModalProps> = ({
                   onClick={() => onSelectPreset(preset.id)}
                 >
                   <Radio value={preset.id}>
-                    <Space direction="vertical" size={0}>
+                    <Space size={0}>
                       <Space>
                         <Text strong>{preset.name}</Text>
                         {preset.isSystem && <Tag color="blue" style={{ fontSize: 10 }}>系统</Tag>}
@@ -412,10 +413,27 @@ const PresetModal: React.FC<PresetModalProps> = ({
  */
 interface BasicInfoTabProps {
   shiftTypes: ShiftType[];
+  stores: { id: string; name: string }[];
+  departments: Department[];
+  doctors: Doctor[];
+  selectedStoreId?: string;
+  selectedDepartmentId?: string;
+  onStoreChange: (storeId?: string) => void;
+  onDepartmentChange: (departmentId?: string) => void;
   loading?: boolean;
 }
 
-const BasicInfoTab: React.FC<BasicInfoTabProps> = ({ shiftTypes, loading }) => {
+const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
+  shiftTypes,
+  stores,
+  departments,
+  doctors,
+  selectedStoreId,
+  selectedDepartmentId,
+  onStoreChange,
+  onDepartmentChange,
+  loading,
+}) => {
   return (
     <Card style={{ marginBottom: 16 }} loading={loading}>
       <Row gutter={16}>
@@ -465,6 +483,54 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({ shiftTypes, loading }) => {
         fieldProps={{ rows: 3 }}
         placeholder="请输入规则组描述"
       />
+
+      <Divider style={{ margin: '16px 0 8px' }} />
+
+      <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+        适用范围：留空表示适用更高层级。优先级：医生级 &gt; 科室级 &gt; 门店级 &gt; 租户级
+      </Text>
+
+      <Row gutter={16}>
+        <Col xs={24} sm={8}>
+          <ProFormSelect
+            name="storeId"
+            label="适用门店"
+            width="lg"
+            options={stores.map((s) => ({ label: s.name, value: s.id }))}
+            extra="留空表示适用于所有门店"
+            fieldProps={{
+              onChange: (val: string | undefined) => {
+                onStoreChange(val);
+              },
+            }}
+          />
+        </Col>
+        <Col xs={24} sm={8}>
+          <ProFormSelect
+            name="departmentId"
+            label="适用科室"
+            width="lg"
+            options={departments.map((d) => ({ label: d.name, value: d.id }))}
+            extra={selectedStoreId ? undefined : '请先选择门店'}
+            disabled={!selectedStoreId}
+            fieldProps={{
+              onChange: (val: string | undefined) => {
+                onDepartmentChange(val);
+              },
+            }}
+          />
+        </Col>
+        <Col xs={24} sm={8}>
+          <ProFormSelect
+            name="doctorId"
+            label="适用医生"
+            width="lg"
+            options={doctors.map((d) => ({ label: `${d.name}${d.title ? ` - ${d.title}` : ''}`, value: d.id }))}
+            extra={selectedDepartmentId ? undefined : '请先选择科室'}
+            disabled={!selectedDepartmentId}
+          />
+        </Col>
+      </Row>
     </Card>
   );
 };
@@ -480,7 +546,7 @@ const TimeConfigTab: React.FC<TimeConfigTabProps> = ({ loading }) => {
   return (
     <>
       <Alert
-        message="时间口径配置说明"
+        title="时间口径配置说明"
         description="时间口径定义规则组计算时间窗时的基准设置。通常使用默认值即可，仅在特殊业务场景下需要调整。"
         type="info"
         showIcon
@@ -921,6 +987,13 @@ const RuleSetFormPage: React.FC = () => {
   // 渐进式引导相关状态
   const [showOnboarding, setShowOnboarding] = useState(false);
 
+  // 门店/科室/医生级联相关状态
+  const { stores } = useStoreWithPermission({ enabledOnly: true });
+  const [scopeDepartments, setScopeDepartments] = useState<Department[]>([]);
+  const [scopeDoctors, setScopeDoctors] = useState<Doctor[]>([]);
+  const [selectedStoreId, setSelectedStoreId] = useState<string>();
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>();
+
   // ==================== 辅助函数 ====================
 
   /**
@@ -963,6 +1036,33 @@ const RuleSetFormPage: React.FC = () => {
     });
 
     return incomplete;
+  };
+
+  const handleScopeStoreChange = async (storeId?: string) => {
+    setSelectedStoreId(storeId);
+    setSelectedDepartmentId(undefined);
+    setScopeDepartments([]);
+    setScopeDoctors([]);
+    formRef.current?.setFieldValue('departmentId', undefined);
+    formRef.current?.setFieldValue('doctorId', undefined);
+    if (storeId) {
+      try {
+        const depts = await departmentApi.getAll(storeId);
+        setScopeDepartments(depts);
+      } catch { /* ignore */ }
+    }
+  };
+
+  const handleScopeDepartmentChange = async (departmentId?: string) => {
+    setSelectedDepartmentId(departmentId);
+    setScopeDoctors([]);
+    formRef.current?.setFieldValue('doctorId', undefined);
+    if (departmentId) {
+      try {
+        const docs = await doctorApi.getByDepartment(departmentId);
+        setScopeDoctors(docs ?? []);
+      } catch { /* ignore */ }
+    }
   };
 
   // 应用预设模板
@@ -1045,6 +1145,22 @@ const RuleSetFormPage: React.FC = () => {
         capacityPolicy: data.capacityPolicy || RULE_SET_FORM_INITIAL_VALUES.capacityPolicy,
         windows: Array.isArray(data.windows) ? data.windows : [],
       });
+
+      // 编辑模式回显级联选择
+      if (data.storeId) {
+        setSelectedStoreId(data.storeId);
+        try {
+          const depts = await departmentApi.getAll(data.storeId);
+          setScopeDepartments(depts);
+        } catch { /* ignore */ }
+        if (data.departmentId) {
+          setSelectedDepartmentId(data.departmentId);
+          try {
+            const docs = await doctorApi.getByDepartment(data.departmentId);
+            setScopeDoctors(docs ?? []);
+          } catch { /* ignore */ }
+        }
+      }
     } catch (error: any) {
       setLoadError(true);
       antMessage.error('加载规则组失败');
@@ -1208,7 +1324,19 @@ const RuleSetFormPage: React.FC = () => {
     {
       key: 'basic',
       label: getTabLabel('basic', '基础信息'),
-      children: <BasicInfoTab shiftTypes={shiftTypes} loading={loading} />,
+      children: (
+        <BasicInfoTab
+          shiftTypes={shiftTypes}
+          stores={stores}
+          departments={scopeDepartments}
+          doctors={scopeDoctors}
+          selectedStoreId={selectedStoreId}
+          selectedDepartmentId={selectedDepartmentId}
+          onStoreChange={handleScopeStoreChange}
+          onDepartmentChange={handleScopeDepartmentChange}
+          loading={loading}
+        />
+      ),
     },
     {
       key: 'time',
@@ -1252,7 +1380,7 @@ const RuleSetFormPage: React.FC = () => {
 
       {/* Tab 分组标签 */}
       <div style={{ marginBottom: 12 }}>
-        <Space size="large" split={<Divider type="vertical" />}>
+        <Space size="large" separator={<Divider type="vertical" />}>
           <Text strong style={{ fontSize: 13, color: '#1890ff' }}>
             基础配置
           </Text>
@@ -1298,7 +1426,7 @@ const RuleSetFormPage: React.FC = () => {
       {/* 快速配置预设提示（新增和编辑模式都显示） */}
       {(!isEdit || !showOnboarding) && (
         <Alert
-          message={isEdit ? "快速重新配置" : "快速开始"}
+          title={isEdit ? "快速重新配置" : "快速开始"}
           description={
             <Space>
               <span>{isEdit ? "应用预设模板将覆盖当前配置，是否重新开始？" : "选择预设模板可快速配置规则组，节省配置时间"}</span>

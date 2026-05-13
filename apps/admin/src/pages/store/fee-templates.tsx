@@ -209,7 +209,7 @@ const StoreFeeTemplatesPage: React.FC = () => {
     >
       <Card>
         <Alert
-          message="门店诊费模板说明"
+          title="门店诊费模板说明"
           description={
             <ul style={{ margin: 0, paddingLeft: 20 }}>
               <li>门店诊费模板用于为该门店的医生提供默认诊费金额</li>

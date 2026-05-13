@@ -277,7 +277,7 @@ const UserStatusPage: React.FC = () => {
         }
         const device = record.deviceInfo || {};
         return (
-          <Space direction="vertical" size={0}>
+          <Space size={0}>
             <Space size={8}>
               <Tooltip title={device.deviceType === 'mobile' ? '移动设备' : device.deviceType === 'tablet' ? '平板设备' : '桌面设备'}>
                 {getDeviceIcon(device.deviceType)}
@@ -328,7 +328,7 @@ const UserStatusPage: React.FC = () => {
         const ttl = record.ttl || 0;
         const ttlColor = ttl < 300 ? 'red' : ttl < 600 ? 'orange' : 'blue';
         return (
-          <Space direction="vertical" size={0}>
+          <Space size={0}>
             <Tag color="green" icon={<DesktopOutlined />}>
               {formatDuration(duration)}
             </Tag>

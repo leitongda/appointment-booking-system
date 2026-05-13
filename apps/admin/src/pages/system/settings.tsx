@@ -534,7 +534,7 @@ const SettingsPage: React.FC = () => {
             submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
             disabled={!canEditSettings}
           >
-            <Space direction="vertical" style={{ width: '100%' }} size="large">
+            <Space style={{ width: '100%' }} size="large">
               {/* 预约时间限制 */}
               <Card title={<><CalendarOutlined /><span style={{ marginLeft: 8 }}>预约时间限制</span></>} size="small">
                 <Row gutter={16}>

@@ -106,7 +106,7 @@ const ConsultationFeeTemplatesPage: React.FC = () => {
     <PageContainer>
       <Card>
         <Alert
-          message="全局诊费模板说明"
+          title="全局诊费模板说明"
           description="此处配置的诊费模板为全局默认模板。当医生开启「使用诊费模板」选项时，将自动应用此模板的诊费设置到该医生的所有门店和科室。"
           type="info"
           showIcon

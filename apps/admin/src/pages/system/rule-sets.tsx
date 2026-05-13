@@ -1,4 +1,4 @@
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, CalendarOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { Button, App, Space, Modal, Grid, Alert, Tag } from 'antd';
@@ -172,7 +172,7 @@ const RuleSetsPage: React.FC = () => {
   return (
     <PageContainer>
       <Alert
-        message="规则组说明"
+        title="规则组说明"
         description="规则组通过班次类型关联排班，控制预约时间窗、预约限制、签到规则和容量管理等业务规则。每个班次类型仅使用优先级最高的启用规则组。"
         type="info"
         showIcon
@@ -220,6 +220,13 @@ const RuleSetsPage: React.FC = () => {
           };
         }}
         toolBarRender={() => [
+          <Button
+            key="schedule-rules"
+            icon={<CalendarOutlined />}
+            onClick={() => history.push('/medical-services/schedule/rule')}
+          >
+            排班模板
+          </Button>,
           <ImportExport
             key="import-export"
             moduleName="规则组"

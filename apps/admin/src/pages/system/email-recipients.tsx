@@ -247,7 +247,7 @@ const StoreEmailRecipientsPage: React.FC = () => {
               }
             : { status: 1, eventTypes: [] }
         }
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
         width={520}
       >
         <ProFormSelect

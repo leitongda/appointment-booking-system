@@ -170,8 +170,8 @@ const ReleasePage: React.FC = () => {
         width={640}
       >
         {currentRecord && (
-          <Descriptions column={2} bordered size="small">
-            <Descriptions.Item label="实例名称" span={2}>
+          <Descriptions column={2} bordered size="small" items={[
+            { key: '0', label: '实例名称', span: 2, children: (
               <Space>
                 <Text strong>{currentRecord.miniappInstance?.name || '-'}</Text>
                 {currentRecord.miniappInstance?.id && (
@@ -180,46 +180,42 @@ const ReleasePage: React.FC = () => {
                   </Text>
                 )}
               </Space>
-            </Descriptions.Item>
-            <Descriptions.Item label="操作类型">
+            ) },
+            { key: '1', label: '操作类型', children: (
               <Space>
                 {RELEASE_ACTION_TYPE_MAP[currentRecord.action]?.icon}
                 <Tag color={RELEASE_ACTION_TYPE_MAP[currentRecord.action]?.color}>
                   {RELEASE_ACTION_TYPE_MAP[currentRecord.action]?.text}
                 </Tag>
               </Space>
-            </Descriptions.Item>
-            <Descriptions.Item label="模板版本">
-              <Tag color="purple">v{currentRecord.targetVersion || '-'}</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="发布状态">
+            ) },
+            { key: '2', label: '模板版本', children: <Tag color="purple">v{currentRecord.targetVersion || '-'}</Tag> },
+            { key: '3', label: '发布状态', children: (
               <Space>
                 {RELEASE_STATUS_MAP[currentRecord.status]?.icon}
                 <Tag color={RELEASE_STATUS_MAP[currentRecord.status]?.color}>
                   {RELEASE_STATUS_MAP[currentRecord.status]?.text}
                 </Tag>
               </Space>
-            </Descriptions.Item>
-            <Descriptions.Item label="任务ID">
+            ) },
+            { key: '4', label: '任务ID', children: (
               <Text copyable={{ text: currentRecord.id }} style={{ fontSize: '12px' }}>
                 {currentRecord.id.slice(0, 12)}...
               </Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="构建产物" span={2}>
-              {currentRecord.artifact ? (
-                <Space>
-                  <Tag color="cyan">产物已生成</Tag>
-                  <Text type="secondary" style={{ fontSize: '12px' }}>
-                    {currentRecord.artifact.filePath}
-                  </Text>
-                </Space>
-              ) : (
-                <Tag color="default">无产物</Tag>
-              )}
-            </Descriptions.Item>
-            <Descriptions.Item label="创建时间" span={2}>{currentRecord.createdAt}</Descriptions.Item>
-            <Descriptions.Item label="更新时间" span={2}>{currentRecord.updatedAt || '-'}</Descriptions.Item>
-          </Descriptions>
+            ) },
+            { key: '5', label: '构建产物', span: 2, children: currentRecord.artifact ? (
+              <Space>
+                <Tag color="cyan">产物已生成</Tag>
+                <Text type="secondary" style={{ fontSize: '12px' }}>
+                  {currentRecord.artifact.filePath}
+                </Text>
+              </Space>
+            ) : (
+              <Tag color="default">无产物</Tag>
+            ) },
+            { key: '6', label: '创建时间', span: 2, children: currentRecord.createdAt },
+            { key: '7', label: '更新时间', span: 2, children: currentRecord.updatedAt || '-' },
+          ]} />
         )}
       </Modal>
     </>
