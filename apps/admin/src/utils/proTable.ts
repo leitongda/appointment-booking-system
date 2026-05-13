@@ -72,7 +72,7 @@ export interface ListRequestOptions<P = ApiPaginationParams> {
  * 延迟函数
  */
 const sleep = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+  new Promise((resolve) => { setTimeout(resolve, ms); });
 
 /**
  * 判断是否为网络错误（可重试的错误）

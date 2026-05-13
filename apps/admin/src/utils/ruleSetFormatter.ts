@@ -3,7 +3,7 @@
  * 用于将规则配置转换为易读的可视化展示
  */
 
-import type { RuleSet, RuleWindow, ShiftType } from '@hospital/shared';
+import type { RuleSet, RuleWindow } from '@hospital/shared';
 import dayjs from 'dayjs';
 
 // ==================== 类型定义 ====================
@@ -80,7 +80,7 @@ export interface TimeTick {
  * formatOffset(90) // "延后1分钟30秒"
  * formatOffset(null) // "不限制"
  */
-export function formatOffset(seconds: number | null, referencePoint?: string): string {
+export function formatOffset(seconds: number | null, _referencePoint?: string): string {
   if (seconds === null) return '不限制';
 
   const abs = Math.abs(seconds);
@@ -474,7 +474,7 @@ export function calculateTimelineRange(
 
     // 计算开放时间（使用 != null 同时处理 null 和 undefined）
     const openTime =
-      window.openOffsetSec != null && isFinite(window.openOffsetSec)
+      window.openOffsetSec !== null && window.openOffsetSec !== undefined && isFinite(window.openOffsetSec)
         ? calculateWindowTime(
             window.referencePoint,
             window.openOffsetSec,
@@ -486,7 +486,7 @@ export function calculateTimelineRange(
 
     // 计算关闭时间
     const closeTime =
-      window.closeOffsetSec != null && isFinite(window.closeOffsetSec)
+      window.closeOffsetSec !== null && window.closeOffsetSec !== undefined && isFinite(window.closeOffsetSec)
         ? calculateWindowTime(
             window.referencePoint,
             window.closeOffsetSec,
@@ -573,7 +573,7 @@ export function timeToRatio(time: Date, timelineRange: TimelineRange): number {
 export function generateTimeTicks(
   range: TimelineRange,
   containerWidth: number,
-  maxTicks: number = 10,
+  _maxTicks: number = 10,
   alignTo?: Date
 ): TimeTick[] {
   const ticks: TimeTick[] = [];

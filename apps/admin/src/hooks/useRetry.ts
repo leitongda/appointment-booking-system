@@ -185,7 +185,7 @@ export function useRetry(config?: Partial<RetryConfig>) {
           }
 
           // 等待后重试
-          await new Promise((resolve) => setTimeout(resolve, delay));
+          await new Promise((resolve) => { setTimeout(resolve, delay); });
           return attempt();
         }
 
@@ -238,8 +238,8 @@ export function useRetry(config?: Partial<RetryConfig>) {
  * const fetchWithRetry = createRetryFunction();
  * const result = await fetchWithRetry(() => api.getData());
  */
-export function createRetryFunction(defaultConfig?: Partial<RetryConfig>) {
-  return <T>(fn: () => Promise<T>, options?: Parameters<ReturnType<typeof useRetry>['execute']>[1]) => {
+export function createRetryFunction(_defaultConfig?: Partial<RetryConfig>) {
+  return <T>(fn: () => Promise<T>, _options?: Parameters<ReturnType<typeof useRetry>['execute']>[1]) => {
     // 这个函数需要配合 useRetry 使用
     return fn();
   };

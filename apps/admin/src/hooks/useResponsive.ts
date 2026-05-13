@@ -13,7 +13,7 @@ import {
   FORM_LAYOUT,
 } from '@/constants/responsive';
 
-import type { Breakpoint, ResponsiveConfig } from '@/constants/responsive';
+import type { Breakpoint } from '@/constants/responsive';
 
 const { useBreakpoint } = Grid;
 

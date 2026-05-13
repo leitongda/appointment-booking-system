@@ -58,7 +58,7 @@ export class ErrorHandler {
   static handle(error: unknown, context: ErrorContext = {}): void {
     const {
       operation = '操作',
-      extra,
+      extra: _extra,
       silent = false,
       customHandler,
     } = context;
