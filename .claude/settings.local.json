@@ -90,7 +90,9 @@
       "Bash(launchctl unload:*)",
       "Bash(launchctl remove:*)",
       "Bash(less:*)",
-      "Bash(more:*)"
+      "Bash(more:*)",
+      "Bash(awk -F: '{sum+=$2} END {print sum}')",
+      "Bash(awk -F: '{sum+=$2} END {print \"Total tests:\", sum}')"
     ]
   },
   "plansDirectory": ".claude/plans"
