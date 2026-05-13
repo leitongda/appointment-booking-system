@@ -128,6 +128,7 @@ class AvailableScheduleResponse(ScheduleResponse):
     # 排班优先级相关
     template_id: Optional[str] = Field(None, description="来源模板ID，为空表示自定义排班")
     is_rest_day: bool = Field(False, description="是否在休息日")
+    booking_setting_applied: bool = Field(False, description="是否应用了医生预约设置")
 
 
 class BatchOperationResult(BaseModel):

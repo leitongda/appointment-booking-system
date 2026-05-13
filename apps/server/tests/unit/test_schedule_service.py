@@ -99,9 +99,9 @@ class TestScheduleQueryMixin:
         """测试获取可用排班 - 无休息日"""
         service = ScheduleService(db_session)
         with patch("app.middleware.tenant_context.get_current_tenant_id", return_value=test_schedule.tenant_id):
-            schedules = await service.get_available(doctor_id=test_doctor.id, days=14)
-            # 排班未满，应该返回
+            schedules, booking_setting_applied = await service.get_available(doctor_id=test_doctor.id, days=14)
             assert len(schedules) >= 0
+            assert booking_setting_applied is False
 
     async def test_get_available_with_rest_day(self, db_session, test_schedule, test_doctor, test_store, test_tenant):
         """测试获取可用排班 - 有休息日"""
@@ -120,11 +120,9 @@ class TestScheduleQueryMixin:
 
         service = ScheduleService(db_session)
         with patch("app.middleware.tenant_context.get_current_tenant_id", return_value=test_schedule.tenant_id):
-            schedules = await service.get_available(doctor_id=test_doctor.id, days=14)
-            # 休息日的排班应该被过滤（如果排班有 template_id）
-            # 但我们创建的 test_schedule 没有 template_id，所以不受休息日影响
-            # 这里只验证没有抛出异常即可
+            schedules, booking_setting_applied = await service.get_available(doctor_id=test_doctor.id, days=14)
             assert isinstance(schedules, list)
+            assert booking_setting_applied is False
 
     async def test_is_rest_day_cached_with_doctor_filter(self, db_session, test_store, test_tenant):
         """测试休息日判断 - 医生级过滤"""

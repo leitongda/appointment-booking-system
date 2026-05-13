@@ -63,6 +63,7 @@ class RuleSetPolicyMixin:
             )
         )
         await self.db.commit()
+        await self._invalidate_rule_set_cache(rule_set_id)
         await self.db.refresh(window)
         return window
 
@@ -73,7 +74,8 @@ class RuleSetPolicyMixin:
         if not window:
             return None
 
-        snapshot_before = await snapshot_rule_set(self.db, window.rule_set_id)
+        rule_set_id = window.rule_set_id
+        snapshot_before = await snapshot_rule_set(self.db, rule_set_id)
 
         if data.open_offset_sec is not None:
             window.open_offset_sec = data.open_offset_sec
@@ -96,16 +98,17 @@ class RuleSetPolicyMixin:
         await self.db.flush()
         self.db.add(
             make_rule_set_audit(
-                rule_set_id=window.rule_set_id,
+                rule_set_id=rule_set_id,
                 action="UPDATE",
                 resource_type="window",
                 resource_id=window.id,
                 operator_id=operator_id,
                 snapshot_before=snapshot_before,
-                snapshot_after=await snapshot_rule_set(self.db, window.rule_set_id),
+                snapshot_after=await snapshot_rule_set(self.db, rule_set_id),
             )
         )
         await self.db.commit()
+        await self._invalidate_rule_set_cache(rule_set_id)
         await self.db.refresh(window)
         return window
 
@@ -130,6 +133,7 @@ class RuleSetPolicyMixin:
             )
         )
         await self.db.commit()
+        await self._invalidate_rule_set_cache(rule_set_id)
         return True
 
     async def update_booking_policy(
@@ -180,6 +184,7 @@ class RuleSetPolicyMixin:
             )
         )
         await self.db.commit()
+        await self._invalidate_rule_set_cache(rule_set_id)
         await self.db.refresh(policy)
         return policy
 
@@ -229,6 +234,7 @@ class RuleSetPolicyMixin:
             )
         )
         await self.db.commit()
+        await self._invalidate_rule_set_cache(rule_set_id)
         await self.db.refresh(policy)
         return policy
 
@@ -278,5 +284,6 @@ class RuleSetPolicyMixin:
             )
         )
         await self.db.commit()
+        await self._invalidate_rule_set_cache(rule_set_id)
         await self.db.refresh(policy)
         return policy

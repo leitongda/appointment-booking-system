@@ -132,13 +132,19 @@ class ScheduleGenerationMixin:
         if check_duplicate:
             conditions = [Schedule.doctor_id == doctor_id, Schedule.schedule_date == schedule_date]
             if start_time and end_time:
-                conditions.append(Schedule.start_time == start_time)
-                conditions.append(Schedule.end_time == end_time)
+                conditions.append(Schedule.start_time < end_time)
+                conditions.append(Schedule.end_time > start_time)
             else:
                 conditions.append(Schedule.time_slot == time_slot)
 
-            existing = await self.db.execute(select(Schedule).where(and_(*conditions)))
-            if existing.scalar_one_or_none():
+            existing_result = await self.db.execute(select(Schedule).where(and_(*conditions)))
+            existing = existing_result.scalar_one_or_none()
+            if existing:
+                logger.info(
+                    f"排班时间段重叠，跳过创建: doctor={doctor_id}, date={schedule_date}, "
+                    f"new={start_time}-{end_time}, existing={existing.start_time}-{existing.end_time} "
+                    f"(id={existing.id})"
+                )
                 return None, False
 
         if not store_id:

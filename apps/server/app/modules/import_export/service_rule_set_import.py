@@ -85,6 +85,14 @@ class RuleSetImportService:
 
         await self.db.commit()
 
+        if success_count > 0 and tenant_id:
+            from app.core.redis import RedisCache
+            from app.modules.rule_engine.cache import RuleCache
+            try:
+                await RuleCache(RedisCache()).invalidate_tenant(tenant_id)
+            except Exception:
+                pass
+
         return {
             "success_count": success_count,
             "fail_count": fail_count,

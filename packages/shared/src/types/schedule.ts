@@ -174,6 +174,9 @@ export interface ScheduleSlotPreview {
   weekday: number;
   weekdayName: string;
   ruleValidation?: string[];  // 规则引擎校验警告信息
+  action?: 'create' | 'skip_exists' | 'skip_overlap' | 'skip_rest_day' | 'skip_rule';
+  reason?: string;
+  conflictingScheduleId?: string;
 }
 
 /**
@@ -182,6 +185,9 @@ export interface ScheduleSlotPreview {
 export interface SchedulePreviewGenerateResponse {
   slots: ScheduleSlotPreview[];
   totalCount: number;
+  createCount: number;
+  skipCount: number;
+  conflictCount: number;
   templateId: string;
   templateName: string;
   doctorName?: string;

@@ -703,7 +703,8 @@ async def get_peak_hours(
 
     **参数说明**：
     - doctor_id: 医生ID（路径参数）
-    - days: 查询未来天数（默认14天，最大30天）
+    - store_id: 门店ID（可选，用于查询该医生的预约设置）
+    - days: 查询未来天数（默认14天，最大30天，当医生有预约设置时作为 fallback）
 
     **返回数据**：
     - 包含规则引擎计算的预约时间窗信息（booking_open_at / booking_close_at）
@@ -711,17 +712,21 @@ async def get_peak_hours(
     - capacity_percent: 剩余容量百分比
     - urgency_level: 紧急程度（normal/medium/high/critical）
     - is_rest_day: 是否在休息日（此处始终为 False，因为已过滤）
+    - booking_setting_applied: 是否应用了医生预约设置
     """,
 )
 async def get_available_schedules(
     doctor_id: str,
+    store_id: Optional[str] = Query(None, description="门店ID"),
     days: int = Query(14, ge=1, le=30),
     db: AsyncSession = Depends(get_db)
 ):
     """获取可预约排班（增强版：包含规则引擎信息）"""
     service = ScheduleService(db)
     rule_engine = RuleEngineService(db)
-    schedules = await service.get_available(doctor_id, days=days)
+    schedules, booking_setting_applied = await service.get_available(
+        doctor_id, days=days, store_id=store_id
+    )
 
     # 使用本地时区（中国标准时间）
     local_tz = pytz.timezone('Asia/Shanghai')
@@ -788,7 +793,7 @@ async def get_available_schedules(
         # 这里的排班已经通过 get_available 过滤，所以能到这里的要么不是休息日，
         # 要么是自定义排班（不受休息日影响）
         is_rest_day_flag = False  # 已过滤，这里的排班都是可预约的
-        
+
         result.append(AvailableScheduleResponse(
             id=s.id,
             schedule_date=s.schedule_date,
@@ -804,7 +809,8 @@ async def get_available_schedules(
             capacity_percent=round(capacity_percent, 1),
             urgency_level=urgency_level,
             template_id=s.template_id,
-            is_rest_day=is_rest_day_flag
+            is_rest_day=is_rest_day_flag,
+            booking_setting_applied=booking_setting_applied,
         ))
 
     return result

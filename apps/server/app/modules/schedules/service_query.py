@@ -1,16 +1,18 @@
 """Read-oriented schedule queries."""
 
 import json
-from datetime import date, timedelta
-from typing import List, Optional
+from datetime import date, datetime, timedelta, timezone
+from typing import List, Optional, Tuple
 
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import selectinload
 
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.doctor import Doctor
+from app.models.doctor_booking_setting import DoctorBookingSetting
 from app.models.rest_day import RestDay
 from app.models.schedule import Schedule
+from app.models.store import Store
 
 
 class ScheduleQueryMixin:
@@ -161,14 +163,67 @@ class ScheduleQueryMixin:
             # 5. 正常生效
             schedule.effective_status = "active"
 
-    async def get_available(self, doctor_id: str, days: int = 14) -> List[Schedule]:
+    async def _get_booking_setting(
+        self, doctor_id: str, store_id: Optional[str]
+    ) -> Optional[DoctorBookingSetting]:
+        stmt = (
+            select(DoctorBookingSetting)
+            .join(Store, DoctorBookingSetting.store_id == Store.id)
+            .where(
+                and_(
+                    DoctorBookingSetting.doctor_id == doctor_id,
+                    DoctorBookingSetting.status == 1,
+                )
+            )
+        )
+        if store_id:
+            stmt = stmt.where(DoctorBookingSetting.store_id == store_id)
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            stmt = stmt.where(Store.tenant_id == tenant_id)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    def _compute_booking_date_range(
+        self, setting: DoctorBookingSetting
+    ) -> Tuple[date, date]:
+        today = date.today()
+        start_date = today + timedelta(days=setting.booking_start_offset)
+        end_date = start_date + timedelta(days=setting.booking_range_days)
+
+        if setting.release_time and setting.release_time != "00:00":
+            import pytz
+            local_tz = pytz.timezone("Asia/Shanghai")
+            now = datetime.now(local_tz)
+            hour, minute = map(int, setting.release_time.split(":"))
+            release_today = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            if now < release_today:
+                start_date = today + timedelta(days=setting.booking_start_offset + 1)
+                end_date = start_date + timedelta(days=setting.booking_range_days)
+
+        return start_date, end_date
+
+    async def get_available(
+        self,
+        doctor_id: str,
+        days: int = 14,
+        store_id: Optional[str] = None,
+    ) -> Tuple[List[Schedule], bool]:
         tenant_id = get_current_tenant_id()
         today = date.today()
-        end_date = today + timedelta(days=days)
+        booking_setting_applied = False
+
+        setting = await self._get_booking_setting(doctor_id, store_id)
+        if setting:
+            start_date, end_date = self._compute_booking_date_range(setting)
+            booking_setting_applied = True
+        else:
+            start_date = today
+            end_date = today + timedelta(days=days)
 
         conditions = [
             Schedule.doctor_id == doctor_id,
-            Schedule.schedule_date >= today,
+            Schedule.schedule_date >= start_date,
             Schedule.schedule_date <= end_date,
             Schedule.status == 1,
             Schedule.booked_slots < Schedule.total_slots,
@@ -183,12 +238,11 @@ class ScheduleQueryMixin:
         )
         schedules = list(result.scalars().all())
 
-        # 批量查询休息日，避免 N+1 查询
         rest_days_query = select(RestDay).where(
             and_(
                 RestDay.status == 1,
                 RestDay.start_date <= end_date,
-                RestDay.end_date >= today,
+                RestDay.end_date >= start_date,
             )
         )
         rest_days_result = await self.db.execute(rest_days_query)
@@ -210,7 +264,10 @@ class ScheduleQueryMixin:
             if key not in schedule_map or schedule.template_id is None:
                 schedule_map[key] = schedule
 
-        return sorted(schedule_map.values(), key=lambda s: (s.schedule_date, s.start_time or s.time_slot))
+        return (
+            sorted(schedule_map.values(), key=lambda s: (s.schedule_date, s.start_time or s.time_slot)),
+            booking_setting_applied,
+        )
 
     @staticmethod
     def _is_rest_day_cached(rest_days, check_date: date, store_id: Optional[str] = None, doctor_id: Optional[str] = None) -> bool:

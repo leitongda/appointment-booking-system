@@ -176,6 +176,9 @@ class ScheduleSlotPreview(BaseModel):
     weekday: int = Field(..., description="星期几 1-7")
     weekday_name: str = Field(..., description="星期名称")
     rule_validation: Optional[List[str]] = Field(default=None, description="规则校验警告列表，null表示未校验")
+    action: str = Field("create", description="操作类型: create将创建/skip_exists已存在跳过/skip_overlap时间重叠/skip_rest_day休息日/skip_rule规则限制")
+    reason: Optional[str] = Field(None, description="跳过原因描述")
+    conflicting_schedule_id: Optional[str] = Field(None, description="冲突排班ID（如有）")
 
 
 class SchedulePreviewGenerateRequest(BaseModel):
@@ -196,9 +199,12 @@ class SchedulePreviewGenerateResponse(BaseModel):
         alias_generator=to_camel,
         populate_by_name=True,
     )
-    
+
     slots: List[ScheduleSlotPreview] = Field(..., description="预览班次列表")
     total_count: int = Field(..., description="总班次数")
+    create_count: int = Field(0, description="将创建数量")
+    skip_count: int = Field(0, description="跳过数量（已存在/休息日/规则限制等）")
+    conflict_count: int = Field(0, description="时间重叠冲突数量")
     daily_duration_hours: Optional[int] = Field(None, description="每日总时长（小时）")
     daily_duration_minutes: Optional[int] = Field(None, description="每日总时长（剩余分钟数）")
     template_id: str = Field(..., description="模板ID")

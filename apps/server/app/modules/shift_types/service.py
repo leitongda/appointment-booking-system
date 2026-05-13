@@ -190,6 +190,9 @@ class ShiftTypeService:
         await self.db.commit()
         await self.db.refresh(shift_type)
 
+        if enabled is not None:
+            await self._invalidate_rule_cache_for_shift_type(shift_type_id)
+
         return shift_type
 
     async def delete(self, shift_type_id: str) -> bool:
@@ -208,4 +211,19 @@ class ShiftTypeService:
         await self.db.delete(shift_type)
         await self.db.commit()
 
+        await self._invalidate_rule_cache_for_shift_type(shift_type_id)
+
         return True
+
+    async def _invalidate_rule_cache_for_shift_type(self, shift_type_id: str) -> None:
+        """禁用或删除班次类型后，清除该班次类型关联的规则引擎缓存。"""
+        try:
+            from app.core.redis import RedisCache
+            from app.middleware.tenant_context import get_current_tenant_id
+            from app.modules.rule_engine.cache import RuleCache
+
+            tenant_id = get_current_tenant_id()
+            rule_cache = RuleCache(RedisCache())
+            await rule_cache.invalidate_v2(tenant_id, [shift_type_id])
+        except Exception:
+            pass

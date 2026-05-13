@@ -350,7 +350,9 @@ async def preview_generate_schedules(
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("schedule:create"))
 ):
-    """预览生成排班（不实际写入数据库）"""
+    """预览生成排班（不实际写入数据库），包含冲突分析"""
+    import json as _json
+    from sqlalchemy import select as _select, and_ as _and_
     from app.utils.schedule_utils import (
         split_time_range_with_breaks,
         get_time_slot_from_time,
@@ -360,12 +362,13 @@ async def preview_generate_schedules(
     )
     from app.modules.settings.service import SettingsService
     from app.modules.schedules.service import ScheduleService
+    from app.models.schedule import Schedule as ScheduleModel
+    from app.models.rest_day import RestDay as RestDayModel
 
     service = ScheduleTemplateService(db)
     settings_service = SettingsService(db)
     schedule_service = ScheduleService(db)
 
-    # 处理日期默认值
     start_date = data.start_date if data.start_date else date.today()
     end_date = data.end_date if data.end_date else start_date + timedelta(days=30)
 
@@ -376,27 +379,19 @@ async def preview_generate_schedules(
         if not template or template.status != 1:
             continue
 
-        # 获取星期列表
         weekdays = template.weekday_list
         if not weekdays:
             continue
 
-        # 获取门店的时段配置
         time_periods = await settings_service.get_time_periods(store_id=template.store_id)
-
-        # 获取排除时间列表
         break_times = template.break_times_list or []
 
-        # 计算每日有效工作时长
         daily_duration = calculate_working_duration(
-            template.start_time,
-            template.end_time,
-            break_times
+            template.start_time, template.end_time, break_times
         )
         daily_hours = daily_duration // 60
         daily_minutes = daily_duration % 60
 
-        # 规则引擎校验（模板级别，所有槽位共享）
         rule_warnings = await schedule_service.validate_template_rules(
             shift_type_id=template.shift_type_id if hasattr(template, 'shift_type_id') else None,
             slot_capacity=template.slot_capacity,
@@ -405,22 +400,82 @@ async def preview_generate_schedules(
             doctor_id=template.doctor_id,
         )
 
-        # 均分时间生成多个班次
         time_slots = split_time_range_with_breaks(
-            template.start_time,
-            template.end_time,
-            template.slot_count,
-            break_times
+            template.start_time, template.end_time, template.slot_count, break_times
         )
 
-        slots = []
-        current_date = start_date
+        # 批量预查询该医生在日期范围内的所有已有排班（避免 N+1）
+        existing_result = await db.execute(
+            _select(ScheduleModel).where(
+                _and_(
+                    ScheduleModel.doctor_id == template.doctor_id,
+                    ScheduleModel.schedule_date >= start_date,
+                    ScheduleModel.schedule_date <= end_date,
+                )
+            )
+        )
+        existing_schedules = existing_result.scalars().all()
+        # key: (schedule_date, start_time, end_time) -> schedule
+        exact_map: dict[tuple, ScheduleModel] = {}
+        # 按日期分组用于重叠检测
+        by_date: dict[date, list[ScheduleModel]] = {}
+        for s in existing_schedules:
+            exact_map[(s.schedule_date, s.start_time, s.end_time)] = s
+            by_date.setdefault(s.schedule_date, []).append(s)
 
+        # 批量预查询休息日
+        rest_day_result = await db.execute(
+            _select(RestDayModel).where(
+                _and_(
+                    RestDayModel.status == 1,
+                    RestDayModel.start_date <= end_date,
+                    RestDayModel.end_date >= start_date,
+                )
+            )
+        )
+        rest_days = rest_day_result.scalars().all()
+
+        def is_rest_day(check_date: date, store_id: str | None, doctor_id: str) -> bool:
+            for rd in rest_days:
+                if not (rd.start_date <= check_date <= rd.end_date):
+                    continue
+                if store_id and rd.store_id != store_id:
+                    continue
+                if rd.doctor_ids is None:
+                    return True
+                try:
+                    ids = _json.loads(rd.doctor_ids)
+                    if doctor_id in ids:
+                        return True
+                except (_json.JSONDecodeError, TypeError):
+                    pass
+            return False
+
+        def find_overlap(
+            check_date: date, slot_start, slot_end, date_schedules: list[ScheduleModel]
+        ) -> ScheduleModel | None:
+            s_min = slot_start.hour * 60 + slot_start.minute
+            s_max = slot_end.hour * 60 + slot_end.minute
+            for es in date_schedules:
+                if not es.start_time or not es.end_time:
+                    continue
+                e_min = es.start_time.hour * 60 + es.start_time.minute
+                e_max = es.end_time.hour * 60 + es.end_time.minute
+                if s_min < e_max and s_max > e_min:
+                    return es
+            return None
+
+        slots: list[ScheduleSlotPreview] = []
+        create_count = 0
+        skip_count = 0
+        conflict_count = 0
+
+        current_date = start_date
         while current_date <= end_date:
             weekday = current_date.isoweekday()
-
-            if weekday in weekdays:
-                if should_generate_schedule(current_date, template.schedule_mode):
+            if weekday in weekdays and should_generate_schedule(current_date, template.schedule_mode):
+                # 休息日检查
+                if is_rest_day(current_date, template.store_id, template.doctor_id):
                     for slot_start, slot_end in time_slots:
                         time_slot = get_time_slot_from_time(slot_start, time_periods)
                         period_name = get_period_name_from_time(slot_start, time_periods)
@@ -434,19 +489,95 @@ async def preview_generate_schedules(
                             weekday=weekday,
                             weekday_name=WEEKDAY_NAMES.get(weekday, f"星期{weekday}"),
                             rule_validation=rule_warnings if rule_warnings else None,
+                            action="skip_rest_day",
+                            reason="休息日",
                         ))
+                        skip_count += 1
+                    current_date += timedelta(days=1)
+                    continue
 
+                date_schedules = by_date.get(current_date, [])
+                for slot_start, slot_end in time_slots:
+                    time_slot = get_time_slot_from_time(slot_start, time_periods)
+                    period_name = get_period_name_from_time(slot_start, time_periods)
+
+                    # 精确匹配
+                    exact = exact_map.get((current_date, slot_start, slot_end))
+                    if exact:
+                        slots.append(ScheduleSlotPreview(
+                            schedule_date=current_date,
+                            start_time=slot_start,
+                            end_time=slot_end,
+                            time_slot=time_slot,
+                            period_name=period_name,
+                            slot_capacity=template.slot_capacity,
+                            weekday=weekday,
+                            weekday_name=WEEKDAY_NAMES.get(weekday, f"星期{weekday}"),
+                            rule_validation=rule_warnings if rule_warnings else None,
+                            action="skip_exists",
+                            reason="该时段已有排班",
+                            conflicting_schedule_id=exact.id,
+                        ))
+                        skip_count += 1
+                        continue
+
+                    # 重叠检测
+                    overlap = find_overlap(current_date, slot_start, slot_end, date_schedules)
+                    if overlap:
+                        slots.append(ScheduleSlotPreview(
+                            schedule_date=current_date,
+                            start_time=slot_start,
+                            end_time=slot_end,
+                            time_slot=time_slot,
+                            period_name=period_name,
+                            slot_capacity=template.slot_capacity,
+                            weekday=weekday,
+                            weekday_name=WEEKDAY_NAMES.get(weekday, f"星期{weekday}"),
+                            rule_validation=rule_warnings if rule_warnings else None,
+                            action="skip_overlap",
+                            reason=f"与已有排班时间段重叠 ({overlap.start_time.strftime('%H:%M')}-{overlap.end_time.strftime('%H:%M')})",
+                            conflicting_schedule_id=overlap.id,
+                        ))
+                        conflict_count += 1
+                        continue
+
+                    # 规则限制（仅标记，不阻止生成）
+                    action = "create"
+                    reason = None
+                    if rule_warnings:
+                        action = "skip_rule"
+                        reason = "; ".join(rule_warnings)
+                        skip_count += 1
+                    else:
+                        create_count += 1
+
+                    slots.append(ScheduleSlotPreview(
+                        schedule_date=current_date,
+                        start_time=slot_start,
+                        end_time=slot_end,
+                        time_slot=time_slot,
+                        period_name=period_name,
+                        slot_capacity=template.slot_capacity,
+                        weekday=weekday,
+                        weekday_name=WEEKDAY_NAMES.get(weekday, f"星期{weekday}"),
+                        rule_validation=rule_warnings if rule_warnings else None,
+                        action=action,
+                        reason=reason,
+                    ))
             current_date += timedelta(days=1)
 
         results.append(SchedulePreviewGenerateResponse(
             slots=slots,
             total_count=len(slots),
+            create_count=create_count,
+            skip_count=skip_count,
+            conflict_count=conflict_count,
             template_id=template.id,
             template_name=template.name,
             doctor_name=template.doctor.name if template.doctor else None,
             department_name=template.department.name if template.department else None,
             daily_duration_hours=daily_hours,
-            daily_duration_minutes=daily_minutes
+            daily_duration_minutes=daily_minutes,
         ))
 
     return results
