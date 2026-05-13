@@ -56,10 +56,6 @@ const Dashboard: React.FC = () => {
   const [deptRanking, setDeptRanking] = useState<DepartmentRankingItem[]>([]);
   const [doctorRanking, setDoctorRanking] = useState<DoctorRankingItem[]>([]);
 
-  useEffect(() => {
-    loadData();
-  }, [currentStoreId]);
-
   const loadData = async () => {
     setLoading(true);
     try {
@@ -88,6 +84,10 @@ const Dashboard: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadData();
+  }, [currentStoreId]);
 
   // 图表配置
   const appointmentTrendConfig = trendData.length > 0 ? {

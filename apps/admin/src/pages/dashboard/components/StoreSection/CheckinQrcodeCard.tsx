@@ -13,12 +13,6 @@ const CheckinQrcodeCard: React.FC<CheckinQrcodeCardProps> = ({ storeId, storeNam
   const [qrcodeContent, setQrcodeContent] = useState('');
   const [qrcodeLoading, setQrcodeLoading] = useState(false);
 
-  useEffect(() => {
-    if (storeId) {
-      loadQrcode();
-    }
-  }, [storeId]);
-
   const loadQrcode = async () => {
     if (!storeId) return;
     setQrcodeLoading(true);
@@ -31,6 +25,12 @@ const CheckinQrcodeCard: React.FC<CheckinQrcodeCardProps> = ({ storeId, storeNam
       setQrcodeLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (storeId) {
+      loadQrcode();
+    }
+  }, [storeId]);
 
   const handleDownload = () => {
     const canvas = document.querySelector('#store-checkin-qrcode canvas') as HTMLCanvasElement;

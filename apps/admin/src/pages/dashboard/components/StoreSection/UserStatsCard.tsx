@@ -11,10 +11,10 @@ interface UserStatsCardProps {
 
 const UserStatsCard: React.FC<UserStatsCardProps> = ({ stats }) => {
   const growthRate = stats?.weekGrowthRate;
-  const growthText = growthRate != null
+  const growthText = growthRate !== null && growthRate !== undefined
     ? `${growthRate >= 0 ? '+' : ''}${growthRate.toFixed(1)}%`
     : '-';
-  const growthColor = growthRate != null
+  const growthColor = growthRate !== null && growthRate !== undefined
     ? growthRate >= 0 ? '#52c41a' : '#f5222d'
     : '#999';
 
@@ -49,7 +49,7 @@ const UserStatsCard: React.FC<UserStatsCardProps> = ({ stats }) => {
         <Statistic
           title="周环比"
           value={growthText}
-          suffix={<span style={{ color: growthColor, fontSize: 12 }}>{growthRate != null ? (growthRate >= 0 ? '↑' : '↓') : ''}</span>}
+          suffix={<span style={{ color: growthColor, fontSize: 12 }}>{growthRate !== null && growthRate !== undefined ? (growthRate >= 0 ? '↑' : '↓') : ''}</span>}
         />
       </StatisticCard.Group>
     </ProCard>

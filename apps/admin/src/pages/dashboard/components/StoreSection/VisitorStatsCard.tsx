@@ -14,7 +14,7 @@ const VisitorStatsCard: React.FC<VisitorStatsCardProps> = ({ stats }) => {
   const uvRate = stats?.uvWeekGrowthRate;
 
   const formatRate = (rate: number | undefined) => {
-    if (rate == null) return { text: '-', color: '#999' };
+    if (rate === null || rate === undefined) return { text: '-', color: '#999' };
     return {
       text: `${rate >= 0 ? '+' : ''}${rate.toFixed(1)}%`,
       color: rate >= 0 ? '#52c41a' : '#f5222d',
@@ -50,12 +50,12 @@ const VisitorStatsCard: React.FC<VisitorStatsCardProps> = ({ stats }) => {
         <Statistic
           title="PV周环比"
           value={pvGrowth.text}
-          suffix={<span style={{ color: pvGrowth.color, fontSize: 12 }}>{pvRate != null ? (pvRate >= 0 ? '↑' : '↓') : ''}</span>}
+          suffix={<span style={{ color: pvGrowth.color, fontSize: 12 }}>{pvRate !== null && pvRate !== undefined ? (pvRate >= 0 ? '↑' : '↓') : ''}</span>}
         />
         <Statistic
           title="UV周环比"
           value={uvGrowth.text}
-          suffix={<span style={{ color: uvGrowth.color, fontSize: 12 }}>{uvRate != null ? (uvRate >= 0 ? '↑' : '↓') : ''}</span>}
+          suffix={<span style={{ color: uvGrowth.color, fontSize: 12 }}>{uvRate !== null && uvRate !== undefined ? (uvRate >= 0 ? '↑' : '↓') : ''}</span>}
         />
       </StatisticCard.Group>
     </ProCard>
