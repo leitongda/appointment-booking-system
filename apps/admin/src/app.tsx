@@ -13,7 +13,7 @@ import { App, ConfigProvider, Modal, notification } from 'antd';
 import { useEffect } from 'react';
 import defaultSettings from '../config/defaultSettings';
 import { APP_TITLE } from '@config/appConfig';
-import { illustrationThemeConfig, shadcnThemeConfig, getThemeConfig } from '@/themes';
+import { shadcnThemeConfig, getThemeConfig } from '@/themes';
 import { processMenuData, computeParentOpenKeys } from '@/utils/menu';
 import { handleCrossTabEvent } from '@/utils/crossTab';
 import { initApp } from '@/utils/initApp';
@@ -47,7 +47,7 @@ export function rootContainer(container: any) {
   let routeStartTime = performance.now();
   let lastPathname = window.location.pathname;
 
-  const unlisten = history.listen(({ location }) => {
+  const _unlisten = history.listen(({ location }) => {
     const routeEndTime = performance.now();
     const routeDuration = routeEndTime - routeStartTime;
 
@@ -141,6 +141,7 @@ export async function getInitialState(): Promise<{
 /**
  * ProLayout 运行时配置
  */
+/* eslint-disable react-hooks/rules-of-hooks -- Umi RunTimeLayoutConfig 在 React 组件上下文中执行 */
 export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) => {
   const location = useLocation();
   const { currentStore } = initialState || {};
@@ -265,5 +266,6 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
     ...storeCustomSettings,
   };
 };
+/* eslint-enable react-hooks/rules-of-hooks */
 
 export { umiRequestConfig as request } from '@/utils/requestInterceptors';
