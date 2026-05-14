@@ -16,8 +16,3 @@ Use `@/openspec/AGENTS.md` to learn:
 Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
-
-<!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan
-<!-- SPECKIT END -->

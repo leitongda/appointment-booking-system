@@ -43,7 +43,8 @@
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
     "clean": "turbo run clean && rm -rf node_modules",
-    "clean:patient-miniapp-cache": "pnpm --filter @hospital/patient-miniapp clean:cache"
+    "clean:patient-miniapp-cache": "pnpm --filter @hospital/patient-miniapp clean:cache",
+    "verify": "npm run lint && npm run test && npm run build"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
