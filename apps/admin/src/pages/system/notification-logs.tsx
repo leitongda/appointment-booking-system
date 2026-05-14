@@ -1,6 +1,6 @@
 import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Card, Col, Row, Statistic, Tag } from 'antd';
+import { Card, Col, Row, Statistic, Tag, Button, message, Popconfirm } from 'antd';
 import { notificationLogApi } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
 import { useListPage } from '@/hooks/useListPage';
@@ -18,6 +18,7 @@ const STATUS_MAP: Record<string, { text: string; color: string }> = {
   pending: { text: '待发送', color: 'orange' },
   sent: { text: '已发送', color: 'green' },
   failed: { text: '失败', color: 'red' },
+  permanently_failed: { text: '永久失败', color: 'default' },
 };
 
 const NotificationLogsPage: React.FC = () => {
@@ -87,6 +88,32 @@ const NotificationLogsPage: React.FC = () => {
       search: false,
       ellipsis: true,
       render: (_, r) => r.errorMessage || '-',
+    },
+    {
+      title: '操作',
+      valueType: 'option',
+      width: 80,
+      fixed: 'right',
+      render: (_, record) => {
+        const canRetry = (record.status === 'failed' || record.status === 'permanently_failed') && record.channel !== 'in_app';
+        if (!canRetry) return null;
+        return (
+          <Popconfirm
+            title="确认重试发送该通知？"
+            onConfirm={async () => {
+              try {
+                await notificationLogApi.retry(record.id);
+                message.success('已加入重试队列');
+                actionRef.current?.reload();
+              } catch {
+                message.error('重试失败');
+              }
+            }}
+          >
+            <Button type="link" size="small">重试</Button>
+          </Popconfirm>
+        );
+      },
     },
   ];
 

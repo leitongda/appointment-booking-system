@@ -1,9 +1,11 @@
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
 from app.db.session import get_db
+from app.models.notification_log import NotificationLog
 from app.api.deps import get_current_admin, require_permission
 from app.schemas.notification_log import (
     NotificationLogCreate,
@@ -104,7 +106,11 @@ async def retry_notification(
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("system:monitoring")),
 ):
-    """重试失败的通知（预留接口，实际重试逻辑需要根据具体通道实现）"""
+    """重试失败的通知
+
+    将通知状态重置为待重试，由 Celery 定时任务在下一个周期自动拾取并发送。
+    支持 email / sms / wechat 渠道，站内信不支持重试。
+    """
     service = NotificationLogService(db)
     log = await service.get_by_id(log_id)
 
@@ -114,13 +120,32 @@ async def retry_notification(
             detail="通知日志不存在",
         )
 
-    if log.status != NotificationStatus.FAILED.value:
+    if log.status not in (NotificationStatus.FAILED.value, NotificationStatus.PERMANENTLY_FAILED.value):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="只能重试失败的通知",
         )
 
-    return {"message": "重试功能待实现，需要根据具体通道集成"}
+    if log.channel == "in_app":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="站内信渠道不支持重试",
+        )
+
+    # 重置状态，让定时任务立即拾取
+    await db.execute(
+        update(NotificationLog)
+        .where(NotificationLog.id == log_id)
+        .values(
+            status=NotificationStatus.FAILED.value,
+            retry_count=0,
+            next_retry_at=datetime.utcnow(),
+            error_message=None,
+        )
+    )
+    await db.commit()
+
+    return {"message": "已加入重试队列，将在下一周期自动发送"}
 
 
 @router.get("/usage-stats", response_model=dict, summary="获取通知用量统计")
