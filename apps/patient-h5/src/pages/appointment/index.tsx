@@ -1,13 +1,12 @@
-import { Tabs, Tag, Empty, Dialog, Toast, PullToRefresh, InfiniteScroll } from 'antd-mobile';
+import { Tabs, Empty, Dialog, Toast, PullToRefresh, InfiniteScroll } from 'antd-mobile';
 import { history } from 'umi';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { appointmentApi } from '@hospital/api';
-import { APPOINTMENT_STATUS_MAP, APPOINTMENT_STATUS_COLOR, TIME_SLOT_MAP } from '@hospital/shared';
 import type { Appointment } from '@hospital/shared';
-import { Card, Button } from '@/components/ui';
 import { fadeInUp, stagger } from '@/components/ui/animations';
 import { announce } from '@/components/ui/toast-live';
+import { AppointmentStatusCard } from '@/components/AppointmentStatusCard';
 
 const AppointmentPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -85,18 +84,6 @@ const AppointmentPage: React.FC = () => {
     }
   };
 
-  // Map status colors to our design system
-  const getStatusColor = (status: number) => {
-    const colorMap: Record<string, string> = {
-      'primary': 'bg-accent/10 text-accent',
-      'success': 'bg-green-100 text-green-600',
-      'warning': 'bg-yellow-100 text-yellow-600',
-      'danger': 'bg-red-100 text-red-600',
-      'default': 'bg-muted text-muted-foreground',
-    };
-    return colorMap[APPOINTMENT_STATUS_COLOR[status]] || colorMap.default;
-  };
-
   return (
     <div className="min-h-screen bg-background" role="main">
       {/* Header */}
@@ -142,80 +129,12 @@ const AppointmentPage: React.FC = () => {
                   whileTap={{ scale: 0.98 }}
                   role="listitem"
                 >
-                  <Card
-                    variant="default"
-                    padding="md"
-                    hoverable
-                    animated={false}
-                    className="cursor-pointer"
-                    onClick={() => history.push(`/appointment/${item.id}`)}
-                    aria-label={`${item.doctorName} ${item.departmentName} ${APPOINTMENT_STATUS_MAP[item.status]} ${item.scheduleDate}`}
-                  >
-                    {/* Header */}
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm text-muted-foreground">
-                        预约单号：{item.appointmentNo}
-                      </span>
-                      <span
-                        className={`text-xs px-2 py-1 rounded-full ${getStatusColor(item.status)}`}
-                        aria-label={`状态：${APPOINTMENT_STATUS_MAP[item.status]}`}
-                      >
-                        {APPOINTMENT_STATUS_MAP[item.status]}
-                      </span>
-                    </div>
-
-                    {/* Body */}
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-semibold text-foreground text-lg">
-                          {item.doctorName}
-                        </h3>
-                        <p className="text-muted-foreground text-sm mt-1">
-                          {item.departmentName}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium text-foreground">{item.scheduleDate}</p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {TIME_SLOT_MAP[item.timeSlot || 'morning']}
-                          {item.queueNumber && (
-                            <span className="ml-2 text-accent">第{item.queueNumber}号</span>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-
-                    {item.status === 0 && item.paymentAmount !== undefined && item.paymentAmount > 0 && (
-                      <div className="mt-3 flex justify-between items-center rounded-xl bg-yellow-50 px-3 py-2 text-sm">
-                        <span className="text-yellow-700">待支付金额</span>
-                        <span className="font-semibold text-yellow-700">¥{item.paymentAmount.toFixed(2)}</span>
-                      </div>
-                    )}
-
-                    {/* Actions */}
-                    {(item.status === 0 || item.status === 1) && (
-                      <div className="flex gap-2 mt-4 pt-4 border-t border-border">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => { e.stopPropagation(); handleCancel(item.id); }}
-                          aria-label={`取消${item.doctorName}的预约`}
-                        >
-                          {item.status === 0 ? '取消订单' : '取消预约'}
-                        </Button>
-                        {item.status === 1 && (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={(e) => { e.stopPropagation(); handleSignIn(item.id); }}
-                            aria-label={`签到${item.doctorName}的预约`}
-                          >
-                            签到
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                  </Card>
+                  <AppointmentStatusCard
+                    appointment={item}
+                    onClick={(apt) => history.push(`/appointment/${apt.id}`)}
+                    onCancel={handleCancel}
+                    onSignIn={handleSignIn}
+                  />
                 </motion.div>
               ))}
             </motion.div>
