@@ -272,17 +272,5 @@ class ScheduleQueryMixin:
     @staticmethod
     def _is_rest_day_cached(rest_days, check_date: date, store_id: Optional[str] = None, doctor_id: Optional[str] = None) -> bool:
         """使用预加载的休息日列表判断指定日期是否为休息日（内存操作，无 DB 查询）。"""
-        for rd in rest_days:
-            if rd.start_date > check_date or rd.end_date < check_date:
-                continue
-            if store_id and rd.store_id != store_id:
-                continue
-            if not doctor_id or rd.doctor_ids is None:
-                return True
-            try:
-                doctor_ids_list = json.loads(rd.doctor_ids)
-                if doctor_id in doctor_ids_list:
-                    return True
-            except (json.JSONDecodeError, TypeError):
-                pass
-        return False
+        from app.utils.schedule_utils import is_rest_day
+        return is_rest_day(rest_days, check_date, store_id, doctor_id)

@@ -41,6 +41,7 @@ async def _check_single_schedule_rest_day(
     doctor_id: str
 ) -> bool:
     """检查单个排班是否在休息日"""
+    from app.utils.schedule_utils import is_rest_day
     rest_day_result = await db.execute(
         select(RestDay).where(
             and_(
@@ -51,22 +52,7 @@ async def _check_single_schedule_rest_day(
         )
     )
     rest_days = rest_day_result.scalars().all()
-
-    for rd in rest_days:
-        # 检查门店是否匹配
-        if store_id and rd.store_id != store_id:
-            continue
-        # 如果 doctor_ids 为空，表示门店所有医生休息
-        if rd.doctor_ids is None:
-            return True
-        # 检查医生是否在休息日列表中
-        try:
-            doctor_ids_list = json.loads(rd.doctor_ids)
-            if doctor_id in doctor_ids_list:
-                return True
-        except:
-            pass
-    return False
+    return is_rest_day(rest_days, schedule_date, store_id, doctor_id)
 
 
 def _check_rest_day_for_schedule(
@@ -76,24 +62,8 @@ def _check_rest_day_for_schedule(
     rest_days: list
 ) -> bool:
     """检查指定排班是否在休息日（基于已查询的休息日列表）"""
-    for rd in rest_days:
-        # 检查日期是否在休息日范围内
-        if not (rd.start_date <= schedule_date <= rd.end_date):
-            continue
-        # 检查门店是否匹配
-        if store_id and rd.store_id != store_id:
-            continue
-        # 如果 doctor_ids 为空，表示门店所有医生休息
-        if rd.doctor_ids is None:
-            return True
-        # 检查医生是否在休息日列表中
-        try:
-            doctor_ids_list = json.loads(rd.doctor_ids)
-            if doctor_id in doctor_ids_list:
-                return True
-        except:
-            pass
-    return False
+    from app.utils.schedule_utils import is_rest_day
+    return is_rest_day(rest_days, schedule_date, store_id, doctor_id)
 
 
 class SuspendRequest(BaseModel):
@@ -163,24 +133,8 @@ async def get_schedules(
     
     def check_rest_day(schedule_date, schedule_store_id, schedule_doctor_id) -> bool:
         """检查指定排班是否在休息日"""
-        for rd in rest_days:
-            # 检查日期是否在休息日范围内
-            if not (rd.start_date <= schedule_date <= rd.end_date):
-                continue
-            # 检查门店是否匹配
-            if schedule_store_id and rd.store_id != schedule_store_id:
-                continue
-            # 如果 doctor_ids 为空，表示门店所有医生休息
-            if rd.doctor_ids is None:
-                return True
-            # 检查医生是否在休息日列表中
-            try:
-                doctor_ids_list = json.loads(rd.doctor_ids)
-                if schedule_doctor_id in doctor_ids_list:
-                    return True
-            except:
-                pass
-        return False
+        from app.utils.schedule_utils import is_rest_day
+        return is_rest_day(rest_days, schedule_date, schedule_store_id, schedule_doctor_id)
     
     result = []
     for s in schedules:
@@ -1042,15 +996,15 @@ async def batch_suspend_schedules(
     service = ScheduleService(db)
 
     try:
-        affected_count = await service.batch_suspend(
+        result = await service.batch_suspend(
             data.schedule_ids,
             data.reason,
             operator_id=current_admin.get("id")
         )
         return BatchOperateResponse(
             success=True,
-            affected_count=affected_count,
-            message=f"成功停诊 {affected_count} 条排班记录"
+            affected_count=result["success_count"],
+            message=result["message"]
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

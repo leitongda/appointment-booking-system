@@ -23,6 +23,7 @@ class ScheduleGenerationMixin:
     async def _check_rest_day(
         self, check_date: date, store_id: Optional[str] = None, doctor_id: Optional[str] = None
     ) -> bool:
+        from app.utils.schedule_utils import is_rest_day
         try:
             query = select(RestDay).where(
                 and_(
@@ -37,16 +38,7 @@ class ScheduleGenerationMixin:
             result = await self.db.execute(query)
             rest_days = result.scalars().all()
 
-            for rd in rest_days:
-                if not doctor_id or rd.doctor_ids is None:
-                    return True
-                try:
-                    doctor_ids_list = json.loads(rd.doctor_ids)
-                    if doctor_id in doctor_ids_list:
-                        return True
-                except (json.JSONDecodeError, TypeError) as e:
-                    logger.warning(f"解析休息日医生列表失败: rest_day_id={rd.id}, error={e}")
-            return False
+            return is_rest_day(rest_days, check_date, store_id, doctor_id)
         except Exception as e:
             logger.error(f"检查休息日失败: date={check_date}, store_id={store_id}, error={e}")
             return False

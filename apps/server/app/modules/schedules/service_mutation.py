@@ -1,5 +1,6 @@
 """Mutation-oriented schedule operations."""
 
+import json
 import logging
 import uuid
 from datetime import date
@@ -258,45 +259,40 @@ class ScheduleMutationMixin:
             })
 
         # P0修复：按门店和医生分组创建停诊记录
-        # 停诊记录按 (门店, 医生, 日期) 分组，每个分组创建一条停诊记录
-        from collections import defaultdict
+        # 使用统一的工具函数进行分组
+        from app.utils.schedule_utils import group_schedules_for_suspension, create_suspension_records
         from app.models.schedule_suspension import ScheduleSuspension
         from app.utils.audit import set_create_audit
 
-        suspension_groups = defaultdict(list)  # key: (store_id, doctor_id, date), value: schedule_ids
-        schedule_map = {}  # schedule_id -> schedule
+        schedule_map = {s.id: s for s in schedules}
 
-        for schedule in schedules:
-            try:
-                # 使用停诊管理服务创建停诊记录
-                # 按 (门店, 医生, 日期) 分组
-                group_key = (schedule.store_id, schedule.doctor_id, schedule.schedule_date)
-                suspension_groups[group_key].append(schedule.id)
-                schedule_map[schedule.id] = schedule
-            except Exception as e:
-                failed_items.append({
-                    "schedule_id": schedule.id,
-                    "reason": str(e)
-                })
+        # 使用工具函数分组
+        suspension_groups = group_schedules_for_suspension(schedules, tenant_id)
 
-        # 为每个分组创建停诊记录
-        for (store_id, doctor_id, suspension_date), sched_ids in suspension_groups.items():
+        # 使用工具函数生成停诊记录数据
+        suspension_records = create_suspension_records(
+            suspension_groups, reason, tenant_id, operator_id
+        )
+
+        # 创建停诊记录并更新排班状态
+        for record_data in suspension_records:
             try:
                 suspension = ScheduleSuspension(
-                    id=str(uuid.uuid4()),
-                    tenant_id=tenant_id,
-                    store_id=store_id,
-                    doctor_id=doctor_id,
-                    title=reason or "批量停诊",
-                    suspension_date=suspension_date,
-                    schedule_ids=json.dumps(sched_ids),
-                    time_slots=None,  # 批量停诊不指定时段，使用 schedule_ids
-                    status=1
+                    id=record_data["id"],
+                    tenant_id=record_data["tenant_id"],
+                    store_id=record_data["store_id"],
+                    doctor_id=record_data["doctor_id"],
+                    title=record_data["title"],
+                    suspension_date=record_data["suspension_date"],
+                    schedule_ids=record_data["schedule_ids"],
+                    time_slots=record_data["time_slots"],
+                    status=record_data["status"]
                 )
                 set_create_audit(suspension, operator_id)
                 self.db.add(suspension)
 
                 # 更新排班状态
+                sched_ids = json.loads(record_data["schedule_ids"])
                 for sched_id in sched_ids:
                     schedule = schedule_map.get(sched_id)
                     if schedule:
@@ -305,6 +301,7 @@ class ScheduleMutationMixin:
                         affected_count += 1
             except Exception as e:
                 # 记录失败
+                sched_ids = json.loads(record_data["schedule_ids"])
                 for sched_id in sched_ids:
                     failed_items.append({
                         "schedule_id": sched_id,

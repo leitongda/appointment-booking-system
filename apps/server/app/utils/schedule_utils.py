@@ -2,10 +2,109 @@
 排班管理相关的工具函数
 """
 from datetime import date, time, timedelta
-from typing import List, Tuple, Optional, Dict, Any
+from typing import List, Tuple, Optional, Dict, Any, Sequence
+import json
+import uuid
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def is_rest_day(
+    rest_days: Sequence,
+    check_date: date,
+    store_id: Optional[str] = None,
+    doctor_id: Optional[str] = None,
+) -> bool:
+    """检查指定日期是否为休息日（基于已查询的休息日列表，纯内存操作）。
+
+    Args:
+        rest_days: RestDay 对象列表（需包含 start_date, end_date, store_id, doctor_ids 字段）
+        check_date: 要检查的日期
+        store_id: 门店 ID（可选）
+        doctor_id: 医生 ID（可选）
+
+    Returns:
+        是否为休息日
+    """
+    for rd in rest_days:
+        # 检查日期范围
+        if rd.start_date > check_date or rd.end_date < check_date:
+            continue
+        # 检查门店
+        if store_id and rd.store_id != store_id:
+            continue
+        # 无 doctor_ids 表示门店所有医生休息
+        if doctor_id is None or rd.doctor_ids is None:
+            return True
+        # 检查医生是否在休息日列表中
+        try:
+            doctor_ids_list = json.loads(rd.doctor_ids)
+            if doctor_id in doctor_ids_list:
+                return True
+        except (json.JSONDecodeError, TypeError):
+            logger.warning(f"解析休息日医生列表失败: rest_day_id={rd.id}")
+    return False
+
+
+def group_schedules_for_suspension(
+    schedules: Sequence,
+    tenant_id: Optional[str] = None,
+) -> Dict[Tuple[Optional[str], str, date], List[str]]:
+    """将排班按 (store_id, doctor_id, date) 分组，用于创建停诊记录。
+
+    Args:
+        schedules: Schedule 对象列表
+        tenant_id: 租户 ID（可选，用于日志）
+
+    Returns:
+        分组字典，key 为 (store_id, doctor_id, date)，value 为 schedule_ids 列表
+    """
+    from collections import defaultdict
+    groups: Dict[Tuple[Optional[str], str, date], List[str]] = defaultdict(list)
+
+    for schedule in schedules:
+        group_key = (schedule.store_id, schedule.doctor_id, schedule.schedule_date)
+        groups[group_key].append(schedule.id)
+
+    return dict(groups)
+
+
+def create_suspension_records(
+    groups: Dict[Tuple[Optional[str], str, date], List[str]],
+    reason: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    operator_id: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """根据分组创建停诊记录（不包含数据库操作，仅生成记录数据）。
+
+    Args:
+        groups: 分组字典，key 为 (store_id, doctor_id, date)，value 为 schedule_ids 列表
+        reason: 停诊原因
+        tenant_id: 租户 ID
+        operator_id: 操作人 ID
+
+    Returns:
+        停诊记录数据列表，可用于创建 ScheduleSuspension 对象
+    """
+    records = []
+
+    for (store_id, doctor_id, suspension_date), sched_ids in groups.items():
+        record = {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "store_id": store_id,
+            "doctor_id": doctor_id,
+            "title": reason or "批量停诊",
+            "suspension_date": suspension_date,
+            "schedule_ids": json.dumps(sched_ids),
+            "time_slots": None,
+            "status": 1,
+            "operator_id": operator_id,
+        }
+        records.append(record)
+
+    return records
 
 
 def get_month_week(d: date) -> int:
