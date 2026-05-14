@@ -92,7 +92,12 @@
       "Bash(less:*)",
       "Bash(more:*)",
       "Bash(awk -F: '{sum+=$2} END {print sum}')",
-      "Bash(awk -F: '{sum+=$2} END {print \"Total tests:\", sum}')"
+      "Bash(awk -F: '{sum+=$2} END {print \"Total tests:\", sum}')",
+      "WebFetch(domain:github.com)",
+      "Bash(awk -F: '{print $1}')",
+      "Bash(awk '/^\\\\/Users\\\\//{file=$0} /\\\\s+error\\\\s+/{print file \" | \" $0}')",
+      "Bash(awk '/^\\\\/Users\\\\//{file=$0} /^\\\\s+[0-9]+/{print file \" :: \" $0}')",
+      "Bash(tee /tmp/lint-full.txt)"
     ]
   },
   "plansDirectory": ".claude/plans"
