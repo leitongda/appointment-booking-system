@@ -7,7 +7,7 @@
     "dev": "NODE_OPTIONS='--require ./scripts/fix-network.js' HOST=127.0.0.1 PORT=${PORT:-9104} umi dev",
     "build": "umi build",
     "postinstall": "umi setup",
-    "lint": "eslint src --ext .ts,.tsx",
+    "lint": "umi lint",
     "clean": "rm -rf dist .umi .umi-production"
   },
   "dependencies": {
@@ -33,6 +33,3 @@
     "typescript": "^5.3.3"
   }
 }
-
-
-
