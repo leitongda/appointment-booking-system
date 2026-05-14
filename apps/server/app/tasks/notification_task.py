@@ -675,51 +675,26 @@ def send_appointment_reminder_scheduler():
 
     logger.info(f"[调度器] 找到 {len(tenants)} 个活跃租户，开始派发子任务")
 
-    # 使用 Celery group 并行派发子任务
+    # 使用 Celery group 并行派发子任务（fire-and-forget）
+    # 不在任务内调用 result.get()，避免阻塞 worker
     job = group(
         send_appointment_reminder_for_tenant.s(tenant.id, tenant.tenant_code)
         for tenant in tenants
     )
+    job.apply_async(queue="notification")
 
-    # 异步执行，等待结果
-    result = job.apply_async(queue="notification")
+    elapsed_time = time.time() - start_time
+    logger.info(
+        f"[调度器] 已派发 {len(tenants)} 个租户的提醒子任务, "
+        f"耗时 {elapsed_time:.2f}秒"
+    )
 
-    # 等待所有子任务完成（设置超时为 5 分钟）
-    try:
-        # 等待结果，最多等待 5 分钟
-        results_list = result.get(timeout=300)
-
-        # 聚合统计
-        total_sent = sum(r.get("sent", 0) for r in results_list if isinstance(r, dict))
-        total_failed = sum(r.get("failed", 0) for r in results_list if isinstance(r, dict))
-
-        elapsed_time = time.time() - start_time
-
-        logger.info(
-            f"[调度器] 预约提醒调度完成: "
-            f"租户数 {len(tenants)}, "
-            f"成功 {total_sent} 条, "
-            f"失败 {total_failed} 条, "
-            f"耗时 {elapsed_time:.2f}秒"
-        )
-
-        return {
-            "sent_count": total_sent,
-            "failed_count": total_failed,
-            "tenant_count": len(tenants),
-            "elapsed_time": elapsed_time,
-        }
-
-    except Exception as e:
-        elapsed_time = time.time() - start_time
-        logger.error(f"[调度器] 预约提醒调度失败: {e}, 耗时 {elapsed_time:.2f}秒")
-        return {
-            "sent_count": 0,
-            "failed_count": 0,
-            "tenant_count": len(tenants),
-            "reason": str(e),
-            "elapsed_time": elapsed_time,
-        }
+    return {
+        "sent_count": 0,
+        "failed_count": 0,
+        "tenant_count": len(tenants),
+        "elapsed_time": elapsed_time,
+    }
 
 
 # ==================== 兼容旧版任务 ====================

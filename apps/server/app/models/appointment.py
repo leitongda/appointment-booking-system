@@ -75,6 +75,7 @@ class Appointment(Base, AuditMixin):
 
     # 关联关系
     tenant = relationship("Tenant", back_populates="appointments")
+    user = relationship("User", backref="appointments")
     schedule = relationship("Schedule", back_populates="appointments")
     patient = relationship("Patient", backref="appointments")
     doctor = relationship("Doctor", backref="appointments")

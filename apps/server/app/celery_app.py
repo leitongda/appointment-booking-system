@@ -140,14 +140,14 @@ celery_app.conf.update(
 
         # 支付超时自动取消 - 每5分钟
         "payment-cancel-expired-pending": {
-            "task": "app.tasks.payment_task.cancel_expired_pending_appointments",
+            "task": "payment.cancel_expired_pending",
             "schedule": crontab(minute="*/5"),
             "options": {"queue": "scheduled"},
         },
 
         # 支付状态主动对账 - 每15分钟
         "payment-reconciliation": {
-            "task": "app.tasks.payment_reconciliation.reconcile_pending_payments",
+            "task": "payment.reconciliation",
             "schedule": crontab(minute="*/15"),
             "options": {"queue": "scheduled"},
         },
