@@ -154,7 +154,7 @@
 - [x] 配额检查工具 (quota.py)
 - [x] 通知服务 (notifications/service.py)
 - [x] 定时任务 (用量统计、订阅到期、用量限制检查)
-- [x] 多租户架构文档 (doc_v2/multi-tenant.md)
+- [x] 多租户架构文档 (docs/architecture-multi-tenant.md)
 - [x] 测试覆盖 (租户隔离、跨租户访问拒绝等)
 
 **已于 2026-04-16 复核完成的改造:**
