@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, patch, MagicMock
 from uuid import uuid4
 
 from sqlalchemy import select, func
+from app.modules.messages.service_messages import ContactInfo
 
 from app.modules.unified_message.models import (
     NotificationGroup,
@@ -160,7 +161,7 @@ class TestCompatLayerFallback:
                 with patch(
                     "app.modules.messages.service_messages._get_user_contact_info",
                     new_callable=AsyncMock,
-                    return_value=("13800138000", "openid-123"),
+                    return_value=ContactInfo("13800138000", "openid-123", None),
                 ):
                     await compat.send_appointment_notification(
                         user_id="user-1",
@@ -191,7 +192,7 @@ class TestCompatLayerFallback:
                     with patch(
                         "app.modules.messages.service_messages._get_user_contact_info",
                         new_callable=AsyncMock,
-                        return_value=("13800138000", "openid-123"),
+                        return_value=ContactInfo("13800138000", "openid-123", None),
                     ):
                         await compat.send_appointment_notification(
                             user_id="user-1",

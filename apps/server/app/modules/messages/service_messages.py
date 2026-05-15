@@ -4,7 +4,7 @@ import json
 import logging
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, NamedTuple, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -26,29 +26,36 @@ from app.infrastructure.notifications.dispatcher import NotificationDispatcher
 # 统一账号辅助：Account 表优先 + 旧表 fallback
 # ---------------------------------------------------------------------------
 
-async def _get_user_contact_info(db: AsyncSession, user_id: str) -> Tuple[Optional[str], Optional[str]]:
-    """获取用户联系方式 (phone, openid)，Account 表优先"""
+class ContactInfo(NamedTuple):
+    """用户联系方式"""
+    phone: Optional[str]
+    openid: Optional[str]
+    email: Optional[str]
+
+
+async def _get_user_contact_info(db: AsyncSession, user_id: str) -> ContactInfo:
+    """获取用户联系方式 (phone, openid, email)，Account 表优先"""
     try:
         from app.models.account import Account, AccountUser
         result = await db.execute(
-            select(Account.phone, AccountUser.openid)
+            select(Account.phone, AccountUser.openid, Account.email)
             .join(AccountUser, Account.id == AccountUser.account_id, isouter=True)
             .where(Account.id == user_id)
         )
         row = result.first()
         if row and row[0]:
-            return row[0], row[1]
+            return ContactInfo(phone=row[0], openid=row[1], email=row[2])
     except Exception:
         pass
 
     # fallback 到旧表
     user_result = await db.execute(
-        select(User.phone, User.openid).where(User.id == user_id)
+        select(User.phone, User.openid, User.email).where(User.id == user_id)
     )
     user_info = user_result.first()
     if user_info:
-        return user_info[0], user_info[1]
-    return None, None
+        return ContactInfo(phone=user_info[0], openid=user_info[1], email=user_info[2])
+    return ContactInfo(None, None, None)
 
 
 from app.common.notification_preference import check_notification_preference as _check_preference
@@ -83,7 +90,7 @@ async def _send_sms_notification(
             return False
 
         # 获取用户手机号（Account 表优先）
-        user_phone, _ = await _get_user_contact_info(db, user_id)
+        user_phone, _, _ = await _get_user_contact_info(db, user_id)
 
         if not user_phone:
             logger.debug(f"用户 {user_id} 无手机号，跳过短信发送")
@@ -437,17 +444,16 @@ class MessageService:
                 rendered_title, rendered_content = title, content
 
         # 获取接收人信息（Account 表优先）
-        recipient_phone, recipient_openid = await _get_user_contact_info(
-            self.db, user_id
-        )
+        contact = await _get_user_contact_info(self.db, user_id)
 
         # 创建通知事件
         event = NotificationEvent(
             tenant_id=tenant_id,
             recipient_id=user_id,
             recipient_type=user_type,
-            recipient_phone=recipient_phone,
-            recipient_openid=recipient_openid,
+            recipient_phone=contact.phone,
+            recipient_openid=contact.openid,
+            recipient_email=contact.email,
             template_code=code or message_type,
             variables=template_variables or {},
             message_type=message_type,
@@ -622,17 +628,16 @@ class MessageService:
                 rendered_title, rendered_content = title, content
 
         # 获取接收人信息（Account 表优先）
-        recipient_phone, recipient_openid = await _get_user_contact_info(
-            self.db, user_id
-        )
+        contact = await _get_user_contact_info(self.db, user_id)
 
         # 创建通知事件
         event = NotificationEvent(
             tenant_id=tenant_id,
             recipient_id=user_id,
             recipient_type=user_type,
-            recipient_phone=recipient_phone,
-            recipient_openid=recipient_openid,
+            recipient_phone=contact.phone,
+            recipient_openid=contact.openid,
+            recipient_email=contact.email,
             template_code=code,
             variables=template_variables or {},
             message_type="stop_clinic",

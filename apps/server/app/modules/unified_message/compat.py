@@ -71,14 +71,15 @@ class MessageServiceCompat:
 
             # 获取接收人联系方式
             from app.modules.messages.service_messages import _get_user_contact_info
-            phone, openid = await _get_user_contact_info(self.db, user_id)
+            contact = await _get_user_contact_info(self.db, user_id)
 
             event = NotificationEvent(
                 tenant_id=tenant_id,
                 recipient_id=user_id,
                 recipient_type=user_type,
-                recipient_phone=phone,
-                recipient_openid=openid,
+                recipient_phone=contact.phone,
+                recipient_openid=contact.openid,
+                recipient_email=contact.email,
                 template_code=template_code or message_type,
                 variables=template_variables or {},
                 message_type=message_type,
@@ -195,14 +196,15 @@ class MessageServiceCompat:
         if tenant_id and await self._should_use_new(tenant_id):
             # 获取接收人联系方式
             from app.modules.messages.service_messages import _get_user_contact_info
-            phone, openid = await _get_user_contact_info(self.db, user_id)
+            contact = await _get_user_contact_info(self.db, user_id)
 
             event = NotificationEvent(
                 tenant_id=tenant_id,
                 recipient_id=user_id,
                 recipient_type=user_type,
-                recipient_phone=phone,
-                recipient_openid=openid,
+                recipient_phone=contact.phone,
+                recipient_openid=contact.openid,
+                recipient_email=contact.email,
                 template_code=template_code or "stop_clinic_patient",
                 variables=template_variables or {},
                 message_type="stop_clinic",
