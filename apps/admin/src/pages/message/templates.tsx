@@ -1,28 +1,13 @@
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, EyeOutlined, SendOutlined } from '@ant-design/icons';
 import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormSelect } from '@ant-design/pro-components';
-import { Tag, Switch, Button, Popconfirm, message } from 'antd';
+import { Tag, Switch, Button, Popconfirm, message, Modal, Descriptions, Input } from 'antd';
 import { useState, useRef } from 'react';
 import { useAccess } from '@umijs/max';
-import { request } from '@umijs/max';
+import { messageApi } from '@hospital/api';
+import { createListRequest } from '@/utils/proTable';
 import type { ActionType } from '@ant-design/pro-components';
-
-interface UnifiedTemplate {
-  id: string;
-  tenantId?: string;
-  code?: string;
-  name?: string;
-  messageType?: string;
-  eventType?: string;
-  subjectTemplate?: string;
-  htmlTemplate?: string;
-  textTemplate?: string;
-  wechatTemplateId?: string;
-  variablesSchema?: Record<string, any>;
-  status?: number;
-  createdAt?: string;
-  updatedAt?: string;
-}
+import type { UnifiedTemplate } from '@hospital/shared';
 
 const MESSAGE_TYPE_OPTIONS = [
   { label: '系统', value: 'system' },
@@ -38,10 +23,16 @@ const UnifiedTemplatesPage: React.FC = () => {
   const actionRef = useRef<ActionType>();
   const [modalVisible, setModalVisible] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState<UnifiedTemplate | null>(null);
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState<UnifiedTemplate | null>(null);
+  const [testSendVisible, setTestSendVisible] = useState(false);
+  const [testSendTemplateId, setTestSendTemplateId] = useState<string | null>(null);
+  const [testUserId, setTestUserId] = useState('');
+  const [testSending, setTestSending] = useState(false);
 
   const handleDelete = async (id: string) => {
     try {
-      await request(`/api/v1/unified-messages/templates/${id}`, { method: 'DELETE' });
+      await messageApi.deleteUnifiedTemplate(id);
       message.success('删除成功');
       actionRef.current?.reload();
     } catch (error: any) {
@@ -51,10 +42,7 @@ const UnifiedTemplatesPage: React.FC = () => {
 
   const handleStatusChange = async (id: string, status: boolean) => {
     try {
-      await request(`/api/v1/unified-messages/templates/${id}`, {
-        method: 'PUT',
-        data: { status: status ? 1 : 0 },
-      });
+      await messageApi.updateUnifiedTemplate(id, { status: status ? 1 : 0 });
       message.success('状态更新成功');
       actionRef.current?.reload();
     } catch (error: any) {
@@ -65,16 +53,10 @@ const UnifiedTemplatesPage: React.FC = () => {
   const handleSubmit = async (values: any) => {
     try {
       if (currentTemplate) {
-        await request(`/api/v1/unified-messages/templates/${currentTemplate.id}`, {
-          method: 'PUT',
-          data: values,
-        });
+        await messageApi.updateUnifiedTemplate(currentTemplate.id, values);
         message.success('更新成功');
       } else {
-        await request('/api/v1/unified-messages/templates', {
-          method: 'POST',
-          data: values,
-        });
+        await messageApi.createUnifiedTemplate(values);
         message.success('创建成功');
       }
       setModalVisible(false);
@@ -84,6 +66,36 @@ const UnifiedTemplatesPage: React.FC = () => {
     } catch (error: any) {
       message.error(error.message || '操作失败');
       return false;
+    }
+  };
+
+  const handleClone = (record: UnifiedTemplate) => {
+    setCurrentTemplate({ ...record, id: '', code: `${record.code}_copy`, name: `${record.name} (副本)` } as any);
+    setModalVisible(true);
+  };
+
+  const handleTestSend = async () => {
+    if (!testSendTemplateId || !testUserId) {
+      message.warning('请输入测试用户ID');
+      return;
+    }
+    setTestSending(true);
+    try {
+      const tpl = previewTemplate;
+      await messageApi.send({
+        userId: testUserId,
+        userType: 'patient',
+        title: tpl?.subjectTemplate || `测试: ${tpl?.name}`,
+        content: tpl?.textTemplate || '',
+        messageType: tpl?.messageType || 'system',
+      });
+      message.success('测试发送成功');
+      setTestSendVisible(false);
+      setTestUserId('');
+    } catch (error: any) {
+      message.error(error.message || '测试发送失败');
+    } finally {
+      setTestSending(false);
     }
   };
 
@@ -148,8 +160,20 @@ const UnifiedTemplatesPage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 150,
+      width: 250,
       render: (_, record) => [
+        <Button
+          key="preview"
+          type="link"
+          size="small"
+          icon={<EyeOutlined />}
+          onClick={() => {
+            setPreviewTemplate(record);
+            setPreviewVisible(true);
+          }}
+        >
+          预览
+        </Button>,
         <Button
           key="edit"
           type="link"
@@ -162,6 +186,16 @@ const UnifiedTemplatesPage: React.FC = () => {
           disabled={!access.hasPermission('message:send')}
         >
           编辑
+        </Button>,
+        <Button
+          key="clone"
+          type="link"
+          size="small"
+          icon={<CopyOutlined />}
+          onClick={() => handleClone(record)}
+          disabled={!access.hasPermission('message:send')}
+        >
+          克隆
         </Button>,
         <Popconfirm
           key="delete"
@@ -207,21 +241,7 @@ const UnifiedTemplatesPage: React.FC = () => {
             新建模板
           </Button>,
         ]}
-        request={async (params) => {
-          const { current, pageSize, ...rest } = params;
-          const response = await request('/api/v1/unified-messages/templates', {
-            params: {
-              page: current,
-              page_size: pageSize,
-              ...rest,
-            },
-          });
-          return {
-            data: response.data || [],
-            total: response.total || 0,
-            success: true,
-          };
-        }}
+        request={createListRequest(messageApi.getUnifiedTemplates)}
         columns={columns}
         pagination={{
           defaultPageSize: 10,
@@ -230,7 +250,7 @@ const UnifiedTemplatesPage: React.FC = () => {
       />
 
       <ModalForm
-        title={currentTemplate ? '编辑模板' : '新建模板'}
+        title={currentTemplate?.id ? '编辑模板' : currentTemplate?.code?.endsWith('_copy') ? '克隆模板' : '新建模板'}
         open={modalVisible}
         onOpenChange={(visible) => {
           setModalVisible(visible);
@@ -249,7 +269,7 @@ const UnifiedTemplatesPage: React.FC = () => {
           label="模板编码"
           placeholder="请输入模板编码"
           rules={[{ required: true, message: '请输入模板编码' }]}
-          disabled={!!currentTemplate}
+          disabled={!!currentTemplate?.id}
         />
         <ProFormText
           name="name"
@@ -291,6 +311,71 @@ const UnifiedTemplatesPage: React.FC = () => {
           placeholder="请输入微信模板ID（可选）"
         />
       </ModalForm>
+
+      {/* 模板预览 Modal */}
+      <Modal
+        title="模板预览"
+        open={previewVisible}
+        onCancel={() => setPreviewVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setPreviewVisible(false)}>关闭</Button>,
+          <Button
+            key="test"
+            type="primary"
+            icon={<SendOutlined />}
+            onClick={() => {
+              setTestSendTemplateId(previewTemplate?.id || null);
+              setPreviewVisible(false);
+              setTestSendVisible(true);
+            }}
+            disabled={!access.hasPermission('message:send')}
+          >
+            测试发送
+          </Button>,
+        ]}
+        width={600}
+      >
+        {previewTemplate && (
+          <Descriptions column={1} bordered size="small">
+            <Descriptions.Item label="模板编码">{previewTemplate.code}</Descriptions.Item>
+            <Descriptions.Item label="模板名称">{previewTemplate.name}</Descriptions.Item>
+            <Descriptions.Item label="消息类型">
+              {MESSAGE_TYPE_OPTIONS.find(o => o.value === previewTemplate.messageType)?.label || previewTemplate.messageType}
+            </Descriptions.Item>
+            <Descriptions.Item label="事件类型">{previewTemplate.eventType || '-'}</Descriptions.Item>
+            <Descriptions.Item label="主题模板">{previewTemplate.subjectTemplate || '-'}</Descriptions.Item>
+            <Descriptions.Item label="文本模板">
+              <div style={{ whiteSpace: 'pre-wrap' }}>{previewTemplate.textTemplate || '-'}</div>
+            </Descriptions.Item>
+            <Descriptions.Item label="HTML模板">
+              <div style={{ whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{previewTemplate.htmlTemplate || '-'}</div>
+            </Descriptions.Item>
+            <Descriptions.Item label="微信模板ID">{previewTemplate.wechatTemplateId || '-'}</Descriptions.Item>
+          </Descriptions>
+        )}
+      </Modal>
+
+      {/* 测试发送 Modal */}
+      <Modal
+        title="测试发送"
+        open={testSendVisible}
+        onCancel={() => {
+          setTestSendVisible(false);
+          setTestUserId('');
+        }}
+        onOk={handleTestSend}
+        confirmLoading={testSending}
+        okText="发送"
+      >
+        <div style={{ marginBottom: 12 }}>
+          <span>将使用当前模板向指定用户发送一条测试消息</span>
+        </div>
+        <Input
+          placeholder="请输入测试用户ID"
+          value={testUserId}
+          onChange={(e) => setTestUserId(e.target.value)}
+        />
+      </Modal>
     </PageContainer>
   );
 };
