@@ -161,12 +161,7 @@ class EmailTemplateService:
         return True
 
     def render_template(self, template: EmailTemplate, variables: dict) -> tuple[str, str]:
-        subject = template.subject_template
-        content = template.content_template
-
-        for key, value in variables.items():
-            placeholder = "{{" + key + "}}"
-            subject = subject.replace(placeholder, str(value))
-            content = content.replace(placeholder, str(value))
-
+        from app.utils.email_sync import render_email_template
+        subject = render_email_template(template.subject_template, variables)
+        content = render_email_template(template.content_template, variables)
         return subject, content
