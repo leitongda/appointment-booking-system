@@ -322,6 +322,7 @@ export default [
           { path: '/content-center/message/list', name: '消息列表', component: './message' },
           { path: '/content-center/message/create', name: '发送消息', component: './message/form', hideInMenu: true },
           { path: '/content-center/message/templates', name: '统一模板', component: './message/templates' },
+          { path: '/content-center/message/recipient-rules', name: '收件人规则', component: './message/recipient-rules' },
         ],
       },
       {
@@ -402,6 +403,7 @@ export default [
           { path: '/system/monitoring', redirect: '/system/monitoring/log' },
           { path: '/system/monitoring/log', name: '操作日志', icon: 'fileSearch', component: './system/log', access: 'canSystemLogs' },
           { path: '/system/monitoring/notification-logs', name: '通知日志', icon: 'alert', component: './system/notification-logs', access: 'canSystemLogs' },
+          { path: '/system/monitoring/notification-quota', name: '通知配额', icon: 'alert', component: './system/notification-quota', access: 'canSystemLogs' },
           { path: '/system/monitoring/checkin-audit-logs', name: '签到审计', icon: 'audit', component: './system/checkin-audit-logs', access: 'canCheckinAuditLogs' },
           { path: '/system/monitoring/online-users', name: '在线用户', icon: 'team', component: './system/online-users', access: 'canOnlineUsers' },
         ],
@@ -438,6 +440,7 @@ export default [
     routes: [
       { path: '/monitoring/log', redirect: '/system/monitoring/log' },
       { path: '/monitoring/notification-logs', redirect: '/system/monitoring/notification-logs' },
+      { path: '/monitoring/notification-quota', redirect: '/system/monitoring/notification-quota' },
       { path: '/monitoring/checkin-audit-logs', redirect: '/system/monitoring/checkin-audit-logs' },
       { path: '/monitoring/online-users', redirect: '/system/monitoring/online-users' },
       { path: '/monitoring/analytics', redirect: '/content-center/statistics' },
