@@ -43,7 +43,10 @@ const MessagePage = () => {
     total: 0,
     appointment: 0,
     consultation: 0,
+    schedule: 0,
     system: 0,
+    stop_clinic: 0,
+    feedback: 0,
   });
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -131,7 +134,10 @@ const MessagePage = () => {
         total: counts.total || 0,
         appointment: counts.appointment || 0,
         consultation: counts.consultation || 0,
+        schedule: counts.schedule || 0,
         system: counts.system || 0,
+        stop_clinic: counts.stop_clinic || 0,
+        feedback: counts.feedback || 0,
       });
     } catch (error) {
       console.error('获取未读数量失败', error);
@@ -165,7 +171,7 @@ const MessagePage = () => {
     clear: () => {
       setUserId('');
       setMessages([]);
-      setUnreadCounts({ total: 0, appointment: 0, consultation: 0, system: 0 });
+      setUnreadCounts({ total: 0, appointment: 0, consultation: 0, schedule: 0, system: 0, stop_clinic: 0, feedback: 0 });
       setPage(1);
       setHasMore(true);
       setLoading(false);
@@ -281,6 +287,9 @@ const MessagePage = () => {
               tab.key === 'all' ? unreadCounts.total :
               tab.key === 'appointment' ? unreadCounts.appointment :
               tab.key === 'consultation' ? unreadCounts.consultation :
+              tab.key === 'schedule' ? unreadCounts.schedule :
+              tab.key === 'stop_clinic' ? unreadCounts.stop_clinic :
+              tab.key === 'feedback' ? unreadCounts.feedback :
               unreadCounts.system;
             return (
               <Tabs.TabPane
