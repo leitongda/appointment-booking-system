@@ -33,7 +33,7 @@ export interface MessageBatchCreateData {
 export const messageApi = {
   // 获取消息列表（用户端）
   getList: (params: MessageListParams): Promise<PageResult<Message>> => {
-    return request.get('/messages/my', { 
+    return request.get('/messages/my', {
       params: {
         user_id: params.userId,
         user_type: params.userType,
@@ -47,7 +47,7 @@ export const messageApi = {
 
   // 获取所有消息列表（管理端）
   getAllList: (params: MessageListParams): Promise<PageResult<Message>> => {
-    return request.get('/messages', { 
+    return request.get('/messages', {
       params: {
         user_id: params.userId,
         user_type: params.userType,
@@ -62,8 +62,8 @@ export const messageApi = {
 
   // 获取未读数量
   getUnreadCount: (userId: string, userType: string): Promise<UnreadCount> => {
-    return request.get('/messages/unread-count', { 
-      params: { user_id: userId, user_type: userType } 
+    return request.get('/messages/unread-count', {
+      params: { user_id: userId, user_type: userType }
     });
   },
 
@@ -112,12 +112,12 @@ export const messageApi = {
 
   // 获取消息模板列表
   getTemplates: (params?: { status?: number; page?: number; pageSize?: number }): Promise<PageResult<MessageTemplate>> => {
-    return request.get('/messages/templates', { 
-      params: { 
+    return request.get('/messages/templates', {
+      params: {
         status: params?.status,
         page: params?.page,
         page_size: params?.pageSize,
-      } 
+      }
     });
   },
 
