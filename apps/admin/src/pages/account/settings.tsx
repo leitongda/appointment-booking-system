@@ -14,8 +14,10 @@ import {
   MessageOutlined,
   MoonOutlined,
   NotificationOutlined,
+  PauseCircleOutlined,
   SwapOutlined,
   DisconnectOutlined,
+  WechatOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
@@ -447,7 +449,7 @@ const AccountSettingsPage: React.FC = () => {
                 <Typography.Title level={5} style={{ marginBottom: 12 }}>
                   <NotificationOutlined /> 通知类型
                 </Typography.Title>
-                <Space style={{ width: '100%' }}>
+                <Space direction="vertical" style={{ width: '100%' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Space>
                       <BellOutlined />
@@ -480,6 +482,28 @@ const AccountSettingsPage: React.FC = () => {
                       onChange={(v) => handleNotificationToggle('systemEnabled', v)}
                     />
                   </div>
+                  <Divider style={{ margin: '8px 0' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Space>
+                      <NotificationOutlined />
+                      <span>叫号通知</span>
+                    </Space>
+                    <Switch
+                      checked={notificationPreference.queueCallEnabled}
+                      onChange={(v) => handleNotificationToggle('queueCallEnabled', v)}
+                    />
+                  </div>
+                  <Divider style={{ margin: '8px 0' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Space>
+                      <PauseCircleOutlined />
+                      <span>停诊通知</span>
+                    </Space>
+                    <Switch
+                      checked={notificationPreference.stopClinicEnabled}
+                      onChange={(v) => handleNotificationToggle('stopClinicEnabled', v)}
+                    />
+                  </div>
                 </Space>
               </div>
 
@@ -489,7 +513,7 @@ const AccountSettingsPage: React.FC = () => {
                 <Typography.Title level={5} style={{ marginBottom: 12 }}>
                   <MessageOutlined /> 通知渠道
                 </Typography.Title>
-                <Space style={{ width: '100%' }}>
+                <Space direction="vertical" style={{ width: '100%' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Space>
                       <CustomerServiceOutlined />
@@ -509,6 +533,28 @@ const AccountSettingsPage: React.FC = () => {
                     <Switch
                       checked={notificationPreference.inAppEnabled}
                       onChange={(v) => handleNotificationToggle('inAppEnabled', v)}
+                    />
+                  </div>
+                  <Divider style={{ margin: '8px 0' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Space>
+                      <MailOutlined />
+                      <span>邮件通知</span>
+                    </Space>
+                    <Switch
+                      checked={notificationPreference.emailEnabled}
+                      onChange={(v) => handleNotificationToggle('emailEnabled', v)}
+                    />
+                  </div>
+                  <Divider style={{ margin: '8px 0' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Space>
+                      <WechatOutlined />
+                      <span>微信推送</span>
+                    </Space>
+                    <Switch
+                      checked={notificationPreference.wechatEnabled}
+                      onChange={(v) => handleNotificationToggle('wechatEnabled', v)}
                     />
                   </div>
                 </Space>
