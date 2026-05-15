@@ -1,12 +1,12 @@
-import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, EyeOutlined, SendOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, CopyOutlined, EyeOutlined, SendOutlined } from '@ant-design/icons';
 import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormSelect } from '@ant-design/pro-components';
-import { Tag, Switch, Button, Popconfirm, message, Modal, Descriptions, Input } from 'antd';
-import { useState, useRef } from 'react';
-import { useAccess } from '@umijs/max';
+import { Tag, Switch, Button, Modal, Descriptions, Input } from 'antd';
+import { useState } from 'react';
 import { messageApi } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
-import type { ActionType } from '@ant-design/pro-components';
+import { useListPage } from '@/hooks/useListPage';
+import { OperationGroup, OperationButton, CreateButton } from '@/components/ListOperations';
 import type { UnifiedTemplate } from '@hospital/shared';
 
 const MESSAGE_TYPE_OPTIONS = [
@@ -19,8 +19,7 @@ const MESSAGE_TYPE_OPTIONS = [
 ];
 
 const UnifiedTemplatesPage: React.FC = () => {
-  const access = useAccess();
-  const actionRef = useRef<ActionType>();
+  const { actionRef, message, access } = useListPage();
   const [modalVisible, setModalVisible] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState<UnifiedTemplate | null>(null);
   const [previewVisible, setPreviewVisible] = useState(false);
@@ -160,61 +159,43 @@ const UnifiedTemplatesPage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 250,
-      render: (_, record) => [
-        <Button
-          key="preview"
-          type="link"
-          size="small"
-          icon={<EyeOutlined />}
-          onClick={() => {
-            setPreviewTemplate(record);
-            setPreviewVisible(true);
-          }}
-        >
-          预览
-        </Button>,
-        <Button
-          key="edit"
-          type="link"
-          size="small"
-          icon={<EditOutlined />}
-          onClick={() => {
-            setCurrentTemplate(record);
-            setModalVisible(true);
-          }}
-          disabled={!access.hasPermission('message:send')}
-        >
-          编辑
-        </Button>,
-        <Button
-          key="clone"
-          type="link"
-          size="small"
-          icon={<CopyOutlined />}
-          onClick={() => handleClone(record)}
-          disabled={!access.hasPermission('message:send')}
-        >
-          克隆
-        </Button>,
-        <Popconfirm
-          key="delete"
-          title="确认删除"
-          description="删除后不可恢复，确认删除？"
-          onConfirm={() => handleDelete(record.id)}
-          disabled={!access.hasPermission('message:delete')}
-        >
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            disabled={!access.hasPermission('message:delete')}
+      width: 220,
+      render: (_, record) => (
+        <OperationGroup>
+          <OperationButton
+            type="custom"
+            icon={<EyeOutlined />}
+            onClick={() => {
+              setPreviewTemplate(record);
+              setPreviewVisible(true);
+            }}
           >
-            删除
-          </Button>
-        </Popconfirm>,
-      ],
+            预览
+          </OperationButton>
+          <OperationButton
+            type="edit"
+            permission="message:send"
+            onClick={() => {
+              setCurrentTemplate(record);
+              setModalVisible(true);
+            }}
+          />
+          <OperationButton
+            type="custom"
+            icon={<CopyOutlined />}
+            permission="message:send"
+            onClick={() => handleClone(record)}
+          >
+            克隆
+          </OperationButton>
+          <OperationButton
+            type="delete"
+            permission="message:delete"
+            confirmText="确认删除此模板？"
+            onClick={() => handleDelete(record.id)}
+          />
+        </OperationGroup>
+      ),
     },
   ];
 
@@ -228,18 +209,15 @@ const UnifiedTemplatesPage: React.FC = () => {
           labelWidth: 'auto',
         }}
         toolBarRender={() => [
-          <Button
+          <CreateButton
             key="create"
-            type="primary"
-            icon={<PlusOutlined />}
+            permission="message:send"
+            label="新建模板"
             onClick={() => {
               setCurrentTemplate(null);
               setModalVisible(true);
             }}
-            disabled={!access.hasPermission('message:send')}
-          >
-            新建模板
-          </Button>,
+          />,
         ]}
         request={createListRequest(messageApi.getUnifiedTemplates)}
         columns={columns}

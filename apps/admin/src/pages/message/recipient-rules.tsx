@@ -1,12 +1,11 @@
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormSelect } from '@ant-design/pro-components';
-import { Tag, Button, Popconfirm, message } from 'antd';
-import { useState, useRef } from 'react';
-import { useAccess } from '@umijs/max';
+import { Tag } from 'antd';
+import { useState } from 'react';
 import { messageApi } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
-import type { ActionType } from '@ant-design/pro-components';
+import { useListPage } from '@/hooks/useListPage';
+import { OperationGroup, OperationButton, CreateButton } from '@/components/ListOperations';
 import type { RecipientRule } from '@hospital/shared';
 
 const RULE_TYPE_OPTIONS = [
@@ -44,8 +43,7 @@ const EVENT_TYPE_OPTIONS = [
 ];
 
 const RecipientRulesPage: React.FC = () => {
-  const access = useAccess();
-  const actionRef = useRef<ActionType>();
+  const { actionRef, message } = useListPage();
   const [modalVisible, setModalVisible] = useState(false);
   const [currentRule, setCurrentRule] = useState<RecipientRule | null>(null);
   const [selectedRuleType, setSelectedRuleType] = useState<string>('role');
@@ -142,35 +140,26 @@ const RecipientRulesPage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 150,
-      render: (_, record) => [
-        <Button
-          key="edit"
-          type="link"
-          size="small"
-          icon={<EditOutlined />}
-          onClick={() => {
-            setCurrentRule(record);
-            setSelectedRuleType(record.ruleType);
-            setModalVisible(true);
-          }}
-          disabled={!access.hasPermission('message:send')}
-        >
-          编辑
-        </Button>,
-        <Popconfirm
-          key="delete"
-          title="确认删除此规则？"
-          onConfirm={() => handleDelete(record.id)}
-          disabled={!access.hasPermission('message:delete')}
-        >
-          <Button type="link" size="small" danger icon={<DeleteOutlined />}
-            disabled={!access.hasPermission('message:delete')}
-          >
-            删除
-          </Button>
-        </Popconfirm>,
-      ],
+      width: 120,
+      render: (_, record) => (
+        <OperationGroup>
+          <OperationButton
+            type="edit"
+            permission="message:send"
+            onClick={() => {
+              setCurrentRule(record);
+              setSelectedRuleType(record.ruleType);
+              setModalVisible(true);
+            }}
+          />
+          <OperationButton
+            type="delete"
+            permission="message:delete"
+            confirmText="确认删除此规则？"
+            onClick={() => handleDelete(record.id)}
+          />
+        </OperationGroup>
+      ),
     },
   ];
 
@@ -183,19 +172,16 @@ const RecipientRulesPage: React.FC = () => {
         columns={columns}
         search={{ labelWidth: 'auto' }}
         toolBarRender={() => [
-          <Button
+          <CreateButton
             key="create"
-            type="primary"
-            icon={<PlusOutlined />}
+            permission="message:send"
+            label="新建规则"
             onClick={() => {
               setCurrentRule(null);
               setSelectedRuleType('role');
               setModalVisible(true);
             }}
-            disabled={!access.hasPermission('message:send')}
-          >
-            新建规则
-          </Button>,
+          />,
         ]}
         request={createListRequest(messageApi.getRecipientRules as any)}
         pagination={{ defaultPageSize: 10 }}

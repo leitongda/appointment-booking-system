@@ -1,12 +1,13 @@
 import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Tag, Button, Popconfirm, Drawer, Space, App, Descriptions } from 'antd';
+import { Tag, Button, Popconfirm, Drawer, Space, App, Descriptions, Card, Row, Col } from 'antd';
+import { MailOutlined, UserOutlined, FileTextOutlined, BarChartOutlined } from '@ant-design/icons';
 import { useState, useCallback } from 'react';
-import { useModel } from '@umijs/max';
+import { useModel, history } from '@umijs/max';
 import { messageApi } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
 import { useListPage } from '@/hooks/useListPage';
-import { CreateButton } from '@/components/ListOperations';
+import { CreateButton, OperationGroup, OperationButton } from '@/components/ListOperations';
 import type { Message } from '@hospital/shared';
 
 const TYPE_MAP: Record<string, { text: string; color: string }> = {
@@ -144,32 +145,50 @@ const MessagePage: React.FC = () => {
       title: '操作',
       valueType: 'option',
       width: 120,
-      render: (_, record) => [
-        <Button
-          key="view"
-          type="link"
-          size="small"
-          onClick={() => handleViewDetail(record.id)}
-        >
-          查看
-        </Button>,
-        <Popconfirm
-          key="delete"
-          title="确认删除此消息？"
-          onConfirm={() => handleDelete(record.id)}
-        >
-          <Button type="link" size="small" danger>
-            删除
-          </Button>
-        </Popconfirm>,
-      ],
+      render: (_, record) => (
+        <OperationGroup>
+          <OperationButton
+            type="view"
+            onClick={() => handleViewDetail(record.id)}
+          />
+          <OperationButton
+            type="delete"
+            permission="message:delete"
+            confirmText="确认删除此消息？"
+            onClick={() => handleDelete(record.id)}
+          />
+        </OperationGroup>
+      ),
     },
   ];
 
   const detailType = currentMessage?.messageType ? TYPE_MAP[currentMessage.messageType] : undefined;
 
+  const quickLinks = [
+    { icon: <MailOutlined />, label: '邮件模板', path: '/system/config/email-templates' },
+    { icon: <UserOutlined />, label: '邮件接收人', path: '/system/config/email-recipients' },
+    { icon: <FileTextOutlined />, label: '统一模板', path: '/content-center/message/templates' },
+    { icon: <BarChartOutlined />, label: '通知日志', path: '/system/monitoring/notification-logs' },
+  ];
+
   return (
     <PageContainer>
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <Row gutter={16}>
+          {quickLinks.map((item) => (
+            <Col key={item.path}>
+              <Button
+                type="link"
+                icon={item.icon}
+                onClick={() => history.push(item.path)}
+                style={{ padding: 0 }}
+              >
+                {item.label}
+              </Button>
+            </Col>
+          ))}
+        </Row>
+      </Card>
       <ProTable<Message>
         headerTitle="消息列表"
         actionRef={actionRef}
