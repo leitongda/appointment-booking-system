@@ -50,7 +50,7 @@ _DEFAULT_CHANNEL_STRATEGY = {
     "appointment_cancelled": ["wechat", "sms", "in_app"],
     "schedule": ["websocket", "in_app"],
     "stop_clinic": ["wechat", "sms", "in_app"],
-    "system": ["in_app"],
+    "system": ["email", "in_app"],
     "consultation": ["in_app"],
     "feedback": ["in_app"],
     "queue_call": ["websocket", "in_app"],
