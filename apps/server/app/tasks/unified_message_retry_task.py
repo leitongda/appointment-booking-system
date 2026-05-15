@@ -284,11 +284,20 @@ def _retry_sms(phone: str, extra_data: dict) -> bool:
 
 
 def _retry_email(email: str, extra_data: dict) -> bool:
-    """重试邮件发送"""
+    """重试邮件发送（使用同步 SMTP）"""
     try:
-        # 邮件服务需要异步会话，在 Celery 同步环境中无法直接使用
-        logger.warning(f"邮件渠道暂不支持自动重试（需要异步环境）: recipient={email}")
-        return False
+        from app.utils.email_sync import get_email_config, send_email_sync
+        from app.db.session import get_sync_db
+
+        with get_sync_db() as db:
+            config = get_email_config(db)
+        if not config:
+            logger.warning(f"邮件重试失败: 无法获取 SMTP 配置, email={email}")
+            return False
+
+        subject = extra_data.get("subject", "")
+        content = extra_data.get("content", "")
+        return send_email_sync(config, email, subject, content)
     except Exception as e:
         logger.error(f"邮件重试失败: email={email}, error={e}")
         return False

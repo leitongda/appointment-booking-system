@@ -19,67 +19,29 @@ from app.models.store_email_recipient import StoreEmailRecipient
 from app.models.store import Store
 from app.models.email_template import EmailTemplate
 from app.models.notification_log import NotificationLog
-from app.models.settings import SystemSetting as Settings
 from app.core.events import EVENT_TYPE_LABELS
+from app.utils.email_sync import get_email_config, send_email_sync, render_email_template
 
 logger = logging.getLogger(__name__)
 
 
-def _get_email_config(db) -> dict:
-    """从数据库获取 SMTP 邮件配置（同步版本）"""
-    try:
-        result = db.execute(
-            select(Settings).where(Settings.category == "email")
-        )
-        settings_list = result.scalars().all()
-        config = {}
-        for s in settings_list:
-            config[s.key] = s.value
-        return config
-    except Exception as e:
-        logger.error(f"获取邮件配置失败: {e}")
-        return {}
+_SIMPLE_SUBJECT_TEMPLATE = "[{{ store_name }}] {{ event_label }}通知"
 
-
-def _send_email_sync(config: dict, to_email: str, subject: str, content: str) -> bool:
-    """同步发送邮件（Celery worker 环境）"""
-    import smtplib
-    from email.mime.text import MIMEText
-    from email.mime.multipart import MIMEMultipart
-    from email.utils import formataddr
-
-    smtp_host = config.get("host", "")
-    smtp_port = int(config.get("port", 587))
-    smtp_user = config.get("username", "")
-    smtp_password = config.get("password", "")
-    smtp_ssl = config.get("use_tls", "true") in (True, "true", "1", "yes")
-    sender_name = config.get("from_name", "")
-    sender_email = config.get("from_email", smtp_user)
-
-    if not smtp_host or not smtp_user or not smtp_password:
-        logger.warning("[EmailHook] SMTP 配置不完整，跳过发送")
-        return False
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = formataddr((sender_name, sender_email))
-    msg["To"] = to_email
-    msg.attach(MIMEText(content, "html", "utf-8"))
-
-    try:
-        if smtp_ssl:
-            server = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=15)
-        else:
-            server = smtplib.SMTP(smtp_host, smtp_port, timeout=15)
-            server.starttls()
-
-        server.login(smtp_user, smtp_password)
-        server.send_message(msg)
-        server.quit()
-        return True
-    except Exception as e:
-        logger.error(f"[EmailHook] 发送邮件失败: to={to_email}, error={e}")
-        return False
+_SIMPLE_CONTENT_TEMPLATE = """
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    <h2 style="color: #1890ff;">{{ event_label }}通知</h2>
+    <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+        <tr><td style="padding: 8px; color: #666;">门店</td><td style="padding: 8px;">{{ store_name }}</td></tr>
+        <tr><td style="padding: 8px; color: #666;">预约编号</td><td style="padding: 8px;">{{ appointment_no }}</td></tr>
+        <tr><td style="padding: 8px; color: #666;">患者</td><td style="padding: 8px;">{{ patient_name }}</td></tr>
+        <tr><td style="padding: 8px; color: #666;">医生</td><td style="padding: 8px;">{{ doctor_name }}</td></tr>
+        <tr><td style="padding: 8px; color: #666;">科室</td><td style="padding: 8px;">{{ department_name }}</td></tr>
+        <tr><td style="padding: 8px; color: #666;">日期</td><td style="padding: 8px;">{{ appointment_date }}</td></tr>
+        <tr><td style="padding: 8px; color: #666;">时段</td><td style="padding: 8px;">{{ appointment_time }}</td></tr>
+    </table>
+    <p style="color: #999; font-size: 12px;">此邮件由系统自动发送，请勿回复。</p>
+</div>
+"""
 
 
 def _render_simple_template(event_type: str, context: Dict[str, Any]) -> tuple:
@@ -90,30 +52,9 @@ def _render_simple_template(event_type: str, context: Dict[str, Any]) -> tuple:
         (subject, content) 元组
     """
     event_label = EVENT_TYPE_LABELS.get(event_type, event_type)
-    store_name = context.get("store_name", "")
-    patient_name = context.get("patient_name", "")
-    doctor_name = context.get("doctor_name", "")
-    department_name = context.get("department_name", "")
-    appointment_date = context.get("appointment_date", "")
-    appointment_time = context.get("appointment_time", "")
-    appointment_no = context.get("appointment_no", "")
-
-    subject = f"[{store_name}] {event_label}通知"
-    content = f"""
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #1890ff;">{event_label}通知</h2>
-        <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-            <tr><td style="padding: 8px; color: #666;">门店</td><td style="padding: 8px;">{store_name}</td></tr>
-            <tr><td style="padding: 8px; color: #666;">预约编号</td><td style="padding: 8px;">{appointment_no}</td></tr>
-            <tr><td style="padding: 8px; color: #666;">患者</td><td style="padding: 8px;">{patient_name}</td></tr>
-            <tr><td style="padding: 8px; color: #666;">医生</td><td style="padding: 8px;">{doctor_name}</td></tr>
-            <tr><td style="padding: 8px; color: #666;">科室</td><td style="padding: 8px;">{department_name}</td></tr>
-            <tr><td style="padding: 8px; color: #666;">日期</td><td style="padding: 8px;">{appointment_date}</td></tr>
-            <tr><td style="padding: 8px; color: #666;">时段</td><td style="padding: 8px;">{appointment_time}</td></tr>
-        </table>
-        <p style="color: #999; font-size: 12px;">此邮件由系统自动发送，请勿回复。</p>
-    </div>
-    """
+    render_ctx = {**context, "event_label": event_label}
+    subject = render_email_template(_SIMPLE_SUBJECT_TEMPLATE, render_ctx)
+    content = render_email_template(_SIMPLE_CONTENT_TEMPLATE, render_ctx)
     return subject, content
 
 
@@ -188,24 +129,20 @@ def process_event_email(self, store_id: str, event_type: str, context_data: Dict
 
             # 4. 渲染邮件内容
             if template:
-                subject = template.subject_template
-                content = template.content_template
-                for key, value in context_data.items():
-                    placeholder = "{{" + key + "}}"
-                    subject = subject.replace(placeholder, str(value))
-                    content = content.replace(placeholder, str(value))
+                subject = render_email_template(template.subject_template, context_data)
+                content = render_email_template(template.content_template, context_data)
             else:
                 subject, content = _render_simple_template(event_type, context_data)
 
             # 5. 获取 SMTP 配置
-            email_config = _get_email_config(db)
+            email_config = get_email_config(db)
 
             # 6. 逐个发送
             sent_count = 0
             failed_count = 0
             logs = []
             for recipient in matched_recipients:
-                success = _send_email_sync(email_config, recipient.email, subject, content)
+                success = send_email_sync(email_config, recipient.email, subject, content)
                 if success:
                     sent_count += 1
                     logger.info(f"[EmailHook] 发送成功: to={recipient.email}, event={event_type}")
