@@ -257,6 +257,79 @@ def _send_websocket_notification(
         logger.error(f"发送 WebSocket 通知异常: {e}")
 
 
+def _should_use_unified(tenant_id: str) -> bool:
+    """检查租户是否启用了统一消息中心"""
+    try:
+        from app.db.session import async_session_maker
+        from app.common.feature_flags import FeatureFlagService
+
+        async def _check():
+            async with async_session_maker() as session:
+                return await FeatureFlagService.is_beta_enabled(
+                    session, tenant_id, "beta_unified_message"
+                )
+
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(_check())
+        finally:
+            loop.close()
+    except Exception:
+        return False
+
+
+def _send_via_unified(
+    tenant_id: str,
+    store_id: Optional[str],
+    recipient_id: str,
+    recipient_type: str,
+    recipient_phone: Optional[str],
+    recipient_openid: Optional[str],
+    template_code: str,
+    message_type: str,
+    title: str,
+    content: str,
+    related_id: Optional[str] = None,
+    channels: Optional[list] = None,
+) -> bool:
+    """通过 UnifiedMessageService 发送通知（同步桥接）"""
+    try:
+        from app.db.session import async_session_maker
+        from app.modules.unified_message.service import UnifiedMessageService
+        from app.modules.unified_message.schemas import NotificationEvent
+
+        event = NotificationEvent(
+            tenant_id=tenant_id,
+            store_id=store_id,
+            recipient_id=recipient_id,
+            recipient_type=recipient_type,
+            recipient_phone=recipient_phone,
+            recipient_openid=recipient_openid,
+            template_code=template_code,
+            variables={},
+            message_type=message_type,
+            related_id=related_id,
+            title=title,
+            content=content,
+            channels=channels,
+        )
+
+        async def _send():
+            async with async_session_maker() as session:
+                service = UnifiedMessageService(session)
+                result = await service.send(event)
+                return result.success
+
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(_send())
+        finally:
+            loop.close()
+    except Exception as e:
+        logger.error(f"[统一消息] 发送失败: {e}", exc_info=True)
+        return False
+
+
 def _query_appointments_needing_reminder(
     db: Session,
     tenant_id: str,
@@ -371,6 +444,9 @@ def _send_reminder_for_level(
         f"找到 {len(appointments_to_remind)} 个待提醒预约"
     )
 
+    # 检查是否使用统一消息中心
+    use_unified = _should_use_unified(tenant_id)
+
     for appointment, schedule, user, doctor in appointments_to_remind:
         success = False
         error_msg = None
@@ -382,7 +458,31 @@ def _send_reminder_for_level(
         time_str = appointment_datetime.strftime("%Y年%m月%d日 %H:%M")
 
         try:
-            if reminder_config.channel == "wechat":
+            if use_unified:
+                # 统一消息路径：通过 UnifiedMessageService 发送
+                openid = user.openid or get_account_openid(db, user.id, "user")
+                phone = appointment.patient_phone or get_account_phone(db, user.id, "user")
+                title = f"预约提醒({reminder_config.level.value})"
+                content = f"您预约的 {doctor.name or '医生'} 医生将于 {time_str} 就诊，请准时到达。"
+
+                success = _send_via_unified(
+                    tenant_id=tenant_id,
+                    store_id=appointment.store_id,
+                    recipient_id=user.id,
+                    recipient_type="patient",
+                    recipient_phone=phone,
+                    recipient_openid=openid,
+                    template_code=f"appointment_reminder_{reminder_config.level.value}",
+                    message_type="appointment",
+                    title=title,
+                    content=content,
+                    related_id=appointment.id,
+                    channels=[reminder_config.channel],
+                )
+                if not success:
+                    error_msg = f"统一消息发送失败({reminder_config.channel})"
+
+            elif reminder_config.channel == "wechat":
                 # 24h 级别：微信订阅消息
                 if not wechat_access_token or not wechat_template_id:
                     error_msg = "微信配置不完整"
@@ -472,23 +572,24 @@ def _send_reminder_for_level(
                     f"appointment_id={appointment.id}, error={error_msg}"
                 )
 
-            # 记录 NotificationLog
-            log = NotificationLog(
-                tenant_id=tenant_id,
-                store_id=appointment.store_id,
-                user_id=user.id,
-                user_type="patient",
-                channel=reminder_config.channel,
-                message_type=f"appointment_reminder_{reminder_config.level.value}",
-                title=f"预约提醒({reminder_config.level.value})",
-                content=f"就诊时间: {time_str}",
-                status="sent" if success else "failed",
-                recipient=user.openid or appointment.patient_phone or user.id,
-                related_id=appointment.id,
-                sent_at=now if success else None,
-                error_message=error_msg,
-            )
-            db.add(log)
+            # 记录 NotificationLog（统一消息路径已由 UnifiedMessageService 记录，跳过）
+            if not use_unified:
+                log = NotificationLog(
+                    tenant_id=tenant_id,
+                    store_id=appointment.store_id,
+                    user_id=user.id,
+                    user_type="patient",
+                    channel=reminder_config.channel,
+                    message_type=f"appointment_reminder_{reminder_config.level.value}",
+                    title=f"预约提醒({reminder_config.level.value})",
+                    content=f"就诊时间: {time_str}",
+                    status="sent" if success else "failed",
+                    recipient=user.openid or appointment.patient_phone or user.id,
+                    related_id=appointment.id,
+                    sent_at=now if success else None,
+                    error_message=error_msg,
+                )
+                db.add(log)
 
         except Exception as e:
             failed_count += 1

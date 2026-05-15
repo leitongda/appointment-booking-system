@@ -19,6 +19,8 @@ class NotificationPreference(Base):
     queue_call_enabled = Column(Boolean, default=True, comment="叫号通知")
     stop_clinic_enabled = Column(Boolean, default=True, comment="停诊通知")
     system_enabled = Column(Boolean, default=True, comment="系统通知")
+    consultation_enabled = Column(Boolean, default=True, comment="就诊通知")
+    feedback_enabled = Column(Boolean, default=True, comment="反馈通知")
     sms_enabled = Column(Boolean, default=True, comment="短信通知")
     email_enabled = Column(Boolean, default=True, comment="邮件通知")
     wechat_enabled = Column(Boolean, default=True, comment="微信推送")

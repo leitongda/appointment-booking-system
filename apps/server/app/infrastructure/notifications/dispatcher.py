@@ -211,33 +211,10 @@ class NotificationDispatcher:
 
         默认返回 True（未设置偏好时允许通知）。
         """
-        try:
-            channel_col = _CHANNEL_FIELD_MAP.get(channel)
-            type_col = _TYPE_FIELD_MAP.get(event.message_type)
-
-            if not channel_col or not type_col:
-                return True
-
-            stmt = text(
-                f"SELECT {channel_col}, {type_col} "
-                f"FROM notification_preferences "
-                f"WHERE user_id = :uid AND user_type = :utype "
-                f"LIMIT 1"
-            )
-            result = await self.db.execute(
-                stmt,
-                {"uid": event.recipient_id, "utype": event.recipient_type}
-            )
-            row = await result.first()  # 使用 await 获取结果
-
-            if row is None:
-                return True  # 未设置偏好，默认允许
-
-            return bool(row[0]) and bool(row[1])
-
-        except Exception as e:
-            logger.error(f"[通知分发] 检查偏好失败: {e}", exc_info=True)
-            return True  # 出错时默认允许
+        from app.common.notification_preference import check_notification_preference
+        return await check_notification_preference(
+            self.db, event.recipient_id, event.recipient_type, channel, event.message_type
+        )
 
     async def _check_and_mark_dedup(self, event: NotificationEvent) -> bool:
         """检查并标记去重
@@ -282,54 +259,32 @@ class NotificationDispatcher:
             过滤后的渠道列表
         """
         try:
-            # 1. 获取用户偏好
-            stmt = text(
-                "SELECT sms_enabled, email_enabled, wechat_enabled, in_app_enabled, "
-                "appointment_enabled, reminder_enabled, stop_clinic_enabled, system_enabled, "
-                "consultation_enabled, feedback_enabled, quiet_hours_start, quiet_hours_end "
-                "FROM notification_preferences "
-                "WHERE user_id = :uid AND user_type = :utype "
-                "LIMIT 1"
+            from app.common.notification_preference import (
+                get_user_preferences,
+                CHANNEL_FIELD_MAP as SHARED_CHANNEL_MAP,
+                TYPE_FIELD_MAP as SHARED_TYPE_MAP,
             )
-            result = await self.db.execute(
-                stmt,
-                {"uid": event.recipient_id, "utype": event.recipient_type}
-            )
-            row = await result.first()
 
-            if row is None:
+            prefs = await get_user_preferences(self.db, event.recipient_id, event.recipient_type)
+            if prefs is None:
                 return channels  # 无偏好设置，不过滤
 
-            # 2. 获取消息类型对应的字段名
-            type_col = _TYPE_FIELD_MAP.get(event.message_type)
-            if not type_col:
-                return channels  # 未知类型，不过滤
-
-            # 解析结果
-            prefs = dict(zip(
-                ["sms_enabled", "email_enabled", "wechat_enabled", "in_app_enabled",
-                 "appointment_enabled", "reminder_enabled", "stop_clinic_enabled",
-                 "system_enabled", "consultation_enabled", "feedback_enabled",
-                 "quiet_hours_start", "quiet_hours_end"],
-                row
-            ))
-
-            # 3. 检查消息类型是否启用
-            type_enabled = prefs.get(type_col, True)
-            if not type_enabled:
+            # 检查消息类型是否启用
+            type_col = SHARED_TYPE_MAP.get(event.message_type)
+            if type_col and not prefs.get(type_col, True):
                 logger.debug(f"[通知分发] 用户已禁用消息类型: {event.message_type}")
-                return []  # 该类型消息已禁用，返回空列表
+                return []
 
-            # 4. 按通道开关过滤
+            # 按通道开关过滤
             filtered = []
             for ch in channels:
-                channel_col = _CHANNEL_FIELD_MAP.get(ch)
+                channel_col = SHARED_CHANNEL_MAP.get(ch)
                 if channel_col and not prefs.get(channel_col, True):
                     logger.debug(f"[通知分发] 用户已禁用通道: {ch}")
                     continue
                 filtered.append(ch)
 
-            # 5. 检查免打扰时段
+            # 检查免打扰时段
             quiet_start = prefs.get("quiet_hours_start")
             quiet_end = prefs.get("quiet_hours_end")
             if quiet_start and quiet_end and self._in_quiet_hours(quiet_start, quiet_end):

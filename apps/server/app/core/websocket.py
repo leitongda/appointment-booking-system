@@ -25,7 +25,7 @@ class WSMessageType(str, Enum):
     CONNECTED = "CONNECTED"      # 连接成功
     HEARTBEAT = "HEARTBEAT"      # 心跳
     ERROR = "ERROR"              # 错误
-    
+
     # 预约相关
     PATIENT_SIGNED_IN = "PATIENT_SIGNED_IN"      # 患者签到
     PATIENT_CALLED = "PATIENT_CALLED"            # 叫号
@@ -35,11 +35,14 @@ class WSMessageType(str, Enum):
     PATIENT_NO_SHOW = "PATIENT_NO_SHOW"          # 爽约
     QUEUE_UPDATED = "QUEUE_UPDATED"              # 队列更新
     NEW_APPOINTMENT = "NEW_APPOINTMENT"          # 新预约
-    
+
     # 排班相关
     SCHEDULE_SUSPENDED = "SCHEDULE_SUSPENDED"    # 排班停诊
     LEAVE_REQUEST_REVIEWED = "LEAVE_REQUEST_REVIEWED"  # 请假审核结果
-    
+
+    # 消息中心
+    NEW_MESSAGE = "NEW_MESSAGE"                  # 新消息通知
+
     # 系统通知
     SYSTEM_MESSAGE = "SYSTEM_MESSAGE"            # 系统消息
 
@@ -557,4 +560,25 @@ async def broadcast_system_message(
         ),
         require_ack,
         tenant_id
+    )
+
+
+async def notify_new_message(
+    doctor_id: str,
+    message_data: Dict[str, Any],
+    tenant_id: Optional[str] = None
+):
+    """通知医生有新消息
+
+    Args:
+        doctor_id: 医生 ID
+        message_data: 消息数据（包含 id, title, content, message_type 等）
+        tenant_id: 租户 ID
+    """
+    await notify_doctor(
+        doctor_id,
+        WSMessageType.NEW_MESSAGE,
+        data=message_data,
+        require_ack=False,  # 新消息通知不需要确认
+        tenant_id=tenant_id,
     )

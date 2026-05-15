@@ -59,6 +59,8 @@ celery_app.conf.update(
         "app.tasks.email_hook_task.*": {"queue": "notification"},
         "app.tasks.wechat_task.*": {"queue": "default"},
         "app.tasks.cleanup_task.*": {"queue": "scheduled"},
+        "app.tasks.unified_message_cleanup_task.*": {"queue": "scheduled"},
+        "app.tasks.unified_message_retry_task.*": {"queue": "notification"},
         "app.tasks.operation_log_task.*": {"queue": "default"},
         "app.tasks.behavior_log_task.*": {"queue": "default"},
         "app.tasks.payment_task.*": {"queue": "scheduled"},
@@ -172,6 +174,20 @@ celery_app.conf.update(
             "schedule": crontab(minute="*/5"),
             "options": {"queue": "notification"},
         },
+
+        # 统一消息投递重试 - 每5分钟（与旧重试任务错开 1 分钟）
+        "unified-message-retry": {
+            "task": "app.tasks.unified_message_retry_task.retry_failed_deliveries",
+            "schedule": crontab(minute="1,6,11,16,21,26,31,36,41,46,51,56"),
+            "options": {"queue": "notification"},
+        },
+
+        # 统一消息过期清理 - 每天凌晨 3:05（与旧清理任务错开 5 分钟）
+        "unified-message-cleanup": {
+            "task": "app.tasks.unified_message_cleanup_task.cleanup_expired_messages",
+            "schedule": crontab(hour=3, minute=5),
+            "options": {"queue": "scheduled"},
+        },
     },
 )
 
@@ -181,6 +197,8 @@ celery_app.autodiscover_tasks([
     "app.tasks.schedule_task",
     "app.tasks.notification_task",
     "app.tasks.notification_retry_task",
+    "app.tasks.unified_message_retry_task",
+    "app.tasks.unified_message_cleanup_task",
     "app.tasks.email_hook_task",
     "app.tasks.wechat_task",
     "app.tasks.cleanup_task",
