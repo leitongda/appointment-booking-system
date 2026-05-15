@@ -2,8 +2,12 @@
 import logging
 from datetime import datetime
 
+from sqlalchemy import select
+
 from app.schemas.notification import NotificationEvent, NotificationContent
 from app.models.notification_log import NotificationLog
+from app.models.account import Account
+from app.models.user import User
 from app.infrastructure.notifications.channels.base import BaseNotificationChannel
 from app.infrastructure.email.service import EmailService
 
@@ -22,14 +26,40 @@ class EmailChannel(BaseNotificationChannel):
         return "email"
 
     async def validate_recipient(self, event: NotificationEvent) -> tuple[bool, str | None]:
-        """邮件需要邮箱地址"""
+        """邮件需要邮箱地址，支持从数据库 fallback 查询"""
         if not event.recipient_email:
-            return False, "缺少接收人邮箱"
+            # 尝试从数据库获取邮箱
+            if event.recipient_type == "patient":
+                result = await self.db.execute(
+                    select(User.email).where(User.id == event.recipient_id)
+                )
+                email = await result.scalar_one_or_none()
+                if not email:
+                    return False, "用户未设置邮箱或缺少邮箱地址"
+                event.recipient_email = email
+            else:
+                # 优先查 Account 表
+                result = await self.db.execute(
+                    select(Account.email).where(Account.id == event.recipient_id)
+                )
+                email = await result.scalar_one_or_none()
+                if not email:
+                    return False, "缺少接收人邮箱"
+                event.recipient_email = email
         return True, None
 
     async def send(self, event: NotificationEvent, content: NotificationContent) -> bool:
         """发送邮件"""
         try:
+            # 检查用户是否启用了邮件通知偏好
+            from app.common.notification_preference import check_notification_preference
+            pref_ok = await check_notification_preference(
+                self.db, event.recipient_id, event.recipient_type, "email", event.message_type
+            )
+            if not pref_ok:
+                logger.info(f"[邮件] 用户已禁用邮件通知: user={event.recipient_id}, type={event.message_type}")
+                return False
+
             email_service = EmailService(self.db)
 
             # 尝试使用模板发送
