@@ -1,5 +1,5 @@
 import request from '../request';
-import type { PageResult } from '@hospital/shared';
+import type { PageResult, UsageStats, NotificationQuota, NotificationQuotaUpdate } from '@hospital/shared';
 
 export interface NotificationLog {
   id: string;
@@ -11,11 +11,13 @@ export interface NotificationLog {
   messageType?: string;
   title?: string;
   content?: string;
-  status: 'pending' | 'sent' | 'failed';
+  status: 'pending' | 'sent' | 'failed' | 'permanently_failed';
   errorMessage?: string;
   recipient?: string;
   relatedId?: string;
   retryCount?: number;
+  maxRetries?: number;
+  nextRetryAt?: string;
   sentAt?: string;
   createdAt: string;
   extraData?: Record<string, any>;
@@ -23,7 +25,7 @@ export interface NotificationLog {
 
 export interface NotificationLogListParams {
   channel?: 'sms' | 'email' | 'in_app' | 'wechat';
-  status?: 'pending' | 'sent' | 'failed';
+  status?: 'pending' | 'sent' | 'failed' | 'permanently_failed';
   messageType?: string;
   userId?: string;
   storeId?: string;
@@ -76,5 +78,19 @@ export const notificationLogApi = {
 
   retry: (id: string): Promise<{ message: string }> => {
     return request.post(`/notification-logs/${id}/retry`);
+  },
+
+  getUsageStats: (params?: { period?: string }): Promise<UsageStats> => {
+    return request.get('/notification-logs/usage-stats', {
+      params: { period: params?.period || 'month' },
+    });
+  },
+
+  getQuota: (): Promise<NotificationQuota> => {
+    return request.get('/notification-logs/quota');
+  },
+
+  updateQuota: (data: NotificationQuotaUpdate): Promise<NotificationQuota> => {
+    return request.put('/notification-logs/quota', data);
   },
 };

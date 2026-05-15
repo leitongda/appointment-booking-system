@@ -1,5 +1,5 @@
 import request from '../request';
-import type { Message, UnreadCount, MessageTemplate, PageResult } from '@hospital/shared';
+import type { Message, UnreadCount, MessageTemplate, UnifiedTemplate, RecipientRule, PageResult } from '@hospital/shared';
 
 export interface MessageListParams {
   userId?: string;
@@ -134,5 +134,59 @@ export const messageApi = {
   // 删除消息模板
   deleteTemplate: (id: string): Promise<void> => {
     return request.delete(`/messages/templates/${id}`);
+  },
+
+  // 统一模板 API
+  getUnifiedTemplates: (params?: { messageType?: string; status?: number; page?: number; pageSize?: number }): Promise<UnifiedTemplate[]> => {
+    return request.get('/unified-messages/templates', {
+      params: {
+        message_type: params?.messageType,
+        status: params?.status,
+        page: params?.page,
+        page_size: params?.pageSize,
+      },
+    });
+  },
+
+  createUnifiedTemplate: (data: Partial<UnifiedTemplate>): Promise<UnifiedTemplate> => {
+    return request.post('/unified-messages/templates', data);
+  },
+
+  updateUnifiedTemplate: (id: string, data: Partial<UnifiedTemplate>): Promise<UnifiedTemplate> => {
+    return request.put(`/unified-messages/templates/${id}`, data);
+  },
+
+  deleteUnifiedTemplate: (id: string): Promise<void> => {
+    return request.delete(`/unified-messages/templates/${id}`);
+  },
+
+  // 收件人规则 API
+  getRecipientRules: (params?: { eventType?: string }): Promise<RecipientRule[]> => {
+    return request.get('/unified-messages/rules', { params });
+  },
+
+  createRecipientRule: (data: Partial<RecipientRule>): Promise<RecipientRule> => {
+    return request.post('/unified-messages/rules', data);
+  },
+
+  updateRecipientRule: (id: string, data: Partial<RecipientRule>): Promise<RecipientRule> => {
+    return request.put(`/unified-messages/rules/${id}`, data);
+  },
+
+  deleteRecipientRule: (id: string): Promise<void> => {
+    return request.delete(`/unified-messages/rules/${id}`);
+  },
+
+  // 批量发送（通过规则）
+  sendBatchByRule: (ruleId: string, data: {
+    messageType: string;
+    templateCode?: string;
+    title?: string;
+    content?: string;
+    variables?: Record<string, any>;
+    channels?: string[];
+    priority?: number;
+  }): Promise<{ message: string }> => {
+    return request.post('/unified-messages/send-batch', data, { params: { rule_id: ruleId } });
   },
 };
