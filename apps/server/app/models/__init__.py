@@ -46,6 +46,14 @@ from app.models.miniapp_platform import (
 )
 from app.models.notification_log import NotificationLog
 from app.models.notification_preference import NotificationPreference
+from app.modules.unified_message.models import (
+    NotificationGroup,
+    NotificationRecipient,
+    NotificationDelivery,
+    UnifiedTemplate,
+    ChannelStrategy,
+    RecipientRule,
+)
 from app.models.platform_announcement import PlatformAnnouncement
 from app.models.support_ticket import SupportTicket
 from app.models.account import Account, AccountAdmin, AccountDoctor, AccountUser
