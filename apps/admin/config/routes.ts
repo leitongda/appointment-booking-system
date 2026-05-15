@@ -321,6 +321,7 @@ export default [
           { path: '/content-center/message', redirect: '/content-center/message/list' },
           { path: '/content-center/message/list', name: '消息列表', component: './message' },
           { path: '/content-center/message/create', name: '发送消息', component: './message/form', hideInMenu: true },
+          { path: '/content-center/message/templates', name: '统一模板', component: './message/templates' },
         ],
       },
       {

@@ -2,7 +2,7 @@ export interface Message {
   id: string;
   title: string;
   content?: string;
-  message_type: string;
-  is_read: number;
-  created_at: string;
+  messageType: string;
+  isRead: number;
+  createdAt: string;
 }

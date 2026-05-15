@@ -6,8 +6,10 @@ import { messageApi } from '@hospital/api';
 const TYPE_OPTIONS = [
   { label: '系统', value: 'system' },
   { label: '预约', value: 'appointment' },
-  { label: '提醒', value: 'reminder' },
-  { label: '公告', value: 'notice' },
+  { label: '就诊', value: 'consultation' },
+  { label: '排班', value: 'schedule' },
+  { label: '停诊', value: 'stop_clinic' },
+  { label: '反馈', value: 'feedback' },
 ];
 
 const MessageFormPage: React.FC = () => {

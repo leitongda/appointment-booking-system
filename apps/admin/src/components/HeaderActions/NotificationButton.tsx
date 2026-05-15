@@ -116,7 +116,7 @@ export const NotificationButton: React.FC = () => {
   const handleMessageKeyDown = useCallback((item: Message, e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      if (!item.is_read) {
+      if (!item.isRead) {
         handleMarkAsRead(item.id);
       }
     }
@@ -143,28 +143,28 @@ export const NotificationButton: React.FC = () => {
   const messageTypeConfig: Record<string, { color: string; text: string; icon: React.ReactNode }> = {
     system: { color: 'blue', text: '系统', icon: <BellOutlined /> },
     appointment: { color: 'green', text: '预约', icon: <CheckOutlined /> },
-    notification: { color: 'orange', text: '通知', icon: <EyeOutlined /> },
-    reminder: { color: 'red', text: '提醒', icon: <ClockCircleOutlined /> },
+    consultation: { color: 'cyan', text: '就诊', icon: <EyeOutlined /> },
+    schedule: { color: 'orange', text: '排班', icon: <ClockCircleOutlined /> },
+    stop_clinic: { color: 'red', text: '停诊', icon: <ClockCircleOutlined /> },
+    feedback: { color: 'purple', text: '反馈', icon: <BellOutlined /> },
   };
 
   const filteredMessages = useMemo(() => {
     if (activeTab === 'all') return messages;
-    if (activeTab === 'unread') return messages.filter(m => !m.is_read);
-    return messages.filter(m => m.message_type === activeTab);
+    if (activeTab === 'unread') return messages.filter(m => !m.isRead);
+    return messages.filter(m => m.messageType === activeTab);
   }, [messages, activeTab]);
 
   const messageCounts = useMemo(() => {
     const counts: Record<string, number> = {
       all: messages.length,
-      unread: messages.filter(m => !m.is_read).length,
+      unread: messages.filter(m => !m.isRead).length,
       system: 0,
       appointment: 0,
-      notification: 0,
-      reminder: 0,
     };
     messages.forEach(m => {
-      if (counts[m.message_type] !== undefined) {
-        counts[m.message_type]++;
+      if (counts[m.messageType] !== undefined) {
+        counts[m.messageType]++;
       }
     });
     return counts;
@@ -172,7 +172,7 @@ export const NotificationButton: React.FC = () => {
 
   const renderMessageActions = (item: Message) => {
     const items: MenuProps['items'] = [
-      !item.is_read && {
+      !item.isRead && {
         key: 'read',
         icon: <EyeOutlined />,
         label: '标为已读',
@@ -262,12 +262,12 @@ export const NotificationButton: React.FC = () => {
             role="list"
             aria-label="消息列表"
             renderItem={(item) => {
-              const config = messageTypeConfig[item.message_type] || messageTypeConfig.system;
+              const config = messageTypeConfig[item.messageType] || messageTypeConfig.system;
               return (
                 <List.Item
-                  className={`${styles.messageItem} ${!item.is_read ? styles.unread : ''}`}
+                  className={`${styles.messageItem} ${!item.isRead ? styles.unread : ''}`}
                   onClick={() => {
-                    if (!item.is_read) {
+                    if (!item.isRead) {
                       handleMarkAsRead(item.id);
                     }
                   }}
@@ -275,7 +275,7 @@ export const NotificationButton: React.FC = () => {
                   tabIndex={0}
                   role="listitem"
                   aria-label={
-                    !item.is_read
+                    !item.isRead
                       ? `未读消息: ${item.title}, ${item.content || ''}, ${config.text}`
                       : `消息: ${item.title}, ${item.content || ''}, ${config.text}`
                   }
@@ -286,18 +286,18 @@ export const NotificationButton: React.FC = () => {
                         <Tag color={config.color} icon={config.icon} className={styles.messageTypeTag}>
                           {config.text}
                         </Tag>
-                        {!item.is_read && <Badge status="processing" aria-label="未读" />}
+                        {!item.isRead && <Badge status="processing" aria-label="未读" />}
                       </Space>
                       {renderMessageActions(item)}
                     </div>
                     <div className={styles.messageTitleWrapper}>
                       <Text
-                        strong={!item.is_read}
+                        strong={!item.isRead}
                         className={styles.messageTitle}
                         ellipsis={{ tooltip: item.title }}
                       >
                         {item.title}
-                        {!item.is_read && <span style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', borderWidth: 0 }}>（未读）</span>}
+                        {!item.isRead && <span style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', borderWidth: 0 }}>（未读）</span>}
                       </Text>
                     </div>
                     {item.content && (
@@ -310,7 +310,7 @@ export const NotificationButton: React.FC = () => {
                       </Text>
                     )}
                     <Text type="secondary" className={styles.messageTime}>
-                      {dayjs(item.created_at).fromNow()}
+                      {dayjs(item.createdAt).fromNow()}
                     </Text>
                   </div>
                 </List.Item>

@@ -8,10 +8,12 @@ import { CreateButton } from '@/components/ListOperations';
 import type { Message } from '@hospital/shared';
 
 const TYPE_MAP: Record<string, { text: string; color: string }> = {
-  system: { text: '系统', color: 'blue' },
   appointment: { text: '预约', color: 'green' },
-  reminder: { text: '提醒', color: 'orange' },
-  notice: { text: '公告', color: 'purple' },
+  consultation: { text: '就诊', color: 'cyan' },
+  schedule: { text: '排班', color: 'orange' },
+  system: { text: '系统', color: 'blue' },
+  stop_clinic: { text: '停诊', color: 'red' },
+  feedback: { text: '反馈', color: 'purple' },
 };
 
 const MessagePage: React.FC = () => {

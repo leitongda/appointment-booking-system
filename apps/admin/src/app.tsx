@@ -200,7 +200,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
     },
     waterMarkProps: {
       content: [initialState?.currentUser?.name, initialState?.currentUser?.email || initialState?.currentUser?.phone],
-      fontColor: 'rgba(0, 0, 0, 0.05)',
+      fontColor: 'rgba(0, 0, 0, 0.03)',
       fontSize: 12,
       gap: [200, 100],
       rotate: -35,
