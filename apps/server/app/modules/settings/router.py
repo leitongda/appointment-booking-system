@@ -291,18 +291,16 @@ async def get_email_config(
     """获取邮件配置"""
     service = SettingsService(db)
     config = await service.get_email_config()
-    # 隐藏敏感信息
-    if config.get('smtp_password'):
-        config['smtp_password'] = '******'
-    # 转换为驼峰命名
+    # 隐藏敏感信息（有密码则显示掩码）
+    has_password = bool(config.get('password'))
     return {
-        'smtpHost': config.get('smtp_host', ''),
-        'smtpPort': config.get('smtp_port', 465),
-        'smtpUser': config.get('smtp_user', ''),
-        'smtpPassword': config.get('smtp_password', ''),
-        'smtpSsl': config.get('smtp_ssl', True),
-        'senderName': config.get('sender_name', ''),
-        'senderEmail': config.get('sender_email', ''),
+        'smtpHost': config.get('host', ''),
+        'smtpPort': config.get('port', 587),
+        'smtpUser': config.get('username', ''),
+        'smtpPassword': '******' if has_password else '',
+        'smtpSsl': config.get('useTls', True),
+        'senderName': config.get('fromName', ''),
+        'senderEmail': config.get('fromEmail', ''),
     }
 
 
@@ -315,16 +313,22 @@ async def update_email_config(
 ):
     """更新邮件配置"""
     service = SettingsService(db)
-    
-    await service.update_email_config(
-        smtp_host=data.smtpHost,
-        smtp_port=data.smtpPort,
-        smtp_user=data.smtpUser,
-        smtp_password=data.smtpPassword if data.smtpPassword != '******' else None,
-        smtp_ssl=data.smtpSsl,
-        sender_name=data.senderName,
-        sender_email=data.senderEmail,
-    )
+    update_data: dict = {}
+    if data.smtpHost is not None:
+        update_data['host'] = data.smtpHost
+    if data.smtpPort is not None:
+        update_data['port'] = data.smtpPort
+    if data.smtpUser is not None:
+        update_data['username'] = data.smtpUser
+    if data.smtpPassword is not None and data.smtpPassword != '******':
+        update_data['password'] = data.smtpPassword
+    if data.smtpSsl is not None:
+        update_data['useTls'] = data.smtpSsl
+    if data.senderName is not None:
+        update_data['fromName'] = data.senderName
+    if data.senderEmail is not None:
+        update_data['fromEmail'] = data.senderEmail
+    await service.update_email_config(update_data)
     return {"message": "保存成功"}
 
 

@@ -53,19 +53,24 @@ class SettingsViewMixin:
         }
 
     async def get_email_config(self) -> Dict:
+        from app.utils.email_sync import decrypt_password
         data = await self.get_by_category("email")
+        password = data.get("password", "")
+        if password:
+            password = decrypt_password(password)
         return {
             "enabled": data.get("enabled", False),
             "host": data.get("host", ""),
             "port": data.get("port", 587),
             "username": data.get("username", ""),
-            "password": data.get("password", ""),
+            "password": password,
             "fromEmail": data.get("from_email", ""),
             "fromName": data.get("from_name", ""),
             "useTls": data.get("use_tls", True),
         }
 
     async def update_email_config(self, data: Dict, operator_id=None) -> Dict:
+        from app.utils.email_sync import encrypt_password
         category = "email"
         mapping = {
             "enabled": "enabled",
@@ -79,7 +84,11 @@ class SettingsViewMixin:
         }
         for api_key, db_key in mapping.items():
             if api_key in data:
-                await self.set_value(category, db_key, data[api_key], operator_id=operator_id)
+                value = data[api_key]
+                # 密码字段加密存储
+                if db_key == "password" and value:
+                    value = encrypt_password(str(value))
+                await self.set_value(category, db_key, value, operator_id=operator_id)
         return await self.get_email_config()
 
     async def get_booking_fields(self) -> list:
