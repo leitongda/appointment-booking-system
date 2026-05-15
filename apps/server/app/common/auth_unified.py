@@ -324,6 +324,7 @@ async def _get_admin_account(
             phone=user.phone,
             name=user.nickname or "管理员",
             status=user.status,
+            created_at=user.created_at,
             admin_info=admin_info,
         )
 
@@ -441,21 +442,34 @@ async def _get_admin_account(
         except (json.JSONDecodeError, TypeError):
             permissions = []
 
+    # 计算租户过期天数
+    days_until_expiry = None
+    if admin.tenant and admin.tenant.subscription_end_at:
+        from datetime import datetime as _dt
+        delta = admin.tenant.subscription_end_at - _dt.utcnow()
+        days_until_expiry = max(0, delta.days)
+
     admin_info = AdminInfo(
         role_id=admin.role_id,
         role_code=role_code,
         role_name=role_name,
+        username=admin.username,
         permissions=permissions,
         current_store_id=current_store.id if current_store else None,
         current_store_name=current_store.name if current_store else None,
         current_store_logo=current_store.logo if current_store else None,
         current_store_theme=current_store.theme_style if current_store else None,
         store_ids=store_ids,
-        stores=[{"id": s.id, "name": s.name, "logo": s.logo} for s in available_stores],
+        stores=[{"id": s.id, "name": s.name, "logo": s.logo, "theme_style": s.theme_style} for s in available_stores],
         tenant_id=tenant_id,
         tenant_name=tenant_name,
         tenant_code=tenant_code,
         tenant_status=tenant_status,
+        tenant_subscription_plan_name=admin.tenant.subscription_plan.name if admin.tenant and admin.tenant.subscription_plan else None,
+        tenant_subscription_end_at=admin.tenant.subscription_end_at if admin.tenant else None,
+        tenant_is_subscription_active=admin.tenant.is_subscription_active if admin.tenant else False,
+        tenant_days_until_expiry=days_until_expiry,
+        tenant_contact_phone=admin.tenant.contact_phone if admin.tenant else None,
         is_super_admin=is_super_admin,
         is_store_admin=is_store_admin,
         is_tenant_admin=is_tenant_admin,
@@ -469,9 +483,13 @@ async def _get_admin_account(
         role_type=RoleType.ADMIN,
         tenant_id=admin.tenant_id,
         phone=admin.phone,
+        email=admin.email,
         name=admin.name or "管理员",
         avatar=admin.avatar,
         status=admin.status,
+        last_login_at=admin.last_login_at,
+        last_login_ip=admin.last_login_ip,
+        created_at=admin.created_at,
         admin_info=admin_info,
     )
 

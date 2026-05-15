@@ -22,6 +22,9 @@ class AdminInfo:
     role_code: Optional[str] = None
     role_name: Optional[str] = None
 
+    # 管理员元数据
+    username: Optional[str] = None
+
     # 权限列表
     permissions: List[str] = field(default_factory=list)
 
@@ -39,6 +42,13 @@ class AdminInfo:
     tenant_code: Optional[str] = None
     tenant_status: Optional[int] = None
 
+    # 租户订阅详情（用于 /me 接口）
+    tenant_subscription_plan_name: Optional[str] = None
+    tenant_subscription_end_at: Optional[Any] = None
+    tenant_is_subscription_active: bool = False
+    tenant_days_until_expiry: Optional[int] = None
+    tenant_contact_phone: Optional[str] = None
+
     # 角色标志（便于快速判断）
     is_super_admin: bool = False
     is_store_admin: bool = False
@@ -49,10 +59,25 @@ class AdminInfo:
 
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典（兼容旧接口）"""
+        tenant_dict = None
+        if self.tenant_id:
+            tenant_dict = {
+                "id": self.tenant_id,
+                "name": self.tenant_name,
+                "tenant_code": self.tenant_code,
+                "status": self.tenant_status,
+                "subscription_plan_name": self.tenant_subscription_plan_name,
+                "subscription_end_at": self.tenant_subscription_end_at,
+                "is_subscription_active": self.tenant_is_subscription_active,
+                "days_until_expiry": self.tenant_days_until_expiry,
+                "contact_phone": self.tenant_contact_phone,
+            }
+
         return {
             "role_id": self.role_id,
             "role_code": self.role_code,
             "role_name": self.role_name,
+            "username": self.username,
             "permissions": self.permissions,
             "current_store_id": self.current_store_id,
             "current_store_name": self.current_store_name,
@@ -61,12 +86,7 @@ class AdminInfo:
             "store_ids": self.store_ids,
             "stores": self.stores,
             "tenant_id": self.tenant_id,
-            "tenant": {
-                "id": self.tenant_id,
-                "name": self.tenant_name,
-                "tenant_code": self.tenant_code,
-                "status": self.tenant_status,
-            } if self.tenant_id else None,
+            "tenant": tenant_dict,
             "is_super_admin": self.is_super_admin,
             "is_store_admin": self.is_store_admin,
             "is_tenant_admin": self.is_tenant_admin,
@@ -138,6 +158,12 @@ class AccountInfo:
     avatar: Optional[str] = None
     status: int = 1
 
+    # 扩展信息（来自各自角色表）
+    email: Optional[str] = None
+    last_login_at: Optional[Any] = None
+    last_login_ip: Optional[str] = None
+    created_at: Optional[Any] = None
+
     # 角色特定信息（根据 role_type 填充对应的 info）
     admin_info: Optional[AdminInfo] = None
     doctor_info: Optional[DoctorInfo] = None
@@ -184,12 +210,15 @@ class AccountInfo:
             "role_type": self.role_type.value,
             "tenant_id": self.tenant_id,
             "phone": self.phone,
+            "email": self.email,
             "status": self.status,
+            "last_login_at": self.last_login_at,
+            "last_login_ip": self.last_login_ip,
+            "created_at": self.created_at,
         }
 
         if self.is_admin:
             admin_data = {
-                "username": getattr(self, "username", None),
                 "name": self.name,
                 "avatar": self.avatar,
                 "is_admin": True,
@@ -280,6 +309,10 @@ class AccountInfo:
             name=data.get("name") or data.get("nickname"),
             avatar=data.get("avatar"),
             status=data.get("status", 1),
+            email=data.get("email"),
+            last_login_at=data.get("last_login_at"),
+            last_login_ip=data.get("last_login_ip"),
+            created_at=data.get("created_at"),
             admin_info=admin_info,
             doctor_info=doctor_info,
             user_info=user_info,

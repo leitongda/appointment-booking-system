@@ -35,6 +35,7 @@ def build_role_response(role) -> RoleResponse:
 
 
 def build_admin_response(admin, permissions: List[str] = None) -> AdminResponse:
+    """从 Admin ORM 对象构建 AdminResponse（保留供登录等场景使用）"""
     from app.modules.admin.schemas import TenantStatusInfo
 
     role_permissions = []
@@ -103,6 +104,57 @@ def build_admin_response(admin, permissions: List[str] = None) -> AdminResponse:
         tenant_id=admin.tenant_id,
         tenant=tenant_status,
         created_at=admin.created_at,
+    )
+
+
+def build_admin_response_from_dict(admin_dict: dict, permissions: List[str] = None) -> AdminResponse:
+    """从 get_current_admin 返回的 dict 构建 AdminResponse（避免重复数据库查询）"""
+    from app.modules.admin.schemas import TenantStatusInfo
+
+    tenant_data = admin_dict.get("tenant")
+    tenant_status = None
+    if tenant_data:
+        tenant_status = TenantStatusInfo(
+            status=tenant_data.get("status", 0),
+            subscription_plan_name=tenant_data.get("subscription_plan_name"),
+            subscription_end_at=tenant_data.get("subscription_end_at"),
+            is_subscription_active=tenant_data.get("is_subscription_active", False),
+            days_until_expiry=tenant_data.get("days_until_expiry"),
+            contact_phone=tenant_data.get("contact_phone"),
+        )
+
+    stores_data = admin_dict.get("stores", [])
+    stores = [
+        StoreInfo(id=s["id"], name=s["name"], logo=s.get("logo"), theme_style=s.get("theme_style"))
+        for s in stores_data
+    ]
+
+    return AdminResponse(
+        id=admin_dict["id"],
+        username=admin_dict.get("username") or "",
+        name=admin_dict.get("name"),
+        phone=admin_dict.get("phone"),
+        email=admin_dict.get("email"),
+        avatar=admin_dict.get("avatar"),
+        role_id=admin_dict.get("role_id"),
+        role_name=admin_dict.get("role_name"),
+        role_code=admin_dict.get("role_code"),
+        current_store_id=admin_dict.get("current_store_id"),
+        current_store_name=admin_dict.get("current_store_name"),
+        store_id=admin_dict.get("current_store_id"),
+        store_name=admin_dict.get("current_store_name"),
+        store_ids=admin_dict.get("store_ids", []),
+        stores=stores,
+        permissions=permissions or admin_dict.get("permissions", []),
+        is_super_admin=admin_dict.get("is_super_admin", False),
+        is_store_admin=admin_dict.get("is_store_admin", False),
+        can_view_all_stores=admin_dict.get("can_view_all_stores", False),
+        status=admin_dict.get("status", 1),
+        last_login_at=admin_dict.get("last_login_at"),
+        last_login_ip=admin_dict.get("last_login_ip"),
+        tenant_id=admin_dict.get("tenant_id"),
+        tenant=tenant_status,
+        created_at=admin_dict.get("created_at") or datetime.utcnow(),
     )
 
 

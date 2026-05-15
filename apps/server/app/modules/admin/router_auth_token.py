@@ -4,9 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 from datetime import datetime
-import json
 
 from app.api.deps import get_current_admin
 from app.core.config import settings
@@ -15,7 +13,7 @@ from app.core.redis import RedisCache
 from app.db.session import get_db
 from app.models.admin import Admin, Permission
 from app.models.tenant import Tenant
-from app.modules.admin.helpers import build_admin_response, build_stores_list
+from app.modules.admin.helpers import build_admin_response_from_dict, build_stores_list
 from app.modules.admin.schemas import AdminResponse, StoreInfo, SwitchStoreRequest, SwitchTenantRequest, TenantInfoResponse
 from app.modules.admin.service_admins import AdminService
 from app.schemas.auth import RefreshTokenRequest, TokenResponse
@@ -82,32 +80,13 @@ async def get_current_admin_info(
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
 ):
-    admin_id = current_admin["id"]
-    result = await db.execute(
-        select(Admin)
-        .options(
-            selectinload(Admin.role),
-            selectinload(Admin.current_store),
-            selectinload(Admin.stores),
-            selectinload(Admin.tenant).selectinload(Tenant.subscription_plan),
-        )
-        .where(Admin.id == admin_id)
-    )
-    admin = result.unique().scalar_one_or_none()
-    if not admin:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="管理员不存在，请检查后重试")
+    # 对超管补充查询权限列表（仅 1 次简单 SELECT，无 selectinload）
+    permissions = current_admin.get("permissions", [])
+    if current_admin.get("is_super_admin") and permissions == ["*"]:
+        perm_result = await db.execute(select(Permission.code).order_by(Permission.sort.asc()))
+        permissions = list(perm_result.scalars().all())
 
-    permissions = []
-    if admin.role:
-        if admin.role.code == "SUPER_ADMIN":
-            perm_result = await db.execute(select(Permission.code).order_by(Permission.sort.asc()))
-            permissions = list(perm_result.scalars().all())
-        elif admin.role.permissions:
-            try:
-                permissions = json.loads(admin.role.permissions)
-            except (json.JSONDecodeError, TypeError):
-                permissions = []
-    return build_admin_response(admin, permissions)
+    return build_admin_response_from_dict(current_admin, permissions)
 
 
 @router.post("/logout", summary="退出登录")
