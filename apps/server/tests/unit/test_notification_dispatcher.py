@@ -208,7 +208,10 @@ class TestNotificationDispatcher:
         # 模拟数据库返回禁用状态
         mock_row = MagicMock()
         mock_row.__getitem__ = lambda self, key: False  # 某个字段为 False
-        mock_db.execute.return_value.first.return_value = mock_row
+        # 使用 MagicMock 而非 AsyncMock，因为 result.first() 是同步调用
+        mock_result = MagicMock()
+        mock_result.first.return_value = mock_row
+        mock_db.execute.return_value = mock_result
 
         dispatcher = NotificationDispatcher(mock_db)
         preference_allowed = await dispatcher._check_preference(sample_event, "in_app")
@@ -419,7 +422,7 @@ class TestNotificationDispatcherPreferenceFilter:
         """测试偏好过滤：全部启用"""
         mock_row = MagicMock()
         mock_row.__getitem__ = lambda self, key: True
-        mock_result = AsyncMock()
+        mock_result = MagicMock()
         mock_result.first.return_value = mock_row
         mock_db.execute.return_value = mock_result
 
@@ -448,7 +451,7 @@ class TestNotificationDispatcherPreferenceFilter:
             None,   # quiet_hours_start
             None,   # quiet_hours_end
         )
-        mock_result = AsyncMock()
+        mock_result = MagicMock()
         mock_result.first.return_value = mock_row
         mock_db.execute.return_value = mock_result
 
@@ -479,7 +482,7 @@ class TestNotificationDispatcherPreferenceFilter:
             None,   # quiet_hours_start
             None,   # quiet_hours_end
         )
-        mock_result = AsyncMock()
+        mock_result = MagicMock()
         mock_result.first.return_value = mock_row
         mock_db.execute.return_value = mock_result
 
@@ -532,7 +535,7 @@ class TestNotificationDispatcherQuietHours:
             "22:00", # quiet_hours_start
             "06:00", # quiet_hours_end
         )
-        mock_result = AsyncMock()
+        mock_result = MagicMock()
         mock_result.first.return_value = mock_row
         mock_db.execute.return_value = mock_result
 

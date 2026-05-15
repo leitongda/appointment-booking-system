@@ -71,6 +71,7 @@ class TenantFeatures(BaseModel):
     beta_features: bool = Field(default=False, description="灰度功能总开关")
     beta_ai_assistant: bool = Field(default=False, description="AI 辅助（实验性）")
     beta_analytics_v2: bool = Field(default=False, description="新版数据分析（实验性）")
+    beta_unified_message: bool = Field(default=False, description="统一消息中心（灰度）")
 
     model_config = ConfigDict(extra="allow")
 

@@ -20,7 +20,7 @@ from app.modules.appointments.common import (
     logger,
 )
 from app.schemas.appointment import AppointmentCreate
-from app.modules.messages.service_messages import MessageService
+from app.modules.unified_message.compat import MessageServiceCompat as MessageService
 from app.modules.rule_engine import RuleEngineService
 from app.modules.settings.service import SettingsService
 from app.utils.audit import set_create_audit, set_update_audit

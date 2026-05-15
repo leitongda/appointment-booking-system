@@ -9,7 +9,6 @@ from app.core.events import EventType
 from app.models.rule_set import AppointmentCheckin
 from app.models.schedule import Schedule
 from app.modules.appointments.common import APPOINTMENT_STATUS, CHECKIN_METHOD, AppointmentServiceBase, logger
-from app.modules.messages.service_messages import MessageService
 from app.modules.rule_engine import RuleEngineService
 from app.modules.settings.service import SettingsService
 
@@ -176,7 +175,7 @@ class AppointmentFlowService(AppointmentServiceBase):
 
         # 站内信通知（叫号）
         try:
-            from app.modules.messages.service_messages import MessageService
+            from app.modules.unified_message.compat import MessageServiceCompat as MessageService
 
             _call_schedule = appointment.schedule
             _call_queue = str(appointment.queue_number) if appointment.queue_number else ""

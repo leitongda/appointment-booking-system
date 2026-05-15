@@ -51,49 +51,7 @@ async def _get_user_contact_info(db: AsyncSession, user_id: str) -> Tuple[Option
     return None, None
 
 
-_CHANNEL_FIELD_MAP = {
-    "in_app": "in_app_enabled",
-    "sms": "sms_enabled",
-    "wechat": "wechat_enabled",
-}
-
-_TYPE_FIELD_MAP = {
-    "appointment": "appointment_enabled",
-    "appointment_success": "appointment_enabled",
-    "appointment_reminder": "reminder_enabled",
-    "appointment_cancelled": "appointment_enabled",
-    "schedule": "reminder_enabled",
-    "stop_clinic": "stop_clinic_enabled",
-    "system": "system_enabled",
-    "consultation": "consultation_enabled",
-    "feedback": "feedback_enabled",
-    "queue_call": "appointment_enabled",
-}
-
-
-async def _check_preference(
-    db: AsyncSession, user_id: str, user_type: str, channel: str, message_type: str,
-) -> bool:
-    """检查用户是否启用了该通道和消息类型的通知。默认返回 True。"""
-    try:
-        channel_col = _CHANNEL_FIELD_MAP.get(channel)
-        type_col = _TYPE_FIELD_MAP.get(message_type)
-        if not channel_col or not type_col:
-            return True
-
-        stmt = text(
-            f"SELECT {channel_col}, {type_col} "
-            f"FROM notification_preferences "
-            f"WHERE user_id = :uid AND user_type = :utype "
-            f"LIMIT 1"
-        )
-        result = await db.execute(stmt, {"uid": user_id, "utype": user_type})
-        row = result.first()
-        if row is None:
-            return True
-        return bool(row[0]) and bool(row[1])
-    except Exception:
-        return True
+from app.common.notification_preference import check_notification_preference as _check_preference
 
 
 async def _send_sms_notification(
