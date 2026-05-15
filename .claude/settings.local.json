@@ -97,7 +97,9 @@
       "Bash(awk -F: '{print $1}')",
       "Bash(awk '/^\\\\/Users\\\\//{file=$0} /\\\\s+error\\\\s+/{print file \" | \" $0}')",
       "Bash(awk '/^\\\\/Users\\\\//{file=$0} /^\\\\s+[0-9]+/{print file \" :: \" $0}')",
-      "Bash(tee /tmp/lint-full.txt)"
+      "Bash(tee /tmp/lint-full.txt)",
+      "Bash(pg_isready -h localhost -p 5432)",
+      "Bash(rsync *)"
     ]
   },
   "plansDirectory": ".claude/plans"
