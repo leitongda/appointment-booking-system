@@ -106,7 +106,8 @@
       "Bash(kill %1)",
       "mcp__playwright__playwright_navigate",
       "Read(//Users/leijiadashao/Downloads/**)",
-      "Read(//private/tmp/**)"
+      "Read(//private/tmp/**)",
+      "Bash(open *)"
     ]
   },
   "plansDirectory": ".claude/plans"
