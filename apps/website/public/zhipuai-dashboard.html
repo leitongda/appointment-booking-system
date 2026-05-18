@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智谱 AI 费用明细仪表盘</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0f1117;--card:#1a1d2e;--border:#2a2d3e;--text:#e4e4e7;--muted:#71717a;--accent:#6366f1;--accent2:#8b5cf6;--green:#22c55e;--red:#ef4444;--orange:#f59e0b;--blue:#3b82f6}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.container{max-width:1400px;margin:0 auto;padding:20px}
+h1{font-size:1.5rem;font-weight:700;margin-bottom:4px}
+.subtitle{color:var(--muted);font-size:.85rem;margin-bottom:20px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+.card .label{color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.card .value{font-size:1.6rem;font-weight:700}
+.card .sub{color:var(--muted);font-size:.78rem;margin-top:2px}
+.value.green{color:var(--green)}.value.blue{color:var(--blue)}.value.orange{color:var(--orange)}.value.accent{color:var(--accent)}
+.section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.section-title{font-size:1rem;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.controls label{font-size:.78rem;color:var(--muted)}
+.controls select,.controls input[type=date]{background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:.82rem;outline:none}
+.controls select:focus,.controls input:focus{border-color:var(--accent)}
+.btn-group{display:flex;gap:0;border-radius:8px;overflow:hidden;border:1px solid var(--border)}
+.btn{background:var(--bg);color:var(--muted);border:none;padding:6px 14px;font-size:.78rem;cursor:pointer;transition:all .15s}
+.btn.active{background:var(--accent);color:#fff}
+.btn:hover:not(.active){color:var(--text)}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+@media(max-width:900px){.charts-row{grid-template-columns:1fr}}
+canvas{max-height:340px}
+.table-wrap{overflow-x:auto;margin-top:12px}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th,td{padding:8px 12px;text-align:right;border-bottom:1px solid var(--border)}
+th{color:var(--muted);font-weight:600;text-transform:uppercase;font-size:.72rem;letter-spacing:.5px}
+td:first-child,th:first-child{text-align:left}
+tr:hover td{background:rgba(99,102,241,.06)}
+.bar-cell{display:flex;align-items:center;gap:8px}
+.bar-bg{height:6px;background:var(--border);border-radius:3px;flex:1}
+.bar-fg{height:6px;border-radius:3px}
+
+/* Upload area */
+.upload-wrap{display:flex;justify-content:center;align-items:center;min-height:60vh}
+.upload-box{border:2px dashed var(--border);border-radius:16px;padding:60px 80px;text-align:center;cursor:pointer;transition:all .2s}
+.upload-box:hover,.upload-box.dragover{border-color:var(--accent);background:rgba(99,102,241,.06)}
+.upload-box .icon{font-size:3rem;margin-bottom:16px}
+.upload-box .title{font-size:1.2rem;font-weight:600;margin-bottom:8px}
+.upload-box .hint{color:var(--muted);font-size:.85rem}
+.upload-box input{display:none}
+#dashboard{display:none}
+#loading{display:none;text-align:center;padding:80px 0}
+#loading .spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.file-info{display:inline-flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:.82rem;margin-bottom:16px}
+.file-info .name{font-weight:600}
+.file-info .size{color:var(--muted)}
+.btn-reload{background:var(--accent);color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:.82rem;cursor:pointer;margin-left:8px}
+.btn-reload:hover{opacity:.85}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>智谱 AI 开放平台 — 费用明细仪表盘</h1>
+  <p class="subtitle">导入 Excel 费用明细文件，自动生成可视化报表</p>
+
+  <!-- Upload Screen -->
+  <div class="upload-wrap" id="uploadScreen">
+    <div class="upload-box" id="uploadBox">
+      <div class="icon">&#128202;</div>
+      <div class="title">拖拽或点击上传 Excel 文件</div>
+      <div class="hint">支持 .xlsx / .xls 格式，智谱开放平台导出的费用明细</div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls">
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading">
+    <div class="spinner"></div>
+    <div style="color:var(--muted)">正在解析数据，请稍候...</div>
+  </div>
+
+  <!-- Dashboard (hidden until data loaded) -->
+  <div id="dashboard">
+    <div id="fileBar"></div>
+    <div class="cards" id="kpiCards"></div>
+
+    <div class="section">
+      <div class="section-title">筛选范围</div>
+      <div class="controls">
+        <label>开始日期</label><input type="date" id="startDate">
+        <label>结束日期</label><input type="date" id="endDate">
+        <div class="btn-group" id="quickRange">
+          <button class="btn" data-range="all">全部</button>
+          <button class="btn" data-range="7d">近7天</button>
+          <button class="btn" data-range="3d">近3天</button>
+          <button class="btn" data-range="today">今天</button>
+        </div>
+        <label style="margin-left:12px">指标</label>
+        <select id="metricSelect">
+          <option value="总用量">用量 (Tokens)</option>
+          <option value="总请求数">请求数</option>
+          <option value="记录数">记录数</option>
+        </select>
+        <label style="margin-left:12px">单位</label>
+        <div class="btn-group" id="unitToggle">
+          <button class="btn active" data-unit="cn">万/亿</button>
+          <button class="btn" data-unit="en">K/M/B</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="section">
+        <div class="section-title">每日趋势</div>
+        <canvas id="dailyChart"></canvas>
+      </div>
+      <div class="section">
+        <div class="section-title">模型用量分布</div>
+        <canvas id="modelChart"></canvas>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="section">
+        <div class="section-title">价格类型分布</div>
+        <div style="max-width:320px;margin:0 auto"><canvas id="priceChart"></canvas></div>
+      </div>
+      <div class="section">
+        <div class="section-title">按小时分布</div>
+        <canvas id="hourChart"></canvas>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="section">
+        <div class="section-title">每日趋势 (按价格类型)</div>
+        <canvas id="dailyPriceChart"></canvas>
+      </div>
+      <div class="section">
+        <div class="section-title">每日趋势 (按模型)</div>
+        <canvas id="dailyModelChart"></canvas>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">API Key 使用统计</div>
+      <canvas id="keyChart" style="max-height:250px"></canvas>
+      <div class="table-wrap" id="keyTable"></div>
+    </div>
+
+    <div class="charts-row">
+      <div class="section">
+        <div class="section-title">每日明细</div>
+        <div class="table-wrap" id="dailyTable"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">模型明细</div>
+        <div class="table-wrap" id="modelTable"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">价格类型明细</div>
+      <div class="table-wrap" id="priceTable"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== Globals ==========
+let RAW = null;
+let charts = {};
+let currentMetric = '总用量';
+let unitMode = 'cn'; // 'cn' = 万/亿, 'en' = K/M/B
+let filteredDaily, filteredDailyByPrice, filteredDailyByModel;
+const COLORS = ['#6366f1','#8b5cf6','#ec4899','#f59e0b','#22c55e','#3b82f6','#ef4444','#14b8a6','#f97316'];
+const PRICE_COLORS = {'缓存命中':'#22c55e','输入':'#3b82f6','输出':'#f59e0b','不区分输入输出':'#8b5cf6'};
+
+// ========== Upload handling ==========
+const uploadBox = document.getElementById('uploadBox');
+const fileInput = document.getElementById('fileInput');
+
+uploadBox.addEventListener('click', () => fileInput.click());
+uploadBox.addEventListener('dragover', e => { e.preventDefault(); uploadBox.classList.add('dragover'); });
+uploadBox.addEventListener('dragleave', () => uploadBox.classList.remove('dragover'));
+uploadBox.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadBox.classList.remove('dragover');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => { if (e.target.files.length) handleFile(e.target.files[0]); });
+
+function handleFile(file) {
+  if (!file.name.match(/\.(xlsx|xls)$/i)) { alert('请上传 .xlsx 或 .xls 文件'); return; }
+  document.getElementById('uploadScreen').style.display = 'none';
+  document.getElementById('loading').style.display = 'block';
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: null });
+      if (!rows.length) { alert('文件为空或无法解析'); resetUI(); return; }
+      processData(rows, file.name, file.size);
+    } catch (err) {
+      alert('解析失败: ' + err.message);
+      resetUI();
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function resetUI() {
+  document.getElementById('uploadScreen').style.display = 'flex';
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'none';
+}
+
+// ========== Data processing (mirrors Python logic) ==========
+function processData(rows, fileName, fileSize) {
+  // Column name mapping - try to match flexibly
+  const colMap = detectColumns(Object.keys(rows[0]));
+
+  const parsed = rows.map(r => ({
+    消费时间: String(r[colMap.消费时间] || ''),
+    日期: '',
+    小时: '',
+    用量: toNum(r[colMap.用量]),
+    请求数: toNum(r[colMap.请求数]),
+    模型产品名称: String(r[colMap.模型产品名称] || '未知'),
+    价格类型: String(r[colMap.价格类型] || '未知'),
+    apiKey: String(r[colMap.apiKey] || '未知'),
+  }));
+
+  // Extract date/hour
+  parsed.forEach(r => {
+    const m = r.消费时间.match(/^(\d{4}-\d{2}-\d{2})\s(\d{2})/);
+    if (m) { r.日期 = m[1]; r.小时 = m[2]; }
+  });
+
+  const validRows = parsed.filter(r => r.日期);
+  if (!validRows.length) { alert('未找到有效的消费时间列'); resetUI(); return; }
+
+  // Aggregate
+  const dates = [...new Set(validRows.map(r => r.日期))].sort();
+
+  const daily = aggGroup(validRows, '日期', ['总用量', '总请求数', '记录数']);
+  const byModel = aggGroup(validRows, '模型产品名称', ['总用量', '总请求数', '记录数'])
+    .sort((a, b) => b.总用量 - a.总用量);
+  const byPrice = aggGroup(validRows, '价格类型', ['总用量', '总请求数', '记录数']);
+  const byHour = aggGroup(validRows, '小时', ['总用量', '总请求数', '记录数']);
+  const byKey = aggGroup(validRows, 'apiKey', ['总用量', '总请求数', '记录数']);
+  const dailyByPrice = aggGroup2(validRows, '日期', '价格类型', ['总用量', '总请求数']);
+  const top5 = byModel.slice(0, 5).map(m => m['模型产品名称']);
+  const dailyByModel = aggGroup2(
+    validRows.filter(r => top5.includes(r.模型产品名称)), '日期', '模型产品名称', ['总用量', '总请求数']
+  );
+
+  RAW = {
+    daily, by_model: byModel, by_price: byPrice, by_hour: byHour,
+    by_key: byKey, daily_by_price: dailyByPrice, daily_by_model: dailyByModel,
+    dates, models: byModel.map(m => m['模型产品名称']),
+    top5_models: top5,
+    price_types: byPrice.map(p => p['价格类型']),
+    total_tokens: validRows.reduce((s, r) => s + r.用量, 0),
+    total_requests: validRows.reduce((s, r) => s + r.请求数, 0),
+    total_records: validRows.length,
+    date_range: dates[0] + ' ~ ' + dates[dates.length - 1],
+    model_count: byModel.length,
+    apikey_count: byKey.length,
+  };
+
+  // File info bar
+  document.getElementById('fileBar').innerHTML = `
+    <div class="file-info">
+      <span class="name">${fileName}</span>
+      <span class="size">${(fileSize / 1024).toFixed(0)} KB | ${rows.length.toLocaleString()} 行</span>
+    </div>
+    <button class="btn-reload" onclick="location.reload()">重新导入</button>
+  `;
+
+  // Show dashboard
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+
+  initControls();
+  render();
+}
+
+function detectColumns(keys) {
+  // Fuzzy match column names
+  const find = (patterns) => {
+    for (const p of patterns) {
+      const k = keys.find(k => k.includes(p));
+      if (k) return k;
+    }
+    return keys[0]; // fallback
+  };
+  return {
+    消费时间: find(['消费时间', '消费时间段', '时间']),
+    用量: find(['用量', 'token', 'Token']),
+    请求数: find(['请求次数', '请求数', '请求']),
+    模型产品名称: find(['模型产品名称', '模型产品编码', '模型', '产品']),
+    价格类型: find(['价格类型', '类型']),
+    apiKey: find(['apiKey', 'api_key', 'API', 'key']),
+  };
+}
+
+function toNum(v) {
+  if (v == null) return 0;
+  const n = parseFloat(v);
+  return isNaN(n) ? 0 : n;
+}
+
+function aggGroup(rows, key, metrics) {
+  const map = {};
+  rows.forEach(r => {
+    const k = r[key] || '未知';
+    if (!map[k]) map[k] = { [key]: k, 总用量: 0, 总请求数: 0, 记录数: 0 };
+    map[k].总用量 += r.用量;
+    map[k].总请求数 += r.请求数;
+    map[k].记录数++;
+  });
+  return Object.values(map);
+}
+
+function aggGroup2(rows, key1, key2, metrics) {
+  const map = {};
+  rows.forEach(r => {
+    const k = r[key1] + '|' + r[key2];
+    if (!map[k]) map[k] = { [key1]: r[key1], [key2]: r[key2], 总用量: 0, 总请求数: 0 };
+    map[k].总用量 += r.用量;
+    map[k].总请求数 += r.请求数;
+  });
+  return Object.values(map);
+}
+
+// ========== UI helpers ==========
+function fmt(n) {
+  if (unitMode === 'cn') {
+    if (n >= 1e8) return (n / 1e8).toFixed(2) + '亿';
+    if (n >= 1e4) return (n / 1e4).toFixed(1) + '万';
+    return n.toLocaleString();
+  }
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return n.toString();
+}
+function fmtExact(n) { return n.toLocaleString(); }
+function pct(v, total) { return total ? ((v / total) * 100).toFixed(1) + '%' : '0%'; }
+
+// ========== Controls ==========
+function initControls() {
+  const sd = document.getElementById('startDate');
+  const ed = document.getElementById('endDate');
+  sd.min = RAW.dates[0]; sd.max = RAW.dates[RAW.dates.length - 1];
+  ed.min = RAW.dates[0]; ed.max = RAW.dates[RAW.dates.length - 1];
+  sd.value = RAW.dates[0]; ed.value = RAW.dates[RAW.dates.length - 1];
+
+  document.getElementById('dateRange') && (document.getElementById('dateRange').textContent =
+    `数据范围: ${RAW.date_range} | ${RAW.model_count} 个模型 | ${RAW.apikey_count} 个 API Key`);
+  document.querySelector('.subtitle').textContent =
+    `数据范围: ${RAW.date_range} | ${RAW.model_count} 个模型 | ${RAW.apikey_count} 个 API Key`;
+
+  sd.addEventListener('change', render);
+  ed.addEventListener('change', render);
+  document.querySelectorAll('#quickRange .btn').forEach(b => {
+    b.addEventListener('click', () => {
+      const r = b.dataset.range;
+      const last = RAW.dates[RAW.dates.length - 1];
+      let start;
+      if (r === 'all') start = RAW.dates[0];
+      else if (r === '7d') { const d = new Date(last); d.setDate(d.getDate() - 6); start = d.toISOString().slice(0, 10); }
+      else if (r === '3d') { const d = new Date(last); d.setDate(d.getDate() - 2); start = d.toISOString().slice(0, 10); }
+      else start = last;
+      sd.value = start; ed.value = last;
+      document.querySelectorAll('#quickRange .btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      render();
+    });
+  });
+  document.getElementById('metricSelect').addEventListener('change', e => {
+    currentMetric = e.target.value; render();
+  });
+  document.querySelectorAll('#unitToggle .btn').forEach(b => {
+    b.addEventListener('click', () => {
+      unitMode = b.dataset.unit;
+      document.querySelectorAll('#unitToggle .btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      render();
+    });
+  });
+  document.querySelector('[data-range="all"]').classList.add('active');
+}
+
+function getRange() {
+  const s = document.getElementById('startDate').value || RAW.dates[0];
+  const e = document.getElementById('endDate').value || RAW.dates[RAW.dates.length - 1];
+  return [s, e];
+}
+
+// ========== Render ==========
+function dc(key) { if (charts[key]) { charts[key].destroy(); delete charts[key]; } }
+
+function render() {
+  const [s, e] = getRange();
+  filteredDaily = RAW.daily.filter(d => d.日期 >= s && d.日期 <= e);
+  filteredDailyByPrice = RAW.daily_by_price.filter(d => d.日期 >= s && d.日期 <= e);
+  filteredDailyByModel = RAW.daily_by_model.filter(d => d.日期 >= s && d.日期 <= e);
+  renderKPI(); renderDailyChart(); renderModelChart(); renderPriceChart();
+  renderHourChart(); renderDailyPriceChart(); renderDailyModelChart();
+  renderKeyChart(); renderDailyTable(); renderModelTable(); renderPriceTable();
+}
+
+function renderKPI() {
+  const totalTokens = filteredDaily.reduce((s, d) => s + d.总用量, 0);
+  const totalReqs = filteredDaily.reduce((s, d) => s + d.总请求数, 0);
+  const totalRecs = filteredDaily.reduce((s, d) => s + d.记录数, 0);
+  const days = filteredDaily.length;
+  const avgTokens = days ? Math.round(totalTokens / days) : 0;
+  const avgReqs = days ? Math.round(totalReqs / days) : 0;
+  const [s, e] = getRange();
+  document.getElementById('kpiCards').innerHTML = `
+    <div class="card"><div class="label">总 Tokens</div><div class="value accent">${fmt(totalTokens)}</div><div class="sub">${fmtExact(totalTokens)}</div></div>
+    <div class="card"><div class="label">总请求数</div><div class="value blue">${fmt(totalReqs)}</div><div class="sub">${fmtExact(totalReqs)} | ${fmtExact(totalRecs)} 条记录</div></div>
+    <div class="card"><div class="label">日均 Tokens</div><div class="value green">${fmt(avgTokens)}</div><div class="sub">${fmtExact(avgTokens)}/天 x ${days} 天</div></div>
+    <div class="card"><div class="label">日均请求</div><div class="value orange">${fmt(avgReqs)}</div><div class="sub">${fmtExact(avgReqs)}/天 x ${days} 天</div></div>
+    <div class="card"><div class="label">选中范围</div><div class="value" style="font-size:1rem">${s}</div><div class="sub">至 ${e}</div></div>
+  `;
+}
+
+function renderDailyChart() {
+  dc('daily');
+  const labels = filteredDaily.map(d => d.日期.slice(5));
+  const data = filteredDaily.map(d => d[currentMetric]);
+  charts.daily = new Chart(document.getElementById('dailyChart'), {
+    type: 'line',
+    data: { labels, datasets: [{ label: currentMetric, data, borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,.15)', fill: true, tension: .3, pointRadius: 4, pointHoverRadius: 6 }] },
+    options: { responsive: true, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y.toLocaleString() } } }, scales: { y: { ticks: { callback: v => fmt(v) }, grid: { color: 'rgba(255,255,255,.05)' } }, x: { grid: { display: false } } } }
+  });
+}
+
+function renderModelChart() {
+  dc('model');
+  const items = RAW.by_model.slice(0, 8);
+  const shortNames = items.map(i => (i['模型产品名称'] || '').replace(/【|】/g, '').replace('模型推理', '').replace('应用组件', '').trim());
+  charts.model = new Chart(document.getElementById('modelChart'), {
+    type: 'bar',
+    data: { labels: shortNames, datasets: [{ label: currentMetric, data: items.map(i => i[currentMetric]), backgroundColor: COLORS, borderRadius: 4 }] },
+    options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.x.toLocaleString() + ' (' + pct(c.parsed.x, RAW.total_tokens) + ')' } } }, scales: { x: { ticks: { callback: v => fmt(v) }, grid: { color: 'rgba(255,255,255,.05)' } }, y: { grid: { display: false } } } }
+  });
+}
+
+function renderPriceChart() {
+  dc('price');
+  const items = RAW.by_price;
+  const total = items.reduce((s, i) => s + i[currentMetric], 0);
+  charts.price = new Chart(document.getElementById('priceChart'), {
+    type: 'doughnut',
+    data: { labels: items.map(i => i['价格类型']), datasets: [{ data: items.map(i => i[currentMetric]), backgroundColor: items.map(i => PRICE_COLORS[i['价格类型']] || '#888'), borderWidth: 0 }] },
+    options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#e4e4e7', padding: 12 } }, tooltip: { callbacks: { label: c => c.label + ': ' + c.parsed.toLocaleString() + ' (' + pct(c.parsed, total) + ')' } } } }
+  });
+}
+
+function renderHourChart() {
+  dc('hour');
+  const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+  const hourMap = {}; RAW.by_hour.forEach(h => hourMap[h['小时']] = h);
+  const data = hours.map(h => hourMap[h] ? hourMap[h][currentMetric] : 0);
+  charts.hour = new Chart(document.getElementById('hourChart'), {
+    type: 'bar',
+    data: { labels: hours.map(h => h + ':00'), datasets: [{ label: currentMetric, data, backgroundColor: data.map(v => { const max = Math.max(...data); return 'rgba(99,102,241,' + (0.3 + 0.7 * (max ? v / max : 0)).toFixed(2) + ')' }), borderRadius: 4 }] },
+    options: { responsive: true, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y.toLocaleString() } } }, scales: { y: { ticks: { callback: v => fmt(v) }, grid: { color: 'rgba(255,255,255,.05)' } }, x: { grid: { display: false } } } }
+  });
+}
+
+function renderDailyPriceChart() {
+  dc('dailyPrice');
+  const types = RAW.price_types.filter(t => t !== '不区分输入输出');
+  const labels = filteredDaily.map(d => d.日期.slice(5));
+  const typeMap = {};
+  filteredDailyByPrice.forEach(r => { typeMap[r['日期'] + '|' + r['价格类型']] = r; });
+  const datasets = types.map(t => ({
+    label: t,
+    data: filteredDaily.map(d => typeMap[d.日期 + '|' + t] ? typeMap[d.日期 + '|' + t][currentMetric] : 0),
+    backgroundColor: PRICE_COLORS[t] || '#888'
+  }));
+  charts.dailyPrice = new Chart(document.getElementById('dailyPriceChart'), {
+    type: 'bar',
+    data: { labels, datasets },
+    options: { responsive: true, scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, ticks: { callback: v => fmt(v) }, grid: { color: 'rgba(255,255,255,.05)' } } }, plugins: { legend: { position: 'top', labels: { color: '#e4e4e7', boxWidth: 12 } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y.toLocaleString() } } } }
+  });
+}
+
+function renderDailyModelChart() {
+  dc('dailyModel');
+  const labels = filteredDaily.map(d => d.日期.slice(5));
+  const modelMap = {};
+  filteredDailyByModel.forEach(r => { modelMap[r['日期'] + '|' + r['模型产品名称']] = r; });
+  const datasets = RAW.top5_models.map((m, i) => ({
+    label: (m || '').replace(/【|】/g, '').replace('模型推理', '').trim(),
+    data: filteredDaily.map(d => modelMap[d.日期 + '|' + m] ? modelMap[d.日期 + '|' + m][currentMetric] : 0),
+    backgroundColor: COLORS[i]
+  }));
+  charts.dailyModel = new Chart(document.getElementById('dailyModelChart'), {
+    type: 'bar',
+    data: { labels, datasets },
+    options: { responsive: true, scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, ticks: { callback: v => fmt(v) }, grid: { color: 'rgba(255,255,255,.05)' } } }, plugins: { legend: { position: 'top', labels: { color: '#e4e4e7', boxWidth: 12 } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y.toLocaleString() } } } }
+  });
+}
+
+function renderKeyChart() {
+  dc('key');
+  const items = RAW.by_key;
+  const shortKeys = items.map(i => (i.apiKey || '').slice(0, 8) + '...');
+  charts.key = new Chart(document.getElementById('keyChart'), {
+    type: 'bar',
+    data: { labels: shortKeys, datasets: [
+      { label: 'Tokens', data: items.map(i => i.总用量), backgroundColor: '#6366f1', borderRadius: 4, yAxisID: 'y' },
+      { label: '请求', data: items.map(i => i.总请求数), backgroundColor: '#22c55e', borderRadius: 4, yAxisID: 'y1' }
+    ] },
+    options: { responsive: true, scales: { y: { type: 'linear', position: 'left', ticks: { callback: v => fmt(v) }, grid: { color: 'rgba(255,255,255,.05)' } }, y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false } }, x: { grid: { display: false } } }, plugins: { legend: { labels: { color: '#e4e4e7' } } } }
+  });
+  const maxTokens = Math.max(...items.map(i => i.总用量), 1);
+  let html = '<table><tr><th>API Key</th><th>Tokens</th><th>占比</th><th>请求</th><th>记录</th><th>用量条</th></tr>';
+  items.forEach(i => {
+    const w = ((i.总用量 / maxTokens) * 100).toFixed(0);
+    html += `<tr><td style="font-family:monospace;font-size:.75rem">${(i.apiKey || '').slice(0, 12)}...</td><td>${fmt(i.总用量)}</td><td>${pct(i.总用量, RAW.total_tokens)}</td><td>${i.总请求数.toLocaleString()}</td><td>${i.记录数.toLocaleString()}</td><td><div class="bar-cell"><div class="bar-bg"><div class="bar-fg" style="width:${w}%;background:#6366f1"></div></div></div></td></tr>`;
+  });
+  html += '</table>';
+  document.getElementById('keyTable').innerHTML = html;
+}
+
+function renderDailyTable() {
+  const maxVal = Math.max(...filteredDaily.map(d => d[currentMetric]), 1);
+  const total = filteredDaily.reduce((s, d) => s + d[currentMetric], 0);
+  let html = '<table><tr><th>日期</th><th>' + currentMetric + '</th><th>占比</th><th>用量条</th></tr>';
+  filteredDaily.forEach(d => {
+    const w = ((d[currentMetric] / maxVal) * 100).toFixed(0);
+    html += `<tr><td>${d.日期}</td><td>${d[currentMetric].toLocaleString()}</td><td>${pct(d[currentMetric], total)}</td><td><div class="bar-cell"><div class="bar-bg"><div class="bar-fg" style="width:${w}%;background:#6366f1"></div></div></div></td></tr>`;
+  });
+  html += '</table>';
+  document.getElementById('dailyTable').innerHTML = html;
+}
+
+function renderModelTable() {
+  const items = RAW.by_model;
+  const total = items.reduce((s, i) => s + i[currentMetric], 0);
+  const maxVal = Math.max(...items.map(i => i[currentMetric]), 1);
+  let html = '<table><tr><th>模型</th><th>' + currentMetric + '</th><th>占比</th><th>用量条</th></tr>';
+  items.forEach((i, idx) => {
+    const w = ((i[currentMetric] / maxVal) * 100).toFixed(0);
+    const name = (i['模型产品名称'] || '').replace(/【|】/g, '');
+    html += `<tr><td>${name}</td><td>${i[currentMetric].toLocaleString()}</td><td>${pct(i[currentMetric], total)}</td><td><div class="bar-cell"><div class="bar-bg"><div class="bar-fg" style="width:${w}%;background:${COLORS[idx % COLORS.length]}"></div></div></div></td></tr>`;
+  });
+  html += '</table>';
+  document.getElementById('modelTable').innerHTML = html;
+}
+
+function renderPriceTable() {
+  const items = RAW.by_price;
+  const total = items.reduce((s, i) => s + i[currentMetric], 0);
+  const maxVal = Math.max(...items.map(i => i[currentMetric]), 1);
+  let html = '<table><tr><th>价格类型</th><th>' + currentMetric + '</th><th>占比</th><th>请求</th><th>记录</th><th>用量条</th></tr>';
+  items.forEach(i => {
+    const w = ((i[currentMetric] / maxVal) * 100).toFixed(0);
+    const c = PRICE_COLORS[i['价格类型']] || '#888';
+    html += `<tr><td>${i['价格类型']}</td><td>${i[currentMetric].toLocaleString()}</td><td>${pct(i[currentMetric], total)}</td><td>${i.总请求数.toLocaleString()}</td><td>${i.记录数.toLocaleString()}</td><td><div class="bar-cell"><div class="bar-bg"><div class="bar-fg" style="width:${w}%;background:${c}"></div></div></div></td></tr>`;
+  });
+  html += '</table>';
+  document.getElementById('priceTable').innerHTML = html;
+}
+</script>
+</body>
+</html>
