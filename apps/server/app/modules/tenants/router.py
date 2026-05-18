@@ -1,4 +1,5 @@
 """租户管理路由"""
+import time
 from datetime import datetime, date
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Query
 from sqlalchemy import select
@@ -32,7 +33,52 @@ from app.modules.tenants.service import (
 from app.schemas.response import PageResponse
 from app.core.config import settings
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
+
+
+# ==================== 注册端点限流依赖 ====================
+
+_REGISTER_RATE_LIMIT = 10  # 每分钟最多 10 次
+_REGISTER_RATE_WINDOW = 60  # 时间窗口：60 秒
+
+
+async def _check_register_rate_limit(request: Request):
+    """IP 级注册限流依赖，基于 Redis 滑动窗口"""
+    try:
+        from app.core.redis import get_redis
+        redis = await get_redis()
+
+        forwarded = request.headers.get("X-Forwarded-For")
+        client_ip = forwarded.split(",")[0].strip() if forwarded else (
+            request.headers.get("X-Real-IP", "").strip()
+            or (request.client.host if request.client else "unknown")
+        )
+
+        key = f"rate_limit:register:{client_ip}"
+        now = time.time()
+        window_start = now - _REGISTER_RATE_WINDOW
+
+        pipeline = redis.pipeline()
+        pipeline.zremrangebyscore(key, 0, window_start)
+        pipeline.zcard(key)
+        pipeline.zadd(key, {str(now): now})
+        pipeline.expire(key, _REGISTER_RATE_WINDOW + 1)
+        results = await pipeline.execute()
+
+        if results[1] >= _REGISTER_RATE_LIMIT:
+            logger.warning(f"注册限流触发: ip={client_ip}")
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="注册请求过于频繁，请稍后再试",
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"注册限流检查异常: {e}")
 
 
 # ==================== 租户自助注册（公开） ====================
@@ -41,6 +87,7 @@ router = APIRouter()
 async def register_tenant(
     data: TenantSelfRegisterRequest,
     db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(_check_register_rate_limit),
 ):
     """自助注册租户（公开接口，无需认证）
     注册后自动创建试用租户（14天试用期）并创建管理员账号。

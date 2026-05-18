@@ -246,7 +246,42 @@ export interface TenantNotificationList {
 
 // ========== API ==========
 
+// ========== 租户自注册 ==========
+
+export interface TenantSelfRegisterData {
+  tenantCode: string;
+  name: string;
+  contactName: string;
+  contactPhone: string;
+  contactEmail?: string;
+  adminUsername: string;
+  adminPassword: string;
+}
+
+export interface TenantSelfRegisterResult {
+  id: string;
+  tenantCode: string;
+  name: string;
+  status: number;
+  subscriptionPlanId?: string;
+  subscriptionPlanName?: string;
+  subscriptionStartAt?: string;
+  subscriptionEndAt?: string;
+  contactName?: string;
+  contactPhone?: string;
+  adminUser?: {
+    id: string;
+    username: string;
+    phone: string;
+  };
+}
+
 export const tenantApi = {
+  // 租户自注册（公开接口，无需认证）
+  selfRegister: (data: TenantSelfRegisterData): Promise<TenantSelfRegisterResult> => {
+    return request.post('/tenants/register', data);
+  },
+
   // 订阅计划
   getPlans: (status?: number): Promise<SubscriptionPlan[]> => {
     return request.get('/tenants/plans', { params: { status } });

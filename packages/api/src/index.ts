@@ -35,6 +35,9 @@ export type { ApiConfig } from './config';
 export { createTaroAdapter, getTaroToken, setTaroToken } from './adapters';
 export type { TaroAdapterConfig } from './adapters';
 
+// 导出 RSA 加密工具
+export { rsaEncrypt, setPublicKey, getPublicKey, clearPublicKey } from './modules/crypto';
+
 // 导出 API 模块
 export { authApi } from './modules/auth';
 export { accountApi } from './modules/account';
@@ -347,6 +350,8 @@ export type {
   CurrentTenantPublic,
   TenantNotification,
   TenantNotificationList,
+  TenantSelfRegisterData,
+  TenantSelfRegisterResult,
 } from './modules/tenant';
 
 // Miniapp Platform types
