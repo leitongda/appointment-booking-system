@@ -99,7 +99,11 @@
       "Bash(awk '/^\\\\/Users\\\\//{file=$0} /^\\\\s+[0-9]+/{print file \" :: \" $0}')",
       "Bash(tee /tmp/lint-full.txt)",
       "Bash(pg_isready -h localhost -p 5432)",
-      "Bash(rsync *)"
+      "Bash(rsync *)",
+      "Bash(bash *)",
+      "Bash(xargs -I{} basename {})",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:9102/)",
+      "Bash(kill %1)"
     ]
   },
   "plansDirectory": ".claude/plans"
