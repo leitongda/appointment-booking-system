@@ -101,7 +101,7 @@ export function Login() {
             <SectionLabel>欢迎回来</SectionLabel>
           </motion.div>
           <motion.div variants={fadeInUp} className="mt-6">
-            <GradientHeading level={1}>
+            <GradientHeading level={1} className="lg:text-6xl">
               登录<GradientText>控制台</GradientText>
             </GradientHeading>
           </motion.div>

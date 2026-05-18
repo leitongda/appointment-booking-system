@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   CheckCircle2, X, ArrowRight, Calendar,
-  MessageSquare, FileDown, Code2, Palette,
+  BarChart3, MessageSquare, FileDown, Code2, Palette,
   ShieldCheck, KeyRound, Smartphone,
 } from 'lucide-react';
 import { SEO } from '@/components/SEO';

@@ -130,7 +130,7 @@ export function Register() {
             <SectionLabel>免费试用 14 天</SectionLabel>
           </motion.div>
           <motion.div variants={fadeInUp} className="mt-6">
-            <GradientHeading level={1}>
+            <GradientHeading level={1} className="lg:text-6xl">
               创建您的<GradientText>机构账号</GradientText>
             </GradientHeading>
           </motion.div>
