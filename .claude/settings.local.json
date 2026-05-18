@@ -103,7 +103,10 @@
       "Bash(bash *)",
       "Bash(xargs -I{} basename {})",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:9102/)",
-      "Bash(kill %1)"
+      "Bash(kill %1)",
+      "mcp__playwright__playwright_navigate",
+      "Read(//Users/leijiadashao/Downloads/**)",
+      "Read(//private/tmp/**)"
     ]
   },
   "plansDirectory": ".claude/plans"
