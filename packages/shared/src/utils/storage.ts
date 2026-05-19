@@ -144,6 +144,34 @@ export const resetTokenExpiredState = (): void => {
  */
 let isAuthExpired = false;
 
+/**
+ * 从 JWT token 中解析过期时间戳（秒），解析失败返回 null
+ */
+export const parseJwtExp = (token: string): number | null => {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(atob(parts[1]));
+    return typeof payload.exp === 'number' ? payload.exp : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * 检查当前 token 是否已过期（纯客户端 exp 判断，无网络请求）
+ * - 无 token → false（不触发，由其他逻辑处理）
+ * - 解析失败 → false（保守策略，不误杀）
+ * - exp < now → true
+ */
+export const isTokenExpired = (): boolean => {
+  const token = getToken();
+  if (!token) return false;
+  const exp = parseJwtExp(token);
+  if (exp === null) return false;
+  return Date.now() >= exp * 1000;
+};
+
 /** 标记认证已失效（401 拦截器调用） */
 export const markAuthExpired = (): void => {
   isAuthExpired = true;
