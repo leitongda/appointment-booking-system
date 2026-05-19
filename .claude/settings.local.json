@@ -107,7 +107,11 @@
       "mcp__playwright__playwright_navigate",
       "Read(//Users/leijiadashao/Downloads/**)",
       "Read(//private/tmp/**)",
-      "Bash(open *)"
+      "Bash(open *)",
+      "Bash(awk '{print $2}')",
+      "Bash(xargs -I{} ls -l /proc/{}/fd)",
+      "Bash(pnpm why *)",
+      "Bash(npm ls *)"
     ]
   },
   "plansDirectory": ".claude/plans"
