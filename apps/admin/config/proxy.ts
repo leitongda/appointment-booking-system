@@ -1,51 +1,9 @@
 /**
- * 代理配置
+ * 代理配置（兼容入口）
+ *
+ * 真实定义已迁移至 `./proxy/index`，此文件仅做 thin re-export 以保持向后兼容。
+ * 新代码请直接从 `./proxy` 引入。
+ *
  * @doc https://umijs.org/docs/guides/proxy
  */
-
-// 从环境变量读取代理目标，默认为本地开发环境
-const PROXY_TARGET = process.env.PROXY_TARGET || 'http://localhost:9000';
-
-export default {
-  dev: {
-    '/api': {
-      target: PROXY_TARGET,
-      changeOrigin: true,
-      secure: false,
-      pathRewrite: { '^/api': '/api' },
-    },
-    '/uploads': {
-      target: PROXY_TARGET,
-      changeOrigin: true,
-      secure: false,
-    },
-    '/_AMapService': {
-      target: PROXY_TARGET,
-      changeOrigin: true,
-      secure: false,
-    },
-  },
-  test: {
-    '/api': {
-      target: PROXY_TARGET,
-      changeOrigin: true,
-      pathRewrite: { '^/api': '/api' },
-    },
-    '/uploads': {
-      target: PROXY_TARGET,
-      changeOrigin: true,
-    },
-  },
-  pre: {
-    '/api': {
-      target: PROXY_TARGET,
-      changeOrigin: true,
-      pathRewrite: { '^/api': '/api' },
-    },
-    '/uploads': {
-      target: PROXY_TARGET,
-      changeOrigin: true,
-    },
-  },
-};
-
+export { default } from './proxy/index';

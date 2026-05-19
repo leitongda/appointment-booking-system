@@ -10,6 +10,8 @@ node_modules/
 dist/
 build/
 out/
+!apps/admin/config/build/
+!apps/admin/config/build/**
 
 # Umi
 .umi/

@@ -1,32 +1,7 @@
-import type { ProLayoutProps } from '@ant-design/pro-components';
-import { APP_TITLE, DEFAULT_LOGO } from './appConfig';
-
 /**
- * 默认配置
- * @doc https://procomponents.ant.design/components/layout
+ * ProLayout 运行时默认设置（兼容入口）
+ *
+ * 真实定义已迁移至 `./layout/runtime-settings`，此文件仅做 thin re-export 以保持现有 import 路径有效。
+ * 新代码请直接从 `@config/layout` 引入 `runtimeSettings`。
  */
-const Settings: ProLayoutProps & {
-  pwa?: boolean;
-  logo?: string;
-} = {
-  navTheme: 'light',
-  colorPrimary: '#1677ff',
-  layout: 'mix',
-  contentWidth: 'Fluid',
-  fixedHeader: true,
-  fixSiderbar: true,
-  colorWeak: false,
-  title: APP_TITLE,
-  pwa: false,
-  logo: DEFAULT_LOGO,
-  iconfontUrl: '',
-
-  // 侧边菜单类型
-  siderMenuType: "group",
-  
-  token: {
-    // 参考 https://procomponents.ant.design/components/layout#api
-  },
-};
-
-export default Settings;
+export { default } from './layout/runtime-settings';

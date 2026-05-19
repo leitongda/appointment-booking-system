@@ -1,16 +1,7 @@
 /**
- * 应用全局配置
+ * 应用全局配置（兼容入口）
  *
- * 集中管理应用标题、Logo 等全局配置，避免多处硬编码
+ * 真实定义已迁移至 `./constants/app`，此文件仅做 thin re-export 以保持现有 import 路径有效。
+ * 新代码请直接从 `@config/constants/app` 或 `@config/constants` 引入。
  */
-
-/**
- * 系统标题
- */
-// export const APP_TITLE = '医院挂号管理系统';
-export const APP_TITLE = '管理系统';
-
-/**
- * 默认 Logo 路径
- */
-export const DEFAULT_LOGO = '/logo.svg';
+export { APP_TITLE, DEFAULT_LOGO } from './constants/app';
