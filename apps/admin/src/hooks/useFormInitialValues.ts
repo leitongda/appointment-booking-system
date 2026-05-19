@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 
 /**
  * 表单初始值 Hook 配置选项
@@ -104,11 +104,22 @@ export function useFormInitialValues<T extends Record<string, any>>(
   const { switchFields, defaults, transform } = options ?? {};
   const [loading, setLoading] = useState(false);
 
-  // 计算初始值
+  // 用 ref 持有可能内联的引用，避免 useMemo 因引用变化重算
+  const transformRef = useRef(transform);
+  transformRef.current = transform;
+  const switchFieldsRef = useRef(switchFields);
+  switchFieldsRef.current = switchFields;
+  const defaultsRef = useRef(defaults);
+  defaultsRef.current = defaults;
+
+  // 计算初始值（仅 data 变化时重算）
   const initialValues = useMemo<Partial<T>>(() => {
+    const sf = switchFieldsRef.current;
+    const df = defaultsRef.current;
+
     // 新增模式：使用默认值
     if (!data) {
-      const defaultsWithSwitches = transformSwitchValues<T>(defaults ?? {}, switchFields);
+      const defaultsWithSwitches = transformSwitchValues<T>(df ?? {}, sf);
       return defaultsWithSwitches as Partial<T>;
     }
 
@@ -116,17 +127,17 @@ export function useFormInitialValues<T extends Record<string, any>>(
     let transformed = { ...data };
 
     // 开关字段转换（0/1 -> true/false）
-    if (switchFields && switchFields.length > 0) {
-      transformed = transformSwitchValues<T>(transformed, switchFields);
+    if (sf && sf.length > 0) {
+      transformed = transformSwitchValues<T>(transformed, sf);
     }
 
     // 自定义转换
-    if (transform) {
-      transformed = { ...transformed, ...transform(data as T) };
+    if (transformRef.current) {
+      transformed = { ...transformed, ...transformRef.current(data as T) };
     }
 
     return transformed as Partial<T>;
-  }, [data, switchFields, defaults, transform]);
+  }, [data]);
 
   // 监听数据变化，更新加载状态
   useEffect(() => {

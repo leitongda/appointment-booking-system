@@ -182,9 +182,8 @@ export function useFormSubmit<T extends Record<string, any>, R = void>(
           onSuccess();
         }
       } catch (error: any) {
-        // 失败提示
+        // 失败提示（不 re-throw，避免 ProForm 触发 error boundary remount）
         message.error(error.message || errorMessage);
-        throw error; // 重新抛出错误，让调用方可以处理
       } finally {
         setSubmitting(false);
       }

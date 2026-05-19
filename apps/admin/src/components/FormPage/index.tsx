@@ -11,6 +11,7 @@ import { PageContainer, ProForm, FooterToolbar } from '@ant-design/pro-component
 import { Card, Space, Button, Spin } from 'antd';
 import type { ProFormInstance } from '@ant-design/pro-components';
 import React, { ReactNode, useRef, useEffect } from 'react';
+import { useUpdateEffect } from 'ahooks';
 
 /**
  * 表单页面容器组件属性
@@ -79,13 +80,19 @@ const FormPage: React.FC<FormPageProps> = ({
 }) => {
   const internalFormRef = useRef<ProFormInstance>();
   const formRef = externalFormRef || internalFormRef;
+  const initializedRef = useRef(false);
 
-  // 监听 initialValues 变化，更新表单值
-  useEffect(() => {
-    if (initialValues && formRef.current) {
+  // 设置表单初始值（仅一次）
+  // - useUpdateEffect 处理编辑模式：loading 从 true→false 或 initialValues 变化时触发
+  // - useEffect([]) 处理新增模式：挂载时 loading 已为 false
+  const tryInit = () => {
+    if (!loading && initialValues && formRef.current && !initializedRef.current) {
       formRef.current.setFieldsValue(initialValues);
+      initializedRef.current = true;
     }
-  }, [initialValues]);
+  };
+  useUpdateEffect(tryInit, [loading, initialValues]);
+  useEffect(tryInit, []);
 
   // 处理表单提交
   const handleSubmit = async (values: any) => {
@@ -135,7 +142,6 @@ const FormPage: React.FC<FormPageProps> = ({
       <ProForm
         formRef={formRef}
         onFinish={handleSubmit}
-        initialValues={initialValues}
         submitter={renderSubmitter()}
         {...formProps}
       >
