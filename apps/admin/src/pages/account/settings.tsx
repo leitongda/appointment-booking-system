@@ -1,10 +1,11 @@
 import { PageContainer, ProForm, ProFormText } from '@ant-design/pro-components';
-import { Card, App, Row, Col, Typography, Space, Spin, Switch, TimePicker, Divider, Modal, Form, Input, Button, Tag } from 'antd';
-import { useState, useEffect, useRef } from 'react';
+import { Card, App, Row, Col, Typography, Space, Spin, Switch, TimePicker, Divider, Skeleton, Button, Tag } from 'antd';
+import { useState, useEffect } from 'react';
 import { useModel } from '@umijs/max';
-import { adminApi, notificationPreferenceApi } from '@hospital/api';
+import { adminApi, notificationPreferenceApi, useEmailBinding } from '@hospital/api';
 import type { Admin, NotificationPreference } from '@hospital/api';
 import ImageUpload from '@/components/ImageUpload';
+import EmailBindingModal from '@/components/EmailBindingModal';
 import {
   BellOutlined,
   ClockCircleOutlined,
@@ -45,17 +46,29 @@ const AccountSettingsPage: React.FC = () => {
     endTime: null,
   });
 
-  // 邮箱管理状态
-  const [emailModalVisible, setEmailModalVisible] = useState(false);
-  const [emailModalType, setEmailModalType] = useState<'bind' | 'unbind' | 'change'>('bind');
-  const [emailForm] = Form.useForm();
-  const [emailCodeSending, setEmailCodeSending] = useState(false);
-  const [emailCodeCountdown, setEmailCodeCountdown] = useState(0);
-  const [emailOldCodeSending, setEmailOldCodeSending] = useState(false);
-  const [emailOldCodeCountdown, setEmailOldCodeCountdown] = useState(0);
-  const [emailSubmitting, setEmailSubmitting] = useState(false);
-  const emailTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const emailOldTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // 邮箱管理：统一使用共享 hook（默认走 accountApi）
+  const emailBinding = useEmailBinding({
+    currentEmail: admin?.email,
+    onSuccess: async (mode) => {
+      if (mode === 'bind') message.success('邮箱绑定成功');
+      else if (mode === 'unbind') message.success('邮箱解绑成功');
+      else message.success('邮箱换绑成功');
+      // 刷新管理员信息 + 全局状态
+      try {
+        const updatedAdmin = await adminApi.getCurrentAdmin();
+        setAdmin(updatedAdmin);
+        if (initialState) {
+          setInitialState({ ...initialState, currentUser: updatedAdmin });
+        }
+      } catch {
+        /* 静默 */
+      }
+    },
+    onError: (error) => {
+      const msg = (error as any)?.message || '操作失败';
+      message.error(msg);
+    },
+  });
 
   async function loadAdmin() {
     setLoading(true);
@@ -137,10 +150,6 @@ const AccountSettingsPage: React.FC = () => {
   useEffect(() => {
     loadAdmin();
     loadNotificationPreferences();
-    return () => {
-      if (emailTimerRef.current) clearInterval(emailTimerRef.current);
-      if (emailOldTimerRef.current) clearInterval(emailOldTimerRef.current);
-    };
   }, []);
 
   const handleNotificationToggle = async (
@@ -206,130 +215,6 @@ const AccountSettingsPage: React.FC = () => {
       message.success('设置已保存');
     } catch (error) {
       message.error('保存失败');
-    }
-  };
-
-  // ========== 邮箱管理 ==========
-
-  const openEmailModal = (type: 'bind' | 'unbind' | 'change') => {
-    setEmailModalType(type);
-    setEmailModalVisible(true);
-    emailForm.resetFields();
-    setEmailCodeCountdown(0);
-    setEmailOldCodeCountdown(0);
-    if (emailTimerRef.current) {
-      clearInterval(emailTimerRef.current);
-      emailTimerRef.current = null;
-    }
-    if (emailOldTimerRef.current) {
-      clearInterval(emailOldTimerRef.current);
-      emailOldTimerRef.current = null;
-    }
-  };
-
-  const handleSendEmailCode = async (target: 'new' | 'old' = 'new') => {
-    try {
-      if (target === 'new') {
-        const email = emailForm.getFieldValue('email');
-        if (!email) {
-          message.error('请先输入邮箱');
-          return;
-        }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-          message.error('邮箱格式不正确');
-          return;
-        }
-        setEmailCodeSending(true);
-        await adminApi.sendProfileEmailCode(email);
-        message.success('验证码已发送');
-        setEmailCodeCountdown(60);
-        emailTimerRef.current = setInterval(() => {
-          setEmailCodeCountdown((prev) => {
-            if (prev <= 1) {
-              if (emailTimerRef.current) {
-                clearInterval(emailTimerRef.current);
-                emailTimerRef.current = null;
-              }
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-      } else {
-        // 给旧邮箱发验证码（解绑/换绑场景）
-        if (!admin?.email) {
-          message.error('当前未绑定邮箱');
-          return;
-        }
-        setEmailOldCodeSending(true);
-        await adminApi.sendProfileEmailCode(admin.email);
-        message.success('验证码已发送到当前邮箱');
-        setEmailOldCodeCountdown(60);
-        emailOldTimerRef.current = setInterval(() => {
-          setEmailOldCodeCountdown((prev) => {
-            if (prev <= 1) {
-              if (emailOldTimerRef.current) {
-                clearInterval(emailOldTimerRef.current);
-                emailOldTimerRef.current = null;
-              }
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-      }
-    } catch (error: any) {
-      message.error(error.message || '发送验证码失败');
-    } finally {
-      setEmailCodeSending(false);
-      setEmailOldCodeSending(false);
-    }
-  };
-
-  const handleEmailSubmit = async () => {
-    try {
-      const values = await emailForm.validateFields();
-      setEmailSubmitting(true);
-
-      if (emailModalType === 'bind') {
-        await adminApi.bindEmail({ email: values.email, code: values.code });
-        message.success('邮箱绑定成功');
-      } else if (emailModalType === 'unbind') {
-        await adminApi.unbindEmail({ code: values.code });
-        message.success('邮箱解绑成功');
-      } else if (emailModalType === 'change') {
-        await adminApi.changeEmail({
-          newEmail: values.email,
-          newEmailCode: values.code,
-          oldEmailCode: values.oldCode,
-        });
-        message.success('邮箱换绑成功');
-      }
-
-      setEmailModalVisible(false);
-      // 刷新管理员信息
-      const updatedAdmin = await adminApi.getCurrentAdmin();
-      setAdmin(updatedAdmin);
-      if (initialState) {
-        setInitialState({
-          ...initialState,
-          currentUser: updatedAdmin,
-        });
-      }
-    } catch (error: any) {
-      if (error.message) {
-        message.error(error.message);
-      }
-    } finally {
-      setEmailSubmitting(false);
-    }
-  };
-
-  const getEmailModalTitle = () => {
-    switch (emailModalType) {
-      case 'bind': return '绑定邮箱';
-      case 'unbind': return '解绑邮箱';
-      case 'change': return '更换邮箱';
     }
   };
 
@@ -403,41 +288,45 @@ const AccountSettingsPage: React.FC = () => {
               <div style={{ marginBottom: 8 }}>
                 <Typography.Text type="secondary" style={{ fontSize: 14 }}>邮箱</Typography.Text>
               </div>
-              <Space align="center">
-                {admin?.email ? (
-                  <>
-                    <Tag icon={<MailOutlined />} color="blue">{admin.email}</Tag>
-                    <Tag color="green">已绑定</Tag>
-                    <Button
-                      size="small"
-                      icon={<SwapOutlined />}
-                      onClick={() => openEmailModal('change')}
-                    >
-                      更换邮箱
-                    </Button>
-                    <Button
-                      size="small"
-                      danger
-                      icon={<DisconnectOutlined />}
-                      onClick={() => openEmailModal('unbind')}
-                    >
-                      解绑邮箱
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Tag>未绑定</Tag>
-                    <Button
-                      size="small"
-                      type="primary"
-                      icon={<LinkOutlined />}
-                      onClick={() => openEmailModal('bind')}
-                    >
-                      绑定邮箱
-                    </Button>
-                  </>
-                )}
-              </Space>
+              {loading ? (
+                <Skeleton.Input active size="small" style={{ width: 320 }} />
+              ) : (
+                <Space align="center" wrap>
+                  {admin?.email ? (
+                    <>
+                      <Tag icon={<MailOutlined />} color="blue">{admin.email}</Tag>
+                      <Tag color="green">已绑定</Tag>
+                      <Button
+                        size="small"
+                        icon={<SwapOutlined />}
+                        onClick={() => emailBinding.openModal('change')}
+                      >
+                        更换邮箱
+                      </Button>
+                      <Button
+                        size="small"
+                        danger
+                        icon={<DisconnectOutlined />}
+                        onClick={() => emailBinding.openModal('unbind')}
+                      >
+                        解绑邮箱
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Tag>未绑定</Tag>
+                      <Button
+                        size="small"
+                        type="primary"
+                        icon={<LinkOutlined />}
+                        onClick={() => emailBinding.openModal('bind')}
+                      >
+                        绑定邮箱
+                      </Button>
+                    </>
+                  )}
+                </Space>
+              )}
             </div>
           </ProForm>
         </Card>
@@ -610,158 +499,7 @@ const AccountSettingsPage: React.FC = () => {
         </Card>
 
         {/* 邮箱管理弹窗 */}
-        <Modal
-          title={getEmailModalTitle()}
-          open={emailModalVisible}
-          onCancel={() => setEmailModalVisible(false)}
-          footer={null}
-          destroyOnHidden
-          width={480}
-        >
-          <Form
-            form={emailForm}
-            layout="vertical"
-            onFinish={handleEmailSubmit}
-          >
-            {/* 绑定邮箱：输入新邮箱 + 验证码 */}
-            {emailModalType === 'bind' && (
-              <>
-                <Form.Item
-                  name="email"
-                  label="邮箱地址"
-                  rules={[
-                    { required: true, message: '请输入邮箱' },
-                    { type: 'email', message: '邮箱格式不正确' },
-                  ]}
-                >
-                  <Input placeholder="请输入邮箱地址" prefix={<MailOutlined />} />
-                </Form.Item>
-                <Form.Item
-                  name="code"
-                  label="验证码"
-                  rules={[{ required: true, message: '请输入验证码' }]}
-                >
-                  <Input
-                    placeholder="请输入验证码"
-                    maxLength={6}
-                    suffix={
-                      <Button
-                        type="link"
-                        size="small"
-                        disabled={emailCodeCountdown > 0}
-                        loading={emailCodeSending}
-                        onClick={() => handleSendEmailCode('new')}
-                        style={{ padding: 0 }}
-                      >
-                        {emailCodeCountdown > 0 ? `${emailCodeCountdown}s` : '获取验证码'}
-                      </Button>
-                    }
-                  />
-                </Form.Item>
-              </>
-            )}
-
-            {/* 解绑邮箱：发送验证码到当前邮箱 + 输入验证码 */}
-            {emailModalType === 'unbind' && (
-              <>
-                <Typography.Paragraph type="secondary">
-                  验证码将发送到当前绑定的邮箱：<Typography.Text strong>{admin?.email}</Typography.Text>
-                </Typography.Paragraph>
-                <Form.Item
-                  name="code"
-                  label="验证码"
-                  rules={[{ required: true, message: '请输入验证码' }]}
-                >
-                  <Input
-                    placeholder="请输入验证码"
-                    maxLength={6}
-                    suffix={
-                      <Button
-                        type="link"
-                        size="small"
-                        disabled={emailCodeCountdown > 0}
-                        loading={emailCodeSending}
-                        onClick={() => handleSendEmailCode('new')}
-                        style={{ padding: 0 }}
-                      >
-                        {emailCodeCountdown > 0 ? `${emailCodeCountdown}s` : '获取验证码'}
-                      </Button>
-                    }
-                  />
-                </Form.Item>
-              </>
-            )}
-
-            {/* 换绑邮箱：新邮箱 + 新邮箱验证码 + 旧邮箱验证码 */}
-            {emailModalType === 'change' && (
-              <>
-                <Form.Item
-                  name="email"
-                  label="新邮箱地址"
-                  rules={[
-                    { required: true, message: '请输入新邮箱' },
-                    { type: 'email', message: '邮箱格式不正确' },
-                  ]}
-                >
-                  <Input placeholder="请输入新邮箱地址" prefix={<MailOutlined />} />
-                </Form.Item>
-                <Form.Item
-                  name="code"
-                  label="新邮箱验证码"
-                  rules={[{ required: true, message: '请输入新邮箱验证码' }]}
-                >
-                  <Input
-                    placeholder="请输入新邮箱验证码"
-                    maxLength={6}
-                    suffix={
-                      <Button
-                        type="link"
-                        size="small"
-                        disabled={emailCodeCountdown > 0}
-                        loading={emailCodeSending}
-                        onClick={() => handleSendEmailCode('new')}
-                        style={{ padding: 0 }}
-                      >
-                        {emailCodeCountdown > 0 ? `${emailCodeCountdown}s` : '获取验证码'}
-                      </Button>
-                    }
-                  />
-                </Form.Item>
-                <Form.Item
-                  name="oldCode"
-                  label={`旧邮箱验证码（${admin?.email || '当前邮箱'}）`}
-                  rules={[{ required: true, message: '请输入旧邮箱验证码' }]}
-                >
-                  <Input
-                    placeholder="请输入旧邮箱验证码"
-                    maxLength={6}
-                    suffix={
-                      <Button
-                        type="link"
-                        size="small"
-                        disabled={emailOldCodeCountdown > 0}
-                        loading={emailOldCodeSending}
-                        onClick={() => handleSendEmailCode('old')}
-                        style={{ padding: 0 }}
-                      >
-                        {emailOldCodeCountdown > 0 ? `${emailOldCodeCountdown}s` : '获取验证码'}
-                      </Button>
-                    }
-                  />
-                </Form.Item>
-              </>
-            )}
-
-            <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-              <Space>
-                <Button onClick={() => setEmailModalVisible(false)}>取消</Button>
-                <Button type="primary" htmlType="submit" loading={emailSubmitting}>
-                  确认
-                </Button>
-              </Space>
-            </Form.Item>
-          </Form>
-        </Modal>
+        <EmailBindingModal binding={emailBinding} currentEmail={admin?.email} />
       </Spin>
     </PageContainer>
   );

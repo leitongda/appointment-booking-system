@@ -1,18 +1,57 @@
 import { PageContainer, ProCard, ProForm, ProFormText, ProFormTextArea, ProFormSelect, ProFormDigit } from '@ant-design/pro-components';
-import { Button, message, Spin, Avatar, Descriptions, Tag } from 'antd';
-import { UserOutlined } from '@ant-design/icons';
-import { useState, useEffect } from 'react';
-import { doctorApi } from '@hospital/api';
+import { Button, message, Spin, Avatar, Descriptions, Tag, Space, Skeleton } from 'antd';
+import {
+  UserOutlined,
+  MailOutlined,
+  LinkOutlined,
+  SwapOutlined,
+  DisconnectOutlined,
+} from '@ant-design/icons';
+import { useState, useEffect, useRef } from 'react';
+import { useModel } from 'umi';
+import { doctorApi, useEmailBinding } from '@hospital/api';
 import type { Doctor } from '@hospital/shared';
+import EmailBindingModal from '@/components/EmailBindingModal';
 
 const ProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [doctor, setDoctor] = useState<Doctor | null>(null);
+  const emailSectionRef = useRef<HTMLDivElement>(null);
+  const { refresh: refreshInitialState } = useModel('@@initialState');
+
+  // 邮箱管理：统一走 accountApi
+  const emailBinding = useEmailBinding({
+    currentEmail: doctor?.email,
+    onSuccess: async (mode) => {
+      if (mode === 'bind') message.success('邮箱绑定成功');
+      else if (mode === 'unbind') message.success('邮箱解绑成功');
+      else message.success('邮箱换绑成功');
+      await loadProfile();
+      // 同步全局用户状态（顶部下拉菜单等）
+      try {
+        await refreshInitialState?.();
+      } catch {
+        /* 静默 */
+      }
+    },
+    onError: (error) => {
+      message.error((error as any)?.message || '操作失败');
+    },
+  });
 
   useEffect(() => {
     loadProfile();
   }, []);
+
+  // 支持从下拉菜单跳转后自动滚动到邮箱区块（?section=email）
+  useEffect(() => {
+    if (loading) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('section') === 'email' && emailSectionRef.current) {
+      emailSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [loading]);
 
   const loadProfile = async () => {
     setLoading(true);
@@ -163,9 +202,55 @@ const ProfilePage: React.FC = () => {
               <Descriptions.Item label="个人简介" span={2}>{doctor.introduction || '-'}</Descriptions.Item>
               <Descriptions.Item label="荣誉成就" span={2}>{doctor.honors || '-'}</Descriptions.Item>
             </Descriptions>
+
+            {/* 账号安全 - 邮箱绑定 */}
+            <div ref={emailSectionRef} style={{ marginTop: 24 }}>
+              <ProCard title="账号安全" bordered>
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                  <span style={{ color: '#666', minWidth: 60 }}>邮箱：</span>
+                  {loading ? (
+                    <Skeleton.Input active size="small" style={{ width: 320 }} />
+                  ) : doctor.email ? (
+                    <Space wrap>
+                      <Tag icon={<MailOutlined />} color="blue">{doctor.email}</Tag>
+                      <Tag color="green">已绑定</Tag>
+                      <Button
+                        size="small"
+                        icon={<SwapOutlined />}
+                        onClick={() => emailBinding.openModal('change')}
+                      >
+                        更换邮箱
+                      </Button>
+                      <Button
+                        size="small"
+                        danger
+                        icon={<DisconnectOutlined />}
+                        onClick={() => emailBinding.openModal('unbind')}
+                      >
+                        解绑邮箱
+                      </Button>
+                    </Space>
+                  ) : (
+                    <Space>
+                      <Tag>未绑定</Tag>
+                      <Button
+                        size="small"
+                        type="primary"
+                        icon={<LinkOutlined />}
+                        onClick={() => emailBinding.openModal('bind')}
+                      >
+                        绑定邮箱
+                      </Button>
+                    </Space>
+                  )}
+                </div>
+              </ProCard>
+            </div>
           </>
         )}
       </ProCard>
+
+      <EmailBindingModal binding={emailBinding} currentEmail={doctor?.email} />
     </PageContainer>
   );
 };
