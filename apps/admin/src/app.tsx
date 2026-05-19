@@ -16,6 +16,7 @@ import { APP_TITLE } from '@config/appConfig';
 import { shadcnThemeConfig, getThemeConfig } from '@/themes';
 import { processMenuData, computeParentOpenKeys } from '@/utils/menu';
 import { handleCrossTabEvent } from '@/utils/crossTab';
+import { initVisibilityAuthCheck } from '@/utils/visibilityAuth';
 import { initApp } from '@/utils/initApp';
 import { applySpacingCSSVariables, getSpacingMode } from '@/utils/spacing';
 import { LOGIN_PATH } from '@/constants/paths';
@@ -42,6 +43,7 @@ export function rootContainer(container: any) {
   }
 
   initCrossTabSync(handleCrossTabEvent);
+  initVisibilityAuthCheck();
 
   // 记录初始路由性能
   let routeStartTime = performance.now();
@@ -60,7 +62,7 @@ export function rootContainer(container: any) {
     lastPathname = location.pathname;
   });
 
-  const configProps = shadcnThemeConfig;
+  // const configProps = shadcnThemeConfig;
 
   return (
     <ConfigProvider
@@ -68,7 +70,7 @@ export function rootContainer(container: any) {
         algorithm,
         token: tokenConfig,
       }}
-      {...configProps}
+      // {...configProps}
     >
       <App>{container}</App>
     </ConfigProvider>
@@ -198,14 +200,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
         return <AvatarDropdown>{avatarChildren}</AvatarDropdown>;
       },
     },
-    waterMarkProps: {
-      content: [initialState?.currentUser?.name, initialState?.currentUser?.email || initialState?.currentUser?.phone],
-      fontColor: 'rgba(0, 0, 0, 0.03)',
-      fontSize: 12,
-      gap: [200, 100],
-      rotate: -35,
-      zIndex: 1,
-    },
+    waterMarkProps: undefined,
     footerRender: () => (
       <div style={{ textAlign: 'center', padding: '16px 0', color: '#999' }}>
         {currentStore?.name || APP_TITLE} ©{new Date().getFullYear()} 版权所有

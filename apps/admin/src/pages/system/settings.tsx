@@ -241,6 +241,15 @@ const SettingsPage: React.FC = () => {
     setActiveTab(TAB_PATH_TO_KEY[location.pathname] || 'booking');
   }, [location.pathname]);
 
+  // 门店加载完成后，微信 tab 自动选中第一项
+  useEffect(() => {
+    if (stores.length > 0 && !selectedStoreId && activeTab === 'wechat') {
+      const firstStore = stores[0];
+      setSelectedStoreId(firstStore.id);
+      loadStoreWechatConfig(firstStore.id);
+    }
+  }, [stores, activeTab]);
+
   // 加载门店预约设置
   async function loadStoreBookingSettings(storeId: string) {
     if (!storeId) {
