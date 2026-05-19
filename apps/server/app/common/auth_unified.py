@@ -342,55 +342,56 @@ async def _get_admin_account(
     is_tenant_admin = role_code == "TENANT_ADMIN" or role_name == "租户管理员"
     is_platform_admin = role_code == "PLATFORM_ADMIN" or role_name == "平台管理员" or is_super_admin
 
-    # 检查租户状态（非平台管理员需要检查租户）
+    # 填充租户元数据（所有有租户的管理员都需要，供 /me 等接口使用）
     tenant_id = admin.tenant_id
     tenant_name = None
     tenant_code = None
     tenant_status = None
 
-    if admin.tenant_id and not is_platform_admin:
-        if admin.tenant:
-            from datetime import datetime as _dt
+    if admin.tenant_id and admin.tenant:
+        tenant_id = admin.tenant.id
+        tenant_name = admin.tenant.name
+        tenant_code = admin.tenant.tenant_code
+        tenant_status = admin.tenant.status
 
-            if admin.tenant.status == 0:
-                raise_business_http_error(
-                    status.HTTP_403_FORBIDDEN,
-                    TenantErrorCode.TENANT_DISABLED,
-                    "租户已被禁用",
-                )
-            if admin.tenant.status == 2:
-                raise_business_http_error(
-                    status.HTTP_403_FORBIDDEN,
-                    TenantErrorCode.TENANT_OVERDUE,
-                    "租户已欠费，请续费后继续使用",
-                )
-            # 防御：定时任务尚未把 status 改成 2 但订阅已到期的窗口期
-            if (
-                admin.tenant.status == 1
-                and admin.tenant.subscription_end_at is not None
-                and admin.tenant.subscription_end_at < _dt.utcnow()
-            ):
-                raise_business_http_error(
-                    status.HTTP_403_FORBIDDEN,
-                    TenantErrorCode.TENANT_OVERDUE,
-                    "订阅已到期，请续费后继续使用",
-                )
-            # 试用期到期同样按欠费处理（status=3 + 到期）
-            if (
-                admin.tenant.status == 3
-                and admin.tenant.subscription_end_at is not None
-                and admin.tenant.subscription_end_at < _dt.utcnow()
-            ):
-                raise_business_http_error(
-                    status.HTTP_403_FORBIDDEN,
-                    TenantErrorCode.TENANT_TRIAL_EXPIRED,
-                    "试用期已结束，请订阅后继续使用",
-                )
+    # 检查租户状态（仅非平台管理员需要，平台管理员可跨租户操作）
+    if admin.tenant_id and not is_platform_admin and admin.tenant:
+        from datetime import datetime as _dt
 
-            tenant_id = admin.tenant.id
-            tenant_name = admin.tenant.name
-            tenant_code = admin.tenant.tenant_code
-            tenant_status = admin.tenant.status
+        if admin.tenant.status == 0:
+            raise_business_http_error(
+                status.HTTP_403_FORBIDDEN,
+                TenantErrorCode.TENANT_DISABLED,
+                "租户已被禁用",
+            )
+        if admin.tenant.status == 2:
+            raise_business_http_error(
+                status.HTTP_403_FORBIDDEN,
+                TenantErrorCode.TENANT_OVERDUE,
+                "租户已欠费，请续费后继续使用",
+            )
+        # 防御：定时任务尚未把 status 改成 2 但订阅已到期的窗口期
+        if (
+            admin.tenant.status == 1
+            and admin.tenant.subscription_end_at is not None
+            and admin.tenant.subscription_end_at < _dt.utcnow()
+        ):
+            raise_business_http_error(
+                status.HTTP_403_FORBIDDEN,
+                TenantErrorCode.TENANT_OVERDUE,
+                "订阅已到期，请续费后继续使用",
+            )
+        # 试用期到期同样按欠费处理（status=3 + 到期）
+        if (
+            admin.tenant.status == 3
+            and admin.tenant.subscription_end_at is not None
+            and admin.tenant.subscription_end_at < _dt.utcnow()
+        ):
+            raise_business_http_error(
+                status.HTTP_403_FORBIDDEN,
+                TenantErrorCode.TENANT_TRIAL_EXPIRED,
+                "试用期已结束，请订阅后继续使用",
+            )
 
     # 设置租户上下文
     current_tenant_id = get_current_tenant_id()

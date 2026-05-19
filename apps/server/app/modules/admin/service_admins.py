@@ -289,6 +289,12 @@ class AdminService:
             if existing:
                 raise ValueError("用户名已存在")
 
+        # 邮箱唯一性校验（跨租户，与邮箱登录/绑定逻辑一致）
+        if data.get("email") and data["email"] != admin.email:
+            existing_admins = await self.list_by_email_global(data["email"])
+            if any(item.id != admin.id for item in existing_admins):
+                raise ValueError("该邮箱已被其他管理员使用")
+
         # 密码策略校验
         if data.get("password"):
             from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
