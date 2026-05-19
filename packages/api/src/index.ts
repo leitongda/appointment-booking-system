@@ -38,6 +38,16 @@ export type { TaroAdapterConfig } from './adapters';
 // 导出 RSA 加密工具
 export { rsaEncrypt, setPublicKey, getPublicKey, clearPublicKey } from './modules/crypto';
 
+// 导出共享 React Hooks（邮箱绑定 / 通用倒计时等）
+export { useCountdown, useEmailBinding } from './hooks';
+export type {
+  UseCountdownResult,
+  EmailBindingMode,
+  EmailBindingApi,
+  UseEmailBindingOptions,
+  UseEmailBindingResult,
+} from './hooks';
+
 // 导出 API 模块
 export { authApi } from './modules/auth';
 export { accountApi } from './modules/account';
