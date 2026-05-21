@@ -100,6 +100,11 @@ def _reconcile_tenant(db, tenant_id: str) -> tuple[int, int, int]:
         select(
             Schedule.id,
             Schedule.booked_slots,
+            Schedule.total_slots,
+            Schedule.online_quota,
+            Schedule.offline_quota,
+            Schedule.reserved_quota,
+            Schedule.extra_quota,
             func.coalesce(subquery.c.actual_count, 0).label("actual_count"),
         )
         .outerjoin(subquery, Schedule.id == subquery.c.schedule_id)
@@ -115,7 +120,11 @@ def _reconcile_tenant(db, tenant_id: str) -> tuple[int, int, int]:
     drifted = 0
     fixed = 0
 
-    for schedule_id, booked_slots, actual_count in rows:
+    for row in rows:
+        schedule_id = row.id
+        booked_slots = row.booked_slots
+        actual_count = row.actual_count
+
         if booked_slots != actual_count:
             drifted += 1
             logger.warning(
@@ -134,6 +143,22 @@ def _reconcile_tenant(db, tenant_id: str) -> tuple[int, int, int]:
             except Exception as e:
                 db.rollback()
                 logger.error(f"修复号源偏差失败: schedule_id={schedule_id}, error={e}")
+
+        # 号源拆分校验：booked_slots 不应超过四类 quota 之和
+        quota_sum = (
+            (row.online_quota or 0)
+            + (row.offline_quota or 0)
+            + (row.reserved_quota or 0)
+            + (row.extra_quota or 0)
+        )
+        if quota_sum > 0 and actual_count > quota_sum:
+            logger.warning(
+                f"号源超限: schedule_id={schedule_id}, "
+                f"booked={actual_count}, quota_sum={quota_sum}, "
+                f"(online={row.online_quota}, offline={row.offline_quota}, "
+                f"reserved={row.reserved_quota}, extra={row.extra_quota}), "
+                f"tenant_id={tenant_id}"
+            )
 
     if checked > 0:
         logger.info(

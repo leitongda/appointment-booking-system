@@ -7,6 +7,7 @@
 - blacklist_task: 黑名单自动解禁、爽约自动标记
 - notification_task: 预约提醒
 - schedule_task: 排班自动生成
+- suspension_processing_task: 停诊处置补偿
 - wechat_task: 微信 Token 刷新
 - cleanup_task: 数据清理
 """
@@ -25,6 +26,9 @@ from app.tasks.schedule_task import (
     generate_schedules_for_tenant_task,
     summarize_auto_generate_schedules_task,
     generate_schedules_for_template,
+)
+from app.tasks.suspension_processing_task import (
+    check_pending_suspension_processing,
 )
 from app.tasks.wechat_task import (
     refresh_wechat_token_task,
@@ -49,6 +53,8 @@ __all__ = [
     'generate_schedules_for_tenant_task',
     'summarize_auto_generate_schedules_task',
     'generate_schedules_for_template',
+    # 停诊处置补偿任务
+    'check_pending_suspension_processing',
     # 微信任务
     'refresh_wechat_token_task',
     'refresh_wechat_token',

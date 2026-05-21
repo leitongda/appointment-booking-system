@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.celery_app import celery_app
 from app.core.config import settings
+from app.core.redis import SyncRedisCache
 from app.db.session import get_sync_db
 from app.middleware.tenant_context import clear_tenant_context, set_tenant_context
 from app.models.rest_day import RestDay
@@ -256,6 +257,7 @@ def _generate_template_schedules(
                         start_time=slot_start,
                         end_time=slot_end,
                         total_slots=template.slot_capacity,
+                        online_quota=template.slot_capacity,
                         appointment_type=template.appointment_type,
                         booked_slots=0,
                         status=1,
@@ -494,6 +496,15 @@ def generate_schedules_for_template(
     """
     logger.info(f"[任务] 为模板生成排班: template_id={template_id}, tenant_id={tenant_id}")
 
+    # 分布式锁：防止同一模板被并发生成排班
+    lock_name = f"schedule:generate:{template_id}"
+    lock_value = SyncRedisCache.acquire_lock(lock_name, timeout=300, retry_times=1, retry_delay=0)
+    if not lock_value:
+        logger.warning(
+            f"[任务] 模板 {template_id} 排班生成被跳过，另一实例正在执行"
+        )
+        return {"status": "skipped", "reason": "another generation in progress"}
+
     set_tenant_context(tenant_id, tenant_code)
 
     try:
@@ -566,6 +577,7 @@ def generate_schedules_for_template(
                                     start_time=slot_start,
                                     end_time=slot_end,
                                     total_slots=template.slot_capacity,
+                                    online_quota=template.slot_capacity,
                                     appointment_type=template.appointment_type,
                                     booked_slots=0,
                                     status=1,
@@ -582,6 +594,7 @@ def generate_schedules_for_template(
                 raise
     finally:
         clear_tenant_context()
+        SyncRedisCache.release_lock(lock_name, lock_value)
 
     logger.info(f"[任务] 模板排班生成完成: created_count={created_count}")
     return {"created_count": created_count, "template_id": template_id, "tenant_id": tenant_id}
