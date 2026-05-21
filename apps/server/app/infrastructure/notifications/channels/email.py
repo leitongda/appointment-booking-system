@@ -69,6 +69,7 @@ class EmailChannel(BaseNotificationChannel):
                 variables=event.variables,
             )
 
+            dispatch_meta = (event.extra_data or {}).get("_dispatch", {})
             if success:
                 # 记录通知日志
                 log = NotificationLog(
@@ -84,6 +85,9 @@ class EmailChannel(BaseNotificationChannel):
                     recipient=event.recipient_email,
                     related_id=event.related_id,
                     sent_at=datetime.utcnow(),
+                    primary_channel=dispatch_meta.get("primary_channel"),
+                    fallback_reason=dispatch_meta.get("fallback_reason"),
+                    channel_attempt_order=dispatch_meta.get("channel_attempt_order"),
                 )
                 self.db.add(log)
 
@@ -102,6 +106,9 @@ class EmailChannel(BaseNotificationChannel):
                     recipient=event.recipient_email,
                     related_id=event.related_id,
                     error_message="邮件发送失败",
+                    primary_channel=dispatch_meta.get("primary_channel"),
+                    fallback_reason=dispatch_meta.get("fallback_reason"),
+                    channel_attempt_order=dispatch_meta.get("channel_attempt_order"),
                 )
                 self.db.add(log)
 

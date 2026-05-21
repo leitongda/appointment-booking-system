@@ -130,7 +130,7 @@ class HealthReminderService:
                     Appointment.tenant_id == tenant_id,
                     Appointment.status.in_([4, 5]),  # 已完成或已取消
                 )
-            ).order_by(Appointment.appointment_time.desc()).limit(5)
+            ).order_by(Appointment.created_at.desc()).limit(5)
         )
         appointments = list(appointment_result.scalars().all())
 
@@ -152,8 +152,8 @@ class HealthReminderService:
 
         if appointments:
             last_appointment = appointments[0]
-            if last_appointment.appointment_time:
-                last_check_date = last_appointment.appointment_time.date()
+            if last_appointment.created_at:
+                last_check_date = last_appointment.created_at.date()
                 # 基于推荐周期计算下次检查
                 interval_days = default_reminder.recommended_interval or 365
                 next_check_date = last_check_date + timedelta(days=interval_days)

@@ -7,12 +7,44 @@
 from typing import Dict, List, Optional, Set
 
 # ============================================================
+# 管理端排班权限定义
+# ============================================================
+ADMIN_SCHEDULE_PERMISSIONS: Set[str] = {
+    "schedule:read",               # 查看排班列表/详情/统计
+    "schedule:create",             # 创建排班
+    "schedule:update",             # 更新排班
+    "schedule:delete",             # 删除排班
+    "schedule:publish",            # 发布/撤回排班
+    "schedule:suspend",            # 停诊/恢复排班
+    "schedule:extra-quota",        # 申请加号
+    "schedule:extra-quota:approve", # 审批加号
+    "schedule:holiday",            # 节假日配置管理
+    "schedule:room",               # 诊室管理
+    "schedule:template",           # 排班模板/规则管理
+}
+
+# ============================================================
+# 审批流权限定义
+# ============================================================
+ADMIN_APPROVAL_PERMISSIONS: Set[str] = {
+    "approval-flow:list",          # 查看流程定义
+    "approval-flow:create",        # 创建流程定义
+    "approval-flow:update",        # 编辑流程定义
+    "approval-flow:manage",        # 激活/归档流程
+    "approval-flow:delete",        # 删除流程
+    "approval:read",               # 查看审批实例
+    "approval:approve",            # 审批操作
+}
+
+# ============================================================
 # 医生权限定义
 # ============================================================
 DOCTOR_PERMISSIONS: Set[str] = {
     # 排班相关
     "doctor:schedule:view",      # 查看自己的排班
     "doctor:schedule:edit",      # 编辑自己的排班
+    "schedule:read",             # 排班读权限（查看排班列表/详情）
+    "schedule:extra-quota",      # 申请加号
     # 预约相关
     "doctor:appointment:view",   # 查看预约
     "doctor:appointment:edit",   # 处理预约（接诊/完成/取消）
@@ -62,19 +94,29 @@ SYSTEM_ROLES: Dict[str, dict] = {
         "name": "平台管理员",
         "role_type": "admin",
         "is_default": False,
-        "permissions": [],  # 由数据库配置
+        "permissions": ["*"],
     },
     "TENANT_ADMIN": {
         "name": "租户管理员",
         "role_type": "admin",
         "is_default": False,
-        "permissions": [],  # 由数据库配置
+        "permissions": sorted(ADMIN_SCHEDULE_PERMISSIONS | ADMIN_APPROVAL_PERMISSIONS),
     },
     "STORE_ADMIN": {
         "name": "门店管理员",
         "role_type": "admin",
         "is_default": False,
-        "permissions": [],  # 由数据库配置
+        "permissions": [
+            "schedule:read",
+            "schedule:create",
+            "schedule:update",
+            "schedule:delete",
+            "schedule:publish",
+            "schedule:suspend",
+            "schedule:extra-quota",
+            "approval:read",
+            "approval:approve",
+        ],
     },
     # --- Doctor 角色 ---
     "DOCTOR": {

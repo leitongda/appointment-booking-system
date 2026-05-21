@@ -63,7 +63,7 @@ async def download_patient_template(
         "身份证号": "18位身份证号",
         "性别": "未知/男/女",
         "出生日期": "格式：YYYY-MM-DD",
-        "与本人关系": "本人/父亲/母亲/配偶/子女/其他",
+        "与本人关系": "本人/父母/配偶/子女/其他",
         "省": "省份",
         "市": "城市",
         "区": "区县",
@@ -106,6 +106,38 @@ async def download_department_template(
         BytesIO(excel_bytes),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=department_import_template.xlsx"}
+    )
+
+
+@router.get("/schedules", summary="下载排班导入模板")
+async def download_schedule_template(
+    current_admin=Depends(get_current_admin),
+):
+    """下载排班导入模板"""
+    headers = ["医生姓名", "门店名称", "日期", "时段", "开始时间", "结束时间", "总号源", "在线号源"]
+    required_fields = ["医生姓名", "门店名称", "日期", "时段", "开始时间", "结束时间", "总号源"]
+    sample_data = [
+        ["张医生", "总院", "2026-06-01", "morning", "08:00", "12:00", 20, 15],
+        ["张医生", "总院", "2026-06-01", "afternoon", "14:00", "17:00", 15, 10],
+        ["李医生", "分院", "2026-06-02", "morning", "08:30", "11:30", 10, 8],
+    ]
+    field_notes = {
+        "医生姓名": "必填，需与系统中医生姓名一致",
+        "门店名称": "必填，需与系统中门店名称一致",
+        "日期": "必填，格式：YYYY-MM-DD",
+        "时段": "必填，morning/afternoon/evening",
+        "开始时间": "必填，格式：HH:MM",
+        "结束时间": "必填，格式：HH:MM",
+        "总号源": "必填，大于0的整数",
+        "在线号源": "可选，线上可预约号源数，默认等于总号源",
+    }
+
+    excel_bytes = ExcelImportService.create_template(headers, sample_data, required_fields, field_notes)
+
+    return StreamingResponse(
+        BytesIO(excel_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=schedule_import_template.xlsx"}
     )
 
 

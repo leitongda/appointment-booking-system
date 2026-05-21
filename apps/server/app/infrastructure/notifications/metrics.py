@@ -52,6 +52,13 @@ NOTIFICATION_DEDUP_HITS = Counter(
     ["tenant_id"],
 )
 
+# 渠道降级计数器（按首选渠道、实际渠道、消息类型、租户分组）
+NOTIFICATION_FALLBACK_TOTAL = Counter(
+    "unified_notification_fallback_total",
+    "Total channel fallback events",
+    ["primary_channel", "actual_channel", "event_type", "tenant_id"],
+)
+
 
 # ---------------------------------------------------------------------------
 # 便捷函数
@@ -76,6 +83,21 @@ def record_send(
 def record_dedup_hit(tenant_id: str):
     """记录一次去重命中"""
     NOTIFICATION_DEDUP_HITS.labels(tenant_id=tenant_id).inc()
+
+
+def record_fallback(
+    primary_channel: str,
+    actual_channel: str,
+    event_type: str,
+    tenant_id: str,
+):
+    """记录一次渠道降级事件"""
+    NOTIFICATION_FALLBACK_TOTAL.labels(
+        primary_channel=primary_channel,
+        actual_channel=actual_channel,
+        event_type=event_type,
+        tenant_id=tenant_id,
+    ).inc()
 
 
 def record_retry(channel: str, success: bool):

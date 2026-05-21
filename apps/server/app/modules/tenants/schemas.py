@@ -71,7 +71,7 @@ class TenantFeatures(BaseModel):
     beta_features: bool = Field(default=False, description="灰度功能总开关")
     beta_ai_assistant: bool = Field(default=False, description="AI 辅助（实验性）")
     beta_analytics_v2: bool = Field(default=False, description="新版数据分析（实验性）")
-    beta_unified_message: bool = Field(default=False, description="统一消息中心（灰度）")
+    # beta_unified_message 已退役：统一消息系统已全量启用
 
     model_config = ConfigDict(extra="allow")
 
@@ -280,6 +280,8 @@ class TenantUpdate(BaseModel):
     password_policy: Optional[str] = None
     tags: Optional[str] = None
     log_retention_days: Optional[int] = Field(None, ge=7, le=365, description="日志保留天数")
+    rate_limit_per_minute: Optional[int] = Field(None, ge=1, le=10000, description="每分钟请求上限")
+    rate_limit_per_second: Optional[int] = Field(None, ge=1, le=1000, description="每秒请求上限")
 
     @field_validator("features")
     @classmethod
@@ -320,6 +322,8 @@ class TenantResponse(TenantBase):
     features: Optional[str] = None
     branding_config: Optional[str] = None
     password_policy: Optional[str] = None
+    rate_limit_per_minute: Optional[int] = Field(None, description="每分钟请求上限（覆盖全局 300）")
+    rate_limit_per_second: Optional[int] = Field(None, description="每秒请求上限（覆盖全局 50）")
     tags: Optional[str] = None
     log_retention_days: Optional[int] = 90
     created_at: datetime

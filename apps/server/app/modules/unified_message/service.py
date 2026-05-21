@@ -913,13 +913,10 @@ class UnifiedMessageService:
     async def _notify_new_message(self, event: NotificationEvent, group_id: str):
         """通过 WebSocket 推送新消息通知
 
-        仅对医生用户推送，患者端通常使用小程序/APP，不走 WebSocket。
+        支持医生和患者端推送。
         """
-        if event.recipient_type != "doctor":
-            return
-
         try:
-            from app.core.websocket import notify_new_message
+            from app.core.websocket import notify_new_message, notify_patient, WSMessageType
 
             message_data = {
                 "group_id": group_id,
@@ -932,12 +929,21 @@ class UnifiedMessageService:
                 "related_id": event.related_id,
             }
 
-            await notify_new_message(
-                doctor_id=event.recipient_id,
-                message_data=message_data,
-                tenant_id=event.tenant_id,
-            )
-            logger.debug(f"[统一消息] WebSocket 推送成功: doctor={event.recipient_id}")
+            if event.recipient_type == "doctor":
+                await notify_new_message(
+                    doctor_id=event.recipient_id,
+                    message_data=message_data,
+                    tenant_id=event.tenant_id,
+                )
+                logger.debug(f"[统一消息] WebSocket 推送成功: doctor={event.recipient_id}")
+            elif event.recipient_type == "patient":
+                await notify_patient(
+                    patient_id=event.recipient_id,
+                    message_type=WSMessageType.NEW_MESSAGE,
+                    data=message_data,
+                    tenant_id=event.tenant_id,
+                )
+                logger.debug(f"[统一消息] WebSocket 推送成功: patient={event.recipient_id}")
         except Exception as e:
             # WebSocket 推送失败不影响主流程
             logger.warning(f"[统一消息] WebSocket 推送失败: {e}")

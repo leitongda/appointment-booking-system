@@ -39,8 +39,8 @@ class Settings(BaseSettings):
     # 数据库（异步，FastAPI 使用）
     # 必需配置，请在 .env 文件中设置
     DATABASE_URL: str
-    DB_POOL_SIZE: int = 5          # 保持的连接数（减少资源占用）
-    DB_MAX_OVERFLOW: int = 10       # 最大溢出连接数
+    DB_POOL_SIZE: int = 10         # 保持的连接数（高并发排班场景需要更大连接池）
+    DB_MAX_OVERFLOW: int = 20      # 最大溢出连接数（最大总连接数 = 10+20 = 30）
     DB_POOL_TIMEOUT: int = 30       # 获取连接超时
     DB_POOL_RECYCLE: int = 300      # 5分钟回收连接（避免服务器端超时关闭）
     

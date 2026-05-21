@@ -771,6 +771,17 @@ async def update_tenant(
 
     try:
         tenant = await service.update(tenant_id, data, updated_by=current_admin.get("id"))
+
+        # 同步限流配置到 Redis 缓存
+        update_fields = data.model_dump(exclude_unset=True)
+        if "rate_limit_per_minute" in update_fields or "rate_limit_per_second" in update_fields:
+            from app.middleware.rate_limit import RateLimitMiddleware
+            await RateLimitMiddleware.cache_tenant_limits(
+                tenant_id,
+                tenant.rate_limit_per_minute,
+                tenant.rate_limit_per_second,
+            )
+
         resp = TenantResponse.model_validate(tenant)
         resp.subscription_plan = SubscriptionPlanListResponse.model_validate(tenant.subscription_plan) if tenant.subscription_plan else None
         return resp
@@ -797,6 +808,9 @@ async def delete_tenant(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="租户不存在"
             )
+        # 清除限流缓存
+        from app.middleware.rate_limit import RateLimitMiddleware
+        await RateLimitMiddleware.invalidate_tenant_limits(tenant_id)
         return {"message": "删除成功"}
     except ValueError as e:
         raise HTTPException(

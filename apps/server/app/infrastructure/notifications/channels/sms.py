@@ -74,6 +74,7 @@ class SmsChannel(BaseNotificationChannel):
 
             # 记录失败日志
             try:
+                dispatch_meta = (event.extra_data or {}).get("_dispatch", {})
                 log = NotificationLog(
                     tenant_id=event.tenant_id,
                     store_id=event.store_id,
@@ -86,6 +87,9 @@ class SmsChannel(BaseNotificationChannel):
                     recipient=event.recipient_phone or "",
                     related_id=event.related_id,
                     error_message=str(e),
+                    primary_channel=dispatch_meta.get("primary_channel"),
+                    fallback_reason=dispatch_meta.get("fallback_reason"),
+                    channel_attempt_order=dispatch_meta.get("channel_attempt_order"),
                 )
                 self.db.add(log)
             except Exception:

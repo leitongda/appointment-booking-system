@@ -66,6 +66,11 @@ celery_app.conf.update(
         "app.tasks.payment_task.*": {"queue": "scheduled"},
         "app.tasks.payment_reconciliation.*": {"queue": "scheduled"},
         "app.tasks.refund_sync.*": {"queue": "scheduled"},
+        "app.tasks.suspension_processing_task.*": {"queue": "scheduled"},
+        "app.tasks.approval_task.send_approval_notification": {"queue": "notification"},
+        "app.tasks.approval_task.check_approval_timeouts": {"queue": "scheduled"},
+        "app.tasks.approval_task.advance_after_auto_approve": {"queue": "default"},
+        "app.tasks.approval_task.auto_reject_after_timeout": {"queue": "default"},
     },
     
     # Beat 调度器配置（定时任务）
@@ -161,10 +166,24 @@ celery_app.conf.update(
             "options": {"queue": "scheduled"},
         },
 
+        # 停诊处置补偿 - 每30分钟检查 pending 状态的停诊记录
+        "suspension-processing-compensation": {
+            "task": "app.tasks.suspension_processing_task.check_pending_suspension_processing",
+            "schedule": crontab(minute="*/30"),
+            "options": {"queue": "scheduled"},
+        },
+
         # 排班号源对账 - 每天凌晨3:30（与排班生成错开）
         "schedule-booked-slots-reconciliation": {
             "task": "app.tasks.schedule_reconciliation_task.reconcile_booked_slots",
             "schedule": crontab(hour=3, minute=30),
+            "options": {"queue": "scheduled"},
+        },
+
+        # 审批超时检查 - 每10分钟
+        "approval-timeout-check": {
+            "task": "app.tasks.approval_task.check_approval_timeouts",
+            "schedule": crontab(minute="*/10"),
             "options": {"queue": "scheduled"},
         },
 
@@ -209,6 +228,8 @@ celery_app.autodiscover_tasks([
     "app.tasks.payment_reconciliation",
     "app.tasks.refund_sync",
     "app.tasks.schedule_reconciliation_task",
+    "app.tasks.suspension_processing_task",
+    "app.tasks.approval_task",
 ])
 
 # Flower 监控配置

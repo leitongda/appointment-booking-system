@@ -38,6 +38,7 @@ ROUTER_REGISTRATIONS = [
     RouterRegistration("app.modules.schedule_suspensions.router", "/schedule-suspensions", ["停诊管理"]),
     RouterRegistration("app.modules.schedule_templates.router", "/schedule-templates", ["排班模板"]),
     RouterRegistration("app.modules.blacklists.router", "/blacklists", ["黑名单管理"]),
+    RouterRegistration("app.modules.points.router", "/points", ["积分管理"]),
     RouterRegistration("app.modules.email_templates.router", "/email-templates", ["邮件模板"]),
     RouterRegistration("app.modules.analytics.router", "/analytics", ["用户行为分析"]),
     RouterRegistration("app.modules.import_export.router", "/data", ["数据导入导出"]),
@@ -61,6 +62,11 @@ ROUTER_REGISTRATIONS = [
     RouterRegistration("app.modules.backup.router", "/backup", ["数据备份"]),
     RouterRegistration("app.modules.accounts.router", "/accounts", ["统一账号"]),
     RouterRegistration("app.modules.unified_message.router", "/unified-messages", ["统一消息中心"]),
+    RouterRegistration("app.modules.examination_reports.router", "/examination-reports", ["检查报告"]),
+    RouterRegistration("app.modules.waitlist.router", "/waitlist", ["候补队列"]),
+    RouterRegistration("app.modules.schedule_rooms.router", "/schedule-rooms", ["诊室管理"]),
+    RouterRegistration("app.modules.approval_flows.router", "/approval-flows", ["审批流管理"]),
+    RouterRegistration("app.modules.approval_flows.router_instances", "/approval-instances", ["审批实例"]),
 ]
 
 

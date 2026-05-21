@@ -1,15 +1,24 @@
 """
 API 限流中间件
 基于 Redis 滑动窗口实现,按租户+IP 维度隔离限流
+
+支持按租户差异化限流:
+- Tenant.rate_limit_per_minute / rate_limit_per_second 可覆盖全局默认值
+- 租户限流配置缓存在 Redis (key: tenant_rate_limit:{tenant_id})，TTL 5 分钟
+- 缓存未命中时回退到全局默认值（不在中间件中查 DB）
 """
 from fastapi import Request, HTTPException, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from typing import Optional, Callable, List
+from typing import Optional, Callable, List, Tuple
 import time
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Redis 缓存 key 前缀 + TTL
+_TENANT_LIMIT_CACHE_PREFIX = "tenant_rate_limit:"
+_TENANT_LIMIT_CACHE_TTL = 300  # 5 分钟
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -30,13 +39,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
         app,
-        requests_per_minute: int = 60,
-        requests_per_second: int = 10,
+        requests_per_minute: int = 300,
+        requests_per_second: int = 50,
         enabled: bool = True
     ):
         super().__init__(app)
-        self.requests_per_minute = requests_per_minute
-        self.requests_per_second = requests_per_second
+        self.default_rpm = requests_per_minute
+        self.default_rps = requests_per_second
         self.enabled = enabled
         self._redis = None
         self._get_redis_func = None
@@ -48,6 +57,60 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             self._redis = await _get_redis_impl()
         return self._redis
 
+    async def _get_tenant_limits(self, tenant_id: str) -> Tuple[int, int]:
+        """从 Redis 缓存获取租户专属限流配置
+
+        Returns:
+            (requests_per_minute, requests_per_second)
+            缓存未命中时回退到全局默认值。
+        """
+        try:
+            redis = await self._get_redis()
+            cache_key = f"{_TENANT_LIMIT_CACHE_PREFIX}{tenant_id}"
+            cached = await redis.get(cache_key)
+            if cached:
+                import json
+                data = json.loads(cached)
+                rpm = data.get("rpm", self.default_rpm)
+                rps = data.get("rps", self.default_rps)
+                return rpm, rps
+        except Exception:
+            pass
+        return self.default_rpm, self.default_rps
+
+    @staticmethod
+    async def cache_tenant_limits(
+        tenant_id: str,
+        rate_limit_per_minute: Optional[int],
+        rate_limit_per_second: Optional[int],
+        default_rpm: int = 300,
+        default_rps: int = 50,
+    ):
+        """将租户限流配置写入 Redis 缓存（供外部调用，如租户更新接口）"""
+        try:
+            from app.core.redis import get_redis as _get_redis_impl
+            redis = await _get_redis_impl()
+            cache_key = f"{_TENANT_LIMIT_CACHE_PREFIX}{tenant_id}"
+            import json
+            data = json.dumps({
+                "rpm": rate_limit_per_minute if rate_limit_per_minute is not None else default_rpm,
+                "rps": rate_limit_per_second if rate_limit_per_second is not None else default_rps,
+            })
+            await redis.setex(cache_key, _TENANT_LIMIT_CACHE_TTL, data)
+        except Exception as e:
+            logger.error(f"缓存租户限流配置失败 (tenant={tenant_id}): {e}")
+
+    @staticmethod
+    async def invalidate_tenant_limits(tenant_id: str):
+        """清除租户限流缓存（供外部调用，如租户删除）"""
+        try:
+            from app.core.redis import get_redis as _get_redis_impl
+            redis = await _get_redis_impl()
+            cache_key = f"{_TENANT_LIMIT_CACHE_PREFIX}{tenant_id}"
+            await redis.delete(cache_key)
+        except Exception as e:
+            logger.error(f"清除租户限流缓存失败 (tenant={tenant_id}): {e}")
+
     def _build_rate_limit_key(
         self,
         tenant_id: Optional[str],
@@ -55,18 +118,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         path: str,
         window: str,
     ) -> str:
-        """构建按租户隔离的限流键
-
-        键格式: rate_limit:{tenant_id}:{client_ip}:{path}:{window}
-        tenant_id 为 None 时使用 "global" 作为占位符，
-        确保无租户上下文的请求也受限于同一个桶，不会与有租户的请求混淆。
-
-        Args:
-            tenant_id: 当前租户 ID（可能为 None）
-            client_ip: 客户端 IP 地址
-            path: 请求路径
-            window: 时间窗口标识（"sec" 或 "min"）
-        """
+        """构建按租户隔离的限流键"""
         tenant_part = tenant_id if tenant_id else "global"
         return f"rate_limit:{tenant_part}:{client_ip}:{path}:{window}"
 
@@ -78,89 +130,67 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         real_ip = request.headers.get("X-Real-IP")
         if real_ip:
             return real_ip.strip()
-        # 连接断开时 client 可能为 None
         if request.client:
             return request.client.host
         return "unknown"
 
     async def _check_rate_limit(self, key: str, limit: int, window_seconds: int) -> bool:
-        """基于 Redis 滑动窗口检查是否超过限流阈值
-
-        使用 ZSET 存储请求时间戳，清理过期记录后判断数量。
-
-        Returns:
-            True 表示允许通过，False 表示超过限流
-        """
+        """基于 Redis 滑动窗口检查是否超过限流阈值"""
         try:
             redis = await self._get_redis()
             now = time.time()
             window_start = now - window_seconds
 
             pipeline = redis.pipeline()
-            # 移除窗口外的旧记录
             pipeline.zremrangebyscore(key, 0, window_start)
-            # 统计窗口内请求数
             pipeline.zcard(key)
-            # 添加当前请求时间戳
             pipeline.zadd(key, {str(now): now})
-            # 设置 key 过期时间，避免内存泄漏
             pipeline.expire(key, window_seconds + 1)
             results = await pipeline.execute()
 
             current_count = results[1]
             return current_count < limit
         except Exception as e:
-            # Redis 异常时放行，避免因限流组件故障导致所有请求被拒
             logger.error(f"限流检查异常 (key={key}): {e}")
             return True
 
     async def dispatch(self, request: Request, call_next: Callable):
         """限流中间件主逻辑"""
-        # 未启用时直接放行
         if not self.enabled:
             return await call_next(request)
 
-        # 跳过不需要限流的路径
         path = request.url.path
         for exclude_path in self.EXCLUDE_PATHS:
             if path.startswith(exclude_path):
                 return await call_next(request)
 
-        # 获取当前租户 ID（可能为 None，如平台管理员或公开接口）
         from app.middleware.tenant_context import get_current_tenant_id
         tenant_id = get_current_tenant_id()
 
+        # 获取租户专属限流配置（或回退全局默认值）
+        rpm, rps = self.default_rpm, self.default_rps
+        if tenant_id:
+            rpm, rps = await self._get_tenant_limits(tenant_id)
+
         client_ip = self._get_client_ip(request)
 
-        # 按租户隔离的每秒限流
+        # 每秒限流
         sec_key = self._build_rate_limit_key(tenant_id, client_ip, path, "sec")
-        if not await self._check_rate_limit(sec_key, self.requests_per_second, window_seconds=1):
-            logger.warning(
-                f"每秒限流触发: tenant={tenant_id}, ip={client_ip}, path={path}"
-            )
+        if not await self._check_rate_limit(sec_key, rps, window_seconds=1):
+            logger.warning(f"每秒限流触发: tenant={tenant_id}, ip={client_ip}, path={path}, limit={rps}")
             return JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                content={
-                    "code": 429,
-                    "message": "请求过于频繁，请稍后再试",
-                    "data": None,
-                },
+                content={"code": 429, "message": "请求过于频繁，请稍后再试", "data": None},
                 headers={"Retry-After": "1"},
             )
 
-        # 按租户隔离的每分钟限流
+        # 每分钟限流
         min_key = self._build_rate_limit_key(tenant_id, client_ip, path, "min")
-        if not await self._check_rate_limit(min_key, self.requests_per_minute, window_seconds=60):
-            logger.warning(
-                f"每分钟限流触发: tenant={tenant_id}, ip={client_ip}, path={path}"
-            )
+        if not await self._check_rate_limit(min_key, rpm, window_seconds=60):
+            logger.warning(f"每分钟限流触发: tenant={tenant_id}, ip={client_ip}, path={path}, limit={rpm}")
             return JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                content={
-                    "code": 429,
-                    "message": "请求过于频繁，请稍后再试",
-                    "data": None,
-                },
+                content={"code": 429, "message": "请求过于频繁，请稍后再试", "data": None},
                 headers={"Retry-After": "60"},
             )
 

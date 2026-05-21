@@ -218,15 +218,15 @@ class ImportService:
         # 安全检查：确保导入数据不包含敏感字段
         if sanitize and valid_rows:
             for row_data in valid_rows:
-                cleaned_data = self._sanitize_row_data(row_data)
-                if len(cleaned_data) != len(row_data):
-                    # 检测到敏感字段
-                    detected_fields = set(row_data.keys()) & SENSITIVE_FIELDS
+                # 检查是否包含敏感字段（而不是通过长度比较，因为 _sanitize_row_data 还会移除 _row 等内部字段）
+                detected_fields = set(row_data.keys()) & SENSITIVE_FIELDS
+                if detected_fields:
                     raise BusinessError(
                         f"导入数据包含不允许的字段: {', '.join(detected_fields)}。"
                         f"敏感字段（tenant_id, id等）由系统自动设置，请勿在导入文件中填写。",
                         code=400
                     )
+                cleaned_data = self._sanitize_row_data(row_data)
                 # 更新为清理后的数据
                 row_data.clear()
                 row_data.update(cleaned_data)

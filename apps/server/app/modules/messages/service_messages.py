@@ -1,4 +1,9 @@
-"""Message delivery and inbox service."""
+"""Message delivery and inbox service.
+
+.. deprecated::
+    此模块已被 unified_message 替代。新代码应使用 UnifiedMessageService 或 MessageServiceCompat。
+    保留此文件仅为向后兼容，不再主动调用。
+"""
 
 import json
 import logging

@@ -12,6 +12,7 @@ from app.schemas.notification import (
     NotificationSendResult,
     NotificationDispatchResult,
     NotificationChannel,
+    FallbackContext,
 )
 from app.infrastructure.notifications.registry import channel_registry, register_channels
 from app.core.redis import RedisCache, get_redis
@@ -59,6 +60,9 @@ _DEFAULT_CHANNEL_STRATEGY = {
 # 去重缓存过期时间（秒）
 _DEDUP_TTL = 86400  # 24 小时
 
+# 短信内容最大长度
+_SMS_MAX_CONTENT_LENGTH = 500
+
 
 class NotificationDispatcher:
     """统一通知分发器
@@ -66,8 +70,9 @@ class NotificationDispatcher:
     负责将通知事件分发到合适的渠道，支持：
     - 用户偏好检查
     - 渠道策略选择
-    - 失败处理
-    - 日志记录
+    - 失败降级（带上下文追踪）
+    - 降级场景下的 SMS 内容适配
+    - 日志记录（含降级元数据）
     """
 
     def __init__(self, db: AsyncSession):
@@ -84,12 +89,13 @@ class NotificationDispatcher:
         3. 按优先级依次尝试发送，失败后降级到下一渠道
         4. 任一渠道成功即停止降级
         5. 全部渠道失败则记录失败状态
+        6. 降级场景下记录 FallbackContext 用于诊断
 
         Args:
             event: 通知事件
 
         Returns:
-            分发结果
+            分发结果（含降级上下文）
         """
         result = NotificationDispatchResult(event=event)
 
@@ -112,13 +118,20 @@ class NotificationDispatcher:
         # 3. 渲染通知内容
         content = await self._render_content(event)
 
+        # 记录首选渠道（降级链中的第一个）
+        primary_channel = channels[0] if channels else None
+
+        # 记录降级过程中失败的渠道及原因
+        failed_channel_reasons: dict[str, str] = {}
+
         # 4. 按渠道优先级依次发送（支持降级）
-        for channel_name in channels:
+        for attempt_idx, channel_name in enumerate(channels):
             try:
                 # 检查渠道是否可用
                 if not channel_registry.is_available(channel_name):
                     logger.debug(f"[通知分发] 渠道不可用: {channel_name}")
                     result.skipped_channels += 1
+                    failed_channel_reasons[channel_name] = "渠道未注册或不可用"
                     continue
 
                 # 获取渠道实例
@@ -126,6 +139,7 @@ class NotificationDispatcher:
                 if not channel_class:
                     logger.warning(f"[通知分发] 渠道类未找到: {channel_name}")
                     result.skipped_channels += 1
+                    failed_channel_reasons[channel_name] = "渠道类未找到"
                     continue
 
                 channel = channel_class(self.db)
@@ -135,38 +149,88 @@ class NotificationDispatcher:
                 if not valid:
                     logger.debug(f"[通知分发] 接收人验证失败: {channel_name}, {error_msg}")
                     result.skipped_channels += 1
+                    failed_channel_reasons[channel_name] = f"接收人验证失败: {error_msg}"
                     continue
 
+                # 降级场景：如果是 SMS 渠道且非首选渠道，适配内容
+                adapted_content = content
+                is_fallback = attempt_idx > 0
+                if is_fallback and channel_name == "sms":
+                    adapted_content = self._adapt_content_for_sms(event, content)
+
+                # 注入降级元数据到 event.extra_data，供渠道记录到 NotificationLog
+                if is_fallback:
+                    if event.extra_data is None:
+                        event.extra_data = {}
+                    event.extra_data["_dispatch"] = {
+                        "primary_channel": primary_channel,
+                        "fallback_reason": failed_channel_reasons.get(primary_channel, "发送失败"),
+                        "channel_attempt_order": attempt_idx,
+                    }
+
                 # 发送通知
-                success = await channel.send(event, content)
+                success = await channel.send(event, adapted_content)
 
                 send_result = NotificationSendResult(
                     channel=channel_name,
                     success=success,
                     error_message=None if success else "发送失败",
+                    is_fallback=is_fallback,
+                    attempt_order=attempt_idx,
                 )
                 result.results[channel_name] = send_result
 
                 if success:
                     result.success_channels += 1
-                    # 渠道降级：首选渠道成功后，不再尝试降级渠道
-                    logger.info(f"[通知分发] 渠道 {channel_name} 发送成功，停止降级")
+
+                    # 降级成功时记录 FallbackContext
+                    if is_fallback and primary_channel:
+                        result.fallback_context = FallbackContext(
+                            primary_channel=primary_channel,
+                            actual_channel=channel_name,
+                            failed_channels=list(failed_channel_reasons.keys()),
+                            fallback_reasons=failed_channel_reasons,
+                        )
+                        logger.info(
+                            f"[通知分发] 渠道降级成功: 首选={primary_channel}, 实际={channel_name}, "
+                            f"失败渠道={list(failed_channel_reasons.keys())}"
+                        )
+                    else:
+                        logger.info(f"[通知分发] 渠道 {channel_name} 发送成功")
+
                     break
                 else:
                     result.failed_channels += 1
+                    failed_channel_reasons[channel_name] = "发送失败"
                     logger.warning(f"[通知分发] 渠道 {channel_name} 发送失败，尝试降级渠道")
 
             except Exception as e:
                 logger.error(f"[通知分发] 渠道 {channel_name} 发送异常: {e}", exc_info=True)
                 result.failed_channels += 1
+                failed_channel_reasons[channel_name] = f"异常: {str(e)[:100]}"
                 result.results[channel_name] = NotificationSendResult(
                     channel=channel_name,
                     success=False,
                     error_message=str(e),
+                    is_fallback=attempt_idx > 0,
+                    attempt_order=attempt_idx,
                 )
                 # 异常也继续尝试下一降级渠道
 
-        # 5. 提交数据库事务（通知日志）
+        # 5. 记录降级指标
+        if result.fallback_context:
+            try:
+                from app.infrastructure.notifications.metrics import record_fallback
+                record_fallback(
+                    primary_channel=result.fallback_context.primary_channel,
+                    actual_channel=result.fallback_context.actual_channel,
+                    event_type=event.message_type,
+                    tenant_id=event.tenant_id,
+                )
+            except Exception:
+                pass  # 指标记录失败不影响主流程
+
+        # 6. 提交数据库事务（通知日志）
         try:
             await self.db.commit()
         except Exception as e:
@@ -204,6 +268,61 @@ class NotificationDispatcher:
             title=title,
             content=content,
             template_variables=event.variables,
+        )
+
+    def _adapt_content_for_sms(
+        self, event: NotificationEvent, content: NotificationContent
+    ) -> NotificationContent:
+        """降级场景下将通知内容适配为 SMS 友好格式
+
+        当首选渠道（如微信）失败，降级到 SMS 时，需要确保：
+        1. 核心信息（医生名、日期、时间、操作项）完整保留
+        2. 去除不适用于纯文本的富文本标记
+        3. 内容截断到 SMS 长度限制内，同时保留关键信息尾部
+        4. 在内容末尾添加降级提示（通知用户此为短信降级发送）
+
+        Args:
+            event: 通知事件
+            content: 原始渲染后的内容
+
+        Returns:
+            适配后的 SMS 友好内容
+        """
+        sms_title = content.title.strip()
+        sms_content = content.content.strip()
+
+        # 去除常见的富文本标记（Markdown/HTML 片段）
+        import re
+        sms_content = re.sub(r'<[^>]+>', '', sms_content)  # HTML tags
+        sms_content = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', sms_content)  # Markdown links: [text](url) -> text
+        sms_content = re.sub(r'[*_~`]+', '', sms_content)  # Markdown emphasis
+        sms_content = re.sub(r'\n{2,}', '\n', sms_content)  # 多余空行
+
+        # 确保核心模板变量在内容中被提及（如果 content 中缺少则补充）
+        variables = event.variables or {}
+        essential_vars = {
+            "doctor_name": "医生",
+            "date": "日期",
+            "time_slot": "时段",
+            "time": "时间",
+        }
+        missing_essentials = []
+        for var_key, var_label in essential_vars.items():
+            var_value = variables.get(var_key)
+            if var_value and str(var_value) not in sms_content:
+                missing_essentials.append(f"{var_label}: {var_value}")
+
+        if missing_essentials:
+            sms_content = sms_content + "（" + "，".join(missing_essentials) + "）"
+
+        # 截断到 SMS 长度限制，保留尾部关键信息
+        if len(sms_content) > _SMS_MAX_CONTENT_LENGTH:
+            sms_content = sms_content[:_SMS_MAX_CONTENT_LENGTH - 10] + "...详情请查看APP"
+
+        return NotificationContent(
+            title=sms_title,
+            content=sms_content,
+            template_variables=content.template_variables,
         )
 
     async def _check_preference(self, event: NotificationEvent, channel: str) -> bool:

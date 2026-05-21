@@ -15,11 +15,27 @@ logger = logging.getLogger(__name__)
 
 
 class BusinessError(Exception):
-    """业务异常"""
-    
-    def __init__(self, message: str, code: int = 400):
+    """业务异常
+
+    Args:
+        message: Human-readable error message.
+        code: HTTP status code (default 400).
+        error_code: Machine-readable error code (e.g. "SCHEDULE_CONFLICT").
+            When set, the error response includes a structured ``error`` envelope.
+        details: Optional dict with extra context (conflicts, field errors, etc.).
+    """
+
+    def __init__(
+        self,
+        message: str,
+        code: int = 400,
+        error_code: str | None = None,
+        details: dict | None = None,
+    ):
         self.message = message
         self.code = code
+        self.error_code = error_code
+        self.details = details
         super().__init__(message)
 
 
@@ -51,23 +67,62 @@ def create_error_response(
     code: int,
     message: str,
     data: any = None,
-    status_code: int = None
+    status_code: int = None,
+    error_code: str | None = None,
+    error_details: dict | None = None,
 ) -> JSONResponse:
-    """创建统一的错误响应"""
+    """创建统一的错误响应
+
+    When *error_code* is provided, the response includes a structured ``error``
+    envelope that the frontend can use for branching logic::
+
+        {
+            "code": 400,
+            "message": "...",
+            "error": {
+                "code": "SCHEDULE_CONFLICT",
+                "message": "...",
+                "details": { ... }
+            }
+        }
+
+    When *error_code* is ``None`` (legacy behaviour), the ``error`` key is
+    omitted and the response keeps the old shape::
+
+        {"code": 400, "message": "...", "data": ...}
+    """
+    content: dict = {
+        "code": code,
+        "message": message,
+    }
+    if error_code is not None:
+        error_block: dict = {"code": error_code, "message": message}
+        if error_details is not None:
+            error_block["details"] = error_details
+        content["error"] = error_block
+    elif data is not None:
+        # Legacy path: only include data when no structured error_code
+        content["data"] = data
+
     return JSONResponse(
         status_code=status_code or code,
-        content={
-            "code": code,
-            "message": message,
-            "data": data
-        }
+        content=content,
     )
 
 
 async def business_exception_handler(request: Request, exc: BusinessError):
-    """业务异常处理"""
-    logger.warning(f"业务异常: {exc.message}, path={request.url.path}")
-    return create_error_response(exc.code, exc.message)
+    """业务异常处理
+
+    When the BusinessError carries an *error_code*, the response includes the
+    structured ``error`` envelope.  Otherwise the legacy flat format is used.
+    """
+    logger.warning(f"业务异常: {exc.message}, error_code={exc.error_code}, path={request.url.path}")
+    return create_error_response(
+        exc.code,
+        exc.message,
+        error_code=exc.error_code,
+        error_details=exc.details,
+    )
 
 
 async def authentication_exception_handler(request: Request, exc: AuthenticationError):
@@ -91,29 +146,31 @@ async def not_found_exception_handler(request: Request, exc: NotFoundError):
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     """HTTP 异常处理
 
-    detail 为 dict 时透传 error_code / message / data，供前端结构化识别：
+    detail 为 dict 时，若包含 ``error_code`` 则输出结构化 ``error`` 信封：
         raise HTTPException(403, detail={
             "error_code": "TENANT_OVERDUE",
             "message": "租户已欠费，请续费后继续使用",
         })
+    →  ``{"code": 403, "message": "...", "error": {"code": "TENANT_OVERDUE", "message": "..."}}``
+
     detail 为字符串时回落到原行为。
     """
     logger.warning(f"HTTP异常: {exc.detail}, status={exc.status_code}, path={request.url.path}")
     if isinstance(exc.detail, dict):
-        message = exc.detail.get("message") or "请求错误，请检查后重试"
-        return JSONResponse(
+        msg = exc.detail.get("message") or "请求错误，请检查后重试"
+        err_code = exc.detail.get("error_code")
+        err_details = exc.detail.get("data") or exc.detail.get("details")
+        return create_error_response(
+            code=exc.status_code,
+            message=msg,
             status_code=exc.status_code,
-            content={
-                "code": exc.status_code,
-                "error_code": exc.detail.get("error_code"),
-                "message": message,
-                "data": exc.detail.get("data"),
-            },
+            error_code=err_code,
+            error_details=err_details if isinstance(err_details, dict) else None,
         )
     return create_error_response(
         exc.status_code,
         exc.detail if isinstance(exc.detail, str) else "请求错误，请检查后重试",
-        status_code=exc.status_code
+        status_code=exc.status_code,
     )
 
 
@@ -122,16 +179,20 @@ def raise_business_http_error(
     error_code: str,
     message: str,
     data: any = None,
+    details: dict | None = None,
 ) -> None:
     """抛出带结构化 error_code 的 HTTPException
 
     供登录/鉴权依赖等需要前端按 code 分支的场景使用。
+    The exception handler will wrap *error_code* into the ``error`` envelope.
     """
     from fastapi import HTTPException
 
     detail: dict = {"error_code": error_code, "message": message}
     if data is not None:
         detail["data"] = data
+    if details is not None:
+        detail["details"] = details
     raise HTTPException(status_code=status_code, detail=detail)
 
 

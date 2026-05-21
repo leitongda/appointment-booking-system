@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 from pydantic import BaseModel
@@ -104,6 +105,74 @@ async def get_all_departments(
     
     departments = await service.get_all_active(store_id=store_id)
     return [_to_response(d) for d in departments]
+
+
+@router.get("/symptom-match", summary="症状匹配科室")
+async def symptom_match(
+    q: str = Query(..., min_length=1, max_length=50, description="症状关键词"),
+    store_id: Optional[str] = None,
+    limit: int = Query(default=10, ge=1, le=20),
+    db: AsyncSession = Depends(get_db),
+):
+    """根据症状关键词匹配推荐科室（公开接口）
+
+    匹配逻辑：
+    1. keywords JSON 数组包含查询词
+    2. 科室名称包含查询词
+    3. 按匹配度排序
+    """
+    from sqlalchemy import func, or_, cast, String
+
+    conditions = [
+        Department.status == 1,
+        Department.keywords.isnot(None),
+    ]
+    if store_id:
+        conditions.append(Department.store_id == store_id)
+
+    # 查询 keywords 包含查询词或名称包含查询词的科室
+    # PostgreSQL JSON array 包含检查：keywords::text LIKE '%query%'
+    query = (
+        select(Department)
+        .where(
+            or_(
+                # keywords JSON 数组文本包含查询词
+                cast(Department.keywords, String).ilike(f'%{q}%'),
+                # 科室名称包含查询词
+                Department.name.ilike(f'%{q}%'),
+            )
+        )
+        .where(*conditions)
+        .limit(limit)
+    )
+
+    result = await db.execute(query)
+    departments = result.scalars().all()
+
+    items = []
+    for dept in departments:
+        matched_keywords = []
+        if dept.keywords:
+            matched_keywords = [kw for kw in dept.keywords if q in kw or kw in q]
+
+        # 计算匹配分数
+        score = len(matched_keywords)
+        if q in (dept.name or ''):
+            score += 2  # 名称匹配权重更高
+
+        items.append({
+            "id": dept.id,
+            "name": dept.name,
+            "description": dept.description,
+            "icon": dept.icon,
+            "matchedKeywords": matched_keywords,
+            "score": score,
+        })
+
+    # 按匹配分数降序
+    items.sort(key=lambda x: x["score"], reverse=True)
+
+    return {"items": items, "query": q}
 
 
 @router.put("/batch-sort", summary="批量更新排序")

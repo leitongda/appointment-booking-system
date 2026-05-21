@@ -145,6 +145,68 @@ async def doctor_websocket(
         await ws_manager.disconnect(websocket, doctor_id)
 
 
+@router.websocket("/patient/{patient_id}")
+async def patient_websocket(
+    websocket: WebSocket,
+    patient_id: str,
+    token: str = Query(...),
+):
+    """
+    患者端 WebSocket 连接
+
+    连接地址: ws://host/api/v1/ws/patient/{patient_id}?token={jwt_token}
+
+    消息类型:
+    - CONNECTED: 连接成功
+    - HEARTBEAT: 心跳
+    - PATIENT_CALLED: 叫号通知
+    - PATIENT_PASSED: 过号通知
+    - PATIENT_RECALLED: 重呼通知
+    - PATIENT_NO_SHOW: 爽约通知
+    - NEW_MESSAGE: 新消息通知
+    """
+    payload = await verify_ws_token(token)
+    if not payload:
+        await websocket.close(code=4001, reason="Token 无效或已过期")
+        return
+
+    # 患者 token 的 sub 或 user_id 应与 patient_id 匹配
+    token_user_id = payload.get("sub") or payload.get("user_id")
+    if token_user_id != patient_id:
+        await websocket.close(code=4003, reason="无权限连接此患者的 WebSocket")
+        return
+
+    await ws_manager.connect_patient(websocket, patient_id)
+
+    try:
+        while True:
+            data = await websocket.receive_text()
+
+            try:
+                message = json.loads(data)
+                msg_type = message.get("type", "")
+
+                if msg_type == "HEARTBEAT":
+                    await websocket.send_text(
+                        WSMessage(type=WSMessageType.HEARTBEAT).to_json()
+                    )
+                elif msg_type == "PING":
+                    await websocket.send_text(
+                        json.dumps({"type": "PONG", "timestamp": message.get("timestamp")})
+                    )
+                else:
+                    logger.debug(f"收到患者 {patient_id} 的消息: {msg_type}")
+
+            except json.JSONDecodeError:
+                logger.warning(f"无效的 JSON 消息: {data}")
+
+    except WebSocketDisconnect:
+        await ws_manager.disconnect_patient(websocket, patient_id)
+    except Exception as e:
+        logger.error(f"患者 WebSocket 错误: {e}")
+        await ws_manager.disconnect_patient(websocket, patient_id)
+
+
 @router.get("/online-doctors", summary="获取在线医生列表")
 async def get_online_doctors():
     """

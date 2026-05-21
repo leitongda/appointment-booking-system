@@ -559,6 +559,149 @@ async def export_feedbacks(
     )
 
 
+# ==================== 排班数据导出 ====================
+
+@router.get("/schedules", summary="导出排班数据")
+async def export_schedules(
+    store_id: str = ...,
+    doctor_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    status: Optional[int] = None,
+    db: AsyncSession = Depends(get_db),
+    current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:read")),
+):
+    """导出排班数据（多工作表：排班明细 + 汇总统计）"""
+    from app.models.schedule import Schedule
+    from app.models.schedule_status import ScheduleStatus
+    from collections import defaultdict
+    from datetime import date as date_type
+
+    # 验证门店访问权限
+    if not current_admin.get("is_super_admin"):
+        if not check_store_access(current_admin, store_id):
+            from fastapi import HTTPException, status as http_status
+            raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail="您无权访问此门店数据")
+
+    # 获取租户过滤条件
+    tenant_id = get_tenant_filter(current_admin)
+    if not tenant_id:
+        tenant_id = get_current_tenant_id()
+
+    # 构建查询
+    query = (
+        select(Schedule)
+        .options(
+            selectinload(Schedule.doctor).selectinload(Doctor.department),
+        )
+        .where(Schedule.store_id == store_id)
+    )
+
+    if tenant_id:
+        query = query.where(Schedule.tenant_id == tenant_id)
+    if doctor_id:
+        query = query.where(Schedule.doctor_id == doctor_id)
+    if start_date:
+        query = query.where(Schedule.schedule_date >= date_type.fromisoformat(start_date))
+    if end_date:
+        query = query.where(Schedule.schedule_date <= date_type.fromisoformat(end_date))
+    if status is not None:
+        query = query.where(Schedule.status == status)
+
+    query = query.order_by(Schedule.schedule_date, Schedule.start_time)
+    result = await db.execute(query)
+    schedules = result.unique().scalars().all()
+
+    # 时段映射
+    time_slot_map = {
+        "morning": "上午",
+        "afternoon": "下午",
+        "evening": "晚间",
+        "AM": "上午",
+        "PM": "下午",
+    }
+
+    # 排班状态映射
+    schedule_status_map = {
+        ScheduleStatus.DRAFT: "草稿",
+        ScheduleStatus.PUBLISHED: "已发布",
+        ScheduleStatus.BOOKING: "预约中",
+        ScheduleStatus.FULL: "约满",
+        ScheduleStatus.SUSPENDED: "已停诊",
+        ScheduleStatus.FINISHED: "已结束",
+        ScheduleStatus.WITHDRAWN: "已撤回",
+    }
+
+    # 预约类型映射
+    appointment_type_map = {
+        "normal": "普通号",
+        "expert": "专家号",
+        "urgent": "急诊号",
+        "medical_insurance": "医保",
+        "self_pay": "自费",
+    }
+
+    # 工作表1: 排班明细
+    detail_headers = [
+        "医生姓名", "日期", "时段", "开始时间", "结束时间",
+        "总号源", "已预约", "在线号源", "排班状态", "排班类型",
+    ]
+    detail_data = []
+    # 汇总统计用
+    doctor_stats = defaultdict(lambda: {"schedule_count": 0, "total_slots": 0, "booked_slots": 0})
+
+    for s in schedules:
+        doctor_name = s.doctor.name if s.doctor else ""
+        start_time_str = s.start_time.strftime("%H:%M") if s.start_time else ""
+        end_time_str = s.end_time.strftime("%H:%M") if s.end_time else ""
+        online_quota = s.online_quota if s.online_quota and s.online_quota > 0 else s.total_slots
+
+        detail_data.append([
+            doctor_name,
+            s.schedule_date.strftime("%Y-%m-%d"),
+            time_slot_map.get(s.time_slot, s.time_slot or ""),
+            start_time_str,
+            end_time_str,
+            s.total_slots or 0,
+            s.booked_slots or 0,
+            online_quota,
+            schedule_status_map.get(s.schedule_status, s.schedule_status or ""),
+            appointment_type_map.get(s.appointment_type, s.appointment_type or ""),
+        ])
+
+        # 汇总
+        doc_key = doctor_name or s.doctor_id
+        doctor_stats[doc_key]["schedule_count"] += 1
+        doctor_stats[doc_key]["total_slots"] += s.total_slots or 0
+        doctor_stats[doc_key]["booked_slots"] += s.booked_slots or 0
+
+    # 工作表2: 汇总统计
+    summary_headers = ["医生姓名", "排班数", "总号源", "已预约数"]
+    summary_data = []
+    for doctor_name in sorted(doctor_stats.keys()):
+        stats = doctor_stats[doctor_name]
+        summary_data.append([
+            doctor_name,
+            stats["schedule_count"],
+            stats["total_slots"],
+            stats["booked_slots"],
+        ])
+
+    workbook_data = {
+        "排班明细": {"headers": detail_headers, "data": detail_data},
+        "汇总统计": {"headers": summary_headers, "data": summary_data},
+    }
+
+    excel_bytes = ExcelExportService.create_multi_sheet_workbook(workbook_data)
+    filename = f"schedules_{datetime.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+    return StreamingResponse(
+        BytesIO(excel_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
 # ==================== 规则组导出 ====================
 
 @router.get("/rule-sets", summary="导出规则组列表")

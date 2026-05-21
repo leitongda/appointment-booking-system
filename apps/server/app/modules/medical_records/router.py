@@ -15,6 +15,7 @@ from app.schemas.medical_record import (
 )
 from app.schemas.response import PageResponse
 from app.modules.medical_records.service import MedicalRecordService
+from app.modules.examination_reports.service import ExaminationReportService
 
 router = APIRouter()
 
@@ -131,7 +132,15 @@ async def get_record_by_appointment(
     record = await service.get_by_appointment(appointment_id)
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="病历不存在，请检查后重试")
-    return build_record_response(record)
+    response = build_record_response(record)
+    # 附带检查报告
+    report_service = ExaminationReportService(db)
+    reports = await report_service.get_by_appointment(appointment_id)
+    response.examination_reports = [
+        {"id": r.id, "title": r.title, "reportType": r.report_type, "fileName": r.file_name, "fileSize": r.file_size, "fileType": r.file_type, "fileUrl": r.file_url, "createdAt": r.created_at.isoformat() if r.created_at else None}
+        for r in reports
+    ]
+    return response
 
 
 @router.get("/{record_id}", response_model=MedicalRecordResponse, summary="获取详情")
@@ -144,7 +153,15 @@ async def get_medical_record(
     record = await service.get_by_id(record_id)
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="病历不存在，请检查后重试")
-    return build_record_response(record)
+    response = build_record_response(record)
+    # 附带检查报告
+    report_service = ExaminationReportService(db)
+    reports = await report_service.get_by_record(record_id)
+    response.examination_reports = [
+        {"id": r.id, "title": r.title, "reportType": r.report_type, "fileName": r.file_name, "fileSize": r.file_size, "fileType": r.file_type, "fileUrl": r.file_url, "createdAt": r.created_at.isoformat() if r.created_at else None}
+        for r in reports
+    ]
+    return response
 
 
 @router.post("", response_model=MedicalRecordResponse, summary="创建病历")

@@ -11,6 +11,7 @@ from app.models.schedule import Schedule
 from app.modules.appointments.common import APPOINTMENT_STATUS, CHECKIN_METHOD, AppointmentServiceBase, logger
 from app.modules.rule_engine import RuleEngineService
 from app.modules.settings.service import SettingsService
+from app.core.websocket import notify_patient, WSMessageType
 
 
 class AppointmentFlowService(AppointmentServiceBase):
@@ -273,6 +274,24 @@ class AppointmentFlowService(AppointmentServiceBase):
         appointment.status = APPOINTMENT_STATUS["EXPIRED"]
         await self.db.commit()
         await self.db.refresh(appointment)
+
+        # 通知患者端过号
+        try:
+            patient_id = appointment.user_id or appointment.patient_id
+            if patient_id:
+                await notify_patient(
+                    patient_id=patient_id,
+                    message_type=WSMessageType.PATIENT_PASSED,
+                    data={
+                        "appointment_id": appointment.id,
+                        "queue_number": appointment.queue_number,
+                        "doctor_name": appointment.doctor_name,
+                    },
+                    tenant_id=appointment.tenant_id,
+                )
+        except Exception as exc:
+            logger.warning(f"过号患者通知失败（不影响主流程）: {exc}")
+
         return appointment
 
     async def recall(self, appointment_id: str):
@@ -285,6 +304,24 @@ class AppointmentFlowService(AppointmentServiceBase):
         appointment.call_time = datetime.now()
         await self.db.commit()
         await self.db.refresh(appointment)
+
+        # 通知患者端重新叫号
+        try:
+            patient_id = appointment.user_id or appointment.patient_id
+            if patient_id:
+                await notify_patient(
+                    patient_id=patient_id,
+                    message_type=WSMessageType.PATIENT_RECALLED,
+                    data={
+                        "appointment_id": appointment.id,
+                        "queue_number": appointment.queue_number,
+                        "doctor_name": appointment.doctor_name,
+                    },
+                    tenant_id=appointment.tenant_id,
+                )
+        except Exception as exc:
+            logger.warning(f"重新叫号患者通知失败（不影响主流程）: {exc}")
+
         return appointment
 
     async def mark_no_show(self, appointment_id: str):

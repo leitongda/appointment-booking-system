@@ -3,7 +3,7 @@ import uuid
 from typing import Optional
 from decimal import Decimal
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, or_, select, update as sa_update
 from sqlalchemy.orm import selectinload
 
 from app.core.events import EventType
@@ -48,7 +48,9 @@ class AppointmentBookingService(AppointmentServiceBase):
             raise ValueError("排班不存在")
         if schedule.status != 1:
             raise ValueError("该排班已停诊")
-        if schedule.booked_slots >= schedule.total_slots:
+        # 号源拆分：线上预约检查 online_quota（online_quota=0 时回退到 total_slots）
+        effective_online_quota = schedule.online_quota if schedule.online_quota and schedule.online_quota > 0 else schedule.total_slots
+        if schedule.booked_slots >= effective_online_quota:
             raise ValueError("号源已满")
 
         # 租户一致性校验：排班必须属于当前租户
@@ -206,8 +208,10 @@ class AppointmentBookingService(AppointmentServiceBase):
 
                 schedule_refresh = await self.db.execute(select(Schedule).where(Schedule.id == data.schedule_id))
                 schedule_current = schedule_refresh.scalar_one_or_none()
-                if schedule_current and schedule_current.booked_slots >= schedule_current.total_slots:
-                    raise ValueError("号源已满")
+                if schedule_current:
+                    eff_quota = schedule_current.online_quota if schedule_current.online_quota and schedule_current.online_quota > 0 else schedule_current.total_slots
+                    if schedule_current.booked_slots >= eff_quota:
+                        raise ValueError("号源已满")
 
                 appointment_no = f"YY{datetime.now().strftime('%Y%m%d%H%M%S')}{str(uuid.uuid4())[:4].upper()}"
                 queue_result = await self.db.execute(
@@ -257,7 +261,17 @@ class AppointmentBookingService(AppointmentServiceBase):
                 )
                 set_create_audit(appointment, operator_id or user_id)
                 self.db.add(appointment)
-                schedule.booked_slots += 1
+                # 原子更新号源，防止并发超卖
+                result = await self.db.execute(
+                    sa_update(Schedule)
+                    .where(Schedule.id == schedule.id, Schedule.booked_slots < Schedule.total_slots)
+                    .values(booked_slots=Schedule.booked_slots + 1)
+                    .returning(Schedule.booked_slots)
+                )
+                new_count = result.scalar()
+                if new_count is None:
+                    raise ValueError("号源已满")
+                schedule.booked_slots = new_count
                 await self.db.commit()
                 await self.db.refresh(appointment)
         except RuntimeError as exc:
@@ -497,7 +511,12 @@ class AppointmentBookingService(AppointmentServiceBase):
                     needs_refund = False
 
                 if schedule:
-                    schedule.booked_slots = max(0, schedule.booked_slots - 1)
+                    await self.db.execute(
+                        sa_update(Schedule)
+                        .where(Schedule.id == schedule.id, Schedule.booked_slots > 0)
+                        .values(booked_slots=Schedule.booked_slots - 1)
+                    )
+                    await self.db.refresh(schedule, ["booked_slots"])
 
                 if needs_refund:
                     await self._refund_paid_appointment_on_cancel(
@@ -617,7 +636,12 @@ class AppointmentBookingService(AppointmentServiceBase):
             appointment.cancel_reason = reason
             set_update_audit(appointment, operator_id or user_id)
             if schedule:
-                schedule.booked_slots = max(0, schedule.booked_slots - 1)
+                await self.db.execute(
+                    sa_update(Schedule)
+                    .where(Schedule.id == schedule.id, Schedule.booked_slots > 0)
+                    .values(booked_slots=Schedule.booked_slots - 1)
+                )
+                await self.db.refresh(schedule, ["booked_slots"])
 
             if needs_refund:
                 await self._refund_paid_appointment_on_cancel(

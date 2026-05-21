@@ -10,7 +10,7 @@ from app.models.doctor import Doctor
 from app.models.appointment import Appointment
 from app.modules.appointments.service import AppointmentService
 from app.modules.doctor_portal.schemas import QueuePatientResponse
-from app.core.websocket import notify_doctor, WSMessageType
+from app.core.websocket import notify_doctor, notify_patient, WSMessageType
 
 router = APIRouter()
 
@@ -128,6 +128,23 @@ async def call_patient(
     except Exception:
         pass  # WebSocket 通知失败不影响业务
 
+    # 通知患者端
+    try:
+        patient_id = appointment.user_id or appointment.patient_id
+        if patient_id:
+            await notify_patient(
+                patient_id=patient_id,
+                message_type=WSMessageType.PATIENT_CALLED,
+                data={
+                    "appointment_id": appointment.id,
+                    "queue_number": appointment.queue_number,
+                    "doctor_name": doctor.name,
+                },
+                tenant_id=appointment.tenant_id,
+            )
+    except Exception:
+        pass
+
     return {"message": "已呼叫", "queue_number": appointment.queue_number}
 
 
@@ -161,6 +178,22 @@ async def complete_consultation(
                 "queue_number": appointment.queue_number,
             }
         )
+    except Exception:
+        pass
+
+    # 通知患者端
+    try:
+        patient_id = appointment.user_id or appointment.patient_id
+        if patient_id:
+            await notify_patient(
+                patient_id=patient_id,
+                message_type=WSMessageType.PATIENT_COMPLETED,
+                data={
+                    "appointment_id": appointment.id,
+                    "doctor_name": doctor.name,
+                },
+                tenant_id=appointment.tenant_id,
+            )
     except Exception:
         pass
 
@@ -198,6 +231,23 @@ async def pass_patient(
     except Exception:
         pass
 
+    # 通知患者端
+    try:
+        patient_id = appointment.user_id or appointment.patient_id
+        if patient_id:
+            await notify_patient(
+                patient_id=patient_id,
+                message_type=WSMessageType.PATIENT_PASSED,
+                data={
+                    "appointment_id": appointment.id,
+                    "queue_number": appointment.queue_number,
+                    "doctor_name": doctor.name,
+                },
+                tenant_id=appointment.tenant_id,
+            )
+    except Exception:
+        pass
+
     return {"message": "已过号"}
 
 
@@ -232,6 +282,23 @@ async def recall_patient(
     except Exception:
         pass
 
+    # 通知患者端
+    try:
+        patient_id = appointment.user_id or appointment.patient_id
+        if patient_id:
+            await notify_patient(
+                patient_id=patient_id,
+                message_type=WSMessageType.PATIENT_RECALLED,
+                data={
+                    "appointment_id": appointment.id,
+                    "queue_number": appointment.queue_number,
+                    "doctor_name": doctor.name,
+                },
+                tenant_id=appointment.tenant_id,
+            )
+    except Exception:
+        pass
+
     return {"message": "已重新呼叫"}
 
 
@@ -263,6 +330,23 @@ async def mark_patient_no_show(
                 "queue_number": appointment.queue_number,
             }
         )
+    except Exception:
+        pass
+
+    # 通知患者端
+    try:
+        patient_id = appointment.user_id or appointment.patient_id
+        if patient_id:
+            await notify_patient(
+                patient_id=patient_id,
+                message_type=WSMessageType.PATIENT_NO_SHOW,
+                data={
+                    "appointment_id": appointment.id,
+                    "queue_number": appointment.queue_number,
+                    "doctor_name": doctor.name,
+                },
+                tenant_id=appointment.tenant_id,
+            )
     except Exception:
         pass
 

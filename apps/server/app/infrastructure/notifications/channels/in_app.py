@@ -57,6 +57,7 @@ class InAppChannel(BaseNotificationChannel):
             await self.db.flush()
 
             # 记录通知日志
+            dispatch_meta = (event.extra_data or {}).get("_dispatch", {})
             log = NotificationLog(
                 tenant_id=event.tenant_id,
                 store_id=event.store_id,
@@ -70,6 +71,9 @@ class InAppChannel(BaseNotificationChannel):
                 recipient=f"{event.recipient_type}:{event.recipient_id}",
                 related_id=event.related_id,
                 sent_at=datetime.utcnow(),
+                primary_channel=dispatch_meta.get("primary_channel"),
+                fallback_reason=dispatch_meta.get("fallback_reason"),
+                channel_attempt_order=dispatch_meta.get("channel_attempt_order"),
             )
             self.db.add(log)
 
