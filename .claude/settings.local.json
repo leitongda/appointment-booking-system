@@ -111,7 +111,11 @@
       "Bash(awk '{print $2}')",
       "Bash(xargs -I{} ls -l /proc/{}/fd)",
       "Bash(pnpm why *)",
-      "Bash(npm ls *)"
+      "Bash(npm ls *)",
+      "Bash(awk -F: '$2 > 0')",
+      "Bash(head -1611 /Users/leijiadashao/leitond/appointment-booking-system/apps/server/app/modules/schedules/router.py)",
+      "Bash(mv /tmp/router_trimmed.py /Users/leijiadashao/leitond/appointment-booking-system/apps/server/app/modules/schedules/router.py)",
+      "Bash(xargs -I{} sh -c 'echo \"{}\" && head -1 \"{}\"')"
     ]
   },
   "plansDirectory": ".claude/plans"

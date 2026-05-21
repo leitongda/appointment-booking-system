@@ -99,7 +99,6 @@ docker-compose up -d postgres redis   # 启动数据库和缓存
 ```
 apps/
   admin/                     # 机构端后台管理 (Umi 4, port 9105)
-  admin-v2/                  # 机构端 V2 重构版
   doctor/                    # 医生端工作台 (Umi 4, port 9103)
   patient-h5/                # 患者端 H5 (Umi 4, port 9102)
   patient-miniapp/           # 患者端微信小程序 (Taro 3 + NutUI)
