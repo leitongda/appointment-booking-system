@@ -163,7 +163,7 @@ const DoctorScheduleTab: React.FC<DoctorScheduleTabProps> = ({ doctorId, doctorN
               label="选择模板"
               mode="multiple"
               options={templates.map((t) => ({
-                label: `${t.name} (周${['日', '一', '二', '三', '四', '五', '六'][t.weekday]} ${t.startTime}-${t.endTime})`,
+                label: `${t.name} (周${['日', '一', '二', '三', '四', '五', '六'][(t as any).weekday ?? 0]} ${t.startTime}-${t.endTime})`,
                 value: t.id,
               }))}
               rules={[{ required: true, message: '请选择至少一个模板' }]}

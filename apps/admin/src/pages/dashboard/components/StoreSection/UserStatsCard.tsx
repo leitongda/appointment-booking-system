@@ -6,7 +6,7 @@ import type { StoreDashboardStats } from '@hospital/api';
 const { Statistic } = StatisticCard;
 
 interface UserStatsCardProps {
-  stats: StoreDashboardStats['users'];
+  stats?: StoreDashboardStats['users'];
 }
 
 const UserStatsCard: React.FC<UserStatsCardProps> = ({ stats }) => {

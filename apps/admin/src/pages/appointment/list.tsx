@@ -8,25 +8,13 @@ import { appointmentApi, storeApi, dataApi, doctorApi, departmentApi } from '@ho
 import { toProTableResult } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
 import { PAGINATION_CONFIG } from '@/constants/pagination';
-import { REFUND_STATUS_MAP, REFUND_STATUS_COLOR } from '@hospital/shared';
+import { REFUND_STATUS_MAP, REFUND_STATUS_COLOR, APPOINTMENT_STATUS_TAG, REFUNDABLE_APPOINTMENT_STATUSES } from '@hospital/shared';
 import type { Appointment } from '@hospital/shared';
 import ImportExport from '@/components/ImportExport';
 import ListPageSkeleton from '@/components/ListPageSkeleton';
 import dayjs from 'dayjs';
 
-const STATUS_MAP: Record<number, { text: string; color: string }> = {
-  0: { text: '待支付', color: 'orange' },
-  1: { text: '已预约', color: 'blue' },
-  2: { text: '已签到', color: 'cyan' },
-  3: { text: '历史候诊', color: 'default' },
-  4: { text: '就诊中', color: 'processing' },
-  5: { text: '已完成', color: 'green' },
-  6: { text: '已取消', color: 'default' },
-  7: { text: '已过期', color: 'default' },
-  8: { text: '已爽约', color: 'red' },
-};
-
-const REFUNDABLE_APPOINTMENT_STATUSES = new Set([1, 2, 4, 5]);
+const STATUS_MAP = APPOINTMENT_STATUS_TAG;
 
 const AppointmentListPage: React.FC = () => {
   const { message } = App.useApp();
@@ -335,9 +323,10 @@ const AppointmentListPage: React.FC = () => {
       search: false,
       render: (status) => {
         if (!status) return '-';
+        const s = String(status);
         return (
-          <Tag color={REFUND_STATUS_COLOR[status] || 'default'}>
-            {REFUND_STATUS_MAP[status] || status}
+          <Tag color={REFUND_STATUS_COLOR[s] || 'default'}>
+            {REFUND_STATUS_MAP[s] || status}
           </Tag>
         );
       },

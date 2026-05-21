@@ -9,7 +9,7 @@ import type { ConsultationFeeType, ConsultationFeeTypeCreate, Store } from '@hos
 
 const StoreFeeTypesPage: React.FC = () => {
   const { message } = App.useApp();
-  const { storeId } = useParams<{ storeId: string }>();
+  const { storeId } = useParams();
   const actionRef = useRef<ActionType>();
   const [form] = Form.useForm();
   const [modalVisible, setModalVisible] = useState(false);

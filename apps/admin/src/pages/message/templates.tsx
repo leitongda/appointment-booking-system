@@ -165,13 +165,12 @@ const UnifiedTemplatesPage: React.FC = () => {
           <OperationButton
             type="custom"
             icon={<EyeOutlined />}
+            label="预览"
             onClick={() => {
               setPreviewTemplate(record);
               setPreviewVisible(true);
             }}
-          >
-            预览
-          </OperationButton>
+          />
           <OperationButton
             type="edit"
             permission="message:send"
@@ -184,10 +183,9 @@ const UnifiedTemplatesPage: React.FC = () => {
             type="custom"
             icon={<CopyOutlined />}
             permission="message:send"
+            label="克隆"
             onClick={() => handleClone(record)}
-          >
-            克隆
-          </OperationButton>
+          />
           <OperationButton
             type="delete"
             permission="message:delete"

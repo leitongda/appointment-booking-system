@@ -4,8 +4,8 @@ import { Card, App, Button, Space, Row, Col, Collapse, TimePicker, Divider, Typo
 import { PlusOutlined, DeleteOutlined, SettingOutlined } from '@ant-design/icons';
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { history, useParams, useAccess } from '@umijs/max';
-import { scheduleTemplateApi, departmentApi, doctorApi, shiftTypeApi } from '@hospital/api';
-import type { ShiftType } from '@hospital/shared';
+import { scheduleTemplateApi, departmentApi, doctorApi, shiftTypeApi, ruleSetApi } from '@hospital/api';
+import type { ShiftType, RuleSet } from '@hospital/shared';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import { fetchAllData } from '@/utils/fetchAllData';
 import type { ScheduleTemplate, Doctor, Department, BreakTime } from '@hospital/shared';
@@ -51,6 +51,7 @@ const ScheduleRuleFormPage: React.FC = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [shiftTypes, setShiftTypes] = useState<ShiftType[]>([]);
+  const [ruleSets, setRuleSets] = useState<RuleSet[]>([]);
   const [selectedDept, setSelectedDept] = useState<string>();
 
   // 表单值，用于实时更新日历预览
@@ -106,6 +107,15 @@ const ScheduleRuleFormPage: React.FC = () => {
     }
   }
 
+  async function loadRuleSets() {
+    try {
+      const result = await ruleSetApi.getList({ enabled: true });
+      setRuleSets(result?.data ?? []);
+    } catch (error) {
+      console.error('加载规则组失败', error);
+    }
+  }
+
   async function loadTemplate() {
     if (!id) return;
     setLoading(true);
@@ -144,6 +154,7 @@ const ScheduleRuleFormPage: React.FC = () => {
   useEffect(() => {
     loadDepartments();
     loadShiftTypes();
+    loadRuleSets();
     if (isEdit) {
       loadTemplate();
     }
@@ -191,6 +202,7 @@ const ScheduleRuleFormPage: React.FC = () => {
         slotCapacity: values.slotCapacity || 10,
         scheduleMode: values.scheduleMode,
         breakTimes: formattedBreakTimes.length > 0 ? formattedBreakTimes : undefined,
+        ruleSetId: values.ruleSetId || undefined,
       };
 
       if (isEdit && id) {
@@ -383,6 +395,23 @@ const ScheduleRuleFormPage: React.FC = () => {
                   </Button>
                 }
               />
+              <ProFormSelect
+                name="ruleSetId"
+                label="关联规则组"
+                width="md"
+                options={ruleSets.map((rs) => ({
+                  label: `${rs.name} (优先级: ${rs.priority})`,
+                  value: rs.id,
+                }))}
+                placeholder="不指定则按班次类型自动匹配"
+                fieldProps={{
+                  allowClear: true,
+                  showSearch: true,
+                  filterOption: (input: string, option: any) =>
+                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
+                }}
+                tooltip="指定规则组后，该模板生成的排班将使用此规则组的预约/签到/取消策略"
+              />
             </Card>
             </div>
 
@@ -436,7 +465,7 @@ const ScheduleRuleFormPage: React.FC = () => {
                   min={1}
                   max={200}
                   rules={[{ required: true, message: '请输入班次人数' }]}
-                  extra="每个班次可预约的人数"
+                  extra="每个班次可生成的号源数量。例如设置为 10，则该班次可接受 10 个预约。注意：此为号源物理上限，如需限制预约频率，请在规则组的容量策略中配置。"
                 />
               </ProForm.Group>
             </Card>

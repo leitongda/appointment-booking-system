@@ -33,7 +33,7 @@ import { useFormInitialValues } from '@/hooks/useFormInitialValues';
 import { useFormSubmit } from '@/hooks/useFormSubmit';
 
 const NoticeFormPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const isEdit = !!id;
   const [notice, setNotice] = useState<Notice | null>(null);
   const [loading, setLoading] = useState(false);
@@ -65,7 +65,7 @@ const NoticeFormPage: React.FC = () => {
         type: 1,
         isTop: false,
         status: true,
-      } as Partial<Notice>,
+      } as unknown as Partial<Notice>,
     }
   );
 
@@ -73,9 +73,9 @@ const NoticeFormPage: React.FC = () => {
   const { handleSubmit, submitting } = useFormSubmit<Notice>(
     async (values) => {
       if (isEdit && id) {
-        await contentApi.updateNotice(id, values);
+        await contentApi.updateNotice(id, values as any);
       } else {
-        await contentApi.createNotice(values);
+        await contentApi.createNotice(values as any);
       }
     },
     {
@@ -109,7 +109,7 @@ const NoticeFormPage: React.FC = () => {
           name="type"
           label="类型"
           width="md"
-          options={NOTICE_TYPE_OPTIONS}
+          options={[...NOTICE_TYPE_OPTIONS]}
           rules={[{ required: true, message: '请选择类型' }]}
         />
       </Card>

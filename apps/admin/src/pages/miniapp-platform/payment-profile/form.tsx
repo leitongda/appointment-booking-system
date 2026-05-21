@@ -7,7 +7,7 @@ import { miniappPlatformApi } from '@hospital/api';
 import type { PaymentProfileCreateData, PaymentProfileUpdateData, Company } from '@hospital/api';
 
 const PaymentProfileFormPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const isEdit = !!id;
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -17,7 +17,7 @@ const PaymentProfileFormPage: React.FC = () => {
   async function loadCompanies() {
     try {
       const res = await miniappPlatformApi.getCompanies({ page: 1, pageSize: 100 });
-      setCompanies(res.data?.data || []);
+      setCompanies((res as any).data || []);
     } catch (error) {
       console.error('加载公司列表失败:', error);
     }
@@ -26,8 +26,7 @@ const PaymentProfileFormPage: React.FC = () => {
   async function loadProfile() {
     setLoading(true);
     try {
-      const res = await miniappPlatformApi.getPaymentProfile(id);
-      const profile = res.data;
+      const profile = await miniappPlatformApi.getPaymentProfile(id);
       form.setFieldsValue({
         name: profile.name,
         code: profile.code,
@@ -70,7 +69,7 @@ const PaymentProfileFormPage: React.FC = () => {
     setCheckingCode(true);
     try {
       const res = await miniappPlatformApi.checkPaymentProfileCodeUnique(value, isEdit ? id : undefined);
-      if (res.data?.exists) {
+      if ((res as any).exists) {
         return Promise.reject(new Error('该支付配置编码已存在'));
       }
       return Promise.resolve();
@@ -106,7 +105,7 @@ const PaymentProfileFormPage: React.FC = () => {
             searchConfig: { submitText: '保存' },
             resetText: '取消',
             onReset: () => history.back(),
-          }}
+          } as any}
         >
           <Row gutter={24}>
             <Col span={12}>

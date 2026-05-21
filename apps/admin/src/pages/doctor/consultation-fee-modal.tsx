@@ -293,7 +293,7 @@ const DoctorConsultationFeeModal: React.FC<DoctorConsultationFeeModalProps> = ({
 
         {!useFeeTemplate && (
           <>
-            <Divider orientation="left">自定义诊费配置</Divider>
+            <Divider orientation={'left' as any}>自定义诊费配置</Divider>
             
             <Alert
               title="一键带入模板功能"
@@ -394,7 +394,7 @@ const DoctorConsultationFeeModal: React.FC<DoctorConsultationFeeModalProps> = ({
                   >
                     <Table
                       rowKey="feeTypeId"
-                      columns={feeColumns.map(col => {
+                      columns={(feeColumns as any[]).map((col: any) => {
                         if (col.dataIndex === 'initialFee' || col.dataIndex === 'followUpFee') {
                           return {
                             ...col,

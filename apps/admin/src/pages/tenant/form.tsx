@@ -7,7 +7,7 @@ import { tenantApi } from '@hospital/api';
 import type { SubscriptionPlan, TenantCreateData, TenantUpdateData } from '@hospital/api';
 
 const TenantFormPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const [_searchParams] = useSearchParams();
   const isEdit = !!id;
   const [form] = Form.useForm();
@@ -124,7 +124,7 @@ const TenantFormPage: React.FC = () => {
             searchConfig: { submitText: '保存' },
             resetText: '取消',
             onReset: () => history.back(),
-          }}
+          } as any}
         >
           <Row gutter={24}>
             <Col span={12}>

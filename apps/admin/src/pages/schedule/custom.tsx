@@ -10,6 +10,7 @@ import { toProTableResult } from '@/utils/proTable';
 import { APPOINTMENT_TYPE_MAP } from '@hospital/shared';
 import type { CustomSchedule } from '@hospital/api';
 import { ScheduleMessages } from './utils/message';
+import { COLOR_DANGER, COLOR_DISABLED } from '@/themes/scheduleColors';
 
 const CustomSchedulePage: React.FC = () => {
   const { message } = App.useApp();
@@ -143,7 +144,7 @@ const CustomSchedulePage: React.FC = () => {
             onConfirm={() => handleDelete(record.id)}
             disabled={record.bookedCount > 0}
           >
-            <a style={{ color: record.bookedCount > 0 ? '#ccc' : '#ff4d4f' }}>
+            <a style={{ color: record.bookedCount > 0 ? COLOR_DISABLED : COLOR_DANGER }}>
               删除
             </a>
           </Popconfirm>

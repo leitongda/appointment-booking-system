@@ -34,8 +34,7 @@ const SOURCE_MAP: Record<number, string> = {
 
 const RELATIONSHIP_OPTIONS = [
   { label: '本人', value: '本人' },
-  { label: '父亲', value: '父亲' },
-  { label: '母亲', value: '母亲' },
+  { label: '父母', value: '父母' },
   { label: '配偶', value: '配偶' },
   { label: '子女', value: '子女' },
   { label: '其他', value: '其他' },
@@ -48,7 +47,7 @@ const ID_CARD_TYPE_OPTIONS = [
 ];
 
 const UserDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const { message } = App.useApp();
   const access = useAccess();
   const [loading, setLoading] = useState(true);

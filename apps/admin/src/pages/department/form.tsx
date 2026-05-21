@@ -64,7 +64,7 @@ const flattenTreeToOptions = (
 };
 
 const DepartmentFormPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const access = useAccess();
   const { initialState } = useModel('@@initialState');
   const { currentUser, currentStore } = initialState ?? {};
@@ -123,22 +123,22 @@ const DepartmentFormPage: React.FC = () => {
   }, [id, isEdit]);
 
   // 开关字段列表（需要转换为 0/1 的字段）
-  const switchFields = ['isHot', 'status', 'enableBanner', 'enableIntro', 'isFinal', 'isRecommended'];
+  const switchFields: (keyof Department)[] = ['isHot', 'status', 'enableBanner', 'enableIntro', 'isFinal', 'isRecommended'];
 
   // 使用 useFormInitialValues hook 处理初始值
-  const { initialValues } = useFormInitialValues<Department | null>(
+  const { initialValues } = useFormInitialValues<Department>(
     department,
     {
       switchFields,
       defaults: {
         sortOrder: 1,
         parentId: '',
-        isHot: false,
-        status: true,
-        enableBanner: false,
-        enableIntro: false,
-        isFinal: false,
-        isRecommended: false,
+        isHot: false as any,
+        status: true as any,
+        enableBanner: false as any,
+        enableIntro: false as any,
+        isFinal: false as any,
+        isRecommended: false as any,
       },
       transform: (data) => ({
         ...data,
@@ -149,7 +149,7 @@ const DepartmentFormPage: React.FC = () => {
 
   // 使用 useFormSubmit hook 处理提交
   const { handleSubmit, submitting } = useFormSubmit(
-    async (values) => {
+    async (values: any) => {
       if (isEdit && id) {
         return departmentApi.update(id, values);
       } else {

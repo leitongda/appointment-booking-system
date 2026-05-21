@@ -1,8 +1,8 @@
-import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormSelect, ProFormSwitch, FooterToolbar } from '@ant-design/pro-components';
+import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormSelect, FooterToolbar } from '@ant-design/pro-components';
 import { Card, App, Button, Space, Modal } from 'antd';
 import { history } from '@umijs/max';
 import { messageApi } from '@hospital/api';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { UnifiedTemplate } from '@hospital/shared';
 
 const TYPE_OPTIONS = [
@@ -14,25 +14,35 @@ const TYPE_OPTIONS = [
   { label: '反馈', value: 'feedback' },
 ];
 
+const SEND_MODE_OPTIONS = [
+  { label: '单发', value: 'single' },
+  { label: '批量（用户ID列表）', value: 'batch' },
+  { label: '按规则发送', value: 'rule' },
+];
+
 const MessageFormPage: React.FC = () => {
   const { message } = App.useApp();
-  const [isBatch, setIsBatch] = useState(false);
+  const [sendMode, setSendMode] = useState<'single' | 'batch' | 'rule'>('single');
   const [templates, setTemplates] = useState<UnifiedTemplate[]>([]);
+  const [recipientRules, setRecipientRules] = useState<any[]>([]);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewData, setPreviewData] = useState<{ title: string; content: string }>({ title: '', content: '' });
-  const [formRef, setFormRef] = useState<any>(null);
+  const formRef = useRef<any>(null);
 
   useEffect(() => {
     messageApi.getUnifiedTemplates({ status: 1, page: 1, pageSize: 100 }).then((res) => {
-      setTemplates(res?.items || res?.data || []);
+      setTemplates(Array.isArray(res) ? res : (res as any)?.data || []);
+    }).catch(() => {});
+    messageApi.getRecipientRules().then((res) => {
+      setRecipientRules(Array.isArray(res) ? res : (res as any)?.data || []);
     }).catch(() => {});
   }, []);
 
   const handleTemplateChange = useCallback((templateId: string) => {
-    if (!formRef || !templateId) return;
+    if (!formRef.current || !templateId) return;
     const tpl = templates.find((t) => t.id === templateId);
     if (tpl) {
-      formRef.setFieldsValue({
+      formRef.current.setFieldsValue({
         title: tpl.subjectTemplate || '',
         content: tpl.textTemplate || '',
         messageType: tpl.messageType,
@@ -41,31 +51,41 @@ const MessageFormPage: React.FC = () => {
   }, [formRef, templates]);
 
   const handlePreview = useCallback(() => {
-    if (!formRef) return;
-    const values = formRef.getFieldsValue();
+    if (!formRef.current) return;
+    const values = formRef.current.getFieldsValue();
     setPreviewData({ title: values.title || '', content: values.content || '' });
     setPreviewVisible(true);
   }, [formRef]);
 
   const handleSubmit = async (values: any) => {
     try {
-      if (isBatch) {
-        const userIds = (values.userId as string).split('\n').map((s: string) => s.trim()).filter(Boolean);
-        await messageApi.sendBatch({
-          userIds,
-          userType: values.userType,
-          title: values.title,
-          content: values.content,
-          messageType: values.messageType,
+      const tenantId = localStorage.getItem('hospital_current_tenant_id') || '';
+      const baseParams = {
+        tenantId,
+        recipientType: values.userType,
+        title: values.title,
+        content: values.content,
+        messageType: values.messageType,
+        templateCode: 'manual',
+      };
+
+      if (sendMode === 'rule') {
+        const result = await messageApi.sendBatchByRule(values.ruleId, {
+          ...baseParams,
         });
+        message.success(`按规则发送完成，${(result as any)?.message || ''}`);
+      } else if (sendMode === 'batch') {
+        const userIds = (values.userId as string).split('\n').map((s: string) => s.trim()).filter(Boolean);
+        await Promise.all(
+          userIds.map((id: string) =>
+            messageApi.sendUnified({ ...baseParams, recipientId: id })
+          )
+        );
         message.success(`批量发送成功，共 ${userIds.length} 人`);
       } else {
-        await messageApi.send({
-          userId: values.userId,
-          userType: values.userType,
-          title: values.title,
-          content: values.content,
-          messageType: values.messageType,
+        await messageApi.sendUnified({
+          ...baseParams,
+          recipientId: values.userId,
         });
         message.success('发送成功');
       }
@@ -83,7 +103,7 @@ const MessageFormPage: React.FC = () => {
   return (
     <PageContainer title="发送消息">
       <ProForm
-        formRef={(ref) => setFormRef(ref)}
+        formRef={formRef}
         onFinish={handleSubmit}
         initialValues={{ userType: 'patient', messageType: 'system' }}
         submitter={{
@@ -93,7 +113,7 @@ const MessageFormPage: React.FC = () => {
                 <Button onClick={() => history.back()}>取消</Button>
                 <Button onClick={handlePreview}>预览</Button>
                 <Button type="primary" onClick={() => props.form?.submit()}>
-                  {isBatch ? '批量发送' : '发送'}
+                  {sendMode === 'batch' ? '批量发送' : sendMode === 'rule' ? '按规则发送' : '发送'}
                 </Button>
               </Space>
             </FooterToolbar>
@@ -101,15 +121,26 @@ const MessageFormPage: React.FC = () => {
         }}
       >
         <Card title="消息信息">
-          <ProFormSwitch
-            name="isBatch"
-            label="批量发送"
+          <ProFormSelect
+            name="sendMode"
+            label="发送方式"
+            width="md"
+            options={SEND_MODE_OPTIONS}
+            initialValue="single"
             fieldProps={{
-              onChange: (checked) => setIsBatch(checked),
+              onChange: (val) => setSendMode(val as 'single' | 'batch' | 'rule'),
             }}
           />
           <ProForm.Group>
-            {isBatch ? (
+            {sendMode === 'single' && (
+              <ProFormText
+                name="userId"
+                label="用户ID"
+                width="md"
+                rules={[{ required: true, message: '请输入用户ID' }]}
+              />
+            )}
+            {sendMode === 'batch' && (
               <ProFormTextArea
                 name="userId"
                 label="用户ID列表"
@@ -118,12 +149,18 @@ const MessageFormPage: React.FC = () => {
                 fieldProps={{ rows: 4 }}
                 width="xl"
               />
-            ) : (
-              <ProFormText
-                name="userId"
-                label="用户ID"
-                width="md"
-                rules={[{ required: true, message: '请输入用户ID' }]}
+            )}
+            {sendMode === 'rule' && (
+              <ProFormSelect
+                name="ruleId"
+                label="收件人规则"
+                width="lg"
+                options={recipientRules.map((r: any) => ({
+                  label: `${r.name}（${r.eventType || r.event_type || ''}）`,
+                  value: r.id,
+                }))}
+                rules={[{ required: true, message: '请选择收件人规则' }]}
+                placeholder="选择规则后将按规则匹配收件人"
               />
             )}
             <ProFormSelect
@@ -135,6 +172,7 @@ const MessageFormPage: React.FC = () => {
                 { label: '医生', value: 'doctor' },
               ]}
               rules={[{ required: true, message: '请选择用户类型' }]}
+              hidden={sendMode === 'rule'}
             />
           </ProForm.Group>
           <ProFormSelect

@@ -8,7 +8,7 @@ import type { StoreFeeTemplateWithType, Store, StoreFeeTemplateItem } from '@hos
 
 const StoreFeeTemplatesPage: React.FC = () => {
   const { message } = App.useApp();
-  const { storeId } = useParams<{ storeId: string }>();
+  const { storeId } = useParams();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [templates, setTemplates] = useState<StoreFeeTemplateWithType[]>([]);

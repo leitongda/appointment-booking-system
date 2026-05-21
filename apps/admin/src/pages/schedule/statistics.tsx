@@ -5,6 +5,7 @@ import { useState, Suspense, lazy, ComponentType } from 'react';
 import { useAccess } from '@umijs/max';
 import { scheduleApi } from '@hospital/api';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
+import { SCHEDULE_STATUS_ACTIVE, TEXT_SECONDARY } from '@/themes/scheduleColors';
 import type { ScheduleStatisticsItem, ScheduleStatisticsResponse, UtilizationTrendResponse, DoctorWorkloadResponse, PeakHourHeatmapResponse } from '@hospital/api';
 import dayjs from 'dayjs';
 
@@ -267,7 +268,7 @@ const ScheduleStatisticsPage: React.FC = () => {
 
   // 利用率趋势图配置
   const trendConfig = trendData && trendData.items.length > 0 ? {
-    data: trendData.items.map(item => ({
+    data: trendData.items.map((item: any) => ({
       period: item.period,
       value: item.utilizationRate,
       type: '利用率(%)',
@@ -291,7 +292,7 @@ const ScheduleStatisticsPage: React.FC = () => {
 
   // 医生工作量对比图配置
   const workloadConfig = workloadData && workloadData.items.length > 0 ? {
-    data: workloadData.items.map(item => ({
+    data: workloadData.items.map((item: any) => ({
       doctor: item.doctorName,
       value: item.utilizationRate,
       type: '利用率(%)',
@@ -324,7 +325,7 @@ const ScheduleStatisticsPage: React.FC = () => {
     yField: 'hour',
     colorField: 'value',
     height: 400,
-    color: ['#e6f7ff', '#1890ff', '#096dd9', '#0050b3'],
+    color: ['#e6f7ff', SCHEDULE_STATUS_ACTIVE, '#096dd9', '#0050b3'],
     tooltip: {
       formatter: (data: any) => {
         return { name: '预约率', value: `${data.value}%` };
@@ -387,7 +388,7 @@ const ScheduleStatisticsPage: React.FC = () => {
             </Button>
           </Form.Item>
         </Form>
-        <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
+        <div style={{ marginTop: 8, fontSize: 12, color: TEXT_SECONDARY }}>
           查询流程：选择门店 &gt; 选择月份
         </div>
       </Card>
@@ -425,19 +426,19 @@ const ScheduleStatisticsPage: React.FC = () => {
             <Row gutter={16}>
               <Col span={8}>
                 <Statistic title="上午号源" value={summary.morningSlots} />
-                <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4 }}>
                   已预约: {summary.morningBooked} ({summary.morningSlots > 0 ? (summary.morningBooked / summary.morningSlots * 100).toFixed(1) : 0}%)
                 </div>
               </Col>
               <Col span={8}>
                 <Statistic title="下午号源" value={summary.afternoonSlots} />
-                <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4 }}>
                   已预约: {summary.afternoonBooked} ({summary.afternoonSlots > 0 ? (summary.afternoonBooked / summary.afternoonSlots * 100).toFixed(1) : 0}%)
                 </div>
               </Col>
               <Col span={8}>
                 <Statistic title="晚间号源" value={summary.eveningSlots} />
-                <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4 }}>
                   已预约: {summary.eveningBooked} ({summary.eveningSlots > 0 ? (summary.eveningBooked / summary.eveningSlots * 100).toFixed(1) : 0}%)
                 </div>
               </Col>

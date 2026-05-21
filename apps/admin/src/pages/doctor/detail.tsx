@@ -13,7 +13,7 @@ import DoctorScheduleTab from './components/DoctorScheduleTab';
 import DoctorAppointmentTab from './components/DoctorAppointmentTab';
 
 const DoctorDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [doctor, setDoctor] = useState<Doctor | null>(null);

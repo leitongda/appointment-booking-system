@@ -11,6 +11,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { scheduleApi } from '@hospital/api';
 import type { Schedule, BreakTime } from '@hospital/shared';
 import { fetchAllData } from '@/utils/fetchAllData';
+import { SCHEDULE_STATUS_ACTIVE, COLOR_DANGER, TEXT_SECONDARY } from '@/themes/scheduleColors';
 import { 
   generateSchedulePreview, 
   getDateInfo, 
@@ -239,7 +240,7 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
                         <div>
                           {Object.entries(groupedByPeriod).map(([period, periodSlots]) => (
                             <div key={period} style={{ marginBottom: 4 }}>
-                              <div style={{ fontWeight: 'bold', color: '#1890ff' }}>{period}：</div>
+                              <div style={{ fontWeight: 'bold', color: SCHEDULE_STATUS_ACTIVE }}>{period}：</div>
                               {periodSlots.map(([slotStart, slotEnd], idx) => (
                                 <div key={idx} style={{ paddingLeft: 8 }}>
                                   {slotStart}-{slotEnd}
@@ -251,7 +252,7 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
                       );
                     })()}
                     {(!startTime || !endTime || !TIME_FORMAT_REGEX.test(startTime) || !TIME_FORMAT_REGEX.test(endTime)) && (
-                      <div style={{ color: '#ff4d4f' }}>请设置有效的开始时间和结束时间</div>
+                      <div style={{ color: COLOR_DANGER }}>请设置有效的开始时间和结束时间</div>
                     )}
                   </div>
                 )}
@@ -321,7 +322,7 @@ const RulePreviewCalendar: React.FC<RulePreviewCalendarProps> = ({
                 <span style={{ marginLeft: 16 }}>
                   每日总时长：<strong>{formatDuration(dailyDuration)}</strong>
                   {breakTimes.length > 0 && (
-                    <span style={{ color: '#999', marginLeft: 4 }}>
+                    <span style={{ color: TEXT_SECONDARY, marginLeft: 4 }}>
                       (已排除{breakTimes.length}个时间段)
                     </span>
                   )}

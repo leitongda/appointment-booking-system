@@ -1,6 +1,6 @@
 import { PageContainer } from '@ant-design/pro-components';
 import { Card, Form, InputNumber, Select, Switch, Button, Space, Alert, App } from 'antd';
-import { useParams, history, Link } from '@umijs/max';
+import { useParams, history } from '@umijs/max';
 import { useEffect, useState } from 'react';
 import { storeApi, storeVisitTypeConfigApi } from '@hospital/api';
 import type { Store, StoreVisitTypeConfig, TimeUnit, VisitScope } from '@hospital/shared';
@@ -8,7 +8,7 @@ import { TIME_UNIT_OPTIONS, VISIT_SCOPE_OPTIONS } from '@hospital/shared';
 
 const VisitTypeConfigPage = () => {
   const { message } = App.useApp();
-  const { storeId } = useParams<{ storeId: string }>();
+  const { storeId } = useParams();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -23,7 +23,7 @@ const VisitTypeConfigPage = () => {
       setLoading(true);
       try {
         // 加载门店信息
-        const storeData = await storeApi.getById(storeId);
+        const storeData = await storeApi.getDetail(storeId);
         setStore(storeData);
 
         // 加载配置
@@ -95,7 +95,7 @@ const VisitTypeConfigPage = () => {
       title={`${store?.name || '门店'} - 复诊规则配置`}
       breadcrumb={{
         items: [
-          { title: <Link to="/organization/store">门店管理</Link> },
+          { title: <a onClick={() => history.push('/organization/store')}>门店管理</a> },
           { title: '复诊规则配置' },
         ],
       }}

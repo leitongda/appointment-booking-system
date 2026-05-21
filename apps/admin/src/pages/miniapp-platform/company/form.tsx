@@ -7,7 +7,7 @@ import { miniappPlatformApi } from '@hospital/api';
 import type { CompanyCreateData, CompanyUpdateData } from '@hospital/api';
 
 const CompanyFormPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const isEdit = !!id;
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -16,8 +16,7 @@ const CompanyFormPage: React.FC = () => {
   const loadCompany = async () => {
     setLoading(true);
     try {
-      const res = await miniappPlatformApi.getCompany(id);
-      const company = res.data;
+      const company = await miniappPlatformApi.getCompany(id);
       form.setFieldsValue({
         name: company.name,
         code: company.code,
@@ -51,7 +50,7 @@ const CompanyFormPage: React.FC = () => {
     setCheckingCode(true);
     try {
       const res = await miniappPlatformApi.checkCompanyCodeUnique(value, isEdit ? id : undefined);
-      if (res.data?.exists) {
+      if ((res as any).exists) {
         return Promise.reject(new Error('该公司编码已存在'));
       }
       return Promise.resolve();
@@ -87,7 +86,7 @@ const CompanyFormPage: React.FC = () => {
             searchConfig: { submitText: '保存' },
             resetText: '取消',
             onReset: () => history.back(),
-          }}
+          } as any}
         >
           <Row gutter={24}>
             <Col span={12}>

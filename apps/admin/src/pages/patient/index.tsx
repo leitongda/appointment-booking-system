@@ -9,7 +9,7 @@ import {
   ProFormTextArea,
   ProForm,
 } from '@ant-design/pro-components';
-import { App, Popconfirm, Space, Tag, Button, Divider, Dropdown } from 'antd';
+import { App, Popconfirm, Space, Tag, Button, Divider, Dropdown, Modal } from 'antd';
 import type { MenuProps } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, MoreOutlined, EyeOutlined, StopOutlined } from '@ant-design/icons';
 import { useRef, useState } from 'react';
@@ -28,8 +28,7 @@ const SOURCE_MAP: Record<number, string> = {
 
 const RELATIONSHIP_OPTIONS = [
   { label: '本人', value: '本人' },
-  { label: '父亲', value: '父亲' },
-  { label: '母亲', value: '母亲' },
+  { label: '父母', value: '父母' },
   { label: '配偶', value: '配偶' },
   { label: '子女', value: '子女' },
   { label: '其他', value: '其他' },
@@ -172,9 +171,9 @@ const PatientPage: React.FC = () => {
               icon: <StopOutlined />,
               label: '加黑名单',
               onClick: () => {
-                Popconfirm.confirm({
+                Modal.confirm({
                   title: '确定加入黑名单吗？',
-                  onConfirm: () => handleBlacklist(record.id, true),
+                  onOk: () => handleBlacklist(record.id, true),
                 });
               },
             }

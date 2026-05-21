@@ -14,6 +14,7 @@ import type { Schedule, Doctor, Department } from '@hospital/shared';
 import { APPOINTMENT_TYPE_MAP, TIME_SLOT_MAP } from '@hospital/shared';
 import { useModel, useAccess } from '@umijs/max';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
+import { COLOR_DANGER } from '@/themes/scheduleColors';
 
 interface DaySchedules {
   [date: string]: Schedule[];
@@ -189,7 +190,7 @@ const ScheduleDetailCalendarPage: React.FC = () => {
         {sortedSchedules.map((schedule) => {
           const timeRange = schedule.startTime && schedule.endTime
             ? `${schedule.startTime}-${schedule.endTime}`
-            : TIME_SLOT_MAP[schedule.timeSlot] || schedule.timeSlot;
+            : TIME_SLOT_MAP[schedule.timeSlot ?? ''] || schedule.timeSlot;
           const _available = schedule.totalSlots - schedule.bookedSlots;
           
           return (
@@ -270,7 +271,7 @@ const ScheduleDetailCalendarPage: React.FC = () => {
               <div>总号源：{totalSlots}</div>
               <div>已预约：{totalBookedSlots}</div>
               <div>剩余：{availableSlots}</div>
-              {hasSuspended && <div style={{ color: '#ff4d4f' }}>含停诊班次</div>}
+              {hasSuspended && <div style={{ color: COLOR_DANGER }}>含停诊班次</div>}
             </div>
           }
         >

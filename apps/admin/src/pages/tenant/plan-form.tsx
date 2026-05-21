@@ -7,7 +7,7 @@ import { tenantApi } from '@hospital/api';
 import type { SubscriptionPlanCreateData, SubscriptionPlanUpdateData } from '@hospital/api';
 
 const SubscriptionPlanFormPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const isEdit = !!id;
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -73,7 +73,7 @@ const SubscriptionPlanFormPage: React.FC = () => {
             searchConfig: { submitText: '保存' },
             resetText: '取消',
             onReset: () => history.back(),
-          }}
+          } as any}
         >
           <Row gutter={24}>
             <Col span={8}>
@@ -217,7 +217,7 @@ const SubscriptionPlanFormPage: React.FC = () => {
               extra="JSON 格式的功能开关配置"
               rules={[
                 {
-                  validator: (_, value) => {
+                  validator: (_: any, value: any) => {
                     if (!value) return Promise.resolve();
                     try {
                       JSON.parse(value);

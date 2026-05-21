@@ -1,8 +1,14 @@
-import { Modal, Button, Space, Alert, Steps, Select, Transfer, Table, Tag, Radio } from 'antd';
+import { Modal, Button, Space, Alert, Steps, Select, Transfer, Table, Tag, Radio, App } from 'antd';
 import { ProForm, ProFormCheckbox, ProFormSelect, ProFormTimePicker, ProFormDigit, ProFormRadio } from '@ant-design/pro-components';
 import type { ScheduleTemplate, Department, Doctor, Store } from '@hospital/shared';
 import { APPOINTMENT_TYPE_OPTIONS, WEEKDAY_OPTIONS, SCHEDULE_MODE_OPTIONS } from '@hospital/shared';
-import { useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { scheduleTemplateApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
+import { fetchAllData } from '@/utils/fetchAllData';
+import { TEXT_SECONDARY } from '@/themes/scheduleColors';
+import { ScheduleMessages } from '../../utils/message';
+
+// ==================== 类型定义 ====================
 
 export interface CopyRuleFormData {
   name: string;
@@ -25,101 +31,150 @@ export interface CrossStoreMapping {
 
 interface CopyRuleModalProps {
   open: boolean;
-  onCancel: () => void;
-  onNextStep: () => void;
-  onPrevStep: () => void;
-  onConfirm: () => Promise<void>;
-  sourceTemplate: ScheduleTemplate | null;
-  formData: CopyRuleFormData | null;
-  onFormDataChange: (data: CopyRuleFormData) => void;
-  step: number;
-  loading: boolean;
-  // 同院区复制相关
-  targetDoctorIds: string[];
-  onTargetDoctorIdsChange: (ids: string[]) => void;
-  allDoctors: Doctor[];
-  departments: Department[];
-  deptFilter?: string;
-  onDeptFilterChange: (deptId: string | undefined) => void;
-  filteredDoctors: Doctor[];
-  // 跨院区复制相关
-  copyMode: 'same-store' | 'cross-store';
-  onCopyModeChange: (mode: 'same-store' | 'cross-store') => void;
-  stores: Store[];
-  targetStoreId?: string;
-  onTargetStoreIdChange: (storeId: string | undefined) => void;
-  targetStoreDepartments: Department[];
-  targetStoreDoctors: Doctor[];
-  crossStoreMappings: CrossStoreMapping[];
-  onCrossStoreMappingsChange: (mappings: CrossStoreMapping[]) => void;
+  onClose: () => void;
+  onSuccess: () => void;
+  sourceRule: ScheduleTemplate | null;
 }
+
+// ==================== 主组件 ====================
 
 const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
   open,
-  onCancel,
-  onNextStep,
-  onPrevStep,
-  onConfirm,
-  sourceTemplate,
-  formData,
-  onFormDataChange,
-  step,
-  loading,
-  targetDoctorIds,
-  onTargetDoctorIdsChange,
-  allDoctors,
-  departments,
-  deptFilter,
-  onDeptFilterChange,
-  filteredDoctors,
-  copyMode,
-  onCopyModeChange,
-  stores,
-  targetStoreId,
-  onTargetStoreIdChange,
-  targetStoreDepartments,
-  targetStoreDoctors,
-  crossStoreMappings,
-  onCrossStoreMappingsChange,
+  onClose,
+  onSuccess,
+  sourceRule,
 }) => {
+  const { message } = App.useApp();
+
+  // 步骤管理
+  const [step, setStep] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  // 表单数据
+  const [formData, setFormData] = useState<CopyRuleFormData | null>(null);
+
+  // 同院区复制状态
+  const [copyMode, setCopyMode] = useState<'same-store' | 'cross-store'>('same-store');
+  const [targetDoctorIds, setTargetDoctorIds] = useState<string[]>([]);
+  const [deptFilter, setDeptFilter] = useState<string | undefined>(undefined);
+
+  // 数据列表
+  const [allDoctors, setAllDoctors] = useState<Doctor[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
+
+  // 跨院区复制状态
+  const [targetStoreId, setTargetStoreId] = useState<string | undefined>(undefined);
+  const [targetStoreDepartments, setTargetStoreDepartments] = useState<Department[]>([]);
+  const [targetStoreDoctors, setTargetStoreDoctors] = useState<Doctor[]>([]);
+  const [crossStoreMappings, setCrossStoreMappings] = useState<CrossStoreMapping[]>([]);
+
+  // 初始化：打开弹窗时加载数据并重置状态
+  useEffect(() => {
+    if (open && sourceRule) {
+      // 初始化表单数据
+      setFormData({
+        name: sourceRule.name,
+        weekdays: sourceRule.weekdays || [],
+        appointmentType: sourceRule.appointmentType || 'normal',
+        startTime: sourceRule.startTime,
+        endTime: sourceRule.endTime,
+        slotCount: sourceRule.slotCount || 1,
+        slotCapacity: sourceRule.slotCapacity || 10,
+        scheduleMode: sourceRule.scheduleMode || 'weekly',
+        breakTimes: sourceRule.breakTimes || [],
+      });
+      // 重置状态
+      setStep(0);
+      setCopyMode('same-store');
+      setTargetDoctorIds([]);
+      setDeptFilter(undefined);
+      setTargetStoreId(undefined);
+      setTargetStoreDepartments([]);
+      setTargetStoreDoctors([]);
+      setCrossStoreMappings([]);
+      // 加载数据
+      loadData();
+    }
+  }, [open, sourceRule]);
+
+  // 加载基础数据
+  const loadData = async () => {
+    try {
+      const [deptData, doctorData, storeData] = await Promise.all([
+        departmentApi.getAll(),
+        fetchAllData((page, pageSize) => doctorApi.getList({ page, pageSize, status: 1 })),
+        storeApi.getAll(),
+      ]);
+      setDepartments(deptData ?? []);
+      setAllDoctors(doctorData);
+      setStores(storeData ?? []);
+    } catch (error) {
+      console.error('加载数据失败', error);
+    }
+  };
+
+  // 加载目标门店数据
+  const loadTargetStoreData = useCallback(async (storeId: string) => {
+    try {
+      const [depts, docs] = await Promise.all([
+        departmentApi.getAll(storeId),
+        doctorApi.getByStore(storeId),
+      ]);
+      setTargetStoreDepartments(depts ?? []);
+      setTargetStoreDoctors(docs ?? []);
+    } catch (error) {
+      console.error('加载目标门店数据失败', error);
+    }
+  }, []);
+
   // 自动建议映射：根据科室名称匹配
-  const autoSuggestMappings = (targetDepts: Department[], targetDocs: Doctor[]) => {
-    if (!sourceTemplate) return;
-
-    const sourceDept = departments.find(d => d.id === sourceTemplate.departmentId);
+  const autoSuggestMappings = useCallback((targetDepts: Department[], targetDocs: Doctor[]) => {
+    if (!sourceRule) return;
+    const sourceDept = departments.find(d => d.id === sourceRule.departmentId);
     if (!sourceDept) return;
-
-    // 查找名称相同或相近的目标科室
     const matchedDept = targetDepts.find(d => d.name === sourceDept.name);
     if (!matchedDept) return;
-
-    // 查找源医生名称在目标科室中的匹配
-    const sourceDoc = allDoctors.find(d => d.id === sourceTemplate.doctorId);
+    const sourceDoc = allDoctors.find(d => d.id === sourceRule.doctorId);
     const matchedDoc = targetDocs.find(
       d => d.departmentId === matchedDept.id && d.name === sourceDoc?.name
     );
-
-    const newMapping: CrossStoreMapping = {
-      sourceDepartmentId: sourceTemplate.departmentId,
+    setCrossStoreMappings([{
+      sourceDepartmentId: sourceRule.departmentId,
       sourceDepartmentName: sourceDept.name,
       targetDepartmentId: matchedDept.id,
       targetDoctorId: matchedDoc?.id,
-    };
+    }]);
+  }, [sourceRule, departments, allDoctors]);
 
-    onCrossStoreMappingsChange([newMapping]);
-  };
-
-  // 当目标门店变化时，尝试自动建议映射
-  const handleTargetStoreChange = (storeId: string | undefined) => {
-    onTargetStoreIdChange(storeId);
-    onCrossStoreMappingsChange([]);
-    if (storeId && targetStoreDepartments.length > 0) {
-      // 延迟执行，等待部门和医生数据加载完成
-      setTimeout(() => {
-        autoSuggestMappings(targetStoreDepartments, targetStoreDoctors);
-      }, 300);
+  // 目标门店变化处理
+  const handleTargetStoreChange = useCallback((storeId: string | undefined) => {
+    setTargetStoreId(storeId);
+    setCrossStoreMappings([]);
+    if (storeId) {
+      loadTargetStoreData(storeId).then(() => {
+        // 延迟建议，等待数据加载
+        setTimeout(() => {
+          autoSuggestMappings(targetStoreDepartments, targetStoreDoctors);
+        }, 300);
+      });
+    } else {
+      setTargetStoreDepartments([]);
+      setTargetStoreDoctors([]);
     }
-  };
+  }, [loadTargetStoreData, autoSuggestMappings, targetStoreDepartments, targetStoreDoctors]);
+
+  // 过滤后的医生列表（同院区模式）
+  const filteredDoctors = useMemo(() => {
+    let list = allDoctors;
+    if (sourceRule) {
+      list = list.filter(d => d.id !== sourceRule.doctorId);
+    }
+    if (deptFilter) {
+      list = list.filter(d => d.departmentId === deptFilter);
+    }
+    return list;
+  }, [allDoctors, sourceRule, deptFilter]);
 
   // 跨院区映射表格列
   const mappingColumns = useMemo(() => [
@@ -141,7 +196,7 @@ const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
           onChange={(val) => {
             const updated = [...crossStoreMappings];
             updated[index] = { ...record, targetDepartmentId: val, targetDoctorId: undefined };
-            onCrossStoreMappingsChange(updated);
+            setCrossStoreMappings(updated);
           }}
           options={targetStoreDepartments.map(d => ({ label: d.name, value: d.id }))}
         />
@@ -163,7 +218,7 @@ const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
             onChange={(val) => {
               const updated = [...crossStoreMappings];
               updated[index] = { ...record, targetDoctorId: val };
-              onCrossStoreMappingsChange(updated);
+              setCrossStoreMappings(updated);
             }}
             options={availableDoctors.map(d => ({ label: d.name, value: d.id }))}
             disabled={!record.targetDepartmentId}
@@ -171,7 +226,7 @@ const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
         );
       },
     },
-  ], [crossStoreMappings, targetStoreDepartments, targetStoreDoctors, onCrossStoreMappingsChange]);
+  ], [crossStoreMappings, targetStoreDepartments, targetStoreDoctors]);
 
   // 是否允许进入下一步/确认
   const canProceed = useMemo(() => {
@@ -187,25 +242,96 @@ const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
     ? [{ title: '调整配置' }, { title: '选择医生' }]
     : [{ title: '调整配置' }, { title: '选择目标门店与映射' }];
 
+  // 步骤导航
+  const handleNext = () => setStep(1);
+  const handlePrev = () => setStep(0);
+
+  // 确认复制
+  const handleConfirm = async () => {
+    if (!sourceRule || !formData) {
+      message.error(ScheduleMessages.copySourceNotFound);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (copyMode === 'same-store') {
+        if (targetDoctorIds.length === 0) {
+          message.error(ScheduleMessages.selectTargetDoctor);
+          setLoading(false);
+          return;
+        }
+        const result = await scheduleTemplateApi.copy(sourceRule.id, {
+          targetDoctorIds,
+          name: formData.name,
+          weekdays: formData.weekdays,
+          appointmentType: formData.appointmentType,
+          startTime: formData.startTime,
+          endTime: formData.endTime,
+          slotCount: formData.slotCount,
+          slotCapacity: formData.slotCapacity,
+          scheduleMode: formData.scheduleMode,
+          breakTimes: formData.breakTimes,
+        });
+        message.success(result.message);
+      } else {
+        const validMappings = crossStoreMappings.filter(
+          (m) => m.targetDepartmentId && m.targetDoctorId
+        );
+        if (validMappings.length === 0) {
+          message.error('请至少配置一个有效的科室/医生映射');
+          setLoading(false);
+          return;
+        }
+        const result = await scheduleTemplateApi.copyCrossStore(sourceRule.id, {
+          targetStoreId: targetStoreId!,
+          mappings: validMappings.map((m) => ({
+            sourceDepartmentId: m.sourceDepartmentId,
+            targetDepartmentId: m.targetDepartmentId!,
+            targetDoctorId: m.targetDoctorId!,
+          })),
+          name: formData.name,
+          weekdays: formData.weekdays,
+          appointmentType: formData.appointmentType,
+          startTime: formData.startTime,
+          endTime: formData.endTime,
+          slotCount: formData.slotCount,
+          slotCapacity: formData.slotCapacity,
+          scheduleMode: formData.scheduleMode,
+          breakTimes: formData.breakTimes,
+        });
+        message.success(result.message);
+        if (result.failedMappings && result.failedMappings.length > 0) {
+          message.warning(`${result.failedMappings.length} 条映射因校验失败被跳过`);
+        }
+      }
+      onSuccess();
+    } catch (error: any) {
+      message.error(error.message || ScheduleMessages.copyFailed);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Modal
       title="复制排班规则"
       open={open}
-      onCancel={onCancel}
+      onCancel={onClose}
       footer={
         <Space>
-          <Button onClick={onCancel}>取消</Button>
+          <Button onClick={onClose}>取消</Button>
           {step === 0 ? (
-            <Button type="primary" onClick={onNextStep}>
+            <Button type="primary" onClick={handleNext}>
               下一步
             </Button>
           ) : (
             <>
-              <Button onClick={onPrevStep}>上一步</Button>
+              <Button onClick={handlePrev}>上一步</Button>
               <Button
                 type="primary"
                 loading={loading}
-                onClick={onConfirm}
+                onClick={handleConfirm}
                 disabled={!canProceed}
               >
                 {copyMode === 'same-store'
@@ -231,12 +357,12 @@ const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
           <Alert
             title={
               <div>
-                复制来源：<strong>{sourceTemplate?.name}</strong>
+                复制来源：<strong>{sourceRule?.name}</strong>
                 <span style={{ marginLeft: 16, color: '#666' }}>
-                  医生：{sourceTemplate?.doctorName}
+                  医生：{sourceRule?.doctorName}
                 </span>
                 <span style={{ marginLeft: 16, color: '#666' }}>
-                  门店：{sourceTemplate?.storeName}
+                  门店：{sourceRule?.storeName}
                 </span>
               </div>
             }
@@ -249,7 +375,12 @@ const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
             <div style={{ marginBottom: 8, fontWeight: 500 }}>复制模式</div>
             <Radio.Group
               value={copyMode}
-              onChange={(e) => onCopyModeChange(e.target.value)}
+              onChange={(e) => {
+                setCopyMode(e.target.value);
+                if (e.target.value === 'cross-store' && targetStoreId) {
+                  loadTargetStoreData(targetStoreId);
+                }
+              }}
             >
               <Radio value="same-store">同院区复制（当前门店内医生）</Radio>
               <Radio value="cross-store">跨院区复制（复制到其他门店）</Radio>
@@ -263,7 +394,7 @@ const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
             submitter={false}
             initialValues={formData}
             onValuesChange={(_, allValues) => {
-              onFormDataChange(allValues);
+              setFormData(allValues as CopyRuleFormData);
             }}
           >
             <ProFormCheckbox.Group
@@ -325,7 +456,7 @@ const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
               placeholder="全部科室"
               style={{ width: 200 }}
               value={deptFilter}
-              onChange={(val) => onDeptFilterChange(val)}
+              onChange={(val) => setDeptFilter(val)}
               options={departments.map(d => ({ label: d.name, value: d.id }))}
             />
           </div>
@@ -338,12 +469,12 @@ const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
             }))}
             titles={['可选医生', '已选医生']}
             targetKeys={targetDoctorIds}
-            onChange={(nextTargetKeys) => onTargetDoctorIdsChange(nextTargetKeys as string[])}
+            onChange={(nextTargetKeys) => setTargetDoctorIds(nextTargetKeys as string[])}
             render={(item) => (
               <span>
                 {item.title}
                 {item.description && (
-                  <span style={{ color: '#999', fontSize: 12, marginLeft: 8 }}>
+                  <span style={{ color: TEXT_SECONDARY, fontSize: 12, marginLeft: 8 }}>
                     {item.description}
                   </span>
                 )}
@@ -379,7 +510,7 @@ const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
               value={targetStoreId}
               onChange={handleTargetStoreChange}
               options={stores
-                .filter(s => s.id !== sourceTemplate?.storeId)
+                .filter(s => s.id !== sourceRule?.storeId)
                 .map(s => ({ label: s.name, value: s.id }))}
             />
           </div>
@@ -403,7 +534,7 @@ const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
                 bordered
               />
               {crossStoreMappings.length === 0 && (
-                <div style={{ padding: 24, textAlign: 'center', color: '#999' }}>
+                <div style={{ padding: 24, textAlign: 'center', color: TEXT_SECONDARY }}>
                   未找到自动匹配的科室，请检查目标门店是否包含同名科室
                 </div>
               )}
@@ -411,7 +542,7 @@ const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
           )}
 
           {!targetStoreId && (
-            <div style={{ padding: 24, textAlign: 'center', color: '#999' }}>
+            <div style={{ padding: 24, textAlign: 'center', color: TEXT_SECONDARY }}>
               请先选择目标门店
             </div>
           )}

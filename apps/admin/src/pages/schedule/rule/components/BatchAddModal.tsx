@@ -2,6 +2,7 @@ import { ModalForm, ProFormSelect, ProFormTimePicker, ProFormDigit, ProFormCheck
 import { Alert } from 'antd';
 import type { ProFormInstance } from '@ant-design/pro-components';
 import type { Store, Department, Doctor } from '@hospital/shared';
+import type dayjs from 'dayjs';
 import { APPOINTMENT_TYPE_OPTIONS, WEEKDAY_OPTIONS, SCHEDULE_MODE_OPTIONS, getDateInfo } from '@hospital/shared';
 
 export interface BatchAddModalValues {

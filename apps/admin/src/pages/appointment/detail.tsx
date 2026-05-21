@@ -4,28 +4,10 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { history, useParams, useAccess } from '@umijs/max';
 import { appointmentApi } from '@hospital/api';
-import { REFUND_STATUS_MAP, REFUND_STATUS_COLOR } from '@hospital/shared';
+import { REFUND_STATUS_MAP, REFUND_STATUS_COLOR, APPOINTMENT_STATUS_TAG, REFUNDABLE_APPOINTMENT_STATUSES, TIME_SLOT_MAP } from '@hospital/shared';
 import type { Appointment } from '@hospital/shared';
 
-const STATUS_MAP: Record<number, { text: string; color: string }> = {
-  0: { text: '待支付', color: 'orange' },
-  1: { text: '已预约', color: 'blue' },
-  2: { text: '已签到', color: 'cyan' },
-  3: { text: '历史候诊', color: 'default' },
-  4: { text: '就诊中', color: 'processing' },
-  5: { text: '已完成', color: 'green' },
-  6: { text: '已取消', color: 'default' },
-  7: { text: '已过期', color: 'default' },
-  8: { text: '已爽约', color: 'red' },
-};
-
-const TIME_SLOT_MAP: Record<string, string> = {
-  morning: '上午',
-  afternoon: '下午',
-  evening: '晚上',
-};
-
-const REFUNDABLE_APPOINTMENT_STATUSES = new Set([1, 2, 4, 5]);
+const STATUS_MAP = APPOINTMENT_STATUS_TAG;
 
 interface RefundRecord {
   id: string;
@@ -39,7 +21,7 @@ interface RefundRecord {
 }
 
 const AppointmentDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const { message: antMessage } = App.useApp();
   const access = useAccess();
   const isSuperAdmin = access.canSuperAdmin;
@@ -56,7 +38,7 @@ const AppointmentDetailPage: React.FC = () => {
     setRefundRecordsLoading(true);
     try {
       const data = await appointmentApi.getRefundRecords(id);
-      setRefundRecords(data);
+      setRefundRecords(data as any);
     } catch (error) {
       console.error('加载退款记录失败', error);
     } finally {
@@ -294,7 +276,7 @@ const AppointmentDetailPage: React.FC = () => {
         {appointment?.paymentAmount && appointment.paymentAmount > 0 && (
           <Card title="支付信息" style={{ marginTop: 16 }}>
             <ProDescriptions column={2} columns={[
-              { key: '0', title: '支付金额', render: () => `¥${appointment.paymentAmount.toFixed(2)}` },
+              { key: '0', title: '支付金额', render: () => `¥${appointment.paymentAmount!.toFixed(2)}` },
               { key: '1', title: '支付时间', render: () => appointment.paymentTime || '-' },
               { key: '2', title: '交易单号', render: () => <span style={{ fontFamily: 'monospace' }}>{appointment.paymentTransactionId || '-'}</span> },
               { key: '3', title: '退款状态', render: () => (
@@ -328,7 +310,7 @@ const AppointmentDetailPage: React.FC = () => {
                   {appointment.checkInMethod === 'QR_CODE' && <Tag color="blue">扫码签到</Tag>}
                   {appointment.checkInMethod === 'MANUAL' && <Tag color="green">手动签到</Tag>}
                   {appointment.checkInMethod === 'PHONE' && <Tag color="orange">电话签到</Tag>}
-                  {!['QR_CODE', 'MANUAL', 'PHONE'].includes(appointment.checkInMethod) && appointment.checkInMethod}
+                  {!['QR_CODE', 'MANUAL', 'PHONE'].includes(appointment.checkInMethod || '') && appointment.checkInMethod}
                 </>
               ) },
               { key: '1', title: '签到时间', render: () => appointment?.signInTime || '-' },

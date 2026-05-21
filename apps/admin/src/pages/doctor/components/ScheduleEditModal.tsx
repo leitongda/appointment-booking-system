@@ -199,7 +199,7 @@ const ScheduleEditModal: React.FC<ScheduleEditModalProps> = ({
                 <List.Item.Meta
                   title={
                     <Space>
-                      <span>{TIME_SLOT_LABELS[schedule.timeSlot] || schedule.timeSlot}</span>
+                      <span>{TIME_SLOT_LABELS[schedule.timeSlot ?? ''] || schedule.timeSlot}</span>
                       {getStatusTag(schedule)}
                     </Space>
                   }

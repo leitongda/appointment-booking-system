@@ -119,7 +119,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ doctorId, onDateCli
   };
 
   const getScheduleText = (schedule: Schedule) => {
-    const slotLabel = TIME_SLOT_LABELS[schedule.timeSlot] || schedule.timeSlot;
+    const slotLabel = TIME_SLOT_LABELS[schedule.timeSlot ?? ''] || schedule.timeSlot;
 
     if (schedule.status === 0) {
       return `${slotLabel} 停诊`;
@@ -137,7 +137,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ doctorId, onDateCli
 
     // 按时段排序（支持两种格式）
     const sortedSchedules = [...schedules].sort(
-      (a, b) => (TIME_SLOT_SORT_ORDER[a.timeSlot] ?? 3) - (TIME_SLOT_SORT_ORDER[b.timeSlot] ?? 3)
+      (a, b) => (TIME_SLOT_SORT_ORDER[a.timeSlot ?? ''] ?? 3) - (TIME_SLOT_SORT_ORDER[b.timeSlot ?? ''] ?? 3)
     );
 
     return (
@@ -147,7 +147,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ doctorId, onDateCli
             key={schedule.id}
             title={
               <div>
-                <div>{TIME_SLOT_LABELS[schedule.timeSlot] || schedule.timeSlot}</div>
+                <div>{TIME_SLOT_LABELS[schedule.timeSlot ?? ''] || schedule.timeSlot}</div>
                 <div>时间: {schedule.startTime || '-'} - {schedule.endTime || '-'}</div>
                 <div>号源: {schedule.bookedSlots}/{schedule.totalSlots}</div>
                 <div>状态: {schedule.status === 1 ? '正常' : '停诊'}</div>

@@ -33,6 +33,7 @@ import FormPage from '@/components/FormPage';
 import { requiredRules } from '@/utils/formValidators';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import dayjs from 'dayjs';
+import { TEXT_SECONDARY } from '@/themes/scheduleColors';
 
 interface TimePeriodConfig {
   key: string;
@@ -127,9 +128,9 @@ const CustomScheduleFormPage: React.FC = () => {
   const handleSubmit = async (values: any) => {
     const scheduleDates = values.scheduleDates.map((d: dayjs.Dayjs) => d.format('YYYY-MM-DD'));
     const formattedTimePeriods = timePeriods.map(p => ({
-      startTime: p.startTime,
-      endTime: p.endTime,
-      appointmentType: p.appointmentType,
+      startTime: p.startTime || '',
+      endTime: p.endTime || '',
+      appointmentType: p.appointmentType || '',
       slotCount: p.slotCount,
       maxPatients: p.maxPatients || 1,
     }));
@@ -168,7 +169,7 @@ const CustomScheduleFormPage: React.FC = () => {
           options={stores.map(s => ({ label: s.name, value: s.id }))}
           rules={[requiredRules('请选择门店')]}
           fieldProps={{
-            onChange: (val) => setSelectedStore(val),
+            onChange: (val: any) => setSelectedStore(val),
           }}
           placeholder={stores.length === 0 ? '暂无可用门店' : '请选择门店'}
           disabled={stores.length === 0}
@@ -180,7 +181,7 @@ const CustomScheduleFormPage: React.FC = () => {
           options={departments.map(d => ({ label: d.name, value: d.id }))}
           rules={[requiredRules('请选择科室')]}
           fieldProps={{
-            onChange: (val) => {
+            onChange: (val: any) => {
               setSelectedDept(val);
             },
           }}
@@ -197,8 +198,9 @@ const CustomScheduleFormPage: React.FC = () => {
       {/* 排班设置 */}
       <Card
         title="排班设置"
-        extra={<span style={{ fontSize: 12, color: '#999' }}>说明：排班数量为所选时间段均分班次数量，预约人数是每个班次的预约人数！</span>}
+        extra={<span style={{ fontSize: 12, color: TEXT_SECONDARY }}>说明：排班数量为所选时间段均分班次数量，预约人数是每个班次的预约人数！</span>}
       >
+        {/* @ts-expect-error Range exists at runtime */}
         <ProFormDatePicker.Range
           name="scheduleDates"
           label="排班日期"
@@ -206,7 +208,7 @@ const CustomScheduleFormPage: React.FC = () => {
           fieldProps={{
             format: 'YYYY-MM-DD',
           }}
-          transform={(value) => {
+          transform={(value: any) => {
             if (value && value.length === 2) {
               const dates = [];
               let current = dayjs(value[0]);
@@ -231,7 +233,7 @@ const CustomScheduleFormPage: React.FC = () => {
                   fieldProps={{
                     format: 'HH:mm',
                     value: period.startTime ? dayjs(period.startTime, 'HH:mm') : undefined,
-                    onChange: (val) => handleTimePeriodChange(index, 'startTime', val?.format('HH:mm')),
+                    onChange: (val) => handleTimePeriodChange(index, 'startTime', (val as dayjs.Dayjs)?.format('HH:mm')),
                   }}
                 />
               </Col>
@@ -241,14 +243,14 @@ const CustomScheduleFormPage: React.FC = () => {
                   fieldProps={{
                     format: 'HH:mm',
                     value: period.endTime ? dayjs(period.endTime, 'HH:mm') : undefined,
-                    onChange: (val) => handleTimePeriodChange(index, 'endTime', val?.format('HH:mm')),
+                    onChange: (val) => handleTimePeriodChange(index, 'endTime', (val as dayjs.Dayjs)?.format('HH:mm')),
                   }}
                 />
               </Col>
               <Col span={5}>
                 <ProFormSelect
                   label="预约类型"
-                  options={APPOINTMENT_TYPE_OPTIONS}
+                  options={[...APPOINTMENT_TYPE_OPTIONS]}
                   fieldProps={{
                     value: period.appointmentType,
                     onChange: (val) => handleTimePeriodChange(index, 'appointmentType', val),

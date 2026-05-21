@@ -8,11 +8,10 @@ import { Button, App, Space, Tag, Alert, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 import { useRef, useState, useEffect, useMemo } from 'react';
 import { history, useAccess } from '@umijs/max';
-import { scheduleTemplateApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
+import { scheduleTemplateApi, doctorApi, departmentApi } from '@hospital/api';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import { toProTableResult } from '@/utils/proTable';
-import { fetchAllData } from '@/utils/fetchAllData';
-import type { ScheduleTemplate, Doctor, Department, Store, SchedulePreviewGenerateResponse } from '@hospital/shared';
+import type { ScheduleTemplate, Doctor, Department, SchedulePreviewGenerateResponse } from '@hospital/shared';
 import { ScheduleMessages } from '../utils/message';
 import {
   APPOINTMENT_TYPE_MAP,
@@ -24,15 +23,16 @@ import dayjs from 'dayjs';
 import HistoryLogsModal from './components/HistoryLogsModal';
 import BatchAddModal from './components/BatchAddModal';
 import GenerateScheduleModal from './components/GenerateScheduleModal';
-import CopyRuleModal, { CopyRuleFormData, CrossStoreMapping } from './components/CopyRuleModal';
+import CopyRuleModal from './components/CopyRuleModal';
+import { TEXT_SECONDARY, COLOR_DANGER } from '@/themes/scheduleColors';
 
 const ScheduleRulePage: React.FC = () => {
   const { message, modal } = App.useApp();
   const access = useAccess();
   const { stores } = useStoreWithPermission({ enabledOnly: true });
   const actionRef = useRef<ActionType>();
-  const generateFormRef = useRef<ProFormInstance>();
-  const batchAddFormRef = useRef<ProFormInstance>();
+  const generateFormRef = useRef<ProFormInstance>(null);
+  const batchAddFormRef = useRef<ProFormInstance>(null);
   const [batchAddModalOpen, setBatchAddModalOpen] = useState(false);
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
@@ -56,20 +56,7 @@ const ScheduleRulePage: React.FC = () => {
 
   // 复制规则相关状态
   const [copyModalOpen, setCopyModalOpen] = useState(false);
-  const [copyStep, setCopyStep] = useState(0);
   const [copySourceTemplate, setCopySourceTemplate] = useState<ScheduleTemplate | null>(null);
-  const [copyFormData, setCopyFormData] = useState<CopyRuleFormData | null>(null);
-  const [copyTargetDoctorIds, setCopyTargetDoctorIds] = useState<string[]>([]);
-  const [copyLoading, setCopyLoading] = useState(false);
-  const [allDoctors, setAllDoctors] = useState<Doctor[]>([]);
-  const [copyDeptFilter, setCopyDeptFilter] = useState<string | undefined>(undefined);
-  // 跨院区复制状态
-  const [copyMode, setCopyMode] = useState<'same-store' | 'cross-store'>('same-store');
-  const [allStores, setAllStores] = useState<Store[]>([]);
-  const [targetStoreId, setTargetStoreId] = useState<string | undefined>(undefined);
-  const [targetStoreDepartments, setTargetStoreDepartments] = useState<Department[]>([]);
-  const [targetStoreDoctors, setTargetStoreDoctors] = useState<Doctor[]>([]);
-  const [crossStoreMappings, setCrossStoreMappings] = useState<CrossStoreMapping[]>([]);
 
   // 当前日期信息
   const dateInfo = useMemo(() => getDateInfo(), []);
@@ -104,149 +91,10 @@ const ScheduleRulePage: React.FC = () => {
     }
   }, [selectedDept]);
 
-  const loadAllDoctors = async () => {
-    try {
-      const doctors = await fetchAllData((page, pageSize) =>
-        doctorApi.getList({ page, pageSize, status: 1 })
-      );
-      setAllDoctors(doctors);
-    } catch (error) {
-      console.error('加载所有医生失败', error);
-    }
-  };
-
-  const loadAllStores = async () => {
-    try {
-      const data = await storeApi.getAll();
-      setAllStores(data ?? []);
-    } catch (error) {
-      console.error('加载门店失败', error);
-    }
-  };
-
-  const loadTargetStoreData = async (storeId: string) => {
-    try {
-      const [depts, docs] = await Promise.all([
-        departmentApi.getAll(storeId),
-        doctorApi.getByStore(storeId),
-      ]);
-      setTargetStoreDepartments(depts ?? []);
-      setTargetStoreDoctors(docs ?? []);
-    } catch (error) {
-      console.error('加载目标门店数据失败', error);
-    }
-  };
-
-  const handleOpenCopyModal = async (record: ScheduleTemplate) => {
+  const handleOpenCopyModal = (record: ScheduleTemplate) => {
     setCopySourceTemplate(record);
-    setCopyFormData({
-      name: record.name,
-      weekdays: record.weekdays || [],
-      appointmentType: record.appointmentType || 'normal',
-      startTime: record.startTime,
-      endTime: record.endTime,
-      slotCount: record.slotCount || 1,
-      slotCapacity: record.slotCapacity || 10,
-      scheduleMode: record.scheduleMode || 'weekly',
-      breakTimes: record.breakTimes || [],
-    });
-    setCopyStep(0);
-    setCopyTargetDoctorIds([]);
-    setCopyDeptFilter(undefined);
-    setCopyMode('same-store');
-    setTargetStoreId(undefined);
-    setTargetStoreDepartments([]);
-    setTargetStoreDoctors([]);
-    setCrossStoreMappings([]);
     setCopyModalOpen(true);
-    await Promise.all([loadAllDoctors(), loadAllStores()]);
   };
-
-  const handleCopyNextStep = () => {
-    setCopyStep(1);
-  };
-
-  const handleCopyPrevStep = () => {
-    setCopyStep(0);
-  };
-
-  const handleConfirmCopy = async () => {
-    if (!copySourceTemplate || !copyFormData) {
-      message.error(ScheduleMessages.copySourceNotFound);
-      return;
-    }
-
-    setCopyLoading(true);
-    try {
-      if (copyMode === 'same-store') {
-        if (copyTargetDoctorIds.length === 0) {
-          message.error(ScheduleMessages.selectTargetDoctor);
-          setCopyLoading(false);
-          return;
-        }
-        const result = await scheduleTemplateApi.copy(copySourceTemplate.id, {
-          targetDoctorIds: copyTargetDoctorIds,
-          name: copyFormData.name,
-          weekdays: copyFormData.weekdays,
-          appointmentType: copyFormData.appointmentType,
-          startTime: copyFormData.startTime,
-          endTime: copyFormData.endTime,
-          slotCount: copyFormData.slotCount,
-          slotCapacity: copyFormData.slotCapacity,
-          scheduleMode: copyFormData.scheduleMode,
-          breakTimes: copyFormData.breakTimes,
-        });
-        message.success(result.message);
-      } else {
-        const validMappings = crossStoreMappings.filter(
-          (m) => m.targetDepartmentId && m.targetDoctorId
-        );
-        if (validMappings.length === 0) {
-          message.error('请至少配置一个有效的科室/医生映射');
-          setCopyLoading(false);
-          return;
-        }
-        const result = await scheduleTemplateApi.copyCrossStore(copySourceTemplate.id, {
-          targetStoreId: targetStoreId!,
-          mappings: validMappings.map((m) => ({
-            sourceDepartmentId: m.sourceDepartmentId,
-            targetDepartmentId: m.targetDepartmentId!,
-            targetDoctorId: m.targetDoctorId!,
-          })),
-          name: copyFormData.name,
-          weekdays: copyFormData.weekdays,
-          appointmentType: copyFormData.appointmentType,
-          startTime: copyFormData.startTime,
-          endTime: copyFormData.endTime,
-          slotCount: copyFormData.slotCount,
-          slotCapacity: copyFormData.slotCapacity,
-          scheduleMode: copyFormData.scheduleMode,
-          breakTimes: copyFormData.breakTimes,
-        });
-        message.success(result.message);
-        if (result.failedMappings && result.failedMappings.length > 0) {
-          message.warning(`${result.failedMappings.length} 条映射因校验失败被跳过`);
-        }
-      }
-      setCopyModalOpen(false);
-      actionRef.current?.reload();
-    } catch (error: any) {
-      message.error(error.message || ScheduleMessages.copyFailed);
-    } finally {
-      setCopyLoading(false);
-    }
-  };
-
-  const filteredDoctors = useMemo(() => {
-    let list = allDoctors;
-    if (copySourceTemplate) {
-      list = list.filter(d => d.id !== copySourceTemplate.doctorId);
-    }
-    if (copyDeptFilter) {
-      list = list.filter(d => d.departmentId === copyDeptFilter);
-    }
-    return list;
-  }, [allDoctors, copySourceTemplate, copyDeptFilter]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -264,7 +112,7 @@ const ScheduleRulePage: React.FC = () => {
       content: (
         <div>
           <p>确定要删除该规则生成的所有<strong>未来</strong>排班吗？</p>
-          <p style={{ color: '#999', fontSize: 12 }}>注意：已有预约的排班不会被删除</p>
+          <p style={{ color: TEXT_SECONDARY, fontSize: 12 }}>注意：已有预约的排班不会被删除</p>
         </div>
       ),
       okText: '确认删除',
@@ -288,7 +136,7 @@ const ScheduleRulePage: React.FC = () => {
       content: (
         <div>
           <p>确定要停诊该规则生成的所有<strong>未来</strong>排班吗？</p>
-          <p style={{ color: '#999', fontSize: 12 }}>停诊后可在排班列表中恢复</p>
+          <p style={{ color: TEXT_SECONDARY, fontSize: 12 }}>停诊后可在排班列表中恢复</p>
         </div>
       ),
       okText: '确认停诊',
@@ -840,56 +688,16 @@ const ScheduleRulePage: React.FC = () => {
 
       <CopyRuleModal
         open={copyModalOpen}
-        onCancel={() => {
+        onClose={() => {
           setCopyModalOpen(false);
           setCopySourceTemplate(null);
-          setCopyFormData(null);
-          setCopyStep(0);
-          setCopyTargetDoctorIds([]);
-          setCopyMode('same-store');
-          setTargetStoreId(undefined);
-          setTargetStoreDepartments([]);
-          setTargetStoreDoctors([]);
-          setCrossStoreMappings([]);
         }}
-        onNextStep={handleCopyNextStep}
-        onPrevStep={handleCopyPrevStep}
-        onConfirm={handleConfirmCopy}
-        sourceTemplate={copySourceTemplate}
-        formData={copyFormData}
-        onFormDataChange={setCopyFormData}
-        step={copyStep}
-        loading={copyLoading}
-        targetDoctorIds={copyTargetDoctorIds}
-        onTargetDoctorIdsChange={setCopyTargetDoctorIds}
-        allDoctors={allDoctors}
-        departments={departments}
-        deptFilter={copyDeptFilter}
-        onDeptFilterChange={setCopyDeptFilter}
-        filteredDoctors={filteredDoctors}
-        copyMode={copyMode}
-        onCopyModeChange={(mode) => {
-          setCopyMode(mode);
-          if (mode === 'cross-store' && targetStoreId) {
-            loadTargetStoreData(targetStoreId);
-          }
+        onSuccess={() => {
+          setCopyModalOpen(false);
+          setCopySourceTemplate(null);
+          actionRef.current?.reload();
         }}
-        stores={allStores}
-        targetStoreId={targetStoreId}
-        onTargetStoreIdChange={(storeId) => {
-          setTargetStoreId(storeId);
-          if (storeId) {
-            loadTargetStoreData(storeId);
-          } else {
-            setTargetStoreDepartments([]);
-            setTargetStoreDoctors([]);
-            setCrossStoreMappings([]);
-          }
-        }}
-        targetStoreDepartments={targetStoreDepartments}
-        targetStoreDoctors={targetStoreDoctors}
-        crossStoreMappings={crossStoreMappings}
-        onCrossStoreMappingsChange={setCrossStoreMappings}
+        sourceRule={copySourceTemplate}
       />
     </PageContainer>
   );

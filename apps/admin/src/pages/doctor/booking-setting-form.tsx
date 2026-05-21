@@ -13,7 +13,7 @@ const { Text } = Typography;
 
 const DoctorBookingSettingFormPage: React.FC = () => {
   const { message } = App.useApp();
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const access = useAccess();
   const { initialState } = useModel('@@initialState');
   const { currentUser } = initialState ?? {};

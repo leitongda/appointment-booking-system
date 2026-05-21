@@ -9,14 +9,14 @@ import { CreateButton, createOperationColumn } from '@/components/ListOperations
 import type { PaymentProfile } from '@hospital/api';
 
 const PaymentProfilePage: React.FC = () => {
-  const { actionRef, handleDelete, refresh } = useListPage({
+  const { actionRef, handleDelete, reload } = useListPage({
     deleteFn: miniappPlatformApi.deletePaymentProfile,
   });
 
   const handleSetDefault = async (profileId: string) => {
     try {
       await miniappPlatformApi.setDefaultPaymentProfile(profileId);
-      refresh();
+      reload();
     } catch (error: any) {
       // Error already handled by API
     }

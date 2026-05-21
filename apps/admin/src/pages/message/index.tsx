@@ -53,16 +53,16 @@ const MessagePage: React.FC = () => {
   }, [currentUser?.id, actionRef, message]);
 
   const handleBatchRead = useCallback(async () => {
-    if (!currentUser?.id || selectedRowKeys.length === 0) return;
+    if (selectedRowKeys.length === 0) return;
     try {
-      await Promise.all(selectedRowKeys.map((id) => messageApi.markAsRead(id, currentUser.id)));
+      await Promise.all(selectedRowKeys.map((id) => messageApi.markAsReadUnified(id)));
       message.success(`已标记 ${selectedRowKeys.length} 条为已读`);
       setSelectedRowKeys([]);
       actionRef.current?.reload();
     } catch {
       message.error('批量已读失败');
     }
-  }, [currentUser?.id, selectedRowKeys, actionRef, message]);
+  }, [selectedRowKeys, actionRef, message]);
 
   const handleBatchDelete = useCallback(async () => {
     if (!currentUser?.id || selectedRowKeys.length === 0) return;
@@ -102,7 +102,7 @@ const MessagePage: React.FC = () => {
       width: 80,
       valueEnum: Object.fromEntries(Object.entries(TYPE_MAP).map(([k, v]) => [k, { text: v.text }])),
       render: (_, r) => {
-        const t = TYPE_MAP[r.messageType || 'system'];
+        const t = TYPE_MAP[r.messageType || 'system'] || { text: r.messageType || '未知', color: 'default' };
         return <Tag color={t.color}>{t.text}</Tag>;
       },
     },
@@ -194,10 +194,7 @@ const MessagePage: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        request={createListRequest(messageApi.getAllList, (params) => {
-          const { title, ...rest } = params;
-          return { ...rest, keyword: title };
-        })}
+        request={createListRequest(messageApi.getUnifiedList)}
         rowSelection={{
           selectedRowKeys,
           onChange: (keys) => setSelectedRowKeys(keys as string[]),

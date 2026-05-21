@@ -14,6 +14,7 @@ import { APPOINTMENT_TYPE_OPTIONS } from '@/constants/formFields';
 import ListPageSkeleton from '@/components/ListPageSkeleton';
 import dayjs from 'dayjs';
 import { ScheduleMessages } from '../utils/message';
+import { TEXT_SECONDARY, COLOR_DANGER, COLOR_SUCCESS } from '@/themes/scheduleColors';
 
 const ScheduleDetailPage: React.FC = () => {
   const { message, modal } = App.useApp();
@@ -122,7 +123,7 @@ const ScheduleDetailPage: React.FC = () => {
         <div>
           <p>确定要停诊选中的 <strong>{normalRows.length}</strong> 条排班吗？</p>
           {selectedRows.length !== normalRows.length && (
-            <p style={{ color: '#999', fontSize: 12 }}>
+            <p style={{ color: TEXT_SECONDARY, fontSize: 12 }}>
               注意：{selectedRows.length - normalRows.length} 条已停诊的排班将被跳过
             </p>
           )}
@@ -159,7 +160,7 @@ const ScheduleDetailPage: React.FC = () => {
         <div>
           <p>确定要恢复选中的 <strong>{suspendedRows.length}</strong> 条排班吗？</p>
           {selectedRows.length !== suspendedRows.length && (
-            <p style={{ color: '#999', fontSize: 12 }}>
+            <p style={{ color: TEXT_SECONDARY, fontSize: 12 }}>
               注意：{selectedRows.length - suspendedRows.length} 条正常排班将被跳过
             </p>
           )}
@@ -194,9 +195,9 @@ const ScheduleDetailPage: React.FC = () => {
       content: (
         <div>
           <p>确定要删除选中的 <strong>{deletableRows.length}</strong> 条排班吗？</p>
-          <p style={{ color: '#ff4d4f', fontSize: 12 }}>此操作不可恢复！</p>
+          <p style={{ color: COLOR_DANGER, fontSize: 12 }}>此操作不可恢复！</p>
           {selectedRows.length !== deletableRows.length && (
-            <p style={{ color: '#999', fontSize: 12 }}>
+            <p style={{ color: TEXT_SECONDARY, fontSize: 12 }}>
               注意：{selectedRows.length - deletableRows.length} 条有预约的排班将被跳过
             </p>
           )}
@@ -345,7 +346,7 @@ const ScheduleDetailPage: React.FC = () => {
       search: false,
       render: (_, record) => {
         const remaining = (record.totalSlots || 0) - (record.bookedSlots || 0);
-        return <span style={{ color: remaining > 0 ? '#52c41a' : '#ff4d4f' }}>{remaining}</span>;
+        return <span style={{ color: remaining > 0 ? COLOR_SUCCESS : COLOR_DANGER }}>{remaining}</span>;
       },
     },
     {
@@ -380,7 +381,7 @@ const ScheduleDetailPage: React.FC = () => {
           {access.hasPermission('schedule:update') && (
             record.status === 1 ? (
               <Popconfirm title="确定停诊吗？" onConfirm={() => handleSuspend(record)}>
-                <a style={{ color: '#ff4d4f' }}>停诊</a>
+                <a style={{ color: COLOR_DANGER }}>停诊</a>
               </Popconfirm>
             ) : (
               <a onClick={() => handleResume(record)}>恢复</a>
@@ -518,7 +519,7 @@ const ScheduleDetailPage: React.FC = () => {
         <ProFormSelect
           name="appointmentType"
           label="预约类型"
-          options={APPOINTMENT_TYPE_OPTIONS}
+          options={[...APPOINTMENT_TYPE_OPTIONS]}
           rules={[{ required: true, message: '请选择预约类型' }]}
         />
         <ProFormTimePicker

@@ -51,7 +51,7 @@ const LeaveRequestPage: React.FC = () => {
       render: (_, r) => TYPE_MAP[r.requestType] || '-',
     },
     { title: '日期', dataIndex: 'stopDate', width: 110 },
-    { title: '时段', dataIndex: 'stopPeriod', width: 70, render: (_, r) => PERIOD_MAP[r.stopPeriod] || '-' },
+    { title: '时段', dataIndex: 'stopPeriod', width: 70, render: (_, r) => PERIOD_MAP[r.stopPeriod ?? ''] || '-' },
     { title: '原因', dataIndex: 'reason', ellipsis: true, search: false },
     {
       title: '状态',
@@ -129,7 +129,7 @@ const LeaveRequestPage: React.FC = () => {
             { key: '1', label: '科室', children: currentRecord.departmentName },
             { key: '2', label: '类型', children: TYPE_MAP[currentRecord.requestType] },
             { key: '3', label: '日期', children: currentRecord.stopDate },
-            { key: '4', label: '时段', children: PERIOD_MAP[currentRecord.stopPeriod] },
+            { key: '4', label: '时段', children: PERIOD_MAP[currentRecord.stopPeriod ?? ''] },
             { key: '5', label: '原因', children: currentRecord.reason },
             { key: '6', label: '状态', children: STATUS_MAP[currentRecord.status]?.text },
             ...(currentRecord.reviewComment ? [{ key: '7', label: '审核意见', children: currentRecord.reviewComment }] : []),

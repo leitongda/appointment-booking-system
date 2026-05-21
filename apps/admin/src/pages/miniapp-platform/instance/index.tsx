@@ -8,14 +8,14 @@ import { CreateButton, createOperationColumn } from '@/components/ListOperations
 import type { MiniappInstance } from '@hospital/api';
 
 const MiniappInstancePage: React.FC = () => {
-  const { actionRef, handleDelete, refresh } = useListPage({
+  const { actionRef, handleDelete, reload } = useListPage({
     deleteFn: miniappPlatformApi.deleteMiniappInstance,
   });
 
   const handleActivate = async (instanceId: string) => {
     try {
       await miniappPlatformApi.activateMiniappInstance(instanceId);
-      refresh();
+      reload();
     } catch (error: any) {
       // Error already handled by API
     }
@@ -24,7 +24,7 @@ const MiniappInstancePage: React.FC = () => {
   const handleArchive = async (instanceId: string) => {
     try {
       await miniappPlatformApi.archiveMiniappInstance(instanceId);
-      refresh();
+      reload();
     } catch (error: any) {
       // Error already handled by API
     }
@@ -58,28 +58,28 @@ const MiniappInstancePage: React.FC = () => {
       dataIndex: 'templateName',
       width: 120,
       search: false,
-      render: (_, record) => record.templateName || '-',
+      render: (_: any, record: any) => record.templateName || record.template || '-',
     },
     {
       title: '模板版本',
       dataIndex: 'templateVersion',
       width: 100,
       search: false,
-      render: (_, record) => record.templateVersion || '-',
+      render: (_: any, record: any) => record.templateVersion?.version || '-',
     },
     {
       title: '默认门店',
       dataIndex: 'storeName',
       width: 120,
       search: false,
-      render: (_, record) => record.storeName || '-',
+      render: (_: any, record: any) => record.defaultStore?.name || record.storeName || '-',
     },
     {
       title: '支付配置',
       dataIndex: 'paymentProfileName',
       width: 120,
       search: false,
-      render: (_, record) => record.paymentProfileName || '-',
+      render: (_: any, record: any) => record.defaultPaymentProfile?.name || record.paymentProfileName || '-',
     },
     {
       title: '状态',

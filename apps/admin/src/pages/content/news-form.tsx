@@ -34,7 +34,7 @@ import { useFormInitialValues } from '@/hooks/useFormInitialValues';
 import { useFormSubmit } from '@/hooks/useFormSubmit';
 
 const NewsFormPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const isEdit = !!id;
   const [news, setNews] = useState<News | null>(null);
   const [loading, setLoading] = useState(false);
@@ -66,7 +66,7 @@ const NewsFormPage: React.FC = () => {
         type: 1,
         isTop: false,
         status: true,
-      } as Partial<News>,
+      } as unknown as Partial<News>,
     }
   );
 
@@ -74,9 +74,9 @@ const NewsFormPage: React.FC = () => {
   const { handleSubmit, submitting } = useFormSubmit<News>(
     async (values) => {
       if (isEdit && id) {
-        await contentApi.updateNews(id, values);
+        await contentApi.updateNews(id, values as any);
       } else {
-        await contentApi.createNews(values);
+        await contentApi.createNews(values as any);
       }
     },
     {
@@ -110,7 +110,7 @@ const NewsFormPage: React.FC = () => {
           name="type"
           label="类型"
           width="md"
-          options={NEWS_TYPE_OPTIONS}
+          options={[...NEWS_TYPE_OPTIONS]}
           rules={[{ required: true, message: '请选择类型' }]}
         />
       </Card>

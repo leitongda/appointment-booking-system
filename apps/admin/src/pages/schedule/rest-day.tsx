@@ -8,6 +8,7 @@ import { restDayApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import type { RestDay } from '@hospital/api';
 import { ScheduleMessages } from './utils/message';
+import { COLOR_DANGER } from '@/themes/scheduleColors';
 
 const RestDayPage: React.FC = () => {
   const { message } = App.useApp();
@@ -111,7 +112,7 @@ const RestDayPage: React.FC = () => {
           title="确定删除该记录吗？" 
           onConfirm={() => handleDelete(record.id)}
         >
-          <a style={{ color: '#ff4d4f' }}>删除</a>
+          <a style={{ color: COLOR_DANGER }}>删除</a>
         </Popconfirm>,
       ],
     },

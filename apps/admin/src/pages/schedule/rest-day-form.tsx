@@ -100,7 +100,7 @@ const RestDayFormPage: React.FC = () => {
           options={stores.map(s => ({ label: s.name, value: s.id }))}
           rules={[requiredRules('请选择门店')]}
           fieldProps={{
-            onChange: (val) => setSelectedStore(val),
+            onChange: (val: any) => setSelectedStore(val),
           }}
           placeholder={stores.length === 0 ? '暂无可用门店' : '请选择门店'}
           disabled={stores.length === 0}

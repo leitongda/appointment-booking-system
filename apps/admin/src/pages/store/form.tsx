@@ -59,7 +59,7 @@ const generateCodeFromName = (name: string): string => {
  * 门店表单页面
  */
 const StoreFormPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const isEdit = !!id;
   const [loading, setLoading] = useState(false);
   const [store, setStore] = useState<Store | null>(null);
@@ -209,7 +209,7 @@ const StoreFormPage: React.FC = () => {
               requiredRules('请输入门店名称'),
               stringLengthRules(1, 100),
               {
-                validator: (_, value) => new Promise((resolve, reject) => {
+                validator: (_: any, value: any) => new Promise((resolve, reject) => {
                   if (!value) {
                     resolve(undefined);
                     return;
@@ -234,7 +234,7 @@ const StoreFormPage: React.FC = () => {
               requiredRules('请输入门店编码'),
               codeRules('slug').pattern,
               {
-                validator: (_, value) => new Promise((resolve, reject) => {
+                validator: (_: any, value: any) => new Promise((resolve, reject) => {
                   if (!value) {
                     resolve(undefined);
                     return;

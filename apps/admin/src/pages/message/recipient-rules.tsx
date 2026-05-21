@@ -232,7 +232,7 @@ const RecipientRulesPage: React.FC = () => {
           fieldProps={{ rows: 6 }}
           rules={[
             {
-              validator: async (_, value) => {
+              validator: async (_: any, value: any) => {
                 if (value) {
                   try {
                     JSON.parse(value);

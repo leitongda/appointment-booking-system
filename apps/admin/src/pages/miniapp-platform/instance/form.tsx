@@ -4,7 +4,7 @@ import { Card, message, Form, Row, Col, Divider, Radio, Tag } from 'antd';
 import { history, useParams, useSearchParams } from '@umijs/max';
 import { useEffect, useState } from 'react';
 import { miniappPlatformApi, storeApi } from '@hospital/api';
-import type { MiniappInstanceCreateData, MiniappInstanceUpdateData, Store } from '@hospital/api';
+import type { MiniappInstanceCreateData, MiniappInstanceUpdateData } from '@hospital/api';
 
 const TEMPLATE_LIST = [
   {
@@ -50,12 +50,12 @@ const TEMPLATE_LIST = [
 ];
 
 const InstanceFormPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const [searchParams] = useSearchParams();
   const isEdit = !!id;
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [stores, setStores] = useState<Store[]>([]);
+  const [stores, setStores] = useState<any[]>([]);
   const [paymentProfiles, setPaymentProfiles] = useState<any[]>([]);
   const [_checkingCode, setCheckingCode] = useState(false);
   const [_checkingAppId, setCheckingAppId] = useState(false);
@@ -65,8 +65,8 @@ const InstanceFormPage: React.FC = () => {
 
   async function loadStores() {
     try {
-      const res = await storeApi.getStores({ page: 1, pageSize: 100 });
-      setStores(res.data?.data || []);
+      const res = await storeApi.getList({ page: 1, pageSize: 100 });
+      setStores((res as any).data || []);
     } catch (error) {
       console.error('加载门店列表失败:', error);
     }
@@ -75,7 +75,7 @@ const InstanceFormPage: React.FC = () => {
   async function loadPaymentProfiles() {
     try {
       const res = await miniappPlatformApi.getPaymentProfiles({ page: 1, pageSize: 100 });
-      setPaymentProfiles(res.data?.data || []);
+      setPaymentProfiles((res as any).data || []);
     } catch (error) {
       console.error('加载支付配置失败:', error);
     }
@@ -84,8 +84,7 @@ const InstanceFormPage: React.FC = () => {
   async function loadInstance() {
     setLoading(true);
     try {
-      const res = await miniappPlatformApi.getMiniappInstance(id);
-      const instance = res.data;
+      const instance = await miniappPlatformApi.getMiniappInstance(id!);
       form.setFieldsValue({
         code: instance.code,
         name: instance.name,
@@ -127,8 +126,8 @@ const InstanceFormPage: React.FC = () => {
 
     setCheckingCode(true);
     try {
-      const res = await miniappPlatformApi.checkInstanceUnique(code, undefined, isEdit ? id : undefined);
-      if (res.data?.code_exists) {
+      const res = await miniappPlatformApi.checkInstanceUnique(value, undefined, isEdit ? id : undefined);
+      if ((res as any).code_exists) {
         return Promise.reject(new Error('该实例编码已存在'));
       }
       return Promise.resolve();
@@ -151,7 +150,7 @@ const InstanceFormPage: React.FC = () => {
     setCheckingAppId(true);
     try {
       const res = await miniappPlatformApi.checkInstanceUnique(undefined, value, isEdit ? id : undefined);
-      if (res.data?.app_id_exists) {
+      if ((res as any).app_id_exists) {
         return Promise.reject(new Error('该 AppID 已存在'));
       }
       return Promise.resolve();
@@ -187,7 +186,7 @@ const InstanceFormPage: React.FC = () => {
             searchConfig: { submitText: '保存' },
             resetText: '取消',
             onReset: () => history.back(),
-          }}
+          } as any}
         >
           <Row gutter={24}>
             <Col span={12}>
@@ -297,7 +296,7 @@ const InstanceFormPage: React.FC = () => {
                             />
                             <div style={{ flex: 1 }}>
                               <div style={{ fontWeight: 'bold', fontSize: 14 }}>{template.name}</div>
-                              <Tag size="small" color="blue">{template.category}</Tag>
+                              <Tag color="blue">{template.category}</Tag>
                             </div>
                             {selectedTemplate === template.code && (
                               <div style={{ color: '#1890ff', fontSize: 18 }}>✓</div>
@@ -308,7 +307,7 @@ const InstanceFormPage: React.FC = () => {
                           </div>
                           <div>
                             {template.features?.slice(0, 3).map((feature, index) => (
-                              <Tag key={index} size="small" style={{ fontSize: 11, marginBottom: 4 }}>
+                              <Tag key={index} style={{ fontSize: 11, marginBottom: 4 }}>
                                 {feature}
                               </Tag>
                             ))}

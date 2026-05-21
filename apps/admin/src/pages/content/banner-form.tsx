@@ -32,7 +32,7 @@ import { useFormInitialValues } from '@/hooks/useFormInitialValues';
 import { useFormSubmit } from '@/hooks/useFormSubmit';
 
 const BannerFormPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const isEdit = !!id;
   const [banner, setBanner] = useState<Banner | null>(null);
   const [loading, setLoading] = useState(false);
@@ -41,9 +41,9 @@ const BannerFormPage: React.FC = () => {
   useEffect(() => {
     if (isEdit && id) {
       setLoading(true);
-      contentApi
+      (contentApi as any)
         .getBannerDetail(id)
-        .then((data) => {
+        .then((data: Banner) => {
           setBanner(data);
         })
         .catch(() => {
@@ -65,7 +65,7 @@ const BannerFormPage: React.FC = () => {
         position: 'home',
         sortOrder: 0,
         status: true,
-      } as Partial<Banner>,
+      } as unknown as Partial<Banner>,
     }
   );
 
@@ -116,13 +116,13 @@ const BannerFormPage: React.FC = () => {
           name="linkType"
           label="链接类型"
           width="md"
-          options={BANNER_LINK_TYPE_OPTIONS}
+          options={[...BANNER_LINK_TYPE_OPTIONS]}
         />
         <ProFormSelect
           name="position"
           label="展示位置"
           width="md"
-          options={BANNER_POSITION_OPTIONS}
+          options={[...BANNER_POSITION_OPTIONS]}
         />
         <ProFormText
           name="linkUrl"

@@ -7,6 +7,8 @@ import {
   UserOutlined,
   RiseOutlined,
   PayCircleOutlined,
+  ReloadOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
 import { useEffect, useState, Suspense, lazy, ComponentType } from 'react';
 import { useModel } from '@umijs/max';
@@ -20,6 +22,8 @@ import type {
   DoctorRankingItem,
   TimeSlotItem,
   WeekdayItem,
+  RetentionItem,
+  RevisitRateData,
 } from '@hospital/api';
 import StoreSection from './components/StoreSection';
 
@@ -55,6 +59,8 @@ const Dashboard: React.FC = () => {
   const [weekdayData, setWeekdayData] = useState<WeekdayItem[]>([]);
   const [deptRanking, setDeptRanking] = useState<DepartmentRankingItem[]>([]);
   const [doctorRanking, setDoctorRanking] = useState<DoctorRankingItem[]>([]);
+  const [retentionData, setRetentionData] = useState<RetentionItem[]>([]);
+  const [revisitRate, setRevisitRate] = useState<RevisitRateData | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -68,6 +74,8 @@ const Dashboard: React.FC = () => {
         statisticsApi.getRevenueTrend(14),         // 5
         statisticsApi.getTimeSlotDistribution(),   // 6
         statisticsApi.getWeekdayDistribution(),    // 7
+        statisticsApi.getRetentionRate({ cohort: 'month' }), // 8
+        statisticsApi.getRevisitRate(),            // 9
       ]);
 
       if (results[0].status === 'fulfilled') setOverview(results[0].value);
@@ -78,6 +86,8 @@ const Dashboard: React.FC = () => {
       if (results[5].status === 'fulfilled') setRevenueTrendData(results[5].value);
       if (results[6].status === 'fulfilled') setTimeSlotData(results[6].value);
       if (results[7].status === 'fulfilled') setWeekdayData(results[7].value);
+      if (results[8].status === 'fulfilled') setRetentionData(results[8].value);
+      if (results[9].status === 'fulfilled') setRevisitRate(results[9].value);
     } catch (error) {
       console.error('加载数据失败', error);
     } finally {
@@ -145,6 +155,30 @@ const Dashboard: React.FC = () => {
     label: { position: 'top' as const },
     color: '#52c41a',
     height: 280,
+  } : null;
+
+  const retentionConfig = retentionData.length > 0 ? {
+    data: retentionData.map(item => ({
+      cohort: item.cohort,
+      留存率: item.retentionRate,
+      留存人数: item.retained,
+      队列规模: item.cohortSize,
+    })),
+    xField: 'cohort',
+    yField: '留存率',
+    label: {
+      position: 'top' as const,
+      formatter: (d: any) => `${d['留存率']}%`,
+    },
+    color: '#722ed1',
+    height: 280,
+    tooltip: {
+      formatter: (d: any) => [
+        { name: '留存率', value: `${d['留存率']}%` },
+        { name: '留存人数', value: d['留存人数'] },
+        { name: '队列规模', value: d['队列规模'] },
+      ],
+    },
   } : null;
 
   const deptColumns = [
@@ -290,6 +324,74 @@ const Dashboard: React.FC = () => {
                 <Suspense fallback={<ChartLoading />}>
                   <Column {...weekdayConfig} />
                 </Suspense>
+              ) : (
+                <Empty description="暂无数据" style={{ padding: 40 }} />
+              )}
+            </ProCard>
+          </Col>
+        </Row>
+
+        {/* 留存率 + 复诊率 */}
+        <Row gutter={16} style={{ marginBottom: 16 }}>
+          <Col xs={24} lg={14}>
+            <ProCard title="用户留存率（按月）" headerBordered>
+              {retentionConfig ? (
+                <Suspense fallback={<ChartLoading />}>
+                  <Column {...retentionConfig} />
+                </Suspense>
+              ) : (
+                <Empty description="暂无数据" style={{ padding: 40 }} />
+              )}
+            </ProCard>
+          </Col>
+          <Col xs={24} lg={10}>
+            <ProCard title="复诊率概览" headerBordered style={{ height: '100%' }}>
+              {revisitRate ? (
+                <Row gutter={[16, 24]}>
+                  <Col span={12}>
+                    <Statistic
+                      title="复诊用户比例"
+                      value={revisitRate.overall.revisitRate}
+                      precision={1}
+                      suffix="%"
+                      prefix={<ReloadOutlined style={{ color: '#722ed1' }} />}
+                    />
+                    <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
+                      {revisitRate.overall.revisitUsers} / {revisitRate.overall.totalUsers} 用户
+                    </div>
+                  </Col>
+                  <Col span={12}>
+                    <Statistic
+                      title="医生维度复诊率"
+                      value={revisitRate.byDoctor.revisitRate}
+                      precision={1}
+                      suffix="%"
+                      prefix={<SyncOutlined style={{ color: '#1890ff' }} />}
+                    />
+                    <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
+                      {revisitRate.byDoctor.revisitPairs} / {revisitRate.byDoctor.totalPairs} 医患对
+                    </div>
+                  </Col>
+                  <Col span={12}>
+                    <Statistic
+                      title="复诊占比"
+                      value={revisitRate.visits.revisitRatio}
+                      precision={1}
+                      suffix="%"
+                      prefix={<RiseOutlined style={{ color: '#52c41a' }} />}
+                    />
+                    <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
+                      复诊 {revisitRate.visits.revisitVisits} / 总计 {revisitRate.visits.totalVisits} 次
+                    </div>
+                  </Col>
+                  <Col span={12}>
+                    <Statistic
+                      title="统计周期"
+                      value={`${revisitRate.params.startDate} ~ ${revisitRate.params.endDate}`}
+                      valueStyle={{ fontSize: 14 }}
+                    />
+                  </Col>
+                </Row>
               ) : (
                 <Empty description="暂无数据" style={{ padding: 40 }} />
               )}

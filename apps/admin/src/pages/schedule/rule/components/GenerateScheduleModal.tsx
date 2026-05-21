@@ -5,6 +5,7 @@ import type { ProFormInstance } from '@ant-design/pro-components';
 import type { ScheduleTemplate, SchedulePreviewGenerateResponse } from '@hospital/shared';
 import { WEEKDAY_MAP } from '@hospital/shared';
 import dayjs from 'dayjs';
+import { COLOR_WARNING } from '@/themes/scheduleColors';
 
 interface GenerateScheduleModalProps {
   open: boolean;
@@ -167,7 +168,7 @@ const GenerateScheduleModal: React.FC<GenerateScheduleModalProps> = ({
                   <span>
                     预览：共 <strong>{totalSlots}</strong> 个班次，可修改每个班次的可预约人数
                     {warningSlots > 0 && (
-                      <span style={{ marginLeft: 12, color: '#fa8c16' }}>
+                      <span style={{ marginLeft: 12, color: COLOR_WARNING }}>
                         （<ExclamationCircleOutlined style={{ marginRight: 4 }} />
                         {warningSlots} 个班次存在规则限制）
                       </span>
