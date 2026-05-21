@@ -8,7 +8,7 @@ import type { PerformanceMetric, RouteMetric } from './metrics';
 /**
  * 上报配置
  */
-interface ReportConfig {
+export interface ReportConfig {
   /** 上报地址 */
   endpoint?: string;
   /** 批量上报间隔（毫秒） */
@@ -22,7 +22,7 @@ interface ReportConfig {
 /**
  * 性能数据上报包
  */
-interface PerformanceReport {
+export interface PerformanceReport {
   /** 页面 URL */
   pageUrl: string;
   /** 用户代理 */

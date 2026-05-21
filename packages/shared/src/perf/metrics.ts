@@ -46,6 +46,7 @@ const VITAL_THRESHOLDS = {
   FID: { good: 100, poor: 300 },
   INP: { good: 200, poor: 500 },
   TTFB: { good: 800, poor: 1800 },
+  ROUTE_CHANGE: { good: 500, poor: 1000 },
 } as const;
 
 /**
@@ -258,7 +259,7 @@ class MetricsCollector {
     });
 
     try {
-      observer.observe({ type: 'event', buffered: true, durationThreshold: 0 });
+      observer.observe({ type: 'event', buffered: true } as any);
       this.observers.push(observer);
     } catch (e) {
       console.debug('[Perf] Failed to observe INP:', e);

@@ -14,5 +14,6 @@ export interface Feedback {
   handlerId?: string;
   reply?: string;
   handledAt?: string;
+  repliedAt?: string;
   createdAt: string;
 }

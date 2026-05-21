@@ -3,7 +3,9 @@
  * 为幂等操作（GET 请求）提供自动重试、指数退避、抖动和端点级熔断策略
  */
 
-import { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
+import type { AxiosInstance, AxiosRequestConfig } from 'axios';
+
+type AxiosError = any;
 
 // ─── 端点熔断器 ─────────────────────────────────────────────
 
@@ -290,7 +292,7 @@ export function setupRetryInterceptor(
     : null;
 
   // ── 请求拦截器：为幂等请求分配唯一 retryId ──
-  instance.interceptors.request.use((requestConfig) => {
+  instance.interceptors.request.use((requestConfig: any) => {
     const isIdempotent = ['GET', 'HEAD'].includes((requestConfig.method || '').toUpperCase());
 
     if (isIdempotent) {
@@ -334,7 +336,7 @@ export function setupRetryInterceptor(
 
   // ── 响应拦截器：成功时通知熔断器并清理状态 ──
   instance.interceptors.response.use(
-    (response) => {
+    (response: any) => {
       if (circuitBreaker) {
         const endpoint = getEndpointKey(response.config);
         circuitBreaker.recordSuccess(endpoint);

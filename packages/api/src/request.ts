@@ -9,39 +9,50 @@ import { createApiTimer } from './utils/performance';
  * 用于区分业务错误码和 HTTP 错误
  */
 export class ApiError extends Error {
-  /** 业务错误码 */
+  /** HTTP status code */
   code: number;
-  /** 原始响应数据 */
+  /** Original response data */
   data: any;
-  /** 请求 URL（用于判断是否是登录接口等） */
+  /** Request URL (used to detect login endpoints, etc.) */
   url?: string;
-  
-  constructor(code: number, message: string, data?: any, url?: string) {
+  /** Machine-readable error code from structured error envelope (e.g. "SCHEDULE_CONFLICT") */
+  errorCode?: string;
+  /** Additional error context from structured error envelope */
+  errorDetails?: Record<string, any>;
+
+  constructor(code: number, message: string, data?: any, url?: string, errorCode?: string, errorDetails?: Record<string, any>) {
     super(message);
     this.name = 'ApiError';
     this.code = code;
     this.data = data;
     this.url = url;
+    this.errorCode = errorCode;
+    this.errorDetails = errorDetails;
   }
-  
-  /** 是否是未授权错误 (401) */
+
+  /** Whether this is an unauthorized error (401) */
   isUnauthorized(): boolean {
     return this.code === 401;
   }
-  
-  /** 是否是禁止访问错误 (403) */
+
+  /** Whether this is a forbidden error (403) */
   isForbidden(): boolean {
     return this.code === 403;
   }
-  
-  /** 是否是未找到错误 (404) */
+
+  /** Whether this is a not-found error (404) */
   isNotFound(): boolean {
     return this.code === 404;
   }
-  
-  /** 是否是服务器错误 (5xx) */
+
+  /** Whether this is a server error (5xx) */
   isServerError(): boolean {
     return this.code >= 500 && this.code < 600;
+  }
+
+  /** Whether this error has a specific structured error code */
+  hasErrorCode(code: string): boolean {
+    return this.errorCode === code;
   }
 }
 
@@ -104,7 +115,7 @@ instance.interceptors.request.use(
     // Token 由各端自行设置
     return config;
   },
-  (error) => {
+  (error: any) => {
     return Promise.reject(error);
   }
 );
@@ -129,7 +140,11 @@ instance.interceptors.response.use(
     // 2xx 状态码都是成功，不仅仅是 200（如 201 Created）
     if (data.code && (data.code < 200 || data.code >= 300)) {
       const requestUrl = response.config?.url || '';
-      return Promise.reject(new ApiError(data.code, data.message || '请求失败', data.data, requestUrl));
+      // Extract structured error envelope if present
+      const structuredError = data.error;
+      const errorCode = structuredError?.code;
+      const errorDetails = structuredError?.details;
+      return Promise.reject(new ApiError(data.code, data.message || '请求失败', data.data, requestUrl, errorCode, errorDetails));
     }
 
     // 分页响应：包含 total 字段，返回 ProTable 直接可用的格式
@@ -151,9 +166,10 @@ instance.interceptors.response.use(
     // 其他情况直接返回
     return data;
   },
-  (error) => {
+  (error: any) => {
     // HTTP 错误
     // FastAPI HTTPException 格式: { detail: "错误信息" }
+    // 结构化错误格式: { code: 400, message: "...", error: { code: "SCHEDULE_CONFLICT", message: "...", details: {...} } }
     // 统一响应格式: { code: 400, message: "error", data: { detail: "实际错误信息" } }
     const responseData = error.response?.data;
     const status = error.response?.status;
@@ -161,6 +177,11 @@ instance.interceptors.response.use(
     // 保存请求 URL，用于后续判断是否是登录接口等
     const requestUrl = error.config?.url || error.request?.responseURL || '';
     const config = error.config as any;
+
+    // 提取结构化错误信息
+    const structuredError = responseData?.error;
+    const errorCode = structuredError?.code || responseData?.error_code;
+    const errorDetails = structuredError?.details;
 
     // 记录失败请求
     if (config?._timer) {
@@ -173,7 +194,7 @@ instance.interceptors.response.use(
 
     // 如果有 HTTP 状态码，使用 ApiError 以便统一处理
     if (status) {
-      return Promise.reject(new ApiError(status, message, responseData?.data, requestUrl));
+      return Promise.reject(new ApiError(status, message, responseData?.data, requestUrl, errorCode, errorDetails));
     }
 
     return Promise.reject(new Error(message));

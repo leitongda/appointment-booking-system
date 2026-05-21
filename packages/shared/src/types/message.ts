@@ -82,6 +82,14 @@ export interface NotificationQuota {
   usagePercent: Record<string, number>;
   periodStart?: string;
   periodEnd?: string;
+  /** 今日发送限额 */
+  dailyLimit?: number;
+  /** 今日已发送量 */
+  dailyUsed?: number;
+  /** 本月发送限额 */
+  monthlyLimit?: number;
+  /** 本月已发送量 */
+  monthlyUsed?: number;
 }
 
 export interface NotificationQuotaUpdate {

@@ -13,3 +13,4 @@ export * from './doctor-booking-setting';
 export * from './region';
 export * from './store-visit-type-config';
 export * from './rule-set';
+export * from './approval';

@@ -36,7 +36,7 @@ export interface ScheduleBatchCreateData {
 export interface AvailableSchedule {
   id: string;
   scheduleDate: string;
-  timeSlot: string;
+  timeSlot?: string;
   availableSlots: number;
   startTime?: string;
   endTime?: string;
@@ -48,6 +48,9 @@ export interface AvailableSchedule {
   bookingStatus?: 'available' | 'closing_soon' | 'full' | 'closed' | 'not_open';
   capacityPercent?: number;
   urgencyLevel?: 'normal' | 'medium' | 'high' | 'critical';
+  // 排班优先级相关
+  templateId?: string;
+  isRestDay?: boolean;
 }
 
 export interface ScheduleStatisticsItem {
@@ -309,6 +312,78 @@ export const scheduleApi = {
   },
 
   /**
+   * 批量发布排班
+   */
+  batchPublish: (scheduleIds: string[]): Promise<{ success: boolean; affectedCount: number; message: string }> => {
+    return request.post('/schedules/batch-publish', {
+      schedule_ids: scheduleIds,
+    });
+  },
+
+  /**
+   * 批量撤回排班
+   */
+  batchWithdraw: (scheduleIds: string[], reason?: string): Promise<{ success: boolean; affectedCount: number; message: string }> => {
+    return request.post('/schedules/batch-withdraw', {
+      schedule_ids: scheduleIds,
+      reason,
+    });
+  },
+
+  /**
+   * 检查排班冲突
+   */
+  checkConflicts: (data: {
+    doctorId: string;
+    scheduleDate: string;
+    startTime?: string;
+    endTime?: string;
+    timeSlot?: string;
+    storeId?: string;
+    roomId?: string;
+    excludeScheduleId?: string;
+  }): Promise<{
+    hasConflict: boolean;
+    blocking: boolean;
+    conflicts: Array<{ type: string; severity: string; message: string; details?: any }>;
+  }> => {
+    return request.post('/schedules/conflicts', data);
+  },
+
+  /**
+   * 拖拽调整排班位置
+   */
+  dragAdjust: (data: {
+    scheduleId: string;
+    targetDate: string;
+    targetStartTime?: string;
+    targetEndTime?: string;
+    targetTimeSlot?: string;
+  }): Promise<{
+    success: boolean;
+    schedule?: Schedule;
+    conflicts?: {
+      hasConflict: boolean;
+      blocking: boolean;
+      conflicts: Array<{
+        type: string;
+        severity: string;
+        message: string;
+        details: Record<string, unknown>;
+      }>;
+    };
+    message: string;
+  }> => {
+    return request.post('/schedules/drag-adjust', {
+      schedule_id: data.scheduleId,
+      target_date: data.targetDate,
+      target_start_time: data.targetStartTime,
+      target_end_time: data.targetEndTime,
+      target_time_slot: data.targetTimeSlot,
+    });
+  },
+
+  /**
    * 排班利用率趋势
    */
   getUtilizationTrend: (params: {
@@ -340,5 +415,248 @@ export const scheduleApi = {
     endDate: string;
   }): Promise<PeakHourHeatmapResponse> => {
     return request.get('/schedules/statistics/peak-hours', { params });
+  },
+
+  /**
+   * 批量复制排班
+   */
+  copySchedules: (data: {
+    sourceStartDate: string;
+    sourceEndDate: string;
+    targetStartDate: string;
+    targetEndDate: string;
+    doctorIds?: string[];
+    copyQuota?: boolean;
+    copyRoom?: boolean;
+    copyFee?: boolean;
+    skipHolidays?: boolean;
+    conflictStrategy?: 'skip' | 'overwrite' | 'manual';
+  }): Promise<{ success: boolean; affectedCount: number; message: string }> => {
+    return request.post('/schedules/copy', {
+      source_start_date: data.sourceStartDate,
+      source_end_date: data.sourceEndDate,
+      target_start_date: data.targetStartDate,
+      target_end_date: data.targetEndDate,
+      doctor_ids: data.doctorIds,
+      copy_quota: data.copyQuota,
+      copy_room: data.copyRoom,
+      copy_fee: data.copyFee,
+      skip_holidays: data.skipHolidays,
+      conflict_strategy: data.conflictStrategy,
+    });
+  },
+
+  /**
+   * 创建加号申请
+   */
+  createExtraQuotaRequest: (data: {
+    scheduleId: string;
+    quantity: number;
+    quotaType: 'normal' | 'special' | 'green_channel';
+    openToPublic?: boolean;
+    patientId?: string;
+    reason?: string;
+  }) => {
+    return request.post('/schedules/extra-quota', {
+      schedule_id: data.scheduleId,
+      quantity: data.quantity,
+      quota_type: data.quotaType,
+      open_to_public: data.openToPublic,
+      patient_id: data.patientId,
+      reason: data.reason,
+    });
+  },
+
+  /**
+   * 查询加号申请列表
+   */
+  getExtraQuotaRequests: (params: {
+    storeId?: string;
+    doctorId?: string;
+    approvalStatus?: string;
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    pageSize?: number;
+  }) => {
+    return request.get('/schedules/extra-quota', {
+      params: {
+        store_id: params.storeId,
+        doctor_id: params.doctorId,
+        approval_status: params.approvalStatus,
+        start_date: params.startDate,
+        end_date: params.endDate,
+        page: params.page,
+        page_size: params.pageSize,
+      },
+    });
+  },
+
+  /**
+   * 审批加号（通过）
+   */
+  approveExtraQuota: (requestId: string, data?: { remark?: string }) => {
+    return request.post(`/schedules/extra-quota/${requestId}/approve`, {
+      remark: data?.remark,
+    });
+  },
+
+  /**
+   * 审批加号（拒绝）
+   */
+  rejectExtraQuota: (requestId: string, data: { remark: string }) => {
+    return request.post(`/schedules/extra-quota/${requestId}/reject`, {
+      remark: data.remark,
+    });
+  },
+
+  /**
+   * 导入排班数据
+   */
+  importSchedules: (
+    file: File,
+    conflictStrategy?: 'skip' | 'overwrite' | 'report',
+  ): Promise<{
+    totalCount: number;
+    successCount: number;
+    skippedCount: number;
+    conflictCount: number;
+    errors: Array<{ row: number; errors: string[] }>;
+  }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (conflictStrategy) {
+      formData.append('conflict_strategy', conflictStrategy);
+    }
+    return request.post('/data/import/schedules', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  // ==================== 诊室管理 ====================
+
+  /**
+   * 获取诊室列表
+   */
+  getRoomList: (params?: {
+    name?: string;
+    status?: number;
+    storeId?: string;
+    departmentId?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<PageResult<any>> => {
+    return request.get('/schedule-rooms', { params: {
+      name: params?.name,
+      status: params?.status,
+      store_id: params?.storeId,
+      department_id: params?.departmentId,
+      page: params?.page,
+      page_size: params?.pageSize,
+    }});
+  },
+
+  /**
+   * 创建诊室
+   */
+  createRoom: (data: {
+    name: string;
+    storeId: string;
+    roomNumber?: string;
+    floor?: string;
+    departmentId?: string;
+    capacity?: number;
+    status?: number;
+    remark?: string;
+  }): Promise<any> => {
+    return request.post('/schedule-rooms', {
+      name: data.name,
+      store_id: data.storeId,
+      room_number: data.roomNumber,
+      floor: data.floor,
+      department_id: data.departmentId,
+      capacity: data.capacity,
+      status: data.status,
+      remark: data.remark,
+    });
+  },
+
+  /**
+   * 更新诊室
+   */
+  updateRoom: (id: string, data: {
+    name?: string;
+    storeId?: string;
+    roomNumber?: string;
+    floor?: string;
+    departmentId?: string;
+    capacity?: number;
+    status?: number;
+    remark?: string;
+  }): Promise<any> => {
+    return request.put(`/schedule-rooms/${id}`, {
+      name: data.name,
+      store_id: data.storeId,
+      room_number: data.roomNumber,
+      floor: data.floor,
+      department_id: data.departmentId,
+      capacity: data.capacity,
+      status: data.status,
+      remark: data.remark,
+    });
+  },
+
+  /**
+   * 删除诊室
+   */
+  deleteRoom: (id: string): Promise<{ message: string }> => {
+    return request.delete(`/schedule-rooms/${id}`);
+  },
+
+  /**
+   * 下载排班导入模板
+   */
+  downloadImportTemplate: async (): Promise<void> => {
+    const response = await request.get('/data/import/schedules/template', {
+      responseType: 'blob',
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'schedule_import_template.xlsx');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
+
+  /**
+   * 导出排班数据
+   */
+  exportSchedules: async (params: {
+    storeId: string;
+    doctorId?: string;
+    startDate?: string;
+    endDate?: string;
+    status?: number;
+  }): Promise<void> => {
+    const response = await request.get('/data/export/schedules', {
+      params: {
+        store_id: params.storeId,
+        doctor_id: params.doctorId,
+        start_date: params.startDate,
+        end_date: params.endDate,
+        status: params.status,
+      },
+      responseType: 'blob',
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `schedules_${params.startDate || 'all'}_${params.endDate || 'all'}.xlsx`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   },
 };

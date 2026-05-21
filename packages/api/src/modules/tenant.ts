@@ -276,6 +276,61 @@ export interface TenantSelfRegisterResult {
   };
 }
 
+// ========== 标签 ==========
+
+export interface TenantTag {
+  name: string;
+  count: number;
+}
+
+// ========== 迁移 ==========
+
+export interface MigrationPrecheckResult {
+  compatible: boolean;
+  warnings: string[];
+  blockers: string[];
+  estimatedDuration?: string;
+}
+
+export interface MigrationExecuteData {
+  targetPlanId: string;
+  dryRun?: boolean;
+  confirmOverride?: boolean;
+}
+
+export interface MigrationResult {
+  success: boolean;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+// ========== 密码策略 ==========
+
+export interface PasswordPolicy {
+  minLength: number;
+  maxLength: number;
+  requireUppercase: boolean;
+  requireLowercase: boolean;
+  requireDigit: boolean;
+  requireSpecialChar: boolean;
+  maxAge?: number;
+  preventReuse?: number;
+  lockoutThreshold?: number;
+  lockoutDuration?: number;
+}
+
+// ========== 用量趋势 ==========
+
+export interface TenantUsageTrend {
+  date: string;
+  appointmentCount: number;
+  completedCount: number;
+  cancelledCount: number;
+  newUserCount: number;
+  activeUserCount: number;
+  storageUsedMb: number;
+}
+
 export const tenantApi = {
   // 租户自注册（公开接口，无需认证）
   selfRegister: (data: TenantSelfRegisterData): Promise<TenantSelfRegisterResult> => {
@@ -390,5 +445,59 @@ export const tenantApi = {
 
   markAllNotificationsRead: (): Promise<{ message: string }> => {
     return request.post('/tenants/me/notifications/read-all');
+  },
+
+  // 标签管理
+  getAllTags: (): Promise<string[]> => {
+    return request.get('/tenants/tags');
+  },
+
+  updateTenantTags: (tenantId: string, tags: string[]): Promise<void> => {
+    return request.put(`/tenants/${tenantId}/tags`, { tags });
+  },
+
+  // 数据迁移
+  precheckMigration: (tenantId: string, targetPlanId: string): Promise<MigrationPrecheckResult> => {
+    return request.post(`/tenants/${tenantId}/migration/precheck`, { targetPlanId });
+  },
+
+  executeMigration: (tenantId: string, data: MigrationExecuteData): Promise<MigrationResult> => {
+    return request.post(`/tenants/${tenantId}/migration/migrate`, data);
+  },
+
+  // 密码策略
+  getPasswordPolicy: (tenantId: string): Promise<PasswordPolicy> => {
+    return request.get(`/tenants/${tenantId}/password-policy`);
+  },
+
+  updatePasswordPolicy: (tenantId: string, data: Partial<PasswordPolicy>): Promise<PasswordPolicy> => {
+    return request.put(`/tenants/${tenantId}/password-policy`, data);
+  },
+
+  // 用量趋势
+  getTenantUsageTrends: (tenantId: string, params?: { period?: string; limit?: number }): Promise<TenantUsageTrend[]> => {
+    return request.get(`/tenants/${tenantId}/usage/trends`, { params });
+  },
+
+  // 数据备份/恢复
+  exportTenantBackup: (tenantId: string): Promise<Blob> => {
+    return request.post(`/backup/${tenantId}/export`, null, { responseType: 'blob' as any });
+  },
+
+  precheckTenantImport: (tenantId: string, file: File): Promise<{ compatible: boolean; warnings: string[]; blockers: string[] }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request.post(`/backup/${tenantId}/import/precheck`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  importTenantBackup: (tenantId: string, file: File, overwrite?: boolean): Promise<{ success: boolean; message: string; details?: Record<string, unknown> }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request.post(`/backup/${tenantId}/import`, formData, {
+      params: { overwrite: overwrite || false },
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
   },
 };

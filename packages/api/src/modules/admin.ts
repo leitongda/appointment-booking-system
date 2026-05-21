@@ -573,6 +573,53 @@ export const adminApi = {
     return request.get(`${PREFIX}/permissions/all`);
   },
 
+  // 创建权限
+  createPermission: (data: {
+    code: string;
+    name: string;
+    type: string;
+    controlType?: string;
+    parentCode?: string;
+    icon?: string;
+    sort?: number;
+  }): Promise<Permission> => {
+    return request.post(`${PREFIX}/permissions`, {
+      code: data.code,
+      name: data.name,
+      type: data.type,
+      control_type: data.controlType,
+      parent_code: data.parentCode,
+      icon: data.icon,
+      sort: data.sort ?? 0,
+    });
+  },
+
+  // 批量创建权限
+  batchCreatePermissions: (permissions: Array<{
+    code: string;
+    name: string;
+    type: string;
+    controlType?: string;
+    parentCode?: string;
+    icon?: string;
+    sort?: number;
+  }>): Promise<{ message: string }> => {
+    return request.post(`${PREFIX}/permissions/batch`, permissions.map((p) => ({
+      code: p.code,
+      name: p.name,
+      type: p.type,
+      control_type: p.controlType,
+      parent_code: p.parentCode,
+      icon: p.icon,
+      sort: p.sort ?? 0,
+    })));
+  },
+
+  // 删除权限
+  deletePermission: (code: string): Promise<void> => {
+    return request.delete(`${PREFIX}/permissions/${code}`);
+  },
+
   // ========== 在线用户管理 ==========
   // 获取在线用户列表
   getOnlineUsers: (): Promise<OnlineUser[]> => {

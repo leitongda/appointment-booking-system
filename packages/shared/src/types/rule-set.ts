@@ -46,8 +46,22 @@ export interface RuleSet {
   bookingPolicy?: RuleBookingPolicy;
   checkinPolicy?: RuleCheckinPolicy;
   capacityPolicy?: RuleCapacityPolicy;
+  scheduleTemplates?: ScheduleTemplateBrief[];
   createdAt: string;
   updatedAt?: string;
+}
+
+/**
+ * 排班模板简要信息（用于规则组关联展示）
+ */
+export interface ScheduleTemplateBrief {
+  id: string;
+  name?: string;
+  doctorName?: string;
+  departmentName?: string;
+  storeName?: string;
+  shiftTypeName?: string;
+  status?: number;
 }
 
 /**

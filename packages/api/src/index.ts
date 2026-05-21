@@ -81,7 +81,9 @@ export { customScheduleApi } from './modules/custom-schedule';
 export { restDayApi } from './modules/rest-day';
 export { scheduleSuspensionApi } from './modules/schedule-suspension';
 export { blacklistApi } from './modules/blacklist';
+export { pointApi } from './modules/point';
 export { uploadApi } from './modules/upload';
+export { examinationReportApi } from './modules/examination-report';
 export { emailTemplateApi, EMAIL_TEMPLATE_TYPE_OPTIONS } from './modules/email-template';
 export { dataApi } from './modules/data';
 export type { ImportResult } from './modules/data';
@@ -92,17 +94,31 @@ export { storeVisitTypeConfigApi } from './modules/store-visit-type-config';
 export { ruleSetApi, shiftTypeApi } from './modules/rule-set';
 export { auditLogApi } from './modules/audit-log';
 export { storeEmailRecipientApi } from './modules/store-email-recipient';
+export { WSMessageType, ConnectionStatus, PATIENT_MESSAGE_TYPES, DOCTOR_MESSAGE_TYPES } from './modules/websocket';
+export type { WSMessage } from './modules/websocket';
 export { tenantApi } from './modules/tenant';
+export { analyticsApi } from './modules/analytics';
+export type { BehaviorLog, BehaviorLogListParams, BehaviorOverview, TenantActivity, DailyBehaviorItem, DailyActivityItem } from './modules/analytics';
 export { miniappPlatformApi } from './modules/miniapp-platform';
 export { notificationLogApi } from './modules/notification-log';
 export { notificationPreferenceApi } from './modules/notification-preference';
+export { paymentApi } from './modules/payment';
+export { refundApi } from './modules/refund';
 export { waitlistApi } from './modules/waitlist';
+export { platformAnnouncementApi } from './modules/platform-announcement';
+export type { PlatformAnnouncement, PlatformAnnouncementCreateData, PlatformAnnouncementListParams } from './modules/platform-announcement';
+export { supportTicketApi } from './modules/support-ticket';
+export type { SupportTicket, SupportTicketCreateData, SupportTicketUpdateData, SupportTicketListParams, SupportTicketStatistics } from './modules/support-ticket';
+export { approvalInstanceApi, approvalFlowApi } from './modules/approval';
+export type { FlowDefinitionCreateData } from './modules/approval';
 export type {
   WaitlistEntry,
   WaitlistStatus,
   JoinWaitlistParams,
   MyWaitlistParams,
   WaitlistPageResult,
+  WaitlistStats,
+  WaitlistListParams,
 } from './modules/waitlist';
 export type {
   UserListItem,
@@ -115,6 +131,10 @@ export type {
 } from './modules/user-manage';
 export type { NotificationLog, NotificationLogListParams, NotificationLogStats } from './modules/notification-log';
 export type { NotificationPreference } from './modules/notification-preference';
+
+// Payment & Refund types
+export type { PaymentOrderStatus } from './modules/payment';
+export type { RefundRecordItem, RefundListParams, RefundListResult, RefundableAmount, RefundCreateData } from './modules/refund';
 
 // Store types
 export type { StoreAdmin } from './modules/store';
@@ -130,7 +150,7 @@ export type {
   UserAccountInfo,
 } from './modules/auth';
 export type { PatientCreateData } from './modules/user';
-export type { DepartmentListParams, DepartmentCreateData } from './modules/department';
+export type { DepartmentListParams, DepartmentCreateData, SymptomMatchResult } from './modules/department';
 export type { DoctorListParams, DoctorCreateData } from './modules/doctor';
 export type { ScheduleListParams, ScheduleCreateData, ScheduleBatchCreateData, AvailableSchedule } from './modules/schedule';
 export type { AppointmentListParams, AppointmentCreateData, AppointmentStatistics, PendingAppointment, CheckinQueueItem, PatientHistoryItem } from './modules/appointment';
@@ -153,6 +173,8 @@ export type {
   AppointmentSummary,
   StoreRankingItem,
   StoreDashboardStats,
+  RetentionItem,
+  RevisitRateData,
 } from './modules/statistics';
 
 // Admin types
@@ -219,6 +241,15 @@ export type {
   BlacklistCheckResult,
 } from './modules/blacklist';
 
+// Point types
+export type {
+  PointLogItem,
+  PointUserItem,
+  PointAdjustData as PointAdjustDataPoint,
+  PointLogParams,
+  PointUserParams,
+} from './modules/point';
+
 // Admin Operation Log type
 export type { OperationLog } from './modules/admin';
 
@@ -272,6 +303,9 @@ export type {
   ScheduleSuspensionListParams,
   ScheduleSuspensionCreateData,
   AvailableScheduleForSuspension,
+  ProcessingMethod,
+  ProcessingStatus,
+  SuspensionProcessResult,
 } from './modules/schedule-suspension';
 
 // Schedule Statistics types
@@ -279,10 +313,16 @@ export type {
   ScheduleStatisticsItem,
   ScheduleStatisticsResponse,
   ScheduleStatisticsParams,
+  UtilizationTrendResponse,
+  DoctorWorkloadResponse,
+  PeakHourHeatmapResponse,
 } from './modules/schedule';
 
 // Upload types
 export type { UploadResult, TransferRequest, ThumbnailInfo, UploadOptions } from './modules/upload';
+
+// Examination Report types
+export type { ExaminationReport, ExaminationReportListItem, ExaminationReportUploadParams } from './modules/examination-report';
 
 // Email Template types
 export type {
@@ -362,6 +402,12 @@ export type {
   TenantNotificationList,
   TenantSelfRegisterData,
   TenantSelfRegisterResult,
+  TenantTag,
+  MigrationPrecheckResult,
+  MigrationExecuteData,
+  MigrationResult,
+  PasswordPolicy,
+  TenantUsageTrend,
 } from './modules/tenant';
 
 // Miniapp Platform types

@@ -123,4 +123,22 @@ export const departmentApi = {
       items: items.map(item => ({ id: item.id, sort_order: item.sortOrder })),
     });
   },
+
+  /**
+   * 症状匹配科室（智能导诊）
+   */
+  symptomMatch: (query: string, storeId?: string, limit?: number): Promise<{ items: SymptomMatchResult[]; query: string }> => {
+    return request.get('/departments/symptom-match', {
+      params: { q: query, store_id: storeId, limit },
+    });
+  },
 };
+
+export interface SymptomMatchResult {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  matchedKeywords: string[];
+  score: number;
+}

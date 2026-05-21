@@ -279,6 +279,29 @@ export const ruleSetApi = {
   }): Promise<PageResult<RuleSetAuditLog>> {
     return request.get(`/rule-sets/${ruleSetId}/audit-logs`, { params });
   },
+
+  // ==================== 性能监控 ====================
+
+  /**
+   * 获取规则引擎性能统计
+   */
+  async getPerformanceStats(params?: { operation?: string; hours?: number }): Promise<any> {
+    return request.get('/rule-sets/performance', { params });
+  },
+
+  /**
+   * 获取慢查询列表
+   */
+  async getSlowQueries(params?: { operation?: string; limit?: number }): Promise<{ total: number; data: any[] }> {
+    return request.get('/rule-sets/slow-queries', { params });
+  },
+
+  /**
+   * 清除性能指标
+   */
+  async clearPerformanceMetrics(params?: { operation?: string }): Promise<any> {
+    return request.delete('/rule-sets/performance/metrics', { params });
+  },
 };
 
 /**

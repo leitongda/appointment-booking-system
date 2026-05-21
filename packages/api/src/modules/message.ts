@@ -11,6 +11,32 @@ export interface MessageListParams {
   pageSize?: number;
 }
 
+export interface UnifiedMessageListParams {
+  messageType?: string;
+  isRead?: number;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface UnifiedSendParams {
+  tenantId: string;
+  storeId?: string;
+  recipientId: string;
+  recipientType: string;
+  recipientPhone?: string;
+  recipientEmail?: string;
+  recipientOpenid?: string;
+  templateCode: string;
+  variables?: Record<string, any>;
+  messageType: string;
+  relatedId?: string;
+  channels?: string[];
+  priority?: number;
+  title?: string;
+  content?: string;
+  extraData?: Record<string, any>;
+}
+
 export interface MessageCreateData {
   userId: string;
   userType: string;
@@ -175,6 +201,59 @@ export const messageApi = {
 
   deleteRecipientRule: (id: string): Promise<void> => {
     return request.delete(`/unified-messages/rules/${id}`);
+  },
+
+  // ========== 统一消息端点 ==========
+
+  // 获取消息列表（统一端点，基于 JWT 用户上下文）
+  getUnifiedList: (params: UnifiedMessageListParams): Promise<PageResult<Message>> => {
+    return request.get('/unified-messages/my', {
+      params: {
+        message_type: params.messageType,
+        is_read: params.isRead,
+        page: params.page,
+        page_size: params.pageSize,
+      }
+    });
+  },
+
+  // 获取未读数（统一端点）
+  getUnifiedUnreadCount: (): Promise<UnreadCount> => {
+    return request.get('/unified-messages/unread-count');
+  },
+
+  // 标记已读（统一端点，自动从 JWT 提取用户信息）
+  markAsReadUnified: (messageId: string): Promise<void> => {
+    return request.post(`/unified-messages/read/${messageId}`);
+  },
+
+  // 全部标记已读（统一端点）
+  markAllAsReadUnified: (messageType?: string): Promise<void> => {
+    return request.post('/unified-messages/read-all', null, {
+      params: { message_type: messageType }
+    });
+  },
+
+  // 发送消息（统一端点）
+  sendUnified: (data: UnifiedSendParams): Promise<{ success: boolean; groupId?: string }> => {
+    return request.post('/unified-messages/send', {
+      tenant_id: data.tenantId,
+      store_id: data.storeId,
+      recipient_id: data.recipientId,
+      recipient_type: data.recipientType,
+      recipient_phone: data.recipientPhone,
+      recipient_email: data.recipientEmail,
+      recipient_openid: data.recipientOpenid,
+      template_code: data.templateCode,
+      variables: data.variables,
+      message_type: data.messageType,
+      related_id: data.relatedId,
+      channels: data.channels,
+      priority: data.priority,
+      title: data.title,
+      content: data.content,
+      extra_data: data.extraData,
+    });
   },
 
   // 批量发送（通过规则）

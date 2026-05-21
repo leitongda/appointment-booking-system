@@ -91,6 +91,38 @@ export interface StoreDashboardStats {
   };
 }
 
+export interface RetentionItem {
+  cohort: string;
+  cohortSize: number;
+  retained: number;
+  retentionRate: number;
+}
+
+export interface RevisitRateData {
+  overall: {
+    totalUsers: number;
+    revisitUsers: number;
+    revisitRate: number;
+  };
+  byDoctor: {
+    totalPairs: number;
+    revisitPairs: number;
+    revisitRate: number;
+  };
+  visits: {
+    totalVisits: number;
+    revisitVisits: number;
+    revisitRatio: number;
+  };
+  params: {
+    startDate: string;
+    endDate: string;
+    storeId: string | null;
+    doctorId: string | null;
+    departmentId: string | null;
+  };
+}
+
 export const statisticsApi = {
   /**
    * 获取概览数据
@@ -168,5 +200,17 @@ export const statisticsApi = {
    */
   getStoreDashboardStats: (storeId: string) =>
     request.get<StoreDashboardStats>('/statistics/store-dashboard', { params: { store_id: storeId } }),
+
+  /**
+   * 获取用户留存率
+   */
+  getRetentionRate: (params?: { startDate?: string; endDate?: string; storeId?: string; cohort?: 'day' | 'week' | 'month' }) =>
+    request.get<RetentionItem[]>('/statistics/retention', { params }),
+
+  /**
+   * 获取复诊率
+   */
+  getRevisitRate: (params?: { startDate?: string; endDate?: string; storeId?: string; doctorId?: string; departmentId?: string }) =>
+    request.get<RevisitRateData>('/statistics/revisit-rate', { params }),
 };
 

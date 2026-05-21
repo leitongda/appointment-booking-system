@@ -25,6 +25,7 @@ export interface ScheduleTemplateCreateData {
   slotCapacity: number;
   scheduleMode: string;
   breakTimes?: BreakTime[];
+  ruleSetId?: string;
 }
 
 export interface ScheduleTemplateUpdateData {
@@ -41,6 +42,7 @@ export interface ScheduleTemplateUpdateData {
   slotCapacity?: number;
   scheduleMode?: string;
   breakTimes?: BreakTime[];
+  ruleSetId?: string;
   status?: number;
 }
 
@@ -221,6 +223,7 @@ export const scheduleTemplateApi = {
       slot_capacity: data.slotCapacity,
       schedule_mode: data.scheduleMode,
       break_times: formattedBreakTimes,
+      rule_set_id: data.ruleSetId || undefined,
     });
   },
 
@@ -261,6 +264,7 @@ export const scheduleTemplateApi = {
         end_time: formatTimeValue(bt.endTime) || bt.endTime,
       }));
     }
+    if (data.ruleSetId !== undefined) requestData.rule_set_id = data.ruleSetId || null;
     if (data.status !== undefined) requestData.status = data.status;
     return request.put(`/schedule-templates/${id}`, requestData);
   },

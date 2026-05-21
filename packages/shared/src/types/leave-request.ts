@@ -6,6 +6,7 @@ export interface LeaveRequest {
   id: string;
   doctorId: string;
   doctorName?: string;
+  departmentName?: string;
   requestType: RequestType;
   scheduleId?: string;
   stopDate?: string;

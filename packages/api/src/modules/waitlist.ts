@@ -60,6 +60,27 @@ export interface WaitlistPageResult {
   pageSize: number;
 }
 
+/** 候补统计 */
+export interface WaitlistStats {
+  totalWaiting: number;
+  totalPromoted: number;
+  totalCancelled: number;
+  totalExpired: number;
+}
+
+/** 管理端列表查询参数 */
+export interface WaitlistListParams {
+  storeId?: string;
+  departmentId?: string;
+  doctorId?: string;
+  status?: WaitlistStatus;
+  startDate?: string;
+  endDate?: string;
+  keyword?: string;
+  page?: number;
+  pageSize?: number;
+}
+
 // -------------------------------------------
 // API
 // -------------------------------------------
@@ -109,5 +130,55 @@ export const waitlistApi = {
    */
   getPosition: (scheduleId: string): Promise<{ position: number | null }> => {
     return request.get('/waitlist/position', { params: { schedule_id: scheduleId } });
+  },
+
+  // ---- 管理端接口 ----
+
+  /**
+   * 管理端：获取候补列表（支持多条件筛选）
+   */
+  adminList: (params?: WaitlistListParams): Promise<WaitlistPageResult> => {
+    const queryParams = params
+      ? {
+          store_id: params.storeId,
+          department_id: params.departmentId,
+          doctor_id: params.doctorId,
+          status: params.status,
+          start_date: params.startDate,
+          end_date: params.endDate,
+          keyword: params.keyword,
+          page: params.page,
+          page_size: params.pageSize,
+        }
+      : undefined;
+    return request.get('/waitlist', { params: queryParams });
+  },
+
+  /**
+   * 管理端：手动递补候补用户
+   */
+  adminPromote: (entryId: string): Promise<WaitlistEntry> => {
+    return request.post(`/waitlist/${entryId}/promote`);
+  },
+
+  /**
+   * 管理端：取消候补
+   */
+  adminCancel: (entryId: string): Promise<WaitlistEntry> => {
+    return request.post(`/waitlist/${entryId}/cancel`);
+  },
+
+  /**
+   * 管理端：获取候补统计
+   */
+  getStats: (params?: { storeId?: string; startDate?: string; endDate?: string }): Promise<WaitlistStats> => {
+    const queryParams = params
+      ? {
+          store_id: params.storeId,
+          start_date: params.startDate,
+          end_date: params.endDate,
+        }
+      : undefined;
+    return request.get('/waitlist/stats', { params: queryParams });
   },
 };

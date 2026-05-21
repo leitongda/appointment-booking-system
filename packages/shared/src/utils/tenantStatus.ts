@@ -8,9 +8,11 @@ export type TenantSuspendReason = 'overdue' | 'disabled' | 'trial_expired';
 
 export interface TenantStatusInfo {
   status: number;                     // 0-禁用 1-正常 2-欠费 3-试用
+  subscriptionPlanName?: string;
   subscriptionEndAt?: string | null;
   isSubscriptionActive: boolean;
   daysUntilExpiry?: number | null;
+  contactPhone?: string;
 }
 
 export type BannerLevel = 'none' | 'warning' | 'critical';

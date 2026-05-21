@@ -1,6 +1,9 @@
 import request from '../request';
 import type { PageResult } from '@hospital/shared';
 
+export type ProcessingMethod = 'auto_refund' | 'reschedule' | 'change_date' | 'manual';
+export type ProcessingStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
 export interface ScheduleSuspensionCreateData {
   storeId: string;
   doctorId: string;
@@ -8,6 +11,25 @@ export interface ScheduleSuspensionCreateData {
   suspensionDate: string;
   scheduleIds?: string[];
   timeSlots?: string[];
+  processingMethod?: ProcessingMethod;
+}
+
+export interface SuspensionProcessResult {
+  suspensionId: string;
+  processingMethod: ProcessingMethod;
+  processingStatus: ProcessingStatus;
+  totalAffected: number;
+  successCount: number;
+  failedCount: number;
+  details?: Array<{
+    appointmentId: string;
+    patientName?: string;
+    processingMethod?: string;
+    success: boolean;
+    refunded?: boolean;
+    paymentAmount?: number;
+    error?: string;
+  }>;
 }
 
 export interface ScheduleSuspension {
@@ -22,6 +44,11 @@ export interface ScheduleSuspension {
   timeSlots?: string[];
   status: number;
   createdAt: string;
+  suspensionType?: string;
+  processingMethod?: ProcessingMethod;
+  processingStatus?: ProcessingStatus;
+  affectedAppointmentCount?: number;
+  reason?: string;
 }
 
 export interface ScheduleSuspensionListParams {
@@ -82,5 +109,21 @@ export const scheduleSuspensionApi = {
    */
   cancel: (id: string): Promise<{ message: string }> => {
     return request.put(`/schedule-suspensions/${id}/cancel`);
+  },
+
+  /**
+   * 获取停诊影响的预约数
+   */
+  getAffectedCount: (id: string): Promise<{ affectedCount: number }> => {
+    return request.get(`/schedule-suspensions/${id}/affected-count`);
+  },
+
+  /**
+   * 执行停诊处置
+   */
+  process: (id: string, processingMethod: ProcessingMethod): Promise<SuspensionProcessResult> => {
+    return request.post(`/schedule-suspensions/${id}/process`, {
+      processing_method: processingMethod,
+    });
   },
 };

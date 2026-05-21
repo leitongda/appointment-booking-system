@@ -81,3 +81,20 @@ export const REFUND_STATUS_COLOR: Record<string, string> = {
   partial_refunded: 'orange',
   refunded: 'green',
 };
+
+/**
+ * 预约状态标签（text + color 组合，供 Tag 组件直接使用）
+ */
+export const APPOINTMENT_STATUS_TAG: Record<number, { text: string; color: string }> = {
+  [APPOINTMENT_STATUS.PENDING_PAYMENT]: { text: '待支付', color: 'orange' },
+  [APPOINTMENT_STATUS.CONFIRMED]: { text: '已预约', color: 'blue' },
+  [APPOINTMENT_STATUS.SIGNED]: { text: '已签到', color: 'cyan' },
+  [APPOINTMENT_STATUS.WAITING]: { text: '历史候诊', color: 'default' },
+  [APPOINTMENT_STATUS.SEEING]: { text: '就诊中', color: 'processing' },
+  [APPOINTMENT_STATUS.COMPLETED]: { text: '已完成', color: 'green' },
+  [APPOINTMENT_STATUS.CANCELLED]: { text: '已取消', color: 'default' },
+  [APPOINTMENT_STATUS.EXPIRED]: { text: '已过期', color: 'default' },
+  [APPOINTMENT_STATUS.NO_SHOW]: { text: '已爽约', color: 'red' },
+};
+
+export const REFUNDABLE_APPOINTMENT_STATUSES = new Set([1, 2, 4, 5]);
