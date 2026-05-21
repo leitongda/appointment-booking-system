@@ -2,7 +2,6 @@
 规则管理系统数据模型
 
 包含:
-- ShiftType: 班次类型
 - RuleSet: 规则组
 - RuleSetShiftType: 规则组与班次类型关联
 - RuleWindow: 时间窗配置
@@ -10,6 +9,7 @@
 - RuleCheckinPolicy: 签到策略
 - RuleCapacityPolicy: 容量策略
 - AppointmentCheckin: 签到日志
+- RuleSetPreset: 规则组预设模板
 """
 from sqlalchemy import Column, String, Integer, Boolean, Text, ForeignKey, Index, DateTime, JSON
 from sqlalchemy.orm import relationship
@@ -17,21 +17,8 @@ from app.db.base import Base, AuditMixin
 from datetime import datetime
 import uuid
 
-
-class ShiftType(Base, AuditMixin):
-    """班次类型表"""
-    __tablename__ = "shift_types"
-
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    code = Column(String(50), unique=True, nullable=False, comment="类型代码: OPD/CHECKUP/EXAM/NURSING/SPECIAL")
-    name = Column(String(100), nullable=False, comment="类型名称")
-    description = Column(Text, comment="描述")
-    enabled = Column(Boolean, nullable=False, default=True, comment="是否启用")
-    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID")
-
-    # 关联关系
-    schedules = relationship("Schedule", backref="shift_type")
-    rule_sets = relationship("RuleSet", secondary="rule_set_shift_types", back_populates="shift_types")
+# ShiftType 已抽离到独立模块，此处保留 re-export 保持向后兼容
+from app.models.shift_type import ShiftType  # noqa: F401
 
 
 class RuleSet(Base, AuditMixin):

@@ -17,6 +17,7 @@ class ScheduleTemplate(Base, AuditMixin):
     doctor_id = Column(String(36), ForeignKey("doctors.id"), nullable=False, comment="医生ID")
     department_id = Column(String(36), ForeignKey("departments.id"), nullable=False, comment="科室ID")
     shift_type_id = Column(String(36), ForeignKey("shift_types.id"), nullable=True, index=True, comment="班次类型ID")
+    rule_set_id = Column(String(36), ForeignKey("rule_sets.id"), nullable=True, index=True, comment="关联规则组ID")
     weekdays = Column(Text, nullable=False, comment="星期数组 JSON格式 [1,2,3,4,5]")
     appointment_type = Column(String(20), default="normal", comment="预约类型: urgent/normal/expert/medical_insurance/self_pay")
     start_time = Column(Time, nullable=False, comment="开始时间")
@@ -34,6 +35,7 @@ class ScheduleTemplate(Base, AuditMixin):
     doctor = relationship("Doctor", backref="schedule_templates")
     department = relationship("Department", backref="schedule_templates")
     shift_type = relationship("ShiftType", backref="schedule_templates")
+    rule_set = relationship("RuleSet", backref="linked_schedule_templates")
     schedules = relationship("Schedule", back_populates="template")
 
     __table_args__ = (

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Text, ForeignKey
+from sqlalchemy import Column, String, Integer, Text, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from app.db.base import Base, AuditMixin
 import uuid
@@ -33,6 +33,9 @@ class Department(Base, AuditMixin):
     intro_content = Column(Text, nullable=True, comment="富文本简介")
     features = Column(Text, nullable=True, comment="科室特色JSON数组")
     appointment_notice = Column(Text, nullable=True, comment="预约须知")
+
+    # 智能导诊关键词
+    keywords = Column(JSON, nullable=True, comment="症状关键词JSON数组，如['头痛','偏头痛','头晕']")
 
     # 联系信息
     phone = Column(String(20), nullable=True, comment="科室电话")

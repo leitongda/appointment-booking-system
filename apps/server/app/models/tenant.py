@@ -80,6 +80,10 @@ class Tenant(Base, AuditMixin):
     # 密码策略
     password_policy = Column(Text, comment="密码策略(JSON)")
 
+    # 限流配置（可选，覆盖全局默认值）
+    rate_limit_per_minute = Column(Integer, nullable=True, comment="每分钟请求上限（覆盖全局 300）")
+    rate_limit_per_second = Column(Integer, nullable=True, comment="每秒请求上限（覆盖全局 50）")
+
     # 标签/分组
     tags = Column(Text, nullable=True, comment="租户标签(JSON数组)")
     log_retention_days = Column(Integer, nullable=True, default=90, server_default="90", comment="日志保留天数(默认90)")

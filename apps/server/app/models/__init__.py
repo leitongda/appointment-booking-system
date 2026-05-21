@@ -19,6 +19,7 @@ from app.models.schedule_template import ScheduleTemplate
 # CustomSchedule已合并到Schedule，不再需要单独导入
 from app.models.rest_day import RestDay
 from app.models.schedule_suspension import ScheduleSuspension
+from app.models.schedule_holiday import ScheduleHoliday
 from app.models.blacklist import Blacklist
 from app.models.email_template import EmailTemplate, EmailTemplateType
 from app.models.behavior_log import UserBehaviorLog
@@ -28,8 +29,10 @@ from app.models.user_favorite import UserFavorite
 from app.models.store_visit_type_config import StoreVisitTypeConfig
 from app.models.waitlist import WaitlistEntry
 from app.models.store_email_recipient import StoreEmailRecipient
-from app.models.rule_set import ShiftType, RuleSet, RuleSetShiftType, RuleWindow, RuleBookingPolicy, RuleCheckinPolicy, RuleCapacityPolicy, AppointmentCheckin
+from app.models.shift_type import ShiftType
+from app.models.rule_set import RuleSet, RuleSetShiftType, RuleWindow, RuleBookingPolicy, RuleCheckinPolicy, RuleCapacityPolicy, AppointmentCheckin
 from app.models.rule_set_audit import RuleSetAuditLog
+from app.models.schedule_audit import ScheduleAuditLog
 from app.models.tenant import Tenant, TenantSubscription, TenantUsageLog, SubscriptionPlan
 from app.models.tenant_audit_log import TenantAuditLog
 from app.models.refund import RefundRecord
@@ -46,6 +49,13 @@ from app.models.miniapp_platform import (
 )
 from app.models.notification_log import NotificationLog
 from app.models.notification_preference import NotificationPreference
+from app.models.approval_flow import (
+    ApprovalFlowDefinition,
+    ApprovalFlowNode,
+    ApprovalFlowCondition,
+    ApprovalInstance,
+    ApprovalRecord,
+)
 from app.modules.unified_message.models import (
     NotificationGroup,
     NotificationRecipient,
@@ -57,3 +67,6 @@ from app.modules.unified_message.models import (
 from app.models.platform_announcement import PlatformAnnouncement
 from app.models.support_ticket import SupportTicket
 from app.models.account import Account, AccountAdmin, AccountDoctor, AccountUser
+from app.models.examination_report import ExaminationReport
+from app.models.extra_quota_request import ExtraQuotaRequest
+from app.models.schedule_room import ScheduleRoom

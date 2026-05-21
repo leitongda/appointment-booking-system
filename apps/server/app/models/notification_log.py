@@ -26,3 +26,6 @@ class NotificationLog(Base):
     sent_at = Column(DateTime, nullable=True, comment="实际发送时间")
     created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
     extra_data = Column(JSON, nullable=True, comment="额外数据")
+    primary_channel = Column(String(20), nullable=True, comment="首选渠道（降级场景下记录原始目标渠道）")
+    fallback_reason = Column(String(200), nullable=True, comment="降级原因（如: 渠道不可用/发送失败/API异常）")
+    channel_attempt_order = Column(Integer, nullable=True, comment="当前渠道在降级链中的尝试顺序（0=首选渠道）")
