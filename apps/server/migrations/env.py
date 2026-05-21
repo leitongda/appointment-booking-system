@@ -21,6 +21,7 @@ from app.models import rest_day, schedule, schedule_suspension, schedule_templat
 from app.models import settings, store, user
 from app.models import miniapp_platform, tenant, refund
 from app.models import notification_log, notification_preference
+from app.models import approval_flow
 
 # this is the Alembic Config object
 config = context.config
