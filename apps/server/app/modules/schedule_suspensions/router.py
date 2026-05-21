@@ -11,6 +11,8 @@ from app.schemas.schedule_suspension import (
     ScheduleSuspensionCreate,
     ScheduleSuspensionResponse,
     AvailableScheduleForSuspension,
+    SuspensionProcessRequest,
+    SuspensionProcessResult,
 )
 from app.schemas.response import PageResponse
 from app.modules.schedule_suspensions.service import ScheduleSuspensionService
@@ -28,7 +30,9 @@ async def get_schedule_suspensions(
     status: Optional[int] = Query(None, ge=0, le=1),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:read"))
 ):
     """获取停诊列表"""
     service = ScheduleSuspensionService(db)
@@ -68,7 +72,12 @@ async def get_schedule_suspensions(
             schedule_ids=schedule_ids,
             time_slots=time_slots,
             status=s.status,
-            created_at=s.created_at
+            created_at=s.created_at,
+            suspension_type=s.suspension_type,
+            processing_method=s.processing_method,
+            processing_status=s.processing_status,
+            affected_appointment_count=s.affected_appointment_count,
+            reason=s.reason,
         ))
 
     return PageResponse(data=result, total=total, page=page, page_size=page_size)
@@ -91,7 +100,7 @@ async def create_schedule_suspension(
     data: ScheduleSuspensionCreate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
-    _: None = Depends(require_permission("schedule:update"))
+    _: None = Depends(require_permission("schedule:suspend"))
 ):
     """创建停诊"""
     service = ScheduleSuspensionService(db)
@@ -121,8 +130,60 @@ async def create_schedule_suspension(
         schedule_ids=schedule_ids,
         time_slots=time_slots,
         status=suspension.status,
-        created_at=suspension.created_at
+        created_at=suspension.created_at,
+        suspension_type=suspension.suspension_type,
+        processing_method=suspension.processing_method,
+        processing_status=suspension.processing_status,
+        affected_appointment_count=suspension.affected_appointment_count,
+        reason=suspension.reason,
     )
+
+
+@router.post("/{suspension_id}/process", summary="处置停诊影响的患者")
+async def process_suspension(
+    suspension_id: str,
+    data: SuspensionProcessRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:suspend")),
+):
+    """处置停诊影响的患者
+
+    处置方式:
+    - auto_refund: 自动取消预约并触发退款
+    - reschedule: 标记为待转约，通知患者选择其他医生
+    - change_date: 标记为待改期，通知患者选择其他日期
+    - manual: 仅记录，等待人工处理
+    """
+    from app.modules.schedule_suspensions.service_processing import SuspensionProcessingService
+    service = SuspensionProcessingService(db)
+    operator_id = current_admin.get("id") if current_admin else None
+    try:
+        result = await service.process_suspension(
+            suspension_id=suspension_id,
+            processing_method=data.processing_method,
+            operator_id=operator_id,
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get("/{suspension_id}/affected-count", summary="统计停诊影响的预约数")
+async def get_affected_appointment_count(
+    suspension_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:read")),
+):
+    """统计停诊影响的活跃预约数量"""
+    from app.modules.schedule_suspensions.service_processing import SuspensionProcessingService
+    service = SuspensionProcessingService(db)
+    try:
+        count = await service.count_affected_appointments(suspension_id)
+        return {"affected_count": count}
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.delete("/{suspension_id}", summary="删除停诊记录")
@@ -147,7 +208,7 @@ async def cancel_schedule_suspension(
     suspension_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
-    _: None = Depends(require_permission("schedule:update"))
+    _: None = Depends(require_permission("schedule:suspend"))
 ):
     """取消停诊"""
     service = ScheduleSuspensionService(db)

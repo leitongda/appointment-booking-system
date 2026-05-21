@@ -73,6 +73,15 @@ class ScheduleTemplateMutationMixin:
         if not shift_type_result.scalar_one_or_none():
             raise ValueError("班次类型不存在或已禁用")
 
+        # 可选：校验 rule_set_id
+        if data.rule_set_id:
+            from app.models.rule_set import RuleSet
+            rule_set_result = await self.db.execute(
+                select(RuleSet).where(RuleSet.id == data.rule_set_id, RuleSet.enabled == True, RuleSet.deleted_at.is_(None))
+            )
+            if not rule_set_result.scalar_one_or_none():
+                raise ValueError("规则组不存在或已禁用")
+
         if doctor.store_id != data.store_id:
             raise ValueError("所选医生不属于当前门店")
         if doctor.department_id != data.department_id:
@@ -134,6 +143,7 @@ class ScheduleTemplateMutationMixin:
             doctor_id=data.doctor_id,
             department_id=data.department_id,
             shift_type_id=data.shift_type_id,
+            rule_set_id=data.rule_set_id,
             weekdays=json.dumps(data.weekdays),
             appointment_type=data.appointment_type.value
             if hasattr(data.appointment_type, "value")
@@ -169,6 +179,19 @@ class ScheduleTemplateMutationMixin:
             update_data["schedule_mode"] = update_data["schedule_mode"].value
         if "weekdays" in update_data and update_data["weekdays"] is not None:
             update_data["weekdays"] = json.dumps(update_data["weekdays"])
+
+        # 可选：校验 rule_set_id
+        if "rule_set_id" in update_data and update_data["rule_set_id"]:
+            from app.models.rule_set import RuleSet
+            rule_set_result = await self.db.execute(
+                select(RuleSet).where(
+                    RuleSet.id == update_data["rule_set_id"],
+                    RuleSet.enabled == True,
+                    RuleSet.deleted_at.is_(None),
+                )
+            )
+            if not rule_set_result.scalar_one_or_none():
+                raise ValueError("规则组不存在或已禁用")
 
         if "start_time" in update_data or "end_time" in update_data:
             start_time = update_data.get("start_time", template.start_time)

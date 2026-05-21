@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, extract
+from sqlalchemy import select, func, and_
+from sqlalchemy.orm import selectinload
 from typing import Optional, List
-from datetime import date, datetime, timezone
-from calendar import monthrange
+from datetime import date, datetime
 from pydantic import BaseModel, Field
 import pytz
 import logging
@@ -12,17 +12,22 @@ from app.db.session import get_db
 
 logger = logging.getLogger(__name__)
 from app.api.deps import get_current_admin, get_store_filter, check_store_access, require_permission
-from app.schemas.schedule import ScheduleCreate, ScheduleBatchCreate, ScheduleUpdate, ScheduleResponse, AvailableScheduleResponse, CustomScheduleCreate, CustomScheduleResponse, UtilizationTrendResponse, DoctorWorkloadResponse, PeakHourHeatmapResponse
+from app.schemas.schedule import (
+    ScheduleCreate, ScheduleBatchCreate, ScheduleUpdate, ScheduleResponse,
+    AvailableScheduleResponse,
+    SchedulePublishRequest, ScheduleWithdrawRequest,
+    ConflictCheckRequest, ConflictCheckResponse, ConflictItemResponse,
+    ScheduleDragAdjustRequest, ScheduleDragAdjustResponse,
+    ScheduleBatchCopyRequest, ScheduleBatchCopyResult,
+)
 from app.schemas.response import PageResponse
 from app.modules.schedules.service import ScheduleService
 
 from app.modules.rule_engine import RuleEngineService
 from app.models.schedule import Schedule
 from app.models.doctor import Doctor
-from app.models.store import Store
 from app.models.rest_day import RestDay
 from app.core.config import settings
-import json
 
 router = APIRouter()
 
@@ -98,21 +103,24 @@ async def get_schedules(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     status: Optional[int] = None,
+    schedule_status: Optional[str] = Query(None, description="排班状态: draft/published/booking/full/suspended/finished/withdrawn"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:read"))
 ):
     """获取排班列表"""
     # 门店过滤
     store_filter = get_store_filter(current_admin)
     if store_filter:
         store_id = store_filter
-    
+
     service = ScheduleService(db)
     schedules, total = await service.get_list(
         doctor_id=doctor_id, store_id=store_id, start_date=start_date, end_date=end_date,
-        status=status, page=page, page_size=page_size
+        status=status, schedule_status=schedule_status,
+        page=page, page_size=page_size,
     )
     
     # 查询日期范围内的所有有效休息日（用于计算 is_rest_day）
@@ -154,6 +162,7 @@ async def get_schedules(
             appointment_type=s.appointment_type,
             template_id=s.template_id,
             status=s.status,
+            schedule_status=s.schedule_status,
             created_at=s.created_at,
             is_rest_day=is_rest,
             effective_status=getattr(s, 'effective_status', 'active'),
@@ -162,489 +171,134 @@ async def get_schedules(
     return PageResponse(data=result, total=total, page=page, page_size=page_size)
 
 
-class ScheduleStatisticsItem(BaseModel):
-    """排班统计项"""
-    schedule_date: date
-    doctor_id: str
-    doctor_name: str
-    morning_slots: int = 0
-    afternoon_slots: int = 0
-    evening_slots: int = 0
-    morning_booked: int = 0
-    afternoon_booked: int = 0
-    evening_booked: int = 0
 
 
-class ScheduleStatisticsResponse(BaseModel):
-    """排班统计响应"""
-    store_id: str
-    store_name: str
-    year: int
-    month: int
-    items: List[ScheduleStatisticsItem]
+# ========== 排班冲突检测端点 ==========
 
 
-@router.get(
-    "/statistics",
-    response_model=ScheduleStatisticsResponse,
-    summary="获取排班统计",
+@router.post(
+    "/conflicts",
+    response_model=ConflictCheckResponse,
+    summary="排班冲突预检",
     description="""
-    获取指定门店某月的排班统计数据，按医生和日期汇总。
+    在创建或编辑排班前进行冲突预检（不保存数据，仅检测）。
 
-    **参数说明**：
-    - store_id: 门店ID（门店管理员自动取本门店，超级管理员必填）
-    - year: 年份（必填，2020-2100）
-    - month: 月份（必填，1-12）
+    **权限要求**：管理员权限（schedule:read）。
 
-    **返回数据**：
-    - 按日期 + 医生维度汇总
-    - 分别统计上午（morning）、下午（afternoon）、晚间（evening）的号源总量和已预约量
-    - 同时包含自定义排班（非模板生成）的统计
+    **检查项**：
+    - 医生时间重叠（error）
+    - 诊室占用（error，指定诊室时检测）
+    - 午休时间覆盖（warning）
+    - 节假日限制（error，法定节假日不允许排班时）
+    - 休息日冲突（warning）
+    - 医生状态（error，离职/禁用）
+
+    **严重级别**：
+    - error: 阻止保存
+    - warning: 允许保存但前端应提示用户确认
     """,
 )
-async def get_schedule_statistics(
-    store_id: Optional[str] = Query(None, description="门店ID"),
-    year: int = Query(..., ge=2020, le=2100, description="年份"),
-    month: int = Query(..., ge=1, le=12, description="月份"),
+async def check_conflicts(
+    data: ConflictCheckRequest,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:read")),
 ):
-    """获取排班统计（按门店、月份）"""
-    # 门店过滤
-    store_filter = get_store_filter(current_admin)
-    if store_filter:
-        store_id = store_filter
-    elif not store_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请选择门店")
-    
-    # 检查门店访问权限
-    if not check_store_access(current_admin, store_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权访问此门店数据")
-    
-    # 获取门店信息
-    store_result = await db.execute(select(Store).where(Store.id == store_id))
-    store = store_result.scalar_one_or_none()
-    if not store:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="门店不存在，请检查后重试")
-    
-    # 计算月份的开始和结束日期
-    start_date = date(year, month, 1)
-    _, last_day = monthrange(year, month)
-    end_date = date(year, month, last_day)
-    
-    # 获取门店下所有医生
-    doctors_result = await db.execute(
-        select(Doctor).where(Doctor.store_id == store_id, Doctor.status == 1, Doctor.deleted_at.is_(None))
+    """排班冲突预检"""
+    from app.modules.schedules.service_conflict import ScheduleConflictService
+
+    service = ScheduleConflictService(db)
+    result = await service.check_conflicts(
+        doctor_id=data.doctor_id,
+        schedule_date=data.schedule_date,
+        start_time=data.start_time,
+        end_time=data.end_time,
+        time_slot=data.time_slot,
+        store_id=data.store_id,
+        room_id=data.room_id,
+        exclude_schedule_id=data.exclude_schedule_id,
     )
-    doctors = doctors_result.scalars().all()
-    doctor_map = {d.id: d.name for d in doctors}
-    
-    # 汇总统计数据
-    stats_dict = {}  # key: (date, doctor_id)
-    
-    # 1. 获取普通排班统计（添加 store_id 过滤，确保门店隔离）
-    normal_result = await db.execute(
-        select(Schedule)
-        .where(
-            and_(
-                Schedule.store_id == store_id,
-                Schedule.doctor_id.in_(list(doctor_map.keys())),
-                Schedule.schedule_date >= start_date,
-                Schedule.schedule_date <= end_date
+
+    return ConflictCheckResponse(
+        has_conflict=result.has_conflict,
+        blocking=result.blocking,
+        conflicts=[
+            ConflictItemResponse(
+                type=c.type,
+                severity=c.severity,
+                message=c.message,
+                details=c.details,
             )
-        )
-    )
-    normal_schedules = normal_result.scalars().all()
-    
-    for s in normal_schedules:
-        key = (s.schedule_date, s.doctor_id)
-        if key not in stats_dict:
-            stats_dict[key] = {
-                "morning_slots": 0,
-                "afternoon_slots": 0,
-                "evening_slots": 0,
-                "morning_booked": 0,
-                "afternoon_booked": 0,
-                "evening_booked": 0
-            }
-
-        if s.time_slot == "morning":
-            stats_dict[key]["morning_slots"] += s.total_slots
-            stats_dict[key]["morning_booked"] += s.booked_slots
-        elif s.time_slot == "afternoon":
-            stats_dict[key]["afternoon_slots"] += s.total_slots
-            stats_dict[key]["afternoon_booked"] += s.booked_slots
-        elif s.time_slot == "evening":
-            stats_dict[key]["evening_slots"] += s.total_slots
-            stats_dict[key]["evening_booked"] += s.booked_slots
-    
-    # 2. 获取自定义排班统计（template_id为NULL的排班，添加 doctor_id 过滤确保门店隔离）
-    custom_result = await db.execute(
-        select(Schedule)
-        .where(
-            and_(
-                Schedule.store_id == store_id,
-                Schedule.doctor_id.in_(list(doctor_map.keys())),  # 只查询该门店下的医生
-                Schedule.schedule_date >= start_date,
-                Schedule.schedule_date <= end_date,
-                Schedule.status == 1,
-                Schedule.template_id.is_(None)  # 自定义排班
-            )
-        )
-    )
-    custom_schedule_list = custom_result.scalars().all()
-    
-    for s in custom_schedule_list:
-        key = (s.schedule_date, s.doctor_id)
-        if key not in stats_dict:
-            stats_dict[key] = {
-                "morning_slots": 0,
-                "afternoon_slots": 0,
-                "evening_slots": 0,
-                "morning_booked": 0,
-                "afternoon_booked": 0,
-                "evening_booked": 0
-            }
-
-        # 根据时间判断上午/下午/晚间
-        if s.start_time and s.start_time.hour < 12:
-            stats_dict[key]["morning_slots"] += s.total_slots
-            stats_dict[key]["morning_booked"] += s.booked_slots
-        elif s.start_time and s.start_time.hour >= 18:
-            stats_dict[key]["evening_slots"] += s.total_slots
-            stats_dict[key]["evening_booked"] += s.booked_slots
-        elif s.start_time:
-            stats_dict[key]["afternoon_slots"] += s.total_slots
-            stats_dict[key]["afternoon_booked"] += s.booked_slots
-    
-    # 构建结果
-    items = []
-    for (schedule_date, doctor_id), stats in sorted(stats_dict.items()):
-        items.append(ScheduleStatisticsItem(
-            schedule_date=schedule_date,
-            doctor_id=doctor_id,
-            doctor_name=doctor_map.get(doctor_id, ""),
-            morning_slots=stats["morning_slots"],
-            afternoon_slots=stats["afternoon_slots"],
-            evening_slots=stats["evening_slots"],
-            morning_booked=stats["morning_booked"],
-            afternoon_booked=stats["afternoon_booked"],
-            evening_booked=stats["evening_booked"]
-        ))
-    
-    return ScheduleStatisticsResponse(
-        store_id=store_id,
-        store_name=store.name,
-        year=year,
-        month=month,
-        items=items
+            for c in result.conflicts
+        ],
     )
 
 
-# ========== 排班统计增强端点 ==========
+# ========== 排班拖拽调整端点 ==========
 
 
-@router.get(
-    "/statistics/utilization-trend",
-    response_model=UtilizationTrendResponse,
-    summary="排班利用率趋势",
+@router.post(
+    "/drag-adjust",
+    summary="拖拽调整排班",
     description="""
-    获取指定门店在某日期范围内的排班利用率趋势。
+    拖拽调整排班的日期和时间（日历拖拽交互专用）。
 
-    **参数说明**：
-    - store_id: 门店ID（门店管理员自动取本门店，超级管理员必填）
-    - start_date: 开始日期（必填）
-    - end_date: 结束日期（必填）
-    - granularity: 粒度，week（周）或 month（月），默认 week
+    **权限要求**：管理员权限（schedule:update）。
 
-    **返回数据**：
-    - 按周或按月汇总的总号源、已预约号源、利用率
+    **业务规则**：
+    - 已有预约的排班不允许拖拽
+    - 停诊状态的排班不允许拖拽
+    - 历史排班不允许拖拽
+    - 目标位置有 error 级别冲突时返回冲突信息
+    - 使用分布式锁防止并发拖拽冲突
     """,
 )
-async def get_utilization_trend(
-    store_id: Optional[str] = Query(None, description="门店ID"),
-    start_date: date = Query(..., description="开始日期"),
-    end_date: date = Query(..., description="结束日期"),
-    granularity: str = Query("week", pattern="^(week|month)$", description="粒度: week / month"),
+async def drag_adjust_schedule(
+    data: ScheduleDragAdjustRequest,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:update")),
 ):
-    """排班利用率趋势"""
-    # 门店过滤
-    store_filter = get_store_filter(current_admin)
-    if store_filter:
-        store_id = store_filter
-    elif not store_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请选择门店")
+    """拖拽调整排班"""
+    service = ScheduleService(db)
+    result = await service.drag_adjust(
+        schedule_id=data.schedule_id,
+        target_date=data.target_date,
+        target_start_time=data.target_start_time,
+        target_end_time=data.target_end_time,
+        target_time_slot=data.target_time_slot,
+        operator_id=current_admin.get("id"),
+    )
 
-    # 检查门店访问权限
-    if not check_store_access(current_admin, store_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权访问此门店数据")
-
-    # 获取门店信息
-    store_result = await db.execute(select(Store).where(Store.id == store_id))
-    store = store_result.scalar_one_or_none()
-    if not store:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="门店不存在")
-
-    # 查询该日期范围内的所有排班（status=1 且 template_id 不为 NULL，排除自定义排班重复统计）
-    result = await db.execute(
-        select(Schedule)
-        .where(
-            and_(
-                Schedule.store_id == store_id,
-                Schedule.schedule_date >= start_date,
-                Schedule.schedule_date <= end_date,
-                Schedule.status == 1,
+    if not result["success"]:
+        if result.get("conflicts"):
+            return ScheduleDragAdjustResponse(
+                success=False,
+                conflicts=result["conflicts"],
+                message=result["message"],
             )
-        )
-    )
-    schedules = result.scalars().all()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result["message"])
 
-    from collections import defaultdict
-    period_stats = defaultdict(lambda: {"total_slots": 0, "booked_slots": 0})
-
-    for s in schedules:
-        if granularity == "month":
-            period_key = s.schedule_date.strftime("%Y-%m")
-        else:
-            # ISO week: YYYY-WNN
-            year_num, week_num, _ = s.schedule_date.isocalendar()
-            period_key = f"{year_num}-W{week_num:02d}"
-        period_stats[period_key]["total_slots"] += s.total_slots
-        period_stats[period_key]["booked_slots"] += s.booked_slots
-
-    items = []
-    for period in sorted(period_stats.keys()):
-        stats = period_stats[period]
-        total = stats["total_slots"]
-        booked = stats["booked_slots"]
-        rate = round(booked / total * 100, 1) if total > 0 else 0.0
-        items.append({
-            "period": period,
-            "total_slots": total,
-            "booked_slots": booked,
-            "utilization_rate": rate,
-        })
-
-    return UtilizationTrendResponse(
-        store_id=store_id,
-        store_name=store.name,
-        granularity=granularity,
-        items=items
-    )
-
-
-@router.get(
-    "/statistics/doctor-workload",
-    response_model=DoctorWorkloadResponse,
-    summary="医生工作量对比",
-    description="""
-    获取指定门店在某日期范围内各医生的工作量对比数据。
-
-    **参数说明**：
-    - store_id: 门店ID（门店管理员自动取本门店，超级管理员必填）
-    - start_date: 开始日期（必填）
-    - end_date: 结束日期（必填）
-
-    **返回数据**：
-    - 每位医生的总号源、已预约、已完成预约、利用率、排班天数
-    """,
-)
-async def get_doctor_workload(
-    store_id: Optional[str] = Query(None, description="门店ID"),
-    start_date: date = Query(..., description="开始日期"),
-    end_date: date = Query(..., description="结束日期"),
-    db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
-):
-    """医生工作量对比"""
-    # 门店过滤
-    store_filter = get_store_filter(current_admin)
-    if store_filter:
-        store_id = store_filter
-    elif not store_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请选择门店")
-
-    if not check_store_access(current_admin, store_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权访问此门店数据")
-
-    store_result = await db.execute(select(Store).where(Store.id == store_id))
-    store = store_result.scalar_one_or_none()
-    if not store:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="门店不存在")
-
-    # 获取门店下所有医生
-    doctors_result = await db.execute(
-        select(Doctor).where(Doctor.store_id == store_id, Doctor.status == 1, Doctor.deleted_at.is_(None))
-    )
-    doctors = doctors_result.scalars().all()
-    doctor_map = {d.id: d for d in doctors}
-
-    # 查询排班数据
-    schedule_result = await db.execute(
-        select(Schedule).where(
-            and_(
-                Schedule.store_id == store_id,
-                Schedule.schedule_date >= start_date,
-                Schedule.schedule_date <= end_date,
-                Schedule.status == 1,
-            )
-        )
-    )
-    schedules = schedule_result.scalars().all()
-
-    # 查询已完成预约数量（status=5 已完成），通过 schedule 关联过滤门店和日期
-    from app.models.appointment import Appointment
-    appointment_result = await db.execute(
-        select(Appointment.doctor_id, func.count(Appointment.id))
-        .join(Schedule, Appointment.schedule_id == Schedule.id)
-        .where(
-            and_(
-                Schedule.store_id == store_id,
-                Schedule.schedule_date >= start_date,
-                Schedule.schedule_date <= end_date,
-                Appointment.status == 5,
-            )
-        )
-        .group_by(Appointment.doctor_id)
-    )
-    completed_map = {row[0]: row[1] for row in appointment_result.all()}
-
-    from collections import defaultdict
-    doc_stats = defaultdict(lambda: {
-        "total_slots": 0,
-        "booked_slots": 0,
-        "schedule_days": set(),
-    })
-
-    for s in schedules:
-        if s.doctor_id not in doctor_map:
-            continue
-        doc_stats[s.doctor_id]["total_slots"] += s.total_slots
-        doc_stats[s.doctor_id]["booked_slots"] += s.booked_slots
-        doc_stats[s.doctor_id]["schedule_days"].add(s.schedule_date)
-
-    items = []
-    for doctor_id, d in doctor_map.items():
-        stats = doc_stats[doctor_id]
-        total = stats["total_slots"]
-        booked = stats["booked_slots"]
-        rate = round(booked / total * 100, 1) if total > 0 else 0.0
-        items.append({
-            "doctor_id": doctor_id,
-            "doctor_name": d.name,
-            "department_name": d.department.name if d.department else None,
-            "total_slots": total,
-            "booked_slots": booked,
-            "completed_appointments": completed_map.get(doctor_id, 0),
-            "utilization_rate": rate,
-            "schedule_days": len(stats["schedule_days"]),
-        })
-
-    # 按利用率降序排列
-    items.sort(key=lambda x: x["utilization_rate"], reverse=True)
-
-    return DoctorWorkloadResponse(
-        store_id=store_id,
-        store_name=store.name,
-        start_date=start_date,
-        end_date=end_date,
-        items=items
-    )
-
-
-@router.get(
-    "/statistics/peak-hours",
-    response_model=PeakHourHeatmapResponse,
-    summary="高峰时段热力图",
-    description="""
-    获取指定门店在某日期范围内的预约高峰时段热力图数据。
-
-    **参数说明**：
-    - store_id: 门店ID（门店管理员自动取本门店，超级管理员必填）
-    - start_date: 开始日期（必填）
-    - end_date: 结束日期（必填）
-
-    **返回数据**：
-    - X轴: 星期（1-7），Y轴: 小时（0-23），值: 预约率
-    - 基于 start_time 的小时和 schedule_date 的星期进行聚合
-    """,
-)
-async def get_peak_hours(
-    store_id: Optional[str] = Query(None, description="门店ID"),
-    start_date: date = Query(..., description="开始日期"),
-    end_date: date = Query(..., description="结束日期"),
-    db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
-):
-    """高峰时段热力图"""
-    # 门店过滤
-    store_filter = get_store_filter(current_admin)
-    if store_filter:
-        store_id = store_filter
-    elif not store_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请选择门店")
-
-    if not check_store_access(current_admin, store_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权访问此门店数据")
-
-    store_result = await db.execute(select(Store).where(Store.id == store_id))
-    store = store_result.scalar_one_or_none()
-    if not store:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="门店不存在")
-
-    # 查询排班数据
-    schedule_result = await db.execute(
-        select(Schedule).where(
-            and_(
-                Schedule.store_id == store_id,
-                Schedule.schedule_date >= start_date,
-                Schedule.schedule_date <= end_date,
-                Schedule.status == 1,
-            )
-        )
-    )
-    schedules = schedule_result.scalars().all()
-
-    from collections import defaultdict
-    cell_stats = defaultdict(lambda: {"total_slots": 0, "booked_slots": 0})
-
-    for s in schedules:
-        day_of_week = s.schedule_date.isoweekday()  # 1=周一 ... 7=周日
-        hour = s.start_time.hour if s.start_time else (
-            8 if s.time_slot == "morning" else (
-                14 if s.time_slot == "afternoon" else (
-                    19 if s.time_slot == "evening" else 0
-                )
-            )
-        )
-        key = (day_of_week, hour)
-        cell_stats[key]["total_slots"] += s.total_slots
-        cell_stats[key]["booked_slots"] += s.booked_slots
-
-    cells = []
-    for day_of_week in range(1, 8):
-        for hour in range(24):
-            key = (day_of_week, hour)
-            stats = cell_stats.get(key, {"total_slots": 0, "booked_slots": 0})
-            total = stats["total_slots"]
-            booked = stats["booked_slots"]
-            rate = round(booked / total * 100, 1) if total > 0 else 0.0
-            cells.append({
-                "day_of_week": day_of_week,
-                "hour": hour,
-                "total_slots": total,
-                "booked_slots": booked,
-                "booking_rate": rate,
-            })
-
-    return PeakHourHeatmapResponse(
-        store_id=store_id,
-        store_name=store.name,
-        start_date=start_date,
-        end_date=end_date,
-        cells=cells
+    schedule = result["schedule"]
+    return ScheduleDragAdjustResponse(
+        success=True,
+        schedule=ScheduleResponse(
+            id=schedule.id,
+            doctor_id=schedule.doctor_id,
+            store_id=schedule.store_id,
+            schedule_date=schedule.schedule_date,
+            time_slot=schedule.time_slot,
+            start_time=schedule.start_time,
+            end_time=schedule.end_time,
+            total_slots=schedule.total_slots,
+            booked_slots=schedule.booked_slots,
+            appointment_type=schedule.appointment_type,
+            template_id=schedule.template_id,
+            status=schedule.status,
+            schedule_status=schedule.schedule_status,
+            created_at=schedule.created_at,
+        ),
+        message=result["message"],
     )
 
 
@@ -769,6 +423,17 @@ async def get_available_schedules(
 
     return result
 
+
+# ========== 子路由注册（必须在 /{schedule_id} 之前，否则静态路径被参数路由吞掉） ==========
+from app.modules.schedules.router_statistics import router as statistics_router
+from app.modules.schedules.router_extra_quota import router as extra_quota_router
+from app.modules.schedules.router_custom import router as custom_router
+
+router.include_router(statistics_router)
+router.include_router(extra_quota_router)
+router.include_router(custom_router)
+
+
 @router.get(
     "/{schedule_id}",
     response_model=ScheduleResponse,
@@ -787,7 +452,8 @@ async def get_available_schedules(
 async def get_schedule(
     schedule_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
+    current_admin = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:read"))
 ):
     """获取排班详情"""
     service = ScheduleService(db)
@@ -816,6 +482,7 @@ async def get_schedule(
         appointment_type=schedule.appointment_type,
         template_id=schedule.template_id,
         status=schedule.status,
+        schedule_status=schedule.schedule_status,
         created_at=schedule.created_at,
         is_rest_day=is_rest_day
     )
@@ -867,6 +534,7 @@ async def create_schedule(
         appointment_type=schedule.appointment_type,
         template_id=schedule.template_id,
         status=schedule.status,
+        schedule_status=schedule.schedule_status,
         created_at=schedule.created_at,
         is_rest_day=is_rest_day
     )
@@ -957,6 +625,7 @@ async def update_schedule(
         appointment_type=schedule.appointment_type,
         template_id=schedule.template_id,
         status=schedule.status,
+        schedule_status=schedule.schedule_status,
         created_at=schedule.created_at,
         is_rest_day=is_rest_day
     )
@@ -965,6 +634,10 @@ class BatchScheduleRequest(BaseModel):
     """批量操作排班请求"""
     schedule_ids: List[str] = Field(..., min_length=1, description="排班ID列表")
     reason: Optional[str] = Field(None, max_length=200, description="操作原因")
+    processing_method: Optional[str] = Field(
+        None,
+        description="处置方式（仅批量停诊有效）: auto_refund/reschedule/change_date/manual",
+    )
 
 
 @router.post(
@@ -990,7 +663,7 @@ async def batch_suspend_schedules(
     data: BatchScheduleRequest,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
-    _: None = Depends(require_permission("schedule:update"))
+    _: None = Depends(require_permission("schedule:suspend"))
 ):
     """批量停诊排班"""
     service = ScheduleService(db)
@@ -999,7 +672,8 @@ async def batch_suspend_schedules(
         result = await service.batch_suspend(
             data.schedule_ids,
             data.reason,
-            operator_id=current_admin.get("id")
+            operator_id=current_admin.get("id"),
+            processing_method=data.processing_method,
         )
         return BatchOperateResponse(
             success=True,
@@ -1032,7 +706,7 @@ async def batch_resume_schedules(
     data: BatchScheduleRequest,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
-    _: None = Depends(require_permission("schedule:update"))
+    _: None = Depends(require_permission("schedule:suspend"))
 ):
     """批量恢复排班"""
     service = ScheduleService(db)
@@ -1079,11 +753,12 @@ async def batch_delete_schedules(
     service = ScheduleService(db)
     
     try:
-        affected_count = await service.batch_delete(data.schedule_ids)
-        skipped = len(data.schedule_ids) - affected_count
+        result = await service.batch_delete(data.schedule_ids)
+        affected_count = result.get("deleted_count", 0)
+        skipped_ids = result.get("skipped_ids", [])
         message = f"成功删除 {affected_count} 条排班记录"
-        if skipped > 0:
-            message += f"，{skipped} 条因存在预约记录而跳过"
+        if skipped_ids:
+            message += f"，{len(skipped_ids)} 条因存在预约记录而跳过"
         return BatchOperateResponse(
             success=True,
             affected_count=affected_count,
@@ -1093,374 +768,161 @@ async def batch_delete_schedules(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-# ========== 自定义排班端点（原 custom_schedules/router.py） ==========
-
-
-@router.get(
-    "/custom-schedules",
-    response_model=PageResponse[CustomScheduleResponse],
-    summary="获取自定义排班列表",
-    description="""
-    获取自定义排班列表（template_id为NULL的排班）。
-
-    **支持筛选条件**：
-    - store_id: 按门店筛选
-    - department_id: 按科室筛选
-    - doctor_id: 按医生筛选
-    - start_date / end_date: 按排班日期范围筛选
-    - appointment_type: 按预约类型筛选
-    - status: 按状态筛选（1=正常 0=停诊）
-
-    **数据隔离**：
-    - 门店管理员只能查看本门店的排班
-    """,
-)
-async def get_custom_schedules(
-    store_id: Optional[str] = None,
-    department_id: Optional[str] = None,
-    doctor_id: Optional[str] = None,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    appointment_type: Optional[str] = None,
-    status: Optional[int] = Query(None, ge=0, le=1),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
-    db: AsyncSession = Depends(get_db),
-    current_admin = Depends(get_current_admin)
-):
-    """获取自定义排班列表（template_id为NULL的排班）"""
-    from app.models.doctor import Doctor
-
-    query = select(Schedule).options(
-        selectinload(Schedule.doctor).selectinload(Doctor.department),
-        selectinload(Schedule.store)
-    ).where(Schedule.template_id.is_(None))
-    count_query = select(func.count(Schedule.id)).where(Schedule.template_id.is_(None))
-
-    conditions = []
-    if store_id:
-        conditions.append(Schedule.store_id == store_id)
-    if doctor_id:
-        conditions.append(Schedule.doctor_id == doctor_id)
-    if start_date:
-        conditions.append(Schedule.schedule_date >= start_date)
-    if end_date:
-        conditions.append(Schedule.schedule_date <= end_date)
-    if appointment_type:
-        conditions.append(Schedule.appointment_type == appointment_type)
-    if status is not None:
-        conditions.append(Schedule.status == status)
-
-    if conditions:
-        query = query.where(and_(*conditions))
-        count_query = count_query.where(and_(*conditions))
-
-    # 如果指定了department_id，需要通过doctor关联查询
-    if department_id:
-        query = query.join(Doctor).where(Doctor.department_id == department_id, Doctor.deleted_at.is_(None))
-        count_query = count_query.join(Doctor).where(Doctor.department_id == department_id, Doctor.deleted_at.is_(None))
-
-    query = query.order_by(Schedule.schedule_date, Schedule.start_time)
-    query = query.offset((page - 1) * page_size).limit(page_size)
-
-    result_query = await db.execute(query)
-    schedules = result_query.scalars().all()
-
-    count_result = await db.execute(count_query)
-    total = count_result.scalar() or 0
-
-    # 查询日期范围内的所有有效休息日
-    rest_days = []
-    if schedules and (start_date or end_date):
-        query_start = start_date or min(s.schedule_date for s in schedules)
-        query_end = end_date or max(s.schedule_date for s in schedules)
-        rest_day_conditions = [
-            RestDay.status == 1,
-            RestDay.start_date <= query_end,
-            RestDay.end_date >= query_start
-        ]
-        if store_id:
-            rest_day_conditions.append(RestDay.store_id == store_id)
-        rest_day_result = await db.execute(
-            select(RestDay).where(and_(*rest_day_conditions))
-        )
-        rest_days = rest_day_result.scalars().all()
-
-    result = []
-    for s in schedules:
-        is_rest = _check_rest_day_for_schedule(
-            s.schedule_date, s.store_id, s.doctor_id, rest_days
-        )
-        result.append(CustomScheduleResponse(
-            id=s.id,
-            store_id=s.store_id,
-            store_name=s.store.name if s.store else None,
-            department_id=s.doctor.department_id if s.doctor and s.doctor.department else None,
-            department_name=s.doctor.department.name if s.doctor and s.doctor.department else None,
-            doctor_id=s.doctor_id,
-            doctor_name=s.doctor.name if s.doctor else None,
-            schedule_date=s.schedule_date,
-            start_time=s.start_time,
-            end_time=s.end_time,
-            appointment_type=s.appointment_type,
-            max_patients=s.total_slots,
-            booked_count=s.booked_slots,
-            status=s.status,
-            created_at=s.created_at,
-            is_rest_day=is_rest
-        ))
-
-    return PageResponse(data=result, total=total, page=page, page_size=page_size)
-
-
-@router.get(
-    "/custom-schedules/effective",
-    response_model=List[CustomScheduleResponse],
-    summary="获取生效的自定义排班",
-    description="""
-    获取生效的自定义排班（template_id为NULL的排班）。
-
-    **参数说明**：
-    - store_id: 门店ID（可选）
-    - doctor_id: 医生ID（可选）
-    - start_date: 开始日期（必填）
-    - end_date: 结束日期（必填）
-    """,
-)
-async def get_effective_schedules(
-    store_id: Optional[str] = None,
-    doctor_id: Optional[str] = None,
-    start_date: date = Query(...),
-    end_date: date = Query(...),
-    db: AsyncSession = Depends(get_db)
-):
-    """获取生效的自定义排班（template_id为NULL的排班）"""
-    from app.models.doctor import Doctor
-
-    query = select(Schedule).options(
-        selectinload(Schedule.doctor).selectinload(Doctor.department),
-        selectinload(Schedule.store)
-    ).where(
-        and_(
-            Schedule.template_id.is_(None),
-            Schedule.status == 1,
-            Schedule.schedule_date >= start_date,
-            Schedule.schedule_date <= end_date
-        )
-    )
-
-    if store_id:
-        query = query.where(Schedule.store_id == store_id)
-    if doctor_id:
-        query = query.where(Schedule.doctor_id == doctor_id)
-
-    query = query.order_by(Schedule.schedule_date, Schedule.start_time)
-
-    result_query = await db.execute(query)
-    schedules = result_query.scalars().all()
-
-    # 查询日期范围内的所有有效休息日
-    rest_days = []
-    if schedules:
-        rest_day_conditions = [
-            RestDay.status == 1,
-            RestDay.start_date <= end_date,
-            RestDay.end_date >= start_date
-        ]
-        if store_id:
-            rest_day_conditions.append(RestDay.store_id == store_id)
-        rest_day_result = await db.execute(
-            select(RestDay).where(and_(*rest_day_conditions))
-        )
-        rest_days = rest_day_result.scalars().all()
-
-    result = []
-    for s in schedules:
-        is_rest = _check_rest_day_for_schedule(
-            s.schedule_date, s.store_id, s.doctor_id, rest_days
-        )
-        result.append(CustomScheduleResponse(
-            id=s.id,
-            store_id=s.store_id,
-            store_name=s.store.name if s.store else None,
-            department_id=s.doctor.department_id if s.doctor and s.doctor.department else None,
-            department_name=s.doctor.department.name if s.doctor and s.doctor.department else None,
-            doctor_id=s.doctor_id,
-            doctor_name=s.doctor.name if s.doctor else None,
-            schedule_date=s.schedule_date,
-            start_time=s.start_time,
-            end_time=s.end_time,
-            appointment_type=s.appointment_type,
-            max_patients=s.total_slots,
-            booked_count=s.booked_slots,
-            status=s.status,
-            created_at=s.created_at,
-            is_rest_day=is_rest
-        ))
-
-    return result
+# ========== 排班发布状态机端点 ==========
 
 
 @router.post(
-    "/custom-schedules",
-    response_model=List[CustomScheduleResponse],
-    summary="创建自定义排班",
+    "/{schedule_id}/publish",
+    response_model=ScheduleResponse,
+    summary="发布排班",
     description="""
-    创建自定义排班（支持批量）。
+    发布单条排班（draft -> published）。
 
-    **权限要求**：管理员权限（schedule:create）。
+    **权限要求**：管理员权限（schedule:update）。
 
     **业务规则**：
-    - 支持批量创建多个日期的排班
-    - 支持每个日期添加多个时段
-    - 可选是否均分时段
-    - 自定义排班没有模板ID（template_id为NULL）
+    - 只有 draft 状态的排班可以发布
+    - 发布后排班对患者可见（需同时满足其他预约条件）
     """,
 )
-async def create_custom_schedules(
-    data: CustomScheduleCreate,
+async def publish_schedule(
+    schedule_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
-    _: None = Depends(require_permission("schedule:create"))
+    _: None = Depends(require_permission("schedule:update")),
 ):
-    """创建自定义排班（支持批量）"""
-    from app.utils.schedule_utils import split_time_range
-
+    """发布排班"""
     service = ScheduleService(db)
-    created_schedules = []
-
     try:
-        for schedule_date in data.schedule_dates:
-            for period in data.time_periods:
-                # 判断是否需要均分时段
-                if period.slot_count and period.slot_count > 1:
-                    # 自动均分时段
-                    time_slots = split_time_range(
-                        period.start_time,
-                        period.end_time,
-                        period.slot_count
-                    )
-                    for slot_start, slot_end in time_slots:
-                        time_slot = get_time_slot_from_time(slot_start)
-                        schedule_data = ScheduleCreate(
-                            doctor_id=data.doctor_id,
-                            store_id=data.store_id,
-                            schedule_date=schedule_date,
-                            time_slot=time_slot,
-                            start_time=slot_start,
-                            end_time=slot_end,
-                            total_slots=period.max_patients,
-                            appointment_type=period.appointment_type.value,
-                            status=1,
-                            template_id=None  # 自定义排班没有模板ID
-                        )
-                        schedule = await service.create(schedule_data)
-                        created_schedules.append(schedule)
-                else:
-                    # 不均分，直接使用指定的时间段
-                    time_slot = get_time_slot_from_time(period.start_time)
-                    schedule_data = ScheduleCreate(
-                        doctor_id=data.doctor_id,
-                        store_id=data.store_id,
-                        schedule_date=schedule_date,
-                        time_slot=time_slot,
-                        start_time=period.start_time,
-                        end_time=period.end_time,
-                        total_slots=period.max_patients,
-                        appointment_type=period.appointment_type.value,
-                        status=1,
-                        template_id=None  # 自定义排班没有模板ID
-                    )
-                    schedule = await service.create(schedule_data)
-                    created_schedules.append(schedule)
-
-        # 重新加载关联数据
-        result = []
-
-        # 查询日期范围内的休息日（用于计算 is_rest_day）
-        rest_days = []
-        if created_schedules:
-            min_date = min(s.schedule_date for s in created_schedules)
-            max_date = max(s.schedule_date for s in created_schedules)
-            rest_day_result = await db.execute(
-                select(RestDay).where(
-                    and_(
-                        RestDay.status == 1,
-                        RestDay.start_date <= max_date,
-                        RestDay.end_date >= min_date,
-                        RestDay.store_id == data.store_id
-                    )
-                )
-            )
-            rest_days = rest_day_result.scalars().all()
-
-        for s in created_schedules:
-            await db.refresh(s)
-            # 重新加载关联数据
-            await db.refresh(s, ["doctor", "store"])
-            if s.doctor:
-                await db.refresh(s.doctor, ["department"])
-
-            is_rest = _check_rest_day_for_schedule(
-                s.schedule_date, s.store_id, s.doctor_id, rest_days
-            )
-            result.append(CustomScheduleResponse(
-                id=s.id,
-                store_id=s.store_id,
-                store_name=s.store.name if s.store else None,
-                department_id=s.doctor.department_id if s.doctor and s.doctor.department else None,
-                department_name=s.doctor.department.name if s.doctor and s.doctor.department else None,
-                doctor_id=s.doctor_id,
-                doctor_name=s.doctor.name if s.doctor else None,
-                schedule_date=s.schedule_date,
-                start_time=s.start_time,
-                end_time=s.end_time,
-                appointment_type=s.appointment_type,
-                max_patients=s.total_slots,
-                booked_count=s.booked_slots,
-                status=s.status,
-                created_at=s.created_at,
-                is_rest_day=is_rest
-            ))
-
-        return result
+        schedule = await service.publish(schedule_id, operator_id=current_admin.get("id"))
+        return ScheduleResponse(
+            id=schedule.id,
+            doctor_id=schedule.doctor_id,
+            store_id=schedule.store_id,
+            doctor_name=schedule.doctor.name if schedule.doctor else None,
+            department_name=schedule.doctor.department.name if schedule.doctor and schedule.doctor.department else None,
+            schedule_date=schedule.schedule_date,
+            time_slot=schedule.time_slot,
+            start_time=schedule.start_time,
+            end_time=schedule.end_time,
+            total_slots=schedule.total_slots,
+            booked_slots=schedule.booked_slots,
+            appointment_type=schedule.appointment_type,
+            template_id=schedule.template_id,
+            status=schedule.status,
+            schedule_status=schedule.schedule_status,
+            created_at=schedule.created_at,
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.delete(
-    "/custom-schedules/{schedule_id}",
-    summary="删除自定义排班",
+@router.post(
+    "/batch-publish",
+    response_model=BatchOperateResponse,
+    summary="批量发布排班",
     description="""
-    删除自定义排班（仅能删除template_id为NULL的排班）。
+    批量发布排班（draft -> published）。
 
-    **权限要求**：管理员权限（schedule:delete）。
+    **权限要求**：管理员权限（schedule:update）。
 
     **业务规则**：
-    - 只能删除自定义排班（template_id为NULL）
-    - 已有预约记录的排班无法删除
+    - 只有 draft 状态的排班会被发布
+    - 非 draft 状态的排班会记录在 failed_items 中
     """,
 )
-async def delete_custom_schedule(
-    schedule_id: str,
+async def batch_publish_schedules(
+    data: SchedulePublishRequest,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
-    _: None = Depends(require_permission("schedule:delete"))
+    _: None = Depends(require_permission("schedule:update")),
 ):
-    """删除自定义排班（仅能删除template_id为NULL的排班）"""
+    """批量发布排班"""
+    service = ScheduleService(db)
+    try:
+        result = await service.batch_publish(
+            data.schedule_ids,
+            operator_id=current_admin.get("id"),
+        )
+        return BatchOperateResponse(
+            success=True,
+            affected_count=result["success_count"],
+            message=result["message"],
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post(
+    "/batch-withdraw",
+    response_model=BatchOperateResponse,
+    summary="批量撤回排班",
+    description="""
+    批量撤回排班（published/booking -> withdrawn）。
+
+    **权限要求**：管理员权限（schedule:update）。
+
+    **业务规则**：
+    - 只有 published 或 booking 状态的排班可以撤回
+    - 存在活跃预约（待支付/已预约/已签到/就诊中）的排班无法撤回
+    - 撤回后排班对患者不可见
+    """,
+)
+async def batch_withdraw_schedules(
+    data: ScheduleWithdrawRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:update")),
+):
+    """批量撤回排班"""
+    service = ScheduleService(db)
+    try:
+        result = await service.withdraw(
+            data.schedule_ids,
+            reason=data.reason,
+            operator_id=current_admin.get("id"),
+        )
+        return BatchOperateResponse(
+            success=True,
+            affected_count=result["success_count"],
+            message=result["message"],
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post(
+    "/copy",
+    response_model=ScheduleBatchCopyResult,
+    summary="批量复制排班",
+    description="""
+    将源周期的排班批量复制到目标周期。
+
+    **权限要求**：管理员权限（schedule:create）。
+
+    **业务规则**：
+    - 源周期和目标周期的天数应匹配（自动按日期偏移）
+    - 支持按医生筛选（doctor_ids 为空则复制全部）
+    - copy_quota/copy_room/copy_fee 控制是否复制对应配置
+    - skip_holidays 跳过节假日和休息日
+    - conflict_strategy 处理目标位置已有排班的冲突：
+      - skip: 跳过冲突项
+      - overwrite: 删除旧排班后覆盖（仅限无预约的排班）
+      - manual: 收集冲突信息返回，由调用方决策
+    - 使用分布式锁保护，防止并发冲突
+    """,
+)
+async def batch_copy_schedules(
+    data: ScheduleBatchCopyRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("schedule:create")),
+):
+    """批量复制排班"""
     service = ScheduleService(db)
 
-    schedule = await service.get_by_id(schedule_id)
-    if not schedule:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="排班不存在")
-
-    if schedule.template_id is not None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="只能删除自定义排班")
-
-    if schedule.booked_slots > 0:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该排班已有预约，无法删除")
-
-    await db.delete(schedule)
-    await db.commit()
-
-    return {"message": "删除成功"}
+    try:
+        result = await service.batch_copy(data, operator_id=current_admin.get("id"))
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

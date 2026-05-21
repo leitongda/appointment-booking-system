@@ -1,10 +1,12 @@
 """Read-oriented schedule queries."""
 
 import json
+import logging
+import time
 from datetime import date, datetime, timedelta, timezone
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import selectinload
 
 from app.middleware.tenant_context import get_current_tenant_id
@@ -12,7 +14,31 @@ from app.models.doctor import Doctor
 from app.models.doctor_booking_setting import DoctorBookingSetting
 from app.models.rest_day import RestDay
 from app.models.schedule import Schedule
-from app.models.store import Store
+from app.models.schedule_status import ScheduleStatus
+
+logger = logging.getLogger(__name__)
+
+
+def _invalidate_rest_days_cache(tenant_id: Optional[str] = None) -> None:
+    """清除指定租户的休息日缓存（写操作后调用）。保留接口兼容，当前无进程内缓存。"""
+    pass
+
+
+def _build_rest_day_index(rest_days: Sequence[RestDay]) -> Dict[Tuple, List]:
+    """为休息日构建按 (store_id, date) 分桶的索引，加速 is_rest_day 查找。
+
+    返回 dict[(store_id, date)] -> [RestDay, ...]。
+    doctor_ids 为 None 的记录（门店全员休息）也放入对应桶中。
+    """
+    index: Dict[Tuple, List] = {}
+    for rd in rest_days:
+        # 一条休息日可能覆盖多天，按每天入桶
+        d = rd.start_date
+        while d <= rd.end_date:
+            key = (rd.store_id, d)
+            index.setdefault(key, []).append(rd)
+            d += timedelta(days=1)
+    return index
 
 
 class ScheduleQueryMixin:
@@ -35,6 +61,7 @@ class ScheduleQueryMixin:
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
         status: Optional[int] = None,
+        schedule_status: Optional[str] = None,
         page: int = 1,
         page_size: int = 10,
     ) -> tuple[List[Schedule], int]:
@@ -63,6 +90,9 @@ class ScheduleQueryMixin:
         if status is not None:
             query = query.where(Schedule.status == status)
             count_query = count_query.where(Schedule.status == status)
+        if schedule_status:
+            query = query.where(Schedule.schedule_status == schedule_status)
+            count_query = count_query.where(Schedule.schedule_status == schedule_status)
 
         query = (
             query.order_by(Schedule.schedule_date, Schedule.time_slot)
@@ -86,25 +116,19 @@ class ScheduleQueryMixin:
         if not schedules:
             return
 
+        _t0 = time.monotonic()
+
         # 收集日期范围和医生ID
         min_date = min(s.schedule_date for s in schedules)
         max_date = max(s.schedule_date for s in schedules)
         doctor_ids = {s.doctor_id for s in schedules}
-        store_ids = {s.store_id for s in schedules if s.store_id}
 
-        # 批量加载休息日（加租户过滤）
+        # 批量加载休息日（带进程内 TTL 缓存）
         tenant_id = get_current_tenant_id()
-        rest_day_conditions = [
-            RestDay.status == 1,
-            RestDay.start_date <= max_date,
-            RestDay.end_date >= min_date,
-        ]
-        if tenant_id:
-            rest_day_conditions.append(RestDay.tenant_id == tenant_id)
-        rest_days_result = await self.db.execute(
-            select(RestDay).where(and_(*rest_day_conditions))
-        )
-        all_rest_days = list(rest_days_result.scalars().all())
+        all_rest_days = await self._get_rest_days_cached(tenant_id, min_date, max_date)
+
+        # 为休息日构建 (store_id, date) 索引，避免 O(N*M) 线性扫描
+        rest_day_index = _build_rest_day_index(all_rest_days)
 
         # 批量加载该日期范围内的自定义排班（用于判断"被覆盖"，加租户过滤）
         custom_conditions = [
@@ -132,9 +156,24 @@ class ScheduleQueryMixin:
         }
 
         for schedule in schedules:
-            # 1. 停诊
-            if schedule.status == 0:
+            # 1. 停诊 (legacy status=0 或 schedule_status=suspended)
+            if schedule.status == 0 or schedule.schedule_status == ScheduleStatus.SUSPENDED:
                 schedule.effective_status = "suspended"
+                continue
+
+            # 1.5 已撤回
+            if schedule.schedule_status == ScheduleStatus.WITHDRAWN:
+                schedule.effective_status = "withdrawn"
+                continue
+
+            # 1.6 草稿
+            if schedule.schedule_status == ScheduleStatus.DRAFT:
+                schedule.effective_status = "draft"
+                continue
+
+            # 1.7 已结束
+            if schedule.schedule_status == ScheduleStatus.FINISHED:
+                schedule.effective_status = "finished"
                 continue
 
             # 2. 自定义排班（最高优先级）
@@ -142,9 +181,9 @@ class ScheduleQueryMixin:
                 schedule.effective_status = "custom"
                 continue
 
-            # 3. 休息日检查（仅模板排班）
-            is_rest = self._is_rest_day_cached(
-                all_rest_days, schedule.schedule_date, schedule.store_id, schedule.doctor_id
+            # 3. 休息日检查（仅模板排班，使用索引加速）
+            is_rest = self._is_rest_day_indexed(
+                rest_day_index, schedule.schedule_date, schedule.store_id, schedule.doctor_id
             )
             if is_rest:
                 schedule.effective_status = "rest_day"
@@ -163,12 +202,62 @@ class ScheduleQueryMixin:
             # 5. 正常生效
             schedule.effective_status = "active"
 
+        elapsed = time.monotonic() - _t0
+        if elapsed > 0.1:
+            logger.warning(
+                "_compute_effective_status 耗时 %.3fs (排班数=%d, 休息日=%d, 自定义=%d)",
+                elapsed, len(schedules), len(all_rest_days), len(custom_schedules),
+            )
+
+    async def _get_rest_days_cached(
+        self,
+        tenant_id: Optional[str],
+        min_date: date,
+        max_date: date,
+    ) -> List[RestDay]:
+        """查询指定日期范围内的活跃休息日。"""
+        conditions = [RestDay.status == 1]
+        if tenant_id:
+            conditions.append(RestDay.tenant_id == tenant_id)
+        result = await self.db.execute(select(RestDay).where(and_(*conditions)))
+        all_rest_days = list(result.scalars().all())
+
+        return [
+            rd for rd in all_rest_days
+            if rd.start_date <= max_date and rd.end_date >= min_date
+        ]
+
+    @staticmethod
+    def _is_rest_day_indexed(
+        rest_day_index: Dict[Tuple, List],
+        check_date: date,
+        store_id: Optional[str] = None,
+        doctor_id: Optional[str] = None,
+    ) -> bool:
+        """使用预构建索引判断休息日（O(1) 查找替代线性扫描）。"""
+        if not store_id:
+            return False
+        bucket = rest_day_index.get((store_id, check_date))
+        if not bucket:
+            return False
+        for rd in bucket:
+            # 无 doctor_ids 表示门店所有医生休息
+            if rd.doctor_ids is None:
+                return True
+            if doctor_id:
+                try:
+                    doctor_ids_list = json.loads(rd.doctor_ids)
+                    if doctor_id in doctor_ids_list:
+                        return True
+                except (json.JSONDecodeError, TypeError):
+                    logger.warning(f"解析休息日医生列表失败: rest_day_id={rd.id}")
+        return False
+
     async def _get_booking_setting(
         self, doctor_id: str, store_id: Optional[str]
     ) -> Optional[DoctorBookingSetting]:
         stmt = (
             select(DoctorBookingSetting)
-            .join(Store, DoctorBookingSetting.store_id == Store.id)
             .where(
                 and_(
                     DoctorBookingSetting.doctor_id == doctor_id,
@@ -180,7 +269,7 @@ class ScheduleQueryMixin:
             stmt = stmt.where(DoctorBookingSetting.store_id == store_id)
         tenant_id = get_current_tenant_id()
         if tenant_id:
-            stmt = stmt.where(Store.tenant_id == tenant_id)
+            stmt = stmt.where(DoctorBookingSetting.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -221,12 +310,21 @@ class ScheduleQueryMixin:
             start_date = today
             end_date = today + timedelta(days=days)
 
+        # 号源拆分：患者端可预约判断使用 online_quota
+        # 如果 online_quota 为 0（旧数据），回退到 total_slots
+        from sqlalchemy import case
+        effective_online_quota = case(
+            (Schedule.online_quota > 0, Schedule.online_quota),
+            else_=Schedule.total_slots,
+        )
+
         conditions = [
             Schedule.doctor_id == doctor_id,
             Schedule.schedule_date >= start_date,
             Schedule.schedule_date <= end_date,
             Schedule.status == 1,
-            Schedule.booked_slots < Schedule.total_slots,
+            Schedule.booked_slots < effective_online_quota,
+            Schedule.schedule_status.in_(list(ScheduleStatus.BOOKABLE)),
         ]
         if tenant_id:
             conditions.append(Schedule.tenant_id == tenant_id)
@@ -238,15 +336,9 @@ class ScheduleQueryMixin:
         )
         schedules = list(result.scalars().all())
 
-        rest_days_query = select(RestDay).where(
-            and_(
-                RestDay.status == 1,
-                RestDay.start_date <= end_date,
-                RestDay.end_date >= start_date,
-            )
-        )
-        rest_days_result = await self.db.execute(rest_days_query)
-        all_rest_days = rest_days_result.scalars().all()
+        # 使用带缓存的休息日查询 + 索引加速
+        all_rest_days = await self._get_rest_days_cached(tenant_id, start_date, end_date)
+        rest_day_index = _build_rest_day_index(all_rest_days)
 
         filtered_schedules = []
         for schedule in schedules:
@@ -254,7 +346,9 @@ class ScheduleQueryMixin:
                 filtered_schedules.append(schedule)
                 continue
 
-            is_rest = self._is_rest_day_cached(all_rest_days, schedule.schedule_date, schedule.store_id, doctor_id)
+            is_rest = self._is_rest_day_indexed(
+                rest_day_index, schedule.schedule_date, schedule.store_id, doctor_id
+            )
             if not is_rest:
                 filtered_schedules.append(schedule)
 

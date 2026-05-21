@@ -1,0 +1,1 @@
+"""Schedule rooms domain module."""

@@ -33,8 +33,39 @@ class RuleEngineTimeWindowMixin:
     async def get_applicable_rule_set(
         self, shift_type_id: str, schedule: Optional[Schedule] = None
     ) -> Optional[RuleSet]:
+        # 优先使用排班直接绑定的规则组
+        if schedule is not None:
+            direct_rule_set_id = getattr(schedule, "rule_set_id", None)
+            if direct_rule_set_id:
+                direct_rs = await self._get_direct_rule_set(direct_rule_set_id)
+                if direct_rs:
+                    return direct_rs
+
         candidates = await self.get_candidate_rule_sets(shift_type_id, schedule)
         return candidates[0] if candidates else None
+
+    async def _get_direct_rule_set(self, rule_set_id: str) -> Optional[RuleSet]:
+        """查询直接绑定的规则组，验证是否可用。"""
+        # 先尝试缓存
+        tenant_id = get_current_tenant_id()
+        cached = await self.rule_cache.get_direct_rule_set(tenant_id, rule_set_id)
+        if cached is not None:
+            return cached
+
+        result = await self.db.execute(
+            select(RuleSet).where(
+                and_(
+                    RuleSet.id == rule_set_id,
+                    RuleSet.enabled == True,
+                    RuleSet.deleted_at.is_(None),
+                )
+            )
+        )
+        rule_set = result.scalar_one_or_none()
+        if rule_set:
+            # 缓存结果
+            await self.rule_cache.set_direct_rule_set(tenant_id, rule_set_id, rule_set)
+        return rule_set
 
     async def get_candidate_rule_sets(
         self, shift_type_id: str, schedule: Optional[Schedule] = None

@@ -96,7 +96,12 @@ class ScheduleSuspensionService:
             suspension_date=data.suspension_date,
             schedule_ids=json.dumps(data.schedule_ids) if data.schedule_ids else None,
             time_slots=json.dumps(data.time_slots) if data.time_slots else None,
-            status=1
+            status=1,
+            suspension_type=data.suspension_type or "temporary",
+            processing_method=data.processing_method,
+            processing_status="pending",
+            affected_appointment_count=0,
+            reason=data.reason,
         )
         set_create_audit(suspension, operator_id)
         self.db.add(suspension)
@@ -155,6 +160,20 @@ class ScheduleSuspensionService:
 
         # 发送停诊通知给受影响的患者
         await self._send_stop_clinic_notifications(suspension, data)
+
+        # 如果指定了处置方式，自动执行患者处置
+        if data.processing_method:
+            try:
+                from app.modules.schedule_suspensions.service_processing import SuspensionProcessingService
+                processing_service = SuspensionProcessingService(self.db)
+                await processing_service.process_suspension(
+                    suspension_id=suspension.id,
+                    processing_method=data.processing_method,
+                    operator_id=operator_id,
+                )
+                await self.db.refresh(suspension)
+            except Exception as e:
+                logger.warning(f"停诊自动处置失败 (suspension_id={suspension.id}): {e}")
 
         return suspension
 

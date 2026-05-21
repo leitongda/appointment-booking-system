@@ -115,6 +115,7 @@ class ScheduleGenerationMixin:
         appointment_type: str = "normal",
         template_id: Optional[str] = None,
         shift_type_id: Optional[str] = None,
+        rule_set_id: Optional[str] = None,
         check_rest_day: bool = True,
         check_duplicate: bool = True,
     ) -> Tuple[Optional[Schedule], bool]:
@@ -153,6 +154,7 @@ class ScheduleGenerationMixin:
             store_id=store_id,
             template_id=template_id,
             shift_type_id=shift_type_id,
+            rule_set_id=rule_set_id,
             schedule_date=schedule_date,
             time_slot=time_slot,
             start_time=start_time,
@@ -227,6 +229,7 @@ class ScheduleGenerationMixin:
                         appointment_type=template.appointment_type,
                         template_id=template.id,
                         shift_type_id=template.shift_type_id,
+                        rule_set_id=template.rule_set_id,
                         check_rest_day=check_rest_day,
                         check_duplicate=True,
                     )

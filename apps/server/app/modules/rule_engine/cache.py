@@ -226,6 +226,51 @@ class RuleCache:
         except Exception as e:
             logger.warning(f"Cache set failed for key={key}: {e}")
 
+    def _make_direct_key(self, tenant_id: Optional[str], rule_set_id: str) -> str:
+        """Build cache key for direct rule_set_id lookup."""
+        tenant_part = f"{tenant_id}:" if tenant_id else ""
+        return f"{CACHE_PREFIX}:{tenant_part}direct:{rule_set_id}"
+
+    async def get_direct_rule_set(self, tenant_id: Optional[str], rule_set_id: str) -> Optional[CachedRuleSet]:
+        """Get cached direct rule set by ID. Returns ORM-compatible object or None."""
+        key = self._make_direct_key(tenant_id, rule_set_id)
+        try:
+            data = await self._redis.get(key)
+            if data:
+                rs_data = json.loads(data)
+                return CachedRuleSet.from_dict(rs_data)
+        except Exception as e:
+            logger.warning(f"Cache get failed for key={key}: {e}")
+        return None
+
+    async def set_direct_rule_set(self, tenant_id: Optional[str], rule_set_id: str, rule_set) -> None:
+        """Cache a direct rule set lookup result."""
+        key = self._make_direct_key(tenant_id, rule_set_id)
+        try:
+            # Build CachedRuleSet from ORM object (without windows for speed)
+            cached = CachedRuleSet(
+                id=rule_set.id,
+                name=rule_set.name,
+                enabled=rule_set.enabled,
+                priority=rule_set.priority,
+                time_source=rule_set.time_source,
+                timezone_source=rule_set.timezone_source,
+                compare_precision=rule_set.compare_precision,
+                default_open_inclusive=rule_set.default_open_inclusive,
+                default_close_inclusive=rule_set.default_close_inclusive,
+                rounding_mode=rule_set.rounding_mode,
+                clock_skew_tolerance_sec=rule_set.clock_skew_tolerance_sec,
+                tenant_id=rule_set.tenant_id,
+                store_id=getattr(rule_set, "store_id", None),
+                department_id=getattr(rule_set, "department_id", None),
+                doctor_id=getattr(rule_set, "doctor_id", None),
+                description=rule_set.description,
+            )
+            serialized = json.dumps(cached.to_dict(), default=str)
+            await self._redis.set(key, serialized, ex=CACHE_TTL)
+        except Exception as e:
+            logger.warning(f"Cache set failed for key={key}: {e}")
+
     async def invalidate(self, tenant_id: Optional[str], shift_type_ids: List[str]) -> None:
         """
         Invalidate cached rule sets for given shift types.

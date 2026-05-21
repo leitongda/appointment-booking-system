@@ -12,6 +12,7 @@ from app.models.store import Store
 from app.schemas.rest_day import RestDayCreate
 from app.utils.audit import set_create_audit, set_update_audit
 from app.middleware.tenant_context import get_current_tenant_id
+from app.modules.schedules.service_query import _invalidate_rest_days_cache
 
 
 class RestDayService:
@@ -103,6 +104,7 @@ class RestDayService:
         set_create_audit(rest_day, operator_id)
         self.db.add(rest_day)
         await self.db.commit()
+        _invalidate_rest_days_cache(tenant_id)
         await self.db.refresh(rest_day)
         return rest_day
 
@@ -114,6 +116,7 @@ class RestDayService:
 
         await self.db.delete(rest_day)
         await self.db.commit()
+        _invalidate_rest_days_cache(get_current_tenant_id())
         return True
 
     async def cancel(self, rest_day_id: str, operator_id: Optional[str] = None) -> Optional[RestDay]:
@@ -125,6 +128,7 @@ class RestDayService:
         rest_day.status = 0
         set_update_audit(rest_day, operator_id)
         await self.db.commit()
+        _invalidate_rest_days_cache(get_current_tenant_id())
         await self.db.refresh(rest_day)
         return rest_day
 

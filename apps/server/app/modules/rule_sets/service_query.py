@@ -1,7 +1,8 @@
 """Query helpers for rule-set management."""
 
 import uuid
-from typing import List, Optional, Tuple
+from collections import defaultdict
+from typing import Dict, List, Optional, Tuple
 
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import selectinload
@@ -19,10 +20,11 @@ from app.models.rule_set import (
     get_system_presets,
 )
 from app.models.rule_set_audit import RuleSetAuditLog
+from app.models.schedule_template import ScheduleTemplate
 from app.models.store import Store
 from app.models.department import Department
 from app.models.doctor import Doctor
-from app.schemas.rule_set import RuleSetDetailResponse
+from app.schemas.rule_set import RuleSetDetailResponse, ScheduleTemplateBrief
 
 
 async def _get_active_rule_set_ids(db, shift_type_ids: List[str]) -> set:
@@ -60,6 +62,53 @@ async def _get_active_rule_set_ids(db, shift_type_ids: List[str]) -> set:
 
 
 class RuleSetQueryMixin:
+
+    async def _batch_load_schedule_templates(
+        self, rule_set_ids: List[str]
+    ) -> Dict[str, List[ScheduleTemplateBrief]]:
+        """批量加载多个规则组关联的排班模板（单次 JOIN 查询替代 N×4 次查询）。"""
+        if not rule_set_ids:
+            return {}
+
+        result = await self.db.execute(
+            select(
+                ScheduleTemplate.id,
+                ScheduleTemplate.name,
+                ScheduleTemplate.rule_set_id,
+                ScheduleTemplate.status,
+                ScheduleTemplate.doctor_id,
+                ScheduleTemplate.department_id,
+                ScheduleTemplate.store_id,
+                ScheduleTemplate.shift_type_id,
+                Doctor.name.label("doctor_name"),
+                Department.name.label("department_name"),
+                Store.name.label("store_name"),
+                ShiftType.name.label("shift_type_name"),
+            )
+            .outerjoin(Doctor, ScheduleTemplate.doctor_id == Doctor.id)
+            .outerjoin(Department, ScheduleTemplate.department_id == Department.id)
+            .outerjoin(Store, ScheduleTemplate.store_id == Store.id)
+            .outerjoin(ShiftType, ScheduleTemplate.shift_type_id == ShiftType.id)
+            .where(ScheduleTemplate.rule_set_id.in_(rule_set_ids))
+            .order_by(ScheduleTemplate.name)
+        )
+        rows = result.all()
+
+        templates_by_rule_set: Dict[str, List[ScheduleTemplateBrief]] = defaultdict(list)
+        for row in rows:
+            templates_by_rule_set[row.rule_set_id].append(
+                ScheduleTemplateBrief(
+                    id=row.id,
+                    name=row.name,
+                    doctor_name=row.doctor_name,
+                    department_name=row.department_name,
+                    store_name=row.store_name,
+                    shift_type_name=row.shift_type_name,
+                    status=row.status,
+                )
+            )
+        return templates_by_rule_set
+
     async def get_list(
         self,
         enabled: Optional[bool] = None,
@@ -134,9 +183,13 @@ class RuleSetQueryMixin:
         # 计算活跃规则组 ID
         active_rule_set_ids = await _get_active_rule_set_ids(self.db, active_shift_type_ids)
 
+        # 批量加载排班模板（1 次查询替代 N×4 次）
+        rule_set_ids = [rs.id for rs in rule_sets]
+        templates_map = await self._batch_load_schedule_templates(rule_set_ids)
+
         responses = []
         for rs in rule_sets:
-            responses.append(await self._to_detail_response(rs, active_rule_set_ids))
+            responses.append(await self._to_detail_response(rs, active_rule_set_ids, templates_map.get(rs.id)))
         return responses, total
 
     async def get_by_id(self, rule_set_id: str) -> Optional[RuleSetDetailResponse]:
@@ -161,10 +214,15 @@ class RuleSetQueryMixin:
         rule_set = result.scalar_one_or_none()
         if not rule_set:
             return None
-        return await self._to_detail_response(rule_set)
+        # 单条也用批量加载，统一路径
+        templates_map = await self._batch_load_schedule_templates([rule_set.id])
+        return await self._to_detail_response(rule_set, schedule_templates=templates_map.get(rule_set.id))
 
     async def _to_detail_response(
-        self, rule_set: RuleSet, active_rule_set_ids: Optional[set] = None
+        self,
+        rule_set: RuleSet,
+        active_rule_set_ids: Optional[set] = None,
+        schedule_templates: Optional[List[ScheduleTemplateBrief]] = None,
     ) -> RuleSetDetailResponse:
         # 关联数据已通过 selectinload 预加载，无需 refresh
 
@@ -241,6 +299,13 @@ class RuleSetQueryMixin:
                     }
                 )
         data["shift_types"] = shift_types
+
+        # 关联排班模板（优先使用预加载数据，避免 N+1 查询）
+        if schedule_templates is None:
+            templates_map = await self._batch_load_schedule_templates([rule_set.id])
+            schedule_templates = templates_map.get(rule_set.id, [])
+        data["schedule_templates"] = schedule_templates
+
         return RuleSetDetailResponse(**data)
 
     async def get_window_by_id(self, window_id: str) -> Optional[RuleWindow]:

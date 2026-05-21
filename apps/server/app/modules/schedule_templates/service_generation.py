@@ -149,6 +149,7 @@ class ScheduleTemplateGenerationMixin:
                             store_id=data.store_id,
                             template_id=template_id,
                             shift_type_id=data.shift_type_id,
+                            rule_set_id=getattr(data, 'rule_set_id', None),
                             schedule_date=current_date,
                             time_slot=time_slot,
                             start_time=slot_start,
