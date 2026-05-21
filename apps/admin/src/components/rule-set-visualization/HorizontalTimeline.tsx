@@ -80,11 +80,15 @@ const WINDOW_COLORS: Record<string, WindowColorConfig> = {
 };
 
 const TIMELINE_CONFIG = {
-  // 班次背景 - 将在组件中使用 token
-  // shiftBackground, shiftBorder, shiftLabelColor 在运行时从 token 获取
+  // 班次背景
+  shiftBackground: '#fafafa',
+  shiftBorder: '#d9d9d9',
+  shiftLabelColor: '#999',
 
-  // 坐标轴 - 将在组件中使用 token
-  // axisColor, tickColor, textColor 在运行时从 token 获取
+  // 坐标轴
+  axisColor: '#d9d9d9',
+  tickColor: '#d9d9d9',
+  textColor: '#999',
 
   // 不限制状态样式
   unlimitedDashArray: '4 4',  // 虚线样式

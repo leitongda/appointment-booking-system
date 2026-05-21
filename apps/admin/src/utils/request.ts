@@ -1,10 +1,16 @@
 /**
  * API 请求配置
  * 配置 @hospital/api 包的请求和响应拦截器
+ *
+ * Structured error codes from the server are handled here:
+ *   SCHEDULE_CONFLICT  → show conflict details in notification
+ *   PERMISSION_DENIED  → redirect to unauthorized page
+ *   RATE_LIMITED       → show rate-limit warning
+ *   VALIDATION_ERROR   → show field-level errors
  */
 import { setRequestInterceptor, setResponseInterceptor, ApiError } from '@hospital/api';
 import { getToken, handleTokenExpired, markAuthExpired, shouldSilenceAuthExpiredFeedback, parseTenantError, markTenantSuspended } from '@hospital/shared';
-import { message, Modal } from 'antd';
+import { message, Modal, notification } from 'antd';
 import type { InternalAxiosRequestConfig } from 'axios';
 
 /**
@@ -23,6 +29,78 @@ const ERROR_MESSAGES: Record<number, string> = {
   502: '网关错误，请稍后重试',
   503: '服务暂时不可用，请稍后重试',
   504: '网关超时，请稍后重试',
+};
+
+/**
+ * Handle structured error codes from the server's ErrorResponse envelope.
+ *
+ * Returns `true` if the error was fully handled (caller should return), or
+ * `false` if the caller should continue with generic error handling.
+ */
+const handleStructuredErrorCode = (error: ApiError): boolean => {
+  const { errorCode, errorDetails, message: errorMessage } = error;
+
+  if (!errorCode) return false;
+
+  switch (errorCode) {
+    // ── Schedule conflict: show details in a notification ──
+    case 'SCHEDULE_CONFLICT': {
+      const conflicts = errorDetails?.conflicts as Array<{ message?: string }> | undefined;
+      const conflictMessages = conflicts?.map(c => c.message).filter(Boolean);
+      notification.warning({
+        message: '排班冲突',
+        description: conflictMessages?.length
+          ? conflictMessages.join('\n')
+          : errorMessage || '存在排班冲突，请调整后重试',
+        duration: 6,
+      });
+      return true;
+    }
+
+    // ── Permission denied: redirect to unauthorized ──
+    case 'PERMISSION_DENIED': {
+      message.error(errorMessage || '权限不足，请联系管理员');
+      // Optionally redirect: window.location.href = '/unauthorized';
+      return true;
+    }
+
+    // ── Rate limited: show warning ──
+    case 'RATE_LIMITED': {
+      notification.warning({
+        message: '请求过于频繁',
+        description: errorMessage || '请稍后再试',
+        duration: 4,
+      });
+      return true;
+    }
+
+    // ── Validation error: show field-level errors ──
+    case 'VALIDATION_ERROR': {
+      const fields = errorDetails?.fields as Array<{ field?: string; message?: string }> | undefined;
+      if (fields?.length) {
+        const fieldMsgs = fields.map(f => `${f.field}: ${f.message}`).join('\n');
+        notification.error({
+          message: '参数校验失败',
+          description: fieldMsgs,
+          duration: 6,
+        });
+      } else {
+        message.error(errorMessage || '请求参数错误');
+      }
+      return true;
+    }
+
+    // ── Tenant status errors ──
+    case 'TENANT_SUSPENDED':
+    case 'TENANT_OVERDUE': {
+      // Already handled by parseTenantError in the 403 branch; skip generic toast.
+      return true;
+    }
+
+    default:
+      // Not a recognized structured code — fall through to generic handling.
+      return false;
+  }
 };
 
 /**
@@ -107,7 +185,12 @@ export const setupResponseInterceptor = () => {
       // 处理 ApiError（包含业务错误码）
       if (error instanceof ApiError) {
         const { code, message: errorMessage } = error;
-        
+
+        // Structured error codes: handle specific codes before generic HTTP status handling
+        if (handleStructuredErrorCode(error)) {
+          return Promise.reject(error);
+        }
+
         // 401 未授权 - 弹框确认后跳转登录页
         if (error.isUnauthorized()) {
           const requestUrl = error.url || '';
@@ -196,19 +279,29 @@ export const setupResponseInterceptor = () => {
         const errorMsg = data?.detail || data?.message || ERROR_MESSAGES[status] || '请求失败';
         // 获取请求 URL（可能是相对路径或完整路径）
         const requestUrl = error?.config?.url || error?.request?.responseURL || '';
-        
+        // Extract structured error envelope
+        const structuredError = data?.error;
+        const errorCode = structuredError?.code || data?.error_code;
+        const errorDetails = structuredError?.details;
+
+        // Structured error codes: handle specific codes before generic HTTP status handling
+        const apiError = new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails);
+        if (handleStructuredErrorCode(apiError)) {
+          return Promise.reject(apiError);
+        }
+
         // 401 未授权
         if (status === 401) {
           const isProtectedRequest = !requestUrl || shouldAddToken(requestUrl);
 
           if (!isProtectedRequest) {
-            return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
+            return Promise.reject(new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails));
           }
 
           if (shouldSilenceAuthExpiredFeedback()) {
             markAuthExpired();
             handleTokenExpired();
-            return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
+            return Promise.reject(new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails));
           }
           markAuthExpired();
           handleTokenExpired(() => {
@@ -225,9 +318,9 @@ export const setupResponseInterceptor = () => {
               },
             });
           });
-          return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
+          return Promise.reject(new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails));
         }
-        
+
         // 密码解密错误（400状态码 + 解密失败消息）- 登录接口会自动重试，不显示错误
         if (status === 400 && errorMsg && (
           errorMsg.includes('解密失败') ||
@@ -239,10 +332,10 @@ export const setupResponseInterceptor = () => {
           // 如果是登录接口，静默处理，让登录函数自动重试
           if (requestUrl.includes('/admin/login') || requestUrl.includes('/admin/phone-login')) {
             // 不显示错误消息，直接返回错误让登录函数处理重试
-            return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
+            return Promise.reject(new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails));
           }
         }
-        
+
         // 显示错误消息
         // 403 — 检查是否为租户暂停
         if (status === 403) {
@@ -250,11 +343,11 @@ export const setupResponseInterceptor = () => {
           if (tenantReason) {
             markTenantSuspended(tenantReason);
             window.location.href = '/tenant-suspended';
-            return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
+            return Promise.reject(new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails));
           }
         }
         message.error(errorMsg);
-        return Promise.reject(new ApiError(status, errorMsg, data, requestUrl));
+        return Promise.reject(new ApiError(status, errorMsg, data, requestUrl, errorCode, errorDetails));
       }
       
       // 网络错误或其他错误

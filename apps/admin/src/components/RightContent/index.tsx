@@ -29,7 +29,7 @@ export const AvatarDropdown: React.FC<{ children: React.ReactNode }> = ({ childr
       console.error('退出登录请求失败:', error);
     }
     removeToken();
-    setInitialState((s) => ({ ...s, currentUser: undefined }));
+    setInitialState((s: any) => ({ ...s, currentUser: undefined }));
     history.push('/login');
   };
 

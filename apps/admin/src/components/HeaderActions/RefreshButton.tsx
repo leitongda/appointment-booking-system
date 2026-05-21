@@ -1,7 +1,7 @@
 import { ReloadOutlined } from '@ant-design/icons';
 import { Tooltip } from 'antd';
 import { useState, useCallback } from 'react';
-import { useModel } from 'umi';
+import { useModel } from '@umijs/max';
 import styles from './index.less';
 
 export const RefreshButton: React.FC = () => {

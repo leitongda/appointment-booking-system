@@ -90,7 +90,7 @@ const renderChangeItem = (item: ChangeItem, depth = 0) => {
 };
 
 const RuleSetAuditPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const [searchParams] = useSearchParams();
   const actionRef = useRef<ActionType>();
   const [ruleSetName, setRuleSetName] = useState(searchParams.get('name') || '');

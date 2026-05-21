@@ -33,7 +33,7 @@ import { EMAIL_TEMPLATE_TYPE_OPTIONS } from '@/constants/formFields';
 import RichTextEditor, { EMAIL_TEMPLATE_VARIABLES } from '@/components/RichTextEditor';
 
 const EmailTemplateFormPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const isEdit = !!id;
   const [template, setTemplate] = useState<EmailTemplate | null>(null);
 
@@ -59,7 +59,7 @@ const EmailTemplateFormPage: React.FC = () => {
       switchFields: ['status'],
       defaults: {
         templateType: 'custom',
-        status: true,
+        status: true as any,
       },
     }
   );
@@ -129,7 +129,7 @@ const EmailTemplateFormPage: React.FC = () => {
           name="templateType"
           label="模板类型"
           width="md"
-          options={EMAIL_TEMPLATE_TYPE_OPTIONS}
+          options={[...EMAIL_TEMPLATE_TYPE_OPTIONS]}
           rules={[requiredRules('请选择模板类型')]}
         />
 

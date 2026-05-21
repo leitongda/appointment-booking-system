@@ -26,7 +26,9 @@ const StoreEmailRecipientsPage: React.FC = () => {
 
   // 加载事件类型选项和门店列表
   useEffect(() => {
-    storeEmailRecipientApi.getEventTypes().then(setEventTypeOptions).catch(() => {});
+    storeEmailRecipientApi.getEventTypes().then(setEventTypeOptions).catch(() => {
+      message.warning('加载事件类型失败');
+    });
     storeApi.getAll?.().then((stores: any[]) => {
       setStoreOptions(
         stores.map((s: any) => ({ label: s.name, value: s.id })),
@@ -38,7 +40,9 @@ const StoreEmailRecipientsPage: React.FC = () => {
         setStoreOptions(
           list.map((s: any) => ({ label: s.name, value: s.id })),
         );
-      }).catch(() => {});
+      }).catch(() => {
+        message.warning('加载门店列表失败');
+      });
     });
   }, []);
 

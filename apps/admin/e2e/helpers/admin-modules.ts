@@ -49,11 +49,21 @@ export const adminModuleGroups: AdminModuleGroup[] = [
       { path: '/medical-services/appointment/list', label: '预约列表' },
       { path: '/medical-services/appointment/queue', label: '签到队列' },
       { path: '/medical-services/appointment/statistics', label: '预约统计' },
+      { path: '/medical-services/appointment/waitlist', label: '候补队列' },
       { path: '/medical-services/patient/list', label: '患者列表' },
       { path: '/medical-services/patient/card/list', label: '就诊卡列表' },
       { path: '/medical-services/medical-record', label: '病历管理' },
       { path: '/medical-services/consultation-fee/types', label: '诊费类型' },
       { path: '/medical-services/consultation-fee/templates', label: '诊费模板' },
+      { path: '/medical-services/examination-report', label: '检查报告' },
+    ],
+  },
+  {
+    key: 'finance',
+    name: '财务中心',
+    routes: [
+      { path: '/finance/payment', label: '支付查询' },
+      { path: '/finance/refund', label: '退款管理' },
     ],
   },
   {

@@ -29,7 +29,7 @@ import { useFormSubmit } from '@/hooks/useFormSubmit';
 import { requiredRules } from '@/utils/formValidators';
 
 const ConsultationFeeTypeFormPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const isEdit = !!id;
   const [feeType, setFeeType] = useState<ConsultationFeeType | null>(null);
   const [loading, setLoading] = useState(false);
@@ -47,20 +47,20 @@ const ConsultationFeeTypeFormPage: React.FC = () => {
 
   // 使用 useFormInitialValues hook
   // 注意：后端 status 字段为 0/1，前端表单使用 boolean
-  const { initialValues } = useFormInitialValues<ConsultationFeeType | null>(
+  const { initialValues } = useFormInitialValues<ConsultationFeeType>(
     feeType,
     {
       switchFields: ['status'],
       defaults: {
         sortOrder: 0,
-        status: true,
+        status: true as any,
       },
     }
   );
 
   // 使用 useFormSubmit hook
   const { handleSubmit, submitting } = useFormSubmit(
-    async (values) => {
+    async (values: any) => {
       if (isEdit && id) {
         return consultationFeeTypeApi.update(id, values);
       } else {

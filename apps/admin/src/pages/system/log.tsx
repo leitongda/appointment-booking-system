@@ -280,7 +280,7 @@ const LogPage: React.FC = () => {
                   }}
                 >
                   <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                    {JSON.stringify(JSON.parse(currentLog.params), null, 2)}
+                    {(() => { try { return JSON.stringify(JSON.parse(currentLog.params), null, 2); } catch { return currentLog.params; } })()}
                   </pre>
                 </Paragraph>
               ) : (

@@ -171,11 +171,11 @@ const ImportExport: React.FC<ImportExportProps> = ({
       const formData = new FormData();
       formData.append('file', selectedFile);
       
-      const result = await request<ImportResult>(importUrl, {
+      const result = await request(importUrl, {
         method: 'POST',
         data: formData,
         requestType: 'form',
-      });
+      }) as ImportResult;
       
       setImportResult(result);
       
@@ -247,7 +247,7 @@ const ImportExport: React.FC<ImportExportProps> = ({
 
   // 如果只有一个按钮，直接显示
   if (menuItems.length === 1) {
-    const item = menuItems[0];
+    const item = menuItems[0] as any;
     return (
       <>
         <Button

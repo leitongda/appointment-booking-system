@@ -52,6 +52,7 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     'schedule:rest-day',
     'schedule:suspension',
     'schedule:statistics',
+    'schedule:extra-quota',
   ]);
   const canAppointment = hasModuleAccess('appointment', [
     'appointment:list',
@@ -69,7 +70,23 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
   ]);
   const canMedicalRecord = canPatient;
   const canLeaveRequest = hasModuleAccess('leave-request', ['leave-request:list', 'leave-request:approve']);
+  const canApproval = hasModuleAccess('approval', [
+    'approval-flow:list',
+    'approval-flow:create',
+    'approval-flow:update',
+    'approval-flow:manage',
+    'approval-flow:delete',
+    'approval:read',
+    'approval:approve',
+  ]);
+  const canApprovalFlowManage = hasAnyPermission([
+    'approval-flow:create',
+    'approval-flow:update',
+    'approval-flow:manage',
+    'approval-flow:delete',
+  ]);
   const canFeedback = hasModuleAccess('feedback', ['feedback:list', 'feedback:reply', 'feedback:delete']);
+  const canSupportTicket = hasModuleAccess('support_ticket', ['support_ticket:list', 'support_ticket:view', 'support_ticket:update', 'support_ticket:manage']);
   const canMessage = hasModuleAccess('message', ['message:list', 'message:send', 'message:delete']);
   const canContent = hasPermission('content') || hasAnyPermission([
     'content:news',
@@ -101,16 +118,20 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
   const canAnalytics = isSuperAdmin || hasAnyPermission(['statistics', 'statistics:view', 'system:log']);
   const canBookingRules = hasPermission('system:settings');
   const canBlacklistSettings = hasAnyPermission(['blacklist:list', 'blacklist:create', 'blacklist:delete']);
+  const canPoints = isSuperAdmin || hasAnyPermission(['points:list', 'points:update']);
   const canBasicSettings = hasPermission('system:settings');
   const canBookingFields = hasPermission('system:settings');
   const canPatientCardConfig = hasPermission('system:settings');
   const canHospitalInfo = hasPermission('system:settings');
   const canEmailConfig = hasAnyPermission(['settings:email', 'settings:edit']);
   const canImageConfig = hasPermission('settings:edit');
+  const canSmsConfig = isSuperAdmin || hasAnyPermission(['settings:sms', 'settings:edit']);
   const canWechatSettings = isSuperAdmin || hasAnyPermission(['settings:wechat', 'settings:edit']);
   const canShiftTypes = isSuperAdmin || hasPermission('system:settings');
   const canRuleSets = isSuperAdmin;
   const canConsultationFee = isSuperAdmin || hasPermission('system:consultation-fee');
+  const canPayment = isSuperAdmin || hasAnyPermission(['payment:list', 'appointment:detail', 'appointment:list']);
+  const canRefund = isSuperAdmin || hasAnyPermission(['appointment:refund', 'payment:list']);
   const canEmailTemplates =
     isSuperAdmin ||
     hasAnyPermission([
@@ -121,6 +142,14 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     ]);
   const canEmailRecipients = isSuperAdmin || hasPermission('system:settings');
   const canBookingNotice = isSuperAdmin || hasPermission('system:settings');
+  const canPlatformAnnouncement = isSuperAdmin || hasAnyPermission([
+    'platform-announcement',
+    'platform-announcement:list',
+    'platform-announcement:create',
+    'platform-announcement:publish',
+    'platform-announcement:revoke',
+    'platform-announcement:delete',
+  ]);
   const canTenant = isSuperAdmin || hasAnyPermission(['tenant', 'tenant:list', 'tenant:create', 'tenant:update', 'tenant:delete']);
   const canTenantPlans = isSuperAdmin || hasAnyPermission(['tenant:plan:view', 'tenant:plan:create', 'tenant:plan:update', 'tenant:plan:delete']);
   const canMiniappPlatform = isSuperAdmin || hasAnyPermission([
@@ -143,9 +172,10 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canWechatSettings ||
     canEmailConfig ||
     canImageConfig ||
+    canSmsConfig ||
     canEmailTemplates ||
     canEmailRecipients;
-  const canPlatformManagement = canTenant || canTenantPlans || canMiniappPlatform;
+  const canPlatformManagement = canTenant || canTenantPlans || canMiniappPlatform || canPlatformAnnouncement;
   const canOrganizationManagement =
     canStore ||
     canDepartment ||
@@ -159,11 +189,14 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canMedicalRecord ||
     canLeaveRequest ||
     canConsultationFee;
+  const canFinanceManagement = canPayment || canRefund;
   const canContentOperations =
     canContent ||
     canMessage ||
     canFeedback ||
-    canAnalytics;
+    canSupportTicket ||
+    canAnalytics ||
+    canPoints;
   const canSystemManagement =
     canRoleManagement ||
     canSystemConfig ||
@@ -209,7 +242,10 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canPatient,
     canMedicalRecord,
     canLeaveRequest,
+    canApproval,
+    canApprovalFlowManage,
     canFeedback,
+    canSupportTicket,
     canMessage,
     canContent,
     canSystem: canOrganizationManagement || canSystemManagement,
@@ -223,19 +259,25 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canAnalytics,
     canBookingRules,
     canBlacklistSettings,
+    canPoints,
     canBasicSettings,
     canBookingFields,
     canPatientCardConfig,
     canHospitalInfo,
     canEmailConfig,
     canImageConfig,
+    canSmsConfig,
     canWechatSettings,
     canShiftTypes,
     canRuleSets,
     canConsultationFee,
+    canPayment,
+    canRefund,
+    canFinanceManagement,
     canEmailTemplates,
     canEmailRecipients,
     canBookingNotice,
+    canPlatformAnnouncement,
     canTenant,
     canTenantPlans,
     canTenantUsage,

@@ -49,7 +49,7 @@ export function rootContainer(container: any) {
   let routeStartTime = performance.now();
   let lastPathname = window.location.pathname;
 
-  const _unlisten = history.listen(({ location }) => {
+  const _unlisten = history.listen(({ location }: any) => {
     const routeEndTime = performance.now();
     const routeDuration = routeEndTime - routeStartTime;
 
@@ -128,7 +128,7 @@ export async function getInitialState(): Promise<{
       fetchUserInfo,
       currentUser,
       currentStore,
-      userStores,
+      userStores: userStores as any,
       currentTenantId,
       settings: defaultSettings as Partial<LayoutSettings>,
     };
@@ -144,7 +144,7 @@ export async function getInitialState(): Promise<{
  * ProLayout 运行时配置
  */
 /* eslint-disable react-hooks/rules-of-hooks -- Umi RunTimeLayoutConfig 在 React 组件上下文中执行 */
-export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) => {
+export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }: any) => {
   const location = useLocation();
   const { currentStore } = initialState || {};
 
@@ -196,7 +196,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
     avatarProps: {
       src: initialState?.currentUser?.avatar,
       title: <AvatarName />,
-      render: (_, avatarChildren) => {
+      render: (_: any, avatarChildren: React.ReactNode) => {
         return <AvatarDropdown>{avatarChildren}</AvatarDropdown>;
       },
     },
@@ -245,7 +245,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
         setInitialState?.((s: any) => ({ ...s, menuOpenKeys: keys }));
       },
     },
-    menuDataRender: (menuData) => {
+    menuDataRender: (menuData: any[]) => {
       const { pathname } = history.location;
       return processMenuData(menuData, pathname);
     },

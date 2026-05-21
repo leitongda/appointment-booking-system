@@ -1,8 +1,8 @@
-import { PlusOutlined, CalendarOutlined } from '@ant-design/icons';
+import { PlusOutlined, CalendarOutlined, DashboardOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Button, App, Space, Modal, Grid, Alert, Tag } from 'antd';
-import { useRef, useState } from 'react';
+import { Button, App, Space, Modal, Grid, Alert, Tag, Drawer, Descriptions, Table, Select, Statistic, Row, Col, Card, Spin, Popconfirm } from 'antd';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { history, useAccess } from '@umijs/max';
 
 const { useBreakpoint } = Grid;
@@ -24,6 +24,13 @@ const RuleSetsPage: React.FC = () => {
 
   // 统计信息
   const [stats, setStats] = useState({ total: 0, enabled: 0, disabled: 0 });
+
+  // 性能监控状态
+  const [perfDrawerOpen, setPerfDrawerOpen] = useState(false);
+  const [perfLoading, setPerfLoading] = useState(false);
+  const [perfStats, setPerfStats] = useState<any>(null);
+  const [slowQueries, setSlowQueries] = useState<any[]>([]);
+  const [perfHours, setPerfHours] = useState(24);
 
   const handleDelete = async (id: string) => {
     try {
@@ -158,6 +165,37 @@ const RuleSetsPage: React.FC = () => {
     });
   };
 
+  // 性能监控
+  const loadPerfData = useCallback(async () => {
+    setPerfLoading(true);
+    try {
+      const [statsResult, slowResult] = await Promise.all([
+        ruleSetApi.getPerformanceStats({ hours: perfHours }),
+        ruleSetApi.getSlowQueries({ limit: 50 }),
+      ]);
+      setPerfStats(statsResult);
+      setSlowQueries(slowResult?.data || []);
+    } catch {
+      antMessage.error('加载性能数据失败');
+    } finally {
+      setPerfLoading(false);
+    }
+  }, [perfHours]);
+
+  useEffect(() => {
+    if (perfDrawerOpen) loadPerfData();
+  }, [perfDrawerOpen, loadPerfData]);
+
+  const handleClearMetrics = async () => {
+    try {
+      await ruleSetApi.clearPerformanceMetrics();
+      antMessage.success('性能指标已清除');
+      loadPerfData();
+    } catch (error: any) {
+      antMessage.error(error.message || '清除失败');
+    }
+  };
+
   // 使用提取的列定义
   const columns: ProColumns<RuleSet>[] = getRuleSetColumns({
     handleToggleEnabled,
@@ -227,6 +265,15 @@ const RuleSetsPage: React.FC = () => {
           >
             排班模板
           </Button>,
+          access.canSuperAdmin && (
+            <Button
+              key="performance"
+              icon={<DashboardOutlined />}
+              onClick={() => setPerfDrawerOpen(true)}
+            >
+              性能监控
+            </Button>
+          ),
           <ImportExport
             key="import-export"
             moduleName="规则组"
@@ -273,6 +320,100 @@ const RuleSetsPage: React.FC = () => {
         ruleSet={selectedRuleSet}
         width={isMobile ? window.innerWidth * 0.95 : 600}
       />
+
+      {/* 性能监控抽屉 */}
+      <Drawer
+        title="规则引擎性能监控"
+        open={perfDrawerOpen}
+        onClose={() => setPerfDrawerOpen(false)}
+        width={isMobile ? window.innerWidth * 0.95 : 700}
+        extra={
+          <Space>
+            <Select
+              value={perfHours}
+              onChange={setPerfHours}
+              options={[
+                { label: '最近 1 小时', value: 1 },
+                { label: '最近 6 小时', value: 6 },
+                { label: '最近 24 小时', value: 24 },
+                { label: '最近 3 天', value: 72 },
+                { label: '最近 7 天', value: 168 },
+              ]}
+              style={{ width: 130 }}
+            />
+            <Popconfirm title="确定清除所有性能指标？" onConfirm={handleClearMetrics}>
+              <Button danger size="small">清除指标</Button>
+            </Popconfirm>
+          </Space>
+        }
+      >
+        <Spin spinning={perfLoading}>
+          {perfStats && (
+            <>
+              <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                <Col span={8}>
+                  <Statistic title="总调用次数" value={perfStats.totalCalls || 0} />
+                </Col>
+                <Col span={8}>
+                  <Statistic title="慢查询数" value={perfStats.slowQueryCount || 0} valueStyle={{ color: '#cf1322' }} />
+                </Col>
+                <Col span={8}>
+                  <Statistic title="调用速率" value={perfStats.callsPerMinute || 0} precision={2} suffix="次/分" />
+                </Col>
+              </Row>
+
+              {perfStats.latency && (
+                <Card title="延迟统计" size="small" style={{ marginBottom: 16 }}>
+                  <Descriptions column={2} size="small">
+                    <Descriptions.Item label="P50">{perfStats.latency.p50?.toFixed(2)} ms</Descriptions.Item>
+                    <Descriptions.Item label="P95">{perfStats.latency.p95?.toFixed(2)} ms</Descriptions.Item>
+                    <Descriptions.Item label="P99">{perfStats.latency.p99?.toFixed(2)} ms</Descriptions.Item>
+                    <Descriptions.Item label="平均值">{perfStats.latency.avg?.toFixed(2)} ms</Descriptions.Item>
+                    <Descriptions.Item label="最大值">{perfStats.latency.max?.toFixed(2)} ms</Descriptions.Item>
+                    <Descriptions.Item label="最小值">{perfStats.latency.min?.toFixed(2)} ms</Descriptions.Item>
+                  </Descriptions>
+                </Card>
+              )}
+
+              {perfStats.byOperation && Object.keys(perfStats.byOperation).length > 0 && (
+                <Card title="按操作类型" size="small" style={{ marginBottom: 16 }}>
+                  <Table
+                    dataSource={Object.entries(perfStats.byOperation).map(([op, data]: [string, any]) => ({
+                      operation: op,
+                      ...data,
+                    }))}
+                    rowKey="operation"
+                    size="small"
+                    pagination={false}
+                    columns={[
+                      { title: '操作', dataIndex: 'operation', width: 120 },
+                      { title: '调用次数', dataIndex: 'count', width: 80 },
+                      { title: '平均延迟(ms)', dataIndex: 'avgLatency', width: 110, render: (v: number) => v?.toFixed(2) },
+                      { title: 'P95(ms)', dataIndex: 'p95', width: 90, render: (v: number) => v?.toFixed(2) },
+                      { title: '慢查询', dataIndex: 'slowCount', width: 80 },
+                    ]}
+                  />
+                </Card>
+              )}
+            </>
+          )}
+
+          <Card title="慢查询列表" size="small">
+            <Table
+              dataSource={slowQueries}
+              rowKey="id"
+              size="small"
+              pagination={{ pageSize: 20 }}
+              columns={[
+                { title: '时间', dataIndex: 'timestamp', width: 170, render: (v: string) => v?.slice(0, 19)?.replace('T', ' ') || '-' },
+                { title: '操作', dataIndex: 'operation', width: 120, ellipsis: true },
+                { title: '耗时(ms)', dataIndex: 'duration', width: 90, render: (v: number) => v?.toFixed(2) },
+                { title: '详情', dataIndex: 'details', ellipsis: true },
+              ]}
+            />
+          </Card>
+        </Spin>
+      </Drawer>
 
     </PageContainer>
   );

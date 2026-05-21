@@ -1,9 +1,11 @@
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { useRef } from 'react';
+import { App } from 'antd';
 import { auditLogApi } from '@hospital/api';
 
 const CheckinAuditLogsPage: React.FC = () => {
+  const { message } = App.useApp();
   const actionRef = useRef<ActionType>();
 
   const columns: ProColumns[] = [
@@ -36,7 +38,7 @@ const CheckinAuditLogsPage: React.FC = () => {
       dataIndex: 'checkinTime',
       valueType: 'dateTime',
       width: 160,
-      search: 'between',
+      search: { transform: (value: any) => value },
     },
     {
       title: '签到方式',
@@ -105,19 +107,24 @@ const CheckinAuditLogsPage: React.FC = () => {
           labelWidth: 'auto',
         }}
         request={async (params) => {
-          const result = await auditLogApi.getCheckinLogs({
-            page: params.current,
-            pageSize: params.pageSize,
-            status: params.status,
-            checkinMethod: params.checkinMethod,
-            startTime: params.checkinTime?.[0],
-            endTime: params.checkinTime?.[1],
-          });
-          return {
-            data: result.data || [],
-            success: true,
-            total: result.total || 0,
-          };
+          try {
+            const result = await auditLogApi.getCheckinLogs({
+              page: params.current,
+              pageSize: params.pageSize,
+              status: params.status,
+              checkinMethod: params.checkinMethod,
+              startTime: params.checkinTime?.[0],
+              endTime: params.checkinTime?.[1],
+            });
+            return {
+              data: result.data || [],
+              success: true,
+              total: result.total || 0,
+            };
+          } catch {
+            message.error('加载签到审计日志失败');
+            return { data: [], success: false, total: 0 };
+          }
         }}
         pagination={{
           defaultPageSize: 20,
@@ -125,14 +132,12 @@ const CheckinAuditLogsPage: React.FC = () => {
         }}
         columnsState={{
           defaultValue: {
-            columnState: {
-              // 隐藏一些默认不显示的列
-              departmentName: { show: false },
-              deviceInfo: { show: false },
-              locationInfo: { show: false },
-              operatorType: { show: false },
-            },
-          },
+            // 隐藏一些默认不显示的列
+            departmentName: { show: false },
+            deviceInfo: { show: false },
+            locationInfo: { show: false },
+            operatorType: { show: false },
+          } as any,
         }}
       />
     </PageContainer>

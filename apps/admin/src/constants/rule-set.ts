@@ -2,14 +2,6 @@
  * 规则管理常量配置
  */
 
-import { ruleSetApi } from '@hospital/api';
-import type { RuleSetPresetResponse } from '@hospital/api';
-
-/** 将前端 camelCase 配置转为后端 snake_case */
-function transformConfigToSnakeCase(config: typeof RULE_SET_FORM_INITIAL_VALUES): Record<string, any> {
-  return JSON.parse(JSON.stringify(config));
-}
-
 // ==================== 时间来源选项 ====================
 export const TIME_SOURCE_OPTIONS = [
   { label: '服务端时间', value: 'SERVER' },
@@ -224,13 +216,91 @@ export const RULE_SET_FORM_INITIAL_VALUES = {
 // ==================== 预设模板 ====================
 
 /**
+ * 时间窗配置类型
+ */
+export interface WindowConfig {
+  name: string;
+  action: 'BOOK' | 'CHECKIN' | 'CANCEL' | 'HOLD_RELEASE';
+  referencePoint: 'SHIFT_START' | 'SHIFT_END' | 'BOOKING_CREATED_AT';
+  openOffsetSec: number | null;
+  closeOffsetSec: number | null;
+  openInclusive: boolean;
+  closeInclusive: boolean;
+  failPolicy: 'REJECT' | 'ALLOW_WITH_TAG' | 'AUTO_TO_WAITLIST';
+  failTag?: string;
+  enabled: boolean;
+}
+
+/**
+ * 预约策略类型
+ */
+export interface BookingPolicyConfig {
+  requireAuth: boolean;
+  requirePatientProfileComplete: boolean;
+  perUserPerShift: number;
+  perUserPerDay: number;
+  perUserPerWeek: number;
+  conflictSameShift: 'REJECT' | 'ALLOW';
+  conflictOverlapTime: 'REJECT' | 'ALLOW';
+  conflictSameTypeSameDay: 'REJECT' | 'ALLOW';
+}
+
+/**
+ * 签到策略类型
+ */
+export interface CheckinPolicyConfig {
+  requireBooking: boolean;
+  allowOnsiteBooking: boolean;
+  maxTimes: number;
+  auditLog: boolean;
+  gracePeriodSec: number;
+  afterGraceStatus: 'LATE' | 'ON_TIME' | null;
+  noCheckinAfterClose: 'KEEP_BOOKED' | 'AUTO_CANCEL' | 'ABSENT';
+}
+
+/**
+ * 容量策略类型
+ */
+export interface CapacityPolicyConfig {
+  totalCapacity: number;
+  perUserCapacity: number;
+  waitlistEnabled: boolean;
+  waitlistMaxSize: number;
+  waitlistPromotePolicy: 'MANUAL' | 'AUTO';
+  overbookingEnabled: boolean;
+  overbookingMax: number;
+}
+
+/**
+ * 规则组配置类型
+ */
+export interface RuleSetConfig {
+  name?: string;
+  enabled: boolean;
+  priority: number;
+  timeSource: 'SERVER' | 'CLIENT';
+  timezoneSource: 'HOSPITAL' | 'SHIFT' | 'USER';
+  comparePrecision: 'SECOND' | 'MILLISECOND' | 'MINUTE';
+  defaultOpenInclusive: boolean;
+  defaultCloseInclusive: boolean;
+  roundingMode: 'NONE' | 'FLOOR_TO_MINUTE' | 'CEIL_TO_MINUTE';
+  clockSkewToleranceSec: number;
+  description: string;
+  shiftTypeIds: number[];
+  bookingPolicy: BookingPolicyConfig;
+  checkinPolicy: CheckinPolicyConfig;
+  capacityPolicy: CapacityPolicyConfig;
+  windows: WindowConfig[];
+}
+
+/**
  * 预设模板类型
  */
 export interface RuleSetPreset {
   id: string;
   name: string;
   description: string;
-  config: typeof RULE_SET_FORM_INITIAL_VALUES;
+  config: RuleSetConfig;
 }
 
 /**
@@ -581,37 +651,6 @@ export const RULE_SET_PRESETS: RuleSetPreset[] = [
   PRESET_HEALTH_CHECK,
   PRESET_EMERGENCY,
 ];
-
-// 预设模板缓存
-let _presetsCache: RuleSetPresetResponse[] | null = null;
-
-/**
- * 获取预设模板列表。
- * 优先从后端加载，失败时回退到本地硬编码预设。
- */
-export async function fetchPresets(): Promise<RuleSetPresetResponse[]> {
-  if (_presetsCache) return _presetsCache;
-  try {
-    const presets = await ruleSetApi.getPresets();
-    _presetsCache = presets;
-    return presets;
-  } catch {
-    // 回退到本地硬编码预设
-    return RULE_SET_PRESETS.map((p) => ({
-      id: p.id,
-      name: p.name,
-      description: p.description,
-      config: transformConfigToSnakeCase(p.config),
-      isSystem: true,
-      sortOrder: 0,
-    }));
-  }
-}
-
-/** 清除预设缓存（用于创建/删除预设后刷新） */
-export function clearPresetsCache() {
-  _presetsCache = null;
-}
 
 // ==================== 可视化组件共享常量 ====================
 

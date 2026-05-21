@@ -30,6 +30,18 @@ const platform = [
         ],
       },
       {
+        path: '/platform/announcement',
+        name: '平台公告',
+        icon: 'notification',
+        access: 'canPlatformAnnouncement',
+        routes: [
+          { path: '/platform/announcement', redirect: '/platform/announcement/list' },
+          { path: '/platform/announcement/list', name: '公告列表', component: './platform/platform-announcement' },
+          { path: '/platform/announcement/create', name: '发布公告', component: './platform/platform-announcement-form', hideInMenu: true },
+          { path: '/platform/announcement/:id/edit', name: '编辑公告', component: './platform/platform-announcement-form', hideInMenu: true },
+        ],
+      },
+      {
         path: '/platform/tenant/plans',
         name: '订阅计划',
         icon: 'profile',

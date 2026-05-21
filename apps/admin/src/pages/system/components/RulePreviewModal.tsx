@@ -82,7 +82,7 @@ const WindowResultCard: React.FC<{
                   标签: <Tag color="warning">{result.failTag}</Tag>
                 </p>
               )}
-              {result.fail_policy && <p>失败策略: {result.fail_policy}</p>}
+              {result.failPolicy && <p>失败策略: {result.failPolicy}</p>}
             </div>
           }
         />
@@ -111,11 +111,11 @@ const RulePreviewModal: React.FC<RulePreviewModalProps> = ({
   useEffect(() => {
     if (open) {
       form.setFieldsValue({
-        scheduleDate: dayjs(),
+        scheduleDate: dayjs().format('YYYY-MM-DD'),
         // 如果传入了规则数据，尝试设置第一个班次类型
-        shiftTypeId: ruleSetData?.shiftTypeIds?.[0] || undefined,
-        startTime: dayjs('08:00:00', 'HH:mm:ss'),
-        endTime: dayjs('12:00:00', 'HH:mm:ss'),
+        shiftTypeId: (ruleSetData as any)?.shiftTypeIds?.[0] || ruleSetData?.shiftTypes?.[0]?.id || undefined,
+        startTime: dayjs('08:00:00', 'HH:mm:ss').format('HH:mm:ss'),
+        endTime: dayjs('12:00:00', 'HH:mm:ss').format('HH:mm:ss'),
       });
 
       // 埋点：追踪 Modal 打开

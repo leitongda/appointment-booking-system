@@ -1,4 +1,4 @@
-import { FooterToolbar, PageContainer } from '@ant-design/pro-components';
+import { FooterToolbar, ModalForm, PageContainer, ProFormDigit, ProFormSelect, ProFormText } from '@ant-design/pro-components';
 import {
   ApartmentOutlined,
   ApiOutlined,
@@ -8,10 +8,12 @@ import {
   CalendarOutlined,
   CommentOutlined,
   DashboardOutlined,
+  DeleteOutlined,
   ExceptionOutlined,
   FileTextOutlined,
   FilterOutlined,
   LayoutOutlined,
+  PlusOutlined,
   SearchOutlined,
   SettingOutlined,
   ShopOutlined,
@@ -28,6 +30,7 @@ import {
   Col,
   Empty,
   Input,
+  Popconfirm,
   Row,
   Space,
   Spin,
@@ -124,7 +127,10 @@ const CONTROL_TYPE_CLASS_NAMES: Record<PermissionControlType, string> = {
   api: 'type-icon-api',
 };
 
-const renderPermissionTitle = (permission: PermissionViewNode): ReactNode => {
+const renderPermissionTitle = (
+  permission: PermissionViewNode,
+  onDelete?: (code: string) => void,
+): ReactNode => {
   return (
     <div className={`permission-node node-type-${permission.controlType}`}>
       <div className="node-left">
@@ -140,16 +146,35 @@ const renderPermissionTitle = (permission: PermissionViewNode): ReactNode => {
       </div>
       <div className="node-right">
         <span>{permission.code}</span>
+        {onDelete && (
+          <Popconfirm
+            title="确定删除该权限？"
+            description="删除后不可恢复，已分配该权限的角色将失去此权限。"
+            onConfirm={(e) => { e?.stopPropagation(); onDelete(permission.code); }}
+            onCancel={(e) => e?.stopPropagation()}
+          >
+            <Button
+              type="text"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </Popconfirm>
+        )}
       </div>
     </div>
   );
 };
 
-const convertToTreeData = (permissions: PermissionViewNode[]): TreeDataNode[] => {
+const convertToTreeData = (
+  permissions: PermissionViewNode[],
+  onDelete?: (code: string) => void,
+): TreeDataNode[] => {
   return permissions.map((permission) => ({
     key: permission.code,
-    title: renderPermissionTitle(permission),
-    children: permission.children?.length ? convertToTreeData(permission.children) : undefined,
+    title: renderPermissionTitle(permission, onDelete),
+    children: permission.children?.length ? convertToTreeData(permission.children, onDelete) : undefined,
   }));
 };
 
@@ -244,6 +269,7 @@ const RolePermissionsPage: React.FC = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [activeControlTypes, setActiveControlTypes] = useState<PermissionControlType[]>(CONTROL_TYPE_ORDER);
   const [onlySelected, setOnlySelected] = useState(false);
+  const [createModalVisible, setCreateModalVisible] = useState(false);
 
   async function loadRole() {
     if (!id) return;
@@ -270,6 +296,39 @@ const RolePermissionsPage: React.FC = () => {
       message.error(error.message || '加载权限列表失败');
     }
   }
+
+  const handleCreatePermission = async (values: any) => {
+    try {
+      await adminApi.createPermission({
+        code: values.code,
+        name: values.name,
+        type: values.type,
+        controlType: values.controlType,
+        parentCode: values.parentCode || undefined,
+        icon: values.icon || undefined,
+        sort: values.sort ?? 0,
+      });
+      message.success('权限创建成功');
+      setCreateModalVisible(false);
+      loadPermissionsTree();
+      return true;
+    } catch (error: any) {
+      message.error(error.message || '创建权限失败');
+      return false;
+    }
+  };
+
+  const handleDeletePermission = async (code: string) => {
+    try {
+      await adminApi.deletePermission(code);
+      message.success('权限已删除');
+      // 从 checkedKeys 中移除已删除的权限
+      setCheckedKeys(checkedKeys.filter((k) => k !== code));
+      loadPermissionsTree();
+    } catch (error: any) {
+      message.error(error.message || '删除权限失败');
+    }
+  };
 
   useEffect(() => {
     if (id) {
@@ -521,6 +580,9 @@ const RolePermissionsPage: React.FC = () => {
                   <Switch checked={onlySelected} onChange={setOnlySelected} />
                 </div>
                 <Space wrap>
+                  <Button icon={<PlusOutlined />} type="primary" onClick={() => setCreateModalVisible(true)}>
+                    创建权限
+                  </Button>
                   <Button icon={<FilterOutlined />} onClick={() => setExpandedKeys(getAllKeys(filteredPermissionsTree))}>
                     展开当前结果
                   </Button>
@@ -606,7 +668,7 @@ const RolePermissionsPage: React.FC = () => {
                           expandedKeys={expandedKeys}
                           onExpand={(keys) => setExpandedKeys(keys as string[])}
                           onCheck={onCheck}
-                          treeData={convertToTreeData([module])}
+                          treeData={convertToTreeData([module], handleDeletePermission)}
                         />
                       </div>
                     </Card>
@@ -614,6 +676,67 @@ const RolePermissionsPage: React.FC = () => {
                 })}
               </div>
             )}
+
+            <ModalForm
+              title="创建权限"
+              open={createModalVisible}
+              onOpenChange={setCreateModalVisible}
+              onFinish={handleCreatePermission}
+              width={520}
+              modalProps={{ destroyOnClose: true }}
+            >
+              <ProFormText
+                name="code"
+                label="权限码"
+                placeholder="例如：store:create"
+                rules={[{ required: true, message: '请输入权限码' }]}
+                extra="建议格式：模块:操作，如 doctor:update"
+              />
+              <ProFormText
+                name="name"
+                label="权限名称"
+                placeholder="例如：创建门店"
+                rules={[{ required: true, message: '请输入权限名称' }]}
+              />
+              <ProFormSelect
+                name="type"
+                label="权限类型"
+                options={[
+                  { label: '菜单', value: 'menu' },
+                  { label: '按钮', value: 'button' },
+                ]}
+                rules={[{ required: true, message: '请选择权限类型' }]}
+              />
+              <ProFormSelect
+                name="controlType"
+                label="控制类型"
+                options={[
+                  { label: '页面', value: 'page' },
+                  { label: '视图/Tab', value: 'tab' },
+                  { label: '操作/按钮', value: 'action' },
+                  { label: '接口/数据', value: 'api' },
+                ]}
+                extra="决定权限在树形结构中的图标和分类"
+              />
+              <ProFormText
+                name="parentCode"
+                label="父权限码"
+                placeholder="留空则为顶级权限"
+                extra="输入已有权限码以创建子权限"
+              />
+              <ProFormText
+                name="icon"
+                label="图标"
+                placeholder="例如：ShopOutlined"
+              />
+              <ProFormDigit
+                name="sort"
+                label="排序"
+                min={0}
+                initialValue={0}
+                extra="数值越小越靠前"
+              />
+            </ModalForm>
 
             <FooterToolbar>
               <div className="permission-footer-toolbar">

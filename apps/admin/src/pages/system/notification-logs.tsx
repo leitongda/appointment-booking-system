@@ -1,6 +1,6 @@
 import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Card, Col, Row, Statistic, Tag, Button, message, Popconfirm, Drawer, Descriptions, Space, Progress } from 'antd';
+import { Card, Col, Row, Statistic, Tag, Button, App, Popconfirm, Drawer, Descriptions, Space, Progress } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { notificationLogApi } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
@@ -25,6 +25,7 @@ const STATUS_MAP: Record<string, { text: string; color: string }> = {
 };
 
 const NotificationLogsPage: React.FC = () => {
+  const { message } = App.useApp();
   const { actionRef } = useListPage();
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [detailVisible, setDetailVisible] = useState(false);

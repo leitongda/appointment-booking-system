@@ -33,6 +33,7 @@ const DEFAULT_RETRY_CONFIG: Required<RetryConfig> = {
   delayFactor: 2,
   maxDelay: 10000,
   showRetryMessage: true,
+  shouldRetry: () => true,
 };
 
 /**

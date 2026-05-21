@@ -253,5 +253,5 @@ export function getCodePattern(format: CodeFormatType): RegExp {
  * ```
  */
 export function getCodeMessage(format: CodeFormatType): string {
-  return MESSAGES.CODE[format.toUpperCase()];
+  return MESSAGES.CODE[format.toUpperCase() as keyof typeof MESSAGES.CODE];
 }

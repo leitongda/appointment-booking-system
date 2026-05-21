@@ -58,6 +58,20 @@ const operations = [
         access: 'canFeedback',
       },
       {
+        path: '/content-center/support',
+        name: '工单支持',
+        icon: 'customerService',
+        component: './support',
+        access: 'canSupportTicket',
+      },
+      {
+        path: '/content-center/points',
+        name: '积分管理',
+        icon: 'gift',
+        component: './points',
+        access: 'canPoints',
+      },
+      {
         path: '/content-center/statistics',
         name: '数据统计',
         icon: 'lineChart',

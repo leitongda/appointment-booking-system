@@ -1,7 +1,7 @@
 import { theme } from 'antd';
 import { getSpacingMode, SPACING_CONFIG } from '@/utils/spacing';
 
-export function getThemeConfig() {
+export function getThemeConfig(): { algorithm: typeof theme.defaultAlgorithm; tokenConfig: Record<string, number> } {
   const spacingMode = getSpacingMode();
   const spacingValues = SPACING_CONFIG[spacingMode];
 

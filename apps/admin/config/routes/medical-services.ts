@@ -4,9 +4,10 @@
  * 子菜单：
  *   - 医生管理（canDoctor）
  *   - 排班管理（canSchedule，含 canLeaveRequest）
- *   - 预约管理（canAppointment）
+ *   - 预约管理（canAppointment，含候补队列）
  *   - 患者管理（canPatient）
  *   - 病历管理（canMedicalRecord）
+ *   - 检查报告（canAppointment）
  *   - 诊费管理（canConsultationFee）
  *
  * 顶层 access: canClinicalOperations
@@ -54,6 +55,8 @@ const medicalServices = [
           { path: '/medical-services/schedule/rest-day/create', name: '添加休息日', component: './schedule/rest-day-form', hideInMenu: true },
           { path: '/medical-services/schedule/suspension', name: '停诊管理', component: './schedule/suspension' },
           { path: '/medical-services/schedule/leave-request', name: '停诊审核', component: './leave-request', access: 'canLeaveRequest' },
+          { path: '/medical-services/schedule/extra-quota', name: '加号管理', component: './schedule/extra-quota', access: 'canSchedule' },
+          { path: '/medical-services/schedule/room', name: '诊室管理', component: './schedule/room', access: 'canSchedule' },
           { path: '/medical-services/schedule/statistics', name: '排班统计', component: './schedule/statistics' },
         ],
       },
@@ -68,6 +71,7 @@ const medicalServices = [
           { path: '/medical-services/appointment/queue', name: '签到队列', component: './appointment/queue' },
           { path: '/medical-services/appointment/statistics', name: '预约统计', component: './appointment/statistics' },
           { path: '/medical-services/appointment/:id', name: '预约详情', component: './appointment/detail', hideInMenu: true },
+          { path: '/medical-services/appointment/waitlist', name: '候补队列', component: './waitlist' },
         ],
       },
       {
@@ -89,6 +93,13 @@ const medicalServices = [
         icon: 'fileProtect',
         component: './medical-record',
         access: 'canMedicalRecord',
+      },
+      {
+        path: '/medical-services/examination-report',
+        name: '检查报告',
+        icon: 'fileSearch',
+        component: './examination-report',
+        access: 'canAppointment',
       },
       {
         path: '/medical-services/consultation-fee',

@@ -18,8 +18,10 @@ import auth from './auth';
 import dashboard from './dashboard';
 import platform from './platform';
 import medicalServices from './medical-services';
+import finance from './finance';
 import organization from './organization';
 import operations from './operations';
+import approval from './approval';
 import system from './system';
 import redirects from './redirects';
 import account from './account';
@@ -30,8 +32,10 @@ const routes = [
   ...dashboard,
   ...platform,
   ...medicalServices,
+  ...finance,
   ...organization,
   ...operations,
+  ...approval,
   ...system,
   ...redirects,
   ...account,

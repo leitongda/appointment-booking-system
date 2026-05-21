@@ -29,7 +29,7 @@ import { useFormSubmit } from '@/hooks/useFormSubmit';
 import { requiredRules, codeRules } from '@/utils/formValidators';
 
 const ShiftTypeFormPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const isEdit = !!id;
   const [shiftType, setShiftType] = useState<ShiftType | null>(null);
   const [loading, setLoading] = useState(false);
@@ -49,7 +49,7 @@ const ShiftTypeFormPage: React.FC = () => {
   }, [id]);
 
   // 使用 useFormInitialValues hook
-  const { initialValues } = useFormInitialValues<ShiftType | null>(
+  const { initialValues } = useFormInitialValues<ShiftType>(
     shiftType,
     {
       switchFields: ['enabled'],
@@ -59,7 +59,7 @@ const ShiftTypeFormPage: React.FC = () => {
 
   // 使用 useFormSubmit hook
   const { handleSubmit, submitting } = useFormSubmit(
-    async (values) => {
+    async (values: any) => {
       if (isEdit && id) {
         return shiftTypeApi.update(id, values);
       } else {

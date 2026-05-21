@@ -16,7 +16,7 @@ import { useState, useEffect } from 'react';
 import { history, useAccess, useLocation, useModel } from '@umijs/max';
 import { settingsApi, blacklistApi, storeApi } from '@hospital/api';
 import { fetchAllData } from '@/utils/fetchAllData';
-import type { BookingSettings, HospitalInfo, BookingFieldConfig, PatientCardConfig, BlacklistItem, EmailConfig, ImageConfig, WechatConfig } from '@hospital/api';
+import type { BookingSettings, HospitalInfo, BookingFieldConfig, PatientCardConfig, BlacklistItem, EmailConfig, ImageConfig, WechatConfig, SmsConfig } from '@hospital/api';
 import type { StoreWechatConfig } from '@hospital/shared';
 
 const { Text } = Typography;
@@ -89,6 +89,7 @@ const TAB_PATH_TO_KEY: Record<string, string> = {
   '/system/config/wechat': 'wechat',
   '/system/config/email-config': 'email',
   '/system/config/image-config': 'image',
+  '/system/config/sms-config': 'sms',
   '/system/blacklist': 'blacklist',
 };
 
@@ -101,6 +102,7 @@ const TAB_KEY_TO_PATH: Record<string, string> = {
   patientCard: '/organization/medical-config/patient-card',
   email: '/system/config/email-config',
   image: '/system/config/image-config',
+  sms: '/system/config/sms-config',
 };
 
 const TAB_KEY_TO_TITLE: Record<string, string> = {
@@ -112,6 +114,7 @@ const TAB_KEY_TO_TITLE: Record<string, string> = {
   patientCard: '就诊卡配置',
   email: '邮件配置',
   image: '图片配置',
+  sms: '短信配置',
 };
 
 const SettingsPage: React.FC = () => {
@@ -135,6 +138,7 @@ const SettingsPage: React.FC = () => {
   const [stores, setStores] = useState<any[]>([]);
   const [emailConfig, setEmailConfig] = useState<EmailConfig | null>(null);
   const [imageConfig, setImageConfig] = useState<ImageConfig | null>(null);
+  const [smsConfig, setSmsConfig] = useState<SmsConfig | null>(null);
   const [_wechatConfig, setWechatConfig] = useState<WechatConfig | null>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [storeWechatConfig, setStoreWechatConfig] = useState<StoreWechatConfig | null>(null);
@@ -151,6 +155,8 @@ const SettingsPage: React.FC = () => {
   const canEditEmail = canViewEmail;
   const canViewImage = access.hasPermission('settings:edit');
   const canEditImage = canViewImage;
+  const canViewSms = isSuperAdmin || access.hasPermission('settings:sms') || access.hasPermission('settings:edit');
+  const canEditSms = canViewSms;
   const canViewWechat = isSuperAdmin || access.hasPermission('settings:wechat') || access.hasPermission('settings:edit');
   const canEditWechat = canViewWechat;
   const canViewBlacklist =
@@ -197,6 +203,9 @@ const SettingsPage: React.FC = () => {
       }
       if (canViewImage) {
         loaders.push(settingsApi.getImageConfig().then(setImageConfig));
+      }
+      if (canViewSms) {
+        loaders.push(settingsApi.getSmsConfig().then(setSmsConfig));
       }
       if (canViewWechat) {
         loaders.push(settingsApi.getWechatConfig().then(setWechatConfig));
@@ -254,8 +263,12 @@ const SettingsPage: React.FC = () => {
   async function loadStoreBookingSettings(storeId: string) {
     if (!storeId) {
       // 加载全局配置
-      const settings = await settingsApi.getBookingSettings();
-      setBookingSettings(settings);
+      try {
+        const settings = await settingsApi.getBookingSettings();
+        setBookingSettings(settings);
+      } catch {
+        message.error('加载预约设置失败');
+      }
       return;
     }
     try {
@@ -352,6 +365,15 @@ const SettingsPage: React.FC = () => {
         thumbnailSizes: values.thumbnailSizes,
         compressQuality: values.compressQuality,
       });
+      message.success('保存成功');
+    } catch (error: any) {
+      message.error(error.message || '保存失败');
+    }
+  };
+
+  const handleSmsConfigSubmit = async (values: any) => {
+    try {
+      await settingsApi.updateSmsConfig(values);
       message.success('保存成功');
     } catch (error: any) {
       message.error(error.message || '保存失败');
@@ -1027,6 +1049,59 @@ const SettingsPage: React.FC = () => {
         </ProForm>
       ),
     },
+    {
+      key: 'sms',
+      label: '短信配置',
+      children: (
+        <ProForm
+          key={loading ? 'sms-loading' : 'sms-loaded'}
+          onFinish={handleSmsConfigSubmit}
+          initialValues={smsConfig || {}}
+          submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
+          disabled={!canEditSms}
+        >
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            配置短信服务商信息，用于发送短信通知（如预约验证码、就诊提醒等）。
+          </Text>
+          <ProFormSelect
+            name="smsProvider"
+            label="短信服务商"
+            options={[
+              { label: '阿里云', value: 'aliyun' },
+              { label: '腾讯云', value: 'tencent' },
+              { label: '测试模式', value: 'mock' },
+            ]}
+            rules={[{ required: true, message: '请选择短信服务商' }]}
+            width="md"
+          />
+          <ProFormText
+            name="accessKeyId"
+            label="AccessKey ID"
+            rules={[{ required: true, message: '请输入AccessKey ID' }]}
+            width="lg"
+          />
+          <ProFormText.Password
+            name="accessKeySecret"
+            label="AccessKey Secret"
+            extra="首次配置请输入密钥，已配置的显示为 ******"
+            fieldProps={{ autoComplete: 'new-password' }}
+            width="lg"
+          />
+          <ProFormText
+            name="signName"
+            label="短信签名"
+            rules={[{ required: true, message: '请输入短信签名' }]}
+            width="lg"
+          />
+          <ProFormText
+            name="templateCode"
+            label="模板编码"
+            rules={[{ required: true, message: '请输入模板编码' }]}
+            width="lg"
+          />
+        </ProForm>
+      ),
+    },
   ];
 
   const handleTabChange = (key: string) => {
@@ -1046,6 +1121,7 @@ const SettingsPage: React.FC = () => {
     if (item.key === 'email') return canViewEmail;
     if (item.key === 'wechat') return canViewWechat;
     if (item.key === 'image') return canViewImage;
+    if (item.key === 'sms') return canViewSms;
     return true;
   });
 

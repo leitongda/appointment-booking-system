@@ -5,6 +5,7 @@
 
 import React, { useMemo } from 'react';
 import { Timeline, Space, Tag, Card, Typography, Row, Col, theme } from 'antd';
+import type { TimelineItemProps } from 'antd';
 import type { RuleWindow } from '@hospital/shared';
 import { formatOffset, groupWindowsByAction, calculateWindowTime } from '@/utils/ruleSetFormatter';
 import { ACTION_COLORS, REFERENCE_POINT_LABELS } from '@/constants/rule-set';
@@ -290,7 +291,7 @@ const RuleSetTimeline: React.FC<RuleSetTimelineProps> = ({
               </Space>
             ),
           } : null,
-        ].filter(Boolean)}
+        ].filter(Boolean) as TimelineItemProps[]}
       />
     );
   }

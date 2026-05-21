@@ -68,8 +68,8 @@ export function useResponsive(): ResponsiveState {
     }
 
     const isMobile = !screens.md;
-    const isTablet = screens.md && !screens.lg;
-    const isDesktop = screens.lg;
+    const isTablet = !!(screens.md && !screens.lg);
+    const isDesktop = !!screens.lg;
 
     return {
       breakpoint: currentBreakpoint,
@@ -85,54 +85,49 @@ export function useResponsive(): ResponsiveState {
 /**
  * 获取表格配置
  */
-export function useTableConfig(): typeof TABLE_CONFIG {
+export function useTableConfig() {
   const { breakpoint } = useResponsive();
 
   return useMemo(() => {
-    switch (breakpoint) {
-      case 'xs':
-      return TABLE_CONFIG.mobile;
-      case 'sm':
-      return TABLE_CONFIG.tablet;
-      default:
-        return TABLE_CONFIG.desktop;
-    }
+    const bp = breakpoint === 'xs' ? 'mobile' : breakpoint === 'sm' ? 'tablet' : 'desktop';
+    return {
+      pageSize: TABLE_CONFIG.pageSize[bp],
+      simplePagination: TABLE_CONFIG.simplePagination[bp],
+      density: TABLE_CONFIG.density[bp],
+      operationsWidth: TABLE_CONFIG.operationsWidth[bp],
+    };
   }, [breakpoint]);
 }
 
 /**
  * 获取弹窗配置
  */
-export function useModalConfig(): typeof MODAL_CONFIG {
+export function useModalConfig() {
   const { breakpoint } = useResponsive();
 
   return useMemo(() => {
-    switch (breakpoint) {
-      case 'xs':
-      return MODAL_CONFIG.mobile;
-      case 'sm':
-      return MODAL_CONFIG.tablet;
-      default:
-        return MODAL_CONFIG.desktop;
-    }
+    const bp = breakpoint === 'xs' ? 'mobile' : breakpoint === 'sm' ? 'tablet' : 'desktop';
+    return {
+      small: MODAL_CONFIG.small[bp],
+      medium: MODAL_CONFIG.medium[bp],
+      large: MODAL_CONFIG.large[bp],
+    };
   }, [breakpoint]);
 }
 
 /**
  * 获取表单布局配置
  */
-export function useFormLayoutConfig(): typeof FORM_LAYOUT {
+export function useFormLayoutConfig() {
   const { breakpoint } = useResponsive();
 
   return useMemo(() => {
-    switch (breakpoint) {
-      case 'xs':
-      return FORM_LAYOUT.mobile;
-      case 'sm':
-      return FORM_LAYOUT.tablet;
-      default:
-        return FORM_LAYOUT.desktop;
-    }
+    const bp = breakpoint === 'xs' ? 'mobile' : breakpoint === 'sm' ? 'tablet' : 'desktop';
+    return {
+      layout: FORM_LAYOUT.layout[bp],
+      colSpan: FORM_LAYOUT.colSpan[bp],
+      inputWidth: FORM_LAYOUT.inputWidth[bp],
+    };
   }, [breakpoint]);
 }
 

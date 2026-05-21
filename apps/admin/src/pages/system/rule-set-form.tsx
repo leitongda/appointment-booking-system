@@ -39,8 +39,8 @@ import {
   NO_CHECKIN_AFTER_CLOSE_OPTIONS,
   WAITLIST_PROMOTE_POLICY_OPTIONS,
   RULE_SET_FORM_INITIAL_VALUES,
-  fetchPresets,
 } from '@/constants/rule-set';
+import { fetchPresets } from '@/utils/ruleSetPresets';
 
 const { Text, Title } = Typography;
 
@@ -296,7 +296,7 @@ interface PresetModalProps {
   onClose: () => void;
   onApply: (presetId: string) => void;
   selectedPreset: string | null;
-  onSelectPreset: (presetId: string) => void;
+  onSelectPreset: (presetId: string | null) => void;
   isMobile: boolean;
   isTablet: boolean;
 }
@@ -552,7 +552,7 @@ const TimeConfigTab: React.FC<TimeConfigTabProps> = ({ loading }) => {
               name="timeSource"
               label="时间来源"
               width="xl"
-              options={TIME_SOURCE_OPTIONS}
+              options={[...TIME_SOURCE_OPTIONS]}
               rules={[{ required: true, message: '请选择时间来源' }]}
               extra="决定用服务器时间还是客户端时间来判断预约窗口"
             />
@@ -562,7 +562,7 @@ const TimeConfigTab: React.FC<TimeConfigTabProps> = ({ loading }) => {
               name="timezoneSource"
               label="时区来源"
               width="xl"
-              options={TIMEZONE_SOURCE_OPTIONS}
+              options={[...TIMEZONE_SOURCE_OPTIONS]}
               rules={[{ required: true, message: '请选择时区来源' }]}
               extra="统一使用医院时区、班次时区还是用户所在时区"
             />
@@ -572,7 +572,7 @@ const TimeConfigTab: React.FC<TimeConfigTabProps> = ({ loading }) => {
               name="comparePrecision"
               label="比较精度"
               width="xl"
-              options={COMPARE_PRECISION_OPTIONS}
+              options={[...COMPARE_PRECISION_OPTIONS]}
               rules={[{ required: true, message: '请选择比较精度' }]}
               extra="精确到秒、毫秒或分钟"
             />
@@ -582,7 +582,7 @@ const TimeConfigTab: React.FC<TimeConfigTabProps> = ({ loading }) => {
               name="roundingMode"
               label="舍入模式"
               width="xl"
-              options={ROUNDING_MODE_OPTIONS}
+              options={[...ROUNDING_MODE_OPTIONS]}
               rules={[{ required: true, message: '请选择舍入模式' }]}
               extra="精确时间、向下取整到分钟、向上取整到分钟"
             />
@@ -798,7 +798,7 @@ const CheckinPolicyTab: React.FC<CheckinPolicyTabProps> = ({ loading }) => {
             name={['checkinPolicy', 'afterGraceStatus']}
             label="宽限期后状态"
             width="xl"
-            options={AFTER_GRACE_STATUS_OPTIONS}
+            options={[...AFTER_GRACE_STATUS_OPTIONS]}
             tooltip="宽限期结束后的状态标记"
           />
         </Col>
@@ -811,7 +811,7 @@ const CheckinPolicyTab: React.FC<CheckinPolicyTabProps> = ({ loading }) => {
             name={['checkinPolicy', 'noCheckinAfterClose']}
             label="超时未签到处理"
             width="xl"
-            options={NO_CHECKIN_AFTER_CLOSE_OPTIONS}
+            options={[...NO_CHECKIN_AFTER_CLOSE_OPTIONS]}
             rules={[{ required: true, message: '请选择处理方式' }]}
             tooltip="签到窗口关闭后仍未签到的处理方式"
           />
@@ -842,7 +842,7 @@ const CapacityPolicyTab: React.FC<CapacityPolicyTabProps> = ({ loading }) => {
             max={1000}
             fieldProps={{ precision: 0 }}
             rules={[{ required: true, message: '请输入总容量' }]}
-            tooltip="班次的总预约容量"
+            tooltip="运行时预约容量限制。0 表示不限制（使用排班本身的号源数）。此限制优先级高于排班的号源数，可用于临时调整某类排班的可预约量。"
           />
         </Col>
         <Col xs={24} sm={8}>
@@ -941,7 +941,7 @@ const RuleSetFormPage: React.FC = () => {
   const access = useAccess();
   const screens = useBreakpoint();
   const isMobile = !screens.md; // 小于 768px
-  const isTablet = screens.md && !screens.lg; // 768px - 992px
+  const isTablet = !!(screens.md && !screens.lg); // 768px - 992px
   const isXxl = screens.xxl; // >= 1600px
   const isEdit = !!id;
   const [loading, setLoading] = useState(false);
@@ -1247,7 +1247,7 @@ const RuleSetFormPage: React.FC = () => {
   const initialValues = ruleSet ? {
     ...ruleSet,
     shiftTypeIds: ruleSet.shiftTypes?.map((st) => st.id) || [],
-  } : RULE_SET_FORM_INITIAL_VALUES;
+  } : { ...RULE_SET_FORM_INITIAL_VALUES };
 
   // 初始化 formValues
   useEffect(() => {
@@ -1355,7 +1355,119 @@ const RuleSetFormPage: React.FC = () => {
       label: '容量策略',
       children: <CapacityPolicyTab loading={loading} />,
     },
+    ...(isEdit && ruleSet?.scheduleTemplates?.length ? [{
+      key: 'templates',
+      label: `关联排班模板 (${ruleSet.scheduleTemplates.length})`,
+      children: (
+        <Card size="small">
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                <th style={{ padding: '8px 12px', textAlign: 'left' }}>模板名称</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left' }}>医生</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left' }}>科室</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left' }}>门店</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left' }}>班次类型</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left' }}>状态</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ruleSet.scheduleTemplates.map((t) => (
+                <tr key={t.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <td style={{ padding: '8px 12px' }}>
+                    <a onClick={() => history.push(`/schedule/template/edit/${t.id}`)}>{t.name || '-'}</a>
+                  </td>
+                  <td style={{ padding: '8px 12px' }}>{t.doctorName || '-'}</td>
+                  <td style={{ padding: '8px 12px' }}>{t.departmentName || '-'}</td>
+                  <td style={{ padding: '8px 12px' }}>{t.storeName || '-'}</td>
+                  <td style={{ padding: '8px 12px' }}>{t.shiftTypeName || '-'}</td>
+                  <td style={{ padding: '8px 12px' }}>
+                    <Tag color={t.status === 1 ? 'green' : 'default'}>{t.status === 1 ? '启用' : '停用'}</Tag>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      ),
+    }] : []),
   ];
+
+  // 共享的 Tab 切换处理（mobile/desktop 复用）
+  const handleTabChange = (key: string) => {
+    const tabData: EditBehaviorData = {
+      ruleSetId: id,
+      ruleSetName: formValues.name,
+      tab: key as EditTabType,
+      changedFields: getChangedFields(initialFormDataRef.current, formValues),
+      hasWindows: !!(formValues.windows && formValues.windows.length > 0),
+      timestamp: getTimestamp(),
+    };
+    trackEditExitTab(tabData);
+    setActiveTab(key);
+  };
+
+  // 共享的预览按钮点击
+  const handlePreviewClick = () => {
+    const values = formRef.current?.getFieldsValue();
+    beforePreviewFormDataRef.current = { ...values };
+    const beforeData: EditBehaviorData = {
+      ruleSetId: id,
+      ruleSetName: values.name,
+      tab: activeTab as EditTabType,
+      changedFields: getChangedFields(initialFormDataRef.current, values),
+      hasWindows: !!(values.windows && values.windows.length > 0),
+      timestamp: getTimestamp(),
+    };
+    trackEditBeforePreview(beforeData);
+    setCurrentFormData(values);
+    setPreviewModalOpen(true);
+  };
+
+  // 共享的取消按钮点击
+  const handleFormCancel = () => {
+    const cancelData: EditBehaviorData = {
+      ruleSetId: id,
+      ruleSetName: formValues.name,
+      tab: activeTab as EditTabType,
+      timestamp: getTimestamp(),
+    };
+    trackEditCancel(cancelData);
+    history.back();
+  };
+
+  // 共享的保存按钮点击
+  const handleFormSave = () => {
+    const currentValues = formRef.current?.getFieldsValue();
+    const afterData: EditBehaviorData = {
+      ruleSetId: id,
+      ruleSetName: currentValues.name,
+      tab: activeTab as EditTabType,
+      changedFields: beforePreviewFormDataRef.current
+        ? getChangedFields(beforePreviewFormDataRef.current, currentValues)
+        : [],
+      hasWindows: !!(currentValues.windows && currentValues.windows.length > 0),
+      timestamp: getTimestamp(),
+    };
+    trackEditAfterPreview(afterData);
+    formRef.current?.submit();
+  };
+
+  // 共享的 submitter 渲染（mobile/desktop 复用）
+  const renderSubmitter = (props: any, extra?: { wrap?: boolean }) => (
+    <FooterToolbar>
+      <Space wrap={extra?.wrap}>
+        <Button icon={<RightOutlined />} onClick={() => setPreviewDrawerOpen(true)}>
+          实时预览
+        </Button>
+        <Button onClick={handlePreviewClick}>预览规则效果</Button>
+        <Button onClick={handleFormCancel}>取消</Button>
+        <Button type="primary" onClick={handleFormSave}>
+          {isEdit ? '保存' : '创建'}
+        </Button>
+      </Space>
+    </FooterToolbar>
+  );
 
   /**
    * 渲染表单内容
@@ -1467,85 +1579,9 @@ const RuleSetFormPage: React.FC = () => {
               // 实时更新表单值用于预览
               setFormValues(allValues);
             }}
-            onTabChange={(key) => {
-              // 埋点：追踪 Tab 切换
-              const tabData: EditBehaviorData = {
-                ruleSetId: id,
-                ruleSetName: formValues.name,
-                tab: key as EditTabType,
-                changedFields: getChangedFields(initialFormDataRef.current, formValues),
-                hasWindows: !!(formValues.windows && formValues.windows.length > 0),
-                timestamp: getTimestamp(),
-              };
-              trackEditExitTab(tabData);
-              setActiveTab(key);
-            }}
-            submitter={{
-              render: (props, _dom) => (
-                <FooterToolbar>
-                  <Space wrap>
-                    <Button
-                      icon={<RightOutlined />}
-                      onClick={() => {
-                        setPreviewDrawerOpen(true);
-                      }}>
-                      实时预览
-                    </Button>
-                    <Button onClick={() => {
-                      // 保存预览前的表单状态
-                      const values = formRef.current?.getFieldsValue();
-                      beforePreviewFormDataRef.current = { ...values };
-
-                      // 埋点：追踪预览前的编辑状态
-                      const beforeData: EditBehaviorData = {
-                        ruleSetId: id,
-                        ruleSetName: values.name,
-                        tab: activeTab as EditTabType,
-                        changedFields: getChangedFields(initialFormDataRef.current, values),
-                        hasWindows: !!(values.windows && values.windows.length > 0),
-                        timestamp: getTimestamp(),
-                      };
-                      trackEditBeforePreview(beforeData);
-
-                      setCurrentFormData(values);
-                      setPreviewModalOpen(true);
-                    }}>
-                      预览规则效果
-                    </Button>
-                    <Button onClick={() => {
-                      // 埋点：追踪取消操作
-                      const cancelData: EditBehaviorData = {
-                        ruleSetId: id,
-                        ruleSetName: formValues.name,
-                        tab: activeTab as EditTabType,
-                        timestamp: getTimestamp(),
-                      };
-                      trackEditCancel(cancelData);
-                      history.back();
-                    }}>取消</Button>
-                    <Button type="primary" onClick={() => {
-                      // 埋点：追踪预览后的编辑状态
-                      const currentValues = formRef.current?.getFieldsValue();
-                      const afterData: EditBehaviorData = {
-                        ruleSetId: id,
-                        ruleSetName: currentValues.name,
-                        tab: activeTab as EditTabType,
-                        changedFields: beforePreviewFormDataRef.current
-                          ? getChangedFields(beforePreviewFormDataRef.current, currentValues)
-                          : [],
-                        hasWindows: !!(currentValues.windows && currentValues.windows.length > 0),
-                        timestamp: getTimestamp(),
-                      };
-                      trackEditAfterPreview(afterData);
-
-                      props.form?.submit();
-                    }}>
-                      {isEdit ? '保存' : '创建'}
-                    </Button>
-                  </Space>
-                </FooterToolbar>
-              ),
-            }}
+            // @ts-expect-error onTabChange is a custom prop
+            onTabChange={handleTabChange}
+            submitter={{ render: (props) => renderSubmitter(props, { wrap: true }) }}
           >
             {renderFormContent()}
           </ProForm>
@@ -1580,78 +1616,9 @@ const RuleSetFormPage: React.FC = () => {
                 // 实时更新表单值用于预览
                 setFormValues(allValues);
               }}
-              onTabChange={(key) => {
-                // 埋点：追踪 Tab 切换
-                const tabData: EditBehaviorData = {
-                  ruleSetId: id,
-                  ruleSetName: formValues.name,
-                  tab: key as EditTabType,
-                  changedFields: getChangedFields(initialFormDataRef.current, formValues),
-                  hasWindows: !!(formValues.windows && formValues.windows.length > 0),
-                  timestamp: getTimestamp(),
-                };
-                trackEditExitTab(tabData);
-                setActiveTab(key);
-              }}
-              submitter={{
-                render: (props, _dom) => (
-                  <FooterToolbar>
-                    <Space>
-                      <Button onClick={() => {
-                        // 保存预览前的表单状态
-                        const values = formRef.current?.getFieldsValue();
-                        beforePreviewFormDataRef.current = { ...values };
-
-                        // 埋点：追踪预览前的编辑状态
-                        const beforeData: EditBehaviorData = {
-                          ruleSetId: id,
-                          ruleSetName: values.name,
-                          tab: activeTab as EditTabType,
-                          changedFields: getChangedFields(initialFormDataRef.current, values),
-                          hasWindows: !!(values.windows && values.windows.length > 0),
-                          timestamp: getTimestamp(),
-                        };
-                        trackEditBeforePreview(beforeData);
-
-                        setCurrentFormData(values);
-                        setPreviewModalOpen(true);
-                      }}>
-                        预览规则效果
-                      </Button>
-                      <Button onClick={() => {
-                        // 埋点：追踪取消操作
-                        const cancelData: EditBehaviorData = {
-                          ruleSetId: id,
-                          ruleSetName: formValues.name,
-                          tab: activeTab as EditTabType,
-                          timestamp: getTimestamp(),
-                        };
-                        trackEditCancel(cancelData);
-                        history.back();
-                      }}>取消</Button>
-                      <Button type="primary" onClick={() => {
-                        // 埋点：追踪预览后的编辑状态
-                        const currentValues = formRef.current?.getFieldsValue();
-                        const afterData: EditBehaviorData = {
-                          ruleSetId: id,
-                          ruleSetName: currentValues.name,
-                          tab: activeTab as EditTabType,
-                          changedFields: beforePreviewFormDataRef.current
-                            ? getChangedFields(beforePreviewFormDataRef.current, currentValues)
-                            : [],
-                          hasWindows: !!(currentValues.windows && currentValues.windows.length > 0),
-                          timestamp: getTimestamp(),
-                        };
-                        trackEditAfterPreview(afterData);
-
-                        props.form?.submit();
-                      }}>
-                        {isEdit ? '保存' : '创建'}
-                      </Button>
-                    </Space>
-                  </FooterToolbar>
-                ),
-              }}
+              // @ts-expect-error onTabChange is a custom prop
+              onTabChange={handleTabChange}
+              submitter={{ render: (props) => renderSubmitter(props) }}
             >
               {renderFormContent()}
             </ProForm>

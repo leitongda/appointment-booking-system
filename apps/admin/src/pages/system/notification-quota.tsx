@@ -29,7 +29,7 @@ const NotificationQuotaPage: React.FC = () => {
     () => notificationLogApi.getQuota(),
     {
       refreshDeps: [],
-      onSuccess: (data) => {
+      onSuccess: (data: any) => {
         if (data?.quotas) {
           setEditValues({
             smsMonthlyLimit: data.quotas.smsMonthlyLimit,

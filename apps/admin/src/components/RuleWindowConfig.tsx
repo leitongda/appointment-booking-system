@@ -86,8 +86,8 @@ const generateDefaultWindowName = (action: string, _index: number): string => {
  * 时间偏移输入组件（带单位切换）
  */
 interface OffsetInputProps {
-  value: number | null;
-  onChange: (value: number | null) => void;
+  value?: number | null;
+  onChange?: (value: number | null) => void;
   placeholder?: string;
   defaultUnit?: TimeUnit;
 }
@@ -104,7 +104,7 @@ const OffsetInput: React.FC<OffsetInputProps> = ({
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    if (value !== null && isInitialized) {
+    if (value != null && isInitialized) {
       const abs = Math.abs(value);
       if (abs >= 604800 && abs % 604800 === 0) {
         setUnit('week');
@@ -118,18 +118,18 @@ const OffsetInput: React.FC<OffsetInputProps> = ({
         setUnit('second');
       }
     }
-    if (value !== null && !isInitialized) {
+    if (value != null && !isInitialized) {
       setIsInitialized(true);
     }
   }, [value, isInitialized]);
 
-  const displayValue = value !== null ? secondsToUnit(value, unit) : null;
+  const displayValue = value != null ? secondsToUnit(value, unit) : null;
 
   const handleValueChange = (newValue: number | null) => {
     if (newValue === null) {
-      onChange(null);
+      onChange?.(null);
     } else {
-      onChange(unitToSeconds(newValue, unit));
+      onChange?.(unitToSeconds(newValue, unit));
     }
     setIsInitialized(true);
   };
@@ -137,7 +137,7 @@ const OffsetInput: React.FC<OffsetInputProps> = ({
   const handleUnitChange = (newUnit: TimeUnit) => {
     setUnit(newUnit);
     if (displayValue !== null) {
-      onChange(unitToSeconds(displayValue, newUnit));
+      onChange?.(unitToSeconds(displayValue, newUnit));
     }
     setIsInitialized(true);
   };
@@ -215,7 +215,7 @@ const WindowFormContent: React.FC<WindowFormContentProps> = ({ field, remove }) 
               }
               rules={[{ required: true, message: '请选择动作类型' }]}
             >
-              <Select options={WINDOW_ACTION_OPTIONS} placeholder="请选择动作类型" />
+              <Select options={[...WINDOW_ACTION_OPTIONS]} placeholder="请选择动作类型" />
             </Form.Item>
           </Col>
           <Col xs={24} sm={12}>
@@ -231,7 +231,7 @@ const WindowFormContent: React.FC<WindowFormContentProps> = ({ field, remove }) 
               }
               rules={[{ required: true, message: '请选择参考点' }]}
             >
-              <Select options={WINDOW_REFERENCE_POINT_OPTIONS} placeholder="请选择参考点" />
+              <Select options={[...WINDOW_REFERENCE_POINT_OPTIONS]} placeholder="请选择参考点" />
             </Form.Item>
           </Col>
         </Row>
@@ -322,7 +322,7 @@ const WindowFormContent: React.FC<WindowFormContentProps> = ({ field, remove }) 
               rules={[{ required: true, message: '请选择失败策略' }]}
               initialValue="REJECT"
             >
-              <Select options={WINDOW_FAIL_POLICY_OPTIONS} placeholder="请选择失败策略" />
+              <Select options={[...WINDOW_FAIL_POLICY_OPTIONS]} placeholder="请选择失败策略" />
             </Form.Item>
           </Col>
         </Row>
@@ -454,7 +454,7 @@ const WindowTabsContent: React.FC<WindowTabsContentProps> = ({
       <Tabs
         activeKey={activeKey}
         onChange={setActiveKey}
-        tabPlacement={isMobile ? 'top' : 'left'}
+        tabPlacement={(isMobile ? 'top' : 'left') as any}
         items={tabItems}
         style={{ minHeight: isMobile ? 300 : 400 }}
         tabBarStyle={{ width: isMobile ? 'auto' : isTablet ? 120 : 180 }}

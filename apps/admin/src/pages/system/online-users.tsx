@@ -16,7 +16,7 @@ import {
 } from '@ant-design/icons';
 import { useState, useEffect, useCallback } from 'react';
 import { adminApi } from '@hospital/api';
-import type { UserStatus, LoginHistory } from '@hospital/api';
+import type { UserStatus, LoginHistory, DeviceInfo } from '@hospital/api';
 
 const { Text } = Typography;
 
@@ -274,7 +274,7 @@ const UserStatusPage: React.FC = () => {
         if (record.status === 'offline') {
           return <Text type="secondary">-</Text>;
         }
-        const device = record.deviceInfo || {};
+        const device = (record.deviceInfo || {}) as DeviceInfo;
         return (
           <Space size={0}>
             <Space size={8}>
@@ -301,7 +301,7 @@ const UserStatusPage: React.FC = () => {
       },
     },
     {
-      title: record => record.status === 'online' ? '登录时间' : '上次登录',
+      title: (record: any) => record.status === 'online' ? '登录时间' : '上次登录',
       key: 'time',
       width: 160,
       render: (_: any, record: UserStatus) => {

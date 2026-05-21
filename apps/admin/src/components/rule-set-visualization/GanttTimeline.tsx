@@ -81,6 +81,14 @@ const CONFIG = {
   // 不限制状态样式
   unlimitedDashArray: '4 4',
   infinitySymbolSize: 12,
+
+  // 颜色
+  gridLineColor: '#f0f0f0',
+  shiftBackground: '#fafafa',
+  shiftBorder: '#d9d9d9',
+  textColor: '#666',
+  tickColor: '#999',
+  axisColor: '#d9d9d9',
 };
 
 // ==================== 主组件 ====================

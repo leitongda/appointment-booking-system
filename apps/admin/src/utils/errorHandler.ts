@@ -95,11 +95,42 @@ export class ErrorHandler {
    * 处理 API 错误
    */
   private static handleApiError(error: ApiError, operation: string): void {
-    const { message: messageApi } = this;
+    const { message: messageApi, notification: notifApi } = this;
 
     // 401 未授权 — 已由响应拦截器统一处理（弹框 + 清 token），此处不再重复提示
     if (error.isUnauthorized()) {
       return;
+    }
+
+    // Structured error codes: handle specific codes with appropriate UI
+    if (error.errorCode) {
+      switch (error.errorCode) {
+        case 'SCHEDULE_CONFLICT': {
+          const conflicts = error.errorDetails?.conflicts as Array<{ message?: string }> | undefined;
+          const conflictMessages = conflicts?.map(c => c.message).filter(Boolean);
+          notifApi?.warning({
+            message: '排班冲突',
+            description: conflictMessages?.length
+              ? conflictMessages.join('\n')
+              : error.message || '存在排班冲突',
+            duration: 6,
+          });
+          return;
+        }
+        case 'RATE_LIMITED': {
+          notifApi?.warning({
+            message: '请求过于频繁',
+            description: error.message || '请稍后再试',
+            duration: 4,
+          });
+          return;
+        }
+        case 'PERMISSION_DENIED': {
+          messageApi.error(error.message || '权限不足，请联系管理员');
+          return;
+        }
+        // Other codes fall through to generic handling below
+      }
     }
 
     // 403 禁止访问

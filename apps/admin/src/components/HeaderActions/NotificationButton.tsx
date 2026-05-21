@@ -69,7 +69,7 @@ export const NotificationButton: React.FC = () => {
         page: 1,
         pageSize: 10,
       });
-      setMessages(res?.items || []);
+      setMessages(res?.data || []);
     } catch (error) {
       console.error('获取消息列表失败:', error);
     } finally {
@@ -177,7 +177,7 @@ export const NotificationButton: React.FC = () => {
         icon: <EyeOutlined />,
         label: '标为已读',
         'aria-label': `标记消息"${item.title}"为已读`,
-        onClick: (e) => handleMarkAsRead(item.id, e.domEvent),
+        onClick: (e: any) => handleMarkAsRead(item.id, e.domEvent),
       },
       {
         key: 'delete',
@@ -185,11 +185,11 @@ export const NotificationButton: React.FC = () => {
         label: '删除',
         danger: true,
         'aria-label': `删除消息"${item.title}"`,
-        onClick: (e) => handleDeleteMessage(item.id, e.domEvent),
+        onClick: (e: any) => handleDeleteMessage(item.id, e.domEvent),
       },
-    ].filter(Boolean);
+    ].filter(Boolean) as NonNullable<MenuProps['items']>;
 
-    if (items.length === 0) return null;
+    if (items!.length === 0) return null;
 
     return (
       <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
@@ -259,8 +259,6 @@ export const NotificationButton: React.FC = () => {
           <List
             className={styles.messageList}
             dataSource={filteredMessages}
-            role="list"
-            aria-label="消息列表"
             renderItem={(item) => {
               const config = messageTypeConfig[item.messageType] || messageTypeConfig.system;
               return (

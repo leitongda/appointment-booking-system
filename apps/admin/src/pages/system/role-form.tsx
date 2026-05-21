@@ -15,7 +15,7 @@
  * - 提高代码可读性和可维护性
  */
 import { ProFormText, ProFormTextArea, ProFormGroup } from '@ant-design/pro-components';
-import { Card, message } from 'antd';
+import { Card, App } from 'antd';
 import { useParams, history } from '@umijs/max';
 import { useEffect, useState } from 'react';
 import { adminApi } from '@hospital/api';
@@ -29,7 +29,8 @@ import { useFormSubmit } from '@/hooks/useFormSubmit';
 import { requiredRules } from '@/utils/formValidators';
 
 const RoleFormPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { message } = App.useApp();
+  const { id } = useParams();
   const isEdit = !!id;
   const [role, setRole] = useState<Role | null>(null);
   const [loading, setLoading] = useState(false);
@@ -46,17 +47,17 @@ const RoleFormPage: React.FC = () => {
   }, [id]);
 
   // 使用 useFormInitialValues hook
-  const { initialValues } = useFormInitialValues<Role | null>(
+  const { initialValues } = useFormInitialValues<Role>(
     role,
     {
       switchFields: ['status'],
-      defaults: { status: true },
+      defaults: { status: true as any },
     }
   );
 
   // 使用 useFormSubmit hook
   const { handleSubmit, submitting } = useFormSubmit(
-    async (values) => {
+    async (values: any) => {
       if (isEdit && id) {
         return adminApi.updateRole(id, values);
       } else {

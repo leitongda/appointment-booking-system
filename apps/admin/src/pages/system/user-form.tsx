@@ -39,7 +39,7 @@ interface Store {
 }
 
 const UserFormPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const access = useAccess();
   const isEdit = !!id;
   const [admin, setAdmin] = useState<Admin | null>(null);
@@ -109,7 +109,7 @@ const UserFormPage: React.FC = () => {
     {
       switchFields: ['status'],
       defaults: {
-        status: true,
+        status: true as any,
         storeIds: [],
       },
       transform: (data) => ({

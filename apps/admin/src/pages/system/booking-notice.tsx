@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
-import { Button, Space, Tag, Switch, Modal, message, Form, Input, Select, InputNumber } from 'antd';
+import { Button, Space, Tag, Switch, Modal, App, Form, Input, Select, InputNumber } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { bookingNoticeApi } from '@hospital/api';
 import type { BookingNotice } from '@hospital/api';
@@ -23,6 +23,7 @@ const TYPE_COLOR_MAP: Record<string, string> = {
 };
 
 const BookingNoticePage = () => {
+  const { message } = App.useApp();
   const actionRef = useRef<ActionType>();
   const [form] = Form.useForm();
   const [modalVisible, setModalVisible] = useState(false);
