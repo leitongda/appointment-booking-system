@@ -89,6 +89,7 @@ class MedicalRecordResponse(BaseModel):
     visit_date: Optional[datetime] = Field(None, description="就诊时间")
     created_at: Optional[datetime] = Field(None, description="创建时间")
     updated_at: Optional[datetime] = Field(None, description="更新时间")
+    examination_reports: Optional[list] = Field(None, description="检查报告列表")
 
 
 class MedicalRecordListResponse(BaseModel):

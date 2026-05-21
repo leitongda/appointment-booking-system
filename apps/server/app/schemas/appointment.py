@@ -71,6 +71,7 @@ class AppointmentResponse(BaseModel):
     payment_transaction_id: Optional[str] = Field(None, description="支付交易号")
     refund_status: Optional[str] = Field(None, description="退款状态")
     refunded_amount: Optional[float] = Field(None, description="已退款金额（元）")
+    rescheduled_from_id: Optional[str] = Field(None, description="转约/改期来源预约ID")
 
     @staticmethod
     def _decimal_to_float(value: Optional[Decimal]) -> Optional[float]:
@@ -139,6 +140,7 @@ class AppointmentResponse(BaseModel):
             payment_transaction_id=appointment.payment_transaction_id,
             refund_status=appointment.refund_status,
             refunded_amount=cls._decimal_to_float(appointment.refund_amount),
+            rescheduled_from_id=appointment.rescheduled_from_id,
         )
 
 

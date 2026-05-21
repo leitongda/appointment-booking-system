@@ -54,6 +54,7 @@ class ScheduleTemplateBase(BaseModel):
     doctor_id: str = Field(..., description="医生ID")
     department_id: str = Field(..., description="科室ID")
     shift_type_id: str = Field(..., description="班次类型ID")
+    rule_set_id: Optional[str] = Field(None, description="关联规则组ID（可选，指定后使用该规则组而非按班次类型匹配）")
     weekdays: List[int] = Field(..., description="星期数组 1-7，如[1,2,3,4,5]")
     appointment_type: AppointmentType = Field(default=AppointmentType.NORMAL, description="预约类型")
     start_time: time = Field(..., description="开始时间")
@@ -81,6 +82,7 @@ class ScheduleTemplateUpdate(BaseModel):
     doctor_id: Optional[str] = None
     department_id: Optional[str] = None
     shift_type_id: Optional[str] = None
+    rule_set_id: Optional[str] = Field(None, description="关联规则组ID")
     weekdays: Optional[List[int]] = Field(None, description="星期数组 1-7")
     appointment_type: Optional[AppointmentType] = None
     start_time: Optional[time] = None
@@ -107,6 +109,7 @@ class ScheduleTemplateResponse(BaseModel):
     doctor_id: Optional[str] = None
     department_id: Optional[str] = None
     shift_type_id: Optional[str] = None
+    rule_set_id: Optional[str] = None
     weekdays: Optional[List[int]] = None
     appointment_type: Optional[str] = "normal"
     start_time: Optional[time] = None
@@ -120,6 +123,7 @@ class ScheduleTemplateResponse(BaseModel):
     doctor_name: Optional[str] = None
     department_name: Optional[str] = None
     shift_type_name: Optional[str] = None
+    rule_set_name: Optional[str] = None
     last_generated_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -250,6 +254,7 @@ class ScheduleTemplateCopyRequest(BaseModel):
     # 可调整的配置字段（覆盖原规则配置）
     name: Optional[str] = Field(None, max_length=100, description="规则名称（可选，不填则自动生成）")
     shift_type_id: Optional[str] = Field(None, description="班次类型ID")
+    rule_set_id: Optional[str] = Field(None, description="关联规则组ID")
     weekdays: Optional[List[int]] = Field(None, description="星期数组 1-7")
     appointment_type: Optional[str] = Field(None, description="预约类型")
     start_time: Optional[time] = Field(None, description="开始时间")
@@ -295,6 +300,7 @@ class ScheduleTemplateCrossStoreCopyRequest(BaseModel):
     # 可调整的配置字段（覆盖原规则配置）
     name: Optional[str] = Field(None, max_length=100, description="规则名称（可选，不填则自动生成）")
     shift_type_id: Optional[str] = Field(None, description="班次类型ID")
+    rule_set_id: Optional[str] = Field(None, description="关联规则组ID")
     weekdays: Optional[List[int]] = Field(None, description="星期数组 1-7")
     appointment_type: Optional[str] = Field(None, description="预约类型")
     start_time: Optional[time] = Field(None, description="开始时间")

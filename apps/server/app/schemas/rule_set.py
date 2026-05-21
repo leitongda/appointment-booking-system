@@ -137,6 +137,24 @@ class RuleSetResponse(RuleSetBase):
     doctor_name: Optional[str] = Field(None, description="医生姓名")
 
 
+class ScheduleTemplateBrief(BaseModel):
+    """排班模板简要信息（用于规则组关联展示）"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+        by_alias=True,
+    )
+
+    id: str
+    name: Optional[str] = None
+    doctor_name: Optional[str] = None
+    department_name: Optional[str] = None
+    store_name: Optional[str] = None
+    shift_type_name: Optional[str] = None
+    status: Optional[int] = 1
+
+
 class RuleSetDetailResponse(RuleSetResponse):
     """规则组详情响应"""
     model_config = ConfigDict(
@@ -151,6 +169,7 @@ class RuleSetDetailResponse(RuleSetResponse):
     booking_policy: Optional['RuleBookingPolicyResponse'] = None
     checkin_policy: Optional['RuleCheckinPolicyResponse'] = None
     capacity_policy: Optional['RuleCapacityPolicyResponse'] = None
+    schedule_templates: List[ScheduleTemplateBrief] = []
 
 
 # ==================== 时间窗模型 ====================

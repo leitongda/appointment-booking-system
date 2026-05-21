@@ -52,11 +52,24 @@ class NotificationContent(BaseModel):
     template_variables: Dict[str, Any] = Field(default_factory=dict, description="模板变量")
 
 
+class FallbackContext(BaseModel):
+    """降级上下文
+
+    记录通知渠道降级时的诊断信息，帮助调试和用户支持。
+    """
+    primary_channel: str = Field(..., description="首选渠道（降级前的目标渠道）")
+    actual_channel: str = Field(..., description="实际发送成功的渠道")
+    failed_channels: list[str] = Field(default_factory=list, description="降级过程中失败的渠道列表")
+    fallback_reasons: Dict[str, str] = Field(default_factory=dict, description="各失败渠道的降级原因，key=渠道名, value=原因")
+
+
 class NotificationSendResult(BaseModel):
     """单条通知发送结果"""
     channel: str = Field(..., description="渠道名称")
     success: bool = Field(..., description="是否发送成功")
     error_message: Optional[str] = Field(None, description="错误信息")
+    is_fallback: bool = Field(default=False, description="是否为降级渠道发送")
+    attempt_order: int = Field(default=0, description="在降级链中的尝试顺序（0=首选）")
 
 
 class NotificationDispatchResult(BaseModel):
@@ -67,3 +80,4 @@ class NotificationDispatchResult(BaseModel):
     success_channels: int = Field(default=0, description="成功发送的渠道数")
     failed_channels: int = Field(default=0, description="发送失败的渠道数")
     skipped_channels: int = Field(default=0, description="因偏好/配置跳过的渠道数")
+    fallback_context: Optional[FallbackContext] = Field(None, description="降级上下文（仅在降级场景下有值）")

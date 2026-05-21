@@ -46,6 +46,9 @@ class DepartmentBase(BaseModel):
     location: Optional[str] = Field(None, max_length=100, description="位置/楼层")
     working_hours: Optional[str] = Field(None, max_length=200, description="工作时间")
 
+    # 智能导诊
+    keywords: Optional[List[str]] = Field(None, description="症状关键词数组，用于智能导诊")
+
 class DepartmentCreate(DepartmentBase):
     pass
 
@@ -85,6 +88,9 @@ class DepartmentUpdate(BaseModel):
     phone: Optional[str] = Field(None, max_length=20, description="科室电话")
     location: Optional[str] = Field(None, max_length=100, description="位置/楼层")
     working_hours: Optional[str] = Field(None, max_length=200, description="工作时间")
+
+    # 智能导诊
+    keywords: Optional[List[str]] = Field(None, description="症状关键词数组，用于智能导诊")
 
 class DepartmentResponse(BaseModel):
     """科室响应模型 - 所有字段都可为空以兼容历史数据"""
@@ -128,6 +134,9 @@ class DepartmentResponse(BaseModel):
     phone: Optional[str] = Field(None, description="科室电话")
     location: Optional[str] = Field(None, description="位置/楼层")
     working_hours: Optional[str] = Field(None, description="工作时间")
+
+    # 智能导诊
+    keywords: Optional[List[str]] = Field(None, description="症状关键词数组，用于智能导诊")
 
 class DepartmentTreeNode(BaseModel):
     """科室树节点"""

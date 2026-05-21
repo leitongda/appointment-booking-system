@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, List
+from typing import Any, Dict, Optional, List
 from datetime import date, time, datetime
 from app.schemas.schedule_template import AppointmentType
 from app.core.config import settings
@@ -23,17 +23,27 @@ class ScheduleBase(BaseModel):
 
     doctor_id: str = Field(..., description="医生ID")
     store_id: Optional[str] = Field(None, description="门店ID")
+    room_id: Optional[str] = Field(None, description="诊室ID")
     schedule_date: date = Field(..., description="排班日期")
     time_slot: Optional[str] = Field(None, pattern="^(morning|afternoon|evening)$", description="时段: morning上午/afternoon下午/evening晚间")
     start_time: Optional[time] = Field(None, description="开始时间")
     end_time: Optional[time] = Field(None, description="结束时间")
-    total_slots: int = Field(10, ge=1, le=200, description="总号源数量")
+    total_slots: int = Field(10, ge=1, le=200, description="总号源数量（向后兼容，可由 quota 字段自动计算）")
+    online_quota: int = Field(0, ge=0, le=200, description="线上号源")
+    offline_quota: int = Field(0, ge=0, le=200, description="线下号源")
+    reserved_quota: int = Field(0, ge=0, le=200, description="预留号源")
+    extra_quota: int = Field(0, ge=0, le=200, description="加号号源")
+    fee: int = Field(0, ge=0, description="挂号费(分)")
     appointment_type: str = Field(default="normal", description="预约类型: normal普通/urgent加急/expert专家")
     status: int = Field(1, ge=0, le=1, description="状态: 0停用 1启用")
 
 
 class ScheduleCreate(ScheduleBase):
     template_id: Optional[str] = Field(None, description="来源模板ID")
+    schedule_status: Optional[str] = Field(
+        None,
+        description="排班状态: draft/published/booking/full/suspended/finished/withdrawn (不传则根据status推导: status=1->published, status=0->suspended)",
+    )
 
 
 class ScheduleBatchCreate(ScheduleBase):
@@ -64,9 +74,15 @@ class ScheduleUpdate(BaseModel):
         populate_by_name=True,
     )
 
-    total_slots: Optional[int] = Field(None, ge=1, le=200, description="总号源数量")
+    total_slots: Optional[int] = Field(None, ge=1, le=200, description="总号源数量（向后兼容，传入时覆盖 quota 自动计算）")
+    online_quota: Optional[int] = Field(None, ge=0, le=200, description="线上号源")
+    offline_quota: Optional[int] = Field(None, ge=0, le=200, description="线下号源")
+    reserved_quota: Optional[int] = Field(None, ge=0, le=200, description="预留号源")
+    extra_quota: Optional[int] = Field(None, ge=0, le=200, description="加号号源")
+    fee: Optional[int] = Field(None, ge=0, description="挂号费(分)")
     start_time: Optional[time] = Field(None, description="开始时间")
     end_time: Optional[time] = Field(None, description="结束时间")
+    room_id: Optional[str] = Field(None, description="诊室ID")
     appointment_type: Optional[str] = Field(None, description="预约类型: normal普通/urgent加急/expert专家")
     status: Optional[int] = Field(None, ge=0, le=1, description="状态: 0停用 1启用")
 
@@ -89,8 +105,14 @@ class ScheduleResponse(ScheduleBase):
     end_time: Optional[time] = Field(None, description="结束时间")
     total_slots: int = Field(10, description="总号源数量")
     booked_slots: int = Field(0, description="已预约号源数量")
+    online_quota: int = Field(0, description="线上号源")
+    offline_quota: int = Field(0, description="线下号源")
+    reserved_quota: int = Field(0, description="预留号源")
+    extra_quota: int = Field(0, description="加号号源")
+    fee: int = Field(0, description="挂号费(分)")
     appointment_type: str = Field("normal", description="预约类型: normal普通/urgent加急/expert专家")
-    status: int = Field(1, description="状态: 0停用 1启用")
+    status: int = Field(1, description="状态: 0停用 1启用 (legacy)")
+    schedule_status: str = Field("published", description="排班状态: draft/published/booking/full/suspended/finished/withdrawn（已包含原 publish_status 语义）")
     template_id: Optional[str] = Field(None, description="来源模板ID")
     doctor_name: Optional[str] = Field(None, description="医生姓名")
     department_name: Optional[str] = Field(None, description="科室名称")
@@ -360,3 +382,127 @@ class PeakHourHeatmapResponse(BaseModel):
     start_date: date = Field(..., description="开始日期")
     end_date: date = Field(..., description="结束日期")
     cells: List[PeakHourCell] = Field(default_factory=list, description="热力图单元格列表")
+
+
+# ========== 排班发布状态机相关 Schema ==========
+
+
+class SchedulePublishRequest(BaseModel):
+    """发布/撤回排班请求"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    schedule_ids: List[str] = Field(..., min_length=1, description="排班ID列表")
+
+
+class ScheduleWithdrawRequest(BaseModel):
+    """撤回排班请求"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    schedule_ids: List[str] = Field(..., min_length=1, description="排班ID列表")
+    reason: Optional[str] = Field(None, max_length=200, description="撤回原因")
+
+
+# ========== 排班冲突检测 Schema ==========
+
+
+class ConflictCheckRequest(BaseModel):
+    """排班冲突检测请求"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    doctor_id: str = Field(..., description="医生ID")
+    schedule_date: date = Field(..., description="排班日期")
+    start_time: Optional[time] = Field(None, description="开始时间")
+    end_time: Optional[time] = Field(None, description="结束时间")
+    time_slot: Optional[str] = Field(None, pattern="^(morning|afternoon|evening)$", description="时段")
+    store_id: Optional[str] = Field(None, description="门店ID")
+    room_id: Optional[str] = Field(None, description="诊室ID")
+    exclude_schedule_id: Optional[str] = Field(None, description="排除的排班ID（编辑场景）")
+
+
+class ConflictItemResponse(BaseModel):
+    """单条冲突记录"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    type: str = Field(..., description="冲突类型: doctor_time/room_occupied/lunch_break/holiday/doctor_status/rest_day")
+    severity: str = Field(..., description="严重级别: error阻止保存 / warning允许但需确认")
+    message: str = Field(..., description="人类可读的冲突描述")
+    details: dict = Field(default_factory=dict, description="冲突详情")
+
+
+class ConflictCheckResponse(BaseModel):
+    """冲突检测结果"""
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    has_conflict: bool = Field(..., description="是否存在冲突")
+    blocking: bool = Field(False, description="是否存在 error 级别冲突（阻止保存）")
+    conflicts: List[ConflictItemResponse] = Field(default_factory=list, description="冲突列表")
+
+
+# ========== 排班拖拽调整 Schema ==========
+
+
+class ScheduleDragAdjustRequest(BaseModel):
+    """拖拽调整排班请求"""
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    schedule_id: str = Field(..., description="排班ID")
+    target_date: date = Field(..., description="目标日期")
+    target_start_time: Optional[time] = Field(None, description="目标开始时间")
+    target_end_time: Optional[time] = Field(None, description="目标结束时间")
+    target_time_slot: Optional[str] = Field(None, pattern="^(morning|afternoon|evening)$", description="目标时段")
+
+
+class ScheduleDragAdjustResponse(BaseModel):
+    """拖拽调整排班响应"""
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    success: bool = Field(..., description="是否成功")
+    schedule: Optional[ScheduleResponse] = Field(None, description="调整后的排班")
+    conflicts: Optional[ConflictCheckResponse] = Field(None, description="冲突信息（有冲突时返回）")
+    message: str = Field("", description="消息")
+
+
+# ========== 排班批量复制 Schema ==========
+
+
+class ScheduleBatchCopyRequest(BaseModel):
+    """批量复制排班请求"""
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    source_start_date: date = Field(..., description="源周期开始日期")
+    source_end_date: date = Field(..., description="源周期结束日期")
+    target_start_date: date = Field(..., description="目标周期开始日期")
+    target_end_date: date = Field(..., description="目标周期结束日期")
+    doctor_ids: Optional[List[str]] = Field(None, description="指定医生ID列表，为空则复制全部")
+    copy_quota: bool = Field(True, description="是否复制号源配置")
+    copy_room: bool = Field(True, description="是否复制诊室")
+    copy_fee: bool = Field(True, description="是否复制挂号费")
+    skip_holidays: bool = Field(True, description="是否跳过节假日")
+    conflict_strategy: str = Field("skip", description="冲突策略: skip/overwrite/manual", pattern="^(skip|overwrite|manual)$")
+
+
+class ScheduleBatchCopyResult(BaseModel):
+    """批量复制排班结果"""
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True)
+
+    total_source: int = Field(0, description="源排班总数")
+    copied: int = Field(0, description="成功复制数")
+    skipped: int = Field(0, description="跳过数")
+    overwritten: int = Field(0, description="覆盖数")
+    failed: int = Field(0, description="失败数")
+    conflicts: List[Dict[str, Any]] = Field(default_factory=list, description="冲突详情")

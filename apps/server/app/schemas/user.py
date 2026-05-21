@@ -1,7 +1,10 @@
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, List
+from typing import Literal, Optional, List
 from datetime import datetime
 from decimal import Decimal
+
+# 与前端 @hospital/shared PATIENT_RELATIONSHIP 保持一致
+RELATIONSHIP_TYPE = Literal["本人", "父母", "子女", "配偶", "其他"]
 
 
 def to_camel(string: str) -> str:
@@ -129,7 +132,7 @@ class PatientBase(BaseModel):
     id_card: Optional[str] = Field(None, max_length=18, description="身份证号")
     gender: Optional[int] = Field(None, ge=0, le=2)
     age: Optional[int] = Field(None, ge=0, le=150, description="年龄")
-    relationship: Optional[str] = Field(None, max_length=20, description="与账号用户关系")
+    relationship: Optional[RELATIONSHIP_TYPE] = Field(None, description="与账号用户关系")
     is_default: bool = False
     # 新增字段
     card_no: Optional[str] = Field(None, max_length=50, description="就诊卡编号")
@@ -160,7 +163,7 @@ class PatientCreateByAdmin(BaseModel):
     gender: Optional[int] = Field(None, ge=0, le=2)
     age: Optional[int] = Field(None, ge=0, le=150, description="年龄")
     birthday: Optional[str] = Field(None, description="出生日期 YYYY-MM-DD")
-    relationship: Optional[str] = Field(None, max_length=20, description="与账号用户关系")
+    relationship: Optional[RELATIONSHIP_TYPE] = Field(None, description="与账号用户关系")
     is_default: bool = True
     province: Optional[str] = Field(None, max_length=50, description="省")
     city: Optional[str] = Field(None, max_length=50, description="市")
@@ -184,7 +187,7 @@ class FamilyMemberCreate(BaseModel):
     gender: Optional[int] = Field(None, ge=0, le=2)
     age: Optional[int] = Field(None, ge=0, le=150, description="年龄")
     birthday: Optional[str] = Field(None, description="出生日期 YYYY-MM-DD")
-    relationship: Optional[str] = Field(None, max_length=20, description="与账号用户关系")
+    relationship: Optional[RELATIONSHIP_TYPE] = Field(None, description="与账号用户关系")
     is_default: bool = False
     province: Optional[str] = Field(None, max_length=50, description="省")
     city: Optional[str] = Field(None, max_length=50, description="市")
@@ -206,7 +209,7 @@ class PatientUpdate(BaseModel):
     id_card: Optional[str] = Field(None, max_length=18)
     gender: Optional[int] = Field(None, ge=0, le=2)
     age: Optional[int] = Field(None, ge=0, le=150, description="年龄")
-    relationship: Optional[str] = Field(None, max_length=20)
+    relationship: Optional[RELATIONSHIP_TYPE] = None
     is_default: Optional[bool] = None
     # 新增可更新字段
     province: Optional[str] = Field(None, max_length=50)
