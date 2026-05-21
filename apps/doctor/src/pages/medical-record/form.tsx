@@ -1,11 +1,14 @@
 import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormSelect, ProFormDigit } from '@ant-design/pro-components';
-import { Card, message, Button, Space, Descriptions, Tag, Divider } from 'antd';
+import { Card, message, Button, Space, Descriptions, Tag, Divider, Upload, List, Popconfirm } from 'antd';
+import { UploadOutlined, DeleteOutlined, FileOutlined, FilePdfOutlined, FileImageOutlined } from '@ant-design/icons';
 import { history, useSearchParams } from 'umi';
 import { useState, useEffect, useRef } from 'react';
-import { appointmentApi, medicalRecordApi } from '@hospital/api';
+import { appointmentApi, medicalRecordApi, examinationReportApi } from '@hospital/api';
 import { TIME_SLOT_MAP } from '@hospital/shared';
 import type { Appointment } from '@hospital/shared';
+import type { ExaminationReportListItem } from '@hospital/api';
 import type { ProFormInstance } from '@ant-design/pro-components';
+import type { UploadFile } from 'antd';
 
 const MedicalRecordFormPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -17,6 +20,9 @@ const MedicalRecordFormPage: React.FC = () => {
   const [record, setRecord] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [reports, setReports] = useState<ExaminationReportListItem[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
 
   useEffect(() => {
     loadData();
@@ -70,6 +76,85 @@ const MedicalRecordFormPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const loadReports = async () => {
+    if (!appointmentId && !recordId) return;
+    try {
+      let data: ExaminationReportListItem[] = [];
+      if (recordId) {
+        data = await examinationReportApi.getByRecord(recordId);
+      } else if (appointmentId) {
+        data = await examinationReportApi.getByAppointment(appointmentId);
+      }
+      setReports(data);
+    } catch (error) {
+      console.error('加载检查报告失败:', error);
+    }
+  };
+
+  const handleUpload = async (file: File) => {
+    if (!appointmentId) {
+      message.error('缺少预约ID');
+      return false;
+    }
+
+    // 校验文件类型
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      message.error('仅支持 PDF、JPEG、PNG、WebP 格式');
+      return false;
+    }
+
+    // 校验文件大小 (20MB)
+    if (file.size > 20 * 1024 * 1024) {
+      message.error('文件大小不能超过 20MB');
+      return false;
+    }
+
+    setUploading(true);
+    try {
+      await examinationReportApi.upload({
+        file,
+        appointmentId,
+        recordId: recordId || undefined,
+        reportType: file.type === 'application/pdf' ? 'imaging' : 'imaging',
+        title: file.name.replace(/\.[^/.]+$/, ''),
+      });
+      message.success('报告上传成功');
+      loadReports();
+    } catch (error: any) {
+      message.error(error.message || '上传失败');
+    } finally {
+      setUploading(false);
+    }
+    return false; // 阻止自动上传
+  };
+
+  const handleDeleteReport = async (reportId: string) => {
+    try {
+      await examinationReportApi.delete(reportId);
+      message.success('报告已删除');
+      loadReports();
+    } catch (error: any) {
+      message.error(error.message || '删除失败');
+    }
+  };
+
+  const getFileIcon = (fileType: string) => {
+    if (fileType === 'application/pdf') return <FilePdfOutlined style={{ color: '#ff4d4f' }} />;
+    if (fileType.startsWith('image/')) return <FileImageOutlined style={{ color: '#1890ff' }} />;
+    return <FileOutlined />;
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  };
+
+  useEffect(() => {
+    loadReports();
+  }, [appointmentId, recordId]);
 
   const handleSubmit = async (values: any) => {
     setSubmitting(true);
@@ -228,6 +313,55 @@ const MedicalRecordFormPage: React.FC = () => {
             placeholder="请输入辅助检查结果（如：血常规、影像等）"
             fieldProps={{ rows: 2 }}
           />
+
+          {/* 检查报告上传 */}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ marginBottom: 8, fontWeight: 500 }}>检查报告文件</div>
+            <Upload
+              beforeUpload={handleUpload}
+              fileList={fileList}
+              onChange={({ fileList }) => setFileList(fileList)}
+              showUploadList={false}
+              accept=".pdf,.jpg,.jpeg,.png,.webp"
+              disabled={uploading}
+            >
+              <Button icon={<UploadOutlined />} loading={uploading}>
+                上传检查报告（PDF/图片，最大20MB）
+              </Button>
+            </Upload>
+
+            {reports.length > 0 && (
+              <List
+                style={{ marginTop: 12 }}
+                size="small"
+                bordered
+                dataSource={reports}
+                renderItem={(report) => (
+                  <List.Item
+                    actions={[
+                      report.fileUrl ? (
+                        <a href={report.fileUrl} target="_blank" rel="noopener noreferrer">查看</a>
+                      ) : null,
+                      <Popconfirm
+                        title="确定删除此报告？"
+                        onConfirm={() => handleDeleteReport(report.id)}
+                        okText="删除"
+                        cancelText="取消"
+                      >
+                        <DeleteOutlined style={{ color: '#ff4d4f' }} />
+                      </Popconfirm>,
+                    ].filter(Boolean)}
+                  >
+                    <List.Item.Meta
+                      avatar={getFileIcon(report.fileType)}
+                      title={report.title}
+                      description={`${report.fileName} · ${formatFileSize(report.fileSize)}`}
+                    />
+                  </List.Item>
+                )}
+              />
+            )}
+          </div>
 
           <Divider />
           

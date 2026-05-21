@@ -176,7 +176,7 @@ const MessagePage: React.FC = () => {
           {tab.label}
         </Badge>
       ),
-      'aria-label': count > 0 ? `${tab.label}, ${count}条未读` : tab.label,
+      'aria-label': (count ?? 0) > 0 ? `${tab.label}, ${count}条未读` : tab.label,
     };
   });
 
@@ -218,7 +218,6 @@ const MessagePage: React.FC = () => {
               onChange: loadMessages,
               showSizeChanger: false,
             }}
-            role="list"
             aria-label="消息列表"
             renderItem={(item) => (
               <List.Item

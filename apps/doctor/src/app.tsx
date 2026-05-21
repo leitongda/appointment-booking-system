@@ -101,7 +101,7 @@ export async function getInitialState(): Promise<{ currentDoctor?: CurrentDoctor
   }
 }
 
-export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) => {
+export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }: any) => {
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [form] = Form.useForm();

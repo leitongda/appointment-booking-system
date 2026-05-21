@@ -78,7 +78,7 @@ const SchedulePage: React.FC = () => {
                 status={isSuspended ? 'error' : isRestDay ? 'warning' : (available > 0 ? 'success' : 'default')} 
                 text={
                   <span style={{ fontSize: 12, opacity: isRestDay ? 0.7 : 1 }}>
-                    {TIME_SLOT_MAP[s.timeSlot]} 
+                    {s.timeSlot ? TIME_SLOT_MAP[s.timeSlot] : ''}
                     {isSuspended ? (
                       <Tag color="red" style={{ marginLeft: 4, fontSize: 10 }}>停诊</Tag>
                     ) : (

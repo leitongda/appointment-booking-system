@@ -7,6 +7,7 @@ import { useProtectedPage } from '../../../hooks/useProtectedPage';
 import { useApplyThemeNavigationBar } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
 import type { Patient } from '@hospital/shared';
+import { PATIENT_RELATIONSHIPS } from '@hospital/shared';
 import './edit.less';
 
 // 表单数据类型
@@ -16,8 +17,8 @@ type PatientFormData = Omit<Patient, 'id' | 'userId'>;
 const GENDER_OPTIONS = ['不透露', '男', '女'];
 const GENDER_VALUE_MAP: Record<number, number> = { 0: 0, 1: 1, 2: 2 };
 
-// 关系选项
-const RELATIONSHIP_OPTIONS = ['本人', '父亲', '母亲', '子女', '配偶', '其他'];
+// 关系选项（与 @hospital/shared PATIENT_RELATIONSHIP 保持一致）
+const RELATIONSHIP_OPTIONS: string[] = [...PATIENT_RELATIONSHIPS];
 
 // 证件类型选项
 const ID_CARD_TYPE_OPTIONS = ['居民身份证', '户口簿', '护照'];

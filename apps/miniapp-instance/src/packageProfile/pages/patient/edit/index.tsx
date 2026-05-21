@@ -17,7 +17,7 @@ const GENDER_OPTIONS = ['不透露', '男', '女'];
 const GENDER_VALUE_MAP: Record<number, number> = { 0: 0, 1: 1, 2: 2 };
 
 // 关系选项
-const RELATIONSHIP_OPTIONS = ['本人', '父亲', '母亲', '子女', '配偶', '其他'];
+const RELATIONSHIP_OPTIONS = ['本人', '父母', '子女', '配偶', '其他'];
 
 // 证件类型选项
 const ID_CARD_TYPE_OPTIONS = ['居民身份证', '户口簿', '护照'];

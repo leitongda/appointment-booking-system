@@ -178,3 +178,67 @@
   padding: @spacing-1 @spacing-3;
   font-size: @font-size-base;
 }
+
+// -------------------------------------------
+// 检查报告
+// -------------------------------------------
+
+.report-item {
+  display: flex;
+  align-items: center;
+  padding: @spacing-3;
+  margin-bottom: @spacing-3;
+  background: @color-bg-light;
+  border-radius: @radius-lg;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.report-icon {
+  flex-shrink: 0;
+  width: 72rpx;
+  height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--theme-primary-rgb, 77, 124, 184), 0.1);
+  border-radius: @radius-md;
+  margin-right: @spacing-3;
+
+  text {
+    font-size: @font-size-xs;
+    font-weight: @font-weight-bold;
+    color: var(--theme-primary, #4D7CB8);
+  }
+}
+
+.report-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.report-title {
+  display: block;
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  font-weight: @font-weight-medium;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.report-meta {
+  display: block;
+  font-size: @font-size-xs;
+  color: @color-text-muted;
+  margin-top: 4rpx;
+}
+
+.report-action {
+  flex-shrink: 0;
+  font-size: @font-size-sm;
+  color: var(--theme-primary, #4D7CB8);
+  margin-left: @spacing-2;
+}

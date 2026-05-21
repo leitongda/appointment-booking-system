@@ -1,12 +1,12 @@
 import { View, Text } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
 import { Loading, Empty, Tag } from '@nutui/nutui-react-taro';
-import { useState, useCallback } from 'react';
-import { medicalRecordApi } from '@hospital/api';
+import { useState, useCallback, useEffect } from 'react';
+import { medicalRecordApi, examinationReportApi } from '@hospital/api';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
 import { useApplyThemeNavigationBar } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
-import type { MedicalRecord } from '@hospital/api';
+import type { MedicalRecord, ExaminationReportListItem } from '@hospital/api';
 import './detail.less';
 
 const RecordDetailPage = () => {
@@ -16,6 +16,7 @@ const RecordDetailPage = () => {
 
   const [loading, setLoading] = useState(true);
   const [record, setRecord] = useState<MedicalRecord | null>(null);
+  const [reports, setReports] = useState<ExaminationReportListItem[]>([]);
 
   const loadRecord = useCallback(async () => {
     if (!id) {
@@ -42,6 +43,22 @@ const RecordDetailPage = () => {
     },
     deps: [id],
   });
+
+  const loadReports = useCallback(async () => {
+    if (!id) return;
+    try {
+      const data = await examinationReportApi.getByRecord(id);
+      setReports(data);
+    } catch (error) {
+      console.error('加载检查报告失败:', error);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (record) {
+      loadReports();
+    }
+  }, [record, loadReports]);
 
   const formatDate = (date?: string) => {
     if (!date) return '-';
@@ -150,6 +167,44 @@ const RecordDetailPage = () => {
         <View className="section">
           <Text className="section-title">医嘱</Text>
           <Text className="advice">{record.advice}</Text>
+        </View>
+      )}
+
+      {reports.length > 0 && (
+        <View className="section">
+          <Text className="section-title">检查报告</Text>
+          {reports.map((report) => (
+            <View
+              key={report.id}
+              className="report-item"
+              onClick={() => {
+                if (report.fileUrl) {
+                  Taro.downloadFile({
+                    url: report.fileUrl,
+                    success: (res) => {
+                      Taro.openDocument({
+                        filePath: res.tempFilePath,
+                        showMenu: true,
+                      });
+                    },
+                  });
+                }
+              }}
+            >
+              <View className="report-icon">
+                <Text>{report.fileType === 'application/pdf' ? 'PDF' : 'IMG'}</Text>
+              </View>
+              <View className="report-info">
+                <Text className="report-title">{report.title}</Text>
+                <Text className="report-meta">
+                  {report.fileName} · {report.fileSize < 1024 * 1024
+                    ? `${(report.fileSize / 1024).toFixed(1)} KB`
+                    : `${(report.fileSize / 1024 / 1024).toFixed(1)} MB`}
+                </Text>
+              </View>
+              <Text className="report-action">查看</Text>
+            </View>
+          ))}
         </View>
       )}
 
