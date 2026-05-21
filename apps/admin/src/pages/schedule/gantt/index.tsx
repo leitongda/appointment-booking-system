@@ -1,70 +1,113 @@
+/**
+ * 排班甘特图页面
+ * 使用 SVG 渲染，展示医生排班的时段分布和预约情况
+ */
+
 import { PageContainer } from '@ant-design/pro-components';
-import { Card, Spin, DatePicker, Select, Space, Empty, Tooltip, Tag, Button, Drawer, Descriptions, Badge, App } from 'antd';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { App, Card, Spin, DatePicker, Select, Space, Empty, Drawer, Descriptions, Badge, Tag, Button, theme } from 'antd';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import dayjs, { Dayjs } from 'dayjs';
 import { scheduleApi, doctorApi, departmentApi } from '@hospital/api';
 import type { Schedule, Doctor, Department } from '@hospital/shared';
 import { useModel, useAccess } from '@umijs/max';
 import { LeftOutlined, RightOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
-import './gantt.less';
+import {
+  GANTT_MORNING,
+  GANTT_AFTERNOON,
+  GANTT_EVENING,
+  GANTT_UNKNOWN,
+  COLOR_DANGER,
+  COLOR_SUCCESS,
+  COLOR_WARNING,
+} from '@/themes/scheduleColors';
 
 const { RangePicker } = DatePicker;
 
-// 时段配置
-const TIME_SLOT_CONFIG: Record<string, { label: string; color: string; startHour: number; endHour: number }> = {
-  morning: { label: '上午', color: '#1890ff', startHour: 8, endHour: 12 },
-  afternoon: { label: '下午', color: '#52c41a', startHour: 14, endHour: 18 },
-  evening: { label: '晚上', color: '#722ed1', startHour: 19, endHour: 21 },
+// ==================== 常量定义 ====================
+
+const TIME_SLOT_CONFIG: Record<string, { label: string; color: string; gradientStart: string; gradientEnd: string }> = {
+  morning: {
+    label: '上午',
+    color: GANTT_MORNING,
+    gradientStart: 'rgba(22, 119, 255, 0.35)',
+    gradientEnd: 'rgba(22, 119, 255, 0.08)',
+  },
+  afternoon: {
+    label: '下午',
+    color: GANTT_AFTERNOON,
+    gradientStart: 'rgba(82, 196, 26, 0.35)',
+    gradientEnd: 'rgba(82, 196, 26, 0.08)',
+  },
+  evening: {
+    label: '晚上',
+    color: GANTT_EVENING,
+    gradientStart: 'rgba(114, 46, 209, 0.35)',
+    gradientEnd: 'rgba(114, 46, 209, 0.08)',
+  },
 };
 
-// 图例配置（只显示小写格式，避免重复）
-const LEGEND_CONFIG = [
-  { key: 'morning', label: '上午', color: '#1890ff' },
-  { key: 'afternoon', label: '下午', color: '#52c41a' },
-  { key: 'evening', label: '晚上', color: '#722ed1' },
-];
+const DEFAULT_SLOT_CONFIG = {
+  label: '未知',
+  color: GANTT_UNKNOWN,
+  gradientStart: 'rgba(140, 140, 140, 0.35)',
+  gradientEnd: 'rgba(140, 140, 140, 0.08)',
+};
 
-// 默认时段配置（用于 fallback）
-const DEFAULT_SLOT_CONFIG = { label: '未知', color: '#999', startHour: 8, endHour: 12 };
-
-// 获取时段配置（带 fallback）
 const getSlotConfig = (timeSlot: string | undefined) => {
   if (!timeSlot) return DEFAULT_SLOT_CONFIG;
   return TIME_SLOT_CONFIG[timeSlot] || DEFAULT_SLOT_CONFIG;
 };
 
-// 状态配置
 const STATUS_CONFIG = {
   1: { text: '正常', color: 'success' },
   0: { text: '停诊', color: 'error' },
 };
 
-interface GanttTask {
+// ==================== SVG 配置 ====================
+
+const SVG_CONFIG = {
+  labelWidth: 140,
+  rowHeight: 48,
+  barHeight: 32,
+  paddingTop: 36,
+  paddingBottom: 16,
+  minCellWidth: 100,
+};
+
+// ==================== 类型定义 ====================
+
+interface ScheduleTask {
   id: string;
   doctorId: string;
   doctorName: string;
   departmentName?: string;
   date: string;
-  timeSlot: string;  // 支持 morning/afternoon/evening 和 AM/PM/NIGHT
+  timeSlot: string;
   startTime: string;
   endTime: string;
   totalSlots: number;
   bookedSlots: number;
   status: number;
-  progress: number; // 0-100
-  isRestDay?: boolean; // 是否在休息日（后端计算）
+  progress: number;
+  isRestDay?: boolean;
 }
 
 interface DoctorRow {
   doctorId: string;
   doctorName: string;
   departmentName?: string;
-  tasks: GanttTask[];
+  tasks: ScheduleTask[];
 }
+
+// ==================== 主组件 ====================
 
 const ScheduleGanttPage: React.FC = () => {
   const { message } = App.useApp();
+  const { token } = theme.useToken();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(800);
+
   // 状态管理
   const [loading, setLoading] = useState(false);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -82,7 +125,7 @@ const ScheduleGanttPage: React.FC = () => {
 
   // 详情抽屉
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<GanttTask | null>(null);
+  const [selectedTask, setSelectedTask] = useState<ScheduleTask | null>(null);
 
   const { initialState } = useModel('@@initialState');
   const { currentUser } = initialState ?? {};
@@ -91,13 +134,30 @@ const ScheduleGanttPage: React.FC = () => {
   const showStoreFilter = isSuperAdmin || (currentUser?.storeIds?.length ?? 0) > 1;
   const { stores } = useStoreWithPermission({ enabledOnly: true });
 
+  // 响应式宽度
+  useEffect(() => {
+    const updateWidth = () => {
+      if (containerRef.current) {
+        const width = containerRef.current.getBoundingClientRect().width;
+        setContainerWidth(Math.max(width, 600));
+      }
+    };
+    const timer = setTimeout(updateWidth, 50);
+    const resizeObserver = new ResizeObserver(updateWidth);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+    return () => {
+      clearTimeout(timer);
+      resizeObserver.disconnect();
+    };
+  }, []);
+
   // 加载科室列表
   const loadDepartments = async () => {
     try {
       const allDepts = await departmentApi.getAll();
-
       setDepartments(allDepts);
-      // 默认选择第一个科室
       if (allDepts.length > 0 && !selectedDept) {
         setSelectedDept(allDepts[0].id);
       }
@@ -107,20 +167,17 @@ const ScheduleGanttPage: React.FC = () => {
     }
   };
 
-  // 加载医生列表（分页加载所有数据）
-  const loadDoctors = async (deptId?: string, autoSelectFirst: boolean = false) => {
+  // 加载医生列表
+  const loadDoctors = async (deptId?: string, autoSelectFirst = false) => {
     try {
       let doctorList: Doctor[] = [];
       if (deptId) {
-        // 按科室获取（通常不分页）
         const data = await doctorApi.getByDepartment(deptId);
         doctorList = data ?? [];
       } else {
-        // 分页加载所有医生
         const firstResult = await doctorApi.getList({ pageSize: 100, page: 1 });
         const total = firstResult.total || 0;
         doctorList = firstResult.data ?? [];
-
         if (total > 100) {
           const totalPages = Math.ceil(total / 100);
           const promises = [];
@@ -134,7 +191,6 @@ const ScheduleGanttPage: React.FC = () => {
         }
       }
       setDoctors(doctorList);
-      // 默认选择第一个医生
       if (autoSelectFirst && doctorList.length > 0) {
         setSelectedDoctorId(doctorList[0].id);
       }
@@ -144,24 +200,22 @@ const ScheduleGanttPage: React.FC = () => {
     }
   };
 
-  // 加载排班数据（分页加载所有数据，后端会返回 isRestDay 字段）
+  // 加载排班数据
   const loadSchedules = useCallback(async () => {
     setLoading(true);
     try {
       const baseParams: any = {
         startDate: dateRange[0].format('YYYY-MM-DD'),
         endDate: dateRange[1].format('YYYY-MM-DD'),
-        pageSize: 100, // 后端限制最大为 100
+        pageSize: 100,
       };
       if (selectedStore) baseParams.storeId = selectedStore;
       if (selectedDoctorId) baseParams.doctorId = selectedDoctorId;
 
-      // 第一次请求获取总数
       const firstResult = await scheduleApi.getList({ ...baseParams, page: 1 });
       const total = firstResult.total || 0;
       let allSchedules = firstResult.data || [];
 
-      // 如果有更多数据，继续请求
       if (total > 100) {
         const totalPages = Math.ceil(total / 100);
         const promises = [];
@@ -201,28 +255,27 @@ const ScheduleGanttPage: React.FC = () => {
     }
   }, [selectedDept]);
 
-  // 转换排班数据为甘特图任务
-  const ganttTasks: GanttTask[] = useMemo(() => {
+  // 转换排班数据为任务
+  const tasks: ScheduleTask[] = useMemo(() => {
     return schedules.map((schedule) => {
       const slotConfig = getSlotConfig(schedule.timeSlot);
-      const progress = schedule.totalSlots > 0 
+      const progress = schedule.totalSlots > 0
         ? Math.round((schedule.bookedSlots / schedule.totalSlots) * 100)
         : 0;
-
       return {
         id: schedule.id,
         doctorId: schedule.doctorId,
         doctorName: schedule.doctorName || '未知医生',
         departmentName: schedule.departmentName,
         date: schedule.scheduleDate,
-        timeSlot: schedule.timeSlot || 'morning',  // 确保有默认值
-        startTime: schedule.startTime || `${slotConfig.startHour.toString().padStart(2, '0')}:00`,
-        endTime: schedule.endTime || `${slotConfig.endHour.toString().padStart(2, '0')}:00`,
+        timeSlot: schedule.timeSlot || 'morning',
+        startTime: schedule.startTime || '08:00',
+        endTime: schedule.endTime || '12:00',
         totalSlots: schedule.totalSlots,
         bookedSlots: schedule.bookedSlots,
         status: schedule.status,
         progress,
-        isRestDay: schedule.isRestDay,  // 直接使用后端返回的字段
+        isRestDay: schedule.isRestDay,
       };
     });
   }, [schedules]);
@@ -230,8 +283,7 @@ const ScheduleGanttPage: React.FC = () => {
   // 按医生分组
   const doctorRows: DoctorRow[] = useMemo(() => {
     const doctorMap = new Map<string, DoctorRow>();
-    
-    ganttTasks.forEach((task) => {
+    tasks.forEach((task) => {
       if (!doctorMap.has(task.doctorId)) {
         doctorMap.set(task.doctorId, {
           doctorId: task.doctorId,
@@ -242,11 +294,10 @@ const ScheduleGanttPage: React.FC = () => {
       }
       doctorMap.get(task.doctorId)!.tasks.push(task);
     });
-
-    return Array.from(doctorMap.values()).sort((a, b) => 
+    return Array.from(doctorMap.values()).sort((a, b) =>
       a.doctorName.localeCompare(b.doctorName)
     );
-  }, [ganttTasks]);
+  }, [tasks]);
 
   // 生成日期列表
   const dateList: Dayjs[] = useMemo(() => {
@@ -259,107 +310,40 @@ const ScheduleGanttPage: React.FC = () => {
     return dates;
   }, [dateRange]);
 
-  // 导航到上一周/下一周
+  // 计算 SVG 布局
+  const layout = useMemo(() => {
+    const cellWidth = Math.max(
+      (containerWidth - SVG_CONFIG.labelWidth) / dateList.length,
+      SVG_CONFIG.minCellWidth,
+    );
+    const chartWidth = cellWidth * dateList.length;
+    const totalWidth = SVG_CONFIG.labelWidth + chartWidth;
+    const totalHeight = SVG_CONFIG.paddingTop + doctorRows.length * SVG_CONFIG.rowHeight + SVG_CONFIG.paddingBottom;
+    return { cellWidth, chartWidth, totalWidth, totalHeight };
+  }, [containerWidth, dateList.length, doctorRows.length]);
+
+  // 导航
   const navigatePrev = () => {
-    setDateRange([
-      dateRange[0].subtract(7, 'day'),
-      dateRange[1].subtract(7, 'day'),
-    ]);
+    setDateRange([dateRange[0].subtract(7, 'day'), dateRange[1].subtract(7, 'day')]);
   };
-
   const navigateNext = () => {
-    setDateRange([
-      dateRange[0].add(7, 'day'),
-      dateRange[1].add(7, 'day'),
-    ]);
+    setDateRange([dateRange[0].add(7, 'day'), dateRange[1].add(7, 'day')]);
   };
-
   const navigateToday = () => {
-    setDateRange([
-      dayjs().startOf('week'),
-      dayjs().endOf('week'),
-    ]);
+    setDateRange([dayjs().startOf('week'), dayjs().endOf('week')]);
   };
 
   // 处理任务点击
-  const handleTaskClick = (task: GanttTask) => {
+  const handleTaskClick = (task: ScheduleTask) => {
     setSelectedTask(task);
     setDrawerOpen(true);
   };
 
-  // 渲染甘特图任务块
-  const renderTaskBlock = (task: GanttTask) => {
-    const slotConfig = getSlotConfig(task.timeSlot);
-    const statusConfig = STATUS_CONFIG[task.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG[1];
-    const isSuspended = task.status === 0;
-
-    return (
-      <Tooltip
-        key={task.id}
-        title={
-          <div>
-            <div><strong>{task.doctorName}</strong></div>
-            <div>{slotConfig.label}：{task.startTime} - {task.endTime}</div>
-            <div>号源：{task.bookedSlots}/{task.totalSlots}</div>
-            <div>状态：{statusConfig.text}</div>
-          </div>
-        }
-      >
-        <div
-          className={`gantt-task-block ${isSuspended ? 'suspended' : ''}`}
-          style={{
-            backgroundColor: isSuspended ? '#ff4d4f' : slotConfig.color,
-            opacity: isSuspended ? 0.6 : 1,
-          }}
-          onClick={() => handleTaskClick(task)}
-        >
-          <span className="task-label">{slotConfig.label}</span>
-          <span className="task-progress">{task.bookedSlots}/{task.totalSlots}</span>
-          {task.progress > 0 && (
-            <div 
-              className="task-progress-bar" 
-              style={{ width: `${task.progress}%` }}
-            />
-          )}
-        </div>
-      </Tooltip>
-    );
-  };
-
-  // 渲染日期单元格
-  const renderDateCell = (doctor: DoctorRow, date: Dayjs) => {
-    const dateStr = date.format('YYYY-MM-DD');
-    const tasksForDate = doctor.tasks.filter((t) => t.date === dateStr);
-    const isToday = date.isSame(dayjs(), 'day');
-    // 从排班数据中获取 isRestDay（后端已计算）
-    const isRest = tasksForDate.some((t) => t.isRestDay);
-
-    return (
-      <Tooltip
-        key={dateStr}
-        title={isRest ? '休息日 - 该日期已设置休息，小程序端不可预约' : undefined}
-      >
-        <div 
-          className={`gantt-cell ${isToday ? 'today' : ''} ${isRest ? 'rest-day' : ''}`}
-        >
-          {isRest && <div className="rest-day-badge">休</div>}
-          {tasksForDate.length > 0 ? (
-            <div className="gantt-tasks">
-              {tasksForDate.map(renderTaskBlock)}
-            </div>
-          ) : (
-            <div className="gantt-empty">{isRest ? '' : '-'}</div>
-          )}
-        </div>
-      </Tooltip>
-    );
-  };
-
   return (
     <PageContainer title="排班甘特图">
-      <Card className="gantt-container">
+      <Card>
         {/* 筛选器 */}
-        <div className="gantt-filters">
+        <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: `1px solid ${token.colorBorderSecondary}` }}>
           <Space wrap>
             {showStoreFilter && (
               <Select
@@ -387,9 +371,9 @@ const ScheduleGanttPage: React.FC = () => {
               style={{ width: 150 }}
               value={selectedDoctorId}
               onChange={setSelectedDoctorId}
-              options={doctors.map((d) => ({ 
-                label: `${d.name}${d.title ? ` - ${d.title}` : ''}`, 
-                value: d.id 
+              options={doctors.map((d) => ({
+                label: `${d.name}${d.title ? ` - ${d.title}` : ''}`,
+                value: d.id,
               }))}
             />
             <RangePicker
@@ -409,78 +393,240 @@ const ScheduleGanttPage: React.FC = () => {
         </div>
 
         {/* 图例 */}
-        <div className="gantt-legend">
+        <div style={{ marginBottom: 16, padding: '8px 16px', background: token.colorFillAlter, borderRadius: 4 }}>
           <Space size="large">
-            {LEGEND_CONFIG.map((item) => (
-              <span key={item.key} className="legend-item">
-                <span 
-                  className="legend-color" 
-                  style={{ backgroundColor: item.color }} 
-                />
-                {item.label}
+            {Object.entries(TIME_SLOT_CONFIG).map(([key, config]) => (
+              <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: token.colorTextSecondary }}>
+                <svg width={16} height={12}>
+                  <rect width={16} height={12} fill={config.gradientStart} stroke={config.color} strokeWidth={1} rx={2} />
+                </svg>
+                {config.label}
               </span>
             ))}
-            <span className="legend-item">
-              <span 
-                className="legend-color suspended" 
-                style={{ backgroundColor: '#ff4d4f' }} 
-              />
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: token.colorTextSecondary }}>
+              <svg width={16} height={12}>
+                <rect width={16} height={12} fill="rgba(255,77,79,0.2)" stroke={COLOR_DANGER} strokeWidth={1} rx={2} strokeDasharray="2 2" />
+              </svg>
               停诊
             </span>
-            <span className="legend-item">
-              <span 
-                className="legend-color rest-day" 
-                style={{ backgroundColor: '#ffe7ba', border: '1px solid #fa8c16' }} 
-              />
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: token.colorTextSecondary }}>
+              <svg width={16} height={12}>
+                <rect width={16} height={12} fill="rgba(250,140,22,0.15)" stroke={COLOR_WARNING} strokeWidth={1} rx={2} />
+              </svg>
               休息日
             </span>
           </Space>
         </div>
 
-        {/* 甘特图主体 */}
+        {/* SVG 甘特图主体 */}
         <Spin spinning={loading}>
           {doctorRows.length > 0 ? (
-            <div className="gantt-chart">
-              {/* 表头 */}
-              <div className="gantt-header">
-                <div className="gantt-header-doctor">医生</div>
-                <div className="gantt-header-dates">
-                  {dateList.map((date) => (
-                    <div 
-                      key={date.format('YYYY-MM-DD')} 
-                      className={`gantt-header-date ${date.isSame(dayjs(), 'day') ? 'today' : ''}`}
-                    >
-                      <div className="date-weekday">
-                        {['日', '一', '二', '三', '四', '五', '六'][date.day()]}
-                      </div>
-                      <div className="date-day">{date.format('MM-DD')}</div>
-                    </div>
+            <div ref={containerRef} style={{ overflowX: layout.totalWidth > containerWidth ? 'auto' : 'visible', overflowY: 'hidden', maxWidth: '100%' }}>
+              <svg width={layout.totalWidth} height={layout.totalHeight}>
+                <defs>
+                  {/* 时段渐变 */}
+                  {Object.entries(TIME_SLOT_CONFIG).map(([key, config]) => (
+                    <linearGradient key={`grad-${key}`} id={`slot-gradient-${key}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor={config.gradientStart} />
+                      <stop offset="100%" stopColor={config.gradientEnd} />
+                    </linearGradient>
                   ))}
-                </div>
-              </div>
+                  <filter id="bar-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="1" stdDeviation="1.5" floodOpacity="0.12" />
+                  </filter>
+                </defs>
 
-              {/* 数据行 */}
-              <div className="gantt-body">
-                {doctorRows.map((doctor) => (
-                  <div key={doctor.doctorId} className="gantt-row">
-                    <div className="gantt-row-doctor">
-                      <div className="doctor-name">{doctor.doctorName}</div>
-                      {doctor.departmentName && (
-                        <div className="doctor-dept">{doctor.departmentName}</div>
+                {/* 表头背景 */}
+                <rect x={0} y={0} width={layout.totalWidth} height={SVG_CONFIG.paddingTop} fill={token.colorFillAlter} />
+
+                {/* 垂直轴线（标签和图表之间） */}
+                <line x1={SVG_CONFIG.labelWidth} y1={0} x2={SVG_CONFIG.labelWidth} y2={layout.totalHeight} stroke={token.colorBorderSecondary} strokeWidth={1} />
+
+                {/* 日期表头 */}
+                {dateList.map((date, i) => {
+                  const x = SVG_CONFIG.labelWidth + i * layout.cellWidth;
+                  const isToday = date.isSame(dayjs(), 'day');
+                  return (
+                    <g key={date.format('YYYY-MM-DD')}>
+                      {/* 今天高亮 */}
+                      {isToday && (
+                        <rect x={x} y={0} width={layout.cellWidth} height={layout.totalHeight} fill="rgba(22,119,255,0.04)" />
                       )}
-                    </div>
-                    <div className="gantt-row-dates">
-                      {dateList.map((date) => renderDateCell(doctor, date))}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                      {/* 垂直网格线 */}
+                      <line x1={x} y1={SVG_CONFIG.paddingTop} x2={x} y2={layout.totalHeight} stroke={token.colorBorderSecondary} strokeWidth={0.5} strokeDasharray="2 2" />
+                      {/* 星期 */}
+                      <text
+                        x={x + layout.cellWidth / 2}
+                        y={14}
+                        textAnchor="middle"
+                        fontSize={11}
+                        fill={isToday ? token.colorPrimary : token.colorTextSecondary}
+                        fontWeight={isToday ? 600 : 400}
+                      >
+                        {['日', '一', '二', '三', '四', '五', '六'][date.day()]}
+                      </text>
+                      {/* 日期 */}
+                      <text
+                        x={x + layout.cellWidth / 2}
+                        y={30}
+                        textAnchor="middle"
+                        fontSize={12}
+                        fill={isToday ? token.colorPrimary : token.colorText}
+                        fontWeight={isToday ? 600 : 400}
+                      >
+                        {date.format('MM-DD')}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                {/* 水平轴线 */}
+                <line x1={SVG_CONFIG.labelWidth} y1={SVG_CONFIG.paddingTop} x2={layout.totalWidth} y2={SVG_CONFIG.paddingTop} stroke={token.colorBorderSecondary} strokeWidth={1} />
+
+                {/* 数据行 */}
+                {doctorRows.map((doctor, rowIndex) => {
+                  const y = SVG_CONFIG.paddingTop + rowIndex * SVG_CONFIG.rowHeight;
+                  return (
+                    <g key={doctor.doctorId}>
+                      {/* 行背景（交替色） */}
+                      {rowIndex % 2 === 1 && (
+                        <rect x={0} y={y} width={layout.totalWidth} height={SVG_CONFIG.rowHeight} fill={token.colorFillAlter} opacity={0.3} />
+                      )}
+                      {/* 水平分隔线 */}
+                      <line x1={0} y1={y + SVG_CONFIG.rowHeight} x2={layout.totalWidth} y2={y + SVG_CONFIG.rowHeight} stroke={token.colorBorderSecondary} strokeWidth={0.5} />
+                      {/* 医生名称 */}
+                      <text
+                        x={SVG_CONFIG.labelWidth - 12}
+                        y={y + SVG_CONFIG.rowHeight / 2 - (doctor.departmentName ? 6 : 0)}
+                        textAnchor="end"
+                        dominantBaseline="middle"
+                        fontSize={12}
+                        fill={token.colorText}
+                        fontWeight={500}
+                      >
+                        {doctor.doctorName}
+                      </text>
+                      {/* 科室名称 */}
+                      {doctor.departmentName && (
+                        <text
+                          x={SVG_CONFIG.labelWidth - 12}
+                          y={y + SVG_CONFIG.rowHeight / 2 + 10}
+                          textAnchor="end"
+                          dominantBaseline="middle"
+                          fontSize={10}
+                          fill={token.colorTextSecondary}
+                        >
+                          {doctor.departmentName}
+                        </text>
+                      )}
+
+                      {/* 日期单元格 */}
+                      {dateList.map((date, colIndex) => {
+                        const dateStr = date.format('YYYY-MM-DD');
+                        const cellX = SVG_CONFIG.labelWidth + colIndex * layout.cellWidth;
+                        const tasksForDate = doctor.tasks.filter((t) => t.date === dateStr);
+                        const isRest = tasksForDate.some((t) => t.isRestDay);
+
+                        return (
+                          <g key={dateStr}>
+                            {/* 休息日背景 */}
+                            {isRest && (
+                              <rect x={cellX + 2} y={y + 2} width={layout.cellWidth - 4} height={SVG_CONFIG.rowHeight - 4} fill="rgba(250,140,22,0.08)" rx={4} />
+                            )}
+                            {/* 休息日标记 */}
+                            {isRest && (
+                              <g>
+                                <rect x={cellX + layout.cellWidth - 22} y={y + 4} width={18} height={14} fill={COLOR_WARNING} rx={2} />
+                                <text x={cellX + layout.cellWidth - 13} y={y + 14} textAnchor="middle" fontSize={9} fill="#fff" fontWeight={500}>
+                                  休
+                                </text>
+                              </g>
+                            )}
+                            {/* 排班任务块 */}
+                            {tasksForDate.length > 0 ? (
+                              tasksForDate.map((task, taskIndex) => {
+                                const slotConfig = getSlotConfig(task.timeSlot);
+                                const isSuspended = task.status === 0;
+                                const barY = y + 6 + taskIndex * 20;
+                                const barWidth = layout.cellWidth - 12;
+                                const barHeight = 18;
+
+                                if (barY + barHeight > y + SVG_CONFIG.rowHeight - 4) return null;
+
+                                return (
+                                  <g key={task.id} style={{ cursor: 'pointer' }} onClick={() => handleTaskClick(task)}>
+                                    <title>
+                                      {`${task.doctorName}\n${slotConfig.label}：${task.startTime} - ${task.endTime}\n号源：${task.bookedSlots}/${task.totalSlots}\n状态：${isSuspended ? '停诊' : '正常'}`}
+                                    </title>
+                                    {/* 任务条背景 */}
+                                    <rect
+                                      x={cellX + 6}
+                                      y={barY}
+                                      width={barWidth}
+                                      height={barHeight}
+                                      fill={isSuspended ? 'rgba(255,77,79,0.2)' : `url(#slot-gradient-${task.timeSlot})`}
+                                      stroke={isSuspended ? COLOR_DANGER : slotConfig.color}
+                                      strokeWidth={1}
+                                      rx={4}
+                                    />
+                                    {/* 停诊斜纹 */}
+                                    {isSuspended && (
+                                      <clipPath id={`clip-${task.id}`}>
+                                        <rect x={cellX + 6} y={barY} width={barWidth} height={barHeight} rx={4} />
+                                      </clipPath>
+                                    )}
+                                    {/* 进度条 */}
+                                    {task.progress > 0 && !isSuspended && (
+                                      <rect
+                                        x={cellX + 6}
+                                        y={barY + barHeight - 2}
+                                        width={barWidth * task.progress / 100}
+                                        height={2}
+                                        fill="rgba(255,255,255,0.5)"
+                                        rx={1}
+                                      />
+                                    )}
+                                    {/* 标签文字 */}
+                                    {barWidth > 60 && (
+                                      <text
+                                        x={cellX + 12}
+                                        y={barY + barHeight / 2}
+                                        dominantBaseline="middle"
+                                        fontSize={10}
+                                        fill={isSuspended ? COLOR_DANGER : slotConfig.color}
+                                        fontWeight={500}
+                                        style={{ pointerEvents: 'none' }}
+                                      >
+                                        {slotConfig.label} {task.bookedSlots}/{task.totalSlots}
+                                      </text>
+                                    )}
+                                  </g>
+                                );
+                              })
+                            ) : (
+                              !isRest && (
+                                <text
+                                  x={cellX + layout.cellWidth / 2}
+                                  y={y + SVG_CONFIG.rowHeight / 2}
+                                  textAnchor="middle"
+                                  dominantBaseline="middle"
+                                  fontSize={11}
+                                  fill={token.colorTextQuaternary}
+                                >
+                                  -
+                                </text>
+                              )
+                            )}
+                          </g>
+                        );
+                      })}
+                    </g>
+                  );
+                })}
+              </svg>
             </div>
           ) : (
-            <Empty 
-              description="暂无排班数据，请调整筛选条件" 
-              style={{ padding: '60px 0' }}
-            />
+            <Empty description="暂无排班数据，请调整筛选条件" style={{ padding: '60px 0' }} />
           )}
         </Spin>
       </Card>
@@ -494,28 +640,25 @@ const ScheduleGanttPage: React.FC = () => {
         onClose={() => setDrawerOpen(false)}
       >
         {selectedTask && (() => {
-          const taskSlotConfig = getSlotConfig(selectedTask.timeSlot);
-          const taskStatusConfig = STATUS_CONFIG[selectedTask.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG[1];
+          const slotConfig = getSlotConfig(selectedTask.timeSlot);
+          const statusConfig = STATUS_CONFIG[selectedTask.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG[1];
           return (
             <Descriptions column={1} bordered size="small" items={[
               { key: '0', label: '医生', children: selectedTask.doctorName },
               { key: '1', label: '科室', children: selectedTask.departmentName || '-' },
               { key: '2', label: '日期', children: selectedTask.date },
-              { key: '3', label: '时段', children: <Tag color={taskSlotConfig.color}>{taskSlotConfig.label}</Tag> },
+              { key: '3', label: '时段', children: <Tag color={slotConfig.color}>{slotConfig.label}</Tag> },
               { key: '4', label: '时间', children: `${selectedTask.startTime} - ${selectedTask.endTime}` },
               { key: '5', label: '总号源', children: selectedTask.totalSlots },
               { key: '6', label: '已预约', children: selectedTask.bookedSlots },
               { key: '7', label: '剩余', children: selectedTask.totalSlots - selectedTask.bookedSlots },
               { key: '8', label: '预约率', children: (
-                <span style={{ color: selectedTask.progress >= 80 ? '#ff4d4f' : '#52c41a' }}>
+                <span style={{ color: selectedTask.progress >= 80 ? COLOR_DANGER : COLOR_SUCCESS }}>
                   {selectedTask.progress}%
                 </span>
               ) },
               { key: '9', label: '状态', children: (
-                <Badge
-                  status={taskStatusConfig.color as any}
-                  text={taskStatusConfig.text}
-                />
+                <Badge status={statusConfig.color as any} text={statusConfig.text} />
               ) },
             ]} />
           );
@@ -526,4 +669,3 @@ const ScheduleGanttPage: React.FC = () => {
 };
 
 export default ScheduleGanttPage;
-

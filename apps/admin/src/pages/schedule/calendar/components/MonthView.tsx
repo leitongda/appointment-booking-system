@@ -89,8 +89,8 @@ const MonthView: React.FC<MonthViewProps> = ({
 
     // 按时段排序（支持两种格式）
     const sortedSchedules = [...stats.schedules].sort(
-      (a, b) => (TIME_SLOT_SORT_ORDER[a.timeSlot] ?? 3) - 
-                (TIME_SLOT_SORT_ORDER[b.timeSlot] ?? 3)
+      (a, b) => (TIME_SLOT_SORT_ORDER[a.timeSlot ?? ''] ?? 3) - 
+                (TIME_SLOT_SORT_ORDER[b.timeSlot ?? ''] ?? 3)
     );
 
     const ariaLabel = `${dateStr} ${stats.availableSlots > 0 ? `剩余号源${stats.availableSlots}个` : ''} ${stats.bookedSlots > 0 ? `已预约${stats.bookedSlots}个` : ''} ${stats.hasSuspended ? '有停诊排班' : ''}`;
@@ -127,7 +127,7 @@ const MonthView: React.FC<MonthViewProps> = ({
                 className={`slot-tag${overridden ? ' overridden' : ''}`}
                 title={overridden ? '已被自定义排班覆盖' : undefined}
               >
-                {overridden ? '覆盖' : (TIME_SLOT_LABELS[s.timeSlot] || s.timeSlot)}
+                {overridden ? '覆盖' : (TIME_SLOT_LABELS[s.timeSlot ?? ''] || s.timeSlot)}
               </Tag>
             );
           })}

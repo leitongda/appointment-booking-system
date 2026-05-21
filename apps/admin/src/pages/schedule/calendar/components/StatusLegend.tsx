@@ -21,6 +21,19 @@ const StatusLegend: React.FC = () => {
         <span className="legend-dot overridden" aria-hidden="true" />
         <span>被覆盖</span>
       </div>
+      <span style={{ margin: '0 8px', color: '#d9d9d9' }}>|</span>
+      <div className="legend-item" role="listitem" aria-label="草稿：灰色圆点表示排班未发布">
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#d9d9d9', display: 'inline-block' }} />
+        <span>草稿</span>
+      </div>
+      <div className="legend-item" role="listitem" aria-label="已发布：绿色圆点表示排班已发布">
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#52c41a', display: 'inline-block' }} />
+        <span>已发布</span>
+      </div>
+      <div className="legend-item" role="listitem" aria-label="已撤回：红色圆点表示排班已撤回">
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ff4d4f', display: 'inline-block' }} />
+        <span>已撤回</span>
+      </div>
     </div>
   );
 };

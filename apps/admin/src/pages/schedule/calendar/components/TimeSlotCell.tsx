@@ -1,5 +1,6 @@
 import { Tooltip } from 'antd';
 import type { Schedule, Appointment } from '@hospital/shared';
+import { COLOR_DANGER, TEXT_SECONDARY } from '@/themes/scheduleColors';
 
 export type SlotStatus = 'available' | 'booked' | 'full' | 'suspended' | 'overridden' | 'empty';
 
@@ -67,8 +68,13 @@ const TimeSlotCell: React.FC<TimeSlotCellProps> = ({
         <div>时间: {timeRange}</div>
         <div>号源: {schedule.bookedSlots}/{schedule.totalSlots}</div>
         <div>剩余: {available}</div>
-        {status === 'suspended' && <div style={{ color: '#ff4d4f' }}>已停诊</div>}
-        {status === 'overridden' && <div style={{ color: '#999' }}>已被自定义排班覆盖</div>}
+        {schedule.publishStatus && (
+          <div>
+            发布状态: {schedule.publishStatus === 'published' ? '已发布' : schedule.publishStatus === 'withdrawn' ? '已撤回' : '草稿'}
+          </div>
+        )}
+        {status === 'suspended' && <div style={{ color: COLOR_DANGER }}>已停诊</div>}
+        {status === 'overridden' && <div style={{ color: TEXT_SECONDARY }}>已被自定义排班覆盖</div>}
         {appointments.length > 0 && (
           <div style={{ marginTop: 4 }}>
             已预约患者: {appointments.length}人
@@ -88,6 +94,8 @@ const TimeSlotCell: React.FC<TimeSlotCellProps> = ({
     return `${timeRange} ${capacity} ${statusText}`;
   };
 
+  const publishDotColor = schedule.publishStatus === 'published' ? '#52c41a' : schedule.publishStatus === 'withdrawn' ? '#ff4d4f' : '#d9d9d9';
+
   return (
     <Tooltip title={getTooltipContent()} placement="top">
       <div
@@ -96,6 +104,7 @@ const TimeSlotCell: React.FC<TimeSlotCellProps> = ({
         aria-label={getAriaLabel()}
         role="button"
         aria-disabled={status === 'suspended' || status === 'full' || status === 'overridden'}
+        style={{ position: 'relative' }}
       >
         <div className="slot-content">
           <span className="slot-indicator" aria-hidden="true" />
@@ -103,6 +112,20 @@ const TimeSlotCell: React.FC<TimeSlotCellProps> = ({
             {status === 'suspended' ? '停' : status === 'overridden' ? '覆' : `${schedule.bookedSlots}/${schedule.totalSlots}`}
           </span>
         </div>
+        {schedule.publishStatus && (
+          <span
+            style={{
+              position: 'absolute',
+              top: 2,
+              right: 2,
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: publishDotColor,
+              display: 'inline-block',
+            }}
+          />
+        )}
       </div>
     </Tooltip>
   );

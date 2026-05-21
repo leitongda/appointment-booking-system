@@ -1,5 +1,6 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { Card, Skeleton, message } from 'antd';
+import { Button, Card, Skeleton, message } from 'antd';
+import { CopyOutlined, ImportOutlined, ExportOutlined } from '@ant-design/icons';
 import { useState, useEffect, useCallback } from 'react';
 import dayjs, { Dayjs } from 'dayjs';
 import { scheduleApi, appointmentApi } from '@hospital/api';
@@ -13,6 +14,11 @@ import MonthView from './components/MonthView';
 import DayDetailDrawer from './components/DayDetailDrawer';
 import AppointmentDetailModal from './components/AppointmentDetailModal';
 import CreateAppointmentModal from './components/CreateAppointmentModal';
+import ExtraQuotaModal from './components/ExtraQuotaModal';
+import BatchCopyModal from './components/BatchCopyModal';
+import ImportModal from './components/ImportModal';
+import DragConfirmModal from './components/DragConfirmModal';
+import type { DragConflictItem } from './components/DragConfirmModal';
 import { ScheduleMessages } from '../utils/message';
 import './styles/calendar.less';
 
@@ -70,6 +76,39 @@ const ScheduleCalendarPage: React.FC = () => {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createScheduleId, setCreateScheduleId] = useState<string | null>(null);
+
+  // 加号申请弹窗状态
+  const [extraQuotaOpen, setExtraQuotaOpen] = useState(false);
+  const [extraQuotaScheduleId, setExtraQuotaScheduleId] = useState<string>('');
+  const [extraQuotaScheduleInfo, setExtraQuotaScheduleInfo] = useState<{
+    doctorName?: string;
+    scheduleDate?: string;
+    timeSlot?: string;
+    totalSlots?: number;
+    bookedSlots?: number;
+  } | undefined>(undefined);
+
+  // 批量复制状态
+  const [batchCopyOpen, setBatchCopyOpen] = useState(false);
+
+  // 导入状态
+  const [importOpen, setImportOpen] = useState(false);
+
+  // 导出状态
+  const [exportLoading, setExportLoading] = useState(false);
+
+  // 拖拽状态
+  const [dragConfirmOpen, setDragConfirmOpen] = useState(false);
+  const [dragParams, setDragParams] = useState<{
+    scheduleId: string;
+    targetDate: string;
+    targetStartTime?: string;
+    targetEndTime?: string;
+    targetTimeSlot?: string;
+  } | null>(null);
+  const [dragSchedule, setDragSchedule] = useState<Schedule | null>(null);
+  const [dragConflicts, setDragConflicts] = useState<DragConflictItem[] | null>(null);
+  const [dragLoading, setDragLoading] = useState(false);
 
   // 计算日期范围
   const getDateRange = useCallback(() => {
@@ -191,6 +230,20 @@ const ScheduleCalendarPage: React.FC = () => {
     setCreateModalOpen(true);
   };
 
+  // 处理加号申请
+  const handleExtraQuotaClick = (scheduleId: string) => {
+    const schedule = schedules.find(s => s.id === scheduleId);
+    setExtraQuotaScheduleId(scheduleId);
+    setExtraQuotaScheduleInfo(schedule ? {
+      doctorName: schedule.doctorName,
+      scheduleDate: schedule.scheduleDate,
+      timeSlot: schedule.timeSlot,
+      totalSlots: schedule.totalSlots,
+      bookedSlots: schedule.bookedSlots,
+    } : undefined);
+    setExtraQuotaOpen(true);
+  };
+
   // 处理视图模式切换
   const handleViewModeChange = (mode: ViewMode) => {
     setViewMode(mode);
@@ -203,6 +256,115 @@ const ScheduleCalendarPage: React.FC = () => {
     handleViewModeChange('week');
     setDrawerOpen(false);
   };
+
+  // 批量发布排班
+  const handleBatchPublish = useCallback(async (scheduleIds: string[]) => {
+    try {
+      const result = await scheduleApi.batchPublish(scheduleIds);
+      message.success(result.message || '发布成功');
+      refreshData();
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || '发布失败');
+    }
+  }, [refreshData]);
+
+  // 批量撤回排班
+  const handleBatchWithdraw = useCallback(async (scheduleIds: string[], reason?: string) => {
+    try {
+      const result = await scheduleApi.batchWithdraw(scheduleIds, reason);
+      message.success(result.message || '撤回成功');
+      refreshData();
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || '撤回失败');
+    }
+  }, [refreshData]);
+
+  // 处理导出排班
+  const handleExport = useCallback(async () => {
+    if (!selectedDoctor?.storeId) {
+      message.warning('请先选择医生');
+      return;
+    }
+    setExportLoading(true);
+    try {
+      const { startDate, endDate } = getDateRange();
+      await scheduleApi.exportSchedules({
+        storeId: selectedDoctor.storeId,
+        doctorId: selectedDoctor.id,
+        startDate,
+        endDate,
+      });
+      message.success('导出成功');
+    } catch (error) {
+      message.error('导出失败');
+      console.error('导出排班失败', error);
+    } finally {
+      setExportLoading(false);
+    }
+  }, [selectedDoctor, getDateRange]);
+
+  // 处理拖拽调整
+  const handleDragAdjust = useCallback((params: {
+    scheduleId: string;
+    targetDate: string;
+    targetStartTime?: string;
+    targetEndTime?: string;
+    targetTimeSlot?: string;
+  }) => {
+    const schedule = schedules.find(s => s.id === params.scheduleId);
+    if (!schedule) return;
+    setDragSchedule(schedule);
+    setDragParams(params);
+    setDragConflicts(null);
+    setDragConfirmOpen(true);
+  }, [schedules]);
+
+  // 确认拖拽调整
+  const handleDragConfirm = useCallback(async () => {
+    if (!dragParams) return;
+
+    setDragLoading(true);
+    try {
+      const result = await scheduleApi.dragAdjust(dragParams);
+
+      if (result.success) {
+        message.success(result.message || '排班调整成功');
+        setDragConfirmOpen(false);
+        setDragParams(null);
+        setDragSchedule(null);
+        setDragConflicts(null);
+        refreshData();
+      } else {
+        // 有冲突信息
+        if (result.conflicts?.conflicts) {
+          setDragConflicts(result.conflicts.conflicts as DragConflictItem[]);
+        }
+        message.warning(result.message || '排班调整失败');
+      }
+    } catch (error: any) {
+      // 后端返回 409 冲突时，解析冲突信息
+      // Structured error: error.errorDetails.conflicts or legacy: error.data.conflicts
+      const conflictData = error?.errorDetails?.conflicts
+        || error?.data?.conflicts?.conflicts
+        || error?.response?.data?.conflicts?.conflicts;
+      if (conflictData) {
+        setDragConflicts(conflictData as DragConflictItem[]);
+        message.warning(error?.message || '存在冲突，请确认后继续');
+      } else {
+        message.error(error?.message || '排班调整失败');
+      }
+    } finally {
+      setDragLoading(false);
+    }
+  }, [dragParams, refreshData]);
+
+  // 取消拖拽调整
+  const handleDragCancel = useCallback(() => {
+    setDragConfirmOpen(false);
+    setDragParams(null);
+    setDragSchedule(null);
+    setDragConflicts(null);
+  }, []);
 
   // 按日期分组排班
   const getSchedulesByDate = (date: Dayjs): Schedule[] => {
@@ -230,6 +392,29 @@ const ScheduleCalendarPage: React.FC = () => {
 
         {selectedDoctor && (
           <>
+            {/* 操作栏 */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8, gap: 8 }}>
+              <Button
+                icon={<ImportOutlined />}
+                onClick={() => setImportOpen(true)}
+              >
+                导入
+              </Button>
+              <Button
+                icon={<ExportOutlined />}
+                onClick={handleExport}
+                loading={exportLoading}
+              >
+                导出
+              </Button>
+              <Button
+                icon={<CopyOutlined />}
+                onClick={() => setBatchCopyOpen(true)}
+              >
+                批量复制
+              </Button>
+            </div>
+
             {/* 日历头部 */}
             <CalendarHeader
               viewMode={viewMode}
@@ -251,6 +436,7 @@ const ScheduleCalendarPage: React.FC = () => {
                     onCreateClick={handleCreateClick}
                     isRestDay={isRestDay}
                     isOverridden={isOverridden}
+                    onDragAdjust={handleDragAdjust}
                   />
                 ) : (
                   <MonthView
@@ -277,7 +463,10 @@ const ScheduleCalendarPage: React.FC = () => {
         appointments={drawerDate ? getAppointmentsByDate(drawerDate) : []}
         onAppointmentClick={handleAppointmentClick}
         onCreateClick={handleCreateClick}
+        onExtraQuotaClick={handleExtraQuotaClick}
         onSwitchToWeek={handleSwitchToWeek}
+        onBatchPublish={handleBatchPublish}
+        onBatchWithdraw={handleBatchWithdraw}
       />
 
       {/* 预约详情弹窗 */}
@@ -293,6 +482,44 @@ const ScheduleCalendarPage: React.FC = () => {
         onClose={() => setCreateModalOpen(false)}
         scheduleId={createScheduleId}
         onSuccess={refreshData}
+      />
+
+      {/* 拖拽确认弹窗 */}
+      <DragConfirmModal
+        open={dragConfirmOpen}
+        schedule={dragSchedule}
+        targetDate={dragParams?.targetDate || ''}
+        targetStartTime={dragParams?.targetStartTime}
+        targetEndTime={dragParams?.targetEndTime}
+        targetTimeSlot={dragParams?.targetTimeSlot}
+        onConfirm={handleDragConfirm}
+        onCancel={handleDragCancel}
+        loading={dragLoading}
+        conflicts={dragConflicts || undefined}
+      />
+
+      {/* 批量复制排班弹窗 */}
+      <BatchCopyModal
+        open={batchCopyOpen}
+        onClose={() => setBatchCopyOpen(false)}
+        onSuccess={refreshData}
+        doctorId={selectedDoctor?.id}
+      />
+
+      {/* 导入排班弹窗 */}
+      <ImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onSuccess={refreshData}
+      />
+
+      {/* 加号申请弹窗 */}
+      <ExtraQuotaModal
+        open={extraQuotaOpen}
+        onClose={() => setExtraQuotaOpen(false)}
+        onSuccess={refreshData}
+        scheduleId={extraQuotaScheduleId}
+        scheduleInfo={extraQuotaScheduleInfo}
       />
     </PageContainer>
   );

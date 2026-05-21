@@ -4,6 +4,7 @@ import { scheduleApi, appointmentApi, patientApi } from '@hospital/api';
 import type { PatientListItem } from '@hospital/api';
 import type { Schedule } from '@hospital/shared';
 import { ScheduleMessages } from '../../utils/message';
+import { COLOR_SUCCESS } from '@/themes/scheduleColors';
 
 interface CreateAppointmentModalProps {
   open: boolean;
@@ -120,7 +121,7 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
           </div>
           <div className="info-item">
             <span className="info-label">时段：</span>
-            <span>{TIME_SLOT_LABELS[schedule.timeSlot] || schedule.timeSlot}</span>
+            <span>{TIME_SLOT_LABELS[schedule.timeSlot ?? ''] || schedule.timeSlot}</span>
           </div>
           <div className="info-item">
             <span className="info-label">时间：</span>
@@ -132,7 +133,7 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
           </div>
           <div className="info-item">
             <span className="info-label">剩余号源：</span>
-            <span style={{ color: '#52c41a' }}>
+            <span style={{ color: COLOR_SUCCESS }}>
               {schedule.totalSlots - schedule.bookedSlots}
             </span>
           </div>
