@@ -8,7 +8,7 @@ import { Card, SectionLabel } from '@/components/ui';
 import { fadeInUp, stagger } from '@/components/ui/animations';
 
 const DepartmentDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams() as { id: string };
   const [loading, setLoading] = useState(true);
   const [department, setDepartment] = useState<Department | null>(null);
 

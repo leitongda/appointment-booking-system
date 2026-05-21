@@ -237,7 +237,7 @@ const PatientEditPage: React.FC = () => {
                 >
                   {(value) => (
                     <span className={value ? 'text-foreground' : 'text-muted-foreground'}>
-                      {value || '请选择'}
+                      {value ? String(value) : '请选择'}
                     </span>
                   )}
                 </DatePicker>

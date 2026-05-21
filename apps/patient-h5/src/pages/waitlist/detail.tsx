@@ -37,7 +37,7 @@ const STATUS_CONFIG: Record<WaitlistStatus, {
 };
 
 const WaitlistDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams() as { id: string };
   const [loading, setLoading] = useState(true);
   const [entry, setEntry] = useState<WaitlistEntry | null>(null);
 
@@ -234,10 +234,10 @@ const WaitlistDetailPage: React.FC = () => {
         {/* Tip */}
         {isWaiting && (
           <motion.div variants={fadeInUp}>
-            <InvertedSection
-              title="候补说明"
-              content="候补排队按照先到先得原则，当有号源释放时系统会自动按顺序递补。您也可以随时取消候补。"
-            />
+            <InvertedSection>
+              <h3>候补说明</h3>
+              <p>候补排队按照先到先得原则，当有号源释放时系统会自动按顺序递补。您也可以随时取消候补。</p>
+            </InvertedSection>
           </motion.div>
         )}
       </motion.div>

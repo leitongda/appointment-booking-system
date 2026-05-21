@@ -237,7 +237,7 @@ const HomePage: React.FC = () => {
           {loading ? (
             <Skeleton.Paragraph lineCount={2} animated />
           ) : (
-            <Grid columns={4} gap={8} role="list" aria-label="热门科室列表">
+            <Grid columns={4} gap={8} aria-label="热门科室列表">
               {hotDepts.map((dept) => (
                 <Grid.Item
                   key={dept.id}

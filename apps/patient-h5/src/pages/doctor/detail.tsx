@@ -12,7 +12,7 @@ import { fadeInUp, stagger, viewportOptions } from '@/components/ui/animations';
 const WEEKDAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
 const DoctorDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams() as { id: string };
   const [loading, setLoading] = useState(true);
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [schedules, setSchedules] = useState<AvailableSchedule[]>([]);
@@ -204,7 +204,7 @@ const DoctorDetailPage: React.FC = () => {
                       >
                         <div className="text-center">
                           <div className="text-sm">
-                            {TIME_SLOT_MAP[schedule.timeSlot]}
+                            {schedule.timeSlot ? TIME_SLOT_MAP[schedule.timeSlot] : ''}
                           </div>
                           <div className="text-xs opacity-80 mt-1">
                             {schedule.availableSlots > 0 ? `余${schedule.availableSlots}` : '约满'}

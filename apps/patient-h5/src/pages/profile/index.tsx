@@ -168,7 +168,7 @@ const ProfilePage: React.FC = () => {
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <span className="text-xl font-semibold text-foreground">
-                {user?.nickname || user?.name || '未设置昵称'}
+                {user?.nickname || '未设置昵称'}
               </span>
               <svg
                 className="w-4 h-4 text-muted-foreground/60"

@@ -90,7 +90,7 @@ export function rootContainer(container: React.ReactNode) {
   let lastPathname = window.location.pathname;
 
   // 监听路由变化
-  const unlisten = history.listen(({ location }) => {
+  const unlisten = history.listen(({ location }: any) => {
     const routeEndTime = performance.now();
     const routeDuration = routeEndTime - routeStartTime;
 

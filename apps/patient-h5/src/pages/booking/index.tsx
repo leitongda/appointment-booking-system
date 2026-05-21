@@ -9,7 +9,7 @@ import { Card, Button } from '@/components/ui';
 import { fadeInUp, stagger } from '@/components/ui/animations';
 
 const BookingPage: React.FC = () => {
-  const { doctorId } = useParams<{ doctorId: string }>();
+  const { doctorId } = useParams() as { doctorId: string };
   const [searchParams] = useSearchParams();
   const scheduleId = searchParams.get('scheduleId');
   const date = searchParams.get('date');

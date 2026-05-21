@@ -8,6 +8,7 @@ import { PATIENT_MESSAGE_TABS } from '@hospital/shared';
 import { Card } from '@/components/ui';
 import { fadeInUp, stagger } from '@/components/ui/animations';
 import { announce } from '@/components/ui/toast-live';
+import { usePatientWebSocket } from '@/hooks/usePatientWebSocket';
 
 const MessagePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -19,6 +20,22 @@ const MessagePage: React.FC = () => {
   
   const userId = localStorage.getItem('userId') || '';
   const userType = 'patient';
+
+  // WebSocket 实时消息推送
+  const handleNewMessage = useCallback((data: any) => {
+    // 新消息到达，刷新列表和未读数
+    loadMessages(1, true);
+    loadUnreadCount();
+    if (data?.title) {
+      Toast.show({ content: `新消息: ${data.title}`, position: 'top' });
+      announce(`收到新消息: ${data.title}`);
+    }
+  }, []);
+
+  usePatientWebSocket({
+    patientId: userId,
+    onNewMessage: handleNewMessage,
+  });
 
   useEffect(() => {
     loadUnreadCount();
@@ -218,7 +235,7 @@ const MessagePage: React.FC = () => {
                   </span>
                 </Badge>
               }
-              aria-label={tab.badge && tab.badge > 0 ? `${tab.label}, ${tab.badge}条未读` : tab.label}
+              aria-label={tab.badge && tab.badge > 0 ? `${tab.title}, ${tab.badge}条未读` : tab.title}
               aria-selected={activeTab === tab.key}
             />
           ))}
@@ -247,7 +264,6 @@ const MessagePage: React.FC = () => {
                         text: '删除',
                         color: 'danger',
                         onClick: () => handleDelete(message.id),
-                        'aria-label': `删除消息: ${message.title}`,
                       },
                     ]}
                   >

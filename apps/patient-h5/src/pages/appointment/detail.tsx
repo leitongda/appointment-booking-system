@@ -9,11 +9,12 @@ import type { Appointment } from '@hospital/shared';
 import { Card, Button, InvertedSection } from '@/components/ui';
 import { fadeInUp, stagger } from '@/components/ui/animations';
 import { announce } from '@/components/ui/toast-live';
+import { QueueStatusCard } from '@/components/QueueStatusCard';
 
 const { Step } = Steps;
 
 const AppointmentDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams() as { id: string };
   const [loading, setLoading] = useState(true);
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [bookingRules, setBookingRules] = useState<BookingRules | null>(null);
@@ -220,9 +221,21 @@ const AppointmentDetailPage: React.FC = () => {
 
         {isPendingPayment && (
           <motion.div variants={fadeInUp}>
-            <InvertedSection
-              title="待支付提醒"
-              content="当前预约尚未完成支付。您可以先取消订单；如需继续支付，请前往支持支付的端重新发起。未支付订单超时后会自动取消。"
+            <InvertedSection>
+              <h3>待支付提醒</h3>
+              <p>当前预约尚未完成支付。您可以先取消订单；如需继续支付，请前往支持支付的端重新发起。未支付订单超时后会自动取消。</p>
+            </InvertedSection>
+          </motion.div>
+        )}
+
+        {/* Queue Status - 实时排队状态 */}
+        {(appointment.status === 2 || appointment.status === 4) && appointment.userId && (
+          <motion.div variants={fadeInUp}>
+            <QueueStatusCard
+              appointmentId={appointment.id}
+              patientId={appointment.userId}
+              initialQueueNumber={appointment.queueNumber}
+              doctorName={appointment.doctorName}
             />
           </motion.div>
         )}

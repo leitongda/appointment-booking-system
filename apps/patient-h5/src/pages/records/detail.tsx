@@ -6,9 +6,10 @@ import { medicalRecordApi } from '@hospital/api';
 import type { MedicalRecord } from '@hospital/api';
 import { Card, SectionLabel } from '@/components/ui';
 import { fadeInUp, stagger } from '@/components/ui/animations';
+import { ExaminationReportList } from '@/components/ExaminationReportList';
 
 const RecordDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams() as { id: string };
   const [loading, setLoading] = useState(true);
   const [record, setRecord] = useState<MedicalRecord | null>(null);
 
@@ -206,6 +207,11 @@ const RecordDetailPage: React.FC = () => {
             </Card>
           </motion.div>
         )}
+
+        {/* Examination Reports */}
+        <motion.div variants={fadeInUp}>
+          <ExaminationReportList recordId={record.id} />
+        </motion.div>
       </motion.div>
     </div>
   );
