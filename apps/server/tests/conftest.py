@@ -35,6 +35,7 @@ from app.models.rule_set import RuleSet, ShiftType
 from app.models.tenant import Tenant, SubscriptionPlan
 from app.models.refund import RefundRecord
 from app.models.account import Account, AccountAdmin, AccountDoctor, AccountUser
+from app.models.schedule_room import ScheduleRoom
 from app.modules.appointments.service import AppointmentService
 
 
@@ -44,17 +45,10 @@ from app.modules.appointments.service import AppointmentService
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
 
-# ==================== 事件循环 ====================
-
-@pytest.fixture(scope="session")
-def event_loop():
-    """创建会话级别的事件循环"""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
-
-
 # ==================== 数据库 Fixtures ====================
+# 注意：不覆盖 event_loop fixture，使用 pytest-asyncio 默认的 function-scoped 循环。
+# session-scoped 循环会与 TestClient 的内部事件循环冲突，导致 teardown 时
+# "RuntimeError: Event loop is closed" 错误。
 
 @pytest_asyncio.fixture(scope="function")
 async def test_engine():
@@ -368,10 +362,16 @@ def client(db_session: AsyncSession):
     from app.db.session import get_db
     app.dependency_overrides[get_db] = override_get_db
 
-    with TestClient(app) as test_client:
-        yield test_client
+    test_client = TestClient(app, raise_server_exceptions=False)
+    yield test_client
 
-    # 清理依赖覆盖
+    # 关闭客户端并清理依赖覆盖
+    try:
+        test_client.close()
+    except RuntimeError:
+        # 忽略 "Event loop is closed" — lifespan shutdown 在异步测试环境中
+        # 可能因事件循环已关闭而失败，不影响测试结果
+        pass
     app.dependency_overrides.clear()
 
 

@@ -78,7 +78,7 @@ class TestUserManageService:
             id_card="110101199301011234",
             gender=2,
             birthday="1993-01-01",
-            relationship="家属",
+            relationship="其他",
             is_default=True,
         )
 

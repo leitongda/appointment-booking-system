@@ -369,7 +369,7 @@ async def test_store_admin_switch_to_unauthorized_store(
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip("store status check not implemented in admin endpoint")
+@pytest.mark.skip("test_store_admin fixture does not populate admin.stores relationship; auth check requires stores to be loaded")
 async def test_disabled_store_access(
     async_client, db_session, test_store_admin, test_store
 ):
@@ -412,7 +412,6 @@ async def test_super_admin_can_access_all_stores(
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip("GET /api/v1/admin/roles returns 422, requires query params")
 async def test_permission_with_wildcard(
     async_client, db_session, test_super_admin
 ):
@@ -424,7 +423,8 @@ async def test_permission_with_wildcard(
     # 超管访问角色管理
     response = await async_client.get(
         "/api/v1/admin/roles",
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
+        params={"page": 1, "page_size": 10},
     )
 
     # 超管应该能访问
@@ -450,12 +450,11 @@ async def test_doctor_access_admin_endpoint(async_client, test_doctor):
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip("user token without type=admin returns 404 on /api/v1/admin/me")
 async def test_user_access_admin_endpoint(async_client, test_user):
     """普通用户访问管理员端点返回 403"""
     from app.core.security import create_access_token
 
-    # 创建用户 token
+    # 创建用户 token（type 不是 admin）
     token = create_access_token({"sub": test_user.id})
 
     # 尝试访问管理员端点
@@ -464,5 +463,5 @@ async def test_user_access_admin_endpoint(async_client, test_user):
         headers={"Authorization": f"Bearer {token}"}
     )
 
-    # 应该返回 401 或 403（不是管理员）
-    assert response.status_code in [401, 403]
+    # get_current_admin 严格要求 type=admin，否则返回 403
+    assert response.status_code == 403

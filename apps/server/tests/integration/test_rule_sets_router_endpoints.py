@@ -339,10 +339,13 @@ async def test_delete_rule_set(async_client, db_session, test_shift_type):
 
         assert response.status_code == 204
 
-        # 验证已被删除
+        # 验证已被软删除（deleted_at 不为 None）
         from sqlalchemy import select
-        result = await db_session.execute(select(RuleSet).where(RuleSet.id == rule_set.id))
-        assert result.scalar_one_or_none() is None
+        result = await db_session.execute(
+            select(RuleSet.deleted_at).where(RuleSet.id == rule_set.id)
+        )
+        deleted_at = result.scalar_one_or_none()
+        assert deleted_at is not None
     finally:
         app.dependency_overrides.pop(deps.get_current_super_admin, None)
 

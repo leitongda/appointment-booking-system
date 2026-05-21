@@ -2031,6 +2031,7 @@ class TestGetReferenceTime:
         start_at = tz.localize(datetime.combine(schedule_date, time(8, 0)))
 
         schedule = MagicMock()
+        schedule.rule_set_id = None
         schedule.start_at = start_at
         schedule.start_time = time(8, 0)
         schedule.schedule_date = schedule_date
@@ -2052,6 +2053,7 @@ class TestGetReferenceTime:
         schedule_date = date.today() + timedelta(days=1)
 
         schedule = MagicMock()
+        schedule.rule_set_id = None
         schedule.start_at = None
         schedule.start_time = time(8, 0)
         schedule.schedule_date = schedule_date
@@ -2075,6 +2077,7 @@ class TestGetReferenceTime:
         end_at = tz.localize(datetime.combine(schedule_date, time(12, 0)))
 
         schedule = MagicMock()
+        schedule.rule_set_id = None
         schedule.start_at = None
         schedule.start_time = None
         schedule.schedule_date = schedule_date
@@ -2096,6 +2099,7 @@ class TestGetReferenceTime:
         schedule_date = date.today() + timedelta(days=1)
 
         schedule = MagicMock()
+        schedule.rule_set_id = None
         schedule.start_at = None
         schedule.start_time = None
         schedule.schedule_date = schedule_date
@@ -2118,6 +2122,7 @@ class TestGetReferenceTime:
         booking_created_at = tz.localize(datetime.now())
 
         schedule = MagicMock()
+        schedule.rule_set_id = None
         schedule.start_at = None
         schedule.start_time = None
         schedule.schedule_date = date.today()
@@ -2138,6 +2143,7 @@ class TestGetReferenceTime:
         tz = pytz.timezone('Asia/Shanghai')
 
         schedule = MagicMock()
+        schedule.rule_set_id = None
         schedule.start_at = None
         schedule.start_time = None
         schedule.schedule_date = date.today()
@@ -2163,6 +2169,7 @@ class TestGetReferenceTime:
         start_at = tz.localize(datetime.combine(schedule_date, time(8, 0)))
 
         schedule = MagicMock()
+        schedule.rule_set_id = None
         schedule.start_at = start_at
         schedule.start_time = time(8, 0)
         schedule.schedule_date = schedule_date
@@ -2324,6 +2331,7 @@ class TestCheckActionWindowIntegration:
         from app.modules.rule_engine import RuleEngineService
 
         schedule = MagicMock()
+        schedule.rule_set_id = None
         schedule.shift_type_id = None
         schedule.start_at = None
         schedule.start_time = time(8, 0)
@@ -2346,6 +2354,7 @@ class TestCheckActionWindowIntegration:
         shift_type_id = str(uuid4())
 
         schedule = MagicMock()
+        schedule.rule_set_id = None
         schedule.shift_type_id = shift_type_id
         schedule.start_at = None
         schedule.start_time = time(8, 0)
@@ -2358,6 +2367,7 @@ class TestCheckActionWindowIntegration:
         # Mock rule_cache 返回空列表
         mock_rule_cache = AsyncMock(spec=RuleCache)
         mock_rule_cache.get_rule_sets_v2.return_value = None  # 缓存未命中
+        mock_rule_cache.get_direct_rule_set = AsyncMock(return_value=None)
 
         service = RuleEngineService(db_session)
         service._rule_cache = mock_rule_cache
@@ -2395,6 +2405,7 @@ class TestCheckActionWindowIntegration:
         await db_session.commit()
 
         schedule = MagicMock()
+        schedule.rule_set_id = None
         schedule.shift_type_id = shift_type.id
         schedule.start_at = None
         schedule.start_time = time(8, 0)
@@ -2407,6 +2418,7 @@ class TestCheckActionWindowIntegration:
         # Mock rule_cache 返回空列表
         mock_rule_cache = AsyncMock(spec=RuleCache)
         mock_rule_cache.get_rule_sets_v2.return_value = None  # 缓存未命中
+        mock_rule_cache.get_direct_rule_set = AsyncMock(return_value=None)
 
         service = RuleEngineService(db_session)
         service._rule_cache = mock_rule_cache
@@ -2460,6 +2472,7 @@ class TestCheckActionWindowIntegration:
         schedule_start = tz.localize(datetime.combine(tomorrow, time(8, 0)))
 
         schedule = MagicMock()
+        schedule.rule_set_id = None
         schedule.shift_type_id = shift_type.id
         schedule.start_at = schedule_start
         schedule.start_time = time(8, 0)
@@ -2472,6 +2485,7 @@ class TestCheckActionWindowIntegration:
         # Mock rule_cache 返回空列表
         mock_rule_cache = AsyncMock(spec=RuleCache)
         mock_rule_cache.get_rule_sets_v2.return_value = None  # 缓存未命中
+        mock_rule_cache.get_direct_rule_set = AsyncMock(return_value=None)
 
         service = RuleEngineService(db_session)
         service._rule_cache = mock_rule_cache
@@ -2527,6 +2541,7 @@ class TestCheckActionWindowIntegration:
         schedule_start = tz.localize(datetime.combine(tomorrow, time(8, 0)))
 
         schedule = MagicMock()
+        schedule.rule_set_id = None
         schedule.shift_type_id = shift_type.id
         schedule.start_at = schedule_start
         schedule.start_time = time(8, 0)
@@ -2539,6 +2554,7 @@ class TestCheckActionWindowIntegration:
         # Mock rule_cache 返回空列表
         mock_rule_cache = AsyncMock(spec=RuleCache)
         mock_rule_cache.get_rule_sets_v2.return_value = None  # 缓存未命中
+        mock_rule_cache.get_direct_rule_set = AsyncMock(return_value=None)
 
         service = RuleEngineService(db_session)
         service._rule_cache = mock_rule_cache
@@ -2601,6 +2617,7 @@ class TestCheckActionWindowIntegration:
         schedule_end = tz.localize(datetime.combine(tomorrow, time(12, 0)))
 
         schedule = MagicMock()
+        schedule.rule_set_id = None
         schedule.shift_type_id = shift_type.id
         schedule.start_at = schedule_start
         schedule.end_at = schedule_end
@@ -2615,6 +2632,7 @@ class TestCheckActionWindowIntegration:
         # Mock rule_cache 返回空列表
         mock_rule_cache = AsyncMock(spec=RuleCache)
         mock_rule_cache.get_rule_sets_v2.return_value = None  # 缓存未命中
+        mock_rule_cache.get_direct_rule_set = AsyncMock(return_value=None)
 
         service = RuleEngineService(db_session)
         service._rule_cache = mock_rule_cache
@@ -2791,6 +2809,7 @@ class TestGetDefaultWindowResult:
         current_time = tz.localize(datetime(2026, 4, 27, 10, 0, 0))
 
         schedule = MagicMock()
+        schedule.rule_set_id = None
 
         result = mixin._get_default_window_result(schedule, "BOOK", current_time)
 
@@ -2835,6 +2854,7 @@ class TestGetCandidateRuleSets:
         # Mock rule_cache 和 tenant context
         mock_rule_cache = AsyncMock(spec=RuleCache)
         mock_rule_cache.get_rule_sets_v2.return_value = None  # 缓存未命中
+        mock_rule_cache.get_direct_rule_set = AsyncMock(return_value=None)
         mock_rule_cache.set_rule_sets_v2 = AsyncMock()
 
         service = RuleEngineService(db_session)
@@ -2878,6 +2898,7 @@ class TestGetCandidateRuleSets:
         # Mock rule_cache 和 tenant context
         mock_rule_cache = AsyncMock(spec=RuleCache)
         mock_rule_cache.get_rule_sets_v2.return_value = None  # 缓存未命中
+        mock_rule_cache.get_direct_rule_set = AsyncMock(return_value=None)
         mock_rule_cache.set_rule_sets_v2 = AsyncMock()
 
         service = RuleEngineService(db_session)
@@ -2927,6 +2948,7 @@ class TestGetCandidateRuleSets:
         # Mock rule_cache 和 tenant context
         mock_rule_cache = AsyncMock(spec=RuleCache)
         mock_rule_cache.get_rule_sets_v2.return_value = None  # 缓存未命中
+        mock_rule_cache.get_direct_rule_set = AsyncMock(return_value=None)
         mock_rule_cache.set_rule_sets_v2 = AsyncMock()
 
         service = RuleEngineService(db_session)
@@ -2972,6 +2994,7 @@ class TestGetCandidateRuleSets:
         # Mock rule_cache 和 tenant context
         mock_rule_cache = AsyncMock(spec=RuleCache)
         mock_rule_cache.get_rule_sets_v2.return_value = None  # 缓存未命中
+        mock_rule_cache.get_direct_rule_set = AsyncMock(return_value=None)
         mock_rule_cache.set_rule_sets_v2 = AsyncMock()
 
         service = RuleEngineService(db_session)
@@ -3018,6 +3041,7 @@ class TestGetCandidateRuleSets:
         # Mock rule_cache 和 tenant context
         mock_rule_cache = AsyncMock(spec=RuleCache)
         mock_rule_cache.get_rule_sets_v2.return_value = None  # 缓存未命中
+        mock_rule_cache.get_direct_rule_set = AsyncMock(return_value=None)
         mock_rule_cache.set_rule_sets_v2 = AsyncMock()
 
         service = RuleEngineService(db_session)
@@ -3034,3 +3058,184 @@ class TestGetCandidateRuleSets:
         # 查询启用班次类型应返回规则组
         result_enabled = await service.get_candidate_rule_sets(shift_type_enabled.id)
         assert len(result_enabled) == 1
+
+
+# ==================== 测试直接 rule_set_id 匹配 ====================
+
+class TestDirectRuleSetId:
+    """测试排班直接绑定规则组的匹配逻辑"""
+
+    @pytest.mark.asyncio
+    async def test_direct_rule_set_id_takes_priority(self, db_session):
+        """schedule.rule_set_id 指定的规则组优先于 shift_type 级联匹配"""
+        shift_type = create_shift_type()
+        db_session.add(shift_type)
+
+        # 级联规则组（高优先级）
+        cascade_rs = create_rule_set(name="级联规则组", priority=10)
+        db_session.add(cascade_rs)
+        db_session.add(RuleSetShiftType(rule_set_id=cascade_rs.id, shift_type_id=shift_type.id))
+
+        # 直接绑定的规则组（低优先级，通常不会被级联选中）
+        direct_rs = create_rule_set(name="直接规则组", priority=200)
+        db_session.add(direct_rs)
+        # 注意：direct_rs 没有关联 shift_type，级联逻辑找不到它
+
+        await db_session.commit()
+
+        # 创建排班，绑定 direct_rs
+        schedule = Schedule(
+            id=str(uuid4()),
+            doctor_id=str(uuid4()),
+            schedule_date=date.today(),
+            start_time=time(8, 0),
+            end_time=time(12, 0),
+            shift_type_id=shift_type.id,
+            rule_set_id=direct_rs.id,
+            total_slots=10,
+        )
+        db_session.add(schedule)
+        await db_session.commit()
+
+        service = RuleEngineService(db_session)
+        # mock 缓存未命中
+        service._rule_cache = MagicMock()
+        service._rule_cache.get_direct_rule_set = AsyncMock(return_value=None)
+        service._rule_cache.set_direct_rule_set = AsyncMock()
+        service._rule_cache.get_rule_sets_v2 = AsyncMock(return_value=None)
+        service._rule_cache.set_rule_sets_v2 = AsyncMock()
+
+        result = await service.get_applicable_rule_set(shift_type.id, schedule)
+
+        # 应返回直接绑定的规则组，而非级联的
+        assert result is not None
+        assert result.id == direct_rs.id
+        assert result.name == "直接规则组"
+
+    @pytest.mark.asyncio
+    async def test_direct_rule_set_id_fallback_when_disabled(self, db_session):
+        """schedule.rule_set_id 指向已禁用规则组时，回退到级联逻辑"""
+        shift_type = create_shift_type()
+        db_session.add(shift_type)
+
+        # 级联规则组
+        cascade_rs = create_rule_set(name="级联规则组", priority=10)
+        db_session.add(cascade_rs)
+        db_session.add(RuleSetShiftType(rule_set_id=cascade_rs.id, shift_type_id=shift_type.id))
+
+        # 直接绑定的规则组（已禁用）
+        direct_rs = create_rule_set(name="已禁用规则组", enabled=False)
+        db_session.add(direct_rs)
+
+        await db_session.commit()
+
+        schedule = Schedule(
+            id=str(uuid4()),
+            doctor_id=str(uuid4()),
+            schedule_date=date.today(),
+            start_time=time(8, 0),
+            end_time=time(12, 0),
+            shift_type_id=shift_type.id,
+            rule_set_id=direct_rs.id,
+            total_slots=10,
+        )
+        db_session.add(schedule)
+        await db_session.commit()
+
+        service = RuleEngineService(db_session)
+        service._rule_cache = MagicMock()
+        service._rule_cache.get_direct_rule_set = AsyncMock(return_value=None)
+        service._rule_cache.set_direct_rule_set = AsyncMock()
+        service._rule_cache.get_rule_sets_v2 = AsyncMock(return_value=None)
+        service._rule_cache.set_rule_sets_v2 = AsyncMock()
+
+        result = await service.get_applicable_rule_set(shift_type.id, schedule)
+
+        # 应回退到级联逻辑
+        assert result is not None
+        assert result.id == cascade_rs.id
+
+    @pytest.mark.asyncio
+    async def test_no_rule_set_id_uses_cascade(self, db_session):
+        """schedule.rule_set_id 为空时走原有级联逻辑"""
+        shift_type = create_shift_type()
+        db_session.add(shift_type)
+
+        cascade_rs = create_rule_set(name="级联规则组", priority=10)
+        db_session.add(cascade_rs)
+        db_session.add(RuleSetShiftType(rule_set_id=cascade_rs.id, shift_type_id=shift_type.id))
+
+        await db_session.commit()
+
+        schedule = Schedule(
+            id=str(uuid4()),
+            doctor_id=str(uuid4()),
+            schedule_date=date.today(),
+            start_time=time(8, 0),
+            end_time=time(12, 0),
+            shift_type_id=shift_type.id,
+            rule_set_id=None,
+            total_slots=10,
+        )
+        db_session.add(schedule)
+        await db_session.commit()
+
+        service = RuleEngineService(db_session)
+        service._rule_cache = MagicMock()
+        service._rule_cache.get_rule_sets_v2 = AsyncMock(return_value=None)
+        service._rule_cache.set_rule_sets_v2 = AsyncMock()
+
+        result = await service.get_applicable_rule_set(shift_type.id, schedule)
+
+        assert result is not None
+        assert result.id == cascade_rs.id
+
+    @pytest.mark.asyncio
+    async def test_direct_rule_set_uses_cache(self, db_session):
+        """直接规则组查询命中缓存时不查数据库"""
+        shift_type = create_shift_type()
+        db_session.add(shift_type)
+
+        direct_rs = create_rule_set(name="缓存规则组", priority=50)
+        db_session.add(direct_rs)
+        await db_session.commit()
+
+        schedule = Schedule(
+            id=str(uuid4()),
+            doctor_id=str(uuid4()),
+            schedule_date=date.today(),
+            start_time=time(8, 0),
+            end_time=time(12, 0),
+            shift_type_id=shift_type.id,
+            rule_set_id=direct_rs.id,
+            total_slots=10,
+        )
+        db_session.add(schedule)
+        await db_session.commit()
+
+        # 构造缓存命中
+        from app.modules.rule_engine.cache import CachedRuleSet
+        cached_rs = CachedRuleSet(
+            id=direct_rs.id,
+            name="缓存规则组",
+            enabled=True,
+            priority=50,
+            time_source="SERVER",
+            timezone_source="HOSPITAL",
+            compare_precision="SECOND",
+            default_open_inclusive=True,
+            default_close_inclusive=False,
+            rounding_mode="NONE",
+            clock_skew_tolerance_sec=5,
+        )
+
+        service = RuleEngineService(db_session)
+        service._rule_cache = MagicMock()
+        service._rule_cache.get_direct_rule_set = AsyncMock(return_value=cached_rs)
+
+        result = await service.get_applicable_rule_set(shift_type.id, schedule)
+
+        assert result is not None
+        assert result.id == direct_rs.id
+        # 验证缓存被调用，数据库未查询
+        service._rule_cache.get_direct_rule_set.assert_called_once()

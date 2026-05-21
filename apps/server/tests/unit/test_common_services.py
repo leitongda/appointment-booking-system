@@ -1,6 +1,7 @@
 """常见服务模块测试"""
 import pytest
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
+from unittest.mock import patch
 from sqlalchemy import select
 
 from app.models.common_service import CommonService, HealthReminder
@@ -9,6 +10,7 @@ from app.models.appointment import Appointment
 from app.models.user import Patient
 from app.models.department import Department
 from app.models.doctor import Doctor
+from app.models.schedule import Schedule
 
 
 @pytest.mark.asyncio
@@ -39,7 +41,8 @@ class TestCommonServiceService:
         await db_session.commit()
 
         # 获取列表
-        items = await service.get_list()
+        with patch("app.modules.common_services.service.get_current_tenant_id", return_value=test_tenant.id):
+            items = await service.get_list()
 
         assert len(items) >= 1
         service_item = next((s for s in items if s.code == "cold_care"), None)
@@ -81,16 +84,17 @@ class TestCommonServiceService:
         await db_session.commit()
 
         # 查询全局服务
-        global_items = await service.get_list(store_id=None)
-        global_codes = {s.code for s in global_items}
-        assert "global" in global_codes
-        assert "store" not in global_codes
+        with patch("app.modules.common_services.service.get_current_tenant_id", return_value=test_tenant.id):
+            global_items = await service.get_list(store_id=None)
+            global_codes = {s.code for s in global_items}
+            assert "global" in global_codes
+            assert "store" not in global_codes
 
-        # 查询门店服务（应包含全局+门店）
-        store_items = await service.get_list(store_id=test_store.id)
-        store_codes = {s.code for s in store_items}
-        assert "global" in store_codes
-        assert "store" in store_codes
+            # 查询门店服务（应包含全局+门店）
+            store_items = await service.get_list(store_id=test_store.id)
+            store_codes = {s.code for s in store_items}
+            assert "global" in store_codes
+            assert "store" in store_codes
 
     async def test_get_list_filters_by_status(
         self,
@@ -124,10 +128,11 @@ class TestCommonServiceService:
         await db_session.commit()
 
         # 只查询启用的
-        items = await service.get_list(status=1)
-        codes = {s.code for s in items}
-        assert "enabled" in codes
-        assert "disabled" not in codes
+        with patch("app.modules.common_services.service.get_current_tenant_id", return_value=test_tenant.id):
+            items = await service.get_list(status=1)
+            codes = {s.code for s in items}
+            assert "enabled" in codes
+            assert "disabled" not in codes
 
     async def test_get_service_with_department_mapping(
         self,
@@ -155,8 +160,9 @@ class TestCommonServiceService:
         await db_session.commit()
 
         # 获取列表
-        items = await service.get_list()
-        service_item = next((s for s in items if s.code == "dept_service"), None)
+        with patch("app.modules.common_services.service.get_current_tenant_id", return_value=test_tenant.id):
+            items = await service.get_list()
+            service_item = next((s for s in items if s.code == "dept_service"), None)
 
         assert service_item is not None
         assert service_item.department_id == test_department.id
@@ -189,7 +195,8 @@ class TestHealthReminderService:
         await db_session.commit()
 
         # 获取配置
-        items = await service.get_config()
+        with patch("app.modules.common_services.service.get_current_tenant_id", return_value=test_tenant.id):
+            items = await service.get_config()
 
         assert len(items) >= 1
         reminder_item = next((r for r in items if r.reminder_type == "checkup"), None)
@@ -226,7 +233,8 @@ class TestHealthReminderService:
         await db_session.commit()
 
         # 只查询体检提醒
-        items = await service.get_config(reminder_type="checkup")
+        with patch("app.modules.common_services.service.get_current_tenant_id", return_value=test_tenant.id):
+            items = await service.get_config(reminder_type="checkup")
 
         assert all(r.reminder_type == "checkup" for r in items)
 
@@ -253,14 +261,33 @@ class TestHealthReminderService:
         )
         db_session.add(reminder)
 
+        # 创建排班（预约需要 schedule_id）
+        from uuid import uuid4
+        past_schedule = Schedule(
+            id=str(uuid4()),
+            doctor_id=test_doctor.id,
+            store_id=test_store.id,
+            tenant_id=test_tenant.id,
+            schedule_date=date.today() - timedelta(days=30),
+            time_slot="morning",
+            start_time=time(8, 0),
+            end_time=time(12, 0),
+            total_slots=10,
+            booked_slots=1,
+            status=1,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+        db_session.add(past_schedule)
+
         # 创建历史预约
         past_appointment = Appointment(
             id="apt-1",
             user_id=test_user.id,
             patient_id=test_patient.id,
             doctor_id=test_doctor.id,
+            schedule_id=past_schedule.id,
             tenant_id=test_tenant.id,
-            store_id=test_store.id,
             appointment_no="TEST001",
             queue_number=1,
             status=4,  # 已完成
@@ -268,19 +295,19 @@ class TestHealthReminderService:
             patient_phone=test_patient.phone,
             doctor_name=test_doctor.name,
             department_name="测试科室",
-            appointment_time=date.today() - timedelta(days=30),
+            created_at=datetime.now() - timedelta(days=30),
         )
         db_session.add(past_appointment)
         await db_session.commit()
 
         # 获取用户提醒
-        result = await service.get_user_reminder(test_user.id)
+        with patch("app.modules.common_services.service.get_current_tenant_id", return_value=test_tenant.id):
+            result = await service.get_user_reminder(test_user.id)
 
         assert result["has_data"] is True
         assert result["last_check_date"] is not None
         assert result["next_check_date"] is not None
         # 下次检查日期应该是上次检查日期 + 365天
-        from datetime import datetime
         last_check = datetime.fromisoformat(result["last_check_date"]).date()
         next_check = datetime.fromisoformat(result["next_check_date"]).date()
         expected_next = last_check + timedelta(days=365)
@@ -309,13 +336,13 @@ class TestHealthReminderService:
         await db_session.commit()
 
         # 获取用户提醒（无预约历史）
-        result = await service.get_user_reminder(test_user.id)
+        with patch("app.modules.common_services.service.get_current_tenant_id", return_value=test_tenant.id):
+            result = await service.get_user_reminder(test_user.id)
 
         assert result["has_data"] is True
         assert result["last_check_date"] is None
         assert result["next_check_date"] is not None
         # 应该是今天 + 180天
-        from datetime import datetime
         next_check = datetime.fromisoformat(result["next_check_date"]).date()
         expected_next = date.today() + timedelta(days=180)
         assert next_check == expected_next
@@ -341,7 +368,8 @@ class TestHealthReminderService:
         await db_session.commit()
 
         # 获取用户提醒（无就诊人）
-        result = await service.get_user_reminder(test_user.id)
+        with patch("app.modules.common_services.service.get_current_tenant_id", return_value=test_tenant.id):
+            result = await service.get_user_reminder(test_user.id)
 
         assert result["has_data"] is False
         assert "暂无提醒" in result["reminder_content"]

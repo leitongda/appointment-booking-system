@@ -41,7 +41,7 @@ async def test_admin_me_endpoint_with_override(async_client, db_session):
     await db_session.commit()
 
     async def override_get_current_admin():
-        return {"id": admin.id, "is_super_admin": True}
+        return {"id": admin.id, "username": "root", "is_super_admin": True}
 
     app.dependency_overrides[deps.get_current_admin] = override_get_current_admin
     try:

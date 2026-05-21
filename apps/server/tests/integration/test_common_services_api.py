@@ -14,6 +14,8 @@ from uuid import uuid4
 
 from app.models.common_service import CommonService, HealthReminder
 from app.middleware.tenant_context import set_tenant_context, clear_tenant_context
+from app.main import app
+from app.api import deps
 
 
 @pytest.mark.asyncio
@@ -29,7 +31,7 @@ async def test_get_common_services_empty(async_client, db_session, test_tenant):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["code"] == 0
+    assert data["code"] == 200
     assert data["data"]["items"] == []
 
     # 清理
@@ -80,7 +82,7 @@ async def test_get_common_services_with_data(async_client, db_session, test_tena
 
     assert response.status_code == 200
     data = response.json()
-    assert data["code"] == 0
+    assert data["code"] == 200
     items = data["data"]["items"]
     assert len(items) == 2
     assert items[0]["name"] == "预约挂号"
@@ -153,7 +155,7 @@ async def test_get_health_reminder_config_empty(async_client, db_session, test_t
 
     assert response.status_code == 200
     data = response.json()
-    assert data["code"] == 0
+    assert data["code"] == 200
     assert data["data"] == []
 
     clear_tenant_context()
@@ -203,7 +205,7 @@ async def test_get_health_reminder_config_with_data(async_client, db_session, te
 
     assert response.status_code == 200
     data = response.json()
-    assert data["code"] == 0
+    assert data["code"] == 200
     items = data["data"]
     assert len(items) == 2
     assert items[0]["reminderType"] == "checkup"
@@ -275,8 +277,6 @@ async def test_get_my_health_reminder_unauthorized(async_client, test_tenant):
 @pytest.mark.asyncio
 async def test_get_my_health_reminder_authorized(async_client, db_session, test_tenant, test_user, test_patient):
     """获取我的健康提醒 - 已登录用户"""
-    from app.core.security import create_access_token
-
     set_tenant_context(test_tenant.id, test_tenant.tenant_code)
 
     # 创建健康提醒配置
@@ -295,23 +295,24 @@ async def test_get_my_health_reminder_authorized(async_client, db_session, test_
     db_session.add(reminder)
     await db_session.commit()
 
-    # 创建用户 token
-    token = create_access_token({"sub": test_user.id, "type": "access"})
+    # Override get_current_user to bypass auth and return test user directly
+    async def override_get_current_user():
+        return {"sub": test_user.id, "user_id": test_user.id, "id": test_user.id}
 
-    response = await async_client.get(
-        "/api/v1/content/health-reminders/my",
-        headers={
-            "Authorization": f"Bearer {token}",
-            "X-Tenant-ID": test_tenant.id
-        }
-    )
+    app.dependency_overrides[deps.get_current_user] = override_get_current_user
+    try:
+        response = await async_client.get(
+            "/api/v1/content/health-reminders/my",
+            headers={"X-Tenant-ID": test_tenant.id}
+        )
+    finally:
+        app.dependency_overrides.pop(deps.get_current_user, None)
 
     assert response.status_code == 200
     data = response.json()
-    assert data["code"] == 0
-    assert data["data"]["hasData"] is True
-    assert data["data"]["checkType"] == "checkup"
-    assert data["data"]["reminderContent"] is not None
+    assert data["code"] == 200
+    assert data["data"]["check_type"] == "checkup"
+    assert data["data"]["reminder_content"] is not None
 
     clear_tenant_context()
 

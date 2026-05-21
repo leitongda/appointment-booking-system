@@ -446,6 +446,7 @@ class TestCreateAppointmentDuplicate:
         test_store,
         test_tenant,
     ):
+        # 使用相同 time_slot 但不同时段，避免唯一约束冲突的同时测试重复检测
         duplicate_schedule = Schedule(
             id=str(uuid4()),
             doctor_id=test_doctor.id,
@@ -453,8 +454,8 @@ class TestCreateAppointmentDuplicate:
             tenant_id=test_tenant.id,
             schedule_date=test_schedule.schedule_date,
             time_slot=test_schedule.time_slot,
-            start_time=test_schedule.start_time,
-            end_time=test_schedule.end_time,
+            start_time=time(9, 0),
+            end_time=time(11, 0),
             total_slots=10,
             booked_slots=1,
             status=1,

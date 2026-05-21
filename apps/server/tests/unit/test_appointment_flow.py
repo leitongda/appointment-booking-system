@@ -69,7 +69,7 @@ class TestCallPatientNotifications:
 
         # Mock 消息服务（直接 patch 内部导入，避免调用链问题）
         with patch(
-            'app.modules.appointments.service_flow.MessageService'
+            'app.modules.unified_message.compat.MessageServiceCompat'
         ) as mock_msg_service_cls:
             mock_msg_service = MagicMock()
             mock_msg_service_cls.return_value = mock_msg_service
@@ -96,7 +96,7 @@ class TestCallPatientNotifications:
 
         # Mock 消息服务抛出异常
         with patch(
-            'app.modules.appointments.service_flow.MessageService'
+            'app.modules.unified_message.compat.MessageServiceCompat'
         ) as mock_msg_service_cls:
             mock_msg_service = MagicMock()
             mock_msg_service_cls.return_value = mock_msg_service

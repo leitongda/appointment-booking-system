@@ -237,7 +237,7 @@ class TestScheduleMutationMixin:
 
                 mock_lock.return_value = MockLock()
 
-                with pytest.raises(ValueError, match="该时段排班已存在"):
+                with pytest.raises(ValueError, match="排班冲突"):
                     await service.create(data)
 
     async def test_create_without_time_slot_raises_error(self, db_session, test_doctor):
@@ -402,7 +402,7 @@ class TestScheduleMutationMixin:
 
         with patch("app.middleware.tenant_context.get_current_tenant_id", return_value=test_schedule.tenant_id):
             count = await service.batch_resume([test_schedule.id])
-            assert count >= 0
+            assert count == 1
 
     async def test_batch_resume_empty_list(self, db_session):
         """测试批量恢复 - 空列表"""
@@ -445,6 +445,72 @@ class TestScheduleMutationMixin:
             assert result["success_count"] == 0
             assert len(result["skipped_ids"]) == 1
             assert test_schedule.id in result["skipped_ids"]
+
+    async def test_create_duplicate_exact_match_raises_valueerror(self, db_session, test_schedule, test_doctor):
+        """B5: 相同 doctor_id + schedule_date + start_time + end_time 触发 ValueError，消息包含 '该时段排班已存在'"""
+        service = ScheduleService(db_session)
+
+        data = ScheduleCreate(
+            doctor_id=test_doctor.id,
+            store_id=test_schedule.store_id,
+            schedule_date=test_schedule.schedule_date,
+            time_slot=test_schedule.time_slot,
+            start_time=test_schedule.start_time,
+            end_time=test_schedule.end_time,
+            total_slots=10,
+            status=1,
+        )
+
+        with patch("app.middleware.tenant_context.get_current_tenant_id", return_value=test_schedule.tenant_id):
+            with patch("app.core.redis.RedisCache.tenant_distributed_lock") as mock_lock:
+
+                class MockLock:
+                    async def __aenter__(self):
+                        return "lock"
+                    async def __aexit__(self, *args):
+                        pass
+
+                mock_lock.return_value = MockLock()
+
+                with pytest.raises(ValueError, match="排班冲突"):
+                    await service.create(data)
+
+    async def test_create_same_doctor_date_different_times_succeeds(self, db_session, test_schedule, test_doctor, test_tenant):
+        """B5: 同一医生、同一日期但不同时间段的排班可以成功创建"""
+        service = ScheduleService(db_session)
+
+        # test_schedule 是 08:00-12:00，创建一个 14:00-18:00 的排班
+        data = ScheduleCreate(
+            doctor_id=test_doctor.id,
+            store_id=test_schedule.store_id,
+            schedule_date=test_schedule.schedule_date,
+            time_slot="afternoon",
+            start_time=time(14, 0),
+            end_time=time(18, 0),
+            total_slots=15,
+            status=1,
+        )
+
+        with patch("app.middleware.tenant_context.get_current_tenant_id", return_value=test_tenant.id):
+            with patch("app.core.redis.RedisCache.tenant_distributed_lock") as mock_lock:
+
+                class MockLock:
+                    async def __aenter__(self):
+                        return "lock"
+                    async def __aexit__(self, *args):
+                        pass
+
+                mock_lock.return_value = MockLock()
+
+                with patch.object(service, "_send_schedule_notification_to_doctor"):
+                    schedule = await service.create(data)
+
+                    assert schedule is not None
+                    assert schedule.doctor_id == test_doctor.id
+                    assert schedule.schedule_date == test_schedule.schedule_date
+                    assert schedule.start_time == time(14, 0)
+                    assert schedule.end_time == time(18, 0)
+                    assert schedule.total_slots == 15
 
 
 @pytest.mark.unit

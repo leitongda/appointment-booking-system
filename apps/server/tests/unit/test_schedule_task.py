@@ -450,3 +450,93 @@ class TestGenerateSchedulesForTemplate:
 
         assert result["created_count"] == 0
         assert result["reason"] == "模板不属于指定租户"
+
+    @patch("app.tasks.schedule_task.SyncRedisCache")
+    def test_generate_schedules_for_template_lock_failure_returns_skipped(
+        self,
+        mock_sync_redis,
+    ):
+        """C3: 分布式锁获取失败时返回 skipped，不执行排班生成"""
+        mock_sync_redis.acquire_lock.return_value = None
+
+        result = generate_schedules_for_template(
+            "template-1",
+            "2024-01-01",
+            "2024-01-07",
+            tenant_id="tenant-1",
+            tenant_code="hospital-a",
+        )
+
+        assert result["status"] == "skipped"
+        assert result["reason"] == "another generation in progress"
+        mock_sync_redis.acquire_lock.assert_called_once_with(
+            "schedule:generate:template-1",
+            timeout=300,
+            retry_times=1,
+            retry_delay=0,
+        )
+        # 锁获取失败时不应调用 release_lock
+        mock_sync_redis.release_lock.assert_not_called()
+
+    @patch("app.tasks.schedule_task.clear_tenant_context")
+    @patch("app.tasks.schedule_task.set_tenant_context")
+    @patch("app.tasks.schedule_task.split_time_range_with_breaks")
+    @patch("app.tasks.schedule_task.should_generate_schedule")
+    @patch("app.tasks.schedule_task.is_rest_day")
+    @patch("app.tasks.schedule_task.get_sync_db")
+    @patch("app.tasks.schedule_task.SyncRedisCache")
+    def test_generate_schedules_for_template_lock_success_proceeds(
+        self,
+        mock_sync_redis,
+        mock_get_sync_db,
+        mock_is_rest_day,
+        mock_should_generate,
+        mock_split,
+        mock_set_tenant_ctx,
+        mock_clear_tenant_ctx,
+    ):
+        """C3: 分布式锁获取成功时正常执行排班生成流程"""
+        mock_sync_redis.acquire_lock.return_value = "lock-value-123"
+
+        mock_is_rest_day.return_value = False
+        mock_should_generate.return_value = True
+        mock_split.return_value = [(time(9, 0), time(12, 0))]
+
+        mock_template = MagicMock()
+        mock_template.status = 1
+        mock_template.tenant_id = "tenant-1"
+        mock_template.weekday_list = [1]
+        mock_template.start_time = time(9, 0)
+        mock_template.end_time = time(17, 0)
+        mock_template.slot_count = 1
+        mock_template.slot_capacity = 10
+        mock_template.schedule_mode = "weekly"
+        mock_template.break_times_list = []
+        mock_template.appointment_type = "normal"
+        mock_template.doctor_id = "doctor-1"
+        mock_template.store_id = "store-1"
+
+        mock_db = MagicMock()
+        mock_db.get.return_value = mock_template
+        mock_db.execute.return_value.scalar_one_or_none.return_value = None
+
+        mock_get_sync_db.return_value.__enter__ = MagicMock(return_value=mock_db)
+        mock_get_sync_db.return_value.__exit__ = MagicMock(return_value=False)
+
+        result = generate_schedules_for_template(
+            "template-1",
+            "2024-01-01",
+            "2024-01-07",
+            tenant_id="tenant-1",
+            tenant_code="hospital-a",
+        )
+
+        # 锁获取成功，应执行生成流程
+        mock_sync_redis.acquire_lock.assert_called_once()
+        mock_set_tenant_ctx.assert_called_once_with("tenant-1", "hospital-a")
+        mock_clear_tenant_ctx.assert_called_once()
+        # 生成完成后应释放锁
+        mock_sync_redis.release_lock.assert_called_once_with(
+            "schedule:generate:template-1", "lock-value-123"
+        )
+        assert result["tenant_id"] == "tenant-1"

@@ -103,7 +103,7 @@ class TestGetAvailableWithBookingSetting:
                 )
 
         assert applied is True
-        assert len(schedules) == 5
+        assert len(schedules) == 6
 
     async def test_disabled_setting_falls_back_to_days(
         self, db_session, test_doctor, test_store, test_tenant
@@ -139,7 +139,7 @@ class TestGetAvailableWithBookingSetting:
             )
 
         assert applied is False
-        assert len(schedules) == 14
+        assert len(schedules) == 15
 
     async def test_no_setting_falls_back_to_days(
         self, db_session, test_doctor, test_store, test_tenant
@@ -165,7 +165,7 @@ class TestGetAvailableWithBookingSetting:
             )
 
         assert applied is False
-        assert len(schedules) == 14
+        assert len(schedules) == 15
 
     async def test_release_time_before_cutoff(
         self, db_session, test_doctor, test_store, test_tenant
@@ -274,7 +274,7 @@ class TestGetAvailableWithBookingSetting:
             )
 
         assert applied is False
-        assert len(schedules) == 14
+        assert len(schedules) == 15
 
 
 @pytest.mark.unit

@@ -137,95 +137,43 @@ def sample_recipients(db_session, sample_tenant):
 
 @pytest.mark.asyncio
 class TestCompatLayerFallback:
-    """测试兼容层降级逻辑"""
+    """测试兼容层委托逻辑（已统一，不再有 feature flag 分支）"""
 
-    async def test_compat_uses_new_service_when_flag_enabled(self, db_session, sample_tenant, sample_event):
-        """测试 feature flag 启用时使用新服务"""
-        with patch("app.modules.unified_message.compat.FeatureFlagService") as mock_flag:
-            mock_flag.is_beta_enabled = AsyncMock(return_value=True)
+    async def test_compat_always_uses_new_service(self, db_session, sample_tenant, sample_event):
+        """测试兼容层始终使用 UnifiedMessageService"""
+        compat = MessageServiceCompat(db_session)
 
-            compat = MessageServiceCompat(db_session)
+        mock_new_service = MagicMock()
+        mock_new_service.send = AsyncMock(return_value=SendResult(
+            success=True,
+            group_id="group-1",
+            channels_attempted=1,
+            channels_succeeded=1,
+            channels_failed=0,
+        ))
+        compat._new_service = mock_new_service
 
-            mock_new_service = MagicMock()
-            mock_new_service.send = AsyncMock(return_value=SendResult(
-                success=True,
-                group_id="group-1",
-                channels_attempted=1,
-                channels_succeeded=1,
-                channels_failed=0,
-            ))
-            # 直接设置 _new_service 绕过 property
-            compat._new_service = mock_new_service
+        with patch("app.middleware.tenant_context.get_current_tenant_id", return_value="tenant-1"):
+            with patch(
+                "app.modules.messages.service_messages._get_user_contact_info",
+                new_callable=AsyncMock,
+                return_value=ContactInfo("13800138000", "openid-123", None),
+            ):
+                await compat.send_appointment_notification(
+                    user_id="user-1",
+                    user_type="patient",
+                    title="预约成功",
+                    content="您已成功预约",
+                    appointment_id="apt-1",
+                )
 
-            with patch("app.middleware.tenant_context.get_current_tenant_id", return_value="tenant-1"):
-                with patch(
-                    "app.modules.messages.service_messages._get_user_contact_info",
-                    new_callable=AsyncMock,
-                    return_value=ContactInfo("13800138000", "openid-123", None),
-                ):
-                    await compat.send_appointment_notification(
-                        user_id="user-1",
-                        user_type="patient",
-                        title="预约成功",
-                        content="您已成功预约",
-                        appointment_id="apt-1",
-                    )
+        # 验证新服务被调用
+        mock_new_service.send.assert_called_once()
 
-            # 验证新服务被调用
-            mock_new_service.send.assert_called_once()
-
-    async def test_compat_falls_back_to_old_service_on_failure(self, db_session, sample_tenant, sample_event):
-        """测试新服务失败时降级到旧服务"""
-        with patch("app.modules.unified_message.compat.FeatureFlagService") as mock_flag:
-            mock_flag.is_beta_enabled = AsyncMock(return_value=True)
-
-            compat = MessageServiceCompat(db_session)
-
-            mock_new_service = MagicMock()
-            mock_new_service.send = AsyncMock(side_effect=Exception("新服务异常"))
-            compat._new_service = mock_new_service
-
-            with patch.object(compat, "old_service") as mock_old_service:
-                mock_old_service.send_appointment_notification = AsyncMock(return_value=None)
-
-                with patch("app.middleware.tenant_context.get_current_tenant_id", return_value="tenant-1"):
-                    with patch(
-                        "app.modules.messages.service_messages._get_user_contact_info",
-                        new_callable=AsyncMock,
-                        return_value=ContactInfo("13800138000", "openid-123", None),
-                    ):
-                        await compat.send_appointment_notification(
-                            user_id="user-1",
-                            user_type="patient",
-                            title="预约成功",
-                            content="您已成功预约",
-                            appointment_id="apt-1",
-                        )
-
-                # 验证降级：旧服务被调用
-                mock_old_service.send_appointment_notification.assert_called_once()
-
-    async def test_compat_uses_old_service_when_flag_disabled(self, db_session, sample_tenant, sample_event):
-        """测试 feature flag 禁用时使用旧服务"""
-        with patch("app.modules.unified_message.compat.FeatureFlagService") as mock_flag:
-            mock_flag.is_beta_enabled = AsyncMock(return_value=False)
-
-            compat = MessageServiceCompat(db_session)
-
-            with patch.object(compat, "old_service") as mock_old_service:
-                mock_old_service.send_appointment_notification = AsyncMock(return_value=None)
-
-                with patch("app.middleware.tenant_context.get_current_tenant_id", return_value="tenant-1"):
-                    await compat.send_appointment_notification(
-                        user_id="user-1",
-                        user_type="patient",
-                        title="预约成功",
-                        content="您已成功预约",
-                        appointment_id="apt-1",
-                    )
-
-                # 验证旧服务被调用
-                mock_old_service.send_appointment_notification.assert_called_once()
+    async def test_compat_has_no_old_service(self, db_session):
+        """测试兼容层不再持有旧服务引用"""
+        compat = MessageServiceCompat(db_session)
+        assert not hasattr(compat, "old_service")
 
 
 # ---------------------------------------------------------------------------

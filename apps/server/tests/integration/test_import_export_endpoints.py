@@ -75,7 +75,6 @@ async def test_import_departments_rejects_invalid_xlsx_content(async_client, sup
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip("export/import roundtrip broken by tenant_id sensitive field check")
 async def test_import_departments_accepts_xls_extension(async_client, super_admin_token, test_store, monkeypatch):
     def fake_parse_excel(file_content, expected_headers, required_fields=None, sheet_index=0, filename=None):
         assert filename == "departments.xls"
@@ -111,7 +110,6 @@ async def test_import_departments_accepts_xls_extension(async_client, super_admi
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip("export/import roundtrip broken by tenant_id sensitive field check")
 async def test_export_doctors_roundtrip_uses_import_headers(async_client, super_admin_token, test_doctor):
     export_response = await async_client.get(
         "/api/v1/data/export/doctors",
@@ -144,7 +142,6 @@ async def test_export_doctors_roundtrip_uses_import_headers(async_client, super_
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip("export/import roundtrip broken by tenant_id sensitive field check")
 async def test_export_departments_roundtrip_uses_import_headers(async_client, super_admin_token, test_department):
     export_response = await async_client.get(
         "/api/v1/data/export/departments",
@@ -175,7 +172,6 @@ async def test_export_departments_roundtrip_uses_import_headers(async_client, su
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip("export/import roundtrip broken by tenant_id sensitive field check")
 async def test_export_patients_roundtrip_uses_import_headers(async_client, super_admin_token, test_patient):
     export_response = await async_client.get(
         "/api/v1/data/export/patients",
