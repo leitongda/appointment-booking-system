@@ -12,6 +12,7 @@ import pytz
 from app.models.appointment import Appointment
 from app.modules.appointments.service_flow import AppointmentFlowService
 from app.modules.appointments.common import APPOINTMENT_STATUS
+from app.utils.datetime import utc_now
 
 
 class TestSignInFailureLogging:
@@ -126,7 +127,7 @@ class TestRecallEdgeCases:
 
         # 设置为过号状态
         test_appointment.status = APPOINTMENT_STATUS['EXPIRED']
-        old_call_time = datetime.now() - timedelta(minutes=10)
+        old_call_time = utc_now() - timedelta(minutes=10)
         test_appointment.call_time = old_call_time
         await db_session.commit()
 
@@ -134,7 +135,10 @@ class TestRecallEdgeCases:
 
         # 验证叫号时间更新
         assert result.status == APPOINTMENT_STATUS['SEEING']
-        assert result.call_time > old_call_time
+        # SQLite strips tzinfo, so compare as naive
+        result_call_naive = result.call_time.replace(tzinfo=None) if result.call_time.tzinfo else result.call_time
+        old_call_naive = old_call_time.replace(tzinfo=None) if old_call_time.tzinfo else old_call_time
+        assert result_call_naive > old_call_naive
 
 
 class TestMarkNoShowNotifications:

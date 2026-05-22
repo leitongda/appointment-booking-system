@@ -24,6 +24,7 @@ from app.modules.unified_message.compat import MessageServiceCompat as MessageSe
 from app.modules.rule_engine import RuleEngineService
 from app.modules.settings.service import SettingsService
 from app.utils.audit import set_create_audit, set_update_audit
+from app.utils.datetime import utc_now
 
 
 class AppointmentBookingService(AppointmentServiceBase):
@@ -88,7 +89,7 @@ class AppointmentBookingService(AppointmentServiceBase):
                 shift_id=data.schedule_id,
                 user_id=user_id,
                 policy=booking_policy,
-                booking_time=datetime.now(),
+                booking_time=utc_now(),
                 schedule=schedule,
             )
             if not conflict_result["allowed"]:
@@ -470,7 +471,7 @@ class AppointmentBookingService(AppointmentServiceBase):
                         )
                         .values(
                             status=APPOINTMENT_STATUS["CANCELLED"],
-                            cancel_time=datetime.now(),
+                            cancel_time=utc_now(),
                             cancel_reason=reason,
                         )
                     )
@@ -505,7 +506,7 @@ class AppointmentBookingService(AppointmentServiceBase):
                 ):
                     needs_refund = True
                     appointment.status = APPOINTMENT_STATUS["CANCELLED"]
-                    appointment.cancel_time = datetime.now()
+                    appointment.cancel_time = utc_now()
                     appointment.cancel_reason = reason
                 else:
                     needs_refund = False
@@ -632,7 +633,7 @@ class AppointmentBookingService(AppointmentServiceBase):
             )
 
             appointment.status = APPOINTMENT_STATUS["CANCELLED"]
-            appointment.cancel_time = datetime.now()
+            appointment.cancel_time = utc_now()
             appointment.cancel_reason = reason
             set_update_audit(appointment, operator_id or user_id)
             if schedule:

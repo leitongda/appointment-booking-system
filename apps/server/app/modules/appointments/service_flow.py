@@ -12,6 +12,7 @@ from app.modules.appointments.common import APPOINTMENT_STATUS, CHECKIN_METHOD, 
 from app.modules.rule_engine import RuleEngineService
 from app.modules.settings.service import SettingsService
 from app.core.websocket import notify_patient, WSMessageType
+from app.utils.datetime import utc_now
 
 
 class AppointmentFlowService(AppointmentServiceBase):
@@ -170,7 +171,7 @@ class AppointmentFlowService(AppointmentServiceBase):
         if appointment.status != APPOINTMENT_STATUS["SIGNED"]:
             raise ValueError("患者未签到")
         appointment.status = APPOINTMENT_STATUS["SEEING"]
-        appointment.call_time = datetime.now()
+        appointment.call_time = utc_now()
         await self.db.commit()
         await self.db.refresh(appointment)
 
@@ -247,7 +248,7 @@ class AppointmentFlowService(AppointmentServiceBase):
         if appointment.status not in [APPOINTMENT_STATUS["SIGNED"], APPOINTMENT_STATUS["SEEING"]]:
             raise ValueError("只有已签到或就诊中状态的预约才能标记完成")
         appointment.status = APPOINTMENT_STATUS["COMPLETED"]
-        appointment.complete_time = datetime.now()
+        appointment.complete_time = utc_now()
         await self.db.commit()
         await self.db.refresh(appointment)
         try:
@@ -301,7 +302,7 @@ class AppointmentFlowService(AppointmentServiceBase):
         if appointment.status != APPOINTMENT_STATUS["EXPIRED"]:
             raise ValueError("只有过号状态可以重新叫号")
         appointment.status = APPOINTMENT_STATUS["SEEING"]
-        appointment.call_time = datetime.now()
+        appointment.call_time = utc_now()
         await self.db.commit()
         await self.db.refresh(appointment)
 
