@@ -51,6 +51,8 @@ DEFAULT_SETTINGS = {
         # 签到时间配置
         'sign_in_advance_minutes': {'value': '30', 'description': '提前签到时间(分钟)，班次开始前多少分钟可以签到'},
         'sign_in_late_minutes': {'value': '30', 'description': '迟到签到时间(分钟)，班次开始后多少分钟还可以签到'},
+        # 通知策略
+        'appointment_reminder_hours': {'value': '24', 'description': '预约提醒提前时间(小时)'},
     },
     # 医院信息
     'hospital': {
@@ -80,6 +82,9 @@ DEFAULT_SETTINGS = {
         'template_code_booking': {'value': '', 'description': '预约成功模板'},
         'template_code_remind': {'value': '', 'description': '就诊提醒模板'},
         'template_code_cancel': {'value': '', 'description': '取消预约模板'},
+        # 通知策略参数
+        'code_expire_seconds': {'value': '300', 'description': '验证码有效期(秒)'},
+        'send_interval_seconds': {'value': '60', 'description': '短信发送间隔(秒)'},
     },
     # 预约选项配置（控制就诊人表单字段的启用/禁用、必填/非必填）
     'booking_fields': {
@@ -111,6 +116,27 @@ DEFAULT_SETTINGS = {
             'description': '缩略图尺寸配置（JSON数组）'
         },
         'compress_quality': {'value': '85', 'description': '压缩质量（1-100）'},
+    },
+    # 安全策略配置
+    'security': {
+        'access_token_expire_minutes': {'value': '30', 'description': 'AccessToken有效期(分钟)'},
+        'refresh_token_expire_days': {'value': '7', 'description': 'RefreshToken有效期(天)'},
+        'default_password': {'value': 'admin123', 'description': '新建管理员默认密码'},
+        'rate_limit_per_minute': {'value': '300', 'description': '每分钟请求上限'},
+        'rate_limit_per_second': {'value': '50', 'description': '每秒请求上限'},
+        'login_failure_lock_count': {'value': '5', 'description': '登录失败锁定次数(0表示不锁定)'},
+        'session_timeout_minutes': {'value': '120', 'description': '会话超时时间(分钟)'},
+    },
+    # 号源释放策略配置
+    'source_release': {
+        'lock_timeout_minutes': {'value': '15', 'description': '号源锁定超时(分钟)，超时自动释放'},
+        'batch_release_enabled': {'value': 'false', 'description': '是否启用批量释放'},
+        'batch_release_days': {'value': '7', 'description': '批量释放提前天数'},
+        'batch_release_time': {'value': '08:00', 'description': '批量释放时间点'},
+        'auto_cancel_unpaid_minutes': {'value': '30', 'description': '未支付自动取消时间(分钟)'},
+        'no_show_auto_mark_hours': {'value': '24', 'description': '爽约自动标记时间(小时)'},
+        'allow_overbooking': {'value': 'false', 'description': '是否允许超额预约'},
+        'overbooking_limit': {'value': '0', 'description': '超额预约上限(0表示不允许)'},
     },
     # 时段划分配置（支持门店级别覆盖）
     'time_periods': {
