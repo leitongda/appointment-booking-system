@@ -1,35 +1,61 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, Space, Typography } from 'antd';
-import { EnvironmentOutlined } from '@ant-design/icons';
-import AddressInput from '@/components/MapLocationPicker';
-import type { LocationInfo } from '@/components/MapLocationPicker';
+import React, { useEffect, useState } from 'react';
+import { Modal } from 'antd';
+import MapLocationPicker from '@/components/MapLocationPicker';
+import type { LocationInfo } from '@/components/MapLocationPicker/types';
 
-const { Text } = Typography;
+const MOBILE_BREAKPOINT = 768;
 
-interface AddressInputModalProps {
-  visible: boolean;
+function useIsMobile(): boolean {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < MOBILE_BREAKPOINT : false
+  );
+
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
+  return isMobile;
+}
+
+interface MapLocationPickerModalProps {
+  /** 控制 Modal 显示（推荐） */
+  open?: boolean;
+  /** @deprecated 使用 open 代替 */
+  visible?: boolean;
   onCancel: () => void;
   onOk: (location: LocationInfo) => void;
   initialValue?: LocationInfo;
   title?: string;
   width?: number;
+  /** 地图高度，默认 400 */
+  mapHeight?: number;
+  /** 搜索框占位符 */
+  placeholder?: string;
 }
 
-const AddressInputModal: React.FC<AddressInputModalProps> = ({
+const MapLocationPickerModal: React.FC<MapLocationPickerModalProps> = ({
+  open,
   visible,
   onCancel,
   onOk,
   initialValue,
-  title = '输入地址',
-  width = 600,
+  title = '选择地址',
+  width = 720,
+  mapHeight = 400,
+  placeholder,
 }) => {
+  const isOpen = open ?? visible;
+  const isMobile = useIsMobile();
   const [tempLocation, setTempLocation] = useState<LocationInfo | undefined>(initialValue);
 
   useEffect(() => {
-    if (visible) {
+    if (isOpen) {
       setTempLocation(initialValue);
     }
-  }, [visible, initialValue]);
+  }, [isOpen, initialValue]);
 
   const handleOk = () => {
     if (tempLocation?.address) {
@@ -37,50 +63,28 @@ const AddressInputModal: React.FC<AddressInputModalProps> = ({
     }
   };
 
-  const handleLocationChange = (location: LocationInfo) => {
-    setTempLocation(location);
-  };
-
   return (
     <Modal
       title={title}
-      open={visible}
+      open={isOpen}
       onCancel={onCancel}
       onOk={handleOk}
-      width={width}
-      destroyOnHidden={false}
+      width={isMobile ? '100vw' : width}
+      style={isMobile ? { top: 0, maxWidth: '100vw', padding: 0 } : undefined}
+      styles={isMobile ? { body: { height: 'calc(100vh - 110px)', padding: '12px 16px' } } : undefined}
+      destroyOnHidden
       okText="确定"
       cancelText="取消"
       okButtonProps={{ disabled: !tempLocation?.address }}
     >
-      <Space style={{ width: '100%' }} size="large">
-        <div>
-          <Text strong style={{ marginBottom: 8, display: 'block' }}>
-            请输入完整的机构地址
-          </Text>
-          <AddressInput
-            value={tempLocation}
-            onChange={handleLocationChange}
-            placeholder="例如：贵州省贵阳市观山湖区XXX中医馆"
-          />
-        </div>
-
-        {tempLocation?.address && (
-          <div style={{ padding: '12px 16px', background: '#f6f8fa', borderRadius: '6px' }}>
-            <Space size={4}>
-              <div>
-                <EnvironmentOutlined style={{ marginRight: 8, color: '#1890ff' }} />
-                <Text strong>地址预览：</Text>
-              </div>
-              <div style={{ paddingLeft: 22 }}>
-                <Text>{tempLocation.address}</Text>
-              </div>
-            </Space>
-          </div>
-        )}
-      </Space>
+      <MapLocationPicker
+        value={tempLocation}
+        onChange={setTempLocation}
+        mapHeight={isMobile ? Math.min(mapHeight, 300) : mapHeight}
+        placeholder={placeholder}
+      />
     </Modal>
   );
 };
 
-export default AddressInputModal;
+export default MapLocationPickerModal;
