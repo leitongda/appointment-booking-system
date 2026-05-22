@@ -67,7 +67,14 @@ class ApprovalEngine:
         flow_def_id: Optional[str] = None,
         store_id: Optional[str] = None,
     ) -> ApprovalInstance:
-        """发起审批：创建实例，推进到第一个审批节点"""
+        """发起审批：创建实例，推进到第一个审批节点。
+
+        业务模块接入指南:
+        1. 发起端: 在创建申请时调用本方法，捕获 FlowNotFoundError 作为无流程定义的 fallback
+        2. 回调端: 通过 callback_registry.register(business_type, handler) 注册回调，
+           处理 on_approved / on_rejected / on_cancelled 事件，执行业务逻辑
+        3. 已接入的业务类型: leave_request, extra_quota (见 business_callbacks.py)
+        """
         tenant_id = get_current_tenant_id()
 
         # 查找流程定义
@@ -548,6 +555,8 @@ class ApprovalEngine:
             approver_count=len(approvers),
             approver_ids=[a["id"] for a in approvers],
         )
+        if not approvers:
+            raise ValueError(f"节点 {node.node_name} 未解析到审批人")
 
         # 计算超时时间
         timeout_at = None
@@ -753,41 +762,23 @@ class ApprovalEngine:
 
         next_node = await self._find_next_node(current_node, nodes, form_data)
 
-        if not next_node:
-            # 到达 end 节点，流程完成
-            instance.status = "approved"
-            instance.approved_at = datetime.utcnow()
-            instance.completed_reason = "normal"
-            instance.current_node_key = None
+        while next_node and next_node.node_type == "condition":
+            next_node = await self._find_next_node(next_node, nodes, form_data)
 
-            logger.info(
-                "callback_started",
-                instance_id=instance.id,
-                business_type=instance.business_type,
-                callback="on_approved",
-            )
-            try:
-                await callback_registry.execute(
-                    instance.business_type, "on_approved", instance, self.db
-                )
-            except Exception as e:
-                logger.error(
-                    "callback_failed",
-                    instance_id=instance.id,
-                    business_type=instance.business_type,
-                    callback="on_approved",
-                    error=str(e),
-                )
-                raise
-            await self._notify_applicant(instance, "approved")
-            logger.info("approval_completed", instance_id=instance.id)
+        if not next_node or next_node.node_type == "end":
+            await self._complete_as_approved(instance)
 
         elif next_node.node_type == "cc":
             # 抄送节点: 通知抄送人，继续推进
             await self._handle_cc_node(next_node, instance)
             # 继续推进
             next_next = await self._find_next_node(next_node, nodes, form_data)
+            while next_next and next_next.node_type == "condition":
+                next_next = await self._find_next_node(next_next, nodes, form_data)
             if next_next:
+                if next_next.node_type == "end":
+                    await self._complete_as_approved(instance)
+                    return
                 instance.current_node_key = next_next.node_key
                 await self._create_tasks_for_node(
                     next_next, instance, instance.tenant_id, instance.store_id
@@ -795,13 +786,7 @@ class ApprovalEngine:
                 # 检查自动审批
                 await self._try_auto_approve(next_next, instance, form_data)
             else:
-                instance.status = "approved"
-                instance.approved_at = datetime.utcnow()
-                instance.completed_reason = "normal"
-                await callback_registry.execute(
-                    instance.business_type, "on_approved", instance, self.db
-                )
-                await self._notify_applicant(instance, "approved")
+                await self._complete_as_approved(instance)
 
         else:
             # 推进到下一个审批节点
@@ -818,6 +803,35 @@ class ApprovalEngine:
             )
             # 检查自动审批
             await self._try_auto_approve(next_node, instance, form_data)
+
+    async def _complete_as_approved(self, instance: ApprovalInstance):
+        """标记流程通过并执行业务回调。"""
+        instance.status = "approved"
+        instance.approved_at = datetime.utcnow()
+        instance.completed_reason = "normal"
+        instance.current_node_key = None
+
+        logger.info(
+            "callback_started",
+            instance_id=instance.id,
+            business_type=instance.business_type,
+            callback="on_approved",
+        )
+        try:
+            await callback_registry.execute(
+                instance.business_type, "on_approved", instance, self.db
+            )
+        except Exception as e:
+            logger.error(
+                "callback_failed",
+                instance_id=instance.id,
+                business_type=instance.business_type,
+                callback="on_approved",
+                error=str(e),
+            )
+            raise
+        await self._notify_applicant(instance, "approved")
+        logger.info("approval_completed", instance_id=instance.id)
 
     async def _find_next_node(
         self,

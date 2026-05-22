@@ -89,6 +89,9 @@ class ExtraQuotaService:
                 schedule.extra_quota = (schedule.extra_quota or 0) + quantity
                 schedule.sync_total_slots()
                 set_update_audit(schedule, applicant_id)
+            else:
+                await self.db.flush()
+                await self._start_approval_if_configured(request)
 
             await self.db.commit()
             await self.db.refresh(request)
@@ -99,6 +102,34 @@ class ExtraQuotaService:
         )
         return request
 
+    async def _start_approval_if_configured(self, request: ExtraQuotaRequest):
+        """有激活通用审批流程时创建审批实例；未配置时保留旧审核入口。"""
+        from app.modules.approval_flows.engine import ApprovalEngine, FlowNotFoundError
+
+        form_data = {
+            "schedule_id": request.schedule_id,
+            "doctor_id": request.doctor_id,
+            "schedule_date": request.schedule_date,
+            "time_slot": request.time_slot,
+            "quantity": request.quantity,
+            "quota_type": request.quota_type,
+            "open_to_public": bool(request.open_to_public),
+            "patient_id": request.patient_id,
+            "reason": request.reason,
+        }
+
+        try:
+            await ApprovalEngine(self.db).start_instance(
+                business_type="extra_quota",
+                business_id=request.id,
+                form_data=form_data,
+                applicant_id=request.applicant_id,
+                title=f"加号申请 - {request.quantity} 个号源",
+                store_id=request.store_id,
+            )
+        except FlowNotFoundError:
+            return
+
     # ==================== 审批操作 ====================
 
     async def approve(
@@ -108,7 +139,12 @@ class ExtraQuotaService:
         approver_id: str,
         remark: Optional[str] = None,
     ) -> ExtraQuotaRequest:
-        """审批通过加号申请。"""
+        """审批通过加号申请（旧审核入口，作为无通用审批流程定义时的 fallback）。
+
+        通用引擎已完整接入：发起端通过 _start_approval_if_configured() 调用
+        ApprovalEngine.start_instance()，回调端通过 business_callbacks.py 的
+        handle_extra_quota_approval() 处理审批结果。本方法仅在未配置流程定义时使用。
+        """
         request = await self._get_request(request_id, tenant_id)
         if not request:
             raise ValueError("加号申请不存在")

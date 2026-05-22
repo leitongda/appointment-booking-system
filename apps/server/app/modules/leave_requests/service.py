@@ -102,6 +102,8 @@ class LeaveRequestService:
         set_create_audit(request, data.doctor_id)
 
         self.db.add(request)
+        await self.db.flush()
+        await self._start_approval_if_configured(request)
         await self.db.commit()
         await self.db.refresh(request)
         return request
@@ -132,9 +134,42 @@ class LeaveRequestService:
         set_create_audit(request, data.doctor_id)
 
         self.db.add(request)
+        await self.db.flush()
+        await self._start_approval_if_configured(request)
         await self.db.commit()
         await self.db.refresh(request)
         return request
+
+    async def _start_approval_if_configured(self, request: LeaveRequest):
+        """有激活通用审批流程时创建审批实例；未配置时保留旧审核入口。"""
+        from app.modules.approval_flows.engine import ApprovalEngine, FlowNotFoundError
+
+        form_data = {
+            "request_type": request.request_type,
+            "doctor_id": request.doctor_id,
+            "schedule_id": request.schedule_id,
+            "stop_date": request.stop_date.isoformat() if request.stop_date else None,
+            "stop_period": request.stop_period,
+            "original_date": request.original_date.isoformat() if request.original_date else None,
+            "original_period": request.original_period,
+            "target_date": request.target_date.isoformat() if request.target_date else None,
+            "target_period": request.target_period,
+            "reason": request.reason,
+            "affected_appointments": request.affected_appointments,
+        }
+        title = "停诊申请" if request.request_type == RequestType.STOP_CLINIC.value else "调班申请"
+
+        try:
+            await ApprovalEngine(self.db).start_instance(
+                business_type="leave_request",
+                business_id=request.id,
+                form_data=form_data,
+                applicant_id=request.doctor_id,
+                title=f"{title} - {request.reason[:40]}",
+                store_id=None,
+            )
+        except FlowNotFoundError:
+            return
 
     async def review(
         self,
@@ -142,7 +177,12 @@ class LeaveRequestService:
         reviewer_id: str,
         data: ReviewRequest
     ) -> Optional[LeaveRequest]:
-        """审核申请"""
+        """审核申请（旧审核入口，作为无通用审批流程定义时的 fallback）。
+
+        通用引擎已完整接入：发起端通过 _start_approval_if_configured() 调用
+        ApprovalEngine.start_instance()，回调端通过 business_callbacks.py 的
+        handle_leave_request_approval() 处理审批结果。本方法仅在未配置流程定义时使用。
+        """
         request = await self.get_by_id(request_id)
         if not request:
             return None

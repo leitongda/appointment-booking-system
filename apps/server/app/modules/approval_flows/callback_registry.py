@@ -1,6 +1,11 @@
 """业务模块回调注册表
 
 业务模块在启动时注册自己的回调函数，引擎在审批完成时调用。
+
+当前状态: 已完整接入。leave_request 和 extra_quota 的回调处理器在
+business_callbacks.py 中定义，通过 __init__.py 的 register_builtin_callbacks()
+在模块加载时自动注册。发起端通过 _start_approval_if_configured() 调用
+ApprovalEngine.start_instance()。
 """
 import logging
 from typing import Callable, Dict, Optional, Any
