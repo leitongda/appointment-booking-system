@@ -25,7 +25,7 @@ async def list_instances(
     status: Optional[str] = None,
     business_type: Optional[str] = None,
     store_id: Optional[str] = None,
-    view: str = Query("pending", description="pending=我的待办, initiated=我发起的"),
+    view: str = Query("pending", description="pending=我的待办, done=我的已办, initiated=我发起的"),
     db: AsyncSession = Depends(get_db),
     account=Depends(require_permission("approval:read")),
 ):
@@ -38,8 +38,33 @@ async def list_instances(
     )
     service = ApprovalInstanceService(db)
 
-    as_applicant = view == "initiated"
-    items, total = await service.get_list(query, account.id, as_applicant)
+    items, total = await service.get_list(query, account.id, view)
+
+    return {
+        "items": [ApprovalInstanceListResponse.model_validate(item) for item in items],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
+
+
+@router.get("/my-pending", summary="获取我的待办列表（兼容旧前端）")
+async def list_my_pending_instances(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    business_type: Optional[str] = None,
+    store_id: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    account=Depends(require_permission("approval:read")),
+):
+    query = ApprovalQuery(
+        page=page,
+        page_size=page_size,
+        business_type=business_type,
+        store_id=store_id,
+    )
+    service = ApprovalInstanceService(db)
+    items, total = await service.get_list(query, account.id, "pending")
 
     return {
         "items": [ApprovalInstanceListResponse.model_validate(item) for item in items],
@@ -111,6 +136,7 @@ async def approve_instance(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    await db.commit()
     return ApprovalInstanceResponse.model_validate(instance)
 
 
@@ -128,6 +154,7 @@ async def reject_instance(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    await db.commit()
     return ApprovalInstanceResponse.model_validate(instance)
 
 
@@ -146,6 +173,7 @@ async def delegate_instance(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    await db.commit()
     return ApprovalInstanceResponse.model_validate(instance)
 
 
@@ -160,4 +188,5 @@ async def withdraw_instance(
         instance = await service.withdraw(instance_id, account.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    await db.commit()
     return ApprovalInstanceResponse.model_validate(instance)

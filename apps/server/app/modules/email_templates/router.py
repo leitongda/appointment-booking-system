@@ -11,7 +11,6 @@ from app.schemas.email_template import (
     EmailTemplateListResponse,
     EmailTemplateQuery,
     EmailTemplateResponse,
-    EmailTemplateType,
     EmailTemplateUpdate,
     EmailTestRequest,
 )
@@ -23,7 +22,7 @@ router = APIRouter()
 
 @router.get("", summary="获取邮件模板列表")
 async def get_email_templates(
-    template_type: Optional[EmailTemplateType] = Query(None, description="模板类型"),
+    template_type: Optional[str] = Query(None, description="模板类型"),
     status: Optional[int] = Query(None, description="状态"),
     keyword: Optional[str] = Query(None, description="关键词搜索"),
     page: int = Query(1, ge=1),

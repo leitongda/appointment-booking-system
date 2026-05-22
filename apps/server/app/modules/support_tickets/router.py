@@ -13,13 +13,11 @@ from app.schemas.response import PageResponse
 from app.schemas.support_ticket import (
     SupportTicketAssignRequest,
     SupportTicketCreate,
-    SupportTicketPriority,
     SupportTicketQuery,
     SupportTicketResolveRequest,
     SupportTicketResponse,
     SupportTicketStatus,
     SupportTicketStatisticsResponse,
-    SupportTicketType,
     SupportTicketUpdate,
 )
 
@@ -38,8 +36,8 @@ def _build_response(ticket) -> SupportTicketResponse:
 )
 async def get_support_tickets(
     status: Optional[SupportTicketStatus] = None,
-    type: Optional[SupportTicketType] = None,
-    priority: Optional[SupportTicketPriority] = None,
+    type: Optional[str] = None,
+    priority: Optional[str] = None,
     keyword: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),

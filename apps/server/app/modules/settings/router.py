@@ -27,6 +27,8 @@ class BookingSettingsUpdate(BaseModel):
     # 签到时间配置
     signInAdvanceMinutes: Optional[int] = Field(None, ge=0, le=1440, description="提前签到时间（分钟），班次开始前多少分钟可以签到")
     signInLateMinutes: Optional[int] = Field(None, ge=0, le=1440, description="迟到签到时间（分钟），班次开始后多少分钟还可以签到")
+    # 通知策略
+    appointmentReminderHours: Optional[int] = Field(None, ge=1, le=72, description="预约提醒提前时间（小时）")
 
 
 class HospitalInfoUpdate(BaseModel):
@@ -53,6 +55,9 @@ class SmsConfigUpdate(BaseModel):
     accessKeySecret: Optional[str] = Field(None, max_length=100)
     signName: Optional[str] = Field(None, max_length=50)
     templateCode: Optional[str] = Field(None, max_length=50)
+    # 通知策略参数
+    codeExpireSeconds: Optional[int] = Field(None, ge=60, le=600, description="验证码有效期(秒)")
+    sendIntervalSeconds: Optional[int] = Field(None, ge=30, le=300, description="短信发送间隔(秒)")
 
 
 class EmailConfigUpdate(BaseModel):
@@ -150,6 +155,9 @@ async def update_booking_settings(
         update_data['sign_in_advance_minutes'] = data.signInAdvanceMinutes
     if data.signInLateMinutes is not None:
         update_data['sign_in_late_minutes'] = data.signInLateMinutes
+    # 通知策略
+    if data.appointmentReminderHours is not None:
+        update_data['appointment_reminder_hours'] = data.appointmentReminderHours
 
     await service.update_category('booking', update_data, store_id=storeId)
     return {"message": "保存成功"}
@@ -264,7 +272,7 @@ async def update_sms_config(
 ):
     """更新短信配置"""
     service = SettingsService(db)
-    
+
     update_data = {}
     if data.smsProvider is not None:
         update_data['provider'] = data.smsProvider
@@ -276,7 +284,12 @@ async def update_sms_config(
         update_data['sign_name'] = data.signName
     if data.templateCode is not None:
         update_data['template_code'] = data.templateCode
-    
+    # 通知策略参数
+    if data.codeExpireSeconds is not None:
+        update_data['code_expire_seconds'] = data.codeExpireSeconds
+    if data.sendIntervalSeconds is not None:
+        update_data['send_interval_seconds'] = data.sendIntervalSeconds
+
     await service.update_category('sms', update_data)
     return {"message": "保存成功"}
 
@@ -359,7 +372,120 @@ async def get_booking_rules(
         # 签到时间配置
         'signInAdvanceMinutes': settings.get('signInAdvanceMinutes', 30),
         'signInLateMinutes': settings.get('signInLateMinutes', 30),
+        # 通知策略
+        'appointmentReminderHours': settings.get('appointmentReminderHours', 24),
     }
+
+
+# ========== 安全策略配置 ==========
+class SecurityConfigUpdate(BaseModel):
+    accessTokenExpireMinutes: Optional[int] = Field(None, ge=5, le=1440, description="AccessToken有效期(分钟)")
+    refreshTokenExpireDays: Optional[int] = Field(None, ge=1, le=90, description="RefreshToken有效期(天)")
+    defaultPassword: Optional[str] = Field(None, min_length=6, max_length=50, description="新建管理员默认密码")
+    rateLimitPerMinute: Optional[int] = Field(None, ge=10, le=10000, description="每分钟请求上限")
+    rateLimitPerSecond: Optional[int] = Field(None, ge=1, le=1000, description="每秒请求上限")
+    loginFailureLockCount: Optional[int] = Field(None, ge=0, le=20, description="登录失败锁定次数(0不锁定)")
+    sessionTimeoutMinutes: Optional[int] = Field(None, ge=5, le=1440, description="会话超时时间(分钟)")
+
+
+@router.get("/security", summary="获取安全策略配置")
+async def get_security_config(
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+    _: None = Depends(require_permission("settings:edit")),
+):
+    """获取安全策略配置"""
+    service = SettingsService(db)
+    config = await service.get_security_config()
+    # 隐藏默认密码
+    if config.get('defaultPassword'):
+        config['defaultPassword'] = '********'
+    return config
+
+
+@router.put("/security", summary="更新安全策略配置")
+async def update_security_config(
+    data: SecurityConfigUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("settings:edit")),
+):
+    """更新安全策略配置"""
+    service = SettingsService(db)
+
+    update_data = {}
+    if data.accessTokenExpireMinutes is not None:
+        update_data['access_token_expire_minutes'] = data.accessTokenExpireMinutes
+    if data.refreshTokenExpireDays is not None:
+        update_data['refresh_token_expire_days'] = data.refreshTokenExpireDays
+    if data.defaultPassword is not None and data.defaultPassword != '********':
+        update_data['default_password'] = data.defaultPassword
+    if data.rateLimitPerMinute is not None:
+        update_data['rate_limit_per_minute'] = data.rateLimitPerMinute
+    if data.rateLimitPerSecond is not None:
+        update_data['rate_limit_per_second'] = data.rateLimitPerSecond
+    if data.loginFailureLockCount is not None:
+        update_data['login_failure_lock_count'] = data.loginFailureLockCount
+    if data.sessionTimeoutMinutes is not None:
+        update_data['session_timeout_minutes'] = data.sessionTimeoutMinutes
+
+    await service.update_category('security', update_data)
+    return {"message": "保存成功"}
+
+
+# ========== 号源释放策略配置 ==========
+class SourceReleaseConfigUpdate(BaseModel):
+    lockTimeoutMinutes: Optional[int] = Field(None, ge=1, le=60, description="号源锁定超时(分钟)")
+    batchReleaseEnabled: Optional[bool] = Field(None, description="是否启用批量释放")
+    batchReleaseDays: Optional[int] = Field(None, ge=1, le=30, description="批量释放提前天数")
+    batchReleaseTime: Optional[str] = Field(None, pattern=r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$', description="批量释放时间点 HH:mm")
+    autoCancelUnpaidMinutes: Optional[int] = Field(None, ge=5, le=1440, description="未支付自动取消时间(分钟)")
+    noShowAutoMarkHours: Optional[int] = Field(None, ge=1, le=168, description="爽约自动标记时间(小时)")
+    allowOverbooking: Optional[bool] = Field(None, description="是否允许超额预约")
+    overbookingLimit: Optional[int] = Field(None, ge=0, le=50, description="超额预约上限")
+
+
+@router.get("/source-release", summary="获取号源释放策略配置")
+async def get_source_release_config(
+    db: AsyncSession = Depends(get_db),
+    current_admin = Depends(get_current_admin),
+    _: None = Depends(require_permission("settings:edit")),
+):
+    """获取号源释放策略配置"""
+    service = SettingsService(db)
+    return await service.get_source_release_config()
+
+
+@router.put("/source-release", summary="更新号源释放策略配置")
+async def update_source_release_config(
+    data: SourceReleaseConfigUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_admin: dict = Depends(get_current_admin),
+    _: None = Depends(require_permission("settings:edit")),
+):
+    """更新号源释放策略配置"""
+    service = SettingsService(db)
+
+    update_data = {}
+    if data.lockTimeoutMinutes is not None:
+        update_data['lock_timeout_minutes'] = data.lockTimeoutMinutes
+    if data.batchReleaseEnabled is not None:
+        update_data['batch_release_enabled'] = str(data.batchReleaseEnabled).lower()
+    if data.batchReleaseDays is not None:
+        update_data['batch_release_days'] = data.batchReleaseDays
+    if data.batchReleaseTime is not None:
+        update_data['batch_release_time'] = data.batchReleaseTime
+    if data.autoCancelUnpaidMinutes is not None:
+        update_data['auto_cancel_unpaid_minutes'] = data.autoCancelUnpaidMinutes
+    if data.noShowAutoMarkHours is not None:
+        update_data['no_show_auto_mark_hours'] = data.noShowAutoMarkHours
+    if data.allowOverbooking is not None:
+        update_data['allow_overbooking'] = str(data.allowOverbooking).lower()
+    if data.overbookingLimit is not None:
+        update_data['overbooking_limit'] = data.overbookingLimit
+
+    await service.update_category('source_release', update_data)
+    return {"message": "保存成功"}
 
 
 # ========== 预约选项配置 ==========

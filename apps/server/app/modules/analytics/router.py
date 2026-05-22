@@ -3,14 +3,17 @@
 - 埋点数据上报
 - 行为统计查询
 """
-from fastapi import APIRouter, Depends, Request, Query
+from fastapi import APIRouter, Depends, Request, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, desc
+from sqlalchemy import select, func, and_, desc, case
 from typing import Optional, List
 from datetime import datetime, timedelta
 import json
+import time
+import logging
 
 from app.api.deps import get_db, get_current_admin
+from app.common.auth_unified import get_optional_account, AccountInfo
 from app.schemas.behavior_log import (
     TrackEventRequest,
     BatchTrackRequest,
@@ -29,7 +32,50 @@ from app.schemas.response import PageResponse
 from app.utils.ip import get_client_ip
 from app.core.config import settings
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
+
+# ========== 安全：IP 级速率限制 ==========
+
+_analytics_rate_limit: dict[str, list[float]] = {}
+_RATE_LIMIT_WINDOW = 60  # 秒
+_RATE_LIMIT_MAX = 120    # 每窗口最大请求数
+
+
+def _check_rate_limit(client_ip: str) -> None:
+    """简单的内存级 IP 速率限制"""
+    now = time.time()
+    window_start = now - _RATE_LIMIT_WINDOW
+
+    if client_ip not in _analytics_rate_limit:
+        _analytics_rate_limit[client_ip] = []
+
+    timestamps = _analytics_rate_limit[client_ip]
+    # 清理过期时间戳
+    _analytics_rate_limit[client_ip] = [t for t in timestamps if t > window_start]
+
+    if len(_analytics_rate_limit[client_ip]) >= _RATE_LIMIT_MAX:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="请求过于频繁，请稍后再试",
+        )
+
+    _analytics_rate_limit[client_ip].append(now)
+
+    # 防止内存泄漏：定期清理不活跃的 IP
+    if len(_analytics_rate_limit) > 10000:
+        cutoff = now - _RATE_LIMIT_WINDOW * 2
+        stale_ips = [ip for ip, ts in _analytics_rate_limit.items() if not ts or ts[-1] < cutoff]
+        for ip in stale_ips:
+            _analytics_rate_limit.pop(ip, None)
+
+
+def _extract_user_id(account: Optional[AccountInfo]) -> Optional[str]:
+    """从认证信息中提取 user_id"""
+    if account is None:
+        return None
+    return getattr(account, "id", None)
 
 
 def _get_client_ip(request: Request) -> str:
@@ -92,17 +138,23 @@ async def track_event(
     data: TrackEventRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    account: Optional[AccountInfo] = Depends(get_optional_account),
 ):
     """
     单条埋点数据上报
-    此接口不需要认证，允许匿名用户上报
+    此接口不需要认证，允许匿名用户上报；提供 token 时自动提取 user_id
     """
+    client_ip = _get_client_ip(request)
+    _check_rate_limit(client_ip)
+
     user_agent = request.headers.get("User-Agent", "")
     ua_info = _parse_user_agent(user_agent)
-    
+    tenant_id = get_current_tenant_id()
+
     log_data = {
         "platform": data.platform.value,
-        "user_id": None,  # 可从 token 中获取，但允许匿名
+        "user_id": _extract_user_id(account),
+        "tenant_id": tenant_id,
         "session_id": data.session_id,
         "event_type": data.event_type.value,
         "page_path": data.page_path,
@@ -114,30 +166,27 @@ async def track_event(
         "duration": data.duration,
         "referrer": data.referrer,
         "extra_data": data.extra_data,
-        "ip": _get_client_ip(request),
+        "ip": client_ip,
         "user_agent": user_agent[:500] if user_agent else None,
         "device_type": ua_info["device_type"],
         "browser": ua_info["browser"],
         "os": ua_info["os"],
     }
-    
+
     # 异步保存到数据库
     try:
         from app.tasks.behavior_log_task import save_behavior_log
         save_behavior_log.delay(log_data)
     except Exception as e:
-        # 如果 Celery 不可用，直接写入
-        import logging
-        logging.getLogger(__name__).warning(f"Celery 任务发送失败，直接写入: {e}")
+        logger.warning(f"Celery 任务发送失败，直接写入: {e}")
         import uuid
-        from app.models.behavior_log import UserBehaviorLog
         log = UserBehaviorLog(
             id=str(uuid.uuid4()),
             **{k: (json.dumps(v, ensure_ascii=False) if k == "extra_data" and isinstance(v, dict) else v) for k, v in log_data.items()}
         )
         db.add(log)
         await db.commit()
-    
+
     return {"success": True}
 
 
@@ -146,20 +195,26 @@ async def batch_track_events(
     data: BatchTrackRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    account: Optional[AccountInfo] = Depends(get_optional_account),
 ):
     """
     批量埋点数据上报
-    此接口不需要认证，允许匿名用户上报
+    此接口不需要认证，允许匿名用户上报；提供 token 时自动提取 user_id
     """
+    client_ip = _get_client_ip(request)
+    _check_rate_limit(client_ip)
+
     user_agent = request.headers.get("User-Agent", "")
     ua_info = _parse_user_agent(user_agent)
-    client_ip = _get_client_ip(request)
-    
+    user_id = _extract_user_id(account)
+    tenant_id = get_current_tenant_id()
+
     logs_data = []
     for event in data.events:
         log_data = {
             "platform": event.platform.value,
-            "user_id": None,
+            "user_id": user_id,
+            "tenant_id": tenant_id,
             "session_id": event.session_id,
             "event_type": event.event_type.value,
             "page_path": event.page_path,
@@ -178,15 +233,24 @@ async def batch_track_events(
             "os": ua_info["os"],
         }
         logs_data.append(log_data)
-    
+
     # 批量异步保存
     try:
         from app.tasks.behavior_log_task import batch_save_behavior_logs
         batch_save_behavior_logs.delay(logs_data)
     except Exception as e:
-        import logging
-        logging.getLogger(__name__).warning(f"Celery 批量任务发送失败: {e}")
-    
+        logger.warning(f"Celery 批量任务发送失败，直接写入: {e}")
+        import uuid
+        logs = [
+            UserBehaviorLog(
+                id=str(uuid.uuid4()),
+                **{k: (json.dumps(v, ensure_ascii=False) if k == "extra_data" and isinstance(v, dict) else v) for k, v in log_data.items()}
+            )
+            for log_data in logs_data
+        ]
+        db.add_all(logs)
+        await db.commit()
+
     return {"success": True, "count": len(logs_data)}
 
 
@@ -213,7 +277,8 @@ async def get_behavior_logs(
     if event_type:
         conditions.append(UserBehaviorLog.event_type == event_type)
     if page_path:
-        conditions.append(UserBehaviorLog.page_path.ilike(f"%{page_path}%"))
+        escaped = page_path.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        conditions.append(UserBehaviorLog.page_path.ilike(f"%{escaped}%", escape="\\"))
     if start_time:
         conditions.append(UserBehaviorLog.created_at >= start_time)
     if end_time:
@@ -360,45 +425,53 @@ async def get_behavior_overview(
         for row in top_keywords_result.all()
     ]
     
-    # 每日统计
+    # 每日统计（优化：2 条 SQL 替代 4*N 条）
+    start_date_only = (datetime.now() - timedelta(days=days - 1)).date()
+    date_start_boundary = datetime.combine(start_date_only, datetime.min.time())
+
+    # 查询 1：按日期+事件类型聚合 PV/点击/搜索
+    daily_event_rows = await db.execute(
+        select(
+            func.date(UserBehaviorLog.created_at).label("d"),
+            UserBehaviorLog.event_type,
+            func.count(UserBehaviorLog.id).label("cnt"),
+        )
+        .where(and_(*base_conditions, UserBehaviorLog.created_at >= date_start_boundary))
+        .group_by(func.date(UserBehaviorLog.created_at), UserBehaviorLog.event_type)
+    )
+
+    # 查询 2：按日期聚合独立用户数
+    daily_uv_rows = await db.execute(
+        select(
+            func.date(UserBehaviorLog.created_at).label("d"),
+            func.count(func.distinct(UserBehaviorLog.session_id)).label("uv"),
+        )
+        .where(and_(*base_conditions, UserBehaviorLog.created_at >= date_start_boundary))
+        .group_by(func.date(UserBehaviorLog.created_at))
+    )
+
+    # 组装日期索引
+    daily_event_map: dict[tuple[str, str], int] = {}
+    for row in daily_event_rows.all():
+        d = str(row.d) if row.d else ""
+        daily_event_map[(d, row.event_type)] = row.cnt
+
+    daily_uv_map: dict[str, int] = {}
+    for row in daily_uv_rows.all():
+        d = str(row.d) if row.d else ""
+        daily_uv_map[d] = row.uv
+
     daily_stats = []
-    for i in range(days):
+    for i in range(days - 1, -1, -1):
         date = datetime.now().date() - timedelta(days=i)
-        date_start = datetime.combine(date, datetime.min.time())
-        date_end = datetime.combine(date, datetime.max.time())
-        
-        day_conditions = base_conditions + [
-            UserBehaviorLog.created_at >= date_start,
-            UserBehaviorLog.created_at <= date_end
-        ]
-        
-        day_pv = await db.scalar(
-            select(func.count(UserBehaviorLog.id))
-            .where(and_(*day_conditions, UserBehaviorLog.event_type == "page_view"))
-        )
-        day_uv = await db.scalar(
-            select(func.count(func.distinct(UserBehaviorLog.session_id)))
-            .where(and_(*day_conditions))
-        )
-        day_clicks = await db.scalar(
-            select(func.count(UserBehaviorLog.id))
-            .where(and_(*day_conditions, UserBehaviorLog.event_type == "click"))
-        )
-        day_searches = await db.scalar(
-            select(func.count(UserBehaviorLog.id))
-            .where(and_(*day_conditions, UserBehaviorLog.event_type == "search"))
-        )
-        
+        d = date.isoformat()
         daily_stats.append(DailyStats(
-            date=date.isoformat(),
-            page_views=day_pv or 0,
-            unique_users=day_uv or 0,
-            clicks=day_clicks or 0,
-            searches=day_searches or 0
+            date=d,
+            page_views=daily_event_map.get((d, "page_view"), 0),
+            unique_users=daily_uv_map.get(d, 0),
+            clicks=daily_event_map.get((d, "click"), 0),
+            searches=daily_event_map.get((d, "search"), 0),
         ))
-    
-    # 按日期正序排列
-    daily_stats.reverse()
     
     return BehaviorOverview(
         total_page_views=pv_count or 0,
@@ -430,58 +503,61 @@ async def get_tenant_activity_stats(
     end_date = datetime.now().date()
     start_date = end_date - timedelta(days=days - 1)
 
-    daily_stats = []
-    for i in range(days):
-        current_date = end_date - timedelta(days=i)
-        date_start = datetime.combine(current_date, datetime.min.time())
-        date_end = datetime.combine(current_date, datetime.max.time())
+    # 每日统计（优化：2 条 SQL 替代 3*N 条）
+    date_start_boundary = datetime.combine(start_date, datetime.min.time())
 
-        day_conditions = base_conditions + [
-            UserBehaviorLog.created_at >= date_start,
-            UserBehaviorLog.created_at <= date_end,
-        ]
-
-        # DAU: 当日独立用户数
-        dau = await db.scalar(
-            select(func.count(func.distinct(UserBehaviorLog.user_id)))
-            .where(and_(*day_conditions, UserBehaviorLog.user_id.isnot(None)))
-        ) or 0
-
-        # 当日会话数
-        total_sessions = await db.scalar(
-            select(func.count(func.distinct(UserBehaviorLog.session_id)))
-            .where(and_(*day_conditions))
-        ) or 0
-
-        # 当日新用户数（首次出现）
-        # 简化处理：user_id 非空且该 user_id 在此之前未出现过
-        subquery = select(func.distinct(UserBehaviorLog.user_id)).where(
-            and_(
-                *base_conditions,
-                UserBehaviorLog.created_at < date_start,
-                UserBehaviorLog.user_id.isnot(None),
-            )
-        )
-        new_users = await db.scalar(
-            select(func.count(func.distinct(UserBehaviorLog.user_id)))
-            .where(
-                and_(
-                    *day_conditions,
-                    UserBehaviorLog.user_id.isnot(None),
-                    UserBehaviorLog.user_id.notin_(subquery),
+    # 查询 1：按日期聚合 DAU + 会话数
+    daily_rows = await db.execute(
+        select(
+            func.date(UserBehaviorLog.created_at).label("d"),
+            func.count(
+                func.distinct(
+                    case(
+                        (UserBehaviorLog.user_id.isnot(None), UserBehaviorLog.user_id),
+                    )
                 )
-            )
-        ) or 0
+            ).label("dau"),
+            func.count(func.distinct(UserBehaviorLog.session_id)).label("total_sessions"),
+        )
+        .where(and_(*base_conditions, UserBehaviorLog.created_at >= date_start_boundary))
+        .group_by(func.date(UserBehaviorLog.created_at))
+    )
 
+    daily_map: dict[str, tuple[int, int]] = {}
+    for row in daily_rows.all():
+        d = str(row.d) if row.d else ""
+        daily_map[d] = (row.dau, row.total_sessions)
+
+    # 查询 2：获取所有有记录的 user_id 及其首次出现日期（用于计算新用户）
+    first_seen_rows = await db.execute(
+        select(
+            UserBehaviorLog.user_id,
+            func.min(func.date(UserBehaviorLog.created_at)).label("first_date"),
+        )
+        .where(and_(
+            *base_conditions,
+            UserBehaviorLog.user_id.isnot(None),
+            UserBehaviorLog.created_at >= date_start_boundary,
+        ))
+        .group_by(UserBehaviorLog.user_id)
+    )
+
+    new_users_map: dict[str, int] = {}
+    for row in first_seen_rows.all():
+        d = str(row.first_date) if row.first_date else ""
+        new_users_map[d] = new_users_map.get(d, 0) + 1
+
+    daily_stats = []
+    for i in range(days - 1, -1, -1):
+        current_date = end_date - timedelta(days=i)
+        d = current_date.isoformat()
+        dau, total_sessions = daily_map.get(d, (0, 0))
         daily_stats.append(TenantActivityDaily(
-            date=current_date.isoformat(),
+            date=d,
             dau=dau,
             total_sessions=total_sessions,
-            new_users=new_users,
+            new_users=new_users_map.get(d, 0),
         ))
-
-    # 按日期正序排列
-    daily_stats.reverse()
 
     # 计算当前 DAU/WAU/MAU
     today_start = datetime.combine(end_date, datetime.min.time())

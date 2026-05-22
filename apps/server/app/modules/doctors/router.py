@@ -16,6 +16,7 @@ from app.common.account_sync import AccountSyncService
 from app.core.security import create_access_token, create_refresh_token, decode_token
 from app.core.redis import RedisCache
 from app.core.config import settings
+from app.common.security_settings import get_token_expire_config
 from app.infrastructure.email.service import EmailService
 from app.utils.ip import get_client_ip
 from app.modules.doctors.schemas import (
@@ -185,9 +186,10 @@ async def doctor_login(
     await service.update_login_info(doctor.id, client_ip)
     
     # 生成Token
-    access_token = create_access_token(data=_build_doctor_access_token_payload(doctor))
-    refresh_token = create_refresh_token(data=_build_doctor_refresh_token_payload(doctor))
-    
+    access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
+    access_token = create_access_token(data=_build_doctor_access_token_payload(doctor), expires_delta=access_delta)
+    refresh_token = create_refresh_token(data=_build_doctor_refresh_token_payload(doctor), expires_delta=refresh_delta)
+
     doctor_resp = doctor_to_response(doctor)
     # 从统一账号表补充 email
     account = await _get_doctor_account(db, doctor)
@@ -197,7 +199,7 @@ async def doctor_login(
     return DoctorLoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        expires_in=expires_seconds,
         doctor=doctor_resp,
     )
 
@@ -257,12 +259,13 @@ async def doctor_refresh_token(
     if token_tenant_id and token_tenant_id != doctor.tenant_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="租户信息不匹配，请重新登录")
 
-    access_token = create_access_token(data=_build_doctor_access_token_payload(doctor))
-    refresh_token = create_refresh_token(data=_build_doctor_refresh_token_payload(doctor))
+    access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
+    access_token = create_access_token(data=_build_doctor_access_token_payload(doctor), expires_delta=access_delta)
+    refresh_token = create_refresh_token(data=_build_doctor_refresh_token_payload(doctor), expires_delta=refresh_delta)
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        expires_in=expires_seconds,
     )
 
 

@@ -19,11 +19,16 @@ from app.models.user import Patient, User
 from app.common.account_sync import AccountSyncService
 from app.modules.patients.common import PatientsServiceBase
 from app.modules.appointments.common import APPOINTMENT_STATUS
+from app.common.security_settings import get_default_password
 from app.schemas.user import FamilyMemberCreate, PatientCreateByAdmin, PatientUpdate
 from app.utils.audit import set_create_audit, set_update_audit
 
 
 class PatientManageService(PatientsServiceBase):
+    async def _get_default_password(self) -> str:
+        """读取新用户默认密码（从 SystemSetting 或 config fallback）"""
+        return await get_default_password(self.db)
+
     async def get_list(
         self,
         keyword: Optional[str] = None,
@@ -477,7 +482,7 @@ class PatientManageService(PatientsServiceBase):
                 id=str(uuid.uuid4()),
                 tenant_id=tenant_id,
                 phone=data.phone,
-                password_hash=get_password_hash(settings.DEFAULT_USER_PASSWORD),
+                password_hash=get_password_hash(await self._get_default_password()),
                 nickname=data.name,
                 status=1,
             )

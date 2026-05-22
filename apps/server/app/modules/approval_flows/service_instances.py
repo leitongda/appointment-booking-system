@@ -24,7 +24,7 @@ class ApprovalInstanceService:
         self,
         query: ApprovalQuery,
         user_id: Optional[str] = None,
-        as_applicant: bool = False,
+        view: str = "pending",
     ) -> Tuple[List[ApprovalInstance], int]:
         """获取审批实例列表"""
         stmt = select(ApprovalInstance)
@@ -47,10 +47,20 @@ class ApprovalInstanceService:
             stmt = stmt.where(ApprovalInstance.store_id == query.store_id)
             count_stmt = count_stmt.where(ApprovalInstance.store_id == query.store_id)
 
-        if as_applicant and user_id:
+        if view == "initiated" and user_id:
             # 我发起的
             stmt = stmt.where(ApprovalInstance.applicant_id == user_id)
             count_stmt = count_stmt.where(ApprovalInstance.applicant_id == user_id)
+        elif view == "done" and user_id:
+            # 我的已办: 我已有 approve/reject/delegate/comment 操作记录的实例
+            done_subquery = select(ApprovalRecord.instance_id).where(
+                and_(
+                    ApprovalRecord.approver_id == user_id,
+                    ApprovalRecord.action.in_(["approve", "reject", "delegate", "comment"]),
+                )
+            )
+            stmt = stmt.where(ApprovalInstance.id.in_(done_subquery))
+            count_stmt = count_stmt.where(ApprovalInstance.id.in_(done_subquery))
         elif user_id:
             # 我待办的: ApprovalTask 中 assignee_id = user_id 且 status = pending
             stmt = stmt.where(

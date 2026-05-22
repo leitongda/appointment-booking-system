@@ -19,6 +19,8 @@ class SettingsViewMixin:
             "advanceBookingReference": data.get("advance_booking_reference", "end"),
             "signInAdvanceMinutes": data.get("sign_in_advance_minutes", 30),
             "signInLateMinutes": data.get("sign_in_late_minutes", 30),
+            # 通知策略
+            "appointmentReminderHours": data.get("appointment_reminder_hours", 24),
         }
 
     async def get_hospital_info(self) -> Dict:
@@ -50,6 +52,9 @@ class SettingsViewMixin:
             "accessKeySecret": data.get("access_key_secret", ""),
             "signName": data.get("sign_name", ""),
             "templateCode": data.get("template_code", ""),
+            # 通知策略参数
+            "codeExpireSeconds": data.get("code_expire_seconds", 300),
+            "sendIntervalSeconds": data.get("send_interval_seconds", 60),
         }
 
     async def get_email_config(self) -> Dict:
@@ -145,6 +150,31 @@ class SettingsViewMixin:
             if api_key in data:
                 await self.set_value(category, db_key, data[api_key], operator_id=operator_id)
         return await self.get_patient_card_config()
+
+    async def get_security_config(self) -> Dict:
+        data = await self.get_by_category("security")
+        return {
+            "accessTokenExpireMinutes": data.get("access_token_expire_minutes", 30),
+            "refreshTokenExpireDays": data.get("refresh_token_expire_days", 7),
+            "defaultPassword": data.get("default_password", "admin123"),
+            "rateLimitPerMinute": data.get("rate_limit_per_minute", 300),
+            "rateLimitPerSecond": data.get("rate_limit_per_second", 50),
+            "loginFailureLockCount": data.get("login_failure_lock_count", 5),
+            "sessionTimeoutMinutes": data.get("session_timeout_minutes", 120),
+        }
+
+    async def get_source_release_config(self) -> Dict:
+        data = await self.get_by_category("source_release")
+        return {
+            "lockTimeoutMinutes": data.get("lock_timeout_minutes", 15),
+            "batchReleaseEnabled": data.get("batch_release_enabled", "false") == "true",
+            "batchReleaseDays": data.get("batch_release_days", 7),
+            "batchReleaseTime": data.get("batch_release_time", "08:00"),
+            "autoCancelUnpaidMinutes": data.get("auto_cancel_unpaid_minutes", 30),
+            "noShowAutoMarkHours": data.get("no_show_auto_mark_hours", 24),
+            "allowOverbooking": data.get("allow_overbooking", "false") == "true",
+            "overbookingLimit": data.get("overbooking_limit", 0),
+        }
 
     async def get_image_config(self) -> Dict:
         data = await self.get_by_category("image")

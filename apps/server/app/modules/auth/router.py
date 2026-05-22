@@ -35,6 +35,7 @@ from app.core.config import settings
 from app.common.account_sync import AccountSyncService
 from app.common.auth_types import AccountInfo
 from app.common.auth_unified import get_current_account
+from app.common.security_settings import get_token_expire_config
 
 router = APIRouter()
 
@@ -123,13 +124,14 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     if user.status != 1:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
     
-    access_token = create_access_token(data={"sub": user.id})
-    refresh_token = create_refresh_token(data={"sub": user.id})
-    
+    access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
+    access_token = create_access_token(data={"sub": user.id}, expires_delta=access_delta)
+    refresh_token = create_refresh_token(data={"sub": user.id}, expires_delta=refresh_delta)
+
     return LoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        expires_in=expires_seconds,
         user=UserInfo(
             id=user.id,
             phone=user.phone,
@@ -248,13 +250,14 @@ async def refresh_token(data: RefreshTokenRequest, db: AsyncSession = Depends(ge
     if not user or user.status != 1:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号不存在或已被禁用，请检查后重试")
     
-    access_token = create_access_token(data={"sub": user.id})
-    new_refresh_token = create_refresh_token(data={"sub": user.id})
-    
+    access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
+    access_token = create_access_token(data={"sub": user.id}, expires_delta=access_delta)
+    new_refresh_token = create_refresh_token(data={"sub": user.id}, expires_delta=refresh_delta)
+
     return TokenResponse(
         access_token=access_token,
         refresh_token=new_refresh_token,
-        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        expires_in=expires_seconds
     )
 
 @router.post(
@@ -476,16 +479,17 @@ async def wechat_login(data: WechatLoginRequest, db: AsyncSession = Depends(get_
                 await user_service.update_wechat_info(user.id, {"unionid": unionid})
             
             # 直接返回 token
-            access_token = create_access_token(data={"sub": user.id})
-            refresh_token = create_refresh_token(data={"sub": user.id})
-            
+            access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
+            access_token = create_access_token(data={"sub": user.id}, expires_delta=access_delta)
+            refresh_token = create_refresh_token(data={"sub": user.id}, expires_delta=refresh_delta)
+
             return WechatLoginResponse(
                 is_new_user=False,
                 need_bind_phone=False,
                 openid=openid,
                 access_token=access_token,
                 refresh_token=refresh_token,
-                expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+                expires_in=expires_seconds
             )
         else:
             # 新用户，需要绑定手机号
@@ -548,13 +552,14 @@ async def wechat_get_phone(data: WechatPhoneRequest, db: AsyncSession = Depends(
             ))
         
         # 生成 token
-        access_token = create_access_token(data={"sub": user.id})
-        refresh_token = create_refresh_token(data={"sub": user.id})
-        
+        access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
+        access_token = create_access_token(data={"sub": user.id}, expires_delta=access_delta)
+        refresh_token = create_refresh_token(data={"sub": user.id}, expires_delta=refresh_delta)
+
         return LoginResponse(
             access_token=access_token,
             refresh_token=refresh_token,
-            expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            expires_in=expires_seconds,
             user=UserInfo(
                 id=user.id,
                 phone=user.phone,
@@ -606,13 +611,14 @@ async def wechat_bind_phone(data: WechatBindPhoneRequest, db: AsyncSession = Dep
         ))
     
     # 生成 token
-    access_token = create_access_token(data={"sub": user.id})
-    refresh_token = create_refresh_token(data={"sub": user.id})
-    
+    access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
+    access_token = create_access_token(data={"sub": user.id}, expires_delta=access_delta)
+    refresh_token = create_refresh_token(data={"sub": user.id}, expires_delta=refresh_delta)
+
     return LoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        expires_in=expires_seconds,
         user=UserInfo(
             id=user.id,
             phone=user.phone,
@@ -669,13 +675,14 @@ async def wechat_bind_userinfo(data: WechatBindUserInfoRequest, db: AsyncSession
         ))
     
     # 生成 token
-    access_token = create_access_token(data={"sub": user.id})
-    refresh_token = create_refresh_token(data={"sub": user.id})
-    
+    access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
+    access_token = create_access_token(data={"sub": user.id}, expires_delta=access_delta)
+    refresh_token = create_refresh_token(data={"sub": user.id}, expires_delta=refresh_delta)
+
     return LoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        expires_in=expires_seconds,
         user=UserInfo(
             id=user.id,
             phone=user.phone or "",
@@ -811,13 +818,14 @@ async def email_login(
     # 注意: User 模型无 last_login_at/ip 字段，由 AccountSyncService 同步到 Account 表
 
     # 生成 token
-    access_token = create_access_token(data={"sub": user.id})
-    refresh_token = create_refresh_token(data={"sub": user.id})
+    access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
+    access_token = create_access_token(data={"sub": user.id}, expires_delta=access_delta)
+    refresh_token = create_refresh_token(data={"sub": user.id}, expires_delta=refresh_delta)
 
     return LoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        expires_in=expires_seconds,
         user=UserInfo(
             id=user.id,
             phone=user.phone or "",

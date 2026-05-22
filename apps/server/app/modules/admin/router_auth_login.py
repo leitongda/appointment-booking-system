@@ -14,6 +14,7 @@ from app.core.security import create_access_token, create_refresh_token, get_rsa
 from app.core.redis import RedisCache
 from app.db.session import get_db
 from app.infrastructure.email.service import EmailService
+from app.common.security_settings import get_token_expire_config
 from app.models.admin import Admin, Permission
 from app.modules.admin.helpers import build_admin_response, build_stores_list, store_admin_session
 from app.modules.admin.schemas import (
@@ -118,14 +119,14 @@ def _tenant_status_error_for_wechat(admin) -> Optional[str]:
     return None
 
 
-def _build_login_response(admin, access_token: str, refresh_token: str) -> dict:
+def _build_login_response(admin, access_token: str, refresh_token: str, expires_in: int = None) -> dict:
     """构建登录响应"""
     stores_list = build_stores_list(admin.stores)
     first_store = stores_list[0] if stores_list else None
     response = AdminLoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        expires_in=expires_in or settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         admin=build_admin_response(admin),
         store=first_store,
         stores=stores_list,
@@ -206,14 +207,15 @@ async def admin_login(
     user_agent = request.headers.get("user-agent", "")
     await service.update_login_info(admin.id, client_ip)
 
-    access_token = create_access_token(data=_build_admin_access_token_payload(admin))
-    refresh_token = create_refresh_token(data=_build_admin_refresh_token_payload(admin))
+    access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
+    access_token = create_access_token(data=_build_admin_access_token_payload(admin), expires_delta=access_delta)
+    refresh_token = create_refresh_token(data=_build_admin_refresh_token_payload(admin), expires_delta=refresh_delta)
     await store_admin_session(admin, access_token, client_ip, user_agent, db)
 
     response = AdminLoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        expires_in=expires_seconds,
         admin=build_admin_response(admin),
         store=available_stores and StoreInfo.model_validate(available_stores[0]) or None,
         stores=build_stores_list(available_stores),
@@ -249,10 +251,11 @@ async def phone_login(
     user_agent = request.headers.get("user-agent", "")
     await service.update_login_info(admin.id, client_ip)
 
-    access_token = create_access_token(data=_build_admin_access_token_payload(admin))
-    refresh_token = create_refresh_token(data=_build_admin_refresh_token_payload(admin))
+    access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
+    access_token = create_access_token(data=_build_admin_access_token_payload(admin), expires_delta=access_delta)
+    refresh_token = create_refresh_token(data=_build_admin_refresh_token_payload(admin), expires_delta=refresh_delta)
     await store_admin_session(admin, access_token, client_ip, user_agent, db)
-    return _build_login_response(admin, access_token, refresh_token)
+    return _build_login_response(admin, access_token, refresh_token, expires_in=expires_seconds)
 
 
 # ==================== 短信验证码登录 ====================
@@ -310,10 +313,11 @@ async def sms_login(
     user_agent = request.headers.get("user-agent", "")
     await service.update_login_info(admin.id, client_ip)
 
-    access_token = create_access_token(data=_build_admin_access_token_payload(admin))
-    refresh_token = create_refresh_token(data=_build_admin_refresh_token_payload(admin))
+    access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
+    access_token = create_access_token(data=_build_admin_access_token_payload(admin), expires_delta=access_delta)
+    refresh_token = create_refresh_token(data=_build_admin_refresh_token_payload(admin), expires_delta=refresh_delta)
     await store_admin_session(admin, access_token, client_ip, user_agent, db)
-    return _build_login_response(admin, access_token, refresh_token)
+    return _build_login_response(admin, access_token, refresh_token, expires_in=expires_seconds)
 
 
 @router.post("/email/send-code", summary="发送管理员邮箱验证码")
@@ -377,10 +381,11 @@ async def admin_email_login(
     user_agent = request.headers.get("user-agent", "")
     await service.update_login_info(admin.id, client_ip)
 
-    access_token = create_access_token(data=_build_admin_access_token_payload(admin))
-    refresh_token = create_refresh_token(data=_build_admin_refresh_token_payload(admin))
+    access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
+    access_token = create_access_token(data=_build_admin_access_token_payload(admin), expires_delta=access_delta)
+    refresh_token = create_refresh_token(data=_build_admin_refresh_token_payload(admin), expires_delta=refresh_delta)
     await store_admin_session(admin, access_token, client_ip, user_agent, db)
-    return _build_login_response(admin, access_token, refresh_token)
+    return _build_login_response(admin, access_token, refresh_token, expires_in=expires_seconds)
 
 
 # ==================== 微信扫码登录 ====================
@@ -440,14 +445,15 @@ async def check_wechat_scan(
             client_ip = get_client_ip(request)
             await service.update_login_info(admin.id, client_ip)
 
-            access_token = create_access_token(data=_build_admin_access_token_payload(admin))
-            refresh_token = create_refresh_token(data=_build_admin_refresh_token_payload(admin))
+            access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
+            access_token = create_access_token(data=_build_admin_access_token_payload(admin), expires_delta=access_delta)
+            refresh_token = create_refresh_token(data=_build_admin_refresh_token_payload(admin), expires_delta=refresh_delta)
             del _wechat_scan_tickets[ticket]
             return WechatCheckResponse(
                 status="confirmed",
                 access_token=access_token,
                 refresh_token=refresh_token,
-                expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+                expires_in=expires_seconds,
                 admin=build_admin_response(admin),
             ).model_dump(by_alias=True)
     return WechatCheckResponse(status=ticket_data["status"]).model_dump(by_alias=True)

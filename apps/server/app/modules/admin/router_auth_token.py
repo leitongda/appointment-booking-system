@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.core.security import create_access_token, create_refresh_token, decode_token
 from app.core.redis import RedisCache
 from app.db.session import get_db
+from app.common.security_settings import get_token_expire_config
 from app.models.admin import Admin, Permission
 from app.models.tenant import Tenant
 from app.modules.admin.helpers import build_admin_response_from_dict, build_stores_list
@@ -66,12 +67,13 @@ async def refresh_admin_token(
     if token_tenant_id and token_tenant_id != admin.tenant_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="租户信息不匹配，请重新登录")
 
-    access_token = create_access_token(data=_build_admin_access_token_payload(admin))
-    refresh_token = create_refresh_token(data=_build_admin_refresh_token_payload(admin))
+    access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
+    access_token = create_access_token(data=_build_admin_access_token_payload(admin), expires_delta=access_delta)
+    refresh_token = create_refresh_token(data=_build_admin_refresh_token_payload(admin), expires_delta=refresh_delta)
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        expires_in=expires_seconds,
     )
 
 

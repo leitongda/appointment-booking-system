@@ -70,6 +70,7 @@ async def create_flow_definition(
 ):
     service = FlowDefinitionService(db)
     flow_def = await service.create(data, account.id)
+    await db.commit()
     return FlowDefinitionResponse.model_validate(flow_def)
 
 
@@ -87,6 +88,7 @@ async def update_flow_definition(
         raise HTTPException(status_code=400, detail=str(e))
     if not flow_def:
         raise HTTPException(status_code=404, detail="流程定义不存在")
+    await db.commit()
     return FlowDefinitionResponse.model_validate(flow_def)
 
 
@@ -103,6 +105,7 @@ async def activate_flow(
         raise HTTPException(status_code=400, detail=str(e))
     if not flow_def:
         raise HTTPException(status_code=404, detail="流程定义不存在")
+    await db.commit()
     return FlowDefinitionResponse.model_validate(flow_def)
 
 
@@ -116,6 +119,7 @@ async def archive_flow(
     flow_def = await service.archive(flow_def_id, account.id)
     if not flow_def:
         raise HTTPException(status_code=404, detail="流程定义不存在")
+    await db.commit()
     return FlowDefinitionResponse.model_validate(flow_def)
 
 
@@ -132,6 +136,7 @@ async def delete_flow(
         raise HTTPException(status_code=400, detail=str(e))
     if not result:
         raise HTTPException(status_code=404, detail="流程定义不存在")
+    await db.commit()
     return {"deleted": True}
 
 
@@ -145,4 +150,5 @@ async def copy_flow(
     flow_def = await service.copy(flow_def_id, account.id)
     if not flow_def:
         raise HTTPException(status_code=404, detail="流程定义不存在")
+    await db.commit()
     return FlowDefinitionResponse.model_validate(flow_def)

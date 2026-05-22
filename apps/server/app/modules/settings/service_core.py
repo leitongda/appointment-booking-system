@@ -205,10 +205,10 @@ class SettingsCoreMixin:
         )
         return result.scalar_one_or_none() is not None
 
-    async def update_category(self, category: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def update_category(self, category: str, data: Dict[str, Any], store_id: Optional[str] = None) -> Dict[str, Any]:
         for key, value in data.items():
-            await self.set_value(category, key, value)
-        return await self.get_by_category(category)
+            await self.set_value(category, key, value, store_id=store_id)
+        return await self.get_by_category(category, store_id=store_id)
 
     def _parse_value(self, value: str) -> Any:
         if value is None:

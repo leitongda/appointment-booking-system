@@ -13,7 +13,6 @@ from app.schemas.feedback import (
     FeedbackReply,
     FeedbackResponse,
     FeedbackStatus,
-    FeedbackType,
 )
 from app.schemas.response import PageResponse
 from app.modules.feedbacks.service import FeedbackService
@@ -49,7 +48,7 @@ def parse_feedback_response(feedback) -> FeedbackResponse:
 @router.get("", response_model=PageResponse[FeedbackResponse], summary="获取反馈列表")
 async def get_feedbacks(
     user_id: Optional[str] = None,
-    feedback_type: Optional[FeedbackType] = None,
+    feedback_type: Optional[str] = None,
     status: Optional[FeedbackStatus] = None,
     keyword: Optional[str] = None,
     page: int = Query(1, ge=1),
