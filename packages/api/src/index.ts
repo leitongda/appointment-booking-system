@@ -84,7 +84,7 @@ export { blacklistApi } from './modules/blacklist';
 export { pointApi } from './modules/point';
 export { uploadApi } from './modules/upload';
 export { examinationReportApi } from './modules/examination-report';
-export { emailTemplateApi, EMAIL_TEMPLATE_TYPE_OPTIONS } from './modules/email-template';
+export { emailTemplateApi } from './modules/email-template';
 export { dataApi } from './modules/data';
 export type { ImportResult } from './modules/data';
 export { userManageApi } from './modules/user-manage';
@@ -111,6 +111,21 @@ export { supportTicketApi } from './modules/support-ticket';
 export type { SupportTicket, SupportTicketCreateData, SupportTicketUpdateData, SupportTicketListParams, SupportTicketStatistics } from './modules/support-ticket';
 export { approvalInstanceApi, approvalFlowApi } from './modules/approval';
 export type { FlowDefinitionCreateData } from './modules/approval';
+export { dictApi } from './modules/dict';
+export { amapApi } from './modules/amap';
+export type { AmapPoi, AmapGeocode, AmapRegeoResult } from './modules/amap';
+export type {
+  DictTypeItem,
+  DictItemData,
+  DictTypeListParams,
+  DictTypeCreateData,
+  DictTypeUpdateData,
+  DictItemCreateData,
+  DictItemUpdateData,
+  DictOptionItem,
+  DictOptionsResponse,
+  SortItemData,
+} from './modules/dict';
 export type {
   WaitlistEntry,
   WaitlistStatus,
@@ -153,7 +168,7 @@ export type { PatientCreateData } from './modules/user';
 export type { DepartmentListParams, DepartmentCreateData, SymptomMatchResult } from './modules/department';
 export type { DoctorListParams, DoctorCreateData } from './modules/doctor';
 export type { ScheduleListParams, ScheduleCreateData, ScheduleBatchCreateData, AvailableSchedule } from './modules/schedule';
-export type { AppointmentListParams, AppointmentCreateData, AppointmentStatistics, PendingAppointment, CheckinQueueItem, PatientHistoryItem } from './modules/appointment';
+export type { AppointmentListParams, AppointmentCreateData, AppointmentStatistics, PendingAppointment, CheckinQueueItem, PatientHistoryItem, RefundRecord } from './modules/appointment';
 export type {
   MedicalRecord,
   MedicalRecordListItem,
@@ -231,6 +246,8 @@ export type {
   ThumbnailSize,
   ImageConfig,
   TimePeriodConfig,
+  SecurityConfig,
+  SourceReleaseConfig,
 } from './modules/settings';
 
 // Blacklist types

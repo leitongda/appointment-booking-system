@@ -1,37 +1,7 @@
 import { request } from '../request';
 
-// 邮件模板类型枚举
-export type EmailTemplateType =
-  | 'appointment_confirm'
-  | 'appointment_remind'
-  | 'appointment_cancel'
-  | 'stop_clinic'
-  | 'custom'
-  // 事件钩子模板类型
-  | 'appointment_created'
-  | 'appointment_cancelled'
-  | 'checkin'
-  | 'call_patient'
-  | 'visit_completed'
-  | 'no_show'
-  | 'schedule_suspended';
-
-// 邮件模板类型选项
-export const EMAIL_TEMPLATE_TYPE_OPTIONS = [
-  { label: '预约确认', value: 'appointment_confirm' },
-  { label: '就诊提醒', value: 'appointment_remind' },
-  { label: '预约取消', value: 'appointment_cancel' },
-  { label: '停诊通知（旧）', value: 'stop_clinic' },
-  { label: '自定义', value: 'custom' },
-  // 事件钩子模板类型
-  { label: '新预约通知', value: 'appointment_created' },
-  { label: '预约取消通知', value: 'appointment_cancelled' },
-  { label: '签到通知', value: 'checkin' },
-  { label: '叫号通知', value: 'call_patient' },
-  { label: '就诊完成通知', value: 'visit_completed' },
-  { label: '爽约通知', value: 'no_show' },
-  { label: '停诊通知', value: 'schedule_suspended' },
-];
+// 邮件模板类型（已迁移到字典管理，前端通过 useDict('email_template_type') 获取）
+export type EmailTemplateType = string;
 
 // 邮件模板接口
 export interface EmailTemplate {

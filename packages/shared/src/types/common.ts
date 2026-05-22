@@ -9,6 +9,11 @@ export interface ApiResponse<T = any> {
   code: number;
   message: string;
   data?: T;
+  error?: {
+    code?: string;
+    message?: string;
+    details?: Record<string, any>;
+  };
   // 分页响应额外字段
   total?: number;
   page?: number;

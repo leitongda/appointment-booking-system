@@ -192,6 +192,14 @@ instance.interceptors.response.use(
       config._timer.recordFailure(message);
     }
 
+    // 上报 API 错误到行为追踪（静默，不影响错误传播）
+    try {
+      const tracker = (typeof window !== 'undefined') ? window.__hospital_tracker__ : null;
+      if (tracker?.trackApiError) {
+        tracker.trackApiError(requestUrl, status || 0, message);
+      }
+    } catch { /* 静默 */ }
+
     // 如果有 HTTP 状态码，使用 ApiError 以便统一处理
     if (status) {
       return Promise.reject(new ApiError(status, message, responseData?.data, requestUrl, errorCode, errorDetails));

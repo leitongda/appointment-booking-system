@@ -56,6 +56,8 @@ export interface RefundRecord {
   status: string;
   refundReason?: string;
   createdAt?: string;
+  updatedAt?: string;
+  failedReason?: string;
 }
 
 // 重复预约检查结果

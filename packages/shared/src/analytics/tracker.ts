@@ -91,10 +91,10 @@ export class Tracker {
     };
     
     this.sessionId = generateSessionId();
-    
+
     // 启动定时上报
     this.startFlushTimer();
-    
+
     // 页面卸载时上报剩余数据
     if (typeof window !== 'undefined') {
       window.addEventListener('beforeunload', () => {
@@ -105,7 +105,60 @@ export class Tracker {
           this.flush(true);
         }
       });
+
+      // 自动采集全局 JS 错误
+      this.initErrorCapture();
     }
+  }
+
+  /** 初始化全局错误自动采集 */
+  private initErrorCapture(): void {
+    // JS 运行时错误
+    window.addEventListener('error', (event) => {
+      // 忽略资源加载错误（img/script/css），这些不适合用行为日志追踪
+      if (event.target && (event.target as HTMLElement).tagName) return;
+
+      this.addEvent({
+        event_type: 'custom',
+        event_name: 'js_error',
+        page_path: window.location.pathname,
+        extra_data: {
+          message: event.message?.slice(0, 500),
+          filename: event.filename?.slice(0, 200),
+          lineno: event.lineno,
+          colno: event.colno,
+        },
+      });
+    });
+
+    // 未处理的 Promise rejection
+    window.addEventListener('unhandledrejection', (event) => {
+      const reason = event.reason;
+      const message = reason instanceof Error ? reason.message : String(reason).slice(0, 500);
+
+      this.addEvent({
+        event_type: 'custom',
+        event_name: 'unhandled_rejection',
+        page_path: window.location.pathname,
+        extra_data: { message },
+      });
+    });
+  }
+
+  /**
+   * 追踪 API 错误（由请求拦截器调用）
+   */
+  trackApiError(url: string, status: number, message: string): void {
+    this.addEvent({
+      event_type: 'custom',
+      event_name: 'api_error',
+      page_path: typeof window !== 'undefined' ? window.location.pathname : '',
+      extra_data: {
+        url: url?.slice(0, 200),
+        status,
+        message: message?.slice(0, 300),
+      },
+    });
   }
 
   /** 是否启用追踪 */
@@ -187,20 +240,23 @@ export class Tracker {
           keepalive: true,
         });
       } else if (typeof wx !== 'undefined' && wx.request) {
-        // 小程序环境
+        // 小程序环境（使用与浏览器一致的 JSON 字符串格式）
         wx.request({
           url,
           method: 'POST',
           header: { 'Content-Type': 'application/json' },
-          data: { events },
+          data: body,
         });
       }
     } catch (error) {
       if (this.config.debug) {
         console.error('[Tracker] Flush error:', error);
       }
-      // 上报失败时将事件放回队列
+      // 上报失败时将事件放回队列（限制最大 500 条，防止内存泄漏）
       this.eventQueue.unshift(...events);
+      if (this.eventQueue.length > 500) {
+        this.eventQueue = this.eventQueue.slice(0, 500);
+      }
     }
   }
 
@@ -347,6 +403,12 @@ export function initTracker(config: TrackerConfig): Tracker {
     globalTracker.destroy();
   }
   globalTracker = new Tracker(config);
+
+  // 暴露到 window 供 PerformanceMonitor 等子系统使用（避免循环依赖）
+  if (typeof window !== 'undefined') {
+    window.__hospital_tracker__ = globalTracker;
+  }
+
   return globalTracker;
 }
 
@@ -364,5 +426,8 @@ export function destroyTracker(): void {
   if (globalTracker) {
     globalTracker.destroy();
     globalTracker = null;
+  }
+  if (typeof window !== 'undefined') {
+    delete window.__hospital_tracker__;
   }
 }

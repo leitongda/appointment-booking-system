@@ -16,12 +16,13 @@ import type {
 export const approvalInstanceApi = {
   /** 获取我的待办列表 */
   getMyPending: (params?: ApprovalQueryParams): Promise<PageResult<ApprovalInstanceListItem>> => {
-    return request.get('/approval-instances/my-pending', {
+    return request.get('/approval-instances', {
       params: {
         page: params?.page,
         page_size: params?.pageSize,
         business_type: params?.businessType,
         store_id: params?.storeId,
+        view: 'pending',
       },
     });
   },
@@ -35,7 +36,7 @@ export const approvalInstanceApi = {
         status: params?.status,
         business_type: params?.businessType,
         store_id: params?.storeId,
-        as_done: true,
+        view: 'done',
       },
     });
   },
@@ -48,7 +49,8 @@ export const approvalInstanceApi = {
         page_size: params?.pageSize,
         status: params?.status,
         business_type: params?.businessType,
-        as_applicant: true,
+        store_id: params?.storeId,
+        view: 'initiated',
       },
     });
   },
@@ -161,12 +163,12 @@ export const approvalFlowApi = {
 
   /** 激活流程定义 */
   activate: (id: string): Promise<FlowDefinition> => {
-    return request.post(`/approval-flows/${id}/activate`);
+    return request.put(`/approval-flows/${id}/activate`);
   },
 
   /** 归档流程定义 */
   archive: (id: string): Promise<FlowDefinition> => {
-    return request.post(`/approval-flows/${id}/archive`);
+    return request.put(`/approval-flows/${id}/archive`);
   },
 
   /** 删除流程定义 */

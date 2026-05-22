@@ -16,6 +16,8 @@ export interface BookingSettings {
   // 签到时间配置
   signInAdvanceMinutes: number;
   signInLateMinutes: number;
+  // 通知策略
+  appointmentReminderHours: number;
 }
 
 // 医院信息
@@ -45,6 +47,9 @@ export interface SmsConfig {
   accessKeySecret: string;
   signName: string;
   templateCode: string;
+  // 通知策略参数
+  codeExpireSeconds: number;
+  sendIntervalSeconds: number;
 }
 
 // 预约规则（公开）
@@ -60,6 +65,8 @@ export interface BookingRules {
   // 签到时间配置
   signInAdvanceMinutes: number;
   signInLateMinutes: number;
+  // 通知策略
+  appointmentReminderHours: number;
 }
 
 // 预约选项配置
@@ -114,6 +121,29 @@ export interface TimePeriodConfig {
 export interface TimePeriodsResponse {
   periods: TimePeriodConfig[];
   isCustom: boolean;  // 是否为门店自定义配置
+}
+
+// 安全策略配置
+export interface SecurityConfig {
+  accessTokenExpireMinutes: number;
+  refreshTokenExpireDays: number;
+  defaultPassword: string;
+  rateLimitPerMinute: number;
+  rateLimitPerSecond: number;
+  loginFailureLockCount: number;
+  sessionTimeoutMinutes: number;
+}
+
+// 号源释放策略配置
+export interface SourceReleaseConfig {
+  lockTimeoutMinutes: number;
+  batchReleaseEnabled: boolean;
+  batchReleaseDays: number;
+  batchReleaseTime: string;
+  autoCancelUnpaidMinutes: number;
+  noShowAutoMarkHours: number;
+  allowOverbooking: boolean;
+  overbookingLimit: number;
 }
 
 const PREFIX = '/settings';
@@ -205,6 +235,24 @@ export const settingsApi = {
 
   updateImageConfig: (data: Partial<ImageConfig>): Promise<{ data: ImageConfig }> => {
     return request.put(`${PREFIX}/image`, data);
+  },
+
+  // ========== 安全策略配置 ==========
+  getSecurityConfig: (): Promise<SecurityConfig> => {
+    return request.get(`${PREFIX}/security`);
+  },
+
+  updateSecurityConfig: (data: Partial<SecurityConfig>): Promise<void> => {
+    return request.put(`${PREFIX}/security`, data);
+  },
+
+  // ========== 号源释放策略配置 ==========
+  getSourceReleaseConfig: (): Promise<SourceReleaseConfig> => {
+    return request.get(`${PREFIX}/source-release`);
+  },
+
+  updateSourceReleaseConfig: (data: Partial<SourceReleaseConfig>): Promise<void> => {
+    return request.put(`${PREFIX}/source-release`, data);
   },
 
   // ========== 时段配置 ==========

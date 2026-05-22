@@ -17,6 +17,10 @@ export const STORAGE_KEYS = {
   STORE_CONTEXT: 'hospital_store_context',
   /** 当前租户 ID（用于多租户切换） */
   CURRENT_TENANT_ID: 'hospital_current_tenant_id',
+  /** 当前门店（用于多门店切换） */
+  CURRENT_STORE: 'hospital_current_store',
+  /** 租户暂停/禁用标记 */
+  TENANT_SUSPENDED: 'hospital_tenant_suspended',
   /** 当前主题 */
   CURRENT_THEME: 'hospital_current_theme',
   /** 字体模式 (standard | elder) */

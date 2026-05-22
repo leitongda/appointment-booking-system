@@ -17,6 +17,8 @@ export interface ReportConfig {
   batchSize?: number;
   /** 是否启用上报 */
   enabled?: boolean;
+  /** 获取当前会话 ID 的回调（注入 Tracker session_id） */
+  getSessionId?: () => string;
 }
 
 /**
@@ -35,6 +37,8 @@ export interface PerformanceReport {
   };
   /** 时间戳 */
   timestamp: number;
+  /** 会话 ID（与行为追踪共享） */
+  sessionId?: string;
   /** Core Web Vitals 指标 */
   metrics: PerformanceMetric[];
   /** 路由指标 */
@@ -57,6 +61,7 @@ class PerformanceReporter {
       flushInterval: config.flushInterval || 30000, // 30 秒
       batchSize: config.batchSize || 20,
       enabled: config.enabled !== false,
+      getSessionId: config.getSessionId ?? (() => ''),
     };
   }
 
@@ -250,6 +255,7 @@ class PerformanceReporter {
         dpr: window.devicePixelRatio || 1,
       } : { width: 0, height: 0, dpr: 1 },
       timestamp: Date.now(),
+      sessionId: this.config.getSessionId?.(),
       metrics: [...this.pendingMetrics],
       routeMetrics: [...this.pendingRouteMetrics],
     };
@@ -259,34 +265,34 @@ class PerformanceReporter {
    * 发送上报数据
    */
   private async sendReport(report: PerformanceReport): Promise<void> {
-    // 暂时使用 console.warn 输出（后续接入实际 API）
-    console.warn('[Perf] Performance Report:', report);
+    if (typeof fetch === 'undefined') return;
 
-    // TODO: 接入实际的上报 API
-    // const response = await fetch(this.config.endpoint, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(report),
-    //   keepalive: true,
-    // });
-    //
-    // if (!response.ok) {
-    //   throw new Error(`Report failed: ${response.status}`);
-    // }
+    const response = await fetch(this.config.endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(report),
+      keepalive: true,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Report failed: ${response.status}`);
+    }
   }
 
   /**
    * 同步发送上报数据
    */
   private sendReportSync(report: PerformanceReport): void {
-    // 暂时使用 console.warn 输出
-    console.warn('[Perf] Performance Report (Sync):', report);
+    if (typeof XMLHttpRequest === 'undefined') return;
 
-    // TODO: 接入实际的上报 API（同步方式）
-    // const xhr = new XMLHttpRequest();
-    // xhr.open('POST', this.config.endpoint, false); // 同步请求
-    // xhr.setRequestHeader('Content-Type', 'application/json');
-    // xhr.send(JSON.stringify(report));
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', this.config.endpoint, false);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.send(JSON.stringify(report));
+    } catch {
+      // 同步 XHR 在某些环境下可能失败，静默处理
+    }
   }
 
   /**

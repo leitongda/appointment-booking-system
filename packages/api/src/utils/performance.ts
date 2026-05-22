@@ -186,26 +186,28 @@ class PerformanceMonitor {
   }
 
   /**
-   * 发送到分析平台
+   * 发送到分析平台（通过 Tracker 上报自定义事件）
    */
   private sendToAnalytics(metric: PerformanceMetrics): void {
     try {
-      if (typeof window !== 'undefined' && (window as any).analytics) {
-        (window as any).analytics.track('api_performance', {
-          url: metric.url,
-          method: metric.method,
-          duration: metric.duration,
-          is_timeout: metric.isTimeout,
-          is_retried: metric.isRetried,
-          retry_count: metric.retryCount,
-          success: metric.success,
-          error: metric.error,
-          timestamp: metric.timestamp,
-        });
-      }
-    } catch (error) {
+      if (typeof window === 'undefined') return;
+
+      // 动态获取 Tracker 实例（避免循环依赖）
+      const tracker = window.__hospital_tracker__;
+      if (!tracker?.trackEvent) return;
+
+      tracker.trackEvent('api_performance', {
+        url: metric.url,
+        method: metric.method,
+        duration: metric.duration,
+        is_timeout: metric.isTimeout,
+        is_retried: metric.isRetried,
+        retry_count: metric.retryCount,
+        success: metric.success,
+        error: metric.error,
+      });
+    } catch {
       // 静默失败
-      console.debug('Failed to send to analytics:', error);
     }
   }
 

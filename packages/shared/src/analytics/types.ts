@@ -88,3 +88,19 @@ export interface BehaviorOverview {
   daily_stats: DailyStats[];
 }
 
+/** 全局 Tracker 接口（挂在 window.__hospital_tracker__） */
+export interface HospitalTracker {
+  trackPageView(path?: string, title?: string): void;
+  trackClick(elementId?: string, elementText?: string, extraData?: Record<string, any>): void;
+  trackSearch(keyword: string, extraData?: Record<string, any>): void;
+  trackEvent(eventName: string, data?: Record<string, any>): void;
+  trackApiError(url: string, status: number, message: string): void;
+  getSessionId(): string;
+}
+
+declare global {
+  interface Window {
+    __hospital_tracker__?: HospitalTracker;
+  }
+}
+

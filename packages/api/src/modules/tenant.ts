@@ -75,6 +75,11 @@ export interface Tenant {
   maxAppointmentsPerMonth?: number;
   features?: string;
   brandingConfig?: string;
+  passwordPolicy?: string;
+  tags?: string;
+  logRetentionDays?: number;
+  rateLimitPerMinute?: number;
+  rateLimitPerSecond?: number;
   contactName?: string;
   contactPhone?: string;
   contactEmail?: string;
@@ -105,6 +110,10 @@ export interface TenantCreateData {
   maxDoctors?: number;
   maxAppointmentsPerMonth?: number;
   features?: string;
+  brandingConfig?: string;
+  passwordPolicy?: string;
+  tags?: string;
+  logRetentionDays?: number;
   contactName?: string;
   contactPhone?: string;
   contactEmail?: string;
@@ -124,6 +133,11 @@ export interface TenantUpdateData {
   maxAppointmentsPerMonth?: number;
   features?: string;
   brandingConfig?: string;
+  passwordPolicy?: string;
+  tags?: string;
+  logRetentionDays?: number;
+  rateLimitPerMinute?: number;
+  rateLimitPerSecond?: number;
   contactName?: string;
   contactPhone?: string;
   contactEmail?: string;
