@@ -117,3 +117,8 @@ export const SORT_ORDER_OPTIONS = [
  * 常用页面大小选项
  */
 export const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
+
+/**
+ * 默认重置密码
+ */
+export const DEFAULT_RESET_PASSWORD = '123456';

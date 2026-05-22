@@ -6,5 +6,6 @@ module.exports = {
       varsIgnorePattern: '^_',
       caughtErrorsIgnorePattern: '^_',
     }],
+    eqeqeq: ['error', 'always', { null: 'ignore' }],
   },
 };

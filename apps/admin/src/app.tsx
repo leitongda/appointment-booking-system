@@ -13,7 +13,7 @@ import { App, ConfigProvider, Modal, notification } from 'antd';
 import { useEffect } from 'react';
 import defaultSettings from '../config/defaultSettings';
 import { APP_TITLE } from '@config/appConfig';
-import { shadcnThemeConfig, getThemeConfig } from '@/themes';
+import { getThemeConfig } from '@/themes';
 import { processMenuData, computeParentOpenKeys } from '@/utils/menu';
 import { handleCrossTabEvent } from '@/utils/crossTab';
 import { initVisibilityAuthCheck } from '@/utils/visibilityAuth';
