@@ -2,7 +2,7 @@ import { message, Dropdown, Avatar, Space, Modal, Form, Input } from 'antd';
 import type { RequestConfig, RunTimeLayoutConfig } from 'umi';
 import { history } from 'umi';
 import { useState, useCallback } from 'react';
-import { getToken, removeToken, initCrossTabSync } from '@hospital/shared';
+import { getToken, removeToken, initCrossTabSync, initTracker, getTracker, initPerformanceMonitoring } from '@hospital/shared';
 import type { CrossTabEvent } from '@hospital/shared';
 import { doctorApi, setBaseURL } from '@hospital/api';
 import {
@@ -16,6 +16,27 @@ setBaseURL(apiBaseUrl);
 
 // 初始化 API 请求配置（拦截器）
 initApiConfig();
+
+// 初始化行为追踪
+initTracker({
+  apiBaseUrl: '',
+  apiPath: `${apiBaseUrl}/analytics/batch`,
+  platform: 'h5',
+  enabled: true,
+  enableInDev: true,
+  batchSize: 10,
+  batchInterval: 5000,
+  debug: process.env.NODE_ENV === 'development',
+});
+
+initPerformanceMonitoring({
+  report: {
+    enabled: true,
+    flushInterval: 30000,
+    batchSize: 20,
+    getSessionId: () => getTracker()?.getSessionId() ?? '',
+  },
+});
 
 // 初始化跨 Tab 状态同步（医生端只关心认证变更）
 initCrossTabSync((event: CrossTabEvent) => {
@@ -277,6 +298,11 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }: a
     onPageChange: () => {
       if (!initialState?.currentDoctor && location.pathname !== '/login') {
         history.push('/login');
+      }
+
+      const tracker = getTracker();
+      if (tracker) {
+        tracker.trackPageView(location.pathname, document.title);
       }
     },
   };

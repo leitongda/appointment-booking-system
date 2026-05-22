@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
+import { getTracker } from '@hospital/shared';
 import { Header } from './Header';
 import { Footer } from './Footer';
 
@@ -7,6 +8,17 @@ function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
     window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
+function PageViewTracker() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const tracker = getTracker();
+    if (tracker) {
+      tracker.trackPageView(pathname, document.title);
+    }
   }, [pathname]);
   return null;
 }
@@ -21,6 +33,7 @@ export function RootLayout() {
         跳转到主要内容
       </a>
       <ScrollToTop />
+      <PageViewTracker />
       <Header />
       <main id="main-content" className="flex-1" tabIndex={-1}>
         <Outlet />
