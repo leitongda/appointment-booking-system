@@ -2,10 +2,11 @@ import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormTextArea } from '@ant-design/pro-components';
 import { Tag, App, Button, Space } from 'antd';
 import { CheckOutlined, CloseOutlined } from '@ant-design/icons';
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import type { ActionType } from '@ant-design/pro-components';
 import { scheduleApi } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
+import { useDict } from '@/hooks/useDict';
 
 const STATUS_MAP: Record<string, { text: string; color: string }> = {
   pending: { text: '待审批', color: 'gold' },
@@ -45,6 +46,11 @@ interface ExtraQuotaRequest {
 const ExtraQuotaPage: React.FC = () => {
   const { message } = App.useApp();
   const actionRef = useRef<ActionType>();
+  const { options: quotaTypeOptions } = useDict('extra_quota_type');
+  const quotaTypeEnum = useMemo(
+    () => Object.fromEntries(quotaTypeOptions.map((o) => [o.value, { text: o.label }])),
+    [quotaTypeOptions],
+  );
   const [reviewType, setReviewType] = useState<'approve' | 'reject'>('approve');
   const [reviewOpen, setReviewOpen] = useState(false);
   const [currentRecord, setCurrentRecord] = useState<ExtraQuotaRequest | null>(null);
@@ -121,11 +127,7 @@ const ExtraQuotaPage: React.FC = () => {
       title: '加号类型',
       dataIndex: 'quotaType',
       width: 100,
-      valueEnum: {
-        normal: { text: '普通加号' },
-        special: { text: '特批加号' },
-        green_channel: { text: '绿色通道' },
-      },
+      valueEnum: quotaTypeEnum,
       render: (_, record) => {
         const info = QUOTA_TYPE_MAP[record.quotaType] || { text: record.quotaType, color: 'default' };
         return <Tag color={info.color}>{info.text}</Tag>;

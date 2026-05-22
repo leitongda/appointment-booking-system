@@ -1,20 +1,13 @@
 import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormSelect } from '@ant-design/pro-components';
 import { Tag } from 'antd';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { messageApi } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
 import { useListPage } from '@/hooks/useListPage';
 import { OperationGroup, OperationButton, CreateButton } from '@/components/ListOperations';
+import { useDict } from '@/hooks/useDict';
 import type { RecipientRule } from '@hospital/shared';
-
-const RULE_TYPE_OPTIONS = [
-  { label: '角色', value: 'role' },
-  { label: '科室', value: 'department' },
-  { label: '用户列表', value: 'user_list' },
-  { label: '动态查询', value: 'dynamic' },
-  { label: '事件驱动', value: 'event_driven' },
-];
 
 const RULE_TYPE_COLORS: Record<string, string> = {
   role: 'blue',
@@ -32,18 +25,18 @@ const RULE_CONFIG_HINTS: Record<string, string> = {
   event_driven: '{"recipient_field": "user_id", "user_type_field": "user_type"}',
 };
 
-const EVENT_TYPE_OPTIONS = [
-  { label: '预约确认', value: 'appointment_confirmed' },
-  { label: '预约取消', value: 'appointment_cancelled' },
-  { label: '预约提醒', value: 'appointment_reminder' },
-  { label: '排班变更', value: 'schedule_changed' },
-  { label: '停诊通知', value: 'stop_clinic' },
-  { label: '叫号通知', value: 'queue_call' },
-  { label: '系统通知', value: 'system' },
-];
-
 const RecipientRulesPage: React.FC = () => {
   const { actionRef, message } = useListPage();
+  const { options: ruleTypeOptions } = useDict('rule_type');
+  const { options: eventTypeOptions } = useDict('notification_event_type');
+  const ruleTypeEnum = useMemo(
+    () => Object.fromEntries(ruleTypeOptions.map((o) => [o.value, { text: o.label }])),
+    [ruleTypeOptions],
+  );
+  const eventTypeEnum = useMemo(
+    () => Object.fromEntries(eventTypeOptions.map((o) => [o.value, { text: o.label }])),
+    [eventTypeOptions],
+  );
   const [modalVisible, setModalVisible] = useState(false);
   const [currentRule, setCurrentRule] = useState<RecipientRule | null>(null);
   const [selectedRuleType, setSelectedRuleType] = useState<string>('role');
@@ -96,12 +89,9 @@ const RecipientRulesPage: React.FC = () => {
       title: '事件类型',
       dataIndex: 'eventType',
       width: 140,
-      valueEnum: EVENT_TYPE_OPTIONS.reduce((acc, item) => {
-        acc[item.value] = { text: item.label };
-        return acc;
-      }, {} as Record<string, { text: string }>),
+      valueEnum: eventTypeEnum,
       render: (_, record) => {
-        const opt = EVENT_TYPE_OPTIONS.find(o => o.value === record.eventType);
+        const opt = eventTypeOptions.find(o => o.value === record.eventType);
         return <Tag>{opt?.label || record.eventType || '通用'}</Tag>;
       },
     },
@@ -109,13 +99,10 @@ const RecipientRulesPage: React.FC = () => {
       title: '规则类型',
       dataIndex: 'ruleType',
       width: 100,
-      valueEnum: RULE_TYPE_OPTIONS.reduce((acc, item) => {
-        acc[item.value] = { text: item.label };
-        return acc;
-      }, {} as Record<string, { text: string }>),
+      valueEnum: ruleTypeEnum,
       render: (_, record) => (
         <Tag color={RULE_TYPE_COLORS[record.ruleType]}>
-          {RULE_TYPE_OPTIONS.find(o => o.value === record.ruleType)?.label || record.ruleType}
+          {ruleTypeOptions.find(o => o.value === record.ruleType)?.label || record.ruleType}
         </Tag>
       ),
     },
@@ -212,14 +199,14 @@ const RecipientRulesPage: React.FC = () => {
         <ProFormSelect
           name="eventType"
           label="事件类型"
-          options={EVENT_TYPE_OPTIONS}
+          options={eventTypeOptions}
           placeholder="留空表示通用规则"
           allowClear
         />
         <ProFormSelect
           name="ruleType"
           label="规则类型"
-          options={RULE_TYPE_OPTIONS}
+          options={ruleTypeOptions}
           rules={[{ required: true, message: '请选择规则类型' }]}
           fieldProps={{
             onChange: (value) => setSelectedRuleType(value as string),

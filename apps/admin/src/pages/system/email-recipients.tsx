@@ -14,6 +14,7 @@ import type { StoreEmailRecipient, EventTypeOption } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
 import { useListPage } from '@/hooks/useListPage';
 import { CreateButton, OperationButton, OperationGroup } from '@/components/ListOperations';
+import { emailRules } from '@/utils/formValidators';
 
 const StoreEmailRecipientsPage: React.FC = () => {
   const { actionRef, message, handleDelete, reload } = useListPage({
@@ -274,7 +275,7 @@ const StoreEmailRecipientsPage: React.FC = () => {
           placeholder="请输入邮箱地址"
           rules={[
             { required: true, message: '请输入邮箱地址' },
-            { type: 'email', message: '请输入正确的邮箱格式' },
+            emailRules,
           ]}
         />
         <ProFormCheckbox.Group

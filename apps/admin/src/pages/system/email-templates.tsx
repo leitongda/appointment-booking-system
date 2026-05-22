@@ -2,16 +2,23 @@ import { SendOutlined } from '@ant-design/icons';
 import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormText } from '@ant-design/pro-components';
 import { Tag, Switch } from 'antd';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAccess } from '@umijs/max';
-import { emailTemplateApi, EMAIL_TEMPLATE_TYPE_OPTIONS } from '@hospital/api';
+import { emailTemplateApi } from '@hospital/api';
 import type { EmailTemplateListItem } from '@hospital/api';
+import { useDict } from '@/hooks/useDict';
 import { createListRequest } from '@/utils/proTable';
 import { useListPage } from '@/hooks/useListPage';
 import { CreateButton, OperationButton, OperationGroup } from '@/components/ListOperations';
+import { emailRules } from '@/utils/formValidators';
 
 const EmailTemplatesPage: React.FC = () => {
   const access = useAccess();
+  const { options: templateTypeOptions } = useDict('email_template_type');
+  const templateTypeEnum = useMemo(
+    () => Object.fromEntries(templateTypeOptions.map((o) => [o.value, { text: o.label }])),
+    [templateTypeOptions],
+  );
   const { actionRef, message, handleDelete, reload } = useListPage({
     deleteFn: emailTemplateApi.delete,
   });
@@ -41,11 +48,6 @@ const EmailTemplatesPage: React.FC = () => {
     }
   };
 
-  const templateTypeEnum = EMAIL_TEMPLATE_TYPE_OPTIONS.reduce((acc, item) => {
-    acc[item.value] = { text: item.label };
-    return acc;
-  }, {} as Record<string, { text: string }>);
-
   const columns: ProColumns<EmailTemplateListItem>[] = [
     {
       title: '模板编码',
@@ -65,7 +67,7 @@ const EmailTemplatesPage: React.FC = () => {
       width: 120,
       valueEnum: templateTypeEnum,
       render: (_, record) => {
-        const option = EMAIL_TEMPLATE_TYPE_OPTIONS.find(o => o.value === record.templateType);
+        const option = templateTypeOptions.find(o => o.value === record.templateType);
         return <Tag color="blue">{option?.label || record.templateType}</Tag>;
       },
     },
@@ -176,7 +178,7 @@ const EmailTemplatesPage: React.FC = () => {
           placeholder="请输入收件人邮箱"
           rules={[
             { required: true, message: '请输入收件人邮箱' },
-            { type: 'email', message: '请输入正确的邮箱格式' },
+            emailRules,
           ]}
         />
       </ModalForm>

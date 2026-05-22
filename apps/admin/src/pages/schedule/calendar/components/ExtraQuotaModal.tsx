@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { scheduleApi, patientApi } from '@hospital/api';
 import type { PatientListItem } from '@hospital/api';
 import { TIME_SLOT_LABEL } from '@hospital/shared';
+import { useDict } from '@/hooks/useDict';
+import { numberRangeRules } from '@/utils/formValidators';
 
 interface ExtraQuotaModalProps {
   open: boolean;
@@ -18,12 +20,6 @@ interface ExtraQuotaModalProps {
   };
 }
 
-const QUOTA_TYPE_OPTIONS = [
-  { label: '普通加号', value: 'normal' },
-  { label: '特批加号', value: 'special' },
-  { label: '绿色通道', value: 'green_channel' },
-];
-
 const ExtraQuotaModal: React.FC<ExtraQuotaModalProps> = ({
   open,
   onClose,
@@ -32,6 +28,7 @@ const ExtraQuotaModal: React.FC<ExtraQuotaModalProps> = ({
   scheduleInfo,
 }) => {
   const { message } = App.useApp();
+  const { options: quotaTypeOptions } = useDict('extra_quota_type');
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [patients, setPatients] = useState<PatientListItem[]>([]);
@@ -151,7 +148,7 @@ const ExtraQuotaModal: React.FC<ExtraQuotaModalProps> = ({
           label="加号数量"
           rules={[
             { required: true, message: '请输入加号数量' },
-            { type: 'number', min: 1, max: 20, message: '数量范围 1-20' },
+            numberRangeRules(1, 20),
           ]}
         >
           <InputNumber min={1} max={20} style={{ width: '100%' }} placeholder="请输入加号数量" />
@@ -162,7 +159,7 @@ const ExtraQuotaModal: React.FC<ExtraQuotaModalProps> = ({
           label="加号类型"
           rules={[{ required: true, message: '请选择加号类型' }]}
         >
-          <Radio.Group options={QUOTA_TYPE_OPTIONS} />
+          <Radio.Group options={quotaTypeOptions} />
         </Form.Item>
 
         {quotaType !== 'special' && (

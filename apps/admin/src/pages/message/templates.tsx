@@ -2,24 +2,21 @@ import { CopyOutlined, EyeOutlined, SendOutlined } from '@ant-design/icons';
 import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormSelect } from '@ant-design/pro-components';
 import { Tag, Switch, Button, Modal, Descriptions, Input } from 'antd';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { messageApi } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
 import { useListPage } from '@/hooks/useListPage';
 import { OperationGroup, OperationButton, CreateButton } from '@/components/ListOperations';
+import { useDict } from '@/hooks/useDict';
 import type { UnifiedTemplate } from '@hospital/shared';
-
-const MESSAGE_TYPE_OPTIONS = [
-  { label: '系统', value: 'system' },
-  { label: '预约', value: 'appointment' },
-  { label: '就诊', value: 'consultation' },
-  { label: '排班', value: 'schedule' },
-  { label: '停诊', value: 'stop_clinic' },
-  { label: '反馈', value: 'feedback' },
-];
 
 const UnifiedTemplatesPage: React.FC = () => {
   const { actionRef, message, access } = useListPage();
+  const { options: messageTypeOptions } = useDict('message_type');
+  const messageTypeEnum = useMemo(
+    () => Object.fromEntries(messageTypeOptions.map((o) => [o.value, { text: o.label }])),
+    [messageTypeOptions],
+  );
   const [modalVisible, setModalVisible] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState<UnifiedTemplate | null>(null);
   const [previewVisible, setPreviewVisible] = useState(false);
@@ -115,12 +112,9 @@ const UnifiedTemplatesPage: React.FC = () => {
       title: '消息类型',
       dataIndex: 'messageType',
       width: 100,
-      valueEnum: MESSAGE_TYPE_OPTIONS.reduce((acc, item) => {
-        acc[item.value] = { text: item.label };
-        return acc;
-      }, {} as Record<string, { text: string }>),
+      valueEnum: messageTypeEnum,
       render: (_, record) => {
-        const option = MESSAGE_TYPE_OPTIONS.find(o => o.value === record.messageType);
+        const option = messageTypeOptions.find(o => o.value === record.messageType);
         return <Tag color="blue">{option?.label || record.messageType}</Tag>;
       },
     },
@@ -256,7 +250,7 @@ const UnifiedTemplatesPage: React.FC = () => {
         <ProFormSelect
           name="messageType"
           label="消息类型"
-          options={MESSAGE_TYPE_OPTIONS}
+          options={messageTypeOptions}
           rules={[{ required: true, message: '请选择消息类型' }]}
         />
         <ProFormText
@@ -316,7 +310,7 @@ const UnifiedTemplatesPage: React.FC = () => {
             <Descriptions.Item label="模板编码">{previewTemplate.code}</Descriptions.Item>
             <Descriptions.Item label="模板名称">{previewTemplate.name}</Descriptions.Item>
             <Descriptions.Item label="消息类型">
-              {MESSAGE_TYPE_OPTIONS.find(o => o.value === previewTemplate.messageType)?.label || previewTemplate.messageType}
+              {messageTypeOptions.find(o => o.value === previewTemplate.messageType)?.label || previewTemplate.messageType}
             </Descriptions.Item>
             <Descriptions.Item label="事件类型">{previewTemplate.eventType || '-'}</Descriptions.Item>
             <Descriptions.Item label="主题模板">{previewTemplate.subjectTemplate || '-'}</Descriptions.Item>

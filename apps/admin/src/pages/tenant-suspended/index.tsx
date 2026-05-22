@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button, Result, Space, Typography } from 'antd';
 import { history, useModel } from '@umijs/max';
-import { removeToken } from '@hospital/shared';
+import { removeToken, removeStorage, STORAGE_KEYS } from '@hospital/shared';
 import type { TenantStatusInfo } from '@hospital/shared';
 
 const { Text, Paragraph } = Typography;
@@ -22,7 +22,7 @@ const TenantSuspendedPage: React.FC = () => {
 
   const handleLogout = () => {
     removeToken();
-    localStorage.removeItem('hospital_tenant_suspended');
+    removeStorage(STORAGE_KEYS.TENANT_SUSPENDED);
     window.location.href = '/login';
   };
 

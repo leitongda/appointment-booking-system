@@ -3,7 +3,8 @@ import { Alert } from 'antd';
 import type { ProFormInstance } from '@ant-design/pro-components';
 import type { Store, Department, Doctor } from '@hospital/shared';
 import type dayjs from 'dayjs';
-import { APPOINTMENT_TYPE_OPTIONS, WEEKDAY_OPTIONS, SCHEDULE_MODE_OPTIONS, getDateInfo } from '@hospital/shared';
+import { WEEKDAY_OPTIONS, SCHEDULE_MODE_OPTIONS, getDateInfo } from '@hospital/shared';
+import { useDict } from '@/hooks/useDict';
 
 export interface BatchAddModalValues {
   storeId: string;
@@ -44,6 +45,7 @@ const BatchAddModal: React.FC<BatchAddModalProps> = ({
   onDeptChange,
   formRef,
 }) => {
+  const { options: appointmentTypeOptions } = useDict('appointment_type');
   return (
     <ModalForm
       title="批量添加排班规则"
@@ -98,7 +100,7 @@ const BatchAddModal: React.FC<BatchAddModalProps> = ({
       <ProFormSelect
         name="appointmentType"
         label="预约类型"
-        options={APPOINTMENT_TYPE_OPTIONS}
+        options={appointmentTypeOptions}
         rules={[{ required: true, message: '请选择预约类型' }]}
       />
       <ProFormTimePicker

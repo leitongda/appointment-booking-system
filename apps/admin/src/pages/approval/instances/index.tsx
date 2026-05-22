@@ -1,7 +1,7 @@
 import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { Tag, Button, Space, Modal, Input, message } from 'antd';
-import { useHistory, useModel } from '@umijs/max';
+import { history, useModel } from '@umijs/max';
 import { useState, useRef } from 'react';
 import type { ActionType } from '@ant-design/pro-components';
 import { approvalInstanceApi } from '@hospital/api';
@@ -23,7 +23,6 @@ const BUSINESS_TYPE_MAP: Record<string, string> = {
 type TabKey = 'pending' | 'done' | 'initiated';
 
 const ApprovalInstancesPage: React.FC = () => {
-  const history = useHistory();
   useModel('@@initialState');
   const [activeTab, setActiveTab] = useState<TabKey>('pending');
   const actionRef = useRef<ActionType>();
@@ -50,7 +49,7 @@ const ApprovalInstancesPage: React.FC = () => {
       } else {
         res = await approvalInstanceApi.getMyInitiated(query);
       }
-      const items = res.items || res.data || [];
+      const items = (res as any).items || res.data || [];
       return { data: items, success: true, total: res.total ?? items.length };
     } catch {
       return { data: [], success: false, total: 0 };

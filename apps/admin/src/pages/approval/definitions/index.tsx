@@ -40,7 +40,7 @@ const FlowDefinitionsPage: React.FC = () => {
         businessType: params.businessType,
         status: params.status,
       });
-      const items = res.items || res.data || [];
+      const items = (res as any).items || res.data || [];
       return { data: items, success: true, total: res.total ?? items.length };
     } catch {
       return { data: [], success: false, total: 0 };
@@ -129,7 +129,7 @@ const FlowDefinitionsPage: React.FC = () => {
             nodeType: 'approval',
             approvalMode: 'or',
             assigneeType: 'role',
-            assigneeConfig: { role_codes: ['tenant_admin'] },
+            assigneeConfig: { role_codes: ['TENANT_ADMIN'] },
             sortOrder: 1,
           },
           { nodeKey: 'end', nodeName: '结束', nodeType: 'end', sortOrder: 2 },

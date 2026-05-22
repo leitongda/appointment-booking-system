@@ -29,13 +29,14 @@ import { SwitchGroup } from '@/components/formFields';
 import { requiredRules, codeRules } from '@/utils/formValidators';
 import { useFormInitialValues } from '@/hooks/useFormInitialValues';
 import { useFormSubmit } from '@/hooks/useFormSubmit';
-import { EMAIL_TEMPLATE_TYPE_OPTIONS } from '@/constants/formFields';
+import { useDict } from '@/hooks/useDict';
 import RichTextEditor, { EMAIL_TEMPLATE_VARIABLES } from '@/components/RichTextEditor';
 
 const EmailTemplateFormPage: React.FC = () => {
   const { id } = useParams();
   const isEdit = !!id;
   const [template, setTemplate] = useState<EmailTemplate | null>(null);
+  const { options: templateTypeOptions } = useDict('email_template_type');
 
   // 加载邮件模板数据
   useEffect(() => {
@@ -129,7 +130,7 @@ const EmailTemplateFormPage: React.FC = () => {
           name="templateType"
           label="模板类型"
           width="md"
-          options={[...EMAIL_TEMPLATE_TYPE_OPTIONS]}
+          options={templateTypeOptions}
           rules={[requiredRules('请选择模板类型')]}
         />
 

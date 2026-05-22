@@ -20,10 +20,10 @@
  */
 import { ProFormSelect, ProFormText, ProFormDateRangePicker } from '@ant-design/pro-components';
 import { Card, Alert } from 'antd';
-import { useState } from 'react';
 import { history } from '@umijs/max';
 import { restDayApi } from '@hospital/api';
 import { useDoctors } from '@/hooks/useDoctors';
+import { useCascadingSelect } from '@/hooks/useCascadingSelect';
 
 // 基础设施导入
 import FormPage from '@/components/FormPage';
@@ -32,10 +32,15 @@ import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 
 const RestDayFormPage: React.FC = () => {
   const { stores } = useStoreWithPermission({ enabledOnly: true });
-  const [selectedStore, setSelectedStore] = useState<string>();
+  const cascade = useCascadingSelect({
+    levels: [
+      { key: 'storeId' },
+      { key: 'doctorId' },
+    ],
+  });
 
   // 使用共享 hook 加载医生数据（按门店筛选）
-  const { doctors } = useDoctors({ storeId: selectedStore, enabled: !!selectedStore });
+  const { doctors } = useDoctors({ storeId: cascade.values.storeId, enabled: !!cascade.values.storeId });
 
   // 提交表单
   const handleSubmit = async (values: any) => {
@@ -82,7 +87,7 @@ const RestDayFormPage: React.FC = () => {
           options={stores.map(s => ({ label: s.name, value: s.id }))}
           rules={[requiredRules('请选择门店')]}
           fieldProps={{
-            onChange: (val: any) => setSelectedStore(val),
+            onChange: cascade.getOnChange('storeId'),
           }}
           placeholder={stores.length === 0 ? '暂无可用门店' : '请选择门店'}
           disabled={stores.length === 0}

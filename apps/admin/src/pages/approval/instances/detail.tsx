@@ -8,7 +8,7 @@ import {
   UndoOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import { useHistory, useParams, useModel } from '@umijs/max';
+import { history, useParams, useModel } from '@umijs/max';
 import { useState, useEffect, useCallback } from 'react';
 import { approvalInstanceApi } from '@hospital/api';
 import type { ApprovalInstance, ApprovalRecord, ApprovalInstanceStatus } from '@hospital/shared';
@@ -35,8 +35,8 @@ const BUSINESS_TYPE_MAP: Record<string, string> = {
 };
 
 const ApprovalInstanceDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  const history = useHistory();
+  const params = useParams();
+  const id = params.id as string | undefined;
   const { initialState } = useModel('@@initialState');
   const [loading, setLoading] = useState(true);
   const [instance, setInstance] = useState<ApprovalInstance | null>(null);

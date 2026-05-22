@@ -10,11 +10,11 @@ import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import { fetchAllData } from '@/utils/fetchAllData';
 import type { ScheduleTemplate, Doctor, Department, BreakTime } from '@hospital/shared';
 import {
-  APPOINTMENT_TYPE_OPTIONS,
   SCHEDULE_MODE_OPTIONS,
   WEEKDAY_OPTIONS,
   getDateInfo,
 } from '@hospital/shared';
+import { useDict } from '@/hooks/useDict';
 import RulePreviewCalendar from '../components/RulePreviewCalendar';
 import dayjs from 'dayjs';
 import { ScheduleMessages } from '../utils/message';
@@ -51,6 +51,7 @@ interface ScheduleRuleFormValues {
 const ScheduleRuleFormPage: React.FC = () => {
   const { message } = App.useApp();
   const { id } = useParams();
+  const { options: appointmentTypeOptions } = useDict('appointment_type');
   useAccess();
   const { stores } = useStoreWithPermission({ enabledOnly: true });
   const isEdit = !!id;
@@ -438,7 +439,7 @@ const ScheduleRuleFormPage: React.FC = () => {
                   name="appointmentType"
                   label="预约类型"
                   width="md"
-                  options={APPOINTMENT_TYPE_OPTIONS}
+                  options={appointmentTypeOptions}
                   rules={[{ required: true, message: '请选择预约类型' }]}
                 />
               </ProForm.Group>

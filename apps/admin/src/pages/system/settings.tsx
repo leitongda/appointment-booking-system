@@ -16,8 +16,8 @@ import { useState, useEffect } from 'react';
 import { history, useAccess, useLocation, useModel } from '@umijs/max';
 import { settingsApi, blacklistApi, storeApi } from '@hospital/api';
 import { fetchAllData } from '@/utils/fetchAllData';
-import type { BookingSettings, HospitalInfo, BookingFieldConfig, PatientCardConfig, BlacklistItem, EmailConfig, ImageConfig, SmsConfig } from '@hospital/api';
-import type { Store } from '@hospital/shared';
+import { emailRules } from '@/utils/formValidators';
+import type { BookingSettings, HospitalInfo, BookingFieldConfig, PatientCardConfig, BlacklistItem, EmailConfig, ImageConfig, WechatConfig, SmsConfig, SecurityConfig, SourceReleaseConfig } from '@hospital/api';
 import type { StoreWechatConfig } from '@hospital/shared';
 
 const { Text } = Typography;
@@ -38,6 +38,8 @@ const DEFAULT_BOOKING_SETTINGS: BookingSettings = {
   // 签到时间配置
   signInAdvanceMinutes: 30,
   signInLateMinutes: 30,
+  // 通知策略
+  appointmentReminderHours: 24,
 };
 
 // 就诊卡配置默认值
@@ -68,6 +70,35 @@ const DEFAULT_IMAGE_CONFIG: ImageConfig = {
   compressQuality: 85,
 };
 
+// 短信通知策略默认值
+const DEFAULT_SMS_POLICY: Pick<SmsConfig, 'codeExpireSeconds' | 'sendIntervalSeconds'> = {
+  codeExpireSeconds: 300,
+  sendIntervalSeconds: 60,
+};
+
+// 安全策略默认值
+const DEFAULT_SECURITY_CONFIG: SecurityConfig = {
+  accessTokenExpireMinutes: 30,
+  refreshTokenExpireDays: 7,
+  defaultPassword: '********',
+  rateLimitPerMinute: 300,
+  rateLimitPerSecond: 50,
+  loginFailureLockCount: 5,
+  sessionTimeoutMinutes: 120,
+};
+
+// 号源释放策略默认值
+const DEFAULT_SOURCE_RELEASE_CONFIG: SourceReleaseConfig = {
+  lockTimeoutMinutes: 15,
+  batchReleaseEnabled: false,
+  batchReleaseDays: 7,
+  batchReleaseTime: '08:00',
+  autoCancelUnpaidMinutes: 30,
+  noShowAutoMarkHours: 24,
+  allowOverbooking: false,
+  overbookingLimit: 0,
+};
+
 const TAB_PATH_TO_KEY: Record<string, string> = {
   '/operations/system/settings/booking': 'booking',
   '/operations/system/settings/blacklist': 'blacklist',
@@ -90,7 +121,9 @@ const TAB_PATH_TO_KEY: Record<string, string> = {
   '/system/config/wechat': 'wechat',
   '/system/config/email-config': 'email',
   '/system/config/image-config': 'image',
-  '/system/config/sms-config': 'sms',
+  '/system/config/sms': 'sms',
+  '/system/config/security': 'security',
+  '/system/config/source-release': 'sourceRelease',
   '/system/blacklist': 'blacklist',
 };
 
@@ -103,7 +136,9 @@ const TAB_KEY_TO_PATH: Record<string, string> = {
   patientCard: '/organization/medical-config/patient-card',
   email: '/system/config/email-config',
   image: '/system/config/image-config',
-  sms: '/system/config/sms-config',
+  sms: '/system/config/sms',
+  security: '/system/config/security',
+  sourceRelease: '/system/config/source-release',
 };
 
 const TAB_KEY_TO_TITLE: Record<string, string> = {
@@ -115,7 +150,9 @@ const TAB_KEY_TO_TITLE: Record<string, string> = {
   patientCard: '就诊卡配置',
   email: '邮件配置',
   image: '图片配置',
-  sms: '短信配置',
+  sms: '短信通知',
+  security: '安全策略',
+  sourceRelease: '号源释放',
 };
 
 const SettingsPage: React.FC = () => {
@@ -136,13 +173,16 @@ const SettingsPage: React.FC = () => {
   const [blacklistKeyword, setBlacklistKeyword] = useState('');
   const [blacklistLoading, setBlacklistLoading] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
-  const [stores, setStores] = useState<Store[]>([]);
+  const [stores, setStores] = useState<any[]>([]);
   const [emailConfig, setEmailConfig] = useState<EmailConfig | null>(null);
   const [imageConfig, setImageConfig] = useState<ImageConfig | null>(null);
-  const [smsConfig, setSmsConfig] = useState<SmsConfig | null>(null);
+  const [_wechatConfig, setWechatConfig] = useState<WechatConfig | null>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [storeWechatConfig, setStoreWechatConfig] = useState<StoreWechatConfig | null>(null);
   const [wechatLoading, setWechatLoading] = useState(false);
+  const [smsConfig, setSmsConfig] = useState<SmsConfig | null>(null);
+  const [securityConfig, setSecurityConfig] = useState<SecurityConfig | null>(null);
+  const [sourceReleaseConfig, setSourceReleaseConfig] = useState<SourceReleaseConfig | null>(null);
   // 预约设置门店选择
   const [selectedBookingStoreId, setSelectedBookingStoreId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<string>(TAB_PATH_TO_KEY[location.pathname] || 'booking');
@@ -155,10 +195,14 @@ const SettingsPage: React.FC = () => {
   const canEditEmail = canViewEmail;
   const canViewImage = access.hasPermission('settings:edit');
   const canEditImage = canViewImage;
-  const canViewSms = isSuperAdmin || access.hasPermission('settings:sms') || access.hasPermission('settings:edit');
-  const canEditSms = canViewSms;
   const canViewWechat = isSuperAdmin || access.hasPermission('settings:wechat') || access.hasPermission('settings:edit');
   const canEditWechat = canViewWechat;
+  const canViewSms = access.hasPermission('settings:sms') || access.hasPermission('settings:edit');
+  const canEditSms = canViewSms;
+  const canViewSecurity = access.hasPermission('settings:edit');
+  const canEditSecurity = canViewSecurity;
+  const canViewSourceRelease = access.hasPermission('settings:edit');
+  const canEditSourceRelease = canViewSourceRelease;
   const canViewBlacklist =
     access.hasPermission('blacklist:list') ||
     access.hasPermission('blacklist:create') ||
@@ -204,8 +248,17 @@ const SettingsPage: React.FC = () => {
       if (canViewImage) {
         loaders.push(settingsApi.getImageConfig().then(setImageConfig));
       }
+      if (canViewWechat) {
+        loaders.push(settingsApi.getWechatConfig().then(setWechatConfig));
+      }
       if (canViewSms) {
         loaders.push(settingsApi.getSmsConfig().then(setSmsConfig));
+      }
+      if (canViewSecurity) {
+        loaders.push(settingsApi.getSecurityConfig().then(setSecurityConfig));
+      }
+      if (canViewSourceRelease) {
+        loaders.push(settingsApi.getSourceReleaseConfig().then(setSourceReleaseConfig));
       }
 
       await Promise.allSettled(loaders);
@@ -247,24 +300,6 @@ const SettingsPage: React.FC = () => {
     setActiveTab(TAB_PATH_TO_KEY[location.pathname] || 'booking');
   }, [location.pathname]);
 
-  // 加载门店微信配置
-  const loadStoreWechatConfig = async (storeId: string) => {
-    if (!storeId) {
-      setStoreWechatConfig(null);
-      return;
-    }
-    setWechatLoading(true);
-    try {
-      const config = await storeApi.getWechatConfig(storeId);
-      setStoreWechatConfig(config);
-    } catch (error: any) {
-      console.error('加载门店微信配置失败', error);
-      setStoreWechatConfig(null);
-    } finally {
-      setWechatLoading(false);
-    }
-  };
-
   // 门店加载完成后，微信 tab 自动选中第一项
   useEffect(() => {
     if (stores.length > 0 && !selectedStoreId && activeTab === 'wechat') {
@@ -278,12 +313,8 @@ const SettingsPage: React.FC = () => {
   async function loadStoreBookingSettings(storeId: string) {
     if (!storeId) {
       // 加载全局配置
-      try {
-        const settings = await settingsApi.getBookingSettings();
-        setBookingSettings(settings);
-      } catch {
-        message.error('加载预约设置失败');
-      }
+      const settings = await settingsApi.getBookingSettings();
+      setBookingSettings(settings);
       return;
     }
     try {
@@ -302,6 +333,7 @@ const SettingsPage: React.FC = () => {
         advanceBookingReference: rules.advanceBookingReference,
         signInAdvanceMinutes: rules.signInAdvanceMinutes,
         signInLateMinutes: rules.signInLateMinutes,
+        appointmentReminderHours: rules.appointmentReminderHours,
       });
     } catch (error: any) {
       console.error('加载门店预约设置失败', error);
@@ -386,12 +418,75 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const handleSmsConfigSubmit = async (values: any) => {
+  const handleSmsPolicySubmit = async (values: any) => {
     try {
-      await settingsApi.updateSmsConfig(values);
+      await settingsApi.updateSmsConfig({
+        codeExpireSeconds: values.codeExpireSeconds,
+        sendIntervalSeconds: values.sendIntervalSeconds,
+      });
       message.success('保存成功');
+      // 重新加载配置
+      const config = await settingsApi.getSmsConfig();
+      setSmsConfig(config);
     } catch (error: any) {
       message.error(error.message || '保存失败');
+    }
+  };
+
+  const handleSecuritySubmit = async (values: any) => {
+    try {
+      await settingsApi.updateSecurityConfig({
+        accessTokenExpireMinutes: values.accessTokenExpireMinutes,
+        refreshTokenExpireDays: values.refreshTokenExpireDays,
+        defaultPassword: values.defaultPassword,
+        rateLimitPerMinute: values.rateLimitPerMinute,
+        rateLimitPerSecond: values.rateLimitPerSecond,
+        loginFailureLockCount: values.loginFailureLockCount,
+        sessionTimeoutMinutes: values.sessionTimeoutMinutes,
+      });
+      message.success('保存成功');
+      const config = await settingsApi.getSecurityConfig();
+      setSecurityConfig(config);
+    } catch (error: any) {
+      message.error(error.message || '保存失败');
+    }
+  };
+
+  const handleSourceReleaseSubmit = async (values: any) => {
+    try {
+      await settingsApi.updateSourceReleaseConfig({
+        lockTimeoutMinutes: values.lockTimeoutMinutes,
+        batchReleaseEnabled: values.batchReleaseEnabled,
+        batchReleaseDays: values.batchReleaseDays,
+        batchReleaseTime: values.batchReleaseTime,
+        autoCancelUnpaidMinutes: values.autoCancelUnpaidMinutes,
+        noShowAutoMarkHours: values.noShowAutoMarkHours,
+        allowOverbooking: values.allowOverbooking,
+        overbookingLimit: values.overbookingLimit,
+      });
+      message.success('保存成功');
+      const config = await settingsApi.getSourceReleaseConfig();
+      setSourceReleaseConfig(config);
+    } catch (error: any) {
+      message.error(error.message || '保存失败');
+    }
+  };
+
+  // 加载门店微信配置
+  const loadStoreWechatConfig = async (storeId: string) => {
+    if (!storeId) {
+      setStoreWechatConfig(null);
+      return;
+    }
+    setWechatLoading(true);
+    try {
+      const config = await storeApi.getWechatConfig(storeId);
+      setStoreWechatConfig(config);
+    } catch (error: any) {
+      console.error('加载门店微信配置失败', error);
+      setStoreWechatConfig(null);
+    } finally {
+      setWechatLoading(false);
     }
   };
 
@@ -691,6 +786,18 @@ const SettingsPage: React.FC = () => {
                   max={365}
                   fieldProps={{ addonAfter: '天' }}
                   tooltip="用户被加入黑名单后，多少天内无法预约"
+                />
+              </Card>
+
+              {/* 通知策略 */}
+              <Card title={<><CalendarOutlined /><span style={{ marginLeft: 8 }}>通知策略</span></>} size="small">
+                <ProFormDigit
+                  name="appointmentReminderHours"
+                  label="预约提醒提前时间"
+                  min={1}
+                  max={72}
+                  fieldProps={{ addonAfter: '小时' }}
+                  tooltip="就诊前多少小时发送预约提醒通知"
                 />
               </Card>
             </Space>
@@ -1048,54 +1155,234 @@ const SettingsPage: React.FC = () => {
     },
     {
       key: 'sms',
-      label: '短信配置',
+      label: '短信通知',
       children: (
         <ProForm
           key={loading ? 'sms-loading' : 'sms-loaded'}
-          onFinish={handleSmsConfigSubmit}
-          initialValues={smsConfig || {}}
+          onFinish={handleSmsPolicySubmit}
+          initialValues={{ ...DEFAULT_SMS_POLICY, ...smsConfig }}
           submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
           disabled={!canEditSms}
         >
           <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-            配置短信服务商信息，用于发送短信通知（如预约验证码、就诊提醒等）。
+            配置短信验证码和发送频率的相关参数。修改后立即生效。
           </Text>
-          <ProFormSelect
-            name="smsProvider"
-            label="短信服务商"
-            options={[
-              { label: '阿里云', value: 'aliyun' },
-              { label: '腾讯云', value: 'tencent' },
-              { label: '测试模式', value: 'mock' },
-            ]}
-            rules={[{ required: true, message: '请选择短信服务商' }]}
-            width="md"
+          <ProFormDigit
+            name="codeExpireSeconds"
+            label="验证码有效期"
+            min={60}
+            max={600}
+            fieldProps={{ precision: 0, addonAfter: '秒' }}
+            extra="用户收到的短信验证码的有效时长，范围 60-600 秒"
+            rules={[{ required: true, message: '请输入验证码有效期' }]}
           />
-          <ProFormText
-            name="accessKeyId"
-            label="AccessKey ID"
-            rules={[{ required: true, message: '请输入AccessKey ID' }]}
-            width="lg"
+          <ProFormDigit
+            name="sendIntervalSeconds"
+            label="短信发送间隔"
+            min={30}
+            max={300}
+            fieldProps={{ precision: 0, addonAfter: '秒' }}
+            extra="同一手机号两次发送短信的最短间隔，范围 30-300 秒"
+            rules={[{ required: true, message: '请输入短信发送间隔' }]}
           />
-          <ProFormText.Password
-            name="accessKeySecret"
-            label="AccessKey Secret"
-            extra="首次配置请输入密钥，已配置的显示为 ******"
-            fieldProps={{ autoComplete: 'new-password' }}
-            width="lg"
-          />
-          <ProFormText
-            name="signName"
-            label="短信签名"
-            rules={[{ required: true, message: '请输入短信签名' }]}
-            width="lg"
-          />
-          <ProFormText
-            name="templateCode"
-            label="模板编码"
-            rules={[{ required: true, message: '请输入模板编码' }]}
-            width="lg"
-          />
+        </ProForm>
+      ),
+    },
+    {
+      key: 'security',
+      label: '安全策略',
+      children: (
+        <ProForm
+          key={loading ? 'security-loading' : 'security-loaded'}
+          onFinish={handleSecuritySubmit}
+          initialValues={{ ...DEFAULT_SECURITY_CONFIG, ...securityConfig }}
+          submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
+          disabled={!canEditSecurity}
+        >
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            配置认证令牌、限流、登录锁定等安全相关参数。修改后立即生效（限流参数需重启服务）。
+          </Text>
+          <Card title="令牌配置" size="small" style={{ marginBottom: 16 }}>
+            <Row gutter={24}>
+              <Col span={8}>
+                <ProFormDigit
+                  name="accessTokenExpireMinutes"
+                  label="AccessToken 有效期"
+                  min={5}
+                  max={1440}
+                  fieldProps={{ precision: 0, addonAfter: '分钟' }}
+                  rules={[{ required: true, message: '请输入有效期' }]}
+                />
+              </Col>
+              <Col span={8}>
+                <ProFormDigit
+                  name="refreshTokenExpireDays"
+                  label="RefreshToken 有效期"
+                  min={1}
+                  max={90}
+                  fieldProps={{ precision: 0, addonAfter: '天' }}
+                  rules={[{ required: true, message: '请输入有效期' }]}
+                />
+              </Col>
+              <Col span={8}>
+                <ProFormText
+                  name="defaultPassword"
+                  label="新建管理员默认密码"
+                  placeholder="请输入默认密码"
+                  fieldProps={{ type: 'password' }}
+                />
+              </Col>
+            </Row>
+          </Card>
+          <Card title="限流配置" size="small" style={{ marginBottom: 16 }}>
+            <Row gutter={24}>
+              <Col span={8}>
+                <ProFormDigit
+                  name="rateLimitPerMinute"
+                  label="每分钟请求上限"
+                  min={10}
+                  max={10000}
+                  fieldProps={{ precision: 0 }}
+                  extra="修改后需重启服务生效"
+                  rules={[{ required: true, message: '请输入限流值' }]}
+                />
+              </Col>
+              <Col span={8}>
+                <ProFormDigit
+                  name="rateLimitPerSecond"
+                  label="每秒请求上限"
+                  min={1}
+                  max={1000}
+                  fieldProps={{ precision: 0 }}
+                  extra="修改后需重启服务生效"
+                  rules={[{ required: true, message: '请输入限流值' }]}
+                />
+              </Col>
+            </Row>
+          </Card>
+          <Card title="登录安全" size="small">
+            <Row gutter={24}>
+              <Col span={8}>
+                <ProFormDigit
+                  name="loginFailureLockCount"
+                  label="登录失败锁定次数"
+                  min={0}
+                  max={20}
+                  fieldProps={{ precision: 0 }}
+                  extra="0 表示不锁定"
+                />
+              </Col>
+              <Col span={8}>
+                <ProFormDigit
+                  name="sessionTimeoutMinutes"
+                  label="会话超时时间"
+                  min={5}
+                  max={1440}
+                  fieldProps={{ precision: 0, addonAfter: '分钟' }}
+                />
+              </Col>
+            </Row>
+          </Card>
+        </ProForm>
+      ),
+    },
+    {
+      key: 'sourceRelease',
+      label: '号源释放',
+      children: (
+        <ProForm
+          key={loading ? 'source-release-loading' : 'source-release-loaded'}
+          onFinish={handleSourceReleaseSubmit}
+          initialValues={{ ...DEFAULT_SOURCE_RELEASE_CONFIG, ...sourceReleaseConfig }}
+          submitter={{ searchConfig: { submitText: '保存设置' }, resetButtonProps: { style: { display: 'none' } } }}
+          disabled={!canEditSourceRelease}
+        >
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            配置号源锁定、自动释放、超额预约等策略参数。修改后立即生效。
+          </Text>
+          <Card title="号源锁定" size="small" style={{ marginBottom: 16 }}>
+            <Row gutter={24}>
+              <Col span={8}>
+                <ProFormDigit
+                  name="lockTimeoutMinutes"
+                  label="锁定超时时间"
+                  min={1}
+                  max={60}
+                  fieldProps={{ precision: 0, addonAfter: '分钟' }}
+                  extra="患者选号后未完成支付，超时自动释放"
+                  rules={[{ required: true, message: '请输入超时时间' }]}
+                />
+              </Col>
+              <Col span={8}>
+                <ProFormDigit
+                  name="autoCancelUnpaidMinutes"
+                  label="未支付自动取消"
+                  min={5}
+                  max={1440}
+                  fieldProps={{ precision: 0, addonAfter: '分钟' }}
+                  extra="预约成功但未支付，超时自动取消"
+                />
+              </Col>
+              <Col span={8}>
+                <ProFormDigit
+                  name="noShowAutoMarkHours"
+                  label="爽约自动标记"
+                  min={1}
+                  max={168}
+                  fieldProps={{ precision: 0, addonAfter: '小时' }}
+                  extra="就诊时间后超过此时间自动标记为爽约"
+                />
+              </Col>
+            </Row>
+          </Card>
+          <Card title="批量释放" size="small" style={{ marginBottom: 16 }}>
+            <Row gutter={24}>
+              <Col span={8}>
+                <ProFormSwitch
+                  name="batchReleaseEnabled"
+                  label="启用批量释放"
+                />
+              </Col>
+              <Col span={8}>
+                <ProFormDigit
+                  name="batchReleaseDays"
+                  label="释放提前天数"
+                  min={1}
+                  max={30}
+                  fieldProps={{ precision: 0, addonAfter: '天' }}
+                  extra="提前多少天的号源自动释放"
+                />
+              </Col>
+              <Col span={8}>
+                <ProFormText
+                  name="batchReleaseTime"
+                  label="释放时间点"
+                  placeholder="08:00"
+                  extra="每天几点执行批量释放，格式 HH:mm"
+                />
+              </Col>
+            </Row>
+          </Card>
+          <Card title="超额预约" size="small">
+            <Row gutter={24}>
+              <Col span={8}>
+                <ProFormSwitch
+                  name="allowOverbooking"
+                  label="允许超额预约"
+                />
+              </Col>
+              <Col span={8}>
+                <ProFormDigit
+                  name="overbookingLimit"
+                  label="超额预约上限"
+                  min={0}
+                  max={50}
+                  fieldProps={{ precision: 0 }}
+                  extra="0 表示不允许超额"
+                />
+              </Col>
+            </Row>
+          </Card>
         </ProForm>
       ),
     },
@@ -1119,6 +1406,8 @@ const SettingsPage: React.FC = () => {
     if (item.key === 'wechat') return canViewWechat;
     if (item.key === 'image') return canViewImage;
     if (item.key === 'sms') return canViewSms;
+    if (item.key === 'security') return canViewSecurity;
+    if (item.key === 'sourceRelease') return canViewSourceRelease;
     return true;
   });
 

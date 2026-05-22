@@ -7,7 +7,7 @@ import { useAccess, useModel } from '@umijs/max';
 import { blacklistApi, storeApi } from '@hospital/api';
 import type { BlacklistItem, BlacklistCreateData } from '@hospital/api';
 import type { Store } from '@hospital/shared';
-import { toProTableResult } from '@/utils/proTable';
+import { createListRequest } from '@/utils/proTable';
 import { PAGINATION_CONFIG } from '@/constants/pagination';
 
 const SOURCE_MAP: Record<number, string> = {
@@ -191,16 +191,12 @@ const BlacklistPage: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        request={async (params) => {
-          const { current, pageSize, keyword, storeId, status } = params;
-          return toProTableResult(await blacklistApi.getList({
-            keyword: keyword || undefined,
-            storeId: storeId || undefined,
-            status: status !== undefined && status !== '' ? Number(status) : undefined,
-            page: current,
-            pageSize,
-          }));
-        }}
+        request={createListRequest(blacklistApi.getList, ({ keyword, storeId, status, ...params }) => ({
+          ...params,
+          keyword: keyword || undefined,
+          storeId: storeId || undefined,
+          status: status !== undefined && status !== '' ? Number(status) : undefined,
+        }))}
         toolBarRender={() => [
           access.hasPermission('blacklist:create') && (
             <Button

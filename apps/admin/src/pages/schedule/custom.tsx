@@ -2,12 +2,12 @@ import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm } from '@ant-design/pro-components';
 import { Button, App, Tag, Popconfirm, Card, Form, DatePicker, Select } from 'antd';
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import { history, useAccess } from '@umijs/max';
 import { customScheduleApi, doctorApi } from '@hospital/api';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
-import { toProTableResult } from '@/utils/proTable';
-import { APPOINTMENT_TYPE_MAP } from '@hospital/shared';
+import { createListRequest } from '@/utils/proTable';
+import { useDict } from '@/hooks/useDict';
 import type { CustomSchedule } from '@hospital/api';
 import { ScheduleMessages } from './utils/message';
 import { COLOR_DANGER, COLOR_DISABLED } from '@/themes/scheduleColors';
@@ -16,6 +16,11 @@ const CustomSchedulePage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess();
   const { stores } = useStoreWithPermission({ enabledOnly: true });
+  const { dictItems: appointmentTypeItems } = useDict('appointment_type');
+  const appointmentTypeMap = useMemo(
+    () => Object.fromEntries(appointmentTypeItems.map((i) => [i.value, i.label])),
+    [appointmentTypeItems]
+  );
   const actionRef = useRef<ActionType>();
   const [effectiveModalOpen, setEffectiveModalOpen] = useState(false);
   const [effectiveSchedules, setEffectiveSchedules] = useState<CustomSchedule[]>([]);
@@ -102,7 +107,7 @@ const CustomSchedulePage: React.FC = () => {
       dataIndex: 'appointmentType',
       width: 80,
       render: (_, record) => (
-        <Tag color="blue">{APPOINTMENT_TYPE_MAP[record.appointmentType] || record.appointmentType}</Tag>
+        <Tag color="blue">{appointmentTypeMap[record.appointmentType] || record.appointmentType}</Tag>
       ),
     },
     {
@@ -159,7 +164,7 @@ const CustomSchedulePage: React.FC = () => {
     { title: '日期', dataIndex: 'scheduleDate', width: 110 },
     { title: '休息日', dataIndex: 'isRestDay', width: 80, render: (_, r) => r.isRestDay ? <Tag color="orange">休息日</Tag> : '-' },
     { title: '时段', width: 120, render: (_, r) => `${r.startTime?.slice(0, 5) || ''}-${r.endTime?.slice(0, 5) || ''}` },
-    { title: '预约类型', dataIndex: 'appointmentType', width: 80, render: (_, r) => APPOINTMENT_TYPE_MAP[r.appointmentType] || r.appointmentType },
+    { title: '预约类型', dataIndex: 'appointmentType', width: 80, render: (_, r) => appointmentTypeMap[r.appointmentType] || r.appointmentType },
     { title: '预约人数', dataIndex: 'maxPatients', width: 80 },
     { title: '已预约', dataIndex: 'bookedCount', width: 70 },
   ];
@@ -211,14 +216,7 @@ const CustomSchedulePage: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        request={async (params) => {
-          const { current, pageSize, ...rest } = params;
-          return toProTableResult(await customScheduleApi.getList({
-            ...rest,
-            page: current,
-            pageSize,
-          }));
-        }}
+        request={createListRequest(customScheduleApi.getList)}
         toolBarRender={() => [
           access.hasPermission('schedule:custom') && (
             <Button

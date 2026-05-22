@@ -5,6 +5,7 @@ import { history, useParams } from '@umijs/max';
 import { useEffect, useState } from 'react';
 import { miniappPlatformApi } from '@hospital/api';
 import type { CompanyCreateData, CompanyUpdateData } from '@hospital/api';
+import { phoneRules } from '@/utils/formValidators';
 
 const CompanyFormPage: React.FC = () => {
   const { id } = useParams();
@@ -136,7 +137,7 @@ const CompanyFormPage: React.FC = () => {
                 label="联系电话"
                 placeholder="请输入联系电话"
                 rules={[
-                  { pattern: /^1[3-9]\d{9}$/, message: '请输入有效的手机号' }
+phoneRules.pattern
                 ]}
               />
             </Col>

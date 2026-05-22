@@ -12,15 +12,15 @@ import { scheduleTemplateApi } from '@hospital/api';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import { useDepartments } from '@/hooks/useDepartments';
 import { useDoctors } from '@/hooks/useDoctors';
-import { toProTableResult } from '@/utils/proTable';
+import { createListRequest } from '@/utils/proTable';
 import type { ScheduleTemplate, SchedulePreviewGenerateResponse } from '@hospital/shared';
 import { ScheduleMessages } from '../utils/message';
 import {
-  APPOINTMENT_TYPE_MAP,
   SCHEDULE_MODE_MAP,
   WEEKDAY_MAP,
   getDateInfo,
 } from '@hospital/shared';
+import { useDict } from '@/hooks/useDict';
 import dayjs from 'dayjs';
 import HistoryLogsModal from './components/HistoryLogsModal';
 import BatchAddModal from './components/BatchAddModal';
@@ -32,6 +32,11 @@ const ScheduleRulePage: React.FC = () => {
   const { message, modal } = App.useApp();
   const access = useAccess();
   const { stores } = useStoreWithPermission({ enabledOnly: true });
+  const { dictItems: appointmentTypeItems } = useDict('appointment_type');
+  const appointmentTypeMap = useMemo(
+    () => Object.fromEntries(appointmentTypeItems.map((i) => [i.value, i.label])),
+    [appointmentTypeItems]
+  );
   const actionRef = useRef<ActionType>();
   const generateFormRef = useRef<ProFormInstance>(null);
   const batchAddFormRef = useRef<ProFormInstance>(null);
@@ -448,7 +453,7 @@ const ScheduleRulePage: React.FC = () => {
         };
         return (
           <Tag color={typeMap[record.appointmentType] || 'default'}>
-            {APPOINTMENT_TYPE_MAP[record.appointmentType] || record.appointmentType}
+            {appointmentTypeMap[record.appointmentType] || record.appointmentType}
           </Tag>
         );
       },
@@ -560,16 +565,7 @@ const ScheduleRulePage: React.FC = () => {
           selectedRowKeys: selectedTemplates,
           onChange: (keys) => setSelectedTemplates(keys as string[]),
         }}
-        request={async (params) => {
-          const { current, pageSize, ...rest } = params;
-          return toProTableResult(
-            await scheduleTemplateApi.getList({
-              ...rest,
-              page: current,
-              pageSize,
-            }),
-          );
-        }}
+        request={createListRequest(scheduleTemplateApi.getList)}
         toolBarRender={() => [
           access.hasPermission('schedule:template') && (
             <Button

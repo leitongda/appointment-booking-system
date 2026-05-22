@@ -1,25 +1,11 @@
 /**
- * 轮播图表单页面（重构版）
+ * 轮播图表单页面
  *
- * 代码行数：~130 行 (vs 原始 146 行)
- *
- * 使用基础设施：
- * - FormPage 组件：统一表单页面布局和底部工具栏
- * - ImageUploadCard 组件：图片上传卡片（封装 ImageUpload）
- * - SwitchGroup 组件：开关组（自动处理 boolean ↔ number 转换）
- * - useFormInitialValues hook：处理初始值和开关字段转换
- * - useFormSubmit hook：处理提交逻辑和开关字段转换
- * - BANNER_LINK_TYPE_OPTIONS, BANNER_POSITION_OPTIONS 常量：统一选项配置
- *
- * 优化效果：
- * - 减少约 20 行重复代码
- * - 消除手动开关字段转换逻辑
- * - 统一表单页面布局和错误处理
- * - 提高代码可读性和可维护性
+ * 链接类型和展示位置通过 useDict 从字典 API 获取
  */
 import { ProFormText, ProFormDigit, ProFormSelect } from '@ant-design/pro-components';
 import { Card } from 'antd';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, history } from '@umijs/max';
 import { contentApi } from '@hospital/api';
 import type { Banner } from '@hospital/api';
@@ -27,7 +13,7 @@ import type { Banner } from '@hospital/api';
 // 基础设施导入
 import FormPage from '@/components/FormPage';
 import { ImageUploadCard, SwitchGroup } from '@/components/formFields';
-import { BANNER_LINK_TYPE_OPTIONS, BANNER_POSITION_OPTIONS } from '@/constants';
+import { useDict } from '@/hooks/useDict';
 import { useFormInitialValues } from '@/hooks/useFormInitialValues';
 import { useFormSubmit } from '@/hooks/useFormSubmit';
 
@@ -36,6 +22,12 @@ const BannerFormPage: React.FC = () => {
   const isEdit = !!id;
   const [banner, setBanner] = useState<Banner | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // 字典数据
+  const { options: linkTypeDict } = useDict('banner_link_type');
+  const { options: positionDict } = useDict('banner_position');
+  const linkTypeOptions = useMemo(() => linkTypeDict.map(o => ({ label: o.label, value: Number(o.value) })), [linkTypeDict]);
+  const positionOptions = useMemo(() => positionDict.map(o => ({ label: o.label, value: o.value })), [positionDict]);
 
   // 加载轮播图数据
   useEffect(() => {
@@ -116,13 +108,13 @@ const BannerFormPage: React.FC = () => {
           name="linkType"
           label="链接类型"
           width="md"
-          options={[...BANNER_LINK_TYPE_OPTIONS]}
+          options={linkTypeOptions}
         />
         <ProFormSelect
           name="position"
           label="展示位置"
           width="md"
-          options={[...BANNER_POSITION_OPTIONS]}
+          options={positionOptions}
         />
         <ProFormText
           name="linkUrl"

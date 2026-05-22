@@ -5,15 +5,8 @@ import { history } from '@umijs/max';
 import { messageApi } from '@hospital/api';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { UnifiedTemplate, RecipientRule } from '@hospital/shared';
-
-const TYPE_OPTIONS = [
-  { label: '系统', value: 'system' },
-  { label: '预约', value: 'appointment' },
-  { label: '就诊', value: 'consultation' },
-  { label: '排班', value: 'schedule' },
-  { label: '停诊', value: 'stop_clinic' },
-  { label: '反馈', value: 'feedback' },
-];
+import { getStorage, STORAGE_KEYS } from '@hospital/shared';
+import { useDict } from '@/hooks/useDict';
 
 const SEND_MODE_OPTIONS = [
   { label: '单发', value: 'single' },
@@ -23,6 +16,7 @@ const SEND_MODE_OPTIONS = [
 
 const MessageFormPage: React.FC = () => {
   const { message } = App.useApp();
+  const { options: messageTypeOptions } = useDict('message_type');
   const [sendMode, setSendMode] = useState<'single' | 'batch' | 'rule'>('single');
   const [templates, setTemplates] = useState<UnifiedTemplate[]>([]);
   const [recipientRules, setRecipientRules] = useState<RecipientRule[]>([]);
@@ -60,7 +54,7 @@ const MessageFormPage: React.FC = () => {
 
   const handleSubmit = async (values: any) => {
     try {
-      const tenantId = localStorage.getItem('hospital_current_tenant_id') || '';
+      const tenantId = getStorage<string>(STORAGE_KEYS.CURRENT_TENANT_ID) || '';
       const baseParams = {
         tenantId,
         recipientType: values.userType,
@@ -194,7 +188,7 @@ const MessageFormPage: React.FC = () => {
             name="messageType"
             label="消息类型"
             width="md"
-            options={TYPE_OPTIONS}
+            options={messageTypeOptions}
           />
           <ProFormText
             name="title"

@@ -1,7 +1,8 @@
 import { Modal, Button, Space, Alert, Steps, Select, Transfer, Table, Tag, Radio, App } from 'antd';
 import { ProForm, ProFormCheckbox, ProFormSelect, ProFormTimePicker, ProFormDigit, ProFormRadio } from '@ant-design/pro-components';
 import type { ScheduleTemplate, Department, Doctor, Store } from '@hospital/shared';
-import { APPOINTMENT_TYPE_OPTIONS, WEEKDAY_OPTIONS, SCHEDULE_MODE_OPTIONS } from '@hospital/shared';
+import { WEEKDAY_OPTIONS, SCHEDULE_MODE_OPTIONS } from '@hospital/shared';
+import { useDict } from '@/hooks/useDict';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { scheduleTemplateApi, doctorApi, departmentApi, storeApi } from '@hospital/api';
 import { fetchAllData } from '@/utils/fetchAllData';
@@ -45,6 +46,7 @@ const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
   sourceRule,
 }) => {
   const { message } = App.useApp();
+  const { options: appointmentTypeOptions } = useDict('appointment_type');
 
   // 步骤管理
   const [step, setStep] = useState(0);
@@ -405,7 +407,7 @@ const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
             <ProFormSelect
               name="appointmentType"
               label="预约类型"
-              options={APPOINTMENT_TYPE_OPTIONS}
+              options={appointmentTypeOptions}
             />
             <ProFormTimePicker
               name="startTime"

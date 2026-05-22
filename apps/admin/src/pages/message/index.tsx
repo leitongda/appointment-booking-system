@@ -2,9 +2,10 @@ import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { Tag, Button, Popconfirm, Drawer, Space, Descriptions, Card, Row, Col } from 'antd';
 import { MailOutlined, UserOutlined, FileTextOutlined, BarChartOutlined } from '@ant-design/icons';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useModel, history } from '@umijs/max';
 import { messageApi } from '@hospital/api';
+import { useDict } from '@/hooks/useDict';
 import { createListRequest } from '@/utils/proTable';
 import { useListPage } from '@/hooks/useListPage';
 import { CreateButton, OperationGroup, OperationButton } from '@/components/ListOperations';
@@ -22,6 +23,11 @@ const TYPE_MAP: Record<string, { text: string; color: string }> = {
 const MessagePage: React.FC = () => {
   const { actionRef, message } = useListPage();
   const { initialState } = useModel('@@initialState');
+  const { options: messageTypeOptions } = useDict('message_type');
+  const messageTypeEnum = useMemo(
+    () => Object.fromEntries(messageTypeOptions.map((o) => [o.value, { text: o.label }])),
+    [messageTypeOptions],
+  );
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [detailVisible, setDetailVisible] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -100,7 +106,7 @@ const MessagePage: React.FC = () => {
       title: '类型',
       dataIndex: 'messageType',
       width: 80,
-      valueEnum: Object.fromEntries(Object.entries(TYPE_MAP).map(([k, v]) => [k, { text: v.text }])),
+      valueEnum: messageTypeEnum,
       render: (_, r) => {
         const t = TYPE_MAP[r.messageType || 'system'] || { text: r.messageType || '未知', color: 'default' };
         return <Tag color={t.color}>{t.text}</Tag>;

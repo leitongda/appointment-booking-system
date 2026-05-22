@@ -1,6 +1,7 @@
 import { useState, useEffect, Suspense, lazy, ComponentType, useCallback } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
-import { Card, Row, Col, Statistic, Table, Select, Typography, Space, Spin, Tabs, Tag, App } from 'antd';
+import { Card, Row, Col, Statistic, Table, Select, Typography, Space, Spin, Tabs, Tag, App, DatePicker } from 'antd';
+import dayjs from 'dayjs';
 import {
   EyeOutlined,
   UserOutlined,
@@ -101,7 +102,7 @@ const BehaviorOverviewTab: React.FC = () => {
   const [days, setDays] = useState(7);
   const [data, setData] = useState<BehaviorOverview | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const params: Record<string, any> = { days };
@@ -113,9 +114,9 @@ const BehaviorOverviewTab: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [platform, days]);
 
-  useEffect(() => { fetchData(); }, [platform, days]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const trendConfig = {
     data: data?.daily_stats?.map(item => [
@@ -418,6 +419,7 @@ const BehaviorLogTab: React.FC = () => {
   const [pageSize, setPageSize] = useState(20);
   const [platform, setPlatform] = useState('');
   const [eventType, setEventType] = useState('');
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([null, null]);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -425,6 +427,8 @@ const BehaviorLogTab: React.FC = () => {
       const params: Record<string, any> = { page, page_size: pageSize };
       if (platform) params.platform = platform;
       if (eventType) params.event_type = eventType;
+      if (dateRange[0]) params.start_time = dateRange[0].startOf('day').toISOString();
+      if (dateRange[1]) params.end_time = dateRange[1].endOf('day').toISOString();
       const result = await request.get<{ data: BehaviorLog[]; total: number }>('/analytics/logs', { params });
       setLogs(result.data || []);
       setTotal(result.total || 0);
@@ -433,7 +437,7 @@ const BehaviorLogTab: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, platform, eventType]);
+  }, [page, pageSize, platform, eventType, dateRange]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
@@ -458,7 +462,7 @@ const BehaviorLogTab: React.FC = () => {
   return (
     <Spin spinning={loading}>
       <Card style={{ marginBottom: 16 }}>
-        <Space size="large">
+        <Space size="large" wrap>
           <Space>
             <Text>平台：</Text>
             <Select
@@ -475,6 +479,16 @@ const BehaviorLogTab: React.FC = () => {
               onChange={(v) => { setEventType(v); setPage(1); }}
               options={EVENT_TYPE_OPTIONS}
               style={{ width: 150 }}
+            />
+          </Space>
+          <Space>
+            <Text>日期范围：</Text>
+            <DatePicker.RangePicker
+              value={dateRange}
+              onChange={(dates) => { setDateRange(dates || [null, null]); setPage(1); }}
+              placeholder={['开始日期', '结束日期']}
+              allowClear
+              style={{ width: 260 }}
             />
           </Space>
         </Space>

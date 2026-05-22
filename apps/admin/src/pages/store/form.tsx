@@ -17,11 +17,11 @@ import {
   type Store,
 } from '@hospital/shared';
 import { pinyin } from 'pinyin-pro';
-import { debounce } from 'lodash-es';
+import { useFieldUnique } from '@/hooks/useUniqueValidation';
 
 // 基础设施导入
 import FormPage from '@/components/FormPage';
-import { ImageUploadCard, SwitchGroup } from '@/components/formFields';
+import { ImageUploadCard, SwitchGroup, FormLocationPicker } from '@/components/formFields';
 import { requiredRules, phoneOrLandlineRules, emailRules, stringLengthRules, codeRules, combinedRules } from '@/utils/formValidators';
 
 const themeStyleOptions = MINIAPP_STORE_THEME_OPTIONS.map((option) => ({
@@ -126,47 +126,18 @@ const StoreFormPage: React.FC = () => {
     }
   };
 
-  // 异步验证名称唯一性（带防抖）
-  const validateNameUnique = useCallback(
-    debounce(async (name: string, resolve: (msg?: string) => void) => {
-      if (!name) {
-        resolve();
-        return;
-      }
-      try {
-        const { exists } = await storeApi.checkUnique('name', name, isEdit ? id : undefined);
-        if (exists) {
-          resolve('该门店名称已存在');
-        } else {
-          resolve();
-        }
-      } catch {
-        resolve(); // 验证失败时不阻止提交
-      }
-    }, 500),
-    [isEdit, id]
-  );
+  // 唯一性校验 hooks
+  const { rule: nameRule } = useFieldUnique({
+    checkFn: (value, excludeId) => storeApi.checkUnique('name', value, excludeId ? String(excludeId) : undefined).then(r => ({ isUnique: !r.exists })),
+    message: '该门店名称已存在',
+    excludeId: isEdit ? id : undefined,
+  });
 
-  // 异步验证编码唯一性（带防抖）
-  const validateCodeUnique = useCallback(
-    debounce(async (code: string, resolve: (msg?: string) => void) => {
-      if (!code) {
-        resolve();
-        return;
-      }
-      try {
-        const { exists } = await storeApi.checkUnique('code', code, isEdit ? id : undefined);
-        if (exists) {
-          resolve('该门店编码已存在');
-        } else {
-          resolve();
-        }
-      } catch {
-        resolve();
-      }
-    }, 500),
-    [isEdit, id]
-  );
+  const { rule: codeRule } = useFieldUnique({
+    checkFn: (value, excludeId) => storeApi.checkUnique('code', value, excludeId ? String(excludeId) : undefined).then(r => ({ isUnique: !r.exists })),
+    message: '该门店编码已存在',
+    excludeId: isEdit ? id : undefined,
+  });
 
   // 格式化时间，从 HH:mm:ss 字符串转为 dayjs 对象（供 TimePicker 使用）
   const formatTime = (time: string | undefined): dayjs.Dayjs | undefined => {
@@ -209,18 +180,7 @@ const StoreFormPage: React.FC = () => {
             rules={combinedRules(
               requiredRules('请输入门店名称'),
               stringLengthRules(1, 100),
-              {
-                validator: (_: any, value: any) => new Promise((resolve, reject) => {
-                  if (!value) {
-                    resolve(undefined);
-                    return;
-                  }
-                  validateNameUnique(value, (msg) => {
-                    if (msg) reject(new Error(msg));
-                    else resolve(undefined);
-                  });
-                }),
-              },
+              nameRule,
             )}
             placeholder="如：xxx医馆"
             fieldProps={{
@@ -234,18 +194,7 @@ const StoreFormPage: React.FC = () => {
             rules={combinedRules(
               requiredRules('请输入门店编码'),
               codeRules('slug').pattern,
-              {
-                validator: (_: any, value: any) => new Promise((resolve, reject) => {
-                  if (!value) {
-                    resolve(undefined);
-                    return;
-                  }
-                  validateCodeUnique(value, (msg) => {
-                    if (msg) reject(new Error(msg));
-                    else resolve(undefined);
-                  });
-                }),
-              },
+              codeRule,
             )}
             placeholder="输入名称后自动生成，可手动修改"
             extra="输入门店名称后自动生成，也可手动修改"
@@ -285,17 +234,59 @@ const StoreFormPage: React.FC = () => {
 
       {/* 地址信息 */}
       <Card title="地址信息" style={{ marginBottom: 16 }}>
-        <ProFormTextArea
+        <ProForm.Group>
+          <ProFormText
+            name="province"
+            label="省"
+            width="sm"
+            placeholder="如：贵州省"
+            rules={[stringLengthRules(0, 50)]}
+          />
+          <ProFormText
+            name="city"
+            label="市"
+            width="sm"
+            placeholder="如：贵阳市"
+            rules={[stringLengthRules(0, 50)]}
+          />
+          <ProFormText
+            name="district"
+            label="区"
+            width="sm"
+            placeholder="如：观山湖区"
+            rules={[stringLengthRules(0, 50)]}
+          />
+        </ProForm.Group>
+        <FormLocationPicker
           name="address"
-          label="地址"
-          placeholder="请输入完整地址，如：贵州省贵阳市观山湖区XX路XX号XX大厦X楼"
-          fieldProps={{ rows: 3 }}
-          rules={combinedRules(
-            requiredRules('请输入地址'),
-            stringLengthRules(1, 255)
-          )}
-          extra="请输入完整的机构地址，包含省市区、街道、门牌号等信息"
+          label="详细地址"
+          mode="structured"
+          fieldNames={{
+            province: 'province',
+            city: 'city',
+            district: 'district',
+            address: 'address',
+            longitude: 'longitude',
+            latitude: 'latitude',
+          }}
+          placeholder="请输入详细地址，如：XX路XX号XX大厦X楼"
+          getInitialValue={(vals) => {
+            if (vals?.longitude && vals?.latitude) {
+              return {
+                address: vals.address || '',
+                province: vals.province || '',
+                city: vals.city || '',
+                district: vals.district || '',
+                longitude: vals.longitude,
+                latitude: vals.latitude,
+              };
+            }
+            return undefined;
+          }}
         />
+        {/* 经纬度隐藏字段，地图选点自动填充 */}
+        <ProFormText name="longitude" hidden />
+        <ProFormText name="latitude" hidden />
       </Card>
 
       {/* 展示设置 */}

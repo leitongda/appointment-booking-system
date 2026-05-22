@@ -8,10 +8,11 @@ import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 
 dayjs.extend(isSameOrAfter);
 dayjs.extend(isSameOrBefore);
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { scheduleApi, doctorApi, departmentApi } from '@hospital/api';
 import type { Schedule, Doctor, Department } from '@hospital/shared';
-import { APPOINTMENT_TYPE_MAP, TIME_SLOT_MAP } from '@hospital/shared';
+import { TIME_SLOT_MAP } from '@hospital/shared';
+import { useDict } from '@/hooks/useDict';
 import { useModel, useAccess } from '@umijs/max';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import { COLOR_DANGER } from '@/themes/scheduleColors';
@@ -21,6 +22,11 @@ interface DaySchedules {
 }
 
 const ScheduleDetailCalendarPage: React.FC = () => {
+  const { dictItems: appointmentTypeItems } = useDict('appointment_type');
+  const appointmentTypeMap = useMemo(
+    () => Object.fromEntries(appointmentTypeItems.map((i) => [i.value, i.label])),
+    [appointmentTypeItems]
+  );
   const [loading, setLoading] = useState(false);
   const [scheduleData, setScheduleData] = useState<DaySchedules>({});
   const [currentDate, setCurrentDate] = useState<Dayjs>(dayjs());
@@ -201,7 +207,7 @@ const ScheduleDetailCalendarPage: React.FC = () => {
                   <div>医生：{schedule.doctorName || '-'}</div>
                   <div>科室：{schedule.departmentName || '-'}</div>
                   <div>时间：{timeRange}</div>
-                  <div>预约类型：{APPOINTMENT_TYPE_MAP[schedule.appointmentType || 'normal']}</div>
+                  <div>预约类型：{appointmentTypeMap[schedule.appointmentType || 'normal'] || schedule.appointmentType}</div>
                   <div>号源：{schedule.bookedSlots}/{schedule.totalSlots}</div>
                   <div>状态：{schedule.status === 1 ? '正常' : '停诊'}</div>
                 </div>

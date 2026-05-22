@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
@@ -6,15 +6,10 @@ import { Button, Space, Tag, Switch, Modal, App, Form, Input, Select, InputNumbe
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { bookingNoticeApi } from '@hospital/api';
 import type { BookingNotice } from '@hospital/api';
+import { createListRequest } from '@/utils/proTable';
+import { useDict } from '@/hooks/useDict';
 
 const { TextArea } = Input;
-
-// 类型选项
-const TYPE_OPTIONS = [
-  { label: '预约须知', value: 'BOOKING' },
-  { label: '就诊须知', value: 'VISIT' },
-  { label: '退号须知', value: 'REFUND' },
-];
 
 const TYPE_COLOR_MAP: Record<string, string> = {
   BOOKING: 'blue',
@@ -25,6 +20,10 @@ const TYPE_COLOR_MAP: Record<string, string> = {
 const BookingNoticePage = () => {
   const { message } = App.useApp();
   const actionRef = useRef<ActionType>();
+
+  // 字典数据
+  const { options: typeDict } = useDict('booking_notice_type');
+  const typeOptions = useMemo(() => typeDict.map(o => ({ label: o.label, value: o.value })), [typeDict]);
   const [form] = Form.useForm();
   const [modalVisible, setModalVisible] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
@@ -107,10 +106,10 @@ const BookingNoticePage = () => {
       dataIndex: 'type',
       valueType: 'select',
       fieldProps: {
-        options: TYPE_OPTIONS,
+        options: typeOptions,
       },
       render: (_, record) => {
-        const option = TYPE_OPTIONS.find(o => o.value === record.type);
+        const option = typeOptions.find(o => o.value === record.type);
         return <Tag color={TYPE_COLOR_MAP[record.type]}>{option?.label || record.type}</Tag>;
       },
     },
@@ -192,20 +191,7 @@ const BookingNoticePage = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        request={async (params) => {
-          const { current, pageSize, type, status } = params;
-          const result = await bookingNoticeApi.getList({
-            type,
-            status,
-            page: current,
-            pageSize,
-          });
-          return {
-            data: result.data,
-            total: result.total,
-            success: true,
-          };
-        }}
+        request={createListRequest(bookingNoticeApi.getList)}
         toolBarRender={() => [
           <Button
             key="add"
@@ -236,7 +222,7 @@ const BookingNoticePage = () => {
             label="类型"
             rules={[{ required: true, message: '请选择类型' }]}
           >
-            <Select options={TYPE_OPTIONS} placeholder="请选择类型" />
+            <Select options={typeOptions} placeholder="请选择类型" />
           </Form.Item>
           <Form.Item
             name="title"

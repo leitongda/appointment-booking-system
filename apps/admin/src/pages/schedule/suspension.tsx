@@ -10,11 +10,13 @@ import {
   ProFormRadio,
 } from '@ant-design/pro-components';
 import { Button, App, Tag, Popconfirm, Checkbox, Space, Drawer, Descriptions, Table, Divider, Alert, Statistic, Row, Col } from 'antd';
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { scheduleSuspensionApi } from '@hospital/api';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import { useDoctors } from '@/hooks/useDoctors';
-import { toProTableResult } from '@/utils/proTable';
+import { useCascadingSelect } from '@/hooks/useCascadingSelect';
+import { useDict } from '@/hooks/useDict';
+import { createListRequest } from '@/utils/proTable';
 import type {
   ScheduleSuspension,
   AvailableScheduleForSuspension,
@@ -50,25 +52,32 @@ const PROCESSING_STATUS_ENUM: Record<ProcessingStatus, { text: string; color: st
   failed: { text: '处置失败', color: 'error' },
 };
 
-// ── 处置方式 Radio 选项 ──────────────────────────────────────
-const PROCESSING_METHOD_OPTIONS = [
-  { label: '自动退号退款', value: 'auto_refund' },
-  { label: '转约其他医生', value: 'reschedule' },
-  { label: '改期其他时间', value: 'change_date' },
-  { label: '人工处理', value: 'manual' },
-];
-
 const SuspensionPage: React.FC = () => {
   const { message } = App.useApp();
+
+  // 字典数据
+  const { options: processingMethodDict } = useDict('processing_method');
+  const processingMethodOptions = useMemo(() => processingMethodDict.map(o => ({ label: o.label, value: o.value })), [processingMethodDict]);
+  const processingMethodEnum = useMemo(
+    () => Object.fromEntries(processingMethodDict.map((o) => [o.value, { text: o.label }])),
+    [processingMethodDict]
+  );
   const { stores } = useStoreWithPermission({ enabledOnly: true });
   const actionRef = useRef<ActionType>();
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedStore, setSelectedStore] = useState<string>();
-  const [selectedDoctor, setSelectedDoctor] = useState<string>();
   const [selectedDate, setSelectedDate] = useState<string>();
   const [availableSchedules, setAvailableSchedules] = useState<AvailableScheduleForSuspension[]>([]);
   const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
   const [selectedScheduleIds, setSelectedScheduleIds] = useState<string[]>([]);
+  const cascade = useCascadingSelect({
+    levels: [
+      { key: 'storeId' },
+      { key: 'doctorId' },
+    ],
+    onLevelChange: () => {
+      setAvailableSchedules([]);
+    },
+  });
 
   // ── 处置结果 Drawer ──────────────────────────────────────────
   const [processDrawerOpen, setProcessDrawerOpen] = useState(false);
@@ -82,14 +91,14 @@ const SuspensionPage: React.FC = () => {
   const [processConfirmLoading, setProcessConfirmLoading] = useState(false);
 
   // 使用共享 hook 加载医生数据（按门店筛选）
-  const { doctors } = useDoctors({ storeId: selectedStore, enabled: !!selectedStore });
+  const { doctors } = useDoctors({ storeId: cascade.values.storeId, enabled: !!cascade.values.storeId });
 
   async function loadAvailableSchedules() {
-    if (!selectedStore || !selectedDoctor || !selectedDate) return;
+    if (!cascade.values.storeId || !cascade.values.doctorId || !selectedDate) return;
     try {
       const result = await scheduleSuspensionApi.getAvailableSchedules(
-        selectedStore,
-        selectedDoctor,
+        cascade.values.storeId,
+        cascade.values.doctorId,
         selectedDate
       );
       setAvailableSchedules(result);
@@ -99,10 +108,10 @@ const SuspensionPage: React.FC = () => {
   }
 
   useEffect(() => {
-    if (selectedStore && selectedDoctor && selectedDate) {
+    if (cascade.values.storeId && cascade.values.doctorId && selectedDate) {
       loadAvailableSchedules();
     }
-  }, [selectedStore, selectedDoctor, selectedDate]);
+  }, [cascade.values.storeId, cascade.values.doctorId, selectedDate]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -256,12 +265,7 @@ const SuspensionPage: React.FC = () => {
       title: '处置方式',
       dataIndex: 'processingMethod',
       width: 130,
-      valueEnum: {
-        auto_refund: { text: '自动退号退款' },
-        reschedule: { text: '转约其他医生' },
-        change_date: { text: '改期其他时间' },
-        manual: { text: '人工处理' },
-      },
+      valueEnum: processingMethodEnum,
       render: (_, record) => {
         const method = record.processingMethod as ProcessingMethod | undefined;
         if (!method) return <span style={{ color: TEXT_SECONDARY }}>-</span>;
@@ -365,14 +369,7 @@ const SuspensionPage: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        request={async (params) => {
-          const { current, pageSize, ...rest } = params;
-          return toProTableResult(await scheduleSuspensionApi.getList({
-            ...rest,
-            page: current,
-            pageSize,
-          }));
-        }}
+        request={createListRequest(scheduleSuspensionApi.getList)}
         toolBarRender={() => [
           <Button
             key="add"
@@ -396,8 +393,7 @@ const SuspensionPage: React.FC = () => {
             setSelectedTimeSlots([]);
             setSelectedScheduleIds([]);
             setAvailableSchedules([]);
-            setSelectedStore(undefined);
-            setSelectedDoctor(undefined);
+            cascade.reset();
             setSelectedDate(undefined);
           }
         }}
@@ -411,11 +407,7 @@ const SuspensionPage: React.FC = () => {
           options={stores.map(s => ({ label: s.name, value: s.id }))}
           rules={[{ required: true, message: '请选择门店' }]}
           fieldProps={{
-            onChange: (val: string) => {
-              setSelectedStore(val);
-              setSelectedDoctor(undefined);
-              setAvailableSchedules([]);
-            },
+            onChange: cascade.getOnChange('storeId'),
           }}
         />
         <ProFormSelect
@@ -424,10 +416,7 @@ const SuspensionPage: React.FC = () => {
           options={doctors.map(d => ({ label: d.name, value: d.id }))}
           rules={[{ required: true, message: '请选择医生' }]}
           fieldProps={{
-            onChange: (val: string) => {
-              setSelectedDoctor(val);
-              setAvailableSchedules([]);
-            },
+            onChange: cascade.getOnChange('doctorId'),
           }}
         />
         <ProFormText
@@ -489,7 +478,7 @@ const SuspensionPage: React.FC = () => {
           </div>
         )}
 
-        {selectedStore && selectedDoctor && selectedDate && availableSchedules.length === 0 && (
+        {cascade.values.storeId && cascade.values.doctorId && selectedDate && availableSchedules.length === 0 && (
           <div style={{ marginTop: 16, color: TEXT_SECONDARY }}>
             该日期暂无排班
           </div>
@@ -499,7 +488,7 @@ const SuspensionPage: React.FC = () => {
         <ProFormRadio.Group
           name="processingMethod"
           label="处置方式"
-          options={PROCESSING_METHOD_OPTIONS}
+          options={processingMethodOptions}
           rules={[{ required: true, message: '请选择处置方式' }]}
           fieldProps={{
             optionType: 'button',
@@ -533,7 +522,7 @@ const SuspensionPage: React.FC = () => {
             />
             <div style={{ marginBottom: 8, fontWeight: 500 }}>请选择处置方式：</div>
             <Space direction="vertical" style={{ width: '100%' }}>
-              {PROCESSING_METHOD_OPTIONS.map(opt => (
+              {processingMethodOptions.map(opt => (
                 <Button
                   key={opt.value}
                   block

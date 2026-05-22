@@ -2,17 +2,16 @@ import { PlusOutlined, StopOutlined, PlayCircleOutlined, DeleteOutlined } from '
 import type { ActionType, ProColumns, ProFormInstance } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormSelect, ProFormDatePicker, ProFormDigit, ProFormTimePicker } from '@ant-design/pro-components';
 import { Button, App, Space, Tag, Popconfirm, Alert, Tooltip } from 'antd';
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import { useAccess, useModel } from '@umijs/max';
 import { scheduleApi, doctorApi, departmentApi } from '@hospital/api';
-import { toProTableResult } from '@/utils/proTable';
+import { createListRequest } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import { useDepartments } from '@/hooks/useDepartments';
 import { useDoctors } from '@/hooks/useDoctors';
 import type { Schedule, Doctor, Department } from '@hospital/shared';
-import { APPOINTMENT_TYPE_MAP } from '@hospital/shared';
-import { APPOINTMENT_TYPE_OPTIONS } from '@/constants/formFields';
+import { useDict } from '@/hooks/useDict';
 import ListPageSkeleton from '@/components/ListPageSkeleton';
 import { ScheduleMessages } from '../utils/message';
 import { TEXT_SECONDARY, COLOR_DANGER, COLOR_SUCCESS } from '@/themes/scheduleColors';
@@ -30,6 +29,11 @@ interface ScheduleDetailFormValues {
 const ScheduleDetailPage: React.FC = () => {
   const { message, modal } = App.useApp();
   const access = useAccess();
+  const { dictItems: appointmentTypeItems, options: appointmentTypeOptions } = useDict('appointment_type');
+  const appointmentTypeMap = useMemo(
+    () => Object.fromEntries(appointmentTypeItems.map((i) => [i.value, i.label])),
+    [appointmentTypeItems]
+  );
   const actionRef = useRef<ActionType>();
   const formRef = useRef<ProFormInstance>();
   const [modalOpen, setModalOpen] = useState(false);
@@ -311,7 +315,7 @@ const ScheduleDetailPage: React.FC = () => {
         };
         return (
           <Tag color={typeMap[record.appointmentType || 'normal'] || 'default'}>
-            {APPOINTMENT_TYPE_MAP[record.appointmentType || 'normal'] || record.appointmentType}
+            {appointmentTypeMap[record.appointmentType || 'normal'] || record.appointmentType}
           </Tag>
         );
       },
@@ -419,12 +423,7 @@ const ScheduleDetailPage: React.FC = () => {
           tableAlertOptionRender={false}
           request={async (params) => {
             try {
-              const { current, pageSize, ...rest } = params;
-              return toProTableResult(await scheduleApi.getList({
-                ...rest,
-                page: current,
-                pageSize,
-              }));
+              return await (createListRequest(scheduleApi.getList) as any)(params);
             } finally {
               setInitialLoading(false);
             }
@@ -507,7 +506,7 @@ const ScheduleDetailPage: React.FC = () => {
         <ProFormSelect
           name="appointmentType"
           label="预约类型"
-          options={[...APPOINTMENT_TYPE_OPTIONS]}
+          options={appointmentTypeOptions}
           rules={[{ required: true, message: '请选择预约类型' }]}
         />
         <ProFormTimePicker

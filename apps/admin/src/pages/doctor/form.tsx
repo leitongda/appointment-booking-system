@@ -7,35 +7,22 @@
 import { ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormRadio, ProFormDependency, ProFormGroup } from '@ant-design/pro-components';
 import type { ProFormInstance } from '@ant-design/pro-components';
 import { Card, Input, Form, Typography } from 'antd';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { history, useParams, useModel, useAccess } from '@umijs/max';
 import { doctorApi, departmentApi, storeApi } from '@hospital/api';
 import { GENDER_OPTIONS } from '@/constants';
 import { PAGINATION_CONFIG } from '@/constants/pagination';
 import type { Doctor, Department, Store } from '@hospital/shared';
 import RichTextEditor from '@/components/RichTextEditor';
-import { debounce } from 'lodash-es';
+import { useDict } from '@/hooks/useDict';
+import { useFieldUnique } from '@/hooks/useUniqueValidation';
 
 // 基础设施导入
 import FormPage from '@/components/FormPage';
 import { PasswordField, ImageUploadCard, SwitchGroup } from '@/components/formFields';
 import { requiredRules, phoneRules } from '@/utils/formValidators';
 
-const { Text, Link } = Typography;
-
-const PAGE_STYLE_OPTIONS = [
-  { label: '风格1', value: 1 },
-  { label: '风格2', value: 2 },
-  { label: '风格3', value: 3 },
-];
-
-const EDUCATION_OPTIONS = [
-  { label: '专科', value: '专科' },
-  { label: '本科', value: '本科' },
-  { label: '硕士', value: '硕士' },
-  { label: '博士', value: '博士' },
-  { label: '博士后', value: '博士后' },
-];
+const { Link } = Typography;
 
 /**
  * 医生表单页面
@@ -47,11 +34,16 @@ const DoctorFormPage: React.FC = () => {
   const { currentUser, currentStore } = initialState ?? {};
   const isSuperAdmin = access.canSuperAdmin;
   const isEdit = !!id;
+
+  // 字典数据
+  const { options: educationDict } = useDict('education');
+  const { options: pageStyleDict } = useDict('doctor_page_style');
+  const educationOptions = useMemo(() => educationDict.map(o => ({ label: o.label, value: o.value })), [educationDict]);
+  const pageStyleOptions = useMemo(() => pageStyleDict.map(o => ({ label: o.label, value: Number(o.value) })), [pageStyleDict]);
   const [loading, setLoading] = useState(false);
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
-  const [usernameError, setUsernameError] = useState<string>('');
   const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
   const formRef = useRef<ProFormInstance>(null);
 
@@ -80,29 +72,18 @@ const DoctorFormPage: React.FC = () => {
     }
   }
 
-  // 检查用户名是否重复（防抖）
-  const checkUsername = useCallback(
-    debounce(async (username: string) => {
-      if (!username) {
-        setUsernameError('');
-        setUsernameSuggestions([]);
-        return;
-      }
-      try {
-        const res = await doctorApi.checkUsername(username, isEdit ? id : undefined);
-        if (res.exists) {
-          setUsernameError('该账号已存在');
-          setUsernameSuggestions(res.suggestions);
-        } else {
-          setUsernameError('');
-          setUsernameSuggestions([]);
-        }
-      } catch (error) {
-        console.error('检查用户名失败', error);
-      }
-    }, 500),
-    [isEdit, id]
-  );
+  // 账号唯一性校验
+  const { rule: usernameRule, checking: usernameChecking } = useFieldUnique<{
+    suggestions: string[];
+  }>({
+    checkFn: async (value, excludeId) => {
+      const res = await doctorApi.checkUsername(value, excludeId ? String(excludeId) : undefined);
+      return { isUnique: !res.exists, extra: { suggestions: res.suggestions } };
+    },
+    message: '该账号已存在',
+    excludeId: isEdit ? id : undefined,
+    onNotUnique: (extra) => setUsernameSuggestions(extra.suggestions),
+  });
 
   // 根据姓名自动生成账号
   const handleNameChange = async (name: string) => {
@@ -115,7 +96,6 @@ const DoctorFormPage: React.FC = () => {
     try {
       const res = await doctorApi.generateUsername(name);
       formRef.current?.setFieldValue('username', res.username);
-      setUsernameError('');
       setUsernameSuggestions([]);
     } catch (error) {
       console.error('生成用户名失败', error);
@@ -125,7 +105,6 @@ const DoctorFormPage: React.FC = () => {
   // 点击推荐账号
   const handleSuggestionClick = (username: string) => {
     formRef.current?.setFieldValue('username', username);
-    setUsernameError('');
     setUsernameSuggestions([]);
   };
 
@@ -230,22 +209,16 @@ const DoctorFormPage: React.FC = () => {
           <Form.Item
             name="username"
             label="医生账号"
-            rules={[requiredRules('请输入医生账号')]}
-            validateStatus={usernameError ? 'error' : undefined}
+            rules={[requiredRules('请输入医生账号'), usernameRule]}
+            validateStatus={usernameChecking ? 'validating' : undefined}
             help={
-              usernameError ? (
+              usernameSuggestions.length > 0 && !usernameChecking ? (
                 <div>
-                  <Text type="danger">{usernameError}</Text>
-                  {usernameSuggestions.length > 0 && (
-                    <div style={{ marginTop: 4 }}>
-                      <Text type="secondary">推荐账号：</Text>
-                      {usernameSuggestions.map((s, i) => (
-                        <Link key={s} onClick={() => handleSuggestionClick(s)} style={{ marginLeft: i > 0 ? 8 : 4 }}>
-                          {s}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
+                  {usernameSuggestions.map((s, i) => (
+                    <Link key={s} onClick={() => handleSuggestionClick(s)} style={{ marginLeft: i > 0 ? 8 : 4 }}>
+                      {s}
+                    </Link>
+                  ))}
                 </div>
               ) : undefined
             }
@@ -254,7 +227,7 @@ const DoctorFormPage: React.FC = () => {
               style={{ width: 328 }}
               placeholder="用于医生端登录，输入姓名后自动生成"
               autoComplete="off"
-              onChange={(e) => checkUsername(e.target.value)}
+              onChange={() => setUsernameSuggestions([])}
             />
           </Form.Item>
         </ProFormGroup>
@@ -331,7 +304,7 @@ const DoctorFormPage: React.FC = () => {
             name="education"
             label="学历"
             width="sm"
-            options={EDUCATION_OPTIONS}
+            options={educationOptions}
             placeholder="请选择"
           />
           <ProFormText
@@ -423,7 +396,7 @@ const DoctorFormPage: React.FC = () => {
           <ProFormRadio.Group
             name="pageStyle"
             label="页面风格"
-            options={PAGE_STYLE_OPTIONS}
+            options={pageStyleOptions}
             tooltip="选择医生详情页的展示风格"
           />
         </ProFormGroup>

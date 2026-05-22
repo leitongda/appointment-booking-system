@@ -27,7 +27,8 @@ import { history, useAccess, useModel } from '@umijs/max';
 import { customScheduleApi } from '@hospital/api';
 import { useDepartments } from '@/hooks/useDepartments';
 import { useDoctors } from '@/hooks/useDoctors';
-import { APPOINTMENT_TYPE_OPTIONS } from '@/constants/formFields';
+import { useCascadingSelect } from '@/hooks/useCascadingSelect';
+import { useDict } from '@/hooks/useDict';
 
 // 基础设施导入
 import FormPage from '@/components/FormPage';
@@ -48,17 +49,23 @@ interface TimePeriodConfig {
 const CustomScheduleFormPage: React.FC = () => {
   useAccess();
   const { initialState: _initialState } = useModel('@@initialState');
+  const { options: appointmentTypeOptions } = useDict('appointment_type');
 
   const { stores } = useStoreWithPermission({ enabledOnly: true });
-  const [selectedStore, setSelectedStore] = useState<string>();
-  const [selectedDept, setSelectedDept] = useState<string>();
+  const cascade = useCascadingSelect({
+    levels: [
+      { key: 'storeId' },
+      { key: 'departmentId' },
+      { key: 'doctorId' },
+    ],
+  });
   const [timePeriods, setTimePeriods] = useState<TimePeriodConfig[]>([
     { key: '1', slotCount: 1, maxPatients: 1 }
   ]);
 
   // 使用共享 hooks 加载科室和医生数据
-  const { departments } = useDepartments({ enabled: !!selectedStore });
-  const { doctors } = useDoctors({ departmentId: selectedDept, enabled: !!selectedDept });
+  const { departments } = useDepartments({ enabled: !!cascade.values.storeId });
+  const { doctors } = useDoctors({ departmentId: cascade.values.departmentId, enabled: !!cascade.values.departmentId });
 
   // 添加时段
   const handleAddTimePeriod = () => {
@@ -140,7 +147,7 @@ const CustomScheduleFormPage: React.FC = () => {
           options={stores.map(s => ({ label: s.name, value: s.id }))}
           rules={[requiredRules('请选择门店')]}
           fieldProps={{
-            onChange: (val: any) => setSelectedStore(val),
+            onChange: cascade.getOnChange('storeId'),
           }}
           placeholder={stores.length === 0 ? '暂无可用门店' : '请选择门店'}
           disabled={stores.length === 0}
@@ -152,9 +159,7 @@ const CustomScheduleFormPage: React.FC = () => {
           options={departments.map(d => ({ label: d.name, value: d.id }))}
           rules={[requiredRules('请选择科室')]}
           fieldProps={{
-            onChange: (val: any) => {
-              setSelectedDept(val);
-            },
+            onChange: cascade.getOnChange('departmentId'),
           }}
         />
         <ProFormSelect
@@ -221,7 +226,7 @@ const CustomScheduleFormPage: React.FC = () => {
               <Col span={5}>
                 <ProFormSelect
                   label="预约类型"
-                  options={[...APPOINTMENT_TYPE_OPTIONS]}
+                  options={appointmentTypeOptions}
                   fieldProps={{
                     value: period.appointmentType,
                     onChange: (val) => handleTimePeriodChange(index, 'appointmentType', val),

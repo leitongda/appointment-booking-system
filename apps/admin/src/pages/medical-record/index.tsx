@@ -5,6 +5,7 @@ import { App, Button, Descriptions, Drawer, Space, Spin, Tag } from 'antd';
 import { useRef, useState } from 'react';
 import { departmentApi, doctorApi, medicalRecordApi } from '@hospital/api';
 import type { MedicalRecord, MedicalRecordListItem } from '@hospital/api';
+import { createListRequest } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
 import dayjs from 'dayjs';
 
@@ -189,35 +190,15 @@ const MedicalRecordPage: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        request={async (params) => {
-          const {
-            current,
-            pageSize,
-            keyword,
-            doctorId,
-            departmentId,
-            startDate,
-            endDate,
-            status,
-          } = params;
-
-          const result = await medicalRecordApi.getList({
-            keyword: keyword || undefined,
-            doctorId: doctorId || undefined,
-            departmentId: departmentId || undefined,
-            startDate: startDate || undefined,
-            endDate: endDate || undefined,
-            status: status !== undefined && status !== '' ? Number(status) : undefined,
-            page: current,
-            pageSize,
-          });
-
-          return {
-            data: result.data || [],
-            total: result.total || 0,
-            success: true,
-          };
-        }}
+        request={createListRequest(medicalRecordApi.getList, ({ keyword, doctorId, departmentId, startDate, endDate, status, ...params }) => ({
+          ...params,
+          keyword: keyword || undefined,
+          doctorId: doctorId || undefined,
+          departmentId: departmentId || undefined,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+          status: status !== undefined && status !== '' ? Number(status) : undefined,
+        }))}
         pagination={{ defaultPageSize: 10 }}
         search={{ labelWidth: 'auto' }}
       />

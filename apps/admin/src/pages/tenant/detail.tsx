@@ -1,8 +1,9 @@
 import { PageContainer, ProForm, ProFormDigit, ProFormSwitch } from '@ant-design/pro-components';
-import { Card, Descriptions, Tag, Statistic, Row, Col, Button, Tabs, Table, Popconfirm, Select, App, Upload, Alert, List, Space } from 'antd';
+import { Card, Descriptions, Tag, Statistic, Row, Col, Button, Tabs, Table, Popconfirm, Select, App, Upload, Alert, List, Space, Typography } from 'antd';
 import { history, useParams, useAccess } from '@umijs/max';
 import { useEffect, useState, useCallback } from 'react';
 import { tenantApi } from '@hospital/api';
+import { downloadBlob } from '@/utils/download';
 import type {
   Tenant,
   TenantUsageLog,
@@ -11,6 +12,18 @@ import type {
   PasswordPolicy,
   TenantUsageTrend,
 } from '@hospital/api';
+
+const { Text } = Typography;
+
+/** 解析 JSON 字符串，失败返回默认值 */
+function safeParseJson<T>(value: string | undefined | null, fallback: T): T {
+  if (!value) return fallback;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
 
 const TENANT_STATUS_MAP: Record<number, { text: string; color: string }> = {
   0: { text: '已禁用', color: 'default' },
@@ -66,8 +79,9 @@ const TenantDetailPage: React.FC = () => {
       setUsage((usageRes as any)?.data ?? usageRes);
       setSubscriptions((subRes as any)?.data ?? subRes ?? []);
       setUsageLogs((usageLogRes as any)?.data ?? usageLogRes ?? []);
-      // 从租户数据中提取标签
-      setTenantTags(t?.tags || []);
+      // 从租户数据中提取标签（tags 是 JSON 字符串）
+      const parsedTags = safeParseJson<string[]>(t?.tags, []);
+      setTenantTags(parsedTags);
     } catch (error) {
       message.error('加载租户信息失败');
       history.back();
@@ -162,14 +176,7 @@ const TenantDetailPage: React.FC = () => {
     setBackupLoading(true);
     try {
       const blob = await tenantApi.exportTenantBackup(id);
-      const url = URL.createObjectURL(blob as any);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `tenant_${(tenant?.tenantCode || id).slice(0, 8)}_backup.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      downloadBlob(blob as any, `tenant_${(tenant?.tenantCode || id).slice(0, 8)}_backup.json`);
       message.success('备份导出成功');
     } catch (error: any) {
       message.error(error.message || '备份导出失败');
@@ -299,6 +306,153 @@ const TenantDetailPage: React.FC = () => {
                       ) },
                     ]} />
                   ),
+                },
+                {
+                  key: 'config',
+                  label: '租户配置',
+                  children: (() => {
+                    const features = safeParseJson<Record<string, boolean>>(tenant.features, {});
+                    const branding = safeParseJson<{ logoUrl?: string; themeColor?: string }>(tenant.brandingConfig, {});
+                    const tagsArr = safeParseJson<string[]>(tenant.tags, []);
+
+                    const featureLabels: Record<string, string> = {
+                      online_payment: '在线支付',
+                      evaluation: '评价功能',
+                      waiting_queue: '候诊排队',
+                      online_service: '在线客服',
+                      miniapp_live: '小程序直播',
+                      wechat_integration: '微信集成',
+                      sms_notification: '短信通知',
+                      export_data: '数据导出',
+                      api_access: 'API 开放接口',
+                      custom_branding: '自定义品牌',
+                      sso: '单点登录 (SSO)',
+                      basic_appointment: '基础预约',
+                      basic_schedule: '基础排班',
+                      basic_statistics: '基础统计',
+                      advanced_statistics: '高级数据分析',
+                      priority_support: '优先技术支持',
+                      beta_features: '灰度功能总开关',
+                      beta_ai_assistant: 'AI 辅助',
+                      beta_analytics_v2: '新版数据分析',
+                    };
+
+                    const enabledFeatures = Object.entries(features)
+                      .filter(([_, v]) => v)
+                      .map(([k]) => featureLabels[k] || k);
+                    const disabledFeatures = Object.entries(features)
+                      .filter(([_, v]) => !v)
+                      .map(([k]) => featureLabels[k] || k);
+
+                    return (
+                      <>
+                        <Card title="功能开关" size="small" style={{ marginBottom: 16 }}>
+                          {Object.keys(features).length === 0 ? (
+                            <Text type="secondary">未配置功能开关</Text>
+                          ) : (
+                            <>
+                              <div style={{ marginBottom: 8 }}>
+                                <Text strong>已启用: </Text>
+                                {enabledFeatures.length > 0
+                                  ? enabledFeatures.map((f) => <Tag color="success" key={f}>{f}</Tag>)
+                                  : <Text type="secondary">无</Text>}
+                              </div>
+                              <div>
+                                <Text strong>未启用: </Text>
+                                {disabledFeatures.length > 0
+                                  ? disabledFeatures.map((f) => <Tag key={f}>{f}</Tag>)
+                                  : <Text type="secondary">无</Text>}
+                              </div>
+                            </>
+                          )}
+                        </Card>
+
+                        <Card title="品牌配置" size="small" style={{ marginBottom: 16 }}>
+                          {branding.logoUrl || branding.themeColor ? (
+                            <Descriptions column={2} size="small">
+                              {branding.logoUrl && (
+                                <Descriptions.Item label="Logo">
+                                  <a href={branding.logoUrl} target="_blank" rel="noreferrer">{branding.logoUrl}</a>
+                                </Descriptions.Item>
+                              )}
+                              {branding.themeColor && (
+                                <Descriptions.Item label="主题色">
+                                  <Space>
+                                    <span style={{
+                                      display: 'inline-block',
+                                      width: 20,
+                                      height: 20,
+                                      borderRadius: 4,
+                                      backgroundColor: branding.themeColor,
+                                      border: '1px solid #d9d9d9',
+                                      verticalAlign: 'middle',
+                                    }} />
+                                    <Text>{branding.themeColor}</Text>
+                                  </Space>
+                                </Descriptions.Item>
+                              )}
+                            </Descriptions>
+                          ) : (
+                            <Text type="secondary">未配置品牌信息</Text>
+                          )}
+                        </Card>
+
+                        <Card title="限流配置" size="small" style={{ marginBottom: 16 }}>
+                          <Descriptions column={2} size="small">
+                            <Descriptions.Item label="每分钟请求上限">
+                              {tenant.rateLimitPerMinute ?? '使用全局默认值 (300)'}
+                            </Descriptions.Item>
+                            <Descriptions.Item label="每秒请求上限">
+                              {tenant.rateLimitPerSecond ?? '使用全局默认值 (50)'}
+                            </Descriptions.Item>
+                          </Descriptions>
+                        </Card>
+
+                        <Card title="运维配置" size="small" style={{ marginBottom: 16 }}>
+                          <Descriptions column={2} size="small">
+                            <Descriptions.Item label="日志保留天数">
+                              {tenant.logRetentionDays ?? 90} 天
+                            </Descriptions.Item>
+                            <Descriptions.Item label="自定义域名">
+                              {tenant.customDomain || '-'}
+                            </Descriptions.Item>
+                            <Descriptions.Item label="子域名前缀">
+                              {tenant.subdomain || '-'}
+                            </Descriptions.Item>
+                            <Descriptions.Item label="租户标签">
+                              {tagsArr.length > 0
+                                ? tagsArr.map((t) => <Tag color="blue" key={t}>{t}</Tag>)
+                                : '-'}
+                            </Descriptions.Item>
+                          </Descriptions>
+                        </Card>
+
+                        <Card title="安全策略" size="small">
+                          {(() => {
+                            // 从 tenant.passwordPolicy 获取，或从 API 获取的 passwordPolicy
+                            const rawPolicy = passwordPolicy || safeParseJson<Record<string, any>>(tenant.passwordPolicy, {} as Record<string, any>);
+                            const hasPolicy = rawPolicy && Object.keys(rawPolicy).length > 0;
+                            if (!hasPolicy) {
+                              return <Text type="secondary">使用系统默认策略</Text>;
+                            }
+                            // 兼容两种格式：API 返回的 camelCase 和数据库存储的 snake_case
+                            const minLength = (rawPolicy as any).minLength ?? (rawPolicy as any).min_length ?? '-';
+                            const requireUppercase = ((rawPolicy as any).requireUppercase ?? (rawPolicy as any).require_uppercase) ? '是' : '否';
+                            const requireDigit = ((rawPolicy as any).requireDigit ?? (rawPolicy as any).require_digit) ? '是' : '否';
+                            const requireSpecial = ((rawPolicy as any).requireSpecialChar ?? (rawPolicy as any).require_special) ? '是' : '否';
+                            return (
+                              <Descriptions column={2} size="small">
+                                <Descriptions.Item label="密码最小长度">{minLength}</Descriptions.Item>
+                                <Descriptions.Item label="要求大写字母">{requireUppercase}</Descriptions.Item>
+                                <Descriptions.Item label="要求数字">{requireDigit}</Descriptions.Item>
+                                <Descriptions.Item label="要求特殊字符">{requireSpecial}</Descriptions.Item>
+                              </Descriptions>
+                            );
+                          })()}
+                        </Card>
+                      </>
+                    );
+                  })(),
                 },
                 {
                   key: 'subscriptions',

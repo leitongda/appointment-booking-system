@@ -12,11 +12,13 @@ import {
 import { App, Popconfirm, Space, Tag, Button, Divider, Dropdown, Modal } from 'antd';
 import type { MenuProps } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, MoreOutlined, EyeOutlined, StopOutlined } from '@ant-design/icons';
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import { history, useAccess } from '@umijs/max';
 import { patientApi, dataApi } from '@hospital/api';
 import { GENDER_MAP, GENDER_OPTIONS } from '@/constants';
-import { toProTableResult } from '@/utils/proTable';
+import { useDict } from '@/hooks/useDict';
+import { createListRequest } from '@/utils/proTable';
+import { phoneRules, idCardRules } from '@/utils/formValidators';
 import type { PatientListItem, PatientUpdateData } from '@hospital/api';
 import type { PatientCreateData } from '@hospital/api/src/modules/patient';
 import ImportExport from '@/components/ImportExport';
@@ -26,21 +28,9 @@ const SOURCE_MAP: Record<number, string> = {
   2: '管理员添加',
 };
 
-const RELATIONSHIP_OPTIONS = [
-  { label: '本人', value: '本人' },
-  { label: '父母', value: '父母' },
-  { label: '配偶', value: '配偶' },
-  { label: '子女', value: '子女' },
-  { label: '其他', value: '其他' },
-];
-
-const ID_CARD_TYPE_OPTIONS = [
-  { label: '居民身份证', value: 1 },
-  { label: '户口簿', value: 2 },
-  { label: '护照', value: 3 },
-];
-
 const PatientPage: React.FC = () => {
+  const { options: relationshipOptions } = useDict('patient_relationship');
+  const { options: idCardTypeOptions } = useDict('id_card_type');
   const { message } = App.useApp();
   const access = useAccess();
   const actionRef = useRef<ActionType>();
@@ -224,11 +214,10 @@ const PatientPage: React.FC = () => {
         rowKey="id"
         columns={columns}
         scroll={{ x: 1300 }}
-        request={async (params) => {
-          const { current, pageSize, name, phone, cardNo, ...rest } = params;
-          const keyword = name || phone || cardNo;
-          return toProTableResult(await patientApi.getList({ ...rest, keyword, page: current, pageSize }));
-        }}
+        request={createListRequest(patientApi.getList, ({ name, phone, cardNo, ...params }) => ({
+          ...params,
+          keyword: name || phone || cardNo,
+        }))}
         pagination={{ defaultPageSize: 10 }}
         search={{ labelWidth: 'auto' }}
         toolBarRender={() => [
@@ -276,7 +265,7 @@ const PatientPage: React.FC = () => {
             width="sm"
             rules={[
               { required: true, message: '请输入手机号' },
-              { pattern: /^1\d{10}$/, message: '手机号格式不正确' },
+              phoneRules.pattern,
             ]}
             placeholder="请输入手机号"
           />
@@ -302,7 +291,7 @@ const PatientPage: React.FC = () => {
             label="身份证号"
             width="sm"
             rules={[
-              { pattern: /^[1-9]\d{5}(18|19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]$/, message: '身份证号格式不正确' },
+              idCardRules.pattern,
             ]}
             placeholder="请输入身份证号"
           />
@@ -310,8 +299,8 @@ const PatientPage: React.FC = () => {
             name="idCardType"
             label="证件类型"
             width="sm"
-            options={ID_CARD_TYPE_OPTIONS}
-            initialValue={1}
+            options={idCardTypeOptions}
+            initialValue="1"
           />
         </ProForm.Group>
         <ProForm.Group>
@@ -319,7 +308,7 @@ const PatientPage: React.FC = () => {
             name="relationship"
             label="与本人关系"
             width="sm"
-            options={RELATIONSHIP_OPTIONS}
+            options={relationshipOptions}
             initialValue="本人"
           />
           <ProFormText
@@ -386,7 +375,7 @@ const PatientPage: React.FC = () => {
             width="sm"
             rules={[
               { required: true, message: '请输入手机号' },
-              { pattern: /^1\d{10}$/, message: '手机号格式不正确' },
+              phoneRules.pattern,
             ]}
             placeholder="请输入手机号"
           />
@@ -417,7 +406,7 @@ const PatientPage: React.FC = () => {
             name="idCardType"
             label="证件类型"
             width="sm"
-            options={ID_CARD_TYPE_OPTIONS}
+            options={idCardTypeOptions}
           />
         </ProForm.Group>
         <ProForm.Group>
@@ -425,7 +414,7 @@ const PatientPage: React.FC = () => {
             name="relationship"
             label="与本人关系"
             width="sm"
-            options={RELATIONSHIP_OPTIONS}
+            options={relationshipOptions}
           />
           <ProFormText
             name="ethnicity"

@@ -19,10 +19,12 @@ import {
   App,
 } from 'antd';
 import { UserOutlined, ManOutlined, WomanOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { history, useParams, useAccess } from '@umijs/max';
 import { userManageApi } from '@hospital/api';
 import { GENDER_MAP, GENDER_OPTIONS } from '@/constants';
+import { useDict } from '@/hooks/useDict';
+import { phoneRules } from '@/utils/formValidators';
 import type { UserDetail, UserCard, CardCreateData, CardUpdateData, UserUpdateData } from '@hospital/api';
 
 const { Title, Text } = Typography;
@@ -32,25 +34,17 @@ const SOURCE_MAP: Record<number, string> = {
   2: '管理员添加',
 };
 
-const RELATIONSHIP_OPTIONS = [
-  { label: '本人', value: '本人' },
-  { label: '父母', value: '父母' },
-  { label: '配偶', value: '配偶' },
-  { label: '子女', value: '子女' },
-  { label: '其他', value: '其他' },
-];
-
-const ID_CARD_TYPE_OPTIONS = [
-  { label: '居民身份证', value: 1 },
-  { label: '户口簿', value: 2 },
-  { label: '护照', value: 3 },
-];
-
 const UserDetailPage: React.FC = () => {
   const { id } = useParams();
   const { message } = App.useApp();
   const access = useAccess();
   const [loading, setLoading] = useState(true);
+
+  // 字典数据
+  const { options: relationshipDict } = useDict('patient_relationship');
+  const { options: idCardTypeDict } = useDict('id_card_type');
+  const relationshipOptions = useMemo(() => relationshipDict.map(o => ({ label: o.label, value: o.value })), [relationshipDict]);
+  const idCardTypeOptions = useMemo(() => idCardTypeDict.map(o => ({ label: o.label, value: Number(o.value) })), [idCardTypeDict]);
   const [user, setUser] = useState<UserDetail | null>(null);
   const [pointModalOpen, setPointModalOpen] = useState(false);
   const [pointLoading, setPointLoading] = useState(false);
@@ -253,7 +247,7 @@ const UserDetailPage: React.FC = () => {
           width="sm"
           rules={[
             { required: true, message: '请输入手机号' },
-            { pattern: /^1\d{10}$/, message: '手机号格式不正确' },
+            phoneRules.pattern,
           ]}
           placeholder="请输入手机号"
         />
@@ -284,7 +278,7 @@ const UserDetailPage: React.FC = () => {
           name="idCardType"
           label="证件类型"
           width="sm"
-          options={ID_CARD_TYPE_OPTIONS}
+          options={idCardTypeOptions}
           initialValue={1}
         />
       </ProForm.Group>
@@ -293,7 +287,7 @@ const UserDetailPage: React.FC = () => {
           name="relationship"
           label="与本人关系"
           width="sm"
-          options={RELATIONSHIP_OPTIONS}
+          options={relationshipOptions}
         />
         <ProFormText
           name="ethnicity"
@@ -492,7 +486,7 @@ const UserDetailPage: React.FC = () => {
           name="phone"
           label="手机号"
           rules={[
-            { pattern: /^1\d{10}$/, message: '手机号格式不正确' },
+            phoneRules.pattern,
           ]}
           placeholder="请输入手机号"
         />

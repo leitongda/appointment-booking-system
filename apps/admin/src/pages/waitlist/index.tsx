@@ -7,7 +7,7 @@ import { useAccess, useModel } from '@umijs/max';
 import { waitlistApi, storeApi, doctorApi, departmentApi } from '@hospital/api';
 import type { WaitlistEntry, WaitlistStatus, WaitlistStats } from '@hospital/api';
 import type { Store, Department, Doctor } from '@hospital/shared';
-import { toProTableResult } from '@/utils/proTable';
+import { createListRequest } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
 import { PAGINATION_CONFIG } from '@/constants/pagination';
 import ListPageSkeleton from '@/components/ListPageSkeleton';
@@ -407,32 +407,16 @@ const WaitlistPage: React.FC = () => {
           actionRef={actionRef}
           rowKey="id"
           columns={columns}
-          request={async (params) => {
-            const {
-              current,
-              pageSize,
-              keyword,
-              storeId,
-              departmentId,
-              doctorId,
-              status,
-              startDate,
-              endDate,
-            } = params;
-            return toProTableResult(
-              await waitlistApi.adminList({
-                keyword: keyword || undefined,
-                storeId: storeId || undefined,
-                departmentId: departmentId || undefined,
-                doctorId: doctorId || undefined,
-                status: (status as WaitlistStatus) || undefined,
-                startDate: startDate || undefined,
-                endDate: endDate || undefined,
-                page: current,
-                pageSize,
-              })
-            );
-          }}
+          request={createListRequest(waitlistApi.adminList, ({ keyword, storeId, departmentId, doctorId, status, startDate, endDate, ...params }) => ({
+            ...params,
+            keyword: keyword || undefined,
+            storeId: storeId || undefined,
+            departmentId: departmentId || undefined,
+            doctorId: doctorId || undefined,
+            status: (status as WaitlistStatus) || undefined,
+            startDate: startDate || undefined,
+            endDate: endDate || undefined,
+          }))}
           pagination={{
             defaultPageSize: PAGINATION_CONFIG.DEFAULT_PAGE_SIZE,
           }}

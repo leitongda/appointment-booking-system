@@ -3,6 +3,7 @@ import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { consultationFeeTypeApi } from '@hospital/api';
 import type { ConsultationFeeType } from '@hospital/shared';
 import { useListPage } from '@/hooks/useListPage';
+import { createListRequest } from '@/utils/proTable';
 import { CreateButton, createOperationColumn } from '@/components/ListOperations';
 
 const ConsultationFeeTypesPage: React.FC = () => {
@@ -70,14 +71,7 @@ const ConsultationFeeTypesPage: React.FC = () => {
         rowKey="id"
         columns={columns}
         search={false}
-        request={async (params) => {
-          const list = await consultationFeeTypeApi.getList({ status: params.status });
-          return {
-            data: list,
-            success: true,
-            total: list.length,
-          };
-        }}
+        request={createListRequest(consultationFeeTypeApi.getList, ({ status }) => ({ status }))}
         toolBarRender={() => [
           <CreateButton
             key="add"

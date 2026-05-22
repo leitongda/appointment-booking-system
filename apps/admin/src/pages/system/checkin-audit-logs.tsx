@@ -3,6 +3,7 @@ import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { useRef } from 'react';
 import { App } from 'antd';
 import { auditLogApi } from '@hospital/api';
+import { createListRequest } from '@/utils/proTable';
 
 const CheckinAuditLogsPage: React.FC = () => {
   const { message } = App.useApp();
@@ -106,26 +107,11 @@ const CheckinAuditLogsPage: React.FC = () => {
         search={{
           labelWidth: 'auto',
         }}
-        request={async (params) => {
-          try {
-            const result = await auditLogApi.getCheckinLogs({
-              page: params.current,
-              pageSize: params.pageSize,
-              status: params.status,
-              checkinMethod: params.checkinMethod,
-              startTime: params.checkinTime?.[0],
-              endTime: params.checkinTime?.[1],
-            });
-            return {
-              data: result.data || [],
-              success: true,
-              total: result.total || 0,
-            };
-          } catch {
-            message.error('加载签到审计日志失败');
-            return { data: [], success: false, total: 0 };
-          }
-        }}
+        request={createListRequest(auditLogApi.getCheckinLogs, ({ checkinTime, ...params }) => ({
+          ...params,
+          startTime: checkinTime?.[0],
+          endTime: checkinTime?.[1],
+        }))}
         pagination={{
           defaultPageSize: 20,
           showSizeChanger: true,

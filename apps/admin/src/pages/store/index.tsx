@@ -6,7 +6,7 @@ import type { TreeDataNode, TreeProps, TransferProps, MenuProps } from 'antd';
 import { useRef, useState, useCallback } from 'react';
 import { history, useAccess } from '@umijs/max';
 import { storeApi, departmentApi, adminApi, dataApi } from '@hospital/api';
-import { toProTableResult } from '@/utils/proTable';
+import { createListRequest } from '@/utils/proTable';
 import type { Store, DepartmentTreeNode } from '@hospital/shared';
 import ImportExport from '@/components/ImportExport';
 
@@ -398,10 +398,7 @@ const StorePage: React.FC = () => {
         rowKey="id"
         columns={columns}
         scroll={{ x: 1300 }}
-        request={async (params) => {
-          const { current, pageSize, name, ...rest } = params;
-          return toProTableResult(await storeApi.getList({ ...rest, keyword: name, page: current, pageSize }));
-        }}
+        request={createListRequest(storeApi.getList, ({ name, ...params }) => ({ ...params, keyword: name }))}
         toolBarRender={() => [
           <ImportExport
             key="import-export"

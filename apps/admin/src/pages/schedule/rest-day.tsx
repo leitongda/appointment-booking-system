@@ -5,7 +5,7 @@ import { Button, App, Tag, Popconfirm, Alert } from 'antd';
 import { useRef } from 'react';
 import { history } from '@umijs/max';
 import { restDayApi } from '@hospital/api';
-import { toProTableResult } from '@/utils/proTable';
+import { createListRequest } from '@/utils/proTable';
 import type { RestDay } from '@hospital/api';
 import { ScheduleMessages } from './utils/message';
 import { COLOR_DANGER } from '@/themes/scheduleColors';
@@ -133,14 +133,7 @@ const RestDayPage: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        request={async (params) => {
-          const { current, pageSize, ...rest } = params;
-          return toProTableResult(await restDayApi.getList({
-            ...rest,
-            page: current,
-            pageSize,
-          }));
-        }}
+        request={createListRequest(restDayApi.getList)}
         toolBarRender={() => [
           <Button
             key="add"

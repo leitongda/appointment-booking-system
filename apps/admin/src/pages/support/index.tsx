@@ -2,8 +2,9 @@ import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea } from '@ant-design/pro-components';
 import { Tag, Drawer, Descriptions, Card, Row, Col, Statistic, Popconfirm, App } from 'antd';
 import { CheckCircleOutlined, StopOutlined, UndoOutlined, UserOutlined } from '@ant-design/icons';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supportTicketApi } from '@hospital/api';
+import { useDict } from '@/hooks/useDict';
 import type { SupportTicket, SupportTicketStatistics } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
 import { useListPage } from '@/hooks/useListPage';
@@ -33,6 +34,16 @@ const PRIORITY_MAP: Record<string, { text: string; color: string }> = {
 const SupportTicketPage: React.FC = () => {
   const { message } = App.useApp();
   const { actionRef, reload } = useListPage();
+  const { options: ticketTypeOptions } = useDict('support_ticket_type');
+  const { options: priorityOptions } = useDict('support_ticket_priority');
+  const ticketTypeEnum = useMemo(
+    () => Object.fromEntries(ticketTypeOptions.map((o) => [o.value, { text: o.label }])),
+    [ticketTypeOptions],
+  );
+  const priorityEnum = useMemo(
+    () => Object.fromEntries(priorityOptions.map((o) => [o.value, { text: o.label }])),
+    [priorityOptions],
+  );
   const [detailOpen, setDetailOpen] = useState(false);
   const [currentRecord, setCurrentRecord] = useState<SupportTicket | null>(null);
   const [resolveOpen, setResolveOpen] = useState(false);
@@ -110,7 +121,7 @@ const SupportTicketPage: React.FC = () => {
       title: '类型',
       dataIndex: 'type',
       width: 80,
-      valueEnum: Object.fromEntries(Object.entries(TYPE_MAP).map(([k, v]) => [k, { text: v.text }])),
+      valueEnum: ticketTypeEnum,
       render: (_, r) => {
         const t = TYPE_MAP[r.type || 'other'];
         return <Tag color={t.color}>{t.text}</Tag>;
@@ -130,7 +141,7 @@ const SupportTicketPage: React.FC = () => {
       title: '优先级',
       dataIndex: 'priority',
       width: 80,
-      valueEnum: Object.fromEntries(Object.entries(PRIORITY_MAP).map(([k, v]) => [k, { text: v.text }])),
+      valueEnum: priorityEnum,
       render: (_, r) => {
         const p = PRIORITY_MAP[r.priority || 'medium'];
         return <Tag color={p.color}>{p.text}</Tag>;

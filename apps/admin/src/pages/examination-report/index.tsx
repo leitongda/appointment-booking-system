@@ -6,7 +6,7 @@ import { useRef, useState, useCallback, useMemo, useEffect } from 'react';
 import { useAccess, useModel } from '@umijs/max';
 import { examinationReportApi, storeApi, doctorApi } from '@hospital/api';
 import type { ExaminationReportListItem } from '@hospital/api';
-import { toProTableResult } from '@/utils/proTable';
+import { createListRequest } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
 import { PAGINATION_CONFIG } from '@/constants/pagination';
 import ListPageSkeleton from '@/components/ListPageSkeleton';
@@ -260,30 +260,15 @@ const ExaminationReportPage: React.FC = () => {
           actionRef={actionRef}
           rowKey="id"
           columns={columns}
-          request={async (params) => {
-            const {
-              current,
-              pageSize,
-              keyword,
-              storeId,
-              reportType,
-              doctorId,
-              startDate,
-              endDate,
-            } = params;
-            return toProTableResult(
-              await examinationReportApi.adminList({
-                keyword: keyword || undefined,
-                storeId: storeId || undefined,
-                reportType: reportType || undefined,
-                doctorId: doctorId || undefined,
-                startDate: startDate || undefined,
-                endDate: endDate || undefined,
-                page: current,
-                pageSize,
-              })
-            );
-          }}
+          request={createListRequest(examinationReportApi.adminList, ({ keyword, storeId, reportType, doctorId, startDate, endDate, ...params }) => ({
+            ...params,
+            keyword: keyword || undefined,
+            storeId: storeId || undefined,
+            reportType: reportType || undefined,
+            doctorId: doctorId || undefined,
+            startDate: startDate || undefined,
+            endDate: endDate || undefined,
+          }))}
           pagination={{
             defaultPageSize: PAGINATION_CONFIG.DEFAULT_PAGE_SIZE,
           }}

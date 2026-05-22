@@ -6,6 +6,7 @@ import { useRef, useState, useEffect } from 'react';
 import { history, useParams } from '@umijs/max';
 import { consultationFeeTypeApi, storeApi } from '@hospital/api';
 import type { ConsultationFeeType, ConsultationFeeTypeCreate, Store } from '@hospital/shared';
+import { createListRequest } from '@/utils/proTable';
 
 const StoreFeeTypesPage: React.FC = () => {
   const { message } = App.useApp();
@@ -191,17 +192,7 @@ const StoreFeeTypesPage: React.FC = () => {
         columns={columns}
         rowKey="id"
         search={false}
-        request={async () => {
-          const data = await consultationFeeTypeApi.getList({
-            storeId: storeId,
-            includeGlobal: true,
-          });
-          return {
-            data,
-            success: true,
-            total: data.length,
-          };
-        }}
+        request={createListRequest(() => consultationFeeTypeApi.getList({ storeId, includeGlobal: true }))}
         toolBarRender={() => [
           <Button
             key="add"

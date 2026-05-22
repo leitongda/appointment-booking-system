@@ -1,25 +1,11 @@
 /**
- * 公告表单页面（重构版）
+ * 公告表单页面
  *
- * 代码行数：~100 行 (vs 原始 132 行)
- *
- * 使用基础设施：
- * - FormPage 组件：统一表单页面布局和底部工具栏
- * - SwitchGroup 组件：开关组（自动处理 boolean ↔ number 转换）
- * - useFormInitialValues hook：处理初始值和开关字段转换
- * - useFormSubmit hook：处理提交逻辑和开关字段转换
- * - RichTextEditor 组件：富文本编辑器（保留原有）
- * - NOTICE_TYPE_OPTIONS 常量：统一公告类型选项
- *
- * 优化效果：
- * - 减少约 30 行重复代码
- * - 消除手动开关字段转换逻辑
- * - 统一表单页面布局和错误处理
- * - 提高代码可读性和可维护性
+ * 公告类型通过 useDict('notice_type') 从字典 API 获取
  */
 import { ProFormText, ProFormSelect } from '@ant-design/pro-components';
 import { Card, Form } from 'antd';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, history } from '@umijs/max';
 import { contentApi } from '@hospital/api';
 import type { Notice } from '@hospital/api';
@@ -28,7 +14,7 @@ import type { Notice } from '@hospital/api';
 import FormPage from '@/components/FormPage';
 import { SwitchGroup } from '@/components/formFields';
 import RichTextEditor from '@/components/RichTextEditor';
-import { NOTICE_TYPE_OPTIONS } from '@/constants';
+import { useDict } from '@/hooks/useDict';
 import { useFormInitialValues } from '@/hooks/useFormInitialValues';
 import { useFormSubmit } from '@/hooks/useFormSubmit';
 
@@ -37,6 +23,10 @@ const NoticeFormPage: React.FC = () => {
   const isEdit = !!id;
   const [notice, setNotice] = useState<Notice | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // 字典数据
+  const { options: noticeTypeDict } = useDict('notice_type');
+  const noticeTypeOptions = useMemo(() => noticeTypeDict.map(o => ({ label: o.label, value: Number(o.value) })), [noticeTypeDict]);
 
   // 加载公告数据
   useEffect(() => {
@@ -109,7 +99,7 @@ const NoticeFormPage: React.FC = () => {
           name="type"
           label="类型"
           width="md"
-          options={[...NOTICE_TYPE_OPTIONS]}
+          options={noticeTypeOptions}
           rules={[{ required: true, message: '请选择类型' }]}
         />
       </Card>

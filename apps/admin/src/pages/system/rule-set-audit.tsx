@@ -5,6 +5,7 @@ import { useRef, useState, useEffect } from 'react';
 import { useParams, useSearchParams } from '@umijs/max';
 import { ruleSetApi } from '@hospital/api';
 import type { RuleSetAuditLog } from '@hospital/shared';
+import { createListRequest } from '@/utils/proTable';
 import { history } from '@umijs/max';
 
 interface ChangeItem {
@@ -232,20 +233,7 @@ const RuleSetAuditPage: React.FC = () => {
         rowKey="id"
         columns={columns}
         search={false}
-        request={async (params) => {
-          if (!id) {
-            return { data: [], success: false, total: 0 };
-          }
-          const result = await ruleSetApi.getAuditLogs(id, {
-            page: params.current,
-            pageSize: params.pageSize,
-          });
-          return {
-            data: result.data || [],
-            success: true,
-            total: result.total || 0,
-          };
-        }}
+        request={id ? createListRequest((params) => ruleSetApi.getAuditLogs(id, params)) : undefined}
         pagination={{
           defaultPageSize: 20,
           showSizeChanger: true,

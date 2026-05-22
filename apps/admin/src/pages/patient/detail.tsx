@@ -21,13 +21,15 @@ import {
   Popconfirm,
 } from 'antd';
 import { UserOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { history, useParams, useAccess, useSearchParams } from '@umijs/max';
 import { patientApi, doctorApi } from '@hospital/api';
 import { GENDER_MAP, GENDER_OPTIONS } from '@/constants';
+import { useDict } from '@/hooks/useDict';
 import { APPOINTMENT_STATUS_MAP as SHARED_STATUS_MAP, APPOINTMENT_STATUS_COLOR } from '@hospital/shared';
 import { toProTableResult } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
+import { phoneRules } from '@/utils/formValidators';
 import type {
   PatientDetail,
   PatientAppointment,
@@ -47,13 +49,6 @@ const SOURCE_MAP: Record<number, string> = {
   2: '管理员添加',
 };
 
-// 证件类型映射
-const ID_CARD_TYPE_MAP: Record<number, string> = {
-  1: '居民身份证（户口簿）',
-  2: '户口簿',
-  3: '护照',
-};
-
 // 预约状态渲染辅助函数
 const renderAppointmentStatus = (status: number) => {
   const text = SHARED_STATUS_MAP[status] || '未知';
@@ -61,21 +56,14 @@ const renderAppointmentStatus = (status: number) => {
   return <Tag color={color}>{text}</Tag>;
 };
 
-const RELATIONSHIP_OPTIONS = [
-  { label: '本人', value: '本人' },
-  { label: '父母', value: '父母' },
-  { label: '配偶', value: '配偶' },
-  { label: '子女', value: '子女' },
-  { label: '其他', value: '其他' },
-];
-
-const ID_CARD_TYPE_OPTIONS = [
-  { label: '居民身份证', value: 1 },
-  { label: '户口簿', value: 2 },
-  { label: '护照', value: 3 },
-];
-
 const PatientDetailPage: React.FC = () => {
+  const { dictItems: idCardTypeItems, options: idCardTypeOptions } = useDict('id_card_type');
+  const { options: relationshipOptions } = useDict('patient_relationship');
+
+  const idCardTypeMap = useMemo(
+    () => Object.fromEntries(idCardTypeItems.map((i) => [i.value, i.label])),
+    [idCardTypeItems]
+  );
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const { message } = App.useApp();
@@ -393,7 +381,7 @@ const PatientDetailPage: React.FC = () => {
             { key: '4', title: '省/市/区', render: () => [patient?.province, patient?.city, patient?.district].filter(Boolean).join('/') || '-' },
             { key: '5', title: '街道/社区', render: () => patient?.street || '-' },
             { key: '6', title: '就诊卡编号', render: () => patient?.cardNo || '-' },
-            { key: '7', title: '证件类型', render: () => ID_CARD_TYPE_MAP[patient?.idCardType || 1] || '-' },
+            { key: '7', title: '证件类型', render: () => idCardTypeMap[String(patient?.idCardType || '1')] || '-' },
             { key: '8', title: '证件号', render: () => patient?.idCard || '-' },
             { key: '9', title: '民族', render: () => patient?.ethnicity || '汉族' },
             { key: '10', title: '出生日期', render: () => patient?.birthday || '-' },
@@ -541,7 +529,7 @@ const PatientDetailPage: React.FC = () => {
           width="sm"
           rules={[
             { required: true, message: '请输入手机号' },
-            { pattern: /^1\d{10}$/, message: '手机号格式不正确' },
+            phoneRules.pattern,
           ]}
           placeholder="请输入手机号"
         />
@@ -572,8 +560,8 @@ const PatientDetailPage: React.FC = () => {
           name="idCardType"
           label="证件类型"
           width="sm"
-          options={ID_CARD_TYPE_OPTIONS}
-          initialValue={1}
+          options={idCardTypeOptions}
+          initialValue="1"
         />
       </ProForm.Group>
       <ProForm.Group>
@@ -581,7 +569,7 @@ const PatientDetailPage: React.FC = () => {
           name="relationship"
           label="与本人关系"
           width="sm"
-          options={RELATIONSHIP_OPTIONS}
+          options={relationshipOptions}
         />
         <ProFormText
           name="ethnicity"
@@ -799,7 +787,7 @@ const PatientDetailPage: React.FC = () => {
             width="sm"
             rules={[
               { required: true, message: '请输入手机号' },
-              { pattern: /^1\d{10}$/, message: '手机号格式不正确' },
+              phoneRules.pattern,
             ]}
             placeholder="请输入手机号"
           />
@@ -830,7 +818,7 @@ const PatientDetailPage: React.FC = () => {
             name="idCardType"
             label="证件类型"
             width="sm"
-            options={ID_CARD_TYPE_OPTIONS}
+            options={idCardTypeOptions}
           />
         </ProForm.Group>
         <ProForm.Group>
@@ -838,7 +826,7 @@ const PatientDetailPage: React.FC = () => {
             name="relationship"
             label="与本人关系"
             width="sm"
-            options={RELATIONSHIP_OPTIONS}
+            options={relationshipOptions}
           />
           <ProFormText
             name="ethnicity"

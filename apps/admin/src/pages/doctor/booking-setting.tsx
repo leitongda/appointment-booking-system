@@ -5,7 +5,7 @@ import { Button, App, Popconfirm, Space } from 'antd';
 import { useRef } from 'react';
 import { history } from '@umijs/max';
 import { doctorBookingSettingApi } from '@hospital/api';
-import { toProTableResult } from '@/utils/proTable';
+import { createListRequest } from '@/utils/proTable';
 import type { DoctorBookingSetting } from '@hospital/shared';
 
 const DoctorBookingSettingPage: React.FC = () => {
@@ -100,16 +100,7 @@ const DoctorBookingSettingPage: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        request={async (params) => {
-          const { current, pageSize, ...rest } = params;
-          return toProTableResult(
-            await doctorBookingSettingApi.getList({
-              ...rest,
-              page: current,
-              pageSize,
-            })
-          );
-        }}
+        request={createListRequest(doctorBookingSettingApi.getList)}
         toolBarRender={() => [
           <Button
             key="add"

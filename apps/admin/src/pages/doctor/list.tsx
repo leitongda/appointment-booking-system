@@ -7,7 +7,7 @@ import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { history, useAccess, useModel } from '@umijs/max';
 import { doctorApi, departmentApi, storeApi, dataApi } from '@hospital/api';
 import { GENDER_MAP } from '@/constants';
-import { toProTableResult } from '@/utils/proTable';
+import { createListRequest } from '@/utils/proTable';
 import { PAGINATION_CONFIG } from '@/constants/pagination';
 import type { Doctor, Department, Store } from '@hospital/shared';
 import DoctorConsultationFeeModal from './consultation-fee-modal';
@@ -547,14 +547,7 @@ const DoctorListPage: React.FC = () => {
         rowKey="id"
         columns={columns}
         scroll={{ x: 1200 }}
-        request={async (params) => {
-          const { current, pageSize, ...rest } = params;
-          return toProTableResult(await doctorApi.getList({
-            ...rest,
-            page: current,
-            pageSize,
-          }));
-        }}
+        request={createListRequest(doctorApi.getList)}
         toolBarRender={() => [
           <ImportExport
             key="import-export"

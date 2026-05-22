@@ -4,21 +4,11 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { history, useParams, useAccess } from '@umijs/max';
 import { appointmentApi } from '@hospital/api';
+import type { RefundRecord } from '@hospital/api';
 import { REFUND_STATUS_MAP, REFUND_STATUS_COLOR, APPOINTMENT_STATUS_TAG, REFUNDABLE_APPOINTMENT_STATUSES, TIME_SLOT_MAP } from '@hospital/shared';
 import type { Appointment } from '@hospital/shared';
 
 const STATUS_MAP = APPOINTMENT_STATUS_TAG;
-
-interface RefundRecord {
-  id: string;
-  refundNo: string;
-  refundAmount: number;
-  status: string;
-  refundReason: string;
-  createdAt: string;
-  updatedAt?: string;
-  failedReason?: string;
-}
 
 const AppointmentDetailPage: React.FC = () => {
   const { id } = useParams();

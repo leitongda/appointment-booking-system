@@ -2,9 +2,10 @@ import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormTextArea } from '@ant-design/pro-components';
 import { Tag, Drawer, Descriptions, Image } from 'antd';
 import { MessageOutlined } from '@ant-design/icons';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useModel } from '@umijs/max';
 import { feedbackApi, dataApi } from '@hospital/api';
+import { useDict } from '@/hooks/useDict';
 import { createListRequest } from '@/utils/proTable';
 import { useListPage } from '@/hooks/useListPage';
 import { OperationButton, OperationGroup } from '@/components/ListOperations';
@@ -28,6 +29,11 @@ const STATUS_MAP: Record<string, { text: string; color: string }> = {
 const FeedbackPage: React.FC = () => {
   const { initialState } = useModel('@@initialState');
   const { actionRef, message, reload } = useListPage();
+  const { options: feedbackTypeOptions } = useDict('feedback_type');
+  const feedbackTypeEnum = useMemo(
+    () => Object.fromEntries(feedbackTypeOptions.map((o) => [o.value, { text: o.label }])),
+    [feedbackTypeOptions],
+  );
   const [replyOpen, setReplyOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [currentRecord, setCurrentRecord] = useState<Feedback | null>(null);
@@ -52,7 +58,7 @@ const FeedbackPage: React.FC = () => {
       title: '类型',
       dataIndex: 'feedbackType',
       width: 80,
-      valueEnum: Object.fromEntries(Object.entries(TYPE_MAP).map(([k, v]) => [k, { text: v.text }])),
+      valueEnum: feedbackTypeEnum,
       render: (_, r) => {
         const t = TYPE_MAP[r.feedbackType || 'other'];
         return <Tag color={t.color}>{t.text}</Tag>;

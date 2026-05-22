@@ -44,9 +44,9 @@ const Login: React.FC = () => {
     // 保存租户 ID 到 localStorage，请求拦截器会自动将其添加到 X-Tenant-ID Header
     const tenantId = result.admin?.tenantId;
     if (tenantId) {
-      localStorage.setItem('hospital_current_tenant_id', tenantId);
+      setStorage(STORAGE_KEYS.CURRENT_TENANT_ID, tenantId);
     } else {
-      localStorage.removeItem('hospital_current_tenant_id');
+      removeStorage(STORAGE_KEYS.CURRENT_TENANT_ID);
     }
     
     // 保存门店信息到 localStorage
@@ -55,14 +55,14 @@ const Login: React.FC = () => {
     if (result.stores && result.stores.length > 0) {
       // 多门店管理员，默认选择第一个门店
       currentStore = result.stores[0];
-      localStorage.setItem('hospital_current_store', JSON.stringify(currentStore));
+      setStorage(STORAGE_KEYS.CURRENT_STORE, currentStore);
     } else if (result.store) {
       // 兼容旧的单门店返回
       currentStore = result.store;
-      localStorage.setItem('hospital_current_store', JSON.stringify(currentStore));
+      setStorage(STORAGE_KEYS.CURRENT_STORE, currentStore);
     } else {
       // 超级管理员没有门店
-      localStorage.removeItem('hospital_current_store');
+      removeStorage(STORAGE_KEYS.CURRENT_STORE);
     }
     
     message.success('登录成功！');
