@@ -55,6 +55,7 @@ const organization = [
           { path: '/organization/medical-config/booking-fields', name: '预约字段', icon: 'orderedList', component: './system/settings', access: 'canBookingFields' },
           { path: '/organization/medical-config/booking-notice', name: '预约须知', icon: 'fileDone', component: './system/booking-notice', access: 'canBookingNotice' },
           { path: '/organization/medical-config/patient-card', name: '就诊卡配置', icon: 'idcard', component: './system/settings', access: 'canPatientCardConfig' },
+          { path: '/organization/medical-config/source-release', name: '号源策略', icon: 'ThunderboltOutlined', component: './system/settings', access: 'canMedicalConfig' },
           {
             path: '/organization/medical-config/shift-types',
             name: '班次类型',

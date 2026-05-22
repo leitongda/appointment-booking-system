@@ -26,10 +26,12 @@ import system from './system';
 import redirects from './redirects';
 import account from './account';
 import fallbacks from './fallbacks';
+import screen from './screen';
 
 const routes = [
   ...auth,
   ...dashboard,
+  ...screen,
   ...platform,
   ...medicalServices,
   ...finance,

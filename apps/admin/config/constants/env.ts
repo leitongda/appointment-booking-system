@@ -21,3 +21,13 @@ export const PROXY_TARGET = process.env.PROXY_TARGET || 'http://localhost:9000';
  * 是否生产环境（用于 chainWebpack 等编译期判定）
  */
 export const IS_PROD = process.env.NODE_ENV === 'production';
+
+/**
+ * 高德地图 API Key（构建期注入 headScripts）
+ */
+export const AMAP_KEY = process.env.AMAP_KEY || '';
+
+/**
+ * 高德地图服务代理地址（运行时供前端调用后端代理）
+ */
+export const AMAP_SERVICE_HOST = process.env.AMAP_SERVICE_HOST || '/_AMapService';

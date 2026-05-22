@@ -40,7 +40,9 @@ const system = [
           { path: '/system/config/wechat', name: '微信配置', icon: 'wechat', component: './system/settings', access: 'canWechatSettings' },
           { path: '/system/config/email-config', name: '邮件配置', icon: 'mail', component: './system/settings', access: 'canEmailConfig' },
           { path: '/system/config/image-config', name: '图片配置', icon: 'picture', component: './system/settings', access: 'canImageConfig' },
-          { path: '/system/config/sms-config', name: '短信配置', icon: 'message', component: './system/settings', access: 'canSmsConfig' },
+          { path: '/system/config/sms', name: '短信通知', icon: 'message', component: './system/settings', access: 'canSmsSettings' },
+          { path: '/system/config/security', name: '安全策略', icon: 'safety-certificate', component: './system/settings', access: 'canSecuritySettings' },
+          { path: '/system/config/source-release', name: '号源释放', icon: 'clock-circle', component: './system/settings', access: 'canSourceReleaseSettings' },
           {
             path: '/system/config/email-templates',
             name: '邮件模板',
@@ -59,7 +61,7 @@ const system = [
         path: '/system/blacklist',
         name: '黑名单管理',
         icon: 'stop',
-        component: './system/blacklist',
+        component: './system/settings',
         access: 'canBlacklistSettings',
       },
       {

@@ -27,13 +27,7 @@ export {
 export { Status, STATUS_OPTIONS, STATUS_MAP } from './status';
 
 export {
-  NOTICE_TYPE_OPTIONS,
-  NEWS_TYPE_OPTIONS,
-  BANNER_LINK_TYPE_OPTIONS,
-  BANNER_POSITION_OPTIONS,
-  APPOINTMENT_TYPE_OPTIONS,
   SCHEDULE_MODE_OPTIONS,
-  EMAIL_TEMPLATE_TYPE_OPTIONS,
 } from './formFields';
 import { GENDER_MAP as SHARED_GENDER_MAP } from '@hospital/shared';
 
@@ -43,17 +37,6 @@ export const GENDER_OPTIONS = Object.entries(SHARED_GENDER_MAP).map(([value, lab
   label,
   value: Number(value),
 }));
-
-/**
- * 学历选项
- */
-export const EDUCATION_OPTIONS = [
-  { label: '专科', value: '专科' },
-  { label: '本科', value: '本科' },
-  { label: '硕士', value: '硕士' },
-  { label: '博士', value: '博士' },
-  { label: '博士后', value: '博士后' },
-] as const;
 
 /**
  * 时段选项

@@ -111,17 +111,9 @@ export async function getInitialState(): Promise<{
   if (location.pathname !== LOGIN_PATH && token) {
     const currentUser = await fetchUserInfo();
 
-    let currentStore: StoreInfo | undefined;
-    try {
-      const storeData = localStorage.getItem('hospital_current_store');
-      if (storeData) {
-        currentStore = JSON.parse(storeData);
-      }
-    } catch (e) {
-      console.error('Failed to parse store info', e);
-    }
+    const currentStore = getStorage<StoreInfo>(STORAGE_KEYS.CURRENT_STORE) || undefined;
 
-    const currentTenantId = localStorage.getItem('hospital_current_tenant_id') || undefined;
+    const currentTenantId = getStorage<string>(STORAGE_KEYS.CURRENT_TENANT_ID) || undefined;
     const userStores = currentUser?.stores || [];
 
     return {

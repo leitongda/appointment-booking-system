@@ -12,7 +12,7 @@ import path from 'path';
 import { defineConfig } from '@umijs/max';
 
 import { APP_TITLE } from './constants/app';
-import { API_BASE_URL, REACT_APP_ENV } from './constants/env';
+import { AMAP_KEY, AMAP_SERVICE_HOST, API_BASE_URL, REACT_APP_ENV } from './constants/env';
 import layout from './layout';
 import routes from './routes';
 import proxy from './proxy';
@@ -30,7 +30,13 @@ export default defineConfig({
   // 定义全局变量
   define: {
     'process.env.API_BASE_URL': API_BASE_URL,
+    'process.env.AMAP_SERVICE_HOST': AMAP_SERVICE_HOST,
   },
+
+  // 外部脚本注入（高德地图 JS SDK 2.0）
+  headScripts: AMAP_KEY
+    ? [{ src: `https://webapi.amap.com/maps?v=2.0&key=${AMAP_KEY}`, defer: true }]
+    : [],
 
   // 使用 hash 路由
   hash: true,
