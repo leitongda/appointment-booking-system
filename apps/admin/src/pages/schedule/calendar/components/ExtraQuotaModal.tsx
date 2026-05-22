@@ -2,6 +2,7 @@ import { Modal, Form, InputNumber, Radio, Switch, Select, Input, App, Spin, Desc
 import { useState, useEffect } from 'react';
 import { scheduleApi, patientApi } from '@hospital/api';
 import type { PatientListItem } from '@hospital/api';
+import { TIME_SLOT_LABEL } from '@hospital/shared';
 
 interface ExtraQuotaModalProps {
   open: boolean;
@@ -16,12 +17,6 @@ interface ExtraQuotaModalProps {
     bookedSlots?: number;
   };
 }
-
-const TIME_SLOT_LABELS: Record<string, string> = {
-  morning: '上午',
-  afternoon: '下午',
-  evening: '晚上',
-};
 
 const QUOTA_TYPE_OPTIONS = [
   { label: '普通加号', value: 'normal' },
@@ -129,7 +124,7 @@ const ExtraQuotaModal: React.FC<ExtraQuotaModalProps> = ({
             )}
             {scheduleInfo.timeSlot && (
               <Descriptions.Item label="时段">
-                {TIME_SLOT_LABELS[scheduleInfo.timeSlot] || scheduleInfo.timeSlot}
+                {TIME_SLOT_LABEL[scheduleInfo.timeSlot] || scheduleInfo.timeSlot}
               </Descriptions.Item>
             )}
             {scheduleInfo.totalSlots !== undefined && scheduleInfo.bookedSlots !== undefined && (

@@ -15,6 +15,7 @@ import {
   type TimelineRange,
 } from '@/utils/ruleSetFormatter';
 import { isUnlimitedOffset } from '@/constants/rule-set';
+import { WINDOW_ACTION_COLORS as WINDOW_COLORS } from '@/themes/scheduleColors';
 
 // ==================== 类型定义 ====================
 
@@ -34,50 +35,6 @@ export interface HorizontalTimelineProps {
 }
 
 // ==================== 常量定义 ====================
-
-interface WindowColorConfig {
-  fill: string;
-  stroke: string;
-  label: string;
-  gradientStart: string;
-  gradientEnd: string;
-  unlimitedPattern?: string;  // 不限制时的图案/颜色
-}
-
-const WINDOW_COLORS: Record<string, WindowColorConfig> = {
-  BOOK: {
-    fill: 'rgba(24, 144, 255, 0.2)',
-    stroke: '#1890ff',
-    label: '预约',
-    gradientStart: 'rgba(24, 144, 255, 0.4)',
-    gradientEnd: 'rgba(24, 144, 255, 0.1)',
-    unlimitedPattern: 'rgba(24, 144, 255, 0.08)',
-  },
-  CHECKIN: {
-    fill: 'rgba(82, 196, 26, 0.2)',
-    stroke: '#52c41a',
-    label: '签到',
-    gradientStart: 'rgba(82, 196, 26, 0.4)',
-    gradientEnd: 'rgba(82, 196, 26, 0.1)',
-    unlimitedPattern: 'rgba(82, 196, 26, 0.08)',
-  },
-  CANCEL: {
-    fill: 'rgba(250, 140, 22, 0.2)',
-    stroke: '#fa8c16',
-    label: '取消',
-    gradientStart: 'rgba(250, 140, 22, 0.4)',
-    gradientEnd: 'rgba(250, 140, 22, 0.1)',
-    unlimitedPattern: 'rgba(250, 140, 22, 0.08)',
-  },
-  HOLD_RELEASE: {
-    fill: 'rgba(114, 46, 209, 0.2)',
-    stroke: '#722ed1',
-    label: '释放',
-    gradientStart: 'rgba(114, 46, 209, 0.4)',
-    gradientEnd: 'rgba(114, 46, 209, 0.1)',
-    unlimitedPattern: 'rgba(114, 46, 209, 0.08)',
-  },
-};
 
 const TIMELINE_CONFIG = {
   // 班次背景

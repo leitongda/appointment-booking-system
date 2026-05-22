@@ -6,12 +6,14 @@ import {
 } from '@ant-design/pro-components';
 import { Button, App, Space, Tag, Alert, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
-import { useRef, useState, useEffect, useMemo } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import { history, useAccess } from '@umijs/max';
-import { scheduleTemplateApi, doctorApi, departmentApi } from '@hospital/api';
+import { scheduleTemplateApi } from '@hospital/api';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
+import { useDepartments } from '@/hooks/useDepartments';
+import { useDoctors } from '@/hooks/useDoctors';
 import { toProTableResult } from '@/utils/proTable';
-import type { ScheduleTemplate, Doctor, Department, SchedulePreviewGenerateResponse } from '@hospital/shared';
+import type { ScheduleTemplate, SchedulePreviewGenerateResponse } from '@hospital/shared';
 import { ScheduleMessages } from '../utils/message';
 import {
   APPOINTMENT_TYPE_MAP,
@@ -24,7 +26,7 @@ import HistoryLogsModal from './components/HistoryLogsModal';
 import BatchAddModal from './components/BatchAddModal';
 import GenerateScheduleModal from './components/GenerateScheduleModal';
 import CopyRuleModal from './components/CopyRuleModal';
-import { TEXT_SECONDARY, COLOR_DANGER } from '@/themes/scheduleColors';
+import { TEXT_SECONDARY } from '@/themes/scheduleColors';
 
 const ScheduleRulePage: React.FC = () => {
   const { message, modal } = App.useApp();
@@ -50,8 +52,6 @@ const ScheduleRulePage: React.FC = () => {
   const [editedCapacities, setEditedCapacities] = useState<Record<string, number>>({});
   const [generateLoading, setGenerateLoading] = useState(false);
 
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [selectedDept, setSelectedDept] = useState<string>();
 
   // 复制规则相关状态
@@ -61,35 +61,9 @@ const ScheduleRulePage: React.FC = () => {
   // 当前日期信息
   const dateInfo = useMemo(() => getDateInfo(), []);
 
-  async function loadDepartments() {
-    try {
-      const data = await departmentApi.getAll();
-      setDepartments(data ?? []);
-    } catch (error) {
-      console.error('加载科室失败', error);
-    }
-  }
-
-  async function loadDoctorsByDept(deptId: string) {
-    try {
-      const data = await doctorApi.getByDepartment(deptId);
-      setDoctors(data ?? []);
-    } catch (error) {
-      console.error('加载医生失败', error);
-    }
-  }
-
-  useEffect(() => {
-    loadDepartments();
-  }, []);
-
-  useEffect(() => {
-    if (selectedDept) {
-      loadDoctorsByDept(selectedDept);
-    } else {
-      setDoctors([]);
-    }
-  }, [selectedDept]);
+  // 使用共享 hooks 加载科室和医生数据
+  const { departments } = useDepartments();
+  const { doctors } = useDoctors({ departmentId: selectedDept, enabled: !!selectedDept });
 
   const handleOpenCopyModal = (record: ScheduleTemplate) => {
     setCopySourceTemplate(record);

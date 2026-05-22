@@ -12,6 +12,38 @@ import ImportExport from '@/components/ImportExport';
 import { RuleSetPreviewDrawer } from '@/components/rule-set-visualization';
 import { getRuleSetColumns } from './components/RuleSetTableColumns';
 
+interface PerfLatency {
+  p50?: number;
+  p95?: number;
+  p99?: number;
+  avg?: number;
+  max?: number;
+  min?: number;
+}
+
+interface PerfOperationStats {
+  count: number;
+  avgMs: number;
+  p95Ms?: number;
+  slowCount?: number;
+}
+
+interface PerfStats {
+  totalCalls: number;
+  slowQueryCount: number;
+  callsPerMinute: number;
+  latency?: PerfLatency;
+  byOperation?: Record<string, PerfOperationStats>;
+}
+
+interface SlowQuery {
+  id: string;
+  operation: string;
+  durationMs: number;
+  query: string;
+  timestamp: string;
+}
+
 const RuleSetsPage: React.FC = () => {
   const { message: antMessage } = App.useApp();
   const access = useAccess();
@@ -28,8 +60,8 @@ const RuleSetsPage: React.FC = () => {
   // 性能监控状态
   const [perfDrawerOpen, setPerfDrawerOpen] = useState(false);
   const [perfLoading, setPerfLoading] = useState(false);
-  const [perfStats, setPerfStats] = useState<any>(null);
-  const [slowQueries, setSlowQueries] = useState<any[]>([]);
+  const [perfStats, setPerfStats] = useState<PerfStats | null>(null);
+  const [slowQueries, setSlowQueries] = useState<SlowQuery[]>([]);
   const [perfHours, setPerfHours] = useState(24);
 
   const handleDelete = async (id: string) => {
@@ -378,7 +410,7 @@ const RuleSetsPage: React.FC = () => {
               {perfStats.byOperation && Object.keys(perfStats.byOperation).length > 0 && (
                 <Card title="按操作类型" size="small" style={{ marginBottom: 16 }}>
                   <Table
-                    dataSource={Object.entries(perfStats.byOperation).map(([op, data]: [string, any]) => ({
+                    dataSource={Object.entries(perfStats.byOperation).map(([op, data]: [string, PerfOperationStats]) => ({
                       operation: op,
                       ...data,
                     }))}

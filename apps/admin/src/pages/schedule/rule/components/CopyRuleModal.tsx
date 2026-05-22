@@ -19,7 +19,7 @@ export interface CopyRuleFormData {
   slotCount: number;
   slotCapacity: number;
   scheduleMode: string;
-  breakTimes: any[];
+  breakTimes: { startTime: string; endTime: string }[];
 }
 
 export interface CrossStoreMapping {
@@ -69,6 +69,22 @@ const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
   const [targetStoreDoctors, setTargetStoreDoctors] = useState<Doctor[]>([]);
   const [crossStoreMappings, setCrossStoreMappings] = useState<CrossStoreMapping[]>([]);
 
+  // 加载基础数据
+  const loadData = async () => {
+    try {
+      const [deptData, doctorData, storeData] = await Promise.all([
+        departmentApi.getAll(),
+        fetchAllData((page, pageSize) => doctorApi.getList({ page, pageSize, status: 1 })),
+        storeApi.getAll(),
+      ]);
+      setDepartments(deptData ?? []);
+      setAllDoctors(doctorData);
+      setStores(storeData ?? []);
+    } catch (error) {
+      console.error('加载数据失败', error);
+    }
+  };
+
   // 初始化：打开弹窗时加载数据并重置状态
   useEffect(() => {
     if (open && sourceRule) {
@@ -97,22 +113,6 @@ const CopyRuleModal: React.FC<CopyRuleModalProps> = ({
       loadData();
     }
   }, [open, sourceRule]);
-
-  // 加载基础数据
-  const loadData = async () => {
-    try {
-      const [deptData, doctorData, storeData] = await Promise.all([
-        departmentApi.getAll(),
-        fetchAllData((page, pageSize) => doctorApi.getList({ page, pageSize, status: 1 })),
-        storeApi.getAll(),
-      ]);
-      setDepartments(deptData ?? []);
-      setAllDoctors(doctorData);
-      setStores(storeData ?? []);
-    } catch (error) {
-      console.error('加载数据失败', error);
-    }
-  };
 
   // 加载目标门店数据
   const loadTargetStoreData = useCallback(async (storeId: string) => {

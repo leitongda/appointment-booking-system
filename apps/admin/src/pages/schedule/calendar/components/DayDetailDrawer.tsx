@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { Dayjs } from 'dayjs';
 import { useAccess } from '@umijs/max';
 import type { Schedule, Appointment } from '@hospital/shared';
+import { TIME_SLOT_LABEL } from '@hospital/shared';
 import { TEXT_SECONDARY } from '@/themes/scheduleColors';
 
 interface DayDetailDrawerProps {
@@ -19,12 +20,6 @@ interface DayDetailDrawerProps {
   onBatchPublish?: (scheduleIds: string[]) => Promise<void>;
   onBatchWithdraw?: (scheduleIds: string[], reason?: string) => Promise<void>;
 }
-
-const TIME_SLOT_LABELS: Record<string, string> = {
-  morning: '上午',
-  afternoon: '下午',
-  evening: '晚上',
-};
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 
@@ -156,7 +151,7 @@ const DayDetailDrawer: React.FC<DayDetailDrawerProps> = ({
                     checked={selectedIds.includes(schedule.id)}
                     onChange={() => toggleSelect(schedule.id)}
                   />
-                  <span>{TIME_SLOT_LABELS[schedule.timeSlot ?? ''] || schedule.timeSlot}</span>
+                  <span>{TIME_SLOT_LABEL[schedule.timeSlot ?? ''] || schedule.timeSlot}</span>
                   <span style={{ fontSize: 12, color: '#666' }}>
                     {schedule.startTime} - {schedule.endTime}
                   </span>

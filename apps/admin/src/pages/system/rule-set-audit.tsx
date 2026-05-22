@@ -94,7 +94,6 @@ const RuleSetAuditPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const actionRef = useRef<ActionType>();
   const [ruleSetName, setRuleSetName] = useState(searchParams.get('name') || '');
-  const [_loading, _setLoading] = useState(false);
 
   useEffect(() => {
     const fetchRuleSetName = async () => {

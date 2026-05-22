@@ -1,5 +1,6 @@
 import { Modal, Descriptions, Alert, Space, Typography } from 'antd';
 import type { Schedule } from '@hospital/shared';
+import { TIME_SLOT_LABEL } from '@hospital/shared';
 
 const { Text } = Typography;
 
@@ -22,12 +23,6 @@ interface DragConfirmModalProps {
   loading?: boolean;
   conflicts?: DragConflictItem[];
 }
-
-const TIME_SLOT_LABEL: Record<string, string> = {
-  morning: '上午',
-  afternoon: '下午',
-  evening: '晚上',
-};
 
 const formatTimeRange = (schedule: Schedule): string => {
   if (schedule.startTime && schedule.endTime) {

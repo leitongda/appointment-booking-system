@@ -1,6 +1,7 @@
 import { Calendar, Tag } from 'antd';
 import type { Dayjs } from 'dayjs';
 import type { Schedule, Appointment } from '@hospital/shared';
+import { TIME_SLOT_LABEL } from '@hospital/shared';
 
 interface MonthViewProps {
   currentDate: Dayjs;
@@ -11,12 +12,6 @@ interface MonthViewProps {
   isOverridden?: (schedule: Schedule) => boolean;
 }
 
-// 时段标签映射
-const TIME_SLOT_LABELS: Record<string, string> = {
-  morning: '上午',
-  afternoon: '下午',
-  evening: '晚上',
-};
 
 // 时段排序权重
 const TIME_SLOT_SORT_ORDER: Record<string, number> = {
@@ -127,7 +122,7 @@ const MonthView: React.FC<MonthViewProps> = ({
                 className={`slot-tag${overridden ? ' overridden' : ''}`}
                 title={overridden ? '已被自定义排班覆盖' : undefined}
               >
-                {overridden ? '覆盖' : (TIME_SLOT_LABELS[s.timeSlot ?? ''] || s.timeSlot)}
+                {overridden ? '覆盖' : (TIME_SLOT_LABEL[s.timeSlot ?? ''] || s.timeSlot)}
               </Tag>
             );
           })}

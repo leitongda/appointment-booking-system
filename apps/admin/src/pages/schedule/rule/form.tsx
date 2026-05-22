@@ -20,23 +20,33 @@ import dayjs from 'dayjs';
 import { ScheduleMessages } from '../utils/message';
 
 // 格式化时间为 HH:mm 格式
-const formatTime = (time: any): string | undefined => {
+const formatTime = (time: string | { format: (fmt: string) => string } | null | undefined): string | undefined => {
   if (!time) return undefined;
   if (typeof time === 'string') {
-    // 如果已经是字符串，检查格式是否正确
     return /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(time) ? time : undefined;
   }
-  // 如果是 dayjs 对象，直接格式化
-  if (time?.format && typeof time.format === 'function') {
+  if (typeof time.format === 'function') {
     return time.format('HH:mm');
   }
-  // 尝试转换为 dayjs 对象
-  try {
-    return dayjs(time).format('HH:mm');
-  } catch {
-    return undefined;
-  }
+  return undefined;
 };
+
+interface ScheduleRuleFormValues {
+  name: string;
+  storeId: string;
+  departmentId?: string;
+  doctorId: string;
+  shiftTypeId?: string;
+  weekdays: number[];
+  appointmentType: string;
+  startTime: dayjs.Dayjs;
+  endTime: dayjs.Dayjs;
+  slotCount?: number;
+  slotCapacity?: number;
+  scheduleMode: string;
+  ruleSetId?: string;
+  [key: string]: unknown;
+}
 
 const ScheduleRuleFormPage: React.FC = () => {
   const { message } = App.useApp();
@@ -55,10 +65,10 @@ const ScheduleRuleFormPage: React.FC = () => {
   const [selectedDept, setSelectedDept] = useState<string>();
 
   // 表单值，用于实时更新日历预览
-  const [formValues, setFormValues] = useState<any>({});
+  const [formValues, setFormValues] = useState<Partial<ScheduleRuleFormValues>>({});
   
   // 排除时间段（午休时间等）
-  const [breakTimes, setBreakTimes] = useState<{ startTime?: any; endTime?: any }[]>([]);
+  const [breakTimes, setBreakTimes] = useState<{ startTime?: dayjs.Dayjs | null; endTime?: dayjs.Dayjs | null }[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
   const [showGuide, setShowGuide] = useState(false);
 
@@ -168,7 +178,7 @@ const ScheduleRuleFormPage: React.FC = () => {
     }
   }, [selectedDept]);
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: ScheduleRuleFormValues) => {
     try {
       // 使用 formatTime 函数格式化时间，支持字符串和 dayjs 对象
       const startTime = formatTime(values.startTime);
@@ -189,18 +199,18 @@ const ScheduleRuleFormPage: React.FC = () => {
         .filter(bt => bt.startTime && bt.endTime);
       
       const data = {
-        name: values.name,
-        storeId: values.storeId,
-        doctorId: values.doctorId,
-        departmentId: values.departmentId,
-        shiftTypeId: values.shiftTypeId,
+        name: values.name!,
+        storeId: values.storeId!,
+        doctorId: values.doctorId!,
+        departmentId: values.departmentId!,
+        shiftTypeId: values.shiftTypeId!,
         weekdays: values.weekdays || [],
-        appointmentType: values.appointmentType,
+        appointmentType: values.appointmentType!,
         startTime,
         endTime,
         slotCount: values.slotCount || 1,
         slotCapacity: values.slotCapacity || 10,
-        scheduleMode: values.scheduleMode,
+        scheduleMode: values.scheduleMode!,
         breakTimes: formattedBreakTimes.length > 0 ? formattedBreakTimes : undefined,
         ruleSetId: values.ruleSetId || undefined,
       };
@@ -218,7 +228,7 @@ const ScheduleRuleFormPage: React.FC = () => {
     }
   };
 
-  const handleValuesChange = (changedValues: any, allValues: any) => {
+  const handleValuesChange = (_changedValues: Partial<ScheduleRuleFormValues>, allValues: ScheduleRuleFormValues) => {
     setFormValues(allValues);
   };
 
@@ -407,7 +417,7 @@ const ScheduleRuleFormPage: React.FC = () => {
                 fieldProps={{
                   allowClear: true,
                   showSearch: true,
-                  filterOption: (input: string, option: any) =>
+                  filterOption: (input: string, option?: { label?: string; value?: string }) =>
                     (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
                 }}
                 tooltip="指定规则组后，该模板生成的排班将使用此规则组的预约/签到/取消策略"

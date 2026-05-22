@@ -21,11 +21,12 @@
 import { PlusOutlined, CopyOutlined, DeleteOutlined } from '@ant-design/icons';
 import { ProFormSelect, ProFormDatePicker, ProFormDigit, ProFormTimePicker } from '@ant-design/pro-components';
 import { Card, Row, Col, Button, Space, message } from 'antd';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ScheduleMessages } from './utils/message';
 import { history, useAccess, useModel } from '@umijs/max';
-import { customScheduleApi, departmentApi, doctorApi } from '@hospital/api';
-import { fetchAllData } from '@/utils/fetchAllData';
+import { customScheduleApi } from '@hospital/api';
+import { useDepartments } from '@/hooks/useDepartments';
+import { useDoctors } from '@/hooks/useDoctors';
 import { APPOINTMENT_TYPE_OPTIONS } from '@/constants/formFields';
 
 // 基础设施导入
@@ -49,45 +50,15 @@ const CustomScheduleFormPage: React.FC = () => {
   const { initialState: _initialState } = useModel('@@initialState');
 
   const { stores } = useStoreWithPermission({ enabledOnly: true });
-  const [departments, setDepartments] = useState<any[]>([]);
-  const [doctors, setDoctors] = useState<any[]>([]);
   const [selectedStore, setSelectedStore] = useState<string>();
   const [selectedDept, setSelectedDept] = useState<string>();
   const [timePeriods, setTimePeriods] = useState<TimePeriodConfig[]>([
     { key: '1', slotCount: 1, maxPatients: 1 }
   ]);
 
-  // 加载科室列表
-  useEffect(() => {
-    if (!selectedStore) return;
-
-    const loadDepartments = async () => {
-      try {
-        const allDepts = await fetchAllData((page, pageSize) =>
-          departmentApi.getList({ page, pageSize, status: 1 })
-        );
-        setDepartments(allDepts);
-      } catch (error) {
-        console.error('加载科室失败', error);
-      }
-    };
-    loadDepartments();
-  }, [selectedStore]);
-
-  // 加载医生列表
-  useEffect(() => {
-    if (!selectedDept) return;
-
-    const loadDoctors = async () => {
-      try {
-        const data = await doctorApi.getByDepartment(selectedDept);
-        setDoctors(data ?? []);
-      } catch (error) {
-        console.error('加载医生失败', error);
-      }
-    };
-    loadDoctors();
-  }, [selectedDept]);
+  // 使用共享 hooks 加载科室和医生数据
+  const { departments } = useDepartments({ enabled: !!selectedStore });
+  const { doctors } = useDoctors({ departmentId: selectedDept, enabled: !!selectedDept });
 
   // 添加时段
   const handleAddTimePeriod = () => {

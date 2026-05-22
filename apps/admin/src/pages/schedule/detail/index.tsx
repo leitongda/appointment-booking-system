@@ -2,19 +2,30 @@ import { PlusOutlined, StopOutlined, PlayCircleOutlined, DeleteOutlined } from '
 import type { ActionType, ProColumns, ProFormInstance } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormSelect, ProFormDatePicker, ProFormDigit, ProFormTimePicker } from '@ant-design/pro-components';
 import { Button, App, Space, Tag, Popconfirm, Alert, Tooltip } from 'antd';
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState } from 'react';
 import { useAccess, useModel } from '@umijs/max';
 import { scheduleApi, doctorApi, departmentApi } from '@hospital/api';
 import { toProTableResult } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
+import { useDepartments } from '@/hooks/useDepartments';
+import { useDoctors } from '@/hooks/useDoctors';
 import type { Schedule, Doctor, Department } from '@hospital/shared';
 import { APPOINTMENT_TYPE_MAP } from '@hospital/shared';
 import { APPOINTMENT_TYPE_OPTIONS } from '@/constants/formFields';
 import ListPageSkeleton from '@/components/ListPageSkeleton';
-import dayjs from 'dayjs';
 import { ScheduleMessages } from '../utils/message';
 import { TEXT_SECONDARY, COLOR_DANGER, COLOR_SUCCESS } from '@/themes/scheduleColors';
+
+interface ScheduleDetailFormValues {
+  doctorId: string;
+  scheduleDate: string | { format: (fmt: string) => string };
+  totalSlots: number;
+  appointmentType?: string;
+  startTime?: string | { format: (fmt: string) => string };
+  endTime?: string | { format: (fmt: string) => string };
+  [key: string]: unknown;
+}
 
 const ScheduleDetailPage: React.FC = () => {
   const { message, modal } = App.useApp();
@@ -22,8 +33,6 @@ const ScheduleDetailPage: React.FC = () => {
   const actionRef = useRef<ActionType>();
   const formRef = useRef<ProFormInstance>();
   const [modalOpen, setModalOpen] = useState(false);
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
   const [selectedDept, setSelectedDept] = useState<string>();
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [selectedRows, setSelectedRows] = useState<Schedule[]>([]);
@@ -36,43 +45,22 @@ const ScheduleDetailPage: React.FC = () => {
   const showStoreFilter = isSuperAdmin || (currentUser?.storeIds?.length ?? 0) > 1;
   const { stores } = useStoreWithPermission({ enabledOnly: true });
 
-  async function loadDepartments() {
-    try {
-      // 获取所有启用的科室
-      const allDepts = await departmentApi.getAll();
-      setDepartments(allDepts);
-    } catch (error) {
-      console.error('加载科室失败', error);
-    }
-  }
+  // 使用共享 hooks 加载科室和医生数据（用于新增排班弹窗）
+  const { departments } = useDepartments();
+  const { doctors } = useDoctors({ departmentId: selectedDept, enabled: !!selectedDept });
 
-  async function loadDoctorsByDept(deptId: string) {
-    try {
-      const data = await doctorApi.getByDepartment(deptId);
-      setDoctors(data ?? []);
-    } catch (error) {
-      console.error('加载医生失败', error);
-    }
-  }
-
-  useEffect(() => {
-    loadDepartments();
-  }, []);
-
-  useEffect(() => {
-    if (selectedDept) {
-      loadDoctorsByDept(selectedDept);
-    }
-  }, [selectedDept]);
-
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: ScheduleDetailFormValues) => {
     try {
       const startTime = values.startTime ? (typeof values.startTime === 'string' ? values.startTime : values.startTime.format('HH:mm')) : undefined;
       const endTime = values.endTime ? (typeof values.endTime === 'string' ? values.endTime : values.endTime.format('HH:mm')) : undefined;
 
+      const scheduleDate = typeof values.scheduleDate === 'string'
+        ? values.scheduleDate
+        : values.scheduleDate.format('YYYY-MM-DD');
+
       await scheduleApi.create({
         doctorId: values.doctorId,
-        scheduleDate: values.scheduleDate ? dayjs(values.scheduleDate).format('YYYY-MM-DD') : values.scheduleDate,
+        scheduleDate,
         totalSlots: values.totalSlots,
         appointmentType: values.appointmentType || 'normal',
         startTime,

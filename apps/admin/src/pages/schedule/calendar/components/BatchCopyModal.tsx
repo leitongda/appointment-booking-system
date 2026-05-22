@@ -1,6 +1,6 @@
 import { Modal, Button, Steps, Form, DatePicker, Select, Checkbox, Radio, Alert, Space, Tag, App } from 'antd';
 import { useState, useEffect, useMemo } from 'react';
-import dayjs, { Dayjs } from 'dayjs';
+import type { Dayjs } from 'dayjs';
 import { scheduleApi, doctorApi } from '@hospital/api';
 import { fetchAllData } from '@/utils/fetchAllData';
 import type { Doctor } from '@hospital/shared';

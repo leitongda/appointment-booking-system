@@ -20,10 +20,10 @@
  */
 import { ProFormSelect, ProFormText, ProFormDateRangePicker } from '@ant-design/pro-components';
 import { Card, Alert } from 'antd';
-import { useEffect, useState } from 'react';
-import { history, useAccess, useModel } from '@umijs/max';
-import { restDayApi, doctorApi } from '@hospital/api';
-import { fetchAllData } from '@/utils/fetchAllData';
+import { useState } from 'react';
+import { history } from '@umijs/max';
+import { restDayApi } from '@hospital/api';
+import { useDoctors } from '@/hooks/useDoctors';
 
 // 基础设施导入
 import FormPage from '@/components/FormPage';
@@ -31,29 +31,11 @@ import { requiredRules } from '@/utils/formValidators';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 
 const RestDayFormPage: React.FC = () => {
-  useAccess();
-  const { initialState: _initialState } = useModel('@@initialState');
-
   const { stores } = useStoreWithPermission({ enabledOnly: true });
-  const [doctors, setDoctors] = useState<any[]>([]);
   const [selectedStore, setSelectedStore] = useState<string>();
 
-  // 加载医生列表
-  useEffect(() => {
-    if (!selectedStore) return;
-
-    const loadDoctors = async () => {
-      try {
-        const allDoctors = await fetchAllData((page, pageSize) =>
-          doctorApi.getList({ storeId: selectedStore, page, pageSize, status: 1 })
-        );
-        setDoctors(allDoctors);
-      } catch (error) {
-        console.error('加载医生失败', error);
-      }
-    };
-    loadDoctors();
-  }, [selectedStore]);
+  // 使用共享 hook 加载医生数据（按门店筛选）
+  const { doctors } = useDoctors({ storeId: selectedStore, enabled: !!selectedStore });
 
   // 提交表单
   const handleSubmit = async (values: any) => {

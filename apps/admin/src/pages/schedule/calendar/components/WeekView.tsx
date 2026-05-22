@@ -53,7 +53,12 @@ const parseTimeSlotHour = (timeSlot: string): number => {
   return hour;
 };
 
-/** 根据小时数推断 timeSlot 类型 */
+/**
+ * 根据小时数推断 timeSlot 类型
+ * 边界对齐 TIME_SLOT_RANGE (packages/shared/src/constants/schedule.ts):
+ *   morning 08:00-12:00, afternoon 14:00-17:30, evening 18:00-21:00
+ * 使用整数小时判断，hour < 18 覆盖 17:30 边界 (14:00-17:59)
+ */
 const inferTimeSlotType = (hour: number): string => {
   if (hour >= 8 && hour < 12) return 'morning';
   if (hour >= 14 && hour < 18) return 'afternoon';

@@ -6,7 +6,12 @@ import { useAccess } from '@umijs/max';
 import { scheduleApi } from '@hospital/api';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
 import { SCHEDULE_STATUS_ACTIVE, TEXT_SECONDARY } from '@/themes/scheduleColors';
-import type { ScheduleStatisticsItem, ScheduleStatisticsResponse, UtilizationTrendResponse, DoctorWorkloadResponse, PeakHourHeatmapResponse } from '@hospital/api';
+import type {
+  ScheduleStatisticsItem, ScheduleStatisticsResponse,
+  UtilizationTrendItem, UtilizationTrendResponse,
+  DoctorWorkloadItem, DoctorWorkloadResponse,
+  PeakHourCell, PeakHourHeatmapResponse,
+} from '@hospital/api';
 import dayjs from 'dayjs';
 
 // 图表组件动态加载，减少首屏体积
@@ -268,7 +273,7 @@ const ScheduleStatisticsPage: React.FC = () => {
 
   // 利用率趋势图配置
   const trendConfig = trendData && trendData.items.length > 0 ? {
-    data: trendData.items.map((item: any) => ({
+    data: trendData.items.map((item: UtilizationTrendItem) => ({
       period: item.period,
       value: item.utilizationRate,
       type: '利用率(%)',
@@ -283,7 +288,7 @@ const ScheduleStatisticsPage: React.FC = () => {
       label: { formatter: (v: string) => `${v}%` },
     },
     tooltip: {
-      formatter: (data: any) => {
+      formatter: (data: { value: number }) => {
         return { name: '利用率', value: `${data.value}%` };
       },
     },
@@ -292,7 +297,7 @@ const ScheduleStatisticsPage: React.FC = () => {
 
   // 医生工作量对比图配置
   const workloadConfig = workloadData && workloadData.items.length > 0 ? {
-    data: workloadData.items.map((item: any) => ({
+    data: workloadData.items.map((item: DoctorWorkloadItem) => ({
       doctor: item.doctorName,
       value: item.utilizationRate,
       type: '利用率(%)',
@@ -302,7 +307,7 @@ const ScheduleStatisticsPage: React.FC = () => {
     seriesField: 'type',
     label: {
       position: 'top',
-      formatter: (data: any) => `${data.value}%`,
+      formatter: (data: { value: number }) => `${data.value}%`,
     },
     yAxis: {
       min: 0,
@@ -315,8 +320,8 @@ const ScheduleStatisticsPage: React.FC = () => {
   // 高峰时段热力图配置
   const heatmapConfig = heatmapData && heatmapData.cells.length > 0 ? {
     data: heatmapData.cells
-      .filter((cell: any) => cell.totalSlots > 0)
-      .map((cell: any) => ({
+      .filter((cell: PeakHourCell) => cell.totalSlots > 0)
+      .map((cell: PeakHourCell) => ({
         day: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'][cell.dayOfWeek - 1],
         hour: `${String(cell.hour).padStart(2, '0')}:00`,
         value: cell.bookingRate,
@@ -327,7 +332,7 @@ const ScheduleStatisticsPage: React.FC = () => {
     height: 400,
     color: ['#e6f7ff', SCHEDULE_STATUS_ACTIVE, '#096dd9', '#0050b3'],
     tooltip: {
-      formatter: (data: any) => {
+      formatter: (data: { value: number }) => {
         return { name: '预约率', value: `${data.value}%` };
       },
     },

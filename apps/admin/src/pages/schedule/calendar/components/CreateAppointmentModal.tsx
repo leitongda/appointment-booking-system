@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { scheduleApi, appointmentApi, patientApi } from '@hospital/api';
 import type { PatientListItem } from '@hospital/api';
 import type { Schedule } from '@hospital/shared';
+import { TIME_SLOT_LABEL } from '@hospital/shared';
 import { ScheduleMessages } from '../../utils/message';
 import { COLOR_SUCCESS } from '@/themes/scheduleColors';
 
@@ -13,11 +14,6 @@ interface CreateAppointmentModalProps {
   onSuccess: () => void;
 }
 
-const TIME_SLOT_LABELS: Record<string, string> = {
-  morning: '上午',
-  afternoon: '下午',
-  evening: '晚上',
-};
 
 const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
   open,
@@ -121,7 +117,7 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
           </div>
           <div className="info-item">
             <span className="info-label">时段：</span>
-            <span>{TIME_SLOT_LABELS[schedule.timeSlot ?? ''] || schedule.timeSlot}</span>
+            <span>{TIME_SLOT_LABEL[schedule.timeSlot ?? ''] || schedule.timeSlot}</span>
           </div>
           <div className="info-item">
             <span className="info-label">时间：</span>

@@ -7,11 +7,13 @@ import { PageContainer } from '@ant-design/pro-components';
 import { App, Card, Spin, DatePicker, Select, Space, Empty, Drawer, Descriptions, Badge, Tag, Button, theme } from 'antd';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import dayjs, { Dayjs } from 'dayjs';
-import { scheduleApi, doctorApi, departmentApi } from '@hospital/api';
-import type { Schedule, Doctor, Department } from '@hospital/shared';
+import { scheduleApi } from '@hospital/api';
+import type { Schedule } from '@hospital/shared';
 import { useModel, useAccess } from '@umijs/max';
 import { LeftOutlined, RightOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
+import { useDepartments } from '@/hooks/useDepartments';
+import { useDoctors } from '@/hooks/useDoctors';
 import {
   GANTT_MORNING,
   GANTT_AFTERNOON,
@@ -111,8 +113,6 @@ const ScheduleGanttPage: React.FC = () => {
   // 状态管理
   const [loading, setLoading] = useState(false);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
 
   // 筛选条件
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([
@@ -134,6 +134,33 @@ const ScheduleGanttPage: React.FC = () => {
   const showStoreFilter = isSuperAdmin || (currentUser?.storeIds?.length ?? 0) > 1;
   const { stores } = useStoreWithPermission({ enabledOnly: true });
 
+  // 使用共享 hooks 加载科室和医生数据
+  const { departments } = useDepartments();
+  const { doctors } = useDoctors({ departmentId: selectedDept });
+
+  // 科室列表加载后自动选中第一个
+  const hasAutoSelectedDeptRef = useRef(false);
+  useEffect(() => {
+    if (!hasAutoSelectedDeptRef.current && departments.length > 0 && !selectedDept) {
+      hasAutoSelectedDeptRef.current = true;
+      setSelectedDept(departments[0].id);
+    }
+  }, [departments, selectedDept]);
+
+  // 科室变化时重置医生选择，医生列表更新后自动选中第一个
+  const shouldAutoSelectDoctorRef = useRef(false);
+  useEffect(() => {
+    setSelectedDoctorId(undefined);
+    shouldAutoSelectDoctorRef.current = true;
+  }, [selectedDept]);
+
+  useEffect(() => {
+    if (shouldAutoSelectDoctorRef.current && doctors.length > 0) {
+      setSelectedDoctorId(doctors[0].id);
+      shouldAutoSelectDoctorRef.current = false;
+    }
+  }, [doctors]);
+
   // 响应式宽度
   useEffect(() => {
     const updateWidth = () => {
@@ -153,58 +180,11 @@ const ScheduleGanttPage: React.FC = () => {
     };
   }, []);
 
-  // 加载科室列表
-  const loadDepartments = async () => {
-    try {
-      const allDepts = await departmentApi.getAll();
-      setDepartments(allDepts);
-      if (allDepts.length > 0 && !selectedDept) {
-        setSelectedDept(allDepts[0].id);
-      }
-    } catch (error) {
-      console.error('加载科室失败', error);
-      message.error('加载科室失败');
-    }
-  };
-
-  // 加载医生列表
-  const loadDoctors = async (deptId?: string, autoSelectFirst = false) => {
-    try {
-      let doctorList: Doctor[] = [];
-      if (deptId) {
-        const data = await doctorApi.getByDepartment(deptId);
-        doctorList = data ?? [];
-      } else {
-        const firstResult = await doctorApi.getList({ pageSize: 100, page: 1 });
-        const total = firstResult.total || 0;
-        doctorList = firstResult.data ?? [];
-        if (total > 100) {
-          const totalPages = Math.ceil(total / 100);
-          const promises = [];
-          for (let page = 2; page <= totalPages; page++) {
-            promises.push(doctorApi.getList({ pageSize: 100, page }));
-          }
-          const results = await Promise.all(promises);
-          for (const result of results) {
-            doctorList = doctorList.concat(result.data ?? []);
-          }
-        }
-      }
-      setDoctors(doctorList);
-      if (autoSelectFirst && doctorList.length > 0) {
-        setSelectedDoctorId(doctorList[0].id);
-      }
-    } catch (error) {
-      console.error('加载医生失败', error);
-      message.error('加载医生列表失败');
-    }
-  };
-
   // 加载排班数据
   const loadSchedules = useCallback(async () => {
     setLoading(true);
     try {
-      const baseParams: any = {
+      const baseParams: { startDate: string; endDate: string; pageSize: number; storeId?: string; doctorId?: string } = {
         startDate: dateRange[0].format('YYYY-MM-DD'),
         endDate: dateRange[1].format('YYYY-MM-DD'),
         pageSize: 100,
@@ -238,27 +218,12 @@ const ScheduleGanttPage: React.FC = () => {
   }, [dateRange, selectedStore, selectedDoctorId]);
 
   useEffect(() => {
-    loadDepartments();
-    loadDoctors();
-  }, []);
-
-  useEffect(() => {
     loadSchedules();
   }, [loadSchedules]);
-
-  useEffect(() => {
-    if (selectedDept) {
-      setSelectedDoctorId(undefined);
-      loadDoctors(selectedDept, true);
-    } else {
-      loadDoctors();
-    }
-  }, [selectedDept]);
 
   // 转换排班数据为任务
   const tasks: ScheduleTask[] = useMemo(() => {
     return schedules.map((schedule) => {
-      const slotConfig = getSlotConfig(schedule.timeSlot);
       const progress = schedule.totalSlots > 0
         ? Math.round((schedule.bookedSlots / schedule.totalSlots) * 100)
         : 0;

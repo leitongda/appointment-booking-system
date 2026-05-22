@@ -288,6 +288,7 @@ async def create_custom_schedules(
     idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
 ):
     """创建自定义排班（支持批量）"""
+    from app.models.doctor import Doctor
     from app.utils.schedule_utils import split_time_range, get_time_slot_from_time
 
     tenant_id = current_admin.get("tenant_id", "")
@@ -367,13 +368,20 @@ async def create_custom_schedules(
             )
             rest_days = rest_day_result.scalars().all()
 
-        for s in created_schedules:
-            await db.refresh(s)
-            # 重新加载关联数据
-            await db.refresh(s, ["doctor", "store"])
-            if s.doctor:
-                await db.refresh(s.doctor, ["department"])
+        # Re-fetch all created schedules with relationships in one query (fix N+1)
+        if created_schedules:
+            ids = [s.id for s in created_schedules]
+            eager_result = await db.execute(
+                select(Schedule)
+                .where(Schedule.id.in_(ids))
+                .options(
+                    selectinload(Schedule.doctor).selectinload(Doctor.department),
+                    selectinload(Schedule.store),
+                )
+            )
+            created_schedules = list(eager_result.scalars().all())
 
+        for s in created_schedules:
             is_rest = _check_rest_day_for_schedule(
                 s.schedule_date, s.store_id, s.doctor_id, rest_days
             )

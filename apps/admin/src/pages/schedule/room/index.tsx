@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
-import { Button, Space, Tag, Switch, Modal, message, Form, Input, Select, InputNumber, Popconfirm } from 'antd';
+import { Button, Space, Switch, Modal, message, Form, Input, Select, InputNumber, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { scheduleApi, departmentApi, storeApi } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
@@ -45,10 +45,6 @@ const ScheduleRoomPage: React.FC = () => {
   const [departmentOptions, setDepartmentOptions] = useState<DepartmentOption[]>([]);
 
   // 加载门店和科室选项
-  useEffect(() => {
-    loadOptions();
-  }, []);
-
   const loadOptions = async () => {
     try {
       const [stores, departments] = await Promise.all([
@@ -61,6 +57,10 @@ const ScheduleRoomPage: React.FC = () => {
       // 忽略加载失败
     }
   };
+
+  useEffect(() => {
+    loadOptions();
+  }, []);
 
   // 打开新增/编辑弹窗
   const handleOpenModal = (record?: RoomRecord) => {

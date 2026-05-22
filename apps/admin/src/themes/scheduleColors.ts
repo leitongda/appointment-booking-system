@@ -44,3 +44,50 @@ export const COLOR_DISABLED = '#d9d9d9'; // 禁用/已过期 (原 #ccc)
 export const COLOR_DANGER = '#ff4d4f'; // 危险/删除
 export const COLOR_SUCCESS = '#52c41a'; // 成功
 export const COLOR_WARNING = '#fa8c16'; // 警告
+
+// ── 时间窗操作颜色 ────────────────────────────────────────────
+/** 时间窗颜色配置类型 */
+export interface WindowColorConfig {
+  fill: string;
+  stroke: string;
+  label: string;
+  gradientStart: string;
+  gradientEnd: string;
+  unlimitedPattern?: string;
+}
+
+/** 时间窗操作颜色 (统一 antd 色系) */
+export const WINDOW_ACTION_COLORS: Record<string, WindowColorConfig> = {
+  BOOK: {
+    fill: 'rgba(24, 144, 255, 0.2)',
+    stroke: '#1890ff',
+    label: '预约',
+    gradientStart: 'rgba(24, 144, 255, 0.4)',
+    gradientEnd: 'rgba(24, 144, 255, 0.1)',
+    unlimitedPattern: 'rgba(24, 144, 255, 0.08)',
+  },
+  CHECKIN: {
+    fill: 'rgba(82, 196, 26, 0.2)',
+    stroke: '#52c41a',
+    label: '签到',
+    gradientStart: 'rgba(82, 196, 26, 0.4)',
+    gradientEnd: 'rgba(82, 196, 26, 0.1)',
+    unlimitedPattern: 'rgba(82, 196, 26, 0.08)',
+  },
+  CANCEL: {
+    fill: 'rgba(250, 140, 22, 0.2)',
+    stroke: '#fa8c16',
+    label: '取消',
+    gradientStart: 'rgba(250, 140, 22, 0.4)',
+    gradientEnd: 'rgba(250, 140, 22, 0.1)',
+    unlimitedPattern: 'rgba(250, 140, 22, 0.08)',
+  },
+  HOLD_RELEASE: {
+    fill: 'rgba(114, 46, 209, 0.2)',
+    stroke: '#722ed1',
+    label: '释放',
+    gradientStart: 'rgba(114, 46, 209, 0.4)',
+    gradientEnd: 'rgba(114, 46, 209, 0.1)',
+    unlimitedPattern: 'rgba(114, 46, 209, 0.08)',
+  },
+};

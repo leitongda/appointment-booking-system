@@ -190,8 +190,9 @@ export interface TimePeriod {
  * 默认时段配置
  */
 export const DEFAULT_TIME_PERIODS: TimePeriod[] = [
-  { key: 'morning', name: '上午', startTime: '06:00', endTime: '12:00' },
-  { key: 'afternoon', name: '下午', startTime: '12:00', endTime: '18:00' },
+  { key: 'morning', name: '上午', startTime: '08:00', endTime: '12:00' },
+  { key: 'afternoon', name: '下午', startTime: '14:00', endTime: '17:30' },
+  { key: 'evening', name: '晚上', startTime: '18:00', endTime: '21:00' },
 ];
 
 /**

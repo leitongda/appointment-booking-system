@@ -15,6 +15,7 @@ import {
   type TimelineRange,
 } from '@/utils/ruleSetFormatter';
 import { isUnlimitedOffset } from '@/constants/rule-set';
+import { WINDOW_ACTION_COLORS as WINDOW_COLORS } from '@/themes/scheduleColors';
 
 // ==================== 类型定义 ====================
 
@@ -30,44 +31,6 @@ export interface GanttTimelineProps {
 }
 
 // ==================== 常量定义 ====================
-
-
-const WINDOW_COLORS: Record<string, {
-  fill: string;
-  stroke: string;
-  label: string;
-  gradientStart: string;
-  gradientEnd: string;
-}> = {
-  BOOK: {
-    fill: 'rgba(24, 144, 255, 0.15)',
-    stroke: '#1677ff',
-    label: '预约时间窗',
-    gradientStart: 'rgba(24, 144, 255, 0.35)',
-    gradientEnd: 'rgba(24, 144, 255, 0.08)',
-  },
-  CHECKIN: {
-    fill: 'rgba(34, 197, 94, 0.15)',
-    stroke: '#22c55e',
-    label: '签到时间窗',
-    gradientStart: 'rgba(34, 197, 94, 0.35)',
-    gradientEnd: 'rgba(34, 197, 94, 0.08)',
-  },
-  CANCEL: {
-    fill: 'rgba(249, 115, 22, 0.15)',
-    stroke: '#f97316',
-    label: '取消时间窗',
-    gradientStart: 'rgba(249, 115, 22, 0.35)',
-    gradientEnd: 'rgba(249, 115, 22, 0.08)',
-  },
-  HOLD_RELEASE: {
-    fill: 'rgba(168, 85, 247, 0.15)',
-    stroke: '#a855f7',
-    label: '释放时间窗',
-    gradientStart: 'rgba(168, 85, 247, 0.35)',
-    gradientEnd: 'rgba(168, 85, 247, 0.08)',
-  },
-};
 
 const CONFIG = {
   // 尺寸

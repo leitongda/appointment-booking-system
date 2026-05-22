@@ -11,10 +11,9 @@ import {
 } from '@ant-design/pro-components';
 import { Button, App, Tag, Popconfirm, Checkbox, Space, Drawer, Descriptions, Table, Divider, Alert, Statistic, Row, Col } from 'antd';
 import { useRef, useState, useEffect } from 'react';
-import { useAccess } from '@umijs/max';
-import { scheduleSuspensionApi, doctorApi } from '@hospital/api';
-import { fetchAllData } from '@/utils/fetchAllData';
+import { scheduleSuspensionApi } from '@hospital/api';
 import { useStoreWithPermission } from '@/hooks/useStoreWithPermission';
+import { useDoctors } from '@/hooks/useDoctors';
 import { toProTableResult } from '@/utils/proTable';
 import type {
   ScheduleSuspension,
@@ -24,6 +23,15 @@ import type {
   SuspensionProcessResult,
 } from '@hospital/api';
 import { ScheduleMessages } from './utils/message';
+
+interface SuspensionFormValues {
+  storeId: string;
+  doctorId: string;
+  title: string;
+  suspensionDate: { format: (fmt: string) => string };
+  processingMethod?: ProcessingMethod;
+  [key: string]: unknown;
+}
 import { COLOR_DANGER, TEXT_SECONDARY } from '@/themes/scheduleColors';
 
 // ── 处置方式映射 ──────────────────────────────────────────────
@@ -52,11 +60,9 @@ const PROCESSING_METHOD_OPTIONS = [
 
 const SuspensionPage: React.FC = () => {
   const { message } = App.useApp();
-  useAccess();
   const { stores } = useStoreWithPermission({ enabledOnly: true });
   const actionRef = useRef<ActionType>();
   const [modalOpen, setModalOpen] = useState(false);
-  const [doctors, setDoctors] = useState<any[]>([]);
   const [selectedStore, setSelectedStore] = useState<string>();
   const [selectedDoctor, setSelectedDoctor] = useState<string>();
   const [selectedDate, setSelectedDate] = useState<string>();
@@ -75,16 +81,8 @@ const SuspensionPage: React.FC = () => {
   const [processTarget, setProcessTarget] = useState<ScheduleSuspension | null>(null);
   const [processConfirmLoading, setProcessConfirmLoading] = useState(false);
 
-  async function loadDoctorsByStore(storeId: string) {
-    try {
-      const allDoctors = await fetchAllData((page, pageSize) =>
-        doctorApi.getList({ storeId, page, pageSize, status: 1 })
-      );
-      setDoctors(allDoctors);
-    } catch (error) {
-      console.error('加载医生失败', error);
-    }
-  }
+  // 使用共享 hook 加载医生数据（按门店筛选）
+  const { doctors } = useDoctors({ storeId: selectedStore, enabled: !!selectedStore });
 
   async function loadAvailableSchedules() {
     if (!selectedStore || !selectedDoctor || !selectedDate) return;
@@ -99,12 +97,6 @@ const SuspensionPage: React.FC = () => {
       console.error('加载排班失败', error);
     }
   }
-
-  useEffect(() => {
-    if (selectedStore) {
-      loadDoctorsByStore(selectedStore);
-    }
-  }, [selectedStore]);
 
   useEffect(() => {
     if (selectedStore && selectedDoctor && selectedDate) {
@@ -195,7 +187,7 @@ const SuspensionPage: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: SuspensionFormValues) => {
     try {
       await scheduleSuspensionApi.create({
         storeId: values.storeId,
@@ -419,7 +411,7 @@ const SuspensionPage: React.FC = () => {
           options={stores.map(s => ({ label: s.name, value: s.id }))}
           rules={[{ required: true, message: '请选择门店' }]}
           fieldProps={{
-            onChange: (val: any) => {
+            onChange: (val: string) => {
               setSelectedStore(val);
               setSelectedDoctor(undefined);
               setAvailableSchedules([]);
@@ -432,7 +424,7 @@ const SuspensionPage: React.FC = () => {
           options={doctors.map(d => ({ label: d.name, value: d.id }))}
           rules={[{ required: true, message: '请选择医生' }]}
           fieldProps={{
-            onChange: (val: any) => {
+            onChange: (val: string) => {
               setSelectedDoctor(val);
               setAvailableSchedules([]);
             },
@@ -449,7 +441,7 @@ const SuspensionPage: React.FC = () => {
           label="停诊日期"
           rules={[{ required: true, message: '请选择停诊日期' }]}
           fieldProps={{
-            onChange: (val: any) => {
+            onChange: (val: { format: (fmt: string) => string }) => {
               setSelectedDate(val?.format('YYYY-MM-DD'));
             },
           }}

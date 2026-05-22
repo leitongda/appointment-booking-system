@@ -1,6 +1,5 @@
 """加号申请/审批服务。"""
 import logging
-from datetime import datetime
 from typing import Optional, Tuple
 from uuid import uuid4
 
@@ -12,6 +11,7 @@ from app.middleware.tenant_context import get_current_tenant_id
 from app.models.extra_quota_request import ExtraQuotaRequest
 from app.models.schedule import Schedule
 from app.utils.audit import set_create_audit, set_update_audit
+from app.utils.datetime import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ class ExtraQuotaService:
                 applicant_id=applicant_id,
                 approver_id=applicant_id if auto_approved else None,
                 approval_remark="自动批准（数量未超过阈值）" if auto_approved else None,
-                approved_at=datetime.utcnow() if auto_approved else None,
+                approved_at=utc_now() if auto_approved else None,
             )
             set_create_audit(request, applicant_id)
             self.db.add(request)
@@ -123,7 +123,7 @@ class ExtraQuotaService:
             request.approval_status = "approved"
             request.approver_id = approver_id
             request.approval_remark = remark
-            request.approved_at = datetime.utcnow()
+            request.approved_at = utc_now()
             set_update_audit(request, approver_id)
 
             # 更新排班号源
@@ -159,7 +159,7 @@ class ExtraQuotaService:
         request.approval_status = "rejected"
         request.approver_id = approver_id
         request.approval_remark = remark
-        request.approved_at = datetime.utcnow()
+        request.approved_at = utc_now()
         set_update_audit(request, approver_id)
 
         await self.db.commit()
