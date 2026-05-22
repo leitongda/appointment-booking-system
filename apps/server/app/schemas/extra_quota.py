@@ -38,7 +38,7 @@ class ExtraQuotaRequestCreate(BaseModel):
 
     schedule_id: str = Field(..., description="排班ID")
     quantity: int = Field(..., ge=1, le=50, description="加号数量")
-    quota_type: ExtraQuotaType = Field(ExtraQuotaType.NORMAL, description="加号类型: normal普通/special特殊/green_channel绿色通道")
+    quota_type: str = Field("normal", description="加号类型（字典: extra_quota_type）: normal普通/special特殊/green_channel绿色通道")
     open_to_public: bool = Field(True, description="是否对外开放（true = 患者端可见可约）")
     patient_id: Optional[str] = Field(None, description="指定患者ID（仅对指定患者可见）")
     reason: Optional[str] = Field(None, max_length=500, description="加号原因")

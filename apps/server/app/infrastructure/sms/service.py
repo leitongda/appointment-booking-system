@@ -24,11 +24,31 @@ logger = logging.getLogger(__name__)
 class SmsService:
     """短信验证码服务"""
 
-    # 验证码有效期（秒）
-    CODE_EXPIRE_SECONDS = 300  # 5 分钟
+    # 默认值（当 SystemSetting 中未配置时使用）
+    DEFAULT_CODE_EXPIRE_SECONDS = 300  # 5 分钟
+    DEFAULT_SEND_INTERVAL_SECONDS = 60
 
-    # 发送间隔（秒）
-    SEND_INTERVAL_SECONDS = 60
+    @classmethod
+    def _get_setting_int(cls, key: str, default: int) -> int:
+        """从 SystemSetting 读取整数值（同步，带 fallback）"""
+        try:
+            db = get_sync_db_session()
+            try:
+                result = db.execute(
+                    select(SystemSetting).where(
+                        text(
+                            "category = 'sms' AND key = :key AND (store_id IS NULL OR store_id = '')"
+                        )
+                    ).params(key=key)
+                )
+                setting = result.scalar_one_or_none()
+                if setting and setting.value is not None:
+                    return int(setting.value)
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"读取短信设置失败: key={key}, error={e}, 使用默认值")
+        return default
 
     @classmethod
     def generate_code(cls, length: int = 6) -> str:
@@ -56,9 +76,13 @@ class SmsService:
         if not effective_tenant_id:
             raise ValueError("缺少租户上下文，无法发送验证码")
 
+        # 从 SystemSetting 读取配置（带 fallback）
+        send_interval = cls._get_setting_int("send_interval_seconds", cls.DEFAULT_SEND_INTERVAL_SECONDS)
+        code_expire = cls._get_setting_int("code_expire_seconds", cls.DEFAULT_CODE_EXPIRE_SECONDS)
+
         # 检查发送频率（带租户隔离）
         can_send, remaining = await cache.check_sms_rate_limit(
-            phone, code_type, cls.SEND_INTERVAL_SECONDS, effective_tenant_id
+            phone, code_type, send_interval, effective_tenant_id
         )
         if not can_send:
             raise ValueError(f"发送过于频繁，请{remaining}秒后重试")
@@ -67,7 +91,7 @@ class SmsService:
         code = cls.generate_code()
 
         # 存储验证码到 Redis（带租户隔离）
-        await cache.set_sms_code(phone, code, code_type, cls.CODE_EXPIRE_SECONDS, tenant_id=effective_tenant_id)
+        await cache.set_sms_code(phone, code, code_type, code_expire, tenant_id=effective_tenant_id)
 
         # 发送短信
         await cls._do_send(phone, code, code_type)

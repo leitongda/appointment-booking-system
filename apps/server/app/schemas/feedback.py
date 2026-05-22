@@ -36,7 +36,7 @@ class FeedbackCreate(BaseModel):
     
     user_id: str = Field(..., description="用户ID")
     user_type: str = Field("patient", description="用户类型")
-    feedback_type: FeedbackType = Field(FeedbackType.SUGGESTION, description="反馈类型")
+    feedback_type: str = Field("suggestion", description="反馈类型（字典: feedback_type）")
     title: str = Field(..., max_length=200, description="反馈标题")
     content: str = Field(..., min_length=10, description="反馈内容")
     images: Optional[List[str]] = Field(None, description="图片URL列表")
@@ -86,7 +86,7 @@ class FeedbackQuery(BaseModel):
     )
     
     user_id: Optional[str] = None
-    feedback_type: Optional[FeedbackType] = None
+    feedback_type: Optional[str] = None
     status: Optional[FeedbackStatus] = None
     keyword: Optional[str] = None
     page: int = Field(1, ge=1)

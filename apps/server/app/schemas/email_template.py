@@ -37,7 +37,7 @@ class EmailTemplateBase(BaseModel):
     
     code: str = Field(..., max_length=50, description="模板编码")
     name: str = Field(..., max_length=100, description="模板名称")
-    template_type: EmailTemplateType = Field(EmailTemplateType.CUSTOM, description="模板类型")
+    template_type: str = Field("custom", description="模板类型（字典: email_template_type）")
     subject_template: str = Field(..., max_length=200, description="邮件主题模板")
     content_template: str = Field(..., description="邮件内容模板(HTML)")
     description: Optional[str] = Field(None, max_length=255, description="模板说明")
@@ -57,7 +57,7 @@ class EmailTemplateUpdate(BaseModel):
     )
     
     name: Optional[str] = Field(None, max_length=100)
-    template_type: Optional[EmailTemplateType] = None
+    template_type: Optional[str] = None
     subject_template: Optional[str] = Field(None, max_length=200)
     content_template: Optional[str] = None
     description: Optional[str] = Field(None, max_length=255)
@@ -112,7 +112,7 @@ class EmailTemplateQuery(BaseModel):
         populate_by_name=True,
     )
     
-    template_type: Optional[EmailTemplateType] = Field(None, description="模板类型")
+    template_type: Optional[str] = Field(None, description="模板类型（字典: email_template_type）")
     status: Optional[int] = Field(None, description="状态")
     keyword: Optional[str] = Field(None, description="关键词搜索")
     page: int = Field(1, ge=1)

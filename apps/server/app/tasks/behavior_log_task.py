@@ -1,16 +1,21 @@
 """
 用户行为日志相关任务
 - 异步保存用户行为日志到数据库
+- 定时清理过期数据
 """
 import logging
 import uuid
 import json
+from datetime import datetime, timedelta
 
 from app.celery_app import celery_app
 from app.db.session import get_sync_db
 from app.models.behavior_log import UserBehaviorLog
 
 logger = logging.getLogger(__name__)
+
+# 数据保留天数（可通过环境变量覆盖）
+RETENTION_DAYS = 90
 
 
 @celery_app.task(
@@ -129,9 +134,61 @@ def batch_save_behavior_logs(logs_data: list):
             db.commit()
             logger.debug(f"批量保存行为日志成功: {saved_count} 条")
             return {"success": True, "saved_count": saved_count}
-            
+
         except Exception as e:
             db.rollback()
             logger.error(f"批量保存行为日志失败: {e}")
+            raise
+
+
+@celery_app.task(
+    name="app.tasks.behavior_log_task.cleanup_expired_behavior_logs",
+    time_limit=600,
+    soft_time_limit=540,
+)
+def cleanup_expired_behavior_logs(retention_days: int = RETENTION_DAYS):
+    """
+    清理过期的用户行为日志
+    每日凌晨由 Celery Beat 调度执行
+
+    Args:
+        retention_days: 数据保留天数，默认 90 天
+    """
+    cutoff = datetime.now() - timedelta(days=retention_days)
+
+    with get_sync_db() as db:
+        try:
+            # 分批删除，避免长事务锁表
+            batch_size = 5000
+            total_deleted = 0
+
+            while True:
+                # 使用子查询定位待删除行的 ID
+                ids = db.execute(
+                    UserBehaviorLog.__table__.select()
+                    .with_only_columns(UserBehaviorLog.id)
+                    .where(UserBehaviorLog.created_at < cutoff)
+                    .limit(batch_size)
+                ).fetchall()
+
+                if not ids:
+                    break
+
+                id_list = [row[0] for row in ids]
+                db.execute(
+                    UserBehaviorLog.__table__.delete()
+                    .where(UserBehaviorLog.id.in_(id_list))
+                )
+                db.commit()
+                total_deleted += len(id_list)
+
+                logger.info(f"[清理] 已删除 {total_deleted} 条过期行为日志（保留 {retention_days} 天）")
+
+            logger.info(f"[清理] 行为日志清理完成，共删除 {total_deleted} 条（截止 {cutoff.date()}）")
+            return {"success": True, "deleted": total_deleted, "cutoff": cutoff.isoformat()}
+
+        except Exception as e:
+            db.rollback()
+            logger.error(f"行为日志清理失败: {e}")
             raise
 

@@ -207,6 +207,13 @@ celery_app.conf.update(
             "schedule": crontab(hour=3, minute=5),
             "options": {"queue": "scheduled"},
         },
+
+        # 行为日志过期清理 - 每天凌晨 3:20（保留 90 天）
+        "behavior-log-cleanup": {
+            "task": "app.tasks.behavior_log_task.cleanup_expired_behavior_logs",
+            "schedule": crontab(hour=3, minute=20),
+            "options": {"queue": "scheduled"},
+        },
     },
 )
 

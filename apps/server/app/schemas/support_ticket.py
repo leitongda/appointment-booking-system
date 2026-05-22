@@ -50,12 +50,8 @@ class SupportTicketCreate(BaseModel):
 
     title: str = Field(..., max_length=200, description="工单标题")
     description: str = Field(..., min_length=1, description="工单描述")
-    type: SupportTicketType = Field(
-        SupportTicketType.OTHER, description="工单类型"
-    )
-    priority: SupportTicketPriority = Field(
-        SupportTicketPriority.MEDIUM, description="优先级"
-    )
+    type: str = Field("other", description="工单类型（字典: support_ticket_type）")
+    priority: str = Field("medium", description="优先级（字典: support_ticket_priority）")
     contact_info: Optional[str] = Field(None, max_length=200, description="联系方式")
     attachments: Optional[List[str]] = Field(None, description="附件URL列表")
 
@@ -70,8 +66,8 @@ class SupportTicketUpdate(BaseModel):
 
     title: Optional[str] = Field(None, max_length=200, description="工单标题")
     description: Optional[str] = Field(None, description="工单描述")
-    type: Optional[SupportTicketType] = Field(None, description="工单类型")
-    priority: Optional[SupportTicketPriority] = Field(None, description="优先级")
+    type: Optional[str] = Field(None, description="工单类型（字典: support_ticket_type）")
+    priority: Optional[str] = Field(None, description="优先级（字典: support_ticket_priority）")
     contact_info: Optional[str] = Field(None, max_length=200, description="联系方式")
     attachments: Optional[List[str]] = Field(None, description="附件URL列表")
     resolution: Optional[str] = Field(None, description="解决方案/备注")
@@ -129,8 +125,8 @@ class SupportTicketQuery(BaseModel):
     )
 
     status: Optional[SupportTicketStatus] = Field(None, description="状态")
-    type: Optional[SupportTicketType] = Field(None, description="类型")
-    priority: Optional[SupportTicketPriority] = Field(None, description="优先级")
+    type: Optional[str] = Field(None, description="类型（字典: support_ticket_type）")
+    priority: Optional[str] = Field(None, description="优先级（字典: support_ticket_priority）")
     keyword: Optional[str] = Field(None, description="关键词搜索")
     page: int = Field(1, ge=1)
     page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE)

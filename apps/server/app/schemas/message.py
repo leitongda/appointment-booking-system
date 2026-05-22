@@ -30,7 +30,7 @@ class MessageBase(BaseModel):
     
     title: str = Field(..., max_length=200, description="消息标题")
     content: Optional[str] = Field(None, description="消息内容")
-    message_type: MessageType = Field(MessageType.SYSTEM, description="消息类型")
+    message_type: str = Field("system", description="消息类型（字典: message_type）")
     related_id: Optional[str] = Field(None, description="关联业务ID")
 
 
@@ -52,7 +52,7 @@ class MessageBatchCreate(BaseModel):
     user_type: str = Field(..., description="用户类型")
     title: str = Field(..., max_length=200)
     content: Optional[str] = None
-    message_type: MessageType = MessageType.SYSTEM
+    message_type: str = "system"
     related_id: Optional[str] = None
 
 
@@ -103,7 +103,7 @@ class MessageQuery(BaseModel):
         populate_by_name=True,
     )
     
-    message_type: Optional[MessageType] = Field(None, description="消息类型")
+    message_type: Optional[str] = Field(None, description="消息类型（字典: message_type）")
     is_read: Optional[int] = Field(None, description="是否已读")
     page: int = Field(1, ge=1)
     page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE)
@@ -135,7 +135,7 @@ class MessageTemplateBase(BaseModel):
     
     code: str = Field(..., max_length=50)
     name: str = Field(..., max_length=100)
-    message_type: MessageType
+    message_type: str
     title_template: str = Field(..., max_length=200)
     content_template: str
     description: Optional[str] = Field(None, max_length=255)

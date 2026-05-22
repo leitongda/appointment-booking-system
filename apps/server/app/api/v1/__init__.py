@@ -67,6 +67,10 @@ ROUTER_REGISTRATIONS = [
     RouterRegistration("app.modules.schedule_rooms.router", "/schedule-rooms", ["诊室管理"]),
     RouterRegistration("app.modules.approval_flows.router", "/approval-flows", ["审批流管理"]),
     RouterRegistration("app.modules.approval_flows.router_instances", "/approval-instances", ["审批实例"]),
+    RouterRegistration("app.modules.dictionaries.router", "/dicts", ["字典管理"]),
+    RouterRegistration("app.modules.dictionaries.router_public", "/dict-options", ["字典选项查询"]),
+    RouterRegistration("app.modules.amap.router", "/amap", ["高德地图"]),
+    RouterRegistration("app.modules.performance.router", "/performance", ["性能监控"]),
 ]
 
 

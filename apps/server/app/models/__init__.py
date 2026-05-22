@@ -70,3 +70,5 @@ from app.models.account import Account, AccountAdmin, AccountDoctor, AccountUser
 from app.models.examination_report import ExaminationReport
 from app.models.extra_quota_request import ExtraQuotaRequest
 from app.models.schedule_room import ScheduleRoom
+from app.models.dict_type import DictType
+from app.models.dict_item import DictItem

@@ -156,6 +156,10 @@ class Settings(BaseSettings):
     # 告警配置
     ALERT_WEBHOOK_URL: Optional[str] = None  # 任务失败告警 Webhook URL
 
+    # 高德地图配置
+    AMAP_KEY: Optional[str] = None  # 高德地图 Web 服务 API Key
+    AMAP_SERVICE_BASE_URL: str = "https://restapi.amap.com"  # 高德 API 基础地址
+
     # 双写过渡期开关
     ACCOUNT_DUAL_WRITE_ENABLED: bool = False  # 默认关闭，手动开启
 

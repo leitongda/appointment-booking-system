@@ -1,8 +1,9 @@
 """用户行为日志 Schema"""
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
+import json
 
 
 def to_camel(string: str) -> str:
@@ -46,6 +47,15 @@ class TrackEventRequest(BaseModel):
     duration: Optional[int] = Field(None, ge=0, description="停留时长(毫秒)")
     referrer: Optional[str] = Field(None, max_length=255, description="来源页面")
     extra_data: Optional[dict] = Field(None, description="额外数据")
+
+    @field_validator("extra_data")
+    @classmethod
+    def validate_extra_data_size(cls, v: Optional[dict]) -> Optional[dict]:
+        if v is not None:
+            serialized = json.dumps(v, ensure_ascii=False)
+            if len(serialized) > 4096:
+                raise ValueError("extra_data 序列化后不能超过 4096 字符")
+        return v
 
 
 class BatchTrackRequest(BaseModel):
@@ -175,8 +185,6 @@ class TenantActivityDaily(BaseModel):
 
     date: str
     dau: int = 0
-    wau: Optional[int] = None
-    mau: Optional[int] = None
     new_users: int = 0
     total_sessions: int = 0
 

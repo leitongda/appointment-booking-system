@@ -20,6 +20,7 @@ from app.middleware.operation_log import OperationLogMiddleware
 from app.middleware.tenant_context import TenantContextMiddleware
 from app.db.session import AsyncSessionLocal, engine
 from app.tasks.blacklist_task import auto_release_blacklist
+from app.modules.amap.router import close_amap_client
 
 # 初始化日志系统
 setup_logging(
@@ -155,7 +156,11 @@ async def lifespan(app: FastAPI):
     # 关闭 Redis 连接
     await close_redis()
     logger.info("Redis 连接已关闭")
-    
+
+    # 关闭高德地图 HTTP 连接池
+    await close_amap_client()
+    logger.info("高德地图连接池已关闭")
+
     logger.info(f"👋 {settings.PROJECT_NAME} 已停止")
 
 
