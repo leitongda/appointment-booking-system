@@ -4,7 +4,7 @@ import { DownloadOutlined, UploadOutlined, FileExcelOutlined, MoreOutlined } fro
 import type { UploadProps, MenuProps } from 'antd';
 import type { RcFile } from 'antd/es/upload';
 import { request } from '@umijs/max';
-import { getToken } from '@hospital/shared';
+import { downloadBlob } from '@/utils/download';
 
 export interface ImportExportProps {
   /** 模块名称，用于显示 */
@@ -59,51 +59,38 @@ const ImportExport: React.FC<ImportExportProps> = ({
 
   // 导出数据
   const handleExport = async () => {
-    console.log("🚀 ~ handleExport ~ exportUrl:", exportUrl)
     if (!exportUrl) return;
-    
+
     setExporting(true);
     try {
-      const params = new URLSearchParams();
+      const params: Record<string, any> = {};
       Object.entries(exportParams).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
-          params.append(key, String(value));
+          params[key] = value;
         }
       });
-      
-      const queryString = params.toString();
-      const url = queryString ? `${exportUrl}?${queryString}` : exportUrl;
-      
-      const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error('导出失败');
-      }
-      
-      const blob = await response.blob();
-      const contentDisposition = response.headers.get('Content-Disposition');
+
+      const response = await request(exportUrl, {
+        method: 'GET',
+        params,
+        responseType: 'blob',
+        getResponse: true,
+      }) as any;
+
+      const blob = response.data as Blob;
+      const contentDisposition = response.response?.headers?.get?.('Content-Disposition')
+        ?? (response as any).headers?.['content-disposition'];
       let filename = `${moduleName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
-      
+
       if (contentDisposition) {
         const match = contentDisposition.match(/filename=(.+)/);
         if (match) {
           filename = match[1];
         }
       }
-      
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
-      
+
+      downloadBlob(blob, filename);
+
       message.success('导出成功');
     } catch (error: any) {
       message.error(error.message || '导出失败');
@@ -115,28 +102,17 @@ const ImportExport: React.FC<ImportExportProps> = ({
   // 下载模板
   const handleDownloadTemplate = async () => {
     if (!templateUrl) return;
-    
+
     try {
-      const response = await fetch(templateUrl, {
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error('下载模板失败');
-      }
-      
-      const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = `${moduleName}_导入模板.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
-      
+      const response = await request(templateUrl, {
+        method: 'GET',
+        responseType: 'blob',
+        getResponse: true,
+      }) as any;
+
+      const blob = response.data as Blob;
+      downloadBlob(blob, `${moduleName}_导入模板.xlsx`);
+
       message.success('模板下载成功');
     } catch (error: any) {
       message.error(error.message || '下载模板失败');

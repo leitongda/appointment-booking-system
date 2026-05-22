@@ -78,7 +78,7 @@ export const StoreSwitcher: React.FC = () => {
     try {
       const result = await adminApi.switchStore(storeId);
       if (result.currentStore) {
-        localStorage.setItem('hospital_current_store', JSON.stringify(result.currentStore));
+        setStorage(STORAGE_KEYS.CURRENT_STORE, result.currentStore);
       }
       storesCacheRef.current = null;
 

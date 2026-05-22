@@ -13,7 +13,7 @@ import { Tooltip, Popover, Spin, Empty, Avatar, Input, App, theme } from 'antd';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { tenantApi, adminApi } from '@hospital/api';
 import type { Tenant } from '@hospital/api';
-import { setStorage, STORAGE_KEYS } from '@hospital/shared';
+import { setStorage, removeStorage, STORAGE_KEYS } from '@hospital/shared';
 import styles from './index.less';
 
 // 租户列表缓存 TTL（5 分钟）
@@ -117,8 +117,8 @@ const TenantSwitcher: React.FC = () => {
       await adminApi.switchTenant(tenantId);
 
       // API 成功后保存到 localStorage
-      localStorage.setItem('hospital_current_tenant_id', tenantId);
-      localStorage.removeItem('hospital_current_store');
+      setStorage(STORAGE_KEYS.CURRENT_TENANT_ID, tenantId);
+      removeStorage(STORAGE_KEYS.CURRENT_STORE);
       tenantsCacheRef.current = null;
 
       // 保存当前路径以便 reload 后恢复（排除表单编辑页）
