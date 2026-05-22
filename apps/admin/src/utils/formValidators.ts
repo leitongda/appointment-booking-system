@@ -501,6 +501,46 @@ export const asyncValidator = (
 });
 
 /**
+ * 经度验证规则（中国境内：73.5°E ~ 135.5°E）
+ *
+ * @example
+ * ```tsx
+ * <Form.Item name="longitude" rules={[longitudeRules]}>
+ *   <Input />
+ * </Form.Item>
+ * ```
+ */
+export const longitudeRules = {
+  validator: (_: unknown, value: string | number) => {
+    if (!value) return Promise.resolve();
+    const num = Number(value);
+    if (isNaN(num)) return Promise.reject(new Error('请输入有效的经度'));
+    if (num < 73.5 || num > 135.5) return Promise.reject(new Error('经度超出中国境内范围（73.5 ~ 135.5）'));
+    return Promise.resolve();
+  },
+};
+
+/**
+ * 纬度验证规则（中国境内：3.8°N ~ 53.5°N）
+ *
+ * @example
+ * ```tsx
+ * <Form.Item name="latitude" rules={[latitudeRules]}>
+ *   <Input />
+ * </Form.Item>
+ * ```
+ */
+export const latitudeRules = {
+  validator: (_: unknown, value: string | number) => {
+    if (!value) return Promise.resolve();
+    const num = Number(value);
+    if (isNaN(num)) return Promise.reject(new Error('请输入有效的纬度'));
+    if (num < 3.8 || num > 53.5) return Promise.reject(new Error('纬度超出中国境内范围（3.8 ~ 53.5）'));
+    return Promise.resolve();
+  },
+};
+
+/**
  * 常用验证器集合
  */
 export const validators = {
@@ -542,4 +582,8 @@ export const validators = {
   combined: combinedRules,
   /** 条件规则 */
   conditional: conditionalRule,
+  /** 经度（中国境内） */
+  longitude: longitudeRules,
+  /** 纬度（中国境内） */
+  latitude: latitudeRules,
 };

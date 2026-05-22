@@ -1,159 +1,102 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState } from 'react';
 
 /**
- * 唯一性验证 Hook 配置选项
+ * useFieldUnique 配置选项
  */
-export interface UseUniqueValidationOptions {
-  /**
-   * 防抖延迟时间（毫秒），默认 300ms
-   */
-  debounceMs?: number;
+export interface UseFieldUniqueConfig<T = void> {
+  /** 唯一性检查函数 */
+  checkFn: (value: string, excludeId?: string | number) => Promise<{ isUnique: boolean; extra?: T }>;
+  /** 错误消息，默认 '该值已存在' */
+  message?: string;
+  /** 不唯一时的回调（如 suggestions） */
+  onNotUnique?: (extra: T) => void;
+  /** 排除的 ID（编辑时排除自身） */
+  excludeId?: string | number;
 }
 
 /**
- * 唯一性验证 Hook 返回值
+ * useFieldUnique 返回值
  */
-export interface UseUniqueValidationReturn {
-  /**
-   * 验证函数
-   * @param field 字段名
-   * @param value 字段值
-   * @param excludeId 排除的 ID（编辑时使用，排除当前项）
-   */
-  validate: (field: string, value: string, excludeId?: number) => Promise<void>;
-
-  /**
-   * 是否正在验证
-   */
+export interface UseFieldUniqueReturn<T = void> {
+  /** Ant Design Form rule，可直接放入 rules 数组 */
+  rule: Record<string, any>;
+  /** 该字段是否正在校验 */
   checking: boolean;
 }
 
 /**
- * 唯一性验证函数类型
- * @param field 字段名
- * @param value 字段值
- * @param excludeId 排除的 ID
- * @returns 是否唯一（true 表示唯一，false 表示已存在）
- */
-export type UniqueCheckFn = (
-  field: string,
-  value: string,
-  excludeId?: number
-) => Promise<boolean>;
-
-/**
- * 防抖函数
- */
-function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout | null = null;
-
-  return function executedFunction(...args: Parameters<T>) {
-    const later = () => {
-      timeout = null;
-      func(...args);
-    };
-
-    if (timeout) {
-      clearTimeout(timeout);
-    }
-    timeout = setTimeout(later, wait);
-  };
-}
-
-/**
- * 唯一性验证 Hook
- * 提供带防抖的唯一性验证功能，用于表单字段的异步验证
+ * 单字段唯一性校验 Hook
  *
- * @param checkFn 唯一性检查函数，返回 true 表示唯一，false 表示已存在
- * @param options 配置选项
- * @returns 验证函数和状态
+ * 返回一个 Ant Design Form rule 对象，可直接放入 rules 数组。
+ * 空值直接通过，不调用 API。API 失败时不阻止提交。
  *
  * @example
- * // 基础用法
- * const { validate, checking } = useUniqueValidation(
- *   async (field, value) => {
- *     const { data } = await api.checkUnique({ field, value });
- *     return data.isUnique;
- *   }
- * );
+ * // 基础用法（门店名称）
+ * const { rule: nameRule } = useFieldUnique({
+ *   checkFn: (value, excludeId) =>
+ *     storeApi.checkUnique('name', value, excludeId).then(r => ({ isUnique: !r.exists })),
+ *   message: '该门店名称已存在',
+ *   excludeId: isEdit ? id : undefined,
+ * });
  *
- * // 在表单中使用
- * <ProFormText
- *   name="username"
- *   label="用户名"
- *   rules={[
- *     { required: true, message: '请输入用户名' },
- *     {
- *       validator: (_, value) => validate('username', value),
- *     },
- *   ]}
- *   validateStatus={checking ? 'validating' : undefined}
- * />
- *
- * @example
- * // 编辑模式 - 排除当前项
- * const { validate, checking } = useUniqueValidation(
- *   async (field, value, excludeId) => {
- *     const { data } = await api.checkUnique({ field, value, excludeId });
- *     return data.isUnique;
- *   }
- * );
- *
- * // 验证时排除当前编辑项
- * await validate('username', 'admin', currentUserId);
- *
- * @example
- * // 自定义防抖时间
- * const { validate, checking } = useUniqueValidation(
- *   checkFn,
- *   { debounceMs: 500 }
- * );
+ * // 带 suggestions 回调（医生账号）
+ * const [suggestions, setSuggestions] = useState<string[]>([]);
+ * const { rule: usernameRule, checking } = useFieldUnique<{ suggestions: string[] }>({
+ *   checkFn: async (value, excludeId) => {
+ *     const res = await doctorApi.checkUsername(value, excludeId);
+ *     return { isUnique: !res.exists, extra: { suggestions: res.suggestions } };
+ *   },
+ *   message: '该账号已存在',
+ *   onNotUnique: (extra) => setSuggestions(extra.suggestions),
+ * });
  */
-export function useUniqueValidation(
-  checkFn: UniqueCheckFn,
-  options?: UseUniqueValidationOptions
-): UseUniqueValidationReturn {
-  const { debounceMs = 300 } = options ?? {};
+export function useFieldUnique<T = void>(config: UseFieldUniqueConfig<T>): UseFieldUniqueReturn<T> {
+  const { checkFn, message = '该值已存在', onNotUnique, excludeId } = config;
   const [checking, setChecking] = useState(false);
-  const checkingRef = useRef(false);
 
-  // 原始验证函数
-  const validateInternal = useCallback(
-    async (field: string, value: string, excludeId?: number): Promise<void> => {
-      // 空值不验证
-      if (!value || value.trim() === '') {
-        return;
-      }
-
-      checkingRef.current = true;
+  const rule = {
+    validator: async (_: any, value: any) => {
+      if (!value) return;
       setChecking(true);
-
       try {
-        const isUnique = await checkFn(field, value, excludeId);
-        if (!isUnique) {
-          throw new Error(`该${field}已存在`);
+        const result = await checkFn(String(value), excludeId);
+        if (!result.isUnique) {
+          onNotUnique?.(result.extra as T);
+          throw new Error(message);
         }
+      } catch (e: any) {
+        if (e.message === message) throw e; // 重新抛出业务错误
+        // API 错误不阻止提交
       } finally {
-        checkingRef.current = false;
         setChecking(false);
       }
     },
-    [checkFn]
-  );
-
-  // 防抖验证函数
-  const validate = useMemo(
-    () => debounce(validateInternal, debounceMs),
-    [validateInternal, debounceMs]
-  );
-
-  return {
-    validate: validate as (field: string, value: string, excludeId?: number) => Promise<void>,
-    checking,
   };
+
+  return { rule, checking };
 }
 
-export default useUniqueValidation;
+/**
+ * @deprecated 使用 useFieldUnique 替代
+ */
+export function useUniqueValidation(
+  checkFn: (field: string, value: string, excludeId?: number) => Promise<boolean>,
+  options?: { debounceMs?: number }
+) {
+  const [checking, setChecking] = useState(false);
+
+  const validate = async (field: string, value: string, excludeId?: number): Promise<void> => {
+    if (!value || value.trim() === '') return;
+    setChecking(true);
+    try {
+      const isUnique = await checkFn(field, value, excludeId);
+      if (!isUnique) throw new Error(`该${field}已存在`);
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  return { validate, checking };
+}
+
+export default useFieldUnique;

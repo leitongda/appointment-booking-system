@@ -1,12 +1,11 @@
 import { setBaseURL } from '@hospital/api';
-import { initTracker, initPerformanceMonitoring } from '@hospital/shared';
+import { initTracker, getTracker, initPerformanceMonitoring } from '@hospital/shared';
 import { initApiConfig } from '@/utils/request';
 
 const apiBaseUrl = process.env.API_BASE_URL || '/api/v1';
 
 export function initApp() {
   setBaseURL(apiBaseUrl);
-  console.log(`API base URL set: ${apiBaseUrl}`);
 
   initApiConfig();
 
@@ -26,6 +25,7 @@ export function initApp() {
       enabled: true,
       flushInterval: 30000,
       batchSize: 20,
+      getSessionId: () => getTracker()?.getSessionId() ?? '',
     },
   });
 }

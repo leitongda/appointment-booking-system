@@ -2,6 +2,7 @@ import { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import type { RefObject } from 'react';
 import type { ProFormInstance } from '@ant-design/pro-components';
 import { App } from 'antd';
+import { debounce } from 'lodash-es';
 
 /**
  * 表单草稿 Hook 配置选项
@@ -46,28 +47,6 @@ export interface UseFormDraftReturn {
    * 表单值变化处理器，传递给 ProForm 的 onValuesChange
    */
   handleValuesChange: (changedValues: any, allValues: any) => void;
-}
-
-/**
- * 防抖函数
- */
-function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout | null = null;
-
-  return function executedFunction(...args: Parameters<T>) {
-    const later = () => {
-      timeout = null;
-      func(...args);
-    };
-
-    if (timeout) {
-      clearTimeout(timeout);
-    }
-    timeout = setTimeout(later, wait);
-  };
 }
 
 /**

@@ -16,7 +16,7 @@ declare namespace AMap {
   class Map {
     constructor(container: string | HTMLElement, opts?: MapOptions);
     destroy(): void;
-    setCenter(center: [number, number]): void;
+    setCenter(center: [number, number] | LngLat): void;
     setZoom(zoom: number): void;
     on(event: string, handler: (e: any) => void): void;
     add(overlay: any): void;
@@ -42,6 +42,7 @@ declare namespace AMap {
     setPosition(position: [number, number] | LngLat): void;
     getPosition(): LngLat;
     setMap(map: Map | null): void;
+    on(event: string, handler: (e: any) => void): void;
   }
 
   interface MarkerOptions {

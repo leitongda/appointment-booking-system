@@ -1,12 +1,58 @@
 import { useRequest } from '@umijs/max';
-import type { Options, Result } from 'ahooks/lib/useRequest/src/types';
+import type { DependencyList } from 'react';
+
+/** useRequest 内部选项类型（自包含，不依赖 ahooks 内部路径） */
+interface RequestOptions<TData, TParams extends any[]> {
+  manual?: boolean;
+  onBefore?: (params: TParams) => void;
+  onSuccess?: (data: TData, params: TParams) => void;
+  onError?: (e: Error, params: TParams) => void;
+  onFinally?: (params: TParams, data?: TData, e?: Error) => void;
+  defaultParams?: TParams;
+  refreshDeps?: DependencyList;
+  loadingDelay?: number;
+  pollingInterval?: number;
+  pollingWhenHidden?: boolean;
+  pollingErrorRetryCount?: number;
+  refreshOnWindowFocus?: boolean;
+  focusTimespan?: number;
+  debounceWait?: number;
+  debounceLeading?: boolean;
+  debounceTrailing?: boolean;
+  debounceMaxWait?: number;
+  throttleWait?: number;
+  throttleLeading?: boolean;
+  throttleTrailing?: boolean;
+  cacheKey?: string;
+  cacheTime?: number;
+  staleTime?: number;
+  retryCount?: number;
+  retryInterval?: number;
+  ready?: boolean;
+  [key: string]: any;
+}
+
+/** useRequest 返回值类型 */
+interface RequestResult<TData, TParams extends any[]> {
+  loading: boolean;
+  data?: TData;
+  error?: Error;
+  params: TParams | [];
+  cancel: () => void;
+  refresh: () => void;
+  refreshAsync: () => Promise<TData>;
+  run: (...params: TParams) => void;
+  runAsync: (...params: TParams) => Promise<TData>;
+  mutate: (data?: TData | ((oldData?: TData) => TData | undefined)) => void;
+  [key: string]: any;
+}
 
 /**
  * 列表请求 Hook 配置选项
  * 基于 @umijs/max 的 useRequest，提供 SWR/缓存/屏幕聚焦刷新等功能
  */
 export interface UseListRequestOptions<TData, TParams extends any[]>
-  extends Omit<Options<TData, TParams>, 'cacheKey' | 'staleTime'> {
+  extends Omit<RequestOptions<TData, TParams>, 'cacheKey' | 'staleTime'> {
   /**
    * 缓存 key，设置后启用缓存功能
    * 相同 cacheKey 的请求会共享缓存数据
@@ -100,7 +146,7 @@ export interface UseListRequestOptions<TData, TParams extends any[]>
  * 列表请求 Hook 返回值
  */
 export interface UseListRequestResult<TData, TParams extends any[]>
-  extends Omit<Result<TData, TParams>, 'run' | 'runAsync'> {
+  extends Omit<RequestResult<TData, TParams>, 'run' | 'runAsync'> {
   /** 当前数据 */
   data: TData | undefined;
   /** 是否正在加载 */
@@ -242,7 +288,7 @@ export function useListRequest<TData = any, TParams extends any[] = any[]>(
     onFinally,
     // 其他选项
     ...restOptions,
-  } as Options<TData, TParams>);
+  } as RequestOptions<TData, TParams>);
 
   return result as UseListRequestResult<TData, TParams>;
 }
@@ -307,7 +353,7 @@ export function usePaginatedRequest<
   const result = useRequest(service, {
     ...restOptions,
     defaultParams: [{ page: defaultCurrent, pageSize: defaultPageSize }] as TParams,
-  } as Options<TData, TParams>);
+  } as RequestOptions<TData, TParams>);
 
   const { data, run } = result;
 

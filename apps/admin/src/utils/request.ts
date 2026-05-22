@@ -9,7 +9,7 @@
  *   VALIDATION_ERROR   → show field-level errors
  */
 import { setRequestInterceptor, setResponseInterceptor, ApiError } from '@hospital/api';
-import { getToken, handleTokenExpired, markAuthExpired, shouldSilenceAuthExpiredFeedback, parseTenantError, markTenantSuspended } from '@hospital/shared';
+import { getToken, getStorage, STORAGE_KEYS, handleTokenExpired, markAuthExpired, shouldSilenceAuthExpiredFeedback, parseTenantError, markTenantSuspended } from '@hospital/shared';
 import { message, Modal, notification } from 'antd';
 import type { InternalAxiosRequestConfig } from 'axios';
 
@@ -160,7 +160,7 @@ export const setupRequestInterceptor = () => {
 
       // 添加租户上下文 Header：从 localStorage 读取当前租户 ID
       // 如果不存在，则不添加，后端可通过子域名/路径前缀等其他方式识别租户
-      const currentTenantId = localStorage.getItem('hospital_current_tenant_id');
+      const currentTenantId = getStorage<string>(STORAGE_KEYS.CURRENT_TENANT_ID);
       if (currentTenantId) {
         config.headers['X-Tenant-ID'] = currentTenantId;
       }
