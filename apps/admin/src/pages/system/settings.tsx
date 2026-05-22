@@ -16,7 +16,8 @@ import { useState, useEffect } from 'react';
 import { history, useAccess, useLocation, useModel } from '@umijs/max';
 import { settingsApi, blacklistApi, storeApi } from '@hospital/api';
 import { fetchAllData } from '@/utils/fetchAllData';
-import type { BookingSettings, HospitalInfo, BookingFieldConfig, PatientCardConfig, BlacklistItem, EmailConfig, ImageConfig, WechatConfig, SmsConfig } from '@hospital/api';
+import type { BookingSettings, HospitalInfo, BookingFieldConfig, PatientCardConfig, BlacklistItem, EmailConfig, ImageConfig, SmsConfig } from '@hospital/api';
+import type { Store } from '@hospital/shared';
 import type { StoreWechatConfig } from '@hospital/shared';
 
 const { Text } = Typography;
@@ -135,11 +136,10 @@ const SettingsPage: React.FC = () => {
   const [blacklistKeyword, setBlacklistKeyword] = useState('');
   const [blacklistLoading, setBlacklistLoading] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
-  const [stores, setStores] = useState<any[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
   const [emailConfig, setEmailConfig] = useState<EmailConfig | null>(null);
   const [imageConfig, setImageConfig] = useState<ImageConfig | null>(null);
   const [smsConfig, setSmsConfig] = useState<SmsConfig | null>(null);
-  const [_wechatConfig, setWechatConfig] = useState<WechatConfig | null>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [storeWechatConfig, setStoreWechatConfig] = useState<StoreWechatConfig | null>(null);
   const [wechatLoading, setWechatLoading] = useState(false);
@@ -207,9 +207,6 @@ const SettingsPage: React.FC = () => {
       if (canViewSms) {
         loaders.push(settingsApi.getSmsConfig().then(setSmsConfig));
       }
-      if (canViewWechat) {
-        loaders.push(settingsApi.getWechatConfig().then(setWechatConfig));
-      }
 
       await Promise.allSettled(loaders);
     } catch (error) {
@@ -249,6 +246,24 @@ const SettingsPage: React.FC = () => {
   useEffect(() => {
     setActiveTab(TAB_PATH_TO_KEY[location.pathname] || 'booking');
   }, [location.pathname]);
+
+  // 加载门店微信配置
+  const loadStoreWechatConfig = async (storeId: string) => {
+    if (!storeId) {
+      setStoreWechatConfig(null);
+      return;
+    }
+    setWechatLoading(true);
+    try {
+      const config = await storeApi.getWechatConfig(storeId);
+      setStoreWechatConfig(config);
+    } catch (error: any) {
+      console.error('加载门店微信配置失败', error);
+      setStoreWechatConfig(null);
+    } finally {
+      setWechatLoading(false);
+    }
+  };
 
   // 门店加载完成后，微信 tab 自动选中第一项
   useEffect(() => {
@@ -377,24 +392,6 @@ const SettingsPage: React.FC = () => {
       message.success('保存成功');
     } catch (error: any) {
       message.error(error.message || '保存失败');
-    }
-  };
-
-  // 加载门店微信配置
-  const loadStoreWechatConfig = async (storeId: string) => {
-    if (!storeId) {
-      setStoreWechatConfig(null);
-      return;
-    }
-    setWechatLoading(true);
-    try {
-      const config = await storeApi.getWechatConfig(storeId);
-      setStoreWechatConfig(config);
-    } catch (error: any) {
-      console.error('加载门店微信配置失败', error);
-      setStoreWechatConfig(null);
-    } finally {
-      setWechatLoading(false);
     }
   };
 

@@ -42,9 +42,7 @@ const ApprovalInstanceDetailPage: React.FC = () => {
   const [instance, setInstance] = useState<ApprovalInstance | null>(null);
   const [approveModalOpen, setApproveModalOpen] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
-  const [delegateModalOpen, setDelegateModalOpen] = useState(false);
   const [comment, setComment] = useState('');
-  const [delegateTargetId, setDelegateTargetId] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchDetail = useCallback(async () => {
@@ -63,10 +61,6 @@ const ApprovalInstanceDetailPage: React.FC = () => {
   useEffect(() => {
     fetchDetail();
   }, [fetchDetail]);
-
-  const isMyPending = instance?.status === 'pending' && instance?.records?.some(
-    (r) => r.approverId === initialState?.currentUser?.id && r.action === 'comment'
-  );
 
   const isApplicant = instance?.applicantId === initialState?.currentUser?.id;
 

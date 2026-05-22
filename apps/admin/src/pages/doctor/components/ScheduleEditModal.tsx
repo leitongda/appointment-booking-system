@@ -11,6 +11,7 @@ import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import { scheduleApi } from '@hospital/api';
 import type { Schedule } from '@hospital/shared';
+import { TIME_SLOT_RANGE, TIME_SLOT_LABEL } from '@hospital/shared';
 
 interface ScheduleEditModalProps {
   open: boolean;
@@ -26,18 +27,6 @@ const TIME_SLOTS = [
   { label: '下午', value: 'afternoon' },
   { label: '晚上', value: 'evening' },
 ];
-
-const TIME_SLOT_LABELS: Record<string, string> = {
-  morning: '上午',
-  afternoon: '下午',
-  evening: '晚上',
-};
-
-const DEFAULT_TIMES: Record<string, { start: string; end: string }> = {
-  morning: { start: '08:00', end: '12:00' },
-  afternoon: { start: '14:00', end: '17:30' },
-  evening: { start: '18:00', end: '21:00' },
-};
 
 const ScheduleEditModal: React.FC<ScheduleEditModalProps> = ({
   open,
@@ -82,7 +71,7 @@ const ScheduleEditModal: React.FC<ScheduleEditModalProps> = ({
     
     try {
       const timeSlot = values.timeSlot;
-      const defaultTime = DEFAULT_TIMES[timeSlot] || DEFAULT_TIMES.morning;
+      const defaultTime = TIME_SLOT_RANGE[timeSlot] || TIME_SLOT_RANGE.morning;
       
       // 格式化时间，确保有效性
       let startTime = defaultTime.start;
@@ -199,7 +188,7 @@ const ScheduleEditModal: React.FC<ScheduleEditModalProps> = ({
                 <List.Item.Meta
                   title={
                     <Space>
-                      <span>{TIME_SLOT_LABELS[schedule.timeSlot ?? ''] || schedule.timeSlot}</span>
+                      <span>{TIME_SLOT_LABEL[schedule.timeSlot ?? ''] || schedule.timeSlot}</span>
                       {getStatusTag(schedule)}
                     </Space>
                   }

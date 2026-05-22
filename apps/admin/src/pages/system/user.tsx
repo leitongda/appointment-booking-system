@@ -13,6 +13,7 @@ import {
   OperationGroup,
 } from '@/components/ListOperations';
 import ImportExport from '@/components/ImportExport';
+import { DEFAULT_RESET_PASSWORD } from '@/constants';
 import type { Admin } from '@hospital/api';
 
 const UserPage: React.FC = () => {
@@ -28,11 +29,11 @@ const UserPage: React.FC = () => {
 
   const handleResetPassword = (id: string) => {
     Modal.confirm({
-      title: '确定重置密码为 123456 吗？',
+      title: `确定重置密码为 ${DEFAULT_RESET_PASSWORD} 吗？`,
       onOk: async () => {
         await handleAction(
-          () => adminApi.resetAdminPassword(id, '123456'),
-          { successText: '密码已重置为 123456', errorText: '重置失败' }
+          () => adminApi.resetAdminPassword(id, DEFAULT_RESET_PASSWORD),
+          { successText: `密码已重置为 ${DEFAULT_RESET_PASSWORD}`, errorText: '重置失败' }
         );
       },
     });

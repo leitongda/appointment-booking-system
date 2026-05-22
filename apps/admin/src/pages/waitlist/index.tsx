@@ -6,6 +6,7 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import { useAccess, useModel } from '@umijs/max';
 import { waitlistApi, storeApi, doctorApi, departmentApi } from '@hospital/api';
 import type { WaitlistEntry, WaitlistStatus, WaitlistStats } from '@hospital/api';
+import type { Store, Department, Doctor } from '@hospital/shared';
 import { toProTableResult } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
 import { PAGINATION_CONFIG } from '@/constants/pagination';
@@ -126,13 +127,13 @@ const WaitlistPage: React.FC = () => {
                 const stores = await storeApi.getAll();
                 let storeList = stores ?? [];
                 if (!isSuperAdmin && currentUser?.storeIds?.length) {
-                  storeList = storeList.filter((s: any) =>
+                  storeList = storeList.filter((s: Store) =>
                     currentUser.storeIds?.includes(s.id)
                   );
                 }
                 return [
                   { label: '全部门店', value: '' },
-                  ...storeList.map((s: any) => ({
+                  ...storeList.map((s: Store) => ({
                     label: s.name,
                     value: s.id,
                   })),
@@ -161,7 +162,7 @@ const WaitlistPage: React.FC = () => {
           );
           return [
             { label: '全部科室', value: '' },
-            ...departments.map((d: any) => ({
+            ...departments.map((d: Department) => ({
               label: d.name,
               value: d.id,
             })),
@@ -188,7 +189,7 @@ const WaitlistPage: React.FC = () => {
           );
           return [
             { label: '全部医生', value: '' },
-            ...doctors.map((d: any) => ({
+            ...doctors.map((d: Doctor) => ({
               label: `${d.name}（${d.departmentName || '无科室'}）`,
               value: d.id,
             })),

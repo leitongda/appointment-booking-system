@@ -3,7 +3,7 @@ import { Card, Form, InputNumber, Select, Switch, Button, Space, Alert, App } fr
 import { useParams, history } from '@umijs/max';
 import { useEffect, useState } from 'react';
 import { storeApi, storeVisitTypeConfigApi } from '@hospital/api';
-import type { Store, StoreVisitTypeConfig, TimeUnit, VisitScope } from '@hospital/shared';
+import type { Store, TimeUnit, VisitScope } from '@hospital/shared';
 import { TIME_UNIT_OPTIONS, VISIT_SCOPE_OPTIONS } from '@hospital/shared';
 
 const VisitTypeConfigPage = () => {
@@ -13,7 +13,6 @@ const VisitTypeConfigPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [store, setStore] = useState<Store | null>(null);
-  const [_config, setConfig] = useState<StoreVisitTypeConfig | null>(null);
 
   // 加载数据
   useEffect(() => {
@@ -29,7 +28,6 @@ const VisitTypeConfigPage = () => {
         // 加载配置
         const configResult = await storeVisitTypeConfigApi.getByStoreId(storeId);
         const configData = configResult.data;
-        setConfig(configData);
 
         // 设置表单值
         form.setFieldsValue({

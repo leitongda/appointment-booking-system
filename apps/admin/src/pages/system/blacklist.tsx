@@ -1,11 +1,12 @@
 import { PlusOutlined, StopOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormText, ProFormSelect, ProFormTextArea, ProFormDateTimePicker } from '@ant-design/pro-components';
-import { App, Tag, Popconfirm, Button, Space } from 'antd';
+import { App, Tag, Popconfirm, Button } from 'antd';
 import { useRef, useState, useCallback, useMemo } from 'react';
 import { useAccess, useModel } from '@umijs/max';
 import { blacklistApi, storeApi } from '@hospital/api';
 import type { BlacklistItem, BlacklistCreateData } from '@hospital/api';
+import type { Store } from '@hospital/shared';
 import { toProTableResult } from '@/utils/proTable';
 import { PAGINATION_CONFIG } from '@/constants/pagination';
 
@@ -74,13 +75,13 @@ const BlacklistPage: React.FC = () => {
                 const stores = await storeApi.getAll();
                 let storeList = stores ?? [];
                 if (!isSuperAdmin && userStores.length > 0) {
-                  storeList = storeList.filter((s: any) =>
-                    userStores.some((us: any) => us.id === s.id)
+                  storeList = storeList.filter((s: Store) =>
+                    userStores.some((us: { id: string }) => us.id === s.id)
                   );
                 }
                 return [
                   { label: '全部门店', value: '' },
-                  ...storeList.map((s: any) => ({ label: s.name, value: s.id })),
+                  ...storeList.map((s: Store) => ({ label: s.name, value: s.id })),
                 ];
               } catch {
                 return [];

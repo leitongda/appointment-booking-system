@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import { useEffect, useState, useCallback } from 'react';
 import { scheduleApi } from '@hospital/api';
 import type { Schedule } from '@hospital/shared';
+import { TIME_SLOT_LABEL } from '@hospital/shared';
 
 interface ScheduleCalendarProps {
   doctorId: string;
@@ -14,11 +15,9 @@ interface DaySchedules {
   [date: string]: Schedule[];
 }
 
-// 时段标签映射 - 支持两种格式
+// 时段标签映射 - 扩展 shared TIME_SLOT_LABEL，兼容大写格式
 const TIME_SLOT_LABELS: Record<string, string> = {
-  morning: '上午',
-  afternoon: '下午',
-  evening: '晚上',
+  ...TIME_SLOT_LABEL,
   AM: '上午',
   PM: '下午',
   NIGHT: '晚上',

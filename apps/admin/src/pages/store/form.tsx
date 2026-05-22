@@ -5,6 +5,7 @@
  * 保留业务逻辑：编码生成、唯一性验证、时间格式处理
  */
 import { ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormTimePicker } from '@ant-design/pro-components';
+import type { ProFormInstance } from '@ant-design/pro-components';
 import { Card, Space, Tag } from 'antd';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { history, useParams } from '@umijs/max';
@@ -63,7 +64,7 @@ const StoreFormPage: React.FC = () => {
   const isEdit = !!id;
   const [loading, setLoading] = useState(false);
   const [store, setStore] = useState<Store | null>(null);
-  const formRef = useRef<any>();
+  const formRef = useRef<ProFormInstance>(null);
   // 标记编码是否被用户手动修改过
   const [codeManuallyEdited, setCodeManuallyEdited] = useState(false);
 

@@ -38,7 +38,7 @@ const AppointmentDetailPage: React.FC = () => {
     setRefundRecordsLoading(true);
     try {
       const data = await appointmentApi.getRefundRecords(id);
-      setRefundRecords(data as any);
+      setRefundRecords(data);
     } catch (error) {
       console.error('加载退款记录失败', error);
     } finally {

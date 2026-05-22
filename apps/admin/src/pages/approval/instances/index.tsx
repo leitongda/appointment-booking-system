@@ -24,12 +24,12 @@ type TabKey = 'pending' | 'done' | 'initiated';
 
 const ApprovalInstancesPage: React.FC = () => {
   const history = useHistory();
-  const { initialState } = useModel('@@initialState');
+  useModel('@@initialState');
   const [activeTab, setActiveTab] = useState<TabKey>('pending');
   const actionRef = useRef<ActionType>();
   const [approveModalOpen, setApproveModalOpen] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
-  const [delegateModalOpen, setDelegateModalOpen] = useState(false);
+
   const [currentId, setCurrentId] = useState<string>('');
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);

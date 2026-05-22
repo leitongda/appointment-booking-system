@@ -5,6 +5,7 @@
  * 保留业务逻辑：账号生成、唯一性验证、门店权限控制
  */
 import { ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormRadio, ProFormDependency, ProFormGroup } from '@ant-design/pro-components';
+import type { ProFormInstance } from '@ant-design/pro-components';
 import { Card, Input, Form, Typography } from 'antd';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { history, useParams, useModel, useAccess } from '@umijs/max';
@@ -52,7 +53,7 @@ const DoctorFormPage: React.FC = () => {
   const [stores, setStores] = useState<Store[]>([]);
   const [usernameError, setUsernameError] = useState<string>('');
   const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
-  const formRef = useRef<any>(null);
+  const formRef = useRef<ProFormInstance>(null);
 
   // 加载科室列表
   async function loadDepartments() {
