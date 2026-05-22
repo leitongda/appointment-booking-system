@@ -1,9 +1,10 @@
 import { PageContainer, ProForm, ProFormText, ProFormTextArea, ProFormSelect, FooterToolbar } from '@ant-design/pro-components';
+import type { ProFormInstance } from '@ant-design/pro-components';
 import { Card, App, Button, Space, Modal } from 'antd';
 import { history } from '@umijs/max';
 import { messageApi } from '@hospital/api';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { UnifiedTemplate } from '@hospital/shared';
+import type { UnifiedTemplate, RecipientRule } from '@hospital/shared';
 
 const TYPE_OPTIONS = [
   { label: '系统', value: 'system' },
@@ -24,17 +25,17 @@ const MessageFormPage: React.FC = () => {
   const { message } = App.useApp();
   const [sendMode, setSendMode] = useState<'single' | 'batch' | 'rule'>('single');
   const [templates, setTemplates] = useState<UnifiedTemplate[]>([]);
-  const [recipientRules, setRecipientRules] = useState<any[]>([]);
+  const [recipientRules, setRecipientRules] = useState<RecipientRule[]>([]);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewData, setPreviewData] = useState<{ title: string; content: string }>({ title: '', content: '' });
-  const formRef = useRef<any>(null);
+  const formRef = useRef<ProFormInstance>(null);
 
   useEffect(() => {
     messageApi.getUnifiedTemplates({ status: 1, page: 1, pageSize: 100 }).then((res) => {
-      setTemplates(Array.isArray(res) ? res : (res as any)?.data || []);
+      setTemplates(Array.isArray(res) ? res : []);
     }).catch(() => {});
     messageApi.getRecipientRules().then((res) => {
-      setRecipientRules(Array.isArray(res) ? res : (res as any)?.data || []);
+      setRecipientRules(Array.isArray(res) ? res : []);
     }).catch(() => {});
   }, []);
 

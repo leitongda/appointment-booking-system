@@ -313,8 +313,11 @@ export type {
   ScheduleStatisticsItem,
   ScheduleStatisticsResponse,
   ScheduleStatisticsParams,
+  UtilizationTrendItem,
   UtilizationTrendResponse,
+  DoctorWorkloadItem,
   DoctorWorkloadResponse,
+  PeakHourCell,
   PeakHourHeatmapResponse,
 } from './modules/schedule';
 

@@ -1,4 +1,4 @@
-import { EditOutlined, DeleteOutlined, CopyOutlined, EyeOutlined, SendOutlined } from '@ant-design/icons';
+import { CopyOutlined, EyeOutlined, SendOutlined } from '@ant-design/icons';
 import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormSelect } from '@ant-design/pro-components';
 import { Tag, Switch, Button, Modal, Descriptions, Input } from 'antd';

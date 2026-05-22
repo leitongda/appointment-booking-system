@@ -1,6 +1,6 @@
 import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Tag, Button, Popconfirm, Drawer, Space, App, Descriptions, Card, Row, Col } from 'antd';
+import { Tag, Button, Popconfirm, Drawer, Space, Descriptions, Card, Row, Col } from 'antd';
 import { MailOutlined, UserOutlined, FileTextOutlined, BarChartOutlined } from '@ant-design/icons';
 import { useState, useCallback } from 'react';
 import { useModel, history } from '@umijs/max';
