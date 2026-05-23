@@ -67,6 +67,11 @@ export default defineConfig({
       { path: '/medical-record/list', name: '病历列表', component: '@/pages/medical-record/list' },
       { path: '/medical-record/create', name: '填写病历', component: '@/pages/medical-record/form', hideInMenu: true },
     ]},
+    { path: '/follow-up', name: '诊后随访', icon: 'HeartOutlined', routes: [
+      { path: '/follow-up', redirect: '/follow-up/tasks' },
+      { path: '/follow-up/tasks', name: '随访任务', component: '@/pages/follow-up/tasks' },
+      { path: '/follow-up/records', name: '随访记录', component: '@/pages/follow-up/records' },
+    ]},
     { path: '/statistics', name: '数据统计', icon: 'BarChartOutlined', component: '@/pages/statistics' },
     { path: '/rules', name: '预约规则', icon: 'SafetyCertificateOutlined', component: '@/pages/rules' },
     { path: '/message', name: '消息中心', icon: 'BellOutlined', component: '@/pages/message' },

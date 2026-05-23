@@ -13,6 +13,7 @@ class MessageType(str, enum.Enum):
     SYSTEM = "system"  # 系统通知
     STOP_CLINIC = "stop_clinic"  # 停诊通知
     FEEDBACK = "feedback"  # 反馈回复通知
+    FOLLOW_UP = "follow_up"  # 随访通知
 
 
 class Message(Base, AuditMixin):

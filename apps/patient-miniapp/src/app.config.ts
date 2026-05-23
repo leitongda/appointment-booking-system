@@ -45,6 +45,10 @@ export default defineAppConfig({
         'pages/favorite/index',      // 我的收藏
         'pages/records/index',       // 就诊记录
         'pages/records/detail',      // 记录详情
+        'pages/follow-up/tasks',     // 随访任务列表
+        'pages/follow-up/records',   // 随访记录列表
+        'pages/follow-up/detail',    // 随访任务详情
+        'pages/follow-up/report',    // 自报告表单
         'pages/message/index',       // 消息中心
         'pages/feedback/index',      // 意见反馈
         'pages/feedback/history',    // 反馈历史

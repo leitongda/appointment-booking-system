@@ -43,6 +43,7 @@ const menuGroups: { items: MenuItem[] }[] = [
       { icon: TeamIcon, title: '就诊人管理', desc: '管理就诊人信息', path: '/packageProfile/pages/patient/index' },
       { icon: HeartIcon, title: '我的收藏', desc: '收藏的医生', path: '/packageProfile/pages/favorite/index' },
       { icon: RecordIcon, title: '就诊记录', desc: '查看历史就诊记录', path: '/packageProfile/pages/records/index' },
+      { icon: HeartIcon, title: '我的随访', desc: '查看随访任务和记录', path: '/packageProfile/pages/follow-up/tasks' },
       { icon: BellIcon, title: '消息通知', desc: '预约提醒、系统通知', path: '/packageProfile/pages/message/index' },
     ],
   },
@@ -434,6 +435,7 @@ const ProfilePage = () => {
       '/packageProfile/pages/patient/index',
       '/packageProfile/pages/favorite/index',
       '/packageProfile/pages/records/index',
+      '/packageProfile/pages/follow-up/tasks',
       '/packageProfile/pages/message/index',
       '/packageProfile/pages/feedback/index',
     ];

@@ -39,6 +39,10 @@ from app.tasks.cleanup_task import (
     cleanup_redis_cache,
     cleanup_old_messages,
 )
+from app.tasks.follow_up_task import (
+    mark_overdue_task,
+    send_follow_up_reminders,
+)
 
 __all__ = [
     # 黑名单任务
@@ -62,4 +66,7 @@ __all__ = [
     'cleanup_expired_data_task',
     'cleanup_redis_cache',
     'cleanup_old_messages',
+    # 随访任务
+    'mark_overdue_task',
+    'send_follow_up_reminders',
 ]

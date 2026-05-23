@@ -84,6 +84,7 @@ export { blacklistApi } from './modules/blacklist';
 export { pointApi } from './modules/point';
 export { uploadApi } from './modules/upload';
 export { examinationReportApi } from './modules/examination-report';
+export { followUpApi, selfReportApi } from './modules/follow-up';
 export { emailTemplateApi } from './modules/email-template';
 export { dataApi } from './modules/data';
 export type { ImportResult } from './modules/data';
@@ -343,6 +344,18 @@ export type { UploadResult, TransferRequest, ThumbnailInfo, UploadOptions } from
 
 // Examination Report types
 export type { ExaminationReport, ExaminationReportListItem, ExaminationReportUploadParams } from './modules/examination-report';
+
+// Follow-Up types
+export type {
+  FollowUpPlan, FollowUpPlanListItem, FollowUpPlanStep,
+  FollowUpPlanCreateData, FollowUpPlanUpdateData,
+  FollowUpTask, FollowUpTaskListItem,
+  FollowUpTaskCreateData, FollowUpTaskGenerateData,
+  FollowUpRecord, FollowUpRecordListItem,
+  FollowUpRecordCreateData, FollowUpRecordUpdateData,
+  FollowUpStatistics,
+  SelfReportCreateData, SelfReportListItem, SelfReportDetail,
+} from './modules/follow-up';
 
 // Email Template types
 export type {

@@ -1,0 +1,119 @@
+@import '../../../styles/variables.less';
+@import '../../../styles/mixins.less';
+
+.follow-up-tasks-page {
+  .page-container();
+  padding: @page-padding;
+
+  &.loading-container {
+    .flex-center();
+    min-height: 100vh;
+  }
+}
+
+.task-card {
+  .card-base();
+  margin-bottom: @spacing-3;
+  overflow: hidden;
+
+  &:active {
+    transform: translateY(2rpx);
+    box-shadow: @shadow-sm;
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.card-header {
+  .flex-between();
+  align-items: center;
+  padding: @spacing-3 @card-padding;
+  border-bottom: @border-width solid @color-divider;
+}
+
+.task-no {
+  font-size: @font-size-base;
+  font-weight: @font-weight-semibold;
+  color: @color-text-primary;
+}
+
+.card-body {
+  padding: @card-padding;
+}
+
+.info-row {
+  display: flex;
+  margin-bottom: @spacing-2;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.label {
+  width: 140rpx;
+  font-size: @font-size-sm;
+  color: @color-text-muted;
+  flex-shrink: 0;
+}
+
+.value {
+  flex: 1;
+  font-size: @font-size-sm;
+  color: @color-text-primary;
+}
+
+.card-footer {
+  padding: @spacing-3 @card-padding;
+  border-top: @border-width solid @color-divider;
+  text-align: right;
+}
+
+.link {
+  font-size: @font-size-base;
+  color: var(--theme-primary);
+  font-weight: @font-weight-medium;
+
+  &:active {
+    opacity: 0.7;
+  }
+}
+
+.nut-empty {
+  padding: @spacing-10 0;
+}
+
+.patient-picker-bar {
+  display: flex;
+  align-items: center;
+  padding: @spacing-3 @card-padding;
+  margin-bottom: @spacing-3;
+  background: @color-bg-card;
+  border-radius: @radius-lg;
+}
+
+.picker-label {
+  font-size: @font-size-sm;
+  color: @color-text-muted;
+  margin-right: @spacing-2;
+  flex-shrink: 0;
+}
+
+.patient-picker-trigger {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+}
+
+.patient-name {
+  font-size: @font-size-base;
+  color: @color-text-primary;
+  font-weight: @font-weight-medium;
+}
+
+.patient-arrow {
+  font-size: @font-size-xs;
+  color: @color-text-muted;
+}

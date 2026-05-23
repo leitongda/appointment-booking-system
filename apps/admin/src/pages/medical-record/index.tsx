@@ -1,8 +1,8 @@
-import { EyeOutlined } from '@ant-design/icons';
+import { EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { App, Button, Descriptions, Drawer, Space, Spin, Tag } from 'antd';
-import { useRef, useState } from 'react';
+import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormSelect, ProFormDigit } from '@ant-design/pro-components';
+import { App, Descriptions, Drawer, Space, Spin, Tag, Popconfirm } from 'antd';
+import { useRef, useState, useCallback } from 'react';
 import { departmentApi, doctorApi, medicalRecordApi } from '@hospital/api';
 import type { MedicalRecord, MedicalRecordListItem } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
@@ -10,9 +10,8 @@ import { fetchAllData } from '@/utils/fetchAllData';
 import dayjs from 'dayjs';
 
 const STATUS_MAP: Record<number, { text: string; color: string }> = {
-  0: { text: '草稿', color: 'default' },
-  1: { text: '已完成', color: 'success' },
-  2: { text: '已归档', color: 'processing' },
+  1: { text: '草稿', color: 'default' },
+  2: { text: '已完成', color: 'success' },
 };
 
 const MedicalRecordPage: React.FC = () => {
@@ -21,6 +20,8 @@ const MedicalRecordPage: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [currentRecord, setCurrentRecord] = useState<MedicalRecord | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<MedicalRecord | null>(null);
 
   const handleView = async (id: string) => {
     setDetailLoading(true);
@@ -35,6 +36,26 @@ const MedicalRecordPage: React.FC = () => {
       setDetailLoading(false);
     }
   };
+
+  const handleEdit = async (id: string) => {
+    try {
+      const result = await medicalRecordApi.getDetail(id);
+      setEditingRecord(result);
+      setEditModalOpen(true);
+    } catch (error: any) {
+      message.error(error.message || '加载病历详情失败');
+    }
+  };
+
+  const handleDelete = useCallback(async (id: string) => {
+    try {
+      await medicalRecordApi.delete(id);
+      message.success('删除成功');
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error.message || '删除失败');
+    }
+  }, [message]);
 
   const columns: ProColumns<MedicalRecordListItem>[] = [
     {
@@ -172,12 +193,24 @@ const MedicalRecordPage: React.FC = () => {
       title: '操作',
       key: 'option',
       valueType: 'option',
-      width: 100,
+      width: 180,
+      fixed: 'right',
       render: (_, record) => (
-        <Space>
-          <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleView(record.id)}>
-            查看
-          </Button>
+        <Space size={4}>
+          <a onClick={() => handleView(record.id)} style={{ fontSize: 13 }}>
+            <EyeOutlined /> 查看
+          </a>
+          <a onClick={() => handleEdit(record.id)} style={{ fontSize: 13 }}>
+            <EditOutlined /> 编辑
+          </a>
+          <Popconfirm
+            title="确定删除该病历吗？删除后可通过管理员恢复。"
+            onConfirm={() => handleDelete(record.id)}
+          >
+            <a style={{ color: '#ff4d4f', fontSize: 13 }}>
+              <DeleteOutlined /> 删除
+            </a>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -243,6 +276,64 @@ const MedicalRecordPage: React.FC = () => {
           ) : null}
         </Spin>
       </Drawer>
+
+      <ModalForm
+        title={editingRecord?.recordNo ? `编辑病历 · ${editingRecord.recordNo}` : '编辑病历'}
+        open={editModalOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditModalOpen(false);
+            setEditingRecord(null);
+          }
+        }}
+        initialValues={editingRecord ? {
+          chiefComplaint: editingRecord.chiefComplaint,
+          presentIllness: editingRecord.presentIllness,
+          pastHistory: editingRecord.pastHistory,
+          allergyHistory: editingRecord.allergyHistory,
+          physicalExam: editingRecord.physicalExam,
+          auxiliaryExam: editingRecord.auxiliaryExam,
+          diagnosis: editingRecord.diagnosis,
+          treatment: editingRecord.treatment,
+          prescription: editingRecord.prescription,
+          advice: editingRecord.advice,
+          totalFee: editingRecord.totalFee,
+          status: editingRecord.status,
+        } : undefined}
+        onFinish={async (values) => {
+          if (!editingRecord) return false;
+          try {
+            await medicalRecordApi.update(editingRecord.id, values);
+            message.success('更新成功');
+            setEditModalOpen(false);
+            setEditingRecord(null);
+            actionRef.current?.reload();
+            return true;
+          } catch (error: any) {
+            message.error(error.message || '更新失败');
+            return false;
+          }
+        }}
+        width={720}
+        grid
+        rowProps={{ gutter: 16 }}
+      >
+        <ProFormText name="chiefComplaint" label="主诉" rules={[{ required: true }]} colProps={{ span: 24 }} />
+        <ProFormTextArea name="presentIllness" label="现病史" colProps={{ span: 24 }} fieldProps={{ rows: 3 }} />
+        <ProFormTextArea name="pastHistory" label="既往史" colProps={{ span: 12 }} fieldProps={{ rows: 2 }} />
+        <ProFormTextArea name="allergyHistory" label="过敏史" colProps={{ span: 12 }} fieldProps={{ rows: 2 }} />
+        <ProFormTextArea name="physicalExam" label="体格检查" colProps={{ span: 12 }} fieldProps={{ rows: 2 }} />
+        <ProFormTextArea name="auxiliaryExam" label="辅助检查" colProps={{ span: 12 }} fieldProps={{ rows: 2 }} />
+        <ProFormText name="diagnosis" label="诊断" rules={[{ required: true }]} colProps={{ span: 24 }} />
+        <ProFormTextArea name="treatment" label="治疗方案" colProps={{ span: 24 }} fieldProps={{ rows: 3 }} />
+        <ProFormTextArea name="prescription" label="处方" colProps={{ span: 12 }} fieldProps={{ rows: 3 }} />
+        <ProFormTextArea name="advice" label="医嘱" colProps={{ span: 12 }} fieldProps={{ rows: 3 }} />
+        <ProFormDigit name="totalFee" label="总费用" colProps={{ span: 12 }} fieldProps={{ precision: 2, min: 0, prefix: '¥' }} />
+        <ProFormSelect name="status" label="状态" colProps={{ span: 12 }} valueEnum={{
+          1: '草稿',
+          2: '已完成',
+        }} />
+      </ModalForm>
     </PageContainer>
   );
 };

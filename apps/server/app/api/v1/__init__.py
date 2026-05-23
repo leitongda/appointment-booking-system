@@ -71,6 +71,7 @@ ROUTER_REGISTRATIONS = [
     RouterRegistration("app.modules.dictionaries.router_public", "/dict-options", ["字典选项查询"]),
     RouterRegistration("app.modules.amap.router", "/amap", ["高德地图"]),
     RouterRegistration("app.modules.performance.router", "/performance", ["性能监控"]),
+    RouterRegistration("app.modules.follow_up.router", "/follow-up", ["诊后随访"]),
 ]
 
 

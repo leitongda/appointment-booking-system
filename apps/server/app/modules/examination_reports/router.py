@@ -61,7 +61,10 @@ REPORT_TYPE_OPTIONS = ["blood_test", "imaging", "pathology", "other"]
 
 
 def _build_report_response(report) -> ExaminationReportResponse:
-    return ExaminationReportResponse.model_validate(report)
+    resp = ExaminationReportResponse.model_validate(report)
+    resp.patient_name = report.patient.name if report.patient else None
+    resp.doctor_name = report.doctor.name if report.doctor else None
+    return resp
 
 
 def _build_list_response(report) -> ExaminationReportListResponse:

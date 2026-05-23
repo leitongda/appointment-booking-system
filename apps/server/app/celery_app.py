@@ -71,6 +71,8 @@ celery_app.conf.update(
         "app.tasks.approval_task.check_approval_timeouts": {"queue": "scheduled"},
         "app.tasks.approval_task.advance_after_auto_approve": {"queue": "default"},
         "app.tasks.approval_task.auto_reject_after_timeout": {"queue": "default"},
+        "app.tasks.follow_up_task.mark_overdue_task": {"queue": "scheduled"},
+        "app.tasks.follow_up_task.send_follow_up_reminders": {"queue": "notification"},
     },
     
     # Beat 调度器配置（定时任务）
@@ -214,6 +216,20 @@ celery_app.conf.update(
             "schedule": crontab(hour=3, minute=20),
             "options": {"queue": "scheduled"},
         },
+
+        # 随访逾期标记 - 每天凌晨 4:30
+        "follow-up-mark-overdue": {
+            "task": "app.tasks.follow_up_task.mark_overdue_task",
+            "schedule": crontab(hour=4, minute=30),
+            "options": {"queue": "scheduled"},
+        },
+
+        # 随访任务到期提醒 - 每天早上 8:00
+        "follow-up-reminder": {
+            "task": "app.tasks.follow_up_task.send_follow_up_reminders",
+            "schedule": crontab(hour=8, minute=0),
+            "options": {"queue": "notification"},
+        },
     },
 )
 
@@ -237,6 +253,7 @@ celery_app.autodiscover_tasks([
     "app.tasks.schedule_reconciliation_task",
     "app.tasks.suspension_processing_task",
     "app.tasks.approval_task",
+    "app.tasks.follow_up_task",
 ])
 
 # Flower 监控配置

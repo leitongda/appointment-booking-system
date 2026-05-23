@@ -22,6 +22,9 @@ export type { InvertedSectionProps } from './InvertedSection';
 export { RadialGlow } from './RadialGlow';
 export type { RadialGlowProps } from './RadialGlow';
 
+// Patient picker
+export { PatientPicker } from './PatientPicker';
+
 // Animation utilities
 export * from './animations';
 

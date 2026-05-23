@@ -72,3 +72,7 @@ from app.models.extra_quota_request import ExtraQuotaRequest
 from app.models.schedule_room import ScheduleRoom
 from app.models.dict_type import DictType
 from app.models.dict_item import DictItem
+from app.models.follow_up_plan import FollowUpPlan, FollowUpPlanStep
+from app.models.follow_up_task import FollowUpTask
+from app.models.follow_up_record import FollowUpRecord
+from app.models.follow_up_self_report import FollowUpSelfReport

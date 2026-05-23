@@ -1,10 +1,10 @@
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { App, Space, Tag, Popconfirm, Descriptions, Drawer, Spin } from 'antd';
-import { EyeOutlined, DeleteOutlined, DownloadOutlined, FileOutlined } from '@ant-design/icons';
+import { App, Space, Tag, Popconfirm, Descriptions, Drawer, Spin, Modal, Form, Input, Select, Upload, Button } from 'antd';
+import { EyeOutlined, DeleteOutlined, DownloadOutlined, FileOutlined, UploadOutlined, PlusOutlined } from '@ant-design/icons';
 import { useRef, useState, useCallback, useMemo, useEffect } from 'react';
 import { useAccess, useModel } from '@umijs/max';
-import { examinationReportApi, storeApi, doctorApi } from '@hospital/api';
+import { examinationReportApi, storeApi, doctorApi, appointmentApi } from '@hospital/api';
 import type { ExaminationReportListItem } from '@hospital/api';
 import { createListRequest } from '@/utils/proTable';
 import { fetchAllData } from '@/utils/fetchAllData';
@@ -34,6 +34,10 @@ const ExaminationReportPage: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [currentReport, setCurrentReport] = useState<any>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadForm] = Form.useForm();
+  const [fileList, setFileList] = useState<any[]>([]);
 
   const { initialState } = useModel('@@initialState');
   const { currentUser } = initialState ?? {};
@@ -63,6 +67,34 @@ const ExaminationReportPage: React.FC = () => {
       message.error(error.message || '删除失败');
     }
   }, [message]);
+
+  const handleUpload = useCallback(async () => {
+    try {
+      const values = await uploadForm.validateFields();
+      if (!fileList.length) {
+        message.error('请选择要上传的文件');
+        return;
+      }
+      setUploading(true);
+      await examinationReportApi.upload({
+        file: fileList[0].originFileObj,
+        appointmentId: values.appointmentId,
+        reportType: values.reportType,
+        title: values.title,
+        description: values.description,
+      });
+      message.success('上传成功');
+      setUploadOpen(false);
+      uploadForm.resetFields();
+      setFileList([]);
+      actionRef.current?.reload();
+    } catch (error: any) {
+      if (error?.errorFields) return; // form validation
+      message.error(error.message || '上传失败');
+    } finally {
+      setUploading(false);
+    }
+  }, [message, uploadForm, fileList]);
 
   useEffect(() => { setInitialLoading(false); }, []);
 
@@ -260,6 +292,16 @@ const ExaminationReportPage: React.FC = () => {
           actionRef={actionRef}
           rowKey="id"
           columns={columns}
+          toolBarRender={() => [
+            <Button
+              key="upload"
+              type="primary"
+              icon={<UploadOutlined />}
+              onClick={() => setUploadOpen(true)}
+            >
+              上传报告
+            </Button>,
+          ]}
           request={createListRequest(examinationReportApi.adminList, ({ keyword, storeId, reportType, doctorId, startDate, endDate, ...params }) => ({
             ...params,
             keyword: keyword || undefined,
@@ -304,9 +346,9 @@ const ExaminationReportPage: React.FC = () => {
                   <DownloadOutlined /> 下载/查看
                 </a>
               ) : '-' },
+              { key: 'patientName', label: '患者', children: currentReport.patientName || currentReport.patientId || '-' },
+              { key: 'doctorName', label: '医生', children: currentReport.doctorName || currentReport.doctorId || '-' },
               { key: 'appointmentId', label: '预约ID', children: currentReport.appointmentId || '-' },
-              { key: 'patientId', label: '患者ID', children: currentReport.patientId || '-' },
-              { key: 'doctorId', label: '医生ID', children: currentReport.doctorId || '-' },
               { key: 'recordId', label: '病历ID', children: currentReport.recordId || '-' },
               { key: 'createdAt', label: '创建时间', children: currentReport.createdAt ? dayjs(currentReport.createdAt).format('YYYY-MM-DD HH:mm:ss') : '-' },
               { key: 'updatedAt', label: '更新时间', children: currentReport.updatedAt ? dayjs(currentReport.updatedAt).format('YYYY-MM-DD HH:mm:ss') : '-' },
@@ -314,6 +356,66 @@ const ExaminationReportPage: React.FC = () => {
           ) : null}
         </Spin>
       </Drawer>
+
+      <Modal
+        title="上传检查报告"
+        open={uploadOpen}
+        onOk={handleUpload}
+        onCancel={() => {
+          setUploadOpen(false);
+          uploadForm.resetFields();
+          setFileList([]);
+        }}
+        confirmLoading={uploading}
+        okText="上传"
+        cancelText="取消"
+        destroyOnClose
+      >
+        <Form form={uploadForm} layout="vertical">
+          <Form.Item
+            name="title"
+            label="报告标题"
+            rules={[{ required: true, message: '请输入报告标题' }]}
+          >
+            <Input placeholder="请输入报告标题" />
+          </Form.Item>
+          <Form.Item
+            name="reportType"
+            label="报告类型"
+            rules={[{ required: true, message: '请选择报告类型' }]}
+          >
+            <Select placeholder="请选择报告类型">
+              {Object.entries(REPORT_TYPE_MAP).map(([key, val]) => (
+                <Select.Option key={key} value={key}>{val.text}</Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item
+            name="appointmentId"
+            label="关联预约"
+            rules={[{ required: true, message: '请输入预约ID' }]}
+          >
+            <Input placeholder="请输入预约ID" />
+          </Form.Item>
+          <Form.Item name="description" label="描述">
+            <Input.TextArea rows={2} placeholder="报告描述（选填）" />
+          </Form.Item>
+          <Form.Item label="文件" required>
+            <Upload
+              accept=".pdf,.jpg,.jpeg,.png,.webp"
+              maxCount={1}
+              fileList={fileList}
+              beforeUpload={() => false}
+              onChange={({ fileList: list }) => setFileList(list)}
+            >
+              <Button icon={<PlusOutlined />}>选择文件</Button>
+            </Upload>
+            <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
+              支持 PDF、JPEG、PNG、WebP，最大 20MB
+            </div>
+          </Form.Item>
+        </Form>
+      </Modal>
     </PageContainer>
   );
 };

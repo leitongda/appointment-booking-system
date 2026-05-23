@@ -36,9 +36,12 @@ class MedicalRecord(Base, AuditMixin):
     
     # 状态 1草稿 2已完成
     status = Column(Integer, default=2, comment="状态")
-    
+
     # 就诊时间
     visit_date = Column(DateTime, comment="就诊日期")
+
+    # 软删除
+    deleted_at = Column(DateTime, nullable=True, comment="软删除时间")
     
     # 关系
     appointment = relationship("Appointment", backref="medical_record")

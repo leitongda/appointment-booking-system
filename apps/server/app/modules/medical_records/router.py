@@ -204,7 +204,18 @@ async def delete_medical_record(
     current_user: dict = Depends(get_current_user_or_admin),
 ):
     service = MedicalRecordService(db)
-    success = await service.delete(record_id)
+    record = await service.get_by_id(record_id)
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="病历不存在，请检查后重试")
+
+    # 权限校验：仅创建医生或管理员可删除
+    doctor_id = current_user.get("doctor_id")
+    is_admin = current_user.get("role") in ("admin", "super_admin")
+    if not is_admin and record.doctor_id != doctor_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="仅创建医生或管理员可删除病历")
+
+    operator_id = doctor_id or current_user.get("admin_id") or current_user.get("sub")
+    success = await service.delete(record_id, operator_id=operator_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="病历不存在，请检查后重试")
     return {"message": "删除成功"}

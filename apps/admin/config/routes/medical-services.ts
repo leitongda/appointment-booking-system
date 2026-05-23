@@ -102,6 +102,19 @@ const medicalServices = [
         access: 'canAppointment',
       },
       {
+        path: '/medical-services/follow-up',
+        name: '诊后随访',
+        icon: 'heart',
+        access: 'canMedicalRecord',
+        routes: [
+          { path: '/medical-services/follow-up', redirect: '/medical-services/follow-up/tasks' },
+          { path: '/medical-services/follow-up/plans', name: '随访计划', component: './follow-up/plans' },
+          { path: '/medical-services/follow-up/tasks', name: '随访任务', component: './follow-up/tasks' },
+          { path: '/medical-services/follow-up/records', name: '随访记录', component: './follow-up/records' },
+          { path: '/medical-services/follow-up/statistics', name: '随访统计', component: './follow-up/statistics' },
+        ],
+      },
+      {
         path: '/medical-services/consultation-fee',
         name: '诊费管理',
         icon: 'dollarCircle',

@@ -35,9 +35,17 @@ class MedicalRecordService:
         if not appointment:
             raise ValueError("预约不存在")
 
-        # 检查是否已存在病历
+        # 校验预约状态：仅已签到(2)、就诊中(4)、已完成(5)可创建病历
+        allowed_statuses = {2, 4, 5}
+        if appointment.status not in allowed_statuses:
+            raise ValueError("预约状态不允许创建病历，需已签到/就诊中/已完成")
+
+        # 检查是否已存在病历（含软删除过滤）
         existing = await self.db.execute(
-            select(MedicalRecord).where(MedicalRecord.appointment_id == data.appointment_id)
+            select(MedicalRecord).where(
+                MedicalRecord.appointment_id == data.appointment_id,
+                MedicalRecord.deleted_at.is_(None),
+            )
         )
         if existing.scalar_one_or_none():
             raise ValueError("该预约已有病历记录")
@@ -67,13 +75,30 @@ class MedicalRecordService:
             advice=data.advice,
             total_fee=data.total_fee or 0,
             status=data.status,
-            visit_date=datetime.now(),
+            visit_date=data.visit_date or datetime.now(),
         )
         set_create_audit(record, doctor_id)
 
         self.db.add(record)
         await self.db.commit()
         await self.db.refresh(record)
+
+        # 自动生成随访任务
+        if data.follow_up_plan_id:
+            from app.modules.follow_up.service import FollowUpTaskService
+            follow_up_service = FollowUpTaskService(self.db)
+            try:
+                await follow_up_service.generate_from_plan(
+                    patient_id=record.patient_id,
+                    doctor_id=doctor_id,
+                    department_id=record.department_id,
+                    plan_id=data.follow_up_plan_id,
+                    appointment_id=record.appointment_id,
+                    medical_record_id=record.id,
+                    operator_id=doctor_id,
+                )
+            except ValueError:
+                pass  # 计划不存在时不阻塞病历创建
 
         return record
 
@@ -86,7 +111,7 @@ class MedicalRecordService:
                 joinedload(MedicalRecord.doctor),
                 joinedload(MedicalRecord.department),
             )
-            .where(MedicalRecord.id == record_id)
+            .where(MedicalRecord.id == record_id, MedicalRecord.deleted_at.is_(None))
         )
         tenant_id = get_current_tenant_id()
         if tenant_id:
@@ -103,7 +128,7 @@ class MedicalRecordService:
                 joinedload(MedicalRecord.doctor),
                 joinedload(MedicalRecord.department),
             )
-            .where(MedicalRecord.appointment_id == appointment_id)
+            .where(MedicalRecord.appointment_id == appointment_id, MedicalRecord.deleted_at.is_(None))
         )
         tenant_id = get_current_tenant_id()
         if tenant_id:
@@ -130,7 +155,7 @@ class MedicalRecordService:
             joinedload(MedicalRecord.department),
         )
 
-        conditions = []
+        conditions = [MedicalRecord.deleted_at.is_(None)]
         tenant_id = get_current_tenant_id()
         if tenant_id:
             conditions.append(MedicalRecord.tenant_id == tenant_id)
@@ -196,12 +221,13 @@ class MedicalRecordService:
 
         return record
 
-    async def delete(self, record_id: str) -> bool:
-        """删除病历"""
+    async def delete(self, record_id: str, operator_id: Optional[str] = None) -> bool:
+        """软删除病历"""
         record = await self.db.get(MedicalRecord, record_id)
-        if not record:
+        if not record or record.deleted_at is not None:
             return False
 
-        await self.db.delete(record)
+        record.deleted_at = datetime.now()
+        set_update_audit(record, operator_id)
         await self.db.commit()
         return True

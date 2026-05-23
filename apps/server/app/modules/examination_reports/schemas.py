@@ -41,6 +41,8 @@ class ExaminationReportResponse(BaseModel):
     appointment_id: str
     patient_id: str
     doctor_id: str
+    patient_name: Optional[str] = None
+    doctor_name: Optional[str] = None
     report_type: str
     title: str
     description: Optional[str] = None

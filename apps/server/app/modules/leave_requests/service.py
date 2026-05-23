@@ -228,16 +228,20 @@ class LeaveRequestService:
         period: str
     ) -> int:
         """计算受影响的预约数"""
-        stmt = select(func.count(Appointment.id)).where(
-            and_(
-                Appointment.doctor_id == doctor_id,
-                Appointment.appointment_date == date,
-                Appointment.status.in_(['pending', 'confirmed'])
+        stmt = (
+            select(func.count(Appointment.id))
+            .join(Schedule, Appointment.schedule_id == Schedule.id)
+            .where(
+                and_(
+                    Appointment.doctor_id == doctor_id,
+                    Schedule.schedule_date == date,
+                    Appointment.status.in_([0, 1])  # 待支付/已预约
+                )
             )
         )
 
         if period != 'all':
-            stmt = stmt.where(Appointment.time_period == period)
+            stmt = stmt.where(Schedule.time_slot == period)
 
         result = await self.db.execute(stmt)
         return result.scalar() or 0

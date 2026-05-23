@@ -30,7 +30,9 @@ class MedicalRecordCreate(BaseModel):
     prescription: Optional[str] = Field(None, description="处方")
     advice: Optional[str] = Field(None, description="医嘱")
     total_fee: Optional[Decimal] = Field(0, description="总费用")
-    status: int = Field(2, ge=1, le=2, description="状态 1草稿 2已完成")
+    status: int = Field(1, ge=1, le=2, description="状态 1草稿 2已完成")
+    visit_date: Optional[datetime] = Field(None, description="就诊日期，不传则取当前时间")
+    follow_up_plan_id: Optional[str] = Field(None, description="随访计划ID，传入则自动生成随访任务")
 
 
 class MedicalRecordUpdate(BaseModel):
