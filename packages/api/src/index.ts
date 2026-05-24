@@ -425,6 +425,7 @@ export type {
   TenantListParams,
   TenantCreateData,
   TenantUpdateData,
+  TenantSelfUpdateData,
   TenantSubscription,
   TenantSubscriptionCreateData,
   TenantUsageLog,

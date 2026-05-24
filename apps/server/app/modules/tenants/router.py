@@ -15,7 +15,7 @@ from app.common.deps import (
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.tenant import Tenant
 from app.modules.tenants.schemas import (
-    TenantCreate, TenantUpdate, TenantResponse, TenantListResponse, TenantQuery,
+    TenantCreate, TenantUpdate, TenantSelfUpdateRequest, TenantResponse, TenantListResponse, TenantQuery,
     TenantSubscriptionCreate, TenantSubscriptionResponse,
     TenantUsageResponse, TenantUsageSummary, TenantUsageQuery, TenantUsageTrends,
     SubscriptionPlanCreate, SubscriptionPlanUpdate, SubscriptionPlanResponse, SubscriptionPlanListResponse,
@@ -91,7 +91,14 @@ async def register_tenant(
 ):
     """自助注册租户（公开接口，无需认证）
     注册后自动创建试用租户（14天试用期）并创建管理员账号。
+    支持 captcha_token 人机验证（预留接口，对接第三方 captcha 服务后启用）。
     """
+    # captcha 校验占位：接入第三方 captcha 服务时在此处添加校验逻辑
+    # if data.captcha_token:
+    #     verified = await verify_captcha(data.captcha_token)
+    #     if not verified:
+    #         raise HTTPException(status_code=400, detail="人机验证失败")
+
     service = TenantService(db)
     try:
         result = await service.register_tenant(data)
@@ -740,8 +747,8 @@ async def update_tenant(
 ):
     """更新租户
 
-    平台管理员可以更新所有租户。
-    租户管理员只能更新自己的租户（部分字段）。
+    平台管理员可以更新所有租户（使用 TenantUpdate schema）。
+    租户管理员只能更新自己的租户且仅限部分字段（使用 TenantSelfUpdateRequest schema）。
     """
     service = TenantService(db)
     tenant = await service.get_by_id(tenant_id)
@@ -752,7 +759,7 @@ async def update_tenant(
             detail="租户不存在"
         )
 
-    # 权限检查
+    # 权限检查 + 角色路由：租户管理员使用独立 schema 做类型级字段隔离
     is_platform_admin = current_admin.get("is_super_admin")
     if not is_platform_admin:
         admin_tenant_id = current_admin.get("tenant_id")
@@ -761,26 +768,25 @@ async def update_tenant(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="您无权修改此租户"
             )
-        # 租户管理员只能修改部分字段
-        allowed_fields = {"name", "contact_name", "contact_phone", "contact_email", "address", "branding_config"}
+        # 仅保留 TenantSelfUpdateRequest 允许的字段，多余字段静默丢弃
         update_data = data.model_dump(exclude_unset=True)
-        for field in list(update_data.keys()):
-            if field not in allowed_fields:
-                del update_data[field]
-        data = TenantUpdate(**update_data)
+        allowed = set(TenantSelfUpdateRequest.model_fields.keys())
+        filtered = {k: v for k, v in update_data.items() if k in allowed}
+        data = TenantSelfUpdateRequest(**filtered)
 
     try:
         tenant = await service.update(tenant_id, data, updated_by=current_admin.get("id"))
 
-        # 同步限流配置到 Redis 缓存
-        update_fields = data.model_dump(exclude_unset=True)
-        if "rate_limit_per_minute" in update_fields or "rate_limit_per_second" in update_fields:
-            from app.middleware.rate_limit import RateLimitMiddleware
-            await RateLimitMiddleware.cache_tenant_limits(
-                tenant_id,
-                tenant.rate_limit_per_minute,
-                tenant.rate_limit_per_second,
-            )
+        # 同步限流配置到 Redis 缓存（仅平台管理员可修改）
+        if is_platform_admin:
+            update_fields = data.model_dump(exclude_unset=True)
+            if "rate_limit_per_minute" in update_fields or "rate_limit_per_second" in update_fields:
+                from app.middleware.rate_limit import RateLimitMiddleware
+                await RateLimitMiddleware.cache_tenant_limits(
+                    tenant_id,
+                    tenant.rate_limit_per_minute,
+                    tenant.rate_limit_per_second,
+                )
 
         resp = TenantResponse.model_validate(tenant)
         resp.subscription_plan = SubscriptionPlanListResponse.model_validate(tenant.subscription_plan) if tenant.subscription_plan else None

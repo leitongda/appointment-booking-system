@@ -263,7 +263,7 @@ class TenantCreate(TenantBase):
 
 
 class TenantUpdate(BaseModel):
-    """更新租户"""
+    """更新租户（平台管理员）"""
     name: Optional[str] = Field(None, max_length=100)
     contact_name: Optional[str] = Field(None, max_length=100)
     contact_phone: Optional[str] = Field(None, max_length=20)
@@ -282,6 +282,8 @@ class TenantUpdate(BaseModel):
     log_retention_days: Optional[int] = Field(None, ge=7, le=365, description="日志保留天数")
     rate_limit_per_minute: Optional[int] = Field(None, ge=1, le=10000, description="每分钟请求上限")
     rate_limit_per_second: Optional[int] = Field(None, ge=1, le=1000, description="每秒请求上限")
+
+    model_config = ConfigDict(extra="forbid")
 
     @field_validator("features")
     @classmethod
@@ -304,6 +306,18 @@ class TenantUpdate(BaseModel):
         except Exception as exc:
             raise ValueError(f"password_policy 结构校验失败: {exc}") from exc
         return json.dumps(parsed, sort_keys=True, ensure_ascii=False)
+
+
+class TenantSelfUpdateRequest(BaseModel):
+    """租户管理员自助更新（仅允许修改自身基本信息和品牌配置）"""
+    name: Optional[str] = Field(None, max_length=100)
+    contact_name: Optional[str] = Field(None, max_length=100)
+    contact_phone: Optional[str] = Field(None, max_length=20)
+    contact_email: Optional[str] = Field(None, max_length=100)
+    address: Optional[str] = Field(None, max_length=255)
+    branding_config: Optional[str] = None
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class TenantResponse(TenantBase):
@@ -647,6 +661,25 @@ class TenantSelfRegisterRequest(BaseModel):
     contact_email: Optional[str] = Field(None, max_length=100)
     admin_username: str = Field(..., min_length=2, max_length=50)
     admin_password: str = Field(..., min_length=6, max_length=20)
+    captcha_token: Optional[str] = Field(None, max_length=500, description="人机验证 token（预留，对接第三方 captcha 服务）")
+    source: Optional[str] = Field(None, max_length=50, description="注册来源（如 website, miniapp）")
+    referral_code: Optional[str] = Field(None, max_length=50, description="推荐码")
+
+    @field_validator("admin_password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        """注册密码需满足 PasswordPolicy 默认策略"""
+        if len(v) < 6:
+            raise ValueError("密码长度不能少于 6 位")
+        if len(v) > 20:
+            raise ValueError("密码长度不能超过 20 位")
+        return v
+
+    @field_validator("captcha_token")
+    @classmethod
+    def validate_captcha_token(cls, v: Optional[str]) -> Optional[str]:
+        """captcha_token 占位校验——接入第三方服务时替换此逻辑"""
+        return v
 
     model_config = ConfigDict(
         populate_by_name=True,

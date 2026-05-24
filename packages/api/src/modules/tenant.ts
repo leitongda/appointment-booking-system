@@ -114,6 +114,7 @@ export interface TenantCreateData {
   passwordPolicy?: string;
   tags?: string;
   logRetentionDays?: number;
+  isTrial?: boolean;
   contactName?: string;
   contactPhone?: string;
   contactEmail?: string;
@@ -124,9 +125,6 @@ export interface TenantCreateData {
 
 export interface TenantUpdateData {
   name?: string;
-  status?: number;
-  subscriptionPlanId?: string;
-  billingCycle?: string;
   maxStores?: number;
   maxAdmins?: number;
   maxDoctors?: number;
@@ -144,6 +142,15 @@ export interface TenantUpdateData {
   address?: string;
   customDomain?: string;
   subdomain?: string;
+}
+
+export interface TenantSelfUpdateData {
+  name?: string;
+  contactName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  address?: string;
+  brandingConfig?: string;
 }
 
 // ========== 租户订阅 ==========
@@ -270,6 +277,9 @@ export interface TenantSelfRegisterData {
   contactEmail?: string;
   adminUsername: string;
   adminPassword: string;
+  captchaToken?: string;
+  source?: string;
+  referralCode?: string;
 }
 
 export interface TenantSelfRegisterResult {
@@ -393,6 +403,10 @@ export const tenantApi = {
   },
 
   updateTenant: (tenantId: string, data: TenantUpdateData): Promise<Tenant> => {
+    return request.put(`/tenants/${tenantId}`, data);
+  },
+
+  updateTenantSelf: (tenantId: string, data: TenantSelfUpdateData): Promise<Tenant> => {
     return request.put(`/tenants/${tenantId}`, data);
   },
 

@@ -3,7 +3,7 @@ from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import selectinload
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Union
 from datetime import datetime, date, timedelta
 from decimal import Decimal
 import uuid
@@ -29,7 +29,7 @@ from app.models.store_email_recipient import StoreEmailRecipient
 from app.models.consultation_fee import ConsultationFeeTemplate
 from app.models.rule_set import RuleSet, RuleWindow, RuleBookingPolicy, RuleCheckinPolicy, RuleCapacityPolicy, RuleSetShiftType
 from app.modules.tenants.schemas import (
-    TenantCreate, TenantUpdate, TenantQuery,
+    TenantCreate, TenantUpdate, TenantSelfUpdateRequest, TenantQuery,
     SubscriptionPlanCreate, SubscriptionPlanUpdate,
     TenantSubscriptionCreate
 )
@@ -207,6 +207,9 @@ class TenantService:
 
         return tenants, total
 
+    # TenantCreate 中需要单独计算、不从 data 直接映射的字段
+    _CREATE_COMPUTED_FIELDS = {"is_trial"}
+
     async def create(self, data: TenantCreate, created_by: Optional[str] = None) -> Tenant:
         """创建租户"""
         # 检查编码是否已存在
@@ -228,26 +231,14 @@ class TenantService:
         else:
             end_at = now + timedelta(days=30)
 
+        # 通用字段映射：排除 is_trial（计算字段），其余全部从 schema 映射
+        create_data = data.model_dump(exclude=self._CREATE_COMPUTED_FIELDS, exclude_unset=True)
+
         tenant = Tenant(
-            tenant_code=data.tenant_code,
-            name=data.name,
-            status=3 if data.is_trial else 1,  # 试用租户状态为3
-            subscription_plan_id=data.subscription_plan_id,
+            **create_data,
+            status=3 if data.is_trial else 1,
             subscription_start_at=now,
             subscription_end_at=end_at,
-            billing_cycle=data.billing_cycle,
-            max_stores=data.max_stores,
-            max_admins=data.max_admins,
-            max_doctors=data.max_doctors,
-            max_appointments_per_month=data.max_appointments_per_month,
-            features=data.features,
-            branding_config=data.branding_config,
-            contact_name=data.contact_name,
-            contact_phone=data.contact_phone,
-            contact_email=data.contact_email,
-            address=data.address,
-            custom_domain=data.custom_domain,
-            subdomain=data.subdomain,
             created_by=created_by,
         )
 
@@ -315,7 +306,7 @@ class TenantService:
 
         await self.db.commit()
 
-    async def update(self, tenant_id: str, data: TenantUpdate, updated_by: Optional[str] = None) -> Optional[Tenant]:
+    async def update(self, tenant_id: str, data: Union[TenantUpdate, TenantSelfUpdateRequest], updated_by: Optional[str] = None) -> Optional[Tenant]:
         """更新租户"""
         tenant = await self.get_by_id(tenant_id)
         if not tenant:
