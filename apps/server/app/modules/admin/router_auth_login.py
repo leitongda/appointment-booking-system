@@ -71,7 +71,7 @@ def _check_tenant_status_for_login(admin) -> None:
         return
 
     from app.middleware.exception import raise_business_http_error
-    from app.common.error_codes import TenantErrorCode
+    from app.core.error_codes import ErrorCode as TenantErrorCode
 
     if admin.tenant.status == 0:
         raise_business_http_error(

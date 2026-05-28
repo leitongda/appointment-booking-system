@@ -373,7 +373,7 @@ async def require_tenant_active_for_write(
     """
     from datetime import datetime as _dt
     from app.middleware.exception import raise_business_http_error
-    from app.common.error_codes import TenantErrorCode
+    from app.core.error_codes import ErrorCode as TenantErrorCode
 
     tenant_id = get_current_tenant_id()
     if not tenant_id:

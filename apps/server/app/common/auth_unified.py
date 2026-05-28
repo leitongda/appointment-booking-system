@@ -30,7 +30,7 @@ from app.middleware.tenant_context import (
     set_tenant_context,
 )
 from app.middleware.exception import raise_business_http_error
-from app.common.error_codes import TenantErrorCode
+from app.core.error_codes import ErrorCode as TenantErrorCode
 from app.common.auth_types import (
     AccountInfo,
     RoleType,
