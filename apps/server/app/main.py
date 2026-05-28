@@ -400,17 +400,10 @@ def _build_openapi_description() -> str:
 
 
 def _configure_middlewares(app: FastAPI) -> None:
-    # 租户上下文中间件（最先执行，最后返回）
-    app.add_middleware(TenantContextMiddleware)
-    app.add_middleware(UnifiedResponseMiddleware)
-    app.add_middleware(OperationLogMiddleware)
-    app.add_middleware(RequestLogMiddleware)
-    app.add_middleware(
-        RateLimitMiddleware,
-        requests_per_minute=settings.RATE_LIMIT_PER_MINUTE,
-        requests_per_second=settings.RATE_LIMIT_PER_SECOND,
-        enabled=settings.RATE_LIMIT_ENABLED,
-    )
+    # Starlette add_middleware 使用 insert(0)，build 时 reversed() 包装。
+    # 因此最后注册的中间件在请求阶段最先执行（最靠近 app 层）。
+    # 请求执行顺序：TenantContext -> UnifiedResponse -> OperationLog -> RequestLog -> RateLimit -> CORS
+    # 响应执行顺序：CORS -> RateLimit -> RequestLog -> OperationLog -> UnifiedResponse -> TenantContext
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.BACKEND_CORS_ORIGINS,
@@ -418,6 +411,17 @@ def _configure_middlewares(app: FastAPI) -> None:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(
+        RateLimitMiddleware,
+        requests_per_minute=settings.RATE_LIMIT_PER_MINUTE,
+        requests_per_second=settings.RATE_LIMIT_PER_SECOND,
+        enabled=settings.RATE_LIMIT_ENABLED,
+    )
+    app.add_middleware(RequestLogMiddleware)
+    app.add_middleware(OperationLogMiddleware)
+    app.add_middleware(UnifiedResponseMiddleware)
+    # 租户上下文中间件（最后注册 = 请求阶段最先执行），为限流/日志等下游中间件提供 tenant_id
+    app.add_middleware(TenantContextMiddleware)
 
 
 def _configure_static_mounts(app: FastAPI) -> None:
