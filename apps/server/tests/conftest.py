@@ -789,3 +789,266 @@ async def sample_user_account(
     await db_session.commit()
     await db_session.refresh(account)
     return account
+
+
+# ==================== TestDataFactory ====================
+
+class TestDataFactory:
+    """测试数据工厂 — 用单个调用替代 6 层 fixture 链。
+
+    用法:
+        async def test_something(factory):
+            data = await factory.create_full_chain()
+            # data.tenant, data.store, data.department, data.doctor,
+            # data.schedule, data.patient, data.appointment 全部可用
+
+            # 或只创建需要的:
+            doctor = await factory.create_doctor(name="张医生")
+    """
+
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self._tenant = None
+        self._store = None
+        self._department = None
+
+    async def create_tenant(self, **overrides) -> Tenant:
+        plan = SubscriptionPlan(
+            id=str(uuid4()), plan_code="test_plan", name="测试计划",
+            status=1, created_at=datetime.now(), updated_at=datetime.now(),
+        )
+        self.db.add(plan)
+        await self.db.flush()
+
+        defaults = dict(
+            id=str(uuid4()), tenant_code=f"tenant_{uuid4().hex[:8]}",
+            name="测试租户", status=1, subscription_plan_id=plan.id,
+            created_at=datetime.now(), updated_at=datetime.now(),
+        )
+        defaults.update(overrides)
+        tenant = Tenant(**defaults)
+        self.db.add(tenant)
+        await self.db.commit()
+        await self.db.refresh(tenant)
+        self._tenant = tenant
+        return tenant
+
+    async def create_store(self, tenant_id: str = None, **overrides) -> Store:
+        if tenant_id is None:
+            if self._tenant is None:
+                await self.create_tenant()
+            tenant_id = self._tenant.id
+
+        defaults = dict(
+            id=str(uuid4()), name="测试门店", address="测试地址",
+            phone="13800138000", tenant_id=tenant_id, status=1,
+            created_at=datetime.now(), updated_at=datetime.now(),
+        )
+        defaults.update(overrides)
+        store = Store(**defaults)
+        self.db.add(store)
+        await self.db.commit()
+        await self.db.refresh(store)
+        self._store = store
+        return store
+
+    async def create_department(self, tenant_id: str = None, store_id: str = None, **overrides) -> Department:
+        if tenant_id is None:
+            if self._tenant is None:
+                await self.create_tenant()
+            tenant_id = self._tenant.id
+        if store_id is None:
+            if self._store is None:
+                await self.create_store(tenant_id)
+            store_id = self._store.id
+
+        defaults = dict(
+            id=str(uuid4()), name="测试科室", store_id=store_id,
+            tenant_id=tenant_id, status=1,
+            created_at=datetime.now(), updated_at=datetime.now(),
+        )
+        defaults.update(overrides)
+        dept = Department(**defaults)
+        self.db.add(dept)
+        await self.db.commit()
+        await self.db.refresh(dept)
+        self._department = dept
+        return dept
+
+    async def create_doctor(self, tenant_id: str = None, store_id: str = None,
+                            department_id: str = None, **overrides) -> Doctor:
+        if tenant_id is None:
+            if self._tenant is None:
+                await self.create_tenant()
+            tenant_id = self._tenant.id
+        if store_id is None:
+            if self._store is None:
+                await self.create_store(tenant_id)
+            store_id = self._store.id
+        if department_id is None:
+            if self._department is None:
+                await self.create_department(tenant_id, store_id)
+            department_id = self._department.id
+
+        defaults = dict(
+            id=str(uuid4()), name="测试医生", title="主治医师",
+            department_id=department_id, store_id=store_id,
+            tenant_id=tenant_id, status=1,
+            created_at=datetime.now(), updated_at=datetime.now(),
+        )
+        defaults.update(overrides)
+        doctor = Doctor(**defaults)
+        self.db.add(doctor)
+        await self.db.commit()
+        await self.db.refresh(doctor)
+        return doctor
+
+    async def create_user(self, tenant_id: str = None, **overrides) -> User:
+        if tenant_id is None:
+            if self._tenant is None:
+                await self.create_tenant()
+            tenant_id = self._tenant.id
+
+        defaults = dict(
+            id=str(uuid4()), phone=f"138{uuid4().hex[:8]}",
+            password_hash="$2b$12$test_hash_not_for_production",
+            nickname="测试用户", tenant_id=tenant_id, status=1,
+            created_at=datetime.now(), updated_at=datetime.now(),
+        )
+        defaults.update(overrides)
+        user = User(**defaults)
+        self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+
+    async def create_patient(self, tenant_id: str = None, user_id: str = None, **overrides) -> tuple[User, Patient]:
+        if tenant_id is None:
+            if self._tenant is None:
+                await self.create_tenant()
+            tenant_id = self._tenant.id
+        if user_id is None:
+            user = await self.create_user(tenant_id)
+            user_id = user.id
+        else:
+            user = None
+
+        defaults = dict(
+            id=str(uuid4()), user_id=user_id, name="测试就诊人",
+            phone="13800138002", id_card="110101199001011234",
+            is_default=True, tenant_id=tenant_id,
+            created_at=datetime.now(), updated_at=datetime.now(),
+        )
+        defaults.update(overrides)
+        patient = Patient(**defaults)
+        self.db.add(patient)
+        await self.db.commit()
+        await self.db.refresh(patient)
+        return user, patient
+
+    async def create_schedule(self, tenant_id: str = None, doctor_id: str = None,
+                              store_id: str = None, **overrides) -> Schedule:
+        if tenant_id is None:
+            if self._tenant is None:
+                await self.create_tenant()
+            tenant_id = self._tenant.id
+        if store_id is None:
+            if self._store is None:
+                await self.create_store(tenant_id)
+            store_id = self._store.id
+        if doctor_id is None:
+            doctor = await self.create_doctor(tenant_id, store_id)
+            doctor_id = doctor.id
+
+        tomorrow = date.today() + timedelta(days=1)
+        defaults = dict(
+            id=str(uuid4()), doctor_id=doctor_id, store_id=store_id,
+            tenant_id=tenant_id, schedule_date=tomorrow, time_slot="morning",
+            start_time=time(8, 0), end_time=time(12, 0),
+            total_slots=10, booked_slots=0, status=1,
+            created_at=datetime.now(), updated_at=datetime.now(),
+        )
+        defaults.update(overrides)
+        schedule = Schedule(**defaults)
+        self.db.add(schedule)
+        await self.db.commit()
+        await self.db.refresh(schedule)
+        return schedule
+
+    async def create_appointment(self, tenant_id: str = None, doctor_id: str = None,
+                                 schedule_id: str = None, patient_id: str = None,
+                                 user_id: str = None, **overrides) -> Appointment:
+        if tenant_id is None:
+            if self._tenant is None:
+                await self.create_tenant()
+            tenant_id = self._tenant.id
+
+        if user_id is None or patient_id is None:
+            user, patient = await self.create_patient(tenant_id)
+            if user_id is None:
+                user_id = user.id
+            if patient_id is None:
+                patient_id = patient.id
+
+        if schedule_id is None:
+            schedule = await self.create_schedule(tenant_id, doctor_id)
+            schedule_id = schedule.id
+            doctor_id = schedule.doctor_id
+
+        if doctor_id is None:
+            schedule = await self.db.get(Schedule, schedule_id)
+            doctor_id = schedule.doctor_id
+
+        doctor = await self.db.get(Doctor, doctor_id)
+
+        defaults = dict(
+            id=str(uuid4()),
+            appointment_no=generate_appointment_no(),
+            user_id=user_id, patient_id=patient_id,
+            doctor_id=doctor_id, schedule_id=schedule_id,
+            tenant_id=tenant_id, queue_number=1, status=1,
+            patient_name="测试就诊人", patient_phone="13800138002",
+            doctor_name=doctor.name if doctor else "测试医生",
+            doctor_title=doctor.title if doctor else "主治医师",
+            department_name="测试科室",
+            created_at=datetime.now(), updated_at=datetime.now(),
+            created_by=user_id,
+        )
+        defaults.update(overrides)
+        appointment = Appointment(**defaults)
+        self.db.add(appointment)
+
+        schedule = await self.db.get(Schedule, schedule_id)
+        if schedule:
+            schedule.booked_slots += 1
+
+        await self.db.commit()
+        await self.db.refresh(appointment)
+        return appointment
+
+    async def create_full_chain(self):
+        """创建完整的 tenant → store → department → doctor → schedule → patient → appointment 链"""
+
+        class ChainResult:
+            pass
+
+        result = ChainResult()
+        result.tenant = await self.create_tenant()
+        result.store = await self.create_store()
+        result.department = await self.create_department()
+        result.doctor = await self.create_doctor()
+        result.user, result.patient = await self.create_patient()
+        result.schedule = await self.create_schedule(doctor_id=result.doctor.id)
+        result.appointment = await self.create_appointment(
+            schedule_id=result.schedule.id,
+            doctor_id=result.doctor.id,
+            user_id=result.user.id,
+            patient_id=result.patient.id,
+        )
+        return result
+
+
+@pytest_asyncio.fixture
+async def factory(db_session: AsyncSession) -> TestDataFactory:
+    """测试数据工厂 fixture — 替代深层嵌套 fixture 链"""
+    return TestDataFactory(db_session)

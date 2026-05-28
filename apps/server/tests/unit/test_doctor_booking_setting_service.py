@@ -21,7 +21,7 @@ from app.schemas.doctor_booking_setting import (
     DoctorBookingSettingCreate,
     DoctorBookingSettingQuery,
 )
-from app.services.doctor_booking_setting_service import DoctorBookingSettingService
+from app.modules.doctor_booking_settings.service import DoctorBookingSettingService
 
 
 @pytest.mark.unit
@@ -128,18 +128,18 @@ class TestDoctorBookingSettingTenantIsolation:
         service = DoctorBookingSettingService(db_session)
 
         # 租户A 查自己的设置：能找到
-        with patch("app.services.doctor_booking_setting_service.get_current_tenant_id", return_value=tenant_a.id):
+        with patch("app.modules.doctor_booking_settings.service.get_current_tenant_id", return_value=tenant_a.id):
             result = await service.get_by_id(setting_a.id)
             assert result is not None
             assert result.id == setting_a.id
 
         # 租户A 查租户B的设置：找不到
-        with patch("app.services.doctor_booking_setting_service.get_current_tenant_id", return_value=tenant_a.id):
+        with patch("app.modules.doctor_booking_settings.service.get_current_tenant_id", return_value=tenant_a.id):
             result = await service.get_by_id(setting_b.id)
             assert result is None
 
         # 租户B 查租户A的设置：找不到
-        with patch("app.services.doctor_booking_setting_service.get_current_tenant_id", return_value=tenant_b.id):
+        with patch("app.modules.doctor_booking_settings.service.get_current_tenant_id", return_value=tenant_b.id):
             result = await service.get_by_id(setting_a.id)
             assert result is None
 
@@ -158,12 +158,12 @@ class TestDoctorBookingSettingTenantIsolation:
         service = DoctorBookingSettingService(db_session)
 
         # 租户A 查自己门店+医生的设置：能找到
-        with patch("app.services.doctor_booking_setting_service.get_current_tenant_id", return_value=tenant_a.id):
+        with patch("app.modules.doctor_booking_settings.service.get_current_tenant_id", return_value=tenant_a.id):
             result = await service.get_by_store_and_doctor(store_a.id, doctor_a.id)
             assert result is not None
 
         # 租户A 用租户B的 store_id + doctor_id 查：找不到（tenant_id 过滤）
-        with patch("app.services.doctor_booking_setting_service.get_current_tenant_id", return_value=tenant_a.id):
+        with patch("app.modules.doctor_booking_settings.service.get_current_tenant_id", return_value=tenant_a.id):
             result = await service.get_by_store_and_doctor(store_b.id, doctor_b.id)
             assert result is None
 
@@ -182,13 +182,13 @@ class TestDoctorBookingSettingTenantIsolation:
         service = DoctorBookingSettingService(db_session)
 
         # 租户A 查询有效的设置：能找到自己的
-        with patch("app.services.doctor_booking_setting_service.get_current_tenant_id", return_value=tenant_a.id):
+        with patch("app.modules.doctor_booking_settings.service.get_current_tenant_id", return_value=tenant_a.id):
             result = await service.get_effective_for_store_and_doctor(store_a.id, doctor_a.id)
             assert result is not None
             assert result.id == setting_a.id
 
         # 租户A 用租户B的参数查询：找不到
-        with patch("app.services.doctor_booking_setting_service.get_current_tenant_id", return_value=tenant_a.id):
+        with patch("app.modules.doctor_booking_settings.service.get_current_tenant_id", return_value=tenant_a.id):
             result = await service.get_effective_for_store_and_doctor(store_b.id, doctor_b.id)
             assert result is None
 
@@ -207,7 +207,7 @@ class TestDoctorBookingSettingTenantIsolation:
         service = DoctorBookingSettingService(db_session)
 
         # 租户A 列表：只有 1 条
-        with patch("app.services.doctor_booking_setting_service.get_current_tenant_id", return_value=tenant_a.id):
+        with patch("app.modules.doctor_booking_settings.service.get_current_tenant_id", return_value=tenant_a.id):
             query = DoctorBookingSettingQuery(page=1, page_size=10)
             items, total = await service.get_list(query)
             assert total == 1
@@ -215,7 +215,7 @@ class TestDoctorBookingSettingTenantIsolation:
             assert items[0]["store_name"] == "门店A"
 
         # 租户B 列表：只有 1 条
-        with patch("app.services.doctor_booking_setting_service.get_current_tenant_id", return_value=tenant_b.id):
+        with patch("app.modules.doctor_booking_settings.service.get_current_tenant_id", return_value=tenant_b.id):
             query = DoctorBookingSettingQuery(page=1, page_size=10)
             items, total = await service.get_list(query)
             assert total == 1
@@ -237,14 +237,14 @@ class TestDoctorBookingSettingTenantIsolation:
         service = DoctorBookingSettingService(db_session)
 
         # 租户A：只能看到自己的 doctor_id
-        with patch("app.services.doctor_booking_setting_service.get_current_tenant_id", return_value=tenant_a.id):
+        with patch("app.modules.doctor_booking_settings.service.get_current_tenant_id", return_value=tenant_a.id):
             # 注意：get_existing_doctor_ids 按 store_id 过滤，这里用 store_a.id
             doctor_ids = await service.get_existing_doctor_ids(store_a.id)
             assert doctor_a.id in doctor_ids
             assert doctor_b.id not in doctor_ids
 
         # 租户B：只能看到自己的 doctor_id
-        with patch("app.services.doctor_booking_setting_service.get_current_tenant_id", return_value=tenant_b.id):
+        with patch("app.modules.doctor_booking_settings.service.get_current_tenant_id", return_value=tenant_b.id):
             doctor_ids = await service.get_existing_doctor_ids(store_b.id)
             assert doctor_b.id in doctor_ids
             assert doctor_a.id not in doctor_ids
@@ -262,7 +262,7 @@ class TestDoctorBookingSettingTenantIsolation:
             status=1,
         )
 
-        with patch("app.services.doctor_booking_setting_service.get_current_tenant_id", return_value=test_tenant.id):
+        with patch("app.modules.doctor_booking_settings.service.get_current_tenant_id", return_value=test_tenant.id):
             setting = await service.create(data)
 
             assert setting is not None
@@ -281,16 +281,16 @@ class TestDoctorBookingSettingTenantIsolation:
         service = DoctorBookingSettingService(db_session)
 
         # 使用 None 作为 tenant_id（不过滤）：应该能找到
-        with patch("app.services.doctor_booking_setting_service.get_current_tenant_id", return_value=None):
+        with patch("app.modules.doctor_booking_settings.service.get_current_tenant_id", return_value=None):
             result = await service.get_by_id(setting.id)
             assert result is not None
 
         # 使用正确的 tenant_id：能找到
-        with patch("app.services.doctor_booking_setting_service.get_current_tenant_id", return_value=tenant_a.id):
+        with patch("app.modules.doctor_booking_settings.service.get_current_tenant_id", return_value=tenant_a.id):
             result = await service.get_by_id(setting.id)
             assert result is not None
 
         # 使用错误的 tenant_id：找不到
-        with patch("app.services.doctor_booking_setting_service.get_current_tenant_id", return_value="wrong-tenant"):
+        with patch("app.modules.doctor_booking_settings.service.get_current_tenant_id", return_value="wrong-tenant"):
             result = await service.get_by_id(setting.id)
             assert result is None

@@ -65,7 +65,7 @@ async def test_get_templates_list(db_session, test_tenant):
     await db_session.commit()
 
     # 测试 API
-    from app.modules.miniapp_platform.service import AppTemplateService
+    from app.modules.miniapp_platform.service_instance import AppTemplateService
 
     service = AppTemplateService(db_session)
     result_templates, total = await service.get_list()
@@ -97,7 +97,7 @@ async def test_get_template_by_code(db_session):
     db_session.add(template)
     await db_session.commit()
 
-    from app.modules.miniapp_platform.service import AppTemplateService
+    from app.modules.miniapp_platform.service_instance import AppTemplateService
 
     service = AppTemplateService(db_session)
     result = await service.get_by_code("modern-general")
@@ -110,7 +110,7 @@ async def test_get_template_by_code(db_session):
 @pytest.mark.asyncio
 async def test_get_template_by_code_not_found(db_session):
     """测试获取不存在的模板返回 404"""
-    from app.modules.miniapp_platform.service import AppTemplateService
+    from app.modules.miniapp_platform.service_instance import AppTemplateService
 
     service = AppTemplateService(db_session)
     result = await service.get_by_code("non-existent-template")
@@ -160,7 +160,7 @@ async def test_create_build_job(db_session, test_tenant, test_store):
     await db_session.commit()
 
     # 测试创建构建任务
-    from app.modules.miniapp_platform.service import BuildJobService
+    from app.modules.miniapp_platform.service_instance import BuildJobService
     from app.schemas.miniapp_template import BuildJobCreate
 
     service = BuildJobService(db_session)
@@ -261,7 +261,7 @@ async def test_get_build_jobs_list(db_session, test_tenant, test_store):
     await db_session.commit()
 
     # 测试获取列表
-    from app.modules.miniapp_platform.service import BuildJobService
+    from app.modules.miniapp_platform.service_instance import BuildJobService
 
     service = BuildJobService(db_session)
     result_jobs, total = await service.get_list(
@@ -341,7 +341,7 @@ async def test_create_release_job(db_session, test_tenant, test_store):
     await db_session.commit()
 
     # 测试创建发布任务
-    from app.modules.miniapp_platform.service import ReleaseJobService
+    from app.modules.miniapp_platform.service_instance import ReleaseJobService
     from app.schemas.miniapp_template import ReleaseJobCreate
 
     service = ReleaseJobService(db_session)
@@ -463,7 +463,7 @@ async def test_get_release_jobs_list(db_session, test_tenant, test_store):
     await db_session.commit()
 
     # 测试获取列表
-    from app.modules.miniapp_platform.service import ReleaseJobService
+    from app.modules.miniapp_platform.service_instance import ReleaseJobService
 
     service = ReleaseJobService(db_session)
     result_jobs, total = await service.get_list(
@@ -496,7 +496,7 @@ async def test_template_version_crud(db_session):
     await db_session.commit()
 
     # 测试创建版本
-    from app.modules.miniapp_platform.service import AppTemplateService
+    from app.modules.miniapp_platform.service_instance import AppTemplateService
 
     service = AppTemplateService(db_session)
     version = await service.create_version(
@@ -524,7 +524,7 @@ async def test_template_version_crud(db_session):
 @pytest.mark.asyncio
 async def test_build_job_status_update(db_session, test_tenant, test_store):
     """测试构建任务状态更新"""
-    from app.modules.miniapp_platform.service import BuildJobService
+    from app.modules.miniapp_platform.service_instance import BuildJobService
 
     # 创建必要数据
     template = AppTemplate(
@@ -654,7 +654,7 @@ async def test_template_with_default_config(db_session):
     db_session.add(template)
     await db_session.commit()
 
-    from app.modules.miniapp_platform.service import AppTemplateService
+    from app.modules.miniapp_platform.service_instance import AppTemplateService
 
     service = AppTemplateService(db_session)
     result = await service.get_by_id(template.id)
@@ -699,7 +699,7 @@ async def test_template_list_filter_by_status(db_session):
     db_session.add_all(templates)
     await db_session.commit()
 
-    from app.modules.miniapp_platform.service import AppTemplateService
+    from app.modules.miniapp_platform.service_instance import AppTemplateService
 
     service = AppTemplateService(db_session)
 
@@ -719,7 +719,7 @@ async def test_template_list_filter_by_status(db_session):
 @pytest.mark.asyncio
 async def test_miniapp_instance_crud(db_session, test_tenant, test_store):
     """测试小程序实例 CRUD"""
-    from app.modules.miniapp_platform.service import MiniappInstanceService
+    from app.modules.miniapp_platform.service_instance import MiniappInstanceService
     from app.modules.miniapp_platform.schemas import MiniappInstanceCreate
 
     # 创建模板

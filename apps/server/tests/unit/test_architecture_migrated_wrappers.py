@@ -10,9 +10,12 @@ _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 DELETED_WRAPPERS = [
     "admin_service.py",
     "blacklist_service.py",
+    "booking_notice_service.py",
     "consultation_fee_service.py",
+    "content_service.py",
     "custom_schedule_service.py",
     "department_service.py",
+    "doctor_booking_setting_service.py",
     "doctor_service.py",
     "email_service.py",
     "excel_service.py",
@@ -25,6 +28,7 @@ DELETED_WRAPPERS = [
     "message_service.py",
     "notification_service.py",
     "point_service.py",
+    "rest_day_service.py",
     "revenue_service.py",
     "rule_engine_service.py",
     "rule_set_import_service.py",
@@ -35,7 +39,9 @@ DELETED_WRAPPERS = [
     "settings_service.py",
     "shift_type_service.py",
     "sms_service.py",
+    "store_email_recipient_service.py",
     "store_service.py",
+    "user_favorite_service.py",
     "user_service.py",
     "visit_type_service.py",
     "waitlist_service.py",
@@ -45,14 +51,8 @@ DELETED_WRAPPERS = [
 # These files contain actual implementations and remain in app/services/
 REMAINING_IMPLEMENTATIONS = [
     "__init__.py",
-    "booking_notice_service.py",
-    "content_service.py",
-    "doctor_booking_setting_service.py",
     "email_template_service.py",
-    "rest_day_service.py",
     "rule_performance_service.py",
-    "store_email_recipient_service.py",
-    "user_favorite_service.py",
 ]
 
 
