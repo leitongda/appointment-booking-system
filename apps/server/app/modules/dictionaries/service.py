@@ -3,7 +3,7 @@
 负责字典类型和字典项的 CRUD 操作。
 """
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, func
+from sqlalchemy import select, and_, or_, func
 from typing import Optional, List, Tuple, Dict
 import uuid
 
@@ -200,10 +200,10 @@ class DictService:
         """根据字典类型编码获取字典项"""
         tenant_id = get_current_tenant_id()
 
-        # 先找到字典类型
+        # 先找到字典类型（租户级别优先，fallback 到平台级别）
         type_conditions = [DictType.code == type_code, DictType.status == 1]
         if tenant_id:
-            type_conditions.append(DictType.tenant_id == tenant_id)
+            type_conditions.append(or_(DictType.tenant_id == tenant_id, DictType.tenant_id.is_(None)))
 
         type_result = await self.db.execute(
             select(DictType).where(and_(*type_conditions))
