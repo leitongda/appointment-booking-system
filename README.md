@@ -101,14 +101,20 @@ appointment-booking-system/
 │   │
 │   └── server/                    # 后端服务 (FastAPI)
 │       ├── app/
-│       │   ├── api/v1/            # API 路由
-│       │   ├── models/            # 数据模型
-│       │   ├── schemas/           # 请求/响应模式
-│       │   ├── services/          # 业务逻辑
-│       │   ├── core/              # 核心配置
-│       │   ├── db/                # 数据库配置
-│       │   └── middleware/        # 中间件
-│       ├── migrations/            # 数据库迁移
+│       │   ├── api/v1/            # API 路由注册 (RouterRegistration, 60+ 模块动态 import)
+│       │   ├── common/            # 统一认证、跨模块共享工具
+│       │   ├── core/              # 核心配置 (Settings, Redis, Security, WebSocket)
+│       │   ├── db/                # 数据库连接池 (async + sync)
+│       │   ├── infrastructure/    # 基础设施 (邮件/短信/支付/存储/微信/Excel/图片/通知)
+│       │   ├── middleware/        # 中间件 (租户上下文/异常/响应/操作日志/限流)
+│       │   ├── models/            # SQLAlchemy 数据模型 (40+ 表)
+│       │   ├── modules/           # 业务模块 (57 模块, router.py + service.py)
+│       │   ├── schemas/           # Pydantic 请求/响应模式
+│       │   ├── seed/              # 种子数据
+│       │   ├── services/          # 跨模块复用服务
+│       │   ├── tasks/             # Celery 定时/异步任务
+│       │   └── utils/             # 工具函数
+│       ├── migrations/            # 数据库迁移 (Alembic)
 │       └── scripts/               # 初始化脚本
 │
 ├── packages/                      # 共享包
@@ -247,7 +253,9 @@ pnpm dev:doctor          # 医生端
 
 ## 📡 API 模块
 
-后端提供以下 RESTful API 模块：
+后端提供以下 RESTful API 模块（60 条路由注册，57 个业务模块）：
+
+### 核心业务
 
 | API 路由 | 说明 |
 |----------|------|
@@ -261,20 +269,92 @@ pnpm dev:doctor          # 医生端
 | `/api/v1/custom-schedules` | 自定义排班 |
 | `/api/v1/rest-days` | 休息日设置 |
 | `/api/v1/schedule-suspensions` | 停诊管理 |
+| `/api/v1/schedule-rooms` | 诊室管理 |
+| `/api/v1/shift-types` | 班次类型 |
 | `/api/v1/appointments` | 预约管理 |
-| `/api/v1/patients` | 患者管理 |
+| `/api/v1/patients` | 就诊卡管理 |
+| `/api/v1/user-manage` | 患者管理 |
 | `/api/v1/blacklists` | 黑名单管理 |
 | `/api/v1/medical-records` | 病历管理 |
+| `/api/v1/examination-reports` | 检查报告 |
 | `/api/v1/leave-requests` | 停诊/调班申请 |
-| `/api/v1/messages` | 消息中心 |
-| `/api/v1/feedbacks` | 用户反馈 |
-| `/api/v1/content` | 内容管理 |
-| `/api/v1/statistics` | 数据统计 |
-| `/api/v1/admin` | 权限管理 |
-| `/api/v1/settings` | 系统设置 |
+| `/api/v1/waitlist` | 候补队列 |
+| `/api/v1/follow-up` | 诊后随访 |
+
+### 费用与支付
+
+| API 路由 | 说明 |
+|----------|------|
 | `/api/v1/consultation-fees` | 诊费管理 |
 | `/api/v1/doctor-booking-settings` | 医生预约设置 |
+| `/api/v1/payments` | 支付管理 |
+| `/api/v1/refunds` | 退款管理 |
+| `/api/v1/points` | 积分管理 |
+
+### 消息与通知
+
+| API 路由 | 说明 |
+|----------|------|
+| `/api/v1/messages` | 消息中心 |
+| `/api/v1/unified-messages` | 统一消息中心 |
+| `/api/v1/notification-logs` | 通知日志 |
+| `/api/v1/notification-preferences` | 通知偏好 |
+
+### 内容与反馈
+
+| API 路由 | 说明 |
+|----------|------|
+| `/api/v1/content` | 内容管理 |
+| `/api/v1/common-services` | 常见服务 |
+| `/api/v1/booking-notices` | 预约须知 |
+| `/api/v1/feedbacks` | 用户反馈 |
+| `/api/v1/support-tickets` | 工单支持 |
+| `/api/v1/platform-announcements` | 平台公告 |
+| `/api/v1/favorites` | 用户收藏 |
+
+### 管理与权限
+
+| API 路由 | 说明 |
+|----------|------|
+| `/api/v1/admin` | 权限管理 |
+| `/api/v1/accounts` | 统一账号 |
+| `/api/v1/settings` | 系统设置 |
+| `/api/v1/tenants` | 租户管理 |
+| `/api/v1/approval-flows` | 审批流管理 |
+| `/api/v1/approval-instances` | 审批实例 |
+| `/api/v1/audit-logs` | 审计日志 |
+| `/api/v1/rule-sets` | 规则管理 |
+
+### 数据与工具
+
+| API 路由 | 说明 |
+|----------|------|
+| `/api/v1/statistics` | 数据统计 |
+| `/api/v1/analytics` | 用户行为分析 |
+| `/api/v1/performance` | 性能监控 |
 | `/api/v1/export` | 数据导出 |
+| `/api/v1/data` | 数据导入导出 |
+| `/api/v1/upload` | 文件上传 |
+| `/api/v1/backup` | 数据备份 |
+| `/api/v1/dicts` | 字典管理 |
+| `/api/v1/dict-options` | 字典选项查询 |
+| `/api/v1/email-templates` | 邮件模板 |
+| `/api/v1/store-email-recipients` | 门店邮件接收人 |
+
+### 医生端与小程序
+
+| API 路由 | 说明 |
+|----------|------|
+| `/api/v1/doctor-portal` | 医生端工作台 |
+| `/api/v1/miniapp-platform` | 小程序平台管理 |
+| `/api/v1/visit-type-configs` | 复诊规则配置 |
+| `/api/v1/amap` | 高德地图 |
+
+### 实时通信
+
+| API 路由 | 说明 |
+|----------|------|
+| `/api/v1/ws` | WebSocket |
 
 ## 🗃️ 数据模型
 

@@ -129,6 +129,48 @@ utils/           # 工具函数
 
 每个业务模块的标准结构: `modules/<name>/router.py` 定义路由, 业务逻辑在 service 层。
 
+### Schema 归属规则
+
+Pydantic schema 放置位置遵循以下规则：
+
+- **全局 `app/schemas/`**：跨模块复用的 DTO（如 `PageResponse`、通用枚举、共享请求/响应模型）
+- **模块内 `modules/<name>/schemas.py`**：领域专属的输入/输出模型，仅在该模块内使用
+- **判断标准**：如果 schema 被 2 个以上模块导入，放全局；仅本模块使用，放模块内
+- **大模块拆分**：模块内 schema 超过 15 个 BaseModel 时，按子域拆分为多个文件（如 `schemas_booking.py`、`schemas_query.py`）
+
+### Service 归属规则
+
+业务 service 放置位置遵循以下规则：
+
+- **模块内 `modules/<name>/service.py`**：默认位置，仅被本模块 router 调用的 service
+- **全局 `app/services/`**：跨模块复用的 service（被 2 个以上模块导入）
+- **判断标准**：grep 确认 import 来源，仅 1 个消费者 → 模块内；2+ 消费者 → 全局
+- **大模块拆分**：service 超过 500 行时，按读写拆分为 `service_query.py` + `service_mutation.py`
+- **迁移步骤**：1) 在模块内创建 service.py → 2) 更新 router.py import → 3) 更新测试 import → 4) 删除旧文件
+- **当前全局 services**：`email_template_service.py`（2 消费者）、`rule_performance_service.py`（2 消费者）
+
+### 模块目录命名规则
+
+模块目录名遵循以下约定：
+
+- **复数名词**：表示 REST 资源集合（`users/`, `doctors/`, `departments/`, `appointments/`, `patients/`, `stores/`）
+- **单数名词**：表示功能域或不可数概念（`auth/`, `content/`, `export/`, `revenue/`, `upload/`, `waitlist/`, `statistics/`）
+- **下划线复合**：多词概念用 snake_case（`doctor_booking_settings/`, `leave_requests/`, `schedule_templates/`）
+- **API 路由前缀**：将目录名中 `_` 替换为 `-` 得到路由前缀（`medical_records/` → `/medical-records`）
+
+### 测试文件组织
+
+- **单元测试**：`tests/unit/test_<功能>.py`，按功能域命名（如 `test_appointment_booking.py`、`test_schedule_service.py`）
+- **集成测试**：`tests/integration/test_<模块>_endpoints.py`，按模块名命名
+- **共享 fixtures**：`tests/conftest.py`（主）、`tests/conftest_pg.py`（PostgreSQL）、`tests/fixtures/`
+- **测试发现**：从模块名定位测试文件时，搜索 `tests/unit/test_<模块名>*` 或 `tests/unit/test_<模块名单数>*`
+
+### 错误码规范
+
+- **统一位置**：所有结构化错误码定义在 `core/error_codes.py` 的 `ErrorCode` 类中
+- **命名风格**：SCREAMING_SNAKE_CASE，按域组织（Schedule / Appointment / Tenant / General）
+- **禁止**：不在 `common/` 或其他位置创建重复的错误码类
+
 ### 统一认证体系 (`common/auth_unified.py`)
 
 三核心函数，支持 User / Doctor / Admin 三种角色:
