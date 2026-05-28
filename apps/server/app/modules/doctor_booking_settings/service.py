@@ -17,13 +17,13 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 class DoctorBookingSettingService:
     """医生预约设置服务"""
-    
+
     def __init__(self, db: AsyncSession):
         self.db = db
 
     def _tenant_id(self) -> Optional[str]:
         return get_current_tenant_id()
-    
+
     async def get_by_id(self, setting_id: str) -> Optional[DoctorBookingSetting]:
         """根据ID获取设置"""
         stmt = select(DoctorBookingSetting).where(
@@ -34,7 +34,7 @@ class DoctorBookingSettingService:
             stmt = stmt.where(DoctorBookingSetting.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
-    
+
     async def get_by_store_and_doctor(
         self,
         store_id: str,
@@ -73,13 +73,12 @@ class DoctorBookingSettingService:
             stmt = stmt.where(DoctorBookingSetting.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
-    
+
     async def get_list(
-        self, 
+        self,
         query: DoctorBookingSettingQuery
     ) -> tuple[List[dict], int]:
         """获取设置列表（包含门店名和医生名）"""
-        # 主查询
         stmt = (
             select(
                 DoctorBookingSetting,
@@ -89,37 +88,32 @@ class DoctorBookingSettingService:
             .join(Store, DoctorBookingSetting.store_id == Store.id)
             .join(Doctor, DoctorBookingSetting.doctor_id == Doctor.id)
         )
-        
-        # 计数查询
+
         count_stmt = select(func.count(DoctorBookingSetting.id))
 
         tenant_id = self._tenant_id()
         if tenant_id:
             stmt = stmt.where(DoctorBookingSetting.tenant_id == tenant_id)
             count_stmt = count_stmt.where(DoctorBookingSetting.tenant_id == tenant_id)
-        
-        # 门店筛选
+
         if query.store_id:
             stmt = stmt.where(DoctorBookingSetting.store_id == query.store_id)
             count_stmt = count_stmt.where(DoctorBookingSetting.store_id == query.store_id)
-        
-        # 医生筛选
+
         if query.doctor_id:
             stmt = stmt.where(DoctorBookingSetting.doctor_id == query.doctor_id)
             count_stmt = count_stmt.where(DoctorBookingSetting.doctor_id == query.doctor_id)
-        
-        # 状态筛选
+
         if query.status is not None:
             stmt = stmt.where(DoctorBookingSetting.status == query.status)
             count_stmt = count_stmt.where(DoctorBookingSetting.status == query.status)
-        
-        # 排序和分页
+
         stmt = stmt.order_by(DoctorBookingSetting.created_at.desc())
         stmt = stmt.offset((query.page - 1) * query.page_size).limit(query.page_size)
-        
+
         result = await self.db.execute(stmt)
         count_result = await self.db.execute(count_stmt)
-        
+
         items = []
         for row in result.all():
             setting = row[0]
@@ -136,18 +130,16 @@ class DoctorBookingSettingService:
                 'created_at': setting.created_at,
                 'updated_at': setting.updated_at,
             })
-        
+
         total = count_result.scalar() or 0
         return items, total
-    
+
     async def create(self, data: DoctorBookingSettingCreate, operator_id: Optional[str] = None) -> DoctorBookingSetting:
         """创建设置"""
-        # 检查是否已存在
         existing = await self.get_by_store_and_doctor(data.store_id, data.doctor_id)
         if existing:
             raise ValueError("该门店已存在此医生的预约设置")
-        
-        # 验证门店存在
+
         store_result = await self.db.execute(
             select(Store).where(Store.id == data.store_id)
         )
@@ -157,8 +149,7 @@ class DoctorBookingSettingService:
         tenant_id = self._tenant_id()
         if tenant_id and store.tenant_id != tenant_id:
             raise ValueError("门店不存在或无权限访问")
-        
-        # 验证医生存在
+
         doctor_result = await self.db.execute(
             select(Doctor).where(Doctor.id == data.doctor_id, Doctor.deleted_at.is_(None))
         )
@@ -167,7 +158,7 @@ class DoctorBookingSettingService:
             raise ValueError("医生不存在")
         if doctor.store_id != data.store_id:
             raise ValueError("所选医生不属于当前门店")
-        
+
         setting = DoctorBookingSetting(
             id=str(uuid.uuid4()),
             tenant_id=tenant_id,
@@ -178,10 +169,10 @@ class DoctorBookingSettingService:
         await self.db.commit()
         await self.db.refresh(setting)
         return setting
-    
+
     async def update(
-        self, 
-        setting_id: str, 
+        self,
+        setting_id: str,
         data: DoctorBookingSettingUpdate,
         operator_id: Optional[str] = None
     ) -> Optional[DoctorBookingSetting]:
@@ -189,26 +180,26 @@ class DoctorBookingSettingService:
         setting = await self.get_by_id(setting_id)
         if not setting:
             return None
-        
+
         update_data = data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(setting, field, value)
-        
+
         set_update_audit(setting, operator_id)
         await self.db.commit()
         await self.db.refresh(setting)
         return setting
-    
+
     async def delete(self, setting_id: str) -> bool:
         """删除设置"""
         setting = await self.get_by_id(setting_id)
         if not setting:
             return False
-        
+
         await self.db.delete(setting)
         await self.db.commit()
         return True
-    
+
     async def get_existing_doctor_ids(self, store_id: str) -> List[str]:
         """获取指定门店已配置的医生ID列表"""
         stmt = (
@@ -220,10 +211,10 @@ class DoctorBookingSettingService:
             stmt = stmt.where(DoctorBookingSetting.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
         return [row[0] for row in result.all()]
-    
+
     async def update_status(
-        self, 
-        setting_id: str, 
+        self,
+        setting_id: str,
         status: int,
         operator_id: Optional[str] = None
     ) -> Optional[DoctorBookingSetting]:
@@ -231,7 +222,7 @@ class DoctorBookingSettingService:
         setting = await self.get_by_id(setting_id)
         if not setting:
             return None
-        
+
         setting.status = status
         set_update_audit(setting, operator_id)
         await self.db.commit()

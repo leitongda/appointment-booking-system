@@ -33,11 +33,7 @@ class UserFavoriteService:
         return result.scalar_one_or_none()
 
     async def check_favorite(self, user_id: str, target_type: str, target_id: str) -> tuple[bool, Optional[str]]:
-        """检查是否已收藏
-
-        Returns:
-            (is_favorited, favorite_id)
-        """
+        """检查是否已收藏"""
         stmt = self._tenant_filter(
             select(UserFavorite).where(
                 and_(
@@ -77,7 +73,6 @@ class UserFavoriteService:
         favorites = list(result.scalars().all())
         total = count_result.scalar() or 0
 
-        # 获取目标详情
         favorites_with_target = []
         for favorite in favorites:
             target = await self._get_target_detail(favorite.target_type, favorite.target_id)
@@ -129,12 +124,10 @@ class UserFavoriteService:
 
     async def create(self, user_id: str, data: UserFavoriteCreate) -> UserFavorite:
         """添加收藏"""
-        # 检查是否已收藏
         is_favorited, _ = await self.check_favorite(user_id, data.target_type, data.target_id)
         if is_favorited:
             raise ValueError("已收藏该项目")
 
-        # 验证目标是否存在
         target = await self._get_target_detail(data.target_type, data.target_id)
         if not target:
             raise ValueError("收藏目标不存在")

@@ -7,7 +7,7 @@ from app.api.deps import get_current_user
 from app.core.config import settings
 from app.db.session import get_db
 from app.schemas.user_favorite import FavoriteCheckResponse, UserFavoriteCreate, UserFavoriteResponse
-from app.services.user_favorite_service import UserFavoriteService
+from app.modules.user_favorites.service import UserFavoriteService
 
 router = APIRouter()
 

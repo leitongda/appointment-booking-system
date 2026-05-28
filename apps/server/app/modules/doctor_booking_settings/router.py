@@ -11,7 +11,7 @@ from app.schemas.doctor_booking_setting import (
     DoctorBookingSettingQuery,
 )
 from app.schemas.response import PageResponse
-from app.services.doctor_booking_setting_service import DoctorBookingSettingService
+from app.modules.doctor_booking_settings.service import DoctorBookingSettingService
 from app.core.config import settings
 
 router = APIRouter()
