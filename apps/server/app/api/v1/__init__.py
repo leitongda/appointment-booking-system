@@ -23,7 +23,7 @@ ROUTER_REGISTRATIONS = [
     RouterRegistration("app.modules.appointments.router", "/appointments", ["预约"]),
     RouterRegistration("app.modules.medical_records.router", "/medical-records", ["病历"]),
     RouterRegistration("app.modules.content.router", "/content", ["内容管理"]),
-    RouterRegistration("app.modules.common_services.router", "/content", ["常见服务"]),
+    RouterRegistration("app.modules.common_services.router", "/common-services", ["常见服务"]),
     RouterRegistration("app.modules.statistics.router", "/statistics", ["数据统计"]),
     RouterRegistration("app.modules.admin.router", "/admin", ["权限管理"]),
     RouterRegistration("app.modules.settings.router", "/settings", ["系统设置"]),
