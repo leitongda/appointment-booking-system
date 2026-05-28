@@ -30,6 +30,7 @@ from app.modules.tenants.service import (
     TenantService, TenantSubscriptionService, TenantUsageService,
     SubscriptionPlanService, TenantNotificationService,
 )
+from app.modules.tenants.service_migration import TenantMigrationService
 from app.schemas.response import PageResponse
 from app.core.config import settings
 
@@ -875,7 +876,7 @@ async def precheck_tenant_migration(
     current_admin: dict = Depends(require_platform_admin()),
 ):
     """迁移前预检：检查目标租户配额、源数据量等（仅平台管理员）"""
-    service = TenantService(db)
+    service = TenantMigrationService(db)
     try:
         result = await service.precheck_migration(
             target_tenant_id=tenant_id,
@@ -949,7 +950,7 @@ async def migrate_tenant_data(
     current_admin: dict = Depends(require_platform_admin()),
 ):
     """跨租户数据迁移（仅平台管理员）"""
-    service = TenantService(db)
+    service = TenantMigrationService(db)
 
     try:
         result = await service.migrate_data(
