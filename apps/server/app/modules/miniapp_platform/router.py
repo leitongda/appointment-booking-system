@@ -19,9 +19,9 @@ from app.schemas.miniapp_template import (
     BuildJobCreate, BuildJobResponse, BuildJobListResponse,
     ReleaseJobCreate, ReleaseJobResponse, ReleaseJobListResponse,
 )
-from app.modules.miniapp_platform.service import (
-    CompanyService, PaymentProfileService, MiniappInstanceService,
-    AppTemplateService, BuildJobService, ReleaseJobService
+from app.modules.miniapp_platform.service import CompanyService, PaymentProfileService
+from app.modules.miniapp_platform.service_instance import (
+    MiniappInstanceService, AppTemplateService, BuildJobService, ReleaseJobService
 )
 from app.schemas.response import PageResponse
 
