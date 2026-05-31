@@ -13,6 +13,12 @@
  */
 const operations = [
   {
+    path: '/freelance-portal',
+    component: './freelance/portal',
+    layout: false,
+    hideInMenu: true,
+  },
+  {
     path: '/content-center',
     name: '运营中心',
     icon: 'notification',
@@ -77,6 +83,20 @@ const operations = [
         icon: 'lineChart',
         component: './system/analytics',
         access: 'canAnalytics',
+      },
+      {
+        path: '/content-center/freelance',
+        name: '兼职费用',
+        icon: 'team',
+        access: 'canFreelance',
+        routes: [
+          { path: '/content-center/freelance', redirect: '/content-center/freelance/freelancers' },
+          { path: '/content-center/freelance/freelancers', name: '兼职人员', component: './freelance/freelancers' },
+          { path: '/content-center/freelance/tasks', name: '任务管理', component: './freelance/tasks' },
+          { path: '/content-center/freelance/settlements', name: '结算管理', component: './freelance/settlements' },
+          { path: '/content-center/freelance/statistics', name: '费用统计', component: './freelance/statistics' },
+          { path: '/content-center/freelance/data-collection', name: '数据采集', component: './freelance/data-collection' },
+        ],
       },
     ],
   },

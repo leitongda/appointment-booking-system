@@ -76,3 +76,10 @@ from app.models.follow_up_plan import FollowUpPlan, FollowUpPlanStep
 from app.models.follow_up_task import FollowUpTask
 from app.models.follow_up_record import FollowUpRecord
 from app.models.follow_up_self_report import FollowUpSelfReport
+from app.models.freelance import (
+    Freelancer,
+    FreelanceTask,
+    FreelanceInteraction,
+    FreelanceSettlement,
+    FreelanceSettlementItem,
+)

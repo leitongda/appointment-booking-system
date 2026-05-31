@@ -133,6 +133,7 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     'miniapp-platform:instance',
   ]);
   const canTenantUsage = canTenant;
+  const canFreelance = hasModuleAccess('freelance', ['freelance:list', 'freelance:create', 'freelance:update', 'freelance:delete', 'freelance:settle']);
 
   const canMedicalConfig =
     canShiftTypes ||
@@ -169,7 +170,8 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canContent ||
     canMessage ||
     canFeedback ||
-    canAnalytics;
+    canAnalytics ||
+    canFreelance;
   const canSystemManagement =
     canRoleManagement ||
     canSystemConfig ||
@@ -248,5 +250,6 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canTenant,
     canTenantPlans,
     canTenantUsage,
+    canFreelance,
   };
 }

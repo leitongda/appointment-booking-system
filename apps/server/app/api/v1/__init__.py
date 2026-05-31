@@ -72,6 +72,8 @@ ROUTER_REGISTRATIONS = [
     RouterRegistration("app.modules.amap.router", "/amap", ["高德地图"]),
     RouterRegistration("app.modules.performance.router", "/performance", ["性能监控"]),
     RouterRegistration("app.modules.follow_up.router", "/follow-up", ["诊后随访"]),
+    RouterRegistration("app.modules.freelance_fees.router", "/freelance-fees", ["兼职费用"]),
+    RouterRegistration("app.modules.freelance_fees.router_public", "/freelance-portal", ["兼职自助"]),
 ]
 
 
