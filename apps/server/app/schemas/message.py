@@ -1,25 +1,10 @@
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List, Any
 from datetime import datetime
-from enum import Enum
+
+from app.enums.message import MessageType  # noqa: F401 — re-export
 from app.core.config import settings
-
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
-
-class MessageType(str, Enum):
-    """消息类型"""
-    APPOINTMENT = "appointment"       # 预约通知
-    CONSULTATION = "consultation"     # 就诊通知
-    SCHEDULE = "schedule"             # 排班通知
-    SYSTEM = "system"                 # 系统通知
-    STOP_CLINIC = "stop_clinic"       # 停诊通知
-    FEEDBACK = "feedback"             # 反馈回复通知
-
+from app.schemas.response import to_camel
 
 class MessageBase(BaseModel):
     """消息基础模型"""
@@ -33,13 +18,11 @@ class MessageBase(BaseModel):
     message_type: str = Field("system", description="消息类型（字典: message_type）")
     related_id: Optional[str] = Field(None, description="关联业务ID")
 
-
 class MessageCreate(MessageBase):
     """创建消息"""
     user_id: str = Field(..., description="接收用户ID")
     user_type: str = Field(..., description="用户类型: patient/doctor")
     extra_data: Optional[dict] = Field(None, description="额外数据")
-
 
 class MessageBatchCreate(BaseModel):
     """批量创建消息"""
@@ -54,7 +37,6 @@ class MessageBatchCreate(BaseModel):
     content: Optional[str] = None
     message_type: str = "system"
     related_id: Optional[str] = None
-
 
 class MessageResponse(BaseModel):
     """消息响应"""
@@ -77,7 +59,6 @@ class MessageResponse(BaseModel):
     read_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
 
-
 class MessageListResponse(BaseModel):
     """消息列表响应"""
     model_config = ConfigDict(
@@ -95,7 +76,6 @@ class MessageListResponse(BaseModel):
     is_read: Optional[int] = 0
     created_at: Optional[datetime] = None
 
-
 class MessageQuery(BaseModel):
     """消息查询参数"""
     model_config = ConfigDict(
@@ -107,7 +87,6 @@ class MessageQuery(BaseModel):
     is_read: Optional[int] = Field(None, description="是否已读")
     page: int = Field(1, ge=1)
     page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE)
-
 
 class UnreadCountResponse(BaseModel):
     """未读消息数量"""
@@ -125,7 +104,6 @@ class UnreadCountResponse(BaseModel):
     stop_clinic: int = 0
     feedback: int = 0
 
-
 # 消息模板
 class MessageTemplateBase(BaseModel):
     model_config = ConfigDict(
@@ -141,10 +119,8 @@ class MessageTemplateBase(BaseModel):
     description: Optional[str] = Field(None, max_length=255)
     status: int = Field(1, ge=0, le=1)
 
-
 class MessageTemplateCreate(MessageTemplateBase):
     pass
-
 
 class MessageTemplateUpdate(BaseModel):
     model_config = ConfigDict(
@@ -157,7 +133,6 @@ class MessageTemplateUpdate(BaseModel):
     content_template: Optional[str] = None
     description: Optional[str] = Field(None, max_length=255)
     status: Optional[int] = Field(None, ge=0, le=1)
-
 
 class MessageTemplateResponse(BaseModel):
     """消息模板响应"""

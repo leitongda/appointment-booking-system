@@ -3,13 +3,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import datetime
 from app.core.config import settings
-
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
+from app.schemas.response import to_camel
 
 class StoreEmailRecipientCreate(BaseModel):
     """创建门店邮件接收人"""
@@ -24,7 +18,6 @@ class StoreEmailRecipientCreate(BaseModel):
     event_types: List[str] = Field(default_factory=list, description="订阅事件类型列表")
     status: int = Field(1, ge=0, le=1, description="状态: 0-禁用 1-启用")
 
-
 class StoreEmailRecipientUpdate(BaseModel):
     """更新门店邮件接收人"""
     model_config = ConfigDict(
@@ -36,7 +29,6 @@ class StoreEmailRecipientUpdate(BaseModel):
     email: Optional[str] = Field(None, max_length=100, description="邮箱地址")
     event_types: Optional[List[str]] = Field(None, description="订阅事件类型列表")
     status: Optional[int] = Field(None, ge=0, le=1, description="状态: 0-禁用 1-启用")
-
 
 class StoreEmailRecipientResponse(BaseModel):
     """门店邮件接收人响应"""
@@ -56,7 +48,6 @@ class StoreEmailRecipientResponse(BaseModel):
     status: int = Field(1, description="状态: 0-禁用 1-启用")
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-
 
 class StoreEmailRecipientQuery(BaseModel):
     """门店邮件接收人查询参数"""

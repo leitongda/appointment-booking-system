@@ -1,19 +1,17 @@
+from app.schemas.response import to_camel
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from datetime import datetime
-
 
 # ========== 短信登录 ==========
 class SmsCodeRequest(BaseModel):
     """发送短信验证码请求"""
     phone: str = Field(..., min_length=11, max_length=11, description="手机号")
 
-
 class SmsLoginRequest(BaseModel):
     """短信验证码登录请求"""
     phone: str = Field(..., min_length=11, max_length=11, description="手机号")
     code: str = Field(..., min_length=4, max_length=6, description="验证码")
-
 
 # ========== 手机号密码登录 ==========
 class PhoneLoginRequest(BaseModel):
@@ -22,14 +20,12 @@ class PhoneLoginRequest(BaseModel):
     password: str = Field(..., min_length=6, description="密码")
     encrypted: bool = Field(default=False, description="密码是否已加密")
 
-
 # ========== 账号密码登录 ==========
 class AdminLoginRequest(BaseModel):
     """管理员账号密码登录请求"""
     username: str = Field(..., min_length=2, description="用户名")
     password: str = Field(..., min_length=6, description="密码")
     encrypted: bool = Field(default=False, description="密码是否已加密")
-
 
 # ========== 微信扫码登录 ==========
 class WechatQrcodeResponse(BaseModel):
@@ -38,11 +34,9 @@ class WechatQrcodeResponse(BaseModel):
     ticket: str = Field(..., description="轮询票据")
     expire_seconds: int = Field(default=300, description="二维码有效期(秒)")
 
-
 class WechatCheckRequest(BaseModel):
     """检查微信扫码状态请求"""
     ticket: str = Field(..., description="轮询票据")
-
 
 class WechatCheckResponse(BaseModel):
     """检查微信扫码状态响应"""
@@ -50,7 +44,6 @@ class WechatCheckResponse(BaseModel):
     access_token: Optional[str] = Field(None, description="登录成功时返回的token")
     refresh_token: Optional[str] = Field(None, description="刷新token")
     expires_in: Optional[int] = Field(None, description="token有效期(秒)")
-
 
 # ========== 通用登录响应 ==========
 class AdminLoginResponse(BaseModel):
@@ -63,13 +56,7 @@ class AdminLoginResponse(BaseModel):
     class Config:
         populate_by_name = True
 
-
 # ========== 管理员列表响应 ==========
-def to_camel(string: str) -> str:
-    """转换 snake_case 为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
 
 class AdminListResponse(BaseModel):
     """管理员列表响应（用于门店用户列表等场景）"""

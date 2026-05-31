@@ -1,3 +1,4 @@
+from app.schemas.response import to_camel
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Literal, Optional, List
 from datetime import datetime
@@ -5,13 +6,6 @@ from decimal import Decimal
 
 # 与前端 @hospital/shared PATIENT_RELATIONSHIP 保持一致
 RELATIONSHIP_TYPE = Literal["本人", "父母", "子女", "配偶", "其他"]
-
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
 
 # ========== 用户相关 ==========
 class UserBase(BaseModel):
@@ -24,7 +18,6 @@ class UserBase(BaseModel):
     nickname: Optional[str] = Field(None, max_length=50)
     avatar: Optional[str] = None
     gender: Optional[int] = Field(0, ge=0, le=2, description="性别: 0未知 1男 2女")
-
 
 class UserCreate(BaseModel):
     model_config = ConfigDict(
@@ -40,7 +33,6 @@ class UserCreate(BaseModel):
     nickname: Optional[str] = Field(None, max_length=50, description="昵称")
     avatar: Optional[str] = Field(None, description="头像URL")
 
-
 class UserUpdate(BaseModel):
     model_config = ConfigDict(
         alias_generator=to_camel,
@@ -50,7 +42,6 @@ class UserUpdate(BaseModel):
     nickname: Optional[str] = Field(None, max_length=50)
     avatar: Optional[str] = None
     gender: Optional[int] = Field(None, ge=0, le=2)
-
 
 class AdminUserUpdate(BaseModel):
     """管理员更新用户信息"""
@@ -64,7 +55,6 @@ class AdminUserUpdate(BaseModel):
     avatar: Optional[str] = Field(None, description="头像URL")
     gender: Optional[int] = Field(None, ge=0, le=2, description="性别: 0未知 1男 2女")
 
-
 class ChangePasswordRequest(BaseModel):
     """修改密码请求"""
     model_config = ConfigDict(
@@ -74,7 +64,6 @@ class ChangePasswordRequest(BaseModel):
     
     old_password: str = Field(..., min_length=6, max_length=20, description="旧密码")
     new_password: str = Field(..., min_length=6, max_length=20, description="新密码")
-
 
 class BindPhoneRequest(BaseModel):
     """绑定手机号请求"""
@@ -99,7 +88,6 @@ class UserInDB(UserBase):
     points: int = 0
     created_at: datetime
     updated_at: datetime
-
 
 class UserResponse(BaseModel):
     """用户信息响应"""
@@ -145,10 +133,8 @@ class PatientBase(BaseModel):
     address: Optional[str] = Field(None, max_length=255, description="详细地址")
     source: int = Field(1, ge=1, le=2, description="来源: 1用户添加 2管理员添加")
 
-
 class PatientCreate(PatientBase):
     pass
-
 
 class PatientCreateByAdmin(BaseModel):
     """管理员创建患者（会同时创建用户）"""
@@ -173,7 +159,6 @@ class PatientCreateByAdmin(BaseModel):
     ethnicity: str = Field("汉族", max_length=20, description="民族")
     address: Optional[str] = Field(None, max_length=255, description="详细地址")
 
-
 class FamilyMemberCreate(BaseModel):
     """添加家庭成员（亲友）"""
     model_config = ConfigDict(
@@ -197,7 +182,6 @@ class FamilyMemberCreate(BaseModel):
     ethnicity: str = Field("汉族", max_length=20, description="民族")
     address: Optional[str] = Field(None, max_length=255, description="详细地址")
 
-
 class PatientUpdate(BaseModel):
     model_config = ConfigDict(
         alias_generator=to_camel,
@@ -219,7 +203,6 @@ class PatientUpdate(BaseModel):
     id_card_type: Optional[int] = Field(None, ge=1, le=3)
     ethnicity: Optional[str] = Field(None, max_length=20)
     address: Optional[str] = Field(None, max_length=255)
-
 
 class PatientResponse(BaseModel):
     """就诊人信息响应"""
@@ -252,7 +235,6 @@ class PatientResponse(BaseModel):
     total_consumption: Decimal = Field(Decimal("0"), description="总消费金额")
     created_at: Optional[datetime] = Field(None, description="创建时间")
 
-
 # ========== 患者详情响应（管理后台） ==========
 class PatientListItemResponse(BaseModel):
     """患者列表项"""
@@ -283,7 +265,6 @@ class PatientListItemResponse(BaseModel):
     user_phone: Optional[str] = None
     user_nickname: Optional[str] = None
 
-
 class PatientStatistics(BaseModel):
     """患者统计信息"""
     model_config = ConfigDict(
@@ -295,7 +276,6 @@ class PatientStatistics(BaseModel):
     appointment_count: int = Field(0, description="预约总数")
     completed_count: int = Field(0, description="已完成数")
     no_show_count: int = Field(0, description="爽约数")
-
 
 class PatientDetailResponse(BaseModel):
     """患者详情响应"""

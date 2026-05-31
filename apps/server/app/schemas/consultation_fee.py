@@ -1,14 +1,8 @@
+from app.schemas.response import to_camel
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from decimal import Decimal
 from datetime import datetime
-
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
 
 # ========== 诊费类型 Schema ==========
 
@@ -25,10 +19,8 @@ class ConsultationFeeTypeBase(BaseModel):
     sort_order: int = Field(0, ge=0, description="排序")
     status: int = Field(1, ge=0, le=1, description="状态: 0禁用 1启用")
 
-
 class ConsultationFeeTypeCreate(ConsultationFeeTypeBase):
     pass
-
 
 class ConsultationFeeTypeUpdate(BaseModel):
     model_config = ConfigDict(
@@ -42,7 +34,6 @@ class ConsultationFeeTypeUpdate(BaseModel):
     description: Optional[str] = Field(None, max_length=255)
     sort_order: Optional[int] = Field(None, ge=0)
     status: Optional[int] = Field(None, ge=0, le=1)
-
 
 class ConsultationFeeTypeResponse(BaseModel):
     model_config = ConfigDict(
@@ -64,7 +55,6 @@ class ConsultationFeeTypeResponse(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-
 # ========== 诊费模板 Schema ==========
 
 class ConsultationFeeTemplateBase(BaseModel):
@@ -78,10 +68,8 @@ class ConsultationFeeTemplateBase(BaseModel):
     follow_up_fee: Decimal = Field(Decimal("0"), ge=0, description="复诊金额")
     status: int = Field(1, ge=0, le=1, description="状态: 0禁用 1启用")
 
-
 class ConsultationFeeTemplateCreate(ConsultationFeeTemplateBase):
     pass
-
 
 class ConsultationFeeTemplateUpdate(BaseModel):
     model_config = ConfigDict(
@@ -93,7 +81,6 @@ class ConsultationFeeTemplateUpdate(BaseModel):
     initial_fee: Optional[Decimal] = Field(None, ge=0)
     follow_up_fee: Optional[Decimal] = Field(None, ge=0)
     status: Optional[int] = Field(None, ge=0, le=1)
-
 
 class ConsultationFeeTemplateResponse(BaseModel):
     model_config = ConfigDict(
@@ -113,7 +100,6 @@ class ConsultationFeeTemplateResponse(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-
 class ConsultationFeeTemplateWithType(BaseModel):
     """带诊费类型信息的模板响应"""
     model_config = ConfigDict(
@@ -130,7 +116,6 @@ class ConsultationFeeTemplateWithType(BaseModel):
     follow_up_fee: Decimal = Decimal("0")
     status: int = 1
 
-
 # ========== 门店诊费模板 Schema ==========
 
 class StoreFeeTemplateBase(BaseModel):
@@ -146,10 +131,8 @@ class StoreFeeTemplateBase(BaseModel):
     follow_up_fee: Decimal = Field(Decimal("0"), ge=0, description="复诊金额")
     status: int = Field(1, ge=0, le=1, description="状态: 0禁用 1启用")
 
-
 class StoreFeeTemplateCreate(StoreFeeTemplateBase):
     pass
-
 
 class StoreFeeTemplateUpdate(BaseModel):
     model_config = ConfigDict(
@@ -160,7 +143,6 @@ class StoreFeeTemplateUpdate(BaseModel):
     initial_fee: Optional[Decimal] = Field(None, ge=0)
     follow_up_fee: Optional[Decimal] = Field(None, ge=0)
     status: Optional[int] = Field(None, ge=0, le=1)
-
 
 class StoreFeeTemplateResponse(BaseModel):
     """门店诊费模板响应"""
@@ -183,7 +165,6 @@ class StoreFeeTemplateResponse(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-
 class StoreFeeTemplateItem(BaseModel):
     """门店诊费模板项（用于批量保存）"""
     model_config = ConfigDict(
@@ -198,7 +179,6 @@ class StoreFeeTemplateItem(BaseModel):
     initial_fee: Decimal = Decimal("0")
     follow_up_fee: Decimal = Decimal("0")
 
-
 class StoreFeeTemplateBatchCreate(BaseModel):
     """批量创建/更新门店诊费模板"""
     model_config = ConfigDict(
@@ -208,7 +188,6 @@ class StoreFeeTemplateBatchCreate(BaseModel):
     
     store_id: str = Field(..., description="门店ID")
     templates: List[StoreFeeTemplateItem] = Field(..., description="诊费模板列表")
-
 
 class StoreFeeTemplateWithType(BaseModel):
     """带诊费类型信息的门店模板响应（用于列表展示）"""
@@ -230,7 +209,6 @@ class StoreFeeTemplateWithType(BaseModel):
     status: int = 1
     is_global_type: bool = True  # 是否为全局类型
 
-
 class ApplyTemplateRequest(BaseModel):
     """一键带入模板请求"""
     model_config = ConfigDict(
@@ -240,7 +218,6 @@ class ApplyTemplateRequest(BaseModel):
     
     store_id: str = Field(..., description="门店ID")
     department_id: str = Field(..., description="科室ID")
-
 
 # ========== 医生诊费配置 Schema ==========
 
@@ -258,10 +235,8 @@ class DoctorConsultationFeeBase(BaseModel):
     follow_up_fee: Decimal = Field(Decimal("0"), ge=0, description="复诊金额")
     status: int = Field(1, ge=0, le=1, description="状态: 0禁用 1启用")
 
-
 class DoctorConsultationFeeCreate(DoctorConsultationFeeBase):
     pass
-
 
 class DoctorConsultationFeeUpdate(BaseModel):
     model_config = ConfigDict(
@@ -272,7 +247,6 @@ class DoctorConsultationFeeUpdate(BaseModel):
     initial_fee: Optional[Decimal] = Field(None, ge=0)
     follow_up_fee: Optional[Decimal] = Field(None, ge=0)
     status: Optional[int] = Field(None, ge=0, le=1)
-
 
 class DoctorConsultationFeeResponse(BaseModel):
     model_config = ConfigDict(
@@ -297,7 +271,6 @@ class DoctorConsultationFeeResponse(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-
 class DoctorConsultationFeeItem(BaseModel):
     """单个诊费类型的金额配置"""
     model_config = ConfigDict(
@@ -312,7 +285,6 @@ class DoctorConsultationFeeItem(BaseModel):
     initial_fee: Decimal = Decimal("0")
     follow_up_fee: Decimal = Decimal("0")
 
-
 class DoctorConsultationFeeBatchCreate(BaseModel):
     """批量创建/更新医生诊费配置"""
     model_config = ConfigDict(
@@ -325,7 +297,6 @@ class DoctorConsultationFeeBatchCreate(BaseModel):
     department_id: str = Field(..., description="科室ID")
     fees: List[DoctorConsultationFeeItem] = Field(..., description="诊费配置列表")
 
-
 class DoctorConsultationFeeQuery(BaseModel):
     """查询医生诊费配置的参数"""
     model_config = ConfigDict(
@@ -336,7 +307,6 @@ class DoctorConsultationFeeQuery(BaseModel):
     doctor_id: str
     store_id: Optional[str] = None
     department_id: Optional[str] = None
-
 
 class DoctorFeeSettingResponse(BaseModel):
     """医生诊费设置响应（包含是否使用模板）"""
@@ -351,7 +321,6 @@ class DoctorFeeSettingResponse(BaseModel):
     use_fee_template: Optional[int] = 0
     fees: List[DoctorConsultationFeeResponse] = []
 
-
 class DoctorFeeSettingUpdate(BaseModel):
     """更新医生诊费设置"""
     model_config = ConfigDict(
@@ -360,7 +329,6 @@ class DoctorFeeSettingUpdate(BaseModel):
     )
     
     use_fee_template: int = Field(..., ge=0, le=1, description="是否使用诊费模板 0否 1是")
-
 
 class StoreDepartmentFeeGroup(BaseModel):
     """门店-科室下的诊费配置分组"""

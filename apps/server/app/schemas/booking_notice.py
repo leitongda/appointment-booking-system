@@ -3,13 +3,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import datetime
 from app.core.config import settings
-
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
+from app.schemas.response import to_camel
 
 class BookingNoticeCreate(BaseModel):
     """创建预约须知请求"""
@@ -24,7 +18,6 @@ class BookingNoticeCreate(BaseModel):
     sort_order: int = Field(0, ge=0, description="排序")
     status: int = Field(1, ge=0, le=1, description="状态: 0禁用 1启用")
 
-
 class BookingNoticeUpdate(BaseModel):
     """更新预约须知请求"""
     model_config = ConfigDict(
@@ -37,7 +30,6 @@ class BookingNoticeUpdate(BaseModel):
     content: Optional[str] = None
     sort_order: Optional[int] = Field(None, ge=0)
     status: Optional[int] = Field(None, ge=0, le=1)
-
 
 class BookingNoticeResponse(BaseModel):
     """预约须知响应"""
@@ -56,7 +48,6 @@ class BookingNoticeResponse(BaseModel):
     status: int = 1
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-
 
 class BookingNoticeListQuery(BaseModel):
     """预约须知列表查询"""

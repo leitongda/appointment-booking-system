@@ -4,13 +4,7 @@ from datetime import datetime, date, time
 from decimal import Decimal
 from sqlalchemy import inspect as sa_inspect
 from app.core.config import settings
-
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
+from app.schemas.response import to_camel
 
 class AppointmentCreate(BaseModel):
     """创建预约请求"""
@@ -29,7 +23,6 @@ class AppointmentCreate(BaseModel):
     schedule_id: str = Field(..., description="排班ID", examples=["sch_abc123def456"])
     patient_id: str = Field(..., description="就诊人ID", examples=["pat_xyz789abc"])
     symptom_description: Optional[str] = Field(None, max_length=500, description="病情描述/预填信息", examples=["头痛三天，伴有轻微发热"])
-
 
 class AppointmentResponse(BaseModel):
     """预约信息响应"""
@@ -143,7 +136,6 @@ class AppointmentResponse(BaseModel):
             rescheduled_from_id=appointment.rescheduled_from_id,
         )
 
-
 class AppointmentPaymentParams(BaseModel):
     """预约创建后可直接使用的支付参数。"""
     model_config = ConfigDict(
@@ -157,7 +149,6 @@ class AppointmentPaymentParams(BaseModel):
     package: str = Field(..., description="预支付会话标识")
     sign_type: str = Field(..., description="签名类型")
     pay_sign: str = Field(..., description="支付签名")
-
 
 class AppointmentPendingPaymentResponse(BaseModel):
     """收费预约创建响应。"""
@@ -175,7 +166,6 @@ class AppointmentPendingPaymentResponse(BaseModel):
             payment_amount=result.get("payment_amount"),
             payment_params=result.get("payment_params"),
         )
-
 
 class AppointmentListQuery(BaseModel):
     """预约列表查询参数
@@ -195,7 +185,6 @@ class AppointmentListQuery(BaseModel):
     page: int = Field(1, ge=1, description="页码")
     page_size: int = Field(10, ge=1, le=settings.APPOINTMENTS_MAX_PAGE_SIZE, description="每页数量（默认10，普通用户上限100，管理员+日期范围可至500）")
 
-
 class AppointmentCancelRequest(BaseModel):
     """取消预约请求"""
     model_config = ConfigDict(
@@ -209,7 +198,6 @@ class AppointmentCancelRequest(BaseModel):
     )
     
     reason: Optional[str] = Field(None, max_length=200, description="取消原因", examples=["临时有事无法前往", "预约错误", "身体不适已恢复"])
-
 
 class AppointmentStatistics(BaseModel):
     """预约统计信息"""

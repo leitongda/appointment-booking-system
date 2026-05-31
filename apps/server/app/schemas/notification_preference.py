@@ -1,12 +1,7 @@
+from app.schemas.response import to_camel
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import datetime
-
-
-def to_camel(string: str) -> str:
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
 
 class NotificationPreferenceResponse(BaseModel):
     model_config = ConfigDict(
@@ -33,7 +28,6 @@ class NotificationPreferenceResponse(BaseModel):
     quiet_hours_end: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-
 
 class NotificationPreferenceUpdate(BaseModel):
     model_config = ConfigDict(

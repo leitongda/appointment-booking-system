@@ -1,14 +1,8 @@
+from app.schemas.response import to_camel
 """常见服务模块 DTOs"""
 from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, ConfigDict, Field
-
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
 
 # ========== 常见服务 ==========
 
@@ -34,11 +28,9 @@ class CommonServiceResponse(BaseModel):
         by_alias=True,
     )
 
-
 class CommonServiceListResponse(BaseModel):
     """常见服务列表响应"""
     items: List[CommonServiceResponse]
-
 
 # ========== 健康提醒 ==========
 
@@ -60,7 +52,6 @@ class HealthReminderResponse(BaseModel):
         alias_generator=to_camel,
         by_alias=True,
     )
-
 
 class UserHealthReminderResponse(BaseModel):
     """用户健康提醒响应（包含用户的检查历史）"""

@@ -1,27 +1,10 @@
+from app.schemas.response import to_camel
 """随访模块 Schema"""
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import datetime, date
-from enum import Enum
 
-
-def to_camel(string: str) -> str:
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
-
-class TaskStatus(str, Enum):
-    PENDING = "pending"
-    COMPLETED = "completed"
-    SKIPPED = "skipped"
-    OVERDUE = "overdue"
-
-
-class PatientCondition(str, Enum):
-    IMPROVED = "improved"
-    STABLE = "stable"
-    WORSENED = "worsened"
-
+from app.enums.general import PatientCondition, SelfReportStatus, TaskStatus  # noqa: F401 — re-export
 
 # ========== 计划步骤 ==========
 
@@ -32,7 +15,6 @@ class FollowUpPlanStepCreate(BaseModel):
     name: str = Field(..., max_length=100, description="步骤名称")
     days_after_visit: int = Field(..., ge=1, description="就诊后第几天")
     description: Optional[str] = Field(None, description="步骤说明")
-
 
 class FollowUpPlanStepResponse(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True, by_alias=True)
@@ -46,7 +28,6 @@ class FollowUpPlanStepResponse(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-
 # ========== 计划 ==========
 
 class FollowUpPlanCreate(BaseModel):
@@ -59,7 +40,6 @@ class FollowUpPlanCreate(BaseModel):
     diagnosis_name: Optional[str] = Field(None, description="诊断名称")
     steps: List[FollowUpPlanStepCreate] = Field(..., min_length=1, description="随访步骤")
 
-
 class FollowUpPlanUpdate(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
@@ -70,12 +50,10 @@ class FollowUpPlanUpdate(BaseModel):
     diagnosis_name: Optional[str] = Field(None, description="诊断名称")
     status: Optional[int] = Field(None, ge=0, le=1, description="状态 0=停用 1=启用")
 
-
 class FollowUpPlanStepsUpdate(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
     steps: List[FollowUpPlanStepCreate] = Field(..., min_length=1, description="随访步骤（全量替换）")
-
 
 class FollowUpPlanResponse(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True, by_alias=True)
@@ -92,7 +70,6 @@ class FollowUpPlanResponse(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-
 class FollowUpPlanListResponse(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True, by_alias=True)
 
@@ -103,7 +80,6 @@ class FollowUpPlanListResponse(BaseModel):
     status: Optional[int] = None
     step_count: Optional[int] = None
     created_at: Optional[datetime] = None
-
 
 # ========== 任务 ==========
 
@@ -118,7 +94,6 @@ class FollowUpTaskCreate(BaseModel):
     scheduled_date: date = Field(..., description="计划随访日期")
     description: Optional[str] = Field(None, description="备注")
 
-
 class FollowUpTaskGenerateRequest(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
@@ -130,12 +105,10 @@ class FollowUpTaskGenerateRequest(BaseModel):
     medical_record_id: Optional[str] = Field(None, description="病历ID")
     base_date: Optional[date] = Field(None, description="基准日期，不传=今天")
 
-
 class FollowUpTaskSkipRequest(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
     reason: str = Field(..., max_length=500, description="跳过原因")
-
 
 class FollowUpTaskResponse(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True, by_alias=True)
@@ -161,7 +134,6 @@ class FollowUpTaskResponse(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-
 class FollowUpTaskListResponse(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True, by_alias=True)
 
@@ -175,7 +147,6 @@ class FollowUpTaskListResponse(BaseModel):
     plan_name: Optional[str] = None
     step_order: Optional[int] = None
     created_at: Optional[datetime] = None
-
 
 # ========== 记录 ==========
 
@@ -194,7 +165,6 @@ class FollowUpRecordCreate(BaseModel):
     next_follow_up_date: Optional[date] = Field(None, description="下次随访日期")
     attachments: Optional[List[str]] = Field(None, description="附件URL列表")
 
-
 class FollowUpRecordUpdate(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
@@ -203,7 +173,6 @@ class FollowUpRecordUpdate(BaseModel):
     next_action: Optional[str] = Field(None, description="下一步措施")
     next_follow_up_date: Optional[date] = Field(None, description="下次随访日期")
     attachments: Optional[List[str]] = Field(None, description="附件URL列表")
-
 
 class FollowUpRecordResponse(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True, by_alias=True)
@@ -225,7 +194,6 @@ class FollowUpRecordResponse(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-
 class FollowUpRecordListResponse(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True, by_alias=True)
 
@@ -238,13 +206,7 @@ class FollowUpRecordListResponse(BaseModel):
     task_id: Optional[str] = None
     created_at: Optional[datetime] = None
 
-
 # ========== 患者自报告 ==========
-
-class SelfReportStatus(str, Enum):
-    PENDING = "pending"
-    REVIEWED = "reviewed"
-
 
 class SelfReportCreate(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
@@ -260,7 +222,6 @@ class SelfReportCreate(BaseModel):
     patient_condition: Optional[PatientCondition] = Field(None, description="自我感受")
     notes: Optional[str] = Field(None, description="备注")
     attachments: Optional[List[str]] = Field(None, description="附件URL列表")
-
 
 class SelfReportResponse(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True, by_alias=True)
@@ -283,7 +244,6 @@ class SelfReportResponse(BaseModel):
     reviewed_at: Optional[datetime] = None
     reviewed_by: Optional[str] = None
     created_at: Optional[datetime] = None
-
 
 class SelfReportListResponse(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True, by_alias=True)

@@ -2,31 +2,10 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
-from enum import Enum
 import json
 
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
-
-class Platform(str, Enum):
-    """平台枚举"""
-    ADMIN = "admin"       # 管理后台
-    H5 = "h5"             # H5页面
-    MINIAPP = "miniapp"   # 小程序
-
-
-class EventType(str, Enum):
-    """事件类型枚举"""
-    PAGE_VIEW = "page_view"      # 页面访问
-    PAGE_LEAVE = "page_leave"    # 页面离开
-    CLICK = "click"              # 点击
-    SEARCH = "search"            # 搜索
-    CUSTOM = "custom"            # 自定义事件
-
+from app.enums.general import BehaviorEventType as EventType, Platform  # noqa: F401 — re-export
+from app.schemas.response import to_camel
 
 class TrackEventRequest(BaseModel):
     """单条埋点上报请求"""
@@ -57,7 +36,6 @@ class TrackEventRequest(BaseModel):
                 raise ValueError("extra_data 序列化后不能超过 4096 字符")
         return v
 
-
 class BatchTrackRequest(BaseModel):
     """批量埋点上报请求"""
     model_config = ConfigDict(
@@ -66,7 +44,6 @@ class BatchTrackRequest(BaseModel):
     )
     
     events: List[TrackEventRequest] = Field(..., min_length=1, max_length=100, description="事件列表")
-
 
 class UserBehaviorLogResponse(BaseModel):
     """用户行为日志响应"""
@@ -98,7 +75,6 @@ class UserBehaviorLogResponse(BaseModel):
     os: Optional[str] = None
     created_at: Optional[datetime] = None
 
-
 # ========== 统计相关 Schema ==========
 
 class PageViewStats(BaseModel):
@@ -114,7 +90,6 @@ class PageViewStats(BaseModel):
     view_count: int = 0
     unique_users: int = 0
 
-
 class ClickStats(BaseModel):
     """点击统计"""
     model_config = ConfigDict(
@@ -128,7 +103,6 @@ class ClickStats(BaseModel):
     page_path: Optional[str] = None
     click_count: int = 0
 
-
 class SearchKeywordStats(BaseModel):
     """搜索关键词统计"""
     model_config = ConfigDict(
@@ -139,7 +113,6 @@ class SearchKeywordStats(BaseModel):
     
     keyword: Optional[str] = None
     search_count: int = 0
-
 
 class DailyStats(BaseModel):
     """每日统计"""
@@ -154,7 +127,6 @@ class DailyStats(BaseModel):
     unique_users: int = 0
     clicks: int = 0
     searches: int = 0
-
 
 class BehaviorOverview(BaseModel):
     """行为概览"""
@@ -174,7 +146,6 @@ class BehaviorOverview(BaseModel):
     top_keywords: List[SearchKeywordStats] = []
     daily_stats: List[DailyStats] = []
 
-
 class TenantActivityDaily(BaseModel):
     """租户每日活跃度"""
     model_config = ConfigDict(
@@ -187,7 +158,6 @@ class TenantActivityDaily(BaseModel):
     dau: int = 0
     new_users: int = 0
     total_sessions: int = 0
-
 
 class TenantActivityStats(BaseModel):
     """租户活跃度统计响应"""

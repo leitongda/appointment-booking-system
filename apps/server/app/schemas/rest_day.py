@@ -2,13 +2,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import date, datetime
 from app.core.config import settings
-
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
+from app.schemas.response import to_camel
 
 class RestDayCreate(BaseModel):
     """创建休息日"""
@@ -22,7 +16,6 @@ class RestDayCreate(BaseModel):
     reason: Optional[str] = Field(None, max_length=255, description="休息原因")
     start_date: date = Field(..., description="开始日期")
     end_date: date = Field(..., description="结束日期")
-
 
 class RestDayResponse(BaseModel):
     """休息日响应"""
@@ -43,7 +36,6 @@ class RestDayResponse(BaseModel):
     end_date: date = Field(..., description="结束日期")
     status: int = Field(..., description="状态")
     created_at: datetime = Field(..., description="创建时间")
-
 
 class RestDayListParams(BaseModel):
     """查询休息日列表参数"""

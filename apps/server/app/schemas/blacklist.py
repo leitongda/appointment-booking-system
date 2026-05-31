@@ -3,13 +3,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import datetime
 from app.core.config import settings
-
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
+from app.schemas.response import to_camel
 
 class BlacklistCreate(BaseModel):
     """创建黑名单"""
@@ -23,7 +17,6 @@ class BlacklistCreate(BaseModel):
     keyword: Optional[str] = Field(None, max_length=50, description="手机号或身份证关键词")
     reason: Optional[str] = Field(None, max_length=500, description="黑名单原因/备注")
     expire_at: Optional[datetime] = Field(None, description="解禁时间")
-
 
 class BlacklistResponse(BaseModel):
     """黑名单响应"""
@@ -49,7 +42,6 @@ class BlacklistResponse(BaseModel):
     status: int = Field(1, description="状态: 0已解禁 1生效中")
     created_at: Optional[datetime] = Field(None, description="创建时间")
 
-
 class BlacklistListParams(BaseModel):
     """黑名单列表查询参数"""
     model_config = ConfigDict(
@@ -62,7 +54,6 @@ class BlacklistListParams(BaseModel):
     status: Optional[int] = Field(None, description="状态: 1生效 0已解禁")
     page: int = Field(1, ge=1, description="页码")
     page_size: int = Field(20, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量")
-
 
 class BlacklistCheckResult(BaseModel):
     """黑名单检查结果"""

@@ -1,30 +1,10 @@
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List, Any
 from datetime import datetime
-from enum import Enum
+
+from app.enums.notification import NotificationChannel, NotificationLogStatus as NotificationStatus  # noqa: F401 — re-export
 from app.core.config import settings
-
-
-def to_camel(string: str) -> str:
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
-
-class NotificationChannel(str, Enum):
-    """通知通道"""
-    SMS = "sms"
-    EMAIL = "email"
-    IN_APP = "in_app"
-    WECHAT = "wechat"
-
-
-class NotificationStatus(str, Enum):
-    """通知状态"""
-    PENDING = "pending"
-    SENT = "sent"
-    FAILED = "failed"
-    PERMANENTLY_FAILED = "permanently_failed"
-
+from app.schemas.response import to_camel
 
 class NotificationLogCreate(BaseModel):
     """创建通知日志"""
@@ -44,7 +24,6 @@ class NotificationLogCreate(BaseModel):
     tenant_id: Optional[str] = Field(None, description="租户ID")
     store_id: Optional[str] = Field(None, description="门店ID")
     extra_data: Optional[dict] = Field(None, description="额外数据")
-
 
 class NotificationLogResponse(BaseModel):
     """通知日志响应"""
@@ -75,7 +54,6 @@ class NotificationLogResponse(BaseModel):
     created_at: Optional[datetime] = None
     extra_data: Optional[dict] = None
 
-
 class NotificationLogQuery(BaseModel):
     """通知日志查询参数"""
     model_config = ConfigDict(
@@ -93,7 +71,6 @@ class NotificationLogQuery(BaseModel):
     page: int = Field(1, ge=1)
     page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE)
 
-
 class NotificationLogStats(BaseModel):
     """通知日志统计"""
     model_config = ConfigDict(
@@ -110,7 +87,6 @@ class NotificationLogStats(BaseModel):
     by_channel: dict = Field(default_factory=dict)
     by_type: dict = Field(default_factory=dict)
 
-
 class NotificationUsageStats(BaseModel):
     """通知用量统计"""
     model_config = ConfigDict(
@@ -125,7 +101,6 @@ class NotificationUsageStats(BaseModel):
     by_type: dict = Field(default_factory=dict)
     by_status: dict = Field(default_factory=dict)
     daily_trend: list = Field(default_factory=list)
-
 
 class NotificationQuotaInfo(BaseModel):
     """通知配额信息"""
@@ -142,7 +117,6 @@ class NotificationQuotaInfo(BaseModel):
     usage_percent: dict = Field(default_factory=dict)
     period_start: str
     period_end: str
-
 
 class NotificationQuotaUpdate(BaseModel):
     """通知配额更新"""

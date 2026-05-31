@@ -1,16 +1,10 @@
+from app.schemas.response import to_camel
 """Content module DTOs."""
 
 from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
-
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
 
 class NewsCreate(BaseModel):
     title: str = Field(..., max_length=200)
@@ -20,7 +14,6 @@ class NewsCreate(BaseModel):
     content: str
     is_top: int = Field(0, ge=0, le=1)
     status: int = Field(0, ge=0, le=1)
-
 
 class NewsResponse(BaseModel):
     id: str
@@ -44,14 +37,12 @@ class NewsResponse(BaseModel):
         by_alias=True,
     )
 
-
 class NoticeCreate(BaseModel):
     title: str = Field(..., max_length=200)
     type: int = Field(1, ge=1, le=4)
     content: str
     is_top: int = Field(0, ge=0, le=1)
     status: int = Field(0, ge=0, le=1)
-
 
 class NoticeResponse(BaseModel):
     id: str
@@ -72,7 +63,6 @@ class NoticeResponse(BaseModel):
         by_alias=True,
     )
 
-
 class BannerCreate(BaseModel):
     title: Optional[str] = Field(None, max_length=100)
     image_url: str
@@ -81,7 +71,6 @@ class BannerCreate(BaseModel):
     position: str = "home"
     sort_order: int = Field(0, ge=0)
     status: int = Field(1, ge=0, le=1)
-
 
 class BannerResponse(BaseModel):
     id: str

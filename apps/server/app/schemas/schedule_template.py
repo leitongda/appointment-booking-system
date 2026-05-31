@@ -1,35 +1,9 @@
+from app.schemas.response import to_camel
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import time, datetime, date
-from enum import Enum
 
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
-
-class AppointmentType(str, Enum):
-    """预约类型"""
-    URGENT = "urgent"  # 加急
-    NORMAL = "normal"  # 普通
-    EXPERT = "expert"  # 专家
-    MEDICAL_INSURANCE = "medical_insurance"  # 医保
-    SELF_PAY = "self_pay"  # 自费
-
-
-class ScheduleMode(str, Enum):
-    """排班方式"""
-    WEEKLY = "weekly"  # 每周循环
-    MONTH_WEEK_1 = "month_week_1"  # 每月第一周
-    MONTH_WEEK_2 = "month_week_2"  # 每月第二周
-    MONTH_WEEK_3 = "month_week_3"  # 每月第三周
-    MONTH_WEEK_4 = "month_week_4"  # 每月第四周
-    MONTH_WEEK_5 = "month_week_5"  # 每月第五周
-    YEAR_ODD_WEEK = "year_odd_week"  # 本年奇数周
-    YEAR_EVEN_WEEK = "year_even_week"  # 本年偶数周
-
+from app.enums.schedule import AppointmentType, ScheduleMode  # noqa: F401 — re-export
 
 class BreakTime(BaseModel):
     """排除时间段（如午休时间）"""
@@ -40,7 +14,6 @@ class BreakTime(BaseModel):
     
     start_time: time = Field(..., description="开始时间")
     end_time: time = Field(..., description="结束时间")
-
 
 class ScheduleTemplateBase(BaseModel):
     """排班模板基础模型"""
@@ -64,11 +37,9 @@ class ScheduleTemplateBase(BaseModel):
     schedule_mode: ScheduleMode = Field(default=ScheduleMode.WEEKLY, description="排班方式")
     break_times: Optional[List[BreakTime]] = Field(None, description="排除时间段列表（如午休时间）")
 
-
 class ScheduleTemplateCreate(ScheduleTemplateBase):
     """创建排班模板"""
     pass
-
 
 class ScheduleTemplateUpdate(BaseModel):
     """更新排班模板"""
@@ -92,7 +63,6 @@ class ScheduleTemplateUpdate(BaseModel):
     schedule_mode: Optional[ScheduleMode] = None
     break_times: Optional[List[BreakTime]] = Field(None, description="排除时间段列表（如午休时间）")
     status: Optional[int] = Field(None, ge=0, le=1)
-
 
 class ScheduleTemplateResponse(BaseModel):
     """排班模板响应"""
@@ -128,7 +98,6 @@ class ScheduleTemplateResponse(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-
 class ScheduleGenerateRequest(BaseModel):
     """根据模板生成排班请求"""
     model_config = ConfigDict(
@@ -139,7 +108,6 @@ class ScheduleGenerateRequest(BaseModel):
     template_ids: List[str] = Field(..., description="模板ID列表")
     start_date: Optional[date] = Field(None, description="开始日期，为空则默认今天")
     end_date: Optional[date] = Field(None, description="结束日期，为空则默认1年后")
-
 
 class ScheduleBatchAddRequest(BaseModel):
     """批量添加排班请求（不依赖模板）"""
@@ -163,7 +131,6 @@ class ScheduleBatchAddRequest(BaseModel):
     start_date: date = Field(..., description="开始日期")
     end_date: date = Field(..., description="结束日期")
 
-
 class ScheduleSlotPreview(BaseModel):
     """班次预览项"""
     model_config = ConfigDict(
@@ -184,7 +151,6 @@ class ScheduleSlotPreview(BaseModel):
     reason: Optional[str] = Field(None, description="跳过原因描述")
     conflicting_schedule_id: Optional[str] = Field(None, description="冲突排班ID（如有）")
 
-
 class SchedulePreviewGenerateRequest(BaseModel):
     """预览生成排班请求"""
     model_config = ConfigDict(
@@ -195,7 +161,6 @@ class SchedulePreviewGenerateRequest(BaseModel):
     template_ids: List[str] = Field(..., description="模板ID列表")
     start_date: Optional[date] = Field(None, description="开始日期，为空则默认今天")
     end_date: Optional[date] = Field(None, description="结束日期，为空则默认30天后")
-
 
 class SchedulePreviewGenerateResponse(BaseModel):
     """预览生成排班响应"""
@@ -216,7 +181,6 @@ class SchedulePreviewGenerateResponse(BaseModel):
     doctor_name: Optional[str] = None
     department_name: Optional[str] = None
 
-
 class SlotCapacityOverride(BaseModel):
     """班次容量覆盖"""
     model_config = ConfigDict(
@@ -229,7 +193,6 @@ class SlotCapacityOverride(BaseModel):
     end_time: time = Field(..., description="结束时间")
     slot_capacity: int = Field(..., ge=1, le=200, description="可预约人数")
 
-
 class ScheduleGenerateWithCapacityRequest(BaseModel):
     """带自定义容量的生成排班请求"""
     model_config = ConfigDict(
@@ -241,7 +204,6 @@ class ScheduleGenerateWithCapacityRequest(BaseModel):
     start_date: Optional[date] = Field(None, description="开始日期，为空则默认今天")
     end_date: Optional[date] = Field(None, description="结束日期，为空则默认1年后")
     slot_capacities: Optional[List[SlotCapacityOverride]] = Field(None, description="自定义班次容量列表")
-
 
 class ScheduleTemplateCopyRequest(BaseModel):
     """复制排班规则请求"""
@@ -264,7 +226,6 @@ class ScheduleTemplateCopyRequest(BaseModel):
     schedule_mode: Optional[str] = Field(None, description="排班方式")
     break_times: Optional[List[BreakTime]] = Field(None, description="排除时间段列表")
 
-
 class ScheduleTemplateCopyResponse(BaseModel):
     """复制排班规则响应"""
     model_config = ConfigDict(
@@ -274,7 +235,6 @@ class ScheduleTemplateCopyResponse(BaseModel):
 
     message: str = Field(..., description="提示消息")
     created_count: int = Field(..., description="创建数量")
-
 
 class CrossStoreDoctorMapping(BaseModel):
     """跨院区复制时的医生映射项"""
@@ -286,7 +246,6 @@ class CrossStoreDoctorMapping(BaseModel):
     source_department_id: str = Field(..., description="源科室ID")
     target_department_id: str = Field(..., description="目标科室ID")
     target_doctor_id: str = Field(..., description="目标医生ID")
-
 
 class ScheduleTemplateCrossStoreCopyRequest(BaseModel):
     """跨院区复制排班规则请求"""
@@ -309,7 +268,6 @@ class ScheduleTemplateCrossStoreCopyRequest(BaseModel):
     slot_capacity: Optional[int] = Field(None, ge=1, le=200, description="每班次人数")
     schedule_mode: Optional[str] = Field(None, description="排班方式")
     break_times: Optional[List[BreakTime]] = Field(None, description="排除时间段列表")
-
 
 class ScheduleTemplateCrossStoreCopyResponse(BaseModel):
     """跨院区复制排班规则响应"""

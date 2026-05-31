@@ -2,13 +2,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from datetime import datetime
 from app.core.config import settings
-
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
+from app.schemas.response import to_camel
 
 class DoctorBookingSettingBase(BaseModel):
     """医生预约设置基础模型"""
@@ -24,11 +18,9 @@ class DoctorBookingSettingBase(BaseModel):
     release_time: str = Field("00:00", max_length=5, description="放号时间 HH:mm格式")
     status: int = Field(1, ge=0, le=1, description="状态: 0禁用 1启用")
 
-
 class DoctorBookingSettingCreate(DoctorBookingSettingBase):
     """创建医生预约设置"""
     pass
-
 
 class DoctorBookingSettingUpdate(BaseModel):
     """更新医生预约设置"""
@@ -41,7 +33,6 @@ class DoctorBookingSettingUpdate(BaseModel):
     booking_range_days: Optional[int] = Field(None, ge=1, le=90, description="预约范围天数")
     release_time: Optional[str] = Field(None, max_length=5, description="放号时间")
     status: Optional[int] = Field(None, ge=0, le=1, description="状态")
-
 
 class DoctorBookingSettingResponse(DoctorBookingSettingBase):
     """医生预约设置响应"""
@@ -57,7 +48,6 @@ class DoctorBookingSettingResponse(DoctorBookingSettingBase):
     doctor_name: Optional[str] = Field(None, description="医生名称")
     created_at: datetime
     updated_at: datetime
-
 
 class DoctorBookingSettingQuery(BaseModel):
     """医生预约设置查询参数"""

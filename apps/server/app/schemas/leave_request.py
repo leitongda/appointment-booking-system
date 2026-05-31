@@ -1,37 +1,10 @@
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import date, datetime
-from enum import Enum
+
+from app.enums.schedule import Period, RequestStatus, RequestType  # noqa: F401 — re-export
 from app.core.config import settings
-
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
-
-class RequestType(str, Enum):
-    """申请类型"""
-    STOP_CLINIC = "stop_clinic"         # 停诊申请
-    SCHEDULE_CHANGE = "schedule_change" # 调班申请
-
-
-class RequestStatus(str, Enum):
-    """申请状态"""
-    PENDING = "pending"       # 待审核
-    APPROVED = "approved"     # 已通过
-    REJECTED = "rejected"     # 已拒绝
-    CANCELLED = "cancelled"   # 已取消
-
-
-class Period(str, Enum):
-    """时段"""
-    MORNING = "morning"       # 上午
-    AFTERNOON = "afternoon"   # 下午
-    EVENING = "evening"       # 晚上
-    ALL = "all"               # 全天
-
+from app.schemas.response import to_camel
 
 # 停诊申请
 class StopClinicCreate(BaseModel):
@@ -46,7 +19,6 @@ class StopClinicCreate(BaseModel):
     stop_date: date = Field(..., description="停诊日期")
     stop_period: Period = Field(..., description="停诊时段")
     reason: str = Field(..., min_length=1, max_length=500, description="申请原因")
-
 
 # 调班申请
 class ScheduleChangeCreate(BaseModel):
@@ -63,7 +35,6 @@ class ScheduleChangeCreate(BaseModel):
     target_period: Period = Field(..., description="目标时段")
     reason: str = Field(..., min_length=1, max_length=500, description="申请原因")
 
-
 # 审核
 class ReviewRequest(BaseModel):
     """审核申请"""
@@ -74,7 +45,6 @@ class ReviewRequest(BaseModel):
     
     status: RequestStatus = Field(..., description="审核结果")
     review_comment: Optional[str] = Field(None, max_length=500, description="审核意见")
-
 
 # 响应
 class LeaveRequestResponse(BaseModel):
@@ -104,7 +74,6 @@ class LeaveRequestResponse(BaseModel):
     reviewed_at: Optional[datetime] = None
     affected_appointments: Optional[int] = 0
     created_at: Optional[datetime] = None
-
 
 class LeaveRequestQuery(BaseModel):
     """查询参数"""

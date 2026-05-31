@@ -1,27 +1,9 @@
+from app.schemas.response import to_camel
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import datetime
-from enum import Enum
 
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
-
-class TimeUnit(str, Enum):
-    """时间单位"""
-    HOURS = "hours"   # 小时
-    DAYS = "days"     # 天
-
-
-class VisitScope(str, Enum):
-    """复诊范围"""
-    SAME_DOCTOR = "same_doctor"           # 同医生
-    SAME_DEPARTMENT = "same_department"   # 同科室
-    SAME_STORE = "same_store"             # 同门店
-
+from app.enums.general import TimeUnit, VisitScope  # noqa: F401 — re-export
 
 class StoreVisitTypeConfigBase(BaseModel):
     model_config = ConfigDict(
@@ -34,10 +16,8 @@ class StoreVisitTypeConfigBase(BaseModel):
     scope: VisitScope = Field(VisitScope.SAME_DOCTOR, description="复诊范围")
     status: int = Field(1, ge=0, le=1, description="状态: 0禁用 1启用")
 
-
 class StoreVisitTypeConfigCreate(StoreVisitTypeConfigBase):
     store_id: str = Field(..., description="门店ID")
-
 
 class StoreVisitTypeConfigUpdate(BaseModel):
     model_config = ConfigDict(
@@ -49,7 +29,6 @@ class StoreVisitTypeConfigUpdate(BaseModel):
     time_unit: Optional[TimeUnit] = None
     scope: Optional[VisitScope] = None
     status: Optional[int] = Field(None, ge=0, le=1)
-
 
 class StoreVisitTypeConfigResponse(BaseModel):
     model_config = ConfigDict(

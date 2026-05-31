@@ -1,21 +1,9 @@
+from app.schemas.response import to_camel
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import date, datetime
-from enum import Enum
 
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
-
-class ActionType(str, Enum):
-    """操作类型"""
-    GENERATE = "generate"  # 生成排班
-    DELETE = "delete"  # 删除排班
-    SUSPEND = "suspend"  # 批量停诊
-
+from app.enums.schedule import ActionType  # noqa: F401 — re-export
 
 class ScheduleGenerationLogResponse(BaseModel):
     """排班生成日志响应"""
@@ -37,7 +25,6 @@ class ScheduleGenerationLogResponse(BaseModel):
     remark: Optional[str] = None
     created_at: datetime
 
-
 class CheckGeneratedResponse(BaseModel):
     """检查是否已生成排班响应"""
     model_config = ConfigDict(
@@ -52,7 +39,6 @@ class CheckGeneratedResponse(BaseModel):
     earliest_date: Optional[date] = Field(None, description="最早的排班日期")
     latest_date: Optional[date] = Field(None, description="最晚的排班日期")
 
-
 class BatchOperateRequest(BaseModel):
     """批量操作请求"""
     model_config = ConfigDict(
@@ -63,7 +49,6 @@ class BatchOperateRequest(BaseModel):
     start_date: Optional[date] = Field(None, description="开始日期（可选，不传则操作所有）")
     end_date: Optional[date] = Field(None, description="结束日期（可选，不传则操作所有）")
     future_only: bool = Field(True, description="是否只操作未来的排班")
-
 
 class BatchOperateResponse(BaseModel):
     """批量操作响应"""

@@ -2,13 +2,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from datetime import datetime, time
 from app.core.config import settings
-
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
+from app.schemas.response import to_camel
 
 class StoreBase(BaseModel):
     """门店基础模型"""
@@ -40,11 +34,9 @@ class StoreBase(BaseModel):
     status: int = Field(1, ge=0, le=2, description="状态: 0-停业 1-营业 2-禁用")
     max_cards_per_user: int = Field(5, ge=1, le=20, description="每用户可建就诊卡数量上限")
 
-
 class StoreCreate(StoreBase):
     """创建门店"""
     pass
-
 
 class StoreUpdate(BaseModel):
     """更新门店"""
@@ -76,7 +68,6 @@ class StoreUpdate(BaseModel):
     status: Optional[int] = Field(None, ge=0, le=2, description="状态: 0停业 1营业 2禁用")
     max_cards_per_user: Optional[int] = Field(None, ge=1, le=20, description="每用户可建就诊卡数量上限")
 
-
 class StoreResponse(StoreBase):
     """门店响应"""
     model_config = ConfigDict(
@@ -91,7 +82,6 @@ class StoreResponse(StoreBase):
     updated_at: datetime = Field(..., description="更新时间")
     # 排除密码字段，不返回给前端
     password: Optional[str] = Field(None, exclude=True)
-
 
 class StoreListResponse(BaseModel):
     """门店列表响应"""
@@ -114,7 +104,6 @@ class StoreListResponse(BaseModel):
     max_cards_per_user: int = Field(5, description="每用户可建就诊卡数量上限")
     created_at: datetime = Field(..., description="创建时间")
 
-
 class StoreInfo(BaseModel):
     """门店简要信息（用于登录响应等场景）"""
     model_config = ConfigDict(
@@ -129,7 +118,6 @@ class StoreInfo(BaseModel):
     logo: Optional[str] = Field(None, description="门店logo")
     theme_style: Optional[str] = Field(None, description="风格选择")
 
-
 class StoreQuery(BaseModel):
     """门店查询参数"""
     model_config = ConfigDict(
@@ -143,7 +131,6 @@ class StoreQuery(BaseModel):
     page: int = Field(1, ge=1, description="页码")
     page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量")
 
-
 class StoreWechatConfigUpdate(BaseModel):
     """更新门店微信配置"""
     model_config = ConfigDict(
@@ -156,7 +143,6 @@ class StoreWechatConfigUpdate(BaseModel):
     mch_id: Optional[str] = Field(None, max_length=100, description="商户号")
     api_key: Optional[str] = Field(None, max_length=100, description="API密钥")
     notify_url: Optional[str] = Field(None, max_length=255, description="支付回调地址")
-
 
 class StoreWechatConfigResponse(BaseModel):
     """门店微信配置响应"""

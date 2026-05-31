@@ -1,15 +1,9 @@
+from app.schemas.response import to_camel
 """病历 Schema"""
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import datetime, date
 from decimal import Decimal
-
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
 
 class MedicalRecordCreate(BaseModel):
     """创建病历请求"""
@@ -34,7 +28,6 @@ class MedicalRecordCreate(BaseModel):
     visit_date: Optional[datetime] = Field(None, description="就诊日期，不传则取当前时间")
     follow_up_plan_id: Optional[str] = Field(None, description="随访计划ID，传入则自动生成随访任务")
 
-
 class MedicalRecordUpdate(BaseModel):
     """更新病历请求"""
     model_config = ConfigDict(
@@ -54,7 +47,6 @@ class MedicalRecordUpdate(BaseModel):
     advice: Optional[str] = Field(None, description="医嘱")
     total_fee: Optional[Decimal] = Field(None, description="总费用")
     status: Optional[int] = Field(None, ge=1, le=2, description="状态 1草稿 2已完成")
-
 
 class MedicalRecordResponse(BaseModel):
     """病历响应"""
@@ -92,7 +84,6 @@ class MedicalRecordResponse(BaseModel):
     created_at: Optional[datetime] = Field(None, description="创建时间")
     updated_at: Optional[datetime] = Field(None, description="更新时间")
     examination_reports: Optional[list] = Field(None, description="检查报告列表")
-
 
 class MedicalRecordListResponse(BaseModel):
     """病历列表响应（简化版）"""

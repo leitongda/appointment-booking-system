@@ -1,13 +1,8 @@
+from app.schemas.response import to_camel
 """检查报告 Schemas"""
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import datetime
-
-
-def to_camel(string: str) -> str:
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
 
 class ExaminationReportCreate(BaseModel):
     """创建检查报告（关联已有文件）"""
@@ -23,7 +18,6 @@ class ExaminationReportCreate(BaseModel):
     file_size: int = Field(..., description="文件大小(bytes)")
     file_type: str = Field(..., max_length=50, description="MIME类型")
     file_url: Optional[str] = Field(None, max_length=1000, description="文件访问URL")
-
 
 class ExaminationReportResponse(BaseModel):
     """检查报告响应"""
@@ -53,7 +47,6 @@ class ExaminationReportResponse(BaseModel):
     file_url: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-
 
 class ExaminationReportListResponse(BaseModel):
     """检查报告列表响应（简化版）"""

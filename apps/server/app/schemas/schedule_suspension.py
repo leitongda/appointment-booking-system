@@ -2,13 +2,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import date, datetime
 from app.core.config import settings
-
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
+from app.schemas.response import to_camel
 
 class ScheduleSuspensionCreate(BaseModel):
     """创建停诊"""
@@ -26,7 +20,6 @@ class ScheduleSuspensionCreate(BaseModel):
     suspension_type: Optional[str] = Field("temporary", description="停诊类型: temporary/full_day/partial/batch/holiday")
     processing_method: Optional[str] = Field(None, description="处置方式: auto_refund/reschedule/change_date/manual")
     reason: Optional[str] = Field(None, max_length=500, description="停诊原因")
-
 
 class ScheduleSuspensionResponse(BaseModel):
     """停诊响应"""
@@ -54,7 +47,6 @@ class ScheduleSuspensionResponse(BaseModel):
     affected_appointment_count: Optional[int] = None
     reason: Optional[str] = None
 
-
 class ScheduleSuspensionListParams(BaseModel):
     """查询停诊列表参数"""
     store_id: Optional[str] = None
@@ -64,7 +56,6 @@ class ScheduleSuspensionListParams(BaseModel):
     status: Optional[int] = Field(None, ge=0, le=1)
     page: int = Field(1, ge=1)
     page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE)
-
 
 class AvailableScheduleForSuspension(BaseModel):
     """可选排班(用于停诊选择)"""
@@ -80,7 +71,6 @@ class AvailableScheduleForSuspension(BaseModel):
     booked_count: int
     max_patients: int
 
-
 class SuspensionProcessRequest(BaseModel):
     """停诊处置请求"""
     model_config = ConfigDict(
@@ -92,7 +82,6 @@ class SuspensionProcessRequest(BaseModel):
         ...,
         description="处置方式: auto_refund/reschedule/change_date/manual",
     )
-
 
 class SuspensionProcessResult(BaseModel):
     """停诊处置结果"""

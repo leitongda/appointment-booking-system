@@ -3,15 +3,9 @@ from typing import Any, Dict, Optional, List
 from datetime import date, time, datetime
 from app.schemas.schedule_template import AppointmentType
 from app.core.config import settings
-
+from app.schemas.response import to_camel
 
 from enum import Enum
-
-
-def to_camel(string: str) -> str:
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
 
 class ScheduleBase(BaseModel):
     """排班基础模型"""
@@ -19,7 +13,6 @@ class ScheduleBase(BaseModel):
         alias_generator=to_camel,
         populate_by_name=True,
     )
-
 
     doctor_id: str = Field(..., description="医生ID")
     store_id: Optional[str] = Field(None, description="门店ID")
@@ -37,14 +30,12 @@ class ScheduleBase(BaseModel):
     appointment_type: str = Field(default="normal", description="预约类型: normal普通/urgent加急/expert专家")
     status: int = Field(1, ge=0, le=1, description="状态: 0停用 1启用")
 
-
 class ScheduleCreate(ScheduleBase):
     template_id: Optional[str] = Field(None, description="来源模板ID")
     schedule_status: Optional[str] = Field(
         None,
         description="排班状态: draft/published/booking/full/suspended/finished/withdrawn (不传则根据status推导: status=1->published, status=0->suspended)",
     )
-
 
 class ScheduleBatchCreate(ScheduleBase):
     """批量创建排班请求"""
@@ -60,12 +51,9 @@ class ScheduleBatchCreate(ScheduleBase):
     total_slots: int = Field(10, ge=1, description="每个时段的号源数量")
     weekdays: List[int] = Field(..., description="星期列表: 1周一 2周二 ... 7周日")
 
-
     appointment_type: Optional[str] = Field(None, description="预约类型")
 
-
     status: Optional[int] = Field(1, ge=0, le=1, description="状态")
-
 
 class ScheduleUpdate(BaseModel):
     """更新排班请求"""
@@ -85,7 +73,6 @@ class ScheduleUpdate(BaseModel):
     room_id: Optional[str] = Field(None, description="诊室ID")
     appointment_type: Optional[str] = Field(None, description="预约类型: normal普通/urgent加急/expert专家")
     status: Optional[int] = Field(None, ge=0, le=1, description="状态: 0停用 1启用")
-
 
 class ScheduleResponse(ScheduleBase):
     """排班信息响应"""
@@ -121,7 +108,6 @@ class ScheduleResponse(ScheduleBase):
     is_rest_day: bool = Field(False, description="是否在休息日")
     effective_status: str = Field("active", description="生效状态: active正常生效/suspended停诊/rest_day休息日(隐藏)/custom自定义排班/overridden被覆盖")
 
-
 class AvailableScheduleResponse(ScheduleResponse):
     """可预约排班信息响应"""
     model_config = ConfigDict(
@@ -130,7 +116,6 @@ class AvailableScheduleResponse(ScheduleResponse):
         from_attributes=True,
         by_alias=True,
     )
-
 
     id: str = Field(..., description="排班ID")
     schedule_date: date = Field(..., description="排班日期")
@@ -152,7 +137,6 @@ class AvailableScheduleResponse(ScheduleResponse):
     is_rest_day: bool = Field(False, description="是否在休息日")
     booking_setting_applied: bool = Field(False, description="是否应用了医生预约设置")
 
-
 class BatchOperationResult(BaseModel):
     """批量操作结果"""
     model_config = ConfigDict(
@@ -166,13 +150,11 @@ class BatchOperationResult(BaseModel):
     failed_items: List[dict] = Field(default_factory=list, description="失败项列表")
     message: str = Field(..., description="操作消息")
 
-
 class BatchDeleteResult(BatchOperationResult):
     """批量删除结果"""
     deleted_count: int = Field(..., description="已删除数量")
     skipped_ids: List[str] = Field(default_factory=list, description="跳过的ID列表（有预约记录）")
     failed_items: List[dict] = Field(default_factory=list, description="失败项列表")
-
 
 class BatchSuspensionResult(BatchOperationResult):
     """批量停诊结果"""
@@ -180,13 +162,11 @@ class BatchSuspensionResult(BatchOperationResult):
     success_ids: List[str] = Field(default_factory=list, description="成功的ID列表")
     failed_items: List[dict] = Field(default_factory=list, description="失败项列表")
 
-
 class BatchResumeResult(BatchOperationResult):
     """批量复诊结果"""
     resumed_count: int = Field(..., description="已复诊数量")
     success_ids: List[str] = Field(default_factory=list, description="成功的ID列表")
     failed_items: List[dict] = Field(default_factory=list, description="失败项列表")
-
 
 class ScheduleBatchOperationResponse(BatchOperationResult):
     """排班批量操作响应"""
@@ -207,18 +187,14 @@ class ScheduleBatchOperationResponse(BatchOperationResult):
     template_id: Optional[str] = Field(None, description="模板ID")
     template_name: Optional[str] = Field(None, description="模板名称")
 
-
     doctor_id: Optional[str] = Field(None, description="医生ID")
     date_range: Optional[str] = Field(None, description="日期范围")
-
 
     created_count: Optional[int] = Field(None, description="创建数量")
     skipped_count: Optional[int] = Field(None, description="跳过数量")
     error: Optional[str] = Field(None, description="错误信息")
 
-
 # ========== 自定义排班相关 Schema（原 custom_schedule.py） ==========
-
 
 class TimePeriod(BaseModel):
     """时间段配置"""
@@ -233,7 +209,6 @@ class TimePeriod(BaseModel):
     slot_count: Optional[int] = Field(None, ge=1, le=50, description="排班数量(均分数量),不填则不均分")
     max_patients: int = Field(1, ge=1, le=100, description="预约人数(每个班次)")
 
-
 class CustomScheduleCreate(BaseModel):
     """创建自定义排班"""
     model_config = ConfigDict(
@@ -246,7 +221,6 @@ class CustomScheduleCreate(BaseModel):
     doctor_id: str = Field(..., description="医生ID")
     schedule_dates: List[date] = Field(..., min_length=1, description="排班日期列表(支持多选)")
     time_periods: List[TimePeriod] = Field(..., min_length=1, description="排班时段配置列表")
-
 
 class CustomScheduleResponse(BaseModel):
     """自定义排班响应"""
@@ -274,7 +248,6 @@ class CustomScheduleResponse(BaseModel):
     created_at: datetime = Field(..., description="创建时间")
     is_rest_day: Optional[bool] = Field(False, description="是否在休息日")
 
-
 class CustomScheduleListParams(BaseModel):
     """查询自定义排班列表参数"""
     store_id: Optional[str] = Field(None, description="门店ID")
@@ -287,7 +260,6 @@ class CustomScheduleListParams(BaseModel):
     page: int = Field(1, ge=1, description="页码")
     page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量")
 
-
 class EffectiveScheduleParams(BaseModel):
     """查询生效班次参数"""
     store_id: Optional[str] = Field(None, description="门店ID")
@@ -295,9 +267,7 @@ class EffectiveScheduleParams(BaseModel):
     start_date: date = Field(..., description="开始日期")
     end_date: date = Field(..., description="结束日期")
 
-
 # ========== 排班统计增强 Schema ==========
-
 
 class UtilizationTrendItem(BaseModel):
     """利用率趋势项"""
@@ -311,7 +281,6 @@ class UtilizationTrendItem(BaseModel):
     booked_slots: int = Field(0, description="已预约号源数")
     utilization_rate: float = Field(0.0, description="利用率百分比(0-100)")
 
-
 class UtilizationTrendResponse(BaseModel):
     """利用率趋势响应"""
     model_config = ConfigDict(
@@ -323,7 +292,6 @@ class UtilizationTrendResponse(BaseModel):
     store_name: str = Field(..., description="门店名称")
     granularity: str = Field(..., description="粒度: week周 / month月")
     items: List[UtilizationTrendItem] = Field(default_factory=list, description="趋势数据列表")
-
 
 class DoctorWorkloadItem(BaseModel):
     """医生工作量对比项"""
@@ -341,7 +309,6 @@ class DoctorWorkloadItem(BaseModel):
     utilization_rate: float = Field(0.0, description="利用率百分比(0-100)")
     schedule_days: int = Field(0, description="排班天数")
 
-
 class DoctorWorkloadResponse(BaseModel):
     """医生工作量对比响应"""
     model_config = ConfigDict(
@@ -354,7 +321,6 @@ class DoctorWorkloadResponse(BaseModel):
     start_date: date = Field(..., description="开始日期")
     end_date: date = Field(..., description="结束日期")
     items: List[DoctorWorkloadItem] = Field(default_factory=list, description="医生工作量列表")
-
 
 class PeakHourCell(BaseModel):
     """高峰时段热力图单元格"""
@@ -369,7 +335,6 @@ class PeakHourCell(BaseModel):
     booked_slots: int = Field(0, description="已预约号源数")
     booking_rate: float = Field(0.0, description="预约率百分比(0-100)")
 
-
 class PeakHourHeatmapResponse(BaseModel):
     """高峰时段热力图响应"""
     model_config = ConfigDict(
@@ -383,9 +348,7 @@ class PeakHourHeatmapResponse(BaseModel):
     end_date: date = Field(..., description="结束日期")
     cells: List[PeakHourCell] = Field(default_factory=list, description="热力图单元格列表")
 
-
 # ========== 排班发布状态机相关 Schema ==========
-
 
 class SchedulePublishRequest(BaseModel):
     """发布/撤回排班请求"""
@@ -395,7 +358,6 @@ class SchedulePublishRequest(BaseModel):
     )
 
     schedule_ids: List[str] = Field(..., min_length=1, description="排班ID列表")
-
 
 class ScheduleWithdrawRequest(BaseModel):
     """撤回排班请求"""
@@ -407,9 +369,7 @@ class ScheduleWithdrawRequest(BaseModel):
     schedule_ids: List[str] = Field(..., min_length=1, description="排班ID列表")
     reason: Optional[str] = Field(None, max_length=200, description="撤回原因")
 
-
 # ========== 排班冲突检测 Schema ==========
-
 
 class ConflictCheckRequest(BaseModel):
     """排班冲突检测请求"""
@@ -427,7 +387,6 @@ class ConflictCheckRequest(BaseModel):
     room_id: Optional[str] = Field(None, description="诊室ID")
     exclude_schedule_id: Optional[str] = Field(None, description="排除的排班ID（编辑场景）")
 
-
 class ConflictItemResponse(BaseModel):
     """单条冲突记录"""
     model_config = ConfigDict(
@@ -440,7 +399,6 @@ class ConflictItemResponse(BaseModel):
     message: str = Field(..., description="人类可读的冲突描述")
     details: dict = Field(default_factory=dict, description="冲突详情")
 
-
 class ConflictCheckResponse(BaseModel):
     """冲突检测结果"""
     model_config = ConfigDict(
@@ -452,9 +410,7 @@ class ConflictCheckResponse(BaseModel):
     blocking: bool = Field(False, description="是否存在 error 级别冲突（阻止保存）")
     conflicts: List[ConflictItemResponse] = Field(default_factory=list, description="冲突列表")
 
-
 # ========== 排班拖拽调整 Schema ==========
-
 
 class ScheduleDragAdjustRequest(BaseModel):
     """拖拽调整排班请求"""
@@ -466,7 +422,6 @@ class ScheduleDragAdjustRequest(BaseModel):
     target_end_time: Optional[time] = Field(None, description="目标结束时间")
     target_time_slot: Optional[str] = Field(None, pattern="^(morning|afternoon|evening)$", description="目标时段")
 
-
 class ScheduleDragAdjustResponse(BaseModel):
     """拖拽调整排班响应"""
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
@@ -476,9 +431,7 @@ class ScheduleDragAdjustResponse(BaseModel):
     conflicts: Optional[ConflictCheckResponse] = Field(None, description="冲突信息（有冲突时返回）")
     message: str = Field("", description="消息")
 
-
 # ========== 排班批量复制 Schema ==========
-
 
 class ScheduleBatchCopyRequest(BaseModel):
     """批量复制排班请求"""
@@ -494,7 +447,6 @@ class ScheduleBatchCopyRequest(BaseModel):
     copy_fee: bool = Field(True, description="是否复制挂号费")
     skip_holidays: bool = Field(True, description="是否跳过节假日")
     conflict_strategy: str = Field("skip", description="冲突策略: skip/overwrite/manual", pattern="^(skip|overwrite|manual)$")
-
 
 class ScheduleBatchCopyResult(BaseModel):
     """批量复制排班结果"""

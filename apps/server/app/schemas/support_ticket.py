@@ -1,44 +1,15 @@
 from datetime import datetime
-from enum import Enum
 from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.enums.support_ticket import (  # noqa: F401 — re-export
+    SupportTicketPriority,
+    SupportTicketStatus,
+    SupportTicketType,
+)
 from app.core.config import settings
-
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split("_")
-    return components[0] + "".join(x.title() for x in components[1:])
-
-
-class SupportTicketType(str, Enum):
-    """工单类型"""
-
-    SUGGESTION = "suggestion"
-    COMPLAINT = "complaint"
-    BUG = "bug"
-    OTHER = "other"
-
-
-class SupportTicketStatus(str, Enum):
-    """工单状态"""
-
-    PENDING = "pending"
-    PROCESSING = "processing"
-    RESOLVED = "resolved"
-    CLOSED = "closed"
-
-
-class SupportTicketPriority(str, Enum):
-    """工单优先级"""
-
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    URGENT = "urgent"
-
+from app.schemas.response import to_camel
 
 class SupportTicketCreate(BaseModel):
     """创建工单"""
@@ -55,7 +26,6 @@ class SupportTicketCreate(BaseModel):
     contact_info: Optional[str] = Field(None, max_length=200, description="联系方式")
     attachments: Optional[List[str]] = Field(None, description="附件URL列表")
 
-
 class SupportTicketUpdate(BaseModel):
     """更新工单"""
 
@@ -71,7 +41,6 @@ class SupportTicketUpdate(BaseModel):
     contact_info: Optional[str] = Field(None, max_length=200, description="联系方式")
     attachments: Optional[List[str]] = Field(None, description="附件URL列表")
     resolution: Optional[str] = Field(None, description="解决方案/备注")
-
 
 class SupportTicketResponse(BaseModel):
     """工单响应"""
@@ -100,7 +69,6 @@ class SupportTicketResponse(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-
 class SupportTicketListResponse(BaseModel):
     """工单列表响应"""
 
@@ -114,7 +82,6 @@ class SupportTicketListResponse(BaseModel):
     total: int = 0
     page: int = 1
     page_size: int = Field(default=10, alias="pageSize")
-
 
 class SupportTicketQuery(BaseModel):
     """工单查询参数"""
@@ -131,7 +98,6 @@ class SupportTicketQuery(BaseModel):
     page: int = Field(1, ge=1)
     page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE)
 
-
 class SupportTicketAssignRequest(BaseModel):
     """分配工单请求"""
 
@@ -142,7 +108,6 @@ class SupportTicketAssignRequest(BaseModel):
 
     assignee_id: str = Field(..., description="处理人ID")
 
-
 class SupportTicketResolveRequest(BaseModel):
     """解决工单请求"""
 
@@ -152,7 +117,6 @@ class SupportTicketResolveRequest(BaseModel):
     )
 
     resolution: Optional[str] = Field(None, description="解决方案/备注")
-
 
 class SupportTicketStatisticsResponse(BaseModel):
     """工单统计响应"""

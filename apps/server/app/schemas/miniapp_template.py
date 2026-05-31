@@ -1,14 +1,8 @@
+from app.schemas.response import to_camel
 """小程序模板相关的 Pydantic Schema"""
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional, Dict, Any
 from datetime import datetime
-
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
 
 # ==================== AppTemplate (小程序模板) ====================
 
@@ -20,11 +14,9 @@ class AppTemplateBase(BaseModel):
     category: str = Field(..., max_length=50, description="模板分类")
     default_config: Optional[Dict[str, Any]] = Field(None, description="默认配置(JSON)")
 
-
 class AppTemplateCreate(AppTemplateBase):
     """创建模板"""
     pass
-
 
 class AppTemplateUpdate(BaseModel):
     """更新模板"""
@@ -32,7 +24,6 @@ class AppTemplateUpdate(BaseModel):
     description: Optional[str] = None
     default_config: Optional[Dict[str, Any]] = None
     status: Optional[int] = Field(None, ge=0, le=1)
-
 
 class AppTemplateResponse(AppTemplateBase):
     """模板响应"""
@@ -47,7 +38,6 @@ class AppTemplateResponse(AppTemplateBase):
         alias_generator=to_camel,
         by_alias=True,
     )
-
 
 class AppTemplateListResponse(BaseModel):
     """模板列表响应（简化版）"""
@@ -66,7 +56,6 @@ class AppTemplateListResponse(BaseModel):
         by_alias=True,
     )
 
-
 # ==================== TemplateVersion (模板版本) ====================
 
 class TemplateVersionBase(BaseModel):
@@ -76,11 +65,9 @@ class TemplateVersionBase(BaseModel):
     schema_version: Optional[str] = Field(None, max_length=50, description="模板配置结构版本")
     changelog: Optional[str] = Field(None, description="版本变更说明")
 
-
 class TemplateVersionCreate(TemplateVersionBase):
     """创建模板版本"""
     template_id: str = Field(..., description="模板ID")
-
 
 class TemplateVersionResponse(TemplateVersionBase):
     """模板版本响应"""
@@ -97,7 +84,6 @@ class TemplateVersionResponse(TemplateVersionBase):
         by_alias=True,
     )
 
-
 # ==================== BuildJob (构建任务) ====================
 
 class BuildJobCreate(BaseModel):
@@ -106,7 +92,6 @@ class BuildJobCreate(BaseModel):
     template_version_id: Optional[str] = Field(None, description="模板版本ID")
     trigger_source: Optional[str] = Field(None, max_length=50, description="触发来源")
     build_params: Optional[Dict[str, Any]] = Field(None, description="构建参数")
-
 
 class BuildJobResponse(BaseModel):
     """构建任务响应"""
@@ -133,7 +118,6 @@ class BuildJobResponse(BaseModel):
         by_alias=True,
     )
 
-
 class BuildJobListResponse(BaseModel):
     """构建任务列表响应（简化版）"""
     id: str
@@ -153,7 +137,6 @@ class BuildJobListResponse(BaseModel):
         by_alias=True,
     )
 
-
 # ==================== ReleaseArtifact (发布构建产物) ====================
 
 class ReleaseArtifactResponse(BaseModel):
@@ -172,7 +155,6 @@ class ReleaseArtifactResponse(BaseModel):
         by_alias=True,
     )
 
-
 # ==================== ReleaseJob (发布任务) ====================
 
 class ReleaseJobCreate(BaseModel):
@@ -189,7 +171,6 @@ class ReleaseJobCreate(BaseModel):
         if v not in valid_actions:
             raise ValueError(f'动作必须是 {", ".join(valid_actions)} 之一')
         return v
-
 
 class ReleaseJobResponse(BaseModel):
     """发布任务响应"""
@@ -213,7 +194,6 @@ class ReleaseJobResponse(BaseModel):
         alias_generator=to_camel,
         by_alias=True,
     )
-
 
 class ReleaseJobListResponse(BaseModel):
     """发布任务列表响应（简化版）"""

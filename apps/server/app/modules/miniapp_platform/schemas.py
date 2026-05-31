@@ -1,14 +1,8 @@
+from app.schemas.response import to_camel
 """小程序平台相关的 Pydantic Schema"""
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
-
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
 
 # ==================== Company (公司/结算主体) ====================
 
@@ -20,11 +14,9 @@ class CompanyBase(BaseModel):
     contact_name: Optional[str] = Field(None, max_length=100, description="联系人")
     contact_phone: Optional[str] = Field(None, max_length=20, description="联系电话")
 
-
 class CompanyCreate(CompanyBase):
     """创建公司"""
     pass
-
 
 class CompanyUpdate(BaseModel):
     """更新公司"""
@@ -34,7 +26,6 @@ class CompanyUpdate(BaseModel):
     contact_name: Optional[str] = Field(None, max_length=100)
     contact_phone: Optional[str] = Field(None, max_length=20)
     status: Optional[int] = Field(None, ge=0, le=1)
-
 
 class CompanyResponse(CompanyBase):
     """公司响应"""
@@ -49,7 +40,6 @@ class CompanyResponse(CompanyBase):
         alias_generator=to_camel,
         by_alias=True,
     )
-
 
 class CompanyListResponse(BaseModel):
     """公司列表响应（简化版）"""
@@ -67,7 +57,6 @@ class CompanyListResponse(BaseModel):
         alias_generator=to_camel,
         by_alias=True,
     )
-
 
 # ==================== PaymentProfile (支付配置) ====================
 
@@ -93,11 +82,9 @@ class PaymentProfileBase(BaseModel):
             raise ValueError('支付模式必须是 direct 或 service_provider')
         return v
 
-
 class PaymentProfileCreate(PaymentProfileBase):
     """创建支付配置"""
     pass
-
 
 class PaymentProfileUpdate(BaseModel):
     """更新支付配置"""
@@ -116,7 +103,6 @@ class PaymentProfileUpdate(BaseModel):
     is_default: Optional[bool] = None
     status: Optional[int] = Field(None, ge=0, le=1)
 
-
 class PaymentProfileResponse(PaymentProfileBase):
     """支付配置响应"""
     id: str
@@ -134,7 +120,6 @@ class PaymentProfileResponse(PaymentProfileBase):
         alias_generator=to_camel,
         by_alias=True,
     )
-
 
 class PaymentProfileListResponse(BaseModel):
     """支付配置列表响应（简化版）"""
@@ -155,7 +140,6 @@ class PaymentProfileListResponse(BaseModel):
         by_alias=True,
     )
 
-
 class PaymentProfileQuery(BaseModel):
     """支付配置查询参数"""
     keyword: Optional[str] = None
@@ -163,7 +147,6 @@ class PaymentProfileQuery(BaseModel):
     company_id: Optional[str] = None
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=10, ge=1, le=100)
-
 
 # ==================== MiniappInstance (小程序实例) ====================
 
@@ -177,13 +160,11 @@ class MiniappInstanceBase(BaseModel):
     template_id: Optional[str] = Field(None, description="模板ID")
     template_version_id: Optional[str] = Field(None, description="当前模板版本ID")
 
-
 class MiniappInstanceCreate(MiniappInstanceBase):
     """创建小程序实例"""
     default_store_id: Optional[str] = Field(None, description="默认门店ID")
     default_payment_profile_id: Optional[str] = Field(None, description="默认支付配置ID")
     app_config: Optional[str] = Field(None, description="实例扩展配置(JSON)")
-
 
 class MiniappInstanceUpdate(BaseModel):
     """更新小程序实例"""
@@ -198,7 +179,6 @@ class MiniappInstanceUpdate(BaseModel):
     default_payment_profile_id: Optional[str] = Field(None)
     app_config: Optional[str] = Field(None)
     status: Optional[int] = Field(None, ge=0, le=2)
-
 
 class MiniappInstanceResponse(MiniappInstanceBase):
     """小程序实例响应"""
@@ -220,7 +200,6 @@ class MiniappInstanceResponse(MiniappInstanceBase):
         by_alias=True,
     )
 
-
 class MiniappInstanceListResponse(BaseModel):
     """小程序实例列表响应（简化版）"""
     id: str
@@ -240,7 +219,6 @@ class MiniappInstanceListResponse(BaseModel):
         alias_generator=to_camel,
         by_alias=True,
     )
-
 
 class MiniappInstanceQuery(BaseModel):
     """小程序实例查询参数"""

@@ -1,16 +1,10 @@
+from app.schemas.response import to_camel
 """Shared admin DTOs."""
 
 from datetime import datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
-
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
 
 class PermissionResponse(BaseModel):
     id: str
@@ -27,7 +21,6 @@ class PermissionResponse(BaseModel):
         from_attributes = True
         populate_by_name = True
 
-
 class PermissionCreate(BaseModel):
     code: str = Field(..., max_length=100)
     name: str = Field(..., max_length=100)
@@ -37,7 +30,6 @@ class PermissionCreate(BaseModel):
     icon: Optional[str] = Field(None, max_length=50)
     sort: int = Field(0, ge=0)
 
-
 class RoleCreate(BaseModel):
     name: str = Field(..., max_length=50)
     code: str = Field(..., max_length=50)
@@ -45,13 +37,11 @@ class RoleCreate(BaseModel):
     permissions: Optional[List[str]] = None
     status: int = Field(1, ge=0, le=1)
 
-
 class RoleUpdate(BaseModel):
     name: Optional[str] = Field(None, max_length=50)
     description: Optional[str] = Field(None, max_length=200)
     permissions: Optional[List[str]] = None
     status: Optional[int] = Field(None, ge=0, le=1)
-
 
 class RoleResponse(BaseModel):
     id: str
@@ -70,7 +60,6 @@ class RoleResponse(BaseModel):
         by_alias=True,
     )
 
-
 class AdminCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     password: Optional[str] = Field(None, min_length=6, description="不填则默认为123456")
@@ -82,7 +71,6 @@ class AdminCreate(BaseModel):
     store_id: Optional[str] = Field(None, description="当前门店ID（兼容旧版）")
     store_ids: Optional[List[str]] = Field(None, description="绑定的门店ID列表")
     status: int = Field(1, ge=0, le=1)
-
 
 class AdminUpdate(BaseModel):
     username: Optional[str] = Field(None, min_length=3, max_length=50)
@@ -96,7 +84,6 @@ class AdminUpdate(BaseModel):
     store_ids: Optional[List[str]] = Field(None, description="绑定的门店ID列表")
     status: Optional[int] = Field(None, ge=0, le=1)
 
-
 class StoreInfo(BaseModel):
     id: str
     name: str
@@ -108,7 +95,6 @@ class StoreInfo(BaseModel):
         "populate_by_name": True,
         "serialize_by_alias": True,
     }
-
 
 class TenantStatusInfo(BaseModel):
     status: int
@@ -122,7 +108,6 @@ class TenantStatusInfo(BaseModel):
         "populate_by_name": True,
         "serialize_by_alias": True,
     }
-
 
 class AdminResponse(BaseModel):
     id: str
@@ -157,27 +142,22 @@ class AdminResponse(BaseModel):
         "serialize_by_alias": True,
     }
 
-
 class AdminLoginRequest(BaseModel):
     username: str
     password: str
     encrypted: bool = True
-
 
 class PhoneLoginRequest(BaseModel):
     phone: str = Field(..., min_length=11, max_length=11)
     password: str
     encrypted: bool = True
 
-
 class SmsCodeRequest(BaseModel):
     phone: str = Field(..., min_length=11, max_length=11)
-
 
 class SmsLoginRequest(BaseModel):
     phone: str = Field(..., min_length=11, max_length=11)
     code: str = Field(..., min_length=4, max_length=6)
-
 
 class WechatQrcodeResponse(BaseModel):
     qrcode_url: str = Field(..., serialization_alias="qrcodeUrl")
@@ -186,7 +166,6 @@ class WechatQrcodeResponse(BaseModel):
 
     class Config:
         populate_by_name = True
-
 
 class WechatCheckResponse(BaseModel):
     status: str
@@ -198,13 +177,11 @@ class WechatCheckResponse(BaseModel):
     class Config:
         populate_by_name = True
 
-
 class PublicKeyResponse(BaseModel):
     public_key: str = Field(..., serialization_alias="publicKey")
 
     class Config:
         populate_by_name = True
-
 
 class AdminLoginResponse(BaseModel):
     access_token: str = Field(..., serialization_alias="accessToken")
@@ -216,7 +193,6 @@ class AdminLoginResponse(BaseModel):
 
     class Config:
         populate_by_name = True
-
 
 class OperationLogResponse(BaseModel):
     id: str
@@ -245,11 +221,9 @@ class OperationLogResponse(BaseModel):
         by_alias=True,
     )
 
-
 class ChangePasswordRequest(BaseModel):
     old_password: str = Field(..., min_length=6)
     new_password: str = Field(..., min_length=6, max_length=20)
-
 
 class UpdateProfileRequest(BaseModel):
     name: Optional[str] = Field(None, max_length=50)
@@ -257,14 +231,11 @@ class UpdateProfileRequest(BaseModel):
     email: Optional[str] = Field(None, max_length=100)
     avatar: Optional[str] = Field(None, max_length=255)
 
-
 class SwitchStoreRequest(BaseModel):
     store_id: str = Field(..., description="目标门店ID")
 
-
 class SwitchTenantRequest(BaseModel):
     tenant_id: str = Field(..., description="目标租户ID")
-
 
 class TenantInfoResponse(BaseModel):
     id: str
@@ -276,7 +247,6 @@ class TenantInfoResponse(BaseModel):
         "populate_by_name": True,
         "serialize_by_alias": True,
     }
-
 
 class OnlineUserResponse(BaseModel):
     admin_id: str = Field(..., serialization_alias="adminId")
@@ -291,7 +261,6 @@ class OnlineUserResponse(BaseModel):
 
     class Config:
         populate_by_name = True
-
 
 class UserStatusResponse(BaseModel):
     admin_id: str = Field(..., serialization_alias="adminId")
@@ -308,7 +277,6 @@ class UserStatusResponse(BaseModel):
 
     class Config:
         populate_by_name = True
-
 
 class LoginHistoryResponse(BaseModel):
     id: str

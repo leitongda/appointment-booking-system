@@ -1,17 +1,10 @@
+from app.schemas.response import to_camel
 """审批流 Pydantic schemas"""
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split("_")
-    return components[0] + "".join(x.title() for x in components[1:])
-
-
 CAMEL_CONFIG = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True)
-
 
 # ============================================================
 # 流程定义相关
@@ -25,7 +18,6 @@ class FlowConditionCreate(BaseModel):
     operator: str = Field(pattern="^(eq|neq|gt|gte|lt|lte|in|not_in|contains|exists)$")
     value: str
     priority: int = 0
-
 
 class FlowNodeCreate(BaseModel):
     model_config = CAMEL_CONFIG
@@ -43,7 +35,6 @@ class FlowNodeCreate(BaseModel):
     position_y: Optional[float] = None
     conditions: List[FlowConditionCreate] = Field(default_factory=list)
 
-
 class FlowDefinitionCreate(BaseModel):
     model_config = CAMEL_CONFIG
 
@@ -55,7 +46,6 @@ class FlowDefinitionCreate(BaseModel):
     store_id: Optional[str] = None
     nodes: List[FlowNodeCreate] = Field(default_factory=list)
 
-
 class FlowDefinitionUpdate(BaseModel):
     model_config = CAMEL_CONFIG
 
@@ -64,7 +54,6 @@ class FlowDefinitionUpdate(BaseModel):
     form_schema: Optional[Dict[str, Any]] = None
     callback_config: Optional[Dict[str, Any]] = None
     nodes: Optional[List[FlowNodeCreate]] = None
-
 
 class FlowConditionResponse(BaseModel):
     model_config = CAMEL_CONFIG
@@ -76,7 +65,6 @@ class FlowConditionResponse(BaseModel):
     operator: str
     value: str
     priority: int
-
 
 class FlowNodeResponse(BaseModel):
     model_config = CAMEL_CONFIG
@@ -95,7 +83,6 @@ class FlowNodeResponse(BaseModel):
     position_y: Optional[float] = None
     conditions: List[FlowConditionResponse] = Field(default_factory=list)
 
-
 class FlowDefinitionResponse(BaseModel):
     model_config = CAMEL_CONFIG
 
@@ -113,7 +100,6 @@ class FlowDefinitionResponse(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-
 class FlowDefinitionListResponse(BaseModel):
     model_config = CAMEL_CONFIG
 
@@ -125,7 +111,6 @@ class FlowDefinitionListResponse(BaseModel):
     description: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-
 
 # ============================================================
 # 审批实例相关
@@ -144,7 +129,6 @@ class ApprovalRecordResponse(BaseModel):
     delegate_to: Optional[str] = None
     created_at: Optional[datetime] = None
 
-
 class ApprovalTaskResponse(BaseModel):
     model_config = CAMEL_CONFIG
 
@@ -162,7 +146,6 @@ class ApprovalTaskResponse(BaseModel):
     completed_by: Optional[str] = None
     timeout_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
-
 
 class ApprovalInstanceResponse(BaseModel):
     model_config = CAMEL_CONFIG
@@ -185,7 +168,6 @@ class ApprovalInstanceResponse(BaseModel):
     tasks: List[ApprovalTaskResponse] = Field(default_factory=list)
     created_at: Optional[datetime] = None
 
-
 class ApprovalInstanceListResponse(BaseModel):
     model_config = CAMEL_CONFIG
 
@@ -199,12 +181,10 @@ class ApprovalInstanceListResponse(BaseModel):
     current_node_key: Optional[str] = None
     created_at: Optional[datetime] = None
 
-
 class ApprovalActionRequest(BaseModel):
     model_config = CAMEL_CONFIG
 
     comment: Optional[str] = None
-
 
 class ApprovalDelegateRequest(BaseModel):
     model_config = CAMEL_CONFIG
@@ -212,7 +192,6 @@ class ApprovalDelegateRequest(BaseModel):
     target_user_id: str
     target_user_name: Optional[str] = None
     comment: Optional[str] = None
-
 
 class ApprovalQuery(BaseModel):
     model_config = CAMEL_CONFIG

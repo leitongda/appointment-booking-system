@@ -1,14 +1,8 @@
+from app.schemas.response import to_camel
 """积分流水 Schema"""
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import datetime
-
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
 
 class PointLogBase(BaseModel):
     """积分流水基础"""
@@ -21,7 +15,6 @@ class PointLogBase(BaseModel):
     type: int = Field(4, ge=1, le=4, description="类型: 1消费 2充值 3赠送 4手动调整")
     remark: Optional[str] = Field(None, max_length=255, description="备注")
 
-
 class PointAdjustData(BaseModel):
     """积分调整请求"""
     model_config = ConfigDict(
@@ -31,7 +24,6 @@ class PointAdjustData(BaseModel):
     
     amount: int = Field(..., description="调整积分数量（正增负减）")
     remark: str = Field(..., max_length=255, description="调整原因")
-
 
 class PointLogResponse(BaseModel):
     """积分流水响应"""
@@ -51,7 +43,6 @@ class PointLogResponse(BaseModel):
     operator_id: Optional[str] = Field(None, description="操作人ID")
     operator_name: Optional[str] = Field(None, description="操作人姓名")
     created_at: Optional[str] = Field(None, description="创建时间")
-
 
 class PointSummary(BaseModel):
     """积分汇总"""

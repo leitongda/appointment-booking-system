@@ -3,77 +3,20 @@
 与现有 API 契约 100% 兼容（字段名、null vs 缺失、时间格式）。
 """
 from datetime import datetime
-from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.enums.notification import (  # noqa: F401 — re-export
+    ChannelType,
+    DeliveryStatus,
+    NotificationEventType,
+    NotificationStatus,
+    Priority,
+    RuleType,
+    StrategyType,
+)
 from app.core.config import settings
-
-
-# ---------------------------------------------------------------------------
-# 枚举
-# ---------------------------------------------------------------------------
-
-class NotificationEventType(str, Enum):
-    """通知事件类型"""
-    APPOINTMENT_SUCCESS = "appointment.success"
-    APPOINTMENT_REMINDER_24H = "appointment.reminder.24h"
-    APPOINTMENT_REMINDER_1H = "appointment.reminder.1h"
-    APPOINTMENT_CANCELLED = "appointment.cancelled"
-    SCHEDULE_CHANGE = "schedule.change"
-    SCHEDULE_STOP = "schedule.stop"
-    STOP_CLINIC = "stop_clinic"
-    SYSTEM = "system"
-
-
-class NotificationStatus(str, Enum):
-    """通知状态"""
-    PENDING = "pending"
-    PARTIAL = "partial"
-    SENT = "sent"
-    FAILED = "failed"
-
-
-class DeliveryStatus(str, Enum):
-    """投递状态"""
-    PENDING = "pending"
-    SENT = "sent"
-    FAILED = "failed"
-    PERMANENTLY_FAILED = "permanently_failed"
-
-
-class ChannelType(str, Enum):
-    """渠道类型"""
-    IN_APP = "in_app"
-    SMS = "sms"
-    EMAIL = "email"
-    WECHAT = "wechat"
-    WEBSOCKET = "websocket"
-
-
-class Priority(str, Enum):
-    """优先级"""
-    CRITICAL = "critical"
-    HIGH = "high"
-    MEDIUM = "medium"
-    LOW = "low"
-
-
-class StrategyType(str, Enum):
-    """渠道策略类型"""
-    FALLBACK = "fallback"
-    PARALLEL = "parallel"
-    ALL = "all"
-
-
-class RuleType(str, Enum):
-    """接收人规则类型"""
-    ROLE = "role"
-    DEPARTMENT = "department"
-    USER_LIST = "user_list"
-    DYNAMIC = "dynamic"
-    EVENT_DRIVEN = "event_driven"
 
 
 # ---------------------------------------------------------------------------

@@ -1,33 +1,13 @@
+from app.schemas.response import to_camel
 """加号申请与审批 Schema。"""
-from enum import Enum
 from typing import List, Optional
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
-def to_camel(string: str) -> str:
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
-
-class ExtraQuotaType(str, Enum):
-    """加号类型"""
-    NORMAL = "normal"           # 普通加号
-    SPECIAL = "special"         # 特殊加号
-    GREEN_CHANNEL = "green_channel"  # 绿色通道
-
-
-class ApprovalStatus(str, Enum):
-    """审批状态"""
-    PENDING = "pending"       # 待审批
-    APPROVED = "approved"     # 已批准
-    REJECTED = "rejected"     # 已拒绝
-    CANCELLED = "cancelled"   # 已取消
-
+from app.enums.general import ApprovalStatus, ExtraQuotaType  # noqa: F401 — re-export
 
 # ==================== 请求 Schema ====================
-
 
 class ExtraQuotaRequestCreate(BaseModel):
     """加号申请创建请求"""
@@ -43,7 +23,6 @@ class ExtraQuotaRequestCreate(BaseModel):
     patient_id: Optional[str] = Field(None, description="指定患者ID（仅对指定患者可见）")
     reason: Optional[str] = Field(None, max_length=500, description="加号原因")
 
-
 class ExtraQuotaApprovalRequest(BaseModel):
     """加号审批请求（用于审批通过/拒绝操作）"""
     model_config = ConfigDict(
@@ -53,9 +32,7 @@ class ExtraQuotaApprovalRequest(BaseModel):
 
     remark: Optional[str] = Field(None, max_length=500, description="审批备注")
 
-
 # ==================== 响应 Schema ====================
-
 
 class ExtraQuotaRequestResponse(BaseModel):
     """加号申请响应"""
@@ -86,7 +63,6 @@ class ExtraQuotaRequestResponse(BaseModel):
     created_at: Optional[datetime] = Field(None, description="创建时间")
     updated_at: Optional[datetime] = Field(None, description="更新时间")
 
-
 class ExtraQuotaListResponse(BaseModel):
     """加号申请列表响应"""
     model_config = ConfigDict(
@@ -99,7 +75,6 @@ class ExtraQuotaListResponse(BaseModel):
     total: int = Field(0, description="总数")
     page: int = Field(1, description="当前页")
     page_size: int = Field(10, alias="pageSize", description="每页数量")
-
 
 # ==================== 兼容旧接口 ====================
 

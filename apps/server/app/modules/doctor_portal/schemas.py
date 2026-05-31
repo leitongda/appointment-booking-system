@@ -1,14 +1,8 @@
+from app.schemas.response import to_camel
 from datetime import date, datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
-
-
-def to_camel(string: str) -> str:
-    """将 snake_case 转换为 camelCase"""
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
 
 class DoctorScheduleResponse(BaseModel):
     id: str
@@ -29,7 +23,6 @@ class DoctorScheduleResponse(BaseModel):
         alias_generator=to_camel,
         by_alias=True,
     )
-
 
 class DoctorAppointmentResponse(BaseModel):
     id: str
@@ -54,7 +47,6 @@ class DoctorAppointmentResponse(BaseModel):
         by_alias=True,
     )
 
-
 class QueuePatientResponse(BaseModel):
     id: str
     appointment_no: str
@@ -70,7 +62,6 @@ class QueuePatientResponse(BaseModel):
         alias_generator=to_camel,
         by_alias=True,
     )
-
 
 class PatientHistoryResponse(BaseModel):
     id: str
@@ -88,7 +79,6 @@ class PatientHistoryResponse(BaseModel):
         alias_generator=to_camel,
         by_alias=True,
     )
-
 
 class FollowUpBookingRequest(BaseModel):
     schedule_id: str

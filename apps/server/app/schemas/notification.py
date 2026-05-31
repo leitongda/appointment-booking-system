@@ -3,23 +3,11 @@
 """
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
-from enum import Enum
 
-
-class NotificationChannel(str, Enum):
-    """通知渠道"""
-    IN_APP = "in_app"
-    SMS = "sms"
-    WECHAT = "wechat"
-    EMAIL = "email"
-    WEBSOCKET = "websocket"
-
-
-class NotificationPriority(int, Enum):
-    """通知优先级"""
-    NORMAL = 0
-    IMPORTANT = 1
-    URGENT = 2
+from app.enums.notification import (  # noqa: F401 — re-export
+    NotificationChannel,
+    NotificationPriority,
+)
 
 
 class NotificationEvent(BaseModel):
