@@ -76,27 +76,4 @@ export function useFieldUnique<T = void>(config: UseFieldUniqueConfig<T>): UseFi
   return { rule, checking };
 }
 
-/**
- * @deprecated 使用 useFieldUnique 替代
- */
-export function useUniqueValidation(
-  checkFn: (field: string, value: string, excludeId?: number) => Promise<boolean>,
-  options?: { debounceMs?: number }
-) {
-  const [checking, setChecking] = useState(false);
-
-  const validate = async (field: string, value: string, excludeId?: number): Promise<void> => {
-    if (!value || value.trim() === '') return;
-    setChecking(true);
-    try {
-      const isUnique = await checkFn(field, value, excludeId);
-      if (!isUnique) throw new Error(`该${field}已存在`);
-    } finally {
-      setChecking(false);
-    }
-  };
-
-  return { validate, checking };
-}
-
 export default useFieldUnique;

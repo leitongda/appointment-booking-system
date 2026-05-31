@@ -12,8 +12,20 @@ import json
 
 
 class JsonFormatter(logging.Formatter):
-    """JSON 格式日志格式化器"""
-    
+    """JSON 格式日志格式化器
+
+    支持从 log record 的 extra 属性中提取结构化字段：
+    trace_id, tenant_id, user_id, method, path, status_code,
+    duration_ms, client_ip 等。
+    """
+
+    # 预定义的结构化字段名（从 record 中提取并提升为顶层字段）
+    STRUCTURED_FIELDS = (
+        "trace_id", "tenant_id", "user_id",
+        "method", "path", "query", "status_code",
+        "duration_ms", "client_ip", "error_type", "error_message",
+    )
+
     def format(self, record: logging.LogRecord) -> str:
         log_data = {
             "timestamp": datetime.utcnow().isoformat() + "Z",
@@ -24,15 +36,21 @@ class JsonFormatter(logging.Formatter):
             "function": record.funcName,
             "line": record.lineno,
         }
-        
+
+        # 提取预定义的结构化字段到顶层
+        for field in self.STRUCTURED_FIELDS:
+            value = getattr(record, field, None)
+            if value is not None:
+                log_data[field] = value
+
         # 添加异常信息
         if record.exc_info:
             log_data["exception"] = self.formatException(record.exc_info)
-        
+
         # 添加额外字段
         if hasattr(record, "extra_data"):
             log_data["extra"] = record.extra_data
-        
+
         return json.dumps(log_data, ensure_ascii=False)
 
 

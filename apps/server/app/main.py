@@ -5,9 +5,10 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import PlainTextResponse
 
-from app.api.v1 import api_router
+from app.api.v1 import main_router, deprecated_router
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.redis import close_redis, get_redis
@@ -17,7 +18,10 @@ from app.middleware.exception import register_exception_handlers
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.request_log import RequestLogMiddleware
 from app.middleware.operation_log import OperationLogMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.middleware.tenant_context import TenantContextMiddleware
+from app.middleware.prometheus_metrics import PrometheusMetricsMiddleware, get_metrics_response
+from app.middleware.deprecation import DeprecationMiddleware, DeprecatedEndpoint
 from app.db.session import AsyncSessionLocal, engine
 from app.tasks.blacklist_task import auto_release_blacklist
 from app.modules.amap.router import close_amap_client
@@ -114,6 +118,82 @@ async def ensure_super_admin_exists():
         logger.error(f"❌ 超级管理员检查失败: {e}")
 
 
+def _validate_production_config() -> None:
+    """生产环境配置校验 — 启动时检查关键安全配置项
+
+    检查项:
+      1. SECRET_KEY 不为默认值
+      2. DATABASE_URL 不指向 localhost
+      3. DEBUG 为 False
+      4. RATE_LIMIT_ENABLED 为 True
+
+    不通过时输出 CRITICAL 日志，阻止不安全的生产部署。
+    """
+    if settings.ENVIRONMENT != "production":
+        return
+
+    violations: list[str] = []
+
+    # SECRET_KEY 默认值检测（docker-compose 中的占位值 + 常见弱密钥）
+    default_keys = {
+        "your-secret-key-change-in-production",
+        "secret",
+        "change-me",
+        "changeme",
+    }
+    if settings.SECRET_KEY.lower() in {k.lower() for k in default_keys} or len(settings.SECRET_KEY) < 16:
+        violations.append("SECRET_KEY 使用默认值或长度不足 (<16 字符)")
+
+    # DATABASE_URL 不应指向 localhost
+    db_url_lower = settings.DATABASE_URL.lower()
+    if "localhost" in db_url_lower or "127.0.0.1" in db_url_lower:
+        violations.append("DATABASE_URL 指向 localhost/127.0.0.1，生产环境应使用远程数据库")
+
+    # DEBUG 必须关闭
+    if settings.DEBUG:
+        violations.append("DEBUG=true，生产环境必须关闭调试模式")
+
+    # 限流必须启用
+    if not settings.RATE_LIMIT_ENABLED:
+        violations.append("RATE_LIMIT_ENABLED=false，生产环境必须启用限流")
+
+    if violations:
+        for v in violations:
+            logger.critical(f"CRITICAL 生产配置校验失败: {v}")
+        logger.critical(
+            "以上 {count} 项配置违规，请修正后重新启动".format(count=len(violations))
+        )
+    else:
+        logger.info("生产环境配置校验通过")
+
+
+def _init_sentry() -> None:
+    """初始化 Sentry APM（仅当 SENTRY_DSN 非空时启用）"""
+    if not settings.SENTRY_DSN:
+        return
+
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
+
+    sentry_logging = LoggingIntegration(
+        level=logging.INFO,        # 采集 INFO 及以上日志
+        event_level=logging.ERROR,  # 仅将 ERROR 及以上发送为 Sentry 事件
+    )
+
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        environment=settings.ENVIRONMENT,
+        traces_sample_rate=settings.SENTRY_TRACES_SAMPLE_RATE,
+        integrations=[
+            FastApiIntegration(),
+            sentry_logging,
+        ],
+        send_default_pii=False,  # 不发送个人信息
+    )
+    logger.info(f"Sentry APM 已初始化 (dsn=***, traces_sample_rate={settings.SENTRY_TRACES_SAMPLE_RATE})")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期"""
@@ -122,10 +202,23 @@ async def lifespan(app: FastAPI):
     logger.info(f"   环境: {settings.ENVIRONMENT}")
     logger.info(f"   调试模式: {settings.DEBUG}")
     logger.info("="*50)
-    
+
+    # Sentry APM 初始化（仅当 DSN 非空时启用）
+    _init_sentry()
+
     # 预热连接池（消除冷启动延迟）
     await warmup_connections()
-    
+
+    # 生产环境配置校验（安全检查）
+    _validate_production_config()
+
+    # 生产环境限流检查
+    if settings.ENVIRONMENT == "production" and not settings.RATE_LIMIT_ENABLED:
+        logger.warning(
+            "生产环境中 RATE_LIMIT_ENABLED=false，API 未受限流保护，"
+            "请在 .env 中设置 RATE_LIMIT_ENABLED=true"
+        )
+
     # 检查超级管理员是否存在
     await ensure_super_admin_exists()
     
@@ -181,7 +274,8 @@ def create_app() -> FastAPI:
 
     _configure_middlewares(app)
     register_exception_handlers(app)
-    app.include_router(api_router, prefix=settings.API_V1_STR)
+    app.include_router(main_router, prefix=settings.API_V1_STR)
+    app.include_router(deprecated_router, prefix=settings.API_V1_STR)
     _configure_static_mounts(app)
     _register_health_routes(app)
     _register_llms_routes(app)
@@ -402,14 +496,20 @@ def _build_openapi_description() -> str:
 def _configure_middlewares(app: FastAPI) -> None:
     # Starlette add_middleware 使用 insert(0)，build 时 reversed() 包装。
     # 因此最后注册的中间件在请求阶段最先执行（最靠近 app 层）。
-    # 请求执行顺序：TenantContext -> UnifiedResponse -> OperationLog -> RequestLog -> RateLimit -> CORS
-    # 响应执行顺序：CORS -> RateLimit -> RequestLog -> OperationLog -> UnifiedResponse -> TenantContext
+    # 请求执行顺序：Prometheus -> TenantContext -> UnifiedResponse -> Deprecation -> OperationLog -> RequestLog -> RateLimit -> SecurityHeaders -> GZip -> CORS
+    # 响应执行顺序：CORS -> GZip -> SecurityHeaders -> RateLimit -> RequestLog -> OperationLog -> Deprecation -> UnifiedResponse -> TenantContext -> Prometheus
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.BACKEND_CORS_ORIGINS,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+    )
+    # GZip 压缩 — 最小 1000 字节才压缩，避免小响应被压缩反而增大体积
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
+    app.add_middleware(
+        SecurityHeadersMiddleware,
+        hsts_enabled=settings.SECURITY_HSTS_ENABLED and not settings.DEBUG,
     )
     app.add_middleware(
         RateLimitMiddleware,
@@ -419,9 +519,12 @@ def _configure_middlewares(app: FastAPI) -> None:
     )
     app.add_middleware(RequestLogMiddleware)
     app.add_middleware(OperationLogMiddleware)
+    app.add_middleware(DeprecationMiddleware)
     app.add_middleware(UnifiedResponseMiddleware)
     # 租户上下文中间件（最后注册 = 请求阶段最先执行），为限流/日志等下游中间件提供 tenant_id
     app.add_middleware(TenantContextMiddleware)
+    # Prometheus 指标中间件（最外层，采集总请求耗时）
+    app.add_middleware(PrometheusMetricsMiddleware)
 
 
 def _configure_static_mounts(app: FastAPI) -> None:
@@ -482,35 +585,146 @@ def _configure_static_mounts(app: FastAPI) -> None:
 
 
 def _register_health_routes(app: FastAPI) -> None:
-    @app.get("/health")
+    import time as _time
+
+    _start_time = _time.time()
+
+    @app.get("/metrics", include_in_schema=False)
+    async def prometheus_metrics():
+        """Prometheus 指标端点"""
+        return get_metrics_response()
+
+    @app.get("/health", include_in_schema=False)
     async def health_check():
+        """兼容旧端点，返回存活状态"""
         return {"status": "ok"}
 
-    @app.get("/health/detailed")
-    async def detailed_health_check():
+    @app.get("/health/live", include_in_schema=False)
+    async def liveness_probe():
+        """存活探针 — 始终返回 200，Kubernetes liveness 用"""
+        return {"status": "alive", "timestamp": _time.time()}
+
+    @app.get("/health/ready", include_in_schema=False)
+    async def readiness_probe():
+        """就绪探针 — 检查 DB + Redis 可用性，Kubernetes readiness 用"""
         from sqlalchemy import text
         from app.db.session import async_session_maker
 
-        checks = {
-            "status": "ok",
-            "database": "ok",
-            "redis": "ok",
-            "environment": settings.ENVIRONMENT,
-        }
+        checks = {}
+        all_ok = True
 
+        # 数据库检查
         try:
             async with async_session_maker() as db:
                 await db.execute(text("SELECT 1"))
+            checks["database"] = {"status": "ok"}
         except Exception as exc:
-            checks["database"] = f"error: {str(exc)}"
-            checks["status"] = "degraded"
+            checks["database"] = {"status": "error", "detail": str(exc)}
+            all_ok = False
 
+        # Redis 检查
         try:
             redis = await get_redis()
             await redis.ping()
+            checks["redis"] = {"status": "ok"}
         except Exception as exc:
-            checks["redis"] = f"error: {str(exc)}"
+            checks["redis"] = {"status": "error", "detail": str(exc)}
+            all_ok = False
+
+        result = {
+            "status": "ready" if all_ok else "not_ready",
+            "checks": checks,
+            "timestamp": _time.time(),
+        }
+        from starlette.responses import JSONResponse as _JR
+        return _JR(content=result, status_code=200 if all_ok else 503)
+
+    @app.get("/health/detailed", include_in_schema=False)
+    async def detailed_health_check():
+        """详细健康检查 — 包含 Celery、Redis 内存、DB 连接池、磁盘、运行时间"""
+        import shutil
+        from sqlalchemy import text
+        from app.db.session import async_session_maker, engine
+
+        uptime = _time.time() - _start_time
+        checks = {
+            "status": "ok",
+            "environment": settings.ENVIRONMENT,
+            "uptime_seconds": round(uptime, 1),
+            "timestamp": _time.time(),
+        }
+
+        # --- 数据库 ---
+        try:
+            async with async_session_maker() as db:
+                await db.execute(text("SELECT 1"))
+            pool = engine.pool
+            checks["database"] = {
+                "status": "ok",
+                "pool": {
+                    "size": pool.size(),
+                    "checked_in": pool.checkedin(),
+                    "checked_out": pool.checkedout(),
+                    "overflow": pool.overflow(),
+                },
+            }
+        except Exception as exc:
+            checks["database"] = {"status": "error", "detail": str(exc)}
             checks["status"] = "degraded"
+
+        # --- Redis ---
+        try:
+            redis = await get_redis()
+            await redis.ping()
+            info = await redis.info("memory")
+            checks["redis"] = {
+                "status": "ok",
+                "memory": {
+                    "used_memory_human": info.get("used_memory_human", "N/A"),
+                    "used_memory_peak_human": info.get("used_memory_peak_human", "N/A"),
+                    "mem_fragmentation_ratio": info.get("mem_fragmentation_ratio", "N/A"),
+                },
+            }
+        except Exception as exc:
+            checks["redis"] = {"status": "error", "detail": str(exc)}
+            checks["status"] = "degraded"
+
+        # --- Celery ---
+        try:
+            from celery.app.control import Control
+            from app.tasks.celery_app import celery_app as _celery
+
+            ctrl = Control(_celery)
+            inspect = ctrl.inspect(timeout=2)
+            active = inspect.active() or {}
+            stats = inspect.stats() or {}
+            checks["celery"] = {
+                "status": "ok",
+                "workers": len(active),
+                "active_tasks": sum(len(v) for v in active.values()),
+                "worker_stats": {
+                    name: {
+                        "pool": s.get("pool", {}).get("implementation", "N/A"),
+                        "rusage": s.get("rusage", {}),
+                    }
+                    for name, s in stats.items()
+                },
+            }
+        except Exception as exc:
+            checks["celery"] = {"status": "error", "detail": str(exc)}
+            checks["status"] = "degraded"
+
+        # --- 磁盘用量 ---
+        try:
+            usage = shutil.disk_usage("/")
+            checks["disk"] = {
+                "total_gb": round(usage.total / (1024**3), 2),
+                "used_gb": round(usage.used / (1024**3), 2),
+                "free_gb": round(usage.free / (1024**3), 2),
+                "usage_percent": round(usage.used / usage.total * 100, 1),
+            }
+        except Exception as exc:
+            checks["disk"] = {"status": "error", "detail": str(exc)}
 
         return checks
 

@@ -1,0 +1,53 @@
+name: Security Scan
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/server/Dockerfile'
+      - 'apps/server/requirements.txt'
+      - '.github/workflows/security.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'apps/server/Dockerfile'
+      - 'apps/server/requirements.txt'
+      - '.github/workflows/security.yml'
+  schedule:
+    # 每周一 UTC 03:00 扫描
+    - cron: '3 3 * * 1'
+  workflow_dispatch:
+
+jobs:
+  trivy-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        working-directory: apps/server
+        run: |
+          docker build -t hospital-server:security-scan .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: 'hospital-server:security-scan'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+
+      - name: Run Trivy config scanner
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'config'
+          scan-ref: 'apps/server/'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+        continue-on-error: true

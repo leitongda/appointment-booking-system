@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -220,7 +221,10 @@ async def admin_login(
         store=available_stores and StoreInfo.model_validate(available_stores[0]) or None,
         stores=build_stores_list(available_stores),
     )
-    return response.model_dump(by_alias=True)
+    resp = JSONResponse(content=response.model_dump(by_alias=True))
+    if admin.must_change_password:
+        resp.headers["X-Password-Change-Required"] = "true"
+    return resp
 
 
 @router.post("/phone-login", summary="手机号登录")
@@ -255,7 +259,10 @@ async def phone_login(
     access_token = create_access_token(data=_build_admin_access_token_payload(admin), expires_delta=access_delta)
     refresh_token = create_refresh_token(data=_build_admin_refresh_token_payload(admin), expires_delta=refresh_delta)
     await store_admin_session(admin, access_token, client_ip, user_agent, db)
-    return _build_login_response(admin, access_token, refresh_token, expires_in=expires_seconds)
+    resp = JSONResponse(content=_build_login_response(admin, access_token, refresh_token, expires_in=expires_seconds))
+    if admin.must_change_password:
+        resp.headers["X-Password-Change-Required"] = "true"
+    return resp
 
 
 # ==================== 短信验证码登录 ====================
@@ -317,7 +324,10 @@ async def sms_login(
     access_token = create_access_token(data=_build_admin_access_token_payload(admin), expires_delta=access_delta)
     refresh_token = create_refresh_token(data=_build_admin_refresh_token_payload(admin), expires_delta=refresh_delta)
     await store_admin_session(admin, access_token, client_ip, user_agent, db)
-    return _build_login_response(admin, access_token, refresh_token, expires_in=expires_seconds)
+    resp = JSONResponse(content=_build_login_response(admin, access_token, refresh_token, expires_in=expires_seconds))
+    if admin.must_change_password:
+        resp.headers["X-Password-Change-Required"] = "true"
+    return resp
 
 
 @router.post("/email/send-code", summary="发送管理员邮箱验证码")
@@ -385,7 +395,10 @@ async def admin_email_login(
     access_token = create_access_token(data=_build_admin_access_token_payload(admin), expires_delta=access_delta)
     refresh_token = create_refresh_token(data=_build_admin_refresh_token_payload(admin), expires_delta=refresh_delta)
     await store_admin_session(admin, access_token, client_ip, user_agent, db)
-    return _build_login_response(admin, access_token, refresh_token, expires_in=expires_seconds)
+    resp = JSONResponse(content=_build_login_response(admin, access_token, refresh_token, expires_in=expires_seconds))
+    if admin.must_change_password:
+        resp.headers["X-Password-Change-Required"] = "true"
+    return resp
 
 
 # ==================== 微信扫码登录 ====================

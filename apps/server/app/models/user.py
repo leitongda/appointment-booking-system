@@ -17,6 +17,7 @@ class User(Base, AuditMixin):
     gender = Column(Integer, default=0)  # 0未知 1男 2女
     openid = Column(String(100), index=True)  # 租户内唯一
     status = Column(Integer, default=1)  # 0禁用 1正常
+    must_change_password = Column(Boolean, default=False, nullable=False, comment="首次登录是否强制修改密码")
     points = Column(Integer, default=0)  # 当前积分
 
     # 微信相关字段

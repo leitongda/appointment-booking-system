@@ -723,6 +723,36 @@ class RedisCache:
         key = cls._build_token_blacklist_key(token_hash, tenant_id)
         return await cls.exists(key)
     
+    # ==================== Refresh Token 黑名单 ====================
+
+    PREFIX_REFRESH_BLACKLIST = "refresh:blacklist:"  # Refresh Token 黑名单
+
+    @classmethod
+    async def add_refresh_token_to_blacklist(
+        cls,
+        token: str,
+        tenant_id: Optional[str] = None,
+        ttl: int = 86400,
+    ) -> bool:
+        """将 Refresh Token 加入黑名单（轮换时调用）
+
+        Args:
+            token: 原始 Refresh Token 字符串
+            tenant_id: 租户ID（可选，用于多租户隔离）
+            ttl: 过期时间（秒），默认 24 小时
+
+        Returns:
+            是否成功
+        """
+        import hashlib as _hl
+        token_hash = _hl.sha256(token.encode()).hexdigest()[:32]
+        effective_tenant_id = tenant_id or get_current_tenant_id()
+        if effective_tenant_id:
+            key = f"{cls.PREFIX_REFRESH_BLACKLIST}{effective_tenant_id}:{token_hash}"
+        else:
+            key = f"{cls.PREFIX_REFRESH_BLACKLIST}{token_hash}"
+        return await cls.set(key, "1", ttl)
+
     # ==================== 分布式锁（异步）====================
 
     @classmethod

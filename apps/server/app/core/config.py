@@ -156,9 +156,16 @@ class Settings(BaseSettings):
     # 告警配置
     ALERT_WEBHOOK_URL: Optional[str] = None  # 任务失败告警 Webhook URL
 
+    # Sentry APM 配置
+    SENTRY_DSN: str = ""  # Sentry DSN，为空则不启用
+    SENTRY_TRACES_SAMPLE_RATE: float = 0.1  # 性能追踪采样率 (0.0 ~ 1.0)
+
     # 高德地图配置
     AMAP_KEY: Optional[str] = None  # 高德地图 Web 服务 API Key
     AMAP_SERVICE_BASE_URL: str = "https://restapi.amap.com"  # 高德 API 基础地址
+
+    # 安全 Header 配置
+    SECURITY_HSTS_ENABLED: bool = False  # 生产环境设为 true，启用 HSTS
 
     # 双写过渡期开关
     ACCOUNT_DUAL_WRITE_ENABLED: bool = False  # 默认关闭，手动开启

@@ -25,6 +25,7 @@ services:
       - WECHAT_APP_SECRET=${WECHAT_APP_SECRET:-}
     ports:
       - "8000:8000"
+      - "9001:8000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:

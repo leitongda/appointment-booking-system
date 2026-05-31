@@ -71,6 +71,7 @@ async def change_current_admin_password(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="; ".join(errors))
 
     admin.password_hash = get_password_hash(data.new_password)
+    admin.must_change_password = False
     await db.flush()
 
     # 双写同步: 密码变更同步到 accounts

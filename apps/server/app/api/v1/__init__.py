@@ -9,6 +9,8 @@ class RouterRegistration:
     module: str
     prefix: str
     tags: list[str]
+    deprecated: bool = False
+    sunset_date: str | None = None
 
 
 ROUTER_REGISTRATIONS = [
@@ -77,12 +79,27 @@ ROUTER_REGISTRATIONS = [
 ]
 
 
-def build_api_router() -> APIRouter:
-    router = APIRouter()
+def build_api_router() -> tuple[APIRouter, APIRouter]:
+    """构建 API 路由器
+
+    Returns:
+        (main_router, deprecated_router) 元组
+    """
+    main_router = APIRouter()
+    deprecated_router = APIRouter()
+
     for registration in ROUTER_REGISTRATIONS:
         module = import_module(registration.module)
-        router.include_router(module.router, prefix=registration.prefix, tags=registration.tags)
-    return router
+        if registration.deprecated:
+            deprecated_router.include_router(
+                module.router, prefix=registration.prefix, tags=registration.tags
+            )
+        else:
+            main_router.include_router(
+                module.router, prefix=registration.prefix, tags=registration.tags
+            )
+
+    return main_router, deprecated_router
 
 
-api_router = build_api_router()
+main_router, deprecated_router = build_api_router()

@@ -106,5 +106,39 @@ jobs:
       - name: Run Ruff
         working-directory: apps/server
         run: |
-          ruff check . --output-format=github || true
-        continue-on-error: true
+          ruff check . --output-format=github
+        continue-on-error: false
+
+      - name: Run Ruff Format Check
+        working-directory: apps/server
+        run: |
+          ruff format --check .
+        continue-on-error: false
+
+  security-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: apps/server/requirements.txt
+
+      - name: Install dependencies and pip-audit
+        working-directory: apps/server
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pip-audit
+
+      - name: Run pip-audit
+        working-directory: apps/server
+        run: |
+          pip-audit -r requirements.txt --desc on
+        continue-on-error: false

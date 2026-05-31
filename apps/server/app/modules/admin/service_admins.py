@@ -255,6 +255,7 @@ class AdminService:
             current_store_id=current_store_id,
             status=data.get("status", 1),
             tenant_id=tenant_id,
+            must_change_password=True,
         )
         set_create_audit(admin, operator_id)
         self.db.add(admin)
@@ -361,6 +362,7 @@ class AdminService:
             raise ValueError("; ".join(errors))
 
         admin.password_hash = get_password_hash(new_password)
+        admin.must_change_password = True
         await self.db.flush()
 
         # 双写同步: 密码变更同步到 accounts

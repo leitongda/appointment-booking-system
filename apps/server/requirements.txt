@@ -1,60 +1,64 @@
 # FastAPI 核心
-fastapi>=0.115.0
-uvicorn[standard]>=0.32.0
-python-multipart>=0.0.12
+fastapi==0.115.12
+uvicorn[standard]==0.34.3
+python-multipart==0.0.20
 
 # 数据库
-sqlalchemy[asyncio]>=2.0.36
-asyncpg>=0.30.0
-psycopg2-binary>=2.9.11
-alembic>=1.14.0
+sqlalchemy[asyncio]==2.0.41
+asyncpg==0.30.0
+psycopg2-binary==2.9.11
+alembic==1.15.2
 
 # 数据校验
-pydantic>=2.10.0
-pydantic-settings>=2.6.0
-email-validator>=2.2.0
+pydantic==2.11.3
+pydantic-settings==2.9.1
+email-validator==2.3.0
 
 # 认证
-python-jose[cryptography]>=3.3.0
-passlib[bcrypt]>=1.7.4
-bcrypt>=4.2.0
-cryptography>=44.0.0
+python-jose[cryptography]==3.5.0
+passlib[bcrypt]==1.7.4
+bcrypt==5.0.0
+cryptography==46.0.7
 
 # 缓存
-redis>=5.2.0
+redis==7.4.0
 
 # 异步任务
-celery>=5.3.6
-flower>=2.0.1
+celery==5.6.3
+flower==2.0.1
 
 # 工具
-python-dotenv>=1.0.1
-httpx>=0.28.0
-aiofiles>=24.1.0
-pytz>=2024.1
-Jinja2>=3.1.0
+python-dotenv==1.1.0
+httpx==0.28.1
+aiofiles==25.1.0
+pytz==2026.1.post1
+Jinja2==3.1.6
 
 # 邮件发送
-aiosmtplib>=3.0.0
+aiosmtplib==5.1.0
 
 # MinIO 存储
-minio>=7.2.0
+minio==7.2.20
 
 # 阿里云短信 SDK
 alibabacloud_dysmsapi20170525==3.0.0
 
 # 图片处理
-Pillow>=10.0.0
+Pillow==12.2.0
 
 # User-Agent 解析
-user-agents>=2.2.0
+user-agents==2.2.0
 
 # 中文拼音转换
-pypinyin>=0.51.0
+pypinyin==0.55.0
 
 # Excel 处理
-openpyxl>=3.1.0
-xlrd>=2.0.1
+openpyxl==3.1.5
+xlrd==2.0.2
 
 # 微信支付 SDK
-wechatpayv3>=1.2.0
+wechatpayv3==2.0.2
+
+# 可观测性
+prometheus-client==0.21.1
+sentry-sdk[fastapi]==2.27.0

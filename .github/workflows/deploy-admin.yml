@@ -1,21 +1,17 @@
 name: Deploy Admin
 
 on:
-  # 暂时禁用自动触发
-  # push:
-  #   branches:
-  #     - main
-  #   paths:
-  #     # admin 应用代码变更
-  #     - 'apps/admin/**'
-  #     # 共享包变更（admin 依赖这些包）
-  #     - 'packages/api/**'
-  #     - 'packages/shared/**'
-  #     # 根目录配置变更
-  #     - 'package.json'
-  #     - 'pnpm-lock.yaml'
-  #     - 'turbo.json'
-  workflow_dispatch:  # 保留手动触发
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/admin/**'
+      - 'packages/api/**'
+      - 'packages/shared/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'turbo.json'
+  workflow_dispatch:
     inputs:
       force_deploy:
         description: '强制部署（跳过缓存）'

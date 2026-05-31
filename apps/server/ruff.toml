@@ -1,0 +1,21 @@
+line-length = 120
+
+target-version = "py312"
+
+exclude = [
+    "migrations",
+    "__pycache__",
+    ".venv",
+    "tests",
+]
+
+[lint]
+select = ["E", "F", "I", "UP", "B", "S", "AS", "SIM"]
+
+[lint.per-file-ignores]
+# tests 目录放宽规则
+"tests/**/*.py" = ["S101", "S106", "B011", "SIM"]
+
+[format]
+quote-style = "double"
+indent-style = "space"

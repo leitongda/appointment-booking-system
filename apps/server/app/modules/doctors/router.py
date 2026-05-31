@@ -17,6 +17,7 @@ from app.core.security import create_access_token, create_refresh_token, decode_
 from app.core.redis import RedisCache
 from app.core.config import settings
 from app.common.security_settings import get_token_expire_config
+import hashlib as _doc_hashlib
 from app.infrastructure.email.service import EmailService
 from app.utils.ip import get_client_ip
 from app.modules.doctors.schemas import (
@@ -196,12 +197,16 @@ async def doctor_login(
     if account:
         doctor_resp.email = account.email
 
-    return DoctorLoginResponse(
+    from fastapi.responses import JSONResponse
+    resp = JSONResponse(content=DoctorLoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         expires_in=expires_seconds,
         doctor=doctor_resp,
-    )
+    ).model_dump(mode="json"))
+    if getattr(doctor, 'must_change_password', False):
+        resp.headers["X-Password-Change-Required"] = "true"
+    return resp
 
 
 @router.get(
@@ -258,6 +263,19 @@ async def doctor_refresh_token(
     token_tenant_id = payload.get("tenant_id")
     if token_tenant_id and token_tenant_id != doctor.tenant_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="租户信息不匹配，请重新登录")
+
+    # 轮换 Refresh Token: 将旧 token 加入黑名单
+    from datetime import datetime as _dt
+    from jose import jwt as _jwt
+    try:
+        old_claims = _jwt.get_unverified_claims(data.refresh_token)
+        exp_ts = old_claims.get("exp", 0)
+        remaining_ttl = max(1, int(exp_ts - _dt.utcnow().timestamp()))
+    except Exception:
+        remaining_ttl = 86400
+    await RedisCache.add_refresh_token_to_blacklist(
+        data.refresh_token, tenant_id=token_tenant_id, ttl=remaining_ttl
+    )
 
     access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
     access_token = create_access_token(data=_build_doctor_access_token_payload(doctor), expires_delta=access_delta)
@@ -926,6 +944,7 @@ async def change_doctor_password(
 
     # 更新密码
     current_doctor.password_hash = get_password_hash(data.new_password)
+    current_doctor.must_change_password = False
     await db.flush()
 
     # 双写同步: 密码变更同步到 accounts

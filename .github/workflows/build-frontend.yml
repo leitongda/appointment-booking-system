@@ -1,19 +1,18 @@
 name: Build and Deploy Frontend
 
 on:
-  # 暂时禁用自动触发
-  # push:
-  #   branches:
-  #     - main
-  #   paths:
-  #     - 'apps/admin/**'
-  #     - 'apps/doctor/**'
-  #     - 'apps/patient-h5/**'
-  #     - 'apps/temp-registration/**'
-  #     - 'packages/**'
-  #     - 'package.json'
-  #     - 'pnpm-lock.yaml'
-  workflow_dispatch:  # 保留手动触发
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/admin/**'
+      - 'apps/doctor/**'
+      - 'apps/patient-h5/**'
+      - 'apps/temp-registration/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+  workflow_dispatch:
 
 env:
   PROJECT_DIR: /www/hospital-booking

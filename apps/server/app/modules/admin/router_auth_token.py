@@ -12,6 +12,7 @@ from app.core.security import create_access_token, create_refresh_token, decode_
 from app.core.redis import RedisCache
 from app.db.session import get_db
 from app.common.security_settings import get_token_expire_config
+import hashlib as _admin_hashlib
 from app.models.admin import Admin, Permission
 from app.models.tenant import Tenant
 from app.modules.admin.helpers import build_admin_response_from_dict, build_stores_list
@@ -66,6 +67,19 @@ async def refresh_admin_token(
     token_tenant_id = payload.get("tenant_id")
     if token_tenant_id and token_tenant_id != admin.tenant_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="租户信息不匹配，请重新登录")
+
+    # 轮换 Refresh Token: 将旧 token 加入黑名单
+    from datetime import datetime as _dt
+    from jose import jwt as _jwt
+    try:
+        old_claims = _jwt.get_unverified_claims(data.refresh_token)
+        exp_ts = old_claims.get("exp", 0)
+        remaining_ttl = max(1, int(exp_ts - _dt.utcnow().timestamp()))
+    except Exception:
+        remaining_ttl = 86400
+    await RedisCache.add_refresh_token_to_blacklist(
+        data.refresh_token, tenant_id=token_tenant_id, ttl=remaining_ttl
+    )
 
     access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
     access_token = create_access_token(data=_build_admin_access_token_payload(admin), expires_delta=access_delta)

@@ -36,6 +36,7 @@ from app.common.account_sync import AccountSyncService
 from app.common.auth_types import AccountInfo
 from app.common.auth_unified import get_current_account
 from app.common.security_settings import get_token_expire_config
+import hashlib as _auth_hashlib
 
 router = APIRouter()
 
@@ -128,7 +129,7 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     access_token = create_access_token(data={"sub": user.id}, expires_delta=access_delta)
     refresh_token = create_refresh_token(data={"sub": user.id}, expires_delta=refresh_delta)
 
-    return LoginResponse(
+    login_resp = LoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         expires_in=expires_seconds,
@@ -141,6 +142,11 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
             status=user.status
         )
     )
+    from fastapi.responses import JSONResponse
+    resp = JSONResponse(content=login_resp.model_dump(by_alias=True))
+    if getattr(user, 'must_change_password', False):
+        resp.headers["X-Password-Change-Required"] = "true"
+    return resp
 
 @router.post(
     "/register",
@@ -239,17 +245,31 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
 async def refresh_token(data: RefreshTokenRequest, db: AsyncSession = Depends(get_db)):
     """刷新Token"""
     payload = decode_token(data.refresh_token)
-    
+
     if not payload or payload.get("type") != "refresh":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="身份验证失败，请重新登录")
-    
+
     user_id = payload.get("sub")
     user_service = UserService(db)
     user = await user_service.get_by_id(user_id)
-    
+
     if not user or user.status != 1:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号不存在或已被禁用，请检查后重试")
-    
+
+    # 轮换 Refresh Token: 将旧 token 加入黑名单
+    from datetime import datetime as _dt
+    from jose import jwt as _jwt
+    try:
+        old_claims = _jwt.get_unverified_claims(data.refresh_token)
+        exp_ts = old_claims.get("exp", 0)
+        remaining_ttl = max(1, int(exp_ts - _dt.utcnow().timestamp()))
+    except Exception:
+        remaining_ttl = 86400  # fallback 24h
+    tenant_id = payload.get("tenant_id")
+    await RedisCache.add_refresh_token_to_blacklist(
+        data.refresh_token, tenant_id=tenant_id, ttl=remaining_ttl
+    )
+
     access_delta, refresh_delta, expires_seconds = await get_token_expire_config(db)
     access_token = create_access_token(data={"sub": user.id}, expires_delta=access_delta)
     new_refresh_token = create_refresh_token(data={"sub": user.id}, expires_delta=refresh_delta)
@@ -299,6 +319,7 @@ async def change_password(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="; ".join(errors))
 
     user.password_hash = get_password_hash(data.new_password)
+    user.must_change_password = False
     await db.flush()
 
     # 双写同步: 密码变更同步到 accounts
@@ -429,6 +450,7 @@ async def forgot_password(
 
     # 更新密码
     user.password_hash = get_password_hash(data.new_password)
+    user.must_change_password = False
     await db.flush()
 
     # 双写同步: 密码重置同步到 accounts
@@ -822,7 +844,7 @@ async def email_login(
     access_token = create_access_token(data={"sub": user.id}, expires_delta=access_delta)
     refresh_token = create_refresh_token(data={"sub": user.id}, expires_delta=refresh_delta)
 
-    return LoginResponse(
+    email_login_resp = LoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         expires_in=expires_seconds,
@@ -835,6 +857,11 @@ async def email_login(
             status=user.status,
         ),
     )
+    from fastapi.responses import JSONResponse as _JSONResp
+    resp = _JSONResp(content=email_login_resp.model_dump(by_alias=True))
+    if getattr(user, 'must_change_password', False):
+        resp.headers["X-Password-Change-Required"] = "true"
+    return resp
 
 
 @router.post(

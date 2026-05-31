@@ -54,9 +54,34 @@ security = HTTPBearer(
 )
 
 
+async def _check_token_blacklist(token: str, tenant_id: str = None) -> None:
+    """检查 Token 是否在黑名单中（所有角色通用）
+
+    使用 RedisCache.is_token_blacklisted() 做 SHA256 哈希检查。
+    如果 token 已在黑名单中，抛出 401 Unauthorized。
+
+    Args:
+        token: 原始 JWT Token 字符串
+        tenant_id: 租户ID（可选，从 payload 中获取的优先级更高）
+
+    Raises:
+        HTTPException: Token 已被撤销时抛出 401
+    """
+    token_hash = hashlib.sha256(token.encode()).hexdigest()[:32]
+    payload = decode_token(token)
+    if payload:
+        token_tenant_id = payload.get("tenant_id") or tenant_id
+        if await RedisCache.is_token_blacklisted(token_hash, tenant_id=token_tenant_id):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="登录已失效，请重新登录"
+            )
+
+
 async def _get_user_account(
     user_id: str,
     db: AsyncSession,
+    token: str = None,
     check_tenant: bool = True,
 ) -> AccountInfo:
     """从 User 表获取账号信息（含医生检查）
@@ -64,6 +89,7 @@ async def _get_user_account(
     Args:
         user_id: 用户 ID
         db: 数据库会话
+        token: 原始 Token（用于黑名单检查，可选）
         check_tenant: 是否检查租户一致性
 
     Returns:
@@ -72,6 +98,10 @@ async def _get_user_account(
     Raises:
         HTTPException: 用户不存在、被禁用或租户不匹配
     """
+    # 检查 Token 是否在黑名单中
+    if token:
+        await _check_token_blacklist(token)
+
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
 
@@ -144,6 +174,7 @@ async def _get_user_account(
 async def _get_doctor_account(
     doctor_id: str,
     db: AsyncSession,
+    token: str = None,
     check_tenant: bool = True,
     include_store_check: bool = True,
 ) -> AccountInfo:
@@ -152,6 +183,7 @@ async def _get_doctor_account(
     Args:
         doctor_id: 医生 ID
         db: 数据库会话
+        token: 原始 Token（用于黑名单检查，可选）
         check_tenant: 是否检查租户一致性
         include_store_check: 是否检查门店状态
 
@@ -161,6 +193,10 @@ async def _get_doctor_account(
     Raises:
         HTTPException: 医生不存在、被禁用或租户/门店不匹配
     """
+    # 检查 Token 是否在黑名单中
+    if token:
+        await _check_token_blacklist(token)
+
     # 获取医生详情，同时加载关联的科室和门店
     result = await db.execute(
         select(Doctor)
@@ -267,17 +303,9 @@ async def _get_admin_account(
     Raises:
         HTTPException: 管理员不存在、被禁用、租户有问题等
     """
-    # 检查 Token 是否在黑名单中（优先使用 payload 中的 tenant_id）
+    # 检查 Token 是否在黑名单中
     if check_token_blacklist:
-        token_hash = hashlib.sha256(token.encode()).hexdigest()[:32]
-        payload = decode_token(token)
-        if payload:
-            token_tenant_id = payload.get("tenant_id")
-            if await RedisCache.is_token_blacklisted(token_hash, tenant_id=token_tenant_id):
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="登录已失效，请重新登录"
-                )
+        await _check_token_blacklist(token)
 
     # 从 Admin 表获取管理员，同时加载关联的角色、租户、当前门店和所有绑定门店
     result = await db.execute(
@@ -545,10 +573,10 @@ async def get_current_account(
     if token_type == "admin":
         return await _get_admin_account(account_id, db, token)
     elif token_type == "doctor":
-        return await _get_doctor_account(account_id, db)
+        return await _get_doctor_account(account_id, db, token=token)
     else:
         # 默认为 User 表认证
-        return await _get_user_account(account_id, db)
+        return await _get_user_account(account_id, db, token=token)
 
 
 async def get_current_account_with_role(
