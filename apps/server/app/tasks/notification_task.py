@@ -7,7 +7,6 @@
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
-from enum import Enum
 
 from sqlalchemy import select, and_, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +25,7 @@ from app.models.notification_log import NotificationLog
 from app.models.settings import SystemSetting as Settings
 from app.models.tenant import Tenant
 from app.core.config import settings as app_settings
+from app.enums.general import ReminderLevel  # noqa: F401 — re-export
 from app.infrastructure.wechat.service import WechatService
 from app.infrastructure.wechat.token_manager import WechatTokenManager
 from app.middleware.tenant_context import set_tenant_context, clear_tenant_context
@@ -40,13 +40,6 @@ import httpx
 import asyncio
 
 logger = logging.getLogger(__name__)
-
-
-class ReminderLevel(str, Enum):
-    """提醒级别"""
-    LEVEL_24H = "24h"
-    LEVEL_2H = "2h"
-    LEVEL_30MIN = "30min"
 
 
 @dataclass

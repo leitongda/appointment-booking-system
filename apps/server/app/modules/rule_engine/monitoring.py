@@ -22,7 +22,7 @@ def monitor_performance(operation: str):
                 elif kwargs.get("shift_type_id"):
                     shift_type_id = kwargs["shift_type_id"]
 
-                from app.services.rule_performance_service import performance_monitor
+                from app.modules.rule_engine.rule_performance_service import performance_monitor
 
                 await performance_monitor.record_call(
                     operation=operation,
@@ -38,7 +38,7 @@ def monitor_performance(operation: str):
 
             except Exception as e:
                 duration_ms = (time_module.time() - start_time) * 1000
-                from app.services.rule_performance_service import performance_monitor
+                from app.modules.rule_engine.rule_performance_service import performance_monitor
 
                 await performance_monitor.record_call(
                     operation=operation,

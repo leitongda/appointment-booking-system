@@ -4,14 +4,8 @@
 """
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, List
-from enum import Enum
 
-
-class RoleType(str, Enum):
-    """角色类型枚举"""
-    ADMIN = "admin"
-    DOCTOR = "doctor"
-    USER = "user"
+from app.enums.core import RoleType  # noqa: F401 — re-export
 
 
 @dataclass

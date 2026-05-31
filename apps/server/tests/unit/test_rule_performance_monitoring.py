@@ -6,7 +6,7 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
 
-from app.services.rule_performance_service import RulePerformanceService
+from app.modules.rule_engine.rule_performance_service import RulePerformanceService
 
 
 @pytest.fixture
@@ -19,7 +19,7 @@ def performance_service():
 async def test_record_call_with_monitoring_enabled(performance_service):
     """测试启用监控时记录调用"""
     with patch.object(performance_service, 'enabled', True):
-        with patch('app.services.rule_performance_service.asyncio.create_task') as mock_create_task:
+        with patch('app.modules.rule_engine.rule_performance_service.asyncio.create_task') as mock_create_task:
             await performance_service.record_call(
                 operation="test_operation",
                 duration_ms=50.5,
@@ -34,7 +34,7 @@ async def test_record_call_with_monitoring_enabled(performance_service):
 async def test_record_call_with_monitoring_disabled(performance_service):
     """测试禁用监控时不记录调用"""
     with patch.object(performance_service, 'enabled', False):
-        with patch('app.services.rule_performance_service.asyncio.create_task') as mock_create_task:
+        with patch('app.modules.rule_engine.rule_performance_service.asyncio.create_task') as mock_create_task:
             await performance_service.record_call(
                 operation="test_operation",
                 duration_ms=50.5
@@ -55,7 +55,7 @@ async def test_slow_query_detection(performance_service):
                     if kwargs.get('duration_ms', 0) >= 100:
                         await performance_service._record_slow_query(*args, **kwargs)
 
-                with patch('app.services.rule_performance_service.asyncio.create_task', side_effect=mock_record):
+                with patch('app.modules.rule_engine.rule_performance_service.asyncio.create_task', side_effect=mock_record):
                     # 测试超过阈值的查询
                     await performance_service.record_call(
                         operation="test_operation",

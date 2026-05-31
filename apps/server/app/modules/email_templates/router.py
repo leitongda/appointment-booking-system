@@ -15,7 +15,7 @@ from app.schemas.email_template import (
     EmailTestRequest,
 )
 from app.infrastructure.email.service import EmailService
-from app.services.email_template_service import EmailTemplateService
+from app.modules.email_templates.service import EmailTemplateService
 
 router = APIRouter()
 

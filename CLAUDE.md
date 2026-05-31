@@ -115,17 +115,41 @@ packages/
 ### 后端核心 (`apps/server/app/`)
 
 ```
-api/v1/          # 路由注册入口 — RouterRegistration dataclass, 49+ 模块动态 import
+api/v1/          # 路由注册入口 — RouterRegistration dataclass, 61+ 模块动态 import
 common/          # 统一认证 (auth_unified.py), 跨模块共享工具
 core/            # config.py (Settings), redis.py, logging.py, websocket.py, security.py
 db/session.py    # 双连接池: async (asyncpg) + sync (psycopg2, 供 Celery 使用)
+enums/           # 统一枚举定义 — 所有 Enum/StrEnum/IntEnum 的单一来源 (37 个枚举)
+constants/       # 统一业务常量 — dict/tuple 格式的非 Enum 常量
 middleware/      # tenant_context, exception, response, operation_log, request_log, rate_limit
-models/          # SQLAlchemy 模型 (40+ 表)
-schemas/         # Pydantic 请求/响应模式
+models/          # SQLAlchemy 模型 (55+ 表)
+schemas/         # Pydantic 请求/响应模式 (含 BaseSchema 基类统一 camelCase 配置)
 modules/         # 业务模块 (router.py + service.py, 复杂模块拆分 service_mutation.py / service_query.py)
 tasks/           # Celery 定时/异步任务
 utils/           # 工具函数
 ```
+
+### 枚举与常量归属规则
+
+| 内容类型 | 存放位置 | 示例 |
+|----------|----------|------|
+| Python Enum/StrEnum/IntEnum | `app/enums/` | `MessageType`, `FeedbackType`, `RoleType` |
+| dict/tuple 业务常量 | `app/constants/` | `APPOINTMENT_STATUS`, `ACTIVE_APPOINTMENT_STATUSES` |
+| 跨模块认证/权限工具 | `app/common/` | `auth_unified.py`, `permission_deps.py` |
+| 纯工具函数 | `app/utils/` | `audit.py`, `datetime.py` |
+
+**判断标准**：
+- 如果是 `class Xxx(str, Enum)` → `enums/`
+- 如果是 `KEY = value` 的 dict/tuple/list → `constants/`
+- 如果是带依赖注入的函数或数据类 → `common/`
+- 如果是无状态的纯函数 → `utils/`
+- 数据库 Integer 映射的状态码（如 `APPOINTMENT_STATUS = {"CONFIRMED": 1}`）保持 dict 格式放 `constants/`，不转 IntEnum
+
+### Schema 基类
+
+所有需要 camelCase 序列化的 Pydantic schema 应继承 `BaseSchema`（`app/schemas/base.py`），
+而非手动配置 `model_config = ConfigDict(alias_generator=to_camel, ...)`。
+`to_camel` 的唯一定义在 `app/schemas/response.py`。
 
 每个业务模块的标准结构: `modules/<name>/router.py` 定义路由, 业务逻辑在 service 层。
 
@@ -147,7 +171,7 @@ Pydantic schema 放置位置遵循以下规则：
 - **判断标准**：grep 确认 import 来源，仅 1 个消费者 → 模块内；2+ 消费者 → 全局
 - **大模块拆分**：service 超过 500 行时，按读写拆分为 `service_query.py` + `service_mutation.py`
 - **迁移步骤**：1) 在模块内创建 service.py → 2) 更新 router.py import → 3) 更新测试 import → 4) 删除旧文件
-- **当前全局 services**：`email_template_service.py`（2 消费者）、`rule_performance_service.py`（2 消费者）
+- **当前全局 services**：仅保留 re-export wrapper，实际实现已迁移到模块内
 
 ### 模块目录命名规则
 
@@ -183,7 +207,7 @@ Pydantic schema 放置位置遵循以下规则：
 
 ### 前端共享包
 
-- **@hospital/api** (`packages/api/`): 统一 HTTP 请求封装, 25+ API 模块, 内置性能监控 (createApiTimer)、重试逻辑 (withRetry)、RSA 加密、Taro 适配器。
+- **@hospital/api** (`packages/api/`): 统一 HTTP 请求封装, 54+ API 模块, 内置性能监控 (createApiTimer)、重试逻辑 (withRetry)、RSA 加密、Taro 适配器。
 - **@hospital/shared** (`packages/shared/`): 常量、19+ 领域类型文件、工具函数、性能监控。注意: components 目录不通过 barrel export 导出以避免 pro-components 依赖膨胀。
 
 ### 前端配置模式 (admin 为例)
@@ -244,11 +268,11 @@ alembic history                              # 查看迁移历史
 
 - `apps/server/app/main.py` — FastAPI 入口, 中间件栈, 生命周期 (连接池预热, 超管校验, 黑名单自动释放)
 - `apps/server/app/core/config.py` — Settings (环境变量映射, 连接池配置, 限流参数)
-- `apps/server/app/api/v1/__init__.py` — RouterRegistration dataclass, 49+ 模块动态 import
+- `apps/server/app/api/v1/__init__.py` — RouterRegistration dataclass, 61+ 模块动态 import
 - `apps/server/app/common/auth_unified.py` — 统一认证 (3 核心函数, User/Doctor/Admin 三角色)
 - `apps/server/app/middleware/tenant_context.py` — 多租户核心 (4 种识别方式, ContextVar)
 - `apps/server/app/middleware/exception.py` — 全局异常处理 (BusinessError 层级, SQLAlchemy 错误映射)
-- `packages/api/src/index.ts` — 前端 API 包入口 (25+ 模块, 性能监控, 重试, RSA, Taro 适配)
+- `packages/api/src/index.ts` — 前端 API 包入口 (54+ 模块, 性能监控, 重试, RSA, Taro 适配)
 - `apps/admin/config/routes/` — 按业务域拆分的路由模块 (platform, medical-services, organization, operations, system)
 - `apps/server/tests/conftest.py` — 测试 fixtures (内存 SQLite + mock Redis, 完整 FK 链测试数据)
 
@@ -382,7 +406,7 @@ Version rule:
 - `test:e2e:headed` — 有头浏览器
 - `test:e2e:debug` — 调试模式
 
-## Baisc Infos
+## Basic Infos
 
 Unless directly relevant to the user's current question, you should avoid proactively mentioning, illustrating, or trailing off into the following information in 99% of cases:
 

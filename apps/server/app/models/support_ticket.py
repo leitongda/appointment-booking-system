@@ -1,4 +1,3 @@
-import enum
 import uuid
 from datetime import datetime
 
@@ -6,33 +5,11 @@ from sqlalchemy import Column, DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import JSON
 
 from app.db.base import Base
-
-
-class SupportTicketType(str, enum.Enum):
-    """工单类型"""
-
-    SUGGESTION = "suggestion"  # 建议
-    COMPLAINT = "complaint"  # 投诉
-    BUG = "bug"  # 缺陷
-    OTHER = "other"  # 其他
-
-
-class SupportTicketStatus(str, enum.Enum):
-    """工单状态"""
-
-    PENDING = "pending"  # 待处理
-    PROCESSING = "processing"  # 处理中
-    RESOLVED = "resolved"  # 已解决
-    CLOSED = "closed"  # 已关闭
-
-
-class SupportTicketPriority(str, enum.Enum):
-    """工单优先级"""
-
-    LOW = "low"  # 低
-    MEDIUM = "medium"  # 中
-    HIGH = "high"  # 高
-    URGENT = "urgent"  # 紧急
+from app.enums.support_ticket import (  # noqa: F401 — re-export for backward compat
+    SupportTicketPriority,
+    SupportTicketStatus,
+    SupportTicketType,
+)
 
 
 class SupportTicket(Base):

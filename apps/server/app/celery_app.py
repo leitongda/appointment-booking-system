@@ -230,6 +230,13 @@ celery_app.conf.update(
             "schedule": crontab(hour=8, minute=0),
             "options": {"queue": "notification"},
         },
+
+        # 兼职费用结算扫描 - 每天下午 5 点
+        "freelance-generate-settlements": {
+            "task": "freelance.generate_settlements",
+            "schedule": crontab(hour=17, minute=0),
+            "options": {"queue": "scheduled"},
+        },
     },
 )
 
@@ -254,6 +261,7 @@ celery_app.autodiscover_tasks([
     "app.tasks.suspension_processing_task",
     "app.tasks.approval_task",
     "app.tasks.follow_up_task",
+    "app.tasks.freelance_task",
 ])
 
 # Flower 监控配置

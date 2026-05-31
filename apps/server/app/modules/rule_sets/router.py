@@ -125,7 +125,7 @@ async def get_performance_stats(
         - 慢查询数量
         - 平均调用速率
     """
-    from app.services.rule_performance_service import performance_monitor
+    from app.modules.rule_engine.rule_performance_service import performance_monitor
 
     stats = await performance_monitor.get_performance_stats(
         operation=operation,
@@ -167,7 +167,7 @@ async def get_slow_queries(
     Returns:
         慢查询列表，按时间倒序排列
     """
-    from app.services.rule_performance_service import performance_monitor
+    from app.modules.rule_engine.rule_performance_service import performance_monitor
 
     slow_queries = await performance_monitor.get_slow_queries(
         operation=operation,
@@ -207,7 +207,7 @@ async def clear_performance_metrics(
     Returns:
         清除结果
     """
-    from app.services.rule_performance_service import performance_monitor
+    from app.modules.rule_engine.rule_performance_service import performance_monitor
 
     result = await performance_monitor.clear_metrics(operation=operation)
 

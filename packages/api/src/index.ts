@@ -85,6 +85,7 @@ export { pointApi } from './modules/point';
 export { uploadApi } from './modules/upload';
 export { examinationReportApi } from './modules/examination-report';
 export { followUpApi, selfReportApi } from './modules/follow-up';
+export { freelancerApi, freelanceTaskApi, freelanceSettlementApi } from './modules/freelance';
 export { emailTemplateApi } from './modules/email-template';
 export { dataApi } from './modules/data';
 export type { ImportResult } from './modules/data';

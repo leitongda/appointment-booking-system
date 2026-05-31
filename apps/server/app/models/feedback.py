@@ -1,23 +1,7 @@
 from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey
 from app.db.base import Base, AuditMixin
+from app.enums.feedback import FeedbackStatus, FeedbackType  # noqa: F401 — re-export for backward compat
 import uuid
-import enum
-
-
-class FeedbackType(str, enum.Enum):
-    """反馈类型"""
-    SUGGESTION = "suggestion"  # 建议
-    COMPLAINT = "complaint"  # 投诉
-    BUG = "bug"  # 问题反馈
-    OTHER = "other"  # 其他
-
-
-class FeedbackStatus(str, enum.Enum):
-    """反馈状态"""
-    PENDING = "pending"  # 待处理
-    PROCESSING = "processing"  # 处理中
-    RESOLVED = "resolved"  # 已解决
-    CLOSED = "closed"  # 已关闭
 
 
 class Feedback(Base, AuditMixin):

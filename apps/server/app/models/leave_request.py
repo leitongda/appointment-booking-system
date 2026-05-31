@@ -1,21 +1,7 @@
 from sqlalchemy import Column, String, Integer, Text, Date, DateTime, ForeignKey
 from app.db.base import Base, AuditMixin
+from app.enums.schedule import RequestStatus, RequestType  # noqa: F401 — re-export for backward compat
 import uuid
-import enum
-
-
-class RequestType(str, enum.Enum):
-    """申请类型"""
-    STOP_CLINIC = "stop_clinic"  # 停诊申请
-    SCHEDULE_CHANGE = "schedule_change"  # 调班申请
-
-
-class RequestStatus(str, enum.Enum):
-    """申请状态"""
-    PENDING = "pending"  # 待审核
-    APPROVED = "approved"  # 已通过
-    REJECTED = "rejected"  # 已拒绝
-    CANCELLED = "cancelled"  # 已取消
 
 
 class LeaveRequest(Base, AuditMixin):

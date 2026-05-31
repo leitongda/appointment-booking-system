@@ -5,21 +5,11 @@
 内部通过 Celery task.delay() 投递到异步队列，不阻塞主流程。
 """
 import logging
-from enum import Enum
 from typing import Dict, Any, Optional
 
+from app.enums.core import EventType  # noqa: F401 — re-export
+
 logger = logging.getLogger(__name__)
-
-
-class EventType(str, Enum):
-    """业务事件类型"""
-    APPOINTMENT_CREATED = "appointment_created"       # 新预约
-    APPOINTMENT_CANCELLED = "appointment_cancelled"   # 预约取消
-    CHECKIN = "checkin"                               # 患者签到
-    CALL_PATIENT = "call_patient"                     # 叫号
-    VISIT_COMPLETED = "visit_completed"               # 就诊完成
-    NO_SHOW = "no_show"                               # 爽约
-    SCHEDULE_SUSPENDED = "schedule_suspended"          # 停诊
 
 
 # 事件类型中文描述映射

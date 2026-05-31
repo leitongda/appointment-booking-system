@@ -45,6 +45,7 @@ MODULE_MAPPING = {
     "/consultation-fees": "诊费管理",
     "/doctor-booking-settings": "预约设置",
     "/email-templates": "邮件模板",
+    "/freelance-fees": "兼职费用",
 }
 
 # 操作映射：根据 HTTP 方法识别操作类型
@@ -122,6 +123,10 @@ def _get_action_name(method: str, path: str) -> str:
         return "发布"
     if "/unpublish" in clean_path:
         return "取消发布"
+    if "/generate" in clean_path:
+        return "生成"
+    if "/paid" in clean_path:
+        return "标记支付"
     
     return base_action
 

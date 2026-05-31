@@ -279,7 +279,7 @@ class TestRulePerformanceTenantIsolation:
         场景：为两个租户构建同一操作的计数器 key
         预期：key 格式为 rule_engine:{tenant_id}:counter:{operation}
         """
-        from app.services.rule_performance_service import RulePerformanceService
+        from app.modules.rule_engine.rule_performance_service import RulePerformanceService
 
         svc = RulePerformanceService()
 
@@ -292,7 +292,7 @@ class TestRulePerformanceTenantIsolation:
 
     def test_latency_key_includes_tenant_id(self):
         """测试延迟统计 key 包含租户 ID"""
-        from app.services.rule_performance_service import RulePerformanceService
+        from app.modules.rule_engine.rule_performance_service import RulePerformanceService
 
         svc = RulePerformanceService()
 
@@ -305,7 +305,7 @@ class TestRulePerformanceTenantIsolation:
 
     def test_slow_query_key_includes_tenant_id(self):
         """测试慢查询 key 包含租户 ID"""
-        from app.services.rule_performance_service import RulePerformanceService
+        from app.modules.rule_engine.rule_performance_service import RulePerformanceService
 
         svc = RulePerformanceService()
 
@@ -318,7 +318,7 @@ class TestRulePerformanceTenantIsolation:
 
     def test_key_without_tenant_uses_global(self):
         """测试无租户 ID 时使用 global 占位"""
-        from app.services.rule_performance_service import RulePerformanceService
+        from app.modules.rule_engine.rule_performance_service import RulePerformanceService
 
         svc = RulePerformanceService()
 
@@ -331,7 +331,7 @@ class TestRulePerformanceTenantIsolation:
 
     def test_all_key_types_isolated_for_same_operation(self):
         """测试同一操作的不同类型 key（counter/latency/slow）在两个租户间完全隔离"""
-        from app.services.rule_performance_service import RulePerformanceService
+        from app.modules.rule_engine.rule_performance_service import RulePerformanceService
 
         svc = RulePerformanceService()
         operation = "get_applicable_rule_set"
@@ -362,7 +362,7 @@ class TestRulePerformanceTenantIsolation:
     @patch("app.services.rule_performance_service.get_current_tenant_id", return_value="ctx-tenant-1")
     def test_tenant_id_from_context_when_not_provided(self, mock_ctx):
         """测试未显式传入 tenant_id 时从上下文获取"""
-        from app.services.rule_performance_service import RulePerformanceService
+        from app.modules.rule_engine.rule_performance_service import RulePerformanceService
 
         svc = RulePerformanceService()
 
@@ -372,7 +372,7 @@ class TestRulePerformanceTenantIsolation:
 
     def test_explicit_tenant_id_overrides_context(self):
         """测试显式传入的 tenant_id 优先于上下文"""
-        from app.services.rule_performance_service import RulePerformanceService
+        from app.modules.rule_engine.rule_performance_service import RulePerformanceService
 
         svc = RulePerformanceService()
 

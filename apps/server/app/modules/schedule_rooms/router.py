@@ -5,17 +5,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.session import get_db
 from app.api.deps import get_current_admin, get_store_filter, check_store_access, require_permission
-from app.schemas.response import PageResponse
+from app.schemas.response import PageResponse, to_camel
 from app.modules.schedule_rooms.service import ScheduleRoomService
 from app.core.config import settings
 
 router = APIRouter()
-
-
-def to_camel(string: str) -> str:
-    components = string.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
-
 
 # ==================== Pydantic Schemas ====================
 
@@ -34,10 +28,8 @@ class ScheduleRoomBase(BaseModel):
     status: int = Field(1, ge=0, le=1, description="状态: 0禁用 1启用")
     remark: Optional[str] = Field(None, max_length=500, description="备注")
 
-
 class ScheduleRoomCreate(ScheduleRoomBase):
     pass
-
 
 class ScheduleRoomUpdate(BaseModel):
     model_config = ConfigDict(
@@ -53,7 +45,6 @@ class ScheduleRoomUpdate(BaseModel):
     capacity: Optional[int] = Field(None, ge=1, description="容量")
     status: Optional[int] = Field(None, ge=0, le=1, description="状态: 0禁用 1启用")
     remark: Optional[str] = Field(None, max_length=500, description="备注")
-
 
 class ScheduleRoomResponse(BaseModel):
     model_config = ConfigDict(
@@ -77,7 +68,6 @@ class ScheduleRoomResponse(BaseModel):
     created_at: object = None
     updated_at: object = None
 
-
 def _to_response(room) -> ScheduleRoomResponse:
     data = ScheduleRoomResponse.model_validate(room)
     if room.store:
@@ -85,7 +75,6 @@ def _to_response(room) -> ScheduleRoomResponse:
     if room.department:
         data.department_name = room.department.name
     return data
-
 
 # ==================== Routes ====================
 
@@ -118,7 +107,6 @@ async def get_schedule_rooms(
         page_size=page_size,
     )
 
-
 @router.get("/{room_id}", response_model=ScheduleRoomResponse, summary="获取诊室详情")
 async def get_schedule_room(
     room_id: str,
@@ -134,7 +122,6 @@ async def get_schedule_room(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="您无权访问此诊室")
 
     return _to_response(room)
-
 
 @router.post("", response_model=ScheduleRoomResponse, summary="创建诊室")
 async def create_schedule_room(
@@ -158,7 +145,6 @@ async def create_schedule_room(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="同门店下已存在同名诊室")
         raise
     return _to_response(room)
-
 
 @router.put("/{room_id}", response_model=ScheduleRoomResponse, summary="更新诊室")
 async def update_schedule_room(
@@ -187,7 +173,6 @@ async def update_schedule_room(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="同门店下已存在同名诊室")
         raise
     return _to_response(room)
-
 
 @router.delete("/{room_id}", summary="删除诊室")
 async def delete_schedule_room(

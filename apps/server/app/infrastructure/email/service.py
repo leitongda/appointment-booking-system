@@ -7,7 +7,7 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.settings.service import SettingsService
-from app.services.email_template_service import EmailTemplateService
+from app.modules.email_templates.service import EmailTemplateService
 
 
 class EmailService:

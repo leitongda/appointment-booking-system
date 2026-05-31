@@ -7,6 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.events import EventType, dispatch_event_email
+from app.constants.appointment import (
+    APPOINTMENT_STATUS,
+    ACTIVE_APPOINTMENT_STATUSES,
+    APPOINTMENT_QUERY_OPTIONS,
+)
+from app.enums.appointment import CheckinMethod as CHECKIN_METHOD
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.appointment import Appointment
 from app.models.rule_set import AppointmentCheckin  # noqa: F401
@@ -15,35 +21,6 @@ from app.models.schedule import Schedule
 from app.schemas.appointment import AppointmentStatistics
 
 logger = logging.getLogger(__name__)
-
-APPOINTMENT_QUERY_OPTIONS = (
-    selectinload(Appointment.schedule).selectinload(Schedule.store),
-    selectinload(Appointment.checkin_logs),
-)
-
-APPOINTMENT_STATUS = {
-    "CONFIRMED": 1,
-    "SIGNED": 2,
-    "SEEING": 4,
-    "COMPLETED": 5,
-    "CANCELLED": 6,
-    "EXPIRED": 7,
-    "NO_SHOW": 8,  # 爽约状态
-}
-
-# 签到方式常量
-CHECKIN_METHOD = {
-    "MANUAL": "MANUAL",      # 手动签到（默认）
-    "QR_CODE": "QR_CODE",    # 扫码签到
-    "PHONE": "PHONE",        # 手机签到（患者端自助）
-}
-
-ACTIVE_APPOINTMENT_STATUSES = (
-    0,  # 待支付
-    APPOINTMENT_STATUS["CONFIRMED"],
-    APPOINTMENT_STATUS["SIGNED"],
-    APPOINTMENT_STATUS["SEEING"],
-)
 
 
 class AppointmentServiceBase:
