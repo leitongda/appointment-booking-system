@@ -36,7 +36,6 @@ from app.common.account_sync import AccountSyncService
 from app.common.auth_types import AccountInfo
 from app.common.auth_unified import get_current_account
 from app.common.security_settings import get_token_expire_config
-import hashlib as _auth_hashlib
 
 router = APIRouter()
 
@@ -143,7 +142,7 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
         )
     )
     from fastapi.responses import JSONResponse
-    resp = JSONResponse(content=login_resp.model_dump(by_alias=True))
+    resp = JSONResponse(content=login_resp.model_dump(mode="json", by_alias=True))
     if getattr(user, 'must_change_password', False):
         resp.headers["X-Password-Change-Required"] = "true"
     return resp
@@ -858,7 +857,7 @@ async def email_login(
         ),
     )
     from fastapi.responses import JSONResponse as _JSONResp
-    resp = _JSONResp(content=email_login_resp.model_dump(by_alias=True))
+    resp = _JSONResp(content=email_login_resp.model_dump(mode="json", by_alias=True))
     if getattr(user, 'must_change_password', False):
         resp.headers["X-Password-Change-Required"] = "true"
     return resp

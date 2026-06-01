@@ -138,6 +138,14 @@ export default defineConfig(async () => {
         chain.resolve.alias.set('react/jsx-runtime', path.resolve(reactPath, 'jsx-runtime.js'));
         chain.resolve.alias.set('react/jsx-dev-runtime', path.resolve(reactPath, 'jsx-dev-runtime.js'));
 
+        // 确保从 @hospital/shared 引用的组件也能正确解析 Taro/NutUI 依赖
+        // Taro weapp 构建时将 @tarojs/components alias 到 plugin-platform-weapp/dist/components-react
+        // 但 webpack 从 shared 包上下文解析时找不到 plugin-platform-weapp，需要显式 alias
+        const miniappNm = path.resolve(__dirname, '..', 'node_modules');
+        chain.resolve.alias.set('@tarojs/plugin-platform-weapp', path.resolve(miniappNm, '@tarojs/plugin-platform-weapp'));
+        chain.resolve.alias.set('@nutui/nutui-react-taro', path.resolve(miniappNm, '@nutui/nutui-react-taro'));
+        chain.resolve.alias.set('@hospital/api', path.resolve(miniappNm, '@hospital/api'));
+
         // 调整 performance 配置
         // 微信小程序分包后，主包限制是 2MB，单个分包限制是 2MB
         // 对于共享公共代码的小程序，入口点包含所有公共 chunks 是正常现象

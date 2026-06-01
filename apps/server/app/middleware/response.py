@@ -1,10 +1,12 @@
 """统一响应格式中间件"""
+import gzip
+import json
+from typing import Callable
+
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
-import json
-from typing import Callable
 
 
 # 不需要包装响应的路径（OpenAPI 文档相关）
@@ -47,6 +49,9 @@ class UnifiedResponseMiddleware(BaseHTTPMiddleware):
                 body += chunk
             
             try:
+                # GZipMiddleware 可能已压缩响应体，需先解压
+                if body[:2] == b'\x1f\x8b':
+                    body = gzip.decompress(body)
                 data = json.loads(body.decode())
                 
                 # 如果已经是统一格式，直接返回

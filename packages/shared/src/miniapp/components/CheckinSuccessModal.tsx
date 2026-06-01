@@ -1,6 +1,5 @@
 import { View, Text } from '@tarojs/components';
 import { Popup } from '@nutui/nutui-react-taro';
-import './CheckinSuccessModal.less';
 
 interface CheckinSuccessModalProps {
   visible: boolean;

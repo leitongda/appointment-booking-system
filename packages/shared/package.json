@@ -8,6 +8,14 @@
   "exports": {
     ".": "./src/index.ts",
     "./miniapp-auth": "./src/miniapp-auth.ts",
+    "./miniapp": "./src/miniapp/index.ts",
+    "./miniapp/*": "./src/miniapp/*.ts",
+    "./miniapp/*.tsx": "./src/miniapp/*.tsx",
+    "./miniapp/hooks": "./src/miniapp/hooks/index.ts",
+    "./miniapp/hooks/*": "./src/miniapp/hooks/*.ts",
+    "./miniapp/components": "./src/miniapp/components/index.ts",
+    "./miniapp/components/*": "./src/miniapp/components/*.tsx",
+    "./miniapp/stubs/*": "./src/miniapp/stubs/*.ts",
     "./components": "./src/components/index.ts",
     "./components/*": "./src/components/*/index.tsx"
   },
@@ -24,11 +32,23 @@
   },
   "peerDependencies": {
     "@ant-design/pro-components": ">=2.0.0",
+    "@hospital/api": "workspace:*",
+    "@nutui/nutui-react-taro": ">=3.0.0",
+    "@tarojs/components": ">=4.0.0",
     "@tarojs/taro": "^4.1.9",
     "antd": ">=5.0.0",
     "react": ">=18.0.0"
   },
   "peerDependenciesMeta": {
+    "@hospital/api": {
+      "optional": true
+    },
+    "@nutui/nutui-react-taro": {
+      "optional": true
+    },
+    "@tarojs/components": {
+      "optional": true
+    },
     "@tarojs/taro": {
       "optional": true
     }

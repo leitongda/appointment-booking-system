@@ -9,7 +9,8 @@ import { DoctorIcon, CheckCircleIcon } from '../../../components/Icons';
 import { useProtectedPage } from '../../../hooks/useProtectedPage';
 import { useApplyThemeNavigationBar, useThemePrimaryColor } from '../../../utils/theme';
 import LoginPopup from '../../../components/LoginPopup';
-import CheckinSuccessModal from '../../components/CheckinSuccessModal';
+import { CheckinSuccessModal } from '@hospital/shared/miniapp';
+import '../../components/CheckinSuccessModal.less';
 import './select.less';
 
 // 辅助函数：格式化剩余时间（智能显示天/时/分/秒）

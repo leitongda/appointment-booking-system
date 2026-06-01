@@ -132,7 +132,7 @@ def _build_login_response(admin, access_token: str, refresh_token: str, expires_
         store=first_store,
         stores=stores_list,
     )
-    return response.model_dump(by_alias=True)
+    return response.model_dump(mode="json", by_alias=True)
 
 
 def _build_admin_access_token_payload(admin) -> dict:
@@ -221,7 +221,7 @@ async def admin_login(
         store=available_stores and StoreInfo.model_validate(available_stores[0]) or None,
         stores=build_stores_list(available_stores),
     )
-    resp = JSONResponse(content=response.model_dump(by_alias=True))
+    resp = JSONResponse(content=response.model_dump(mode="json", by_alias=True))
     if admin.must_change_password:
         resp.headers["X-Password-Change-Required"] = "true"
     return resp
