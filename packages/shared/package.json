@@ -32,7 +32,6 @@
   },
   "peerDependencies": {
     "@ant-design/pro-components": ">=2.0.0",
-    "@hospital/api": "workspace:*",
     "@nutui/nutui-react-taro": ">=3.0.0",
     "@tarojs/components": ">=4.0.0",
     "@tarojs/taro": "^4.1.9",
@@ -40,9 +39,6 @@
     "react": ">=18.0.0"
   },
   "peerDependenciesMeta": {
-    "@hospital/api": {
-      "optional": true
-    },
     "@nutui/nutui-react-taro": {
       "optional": true
     },
