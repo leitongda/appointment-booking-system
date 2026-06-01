@@ -61,4 +61,4 @@ wechatpayv3==2.0.2
 
 # 可观测性
 prometheus-client==0.21.1
-sentry-sdk[fastapi]==2.27.0
+sentry-sdk[fastapi]==2.61.0
