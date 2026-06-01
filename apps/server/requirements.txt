@@ -11,7 +11,7 @@ alembic==1.15.2
 
 # 数据校验
 pydantic==2.11.3
-pydantic-settings==2.9.1
+pydantic-settings==2.14.1
 email-validator==2.3.0
 
 # 认证
