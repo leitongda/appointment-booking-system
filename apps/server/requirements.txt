@@ -33,6 +33,7 @@ httpx==0.28.1
 aiofiles==25.1.0
 pytz==2026.1.post1
 Jinja2==3.1.6
+structlog==25.4.0
 
 # 邮件发送
 aiosmtplib==5.1.0
