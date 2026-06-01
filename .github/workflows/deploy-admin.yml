@@ -92,7 +92,7 @@ jobs:
 
       # ==================== 9. 上传到服务器并部署 ====================
       - name: 🚀 Deploy to Server
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.CVM_HOST }}
           username: ${{ secrets.CVM_USERNAME }}
@@ -132,7 +132,7 @@ jobs:
 
       # ==================== 11. 解压并完成部署 ====================
       - name: 📂 Extract and finalize deployment
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.CVM_HOST }}
           username: ${{ secrets.CVM_USERNAME }}
