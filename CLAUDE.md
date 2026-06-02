@@ -19,8 +19,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 |---|---|
 | Monorepo | pnpm 10 + Turbo 2 |
 | 前端 (admin/doctor/patient-h5) | React 18 + TypeScript + Umi 4 |
-| 前端 UI | Ant Design 5 + ProComponents (admin/doctor), Ant Design Mobile (patient-h5) |
-| 小程序 | Taro 3 + NutUI |
+| 前端 UI | Ant Design 6 + ProComponents (admin), Ant Design 5 + ProComponents (doctor), Ant Design Mobile (patient-h5) |
+| 小程序 | Taro 4 + NutUI |
 | 后端 | Python 3.12+ / FastAPI / SQLAlchemy 2.x (async) |
 | 数据库 | PostgreSQL 16 |
 | 缓存 | Redis 7 |
@@ -101,7 +101,7 @@ apps/
   admin/                     # 机构端后台管理 (Umi 4, port 9105)
   doctor/                    # 医生端工作台 (Umi 4, port 9103)
   patient-h5/                # 患者端 H5 (Umi 4, port 9102)
-  patient-miniapp/           # 患者端微信小程序 (Taro 3 + NutUI)
+  patient-miniapp/           # 患者端微信小程序 (Taro 4 + NutUI)
   mini-appointment-miniapp/  # 临时挂号小程序 (独立 Taro 项目)
   miniapp-instance/          # 多实例小程序
   temp-registration/         # 临时挂号 H5 (Umi 4)
@@ -115,17 +115,18 @@ packages/
 ### 后端核心 (`apps/server/app/`)
 
 ```
-api/v1/          # 路由注册入口 — RouterRegistration dataclass, 61+ 模块动态 import
+api/v1/          # 路由注册入口 — RouterRegistration dataclass, 81 个模块动态 import
 common/          # 统一认证 (auth_unified.py), 跨模块共享工具
 core/            # config.py (Settings), redis.py, logging.py, websocket.py, security.py
 db/session.py    # 双连接池: async (asyncpg) + sync (psycopg2, 供 Celery 使用)
-enums/           # 统一枚举定义 — 所有 Enum/StrEnum/IntEnum 的单一来源 (37 个枚举)
+enums/           # 统一枚举定义 — 所有 Enum/StrEnum/IntEnum 的单一来源
 constants/       # 统一业务常量 — dict/tuple 格式的非 Enum 常量
-middleware/      # tenant_context, exception, response, operation_log, request_log, rate_limit
-models/          # SQLAlchemy 模型 (55+ 表)
+middleware/      # tenant_context, exception, response, operation_log, request_log, rate_limit, prometheus, security_headers, deprecation
+models/          # SQLAlchemy 模型 (90 个模型类)
 schemas/         # Pydantic 请求/响应模式 (含 BaseSchema 基类统一 camelCase 配置)
 modules/         # 业务模块 (router.py + service.py, 复杂模块拆分 service_mutation.py / service_query.py)
-tasks/           # Celery 定时/异步任务
+infrastructure/  # 基础设施层: email, sms, storage, payments, notifications, excel, image, wechat
+tasks/           # Celery 定时/异步任务 (22 个 beat 任务)
 utils/           # 工具函数
 ```
 
@@ -207,7 +208,7 @@ Pydantic schema 放置位置遵循以下规则：
 
 ### 前端共享包
 
-- **@hospital/api** (`packages/api/`): 统一 HTTP 请求封装, 54+ API 模块, 内置性能监控 (createApiTimer)、重试逻辑 (withRetry)、RSA 加密、Taro 适配器。
+- **@hospital/api** (`packages/api/`): 统一 HTTP 请求封装, 57+ API 模块, 内置性能监控 (createApiTimer)、重试逻辑 (withRetry)、RSA 加密、Taro 适配器。
 - **@hospital/shared** (`packages/shared/`): 常量、19+ 领域类型文件、工具函数、性能监控。注意: components 目录不通过 barrel export 导出以避免 pro-components 依赖膨胀。
 
 ### 前端配置模式 (admin 为例)
@@ -236,7 +237,7 @@ config/
 
 ### 中间件执行顺序 (请求方向)
 
-TenantContext -> UnifiedResponse -> OperationLog -> RequestLog -> RateLimit -> CORS
+Prometheus -> TenantContext -> UnifiedResponse -> Deprecation -> OperationLog -> RequestLog -> RateLimit -> SecurityHeaders -> GZip -> CORS
 
 租户上下文最先执行, CORS 最后 (添加顺序的逆序)。
 
@@ -254,6 +255,41 @@ Response 中间件自动包装, 有双重包装检测。异常由 exception 中�
 - `scheduled`: 定时任务 (排班生成、预约提醒、爽约检测、用量统计等)
 - `notification`: 通知推送
 
+22 个 beat 定时任务覆盖: 黑名单自动释放、预约三级提醒、爽约标记、排班生成、微信 token 刷新、数据清理、租户用量/订阅检查、支付超时/对账、退款同步、排班暂停处理、排班对账、审批超时、通知重试、行为日志清理、随访任务、自由职业结算。
+
+### 基础设施层 (`app/infrastructure/`)
+
+与业务模块解耦的基础设施服务，每个子目录对应一个独立关注点:
+
+- `email/` — 邮件发送 (aiosmtplib)
+- `sms/` — 短信 (mock/aliyun, 工厂模式)
+- `storage/` — 文件存储 (local/minio/cos, 抽象层)
+- `payments/` — 微信支付 (wechatpayv3)
+- `notifications/` — 多渠道通知调度 (email/in_app/sms/websocket/wechat), 配额管理
+- `excel/` — 导入导出 (openpyxl)
+- `image/` — 图片处理 (Pillow)
+- `wechat/` — 微信服务、token 管理、小程序发布
+
+### CI/CD (GitHub Actions)
+
+| 工作流 | 触发条件 | 内容 |
+|--------|----------|------|
+| `test.yml` | PR/Push main | pytest (单元+集成+Alembic迁移) + ruff lint + pip-audit 安全扫描 |
+| `build-frontend.yml` | 手动/推送 | 构建全部前端，scp 部署到腾讯云 |
+| `build-server.yml` | 手动/推送 | SSH 部署，docker compose 重建，生成 llms.txt |
+| `deploy-admin.yml` | 手动 | admin 专项部署，带压缩 + 5 份备份轮转 |
+| `security.yml` | 每周一 + PR | Trivy 镜像/配置扫描 (CRITICAL/HIGH) |
+| `e2e.yml` | 手动/推送 | Playwright 4 分片，合并 HTML 报告 |
+
+Dependabot: pip/npm/GitHub Actions 每周自动更新。
+
+### 监控
+
+- Prometheus (`monitoring/prometheus.yml`): 抓取后端 `/metrics` 端点
+- Grafana (`monitoring/grafana/`): 预配置 `hospital-api.json` 仪表盘
+- 后端健康检查: `/health`、`/health/live`、`/health/ready` (DB+Redis)、`/health/detailed` (连接池/Redis内存/Celery/磁盘)
+- Celery Flower: 端口 5555，基本认证
+
 ## Database Migrations
 
 ```bash
@@ -268,13 +304,16 @@ alembic history                              # 查看迁移历史
 
 - `apps/server/app/main.py` — FastAPI 入口, 中间件栈, 生命周期 (连接池预热, 超管校验, 黑名单自动释放)
 - `apps/server/app/core/config.py` — Settings (环境变量映射, 连接池配置, 限流参数)
-- `apps/server/app/api/v1/__init__.py` — RouterRegistration dataclass, 61+ 模块动态 import
+- `apps/server/app/api/v1/__init__.py` — RouterRegistration dataclass, 81 个模块动态 import
 - `apps/server/app/common/auth_unified.py` — 统一认证 (3 核心函数, User/Doctor/Admin 三角色)
 - `apps/server/app/middleware/tenant_context.py` — 多租户核心 (4 种识别方式, ContextVar)
 - `apps/server/app/middleware/exception.py` — 全局异常处理 (BusinessError 层级, SQLAlchemy 错误映射)
-- `packages/api/src/index.ts` — 前端 API 包入口 (54+ 模块, 性能监控, 重试, RSA, Taro 适配)
+- `packages/api/src/index.ts` — 前端 API 包入口 (57+ 模块, 性能监控, 重试, RSA, Taro 适配)
 - `apps/admin/config/routes/` — 按业务域拆分的路由模块 (platform, medical-services, organization, operations, system)
+- `apps/server/app/infrastructure/` — 基础设施层 (email/sms/storage/payments/notifications/excel/image/wechat)
+- `apps/server/scripts/generate_llms_txt.py` — LLMs.txt 生成脚本，提供 `/llms.txt`、`/llms-full.txt` 等 AI 友好端点
 - `apps/server/tests/conftest.py` — 测试 fixtures (内存 SQLite + mock Redis, 完整 FK 链测试数据)
+- `reviews/lowcode-miniapp-research.md` — 低代码拖拽平台生成小程序的深度研究报告（技术方案、开源平台、拖拽引擎、医疗SaaS案例、ROI分析）
 
 ## Environment
 
