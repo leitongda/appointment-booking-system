@@ -1,0 +1,234 @@
+/** 低代码页面类型定义 */
+
+// ---------------------------------------------------------------------------
+// Data binding types
+// ---------------------------------------------------------------------------
+
+/** API 数据源定义 */
+export interface ApiDataSource {
+  id: string;
+  /** 数据源显示名称 */
+  name?: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  url: string;
+  headers?: Record<string, string>;
+  params?: Record<string, any>;
+  /** 从响应中提取数据的路径，如 "data.list" */
+  dataPath?: string;
+  /** 轮询间隔（毫秒），0 或 undefined 表示不轮询 */
+  pollingInterval?: number;
+  /** 是否手动触发，默认 false（页面加载时自动请求） */
+  manual?: boolean;
+}
+
+/** 事件动作类型 */
+export interface EventAction {
+  type: 'setData' | 'fetchApi' | 'navigate' | 'showToast' | 'updateVariable';
+  payload: Record<string, any>;
+}
+
+/** 事件处理器 */
+export interface EventHandler {
+  event: string;
+  actions: EventAction[];
+}
+
+/** 循环渲染配置 */
+export interface LoopConfig {
+  /** 数据源表达式，如 "{{api.users.data}}" */
+  dataSource: string;
+  /** 循环项变量名，默认 "item" */
+  itemName?: string;
+  /** 循环索引变量名，默认 "index" */
+  indexName?: string;
+}
+
+/** 数据绑定配置 */
+export interface DataBindingConfig {
+  /** 属性到表达式的映射，如 { "text": "{{state.title}}" } */
+  bindings: Record<string, string>;
+  /** 关联事件 */
+  events?: EventHandler[];
+}
+
+/** 页面级数据源定义 */
+export type PageDataSource = ApiDataSource;
+
+// ---------------------------------------------------------------------------
+// Page status
+// ---------------------------------------------------------------------------
+
+/** 页面状态 */
+export type LowCodePageStatus = 0 | 1 | 2; // draft | published | archived
+
+/** 低代码页面 */
+export interface LowCodePage {
+  id: string;
+  tenantId: string;
+  name: string;
+  slug: string;
+  description?: string;
+  schemaData: LowCodeSchema;
+  status: LowCodePageStatus;
+  thumbnailUrl?: string;
+  miniappInstanceId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 页面 Schema 根节点 */
+export interface LowCodeSchema {
+  componentName: string; // 'Page'
+  props: Record<string, any>;
+  children: LowCodeNode[];
+  /** 页面级数据源列表 */
+  dataSources?: ApiDataSource[];
+}
+
+/** Schema 组件节点 */
+export interface LowCodeNode {
+  id: string;
+  componentName: string;
+  props: Record<string, any>;
+  children?: LowCodeNode[];
+  /** 数据绑定配置 */
+  dataBinding?: DataBindingConfig;
+  /** 绑定的 API 数据源 */
+  api?: ApiDataSource;
+  /** 事件处理器列表 */
+  events?: EventHandler[];
+  /** 循环渲染配置 */
+  loop?: LoopConfig;
+  /** 可见性表达式，如 "{{state.showHeader}}" */
+  visible?: string;
+  /** 依赖的数据源或状态 key，用于控制刷新时机 */
+  dependOn?: string[];
+}
+
+/** 物料组件定义 */
+export interface MaterialComponent {
+  componentName: string;
+  title: string;
+  icon: string;
+  category: 'basic' | 'layout' | 'display' | 'form' | 'business';
+  defaultProps: Record<string, any>;
+  /** 属性面板配置 */
+  configureSchema: PropertyConfig[];
+}
+
+/** 属性配置项 */
+export interface PropertyConfig {
+  key: string;
+  label: string;
+  type: 'input' | 'number' | 'select' | 'color' | 'switch' | 'textarea' | 'image';
+  defaultValue?: any;
+  options?: { label: string; value: any }[];
+  placeholder?: string;
+}
+
+/** 创建页面请求 */
+export interface LowCodePageCreateData {
+  name: string;
+  slug: string;
+  description?: string;
+  schemaData?: Record<string, any>;
+  thumbnailUrl?: string;
+  miniappInstanceId?: string;
+}
+
+/** 更新页面请求 */
+export interface LowCodePageUpdateData {
+  name?: string;
+  slug?: string;
+  description?: string;
+  schemaData?: Record<string, any>;
+  status?: LowCodePageStatus;
+  thumbnailUrl?: string;
+  miniappInstanceId?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Template marketplace types
+// ---------------------------------------------------------------------------
+
+/** 模板市场模板 */
+export interface LowCodeTemplate {
+  id: string;
+  sourcePageId?: string;
+  name: string;
+  description?: string;
+  thumbnailUrl?: string;
+  category: string;
+  tags: string[];
+  version: string;
+  isPublic: boolean;
+  isOfficial: boolean;
+  downloadCount: number;
+  forkCount: number;
+  likeCount: number;
+  schemaData?: Record<string, any>;
+  dataSources?: Record<string, any>[];
+  authorId?: string;
+  authorName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/** 创建模板请求 */
+export interface LowCodeTemplateCreateData {
+  sourcePageId: string;
+  name: string;
+  category: string;
+  description?: string;
+  thumbnailUrl?: string;
+  tags?: string[];
+  isPublic?: boolean;
+}
+
+/** 更新模板元数据请求 */
+export interface LowCodeTemplateUpdateData {
+  name?: string;
+  description?: string;
+  thumbnailUrl?: string;
+  category?: string;
+  tags?: string[];
+  isPublic?: boolean;
+}
+
+/** 模板列表查询参数 */
+export interface LowCodeTemplateListParams {
+  category?: string;
+  keyword?: string;
+  sortBy?: 'popular' | 'newest' | 'forks';
+  page?: number;
+  pageSize?: number;
+}
+
+/** 模板版本历史项 */
+export interface LowCodeTemplateVersionItem {
+  id: string;
+  version: string;
+  changelog?: string;
+  /** 状态: 1草稿 2已发布 3已废弃 */
+  status: number;
+  createdAt?: string;
+  createdBy?: string;
+}
+
+/** 模板版本历史列表响应 */
+export interface LowCodeTemplateVersionListResponse {
+  currentVersion: string;
+  versions: LowCodeTemplateVersionItem[];
+}
+
+/** 模板分类项 */
+export interface LowCodeTemplateCategoryItem {
+  name: string;
+  count: number;
+}
+
+/** Fork 结果响应 */
+export interface LowCodeTemplateForkResponse {
+  pageId: string;
+  message: string;
+}

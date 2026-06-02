@@ -17,6 +17,7 @@
 import auth from './auth';
 import dashboard from './dashboard';
 import platform from './platform';
+import lowcode from './lowcode';
 import medicalServices from './medical-services';
 import finance from './finance';
 import organization from './organization';
@@ -33,6 +34,7 @@ const routes = [
   ...dashboard,
   ...screen,
   ...platform,
+  ...lowcode,
   ...medicalServices,
   ...finance,
   ...organization,

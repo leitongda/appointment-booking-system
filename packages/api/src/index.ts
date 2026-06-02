@@ -472,3 +472,33 @@ export type {
   ReleaseJobCreateData,
   ReleaseJobListParams,
 } from './modules/miniapp-platform';
+
+// LowCode types
+export { lowcodeApi } from './modules/lowcode';
+export type {
+  LowCodePageListParams,
+  DataSourceTestRequest,
+  DataSourceTestResponse,
+  DataSourceFieldSuggestion,
+  DeployStatus,
+  DeployStatusResponse,
+  DeployTriggerResponse,
+  PreviewQrResponse,
+  RollbackDeployResponse,
+  DeployHistoryItem,
+} from './modules/lowcode';
+
+// LowCode Template Marketplace
+export { lowcodeTemplateApi } from './modules/lowcode-template';
+export type { TemplateVersionCreateData } from './modules/lowcode-template';
+
+export type {
+  LowCodeTemplate,
+  LowCodeTemplateCreateData,
+  LowCodeTemplateUpdateData,
+  LowCodeTemplateListParams,
+  LowCodeTemplateVersionItem,
+  LowCodeTemplateVersionListResponse,
+  LowCodeTemplateCategoryItem,
+  LowCodeTemplateForkResponse,
+} from '@hospital/shared';

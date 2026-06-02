@@ -132,6 +132,20 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     'miniapp-platform:payment-profile',
     'miniapp-platform:instance',
   ]);
+  const canLowcode = isSuperAdmin || hasAnyPermission([
+    'lowcode',
+    'lowcode:page',
+    'lowcode:page:list',
+    'lowcode:page:create',
+    'lowcode:page:update',
+    'lowcode:page:delete',
+    'lowcode:page:publish',
+  ]);
+  const canLowcodeMarketplace = canLowcode || hasAnyPermission([
+    'lowcode:marketplace',
+    'lowcode:marketplace:view',
+    'lowcode:marketplace:publish',
+  ]);
   const canTenantUsage = canTenant;
   const canFreelance = hasModuleAccess('freelance', ['freelance:list', 'freelance:create', 'freelance:update', 'freelance:delete', 'freelance:settle']);
 
@@ -152,7 +166,7 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canSourceReleaseSettings ||
     canEmailTemplates ||
     canEmailRecipients;
-  const canPlatformManagement = canTenant || canTenantPlans || canMiniappPlatform;
+  const canPlatformManagement = canTenant || canTenantPlans || canMiniappPlatform || canLowcode;
   const canOrganizationManagement =
     canStore ||
     canDepartment ||
@@ -251,5 +265,7 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canTenantPlans,
     canTenantUsage,
     canFreelance,
+    canLowcode,
+    canLowcodeMarketplace,
   };
 }
