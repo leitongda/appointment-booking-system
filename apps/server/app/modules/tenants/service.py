@@ -17,6 +17,8 @@ from app.models.admin import Admin, Role
 from app.models.department import Department
 from app.models.doctor import Doctor
 from app.models.appointment import Appointment
+from app.models.lowcode_page import LowCodePage
+from app.models.miniapp_platform import MiniappInstance
 from app.modules.tenants.schemas import (
     TenantCreate, TenantUpdate, TenantSelfUpdateRequest, TenantQuery,
     SubscriptionPlanCreate, SubscriptionPlanUpdate,
@@ -487,6 +489,22 @@ class TenantService:
         )
         return result.scalar() or 0
 
+    async def get_lowcode_page_count(self, tenant_id: str) -> int:
+        """获取租户的低代码页面数量"""
+        result = await self.db.execute(
+            select(func.count(LowCodePage.id))
+            .where(LowCodePage.tenant_id == tenant_id)
+        )
+        return result.scalar() or 0
+
+    async def get_miniapp_instance_count(self, tenant_id: str) -> int:
+        """获取租户的小程序实例数量"""
+        result = await self.db.execute(
+            select(func.count(MiniappInstance.id))
+            .where(MiniappInstance.tenant_id == tenant_id)
+        )
+        return result.scalar() or 0
+
     async def check_code_exists(self, tenant_code: str, exclude_id: Optional[str] = None) -> bool:
         """检查租户编码是否已存在"""
         query = select(func.count(Tenant.id)).where(Tenant.tenant_code == tenant_code)
@@ -605,6 +623,20 @@ class TenantSubscriptionService:
                 old_plan.max_appointments_per_month,
                 new_plan.max_appointments_per_month,
                 self._get_month_appointment_count(tenant_id),
+            ),
+            (
+                "max_lowcode_pages",
+                "低代码页面",
+                old_plan.max_lowcode_pages,
+                new_plan.max_lowcode_pages,
+                tenant_svc.get_lowcode_page_count(tenant_id),
+            ),
+            (
+                "max_miniapp_instances",
+                "小程序实例",
+                old_plan.max_miniapp_instances,
+                new_plan.max_miniapp_instances,
+                tenant_svc.get_miniapp_instance_count(tenant_id),
             ),
         ]
 

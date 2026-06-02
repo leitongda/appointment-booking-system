@@ -33,6 +33,8 @@ class SubscriptionPlan(Base, AuditMixin):
     max_doctors = Column(Integer, default=50, comment="最大医生数")
     max_appointments_per_month = Column(Integer, default=1000, comment="月预约上限")
     max_storage_mb = Column(Integer, default=1024, comment="存储空间上限(MB)")
+    max_lowcode_pages = Column(Integer, default=5, comment="最大低代码页面数")
+    max_miniapp_instances = Column(Integer, default=3, comment="最大小程序实例数")
 
     # 功能开关（JSON格式）
     features = Column(Text, comment="功能开关配置(JSON)")
@@ -70,6 +72,8 @@ class Tenant(Base, AuditMixin):
     max_admins = Column(Integer, comment="最大管理员数（覆盖计划）")
     max_doctors = Column(Integer, comment="最大医生数（覆盖计划）")
     max_appointments_per_month = Column(Integer, comment="月预约上限（覆盖计划）")
+    max_lowcode_pages = Column(Integer, comment="最大低代码页面数（覆盖计划）")
+    max_miniapp_instances = Column(Integer, comment="最大小程序实例数（覆盖计划）")
 
     # 功能配置（JSON格式，覆盖计划默认值）
     features = Column(Text, comment="功能开关(JSON)")
@@ -146,6 +150,22 @@ class Tenant(Base, AuditMixin):
         if self.subscription_plan:
             return self.subscription_plan.max_appointments_per_month
         return 1000
+
+    def get_effective_max_lowcode_pages(self) -> int:
+        """获取有效的低代码页面上限"""
+        if self.max_lowcode_pages is not None:
+            return self.max_lowcode_pages
+        if self.subscription_plan:
+            return self.subscription_plan.max_lowcode_pages
+        return 5
+
+    def get_effective_max_miniapp_instances(self) -> int:
+        """获取有效的小程序实例上限"""
+        if self.max_miniapp_instances is not None:
+            return self.max_miniapp_instances
+        if self.subscription_plan:
+            return self.subscription_plan.max_miniapp_instances
+        return 3
 
     @property
     def is_subscription_active(self) -> bool:

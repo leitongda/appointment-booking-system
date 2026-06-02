@@ -193,6 +193,15 @@ class BuildJob(Base, AuditMixin):
     )
     trigger_source = Column(String(50), nullable=True, comment="触发来源")
     build_params = Column(Text, nullable=True, comment="构建参数(JSON)")
+    lowcode_page_id = Column(
+        String(36),
+        ForeignKey("lowcode_pages.id"),
+        nullable=True,
+        index=True,
+        comment="关联低代码页面ID",
+    )
+    build_log = Column(Text, nullable=True, comment="构建日志")
+    artifact_url = Column(String(500), nullable=True, comment="构建产物URL")
     status = Column(String(30), nullable=False, default="pending", comment="任务状态")
     started_at = Column(DateTime, nullable=True, comment="开始时间")
     finished_at = Column(DateTime, nullable=True, comment="结束时间")
@@ -200,6 +209,7 @@ class BuildJob(Base, AuditMixin):
     tenant = relationship("Tenant", backref="build_jobs")
     miniapp_instance = relationship("MiniappInstance", backref="build_jobs")
     template_version = relationship("TemplateVersion", backref="build_jobs")
+    lowcode_page = relationship("LowCodePage", backref="build_jobs", foreign_keys=[lowcode_page_id])
 
 
 class ReleaseArtifact(Base, AuditMixin):

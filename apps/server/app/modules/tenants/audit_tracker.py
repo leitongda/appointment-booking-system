@@ -27,6 +27,7 @@ TRACKED_MODELS = {
     "tenant": [
         "name", "status", "subscription_plan_id", "billing_cycle",
         "max_stores", "max_admins", "max_doctors", "max_appointments_per_month",
+        "max_lowcode_pages", "max_miniapp_instances",
         "features", "branding_config", "contact_name", "contact_phone",
         "contact_email", "address", "custom_domain", "subdomain",
     ],

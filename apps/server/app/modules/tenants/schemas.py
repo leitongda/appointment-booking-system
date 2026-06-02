@@ -73,7 +73,21 @@ class TenantFeatures(BaseModel):
     beta_analytics_v2: bool = Field(default=False, description="新版数据分析（实验性）")
     # beta_unified_message 已退役：统一消息系统已全量启用
 
+    # 低代码平台
+    lowcode_basic: bool = Field(default=True, description="低代码基础功能（默认开启，向后兼容）")
+    lowcode_advanced_components: bool = Field(default=False, description="低代码高级组件")
+    lowcode_custom_components: bool = Field(default=False, description="低代码自定义组件")
+    lowcode_data_binding: bool = Field(default=False, description="低代码数据绑定")
+    lowcode_codegen: bool = Field(default=False, description="低代码代码生成")
+    lowcode_marketplace: bool = Field(default=False, description="低代码组件市场")
+    lowcode_publish_miniapp: bool = Field(default=False, description="低代码发布小程序")
+    lowcode_export_code: bool = Field(default=False, description="低代码导出代码")
+    lowcode_max_pages: int = Field(default=5, ge=0, description="低代码最大页面数（0表示不限制）")
+
     model_config = ConfigDict(extra="allow")
+
+
+_QUOTA_FIELDS = frozenset({"lowcode_max_pages"})
 
 
 def _validate_features_json(v: Optional[str]) -> Optional[str]:
@@ -100,10 +114,17 @@ def _validate_features_json(v: Optional[str]) -> Optional[str]:
     except Exception as exc:
         raise ValueError(f"features 结构校验失败: {exc}") from exc
 
-    # 额外检查：所有值必须是布尔类型（防止传入奇怪的类型）
+    # 额外检查：值类型必须合法（bool 或 int，int 仅用于配额字段）
     for key, value in parsed.items():
-        if not isinstance(value, bool):
-            raise ValueError(f"features[\"{key}\"] 的值必须是布尔类型 (true/false)，当前值: {repr(value)}")
+        if isinstance(value, bool):
+            continue
+        # 配额字段允许 int 类型
+        if isinstance(value, int) and key in _QUOTA_FIELDS:
+            continue
+        raise ValueError(
+            f"features[\"{key}\"] 的值必须是布尔类型 (true/false)，"
+            f"当前值: {repr(value)}；配额字段需为整数"
+        )
 
     # 返回规范化 JSON（保留所有字段，包括额外字段）
     return json.dumps(parsed, sort_keys=True, ensure_ascii=False)
@@ -126,6 +147,8 @@ class SubscriptionPlanBase(BaseModel):
     max_doctors: int = Field(default=50, ge=1, description="最大医生数")
     max_appointments_per_month: int = Field(default=1000, ge=0, description="月预约上限")
     max_storage_mb: int = Field(default=1024, ge=100, description="存储空间上限(MB)")
+    max_lowcode_pages: int = Field(default=5, ge=0, description="最大低代码页面数")
+    max_miniapp_instances: int = Field(default=3, ge=0, description="最大小程序实例数")
 
     features: Optional[str] = Field(None, description="功能开关配置(JSON)")
     is_default: bool = Field(default=False, description="是否为默认计划")
@@ -152,6 +175,8 @@ class SubscriptionPlanUpdate(BaseModel):
     max_doctors: Optional[int] = Field(None, ge=1)
     max_appointments_per_month: Optional[int] = Field(None, ge=0)
     max_storage_mb: Optional[int] = Field(None, ge=100)
+    max_lowcode_pages: Optional[int] = Field(None, ge=0)
+    max_miniapp_instances: Optional[int] = Field(None, ge=0)
     features: Optional[str] = None
     status: Optional[int] = Field(None, ge=0, le=1)
     is_default: Optional[bool] = None
@@ -232,6 +257,8 @@ class TenantCreate(TenantBase):
     max_admins: Optional[int] = Field(None, ge=1, description="最大管理员数（覆盖计划）")
     max_doctors: Optional[int] = Field(None, ge=1, description="最大医生数（覆盖计划）")
     max_appointments_per_month: Optional[int] = Field(None, ge=0, description="月预约上限（覆盖计划）")
+    max_lowcode_pages: Optional[int] = Field(None, ge=0, description="最大低代码页面数（覆盖计划）")
+    max_miniapp_instances: Optional[int] = Field(None, ge=0, description="最大小程序实例数（覆盖计划）")
     features: Optional[str] = Field(None, description="功能开关(JSON)")
     branding_config: Optional[str] = Field(None, description="品牌配置(JSON)")
     password_policy: Optional[str] = Field(None, description="密码策略(JSON)")
@@ -275,6 +302,8 @@ class TenantUpdate(BaseModel):
     max_admins: Optional[int] = Field(None, ge=1)
     max_doctors: Optional[int] = Field(None, ge=1)
     max_appointments_per_month: Optional[int] = Field(None, ge=0)
+    max_lowcode_pages: Optional[int] = Field(None, ge=0)
+    max_miniapp_instances: Optional[int] = Field(None, ge=0)
     features: Optional[str] = None
     branding_config: Optional[str] = None
     password_policy: Optional[str] = None
@@ -333,6 +362,8 @@ class TenantResponse(TenantBase):
     max_admins: Optional[int] = None
     max_doctors: Optional[int] = None
     max_appointments_per_month: Optional[int] = None
+    max_lowcode_pages: Optional[int] = None
+    max_miniapp_instances: Optional[int] = None
     features: Optional[str] = None
     branding_config: Optional[str] = None
     password_policy: Optional[str] = None
