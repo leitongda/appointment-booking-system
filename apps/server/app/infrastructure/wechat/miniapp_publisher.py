@@ -171,7 +171,11 @@ class MiniappPublisher:
         url = f"{self.WECHAT_API_URL}/wxa/submit_audit"
 
         async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
-            response = await client.get(url, params={"access_token": token})
+            response = await client.post(
+                url,
+                params={"access_token": token},
+                json={},
+            )
             data = response.json()
 
         if data.get("errcode") != 0:

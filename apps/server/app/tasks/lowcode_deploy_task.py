@@ -13,6 +13,7 @@ import hashlib
 import json
 import logging
 import os
+import shutil
 import subprocess
 import tempfile
 from datetime import datetime
@@ -211,6 +212,7 @@ def build_lowcode_page_task(self, page_id: str, tenant_id: str):
             return {"success": False, "reason": error_msg, "build_job_id": build_job_id}
 
         # ---------- 写入临时目录并执行 Taro 构建 ----------
+        project_dir = None
         try:
             project_dir = tempfile.mkdtemp(prefix="lowcode_build_")
             _write_codegen_files(project_dir, codegen_result)
@@ -229,6 +231,9 @@ def build_lowcode_page_task(self, page_id: str, tenant_id: str):
             logger.error("[构建任务] %s", error_msg, exc_info=True)
             _fail_build_job(db, build_job_id, page_id, error_msg)
             return {"success": False, "reason": error_msg, "build_job_id": build_job_id}
+        finally:
+            if project_dir:
+                shutil.rmtree(project_dir, ignore_errors=True)
 
         # ---------- 存储构建产物 ----------
         try:
@@ -371,6 +376,7 @@ def upload_to_wechat_task(self, build_job_id: str, instance_id: str):
         db.commit()
 
         # ---------- 解压制品并上传 ----------
+        extract_dir = None
         try:
             extract_dir = _extract_artifact(artifact.file_path)
             version = release_job.target_version or "1.0.0"
@@ -427,6 +433,9 @@ def upload_to_wechat_task(self, build_job_id: str, instance_id: str):
                 "reason": error_msg,
                 "release_job_id": release_job_id,
             }
+        finally:
+            if extract_dir:
+                shutil.rmtree(extract_dir, ignore_errors=True)
 
 
 # ---------------------------------------------------------------------------
@@ -693,11 +702,14 @@ def publish_release_task(self, release_job_id: str):
     soft_time_limit=240,
 )
 def rollback_task(self, release_job_id: str, target_version: Optional[str] = None):
-    """回滚小程序到上一个已发布的版本。
+    """回滚小程序到指定版本或上一个已发布的版本。
+
+    如果提供了 target_version，重新上传该版本的构建产物并发布；
+    否则使用微信 revertcoderelease API 回退到上一个已发布版本。
 
     Args:
         release_job_id: 当前发布任务 ID (用于关联实例)
-        target_version: 目标版本号 (预留，当前使用微信 revert API 回退到上一版本)
+        target_version: 目标版本号 (可选，不传则回退到上一版本)
 
     Returns:
         dict: {"success": bool, "rollback_release_job_id": str, ...}
@@ -754,7 +766,67 @@ def rollback_task(self, release_job_id: str, target_version: Optional[str] = Non
                 app_secret=secrets["app_secret"],
             )
 
-            result = _run_async(publisher.rollback())
+            if target_version:
+                # 回滚到指定版本：查找该版本对应的构建产物并重新上传发布
+                target_artifact = _find_artifact_by_version(
+                    db, instance.id, target_version
+                )
+                if not target_artifact:
+                    error_msg = f"未找到版本 {target_version} 的构建产物"
+                    _fail_rollback_job(db, rollback_job_id, error_msg)
+                    return {
+                        "success": False,
+                        "reason": error_msg,
+                        "rollback_release_job_id": rollback_job_id,
+                    }
+
+                extract_dir = None
+                try:
+                    extract_dir = _extract_artifact(target_artifact.file_path)
+                    upload_result = _run_async(
+                        publisher.upload_code(
+                            project_path=extract_dir,
+                            version=target_version,
+                            desc=f"回滚到版本 {target_version}",
+                        )
+                    )
+                    if not upload_result.get("success"):
+                        error_msg = upload_result.get("error", "回滚上传失败")
+                        _fail_rollback_job(db, rollback_job_id, error_msg)
+                        return {
+                            "success": False,
+                            "reason": error_msg,
+                            "rollback_release_job_id": rollback_job_id,
+                        }
+
+                    # 上传成功后提交审核并发布
+                    audit_result = _run_async(publisher.submit_audit())
+                    if audit_result.get("errcode", -1) != 0:
+                        error_msg = audit_result.get("errmsg", "回滚审核提交失败")
+                        _fail_rollback_job(db, rollback_job_id, error_msg)
+                        return {
+                            "success": False,
+                            "reason": error_msg,
+                            "rollback_release_job_id": rollback_job_id,
+                        }
+
+                    release_result = _run_async(publisher.release())
+                    if release_result.get("errcode", -1) != 0:
+                        error_msg = release_result.get("errmsg", "回滚发布失败")
+                        _fail_rollback_job(db, rollback_job_id, error_msg)
+                        return {
+                            "success": False,
+                            "reason": error_msg,
+                            "rollback_release_job_id": rollback_job_id,
+                        }
+
+                    result = release_result
+                finally:
+                    if extract_dir:
+                        shutil.rmtree(extract_dir, ignore_errors=True)
+            else:
+                # 无指定版本，使用微信 revert API 回退到上一版本
+                result = _run_async(publisher.rollback())
 
             errcode = result.get("errcode", -1)
             if errcode != 0:
@@ -794,6 +866,35 @@ def rollback_task(self, release_job_id: str, target_version: Optional[str] = Non
 # ---------------------------------------------------------------------------
 # 内部工具
 # ---------------------------------------------------------------------------
+
+
+def _find_artifact_by_version(db, instance_id: str, version: str):
+    """根据版本号查找对应的构建产物。
+
+    查找该小程序实例最近一次成功的 upload ReleaseJob，其关联的 artifact
+    中 build_job 的 version 匹配。
+    """
+    # 查找所有成功的 upload 任务，关联到该实例
+    upload_jobs = db.execute(
+        select(ReleaseJob).where(
+            ReleaseJob.miniapp_instance_id == instance_id,
+            ReleaseJob.action == "upload",
+            ReleaseJob.status == "success",
+        ).order_by(ReleaseJob.created_at.desc())
+    ).scalars().all()
+
+    for job in upload_jobs:
+        if not job.target_version or job.target_version != version:
+            continue
+        if not job.artifact_id:
+            continue
+        artifact = db.execute(
+            select(ReleaseArtifact).where(ReleaseArtifact.id == job.artifact_id)
+        ).scalar_one_or_none()
+        if artifact and os.path.isfile(artifact.file_path):
+            return artifact
+
+    return None
 
 
 def _write_codegen_files(project_dir: str, codegen_result) -> None:
@@ -861,7 +962,7 @@ def _extract_artifact(artifact_path: str) -> str:
 
     extract_dir = tempfile.mkdtemp(prefix="lowcode_upload_")
     with tarfile.open(artifact_path, "r:gz") as tar:
-        tar.extractall(path=extract_dir)
+        tar.extractall(path=extract_dir, filter="data")
     return extract_dir
 
 

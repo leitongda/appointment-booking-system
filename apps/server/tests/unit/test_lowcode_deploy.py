@@ -506,12 +506,14 @@ class TestPublishTaskSetsStatusPublished:
 class TestRollbackTaskRestoresPreviousVersion:
     """rollback_task 应创建 rollback ReleaseJob 并调用微信 revert API。"""
 
+    @patch("app.tasks.lowcode_deploy_task._find_artifact_by_version", return_value=None)
     @patch("app.infrastructure.wechat.miniapp_publisher.MiniappPublisher")
     @patch("app.tasks.lowcode_deploy_task.get_sync_db")
     def test_rollback_task_creates_rollback_release_job(
         self,
         mock_get_sync_db,
         mock_publisher_cls,
+        mock_find_artifact,
     ):
         from app.tasks.lowcode_deploy_task import rollback_task
 
@@ -535,7 +537,7 @@ class TestRollbackTaskRestoresPreviousVersion:
         )
         mock_publisher_cls.return_value = mock_publisher
 
-        result = rollback_task("release-001", target_version="1.0.0")
+        result = rollback_task("release-001")
 
         assert result["success"] is True
         assert result["rollback_release_job_id"] is not None
@@ -545,7 +547,6 @@ class TestRollbackTaskRestoresPreviousVersion:
         added_obj = mock_db.add.call_args_list[0][0][0]
         assert isinstance(added_obj, ReleaseJob)
         assert added_obj.action == "rollback"
-        assert added_obj.target_version == "1.0.0"
 
         # 验证微信 rollback API 被调用
         mock_publisher.rollback.assert_called_once()
