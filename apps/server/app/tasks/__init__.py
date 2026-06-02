@@ -43,6 +43,13 @@ from app.tasks.follow_up_task import (
     mark_overdue_task,
     send_follow_up_reminders,
 )
+from app.tasks.lowcode_deploy_task import (
+    build_lowcode_page_task,
+    upload_to_wechat_task,
+    submit_audit_task,
+    publish_release_task,
+    rollback_task,
+)
 
 __all__ = [
     # 黑名单任务
@@ -69,4 +76,10 @@ __all__ = [
     # 随访任务
     'mark_overdue_task',
     'send_follow_up_reminders',
+    # 低代码部署任务
+    'build_lowcode_page_task',
+    'upload_to_wechat_task',
+    'submit_audit_task',
+    'publish_release_task',
+    'rollback_task',
 ]

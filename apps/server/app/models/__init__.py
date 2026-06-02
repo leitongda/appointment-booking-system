@@ -47,6 +47,10 @@ from app.models.miniapp_platform import (
     ReleaseJob,
     TemplateVersion,
 )
+from app.models.lowcode_page import LowCodePage
+from app.models.lowcode_page_version import LowCodePageVersion
+from app.models.lowcode_template import LowCodeTemplate
+from app.models.lowcode_template_version import LowCodeTemplateVersion, LowCodeTemplateFork
 from app.models.notification_log import NotificationLog
 from app.models.notification_preference import NotificationPreference
 from app.models.approval_flow import (

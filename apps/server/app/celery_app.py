@@ -73,6 +73,7 @@ celery_app.conf.update(
         "app.tasks.approval_task.auto_reject_after_timeout": {"queue": "default"},
         "app.tasks.follow_up_task.mark_overdue_task": {"queue": "scheduled"},
         "app.tasks.follow_up_task.send_follow_up_reminders": {"queue": "notification"},
+        "app.tasks.lowcode_deploy_task.*": {"queue": "default"},
     },
     
     # Beat 调度器配置（定时任务）
@@ -262,6 +263,7 @@ celery_app.autodiscover_tasks([
     "app.tasks.approval_task",
     "app.tasks.follow_up_task",
     "app.tasks.freelance_task",
+    "app.tasks.lowcode_deploy_task",
 ])
 
 # Flower 监控配置
