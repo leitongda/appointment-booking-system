@@ -39,7 +39,7 @@ function resetStore() {
     historyIndex: 0,
     loading: false,
     pageId: null,
-    savedSchema: { componentName: 'Page', props: {}, children: [] },
+    savedSchema: { schema: { componentName: 'Page', props: {}, children: [] }, dataSources: [], stateSchema: {} },
   });
 }
 
@@ -781,7 +781,9 @@ describe('useEditorStore', () => {
 
       useEditorStore.getState().reset();
 
-      expect(useEditorStore.getState().savedSchema.children).toEqual([]);
+      expect(useEditorStore.getState().savedSchema.schema.children).toEqual([]);
+      expect(useEditorStore.getState().savedSchema.dataSources).toEqual([]);
+      expect(useEditorStore.getState().savedSchema.stateSchema).toEqual({});
     });
   });
 });

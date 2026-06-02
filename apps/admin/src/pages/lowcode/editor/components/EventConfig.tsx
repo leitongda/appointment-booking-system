@@ -23,6 +23,7 @@ import {
   ArrowDownOutlined,
 } from '@ant-design/icons';
 import { useEditorStore } from '../store';
+import { findNodeById } from '../utils/tree';
 import type { EventHandler, EventAction } from '@hospital/shared';
 
 const { Text } = Typography;
@@ -505,17 +506,7 @@ export const EventConfig: React.FC = () => {
   /** 查找选中的节点 */
   const selectedNode = useMemo(() => {
     if (!selectedNodeId) return null;
-    function find(nodes: any[]): any {
-      for (const node of nodes) {
-        if (node.id === selectedNodeId) return node;
-        if (node.children) {
-          const found = find(node.children);
-          if (found) return found;
-        }
-      }
-      return null;
-    }
-    return find([schema]);
+    return findNodeById([schema], selectedNodeId);
   }, [selectedNodeId, schema]);
 
   const events: EventHandler[] = useMemo(

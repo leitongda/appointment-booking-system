@@ -4,11 +4,21 @@
 // Data binding types
 // ---------------------------------------------------------------------------
 
-/** API 数据源定义 */
-export interface ApiDataSource {
+/** 数据源类型判别字段 */
+export type DataSourceType = 'api' | 'static' | 'mock';
+
+/** 数据源基类 */
+export interface DataSourceBase {
   id: string;
   /** 数据源显示名称 */
   name?: string;
+  /** 数据源类型，用于判别联合 */
+  type: DataSourceType;
+}
+
+/** API 数据源定义 */
+export interface ApiDataSource extends DataSourceBase {
+  type: 'api';
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   url: string;
   headers?: Record<string, string>;
@@ -20,6 +30,25 @@ export interface ApiDataSource {
   /** 是否手动触发，默认 false（页面加载时自动请求） */
   manual?: boolean;
 }
+
+/** 静态数据源定义 */
+export interface StaticDataSource extends DataSourceBase {
+  type: 'static';
+  /** 静态数据内容 */
+  data: any;
+}
+
+/** Mock 数据源定义 */
+export interface MockDataSource extends DataSourceBase {
+  type: 'mock';
+  /** Mock 数据内容 */
+  data: any;
+  /** 模拟延迟（毫秒） */
+  delay?: number;
+}
+
+/** 所有数据源类型的联合 */
+export type DataSource = ApiDataSource | StaticDataSource | MockDataSource;
 
 /** 事件动作类型 */
 export interface EventAction {
@@ -82,7 +111,7 @@ export interface LowCodeSchema {
   props: Record<string, any>;
   children: LowCodeNode[];
   /** 页面级数据源列表 */
-  dataSources?: ApiDataSource[];
+  dataSources?: DataSource[];
 }
 
 /** Schema 组件节点 */
@@ -93,8 +122,8 @@ export interface LowCodeNode {
   children?: LowCodeNode[];
   /** 数据绑定配置 */
   dataBinding?: DataBindingConfig;
-  /** 绑定的 API 数据源 */
-  api?: ApiDataSource;
+  /** 绑定的数据源 */
+  api?: DataSource;
   /** 事件处理器列表 */
   events?: EventHandler[];
   /** 循环渲染配置 */
@@ -120,7 +149,7 @@ export interface MaterialComponent {
 export interface PropertyConfig {
   key: string;
   label: string;
-  type: 'input' | 'number' | 'select' | 'color' | 'switch' | 'textarea' | 'image';
+  type: 'input' | 'number' | 'select' | 'color' | 'switch' | 'textarea' | 'image' | 'date' | 'slider' | 'radio' | 'checkbox' | 'icon' | 'json';
   defaultValue?: any;
   options?: { label: string; value: any }[];
   placeholder?: string;
@@ -131,7 +160,7 @@ export interface LowCodePageCreateData {
   name: string;
   slug: string;
   description?: string;
-  schemaData?: Record<string, any>;
+  schemaData?: LowCodeSchema;
   thumbnailUrl?: string;
   miniappInstanceId?: string;
 }
@@ -145,6 +174,53 @@ export interface LowCodePageUpdateData {
   status?: LowCodePageStatus;
   thumbnailUrl?: string;
   miniappInstanceId?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Deployment & versioning types
+// ---------------------------------------------------------------------------
+
+/** 构建部署状态 */
+export type DeployStatus =
+  | 'idle'
+  | 'building'
+  | 'built'
+  | 'uploading'
+  | 'uploaded'
+  | 'auditing'
+  | 'published'
+  | 'failed';
+
+/** 构建任务 */
+export interface BuildJob {
+  id: string;
+  pageId: string;
+  status: DeployStatus;
+  buildLog?: string;
+  artifactUrl?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  triggerSource?: string;
+}
+
+/** 发布任务 */
+export interface ReleaseJob {
+  id: string;
+  buildJobId: string;
+  version: number;
+  status: 'pending' | 'released' | 'rolled_back';
+  releasedAt?: string;
+}
+
+/** 页面版本历史（对应服务端 LowCodePageVersion） */
+export interface PageVersion {
+  id: string;
+  pageId: string;
+  version: number;
+  schemaData: LowCodeSchema;
+  changeDescription?: string;
+  createdBy?: string;
+  createdAt: string;
 }
 
 // ---------------------------------------------------------------------------

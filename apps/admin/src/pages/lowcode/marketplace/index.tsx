@@ -1,6 +1,6 @@
 /** 模板市场 */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { history } from '@umijs/max';
 import { PageContainer } from '@ant-design/pro-components';
 import {
@@ -12,17 +12,19 @@ import {
   Pagination,
   Tag,
   Space,
-  Rate,
   Spin,
   Empty,
   Tooltip,
+  message,
 } from 'antd';
 import {
   SearchOutlined,
-  StarOutlined,
   ForkOutlined,
   EyeOutlined,
+  LikeOutlined,
 } from '@ant-design/icons';
+import { lowcodeApi } from '@hospital/api';
+import type { LowCodeTemplate } from '@hospital/api';
 
 /** 模板分类 */
 const CATEGORIES = [
@@ -42,7 +44,6 @@ const SORT_OPTIONS = [
   { value: 'popular', label: '最热门' },
   { value: 'newest', label: '最新' },
   { value: 'forks', label: '最多 Fork' },
-  { value: 'rating', label: '评分最高' },
 ];
 
 /** 模板分类标签颜色 */
@@ -57,89 +58,6 @@ const categoryColorMap: Record<string, string> = {
   other: 'default',
 };
 
-/** 模板数据类型 */
-interface TemplateItem {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  forkCount: number;
-  rating: number;
-  thumbnail: string;
-  author: string;
-  createdAt: string;
-}
-
-/** 模拟数据 -- 后续替换为 API 调用 */
-const MOCK_TEMPLATES: TemplateItem[] = [
-  {
-    id: '1',
-    name: '通用预约挂号',
-    description: '支持多科室、多医生的预约挂号模板，包含科室选择、医生排班、时间选择等完整流程。',
-    category: 'appointment',
-    forkCount: 128,
-    rating: 4.8,
-    thumbnail: '',
-    author: '系统管理员',
-    createdAt: '2025-12-01',
-  },
-  {
-    id: '2',
-    name: '临时挂号入口',
-    description: '简洁的临时挂号页面，支持身份证快速录入、科室选择和排队信息展示。',
-    category: 'registration',
-    forkCount: 86,
-    rating: 4.5,
-    thumbnail: '',
-    author: '系统管理员',
-    createdAt: '2025-11-15',
-  },
-  {
-    id: '3',
-    name: '在线问诊',
-    description: '图文问诊页面模板，支持症状描述、图片上传和医生匹配。',
-    category: 'inquiry',
-    forkCount: 64,
-    rating: 4.3,
-    thumbnail: '',
-    author: '系统管理员',
-    createdAt: '2025-10-20',
-  },
-  {
-    id: '4',
-    name: '检查报告查询',
-    description: '患者自助查询检查报告的页面模板，支持按日期筛选和报告详情展示。',
-    category: 'report',
-    forkCount: 52,
-    rating: 4.6,
-    thumbnail: '',
-    author: '系统管理员',
-    createdAt: '2025-09-10',
-  },
-  {
-    id: '5',
-    name: '医院公告',
-    description: '医院公告通知模板，支持富文本内容、置顶和分类标签。',
-    category: 'notice',
-    forkCount: 37,
-    rating: 4.1,
-    thumbnail: '',
-    author: '系统管理员',
-    createdAt: '2025-08-05',
-  },
-  {
-    id: '6',
-    name: '满意度调查',
-    description: '患者满意度调查表单模板，支持评分、文字评价和匿名提交。',
-    category: 'form',
-    forkCount: 45,
-    rating: 4.4,
-    thumbnail: '',
-    author: '系统管理员',
-    createdAt: '2025-07-18',
-  },
-];
-
 /** 获取分类标签颜色 */
 const getCategoryColor = (category: string) => categoryColorMap[category] || 'default';
 
@@ -148,7 +66,7 @@ const getCategoryLabel = (category: string) =>
   CATEGORIES.find((c) => c.key === category)?.label || category;
 
 /** 模板卡片 */
-const TemplateCard: React.FC<{ item: TemplateItem; onClick: (id: string) => void }> = ({
+const TemplateCard: React.FC<{ item: LowCodeTemplate; onClick: (id: string) => void }> = ({
   item,
   onClick,
 }) => (
@@ -167,10 +85,10 @@ const TemplateCard: React.FC<{ item: TemplateItem; onClick: (id: string) => void
           overflow: 'hidden',
         }}
       >
-        {item.thumbnail ? (
+        {item.thumbnailUrl ? (
           <img
             alt={item.name}
-            src={item.thumbnail}
+            src={item.thumbnailUrl}
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         ) : (
@@ -216,20 +134,19 @@ const TemplateCard: React.FC<{ item: TemplateItem; onClick: (id: string) => void
                 minHeight: 40,
               }}
             >
-              {item.description}
+              {item.description || '暂无描述'}
             </span>
           </Tooltip>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Rate disabled allowHalf defaultValue={item.rating} style={{ fontSize: 12 }} />
-            <span style={{ fontSize: 12, color: '#999' }}>{item.rating}</span>
-          </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Space size={12}>
               <span style={{ fontSize: 12, color: '#999' }}>
                 <ForkOutlined /> {item.forkCount}
               </span>
-              <span style={{ fontSize: 12, color: '#999' }}>{item.author}</span>
+              <span style={{ fontSize: 12, color: '#999' }}>
+                <LikeOutlined /> {item.likeCount}
+              </span>
             </Space>
+            <span style={{ fontSize: 12, color: '#999' }}>{item.authorName || '未知'}</span>
           </div>
         </Space>
       }
@@ -241,38 +158,68 @@ const TemplateCard: React.FC<{ item: TemplateItem; onClick: (id: string) => void
 const Marketplace: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState('all');
   const [keyword, setKeyword] = useState('');
-  const [sort, setSort] = useState('popular');
+  const [sort, setSort] = useState<string>('popular');
   const [page, setPage] = useState(1);
-  const [loading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [templates, setTemplates] = useState<LowCodeTemplate[]>([]);
+  const [total, setTotal] = useState(0);
+  const [error, setError] = useState(false);
   const pageSize = 12;
 
-  /** 根据条件筛选模板 */
-  const filteredTemplates = MOCK_TEMPLATES.filter((t) => {
-    if (activeCategory !== 'all' && t.category !== activeCategory) return false;
-    if (keyword && !t.name.includes(keyword) && !t.description.includes(keyword)) return false;
-    return true;
-  });
-
-  /** 排序 */
-  const sortedTemplates = [...filteredTemplates].sort((a, b) => {
-    switch (sort) {
-      case 'newest':
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      case 'forks':
-        return b.forkCount - a.forkCount;
-      case 'rating':
-        return b.rating - a.rating;
-      case 'popular':
-      default:
-        return b.forkCount * 0.6 + b.rating * 10 * 0.4 - (a.forkCount * 0.6 + a.rating * 10 * 0.4);
+  /** 加载模板列表 */
+  const fetchTemplates = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const params: Record<string, any> = {
+        page,
+        pageSize,
+      };
+      if (activeCategory !== 'all') {
+        params.category = activeCategory;
+      }
+      if (keyword) {
+        params.keyword = keyword;
+      }
+      if (sort) {
+        params.sortBy = sort;
+      }
+      const result = await lowcodeApi.getTemplates(params);
+      setTemplates(result.data || []);
+      setTotal(result.total || 0);
+    } catch {
+      setError(true);
+      message.error('加载模板列表失败');
+    } finally {
+      setLoading(false);
     }
-  });
+  }, [page, activeCategory, keyword, sort]);
 
-  /** 分页数据 */
-  const pagedTemplates = sortedTemplates.slice((page - 1) * pageSize, page * pageSize);
+  useEffect(() => {
+    fetchTemplates();
+  }, [fetchTemplates]);
 
+  /** 分类切换 */
+  const handleCategoryChange = (key: string) => {
+    setActiveCategory(key);
+    setPage(1);
+  };
+
+  /** 搜索输入 */
+  const handleKeywordChange = (value: string) => {
+    setKeyword(value);
+    setPage(1);
+  };
+
+  /** 排序切换 */
+  const handleSortChange = (value: string) => {
+    setSort(value);
+    setPage(1);
+  };
+
+  /** 卡片点击 */
   const handleCardClick = useCallback((id: string) => {
-    history.push(`/platform/lowcode/marketplace/detail/${id}`);
+    history.push(`/platform/lowcode/marketplace/${id}`);
   }, []);
 
   return (
@@ -291,10 +238,7 @@ const Marketplace: React.FC = () => {
               {CATEGORIES.map((cat) => (
                 <div
                   key={cat.key}
-                  onClick={() => {
-                    setActiveCategory(cat.key);
-                    setPage(1);
-                  }}
+                  onClick={() => handleCategoryChange(cat.key)}
                   style={{
                     padding: '6px 12px',
                     borderRadius: 6,
@@ -323,19 +267,13 @@ const Marketplace: React.FC = () => {
                   prefix={<SearchOutlined style={{ color: '#bbb' }} />}
                   allowClear
                   value={keyword}
-                  onChange={(e) => {
-                    setKeyword(e.target.value);
-                    setPage(1);
-                  }}
+                  onChange={(e) => handleKeywordChange(e.target.value)}
                 />
               </Col>
               <Col>
                 <Select
                   value={sort}
-                  onChange={(val) => {
-                    setSort(val);
-                    setPage(1);
-                  }}
+                  onChange={handleSortChange}
                   options={SORT_OPTIONS}
                   style={{ width: 140 }}
                 />
@@ -345,10 +283,12 @@ const Marketplace: React.FC = () => {
 
           {/* 模板卡片网格 */}
           <Spin spinning={loading}>
-            {pagedTemplates.length > 0 ? (
+            {error ? (
+              <Empty description="加载失败，请稍后重试" style={{ marginTop: 80 }} />
+            ) : templates.length > 0 ? (
               <>
                 <Row gutter={[16, 16]}>
-                  {pagedTemplates.map((item) => (
+                  {templates.map((item) => (
                     <Col key={item.id} xs={24} sm={12} md={8} lg={6}>
                       <TemplateCard item={item} onClick={handleCardClick} />
                     </Col>
@@ -360,9 +300,9 @@ const Marketplace: React.FC = () => {
                   <Pagination
                     current={page}
                     pageSize={pageSize}
-                    total={sortedTemplates.length}
+                    total={total}
                     showSizeChanger={false}
-                    showTotal={(total) => `共 ${total} 个模板`}
+                    showTotal={(t) => `共 ${t} 个模板`}
                     onChange={(p) => setPage(p)}
                   />
                 </div>

@@ -345,6 +345,7 @@ function DataSourceFormModal({ visible, editingDs, onOk, onCancel }: DataSourceF
       const values = await form.validateFields();
       const ds: ApiDataSource = {
         id: editingDs?.id || `ds_${Date.now()}`,
+        type: 'api',
         name: values.name || undefined,
         url: values.url,
         method: values.method,

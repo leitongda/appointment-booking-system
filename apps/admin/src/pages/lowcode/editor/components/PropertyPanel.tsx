@@ -17,6 +17,7 @@ import {
 import { LinkOutlined, DisconnectOutlined } from '@ant-design/icons';
 import { useEditorStore } from '../store';
 import { findMaterial } from '../materials';
+import { findNodeById } from '../utils/tree';
 import type { PropertyConfig, LowCodeNode, ApiDataSource } from '@hospital/shared';
 import ImageUpload from '@/components/ImageUpload';
 import { EventConfig } from './EventConfig';
@@ -574,29 +575,18 @@ export const PropertyPanel: React.FC = () => {
   const updateNodeProps = useEditorStore((s) => s.updateNodeProps);
   const updateNodeDataBinding = useEditorStore((s) => s.updateNodeDataBinding);
   const removeNode = useEditorStore((s) => s.removeNode);
+  const dataSources = useEditorStore((s) => s.dataSources);
 
   /** 查找选中的节点 */
   const selectedNode = useMemo(() => {
     if (!selectedNodeId) return null;
-
-    function find(nodes: any[]): any {
-      for (const node of nodes) {
-        if (node.id === selectedNodeId) return node;
-        if (node.children) {
-          const found = find(node.children);
-          if (found) return found;
-        }
-      }
-      return null;
-    }
-
-    return find([schema]);
+    return findNodeById([schema], selectedNodeId);
   }, [selectedNodeId, schema]);
 
   /** 可用变量列表 */
   const variableGroups = useMemo(
-    () => collectVariables(selectedNode, schema.dataSources),
-    [selectedNode, schema.dataSources],
+    () => collectVariables(selectedNode, dataSources),
+    [selectedNode, dataSources],
   );
 
   if (!selectedNode) {
