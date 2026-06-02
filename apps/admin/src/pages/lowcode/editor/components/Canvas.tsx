@@ -1,6 +1,6 @@
 /** 画布区域 — 拖拽容器 */
 
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { DragDropProvider, DragOverlay } from '@dnd-kit/react';
 import { useEditorStore } from '../store';
 import { SchemaRenderer } from './SchemaRenderer';
@@ -24,12 +24,60 @@ function createNodeFromMaterial(material: MaterialComponent): LowCodeNode {
   };
 }
 
+/** 查找节点 (递归) */
+function findNodeById(
+  nodes: LowCodeNode[],
+  id: string,
+): LowCodeNode | null {
+  for (const n of nodes) {
+    if (n.id === id) return n;
+    if (n.children) {
+      const found = findNodeById(n.children, id);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/** 根据鼠标 Y 坐标计算插入索引和指示器位置 */
+function computeInsertion(
+  mouseClientY: number,
+  containerEl: HTMLElement,
+): { index: number; top: number } | null {
+  const children = Array.from(
+    containerEl.querySelectorAll(':scope > [data-node-id]'),
+  ) as HTMLElement[];
+  if (children.length === 0) {
+    return { index: 0, top: 0 };
+  }
+  const containerRect = containerEl.getBoundingClientRect();
+  for (let i = 0; i < children.length; i++) {
+    const rect = children[i].getBoundingClientRect();
+    if (mouseClientY < rect.top + rect.height / 2) {
+      // 指示器放在当前子元素顶部 (即前一个子元素底部)
+      const top = i === 0 ? 0 : rect.top - containerRect.top;
+      return { index: i, top };
+    }
+  }
+  // 鼠标在所有子元素下方 — 插入到末尾，指示器放在最后一个子元素下方
+  const lastRect = children[children.length - 1].getBoundingClientRect();
+  return {
+    index: children.length,
+    top: lastRect.bottom - containerRect.top + 2,
+  };
+}
+
 /** Canvas 组件 */
 export const Canvas: React.FC = () => {
   const addNode = useEditorStore((s) => s.addNode);
   const moveNode = useEditorStore((s) => s.moveNode);
   const setSchema = useEditorStore((s) => s.setSchema);
   const schema = useEditorStore((s) => s.schema);
+
+  /** 拖拽期间计算出的插入索引 (ref 避免频繁 re-render) */
+  const dropIndexRef = useRef<number | null>(null);
+  /** 插入指示器的视觉状态 */
+  const [indicator, setIndicator] = useState<{ top: number; width: number; left: number } | null>(null);
 
   return (
     <div
@@ -43,8 +91,44 @@ export const Canvas: React.FC = () => {
       }}
     >
       <DragDropProvider
+        onDragMove={({ operation }) => {
+          const target = operation.target as Record<string, any> | undefined;
+          const position = operation.position as { clientX: number; clientY: number } | undefined;
+
+          if (!target || !position) {
+            dropIndexRef.current = null;
+            setIndicator(null);
+            return;
+          }
+
+          const parentId = target.data?.parentId as string | undefined;
+          if (!parentId) return;
+
+          const containerEl = document.getElementById(`drop-${parentId}`);
+          if (!containerEl) return;
+
+          const result = computeInsertion(position.clientY, containerEl);
+          if (!result) return;
+
+          dropIndexRef.current = result.index;
+          const rect = containerEl.getBoundingClientRect();
+          setIndicator({
+            top: rect.top + result.top,
+            width: rect.width,
+            left: rect.left,
+          });
+        }}
         onDragEnd={(event) => {
-          if (event.canceled) return;
+          if (event.canceled) {
+            dropIndexRef.current = null;
+            setIndicator(null);
+            return;
+          }
+
+          // 拖拽结束，清除指示器
+          const computedIndex = dropIndexRef.current;
+          dropIndexRef.current = null;
+          setIndicator(null);
 
           const source = event.operation.source;
           const target = event.operation.target;
@@ -74,25 +158,15 @@ export const Canvas: React.FC = () => {
               parentId = rootNode.id;
             }
 
-            // 查找目标父节点以获取当前 children 长度作为插入索引
-            const findNodeById = (
-              nodes: LowCodeNode[],
-              id: string,
-            ): LowCodeNode | null => {
-              for (const n of nodes) {
-                if (n.id === id) return n;
-                if (n.children) {
-                  const found = findNodeById(n.children, id);
-                  if (found) return found;
-                }
-              }
-              return null;
-            };
-            const parentNode = findNodeById(
-              schema.children || [],
-              parentId,
-            );
-            addNode(newNode, parentId, parentNode?.children?.length || 0);
+            // 使用拖拽过程中计算的精确插入索引，回退到末尾
+            let insertIndex: number;
+            if (computedIndex !== null) {
+              insertIndex = computedIndex;
+            } else {
+              const parentNode = findNodeById(schema.children || [], parentId);
+              insertIndex = parentNode?.children?.length || 0;
+            }
+            addNode(newNode, parentId, insertIndex);
             return;
           }
 
@@ -116,7 +190,7 @@ export const Canvas: React.FC = () => {
             ): boolean => {
               for (const n of nodes) {
                 if (n.id === ancestorId) {
-                  return !!findDescendant(n.children || [], descendantId);
+                  return !!findNodeById(n.children || [], descendantId);
                 }
                 if (n.children) {
                   const found = isDescendant(n.children, ancestorId, descendantId);
@@ -125,43 +199,19 @@ export const Canvas: React.FC = () => {
               }
               return false;
             };
-            const findDescendant = (
-              nodes: LowCodeNode[],
-              id: string,
-            ): LowCodeNode | null => {
-              for (const n of nodes) {
-                if (n.id === id) return n;
-                if (n.children) {
-                  const found = findDescendant(n.children, id);
-                  if (found) return found;
-                }
-              }
-              return null;
-            };
 
             if (isDescendant(schema.children || [], nodeId, newParentId)) {
               return; // 目标是自身的子节点，忽略
             }
 
-            // 查找目标父节点以获取插入索引
-            const findNodeById = (
-              nodes: LowCodeNode[],
-              id: string,
-            ): LowCodeNode | null => {
-              for (const n of nodes) {
-                if (n.id === id) return n;
-                if (n.children) {
-                  const found = findNodeById(n.children, id);
-                  if (found) return found;
-                }
-              }
-              return null;
-            };
-            const parentNode = findNodeById(
-              schema.children || [],
-              newParentId,
-            );
-            const targetIndex = parentNode?.children?.length || 0;
+            // 使用拖拽过程中计算的精确插入索引，回退到末尾
+            let targetIndex: number;
+            if (computedIndex !== null) {
+              targetIndex = computedIndex;
+            } else {
+              const parentNode = findNodeById(schema.children || [], newParentId);
+              targetIndex = parentNode?.children?.length || 0;
+            }
 
             moveNode(nodeId, newParentId, targetIndex);
           }
@@ -240,6 +290,23 @@ export const Canvas: React.FC = () => {
             return null;
           }}
         </DragOverlay>
+        {/* 拖拽插入位置指示器 — 蓝色横线 */}
+        {indicator && (
+          <div
+            style={{
+              position: 'fixed',
+              top: indicator.top,
+              left: indicator.left,
+              width: indicator.width,
+              height: 2,
+              background: '#1677ff',
+              borderRadius: 1,
+              boxShadow: '0 0 6px rgba(22,119,255,0.5)',
+              zIndex: 10000,
+              pointerEvents: 'none',
+            }}
+          />
+        )}
       </DragDropProvider>
     </div>
   );

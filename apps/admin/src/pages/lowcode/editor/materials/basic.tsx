@@ -126,4 +126,32 @@ export const basicMaterials: MaterialComponent[] = [
       { key: 'dashed', label: '虚线', type: 'switch', defaultValue: false },
     ],
   },
+  {
+    componentName: 'NutSearchBar',
+    title: '搜索栏',
+    icon: 'SearchOutlined',
+    category: 'basic',
+    defaultProps: {
+      placeholder: '搜索',
+      value: '',
+    },
+    configureSchema: [
+      { key: 'placeholder', label: '占位文字', type: 'input', defaultValue: '搜索' },
+      { key: 'value', label: '默认值', type: 'input', defaultValue: '' },
+    ],
+  },
+  {
+    componentName: 'NutNavBar',
+    title: '导航栏',
+    icon: 'ArrowLeftOutlined',
+    category: 'basic',
+    defaultProps: {
+      title: '页面标题',
+      leftShow: true,
+    },
+    configureSchema: [
+      { key: 'title', label: '标题', type: 'input', defaultValue: '页面标题' },
+      { key: 'leftShow', label: '显示返回按钮', type: 'switch', defaultValue: true },
+    ],
+  },
 ];

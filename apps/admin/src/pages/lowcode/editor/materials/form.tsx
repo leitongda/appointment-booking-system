@@ -138,4 +138,89 @@ export const formMaterials: MaterialComponent[] = [
       { key: 'border', label: '显示边框', type: 'switch', defaultValue: false },
     ],
   },
+  {
+    componentName: 'NutCheckbox',
+    title: '复选框',
+    icon: 'CheckSquareOutlined',
+    category: 'form',
+    defaultProps: {
+      checked: false,
+      label: '复选项',
+      disabled: false,
+    },
+    configureSchema: [
+      { key: 'checked', label: '默认选中', type: 'switch', defaultValue: false },
+      { key: 'label', label: '标签文字', type: 'input', defaultValue: '复选项' },
+      { key: 'disabled', label: '禁用', type: 'switch', defaultValue: false },
+    ],
+  },
+  {
+    componentName: 'NutRadio',
+    title: '单选框',
+    icon: 'CheckCircleOutlined',
+    category: 'form',
+    defaultProps: {
+      value: '',
+      label: '单选项',
+      disabled: false,
+    },
+    configureSchema: [
+      { key: 'value', label: '选项值', type: 'input', defaultValue: '' },
+      { key: 'label', label: '标签文字', type: 'input', defaultValue: '单选项' },
+      { key: 'disabled', label: '禁用', type: 'switch', defaultValue: false },
+    ],
+  },
+  {
+    componentName: 'NutDatePicker',
+    title: '日期选择器',
+    icon: 'CalendarOutlined',
+    category: 'form',
+    defaultProps: {
+      placeholder: '请选择日期',
+      format: 'YYYY-MM-DD',
+      mode: 'date',
+    },
+    configureSchema: [
+      { key: 'placeholder', label: '占位文字', type: 'input', defaultValue: '请选择日期' },
+      { key: 'format', label: '日期格式', type: 'input', defaultValue: 'YYYY-MM-DD' },
+      {
+        key: 'mode',
+        label: '选择模式',
+        type: 'select',
+        defaultValue: 'date',
+        options: [
+          { label: '日期', value: 'date' },
+          { label: '时间', value: 'time' },
+          { label: '日期时间', value: 'datetime' },
+          { label: '年月日', value: 'year-month' },
+        ],
+      },
+    ],
+  },
+  {
+    componentName: 'NutCalendar',
+    title: '日历',
+    icon: 'CalendarOutlined',
+    category: 'form',
+    defaultProps: {
+      type: 'single',
+      startDate: '',
+      endDate: '',
+    },
+    configureSchema: [
+      {
+        key: 'type',
+        label: '选择类型',
+        type: 'select',
+        defaultValue: 'single',
+        options: [
+          { label: '单选', value: 'single' },
+          { label: '多选', value: 'multiple' },
+          { label: '范围', value: 'range' },
+        ],
+      },
+      { key: 'startDate', label: '开始日期', type: 'input', defaultValue: '' },
+      { key: 'endDate', label: '结束日期', type: 'input', defaultValue: '' },
+    ],
+  },
 ];

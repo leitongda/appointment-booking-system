@@ -47,6 +47,8 @@ interface EditorStore {
   selectNode: (nodeId: string | null) => void;
   /** 添加节点 */
   addNode: (node: LowCodeNode, parentId: string, index: number) => void;
+  /** 在根级别添加节点 */
+  addToRoot: (node: LowCodeNode, index: number) => void;
   /** 移动节点 */
   moveNode: (nodeId: string, newParentId: string, index: number) => void;
   /** 更新节点属性 */
@@ -320,6 +322,14 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   addNode: (node, parentId, index) => {
     const { schema } = get();
     const newChildren = addNodeRecursive(schema.children, parentId, node, index);
+    const newSchema = { ...schema, children: newChildren };
+    get().setSchema(newSchema);
+  },
+
+  addToRoot: (node, index) => {
+    const { schema } = get();
+    const newChildren = [...schema.children];
+    newChildren.splice(index, 0, node);
     const newSchema = { ...schema, children: newChildren };
     get().setSchema(newSchema);
   },

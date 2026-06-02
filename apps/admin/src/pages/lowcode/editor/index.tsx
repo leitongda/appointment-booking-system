@@ -1,6 +1,6 @@
 /** 低代码编辑器主页面 */
 
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { useParams, history } from '@umijs/max';
 import { Button, Space, message, Spin, Tooltip, Modal, Input, Tabs } from 'antd';
 import { pinyin } from 'pinyin-pro';
@@ -13,6 +13,7 @@ import {
   ArrowLeftOutlined,
   AppstoreOutlined,
   ApiOutlined,
+  ApartmentOutlined,
   CodeOutlined,
   HistoryOutlined,
   ShareAltOutlined,
@@ -23,11 +24,50 @@ import DeployPanel from './components/DeployPanel';
 import ShareDialog from './components/ShareDialog';
 import VersionHistory from './components/VersionHistory';
 import { useEditorStore } from './store';
+import type { LowCodeNode } from '@hospital/shared';
 import { ComponentPanel } from './components/ComponentPanel';
 import { DataSourcePanel } from './components/DataSourcePanel';
+import { LayerPanel } from './components/LayerPanel';
 import { Canvas } from './components/Canvas';
 import { PropertyPanel } from './components/PropertyPanel';
 import { lowcodeApi } from '@hospital/api';
+
+/** 按 ID 查找节点 */
+function findNodeById(nodes: LowCodeNode[], id: string): LowCodeNode | null {
+  for (const node of nodes) {
+    if (node.id === id) return node;
+    if (node.children) {
+      const found = findNodeById(node.children, id);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/** 查找节点的父节点 */
+function findParentNode(nodes: LowCodeNode[], id: string): LowCodeNode | null {
+  for (const node of nodes) {
+    if (node.children?.some((c) => c.id === id)) return node;
+    if (node.children) {
+      const found = findParentNode(node.children, id);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/** 递归重新生成节点 ID（避免复制粘贴后 ID 冲突） */
+function regenerateIds(node: LowCodeNode): LowCodeNode {
+  const newNode = {
+    ...node,
+    id: `node_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    props: { ...node.props },
+  };
+  if (node.children) {
+    newNode.children = node.children.map((child) => regenerateIds(child));
+  }
+  return newNode;
+}
 
 /** 编辑器主页面 */
 const LowCodeEditor: React.FC = () => {
@@ -55,6 +95,11 @@ const LowCodeEditor: React.FC = () => {
   const historyLength = useEditorStore((s) => s.history.length);
   const savedSchema = useEditorStore((s) => s.savedSchema);
   const markSaved = useEditorStore((s) => s.markSaved);
+  const selectedNodeId = useEditorStore((s) => s.selectedNodeId);
+  const removeNode = useEditorStore((s) => s.removeNode);
+  const addNode = useEditorStore((s) => s.addNode);
+  const addToRoot = useEditorStore((s) => s.addToRoot);
+  const updateNodeProps = useEditorStore((s) => s.updateNodeProps);
 
   /** 加载页面数据 */
   useEffect(() => {
@@ -185,25 +230,204 @@ const LowCodeEditor: React.FC = () => {
     setCodeModalVisible(true);
   }, [isDirty]);
 
+  /** 剪贴板 ref，避免闭包过期 */
+  const clipboardRef = useRef<string | null>(null);
+
   /** 键盘快捷键 */
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+      const isMod = e.metaKey || e.ctrlKey;
+      const activeId = useEditorStore.getState().selectedNodeId;
+
+      // Ctrl+Z / Ctrl+Shift+Z — 撤销 / 重做
+      if (isMod && e.key === 'z') {
         e.preventDefault();
         if (e.shiftKey) {
           redo();
         } else {
           undo();
         }
+        return;
       }
-      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+
+      // Ctrl+S — 保存
+      if (isMod && e.key === 's') {
         e.preventDefault();
         handleSave();
+        return;
+      }
+
+      // Delete / Backspace — 删除选中组件
+      if ((e.key === 'Delete' || e.key === 'Backspace') && activeId) {
+        // 忽略输入框内的 Delete/Backspace
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) {
+          return;
+        }
+        e.preventDefault();
+        removeNode(activeId);
+        return;
+      }
+
+      // Ctrl+C — 复制选中组件到剪贴板
+      if (isMod && e.key === 'c' && activeId) {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) {
+          return; // 输入框内走浏览器默认
+        }
+        e.preventDefault();
+        const { schema } = useEditorStore.getState();
+        const node = findNodeById(schema.children, activeId);
+        if (node) {
+          const json = JSON.stringify(node, null, 2);
+          clipboardRef.current = json;
+          navigator.clipboard?.writeText(json).catch(() => {
+            // 非安全上下文 fallback，已经写入 ref
+          });
+        }
+        return;
+      }
+
+      // Ctrl+V — 粘贴组件
+      if (isMod && e.key === 'v') {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) {
+          return;
+        }
+        e.preventDefault();
+
+        const pasteFromClipboard = async () => {
+          let json = clipboardRef.current;
+          if (!json) {
+            try {
+              json = await navigator.clipboard?.readText();
+            } catch {
+              // 无权限
+            }
+          }
+          if (!json) return;
+
+          let pastedNode: LowCodeNode;
+          try {
+            pastedNode = JSON.parse(json);
+          } catch {
+            return; // 非法 JSON
+          }
+          if (!pastedNode?.componentName) return;
+
+          // 重新生成 ID，避免重复
+          const regenerated = regenerateIds(pastedNode);
+
+          // 找到目标父节点：选中节点的父节点，或者根
+          const { schema } = useEditorStore.getState();
+          const targetParent = activeId
+            ? findParentNode(schema.children, activeId)
+            : null;
+          if (targetParent) {
+            const index = targetParent.children?.length ?? 0;
+            addNode(regenerated, targetParent.id, index);
+          } else {
+            // 粘贴到根 children
+            addToRoot(regenerated, schema.children.length);
+          }
+        };
+        pasteFromClipboard();
+        return;
+      }
+
+      // Ctrl+D — 复制选中组件（原位复制，偏移 10px）
+      if (isMod && e.key === 'd' && activeId) {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) {
+          return;
+        }
+        e.preventDefault();
+        const { schema } = useEditorStore.getState();
+        const node = findNodeById(schema.children, activeId);
+        if (!node) return;
+
+        const clone = JSON.parse(JSON.stringify(node));
+        const duplicated = regenerateIds(clone);
+
+        // 偏移 10px（通过 style.left / style.top）
+        const oldLeft = Number(duplicated.props?.style?.left) || 0;
+        const oldTop = Number(duplicated.props?.style?.top) || 0;
+        duplicated.props = {
+          ...duplicated.props,
+          style: {
+            ...duplicated.props?.style,
+            left: oldLeft + 10,
+            top: oldTop + 10,
+          },
+        };
+
+        // 添加到同一父节点，紧跟在原节点后面
+        const parent = findParentNode(schema.children, activeId);
+        const siblings = parent?.children ?? schema.children;
+        const originalIndex = siblings.findIndex((c: LowCodeNode) => c.id === activeId);
+        if (parent) {
+          addNode(duplicated, parent.id, originalIndex + 1);
+        } else {
+          addToRoot(duplicated, originalIndex + 1);
+        }
+        return;
+      }
+
+      // Ctrl+A — 全选（暂不实现）
+      if (isMod && e.key === 'a') {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) {
+          return;
+        }
+        e.preventDefault();
+        message.info('暂不支持全选功能');
+        return;
+      }
+
+      // 方向键 — 微调选中组件位置
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && activeId) {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) {
+          return;
+        }
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        const styleUpdate: Record<string, number> = {};
+
+        switch (e.key) {
+          case 'ArrowLeft':
+            styleUpdate.left = step * -1;
+            break;
+          case 'ArrowRight':
+            styleUpdate.left = step;
+            break;
+          case 'ArrowUp':
+            styleUpdate.top = step * -1;
+            break;
+          case 'ArrowDown':
+            styleUpdate.top = step;
+            break;
+        }
+
+        // 读取当前 style，叠加偏移
+        const { schema } = useEditorStore.getState();
+        const node = findNodeById(schema.children, activeId);
+        if (!node) return;
+        const currentLeft = Number(node.props?.style?.left) || 0;
+        const currentTop = Number(node.props?.style?.top) || 0;
+        updateNodeProps(activeId, {
+          style: {
+            ...node.props?.style,
+            left: currentLeft + (styleUpdate.left ?? 0),
+            top: currentTop + (styleUpdate.top ?? 0),
+          },
+        });
       }
     };
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, handleSave]);
+  }, [undo, redo, handleSave, removeNode, addNode, addToRoot, updateNodeProps]);
 
   /** 未保存更改警告 */
   useEffect(() => {
@@ -367,6 +591,11 @@ const LowCodeEditor: React.FC = () => {
                   key: 'datasource',
                   label: <span><ApiOutlined /> 数据</span>,
                   children: <DataSourcePanel />,
+                },
+                {
+                  key: 'layers',
+                  label: <span><ApartmentOutlined /> 图层</span>,
+                  children: <LayerPanel />,
                 },
               ]}
             />

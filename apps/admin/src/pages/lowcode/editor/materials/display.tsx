@@ -99,4 +99,103 @@ export const displayMaterials: MaterialComponent[] = [
       { key: 'description', label: '描述文字', type: 'input', defaultValue: '暂无数据' },
     ],
   },
+  {
+    componentName: 'NutIcon',
+    title: '图标',
+    icon: 'SmileOutlined',
+    category: 'display',
+    defaultProps: {
+      name: 'star',
+      size: '20px',
+      color: '#333333',
+    },
+    configureSchema: [
+      { key: 'name', label: '图标名称', type: 'input', defaultValue: 'star' },
+      { key: 'size', label: '尺寸', type: 'input', defaultValue: '20px' },
+      { key: 'color', label: '颜色', type: 'color', defaultValue: '#333333' },
+    ],
+  },
+  {
+    componentName: 'NutTag',
+    title: '标签',
+    icon: 'TagOutlined',
+    category: 'display',
+    defaultProps: {
+      type: 'primary',
+      text: '标签',
+      color: '',
+    },
+    configureSchema: [
+      {
+        key: 'type',
+        label: '类型',
+        type: 'select',
+        defaultValue: 'primary',
+        options: [
+          { label: '主要', value: 'primary' },
+          { label: '成功', value: 'success' },
+          { label: '危险', value: 'danger' },
+          { label: '警告', value: 'warning' },
+        ],
+      },
+      { key: 'text', label: '标签文字', type: 'input', defaultValue: '标签' },
+      { key: 'color', label: '自定义颜色', type: 'color', defaultValue: '' },
+    ],
+  },
+  {
+    componentName: 'NutAvatar',
+    title: '头像',
+    icon: 'UserOutlined',
+    category: 'display',
+    defaultProps: {
+      size: '40px',
+      src: '',
+      text: '',
+    },
+    configureSchema: [
+      { key: 'size', label: '尺寸', type: 'input', defaultValue: '40px' },
+      { key: 'src', label: '图片地址', type: 'image', defaultValue: '' },
+      { key: 'text', label: '文字头像', type: 'input', defaultValue: '' },
+    ],
+  },
+  {
+    componentName: 'NutBadge',
+    title: '徽标',
+    icon: 'NumberOutlined',
+    category: 'display',
+    defaultProps: {
+      value: 1,
+      hidden: false,
+    },
+    configureSchema: [
+      { key: 'value', label: '角标值', type: 'number', defaultValue: 1 },
+      { key: 'hidden', label: '隐藏', type: 'switch', defaultValue: false },
+    ],
+  },
+  {
+    componentName: 'NutProgress',
+    title: '进度条',
+    icon: 'FieldTimeOutlined',
+    category: 'display',
+    defaultProps: {
+      percent: 50,
+      status: 'active',
+      strokeWidth: '6px',
+    },
+    configureSchema: [
+      { key: 'percent', label: '进度百分比', type: 'number', defaultValue: 50 },
+      {
+        key: 'status',
+        label: '状态',
+        type: 'select',
+        defaultValue: 'active',
+        options: [
+          { label: '进行中', value: 'active' },
+          { label: '已完成', value: 'success' },
+          { label: '异常', value: 'error' },
+        ],
+      },
+      { key: 'strokeWidth', label: '线条宽度', type: 'input', defaultValue: '6px' },
+    ],
+  },
 ];
