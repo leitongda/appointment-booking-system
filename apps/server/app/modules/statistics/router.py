@@ -71,10 +71,14 @@ async def get_overview(
         today_visits_query = today_visits_query.where(store_condition)
     today_visits = await db.scalar(today_visits_query)
     
-    # 总患者数（患者是全局的，不按门店过滤）
-    total_patients = await db.scalar(
-        select(func.count(Patient.id))
-    )
+    # 总患者数（按门店过滤）
+    patients_query = select(func.count(Patient.id))
+    if store_filter is not None:
+        if isinstance(store_filter, list):
+            patients_query = patients_query.where(Patient.store_id.in_(store_filter))
+        else:
+            patients_query = patients_query.where(Patient.store_id == store_filter)
+    total_patients = await db.scalar(patients_query)
     
     # 总医生数（按门店过滤）
     doctors_query = select(func.count(Doctor.id)).where(Doctor.status == 1, Doctor.deleted_at.is_(None))
