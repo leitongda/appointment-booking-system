@@ -176,10 +176,10 @@ class TenantUsageService:
         day_start = datetime.combine(usage_date, datetime.min.time())
         day_end = datetime.combine(usage_date, datetime.max.time())
 
-        # 通过患者首次就诊门店统计
+        # 通过患者所属门店统计
         result = await self.db.execute(
             select(func.count(Patient.id))
-            .join(Store, Patient.first_visit_store_id == Store.id)
+            .join(Store, Patient.store_id == Store.id)
             .where(
                 and_(
                     Store.tenant_id == tenant_id,

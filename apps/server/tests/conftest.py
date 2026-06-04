@@ -23,6 +23,17 @@ from sqlalchemy.pool import StaticPool
 # 添加项目根目录到路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# ==================== SQLite 兼容性补丁 ====================
+# 1. lowcode 模型使用 PostgreSQL JSONB，需要在 SQLite 测试环境中映射为 JSON
+# 2. lowcode_page_version 模型有重复索引定义 (column index=True + explicit Index 同名),
+#    SQLite 不允许重复索引，需要忽略
+from sqlalchemy import event, JSON
+from sqlalchemy.dialects.postgresql import JSONB
+
+from sqlalchemy.dialects.sqlite import base as sqlite_base
+if not hasattr(sqlite_base.SQLiteTypeCompiler, 'visit_JSONB'):
+    sqlite_base.SQLiteTypeCompiler.visit_JSONB = lambda self, type_, **kw: 'JSON'
+
 from app.db.base import Base
 from app.models.user import User, Patient
 from app.models.department import Department
@@ -61,7 +72,20 @@ async def test_engine():
     )
 
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        # 低代码模型有重复索引定义 (column index=True + explicit Index 同名),
+        # SQLite 会报 "index already exists", 需要去重后再 create_all
+        def _create_all_safe(connection):
+            seen_indexes = set()
+            for table in Base.metadata.sorted_tables:
+                deduped = set()
+                for idx in table.indexes:
+                    if idx.name not in seen_indexes:
+                        seen_indexes.add(idx.name)
+                        deduped.add(idx)
+                table.indexes = deduped
+            Base.metadata.create_all(connection)
+
+        await conn.run_sync(_create_all_safe)
 
     yield engine
 
