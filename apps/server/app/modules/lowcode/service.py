@@ -1,5 +1,9 @@
 """低代码页面服务。"""
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 import time
 from typing import Any, Optional, List, Tuple
 

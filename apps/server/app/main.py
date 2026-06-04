@@ -214,10 +214,12 @@ async def lifespan(app: FastAPI):
 
     # 生产环境限流检查
     if settings.ENVIRONMENT == "production" and not settings.RATE_LIMIT_ENABLED:
-        logger.warning(
-            "生产环境中 RATE_LIMIT_ENABLED=false，API 未受限流保护，"
+        logger.critical(
+            "生产环境中 RATE_LIMIT_ENABLED=false，拒绝启动。"
             "请在 .env 中设置 RATE_LIMIT_ENABLED=true"
         )
+        import sys
+        sys.exit(1)
 
     # 检查超级管理员是否存在
     await ensure_super_admin_exists()
@@ -502,8 +504,8 @@ def _configure_middlewares(app: FastAPI) -> None:
         CORSMiddleware,
         allow_origins=settings.BACKEND_CORS_ORIGINS,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-Tenant-ID", "X-Tenant-Code", "X-Request-ID", "Accept"],
     )
     # GZip 压缩 — 最小 1000 字节才压缩，避免小响应被压缩反而增大体积
     app.add_middleware(GZipMiddleware, minimum_size=1000)

@@ -10,6 +10,8 @@ from app.models.rest_day import RestDay
 from app.modules.rule_engine import RuleEngineService
 from app.utils.audit import set_create_audit, set_update_audit
 from app.middleware.tenant_context import get_current_tenant_id
+from app.middleware.exception import BusinessError
+from app.core.error_codes import ErrorCode
 
 
 class WaitlistMutationMixin:
@@ -52,7 +54,7 @@ class WaitlistMutationMixin:
             )
         )
         if existing.scalar_one_or_none():
-            raise ValueError('您已在候补队列中，请勿重复添加')
+            raise BusinessError('您已在候补队列中，请勿重复添加', error_code=ErrorCode.WAITLIST_DUPLICATE)
 
         # 获取排班信息
         schedule_result = await self.db.execute(
@@ -89,7 +91,7 @@ class WaitlistMutationMixin:
                 )
                 current_count = count_result.scalar() or 0
                 if current_count >= capacity_policy.waitlist_max_size:
-                    raise ValueError(f'候补队列已满（最多{capacity_policy.waitlist_max_size}人）')
+                    raise BusinessError(f'候补队列已满（最多{capacity_policy.waitlist_max_size}人）', error_code=ErrorCode.WAITLIST_FULL)
 
         # 计算队列位置
         position_result = await self.db.execute(

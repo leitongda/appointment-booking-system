@@ -1,4 +1,8 @@
 """小程序实例、模板、构建、发布服务"""
+import logging
+
+logger = logging.getLogger(__name__)
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from sqlalchemy.orm import selectinload

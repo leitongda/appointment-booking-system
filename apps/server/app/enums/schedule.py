@@ -68,3 +68,11 @@ class Period(str, Enum):
     AFTERNOON = "afternoon"  # 下午
     EVENING = "evening"      # 晚上
     ALL = "all"              # 全天
+
+
+class SuspensionProcessingStatus(str, Enum):
+    """排班暂停处理状态"""
+    PENDING = "pending"        # 待处理
+    PROCESSING = "processing"  # 处理中
+    COMPLETED = "completed"    # 已完成
+    FAILED = "failed"          # 处理失败

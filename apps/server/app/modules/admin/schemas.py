@@ -62,7 +62,7 @@ class RoleResponse(BaseModel):
 
 class AdminCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
-    password: Optional[str] = Field(None, min_length=6, description="不填则默认为123456")
+    password: Optional[str] = Field(None, min_length=6, description="不填则使用系统默认密码")
     name: Optional[str] = Field(None, max_length=50)
     phone: Optional[str] = Field(None, max_length=20)
     email: Optional[str] = Field(None, max_length=100)

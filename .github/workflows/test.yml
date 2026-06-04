@@ -44,7 +44,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           cache: 'pip'
           cache-dependency-path: apps/server/requirements.txt
 
@@ -74,6 +74,17 @@ jobs:
           pytest tests/integration/test_alembic_migration.py -v --tb=short --conftest=tests/conftest_pg.py
         continue-on-error: false
 
+      - name: Architecture fitness functions (import-linter)
+        working-directory: apps/server
+        run: |
+          pip install import-linter
+          lint-imports --no-cache
+
+      - name: Architecture fitness tests
+        working-directory: apps/server
+        run: |
+          pytest tests/architecture/ -v --tb=short
+
       - name: Generate test report
         if: always()
         working-directory: apps/server
@@ -94,7 +105,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           cache: 'pip'
           cache-dependency-path: apps/server/requirements.txt
 
@@ -126,7 +137,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           cache: 'pip'
           cache-dependency-path: apps/server/requirements.txt
 

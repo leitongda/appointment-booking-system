@@ -12,7 +12,7 @@ from app.middleware.tenant_context import get_current_tenant_id
 from app.models.appointment import Appointment
 from app.models.refund import RefundRecord
 from app.models.schedule import Schedule
-from app.modules.appointments.common import APPOINTMENT_STATUS
+from app.constants.appointment import APPOINTMENT_STATUS
 
 COUNTED_REFUND_STATUSES = ("pending", "processing", "success")
 IN_FLIGHT_REFUND_STATUSES = ("pending", "processing")

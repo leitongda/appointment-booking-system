@@ -3,7 +3,7 @@
 #   docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 #
 # Prometheus: http://localhost:9090
-# Grafana:    http://localhost:3000  (admin / admin)
+# Grafana:    http://localhost:3000  (default: admin / admin, 可通过 .env 覆盖)
 # 后端 metrics: http://localhost:8000/metrics
 #
 # 注意: 此文件引用 monitoring/ 目录下的配置文件。
@@ -34,8 +34,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=${GF_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_SERVER_ROOT_URL=http://localhost:3000
       - GF_INSTALL_PLUGINS=grafana-clock-panel

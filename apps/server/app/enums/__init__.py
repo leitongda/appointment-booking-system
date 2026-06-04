@@ -20,6 +20,7 @@ from app.enums.schedule import (
     RequestStatus,
     RequestType,
     ScheduleMode,
+    SuspensionProcessingStatus,
 )
 
 # message
@@ -76,6 +77,12 @@ from app.enums.freelance import (
     FreelanceTaskStatus,
 )
 
+# payment
+from app.enums.payment import PaymentStatus, RefundStatus
+
+# approval
+from app.enums.approval import ApprovalInstanceStatus
+
 __all__ = [
     # appointment
     "CheckinMethod",
@@ -86,6 +93,7 @@ __all__ = [
     "RequestStatus",
     "RequestType",
     "ScheduleMode",
+    "SuspensionProcessingStatus",
     # message
     "MessageType",
     # feedback
@@ -128,4 +136,9 @@ __all__ = [
     "FreelanceInteractionType",
     "FreelanceSettlementStatus",
     "FreelanceTaskStatus",
+    # payment
+    "PaymentStatus",
+    "RefundStatus",
+    # approval
+    "ApprovalInstanceStatus",
 ]

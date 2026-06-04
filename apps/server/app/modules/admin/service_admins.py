@@ -7,6 +7,7 @@ from typing import List, Optional, Tuple
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.core.security import get_password_hash, verify_password
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.admin import Admin, Role, admin_stores
@@ -219,7 +220,7 @@ class AdminService:
         from app.common.quota import check_quota
         await check_quota(tenant_id, "admins", self.db)
 
-        password = data.get("password") or "123456"
+        password = data.get("password") or settings.DEFAULT_USER_PASSWORD
 
         # 密码策略校验
         from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator

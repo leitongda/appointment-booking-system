@@ -1,5 +1,5 @@
 import { message, Dropdown, Avatar, Space, Modal, Form, Input } from 'antd';
-import type { RequestConfig, RunTimeLayoutConfig } from 'umi';
+import type { RunTimeLayoutConfig } from 'umi';
 import { history } from 'umi';
 import { useState, useCallback } from 'react';
 import { getToken, removeToken, initCrossTabSync, initTracker, getTracker, initPerformanceMonitoring } from '@hospital/shared';
@@ -306,52 +306,4 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }: a
       }
     },
   };
-};
-
-export const request: RequestConfig = {
-  timeout: 30000,
-  errorConfig: {
-    errorHandler: (error: any) => {
-      if (error.response?.status !== 401) {
-        message.error(error.message || '请求失败');
-      }
-    },
-  },
-  requestInterceptors: [
-    (config: any) => {
-      const token = getToken();
-      if (token) {
-        config.headers = { ...config.headers, Authorization: `Bearer ${token}` };
-      }
-      return config;
-    },
-  ],
-  responseInterceptors: [
-    (response: any) => {
-      const { data, status } = response;
-      
-      if (status === 401 || data?.code === 401) {
-        // 登录页不弹框
-        if (window.location.pathname === '/login') return response;
-
-        removeToken();
-        Modal.confirm({
-          title: '登录已过期',
-          content: data?.message || '您的登录已失效，请重新登录。',
-          okText: '重新登录',
-          cancelButtonProps: { style: { display: 'none' } },
-          closable: false,
-          maskClosable: false,
-          onOk: () => { window.location.href = '/login'; },
-        });
-        return response;
-      }
-      
-      if (data?.code && data.code !== 200 && data.code !== 0) {
-        message.error(data?.message || '请求失败');
-      }
-      
-      return response;
-    },
-  ],
 };

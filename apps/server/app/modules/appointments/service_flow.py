@@ -6,6 +6,8 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import selectinload
 
 from app.core.events import EventType
+from app.core.error_codes import ErrorCode
+from app.middleware.exception import BusinessError
 from app.models.rule_set import AppointmentCheckin
 from app.models.schedule import Schedule
 from app.modules.appointments.common import APPOINTMENT_STATUS, CHECKIN_METHOD, AppointmentServiceBase, logger
@@ -33,9 +35,9 @@ class AppointmentFlowService(AppointmentServiceBase):
 
         try:
             if not is_admin and user_id and appointment.user_id != user_id:
-                raise ValueError("无权操作此预约")
+                raise BusinessError("无权操作此预约", error_code=ErrorCode.PERMISSION_DENIED)
             if appointment.status != APPOINTMENT_STATUS["CONFIRMED"]:
-                raise ValueError("当前状态不可签到")
+                raise BusinessError("当前状态不可签到", error_code=ErrorCode.APPOINTMENT_INVALID_STATUS)
 
             local_tz = pytz.timezone("Asia/Shanghai")
             now = datetime.now(local_tz)
@@ -48,9 +50,9 @@ class AppointmentFlowService(AppointmentServiceBase):
                     checkin_close = local_tz.localize(checkin_close)
                 if now < checkin_open:
                     minutes_until = int((checkin_open - now).total_seconds() / 60)
-                    raise ValueError(f"未到签到时间，请等待{minutes_until}分钟后再试")
+                    raise BusinessError(f"未到签到时间，请等待{minutes_until}分钟后再试", error_code=ErrorCode.CHECKIN_NOT_OPENED)
                 if now > checkin_close:
-                    raise ValueError("已过签到时间，无法签到")
+                    raise BusinessError("已过签到时间，无法签到", error_code=ErrorCode.CHECKIN_WINDOW_CLOSED)
             else:
                 stmt = select(Schedule).where(Schedule.id == appointment.schedule_id)
                 result = await self.db.execute(stmt)
@@ -75,9 +77,9 @@ class AppointmentFlowService(AppointmentServiceBase):
                     sign_in_end = visit_datetime + timedelta(minutes=sign_in_late_minutes)
                     if now < sign_in_start:
                         minutes_until = int((sign_in_start - now).total_seconds() / 60)
-                        raise ValueError(f"未到签到时间，请等待{minutes_until}分钟后再试")
+                        raise BusinessError(f"未到签到时间，请等待{minutes_until}分钟后再试", error_code=ErrorCode.CHECKIN_NOT_OPENED)
                     if now > sign_in_end:
-                        raise ValueError("已过签到时间，无法签到")
+                        raise BusinessError("已过签到时间，无法签到", error_code=ErrorCode.CHECKIN_WINDOW_CLOSED)
 
             if appointment.rule_set_id:
                 rule_engine_cls = self._compat("RuleEngineService", RuleEngineService)
@@ -86,7 +88,7 @@ class AppointmentFlowService(AppointmentServiceBase):
                 if checkin_policy and checkin_policy.max_times:
                     current_count = appointment.checkin_count or 0
                     if current_count >= checkin_policy.max_times:
-                        raise ValueError(f"已达到最大签到次数限制（{checkin_policy.max_times}次）")
+                        raise BusinessError(f"已达到最大签到次数限制（{checkin_policy.max_times}次）", error_code=ErrorCode.CHECKIN_LIMIT_EXCEEDED)
                 if checkin_policy:
                     rule_engine.calculate_checkin_grace_period(
                         appointment=appointment,
@@ -157,7 +159,7 @@ class AppointmentFlowService(AppointmentServiceBase):
         if not appointment:
             return None
         if appointment.status != APPOINTMENT_STATUS["SIGNED"]:
-            raise ValueError("只有已签到状态的预约才能取消签到")
+            raise BusinessError("只有已签到状态的预约才能取消签到", error_code=ErrorCode.APPOINTMENT_INVALID_STATUS)
         appointment.status = APPOINTMENT_STATUS["CONFIRMED"]
         appointment.sign_in_time = None
         await self.db.commit()
@@ -169,7 +171,7 @@ class AppointmentFlowService(AppointmentServiceBase):
         if not appointment:
             return None
         if appointment.status != APPOINTMENT_STATUS["SIGNED"]:
-            raise ValueError("患者未签到")
+            raise BusinessError("患者未签到", error_code=ErrorCode.APPOINTMENT_INVALID_STATUS)
         appointment.status = APPOINTMENT_STATUS["SEEING"]
         appointment.call_time = utc_now()
         await self.db.commit()
@@ -246,7 +248,7 @@ class AppointmentFlowService(AppointmentServiceBase):
         if not appointment:
             return None
         if appointment.status not in [APPOINTMENT_STATUS["SIGNED"], APPOINTMENT_STATUS["SEEING"]]:
-            raise ValueError("只有已签到或就诊中状态的预约才能标记完成")
+            raise BusinessError("只有已签到或就诊中状态的预约才能标记完成", error_code=ErrorCode.APPOINTMENT_INVALID_STATUS)
         appointment.status = APPOINTMENT_STATUS["COMPLETED"]
         appointment.complete_time = utc_now()
         await self.db.commit()
@@ -271,7 +273,7 @@ class AppointmentFlowService(AppointmentServiceBase):
         if not appointment:
             return None
         if appointment.status not in [APPOINTMENT_STATUS["SIGNED"], APPOINTMENT_STATUS["SEEING"]]:
-            raise ValueError("当前状态不可过号")
+            raise BusinessError("当前状态不可过号", error_code=ErrorCode.APPOINTMENT_INVALID_STATUS)
         appointment.status = APPOINTMENT_STATUS["EXPIRED"]
         await self.db.commit()
         await self.db.refresh(appointment)
@@ -300,7 +302,7 @@ class AppointmentFlowService(AppointmentServiceBase):
         if not appointment:
             return None
         if appointment.status != APPOINTMENT_STATUS["EXPIRED"]:
-            raise ValueError("只有过号状态可以重新叫号")
+            raise BusinessError("只有过号状态可以重新叫号", error_code=ErrorCode.APPOINTMENT_INVALID_STATUS)
         appointment.status = APPOINTMENT_STATUS["SEEING"]
         appointment.call_time = utc_now()
         await self.db.commit()
@@ -330,7 +332,7 @@ class AppointmentFlowService(AppointmentServiceBase):
         if not appointment:
             return None
         if appointment.status not in [APPOINTMENT_STATUS["CONFIRMED"], APPOINTMENT_STATUS["EXPIRED"]]:
-            raise ValueError("当前状态不可标记爽约")
+            raise BusinessError("当前状态不可标记爽约", error_code=ErrorCode.APPOINTMENT_INVALID_STATUS)
         appointment.status = APPOINTMENT_STATUS["NO_SHOW"]
         await self.db.commit()
         await self.db.refresh(appointment)

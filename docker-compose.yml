@@ -10,6 +10,11 @@ services:
     image: hospital_backend:latest
     container_name: hospital_backend
     restart: always
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
     environment:
       # 连接宝塔安装的 PostgreSQL（必须通过 .env 文件或环境变量设置）
       - DATABASE_URL=${DATABASE_URL:?请设置 DATABASE_URL 环境变量}
@@ -39,6 +44,11 @@ services:
     image: hospital_backend:latest
     container_name: hospital_celery_worker
     restart: always
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
     environment:
       - DATABASE_URL=${DATABASE_URL:?请设置 DATABASE_URL 环境变量}
       - REDIS_URL=${REDIS_URL:?请设置 REDIS_URL 环境变量}
@@ -61,6 +71,11 @@ services:
     image: hospital_backend:latest
     container_name: hospital_celery_beat
     restart: always
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
     environment:
       - DATABASE_URL=${DATABASE_URL:?请设置 DATABASE_URL 环境变量}
       - REDIS_URL=${REDIS_URL:?请设置 REDIS_URL 环境变量}
@@ -69,9 +84,9 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD-SHELL", "test -f /tmp/celerybeat.pid"]
+      test: ["CMD-SHELL", "PIDFILE=/tmp/celerybeat.pid; if [ ! -f \"$PIDFILE\" ]; then exit 1; fi; kill -0 \"$(cat \"$PIDFILE\")\" 2>/dev/null || exit 1"]
       interval: 30s
-      timeout: 5s
+      timeout: 10s
       retries: 3
       start_period: 15s
 
@@ -83,6 +98,11 @@ services:
     image: hospital_backend:latest
     container_name: hospital_celery_flower
     restart: always
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
     environment:
       - DATABASE_URL=${DATABASE_URL:?请设置 DATABASE_URL 环境变量}
       - REDIS_URL=${REDIS_URL:?请设置 REDIS_URL 环境变量}
@@ -94,3 +114,9 @@ services:
     command: celery -A app.celery_app flower --port=5555 --broker=${REDIS_URL} --basic_auth=${FLOWER_BASIC_AUTH}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5555/api/workers"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

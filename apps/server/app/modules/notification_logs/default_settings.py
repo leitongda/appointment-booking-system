@@ -3,6 +3,9 @@
 
 用于初始化 system_settings 中的通知配额配置项。
 """
+import logging
+
+logger = logging.getLogger(__name__)
 
 # 通知配额默认配置
 NOTIFICATION_QUOTA_DEFAULTS = {
@@ -53,12 +56,12 @@ async def ensure_notification_quota_settings(db):
             )
             db.add(setting)
             await db.flush()
-            print(f"创建通知配额配置: {key} = {config['value']}")
+            logger.info("创建通知配额配置: %s = %s", key, config["value"])
         else:
-            print(f"通知配额配置已存在: {key}")
+            logger.debug("通知配额配置已存在: %s", key)
 
     await db.commit()
-    print("通知配额配置初始化完成")
+    logger.info("通知配额配置初始化完成")
 
 
 if __name__ == "__main__":

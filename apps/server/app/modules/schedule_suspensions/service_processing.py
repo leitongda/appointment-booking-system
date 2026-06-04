@@ -21,7 +21,7 @@ from app.models.appointment import Appointment
 from app.models.doctor import Doctor
 from app.models.schedule import Schedule
 from app.models.schedule_suspension import ScheduleSuspension
-from app.modules.appointments.common import APPOINTMENT_STATUS, ACTIVE_APPOINTMENT_STATUSES
+from app.constants.appointment import APPOINTMENT_STATUS, ACTIVE_APPOINTMENT_STATUSES
 from app.modules.messages.service_messages import MessageService
 from app.utils.audit import set_update_audit
 

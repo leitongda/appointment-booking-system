@@ -5,6 +5,7 @@ from typing import List, Optional
 
 from sqlalchemy import and_, delete, func, select
 
+from app.core.config import settings
 from app.core.security import get_password_hash
 from app.models.admin import Admin, admin_stores
 from app.models.department import Department
@@ -27,7 +28,7 @@ class StoreMutationMixin:
         await check_quota(tenant_id, "stores", self.db)
 
         store_data = data.model_dump()
-        plain_password = store_data.get("password") or "123456"
+        plain_password = store_data.get("password") or settings.DEFAULT_USER_PASSWORD
         store_data["password"] = get_password_hash(plain_password)
 
         # 设置租户ID

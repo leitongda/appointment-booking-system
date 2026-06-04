@@ -8,6 +8,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin, get_store_filter, require_permission
+from app.core.config import settings
 from app.core.security import get_password_hash
 from app.db.session import get_db
 from app.modules.import_export.service_import import ImportService
@@ -130,7 +131,7 @@ async def import_patients(
             user = User(
                 id=str(uuid4()),
                 phone=phone,
-                password_hash=get_password_hash("123456"),
+                password_hash=get_password_hash(settings.DEFAULT_USER_PASSWORD),
                 nickname=row_data.get("姓名"),
                 status=1,
                 tenant_id=tenant_id,

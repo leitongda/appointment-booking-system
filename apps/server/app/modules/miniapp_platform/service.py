@@ -1,4 +1,8 @@
 """小程序平台管理服务 — 公司与支付配置"""
+import logging
+
+logger = logging.getLogger(__name__)
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_, update
 from sqlalchemy.orm import selectinload

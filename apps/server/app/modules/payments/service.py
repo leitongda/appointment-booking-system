@@ -18,7 +18,7 @@ from app.infrastructure.payments.wechat_pay_service import WeChatPayService
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.appointment import Appointment
 from app.models.miniapp_platform import PaymentProfile
-from app.modules.appointments.common import APPOINTMENT_STATUS
+from app.constants.appointment import APPOINTMENT_STATUS
 
 logger = logging.getLogger(__name__)
 

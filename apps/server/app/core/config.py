@@ -171,7 +171,7 @@ class Settings(BaseSettings):
     ACCOUNT_DUAL_WRITE_ENABLED: bool = False  # 默认关闭，手动开启
 
     # 新用户默认密码（管理员代创建用户时使用）
-    DEFAULT_USER_PASSWORD: str = "Hospital@2024"
+    DEFAULT_USER_PASSWORD: str = "Hosp!t@l#2024$xQ"
     
     model_config = SettingsConfigDict(
         env_file=_get_env_file(),

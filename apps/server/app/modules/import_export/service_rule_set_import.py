@@ -1,4 +1,8 @@
 """规则组导入服务"""
+import logging
+
+logger = logging.getLogger(__name__)
+
 from typing import Dict, List, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select

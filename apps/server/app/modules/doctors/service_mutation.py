@@ -9,6 +9,7 @@ from typing import List, Optional
 from pypinyin import lazy_pinyin
 from sqlalchemy import and_, func, select
 
+from app.core.config import settings
 from app.core.security import get_password_hash
 from app.models.appointment import Appointment
 from app.models.doctor import Doctor
@@ -28,7 +29,7 @@ class DoctorMutationMixin:
         await check_quota(tenant_id, "doctors", self.db)
 
         user_id = None
-        password = data.password or "123456"
+        password = data.password or settings.DEFAULT_USER_PASSWORD
         password_hash = get_password_hash(password)
 
         if data.phone:

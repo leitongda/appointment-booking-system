@@ -231,7 +231,7 @@ export class Tracker {
     try {
       // 使用 sendBeacon 或 fetch
       if (sync && typeof navigator !== 'undefined' && navigator.sendBeacon) {
-        navigator.sendBeacon(url, body);
+        navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
       } else if (typeof fetch !== 'undefined') {
         await fetch(url, {
           method: 'POST',

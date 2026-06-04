@@ -23,33 +23,86 @@ modules/<domain>/
   helpers.py
 ```
 
-已迁移的核心领域包括：
+当前 `app/modules/` 包含 62 个领域模块：
 
+- `accounts`
 - `admin`
+- `amap`
+- `analytics`
 - `appointments`
+- `approval_flows`
 - `audit_logs`
 - `auth`
+- `backup`
+- `blacklists`
+- `booking_notices`
+- `common_services`
+- `consultation_fees`
 - `content`
+- `departments`
+- `dictionaries`
+- `doctor_booking_settings`
 - `doctor_portal`
 - `doctors`
+- `email_templates`
+- `examination_reports`
+- `export`
+- `feedbacks`
+- `follow_up`
+- `freelance_fees`
+- `import_export`
+- `leave_requests`
+- `lowcode`
+- `medical_records`
 - `messages`
+- `miniapp_platform`
+- `notification_logs`
+- `notification_preferences`
 - `patients`
+- `payments`
+- `performance`
+- `platform_announcements`
+- `points`
+- `refunds`
+- `rest_days`
+- `revenue`
+- `rule_engine`
 - `rule_sets`
+- `schedule_rooms`
+- `schedule_suspensions`
 - `schedule_templates`
 - `schedules`
 - `settings`
+- `shift_types`
 - `statistics`
+- `store_email_recipients`
+- `store_visit_type_configs`
 - `stores`
+- `support_tickets`
+- `tenants`
+- `unified_message`
+- `upload`
+- `user_favorites`
+- `users`
+- `visit_types`
+- `waitlist`
 - `websocket`
 
 ### 2. `app/common/*`
 
 放跨领域复用能力：
 
-- `deps.py`
-- `responses.py`
-- `errors.py`
-- `utils/`
+- `auth_unified.py` — 统一认证（User / Doctor / Admin 三角色）
+- `permission_deps.py` — 权限依赖注入
+- `tenant_deps.py` / `tenant_filter.py` — 租户相关依赖
+- `deps.py` — 通用依赖注入
+- `responses.py` — 响应工具
+- `feature_flags.py` — 功能开关
+- `quota.py` — 用量配额
+- `decorators.py` — 跨模块装饰器
+- `utils/` — 通用工具函数
+
+注意：错误码定义在 `core/error_codes.py`，全局异常处理在 `middleware/exception.py`，不在 `common/` 下。
 
 原则：
 
@@ -60,13 +113,14 @@ modules/<domain>/
 
 放外部系统适配层：
 
-- `storage`
-- `email`
-- `sms`
-- `excel`
-- `image`
-- `notification`
-- `wechat`
+- `storage` — 文件存储（local/minio/cos）
+- `email` — 邮件发送
+- `sms` — 短信服务
+- `excel` — 导入导出
+- `image` — 图片处理
+- `notifications` — 多渠道通知调度
+- `payments` — 微信支付
+- `wechat` — 微信服务、小程序管理
 
 原则：
 

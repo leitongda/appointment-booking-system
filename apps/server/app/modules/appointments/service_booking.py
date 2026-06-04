@@ -7,7 +7,9 @@ from sqlalchemy import and_, func, or_, select, update as sa_update
 from sqlalchemy.orm import selectinload
 
 from app.core.events import EventType
+from app.core.error_codes import ErrorCode
 from app.core.redis import RedisCache
+from app.middleware.exception import BusinessError
 from app.models.appointment import Appointment
 from app.models.blacklist import Blacklist
 from app.models.doctor import Doctor
@@ -46,22 +48,22 @@ class AppointmentBookingService(AppointmentServiceBase):
         )
         schedule = schedule_result.scalar_one_or_none()
         if not schedule:
-            raise ValueError("排班不存在")
+            raise BusinessError("排班不存在", error_code=ErrorCode.SCHEDULE_NOT_FOUND)
         if schedule.status != 1:
-            raise ValueError("该排班已停诊")
+            raise BusinessError("该排班已停诊", error_code=ErrorCode.SCHEDULE_STOPPED)
         # 号源拆分：线上预约检查 online_quota（online_quota=0 时回退到 total_slots）
         effective_online_quota = schedule.online_quota if schedule.online_quota and schedule.online_quota > 0 else schedule.total_slots
         if schedule.booked_slots >= effective_online_quota:
-            raise ValueError("号源已满")
+            raise BusinessError("号源已满", error_code=ErrorCode.QUOTA_EXCEEDED)
 
         # 租户一致性校验：排班必须属于当前租户
         if current_tenant_id and schedule.tenant_id != current_tenant_id:
-            raise ValueError("排班不属于当前租户")
+            raise BusinessError("排班不属于当前租户", error_code=ErrorCode.SCHEDULE_TENANT_MISMATCH)
 
         if schedule.template_id is not None:
             is_rest_day = await self._check_rest_day(schedule.schedule_date, schedule.store_id, schedule.doctor_id)
             if is_rest_day:
-                raise ValueError("该日期为休息日，无法预约")
+                raise BusinessError("该日期为休息日，无法预约", error_code=ErrorCode.REST_DAY_BOOKING)
 
         settings_service_cls = self._compat("SettingsService", SettingsService)
         settings_service = settings_service_cls(self.db)
@@ -100,28 +102,28 @@ class AppointmentBookingService(AppointmentServiceBase):
             advance_days = await settings_service.get_value("booking", "advance_days", 10, store_id=store_id)
             max_date = date.today() + timedelta(days=advance_days)
             if schedule.schedule_date > max_date:
-                raise ValueError(f"预约日期不能超过{advance_days}天")
+                raise BusinessError(f"预约日期不能超过{advance_days}天", error_code=ErrorCode.ADVANCE_BOOKING_EXCEEDED)
 
             per_day_limit = await settings_service.get_value("booking", "per_day_limit", 3, store_id=store_id)
             today_count = await self._count_user_store_daily_appointments(user_id, store_id, schedule.schedule_date)
             if today_count >= per_day_limit:
-                raise ValueError(f"当日预约已达上限（最多{per_day_limit}次）")
+                raise BusinessError(f"当日预约已达上限（最多{per_day_limit}次）", error_code=ErrorCode.BOOKING_LIMIT_EXCEEDED)
 
         # 租户一致性校验：获取用户并验证租户
         user_result = await self.db.execute(select(User).where(User.id == user_id))
         user = user_result.scalar_one_or_none()
         if user and user.tenant_id != current_tenant_id:
-            raise ValueError("用户不属于当前租户")
+            raise BusinessError("用户不属于当前租户", error_code=ErrorCode.USER_TENANT_MISMATCH)
 
         patient_result = await self.db.execute(
             select(Patient).where(Patient.id == data.patient_id, Patient.user_id == user_id)
         )
         patient = patient_result.scalar_one_or_none()
         if not patient:
-            raise ValueError("就诊人不存在")
+            raise BusinessError("就诊人不存在", error_code=ErrorCode.PATIENT_NOT_FOUND)
         # 租户一致性校验：患者必须属于当前租户
         if current_tenant_id and patient.tenant_id != current_tenant_id:
-            raise ValueError("就诊人不属于当前租户")
+            raise BusinessError("就诊人不属于当前租户", error_code=ErrorCode.PATIENT_TENANT_MISMATCH)
 
         if not rule_set:
             same_day_booking = await settings_service.get_value(
@@ -131,12 +133,12 @@ class AppointmentBookingService(AppointmentServiceBase):
                 store_id=store_id,
             )
             if schedule.schedule_date == date.today() and not same_day_booking:
-                raise ValueError("当前不允许当天预约")
+                raise BusinessError("当前不允许当天预约", error_code=ErrorCode.SAME_DAY_BOOKING_DISABLED)
 
             advance_days = await settings_service.get_value("booking", "advance_days", 10, store_id=store_id)
             max_date = date.today() + timedelta(days=advance_days)
             if schedule.schedule_date > max_date:
-                raise ValueError(f"预约日期不能超过{advance_days}天")
+                raise BusinessError(f"预约日期不能超过{advance_days}天", error_code=ErrorCode.ADVANCE_BOOKING_EXCEEDED)
 
             blacklist = await self._get_active_blacklist(
                 user_id=user_id,
@@ -145,7 +147,7 @@ class AppointmentBookingService(AppointmentServiceBase):
             )
             if blacklist:
                 reason = blacklist.reason or "您已被限制预约，请联系工作人员"
-                raise ValueError(reason)
+                raise BusinessError(reason, error_code=ErrorCode.PATIENT_BLACKLISTED)
 
         user_lock_name = f"appointment:create:user:{user_id}"
         schedule_lock_name = f"appointment:create:{data.schedule_id}"
@@ -157,7 +159,7 @@ class AppointmentBookingService(AppointmentServiceBase):
                 per_day_limit = await settings_service.get_value("booking", "per_day_limit", 3, store_id=store_id)
                 today_count = await self._count_user_store_daily_appointments(user_id, store_id, schedule.schedule_date)
                 if today_count >= per_day_limit:
-                    raise ValueError(f"当日预约已达上限（最多{per_day_limit}次）")
+                    raise BusinessError(f"当日预约已达上限（最多{per_day_limit}次）", error_code=ErrorCode.BOOKING_LIMIT_EXCEEDED)
 
                 duplicate_same_day = await self.check_duplicate_same_day(
                     user_id=user_id,
@@ -166,7 +168,7 @@ class AppointmentBookingService(AppointmentServiceBase):
                     time_slot=schedule.time_slot,
                 )
                 if duplicate_same_day:
-                    raise ValueError("该就诊人同一天同一时段已有预约")
+                    raise BusinessError("该就诊人同一天同一时段已有预约", error_code=ErrorCode.DUPLICATE_BOOKING)
 
                 per_doctor_limit = await settings_service.get_value(
                     "booking",
@@ -176,7 +178,7 @@ class AppointmentBookingService(AppointmentServiceBase):
                 )
                 doctor_count = await self._count_user_doctor_active_appointments(user_id, schedule.doctor_id)
                 if doctor_count >= per_doctor_limit:
-                    raise ValueError(f"同一医生预约已达上限（最多{per_doctor_limit}次）")
+                    raise BusinessError(f"同一医生预约已达上限（最多{per_doctor_limit}次）", error_code=ErrorCode.DOCTOR_APPOINTMENT_LIMIT_EXCEEDED)
 
             # 排班锁：保护容量检查和预约创建的原子性
             async with redis_cache.tenant_distributed_lock(
@@ -205,14 +207,14 @@ class AppointmentBookingService(AppointmentServiceBase):
                     )
                 )
                 if existing.scalar_one_or_none():
-                    raise ValueError("该就诊人已预约此时段")
+                    raise BusinessError("该就诊人已预约此时段", error_code=ErrorCode.DUPLICATE_BOOKING)
 
                 schedule_refresh = await self.db.execute(select(Schedule).where(Schedule.id == data.schedule_id))
                 schedule_current = schedule_refresh.scalar_one_or_none()
                 if schedule_current:
                     eff_quota = schedule_current.online_quota if schedule_current.online_quota and schedule_current.online_quota > 0 else schedule_current.total_slots
                     if schedule_current.booked_slots >= eff_quota:
-                        raise ValueError("号源已满")
+                        raise BusinessError("号源已满", error_code=ErrorCode.QUOTA_EXCEEDED)
 
                 appointment_no = f"YY{datetime.now().strftime('%Y%m%d%H%M%S')}{str(uuid.uuid4())[:4].upper()}"
                 queue_result = await self.db.execute(
@@ -271,13 +273,13 @@ class AppointmentBookingService(AppointmentServiceBase):
                 )
                 new_count = result.scalar()
                 if new_count is None:
-                    raise ValueError("号源已满")
+                    raise BusinessError("号源已满", error_code=ErrorCode.QUOTA_EXCEEDED)
                 schedule.booked_slots = new_count
                 await self.db.commit()
                 await self.db.refresh(appointment)
         except RuntimeError as exc:
             logger.warning(f"预约创建获取锁失败: user_lock={user_lock_name}, schedule_lock={schedule_lock_name}, 错误: {exc}")
-            raise ValueError("系统繁忙，请稍后重试")
+            raise BusinessError("系统繁忙，请稍后重试", error_code=ErrorCode.LOCK_ACQUISITION_FAILED)
 
         appointment.schedule = schedule
 
@@ -430,7 +432,7 @@ class AppointmentBookingService(AppointmentServiceBase):
         if not appointment:
             return None
         if not is_admin and appointment.user_id != user_id:
-            raise ValueError("无权操作此预约")
+            raise BusinessError("无权操作此预约", error_code=ErrorCode.PERMISSION_DENIED)
 
         # 待支付状态（status=0）可以直接取消，无需退款
         if appointment.status == 0:
@@ -456,7 +458,7 @@ class AppointmentBookingService(AppointmentServiceBase):
                             appointment.id,
                         )
                     else:
-                        raise ValueError("预约状态已变更")
+                        raise BusinessError("预约状态已变更", error_code=ErrorCode.APPOINTMENT_INVALID_STATUS)
                 else:
                     # 用条件 UPDATE 改 status=0 → CANCELLED，避免与并发回调互相覆盖。
                     # rowcount=0 表示在锁内 reload 后到 UPDATE 之间被回调抢先（极小窗口），
@@ -487,7 +489,7 @@ class AppointmentBookingService(AppointmentServiceBase):
                                 APPOINTMENT_STATUS["SIGNED"],
                             )
                         ):
-                            raise ValueError("预约状态已变更")
+                            raise BusinessError("预约状态已变更", error_code=ErrorCode.APPOINTMENT_INVALID_STATUS)
                         logger.info(
                             "取消条件 UPDATE 失败，回调已落库，转走已支付退款流程: appointment_id=%s",
                             appointment_id,
@@ -580,7 +582,7 @@ class AppointmentBookingService(AppointmentServiceBase):
             return appointment
 
         if appointment.status not in [APPOINTMENT_STATUS["CONFIRMED"], APPOINTMENT_STATUS["SIGNED"]]:
-            raise ValueError("当前状态不可取消")
+            raise BusinessError("当前状态不可取消", error_code=ErrorCode.APPOINTMENT_INVALID_STATUS)
 
         if not is_admin:
             import pytz
@@ -589,9 +591,9 @@ class AppointmentBookingService(AppointmentServiceBase):
             now = datetime.now(local_tz)
             if appointment.cancel_open_at and appointment.cancel_close_at:
                 if now < appointment.cancel_open_at:
-                    raise ValueError("未到取消时间窗口")
+                    raise BusinessError("未到取消时间窗口", error_code=ErrorCode.CANCEL_WINDOW_NOT_OPENED)
                 if now > appointment.cancel_close_at:
-                    raise ValueError("已过取消时间窗口，无法取消预约")
+                    raise BusinessError("已过取消时间窗口，无法取消预约", error_code=ErrorCode.CANCEL_WINDOW_CLOSED)
             else:
                 settings_service_cls = self._compat("SettingsService", SettingsService)
                 settings_service = settings_service_cls(self.db)
@@ -610,7 +612,7 @@ class AppointmentBookingService(AppointmentServiceBase):
                     visit_datetime = datetime.combine(schedule.schedule_date, visit_time)
                     cancel_deadline = visit_datetime - timedelta(hours=cancel_hours)
                     if now > cancel_deadline:
-                        raise ValueError(f"就诊前{cancel_hours}小时内不可取消预约")
+                        raise BusinessError(f"就诊前{cancel_hours}小时内不可取消预约", error_code=ErrorCode.CANCEL_WINDOW_CLOSED)
 
         schedule = appointment.schedule
         lock_name = f"appointment:cancel:{appointment.schedule_id}" if schedule else f"appointment:cancel:{appointment_id}"
@@ -620,7 +622,7 @@ class AppointmentBookingService(AppointmentServiceBase):
             if not appointment:
                 return None
             if appointment.status not in [APPOINTMENT_STATUS["CONFIRMED"], APPOINTMENT_STATUS["SIGNED"]]:
-                raise ValueError("当前状态不可取消")
+                raise BusinessError("当前状态不可取消", error_code=ErrorCode.APPOINTMENT_INVALID_STATUS)
 
             schedule = appointment.schedule
 
@@ -890,14 +892,14 @@ class AppointmentBookingService(AppointmentServiceBase):
         )
 
         if not refund_record.payment_profile_id:
-            raise ValueError("预约缺少支付配置快照，无法发起退款")
+            raise BusinessError("预约缺少支付配置快照，无法发起退款", error_code=ErrorCode.PAYMENT_FAILED)
 
         profile_result = await self.db.execute(
             _select(PaymentProfile).where(PaymentProfile.id == refund_record.payment_profile_id)
         )
         profile = profile_result.scalar_one_or_none()
         if not profile:
-            raise ValueError("退款关联的支付配置不存在")
+            raise BusinessError("退款关联的支付配置不存在", error_code=ErrorCode.PAYMENT_FAILED)
 
         wx_service = WeChatPayService(profile)
         out_trade_no, transaction_id = await refund_service.ensure_refund_payment_reference(

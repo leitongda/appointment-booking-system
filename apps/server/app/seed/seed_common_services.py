@@ -114,7 +114,7 @@ HEALTH_REMINDERS_DEFAULT = [
         "reminder_type": "blood_pressure",
         "name": "血压监测",
         "title": "定期血压检测",
-        "content": "高血压被称为"沉默的杀手"，建议定期监测血压。",
+        "content": '高血压被称为"沉默的杀手"，建议定期监测血压。',
         "tips": '["保持健康体重", "减少盐分摄入", "适量运动"]',
         "recommended_interval": 90,
         "sort_order": 4,

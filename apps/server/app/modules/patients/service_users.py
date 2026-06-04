@@ -10,7 +10,8 @@ from app.models.appointment import Appointment
 from app.models.user import Patient, User
 from app.common.account_sync import AccountSyncService
 from app.modules.patients.common import PatientsServiceBase
-from app.modules.appointments.common import APPOINTMENT_STATUS
+from app.constants.appointment import APPOINTMENT_STATUS
+from app.middleware.exception import BusinessError
 from app.utils.audit import set_create_audit, set_update_audit
 
 
@@ -267,7 +268,7 @@ class UserManageService(PatientsServiceBase):
             )
         appt_count = await self.db.scalar(appt_count_query)
         if appt_count and appt_count > 0:
-            raise ValueError("该用户有预约记录，无法删除")
+            raise BusinessError("该用户有预约记录，无法删除")
 
         cards_query = select(Patient).where(Patient.user_id == user_id)
         if tenant_id:
@@ -326,7 +327,7 @@ class UserManageService(PatientsServiceBase):
             existing_query = existing_query.where(Patient.tenant_id == tenant_id)
         existing = await self.db.execute(existing_query)
         if existing.scalar_one_or_none():
-            raise ValueError(f"该用户下已存在名为 {data.name} 的就诊卡")
+            raise BusinessError(f"该用户下已存在名为 {data.name} 的就诊卡")
 
         birthday = None
         if data.birthday:
@@ -454,14 +455,14 @@ class UserManageService(PatientsServiceBase):
             card_count_query = card_count_query.where(Patient.tenant_id == tenant_id)
         card_count = await self.db.scalar(card_count_query)
         if card_count and card_count <= 1:
-            raise ValueError("用户至少需要保留一张就诊卡")
+            raise BusinessError("用户至少需要保留一张就诊卡")
 
         appt_count_query = select(func.count(Appointment.id)).where(Appointment.patient_id == card_id)
         if tenant_id:
             appt_count_query = appt_count_query.where(Appointment.tenant_id == tenant_id)
         appt_count = await self.db.scalar(appt_count_query)
         if appt_count and appt_count > 0:
-            raise ValueError("该就诊卡有预约记录，无法删除")
+            raise BusinessError("该就诊卡有预约记录，无法删除")
 
         if card.is_default:
             other_card_query = select(Patient).where(and_(Patient.user_id == user_id, Patient.id != card_id)).limit(1)

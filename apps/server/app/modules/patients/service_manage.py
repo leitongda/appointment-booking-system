@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.security import get_password_hash
 from app.core.config import settings
+from app.middleware.exception import BusinessError
 from app.models.appointment import Appointment
 from app.models.department import Department
 from app.models.doctor import Doctor
@@ -18,7 +19,7 @@ from app.models.store import Store
 from app.models.user import Patient, User
 from app.common.account_sync import AccountSyncService
 from app.modules.patients.common import PatientsServiceBase
-from app.modules.appointments.common import APPOINTMENT_STATUS
+from app.constants.appointment import APPOINTMENT_STATUS
 from app.common.security_settings import get_default_password
 from app.schemas.user import FamilyMemberCreate, PatientCreateByAdmin, PatientUpdate
 from app.utils.audit import set_create_audit, set_update_audit
@@ -476,7 +477,7 @@ class PatientManageService(PatientsServiceBase):
                 existing_patient_query = existing_patient_query.where(Patient.tenant_id == tenant_id)
             existing_patient = await self.db.execute(existing_patient_query)
             if existing_patient.scalar_one_or_none():
-                raise ValueError(f"该用户下已存在名为 {data.name} 的就诊人")
+                raise BusinessError(f"该用户下已存在名为 {data.name} 的就诊人")
         else:
             user = User(
                 id=str(uuid.uuid4()),
@@ -544,7 +545,7 @@ class PatientManageService(PatientsServiceBase):
             existing_query = existing_query.where(Patient.tenant_id == tenant_id)
         existing = await self.db.execute(existing_query)
         if existing.scalar_one_or_none():
-            raise ValueError(f"该用户下已存在名为 {data.name} 的就诊人")
+            raise BusinessError(f"该用户下已存在名为 {data.name} 的就诊人")
 
         birthday = None
         if data.birthday:
@@ -673,7 +674,7 @@ class PatientManageService(PatientsServiceBase):
             appt_count_query = appt_count_query.where(Appointment.tenant_id == tenant_id)
         appt_count = await self.db.scalar(appt_count_query)
         if appt_count and appt_count > 0:
-            raise ValueError("该就诊人有预约记录，无法删除")
+            raise BusinessError("该就诊人有预约记录，无法删除")
 
         await self.db.delete(member)
         await self.db.commit()
@@ -694,7 +695,7 @@ class PatientManageService(PatientsServiceBase):
             appt_count_query = appt_count_query.where(Appointment.tenant_id == tenant_id)
         appt_count = await self.db.scalar(appt_count_query)
         if appt_count and appt_count > 0:
-            raise ValueError("该就诊卡有预约记录，无法删除")
+            raise BusinessError("该就诊卡有预约记录，无法删除")
 
         user_id = patient.user_id
         card_count_query = select(func.count(Patient.id)).where(Patient.user_id == user_id)
@@ -702,7 +703,7 @@ class PatientManageService(PatientsServiceBase):
             card_count_query = card_count_query.where(Patient.tenant_id == tenant_id)
         card_count = await self.db.scalar(card_count_query)
         if card_count and card_count <= 1:
-            raise ValueError("用户至少需要保留一张就诊卡")
+            raise BusinessError("用户至少需要保留一张就诊卡")
 
         if patient.is_default:
             other_card_query = select(Patient).where(and_(Patient.user_id == user_id, Patient.id != patient_id))
