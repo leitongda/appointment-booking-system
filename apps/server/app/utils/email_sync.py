@@ -35,10 +35,11 @@ def _get_fernet():
     # 优先从 Settings 读取（FastAPI 进程）
     key = ""
     try:
-        from app.core.config import Settings
-        settings = Settings()
-        key = settings.SMTP_ENCRYPTION_KEY
-    except Exception:
+        from app.core.config import Settings as AppSettings
+        key = AppSettings().SMTP_ENCRYPTION_KEY
+    except (ImportError, RuntimeError):
+        # ImportError: 依赖未安装或循环导入
+        # RuntimeError: Settings 初始化失败（如缺少必需环境变量）
         pass
 
     # 回退到环境变量（Celery worker 等场景）
@@ -105,7 +106,12 @@ def render_email_template(template_str: str, variables: dict) -> str:
 
 
 def get_email_config(db) -> dict:
-    """从数据库获取 SMTP 邮件配置（同步版本），密码自动解密"""
+    """从数据库获取 SMTP 邮件配置（同步版本），密码自动解密
+
+    Raises:
+        RuntimeError: SMTP_ENCRYPTION_KEY 未配置
+        ValueError: SMTP 密码解密失败（密钥不匹配）
+    """
     try:
         result = db.execute(
             select(Settings).where(Settings.category == "email")
@@ -114,12 +120,14 @@ def get_email_config(db) -> dict:
         config = {}
         for s in settings_list:
             config[s.key] = s.value
-        # 解密密码
+        # 解密密码（可能抛出 RuntimeError/ValueError，不应吞掉）
         if config.get("password"):
             config["password"] = decrypt_password(config["password"])
         return config
+    except (RuntimeError, ValueError):
+        raise
     except Exception as e:
-        logger.error(f"获取邮件配置失败: {e}")
+        logger.error("获取邮件配置失败: %s", e)
         return {}
 
 
@@ -160,5 +168,5 @@ def send_email_sync(config: dict, to_email: str, subject: str, content: str) -> 
         server.quit()
         return True
     except Exception as e:
-        logger.error(f"[EmailSync] 发送邮件失败: to={to_email}, error={e}")
+        logger.error("[EmailSync] 发送邮件失败: to=%s, error=%s", to_email, e)
         return False

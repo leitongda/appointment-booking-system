@@ -5,7 +5,6 @@ Revises: 8eb75db476d4
 Create Date: 2026-06-06
 """
 from alembic import op
-import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
@@ -17,7 +16,6 @@ depends_on = None
 
 def upgrade() -> None:
     # 删除旧的全局唯一约束（code 列上的 unique=True）
-    # PostgreSQL: 先查约束名再删除
     op.execute(
         "ALTER TABLE email_templates DROP CONSTRAINT IF EXISTS email_templates_code_key"
     )
@@ -33,4 +31,6 @@ def downgrade() -> None:
     # 删除复合唯一约束
     op.drop_constraint('uq_email_template_code_tenant', 'email_templates', type_='unique')
     # 恢复全局唯一约束
+    # 注意：如果存在相同 code 但不同 tenant_id 的记录，此操作会失败
+    # 需要先清理重复数据再执行 downgrade
     op.create_unique_constraint('email_templates_code_key', 'email_templates', ['code'])

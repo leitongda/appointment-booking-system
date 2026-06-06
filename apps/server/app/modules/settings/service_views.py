@@ -62,7 +62,13 @@ class SettingsViewMixin:
         data = await self.get_by_category("email")
         password = data.get("password", "")
         if password:
-            password = decrypt_password(password)
+            try:
+                password = decrypt_password(password)
+            except (RuntimeError, ValueError) as e:
+                # 密钥未配置或不匹配时，返回空密码并记录错误
+                import logging
+                logging.getLogger(__name__).warning("SMTP 密码解密失败: %s", e)
+                password = ""
         return {
             "enabled": data.get("enabled", False),
             "host": data.get("host", ""),

@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class MessageTemplateService:
     def __init__(self, db):
         self.db = db
-        self.env = SandboxedEnvironment(loader=BaseLoader())
+        self.env = SandboxedEnvironment(loader=BaseLoader(), autoescape=True)
 
     def _tenant_filter(self, stmt):
         tenant_id = get_current_tenant_id()

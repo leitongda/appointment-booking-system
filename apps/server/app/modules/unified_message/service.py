@@ -950,7 +950,7 @@ class UnifiedMessageService:
 
     def _render_template(self, template: UnifiedTemplate, variables: Dict[str, Any]) -> Tuple[str, str]:
         """使用 Jinja2 渲染模板"""
-        env = SandboxedEnvironment(loader=BaseLoader())
+        env = SandboxedEnvironment(loader=BaseLoader(), autoescape=True)
 
         title = template.subject_template or ""
         content = template.text_template or ""
