@@ -121,7 +121,7 @@ class EmailTemplateService:
             tenant_id=tenant_id,
             code=data.code,
             name=data.name,
-            template_type=data.template_type.value,
+            template_type=data.template_type,
             subject_template=data.subject_template,
             content_template=data.content_template,
             description=data.description,
@@ -139,9 +139,6 @@ class EmailTemplateService:
             return None
 
         update_data = data.model_dump(exclude_unset=True)
-
-        if 'template_type' in update_data and update_data['template_type']:
-            update_data['template_type'] = update_data['template_type'].value
 
         for field, value in update_data.items():
             setattr(template, field, value)
