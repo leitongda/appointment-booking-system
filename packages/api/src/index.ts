@@ -115,6 +115,8 @@ export { approvalInstanceApi, approvalFlowApi } from './modules/approval';
 export type { FlowDefinitionCreateData } from './modules/approval';
 export { dictApi } from './modules/dict';
 export { amapApi } from './modules/amap';
+export { backupApi } from './modules/backup';
+export type { BackupPrecheckResult, BackupImportResult } from './modules/backup';
 export type { AmapPoi, AmapGeocode, AmapRegeoResult } from './modules/amap';
 export type {
   DictTypeItem,

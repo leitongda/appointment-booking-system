@@ -6,6 +6,7 @@
  *   - 系统配置（canSystemConfig，含 hospital-info / wechat / email-config / image-config / email-templates / email-recipients）
  *   - 黑名单管理（canBlacklistSettings）
  *   - 系统监控（canSystemMonitoring，含 log / notification-logs / notification-quota / checkin-audit-logs / online-users）
+ *   - 数据管理（canDataManagement，含 import-export / backup）
  *
  * 顶层 access: canSystemManagement
  */
@@ -76,6 +77,17 @@ const system = [
           { path: '/system/monitoring/notification-quota', name: '通知配额', icon: 'alert', component: './system/notification-quota', access: 'canSystemLogs' },
           { path: '/system/monitoring/checkin-audit-logs', name: '签到审计', icon: 'audit', component: './system/checkin-audit-logs', access: 'canCheckinAuditLogs' },
           { path: '/system/monitoring/online-users', name: '在线用户', icon: 'team', component: './system/online-users', access: 'canOnlineUsers' },
+        ],
+      },
+      {
+        path: '/system/data',
+        name: '数据管理',
+        icon: 'database',
+        access: 'canSystemMonitoring',
+        routes: [
+          { path: '/system/data', redirect: '/system/data/import-export' },
+          { path: '/system/data/import-export', name: '导入导出', icon: 'swap', component: './system/import-export' },
+          { path: '/system/data/backup', name: '数据备份', icon: 'cloud', component: './system/data-backup' },
         ],
       },
     ],
