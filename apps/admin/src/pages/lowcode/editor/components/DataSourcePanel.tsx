@@ -29,7 +29,7 @@ import {
 } from '@ant-design/icons';
 import { useEditorStore } from '../store';
 import { lowcodeApi } from '@hospital/api';
-import type { ApiDataSource } from '@hospital/shared';
+import type { ApiDataSource, StaticDataSource, MockDataSource, DataSource } from '@hospital/shared';
 import type { DataSourceTestResponse } from '@hospital/api';
 
 const { Text } = Typography;
@@ -165,7 +165,7 @@ function DataSourceItem({
   onEdit,
   onDelete,
 }: {
-  ds: ApiDataSource;
+  ds: DataSource;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -176,6 +176,24 @@ function DataSourceItem({
     DELETE: '#ff4d4f',
     PATCH: '#722ed1',
   };
+
+  const typeColors: Record<string, string> = {
+    api: 'blue',
+    static: 'cyan',
+    mock: 'magenta',
+  };
+
+  const typeLabels: Record<string, string> = {
+    api: 'API',
+    static: '静态',
+    mock: 'Mock',
+  };
+
+  const subtitle = ds.type === 'api'
+    ? (ds as ApiDataSource).url || '未配置 URL'
+    : ds.type === 'static'
+      ? '内联静态数据'
+      : `Mock 数据${(ds as MockDataSource).delay ? ` (${(ds as MockDataSource).delay}ms)` : ''}`;
 
   return (
     <div
@@ -198,12 +216,20 @@ function DataSourceItem({
               {ds.name || ds.id}
             </Text>
             <Tag
-              color={methodColors[ds.method] || '#999'}
+              color={typeColors[ds.type] || 'default'}
               style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0 }}
             >
-              {ds.method}
+              {typeLabels[ds.type] || ds.type}
             </Tag>
-            {ds.manual && (
+            {ds.type === 'api' && (ds as ApiDataSource).method && (
+              <Tag
+                color={methodColors[(ds as ApiDataSource).method] || '#999'}
+                style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0 }}
+              >
+                {(ds as ApiDataSource).method}
+              </Tag>
+            )}
+            {ds.type === 'api' && (ds as ApiDataSource).manual && (
               <Tag style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0 }}>
                 手动
               </Tag>
@@ -214,7 +240,7 @@ function DataSourceItem({
             style={{ fontSize: 11 }}
             ellipsis
           >
-            {ds.url || '未配置 URL'}
+            {subtitle}
           </Text>
         </div>
       </div>
@@ -305,8 +331,8 @@ function TestResultPanel({ result }: { result: DataSourceTestResponse | null }) 
 
 interface DataSourceFormProps {
   visible: boolean;
-  editingDs: ApiDataSource | null;
-  onOk: (ds: ApiDataSource) => void;
+  editingDs: DataSource | null;
+  onOk: (ds: DataSource) => void;
   onCancel: () => void;
 }
 
@@ -316,25 +342,48 @@ function DataSourceFormModal({ visible, editingDs, onOk, onCancel }: DataSourceF
   const [headersKV, setHeadersKV] = useState<KVPair[]>([{ key: '', value: '' }]);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<DataSourceTestResponse | null>(null);
+  const [dsType, setDsType] = useState<'api' | 'static' | 'mock'>('api');
+  const [staticData, setStaticData] = useState<string>('');
+  const [mockData, setMockData] = useState<string>('');
+  const [mockDelay, setMockDelay] = useState<number>(0);
 
   /** 当编辑对象变化时，回填表单 */
   React.useEffect(() => {
     if (visible) {
       if (editingDs) {
+        setDsType(editingDs.type || 'api');
         form.setFieldsValue({
           name: editingDs.name || '',
-          url: editingDs.url,
-          method: editingDs.method,
-          dataPath: editingDs.dataPath || '',
-          pollingInterval: editingDs.pollingInterval || 0,
-          manual: editingDs.manual || false,
+          type: editingDs.type || 'api',
         });
-        setParamsKV(recordToKV(editingDs.params));
-        setHeadersKV(recordToKV(editingDs.headers));
+
+        if (editingDs.type === 'api') {
+          const apiDs = editingDs as ApiDataSource;
+          form.setFieldsValue({
+            url: apiDs.url,
+            method: apiDs.method,
+            dataPath: apiDs.dataPath || '',
+            pollingInterval: apiDs.pollingInterval || 0,
+            manual: apiDs.manual || false,
+          });
+          setParamsKV(recordToKV(apiDs.params));
+          setHeadersKV(recordToKV(apiDs.headers));
+        } else if (editingDs.type === 'static') {
+          const staticDs = editingDs as StaticDataSource;
+          setStaticData(staticDs.data != null ? JSON.stringify(staticDs.data, null, 2) : '');
+        } else if (editingDs.type === 'mock') {
+          const mockDs = editingDs as MockDataSource;
+          setMockData(mockDs.data != null ? JSON.stringify(mockDs.data, null, 2) : '');
+          setMockDelay(mockDs.delay || 0);
+        }
       } else {
         form.resetFields();
+        setDsType('api');
         setParamsKV([{ key: '', value: '' }]);
         setHeadersKV([{ key: '', value: '' }]);
+        setStaticData('');
+        setMockData('');
+        setMockDelay(0);
       }
       setTestResult(null);
     }
@@ -343,19 +392,55 @@ function DataSourceFormModal({ visible, editingDs, onOk, onCancel }: DataSourceF
   const handleOk = async () => {
     try {
       const values = await form.validateFields();
-      const ds: ApiDataSource = {
+      const currentType = values.type || 'api';
+      const base = {
         id: editingDs?.id || `ds_${Date.now()}`,
-        type: 'api',
         name: values.name || undefined,
-        url: values.url,
-        method: values.method,
-        params: kvToRecord(paramsKV),
-        headers: kvToRecord(headersKV),
-        dataPath: values.dataPath || undefined,
-        pollingInterval: values.pollingInterval || undefined,
-        manual: values.manual || undefined,
       };
-      onOk(ds);
+
+      if (currentType === 'static') {
+        let parsed: any = undefined;
+        if (staticData.trim()) {
+          try {
+            parsed = JSON.parse(staticData);
+          } catch {
+            form.setFields([{ name: 'staticData', errors: ['JSON 格式不正确'] }]);
+            return;
+          }
+        }
+        const ds: StaticDataSource = { ...base, type: 'static', data: parsed };
+        onOk(ds);
+      } else if (currentType === 'mock') {
+        let parsed: any = undefined;
+        if (mockData.trim()) {
+          try {
+            parsed = JSON.parse(mockData);
+          } catch {
+            form.setFields([{ name: 'mockData', errors: ['JSON 格式不正确'] }]);
+            return;
+          }
+        }
+        const ds: MockDataSource = {
+          ...base,
+          type: 'mock',
+          data: parsed,
+          delay: mockDelay || undefined,
+        };
+        onOk(ds);
+      } else {
+        const ds: ApiDataSource = {
+          ...base,
+          type: 'api',
+          url: values.url,
+          method: values.method,
+          params: kvToRecord(paramsKV),
+          headers: kvToRecord(headersKV),
+          dataPath: values.dataPath || undefined,
+          pollingInterval: values.pollingInterval || undefined,
+          manual: values.manual || undefined,
+        };
+        onOk(ds);
+      }
     } catch {
       // form validation failed, errors already shown
     }
@@ -402,6 +487,7 @@ function DataSourceFormModal({ visible, editingDs, onOk, onCancel }: DataSourceF
         layout="vertical"
         size="small"
         initialValues={{
+          type: 'api',
           method: 'GET',
           manual: false,
           pollingInterval: 0,
@@ -412,74 +498,143 @@ function DataSourceFormModal({ visible, editingDs, onOk, onCancel }: DataSourceF
         </Form.Item>
 
         <Form.Item
-          name="url"
-          label="请求 URL"
-          rules={[{ required: true, message: '请输入请求 URL' }]}
+          name="type"
+          label="数据源类型"
+          rules={[{ required: true }]}
         >
-          <Input placeholder="/api/v1/departments 或 https://example.com/api" />
+          <Select
+            options={[
+              { label: 'API — 远程接口', value: 'api' },
+              { label: 'Static — 内联静态数据', value: 'static' },
+              { label: 'Mock — 模拟数据', value: 'mock' },
+            ]}
+            onChange={(val) => setDsType(val)}
+          />
         </Form.Item>
 
-        <Space style={{ width: '100%' }} size={12} align="start">
+        {/* ---- API 类型字段 ---- */}
+        {dsType === 'api' && (
+          <>
+            <Form.Item
+              name="url"
+              label="请求 URL"
+              rules={[{ required: true, message: '请输入请求 URL' }]}
+            >
+              <Input placeholder="/api/v1/departments 或 https://example.com/api" />
+            </Form.Item>
+
+            <Space style={{ width: '100%' }} size={12} align="start">
+              <Form.Item
+                name="method"
+                label="请求方法"
+                rules={[{ required: true }]}
+                style={{ width: 120 }}
+              >
+                <Select
+                  options={['GET', 'POST', 'PUT', 'DELETE', 'PATCH'].map((m) => ({
+                    label: m,
+                    value: m,
+                  }))}
+                />
+              </Form.Item>
+
+              <Form.Item name="dataPath" label="数据路径" style={{ flex: 1 }}>
+                <Input placeholder="如: data.list (从响应中提取)" />
+              </Form.Item>
+            </Space>
+
+            <Collapse
+              ghost
+              size="small"
+              items={[
+                {
+                  key: 'params',
+                  label: <Text style={{ fontSize: 12 }}>请求参数 (Query Params)</Text>,
+                  children: <KVEditor value={paramsKV} onChange={setParamsKV} placeholder={{ key: '参数名', value: '参数值' }} />,
+                },
+                {
+                  key: 'headers',
+                  label: <Text style={{ fontSize: 12 }}>自定义 Headers</Text>,
+                  children: <KVEditor value={headersKV} onChange={setHeadersKV} placeholder={{ key: 'Header', value: 'Value' }} />,
+                },
+              ]}
+              style={{ marginBottom: 16 }}
+            />
+
+            <Space style={{ width: '100%' }} size={12}>
+              <Form.Item name="pollingInterval" label="轮询间隔 (ms)" style={{ width: 160 }}>
+                <InputNumber min={0} step={1000} placeholder="0 = 不轮询" style={{ width: '100%' }} />
+              </Form.Item>
+
+              <Form.Item name="manual" label="手动触发" valuePropName="checked">
+                <Switch size="small" />
+              </Form.Item>
+            </Space>
+
+            {/* 测试按钮 */}
+            <div style={{ marginBottom: 12 }}>
+              <Button
+                icon={<ThunderboltOutlined />}
+                onClick={handleTest}
+                loading={testing}
+                size="small"
+              >
+                测试请求
+              </Button>
+            </div>
+
+            <TestResultPanel result={testResult} />
+          </>
+        )}
+
+        {/* ---- Static 类型字段 ---- */}
+        {dsType === 'static' && (
           <Form.Item
-            name="method"
-            label="请求方法"
-            rules={[{ required: true }]}
-            style={{ width: 120 }}
+            name="staticData"
+            label="静态数据 (JSON)"
+            rules={[{ required: true, message: '请输入静态数据' }]}
           >
-            <Select
-              options={['GET', 'POST', 'PUT', 'DELETE', 'PATCH'].map((m) => ({
-                label: m,
-                value: m,
-              }))}
+            <Input.TextArea
+              rows={8}
+              placeholder={'[\n  { "id": 1, "name": "选项一" },\n  { "id": 2, "name": "选项二" }\n]'}
+              value={staticData}
+              onChange={(e) => setStaticData(e.target.value)}
+              style={{ fontFamily: 'monospace', fontSize: 12 }}
             />
           </Form.Item>
+        )}
 
-          <Form.Item name="dataPath" label="数据路径" style={{ flex: 1 }}>
-            <Input placeholder="如: data.list (从响应中提取)" />
-          </Form.Item>
-        </Space>
+        {/* ---- Mock 类型字段 ---- */}
+        {dsType === 'mock' && (
+          <>
+            <Space style={{ width: '100%' }} size={12}>
+              <Form.Item name="mockDelay" label="延迟 (ms)" style={{ width: 160 }}>
+                <InputNumber
+                  min={0}
+                  step={100}
+                  placeholder="0 = 无延迟"
+                  style={{ width: '100%' }}
+                  value={mockDelay}
+                  onChange={(val) => setMockDelay(val || 0)}
+                />
+              </Form.Item>
+            </Space>
 
-        <Collapse
-          ghost
-          size="small"
-          items={[
-            {
-              key: 'params',
-              label: <Text style={{ fontSize: 12 }}>请求参数 (Query Params)</Text>,
-              children: <KVEditor value={paramsKV} onChange={setParamsKV} placeholder={{ key: '参数名', value: '参数值' }} />,
-            },
-            {
-              key: 'headers',
-              label: <Text style={{ fontSize: 12 }}>自定义 Headers</Text>,
-              children: <KVEditor value={headersKV} onChange={setHeadersKV} placeholder={{ key: 'Header', value: 'Value' }} />,
-            },
-          ]}
-          style={{ marginBottom: 16 }}
-        />
-
-        <Space style={{ width: '100%' }} size={12}>
-          <Form.Item name="pollingInterval" label="轮询间隔 (ms)" style={{ width: 160 }}>
-            <InputNumber min={0} step={1000} placeholder="0 = 不轮询" style={{ width: '100%' }} />
-          </Form.Item>
-
-          <Form.Item name="manual" label="手动触发" valuePropName="checked">
-            <Switch size="small" />
-          </Form.Item>
-        </Space>
-
-        {/* 测试按钮 */}
-        <div style={{ marginBottom: 12 }}>
-          <Button
-            icon={<ThunderboltOutlined />}
-            onClick={handleTest}
-            loading={testing}
-            size="small"
-          >
-            测试请求
-          </Button>
-        </div>
-
-        <TestResultPanel result={testResult} />
+            <Form.Item
+              name="mockData"
+              label="Mock 数据 (JSON)"
+              rules={[{ required: true, message: '请输入 Mock 数据' }]}
+            >
+              <Input.TextArea
+                rows={8}
+                placeholder={'[\n  { "id": 1, "name": "模拟项一" },\n  { "id": 2, "name": "模拟项二" }\n]'}
+                value={mockData}
+                onChange={(e) => setMockData(e.target.value)}
+                style={{ fontFamily: 'monospace', fontSize: 12 }}
+              />
+            </Form.Item>
+          </>
+        )}
       </Form>
     </Modal>
   );
@@ -495,17 +650,17 @@ export const DataSourcePanel: React.FC = () => {
   const setSchema = useEditorStore((s) => s.setSchema);
 
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingDs, setEditingDs] = useState<ApiDataSource | null>(null);
+  const [editingDs, setEditingDs] = useState<DataSource | null>(null);
 
   // 从 schema 中读取数据源列表
-  const dataSources: ApiDataSource[] = useMemo(
+  const dataSources: DataSource[] = useMemo(
     () => (schema as any).dataSources || [],
     [schema],
   );
 
   /** 更新 schema 中的 dataSources */
   const updateDataSources = useCallback(
-    (next: ApiDataSource[]) => {
+    (next: DataSource[]) => {
       const newSchema = { ...schema, dataSources: next };
       setSchema(newSchema);
     },
@@ -519,7 +674,7 @@ export const DataSourcePanel: React.FC = () => {
   }, []);
 
   /** 打开编辑弹窗 */
-  const handleEdit = useCallback((ds: ApiDataSource) => {
+  const handleEdit = useCallback((ds: DataSource) => {
     setEditingDs(ds);
     setModalVisible(true);
   }, []);
@@ -535,7 +690,7 @@ export const DataSourcePanel: React.FC = () => {
 
   /** 新增或编辑确认 */
   const handleFormOk = useCallback(
-    (ds: ApiDataSource) => {
+    (ds: DataSource) => {
       const existing = dataSources.findIndex((d) => d.id === ds.id);
       if (existing >= 0) {
         // 编辑: 替换

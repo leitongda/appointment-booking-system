@@ -76,15 +76,78 @@ function DroppableZone({
   );
 }
 
+/** 渲染命名插槽区域 */
+function SlotRenderer({
+  node,
+  slotName,
+  label,
+  depth,
+}: {
+  node: LowCodeNode;
+  slotName: string;
+  label: string;
+  depth: number;
+}) {
+  const slotNodes = node.slots?.[slotName] || [];
+  return (
+    <DroppableZone
+      parentId={`${node.id}__slot__${slotName}`}
+      style={{
+        minHeight: 32,
+        border: '1px dashed #d9d9d9',
+        borderRadius: 4,
+        padding: 4,
+        position: 'relative',
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          top: 2,
+          left: 4,
+          fontSize: 10,
+          color: '#bfbfbf',
+          pointerEvents: 'none',
+        }}
+      >
+        {label}
+      </div>
+      {slotNodes.map((child) => (
+        <NodeRenderer key={child.id} node={child} depth={depth + 1} />
+      ))}
+      {slotNodes.length === 0 && (
+        <div
+          style={{
+            textAlign: 'center',
+            color: '#d9d9d9',
+            padding: '8px 0',
+            fontSize: 11,
+          }}
+        >
+          拖入{label}
+        </div>
+      )}
+    </DroppableZone>
+  );
+}
+
 /** 单个节点渲染 */
 function NodeRenderer({ node, depth = 0 }: { node: LowCodeNode; depth?: number }) {
   const selectedNodeId = useEditorStore((s) => s.selectedNodeId);
+  const selectedNodeIds = useEditorStore((s) => s.selectedNodeIds);
   const selectNode = useEditorStore((s) => s.selectNode);
-  const isSelected = selectedNodeId === node.id;
+  const toggleNodeSelect = useEditorStore((s) => s.toggleNodeSelect);
+  const isSelected = selectedNodeIds.length > 1
+    ? selectedNodeIds.includes(node.id)
+    : selectedNodeId === node.id;
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    selectNode(node.id);
+    if (e.shiftKey) {
+      toggleNodeSelect(node.id);
+    } else {
+      selectNode(node.id);
+    }
   };
 
   // 渲染组件映射
@@ -151,9 +214,17 @@ function NodeRenderer({ node, depth = 0 }: { node: LowCodeNode; depth?: number }
               minHeight: 40,
             }}
           >
-            {node.children?.map((child) => (
-              <NodeRenderer key={child.id} node={child} depth={depth + 1} />
-            ))}
+            {node.slots ? (
+              <>
+                <SlotRenderer node={node} slotName="header" label="头部插槽" depth={depth} />
+                <SlotRenderer node={node} slotName="content" label="内容插槽" depth={depth} />
+                <SlotRenderer node={node} slotName="footer" label="底部插槽" depth={depth} />
+              </>
+            ) : (
+              node.children?.map((child) => (
+                <NodeRenderer key={child.id} node={child} depth={depth + 1} />
+              ))
+            )}
           </DroppableZone>
         );
 
@@ -338,16 +409,24 @@ function NodeRenderer({ node, depth = 0 }: { node: LowCodeNode; depth?: number }
                 {node.props.description}
               </div>
             )}
-            {node.children && node.children.length > 0 && (
-              <DroppableZone parentId={node.id} style={{ marginTop: 8 }}>
-                {node.children.map((child) => (
-                  <NodeRenderer
-                    key={child.id}
-                    node={child}
-                    depth={depth + 1}
-                  />
-                ))}
-              </DroppableZone>
+            {node.slots ? (
+              <>
+                <SlotRenderer node={node} slotName="header" label="头部插槽" depth={depth} />
+                <SlotRenderer node={node} slotName="content" label="内容插槽" depth={depth} />
+                <SlotRenderer node={node} slotName="footer" label="底部插槽" depth={depth} />
+              </>
+            ) : (
+              node.children && node.children.length > 0 && (
+                <DroppableZone parentId={node.id} style={{ marginTop: 8 }}>
+                  {node.children.map((child) => (
+                    <NodeRenderer
+                      key={child.id}
+                      node={child}
+                      depth={depth + 1}
+                    />
+                  ))}
+                </DroppableZone>
+              )
             )}
           </div>
         );
@@ -709,6 +788,79 @@ function NodeRenderer({ node, depth = 0 }: { node: LowCodeNode; depth?: number }
           </div>
         );
 
+      // --- 业务组件 ---
+
+      case 'BizAppointmentCard':
+        return (
+          <div style={{ margin: '8px 12px', padding: 12, background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#e6f4ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#1677ff', flexShrink: 0 }}>
+                {node.props.avatar ? <img src={node.props.avatar} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : '头像'}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 500, color: '#333' }}>{node.props.doctorName || '医生'}</div>
+                <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{node.props.departmentName || '科室'} | {node.props.appointmentTime || '时间'}</div>
+              </div>
+              <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 4, background: node.props.status === 'completed' ? '#f6ffed' : node.props.status === 'cancelled' ? '#fff1f0' : '#e6f4ff', color: node.props.status === 'completed' ? '#52c41a' : node.props.status === 'cancelled' ? '#ff4d4f' : '#1677ff' }}>
+                {node.props.statusText || '待就诊'}
+              </span>
+            </div>
+          </div>
+        );
+
+      case 'BizDoctorCard':
+        return (
+          <div style={{ margin: '8px 12px', padding: 12, background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <div style={{ width: 64, height: 64, borderRadius: 8, background: '#e6f4ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#1677ff', flexShrink: 0 }}>
+                {node.props.avatar ? <img src={node.props.avatar} style={{ width: '100%', height: '100%', borderRadius: 8, objectFit: 'cover' }} /> : '头像'}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 500, color: '#333' }}>{node.props.doctorName || '医生'}</div>
+                <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{node.props.departmentName || '科室'} | {node.props.title || '职称'}</div>
+                {node.props.description && <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>{node.props.description}</div>}
+                {node.props.consultationFee && <div style={{ fontSize: 13, color: '#ff4d4f', marginTop: 4, fontWeight: 500 }}>¥{node.props.consultationFee}</div>}
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'BizDepartmentPicker':
+        return (
+          <div style={{ padding: '8px 12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
+              {node.props.label && (
+                <span style={{ fontSize: 14, color: '#333', minWidth: 80 }}>
+                  {node.props.required && <span style={{ color: '#ff4d4f', marginRight: 4 }}>*</span>}
+                  {node.props.label}
+                </span>
+              )}
+              <div style={{ flex: 1, height: 32, border: '1px solid #e5e5e5', borderRadius: 4, padding: '0 8px', fontSize: 14, color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: node.props.disabled ? '#f5f5f5' : '#fff' }}>
+                <span>{node.props.placeholder || '请选择科室'}</span>
+                <span style={{ fontSize: 12, color: '#ccc' }}>▼</span>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'BizTimeSlotPicker':
+        return (
+          <div style={{ padding: '8px 12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
+              {node.props.label && (
+                <span style={{ fontSize: 14, color: '#333', minWidth: 80 }}>
+                  {node.props.required && <span style={{ color: '#ff4d4f', marginRight: 4 }}>*</span>}
+                  {node.props.label}
+                </span>
+              )}
+              <div style={{ flex: 1, height: 32, border: '1px solid #e5e5e5', borderRadius: 4, padding: '0 8px', fontSize: 14, color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: node.props.disabled ? '#f5f5f5' : '#fff' }}>
+                <span>{node.props.placeholder || '请选择时间段'}</span>
+                <span style={{ fontSize: 12, color: '#ccc' }}>▼</span>
+              </div>
+            </div>
+          </div>
+        );
+
       default:
         return (
           <div
@@ -725,12 +877,14 @@ function NodeRenderer({ node, depth = 0 }: { node: LowCodeNode; depth?: number }
     }
   };
 
+  const isMultiSelected = selectedNodeIds.length > 1 && selectedNodeIds.includes(node.id);
+
   const content = (
     <div
       onClick={handleClick}
       style={{
-        outline: isSelected ? '2px solid #1677ff' : '1px dashed transparent',
-        outlineOffset: isSelected ? -1 : 0,
+        outline: isSelected ? '2px solid #1677ff' : isMultiSelected ? '2px solid #52c41a' : '1px dashed transparent',
+        outlineOffset: isSelected || isMultiSelected ? -1 : 0,
         position: 'relative',
         transition: 'outline 0.15s',
         cursor: 'pointer',
@@ -738,13 +892,13 @@ function NodeRenderer({ node, depth = 0 }: { node: LowCodeNode; depth?: number }
       data-node-id={node.id}
       data-component={node.componentName}
     >
-      {isSelected && (
+      {(isSelected || isMultiSelected) && (
         <div
           style={{
             position: 'absolute',
             top: -20,
             left: 0,
-            background: '#1677ff',
+            background: isMultiSelected ? '#52c41a' : '#1677ff',
             color: '#fff',
             fontSize: 11,
             padding: '1px 6px',

@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { LowCodeNode, LowCodeSchema, EventHandler, ApiDataSource } from '@hospital/shared';
+import type { LowCodeNode, LowCodeSchema, EventHandler, ApiDataSource, LowCodeTheme } from '@hospital/shared';
 
 /** 页面状态变量定义 */
 export interface StateVariable {
@@ -20,8 +20,10 @@ interface HistoryEntry {
 interface EditorStore {
   /** 页面 Schema */
   schema: LowCodeSchema;
-  /** 选中的节点 ID */
+  /** 选中的节点 ID（首个） */
   selectedNodeId: string | null;
+  /** 多选节点 ID 列表 */
+  selectedNodeIds: string[];
   /** 历史记录 */
   history: HistoryEntry[];
   /** 当前历史索引 */
@@ -46,6 +48,12 @@ interface EditorStore {
   setLoading: (loading: boolean) => void;
   /** 选中节点 */
   selectNode: (nodeId: string | null) => void;
+  /** 切换节点选中状态（多选） */
+  toggleNodeSelect: (nodeId: string) => void;
+  /** 全选所有节点 */
+  selectAll: () => void;
+  /** 清除所有选中 */
+  clearSelection: () => void;
   /** 添加节点 */
   addNode: (node: LowCodeNode, parentId: string, index: number) => void;
   /** 在根级别添加节点 */
@@ -80,6 +88,8 @@ interface EditorStore {
   reset: () => void;
   /** 标记当前 Schema 为已保存 */
   markSaved: () => void;
+  /** 更新页面主题配置 */
+  updateTheme: (theme: LowCodeTheme) => void;
 }
 
 const MAX_HISTORY = 50;
@@ -303,6 +313,7 @@ export const useEditorStore = create<EditorStore>()(persist(
   (set, get) => ({
   schema: cloneSchema(DEFAULT_SCHEMA),
   selectedNodeId: null,
+  selectedNodeIds: [],
   history: [{ schema: cloneSchema(DEFAULT_SCHEMA), dataSources: [], stateSchema: {} }],
   historyIndex: 0,
   loading: false,
@@ -319,7 +330,39 @@ export const useEditorStore = create<EditorStore>()(persist(
 
   setLoading: (loading) => set({ loading }),
 
-  selectNode: (nodeId) => set({ selectedNodeId: nodeId }),
+  selectNode: (nodeId) => set({
+    selectedNodeId: nodeId,
+    selectedNodeIds: nodeId ? [nodeId] : [],
+  }),
+
+  toggleNodeSelect: (nodeId) => {
+    const { selectedNodeIds } = get();
+    const idx = selectedNodeIds.indexOf(nodeId);
+    let nextIds: string[];
+    if (idx >= 0) {
+      nextIds = selectedNodeIds.filter((id) => id !== nodeId);
+    } else {
+      nextIds = [...selectedNodeIds, nodeId];
+    }
+    set({
+      selectedNodeIds: nextIds,
+      selectedNodeId: nextIds[0] ?? null,
+    });
+  },
+
+  selectAll: () => {
+    const { schema } = get();
+    const allIds = collectAllNodeIds(schema.children ?? []);
+    set({
+      selectedNodeIds: allIds,
+      selectedNodeId: allIds[0] ?? null,
+    });
+  },
+
+  clearSelection: () => set({
+    selectedNodeIds: [],
+    selectedNodeId: null,
+  }),
 
   addNode: (node, parentId, index) => {
     const { schema } = get();
@@ -365,14 +408,21 @@ export const useEditorStore = create<EditorStore>()(persist(
   },
 
   removeNode: (nodeId) => {
-    const { schema, selectedNodeId } = get();
+    const { schema, selectedNodeId, selectedNodeIds } = get();
     const newChildren = removeNodeRecursive(schema.children, nodeId);
     const newSchema = { ...schema, children: newChildren };
     // 通过 setSchema 统一处理历史记录
     get().setSchema(newSchema);
     // 如果删除的是选中节点，清除选中状态
+    const updates: Partial<EditorStore> = {};
     if (selectedNodeId === nodeId) {
-      set({ selectedNodeId: null });
+      updates.selectedNodeId = null;
+    }
+    if (selectedNodeIds.includes(nodeId)) {
+      updates.selectedNodeIds = selectedNodeIds.filter((id) => id !== nodeId);
+    }
+    if (Object.keys(updates).length > 0) {
+      set(updates);
     }
   },
 
@@ -422,6 +472,7 @@ export const useEditorStore = create<EditorStore>()(persist(
         stateSchema: JSON.parse(JSON.stringify(entry.stateSchema)),
         historyIndex: newIndex,
         selectedNodeId: null,
+        selectedNodeIds: [],
       });
     }
   },
@@ -437,6 +488,7 @@ export const useEditorStore = create<EditorStore>()(persist(
         stateSchema: JSON.parse(JSON.stringify(entry.stateSchema)),
         historyIndex: newIndex,
         selectedNodeId: null,
+        selectedNodeIds: [],
       });
     }
   },
@@ -445,6 +497,7 @@ export const useEditorStore = create<EditorStore>()(persist(
     set({
       schema: cloneSchema(DEFAULT_SCHEMA),
       selectedNodeId: null,
+      selectedNodeIds: [],
       history: [{ schema: cloneSchema(DEFAULT_SCHEMA), dataSources: [], stateSchema: {} }],
       historyIndex: 0,
       loading: false,
@@ -456,6 +509,12 @@ export const useEditorStore = create<EditorStore>()(persist(
 
   markSaved: () => {
     set({ savedSchema: cloneSchema(get().schema) });
+  },
+
+  updateTheme: (theme) => {
+    const { schema } = get();
+    const newSchema = { ...schema, theme };
+    get().setSchema(newSchema);
   },
 }),
 {

@@ -105,6 +105,26 @@ export interface LowCodePage {
   updatedAt: string;
 }
 
+/** 国际化配置 */
+export interface I18nConfig {
+  /** 当前语言区域码 */
+  locale: string;
+  /** 语言包，key -> 翻译文本 */
+  messages: Record<string, string>;
+}
+
+/** 页面主题/设计系统配置 */
+export interface LowCodeTheme {
+  /** 主色调 */
+  primaryColor?: string;
+  /** 页面背景色 */
+  backgroundColor?: string;
+  /** 字体族 */
+  fontFamily?: string;
+  /** 字体大小基准 */
+  fontSize?: string;
+}
+
 /** 页面 Schema 根节点 */
 export interface LowCodeSchema {
   componentName: string; // 'Page'
@@ -112,6 +132,40 @@ export interface LowCodeSchema {
   children: LowCodeNode[];
   /** 页面级数据源列表 */
   dataSources?: DataSource[];
+  /** 页面主题/设计系统配置 */
+  theme?: LowCodeTheme;
+  /** 页面国际化配置 */
+  i18n?: I18nConfig;
+}
+
+/** 动画/过渡效果配置 */
+export interface AnimationConfig {
+  /** 动画类型 */
+  type?: 'fadeIn' | 'fadeOut' | 'slideIn' | 'scale';
+  /** 动画持续时间（毫秒） */
+  duration?: number;
+  /** 动画延迟（毫秒） */
+  delay?: number;
+  /** 缓动函数 */
+  easing?: string;
+}
+
+/** 表单验证规则 */
+export interface ValidationRules {
+  /** 是否必填 */
+  required?: boolean;
+  /** 最小长度（文本输入） */
+  minLength?: number;
+  /** 最大长度（文本输入） */
+  maxLength?: number;
+  /** 正则表达式字符串 */
+  pattern?: string;
+  /** 最小值（数字输入） */
+  min?: number;
+  /** 最大值（数字输入） */
+  max?: number;
+  /** 验证失败提示信息 */
+  message?: string;
 }
 
 /** Schema 组件节点 */
@@ -134,6 +188,12 @@ export interface LowCodeNode {
   dependOn?: string[];
   /** 统一样式配置 */
   style?: Record<string, string>;
+  /** 表单验证规则 */
+  validationRules?: ValidationRules;
+  /** 动画/过渡效果配置 */
+  animation?: AnimationConfig;
+  /** 命名插槽: 容器组件可定义 header/footer/content 等插槽区域 */
+  slots?: Record<string, LowCodeNode[]>;
 }
 
 /** 物料组件定义 */

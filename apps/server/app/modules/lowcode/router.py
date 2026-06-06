@@ -11,6 +11,8 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.modules.lowcode.codegen_service import CodegenError, CodegenService
 from app.modules.lowcode.schemas import (
+    AuditLogItem,
+    AuditLogListResponse,
     CodegenPreviewRequest,
     CodegenResultSchema,
     DataSourceTestRequest,
@@ -180,7 +182,7 @@ async def delete_page(
 ):
     tenant_id = _get_tenant_id(current_admin)
     service = LowCodePageService(db)
-    deleted = await service.delete(tenant_id, page_id)
+    deleted = await service.delete(tenant_id, page_id, deleted_by=str(current_admin.id))
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -644,6 +646,49 @@ async def rollback_version(
             detail=str(e),
         )
     return LowCodePageResponse.model_validate(page)
+
+
+# ---------------------------------------------------------------------------
+# Audit Logs
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/pages/{page_id}/audit-logs",
+    response_model=AuditLogListResponse,
+    summary="获取页面审计日志",
+)
+async def list_audit_logs(
+    page_id: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("lowcode:page", "lowcode:page:read")),
+):
+    """获取指定页面的操作审计日志，按操作时间降序排列。"""
+    tenant_id = _get_tenant_id(current_admin)
+    service = LowCodePageService(db)
+    logs, total = await service.get_audit_logs(
+        page_id=page_id,
+        tenant_id=tenant_id,
+        page=page,
+        page_size=page_size,
+    )
+    return AuditLogListResponse(
+        items=[
+            AuditLogItem(
+                id=str(log.id),
+                page_id=str(log.page_id),
+                operator_id=str(log.operator_id),
+                action=log.action,
+                detail=log.detail,
+                created_at=log.created_at,
+            )
+            for log in logs
+        ],
+        total=total,
+    )
 
 
 # ---------------------------------------------------------------------------

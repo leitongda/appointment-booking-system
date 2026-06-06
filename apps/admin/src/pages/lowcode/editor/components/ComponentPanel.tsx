@@ -21,6 +21,8 @@ import {
   DownSquareOutlined,
 } from '@ant-design/icons';
 import { materialsByCategory, categoryLabels } from '../materials';
+import { snippetTemplates } from '../materials/snippets';
+import type { SnippetTemplate } from '../materials/snippets';
 import type { MaterialComponent } from '@hospital/shared';
 
 const { Text } = Typography;
@@ -121,7 +123,57 @@ const COMPONENT_KEYWORDS: Record<string, string[]> = {
   NutRadio: ['单选框', '单选', 'radio'],
   NutDatePicker: ['日期选择', '日期', 'date', 'picker'],
   NutCalendar: ['日历', '日期', 'calendar'],
+  BizAppointmentCard: ['预约', '挂号', ' appointment', '卡片', 'card'],
+  BizDoctorCard: ['医生', 'doctor', '医师', '专家', 'card'],
+  BizDepartmentPicker: ['科室', 'department', '选择器', 'picker'],
+  BizTimeSlotPicker: ['时间段', 'time slot', '时间', '选择器', 'picker'],
 };
+
+/** 单个可拖拽 Snippet 项 */
+function DraggableSnippet({ snippet }: { snippet: SnippetTemplate }) {
+  const { ref, handle } = useDraggable({
+    id: `snippet-${snippet.id}`,
+    data: {
+      type: 'snippet',
+      snippet,
+    },
+  });
+
+  return (
+    <div
+      ref={ref}
+      {...handle}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '8px 12px',
+        cursor: 'grab',
+        borderRadius: 6,
+        border: '1px solid #f0f0f0',
+        background: '#fafafa',
+        transition: 'all 0.2s',
+        userSelect: 'none',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = '#52c41a';
+        e.currentTarget.style.background = '#f6ffed';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = '#f0f0f0';
+        e.currentTarget.style.background = '#fafafa';
+      }}
+    >
+      <span style={{ fontSize: 16, color: '#52c41a' }}>
+        {iconMap[snippet.icon] || <AppstoreOutlined />}
+      </span>
+      <div>
+        <Text style={{ fontSize: 13, display: 'block' }}>{snippet.name}</Text>
+        <Text type="secondary" style={{ fontSize: 11 }}>{snippet.description}</Text>
+      </div>
+    </div>
+  );
+}
 
 /** 物料面板 */
 export const ComponentPanel: React.FC = () => {
@@ -223,6 +275,35 @@ export const ComponentPanel: React.FC = () => {
           </Collapse.Panel>
         ))}
       </Collapse>
+
+      {/* 模板/Snippet 面板 */}
+      {!search && (
+        <div style={{ marginTop: 12 }}>
+          <Collapse
+            ghost
+            defaultActiveKey={[]}
+            size="small"
+          >
+            <Collapse.Panel
+              key="snippets"
+              header={
+                <Text strong style={{ fontSize: 13 }}>
+                  模板 ({snippetTemplates.length})
+                </Text>
+              }
+            >
+              <Space direction="vertical" style={{ width: '100%' }} size={6}>
+                {snippetTemplates.map((snippet) => (
+                  <DraggableSnippet
+                    key={snippet.id}
+                    snippet={snippet}
+                  />
+                ))}
+              </Space>
+            </Collapse.Panel>
+          </Collapse>
+        </div>
+      )}
     </div>
   );
 };

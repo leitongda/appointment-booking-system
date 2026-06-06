@@ -221,7 +221,33 @@ class CodegenPreviewRequest(BaseSchema):
     )
 
 
+# ---------------------------------------------------------------------------
+# Audit log schemas
+# ---------------------------------------------------------------------------
+
+
+class AuditLogItem(BaseSchema):
+    """审计日志列表项。"""
+
+    id: str = Field(..., description="日志 ID")
+    page_id: str = Field(..., description="页面 ID")
+    operator_id: str = Field(..., description="操作人 ID")
+    action: str = Field(..., description="操作类型")
+    detail: Optional[dict[str, Any]] = Field(None, description="操作详情")
+    created_at: Optional[datetime] = Field(None, description="操作时间")
+
+
+class AuditLogListResponse(BaseSchema):
+    """审计日志列表响应。"""
+
+    current_version: int = Field(0, description="当前版本号（兼容）")
+    items: list[AuditLogItem] = Field(default_factory=list, description="审计日志列表")
+    total: int = Field(0, description="总条数")
+
+
 __all__ = [
+    "AuditLogItem",
+    "AuditLogListResponse",
     "CodegenPreviewRequest",
     "CodegenResultSchema",
     "DataSourceFieldSuggestion",

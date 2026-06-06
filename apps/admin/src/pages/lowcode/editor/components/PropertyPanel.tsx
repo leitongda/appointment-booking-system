@@ -13,12 +13,13 @@ import {
   Tooltip,
   Dropdown,
   Button,
+  Collapse,
 } from 'antd';
-import { LinkOutlined, DisconnectOutlined } from '@ant-design/icons';
+import { LinkOutlined, DisconnectOutlined, TranslationOutlined } from '@ant-design/icons';
 import { useEditorStore } from '../store';
 import { findMaterial } from '../materials';
 import { findNodeById } from '../utils/tree';
-import type { PropertyConfig, LowCodeNode, ApiDataSource } from '@hospital/shared';
+import type { PropertyConfig, LowCodeNode, ApiDataSource, ValidationRules, AnimationConfig, LowCodeTheme } from '@hospital/shared';
 import ImageUpload from '@/components/ImageUpload';
 import { EventConfig } from './EventConfig';
 
@@ -31,6 +32,25 @@ const { TextArea } = Input;
 
 /** 表达式正则：匹配 {{...}} */
 const EXPRESSION_RE = /^\{\{(.+)\}\}$/;
+
+/** i18n 标记正则：匹配 $t('key') */
+const I18N_RE = /^\$t\('(.+)'\)$/;
+
+/** 检查值是否为 i18n 标记 */
+function isI18nMark(value: any): boolean {
+  return typeof value === 'string' && I18N_RE.test(value);
+}
+
+/** 从 i18n 标记中提取 key */
+function extractI18nKey(value: string): string {
+  const match = value.match(I18N_RE);
+  return match ? match[1] : '';
+}
+
+/** 构造 i18n 标记值 */
+function buildI18nMark(key: string): string {
+  return `$t('${key}')`;
+}
 
 /** 验证表达式语法是否合法 */
 function isValidExpression(expr: string): boolean {
@@ -377,6 +397,8 @@ interface BindingAwareFormItemProps {
   onBindingChange: (expr: string) => void;
   /** 可用变量组 */
   variableGroups: VariableGroup[];
+  /** i18n 标记切换 */
+  onI18nToggle?: () => void;
 }
 
 function BindingAwareFormItem({
@@ -388,6 +410,7 @@ function BindingAwareFormItem({
   onStaticChange,
   onBindingChange,
   variableGroups,
+  onI18nToggle,
 }: BindingAwareFormItemProps) {
   const isBinding = bindingExpression !== undefined;
   const [exprInvalid, setExprInvalid] = useState(false);
@@ -465,7 +488,7 @@ function BindingAwareFormItem({
       }
       key={config.key}
     >
-      <StaticValueInput config={config} value={staticValue} onChange={onStaticChange} />
+      <StaticValueInput config={config} value={staticValue} onChange={onStaticChange} onI18nToggle={onI18nToggle} />
     </Form.Item>
   );
 }
@@ -478,29 +501,85 @@ function StaticValueInput({
   config,
   value,
   onChange,
+  onI18nToggle,
 }: {
   config: PropertyConfig;
   value: any;
   onChange: (val: any) => void;
+  onI18nToggle?: () => void;
 }) {
+  const i18nActive = isI18nMark(value);
+
   switch (config.type) {
     case 'input':
       return (
-        <Input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={config.placeholder}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Input
+            value={i18nActive ? extractI18nKey(value) : value}
+            onChange={(e) => {
+              if (i18nActive) {
+                onChange(buildI18nMark(e.target.value));
+              } else {
+                onChange(e.target.value);
+              }
+            }}
+            placeholder={i18nActive ? 'i18n key' : config.placeholder}
+            style={{ flex: 1 }}
+          />
+          {onI18nToggle && (
+            <Tooltip title={i18nActive ? '取消 i18n 标记' : '设为 i18n 标记'}>
+              <Button
+                size="small"
+                icon={<TranslationOutlined />}
+                style={{
+                  width: 28,
+                  padding: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: i18nActive ? '#1677ff' : undefined,
+                  borderColor: i18nActive ? '#1677ff' : undefined,
+                }}
+                onClick={onI18nToggle}
+              />
+            </Tooltip>
+          )}
+        </div>
       );
 
     case 'textarea':
       return (
-        <TextArea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={config.placeholder}
-          rows={3}
-        />
+        <div>
+          <TextArea
+            value={i18nActive ? extractI18nKey(value) : value}
+            onChange={(e) => {
+              if (i18nActive) {
+                onChange(buildI18nMark(e.target.value));
+              } else {
+                onChange(e.target.value);
+              }
+            }}
+            placeholder={i18nActive ? 'i18n key' : config.placeholder}
+            rows={3}
+          />
+          {onI18nToggle && (
+            <div style={{ marginTop: 4 }}>
+              <Tooltip title={i18nActive ? '取消 i18n 标记' : '设为 i18n 标记'}>
+                <Button
+                  size="small"
+                  icon={<TranslationOutlined />}
+                  style={{
+                    color: i18nActive ? '#1677ff' : undefined,
+                    borderColor: i18nActive ? '#1677ff' : undefined,
+                  }}
+                  onClick={onI18nToggle}
+                >
+                  {i18nActive ? 'i18n 已启用' : '标记为 i18n'}
+                </Button>
+              </Tooltip>
+            </div>
+          )}
+        </div>
       );
 
     case 'number':
@@ -565,6 +644,125 @@ function StaticValueInput({
 }
 
 // ---------------------------------------------------------------------------
+// Form component detection + Validation Rules Panel
+// ---------------------------------------------------------------------------
+
+const FORM_COMPONENTS = new Set([
+  'NutInput',
+  'NutTextarea',
+  'NutPicker',
+  'NutSwitch',
+  'NutCheckbox',
+  'NutRadio',
+  'NutDatePicker',
+]);
+
+function isFormComponent(componentName: string): boolean {
+  return FORM_COMPONENTS.has(componentName);
+}
+
+function ValidationRulesPanel({
+  rules,
+  onChange,
+}: {
+  rules?: ValidationRules;
+  onChange: (rules: ValidationRules | undefined) => void;
+}) {
+  const update = (key: keyof ValidationRules, value: any) => {
+    const next = { ...rules, [key]: value };
+    // 如果所有字段都是 undefined/null/空字符串，清除整个 rules
+    const hasValue = Object.values(next).some(
+      (v) => v !== undefined && v !== null && v !== '',
+    );
+    onChange(hasValue ? next : undefined);
+  };
+
+  return (
+    <div style={{ marginTop: 16, padding: '12px 0', borderTop: '1px solid #f0f0f0' }}>
+      <Collapse
+        ghost
+        size="small"
+        items={[
+          {
+            key: 'validation',
+            label: <Text type="secondary" style={{ fontSize: 12 }}>验证规则</Text>,
+            children: (
+              <Form layout="vertical" size="small">
+                <Form.Item label="必填" style={{ marginBottom: 8 }}>
+                  <Switch
+                    size="small"
+                    checked={!!rules?.required}
+                    onChange={(checked) => update('required', checked || undefined)}
+                  />
+                </Form.Item>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <Form.Item label="最小长度" style={{ marginBottom: 8 }}>
+                    <InputNumber
+                      size="small"
+                      min={0}
+                      placeholder="不限"
+                      value={rules?.minLength}
+                      onChange={(val) => update('minLength', val || undefined)}
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                  <Form.Item label="最大长度" style={{ marginBottom: 8 }}>
+                    <InputNumber
+                      size="small"
+                      min={0}
+                      placeholder="不限"
+                      value={rules?.maxLength}
+                      onChange={(val) => update('maxLength', val || undefined)}
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <Form.Item label="最小值" style={{ marginBottom: 8 }}>
+                    <InputNumber
+                      size="small"
+                      placeholder="不限"
+                      value={rules?.min}
+                      onChange={(val) => update('min', val || undefined)}
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                  <Form.Item label="最大值" style={{ marginBottom: 8 }}>
+                    <InputNumber
+                      size="small"
+                      placeholder="不限"
+                      value={rules?.max}
+                      onChange={(val) => update('max', val || undefined)}
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                </div>
+                <Form.Item label="正则表达式" style={{ marginBottom: 8 }}>
+                  <Input
+                    size="small"
+                    placeholder="如: ^[a-zA-Z]+$"
+                    value={rules?.pattern || ''}
+                    onChange={(e) => update('pattern', e.target.value || undefined)}
+                  />
+                </Form.Item>
+                <Form.Item label="错误提示" style={{ marginBottom: 0 }}>
+                  <Input
+                    size="small"
+                    placeholder="如: 请输入有效内容"
+                    value={rules?.message || ''}
+                    onChange={(e) => update('message', e.target.value || undefined)}
+                  />
+                </Form.Item>
+              </Form>
+            ),
+          },
+        ]}
+      />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // PropertyPanel (main)
 // ---------------------------------------------------------------------------
 
@@ -576,6 +774,7 @@ export const PropertyPanel: React.FC = () => {
   const updateNodeDataBinding = useEditorStore((s) => s.updateNodeDataBinding);
   const removeNode = useEditorStore((s) => s.removeNode);
   const dataSources = useEditorStore((s) => s.dataSources);
+  const updateTheme = useEditorStore((s) => s.updateTheme);
 
   /** 查找选中的节点 */
   const selectedNode = useMemo(() => {
@@ -589,6 +788,73 @@ export const PropertyPanel: React.FC = () => {
     [selectedNode, dataSources],
   );
 
+  const theme = schema.theme;
+
+  /** 主题配置面板 */
+  const themePanel = (
+    <Collapse
+      ghost
+      size="small"
+      defaultActiveKey={[]}
+      items={[
+        {
+          key: 'theme',
+          label: <Text type="secondary" style={{ fontSize: 12 }}>主题</Text>,
+          children: (
+            <Form layout="vertical" size="small">
+              <Form.Item label="主色调" style={{ marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <ColorPicker
+                    value={theme?.primaryColor || '#1677ff'}
+                    onChange={(_, hex) => updateTheme({ ...theme, primaryColor: hex })}
+                    size="small"
+                  />
+                  <Input
+                    size="small"
+                    value={theme?.primaryColor || ''}
+                    placeholder="#1677ff"
+                    onChange={(e) => updateTheme({ ...theme, primaryColor: e.target.value || undefined })}
+                  />
+                </div>
+              </Form.Item>
+              <Form.Item label="背景色" style={{ marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <ColorPicker
+                    value={theme?.backgroundColor || '#ffffff'}
+                    onChange={(_, hex) => updateTheme({ ...theme, backgroundColor: hex })}
+                    size="small"
+                  />
+                  <Input
+                    size="small"
+                    value={theme?.backgroundColor || ''}
+                    placeholder="#ffffff"
+                    onChange={(e) => updateTheme({ ...theme, backgroundColor: e.target.value || undefined })}
+                  />
+                </div>
+              </Form.Item>
+              <Form.Item label="字体族" style={{ marginBottom: 8 }}>
+                <Input
+                  size="small"
+                  value={theme?.fontFamily || ''}
+                  placeholder="例: -apple-system, sans-serif"
+                  onChange={(e) => updateTheme({ ...theme, fontFamily: e.target.value || undefined })}
+                />
+              </Form.Item>
+              <Form.Item label="字体大小基准" style={{ marginBottom: 0 }}>
+                <Input
+                  size="small"
+                  value={theme?.fontSize || ''}
+                  placeholder="例: 14px"
+                  onChange={(e) => updateTheme({ ...theme, fontSize: e.target.value || undefined })}
+                />
+              </Form.Item>
+            </Form>
+          ),
+        },
+      ]}
+    />
+  );
+
   if (!selectedNode) {
     return (
       <div
@@ -596,12 +862,20 @@ export const PropertyPanel: React.FC = () => {
           width: 280,
           borderLeft: '1px solid #f0f0f0',
           padding: 16,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          overflow: 'auto',
         }}
       >
-        <Empty description="选择一个组件查看属性" />
+        {themePanel}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: 24,
+          }}
+        >
+          <Empty description="选择一个组件查看属性" />
+        </div>
       </div>
     );
   }
@@ -616,6 +890,10 @@ export const PropertyPanel: React.FC = () => {
         overflow: 'auto',
       }}
     >
+      {/* 主题配置面板 */}
+      <div style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}>
+        {themePanel}
+      </div>
       <div
         style={{
           padding: '12px 16px',
@@ -674,6 +952,18 @@ export const PropertyPanel: React.FC = () => {
                   }
                 }}
                 variableGroups={variableGroups}
+                onI18nToggle={() => {
+                  if (selectedNodeId) {
+                    const currentVal = selectedNode.props[config.key] ?? config.defaultValue ?? '';
+                    if (isI18nMark(currentVal)) {
+                      // 取消 i18n 标记，恢复为 key
+                      updateNodeProps(selectedNodeId, { [config.key]: extractI18nKey(currentVal) });
+                    } else {
+                      // 添加 i18n 标记
+                      updateNodeProps(selectedNodeId, { [config.key]: buildI18nMark(String(currentVal || 'key')) });
+                    }
+                  }
+                }}
               />
             );
           })}
@@ -831,6 +1121,102 @@ export const PropertyPanel: React.FC = () => {
             表达式为 true 时显示组件，支持 state/api 变量
           </Text>
         </div>
+
+        {/* 动画配置 */}
+        <div style={{ marginTop: 16, padding: '12px 0', borderTop: '1px solid #f0f0f0' }}>
+          <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>
+            动画效果
+          </Text>
+          <Form layout="vertical" size="small">
+            <Form.Item label="动画类型" style={{ marginBottom: 8 }}>
+              <Select
+                size="small"
+                placeholder="选择动画类型"
+                allowClear
+                value={selectedNode.animation?.type}
+                onChange={(val) => {
+                  if (selectedNodeId) {
+                    updateNodeProps(selectedNodeId, {
+                      animation: val
+                        ? { type: val, duration: 300, delay: 0, easing: 'ease' }
+                        : undefined,
+                    });
+                  }
+                }}
+                options={[
+                  { label: '淡入', value: 'fadeIn' },
+                  { label: '淡出', value: 'fadeOut' },
+                  { label: '滑入', value: 'slideIn' },
+                  { label: '缩放', value: 'scale' },
+                ]}
+              />
+            </Form.Item>
+            {selectedNode.animation?.type && (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <Form.Item label="持续时间(ms)" style={{ marginBottom: 8 }}>
+                    <InputNumber
+                      size="small"
+                      min={0}
+                      step={50}
+                      value={selectedNode.animation.duration ?? 300}
+                      onChange={(val) => {
+                        if (selectedNodeId) {
+                          updateNodeProps(selectedNodeId, {
+                            animation: { ...selectedNode.animation, duration: val ?? 300 },
+                          });
+                        }
+                      }}
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                  <Form.Item label="延迟(ms)" style={{ marginBottom: 8 }}>
+                    <InputNumber
+                      size="small"
+                      min={0}
+                      step={50}
+                      value={selectedNode.animation.delay ?? 0}
+                      onChange={(val) => {
+                        if (selectedNodeId) {
+                          updateNodeProps(selectedNodeId, {
+                            animation: { ...selectedNode.animation, delay: val ?? 0 },
+                          });
+                        }
+                      }}
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                </div>
+                <Form.Item label="缓动函数" style={{ marginBottom: 0 }}>
+                  <Input
+                    size="small"
+                    placeholder="例: ease, ease-in-out, cubic-bezier(...)"
+                    value={selectedNode.animation.easing || ''}
+                    onChange={(e) => {
+                      if (selectedNodeId) {
+                        updateNodeProps(selectedNodeId, {
+                          animation: { ...selectedNode.animation, easing: e.target.value || undefined },
+                        });
+                      }
+                    }}
+                  />
+                </Form.Item>
+              </>
+            )}
+          </Form>
+        </div>
+
+        {/* 验证规则配置 — 仅表单组件 */}
+        {isFormComponent(selectedNode.componentName) && (
+          <ValidationRulesPanel
+            rules={selectedNode.validationRules}
+            onChange={(rules) => {
+              if (selectedNodeId) {
+                updateNodeProps(selectedNodeId, { validationRules: rules || undefined });
+              }
+            }}
+          />
+        )}
 
         {/* 循环渲染配置 */}
         <div style={{ marginTop: 12, padding: '12px 0', borderTop: '1px solid #f0f0f0' }}>

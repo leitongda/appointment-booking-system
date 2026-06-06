@@ -239,6 +239,44 @@ export const Canvas: React.FC = () => {
             return;
           }
 
+          // 从模板面板拖入 Snippet（展开为完整组件树）
+          if (sourceData?.type === 'snippet') {
+            const snippet = sourceData.snippet;
+            const snippetNodes = snippet.nodes;
+
+            // 确定目标父节点
+            let parentId: string;
+            if (targetData?.type === 'container' && targetData.parentId) {
+              parentId = targetData.parentId;
+            } else {
+              const rootNode = schema.children?.[0];
+              if (!rootNode) {
+                setSchema({
+                  ...schema,
+                  children: [...(schema.children || []), ...snippetNodes],
+                });
+                return;
+              }
+              parentId = rootNode.id;
+            }
+
+            let insertIndex: number;
+            if (computedIndex !== null) {
+              insertIndex = computedIndex;
+            } else {
+              const parentNode = findNodeById(schema.children || [], parentId);
+              insertIndex = parentNode?.children?.length || 0;
+            }
+
+            // 逐个插入 snippet 节点
+            let idx = insertIndex;
+            for (const node of snippetNodes) {
+              addNode(node, parentId, idx);
+              idx++;
+            }
+            return;
+          }
+
           // 画布内已有节点拖拽重排序
           if (sourceData?.type === 'existing-node') {
             const nodeId = sourceData.nodeId as string;
@@ -320,6 +358,24 @@ export const Canvas: React.FC = () => {
                   }}
                 >
                   {material.title}
+                </div>
+              );
+            }
+            if (data?.type === 'snippet') {
+              const snippet = data.snippet;
+              return (
+                <div
+                  style={{
+                    padding: '6px 12px',
+                    background: '#f6ffed',
+                    border: '1px solid #52c41a',
+                    borderRadius: 6,
+                    fontSize: 13,
+                    color: '#52c41a',
+                    opacity: 0.9,
+                  }}
+                >
+                  {snippet.name}
                 </div>
               );
             }

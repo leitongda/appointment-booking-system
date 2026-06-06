@@ -12,6 +12,10 @@ import type {
   LowCodeNode,
   ApiDataSource,
   EventHandler,
+  ValidationRules,
+  AnimationConfig,
+  LowCodeTheme,
+  I18nConfig,
 } from '@hospital/shared/types/lowcode';
 
 // ---------------------------------------------------------------------------
@@ -69,10 +73,87 @@ const COMPONENT_IMPORT_MAP: Record<string, { importName: string; source: string 
   NutRadio:       { importName: 'Radio',      source: '@nutui/nutui-react-taro' },
   NutDatePicker:  { importName: 'DatePicker', source: '@nutui/nutui-react-taro' },
   NutCalendar:    { importName: 'Calendar',   source: '@nutui/nutui-react-taro' },
+  // 业务组件
+  BizAppointmentCard:  { importName: 'BizAppointmentCard',  source: '@/components/business/AppointmentCard' },
+  BizDoctorCard:       { importName: 'BizDoctorCard',       source: '@/components/business/DoctorCard' },
+  BizDepartmentPicker: { importName: 'BizDepartmentPicker', source: '@/components/business/DepartmentPicker' },
+  BizTimeSlotPicker:   { importName: 'BizTimeSlotPicker',   source: '@/components/business/TimeSlotPicker' },
 };
 
 /** Components that are plain Taro built-in elements (View for Page wrapper) */
 const TARO_BUILTIN_NAMES = new Set(['View', 'Text', 'Image']);
+
+// ---------------------------------------------------------------------------
+// Theme & Animation helpers
+// ---------------------------------------------------------------------------
+
+/** Animation type to CSS animation keyframe mapping */
+const ANIMATION_CSS_MAP: Record<string, string> = {
+  fadeIn: 'opacity: 0; animation: fadeIn {duration}ms {easing} {delay}ms forwards;',
+  fadeOut: 'opacity: 1; animation: fadeOut {duration}ms {easing} {delay}ms forwards;',
+  slideIn: 'transform: translateY(20px); opacity: 0; animation: slideIn {duration}ms {easing} {delay}ms forwards;',
+  scale: 'transform: scale(0.8); opacity: 0; animation: scaleIn {duration}ms {easing} {delay}ms forwards;',
+};
+
+/** Generate CSS @keyframes block for animations used in the schema */
+function generateKeyframes(nodeList: LowCodeNode[]): string {
+  const types = new Set<string>();
+  function walk(nodes: LowCodeNode[]) {
+    for (const node of nodes) {
+      if (node.animation?.type) types.add(node.animation.type);
+      if (node.children) walk(node.children);
+    }
+  }
+  walk(nodeList);
+  if (types.size === 0) return '';
+
+  const frames: string[] = [];
+  if (types.has('fadeIn')) {
+    frames.push('  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }');
+  }
+  if (types.has('fadeOut')) {
+    frames.push('  @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }');
+  }
+  if (types.has('slideIn')) {
+    frames.push('  @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }');
+  }
+  if (types.has('scale')) {
+    frames.push('  @keyframes scaleIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }');
+  }
+  return frames.join('\n');
+}
+
+/** Generate inline style object string for an animation config */
+function animationToInlineStyle(anim: AnimationConfig): string {
+  const duration = anim.duration ?? 300;
+  const easing = anim.easing || 'ease';
+  const delay = anim.delay ?? 0;
+  const animName = anim.type || 'fadeIn';
+
+  const cssMap: Record<string, Record<string, string>> = {
+    fadeIn: { opacity: '0' },
+    fadeOut: { opacity: '1' },
+    slideIn: { transform: 'translateY(20px)', opacity: '0' },
+    scale: { transform: 'scale(0.8)', opacity: '0' },
+  };
+
+  const initial = cssMap[animName] || {};
+  const parts = Object.entries(initial).map(([k, v]) => `${k}: '${v}'`);
+  parts.push(`animation: '${animName} ${duration}ms ${easing} ${delay}ms forwards'`);
+  return `{ ${parts.join(', ')} }`;
+}
+
+/** Generate CSS variable declarations from theme config as a style object string */
+function generateThemeCssVars(theme?: LowCodeTheme): string | null {
+  if (!theme) return null;
+  const vars: Record<string, string> = {};
+  if (theme.primaryColor) vars['--primary-color'] = theme.primaryColor;
+  if (theme.backgroundColor) vars['--background-color'] = theme.backgroundColor;
+  if (theme.fontFamily) vars['--font-family'] = theme.fontFamily;
+  if (theme.fontSize) vars['--font-size'] = theme.fontSize;
+  if (Object.keys(vars).length === 0) return null;
+  return JSON.stringify(vars);
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -87,13 +168,18 @@ function indent(text: string, spaces: number): string {
     .join('\n');
 }
 
-/** Collect all unique componentNames used in the schema tree */
+/** Collect all unique componentNames used in the schema tree (including slots) */
 function collectComponentNames(schema: LowCodeSchema): Set<string> {
   const names = new Set<string>();
-  function walk(node: { componentName: string; children?: any[] }) {
+  function walk(node: { componentName: string; children?: any[]; slots?: Record<string, any[]> }) {
     names.add(node.componentName);
     if (node.children) {
       for (const child of node.children) walk(child);
+    }
+    if (node.slots) {
+      for (const slotNodes of Object.values(node.slots)) {
+        for (const child of slotNodes) walk(child);
+      }
     }
   }
   walk(schema);
@@ -114,6 +200,14 @@ function propToAttrName(prop: string): string {
 /** Escape a string for embedding in JS source */
 function escapeString(val: string): string {
   return val.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
+}
+
+/** i18n 标记正则 */
+const I18N_MARK_RE = /\$t\('([^']+)'\)/g;
+
+/** 替换 $t('key') 为 i18n.t('key') */
+function resolveI18nMarks(text: string): string {
+  return text.replace(I18N_MARK_RE, (_match, key: string) => `i18n.t('${key}')`);
 }
 
 /** Resolve a data-binding expression like {{state.title}} to a JS expression */
@@ -182,6 +276,7 @@ function resolveAttrExpression(expression: string, propName: string): string {
 export function generateImports(
   componentNames: Set<string>,
   options: GeneratePageOptions = {},
+  hasI18n: boolean = false,
 ): string {
   const lines: string[] = [];
 
@@ -224,6 +319,11 @@ export function generateImports(
   // @hospital/api (optional)
   if (options.useHospitalApi) {
     lines.push("import { request } from '@hospital/api';");
+  }
+
+  // i18n (optional)
+  if (hasI18n) {
+    lines.push("import { createI18n, useI18n } from '@tarojs/i18n';");
   }
 
   lines.push(''); // blank line after imports
@@ -414,7 +514,7 @@ export function generateEventHandlers(
 
           lines.push(`  const ${handlerName} = useCallback(() => {`);
           for (const action of handler.actions) {
-            lines.push(indent(generateActionCode(action, apiStateNames), 4));
+            lines.push(indent(generateActionCode(action, apiStateNames, node.id), 4));
           }
           lines.push('  }, []);');
           lines.push('');
@@ -441,14 +541,17 @@ function buildHandlerName(node: LowCodeNode, handler: EventHandler): string {
 function generateActionCode(
   action: { type: string; payload: Record<string, any> },
   apiStateNames: Map<string, string>,
+  currentNodeId?: string,
 ): string {
   switch (action.type) {
     case 'setData': {
-      const key = action.payload.key ?? action.payload.stateKey;
+      const targetNodeId = action.payload.targetNodeId || currentNodeId;
+      const key = action.payload.key;
       const value = action.payload.value;
-      if (!key) return '// setData: missing key';
-      const setter = `set${capitalize(sanitizeId(key))}`;
-      return `${setter}(${JSON.stringify(value)});`;
+      if (!targetNodeId || !key) return '// setData: missing targetNodeId or key';
+      // setData sets a prop on a target node — in runtime this is handled by the runtime engine.
+      // For static codegen, emit a comment + setState if the target maps to a state variable.
+      return `// setData: node=${escapeString(targetNodeId)}, ${key}=${JSON.stringify(value)}\nsetNodeProp('${escapeString(targetNodeId)}', '${escapeString(key)}', ${JSON.stringify(value)});`;
     }
     case 'fetchApi': {
       const dsId = action.payload.dataSourceId ?? action.payload.id;
@@ -505,7 +608,13 @@ export function generateJsx(
   const tagName = mapping ? mapping.importName : node.componentName;
 
   // Build props string
-  const propsStr = buildPropsString(node, apiStateNames);
+  let propsStr = buildPropsString(node, apiStateNames);
+
+  // Add animation inline style if configured
+  if (node.animation?.type) {
+    const animStyle = animationToInlineStyle(node.animation);
+    propsStr += ` style={${animStyle}}`;
+  }
 
   // Handle loop rendering
   if (node.loop) {
@@ -540,10 +649,25 @@ export function generateJsx(
     return jsx;
   }
 
-  // Container node
-  const childrenJsx = node.children!
-    .map((child) => generateJsx(child, depth + 1, apiStateNames))
-    .join('\n');
+  // Container node — support named slots or default children
+  let childrenJsx: string;
+  if (node.slots && Object.keys(node.slots).length > 0) {
+    // Render named slots
+    const slotParts: string[] = [];
+    for (const [slotName, slotNodes] of Object.entries(node.slots)) {
+      if (slotNodes.length > 0) {
+        const slotJsx = slotNodes
+          .map((child) => generateJsx(child, depth + 2, apiStateNames))
+          .join('\n');
+        slotParts.push(`${'  '.repeat(depth + 1)}{/* slot: ${slotName} */}\n${slotJsx}`);
+      }
+    }
+    childrenJsx = slotParts.join('\n') || `${'  '.repeat(depth + 1)}`;
+  } else {
+    childrenJsx = node.children!
+      .map((child) => generateJsx(child, depth + 1, apiStateNames))
+      .join('\n');
+  }
 
   let jsx = `${pad}<${tagName}${propsStr}>\n${childrenJsx}\n${pad}</${tagName}>`;
 
@@ -552,6 +676,34 @@ export function generateJsx(
   }
 
   return jsx;
+}
+
+/** Components that support validation rules */
+const FORM_COMPONENT_NAMES = new Set([
+  'NutInput',
+  'NutTextarea',
+  'NutPicker',
+  'NutSwitch',
+  'NutCheckbox',
+  'NutRadio',
+  'NutDatePicker',
+]);
+
+function isFormComponent(componentName: string): boolean {
+  return FORM_COMPONENT_NAMES.has(componentName);
+}
+
+/** Format ValidationRules as a JS object literal string for JSX */
+function formatValidationRules(rules: ValidationRules): string {
+  const entries: string[] = [];
+  if (rules.required) entries.push(`required: true`);
+  if (rules.minLength != null) entries.push(`minLength: ${rules.minLength}`);
+  if (rules.maxLength != null) entries.push(`maxLength: ${rules.maxLength}`);
+  if (rules.min != null) entries.push(`min: ${rules.min}`);
+  if (rules.max != null) entries.push(`max: ${rules.max}`);
+  if (rules.pattern) entries.push(`pattern: '${escapeString(rules.pattern)}'`);
+  if (rules.message) entries.push(`message: '${escapeString(rules.message)}'`);
+  return `{ ${entries.join(', ')} }`;
 }
 
 /** Build the JSX props string for a node */
@@ -585,6 +737,11 @@ function buildPropsString(
     }
   }
 
+  // Add validateRules for form components
+  if (node.validationRules && isFormComponent(node.componentName)) {
+    parts.push(`validateRules={${formatValidationRules(node.validationRules)}}`);
+  }
+
   if (parts.length === 0) return '';
 
   // Multi-line if too many props
@@ -616,6 +773,11 @@ function formatPropValue(key: string, value: any): string {
     return `${key}={${value}}`;
   }
   if (typeof value === 'string') {
+    // Handle i18n marks: $t('key') -> {i18n.t('key')}
+    if (I18N_MARK_RE.test(value)) {
+      I18N_MARK_RE.lastIndex = 0; // reset regex state
+      return `${key}={${resolveI18nMarks(value)}}`;
+    }
     return `${key}="${escapeString(value)}"`;
   }
   if (value === null || value === undefined) {
@@ -630,12 +792,18 @@ function extractTextContent(node: LowCodeNode): string | null {
   const props = node.props || {};
 
   switch (node.componentName) {
-    case 'NutText':
-      return props.text ? escapeString(props.text) : '文本';
-    case 'NutButton':
-      return props.text ? escapeString(props.text) : '按钮';
-    case 'NutEmpty':
-      return props.description ? escapeString(props.description) : '暂无数据';
+    case 'NutText': {
+      const text = props.text || '文本';
+      return I18N_MARK_RE.test(text) ? `{${resolveI18nMarks(text)}}` : escapeString(text);
+    }
+    case 'NutButton': {
+      const text = props.text || '按钮';
+      return I18N_MARK_RE.test(text) ? `{${resolveI18nMarks(text)}}` : escapeString(text);
+    }
+    case 'NutEmpty': {
+      const desc = props.description || '暂无数据';
+      return I18N_MARK_RE.test(desc) ? `{${resolveI18nMarks(desc)}}` : escapeString(desc);
+    }
     default:
       return null;
   }
@@ -745,7 +913,8 @@ export function generatePage(
 
   // --- Collect components and generate imports ---
   const componentNames = collectComponentNames(schema);
-  sections.push(generateImports(componentNames, options));
+  const hasI18n = !!schema.i18n;
+  sections.push(generateImports(componentNames, options, hasI18n));
 
   // --- Page config (Taro convention) ---
   const pageTitle = schema.props?.navigationBarTitleText || '页面';
@@ -757,6 +926,18 @@ export function generatePage(
       "",
     ].join('\n'),
   );
+
+  // --- i18n messages ---
+  if (schema.i18n) {
+    sections.push(
+      [
+        '// --- i18n messages ---',
+        `const messages = ${JSON.stringify(schema.i18n.messages, null, 2)};`,
+        `const i18n = createI18n({ locale: '${escapeString(schema.i18n.locale)}', messages });`,
+        '',
+      ].join('\n'),
+    );
+  }
 
   // --- Component function start ---
   sections.push('export default function Page() {');
@@ -780,9 +961,22 @@ export function generatePage(
     sections.push(effectsCode);
   }
 
+  // --- Theme CSS variables ---
+  const themeVarsJson = generateThemeCssVars(schema.theme);
+
+  // --- Animation keyframes ---
+  const allNodesForAnim = flattenNodes(schema.children ?? []);
+  const keyframesCode = generateKeyframes(allNodesForAnim);
+
   // --- JSX ---
-  const pageStyle = options.pageStyle
-    ? ` style={${JSON.stringify(options.pageStyle)}}`
+  // Build page style: merge options.pageStyle with theme CSS variables
+  const mergedStyle: Record<string, any> = { ...(options.pageStyle || {}) };
+  if (themeVarsJson) {
+    const themeVars = JSON.parse(themeVarsJson);
+    Object.assign(mergedStyle, themeVars);
+  }
+  const pageStyle = Object.keys(mergedStyle).length > 0
+    ? ` style={${JSON.stringify(mergedStyle)}}`
     : '';
   const innerJsx = generateJsx(
     { ...schema, componentName: 'Page' } as LowCodeNode,
@@ -792,6 +986,9 @@ export function generatePage(
 
   sections.push('  return (');
   sections.push(`    <View className="page"${pageStyle}>`);
+  if (keyframesCode) {
+    sections.push(`      <style>{\`${keyframesCode.replace(/\n/g, ' ')}\`}</style>`);
+  }
   sections.push(innerJsx);
   sections.push('    </View>');
   sections.push('  );');
@@ -801,13 +998,18 @@ export function generatePage(
   return sections.join('\n');
 }
 
-/** Flatten all nodes into a single array (for event handler collection) */
+/** Flatten all nodes into a single array (for event handler collection), including slots */
 function flattenNodes(nodes: LowCodeNode[]): LowCodeNode[] {
   const result: LowCodeNode[] = [];
   function walk(nodeList: LowCodeNode[]) {
     for (const node of nodeList) {
       result.push(node);
       if (node.children) walk(node.children);
+      if (node.slots) {
+        for (const slotNodes of Object.values(node.slots)) {
+          walk(slotNodes);
+        }
+      }
     }
   }
   walk(nodes);

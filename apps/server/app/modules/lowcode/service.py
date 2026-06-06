@@ -12,6 +12,7 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.lowcode_page import LowCodePage
+from app.models.lowcode_audit_log import LowCodePageAuditLog
 from app.utils.audit import set_create_audit, set_update_audit
 
 # 沙箱限制
@@ -70,6 +71,22 @@ class LowCodePageService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    async def _log_audit(
+        self,
+        page_id: str,
+        operator_id: str,
+        action: str,
+        detail: Optional[dict] = None,
+    ) -> None:
+        """记录审计日志。"""
+        log = LowCodePageAuditLog(
+            page_id=page_id,
+            operator_id=operator_id,
+            action=action,
+            detail=detail,
+        )
+        self.db.add(log)
 
     async def get_list(
         self,
@@ -138,6 +155,13 @@ class LowCodePageService:
         )
         set_create_audit(page, created_by)
         self.db.add(page)
+        await self.db.flush()
+        await self._log_audit(
+            page_id=str(page.id),
+            operator_id=created_by or "system",
+            action="create",
+            detail={"name": name, "slug": slug},
+        )
         await self.db.commit()
         await self.db.refresh(page)
         return page
@@ -160,6 +184,23 @@ class LowCodePageService:
         if not page:
             return None
 
+        # 收集变更前的值用于审计日志
+        changes: dict[str, Any] = {}
+        if name is not None and page.name != name:
+            changes["name"] = {"old": page.name, "new": name}
+        if slug is not None and page.slug != slug:
+            changes["slug"] = {"old": page.slug, "new": slug}
+        if description is not None and page.description != description:
+            changes["description"] = {"old": page.description, "new": description}
+        if schema_data is not None:
+            changes["schema_data"] = {"changed": True}
+        if status is not None and page.status != status:
+            changes["status"] = {"old": page.status, "new": status}
+        if thumbnail_url is not None and page.thumbnail_url != thumbnail_url:
+            changes["thumbnail_url"] = {"changed": True}
+        if miniapp_instance_id is not None and page.miniapp_instance_id != miniapp_instance_id:
+            changes["miniapp_instance_id"] = {"changed": True}
+
         if name is not None:
             page.name = name
         if slug is not None:
@@ -176,16 +217,40 @@ class LowCodePageService:
             page.miniapp_instance_id = miniapp_instance_id
 
         set_update_audit(page, updated_by)
+        await self.db.flush()
+
+        # 根据变更内容确定操作类型
+        action = "update"
+        if status is not None and "status" in changes:
+            old_status = changes["status"]["old"]
+            new_status = changes["status"]["new"]
+            if new_status == 1 and old_status != 1:
+                action = "publish"
+            elif new_status == 2 and old_status != 2:
+                action = "archive"
+
+        await self._log_audit(
+            page_id=page_id,
+            operator_id=updated_by or "system",
+            action=action,
+            detail=changes if changes else None,
+        )
         await self.db.commit()
         await self.db.refresh(page)
         return page
 
-    async def delete(self, tenant_id: str, page_id: str) -> bool:
+    async def delete(self, tenant_id: str, page_id: str, deleted_by: Optional[str] = None) -> bool:
         """删除页面(仅草稿状态可删)。"""
         page = await self.get_by_id(tenant_id, page_id)
         if not page or page.status != 0:
             return False
 
+        await self._log_audit(
+            page_id=page_id,
+            operator_id=deleted_by or "system",
+            action="delete",
+            detail={"name": page.name, "slug": page.slug},
+        )
         await self.db.delete(page)
         await self.db.commit()
         return True
@@ -202,6 +267,34 @@ class LowCodePageService:
             query = query.where(LowCodePage.id != exclude_id)
         result = await self.db.execute(query)
         return result.scalar_one_or_none() is None
+
+    async def get_audit_logs(
+        self,
+        page_id: str,
+        tenant_id: str,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple[List[LowCodePageAuditLog], int]:
+        """获取页面审计日志列表。"""
+        # 先校验页面归属
+        target_page = await self.get_by_id(tenant_id, page_id)
+        if not target_page:
+            return [], 0
+
+        query = (
+            select(LowCodePageAuditLog)
+            .where(LowCodePageAuditLog.page_id == page_id)
+            .order_by(LowCodePageAuditLog.created_at.desc())
+        )
+        count_query = select(func.count(LowCodePageAuditLog.id)).where(
+            LowCodePageAuditLog.page_id == page_id
+        )
+
+        total = await self.db.scalar(count_query)
+        query = query.offset((page - 1) * page_size).limit(page_size)
+        result = await self.db.execute(query)
+        items = result.scalars().all()
+        return list(items), total or 0
 
     async def get_with_data_sources(
         self, tenant_id: str, page_id: str

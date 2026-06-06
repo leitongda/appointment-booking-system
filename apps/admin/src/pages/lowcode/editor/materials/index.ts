@@ -5,6 +5,7 @@ import { basicMaterials } from './basic';
 import { layoutMaterials } from './layout';
 import { displayMaterials } from './display';
 import { formMaterials } from './form';
+import { businessMaterials } from './business';
 
 /** 所有物料组件 */
 export const allMaterials: MaterialComponent[] = [
@@ -12,6 +13,7 @@ export const allMaterials: MaterialComponent[] = [
   ...layoutMaterials,
   ...displayMaterials,
   ...formMaterials,
+  ...businessMaterials,
 ];
 
 /** 按分类分组的物料 */
@@ -20,6 +22,7 @@ export const materialsByCategory = {
   layout: layoutMaterials,
   display: displayMaterials,
   form: formMaterials,
+  business: businessMaterials,
 } as const;
 
 /** 分类显示名称 */

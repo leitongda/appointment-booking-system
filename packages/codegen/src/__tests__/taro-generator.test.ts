@@ -416,7 +416,7 @@ describe('taro-generator', () => {
 
       expect(output).toContain('const handleATap = useCallback(() => {');
       expect(output).toContain("Taro.showToast({ title: 'Done', icon: 'success' })");
-      expect(output).toContain('setVisible(true)');
+      expect(output).toContain("setNodeProp('a', 'visible', true)");
     });
 
     it('deduplicates handlers with the same name', () => {

@@ -98,6 +98,8 @@ const LowCodeEditor: React.FC = () => {
   const selectedNodeId = useEditorStore((s) => s.selectedNodeId);
   const removeNode = useEditorStore((s) => s.removeNode);
   const addNode = useEditorStore((s) => s.addNode);
+  const selectAll = useEditorStore((s) => s.selectAll);
+  const toggleNodeSelect = useEditorStore((s) => s.toggleNodeSelect);
   const addToRoot = useEditorStore((s) => s.addToRoot);
   const updateNodeProps = useEditorStore((s) => s.updateNodeProps);
 
@@ -373,14 +375,14 @@ const LowCodeEditor: React.FC = () => {
         return;
       }
 
-      // Ctrl+A — 全选（暂不实现）
+      // Ctrl+A — 全选
       if (isMod && e.key === 'a') {
         const tag = (e.target as HTMLElement)?.tagName;
         if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) {
           return;
         }
         e.preventDefault();
-        message.info('暂不支持全选功能');
+        selectAll();
         return;
       }
 
@@ -427,7 +429,7 @@ const LowCodeEditor: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, handleSave, removeNode, addNode, addToRoot, updateNodeProps]);
+  }, [undo, redo, handleSave, removeNode, addNode, addToRoot, updateNodeProps, selectAll, toggleNodeSelect]);
 
   /** 未保存更改警告 */
   useEffect(() => {

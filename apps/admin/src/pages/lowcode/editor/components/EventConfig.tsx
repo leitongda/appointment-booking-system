@@ -46,6 +46,7 @@ const ACTION_TYPE_OPTIONS = [
   { label: 'showToast — 提示消息', value: 'showToast' },
   { label: 'updateVariable — 更新变量', value: 'updateVariable' },
   { label: 'fetchApi — 请求数据源', value: 'fetchApi' },
+  { label: 'setData — 设置组件属性', value: 'setData' },
 ];
 
 /** 动作类型的中文名称 */
@@ -54,6 +55,7 @@ const ACTION_TYPE_LABELS: Record<string, string> = {
   showToast: '提示',
   updateVariable: '更新变量',
   fetchApi: '请求API',
+  setData: '设置属性',
 };
 
 /** 动作类型的标签颜色 */
@@ -62,6 +64,7 @@ const ACTION_TYPE_COLORS: Record<string, string> = {
   showToast: 'green',
   updateVariable: 'orange',
   fetchApi: 'purple',
+  setData: 'cyan',
 };
 
 // ---------------------------------------------------------------------------
@@ -154,6 +157,36 @@ function ActionPayloadForm({ actionType, payload, onChange }: ActionFormProps) {
             onChange={(e) => update('dataSourceId', e.target.value)}
           />
         </Form.Item>
+      );
+
+    case 'setData':
+      return (
+        <Space direction="vertical" size={4} style={{ width: '100%' }}>
+          <Form.Item label="目标节点 ID" style={{ marginBottom: 0 }}>
+            <Input
+              size="small"
+              placeholder="目标组件节点 ID"
+              value={payload.targetNodeId || ''}
+              onChange={(e) => update('targetNodeId', e.target.value)}
+            />
+          </Form.Item>
+          <Form.Item label="属性名" style={{ marginBottom: 0 }}>
+            <Input
+              size="small"
+              placeholder="如: text、value、disabled"
+              value={payload.key || ''}
+              onChange={(e) => update('key', e.target.value)}
+            />
+          </Form.Item>
+          <Form.Item label="属性值" style={{ marginBottom: 0 }}>
+            <Input
+              size="small"
+              placeholder="值或表达式，如 {{state.title}}"
+              value={payload.value ?? ''}
+              onChange={(e) => update('value', e.target.value)}
+            />
+          </Form.Item>
+        </Space>
       );
 
     default:
