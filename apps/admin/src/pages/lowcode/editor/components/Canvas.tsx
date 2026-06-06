@@ -67,6 +67,16 @@ function computeInsertion(
   };
 }
 
+/** 设备尺寸预设 */
+const DEVICE_PRESETS = [
+  { label: 'iPhone', width: 375, height: 667 },
+  { label: 'Android', width: 360, height: 640 },
+  { label: 'iPad', width: 768, height: 1024 },
+];
+
+/** 缩放级别 */
+const ZOOM_LEVELS = [50, 75, 100, 125];
+
 /** Canvas 组件 */
 export const Canvas: React.FC = () => {
   const addNode = useEditorStore((s) => s.addNode);
@@ -78,6 +88,10 @@ export const Canvas: React.FC = () => {
   const dropIndexRef = useRef<number | null>(null);
   /** 插入指示器的视觉状态 */
   const [indicator, setIndicator] = useState<{ top: number; width: number; left: number } | null>(null);
+  /** 画布缩放比例 */
+  const [zoom, setZoom] = useState(100);
+  /** 设备尺寸 */
+  const [device, setDevice] = useState(DEVICE_PRESETS[0]);
 
   return (
     <div
@@ -85,11 +99,66 @@ export const Canvas: React.FC = () => {
         flex: 1,
         overflow: 'auto',
         background: '#f0f2f5',
-        padding: 16,
         display: 'flex',
-        justifyContent: 'center',
+        flexDirection: 'column',
       }}
     >
+      {/* 工具栏：缩放 + 设备切换 */}
+      <div
+        style={{
+          padding: '8px 16px',
+          borderBottom: '1px solid #e8e8e8',
+          background: '#fff',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
+          fontSize: 12,
+        }}
+      >
+        <span style={{ color: '#666' }}>缩放:</span>
+        {ZOOM_LEVELS.map((z) => (
+          <a
+            key={z}
+            onClick={() => setZoom(z)}
+            style={{
+              color: zoom === z ? '#1677ff' : '#666',
+              fontWeight: zoom === z ? 600 : 400,
+              cursor: 'pointer',
+            }}
+          >
+            {z}%
+          </a>
+        ))}
+        <span style={{ color: '#d9d9d9' }}>|</span>
+        <span style={{ color: '#666' }}>设备:</span>
+        {DEVICE_PRESETS.map((d) => (
+          <a
+            key={d.label}
+            onClick={() => setDevice(d)}
+            style={{
+              color: device.label === d.label ? '#1677ff' : '#666',
+              fontWeight: device.label === d.label ? 600 : 400,
+              cursor: 'pointer',
+            }}
+          >
+            {d.label}
+          </a>
+        ))}
+        <span style={{ color: '#999', marginLeft: 'auto' }}>
+          {device.width} x {device.height}
+        </span>
+      </div>
+
+      {/* 画布区域 */}
+      <div
+        style={{
+          flex: 1,
+          padding: 16,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'flex-start',
+        }}
+      >
       <DragDropProvider
         onDragMove={({ operation }) => {
           const target = operation.target as Record<string, any> | undefined;
@@ -219,13 +288,15 @@ export const Canvas: React.FC = () => {
       >
         <div
           style={{
-            width: 375,
-            minHeight: 667,
+            width: device.width,
+            minHeight: device.height,
             background: '#fff',
             borderRadius: 12,
             boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
             overflow: 'hidden',
             position: 'relative',
+            transform: `scale(${zoom / 100})`,
+            transformOrigin: 'top center',
           }}
         >
           <SchemaRenderer />
@@ -308,6 +379,7 @@ export const Canvas: React.FC = () => {
           />
         )}
       </DragDropProvider>
+      </div>
     </div>
   );
 };

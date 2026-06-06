@@ -685,6 +685,81 @@ export const PropertyPanel: React.FC = () => {
           )}
         </Form>
 
+        {/* 条件渲染配置 */}
+        <div style={{ marginTop: 16, padding: '12px 0', borderTop: '1px solid #f0f0f0' }}>
+          <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>
+            显示条件
+          </Text>
+          <Input
+            size="small"
+            placeholder="例: {{state.showHeader}} 或留空始终显示"
+            value={selectedNode.visible || ''}
+            onChange={(e) => {
+              if (selectedNodeId) {
+                updateNodeProps(selectedNodeId, { visible: e.target.value || undefined });
+              }
+            }}
+          />
+          <Text type="secondary" style={{ fontSize: 11, marginTop: 4, display: 'block' }}>
+            表达式为 true 时显示组件，支持 state/api 变量
+          </Text>
+        </div>
+
+        {/* 循环渲染配置 */}
+        <div style={{ marginTop: 12, padding: '12px 0', borderTop: '1px solid #f0f0f0' }}>
+          <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>
+            循环渲染
+          </Text>
+          <Form layout="vertical" size="small">
+            <Form.Item label="数据源" style={{ marginBottom: 8 }}>
+              <Input
+                size="small"
+                placeholder="例: {{api.users}} 或 {{state.items}}"
+                value={selectedNode.loop?.dataSource || ''}
+                onChange={(e) => {
+                  if (selectedNodeId) {
+                    updateNodeProps(selectedNodeId, {
+                      loop: e.target.value
+                        ? { dataSource: e.target.value, itemName: 'item', indexName: 'index' }
+                        : undefined,
+                    });
+                  }
+                }}
+              />
+            </Form.Item>
+            {selectedNode.loop?.dataSource && (
+              <>
+                <Form.Item label="项变量名" style={{ marginBottom: 8 }}>
+                  <Input
+                    size="small"
+                    value={selectedNode.loop.itemName || 'item'}
+                    onChange={(e) => {
+                      if (selectedNodeId) {
+                        updateNodeProps(selectedNodeId, {
+                          loop: { ...selectedNode.loop, itemName: e.target.value },
+                        });
+                      }
+                    }}
+                  />
+                </Form.Item>
+                <Form.Item label="索引变量名" style={{ marginBottom: 0 }}>
+                  <Input
+                    size="small"
+                    value={selectedNode.loop.indexName || 'index'}
+                    onChange={(e) => {
+                      if (selectedNodeId) {
+                        updateNodeProps(selectedNodeId, {
+                          loop: { ...selectedNode.loop, indexName: e.target.value },
+                        });
+                      }
+                    }}
+                  />
+                </Form.Item>
+              </>
+            )}
+          </Form>
+        </div>
+
         {/* 事件配置 */}
         <EventConfig />
       </div>

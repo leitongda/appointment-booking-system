@@ -1,6 +1,7 @@
 /** 低代码编辑器状态管理 */
 
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { LowCodeNode, LowCodeSchema, EventHandler, ApiDataSource } from '@hospital/shared';
 
 /** 页面状态变量定义 */
@@ -298,7 +299,8 @@ function pushHistory(
   });
 }
 
-export const useEditorStore = create<EditorStore>((set, get) => ({
+export const useEditorStore = create<EditorStore>()(persist(
+  (set, get) => ({
   schema: cloneSchema(DEFAULT_SCHEMA),
   selectedNodeId: null,
   history: [{ schema: cloneSchema(DEFAULT_SCHEMA), dataSources: [], stateSchema: {} }],
@@ -455,4 +457,15 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   markSaved: () => {
     set({ savedSchema: cloneSchema(get().schema) });
   },
-}));
+}),
+{
+  name: 'lowcode-editor',
+  partialize: (state) => ({
+    schema: state.schema,
+    dataSources: state.dataSources,
+    stateSchema: state.stateSchema,
+    history: state.history.slice(-20), // 只持久化最近 20 条历史
+    historyIndex: Math.min(state.historyIndex, 19),
+  }),
+},
+));
