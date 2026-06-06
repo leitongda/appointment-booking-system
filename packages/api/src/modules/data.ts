@@ -51,7 +51,6 @@ export const dataApi = {
     if (params?.storeId) searchParams.append('store_id', params.storeId);
     if (params?.status !== undefined) searchParams.append('status', String(params.status));
     const query = searchParams.toString();
-    console.log("🚀 ~ BASE_URL:", BASE_URL)
     return `${BASE_URL}/export/departments${query ? `?${query}` : ''}`;
   },
 

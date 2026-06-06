@@ -18,8 +18,9 @@ export interface BackupImportResult {
 }
 
 export const backupApi = {
-  /** 导出租户数据备份 */
+  /** 导出租户数据备份（返回 Blob 用于文件下载） */
   exportData: (tenantId: string): Promise<Blob> => {
+    // responseType: 'blob' 让 axios 返回二进制数据，但泛型推断不匹配，需 as any
     return request.post(`/backup/${tenantId}/export`, null, {
       responseType: 'blob',
     }) as any;

@@ -6,7 +6,7 @@
  *   - 系统配置（canSystemConfig，含 hospital-info / wechat / email-config / image-config / email-templates / email-recipients）
  *   - 黑名单管理（canBlacklistSettings）
  *   - 系统监控（canSystemMonitoring，含 log / notification-logs / notification-quota / checkin-audit-logs / online-users）
- *   - 数据管理（canDataManagement，含 import-export / backup）
+ *   - 数据管理（canSystemMonitoring，含 import-export / backup）
  *
  * 顶层 access: canSystemManagement
  */

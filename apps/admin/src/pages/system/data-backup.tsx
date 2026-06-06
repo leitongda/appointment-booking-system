@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
 import {
   Card,
@@ -38,7 +38,7 @@ const DataBackupPage: React.FC = () => {
   const [importVisible, setImportVisible] = useState(false);
 
   // 加载租户列表
-  useState(() => {
+  useEffect(() => {
     tenantApi
       .getList({ pageSize: 200 })
       .then((res: any) => {
@@ -48,7 +48,7 @@ const DataBackupPage: React.FC = () => {
       .catch(() => {
         message.warning('加载租户列表失败');
       });
-  });
+  }, []);
 
   // 导出
   const handleExport = async () => {

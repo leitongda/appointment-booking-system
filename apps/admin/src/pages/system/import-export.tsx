@@ -1,15 +1,25 @@
 import { useState } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
-import { Card, Tabs, Table, Button, Upload, Modal, Space, Typography, message } from 'antd';
+import { Card, Tabs, Table, Button, Upload, Space, Typography } from 'antd';
 import {
   DownloadOutlined,
   UploadOutlined,
   ExportOutlined,
-  FileExcelOutlined,
 } from '@ant-design/icons';
-import { dataApi } from '@hospital/api';
+import { dataApi, request } from '@hospital/api';
+import { useListPage } from '@/hooks/useListPage';
 
 const { Text } = Typography;
+
+/** 下载 blob 文件 */
+const downloadBlob = (blob: Blob, filename: string) => {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  window.URL.revokeObjectURL(url);
+};
 
 /** 数据类型配置 */
 const DATA_TYPES = [
@@ -98,22 +108,31 @@ const DATA_TYPES = [
 ];
 
 const ImportExportPage: React.FC = () => {
+  const { message } = useListPage();
   const [activeTab, setActiveTab] = useState('export');
   const [importing, setImporting] = useState<string | null>(null);
 
-  // 导出：直接下载
-  const handleExport = (item: typeof DATA_TYPES[0]) => {
-    const url = typeof item.exportUrl === 'function' ? item.exportUrl() : item.exportUrl;
-    if (url) {
-      window.open(url, '_blank');
+  // 导出：通过 request 下载 blob
+  const handleExport = async (item: typeof DATA_TYPES[0]) => {
+    const url = item.exportUrl();
+    if (!url) return;
+    try {
+      const blob = (await request.get(url, { responseType: 'blob' })) as any;
+      downloadBlob(blob, `${item.label}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (e: any) {
+      message.error(e?.message || '导出失败');
     }
   };
 
   // 下载模板
-  const handleDownloadTemplate = (item: typeof DATA_TYPES[0]) => {
-    if (item.templateUrl) {
-      const url = typeof item.templateUrl === 'function' ? item.templateUrl() : item.templateUrl;
-      window.open(url, '_blank');
+  const handleDownloadTemplate = async (item: typeof DATA_TYPES[0]) => {
+    if (!item.templateUrl) return;
+    const url = item.templateUrl();
+    try {
+      const blob = (await request.get(url, { responseType: 'blob' })) as any;
+      downloadBlob(blob, `${item.label}-导入模板.xlsx`);
+    } catch (e: any) {
+      message.error(e?.message || '模板下载失败');
     }
   };
 
@@ -122,20 +141,12 @@ const ImportExportPage: React.FC = () => {
     if (!item.importUrl) return;
     setImporting(item.key);
     try {
-      const url = typeof item.importUrl === 'function' ? item.importUrl() : item.importUrl;
+      const url = item.importUrl();
       const formData = new FormData();
       formData.append('file', file);
-      const response = await fetch(url, {
-        method: 'POST',
-        body: formData,
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('access_token') || ''}`,
-        },
+      await request.post(url, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.message || '导入失败');
-      }
       message.success(`${item.label}导入成功`);
     } catch (e: any) {
       message.error(e?.message || '导入失败');
