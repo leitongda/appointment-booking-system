@@ -58,6 +58,17 @@ const COMPONENT_IMPORT_MAP: Record<string, { importName: string; source: string 
   NutForm:        { importName: 'Form',       source: '@nutui/nutui-react-taro' },
   NutRow:         { importName: 'Row',        source: '@nutui/nutui-react-taro' },
   NutCol:         { importName: 'Col',        source: '@nutui/nutui-react-taro' },
+  NutSearchBar:   { importName: 'SearchBar',  source: '@nutui/nutui-react-taro' },
+  NutNavBar:      { importName: 'NavBar',     source: '@nutui/nutui-react-taro' },
+  NutIcon:        { importName: 'Icon',       source: '@nutui/nutui-react-taro' },
+  NutTag:         { importName: 'Tag',        source: '@nutui/nutui-react-taro' },
+  NutAvatar:      { importName: 'Avatar',     source: '@nutui/nutui-react-taro' },
+  NutBadge:       { importName: 'Badge',      source: '@nutui/nutui-react-taro' },
+  NutProgress:    { importName: 'Progress',   source: '@nutui/nutui-react-taro' },
+  NutCheckbox:    { importName: 'Checkbox',   source: '@nutui/nutui-react-taro' },
+  NutRadio:       { importName: 'Radio',      source: '@nutui/nutui-react-taro' },
+  NutDatePicker:  { importName: 'DatePicker', source: '@nutui/nutui-react-taro' },
+  NutCalendar:    { importName: 'Calendar',   source: '@nutui/nutui-react-taro' },
 };
 
 /** Components that are plain Taro built-in elements (View for Page wrapper) */

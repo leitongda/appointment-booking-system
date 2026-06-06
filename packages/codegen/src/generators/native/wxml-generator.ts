@@ -62,6 +62,19 @@ const COMPONENT_WXML_MAP: Record<string, { tag: string; className?: string }> = 
   NutRow:     { tag: 'view', className: 'nut-row' },
   NutCol:     { tag: 'view', className: 'nut-col' },
   NutSwiperItem: { tag: 'swiper-item' },
+
+  // 缺失组件的原生映射
+  NutSearchBar:  { tag: 'input', className: 'nut-search-bar' },
+  NutNavBar:     { tag: 'view', className: 'nut-nav-bar' },
+  NutIcon:       { tag: 'text', className: 'nut-icon' },
+  NutTag:        { tag: 'view', className: 'nut-tag' },
+  NutAvatar:     { tag: 'image', className: 'nut-avatar' },
+  NutBadge:      { tag: 'view', className: 'nut-badge' },
+  NutProgress:   { tag: 'progress', className: 'nut-progress' },
+  NutCheckbox:   { tag: 'checkbox', className: 'nut-checkbox' },
+  NutRadio:      { tag: 'radio', className: 'nut-radio' },
+  NutDatePicker: { tag: 'picker', className: 'nut-date-picker' },
+  NutCalendar:   { tag: 'view', className: 'nut-calendar' },
 };
 
 // ---------------------------------------------------------------------------

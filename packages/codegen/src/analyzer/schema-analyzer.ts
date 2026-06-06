@@ -146,7 +146,7 @@ export function extractDataSources(schema: LowCodeSchema): {
       if (byId.has(ds.id)) {
         duplicates.push(ds.id);
       }
-      byId.set(ds.id, ds);
+      byId.set(ds.id, ds as ApiDataSource);
     }
   }
 
@@ -157,7 +157,7 @@ export function extractDataSources(schema: LowCodeSchema): {
         if (byId.has(node.api.id)) {
           duplicates.push(node.api.id);
         }
-        byId.set(node.api.id, node.api);
+        byId.set(node.api.id, node.api as ApiDataSource);
       }
       if (node.children) {
         walkNodes(node.children);
@@ -266,6 +266,15 @@ export function buildDependencyGraph(
         const refs = extractDataSourceRefsFromExpression(node.visible);
         for (const dsId of refs) {
           addEdge(dsId, 'expression');
+          if (!knownDataSourceIds.has(dsId)) {
+            warnings.push({
+              severity: 'warning',
+              code: 'UNKNOWN_DATASOURCE_REF',
+              message: `Component "${node.componentName}" (id=${node.id}) visible expression references unknown data source "${dsId}".`,
+              nodeId: node.id,
+              dataSourceId: dsId,
+            });
+          }
         }
       }
 

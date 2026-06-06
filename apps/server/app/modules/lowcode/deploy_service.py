@@ -126,61 +126,6 @@ class LowCodeDeployService:
         return job
 
     # ------------------------------------------------------------------
-    # Pipeline stages (stubs — to be replaced with real implementations)
-    # ------------------------------------------------------------------
-
-    async def _stage_codegen(self, page: LowCodePage) -> dict[str, Any]:
-        """阶段 1: 代码生成。
-
-        TODO: 调用 CodegenService.generate_taro() 生成源代码。
-        """
-        logger.info(
-            "codegen stage: page_id=%s, tenant_id=%s",
-            page.id,
-            page.tenant_id,
-        )
-        return {"files_generated": 0, "warnings": []}
-
-    async def _stage_build(self, page: LowCodePage, job: BuildJob) -> str:
-        """阶段 2: 构建小程序包。
-
-        TODO: 触发小程序构建流程，上传代码到微信开放平台。
-        Returns: artifact_url (构建产物 URL)。
-        """
-        logger.info(
-            "build stage: page_id=%s, build_job_id=%s",
-            page.id,
-            job.id,
-        )
-        return f"artifact://build/{job.id}"
-
-    async def _stage_upload(self, page: LowCodePage, artifact_url: str) -> dict[str, Any]:
-        """阶段 3: 上传到微信平台。
-
-        TODO: 调用微信上传接口 (wx/commit)。
-        Returns: upload result metadata。
-        """
-        logger.info(
-            "upload stage: page_id=%s, artifact_url=%s",
-            page.id,
-            artifact_url,
-        )
-        return {"version": "1.0.0", "upload_time": datetime.now(timezone.utc).isoformat()}
-
-    async def _stage_audit(self, page: LowCodePage, upload_result: dict[str, Any]) -> str:
-        """阶段 4: 提交微信审核。
-
-        TODO: 调用微信审核接口 (wx/submit_audit)。
-        Returns: audit_id。
-        """
-        logger.info(
-            "audit stage: page_id=%s, upload_result=%s",
-            page.id,
-            upload_result,
-        )
-        return f"audit_{page.id}"
-
-    # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
@@ -190,10 +135,10 @@ class LowCodeDeployService:
         page_id: str,
         updated_by: Optional[str] = None,
     ) -> dict[str, Any]:
-        """触发完整部署流水线: codegen -> build -> upload -> audit。
+        """触发部署: 创建构建任务并派发到 Celery 异步执行。
 
         Returns:
-            部署结果摘要，包含 build_job_id 和各阶段状态。
+            部署任务摘要，包含 build_job_id。
 
         Raises:
             DeployError: 页面不存在、未关联小程序实例、或状态不允许部署。
@@ -203,50 +148,21 @@ class LowCodeDeployService:
         if not page.miniapp_instance_id:
             raise DeployError("页面未关联小程序实例，无法部署")
 
+        # 更新状态为 building
+        await self._update_deploy_status(page, DEPLOY_STATUS_BUILDING, updated_by)
+
         # 创建构建任务
         build_job = await self._create_build_job(page)
 
-        try:
-            # 阶段 1: 代码生成
-            await self._update_deploy_status(page, DEPLOY_STATUS_BUILDING, updated_by)
-            codegen_result = await self._stage_codegen(page)
+        # 派发到 Celery 异步执行
+        from app.tasks.lowcode_deploy_task import build_lowcode_page_task
+        build_lowcode_page_task.delay(str(page.id), str(build_job.id))
 
-            # 阶段 2: 构建
-            artifact_url = await self._stage_build(page, build_job)
-            await self._update_deploy_status(page, DEPLOY_STATUS_BUILT, updated_by)
-
-            # 阶段 3: 上传
-            await self._update_deploy_status(page, DEPLOY_STATUS_UPLOADING, updated_by)
-            upload_result = await self._stage_upload(page, artifact_url)
-            await self._update_deploy_status(page, DEPLOY_STATUS_UPLOADED, updated_by)
-
-            # 阶段 4: 提交审核
-            await self._update_deploy_status(page, DEPLOY_STATUS_AUDITING, updated_by)
-            audit_id = await self._stage_audit(page, upload_result)
-
-            # 更新构建任务
-            build_job.status = "completed"
-            build_job.artifact_url = artifact_url
-            build_job.finished_at = datetime.now(timezone.utc)
-            await self.db.commit()
-
-            return {
-                "build_job_id": str(build_job.id),
-                "audit_id": audit_id,
-                "deploy_status": DEPLOY_STATUS_AUDITING,
-                "artifact_url": artifact_url,
-            }
-
-        except Exception as exc:
-            logger.exception(
-                "deploy pipeline failed: page_id=%s", page.id
-            )
-            await self._update_deploy_status(page, DEPLOY_STATUS_FAILED, updated_by)
-            build_job.status = "failed"
-            build_job.build_log = str(exc)
-            build_job.finished_at = datetime.now(timezone.utc)
-            await self.db.commit()
-            raise DeployError(f"部署失败: {exc}") from exc
+        return {
+            "build_job_id": str(build_job.id),
+            "deploy_status": DEPLOY_STATUS_BUILDING,
+            "message": "部署任务已提交，正在异步执行",
+        }
 
     async def get_deploy_status(
         self,

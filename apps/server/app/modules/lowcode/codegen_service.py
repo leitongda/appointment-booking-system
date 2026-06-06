@@ -152,8 +152,98 @@ async function main() {{
             }},
         }};
     }} else if (target === 'native') {{
-        // Native (WeChat mini-program) output
-        result = generateNative(schema, dataSources, state, options);
+        // Native (WeChat mini-program) output — 使用 codegen 包的完整生成器
+        const codegen = require('{codegen_bin}');
+        const slug = (schema.props?.navigationBarTitleText || 'page').replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase() || 'page';
+        const prefix = 'pages/' + slug;
+
+        // 使用 codegen 包的 generateWxmlPage 生成完整 WXML（支持 dataBinding/loop/visible/事件）
+        const wxml = codegen.generateWxmlPage(schema, {{ pageClass: 'page' }});
+        const handlers = codegen.collectEventHandlers ? codegen.collectEventHandlers(schema) : [];
+        const bindings = codegen.collectDataBindings ? codegen.collectDataBindings(schema) : new Set();
+
+        // 生成 JS 逻辑（含事件处理函数）
+        var jsLines = [];
+        jsLines.push("Page({");
+        jsLines.push("  data: {");
+        jsLines.push("    loading: true,");
+        var stateKeys = Object.keys(state);
+        for (var i = 0; i < stateKeys.length; i++) {{
+            var key = stateKeys[i];
+            var val = state[key];
+            var defaultVal = (val && val.defaultValue !== undefined) ? val.defaultValue : '';
+            jsLines.push("    " + key + ": " + JSON.stringify(defaultVal) + ",");
+        }}
+        jsLines.push("  },");
+        jsLines.push("  onLoad() {");
+        for (var j = 0; j < dataSources.length; j++) {{
+            var ds = dataSources[j];
+            jsLines.push("    this.fetch_" + ds.id + "();");
+        }}
+        jsLines.push("    this.setData({ loading: false });");
+        jsLines.push("  },");
+        for (var k = 0; k < dataSources.length; k++) {{
+            var ds2 = dataSources[k];
+            jsLines.push("  fetch_" + ds2.id + "() {");
+            jsLines.push("    wx.request({");
+            jsLines.push("      url: '" + (ds2.url || '') + "',");
+            jsLines.push("      method: '" + (ds2.method || 'GET') + "',");
+            jsLines.push("      success: (res) => {");
+            if (ds2.dataPath) {{
+                jsLines.push("        this.setData({ " + ds2.id + ": res.data." + ds2.dataPath + " });");
+            }} else {{
+                jsLines.push("        this.setData({ " + ds2.id + ": res.data });");
+            }}
+            jsLines.push("      },");
+            jsLines.push("      fail: (err) => {");
+            jsLines.push("        console.error('Failed to fetch " + ds2.id + "', err);");
+            jsLines.push("      }");
+            jsLines.push("    });");
+            jsLines.push("  },");
+        }}
+        // 事件处理函数（从 collectEventHandlers 获取）
+        for (var h = 0; h < handlers.length; h++) {{
+            var handler = handlers[h];
+            jsLines.push("  " + handler.name + "(e) {");
+            for (var a = 0; a < handler.actions.length; a++) {{
+                var action = handler.actions[a];
+                if (action.type === 'setData') {{
+                    jsLines.push("    this.setData({ " + action.key + ": " + JSON.stringify(action.value) + " });");
+                }} else if (action.type === 'navigate') {{
+                    jsLines.push("    wx.navigateTo({ url: '" + action.url + "' });");
+                }} else if (action.type === 'showToast') {{
+                    jsLines.push("    wx.showToast({ title: '" + (action.title || '') + "', icon: 'none' });");
+                }}
+            }}
+            jsLines.push("  },");
+        }}
+        jsLines.push("}});");
+        var jsCode = jsLines.join('\\n');
+
+        // WXSS: 复用现有样式
+        var wxss = '.page {{\\n  min-height: 100vh;\\n  padding: 16rpx;\\n  box-sizing: border-box;\\n}}\\n';
+
+        // JSON config
+        var pageName = (schema.props && schema.props.navigationBarTitleText) || 'page';
+        var config = {{
+            navigationBarTitleText: pageName,
+            usingComponents: {{}},
+        }};
+
+        result = {{
+            files: [
+                {{ path: prefix + '.wxml', content: wxml, type: 'wxml' }},
+                {{ path: prefix + '.wxss', content: wxss, type: 'wxss' }},
+                {{ path: prefix + '.js', content: jsCode, type: 'js' }},
+                {{ path: prefix + '.json', content: JSON.stringify(config, null, 2), type: 'json' }},
+            ],
+            warnings: [],
+            dependencies: ['wx'],
+            metadata: {{
+                target: 'native',
+                generatedAt: new Date().toISOString(),
+            }},
+        }};
     }} else {{
         throw new Error('Unknown target: ' + target);
     }}
@@ -290,6 +380,10 @@ function mapToWxmlTag(name) {{
         NutDivider: 'view', NutSwiper: 'swiper', NutSwiperItem: 'swiper-item',
         NutEmpty: 'view', NutForm: 'form', NutSwitch: 'switch',
         NutTabs: 'view', NutTabPane: 'view', NutPicker: 'picker',
+        NutSearchBar: 'input', NutNavBar: 'view', NutIcon: 'text',
+        NutTag: 'view', NutAvatar: 'image', NutBadge: 'view',
+        NutProgress: 'progress', NutCheckbox: 'checkbox', NutRadio: 'radio',
+        NutDatePicker: 'picker', NutCalendar: 'view',
     }};
     return map[name] || 'view';
 }}
@@ -466,6 +560,12 @@ class CodegenService:
                 details={"codegen_bin": codegen_bin},
             )
 
+        # 查找独立的 cli-wrapper.js 文件
+        wrapper_path = Path(__file__).parent.parent.parent.parent.parent / "packages" / "codegen" / "src" / "cli-wrapper.js"
+        if not wrapper_path.exists():
+            # 回退到内联 wrapper（兼容旧版）
+            wrapper_path = None
+
         # 构造输入 JSON
         input_data = {
             "schema": schema,
@@ -476,25 +576,39 @@ class CodegenService:
         }
         input_json = json.dumps(input_data, ensure_ascii=False)
 
-        # 生成包装脚本 (使用真正的 codegen bin 路径)
-        script_content = _NODEJS_WRAPPER.format(
-            codegen_bin=codegen_bin.replace("\\", "/"),
-        )
-
-        # 写入临时脚本文件
-        script_fd, script_path = tempfile.mkstemp(suffix=".js", prefix="codegen_")
-        try:
+        if wrapper_path:
+            # 使用独立的 cli-wrapper.js（无需生成临时脚本）
+            script_path = str(wrapper_path)
+            script_fd = None
+        else:
+            # 回退: 生成包装脚本 (使用真正的 codegen bin 路径)
+            script_content = _NODEJS_WRAPPER.format(
+                codegen_bin=codegen_bin.replace("\\", "/"),
+            )
+            script_fd, script_path = tempfile.mkstemp(suffix=".js", prefix="codegen_")
             os.write(script_fd, script_content.encode("utf-8"))
             os.close(script_fd)
 
-            logger.info(
-                "Running codegen: target=%s, schema_nodes=%d, ds_count=%d",
-                target,
-                _count_nodes(schema),
-                len(data_sources),
-            )
+        logger.info(
+            "Running codegen: target=%s, schema_nodes=%d, ds_count=%d",
+            target,
+            _count_nodes(schema),
+            len(data_sources),
+        )
 
-            # 执行 subprocess
+        # 执行 subprocess
+        if script_fd is None:
+            # 使用独立 cli-wrapper.js，传入 codegen 路径
+            proc = await asyncio.create_subprocess_exec(
+                node_cmd,
+                script_path,
+                codegen_bin.replace("\\", "/"),
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        else:
+            # 回退: 使用内联 wrapper（codegen 路径已嵌入脚本）
             proc = await asyncio.create_subprocess_exec(
                 node_cmd,
                 script_path,
@@ -503,61 +617,61 @@ class CodegenService:
                 stderr=asyncio.subprocess.PIPE,
             )
 
-            try:
-                stdout, stderr = await asyncio.wait_for(
-                    proc.communicate(input=input_json.encode("utf-8")),
-                    timeout=timeout,
-                )
-            except asyncio.TimeoutError:
-                proc.kill()
-                await proc.wait()
-                raise CodegenError(
-                    f"代码生成超时 ({timeout}秒)",
-                    details={"timeout": timeout, "target": target},
-                )
-
-            # 处理 stderr (警告信息)
-            stderr_text = stderr.decode("utf-8").strip() if stderr else ""
-            if stderr_text:
-                logger.warning("codegen stderr: %s", stderr_text)
-
-            # 检查退出码
-            if proc.returncode != 0:
-                error_detail = {}
-                if stderr_text:
-                    try:
-                        error_detail = json.loads(stderr_text)
-                    except json.JSONDecodeError:
-                        error_detail = {"raw": stderr_text}
-                raise CodegenError(
-                    f"代码生成失败 (exit={proc.returncode}): {error_detail.get('error', stderr_text)}",
-                    details={"returncode": proc.returncode, **error_detail},
-                )
-
-            # 解析输出
-            stdout_text = stdout.decode("utf-8").strip()
-            if not stdout_text:
-                raise CodegenError(
-                    "代码生成器无输出",
-                    details={"stderr": stderr_text},
-                )
-
-            try:
-                output = json.loads(stdout_text)
-            except json.JSONDecodeError as e:
-                raise CodegenError(
-                    f"代码生成器输出非有效 JSON: {e}",
-                    details={"stdout_preview": stdout_text[:500]},
-                )
-
-            return self._parse_result(output)
-
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(input=input_json.encode("utf-8")),
+                timeout=timeout,
+            )
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+            raise CodegenError(
+                f"代码生成超时 ({timeout}秒)",
+                details={"timeout": timeout, "target": target},
+            )
         finally:
-            # 清理临时文件
-            try:
-                os.unlink(script_path)
-            except OSError:
-                pass
+            # 清理临时文件（仅内联 wrapper 模式）
+            if script_fd is not None:
+                try:
+                    os.unlink(script_path)
+                except OSError:
+                    pass
+
+        # 处理 stderr (警告信息)
+        stderr_text = stderr.decode("utf-8").strip() if stderr else ""
+        if stderr_text:
+            logger.warning("codegen stderr: %s", stderr_text)
+
+        # 检查退出码
+        if proc.returncode != 0:
+            error_detail = {}
+            if stderr_text:
+                try:
+                    error_detail = json.loads(stderr_text)
+                except json.JSONDecodeError:
+                    error_detail = {"raw": stderr_text}
+            raise CodegenError(
+                f"代码生成失败 (exit={proc.returncode}): {error_detail.get('error', stderr_text)}",
+                details={"returncode": proc.returncode, **error_detail},
+            )
+
+        # 解析输出
+        stdout_text = stdout.decode("utf-8").strip()
+        if not stdout_text:
+            raise CodegenError(
+                "代码生成器无输出",
+                details={"stderr": stderr_text},
+            )
+
+        try:
+            output = json.loads(stdout_text)
+        except json.JSONDecodeError as e:
+            raise CodegenError(
+                f"代码生成器输出非有效 JSON: {e}",
+                details={"stdout_preview": stdout_text[:500]},
+            )
+
+        return self._parse_result(output)
 
     @staticmethod
     def _parse_result(output: dict[str, Any]) -> CodegenResult:

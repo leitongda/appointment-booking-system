@@ -604,6 +604,97 @@ function NodeRenderer({ node, depth = 0 }: { node: LowCodeNode; depth?: number }
           </DroppableZone>
         );
 
+      case 'NutSearchBar':
+        return (
+          <div style={{ padding: '8px 12px', background: '#f5f5f5', borderRadius: 16 }}>
+            <input
+              placeholder={node.props.placeholder || '搜索'}
+              style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', fontSize: 14 }}
+              readOnly
+            />
+          </div>
+        );
+
+      case 'NutNavBar':
+        return (
+          <div style={{ height: 44, borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', padding: '0 12px', fontWeight: 500 }}>
+            {node.props.title || '导航栏'}
+          </div>
+        );
+
+      case 'NutIcon':
+        return (
+          <span style={{ fontSize: 16, color: node.props.color || '#333' }}>
+            [{node.props.name || 'icon'}]
+          </span>
+        );
+
+      case 'NutTag':
+        return (
+          <span style={{ background: node.props.color || '#eee', color: node.props.textColor || '#333', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>
+            {node.props.text || '标签'}
+          </span>
+        );
+
+      case 'NutAvatar':
+        return (
+          <div style={{ width: node.props.size || 40, height: node.props.size || 40, borderRadius: '50%', background: '#ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#999' }}>
+            {node.props.src ? <img src={node.props.src} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : '头像'}
+          </div>
+        );
+
+      case 'NutBadge':
+        return (
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <span style={{ padding: '4px 8px' }}>{node.props.children || '内容'}</span>
+            {node.props.value && (
+              <sup style={{ position: 'absolute', top: -4, right: -8, background: '#ff4d4f', color: '#fff', borderRadius: 10, fontSize: 10, padding: '1px 4px', minWidth: 16, textAlign: 'center' }}>
+                {node.props.value}
+              </sup>
+            )}
+          </div>
+        );
+
+      case 'NutProgress':
+        return (
+          <div style={{ height: 4, background: '#eee', borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${node.props.percentage || 0}%`, background: node.props.color || '#1890ff', borderRadius: 2, transition: 'width 0.3s' }} />
+          </div>
+        );
+
+      case 'NutCheckbox':
+        return (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+            <input type="checkbox" style={{ width: 16, height: 16 }} />
+            <span style={{ fontSize: 14 }}>{node.props.label || '选项'}</span>
+          </label>
+        );
+
+      case 'NutRadio':
+        return (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+            <input type="radio" name={node.props.group || 'default'} style={{ width: 16, height: 16 }} />
+            <span style={{ fontSize: 14 }}>{node.props.label || '选项'}</span>
+          </label>
+        );
+
+      case 'NutDatePicker':
+        return (
+          <input
+            type="date"
+            defaultValue={node.props.value || ''}
+            style={{ padding: '6px 12px', border: '1px solid #d9d9d9', borderRadius: 4, fontSize: 14 }}
+            readOnly
+          />
+        );
+
+      case 'NutCalendar':
+        return (
+          <div style={{ border: '1px solid #eee', borderRadius: 8, padding: 12, textAlign: 'center', color: '#999', fontSize: 12 }}>
+            [日历组件]
+          </div>
+        );
+
       default:
         return (
           <div

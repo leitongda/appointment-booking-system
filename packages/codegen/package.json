@@ -2,7 +2,10 @@
   "name": "@hospital/codegen",
   "version": "0.0.1",
   "private": true,
+  "main": "dist/codegen/src/index.js",
+  "types": "dist/codegen/src/index.d.ts",
   "scripts": {
+    "build": "tsc && cp -r dist/codegen/src/* dist/ && rm -rf dist/codegen dist/shared",
     "test": "vitest run",
     "test:watch": "vitest"
   },
