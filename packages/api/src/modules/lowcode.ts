@@ -62,6 +62,30 @@ export const lowcodeApi = {
     return request.delete(`/lowcode/pages/${id}`);
   },
 
+  /** 导出页面 Schema */
+  exportPage: (id: string): Promise<Blob> => {
+    return request.get(`/lowcode/pages/${id}/export`, { responseType: 'blob' }) as any;
+  },
+
+  /** 导入页面 Schema */
+  importPage: (file: File): Promise<LowCodePage> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request.post('/lowcode/pages/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  /** 批量删除页面 */
+  batchDeletePages: (pageIds: string[]): Promise<{ deleted: number }> => {
+    return request.post('/lowcode/pages/batch-delete', pageIds);
+  },
+
+  /** 批量变更页面状态 */
+  batchUpdateStatus: (pageIds: string[], targetStatus: number): Promise<{ updated: number }> => {
+    return request.post('/lowcode/pages/batch-status', pageIds, { params: { target_status: targetStatus } });
+  },
+
   /** 发布页面 */
   publishPage: (id: string): Promise<LowCodePage> => {
     return request.post(`/lowcode/pages/${id}/publish`);

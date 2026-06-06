@@ -132,6 +132,8 @@ export interface LowCodeNode {
   visible?: string;
   /** 依赖的数据源或状态 key，用于控制刷新时机 */
   dependOn?: string[];
+  /** 统一样式配置 */
+  style?: Record<string, string>;
 }
 
 /** 物料组件定义 */

@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -187,6 +187,113 @@ async def delete_page(
             detail="页面不存在或非草稿状态不可删除",
         )
     return {"message": "删除成功"}
+
+
+@router.post("/pages/batch-delete", summary="批量删除页面")
+async def batch_delete_pages(
+    page_ids: list[str],
+    db: AsyncSession = Depends(get_db),
+    current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("lowcode:page", "lowcode:page:delete")),
+):
+    """批量删除页面（仅草稿状态可删除）"""
+    tenant_id = _get_tenant_id(current_admin)
+    service = LowCodePageService(db)
+    deleted = 0
+    for page_id in page_ids:
+        if await service.delete(tenant_id, page_id):
+            deleted += 1
+    return {"message": f"成功删除 {deleted} 个页面", "deleted": deleted}
+
+
+@router.post("/pages/batch-status", summary="批量变更页面状态")
+async def batch_update_status(
+    page_ids: list[str],
+    target_status: int,
+    db: AsyncSession = Depends(get_db),
+    current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("lowcode:page", "lowcode:page:update")),
+):
+    """批量变更页面状态"""
+    tenant_id = _get_tenant_id(current_admin)
+    service = LowCodePageService(db)
+    updated = 0
+    for page_id in page_ids:
+        page = await service.get(tenant_id, page_id)
+        if page:
+            page.status = target_status
+            await service.update(tenant_id, page_id, {"status": target_status})
+            updated += 1
+    return {"message": f"成功更新 {updated} 个页面", "updated": updated}
+
+
+@router.get("/pages/{page_id}/export", summary="导出页面 Schema")
+async def export_page(
+    page_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_admin=Depends(get_current_admin),
+):
+    """导出页面 Schema 为 JSON 文件"""
+    import json
+    from fastapi.responses import Response
+
+    tenant_id = _get_tenant_id(current_admin)
+    service = LowCodePageService(db)
+    page = await service.get(tenant_id, page_id)
+    if not page:
+        raise HTTPException(status_code=404, detail="页面不存在")
+
+    export_data = {
+        "name": page.name,
+        "slug": page.slug,
+        "description": page.description,
+        "schema_data": page.schema_data,
+        "exported_at": page.updated_at.isoformat() if page.updated_at else None,
+        "version": "1.0",
+    }
+    content = json.dumps(export_data, ensure_ascii=False, indent=2)
+    return Response(
+        content=content,
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{page.slug or page_id}.json"'},
+    )
+
+
+@router.post("/pages/import", response_model=LowCodePageResponse, summary="导入页面 Schema")
+async def import_page(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_admin=Depends(get_current_admin),
+    _: None = Depends(require_permission("lowcode:page", "lowcode:page:create")),
+):
+    """从 JSON 文件导入页面"""
+    import json
+
+    tenant_id = _get_tenant_id(current_admin)
+    content = await file.read()
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="无效的 JSON 文件")
+
+    if "schema_data" not in data:
+        raise HTTPException(status_code=400, detail="缺少 schema_data 字段")
+
+    service = LowCodePageService(db)
+    # 生成唯一的 slug（添加时间戳后缀避免冲突）
+    import time
+    base_slug = data.get("slug", "imported")
+    slug = f"{base_slug}-{int(time.time())}"
+
+    from app.schemas.lowcode import LowCodePageCreate
+    create_data = LowCodePageCreate(
+        name=data.get("name", "导入的页面"),
+        slug=slug,
+        description=data.get("description", ""),
+        schema_data=data["schema_data"],
+    )
+    page = await service.create(tenant_id, create_data, operator_id=str(current_admin.id))
+    return LowCodePageResponse.model_validate(page)
 
 
 @router.post("/pages/{page_id}/publish", response_model=LowCodePageResponse, summary="发布页面")

@@ -685,6 +685,133 @@ export const PropertyPanel: React.FC = () => {
           )}
         </Form>
 
+        {/* 样式配置 */}
+        <div style={{ marginTop: 16, padding: '12px 0', borderTop: '1px solid #f0f0f0' }}>
+          <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>
+            样式
+          </Text>
+          <Form layout="vertical" size="small">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <Form.Item label="宽度" style={{ marginBottom: 8 }}>
+                <Input
+                  size="small"
+                  placeholder="例: 100% 或 375px"
+                  value={selectedNode.style?.width || ''}
+                  onChange={(e) => {
+                    if (selectedNodeId) {
+                      updateNodeProps(selectedNodeId, {
+                        style: { ...selectedNode.style, width: e.target.value || undefined },
+                      });
+                    }
+                  }}
+                />
+              </Form.Item>
+              <Form.Item label="高度" style={{ marginBottom: 8 }}>
+                <Input
+                  size="small"
+                  placeholder="例: auto 或 100px"
+                  value={selectedNode.style?.height || ''}
+                  onChange={(e) => {
+                    if (selectedNodeId) {
+                      updateNodeProps(selectedNodeId, {
+                        style: { ...selectedNode.style, height: e.target.value || undefined },
+                      });
+                    }
+                  }}
+                />
+              </Form.Item>
+            </div>
+            <Form.Item label="内边距" style={{ marginBottom: 8 }}>
+              <Input
+                size="small"
+                placeholder="例: 12px 或 8px 16px"
+                value={selectedNode.style?.padding || ''}
+                onChange={(e) => {
+                  if (selectedNodeId) {
+                    updateNodeProps(selectedNodeId, {
+                      style: { ...selectedNode.style, padding: e.target.value || undefined },
+                    });
+                  }
+                }}
+              />
+            </Form.Item>
+            <Form.Item label="外边距" style={{ marginBottom: 8 }}>
+              <Input
+                size="small"
+                placeholder="例: 0 auto 或 16px 0"
+                value={selectedNode.style?.margin || ''}
+                onChange={(e) => {
+                  if (selectedNodeId) {
+                    updateNodeProps(selectedNodeId, {
+                      style: { ...selectedNode.style, margin: e.target.value || undefined },
+                    });
+                  }
+                }}
+              />
+            </Form.Item>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <Form.Item label="背景色" style={{ marginBottom: 8 }}>
+                <Input
+                  size="small"
+                  placeholder="#ffffff"
+                  value={selectedNode.style?.backgroundColor || ''}
+                  onChange={(e) => {
+                    if (selectedNodeId) {
+                      updateNodeProps(selectedNodeId, {
+                        style: { ...selectedNode.style, backgroundColor: e.target.value || undefined },
+                      });
+                    }
+                  }}
+                />
+              </Form.Item>
+              <Form.Item label="圆角" style={{ marginBottom: 8 }}>
+                <Input
+                  size="small"
+                  placeholder="例: 8px"
+                  value={selectedNode.style?.borderRadius || ''}
+                  onChange={(e) => {
+                    if (selectedNodeId) {
+                      updateNodeProps(selectedNodeId, {
+                        style: { ...selectedNode.style, borderRadius: e.target.value || undefined },
+                      });
+                    }
+                  }}
+                />
+              </Form.Item>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <Form.Item label="边框" style={{ marginBottom: 8 }}>
+                <Input
+                  size="small"
+                  placeholder="例: 1px solid #eee"
+                  value={selectedNode.style?.border || ''}
+                  onChange={(e) => {
+                    if (selectedNodeId) {
+                      updateNodeProps(selectedNodeId, {
+                        style: { ...selectedNode.style, border: e.target.value || undefined },
+                      });
+                    }
+                  }}
+                />
+              </Form.Item>
+              <Form.Item label="透明度" style={{ marginBottom: 8 }}>
+                <Input
+                  size="small"
+                  placeholder="0-1"
+                  value={selectedNode.style?.opacity || ''}
+                  onChange={(e) => {
+                    if (selectedNodeId) {
+                      updateNodeProps(selectedNodeId, {
+                        style: { ...selectedNode.style, opacity: e.target.value || undefined },
+                      });
+                    }
+                  }}
+                />
+              </Form.Item>
+            </div>
+          </Form>
+        </div>
+
         {/* 条件渲染配置 */}
         <div style={{ marginTop: 16, padding: '12px 0', borderTop: '1px solid #f0f0f0' }}>
           <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>

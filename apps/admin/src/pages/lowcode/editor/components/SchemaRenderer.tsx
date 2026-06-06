@@ -5,13 +5,27 @@ import { useDraggable, useDroppable } from '@dnd-kit/react';
 import { useEditorStore } from '../store';
 import type { LowCodeNode } from '@hospital/shared';
 
+/** 合并样式：将 node.style 与基础样式合并 */
+function mergeStyles(base: React.CSSProperties, nodeStyle?: Record<string, string>): React.CSSProperties {
+  if (!nodeStyle) return base;
+  const merged = { ...base };
+  for (const [key, value] of Object.entries(nodeStyle)) {
+    if (value) {
+      (merged as any)[key] = value;
+    }
+  }
+  return merged;
+}
+
 /** 可拖拽节点包装 — 非 Page 节点可被拖拽用于重排序 */
 function DraggableNode({
   nodeId,
   children,
+  nodeStyle,
 }: {
   nodeId: string;
   children: React.ReactNode;
+  nodeStyle?: Record<string, string>;
 }) {
   const { ref } = useDraggable({
     id: `node-${nodeId}`,
@@ -22,7 +36,7 @@ function DraggableNode({
   });
 
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
+    <div ref={ref} style={mergeStyles({ position: 'relative' }, nodeStyle)}>
       {children}
     </div>
   );
@@ -748,7 +762,7 @@ function NodeRenderer({ node, depth = 0 }: { node: LowCodeNode; depth?: number }
 
   // Page 根节点不可拖拽，其余节点可拖拽用于重排序
   if (node.componentName === 'Page') return content;
-  return <DraggableNode nodeId={node.id}>{content}</DraggableNode>;
+  return <DraggableNode nodeId={node.id} nodeStyle={node.style}>{content}</DraggableNode>;
 }
 
 /** 画布渲染入口 */
