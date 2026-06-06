@@ -1,10 +1,13 @@
 """邮件发送服务"""
+import logging
 import aiosmtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from app.modules.settings.service import SettingsService
 from app.modules.email_templates.service import EmailTemplateService
@@ -86,9 +89,18 @@ class EmailService:
             await smtp.quit()
 
             return True
+        except aiosmtplib.SMTPConnectError as e:
+            logger.error("SMTP 连接失败: host=%s, port=%s, error=%s", smtp_host, smtp_port, e)
+            raise ValueError(f"SMTP 服务器连接失败: {e}") from e
+        except aiosmtplib.SMTPAuthenticationError as e:
+            logger.error("SMTP 认证失败: user=%s, error=%s", smtp_user, e)
+            raise ValueError(f"SMTP 认证失败，请检查用户名和密码: {e}") from e
+        except aiosmtplib.SMTPException as e:
+            logger.error("SMTP 发送失败: to=%s, error=%s", to_email, e)
+            raise ValueError(f"邮件发送失败: {e}") from e
         except Exception as e:
-            print(f"[Email] 发送邮件失败: {to_email} - {str(e)}")
-            raise Exception(f"发送邮件失败: {str(e)}")
+            logger.error("邮件发送异常: to=%s, error=%s", to_email, e)
+            raise
 
     async def send_by_template(
         self,

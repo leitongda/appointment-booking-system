@@ -19,15 +19,39 @@ _fernet_instance = None
 
 
 def _get_fernet():
-    """延迟初始化 Fernet，缓存实例避免每次生成新密钥"""
+    """获取 Fernet 加密实例
+
+    优先从 app.core.config.Settings 读取 SMTP_ENCRYPTION_KEY，
+    回退到环境变量（兼容 Celery worker 等无法访问 Settings 的场景）。
+
+    Raises:
+        RuntimeError: 密钥未配置时抛出，防止静默使用临时密钥导致数据丢失
+    """
     global _fernet_instance
     if _fernet_instance is not None:
         return _fernet_instance
     from cryptography.fernet import Fernet
-    key = os.environ.get("SMTP_ENCRYPTION_KEY", "")
+
+    # 优先从 Settings 读取（FastAPI 进程）
+    key = ""
+    try:
+        from app.core.config import Settings
+        settings = Settings()
+        key = settings.SMTP_ENCRYPTION_KEY
+    except Exception:
+        pass
+
+    # 回退到环境变量（Celery worker 等场景）
     if not key:
-        logger.warning("SMTP_ENCRYPTION_KEY 未设置，使用临时密钥（生产环境请配置）")
-        key = Fernet.generate_key().decode()
+        key = os.environ.get("SMTP_ENCRYPTION_KEY", "")
+
+    if not key:
+        raise RuntimeError(
+            "SMTP_ENCRYPTION_KEY 未配置。每次重启会生成新密钥，"
+            "导致已加密的 SMTP 密码不可解密。"
+            "请在 .env 中设置: SMTP_ENCRYPTION_KEY=<your-key>"
+        )
+
     _fernet_instance = Fernet(key.encode() if isinstance(key, str) else key)
     return _fernet_instance
 
@@ -40,7 +64,12 @@ def encrypt_password(plaintext: str) -> str:
 
 
 def decrypt_password(ciphertext: str) -> str:
-    """解密 SMTP 密码，兼容明文（非 Fernet 格式则原样返回）"""
+    """解密 SMTP 密码，兼容明文（非 Fernet 格式则原样返回）
+
+    Raises:
+        RuntimeError: 密钥未配置
+        ValueError: 密码解密失败（密钥不匹配或数据损坏）
+    """
     if not ciphertext:
         return ciphertext
     # Fernet token 以 'gAAAAA' 开头，以此判断是否已加密
@@ -48,9 +77,12 @@ def decrypt_password(ciphertext: str) -> str:
         return ciphertext
     try:
         return _get_fernet().decrypt(ciphertext.encode()).decode()
-    except Exception:
-        logger.warning("SMTP 密码解密失败，按明文处理")
-        return ciphertext
+    except Exception as e:
+        logger.error("SMTP 密码解密失败: %s", e)
+        raise ValueError(
+            "SMTP 密码解密失败，可能是 SMTP_ENCRYPTION_KEY 与加密时使用的密钥不匹配。"
+            "请检查 .env 中的 SMTP_ENCRYPTION_KEY 是否正确。"
+        ) from e
 
 # 共享的沙箱环境，启用 autoescape 防止 XSS
 _jinja_env = SandboxedEnvironment(autoescape=True)

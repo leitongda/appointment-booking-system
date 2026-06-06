@@ -118,14 +118,27 @@ def process_event_email(self, store_id: str, event_type: str, context_data: Dict
                 logger.info(f"[EmailHook] 无匹配接收人: event={event_type}, store={store_id}")
                 return {"sent": 0, "reason": "无匹配接收人"}
 
-            # 3. 查找匹配的邮件模板
-            template_result = db.execute(
-                select(EmailTemplate).where(
-                    EmailTemplate.template_type == event_type,
-                    EmailTemplate.status == 1,
+            # 3. 查找匹配的邮件模板（优先租户模板，回退到平台模板）
+            tenant_id = store.tenant_id
+            template = None
+            if tenant_id:
+                template_result = db.execute(
+                    select(EmailTemplate).where(
+                        EmailTemplate.template_type == event_type,
+                        EmailTemplate.status == 1,
+                        EmailTemplate.tenant_id == tenant_id,
+                    )
                 )
-            )
-            template = template_result.scalar_one_or_none()
+                template = template_result.scalar_one_or_none()
+            if not template:
+                template_result = db.execute(
+                    select(EmailTemplate).where(
+                        EmailTemplate.template_type == event_type,
+                        EmailTemplate.status == 1,
+                        EmailTemplate.tenant_id.is_(None),
+                    )
+                )
+                template = template_result.scalar_one_or_none()
 
             # 4. 渲染邮件内容
             if template:

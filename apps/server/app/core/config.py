@@ -85,6 +85,11 @@ class Settings(BaseSettings):
     # 生产环境请配置实际的密钥，开发环境会自动生成
     RSA_PRIVATE_KEY: Optional[str] = None
     RSA_PUBLIC_KEY: Optional[str] = None
+
+    # SMTP 密码加密密钥（Fernet 对称加密）
+    # 必需配置：未设置时每次重启会生成新密钥，导致已加密密码不可解密
+    # 生成方法: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    SMTP_ENCRYPTION_KEY: str = ""
     
     # CORS
     # 同时支持 localhost 和 127.0.0.1，因为浏览器将它们视为不同的域
