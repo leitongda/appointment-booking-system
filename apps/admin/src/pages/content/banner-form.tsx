@@ -102,6 +102,17 @@ const BannerFormPage: React.FC = () => {
         requiredMessage="请上传轮播图片"
       />
 
+      {/* 基本信息 */}
+      <Card title="基本信息" style={{ marginBottom: 16 }}>
+        <ProFormText
+          name="title"
+          label="标题"
+          width="lg"
+          placeholder="请输入轮播图标题"
+          rules={[{ required: true, message: '请输入轮播图标题' }]}
+        />
+      </Card>
+
       {/* 链接设置 */}
       <Card title="链接设置" style={{ marginBottom: 16 }}>
         <ProFormSelect

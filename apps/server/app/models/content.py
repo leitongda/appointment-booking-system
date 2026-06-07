@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey
+from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from app.db.base import Base, AuditMixin
 from datetime import datetime
@@ -7,7 +7,7 @@ import uuid
 class News(Base, AuditMixin):
     """新闻资讯"""
     __tablename__ = "news"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     store_id = Column(String(36), ForeignKey("stores.id"), nullable=True, index=True, comment="所属门店ID，NULL表示全局")
     title = Column(String(200), nullable=False)
@@ -19,28 +19,33 @@ class News(Base, AuditMixin):
     is_top = Column(Integer, default=0)
     status = Column(Integer, default=0)  # 0草稿 1已发布
     publish_time = Column(DateTime)
-    
+    is_deleted = Column(Boolean, default=False, nullable=False, comment="是否已删除（回收站）")
+    deleted_at = Column(DateTime, nullable=True, comment="删除时间")
+
     store = relationship("Store", backref="news")
 
 class Notice(Base, AuditMixin):
     """公告通知"""
     __tablename__ = "notices"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     store_id = Column(String(36), ForeignKey("stores.id"), nullable=True, index=True, comment="所属门店ID，NULL表示全局")
     title = Column(String(200), nullable=False)
     type = Column(Integer, default=1)  # 1系统公告 2停诊通知 3活动通知 4重要提醒
     content = Column(Text)
+    view_count = Column(Integer, default=0, comment="浏览量")
     is_top = Column(Integer, default=0)
     status = Column(Integer, default=0)
     publish_time = Column(DateTime)
-    
+    is_deleted = Column(Boolean, default=False, nullable=False, comment="是否已删除（回收站）")
+    deleted_at = Column(DateTime, nullable=True, comment="删除时间")
+
     store = relationship("Store", backref="notices")
 
 class Banner(Base, AuditMixin):
     """轮播图"""
     __tablename__ = "banners"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     store_id = Column(String(36), ForeignKey("stores.id"), nullable=True, index=True, comment="所属门店ID，NULL表示全局")
     title = Column(String(100))
@@ -50,6 +55,8 @@ class Banner(Base, AuditMixin):
     position = Column(String(50), default='home')  # home首页 department科室 profile个人中心
     sort_order = Column(Integer, default=0)
     status = Column(Integer, default=1)
-    
+    is_deleted = Column(Boolean, default=False, nullable=False, comment="是否已删除（回收站）")
+    deleted_at = Column(DateTime, nullable=True, comment="删除时间")
+
     store = relationship("Store", backref="banners")
 

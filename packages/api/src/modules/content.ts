@@ -32,6 +32,7 @@ export interface Notice {
   title: string;
   type: number;
   content: string;
+  viewCount: number;
   isTop: boolean;
   status: number;
   publishTime?: string;
@@ -71,7 +72,7 @@ export interface BannerCreateData {
 
 export const contentApi = {
   // 新闻
-  getNewsList: (params?: { type?: number; status?: number; page?: number; pageSize?: number }): Promise<PageResult<News>> => {
+  getNewsList: (params?: { type?: number; status?: number; keyword?: string; page?: number; pageSize?: number }): Promise<PageResult<News>> => {
     return request.get('/content/news', { params });
   },
 
@@ -95,8 +96,12 @@ export const contentApi = {
     return request.delete(`/content/news/${id}`);
   },
 
+  batchDeleteNews: (ids: string[]): Promise<{ message: string; deletedCount: number }> => {
+    return request.post('/content/news/batch-delete', { ids });
+  },
+
   // 公告
-  getNoticeList: (params?: { type?: number; status?: number; page?: number; pageSize?: number }): Promise<PageResult<Notice>> => {
+  getNoticeList: (params?: { type?: number; status?: number; keyword?: string; page?: number; pageSize?: number }): Promise<PageResult<Notice>> => {
     return request.get('/content/notices', { params });
   },
 
@@ -120,13 +125,21 @@ export const contentApi = {
     return request.delete(`/content/notices/${id}`);
   },
 
+  batchDeleteNotices: (ids: string[]): Promise<{ message: string; deletedCount: number }> => {
+    return request.post('/content/notices/batch-delete', { ids });
+  },
+
   // 轮播图
-  getBannerList: (params?: { position?: string; status?: number; page?: number; pageSize?: number }): Promise<PageResult<Banner>> => {
+  getBannerList: (params?: { position?: string; status?: number; storeId?: string; page?: number; pageSize?: number }): Promise<PageResult<Banner>> => {
     return request.get('/content/banners', { params });
   },
 
   getActiveBanners: (position?: string): Promise<Banner[]> => {
     return request.get('/content/banners/active', { params: { position } });
+  },
+
+  getBannerDetail: (id: string): Promise<Banner> => {
+    return request.get(`/content/banners/${id}`);
   },
 
   createBanner: (data: BannerCreateData): Promise<Banner> => {
@@ -139,5 +152,13 @@ export const contentApi = {
 
   deleteBanner: (id: string): Promise<void> => {
     return request.delete(`/content/banners/${id}`);
+  },
+
+  batchDeleteBanners: (ids: string[]): Promise<{ message: string; deletedCount: number }> => {
+    return request.post('/content/banners/batch-delete', { ids });
+  },
+
+  updateBannerSort: (items: { id: string; sortOrder: number }[]): Promise<{ message: string; updatedCount: number }> => {
+    return request.put('/content/banners/sort', { items });
   },
 };

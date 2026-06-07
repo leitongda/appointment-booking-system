@@ -1,15 +1,32 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import type { ProColumns } from '@ant-design/pro-components';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
-import { Image } from 'antd';
+import { Image, App } from 'antd';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { contentApi } from '@hospital/api';
-import { createListRequest } from '@/utils/proTable';
 import { useListPage } from '@/hooks/useListPage';
 import { useDict } from '@/hooks/useDict';
 import { CreateButton, createOperationColumn } from '@/components/ListOperations';
+import { DragHandle, SortableRow } from '@/components/SortableTable/SortableRow';
 import type { Banner } from '@hospital/api';
 
 const BannerPage: React.FC = () => {
+  const { message } = App.useApp();
   const { actionRef, handleDelete } = useListPage({
     deleteFn: contentApi.deleteBanner,
   });
@@ -24,7 +41,48 @@ const BannerPage: React.FC = () => {
     [linkTypeOptions]
   );
 
+  const [dataSource, setDataSource] = useState<Banner[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      const oldIndex = dataSource.findIndex((item) => item.id === active.id);
+      const newIndex = dataSource.findIndex((item) => item.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      const newItems = arrayMove(dataSource, oldIndex, newIndex);
+      setDataSource(newItems);
+
+      try {
+        const sortItems = newItems.map((item, index) => ({
+          id: item.id,
+          sortOrder: index,
+        }));
+        await contentApi.updateBannerSort(sortItems);
+        message.success('排序已更新');
+      } catch {
+        message.error('排序更新失败');
+        setDataSource(dataSource);
+      }
+    },
+    [dataSource, message]
+  );
+
   const columns: ProColumns<Banner>[] = [
+    {
+      title: '',
+      width: 50,
+      search: false,
+      render: () => <DragHandle />,
+    },
     { title: '图片', dataIndex: 'imageUrl', width: 120, search: false, render: (_, r) => <Image src={r.imageUrl} width={100} /> },
     { title: '标题', dataIndex: 'title', ellipsis: true },
     { title: '位置', dataIndex: 'position', width: 100, valueEnum: positionEnum },
@@ -43,22 +101,58 @@ const BannerPage: React.FC = () => {
 
   return (
     <PageContainer>
-      <ProTable<Banner>
-        headerTitle="轮播图列表"
-        actionRef={actionRef}
-        rowKey="id"
-        columns={columns}
-        request={createListRequest(contentApi.getBannerList)}
-        toolBarRender={() => [
-          <CreateButton
-            key="add"
-            permission="content:banner:create"
-            url="/content-center/content/banner/create"
-            label="新增轮播图"
-          />,
-        ]}
-        pagination={{ defaultPageSize: 10 }}
-      />
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        modifiers={[restrictToVerticalAxis]}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={dataSource.map((item) => item.id)} strategy={verticalListSortingStrategy}>
+          <ProTable<Banner>
+            headerTitle="轮播图列表"
+            actionRef={actionRef}
+            rowKey="id"
+            columns={columns}
+            loading={loading}
+            dataSource={dataSource}
+            request={async (params) => {
+              setLoading(true);
+              try {
+                const result = await contentApi.getBannerList({
+                  ...params,
+                  page: params.current,
+                  pageSize: params.pageSize,
+                });
+                setDataSource(result.data || []);
+                return {
+                  data: result.data || [],
+                  total: result.total || 0,
+                  success: true,
+                };
+              } finally {
+                setLoading(false);
+              }
+            }}
+            components={{
+              body: {
+                row: SortableRow,
+              },
+            }}
+            onRow={(record) => ({
+              'data-row-key': record.id,
+            } as any)}
+            toolBarRender={() => [
+              <CreateButton
+                key="add"
+                permission="content:banner:create"
+                url="/content-center/content/banner/create"
+                label="新增轮播图"
+              />,
+            ]}
+            pagination={{ defaultPageSize: 10 }}
+          />
+        </SortableContext>
+      </DndContext>
     </PageContainer>
   );
 };
