@@ -253,16 +253,14 @@ export const ComponentPanel: React.FC = () => {
         ghost
         defaultActiveKey={Object.keys(categoryLabels)}
         size="small"
-      >
-        {filteredCategories.map(({ category, label, materials }) => (
-          <Collapse.Panel
-            key={category}
-            header={
-              <Text strong style={{ fontSize: 13 }}>
-                {label} ({materials.length})
-              </Text>
-            }
-          >
+        items={filteredCategories.map(({ category, label, materials }) => ({
+          key: category,
+          label: (
+            <Text strong style={{ fontSize: 13 }}>
+              {label} ({materials.length})
+            </Text>
+          ),
+          children: (
             <Space direction="vertical" style={{ width: '100%' }} size={6}>
               {materials.map((material) => (
                 <DraggableMaterial
@@ -272,9 +270,9 @@ export const ComponentPanel: React.FC = () => {
                 />
               ))}
             </Space>
-          </Collapse.Panel>
-        ))}
-      </Collapse>
+          ),
+        }))}
+      />
 
       {/* 模板/Snippet 面板 */}
       {!search && (
@@ -283,25 +281,25 @@ export const ComponentPanel: React.FC = () => {
             ghost
             defaultActiveKey={[]}
             size="small"
-          >
-            <Collapse.Panel
-              key="snippets"
-              header={
+            items={[{
+              key: 'snippets',
+              label: (
                 <Text strong style={{ fontSize: 13 }}>
                   模板 ({snippetTemplates.length})
                 </Text>
-              }
-            >
-              <Space direction="vertical" style={{ width: '100%' }} size={6}>
-                {snippetTemplates.map((snippet) => (
-                  <DraggableSnippet
-                    key={snippet.id}
-                    snippet={snippet}
-                  />
-                ))}
-              </Space>
-            </Collapse.Panel>
-          </Collapse>
+              ),
+              children: (
+                <Space direction="vertical" style={{ width: '100%' }} size={6}>
+                  {snippetTemplates.map((snippet) => (
+                    <DraggableSnippet
+                      key={snippet.id}
+                      snippet={snippet}
+                    />
+                  ))}
+                </Space>
+              ),
+            }]}
+          />
         </div>
       )}
     </div>
