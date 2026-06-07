@@ -8,8 +8,8 @@ export interface Store {
   province?: string;
   city?: string;
   district?: string;
-  latitude?: string;
-  longitude?: string;
+  latitude?: number;
+  longitude?: number;
   phone?: string;
   contactPerson?: string;
   description?: string;

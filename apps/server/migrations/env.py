@@ -14,7 +14,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.db.base import Base
-from app.models import admin, appointment, blacklist, consultation_fee, content
+from app.models import admin, appointment, blacklist, consultation_fee, content, data_scope
 from app.models import department, doctor, doctor_booking_setting
 from app.models import feedback, leave_request, medical_record, message, point_log
 from app.models import rest_day, schedule, schedule_suspension, schedule_template

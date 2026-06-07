@@ -49,12 +49,14 @@ class Role(Base, AuditMixin):
     code = Column(String(50), index=True, comment="角色编码，租户内唯一（平台角色 tenant_id 为 NULL）")
     description = Column(String(200), comment="描述")
     status = Column(Integer, default=1, comment="状态 0禁用 1启用")
-    # 角色类型：admin / doctor / user
-    role_type = Column(String(20), nullable=False, server_default="admin", comment="角色类型: admin/doctor/user")
+    # 角色类型：admin / doctor / user / operator
+    role_type = Column(String(20), nullable=False, server_default="admin", comment="角色类型: admin/doctor/user/operator")
     # 是否为该角色类型的默认角色（每个 tenant + role_type 最多一个默认角色）
     is_default = Column(Boolean, nullable=False, server_default="0", comment="是否为默认角色")
     # 租户关联（多租户支持，NULL表示平台角色）
     tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True, index=True, comment="租户ID（NULL表示平台角色）")
+    # 数据权限范围（关联 DataScope，NULL 表示使用旧的门店过滤逻辑）
+    data_scope_id = Column(String(36), ForeignKey("data_scopes.id"), nullable=True, comment="数据权限范围ID")
 
     # 权限列表（JSON格式，对 admin 角色从数据库加载；doctor/user 暂用硬编码）
     permissions = Column(Text, comment="权限列表，JSON格式")
@@ -62,6 +64,7 @@ class Role(Base, AuditMixin):
     # 关联的管理员
     admins = relationship("Admin", back_populates="role")
     tenant = relationship("Tenant", back_populates="roles")
+    data_scope = relationship("DataScope", back_populates="roles")
 
     # 租户内唯一约束
     __table_args__ = (
@@ -113,7 +116,7 @@ class OperationLog(Base):
     # 新增角色相关字段
     actor_id = Column(String(36), comment="操作者ID")
     actor_name = Column(String(50), comment="操作者姓名")
-    actor_role = Column(String(20), comment="操作者角色: admin/doctor/user")
+    actor_role = Column(String(20), comment="操作者角色: admin/doctor/user/operator")
     module = Column(String(50), comment="模块")
     action = Column(String(100), comment="操作")
     method = Column(String(10), comment="请求方法")

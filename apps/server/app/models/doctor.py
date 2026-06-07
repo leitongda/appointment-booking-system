@@ -55,6 +55,10 @@ class Doctor(Base, AuditMixin):
     # 诊费设置
     use_fee_template = Column(Integer, default=0, comment="是否使用诊费模板 0否 1是")
 
+    # 评价统计
+    avg_rating = Column(Numeric(3, 2), default=0, comment="平均评分")
+    review_count = Column(Integer, default=0, comment="评价数量")
+
     # 软删除
     deleted_at = Column(DateTime, nullable=True, comment="软删除时间")
 

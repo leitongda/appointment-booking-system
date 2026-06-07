@@ -6,6 +6,7 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin, get_store_filter
+from app.common.data_scope import apply_data_scope
 from app.models.appointment import Appointment
 from app.models.doctor import Doctor
 from app.models.user import Patient
@@ -26,9 +27,8 @@ async def get_overview(
     """获取概览数据"""
     today = date.today()
 
-    # 获取门店过滤条件
-    store_filter = get_store_filter(current_admin)
-    store_condition = _build_store_filter_condition(store_filter)
+    # 使用 DataScope 统一过滤（无 DataScope 时 fallback 到旧逻辑）
+    admin_dict = current_admin if isinstance(current_admin, dict) else current_admin
 
     # 今日预约数（通过 Doctor 关联门店过滤）
     today_query = (
@@ -38,8 +38,7 @@ async def get_overview(
         .join(Doctor, Schedule.doctor_id == Doctor.id)
         .where(func.date(Appointment.created_at) == today)
     )
-    if store_condition is not None:
-        today_query = today_query.where(store_condition)
+    today_query = apply_data_scope(today_query, Doctor, admin_dict)
     today_appointments = await db.scalar(today_query)
 
     # 今日就诊数 - 通过 Schedule 获取 schedule_date
@@ -55,23 +54,17 @@ async def get_overview(
             )
         )
     )
-    if store_condition is not None:
-        today_visits_query = today_visits_query.where(store_condition)
+    today_visits_query = apply_data_scope(today_visits_query, Doctor, admin_dict)
     today_visits = await db.scalar(today_visits_query)
 
     # 总患者数（按门店过滤）
     patients_query = select(func.count(Patient.id))
-    if store_filter is not None:
-        if isinstance(store_filter, list):
-            patients_query = patients_query.where(Patient.store_id.in_(store_filter))
-        else:
-            patients_query = patients_query.where(Patient.store_id == store_filter)
+    patients_query = apply_data_scope(patients_query, Patient, admin_dict)
     total_patients = await db.scalar(patients_query)
 
     # 总医生数（按门店过滤）
     doctors_query = select(func.count(Doctor.id)).where(Doctor.status == 1, Doctor.deleted_at.is_(None))
-    if store_condition is not None:
-        doctors_query = doctors_query.where(store_condition)
+    doctors_query = apply_data_scope(doctors_query, Doctor, admin_dict)
     total_doctors = await db.scalar(doctors_query)
 
     # 本月预约数（按门店过滤）
@@ -83,12 +76,12 @@ async def get_overview(
         .join(Doctor, Schedule.doctor_id == Doctor.id)
         .where(func.date(Appointment.created_at) >= first_day_of_month)
     )
-    if store_condition is not None:
-        month_query = month_query.where(store_condition)
+    month_query = apply_data_scope(month_query, Doctor, admin_dict)
     month_appointments = await db.scalar(month_query)
 
-    # 本月收入（诊费）- 按门店过滤
+    # 本月收入（诊费）- 按门店过滤（get_store_filter 已支持 DataScope）
     revenue_service = RevenueService(db)
+    store_filter = get_store_filter(admin_dict)
     month_revenue = await revenue_service.calculate_total_revenue(
         start_date=first_day_of_month,
         end_date=today,

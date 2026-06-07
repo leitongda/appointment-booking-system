@@ -24,13 +24,15 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "dayjs": "^1.11.10"
+    "dayjs": "^1.11.10",
+    "react-image-crop": "^11.0.7"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "typescript": "^5.3.3"
   },
   "peerDependencies": {
+    "@ant-design/icons": ">=5.0.0",
     "@ant-design/pro-components": ">=2.0.0",
     "@nutui/nutui-react-taro": ">=3.0.0",
     "@tarojs/components": ">=4.0.0",

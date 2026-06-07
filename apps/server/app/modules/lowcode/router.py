@@ -51,6 +51,20 @@ def _get_tenant_id(admin) -> str:
     return str(tenant_id)
 
 
+def _validate_component_nodes(node: dict, path: str = "root") -> None:
+    """递归校验 schema 中每个节点都有 componentName。"""
+    if "componentName" not in node:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"节点 '{path}' 缺少 componentName 字段",
+        )
+    children = node.get("children") or node.get("props", {}).get("children", [])
+    if isinstance(children, list):
+        for i, child in enumerate(children):
+            if isinstance(child, dict):
+                _validate_component_nodes(child, path=f"{path}.children[{i}]")
+
+
 @router.get("/pages", response_model=PageResponse[LowCodePageResponse], summary="获取页面列表")
 async def get_page_list(
     status_filter: Optional[int] = Query(None, alias="status", description="状态筛选"),
@@ -246,10 +260,11 @@ async def export_page(
         raise HTTPException(status_code=404, detail="页面不存在")
 
     export_data = {
+        "schema_data": page.schema_data,
+        "tenant_id": str(page.tenant_id),
         "name": page.name,
         "slug": page.slug,
         "description": page.description,
-        "schema_data": page.schema_data,
         "exported_at": page.updated_at.isoformat() if page.updated_at else None,
         "version": "1.0",
     }
@@ -272,6 +287,12 @@ async def import_page(
     import json
 
     tenant_id = _get_tenant_id(current_admin)
+
+    # 功能门禁：lowcode_basic + 页面配额
+    gate = LowCodeFeatureGate(db)
+    await gate.enforce_feature(tenant_id, "lowcode_basic")
+    await gate.enforce_page_limit(tenant_id)
+
     content = await file.read()
     try:
         data = json.loads(content)
@@ -281,20 +302,43 @@ async def import_page(
     if "schema_data" not in data:
         raise HTTPException(status_code=400, detail="缺少 schema_data 字段")
 
+    # 如果导入数据包含 tenant_id，校验与当前租户一致
+    imported_tenant_id = data.get("tenant_id")
+    if imported_tenant_id and str(imported_tenant_id) != tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="导入数据的租户标识与当前租户不匹配",
+        )
+
+    # 校验 schema_data 基础结构
+    schema_data = data["schema_data"]
+    if not isinstance(schema_data, dict):
+        raise HTTPException(status_code=400, detail="schema_data 必须是 JSON 对象")
+
+    root_component = schema_data.get("componentName")
+    if root_component != "Page":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"schema_data 根节点 componentName 必须为 'Page'，实际为 '{root_component}'",
+        )
+
+    # 递归检查每个节点都有 componentName
+    _validate_component_nodes(schema_data)
+
     service = LowCodePageService(db)
     # 生成唯一的 slug（添加时间戳后缀避免冲突）
     import time
     base_slug = data.get("slug", "imported")
     slug = f"{base_slug}-{int(time.time())}"
 
-    from app.schemas.lowcode import LowCodePageCreate
-    create_data = LowCodePageCreate(
+    page = await service.create(
+        tenant_id,
         name=data.get("name", "导入的页面"),
         slug=slug,
         description=data.get("description", ""),
         schema_data=data["schema_data"],
+        created_by=str(current_admin.id),
     )
-    page = await service.create(tenant_id, create_data, operator_id=str(current_admin.id))
     return LowCodePageResponse.model_validate(page)
 
 

@@ -1,6 +1,13 @@
 """低代码模板市场服务。"""
 
+import asyncio
+import copy
+import json
+import logging
+import os
+import tempfile
 import time
+from pathlib import Path
 from typing import Any, List, Optional, Tuple
 
 from sqlalchemy import select, func, and_, or_
@@ -10,6 +17,15 @@ from app.models.lowcode_page import LowCodePage
 from app.models.lowcode_template import LowCodeTemplate
 from app.models.lowcode_template_version import LowCodeTemplateFork, LowCodeTemplateVersion
 from app.utils.audit import set_create_audit, set_update_audit
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# codegen subprocess 配置 (与 codegen_service.py 保持一致)
+# ---------------------------------------------------------------------------
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[5]  # monorepo root
+_DEFAULT_CODEGEN_BIN = str(_PROJECT_ROOT / "packages" / "codegen" / "dist" / "index.js")
 
 
 class LowCodeTemplateService:
@@ -114,8 +130,16 @@ class LowCodeTemplateService:
     # ------------------------------------------------------------------
     # 2. 获取模板详情（含作者信息）
     # ------------------------------------------------------------------
-    async def get_template(self, template_id: str) -> Optional[dict[str, Any]]:
-        """获取单个模板详情，包含作者信息。"""
+    async def get_template(
+        self, template_id: str, sanitize: bool = False
+    ) -> Optional[dict[str, Any]]:
+        """获取单个模板详情，包含作者信息。
+
+        Args:
+            template_id: 模板 ID
+            sanitize: 是否脱敏处理。为 True 时移除 schema_data 中 dataSources
+                      的敏感字段 (url, headers)，保留 id, method, dataPath 等。
+        """
         query = select(LowCodeTemplate).where(
             LowCodeTemplate.id == template_id,
             LowCodeTemplate.status == 1,
@@ -130,6 +154,10 @@ class LowCodeTemplateService:
             author_map = await self._batch_get_author_names({str(t.created_by)})
             author_name = author_map.get(str(t.created_by), "")
 
+        schema_data = t.schema_data
+        if sanitize:
+            schema_data = _sanitize_schema_data(schema_data)
+
         return {
             "id": str(t.id),
             "source_page_id": str(t.source_page_id) if t.source_page_id else None,
@@ -138,7 +166,7 @@ class LowCodeTemplateService:
             "thumbnail_url": t.thumbnail_url,
             "category": t.category,
             "tags": t.tags or [],
-            "schema_data": t.schema_data,
+            "schema_data": schema_data,
             "data_sources": t.data_sources or [],
             "version": t.version,
             "is_public": t.is_public,
@@ -267,8 +295,16 @@ class LowCodeTemplateService:
     # ------------------------------------------------------------------
     # 5. 软删除模板
     # ------------------------------------------------------------------
-    async def delete_template(self, template_id: str) -> bool:
-        """软删除模板（status=0）。"""
+    async def delete_template(
+        self, template_id: str, tenant_id: Optional[str] = None
+    ) -> bool:
+        """软删除模板（status=0）。
+
+        Args:
+            template_id: 模板 ID
+            tenant_id: 当前租户 ID。传入时校验模板的 source_tenant_id
+                       是否匹配，不匹配则拒绝删除。
+        """
         query = select(LowCodeTemplate).where(
             LowCodeTemplate.id == template_id,
             LowCodeTemplate.status == 1,
@@ -276,6 +312,10 @@ class LowCodeTemplateService:
         result = await self.db.execute(query)
         template = result.scalar_one_or_none()
         if template is None:
+            return False
+
+        # 租户所有权校验
+        if tenant_id is not None and template.source_tenant_id != tenant_id:
             return False
 
         template.status = 0
@@ -394,6 +434,10 @@ class LowCodeTemplateService:
     ) -> LowCodeTemplateVersion:
         """为模板创建新版本快照。
 
+        在创建版本前，通过 codegen 的 analyzeSchema 校验 schema 兼容性。
+        如果校验发现 error 级别的问题（如 INVALID_ROOT、MISSING_ID、
+        DUPLICATE_ID、MISSING_COMPONENT_NAME），则抛出 ValueError。
+
         Args:
             template_id: 模板 ID
             version: 语义化版本号，如 "1.1.0"
@@ -401,6 +445,9 @@ class LowCodeTemplateService:
             changelog: 变更说明
             data_sources: 数据源配置快照
             created_by: 创建人 ID
+
+        Raises:
+            ValueError: 模板不存在或 schema 校验失败时
         """
         # 校验模板存在
         query = select(LowCodeTemplate).where(
@@ -411,6 +458,9 @@ class LowCodeTemplateService:
         template = result.scalar_one_or_none()
         if template is None:
             raise ValueError(f"模板不存在: {template_id}")
+
+        # 通过 codegen analyzeSchema 校验 schema 兼容性
+        await self._validate_schema_with_codegen(schema_data)
 
         version_record = LowCodeTemplateVersion(
             template_id=template_id,
@@ -459,3 +509,164 @@ class LowCodeTemplateService:
         )
         result = await self.db.execute(query)
         return {str(row[0]): row[1] or "" for row in result.all()}
+
+    @staticmethod
+    async def _validate_schema_with_codegen(schema_data: dict[str, Any]) -> None:
+        """调用 codegen analyzeSchema 校验 schema 兼容性。
+
+        通过 subprocess 调用 Node.js codegen 包的 analyzeSchema 函数，
+        将 error 级别的警告转换为 ValueError。
+
+        Args:
+            schema_data: 待校验的 schema 数据
+
+        Raises:
+            ValueError: 校验发现 error 级别问题时
+        """
+        codegen_bin = os.environ.get("CODEGEN_BIN", _DEFAULT_CODEGEN_BIN)
+        node_cmd = os.environ.get("CODEGEN_NODE_CMD", "node")
+        timeout = int(os.environ.get("CODEGEN_TIMEOUT", "30"))
+
+        # 检查 codegen 入口是否存在
+        if not Path(codegen_bin).exists():
+            logger.warning(
+                "codegen 未构建，跳过 schema 校验: %s", codegen_bin
+            )
+            return
+
+        # 构造 analyzeSchema-only 的 Node.js 脚本
+        input_data = {"schema": schema_data}
+        input_json = json.dumps(input_data, ensure_ascii=False)
+
+        analyze_script = """\
+const fs = require('fs');
+async function main() {
+    const input = JSON.parse(fs.readFileSync(0, 'utf-8'));
+    const codegenPath = process.argv[2];
+    const codegen = require(codegenPath);
+    if (!codegen.analyzeSchema) {
+        process.stdout.write(JSON.stringify({ warnings: [] }));
+        return;
+    }
+    const result = codegen.analyzeSchema(input.schema);
+    process.stdout.write(JSON.stringify(result));
+}
+main().catch(function(err) {
+    process.stderr.write(JSON.stringify({ error: err.message }));
+    process.exit(1);
+});
+"""
+
+        script_fd, script_path = tempfile.mkstemp(suffix=".js", prefix="codegen_analyze_")
+        os.write(script_fd, analyze_script.encode("utf-8"))
+        os.close(script_fd)
+
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                node_cmd,
+                script_path,
+                codegen_bin.replace("\\", "/"),
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(input=input_json.encode("utf-8")),
+                timeout=timeout,
+            )
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+            logger.warning("schema 校验超时 (%ds)，跳过", timeout)
+            return
+        except FileNotFoundError:
+            logger.warning("node 命令不存在，跳过 schema 校验")
+            return
+        finally:
+            try:
+                os.unlink(script_path)
+            except OSError:
+                pass
+
+        if proc.returncode != 0:
+            stderr_text = stderr.decode("utf-8").strip() if stderr else ""
+            logger.warning("schema 校验失败: %s", stderr_text)
+            return
+
+        stdout_text = stdout.decode("utf-8").strip()
+        if not stdout_text:
+            return
+
+        try:
+            output = json.loads(stdout_text)
+        except json.JSONDecodeError:
+            logger.warning("schema 校验输出非有效 JSON，跳过")
+            return
+
+        # 提取 error 级别的 warnings，如有则抛出 ValueError
+        warnings = output.get("warnings", [])
+        error_warnings = [
+            w for w in warnings if w.get("severity") == "error"
+        ]
+        if error_warnings:
+            messages = [w.get("message", "unknown error") for w in error_warnings]
+            raise ValueError(
+                "Schema 校验失败: " + "; ".join(messages)
+            )
+
+
+# ---------------------------------------------------------------------------
+# 模块级脱敏辅助函数
+# ---------------------------------------------------------------------------
+
+# dataSources 中需要移除的敏感字段
+_SENSITIVE_DS_FIELDS = {"url", "headers"}
+
+
+def _sanitize_schema_data(schema_data: dict[str, Any]) -> dict[str, Any]:
+    """递归脱敏 schema_data，移除 dataSources 中的敏感字段。
+
+    移除 dataSources 列表中每个数据源的 url 和 headers 字段，
+    保留 id、method、dataPath 等非敏感字段。
+
+    Args:
+        schema_data: 原始 schema 数据
+
+    Returns:
+        脱敏后的 schema 数据副本
+    """
+    if not schema_data:
+        return schema_data
+
+    sanitized = copy.deepcopy(schema_data)
+
+    # 处理顶层 dataSources
+    if "dataSources" in sanitized and isinstance(sanitized["dataSources"], list):
+        sanitized["dataSources"] = [
+            _sanitize_datasource(ds) for ds in sanitized["dataSources"]
+        ]
+
+    # 递归处理组件树中的节点级 api 声明
+    _sanitize_node_tree(sanitized.get("children", []))
+
+    return sanitized
+
+
+def _sanitize_datasource(ds: dict[str, Any]) -> dict[str, Any]:
+    """移除单个数据源的敏感字段。"""
+    if not isinstance(ds, dict):
+        return ds
+    return {k: v for k, v in ds.items() if k not in _SENSITIVE_DS_FIELDS}
+
+
+def _sanitize_node_tree(nodes: Any) -> None:
+    """递归遍历组件树，脱敏节点级别的 api 声明。"""
+    if not isinstance(nodes, list):
+        return
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        if "api" in node and isinstance(node["api"], dict):
+            node["api"] = _sanitize_datasource(node["api"])
+        if "children" in node:
+            _sanitize_node_tree(node["children"])

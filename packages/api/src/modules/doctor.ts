@@ -287,4 +287,44 @@ export const doctorApi = {
   emailChange: (data: { newEmail: string; newEmailCode: string; oldEmailCode: string }): Promise<{ message: string }> => {
     return accountApi.emailChange(data);
   },
+
+  /**
+   * 创建医生评价
+   */
+  createReview: (data: {
+    appointmentId: string;
+    doctorId: string;
+    patientId?: string;
+    rating: number;
+    content?: string;
+    tags?: string[];
+    isAnonymous?: boolean;
+  }): Promise<any> => {
+    const payload: Record<string, any> = {
+      appointment_id: data.appointmentId,
+      doctor_id: data.doctorId,
+      rating: data.rating,
+    };
+    if (data.patientId) payload.patient_id = data.patientId;
+    if (data.content) payload.content = data.content;
+    if (data.tags) payload.tags = data.tags;
+    if (data.isAnonymous !== undefined) payload.is_anonymous = data.isAnonymous;
+    return request.post('/doctor-reviews', payload);
+  },
+
+  /**
+   * 获取医生评价列表（公开）
+   */
+  getDoctorReviews: (doctorId: string, params?: { page?: number; pageSize?: number }): Promise<any> => {
+    return request.get(`/doctor-reviews/doctors/${doctorId}`, {
+      params: { page: params?.page, page_size: params?.pageSize },
+    });
+  },
+
+  /**
+   * 回复评价（管理端）
+   */
+  replyReview: (reviewId: string, reply: string): Promise<any> => {
+    return request.post(`/doctor-reviews/${reviewId}/reply`, { reply });
+  },
 };

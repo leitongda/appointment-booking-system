@@ -36,6 +36,7 @@ class TemplateCreateRequest(BaseSchema):
     thumbnail_url: Optional[str] = Field(None, description="缩略图 URL")
     tags: Optional[list[str]] = Field(None, description="标签列表")
     is_public: bool = Field(True, description="是否公开到市场")
+    is_official: bool = Field(False, description="是否官方（仅平台管理员）")
 
 
 class TemplateUpdateRequest(BaseSchema):
@@ -148,12 +149,17 @@ def _template_to_response(data: dict[str, Any]) -> TemplateResponse:
 
 _TEMPLATE_CATEGORIES = [
     "预约挂号",
+    "临时挂号",
+    "问诊",
     "健康档案",
     "报告查询",
     "排队叫号",
     "科室导航",
     "健康宣教",
     "满意度调查",
+    "公告通知",
+    "表单收集",
+    "落地页",
     "其他",
 ]
 
@@ -260,6 +266,11 @@ async def create_template(
             detail=str(e),
         )
 
+    # 平台管理员可以设置 is_official（平台管理员 tenant_id 为 None）
+    if data.is_official and not getattr(current_admin, 'tenant_id', None):
+        template.is_official = True
+        await db.commit()
+
     # 重新查询以获取完整的作者信息
     result_data = await service.get_template(str(template.id))
     if result_data:
@@ -356,8 +367,9 @@ async def delete_template(
     _: None = Depends(require_permission("lowcode:template", "lowcode:template:delete")),
 ):
     """软删除模板（标记 status=0）。"""
+    tenant_id = _get_tenant_id(current_admin)
     service = LowCodeTemplateService(db)
-    deleted = await service.delete_template(template_id)
+    deleted = await service.delete_template(template_id, tenant_id=tenant_id)
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

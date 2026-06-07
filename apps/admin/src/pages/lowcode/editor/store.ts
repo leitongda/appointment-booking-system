@@ -1,7 +1,7 @@
 /** 低代码编辑器状态管理 */
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { LowCodeNode, LowCodeSchema, EventHandler, ApiDataSource, LowCodeTheme } from '@hospital/shared';
 
 /** 页面状态变量定义 */
@@ -519,6 +519,14 @@ export const useEditorStore = create<EditorStore>()(persist(
 }),
 {
   name: 'lowcode-editor',
+  storage: createJSONStorage(() => {
+    const tenantId = localStorage.getItem('hospital_current_tenant_id') || 'default';
+    return {
+      getItem: (name) => localStorage.getItem(`${name}-${tenantId}`),
+      setItem: (name, value) => localStorage.setItem(`${name}-${tenantId}`, value),
+      removeItem: (name) => localStorage.removeItem(`${name}-${tenantId}`),
+    };
+  }),
   partialize: (state) => ({
     schema: state.schema,
     dataSources: state.dataSources,

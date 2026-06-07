@@ -140,6 +140,18 @@ const RecordDetailPage: React.FC = () => {
                   <p className="text-foreground">{record.allergyHistory}</p>
                 </div>
               )}
+              {(record as any).familyHistory && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">家族史</p>
+                  <p className="text-foreground">{(record as any).familyHistory}</p>
+                </div>
+              )}
+              {(record as any).medicationHistory && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">用药史</p>
+                  <p className="text-foreground">{(record as any).medicationHistory}</p>
+                </div>
+              )}
               {record.physicalExam && (
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">体格检查</p>

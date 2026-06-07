@@ -405,7 +405,7 @@ async def test_create_version_creates_record():
 
     db.execute = AsyncMock(return_value=_patch_query(mock_template))
 
-    schema_data = {"nodes": ["new-comp"]}
+    schema_data = {"componentName": "Page", "props": {}, "children": [{"id": "node-1", "componentName": "NutText", "props": {"text": "hello"}}]}
 
     with patch("app.modules.lowcode.template_service.set_create_audit"):
         result = await svc.create_version(
@@ -441,7 +441,7 @@ async def test_create_version_template_not_found_raises():
         await svc.create_version(
             template_id="nonexistent",
             version="1.1.0",
-            schema_data={"nodes": []},
+            schema_data={"componentName": "Page", "props": {}, "children": []},
         )
 
 

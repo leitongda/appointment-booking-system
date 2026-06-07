@@ -6,7 +6,9 @@ from app.models.schedule import Schedule
 from app.models.appointment import Appointment
 from app.models.medical_record import MedicalRecord
 from app.models.content import News, Notice, Banner
+from app.models.content_version import ContentVersion
 from app.models.admin import Admin, Role, OperationLog, AdminLoginHistory
+from app.models.data_scope import DataScope
 from app.models.settings import SystemSetting
 from app.models.store import Store
 from app.models.message import Message, MessageTemplate
@@ -87,3 +89,5 @@ from app.models.freelance import (
     FreelanceSettlement,
     FreelanceSettlementItem,
 )
+from app.models.doctor_review import DoctorReview
+from app.models.appointment_satisfaction import AppointmentSatisfaction

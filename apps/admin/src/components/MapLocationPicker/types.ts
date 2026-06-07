@@ -6,8 +6,8 @@ export interface LocationInfo {
   province: string;
   city: string;
   district: string;
-  longitude: string;
-  latitude: string;
+  longitude: number | string;
+  latitude: number | string;
 }
 
 /**

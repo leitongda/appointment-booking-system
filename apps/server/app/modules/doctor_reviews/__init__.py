@@ -1,0 +1,1 @@
+"""Doctor reviews domain module."""

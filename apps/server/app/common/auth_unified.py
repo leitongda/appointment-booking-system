@@ -365,10 +365,12 @@ async def _get_admin_account(
     # 判断角色类型
     role_code = admin.role.code if admin.role else None
     role_name = admin.role.name if admin.role else None
+    role_role_type = admin.role.role_type if admin.role else "admin"
     is_super_admin = role_code == "SUPER_ADMIN" or role_name == "超级管理员"
     is_store_admin = role_code == "STORE_ADMIN" or role_name == "门店管理员"
     is_tenant_admin = role_code == "TENANT_ADMIN" or role_name == "租户管理员"
     is_platform_admin = role_code == "PLATFORM_ADMIN" or role_name == "平台管理员" or is_super_admin
+    is_operator = role_role_type == "operator"
 
     # 填充租户元数据（所有有租户的管理员都需要，供 /me 等接口使用）
     tenant_id = admin.tenant_id
@@ -507,9 +509,12 @@ async def _get_admin_account(
         can_switch_stores=can_switch_stores,
     )
 
+    # 确定 AccountInfo 的 role_type：operator 角色用 RoleType.OPERATOR，其余用 ADMIN
+    account_role_type = RoleType.OPERATOR if is_operator else RoleType.ADMIN
+
     return AccountInfo(
         id=admin.id,
-        role_type=RoleType.ADMIN,
+        role_type=account_role_type,
         tenant_id=admin.tenant_id,
         phone=admin.phone,
         email=admin.email,
@@ -607,6 +612,7 @@ async def get_current_account_with_role(
             RoleType.ADMIN: "管理员",
             RoleType.DOCTOR: "医生",
             RoleType.USER: "用户",
+            RoleType.OPERATOR: "运营人员",
         }
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

@@ -250,7 +250,7 @@ class TestSystemRoles:
             assert len(role["name"]) > 0
 
     def test_all_roles_have_role_type(self):
-        valid_types = {"admin", "doctor", "user"}
+        valid_types = {"admin", "doctor", "user", "operator"}
         for key, role in SYSTEM_ROLES.items():
             assert "role_type" in role, f"角色 {key} 缺少 role_type 字段"
             assert role["role_type"] in valid_types

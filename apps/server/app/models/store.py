@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Text, Time, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, String, Integer, Numeric, Text, Time, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.db.base import Base, AuditMixin
 import uuid
@@ -17,8 +17,8 @@ class Store(Base, AuditMixin):
     province = Column(String(50), comment="省份")
     city = Column(String(50), comment="城市")
     district = Column(String(50), comment="区县")
-    latitude = Column(String(20), comment="纬度")
-    longitude = Column(String(20), comment="经度")
+    latitude = Column(Numeric(10, 7), comment="纬度")
+    longitude = Column(Numeric(10, 7), comment="经度")
     phone = Column(String(50), comment="联系电话")
     contact_person = Column(String(50), comment="联系人")
     description = Column(Text, comment="门店简介")

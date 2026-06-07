@@ -62,3 +62,4 @@ class RoleType(str, Enum):
     ADMIN = "admin"
     DOCTOR = "doctor"
     USER = "user"
+    OPERATOR = "operator"

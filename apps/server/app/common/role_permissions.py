@@ -2,7 +2,7 @@
 
 为不同角色类型定义权限列表。
 - Admin 权限从数据库 Role.permissions 字段加载（已有逻辑）
-- Doctor / User 权限暂用硬编码配置，后续可改为数据库配置
+- Doctor / User / Operator 权限暂用硬编码配置，后续可改为数据库配置
 """
 from typing import Dict, List, Optional, Set
 
@@ -58,6 +58,26 @@ DOCTOR_PERMISSIONS: Set[str] = {
     "doctor:message:view",       # 查看消息
     # 统计
     "doctor:statistics:view",    # 查看个人统计
+}
+
+# ============================================================
+# 运营角色权限定义
+# ============================================================
+OPERATOR_PERMISSIONS: Set[str] = {
+    # 内容管理
+    "content:news",              # 资讯管理
+    "content:notice",            # 公告管理
+    "content:banner",            # Banner 管理
+    # 统计分析
+    "statistics:read",           # 查看统计数据
+    # 排班查看
+    "schedule:read",             # 查看排班列表/详情
+    # 预约查看
+    "appointment:read",          # 查看预约列表/详情
+    # 医生查看
+    "doctor:read",               # 查看医生列表/详情
+    # 患者查看
+    "patient:read",              # 查看患者列表/详情
 }
 
 # ============================================================
@@ -132,6 +152,13 @@ SYSTEM_ROLES: Dict[str, dict] = {
         "is_default": True,
         "permissions": list(USER_PERMISSIONS),
     },
+    # --- Operator 角色 ---
+    "OPERATOR": {
+        "name": "运营人员",
+        "role_type": "operator",
+        "is_default": True,
+        "permissions": list(OPERATOR_PERMISSIONS),
+    },
 }
 
 
@@ -139,7 +166,7 @@ def get_permissions_for_role_type(role_type: str) -> Set[str]:
     """根据角色类型获取默认权限集合
 
     Args:
-        role_type: 角色类型 - 'admin' / 'doctor' / 'user'
+        role_type: 角色类型 - 'admin' / 'doctor' / 'user' / 'operator'
 
     Returns:
         该角色类型的默认权限集合
@@ -148,6 +175,8 @@ def get_permissions_for_role_type(role_type: str) -> Set[str]:
         return DOCTOR_PERMISSIONS.copy()
     elif role_type == "user":
         return USER_PERMISSIONS.copy()
+    elif role_type == "operator":
+        return OPERATOR_PERMISSIONS.copy()
     # admin 的权限从数据库加载，这里返回空集合
     return set()
 

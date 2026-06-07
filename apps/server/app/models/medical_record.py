@@ -24,6 +24,8 @@ class MedicalRecord(Base, AuditMixin):
     present_illness = Column(Text, comment="现病史")
     past_history = Column(Text, comment="既往史")
     allergy_history = Column(Text, comment="过敏史")
+    family_history = Column(Text, nullable=True, comment="家族史")
+    medication_history = Column(Text, nullable=True, comment="用药史")
     physical_exam = Column(Text, comment="体格检查")
     auxiliary_exam = Column(Text, comment="辅助检查")
     diagnosis = Column(Text, nullable=False, comment="诊断")

@@ -285,8 +285,8 @@ const StoreFormPage: React.FC = () => {
           }}
         />
         {/* 经纬度隐藏字段，地图选点自动填充 */}
-        <ProFormText name="longitude" hidden />
-        <ProFormText name="latitude" hidden />
+        <ProFormDigit name="longitude" hidden fieldProps={{ precision: 7 }} />
+        <ProFormDigit name="latitude" hidden fieldProps={{ precision: 7 }} />
       </Card>
 
       {/* 展示设置 */}

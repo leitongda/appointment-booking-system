@@ -12,9 +12,10 @@
 
 import logging
 import uuid
+from dataclasses import dataclass, field
 from typing import Optional
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -531,3 +532,246 @@ class AccountSyncService:
                 account_id, field,
             )
             return False
+
+
+# ------------------------------------------------------------------ #
+#  数据一致性校验
+# ------------------------------------------------------------------ #
+
+# 需要对比的 accounts 主表核心字段（旧表字段名 -> 新表字段名相同）
+_ACCOUNT_COMMON_FIELDS = (
+    "phone", "email", "username", "password_hash",
+    "name", "avatar", "status", "tenant_id",
+)
+
+
+@dataclass
+class SyncDiff:
+    """单条记录的字段级差异"""
+    record_id: str
+    record_type: str  # "admin" | "doctor" | "user"
+    field_diffs: list[tuple[str, object, object]] = field(default_factory=list)
+    # (field_name, old_table_value, new_table_value)
+
+
+@dataclass
+class ConsistencyReport:
+    """一致性校验报告"""
+    missing_in_new: list[tuple[str, str]] = field(default_factory=list)
+    # (record_type, record_id) — 旧表有、新表无
+    extra_in_new: list[tuple[str, str]] = field(default_factory=list)
+    # (record_type, record_id) — 新表有、旧表无（可能已手动迁移）
+    field_diffs: list[SyncDiff] = field(default_factory=list)
+    # 字段级差异
+
+    @property
+    def total_issues(self) -> int:
+        return len(self.missing_in_new) + len(self.extra_in_new) + len(self.field_diffs)
+
+    @property
+    def is_consistent(self) -> bool:
+        return self.total_issues == 0
+
+
+async def check_admin_consistency(
+    db: AsyncSession,
+    report: ConsistencyReport,
+) -> None:
+    """校验 Admin <-> AccountAdmin 数据一致性"""
+
+    # 旧表所有 admin ID
+    old_ids_result = await db.execute(select(Admin.id))
+    old_ids = {row[0] for row in old_ids_result.all()}
+
+    # 新表中 account_admins 的 account_id
+    new_ids_result = await db.execute(select(AccountAdmin.account_id))
+    new_ids = {row[0] for row in new_ids_result.all()}
+
+    # 旧有新无
+    for rid in old_ids - new_ids:
+        report.missing_in_new.append(("admin", str(rid)))
+
+    # 新有旧无
+    for rid in new_ids - old_ids:
+        report.extra_in_new.append(("admin", str(rid)))
+
+    # 共有记录：逐字段对比
+    common_ids = old_ids & new_ids
+    if not common_ids:
+        return
+
+    for batch_start in range(0, len(common_ids), 500):
+        batch = list(common_ids)[batch_start: batch_start + 500]
+        old_result = await db.execute(select(Admin).where(Admin.id.in_(batch)))
+        old_map = {str(r.id): r for r in old_result.scalars().all()}
+
+        new_result = await db.execute(
+            select(Account).where(Account.id.in_(batch))
+        )
+        new_map = {str(r.id): r for r in new_result.scalars().all()}
+
+        for rid in batch:
+            old = old_map.get(rid)
+            new = new_map.get(rid)
+            if not old or not new:
+                continue
+
+            diffs = []
+            for f in _ACCOUNT_COMMON_FIELDS:
+                old_val = getattr(old, f, None)
+                new_val = getattr(new, f, None)
+                if old_val != new_val:
+                    diffs.append((f, old_val, new_val))
+
+            if diffs:
+                report.field_diffs.append(
+                    SyncDiff(record_id=rid, record_type="admin", field_diffs=diffs)
+                )
+
+
+async def check_doctor_consistency(
+    db: AsyncSession,
+    report: ConsistencyReport,
+) -> None:
+    """校验 Doctor <-> AccountDoctor 数据一致性"""
+
+    old_ids_result = await db.execute(select(Doctor.id))
+    old_ids = {row[0] for row in old_ids_result.all()}
+
+    new_ids_result = await db.execute(select(AccountDoctor.account_id))
+    new_ids = {row[0] for row in new_ids_result.all()}
+
+    for rid in old_ids - new_ids:
+        report.missing_in_new.append(("doctor", str(rid)))
+
+    for rid in new_ids - old_ids:
+        report.extra_in_new.append(("doctor", str(rid)))
+
+    common_ids = old_ids & new_ids
+    if not common_ids:
+        return
+
+    for batch_start in range(0, len(common_ids), 500):
+        batch = list(common_ids)[batch_start: batch_start + 500]
+        old_result = await db.execute(select(Doctor).where(Doctor.id.in_(batch)))
+        old_map = {str(r.id): r for r in old_result.scalars().all()}
+
+        new_result = await db.execute(
+            select(Account).where(Account.id.in_(batch))
+        )
+        new_map = {str(r.id): r for r in new_result.scalars().all()}
+
+        for rid in batch:
+            old = old_map.get(rid)
+            new = new_map.get(rid)
+            if not old or not new:
+                continue
+
+            diffs = []
+            for f in _ACCOUNT_COMMON_FIELDS:
+                old_val = getattr(old, f, None)
+                new_val = getattr(new, f, None)
+                # Doctor 的 gender 可能为 None，默认 0
+                if f == "gender":
+                    old_val = old_val if old_val is not None else 0
+                    new_val = new_val if new_val is not None else 0
+                if old_val != new_val:
+                    diffs.append((f, old_val, new_val))
+
+            if diffs:
+                report.field_diffs.append(
+                    SyncDiff(record_id=rid, record_type="doctor", field_diffs=diffs)
+                )
+
+
+async def check_user_consistency(
+    db: AsyncSession,
+    report: ConsistencyReport,
+) -> None:
+    """校验 User <-> AccountUser 数据一致性"""
+
+    old_ids_result = await db.execute(select(User.id))
+    old_ids = {row[0] for row in old_ids_result.all()}
+
+    new_ids_result = await db.execute(select(AccountUser.account_id))
+    new_ids = {row[0] for row in new_ids_result.all()}
+
+    for rid in old_ids - new_ids:
+        report.missing_in_new.append(("user", str(rid)))
+
+    for rid in new_ids - old_ids:
+        report.extra_in_new.append(("user", str(rid)))
+
+    common_ids = old_ids & new_ids
+    if not common_ids:
+        return
+
+    for batch_start in range(0, len(common_ids), 500):
+        batch = list(common_ids)[batch_start: batch_start + 500]
+        old_result = await db.execute(select(User).where(User.id.in_(batch)))
+        old_map = {str(r.id): r for r in old_result.scalars().all()}
+
+        new_result = await db.execute(
+            select(Account).where(Account.id.in_(batch))
+        )
+        new_map = {str(r.id): r for r in new_result.scalars().all()}
+
+        for rid in batch:
+            old = old_map.get(rid)
+            new = new_map.get(rid)
+            if not old or not new:
+                continue
+
+            diffs = []
+            # User 特殊字段映射
+            user_field_map = {
+                "phone": "phone",
+                "email": "email",
+                "nickname": "nickname",
+                "avatar": "avatar",
+                "status": "status",
+                "tenant_id": "tenant_id",
+            }
+            for old_field, new_field in user_field_map.items():
+                old_val = getattr(old, old_field, None)
+                new_val = getattr(new, new_field, None)
+                # User 的 gender
+                if old_field == "nickname":
+                    # Account.name 对应 User.nickname
+                    new_val = getattr(new, "name", None)
+                if old_val != new_val:
+                    diffs.append((old_field, old_val, new_val))
+
+            if diffs:
+                report.field_diffs.append(
+                    SyncDiff(record_id=rid, record_type="user", field_diffs=diffs)
+                )
+
+
+async def check_account_sync_consistency(
+    db: AsyncSession,
+) -> ConsistencyReport:
+    """全量校验旧表与新表的数据一致性
+
+    对比 admins/doctors/users 与 accounts + 扩展表的：
+      1. 记录覆盖完整性（旧表有但新表无 / 新表多出）
+      2. 核心字段值一致性
+
+    Returns:
+        ConsistencyReport 校验报告
+    """
+    report = ConsistencyReport()
+
+    await check_admin_consistency(db, report)
+    await check_doctor_consistency(db, report)
+    await check_user_consistency(db, report)
+
+    logger.info(
+        "数据一致性校验完成: missing=%d, extra=%d, field_diffs=%d, total_issues=%d",
+        len(report.missing_in_new),
+        len(report.extra_in_new),
+        len(report.field_diffs),
+        report.total_issues,
+    )
+
+    return report

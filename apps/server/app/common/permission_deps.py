@@ -21,18 +21,46 @@ def get_store_filter(current_admin: dict, allow_all: bool = False) -> Union[None
     """
     获取门店过滤条件
 
+    优先从 DataScope 读取规则，无 DataScope 时 fallback 到旧逻辑。
+
     Args:
         current_admin: 当前管理员信息
         allow_all: 是否允许查看所有绑定门店（聚合查看模式）
 
     Returns:
-        - None: 超管，不过滤，可查看所有门店数据
+        - None: 超管或 scope_type=all，不过滤
         - str: 单个门店ID（当前选中门店）
         - List[str]: 多个门店ID列表（聚合查看模式）
     """
     if current_admin.get("is_super_admin"):
         return None
 
+    # 优先读取 DataScope 配置
+    data_scope = _resolve_data_scope(current_admin)
+    if data_scope:
+        scope_type = data_scope.get("scope_type")
+        if scope_type == "all":
+            return None
+        if scope_type == "tenant":
+            return None  # 租户级别，不过滤门店
+        if scope_type == "store":
+            current_store_id = current_admin.get("current_store_id") or current_admin.get("store_id")
+            return current_store_id
+        if scope_type == "custom":
+            import json
+            raw = data_scope.get("store_ids")
+            if raw:
+                if isinstance(raw, list):
+                    return raw
+                try:
+                    parsed = json.loads(raw)
+                    if isinstance(parsed, list) and parsed:
+                        return parsed
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            return None
+
+    # fallback: 旧逻辑
     store_ids = current_admin.get("store_ids", [])
     current_store_id = current_admin.get("current_store_id") or current_admin.get("store_id")
 
@@ -42,6 +70,19 @@ def get_store_filter(current_admin: dict, allow_all: bool = False) -> Union[None
 
     # 默认返回当前选中门店
     return current_store_id
+
+
+def _resolve_data_scope(current_admin: dict) -> Optional[dict]:
+    """从 admin_info 中提取 data_scope 配置
+
+    支持嵌套 role.data_scope 和平铺 data_scope 两种格式。
+    """
+    role = current_admin.get("role")
+    if role and isinstance(role, dict):
+        ds = role.get("data_scope")
+        if ds:
+            return ds
+    return current_admin.get("data_scope")
 
 
 def check_store_access(current_admin: dict, target_store_id: Optional[str]) -> bool:
@@ -205,6 +246,7 @@ def _extract_permissions(account: AccountInfo) -> List[str]:
     - Admin: 从数据库 Role.permissions 加载
     - Doctor: 从 DOCTOR_PERMISSIONS 硬编码配置加载
     - User: 从 USER_PERMISSIONS 硬编码配置加载
+    - Operator: 从 OPERATOR_PERMISSIONS 硬编码配置加载（复用 admin_info）
     """
     if account.role_type == RoleType.ADMIN and account.admin_info:
         return account.admin_info.permissions or []
@@ -212,6 +254,9 @@ def _extract_permissions(account: AccountInfo) -> List[str]:
         return account.doctor_info.permissions or []
     elif account.role_type == RoleType.USER and account.user_info:
         return account.user_info.permissions or []
+    elif account.role_type == RoleType.OPERATOR and account.admin_info:
+        # Operator 复用 AdminInfo 结构，权限从数据库 Role.permissions 加载
+        return account.admin_info.permissions or []
     return []
 
 
@@ -274,6 +319,7 @@ def require_account_permission(*permissions: str) -> Callable:
             RoleType.ADMIN: "管理员",
             RoleType.DOCTOR: "医生",
             RoleType.USER: "用户",
+            RoleType.OPERATOR: "运营人员",
         }
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

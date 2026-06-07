@@ -14,7 +14,7 @@
  * - 统一的状态转换逻辑
  * - 提高代码可读性和可维护性
  */
-import { ProFormText, ProFormTextArea, ProFormGroup } from '@ant-design/pro-components';
+import { ProFormText, ProFormTextArea, ProFormSelect, ProFormGroup } from '@ant-design/pro-components';
 import { Card, App } from 'antd';
 import { useParams, history } from '@umijs/max';
 import { useEffect, useState } from 'react';
@@ -95,6 +95,18 @@ const RoleFormPage: React.FC = () => {
             width="md"
             rules={[requiredRules('请输入角色编码')]}
             disabled={isEdit}
+          />
+          <ProFormSelect
+            name="roleType"
+            label="角色类型"
+            width="md"
+            rules={[requiredRules('请选择角色类型')]}
+            options={[
+              { label: '管理员', value: 'admin' },
+              { label: '医生', value: 'doctor' },
+              { label: '用户', value: 'user' },
+              { label: '运营人员', value: 'operator' },
+            ]}
           />
         </ProFormGroup>
         <ProFormTextArea

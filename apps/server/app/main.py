@@ -9,6 +9,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import PlainTextResponse
 
 from app.api.v1 import main_router, deprecated_router
+from app.api.v2 import build_v2_router
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.redis import close_redis, get_redis
@@ -263,7 +264,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.PROJECT_NAME,
         description=_build_openapi_description(),
-        version="1.0.0",
+        version=settings.OPENAPI_VERSION,
         openapi_url=f"{settings.API_V1_STR}/openapi.json",
         docs_url="/docs",
         redoc_url="/redoc",
@@ -278,6 +279,9 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
     app.include_router(main_router, prefix=settings.API_V1_STR)
     app.include_router(deprecated_router, prefix=settings.API_V1_STR)
+    # v2 路由注册点（当前为空，预留接口）
+    v2_router = build_v2_router()
+    app.include_router(v2_router, prefix=settings.API_V2_STR)
     _configure_static_mounts(app)
     _register_health_routes(app)
     _register_llms_routes(app)

@@ -56,6 +56,8 @@ const MedicalRecordFormPage: React.FC = () => {
             presentIllness: recordData.presentIllness,
             pastHistory: recordData.pastHistory,
             allergyHistory: recordData.allergyHistory,
+            familyHistory: recordData.familyHistory,
+            medicationHistory: recordData.medicationHistory,
             physicalExam: recordData.physicalExam,
             auxiliaryExam: recordData.auxiliaryExam,
             diagnosis: recordData.diagnosis,
@@ -166,6 +168,8 @@ const MedicalRecordFormPage: React.FC = () => {
           presentIllness: values.presentIllness,
           pastHistory: values.pastHistory,
           allergyHistory: values.allergyHistory,
+          familyHistory: values.familyHistory,
+          medicationHistory: values.medicationHistory,
           physicalExam: values.physicalExam,
           auxiliaryExam: values.auxiliaryExam,
           diagnosis: values.diagnosis,
@@ -184,6 +188,8 @@ const MedicalRecordFormPage: React.FC = () => {
           presentIllness: values.presentIllness,
           pastHistory: values.pastHistory,
           allergyHistory: values.allergyHistory,
+          familyHistory: values.familyHistory,
+          medicationHistory: values.medicationHistory,
           physicalExam: values.physicalExam,
           auxiliaryExam: values.auxiliaryExam,
           diagnosis: values.diagnosis,
@@ -295,6 +301,20 @@ const MedicalRecordFormPage: React.FC = () => {
             name="allergyHistory"
             label="过敏史"
             placeholder="请描述药物过敏、食物过敏等情况"
+            fieldProps={{ rows: 2 }}
+          />
+
+          <ProFormTextArea
+            name="familyHistory"
+            label="家族史"
+            placeholder="请描述家族遗传病史、家族成员重大疾病等"
+            fieldProps={{ rows: 2 }}
+          />
+
+          <ProFormTextArea
+            name="medicationHistory"
+            label="用药史"
+            placeholder="请描述当前及近期用药情况，包括药物名称、剂量、频率等"
             fieldProps={{ rows: 2 }}
           />
 

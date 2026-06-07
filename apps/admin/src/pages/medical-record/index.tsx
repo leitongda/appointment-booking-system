@@ -264,6 +264,8 @@ const MedicalRecordPage: React.FC = () => {
               { key: '9', label: '现病史', span: 2, children: currentRecord.presentIllness || '-' },
               { key: '10', label: '既往史', span: 2, children: currentRecord.pastHistory || '-' },
               { key: '11', label: '过敏史', span: 2, children: currentRecord.allergyHistory || '-' },
+              { key: '11a', label: '家族史', span: 2, children: (currentRecord as any).familyHistory || '-' },
+              { key: '11b', label: '用药史', span: 2, children: (currentRecord as any).medicationHistory || '-' },
               { key: '12', label: '体格检查', span: 2, children: currentRecord.physicalExam || '-' },
               { key: '13', label: '辅助检查', span: 2, children: currentRecord.auxiliaryExam || '-' },
               { key: '14', label: '诊断', span: 2, children: currentRecord.diagnosis || '-' },
@@ -291,6 +293,8 @@ const MedicalRecordPage: React.FC = () => {
           presentIllness: editingRecord.presentIllness,
           pastHistory: editingRecord.pastHistory,
           allergyHistory: editingRecord.allergyHistory,
+          familyHistory: (editingRecord as any).familyHistory,
+          medicationHistory: (editingRecord as any).medicationHistory,
           physicalExam: editingRecord.physicalExam,
           auxiliaryExam: editingRecord.auxiliaryExam,
           diagnosis: editingRecord.diagnosis,
@@ -322,6 +326,8 @@ const MedicalRecordPage: React.FC = () => {
         <ProFormTextArea name="presentIllness" label="现病史" colProps={{ span: 24 }} fieldProps={{ rows: 3 }} />
         <ProFormTextArea name="pastHistory" label="既往史" colProps={{ span: 12 }} fieldProps={{ rows: 2 }} />
         <ProFormTextArea name="allergyHistory" label="过敏史" colProps={{ span: 12 }} fieldProps={{ rows: 2 }} />
+        <ProFormTextArea name="familyHistory" label="家族史" colProps={{ span: 12 }} fieldProps={{ rows: 2 }} />
+        <ProFormTextArea name="medicationHistory" label="用药史" colProps={{ span: 12 }} fieldProps={{ rows: 2 }} />
         <ProFormTextArea name="physicalExam" label="体格检查" colProps={{ span: 12 }} fieldProps={{ rows: 2 }} />
         <ProFormTextArea name="auxiliaryExam" label="辅助检查" colProps={{ span: 12 }} fieldProps={{ rows: 2 }} />
         <ProFormText name="diagnosis" label="诊断" rules={[{ required: true }]} colProps={{ span: 24 }} />

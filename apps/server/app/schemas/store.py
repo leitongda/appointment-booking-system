@@ -17,8 +17,8 @@ class StoreBase(BaseModel):
     province: Optional[str] = Field(None, max_length=50, description="省份")
     city: Optional[str] = Field(None, max_length=50, description="城市")
     district: Optional[str] = Field(None, max_length=50, description="区县")
-    latitude: Optional[str] = Field(None, max_length=20, description="纬度")
-    longitude: Optional[str] = Field(None, max_length=20, description="经度")
+    latitude: Optional[float] = Field(None, description="纬度")
+    longitude: Optional[float] = Field(None, description="经度")
     phone: Optional[str] = Field(None, max_length=50, description="联系电话")
     contact_person: Optional[str] = Field(None, max_length=50, description="联系人")
     description: Optional[str] = Field(None, description="门店简介")
@@ -44,15 +44,15 @@ class StoreUpdate(BaseModel):
         populate_by_name=True,
         alias_generator=to_camel,
     )
-    
+
     name: Optional[str] = Field(None, max_length=100, description="门店名称")
     code: Optional[str] = Field(None, max_length=50, description="门店编码")
     address: Optional[str] = Field(None, max_length=255, description="详细地址")
     province: Optional[str] = Field(None, max_length=50, description="省份")
     city: Optional[str] = Field(None, max_length=50, description="城市")
     district: Optional[str] = Field(None, max_length=50, description="区县")
-    latitude: Optional[str] = Field(None, max_length=20, description="纬度")
-    longitude: Optional[str] = Field(None, max_length=20, description="经度")
+    latitude: Optional[float] = Field(None, description="纬度")
+    longitude: Optional[float] = Field(None, description="经度")
     phone: Optional[str] = Field(None, max_length=50, description="联系电话")
     contact_person: Optional[str] = Field(None, max_length=50, description="联系人")
     description: Optional[str] = Field(None, description="门店简介")

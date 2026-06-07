@@ -173,13 +173,20 @@ class TestNewsService:
 
     @pytest.mark.asyncio
     async def test_delete_news(self, db_session):
-        """删除新闻"""
+        """软删除新闻（移入回收站）"""
         svc = NewsService(db_session)
         created = await svc.create(_make_news_data())
         success = await svc.delete(created.id)
 
         assert success is True
-        assert await svc.get_by_id(created.id) is None
+        # 软删除后 get_by_id 仍返回对象，但 is_deleted=True
+        deleted = await svc.get_by_id(created.id)
+        assert deleted is not None
+        assert deleted.is_deleted is True
+        assert deleted.deleted_at is not None
+        # 普通列表查询不可见
+        items, total = await svc.get_list()
+        assert total == 0
 
     @pytest.mark.asyncio
     async def test_delete_news_not_found(self, db_session):
@@ -333,11 +340,18 @@ class TestNoticeService:
 
     @pytest.mark.asyncio
     async def test_delete_notice(self, db_session):
-        """删除公告"""
+        """软删除公告（移入回收站）"""
         svc = NoticeService(db_session)
         created = await svc.create(_make_notice_data())
         assert await svc.delete(created.id) is True
-        assert await svc.get_by_id(created.id) is None
+        # 软删除后 get_by_id 仍返回对象，但 is_deleted=True
+        deleted = await svc.get_by_id(created.id)
+        assert deleted is not None
+        assert deleted.is_deleted is True
+        assert deleted.deleted_at is not None
+        # 普通列表查询不可见
+        items, total = await svc.get_list()
+        assert total == 0
 
     @pytest.mark.asyncio
     async def test_delete_notice_not_found(self, db_session):
@@ -407,11 +421,18 @@ class TestBannerService:
 
     @pytest.mark.asyncio
     async def test_delete_banner(self, db_session):
-        """删除轮播图"""
+        """软删除轮播图（移入回收站）"""
         svc = BannerService(db_session)
         created = await svc.create(_make_banner_data())
         assert await svc.delete(created.id) is True
-        assert await svc.get_by_id(created.id) is None
+        # 软删除后 get_by_id 仍返回对象，但 is_deleted=True
+        deleted = await svc.get_by_id(created.id)
+        assert deleted is not None
+        assert deleted.is_deleted is True
+        assert deleted.deleted_at is not None
+        # 普通列表查询不可见
+        items, total = await svc.get_list()
+        assert total == 0
 
     @pytest.mark.asyncio
     async def test_delete_banner_not_found(self, db_session):

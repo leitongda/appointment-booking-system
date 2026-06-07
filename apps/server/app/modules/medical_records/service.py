@@ -67,6 +67,8 @@ class MedicalRecordService:
             present_illness=data.present_illness,
             past_history=data.past_history,
             allergy_history=data.allergy_history,
+            family_history=data.family_history,
+            medication_history=data.medication_history,
             physical_exam=data.physical_exam,
             auxiliary_exam=data.auxiliary_exam,
             diagnosis=data.diagnosis,

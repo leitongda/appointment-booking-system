@@ -49,6 +49,9 @@ from app.common.permission_deps import (
     require_account_all_permissions,
 )
 
+# 数据权限范围
+from app.common.data_scope import DataScopeFilter, apply_data_scope
+
 __all__ = [
     # 数据库相关
     "get_db",
@@ -82,4 +85,7 @@ __all__ = [
     "require_all_permissions",
     "require_account_permission",
     "require_account_all_permissions",
+    # 数据权限范围
+    "DataScopeFilter",
+    "apply_data_scope",
 ]

@@ -46,8 +46,8 @@ interface HistoryItem {
   province: string;
   city: string;
   district: string;
-  longitude: string;
-  latitude: string;
+  longitude: number | string;
+  latitude: number | string;
   timestamp: number;
 }
 
@@ -134,8 +134,8 @@ async function reverseGeocode(lng: number, lat: number): Promise<LocationInfo | 
       province: comp.province || '',
       city: typeof comp.city === 'string' ? comp.city : (comp.province || ''),
       district: comp.district || '',
-      longitude: String(lng),
-      latitude: String(lat),
+      longitude: lng,
+      latitude: lat,
     };
   } catch {
     return null;
@@ -319,7 +319,7 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
 
   // 清除已选位置
   const handleClear = useCallback(() => {
-    onChange?.({ address: '', province: '', city: '', district: '', longitude: '', latitude: '' });
+    onChange?.({ address: '', province: '', city: '', district: '', longitude: 0, latitude: 0 });
     setSearchValue('');
     setOptions([]);
     if (mapInstanceRef.current && markerRef.current) {
@@ -376,8 +376,8 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
       province: poi.pname || '',
       city: poi.cityname || '',
       district: poi.adname || '',
-      longitude: String(lng),
-      latitude: String(lat),
+      longitude: lng,
+      latitude: lat,
     };
     onChange?.(info);
     setSearchValue(poi.name);

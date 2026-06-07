@@ -82,6 +82,26 @@ SYSTEM_ROLES = [
             "patient", "patient:list", "patient:detail",
         ],
     },
+    {
+        "code": "OPERATOR",
+        "name": "运营人员",
+        "description": "运营人员，负责内容管理和数据查看",
+        "role_type": "operator",
+        "permissions": [
+            # 内容管理
+            "content:news", "content:notice", "content:banner",
+            # 统计分析
+            "statistics:read",
+            # 排班查看
+            "schedule:read",
+            # 预约查看
+            "appointment:read",
+            # 医生查看
+            "doctor:read",
+            # 患者查看
+            "patient:read",
+        ],
+    },
 ]
 
 

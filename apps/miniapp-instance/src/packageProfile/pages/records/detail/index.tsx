@@ -113,6 +113,18 @@ const RecordDetailPage = () => {
             <Text className="block-value">{record.allergyHistory}</Text>
           </View>
         )}
+        {(record as any).familyHistory && (
+          <View className="info-block">
+            <Text className="block-label">家族史</Text>
+            <Text className="block-value">{(record as any).familyHistory}</Text>
+          </View>
+        )}
+        {(record as any).medicationHistory && (
+          <View className="info-block">
+            <Text className="block-label">用药史</Text>
+            <Text className="block-value">{(record as any).medicationHistory}</Text>
+          </View>
+        )}
         {record.physicalExam && (
           <View className="info-block">
             <Text className="block-label">体格检查</Text>

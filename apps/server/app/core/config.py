@@ -29,9 +29,17 @@ class Settings(BaseSettings):
     
     @property
     def API_V1_STR(self) -> str:
-        """完整 API 路径（保持向后兼容）"""
+        """完整 API v1 路径（保持向后兼容）"""
         return f"{self.API_PREFIX}/{self.API_VERSION}"
-    
+
+    @property
+    def API_V2_STR(self) -> str:
+        """API v2 路径（预留，当前为空路由）"""
+        return f"{self.API_PREFIX}/v2"
+
+    # OpenAPI 版本
+    OPENAPI_VERSION: str = "1.0.0"
+
     # 环境
     DEBUG: bool = False
     ENVIRONMENT: str = "development"  # development, staging, production
@@ -172,8 +180,8 @@ class Settings(BaseSettings):
     # 安全 Header 配置
     SECURITY_HSTS_ENABLED: bool = False  # 生产环境设为 true，启用 HSTS
 
-    # 双写过渡期开关
-    ACCOUNT_DUAL_WRITE_ENABLED: bool = False  # 默认关闭，手动开启
+    # 双写过渡期开关（阶段 1：默认开启，用于验证数据一致性）
+    ACCOUNT_DUAL_WRITE_ENABLED: bool = True  # 阶段 1 开启双写验证
 
     # 新用户默认密码（管理员代创建用户时使用）
     DEFAULT_USER_PASSWORD: str = "Hosp!t@l#2024$xQ"

@@ -81,7 +81,8 @@ class TenantFeatures(BaseModel):
     lowcode_codegen: bool = Field(default=False, description="低代码代码生成")
     lowcode_marketplace: bool = Field(default=False, description="低代码组件市场")
     lowcode_publish_miniapp: bool = Field(default=False, description="低代码发布小程序")
-    lowcode_export_code: bool = Field(default=False, description="低代码导出代码")
+    # deprecated: 将合并到 lowcode_codegen，不再作为独立功能开关
+    lowcode_export_code: bool = Field(default=False, description="低代码导出代码（deprecated，将合并到 lowcode_codegen）")
     lowcode_max_pages: int = Field(default=5, ge=0, description="低代码最大页面数（0表示不限制）")
 
     model_config = ConfigDict(extra="allow")

@@ -16,6 +16,8 @@ export interface MedicalRecord {
   presentIllness?: string;
   pastHistory?: string;
   allergyHistory?: string;
+  familyHistory?: string;
+  medicationHistory?: string;
   physicalExam?: string;
   auxiliaryExam?: string;
   diagnosis: string;
@@ -59,6 +61,8 @@ export interface MedicalRecordCreateData {
   presentIllness?: string;
   pastHistory?: string;
   allergyHistory?: string;
+  familyHistory?: string;
+  medicationHistory?: string;
   physicalExam?: string;
   auxiliaryExam?: string;
   diagnosis: string;
@@ -74,6 +78,8 @@ export interface MedicalRecordUpdateData {
   presentIllness?: string;
   pastHistory?: string;
   allergyHistory?: string;
+  familyHistory?: string;
+  medicationHistory?: string;
   physicalExam?: string;
   auxiliaryExam?: string;
   diagnosis?: string;

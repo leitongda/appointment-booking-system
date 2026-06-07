@@ -265,6 +265,19 @@ class AppointmentFlowService(AppointmentServiceBase):
             )
         except Exception as exc:
             logger.warning(f"就诊完成消息通知发送失败: {exc}")
+
+        # 满意度调查推送
+        try:
+            await message_service.send_appointment_notification(
+                user_id=appointment.user_id,
+                user_type="patient",
+                title="满意度调查",
+                content=f"您在{appointment.doctor_name}医生处的就诊已完成，请对本次就诊体验进行评价，您的反馈是我们改进的动力！",
+                appointment_id=appointment.id,
+            )
+        except Exception as exc:
+            logger.warning(f"满意度调查通知发送失败（不影响主流程）: {exc}")
+
         self._dispatch_email_event(EventType.VISIT_COMPLETED, appointment)
         return appointment
 

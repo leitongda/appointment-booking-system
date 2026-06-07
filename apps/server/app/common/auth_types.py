@@ -140,7 +140,7 @@ class UserInfo:
 class AccountInfo:
     """统一账号信息
 
-    支持三种角色类型：admin、doctor、user
+    支持四种角色类型：admin、doctor、user、operator
     为后续统一账号表打基础，当前通过 role_type 区分不同角色。
     """
     # 基础信息（所有角色共有）
@@ -165,8 +165,8 @@ class AccountInfo:
 
     @property
     def is_admin(self) -> bool:
-        """是否是管理员"""
-        return self.role_type == RoleType.ADMIN
+        """是否是管理员（含运营人员）"""
+        return self.role_type in (RoleType.ADMIN, RoleType.OPERATOR)
 
     @property
     def is_doctor(self) -> bool:
@@ -177,6 +177,11 @@ class AccountInfo:
     def is_user(self) -> bool:
         """是否是普通用户"""
         return self.role_type == RoleType.USER
+
+    @property
+    def is_operator(self) -> bool:
+        """是否是运营人员"""
+        return self.role_type == RoleType.OPERATOR
 
     @property
     def is_super_admin(self) -> bool:
@@ -215,7 +220,8 @@ class AccountInfo:
             admin_data = {
                 "name": self.name,
                 "avatar": self.avatar,
-                "is_admin": True,
+                "is_admin": self.role_type == RoleType.ADMIN,
+                "is_operator": self.role_type == RoleType.OPERATOR,
             }
             if self.admin_info:
                 admin_data.update(self.admin_info.to_dict())
@@ -259,7 +265,7 @@ class AccountInfo:
         doctor_info = None
         user_info = None
 
-        if role_type == RoleType.ADMIN:
+        if role_type in (RoleType.ADMIN, RoleType.OPERATOR):
             admin_info = AdminInfo(
                 role_id=data.get("role_id"),
                 role_code=data.get("role_code"),
