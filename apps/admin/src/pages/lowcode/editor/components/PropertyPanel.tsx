@@ -22,6 +22,7 @@ import { findNodeById } from '../utils/tree';
 import type { PropertyConfig, LowCodeNode, ApiDataSource, ValidationRules, AnimationConfig, LowCodeTheme } from '@hospital/shared';
 import ImageUpload from '@/components/ImageUpload';
 import { EventConfig } from './EventConfig';
+import { LinkageRulesPanel } from './LinkageRulesPanel';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -1275,6 +1276,11 @@ export const PropertyPanel: React.FC = () => {
 
         {/* 事件配置 */}
         <EventConfig />
+
+        {/* 联动规则配置 */}
+        <div style={{ marginTop: 16, padding: '12px 0', borderTop: '1px solid #f0f0f0' }}>
+          <LinkageRulesPanel />
+        </div>
       </div>
     </div>
   );

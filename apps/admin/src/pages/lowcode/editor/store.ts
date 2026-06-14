@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { LowCodeNode, LowCodeSchema, EventHandler, ApiDataSource, LowCodeTheme } from '@hospital/shared';
+import type { LowCodeNode, LowCodeSchema, EventHandler, ApiDataSource, LowCodeTheme, LinkageRule } from '@hospital/shared';
 
 /** 页面状态变量定义 */
 export interface StateVariable {
@@ -90,6 +90,8 @@ interface EditorStore {
   markSaved: () => void;
   /** 更新页面主题配置 */
   updateTheme: (theme: LowCodeTheme) => void;
+  /** 更新节点联动规则 */
+  updateNodeLinkageRules: (nodeId: string | null, rules: LinkageRule[]) => void;
 }
 
 const MAX_HISTORY = 50;
@@ -285,6 +287,26 @@ function removeNodeRecursive(
       return n;
     })
     .filter(Boolean) as LowCodeNode[];
+}
+
+/** 递归更新节点联动规则 */
+function updateNodeLinkageRulesRecursive(
+  nodes: LowCodeNode[],
+  nodeId: string,
+  rules: LinkageRule[],
+): LowCodeNode[] {
+  return nodes.map((n) => {
+    if (n.id === nodeId) {
+      return { ...n, linkageRules: rules };
+    }
+    if (n.children) {
+      return {
+        ...n,
+        children: updateNodeLinkageRulesRecursive(n.children, nodeId, rules),
+      };
+    }
+    return n;
+  });
 }
 
 /** 推送快照到历史记录 */
@@ -514,6 +536,14 @@ export const useEditorStore = create<EditorStore>()(persist(
   updateTheme: (theme) => {
     const { schema } = get();
     const newSchema = { ...schema, theme };
+    get().setSchema(newSchema);
+  },
+
+  updateNodeLinkageRules: (nodeId, rules) => {
+    if (!nodeId) return;
+    const { schema } = get();
+    const newChildren = updateNodeLinkageRulesRecursive(schema.children, nodeId, rules);
+    const newSchema = { ...schema, children: newChildren };
     get().setSchema(newSchema);
   },
 }),
