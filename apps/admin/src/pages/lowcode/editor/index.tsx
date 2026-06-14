@@ -93,7 +93,7 @@ const LowCodeEditor: React.FC = () => {
   const redo = useEditorStore((s) => s.redo);
   const historyIndex = useEditorStore((s) => s.historyIndex);
   const historyLength = useEditorStore((s) => s.history.length);
-  const savedSchema = useEditorStore((s) => s.savedSchema);
+  const isDirty = useEditorStore((s) => s.isDirty);
   const markSaved = useEditorStore((s) => s.markSaved);
   const selectedNodeId = useEditorStore((s) => s.selectedNodeId);
   const removeNode = useEditorStore((s) => s.removeNode);
@@ -219,9 +219,6 @@ const LowCodeEditor: React.FC = () => {
       window.open(`/platform/lowcode/preview/${pageId}`, '_blank');
     }
   }, [pageId]);
-
-  /** 未保存更改标识 */
-  const isDirty = JSON.stringify(schema) !== JSON.stringify(savedSchema);
 
   /** 打开代码生成弹窗 */
   const handleOpenCodeModal = useCallback(() => {
@@ -433,8 +430,6 @@ const LowCodeEditor: React.FC = () => {
 
   /** 未保存更改警告 */
   useEffect(() => {
-    const isDirty = JSON.stringify(schema) !== JSON.stringify(savedSchema);
-
     /** 浏览器关闭/刷新时的警告 */
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isDirty) {
@@ -473,7 +468,7 @@ const LowCodeEditor: React.FC = () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       unblock();
     };
-  }, [schema, savedSchema, handleSave]);
+  }, [isDirty, handleSave]);
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>

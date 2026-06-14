@@ -34,6 +34,8 @@ interface EditorStore {
   pageId: string | null;
   /** 上次保存时的 Schema 快照，用于判断是否有未保存更改 */
   savedSchema: LowCodeSchema;
+  /** 是否有未保存的更改 */
+  isDirty: boolean;
   /** 页面级数据源列表 */
   dataSources: ApiDataSource[];
   /** 页面状态变量定义 */
@@ -341,11 +343,13 @@ export const useEditorStore = create<EditorStore>()(persist(
   loading: false,
   pageId: null,
   savedSchema: cloneSchema(DEFAULT_SCHEMA),
+  isDirty: false,
   dataSources: [],
   stateSchema: {},
 
   setSchema: (schema) => {
     pushHistory(get, set as any, { schema });
+    set({ isDirty: true });
   },
 
   setPageId: (id) => set({ pageId: id }),
@@ -495,6 +499,7 @@ export const useEditorStore = create<EditorStore>()(persist(
         historyIndex: newIndex,
         selectedNodeId: null,
         selectedNodeIds: [],
+        isDirty: true,
       });
     }
   },
@@ -511,6 +516,7 @@ export const useEditorStore = create<EditorStore>()(persist(
         historyIndex: newIndex,
         selectedNodeId: null,
         selectedNodeIds: [],
+        isDirty: true,
       });
     }
   },
@@ -525,12 +531,13 @@ export const useEditorStore = create<EditorStore>()(persist(
       loading: false,
       pageId: null,
       savedSchema: cloneSchema(DEFAULT_SCHEMA),
+      isDirty: false,
       dataSources: [],
       stateSchema: {},
     }),
 
   markSaved: () => {
-    set({ savedSchema: cloneSchema(get().schema) });
+    set({ savedSchema: cloneSchema(get().schema), isDirty: false });
   },
 
   updateTheme: (theme) => {
