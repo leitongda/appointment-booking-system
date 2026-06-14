@@ -639,3 +639,32 @@ describe('Array methods', () => {
     expect(eval_('items.flat()', { items: [[1, 2], [3, 4]] })).toEqual([1, 2, 3, 4]);
   });
 });
+
+// =========================================================================
+// 10. String methods
+// =========================================================================
+describe('String methods', () => {
+  it('trim removes whitespace', () => {
+    expect(eval_("' hello '.trim()")).toBe('hello');
+  });
+
+  it('upper converts to uppercase', () => {
+    expect(eval_("'hello'.upper()")).toBe('HELLO');
+  });
+
+  it('lower converts to lowercase', () => {
+    expect(eval_("'HELLO'.lower()")).toBe('hello');
+  });
+
+  it('split splits string', () => {
+    expect(eval_("'a,b,c'.split(',')")).toEqual(['a', 'b', 'c']);
+  });
+
+  it('replace substitutes text', () => {
+    expect(eval_("'hello world'.replace('world', 'there')")).toBe('hello there');
+  });
+
+  it('slice extracts substring', () => {
+    expect(eval_("'hello'.slice(1, 4)")).toBe('ell');
+  });
+});

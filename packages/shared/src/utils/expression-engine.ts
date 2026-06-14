@@ -569,6 +569,14 @@ const BUILTINS: Record<string, (...args: any[]) => any> = {
   },
 };
 
+// 字符串方法映射（非原生方法）
+const STRING_METHODS: Record<string, (...args: any[]) => any> = {
+  upper: (s: string) => s.toUpperCase(),
+  lower: (s: string) => s.toLowerCase(),
+  replace: (s: string, search: string, replacement: string) => s.replace(search, replacement),
+  slice: (s: string, start: number, end?: number) => s.slice(start, end),
+};
+
 // 危险属性名黑名单，防止原型链污染
 const DANGEROUS_KEYS = new Set([
   '__proto__',
@@ -654,8 +662,13 @@ function evaluate(node: ASTNode, ctx: ExpressionContext): any {
     case 'FunctionCall': {
       if (node.callee.type === 'MemberAccess') {
         const obj = evaluate(node.callee.object, ctx);
-        const method = safeGet(obj, node.callee.property);
+        const methodName = node.callee.property;
         const args = node.args.map((a) => evaluate(a, ctx));
+        // 字符串方法分发
+        if (typeof obj === 'string' && methodName in STRING_METHODS) {
+          return STRING_METHODS[methodName](obj, ...args);
+        }
+        const method = safeGet(obj, methodName);
         if (typeof method === 'function') {
           return method.call(obj, ...args);
         }
