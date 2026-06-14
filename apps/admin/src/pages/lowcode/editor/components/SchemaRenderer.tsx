@@ -18,7 +18,7 @@ function mergeStyles(base: React.CSSProperties, nodeStyle?: Record<string, strin
 }
 
 /** 可拖拽节点包装 — 非 Page 节点可被拖拽用于重排序 */
-function DraggableNode({
+const DraggableNode = React.memo(function DraggableNode({
   nodeId,
   children,
   nodeStyle,
@@ -40,10 +40,10 @@ function DraggableNode({
       {children}
     </div>
   );
-}
+});
 
 /** 可放置区域包装 — 容器节点的子区域可作为放置目标 */
-function DroppableZone({
+const DroppableZone = React.memo(function DroppableZone({
   parentId,
   children,
   style,
@@ -74,10 +74,10 @@ function DroppableZone({
       {children}
     </div>
   );
-}
+});
 
 /** 渲染命名插槽区域 */
-function SlotRenderer({
+const SlotRenderer = React.memo(function SlotRenderer({
   node,
   slotName,
   label,
@@ -129,17 +129,29 @@ function SlotRenderer({
       )}
     </DroppableZone>
   );
+});
+
+/** 选择状态 hook — 仅在选中状态变化时触发重渲染 */
+function useNodeSelection(nodeId: string) {
+  const selectedNodeId = useEditorStore((s) => s.selectedNodeId);
+  const selectedNodeIds = useEditorStore((s) => s.selectedNodeIds);
+  const isSelected = selectedNodeIds.length > 1
+    ? selectedNodeIds.includes(nodeId)
+    : selectedNodeId === nodeId;
+  return { isSelected, selectedNodeIds };
+}
+
+/** 选择操作 hook — action 引用稳定，不会触发重渲染 */
+function useNodeActions() {
+  const selectNode = useEditorStore((s) => s.selectNode);
+  const toggleNodeSelect = useEditorStore((s) => s.toggleNodeSelect);
+  return { selectNode, toggleNodeSelect };
 }
 
 /** 单个节点渲染 */
-function NodeRenderer({ node, depth = 0 }: { node: LowCodeNode; depth?: number }) {
-  const selectedNodeId = useEditorStore((s) => s.selectedNodeId);
-  const selectedNodeIds = useEditorStore((s) => s.selectedNodeIds);
-  const selectNode = useEditorStore((s) => s.selectNode);
-  const toggleNodeSelect = useEditorStore((s) => s.toggleNodeSelect);
-  const isSelected = selectedNodeIds.length > 1
-    ? selectedNodeIds.includes(node.id)
-    : selectedNodeId === node.id;
+const NodeRenderer = React.memo(function NodeRenderer({ node, depth = 0 }: { node: LowCodeNode; depth?: number }) {
+  const { isSelected } = useNodeSelection(node.id);
+  const { selectNode, toggleNodeSelect } = useNodeActions();
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -917,7 +929,7 @@ function NodeRenderer({ node, depth = 0 }: { node: LowCodeNode; depth?: number }
   // Page 根节点不可拖拽，其余节点可拖拽用于重排序
   if (node.componentName === 'Page') return content;
   return <DraggableNode nodeId={node.id} nodeStyle={node.style}>{content}</DraggableNode>;
-}
+});
 
 /** 画布渲染入口 */
 export const SchemaRenderer: React.FC = () => {
