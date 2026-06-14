@@ -109,6 +109,8 @@ ROUTER_REGISTRATIONS = [
     RouterRegistration("app.modules.approval_flows.router_instances", "/approval-instances", ["审批实例"]),
     RouterRegistration("app.modules.common_services.router", "/common-services", ["常见服务"]),
     RouterRegistration("app.modules.feedbacks.router", "/feedbacks", ["用户反馈"]),
+    RouterRegistration("app.modules.guide_tours.router", "/guide-tours", ["操作指引"]),
+    RouterRegistration("app.modules.guide_tours.router_admin", "/admin/guide-tours", ["操作指引管理"]),
 
     # --------------------------------------------------------------- #
     #  低代码 / 小程序平台 — 长期保留

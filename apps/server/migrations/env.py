@@ -22,6 +22,7 @@ from app.models import settings, store, user
 from app.models import miniapp_platform, tenant, refund
 from app.models import notification_log, notification_preference
 from app.models import approval_flow
+from app.models import guide_tour
 
 # this is the Alembic Config object
 config = context.config

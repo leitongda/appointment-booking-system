@@ -513,3 +513,10 @@ export type {
   LowCodeTemplateCategoryItem,
   LowCodeTemplateForkResponse,
 } from '@hospital/shared';
+
+// 操作指引
+export { guideToursApi } from './modules/guide-tours';
+export type { GuideTourItem, TourStep, GuideTourProgress, LocaleMap } from './modules/guide-tours';
+
+export { adminGuideToursApi } from './modules/admin-guide-tours';
+export type { GuideTourDetail, GuideTourListItem, GuideTourFormData } from './modules/admin-guide-tours';

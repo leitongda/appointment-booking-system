@@ -3,6 +3,7 @@ import { FullscreenButton, NotificationButton, RefreshButton, StoreSwitcher } fr
 import TenantSwitcher from '@/components/TenantSwitcher';
 import TenantStatusBanner from '@/components/TenantStatusBanner';
 import PageTransitionWrapper from '@/components/PageTransitionWrapper';
+import GuidedTour from '@/components/GuidedTour';
 import { getToken, removeToken, setStorage, getStorage, removeStorage, STORAGE_KEYS, initCrossTabSync, isPublicEntryRoute, subscribeTenantSuspended, getTracker, recordRouteChange } from '@hospital/shared';
 import type { MiniappStoreThemeValue } from '@hospital/shared';
 import { adminApi } from '@hospital/api';
@@ -20,6 +21,13 @@ import { initVisibilityAuthCheck } from '@/utils/visibilityAuth';
 import { initApp } from '@/utils/initApp';
 import { applySpacingCSSVariables, getSpacingMode } from '@/utils/spacing';
 import { LOGIN_PATH } from '@/constants/paths';
+
+// PWA Service Worker 注册
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
 
 // 初始化应用（API、追踪器、性能监控）
 initApp();
@@ -246,6 +254,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }: a
         <>
           <TenantStatusBanner />
           <PageTransitionWrapper>{children}</PageTransitionWrapper>
+          <GuidedTour autoTrigger />
         </>
       );
     },

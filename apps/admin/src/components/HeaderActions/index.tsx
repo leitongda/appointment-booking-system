@@ -5,6 +5,8 @@ import { StoreQuickActions } from './StoreQuickActions';
 import { NotificationButton } from './NotificationButton';
 import { FullscreenButton } from './FullscreenButton';
 import { RefreshButton } from './RefreshButton';
+import { GuideTourButton } from './GuideTourButton';
+import { LocaleSwitcher } from './LocaleSwitcher';
 import styles from './index.less';
 
 export const HeaderActions: React.FC = () => {
@@ -14,6 +16,8 @@ export const HeaderActions: React.FC = () => {
       <StoreSwitcher />
       <StoreQuickActions />
       <RefreshButton />
+      <GuideTourButton />
+      <LocaleSwitcher />
       <NotificationButton />
       <FullscreenButton />
     </Space>
@@ -27,4 +31,6 @@ export { StoreQuickActions };
 export { NotificationButton };
 export { FullscreenButton };
 export { RefreshButton };
+export { GuideTourButton };
+export { LocaleSwitcher };
 export type { Message } from './types';

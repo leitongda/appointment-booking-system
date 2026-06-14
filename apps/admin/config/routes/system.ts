@@ -90,6 +90,16 @@ const system = [
           { path: '/system/data/backup', name: '数据备份', icon: 'cloud', component: './system/data-backup' },
         ],
       },
+      {
+        path: '/system/guide-tours',
+        name: '操作指引',
+        icon: 'question-circle',
+        routes: [
+          { path: '/system/guide-tours', component: './system/guide-tours' },
+          { path: '/system/guide-tours/create', name: '新建指引', component: './system/guide-tours/form', hideInMenu: true },
+          { path: '/system/guide-tours/:id/edit', name: '编辑指引', component: './system/guide-tours/form', hideInMenu: true },
+        ],
+      },
     ],
   },
 ];
