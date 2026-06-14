@@ -567,6 +567,14 @@ const BUILTINS: Record<string, (...args: any[]) => any> = {
   flat(arr: any[], depth: number = 1): any[] {
     return arr.flat(depth);
   },
+
+  // 数学函数
+  min: (...args: number[]) => Math.min(...args),
+  max: (...args: number[]) => Math.max(...args),
+  round: (n: number) => Math.round(n),
+  abs: (n: number) => Math.abs(n),
+  floor: (n: number) => Math.floor(n),
+  ceil: (n: number) => Math.ceil(n),
 };
 
 // 字符串方法映射（非原生方法）

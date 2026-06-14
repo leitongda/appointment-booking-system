@@ -668,3 +668,32 @@ describe('String methods', () => {
     expect(eval_("'hello'.slice(1, 4)")).toBe('ell');
   });
 });
+
+// =========================================================================
+// 11. Math functions
+// =========================================================================
+describe('Math functions', () => {
+  it('min returns minimum value', () => {
+    expect(eval_('min(3, 1, 2)')).toBe(1);
+  });
+
+  it('max returns maximum value', () => {
+    expect(eval_('max(3, 1, 2)')).toBe(3);
+  });
+
+  it('round rounds to nearest integer', () => {
+    expect(eval_('round(3.7)')).toBe(4);
+  });
+
+  it('abs returns absolute value', () => {
+    expect(eval_('abs(-5)')).toBe(5);
+  });
+
+  it('floor rounds down', () => {
+    expect(eval_('floor(3.7)')).toBe(3);
+  });
+
+  it('ceil rounds up', () => {
+    expect(eval_('ceil(3.2)')).toBe(4);
+  });
+});
