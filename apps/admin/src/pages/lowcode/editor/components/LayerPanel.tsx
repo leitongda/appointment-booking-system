@@ -1,7 +1,7 @@
 /** 图层面板 — 树形展示组件层级，支持选中、拖拽排序、删除、显隐切换 */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { Tree, Tooltip, Typography, Empty, Space } from 'antd';
+import { Tree, Tooltip, Typography, Empty, Space, Tabs } from 'antd';
 import {
   EyeOutlined,
   EyeInvisibleOutlined,
@@ -25,10 +25,13 @@ import {
   DownSquareOutlined,
   InboxOutlined,
   UnorderedListOutlined,
+  ApartmentOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
 import { useEditorStore } from '../store';
 import type { LowCodeNode } from '@hospital/shared';
+import { StateVariablePanel } from './StateVariablePanel';
 
 const { Text } = Typography;
 
@@ -365,7 +368,7 @@ export const LayerPanel: React.FC = () => {
     return count;
   }, [schema.children]);
 
-  return (
+  const layerContent = (
     <div
       style={{
         height: '100%',
@@ -374,24 +377,6 @@ export const LayerPanel: React.FC = () => {
         overflow: 'hidden',
       }}
     >
-      {/* 面板标题 */}
-      <div
-        style={{
-          padding: '8px 12px',
-          borderBottom: '1px solid #f0f0f0',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <Text strong style={{ fontSize: 13 }}>
-          图层
-        </Text>
-        <Text type="secondary" style={{ fontSize: 11 }}>
-          {totalCount} 个组件
-        </Text>
-      </div>
-
       {/* 树形列表 */}
       <div style={{ flex: 1, overflow: 'auto', padding: '4px 0' }}>
         {treeData.length > 0 ? (
@@ -427,6 +412,44 @@ export const LayerPanel: React.FC = () => {
       >
         点击选中 | 上下箭头排序 | 拖拽至画布添加
       </div>
+    </div>
+  );
+
+  return (
+    <div
+      style={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      <Tabs
+        size="small"
+        items={[
+          {
+            key: 'layers',
+            label: (
+              <span style={{ fontSize: 12 }}>
+                <ApartmentOutlined /> 图层
+                <Text type="secondary" style={{ fontSize: 11, marginLeft: 4 }}>
+                  {totalCount}
+                </Text>
+              </span>
+            ),
+            children: layerContent,
+          },
+          {
+            key: 'state',
+            label: (
+              <span style={{ fontSize: 12 }}>
+                <SettingOutlined /> 状态变量
+              </span>
+            ),
+            children: <StateVariablePanel />,
+          },
+        ]}
+      />
     </div>
   );
 };
