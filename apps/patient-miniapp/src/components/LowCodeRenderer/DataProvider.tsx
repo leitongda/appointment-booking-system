@@ -21,8 +21,8 @@
  */
 
 import React, { createContext, useContext, type ReactNode } from 'react';
-import type { PageDataSource } from '@hospital/shared';
-import { useDataManager, type StateMap, type DataSourceMap } from './data-manager';
+import type { PageDataSource, LinkageRule } from '@hospital/shared';
+import { useDataManager, type DataSourceMap } from './data-manager';
 
 // ---------------------------------------------------------------------------
 // Context type
@@ -30,7 +30,7 @@ import { useDataManager, type StateMap, type DataSourceMap } from './data-manage
 
 export interface LowCodeDataContextValue {
   /** 页面可变状态 */
-  state: StateMap;
+  state: Record<string, any>;
   /** 所有数据源的运行时结果 */
   dataSources: DataSourceMap;
   /** 设置页面状态字段 */
@@ -41,6 +41,12 @@ export interface LowCodeDataContextValue {
   fetchDataSource: (dataSourceId: string) => Promise<void>;
   /** 对绑定表达式求值，支持 "{{state.xxx}}" / "{{api.xxx.data}}" */
   evaluate: (expression: string) => any;
+  /** 更新字段值并执行指定联动规则 */
+  setDataAndExecuteLinkage: (
+    fieldId: string,
+    value: any,
+    rules: LinkageRule[],
+  ) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -71,7 +77,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({
   pageParams,
   children,
 }) => {
-  const manager = useDataManager(dataSources, stateSchema, pageParams);
+  const manager = useDataManager({ dataSources, stateSchema, pageParams });
 
   return (
     <LowCodeDataContext.Provider value={manager}>

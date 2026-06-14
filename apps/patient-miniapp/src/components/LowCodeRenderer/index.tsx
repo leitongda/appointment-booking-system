@@ -3,8 +3,9 @@
 import React, { useContext, createContext } from 'react';
 import { View, Text, Image, Swiper, SwiperItem, Input, Textarea, Switch, Picker } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import type { LowCodeNode, PageDataSource, EventHandler, EventAction } from '@hospital/shared';
+import type { LowCodeNode, PageDataSource, EventHandler, EventAction, LinkageRule } from '@hospital/shared';
 import { DataProvider, useLowCodeData, type LowCodeDataContextValue } from './DataProvider';
+import { executeLinkageRules } from './data-manager';
 
 interface LowCodeRendererProps {
   schema: LowCodeNode;
@@ -131,10 +132,12 @@ function resolveProps(
 /**
  * 为节点创建事件处理函数映射。
  * 将 EventHandler[] 转换为 { onClick: () => ..., onLongPress: () => ... } 形式。
+ * 事件处理完成后自动执行节点的联动规则。
  */
 function bindEvents(
   events: EventHandler[] | undefined,
   dataCtx: LowCodeDataContextValue | null,
+  linkageRules?: LinkageRule[],
 ): Record<string, () => void> {
   if (!events || events.length === 0) return {};
 
@@ -146,6 +149,15 @@ function bindEvents(
     const executeActions = () => {
       for (const action of actions) {
         executeAction(action, dataCtx);
+      }
+
+      // 执行联动规则
+      if (linkageRules && linkageRules.length > 0 && dataCtx) {
+        executeLinkageRules(linkageRules, dataCtx.state, (updates) => {
+          for (const [k, v] of Object.entries(updates)) {
+            dataCtx.setData(k, v);
+          }
+        });
       }
     };
 
@@ -260,7 +272,7 @@ function NodeRenderer({ node }: { node: LowCodeNode }) {
 
   // ---- 3. 绑定事件 ----
   const allEvents = [...(node.events || []), ...(node.dataBinding?.events || [])];
-  const eventHandlers = bindEvents(allEvents, dataCtx);
+  const eventHandlers = bindEvents(allEvents, dataCtx, node.linkageRules);
 
   // ---- 4. 循环渲染 ----
   if (node.loop && dataCtx) {

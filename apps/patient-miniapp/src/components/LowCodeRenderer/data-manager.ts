@@ -12,6 +12,7 @@
 import { useState, useEffect, useRef, useCallback } from '@tarojs/taro';
 import Taro from '@tarojs/taro';
 import type { ApiDataSource, PageDataSource } from '@hospital/shared';
+import type { LinkageRule, LinkageCondition, LinkageAction } from '@hospital/shared';
 import { evaluateExpression } from '@hospital/shared/src/utils/expression-engine';
 
 // ---------------------------------------------------------------------------
@@ -53,6 +54,12 @@ export interface DataManager {
   fetchDataSource: (id: string, params?: Record<string, any>) => Promise<void>;
   /** 表达式求值, 自动注入 pageParams / apiData / formData / custom 变量 */
   evaluate: (expr: string) => any;
+  /** 更新字段值并执行指定联动规则 */
+  setDataAndExecuteLinkage: (
+    fieldId: string,
+    value: any,
+    rules: LinkageRule[],
+  ) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,6 +110,86 @@ function setNestedValue(
 
   current[segments[segments.length - 1]] = value;
   return clone;
+}
+
+// ---------------------------------------------------------------------------
+// 联动规则
+// ---------------------------------------------------------------------------
+
+/** 评估联动规则条件 */
+export function evaluateLinkageCondition(
+  condition: LinkageCondition,
+  context: Record<string, any>,
+): boolean {
+  const sourceValue = context[condition.sourceFieldId];
+
+  switch (condition.operator) {
+    case 'equals':
+      return sourceValue === condition.value;
+    case 'notEquals':
+      return sourceValue !== condition.value;
+    case 'contains':
+      return String(sourceValue).includes(String(condition.value));
+    case 'greaterThan':
+      return Number(sourceValue) > Number(condition.value);
+    case 'lessThan':
+      return Number(sourceValue) < Number(condition.value);
+    case 'isEmpty':
+      return sourceValue == null || sourceValue === '';
+    case 'isNotEmpty':
+      return sourceValue != null && sourceValue !== '';
+    default:
+      return false;
+  }
+}
+
+/** 执行联动规则动作 */
+export function executeLinkageAction(
+  action: LinkageAction,
+  _context: Record<string, any>,
+  updateContext: (updates: Record<string, any>) => void,
+): void {
+  const updates: Record<string, any> = {};
+
+  switch (action.type) {
+    case 'setValue':
+      updates[action.targetFieldId] = action.value;
+      break;
+    case 'setVisible':
+      updates[`${action.targetFieldId}_visible`] = action.value === 'true' || action.value === true;
+      break;
+    case 'setDisabled':
+      updates[`${action.targetFieldId}_disabled`] = action.value === 'true' || action.value === true;
+      break;
+    case 'setRequired':
+      updates[`${action.targetFieldId}_required`] = action.value === 'true' || action.value === true;
+      break;
+  }
+
+  updateContext(updates);
+}
+
+/** 执行节点的所有联动规则 */
+export function executeLinkageRules(
+  rules: LinkageRule[],
+  context: Record<string, any>,
+  updateContext: (updates: Record<string, any>) => void,
+): void {
+  for (const rule of rules) {
+    if (!rule.enabled) continue;
+
+    // 检查所有条件（AND 关系）
+    const allConditionsMet = rule.conditions.every((cond) =>
+      evaluateLinkageCondition(cond, context),
+    );
+
+    if (allConditionsMet) {
+      // 执行所有动作
+      for (const action of rule.actions) {
+        executeLinkageAction(action, context, updateContext);
+      }
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -217,6 +304,28 @@ export function useDataManager(options: UseDataManagerOptions = {}): DataManager
     setState((prev) => setNestedValue(prev, path, value));
   }, []);
 
+  // ---- setDataAndExecuteLinkage ----
+  const setDataAndExecuteLinkage = useCallback(
+    (fieldId: string, value: any, rules: LinkageRule[]) => {
+      setState((prev) => {
+        const afterField = setNestedValue(prev, fieldId, value);
+        if (rules.length === 0) return afterField;
+
+        const updates: Record<string, any> = {};
+        executeLinkageRules(rules, afterField, (u) => {
+          Object.assign(updates, u);
+        });
+
+        let merged = afterField;
+        for (const [k, v] of Object.entries(updates)) {
+          merged = setNestedValue(merged, k, v);
+        }
+        return merged;
+      });
+    },
+    [],
+  );
+
   // ---- getData ----
   const getData = useCallback((path: string) => {
     return getNestedValue(stateRef.current, path);
@@ -327,6 +436,7 @@ export function useDataManager(options: UseDataManagerOptions = {}): DataManager
     getData,
     fetchDataSource,
     evaluate,
+    setDataAndExecuteLinkage,
   };
 }
 
