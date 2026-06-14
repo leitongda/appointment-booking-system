@@ -42,7 +42,11 @@ type NodeType =
   | 'MemberAccess'
   | 'IndexAccess'
   | 'FunctionCall'
-  | 'ArrowFunction';
+  | 'ArrowFunction'
+  | 'NullishCoalescing'
+  | 'OptionalChaining'
+  | 'OptionalIndexAccess'
+  | 'OptionalCall';
 
 interface BaseNode {
   type: NodeType;
@@ -99,6 +103,30 @@ interface ArrowFunctionNode extends BaseNode {
   body: ASTNode;
 }
 
+interface NullishCoalescingNode extends BaseNode {
+  type: 'NullishCoalescing';
+  left: ASTNode;
+  right: ASTNode;
+}
+
+interface OptionalChainingNode extends BaseNode {
+  type: 'OptionalChaining';
+  object: ASTNode;
+  property: string;
+}
+
+interface OptionalIndexAccessNode extends BaseNode {
+  type: 'OptionalIndexAccess';
+  object: ASTNode;
+  index: ASTNode;
+}
+
+interface OptionalCallNode extends BaseNode {
+  type: 'OptionalCall';
+  callee: ASTNode;
+  args: ASTNode[];
+}
+
 type ASTNode =
   | NumberLiteralNode
   | StringLiteralNode
@@ -112,7 +140,11 @@ type ASTNode =
   | MemberAccessNode
   | IndexAccessNode
   | FunctionCallNode
-  | ArrowFunctionNode;
+  | ArrowFunctionNode
+  | NullishCoalescingNode
+  | OptionalChainingNode
+  | OptionalIndexAccessNode
+  | OptionalCallNode;
 
 // ---------------------------------------------------------------------------
 // Tokeniser
@@ -134,7 +166,7 @@ interface Token {
 
 const KEYWORDS = new Set(['true', 'false', 'null', 'undefined']);
 
-const TWO_CHAR_OPS = new Set(['===', '!==', '>=', '<=', '&&', '||', '=>']);
+const TWO_CHAR_OPS = new Set(['===', '!==', '>=', '<=', '&&', '||', '=>', '??', '?.']);
 
 function tokenize(input: string): Token[] {
   const tokens: Token[] = [];
@@ -324,7 +356,7 @@ class Parser {
   }
 
   private parseTernary(): ASTNode {
-    const condition = this.parseLogicalOr();
+    const condition = this.parseNullishCoalescing();
     if (this.peek().type === 'Operator' && this.peek().value === '?') {
       this.advance(); // consume '?'
       const consequent = this.parseExpr();
@@ -341,6 +373,16 @@ class Parser {
       this.advance();
       const right = this.parseLogicalAnd();
       left = { type: 'BinaryOp', op: '||', left, right };
+    }
+    return left;
+  }
+
+  private parseNullishCoalescing(): ASTNode {
+    let left = this.parseLogicalOr();
+    while (this.peek().type === 'Operator' && this.peek().value === '??') {
+      this.advance();
+      const right = this.parseLogicalOr();
+      left = { type: 'NullishCoalescing', left, right };
     }
     return left;
   }
@@ -438,6 +480,33 @@ class Parser {
         }
         this.expect('Punctuation', ')');
         node = { type: 'FunctionCall', callee: node, args };
+        continue;
+      }
+      // optional chaining: ?.property, ?.[expr], ?.()
+      if (t.type === 'Operator' && t.value === '?.') {
+        this.advance(); // consume ?.
+        const next = this.peek();
+        if (next.type === 'Ident') {
+          const prop = this.advance();
+          node = { type: 'OptionalChaining', object: node, property: prop.value };
+        } else if (next.type === 'Punctuation' && next.value === '[') {
+          this.advance(); // consume [
+          const index = this.parseExpr();
+          this.expect('Punctuation', ']');
+          node = { type: 'OptionalIndexAccess', object: node, index };
+        } else if (next.type === 'Punctuation' && next.value === '(') {
+          this.advance(); // consume (
+          const args: ASTNode[] = [];
+          if (!(this.peek().type === 'Punctuation' && this.peek().value === ')')) {
+            args.push(this.parseExpr());
+            while (this.peek().type === 'Punctuation' && this.peek().value === ',') {
+              this.advance();
+              args.push(this.parseExpr());
+            }
+          }
+          this.expect('Punctuation', ')');
+          node = { type: 'OptionalCall', callee: node, args };
+        }
         continue;
       }
       break;
@@ -682,6 +751,22 @@ function evaluate(node: ASTNode, ctx: ExpressionContext): any {
         }
         return undefined;
       }
+      if (node.callee.type === 'OptionalChaining') {
+        const obj = evaluate(node.callee.object, ctx);
+        if (obj == null) return undefined;
+        const methodName = node.callee.property;
+        const args = node.args.map((a) => evaluate(a, ctx));
+        if (typeof obj === 'string' && methodName in STRING_METHODS) {
+          return STRING_METHODS[methodName](obj, ...args);
+        }
+        const method = (typeof obj !== 'object' && typeof obj !== 'function')
+          ? obj[methodName]
+          : safeGet(obj, methodName);
+        if (typeof method === 'function') {
+          return method.call(obj, ...args);
+        }
+        return undefined;
+      }
       const callee = evaluate(node.callee, ctx);
       const args = node.args.map((a) => evaluate(a, ctx));
       if (typeof callee === 'function') {
@@ -699,6 +784,33 @@ function evaluate(node: ASTNode, ctx: ExpressionContext): any {
         });
         return evaluate(bodyNode, childCtx);
       };
+    }
+    case 'NullishCoalescing': {
+      const left = evaluate(node.left, ctx);
+      return left ?? evaluate(node.right, ctx);
+    }
+    case 'OptionalChaining': {
+      const obj = evaluate(node.object, ctx);
+      if (obj == null) return undefined;
+      return safeGet(obj, node.property);
+    }
+    case 'OptionalIndexAccess': {
+      const obj = evaluate(node.object, ctx);
+      if (obj == null) return undefined;
+      const key = evaluate(node.index, ctx);
+      if (typeof key === 'string' && DANGEROUS_KEYS.has(key)) {
+        return undefined;
+      }
+      return obj[key];
+    }
+    case 'OptionalCall': {
+      const callee = evaluate(node.callee, ctx);
+      if (callee == null) return undefined;
+      const args = node.args.map((a) => evaluate(a, ctx));
+      if (typeof callee === 'function') {
+        return callee(...args);
+      }
+      return undefined;
     }
     default:
       return undefined;

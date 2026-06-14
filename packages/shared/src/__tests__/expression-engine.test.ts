@@ -697,3 +697,31 @@ describe('Math functions', () => {
     expect(eval_('ceil(3.2)')).toBe(4);
   });
 });
+
+// =========================================================================
+// 12. Nullish coalescing and optional chaining
+// =========================================================================
+describe('Nullish coalescing and optional chaining', () => {
+  it('?? returns right side if left is null/undefined', () => {
+    expect(eval_('null ?? "default"')).toBe('default');
+    expect(eval_('undefined ?? "default"')).toBe('default');
+    expect(eval_('0 ?? "default"')).toBe(0);
+    expect(eval_("'' ?? 'default'")).toBe('');
+  });
+
+  it('?. accesses property safely', () => {
+    expect(eval_('obj?.name', { obj: { name: 'test' } })).toBe('test');
+    expect(eval_('obj?.name', { obj: null })).toBeUndefined();
+    expect(eval_('obj?.name', { obj: {} })).toBeUndefined();
+  });
+
+  it('?.[] accesses index safely', () => {
+    expect(eval_('arr?.[0]', { arr: [1, 2, 3] })).toBe(1);
+    expect(eval_('arr?.[0]', { arr: null })).toBeUndefined();
+  });
+
+  it('?.() calls method safely', () => {
+    expect(eval_('obj?.toString()', { obj: 42 })).toBe('42');
+    expect(eval_('obj?.toString()', { obj: null })).toBeUndefined();
+  });
+});
