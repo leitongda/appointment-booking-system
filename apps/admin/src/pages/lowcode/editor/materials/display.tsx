@@ -198,4 +198,24 @@ export const displayMaterials: MaterialComponent[] = [
       { key: 'strokeWidth', label: '线条宽度', type: 'input', defaultValue: '6px' },
     ],
   },
+  {
+    componentName: 'NutDialog',
+    title: '对话框',
+    icon: '💬',
+    category: 'display',
+    defaultProps: {
+      title: '提示',
+      content: '这是一段内容',
+      visible: false,
+      confirmText: '确定',
+      cancelText: '取消',
+    },
+    configureSchema: [
+      { key: 'title', label: '标题', type: 'input', defaultValue: '提示' },
+      { key: 'content', label: '内容', type: 'textarea', defaultValue: '这是一段内容' },
+      { key: 'confirmText', label: '确定按钮', type: 'input', defaultValue: '确定' },
+      { key: 'cancelText', label: '取消按钮', type: 'input', defaultValue: '取消' },
+      { key: 'visible', label: '显示', type: 'switch', defaultValue: false },
+    ],
+  },
 ];
