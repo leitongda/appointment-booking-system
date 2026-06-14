@@ -1,8 +1,9 @@
 /** Schema 渲染器 — 将 Schema 节点树渲染为 React 组件 */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/react';
 import { useEditorStore } from '../store';
+import { ContextMenu } from './ContextMenu';
 import type { LowCodeNode } from '@hospital/shared';
 
 /** 合并样式：将 node.style 与基础样式合并 */
@@ -152,6 +153,7 @@ function useNodeActions() {
 const NodeRenderer = React.memo(function NodeRenderer({ node, depth = 0 }: { node: LowCodeNode; depth?: number }) {
   const { isSelected } = useNodeSelection(node.id);
   const { selectNode, toggleNodeSelect } = useNodeActions();
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -160,6 +162,12 @@ const NodeRenderer = React.memo(function NodeRenderer({ node, depth = 0 }: { nod
     } else {
       selectNode(node.id);
     }
+  };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY });
   };
 
   // 渲染组件映射
@@ -892,38 +900,49 @@ const NodeRenderer = React.memo(function NodeRenderer({ node, depth = 0 }: { nod
   const isMultiSelected = selectedNodeIds.length > 1 && selectedNodeIds.includes(node.id);
 
   const content = (
-    <div
-      onClick={handleClick}
-      style={{
-        outline: isSelected ? '2px solid #1677ff' : isMultiSelected ? '2px solid #52c41a' : '1px dashed transparent',
-        outlineOffset: isSelected || isMultiSelected ? -1 : 0,
-        position: 'relative',
-        transition: 'outline 0.15s',
-        cursor: 'pointer',
-      }}
-      data-node-id={node.id}
-      data-component={node.componentName}
-    >
-      {(isSelected || isMultiSelected) && (
-        <div
-          style={{
-            position: 'absolute',
-            top: -20,
-            left: 0,
-            background: isMultiSelected ? '#52c41a' : '#1677ff',
-            color: '#fff',
-            fontSize: 11,
-            padding: '1px 6px',
-            borderRadius: 3,
-            zIndex: 10,
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {node.componentName}
-        </div>
+    <>
+      <div
+        onClick={handleClick}
+        onContextMenu={handleContextMenu}
+        style={{
+          outline: isSelected ? '2px solid #1677ff' : isMultiSelected ? '2px solid #52c41a' : '1px dashed transparent',
+          outlineOffset: isSelected || isMultiSelected ? -1 : 0,
+          position: 'relative',
+          transition: 'outline 0.15s',
+          cursor: 'pointer',
+        }}
+        data-node-id={node.id}
+        data-component={node.componentName}
+      >
+        {(isSelected || isMultiSelected) && (
+          <div
+            style={{
+              position: 'absolute',
+              top: -20,
+              left: 0,
+              background: isMultiSelected ? '#52c41a' : '#1677ff',
+              color: '#fff',
+              fontSize: 11,
+              padding: '1px 6px',
+              borderRadius: 3,
+              zIndex: 10,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {node.componentName}
+          </div>
+        )}
+        {renderComponent()}
+      </div>
+      {contextMenu && (
+        <ContextMenu
+          nodeId={node.id}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+        />
       )}
-      {renderComponent()}
-    </div>
+    </>
   );
 
   // Page 根节点不可拖拽，其余节点可拖拽用于重排序

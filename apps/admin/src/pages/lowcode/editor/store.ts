@@ -94,9 +94,15 @@ interface EditorStore {
   updateTheme: (theme: LowCodeTheme) => void;
   /** 更新节点联动规则 */
   updateNodeLinkageRules: (nodeId: string | null, rules: LinkageRule[]) => void;
+  /** 复制节点 */
+  duplicateNode: (nodeId: string) => void;
+  /** 将节点在同级中上移 */
+  moveNodeUp: (nodeId: string) => void;
+  /** 将节点在同级中下移 */
+  moveNodeDown: (nodeId: string) => void;
 }
 
-const MAX_HISTORY = 50;
+const MAX_HISTORY = 30;
 
 const DEFAULT_SCHEMA: LowCodeSchema = {
   componentName: 'Page',
@@ -326,6 +332,13 @@ function pushHistory(
   const newHistory = state.history.slice(0, state.historyIndex + 1);
   newHistory.push(snapshot);
   if (newHistory.length > MAX_HISTORY) newHistory.shift();
+
+  if (process.env.NODE_ENV === 'development') {
+    console.log(
+      `History size: ${newHistory.length}, Memory: ~${Math.round(JSON.stringify(newHistory).length / 1024)}KB`,
+    );
+  }
+
   set({
     ...overrides,
     history: newHistory,
@@ -552,6 +565,70 @@ export const useEditorStore = create<EditorStore>()(persist(
     const newChildren = updateNodeLinkageRulesRecursive(schema.children, nodeId, rules);
     const newSchema = { ...schema, children: newChildren };
     get().setSchema(newSchema);
+  },
+
+  duplicateNode: (nodeId) => {
+    const { schema } = get();
+    const node = findNode(schema.children, nodeId);
+    if (!node) return;
+    const clone: LowCodeNode = JSON.parse(JSON.stringify(node));
+    // 为克隆节点及其子节点生成新 ID
+    const reId = (n: LowCodeNode): LowCodeNode => ({
+      ...n,
+      id: crypto.randomUUID(),
+      children: n.children?.map(reId),
+    });
+    const cloned = reId(clone);
+    const parent = findParent(schema.children, nodeId);
+    if (parent) {
+      const idx = parent.children!.findIndex((c) => c.id === nodeId);
+      const newChildren = addNodeRecursive(schema.children, parent.id, cloned, idx + 1);
+      get().setSchema({ ...schema, children: newChildren });
+    } else {
+      // 根级节点
+      const idx = schema.children.findIndex((c) => c.id === nodeId);
+      const newChildren = [...schema.children];
+      newChildren.splice(idx + 1, 0, cloned);
+      get().setSchema({ ...schema, children: newChildren });
+    }
+  },
+
+  moveNodeUp: (nodeId) => {
+    const { schema } = get();
+    const parent = findParent(schema.children, nodeId);
+    const children = parent ? parent.children! : schema.children;
+    const idx = children.findIndex((c) => c.id === nodeId);
+    if (idx <= 0) return;
+    // 交换 idx 和 idx-1
+    const newChildren = [...children];
+    [newChildren[idx - 1], newChildren[idx]] = [newChildren[idx], newChildren[idx - 1]];
+    if (parent) {
+      const updated = addNodeRecursive(schema.children, parent.id, children[idx], idx - 1);
+      // 先移除旧位置
+      const withoutOld = removeNodeRecursive(updated, nodeId);
+      get().setSchema({ ...schema, children: withoutOld });
+    } else {
+      get().setSchema({ ...schema, children: newChildren });
+    }
+  },
+
+  moveNodeDown: (nodeId) => {
+    const { schema } = get();
+    const parent = findParent(schema.children, nodeId);
+    const children = parent ? parent.children! : schema.children;
+    const idx = children.findIndex((c) => c.id === nodeId);
+    if (idx < 0 || idx >= children.length - 1) return;
+    // 先上移 idx+1 的节点即可
+    const swappedId = children[idx + 1].id;
+    const newChildren = [...children];
+    [newChildren[idx], newChildren[idx + 1]] = [newChildren[idx + 1], newChildren[idx]];
+    if (parent) {
+      const updated = addNodeRecursive(schema.children, parent.id, children[idx + 1], idx);
+      const withoutOld = removeNodeRecursive(updated, swappedId);
+      get().setSchema({ ...schema, children: withoutOld });
+    } else {
+      get().setSchema({ ...schema, children: newChildren });
+    }
   },
 }),
 {
