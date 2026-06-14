@@ -194,6 +194,8 @@ export interface LowCodeNode {
   animation?: AnimationConfig;
   /** 命名插槽: 容器组件可定义 header/footer/content 等插槽区域 */
   slots?: Record<string, LowCodeNode[]>;
+  /** 联动规则列表 */
+  linkageRules?: LinkageRule[];
 }
 
 /** 物料组件定义 */
@@ -369,4 +371,42 @@ export interface LowCodeTemplateCategoryItem {
 export interface LowCodeTemplateForkResponse {
   pageId: string;
   message: string;
+}
+
+// ---------------------------------------------------------------------------
+// Linkage rules types
+// ---------------------------------------------------------------------------
+
+/** 联动规则条件 */
+export interface LinkageCondition {
+  /** 源字段ID */
+  sourceFieldId: string;
+  /** 条件运算符 */
+  operator: 'equals' | 'notEquals' | 'contains' | 'greaterThan' | 'lessThan' | 'isEmpty' | 'isNotEmpty';
+  /** 比较值（可选，isEmpty/isNotEmpty 时不需要） */
+  value?: any;
+}
+
+/** 联动规则动作 */
+export interface LinkageAction {
+  /** 动作类型 */
+  type: 'setValue' | 'setVisible' | 'setDisabled' | 'setRequired' | 'setOptions';
+  /** 目标字段ID */
+  targetFieldId: string;
+  /** 动作值（表达式或静态值） */
+  value?: any;
+}
+
+/** 联动规则 */
+export interface LinkageRule {
+  /** 规则ID */
+  id: string;
+  /** 规则名称 */
+  name: string;
+  /** 条件列表（所有条件为 AND 关系） */
+  conditions: LinkageCondition[];
+  /** 动作列表（按顺序执行） */
+  actions: LinkageAction[];
+  /** 是否启用 */
+  enabled: boolean;
 }
