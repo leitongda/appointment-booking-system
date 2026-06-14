@@ -4,6 +4,7 @@
  * 子菜单：
  *   - 租户管理（canTenant）
  *   - 订阅计划（canTenantPlans）
+ *   - 经营看板（canPlatformManagement）：全平台租户/门店经营对比
  *   - 小程序平台（canMiniappPlatform）：公司 / 支付配置 / 实例 / 模板 / 构建 / 发布
  *
  * 顶层 access: canPlatformManagement
@@ -16,6 +17,13 @@ const platform = [
     access: 'canPlatformManagement',
     routes: [
       { path: '/platform', redirect: '/platform/tenant' },
+      {
+        path: '/platform/operations-dashboard',
+        name: '经营看板',
+        icon: 'dashboard',
+        access: 'canPlatformMetrics',
+        component: './platform/operations-dashboard',
+      },
       {
         path: '/platform/tenant',
         name: '租户管理',

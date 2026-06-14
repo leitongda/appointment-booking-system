@@ -28,6 +28,22 @@ ACTIVE_APPOINTMENT_STATUSES = (
     APPOINTMENT_STATUS["SEEING"],
 )
 
+# 已到院及之后的状态（签到/历史候诊/就诊中/已完成）—— 经营统计"已到院"语义
+# 注：status 3 为历史候诊(WAITING)遗留值，不在 APPOINTMENT_STATUS 中，故显式列出
+VISITED_STATUSES = (
+    APPOINTMENT_STATUS["SIGNED"],
+    3,
+    APPOINTMENT_STATUS["SEEING"],
+    APPOINTMENT_STATUS["COMPLETED"],
+)
+# 产生营收的状态（与 RevenueService.calculate_total_revenue 默认口径一致）
+REVENUE_STATUSES = VISITED_STATUSES
+# 取消类状态（取消/过期）
+CANCELLED_STATUSES = (
+    APPOINTMENT_STATUS["CANCELLED"],
+    APPOINTMENT_STATUS["EXPIRED"],
+)
+
 # 预约查询的默认 eager-loading 选项
 APPOINTMENT_QUERY_OPTIONS = (
     selectinload(Appointment.schedule).selectinload(Schedule.store),

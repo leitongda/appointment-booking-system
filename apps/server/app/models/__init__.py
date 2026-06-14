@@ -91,3 +91,5 @@ from app.models.freelance import (
 )
 from app.models.doctor_review import DoctorReview
 from app.models.appointment_satisfaction import AppointmentSatisfaction
+
+from app.models.store_metric import StoreDailyMetric

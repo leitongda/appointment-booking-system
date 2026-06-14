@@ -61,6 +61,15 @@ export { contentApi } from './modules/content';
 export { commonServiceApi } from './modules/common-service';
 export type { CommonServiceItem, CommonServiceListResponse, HealthReminderConfig, UserHealthReminder } from './modules/common-service';
 export { statisticsApi } from './modules/statistics';
+export { platformMetricsApi } from './modules/platform-metrics';
+export type {
+  PlatformOverviewData,
+  TenantCompareItem,
+  StoreCompareItem,
+  PlatformTrendPoint,
+  PlatformMetricsQuery,
+  StoreCompareQuery,
+} from './modules/platform-metrics';
 export { adminApi } from './modules/admin';
 export { settingsApi } from './modules/settings';
 export { patientApi } from './modules/patient';

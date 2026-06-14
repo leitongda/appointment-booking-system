@@ -134,6 +134,13 @@ celery_app.conf.update(
             "options": {"queue": "scheduled"},
         },
 
+        # 平台经营看台 - 门店每日经营指标预聚合（每天凌晨2:30，补算近3天）
+        "store-metrics-daily-aggregate": {
+            "task": "app.tasks.store_metric_task.aggregate_store_daily_metrics",
+            "schedule": crontab(hour=2, minute=30),  # 每天凌晨2:30
+            "options": {"queue": "scheduled"},
+        },
+
         # 租户订阅到期检查 - 每天凌晨2点
         "tenant-check-subscription-expiry": {
             "task": "app.tasks.tenant_usage_task.check_subscription_expiry",

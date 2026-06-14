@@ -167,6 +167,8 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
     canEmailTemplates ||
     canEmailRecipients;
   const canPlatformManagement = canTenant || canTenantPlans || canMiniappPlatform || canLowcode;
+  // 平台经营看板：仅超管可见（与后端 require_platform_admin 校验 is_super_admin 对齐）
+  const canPlatformMetrics = isSuperAdmin;
   const canOrganizationManagement =
     canStore ||
     canDepartment ||
@@ -213,6 +215,7 @@ export default function access(initialState: { currentUser?: API.CurrentUser } |
 
     canDashboard,
     canPlatformManagement,
+    canPlatformMetrics,
     canOrganizationManagement,
     canClinicalOperations,
     canContentOperations,

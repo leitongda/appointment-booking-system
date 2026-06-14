@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from sqlalchemy.orm import joinedload
 from typing import Optional, List, Dict
-from datetime import date, datetime, timedelta
+from datetime import date
 from decimal import Decimal
 
 from app.models.appointment import Appointment
@@ -10,6 +10,7 @@ from app.models.schedule import Schedule
 from app.models.doctor import Doctor
 from app.models.consultation_fee import ConsultationFeeType, DoctorConsultationFee
 from app.modules.visit_types.service import VisitTypeService
+from app.constants.appointment import REVENUE_STATUSES
 
 
 class RevenueService:
@@ -102,7 +103,7 @@ class RevenueService:
         对于大数据量可以考虑使用缓存或定期聚合
         """
         if status_list is None:
-            status_list = [2, 3, 4, 5]  # 已签到、就诊中、已完成；兼容历史 WAITING(3)
+            status_list = list(REVENUE_STATUSES)  # 已签到/历史候诊/就诊中/已完成
 
         if end_date is None:
             end_date = date.today()

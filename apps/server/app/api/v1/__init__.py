@@ -29,6 +29,7 @@ ROUTER_REGISTRATIONS = [
     RouterRegistration("app.modules.admin.router", "/admin", ["权限管理"]),
     RouterRegistration("app.modules.settings.router", "/settings", ["系统设置"]),
     RouterRegistration("app.modules.statistics.router", "/statistics", ["数据统计"]),
+    RouterRegistration("app.modules.platform_metrics.router", "/platform-metrics", ["平台经营看台"]),
     RouterRegistration("app.modules.accounts.router", "/accounts", ["统一账号"]),
     RouterRegistration("app.modules.tenants.router", "/tenants", ["租户管理"]),
 
