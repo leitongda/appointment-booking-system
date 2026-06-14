@@ -6,7 +6,7 @@ import { Card, Collapse, Input, Space, Typography } from 'antd';
 import {
   FontSizeOutlined,
   PictureOutlined,
-  ButtonOutlined,
+  BlockOutlined,
   LineOutlined,
   BorderOuterOutlined,
   ColumnHeightOutlined,
@@ -30,7 +30,7 @@ const { Text } = Typography;
 const iconMap: Record<string, React.ReactNode> = {
   FontSizeOutlined: <FontSizeOutlined />,
   PictureOutlined: <PictureOutlined />,
-  ButtonOutlined: <ButtonOutlined />,
+  ButtonOutlined: <BlockOutlined />,
   LineOutlined: <LineOutlined />,
   BorderOuterOutlined: <BorderOuterOutlined />,
   ColumnHeightOutlined: <ColumnHeightOutlined />,
