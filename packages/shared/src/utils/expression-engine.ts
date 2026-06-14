@@ -41,7 +41,8 @@ type NodeType =
   | 'Ternary'
   | 'MemberAccess'
   | 'IndexAccess'
-  | 'FunctionCall';
+  | 'FunctionCall'
+  | 'ArrowFunction';
 
 interface BaseNode {
   type: NodeType;
@@ -92,6 +93,12 @@ interface FunctionCallNode extends BaseNode {
   args: ASTNode[];
 }
 
+interface ArrowFunctionNode extends BaseNode {
+  type: 'ArrowFunction';
+  params: string[];
+  body: ASTNode;
+}
+
 type ASTNode =
   | NumberLiteralNode
   | StringLiteralNode
@@ -104,7 +111,8 @@ type ASTNode =
   | TernaryNode
   | MemberAccessNode
   | IndexAccessNode
-  | FunctionCallNode;
+  | FunctionCallNode
+  | ArrowFunctionNode;
 
 // ---------------------------------------------------------------------------
 // Tokeniser
@@ -126,7 +134,7 @@ interface Token {
 
 const KEYWORDS = new Set(['true', 'false', 'null', 'undefined']);
 
-const TWO_CHAR_OPS = new Set(['===', '!==', '>=', '<=', '&&', '||']);
+const TWO_CHAR_OPS = new Set(['===', '!==', '>=', '<=', '&&', '||', '=>']);
 
 function tokenize(input: string): Token[] {
   const tokens: Token[] = [];
@@ -273,8 +281,46 @@ class Parser {
 
   // ---- precedence levels (low -> high) ----
 
+  private isArrowFunctionParams(): boolean {
+    let i = this.pos;
+    if (this.tokens[i]?.type !== 'Punctuation' || this.tokens[i]?.value !== '(') return false;
+    i++;
+    if (this.tokens[i]?.type !== 'Ident') return false;
+    i++;
+    while (this.tokens[i]?.type === 'Punctuation' && this.tokens[i]?.value === ',') {
+      i++;
+      if (this.tokens[i]?.type !== 'Ident') return false;
+      i++;
+    }
+    if (this.tokens[i]?.type !== 'Punctuation' || this.tokens[i]?.value !== ')') return false;
+    i++;
+    return this.tokens[i]?.type === 'Operator' && this.tokens[i]?.value === '=>';
+  }
+
   private parseExpr(): ASTNode {
-    return this.parseTernary();
+    if (this.isArrowFunctionParams()) {
+      this.advance(); // consume (
+      const params: string[] = [this.expect('Ident').value];
+      while (this.peek().type === 'Punctuation' && this.peek().value === ',') {
+        this.advance();
+        params.push(this.expect('Ident').value);
+      }
+      this.expect('Punctuation', ')');
+      this.expect('Operator', '=>');
+      const body = this.parseExpr();
+      return { type: 'ArrowFunction', params, body };
+    }
+
+    const left = this.parseTernary();
+    if (this.peek().type === 'Operator' && this.peek().value === '=>') {
+      if (left.type !== 'Identifier') {
+        throw new SyntaxError('Invalid arrow function parameters');
+      }
+      this.advance();
+      const body = this.parseExpr();
+      return { type: 'ArrowFunction', params: [left.name], body };
+    }
+    return left;
   }
 
   private parseTernary(): ASTNode {
@@ -495,10 +541,57 @@ const BUILTINS: Record<string, (...args: any[]) => any> = {
     if (Array.isArray(haystack)) return haystack.includes(needle);
     return false;
   },
+
+  // Array methods
+  map(arr: any[], fn: (...args: any[]) => any): any[] {
+    return arr.map(fn);
+  },
+  filter(arr: any[], fn: (...args: any[]) => boolean): any[] {
+    return arr.filter(fn);
+  },
+  reduce(arr: any[], fn: (...args: any[]) => any, init: any): any {
+    return arr.reduce(fn, init);
+  },
+  find(arr: any[], fn: (...args: any[]) => boolean): any {
+    return arr.find(fn);
+  },
+  some(arr: any[], fn: (...args: any[]) => boolean): boolean {
+    return arr.some(fn);
+  },
+  every(arr: any[], fn: (...args: any[]) => boolean): boolean {
+    return arr.every(fn);
+  },
+  sort(arr: any[], fn?: (a: any, b: any) => number): any[] {
+    return [...arr].sort(fn);
+  },
+  flat(arr: any[], depth: number = 1): any[] {
+    return arr.flat(depth);
+  },
 };
+
+// 危险属性名黑名单，防止原型链污染
+const DANGEROUS_KEYS = new Set([
+  '__proto__',
+  'constructor',
+  'prototype',
+  '__defineGetter__',
+  '__defineSetter__',
+  '__lookupGetter__',
+  '__lookupSetter__',
+  'hasOwnProperty',
+  'isPrototypeOf',
+  'propertyIsEnumerable',
+  'toLocaleString',
+  'toString',
+  'valueOf',
+]);
 
 function safeGet(obj: any, key: string): any {
   if (obj == null) return undefined;
+  // 阻止访问危险属性（原型链污染防护）
+  if (DANGEROUS_KEYS.has(key)) {
+    return undefined;
+  }
   return obj[key];
 }
 
@@ -552,15 +645,39 @@ function evaluate(node: ASTNode, ctx: ExpressionContext): any {
     case 'IndexAccess': {
       const obj = evaluate(node.object, ctx);
       const key = evaluate(node.index, ctx);
+      // 阻止访问危险属性（原型链污染防护）
+      if (typeof key === 'string' && DANGEROUS_KEYS.has(key)) {
+        return undefined;
+      }
       return obj == null ? undefined : obj[key];
     }
     case 'FunctionCall': {
+      if (node.callee.type === 'MemberAccess') {
+        const obj = evaluate(node.callee.object, ctx);
+        const method = safeGet(obj, node.callee.property);
+        const args = node.args.map((a) => evaluate(a, ctx));
+        if (typeof method === 'function') {
+          return method.call(obj, ...args);
+        }
+        return undefined;
+      }
       const callee = evaluate(node.callee, ctx);
       const args = node.args.map((a) => evaluate(a, ctx));
       if (typeof callee === 'function') {
         return callee(...args);
       }
       return undefined;
+    }
+    case 'ArrowFunction': {
+      const paramNames = node.params;
+      const bodyNode = node.body;
+      return (...callArgs: any[]) => {
+        const childCtx = { ...ctx };
+        paramNames.forEach((name, i) => {
+          childCtx[name] = callArgs[i];
+        });
+        return evaluate(bodyNode, childCtx);
+      };
     }
     default:
       return undefined;

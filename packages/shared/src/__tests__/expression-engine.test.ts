@@ -543,3 +543,99 @@ describe('Edge cases', () => {
     expect(eval_('a.b.c.d.e.f', { a: { b: null } })).toBeUndefined();
   });
 });
+
+// =========================================================================
+// 8. Prototype pollution protection
+// =========================================================================
+describe('Prototype pollution protection', () => {
+  it('blocks access to __proto__', () => {
+    expect(eval_('obj.__proto__', { obj: {} })).toBeUndefined();
+  });
+
+  it('blocks access to constructor', () => {
+    expect(eval_('obj.constructor', { obj: {} })).toBeUndefined();
+  });
+
+  it('blocks access to prototype', () => {
+    expect(eval_('obj.prototype', { obj: {} })).toBeUndefined();
+  });
+
+  it('blocks __defineGetter__', () => {
+    expect(eval_('obj.__defineGetter__', { obj: {} })).toBeUndefined();
+  });
+
+  it('blocks __defineSetter__', () => {
+    expect(eval_('obj.__defineSetter__', { obj: {} })).toBeUndefined();
+  });
+
+  it('blocks __lookupGetter__', () => {
+    expect(eval_('obj.__lookupGetter__', { obj: {} })).toBeUndefined();
+  });
+
+  it('blocks __lookupSetter__', () => {
+    expect(eval_('obj.__lookupSetter__', { obj: {} })).toBeUndefined();
+  });
+
+  it('blocks prototype via index access', () => {
+    expect(eval_('obj["prototype"]', { obj: {} })).toBeUndefined();
+  });
+
+  it('blocks constructor via index access', () => {
+    expect(eval_('obj["constructor"]', { obj: {} })).toBeUndefined();
+  });
+
+  it('allows access to safe properties', () => {
+    expect(eval_('obj.name', { obj: { name: 'test' } })).toBe('test');
+    expect(eval_('obj.value', { obj: { value: 123 } })).toBe(123);
+  });
+
+  it('does not pollute Object prototype', () => {
+    // 确保没有修改全局 Object.prototype
+    const before = (Object.prototype as any).polluted;
+    expect(before).toBeUndefined();
+
+    // 尝试通过表达式污染（应该被阻止）
+    eval_('obj["__proto__"]["polluted"] = true', { obj: {} });
+
+    // 验证没有被污染
+    const after = (Object.prototype as any).polluted;
+    expect(after).toBeUndefined();
+  });
+});
+
+// =========================================================================
+// 9. Array methods
+// =========================================================================
+describe('Array methods', () => {
+  it('map transforms array elements', () => {
+    expect(eval_('items.map(x => x * 2)', { items: [1, 2, 3] })).toEqual([2, 4, 6]);
+  });
+
+  it('filter selects matching elements', () => {
+    expect(eval_('items.filter(x => x > 2)', { items: [1, 2, 3, 4] })).toEqual([3, 4]);
+  });
+
+  it('reduce accumulates values', () => {
+    expect(eval_('items.reduce((acc, x) => acc + x, 0)', { items: [1, 2, 3] })).toBe(6);
+  });
+
+  it('find returns first match', () => {
+    expect(eval_('items.find(x => x > 2)', { items: [1, 2, 3] })).toBe(3);
+  });
+
+  it('some checks if any element matches', () => {
+    expect(eval_('items.some(x => x > 2)', { items: [1, 2, 3] })).toBe(true);
+  });
+
+  it('every checks if all elements match', () => {
+    expect(eval_('items.every(x => x > 0)', { items: [1, 2, 3] })).toBe(true);
+  });
+
+  it('sort orders elements', () => {
+    expect(eval_('items.sort()', { items: [3, 1, 2] })).toEqual([1, 2, 3]);
+  });
+
+  it('flat flattens nested arrays', () => {
+    expect(eval_('items.flat()', { items: [[1, 2], [3, 4]] })).toEqual([1, 2, 3, 4]);
+  });
+});
