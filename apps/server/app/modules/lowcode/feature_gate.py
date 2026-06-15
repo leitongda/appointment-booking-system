@@ -4,7 +4,6 @@
 指定的低代码功能，以及页面配额是否超限。
 """
 
-from typing import Optional, Tuple
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
@@ -69,7 +68,7 @@ class LowCodeFeatureGate:
 
     async def check_page_limit(
         self, tenant_id: str
-    ) -> Tuple[bool, int, int]:
+    ) -> tuple[bool, int, int]:
         """检查页面数量是否在配额内。
 
         从 TenantFeatures 的 ``lowcode_max_pages`` 字段读取上限值，

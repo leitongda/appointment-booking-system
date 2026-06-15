@@ -1,8 +1,9 @@
 """低代码页面路由。"""
 
-from typing import Optional
+import json
+import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,14 +11,15 @@ from app.api.deps import get_current_admin, require_permission
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.lowcode.codegen_service import CodegenError, CodegenService
+from app.modules.lowcode.feature_gate import LowCodeFeatureGate
 from app.modules.lowcode.schemas import (
     AuditLogItem,
     AuditLogListResponse,
     CodegenPreviewRequest,
     CodegenResultSchema,
+    DataPreviewResponse,
     DataSourceTestRequest,
     DataSourceTestResponse,
-    DataPreviewResponse,
     DeployResultResponse,
     DeployRollbackRequest,
     DeployRollbackResponse,
@@ -29,13 +31,17 @@ from app.modules.lowcode.schemas import (
     RollbackRequest,
     VersionItem,
     VersionListResponse,
-    WeChatAuditCallbackRequest,
     WeChatAuditCallbackResponse,
 )
-from app.modules.lowcode.feature_gate import LowCodeFeatureGate
 from app.modules.lowcode.service import LowCodePageService
 from app.modules.lowcode.version_service import LowCodePageVersionService
 from app.schemas.response import PageResponse
+from app.utils.wechat_callback import (
+    WeChatCallbackError,
+    decrypt_callback_data,
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -67,8 +73,8 @@ def _validate_component_nodes(node: dict, path: str = "root") -> None:
 
 @router.get("/pages", response_model=PageResponse[LowCodePageResponse], summary="获取页面列表")
 async def get_page_list(
-    status_filter: Optional[int] = Query(None, alias="status", description="状态筛选"),
-    keyword: Optional[str] = Query(None, description="关键词搜索"),
+    status_filter: int | None = Query(None, alias="status", description="状态筛选"),
+    keyword: str | None = Query(None, description="关键词搜索"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -251,6 +257,7 @@ async def export_page(
 ):
     """导出页面 Schema 为 JSON 文件"""
     import json
+
     from fastapi.responses import Response
 
     tenant_id = _get_tenant_id(current_admin)
@@ -302,12 +309,20 @@ async def import_page(
     if "schema_data" not in data:
         raise HTTPException(status_code=400, detail="缺少 schema_data 字段")
 
-    # 如果导入数据包含 tenant_id，校验与当前租户一致
+    # 租户校验：确保导入数据属于当前租户
     imported_tenant_id = data.get("tenant_id")
-    if imported_tenant_id and str(imported_tenant_id) != tenant_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="导入数据的租户标识与当前租户不匹配",
+    if imported_tenant_id:
+        # 如果导入数据包含 tenant_id，校验与当前租户一致
+        if str(imported_tenant_id) != tenant_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="导入数据的租户标识与当前租户不匹配",
+            )
+    else:
+        # 如果导入数据不含 tenant_id，自动注入当前租户 ID（防止跨租户导入）
+        logger.info(
+            "导入数据不含 tenant_id，自动注入当前租户: tenant_id=%s",
+            tenant_id,
         )
 
     # 校验 schema_data 基础结构
@@ -929,7 +944,7 @@ async def preview_deploy(
     summary="微信审核状态回调",
 )
 async def wechat_audit_callback(
-    data: WeChatAuditCallbackRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     """接收微信审核状态更新的 Webhook 回调。
@@ -938,14 +953,92 @@ async def wechat_audit_callback(
     根据审核结果自动更新部署状态 (published / failed)。
 
     注意: 此端点为公开回调，不走管理员认证。
-    TODO: 接入时需增加微信回调签名校验。
+    支持两种模式：
+    1. 加密模式（推荐）：请求体为加密数据，使用 AppSecret 解密
+    2. 明文模式（兼容）：直接传 JSON，需配置 WECHAT_CALLBACK_TOKEN 进行签名验证
     """
     from app.modules.lowcode.deploy_service import DeployError, LowCodeDeployService
+
+    # 获取 AppSecret 和 Token
+    app_secret = settings.WECHAT_APP_SECRET
+    callback_token = settings.WECHAT_CALLBACK_TOKEN
+
+    try:
+        body = await request.body()
+        query_params = dict(request.query_params)
+
+        # 尝试解析请求体
+        try:
+            request_data = json.loads(body)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="请求体格式错误",
+            )
+
+        # 判断是否为加密数据
+        encrypt_data = request_data.get("encrypt")
+        if encrypt_data:
+            # 加密模式：需要 AppSecret 解密
+            if not app_secret:
+                logger.error("收到加密回调但未配置 WECHAT_APP_SECRET")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="服务端配置错误：缺少 AppSecret",
+                )
+            try:
+                callback_data = decrypt_callback_data(encrypt_data, app_secret)
+            except WeChatCallbackError as e:
+                logger.warning("回调数据解密失败: %s", e)
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"回调数据解密失败: {e}",
+                )
+        else:
+            # 明文模式：直接使用请求数据，但需要签名验证
+            if callback_token:
+                signature = query_params.get("signature", "")
+                timestamp = query_params.get("timestamp", "")
+                nonce = query_params.get("nonce", "")
+
+                from app.utils.wechat_callback import verify_callback_signature
+
+                # 对于明文模式，将整个请求体作为 encrypt 参数进行签名验证
+                if not verify_callback_signature(
+                    timestamp, nonce, body.decode("utf-8"), signature, callback_token
+                ):
+                    logger.warning("微信回调签名校验失败")
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="回调签名校验失败",
+                    )
+            callback_data = request_data
+
+        # 验证必要字段
+        if "auditid" not in callback_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="回调数据缺少 auditid 字段",
+            )
+        if "status" not in callback_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="回调数据缺少 status 字段",
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("处理回调请求异常: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="处理回调请求异常",
+        )
 
     service = LowCodeDeployService(db)
     try:
         result = await service.handle_audit_callback(
-            callback_data=data.model_dump(),
+            callback_data=callback_data,
         )
     except DeployError as e:
         raise HTTPException(

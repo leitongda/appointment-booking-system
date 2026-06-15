@@ -1,7 +1,7 @@
 """低代码模板市场路由。"""
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import Field
@@ -12,7 +12,6 @@ from app.api.deps import get_current_admin, require_permission
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.lowcode_template import LowCodeTemplate
-from app.models.lowcode_template_version import LowCodeTemplateVersion
 from app.modules.lowcode.feature_gate import LowCodeFeatureGate
 from app.modules.lowcode.template_service import LowCodeTemplateService
 from app.schemas.base import BaseSchema
@@ -32,9 +31,9 @@ class TemplateCreateRequest(BaseSchema):
     source_page_id: str = Field(..., description="来源页面 ID")
     name: str = Field(..., min_length=1, max_length=200, description="模板名称")
     category: str = Field(..., min_length=1, max_length=50, description="模板分类")
-    description: Optional[str] = Field(None, max_length=1000, description="模板描述")
-    thumbnail_url: Optional[str] = Field(None, description="缩略图 URL")
-    tags: Optional[list[str]] = Field(None, description="标签列表")
+    description: str | None = Field(None, max_length=1000, description="模板描述")
+    thumbnail_url: str | None = Field(None, description="缩略图 URL")
+    tags: list[str] | None = Field(None, description="标签列表")
     is_public: bool = Field(True, description="是否公开到市场")
     is_official: bool = Field(False, description="是否官方（仅平台管理员）")
 
@@ -42,22 +41,22 @@ class TemplateCreateRequest(BaseSchema):
 class TemplateUpdateRequest(BaseSchema):
     """更新模板元数据请求。"""
 
-    name: Optional[str] = Field(None, min_length=1, max_length=200, description="模板名称")
-    description: Optional[str] = Field(None, max_length=1000, description="模板描述")
-    thumbnail_url: Optional[str] = Field(None, description="缩略图 URL")
-    category: Optional[str] = Field(None, min_length=1, max_length=50, description="模板分类")
-    tags: Optional[list[str]] = Field(None, description="标签列表")
-    is_public: Optional[bool] = Field(None, description="是否公开到市场")
+    name: str | None = Field(None, min_length=1, max_length=200, description="模板名称")
+    description: str | None = Field(None, max_length=1000, description="模板描述")
+    thumbnail_url: str | None = Field(None, description="缩略图 URL")
+    category: str | None = Field(None, min_length=1, max_length=50, description="模板分类")
+    tags: list[str] | None = Field(None, description="标签列表")
+    is_public: bool | None = Field(None, description="是否公开到市场")
 
 
 class TemplateResponse(BaseSchema):
     """模板列表/详情响应。"""
 
     id: str = Field(..., description="模板 ID")
-    source_page_id: Optional[str] = Field(None, description="来源页面 ID")
+    source_page_id: str | None = Field(None, description="来源页面 ID")
     name: str = Field(..., description="模板名称")
-    description: Optional[str] = Field(None, description="模板描述")
-    thumbnail_url: Optional[str] = Field(None, description="缩略图 URL")
+    description: str | None = Field(None, description="模板描述")
+    thumbnail_url: str | None = Field(None, description="缩略图 URL")
     category: str = Field(..., description="模板分类")
     tags: list[str] = Field(default_factory=list, description="标签列表")
     version: str = Field("1.0.0", description="当前版本")
@@ -66,12 +65,12 @@ class TemplateResponse(BaseSchema):
     download_count: int = Field(0, description="下载次数")
     fork_count: int = Field(0, description="Fork 次数")
     like_count: int = Field(0, description="收藏次数")
-    schema_data: Optional[dict[str, Any]] = Field(None, description="Schema JSON（仅详情）")
-    data_sources: Optional[list[dict[str, Any]]] = Field(None, description="数据源配置（仅详情）")
-    author_id: Optional[str] = Field(None, description="创建人 ID")
-    author_name: Optional[str] = Field(None, description="创建人名称")
-    created_at: Optional[datetime] = Field(None, description="创建时间")
-    updated_at: Optional[datetime] = Field(None, description="更新时间")
+    schema_data: dict[str, Any] | None = Field(None, description="Schema JSON（仅详情）")
+    data_sources: list[dict[str, Any]] | None = Field(None, description="数据源配置（仅详情）")
+    author_id: str | None = Field(None, description="创建人 ID")
+    author_name: str | None = Field(None, description="创建人名称")
+    created_at: datetime | None = Field(None, description="创建时间")
+    updated_at: datetime | None = Field(None, description="更新时间")
 
 
 class TemplateVersionItem(BaseSchema):
@@ -79,10 +78,10 @@ class TemplateVersionItem(BaseSchema):
 
     id: str = Field(..., description="版本记录 ID")
     version: str = Field(..., description="语义化版本号")
-    changelog: Optional[str] = Field(None, description="变更说明")
+    changelog: str | None = Field(None, description="变更说明")
     status: int = Field(1, description="版本状态: 1草稿 2已发布 3已废弃")
-    created_at: Optional[datetime] = Field(None, description="创建时间")
-    created_by: Optional[str] = Field(None, description="创建人 ID")
+    created_at: datetime | None = Field(None, description="创建时间")
+    created_by: str | None = Field(None, description="创建人 ID")
 
 
 class TemplateVersionListResponse(BaseSchema):
@@ -97,8 +96,8 @@ class TemplateCreateVersionRequest(BaseSchema):
 
     version: str = Field(..., min_length=1, max_length=20, description="语义化版本号，如 1.1.0")
     schema_data: dict[str, Any] = Field(..., description="版本 schema 快照")
-    changelog: Optional[str] = Field(None, max_length=500, description="变更说明")
-    data_sources: Optional[dict[str, Any]] = Field(None, description="数据源配置快照")
+    changelog: str | None = Field(None, max_length=500, description="变更说明")
+    data_sources: dict[str, Any] | None = Field(None, description="数据源配置快照")
 
 
 class TemplateCategoryItem(BaseSchema):
@@ -111,8 +110,8 @@ class TemplateCategoryItem(BaseSchema):
 class ForkRequest(BaseSchema):
     """Fork 模板请求体。"""
 
-    name: Optional[str] = Field(None, description="新页面名称, 默认为模板名 + (Fork)")
-    slug: Optional[str] = Field(None, description="新页面路径, 默认自动生成")
+    name: str | None = Field(None, description="新页面名称, 默认为模板名 + (Fork)")
+    slug: str | None = Field(None, description="新页面路径, 默认自动生成")
 
 
 class ForkResponse(BaseSchema):
@@ -175,8 +174,8 @@ _TEMPLATE_CATEGORIES = [
     summary="获取模板市场列表",
 )
 async def get_template_list(
-    category: Optional[str] = Query(None, description="分类筛选"),
-    keyword: Optional[str] = Query(None, description="关键词搜索 (名称/描述)"),
+    category: str | None = Query(None, description="分类筛选"),
+    keyword: str | None = Query(None, description="关键词搜索 (名称/描述)"),
     sort_by: str = Query("popular", description="排序: popular / newest / forks"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
@@ -310,12 +309,16 @@ async def update_template(
     current_admin=Depends(get_current_admin),
     _: None = Depends(require_permission("lowcode:template", "lowcode:template:update")),
 ):
-    """更新模板的名称、描述、分类等元数据（不修改 schema）。"""
+    """更新模板的名称、描述、分类等元数据（不修改 schema）。
+
+    注意：只有模板创建者（source_tenant_id 匹配）才能更新模板。
+    """
     tenant_id = _get_tenant_id(current_admin)
 
     service = LowCodeTemplateService(db)
     template = await service.update_template(
         template_id=template_id,
+        tenant_id=tenant_id,
         name=data.name,
         description=data.description,
         thumbnail_url=data.thumbnail_url,
@@ -327,7 +330,7 @@ async def update_template(
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="模板不存在",
+            detail="模板不存在或无权更新",
         )
 
     result_data = await service.get_template(template_id)

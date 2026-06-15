@@ -1,24 +1,104 @@
 """低代码页面服务。"""
 
+import ipaddress
 import logging
-
-logger = logging.getLogger(__name__)
-
-import time
-from typing import Any, Optional, List, Tuple
+import socket
+from typing import Any
+from urllib.parse import urlparse
 
 import httpx
-from sqlalchemy import select, func, and_
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.lowcode_page import LowCodePage
 from app.models.lowcode_audit_log import LowCodePageAuditLog
+from app.models.lowcode_page import LowCodePage
 from app.utils.audit import set_create_audit, set_update_audit
+
+logger = logging.getLogger(__name__)
 
 # 沙箱限制
 _TEST_TIMEOUT_SECONDS = 5.0
 _TEST_MAX_RESPONSE_BYTES = 1 * 1024 * 1024  # 1 MB
 _TEST_MAX_SAMPLE_ITEMS = 5
+
+# SSRF 防护: 禁止访问的私有 IP 范围
+_BLOCKED_IP_NETWORKS = [
+    ipaddress.ip_network("127.0.0.0/8"),      # loopback
+    ipaddress.ip_network("10.0.0.0/8"),       # 私有网络 A
+    ipaddress.ip_network("172.16.0.0/12"),    # 私有网络 B
+    ipaddress.ip_network("192.168.0.0/16"),   # 私有网络 C
+    ipaddress.ip_network("169.254.0.0/16"),   # link-local
+    ipaddress.ip_network("::1/128"),           # IPv6 loopback
+    ipaddress.ip_network("fc00::/7"),         # IPv6 唯一本地地址
+    ipaddress.ip_network("fe80::/10"),        # IPv6 link-local
+]
+
+
+class SSRFError(Exception):
+    """SSRF 防护异常。"""
+    pass
+
+
+def _validate_url_for_ssrf(url: str) -> None:
+    """验证 URL 是否存在 SSRF 风险。
+
+    检查项:
+    - 协议必须是 http 或 https
+    - 不能访问私有 IP 地址
+    - 不能访问 localhost/127.0.0.1 等
+
+    Raises:
+        SSRFError: URL 存在安全风险
+    """
+    try:
+        parsed = urlparse(url)
+    except Exception as e:
+        raise SSRFError(f"URL 解析失败: {e}")
+
+    # 检查协议
+    if parsed.scheme.lower() not in ("http", "https"):
+        raise SSRFError(f"不允许的协议: {parsed.scheme}，仅支持 http/https")
+
+    # 获取主机名
+    hostname = parsed.hostname
+    if not hostname:
+        raise SSRFError("URL 缺少主机名")
+
+    # 检查常见危险主机名
+    blocked_hostnames = {
+        "localhost", "127.0.0.1", "0.0.0.0", "[::1]",
+        "metadata.google.internal",  # GCP metadata
+        "169.254.169.254",           # AWS/GCP/Azure metadata
+    }
+    if hostname.lower() in blocked_hostnames:
+        raise SSRFError(f"禁止访问的主机: {hostname}")
+
+    # 解析 IP 地址并检查
+    try:
+        # 尝试将主机名解析为 IP 地址
+        addr_info = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        if not addr_info:
+            raise SSRFError(f"无法解析主机名: {hostname}")
+
+        for family, _, _, _, sockaddr in addr_info:
+            ip_str = sockaddr[0]
+            try:
+                ip = ipaddress.ip_address(ip_str)
+            except ValueError:
+                continue
+
+            # 检查是否在阻止列表中
+            for blocked_network in _BLOCKED_IP_NETWORKS:
+                if ip in blocked_network:
+                    raise SSRFError(f"禁止访问的 IP 地址: {ip_str} (属于 {blocked_network})")
+
+    except socket.gaierror as e:
+        raise SSRFError(f"主机名解析失败: {hostname} - {e}")
+    except SSRFError:
+        raise
+    except Exception as e:
+        logger.warning("SSRF 检查中发生错误: %s", e)
+        # 不阻塞请求，但记录警告
 
 
 def _extract_fields(data: Any, prefix: str = "") -> list[dict[str, Any]]:
@@ -63,7 +143,7 @@ def _mock_for_type(field_type: str) -> Any:
         "array": [],
         "object": {},
     }
-    return mapping.get(field_type, None)
+    return mapping.get(field_type)
 
 
 class LowCodePageService:
@@ -77,7 +157,7 @@ class LowCodePageService:
         page_id: str,
         operator_id: str,
         action: str,
-        detail: Optional[dict] = None,
+        detail: dict | None = None,
     ) -> None:
         """记录审计日志。"""
         log = LowCodePageAuditLog(
@@ -91,11 +171,11 @@ class LowCodePageService:
     async def get_list(
         self,
         tenant_id: str,
-        status: Optional[int] = None,
-        keyword: Optional[str] = None,
+        status: int | None = None,
+        keyword: str | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[LowCodePage], int]:
+    ) -> tuple[list[LowCodePage], int]:
         """获取页面列表。"""
         query = select(LowCodePage).where(LowCodePage.tenant_id == tenant_id)
         conditions = []
@@ -123,7 +203,7 @@ class LowCodePageService:
 
         return list(items), total or 0
 
-    async def get_by_id(self, tenant_id: str, page_id: str) -> Optional[LowCodePage]:
+    async def get_by_id(self, tenant_id: str, page_id: str) -> LowCodePage | None:
         """根据ID获取页面。"""
         query = select(LowCodePage).where(
             LowCodePage.tenant_id == tenant_id,
@@ -137,11 +217,11 @@ class LowCodePageService:
         tenant_id: str,
         name: str,
         slug: str,
-        description: Optional[str] = None,
-        schema_data: Optional[dict] = None,
-        thumbnail_url: Optional[str] = None,
-        miniapp_instance_id: Optional[str] = None,
-        created_by: Optional[str] = None,
+        description: str | None = None,
+        schema_data: dict | None = None,
+        thumbnail_url: str | None = None,
+        miniapp_instance_id: str | None = None,
+        created_by: str | None = None,
     ) -> LowCodePage:
         """创建页面。"""
         page = LowCodePage(
@@ -170,15 +250,15 @@ class LowCodePageService:
         self,
         tenant_id: str,
         page_id: str,
-        name: Optional[str] = None,
-        slug: Optional[str] = None,
-        description: Optional[str] = None,
-        schema_data: Optional[dict] = None,
-        status: Optional[int] = None,
-        thumbnail_url: Optional[str] = None,
-        miniapp_instance_id: Optional[str] = None,
-        updated_by: Optional[str] = None,
-    ) -> Optional[LowCodePage]:
+        name: str | None = None,
+        slug: str | None = None,
+        description: str | None = None,
+        schema_data: dict | None = None,
+        status: int | None = None,
+        thumbnail_url: str | None = None,
+        miniapp_instance_id: str | None = None,
+        updated_by: str | None = None,
+    ) -> LowCodePage | None:
         """更新页面。"""
         page = await self.get_by_id(tenant_id, page_id)
         if not page:
@@ -239,7 +319,7 @@ class LowCodePageService:
         await self.db.refresh(page)
         return page
 
-    async def delete(self, tenant_id: str, page_id: str, deleted_by: Optional[str] = None) -> bool:
+    async def delete(self, tenant_id: str, page_id: str, deleted_by: str | None = None) -> bool:
         """删除页面(仅草稿状态可删)。"""
         page = await self.get_by_id(tenant_id, page_id)
         if not page or page.status != 0:
@@ -256,7 +336,7 @@ class LowCodePageService:
         return True
 
     async def check_slug_unique(
-        self, tenant_id: str, slug: str, exclude_id: Optional[str] = None
+        self, tenant_id: str, slug: str, exclude_id: str | None = None
     ) -> bool:
         """检查 slug 是否唯一。"""
         query = select(LowCodePage.id).where(
@@ -274,7 +354,7 @@ class LowCodePageService:
         tenant_id: str,
         page: int = 1,
         page_size: int = 20,
-    ) -> tuple[List[LowCodePageAuditLog], int]:
+    ) -> tuple[list[LowCodePageAuditLog], int]:
         """获取页面审计日志列表。"""
         # 先校验页面归属
         target_page = await self.get_by_id(tenant_id, page_id)
@@ -298,7 +378,7 @@ class LowCodePageService:
 
     async def get_with_data_sources(
         self, tenant_id: str, page_id: str
-    ) -> Optional[LowCodePage]:
+    ) -> LowCodePage | None:
         """获取页面 (含 dataSources 校验)。"""
         return await self.get_by_id(tenant_id, page_id)
 
@@ -306,10 +386,10 @@ class LowCodePageService:
     async def test_data_source(
         url: str,
         method: str = "GET",
-        headers: Optional[dict[str, str]] = None,
-        params: Optional[dict[str, Any]] = None,
-        body: Optional[dict[str, Any]] = None,
-        response_path: Optional[str] = None,
+        headers: dict[str, str] | None = None,
+        params: dict[str, Any] | None = None,
+        body: dict[str, Any] | None = None,
+        response_path: str | None = None,
     ) -> dict[str, Any]:
         """沙箱测试数据源请求。
 
@@ -317,7 +397,18 @@ class LowCodePageService:
         - 超时 5 秒
         - 响应体最大 1 MB
         - 样本数据列表最多 5 条
+        - 禁止访问私有 IP 地址 (SSRF 防护)
         """
+        # SSRF 防护: 验证 URL
+        try:
+            _validate_url_for_ssrf(url)
+        except SSRFError as e:
+            return {
+                "success": False,
+                "error": f"URL 安全检查失败: {e}",
+                "elapsed_ms": 0,
+            }
+
         t0 = time.monotonic()
         try:
             async with httpx.AsyncClient(

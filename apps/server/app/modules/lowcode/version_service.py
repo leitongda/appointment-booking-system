@@ -1,8 +1,7 @@
 """低代码页面版本管理服务。"""
 
-from typing import List, Optional
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.lowcode_page import LowCodePage
@@ -23,8 +22,8 @@ class LowCodePageVersionService:
         self,
         page_id: str,
         tenant_id: str,
-        label: Optional[str] = None,
-        created_by: Optional[str] = None,
+        label: str | None = None,
+        created_by: str | None = None,
     ) -> LowCodePageVersion:
         """创建页面版本快照。
 
@@ -66,7 +65,7 @@ class LowCodePageVersionService:
     # ------------------------------------------------------------------
     async def get_versions(
         self, page_id: str, tenant_id: str
-    ) -> List[LowCodePageVersion]:
+    ) -> list[LowCodePageVersion]:
         """按版本号降序列出页面的所有版本记录。"""
         query = (
             select(LowCodePageVersion)
@@ -82,7 +81,7 @@ class LowCodePageVersionService:
     # ------------------------------------------------------------------
     # 3. 获取单个版本
     # ------------------------------------------------------------------
-    async def get_version(self, version_id: str) -> Optional[LowCodePageVersion]:
+    async def get_version(self, version_id: str) -> LowCodePageVersion | None:
         """根据版本记录 ID 获取单个版本。"""
         query = select(LowCodePageVersion).where(
             LowCodePageVersion.id == version_id
@@ -150,7 +149,7 @@ class LowCodePageVersionService:
     # ------------------------------------------------------------------
     async def get_latest_version(
         self, page_id: str
-    ) -> Optional[LowCodePageVersion]:
+    ) -> LowCodePageVersion | None:
         """获取页面最新一条版本记录（版本号最大的那条）。"""
         query = (
             select(LowCodePageVersion)
@@ -166,7 +165,7 @@ class LowCodePageVersionService:
     # ------------------------------------------------------------------
     async def _get_page(
         self, page_id: str, tenant_id: str
-    ) -> Optional[LowCodePage]:
+    ) -> LowCodePage | None:
         query = select(LowCodePage).where(
             LowCodePage.id == page_id,
             LowCodePage.tenant_id == tenant_id,

@@ -1,7 +1,7 @@
 """低代码模块 schemas (re-export + 模块专属)。"""
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import Field
 
@@ -18,10 +18,10 @@ class DataSourceTestRequest(BaseSchema):
 
     url: str = Field(..., description="请求 URL")
     method: str = Field("GET", description="请求方法: GET/POST/PUT/DELETE")
-    headers: Optional[dict[str, str]] = Field(None, description="请求头")
-    params: Optional[dict[str, Any]] = Field(None, description="请求参数/查询参数")
-    body: Optional[dict[str, Any]] = Field(None, description="请求体 (POST/PUT 时使用)")
-    response_path: Optional[str] = Field(
+    headers: dict[str, str] | None = Field(None, description="请求头")
+    params: dict[str, Any] | None = Field(None, description="请求参数/查询参数")
+    body: dict[str, Any] | None = Field(None, description="请求体 (POST/PUT 时使用)")
+    response_path: str | None = Field(
         None,
         description="响应数据提取路径，如 data.list，为空则取整个响应",
     )
@@ -32,19 +32,19 @@ class DataSourceFieldSuggestion(BaseSchema):
 
     path: str = Field(..., description="字段路径，如 data.list[0].name")
     type: str = Field(..., description="字段类型: string/number/boolean/array/object")
-    sample: Optional[Any] = Field(None, description="示例值")
+    sample: Any | None = Field(None, description="示例值")
 
 
 class DataSourceTestResponse(BaseSchema):
     """数据源测试响应。"""
 
     success: bool = Field(..., description="请求是否成功")
-    status_code: Optional[int] = Field(None, description="HTTP 状态码")
-    sample_data: Optional[Any] = Field(None, description="响应样本数据 (截取前 5 条)")
+    status_code: int | None = Field(None, description="HTTP 状态码")
+    sample_data: Any | None = Field(None, description="响应样本数据 (截取前 5 条)")
     fields: list[DataSourceFieldSuggestion] = Field(
         default_factory=list, description="字段建议列表"
     )
-    error: Optional[str] = Field(None, description="错误信息")
+    error: str | None = Field(None, description="错误信息")
     elapsed_ms: int = Field(..., description="请求耗时 (毫秒)")
 
 
@@ -53,7 +53,7 @@ class DataPreviewField(BaseSchema):
 
     name: str = Field(..., description="字段名")
     type: str = Field(..., description="字段类型")
-    sample: Optional[Any] = Field(None, description="示例值")
+    sample: Any | None = Field(None, description="示例值")
 
 
 class DataPreviewItem(BaseSchema):
@@ -88,9 +88,9 @@ class VersionItem(BaseSchema):
 
     id: str = Field(..., description="版本记录 ID")
     version: int = Field(..., description="版本号")
-    snapshot_label: Optional[str] = Field(None, description="版本标签")
-    created_at: Optional[datetime] = Field(None, description="创建时间")
-    created_by: Optional[str] = Field(None, description="创建人 ID")
+    snapshot_label: str | None = Field(None, description="版本标签")
+    created_at: datetime | None = Field(None, description="创建时间")
+    created_by: str | None = Field(None, description="创建人 ID")
 
 
 class VersionListResponse(BaseSchema):
@@ -114,7 +114,7 @@ class RollbackRequest(BaseSchema):
 class DeployRollbackRequest(BaseSchema):
     """部署回滚请求。"""
 
-    target_version: Optional[str] = Field(
+    target_version: str | None = Field(
         None,
         description="目标版本号，为空时自动选择上一个已发布版本",
     )
@@ -124,9 +124,9 @@ class DeployResultResponse(BaseSchema):
     """部署触发结果。"""
 
     build_job_id: str = Field(..., description="构建任务 ID")
-    audit_id: Optional[str] = Field(None, description="微信审核 ID")
+    audit_id: str | None = Field(None, description="微信审核 ID")
     deploy_status: str = Field(..., description="部署状态")
-    artifact_url: Optional[str] = Field(None, description="构建产物 URL")
+    artifact_url: str | None = Field(None, description="构建产物 URL")
 
 
 class DeployStatusResponse(BaseSchema):
@@ -134,9 +134,9 @@ class DeployStatusResponse(BaseSchema):
 
     page_id: str = Field(..., description="页面 ID")
     deploy_status: str = Field(..., description="部署状态")
-    last_deploy_at: Optional[str] = Field(None, description="最近部署时间")
-    miniapp_instance_id: Optional[str] = Field(None, description="关联小程序实例 ID")
-    build_job: Optional[dict[str, Any]] = Field(
+    last_deploy_at: str | None = Field(None, description="最近部署时间")
+    miniapp_instance_id: str | None = Field(None, description="关联小程序实例 ID")
+    build_job: dict[str, Any] | None = Field(
         None, description="最近构建任务信息"
     )
 
@@ -145,7 +145,7 @@ class DeployRollbackResponse(BaseSchema):
     """部署回滚结果。"""
 
     page_id: str = Field(..., description="页面 ID")
-    rollback_to_version: Optional[str] = Field(None, description="回滚到的版本")
+    rollback_to_version: str | None = Field(None, description="回滚到的版本")
     deploy_status: str = Field(..., description="部署状态")
     release_job_id: str = Field(..., description="发布任务 ID")
 
@@ -155,8 +155,8 @@ class PreviewDeployResponse(BaseSchema):
 
     page_id: str = Field(..., description="页面 ID")
     qr_code_url: str = Field(..., description="预览二维码 URL")
-    expires_at: Optional[str] = Field(None, description="二维码过期时间")
-    message: Optional[str] = Field(None, description="附加消息")
+    expires_at: str | None = Field(None, description="二维码过期时间")
+    message: str | None = Field(None, description="附加消息")
 
 
 class WeChatAuditCallbackRequest(BaseSchema):
@@ -164,7 +164,7 @@ class WeChatAuditCallbackRequest(BaseSchema):
 
     auditid: str = Field(..., description="审核 ID")
     status: int = Field(..., description="审核状态: 0=通过, 其他=失败")
-    reason: Optional[str] = Field(None, description="审核失败原因")
+    reason: str | None = Field(None, description="审核失败原因")
 
 
 class WeChatAuditCallbackResponse(BaseSchema):
@@ -173,7 +173,7 @@ class WeChatAuditCallbackResponse(BaseSchema):
     page_id: str = Field(..., description="页面 ID")
     deploy_status: str = Field(..., description="部署状态")
     audit_status: str = Field(..., description="审核状态: passed / failed")
-    reason: Optional[str] = Field(None, description="审核失败原因")
+    reason: str | None = Field(None, description="审核失败原因")
 
 
 # ---------------------------------------------------------------------------
@@ -233,8 +233,8 @@ class AuditLogItem(BaseSchema):
     page_id: str = Field(..., description="页面 ID")
     operator_id: str = Field(..., description="操作人 ID")
     action: str = Field(..., description="操作类型")
-    detail: Optional[dict[str, Any]] = Field(None, description="操作详情")
-    created_at: Optional[datetime] = Field(None, description="操作时间")
+    detail: dict[str, Any] | None = Field(None, description="操作详情")
+    created_at: datetime | None = Field(None, description="操作时间")
 
 
 class AuditLogListResponse(BaseSchema):

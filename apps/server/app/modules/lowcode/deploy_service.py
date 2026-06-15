@@ -4,8 +4,8 @@
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -72,7 +72,7 @@ class LowCodeDeployService:
         self,
         page: LowCodePage,
         new_status: str,
-        updated_by: Optional[str] = None,
+        updated_by: str | None = None,
     ) -> None:
         """更新部署状态，校验状态转换合法性。"""
         current = page.deploy_status or DEPLOY_STATUS_IDLE
@@ -82,7 +82,7 @@ class LowCodeDeployService:
                 f"部署状态不允许从 '{current}' 转换到 '{new_status}'"
             )
         page.deploy_status = new_status
-        page.last_deploy_at = datetime.now(timezone.utc)
+        page.last_deploy_at = datetime.now(UTC)
         if updated_by:
             set_update_audit(page, updated_by)
         await self.db.commit()
@@ -111,7 +111,7 @@ class LowCodeDeployService:
         self,
         page: LowCodePage,
         action: str,
-        artifact_id: Optional[str] = None,
+        artifact_id: str | None = None,
     ) -> ReleaseJob:
         """创建发布任务记录。"""
         job = ReleaseJob(
@@ -133,7 +133,7 @@ class LowCodeDeployService:
         self,
         tenant_id: str,
         page_id: str,
-        updated_by: Optional[str] = None,
+        updated_by: str | None = None,
     ) -> dict[str, Any]:
         """触发部署: 创建构建任务并派发到 Celery 异步执行。
 
@@ -177,7 +177,7 @@ class LowCodeDeployService:
         page = await self._load_page(tenant_id, page_id)
 
         # 查询最近的构建任务
-        build_job_info: Optional[dict[str, Any]] = None
+        build_job_info: dict[str, Any] | None = None
         if page.last_build_job_id:
             query = select(BuildJob).where(BuildJob.id == page.last_build_job_id)
             result = await self.db.execute(query)
@@ -206,8 +206,8 @@ class LowCodeDeployService:
         self,
         tenant_id: str,
         page_id: str,
-        target_version: Optional[str] = None,
-        updated_by: Optional[str] = None,
+        target_version: str | None = None,
+        updated_by: str | None = None,
     ) -> dict[str, Any]:
         """回滚部署到上一个已发布版本。
 
@@ -257,7 +257,7 @@ class LowCodeDeployService:
 
         # 更新部署状态
         page.deploy_status = DEPLOY_STATUS_UPLOADED
-        page.last_deploy_at = datetime.now(timezone.utc)
+        page.last_deploy_at = datetime.now(UTC)
         if updated_by:
             set_update_audit(page, updated_by)
         await self.db.commit()
@@ -311,10 +311,11 @@ class LowCodeDeployService:
         - audit_success -> published
         - audit_fail -> failed
 
+        注意：签名校验已在路由层 (router.py) 完成，此处仅处理业务逻辑。
+
         Returns:
             处理结果。
         """
-        # TODO: 校验回调签名
         audit_id = callback_data.get("auditid")
         status_code = callback_data.get("status")
         reason = callback_data.get("reason", "")
@@ -346,7 +347,7 @@ class LowCodeDeployService:
                 "audit failed: page_id=%s, reason=%s", page_id, reason
             )
 
-        page.last_deploy_at = datetime.now(timezone.utc)
+        page.last_deploy_at = datetime.now(UTC)
         await self.db.commit()
         await self.db.refresh(page)
 

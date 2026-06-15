@@ -17,7 +17,7 @@ import tempfile
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +100,7 @@ class CodegenResult:
 class CodegenError(Exception):
     """代码生成异常。"""
 
-    def __init__(self, message: str, details: Optional[dict[str, Any]] = None):
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(message)
         self.details = details or {}
 
@@ -622,7 +622,7 @@ class CodegenService:
                 proc.communicate(input=input_json.encode("utf-8")),
                 timeout=timeout,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             await proc.wait()
             raise CodegenError(

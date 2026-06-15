@@ -8,9 +8,9 @@ import os
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.lowcode_page import LowCodePage
@@ -39,12 +39,12 @@ class LowCodeTemplateService:
     # ------------------------------------------------------------------
     async def list_templates(
         self,
-        category: Optional[str] = None,
-        keyword: Optional[str] = None,
+        category: str | None = None,
+        keyword: str | None = None,
         sort_by: str = "popular",
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[dict[str, Any]], int]:
+    ) -> tuple[list[dict[str, Any]], int]:
         """分页列出公开模板，支持分类筛选、全文搜索、排序。
 
         Args:
@@ -132,7 +132,7 @@ class LowCodeTemplateService:
     # ------------------------------------------------------------------
     async def get_template(
         self, template_id: str, sanitize: bool = False
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """获取单个模板详情，包含作者信息。
 
         Args:
@@ -189,11 +189,11 @@ class LowCodeTemplateService:
         tenant_id: str,
         name: str,
         category: str,
-        description: Optional[str] = None,
-        thumbnail_url: Optional[str] = None,
-        tags: Optional[list[str]] = None,
+        description: str | None = None,
+        thumbnail_url: str | None = None,
+        tags: list[str] | None = None,
         is_public: bool = True,
-        created_by: Optional[str] = None,
+        created_by: str | None = None,
     ) -> LowCodeTemplate:
         """从已有页面创建模板（复制 schema_data）。
 
@@ -256,15 +256,22 @@ class LowCodeTemplateService:
     async def update_template(
         self,
         template_id: str,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        thumbnail_url: Optional[str] = None,
-        category: Optional[str] = None,
-        tags: Optional[list[str]] = None,
-        is_public: Optional[bool] = None,
-        updated_by: Optional[str] = None,
-    ) -> Optional[LowCodeTemplate]:
-        """更新模板元数据（不修改 schema）。"""
+        tenant_id: str | None = None,
+        name: str | None = None,
+        description: str | None = None,
+        thumbnail_url: str | None = None,
+        category: str | None = None,
+        tags: list[str] | None = None,
+        is_public: bool | None = None,
+        updated_by: str | None = None,
+    ) -> LowCodeTemplate | None:
+        """更新模板元数据（不修改 schema）。
+
+        Args:
+            template_id: 模板 ID
+            tenant_id: 当前租户 ID。传入时校验模板的 source_tenant_id
+                       是否匹配，不匹配则拒绝更新。
+        """
         query = select(LowCodeTemplate).where(
             LowCodeTemplate.id == template_id,
             LowCodeTemplate.status == 1,
@@ -272,6 +279,16 @@ class LowCodeTemplateService:
         result = await self.db.execute(query)
         template = result.scalar_one_or_none()
         if template is None:
+            return None
+
+        # 租户所有权校验：只有模板创建者才能更新
+        if tenant_id and template.source_tenant_id != tenant_id:
+            logger.warning(
+                "租户 %s 尝试更新不属于自己的模板 %s (owner: %s)",
+                tenant_id,
+                template_id,
+                template.source_tenant_id,
+            )
             return None
 
         if name is not None:
@@ -296,7 +313,7 @@ class LowCodeTemplateService:
     # 5. 软删除模板
     # ------------------------------------------------------------------
     async def delete_template(
-        self, template_id: str, tenant_id: Optional[str] = None
+        self, template_id: str, tenant_id: str | None = None
     ) -> bool:
         """软删除模板（status=0）。
 
@@ -387,7 +404,7 @@ class LowCodeTemplateService:
         tenant_id: str,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[LowCodeTemplate], int]:
+    ) -> tuple[list[LowCodeTemplate], int]:
         """列出当前租户发布的所有模板（含已下架）。"""
         where = LowCodeTemplate.source_tenant_id == tenant_id
 
@@ -410,7 +427,7 @@ class LowCodeTemplateService:
     # ------------------------------------------------------------------
     async def get_template_versions(
         self, template_id: str
-    ) -> List[LowCodeTemplateVersion]:
+    ) -> list[LowCodeTemplateVersion]:
         """按版本号降序列出模板的所有版本记录。"""
         query = (
             select(LowCodeTemplateVersion)
@@ -428,9 +445,9 @@ class LowCodeTemplateService:
         template_id: str,
         version: str,
         schema_data: dict[str, Any],
-        changelog: Optional[str] = None,
-        data_sources: Optional[dict[str, Any]] = None,
-        created_by: Optional[str] = None,
+        changelog: str | None = None,
+        data_sources: dict[str, Any] | None = None,
+        created_by: str | None = None,
     ) -> LowCodeTemplateVersion:
         """为模板创建新版本快照。
 
@@ -486,7 +503,7 @@ class LowCodeTemplateService:
     # ------------------------------------------------------------------
     async def _get_page(
         self, page_id: str, tenant_id: str
-    ) -> Optional[LowCodePage]:
+    ) -> LowCodePage | None:
         """根据 ID 和租户加载页面。"""
         query = select(LowCodePage).where(
             LowCodePage.id == page_id,
@@ -574,7 +591,7 @@ main().catch(function(err) {
                 proc.communicate(input=input_json.encode("utf-8")),
                 timeout=timeout,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             await proc.wait()
             logger.warning("schema 校验超时 (%ds)，跳过", timeout)
