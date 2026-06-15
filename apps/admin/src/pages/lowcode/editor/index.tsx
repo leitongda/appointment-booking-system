@@ -82,6 +82,8 @@ const LowCodeEditor: React.FC = () => {
   const [versionHistoryVisible, setVersionHistoryVisible] = useState(false);
   const [shareDialogVisible, setShareDialogVisible] = useState(false);
   const [deployPanelVisible, setDeployPanelVisible] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const schema = useEditorStore((s) => s.schema);
   const pageId = useEditorStore((s) => s.pageId);
@@ -156,6 +158,7 @@ const LowCodeEditor: React.FC = () => {
           history.replace(`/platform/lowcode/editor/${result.id}`);
         }
         message.success('保存成功');
+        setLastSavedAt(new Date());
         markSaved();
       } catch (err) {
         message.error('保存失败');
@@ -470,6 +473,23 @@ const LowCodeEditor: React.FC = () => {
     };
   }, [isDirty, handleSave]);
 
+  /** 定时自动保存（30秒） */
+  useEffect(() => {
+    if (!pageId || !isDirty) return;
+
+    autoSaveTimerRef.current = setInterval(() => {
+      doSave();
+      setLastSavedAt(new Date());
+    }, 30000);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearInterval(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+    };
+  }, [isDirty, pageId, doSave]);
+
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* 顶部工具栏 */}
@@ -544,6 +564,11 @@ const LowCodeEditor: React.FC = () => {
           >
             部署
           </Button>
+          {lastSavedAt && (
+            <span style={{ fontSize: 12, color: '#999', marginRight: 8 }}>
+              上次保存: {lastSavedAt.toLocaleTimeString()}
+            </span>
+          )}
           <Button
             icon={<SaveOutlined />}
             onClick={handleSave}

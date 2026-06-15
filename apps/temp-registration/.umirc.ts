@@ -32,6 +32,12 @@ export default defineConfig({
     { path: '/confirm', component: '@/pages/confirm' },
     { path: '/queue', component: '@/pages/queue' },
   ],
+  links: [
+    { rel: 'manifest', href: '/manifest.json' },
+  ],
+  metas: [
+    { name: 'theme-color', content: '#1677ff' },
+  ],
   proxy: {
     '/api': {
       target: 'http://localhost:9000',

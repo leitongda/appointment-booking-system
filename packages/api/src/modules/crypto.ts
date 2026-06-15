@@ -1,4 +1,4 @@
-import JSEncrypt from 'jsencrypt';
+import { JSEncrypt } from 'jsencrypt';
 
 // 缓存公钥 - 同时支持内存和 localStorage
 let cachedPublicKey: string | null = null;

@@ -77,6 +77,12 @@ export default defineConfig({
     { path: '/search', component: '@/pages/search' },
     { path: '/settings', component: '@/pages/settings' },
   ],
+  links: [
+    { rel: 'manifest', href: '/manifest.json' },
+  ],
+  metas: [
+    { name: 'theme-color', content: '#1677ff' },
+  ],
   proxy: {
     '/api': {
       target: PROXY_TARGET,

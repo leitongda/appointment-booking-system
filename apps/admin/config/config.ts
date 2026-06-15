@@ -84,10 +84,11 @@ export default defineConfig({
   // Webpack 链式配置（仅生产环境注入 gzip + splitChunks）
   chainWebpack,
 
-  // 预加载关键资源（Umi 内置配置）
+  // PWA manifest + 主题色
   links: [
-    // 字体预加载
-    // { rel: 'preload', href: '/fonts/SourceHanSansCN-Regular.woff2', as: 'font', type: 'font/woff2', crossorigin: 'anonymous' },
-    // { rel: 'preload', href: '/fonts/SourceHanSansCN-Bold.woff2', as: 'font', type: 'font/woff2', crossorigin: 'anonymous' },
+    { rel: 'manifest', href: '/manifest.json' },
+  ],
+  metas: [
+    { name: 'theme-color', content: '#1677ff' },
   ],
 });

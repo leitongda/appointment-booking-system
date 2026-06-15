@@ -5,11 +5,18 @@
  */
 import React from 'react';
 import { storeApi } from '@hospital/api';
-import { 
+import {
   type Store,
-  STORE_CONTEXT_KEY, 
-  createStoreContext 
+  STORE_CONTEXT_KEY,
+  createStoreContext
 } from '@hospital/shared';
+
+// PWA Service Worker 注册
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
 
 /**
  * 从 URL 获取门店编码并初始化门店上下文

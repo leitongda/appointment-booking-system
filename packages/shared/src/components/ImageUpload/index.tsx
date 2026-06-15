@@ -55,23 +55,17 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   // 获取剪裁比例数值
   const aspectRatioValue = ASPECT_RATIO_MAP[aspectRatio];
 
-  // 懒加载 uploadApi（仅当未注入 onUpload 时使用）
-  const getUploadApi = useCallback(async () => {
-    const { uploadApi } = await import('@hospital/api');
-    return uploadApi;
-  }, []);
+  // 上传 API（必须通过 onUpload 注入，避免循环依赖）
 
   // 上传文件
   const uploadFile = useCallback(async (file: File) => {
     setLoading(true);
     try {
       let result: { url: string; thumbnails?: Record<string, import('./types').ThumbnailInfo> };
-      if (onUpload) {
-        result = await onUpload(file, folder);
-      } else {
-        const api = await getUploadApi();
-        result = await api.upload(file, { folder, generateThumbnails });
+      if (!onUpload) {
+        throw new Error('请提供 onUpload 属性');
       }
+      result = await onUpload(file, folder);
       onChange?.(result.url);
       // 如果有缩略图，通知父组件
       if (result.thumbnails && onThumbnailsChange) {

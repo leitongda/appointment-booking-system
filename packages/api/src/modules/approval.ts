@@ -89,6 +89,21 @@ export const approvalInstanceApi = {
     return request.post(`/approval-instances/${instanceId}/withdraw`);
   },
 
+  /** 回退到指定节点 */
+  rollback: (instanceId: string, targetNodeKey: string, comment?: string): Promise<void> => {
+    return request.post(`/approval-instances/${instanceId}/rollback`, { targetNodeKey, comment });
+  },
+
+  /** 加签 */
+  addSigner: (instanceId: string, userIds: string[], comment?: string): Promise<void> => {
+    return request.post(`/approval-instances/${instanceId}/add-signer`, { userIds, comment });
+  },
+
+  /** 自由跳转 */
+  jump: (instanceId: string, targetNodeKey: string, comment?: string): Promise<void> => {
+    return request.post(`/approval-instances/${instanceId}/jump`, { targetNodeKey, comment });
+  },
+
   /** 获取待办数量 */
   getPendingCount: (): Promise<{ count: number }> => {
     return request.get('/approval-instances/pending-count');
@@ -125,6 +140,13 @@ export interface FlowDefinitionCreateData {
       value: string;
       priority: number;
     }>;
+  }>;
+  edges?: Array<{
+    id?: string;
+    source: string;
+    target: string;
+    sourceHandle?: string;
+    targetHandle?: string;
   }>;
 }
 
@@ -179,5 +201,20 @@ export const approvalFlowApi = {
   /** 复制流程定义 */
   copy: (id: string): Promise<FlowDefinition> => {
     return request.post(`/approval-flows/${id}/copy`);
+  },
+
+  /** 校验流程定义 */
+  validate: (id: string): Promise<{ valid: boolean; errors: string[] }> => {
+    return request.post(`/approval-flows/${id}/validate`);
+  },
+
+  /** 获取流程模板列表 */
+  getTemplates: (): Promise<{ items: Array<{ id: string; name: string; businessType: string; description: string; nodes: any[]; edges: any[] }> }> => {
+    return request.get('/approval-flows/templates/list');
+  },
+
+  /** 导出流程定义 JSON */
+  export: (id: string): Promise<any> => {
+    return request.post(`/approval-flows/${id}/export`);
   },
 };

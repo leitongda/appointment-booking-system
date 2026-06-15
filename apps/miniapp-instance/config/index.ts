@@ -127,18 +127,28 @@ export default defineConfig(async () => {
           .maxAssetSize(800 * 1024)
           .maxEntrypointSize(800 * 1024)
           .hints(process.env.NODE_ENV === 'production' ? 'warning' : false);
-        chain.merge({
-          ignoreWarnings: [
-            (warning: any) => {
-              const msg = warning?.message || '';
-              return msg.includes('CaseSensitiveModulesWarning') && msg.includes('@nutui/nutui-react-taro');
-            },
-            (warning: any) => {
-              const msg = warning?.message || '';
-              return msg.includes('Deprecation Warning') && msg.includes('@nutui/nutui-react-taro');
-            },
-          ],
-        });
+        chain.set('ignoreWarnings', [
+          /CaseSensitiveModulesWarning[\s\S]*@nutui\/nutui-react-taro/,
+          /Deprecation Warning[\s\S]*@nutui\/nutui-react-taro[\s\S]*Sass @import/,
+        ]);
+
+        // 兜底方案：通过 webpack plugin 直接过滤 compilation.warnings
+        // 确保即使 ignoreWarnings 被 Taro 覆盖，警告也能被过滤
+        class SuppressNutUIWarningsPlugin {
+          apply(compiler: any) {
+            compiler.hooks.compilation.tap('SuppressNutUIWarnings', (compilation: any) => {
+              compilation.hooks.afterSeal.tap('SuppressNutUIWarnings', () => {
+                compilation.warnings = compilation.warnings.filter((w: any) => {
+                  const msg = w?.message || '';
+                  if (msg.includes('CaseSensitiveModulesWarning') && msg.includes('@nutui')) return false;
+                  if (msg.includes('Deprecation Warning') && msg.includes('@nutui') && msg.includes('Sass @import')) return false;
+                  return true;
+                });
+              });
+            });
+          }
+        }
+        chain.plugin('suppress-nutui-warnings').use(SuppressNutUIWarningsPlugin);
       },
     } as any,
     h5: {

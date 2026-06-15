@@ -159,25 +159,31 @@ export default defineConfig(async () => {
         // 1. NutUI 包内大小写路径不一致导致的 CaseSensitiveModulesWarning
         // 2. NutUI 依赖的 Sass @import 废弃告警
         // 这些 warning 不影响 patient-miniapp 运行，也不来自项目源码。
-        chain.merge({
-          ignoreWarnings: [
-            (warning: any) => {
-              const message = warning?.message || '';
-              return (
-                message.includes('CaseSensitiveModulesWarning') &&
-                message.includes('@nutui/nutui-react-taro')
-              );
-            },
-            (warning: any) => {
-              const message = warning?.message || '';
-              return (
-                message.includes('Deprecation Warning') &&
-                message.includes('@nutui/nutui-react-taro') &&
-                message.includes('Sass @import rules are deprecated')
-              );
-            },
-          ],
-        });
+        //
+        // 同时使用两种策略互补：
+        // A) ignoreWarnings - webpack 5 原生支持
+        // B) 自定义 plugin 兜底 - 直接过滤 compilation.warnings
+        chain.set('ignoreWarnings', [
+          /CaseSensitiveModulesWarning[\s\S]*@nutui\/nutui-react-taro/,
+          /Deprecation Warning[\s\S]*@nutui\/nutui-react-taro[\s\S]*Sass @import/,
+        ]);
+
+        // 兜底方案：通过 webpack plugin 在 compilation 后直接过滤警告
+        class SuppressNutUIWarningsPlugin {
+          apply(compiler: any) {
+            compiler.hooks.compilation.tap('SuppressNutUIWarnings', (compilation: any) => {
+              compilation.hooks.afterSeal.tap('SuppressNutUIWarnings', () => {
+                compilation.warnings = compilation.warnings.filter((w: any) => {
+                  const msg = w?.message || '';
+                  if (msg.includes('CaseSensitiveModulesWarning') && msg.includes('@nutui')) return false;
+                  if (msg.includes('Deprecation Warning') && msg.includes('@nutui') && msg.includes('Sass @import')) return false;
+                  return true;
+                });
+              });
+            });
+          }
+        }
+        chain.plugin('suppress-nutui-warnings').use(SuppressNutUIWarningsPlugin);
 
         // 使用 Taro 默认的 splitChunks 配置
         // 注意：自定义 splitChunks 可能导致 chunk ID 和文件名不匹配

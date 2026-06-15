@@ -14,6 +14,13 @@ import { initApiConfig } from '@/utils/request';
 const apiBaseUrl = process.env.API_BASE_URL || '/api/v1';
 setBaseURL(apiBaseUrl);
 
+// PWA Service Worker 注册
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
 // 初始化 API 请求配置（拦截器）
 initApiConfig();
 

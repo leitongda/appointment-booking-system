@@ -29,6 +29,13 @@ const approval = [
         hideInMenu: true,
       },
       {
+        path: '/approval/definitions/designer/:id',
+        name: '流程设计器',
+        component: './approval/designer',
+        hideInMenu: true,
+        access: 'canApprovalFlowManage',
+      },
+      {
         path: '/approval/definitions',
         name: '流程定义',
         component: './approval/definitions',

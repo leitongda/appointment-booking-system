@@ -1,9 +1,10 @@
 import type { ProColumns } from '@ant-design/pro-components';
-import { PageContainer, ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormSelect } from '@ant-design/pro-components';
+import { PageContainer, ProTable } from '@ant-design/pro-components';
 import { Tag, Button, Space, Modal, message, Drawer, Timeline, Card, Descriptions } from 'antd';
 import { PlusOutlined, CopyOutlined, PlayCircleOutlined, PauseCircleOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { useState, useRef } from 'react';
 import type { ActionType } from '@ant-design/pro-components';
+import { history } from '@umijs/max';
 import { approvalFlowApi } from '@hospital/api';
 import type { FlowDefinitionListItem, FlowDefinition } from '@hospital/shared';
 
@@ -30,7 +31,6 @@ const FlowDefinitionsPage: React.FC = () => {
   const actionRef = useRef<ActionType>();
   const [detailOpen, setDetailOpen] = useState(false);
   const [currentFlow, setCurrentFlow] = useState<FlowDefinition | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
 
   const fetchData = async (params: any) => {
     try {
@@ -115,36 +115,6 @@ const FlowDefinitionsPage: React.FC = () => {
     });
   };
 
-  const handleCreate = async (values: any) => {
-    try {
-      await approvalFlowApi.create({
-        name: values.name,
-        businessType: values.businessType,
-        description: values.description,
-        nodes: [
-          { nodeKey: 'start', nodeName: '开始', nodeType: 'start', sortOrder: 0 },
-          {
-            nodeKey: 'approver_1',
-            nodeName: '审批节点',
-            nodeType: 'approval',
-            approvalMode: 'or',
-            assigneeType: 'role',
-            assigneeConfig: { role_codes: ['TENANT_ADMIN'] },
-            sortOrder: 1,
-          },
-          { nodeKey: 'end', nodeName: '结束', nodeType: 'end', sortOrder: 2 },
-        ],
-      });
-      message.success('创建成功');
-      setCreateOpen(false);
-      actionRef.current?.reload();
-      return true;
-    } catch (e: any) {
-      message.error(e.message || '创建失败');
-      return false;
-    }
-  };
-
   const columns: ProColumns<FlowDefinitionListItem>[] = [
     {
       title: '流程名称',
@@ -206,6 +176,11 @@ const FlowDefinitionsPage: React.FC = () => {
             复制
           </Button>
           {record.status === 'draft' && (
+            <Button type="link" size="small" onClick={() => history.push(`/approval/definitions/designer/${record.id}`)}>
+              编辑
+            </Button>
+          )}
+          {record.status === 'draft' && (
             <>
               <Button type="link" size="small" style={{ color: '#52c41a' }} icon={<PlayCircleOutlined />} onClick={() => handleActivate(record.id)}>
                 激活
@@ -240,40 +215,12 @@ const FlowDefinitionsPage: React.FC = () => {
             key="create"
             type="primary"
             icon={<PlusOutlined />}
-            onClick={() => setCreateOpen(true)}
+            onClick={() => history.push('/approval/definitions/designer/new')}
           >
             新建流程
           </Button>,
         ]}
       />
-
-      {/* 创建流程弹窗 */}
-      <ModalForm
-        title="新建流程定义"
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        onFinish={handleCreate}
-        width={500}
-      >
-        <ProFormText
-          name="name"
-          label="流程名称"
-          placeholder="请输入流程名称"
-          rules={[{ required: true, message: '请输入流程名称' }]}
-        />
-        <ProFormSelect
-          name="businessType"
-          label="业务类型"
-          placeholder="请选择业务类型"
-          options={BUSINESS_TYPE_OPTIONS}
-          rules={[{ required: true, message: '请选择业务类型' }]}
-        />
-        <ProFormTextArea
-          name="description"
-          label="描述"
-          placeholder="请输入流程描述"
-        />
-      </ModalForm>
 
       {/* 流程详情抽屉 */}
       <Drawer

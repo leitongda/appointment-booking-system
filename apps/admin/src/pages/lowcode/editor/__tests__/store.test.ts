@@ -700,8 +700,8 @@ describe('useEditorStore', () => {
   });
 
   describe('history limit', () => {
-    it('should cap history at MAX_HISTORY (50) entries', () => {
-      for (let i = 0; i < 55; i++) {
+    it('should cap history at MAX_HISTORY (30) entries', () => {
+      for (let i = 0; i < 35; i++) {
         const s: LowCodeSchema = {
           componentName: 'Page',
           props: {},
@@ -711,14 +711,14 @@ describe('useEditorStore', () => {
       }
 
       const state = useEditorStore.getState();
-      expect(state.history.length).toBeLessThanOrEqual(50);
+      expect(state.history.length).toBeLessThanOrEqual(30);
       expect(state.historyIndex).toBe(state.history.length - 1);
-      expect(state.schema.children[0].id).toBe('n-54');
+      expect(state.schema.children[0].id).toBe('n-34');
     });
 
     it('should drop the oldest entries when limit is exceeded', () => {
-      // Push 49 entries (total = 50 including initial default)
-      for (let i = 0; i < 49; i++) {
+      // Push 29 entries (total = 30 including initial default)
+      for (let i = 0; i < 29; i++) {
         const s: LowCodeSchema = {
           componentName: 'Page',
           props: {},
@@ -727,7 +727,7 @@ describe('useEditorStore', () => {
         useEditorStore.getState().setSchema(s);
       }
 
-      expect(useEditorStore.getState().history).toHaveLength(50);
+      expect(useEditorStore.getState().history).toHaveLength(30);
 
       // Push one more -> drops the first entry (default with empty children)
       useEditorStore.getState().setSchema({
@@ -737,13 +737,13 @@ describe('useEditorStore', () => {
       });
 
       const state = useEditorStore.getState();
-      expect(state.history.length).toBe(50);
+      expect(state.history.length).toBe(30);
       // The oldest entry should now be n-0 (default was dropped)
       expect(state.history[0].schema.children[0].id).toBe('n-0');
     });
 
     it('should keep the most recent entry after exceeding limit', () => {
-      for (let i = 0; i < 60; i++) {
+      for (let i = 0; i < 40; i++) {
         const s: LowCodeSchema = {
           componentName: 'Page',
           props: {},
@@ -753,7 +753,7 @@ describe('useEditorStore', () => {
       }
 
       const state = useEditorStore.getState();
-      expect(state.schema.children[0].id).toBe('n-59');
+      expect(state.schema.children[0].id).toBe('n-39');
       expect(state.historyIndex).toBe(state.history.length - 1);
     });
   });

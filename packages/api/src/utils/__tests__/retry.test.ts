@@ -3,7 +3,7 @@
  */
 
 import { setupRetryInterceptor, withRetry } from '../retry';
-import axios from 'axios';
+import { axios } from 'axios';
 
 describe('Retry Mechanism', () => {
   let axiosInstance: any;

@@ -16,6 +16,13 @@ import {
 } from '@hospital/shared';
 import { setTenantStatus } from '@/hooks/useTenantGuard';
 
+// PWA Service Worker 注册
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
 /**
  * 从 URL 获取门店编码并初始化门店上下文
  * 在应用启动时执行一次

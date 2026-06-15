@@ -14,7 +14,9 @@ module.exports = {
       libraryDirectory: 'dist/es/packages',
       style: true,
       camel2DashComponentName: false,
+      // NutUI 3.x publishes component directories in lowercase without separators
+      // (for example, PullToRefresh -> pulltorefresh).
+      customName: name => `@nutui/nutui-react-taro/dist/es/packages/${name.toLowerCase()}`,
     }, '@nutui/nutui-react-taro'],
   ],
 };
-

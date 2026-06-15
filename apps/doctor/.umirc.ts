@@ -78,6 +78,12 @@ export default defineConfig({
     { path: '/profile', name: '个人资料', component: '@/pages/profile', hideInMenu: true },
     { path: '/settings/notification', name: '通知设置', icon: 'SettingOutlined', component: '@/pages/settings/notification-settings' },
   ],
+  links: [
+    { rel: 'manifest', href: '/manifest.json' },
+  ],
+  metas: [
+    { name: 'theme-color', content: '#1677ff' },
+  ],
   proxy: {
     '/api': { target: PROXY_TARGET, changeOrigin: true },
   },

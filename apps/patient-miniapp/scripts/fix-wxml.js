@@ -41,7 +41,7 @@ function fixBaseWxml(silent = false) {
   if (content !== originalContent) {
     fs.writeFileSync(baseWxmlPath, content, 'utf-8');
     console.log('[fix-wxml] ✅ 成功修复 base.wxml 中的 input 标签');
-  } else {
+  } else if (!silent) {
     console.log('[fix-wxml] base.wxml 无需修复');
   }
 }
@@ -143,10 +143,12 @@ function fixAllWxss(silent = false) {
     }
   }
 
-  if (fixedCount === 0) {
+  if (fixedCount === 0 && !silent) {
     console.log('[fix-wxss] 所有 wxss 文件无需修复');
   } else {
-    console.log(`[fix-wxss] ✅ 共修复 ${fixedCount} 个文件`);
+    if (fixedCount > 0) {
+      console.log(`[fix-wxss] ✅ 共修复 ${fixedCount} 个文件`);
+    }
   }
 }
 
@@ -184,46 +186,13 @@ runAllFixes(isWatchMode);
 if (isWatchMode) {
   console.log('[fix] 👀 监听模式已启动，等待编译产物生成...');
   
-  // 使用防抖来避免频繁触发
-  let debounceTimer = null;
-  
-  // 等待 dist 目录创建后再开始监听
-  function startWatching() {
-    const watcher = fs.watch(distPath, { recursive: true }, (eventType, filename) => {
-      try {
-        // 监听 base.wxml 和所有 wxss 文件
-        if (filename === 'base.wxml' || (filename && filename.endsWith('.wxss'))) {
-          if (debounceTimer) {
-            clearTimeout(debounceTimer);
-          }
-          debounceTimer = setTimeout(() => {
-            runAllFixes();
-          }, 100);
-        }
-      } catch (error) {
-        console.error('[fix] 监听器错误:', error.message);
-      }
-    });
-
-    // 处理 watcher 错误
-    watcher.on('error', (error) => {
-      console.error('[fix] 监听器错误:', error.message);
-    });
-
-    console.log('[fix] 👀 开始监听 dist 目录...');
-  }
-  
-  // 如果 dist 目录不存在，等待它被创建
-  if (!fs.existsSync(distPath)) {
-    console.log('[fix] dist 目录不存在，等待 Taro 编译创建...');
-    const checkInterval = setInterval(() => {
-      if (fs.existsSync(distPath)) {
-        clearInterval(checkInterval);
-        startWatching();
-      }
-    }, 500);
-  } else {
-    startWatching();
-  }
+  // fs.watch({ recursive: true }) can fail with EMFILE while Taro is also
+  // watching the project. Polling the small dist tree is more predictable.
+  setInterval(() => {
+    try {
+      runAllFixes(true);
+    } catch (error) {
+      console.error('[fix] 修复失败:', error.message);
+    }
+  }, 1000);
 }
-

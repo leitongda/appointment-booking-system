@@ -1,0 +1,21 @@
+{
+  "name": "医院挂号系统",
+  "short_name": "挂号系统",
+  "description": "一套完整的 SaaS 多租户医院预约挂号解决方案",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0052FF",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
