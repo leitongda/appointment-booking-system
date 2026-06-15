@@ -453,3 +453,17 @@ Unless directly relevant to the user's current question, you should avoid proact
 
 - the user's github id: xxxx
 
+## Workflow 并发控制规则
+
+当使用 Claude Code dynamic workflow、subagents、agent team 或多 agent 任务时，必须遵守以下规则：
+
+1. 默认最多同时运行 6 个 subagents。
+2. 只读分析类任务最多 8 个并发。
+3. 代码修改类任务最多 2 个并发。
+4. 测试、构建、迁移类任务最多 2 个并发。
+5. Opus 模型最多 3 个并发。
+6. Sonnet 模型最多 6 个并发。
+7. Haiku 模型最多 12 个并发。
+8. 如果出现 429、rate limit、overloaded、timeout，必须将当前并发减半后重试。
+9. 多个 agent 不允许同时修改同一个文件；修改前必须按模块或文件路径分片。
+10. 每个 agent 只能返回结构化结论，不允许返回大段日志或完整文件内容。
