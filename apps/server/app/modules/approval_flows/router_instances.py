@@ -1,19 +1,21 @@
 """审批实例路由"""
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 
-from app.db.session import get_db
-from app.common.auth_unified import get_current_account_with_role
 from app.common.permission_deps import require_permission
-from app.modules.approval_flows.service_instances import ApprovalInstanceService
+from app.db.session import get_db
 from app.modules.approval_flows.schemas import (
-    ApprovalInstanceResponse,
-    ApprovalInstanceListResponse,
     ApprovalActionRequest,
+    ApprovalAddSignerRequest,
     ApprovalDelegateRequest,
+    ApprovalInstanceListResponse,
+    ApprovalInstanceResponse,
+    ApprovalJumpRequest,
     ApprovalQuery,
+    ApprovalRollbackRequest,
 )
+from app.modules.approval_flows.service_instances import ApprovalInstanceService
 
 router = APIRouter()
 
@@ -22,9 +24,9 @@ router = APIRouter()
 async def list_instances(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    status: Optional[str] = None,
-    business_type: Optional[str] = None,
-    store_id: Optional[str] = None,
+    status: str | None = None,
+    business_type: str | None = None,
+    store_id: str | None = None,
     view: str = Query("pending", description="pending=我的待办, done=我的已办, initiated=我发起的"),
     db: AsyncSession = Depends(get_db),
     account=Depends(require_permission("approval:read")),
@@ -52,8 +54,8 @@ async def list_instances(
 async def list_my_pending_instances(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    business_type: Optional[str] = None,
-    store_id: Optional[str] = None,
+    business_type: str | None = None,
+    store_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     account=Depends(require_permission("approval:read")),
 ):
@@ -186,6 +188,54 @@ async def withdraw_instance(
     service = ApprovalInstanceService(db)
     try:
         instance = await service.withdraw(instance_id, account.id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    await db.commit()
+    return ApprovalInstanceResponse.model_validate(instance)
+
+
+@router.post("/{instance_id}/rollback", summary="回退到指定节点")
+async def rollback_instance(
+    instance_id: str,
+    data: ApprovalRollbackRequest,
+    db: AsyncSession = Depends(get_db),
+    account=Depends(require_permission("approval-instance:manage")),
+):
+    service = ApprovalInstanceService(db)
+    try:
+        instance = await service.rollback(instance_id, account.id, data.target_node_key, data.comment or "")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    await db.commit()
+    return ApprovalInstanceResponse.model_validate(instance)
+
+
+@router.post("/{instance_id}/add-signer", summary="加签")
+async def add_signer(
+    instance_id: str,
+    data: ApprovalAddSignerRequest,
+    db: AsyncSession = Depends(get_db),
+    account=Depends(require_permission("approval-instance:manage")),
+):
+    service = ApprovalInstanceService(db)
+    try:
+        instance = await service.add_signer(instance_id, account.id, data.user_ids, data.comment or "")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    await db.commit()
+    return ApprovalInstanceResponse.model_validate(instance)
+
+
+@router.post("/{instance_id}/jump", summary="自由跳转")
+async def jump_instance(
+    instance_id: str,
+    data: ApprovalJumpRequest,
+    db: AsyncSession = Depends(get_db),
+    account=Depends(require_permission("approval-instance:manage")),
+):
+    service = ApprovalInstanceService(db)
+    try:
+        instance = await service.jump(instance_id, account.id, data.target_node_key, data.comment or "")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     await db.commit()

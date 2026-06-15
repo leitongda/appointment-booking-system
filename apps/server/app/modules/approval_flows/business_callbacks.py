@@ -1,6 +1,5 @@
 """Built-in business callbacks for the generic approval engine."""
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +14,7 @@ from app.utils.audit import set_update_audit
 from app.utils.datetime import utc_now
 
 
-async def _last_action_record(db: AsyncSession, instance_id: str) -> Optional[ApprovalRecord]:
+async def _last_action_record(db: AsyncSession, instance_id: str) -> ApprovalRecord | None:
     result = await db.execute(
         select(ApprovalRecord)
         .where(

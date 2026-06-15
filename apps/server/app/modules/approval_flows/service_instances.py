@@ -1,14 +1,13 @@
 """审批实例服务"""
 import logging
-from typing import Optional, List, Tuple
 
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
 
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.approval_flow import ApprovalInstance, ApprovalRecord, ApprovalTask
 from app.modules.approval_flows.engine import ApprovalEngine
 from app.modules.approval_flows.schemas import ApprovalQuery
-from app.middleware.tenant_context import get_current_tenant_id
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +22,9 @@ class ApprovalInstanceService:
     async def get_list(
         self,
         query: ApprovalQuery,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
         view: str = "pending",
-    ) -> Tuple[List[ApprovalInstance], int]:
+    ) -> tuple[list[ApprovalInstance], int]:
         """获取审批实例列表"""
         stmt = select(ApprovalInstance)
         count_stmt = select(func.count(ApprovalInstance.id))
@@ -98,7 +97,7 @@ class ApprovalInstanceService:
         self,
         user_id: str,
         query: ApprovalQuery,
-    ) -> Tuple[List[ApprovalInstance], int]:
+    ) -> tuple[list[ApprovalInstance], int]:
         """获取我的待办列表"""
         pending_subquery = (
             select(ApprovalTask.instance_id)
@@ -136,13 +135,13 @@ class ApprovalInstanceService:
 
         return list(result.scalars().all()), count_result.scalar() or 0
 
-    async def get_by_id(self, instance_id: str) -> Optional[ApprovalInstance]:
+    async def get_by_id(self, instance_id: str) -> ApprovalInstance | None:
         """获取实例详情"""
         stmt = select(ApprovalInstance).where(ApprovalInstance.id == instance_id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_business(self, business_type: str, business_id: str) -> Optional[ApprovalInstance]:
+    async def get_by_business(self, business_type: str, business_id: str) -> ApprovalInstance | None:
         """按业务 ID 获取实例"""
         stmt = select(ApprovalInstance).where(
             and_(
@@ -159,7 +158,7 @@ class ApprovalInstanceService:
         instance_id: str,
         approver_id: str,
         approver_name: str = "",
-        comment: Optional[str] = None,
+        comment: str | None = None,
     ) -> ApprovalInstance:
         """审批通过"""
         return await self.engine.approve(instance_id, approver_id, approver_name, comment)
@@ -169,7 +168,7 @@ class ApprovalInstanceService:
         instance_id: str,
         approver_id: str,
         approver_name: str = "",
-        comment: Optional[str] = None,
+        comment: str | None = None,
     ) -> ApprovalInstance:
         """审批拒绝"""
         return await self.engine.reject(instance_id, approver_id, approver_name, comment)
@@ -181,7 +180,7 @@ class ApprovalInstanceService:
         approver_name: str,
         target_user_id: str,
         target_user_name: str = "",
-        comment: Optional[str] = None,
+        comment: str | None = None,
     ) -> ApprovalInstance:
         """转交"""
         return await self.engine.delegate(
@@ -192,6 +191,36 @@ class ApprovalInstanceService:
     async def withdraw(self, instance_id: str, user_id: str) -> ApprovalInstance:
         """撤回"""
         return await self.engine.withdraw(instance_id, user_id)
+
+    async def rollback(
+        self,
+        instance_id: str,
+        operator_id: str,
+        target_node_key: str,
+        comment: str = "",
+    ) -> ApprovalInstance:
+        """回退到指定节点"""
+        return await self.engine.rollback(instance_id, operator_id, target_node_key, comment)
+
+    async def add_signer(
+        self,
+        instance_id: str,
+        operator_id: str,
+        user_ids: list[str],
+        comment: str = "",
+    ) -> ApprovalInstance:
+        """加签"""
+        return await self.engine.add_signer(instance_id, operator_id, user_ids, comment)
+
+    async def jump(
+        self,
+        instance_id: str,
+        operator_id: str,
+        target_node_key: str,
+        comment: str = "",
+    ) -> ApprovalInstance:
+        """自由跳转"""
+        return await self.engine.jump(instance_id, operator_id, target_node_key, comment)
 
     async def get_pending_count(self, user_id: str) -> int:
         """获取待办数量"""

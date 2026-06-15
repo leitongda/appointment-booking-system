@@ -1,8 +1,10 @@
 from app.schemas.response import to_camel
+
 """审批流 Pydantic schemas"""
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, List, Dict, Any
 from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
 
 CAMEL_CONFIG = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True)
 
@@ -25,35 +27,37 @@ class FlowNodeCreate(BaseModel):
     node_key: str
     node_name: str
     node_type: str = Field(pattern="^(start|approval|cc|condition|end)$")
-    approval_mode: Optional[str] = Field(None, pattern="^(and|or|sequential)$")
-    assignee_type: Optional[str] = None
-    assignee_config: Optional[Dict[str, Any]] = None
-    timeout_hours: Optional[int] = None
-    timeout_action: Optional[str] = Field(None, pattern="^(remind|auto_approve|auto_reject|transfer)$")
+    approval_mode: str | None = Field(None, pattern="^(and|or|sequential)$")
+    assignee_type: str | None = None
+    assignee_config: dict[str, Any] | None = None
+    timeout_hours: int | None = None
+    timeout_action: str | None = Field(None, pattern="^(remind|auto_approve|auto_reject|transfer)$")
     sort_order: int = 0
-    position_x: Optional[float] = None
-    position_y: Optional[float] = None
-    conditions: List[FlowConditionCreate] = Field(default_factory=list)
+    position_x: float | None = None
+    position_y: float | None = None
+    conditions: list[FlowConditionCreate] = Field(default_factory=list)
 
 class FlowDefinitionCreate(BaseModel):
     model_config = CAMEL_CONFIG
 
     name: str
     business_type: str
-    description: Optional[str] = None
-    form_schema: Optional[Dict[str, Any]] = None
-    callback_config: Optional[Dict[str, Any]] = None
-    store_id: Optional[str] = None
-    nodes: List[FlowNodeCreate] = Field(default_factory=list)
+    description: str | None = None
+    form_schema: dict[str, Any] | None = None
+    callback_config: dict[str, Any] | None = None
+    store_id: str | None = None
+    nodes: list[FlowNodeCreate] = Field(default_factory=list)
+    edges: list[dict[str, Any]] = Field(default_factory=list)
 
 class FlowDefinitionUpdate(BaseModel):
     model_config = CAMEL_CONFIG
 
-    name: Optional[str] = None
-    description: Optional[str] = None
-    form_schema: Optional[Dict[str, Any]] = None
-    callback_config: Optional[Dict[str, Any]] = None
-    nodes: Optional[List[FlowNodeCreate]] = None
+    name: str | None = None
+    description: str | None = None
+    form_schema: dict[str, Any] | None = None
+    callback_config: dict[str, Any] | None = None
+    nodes: list[FlowNodeCreate] | None = None
+    edges: list[dict[str, Any]] | None = None
 
 class FlowConditionResponse(BaseModel):
     model_config = CAMEL_CONFIG
@@ -73,15 +77,15 @@ class FlowNodeResponse(BaseModel):
     node_key: str
     node_name: str
     node_type: str
-    approval_mode: Optional[str] = None
-    assignee_type: Optional[str] = None
-    assignee_config: Optional[Dict[str, Any]] = None
-    timeout_hours: Optional[int] = None
-    timeout_action: Optional[str] = None
+    approval_mode: str | None = None
+    assignee_type: str | None = None
+    assignee_config: dict[str, Any] | None = None
+    timeout_hours: int | None = None
+    timeout_action: str | None = None
     sort_order: int
-    position_x: Optional[float] = None
-    position_y: Optional[float] = None
-    conditions: List[FlowConditionResponse] = Field(default_factory=list)
+    position_x: float | None = None
+    position_y: float | None = None
+    conditions: list[FlowConditionResponse] = Field(default_factory=list)
 
 class FlowDefinitionResponse(BaseModel):
     model_config = CAMEL_CONFIG
@@ -89,16 +93,17 @@ class FlowDefinitionResponse(BaseModel):
     id: str
     name: str
     business_type: str
-    description: Optional[str] = None
+    description: str | None = None
     version: int
     status: str
-    form_schema: Optional[Dict[str, Any]] = None
-    callback_config: Optional[Dict[str, Any]] = None
-    store_id: Optional[str] = None
-    snapshot_json: Optional[Dict[str, Any]] = None
-    nodes: List[FlowNodeResponse] = Field(default_factory=list)
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    form_schema: dict[str, Any] | None = None
+    callback_config: dict[str, Any] | None = None
+    store_id: str | None = None
+    snapshot_json: dict[str, Any] | None = None
+    edges: list[dict[str, Any]] | None = None
+    nodes: list[FlowNodeResponse] = Field(default_factory=list)
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 class FlowDefinitionListResponse(BaseModel):
     model_config = CAMEL_CONFIG
@@ -108,9 +113,9 @@ class FlowDefinitionListResponse(BaseModel):
     business_type: str
     version: int
     status: str
-    description: Optional[str] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    description: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 # ============================================================
 # 审批实例相关
@@ -121,13 +126,13 @@ class ApprovalRecordResponse(BaseModel):
 
     id: str
     node_key: str
-    node_name: Optional[str] = None
+    node_name: str | None = None
     approver_id: str
-    approver_name: Optional[str] = None
+    approver_name: str | None = None
     action: str
-    comment: Optional[str] = None
-    delegate_to: Optional[str] = None
-    created_at: Optional[datetime] = None
+    comment: str | None = None
+    delegate_to: str | None = None
+    created_at: datetime | None = None
 
 class ApprovalTaskResponse(BaseModel):
     model_config = CAMEL_CONFIG
@@ -135,17 +140,17 @@ class ApprovalTaskResponse(BaseModel):
     id: str
     instance_id: str
     node_key: str
-    node_name: Optional[str] = None
+    node_name: str | None = None
     task_type: str
     status: str
     assignee_id: str
-    assignee_name: Optional[str] = None
-    candidate_user_ids: Optional[List[str]] = None
-    assignee_snapshot: Optional[Dict[str, Any]] = None
-    completed_at: Optional[datetime] = None
-    completed_by: Optional[str] = None
-    timeout_at: Optional[datetime] = None
-    created_at: Optional[datetime] = None
+    assignee_name: str | None = None
+    candidate_user_ids: list[str] | None = None
+    assignee_snapshot: dict[str, Any] | None = None
+    completed_at: datetime | None = None
+    completed_by: str | None = None
+    timeout_at: datetime | None = None
+    created_at: datetime | None = None
 
 class ApprovalInstanceResponse(BaseModel):
     model_config = CAMEL_CONFIG
@@ -155,18 +160,18 @@ class ApprovalInstanceResponse(BaseModel):
     business_type: str
     business_id: str
     title: str
-    form_data: Dict[str, Any]
+    form_data: dict[str, Any]
     status: str
-    current_node_key: Optional[str] = None
+    current_node_key: str | None = None
     applicant_id: str
-    applicant_name: Optional[str] = None
-    approved_at: Optional[datetime] = None
-    rejected_at: Optional[datetime] = None
-    cancelled_at: Optional[datetime] = None
-    completed_reason: Optional[str] = None
-    records: List[ApprovalRecordResponse] = Field(default_factory=list)
-    tasks: List[ApprovalTaskResponse] = Field(default_factory=list)
-    created_at: Optional[datetime] = None
+    applicant_name: str | None = None
+    approved_at: datetime | None = None
+    rejected_at: datetime | None = None
+    cancelled_at: datetime | None = None
+    completed_reason: str | None = None
+    records: list[ApprovalRecordResponse] = Field(default_factory=list)
+    tasks: list[ApprovalTaskResponse] = Field(default_factory=list)
+    created_at: datetime | None = None
 
 class ApprovalInstanceListResponse(BaseModel):
     model_config = CAMEL_CONFIG
@@ -177,28 +182,46 @@ class ApprovalInstanceListResponse(BaseModel):
     title: str
     status: str
     applicant_id: str
-    applicant_name: Optional[str] = None
-    current_node_key: Optional[str] = None
-    created_at: Optional[datetime] = None
+    applicant_name: str | None = None
+    current_node_key: str | None = None
+    created_at: datetime | None = None
 
 class ApprovalActionRequest(BaseModel):
     model_config = CAMEL_CONFIG
 
-    comment: Optional[str] = None
+    comment: str | None = None
 
 class ApprovalDelegateRequest(BaseModel):
     model_config = CAMEL_CONFIG
 
     target_user_id: str
-    target_user_name: Optional[str] = None
-    comment: Optional[str] = None
+    target_user_name: str | None = None
+    comment: str | None = None
+
+class ApprovalRollbackRequest(BaseModel):
+    """回退请求"""
+    model_config = CAMEL_CONFIG
+    target_node_key: str = Field(description="回退到的目标节点 key")
+    comment: str | None = None
+
+class ApprovalAddSignerRequest(BaseModel):
+    """加签请求"""
+    model_config = CAMEL_CONFIG
+    user_ids: list[str] = Field(description="要加签的用户 ID 列表")
+    comment: str | None = None
+
+class ApprovalJumpRequest(BaseModel):
+    """自由跳转请求"""
+    model_config = CAMEL_CONFIG
+    target_node_key: str = Field(description="跳转到的目标节点 key")
+    comment: str | None = None
 
 class ApprovalQuery(BaseModel):
     model_config = CAMEL_CONFIG
 
     page: int = 1
     page_size: int = 20
-    status: Optional[str] = None
-    business_type: Optional[str] = None
-    applicant_id: Optional[str] = None
-    store_id: Optional[str] = None
+    status: str | None = None
+    business_type: str | None = None
+    applicant_id: str | None = None
+    store_id: str | None = None

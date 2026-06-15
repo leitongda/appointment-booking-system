@@ -1,8 +1,9 @@
 """审批人解析器 - 根据节点配置解析具体审批人"""
 import logging
-from typing import List, Optional, Dict, Any
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any
+
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ class AssigneeResolver:
         self,
         node,  # ApprovalFlowNode
         instance,  # ApprovalInstance
-    ) -> List[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         """
         解析审批人列表。
 
@@ -41,9 +42,9 @@ class AssigneeResolver:
 
     async def _resolve_by_role(
         self,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         instance,
-    ) -> List[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         """按角色解析审批人 - 查找拥有指定角色的所有管理员"""
         role_codes = config.get("role_codes", [])
         if not role_codes:
@@ -74,7 +75,7 @@ class AssigneeResolver:
         rows = result.all()
         return [{"id": row.id, "name": row.name} for row in rows]
 
-    def _resolve_by_user(self, config: Dict[str, Any]) -> List[Dict[str, str]]:
+    def _resolve_by_user(self, config: dict[str, Any]) -> list[dict[str, str]]:
         """指定人员"""
         user_ids = config.get("user_ids", [])
         user_names = config.get("user_names", [])
@@ -89,9 +90,9 @@ class AssigneeResolver:
 
     async def _resolve_by_department(
         self,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         instance,
-    ) -> List[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         """按科室负责人解析"""
         # 从 form_data 中获取科室 ID
         dept_field = config.get("dept_field", "department_id")
@@ -111,9 +112,9 @@ class AssigneeResolver:
 
     def _resolve_dynamic(
         self,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         instance,
-    ) -> List[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         """从表单数据中动态获取审批人"""
         field_name = config.get("field_name", "approver_id")
         name_field = config.get("name_field", "approver_name")

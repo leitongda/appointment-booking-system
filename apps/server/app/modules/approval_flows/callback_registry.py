@@ -8,7 +8,9 @@ business_callbacks.py 中定义，通过 __init__.py 的 register_builtin_callba
 ApprovalEngine.start_instance()。
 """
 import logging
-from typing import Callable, Dict, Optional, Any
+from collections.abc import Callable
+from typing import Any
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -33,7 +35,7 @@ class CallbackRegistry:
     """
 
     def __init__(self):
-        self._handlers: Dict[str, Callable] = {}
+        self._handlers: dict[str, Callable] = {}
 
     def register(self, business_type: str, handler: Callable):
         """注册业务回调处理器"""

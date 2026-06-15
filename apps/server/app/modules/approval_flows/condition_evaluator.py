@@ -1,7 +1,7 @@
 """条件规则求值器"""
 import json
 import logging
-from typing import Optional, List, Dict, Any
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +25,8 @@ class ConditionEvaluator:
     def evaluate_conditions(
         self,
         conditions: list,
-        form_data: Dict[str, Any],
-    ) -> Optional[str]:
+        form_data: dict[str, Any],
+    ) -> str | None:
         """
         求值条件列表，返回满足条件的 target_node_key。
 

@@ -1,22 +1,20 @@
 """审批流定义服务"""
-import uuid
 import logging
-from typing import Optional, List, Tuple
-from datetime import datetime
+import uuid
 
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
 
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.approval_flow import (
+    ApprovalFlowCondition,
     ApprovalFlowDefinition,
     ApprovalFlowNode,
-    ApprovalFlowCondition,
 )
 from app.modules.approval_flows.schemas import (
     FlowDefinitionCreate,
     FlowDefinitionUpdate,
 )
-from app.middleware.tenant_context import get_current_tenant_id
 from app.utils.audit import set_create_audit, set_update_audit
 
 logger = logging.getLogger(__name__)
@@ -32,9 +30,9 @@ class FlowDefinitionService:
         self,
         page: int = 1,
         page_size: int = 20,
-        business_type: Optional[str] = None,
-        status: Optional[str] = None,
-    ) -> Tuple[List[ApprovalFlowDefinition], int]:
+        business_type: str | None = None,
+        status: str | None = None,
+    ) -> tuple[list[ApprovalFlowDefinition], int]:
         """获取流程定义列表"""
         stmt = select(ApprovalFlowDefinition)
         count_stmt = select(func.count(ApprovalFlowDefinition.id))
@@ -60,13 +58,13 @@ class FlowDefinitionService:
 
         return list(result.scalars().all()), count_result.scalar() or 0
 
-    async def get_by_id(self, flow_def_id: str) -> Optional[ApprovalFlowDefinition]:
+    async def get_by_id(self, flow_def_id: str) -> ApprovalFlowDefinition | None:
         """获取流程定义详情（含节点和条件）"""
         stmt = select(ApprovalFlowDefinition).where(ApprovalFlowDefinition.id == flow_def_id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_business_type(self, business_type: str) -> Optional[ApprovalFlowDefinition]:
+    async def get_by_business_type(self, business_type: str) -> ApprovalFlowDefinition | None:
         """按业务类型获取激活的流程定义"""
         tenant_id = get_current_tenant_id()
         stmt = select(ApprovalFlowDefinition).where(
@@ -100,6 +98,7 @@ class FlowDefinitionService:
             callback_config=data.callback_config,
             store_id=data.store_id,
         )
+        flow_def.edges = data.edges
         set_create_audit(flow_def, user_id)
         self.db.add(flow_def)
         await self.db.flush()
@@ -141,7 +140,7 @@ class FlowDefinitionService:
         await self.db.flush()
         return flow_def
 
-    async def update(self, flow_def_id: str, data: FlowDefinitionUpdate, user_id: str) -> Optional[ApprovalFlowDefinition]:
+    async def update(self, flow_def_id: str, data: FlowDefinitionUpdate, user_id: str) -> ApprovalFlowDefinition | None:
         """更新流程定义"""
         flow_def = await self.get_by_id(flow_def_id)
         if not flow_def:
@@ -199,12 +198,15 @@ class FlowDefinitionService:
                     )
                     self.db.add(condition)
 
+        if data.edges is not None:
+            flow_def.edges = data.edges
+
         set_update_audit(flow_def, user_id)
         flow_def.version += 1
         await self.db.flush()
         return flow_def
 
-    async def activate(self, flow_def_id: str, user_id: str) -> Optional[ApprovalFlowDefinition]:
+    async def activate(self, flow_def_id: str, user_id: str) -> ApprovalFlowDefinition | None:
         """激活流程"""
         flow_def = await self.get_by_id(flow_def_id)
         if not flow_def:
@@ -232,6 +234,7 @@ class FlowDefinitionService:
             set_update_audit(old_def, user_id)
 
         flow_def.status = "active"
+        flow_def.version = (flow_def.version or 0) + 1
 
         # 生成流程快照（节点+条件的完整 JSON）
         snapshot = {
@@ -260,13 +263,14 @@ class FlowDefinitionService:
                 for n in flow_def.nodes
             ]
         }
+        snapshot["edges"] = flow_def.edges or []
         flow_def.snapshot_json = snapshot
 
         set_update_audit(flow_def, user_id)
         await self.db.flush()
         return flow_def
 
-    async def archive(self, flow_def_id: str, user_id: str) -> Optional[ApprovalFlowDefinition]:
+    async def archive(self, flow_def_id: str, user_id: str) -> ApprovalFlowDefinition | None:
         """归档流程"""
         flow_def = await self.get_by_id(flow_def_id)
         if not flow_def:
@@ -290,7 +294,7 @@ class FlowDefinitionService:
         await self.db.flush()
         return True
 
-    async def copy(self, flow_def_id: str, user_id: str) -> Optional[ApprovalFlowDefinition]:
+    async def copy(self, flow_def_id: str, user_id: str) -> ApprovalFlowDefinition | None:
         """复制流程定义"""
         source = await self.get_by_id(flow_def_id)
         if not source:
@@ -332,11 +336,94 @@ class FlowDefinitionService:
             callback_config=source.callback_config,
             store_id=source.store_id,
             nodes=nodes_data,
+            edges=source.edges or [],
         )
 
         return await self.create(create_data, user_id)
 
-    async def _next_version(self, business_type: str, tenant_id: Optional[str]) -> int:
+    async def validate(self, flow_def_id: str) -> dict:
+        """校验流程定义完整性"""
+        flow_def = await self.get_by_id(flow_def_id)
+        if not flow_def:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail="流程定义不存在")
+
+        errors: list[str] = []
+        nodes = flow_def.nodes
+        edges = flow_def.edges or []
+
+        # 1. 检查开始节点数量
+        start_nodes = [n for n in nodes if n.node_type == "start"]
+        if len(start_nodes) == 0:
+            errors.append("缺少开始节点")
+        elif len(start_nodes) > 1:
+            errors.append("只能有一个开始节点")
+
+        # 2. 检查结束节点
+        end_nodes = [n for n in nodes if n.node_type == "end"]
+        if len(end_nodes) == 0:
+            errors.append("缺少结束节点")
+
+        # 3. 检查审批节点配置
+        for node in nodes:
+            if node.node_type == "approval":
+                if not node.assignee_type:
+                    errors.append(f"审批节点 [{node.node_name}] 未配置审批人类型")
+                if not node.assignee_config:
+                    errors.append(f"审批节点 [{node.node_name}] 未配置审批人")
+
+        # 4. 检查条件节点
+        for node in nodes:
+            if node.node_type == "condition":
+                if not node.conditions:
+                    errors.append(f"条件节点 [{node.node_name}] 没有条件规则")
+
+        # 5. 连通性检查 (BFS)
+        if nodes and edges:
+            node_keys = {n.node_key for n in nodes}
+            adj: dict[str, list[str]] = {}
+            for n in nodes:
+                adj[n.node_key] = []
+            for e in edges:
+                src = e.get("source", "")
+                tgt = e.get("target", "")
+                if src not in node_keys:
+                    errors.append(f"连线的源节点 [{src}] 不存在")
+                if tgt not in node_keys:
+                    errors.append(f"连线的目标节点 [{tgt}] 不存在")
+                if src in adj:
+                    adj[src].append(tgt)
+
+            start_key = start_nodes[0].node_key if start_nodes else None
+            if start_key:
+                visited: set[str] = set()
+                queue = [start_key]
+                while queue:
+                    curr = queue.pop(0)
+                    if curr in visited:
+                        continue
+                    visited.add(curr)
+                    for neighbor in adj.get(curr, []):
+                        if neighbor not in visited:
+                            queue.append(neighbor)
+
+                unreachable = node_keys - visited
+                if unreachable:
+                    errors.append(f"存在不可达节点: {', '.join(unreachable)}")
+
+        # 6. 孤立节点检查
+        if edges:
+            connected: set[str] = set()
+            for e in edges:
+                connected.add(e.get("source", ""))
+                connected.add(e.get("target", ""))
+            for node in nodes:
+                if node.node_key not in connected and node.node_type not in ("start", "end"):
+                    errors.append(f"节点 [{node.node_name}] 没有连线连接")
+
+        return {"valid": len(errors) == 0, "errors": errors}
+
+    async def _next_version(self, business_type: str, tenant_id: str | None) -> int:
         """获取下一个版本号"""
         stmt = select(func.max(ApprovalFlowDefinition.version)).where(
             ApprovalFlowDefinition.business_type == business_type

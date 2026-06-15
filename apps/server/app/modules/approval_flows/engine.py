@@ -14,29 +14,60 @@
 - ApprovalTask 任务管理（分离任务和审计语义）
 - Celery 异步通知
 - structlog 结构化日志
+- 快照优先节点加载（immutable versioning）
 """
 import uuid
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any
+from typing import Any
 
 import structlog
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, func
 
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.approval_flow import (
     ApprovalFlowDefinition,
     ApprovalFlowNode,
-    ApprovalFlowCondition,
     ApprovalInstance,
     ApprovalRecord,
     ApprovalTask,
 )
 from app.modules.approval_flows.assignee_resolver import AssigneeResolver
-from app.modules.approval_flows.condition_evaluator import ConditionEvaluator
 from app.modules.approval_flows.callback_registry import callback_registry
-from app.middleware.tenant_context import get_current_tenant_id
+from app.modules.approval_flows.condition_evaluator import ConditionEvaluator
 
 logger = structlog.get_logger(__name__)
+
+
+# ============================================================
+# 快照节点 — 从 snapshot_json 构建的轻量对象，兼容 ORM 接口
+# ============================================================
+
+@dataclass
+class SnapshotCondition:
+    """快照中的条件规则，兼容 ApprovalFlowCondition 的属性访问"""
+    target_node_key: str
+    field_name: str
+    operator: str
+    value: str
+    priority: int = 0
+
+
+@dataclass
+class SnapshotNode:
+    """快照中的节点，兼容 ApprovalFlowNode 的属性访问（id 用 node_key 代替）"""
+    id: str  # 使用 node_key 作为虚拟 id，保证 _find_next_node 的排序定位逻辑不变
+    node_key: str
+    node_name: str
+    node_type: str
+    approval_mode: str | None = None
+    assignee_type: str | None = None
+    assignee_config: dict | None = None
+    timeout_hours: int | None = None
+    timeout_action: str | None = None
+    sort_order: int = 0
+    conditions: list[SnapshotCondition] = field(default_factory=list)
 
 
 class FlowNotFoundError(Exception):
@@ -60,12 +91,12 @@ class ApprovalEngine:
         self,
         business_type: str,
         business_id: str,
-        form_data: Dict[str, Any],
+        form_data: dict[str, Any],
         applicant_id: str,
         title: str,
         applicant_name: str = "",
-        flow_def_id: Optional[str] = None,
-        store_id: Optional[str] = None,
+        flow_def_id: str | None = None,
+        store_id: str | None = None,
     ) -> ApprovalInstance:
         """发起审批：创建实例，推进到第一个审批节点。
 
@@ -148,7 +179,7 @@ class ApprovalEngine:
         instance_id: str,
         approver_id: str,
         approver_name: str = "",
-        comment: Optional[str] = None,
+        comment: str | None = None,
     ) -> ApprovalInstance:
         """审批通过（带 Redis 分布式锁）"""
         from app.core.redis import RedisCache
@@ -167,7 +198,7 @@ class ApprovalEngine:
         instance_id: str,
         approver_id: str,
         approver_name: str = "",
-        comment: Optional[str] = None,
+        comment: str | None = None,
     ) -> ApprovalInstance:
         """审批通过（内部实现）"""
         instance = await self._get_instance(instance_id)
@@ -231,7 +262,7 @@ class ApprovalEngine:
         instance_id: str,
         approver_id: str,
         approver_name: str = "",
-        comment: Optional[str] = None,
+        comment: str | None = None,
     ) -> ApprovalInstance:
         """审批拒绝（带 Redis 分布式锁）"""
         from app.core.redis import RedisCache
@@ -250,7 +281,7 @@ class ApprovalEngine:
         instance_id: str,
         approver_id: str,
         approver_name: str = "",
-        comment: Optional[str] = None,
+        comment: str | None = None,
     ) -> ApprovalInstance:
         """审批拒绝（内部实现）"""
         instance = await self._get_instance(instance_id)
@@ -333,7 +364,7 @@ class ApprovalEngine:
         approver_name: str,
         target_user_id: str,
         target_user_name: str = "",
-        comment: Optional[str] = None,
+        comment: str | None = None,
     ) -> ApprovalInstance:
         """转交给他人审批"""
         instance = await self._get_instance(instance_id)
@@ -466,10 +497,210 @@ class ApprovalEngine:
         return instance
 
     # ============================================================
+    # 回退
+    # ============================================================
+
+    async def rollback(
+        self,
+        instance_id: str,
+        operator_id: str,
+        target_node_key: str,
+        comment: str = "",
+    ) -> ApprovalInstance:
+        """回退到指定节点"""
+        instance = await self._get_instance(instance_id)
+        if instance.status != "pending":
+            raise ValueError("实例不存在或不在审批中")
+
+        # 验证目标节点存在于流程中
+        nodes = await self._load_nodes(instance.flow_def_id)
+        target_node = next((n for n in nodes if n.node_key == target_node_key), None)
+        if not target_node:
+            raise ValueError(f"目标节点 {target_node_key} 不存在")
+
+        # 取消当前待办任务
+        await self._cancel_pending_tasks(instance.id)
+
+        # 更新实例状态
+        instance.current_node_key = target_node_key
+
+        # 记录操作
+        record = ApprovalRecord(
+            id=str(uuid.uuid4()),
+            instance_id=instance_id,
+            node_key=target_node_key,
+            node_name=target_node.node_name,
+            approver_id=operator_id,
+            action="rollback",
+            comment=comment or f"回退到 {target_node.node_name}",
+        )
+        self.db.add(record)
+
+        # 为目标节点创建新任务
+        await self._create_tasks_for_node(target_node, instance, instance.tenant_id, instance.store_id)
+
+        instance.updated_by = operator_id
+        await self.db.flush()
+
+        logger.info(
+            "approval_rollback",
+            instance_id=instance_id,
+            operator_id=operator_id,
+            target_node_key=target_node_key,
+        )
+        return instance
+
+    # ============================================================
+    # 加签
+    # ============================================================
+
+    async def add_signer(
+        self,
+        instance_id: str,
+        operator_id: str,
+        user_ids: list[str],
+        comment: str = "",
+    ) -> ApprovalInstance:
+        """加签 — 在当前节点添加额外审批人"""
+        instance = await self._get_instance(instance_id)
+        if instance.status != "pending":
+            raise ValueError("实例不存在或不在审批中")
+
+        # 获取当前节点
+        nodes = await self._load_nodes(instance.flow_def_id)
+        current_node = next((n for n in nodes if n.node_key == instance.current_node_key), None)
+        if not current_node:
+            raise ValueError("当前节点不存在")
+
+        # 为每个加签人创建任务
+        from app.models.admin import Admin
+        for uid in user_ids:
+            stmt = select(Admin.name).where(Admin.id == uid)
+            result = await self.db.execute(stmt)
+            user_name = result.scalar() or ""
+
+            task = ApprovalTask(
+                id=str(uuid.uuid4()),
+                tenant_id=instance.tenant_id,
+                store_id=instance.store_id,
+                instance_id=instance_id,
+                node_key=current_node.node_key,
+                node_name=current_node.node_name,
+                task_type="approval",
+                status="pending",
+                assignee_id=uid,
+                assignee_name=user_name,
+            )
+            self.db.add(task)
+
+        # 记录操作
+        record = ApprovalRecord(
+            id=str(uuid.uuid4()),
+            instance_id=instance_id,
+            node_key=current_node.node_key,
+            node_name=current_node.node_name,
+            approver_id=operator_id,
+            action="add_signer",
+            comment=comment or f"加签 {len(user_ids)} 人",
+        )
+        self.db.add(record)
+
+        instance.updated_by = operator_id
+        await self.db.flush()
+
+        logger.info(
+            "approval_add_signer",
+            instance_id=instance_id,
+            operator_id=operator_id,
+            user_ids=user_ids,
+        )
+        return instance
+
+    # ============================================================
+    # 自由跳转
+    # ============================================================
+
+    async def jump(
+        self,
+        instance_id: str,
+        operator_id: str,
+        target_node_key: str,
+        comment: str = "",
+    ) -> ApprovalInstance:
+        """自由跳转到指定节点"""
+        instance = await self._get_instance(instance_id)
+        if instance.status != "pending":
+            raise ValueError("实例不存在或不在审批中")
+
+        nodes = await self._load_nodes(instance.flow_def_id)
+        target_node = next((n for n in nodes if n.node_key == target_node_key), None)
+        if not target_node:
+            raise ValueError(f"目标节点 {target_node_key} 不存在")
+
+        # 取消当前待办
+        await self._cancel_pending_tasks(instance.id)
+
+        # 更新实例
+        instance.current_node_key = target_node_key
+
+        # 记录操作
+        record = ApprovalRecord(
+            id=str(uuid.uuid4()),
+            instance_id=instance_id,
+            node_key=target_node_key,
+            node_name=target_node.node_name,
+            approver_id=operator_id,
+            action="jump",
+            comment=comment or f"跳转到 {target_node.node_name}",
+        )
+        self.db.add(record)
+
+        # 如果跳转到结束节点，完成实例
+        if target_node.node_type == "end":
+            instance.status = "approved"
+            instance.approved_at = datetime.utcnow()
+            instance.completed_reason = "jump_to_end"
+            instance.current_node_key = None
+
+            logger.info(
+                "callback_started",
+                instance_id=instance.id,
+                business_type=instance.business_type,
+                callback="on_approved",
+            )
+            try:
+                await callback_registry.execute(
+                    instance.business_type, "on_approved", instance, self.db
+                )
+            except Exception as e:
+                logger.error(
+                    "callback_failed",
+                    instance_id=instance.id,
+                    business_type=instance.business_type,
+                    callback="on_approved",
+                    error=str(e),
+                )
+                raise
+            await self._notify_applicant(instance, "approved")
+        else:
+            await self._create_tasks_for_node(target_node, instance, instance.tenant_id, instance.store_id)
+
+        instance.updated_by = operator_id
+        await self.db.flush()
+
+        logger.info(
+            "approval_jump",
+            instance_id=instance_id,
+            operator_id=operator_id,
+            target_node_key=target_node_key,
+        )
+        return instance
+
+    # ============================================================
     # 查询
     # ============================================================
 
-    async def get_pending_approvers(self, instance_id: str) -> List[Dict[str, str]]:
+    async def get_pending_approvers(self, instance_id: str) -> list[dict[str, str]]:
         """获取当前待审批人列表（基于 ApprovalTask）"""
         instance = await self._get_instance(instance_id)
         if instance.status != "pending":
@@ -496,7 +727,7 @@ class ApprovalEngine:
             for t in tasks
         ]
 
-    async def get_approval_progress(self, instance_id: str) -> Dict[str, Any]:
+    async def get_approval_progress(self, instance_id: str) -> dict[str, Any]:
         """获取审批进度"""
         instance = await self._get_instance(instance_id)
         current_node = await self._get_current_node(instance)
@@ -541,8 +772,8 @@ class ApprovalEngine:
         self,
         node: ApprovalFlowNode,
         instance: ApprovalInstance,
-        tenant_id: Optional[str],
-        store_id: Optional[str],
+        tenant_id: str | None,
+        store_id: str | None,
     ):
         """为审批节点创建任务"""
         approvers = await self.assignee_resolver.resolve(node, instance)
@@ -596,7 +827,7 @@ class ApprovalEngine:
 
     async def _find_pending_task(
         self, instance_id: str, node_key: str, assignee_id: str
-    ) -> Optional[ApprovalTask]:
+    ) -> ApprovalTask | None:
         """查找待处理任务"""
         stmt = select(ApprovalTask).where(
             and_(
@@ -609,7 +840,7 @@ class ApprovalEngine:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def _cancel_pending_tasks(self, instance_id: str, node_key: Optional[str] = None):
+    async def _cancel_pending_tasks(self, instance_id: str, node_key: str | None = None):
         """取消待处理任务"""
         conditions = [
             ApprovalTask.instance_id == instance_id,
@@ -628,7 +859,7 @@ class ApprovalEngine:
         self,
         node: ApprovalFlowNode,
         instance: ApprovalInstance,
-        form_data: Dict[str, Any],
+        form_data: dict[str, Any],
     ) -> bool:
         """
         检查并执行自动审批。
@@ -836,9 +1067,9 @@ class ApprovalEngine:
     async def _find_next_node(
         self,
         current_node: ApprovalFlowNode,
-        nodes: List[ApprovalFlowNode],
-        form_data: Dict[str, Any],
-    ) -> Optional[ApprovalFlowNode]:
+        nodes: list[ApprovalFlowNode],
+        form_data: dict[str, Any],
+    ) -> ApprovalFlowNode | None:
         """找到下一个节点"""
         # 如果当前节点有条件规则，先求值
         if current_node.conditions:
@@ -956,10 +1187,25 @@ class ApprovalEngine:
             raise ValueError(f"审批实例不存在: {instance_id}")
         return instance
 
-    async def _get_current_node(self, instance: ApprovalInstance) -> Optional[ApprovalFlowNode]:
-        """获取当前节点"""
+    async def _get_current_node(self, instance: ApprovalInstance):
+        """获取当前节点（优先从快照读取）"""
         if not instance.current_node_key:
             return None
+
+        # 先尝试从快照获取
+        stmt = select(ApprovalFlowDefinition).where(
+            ApprovalFlowDefinition.id == instance.flow_def_id
+        )
+        result = await self.db.execute(stmt)
+        flow_def = result.scalar_one_or_none()
+
+        if flow_def and flow_def.snapshot_json:
+            nodes = self._build_nodes_from_snapshot(flow_def.snapshot_json)
+            for n in nodes:
+                if n.node_key == instance.current_node_key:
+                    return n
+
+        # fallback: 从数据库节点表读取
         stmt = select(ApprovalFlowNode).where(
             and_(
                 ApprovalFlowNode.flow_def_id == instance.flow_def_id,
@@ -969,15 +1215,15 @@ class ApprovalEngine:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def _get_flow_def(self, flow_def_id: str) -> Optional[ApprovalFlowDefinition]:
+    async def _get_flow_def(self, flow_def_id: str) -> ApprovalFlowDefinition | None:
         """获取流程定义"""
         stmt = select(ApprovalFlowDefinition).where(ApprovalFlowDefinition.id == flow_def_id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def _get_active_flow_def(
-        self, business_type: str, tenant_id: Optional[str]
-    ) -> Optional[ApprovalFlowDefinition]:
+        self, business_type: str, tenant_id: str | None
+    ) -> ApprovalFlowDefinition | None:
         """获取激活的流程定义"""
         stmt = select(ApprovalFlowDefinition).where(
             and_(
@@ -991,8 +1237,21 @@ class ApprovalEngine:
         result = await self.db.execute(stmt)
         return result.scalars().first()
 
-    async def _load_nodes(self, flow_def_id: str) -> List[ApprovalFlowNode]:
-        """加载流程所有节点"""
+    async def _load_nodes(self, flow_def_id: str) -> list:
+        """加载流程所有节点。
+
+        优先从 snapshot_json 读取（immutable versioning），确保运行中的实例
+        不受后续流程定义修改的影响。如果没有快照则 fallback 到数据库节点表。
+        """
+        # 先获取流程定义以检查快照
+        stmt = select(ApprovalFlowDefinition).where(ApprovalFlowDefinition.id == flow_def_id)
+        result = await self.db.execute(stmt)
+        flow_def = result.scalar_one_or_none()
+
+        if flow_def and flow_def.snapshot_json:
+            return self._build_nodes_from_snapshot(flow_def.snapshot_json)
+
+        # fallback: 从数据库节点表读取
         stmt = (
             select(ApprovalFlowNode)
             .where(ApprovalFlowNode.flow_def_id == flow_def_id)
@@ -1000,6 +1259,36 @@ class ApprovalEngine:
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    def _build_nodes_from_snapshot(self, snapshot: dict[str, Any]) -> list[SnapshotNode]:
+        """从 snapshot_json 构建 SnapshotNode 列表"""
+        nodes_data = snapshot.get("nodes", [])
+        nodes = []
+        for nd in nodes_data:
+            conditions = [
+                SnapshotCondition(
+                    target_node_key=c["target_node_key"],
+                    field_name=c["field_name"],
+                    operator=c["operator"],
+                    value=c["value"],
+                    priority=c.get("priority", 0),
+                )
+                for c in nd.get("conditions", [])
+            ]
+            nodes.append(SnapshotNode(
+                id=nd["node_key"],  # 用 node_key 作为虚拟 id
+                node_key=nd["node_key"],
+                node_name=nd["node_name"],
+                node_type=nd["node_type"],
+                approval_mode=nd.get("approval_mode"),
+                assignee_type=nd.get("assignee_type"),
+                assignee_config=nd.get("assignee_config"),
+                timeout_hours=nd.get("timeout_hours"),
+                timeout_action=nd.get("timeout_action"),
+                sort_order=nd.get("sort_order", 0),
+                conditions=conditions,
+            ))
+        return nodes
 
     # ============================================================
     # 内部方法 - 通知（Celery 异步）
