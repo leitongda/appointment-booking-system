@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import logging
 from decimal import Decimal
-from typing import Optional
 
-from wechatpayv3 import WeChatPayType, WeChatPay
+from wechatpayv3 import WeChatPay, WeChatPayType
 
 from app.common.secret_refs import resolve_secret_ref
 from app.models.miniapp_platform import PaymentProfile
@@ -22,7 +21,7 @@ class WeChatPayService:
     - service_provider: 服务商模式（sp_mchid + sub_mchid）
     """
 
-    def __init__(self, payment_profile: PaymentProfile, cert_dir: Optional[str] = None):
+    def __init__(self, payment_profile: PaymentProfile, cert_dir: str | None = None):
         """初始化微信支付服务
 
         Args:
@@ -62,7 +61,7 @@ class WeChatPayService:
             logger.error(f"初始化 WeChatPay 失败: {e}")
             raise
 
-    def _load_secret(self, secret_ref: Optional[str]) -> Optional[str]:
+    def _load_secret(self, secret_ref: str | None) -> str | None:
         """加载密钥
 
         支持两种格式:
@@ -86,7 +85,7 @@ class WeChatPayService:
         amount: Decimal,  # 单位：元
         openid: str,
         app_id: str,
-        notify_url: Optional[str] = None,
+        notify_url: str | None = None,
     ) -> dict:
         """微信统一下单（JSAPI），返回 prepay_id
 
@@ -180,8 +179,8 @@ class WeChatPayService:
         total: Decimal,  # 原订单金额（元）
         refund: Decimal,  # 退款金额（元）
         reason: str = "",
-        notify_url: Optional[str] = None,
-        transaction_id: Optional[str] = None,
+        notify_url: str | None = None,
+        transaction_id: str | None = None,
     ) -> dict:
         """申请退款
 

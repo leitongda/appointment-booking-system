@@ -2,18 +2,18 @@
 WebSocket 连接管理器
 支持 Redis Pub/Sub 实现多实例广播
 """
-import json
 import asyncio
+import json
 import logging
 import uuid
-from typing import Dict, Set, Optional, Any
 from dataclasses import dataclass, field
 from datetime import datetime
-from fastapi import WebSocket, WebSocketDisconnect
+from typing import Any
 
+from fastapi import WebSocket
+
+from app.core.redis import RedisCache, get_redis
 from app.enums.core import WSMessageType  # noqa: F401 — re-export
-from app.core.redis import get_redis
-from app.core.redis import RedisCache
 from app.middleware.tenant_context import get_current_tenant_id
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class WSMessage:
     """WebSocket 消息结构"""
     type: WSMessageType
-    data: Dict[str, Any] = field(default_factory=dict)
+    data: dict[str, Any] = field(default_factory=dict)
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
     message_id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
@@ -70,13 +70,13 @@ class ConnectionManager:
 
     def __init__(self):
         # 本地连接映射：doctor_id -> Set[WebSocket]
-        self._connections: Dict[str, Set[WebSocket]] = {}
+        self._connections: dict[str, set[WebSocket]] = {}
         # 患者连接映射：patient_id -> Set[WebSocket]
-        self._patient_connections: Dict[str, Set[WebSocket]] = {}
+        self._patient_connections: dict[str, set[WebSocket]] = {}
         # 心跳任务
-        self._heartbeat_task: Optional[asyncio.Task] = None
+        self._heartbeat_task: asyncio.Task | None = None
         # Pub/Sub 订阅任务
-        self._pubsub_task: Optional[asyncio.Task] = None
+        self._pubsub_task: asyncio.Task | None = None
         self._pubsub = None
         self._running = False
     
@@ -201,7 +201,7 @@ class ConnectionManager:
         patient_id: str,
         message: WSMessage,
         require_ack: bool = False,
-        tenant_id: Optional[str] = None
+        tenant_id: str | None = None
     ):
         """
         发送消息给指定患者（本地 + Redis 广播）
@@ -257,7 +257,7 @@ class ConnectionManager:
         doctor_id: str,
         message: WSMessage,
         require_ack: bool = True,
-        tenant_id: Optional[str] = None
+        tenant_id: str | None = None
     ):
         """
         发送消息给指定医生（本地 + Redis 广播）
@@ -282,7 +282,7 @@ class ConnectionManager:
         self,
         message: WSMessage,
         require_ack: bool = True,
-        tenant_id: Optional[str] = None
+        tenant_id: str | None = None
     ):
         """
         广播消息给所有在线医生
@@ -483,7 +483,7 @@ class ConnectionManager:
         self,
         doctor_id: str,
         message: WSMessage,
-        tenant_id: Optional[str] = None
+        tenant_id: str | None = None
     ) -> bool:
         """
         缓存未确认的消息到 Redis
@@ -517,7 +517,7 @@ class ConnectionManager:
         self,
         message_id: str,
         doctor_id: str,
-        tenant_id: Optional[str] = None
+        tenant_id: str | None = None
     ) -> bool:
         """
         移除已确认的消息缓存
@@ -542,8 +542,8 @@ class ConnectionManager:
     async def get_pending_messages(
         self,
         doctor_id: str,
-        tenant_id: Optional[str] = None
-    ) -> list[Dict[str, Any]]:
+        tenant_id: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         获取医生的所有未确认消息
 
@@ -595,9 +595,9 @@ manager = ws_manager  # 向后兼容别名
 async def notify_doctor(
     doctor_id: str,
     message_type: WSMessageType,
-    data: Dict[str, Any] = None,
+    data: dict[str, Any] = None,
     require_ack: bool = True,
-    tenant_id: Optional[str] = None
+    tenant_id: str | None = None
 ):
     """
     向指定医生发送通知
@@ -613,22 +613,22 @@ async def notify_doctor(
     await ws_manager.send_to_doctor(doctor_id, message, require_ack, tenant_id)
 
 
-async def notify_patient_signed_in(doctor_id: str, appointment_data: Dict[str, Any]):
+async def notify_patient_signed_in(doctor_id: str, appointment_data: dict[str, Any]):
     """通知医生：患者已签到"""
     await notify_doctor(doctor_id, WSMessageType.PATIENT_SIGNED_IN, appointment_data)
 
 
-async def notify_queue_updated(doctor_id: str, queue_data: Dict[str, Any] = None):
+async def notify_queue_updated(doctor_id: str, queue_data: dict[str, Any] = None):
     """通知医生：队列已更新"""
     await notify_doctor(doctor_id, WSMessageType.QUEUE_UPDATED, queue_data or {})
 
 
-async def notify_new_appointment(doctor_id: str, appointment_data: Dict[str, Any]):
+async def notify_new_appointment(doctor_id: str, appointment_data: dict[str, Any]):
     """通知医生：新预约"""
     await notify_doctor(doctor_id, WSMessageType.NEW_APPOINTMENT, appointment_data)
 
 
-async def notify_leave_request_reviewed(doctor_id: str, review_data: Dict[str, Any]):
+async def notify_leave_request_reviewed(doctor_id: str, review_data: dict[str, Any]):
     """通知医生：请假审核结果"""
     await notify_doctor(doctor_id, WSMessageType.LEAVE_REQUEST_REVIEWED, review_data)
 
@@ -637,7 +637,7 @@ async def broadcast_system_message(
     message: str,
     title: str = "系统通知",
     require_ack: bool = True,
-    tenant_id: Optional[str] = None
+    tenant_id: str | None = None
 ):
     """广播系统消息给所有在线医生
 
@@ -659,8 +659,8 @@ async def broadcast_system_message(
 
 async def notify_new_message(
     doctor_id: str,
-    message_data: Dict[str, Any],
-    tenant_id: Optional[str] = None
+    message_data: dict[str, Any],
+    tenant_id: str | None = None
 ):
     """通知医生有新消息
 
@@ -681,9 +681,9 @@ async def notify_new_message(
 async def notify_patient(
     patient_id: str,
     message_type: WSMessageType,
-    data: Dict[str, Any] = None,
+    data: dict[str, Any] = None,
     require_ack: bool = False,
-    tenant_id: Optional[str] = None
+    tenant_id: str | None = None
 ):
     """
     向指定患者发送通知

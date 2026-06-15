@@ -1,33 +1,37 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from sqlalchemy.orm import selectinload
-from typing import Optional, List
-from datetime import date, datetime
-from pydantic import BaseModel, Field
-import pytz
 import logging
+from datetime import date, datetime
+
+import pytz
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
+from sqlalchemy import and_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 
 logger = logging.getLogger(__name__)
-from app.api.deps import get_current_admin, get_store_filter, check_store_access, require_permission
-from app.schemas.schedule import (
-    ScheduleCreate, ScheduleBatchCreate, ScheduleUpdate, ScheduleResponse,
-    AvailableScheduleResponse,
-    SchedulePublishRequest, ScheduleWithdrawRequest,
-    ConflictCheckRequest, ConflictCheckResponse, ConflictItemResponse,
-    ScheduleDragAdjustRequest, ScheduleDragAdjustResponse,
-    ScheduleBatchCopyRequest, ScheduleBatchCopyResult,
-)
-from app.schemas.response import PageResponse
-from app.modules.schedules.service import ScheduleService
-
-from app.modules.rule_engine import RuleEngineService
-from app.models.schedule import Schedule
-from app.models.doctor import Doctor
-from app.models.rest_day import RestDay
+from app.api.deps import get_current_admin, get_store_filter, require_permission
 from app.core.config import settings
+from app.models.rest_day import RestDay
+from app.modules.rule_engine import RuleEngineService
+from app.modules.schedules.service import ScheduleService
+from app.schemas.response import PageResponse
+from app.schemas.schedule import (
+    AvailableScheduleResponse,
+    ConflictCheckRequest,
+    ConflictCheckResponse,
+    ConflictItemResponse,
+    ScheduleBatchCopyRequest,
+    ScheduleBatchCopyResult,
+    ScheduleBatchCreate,
+    ScheduleCreate,
+    ScheduleDragAdjustRequest,
+    ScheduleDragAdjustResponse,
+    SchedulePublishRequest,
+    ScheduleResponse,
+    ScheduleUpdate,
+    ScheduleWithdrawRequest,
+)
 
 router = APIRouter()
 
@@ -42,7 +46,7 @@ class BatchOperateResponse(BaseModel):
 async def _check_single_schedule_rest_day(
     db: AsyncSession,
     schedule_date: date,
-    store_id: Optional[str],
+    store_id: str | None,
     doctor_id: str
 ) -> bool:
     """检查单个排班是否在休息日"""
@@ -62,7 +66,7 @@ async def _check_single_schedule_rest_day(
 
 def _check_rest_day_for_schedule(
     schedule_date: date,
-    store_id: Optional[str],
+    store_id: str | None,
     doctor_id: str,
     rest_days: list
 ) -> bool:
@@ -72,7 +76,7 @@ def _check_rest_day_for_schedule(
 
 
 class SuspendRequest(BaseModel):
-    reason: Optional[str] = Field(None, max_length=200, description="停诊原因")
+    reason: str | None = Field(None, max_length=200, description="停诊原因")
     notify_patients: bool = Field(True, description="是否通知患者")
 
 @router.get(
@@ -98,12 +102,12 @@ class SuspendRequest(BaseModel):
     """,
 )
 async def get_schedules(
-    doctor_id: Optional[str] = None,
-    store_id: Optional[str] = None,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    status: Optional[int] = None,
-    schedule_status: Optional[str] = Query(None, description="排班状态: draft/published/booking/full/suspended/finished/withdrawn"),
+    doctor_id: str | None = None,
+    store_id: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    status: int | None = None,
+    schedule_status: str | None = Query(None, description="排班状态: draft/published/booking/full/suspended/finished/withdrawn"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -304,7 +308,7 @@ async def drag_adjust_schedule(
 
 @router.get(
     "/available/{doctor_id}",
-    response_model=List[AvailableScheduleResponse],
+    response_model=list[AvailableScheduleResponse],
     summary="获取可预约排班",
     description="""
     获取指定医生的可预约排班（公开接口，患者端使用）。
@@ -325,7 +329,7 @@ async def drag_adjust_schedule(
 )
 async def get_available_schedules(
     doctor_id: str,
-    store_id: Optional[str] = Query(None, description="门店ID"),
+    store_id: str | None = Query(None, description="门店ID"),
     days: int = Query(14, ge=1, le=30),
     db: AsyncSession = Depends(get_db)
 ):
@@ -425,9 +429,9 @@ async def get_available_schedules(
 
 
 # ========== 子路由注册（必须在 /{schedule_id} 之前，否则静态路径被参数路由吞掉） ==========
-from app.modules.schedules.router_statistics import router as statistics_router
-from app.modules.schedules.router_extra_quota import router as extra_quota_router
 from app.modules.schedules.router_custom import router as custom_router
+from app.modules.schedules.router_extra_quota import router as extra_quota_router
+from app.modules.schedules.router_statistics import router as statistics_router
 
 router.include_router(statistics_router)
 router.include_router(extra_quota_router)
@@ -632,9 +636,9 @@ async def update_schedule(
 
 class BatchScheduleRequest(BaseModel):
     """批量操作排班请求"""
-    schedule_ids: List[str] = Field(..., min_length=1, description="排班ID列表")
-    reason: Optional[str] = Field(None, max_length=200, description="操作原因")
-    processing_method: Optional[str] = Field(
+    schedule_ids: list[str] = Field(..., min_length=1, description="排班ID列表")
+    reason: str | None = Field(None, max_length=200, description="操作原因")
+    processing_method: str | None = Field(
         None,
         description="处置方式（仅批量停诊有效）: auto_refund/reschedule/change_date/manual",
     )

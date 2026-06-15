@@ -1,13 +1,15 @@
 """兼职费用 — 公开接口（兼职人员自助查看，无需登录）"""
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from typing import Optional
-from decimal import Decimal
 
 from app.db.session import get_db
 from app.models.freelance import (
-    Freelancer, FreelanceTask, FreelanceInteraction, FreelanceSettlement,
+    FreelanceInteraction,
+    Freelancer,
+    FreelanceSettlement,
+    FreelanceTask,
 )
 
 router = APIRouter()

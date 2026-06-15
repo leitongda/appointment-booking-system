@@ -2,21 +2,20 @@
 
 import uuid
 from datetime import datetime
-from typing import Optional, Tuple, List
 
 from sqlalchemy import and_, func, or_, select
 
-from app.models.appointment import Appointment
-from app.models.user import Patient, User
 from app.common.account_sync import AccountSyncService
-from app.modules.patients.common import PatientsServiceBase
 from app.constants.appointment import APPOINTMENT_STATUS
 from app.middleware.exception import BusinessError
+from app.models.appointment import Appointment
+from app.models.user import Patient, User
+from app.modules.patients.common import PatientsServiceBase
 from app.utils.audit import set_create_audit, set_update_audit
 
 
 class UserManageService(PatientsServiceBase):
-    async def get_user_store_ids(self, user_id: str) -> List[Optional[str]]:
+    async def get_user_store_ids(self, user_id: str) -> list[str | None]:
         query = select(Patient.store_id).where(Patient.user_id == user_id).distinct()
         tenant_id = self._current_tenant_id()
         if tenant_id:
@@ -24,7 +23,7 @@ class UserManageService(PatientsServiceBase):
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_card_store_id(self, user_id: str, card_id: str) -> Optional[str]:
+    async def get_card_store_id(self, user_id: str, card_id: str) -> str | None:
         query = select(Patient.store_id).where(and_(Patient.user_id == user_id, Patient.id == card_id))
         tenant_id = self._current_tenant_id()
         if tenant_id:
@@ -32,7 +31,7 @@ class UserManageService(PatientsServiceBase):
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_default_patient_id(self, user_id: str) -> Optional[str]:
+    async def get_default_patient_id(self, user_id: str) -> str | None:
         query = (
             select(Patient.id)
             .where(Patient.user_id == user_id)
@@ -47,12 +46,12 @@ class UserManageService(PatientsServiceBase):
 
     async def get_list(
         self,
-        keyword: Optional[str] = None,
-        status: Optional[int] = None,
-        store_id: Optional[str] = None,
+        keyword: str | None = None,
+        status: int | None = None,
+        store_id: str | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[dict], int]:
+    ) -> tuple[list[dict], int]:
         tenant_id = self._current_tenant_id()
         query = select(User)
         conditions = []
@@ -131,7 +130,7 @@ class UserManageService(PatientsServiceBase):
         ]
         return user_data, total or 0
 
-    async def get_detail(self, user_id: str) -> Optional[dict]:
+    async def get_detail(self, user_id: str) -> dict | None:
         tenant_id = self._current_tenant_id()
         query = select(User).where(User.id == user_id)
         if tenant_id:
@@ -229,7 +228,7 @@ class UserManageService(PatientsServiceBase):
             "cards": cards_data,
         }
 
-    async def update_status(self, user_id: str, status: int, operator_id: Optional[str] = None) -> bool:
+    async def update_status(self, user_id: str, status: int, operator_id: str | None = None) -> bool:
         query = select(User).where(User.id == user_id)
         tenant_id = self._current_tenant_id()
         if tenant_id:
@@ -250,7 +249,7 @@ class UserManageService(PatientsServiceBase):
         await self.db.commit()
         return True
 
-    async def delete_user(self, user_id: str, operator_id: Optional[str] = None) -> bool:
+    async def delete_user(self, user_id: str, operator_id: str | None = None) -> bool:
         tenant_id = self._current_tenant_id()
         query = select(User).where(User.id == user_id)
         if tenant_id:
@@ -285,7 +284,7 @@ class UserManageService(PatientsServiceBase):
         await self.db.commit()
         return True
 
-    async def update_user(self, user_id: str, data, operator_id: Optional[str] = None) -> Optional[dict]:
+    async def update_user(self, user_id: str, data, operator_id: str | None = None) -> dict | None:
         query = select(User).where(User.id == user_id)
         tenant_id = self._current_tenant_id()
         if tenant_id:
@@ -312,7 +311,7 @@ class UserManageService(PatientsServiceBase):
         await self.db.refresh(user)
         return await self.get_detail(user_id)
 
-    async def create_card(self, user_id: str, data, operator_id: Optional[str] = None) -> Optional[dict]:
+    async def create_card(self, user_id: str, data, operator_id: str | None = None) -> dict | None:
         tenant_id = self._current_tenant_id()
         query = select(User).where(User.id == user_id)
         if tenant_id:
@@ -384,7 +383,7 @@ class UserManageService(PatientsServiceBase):
             "createdAt": card.created_at.isoformat() if card.created_at else None,
         }
 
-    async def update_card(self, user_id: str, card_id: str, data, operator_id: Optional[str] = None) -> Optional[dict]:
+    async def update_card(self, user_id: str, card_id: str, data, operator_id: str | None = None) -> dict | None:
         query = select(Patient).where(and_(Patient.id == card_id, Patient.user_id == user_id))
         tenant_id = self._current_tenant_id()
         if tenant_id:

@@ -1,8 +1,10 @@
-from sqlalchemy import Column, String, Integer, Date, Text, ForeignKey, DateTime
+import uuid
+
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from app.db.base import Base
-import uuid
 
 
 class ScheduleGenerationLog(Base):

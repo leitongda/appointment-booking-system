@@ -1,15 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import check_store_access, get_current_admin, require_permission
 from app.db.session import get_db
-from app.api.deps import get_current_admin, get_store_filter, check_store_access, require_permission
-from app.schemas.store_visit_type_config import (
-    StoreVisitTypeConfigCreate,
-    StoreVisitTypeConfigUpdate,
-    StoreVisitTypeConfigResponse
-)
-from app.schemas.response import ResponseModel
 from app.modules.visit_types.service import VisitTypeService
+from app.schemas.response import ResponseModel
+from app.schemas.store_visit_type_config import (
+    StoreVisitTypeConfigResponse,
+    StoreVisitTypeConfigUpdate,
+)
 
 router = APIRouter()
 

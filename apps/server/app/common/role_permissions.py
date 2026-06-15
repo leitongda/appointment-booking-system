@@ -4,12 +4,11 @@
 - Admin 权限从数据库 Role.permissions 字段加载（已有逻辑）
 - Doctor / User / Operator 权限暂用硬编码配置，后续可改为数据库配置
 """
-from typing import Dict, List, Optional, Set
 
 # ============================================================
 # 管理端排班权限定义
 # ============================================================
-ADMIN_SCHEDULE_PERMISSIONS: Set[str] = {
+ADMIN_SCHEDULE_PERMISSIONS: set[str] = {
     "schedule:read",               # 查看排班列表/详情/统计
     "schedule:create",             # 创建排班
     "schedule:update",             # 更新排班
@@ -26,7 +25,7 @@ ADMIN_SCHEDULE_PERMISSIONS: Set[str] = {
 # ============================================================
 # 审批流权限定义
 # ============================================================
-ADMIN_APPROVAL_PERMISSIONS: Set[str] = {
+ADMIN_APPROVAL_PERMISSIONS: set[str] = {
     "approval-flow:list",          # 查看流程定义
     "approval-flow:create",        # 创建流程定义
     "approval-flow:update",        # 编辑流程定义
@@ -39,7 +38,7 @@ ADMIN_APPROVAL_PERMISSIONS: Set[str] = {
 # ============================================================
 # 医生权限定义
 # ============================================================
-DOCTOR_PERMISSIONS: Set[str] = {
+DOCTOR_PERMISSIONS: set[str] = {
     # 排班相关
     "doctor:schedule:view",      # 查看自己的排班
     "doctor:schedule:edit",      # 编辑自己的排班
@@ -63,7 +62,7 @@ DOCTOR_PERMISSIONS: Set[str] = {
 # ============================================================
 # 运营角色权限定义
 # ============================================================
-OPERATOR_PERMISSIONS: Set[str] = {
+OPERATOR_PERMISSIONS: set[str] = {
     # 内容管理
     "content:news",              # 资讯管理
     "content:notice",            # 公告管理
@@ -83,7 +82,7 @@ OPERATOR_PERMISSIONS: Set[str] = {
 # ============================================================
 # 患者（User）权限定义
 # ============================================================
-USER_PERMISSIONS: Set[str] = {
+USER_PERMISSIONS: set[str] = {
     # 预约相关
     "patient:appointment:create",    # 创建预约
     "patient:appointment:cancel",    # 取消预约
@@ -102,7 +101,7 @@ USER_PERMISSIONS: Set[str] = {
 # ============================================================
 # 系统预定义角色
 # ============================================================
-SYSTEM_ROLES: Dict[str, dict] = {
+SYSTEM_ROLES: dict[str, dict] = {
     # --- Admin 角色 ---
     "SUPER_ADMIN": {
         "name": "超级管理员",
@@ -162,7 +161,7 @@ SYSTEM_ROLES: Dict[str, dict] = {
 }
 
 
-def get_permissions_for_role_type(role_type: str) -> Set[str]:
+def get_permissions_for_role_type(role_type: str) -> set[str]:
     """根据角色类型获取默认权限集合
 
     Args:
@@ -183,7 +182,7 @@ def get_permissions_for_role_type(role_type: str) -> Set[str]:
 
 def check_permission_match(
     required: str,
-    permissions: Set[str],
+    permissions: set[str],
 ) -> bool:
     """检查是否满足单个权限要求
 
@@ -219,9 +218,9 @@ def check_permission_match(
 
 async def load_permissions_from_role(
     db,
-    role_id: Optional[str],
-    fallback: Set[str],
-) -> List[str]:
+    role_id: str | None,
+    fallback: set[str],
+) -> list[str]:
     """从 Role 表加载权限，失败时返回 fallback
 
     Args:
@@ -236,11 +235,13 @@ async def load_permissions_from_role(
         return list(fallback)
 
     try:
-        from sqlalchemy import select as sa_select
-        from app.models.admin import Role
         import json
 
-        if hasattr(db, 'execute') and hasattr(db.execute, '__call__'):
+        from sqlalchemy import select as sa_select
+
+        from app.models.admin import Role
+
+        if hasattr(db, 'execute') and callable(db.execute):
             result = await db.execute(sa_select(Role).where(Role.id == role_id))
             role = result.scalar_one_or_none()
         else:

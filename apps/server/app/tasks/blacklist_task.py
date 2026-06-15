@@ -3,25 +3,26 @@
 - 自动解禁到期的黑名单用户
 - 自动标记爽约的预约
 """
-from datetime import datetime, timedelta
-from sqlalchemy import select, func, and_, update
-from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession
 import logging
+import uuid
+from datetime import datetime, timedelta
+
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.celery_app import celery_app
+from app.common.sync_account_helper import get_account_name
 from app.db.session import get_sync_db
-from app.models.blacklist import Blacklist
-from app.models.user import User
-from app.models.appointment import Appointment
-from app.models.message import Message
+from app.middleware.tenant_context import clear_tenant_context, set_tenant_context
 from app.models.admin import Admin
+from app.models.appointment import Appointment
+from app.models.blacklist import Blacklist
+from app.models.message import Message
 from app.models.settings import SystemSetting as Settings
 from app.models.tenant import Tenant
-from app.middleware.tenant_context import set_tenant_context, clear_tenant_context
-from app.common.sync_account_helper import get_account_name
+from app.models.user import User
 from app.modules.appointments.common import APPOINTMENT_STATUS
-import uuid
 
 logger = logging.getLogger(__name__)
 

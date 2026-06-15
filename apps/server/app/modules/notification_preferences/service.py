@@ -1,10 +1,9 @@
-from typing import Optional
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.notification_preference import NotificationPreference
 from app.schemas.notification_preference import NotificationPreferenceUpdate
-
 
 _TYPE_FIELD_MAP = {
     "appointment": "appointment_enabled",
@@ -30,7 +29,7 @@ class NotificationPreferenceService:
         self,
         user_id: str,
         user_type: str,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> NotificationPreference:
         stmt = select(NotificationPreference).where(
             NotificationPreference.user_id == user_id,
@@ -57,7 +56,7 @@ class NotificationPreferenceService:
         user_id: str,
         user_type: str,
         data: NotificationPreferenceUpdate,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> NotificationPreference:
         pref = await self.get_or_create(user_id, user_type, tenant_id)
 
@@ -74,7 +73,7 @@ class NotificationPreferenceService:
         user_id: str,
         user_type: str,
         channel: str,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> bool:
         field = _CHANNEL_FIELD_MAP.get(channel)
         if not field:
@@ -87,7 +86,7 @@ class NotificationPreferenceService:
         user_id: str,
         user_type: str,
         message_type: str,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> bool:
         field = _TYPE_FIELD_MAP.get(message_type)
         if not field:

@@ -1,7 +1,7 @@
 """Excel 导入基础服务"""
-from datetime import date, datetime
+from datetime import datetime
 from io import BytesIO
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from zipfile import BadZipFile
 
 from openpyxl import Workbook, load_workbook
@@ -35,7 +35,7 @@ class ExcelImportService:
     SUPPORTED_EXTENSIONS = (".xlsx", ".xls")
 
     @classmethod
-    def _get_extension(cls, filename: Optional[str]) -> str:
+    def _get_extension(cls, filename: str | None) -> str:
         if not filename:
             return ".xlsx"
 
@@ -80,7 +80,7 @@ class ExcelImportService:
             raise ExcelImportError("Excel 文件无效或已损坏，请上传 .xlsx 或 .xls 格式的 Excel 文件") from exc
 
     @classmethod
-    def _load_workbook(cls, file_content: bytes, filename: Optional[str] = None):
+    def _load_workbook(cls, file_content: bytes, filename: str | None = None):
         extension = cls._get_extension(filename)
         if extension == ".xls":
             return extension, cls._load_xls_workbook(file_content)
@@ -114,10 +114,10 @@ class ExcelImportService:
     def _parse_xlsx(
         cls,
         workbook,
-        expected_headers: List[str],
-        required_fields: Optional[List[str]] = None,
+        expected_headers: list[str],
+        required_fields: list[str] | None = None,
         sheet_index: int = 0
-    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         try:
             ws = workbook.worksheets[sheet_index]
         except IndexError as exc:
@@ -172,10 +172,10 @@ class ExcelImportService:
     def _parse_xls(
         cls,
         workbook,
-        expected_headers: List[str],
-        required_fields: Optional[List[str]] = None,
+        expected_headers: list[str],
+        required_fields: list[str] | None = None,
         sheet_index: int = 0
-    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         try:
             sheet = workbook.sheet_by_index(sheet_index)
         except IndexError as exc:
@@ -241,11 +241,11 @@ class ExcelImportService:
     def parse_excel(
         cls,
         file_content: bytes,
-        expected_headers: List[str],
-        required_fields: Optional[List[str]] = None,
+        expected_headers: list[str],
+        required_fields: list[str] | None = None,
         sheet_index: int = 0,
-        filename: Optional[str] = None,
-    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        filename: str | None = None,
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         """
         解析 Excel 文件
 
@@ -269,9 +269,9 @@ class ExcelImportService:
     @classmethod
     def _validate_headers(
         cls,
-        actual_headers: List[str],
-        expected_headers: List[str]
-    ) -> Optional[Dict[str, int]]:
+        actual_headers: list[str],
+        expected_headers: list[str]
+    ) -> dict[str, int] | None:
         """
         验证表头并返回映射关系
 
@@ -308,10 +308,10 @@ class ExcelImportService:
     @classmethod
     def create_template(
         cls,
-        headers: List[str],
-        sample_data: Optional[List[List[Any]]] = None,
-        required_fields: Optional[List[str]] = None,
-        field_notes: Optional[Dict[str, str]] = None,
+        headers: list[str],
+        sample_data: list[list[Any]] | None = None,
+        required_fields: list[str] | None = None,
+        field_notes: dict[str, str] | None = None,
         sheet_name: str = "导入模板"
     ) -> bytes:
         """

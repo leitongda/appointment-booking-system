@@ -1,41 +1,51 @@
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
-from app.db.session import get_db
 from app.api.deps import get_current_user
-from app.schemas.auth import (
-    LoginRequest,
-    RegisterRequest,
-    TokenResponse,
-    RefreshTokenRequest,
-    ChangePasswordRequest,
-    LoginResponse,
-    UserInfo,
-    ForgotPasswordRequest,
-    SendCodeRequest,
-    EmailSendCodeRequest,
-    EmailLoginRequest,
-    EmailBindRequest,
-    EmailUnbindRequest,
-    EmailChangeRequest,
-    to_camel,
-)
-from app.schemas.user import UserResponse
-from app.schemas.wechat import WechatLoginRequest, WechatLoginResponse, WechatPhoneRequest, WechatBindPhoneRequest, WechatBindUserInfoRequest
-from app.schemas.response import ErrorResponse
-from app.modules.users.service import UserService
-from app.infrastructure.wechat.service import WechatService
-from app.infrastructure.email.service import EmailService
-from app.core.security import create_access_token, create_refresh_token, decode_token, verify_password, get_password_hash
-from app.core.redis import RedisCache
-from app.core.config import settings
 from app.common.account_sync import AccountSyncService
 from app.common.auth_types import AccountInfo
 from app.common.auth_unified import get_current_account
 from app.common.security_settings import get_token_expire_config
+from app.core.config import settings
+from app.core.redis import RedisCache
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    get_password_hash,
+    verify_password,
+)
+from app.db.session import get_db
+from app.infrastructure.email.service import EmailService
+from app.infrastructure.wechat.service import WechatService
+from app.modules.users.service import UserService
+from app.schemas.auth import (
+    ChangePasswordRequest,
+    EmailBindRequest,
+    EmailChangeRequest,
+    EmailLoginRequest,
+    EmailSendCodeRequest,
+    EmailUnbindRequest,
+    ForgotPasswordRequest,
+    LoginRequest,
+    LoginResponse,
+    RefreshTokenRequest,
+    RegisterRequest,
+    SendCodeRequest,
+    TokenResponse,
+    UserInfo,
+    to_camel,
+)
+from app.schemas.response import ErrorResponse
+from app.schemas.user import UserResponse
+from app.schemas.wechat import (
+    WechatBindPhoneRequest,
+    WechatBindUserInfoRequest,
+    WechatLoginRequest,
+    WechatLoginResponse,
+    WechatPhoneRequest,
+)
 
 router = APIRouter()
 
@@ -221,7 +231,7 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码错误或已过期，请重新获取")
 
     # 密码策略校验
-    from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
+    from app.modules.tenants.password_policy import PasswordPolicyValidator, get_tenant_password_policy
     policy = await get_tenant_password_policy(db, tenant_id)
     validator = PasswordPolicyValidator(policy)
     is_valid, errors = validator.validate(data.password, phone=data.phone)
@@ -257,6 +267,7 @@ async def refresh_token(data: RefreshTokenRequest, db: AsyncSession = Depends(ge
 
     # 轮换 Refresh Token: 将旧 token 加入黑名单
     from datetime import datetime as _dt
+
     from jose import jwt as _jwt
     try:
         old_claims = _jwt.get_unverified_claims(data.refresh_token)
@@ -308,8 +319,8 @@ async def change_password(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="密码长度必须为6-20位")
 
     # 密码策略校验
-    from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
     from app.middleware.tenant_context import get_current_tenant_id
+    from app.modules.tenants.password_policy import PasswordPolicyValidator, get_tenant_password_policy
     tenant_id = get_current_tenant_id()
     policy = await get_tenant_password_policy(db, tenant_id)
     validator = PasswordPolicyValidator(policy)
@@ -357,8 +368,9 @@ async def send_code(
     - register: 注册验证码
     - reset: 重置密码验证码
     """
-    from app.infrastructure.sms.service import SmsService
     import re
+
+    from app.infrastructure.sms.service import SmsService
 
     # 验证手机号格式
     if not re.match(r'^1\d{10}$', data.phone):
@@ -412,9 +424,10 @@ async def forgot_password(
     - 新密码需符合密码策略
     - 密码长度 6-20 位
     """
+    import re
+
     from app.infrastructure.sms.service import SmsService
     from app.middleware.tenant_context import get_current_tenant_id
-    import re
 
     # 验证手机号格式
     if not re.match(r'^1\d{10}$', data.phone):
@@ -440,7 +453,7 @@ async def forgot_password(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码错误或已过期")
 
     # 密码策略校验
-    from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
+    from app.modules.tenants.password_policy import PasswordPolicyValidator, get_tenant_password_policy
     policy = await get_tenant_password_policy(db, tenant_id)
     validator = PasswordPolicyValidator(policy)
     is_valid, errors = validator.validate(data.new_password, phone=user.phone)
@@ -749,7 +762,6 @@ async def email_send_code(
     - reset: 重置密码验证码
     - bind: 绑定邮箱验证码
     """
-    import re
 
     if not _validate_email_format(data.email):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="邮箱格式不正确")
@@ -780,7 +792,7 @@ async def email_send_code(
     try:
         email_service = EmailService(db)
         await email_service.send_verification_code_email(data.email, code, data.code_type)
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="验证码发送失败，请稍后重试",

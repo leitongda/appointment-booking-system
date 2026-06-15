@@ -7,10 +7,9 @@
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 
-def resolve_secret_ref(secret_ref: Optional[str]) -> Optional[str]:
+def resolve_secret_ref(secret_ref: str | None) -> str | None:
     if not secret_ref:
         return None
 

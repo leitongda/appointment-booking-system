@@ -1,13 +1,13 @@
 """预约须知服务"""
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from typing import Optional, List
 import uuid
 
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.booking_notice import BookingNotice
 from app.schemas.booking_notice import BookingNoticeCreate, BookingNoticeUpdate
 from app.utils.audit import set_create_audit, set_update_audit
-from app.middleware.tenant_context import get_current_tenant_id
 
 
 class BookingNoticeService:
@@ -21,7 +21,7 @@ class BookingNoticeService:
             return stmt.where(BookingNotice.tenant_id == tenant_id)
         return stmt
 
-    async def get_by_id(self, notice_id: str) -> Optional[BookingNotice]:
+    async def get_by_id(self, notice_id: str) -> BookingNotice | None:
         """根据ID获取预约须知"""
         stmt = self._tenant_filter(
             select(BookingNotice).where(BookingNotice.id == notice_id)
@@ -31,11 +31,11 @@ class BookingNoticeService:
 
     async def get_list(
         self,
-        notice_type: Optional[str] = None,
-        status: Optional[int] = None,
+        notice_type: str | None = None,
+        status: int | None = None,
         page: int = 1,
         page_size: int = 20
-    ) -> tuple[List[BookingNotice], int]:
+    ) -> tuple[list[BookingNotice], int]:
         """获取预约须知列表"""
         query = self._tenant_filter(select(BookingNotice))
         count_query = self._tenant_filter(select(func.count(BookingNotice.id)))
@@ -56,7 +56,7 @@ class BookingNoticeService:
 
         return list(result.scalars().all()), count_result.scalar() or 0
 
-    async def get_active_list(self, notice_type: Optional[str] = None) -> List[BookingNotice]:
+    async def get_active_list(self, notice_type: str | None = None) -> list[BookingNotice]:
         """获取生效的预约须知列表（供小程序端调用）"""
         query = self._tenant_filter(select(BookingNotice).where(BookingNotice.status == 1))
 
@@ -68,7 +68,7 @@ class BookingNoticeService:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def create(self, data: BookingNoticeCreate, operator_id: Optional[str] = None) -> BookingNotice:
+    async def create(self, data: BookingNoticeCreate, operator_id: str | None = None) -> BookingNotice:
         """创建预约须知"""
         notice = BookingNotice(
             id=str(uuid.uuid4()),
@@ -86,7 +86,7 @@ class BookingNoticeService:
         await self.db.refresh(notice)
         return notice
 
-    async def update(self, notice_id: str, data: BookingNoticeUpdate, operator_id: Optional[str] = None) -> Optional[BookingNotice]:
+    async def update(self, notice_id: str, data: BookingNoticeUpdate, operator_id: str | None = None) -> BookingNotice | None:
         """更新预约须知"""
         notice = await self.get_by_id(notice_id)
         if not notice:
@@ -112,7 +112,7 @@ class BookingNoticeService:
         await self.db.commit()
         return True
 
-    async def update_status(self, notice_id: str, status: int, operator_id: Optional[str] = None) -> Optional[BookingNotice]:
+    async def update_status(self, notice_id: str, status: int, operator_id: str | None = None) -> BookingNotice | None:
         """更新预约须知状态"""
         notice = await self.get_by_id(notice_id)
         if not notice:

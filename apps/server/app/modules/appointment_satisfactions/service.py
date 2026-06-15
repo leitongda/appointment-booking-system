@@ -1,13 +1,13 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from typing import Optional
-from datetime import datetime
 import uuid
+from datetime import datetime
 
-from app.models.appointment_satisfaction import AppointmentSatisfaction
-from app.models.appointment import Appointment
-from app.modules.appointment_satisfactions.schemas import AppointmentSatisfactionCreate
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.middleware.tenant_context import get_current_tenant_id
+from app.models.appointment import Appointment
+from app.models.appointment_satisfaction import AppointmentSatisfaction
+from app.modules.appointment_satisfactions.schemas import AppointmentSatisfactionCreate
 from app.utils.audit import set_create_audit
 
 
@@ -58,7 +58,7 @@ class AppointmentSatisfactionService:
         await self.db.refresh(satisfaction)
         return satisfaction
 
-    async def get_by_appointment(self, appointment_id: str) -> Optional[AppointmentSatisfaction]:
+    async def get_by_appointment(self, appointment_id: str) -> AppointmentSatisfaction | None:
         """获取预约的满意度评价"""
         stmt = self._tenant_filter(
             select(AppointmentSatisfaction).where(

@@ -9,8 +9,8 @@ API 废弃端点检测中间件
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing import Callable
+from collections.abc import Callable
+from dataclasses import dataclass
 
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware

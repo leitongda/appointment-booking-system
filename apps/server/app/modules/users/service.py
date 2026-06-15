@@ -1,32 +1,33 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from typing import Optional
-from datetime import datetime
-import uuid
 import random
 import string
+import uuid
+from datetime import datetime
 
-from app.models.user import User, Patient
-from app.schemas.user import UserCreate, UserUpdate, PatientCreate, PatientUpdate
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.common.account_sync import AccountSyncService
 from app.core.security import get_password_hash, verify_password
 from app.middleware.tenant_context import get_current_tenant_id
+from app.models.user import Patient, User
+from app.schemas.user import PatientCreate, PatientUpdate, UserCreate, UserUpdate
 from app.utils.audit import set_create_audit, set_update_audit
-from app.common.account_sync import AccountSyncService
+
 
 class UserService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, user_id: str) -> Optional[User]:
+    async def get_by_id(self, user_id: str) -> User | None:
         result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
 
     async def get_by_phone(
         self,
         phone: str,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
         strict_tenant: bool = False,
-    ) -> Optional[User]:
+    ) -> User | None:
         # 空值直接返回 None，避免查询 phone=NULL 的记录
         if not phone or not phone.strip():
             return None
@@ -48,7 +49,7 @@ class UserService:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_email(self, email: str) -> Optional[User]:
+    async def get_by_email(self, email: str) -> User | None:
         """通过邮箱获取用户（租户内查找）"""
         if not email or not email.strip():
             return None
@@ -64,9 +65,9 @@ class UserService:
     async def get_by_openid(
         self,
         openid: str,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
         strict_tenant: bool = False,
-    ) -> Optional[User]:
+    ) -> User | None:
         effective_tenant_id = tenant_id or get_current_tenant_id()
         stmt = select(User).where(User.openid == openid)
         if effective_tenant_id:
@@ -84,9 +85,9 @@ class UserService:
     async def get_by_unionid(
         self,
         unionid: str,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
         strict_tenant: bool = False,
-    ) -> Optional[User]:
+    ) -> User | None:
         """通过 unionid 获取用户（跨应用关联）"""
         effective_tenant_id = tenant_id or get_current_tenant_id()
         stmt = select(User).where(User.unionid == unionid)
@@ -102,7 +103,7 @@ class UserService:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def update_wechat_info(self, user_id: str, data: dict, operator_id: Optional[str] = None) -> bool:
+    async def update_wechat_info(self, user_id: str, data: dict, operator_id: str | None = None) -> bool:
         """更新用户的微信信息
 
         Args:
@@ -183,7 +184,7 @@ class UserService:
         await self.db.refresh(user)
         return user
 
-    async def update(self, user_id: str, data: UserUpdate, operator_id: Optional[str] = None) -> Optional[User]:
+    async def update(self, user_id: str, data: UserUpdate, operator_id: str | None = None) -> User | None:
         user = await self.get_by_id(user_id)
         if not user:
             return None
@@ -204,7 +205,7 @@ class UserService:
         await self.db.refresh(user)
         return user
 
-    async def authenticate(self, phone: str, password: str) -> Optional[User]:
+    async def authenticate(self, phone: str, password: str) -> User | None:
         user = await self.get_by_phone(phone, strict_tenant=True)
         if not user:
             return None
@@ -271,11 +272,11 @@ class PatientService:
         random_str = ''.join(random.choices(string.digits, k=4))
         return f"JZK{timestamp}{random_str}"
 
-    async def get_by_id(self, patient_id: str) -> Optional[Patient]:
+    async def get_by_id(self, patient_id: str) -> Patient | None:
         result = await self.db.execute(select(Patient).where(Patient.id == patient_id))
         return result.scalar_one_or_none()
 
-    async def get_by_id_and_user(self, patient_id: str, user_id: str) -> Optional[Patient]:
+    async def get_by_id_and_user(self, patient_id: str, user_id: str) -> Patient | None:
         """获取指定用户的就诊人详情"""
         result = await self.db.execute(
             select(Patient).where(Patient.id == patient_id, Patient.user_id == user_id)
@@ -317,7 +318,7 @@ class PatientService:
         await self.db.refresh(patient)
         return patient
 
-    async def update(self, patient_id: str, user_id: str, data: PatientUpdate) -> Optional[Patient]:
+    async def update(self, patient_id: str, user_id: str, data: PatientUpdate) -> Patient | None:
         patient = await self.get_by_id(patient_id)
         if not patient or patient.user_id != user_id:
             return None

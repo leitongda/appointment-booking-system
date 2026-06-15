@@ -1,15 +1,15 @@
 """阿里云短信服务提供商"""
 import json
 import logging
-from typing import Dict, Optional
 
-from alibabacloud_dysmsapi20170525.client import Client as DysmsClient
 from alibabacloud_dysmsapi20170525 import models as dysms_models
+from alibabacloud_dysmsapi20170525.client import Client as DysmsClient
 from alibabacloud_tea_openapi import models as open_api_models
 from alibabacloud_tea_util import models as util_models
 
-from ..provider_base import SmsProvider
 from app.core.config import settings
+
+from ..provider_base import SmsProvider
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +18,8 @@ class AliyunSmsProvider(SmsProvider):
     """阿里云短信服务提供商"""
 
     def __init__(self):
-        self._client: Optional[DysmsClient] = None
-        self._sign_name: Optional[str] = None
+        self._client: DysmsClient | None = None
+        self._sign_name: str | None = None
 
     @property
     def client(self) -> DysmsClient:
@@ -29,7 +29,7 @@ class AliyunSmsProvider(SmsProvider):
                 access_key_id=settings.ALIYUN_ACCESS_KEY_ID,
                 access_key_secret=settings.ALIYUN_ACCESS_KEY_SECRET,
             )
-            config.endpoint = f"dysmsapi.aliyuncs.com"
+            config.endpoint = "dysmsapi.aliyuncs.com"
             self._client = DysmsClient(config)
         return self._client
 
@@ -44,8 +44,8 @@ class AliyunSmsProvider(SmsProvider):
         self,
         phone: str,
         template_code: str,
-        template_params: Dict[str, str],
-    ) -> tuple[bool, Optional[str]]:
+        template_params: dict[str, str],
+    ) -> tuple[bool, str | None]:
         """
         发送短信（内部方法）
 
@@ -58,7 +58,7 @@ class AliyunSmsProvider(SmsProvider):
             (是否成功, 错误信息)
         """
         import asyncio
-        from alibabacloud_tea_util.credentials import Env
+
 
         try:
             request = dysms_models.SendSmsRequest(
@@ -143,8 +143,8 @@ class AliyunSmsProvider(SmsProvider):
         self,
         phone: str,
         template_code: str,
-        template_params: Dict[str, str],
-    ) -> tuple[bool, Optional[str]]:
+        template_params: dict[str, str],
+    ) -> tuple[bool, str | None]:
         """
         发送业务通知短信
 

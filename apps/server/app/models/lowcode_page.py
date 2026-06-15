@@ -1,11 +1,12 @@
 """低代码页面数据模型。"""
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+import uuid
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
-from app.db.base import Base, AuditMixin
-import uuid
+from app.db.base import AuditMixin, Base
 
 
 class LowCodePage(Base, AuditMixin):

@@ -2,15 +2,16 @@
 微信相关定时任务
 - 主动刷新微信 access_token
 """
-from sqlalchemy import select, and_
-from sqlalchemy.orm import Session
 import logging
 
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
 from app.celery_app import celery_app
-from app.db.session import get_sync_db
-from app.models.settings import SystemSetting as Settings
 from app.core.config import settings as app_settings
+from app.db.session import get_sync_db
 from app.infrastructure.wechat.token_manager import WechatTokenManager
+from app.models.settings import SystemSetting as Settings
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +107,7 @@ def refresh_wechat_token(app_id: str = None, app_secret: str = None):
         app_id: 小程序 AppID（可选，不传则从配置获取）
         app_secret: 小程序 AppSecret（可选，不传则从配置获取）
     """
-    logger.info(f"[任务] 手动刷新微信 Token")
+    logger.info("[任务] 手动刷新微信 Token")
     
     with get_sync_db() as db:
         try:

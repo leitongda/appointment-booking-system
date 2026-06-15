@@ -1,9 +1,10 @@
 """系统设置模型"""
-from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey, Index
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
-from datetime import datetime
 import uuid
+
+from sqlalchemy import Column, ForeignKey, Index, String, Text
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 
 class SystemSetting(Base, AuditMixin):

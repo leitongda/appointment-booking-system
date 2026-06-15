@@ -9,18 +9,18 @@
 import json
 import logging
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Any
 
 from sqlalchemy import select
 
 from app.celery_app import celery_app
+from app.core.events import EVENT_TYPE_LABELS
 from app.db.session import get_sync_db
-from app.models.store_email_recipient import StoreEmailRecipient
-from app.models.store import Store
 from app.models.email_template import EmailTemplate
 from app.models.notification_log import NotificationLog
-from app.core.events import EVENT_TYPE_LABELS
-from app.utils.email_sync import get_email_config, send_email_sync, render_email_template
+from app.models.store import Store
+from app.models.store_email_recipient import StoreEmailRecipient
+from app.utils.email_sync import get_email_config, render_email_template, send_email_sync
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ _SIMPLE_CONTENT_TEMPLATE = """
 """
 
 
-def _render_simple_template(event_type: str, context: Dict[str, Any]) -> tuple:
+def _render_simple_template(event_type: str, context: dict[str, Any]) -> tuple:
     """
     当没有匹配的邮件模板时，使用内置简单模板。
 
@@ -69,7 +69,7 @@ def _render_simple_template(event_type: str, context: Dict[str, Any]) -> tuple:
     time_limit=180,
     soft_time_limit=150,
 )
-def process_event_email(self, store_id: str, event_type: str, context_data: Dict[str, Any]):
+def process_event_email(self, store_id: str, event_type: str, context_data: dict[str, Any]):
     """
     处理业务事件邮件通知
 
@@ -103,7 +103,7 @@ def process_event_email(self, store_id: str, event_type: str, context_data: Dict
             )
             all_recipients = recipients_result.scalars().all()
 
-            matched_recipients: List[StoreEmailRecipient] = []
+            matched_recipients: list[StoreEmailRecipient] = []
             for r in all_recipients:
                 if not r.event_types:
                     continue

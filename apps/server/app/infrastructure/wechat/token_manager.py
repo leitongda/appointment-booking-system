@@ -3,11 +3,10 @@
 支持 access_token 的 Redis 缓存和分布式锁机制（多租户隔离）
 """
 import logging
-from typing import Optional
 
 import httpx
 
-from app.core.redis import cache, RedisCache, sync_cache, SyncRedisCache
+from app.core.redis import RedisCache, SyncRedisCache, cache, sync_cache
 from app.middleware.tenant_context import get_current_tenant_id
 
 logger = logging.getLogger(__name__)
@@ -34,7 +33,7 @@ class WechatTokenManager:
         app_id: str,
         app_secret: str,
         force_refresh: bool = False,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> str:
         """
         获取微信 access_token（异步，带分布式锁，支持多租户隔离）
@@ -135,7 +134,7 @@ class WechatTokenManager:
         app_id: str,
         app_secret: str,
         force_refresh: bool = False,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> str:
         """
         获取微信 access_token（同步版本，用于 Celery 任务，支持多租户隔离）

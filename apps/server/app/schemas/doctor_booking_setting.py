@@ -1,8 +1,10 @@
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field
+
 from app.core.config import settings
 from app.schemas.response import to_camel
+
 
 class DoctorBookingSettingBase(BaseModel):
     """医生预约设置基础模型"""
@@ -29,10 +31,10 @@ class DoctorBookingSettingUpdate(BaseModel):
         alias_generator=to_camel,
     )
     
-    booking_start_offset: Optional[int] = Field(None, ge=0, le=30, description="预约开始偏移天数")
-    booking_range_days: Optional[int] = Field(None, ge=1, le=90, description="预约范围天数")
-    release_time: Optional[str] = Field(None, max_length=5, description="放号时间")
-    status: Optional[int] = Field(None, ge=0, le=1, description="状态")
+    booking_start_offset: int | None = Field(None, ge=0, le=30, description="预约开始偏移天数")
+    booking_range_days: int | None = Field(None, ge=1, le=90, description="预约范围天数")
+    release_time: str | None = Field(None, max_length=5, description="放号时间")
+    status: int | None = Field(None, ge=0, le=1, description="状态")
 
 class DoctorBookingSettingResponse(DoctorBookingSettingBase):
     """医生预约设置响应"""
@@ -44,8 +46,8 @@ class DoctorBookingSettingResponse(DoctorBookingSettingBase):
     )
     
     id: str
-    store_name: Optional[str] = Field(None, description="门店名称")
-    doctor_name: Optional[str] = Field(None, description="医生名称")
+    store_name: str | None = Field(None, description="门店名称")
+    doctor_name: str | None = Field(None, description="医生名称")
     created_at: datetime
     updated_at: datetime
 
@@ -56,8 +58,8 @@ class DoctorBookingSettingQuery(BaseModel):
         alias_generator=to_camel,
     )
     
-    store_id: Optional[str] = Field(None, description="门店ID筛选")
-    doctor_id: Optional[str] = Field(None, description="医生ID筛选")
-    status: Optional[int] = Field(None, description="状态筛选")
+    store_id: str | None = Field(None, description="门店ID筛选")
+    doctor_id: str | None = Field(None, description="医生ID筛选")
+    status: int | None = Field(None, description="状态筛选")
     page: int = Field(1, ge=1, description="页码")
     page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量")

@@ -1,21 +1,22 @@
-from app.schemas.response import to_camel
 from datetime import date, datetime
-from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.response import to_camel
+
+
 class DoctorScheduleResponse(BaseModel):
     id: str
-    doctor_id: Optional[str] = None
-    store_id: Optional[str] = None
+    doctor_id: str | None = None
+    store_id: str | None = None
     schedule_date: date
     time_slot: str
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
     total_slots: int
     booked_slots: int
     status: int
-    is_rest_day: Optional[bool] = False
+    is_rest_day: bool | None = False
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -27,17 +28,17 @@ class DoctorScheduleResponse(BaseModel):
 class DoctorAppointmentResponse(BaseModel):
     id: str
     appointment_no: str
-    patient_id: Optional[str] = None
+    patient_id: str | None = None
     patient_name: str
-    patient_phone: Optional[str] = None
-    schedule_date: Optional[date] = None
-    time_slot: Optional[str] = None
-    queue_number: Optional[int] = None
+    patient_phone: str | None = None
+    schedule_date: date | None = None
+    time_slot: str | None = None
+    queue_number: int | None = None
     status: int
-    sign_in_time: Optional[datetime] = None
-    call_time: Optional[datetime] = None
-    complete_time: Optional[datetime] = None
-    symptom_description: Optional[str] = None
+    sign_in_time: datetime | None = None
+    call_time: datetime | None = None
+    complete_time: datetime | None = None
+    symptom_description: str | None = None
     is_follow_up: bool = False
 
     model_config = ConfigDict(
@@ -50,11 +51,11 @@ class DoctorAppointmentResponse(BaseModel):
 class QueuePatientResponse(BaseModel):
     id: str
     appointment_no: str
-    queue_number: Optional[int] = None
+    queue_number: int | None = None
     patient_name: str
     status: int
-    sign_in_time: Optional[datetime] = None
-    call_time: Optional[datetime] = None
+    sign_in_time: datetime | None = None
+    call_time: datetime | None = None
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -66,11 +67,11 @@ class QueuePatientResponse(BaseModel):
 class PatientHistoryResponse(BaseModel):
     id: str
     appointment_no: str
-    schedule_date: Optional[date] = None
-    time_slot: Optional[str] = None
+    schedule_date: date | None = None
+    time_slot: str | None = None
     status: int
-    complete_time: Optional[datetime] = None
-    symptom_description: Optional[str] = None
+    complete_time: datetime | None = None
+    symptom_description: str | None = None
     has_medical_record: bool = False
 
     model_config = ConfigDict(

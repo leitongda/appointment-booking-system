@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
 from app.api.deps import get_current_user
+from app.db.session import get_db
+from app.middleware.tenant_context import get_current_tenant_id
+from app.modules.notification_preferences.service import NotificationPreferenceService
 from app.schemas.notification_preference import (
     NotificationPreferenceResponse,
     NotificationPreferenceUpdate,
 )
-from app.modules.notification_preferences.service import NotificationPreferenceService
-from app.middleware.tenant_context import get_current_tenant_id
 
 router = APIRouter()
 

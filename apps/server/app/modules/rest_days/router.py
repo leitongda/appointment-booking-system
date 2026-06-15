@@ -1,29 +1,29 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, List
-from datetime import date
 import json
+from datetime import date
 
-from app.db.session import get_db
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.deps import get_current_admin, require_permission
+from app.core.config import settings
+from app.db.session import get_db
+from app.modules.rest_days.service import RestDayService
+from app.schemas.response import PageResponse
 from app.schemas.rest_day import (
     RestDayCreate,
     RestDayResponse,
 )
-from app.schemas.response import PageResponse
-from app.modules.rest_days.service import RestDayService
-from app.core.config import settings
 
 router = APIRouter()
 
 
 @router.get("", response_model=PageResponse[RestDayResponse], summary="获取列表")
 async def get_rest_days(
-    store_id: Optional[str] = None,
-    doctor_id: Optional[str] = None,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    status: Optional[int] = Query(None, ge=0, le=1),
+    store_id: str | None = None,
+    doctor_id: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    status: int | None = Query(None, ge=0, le=1),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db)

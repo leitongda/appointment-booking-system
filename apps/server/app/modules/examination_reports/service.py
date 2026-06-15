@@ -1,14 +1,12 @@
 """检查报告服务"""
 import uuid
-from typing import Optional, List, Tuple
 
-from sqlalchemy import select, func, and_
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.examination_report import ExaminationReport
-from app.models.appointment import Appointment
-from app.models.user import Patient
 from app.middleware.tenant_context import get_current_tenant_id
+from app.models.appointment import Appointment
+from app.models.examination_report import ExaminationReport
 from app.utils.audit import set_create_audit
 
 
@@ -54,7 +52,7 @@ class ExaminationReportService:
         await self.db.refresh(report)
         return report
 
-    async def get_by_id(self, report_id: str) -> Optional[ExaminationReport]:
+    async def get_by_id(self, report_id: str) -> ExaminationReport | None:
         """根据ID获取报告"""
         stmt = select(ExaminationReport).where(ExaminationReport.id == report_id)
         tenant_id = get_current_tenant_id()
@@ -65,7 +63,7 @@ class ExaminationReportService:
 
     async def get_by_appointment(
         self, appointment_id: str
-    ) -> List[ExaminationReport]:
+    ) -> list[ExaminationReport]:
         """按预约获取报告列表"""
         stmt = (
             select(ExaminationReport)
@@ -83,7 +81,7 @@ class ExaminationReportService:
         patient_id: str,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[ExaminationReport], int]:
+    ) -> tuple[list[ExaminationReport], int]:
         """按患者获取报告列表（分页）"""
         conditions = [ExaminationReport.patient_id == patient_id]
         tenant_id = get_current_tenant_id()
@@ -108,7 +106,7 @@ class ExaminationReportService:
         reports = list(result.scalars().all())
         return reports, total
 
-    async def get_by_record(self, record_id: str) -> List[ExaminationReport]:
+    async def get_by_record(self, record_id: str) -> list[ExaminationReport]:
         """按病历获取报告列表"""
         stmt = (
             select(ExaminationReport)
@@ -123,16 +121,16 @@ class ExaminationReportService:
 
     async def get_list(
         self,
-        keyword: Optional[str] = None,
-        report_type: Optional[str] = None,
-        store_id: Optional[str] = None,
-        doctor_id: Optional[str] = None,
-        patient_id: Optional[str] = None,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
+        keyword: str | None = None,
+        report_type: str | None = None,
+        store_id: str | None = None,
+        doctor_id: str | None = None,
+        patient_id: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[ExaminationReport], int]:
+    ) -> tuple[list[ExaminationReport], int]:
         """获取报告列表（分页，支持多条件筛选）"""
         conditions = []
         tenant_id = get_current_tenant_id()

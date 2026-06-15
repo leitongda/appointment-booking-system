@@ -1,13 +1,11 @@
 """加号申请/审批服务。"""
 import logging
-from typing import Optional, Tuple
 from uuid import uuid4
 
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.redis import RedisCache
-from app.middleware.tenant_context import get_current_tenant_id
 from app.models.extra_quota_request import ExtraQuotaRequest
 from app.models.schedule import Schedule
 from app.utils.audit import set_create_audit, set_update_audit
@@ -36,8 +34,8 @@ class ExtraQuotaService:
         quantity: int,
         quota_type: str = "normal",
         open_to_public: bool = True,
-        patient_id: Optional[str] = None,
-        reason: Optional[str] = None,
+        patient_id: str | None = None,
+        reason: str | None = None,
     ) -> ExtraQuotaRequest:
         """创建加号申请。
 
@@ -137,7 +135,7 @@ class ExtraQuotaService:
         tenant_id: str,
         request_id: str,
         approver_id: str,
-        remark: Optional[str] = None,
+        remark: str | None = None,
     ) -> ExtraQuotaRequest:
         """审批通过加号申请（旧审核入口，作为无通用审批流程定义时的 fallback）。
 
@@ -183,7 +181,7 @@ class ExtraQuotaService:
         tenant_id: str,
         request_id: str,
         approver_id: str,
-        remark: Optional[str] = None,
+        remark: str | None = None,
     ) -> ExtraQuotaRequest:
         """拒绝加号申请。"""
         request = await self._get_request(request_id, tenant_id)
@@ -209,15 +207,15 @@ class ExtraQuotaService:
     async def get_list(
         self,
         tenant_id: str,
-        store_id: Optional[str] = None,
-        schedule_id: Optional[str] = None,
-        doctor_id: Optional[str] = None,
-        approval_status: Optional[str] = None,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
+        store_id: str | None = None,
+        schedule_id: str | None = None,
+        doctor_id: str | None = None,
+        approval_status: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[list, int]:
+    ) -> tuple[list, int]:
         """查询加号申请列表。返回 (items, total)。"""
         conditions = [ExtraQuotaRequest.tenant_id == tenant_id]
 
@@ -255,13 +253,13 @@ class ExtraQuotaService:
 
         return items, total
 
-    async def get_by_id(self, tenant_id: str, request_id: str) -> Optional[ExtraQuotaRequest]:
+    async def get_by_id(self, tenant_id: str, request_id: str) -> ExtraQuotaRequest | None:
         """查询单个加号申请。"""
         return await self._get_request(request_id, tenant_id)
 
     # ==================== 内部方法 ====================
 
-    async def _get_schedule(self, schedule_id: str, tenant_id: str) -> Optional[Schedule]:
+    async def _get_schedule(self, schedule_id: str, tenant_id: str) -> Schedule | None:
         """获取排班（带租户隔离）。"""
         result = await self.db.execute(
             select(Schedule).where(
@@ -273,7 +271,7 @@ class ExtraQuotaService:
         )
         return result.scalar_one_or_none()
 
-    async def _get_request(self, request_id: str, tenant_id: str) -> Optional[ExtraQuotaRequest]:
+    async def _get_request(self, request_id: str, tenant_id: str) -> ExtraQuotaRequest | None:
         """获取加号申请（带租户隔离）。"""
         result = await self.db.execute(
             select(ExtraQuotaRequest).where(

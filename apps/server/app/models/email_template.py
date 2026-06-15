@@ -1,7 +1,9 @@
-from sqlalchemy import Column, String, Integer, Text, Enum, UniqueConstraint
-from app.db.base import Base, AuditMixin
-from app.enums.general import EmailTemplateType  # noqa: F401 — re-export for backward compat
 import uuid
+
+from sqlalchemy import Column, Integer, String, Text, UniqueConstraint
+
+from app.db.base import AuditMixin, Base
+from app.enums.general import EmailTemplateType  # noqa: F401 — re-export for backward compat
 
 
 class EmailTemplate(Base, AuditMixin):

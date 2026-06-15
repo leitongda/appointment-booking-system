@@ -1,8 +1,9 @@
 """图片处理服务"""
 import io
 import json
-from typing import BinaryIO, Optional
 from dataclasses import dataclass
+from typing import BinaryIO
+
 from PIL import Image
 
 from app.core.logging import logger
@@ -41,7 +42,7 @@ class ImageProcessor:
 
     def __init__(
         self,
-        thumbnail_sizes: Optional[list] = None,
+        thumbnail_sizes: list | None = None,
         compress_quality: int = DEFAULT_COMPRESS_QUALITY
     ):
         """
@@ -54,7 +55,7 @@ class ImageProcessor:
         self.thumbnail_sizes = self._parse_sizes(thumbnail_sizes)
         self.compress_quality = max(1, min(100, compress_quality))
 
-    def _parse_sizes(self, sizes: Optional[list]) -> list[ThumbnailSize]:
+    def _parse_sizes(self, sizes: list | None) -> list[ThumbnailSize]:
         """解析尺寸配置"""
         if not sizes:
             sizes = DEFAULT_THUMBNAIL_SIZES

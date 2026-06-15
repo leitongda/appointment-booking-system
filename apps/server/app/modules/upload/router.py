@@ -7,10 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_admin
 from app.core.logging import logger
 from app.db.session import get_db
-from app.modules.upload.schemas import ThumbnailInfo, TransferRequest, UploadResponse
 from app.infrastructure.image.processor import create_image_processor
 from app.infrastructure.storage import get_storage
 from app.infrastructure.storage.base import build_tenant_storage_folder
+from app.modules.upload.schemas import ThumbnailInfo, TransferRequest, UploadResponse
 
 router = APIRouter()
 
@@ -238,6 +238,7 @@ def _get_content_type_from_ext(key: str) -> str:
 def _resolve_local_file(key: str):
     """解析本地文件路径，若文件不存在返回 None。"""
     from pathlib import Path
+
     from app.core.config import settings
 
     upload_dir = Path(settings.LOCAL_UPLOAD_DIR)
@@ -266,8 +267,8 @@ async def download_file(
 
     对于 MinIO/COS 模式，文件 URL 直接指向对象存储，不经过此端点。
     """
-    from app.middleware.tenant_context import get_current_tenant_id
     from app.core.config import settings
+    from app.middleware.tenant_context import get_current_tenant_id
 
     # 非 local 存储模式不接受此端点
     if settings.STORAGE_TYPE.lower() != "local":

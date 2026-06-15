@@ -1,7 +1,9 @@
-from sqlalchemy import Column, String, Integer, Text, Numeric, ForeignKey, DateTime, UniqueConstraint
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import Column, ForeignKey, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 
 class ConsultationFeeType(Base, AuditMixin):

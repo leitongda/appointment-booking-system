@@ -1,8 +1,10 @@
 """积分流水模型"""
-from sqlalchemy import Column, String, Integer, ForeignKey, Index
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 
 class PointLog(Base, AuditMixin):

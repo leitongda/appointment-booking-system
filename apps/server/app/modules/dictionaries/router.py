@@ -2,24 +2,24 @@
 
 提供字典类型和字典项的 CRUD 接口，以及公开查询接口。
 """
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 
-from app.db.session import get_db
 from app.api.deps import get_current_admin
-from app.modules.dictionaries.service import DictService
+from app.core.config import settings
+from app.db.session import get_db
 from app.modules.dictionaries.schemas import (
-    DictTypeCreate,
-    DictTypeUpdate,
-    DictTypeResponse,
     DictItemCreate,
-    DictItemUpdate,
     DictItemResponse,
+    DictItemUpdate,
+    DictTypeCreate,
+    DictTypeResponse,
+    DictTypeUpdate,
     SortRequest,
 )
+from app.modules.dictionaries.service import DictService
 from app.schemas.rule_set import PageResult
-from app.core.config import settings
 
 router = APIRouter()
 
@@ -29,8 +29,8 @@ router = APIRouter()
 
 @router.get("", response_model=PageResult[DictTypeResponse], summary="获取字典类型列表")
 async def get_dict_types(
-    status_: Optional[int] = Query(None, alias="status", description="状态 1=启用 0=禁用"),
-    keyword: Optional[str] = Query(None, description="搜索关键词"),
+    status_: int | None = Query(None, alias="status", description="状态 1=启用 0=禁用"),
+    keyword: str | None = Query(None, description="搜索关键词"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量"),
     db: AsyncSession = Depends(get_db),
@@ -143,8 +143,8 @@ async def delete_dict_type(
 )
 async def get_dict_items(
     type_id: str,
-    status_: Optional[int] = Query(None, alias="status", description="状态"),
-    keyword: Optional[str] = Query(None, description="搜索关键词"),
+    status_: int | None = Query(None, alias="status", description="状态"),
+    keyword: str | None = Query(None, description="搜索关键词"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(50, ge=1, le=200, description="每页数量"),
     db: AsyncSession = Depends(get_db),

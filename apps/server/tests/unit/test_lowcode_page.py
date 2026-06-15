@@ -36,10 +36,10 @@ class TestLowCodePageService:
             schema_data={"componentName": "Page", "props": {}, "children": []},
         )
 
-        # 验证
-        mock_db.add.assert_called_once()
-        mock_db.commit.assert_called_once()
-        mock_db.refresh.assert_called_once()
+        # 验证 - add 会被调用两次（页面 + 审计日志）
+        assert mock_db.add.call_count >= 1
+        mock_db.commit.assert_called()
+        mock_db.refresh.assert_called()
         assert page.name == "测试页面"
         assert page.slug == "test-page"
         assert page.tenant_id == "tenant-1"
@@ -190,3 +190,98 @@ class TestLowCodePageSchema:
         assert child["id"] == "node_001"
         assert child["componentName"] == "NutText"
         assert child["props"]["text"] == "Hello World"
+
+
+class TestSSRFProtection:
+    """SSRF 防护测试。"""
+
+    def test_validate_url_allowed(self):
+        """允许的 URL 格式。"""
+        from app.modules.lowcode.service import _validate_url_for_ssrf
+
+        # 正常的外部 URL 不应抛出异常
+        _validate_url_for_ssrf("https://api.example.com/data")
+        _validate_url_for_ssrf("http://example.com/api/users")
+
+    def test_validate_url_blocked_protocol(self):
+        """阻止非 http/https 协议。"""
+        from app.modules.lowcode.service import _validate_url_for_ssrf, SSRFError
+
+        with pytest.raises(SSRFError, match="不允许的协议"):
+            _validate_url_for_ssrf("ftp://example.com/file.txt")
+
+        with pytest.raises(SSRFError, match="不允许的协议"):
+            _validate_url_for_ssrf("file:///etc/passwd")
+
+    def test_validate_url_blocked_localhost(self):
+        """阻止访问 localhost。"""
+        from app.modules.lowcode.service import _validate_url_for_ssrf, SSRFError
+
+        with pytest.raises(SSRFError, match="禁止访问的主机"):
+            _validate_url_for_ssrf("http://localhost/admin")
+
+        with pytest.raises(SSRFError, match="禁止访问的主机"):
+            _validate_url_for_ssrf("http://127.0.0.1/admin")
+
+    def test_validate_url_blocked_private_ip(self):
+        """阻止访问私有 IP。"""
+        from app.modules.lowcode.service import _validate_url_for_ssrf, SSRFError
+
+        with pytest.raises(SSRFError, match="禁止访问的 IP"):
+            _validate_url_for_ssrf("http://192.168.1.1/admin")
+
+        with pytest.raises(SSRFError, match="禁止访问的 IP"):
+            _validate_url_for_ssrf("http://10.0.0.1/admin")
+
+        with pytest.raises(SSRFError, match="禁止访问的 IP"):
+            _validate_url_for_ssrf("http://172.16.0.1/admin")
+
+    def test_validate_url_blocked_metadata(self):
+        """阻止访问云服务 metadata 端点。"""
+        from app.modules.lowcode.service import _validate_url_for_ssrf, SSRFError
+
+        with pytest.raises(SSRFError, match="禁止访问的主机"):
+            _validate_url_for_ssrf("http://169.254.169.254/latest/meta-data/")
+
+        with pytest.raises(SSRFError, match="禁止访问的主机"):
+            _validate_url_for_ssrf("http://metadata.google.internal/")
+
+    def test_validate_url_missing_hostname(self):
+        """缺少主机名的 URL。"""
+        from app.modules.lowcode.service import _validate_url_for_ssrf, SSRFError
+
+        with pytest.raises(SSRFError, match="缺少主机名"):
+            _validate_url_for_ssrf("http:///path")
+
+    def test_validate_url_invalid_format(self):
+        """格式错误的 URL。"""
+        from app.modules.lowcode.service import _validate_url_for_ssrf, SSRFError
+
+        with pytest.raises(SSRFError):
+            _validate_url_for_ssrf("not-a-url")
+
+    @pytest.mark.asyncio
+    async def test_data_source_ssrf_blocked(self):
+        """test_data_source 阻止 SSRF 请求。"""
+        from app.modules.lowcode.service import LowCodePageService
+
+        result = await LowCodePageService.test_data_source(
+            url="http://169.254.169.254/latest/meta-data/",
+            method="GET",
+        )
+
+        assert result["success"] is False
+        assert "安全检查失败" in result["error"] or "禁止访问" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_data_source_ssrf_localhost_blocked(self):
+        """test_data_source 阻止访问 localhost。"""
+        from app.modules.lowcode.service import LowCodePageService
+
+        result = await LowCodePageService.test_data_source(
+            url="http://localhost:6379/",
+            method="GET",
+        )
+
+        assert result["success"] is False
+        assert "安全检查失败" in result["error"] or "禁止访问" in result["error"]

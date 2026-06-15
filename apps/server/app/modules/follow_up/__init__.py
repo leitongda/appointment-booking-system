@@ -1,1 +1,6 @@
-from app.modules.follow_up.service import FollowUpPlanService, FollowUpTaskService, FollowUpRecordService, SelfReportService
+from app.modules.follow_up.service import (
+    FollowUpPlanService,
+    FollowUpRecordService,
+    FollowUpTaskService,
+    SelfReportService,
+)

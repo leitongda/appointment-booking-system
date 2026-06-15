@@ -3,7 +3,7 @@
 提供微信小程序登录、获取手机号、发送订阅消息等功能
 """
 import logging
-from typing import Optional, Dict, Any
+from typing import Any
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,8 +26,8 @@ class WechatService:
     def __init__(
         self,
         db: AsyncSession,
-        store_id: Optional[str] = None,
-        miniapp_instance_id: Optional[str] = None,
+        store_id: str | None = None,
+        miniapp_instance_id: str | None = None,
     ):
         """
         初始化微信服务
@@ -40,8 +40,8 @@ class WechatService:
         self.db = db
         self.store_id = store_id
         self.miniapp_instance_id = miniapp_instance_id
-        self._app_id: Optional[str] = None
-        self._app_secret: Optional[str] = None
+        self._app_id: str | None = None
+        self._app_secret: str | None = None
         self._config_loaded = False
 
     async def _load_config(self):
@@ -80,7 +80,7 @@ class WechatService:
             self.store_id,
         )
 
-    async def code2session(self, code: str) -> Dict[str, Any]:
+    async def code2session(self, code: str) -> dict[str, Any]:
         """
         通过 code 获取 session_key 和 openid
         https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-login/code2Session.html
@@ -113,7 +113,7 @@ class WechatService:
             "unionid": data.get("unionid"),
         }
 
-    async def get_phone_number(self, code: str) -> Optional[str]:
+    async def get_phone_number(self, code: str) -> str | None:
         """
         通过 code 获取用户手机号
         https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-info/phone-number/getPhoneNumber.html
@@ -160,7 +160,7 @@ class WechatService:
         self,
         openid: str,
         template_id: str,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         page: str = None
     ) -> bool:
         """

@@ -2,7 +2,6 @@
 
 import json
 import uuid
-from typing import List, Optional, Tuple
 
 from sqlalchemy import and_, func, select
 
@@ -16,12 +15,12 @@ class RoleService:
 
     async def get_list(
         self,
-        status: Optional[int] = None,
-        keyword: Optional[str] = None,
+        status: int | None = None,
+        keyword: str | None = None,
         page: int = 1,
         page_size: int = 10,
-        tenant_id: Optional[str] = None,
-    ) -> Tuple[List[Role], int]:
+        tenant_id: str | None = None,
+    ) -> tuple[list[Role], int]:
         # 租户隔离：只查询当前租户的角色
         query = select(Role)
         conditions = []
@@ -44,7 +43,7 @@ class RoleService:
         result = await self.db.execute(query)
         return list(result.scalars().all()), total or 0
 
-    async def get_all(self, tenant_id: Optional[str] = None) -> List[Role]:
+    async def get_all(self, tenant_id: str | None = None) -> list[Role]:
         # 租户隔离：只查询当前租户的角色
         conditions = []
         if tenant_id:
@@ -54,7 +53,7 @@ class RoleService:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_by_id(self, role_id: str, tenant_id: Optional[str] = None) -> Optional[Role]:
+    async def get_by_id(self, role_id: str, tenant_id: str | None = None) -> Role | None:
         # 租户隔离：查询时附加租户过滤
         if tenant_id:
             result = await self.db.execute(
@@ -63,7 +62,7 @@ class RoleService:
             return result.scalar_one_or_none()
         return await self.db.get(Role, role_id)
 
-    async def get_by_code(self, code: str, tenant_id: Optional[str] = None) -> Optional[Role]:
+    async def get_by_code(self, code: str, tenant_id: str | None = None) -> Role | None:
         # 租户隔离：编码唯一性检查需限定在租户范围内
         conditions = [Role.code == code]
         if tenant_id:
@@ -71,7 +70,7 @@ class RoleService:
         result = await self.db.execute(select(Role).where(and_(*conditions)))
         return result.scalar_one_or_none()
 
-    async def create(self, data: dict, operator_id: Optional[str] = None, tenant_id: Optional[str] = None) -> Role:
+    async def create(self, data: dict, operator_id: str | None = None, tenant_id: str | None = None) -> Role:
         # 租户隔离：编码唯一性检查需限定在租户范围内
         existing = await self.get_by_code(data["code"], tenant_id=tenant_id)
         if existing:
@@ -93,7 +92,7 @@ class RoleService:
         await self.db.refresh(role)
         return role
 
-    async def update(self, role_id: str, data: dict, operator_id: Optional[str] = None, tenant_id: Optional[str] = None) -> Optional[Role]:
+    async def update(self, role_id: str, data: dict, operator_id: str | None = None, tenant_id: str | None = None) -> Role | None:
         # 租户隔离：查询时附加租户过滤
         role = await self.get_by_id(role_id, tenant_id=tenant_id)
         if not role:
@@ -119,8 +118,8 @@ class RoleService:
         return role
 
     async def update_permissions(
-        self, role_id: str, permissions: List[str], operator_id: Optional[str] = None, tenant_id: Optional[str] = None
-    ) -> Optional[Role]:
+        self, role_id: str, permissions: list[str], operator_id: str | None = None, tenant_id: str | None = None
+    ) -> Role | None:
         # 租户隔离：查询时附加租户过滤
         role = await self.get_by_id(role_id, tenant_id=tenant_id)
         if not role:
@@ -135,7 +134,7 @@ class RoleService:
         await self.db.refresh(role)
         return role
 
-    async def delete(self, role_id: str, tenant_id: Optional[str] = None) -> bool:
+    async def delete(self, role_id: str, tenant_id: str | None = None) -> bool:
         # 租户隔离：查询时附加租户过滤
         role = await self.get_by_id(role_id, tenant_id=tenant_id)
         if not role:

@@ -10,10 +10,11 @@
 - revenue 为预聚合值，复诊判断采用"该患者在同门店此前已有就诊记录"的批量近似
   （见 metrics 聚合服务），与 RevenueService 口径基本一致。
 """
-from sqlalchemy import Column, String, Integer, Numeric, Date, ForeignKey, UniqueConstraint
-
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import Column, Date, ForeignKey, Integer, Numeric, String, UniqueConstraint
+
+from app.db.base import AuditMixin, Base
 
 
 class StoreDailyMetric(Base, AuditMixin):

@@ -3,7 +3,6 @@
 import json
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import select
 
@@ -14,7 +13,7 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 
 class ScheduleTemplateMutationMixin:
-    async def _get_template_with_tenant(self, template_id: str) -> Optional[ScheduleTemplate]:
+    async def _get_template_with_tenant(self, template_id: str) -> ScheduleTemplate | None:
         """根据 ID 查询排班模板，同时过滤租户（与 service_query 保持一致）。"""
         from sqlalchemy import and_
 
@@ -31,8 +30,8 @@ class ScheduleTemplateMutationMixin:
     async def create(self, data: ScheduleTemplateCreate) -> ScheduleTemplate:
         from app.models.department import Department
         from app.models.doctor import Doctor
-        from app.models.store import Store
         from app.models.rule_set import ShiftType
+        from app.models.store import Store
 
         if not data.name or not data.name.strip():
             raise ValueError("模板名称不能为空")
@@ -130,7 +129,7 @@ class ScheduleTemplateMutationMixin:
                     }
                 )
             normalized_breaks.sort(key=lambda item: item[0])
-            for previous, current in zip(normalized_breaks, normalized_breaks[1:]):
+            for previous, current in zip(normalized_breaks, normalized_breaks[1:], strict=False):
                 if current[0] < previous[1]:
                     raise ValueError("排除时间段不能重叠")
             break_times_json = json.dumps(break_times_list)
@@ -165,8 +164,8 @@ class ScheduleTemplateMutationMixin:
         return template
 
     async def update(
-        self, template_id: str, data: ScheduleTemplateUpdate, operator_id: Optional[str] = None
-    ) -> Optional[ScheduleTemplate]:
+        self, template_id: str, data: ScheduleTemplateUpdate, operator_id: str | None = None
+    ) -> ScheduleTemplate | None:
         template = await self._get_template_with_tenant(template_id)
         if not template:
             return None
@@ -240,7 +239,7 @@ class ScheduleTemplateMutationMixin:
                         normalized_breaks.append((bt_start, bt_end))
                     break_times_list.append(bt_dict)
                 normalized_breaks.sort(key=lambda item: item[0])
-                for previous, current in zip(normalized_breaks, normalized_breaks[1:]):
+                for previous, current in zip(normalized_breaks, normalized_breaks[1:], strict=False):
                     if current[0] < previous[1]:
                         raise ValueError("排除时间段不能重叠")
                 update_data["break_times"] = json.dumps(break_times_list)

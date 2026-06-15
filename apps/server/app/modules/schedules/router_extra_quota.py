@@ -1,16 +1,18 @@
-from fastapi import APIRouter, Depends, Header, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from typing import Optional
 
-from app.db.session import get_db
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.deps import get_current_admin, get_store_filter, require_permission
 from app.core.redis import get_redis
-from app.schemas.extra_quota import (
-    ExtraQuotaRequestCreate, ExtraQuotaApprovalRequest,
-    ExtraQuotaRequestResponse, ExtraQuotaListResponse,
-)
+from app.db.session import get_db
 from app.models.schedule import Schedule
+from app.schemas.extra_quota import (
+    ExtraQuotaApprovalRequest,
+    ExtraQuotaListResponse,
+    ExtraQuotaRequestCreate,
+    ExtraQuotaRequestResponse,
+)
 from app.utils.idempotency import check_idempotency, store_idempotency
 
 router = APIRouter()
@@ -36,7 +38,7 @@ async def create_extra_quota_request(
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("schedule:extra-quota")),
-    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
 ):
     """创建加号申请"""
     from app.modules.schedules.service_extra_quota import ExtraQuotaService
@@ -186,12 +188,12 @@ async def reject_extra_quota(
     """,
 )
 async def list_extra_quota_requests(
-    store_id: Optional[str] = Query(None, description="门店ID"),
-    schedule_id: Optional[str] = Query(None, description="排班ID"),
-    doctor_id: Optional[str] = Query(None, description="医生ID"),
-    approval_status: Optional[str] = Query(None, description="审批状态"),
-    start_date: Optional[str] = Query(None, description="开始日期 YYYY-MM-DD"),
-    end_date: Optional[str] = Query(None, description="结束日期 YYYY-MM-DD"),
+    store_id: str | None = Query(None, description="门店ID"),
+    schedule_id: str | None = Query(None, description="排班ID"),
+    doctor_id: str | None = Query(None, description="医生ID"),
+    approval_status: str | None = Query(None, description="审批状态"),
+    start_date: str | None = Query(None, description="开始日期 YYYY-MM-DD"),
+    end_date: str | None = Query(None, description="结束日期 YYYY-MM-DD"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),

@@ -1,10 +1,8 @@
 """通知渠道基类"""
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional
 
-from app.schemas.notification import NotificationEvent, NotificationContent
-
+from app.schemas.notification import NotificationContent, NotificationEvent
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +35,7 @@ class BaseNotificationChannel(ABC):
         """渠道名称（不依赖 db，可在注册时获取）"""
         pass
 
-    async def validate_recipient(self, event: NotificationEvent) -> tuple[bool, Optional[str]]:
+    async def validate_recipient(self, event: NotificationEvent) -> tuple[bool, str | None]:
         """验证接收人信息是否完整
 
         Args:

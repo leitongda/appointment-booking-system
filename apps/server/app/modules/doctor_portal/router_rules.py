@@ -2,12 +2,12 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
 from app.api.deps import get_current_doctor_by_token
+from app.core.config import settings
+from app.db.session import get_db
 from app.models.doctor import Doctor
 from app.modules.rule_sets.service import RuleSetService
 from app.schemas.rule_set import PageResult, RuleSetDetailResponse
-from app.core.config import settings
 
 router = APIRouter()
 

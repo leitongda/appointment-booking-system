@@ -1,7 +1,6 @@
 """操作指引 - 业务服务"""
-from typing import List, Optional, Tuple
 
-from sqlalchemy import select, func, and_
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.guide_tour import GuideTour, GuideTourProgress
@@ -18,7 +17,7 @@ class GuideTourService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_active_tours(self, admin_id: str) -> List[dict]:
+    async def get_active_tours(self, admin_id: str) -> list[dict]:
         """获取当前用户可见的已发布指引 + 进度"""
         rows = (
             await self.db.execute(
@@ -56,7 +55,7 @@ class GuideTourService:
             })
         return result
 
-    async def get_progress(self, tour_id: str, admin_id: str) -> Optional[GuideTourProgress]:
+    async def get_progress(self, tour_id: str, admin_id: str) -> GuideTourProgress | None:
         """获取指定指引的用户进度"""
         return (
             await self.db.execute(
@@ -99,8 +98,8 @@ class AdminGuideTourService:
         self.db = db
 
     async def get_list(
-        self, page: int = 1, page_size: int = 20, status: Optional[int] = None
-    ) -> Tuple[List[dict], int]:
+        self, page: int = 1, page_size: int = 20, status: int | None = None
+    ) -> tuple[list[dict], int]:
         """分页获取指引列表"""
         conditions = []
         if status is not None:
@@ -137,7 +136,7 @@ class AdminGuideTourService:
             })
         return items, total
 
-    async def get_by_id(self, tour_id: str) -> Optional[GuideTour]:
+    async def get_by_id(self, tour_id: str) -> GuideTour | None:
         """根据 ID 获取指引"""
         return (
             await self.db.execute(
@@ -162,7 +161,7 @@ class AdminGuideTourService:
         await self.db.refresh(tour)
         return tour
 
-    async def update(self, tour_id: str, data: GuideTourUpdate, updated_by: str) -> Optional[GuideTour]:
+    async def update(self, tour_id: str, data: GuideTourUpdate, updated_by: str) -> GuideTour | None:
         """更新指引"""
         tour = await self.get_by_id(tour_id)
         if tour is None:
@@ -186,7 +185,7 @@ class AdminGuideTourService:
         await self.db.refresh(tour)
         return tour
 
-    async def update_status(self, tour_id: str, status: int, updated_by: str) -> Optional[GuideTour]:
+    async def update_status(self, tour_id: str, status: int, updated_by: str) -> GuideTour | None:
         """更新指引发布状态"""
         tour = await self.get_by_id(tour_id)
         if tour is None:

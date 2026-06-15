@@ -1,7 +1,9 @@
-from sqlalchemy import Column, String, Integer, ForeignKey, Index
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import Column, ForeignKey, Index, Integer, String
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 
 class ScheduleRoom(Base, AuditMixin):

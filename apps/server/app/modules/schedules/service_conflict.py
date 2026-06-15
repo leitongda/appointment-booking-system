@@ -7,7 +7,6 @@
 import logging
 from dataclasses import dataclass, field
 from datetime import date, time
-from typing import Dict, List, Optional
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,14 +43,14 @@ class ConflictItem:
     type: str                  # ConflictType 值
     severity: str              # "error" 阻止保存 / "warning" 允许但需确认
     message: str               # 人类可读的冲突描述
-    details: Dict = field(default_factory=dict)   # 冲突详情
+    details: dict = field(default_factory=dict)   # 冲突详情
 
 
 @dataclass
 class ConflictResult:
     """冲突检测结果"""
     has_conflict: bool
-    conflicts: List[ConflictItem] = field(default_factory=list)
+    conflicts: list[ConflictItem] = field(default_factory=list)
     blocking: bool = False     # 是否有 error 级别的冲突
 
 
@@ -64,12 +63,12 @@ class ScheduleCheckItem:
     """批量冲突检测的单项输入"""
     doctor_id: str
     schedule_date: date
-    start_time: Optional[time] = None
-    end_time: Optional[time] = None
-    time_slot: Optional[str] = None
-    store_id: Optional[str] = None
-    room_id: Optional[str] = None
-    exclude_schedule_id: Optional[str] = None
+    start_time: time | None = None
+    end_time: time | None = None
+    time_slot: str | None = None
+    store_id: str | None = None
+    room_id: str | None = None
+    exclude_schedule_id: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -100,12 +99,12 @@ class ScheduleConflictService:
         self,
         doctor_id: str,
         schedule_date: date,
-        start_time: Optional[time] = None,
-        end_time: Optional[time] = None,
-        time_slot: Optional[str] = None,
-        store_id: Optional[str] = None,
-        room_id: Optional[str] = None,
-        exclude_schedule_id: Optional[str] = None,
+        start_time: time | None = None,
+        end_time: time | None = None,
+        time_slot: str | None = None,
+        store_id: str | None = None,
+        room_id: str | None = None,
+        exclude_schedule_id: str | None = None,
     ) -> ConflictResult:
         """检查排班冲突，返回结构化冲突结果。
 
@@ -117,7 +116,7 @@ class ScheduleConflictService:
         5. 休息日冲突
         6. 医生状态检查（离职/禁用）
         """
-        conflicts: List[ConflictItem] = []
+        conflicts: list[ConflictItem] = []
 
         # 1. 医生时间冲突
         doctor_conflict = await self._check_doctor_time_conflict(
@@ -165,8 +164,8 @@ class ScheduleConflictService:
 
     async def batch_check_conflicts(
         self,
-        schedules: List[ScheduleCheckItem],
-    ) -> List[ConflictResult]:
+        schedules: list[ScheduleCheckItem],
+    ) -> list[ConflictResult]:
         """批量冲突检测（用于批量排班/复制场景）。
 
         为减少数据库查询次数，按 doctor_id 分组预加载已有排班。
@@ -232,7 +231,7 @@ class ScheduleConflictService:
         # 逐项检测
         results = []
         for item in schedules:
-            conflicts: List[ConflictItem] = []
+            conflicts: list[ConflictItem] = []
 
             # 1. 医生时间冲突（从预加载数据中筛选）
             conflict = self._check_doctor_time_from_cache(
@@ -306,11 +305,11 @@ class ScheduleConflictService:
         self,
         doctor_id: str,
         schedule_date: date,
-        start_time: Optional[time],
-        end_time: Optional[time],
-        time_slot: Optional[str],
-        exclude_schedule_id: Optional[str],
-    ) -> Optional[ConflictItem]:
+        start_time: time | None,
+        end_time: time | None,
+        time_slot: str | None,
+        exclude_schedule_id: str | None,
+    ) -> ConflictItem | None:
         """检查同医生同日期的时间段重叠。
 
         时间重叠判断 (半开区间): existing.start < new.end AND existing.end > new.start
@@ -369,10 +368,10 @@ class ScheduleConflictService:
         self,
         room_id: str,
         schedule_date: date,
-        start_time: Optional[time],
-        end_time: Optional[time],
-        exclude_schedule_id: Optional[str],
-    ) -> Optional[ConflictItem]:
+        start_time: time | None,
+        end_time: time | None,
+        exclude_schedule_id: str | None,
+    ) -> ConflictItem | None:
         """检查同诊室同日期时间段占用。"""
         from app.middleware.tenant_context import get_current_tenant_id
         tenant_id = get_current_tenant_id()
@@ -419,7 +418,7 @@ class ScheduleConflictService:
         self,
         start_time: time,
         end_time: time,
-    ) -> Optional[ConflictItem]:
+    ) -> ConflictItem | None:
         """检查排班是否覆盖午休时间。
 
         只在排班时间段完全覆盖午休时返回 warning。
@@ -444,8 +443,8 @@ class ScheduleConflictService:
     async def _check_holiday_conflict(
         self,
         schedule_date: date,
-        store_id: Optional[str],
-    ) -> Optional[ConflictItem]:
+        store_id: str | None,
+    ) -> ConflictItem | None:
         """检查排班日期是否为禁止排班的节假日。"""
         from app.middleware.tenant_context import get_current_tenant_id
         tenant_id = get_current_tenant_id()
@@ -487,9 +486,9 @@ class ScheduleConflictService:
     async def _check_rest_day_conflict(
         self,
         schedule_date: date,
-        store_id: Optional[str],
+        store_id: str | None,
         doctor_id: str,
-    ) -> Optional[ConflictItem]:
+    ) -> ConflictItem | None:
         """检查排班日期是否为该医生的休息日。"""
         from app.middleware.tenant_context import get_current_tenant_id
         from app.utils.schedule_utils import is_rest_day
@@ -520,7 +519,7 @@ class ScheduleConflictService:
     async def _check_doctor_status(
         self,
         doctor_id: str,
-    ) -> Optional[ConflictItem]:
+    ) -> ConflictItem | None:
         """检查医生是否在职且未被禁用。"""
         result = await self.db.execute(
             select(Doctor).where(Doctor.id == doctor_id)
@@ -559,14 +558,14 @@ class ScheduleConflictService:
 
     @staticmethod
     def _check_doctor_time_from_cache(
-        existing_schedules: List[Schedule],
+        existing_schedules: list[Schedule],
         doctor_id: str,
         schedule_date: date,
-        start_time: Optional[time],
-        end_time: Optional[time],
-        time_slot: Optional[str],
-        exclude_schedule_id: Optional[str],
-    ) -> Optional[ConflictItem]:
+        start_time: time | None,
+        end_time: time | None,
+        time_slot: str | None,
+        exclude_schedule_id: str | None,
+    ) -> ConflictItem | None:
         """从预加载的排班列表中检测医生时间冲突（纯内存操作）。"""
         for s in existing_schedules:
             if s.doctor_id != doctor_id or s.schedule_date != schedule_date:
@@ -605,10 +604,10 @@ class ScheduleConflictService:
 
     @staticmethod
     def _check_holiday_from_cache(
-        holidays: List[ScheduleHoliday],
+        holidays: list[ScheduleHoliday],
         schedule_date: date,
-        store_id: Optional[str],
-    ) -> Optional[ConflictItem]:
+        store_id: str | None,
+    ) -> ConflictItem | None:
         """从预加载的节假日列表中检测冲突（纯内存操作）。"""
         for h in holidays:
             if h.holiday_date != schedule_date:

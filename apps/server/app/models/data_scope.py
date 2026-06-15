@@ -1,8 +1,10 @@
 """数据权限范围模型"""
-from sqlalchemy import Column, String, Integer, Text, ForeignKey, UniqueConstraint
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import Column, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 
 class DataScope(Base, AuditMixin):

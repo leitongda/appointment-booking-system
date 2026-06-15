@@ -8,10 +8,12 @@
 - ApprovalInstance: 审批实例
 - ApprovalRecord: 审批记录
 """
-from sqlalchemy import Column, String, Integer, Text, Float, ForeignKey, Index, DateTime, JSON
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 
 class ApprovalFlowDefinition(Base, AuditMixin):
@@ -29,6 +31,7 @@ class ApprovalFlowDefinition(Base, AuditMixin):
     callback_config = Column(JSON, comment="回调配置")
     store_id = Column(String(36), ForeignKey("stores.id"), nullable=True, comment="门店级流程")
     snapshot_json = Column(JSON, comment="发布时的流程快照（节点+条件的完整 JSON）")
+    edges = Column(JSON, comment="流程连线 [{source, target, sourceHandle, targetHandle}]")
 
     # 关系
     nodes = relationship("ApprovalFlowNode", back_populates="flow_def", cascade="all, delete-orphan", lazy="selectin")

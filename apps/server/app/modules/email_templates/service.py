@@ -1,13 +1,11 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
-from typing import Optional, List
 import uuid
 
-from app.models.email_template import EmailTemplate
-from app.schemas.email_template import (
-    EmailTemplateCreate, EmailTemplateUpdate, EmailTemplateQuery
-)
+from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.middleware.tenant_context import get_current_tenant_id
+from app.models.email_template import EmailTemplate
+from app.schemas.email_template import EmailTemplateCreate, EmailTemplateQuery, EmailTemplateUpdate
 from app.utils.audit import set_create_audit, set_update_audit
 
 
@@ -23,13 +21,13 @@ class EmailTemplateService:
             stmt = stmt.where(or_(target.tenant_id == tenant_id, target.tenant_id.is_(None)))
         return stmt
 
-    async def get_by_id(self, template_id: str) -> Optional[EmailTemplate]:
+    async def get_by_id(self, template_id: str) -> EmailTemplate | None:
         stmt = select(EmailTemplate).where(EmailTemplate.id == template_id)
         stmt = self._tenant_filter(stmt)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_code(self, code: str) -> Optional[EmailTemplate]:
+    async def get_by_code(self, code: str) -> EmailTemplate | None:
         tenant_id = get_current_tenant_id()
         if tenant_id:
             stmt = select(EmailTemplate).where(
@@ -54,7 +52,7 @@ class EmailTemplateService:
     async def get_list(
         self,
         query: EmailTemplateQuery
-    ) -> tuple[List[EmailTemplate], int]:
+    ) -> tuple[list[EmailTemplate], int]:
         stmt = select(EmailTemplate)
         count_stmt = select(func.count(EmailTemplate.id))
 
@@ -86,7 +84,7 @@ class EmailTemplateService:
 
         return list(result.scalars().all()), count_result.scalar() or 0
 
-    async def get_all(self, status: Optional[int] = None) -> List[EmailTemplate]:
+    async def get_all(self, status: int | None = None) -> list[EmailTemplate]:
         stmt = select(EmailTemplate)
         stmt = self._tenant_filter(stmt)
         if status is not None:
@@ -96,7 +94,7 @@ class EmailTemplateService:
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
-    async def create(self, data: EmailTemplateCreate, operator_id: Optional[str] = None) -> EmailTemplate:
+    async def create(self, data: EmailTemplateCreate, operator_id: str | None = None) -> EmailTemplate:
         tenant_id = get_current_tenant_id()
 
         if tenant_id:
@@ -133,7 +131,7 @@ class EmailTemplateService:
         await self.db.refresh(template)
         return template
 
-    async def update(self, template_id: str, data: EmailTemplateUpdate, operator_id: Optional[str] = None) -> Optional[EmailTemplate]:
+    async def update(self, template_id: str, data: EmailTemplateUpdate, operator_id: str | None = None) -> EmailTemplate | None:
         template = await self.get_by_id(template_id)
         if not template:
             return None

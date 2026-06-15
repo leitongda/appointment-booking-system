@@ -1,5 +1,4 @@
 from datetime import date
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user_or_admin
 from app.core.config import settings
 from app.db.session import get_db
+from app.modules.examination_reports.service import ExaminationReportService
+from app.modules.medical_records.service import MedicalRecordService
 from app.schemas.medical_record import (
     MedicalRecordCreate,
     MedicalRecordListResponse,
@@ -14,8 +15,6 @@ from app.schemas.medical_record import (
     MedicalRecordUpdate,
 )
 from app.schemas.response import PageResponse
-from app.modules.medical_records.service import MedicalRecordService
-from app.modules.examination_reports.service import ExaminationReportService
 
 router = APIRouter()
 
@@ -67,13 +66,13 @@ def build_list_response(record) -> MedicalRecordListResponse:
 
 @router.get("", response_model=PageResponse[MedicalRecordListResponse], summary="获取列表")
 async def get_medical_records(
-    doctor_id: Optional[str] = None,
-    patient_id: Optional[str] = None,
-    department_id: Optional[str] = None,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    status: Optional[int] = None,
-    keyword: Optional[str] = None,
+    doctor_id: str | None = None,
+    patient_id: str | None = None,
+    department_id: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    status: int | None = None,
+    keyword: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),

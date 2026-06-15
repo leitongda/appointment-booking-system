@@ -1,7 +1,6 @@
 """通知相关枚举"""
 from enum import Enum
 
-
 # ---------- schemas/notification.py ----------
 
 class NotificationChannel(str, Enum):

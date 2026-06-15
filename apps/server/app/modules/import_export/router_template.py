@@ -1,13 +1,9 @@
 """导入模板下载端点"""
-from datetime import datetime
-from fastapi import APIRouter, Depends
-from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from typing import Optional
 from io import BytesIO
 
-from app.db.session import get_db
+from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
+
 from app.api.deps import get_current_admin
 from app.infrastructure.excel.import_service import ExcelImportService
 
@@ -176,7 +172,7 @@ async def download_rule_set_template(
 ):
     """下载规则组导入模板（多工作表：规则组、时间窗、预约策略、签到策略、容量策略）"""
     from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill, Alignment, Comment
+    from openpyxl.styles import Alignment, Comment, Font, PatternFill
 
     wb = Workbook()
 

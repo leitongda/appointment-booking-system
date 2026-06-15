@@ -3,13 +3,13 @@ import asyncio
 import logging
 from datetime import date, timedelta
 
-from sqlalchemy import select, and_
+from sqlalchemy import and_, select
 
 from app.celery_app import celery_app
 from app.db.session import get_async_db_context, get_sync_db
 from app.models.follow_up_task import FollowUpTask
-from app.models.user import Patient
 from app.models.message import Message, MessageType
+from app.models.user import Patient
 
 logger = logging.getLogger(__name__)
 

@@ -1,19 +1,17 @@
 """病历服务"""
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from sqlalchemy.orm import selectinload, joinedload
-from typing import Optional, List, Tuple
-from datetime import datetime, date
 import uuid
+from datetime import date, datetime
 
-from app.models.medical_record import MedicalRecord
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
+
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.appointment import Appointment
-from app.models.user import Patient
 from app.models.doctor import Doctor
-from app.models.department import Department
+from app.models.medical_record import MedicalRecord
 from app.schemas.medical_record import MedicalRecordCreate, MedicalRecordUpdate
 from app.utils.audit import set_create_audit, set_update_audit
-from app.middleware.tenant_context import get_current_tenant_id
 
 
 def generate_record_no() -> str:
@@ -104,7 +102,7 @@ class MedicalRecordService:
 
         return record
 
-    async def get_by_id(self, record_id: str) -> Optional[MedicalRecord]:
+    async def get_by_id(self, record_id: str) -> MedicalRecord | None:
         """根据ID获取病历"""
         stmt = (
             select(MedicalRecord)
@@ -121,7 +119,7 @@ class MedicalRecordService:
         result = await self.db.execute(stmt)
         return result.unique().scalar_one_or_none()
 
-    async def get_by_appointment(self, appointment_id: str) -> Optional[MedicalRecord]:
+    async def get_by_appointment(self, appointment_id: str) -> MedicalRecord | None:
         """根据预约ID获取病历"""
         stmt = (
             select(MedicalRecord)
@@ -140,16 +138,16 @@ class MedicalRecordService:
 
     async def get_list(
         self,
-        doctor_id: Optional[str] = None,
-        patient_id: Optional[str] = None,
-        department_id: Optional[str] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        status: Optional[int] = None,
-        keyword: Optional[str] = None,
+        doctor_id: str | None = None,
+        patient_id: str | None = None,
+        department_id: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        status: int | None = None,
+        keyword: str | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[MedicalRecord], int]:
+    ) -> tuple[list[MedicalRecord], int]:
         """获取病历列表"""
         query = select(MedicalRecord).options(
             joinedload(MedicalRecord.patient),
@@ -203,11 +201,11 @@ class MedicalRecordService:
         patient_id: str,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[MedicalRecord], int]:
+    ) -> tuple[list[MedicalRecord], int]:
         """获取患者的病历列表"""
         return await self.get_list(patient_id=patient_id, page=page, page_size=page_size)
 
-    async def update(self, record_id: str, data: MedicalRecordUpdate, operator_id: Optional[str] = None) -> Optional[MedicalRecord]:
+    async def update(self, record_id: str, data: MedicalRecordUpdate, operator_id: str | None = None) -> MedicalRecord | None:
         """更新病历"""
         record = await self.db.get(MedicalRecord, record_id)
         if not record:
@@ -223,7 +221,7 @@ class MedicalRecordService:
 
         return record
 
-    async def delete(self, record_id: str, operator_id: Optional[str] = None) -> bool:
+    async def delete(self, record_id: str, operator_id: str | None = None) -> bool:
         """软删除病历"""
         record = await self.db.get(MedicalRecord, record_id)
         if not record or record.deleted_at is not None:

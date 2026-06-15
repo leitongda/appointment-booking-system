@@ -1,7 +1,6 @@
 """Doctor-level consultation-fee operations."""
 
 import uuid
-from typing import List, Optional
 
 from sqlalchemy import and_, delete, select
 from sqlalchemy.orm import selectinload
@@ -18,10 +17,10 @@ from app.utils.audit import set_create_audit, set_update_audit
 class ConsultationFeeDoctorMixin:
     async def get_doctor_fees(
         self,
-        doctor_id: Optional[str] = None,
-        store_id: Optional[str] = None,
-        department_id: Optional[str] = None,
-    ) -> List[DoctorConsultationFee]:
+        doctor_id: str | None = None,
+        store_id: str | None = None,
+        department_id: str | None = None,
+    ) -> list[DoctorConsultationFee]:
         query = select(DoctorConsultationFee).options(
             selectinload(DoctorConsultationFee.doctor),
             selectinload(DoctorConsultationFee.store),
@@ -40,7 +39,7 @@ class ConsultationFeeDoctorMixin:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_doctor_fee_by_id(self, fee_id: str) -> Optional[DoctorConsultationFee]:
+    async def get_doctor_fee_by_id(self, fee_id: str) -> DoctorConsultationFee | None:
         result = await self.db.execute(
             select(DoctorConsultationFee)
             .options(
@@ -55,7 +54,7 @@ class ConsultationFeeDoctorMixin:
 
     async def get_doctor_fee_unique(
         self, doctor_id: str, store_id: str, fee_type_id: str
-    ) -> Optional[DoctorConsultationFee]:
+    ) -> DoctorConsultationFee | None:
         result = await self.db.execute(
             select(DoctorConsultationFee).where(
                 and_(
@@ -68,7 +67,7 @@ class ConsultationFeeDoctorMixin:
         return result.scalar_one_or_none()
 
     async def create_doctor_fee(
-        self, data: DoctorConsultationFeeCreate, operator_id: Optional[str] = None
+        self, data: DoctorConsultationFeeCreate, operator_id: str | None = None
     ) -> DoctorConsultationFee:
         fee = DoctorConsultationFee(
             id=str(uuid.uuid4()),
@@ -87,8 +86,8 @@ class ConsultationFeeDoctorMixin:
         return fee
 
     async def update_doctor_fee(
-        self, fee_id: str, data: DoctorConsultationFeeUpdate, operator_id: Optional[str] = None
-    ) -> Optional[DoctorConsultationFee]:
+        self, fee_id: str, data: DoctorConsultationFeeUpdate, operator_id: str | None = None
+    ) -> DoctorConsultationFee | None:
         fee = await self.get_doctor_fee_by_id(fee_id)
         if not fee:
             return None
@@ -104,8 +103,8 @@ class ConsultationFeeDoctorMixin:
         return fee
 
     async def batch_save_doctor_fees(
-        self, data: DoctorConsultationFeeBatchCreate, operator_id: Optional[str] = None
-    ) -> List[DoctorConsultationFee]:
+        self, data: DoctorConsultationFeeBatchCreate, operator_id: str | None = None
+    ) -> list[DoctorConsultationFee]:
         result = []
         for item in data.fees:
             existing = await self.get_doctor_fee_unique(data.doctor_id, data.store_id, item.fee_type_id)
@@ -143,7 +142,7 @@ class ConsultationFeeDoctorMixin:
         return True
 
     async def delete_doctor_fees_by_store_department(
-        self, store_id: str, department_id: Optional[str] = None
+        self, store_id: str, department_id: str | None = None
     ) -> int:
         query = delete(DoctorConsultationFee).where(DoctorConsultationFee.store_id == store_id)
         if department_id:
@@ -172,7 +171,7 @@ class ConsultationFeeDoctorMixin:
         await self.db.commit()
         return True
 
-    async def get_doctor_fees_grouped(self, doctor_id: str) -> List[dict]:
+    async def get_doctor_fees_grouped(self, doctor_id: str) -> list[dict]:
         fees = await self.get_doctor_fees(doctor_id=doctor_id)
         grouped = {}
         for fee in fees:

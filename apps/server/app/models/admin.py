@@ -1,10 +1,11 @@
 """管理员和角色模型"""
-from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey, Table, Boolean
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
-from datetime import datetime
 import uuid
+from datetime import datetime
 
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table, Text
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 # 角色-权限关联表
 role_permissions = Table(

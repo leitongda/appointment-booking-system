@@ -1,8 +1,7 @@
 """退款路由。"""
 import logging
-from typing import Optional
 
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -18,10 +17,10 @@ from app.middleware.tenant_context import get_current_tenant_id
 from app.models.appointment import Appointment
 from app.models.refund import RefundRecord
 from app.modules.refunds.schemas import (
+    RefundableAmountResponse,
     RefundCreate,
     RefundListResponse,
     RefundResponse,
-    RefundableAmountResponse,
 )
 from app.modules.refunds.service import RefundService
 

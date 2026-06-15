@@ -1,9 +1,8 @@
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, get_current_user, get_current_account, require_permission
+from app.api.deps import get_current_admin, get_current_user, require_permission
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.doctor_reviews.schemas import (
@@ -44,9 +43,9 @@ async def create_review(
 
 @router.get("", response_model=PageResponse[DoctorReviewResponse], summary="获取评价列表")
 async def get_reviews(
-    doctor_id: Optional[str] = None,
-    user_id: Optional[str] = None,
-    status: Optional[int] = None,
+    doctor_id: str | None = None,
+    user_id: str | None = None,
+    status: int | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),

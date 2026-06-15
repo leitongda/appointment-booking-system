@@ -1,27 +1,26 @@
 """数据导出 API - 已升级为 Excel 格式"""
-from fastapi import APIRouter, Depends, Query
-from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, Union, List
 from datetime import date
 from io import BytesIO
 
-from app.db.session import get_db
+from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.deps import get_current_admin
-from app.common.deps import get_store_filter, get_tenant_filter
-from app.common.deps import require_permission
-from app.modules.export.service import ExportService
+from app.common.deps import get_store_filter, get_tenant_filter, require_permission
+from app.db.session import get_db
 from app.middleware.tenant_context import get_current_tenant_id
+from app.modules.export.service import ExportService
 
 router = APIRouter()
 
 
 @router.get("/appointments", summary="导出预约记录")
 async def export_appointments(
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    status: Optional[int] = None,
-    doctor_id: Optional[str] = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    status: int | None = None,
+    doctor_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
     _: None = Depends(require_permission("appointment:export", "appointment:list")),
@@ -56,7 +55,7 @@ async def export_appointments(
 
 @router.get("/patients")
 async def export_patients(
-    keyword: Optional[str] = None,
+    keyword: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
     _: None = Depends(require_permission("patient:export", "patient:list")),
@@ -82,9 +81,9 @@ async def export_patients(
 
 @router.get("/schedules")
 async def export_schedules(
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    doctor_id: Optional[str] = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    doctor_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
     _: None = Depends(require_permission("schedule:export", "schedule:list")),

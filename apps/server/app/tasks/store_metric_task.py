@@ -13,22 +13,22 @@
    这是聚合层有意的性能取舍——逐条精确判断会退回 RevenueService 的 N 次查询）
 - 日期边界用 date.today()（服务器本地日，Celery 配置 timezone=Asia/Shanghai）
 """
+import logging
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-import logging
 
-from sqlalchemy import select, func, and_, case, delete
+from sqlalchemy import and_, case, delete, func, select
 
 from app.celery_app import celery_app
+from app.constants.appointment import CANCELLED_STATUSES, REVENUE_STATUSES, VISITED_STATUSES
 from app.db.session import get_sync_db
 from app.models.appointment import Appointment
-from app.models.schedule import Schedule
-from app.models.doctor import Doctor
-from app.models.store import Store
 from app.models.consultation_fee import ConsultationFeeType, DoctorConsultationFee
+from app.models.doctor import Doctor
+from app.models.schedule import Schedule
+from app.models.store import Store
 from app.models.store_metric import StoreDailyMetric
-from app.constants.appointment import VISITED_STATUSES, REVENUE_STATUSES, CANCELLED_STATUSES
 
 logger = logging.getLogger(__name__)
 

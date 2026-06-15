@@ -1,19 +1,18 @@
 """数据统计 - 预约趋势、状态与汇总"""
 from datetime import date, timedelta
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select, func, and_, case
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin, get_store_filter
+from app.constants.appointment import APPOINTMENT_STATUS
+from app.db.session import get_db
 from app.models.appointment import Appointment
 from app.models.doctor import Doctor
 from app.models.schedule import Schedule
-from app.schemas.response import ResponseModel
-from app.db.session import get_db
-from app.constants.appointment import APPOINTMENT_STATUS
 from app.modules.statistics.helpers import _build_store_filter_condition
+from app.schemas.response import ResponseModel
 
 router = APIRouter()
 
@@ -65,8 +64,8 @@ async def get_appointment_trend(
 
 @router.get("/appointments/status", response_model=ResponseModel, summary="获取预约状态统计")
 async def get_appointment_status_stats(
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
 ):
@@ -122,9 +121,9 @@ async def get_appointment_status_stats(
 
 @router.get("/appointments/summary", response_model=ResponseModel, summary="获取预约汇总统计")
 async def get_appointment_summary(
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    store_id: Optional[str] = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    store_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
 ):

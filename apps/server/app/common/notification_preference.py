@@ -3,7 +3,6 @@
 替代 service_messages.py 和 dispatcher.py 中的重复实现。
 """
 import logging
-from typing import Optional
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -79,7 +78,7 @@ async def get_user_preferences(
     db: AsyncSession,
     user_id: str,
     user_type: str,
-) -> Optional[dict]:
+) -> dict | None:
     """获取用户的完整通知偏好设置
 
     Returns:
@@ -104,7 +103,7 @@ async def get_user_preferences(
              "appointment_enabled", "reminder_enabled", "stop_clinic_enabled",
              "system_enabled", "consultation_enabled", "feedback_enabled",
              "quiet_hours_start", "quiet_hours_end"],
-            row,
+            row, strict=False,
         ))
     except Exception as e:
         logger.error(f"获取通知偏好失败: {e}", exc_info=True)

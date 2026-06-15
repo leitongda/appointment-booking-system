@@ -1,7 +1,9 @@
-from sqlalchemy import Column, String, Integer, Numeric, DateTime, Text, ForeignKey, UniqueConstraint
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import Column, DateTime, ForeignKey, Numeric, String, Text, UniqueConstraint
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 
 class RefundRecord(Base, AuditMixin):

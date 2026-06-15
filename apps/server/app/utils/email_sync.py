@@ -2,8 +2,8 @@
 import logging
 import os
 
-from jinja2.sandbox import SandboxedEnvironment
 from jinja2 import TemplateSyntaxError
+from jinja2.sandbox import SandboxedEnvironment
 from sqlalchemy import select
 
 from app.models.settings import SystemSetting as Settings
@@ -134,8 +134,8 @@ def get_email_config(db) -> dict:
 def send_email_sync(config: dict, to_email: str, subject: str, content: str) -> bool:
     """同步发送邮件（Celery worker 环境）"""
     import smtplib
-    from email.mime.text import MIMEText
     from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
     from email.utils import formataddr
 
     smtp_host = config.get("host", "")

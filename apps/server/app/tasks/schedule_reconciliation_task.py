@@ -8,11 +8,11 @@
 import logging
 from datetime import date
 
-from sqlalchemy import func, select, and_
+from sqlalchemy import and_, func, select
 
 from app.celery_app import celery_app
 from app.db.session import get_sync_db
-from app.middleware.tenant_context import set_tenant_context, clear_tenant_context
+from app.middleware.tenant_context import clear_tenant_context, set_tenant_context
 from app.models.appointment import Appointment
 from app.models.schedule import Schedule
 from app.models.tenant import Tenant

@@ -1,10 +1,11 @@
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
 from datetime import date, datetime
 
-from app.enums.schedule import Period, RequestStatus, RequestType  # noqa: F401 — re-export
+from pydantic import BaseModel, ConfigDict, Field
+
 from app.core.config import settings
+from app.enums.schedule import Period, RequestStatus, RequestType  # noqa: F401 — re-export
 from app.schemas.response import to_camel
+
 
 # 停诊申请
 class StopClinicCreate(BaseModel):
@@ -15,7 +16,7 @@ class StopClinicCreate(BaseModel):
     )
     
     doctor_id: str = Field(..., description="医生ID")
-    schedule_id: Optional[str] = Field(None, description="排班ID")
+    schedule_id: str | None = Field(None, description="排班ID")
     stop_date: date = Field(..., description="停诊日期")
     stop_period: Period = Field(..., description="停诊时段")
     reason: str = Field(..., min_length=1, max_length=500, description="申请原因")
@@ -44,7 +45,7 @@ class ReviewRequest(BaseModel):
     )
     
     status: RequestStatus = Field(..., description="审核结果")
-    review_comment: Optional[str] = Field(None, max_length=500, description="审核意见")
+    review_comment: str | None = Field(None, max_length=500, description="审核意见")
 
 # 响应
 class LeaveRequestResponse(BaseModel):
@@ -57,23 +58,23 @@ class LeaveRequestResponse(BaseModel):
     )
     
     id: str
-    doctor_id: Optional[str] = None
-    doctor_name: Optional[str] = None
-    request_type: Optional[str] = None
-    schedule_id: Optional[str] = None
-    stop_date: Optional[date] = None
-    stop_period: Optional[str] = None
-    original_date: Optional[date] = None
-    original_period: Optional[str] = None
-    target_date: Optional[date] = None
-    target_period: Optional[str] = None
-    reason: Optional[str] = None
-    status: Optional[str] = None
-    reviewer_id: Optional[str] = None
-    review_comment: Optional[str] = None
-    reviewed_at: Optional[datetime] = None
-    affected_appointments: Optional[int] = 0
-    created_at: Optional[datetime] = None
+    doctor_id: str | None = None
+    doctor_name: str | None = None
+    request_type: str | None = None
+    schedule_id: str | None = None
+    stop_date: date | None = None
+    stop_period: str | None = None
+    original_date: date | None = None
+    original_period: str | None = None
+    target_date: date | None = None
+    target_period: str | None = None
+    reason: str | None = None
+    status: str | None = None
+    reviewer_id: str | None = None
+    review_comment: str | None = None
+    reviewed_at: datetime | None = None
+    affected_appointments: int | None = 0
+    created_at: datetime | None = None
 
 class LeaveRequestQuery(BaseModel):
     """查询参数"""
@@ -82,11 +83,11 @@ class LeaveRequestQuery(BaseModel):
         populate_by_name=True,
     )
     
-    doctor_id: Optional[str] = None
-    request_type: Optional[RequestType] = None
-    status: Optional[RequestStatus] = None
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    store_id: Optional[str] = None  # 门店过滤
+    doctor_id: str | None = None
+    request_type: RequestType | None = None
+    status: RequestStatus | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    store_id: str | None = None  # 门店过滤
     page: int = Field(1, ge=1)
     page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE)

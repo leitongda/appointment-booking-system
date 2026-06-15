@@ -5,13 +5,13 @@
 import logging
 from datetime import datetime
 
-from sqlalchemy import select, and_, update
+from sqlalchemy import and_, select, update
 
 from app.celery_app import celery_app
 from app.db.session import get_sync_db
+from app.middleware.tenant_context import clear_tenant_context, set_tenant_context
 from app.models.notification_log import NotificationLog
 from app.models.tenant import Tenant
-from app.middleware.tenant_context import set_tenant_context, clear_tenant_context
 from app.modules.notification_logs.service import calculate_next_retry
 
 logger = logging.getLogger(__name__)
@@ -262,10 +262,10 @@ def _retry_email(db, log: NotificationLog) -> bool:
 def _retry_wechat(db, log: NotificationLog) -> bool:
     """重试微信订阅消息发送"""
     try:
+        import httpx
+
         from app.infrastructure.wechat.token_manager import WechatTokenManager
         from app.models.settings import SystemSetting
-        from sqlalchemy import text
-        import httpx
 
         # 获取微信配置
         result = db.execute(

@@ -1,8 +1,9 @@
+import uuid
+
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 
-from app.db.base import Base, AuditMixin
-import uuid
+from app.db.base import AuditMixin, Base
 
 
 class Company(Base, AuditMixin):

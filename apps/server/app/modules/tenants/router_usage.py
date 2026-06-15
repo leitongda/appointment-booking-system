@@ -8,7 +8,6 @@
 - POST /{tenant_id}/subscriptions — 创建租户订阅
 """
 from datetime import datetime as dt
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -60,11 +59,11 @@ async def get_tenant_usage(
         )
 
 
-@router.get("/{tenant_id}/usage/logs", response_model=List[TenantUsageResponse], summary="获取租户用量日志")
+@router.get("/{tenant_id}/usage/logs", response_model=list[TenantUsageResponse], summary="获取租户用量日志")
 async def get_tenant_usage_logs(
     tenant_id: str,
-    start_date: Optional[str] = Query(None, description="开始日期 (YYYY-MM-DD)"),
-    end_date: Optional[str] = Query(None, description="结束日期 (YYYY-MM-DD)"),
+    start_date: str | None = Query(None, description="开始日期 (YYYY-MM-DD)"),
+    end_date: str | None = Query(None, description="结束日期 (YYYY-MM-DD)"),
     limit: int = Query(30, ge=1, le=90),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin)
@@ -155,7 +154,7 @@ async def create_tenant_subscription(
         )
 
 
-@router.get("/{tenant_id}/subscriptions", response_model=List[TenantSubscriptionResponse], summary="获取租户订阅记录")
+@router.get("/{tenant_id}/subscriptions", response_model=list[TenantSubscriptionResponse], summary="获取租户订阅记录")
 async def get_tenant_subscriptions(
     tenant_id: str,
     limit: int = Query(10, ge=1, le=50),

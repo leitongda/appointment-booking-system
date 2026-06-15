@@ -1,16 +1,17 @@
 """用户收藏服务"""
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from sqlalchemy.orm import selectinload
-from typing import Optional, List, Dict, Any
 import uuid
+from typing import Any
 
-from app.models.user_favorite import UserFavorite
-from app.models.doctor import Doctor
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.department import Department
+from app.models.doctor import Doctor
+from app.models.user_favorite import UserFavorite
 from app.schemas.user_favorite import UserFavoriteCreate
 from app.utils.audit import set_create_audit
-from app.middleware.tenant_context import get_current_tenant_id
 
 
 class UserFavoriteService:
@@ -24,7 +25,7 @@ class UserFavoriteService:
             return stmt.where(UserFavorite.tenant_id == tenant_id)
         return stmt
 
-    async def get_by_id(self, favorite_id: str) -> Optional[UserFavorite]:
+    async def get_by_id(self, favorite_id: str) -> UserFavorite | None:
         """根据ID获取收藏"""
         stmt = self._tenant_filter(
             select(UserFavorite).where(UserFavorite.id == favorite_id)
@@ -32,7 +33,7 @@ class UserFavoriteService:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def check_favorite(self, user_id: str, target_type: str, target_id: str) -> tuple[bool, Optional[str]]:
+    async def check_favorite(self, user_id: str, target_type: str, target_id: str) -> tuple[bool, str | None]:
         """检查是否已收藏"""
         stmt = self._tenant_filter(
             select(UserFavorite).where(
@@ -52,10 +53,10 @@ class UserFavoriteService:
     async def get_list(
         self,
         user_id: str,
-        target_type: Optional[str] = None,
+        target_type: str | None = None,
         page: int = 1,
         page_size: int = 20
-    ) -> tuple[List[Dict[str, Any]], int]:
+    ) -> tuple[list[dict[str, Any]], int]:
         """获取用户收藏列表（包含目标详情）"""
         query = self._tenant_filter(select(UserFavorite).where(UserFavorite.user_id == user_id))
         count_query = self._tenant_filter(select(func.count(UserFavorite.id)).where(UserFavorite.user_id == user_id))
@@ -87,7 +88,7 @@ class UserFavoriteService:
 
         return favorites_with_target, total
 
-    async def _get_target_detail(self, target_type: str, target_id: str) -> Optional[Dict[str, Any]]:
+    async def _get_target_detail(self, target_type: str, target_id: str) -> dict[str, Any] | None:
         """获取收藏目标详情"""
         if target_type == "doctor":
             result = await self.db.execute(

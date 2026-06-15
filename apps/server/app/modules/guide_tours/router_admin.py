@@ -2,20 +2,19 @@
 
 前缀 /admin/guide-tours。仅平台管理员可访问。
 """
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
 from app.common.deps import require_platform_admin
-from app.schemas.response import ResponseModel
+from app.db.session import get_db
 from app.modules.guide_tours.schemas import (
     GuideTourCreate,
     GuideTourUpdate,
     StatusUpdate,
 )
 from app.modules.guide_tours.service import AdminGuideTourService
+from app.schemas.response import ResponseModel
 
 router = APIRouter()
 
@@ -24,7 +23,7 @@ router = APIRouter()
 async def get_list(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100, alias="pageSize"),
-    status: Optional[int] = Query(None),
+    status: int | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(require_platform_admin()),
 ):

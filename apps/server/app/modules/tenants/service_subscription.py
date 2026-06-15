@@ -1,14 +1,13 @@
 """租户订阅服务"""
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from sqlalchemy.orm import selectinload
-from typing import Optional, List
-from datetime import datetime, timedelta, date
+from datetime import date, datetime, timedelta
 
 from fastapi import HTTPException, status
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from app.models.tenant import Tenant, TenantSubscription, SubscriptionPlan
 from app.models.appointment import Appointment
+from app.models.tenant import SubscriptionPlan, Tenant, TenantSubscription
 from app.modules.tenants.schemas import TenantSubscriptionCreate
 
 
@@ -114,7 +113,7 @@ class TenantSubscriptionService:
         self,
         tenant_id: str,
         data: TenantSubscriptionCreate,
-        created_by: Optional[str] = None
+        created_by: str | None = None
     ) -> TenantSubscription:
         """创建租户订阅"""
         # 获取租户（加载关联的 subscription_plan）
@@ -196,7 +195,7 @@ class TenantSubscriptionService:
         self,
         tenant_id: str,
         limit: int = 10
-    ) -> List[TenantSubscription]:
+    ) -> list[TenantSubscription]:
         """获取租户的订阅记录"""
         result = await self.db.execute(
             select(TenantSubscription)

@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from decimal import Decimal
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -14,7 +12,7 @@ class PaymentOrderCreate(BaseModel):
 
     appointment_id: str = Field(..., description="预约ID")
     openid: str = Field(..., description="微信用户 openid")
-    miniapp_instance_id: Optional[str] = Field(None, description="小程序实例ID（可选，用于路由支付配置）")
+    miniapp_instance_id: str | None = Field(None, description="小程序实例ID（可选，用于路由支付配置）")
 
 
 class PaymentOrderResponse(BaseModel):
@@ -48,9 +46,9 @@ class PaymentCallbackResource(BaseModel):
     trade_state: str
     trade_state_desc: str
     bank_type: str
-    attach: Optional[str] = None
-    success_time: Optional[str] = None
-    payer: Optional[dict] = None
+    attach: str | None = None
+    success_time: str | None = None
+    payer: dict | None = None
     amount: PaymentCallbackAmount
 
 
@@ -77,8 +75,8 @@ class RefundResponse(BaseModel):
     appointment_id: str
     refund_amount: Decimal
     refund_status: str  # pending/success/failed
-    refund_id: Optional[str] = None
-    out_refund_no: Optional[str] = None
+    refund_id: str | None = None
+    out_refund_no: str | None = None
 
 
 class RefundCallbackData(BaseModel):

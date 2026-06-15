@@ -1,13 +1,10 @@
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin, get_current_user, require_permission
-from app.common.deps import get_current_super_admin
 from app.core.config import settings
 from app.db.session import get_db
-from app.middleware.tenant_context import get_current_tenant_id
 from app.modules.support_tickets.service import SupportTicketService
 from app.schemas.response import PageResponse
 from app.schemas.support_ticket import (
@@ -16,8 +13,8 @@ from app.schemas.support_ticket import (
     SupportTicketQuery,
     SupportTicketResolveRequest,
     SupportTicketResponse,
-    SupportTicketStatus,
     SupportTicketStatisticsResponse,
+    SupportTicketStatus,
     SupportTicketUpdate,
 )
 
@@ -35,10 +32,10 @@ def _build_response(ticket) -> SupportTicketResponse:
     summary="获取工单列表",
 )
 async def get_support_tickets(
-    status: Optional[SupportTicketStatus] = None,
-    type: Optional[str] = None,
-    priority: Optional[str] = None,
-    keyword: Optional[str] = None,
+    status: SupportTicketStatus | None = None,
+    type: str | None = None,
+    priority: str | None = None,
+    keyword: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -72,7 +69,7 @@ async def get_support_tickets(
 async def create_support_ticket(
     data: SupportTicketCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: Optional[dict] = Depends(get_current_user),
+    current_user: dict | None = Depends(get_current_user),
 ):
     """创建工单（患者端/管理端均可）
 
@@ -183,7 +180,7 @@ async def assign_support_ticket(
 )
 async def resolve_support_ticket(
     ticket_id: str,
-    req: Optional[SupportTicketResolveRequest] = None,
+    req: SupportTicketResolveRequest | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("support_ticket:manage")),
@@ -207,7 +204,7 @@ async def resolve_support_ticket(
 )
 async def close_support_ticket(
     ticket_id: str,
-    req: Optional[SupportTicketResolveRequest] = None,
+    req: SupportTicketResolveRequest | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("support_ticket:manage")),

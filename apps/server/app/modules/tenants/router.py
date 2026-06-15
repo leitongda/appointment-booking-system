@@ -15,7 +15,8 @@
 - /{tenant_id}/activate, /suspend — 租户状态管理
 - /{tenant_id}/password-policy — 密码策略管理
 """
-from typing import List, Optional
+
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -41,8 +42,6 @@ from app.modules.tenants.schemas import (
 from app.modules.tenants.service import TenantService
 from app.schemas.response import PageResponse
 
-import logging
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -52,8 +51,8 @@ router = APIRouter()
 from app.modules.tenants.router_current_tenant import (
     router as current_tenant_router,
 )
-from app.modules.tenants.router_plans import router as plans_router
 from app.modules.tenants.router_migration import router as migration_router
+from app.modules.tenants.router_plans import router as plans_router
 from app.modules.tenants.router_usage import router as usage_router
 
 router.include_router(current_tenant_router)
@@ -116,9 +115,9 @@ async def update_tenant_tags(
 
 @router.get("", response_model=PageResponse[TenantListResponse], summary="获取租户列表")
 async def get_tenants(
-    keyword: Optional[str] = None,
-    status: Optional[int] = Query(None, ge=0, le=3, description="状态: 0-禁用 1-正常 2-欠费 3-试用"),
-    subscription_plan_id: Optional[str] = None,
+    keyword: str | None = None,
+    status: int | None = Query(None, ge=0, le=3, description="状态: 0-禁用 1-正常 2-欠费 3-试用"),
+    subscription_plan_id: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -252,7 +251,7 @@ async def create_tenant(
 @router.get("/check-unique", summary="检查租户标识唯一性")
 async def check_tenant_code_unique(
     tenant_code: str = Query(..., min_length=3, max_length=50, description="租户标识"),
-    exclude_id: Optional[str] = Query(None, description="排除的租户ID"),
+    exclude_id: str | None = Query(None, description="排除的租户ID"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin)
 ):

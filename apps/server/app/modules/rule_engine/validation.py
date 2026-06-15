@@ -1,7 +1,8 @@
 """Conflict, capacity, and grace-period checks for the rule engine."""
 
+from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 import pytz
 from sqlalchemy import and_, func, select
@@ -14,16 +15,16 @@ from app.modules.rule_engine.monitoring import monitor_performance
 
 # ==================== 冲突检查结果 ====================
 
-CONFLICT_PASS: Dict[str, Any] = {"allowed": True, "reason": None, "conflict_with": None}
+CONFLICT_PASS: dict[str, Any] = {"allowed": True, "reason": None, "conflict_with": None}
 
 
-def _conflict(reason: str, conflict_with: Any = None) -> Dict[str, Any]:
+def _conflict(reason: str, conflict_with: Any = None) -> dict[str, Any]:
     return {"allowed": False, "reason": reason, "conflict_with": conflict_with}
 
 
 # ==================== 预约冲突检查策略 ====================
 
-async def _check_per_user_per_shift(db, shift_id, user_id, policy, _schedule) -> Optional[Dict]:
+async def _check_per_user_per_shift(db, shift_id, user_id, policy, _schedule) -> dict | None:
     """每班次限约"""
     if not policy.per_user_per_shift or policy.per_user_per_shift <= 0:
         return None
@@ -42,7 +43,7 @@ async def _check_per_user_per_shift(db, shift_id, user_id, policy, _schedule) ->
     return None
 
 
-async def _check_conflict_same_shift(db, shift_id, user_id, policy, _schedule) -> Optional[Dict]:
+async def _check_conflict_same_shift(db, shift_id, user_id, policy, _schedule) -> dict | None:
     """同班次重复预约"""
     if policy.conflict_same_shift != "REJECT":
         return None
@@ -62,7 +63,7 @@ async def _check_conflict_same_shift(db, shift_id, user_id, policy, _schedule) -
     return None
 
 
-async def _check_per_user_per_day(db, shift_id, user_id, policy, schedule) -> Optional[Dict]:
+async def _check_per_user_per_day(db, shift_id, user_id, policy, schedule) -> dict | None:
     """每日限约"""
     if not schedule or not policy.per_user_per_day or policy.per_user_per_day <= 0:
         return None
@@ -83,7 +84,7 @@ async def _check_per_user_per_day(db, shift_id, user_id, policy, schedule) -> Op
     return None
 
 
-async def _check_per_user_per_week(db, shift_id, user_id, policy, schedule) -> Optional[Dict]:
+async def _check_per_user_per_week(db, shift_id, user_id, policy, schedule) -> dict | None:
     """每周限约"""
     if not schedule or not policy.per_user_per_week or policy.per_user_per_week <= 0:
         return None
@@ -107,7 +108,7 @@ async def _check_per_user_per_week(db, shift_id, user_id, policy, schedule) -> O
     return None
 
 
-async def _check_conflict_overlap_time(db, shift_id, user_id, policy, schedule) -> Optional[Dict]:
+async def _check_conflict_overlap_time(db, shift_id, user_id, policy, schedule) -> dict | None:
     """时间重叠冲突"""
     if (
         not schedule
@@ -150,7 +151,7 @@ async def _check_conflict_overlap_time(db, shift_id, user_id, policy, schedule) 
     )
 
 
-async def _check_conflict_same_type_same_day(db, shift_id, user_id, policy, schedule) -> Optional[Dict]:
+async def _check_conflict_same_type_same_day(db, shift_id, user_id, policy, schedule) -> dict | None:
     """同类型同日冲突"""
     if not schedule or policy.conflict_same_type_same_day != "REJECT" or not schedule.appointment_type:
         return None
@@ -191,7 +192,7 @@ async def _check_conflict_same_type_same_day(db, shift_id, user_id, policy, sche
 
 
 # 检查策略链：按优先级排列，命中即短路返回
-_BOOKING_CONFLICT_CHECKS: List[Callable] = [
+_BOOKING_CONFLICT_CHECKS: list[Callable] = [
     _check_per_user_per_shift,
     _check_conflict_same_shift,
     _check_per_user_per_day,
@@ -210,8 +211,8 @@ class RuleEngineValidationMixin:
         user_id: str,
         policy: RuleBookingPolicy,
         booking_time: datetime,
-        schedule: Optional[Schedule] = None,
-    ) -> Dict[str, Any]:
+        schedule: Schedule | None = None,
+    ) -> dict[str, Any]:
         for check in _BOOKING_CONFLICT_CHECKS:
             result = await check(db, shift_id, user_id, policy, schedule)
             if result is not None:
@@ -225,7 +226,7 @@ class RuleEngineValidationMixin:
         shift_id: str,
         user_id: str,
         policy: RuleCapacityPolicy,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         if policy.total_capacity is not None and policy.total_capacity > 0:
             total_count = await db.execute(
                 select(func.count(Appointment.id)).where(
@@ -291,7 +292,7 @@ class RuleEngineValidationMixin:
         appointment: Appointment,
         policy: RuleCheckinPolicy,
         current_time: datetime,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         checkin_close_at = appointment.checkin_close_at
         if not checkin_close_at:
             return {

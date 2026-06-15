@@ -1,17 +1,17 @@
 """候补队列变更服务"""
-from sqlalchemy import select, and_, func
-from typing import Optional
-from datetime import datetime
 import uuid
+from datetime import datetime
 
-from app.models.waitlist import WaitlistEntry
-from app.models.schedule import Schedule
+from sqlalchemy import and_, func, select
+
+from app.core.error_codes import ErrorCode
+from app.middleware.exception import BusinessError
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.rest_day import RestDay
+from app.models.schedule import Schedule
+from app.models.waitlist import WaitlistEntry
 from app.modules.rule_engine import RuleEngineService
 from app.utils.audit import set_create_audit, set_update_audit
-from app.middleware.tenant_context import get_current_tenant_id
-from app.middleware.exception import BusinessError
-from app.core.error_codes import ErrorCode
 
 
 class WaitlistMutationMixin:
@@ -22,9 +22,9 @@ class WaitlistMutationMixin:
         user_id: str,
         patient_id: str,
         schedule_id: str,
-        symptom_description: Optional[str] = None,
+        symptom_description: str | None = None,
         priority: int = 100,
-        operator_id: Optional[str] = None
+        operator_id: str | None = None
     ) -> WaitlistEntry:
         """添加到候补队列
 
@@ -133,8 +133,8 @@ class WaitlistMutationMixin:
         entry_id: str,
         user_id: str,
         is_admin: bool = False,
-        operator_id: Optional[str] = None
-    ) -> Optional[WaitlistEntry]:
+        operator_id: str | None = None
+    ) -> WaitlistEntry | None:
         """取消候补
 
         Args:
@@ -235,8 +235,8 @@ class WaitlistMutationMixin:
     async def _check_rest_day(
         self,
         check_date,
-        store_id: Optional[str] = None,
-        doctor_id: Optional[str] = None
+        store_id: str | None = None,
+        doctor_id: str | None = None
     ) -> bool:
         """检查指定日期是否为休息日
 

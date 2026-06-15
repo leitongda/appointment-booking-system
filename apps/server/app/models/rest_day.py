@@ -1,7 +1,9 @@
-from sqlalchemy import Column, String, Integer, Date, Text, ForeignKey
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import Column, Date, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 
 class RestDay(Base, AuditMixin):

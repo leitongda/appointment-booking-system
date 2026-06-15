@@ -1,9 +1,10 @@
 """黑名单模型"""
-from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
-from datetime import datetime
 import uuid
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 
 class Blacklist(Base, AuditMixin):

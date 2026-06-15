@@ -1,7 +1,7 @@
 """Time-window evaluation logic for the rule engine."""
 
-from datetime import date, datetime, time, timedelta
-from typing import Any, Dict, Optional, List, Union
+from datetime import datetime, timedelta
+from typing import Any
 
 import pytz
 from sqlalchemy import and_, select
@@ -21,7 +21,7 @@ class RuleEngineTimeWindowMixin:
     使用此 mixin 的类应负责调用 RuleEngineTimeWindowMixin.__init__。
     """
     def __init__(self, *args, **kwargs):
-        self._rule_cache: Optional[RuleCache] = None
+        self._rule_cache: RuleCache | None = None
 
     @property
     def rule_cache(self) -> RuleCache:
@@ -31,8 +31,8 @@ class RuleEngineTimeWindowMixin:
         return self._rule_cache
     @monitor_performance("get_applicable_rule_set")
     async def get_applicable_rule_set(
-        self, shift_type_id: str, schedule: Optional[Schedule] = None
-    ) -> Optional[RuleSet]:
+        self, shift_type_id: str, schedule: Schedule | None = None
+    ) -> RuleSet | None:
         # 优先使用排班直接绑定的规则组
         if schedule is not None:
             direct_rule_set_id = getattr(schedule, "rule_set_id", None)
@@ -44,7 +44,7 @@ class RuleEngineTimeWindowMixin:
         candidates = await self.get_candidate_rule_sets(shift_type_id, schedule)
         return candidates[0] if candidates else None
 
-    async def _get_direct_rule_set(self, rule_set_id: str) -> Optional[RuleSet]:
+    async def _get_direct_rule_set(self, rule_set_id: str) -> RuleSet | None:
         """查询直接绑定的规则组，验证是否可用。"""
         # 先尝试缓存
         tenant_id = get_current_tenant_id()
@@ -68,7 +68,7 @@ class RuleEngineTimeWindowMixin:
         return rule_set
 
     async def get_candidate_rule_sets(
-        self, shift_type_id: str, schedule: Optional[Schedule] = None
+        self, shift_type_id: str, schedule: Schedule | None = None
     ) -> list[RuleSet | CachedRuleSet]:
         """
         返回所有匹配班次类型的启用规则组，按优先级升序排列。
@@ -207,7 +207,7 @@ class RuleEngineTimeWindowMixin:
 
         return rule_sets
 
-    async def _build_cached_rule_sets(self, rule_sets: List[RuleSet]) -> List[CachedRuleSet]:
+    async def _build_cached_rule_sets(self, rule_sets: list[RuleSet]) -> list[CachedRuleSet]:
         """从 ORM 对象构建可缓存的规则集列表。"""
         cached_sets = []
         for rs in rule_sets:
@@ -259,9 +259,9 @@ class RuleEngineTimeWindowMixin:
         self,
         schedule: Schedule,
         action: str,
-        current_time: Optional[datetime] = None,
-        booking_created_at: Optional[datetime] = None,
-    ) -> Dict[str, Any]:
+        current_time: datetime | None = None,
+        booking_created_at: datetime | None = None,
+    ) -> dict[str, Any]:
         schedule_tz = pytz.timezone(getattr(schedule, "timezone", None) or "Asia/Shanghai")
 
         if not current_time:
@@ -375,7 +375,7 @@ class RuleEngineTimeWindowMixin:
         self,
         schedule: Schedule,
         reference_point: str,
-        booking_created_at: Optional[datetime] = None,
+        booking_created_at: datetime | None = None,
     ) -> datetime:
         schedule_tz = pytz.timezone(getattr(schedule, "timezone", None) or "Asia/Shanghai")
 
@@ -470,7 +470,7 @@ class RuleEngineTimeWindowMixin:
         schedule: Schedule,
         action: str,
         current_time: datetime,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         return {
             "allowed": True,
             "open_at": current_time,

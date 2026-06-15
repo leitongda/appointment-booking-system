@@ -1,37 +1,37 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from starlette import status as http_status
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, List
 from datetime import date, timedelta
+from datetime import time as time_type
 
-from app.db.session import get_db
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+from starlette import status as http_status
+
 from app.api.deps import get_current_admin, require_permission
+from app.core.config import settings
+from app.db.session import get_db
+from app.modules.schedule_templates.service import ScheduleTemplateService
+from app.schemas.response import PageResponse
+from app.schemas.schedule_generation_log import (
+    BatchOperateRequest,
+    BatchOperateResponse,
+    CheckGeneratedResponse,
+    ScheduleGenerationLogResponse,
+)
 from app.schemas.schedule_template import (
-    ScheduleTemplateCreate,
-    ScheduleTemplateUpdate,
-    ScheduleTemplateResponse,
-    ScheduleGenerateRequest,
+    BreakTime,
     ScheduleBatchAddRequest,
+    ScheduleGenerateRequest,
+    ScheduleGenerateWithCapacityRequest,
     SchedulePreviewGenerateRequest,
     SchedulePreviewGenerateResponse,
     ScheduleSlotPreview,
-    ScheduleGenerateWithCapacityRequest,
     ScheduleTemplateCopyRequest,
     ScheduleTemplateCopyResponse,
+    ScheduleTemplateCreate,
     ScheduleTemplateCrossStoreCopyRequest,
     ScheduleTemplateCrossStoreCopyResponse,
-    BreakTime,
+    ScheduleTemplateResponse,
+    ScheduleTemplateUpdate,
 )
-from app.schemas.schedule_generation_log import (
-    ScheduleGenerationLogResponse,
-    CheckGeneratedResponse,
-    BatchOperateRequest,
-    BatchOperateResponse,
-)
-from app.schemas.response import PageResponse
-from app.modules.schedule_templates.service import ScheduleTemplateService
-from datetime import time as time_type
-from app.core.config import settings
 
 router = APIRouter()
 
@@ -76,10 +76,10 @@ def parse_break_times_for_response(break_times_list: list) -> list:
 
 @router.get("", response_model=PageResponse[ScheduleTemplateResponse], summary="获取列表")
 async def get_templates(
-    store_id: Optional[str] = None,
-    doctor_id: Optional[str] = None,
-    department_id: Optional[str] = None,
-    status: Optional[int] = None,
+    store_id: str | None = None,
+    doctor_id: str | None = None,
+    department_id: str | None = None,
+    status: int | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db)
@@ -343,7 +343,7 @@ WEEKDAY_NAMES = {
 }
 
 
-@router.post("/preview-generate", response_model=List[SchedulePreviewGenerateResponse], summary="预览生成")
+@router.post("/preview-generate", response_model=list[SchedulePreviewGenerateResponse], summary="预览生成")
 async def preview_generate_schedules(
     data: SchedulePreviewGenerateRequest,
     db: AsyncSession = Depends(get_db),
@@ -352,18 +352,21 @@ async def preview_generate_schedules(
 ):
     """预览生成排班（不实际写入数据库），包含冲突分析"""
     import json as _json
-    from sqlalchemy import select as _select, and_ as _and_
-    from app.utils.schedule_utils import (
-        split_time_range_with_breaks,
-        get_time_slot_from_time,
-        get_period_name_from_time,
-        should_generate_schedule,
-        calculate_working_duration,
-    )
-    from app.modules.settings.service import SettingsService
-    from app.modules.schedules.service import ScheduleService
-    from app.models.schedule import Schedule as ScheduleModel
+
+    from sqlalchemy import and_ as _and_
+    from sqlalchemy import select as _select
+
     from app.models.rest_day import RestDay as RestDayModel
+    from app.models.schedule import Schedule as ScheduleModel
+    from app.modules.schedules.service import ScheduleService
+    from app.modules.settings.service import SettingsService
+    from app.utils.schedule_utils import (
+        calculate_working_duration,
+        get_period_name_from_time,
+        get_time_slot_from_time,
+        should_generate_schedule,
+        split_time_range_with_breaks,
+    )
 
     service = ScheduleTemplateService(db)
     settings_service = SettingsService(db)
@@ -704,8 +707,8 @@ async def batch_add_schedules(
 @router.get("/{template_id}/check-generated", response_model=CheckGeneratedResponse, summary="检查生成")
 async def check_generated(
     template_id: str,
-    start_date: Optional[date] = Query(None, description="开始日期"),
-    end_date: Optional[date] = Query(None, description="结束日期"),
+    start_date: date | None = Query(None, description="开始日期"),
+    end_date: date | None = Query(None, description="结束日期"),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
 ):
@@ -723,7 +726,7 @@ async def check_generated(
 @router.post("/{template_id}/batch-delete", response_model=BatchOperateResponse, summary="批量删除")
 async def batch_delete_schedules(
     template_id: str,
-    data: Optional[BatchOperateRequest] = None,
+    data: BatchOperateRequest | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("schedule:delete"))
@@ -767,7 +770,7 @@ async def batch_delete_schedules(
 @router.post("/{template_id}/batch-suspend", response_model=BatchOperateResponse, summary="批量停诊")
 async def batch_suspend_schedules(
     template_id: str,
-    data: Optional[BatchOperateRequest] = None,
+    data: BatchOperateRequest | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("schedule:update"))

@@ -1,11 +1,12 @@
 """
 排班管理相关的工具函数
 """
-from datetime import date, time, timedelta
-from typing import List, Tuple, Optional, Dict, Any, Sequence
 import json
-import uuid
 import logging
+import uuid
+from collections.abc import Sequence
+from datetime import date, time, timedelta
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -13,8 +14,8 @@ logger = logging.getLogger(__name__)
 def is_rest_day(
     rest_days: Sequence,
     check_date: date,
-    store_id: Optional[str] = None,
-    doctor_id: Optional[str] = None,
+    store_id: str | None = None,
+    doctor_id: str | None = None,
 ) -> bool:
     """检查指定日期是否为休息日（基于已查询的休息日列表，纯内存操作）。
 
@@ -49,8 +50,8 @@ def is_rest_day(
 
 def group_schedules_for_suspension(
     schedules: Sequence,
-    tenant_id: Optional[str] = None,
-) -> Dict[Tuple[Optional[str], str, date], List[str]]:
+    tenant_id: str | None = None,
+) -> dict[tuple[str | None, str, date], list[str]]:
     """将排班按 (store_id, doctor_id, date) 分组，用于创建停诊记录。
 
     Args:
@@ -61,7 +62,7 @@ def group_schedules_for_suspension(
         分组字典，key 为 (store_id, doctor_id, date)，value 为 schedule_ids 列表
     """
     from collections import defaultdict
-    groups: Dict[Tuple[Optional[str], str, date], List[str]] = defaultdict(list)
+    groups: dict[tuple[str | None, str, date], list[str]] = defaultdict(list)
 
     for schedule in schedules:
         group_key = (schedule.store_id, schedule.doctor_id, schedule.schedule_date)
@@ -71,11 +72,11 @@ def group_schedules_for_suspension(
 
 
 def create_suspension_records(
-    groups: Dict[Tuple[Optional[str], str, date], List[str]],
-    reason: Optional[str] = None,
-    tenant_id: Optional[str] = None,
-    operator_id: Optional[str] = None,
-) -> List[Dict[str, Any]]:
+    groups: dict[tuple[str | None, str, date], list[str]],
+    reason: str | None = None,
+    tenant_id: str | None = None,
+    operator_id: str | None = None,
+) -> list[dict[str, Any]]:
     """根据分组创建停诊记录（不包含数据库操作，仅生成记录数据）。
 
     Args:
@@ -119,7 +120,7 @@ def get_year_week(d: date) -> int:
     return d.isocalendar()[1]
 
 
-def get_week_boundary_dates(d: date) -> Tuple[date, date]:
+def get_week_boundary_dates(d: date) -> tuple[date, date]:
     """获取指定日期所在周的边界日期（周一和周日）
 
     Args:
@@ -134,7 +135,7 @@ def get_week_boundary_dates(d: date) -> Tuple[date, date]:
     return week_start, week_end
 
 
-def get_month_boundary_dates(d: date) -> Tuple[date, date]:
+def get_month_boundary_dates(d: date) -> tuple[date, date]:
     """获取指定日期所在月的边界日期
 
     Args:
@@ -204,7 +205,7 @@ def is_cross_day_time(start_time: time, end_time: time) -> bool:
     return end_minutes <= start_minutes
 
 
-def normalize_time_range(start_time: time, end_time: time) -> Tuple[time, time, bool]:
+def normalize_time_range(start_time: time, end_time: time) -> tuple[time, time, bool]:
     """规范化时间范围，处理跨天情况
 
     Args:
@@ -223,7 +224,7 @@ def normalize_time_range(start_time: time, end_time: time) -> Tuple[time, time, 
     return start_time, end_time, is_cross_day
 
 
-def get_time_slot_from_time(start_time: time, periods: Optional[List[Dict[str, Any]]] = None) -> str:
+def get_time_slot_from_time(start_time: time, periods: list[dict[str, Any]] | None = None) -> str:
     """根据开始时间判断时段
     
     Args:
@@ -266,7 +267,7 @@ def get_time_slot_from_time(start_time: time, periods: Optional[List[Dict[str, A
         return "evening"
 
 
-def get_period_name_from_time(start_time: time, periods: Optional[List[Dict[str, Any]]] = None) -> str:
+def get_period_name_from_time(start_time: time, periods: list[dict[str, Any]] | None = None) -> str:
     """根据开始时间获取时段名称
     
     Args:
@@ -309,7 +310,7 @@ def get_period_name_from_time(start_time: time, periods: Optional[List[Dict[str,
 def calculate_working_duration(
     start: time, 
     end: time, 
-    break_times: Optional[List[Dict[str, Any]]] = None
+    break_times: list[dict[str, Any]] | None = None
 ) -> int:
     """计算有效工作时长（分钟）
     
@@ -351,7 +352,7 @@ def calculate_working_duration(
     return max(0, total_minutes - excluded_minutes)
 
 
-def split_time_range(start: time, end: time, count: int) -> List[Tuple[time, time]]:
+def split_time_range(start: time, end: time, count: int) -> list[tuple[time, time]]:
     """将时间区间均分为多个班次
     
     Args:
@@ -414,7 +415,7 @@ def minutes_to_time(minutes: int) -> time:
     return time(hours, mins)
 
 
-def parse_break_time(bt: Dict[str, Any]) -> Tuple[time, time]:
+def parse_break_time(bt: dict[str, Any]) -> tuple[time, time]:
     """解析排除时间段
 
     支持以下格式：
@@ -461,7 +462,7 @@ def parse_break_time(bt: Dict[str, Any]) -> Tuple[time, time]:
     return start_time, end_time
 
 
-def validate_break_times(break_times: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+def validate_break_times(break_times: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
     """验证并过滤无效的排除时间段
 
     Args:
@@ -488,8 +489,8 @@ def validate_break_times(break_times: Optional[List[Dict[str, Any]]]) -> List[Di
 def get_working_periods(
     start: time,
     end: time,
-    break_times: Optional[List[Dict[str, Any]]] = None
-) -> List[Tuple[time, time]]:
+    break_times: list[dict[str, Any]] | None = None
+) -> list[tuple[time, time]]:
     """根据排除时间段获取有效工作时间段
 
     Args:
@@ -591,8 +592,8 @@ def split_time_range_with_breaks(
     start: time, 
     end: time, 
     count: int, 
-    break_times: Optional[List[Dict[str, Any]]] = None
-) -> List[Tuple[time, time]]:
+    break_times: list[dict[str, Any]] | None = None
+) -> list[tuple[time, time]]:
     """将时间区间均分为多个班次，考虑排除时间段
     
     Args:

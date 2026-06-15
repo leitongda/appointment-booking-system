@@ -1,12 +1,12 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from sqlalchemy.orm import selectinload
-from typing import Optional, List
 import uuid
 
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
 from app.middleware.tenant_context import get_current_tenant_id
-from app.models.schedule_room import ScheduleRoom
 from app.models.schedule import Schedule
+from app.models.schedule_room import ScheduleRoom
 from app.utils.audit import set_create_audit, set_update_audit
 
 
@@ -14,7 +14,7 @@ class ScheduleRoomService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, room_id: str) -> Optional[ScheduleRoom]:
+    async def get_by_id(self, room_id: str) -> ScheduleRoom | None:
         conditions = [ScheduleRoom.id == room_id]
         tenant_id = get_current_tenant_id()
         if tenant_id is not None:
@@ -29,13 +29,13 @@ class ScheduleRoomService:
 
     async def get_list(
         self,
-        name: Optional[str] = None,
-        status: Optional[int] = None,
-        store_id: Optional[str] = None,
-        department_id: Optional[str] = None,
+        name: str | None = None,
+        status: int | None = None,
+        store_id: str | None = None,
+        department_id: str | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> tuple[List[ScheduleRoom], int]:
+    ) -> tuple[list[ScheduleRoom], int]:
         query = select(ScheduleRoom).options(
             selectinload(ScheduleRoom.store), selectinload(ScheduleRoom.department)
         )
@@ -67,7 +67,7 @@ class ScheduleRoomService:
 
         return list(result.scalars().all()), count_result.scalar() or 0
 
-    async def create(self, data, operator_id: Optional[str] = None) -> ScheduleRoom:
+    async def create(self, data, operator_id: str | None = None) -> ScheduleRoom:
         tenant_id = get_current_tenant_id()
 
         room = ScheduleRoom(
@@ -94,7 +94,7 @@ class ScheduleRoomService:
         )
         return result.scalar_one()
 
-    async def update(self, room_id: str, data, operator_id: Optional[str] = None) -> Optional[ScheduleRoom]:
+    async def update(self, room_id: str, data, operator_id: str | None = None) -> ScheduleRoom | None:
         room = await self.get_by_id(room_id)
         if not room:
             return None

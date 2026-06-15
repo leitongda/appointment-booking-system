@@ -1,11 +1,10 @@
 """Content domain router."""
 
 import json
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin, get_store_filter, require_permission
 from app.core.config import settings
@@ -32,10 +31,10 @@ router = APIRouter()
 
 @router.get("/news", response_model=PageResponse[NewsResponse], summary="获取新闻列表")
 async def get_news_list(
-    type: Optional[int] = None,
-    status: Optional[int] = None,
-    keyword: Optional[str] = None,
-    store_id: Optional[str] = None,
+    type: int | None = None,
+    status: int | None = None,
+    keyword: str | None = None,
+    store_id: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -65,10 +64,10 @@ async def get_news_list(
     )
 
 
-@router.get("/news/published", response_model=List[NewsResponse], summary="获取已发布新闻")
+@router.get("/news/published", response_model=list[NewsResponse], summary="获取已发布新闻")
 async def get_published_news(
-    type: Optional[int] = None,
-    store_id: Optional[str] = None,
+    type: int | None = None,
+    store_id: str | None = None,
     limit: int = Query(10, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
 ):
@@ -79,7 +78,7 @@ async def get_published_news(
 
 @router.get("/news/trash", response_model=PageResponse[NewsResponse], summary="新闻回收站")
 async def get_news_trash(
-    store_id: Optional[str] = None,
+    store_id: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -205,10 +204,10 @@ async def batch_delete_news(
 
 @router.get("/notices", response_model=PageResponse[NoticeResponse], summary="获取公告列表")
 async def get_notice_list(
-    type: Optional[int] = None,
-    status: Optional[int] = None,
-    keyword: Optional[str] = None,
-    store_id: Optional[str] = None,
+    type: int | None = None,
+    status: int | None = None,
+    keyword: str | None = None,
+    store_id: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -243,9 +242,9 @@ async def get_notice_list(
     )
 
 
-@router.get("/notices/published", response_model=List[NoticeResponse], summary="获取已发布公告")
+@router.get("/notices/published", response_model=list[NoticeResponse], summary="获取已发布公告")
 async def get_published_notices(
-    store_id: Optional[str] = None,
+    store_id: str | None = None,
     limit: int = Query(10, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
 ):
@@ -256,7 +255,7 @@ async def get_published_notices(
 
 @router.get("/notices/trash", response_model=PageResponse[NoticeResponse], summary="公告回收站")
 async def get_notices_trash(
-    store_id: Optional[str] = None,
+    store_id: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -382,9 +381,9 @@ async def batch_delete_notices(
 
 @router.get("/banners", response_model=PageResponse[BannerResponse], summary="获取轮播图列表")
 async def get_banner_list(
-    position: Optional[str] = None,
-    status: Optional[int] = None,
-    store_id: Optional[str] = None,
+    position: str | None = None,
+    status: int | None = None,
+    store_id: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -418,10 +417,10 @@ async def get_banner_list(
     )
 
 
-@router.get("/banners/active", response_model=List[BannerResponse], summary="获取启用轮播图")
+@router.get("/banners/active", response_model=list[BannerResponse], summary="获取启用轮播图")
 async def get_active_banners(
     position: str = "home",
-    store_id: Optional[str] = None,
+    store_id: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
     service = BannerService(db)
@@ -431,7 +430,7 @@ async def get_active_banners(
 
 @router.get("/banners/trash", response_model=PageResponse[BannerResponse], summary="轮播图回收站")
 async def get_banners_trash(
-    store_id: Optional[str] = None,
+    store_id: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -567,7 +566,7 @@ async def update_banner_sort(
 
 # ==================== 版本历史 ====================
 
-@router.get("/{content_type}/{content_id}/versions", response_model=List[ContentVersionResponse], summary="获取内容版本历史")
+@router.get("/{content_type}/{content_id}/versions", response_model=list[ContentVersionResponse], summary="获取内容版本历史")
 async def get_content_versions(
     content_type: str,
     content_id: str,

@@ -17,19 +17,18 @@ import shutil
 import subprocess
 import tempfile
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import select
 
 from app.celery_app import celery_app
 from app.db.session import get_sync_db
+from app.models.lowcode_page import LowCodePage
 from app.models.miniapp_platform import (
     BuildJob,
     MiniappInstance,
     ReleaseArtifact,
     ReleaseJob,
 )
-from app.models.lowcode_page import LowCodePage
 
 logger = logging.getLogger(__name__)
 
@@ -189,7 +188,7 @@ def build_lowcode_page_task(self, page_id: str, tenant_id: str):
 
         # ---------- Codegen 生成 Taro 源码 ----------
         try:
-            from app.modules.lowcode.codegen_service import CodegenService, CodegenError
+            from app.modules.lowcode.codegen_service import CodegenService
 
             async def _run_codegen():
                 codegen = CodegenService(db)
@@ -701,7 +700,7 @@ def publish_release_task(self, release_job_id: str):
     time_limit=300,
     soft_time_limit=240,
 )
-def rollback_task(self, release_job_id: str, target_version: Optional[str] = None):
+def rollback_task(self, release_job_id: str, target_version: str | None = None):
     """回滚小程序到指定版本或上一个已发布的版本。
 
     如果提供了 target_version，重新上传该版本的构建产物并发布；

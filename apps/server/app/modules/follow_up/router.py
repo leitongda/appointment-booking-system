@@ -1,32 +1,45 @@
 """随访路由"""
 from datetime import date
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, and_, func, case
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user_or_admin
 from app.common.auth_deps import get_current_admin
 from app.core.config import settings
 from app.db.session import get_db
-from app.models.follow_up_task import FollowUpTask
-from app.models.follow_up_record import FollowUpRecord
-from app.models.follow_up_self_report import FollowUpSelfReport
-from app.models.doctor import Doctor
-from app.models.user import Patient
 from app.middleware.tenant_context import get_current_tenant_id
+from app.models.doctor import Doctor
+from app.models.follow_up_self_report import FollowUpSelfReport
+from app.models.follow_up_task import FollowUpTask
+from app.models.user import Patient
+from app.modules.follow_up.service import (
+    FollowUpPlanService,
+    FollowUpRecordService,
+    FollowUpTaskService,
+    SelfReportService,
+)
 from app.schemas.follow_up import (
-    FollowUpPlanCreate, FollowUpPlanUpdate, FollowUpPlanStepsUpdate,
-    FollowUpPlanResponse, FollowUpPlanListResponse,
-    FollowUpTaskCreate, FollowUpTaskGenerateRequest, FollowUpTaskSkipRequest,
-    FollowUpTaskResponse, FollowUpTaskListResponse,
-    FollowUpRecordCreate, FollowUpRecordUpdate,
-    FollowUpRecordResponse, FollowUpRecordListResponse,
-    SelfReportCreate, SelfReportResponse, SelfReportListResponse,
+    FollowUpPlanCreate,
+    FollowUpPlanListResponse,
+    FollowUpPlanResponse,
+    FollowUpPlanStepsUpdate,
+    FollowUpPlanUpdate,
+    FollowUpRecordCreate,
+    FollowUpRecordListResponse,
+    FollowUpRecordResponse,
+    FollowUpRecordUpdate,
+    FollowUpTaskCreate,
+    FollowUpTaskGenerateRequest,
+    FollowUpTaskListResponse,
+    FollowUpTaskResponse,
+    FollowUpTaskSkipRequest,
+    SelfReportCreate,
+    SelfReportListResponse,
+    SelfReportResponse,
 )
 from app.schemas.response import PageResponse
-from app.modules.follow_up.service import FollowUpPlanService, FollowUpTaskService, FollowUpRecordService, SelfReportService
 
 router = APIRouter()
 
@@ -34,9 +47,9 @@ router = APIRouter()
 async def _resolve_patient(
     db: AsyncSession,
     user_id: str,
-    tenant_id: Optional[str],
-    patient_id: Optional[str] = None,
-) -> Optional[Patient]:
+    tenant_id: str | None,
+    patient_id: str | None = None,
+) -> Patient | None:
     """从 token 解析就诊人。若指定 patient_id 则校验归属，否则取默认就诊人。"""
     stmt = select(Patient).where(Patient.user_id == user_id)
     if tenant_id:
@@ -170,10 +183,10 @@ def build_record_list_response(record) -> FollowUpRecordListResponse:
 
 @router.get("/plans", response_model=PageResponse[FollowUpPlanListResponse], summary="获取计划列表")
 async def list_plans(
-    department_id: Optional[str] = None,
-    diagnosis_code: Optional[str] = None,
-    status: Optional[int] = None,
-    keyword: Optional[str] = None,
+    department_id: str | None = None,
+    diagnosis_code: str | None = None,
+    status: int | None = None,
+    keyword: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -266,13 +279,13 @@ async def delete_plan(
 
 @router.get("/tasks", response_model=PageResponse[FollowUpTaskListResponse], summary="获取任务列表")
 async def list_tasks(
-    doctor_id: Optional[str] = None,
-    patient_id: Optional[str] = None,
-    department_id: Optional[str] = None,
-    status: Optional[str] = None,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    keyword: Optional[str] = None,
+    doctor_id: str | None = None,
+    patient_id: str | None = None,
+    department_id: str | None = None,
+    status: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    keyword: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -295,7 +308,7 @@ async def list_tasks(
 
 @router.get("/tasks/my", response_model=PageResponse[FollowUpTaskListResponse], summary="获取我的任务")
 async def get_my_tasks(
-    status: Optional[str] = None,
+    status: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -311,8 +324,8 @@ async def get_my_tasks(
 
 @router.get("/tasks/my-patient", response_model=PageResponse[FollowUpTaskListResponse], summary="获取当前患者的随访任务")
 async def get_my_patient_tasks(
-    patient_id: Optional[str] = Query(None, description="就诊人 ID，不传则取默认就诊人"),
-    status: Optional[str] = None,
+    patient_id: str | None = Query(None, description="就诊人 ID，不传则取默认就诊人"),
+    status: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -461,12 +474,12 @@ async def delete_task(
 
 @router.get("/records", response_model=PageResponse[FollowUpRecordListResponse], summary="获取记录列表")
 async def list_records(
-    doctor_id: Optional[str] = None,
-    patient_id: Optional[str] = None,
-    task_id: Optional[str] = None,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    keyword: Optional[str] = None,
+    doctor_id: str | None = None,
+    patient_id: str | None = None,
+    task_id: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    keyword: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -501,7 +514,7 @@ async def get_patient_records(
 
 @router.get("/records/my-patient", response_model=PageResponse[FollowUpRecordListResponse], summary="获取当前患者的随访记录")
 async def get_my_patient_records(
-    patient_id: Optional[str] = Query(None, description="就诊人 ID，不传则取默认就诊人"),
+    patient_id: str | None = Query(None, description="就诊人 ID，不传则取默认就诊人"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -593,8 +606,8 @@ async def delete_record(
 
 @router.get("/statistics", summary="随访统计概览")
 async def get_statistics(
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):
@@ -720,7 +733,7 @@ async def create_self_report(
 
 @router.get("/self-reports/my", response_model=PageResponse[SelfReportListResponse], summary="获取当前患者的自报告列表")
 async def get_my_self_reports(
-    task_id: Optional[str] = Query(None, description="按任务ID筛选"),
+    task_id: str | None = Query(None, description="按任务ID筛选"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -764,9 +777,9 @@ async def get_task_self_reports(
 
 @router.get("/self-reports", response_model=PageResponse[SelfReportListResponse], summary="自报告列表（管理端）")
 async def get_self_reports(
-    patient_id: Optional[str] = Query(None, description="按患者ID筛选"),
-    task_id: Optional[str] = Query(None, description="按任务ID筛选"),
-    status_filter: Optional[str] = Query(None, alias="status", description="按状态筛选"),
+    patient_id: str | None = Query(None, description="按患者ID筛选"),
+    task_id: str | None = Query(None, description="按任务ID筛选"),
+    status_filter: str | None = Query(None, alias="status", description="按状态筛选"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),

@@ -12,8 +12,9 @@
 - POST /me/notifications/read-all — 标记全部通知已读
 - GET /me/dashboard — 租户管理员仪表板
 """
+import logging
 import time
-from datetime import datetime, date
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
@@ -21,7 +22,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.common.deps import get_current_admin
-from app.core.config import settings
 from app.db.session import get_db
 from app.models.tenant import Tenant
 from app.modules.tenants.schemas import (
@@ -38,8 +38,6 @@ from app.modules.tenants.service import (
     TenantService,
     TenantUsageService,
 )
-
-import logging
 
 logger = logging.getLogger(__name__)
 

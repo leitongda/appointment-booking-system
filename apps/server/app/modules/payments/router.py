@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Dict
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
@@ -12,7 +11,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import check_store_access, get_current_user, get_current_user_or_admin, require_tenant_active_for_write
+from app.api.deps import (
+    check_store_access,
+    get_current_user,
+    get_current_user_or_admin,
+    require_tenant_active_for_write,
+)
 from app.db.session import get_db
 from app.infrastructure.payments.schemas import (
     PaymentOrderCreate,
@@ -33,7 +37,7 @@ class StandardResponse(BaseModel):
 
     code: int = Field(0, description="状态码，0表示成功")
     message: str = Field("success", description="响应消息")
-    data: Dict = Field(default_factory=dict, description="响应数据")
+    data: dict = Field(default_factory=dict, description="响应数据")
 
 
 async def _get_appointment_or_404(db: AsyncSession, appointment_id: str) -> Appointment:

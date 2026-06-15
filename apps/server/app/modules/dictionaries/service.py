@@ -2,14 +2,14 @@
 
 负责字典类型和字典项的 CRUD 操作。
 """
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, func
-from typing import Optional, List, Tuple, Dict
 import uuid
 
-from app.models.dict_type import DictType
-from app.models.dict_item import DictItem
+from sqlalchemy import and_, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.middleware.tenant_context import get_current_tenant_id
+from app.models.dict_item import DictItem
+from app.models.dict_type import DictType
 from app.utils.audit import set_create_audit, set_update_audit
 
 
@@ -23,11 +23,11 @@ class DictService:
 
     async def get_type_list(
         self,
-        status: Optional[int] = None,
-        keyword: Optional[str] = None,
+        status: int | None = None,
+        keyword: str | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[DictType], int]:
+    ) -> tuple[list[DictType], int]:
         """获取字典类型列表"""
         tenant_id = get_current_tenant_id()
         conditions = []
@@ -63,14 +63,14 @@ class DictService:
 
         return list(items), total
 
-    async def get_type_by_id(self, type_id: str) -> Optional[DictType]:
+    async def get_type_by_id(self, type_id: str) -> DictType | None:
         """获取字典类型详情"""
         result = await self.db.execute(
             select(DictType).where(DictType.id == type_id)
         )
         return result.scalar_one_or_none()
 
-    async def get_type_by_code(self, code: str) -> Optional[DictType]:
+    async def get_type_by_code(self, code: str) -> DictType | None:
         """根据编码获取字典类型"""
         tenant_id = get_current_tenant_id()
         conditions = [DictType.code == code]
@@ -85,8 +85,8 @@ class DictService:
         self,
         code: str,
         name: str,
-        description: Optional[str] = None,
-        operator_id: Optional[str] = None,
+        description: str | None = None,
+        operator_id: str | None = None,
     ) -> DictType:
         """创建字典类型"""
         existing = await self.get_type_by_code(code)
@@ -114,11 +114,11 @@ class DictService:
     async def update_type(
         self,
         type_id: str,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        status: Optional[int] = None,
-        operator_id: Optional[str] = None,
-    ) -> Optional[DictType]:
+        name: str | None = None,
+        description: str | None = None,
+        status: int | None = None,
+        operator_id: str | None = None,
+    ) -> DictType | None:
         """更新字典类型"""
         dict_type = await self.get_type_by_id(type_id)
         if not dict_type:
@@ -153,11 +153,11 @@ class DictService:
     async def get_items(
         self,
         type_id: str,
-        status: Optional[int] = None,
-        keyword: Optional[str] = None,
+        status: int | None = None,
+        keyword: str | None = None,
         page: int = 1,
         page_size: int = 50,
-    ) -> Tuple[List[DictItem], int]:
+    ) -> tuple[list[DictItem], int]:
         """获取字典项列表"""
         conditions = [DictItem.dict_type_id == type_id]
 
@@ -187,7 +187,7 @@ class DictService:
 
         return list(items), total
 
-    async def get_item_by_id(self, item_id: str) -> Optional[DictItem]:
+    async def get_item_by_id(self, item_id: str) -> DictItem | None:
         """获取字典项详情"""
         result = await self.db.execute(
             select(DictItem).where(DictItem.id == item_id)
@@ -196,7 +196,7 @@ class DictService:
 
     async def get_items_by_type_code(
         self, type_code: str, enabled_only: bool = True
-    ) -> List[DictItem]:
+    ) -> list[DictItem]:
         """根据字典类型编码获取字典项"""
         tenant_id = get_current_tenant_id()
 
@@ -231,8 +231,8 @@ class DictService:
         label: str,
         value: str,
         sort_order: int = 0,
-        extra: Optional[dict] = None,
-        operator_id: Optional[str] = None,
+        extra: dict | None = None,
+        operator_id: str | None = None,
     ) -> DictItem:
         """创建字典项"""
         tenant_id = get_current_tenant_id()
@@ -258,13 +258,13 @@ class DictService:
     async def update_item(
         self,
         item_id: str,
-        label: Optional[str] = None,
-        value: Optional[str] = None,
-        sort_order: Optional[int] = None,
-        status: Optional[int] = None,
-        extra: Optional[dict] = None,
-        operator_id: Optional[str] = None,
-    ) -> Optional[DictItem]:
+        label: str | None = None,
+        value: str | None = None,
+        sort_order: int | None = None,
+        status: int | None = None,
+        extra: dict | None = None,
+        operator_id: str | None = None,
+    ) -> DictItem | None:
         """更新字典项"""
         item = await self.get_item_by_id(item_id)
         if not item:
@@ -298,7 +298,7 @@ class DictService:
         await self.db.commit()
         return True
 
-    async def sort_items(self, items: List[Dict[str, int]]) -> bool:
+    async def sort_items(self, items: list[dict[str, int]]) -> bool:
         """批量更新字典项排序"""
         for sort_info in items:
             item = await self.get_item_by_id(sort_info["id"])

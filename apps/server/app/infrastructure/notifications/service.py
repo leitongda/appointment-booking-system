@@ -5,13 +5,13 @@
 """
 import json
 import logging
-from datetime import datetime, timedelta, date
-from typing import Optional, List, Dict, Any
-from sqlalchemy import select, and_
+from datetime import datetime
+from typing import Any
+
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.tenant import Tenant, TenantNotification, TenantUsageLog
-from app.models.admin import Admin
+from app.models.tenant import Tenant, TenantNotification
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +36,9 @@ class TenantNotificationService:
         title: str,
         content: str,
         priority: int = 0,
-        related_subscription_id: Optional[str] = None,
-        related_usage_log_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        related_subscription_id: str | None = None,
+        related_usage_log_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> TenantNotification:
         """创建通知
 
@@ -149,7 +149,7 @@ class TenantNotificationService:
         self,
         tenant_id: str,
         limit: int = 50
-    ) -> List[TenantNotification]:
+    ) -> list[TenantNotification]:
         """获取未读通知
 
         Args:
@@ -172,7 +172,7 @@ class TenantNotificationService:
         )
         return list(result.scalars().all())
 
-    async def mark_as_read(self, notification_id: str) -> Optional[TenantNotification]:
+    async def mark_as_read(self, notification_id: str) -> TenantNotification | None:
         """标记通知为已读
 
         Args:
@@ -220,7 +220,7 @@ class TenantNotificationService:
         await self.db.commit()
         return count
 
-    async def check_subscription_expiry(self, tenant_id: str) -> Optional[TenantNotification]:
+    async def check_subscription_expiry(self, tenant_id: str) -> TenantNotification | None:
         """检查订阅到期并发送提醒
 
         检查规则：
@@ -300,7 +300,7 @@ class TenantNotificationService:
             metadata={"days_until_expiry": days_until_expiry}
         )
 
-    async def check_usage_limits(self, tenant_id: str) -> List[TenantNotification]:
+    async def check_usage_limits(self, tenant_id: str) -> list[TenantNotification]:
         """检查用量限制并发送警告
 
         检查规则：
@@ -382,7 +382,7 @@ class TenantNotificationService:
 
         return notifications
 
-    async def send_overdue_notification(self, tenant_id: str) -> Optional[TenantNotification]:
+    async def send_overdue_notification(self, tenant_id: str) -> TenantNotification | None:
         """发送欠费通知
 
         Args:

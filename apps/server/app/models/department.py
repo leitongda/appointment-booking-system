@@ -1,7 +1,10 @@
-from sqlalchemy import Column, String, Integer, Text, ForeignKey, JSON
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import JSON, Column, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
+
 
 class Department(Base, AuditMixin):
     __tablename__ = "departments"

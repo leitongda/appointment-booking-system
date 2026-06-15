@@ -7,33 +7,23 @@
 本文件保留旧函数作为包装器，调用新的统一函数，确保向后兼容。
 渐进式迁移期间，现有 API 路由无需修改。
 """
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
-from typing import Optional
 
-from app.db.session import get_db
-from app.core.security import decode_token
-from app.core.redis import RedisCache
-from app.models.doctor import Doctor
-from app.models.admin import Admin
-from app.models.tenant import Tenant
-from jose import jwt, JWTError
-from app.core.config import settings
-from app.middleware.tenant_context import (
-    get_current_tenant_id,
-    get_current_tenant_code,
-    set_tenant_context,
-)
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 # 导入新的统一认证函数
 from app.common.auth_unified import (
     get_current_account,
+)
+from app.common.auth_unified import (
     get_optional_account as get_optional_account_unified,
 )
-from app.common.auth_types import RoleType
+from app.core.security import decode_token
+from app.db.session import get_db
+from app.models.doctor import Doctor
 
 security = HTTPBearer(
     auto_error=False,

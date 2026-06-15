@@ -1,14 +1,14 @@
 """候补队列递补服务"""
-from sqlalchemy import select, and_
-from typing import Optional, List
-from datetime import datetime
 import logging
+from datetime import datetime
 
-from app.models.waitlist import WaitlistEntry
-from app.models.schedule import Schedule
+from sqlalchemy import and_, select
+
 from app.models.appointment import Appointment
-from app.modules.rule_engine import RuleEngineService
+from app.models.schedule import Schedule
+from app.models.waitlist import WaitlistEntry
 from app.modules.appointments.service import AppointmentService
+from app.modules.rule_engine import RuleEngineService
 from app.utils.audit import set_update_audit
 
 logger = logging.getLogger(__name__)
@@ -20,8 +20,8 @@ class WaitlistPromotionMixin:
     async def promote_next(
         self,
         schedule_id: str,
-        operator_id: Optional[str] = None
-    ) -> Optional[Appointment]:
+        operator_id: str | None = None
+    ) -> Appointment | None:
         """手动递补下一个候补用户
 
         Args:
@@ -53,7 +53,7 @@ class WaitlistPromotionMixin:
         self,
         schedule_id: str,
         reason: str = 'APPOINTMENT_CANCELLED'
-    ) -> List[Appointment]:
+    ) -> list[Appointment]:
         """自动递补候补用户
 
         当有号源释放时，自动递补候补队列中的用户
@@ -108,9 +108,9 @@ class WaitlistPromotionMixin:
     async def _promote_to_appointment(
         self,
         entry: WaitlistEntry,
-        operator_id: Optional[str] = None,
+        operator_id: str | None = None,
         auto_promote: bool = False
-    ) -> Optional[Appointment]:
+    ) -> Appointment | None:
         """将候补记录转为预约
 
         Args:
@@ -124,8 +124,9 @@ class WaitlistPromotionMixin:
         Raises:
             ValueError: 如果创建预约失败
         """
-        from app.schemas.appointment import AppointmentCreate
         import pytz
+
+        from app.schemas.appointment import AppointmentCreate
 
         local_tz = pytz.timezone('Asia/Shanghai')
 

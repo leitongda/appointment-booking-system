@@ -3,12 +3,12 @@
 统一管理租户功能开关的读取、校验与灰度控制。
 """
 import json
-from typing import Optional, Dict, Any
+from typing import Any
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.tenant import Tenant, SubscriptionPlan
+from app.models.tenant import SubscriptionPlan, Tenant
 from app.modules.tenants.schemas import TenantFeatures
 
 
@@ -22,7 +22,7 @@ class FeatureFlagService:
     """
 
     @staticmethod
-    def _parse_features_json(features_json: Optional[str]) -> Dict[str, Any]:
+    def _parse_features_json(features_json: str | None) -> dict[str, Any]:
         """解析 features JSON 字符串为字典"""
         if not features_json:
             return {}
@@ -35,12 +35,12 @@ class FeatureFlagService:
         return {}
 
     @classmethod
-    def get_default_features(cls) -> Dict[str, bool]:
+    def get_default_features(cls) -> dict[str, bool]:
         """获取系统默认功能开关"""
         return TenantFeatures().model_dump()
 
     @classmethod
-    async def get_tenant_features(cls, db: AsyncSession, tenant_id: str) -> Dict[str, bool]:
+    async def get_tenant_features(cls, db: AsyncSession, tenant_id: str) -> dict[str, bool]:
         """获取租户有效功能开关（合并订阅计划 + 租户覆盖）"""
         result = await db.execute(
             select(Tenant, SubscriptionPlan.features.label("plan_features"))
@@ -89,7 +89,7 @@ class FeatureFlagService:
         return len(missing) == 0, missing
 
     @classmethod
-    async def get_beta_features(cls, db: AsyncSession, tenant_id: str) -> Dict[str, bool]:
+    async def get_beta_features(cls, db: AsyncSession, tenant_id: str) -> dict[str, bool]:
         """获取租户的灰度功能列表（仅返回 beta_ 开头的功能）"""
         features = await cls.get_tenant_features(db, tenant_id)
         return {k: v for k, v in features.items() if k.startswith("beta_")}
@@ -109,7 +109,7 @@ class FeatureFlagService:
         return feature_name in default_features
 
     @classmethod
-    def sanitize_features(cls, features: Optional[Dict[str, Any]]) -> Dict[str, bool]:
+    def sanitize_features(cls, features: dict[str, Any] | None) -> dict[str, bool]:
         """清洗功能开关数据：仅保留已定义字段，统一为布尔值"""
         default_features = cls.get_default_features()
         if not features or not isinstance(features, dict):

@@ -7,17 +7,18 @@
 - require_permission / require_all_permissions: 仅 Admin 角色使用（依赖 get_current_admin）
 - require_account_permission / require_account_all_permissions: 统一多角色使用（依赖 get_current_account）
 """
-from typing import Callable, Union, List, Optional
-from fastapi import HTTPException, Depends, status
+from collections.abc import Callable
+
+from fastapi import Depends, HTTPException, status
 
 # 重新导出认证依赖，因为权限依赖依赖它们
 from app.common.auth_deps import get_current_admin
-from app.common.auth_unified import get_current_account
 from app.common.auth_types import AccountInfo, RoleType
+from app.common.auth_unified import get_current_account
 from app.common.role_permissions import check_permission_match
 
 
-def get_store_filter(current_admin: dict, allow_all: bool = False) -> Union[None, str, List[str]]:
+def get_store_filter(current_admin: dict, allow_all: bool = False) -> None | str | list[str]:
     """
     获取门店过滤条件
 
@@ -72,7 +73,7 @@ def get_store_filter(current_admin: dict, allow_all: bool = False) -> Union[None
     return current_store_id
 
 
-def _resolve_data_scope(current_admin: dict) -> Optional[dict]:
+def _resolve_data_scope(current_admin: dict) -> dict | None:
     """从 admin_info 中提取 data_scope 配置
 
     支持嵌套 role.data_scope 和平铺 data_scope 两种格式。
@@ -85,7 +86,7 @@ def _resolve_data_scope(current_admin: dict) -> Optional[dict]:
     return current_admin.get("data_scope")
 
 
-def check_store_access(current_admin: dict, target_store_id: Optional[str]) -> bool:
+def check_store_access(current_admin: dict, target_store_id: str | None) -> bool:
     """
     检查当前管理员是否有权访问目标门店
 
@@ -108,7 +109,7 @@ def check_store_access(current_admin: dict, target_store_id: Optional[str]) -> b
     return admin_store_id == target_store_id
 
 
-def get_effective_store_id(current_admin: dict, requested_store_id: Optional[str] = None) -> Optional[str]:
+def get_effective_store_id(current_admin: dict, requested_store_id: str | None = None) -> str | None:
     """
     获取有效的门店ID（用于创建/更新操作）
 
@@ -239,7 +240,7 @@ def require_all_permissions(*permissions: str) -> Callable:
 # 统一多角色权限检查（admin/doctor/user 均可使用）
 # ============================================================
 
-def _extract_permissions(account: AccountInfo) -> List[str]:
+def _extract_permissions(account: AccountInfo) -> list[str]:
     """从 AccountInfo 中提取权限列表
 
     根据 role_type 从对应的 info 中获取 permissions 字段。

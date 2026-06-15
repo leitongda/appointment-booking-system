@@ -1,7 +1,9 @@
-from sqlalchemy import Column, String, Boolean, DateTime, UniqueConstraint
-from app.db.base import Base
 import uuid
 from datetime import datetime
+
+from sqlalchemy import Boolean, Column, DateTime, String, UniqueConstraint
+
+from app.db.base import Base
 
 
 class NotificationPreference(Base):

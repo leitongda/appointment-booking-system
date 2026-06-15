@@ -6,20 +6,20 @@
 - 用量限制警告
 - 欠费自动暂停
 """
-from datetime import datetime, date, timedelta
-from sqlalchemy import select, func, and_, or_
-from sqlalchemy.orm import Session
 import logging
+from datetime import date, datetime, timedelta
+
+from sqlalchemy import and_, func, select
+from sqlalchemy.orm import Session
 
 from app.celery_app import celery_app
-from app.db.session import get_sync_db
-from app.models.tenant import Tenant, TenantUsageLog, SubscriptionPlan
-from app.models.store import Store
-from app.models.admin import Admin
-from app.models.doctor import Doctor
-from app.models.appointment import Appointment
-from app.models.user import User, Patient
 from app.common.sync_account_helper import count_tenant_accounts
+from app.db.session import get_sync_db
+from app.models.appointment import Appointment
+from app.models.doctor import Doctor
+from app.models.store import Store
+from app.models.tenant import Tenant, TenantUsageLog
+from app.models.user import Patient
 
 logger = logging.getLogger(__name__)
 
@@ -179,8 +179,8 @@ def check_subscription_expiry():
     with get_sync_db() as db:
         try:
             # 导入异步通知服务（在同步上下文中需要特殊处理）
-            from app.infrastructure.notifications.service import TenantNotificationService
             from app.db.session import get_async_db_context
+            from app.infrastructure.notifications.service import TenantNotificationService
 
             # 查找所有活跃租户，检查是否需要发送通知
             result = db.execute(
@@ -271,8 +271,8 @@ def check_usage_limits():
             tenants = result.scalars().all()
 
             # 导入异步通知服务
-            from app.infrastructure.notifications.service import TenantNotificationService
             from app.db.session import get_async_db_context
+            from app.infrastructure.notifications.service import TenantNotificationService
 
             total_warnings = 0
 

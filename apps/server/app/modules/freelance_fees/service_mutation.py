@@ -1,31 +1,35 @@
 """兼职费用 — 写入服务"""
-from sqlalchemy.ext.asyncio import AsyncSession
-from decimal import Decimal
-from datetime import datetime, timedelta
-from typing import Optional
 import uuid
+from datetime import datetime, timedelta
+from decimal import Decimal
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.freelance import (
-    Freelancer, FreelanceTask, FreelanceInteraction,
-    FreelanceSettlement, FreelanceSettlementItem,
+    FreelanceInteraction,
+    Freelancer,
+    FreelanceSettlement,
+    FreelanceSettlementItem,
+    FreelanceTask,
 )
 from app.modules.freelance_fees.schemas import (
-    FreelancerCreate, FreelancerUpdate,
-    FreelanceTaskCreate, FreelanceTaskUpdate,
     FreelanceInteractionCreate,
+    FreelancerCreate,
+    FreelancerUpdate,
+    FreelanceTaskCreate,
+    FreelanceTaskUpdate,
 )
 from app.utils.audit import set_create_audit, set_update_audit
-from app.middleware.tenant_context import get_current_tenant_id
 
 
-def _next_workday(dt: datetime, holidays: Optional[set] = None) -> datetime:
+def _next_workday(dt: datetime, holidays: set | None = None) -> datetime:
     """计算下一个工作日（跳过周末和节假日）
 
     Args:
         dt: 起始日期
         holidays: 节假日日期集合（date 对象），可选
     """
-    from datetime import date
     if holidays is None:
         holidays = set()
     while dt.weekday() >= 5 or dt.date() in holidays:
@@ -33,11 +37,12 @@ def _next_workday(dt: datetime, holidays: Optional[set] = None) -> datetime:
     return dt
 
 
-async def _get_holidays(db: AsyncSession, tenant_id: Optional[str]) -> set:
+async def _get_holidays(db: AsyncSession, tenant_id: str | None) -> set:
     """查询租户的节假日集合"""
-    from sqlalchemy import select, and_
+
+    from sqlalchemy import and_, select
+
     from app.models.schedule_holiday import ScheduleHoliday
-    from datetime import date
 
     stmt = select(ScheduleHoliday.holiday_date).where(
         and_(
@@ -53,7 +58,7 @@ async def _get_holidays(db: AsyncSession, tenant_id: Optional[str]) -> set:
     return set(result.scalars().all())
 
 
-def _calculate_planned_dates(published_at: datetime, holidays: Optional[set] = None) -> dict:
+def _calculate_planned_dates(published_at: datetime, holidays: set | None = None) -> dict:
     """计算理论结算日"""
     return {
         "planned_base_settle_at": _next_workday(published_at + timedelta(days=1), holidays),
@@ -70,7 +75,7 @@ class FreelanceMutationMixin:
 
     # ---------- 兼职人员 ----------
 
-    async def create_freelancer(self, data: FreelancerCreate, operator_id: Optional[str] = None) -> Freelancer:
+    async def create_freelancer(self, data: FreelancerCreate, operator_id: str | None = None) -> Freelancer:
         tenant_id = get_current_tenant_id()
         freelancer = Freelancer(
             id=str(uuid.uuid4()),
@@ -84,7 +89,7 @@ class FreelanceMutationMixin:
         await self.db.refresh(freelancer)
         return freelancer
 
-    async def update_freelancer(self, freelancer_id: str, data: FreelancerUpdate, operator_id: Optional[str] = None) -> Optional[Freelancer]:
+    async def update_freelancer(self, freelancer_id: str, data: FreelancerUpdate, operator_id: str | None = None) -> Freelancer | None:
         from app.modules.freelance_fees.service_query import FreelanceQueryMixin
         query_svc = FreelanceQueryMixin(self.db)
         freelancer = await query_svc.get_freelancer_by_id(freelancer_id)
@@ -112,7 +117,7 @@ class FreelanceMutationMixin:
 
     # ---------- 发布任务 ----------
 
-    async def create_task(self, data: FreelanceTaskCreate, operator_id: Optional[str] = None) -> FreelanceTask:
+    async def create_task(self, data: FreelanceTaskCreate, operator_id: str | None = None) -> FreelanceTask:
         tenant_id = get_current_tenant_id()
 
         # 计算理论结算日（含节假日顺延）
@@ -139,7 +144,7 @@ class FreelanceMutationMixin:
         await self.db.refresh(task)
         return task
 
-    async def update_task(self, task_id: str, data: FreelanceTaskUpdate, operator_id: Optional[str] = None) -> Optional[FreelanceTask]:
+    async def update_task(self, task_id: str, data: FreelanceTaskUpdate, operator_id: str | None = None) -> FreelanceTask | None:
         from app.modules.freelance_fees.service_query import FreelanceQueryMixin
         query_svc = FreelanceQueryMixin(self.db)
         task = await query_svc.get_task_by_id(task_id)
@@ -160,7 +165,7 @@ class FreelanceMutationMixin:
         await self.db.refresh(task)
         return task
 
-    async def add_interaction(self, data: FreelanceInteractionCreate, operator_id: Optional[str] = None) -> Optional[FreelanceInteraction]:
+    async def add_interaction(self, data: FreelanceInteractionCreate, operator_id: str | None = None) -> FreelanceInteraction | None:
         from app.modules.freelance_fees.service_query import FreelanceQueryMixin
         query_svc = FreelanceQueryMixin(self.db)
         task = await query_svc.get_task_by_id(data.task_id)
@@ -193,9 +198,9 @@ class FreelanceMutationMixin:
     async def generate_settlement(
         self,
         freelancer_id: str,
-        store_id: Optional[str] = None,
-        operator_id: Optional[str] = None,
-    ) -> Optional[FreelanceSettlement]:
+        store_id: str | None = None,
+        operator_id: str | None = None,
+    ) -> FreelanceSettlement | None:
         """为指定兼职人员生成结算单"""
         from app.modules.freelance_fees.service_query import FreelanceQueryMixin
         query_svc = FreelanceQueryMixin(self.db)
@@ -208,7 +213,7 @@ class FreelanceMutationMixin:
         now = datetime.utcnow()
 
         # 检查是否已有待确认的结算单（防止重复生成，使用行锁防并发）
-        from sqlalchemy import select, and_
+        from sqlalchemy import and_, select
         existing_stmt = select(FreelanceSettlement.id).where(
             and_(
                 FreelanceSettlement.freelancer_id == freelancer_id,
@@ -347,12 +352,12 @@ class FreelanceMutationMixin:
         await self.db.refresh(settlement)
         return settlement
 
-    async def _notify_settlement_event(self, settlement: FreelanceSettlement, event_type: str, operator_id: Optional[str] = None):
+    async def _notify_settlement_event(self, settlement: FreelanceSettlement, event_type: str, operator_id: str | None = None):
         """发送结算通知"""
         try:
-            from app.modules.unified_message.service import UnifiedMessageService
-            from app.modules.unified_message.schemas import NotificationEvent
             from app.middleware.tenant_context import get_current_tenant_id
+            from app.modules.unified_message.schemas import NotificationEvent
+            from app.modules.unified_message.service import UnifiedMessageService
 
             tenant_id = get_current_tenant_id()
             if not tenant_id:
@@ -400,7 +405,7 @@ class FreelanceMutationMixin:
             import logging
             logging.getLogger(__name__).warning(f"发送结算通知失败: {e}")
 
-    async def confirm_settlement(self, settlement_id: str, operator_id: Optional[str] = None, remark: Optional[str] = None) -> Optional[FreelanceSettlement]:
+    async def confirm_settlement(self, settlement_id: str, operator_id: str | None = None, remark: str | None = None) -> FreelanceSettlement | None:
         from app.modules.freelance_fees.service_query import FreelanceQueryMixin
         query_svc = FreelanceQueryMixin(self.db)
         settlement = await query_svc.get_settlement_by_id(settlement_id)
@@ -421,7 +426,7 @@ class FreelanceMutationMixin:
         await self._notify_settlement_event(settlement, "confirmed", operator_id)
         return settlement
 
-    async def reject_settlement(self, settlement_id: str, operator_id: Optional[str] = None, reject_reason: str = "") -> Optional[FreelanceSettlement]:
+    async def reject_settlement(self, settlement_id: str, operator_id: str | None = None, reject_reason: str = "") -> FreelanceSettlement | None:
         from app.modules.freelance_fees.service_query import FreelanceQueryMixin
         query_svc = FreelanceQueryMixin(self.db)
         settlement = await query_svc.get_settlement_by_id(settlement_id)
@@ -439,7 +444,7 @@ class FreelanceMutationMixin:
         await self._notify_settlement_event(settlement, "rejected", operator_id)
         return settlement
 
-    async def mark_settlement_paid(self, settlement_id: str, operator_id: Optional[str] = None) -> Optional[FreelanceSettlement]:
+    async def mark_settlement_paid(self, settlement_id: str, operator_id: str | None = None) -> FreelanceSettlement | None:
         from app.modules.freelance_fees.service_query import FreelanceQueryMixin
         query_svc = FreelanceQueryMixin(self.db)
         settlement = await query_svc.get_settlement_by_id(settlement_id)

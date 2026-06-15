@@ -11,7 +11,6 @@
 
 from fastapi import APIRouter
 
-
 # v2 主路由 — 当前为空，逐步迁移 v1 deprecated 端点
 v2_router = APIRouter()
 

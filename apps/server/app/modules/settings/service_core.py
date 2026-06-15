@@ -2,7 +2,7 @@
 
 import json
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy import and_, or_, select
 
@@ -11,7 +11,7 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 
 class SettingsCoreMixin:
-    async def get_by_category(self, category: str, store_id: Optional[str] = None) -> Dict[str, Any]:
+    async def get_by_category(self, category: str, store_id: str | None = None) -> dict[str, Any]:
         if store_id:
             result = await self.db.execute(
                 select(SystemSetting).where(
@@ -54,7 +54,7 @@ class SettingsCoreMixin:
         category: str,
         key: str,
         default: Any = None,
-        store_id: Optional[str] = None,
+        store_id: str | None = None,
     ) -> Any:
         if store_id:
             result = await self.db.execute(
@@ -94,8 +94,8 @@ class SettingsCoreMixin:
         key: str,
         value: Any,
         description: str = None,
-        operator_id: Optional[str] = None,
-        store_id: Optional[str] = None,
+        operator_id: str | None = None,
+        store_id: str | None = None,
     ) -> SystemSetting:
         if store_id:
             query = select(SystemSetting).where(
@@ -141,7 +141,7 @@ class SettingsCoreMixin:
         return setting
 
     async def delete_store_setting(
-        self, category: str, key: str, store_id: str, operator_id: Optional[str] = None
+        self, category: str, key: str, store_id: str, operator_id: str | None = None
     ) -> bool:
         result = await self.db.execute(
             select(SystemSetting).where(
@@ -159,7 +159,7 @@ class SettingsCoreMixin:
             return True
         return False
 
-    async def get_time_periods(self, store_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def get_time_periods(self, store_id: str | None = None) -> list[dict[str, Any]]:
         periods = await self.get_value("time_periods", "periods", store_id=store_id)
         default_periods = [
             {"key": "morning", "name": "上午", "startTime": "06:00", "endTime": "12:00"},
@@ -179,10 +179,10 @@ class SettingsCoreMixin:
 
     async def set_time_periods(
         self,
-        periods: List[Dict[str, Any]],
-        store_id: Optional[str] = None,
-        operator_id: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        periods: list[dict[str, Any]],
+        store_id: str | None = None,
+        operator_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         await self.set_value(
             category="time_periods",
             key="periods",
@@ -205,7 +205,7 @@ class SettingsCoreMixin:
         )
         return result.scalar_one_or_none() is not None
 
-    async def update_category(self, category: str, data: Dict[str, Any], store_id: Optional[str] = None) -> Dict[str, Any]:
+    async def update_category(self, category: str, data: dict[str, Any], store_id: str | None = None) -> dict[str, Any]:
         for key, value in data.items():
             await self.set_value(category, key, value, store_id=store_id)
         return await self.get_by_category(category, store_id=store_id)

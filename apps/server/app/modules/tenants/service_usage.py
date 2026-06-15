@@ -1,18 +1,18 @@
 """租户用量统计服务"""
-from pathlib import Path
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from sqlalchemy.orm import selectinload
-from typing import Optional, List
-from datetime import datetime, date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
+
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
-from app.models.tenant import Tenant, TenantUsageLog
-from app.models.store import Store
 from app.models.admin import Admin
-from app.models.doctor import Doctor
 from app.models.appointment import Appointment
+from app.models.doctor import Doctor
+from app.models.store import Store
+from app.models.tenant import Tenant, TenantUsageLog
 
 
 class TenantUsageService:
@@ -63,10 +63,10 @@ class TenantUsageService:
     async def get_usage_logs(
         self,
         tenant_id: str,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
         limit: int = 30
-    ) -> List[TenantUsageLog]:
+    ) -> list[TenantUsageLog]:
         """获取租户用量日志"""
         query = select(TenantUsageLog).where(TenantUsageLog.tenant_id == tenant_id)
 
@@ -80,7 +80,7 @@ class TenantUsageService:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def record_daily_usage(self, tenant_id: str, usage_date: Optional[date] = None) -> TenantUsageLog:
+    async def record_daily_usage(self, tenant_id: str, usage_date: date | None = None) -> TenantUsageLog:
         """记录每日用量（定时任务调用）"""
         usage_date = usage_date or date.today()
 

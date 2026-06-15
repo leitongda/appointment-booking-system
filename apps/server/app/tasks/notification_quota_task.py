@@ -3,15 +3,14 @@
 
 每日检查各租户的通知用量，达到 80% 或 100% 时发送告警。
 """
-from datetime import datetime
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 import logging
+
+from sqlalchemy import select
 
 from app.celery_app import celery_app
 from app.db.session import get_sync_db
+from app.middleware.tenant_context import clear_tenant_context, set_tenant_context
 from app.models.tenant import Tenant
-from app.middleware.tenant_context import set_tenant_context, clear_tenant_context
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +51,8 @@ def check_notification_quota():
             logger.info(f"找到 {len(tenants)} 个活跃租户")
 
             # 导入异步通知服务
-            from app.infrastructure.notifications.quota import NotificationQuotaService
             from app.db.session import get_async_db_context
+            from app.infrastructure.notifications.quota import NotificationQuotaService
 
             total_alerts = 0
             checked_count = 0
@@ -124,8 +123,8 @@ def get_tenant_notification_quota(tenant_id: str):
     Returns:
         配额汇总数据
     """
-    from app.infrastructure.notifications.quota import NotificationQuotaService
     from app.db.session import get_async_db_context
+    from app.infrastructure.notifications.quota import NotificationQuotaService
 
     async def get_quota():
         async for db_async in get_async_db_context():

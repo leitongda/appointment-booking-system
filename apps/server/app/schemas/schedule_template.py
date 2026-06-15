@@ -1,9 +1,10 @@
-from app.schemas.response import to_camel
+from datetime import date, datetime, time
+
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, List
-from datetime import time, datetime, date
 
 from app.enums.schedule import AppointmentType, ScheduleMode  # noqa: F401 — re-export
+from app.schemas.response import to_camel
+
 
 class BreakTime(BaseModel):
     """排除时间段（如午休时间）"""
@@ -27,15 +28,15 @@ class ScheduleTemplateBase(BaseModel):
     doctor_id: str = Field(..., description="医生ID")
     department_id: str = Field(..., description="科室ID")
     shift_type_id: str = Field(..., description="班次类型ID")
-    rule_set_id: Optional[str] = Field(None, description="关联规则组ID（可选，指定后使用该规则组而非按班次类型匹配）")
-    weekdays: List[int] = Field(..., description="星期数组 1-7，如[1,2,3,4,5]")
+    rule_set_id: str | None = Field(None, description="关联规则组ID（可选，指定后使用该规则组而非按班次类型匹配）")
+    weekdays: list[int] = Field(..., description="星期数组 1-7，如[1,2,3,4,5]")
     appointment_type: AppointmentType = Field(default=AppointmentType.NORMAL, description="预约类型")
     start_time: time = Field(..., description="开始时间")
     end_time: time = Field(..., description="结束时间")
     slot_count: int = Field(default=1, ge=1, le=50, description="班次数量")
     slot_capacity: int = Field(default=10, ge=1, le=200, description="每班次人数")
     schedule_mode: ScheduleMode = Field(default=ScheduleMode.WEEKLY, description="排班方式")
-    break_times: Optional[List[BreakTime]] = Field(None, description="排除时间段列表（如午休时间）")
+    break_times: list[BreakTime] | None = Field(None, description="排除时间段列表（如午休时间）")
 
 class ScheduleTemplateCreate(ScheduleTemplateBase):
     """创建排班模板"""
@@ -48,21 +49,21 @@ class ScheduleTemplateUpdate(BaseModel):
         populate_by_name=True,
     )
     
-    name: Optional[str] = Field(None, max_length=100, description="模板名称")
-    store_id: Optional[str] = None
-    doctor_id: Optional[str] = None
-    department_id: Optional[str] = None
-    shift_type_id: Optional[str] = None
-    rule_set_id: Optional[str] = Field(None, description="关联规则组ID")
-    weekdays: Optional[List[int]] = Field(None, description="星期数组 1-7")
-    appointment_type: Optional[AppointmentType] = None
-    start_time: Optional[time] = None
-    end_time: Optional[time] = None
-    slot_count: Optional[int] = Field(None, ge=1, le=50)
-    slot_capacity: Optional[int] = Field(None, ge=1, le=200)
-    schedule_mode: Optional[ScheduleMode] = None
-    break_times: Optional[List[BreakTime]] = Field(None, description="排除时间段列表（如午休时间）")
-    status: Optional[int] = Field(None, ge=0, le=1)
+    name: str | None = Field(None, max_length=100, description="模板名称")
+    store_id: str | None = None
+    doctor_id: str | None = None
+    department_id: str | None = None
+    shift_type_id: str | None = None
+    rule_set_id: str | None = Field(None, description="关联规则组ID")
+    weekdays: list[int] | None = Field(None, description="星期数组 1-7")
+    appointment_type: AppointmentType | None = None
+    start_time: time | None = None
+    end_time: time | None = None
+    slot_count: int | None = Field(None, ge=1, le=50)
+    slot_capacity: int | None = Field(None, ge=1, le=200)
+    schedule_mode: ScheduleMode | None = None
+    break_times: list[BreakTime] | None = Field(None, description="排除时间段列表（如午休时间）")
+    status: int | None = Field(None, ge=0, le=1)
 
 class ScheduleTemplateResponse(BaseModel):
     """排班模板响应"""
@@ -74,29 +75,29 @@ class ScheduleTemplateResponse(BaseModel):
     )
     
     id: str
-    name: Optional[str] = None
-    store_id: Optional[str] = None
-    doctor_id: Optional[str] = None
-    department_id: Optional[str] = None
-    shift_type_id: Optional[str] = None
-    rule_set_id: Optional[str] = None
-    weekdays: Optional[List[int]] = None
-    appointment_type: Optional[str] = "normal"
-    start_time: Optional[time] = None
-    end_time: Optional[time] = None
-    slot_count: Optional[int] = 1
-    slot_capacity: Optional[int] = 10
-    schedule_mode: Optional[str] = "weekly"
-    break_times: Optional[List[BreakTime]] = None
-    status: Optional[int] = 1
-    store_name: Optional[str] = None
-    doctor_name: Optional[str] = None
-    department_name: Optional[str] = None
-    shift_type_name: Optional[str] = None
-    rule_set_name: Optional[str] = None
-    last_generated_at: Optional[datetime] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    name: str | None = None
+    store_id: str | None = None
+    doctor_id: str | None = None
+    department_id: str | None = None
+    shift_type_id: str | None = None
+    rule_set_id: str | None = None
+    weekdays: list[int] | None = None
+    appointment_type: str | None = "normal"
+    start_time: time | None = None
+    end_time: time | None = None
+    slot_count: int | None = 1
+    slot_capacity: int | None = 10
+    schedule_mode: str | None = "weekly"
+    break_times: list[BreakTime] | None = None
+    status: int | None = 1
+    store_name: str | None = None
+    doctor_name: str | None = None
+    department_name: str | None = None
+    shift_type_name: str | None = None
+    rule_set_name: str | None = None
+    last_generated_at: datetime | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 class ScheduleGenerateRequest(BaseModel):
     """根据模板生成排班请求"""
@@ -105,9 +106,9 @@ class ScheduleGenerateRequest(BaseModel):
         populate_by_name=True,
     )
     
-    template_ids: List[str] = Field(..., description="模板ID列表")
-    start_date: Optional[date] = Field(None, description="开始日期，为空则默认今天")
-    end_date: Optional[date] = Field(None, description="结束日期，为空则默认1年后")
+    template_ids: list[str] = Field(..., description="模板ID列表")
+    start_date: date | None = Field(None, description="开始日期，为空则默认今天")
+    end_date: date | None = Field(None, description="结束日期，为空则默认1年后")
 
 class ScheduleBatchAddRequest(BaseModel):
     """批量添加排班请求（不依赖模板）"""
@@ -126,8 +127,8 @@ class ScheduleBatchAddRequest(BaseModel):
     slot_count: int = Field(default=1, ge=1, le=50, description="班次数量")
     slot_capacity: int = Field(default=10, ge=1, le=200, description="每班次人数")
     schedule_mode: ScheduleMode = Field(default=ScheduleMode.WEEKLY, description="排班方式")
-    break_times: Optional[List[BreakTime]] = Field(None, description="排除时间段列表（如午休时间）")
-    weekdays: List[int] = Field(..., description="星期列表 1-7")
+    break_times: list[BreakTime] | None = Field(None, description="排除时间段列表（如午休时间）")
+    weekdays: list[int] = Field(..., description="星期列表 1-7")
     start_date: date = Field(..., description="开始日期")
     end_date: date = Field(..., description="结束日期")
 
@@ -146,10 +147,10 @@ class ScheduleSlotPreview(BaseModel):
     slot_capacity: int = Field(..., description="可预约人数")
     weekday: int = Field(..., description="星期几 1-7")
     weekday_name: str = Field(..., description="星期名称")
-    rule_validation: Optional[List[str]] = Field(default=None, description="规则校验警告列表，null表示未校验")
+    rule_validation: list[str] | None = Field(default=None, description="规则校验警告列表，null表示未校验")
     action: str = Field("create", description="操作类型: create将创建/skip_exists已存在跳过/skip_overlap时间重叠/skip_rest_day休息日/skip_rule规则限制")
-    reason: Optional[str] = Field(None, description="跳过原因描述")
-    conflicting_schedule_id: Optional[str] = Field(None, description="冲突排班ID（如有）")
+    reason: str | None = Field(None, description="跳过原因描述")
+    conflicting_schedule_id: str | None = Field(None, description="冲突排班ID（如有）")
 
 class SchedulePreviewGenerateRequest(BaseModel):
     """预览生成排班请求"""
@@ -158,9 +159,9 @@ class SchedulePreviewGenerateRequest(BaseModel):
         populate_by_name=True,
     )
     
-    template_ids: List[str] = Field(..., description="模板ID列表")
-    start_date: Optional[date] = Field(None, description="开始日期，为空则默认今天")
-    end_date: Optional[date] = Field(None, description="结束日期，为空则默认30天后")
+    template_ids: list[str] = Field(..., description="模板ID列表")
+    start_date: date | None = Field(None, description="开始日期，为空则默认今天")
+    end_date: date | None = Field(None, description="结束日期，为空则默认30天后")
 
 class SchedulePreviewGenerateResponse(BaseModel):
     """预览生成排班响应"""
@@ -169,17 +170,17 @@ class SchedulePreviewGenerateResponse(BaseModel):
         populate_by_name=True,
     )
 
-    slots: List[ScheduleSlotPreview] = Field(..., description="预览班次列表")
+    slots: list[ScheduleSlotPreview] = Field(..., description="预览班次列表")
     total_count: int = Field(..., description="总班次数")
     create_count: int = Field(0, description="将创建数量")
     skip_count: int = Field(0, description="跳过数量（已存在/休息日/规则限制等）")
     conflict_count: int = Field(0, description="时间重叠冲突数量")
-    daily_duration_hours: Optional[int] = Field(None, description="每日总时长（小时）")
-    daily_duration_minutes: Optional[int] = Field(None, description="每日总时长（剩余分钟数）")
+    daily_duration_hours: int | None = Field(None, description="每日总时长（小时）")
+    daily_duration_minutes: int | None = Field(None, description="每日总时长（剩余分钟数）")
     template_id: str = Field(..., description="模板ID")
     template_name: str = Field(..., description="模板名称")
-    doctor_name: Optional[str] = None
-    department_name: Optional[str] = None
+    doctor_name: str | None = None
+    department_name: str | None = None
 
 class SlotCapacityOverride(BaseModel):
     """班次容量覆盖"""
@@ -200,10 +201,10 @@ class ScheduleGenerateWithCapacityRequest(BaseModel):
         populate_by_name=True,
     )
     
-    template_ids: List[str] = Field(..., description="模板ID列表")
-    start_date: Optional[date] = Field(None, description="开始日期，为空则默认今天")
-    end_date: Optional[date] = Field(None, description="结束日期，为空则默认1年后")
-    slot_capacities: Optional[List[SlotCapacityOverride]] = Field(None, description="自定义班次容量列表")
+    template_ids: list[str] = Field(..., description="模板ID列表")
+    start_date: date | None = Field(None, description="开始日期，为空则默认今天")
+    end_date: date | None = Field(None, description="结束日期，为空则默认1年后")
+    slot_capacities: list[SlotCapacityOverride] | None = Field(None, description="自定义班次容量列表")
 
 class ScheduleTemplateCopyRequest(BaseModel):
     """复制排班规则请求"""
@@ -212,19 +213,19 @@ class ScheduleTemplateCopyRequest(BaseModel):
         populate_by_name=True,
     )
     
-    target_doctor_ids: List[str] = Field(..., description="目标医生ID列表")
+    target_doctor_ids: list[str] = Field(..., description="目标医生ID列表")
     # 可调整的配置字段（覆盖原规则配置）
-    name: Optional[str] = Field(None, max_length=100, description="规则名称（可选，不填则自动生成）")
-    shift_type_id: Optional[str] = Field(None, description="班次类型ID")
-    rule_set_id: Optional[str] = Field(None, description="关联规则组ID")
-    weekdays: Optional[List[int]] = Field(None, description="星期数组 1-7")
-    appointment_type: Optional[str] = Field(None, description="预约类型")
-    start_time: Optional[time] = Field(None, description="开始时间")
-    end_time: Optional[time] = Field(None, description="结束时间")
-    slot_count: Optional[int] = Field(None, ge=1, le=50, description="班次数量")
-    slot_capacity: Optional[int] = Field(None, ge=1, le=200, description="每班次人数")
-    schedule_mode: Optional[str] = Field(None, description="排班方式")
-    break_times: Optional[List[BreakTime]] = Field(None, description="排除时间段列表")
+    name: str | None = Field(None, max_length=100, description="规则名称（可选，不填则自动生成）")
+    shift_type_id: str | None = Field(None, description="班次类型ID")
+    rule_set_id: str | None = Field(None, description="关联规则组ID")
+    weekdays: list[int] | None = Field(None, description="星期数组 1-7")
+    appointment_type: str | None = Field(None, description="预约类型")
+    start_time: time | None = Field(None, description="开始时间")
+    end_time: time | None = Field(None, description="结束时间")
+    slot_count: int | None = Field(None, ge=1, le=50, description="班次数量")
+    slot_capacity: int | None = Field(None, ge=1, le=200, description="每班次人数")
+    schedule_mode: str | None = Field(None, description="排班方式")
+    break_times: list[BreakTime] | None = Field(None, description="排除时间段列表")
 
 class ScheduleTemplateCopyResponse(BaseModel):
     """复制排班规则响应"""
@@ -255,19 +256,19 @@ class ScheduleTemplateCrossStoreCopyRequest(BaseModel):
     )
 
     target_store_id: str = Field(..., description="目标门店ID")
-    mappings: List[CrossStoreDoctorMapping] = Field(..., description="科室/医生映射列表")
+    mappings: list[CrossStoreDoctorMapping] = Field(..., description="科室/医生映射列表")
     # 可调整的配置字段（覆盖原规则配置）
-    name: Optional[str] = Field(None, max_length=100, description="规则名称（可选，不填则自动生成）")
-    shift_type_id: Optional[str] = Field(None, description="班次类型ID")
-    rule_set_id: Optional[str] = Field(None, description="关联规则组ID")
-    weekdays: Optional[List[int]] = Field(None, description="星期数组 1-7")
-    appointment_type: Optional[str] = Field(None, description="预约类型")
-    start_time: Optional[time] = Field(None, description="开始时间")
-    end_time: Optional[time] = Field(None, description="结束时间")
-    slot_count: Optional[int] = Field(None, ge=1, le=50, description="班次数量")
-    slot_capacity: Optional[int] = Field(None, ge=1, le=200, description="每班次人数")
-    schedule_mode: Optional[str] = Field(None, description="排班方式")
-    break_times: Optional[List[BreakTime]] = Field(None, description="排除时间段列表")
+    name: str | None = Field(None, max_length=100, description="规则名称（可选，不填则自动生成）")
+    shift_type_id: str | None = Field(None, description="班次类型ID")
+    rule_set_id: str | None = Field(None, description="关联规则组ID")
+    weekdays: list[int] | None = Field(None, description="星期数组 1-7")
+    appointment_type: str | None = Field(None, description="预约类型")
+    start_time: time | None = Field(None, description="开始时间")
+    end_time: time | None = Field(None, description="结束时间")
+    slot_count: int | None = Field(None, ge=1, le=50, description="班次数量")
+    slot_capacity: int | None = Field(None, ge=1, le=200, description="每班次人数")
+    schedule_mode: str | None = Field(None, description="排班方式")
+    break_times: list[BreakTime] | None = Field(None, description="排除时间段列表")
 
 class ScheduleTemplateCrossStoreCopyResponse(BaseModel):
     """跨院区复制排班规则响应"""
@@ -278,4 +279,4 @@ class ScheduleTemplateCrossStoreCopyResponse(BaseModel):
 
     message: str = Field(..., description="提示消息")
     created_count: int = Field(..., description="创建数量")
-    failed_mappings: Optional[List[CrossStoreDoctorMapping]] = Field(None, description="失败的映射列表")
+    failed_mappings: list[CrossStoreDoctorMapping] | None = Field(None, description="失败的映射列表")

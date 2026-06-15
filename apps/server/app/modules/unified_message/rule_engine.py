@@ -9,7 +9,7 @@
 - event_driven: 事件驱动（从事件数据中提取接收人）
 """
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,8 +29,8 @@ class RecipientRuleEngine:
         self,
         tenant_id: str,
         event_type: str,
-        event_data: Dict[str, Any],
-    ) -> List[Dict[str, str]]:
+        event_data: dict[str, Any],
+    ) -> list[dict[str, str]]:
         """解析接收人
 
         Args:
@@ -70,7 +70,7 @@ class RecipientRuleEngine:
 
     async def _get_matching_rules(
         self, tenant_id: str, event_type: str
-    ) -> List[RecipientRule]:
+    ) -> list[RecipientRule]:
         """获取匹配的规则"""
         stmt = (
             select(RecipientRule)
@@ -88,8 +88,8 @@ class RecipientRuleEngine:
         return list(result.scalars().all())
 
     async def _resolve_rule(
-        self, rule: RecipientRule, event_data: Dict[str, Any]
-    ) -> List[Dict[str, str]]:
+        self, rule: RecipientRule, event_data: dict[str, Any]
+    ) -> list[dict[str, str]]:
         """解析单个规则"""
         rule_type = rule.rule_type
         config = rule.rule_config or {}
@@ -108,7 +108,7 @@ class RecipientRuleEngine:
             logger.warning(f"[接收人规则] 未知规则类型: {rule_type}")
             return []
 
-    async def _resolve_role_rule(self, config: Dict[str, Any]) -> List[Dict[str, str]]:
+    async def _resolve_role_rule(self, config: dict[str, Any]) -> list[dict[str, str]]:
         """基于角色的规则
 
         config 格式:
@@ -143,7 +143,7 @@ class RecipientRuleEngine:
             logger.warning(f"[接收人规则] 未实现的角色: {role}")
             return []
 
-    async def _resolve_department_rule(self, config: Dict[str, Any]) -> List[Dict[str, str]]:
+    async def _resolve_department_rule(self, config: dict[str, Any]) -> list[dict[str, str]]:
         """基于科室的规则
 
         config 格式:
@@ -171,7 +171,7 @@ class RecipientRuleEngine:
             logger.warning(f"[接收人规则] 未实现的用户类型: {user_type}")
             return []
 
-    def _resolve_user_list_rule(self, config: Dict[str, Any]) -> List[Dict[str, str]]:
+    def _resolve_user_list_rule(self, config: dict[str, Any]) -> list[dict[str, str]]:
         """固定用户列表规则
 
         config 格式:
@@ -190,8 +190,8 @@ class RecipientRuleEngine:
         ]
 
     async def _resolve_dynamic_rule(
-        self, config: Dict[str, Any], event_data: Dict[str, Any]
-    ) -> List[Dict[str, str]]:
+        self, config: dict[str, Any], event_data: dict[str, Any]
+    ) -> list[dict[str, str]]:
         """动态查询规则
 
         config 格式:
@@ -226,7 +226,7 @@ class RecipientRuleEngine:
             logger.warning(f"[接收人规则] 未实现的查询类型: {query_type}")
             return []
 
-    async def _query_appointment_doctor(self, params: Dict[str, Any]) -> List[Dict[str, str]]:
+    async def _query_appointment_doctor(self, params: dict[str, Any]) -> list[dict[str, str]]:
         """查询预约相关的医生"""
         appointment_id = params.get("appointment_id")
         if not appointment_id:
@@ -241,7 +241,7 @@ class RecipientRuleEngine:
             return [{"user_id": str(doctor_id), "user_type": "doctor"}]
         return []
 
-    async def _query_schedule_doctor(self, params: Dict[str, Any]) -> List[Dict[str, str]]:
+    async def _query_schedule_doctor(self, params: dict[str, Any]) -> list[dict[str, str]]:
         """查询排班相关的医生"""
         schedule_id = params.get("schedule_id")
         if not schedule_id:
@@ -257,8 +257,8 @@ class RecipientRuleEngine:
         return []
 
     def _resolve_event_driven_rule(
-        self, config: Dict[str, Any], event_data: Dict[str, Any]
-    ) -> List[Dict[str, str]]:
+        self, config: dict[str, Any], event_data: dict[str, Any]
+    ) -> list[dict[str, str]]:
         """事件驱动规则
 
         config 格式:

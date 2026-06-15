@@ -1,8 +1,8 @@
 """Storage infrastructure services."""
 
-from app.infrastructure.storage.base import BaseStorage, UploadResult
 from app.core.config import settings
 from app.core.logging import logger
+from app.infrastructure.storage.base import BaseStorage, UploadResult
 
 _storage_instance: BaseStorage | None = None
 

@@ -9,19 +9,17 @@
 import json
 import logging
 from datetime import datetime
-from typing import List, Optional
 
-from sqlalchemy import and_, select, update as sa_update
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.constants.appointment import ACTIVE_APPOINTMENT_STATUSES, APPOINTMENT_STATUS
 from app.core.redis import RedisCache
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.appointment import Appointment
-from app.models.doctor import Doctor
 from app.models.schedule import Schedule
 from app.models.schedule_suspension import ScheduleSuspension
-from app.constants.appointment import APPOINTMENT_STATUS, ACTIVE_APPOINTMENT_STATUSES
 from app.modules.messages.service_messages import MessageService
 from app.utils.audit import set_update_audit
 
@@ -41,7 +39,7 @@ class SuspensionProcessingService:
         self,
         suspension_id: str,
         processing_method: str,
-        operator_id: Optional[str] = None,
+        operator_id: str | None = None,
     ) -> dict:
         """
         处置停诊影响的患者
@@ -162,7 +160,7 @@ class SuspensionProcessingService:
 
     # ---- 内部方法 ----
 
-    async def _get_suspension(self, suspension_id: str) -> Optional[ScheduleSuspension]:
+    async def _get_suspension(self, suspension_id: str) -> ScheduleSuspension | None:
         """获取停诊记录"""
         query = (
             select(ScheduleSuspension)
@@ -180,7 +178,7 @@ class SuspensionProcessingService:
 
     async def _find_affected_appointments(
         self, suspension: ScheduleSuspension
-    ) -> List[Appointment]:
+    ) -> list[Appointment]:
         """查找停诊影响的所有活跃预约
 
         活跃预约: status IN (0待支付, 1已预约, 2已签到, 4就诊中)
@@ -210,7 +208,7 @@ class SuspensionProcessingService:
 
     async def _get_affected_schedule_ids(
         self, suspension: ScheduleSuspension
-    ) -> List[str]:
+    ) -> list[str]:
         """获取停诊影响的排班 ID 列表"""
         if suspension.schedule_ids:
             try:
@@ -235,7 +233,7 @@ class SuspensionProcessingService:
         appointment: Appointment,
         suspension: ScheduleSuspension,
         processing_method: str,
-        operator_id: Optional[str] = None,
+        operator_id: str | None = None,
     ) -> dict:
         """处理单个预约"""
         base_result = {
@@ -263,7 +261,7 @@ class SuspensionProcessingService:
         self,
         appointment: Appointment,
         suspension: ScheduleSuspension,
-        operator_id: Optional[str],
+        operator_id: str | None,
         result: dict,
     ) -> dict:
         """自动取消预约并触发退款
@@ -300,7 +298,7 @@ class SuspensionProcessingService:
 
         return result
 
-    async def _trigger_refund(self, appointment: Appointment, operator_id: Optional[str]):
+    async def _trigger_refund(self, appointment: Appointment, operator_id: str | None):
         """触发退款
 
         复用 AppointmentBookingService._refund_paid_appointment_on_cancel 的逻辑。
@@ -313,7 +311,7 @@ class SuspensionProcessingService:
         refund_record = await refund_service.create_refund(
             appointment_id=appointment.id,
             refund_amount=appointment.payment_amount,
-            refund_reason=f"停诊自动退款",
+            refund_reason="停诊自动退款",
             operator_id=operator_id or "system",
         )
 
@@ -351,7 +349,7 @@ class SuspensionProcessingService:
         self,
         appointment: Appointment,
         suspension: ScheduleSuspension,
-        operator_id: Optional[str],
+        operator_id: str | None,
         result: dict,
     ) -> dict:
         """取消原预约、释放号源，通知患者选择同一科室的其他医生。
@@ -423,7 +421,7 @@ class SuspensionProcessingService:
         self,
         appointment: Appointment,
         suspension: ScheduleSuspension,
-        operator_id: Optional[str],
+        operator_id: str | None,
         result: dict,
     ) -> dict:
         """取消原预约、释放号源，通知患者选择同一医生的其他日期。
@@ -495,7 +493,7 @@ class SuspensionProcessingService:
         self,
         appointment: Appointment,
         suspension: ScheduleSuspension,
-        operator_id: Optional[str],
+        operator_id: str | None,
         result: dict,
     ) -> dict:
         """仅记录，等待人工处理"""
@@ -555,7 +553,7 @@ class SuspensionProcessingService:
     async def _send_processing_notifications(
         self,
         suspension: ScheduleSuspension,
-        appointments: List[Appointment],
+        appointments: list[Appointment],
         processing_method: str,
         success_count: int,
     ):

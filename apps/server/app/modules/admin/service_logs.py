@@ -2,7 +2,6 @@
 
 import uuid
 from datetime import datetime
-from typing import List, Optional, Tuple
 
 from sqlalchemy import and_, func, select
 
@@ -15,14 +14,14 @@ class OperationLogService:
 
     async def get_list(
         self,
-        admin_id: Optional[str] = None,
-        module: Optional[str] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        admin_id: str | None = None,
+        module: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
         page: int = 1,
         page_size: int = 20,
-        tenant_id: Optional[str] = None,
-    ) -> Tuple[List[OperationLog], int]:
+        tenant_id: str | None = None,
+    ) -> tuple[list[OperationLog], int]:
         query = select(OperationLog)
         conditions = []
         joined_admin = False

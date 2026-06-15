@@ -1,16 +1,12 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
-from sqlalchemy.orm import joinedload
-from typing import Optional
 from datetime import datetime, timedelta
 
-from app.models.store_visit_type_config import StoreVisitTypeConfig
+from sqlalchemy import and_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
+
 from app.models.appointment import Appointment
-from app.models.schedule import Schedule
-from app.schemas.store_visit_type_config import (
-    StoreVisitTypeConfigCreate,
-    StoreVisitTypeConfigUpdate
-)
+from app.models.store_visit_type_config import StoreVisitTypeConfig
+from app.schemas.store_visit_type_config import StoreVisitTypeConfigCreate, StoreVisitTypeConfigUpdate
 from app.utils.audit import set_create_audit, set_update_audit
 
 
@@ -20,7 +16,7 @@ class VisitTypeService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, config_id: str) -> Optional[StoreVisitTypeConfig]:
+    async def get_by_id(self, config_id: str) -> StoreVisitTypeConfig | None:
         """根据ID获取配置"""
         result = await self.db.execute(
             select(StoreVisitTypeConfig)
@@ -29,7 +25,7 @@ class VisitTypeService:
         )
         return result.unique().scalar_one_or_none()
 
-    async def get_by_store_id(self, store_id: str) -> Optional[StoreVisitTypeConfig]:
+    async def get_by_store_id(self, store_id: str) -> StoreVisitTypeConfig | None:
         """根据门店ID获取配置"""
         result = await self.db.execute(
             select(StoreVisitTypeConfig)
@@ -38,7 +34,7 @@ class VisitTypeService:
         )
         return result.unique().scalar_one_or_none()
 
-    async def create(self, data: StoreVisitTypeConfigCreate, operator_id: Optional[str] = None) -> StoreVisitTypeConfig:
+    async def create(self, data: StoreVisitTypeConfigCreate, operator_id: str | None = None) -> StoreVisitTypeConfig:
         """创建配置"""
         config = StoreVisitTypeConfig(
             store_id=data.store_id,
@@ -53,7 +49,7 @@ class VisitTypeService:
         await self.db.refresh(config)
         return config
 
-    async def update(self, config_id: str, data: StoreVisitTypeConfigUpdate, operator_id: Optional[str] = None) -> Optional[StoreVisitTypeConfig]:
+    async def update(self, config_id: str, data: StoreVisitTypeConfigUpdate, operator_id: str | None = None) -> StoreVisitTypeConfig | None:
         """更新配置"""
         config = await self.get_by_id(config_id)
         if not config:
@@ -71,7 +67,7 @@ class VisitTypeService:
         await self.db.refresh(config)
         return config
 
-    async def create_or_update(self, store_id: str, data: StoreVisitTypeConfigUpdate, operator_id: Optional[str] = None) -> StoreVisitTypeConfig:
+    async def create_or_update(self, store_id: str, data: StoreVisitTypeConfigUpdate, operator_id: str | None = None) -> StoreVisitTypeConfig:
         """创建或更新门店配置"""
         config = await self.get_by_store_id(store_id)
 
@@ -116,7 +112,7 @@ class VisitTypeService:
         store_id: str,
         doctor_id: str,
         department_id: str,
-        check_time: Optional[datetime] = None
+        check_time: datetime | None = None
     ) -> bool:
         """
         判断是否为复诊

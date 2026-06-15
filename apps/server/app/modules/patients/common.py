@@ -1,6 +1,6 @@
-from datetime import date, datetime
 import random
 import string
+from datetime import date, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 

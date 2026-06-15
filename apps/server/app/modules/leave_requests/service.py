@@ -1,19 +1,16 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from sqlalchemy.orm import selectinload
-from typing import Optional, List
-from datetime import datetime
 import uuid
+from datetime import datetime
 
-from app.models.leave_request import LeaveRequest, RequestType, RequestStatus
-from app.models.appointment import Appointment
-from app.models.schedule import Schedule
-from app.models.doctor import Doctor
-from app.schemas.leave_request import (
-    StopClinicCreate, ScheduleChangeCreate, ReviewRequest, LeaveRequestQuery
-)
-from app.utils.audit import set_create_audit, set_update_audit
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.middleware.tenant_context import get_current_tenant_id
+from app.models.appointment import Appointment
+from app.models.doctor import Doctor
+from app.models.leave_request import LeaveRequest, RequestStatus, RequestType
+from app.models.schedule import Schedule
+from app.schemas.leave_request import LeaveRequestQuery, ReviewRequest, ScheduleChangeCreate, StopClinicCreate
+from app.utils.audit import set_create_audit, set_update_audit
 
 
 class LeaveRequestService:
@@ -22,7 +19,7 @@ class LeaveRequestService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, request_id: str) -> Optional[LeaveRequest]:
+    async def get_by_id(self, request_id: str) -> LeaveRequest | None:
         """根据ID获取申请"""
         stmt = select(LeaveRequest).where(LeaveRequest.id == request_id)
         tenant_id = get_current_tenant_id()
@@ -31,7 +28,7 @@ class LeaveRequestService:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_list(self, query: LeaveRequestQuery) -> tuple[List[LeaveRequest], int]:
+    async def get_list(self, query: LeaveRequestQuery) -> tuple[list[LeaveRequest], int]:
         """获取申请列表"""
         stmt = select(LeaveRequest)
         count_stmt = select(func.count(LeaveRequest.id))
@@ -176,7 +173,7 @@ class LeaveRequestService:
         request_id: str,
         reviewer_id: str,
         data: ReviewRequest
-    ) -> Optional[LeaveRequest]:
+    ) -> LeaveRequest | None:
         """审核申请（旧审核入口，作为无通用审批流程定义时的 fallback）。
 
         通用引擎已完整接入：发起端通过 _start_approval_if_configured() 调用
@@ -335,7 +332,7 @@ class LeaveRequestService:
             target.schedule_date = request.original_date
             target.time_slot = request.original_period
 
-    async def get_pending_count(self, store_id: Optional[str] = None) -> int:
+    async def get_pending_count(self, store_id: str | None = None) -> int:
         """获取待审核数量"""
         stmt = select(func.count(LeaveRequest.id)).where(
             LeaveRequest.status == RequestStatus.PENDING.value
@@ -357,8 +354,8 @@ class LeaveRequestService:
     async def get_doctor_requests(
         self,
         doctor_id: str,
-        status: Optional[str] = None
-    ) -> List[LeaveRequest]:
+        status: str | None = None
+    ) -> list[LeaveRequest]:
         """获取医生的申请列表"""
         stmt = select(LeaveRequest).where(LeaveRequest.doctor_id == doctor_id)
 

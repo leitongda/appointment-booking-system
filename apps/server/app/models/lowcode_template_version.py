@@ -1,10 +1,11 @@
 """低代码模板版本历史与模板 Fork 模型。"""
 
+import uuid
+
 from sqlalchemy import Column, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 
-from app.db.base import Base, AuditMixin
-import uuid
+from app.db.base import AuditMixin, Base
 
 
 class LowCodeTemplateVersion(Base, AuditMixin):

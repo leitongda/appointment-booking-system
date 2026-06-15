@@ -2,7 +2,7 @@
 
 import json
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -15,7 +15,7 @@ class PermissionService:
     def __init__(self, db):
         self.db = db
 
-    async def _resolve_permission_depth(self, parent_code: Optional[str]) -> int:
+    async def _resolve_permission_depth(self, parent_code: str | None) -> int:
         depth = 0
         current_parent_code = parent_code
         visited = set()
@@ -41,12 +41,12 @@ class PermissionService:
             has_children=False,
         )
 
-    async def get_all(self) -> List[Permission]:
+    async def get_all(self) -> list[Permission]:
         query = select(Permission).order_by(Permission.sort.asc(), Permission.created_at.asc())
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_tree(self) -> List[Dict[str, Any]]:
+    async def get_tree(self) -> list[dict[str, Any]]:
         permissions = await self.get_all()
         perm_dict = {
             p.code: {
@@ -72,7 +72,7 @@ class PermissionService:
                 tree.append(node)
         return tree
 
-    async def get_by_code(self, code: str) -> Optional[Permission]:
+    async def get_by_code(self, code: str) -> Permission | None:
         result = await self.db.execute(select(Permission).where(Permission.code == code))
         return result.scalar_one_or_none()
 
@@ -97,7 +97,7 @@ class PermissionService:
         await self.db.refresh(permission)
         return permission
 
-    async def batch_create(self, permissions_data: List[dict]) -> List[Permission]:
+    async def batch_create(self, permissions_data: list[dict]) -> list[Permission]:
         created = []
         for data in permissions_data:
             existing = await self.get_by_code(data["code"])
@@ -129,7 +129,7 @@ class PermissionService:
         await self.db.commit()
         return True
 
-    async def get_admin_permissions(self, admin_id: str) -> List[str]:
+    async def get_admin_permissions(self, admin_id: str) -> list[str]:
         result = await self.db.execute(
             select(Admin).options(selectinload(Admin.role)).where(Admin.id == admin_id)
         )

@@ -2,16 +2,11 @@
 import logging
 from datetime import datetime
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.schemas.notification import NotificationEvent, NotificationContent
-from app.schemas.message import MessageCreate, MessageType
+from app.infrastructure.notifications.channels.base import BaseNotificationChannel
 from app.models.message import Message
 from app.models.notification_log import NotificationLog
-from app.infrastructure.notifications.channels.base import BaseNotificationChannel
+from app.schemas.notification import NotificationContent, NotificationEvent
 from app.utils.audit import set_create_audit
-
 
 logger = logging.getLogger(__name__)
 

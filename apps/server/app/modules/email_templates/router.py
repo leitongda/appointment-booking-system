@@ -1,4 +1,3 @@
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,6 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_admin, require_permission
 from app.core.config import settings
 from app.db.session import get_db
+from app.infrastructure.email.service import EmailService
+from app.modules.email_templates.service import EmailTemplateService
 from app.schemas.email_template import (
     EmailTemplateCreate,
     EmailTemplateListResponse,
@@ -14,17 +15,15 @@ from app.schemas.email_template import (
     EmailTemplateUpdate,
     EmailTestRequest,
 )
-from app.infrastructure.email.service import EmailService
-from app.modules.email_templates.service import EmailTemplateService
 
 router = APIRouter()
 
 
 @router.get("", summary="获取邮件模板列表")
 async def get_email_templates(
-    template_type: Optional[str] = Query(None, description="模板类型"),
-    status: Optional[int] = Query(None, description="状态"),
-    keyword: Optional[str] = Query(None, description="关键词搜索"),
+    template_type: str | None = Query(None, description="模板类型"),
+    status: int | None = Query(None, description="状态"),
+    keyword: str | None = Query(None, description="关键词搜索"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -49,7 +48,7 @@ async def get_email_templates(
 
 @router.get("/all", summary="获取所有邮件模板")
 async def get_all_email_templates(
-    status: Optional[int] = Query(None, description="状态"),
+    status: int | None = Query(None, description="状态"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
 ):

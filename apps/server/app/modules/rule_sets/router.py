@@ -3,29 +3,40 @@
 
 提供规则组的 CRUD 接口
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
-from typing import Optional
-import time
 import logging
+import time
 
-from app.db.session import get_db
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.deps import get_current_admin, get_current_super_admin
-from app.schemas.rule_set import (
-    PageResult, RuleSetCreate, RuleSetUpdate, RuleSetResponse, RuleSetDetailResponse,
-    RulePreviewRequest, RulePreviewResponse,
-    RuleWindowCreate, RuleWindowUpdate, RuleWindowResponse,
-    RuleBookingPolicyCreate, RuleBookingPolicyResponse,
-    RuleCheckinPolicyCreate, RuleCheckinPolicyResponse,
-    RuleCapacityPolicyCreate, RuleCapacityPolicyResponse,
-    RuleSetPresetCreate, RuleSetPresetUpdate, RuleSetPresetResponse,
-    RuleSetAuditLogResponse,
-)
-from app.modules.rule_sets.service import RuleSetService
-from app.modules.rule_engine import RuleEngineService
-from app.models.schedule import Schedule
 from app.core.config import settings
+from app.db.session import get_db
+from app.models.schedule import Schedule
+from app.modules.rule_engine import RuleEngineService
+from app.modules.rule_sets.service import RuleSetService
+from app.schemas.rule_set import (
+    PageResult,
+    RuleBookingPolicyCreate,
+    RuleBookingPolicyResponse,
+    RuleCapacityPolicyCreate,
+    RuleCapacityPolicyResponse,
+    RuleCheckinPolicyCreate,
+    RuleCheckinPolicyResponse,
+    RulePreviewRequest,
+    RulePreviewResponse,
+    RuleSetAuditLogResponse,
+    RuleSetCreate,
+    RuleSetDetailResponse,
+    RuleSetPresetCreate,
+    RuleSetPresetResponse,
+    RuleSetPresetUpdate,
+    RuleSetUpdate,
+    RuleWindowCreate,
+    RuleWindowResponse,
+    RuleWindowUpdate,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -52,8 +63,8 @@ DB_QUERY_TIMEOUT = settings.DB_QUERY_TIMEOUT
     """,
 )
 async def get_rule_sets(
-    enabled: Optional[bool] = Query(None, description="是否启用"),
-    shift_type_id: Optional[str] = Query(None, description="班次类型ID"),
+    enabled: bool | None = Query(None, description="是否启用"),
+    shift_type_id: str | None = Query(None, description="班次类型ID"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量"),
     db: AsyncSession = Depends(get_db),
@@ -105,7 +116,7 @@ async def get_rule_sets(
     """,
 )
 async def get_performance_stats(
-    operation: Optional[str] = Query(None, description="操作类型"),
+    operation: str | None = Query(None, description="操作类型"),
     hours: int = Query(24, ge=1, le=168, description="统计时间范围（小时）"),
     current_admin: dict = Depends(get_current_super_admin)
 ):
@@ -151,7 +162,7 @@ async def get_performance_stats(
     """,
 )
 async def get_slow_queries(
-    operation: Optional[str] = Query(None, description="操作类型"),
+    operation: str | None = Query(None, description="操作类型"),
     limit: int = Query(100, ge=1, le=1000, description="返回数量限制"),
     current_admin: dict = Depends(get_current_super_admin)
 ):
@@ -193,7 +204,7 @@ async def get_slow_queries(
     """,
 )
 async def clear_performance_metrics(
-    operation: Optional[str] = Query(None, description="操作类型"),
+    operation: str | None = Query(None, description="操作类型"),
     current_admin: dict = Depends(get_current_super_admin)
 ):
     """

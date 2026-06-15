@@ -1,26 +1,26 @@
-from fastapi import APIRouter, Depends, Header, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from sqlalchemy.orm import selectinload
-from typing import Optional, List
+import logging
 from datetime import date
 
-import logging
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
 
 logger = logging.getLogger(__name__)
-from app.api.deps import get_current_admin, get_store_filter, require_permission
-from app.core.redis import get_redis
-from app.schemas.schedule import (
-    ScheduleCreate, CustomScheduleCreate, CustomScheduleResponse,
-)
-from app.schemas.response import PageResponse
-from app.modules.schedules.service import ScheduleService
-
-from app.models.schedule import Schedule
-from app.models.rest_day import RestDay
+from app.api.deps import get_current_admin, require_permission
 from app.core.config import settings
+from app.core.redis import get_redis
+from app.models.rest_day import RestDay
+from app.models.schedule import Schedule
+from app.modules.schedules.service import ScheduleService
+from app.schemas.response import PageResponse
+from app.schemas.schedule import (
+    CustomScheduleCreate,
+    CustomScheduleResponse,
+    ScheduleCreate,
+)
 from app.utils.idempotency import check_idempotency, store_idempotency
 
 router = APIRouter()
@@ -29,7 +29,7 @@ router = APIRouter()
 async def _check_single_schedule_rest_day(
     db: AsyncSession,
     schedule_date: date,
-    store_id: Optional[str],
+    store_id: str | None,
     doctor_id: str
 ) -> bool:
     """检查单个排班是否在休息日"""
@@ -49,7 +49,7 @@ async def _check_single_schedule_rest_day(
 
 def _check_rest_day_for_schedule(
     schedule_date: date,
-    store_id: Optional[str],
+    store_id: str | None,
     doctor_id: str,
     rest_days: list
 ) -> bool:
@@ -78,13 +78,13 @@ def _check_rest_day_for_schedule(
     """,
 )
 async def get_custom_schedules(
-    store_id: Optional[str] = None,
-    department_id: Optional[str] = None,
-    doctor_id: Optional[str] = None,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    appointment_type: Optional[str] = None,
-    status: Optional[int] = Query(None, ge=0, le=1),
+    store_id: str | None = None,
+    department_id: str | None = None,
+    doctor_id: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    appointment_type: str | None = None,
+    status: int | None = Query(None, ge=0, le=1),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -178,7 +178,7 @@ async def get_custom_schedules(
 
 @router.get(
     "/custom-schedules/effective",
-    response_model=List[CustomScheduleResponse],
+    response_model=list[CustomScheduleResponse],
     summary="获取生效的自定义排班",
     description="""
     获取生效的自定义排班（template_id为NULL的排班）。
@@ -191,8 +191,8 @@ async def get_custom_schedules(
     """,
 )
 async def get_effective_schedules(
-    store_id: Optional[str] = None,
-    doctor_id: Optional[str] = None,
+    store_id: str | None = None,
+    doctor_id: str | None = None,
     start_date: date = Query(...),
     end_date: date = Query(...),
     db: AsyncSession = Depends(get_db)
@@ -266,7 +266,7 @@ async def get_effective_schedules(
 
 @router.post(
     "/custom-schedules",
-    response_model=List[CustomScheduleResponse],
+    response_model=list[CustomScheduleResponse],
     summary="创建自定义排班",
     description="""
     创建自定义排班（支持批量）。
@@ -285,11 +285,11 @@ async def create_custom_schedules(
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("schedule:create")),
-    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
 ):
     """创建自定义排班（支持批量）"""
     from app.models.doctor import Doctor
-    from app.utils.schedule_utils import split_time_range, get_time_slot_from_time
+    from app.utils.schedule_utils import get_time_slot_from_time, split_time_range
 
     tenant_id = current_admin.get("tenant_id", "")
 

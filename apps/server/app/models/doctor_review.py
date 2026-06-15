@@ -1,7 +1,9 @@
-from sqlalchemy import Column, String, Integer, Text, DateTime, Boolean, ForeignKey, UniqueConstraint, JSON
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 
 class DoctorReview(Base, AuditMixin):

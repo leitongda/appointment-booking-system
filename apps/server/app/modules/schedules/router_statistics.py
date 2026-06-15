@@ -1,20 +1,22 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from typing import Optional, List
-from datetime import date
 from calendar import monthrange
-from pydantic import BaseModel
 from collections import defaultdict
+from datetime import date
 
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import check_store_access, get_current_admin, get_store_filter, require_permission
 from app.db.session import get_db
-from app.api.deps import get_current_admin, get_store_filter, check_store_access, require_permission
-from app.schemas.schedule import (
-    UtilizationTrendResponse, DoctorWorkloadResponse, PeakHourHeatmapResponse,
-)
-from app.models.schedule import Schedule
 from app.models.doctor import Doctor
+from app.models.schedule import Schedule
 from app.models.store import Store
+from app.schemas.schedule import (
+    DoctorWorkloadResponse,
+    PeakHourHeatmapResponse,
+    UtilizationTrendResponse,
+)
 
 router = APIRouter()
 
@@ -38,7 +40,7 @@ class ScheduleStatisticsResponse(BaseModel):
     store_name: str
     year: int
     month: int
-    items: List[ScheduleStatisticsItem]
+    items: list[ScheduleStatisticsItem]
 
 
 @router.get(
@@ -60,7 +62,7 @@ class ScheduleStatisticsResponse(BaseModel):
     """,
 )
 async def get_schedule_statistics(
-    store_id: Optional[str] = Query(None, description="门店ID"),
+    store_id: str | None = Query(None, description="门店ID"),
     year: int = Query(..., ge=2020, le=2100, description="年份"),
     month: int = Query(..., ge=1, le=12, description="月份"),
     db: AsyncSession = Depends(get_db),
@@ -220,7 +222,7 @@ async def get_schedule_statistics(
     """,
 )
 async def get_utilization_trend(
-    store_id: Optional[str] = Query(None, description="门店ID"),
+    store_id: str | None = Query(None, description="门店ID"),
     start_date: date = Query(..., description="开始日期"),
     end_date: date = Query(..., description="结束日期"),
     granularity: str = Query("week", pattern="^(week|month)$", description="粒度: week / month"),
@@ -310,7 +312,7 @@ async def get_utilization_trend(
     """,
 )
 async def get_doctor_workload(
-    store_id: Optional[str] = Query(None, description="门店ID"),
+    store_id: str | None = Query(None, description="门店ID"),
     start_date: date = Query(..., description="开始日期"),
     end_date: date = Query(..., description="结束日期"),
     db: AsyncSession = Depends(get_db),
@@ -430,7 +432,7 @@ async def get_doctor_workload(
     """,
 )
 async def get_peak_hours(
-    store_id: Optional[str] = Query(None, description="门店ID"),
+    store_id: str | None = Query(None, description="门店ID"),
     start_date: date = Query(..., description="开始日期"),
     end_date: date = Query(..., description="结束日期"),
     db: AsyncSession = Depends(get_db),

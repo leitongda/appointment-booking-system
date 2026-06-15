@@ -5,13 +5,11 @@
 """
 import json
 import re
-from typing import List, Optional, Tuple
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.tenant import Tenant
-
 
 DEFAULT_POLICY = {
     "min_length": 6,
@@ -35,7 +33,7 @@ class PasswordPolicyValidator:
     根据租户配置的密码策略校验密码强度，返回 (是否通过, 错误信息列表)。
     """
 
-    def __init__(self, policy: Optional[dict] = None):
+    def __init__(self, policy: dict | None = None):
         """初始化验证器
 
         Args:
@@ -46,9 +44,9 @@ class PasswordPolicyValidator:
     def validate(
         self,
         password: str,
-        username: Optional[str] = None,
-        phone: Optional[str] = None,
-    ) -> Tuple[bool, List[str]]:
+        username: str | None = None,
+        phone: str | None = None,
+    ) -> tuple[bool, list[str]]:
         """校验密码是否符合策略
 
         Args:
@@ -59,7 +57,7 @@ class PasswordPolicyValidator:
         Returns:
             (is_valid, list_of_error_messages)
         """
-        errors: List[str] = []
+        errors: list[str] = []
         p = self.policy
 
         # 长度检查
@@ -117,7 +115,7 @@ class PasswordPolicyValidator:
 
 async def get_tenant_password_policy(
     db: AsyncSession,
-    tenant_id: Optional[str] = None,
+    tenant_id: str | None = None,
 ) -> dict:
     """获取租户密码策略
 

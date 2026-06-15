@@ -1,6 +1,5 @@
 """Admin management router."""
 
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,18 +9,18 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.modules.admin.helpers import build_admin_response
 from app.modules.admin.schemas import AdminCreate, AdminResponse, AdminUpdate
-from app.schemas.response import PageResponse
 from app.modules.admin.service_admins import AdminService
+from app.schemas.response import PageResponse
 
 router = APIRouter()
 
 
 @router.get("/admins", response_model=PageResponse[AdminResponse], summary="获取管理员列表")
 async def get_admins(
-    role_id: Optional[str] = None,
-    status: Optional[int] = None,
-    keyword: Optional[str] = None,
-    store_id: Optional[str] = None,
+    role_id: str | None = None,
+    status: int | None = None,
+    keyword: str | None = None,
+    store_id: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),

@@ -1,7 +1,9 @@
 """预约须知模型"""
-from sqlalchemy import Column, String, Integer, Text, ForeignKey
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import Column, ForeignKey, Integer, String, Text
+
+from app.db.base import AuditMixin, Base
 
 
 class BookingNotice(Base, AuditMixin):

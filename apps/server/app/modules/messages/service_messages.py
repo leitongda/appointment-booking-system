@@ -9,23 +9,22 @@ import json
 import logging
 import uuid
 from datetime import datetime
-from typing import Dict, List, NamedTuple, Optional, Tuple
+from typing import NamedTuple
 
 logger = logging.getLogger(__name__)
 
-from sqlalchemy import and_, func, select, text, update
+from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.infrastructure.notifications.dispatcher import NotificationDispatcher
+from app.infrastructure.sms.service import SmsService
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.message import Message
 from app.models.notification_log import NotificationLog
 from app.models.user import User
 from app.schemas.message import MessageBatchCreate, MessageCreate, MessageQuery, MessageType, UnreadCountResponse
-from app.schemas.notification import NotificationEvent, NotificationContent
+from app.schemas.notification import NotificationEvent
 from app.utils.audit import set_create_audit
-from app.middleware.tenant_context import get_current_tenant_id
-from app.infrastructure.sms.service import SmsService
-from app.infrastructure.notifications.dispatcher import NotificationDispatcher
-
 
 # ---------------------------------------------------------------------------
 # 统一账号辅助：Account 表优先 + 旧表 fallback
@@ -33,9 +32,9 @@ from app.infrastructure.notifications.dispatcher import NotificationDispatcher
 
 class ContactInfo(NamedTuple):
     """用户联系方式"""
-    phone: Optional[str]
-    openid: Optional[str]
-    email: Optional[str]
+    phone: str | None
+    openid: str | None
+    email: str | None
 
 
 async def _get_user_contact_info(db: AsyncSession, user_id: str) -> ContactInfo:
@@ -71,8 +70,8 @@ async def _send_sms_notification(
     tenant_id: str,
     user_id: str,
     message_type: str,
-    template_variables: Dict[str, str],
-    related_id: Optional[str] = None,
+    template_variables: dict[str, str],
+    related_id: str | None = None,
 ) -> bool:
     """
     发送短信通知（辅助函数）
@@ -130,7 +129,7 @@ async def _send_sms_notification(
 class MessageService:
     def __init__(self, db):
         self.db = db
-        self._dispatcher: Optional[NotificationDispatcher] = None
+        self._dispatcher: NotificationDispatcher | None = None
 
     @property
     def dispatcher(self) -> NotificationDispatcher:
@@ -139,7 +138,7 @@ class MessageService:
             self._dispatcher = NotificationDispatcher(self.db)
         return self._dispatcher
 
-    async def _render_from_template(self, code: str, variables: dict) -> Tuple[Optional[str], Optional[str]]:
+    async def _render_from_template(self, code: str, variables: dict) -> tuple[str | None, str | None]:
         """从模板渲染标题和内容，返回 (title, content)。
 
         模板不存在或禁用时返回 (None, None)，由调用方使用 fallback。
@@ -158,7 +157,7 @@ class MessageService:
             logger.warning(f"模板渲染失败 (code={code}): {e}")
             return None, None
 
-    async def get_by_id(self, message_id: str) -> Optional[Message]:
+    async def get_by_id(self, message_id: str) -> Message | None:
         stmt = select(Message).where(Message.id == message_id)
         tenant_id = get_current_tenant_id()
         if tenant_id:
@@ -168,7 +167,7 @@ class MessageService:
 
     async def get_user_messages(
         self, user_id: str, user_type: str, query: MessageQuery
-    ) -> tuple[List[Message], int]:
+    ) -> tuple[list[Message], int]:
         stmt = select(Message).where(and_(Message.user_id == user_id, Message.user_type == user_type))
         count_stmt = select(func.count(Message.id)).where(
             and_(Message.user_id == user_id, Message.user_type == user_type)
@@ -194,12 +193,12 @@ class MessageService:
 
     async def get_all_messages(
         self,
-        user_id: Optional[str],
-        user_type: Optional[str],
-        keyword: Optional[str],
+        user_id: str | None,
+        user_type: str | None,
+        keyword: str | None,
         query: MessageQuery,
-        store_id: Optional[str] = None,
-    ) -> tuple[List[Message], int]:
+        store_id: str | None = None,
+    ) -> tuple[list[Message], int]:
         stmt = select(Message)
         count_stmt = select(func.count(Message.id))
 
@@ -271,7 +270,7 @@ class MessageService:
         )
 
     async def create(
-        self, data: MessageCreate, store_id: Optional[str] = None, operator_id: Optional[str] = None
+        self, data: MessageCreate, store_id: str | None = None, operator_id: str | None = None
     ) -> Message:
         extra_data_str = json.dumps(data.extra_data) if data.extra_data else None
         tenant_id = get_current_tenant_id()
@@ -315,7 +314,7 @@ class MessageService:
         return message
 
     async def batch_create(
-        self, data: MessageBatchCreate, store_id: Optional[str] = None, operator_id: Optional[str] = None
+        self, data: MessageBatchCreate, store_id: str | None = None, operator_id: str | None = None
     ) -> int:
         messages = []
         logs = []
@@ -371,7 +370,7 @@ class MessageService:
         return result.rowcount > 0
 
     async def mark_all_as_read(
-        self, user_id: str, user_type: str, message_type: Optional[str] = None
+        self, user_id: str, user_type: str, message_type: str | None = None
     ) -> int:
         stmt = update(Message).where(
             and_(Message.user_id == user_id, Message.user_type == user_type, Message.is_read == 0)
@@ -418,8 +417,8 @@ class MessageService:
 
     async def send_appointment_notification(
         self, user_id: str, user_type: str, title: str, content: str, appointment_id: str,
-        template_code: Optional[str] = None, template_variables: Optional[dict] = None,
-    ) -> Optional[Message]:
+        template_code: str | None = None, template_variables: dict | None = None,
+    ) -> Message | None:
         """发送预约通知（向后兼容方法）
 
         内部使用 NotificationDispatcher 进行统一分发。
@@ -488,9 +487,9 @@ class MessageService:
         return None
 
     async def send_schedule_notification(
-        self, doctor_id: str, title: str, content: str, schedule_id: Optional[str] = None,
-        template_code: Optional[str] = None, template_variables: Optional[dict] = None,
-    ) -> Optional[Message]:
+        self, doctor_id: str, title: str, content: str, schedule_id: str | None = None,
+        template_code: str | None = None, template_variables: dict | None = None,
+    ) -> Message | None:
         """发送排班通知（向后兼容方法）
 
         内部使用 NotificationDispatcher 进行统一分发。
@@ -609,10 +608,10 @@ class MessageService:
         user_type: str,
         title: str,
         content: str,
-        appointment_id: Optional[str] = None,
-        template_code: Optional[str] = None,
-        template_variables: Optional[dict] = None,
-    ) -> Optional[Message]:
+        appointment_id: str | None = None,
+        template_code: str | None = None,
+        template_variables: dict | None = None,
+    ) -> Message | None:
         """发送停诊通知（向后兼容方法）
 
         内部使用 NotificationDispatcher 进行统一分发。

@@ -1,7 +1,10 @@
-from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, Numeric, UniqueConstraint
-from sqlalchemy.orm import relationship as orm_relationship
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy.orm import relationship as orm_relationship
+
+from app.db.base import AuditMixin, Base
+
 
 class User(Base, AuditMixin):
     __tablename__ = "users"

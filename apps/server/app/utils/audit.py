@@ -2,11 +2,10 @@
 
 提供设置 created_by 和 updated_by 审计字段的辅助函数。
 """
-from typing import Optional, Any
-from datetime import datetime
+from typing import Any
 
 
-def set_create_audit(obj: Any, operator_id: Optional[str] = None) -> None:
+def set_create_audit(obj: Any, operator_id: str | None = None) -> None:
     """设置创建审计字段
     
     Args:
@@ -19,7 +18,7 @@ def set_create_audit(obj: Any, operator_id: Optional[str] = None) -> None:
         obj.updated_by = operator_id
 
 
-def set_update_audit(obj: Any, operator_id: Optional[str] = None) -> None:
+def set_update_audit(obj: Any, operator_id: str | None = None) -> None:
     """设置更新审计字段
     
     Args:
@@ -32,7 +31,7 @@ def set_update_audit(obj: Any, operator_id: Optional[str] = None) -> None:
 
 def apply_audit_fields(
     obj: Any, 
-    operator_id: Optional[str] = None, 
+    operator_id: str | None = None, 
     is_create: bool = True
 ) -> None:
     """通用的审计字段设置函数
@@ -48,7 +47,7 @@ def apply_audit_fields(
         set_update_audit(obj, operator_id)
 
 
-def get_operator_id_from_admin(current_admin: Optional[dict] = None) -> Optional[str]:
+def get_operator_id_from_admin(current_admin: dict | None = None) -> str | None:
     """从当前管理员信息中获取操作人ID
     
     Args:
@@ -62,7 +61,7 @@ def get_operator_id_from_admin(current_admin: Optional[dict] = None) -> Optional
     return None
 
 
-def get_operator_id_from_user(current_user: Optional[dict] = None) -> Optional[str]:
+def get_operator_id_from_user(current_user: dict | None = None) -> str | None:
     """从当前用户信息中获取操作人ID
     
     Args:

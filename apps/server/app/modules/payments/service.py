@@ -7,18 +7,17 @@ import time
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.constants.appointment import APPOINTMENT_STATUS
 from app.infrastructure.payments.config_resolver import PaymentConfigResolver
 from app.infrastructure.payments.wechat_pay_service import WeChatPayService
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.appointment import Appointment
 from app.models.miniapp_platform import PaymentProfile
-from app.constants.appointment import APPOINTMENT_STATUS
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +39,7 @@ class PaymentService:
         self,
         appointment_id: str,
         openid: str,
-        miniapp_instance_id: Optional[str] = None,
+        miniapp_instance_id: str | None = None,
     ) -> dict:
         """创建支付订单
 
@@ -327,7 +326,7 @@ class PaymentService:
     async def _auto_refund_on_late_callback(
         self,
         appointment: Appointment,
-        transaction_id: Optional[str],
+        transaction_id: str | None,
         callback_at: datetime,
         reason: str,
     ) -> None:
@@ -338,9 +337,10 @@ class PaymentService:
         - in-flight 去重命中（已存在 pending/processing 退款）则跳过，幂等。
         - 任一步失败抛错，回调返回 FAILED，让微信稍后重试。
         """
+        from sqlalchemy import func as _func
+
         from app.infrastructure.payments.wechat_pay_service import WeChatPayService
         from app.modules.refunds.service import IN_FLIGHT_REFUND_STATUSES, RefundService
-        from sqlalchemy import func as _func
 
         if transaction_id and not appointment.payment_transaction_id:
             appointment.payment_transaction_id = transaction_id
@@ -404,8 +404,8 @@ class PaymentService:
     async def _resolve_payment_config(
         self,
         appointment: Appointment,
-        miniapp_instance_id: Optional[str] = None,
-    ) -> Optional[object]:
+        miniapp_instance_id: str | None = None,
+    ) -> object | None:
         """解析支付配置"""
         resolver = PaymentConfigResolver(self.db)
 
@@ -448,7 +448,7 @@ class PaymentService:
 
     async def _get_appointment_by_out_trade_no(
         self, out_trade_no: str
-    ) -> Optional[Appointment]:
+    ) -> Appointment | None:
         """根据商户订单号查找预约。
 
         当前规则使用 appointment_no（YY+yyyymmddHHMMSS+4位，22字符，满足微信 6-32 上限）。
@@ -508,10 +508,11 @@ class PaymentService:
         sign_str = f"{app_id}\n{time_stamp}\n{nonce_str}\n{package}\n"
 
         # 使用商户私钥签名
+        import base64
+
+        from cryptography.hazmat.backends import default_backend
         from cryptography.hazmat.primitives import hashes, serialization
         from cryptography.hazmat.primitives.asymmetric import padding
-        from cryptography.hazmat.backends import default_backend
-        import base64
 
         try:
             # 解析私钥

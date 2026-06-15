@@ -1,7 +1,6 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List, Optional
 from pathlib import Path
-import os
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def _get_env_file() -> str | None:
@@ -10,7 +9,7 @@ def _get_env_file() -> str | None:
     if env_path.exists():
         try:
             # 尝试读取文件来检查权限
-            with open(env_path, 'r') as f:
+            with open(env_path) as f:
                 f.read(1)
             return str(env_path)
         except (PermissionError, OSError):
@@ -72,8 +71,10 @@ class Settings(BaseSettings):
         return self.REDIS_URL
     
     # 微信配置（可选，也可从数据库读取）
-    WECHAT_APP_ID: Optional[str] = None
-    WECHAT_APP_SECRET: Optional[str] = None
+    WECHAT_APP_ID: str | None = None
+    WECHAT_APP_SECRET: str | None = None
+    # 微信回调 Token（用于验证回调签名，与微信后台配置一致）
+    WECHAT_CALLBACK_TOKEN: str | None = None
     
     # 预约提醒配置
     APPOINTMENT_REMINDER_HOURS: int = 24  # 提前多少小时发送提醒
@@ -91,8 +92,8 @@ class Settings(BaseSettings):
     
     # RSA 密钥（用于密码加密传输）
     # 生产环境请配置实际的密钥，开发环境会自动生成
-    RSA_PRIVATE_KEY: Optional[str] = None
-    RSA_PUBLIC_KEY: Optional[str] = None
+    RSA_PRIVATE_KEY: str | None = None
+    RSA_PUBLIC_KEY: str | None = None
 
     # SMTP 密码加密密钥（Fernet 对称加密）
     # 必需配置：未设置时每次重启会生成新密钥，导致已加密密码不可解密
@@ -101,7 +102,7 @@ class Settings(BaseSettings):
     
     # CORS
     # 同时支持 localhost 和 127.0.0.1，因为浏览器将它们视为不同的域
-    BACKEND_CORS_ORIGINS: List[str] = [
+    BACKEND_CORS_ORIGINS: list[str] = [
         "http://localhost:8002", "http://localhost:8003", "http://localhost:8005", "http://localhost:9102",
         "http://127.0.0.1:8002", "http://127.0.0.1:8003", "http://127.0.0.1:8005", "http://127.0.0.1:9102"
     ]
@@ -134,17 +135,17 @@ class Settings(BaseSettings):
 
     # 短信配置
     SMS_PROVIDER: str = "mock"  # mock, aliyun, tencent
-    ALIYUN_ACCESS_KEY_ID: Optional[str] = None
-    ALIYUN_ACCESS_KEY_SECRET: Optional[str] = None
-    SMS_SIGN_NAME: Optional[str] = None
-    SMS_TEMPLATE_CODE: Optional[str] = None
+    ALIYUN_ACCESS_KEY_ID: str | None = None
+    ALIYUN_ACCESS_KEY_SECRET: str | None = None
+    SMS_SIGN_NAME: str | None = None
+    SMS_TEMPLATE_CODE: str | None = None
     
     # 存储配置
     STORAGE_TYPE: str = "local"  # local / minio / cos
     
     # 本地存储配置
     LOCAL_UPLOAD_DIR: str = "var/server/uploads"  # 上传文件目录
-    LOCAL_PUBLIC_URL: Optional[str] = None  # 公网访问URL（可选，如CDN域名）
+    LOCAL_PUBLIC_URL: str | None = None  # 公网访问URL（可选，如CDN域名）
     
     # MinIO 配置
     MINIO_ENDPOINT: str = "localhost:9000"
@@ -153,28 +154,28 @@ class Settings(BaseSettings):
     MINIO_SECRET_KEY: str = ""
     MINIO_BUCKET: str = "hospital"
     MINIO_SECURE: bool = False  # 是否使用HTTPS
-    MINIO_PUBLIC_URL: Optional[str] = None  # 公网访问URL（可选，如CDN域名）
+    MINIO_PUBLIC_URL: str | None = None  # 公网访问URL（可选，如CDN域名）
     
     # 腾讯云 COS 配置（预留）
-    COS_SECRET_ID: Optional[str] = None
-    COS_SECRET_KEY: Optional[str] = None
+    COS_SECRET_ID: str | None = None
+    COS_SECRET_KEY: str | None = None
     COS_REGION: str = "ap-guangzhou"
-    COS_BUCKET: Optional[str] = None
-    COS_CDN_DOMAIN: Optional[str] = None  # CDN加速域名（可选）
+    COS_BUCKET: str | None = None
+    COS_CDN_DOMAIN: str | None = None  # CDN加速域名（可选）
 
     # Flower 监控配置
     FLOWER_PORT: int = 5555
-    FLOWER_BASIC_AUTH: Optional[str] = None  # 格式: username:password
+    FLOWER_BASIC_AUTH: str | None = None  # 格式: username:password
 
     # 告警配置
-    ALERT_WEBHOOK_URL: Optional[str] = None  # 任务失败告警 Webhook URL
+    ALERT_WEBHOOK_URL: str | None = None  # 任务失败告警 Webhook URL
 
     # Sentry APM 配置
     SENTRY_DSN: str = ""  # Sentry DSN，为空则不启用
     SENTRY_TRACES_SAMPLE_RATE: float = 0.1  # 性能追踪采样率 (0.0 ~ 1.0)
 
     # 高德地图配置
-    AMAP_KEY: Optional[str] = None  # 高德地图 Web 服务 API Key
+    AMAP_KEY: str | None = None  # 高德地图 Web 服务 API Key
     AMAP_SERVICE_BASE_URL: str = "https://restapi.amap.com"  # 高德 API 基础地址
 
     # 安全 Header 配置

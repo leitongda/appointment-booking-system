@@ -1,12 +1,11 @@
 """租户相关的 Pydantic Schema"""
 import json
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-from typing import Optional, List
-from datetime import datetime, date
+from datetime import date, datetime
 from decimal import Decimal
 
-from app.schemas.response import to_camel
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.schemas.response import to_camel
 
 # ==================== 密码策略 ====================
 
@@ -91,7 +90,7 @@ class TenantFeatures(BaseModel):
 _QUOTA_FIELDS = frozenset({"lowcode_max_pages"})
 
 
-def _validate_features_json(v: Optional[str]) -> Optional[str]:
+def _validate_features_json(v: str | None) -> str | None:
     """校验 features 字段：字符串 -> 解析为 TenantFeatures -> 序列化回规范 JSON。
 
     - None / 空字符串 -> None（合法）
@@ -137,7 +136,7 @@ class SubscriptionPlanBase(BaseModel):
     """订阅计划基础 Schema"""
     plan_code: str = Field(..., max_length=50, description="计划编码")
     name: str = Field(..., max_length=100, description="计划名称")
-    description: Optional[str] = Field(None, description="计划描述")
+    description: str | None = Field(None, description="计划描述")
 
     price_monthly: Decimal = Field(default=0, ge=0, description="月付价格")
     price_yearly: Decimal = Field(default=0, ge=0, description="年付价格")
@@ -151,12 +150,12 @@ class SubscriptionPlanBase(BaseModel):
     max_lowcode_pages: int = Field(default=5, ge=0, description="最大低代码页面数")
     max_miniapp_instances: int = Field(default=3, ge=0, description="最大小程序实例数")
 
-    features: Optional[str] = Field(None, description="功能开关配置(JSON)")
+    features: str | None = Field(None, description="功能开关配置(JSON)")
     is_default: bool = Field(default=False, description="是否为默认计划")
 
     @field_validator("features")
     @classmethod
-    def validate_features(cls, v: Optional[str]) -> Optional[str]:
+    def validate_features(cls, v: str | None) -> str | None:
         return _validate_features_json(v)
 
 
@@ -167,24 +166,24 @@ class SubscriptionPlanCreate(SubscriptionPlanBase):
 
 class SubscriptionPlanUpdate(BaseModel):
     """更新订阅计划"""
-    name: Optional[str] = Field(None, max_length=100)
-    description: Optional[str] = None
-    price_monthly: Optional[Decimal] = Field(None, ge=0)
-    price_yearly: Optional[Decimal] = Field(None, ge=0)
-    max_stores: Optional[int] = Field(None, ge=1)
-    max_admins: Optional[int] = Field(None, ge=1)
-    max_doctors: Optional[int] = Field(None, ge=1)
-    max_appointments_per_month: Optional[int] = Field(None, ge=0)
-    max_storage_mb: Optional[int] = Field(None, ge=100)
-    max_lowcode_pages: Optional[int] = Field(None, ge=0)
-    max_miniapp_instances: Optional[int] = Field(None, ge=0)
-    features: Optional[str] = None
-    status: Optional[int] = Field(None, ge=0, le=1)
-    is_default: Optional[bool] = None
+    name: str | None = Field(None, max_length=100)
+    description: str | None = None
+    price_monthly: Decimal | None = Field(None, ge=0)
+    price_yearly: Decimal | None = Field(None, ge=0)
+    max_stores: int | None = Field(None, ge=1)
+    max_admins: int | None = Field(None, ge=1)
+    max_doctors: int | None = Field(None, ge=1)
+    max_appointments_per_month: int | None = Field(None, ge=0)
+    max_storage_mb: int | None = Field(None, ge=100)
+    max_lowcode_pages: int | None = Field(None, ge=0)
+    max_miniapp_instances: int | None = Field(None, ge=0)
+    features: str | None = None
+    status: int | None = Field(None, ge=0, le=1)
+    is_default: bool | None = None
 
     @field_validator("features")
     @classmethod
-    def validate_features(cls, v: Optional[str]) -> Optional[str]:
+    def validate_features(cls, v: str | None) -> str | None:
         return _validate_features_json(v)
 
 
@@ -194,7 +193,7 @@ class SubscriptionPlanResponse(SubscriptionPlanBase):
     status: int = Field(..., description="状态: 0-禁用 1-启用")
     sort_order: int = Field(default=0, description="排序")
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -233,12 +232,12 @@ class TenantBase(BaseModel):
     """租户基础 Schema"""
     tenant_code: str = Field(..., max_length=50, pattern=r"^[a-z0-9-]+$", description="租户标识（字母数字和连字符）")
     name: str = Field(..., max_length=100, description="租户名称")
-    contact_name: Optional[str] = Field(None, max_length=100, description="联系人姓名")
-    contact_phone: Optional[str] = Field(None, max_length=20, description="联系电话")
-    contact_email: Optional[str] = Field(None, max_length=100, description="联系邮箱")
-    address: Optional[str] = Field(None, max_length=255, description="详细地址")
-    custom_domain: Optional[str] = Field(None, max_length=255, description="自定义域名")
-    subdomain: Optional[str] = Field(None, max_length=100, description="子域名前缀")
+    contact_name: str | None = Field(None, max_length=100, description="联系人姓名")
+    contact_phone: str | None = Field(None, max_length=20, description="联系电话")
+    contact_email: str | None = Field(None, max_length=100, description="联系邮箱")
+    address: str | None = Field(None, max_length=255, description="详细地址")
+    custom_domain: str | None = Field(None, max_length=255, description="自定义域名")
+    subdomain: str | None = Field(None, max_length=100, description="子域名前缀")
 
     @field_validator('tenant_code')
     @classmethod
@@ -252,29 +251,29 @@ class TenantBase(BaseModel):
 
 class TenantCreate(TenantBase):
     """创建租户"""
-    subscription_plan_id: Optional[str] = Field(None, description="订阅计划ID")
+    subscription_plan_id: str | None = Field(None, description="订阅计划ID")
     billing_cycle: str = Field(default="monthly", pattern="^(monthly|yearly)$", description="计费周期")
-    max_stores: Optional[int] = Field(None, ge=1, description="最大门店数（覆盖计划）")
-    max_admins: Optional[int] = Field(None, ge=1, description="最大管理员数（覆盖计划）")
-    max_doctors: Optional[int] = Field(None, ge=1, description="最大医生数（覆盖计划）")
-    max_appointments_per_month: Optional[int] = Field(None, ge=0, description="月预约上限（覆盖计划）")
-    max_lowcode_pages: Optional[int] = Field(None, ge=0, description="最大低代码页面数（覆盖计划）")
-    max_miniapp_instances: Optional[int] = Field(None, ge=0, description="最大小程序实例数（覆盖计划）")
-    features: Optional[str] = Field(None, description="功能开关(JSON)")
-    branding_config: Optional[str] = Field(None, description="品牌配置(JSON)")
-    password_policy: Optional[str] = Field(None, description="密码策略(JSON)")
-    tags: Optional[str] = Field(None, description="租户标签(JSON数组)")
-    log_retention_days: Optional[int] = Field(None, ge=7, le=365, description="日志保留天数")
+    max_stores: int | None = Field(None, ge=1, description="最大门店数（覆盖计划）")
+    max_admins: int | None = Field(None, ge=1, description="最大管理员数（覆盖计划）")
+    max_doctors: int | None = Field(None, ge=1, description="最大医生数（覆盖计划）")
+    max_appointments_per_month: int | None = Field(None, ge=0, description="月预约上限（覆盖计划）")
+    max_lowcode_pages: int | None = Field(None, ge=0, description="最大低代码页面数（覆盖计划）")
+    max_miniapp_instances: int | None = Field(None, ge=0, description="最大小程序实例数（覆盖计划）")
+    features: str | None = Field(None, description="功能开关(JSON)")
+    branding_config: str | None = Field(None, description="品牌配置(JSON)")
+    password_policy: str | None = Field(None, description="密码策略(JSON)")
+    tags: str | None = Field(None, description="租户标签(JSON数组)")
+    log_retention_days: int | None = Field(None, ge=7, le=365, description="日志保留天数")
     is_trial: bool = Field(default=False, description="是否为试用租户")
 
     @field_validator("features")
     @classmethod
-    def validate_features(cls, v: Optional[str]) -> Optional[str]:
+    def validate_features(cls, v: str | None) -> str | None:
         return _validate_features_json(v)
 
     @field_validator("password_policy")
     @classmethod
-    def validate_password_policy(cls, v: Optional[str]) -> Optional[str]:
+    def validate_password_policy(cls, v: str | None) -> str | None:
         if v is None or v.strip() == "":
             return None
         try:
@@ -292,37 +291,37 @@ class TenantCreate(TenantBase):
 
 class TenantUpdate(BaseModel):
     """更新租户（平台管理员）"""
-    name: Optional[str] = Field(None, max_length=100)
-    contact_name: Optional[str] = Field(None, max_length=100)
-    contact_phone: Optional[str] = Field(None, max_length=20)
-    contact_email: Optional[str] = Field(None, max_length=100)
-    address: Optional[str] = Field(None, max_length=255)
-    custom_domain: Optional[str] = Field(None, max_length=255)
-    subdomain: Optional[str] = Field(None, max_length=100)
-    max_stores: Optional[int] = Field(None, ge=1)
-    max_admins: Optional[int] = Field(None, ge=1)
-    max_doctors: Optional[int] = Field(None, ge=1)
-    max_appointments_per_month: Optional[int] = Field(None, ge=0)
-    max_lowcode_pages: Optional[int] = Field(None, ge=0)
-    max_miniapp_instances: Optional[int] = Field(None, ge=0)
-    features: Optional[str] = None
-    branding_config: Optional[str] = None
-    password_policy: Optional[str] = None
-    tags: Optional[str] = None
-    log_retention_days: Optional[int] = Field(None, ge=7, le=365, description="日志保留天数")
-    rate_limit_per_minute: Optional[int] = Field(None, ge=1, le=10000, description="每分钟请求上限")
-    rate_limit_per_second: Optional[int] = Field(None, ge=1, le=1000, description="每秒请求上限")
+    name: str | None = Field(None, max_length=100)
+    contact_name: str | None = Field(None, max_length=100)
+    contact_phone: str | None = Field(None, max_length=20)
+    contact_email: str | None = Field(None, max_length=100)
+    address: str | None = Field(None, max_length=255)
+    custom_domain: str | None = Field(None, max_length=255)
+    subdomain: str | None = Field(None, max_length=100)
+    max_stores: int | None = Field(None, ge=1)
+    max_admins: int | None = Field(None, ge=1)
+    max_doctors: int | None = Field(None, ge=1)
+    max_appointments_per_month: int | None = Field(None, ge=0)
+    max_lowcode_pages: int | None = Field(None, ge=0)
+    max_miniapp_instances: int | None = Field(None, ge=0)
+    features: str | None = None
+    branding_config: str | None = None
+    password_policy: str | None = None
+    tags: str | None = None
+    log_retention_days: int | None = Field(None, ge=7, le=365, description="日志保留天数")
+    rate_limit_per_minute: int | None = Field(None, ge=1, le=10000, description="每分钟请求上限")
+    rate_limit_per_second: int | None = Field(None, ge=1, le=1000, description="每秒请求上限")
 
     model_config = ConfigDict(extra="forbid")
 
     @field_validator("features")
     @classmethod
-    def validate_features(cls, v: Optional[str]) -> Optional[str]:
+    def validate_features(cls, v: str | None) -> str | None:
         return _validate_features_json(v)
 
     @field_validator("password_policy")
     @classmethod
-    def validate_password_policy(cls, v: Optional[str]) -> Optional[str]:
+    def validate_password_policy(cls, v: str | None) -> str | None:
         if v is None or v.strip() == "":
             return None
         try:
@@ -340,12 +339,12 @@ class TenantUpdate(BaseModel):
 
 class TenantSelfUpdateRequest(BaseModel):
     """租户管理员自助更新（仅允许修改自身基本信息和品牌配置）"""
-    name: Optional[str] = Field(None, max_length=100)
-    contact_name: Optional[str] = Field(None, max_length=100)
-    contact_phone: Optional[str] = Field(None, max_length=20)
-    contact_email: Optional[str] = Field(None, max_length=100)
-    address: Optional[str] = Field(None, max_length=255)
-    branding_config: Optional[str] = None
+    name: str | None = Field(None, max_length=100)
+    contact_name: str | None = Field(None, max_length=100)
+    contact_phone: str | None = Field(None, max_length=20)
+    contact_email: str | None = Field(None, max_length=100)
+    address: str | None = Field(None, max_length=255)
+    branding_config: str | None = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -354,26 +353,26 @@ class TenantResponse(TenantBase):
     """租户响应"""
     id: str
     status: int = Field(..., description="状态: 0-禁用 1-正常 2-欠费 3-试用")
-    subscription_plan_id: Optional[str] = None
-    subscription_plan: Optional[SubscriptionPlanListResponse] = None
-    subscription_start_at: Optional[datetime] = None
-    subscription_end_at: Optional[datetime] = None
+    subscription_plan_id: str | None = None
+    subscription_plan: SubscriptionPlanListResponse | None = None
+    subscription_start_at: datetime | None = None
+    subscription_end_at: datetime | None = None
     billing_cycle: str = Field(default="monthly")
-    max_stores: Optional[int] = None
-    max_admins: Optional[int] = None
-    max_doctors: Optional[int] = None
-    max_appointments_per_month: Optional[int] = None
-    max_lowcode_pages: Optional[int] = None
-    max_miniapp_instances: Optional[int] = None
-    features: Optional[str] = None
-    branding_config: Optional[str] = None
-    password_policy: Optional[str] = None
-    rate_limit_per_minute: Optional[int] = Field(None, description="每分钟请求上限（覆盖全局 300）")
-    rate_limit_per_second: Optional[int] = Field(None, description="每秒请求上限（覆盖全局 50）")
-    tags: Optional[str] = None
-    log_retention_days: Optional[int] = 90
+    max_stores: int | None = None
+    max_admins: int | None = None
+    max_doctors: int | None = None
+    max_appointments_per_month: int | None = None
+    max_lowcode_pages: int | None = None
+    max_miniapp_instances: int | None = None
+    features: str | None = None
+    branding_config: str | None = None
+    password_policy: str | None = None
+    rate_limit_per_minute: int | None = Field(None, description="每分钟请求上限（覆盖全局 300）")
+    rate_limit_per_second: int | None = Field(None, description="每秒请求上限（覆盖全局 50）")
+    tags: str | None = None
+    log_retention_days: int | None = 90
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
     # 计算字段
     is_subscription_active: bool = Field(default=False, description="订阅是否有效")
@@ -392,13 +391,13 @@ class TenantListResponse(BaseModel):
     tenant_code: str
     name: str
     status: int
-    subscription_plan_id: Optional[str] = None
-    subscription_plan_name: Optional[str] = None
-    subscription_end_at: Optional[datetime] = None
+    subscription_plan_id: str | None = None
+    subscription_plan_name: str | None = None
+    subscription_end_at: datetime | None = None
     store_count: int = Field(default=0, description="门店数")
     admin_count: int = Field(default=0, description="管理员数")
     created_at: datetime
-    tags: Optional[str] = None
+    tags: str | None = None
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -410,10 +409,10 @@ class TenantListResponse(BaseModel):
 
 class TenantQuery(BaseModel):
     """租户查询参数"""
-    keyword: Optional[str] = None
-    status: Optional[int] = None
-    subscription_plan_id: Optional[str] = None
-    tags: Optional[str] = Field(None, description="标签筛选(逗号分隔)")
+    keyword: str | None = None
+    status: int | None = None
+    subscription_plan_id: str | None = None
+    tags: str | None = Field(None, description="标签筛选(逗号分隔)")
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=10, ge=1, le=100)
 
@@ -424,7 +423,7 @@ class TenantSubscriptionCreate(BaseModel):
     """创建租户订阅"""
     plan_id: str = Field(..., description="订阅计划ID")
     billing_cycle: str = Field(..., pattern="^(monthly|yearly)$", description="计费周期")
-    start_at: Optional[datetime] = Field(None, description="开始时间（默认当前时间）")
+    start_at: datetime | None = Field(None, description="开始时间（默认当前时间）")
     auto_renew: bool = Field(default=False, description="是否自动续费")
 
 
@@ -438,8 +437,8 @@ class TenantSubscriptionResponse(BaseModel):
     billing_cycle: str
     start_at: datetime
     end_at: datetime
-    amount: Optional[Decimal] = None
-    final_amount: Optional[Decimal] = None
+    amount: Decimal | None = None
+    final_amount: Decimal | None = None
     payment_status: str
     status: int
     auto_renew: bool
@@ -514,8 +513,8 @@ class TenantUsageSummary(BaseModel):
 
 class TenantUsageQuery(BaseModel):
     """租户用量查询参数"""
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
+    start_date: date | None = None
+    end_date: date | None = None
 
 
 class UsageTrendItem(BaseModel):
@@ -539,14 +538,14 @@ class TenantUsageTrends(BaseModel):
     """租户用量趋势响应"""
     tenant_id: str
     period_type: str = Field(..., description="周期类型: week / month")
-    current_period: Optional[UsageTrendItem] = None
-    previous_period: Optional[UsageTrendItem] = None
-    trends: List[UsageTrendItem] = []
+    current_period: UsageTrendItem | None = None
+    previous_period: UsageTrendItem | None = None
+    trends: list[UsageTrendItem] = []
 
     # 同比/环比变化率（百分比）
-    appointment_change_rate: Optional[float] = Field(None, description="预约量环比变化率(%)")
-    new_user_change_rate: Optional[float] = Field(None, description="新用户环比变化率(%)")
-    active_user_change_rate: Optional[float] = Field(None, description="活跃用户环比变化率(%)")
+    appointment_change_rate: float | None = Field(None, description="预约量环比变化率(%)")
+    new_user_change_rate: float | None = Field(None, description="新用户环比变化率(%)")
+    active_user_change_rate: float | None = Field(None, description="活跃用户环比变化率(%)")
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -563,12 +562,12 @@ class CurrentTenantResponse(BaseModel):
     tenant_code: str = Field(..., serialization_alias="tenantCode")
     name: str
     status: int
-    subscription_plan_name: Optional[str] = Field(None, serialization_alias="subscriptionPlanName")
-    subscription_end_at: Optional[datetime] = Field(None, serialization_alias="subscriptionEndAt")
+    subscription_plan_name: str | None = Field(None, serialization_alias="subscriptionPlanName")
+    subscription_end_at: datetime | None = Field(None, serialization_alias="subscriptionEndAt")
     is_subscription_active: bool = Field(False, serialization_alias="isSubscriptionActive")
-    days_until_expiry: Optional[int] = Field(None, serialization_alias="daysUntilExpiry")
+    days_until_expiry: int | None = Field(None, serialization_alias="daysUntilExpiry")
     billing_cycle: str = Field(default="monthly", serialization_alias="billingCycle")
-    contact_phone: Optional[str] = Field(None, serialization_alias="contactPhone")
+    contact_phone: str | None = Field(None, serialization_alias="contactPhone")
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -579,9 +578,9 @@ class CurrentTenantResponse(BaseModel):
 class CurrentTenantPublicResponse(BaseModel):
     """当前租户公开信息（患者端匿名可访问 /tenants/me/public）"""
     status: int
-    subscription_end_at: Optional[datetime] = Field(None, serialization_alias="subscriptionEndAt")
+    subscription_end_at: datetime | None = Field(None, serialization_alias="subscriptionEndAt")
     is_subscription_active: bool = Field(False, serialization_alias="isSubscriptionActive")
-    name: Optional[str] = None
+    name: str | None = None
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -596,9 +595,9 @@ class TenantNotificationResponse(BaseModel):
     title: str
     content: str
     is_read: bool = Field(False, serialization_alias="isRead")
-    read_at: Optional[datetime] = Field(None, serialization_alias="readAt")
+    read_at: datetime | None = Field(None, serialization_alias="readAt")
     priority: int = 0
-    extra_metadata: Optional[str] = Field(None, serialization_alias="extraMetadata")
+    extra_metadata: str | None = Field(None, serialization_alias="extraMetadata")
     created_at: datetime = Field(..., serialization_alias="createdAt")
 
     model_config = ConfigDict(
@@ -611,7 +610,7 @@ class TenantNotificationResponse(BaseModel):
 
 class TenantNotificationListResponse(BaseModel):
     """通知列表 + 未读数"""
-    items: List[TenantNotificationResponse]
+    items: list[TenantNotificationResponse]
     unread_count: int = Field(0, serialization_alias="unreadCount")
     total: int = 0
 
@@ -627,7 +626,7 @@ class TenantMigrateRequest(BaseModel):
     """跨租户数据迁移请求"""
     source_tenant_id: str = Field(..., description="源租户ID")
     preserve_ids: bool = Field(default=False, description="是否保留原始ID")
-    entity_types: Optional[List[str]] = Field(
+    entity_types: list[str] | None = Field(
         default=None,
         description="要迁移的实体类型列表，None表示全部"
     )
@@ -644,7 +643,7 @@ class TenantMigrateResponse(BaseModel):
     source_tenant_id: str = Field(..., serialization_alias="sourceTenantId")
     duration_ms: int = Field(..., serialization_alias="durationMs")
     copied: dict = Field(default_factory=dict, description="各实体类型成功复制数量")
-    failures: List[dict] = Field(default_factory=list, description="失败记录列表")
+    failures: list[dict] = Field(default_factory=list, description="失败记录列表")
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -659,10 +658,10 @@ class TenantDashboardResponse(BaseModel):
     tenant_id: str
     tenant_name: str
     status: int
-    plan_name: Optional[str] = None
-    subscription_end_at: Optional[datetime] = None
+    plan_name: str | None = None
+    subscription_end_at: datetime | None = None
     is_subscription_active: bool = False
-    days_until_expiry: Optional[int] = None
+    days_until_expiry: int | None = None
 
     store_usage: dict = Field(default_factory=dict)
     admin_usage: dict = Field(default_factory=dict)
@@ -673,7 +672,7 @@ class TenantDashboardResponse(BaseModel):
     today_new_users: int = 0
     active_doctors: int = 0
 
-    alerts: List[dict] = Field(default_factory=list)
+    alerts: list[dict] = Field(default_factory=list)
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -690,12 +689,12 @@ class TenantSelfRegisterRequest(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     contact_name: str = Field(..., min_length=2, max_length=100)
     contact_phone: str = Field(..., min_length=11, max_length=20)
-    contact_email: Optional[str] = Field(None, max_length=100)
+    contact_email: str | None = Field(None, max_length=100)
     admin_username: str = Field(..., min_length=2, max_length=50)
     admin_password: str = Field(..., min_length=6, max_length=20)
-    captcha_token: Optional[str] = Field(None, max_length=500, description="人机验证 token（预留，对接第三方 captcha 服务）")
-    source: Optional[str] = Field(None, max_length=50, description="注册来源（如 website, miniapp）")
-    referral_code: Optional[str] = Field(None, max_length=50, description="推荐码")
+    captcha_token: str | None = Field(None, max_length=500, description="人机验证 token（预留，对接第三方 captcha 服务）")
+    source: str | None = Field(None, max_length=50, description="注册来源（如 website, miniapp）")
+    referral_code: str | None = Field(None, max_length=50, description="推荐码")
 
     @field_validator("admin_password")
     @classmethod
@@ -709,7 +708,7 @@ class TenantSelfRegisterRequest(BaseModel):
 
     @field_validator("captcha_token")
     @classmethod
-    def validate_captcha_token(cls, v: Optional[str]) -> Optional[str]:
+    def validate_captcha_token(cls, v: str | None) -> str | None:
         """captcha_token 占位校验——接入第三方服务时替换此逻辑"""
         return v
 
@@ -739,7 +738,7 @@ class TenantSelfRegisterResponse(BaseModel):
 class TenantMigratePrecheckRequest(BaseModel):
     """迁移前预检请求"""
     source_tenant_id: str = Field(..., description="源租户ID")
-    entity_types: Optional[List[str]] = Field(default=None, description="要迁移的实体类型列表")
+    entity_types: list[str] | None = Field(default=None, description="要迁移的实体类型列表")
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -765,8 +764,8 @@ class PrecheckQuotaItem(BaseModel):
 class TenantMigratePrecheckResponse(BaseModel):
     """迁移前预检响应"""
     can_migrate: bool = Field(..., serialization_alias="canMigrate")
-    warnings: List[str] = Field(default_factory=list)
-    quota_checks: List[PrecheckQuotaItem] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    quota_checks: list[PrecheckQuotaItem] = Field(default_factory=list)
     entity_counts: dict = Field(default_factory=dict)
     estimated_duration_ms: int = Field(default=0, serialization_alias="estimatedDurationMs")
 
@@ -780,7 +779,7 @@ class TenantMigratePrecheckResponse(BaseModel):
 
 class TenantTagsUpdate(BaseModel):
     """租户标签更新"""
-    tags: List[str] = Field(..., description="标签列表")
+    tags: list[str] = Field(..., description="标签列表")
 
     model_config = ConfigDict(
         populate_by_name=True,

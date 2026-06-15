@@ -1,7 +1,6 @@
 """Mutation helpers for stores."""
 
 import uuid
-from typing import List, Optional
 
 from sqlalchemy import and_, delete, func, select
 
@@ -15,7 +14,7 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 
 class StoreMutationMixin:
-    async def create(self, data: StoreCreate, operator_id: Optional[str] = None) -> Store:
+    async def create(self, data: StoreCreate, operator_id: str | None = None) -> Store:
         if data.code:
             existing = await self.get_by_code(data.code)
             if existing:
@@ -42,8 +41,8 @@ class StoreMutationMixin:
         return store
 
     async def update(
-        self, store_id: str, data: StoreUpdate, operator_id: Optional[str] = None
-    ) -> Optional[Store]:
+        self, store_id: str, data: StoreUpdate, operator_id: str | None = None
+    ) -> Store | None:
         store = await self.get_by_id(store_id)
         if not store:
             return None
@@ -81,7 +80,7 @@ class StoreMutationMixin:
         await self.db.commit()
         return True
 
-    async def update_status(self, store_id: str, status: int) -> Optional[Store]:
+    async def update_status(self, store_id: str, status: int) -> Store | None:
         store = await self.get_by_id(store_id)
         if not store:
             return None
@@ -90,7 +89,7 @@ class StoreMutationMixin:
         await self.db.refresh(store)
         return store
 
-    async def batch_bind_departments(self, store_id: str, department_ids: List[str]) -> int:
+    async def batch_bind_departments(self, store_id: str, department_ids: list[str]) -> int:
         from app.middleware.tenant_context import get_current_tenant_id
         store = await self.get_by_id(store_id)
         if not store:
@@ -121,7 +120,7 @@ class StoreMutationMixin:
         await self.db.commit()
         return len(department_ids)
 
-    async def batch_bind_admins(self, store_id: str, admin_ids: List[str]) -> int:
+    async def batch_bind_admins(self, store_id: str, admin_ids: list[str]) -> int:
         from app.middleware.tenant_context import get_current_tenant_id
         store = await self.get_by_id(store_id)
         if not store:
@@ -158,8 +157,8 @@ class StoreMutationMixin:
         return len(admin_ids)
 
     async def update_wechat_config(
-        self, store_id: str, config: dict, operator_id: Optional[str] = None
-    ) -> Optional[Store]:
+        self, store_id: str, config: dict, operator_id: str | None = None
+    ) -> Store | None:
         store = await self.get_by_id(store_id)
         if not store:
             return None

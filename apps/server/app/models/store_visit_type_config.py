@@ -1,7 +1,9 @@
-from sqlalchemy import Column, String, Integer, ForeignKey
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 
 class StoreVisitTypeConfig(Base, AuditMixin):

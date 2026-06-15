@@ -4,10 +4,11 @@
 当班次容量已满时，用户可以选择进入候补队列
 当有号源释放时，系统可以自动或手动将候补用户提升为预约
 """
-from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, Index
-from sqlalchemy.orm import relationship
-from datetime import datetime
 import uuid
+from datetime import datetime
+
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy.orm import relationship
 
 from app.db.base import Base
 

@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,8 +31,8 @@ class MiniappWechatConfig:
     app_id: str
     app_secret: str
     source: str
-    miniapp_instance_id: Optional[str] = None
-    store_id: Optional[str] = None
+    miniapp_instance_id: str | None = None
+    store_id: str | None = None
 
 
 class WechatConfigResolver:
@@ -42,9 +41,9 @@ class WechatConfigResolver:
 
     async def resolve(
         self,
-        store_id: Optional[str] = None,
-        miniapp_instance_id: Optional[str] = None,
-    ) -> Optional[MiniappWechatConfig]:
+        store_id: str | None = None,
+        miniapp_instance_id: str | None = None,
+    ) -> MiniappWechatConfig | None:
         fallback_store_id = store_id
 
         if miniapp_instance_id:

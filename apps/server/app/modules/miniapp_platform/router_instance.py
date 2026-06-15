@@ -1,13 +1,16 @@
 """小程序平台 - 实例管理路由 (MiniappInstance CRUD + activate/archive)"""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 
-from app.db.session import get_db
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.common.deps import get_current_admin, get_tenant_from_admin
+from app.db.session import get_db
 from app.modules.miniapp_platform.schemas import (
-    MiniappInstanceCreate, MiniappInstanceUpdate, MiniappInstanceResponse,
-    MiniappInstanceListResponse, MiniappInstanceQuery,
+    MiniappInstanceCreate,
+    MiniappInstanceListResponse,
+    MiniappInstanceQuery,
+    MiniappInstanceResponse,
+    MiniappInstanceUpdate,
 )
 from app.modules.miniapp_platform.service_instance import MiniappInstanceService
 from app.schemas.response import PageResponse
@@ -19,14 +22,14 @@ router = APIRouter()
 
 @router.get("/instances", response_model=PageResponse[MiniappInstanceListResponse], summary="获取小程序实例列表")
 async def get_miniapp_instances(
-    keyword: Optional[str] = None,
-    status: Optional[int] = Query(None, ge=0, le=2),
-    template_id: Optional[str] = None,
+    keyword: str | None = None,
+    status: int | None = Query(None, ge=0, le=2),
+    template_id: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
-    tenant: Optional[dict] = Depends(get_tenant_from_admin)
+    tenant: dict | None = Depends(get_tenant_from_admin)
 ):
     """获取小程序实例列表
 
@@ -76,7 +79,7 @@ async def create_miniapp_instance(
     data: MiniappInstanceCreate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
-    tenant: Optional[dict] = Depends(get_tenant_from_admin)
+    tenant: dict | None = Depends(get_tenant_from_admin)
 ):
     """创建小程序实例
 
@@ -294,10 +297,10 @@ async def archive_miniapp_instance(
 async def check_instance_code_unique(
     code: str = Query(None, min_length=1, max_length=50),
     app_id: str = Query(None, min_length=1, max_length=100),
-    exclude_id: Optional[str] = Query(None),
+    exclude_id: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
-    tenant: Optional[dict] = Depends(get_tenant_from_admin)
+    tenant: dict | None = Depends(get_tenant_from_admin)
 ):
     """检查实例编码或AppID是否已存在"""
     # 非平台管理员需要关联租户

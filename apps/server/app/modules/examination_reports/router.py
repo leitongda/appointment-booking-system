@@ -1,10 +1,9 @@
 """检查报告路由"""
-from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user_or_admin, get_current_admin
+from app.api.deps import get_current_user_or_admin
 from app.core.config import settings
 from app.core.logging import logger
 from app.db.session import get_db
@@ -23,13 +22,13 @@ router = APIRouter()
 
 @router.get("", response_model=PageResponse[ExaminationReportListResponse], summary="获取报告列表")
 async def list_reports(
-    keyword: Optional[str] = Query(None, description="关键字搜索（标题/文件名）"),
-    report_type: Optional[str] = Query(None, alias="reportType", description="报告类型"),
-    store_id: Optional[str] = Query(None, alias="storeId", description="门店ID"),
-    doctor_id: Optional[str] = Query(None, alias="doctorId", description="医生ID"),
-    patient_id: Optional[str] = Query(None, alias="patientId", description="患者ID"),
-    start_date: Optional[str] = Query(None, alias="startDate", description="开始日期"),
-    end_date: Optional[str] = Query(None, alias="endDate", description="结束日期"),
+    keyword: str | None = Query(None, description="关键字搜索（标题/文件名）"),
+    report_type: str | None = Query(None, alias="reportType", description="报告类型"),
+    store_id: str | None = Query(None, alias="storeId", description="门店ID"),
+    doctor_id: str | None = Query(None, alias="doctorId", description="医生ID"),
+    patient_id: str | None = Query(None, alias="patientId", description="患者ID"),
+    start_date: str | None = Query(None, alias="startDate", description="开始日期"),
+    end_date: str | None = Query(None, alias="endDate", description="结束日期"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -75,10 +74,10 @@ def _build_list_response(report) -> ExaminationReportListResponse:
 async def upload_report(
     file: UploadFile = File(...),
     appointment_id: str = Form(...),
-    record_id: Optional[str] = Form(None),
+    record_id: str | None = Form(None),
     report_type: str = Form(...),
     title: str = Form(...),
-    description: Optional[str] = Form(None),
+    description: str | None = Form(None),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin),
 ):

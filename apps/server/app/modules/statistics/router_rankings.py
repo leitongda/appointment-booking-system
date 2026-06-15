@@ -1,20 +1,19 @@
 """数据统计 - 科室、医生、门店排行"""
 from datetime import date
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select, func, and_
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin, get_store_filter
+from app.db.session import get_db
 from app.models.appointment import Appointment
 from app.models.department import Department
 from app.models.doctor import Doctor
 from app.models.schedule import Schedule
 from app.models.store import Store
-from app.schemas.response import ResponseModel
-from app.db.session import get_db
 from app.modules.statistics.helpers import _build_store_filter_condition
+from app.schemas.response import ResponseModel
 
 router = APIRouter()
 
@@ -113,8 +112,8 @@ async def get_doctor_ranking(
 @router.get("/stores/ranking", response_model=ResponseModel, summary="获取门店预约排行")
 async def get_store_ranking(
     limit: int = Query(default=10, ge=1, le=50),
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
 ):

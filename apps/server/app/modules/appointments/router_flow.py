@@ -1,17 +1,23 @@
 """预约状态流转相关端点"""
-from fastapi import APIRouter, Depends, HTTPException, status, Body
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 
-from app.db.session import get_db
-from app.api.deps import get_current_user, get_current_admin, get_current_super_admin, check_store_access, require_permission
-from app.modules.appointments.service import AppointmentService
-from app.modules.appointments.common import CHECKIN_METHOD
-from app.core.websocket import (
-    notify_patient_signed_in,
-    notify_doctor,
-    WSMessageType,
+from fastapi import APIRouter, Body, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import (
+    check_store_access,
+    get_current_admin,
+    get_current_super_admin,
+    get_current_user,
+    require_permission,
 )
+from app.core.websocket import (
+    WSMessageType,
+    notify_doctor,
+    notify_patient_signed_in,
+)
+from app.db.session import get_db
+from app.enums.appointment import CheckinMethod
+from app.modules.appointments.service import AppointmentService
 
 router = APIRouter()
 
@@ -36,9 +42,9 @@ router = APIRouter()
 )
 async def sign_in_appointment(
     appointment_id: str,
-    checkin_method: Optional[str] = Body(None, embed=True),
-    device_info: Optional[str] = Body(None, embed=True),
-    location_info: Optional[str] = Body(None, embed=True),
+    checkin_method: str | None = Body(None, embed=True),
+    device_info: str | None = Body(None, embed=True),
+    location_info: str | None = Body(None, embed=True),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
@@ -57,7 +63,7 @@ async def sign_in_appointment(
             appointment_id=appointment_id,
             user_id=current_user.get("id"),
             is_admin=current_user.get("is_admin", False),
-            checkin_method=checkin_method or CHECKIN_METHOD["MANUAL"],
+            checkin_method=checkin_method or CheckinMethod.MANUAL,
             device_info=device_info,
             location_info=location_info,
             operator_id=current_user.get("id"),

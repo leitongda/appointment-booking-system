@@ -2,14 +2,15 @@
 Redis 缓存客户端
 用于验证码存储、微信 access_token 缓存、扫码登录状态、分布式锁等
 """
-import redis.asyncio as aioredis
-import redis as sync_redis
-from typing import Optional, Any
-from contextlib import asynccontextmanager
 import json
 import logging
-import uuid
 import time
+import uuid
+from contextlib import asynccontextmanager
+from typing import Any
+
+import redis as sync_redis
+import redis.asyncio as aioredis
 
 from app.core.config import settings
 from app.middleware.tenant_context import get_current_tenant_id
@@ -17,10 +18,10 @@ from app.middleware.tenant_context import get_current_tenant_id
 logger = logging.getLogger(__name__)
 
 # 异步 Redis 客户端实例（FastAPI 使用）
-_redis_client: Optional[aioredis.Redis] = None
+_redis_client: aioredis.Redis | None = None
 
 # 同步 Redis 客户端实例（Celery 任务使用）
-_sync_redis_client: Optional[sync_redis.Redis] = None
+_sync_redis_client: sync_redis.Redis | None = None
 
 
 async def get_redis() -> aioredis.Redis:
@@ -324,7 +325,7 @@ class RedisCache:
         return await cls.set(key, data, expire)
 
     @classmethod
-    async def get_sms_code(cls, phone: str, code_type: str = "login", tenant_id: str = None) -> Optional[dict]:
+    async def get_sms_code(cls, phone: str, code_type: str = "login", tenant_id: str = None) -> dict | None:
         """获取短信验证码（支持多租户隔离）"""
         effective_tenant_id = tenant_id or get_current_tenant_id()
         if effective_tenant_id:
@@ -417,7 +418,7 @@ class RedisCache:
         return await cls.set(key, data, expire)
 
     @classmethod
-    async def get_email_code(cls, email: str, code_type: str = "login", tenant_id: str = None) -> Optional[dict]:
+    async def get_email_code(cls, email: str, code_type: str = "login", tenant_id: str = None) -> dict | None:
         """获取邮箱验证码（支持多租户隔离）"""
         effective_tenant_id = tenant_id or get_current_tenant_id()
         if effective_tenant_id:
@@ -483,7 +484,7 @@ class RedisCache:
     # ==================== 微信 Token 相关（多租户隔离）====================
 
     @staticmethod
-    def _build_wechat_token_key(app_id: str, tenant_id: Optional[str] = None) -> str:
+    def _build_wechat_token_key(app_id: str, tenant_id: str | None = None) -> str:
         """构建微信 Token 的 Redis 键（支持多租户隔离）
 
         Args:
@@ -505,7 +506,7 @@ class RedisCache:
         app_id: str,
         token: str,
         expire: int = 7000,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> bool:
         """
         缓存微信 access_token（支持多租户隔离）
@@ -520,7 +521,7 @@ class RedisCache:
         return await cls.set(key, token, expire)
 
     @classmethod
-    async def get_wechat_token(cls, app_id: str, tenant_id: Optional[str] = None) -> Optional[str]:
+    async def get_wechat_token(cls, app_id: str, tenant_id: str | None = None) -> str | None:
         """获取微信 access_token（支持多租户隔离）
 
         Args:
@@ -551,7 +552,7 @@ class RedisCache:
         return await cls.set(key, data, expire)
     
     @classmethod
-    async def get_scan_login(cls, scan_id: str) -> Optional[dict]:
+    async def get_scan_login(cls, scan_id: str) -> dict | None:
         """获取扫码登录状态"""
         key = f"{cls.PREFIX_SCAN_LOGIN}{scan_id}"
         return await cls.get(key)
@@ -565,7 +566,7 @@ class RedisCache:
     # ==================== 管理员会话管理（多租户隔离）====================
 
     @staticmethod
-    def _build_admin_session_key(admin_id: str, tenant_id: Optional[str] = None) -> str:
+    def _build_admin_session_key(admin_id: str, tenant_id: str | None = None) -> str:
         """构建管理员会话的 Redis 键（支持多租户隔离）
 
         Args:
@@ -587,7 +588,7 @@ class RedisCache:
         admin_id: str,
         session_data: dict,
         expire: int = None,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> bool:
         """
         存储管理员会话信息（支持多租户隔离）
@@ -612,7 +613,7 @@ class RedisCache:
         return await cls.set(key, session_data, expire)
 
     @classmethod
-    async def get_admin_session(cls, admin_id: str, tenant_id: Optional[str] = None) -> Optional[dict]:
+    async def get_admin_session(cls, admin_id: str, tenant_id: str | None = None) -> dict | None:
         """获取单个管理员会话信息（支持多租户隔离）
 
         Args:
@@ -623,7 +624,7 @@ class RedisCache:
         return await cls.get(key)
 
     @classmethod
-    async def get_all_admin_sessions(cls, tenant_id: Optional[str] = None) -> list[dict]:
+    async def get_all_admin_sessions(cls, tenant_id: str | None = None) -> list[dict]:
         """
         获取所有在线管理员会话（支持多租户隔离）
 
@@ -663,7 +664,7 @@ class RedisCache:
             return []
 
     @classmethod
-    async def delete_admin_session(cls, admin_id: str, tenant_id: Optional[str] = None) -> bool:
+    async def delete_admin_session(cls, admin_id: str, tenant_id: str | None = None) -> bool:
         """删除管理员会话（支持多租户隔离）
 
         Args:
@@ -676,7 +677,7 @@ class RedisCache:
     # ==================== Token 黑名单（多租户隔离）====================
 
     @staticmethod
-    def _build_token_blacklist_key(token_hash: str, tenant_id: Optional[str] = None) -> str:
+    def _build_token_blacklist_key(token_hash: str, tenant_id: str | None = None) -> str:
         """构建 Token 黑名单的 Redis 键（支持多租户隔离）
 
         Args:
@@ -697,7 +698,7 @@ class RedisCache:
         cls,
         token_hash: str,
         expire: int,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> bool:
         """
         将 Token 加入黑名单（支持多租户隔离）
@@ -713,7 +714,7 @@ class RedisCache:
         return await cls.set(key, "1", expire)
 
     @classmethod
-    async def is_token_blacklisted(cls, token_hash: str, tenant_id: Optional[str] = None) -> bool:
+    async def is_token_blacklisted(cls, token_hash: str, tenant_id: str | None = None) -> bool:
         """检查 Token 是否在黑名单中（支持多租户隔离）
 
         Args:
@@ -731,7 +732,7 @@ class RedisCache:
     async def add_refresh_token_to_blacklist(
         cls,
         token: str,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
         ttl: int = 86400,
     ) -> bool:
         """将 Refresh Token 加入黑名单（轮换时调用）
@@ -756,7 +757,7 @@ class RedisCache:
     # ==================== 分布式锁（异步）====================
 
     @classmethod
-    def _build_tenant_aware_lock_name(cls, lock_name: str, tenant_id: Optional[str] = None) -> str:
+    def _build_tenant_aware_lock_name(cls, lock_name: str, tenant_id: str | None = None) -> str:
         """构建包含租户维度的锁名称
 
         Args:
@@ -779,11 +780,11 @@ class RedisCache:
     async def acquire_tenant_lock(
         cls,
         lock_name: str,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
         timeout: int = 10,
         retry_times: int = 3,
         retry_delay: float = 0.1
-    ) -> Optional[str]:
+    ) -> str | None:
         """获取租户隔离的分布式锁
 
         自动在锁键中包含租户维度，确保不同租户的锁互不影响。
@@ -802,7 +803,7 @@ class RedisCache:
         return await cls.acquire_lock(tenant_aware_name, timeout, retry_times, retry_delay)
 
     @classmethod
-    async def release_tenant_lock(cls, lock_name: str, lock_value: str, tenant_id: Optional[str] = None) -> bool:
+    async def release_tenant_lock(cls, lock_name: str, lock_value: str, tenant_id: str | None = None) -> bool:
         """释放租户隔离的分布式锁
 
         Args:
@@ -821,7 +822,7 @@ class RedisCache:
     async def tenant_distributed_lock(
         cls,
         lock_name: str,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
         timeout: int = 10,
         retry_times: int = 3
     ):
@@ -851,7 +852,7 @@ class RedisCache:
         timeout: int = 10,
         retry_times: int = 3,
         retry_delay: float = 0.1
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         获取分布式锁（异步版本）
         
@@ -1014,7 +1015,7 @@ class SyncRedisCache:
         timeout: int = 10,
         retry_times: int = 3,
         retry_delay: float = 0.1
-    ) -> Optional[str]:
+    ) -> str | None:
         """获取分布式锁（同步版本）"""
         lock_key = f"{cls.PREFIX_LOCK}{lock_name}"
         lock_value = str(uuid.uuid4())
@@ -1056,7 +1057,7 @@ class SyncRedisCache:
             return False
     
     @staticmethod
-    def _build_wechat_token_key(app_id: str, tenant_id: Optional[str] = None) -> str:
+    def _build_wechat_token_key(app_id: str, tenant_id: str | None = None) -> str:
         """构建微信 Token 的 Redis 键（支持多租户隔离）
 
         注意: 同步版本用于 Celery 任务，没有 ContextVar 上下文，
@@ -1071,13 +1072,13 @@ class SyncRedisCache:
         return f"{SyncRedisCache.PREFIX_WECHAT_TOKEN}{app_id}"
 
     @classmethod
-    def set_wechat_token(cls, app_id: str, token: str, expire: int = 7000, tenant_id: Optional[str] = None) -> bool:
+    def set_wechat_token(cls, app_id: str, token: str, expire: int = 7000, tenant_id: str | None = None) -> bool:
         """缓存微信 access_token（同步，支持多租户隔离）"""
         key = cls._build_wechat_token_key(app_id, tenant_id)
         return cls.set(key, token, expire)
 
     @classmethod
-    def get_wechat_token(cls, app_id: str, tenant_id: Optional[str] = None) -> Optional[str]:
+    def get_wechat_token(cls, app_id: str, tenant_id: str | None = None) -> str | None:
         """获取微信 access_token（同步，支持多租户隔离）"""
         key = cls._build_wechat_token_key(app_id, tenant_id)
         return cls.get(key)

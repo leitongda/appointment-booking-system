@@ -1,9 +1,10 @@
-from app.schemas.response import to_camel
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
 from datetime import datetime
 
+from pydantic import BaseModel, ConfigDict, Field
+
 from app.enums.general import TimeUnit, VisitScope  # noqa: F401 — re-export
+from app.schemas.response import to_camel
+
 
 class StoreVisitTypeConfigBase(BaseModel):
     model_config = ConfigDict(
@@ -25,10 +26,10 @@ class StoreVisitTypeConfigUpdate(BaseModel):
         populate_by_name=True,
     )
     
-    time_limit: Optional[int] = Field(None, ge=1)
-    time_unit: Optional[TimeUnit] = None
-    scope: Optional[VisitScope] = None
-    status: Optional[int] = Field(None, ge=0, le=1)
+    time_limit: int | None = Field(None, ge=1)
+    time_unit: TimeUnit | None = None
+    scope: VisitScope | None = None
+    status: int | None = Field(None, ge=0, le=1)
 
 class StoreVisitTypeConfigResponse(BaseModel):
     model_config = ConfigDict(
@@ -40,11 +41,11 @@ class StoreVisitTypeConfigResponse(BaseModel):
     
     id: str
     store_id: str
-    store_name: Optional[str] = None
+    store_name: str | None = None
     time_limit: int
     time_unit: str
     scope: str
     status: int
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 

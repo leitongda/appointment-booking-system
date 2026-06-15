@@ -1,25 +1,24 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, List
-from datetime import datetime
 
-from app.db.session import get_db
-from app.api.deps import get_current_admin, get_store_filter, check_store_access, get_current_doctor_by_token, require_permission
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
-from app.models.doctor import Doctor
-from app.models.account import Account
-from app.schemas.doctor import DoctorCreate, DoctorUpdate, DoctorResponse, DoctorListResponse
-from app.schemas.response import PageResponse
-from app.schemas.auth import EmailSendCodeRequest, EmailBindRequest, EmailUnbindRequest, EmailChangeRequest, RefreshTokenRequest, TokenResponse
-from app.modules.doctors.service import DoctorService
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import (
+    check_store_access,
+    get_current_admin,
+    get_current_doctor_by_token,
+    get_store_filter,
+    require_permission,
+)
 from app.common.account_sync import AccountSyncService
-from app.core.security import create_access_token, create_refresh_token, decode_token
-from app.core.redis import RedisCache
-from app.core.config import settings
 from app.common.security_settings import get_token_expire_config
-import hashlib as _doc_hashlib
+from app.core.config import settings
+from app.core.redis import RedisCache
+from app.core.security import create_access_token, create_refresh_token, decode_token
+from app.db.session import get_db
 from app.infrastructure.email.service import EmailService
-from app.utils.ip import get_client_ip
+from app.models.account import Account
+from app.models.doctor import Doctor
 from app.modules.doctors.schemas import (
     BatchSortRequest,
     ChangePasswordRequest,
@@ -30,6 +29,18 @@ from app.modules.doctors.schemas import (
     GenerateUsernameRequest,
     GenerateUsernameResponse,
 )
+from app.modules.doctors.service import DoctorService
+from app.schemas.auth import (
+    EmailBindRequest,
+    EmailChangeRequest,
+    EmailSendCodeRequest,
+    EmailUnbindRequest,
+    RefreshTokenRequest,
+    TokenResponse,
+)
+from app.schemas.doctor import DoctorCreate, DoctorListResponse, DoctorResponse, DoctorUpdate
+from app.schemas.response import PageResponse
+from app.utils.ip import get_client_ip
 
 router = APIRouter()
 
@@ -60,7 +71,7 @@ def _normalize_email(email: str) -> str:
     return email.strip().lower()
 
 
-async def _get_doctor_account(db: AsyncSession, doctor: Doctor) -> Optional[Account]:
+async def _get_doctor_account(db: AsyncSession, doctor: Doctor) -> Account | None:
     account = await db.get(Account, doctor.id)
     if account:
         return account
@@ -266,6 +277,7 @@ async def doctor_refresh_token(
 
     # 轮换 Refresh Token: 将旧 token 加入黑名单
     from datetime import datetime as _dt
+
     from jose import jwt as _jwt
     try:
         old_claims = _jwt.get_unverified_claims(data.refresh_token)
@@ -458,10 +470,10 @@ async def change_current_doctor_email(
     """,
 )
 async def get_doctors(
-    name: Optional[str] = None,
-    store_id: Optional[str] = None,
-    department_id: Optional[str] = None,
-    status: Optional[int] = None,
+    name: str | None = None,
+    store_id: str | None = None,
+    department_id: str | None = None,
+    status: int | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -490,7 +502,7 @@ async def get_doctors(
 
 @router.get(
     "/all",
-    response_model=List[DoctorListResponse],
+    response_model=list[DoctorListResponse],
     summary="获取所有医生",
     description="""
     获取所有启用状态的医生列表（不分页），用于管理后台下拉选择等场景。
@@ -522,7 +534,7 @@ async def get_all_doctors(
 
 @router.get(
     "/recommended",
-    response_model=List[DoctorListResponse],
+    response_model=list[DoctorListResponse],
     summary="获取推荐医生",
     description="""
     获取推荐医生列表（公开接口，无需登录）。
@@ -540,7 +552,7 @@ async def get_all_doctors(
 )
 async def get_recommended_doctors(
     limit: int = Query(6, ge=1, le=settings.MAX_PAGE_SIZE),
-    store_id: Optional[str] = None,
+    store_id: str | None = None,
     db: AsyncSession = Depends(get_db)
 ):
     """获取推荐医生（公开接口，支持门店过滤）
@@ -558,7 +570,7 @@ async def get_recommended_doctors(
 
 @router.get(
     "/by-department/{department_id}",
-    response_model=List[DoctorListResponse],
+    response_model=list[DoctorListResponse],
     summary="获取科室医生",
     description="""
     获取指定科室下的医生列表（公开接口，无需登录）。
@@ -576,7 +588,7 @@ async def get_recommended_doctors(
 )
 async def get_doctors_by_department(
     department_id: str,
-    store_id: Optional[str] = None,
+    store_id: str | None = None,
     db: AsyncSession = Depends(get_db)
 ):
     """获取科室下的医生（公开接口，支持门店过滤）
@@ -905,7 +917,7 @@ async def change_doctor_password(
 ):
     """医生修改密码"""
     from app.core.security import get_password_hash, verify_password
-    from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
+    from app.modules.tenants.password_policy import PasswordPolicyValidator, get_tenant_password_policy
 
     # 验证旧密码
     if not verify_password(data.old_password, current_doctor.password_hash):

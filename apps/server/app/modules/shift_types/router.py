@@ -3,25 +3,24 @@
 
 提供班次类型的 CRUD 接口
 """
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 
+from app.api.deps import get_current_admin, get_current_super_admin
+from app.core.config import settings
 from app.db.session import get_db
-from app.api.deps import get_current_user, get_current_admin, get_current_super_admin
+from app.modules.shift_types.schemas import ShiftTypeCreate, ShiftTypeResponse, ShiftTypeUpdate
 from app.modules.shift_types.service import ShiftTypeService
 from app.schemas.rule_set import PageResult
-from app.core.config import settings
-from app.modules.shift_types.schemas import ShiftTypeCreate, ShiftTypeResponse, ShiftTypeUpdate
-
 
 router = APIRouter()
 
 
 @router.get("", response_model=PageResult[ShiftTypeResponse], summary="获取班次类型列表")
 async def get_shift_types(
-    enabled: Optional[bool] = Query(None, description="是否启用"),
-    keyword: Optional[str] = Query(None, description="搜索关键词"),
+    enabled: bool | None = Query(None, description="是否启用"),
+    keyword: str | None = Query(None, description="搜索关键词"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量"),
     db: AsyncSession = Depends(get_db),

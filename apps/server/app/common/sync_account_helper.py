@@ -12,9 +12,8 @@
 """
 
 import logging
-from typing import Optional
 
-from sqlalchemy import select, func, and_
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -63,7 +62,7 @@ def _get_user_model():
 #  公共 API
 # ------------------------------------------------------------------ #
 
-def get_account_phone(db: Session, user_id: str, user_type: str) -> Optional[str]:
+def get_account_phone(db: Session, user_id: str, user_type: str) -> str | None:
     """获取手机号
 
     查询顺序：Account -> 旧表 fallback
@@ -97,7 +96,7 @@ def get_account_phone(db: Session, user_id: str, user_type: str) -> Optional[str
     return None
 
 
-def get_account_name(db: Session, user_id: str, user_type: str) -> Optional[str]:
+def get_account_name(db: Session, user_id: str, user_type: str) -> str | None:
     """获取用户名/昵称
 
     查询顺序：Account -> 旧表 fallback
@@ -132,7 +131,7 @@ def get_account_name(db: Session, user_id: str, user_type: str) -> Optional[str]
     return None
 
 
-def get_account_openid(db: Session, user_id: str, user_type: str) -> Optional[str]:
+def get_account_openid(db: Session, user_id: str, user_type: str) -> str | None:
     """获取微信 openid
 
     查询顺序：AccountUser 扩展表 -> 旧 User 表 fallback

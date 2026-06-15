@@ -1,13 +1,13 @@
-from datetime import date, datetime, time, timedelta
 import uuid
-from typing import Optional
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
-from sqlalchemy import and_, func, or_, select, update as sa_update
+from sqlalchemy import and_, func, or_, select
+from sqlalchemy import update as sa_update
 from sqlalchemy.orm import selectinload
 
-from app.core.events import EventType
 from app.core.error_codes import ErrorCode
+from app.core.events import EventType
 from app.core.redis import RedisCache
 from app.middleware.exception import BusinessError
 from app.models.appointment import Appointment
@@ -21,16 +21,16 @@ from app.modules.appointments.common import (
     AppointmentServiceBase,
     logger,
 )
-from app.schemas.appointment import AppointmentCreate
-from app.modules.unified_message.compat import MessageServiceCompat as MessageService
 from app.modules.rule_engine import RuleEngineService
 from app.modules.settings.service import SettingsService
+from app.modules.unified_message.compat import MessageServiceCompat as MessageService
+from app.schemas.appointment import AppointmentCreate
 from app.utils.audit import set_create_audit, set_update_audit
 from app.utils.datetime import utc_now
 
 
 class AppointmentBookingService(AppointmentServiceBase):
-    async def create(self, user_id: str, data: AppointmentCreate, operator_id: Optional[str] = None) -> Appointment:
+    async def create(self, user_id: str, data: AppointmentCreate, operator_id: str | None = None) -> Appointment:
         # 获取当前租户
         from app.middleware.tenant_context import get_current_tenant_id
         from app.models.user import User
@@ -285,7 +285,7 @@ class AppointmentBookingService(AppointmentServiceBase):
 
         # === 如果需要支付，准备支付参数 ===
         payment_params = None
-        payment_param_error: Optional[str] = None
+        payment_param_error: str | None = None
         if appointment.status == 0:  # 待支付
             payment_params, payment_param_error = await self._prepare_payment_params(
                 appointment=appointment,
@@ -397,8 +397,8 @@ class AppointmentBookingService(AppointmentServiceBase):
         self,
         user_id: str,
         patient: Patient,
-        store_id: Optional[str],
-    ) -> Optional[Blacklist]:
+        store_id: str | None,
+    ) -> Blacklist | None:
         conditions = [
             Blacklist.status == 1,
             or_(Blacklist.expire_at.is_(None), Blacklist.expire_at > datetime.now()),
@@ -420,10 +420,10 @@ class AppointmentBookingService(AppointmentServiceBase):
         self,
         appointment_id: str,
         user_id: str,
-        reason: Optional[str] = None,
+        reason: str | None = None,
         is_admin: bool = False,
-        operator_id: Optional[str] = None,
-    ) -> Optional[Appointment]:
+        operator_id: str | None = None,
+    ) -> Appointment | None:
         from app.middleware.tenant_context import get_current_tenant_id
         current_tenant_id = get_current_tenant_id()
         redis_cache = self._compat("RedisCache", RedisCache)
@@ -539,7 +539,7 @@ class AppointmentBookingService(AppointmentServiceBase):
                     user_id=appointment.user_id,
                     user_type="patient",
                     title="预约已取消",
-                    content=f"您的待支付预约已取消。",
+                    content="您的待支付预约已取消。",
                     appointment_id=appointment.id,
                     template_code="appointment_cancel",
                     template_variables={
@@ -742,7 +742,7 @@ class AppointmentBookingService(AppointmentServiceBase):
         doctor_id: str,
         store_id: str,
         department_id: str,
-    ) -> Optional[Decimal]:
+    ) -> Decimal | None:
         """查询诊费金额
 
         优先级：
@@ -752,8 +752,13 @@ class AppointmentBookingService(AppointmentServiceBase):
 
         默认返回初诊金额。
         """
-        from app.models.consultation_fee import DoctorConsultationFee, ConsultationFeeType, StoreFeeTemplate, ConsultationFeeTemplate
         from app.middleware.tenant_context import get_current_tenant_id
+        from app.models.consultation_fee import (
+            ConsultationFeeTemplate,
+            ConsultationFeeType,
+            DoctorConsultationFee,
+            StoreFeeTemplate,
+        )
 
         tenant_id = get_current_tenant_id()
 
@@ -821,8 +826,8 @@ class AppointmentBookingService(AppointmentServiceBase):
         self,
         appointment: Appointment,
         schedule: Schedule,
-        user_openid: Optional[str] = None,
-    ) -> tuple[Optional[dict], Optional[str]]:
+        user_openid: str | None = None,
+    ) -> tuple[dict | None, str | None]:
         """准备支付参数
 
         返回 (payment_params, error_code)：

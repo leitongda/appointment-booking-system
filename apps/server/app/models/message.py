@@ -1,8 +1,10 @@
-from sqlalchemy import Column, String, Integer, Text, DateTime, Enum, ForeignKey
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
-from app.enums.message import MessageType  # noqa: F401 — re-export for backward compat
 import uuid
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
+from app.enums.message import MessageType  # noqa: F401 — re-export for backward compat
 
 
 class Message(Base, AuditMixin):

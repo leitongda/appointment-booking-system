@@ -1,17 +1,14 @@
 """Query helpers for rule-set management."""
 
-import uuid
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
 
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import selectinload
 
 from app.middleware.tenant_context import get_current_tenant_id
+from app.models.department import Department
+from app.models.doctor import Doctor
 from app.models.rule_set import (
-    RuleBookingPolicy,
-    RuleCapacityPolicy,
-    RuleCheckinPolicy,
     RuleSet,
     RuleSetPreset,
     RuleSetShiftType,
@@ -22,12 +19,10 @@ from app.models.rule_set import (
 from app.models.rule_set_audit import RuleSetAuditLog
 from app.models.schedule_template import ScheduleTemplate
 from app.models.store import Store
-from app.models.department import Department
-from app.models.doctor import Doctor
 from app.schemas.rule_set import RuleSetDetailResponse, ScheduleTemplateBrief
 
 
-async def _get_active_rule_set_ids(db, shift_type_ids: List[str]) -> set:
+async def _get_active_rule_set_ids(db, shift_type_ids: list[str]) -> set:
     """
     获取每个班次类型下优先级最高的启用规则组 ID。
 
@@ -64,8 +59,8 @@ async def _get_active_rule_set_ids(db, shift_type_ids: List[str]) -> set:
 class RuleSetQueryMixin:
 
     async def _batch_load_schedule_templates(
-        self, rule_set_ids: List[str]
-    ) -> Dict[str, List[ScheduleTemplateBrief]]:
+        self, rule_set_ids: list[str]
+    ) -> dict[str, list[ScheduleTemplateBrief]]:
         """批量加载多个规则组关联的排班模板（单次 JOIN 查询替代 N×4 次查询）。"""
         if not rule_set_ids:
             return {}
@@ -94,7 +89,7 @@ class RuleSetQueryMixin:
         )
         rows = result.all()
 
-        templates_by_rule_set: Dict[str, List[ScheduleTemplateBrief]] = defaultdict(list)
+        templates_by_rule_set: dict[str, list[ScheduleTemplateBrief]] = defaultdict(list)
         for row in rows:
             templates_by_rule_set[row.rule_set_id].append(
                 ScheduleTemplateBrief(
@@ -111,14 +106,14 @@ class RuleSetQueryMixin:
 
     async def get_list(
         self,
-        enabled: Optional[bool] = None,
-        shift_type_id: Optional[str] = None,
-        store_id: Optional[str] = None,
-        department_id: Optional[str] = None,
-        doctor_id: Optional[str] = None,
+        enabled: bool | None = None,
+        shift_type_id: str | None = None,
+        store_id: str | None = None,
+        department_id: str | None = None,
+        doctor_id: str | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[RuleSetDetailResponse], int]:
+    ) -> tuple[list[RuleSetDetailResponse], int]:
         conditions = [RuleSet.deleted_at.is_(None)]
 
         # 租户过滤：tenant_id 为 None 时（超级管理员等场景）不添加过滤条件
@@ -192,7 +187,7 @@ class RuleSetQueryMixin:
             responses.append(await self._to_detail_response(rs, active_rule_set_ids, templates_map.get(rs.id)))
         return responses, total
 
-    async def get_by_id(self, rule_set_id: str) -> Optional[RuleSetDetailResponse]:
+    async def get_by_id(self, rule_set_id: str) -> RuleSetDetailResponse | None:
         conditions = [RuleSet.id == rule_set_id, RuleSet.deleted_at.is_(None)]
 
         # 租户过滤：tenant_id 为 None 时（超级管理员等场景）不添加过滤条件
@@ -221,8 +216,8 @@ class RuleSetQueryMixin:
     async def _to_detail_response(
         self,
         rule_set: RuleSet,
-        active_rule_set_ids: Optional[set] = None,
-        schedule_templates: Optional[List[ScheduleTemplateBrief]] = None,
+        active_rule_set_ids: set | None = None,
+        schedule_templates: list[ScheduleTemplateBrief] | None = None,
     ) -> RuleSetDetailResponse:
         # 关联数据已通过 selectinload 预加载，无需 refresh
 
@@ -308,7 +303,7 @@ class RuleSetQueryMixin:
 
         return RuleSetDetailResponse(**data)
 
-    async def get_window_by_id(self, window_id: str) -> Optional[RuleWindow]:
+    async def get_window_by_id(self, window_id: str) -> RuleWindow | None:
         result = await self.db.execute(select(RuleWindow).where(RuleWindow.id == window_id))
         return result.scalar_one_or_none()
 
@@ -334,7 +329,7 @@ class RuleSetQueryMixin:
             self.db.add(preset)
         await self.db.flush()
 
-    async def get_presets(self) -> List[RuleSetPreset]:
+    async def get_presets(self) -> list[RuleSetPreset]:
         """获取预设模板列表（系统预设 + 当前租户自定义预设）。"""
         await self.ensure_system_presets()
 
@@ -354,7 +349,7 @@ class RuleSetQueryMixin:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_preset_by_id(self, preset_id: str) -> Optional[RuleSetPreset]:
+    async def get_preset_by_id(self, preset_id: str) -> RuleSetPreset | None:
         """获取预设模板详情。"""
         result = await self.db.execute(
             select(RuleSetPreset).where(RuleSetPreset.id == preset_id)
@@ -363,7 +358,7 @@ class RuleSetQueryMixin:
 
     async def get_audit_logs(
         self, rule_set_id: str, page: int = 1, page_size: int = 20
-    ) -> Tuple[List[RuleSetAuditLog], int]:
+    ) -> tuple[list[RuleSetAuditLog], int]:
         conditions = [RuleSetAuditLog.rule_set_id == rule_set_id]
 
         tenant_id = get_current_tenant_id()

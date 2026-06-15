@@ -1,9 +1,11 @@
 """预约须知 Schema"""
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, List
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field
+
 from app.core.config import settings
 from app.schemas.response import to_camel
+
 
 class BookingNoticeCreate(BaseModel):
     """创建预约须知请求"""
@@ -13,8 +15,8 @@ class BookingNoticeCreate(BaseModel):
     )
     
     type: str = Field(..., max_length=50, description="类型: BOOKING/VISIT/REFUND")
-    title: Optional[str] = Field(None, max_length=100, description="标题")
-    content: Optional[str] = Field(None, description="内容")
+    title: str | None = Field(None, max_length=100, description="标题")
+    content: str | None = Field(None, description="内容")
     sort_order: int = Field(0, ge=0, description="排序")
     status: int = Field(1, ge=0, le=1, description="状态: 0禁用 1启用")
 
@@ -25,11 +27,11 @@ class BookingNoticeUpdate(BaseModel):
         populate_by_name=True,
     )
     
-    type: Optional[str] = Field(None, max_length=50)
-    title: Optional[str] = Field(None, max_length=100)
-    content: Optional[str] = None
-    sort_order: Optional[int] = Field(None, ge=0)
-    status: Optional[int] = Field(None, ge=0, le=1)
+    type: str | None = Field(None, max_length=50)
+    title: str | None = Field(None, max_length=100)
+    content: str | None = None
+    sort_order: int | None = Field(None, ge=0)
+    status: int | None = Field(None, ge=0, le=1)
 
 class BookingNoticeResponse(BaseModel):
     """预约须知响应"""
@@ -42,12 +44,12 @@ class BookingNoticeResponse(BaseModel):
     
     id: str
     type: str
-    title: Optional[str] = None
-    content: Optional[str] = None
+    title: str | None = None
+    content: str | None = None
     sort_order: int = 0
     status: int = 1
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 class BookingNoticeListQuery(BaseModel):
     """预约须知列表查询"""
@@ -56,8 +58,8 @@ class BookingNoticeListQuery(BaseModel):
         populate_by_name=True,
     )
     
-    type: Optional[str] = None
-    status: Optional[int] = None
+    type: str | None = None
+    status: int | None = None
     page: int = Field(1, ge=1)
     page_size: int = Field(20, ge=1, le=settings.MAX_PAGE_SIZE)
 

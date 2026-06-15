@@ -2,14 +2,14 @@
 
 import uuid
 from datetime import datetime
-from typing import List, Optional, Tuple
 
 from sqlalchemy import and_, func, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.common.account_sync import AccountSyncService
+from app.common.security_settings import get_default_password
+from app.constants.appointment import APPOINTMENT_STATUS
 from app.core.security import get_password_hash
-from app.core.config import settings
 from app.middleware.exception import BusinessError
 from app.models.appointment import Appointment
 from app.models.department import Department
@@ -17,10 +17,7 @@ from app.models.doctor import Doctor
 from app.models.schedule import Schedule
 from app.models.store import Store
 from app.models.user import Patient, User
-from app.common.account_sync import AccountSyncService
 from app.modules.patients.common import PatientsServiceBase
-from app.constants.appointment import APPOINTMENT_STATUS
-from app.common.security_settings import get_default_password
 from app.schemas.user import FamilyMemberCreate, PatientCreateByAdmin, PatientUpdate
 from app.utils.audit import set_create_audit, set_update_audit
 
@@ -32,12 +29,12 @@ class PatientManageService(PatientsServiceBase):
 
     async def get_list(
         self,
-        keyword: Optional[str] = None,
-        is_blacklist: Optional[bool] = None,
-        store_id: Optional[str] = None,
+        keyword: str | None = None,
+        is_blacklist: bool | None = None,
+        store_id: str | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[dict], int]:
+    ) -> tuple[list[dict], int]:
         tenant_id = self._current_tenant_id()
         query = select(Patient).options(selectinload(Patient.user))
         conditions = []
@@ -139,7 +136,7 @@ class PatientManageService(PatientsServiceBase):
 
         return patient_data, total or 0
 
-    async def get_patient_store_id(self, patient_id: str) -> Optional[str]:
+    async def get_patient_store_id(self, patient_id: str) -> str | None:
         query = select(Patient.store_id).where(Patient.id == patient_id)
         tenant_id = self._current_tenant_id()
         if tenant_id:
@@ -147,7 +144,7 @@ class PatientManageService(PatientsServiceBase):
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_detail(self, patient_id: str) -> Optional[dict]:
+    async def get_detail(self, patient_id: str) -> dict | None:
         tenant_id = self._current_tenant_id()
         query = select(Patient).options(selectinload(Patient.user)).where(Patient.id == patient_id)
         if tenant_id:
@@ -274,7 +271,7 @@ class PatientManageService(PatientsServiceBase):
             "familyMembers": family_data,
         }
 
-    async def update_patient(self, patient_id: str, data: PatientUpdate, operator_id: Optional[str] = None) -> Optional[dict]:
+    async def update_patient(self, patient_id: str, data: PatientUpdate, operator_id: str | None = None) -> dict | None:
         query = select(Patient).where(Patient.id == patient_id)
         tenant_id = self._current_tenant_id()
         if tenant_id:
@@ -295,15 +292,15 @@ class PatientManageService(PatientsServiceBase):
     async def get_appointments(
         self,
         patient_id: str,
-        doctor_id: Optional[str] = None,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-        status: Optional[int] = None,
-        is_admin_booked: Optional[bool] = None,
-        is_follow_up: Optional[bool] = None,
+        doctor_id: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        status: int | None = None,
+        is_admin_booked: bool | None = None,
+        is_follow_up: bool | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[dict], int]:
+    ) -> tuple[list[dict], int]:
         tenant_id = self._current_tenant_id()
         query = select(Appointment).where(Appointment.patient_id == patient_id)
         conditions = [Appointment.patient_id == patient_id]
@@ -359,10 +356,10 @@ class PatientManageService(PatientsServiceBase):
     async def get_consumption_records(
         self,
         patient_id: str,
-        item_name: Optional[str] = None,
+        item_name: str | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[dict], int]:
+    ) -> tuple[list[dict], int]:
         tenant_id = self._current_tenant_id()
         conditions = [Appointment.patient_id == patient_id, Appointment.status == 5]
         if tenant_id:
@@ -422,10 +419,10 @@ class PatientManageService(PatientsServiceBase):
 
     async def get_blacklist(
         self,
-        store_id: Optional[str] = None,
+        store_id: str | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[dict], int]:
+    ) -> tuple[list[dict], int]:
         tenant_id = self._current_tenant_id()
         conditions = [User.status == 0]
         if tenant_id:
@@ -462,8 +459,8 @@ class PatientManageService(PatientsServiceBase):
     async def create_patient(
         self,
         data: PatientCreateByAdmin,
-        store_id: Optional[str] = None,
-        operator_id: Optional[str] = None,
+        store_id: str | None = None,
+        operator_id: str | None = None,
     ) -> dict:
         tenant_id = self._current_tenant_id()
         user_query = select(User).where(User.phone == data.phone)
@@ -530,7 +527,7 @@ class PatientManageService(PatientsServiceBase):
         await self.db.commit()
         return await self.get_detail(patient.id)
 
-    async def add_family_member(self, patient_id: str, data: FamilyMemberCreate, operator_id: Optional[str] = None) -> Optional[dict]:
+    async def add_family_member(self, patient_id: str, data: FamilyMemberCreate, operator_id: str | None = None) -> dict | None:
         tenant_id = self._current_tenant_id()
         patient_query = select(Patient).where(Patient.id == patient_id)
         if tenant_id:
@@ -610,8 +607,8 @@ class PatientManageService(PatientsServiceBase):
         patient_id: str,
         member_id: str,
         data: PatientUpdate,
-        operator_id: Optional[str] = None,
-    ) -> Optional[dict]:
+        operator_id: str | None = None,
+    ) -> dict | None:
         tenant_id = self._current_tenant_id()
         patient_query = select(Patient).where(Patient.id == patient_id)
         if tenant_id:

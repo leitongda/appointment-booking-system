@@ -14,30 +14,13 @@
 
 from app.tasks.blacklist_task import (
     auto_release_blacklist_task,
-    mark_no_show_appointments_task,
     check_and_add_blacklist,
-)
-from app.tasks.notification_task import (
-    send_appointment_reminder_task,
-    send_appointment_reminder,
-)
-from app.tasks.schedule_task import (
-    auto_generate_schedules_task,
-    generate_schedules_for_tenant_task,
-    summarize_auto_generate_schedules_task,
-    generate_schedules_for_template,
-)
-from app.tasks.suspension_processing_task import (
-    check_pending_suspension_processing,
-)
-from app.tasks.wechat_task import (
-    refresh_wechat_token_task,
-    refresh_wechat_token,
+    mark_no_show_appointments_task,
 )
 from app.tasks.cleanup_task import (
     cleanup_expired_data_task,
-    cleanup_redis_cache,
     cleanup_old_messages,
+    cleanup_redis_cache,
 )
 from app.tasks.follow_up_task import (
     mark_overdue_task,
@@ -45,10 +28,27 @@ from app.tasks.follow_up_task import (
 )
 from app.tasks.lowcode_deploy_task import (
     build_lowcode_page_task,
-    upload_to_wechat_task,
-    submit_audit_task,
     publish_release_task,
     rollback_task,
+    submit_audit_task,
+    upload_to_wechat_task,
+)
+from app.tasks.notification_task import (
+    send_appointment_reminder,
+    send_appointment_reminder_task,
+)
+from app.tasks.schedule_task import (
+    auto_generate_schedules_task,
+    generate_schedules_for_template,
+    generate_schedules_for_tenant_task,
+    summarize_auto_generate_schedules_task,
+)
+from app.tasks.suspension_processing_task import (
+    check_pending_suspension_processing,
+)
+from app.tasks.wechat_task import (
+    refresh_wechat_token,
+    refresh_wechat_token_task,
 )
 
 __all__ = [

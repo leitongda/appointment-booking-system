@@ -1,12 +1,15 @@
 """小程序平台 - 公司管理路由 (Company CRUD)"""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 
-from app.db.session import get_db
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.common.deps import get_current_admin, get_tenant_from_admin
+from app.db.session import get_db
 from app.modules.miniapp_platform.schemas import (
-    CompanyCreate, CompanyUpdate, CompanyResponse, CompanyListResponse,
+    CompanyCreate,
+    CompanyListResponse,
+    CompanyResponse,
+    CompanyUpdate,
 )
 from app.modules.miniapp_platform.service import CompanyService
 from app.schemas.response import PageResponse
@@ -18,13 +21,13 @@ router = APIRouter()
 
 @router.get("/companies", response_model=PageResponse[CompanyListResponse], summary="获取公司列表")
 async def get_companies(
-    keyword: Optional[str] = None,
-    status: Optional[int] = Query(None, ge=0, le=1),
+    keyword: str | None = None,
+    status: int | None = Query(None, ge=0, le=1),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
-    tenant: Optional[dict] = Depends(get_tenant_from_admin)
+    tenant: dict | None = Depends(get_tenant_from_admin)
 ):
     """获取公司列表
 
@@ -59,7 +62,7 @@ async def create_company(
     data: CompanyCreate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
-    tenant: Optional[dict] = Depends(get_tenant_from_admin)
+    tenant: dict | None = Depends(get_tenant_from_admin)
 ):
     """创建公司
 
@@ -202,10 +205,10 @@ async def delete_company(
 @router.get("/companies/check-unique", summary="检查公司编码唯一性")
 async def check_company_code_unique(
     code: str = Query(..., min_length=1, max_length=50),
-    exclude_id: Optional[str] = Query(None),
+    exclude_id: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
-    tenant: Optional[dict] = Depends(get_tenant_from_admin)
+    tenant: dict | None = Depends(get_tenant_from_admin)
 ):
     """检查公司编码是否已存在"""
     # 非平台管理员需要关联租户

@@ -2,27 +2,26 @@
 
 提供租户校验、上下文管理、状态检查、用量限制等依赖函数。
 """
-from fastapi import Depends, HTTPException, status, Request
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
-from typing import Optional
 
-from app.db.session import get_db
-from app.models.tenant import Tenant
-from app.middleware.tenant_context import (
-    get_current_tenant_id,
-    get_current_tenant_code,
-)
+from fastapi import Depends, HTTPException, Request, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 # 重新导出认证依赖，因为租户依赖依赖它们
 from app.common.auth_deps import get_current_admin
+from app.db.session import get_db
+from app.middleware.tenant_context import (
+    get_current_tenant_code,
+    get_current_tenant_id,
+)
+from app.models.tenant import Tenant
 
 
 async def get_current_tenant(
     request: Request,
     db: AsyncSession = Depends(get_db)
-) -> Optional[dict]:
+) -> dict | None:
     """获取当前租户信息
 
     从请求上下文中获取租户信息（由 TenantContextMiddleware 设置）。
@@ -89,7 +88,7 @@ async def get_current_tenant(
 
 
 async def get_current_tenant_or_404(
-    tenant: Optional[dict] = Depends(get_current_tenant)
+    tenant: dict | None = Depends(get_current_tenant)
 ) -> dict:
     """获取当前租户，如果不存在则返回404
 
@@ -118,7 +117,7 @@ async def get_platform_admin(
     return current_admin
 
 
-def get_tenant_filter(current_admin: dict = Depends(get_current_admin)) -> Optional[str]:
+def get_tenant_filter(current_admin: dict = Depends(get_current_admin)) -> str | None:
     """获取租户过滤条件
 
     用于数据查询时自动添加租户过滤。
@@ -137,7 +136,7 @@ def get_tenant_filter(current_admin: dict = Depends(get_current_admin)) -> Optio
 
 async def check_tenant_access(
     current_admin: dict,
-    target_tenant_id: Optional[str],
+    target_tenant_id: str | None,
     db: AsyncSession
 ) -> bool:
     """检查当前管理员是否有权访问目标租户
@@ -158,7 +157,7 @@ async def check_tenant_access(
 async def get_tenant_from_admin(
     current_admin: dict = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
-) -> Optional[dict]:
+) -> dict | None:
     """从当前管理员获取租户信息
 
     如果管理员关联了租户，返回租户详情（含订阅计划状态）。
@@ -202,7 +201,7 @@ def require_tenant_admin() -> callable:
     """
     async def check_tenant_admin(
         current_admin: dict = Depends(get_current_admin),
-        tenant: Optional[dict] = Depends(get_tenant_from_admin)
+        tenant: dict | None = Depends(get_tenant_from_admin)
     ) -> dict:
         if current_admin.get("is_super_admin"):
             raise HTTPException(
@@ -352,7 +351,7 @@ def require_tenant_context() -> callable:
     用于公开预约接口等必须识别租户的场景。
     """
     async def check_tenant_context(
-        tenant: Optional[dict] = Depends(get_current_tenant)
+        tenant: dict | None = Depends(get_current_tenant)
     ) -> dict:
         if not tenant:
             raise HTTPException(
@@ -372,8 +371,9 @@ async def require_tenant_active_for_write(
     依赖租户上下文（TenantContextMiddleware 解析的 X-Tenant-ID）。
     """
     from datetime import datetime as _dt
-    from app.middleware.exception import raise_business_http_error
+
     from app.core.error_codes import ErrorCode as TenantErrorCode
+    from app.middleware.exception import raise_business_http_error
 
     tenant_id = get_current_tenant_id()
     if not tenant_id:

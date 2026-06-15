@@ -1,7 +1,9 @@
 """字典类型模型"""
-from sqlalchemy import Column, String, Integer, Text, ForeignKey, UniqueConstraint
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import Column, ForeignKey, Integer, String, Text, UniqueConstraint
+
+from app.db.base import AuditMixin, Base
 
 
 class DictType(Base, AuditMixin):

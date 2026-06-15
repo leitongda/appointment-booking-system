@@ -4,10 +4,17 @@
 unified_templates, channel_strategies, recipient_rules
 """
 import uuid
-from datetime import datetime
 
 from sqlalchemy import (
-    Column, String, Integer, Text, DateTime, JSON, Boolean, UniqueConstraint, ForeignKey,
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 

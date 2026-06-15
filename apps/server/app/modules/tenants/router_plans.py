@@ -7,7 +7,6 @@
 - PUT /plans/{plan_id} — 更新订阅计划
 - DELETE /plans/{plan_id} — 删除订阅计划
 """
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,7 +26,7 @@ router = APIRouter()
 
 @router.get(
     "/plans",
-    response_model=List[SubscriptionPlanListResponse],
+    response_model=list[SubscriptionPlanListResponse],
     summary="获取订阅计划列表",
     description="""获取所有可用的订阅计划列表，包括计划名称、价格、配额限制等信息。
 
@@ -58,7 +57,7 @@ router = APIRouter()
 """
 )
 async def get_subscription_plans(
-    status: Optional[int] = Query(None, ge=0, le=1, description="状态筛选: 0-禁用, 1-启用"),
+    status: int | None = Query(None, ge=0, le=1, description="状态筛选: 0-禁用, 1-启用"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin)
 ):

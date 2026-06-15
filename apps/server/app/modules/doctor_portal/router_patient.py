@@ -1,17 +1,17 @@
 """患者相关端点"""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from typing import Optional
 
-from app.db.session import get_db
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.deps import get_current_doctor_by_token
+from app.db.session import get_db
 from app.models.doctor import Doctor
-from app.modules.appointments.service import AppointmentService
 from app.models.medical_record import MedicalRecord
+from app.modules.appointments.service import AppointmentService
 from app.modules.doctor_portal.schemas import (
-    PatientHistoryResponse,
     FollowUpBookingRequest,
+    PatientHistoryResponse,
 )
 
 router = APIRouter()
@@ -20,7 +20,7 @@ router = APIRouter()
 @router.get("/{patient_id}/appointments", summary="获取患者历史")
 async def get_patient_history(
     patient_id: str,
-    status: Optional[int] = None,
+    status: int | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=50),
     doctor: Doctor = Depends(get_current_doctor_by_token),

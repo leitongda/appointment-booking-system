@@ -1,16 +1,16 @@
 """叫号管理相关端点"""
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import date
-from typing import Optional, List
 
-from app.db.session import get_db
 from app.api.deps import get_current_doctor_by_token
-from app.models.doctor import Doctor
+from app.core.websocket import WSMessageType, notify_doctor, notify_patient
+from app.db.session import get_db
 from app.models.appointment import Appointment
+from app.models.doctor import Doctor
 from app.modules.appointments.service import AppointmentService
 from app.modules.doctor_portal.schemas import QueuePatientResponse
-from app.core.websocket import notify_doctor, notify_patient, WSMessageType
 
 router = APIRouter()
 
@@ -52,9 +52,9 @@ async def _verify_appointment_ownership(
     return appointment
 
 
-@router.get("", response_model=List[QueuePatientResponse], summary="获取叫号队列")
+@router.get("", response_model=list[QueuePatientResponse], summary="获取叫号队列")
 async def get_my_queue(
-    target_date: Optional[date] = None,
+    target_date: date | None = None,
     doctor: Doctor = Depends(get_current_doctor_by_token),
     db: AsyncSession = Depends(get_db)
 ):

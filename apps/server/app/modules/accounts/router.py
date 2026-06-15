@@ -8,22 +8,21 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.auth_unified import get_current_account
-from app.common.auth_types import AccountInfo, RoleType
 from app.common.account_sync import AccountSyncService
-from app.core.security import verify_password, get_password_hash
+from app.common.auth_types import AccountInfo, RoleType
+from app.common.auth_unified import get_current_account
+from app.core.config import settings
 from app.core.logging import logger
+from app.core.redis import RedisCache
+from app.core.security import get_password_hash, verify_password
 from app.db.session import get_db
+from app.infrastructure.email.service import EmailService
 from app.infrastructure.storage import get_storage
 from app.infrastructure.storage.base import build_tenant_storage_folder
-from app.models.account import Account
-from app.models.account import AccountAdmin
+from app.models.account import Account, AccountAdmin
 from app.models.admin import Admin
 from app.models.doctor import Doctor
 from app.models.user import User
-from app.infrastructure.email.service import EmailService
-from app.core.redis import RedisCache
-from app.core.config import settings
 
 router = APIRouter()
 
@@ -233,7 +232,7 @@ async def change_account_password(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="密码长度必须为6-20位")
 
     # 租户密码策略校验
-    from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
+    from app.modules.tenants.password_policy import PasswordPolicyValidator, get_tenant_password_policy
 
     policy = await get_tenant_password_policy(db, account.tenant_id)
     validator = PasswordPolicyValidator(policy)

@@ -3,12 +3,11 @@
 
 提供发送量、成功率、渠道延迟、重试率等监控指标。
 """
-import time
 import logging
+import time
 from contextlib import contextmanager
-from typing import Optional
 
-from prometheus_client import Counter, Histogram, Gauge, REGISTRY
+from prometheus_client import Counter, Gauge, Histogram
 
 logger = logging.getLogger(__name__)
 

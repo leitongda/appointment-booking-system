@@ -1,29 +1,36 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, List
-from decimal import Decimal
 
-from app.db.session import get_db
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.deps import get_current_admin, require_permission
-from app.schemas.consultation_fee import (
-    ConsultationFeeTypeCreate, ConsultationFeeTypeUpdate, ConsultationFeeTypeResponse,
-    ConsultationFeeTemplateCreate, ConsultationFeeTemplateResponse, ConsultationFeeTemplateWithType,
-    DoctorConsultationFeeResponse, DoctorConsultationFeeBatchCreate,
-    DoctorFeeSettingResponse, DoctorFeeSettingUpdate, StoreDepartmentFeeGroup,
-    StoreFeeTemplateResponse, StoreFeeTemplateBatchCreate, StoreFeeTemplateWithType,
-    ApplyTemplateRequest
-)
+from app.db.session import get_db
 from app.modules.consultation_fees.service import ConsultationFeeService
+from app.schemas.consultation_fee import (
+    ApplyTemplateRequest,
+    ConsultationFeeTemplateCreate,
+    ConsultationFeeTemplateResponse,
+    ConsultationFeeTemplateWithType,
+    ConsultationFeeTypeCreate,
+    ConsultationFeeTypeResponse,
+    ConsultationFeeTypeUpdate,
+    DoctorConsultationFeeBatchCreate,
+    DoctorConsultationFeeResponse,
+    DoctorFeeSettingResponse,
+    DoctorFeeSettingUpdate,
+    StoreDepartmentFeeGroup,
+    StoreFeeTemplateBatchCreate,
+    StoreFeeTemplateWithType,
+)
 
 router = APIRouter()
 
 
 # ========== 诊费类型相关 API ==========
 
-@router.get("/types", response_model=List[ConsultationFeeTypeResponse], summary="获取诊费类型列表")
+@router.get("/types", response_model=list[ConsultationFeeTypeResponse], summary="获取诊费类型列表")
 async def get_fee_types(
-    status: Optional[int] = Query(None, description="状态筛选"),
-    store_id: Optional[str] = Query(None, description="门店ID，获取门店可用的诊费类型（全局+门店专属）"),
+    status: int | None = Query(None, description="状态筛选"),
+    store_id: str | None = Query(None, description="门店ID，获取门店可用的诊费类型（全局+门店专属）"),
     include_global: bool = Query(True, description="是否包含全局类型"),
     db: AsyncSession = Depends(get_db)
 ):
@@ -172,7 +179,7 @@ async def delete_fee_type(
 
 # ========== 全局诊费模板相关 API ==========
 
-@router.get("/templates", response_model=List[ConsultationFeeTemplateWithType], summary="获取全局诊费模板列表")
+@router.get("/templates", response_model=list[ConsultationFeeTemplateWithType], summary="获取全局诊费模板列表")
 async def get_fee_templates(
     db: AsyncSession = Depends(get_db)
 ):
@@ -184,7 +191,7 @@ async def get_fee_templates(
 
 @router.put("/templates", summary="批量更新全局诊费模板")
 async def update_fee_templates(
-    templates: List[dict],
+    templates: list[dict],
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("system:consultation-fee"))
@@ -227,7 +234,7 @@ async def create_or_update_fee_template(
 
 # ========== 门店诊费模板相关 API ==========
 
-@router.get("/store-templates/{store_id}", response_model=List[StoreFeeTemplateWithType], summary="获取门店诊费模板列表")
+@router.get("/store-templates/{store_id}", response_model=list[StoreFeeTemplateWithType], summary="获取门店诊费模板列表")
 async def get_store_fee_templates(
     store_id: str,
     db: AsyncSession = Depends(get_db)
@@ -316,7 +323,7 @@ async def get_doctor_fee_setting(
     )
 
 
-@router.get("/doctors/{doctor_id}/grouped", response_model=List[StoreDepartmentFeeGroup], summary="获取医生诊费配置（分组）")
+@router.get("/doctors/{doctor_id}/grouped", response_model=list[StoreDepartmentFeeGroup], summary="获取医生诊费配置（分组）")
 async def get_doctor_fees_grouped(
     doctor_id: str,
     db: AsyncSession = Depends(get_db)
@@ -345,11 +352,11 @@ async def update_doctor_use_template(
     return {"message": "更新成功"}
 
 
-@router.get("/doctors/{doctor_id}/fees", response_model=List[DoctorConsultationFeeResponse], summary="获取医生诊费配置列表")
+@router.get("/doctors/{doctor_id}/fees", response_model=list[DoctorConsultationFeeResponse], summary="获取医生诊费配置列表")
 async def get_doctor_fees(
     doctor_id: str,
-    store_id: Optional[str] = Query(None, description="门店ID"),
-    department_id: Optional[str] = Query(None, description="科室ID"),
+    store_id: str | None = Query(None, description="门店ID"),
+    department_id: str | None = Query(None, description="科室ID"),
     db: AsyncSession = Depends(get_db)
 ):
     """获取医生诊费配置列表"""

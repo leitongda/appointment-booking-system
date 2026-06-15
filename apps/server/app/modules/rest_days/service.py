@@ -1,25 +1,24 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_
-from sqlalchemy.orm import selectinload
-from typing import Optional, List
-from datetime import date
-import uuid
 import json
+import uuid
+from datetime import date
 
-from app.models.rest_day import RestDay
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.doctor import Doctor
-from app.models.store import Store
+from app.models.rest_day import RestDay
+from app.modules.schedules.service_query import _invalidate_rest_days_cache
 from app.schemas.rest_day import RestDayCreate
 from app.utils.audit import set_create_audit, set_update_audit
-from app.middleware.tenant_context import get_current_tenant_id
-from app.modules.schedules.service_query import _invalidate_rest_days_cache
 
 
 class RestDayService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, rest_day_id: str) -> Optional[RestDay]:
+    async def get_by_id(self, rest_day_id: str) -> RestDay | None:
         stmt = (
             select(RestDay)
             .options(selectinload(RestDay.store))
@@ -33,14 +32,14 @@ class RestDayService:
 
     async def get_list(
         self,
-        store_id: Optional[str] = None,
-        doctor_id: Optional[str] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        status: Optional[int] = None,
+        store_id: str | None = None,
+        doctor_id: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        status: int | None = None,
         page: int = 1,
         page_size: int = 10
-    ) -> tuple[List[RestDay], int]:
+    ) -> tuple[list[RestDay], int]:
         query = select(RestDay).options(selectinload(RestDay.store))
         count_query = select(func.count(RestDay.id))
 
@@ -88,7 +87,7 @@ class RestDayService:
 
         return rest_days, count_result.scalar() or 0
 
-    async def create(self, data: RestDayCreate, operator_id: Optional[str] = None) -> RestDay:
+    async def create(self, data: RestDayCreate, operator_id: str | None = None) -> RestDay:
         """创建休息日"""
         tenant_id = get_current_tenant_id()
         rest_day = RestDay(
@@ -119,7 +118,7 @@ class RestDayService:
         _invalidate_rest_days_cache(get_current_tenant_id())
         return True
 
-    async def cancel(self, rest_day_id: str, operator_id: Optional[str] = None) -> Optional[RestDay]:
+    async def cancel(self, rest_day_id: str, operator_id: str | None = None) -> RestDay | None:
         """取消休息日"""
         rest_day = await self.get_by_id(rest_day_id)
         if not rest_day:
@@ -137,7 +136,7 @@ class RestDayService:
         store_id: str,
         doctor_id: str,
         check_date: date
-    ) -> Optional[RestDay]:
+    ) -> RestDay | None:
         """检查指定日期是否为休息日"""
         stmt = select(RestDay).where(
             and_(
@@ -168,7 +167,7 @@ class RestDayService:
 
         return None
 
-    async def get_doctor_names(self, doctor_ids: List[str]) -> List[str]:
+    async def get_doctor_names(self, doctor_ids: list[str]) -> list[str]:
         """获取医生姓名列表"""
         if not doctor_ids:
             return []
@@ -179,7 +178,7 @@ class RestDayService:
         doctors = result.scalars().all()
         return [d.name for d in doctors]
 
-    async def get_doctor_names_batch(self, doctor_ids_list: List[List[str]]) -> dict:
+    async def get_doctor_names_batch(self, doctor_ids_list: list[list[str]]) -> dict:
         """批量获取医生姓名
 
         Args:

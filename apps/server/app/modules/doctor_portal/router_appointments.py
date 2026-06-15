@@ -1,27 +1,27 @@
 """预约查询相关端点"""
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 from datetime import date, timedelta
-from typing import Optional, List
 
-from app.db.session import get_db
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.deps import get_current_doctor_by_token
-from app.models.doctor import Doctor
+from app.db.session import get_db
 from app.models.appointment import Appointment
+from app.models.doctor import Doctor
 from app.models.schedule import Schedule
 from app.modules.appointments.service import AppointmentService
-from app.modules.visit_types.service import VisitTypeService
 from app.modules.doctor_portal.schemas import DoctorAppointmentResponse
+from app.modules.visit_types.service import VisitTypeService
 
 router = APIRouter()
 
 
-@router.get("", response_model=List[DoctorAppointmentResponse], summary="获取预约列表")
+@router.get("", response_model=list[DoctorAppointmentResponse], summary="获取预约列表")
 async def get_my_appointments(
-    status: Optional[int] = None,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
+    status: int | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     doctor: Doctor = Depends(get_current_doctor_by_token),
@@ -78,7 +78,7 @@ async def get_my_appointments(
     return result
 
 
-@router.get("/today", response_model=List[DoctorAppointmentResponse], summary="获取今日预约")
+@router.get("/today", response_model=list[DoctorAppointmentResponse], summary="获取今日预约")
 async def get_my_today_appointments(
     doctor: Doctor = Depends(get_current_doctor_by_token),
     db: AsyncSession = Depends(get_db)
@@ -194,8 +194,8 @@ async def get_my_appointment_trend(
 
 @router.get("/statistics/status", summary="获取预约状态统计")
 async def get_my_appointment_status_stats(
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
     doctor: Doctor = Depends(get_current_doctor_by_token),
     db: AsyncSession = Depends(get_db)
 ):

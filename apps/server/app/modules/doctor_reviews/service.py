@@ -1,15 +1,14 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, update
-from typing import Optional, List, Tuple
-from datetime import datetime
 import uuid
+from datetime import datetime
 
-from app.models.doctor_review import DoctorReview
-from app.models.doctor import Doctor
-from app.models.user import User
-from app.models.patient import Patient
-from app.modules.doctor_reviews.schemas import DoctorReviewCreate, DoctorReviewReply
+from sqlalchemy import func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.middleware.tenant_context import get_current_tenant_id
+from app.models.doctor import Doctor
+from app.models.doctor_review import DoctorReview
+from app.models.user import Patient, User
+from app.modules.doctor_reviews.schemas import DoctorReviewCreate, DoctorReviewReply
 from app.utils.audit import set_create_audit, set_update_audit
 
 
@@ -52,12 +51,12 @@ class DoctorReviewService:
 
     async def get_list(
         self,
-        doctor_id: Optional[str] = None,
-        user_id: Optional[str] = None,
-        status: Optional[int] = None,
+        doctor_id: str | None = None,
+        user_id: str | None = None,
+        status: int | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[dict], int]:
+    ) -> tuple[list[dict], int]:
         """获取评价列表"""
         stmt = self._tenant_filter(select(DoctorReview))
         count_stmt = self._tenant_filter(select(func.count(DoctorReview.id)))
@@ -116,7 +115,7 @@ class DoctorReviewService:
         doctor_id: str,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[dict], int]:
+    ) -> tuple[list[dict], int]:
         """获取医生评价列表"""
         return await self.get_list(doctor_id=doctor_id, status=1, page=page, page_size=page_size)
 
@@ -125,7 +124,7 @@ class DoctorReviewService:
         review_id: str,
         operator_id: str,
         data: DoctorReviewReply,
-    ) -> Optional[DoctorReview]:
+    ) -> DoctorReview | None:
         """回复评价"""
         stmt = self._tenant_filter(
             select(DoctorReview).where(DoctorReview.id == review_id)
@@ -166,13 +165,13 @@ class DoctorReviewService:
             .values(avg_rating=round(avg_rating, 2), review_count=review_count)
         )
 
-    async def _get_user_name(self, user_id: str) -> Optional[str]:
+    async def _get_user_name(self, user_id: str) -> str | None:
         result = await self.db.execute(
             select(User.name).where(User.id == user_id)
         )
         return result.scalar_one_or_none()
 
-    async def _get_patient_name(self, patient_id: str) -> Optional[str]:
+    async def _get_patient_name(self, patient_id: str) -> str | None:
         result = await self.db.execute(
             select(Patient.name).where(Patient.id == patient_id)
         )

@@ -1,8 +1,7 @@
 from app.schemas.response import to_camel
+
 """常见服务模块 DTOs"""
-from datetime import datetime
-from typing import Optional, List
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 # ========== 常见服务 ==========
 
@@ -11,13 +10,13 @@ class CommonServiceResponse(BaseModel):
     id: str
     name: str
     code: str
-    icon: Optional[str] = None
-    variant: Optional[str] = None
+    icon: str | None = None
+    variant: str | None = None
     link_type: int = 1
-    link_url: Optional[str] = None
-    department_id: Optional[str] = None
-    department_name: Optional[str] = None
-    description: Optional[str] = None
+    link_url: str | None = None
+    department_id: str | None = None
+    department_name: str | None = None
+    description: str | None = None
     sort_order: int = 0
     status: int = 1
 
@@ -30,7 +29,7 @@ class CommonServiceResponse(BaseModel):
 
 class CommonServiceListResponse(BaseModel):
     """常见服务列表响应"""
-    items: List[CommonServiceResponse]
+    items: list[CommonServiceResponse]
 
 # ========== 健康提醒 ==========
 
@@ -39,9 +38,9 @@ class HealthReminderResponse(BaseModel):
     id: str
     reminder_type: str
     name: str
-    title: Optional[str] = None
-    content: Optional[str] = None
-    tips: Optional[List[str]] = None
+    title: str | None = None
+    content: str | None = None
+    tips: list[str] | None = None
     recommended_interval: int = 365
     sort_order: int = 0
     status: int = 1
@@ -55,8 +54,8 @@ class HealthReminderResponse(BaseModel):
 
 class UserHealthReminderResponse(BaseModel):
     """用户健康提醒响应（包含用户的检查历史）"""
-    next_check_date: Optional[str] = None
-    last_check_date: Optional[str] = None
-    check_type: Optional[str] = None
-    tips: Optional[List[str]] = None
-    reminder_content: Optional[str] = None
+    next_check_date: str | None = None
+    last_check_date: str | None = None
+    check_type: str | None = None
+    tips: list[str] | None = None
+    reminder_content: str | None = None

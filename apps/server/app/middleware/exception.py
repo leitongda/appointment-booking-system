@@ -2,14 +2,15 @@
 全局异常处理中间件
 统一处理各类异常，返回标准格式的错误响应
 """
-from fastapi import Request, status
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-from jose import JWTError
 import logging
 import traceback
+
+from fastapi import Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from jose import JWTError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 logger = logging.getLogger(__name__)
 

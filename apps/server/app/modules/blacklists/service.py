@@ -1,16 +1,16 @@
 """黑名单服务"""
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_
-from sqlalchemy.orm import selectinload
-from typing import Optional, List, Tuple
-from datetime import datetime, timedelta
 import uuid
+from datetime import datetime, timedelta
 
-from app.models.blacklist import Blacklist
-from app.models.user import User, Patient
-from app.models.store import Store
+from sqlalchemy import and_, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
 from app.middleware.tenant_context import get_current_tenant_id
-from app.schemas.blacklist import BlacklistCreate, BlacklistCheckResult
+from app.models.blacklist import Blacklist
+from app.models.store import Store
+from app.models.user import User
+from app.schemas.blacklist import BlacklistCheckResult, BlacklistCreate
 from app.utils.audit import set_create_audit, set_update_audit
 
 
@@ -22,12 +22,12 @@ class BlacklistService:
 
     async def get_list(
         self,
-        keyword: Optional[str] = None,
-        store_id: Optional[str] = None,
-        status: Optional[int] = None,
+        keyword: str | None = None,
+        store_id: str | None = None,
+        status: int | None = None,
         page: int = 1,
         page_size: int = 20,
-    ) -> Tuple[List[dict], int]:
+    ) -> tuple[list[dict], int]:
         """获取黑名单列表"""
         tenant_id = get_current_tenant_id()
         query = select(Blacklist).options(
@@ -101,7 +101,7 @@ class BlacklistService:
 
         return data, total or 0
 
-    async def create(self, data: BlacklistCreate, operator_id: Optional[str] = None) -> dict:
+    async def create(self, data: BlacklistCreate, operator_id: str | None = None) -> dict:
         """添加黑名单"""
         tenant_id = get_current_tenant_id()
 
@@ -151,7 +151,7 @@ class BlacklistService:
             'createdAt': blacklist.created_at.isoformat() if blacklist.created_at else None,
         }
 
-    async def remove(self, blacklist_id: str, operator_id: Optional[str] = None) -> bool:
+    async def remove(self, blacklist_id: str, operator_id: str | None = None) -> bool:
         """移除黑名单（解禁）"""
         tenant_id = get_current_tenant_id()
         query = select(Blacklist).where(Blacklist.id == blacklist_id)
@@ -187,10 +187,10 @@ class BlacklistService:
 
     async def check_blacklist(
         self,
-        user_id: Optional[str] = None,
-        phone: Optional[str] = None,
-        id_card: Optional[str] = None,
-        store_id: Optional[str] = None,
+        user_id: str | None = None,
+        phone: str | None = None,
+        id_card: str | None = None,
+        store_id: str | None = None,
     ) -> BlacklistCheckResult:
         """检查是否在黑名单中"""
         tenant_id = get_current_tenant_id()
@@ -253,7 +253,7 @@ class BlacklistService:
         user_id: str,
         no_show_count: int,
         blacklist_days: int,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """自动添加到黑名单（爽约触发）"""
         tenant_id = get_current_tenant_id()
         # 检查是否已在黑名单中
@@ -294,7 +294,7 @@ class BlacklistService:
             'expireAt': blacklist.expire_at.isoformat() if blacklist.expire_at else None,
         }
 
-    async def auto_release_expired(self) -> List[dict]:
+    async def auto_release_expired(self) -> list[dict]:
         """自动解禁到期的黑名单"""
         now = datetime.now()
         tenant_id = get_current_tenant_id()

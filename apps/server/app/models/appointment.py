@@ -1,8 +1,10 @@
-from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey, Numeric
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
-from datetime import datetime
 import uuid
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
+
 
 class Appointment(Base, AuditMixin):
     __tablename__ = "appointments"

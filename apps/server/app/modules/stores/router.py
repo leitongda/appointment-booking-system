@@ -1,18 +1,23 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, List
 
-from app.db.session import get_db
-from app.api.deps import get_current_admin, require_permission, check_store_access
-from app.schemas.store import (
-    StoreCreate, StoreUpdate, StoreResponse, StoreListResponse, StoreQuery,
-    StoreWechatConfigUpdate, StoreWechatConfigResponse
-)
-from app.schemas.department import DepartmentResponse
-from app.schemas.admin import AdminListResponse
-from app.schemas.response import PageResponse
-from app.modules.stores.service import StoreService
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import check_store_access, get_current_admin, require_permission
 from app.core.config import settings
+from app.db.session import get_db
+from app.modules.stores.service import StoreService
+from app.schemas.admin import AdminListResponse
+from app.schemas.department import DepartmentResponse
+from app.schemas.response import PageResponse
+from app.schemas.store import (
+    StoreCreate,
+    StoreListResponse,
+    StoreQuery,
+    StoreResponse,
+    StoreUpdate,
+    StoreWechatConfigResponse,
+    StoreWechatConfigUpdate,
+)
 
 router = APIRouter()
 
@@ -79,7 +84,7 @@ async def get_store_by_code(
 async def check_unique(
     field: str = Query(..., pattern="^(name|code)$", description="检查字段: name 或 code"),
     value: str = Query(..., min_length=1, description="字段值"),
-    exclude_id: Optional[str] = Query(None, description="排除的门店ID（编辑时使用）"),
+    exclude_id: str | None = Query(None, description="排除的门店ID（编辑时使用）"),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
 ):
@@ -128,9 +133,9 @@ async def check_unique(
     """,
 )
 async def get_stores(
-    keyword: Optional[str] = None,
-    status: Optional[int] = None,
-    city: Optional[str] = None,
+    keyword: str | None = None,
+    status: int | None = None,
+    city: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -210,7 +215,7 @@ async def get_stores(
 
 @router.get(
     "/all",
-    response_model=List[StoreResponse],
+    response_model=list[StoreResponse],
     summary="获取所有门店",
     description="""
     获取所有营业中的门店列表（不分页），用于管理后台下拉选择等场景。
@@ -476,7 +481,7 @@ async def update_store_status(
 
 @router.get(
     "/{store_id}/departments",
-    response_model=List[DepartmentResponse],
+    response_model=list[DepartmentResponse],
     summary="获取科室列表",
     description="""
     获取门店已绑定的科室列表。
@@ -533,7 +538,7 @@ async def get_store_departments(
 )
 async def batch_bind_departments(
     store_id: str,
-    department_ids: List[str],
+    department_ids: list[str],
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
 ):
@@ -559,7 +564,7 @@ async def batch_bind_departments(
 
 @router.get(
     "/{store_id}/admins",
-    response_model=List[AdminListResponse],
+    response_model=list[AdminListResponse],
     summary="获取管理员列表",
     description="""
     获取门店已绑定的管理员列表。
@@ -616,7 +621,7 @@ async def get_store_admins(
 )
 async def batch_bind_admins(
     store_id: str,
-    admin_ids: List[str],
+    admin_ids: list[str],
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
 ):

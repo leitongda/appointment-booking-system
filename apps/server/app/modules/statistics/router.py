@@ -10,11 +10,13 @@
 """
 from fastapi import APIRouter
 
-from app.modules.statistics.helpers import _build_store_filter_condition  # noqa: F401 — re-export for backward compatibility
-from app.modules.statistics.router_overview import router as overview_router
+from app.modules.statistics.helpers import (
+    _build_store_filter_condition,  # noqa: F401 — re-export for backward compatibility
+)
 from app.modules.statistics.router_appointment_stats import router as appointment_stats_router
-from app.modules.statistics.router_rankings import router as rankings_router
 from app.modules.statistics.router_distribution import router as distribution_router
+from app.modules.statistics.router_overview import router as overview_router
+from app.modules.statistics.router_rankings import router as rankings_router
 from app.modules.statistics.router_revenue import router as revenue_router
 from app.modules.statistics.router_user_analytics import router as user_analytics_router
 

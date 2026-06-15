@@ -1,7 +1,6 @@
 """Store email recipients domain router."""
 
 import json
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,9 +54,9 @@ async def get_event_types(
 
 @router.get("", summary="获取门店邮件接收人列表")
 async def get_store_email_recipients(
-    store_id: Optional[str] = Query(None, description="门店ID"),
-    keyword: Optional[str] = Query(None, description="关键词搜索"),
-    status: Optional[int] = Query(None, description="状态"),
+    store_id: str | None = Query(None, description="门店ID"),
+    keyword: str | None = Query(None, description="关键词搜索"),
+    status: int | None = Query(None, description="状态"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),

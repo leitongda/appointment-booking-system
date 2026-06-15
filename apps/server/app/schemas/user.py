@@ -1,8 +1,10 @@
-from app.schemas.response import to_camel
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Literal, Optional, List
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas.response import to_camel
 
 # 与前端 @hospital/shared PATIENT_RELATIONSHIP 保持一致
 RELATIONSHIP_TYPE = Literal["本人", "父母", "子女", "配偶", "其他"]
@@ -15,9 +17,9 @@ class UserBase(BaseModel):
     )
     
     phone: str = Field(..., min_length=11, max_length=11, description="手机号")
-    nickname: Optional[str] = Field(None, max_length=50)
-    avatar: Optional[str] = None
-    gender: Optional[int] = Field(0, ge=0, le=2, description="性别: 0未知 1男 2女")
+    nickname: str | None = Field(None, max_length=50)
+    avatar: str | None = None
+    gender: int | None = Field(0, ge=0, le=2, description="性别: 0未知 1男 2女")
 
 class UserCreate(BaseModel):
     model_config = ConfigDict(
@@ -26,12 +28,12 @@ class UserCreate(BaseModel):
     )
     
     phone: str = Field("", max_length=11, description="手机号，微信用户可为空")
-    email: Optional[str] = Field(None, max_length=100, description="邮箱")
+    email: str | None = Field(None, max_length=100, description="邮箱")
     password: str = Field("", max_length=20, description="密码，微信用户可为空")
-    openid: Optional[str] = Field(None, max_length=100, description="微信 openid")
-    unionid: Optional[str] = Field(None, max_length=100, description="微信开放平台统一ID")
-    nickname: Optional[str] = Field(None, max_length=50, description="昵称")
-    avatar: Optional[str] = Field(None, description="头像URL")
+    openid: str | None = Field(None, max_length=100, description="微信 openid")
+    unionid: str | None = Field(None, max_length=100, description="微信开放平台统一ID")
+    nickname: str | None = Field(None, max_length=50, description="昵称")
+    avatar: str | None = Field(None, description="头像URL")
 
 class UserUpdate(BaseModel):
     model_config = ConfigDict(
@@ -39,9 +41,9 @@ class UserUpdate(BaseModel):
         populate_by_name=True,
     )
 
-    nickname: Optional[str] = Field(None, max_length=50)
-    avatar: Optional[str] = None
-    gender: Optional[int] = Field(None, ge=0, le=2)
+    nickname: str | None = Field(None, max_length=50)
+    avatar: str | None = None
+    gender: int | None = Field(None, ge=0, le=2)
 
 class AdminUserUpdate(BaseModel):
     """管理员更新用户信息"""
@@ -50,10 +52,10 @@ class AdminUserUpdate(BaseModel):
         populate_by_name=True,
     )
 
-    nickname: Optional[str] = Field(None, max_length=50, description="昵称")
-    phone: Optional[str] = Field(None, min_length=11, max_length=11, description="手机号")
-    avatar: Optional[str] = Field(None, description="头像URL")
-    gender: Optional[int] = Field(None, ge=0, le=2, description="性别: 0未知 1男 2女")
+    nickname: str | None = Field(None, max_length=50, description="昵称")
+    phone: str | None = Field(None, min_length=11, max_length=11, description="手机号")
+    avatar: str | None = Field(None, description="头像URL")
+    gender: int | None = Field(None, ge=0, le=2, description="性别: 0未知 1男 2女")
 
 class ChangePasswordRequest(BaseModel):
     """修改密码请求"""
@@ -73,7 +75,7 @@ class BindPhoneRequest(BaseModel):
     )
     
     phone: str = Field(..., min_length=11, max_length=11, description="新手机号")
-    code: Optional[str] = Field(None, max_length=6, description="验证码（可选）")
+    code: str | None = Field(None, max_length=6, description="验证码（可选）")
 
 class UserInDB(UserBase):
     model_config = ConfigDict(
@@ -99,12 +101,12 @@ class UserResponse(BaseModel):
     )
     
     id: str = Field(..., description="用户ID")
-    phone: Optional[str] = Field(None, description="手机号")
-    email: Optional[str] = Field(None, description="邮箱")
-    nickname: Optional[str] = Field(None, description="昵称")
-    avatar: Optional[str] = Field(None, description="头像URL")
-    gender: Optional[int] = Field(0, description="性别: 0未知 1男 2女")
-    status: Optional[int] = Field(1, description="状态: 0禁用 1正常")
+    phone: str | None = Field(None, description="手机号")
+    email: str | None = Field(None, description="邮箱")
+    nickname: str | None = Field(None, description="昵称")
+    avatar: str | None = Field(None, description="头像URL")
+    gender: int | None = Field(0, description="性别: 0未知 1男 2女")
+    status: int | None = Field(1, description="状态: 0禁用 1正常")
     points: int = Field(0, description="积分")
     has_password: bool = Field(False, description="是否已设置密码")
 
@@ -117,20 +119,20 @@ class PatientBase(BaseModel):
     
     name: str = Field(..., max_length=50, description="姓名")
     phone: str = Field(..., min_length=11, max_length=11)
-    id_card: Optional[str] = Field(None, max_length=18, description="身份证号")
-    gender: Optional[int] = Field(None, ge=0, le=2)
-    age: Optional[int] = Field(None, ge=0, le=150, description="年龄")
-    relationship: Optional[RELATIONSHIP_TYPE] = Field(None, description="与账号用户关系")
+    id_card: str | None = Field(None, max_length=18, description="身份证号")
+    gender: int | None = Field(None, ge=0, le=2)
+    age: int | None = Field(None, ge=0, le=150, description="年龄")
+    relationship: RELATIONSHIP_TYPE | None = Field(None, description="与账号用户关系")
     is_default: bool = False
     # 新增字段
-    card_no: Optional[str] = Field(None, max_length=50, description="就诊卡编号")
-    province: Optional[str] = Field(None, max_length=50, description="省")
-    city: Optional[str] = Field(None, max_length=50, description="市")
-    district: Optional[str] = Field(None, max_length=50, description="区")
-    street: Optional[str] = Field(None, max_length=100, description="街道/社区")
+    card_no: str | None = Field(None, max_length=50, description="就诊卡编号")
+    province: str | None = Field(None, max_length=50, description="省")
+    city: str | None = Field(None, max_length=50, description="市")
+    district: str | None = Field(None, max_length=50, description="区")
+    street: str | None = Field(None, max_length=100, description="街道/社区")
     id_card_type: int = Field(1, ge=1, le=3, description="证件类型: 1身份证 2户口簿 3护照")
     ethnicity: str = Field("汉族", max_length=20, description="民族")
-    address: Optional[str] = Field(None, max_length=255, description="详细地址")
+    address: str | None = Field(None, max_length=255, description="详细地址")
     source: int = Field(1, ge=1, le=2, description="来源: 1用户添加 2管理员添加")
 
 class PatientCreate(PatientBase):
@@ -145,19 +147,19 @@ class PatientCreateByAdmin(BaseModel):
     
     name: str = Field(..., max_length=50, description="姓名")
     phone: str = Field(..., min_length=11, max_length=11, description="手机号")
-    id_card: Optional[str] = Field(None, max_length=18, description="身份证号")
-    gender: Optional[int] = Field(None, ge=0, le=2)
-    age: Optional[int] = Field(None, ge=0, le=150, description="年龄")
-    birthday: Optional[str] = Field(None, description="出生日期 YYYY-MM-DD")
-    relationship: Optional[RELATIONSHIP_TYPE] = Field(None, description="与账号用户关系")
+    id_card: str | None = Field(None, max_length=18, description="身份证号")
+    gender: int | None = Field(None, ge=0, le=2)
+    age: int | None = Field(None, ge=0, le=150, description="年龄")
+    birthday: str | None = Field(None, description="出生日期 YYYY-MM-DD")
+    relationship: RELATIONSHIP_TYPE | None = Field(None, description="与账号用户关系")
     is_default: bool = True
-    province: Optional[str] = Field(None, max_length=50, description="省")
-    city: Optional[str] = Field(None, max_length=50, description="市")
-    district: Optional[str] = Field(None, max_length=50, description="区")
-    street: Optional[str] = Field(None, max_length=100, description="街道/社区")
+    province: str | None = Field(None, max_length=50, description="省")
+    city: str | None = Field(None, max_length=50, description="市")
+    district: str | None = Field(None, max_length=50, description="区")
+    street: str | None = Field(None, max_length=100, description="街道/社区")
     id_card_type: int = Field(1, ge=1, le=3, description="证件类型: 1身份证 2户口簿 3护照")
     ethnicity: str = Field("汉族", max_length=20, description="民族")
-    address: Optional[str] = Field(None, max_length=255, description="详细地址")
+    address: str | None = Field(None, max_length=255, description="详细地址")
 
 class FamilyMemberCreate(BaseModel):
     """添加家庭成员（亲友）"""
@@ -168,19 +170,19 @@ class FamilyMemberCreate(BaseModel):
     
     name: str = Field(..., max_length=50, description="姓名")
     phone: str = Field(..., min_length=11, max_length=11, description="手机号")
-    id_card: Optional[str] = Field(None, max_length=18, description="身份证号")
-    gender: Optional[int] = Field(None, ge=0, le=2)
-    age: Optional[int] = Field(None, ge=0, le=150, description="年龄")
-    birthday: Optional[str] = Field(None, description="出生日期 YYYY-MM-DD")
-    relationship: Optional[RELATIONSHIP_TYPE] = Field(None, description="与账号用户关系")
+    id_card: str | None = Field(None, max_length=18, description="身份证号")
+    gender: int | None = Field(None, ge=0, le=2)
+    age: int | None = Field(None, ge=0, le=150, description="年龄")
+    birthday: str | None = Field(None, description="出生日期 YYYY-MM-DD")
+    relationship: RELATIONSHIP_TYPE | None = Field(None, description="与账号用户关系")
     is_default: bool = False
-    province: Optional[str] = Field(None, max_length=50, description="省")
-    city: Optional[str] = Field(None, max_length=50, description="市")
-    district: Optional[str] = Field(None, max_length=50, description="区")
-    street: Optional[str] = Field(None, max_length=100, description="街道/社区")
+    province: str | None = Field(None, max_length=50, description="省")
+    city: str | None = Field(None, max_length=50, description="市")
+    district: str | None = Field(None, max_length=50, description="区")
+    street: str | None = Field(None, max_length=100, description="街道/社区")
     id_card_type: int = Field(1, ge=1, le=3, description="证件类型: 1身份证 2户口簿 3护照")
     ethnicity: str = Field("汉族", max_length=20, description="民族")
-    address: Optional[str] = Field(None, max_length=255, description="详细地址")
+    address: str | None = Field(None, max_length=255, description="详细地址")
 
 class PatientUpdate(BaseModel):
     model_config = ConfigDict(
@@ -188,21 +190,21 @@ class PatientUpdate(BaseModel):
         populate_by_name=True,
     )
     
-    name: Optional[str] = Field(None, max_length=50)
-    phone: Optional[str] = Field(None, min_length=11, max_length=11)
-    id_card: Optional[str] = Field(None, max_length=18)
-    gender: Optional[int] = Field(None, ge=0, le=2)
-    age: Optional[int] = Field(None, ge=0, le=150, description="年龄")
-    relationship: Optional[RELATIONSHIP_TYPE] = None
-    is_default: Optional[bool] = None
+    name: str | None = Field(None, max_length=50)
+    phone: str | None = Field(None, min_length=11, max_length=11)
+    id_card: str | None = Field(None, max_length=18)
+    gender: int | None = Field(None, ge=0, le=2)
+    age: int | None = Field(None, ge=0, le=150, description="年龄")
+    relationship: RELATIONSHIP_TYPE | None = None
+    is_default: bool | None = None
     # 新增可更新字段
-    province: Optional[str] = Field(None, max_length=50)
-    city: Optional[str] = Field(None, max_length=50)
-    district: Optional[str] = Field(None, max_length=50)
-    street: Optional[str] = Field(None, max_length=100)
-    id_card_type: Optional[int] = Field(None, ge=1, le=3)
-    ethnicity: Optional[str] = Field(None, max_length=20)
-    address: Optional[str] = Field(None, max_length=255)
+    province: str | None = Field(None, max_length=50)
+    city: str | None = Field(None, max_length=50)
+    district: str | None = Field(None, max_length=50)
+    street: str | None = Field(None, max_length=100)
+    id_card_type: int | None = Field(None, ge=1, le=3)
+    ethnicity: str | None = Field(None, max_length=20)
+    address: str | None = Field(None, max_length=255)
 
 class PatientResponse(BaseModel):
     """就诊人信息响应"""
@@ -214,26 +216,26 @@ class PatientResponse(BaseModel):
     )
     
     id: str = Field(..., description="就诊人ID")
-    user_id: Optional[str] = Field(None, description="所属用户ID")
-    name: Optional[str] = Field(None, description="姓名")
-    phone: Optional[str] = Field(None, description="手机号")
-    id_card: Optional[str] = Field(None, description="证件号码")
-    gender: Optional[int] = Field(None, description="性别: 0未知 1男 2女")
-    age: Optional[int] = Field(None, description="年龄")
-    relationship: Optional[str] = Field(None, description="与账号用户关系")
+    user_id: str | None = Field(None, description="所属用户ID")
+    name: str | None = Field(None, description="姓名")
+    phone: str | None = Field(None, description="手机号")
+    id_card: str | None = Field(None, description="证件号码")
+    gender: int | None = Field(None, description="性别: 0未知 1男 2女")
+    age: int | None = Field(None, description="年龄")
+    relationship: str | None = Field(None, description="与账号用户关系")
     is_default: bool = Field(False, description="是否默认就诊人")
-    card_no: Optional[str] = Field(None, description="就诊卡编号")
-    province: Optional[str] = Field(None, description="省")
-    city: Optional[str] = Field(None, description="市")
-    district: Optional[str] = Field(None, description="区")
-    street: Optional[str] = Field(None, description="街道/社区")
+    card_no: str | None = Field(None, description="就诊卡编号")
+    province: str | None = Field(None, description="省")
+    city: str | None = Field(None, description="市")
+    district: str | None = Field(None, description="区")
+    street: str | None = Field(None, description="街道/社区")
     id_card_type: int = Field(1, description="证件类型: 1身份证 2户口簿 3护照")
     ethnicity: str = Field("汉族", description="民族")
-    address: Optional[str] = Field(None, description="详细地址")
+    address: str | None = Field(None, description="详细地址")
     source: int = Field(1, description="来源: 1用户添加 2管理员添加")
-    birthday: Optional[datetime] = Field(None, description="出生日期")
+    birthday: datetime | None = Field(None, description="出生日期")
     total_consumption: Decimal = Field(Decimal("0"), description="总消费金额")
-    created_at: Optional[datetime] = Field(None, description="创建时间")
+    created_at: datetime | None = Field(None, description="创建时间")
 
 # ========== 患者详情响应（管理后台） ==========
 class PatientListItemResponse(BaseModel):
@@ -246,24 +248,24 @@ class PatientListItemResponse(BaseModel):
     )
     
     id: str
-    user_id: Optional[str] = None
-    card_no: Optional[str] = None
-    name: Optional[str] = None
-    phone: Optional[str] = None
-    id_card: Optional[str] = None
-    gender: Optional[int] = None
-    age: Optional[int] = None
-    birthday: Optional[str] = None
-    relationship: Optional[str] = None
+    user_id: str | None = None
+    card_no: str | None = None
+    name: str | None = None
+    phone: str | None = None
+    id_card: str | None = None
+    gender: int | None = None
+    age: int | None = None
+    birthday: str | None = None
+    relationship: str | None = None
     is_default: bool = False
     source: int = 1
     appointment_count: int = 0
     no_show_count: int = 0
     is_blacklist: bool = False
-    created_at: Optional[str] = None
+    created_at: str | None = None
     # 所属患者信息（用于就诊卡列表显示）
-    user_phone: Optional[str] = None
-    user_nickname: Optional[str] = None
+    user_phone: str | None = None
+    user_nickname: str | None = None
 
 class PatientStatistics(BaseModel):
     """患者统计信息"""
@@ -288,34 +290,34 @@ class PatientDetailResponse(BaseModel):
     
     # 基本信息
     id: str
-    user_id: Optional[str] = None
-    card_no: Optional[str] = None
-    name: Optional[str] = None
-    phone: Optional[str] = None
-    gender: Optional[int] = None
-    province: Optional[str] = None
-    city: Optional[str] = None
-    district: Optional[str] = None
-    street: Optional[str] = None
+    user_id: str | None = None
+    card_no: str | None = None
+    name: str | None = None
+    phone: str | None = None
+    gender: int | None = None
+    province: str | None = None
+    city: str | None = None
+    district: str | None = None
+    street: str | None = None
     id_card_type: int = 1
-    id_card: Optional[str] = None
+    id_card: str | None = None
     ethnicity: str = "汉族"
-    birthday: Optional[str] = None
-    age: Optional[int] = None
-    relationship: Optional[str] = None
-    address: Optional[str] = None
+    birthday: str | None = None
+    age: int | None = None
+    relationship: str | None = None
+    address: str | None = None
     source: int = 1
     total_consumption: float = 0
-    last_visit_date: Optional[str] = None
+    last_visit_date: str | None = None
     is_blacklist: bool = False
-    created_at: Optional[str] = None
+    created_at: str | None = None
     
     # 用户信息
-    nickname: Optional[str] = None
+    nickname: str | None = None
     points: int = 0
     
     # 统计信息
     statistics: PatientStatistics
     
     # 家庭成员
-    family_members: List[PatientListItemResponse] = []
+    family_members: list[PatientListItemResponse] = []

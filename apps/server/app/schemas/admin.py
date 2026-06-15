@@ -1,7 +1,9 @@
-from app.schemas.response import to_camel
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas.response import to_camel
+
 
 # ========== 短信登录 ==========
 class SmsCodeRequest(BaseModel):
@@ -41,9 +43,9 @@ class WechatCheckRequest(BaseModel):
 class WechatCheckResponse(BaseModel):
     """检查微信扫码状态响应"""
     status: str = Field(..., description="状态: waiting/scanned/confirmed/expired")
-    access_token: Optional[str] = Field(None, description="登录成功时返回的token")
-    refresh_token: Optional[str] = Field(None, description="刷新token")
-    expires_in: Optional[int] = Field(None, description="token有效期(秒)")
+    access_token: str | None = Field(None, description="登录成功时返回的token")
+    refresh_token: str | None = Field(None, description="刷新token")
+    expires_in: int | None = Field(None, description="token有效期(秒)")
 
 # ========== 通用登录响应 ==========
 class AdminLoginResponse(BaseModel):
@@ -68,10 +70,10 @@ class AdminListResponse(BaseModel):
     
     id: str = Field(..., description="管理员ID")
     username: str = Field(..., description="用户名")
-    name: Optional[str] = Field(None, description="姓名")
-    phone: Optional[str] = Field(None, description="手机号")
-    email: Optional[str] = Field(None, description="邮箱")
-    avatar: Optional[str] = Field(None, description="头像URL")
-    role_id: Optional[str] = Field(None, description="角色ID")
+    name: str | None = Field(None, description="姓名")
+    phone: str | None = Field(None, description="手机号")
+    email: str | None = Field(None, description="邮箱")
+    avatar: str | None = Field(None, description="头像URL")
+    role_id: str | None = Field(None, description="角色ID")
     status: int = Field(1, description="状态: 0禁用 1正常")
-    created_at: Optional[datetime] = Field(None, description="创建时间")
+    created_at: datetime | None = Field(None, description="创建时间")

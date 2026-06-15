@@ -1,8 +1,10 @@
 """兼职费用相关模型"""
-from sqlalchemy import Column, String, Integer, Text, Numeric, ForeignKey, DateTime, Boolean
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 
 class Freelancer(Base, AuditMixin):

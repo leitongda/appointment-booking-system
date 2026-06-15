@@ -1,8 +1,10 @@
 """Examination Report model — 检查报告"""
 import uuid
-from sqlalchemy import Column, String, Text, ForeignKey, BigInteger, DateTime
+
+from sqlalchemy import BigInteger, Column, ForeignKey, String, Text
 from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
+
+from app.db.base import AuditMixin, Base
 
 
 class ExaminationReport(Base, AuditMixin):

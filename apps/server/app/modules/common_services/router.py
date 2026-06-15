@@ -1,5 +1,4 @@
 """常见服务模块路由"""
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +19,7 @@ router = APIRouter()
 
 @router.get("/common-services", response_model=Response[CommonServiceListResponse], summary="获取常见服务列表")
 async def get_common_services(
-    store_id: Optional[str] = None,
+    store_id: str | None = None,
     status: int = Query(1, description="状态过滤：0禁用 1启用"),
     db: AsyncSession = Depends(get_db),
 ):
@@ -45,8 +44,8 @@ async def get_common_services(
 
 @router.get("/health-reminders/config", response_model=Response[list[HealthReminderResponse]], summary="获取健康提醒配置")
 async def get_health_reminder_config(
-    store_id: Optional[str] = None,
-    reminder_type: Optional[str] = Query(None, description="提醒类型过滤"),
+    store_id: str | None = None,
+    reminder_type: str | None = Query(None, description="提醒类型过滤"),
     db: AsyncSession = Depends(get_db),
 ):
     """获取健康提醒配置（租户级静态配置）
@@ -72,7 +71,7 @@ async def get_health_reminder_config(
 
 @router.get("/health-reminders/my", response_model=Response[UserHealthReminderResponse], summary="获取我的健康提醒")
 async def get_my_health_reminder(
-    store_id: Optional[str] = None,
+    store_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):

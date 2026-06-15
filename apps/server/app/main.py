@@ -8,24 +8,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import PlainTextResponse
 
-from app.api.v1 import main_router, deprecated_router
+from app.api.v1 import deprecated_router, main_router
 from app.api.v2 import build_v2_router
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.redis import close_redis, get_redis
 from app.core.websocket import ws_manager
-from app.middleware.response import UnifiedResponseMiddleware
+from app.db.session import AsyncSessionLocal, engine
+from app.middleware.deprecation import DeprecationMiddleware
 from app.middleware.exception import register_exception_handlers
+from app.middleware.operation_log import OperationLogMiddleware
+from app.middleware.prometheus_metrics import PrometheusMetricsMiddleware, get_metrics_response
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.request_log import RequestLogMiddleware
-from app.middleware.operation_log import OperationLogMiddleware
+from app.middleware.response import UnifiedResponseMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.middleware.tenant_context import TenantContextMiddleware
-from app.middleware.prometheus_metrics import PrometheusMetricsMiddleware, get_metrics_response
-from app.middleware.deprecation import DeprecationMiddleware, DeprecatedEndpoint
-from app.db.session import AsyncSessionLocal, engine
-from app.tasks.blacklist_task import auto_release_blacklist
 from app.modules.amap.router import close_amap_client
+from app.tasks.blacklist_task import auto_release_blacklist
 
 # 初始化日志系统
 setup_logging(
@@ -89,7 +89,8 @@ async def ensure_super_admin_exists():
     系统启动时检查，如果没有超级管理员则记录警告日志。
     生产环境中应通过初始化脚本创建超级管理员。
     """
-    from sqlalchemy import select, func
+    from sqlalchemy import func, select
+
     from app.models.admin import Admin, Role
     
     try:
@@ -162,7 +163,7 @@ def _validate_production_config() -> None:
         for v in violations:
             logger.critical(f"CRITICAL 生产配置校验失败: {v}")
         logger.critical(
-            "以上 {count} 项配置违规，请修正后重新启动".format(count=len(violations))
+            f"以上 {len(violations)} 项配置违规，请修正后重新启动"
         )
     else:
         logger.info("生产环境配置校验通过")
@@ -614,6 +615,7 @@ def _register_health_routes(app: FastAPI) -> None:
     async def readiness_probe():
         """就绪探针 — 检查 DB + Redis 可用性，Kubernetes readiness 用"""
         from sqlalchemy import text
+
         from app.db.session import async_session_maker
 
         checks = {}
@@ -649,8 +651,10 @@ def _register_health_routes(app: FastAPI) -> None:
     async def detailed_health_check():
         """详细健康检查 — 包含 Celery、Redis 内存、DB 连接池、磁盘、运行时间"""
         import shutil
+
         from sqlalchemy import text
-        from app.db.session import async_session_maker, engine
+
+        from app.db.session import async_session_maker
 
         uptime = _time.time() - _start_time
         checks = {
@@ -698,6 +702,7 @@ def _register_health_routes(app: FastAPI) -> None:
         # --- Celery ---
         try:
             from celery.app.control import Control
+
             from app.tasks.celery_app import celery_app as _celery
 
             ctrl = Control(_celery)

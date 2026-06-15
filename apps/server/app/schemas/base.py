@@ -1,5 +1,6 @@
 """Schema 基类 — 统一 Pydantic 配置"""
 from pydantic import BaseModel, ConfigDict
+
 from app.schemas.response import to_camel
 
 

@@ -1,20 +1,19 @@
 """数据统计 - 概览与门店 Dashboard"""
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, Query, HTTPException, status
-from sqlalchemy import select, func, and_
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin, get_store_filter
 from app.common.data_scope import apply_data_scope
+from app.db.session import get_db
 from app.models.appointment import Appointment
 from app.models.doctor import Doctor
-from app.models.user import Patient
 from app.models.schedule import Schedule
-from app.schemas.response import ResponseModel
-from app.db.session import get_db
+from app.models.user import Patient
 from app.modules.revenue.service import RevenueService
-from app.modules.statistics.helpers import _build_store_filter_condition
+from app.schemas.response import ResponseModel
 
 router = APIRouter()
 
@@ -111,8 +110,8 @@ async def get_store_dashboard(
     - 访客统计：今日PV/UV、昨日PV/UV、周环比（基于行为日志）
     - 预约统计：今日预约、昨日预约、累计签到
     """
+
     from app.models.behavior_log import UserBehaviorLog
-    from datetime import datetime
 
     # 权限检查
     if not current_admin.get("is_super_admin"):

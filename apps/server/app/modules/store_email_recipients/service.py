@@ -1,16 +1,15 @@
 """门店邮件接收人服务"""
 import json
 import uuid
-from typing import Optional, List, Tuple
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 
 from app.models.store_email_recipient import StoreEmailRecipient
 from app.schemas.store_email_recipient import (
     StoreEmailRecipientCreate,
-    StoreEmailRecipientUpdate,
     StoreEmailRecipientQuery,
+    StoreEmailRecipientUpdate,
 )
 from app.utils.audit import set_create_audit, set_update_audit
 
@@ -21,7 +20,7 @@ class StoreEmailRecipientService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, recipient_id: str) -> Optional[StoreEmailRecipient]:
+    async def get_by_id(self, recipient_id: str) -> StoreEmailRecipient | None:
         """根据ID获取接收人"""
         result = await self.db.execute(
             select(StoreEmailRecipient).where(StoreEmailRecipient.id == recipient_id)
@@ -30,7 +29,7 @@ class StoreEmailRecipientService:
 
     async def get_list(
         self, query: StoreEmailRecipientQuery
-    ) -> Tuple[List[StoreEmailRecipient], int]:
+    ) -> tuple[list[StoreEmailRecipient], int]:
         """获取接收人列表（分页）"""
         stmt = select(StoreEmailRecipient)
         count_stmt = select(func.count(StoreEmailRecipient.id))
@@ -62,7 +61,7 @@ class StoreEmailRecipientService:
     async def create(
         self,
         data: StoreEmailRecipientCreate,
-        operator_id: Optional[str] = None,
+        operator_id: str | None = None,
     ) -> StoreEmailRecipient:
         """创建接收人"""
         recipient = StoreEmailRecipient(
@@ -83,8 +82,8 @@ class StoreEmailRecipientService:
         self,
         recipient_id: str,
         data: StoreEmailRecipientUpdate,
-        operator_id: Optional[str] = None,
-    ) -> Optional[StoreEmailRecipient]:
+        operator_id: str | None = None,
+    ) -> StoreEmailRecipient | None:
         """更新接收人"""
         recipient = await self.get_by_id(recipient_id)
         if not recipient:
@@ -117,7 +116,7 @@ class StoreEmailRecipientService:
 
     async def get_recipients_by_event(
         self, store_id: str, event_type: str
-    ) -> List[StoreEmailRecipient]:
+    ) -> list[StoreEmailRecipient]:
         """查询某门店某事件的启用接收人"""
         result = await self.db.execute(
             select(StoreEmailRecipient).where(

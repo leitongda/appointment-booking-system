@@ -1,15 +1,15 @@
 """数据统计 - 时段与星期分布"""
 from fastapi import APIRouter, Depends
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin, get_store_filter
+from app.db.session import get_db
 from app.models.appointment import Appointment
 from app.models.doctor import Doctor
 from app.models.schedule import Schedule
-from app.schemas.response import ResponseModel
-from app.db.session import get_db
 from app.modules.statistics.helpers import _build_store_filter_condition
+from app.schemas.response import ResponseModel
 
 router = APIRouter()
 

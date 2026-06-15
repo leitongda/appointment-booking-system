@@ -1,21 +1,18 @@
 """随访服务"""
 import json
 import uuid
-from datetime import datetime, date, timedelta
-from typing import Optional, List, Tuple
+from datetime import date, datetime, timedelta
 
-from sqlalchemy import select, func, and_
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload, joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.follow_up_plan import FollowUpPlan, FollowUpPlanStep
-from app.models.follow_up_task import FollowUpTask
 from app.models.follow_up_record import FollowUpRecord
 from app.models.follow_up_self_report import FollowUpSelfReport
+from app.models.follow_up_task import FollowUpTask
 from app.models.user import Patient
-from app.models.doctor import Doctor
-from app.models.department import Department
-from app.middleware.tenant_context import get_current_tenant_id
 from app.utils.audit import set_create_audit, set_update_audit
 
 
@@ -30,7 +27,7 @@ class FollowUpPlanService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create(self, data, operator_id: Optional[str] = None) -> FollowUpPlan:
+    async def create(self, data, operator_id: str | None = None) -> FollowUpPlan:
         tenant_id = get_current_tenant_id()
         plan = FollowUpPlan(
             id=str(uuid.uuid4()),
@@ -58,7 +55,7 @@ class FollowUpPlanService:
         await self.db.refresh(plan)
         return plan
 
-    async def get_by_id(self, plan_id: str) -> Optional[FollowUpPlan]:
+    async def get_by_id(self, plan_id: str) -> FollowUpPlan | None:
         stmt = (
             select(FollowUpPlan)
             .options(selectinload(FollowUpPlan.steps))
@@ -72,13 +69,13 @@ class FollowUpPlanService:
 
     async def get_list(
         self,
-        department_id: Optional[str] = None,
-        diagnosis_code: Optional[str] = None,
-        status: Optional[int] = None,
-        keyword: Optional[str] = None,
+        department_id: str | None = None,
+        diagnosis_code: str | None = None,
+        status: int | None = None,
+        keyword: str | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[FollowUpPlan], int]:
+    ) -> tuple[list[FollowUpPlan], int]:
         query = select(FollowUpPlan).options(selectinload(FollowUpPlan.steps))
         conditions = [FollowUpPlan.deleted_at.is_(None)]
 
@@ -105,7 +102,7 @@ class FollowUpPlanService:
         plans = list(result.unique().scalars().all())
         return plans, total or 0
 
-    async def update(self, plan_id: str, data, operator_id: Optional[str] = None) -> Optional[FollowUpPlan]:
+    async def update(self, plan_id: str, data, operator_id: str | None = None) -> FollowUpPlan | None:
         plan = await self.db.get(FollowUpPlan, plan_id)
         if not plan or plan.deleted_at is not None:
             return None
@@ -119,7 +116,7 @@ class FollowUpPlanService:
         await self.db.refresh(plan)
         return plan
 
-    async def update_steps(self, plan_id: str, steps_data, operator_id: Optional[str] = None) -> Optional[FollowUpPlan]:
+    async def update_steps(self, plan_id: str, steps_data, operator_id: str | None = None) -> FollowUpPlan | None:
         plan = await self.get_by_id(plan_id)
         if not plan:
             return None
@@ -144,7 +141,7 @@ class FollowUpPlanService:
         await self.db.commit()
         return await self.get_by_id(plan_id)
 
-    async def delete(self, plan_id: str, operator_id: Optional[str] = None) -> bool:
+    async def delete(self, plan_id: str, operator_id: str | None = None) -> bool:
         plan = await self.db.get(FollowUpPlan, plan_id)
         if not plan or plan.deleted_at is not None:
             return False
@@ -161,7 +158,7 @@ class FollowUpTaskService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create(self, data, operator_id: Optional[str] = None) -> FollowUpTask:
+    async def create(self, data, operator_id: str | None = None) -> FollowUpTask:
         tenant_id = get_current_tenant_id()
         task = FollowUpTask(
             id=str(uuid.uuid4()),
@@ -187,11 +184,11 @@ class FollowUpTaskService:
         doctor_id: str,
         department_id: str,
         plan_id: str,
-        appointment_id: Optional[str] = None,
-        medical_record_id: Optional[str] = None,
-        base_date: Optional[date] = None,
-        operator_id: Optional[str] = None,
-    ) -> List[FollowUpTask]:
+        appointment_id: str | None = None,
+        medical_record_id: str | None = None,
+        base_date: date | None = None,
+        operator_id: str | None = None,
+    ) -> list[FollowUpTask]:
         plan = await self.db.get(FollowUpPlan, plan_id)
         if not plan or plan.deleted_at is not None:
             raise ValueError("随访计划不存在")
@@ -240,7 +237,7 @@ class FollowUpTaskService:
             await self.db.refresh(task)
         return tasks
 
-    async def get_by_id(self, task_id: str) -> Optional[FollowUpTask]:
+    async def get_by_id(self, task_id: str) -> FollowUpTask | None:
         stmt = (
             select(FollowUpTask)
             .options(
@@ -260,16 +257,16 @@ class FollowUpTaskService:
 
     async def get_list(
         self,
-        doctor_id: Optional[str] = None,
-        patient_id: Optional[str] = None,
-        department_id: Optional[str] = None,
-        status: Optional[str] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        keyword: Optional[str] = None,
+        doctor_id: str | None = None,
+        patient_id: str | None = None,
+        department_id: str | None = None,
+        status: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        keyword: str | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[FollowUpTask], int]:
+    ) -> tuple[list[FollowUpTask], int]:
         query = select(FollowUpTask).options(
             joinedload(FollowUpTask.patient),
             joinedload(FollowUpTask.doctor),
@@ -309,7 +306,7 @@ class FollowUpTaskService:
         tasks = list(result.unique().scalars().all())
         return tasks, total or 0
 
-    async def complete_task(self, task_id: str, operator_id: Optional[str] = None) -> Optional[FollowUpTask]:
+    async def complete_task(self, task_id: str, operator_id: str | None = None) -> FollowUpTask | None:
         task = await self.db.get(FollowUpTask, task_id)
         if not task or task.deleted_at is not None:
             return None
@@ -324,7 +321,7 @@ class FollowUpTaskService:
         await self.db.refresh(task)
         return task
 
-    async def skip_task(self, task_id: str, reason: str, operator_id: Optional[str] = None) -> Optional[FollowUpTask]:
+    async def skip_task(self, task_id: str, reason: str, operator_id: str | None = None) -> FollowUpTask | None:
         task = await self.db.get(FollowUpTask, task_id)
         if not task or task.deleted_at is not None:
             return None
@@ -338,7 +335,7 @@ class FollowUpTaskService:
         await self.db.refresh(task)
         return task
 
-    async def mark_overdue(self, tenant_id: Optional[str] = None) -> int:
+    async def mark_overdue(self, tenant_id: str | None = None) -> int:
         conditions = [
             FollowUpTask.status == "pending",
             FollowUpTask.scheduled_date < date.today(),
@@ -357,7 +354,7 @@ class FollowUpTaskService:
         await self.db.commit()
         return result.rowcount
 
-    async def delete(self, task_id: str, operator_id: Optional[str] = None) -> bool:
+    async def delete(self, task_id: str, operator_id: str | None = None) -> bool:
         task = await self.db.get(FollowUpTask, task_id)
         if not task or task.deleted_at is not None:
             return False
@@ -374,7 +371,7 @@ class FollowUpRecordService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create(self, data, operator_id: Optional[str] = None) -> FollowUpRecord:
+    async def create(self, data, operator_id: str | None = None) -> FollowUpRecord:
         tenant_id = get_current_tenant_id()
 
         # 解析附件
@@ -414,7 +411,7 @@ class FollowUpRecordService:
         await self.db.refresh(record)
         return record
 
-    async def get_by_id(self, record_id: str) -> Optional[FollowUpRecord]:
+    async def get_by_id(self, record_id: str) -> FollowUpRecord | None:
         stmt = (
             select(FollowUpRecord)
             .options(
@@ -431,15 +428,15 @@ class FollowUpRecordService:
 
     async def get_list(
         self,
-        doctor_id: Optional[str] = None,
-        patient_id: Optional[str] = None,
-        task_id: Optional[str] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        keyword: Optional[str] = None,
+        doctor_id: str | None = None,
+        patient_id: str | None = None,
+        task_id: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        keyword: str | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[FollowUpRecord], int]:
+    ) -> tuple[list[FollowUpRecord], int]:
         query = select(FollowUpRecord).options(
             joinedload(FollowUpRecord.patient),
             joinedload(FollowUpRecord.doctor),
@@ -475,7 +472,7 @@ class FollowUpRecordService:
         records = list(result.unique().scalars().all())
         return records, total or 0
 
-    async def update(self, record_id: str, data, operator_id: Optional[str] = None) -> Optional[FollowUpRecord]:
+    async def update(self, record_id: str, data, operator_id: str | None = None) -> FollowUpRecord | None:
         record = await self.db.get(FollowUpRecord, record_id)
         if not record or record.deleted_at is not None:
             return None
@@ -495,7 +492,7 @@ class FollowUpRecordService:
         await self.db.refresh(record)
         return record
 
-    async def delete(self, record_id: str, operator_id: Optional[str] = None) -> bool:
+    async def delete(self, record_id: str, operator_id: str | None = None) -> bool:
         record = await self.db.get(FollowUpRecord, record_id)
         if not record or record.deleted_at is not None:
             return False
@@ -512,7 +509,7 @@ class SelfReportService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create(self, data, patient_id: str, operator_id: Optional[str] = None) -> FollowUpSelfReport:
+    async def create(self, data, patient_id: str, operator_id: str | None = None) -> FollowUpSelfReport:
         """创建患者自报告"""
         tenant_id = get_current_tenant_id()
         report = FollowUpSelfReport(
@@ -537,7 +534,7 @@ class SelfReportService:
         await self.db.refresh(report)
         return report
 
-    async def get_by_id(self, report_id: str) -> Optional[FollowUpSelfReport]:
+    async def get_by_id(self, report_id: str) -> FollowUpSelfReport | None:
         stmt = select(FollowUpSelfReport).where(
             FollowUpSelfReport.id == report_id,
             FollowUpSelfReport.deleted_at.is_(None),
@@ -547,12 +544,12 @@ class SelfReportService:
 
     async def get_list(
         self,
-        patient_id: Optional[str] = None,
-        task_id: Optional[str] = None,
-        status: Optional[str] = None,
+        patient_id: str | None = None,
+        task_id: str | None = None,
+        status: str | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[FollowUpSelfReport], int]:
+    ) -> tuple[list[FollowUpSelfReport], int]:
         """查询自报告列表"""
         tenant_id = get_current_tenant_id()
         conditions = [FollowUpSelfReport.deleted_at.is_(None)]
@@ -584,7 +581,7 @@ class SelfReportService:
         reports = list(result.scalars().all())
         return reports, total
 
-    async def review(self, report_id: str, reviewer_id: str) -> Optional[FollowUpSelfReport]:
+    async def review(self, report_id: str, reviewer_id: str) -> FollowUpSelfReport | None:
         """审核自报告"""
         report = await self.get_by_id(report_id)
         if not report:

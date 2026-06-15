@@ -4,12 +4,11 @@
 此模块保留供已有调用者（MessageServiceCompat）使用，方法签名不变。
 """
 import logging
-from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.unified_message.service import UnifiedMessageService
 from app.modules.unified_message.schemas import NotificationEvent
+from app.modules.unified_message.service import UnifiedMessageService
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +21,7 @@ class MessageServiceCompat:
 
     def __init__(self, db: AsyncSession):
         self.db = db
-        self._new_service: Optional[UnifiedMessageService] = None
+        self._new_service: UnifiedMessageService | None = None
 
     @property
     def new_service(self) -> UnifiedMessageService:
@@ -37,8 +36,8 @@ class MessageServiceCompat:
         title: str,
         content: str,
         appointment_id: str,
-        template_code: Optional[str] = None,
-        template_variables: Optional[dict] = None,
+        template_code: str | None = None,
+        template_variables: dict | None = None,
     ):
         """发送预约通知"""
         from app.middleware.tenant_context import get_current_tenant_id
@@ -73,8 +72,9 @@ class MessageServiceCompat:
         result = await self.new_service.send(event)
         # 返回兼容格式（旧方法返回 Message 或 None）
         if result.success and result.group_id:
-            from app.modules.unified_message.models import NotificationRecipient
             from sqlalchemy import select
+
+            from app.modules.unified_message.models import NotificationRecipient
             recipient = await self.db.execute(
                 select(NotificationRecipient).where(
                     NotificationRecipient.group_id == result.group_id
@@ -88,9 +88,9 @@ class MessageServiceCompat:
         doctor_id: str,
         title: str,
         content: str,
-        schedule_id: Optional[str] = None,
-        template_code: Optional[str] = None,
-        template_variables: Optional[dict] = None,
+        schedule_id: str | None = None,
+        template_code: str | None = None,
+        template_variables: dict | None = None,
     ):
         """发送排班通知"""
         from app.middleware.tenant_context import get_current_tenant_id
@@ -109,8 +109,9 @@ class MessageServiceCompat:
         )
         result = await self.new_service.send(event)
         if result.success and result.group_id:
-            from app.modules.unified_message.models import NotificationRecipient
             from sqlalchemy import select
+
+            from app.modules.unified_message.models import NotificationRecipient
             recipient = await self.db.execute(
                 select(NotificationRecipient).where(
                     NotificationRecipient.group_id == result.group_id
@@ -125,9 +126,9 @@ class MessageServiceCompat:
         user_type: str,
         title: str,
         content: str,
-        appointment_id: Optional[str] = None,
-        template_code: Optional[str] = None,
-        template_variables: Optional[dict] = None,
+        appointment_id: str | None = None,
+        template_code: str | None = None,
+        template_variables: dict | None = None,
     ):
         """发送停诊通知"""
         from app.middleware.tenant_context import get_current_tenant_id
@@ -153,8 +154,9 @@ class MessageServiceCompat:
         )
         result = await self.new_service.send(event)
         if result.success and result.group_id:
-            from app.modules.unified_message.models import NotificationRecipient
             from sqlalchemy import select
+
+            from app.modules.unified_message.models import NotificationRecipient
             recipient = await self.db.execute(
                 select(NotificationRecipient).where(
                     NotificationRecipient.group_id == result.group_id
@@ -186,8 +188,9 @@ class MessageServiceCompat:
         )
         result = await self.new_service.send(event)
         if result.success and result.group_id:
-            from app.modules.unified_message.models import NotificationRecipient
             from sqlalchemy import select
+
+            from app.modules.unified_message.models import NotificationRecipient
             recipient = await self.db.execute(
                 select(NotificationRecipient).where(
                     NotificationRecipient.group_id == result.group_id

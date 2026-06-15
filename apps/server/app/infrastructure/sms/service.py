@@ -3,19 +3,20 @@
 支持 Redis 缓存存储，可接入阿里云、腾讯云等短信服务
 包含验证码发送和业务通知功能
 """
+import logging
 import secrets
 import string
 from datetime import datetime
-from typing import Any, Dict, Optional
-import logging
+from typing import Any
 
 from sqlalchemy import select, text
 
-from app.core.redis import cache, RedisCache
-from app.middleware.tenant_context import get_current_tenant_id
+from app.core.redis import cache
 from app.db.session import get_sync_db_session
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.notification_log import NotificationLog
 from app.models.settings import SystemSetting
+
 from .factory import get_sms_provider
 
 logger = logging.getLogger(__name__)
@@ -56,7 +57,7 @@ class SmsService:
         return ''.join(secrets.choice(string.digits) for _ in range(length))
 
     @classmethod
-    async def send_code(cls, phone: str, code_type: str = "login", tenant_id: Optional[str] = None) -> str:
+    async def send_code(cls, phone: str, code_type: str = "login", tenant_id: str | None = None) -> str:
         """
         发送验证码
 
@@ -162,7 +163,7 @@ class SmsService:
         phone: str,
         code: str,
         code_type: str = "login",
-        tenant_id: Optional[str] = None
+        tenant_id: str | None = None
     ) -> bool:
         """
         验证验证码（支持多租户隔离）
@@ -196,7 +197,7 @@ class SmsService:
         cls,
         template_key: str,
         tenant_id: str,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         从 system_settings 读取短信模板代码
 
@@ -231,13 +232,13 @@ class SmsService:
         tenant_id: str,
         phone: str,
         template_code: str,
-        template_params: Dict[str, Any],
+        template_params: dict[str, Any],
         message_type: str,
         title: str,
         content: str,
-        user_id: Optional[str] = None,
-        store_id: Optional[str] = None,
-        related_id: Optional[str] = None,
+        user_id: str | None = None,
+        store_id: str | None = None,
+        related_id: str | None = None,
     ) -> bool:
         """
         发送业务短信（内部方法）
@@ -318,10 +319,10 @@ class SmsService:
         cls,
         tenant_id: str,
         phone: str,
-        variables: Dict[str, Any],
-        user_id: Optional[str] = None,
-        store_id: Optional[str] = None,
-        appointment_id: Optional[str] = None,
+        variables: dict[str, Any],
+        user_id: str | None = None,
+        store_id: str | None = None,
+        appointment_id: str | None = None,
     ) -> bool:
         """
         发送预约成功通知短信
@@ -339,7 +340,7 @@ class SmsService:
         """
         template_code = await cls._get_template_code("appointment_success_template", tenant_id)
         if not template_code:
-            logger.warning(f"[SMS] 未配置预约成功短信模板，跳过发送")
+            logger.warning("[SMS] 未配置预约成功短信模板，跳过发送")
             return False
 
         # 构建模板参数（阿里云要求参数值为字符串）
@@ -366,10 +367,10 @@ class SmsService:
         cls,
         tenant_id: str,
         phone: str,
-        variables: Dict[str, Any],
-        user_id: Optional[str] = None,
-        store_id: Optional[str] = None,
-        appointment_id: Optional[str] = None,
+        variables: dict[str, Any],
+        user_id: str | None = None,
+        store_id: str | None = None,
+        appointment_id: str | None = None,
     ) -> bool:
         """
         发送就诊提醒通知短信
@@ -387,7 +388,7 @@ class SmsService:
         """
         template_code = await cls._get_template_code("appointment_reminder_template", tenant_id)
         if not template_code:
-            logger.warning(f"[SMS] 未配置就诊提醒短信模板，跳过发送")
+            logger.warning("[SMS] 未配置就诊提醒短信模板，跳过发送")
             return False
 
         template_params = {k: str(v) for k, v in variables.items()}
@@ -411,10 +412,10 @@ class SmsService:
         cls,
         tenant_id: str,
         phone: str,
-        variables: Dict[str, Any],
-        user_id: Optional[str] = None,
-        store_id: Optional[str] = None,
-        appointment_id: Optional[str] = None,
+        variables: dict[str, Any],
+        user_id: str | None = None,
+        store_id: str | None = None,
+        appointment_id: str | None = None,
     ) -> bool:
         """
         发送取消预约通知短信
@@ -432,7 +433,7 @@ class SmsService:
         """
         template_code = await cls._get_template_code("appointment_cancelled_template", tenant_id)
         if not template_code:
-            logger.warning(f"[SMS] 未配置取消预约短信模板，跳过发送")
+            logger.warning("[SMS] 未配置取消预约短信模板，跳过发送")
             return False
 
         template_params = {k: str(v) for k, v in variables.items()}
@@ -456,10 +457,10 @@ class SmsService:
         cls,
         tenant_id: str,
         phone: str,
-        variables: Dict[str, Any],
-        user_id: Optional[str] = None,
-        store_id: Optional[str] = None,
-        appointment_id: Optional[str] = None,
+        variables: dict[str, Any],
+        user_id: str | None = None,
+        store_id: str | None = None,
+        appointment_id: str | None = None,
     ) -> bool:
         """
         发送停诊通知短信
@@ -477,7 +478,7 @@ class SmsService:
         """
         template_code = await cls._get_template_code("stop_clinic_template", tenant_id)
         if not template_code:
-            logger.warning(f"[SMS] 未配置停诊短信模板，跳过发送")
+            logger.warning("[SMS] 未配置停诊短信模板，跳过发送")
             return False
 
         template_params = {k: str(v) for k, v in variables.items()}

@@ -1,22 +1,23 @@
-from app.schemas.response import to_camel
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas.response import to_camel
+
 
 class ShiftTypeCreate(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
     code: str = Field(..., max_length=50, description="类型代码")
     name: str = Field(..., max_length=100, description="类型名称")
-    description: Optional[str] = Field(None, description="描述")
+    description: str | None = Field(None, description="描述")
     enabled: bool = True
 
 class ShiftTypeUpdate(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
-    name: Optional[str] = Field(None, max_length=100)
-    description: Optional[str] = None
-    enabled: Optional[bool] = None
+    name: str | None = Field(None, max_length=100)
+    description: str | None = None
+    enabled: bool | None = None
 
 class ShiftTypeResponse(BaseModel):
     model_config = ConfigDict(
@@ -29,5 +30,5 @@ class ShiftTypeResponse(BaseModel):
     id: str
     code: str
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     enabled: bool

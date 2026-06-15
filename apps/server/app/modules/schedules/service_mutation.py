@@ -4,10 +4,8 @@ import json
 import logging
 import uuid
 from datetime import date
-from typing import List, Optional
 
 import pytz
-
 from sqlalchemy import and_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
@@ -17,13 +15,6 @@ from app.models.appointment import Appointment
 from app.models.doctor import Doctor
 from app.models.schedule import Schedule
 from app.models.schedule_status import ScheduleStatus
-from app.schemas.schedule import (
-    ScheduleBatchCopyRequest,
-    ScheduleBatchCopyResult,
-    ScheduleBatchCreate,
-    ScheduleCreate,
-    ScheduleUpdate,
-)
 from app.modules.messages.service_messages import MessageService
 from app.modules.schedules.audit_helpers import (
     compute_diff,
@@ -31,6 +22,13 @@ from app.modules.schedules.audit_helpers import (
     snapshot_schedule,
 )
 from app.modules.schedules.service_conflict import ScheduleConflictService
+from app.schemas.schedule import (
+    ScheduleBatchCopyRequest,
+    ScheduleBatchCopyResult,
+    ScheduleBatchCreate,
+    ScheduleCreate,
+    ScheduleUpdate,
+)
 from app.utils.audit import set_create_audit, set_update_audit
 from app.utils.schedule_utils import get_time_slot_from_time
 
@@ -38,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 class ScheduleMutationMixin:
-    async def create(self, data: ScheduleCreate, operator_id: Optional[str] = None) -> Schedule:
+    async def create(self, data: ScheduleCreate, operator_id: str | None = None) -> Schedule:
         from app.middleware.tenant_context import get_current_tenant_id
         tenant_id = get_current_tenant_id()
 
@@ -168,7 +166,7 @@ class ScheduleMutationMixin:
 
         return schedule
 
-    async def batch_create(self, data: ScheduleBatchCreate, operator_id: Optional[str] = None) -> int:
+    async def batch_create(self, data: ScheduleBatchCreate, operator_id: str | None = None) -> int:
         from app.middleware.tenant_context import get_current_tenant_id
         tenant_id = get_current_tenant_id()
 
@@ -244,7 +242,7 @@ class ScheduleMutationMixin:
     async def batch_copy(
         self,
         data: ScheduleBatchCopyRequest,
-        operator_id: Optional[str] = None,
+        operator_id: str | None = None,
     ) -> ScheduleBatchCopyResult:
         """批量复制排班：源周期 -> 目标周期。
 
@@ -257,6 +255,7 @@ class ScheduleMutationMixin:
         6. 按 copy_* 标志决定是否复制号源/诊室/费用
         """
         from datetime import timedelta
+
         from app.middleware.tenant_context import get_current_tenant_id
         from app.models.rest_day import RestDay
         from app.models.schedule_holiday import ScheduleHoliday
@@ -374,7 +373,7 @@ class ScheduleMutationMixin:
         manual_conflicts: list[dict] = []
         conflict_skipped = 0
 
-        for (src, target_date), conflict_result in zip(copy_items, conflict_results):
+        for (src, target_date), conflict_result in zip(copy_items, conflict_results, strict=False):
             if not conflict_result.has_conflict:
                 to_create.append((src, target_date))
                 continue
@@ -501,8 +500,8 @@ class ScheduleMutationMixin:
         )
 
     async def update(
-        self, schedule_id: str, data: ScheduleUpdate, operator_id: Optional[str] = None
-    ) -> Optional[Schedule]:
+        self, schedule_id: str, data: ScheduleUpdate, operator_id: str | None = None
+    ) -> Schedule | None:
         from app.middleware.tenant_context import get_current_tenant_id
         schedule = await self.get_by_id(schedule_id)
         if not schedule:
@@ -567,7 +566,7 @@ class ScheduleMutationMixin:
         target_start_time=None,
         target_end_time=None,
         target_time_slot=None,
-        operator_id: Optional[str] = None,
+        operator_id: str | None = None,
     ) -> dict:
         """拖拽调整排班位置（日期/时间）。
 
@@ -728,10 +727,10 @@ class ScheduleMutationMixin:
 
     async def batch_suspend(
         self,
-        schedule_ids: List[str],
-        reason: Optional[str] = None,
-        operator_id: Optional[str] = None,
-        processing_method: Optional[str] = None,
+        schedule_ids: list[str],
+        reason: str | None = None,
+        operator_id: str | None = None,
+        processing_method: str | None = None,
     ) -> dict:
         """
         批量停诊排班
@@ -793,9 +792,9 @@ class ScheduleMutationMixin:
 
         # P0修复：按门店和医生分组创建停诊记录
         # 使用统一的工具函数进行分组
-        from app.utils.schedule_utils import group_schedules_for_suspension, create_suspension_records
         from app.models.schedule_suspension import ScheduleSuspension
         from app.utils.audit import set_create_audit
+        from app.utils.schedule_utils import create_suspension_records, group_schedules_for_suspension
 
         schedule_map = {s.id: s for s in schedules}
 
@@ -902,7 +901,7 @@ class ScheduleMutationMixin:
         }
 
     async def _send_batch_suspend_notifications(
-        self, schedules: List[Schedule], reason: Optional[str] = None
+        self, schedules: list[Schedule], reason: str | None = None
     ):
         """发送批量停诊通知（医生 + 患者）
 
@@ -1012,7 +1011,7 @@ class ScheduleMutationMixin:
         except Exception as e:
             logger.warning(f"批量停诊通知发送失败: {e}")
 
-    async def batch_resume(self, schedule_ids: List[str], operator_id: Optional[str] = None) -> int:
+    async def batch_resume(self, schedule_ids: list[str], operator_id: str | None = None) -> int:
         """
         批量恢复排班
 
@@ -1201,7 +1200,7 @@ class ScheduleMutationMixin:
         await self.db.commit()
         return True
 
-    async def batch_delete(self, schedule_ids: List[str]) -> dict:
+    async def batch_delete(self, schedule_ids: list[str]) -> dict:
         """
         批量删除排班
 
@@ -1303,7 +1302,7 @@ class ScheduleMutationMixin:
 
     # ========== 排班发布状态机操作 ==========
 
-    async def publish(self, schedule_id: str, operator_id: Optional[str] = None) -> Schedule:
+    async def publish(self, schedule_id: str, operator_id: str | None = None) -> Schedule:
         """
         发布排班: draft -> published
 
@@ -1347,7 +1346,7 @@ class ScheduleMutationMixin:
         return schedule
 
     async def batch_publish(
-        self, schedule_ids: List[str], operator_id: Optional[str] = None
+        self, schedule_ids: list[str], operator_id: str | None = None
     ) -> dict:
         """
         批量发布排班: draft -> published
@@ -1432,9 +1431,9 @@ class ScheduleMutationMixin:
 
     async def withdraw(
         self,
-        schedule_ids: List[str],
-        reason: Optional[str] = None,
-        operator_id: Optional[str] = None,
+        schedule_ids: list[str],
+        reason: str | None = None,
+        operator_id: str | None = None,
     ) -> dict:
         """
         撤回排班: published/booking -> withdrawn

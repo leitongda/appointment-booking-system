@@ -1,4 +1,3 @@
-from typing import List, Optional
 
 from pydantic import BaseModel
 
@@ -23,17 +22,17 @@ class SortOrderItem(BaseModel):
 
 
 class BatchSortRequest(BaseModel):
-    items: List[SortOrderItem]
+    items: list[SortOrderItem]
 
 
 class CheckUsernameRequest(BaseModel):
     username: str
-    exclude_id: Optional[str] = None
+    exclude_id: str | None = None
 
 
 class CheckUsernameResponse(BaseModel):
     exists: bool
-    suggestions: List[str] = []
+    suggestions: list[str] = []
 
 
 class GenerateUsernameRequest(BaseModel):

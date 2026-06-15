@@ -1,28 +1,27 @@
 """数据统计 - 用户留存与复诊率"""
 from datetime import date, timedelta
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select, func, and_
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin, get_store_filter
+from app.db.session import get_db
 from app.models.appointment import Appointment
 from app.models.department import Department
 from app.models.doctor import Doctor
 from app.models.schedule import Schedule
-from app.schemas.response import ResponseModel
-from app.db.session import get_db
 from app.modules.statistics.helpers import _build_store_filter_condition
+from app.schemas.response import ResponseModel
 
 router = APIRouter()
 
 
 @router.get("/retention", response_model=ResponseModel, summary="获取用户留存率")
 async def get_retention_rate(
-    store_id: Optional[str] = None,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
+    store_id: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
     cohort: str = Query(default="month", regex="^(day|week|month)$"),
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
@@ -137,11 +136,11 @@ async def get_retention_rate(
 
 @router.get("/revisit-rate", response_model=ResponseModel, summary="获取复诊率")
 async def get_revisit_rate(
-    store_id: Optional[str] = None,
-    doctor_id: Optional[str] = None,
-    department_id: Optional[str] = None,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
+    store_id: str | None = None,
+    doctor_id: str | None = None,
+    department_id: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
 ):

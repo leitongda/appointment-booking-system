@@ -1,11 +1,9 @@
 """Rule-window and policy update helpers for rule sets."""
 
 import uuid
-from typing import Optional
 
 from sqlalchemy import select
 
-from app.modules.rule_sets.audit_helpers import make_rule_set_audit, snapshot_rule_set
 from app.models.rule_set import (
     RuleBookingPolicy,
     RuleCapacityPolicy,
@@ -13,6 +11,7 @@ from app.models.rule_set import (
     RuleSet,
     RuleWindow,
 )
+from app.modules.rule_sets.audit_helpers import make_rule_set_audit, snapshot_rule_set
 from app.schemas.rule_set import (
     RuleBookingPolicyCreate,
     RuleCapacityPolicyCreate,
@@ -25,8 +24,8 @@ from app.utils.audit import set_create_audit, set_update_audit
 
 class RuleSetPolicyMixin:
     async def create_window(
-        self, rule_set_id: str, data: RuleWindowCreate, operator_id: Optional[str] = None
-    ) -> Optional[RuleWindow]:
+        self, rule_set_id: str, data: RuleWindowCreate, operator_id: str | None = None
+    ) -> RuleWindow | None:
         result = await self.db.execute(select(RuleSet).where(RuleSet.id == rule_set_id))
         if not result.scalar_one_or_none():
             return None
@@ -68,8 +67,8 @@ class RuleSetPolicyMixin:
         return window
 
     async def update_window(
-        self, window_id: str, data: RuleWindowUpdate, operator_id: Optional[str] = None
-    ) -> Optional[RuleWindow]:
+        self, window_id: str, data: RuleWindowUpdate, operator_id: str | None = None
+    ) -> RuleWindow | None:
         window = await self.get_window_by_id(window_id)
         if not window:
             return None
@@ -112,7 +111,7 @@ class RuleSetPolicyMixin:
         await self.db.refresh(window)
         return window
 
-    async def delete_window(self, window_id: str, operator_id: Optional[str] = None) -> bool:
+    async def delete_window(self, window_id: str, operator_id: str | None = None) -> bool:
         window = await self.get_window_by_id(window_id)
         if not window:
             return False
@@ -137,8 +136,8 @@ class RuleSetPolicyMixin:
         return True
 
     async def update_booking_policy(
-        self, rule_set_id: str, data: RuleBookingPolicyCreate, operator_id: Optional[str] = None
-    ) -> Optional[RuleBookingPolicy]:
+        self, rule_set_id: str, data: RuleBookingPolicyCreate, operator_id: str | None = None
+    ) -> RuleBookingPolicy | None:
         snapshot_before = await snapshot_rule_set(self.db, rule_set_id)
         result = await self.db.execute(
             select(RuleBookingPolicy).where(RuleBookingPolicy.rule_set_id == rule_set_id)
@@ -189,8 +188,8 @@ class RuleSetPolicyMixin:
         return policy
 
     async def update_checkin_policy(
-        self, rule_set_id: str, data: RuleCheckinPolicyCreate, operator_id: Optional[str] = None
-    ) -> Optional[RuleCheckinPolicy]:
+        self, rule_set_id: str, data: RuleCheckinPolicyCreate, operator_id: str | None = None
+    ) -> RuleCheckinPolicy | None:
         snapshot_before = await snapshot_rule_set(self.db, rule_set_id)
         result = await self.db.execute(
             select(RuleCheckinPolicy).where(RuleCheckinPolicy.rule_set_id == rule_set_id)
@@ -239,8 +238,8 @@ class RuleSetPolicyMixin:
         return policy
 
     async def update_capacity_policy(
-        self, rule_set_id: str, data: RuleCapacityPolicyCreate, operator_id: Optional[str] = None
-    ) -> Optional[RuleCapacityPolicy]:
+        self, rule_set_id: str, data: RuleCapacityPolicyCreate, operator_id: str | None = None
+    ) -> RuleCapacityPolicy | None:
         snapshot_before = await snapshot_rule_set(self.db, rule_set_id)
         result = await self.db.execute(
             select(RuleCapacityPolicy).where(RuleCapacityPolicy.rule_set_id == rule_set_id)

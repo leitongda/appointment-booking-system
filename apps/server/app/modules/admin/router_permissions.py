@@ -1,6 +1,5 @@
 """Admin permissions router."""
 
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -73,7 +72,7 @@ async def create_permission(
 
 @router.post("/permissions/batch", summary="批量创建权限")
 async def batch_create_permissions(
-    permissions: List[PermissionCreate],
+    permissions: list[PermissionCreate],
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
     _: None = Depends(require_permission("system:role:permission")),

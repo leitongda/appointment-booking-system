@@ -14,9 +14,8 @@ from sqlalchemy.orm import selectinload
 
 from app.celery_app import celery_app
 from app.db.session import get_sync_db
-from app.middleware.tenant_context import set_tenant_context, clear_tenant_context
+from app.middleware.tenant_context import clear_tenant_context, set_tenant_context
 from app.models.appointment import Appointment
-from app.models.miniapp_platform import PaymentProfile
 from app.models.tenant import Tenant
 from app.modules.appointments.common import APPOINTMENT_STATUS
 

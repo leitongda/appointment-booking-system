@@ -2,18 +2,17 @@
 
 import uuid
 from datetime import datetime
-from typing import List, Optional, Tuple
 
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.orm import selectinload
 
+from app.common.account_sync import AccountSyncService
 from app.core.config import settings
 from app.core.security import get_password_hash, verify_password
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.admin import Admin, Role, admin_stores
 from app.models.tenant import Tenant
 from app.utils.audit import set_create_audit, set_update_audit
-from app.common.account_sync import AccountSyncService
 
 
 class AdminService:
@@ -22,14 +21,14 @@ class AdminService:
 
     async def get_list(
         self,
-        role_id: Optional[str] = None,
-        status: Optional[int] = None,
-        keyword: Optional[str] = None,
-        store_id: Optional[str] = None,
+        role_id: str | None = None,
+        status: int | None = None,
+        keyword: str | None = None,
+        store_id: str | None = None,
         page: int = 1,
         page_size: int = 10,
-        tenant_id: Optional[str] = None,  # 支持显式传入租户ID
-    ) -> Tuple[List[Admin], int]:
+        tenant_id: str | None = None,  # 支持显式传入租户ID
+    ) -> tuple[list[Admin], int]:
         query = select(Admin).options(
             selectinload(Admin.role),
             selectinload(Admin.tenant).selectinload(Tenant.subscription_plan),
@@ -72,7 +71,7 @@ class AdminService:
         items = result.unique().scalars().all()
         return list(items), total or 0
 
-    async def get_by_id(self, admin_id: str, tenant_id: Optional[str] = None) -> Optional[Admin]:
+    async def get_by_id(self, admin_id: str, tenant_id: str | None = None) -> Admin | None:
         """根据ID查询管理员
 
         Args:
@@ -98,7 +97,7 @@ class AdminService:
         result = await self.db.execute(query)
         return result.unique().scalar_one_or_none()
 
-    async def get_by_username(self, username: str, tenant_id: Optional[str] = None) -> Optional[Admin]:
+    async def get_by_username(self, username: str, tenant_id: str | None = None) -> Admin | None:
         """根据用户名查询管理员
 
         Args:
@@ -124,7 +123,7 @@ class AdminService:
         result = await self.db.execute(query)
         return result.unique().scalar_one_or_none()
 
-    async def get_by_phone(self, phone: str, tenant_id: Optional[str] = None) -> Optional[Admin]:
+    async def get_by_phone(self, phone: str, tenant_id: str | None = None) -> Admin | None:
         """根据手机号查询管理员
 
         Args:
@@ -150,7 +149,7 @@ class AdminService:
         result = await self.db.execute(query)
         return result.unique().scalar_one_or_none()
 
-    async def get_by_username_global(self, username: str) -> Optional[Admin]:
+    async def get_by_username_global(self, username: str) -> Admin | None:
         """根据用户名查询管理员（全局查询，不限制租户，用于登录认证）"""
         result = await self.db.execute(
             select(Admin)
@@ -164,7 +163,7 @@ class AdminService:
         )
         return result.unique().scalar_one_or_none()
 
-    async def get_by_phone_global(self, phone: str) -> Optional[Admin]:
+    async def get_by_phone_global(self, phone: str) -> Admin | None:
         """根据手机号查询管理员（全局查询，不限制租户，用于登录认证）"""
         result = await self.db.execute(
             select(Admin)
@@ -178,7 +177,7 @@ class AdminService:
         )
         return result.unique().scalar_one_or_none()
 
-    async def list_by_email_global(self, email: str) -> List[Admin]:
+    async def list_by_email_global(self, email: str) -> list[Admin]:
         """根据邮箱查询管理员列表（全局查询，用于邮箱登录/绑定唯一性校验）"""
         normalized_email = email.strip().lower()
         result = await self.db.execute(
@@ -193,21 +192,21 @@ class AdminService:
         )
         return list(result.unique().scalars().all())
 
-    async def authenticate(self, username: str, password: str) -> Optional[Admin]:
+    async def authenticate(self, username: str, password: str) -> Admin | None:
         """用户名密码认证（全局查询，用于登录）"""
         admin = await self.get_by_username_global(username)
         if not admin or not verify_password(password, admin.password_hash):
             return None
         return admin
 
-    async def authenticate_by_phone(self, phone: str, password: str) -> Optional[Admin]:
+    async def authenticate_by_phone(self, phone: str, password: str) -> Admin | None:
         """手机号密码认证（全局查询，用于登录）"""
         admin = await self.get_by_phone_global(phone)
         if not admin or not admin.password_hash or not verify_password(password, admin.password_hash):
             return None
         return admin
 
-    async def create(self, data: dict, operator_id: Optional[str] = None) -> Admin:
+    async def create(self, data: dict, operator_id: str | None = None) -> Admin:
         # 租户内检查用户名唯一性
         existing = await self.get_by_username(data["username"])
         if existing:
@@ -223,7 +222,7 @@ class AdminService:
         password = data.get("password") or settings.DEFAULT_USER_PASSWORD
 
         # 密码策略校验
-        from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
+        from app.modules.tenants.password_policy import PasswordPolicyValidator, get_tenant_password_policy
         policy = await get_tenant_password_policy(self.db, tenant_id)
         validator = PasswordPolicyValidator(policy)
         is_valid, errors = validator.validate(
@@ -280,7 +279,7 @@ class AdminService:
         await self.db.commit()
         return await self.get_by_id(admin.id)
 
-    async def update(self, admin_id: str, data: dict, operator_id: Optional[str] = None) -> Optional[Admin]:
+    async def update(self, admin_id: str, data: dict, operator_id: str | None = None) -> Admin | None:
         admin = await self.get_by_id(admin_id)
         if not admin:
             return None
@@ -299,7 +298,7 @@ class AdminService:
 
         # 密码策略校验
         if data.get("password"):
-            from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
+            from app.modules.tenants.password_policy import PasswordPolicyValidator, get_tenant_password_policy
             policy = await get_tenant_password_policy(self.db, admin.tenant_id)
             validator = PasswordPolicyValidator(policy)
             is_valid, errors = validator.validate(
@@ -351,7 +350,7 @@ class AdminService:
             return False
 
         # 密码策略校验
-        from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
+        from app.modules.tenants.password_policy import PasswordPolicyValidator, get_tenant_password_policy
         policy = await get_tenant_password_policy(self.db, admin.tenant_id)
         validator = PasswordPolicyValidator(policy)
         is_valid, errors = validator.validate(

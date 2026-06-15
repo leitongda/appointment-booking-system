@@ -4,10 +4,9 @@
 遵循 app/modules/rule_sets/audit_helpers.py 的模式。
 """
 
-import json
 import uuid
 from datetime import date, datetime, time
-from typing import Any, Optional
+from typing import Any
 
 from app.models.schedule import Schedule
 from app.models.schedule_audit import ScheduleAuditLog
@@ -20,7 +19,7 @@ def _serialize_value(value: Any) -> Any:
     return value
 
 
-def snapshot_schedule(schedule: Schedule) -> Optional[dict[str, Any]]:
+def snapshot_schedule(schedule: Schedule) -> dict[str, Any] | None:
     """将 Schedule 对象序列化为字典快照。
 
     快照字段: id, doctor_id, store_id, schedule_date, time_slot,
@@ -53,7 +52,7 @@ def snapshot_schedule(schedule: Schedule) -> Optional[dict[str, Any]]:
     return data
 
 
-def compute_diff(before: Optional[dict], after: Optional[dict]) -> Optional[dict[str, Any]]:
+def compute_diff(before: dict | None, after: dict | None) -> dict[str, Any] | None:
     """计算两个快照之间的字段级差异。
 
     Args:
@@ -87,13 +86,13 @@ def compute_diff(before: Optional[dict], after: Optional[dict]) -> Optional[dict
 
 
 def make_schedule_audit(
-    schedule_id: Optional[str],
+    schedule_id: str | None,
     tenant_id: str,
     action: str,
-    operator_id: Optional[str],
-    snapshot_before: Optional[str] = None,
-    snapshot_after: Optional[str] = None,
-    changes: Optional[str] = None,
+    operator_id: str | None,
+    snapshot_before: str | None = None,
+    snapshot_after: str | None = None,
+    changes: str | None = None,
 ) -> ScheduleAuditLog:
     """构造 ScheduleAuditLog 实例。
 

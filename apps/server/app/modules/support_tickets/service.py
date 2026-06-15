@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime
-from typing import List, Optional, Tuple
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,7 +26,7 @@ class SupportTicketService:
             return stmt.where(SupportTicket.tenant_id == tenant_id)
         return stmt
 
-    async def get_by_id(self, ticket_id: str) -> Optional[SupportTicket]:
+    async def get_by_id(self, ticket_id: str) -> SupportTicket | None:
         """根据ID获取工单"""
         stmt = self._tenant_filter(
             select(SupportTicket).where(SupportTicket.id == ticket_id)
@@ -37,7 +36,7 @@ class SupportTicketService:
 
     async def get_list(
         self, query: SupportTicketQuery
-    ) -> Tuple[List[SupportTicket], int]:
+    ) -> tuple[list[SupportTicket], int]:
         """获取工单列表"""
         stmt = self._tenant_filter(select(SupportTicket))
         count_stmt = self._tenant_filter(select(func.count(SupportTicket.id)))
@@ -101,7 +100,7 @@ class SupportTicketService:
 
     async def update(
         self, ticket_id: str, data: SupportTicketUpdate
-    ) -> Optional[SupportTicket]:
+    ) -> SupportTicket | None:
         """更新工单"""
         ticket = await self.get_by_id(ticket_id)
         if not ticket:
@@ -122,7 +121,7 @@ class SupportTicketService:
 
     async def assign(
         self, ticket_id: str, assignee_id: str
-    ) -> Optional[SupportTicket]:
+    ) -> SupportTicket | None:
         """分配工单"""
         ticket = await self.get_by_id(ticket_id)
         if not ticket:
@@ -138,8 +137,8 @@ class SupportTicketService:
         return ticket
 
     async def resolve(
-        self, ticket_id: str, resolution: Optional[str] = None
-    ) -> Optional[SupportTicket]:
+        self, ticket_id: str, resolution: str | None = None
+    ) -> SupportTicket | None:
         """解决工单"""
         ticket = await self.get_by_id(ticket_id)
         if not ticket:
@@ -155,8 +154,8 @@ class SupportTicketService:
         return ticket
 
     async def close(
-        self, ticket_id: str, resolution: Optional[str] = None
-    ) -> Optional[SupportTicket]:
+        self, ticket_id: str, resolution: str | None = None
+    ) -> SupportTicket | None:
         """关闭工单"""
         ticket = await self.get_by_id(ticket_id)
         if not ticket:
@@ -172,7 +171,7 @@ class SupportTicketService:
         await self.db.refresh(ticket)
         return ticket
 
-    async def reopen(self, ticket_id: str) -> Optional[SupportTicket]:
+    async def reopen(self, ticket_id: str) -> SupportTicket | None:
         """重开工单"""
         ticket = await self.get_by_id(ticket_id)
         if not ticket:

@@ -6,7 +6,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Index, Integer, String, Text, Boolean
+from sqlalchemy import Column, DateTime, Index, Integer, String, Text
 
 from app.db.base import Base
 

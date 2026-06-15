@@ -5,17 +5,16 @@
 2. 所有数据都自动使用当前租户上下文
 3. 行级别的租户隔离验证
 """
-from typing import List, Dict, Any, Optional
 import logging
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.excel.import_service import ExcelImportError
+from app.common.tenant_filter import get_tenant_id_for_create
+from app.infrastructure.excel.import_service import ExcelImportError, ExcelImportService
 from app.middleware.exception import BusinessError
 from app.middleware.tenant_context import get_current_tenant_id
-from app.common.tenant_filter import get_tenant_id_for_create
-from app.infrastructure.excel.import_service import ExcelImportService
 
 logger = logging.getLogger(__name__)
 
@@ -34,10 +33,10 @@ class ImportService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
-        self._tenant_id: Optional[str] = None
+        self._tenant_id: str | None = None
 
     @staticmethod
-    def _sanitize_row_data(row_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _sanitize_row_data(row_data: dict[str, Any]) -> dict[str, Any]:
         """清理行数据，移除可能被恶意注入的敏感字段
 
         Args:
@@ -53,9 +52,9 @@ class ImportService:
 
     def _infer_tenant_id(
         self,
-        tenant_id: Optional[str] = None,
-        store_id: Optional[str] = None
-    ) -> Optional[str]:
+        tenant_id: str | None = None,
+        store_id: str | None = None
+    ) -> str | None:
         """推断当前导入操作应使用的租户 ID
 
         优先级：
@@ -99,11 +98,11 @@ class ImportService:
 
     async def _validate_row_tenant(
         self,
-        row_data: Dict[str, Any],
+        row_data: dict[str, Any],
         row_id: int,
-        model_class: Optional[type] = None,
-        id_field: Optional[str] = None
-    ) -> Optional[str]:
+        model_class: type | None = None,
+        id_field: str | None = None
+    ) -> str | None:
         """验证数据行是否属于当前租户
 
         对于包含关联 ID（如 patient_id, store_id）的导入数据，
@@ -168,13 +167,13 @@ class ImportService:
         self,
         file_content: bytes,
         filename: str | None,
-        expected_headers: List[str],
-        required_fields: List[str],
+        expected_headers: list[str],
+        required_fields: list[str],
         process_row_func,
         sanitize: bool = True,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
         validate_tenant: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         验证并导入数据
 
@@ -281,6 +280,6 @@ class ImportService:
         }
 
     @property
-    def tenant_id(self) -> Optional[str]:
+    def tenant_id(self) -> str | None:
         """获取当前导入操作的租户 ID"""
         return self._tenant_id

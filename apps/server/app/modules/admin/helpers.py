@@ -3,7 +3,6 @@
 import hashlib
 import json
 from datetime import datetime, timedelta
-from typing import List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,7 +11,7 @@ from app.core.redis import RedisCache, parse_user_agent
 from app.modules.admin.schemas import AdminResponse, RoleResponse, StoreInfo
 
 
-def parse_permissions(role) -> List[str]:
+def parse_permissions(role) -> list[str]:
     if role.permissions:
         try:
             return json.loads(role.permissions)
@@ -34,7 +33,7 @@ def build_role_response(role) -> RoleResponse:
     )
 
 
-def build_admin_response(admin, permissions: List[str] = None) -> AdminResponse:
+def build_admin_response(admin, permissions: list[str] = None) -> AdminResponse:
     """从 Admin ORM 对象构建 AdminResponse（保留供登录等场景使用）"""
     from app.modules.admin.schemas import TenantStatusInfo
 
@@ -107,7 +106,7 @@ def build_admin_response(admin, permissions: List[str] = None) -> AdminResponse:
     )
 
 
-def build_admin_response_from_dict(admin_dict: dict, permissions: List[str] = None) -> AdminResponse:
+def build_admin_response_from_dict(admin_dict: dict, permissions: list[str] = None) -> AdminResponse:
     """从 get_current_admin 返回的 dict 构建 AdminResponse（避免重复数据库查询）"""
     from app.modules.admin.schemas import TenantStatusInfo
 
@@ -158,7 +157,7 @@ def build_admin_response_from_dict(admin_dict: dict, permissions: List[str] = No
     )
 
 
-def build_store_info(store) -> Optional[StoreInfo]:
+def build_store_info(store) -> StoreInfo | None:
     if not store:
         return None
     return StoreInfo(
@@ -169,7 +168,7 @@ def build_store_info(store) -> Optional[StoreInfo]:
     )
 
 
-def build_stores_list(stores) -> Optional[List[StoreInfo]]:
+def build_stores_list(stores) -> list[StoreInfo] | None:
     if not stores:
         return None
     return [build_store_info(s) for s in stores]
@@ -182,8 +181,9 @@ async def store_admin_session(
     user_agent: str,
     db: AsyncSession = None,
 ) -> None:
-    from app.models.admin import AdminLoginHistory
     import uuid
+
+    from app.models.admin import AdminLoginHistory
 
     token_hash = hashlib.sha256(access_token.encode()).hexdigest()[:32]
     device_info = parse_user_agent(user_agent)

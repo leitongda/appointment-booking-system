@@ -1,6 +1,5 @@
 """导入相关端点"""
 from datetime import date, datetime, time
-from typing import Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -11,15 +10,15 @@ from app.api.deps import get_current_admin, get_store_filter, require_permission
 from app.core.config import settings
 from app.core.security import get_password_hash
 from app.db.session import get_db
-from app.modules.import_export.service_import import ImportService
 from app.infrastructure.excel.import_service import ExcelImportService
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.department import Department
 from app.models.doctor import Doctor
 from app.models.schedule import Schedule
 from app.models.schedule_status import ScheduleStatus
 from app.models.store import Store
 from app.models.user import Patient, User
-from app.middleware.tenant_context import get_current_tenant_id
+from app.modules.import_export.service_import import ImportService
 from app.utils.audit import set_create_audit
 
 router = APIRouter()
@@ -301,7 +300,7 @@ SCHEDULE_HEADERS = ["医生姓名", "门店名称", "日期", "时段", "开始�
 SCHEDULE_REQUIRED_FIELDS = ["医生姓名", "门店名称", "日期", "时段", "开始时间", "结束时间", "总号源"]
 
 
-def _parse_time(value) -> Optional[time]:
+def _parse_time(value) -> time | None:
     """将各种格式的时间值解析为 time 对象"""
     if value is None:
         return None
@@ -319,7 +318,7 @@ def _parse_time(value) -> Optional[time]:
     return None
 
 
-def _parse_date(value) -> Optional[date]:
+def _parse_date(value) -> date | None:
     """将各种格式的日期值解析为 date 对象"""
     if value is None:
         return None
@@ -361,7 +360,7 @@ async def import_schedules(
     validate_excel_upload(file)
 
     if conflict_strategy not in VALID_CONFLICT_STRATEGIES:
-        raise HTTPException(status_code=400, detail=f"无效的冲突策略，可选值: skip/overwrite/report")
+        raise HTTPException(status_code=400, detail="无效的冲突策略，可选值: skip/overwrite/report")
 
     tenant_id = get_current_tenant_id()
     if not tenant_id:
@@ -473,7 +472,7 @@ async def import_schedules(
         # 时段
         time_slot = (row.get("时段") or "").strip().lower()
         if time_slot not in VALID_TIME_SLOTS:
-            row_errors.append(f"时段值不合法，可选值: morning/afternoon/evening")
+            row_errors.append("时段值不合法，可选值: morning/afternoon/evening")
             error_rows.append({"row": row_id, "data": {k: v for k, v in row.items() if not k.startswith("_")}, "errors": row_errors})
             continue
 

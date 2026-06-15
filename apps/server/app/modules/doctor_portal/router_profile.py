@@ -1,11 +1,11 @@
 """医生个人信息相关端点"""
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
-from typing import Optional
 
-from app.db.session import get_db
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.deps import get_current_doctor_by_token
+from app.db.session import get_db
 from app.models.doctor import Doctor
 
 router = APIRouter()
@@ -13,17 +13,17 @@ router = APIRouter()
 
 class DoctorProfileUpdate(BaseModel):
     """医生个人信息更新请求"""
-    title: Optional[str] = None
-    specialty: Optional[str] = None
-    introduction: Optional[str] = None
-    avatar: Optional[str] = None
-    gender: Optional[int] = None
-    years_of_experience: Optional[int] = None
-    education: Optional[str] = None
-    graduate_school: Optional[str] = None
-    license_number: Optional[str] = None
-    honors: Optional[str] = None
-    schedule_desc: Optional[str] = None
+    title: str | None = None
+    specialty: str | None = None
+    introduction: str | None = None
+    avatar: str | None = None
+    gender: int | None = None
+    years_of_experience: int | None = None
+    education: str | None = None
+    graduate_school: str | None = None
+    license_number: str | None = None
+    honors: str | None = None
+    schedule_desc: str | None = None
 
 
 @router.get("/me", summary="获取我的信息")

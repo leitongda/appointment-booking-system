@@ -1,4 +1,3 @@
-from typing import List
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,7 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user
 from app.core.logging import logger
 from app.db.session import get_db
+from app.infrastructure.storage import get_storage
+from app.infrastructure.storage.base import build_tenant_storage_folder
 from app.modules.users.schemas import AvatarUploadResponse
+from app.modules.users.service import PatientService, UserService
 from app.schemas.user import (
     BindPhoneRequest,
     ChangePasswordRequest,
@@ -16,9 +18,6 @@ from app.schemas.user import (
     UserResponse,
     UserUpdate,
 )
-from app.infrastructure.storage import get_storage
-from app.infrastructure.storage.base import build_tenant_storage_folder
-from app.modules.users.service import PatientService, UserService
 from app.schemas.user import UserUpdate as UserUpdateSchema
 
 router = APIRouter()
@@ -87,8 +86,8 @@ async def change_password(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在，请检查后重试")
 
     # 密码策略校验
-    from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
     from app.middleware.tenant_context import get_current_tenant_id
+    from app.modules.tenants.password_policy import PasswordPolicyValidator, get_tenant_password_policy
     tenant_id = get_current_tenant_id()
     policy = await get_tenant_password_policy(db, tenant_id)
     validator = PasswordPolicyValidator(policy)
@@ -165,7 +164,7 @@ async def upload_avatar(
         ) from exc
 
 
-@router.get("/patients", response_model=List[PatientResponse], summary="获取就诊人列表")
+@router.get("/patients", response_model=list[PatientResponse], summary="获取就诊人列表")
 async def get_patients(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),

@@ -1,8 +1,10 @@
 """随访计划模型"""
 import uuid
-from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin, TimestampMixin
+
+from app.db.base import AuditMixin, Base, TimestampMixin
 
 
 class FollowUpPlan(Base, AuditMixin):

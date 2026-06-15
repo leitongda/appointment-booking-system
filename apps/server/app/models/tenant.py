@@ -6,11 +6,13 @@
 - TenantUsageLog: 租户用量统计
 - SubscriptionPlan: 订阅计划
 """
-from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey, Numeric, Date, Boolean
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
-from datetime import datetime
 import uuid
+from datetime import datetime
+
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 
 class SubscriptionPlan(Base, AuditMixin):

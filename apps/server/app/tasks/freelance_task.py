@@ -8,12 +8,18 @@ import logging
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from sqlalchemy import select, and_
+from sqlalchemy import and_, select
 
 from app.celery_app import celery_app
 from app.db.session import get_sync_db
-from app.middleware.tenant_context import set_tenant_context, clear_tenant_context
-from app.models.freelance import Freelancer, FreelanceTask, FreelanceInteraction, FreelanceSettlement, FreelanceSettlementItem
+from app.middleware.tenant_context import clear_tenant_context, set_tenant_context
+from app.models.freelance import (
+    FreelanceInteraction,
+    Freelancer,
+    FreelanceSettlement,
+    FreelanceSettlementItem,
+    FreelanceTask,
+)
 from app.models.tenant import Tenant
 
 logger = logging.getLogger(__name__)

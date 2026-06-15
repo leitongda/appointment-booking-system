@@ -1,9 +1,9 @@
 """租户数据备份恢复路由"""
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
 from app.common.deps import require_platform_admin
+from app.db.session import get_db
 from app.modules.backup.service import BackupService
 
 router = APIRouter()
@@ -16,9 +16,10 @@ async def export_tenant_backup(
     current_admin: dict = Depends(require_platform_admin()),
 ):
     """导出租户全部数据为 JSON（仅平台管理员）"""
-    from fastapi.responses import StreamingResponse
-    import json
     import io
+    import json
+
+    from fastapi.responses import StreamingResponse
 
     service = BackupService(db)
     try:

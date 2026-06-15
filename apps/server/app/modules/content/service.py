@@ -1,12 +1,12 @@
 """内容管理服务"""
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_
-from typing import Optional, List, Tuple
-from datetime import datetime
-import uuid
 import json
+import uuid
+from datetime import datetime
 
-from app.models.content import News, Notice, Banner
+from sqlalchemy import and_, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.content import Banner, News, Notice
 from app.models.content_version import ContentVersion
 from app.utils.audit import set_create_audit, set_update_audit
 
@@ -31,14 +31,14 @@ class NewsService:
 
     async def get_list(
         self,
-        type: Optional[int] = None,
-        status: Optional[int] = None,
-        keyword: Optional[str] = None,
-        store_id: Optional[str] = None,
+        type: int | None = None,
+        status: int | None = None,
+        keyword: str | None = None,
+        store_id: str | None = None,
         page: int = 1,
         page_size: int = 10,
         include_deleted: bool = False,
-    ) -> Tuple[List[News], int]:
+    ) -> tuple[list[News], int]:
         """获取新闻列表"""
         query = select(News)
         conditions = []
@@ -80,10 +80,10 @@ class NewsService:
 
     async def get_trash_list(
         self,
-        store_id: Optional[str] = None,
+        store_id: str | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[News], int]:
+    ) -> tuple[list[News], int]:
         """获取回收站新闻列表"""
         return await self.get_list(
             store_id=store_id, page=page, page_size=page_size, include_deleted=True
@@ -91,10 +91,10 @@ class NewsService:
 
     async def get_published(
         self,
-        type: Optional[int] = None,
-        store_id: Optional[str] = None,
+        type: int | None = None,
+        store_id: str | None = None,
         limit: int = 10,
-    ) -> List[News]:
+    ) -> list[News]:
         """获取已发布的新闻"""
         conditions = [News.status == 1, News.is_deleted == False]  # noqa: E712
 
@@ -113,11 +113,11 @@ class NewsService:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_by_id(self, news_id: str) -> Optional[News]:
+    async def get_by_id(self, news_id: str) -> News | None:
         """获取新闻详情"""
         return await self.db.get(News, news_id)
 
-    async def create(self, data: dict, store_id: Optional[str] = None, operator_id: Optional[str] = None) -> News:
+    async def create(self, data: dict, store_id: str | None = None, operator_id: str | None = None) -> News:
         """创建新闻"""
         news = News(
             id=str(uuid.uuid4()),
@@ -137,7 +137,7 @@ class NewsService:
         await self.db.refresh(news)
         return news
 
-    async def update(self, news_id: str, data: dict, operator_id: Optional[str] = None) -> Optional[News]:
+    async def update(self, news_id: str, data: dict, operator_id: str | None = None) -> News | None:
         """更新新闻（更新前保存版本快照）"""
         news = await self.get_by_id(news_id)
         if not news:
@@ -207,7 +207,7 @@ class NewsService:
             news.view_count = (news.view_count or 0) + 1
             await self.db.commit()
 
-    async def batch_delete(self, ids: List[str]) -> int:
+    async def batch_delete(self, ids: list[str]) -> int:
         """批量软删除新闻，返回实际删除数量"""
         deleted_count = 0
         for news_id in ids:
@@ -229,14 +229,14 @@ class NoticeService:
 
     async def get_list(
         self,
-        type: Optional[int] = None,
-        status: Optional[int] = None,
-        keyword: Optional[str] = None,
-        store_id: Optional[str] = None,
+        type: int | None = None,
+        status: int | None = None,
+        keyword: str | None = None,
+        store_id: str | None = None,
         page: int = 1,
         page_size: int = 10,
         include_deleted: bool = False,
-    ) -> Tuple[List[Notice], int]:
+    ) -> tuple[list[Notice], int]:
         """获取公告列表"""
         query = select(Notice)
         conditions = []
@@ -279,16 +279,16 @@ class NoticeService:
 
     async def get_trash_list(
         self,
-        store_id: Optional[str] = None,
+        store_id: str | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[Notice], int]:
+    ) -> tuple[list[Notice], int]:
         """获取回收站公告列表"""
         return await self.get_list(
             store_id=store_id, page=page, page_size=page_size, include_deleted=True
         )
 
-    async def get_published(self, store_id: Optional[str] = None, limit: int = 10) -> List[Notice]:
+    async def get_published(self, store_id: str | None = None, limit: int = 10) -> list[Notice]:
         """获取已发布的公告"""
         conditions = [Notice.status == 1, Notice.is_deleted == False]  # noqa: E712
 
@@ -304,11 +304,11 @@ class NoticeService:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_by_id(self, notice_id: str) -> Optional[Notice]:
+    async def get_by_id(self, notice_id: str) -> Notice | None:
         """获取公告详情"""
         return await self.db.get(Notice, notice_id)
 
-    async def create(self, data: dict, store_id: Optional[str] = None, operator_id: Optional[str] = None) -> Notice:
+    async def create(self, data: dict, store_id: str | None = None, operator_id: str | None = None) -> Notice:
         """创建公告"""
         notice = Notice(
             id=str(uuid.uuid4()),
@@ -326,7 +326,7 @@ class NoticeService:
         await self.db.refresh(notice)
         return notice
 
-    async def update(self, notice_id: str, data: dict, operator_id: Optional[str] = None) -> Optional[Notice]:
+    async def update(self, notice_id: str, data: dict, operator_id: str | None = None) -> Notice | None:
         """更新公告（更新前保存版本快照）"""
         notice = await self.get_by_id(notice_id)
         if not notice:
@@ -396,7 +396,7 @@ class NoticeService:
             notice.view_count = (notice.view_count or 0) + 1
             await self.db.commit()
 
-    async def batch_delete(self, ids: List[str]) -> int:
+    async def batch_delete(self, ids: list[str]) -> int:
         """批量软删除公告，返回实际删除数量"""
         deleted_count = 0
         for notice_id in ids:
@@ -418,13 +418,13 @@ class BannerService:
 
     async def get_list(
         self,
-        position: Optional[str] = None,
-        status: Optional[int] = None,
-        store_id: Optional[str] = None,
+        position: str | None = None,
+        status: int | None = None,
+        store_id: str | None = None,
         page: int = 1,
         page_size: int = 10,
         include_deleted: bool = False,
-    ) -> Tuple[List[Banner], int]:
+    ) -> tuple[list[Banner], int]:
         """获取轮播图列表"""
         query = select(Banner)
         conditions = []
@@ -459,16 +459,16 @@ class BannerService:
 
     async def get_trash_list(
         self,
-        store_id: Optional[str] = None,
+        store_id: str | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[Banner], int]:
+    ) -> tuple[list[Banner], int]:
         """获取回收站轮播图列表"""
         return await self.get_list(
             store_id=store_id, page=page, page_size=page_size, include_deleted=True
         )
 
-    async def get_active(self, position: str = "home", store_id: Optional[str] = None) -> List[Banner]:
+    async def get_active(self, position: str = "home", store_id: str | None = None) -> list[Banner]:
         """获取启用的轮播图"""
         conditions = [
             Banner.position == position,
@@ -487,11 +487,11 @@ class BannerService:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_by_id(self, banner_id: str) -> Optional[Banner]:
+    async def get_by_id(self, banner_id: str) -> Banner | None:
         """获取轮播图详情"""
         return await self.db.get(Banner, banner_id)
 
-    async def create(self, data: dict, store_id: Optional[str] = None, operator_id: Optional[str] = None) -> Banner:
+    async def create(self, data: dict, store_id: str | None = None, operator_id: str | None = None) -> Banner:
         """创建轮播图"""
         banner = Banner(
             id=str(uuid.uuid4()),
@@ -510,7 +510,7 @@ class BannerService:
         await self.db.refresh(banner)
         return banner
 
-    async def update(self, banner_id: str, data: dict, operator_id: Optional[str] = None) -> Optional[Banner]:
+    async def update(self, banner_id: str, data: dict, operator_id: str | None = None) -> Banner | None:
         """更新轮播图（更新前保存版本快照）"""
         banner = await self.get_by_id(banner_id)
         if not banner:
@@ -570,7 +570,7 @@ class BannerService:
         await self.db.commit()
         return True
 
-    async def batch_delete(self, ids: List[str]) -> int:
+    async def batch_delete(self, ids: list[str]) -> int:
         """批量软删除轮播图，返回实际删除数量"""
         deleted_count = 0
         for banner_id in ids:
@@ -584,7 +584,7 @@ class BannerService:
             await self.db.commit()
         return deleted_count
 
-    async def update_sort_order(self, items: List[dict]) -> int:
+    async def update_sort_order(self, items: list[dict]) -> int:
         """批量更新轮播图排序，items 为 [{id, sort_order}] 列表，返回更新数量"""
         updated_count = 0
         for item in items:

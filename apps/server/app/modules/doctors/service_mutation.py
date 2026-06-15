@@ -4,24 +4,22 @@ import random
 import string
 import uuid
 from datetime import datetime
-from typing import List, Optional
 
 from pypinyin import lazy_pinyin
 from sqlalchemy import and_, func, select
 
+from app.common.account_sync import AccountSyncService
 from app.core.config import settings
 from app.core.security import get_password_hash
 from app.models.appointment import Appointment
 from app.models.doctor import Doctor
-from app.models.schedule import Schedule
 from app.models.user import User
 from app.schemas.doctor import DoctorCreate, DoctorUpdate
 from app.utils.audit import set_create_audit, set_update_audit
-from app.common.account_sync import AccountSyncService
 
 
 class DoctorMutationMixin:
-    async def create(self, data: DoctorCreate, operator_id: Optional[str] = None) -> Doctor:
+    async def create(self, data: DoctorCreate, operator_id: str | None = None) -> Doctor:
         # 配额检查（获取当前租户ID）
         from app.common.quota import check_quota
         from app.middleware.tenant_context import get_current_tenant_id
@@ -95,8 +93,8 @@ class DoctorMutationMixin:
         return doctor
 
     async def update(
-        self, doctor_id: str, data: DoctorUpdate, operator_id: Optional[str] = None
-    ) -> Optional[Doctor]:
+        self, doctor_id: str, data: DoctorUpdate, operator_id: str | None = None
+    ) -> Doctor | None:
         doctor = await self.get_by_id(doctor_id)
         if not doctor:
             return None
@@ -162,7 +160,7 @@ class DoctorMutationMixin:
         await self.db.commit()
         return True
 
-    async def check_username_exists(self, username: str, exclude_id: Optional[str] = None) -> bool:
+    async def check_username_exists(self, username: str, exclude_id: str | None = None) -> bool:
         from app.middleware.tenant_context import get_current_tenant_id
         query = select(Doctor).where(Doctor.username == username, Doctor.deleted_at.is_(None))
         tenant_id = get_current_tenant_id()
@@ -187,7 +185,7 @@ class DoctorMutationMixin:
                     break
         return username
 
-    async def suggest_usernames(self, base_username: str, count: int = 3) -> List[str]:
+    async def suggest_usernames(self, base_username: str, count: int = 3) -> list[str]:
         suggestions = []
         attempts = 0
         max_attempts = count * 5
@@ -199,7 +197,7 @@ class DoctorMutationMixin:
             attempts += 1
         return suggestions
 
-    async def batch_update_sort_order(self, items: List[dict]) -> int:
+    async def batch_update_sort_order(self, items: list[dict]) -> int:
         from app.middleware.tenant_context import get_current_tenant_id
         tenant_id = get_current_tenant_id()
         count = 0

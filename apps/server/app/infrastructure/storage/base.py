@@ -3,7 +3,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import BinaryIO
-from typing import Optional
 
 
 @dataclass
@@ -72,7 +71,7 @@ class BaseStorage(ABC):
         return "image/jpeg"
 
 
-def build_tenant_storage_folder(folder: str, tenant_id: Optional[str] = None) -> str:
+def build_tenant_storage_folder(folder: str, tenant_id: str | None = None) -> str:
     """为上传目录添加租户前缀。
 
     没有租户上下文时保留原目录，便于平台级资源继续沿用旧路径。

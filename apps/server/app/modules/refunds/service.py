@@ -3,16 +3,15 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional, Union
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.constants.appointment import APPOINTMENT_STATUS
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.appointment import Appointment
 from app.models.refund import RefundRecord
 from app.models.schedule import Schedule
-from app.constants.appointment import APPOINTMENT_STATUS
 
 COUNTED_REFUND_STATUSES = ("pending", "processing", "success")
 IN_FLIGHT_REFUND_STATUSES = ("pending", "processing")
@@ -42,7 +41,7 @@ class RefundService:
     async def _get_refund_appointment(
         self,
         refund_record: RefundRecord,
-    ) -> Optional[Appointment]:
+    ) -> Appointment | None:
         if not refund_record.appointment_id:
             return None
 
@@ -59,11 +58,11 @@ class RefundService:
         """生成退款支付引用修复计划，不直接落库。"""
         appointment = await self._get_refund_appointment(refund_record)
 
-        changes: dict[str, Optional[str]] = {}
+        changes: dict[str, str | None] = {}
         issues: list[str] = []
-        expected_out_trade_no: Optional[str] = None
-        expected_transaction_id: Optional[str] = None
-        expected_payment_profile_id: Optional[str] = None
+        expected_out_trade_no: str | None = None
+        expected_transaction_id: str | None = None
+        expected_payment_profile_id: str | None = None
 
         if appointment:
             expected_out_trade_no = self._get_payment_out_trade_no(appointment)
@@ -108,7 +107,7 @@ class RefundService:
     async def ensure_refund_payment_reference(
         self,
         refund_record: RefundRecord,
-    ) -> tuple[str, Optional[str]]:
+    ) -> tuple[str, str | None]:
         """修正历史退款记录中的支付引用信息。
 
         兼容早期错误写入 `appointment_no` 到 `out_trade_no` 的数据，
@@ -130,8 +129,8 @@ class RefundService:
     async def backfill_refund_payment_references(
         self,
         *,
-        tenant_id: Optional[str] = None,
-        limit: Optional[int] = None,
+        tenant_id: str | None = None,
+        limit: int | None = None,
         dry_run: bool = True,
     ) -> dict:
         """批量修复历史退款记录中的支付引用信息。"""
@@ -192,7 +191,7 @@ class RefundService:
         appointment_id: str,
         *,
         active_statuses: tuple[str, ...] = COUNTED_REFUND_STATUSES,
-    ) -> Optional[Appointment]:
+    ) -> Appointment | None:
         """按非失败退款记录聚合回写预约退款状态。"""
         stmt = select(Appointment).where(Appointment.id == appointment_id)
         result = await self.db.execute(stmt)
@@ -370,10 +369,10 @@ class RefundService:
     async def process_refund_callback(
         self,
         refund_no: str,
-        wx_refund_id: Optional[str],
+        wx_refund_id: str | None,
         status: str,
-        callback_raw: Optional[str] = None,
-        failed_reason: Optional[str] = None,
+        callback_raw: str | None = None,
+        failed_reason: str | None = None,
     ) -> RefundRecord:
         """处理微信退款回调。"""
         stmt = select(RefundRecord).where(RefundRecord.refund_no == refund_no)
@@ -410,9 +409,9 @@ class RefundService:
 
     async def get_refund_records(
         self,
-        appointment_id: Optional[str] = None,
-        status: Optional[str] = None,
-        store_id: Optional[Union[str, list[str]]] = None,
+        appointment_id: str | None = None,
+        status: str | None = None,
+        store_id: str | list[str] | None = None,
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[RefundRecord], int]:
@@ -454,7 +453,7 @@ class RefundService:
 
         return result.scalars().all(), total
 
-    async def get_refund_by_id(self, refund_id: str) -> Optional[RefundRecord]:
+    async def get_refund_by_id(self, refund_id: str) -> RefundRecord | None:
         """获取单条退款记录。"""
         tenant_id = get_current_tenant_id()
         stmt = select(RefundRecord).where(RefundRecord.id == refund_id)

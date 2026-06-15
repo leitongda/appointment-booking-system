@@ -34,8 +34,9 @@ async def ensure_notification_quota_settings(db):
     Args:
         db: 异步数据库会话
     """
-    from app.models.settings import SystemSetting
     from sqlalchemy import select
+
+    from app.models.settings import SystemSetting
 
     for key, config in NOTIFICATION_QUOTA_DEFAULTS.items():
         # 检查是否已存在
@@ -67,6 +68,7 @@ async def ensure_notification_quota_settings(db):
 if __name__ == "__main__":
     """独立运行脚本初始化配置"""
     import asyncio
+
     from app.db.session import get_async_db_context
 
     async def init():

@@ -1,7 +1,9 @@
-from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey
-from app.db.base import Base, AuditMixin
-from app.enums.feedback import FeedbackStatus, FeedbackType  # noqa: F401 — re-export for backward compat
 import uuid
+
+from sqlalchemy import Column, DateTime, ForeignKey, String, Text
+
+from app.db.base import AuditMixin, Base
+from app.enums.feedback import FeedbackStatus, FeedbackType  # noqa: F401 — re-export for backward compat
 
 
 class Feedback(Base, AuditMixin):

@@ -4,7 +4,6 @@
 供 auth/admin/doctor 等路由在签发 token 时使用。
 """
 from datetime import timedelta
-from typing import Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,7 +11,7 @@ from app.core.config import settings
 from app.models.settings import DEFAULT_SETTINGS
 
 
-async def get_token_expire_config(db: AsyncSession) -> Tuple[timedelta, timedelta, int]:
+async def get_token_expire_config(db: AsyncSession) -> tuple[timedelta, timedelta, int]:
     """读取 token 过期配置。
 
     Returns:

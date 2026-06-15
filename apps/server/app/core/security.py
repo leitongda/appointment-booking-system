@@ -1,14 +1,15 @@
-from datetime import datetime, timedelta
-from typing import Optional, Tuple
-from jose import jwt, JWTError
-import bcrypt
 import base64
 import json
-import os
 import logging
-from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.hazmat.primitives.asymmetric import rsa, padding
+import os
+from datetime import datetime, timedelta
+
+import bcrypt
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from jose import JWTError, jwt
+
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ _rsa_public_key_pem = None
 _RSA_KEYS_FILE = os.path.join(os.path.dirname(__file__), '..', '..', '.keys', 'rsa.json')
 
 
-def generate_rsa_key_pair() -> Tuple[bytes, bytes]:
+def generate_rsa_key_pair() -> tuple[bytes, bytes]:
     """生成 RSA 密钥对"""
     private_key = rsa.generate_private_key(
         public_exponent=65537,
@@ -45,12 +46,12 @@ def generate_rsa_key_pair() -> Tuple[bytes, bytes]:
     return private_pem, public_pem
 
 
-def _load_keys_from_file() -> Tuple[Optional[bytes], Optional[bytes]]:
+def _load_keys_from_file() -> tuple[bytes | None, bytes | None]:
     """从本地文件加载密钥对（开发环境）"""
     if not os.path.exists(_RSA_KEYS_FILE):
         return None, None
     try:
-        with open(_RSA_KEYS_FILE, 'r') as f:
+        with open(_RSA_KEYS_FILE) as f:
             keys = json.load(f)
         return keys['private'].encode(), keys['public'].encode()
     except Exception as e:
@@ -137,7 +138,7 @@ def rsa_decrypt(encrypted_data: str) -> str:
         encrypted_bytes = base64.b64decode(encrypted_data, validate=True)
     except Exception as e:
         logger.error(f"RSA解密失败: Base64解码错误 - {str(e)}")
-        raise ValueError(f"密码加密数据格式错误: Base64解码失败")
+        raise ValueError("密码加密数据格式错误: Base64解码失败")
     
     try:
         # RSA 解密
@@ -147,13 +148,13 @@ def rsa_decrypt(encrypted_data: str) -> str:
         )
     except Exception as e:
         logger.error(f"RSA解密失败: 解密错误 - {str(e)}, 加密数据长度: {len(encrypted_bytes)}")
-        raise ValueError(f"密码解密失败: 可能是RSA密钥不匹配或数据已损坏")
+        raise ValueError("密码解密失败: 可能是RSA密钥不匹配或数据已损坏")
     
     try:
         return decrypted_bytes.decode('utf-8')
     except Exception as e:
         logger.error(f"RSA解密失败: UTF-8解码错误 - {str(e)}")
-        raise ValueError(f"密码解密失败: 无法解码为UTF-8字符串")
+        raise ValueError("密码解密失败: 无法解码为UTF-8字符串")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -170,7 +171,7 @@ def get_password_hash(password: str) -> str:
         bcrypt.gensalt()
     ).decode('utf-8')
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode["exp"] = expire
@@ -178,7 +179,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         to_encode["type"] = "access"
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
-def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_refresh_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS))
     to_encode["exp"] = expire
@@ -186,7 +187,7 @@ def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) 
         to_encode["type"] = "refresh"
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
-def decode_token(token: str) -> Optional[dict]:
+def decode_token(token: str) -> dict | None:
     try:
         return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
     except jwt.ExpiredSignatureError:

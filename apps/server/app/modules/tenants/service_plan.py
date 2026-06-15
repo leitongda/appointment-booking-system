@@ -1,11 +1,12 @@
 """订阅计划服务"""
+
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from typing import Optional, List
 
 from app.models.tenant import SubscriptionPlan, Tenant
 from app.modules.tenants.schemas import (
-    SubscriptionPlanCreate, SubscriptionPlanUpdate,
+    SubscriptionPlanCreate,
+    SubscriptionPlanUpdate,
 )
 
 
@@ -15,21 +16,21 @@ class SubscriptionPlanService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, plan_id: str) -> Optional[SubscriptionPlan]:
+    async def get_by_id(self, plan_id: str) -> SubscriptionPlan | None:
         """获取订阅计划"""
         result = await self.db.execute(
             select(SubscriptionPlan).where(SubscriptionPlan.id == plan_id)
         )
         return result.scalar_one_or_none()
 
-    async def get_by_code(self, plan_code: str) -> Optional[SubscriptionPlan]:
+    async def get_by_code(self, plan_code: str) -> SubscriptionPlan | None:
         """通过编码获取订阅计划"""
         result = await self.db.execute(
             select(SubscriptionPlan).where(SubscriptionPlan.plan_code == plan_code)
         )
         return result.scalar_one_or_none()
 
-    async def get_list(self, status: Optional[int] = None) -> List[SubscriptionPlan]:
+    async def get_list(self, status: int | None = None) -> list[SubscriptionPlan]:
         """获取订阅计划列表"""
         query = select(SubscriptionPlan).order_by(SubscriptionPlan.sort_order, SubscriptionPlan.created_at)
         if status is not None:
@@ -37,7 +38,7 @@ class SubscriptionPlanService:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_default_plan(self) -> Optional[SubscriptionPlan]:
+    async def get_default_plan(self) -> SubscriptionPlan | None:
         """获取默认订阅计划"""
         result = await self.db.execute(
             select(SubscriptionPlan).where(
@@ -62,7 +63,7 @@ class SubscriptionPlanService:
         await self.db.refresh(plan)
         return plan
 
-    async def update(self, plan_id: str, data: SubscriptionPlanUpdate) -> Optional[SubscriptionPlan]:
+    async def update(self, plan_id: str, data: SubscriptionPlanUpdate) -> SubscriptionPlan | None:
         """更新订阅计划"""
         plan = await self.get_by_id(plan_id)
         if not plan:

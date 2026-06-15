@@ -2,9 +2,9 @@
 import asyncio
 import logging
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any
 
-from sqlalchemy import select, and_
+from sqlalchemy import and_, select
 
 from app.celery_app import celery_app
 from app.db.session import get_sync_db
@@ -32,7 +32,7 @@ def _run_async(coro):
     time_limit=30,
     soft_time_limit=25,
 )
-def send_approval_notification(user_id: str, message_type: str, data: Dict[str, Any]):
+def send_approval_notification(user_id: str, message_type: str, data: dict[str, Any]):
     """
     发送审批通知（WebSocket）
 
@@ -41,7 +41,7 @@ def send_approval_notification(user_id: str, message_type: str, data: Dict[str, 
         message_type: 消息类型 (approval_pending/approval_approved/approval_rejected/approval_delegated/approval_withdrawn)
         data: 消息数据
     """
-    from app.core.websocket import notify_doctor, WSMessageType
+    from app.core.websocket import WSMessageType, notify_doctor
 
     ws_type_map = {
         "approval_pending": WSMessageType.APPROVAL_PENDING,
@@ -73,8 +73,24 @@ def send_approval_notification(user_id: str, message_type: str, data: Dict[str, 
     soft_time_limit=100,
 )
 def check_approval_timeouts():
-    """检查审批超时任务（定时执行，每 10 分钟）"""
-    from app.models.approval_flow import ApprovalTask, ApprovalInstance, ApprovalFlowNode
+    """检查审批超时任务（定时执行，每 10 分钟，带分布式锁防重复）"""
+    from app.core.redis import SyncRedisCache
+
+    lock_name = "celery:check_approval_timeouts"
+    lock_value = SyncRedisCache.acquire_lock(lock_name, timeout=90, retry_times=1, retry_delay=0)
+    if not lock_value:
+        logger.info("审批超时检查任务已在其他实例执行，跳过")
+        return
+
+    try:
+        _do_check_approval_timeouts()
+    finally:
+        SyncRedisCache.release_lock(lock_name, lock_value)
+
+
+def _do_check_approval_timeouts():
+    """审批超时检查 — 实际执行逻辑"""
+    from app.models.approval_flow import ApprovalFlowNode, ApprovalInstance, ApprovalTask
 
     with get_sync_db() as db:
         now = datetime.utcnow()
@@ -155,9 +171,9 @@ def check_approval_timeouts():
 )
 def _advance_after_auto_approve(instance_id: str, node_key: str, approver_id: str):
     """超时自动通过后推进引擎"""
+    from app.db.session import AsyncSessionLocal
     from app.models.approval_flow import ApprovalInstance
     from app.modules.approval_flows.engine import ApprovalEngine
-    from app.db.session import AsyncSessionLocal
 
     async def _run():
         async with AsyncSessionLocal() as db:
@@ -181,9 +197,9 @@ def _advance_after_auto_approve(instance_id: str, node_key: str, approver_id: st
 )
 def _auto_reject_after_timeout(instance_id: str, node_key: str, approver_id: str):
     """超时自动拒绝"""
+    from app.db.session import AsyncSessionLocal
     from app.models.approval_flow import ApprovalInstance
     from app.modules.approval_flows.engine import ApprovalEngine
-    from app.db.session import AsyncSessionLocal
 
     async def _run():
         async with AsyncSessionLocal() as db:

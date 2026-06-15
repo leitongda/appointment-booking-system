@@ -1,28 +1,33 @@
 """租户数据迁移服务"""
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from typing import Optional, List
-from datetime import datetime
-import uuid
 import time
+import uuid
+from datetime import datetime
 
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import class_mapper
 
-from app.models.store import Store
+from app.models.blacklist import Blacklist
+from app.models.booking_notice import BookingNotice
+from app.models.consultation_fee import ConsultationFeeTemplate
 from app.models.department import Department
 from app.models.doctor import Doctor
-from app.models.schedule_template import ScheduleTemplate
 from app.models.doctor_booking_setting import DoctorBookingSetting
-from app.models.booking_notice import BookingNotice
 from app.models.email_template import EmailTemplate
 from app.models.message import MessageTemplate
 from app.models.rest_day import RestDay
-from app.models.blacklist import Blacklist
-from app.models.store_visit_type_config import StoreVisitTypeConfig
+from app.models.rule_set import (
+    RuleBookingPolicy,
+    RuleCapacityPolicy,
+    RuleCheckinPolicy,
+    RuleSet,
+    RuleSetShiftType,
+    RuleWindow,
+)
+from app.models.schedule_template import ScheduleTemplate
+from app.models.store import Store
 from app.models.store_email_recipient import StoreEmailRecipient
-from app.models.consultation_fee import ConsultationFeeTemplate
-from app.models.rule_set import RuleSet, RuleWindow, RuleBookingPolicy, RuleCheckinPolicy, RuleCapacityPolicy, RuleSetShiftType
-
+from app.models.store_visit_type_config import StoreVisitTypeConfig
 from app.modules.tenants.service import TenantService
 
 
@@ -37,7 +42,7 @@ class TenantMigrationService:
         self,
         target_tenant_id: str,
         source_tenant_id: str,
-        entity_types: Optional[List[str]] = None,
+        entity_types: list[str] | None = None,
     ) -> dict:
         """迁移前预检：检查配额、数据量"""
         from app.modules.tenants.schemas import PrecheckQuotaItem
@@ -116,8 +121,8 @@ class TenantMigrationService:
         target_tenant_id: str,
         source_tenant_id: str,
         preserve_ids: bool = False,
-        entity_types: Optional[List[str]] = None,
-        created_by: Optional[str] = None,
+        entity_types: list[str] | None = None,
+        created_by: str | None = None,
     ) -> dict:
         """跨租户数据迁移
 
@@ -297,7 +302,7 @@ class TenantMigrationService:
 
         # 执行迁移
         copied_counts: dict = {}
-        failures: List[dict] = []
+        failures: list[dict] = []
         id_mappings: dict = {}
 
         now = datetime.utcnow()
@@ -305,9 +310,9 @@ class TenantMigrationService:
         def _get_new_id(old_id: str) -> str:
             return old_id if preserve_ids else str(uuid.uuid4())
 
-        def _copy_model_instance(instance, model_class, tenant_id_override: Optional[str] = None,
-                                  id_override: Optional[str] = None,
-                                  field_overrides: Optional[dict] = None):
+        def _copy_model_instance(instance, model_class, tenant_id_override: str | None = None,
+                                  id_override: str | None = None,
+                                  field_overrides: dict | None = None):
             mapper = class_mapper(model_class)
             new_data = {}
 

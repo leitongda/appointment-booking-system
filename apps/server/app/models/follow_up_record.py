@@ -1,8 +1,10 @@
 """随访记录模型"""
 import uuid
-from sqlalchemy import Column, String, DateTime, Date, Text, ForeignKey
+
+from sqlalchemy import Column, Date, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
+
+from app.db.base import AuditMixin, Base
 
 
 class FollowUpRecord(Base, AuditMixin):

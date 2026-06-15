@@ -1,8 +1,8 @@
 """租户通知服务"""
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from typing import Tuple, List
 from datetime import datetime
+
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.tenant import TenantNotification
 
@@ -19,7 +19,7 @@ class TenantNotificationService:
         unread_only: bool = False,
         page: int = 1,
         page_size: int = 20,
-    ) -> Tuple[List[TenantNotification], int, int]:
+    ) -> tuple[list[TenantNotification], int, int]:
         """获取通知列表，返回 (items, unread_count, total)"""
         base = select(TenantNotification).where(TenantNotification.tenant_id == tenant_id)
         count_base = select(func.count(TenantNotification.id)).where(TenantNotification.tenant_id == tenant_id)

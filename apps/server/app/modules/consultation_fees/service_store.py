@@ -2,18 +2,17 @@
 
 import uuid
 from decimal import Decimal
-from typing import List, Optional
 
-from sqlalchemy import and_, select
+from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.models.consultation_fee import ConsultationFeeTemplate, StoreFeeTemplate
+from app.models.consultation_fee import StoreFeeTemplate
 from app.schemas.consultation_fee import StoreFeeTemplateBatchCreate
 from app.utils.audit import set_create_audit, set_update_audit
 
 
 class ConsultationFeeStoreMixin:
-    async def get_store_fee_templates(self, store_id: str) -> List[StoreFeeTemplate]:
+    async def get_store_fee_templates(self, store_id: str) -> list[StoreFeeTemplate]:
         result = await self.db.execute(
             select(StoreFeeTemplate)
             .options(selectinload(StoreFeeTemplate.store), selectinload(StoreFeeTemplate.fee_type))
@@ -23,7 +22,7 @@ class ConsultationFeeStoreMixin:
 
     async def get_store_fee_template_by_type(
         self, store_id: str, fee_type_id: str
-    ) -> Optional[StoreFeeTemplate]:
+    ) -> StoreFeeTemplate | None:
         result = await self.db.execute(
             select(StoreFeeTemplate)
             .options(selectinload(StoreFeeTemplate.store), selectinload(StoreFeeTemplate.fee_type))
@@ -34,7 +33,7 @@ class ConsultationFeeStoreMixin:
         )
         return result.scalar_one_or_none()
 
-    async def get_store_fee_templates_with_types(self, store_id: str) -> List[dict]:
+    async def get_store_fee_templates_with_types(self, store_id: str) -> list[dict]:
         fee_types = await self.get_store_available_fee_types(store_id, status=1)
         store_templates = await self.get_store_fee_templates(store_id)
         store_template_map = {t.fee_type_id: t for t in store_templates}
@@ -69,7 +68,7 @@ class ConsultationFeeStoreMixin:
         initial_fee: Decimal,
         follow_up_fee: Decimal,
         status: int = 1,
-        operator_id: Optional[str] = None,
+        operator_id: str | None = None,
     ) -> StoreFeeTemplate:
         template = await self.get_store_fee_template_by_type(store_id, fee_type_id)
         if template:
@@ -95,7 +94,7 @@ class ConsultationFeeStoreMixin:
 
     async def batch_save_store_fee_templates(
         self, data: StoreFeeTemplateBatchCreate
-    ) -> List[StoreFeeTemplate]:
+    ) -> list[StoreFeeTemplate]:
         result = []
         for item in data.templates:
             template = await self.create_or_update_store_fee_template(
@@ -141,7 +140,7 @@ class ConsultationFeeStoreMixin:
         doctor_id: str,
         store_id: str,
         fee_type_id: str,
-        operator_id: Optional[str] = None,
+        operator_id: str | None = None,
     ) -> bool:
         effective = await self.get_effective_template(store_id, fee_type_id)
         if not effective["template"]:

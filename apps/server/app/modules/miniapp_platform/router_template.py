@@ -1,15 +1,19 @@
 """小程序平台 - 模板管理路由 (AppTemplate + TemplateVersion)"""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 
-from app.db.session import get_db
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.common.deps import get_current_admin
-from app.schemas.miniapp_template import (
-    AppTemplateCreate, AppTemplateUpdate, AppTemplateResponse, AppTemplateListResponse,
-    TemplateVersionCreate, TemplateVersionResponse,
-)
+from app.db.session import get_db
 from app.modules.miniapp_platform.service_instance import AppTemplateService
+from app.schemas.miniapp_template import (
+    AppTemplateCreate,
+    AppTemplateListResponse,
+    AppTemplateResponse,
+    AppTemplateUpdate,
+    TemplateVersionCreate,
+    TemplateVersionResponse,
+)
 from app.schemas.response import PageResponse
 
 router = APIRouter()
@@ -19,8 +23,8 @@ router = APIRouter()
 
 @router.get("/templates", response_model=PageResponse[AppTemplateListResponse], summary="获取模板列表")
 async def get_templates(
-    category: Optional[str] = Query(None, description="模板分类"),
-    status: Optional[int] = Query(None, ge=0, le=1),
+    category: str | None = Query(None, description="模板分类"),
+    status: int | None = Query(None, ge=0, le=1),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),

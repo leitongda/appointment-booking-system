@@ -1,7 +1,9 @@
-from sqlalchemy import Column, String, Integer, Text, DateTime, JSON
-from app.db.base import Base
 import uuid
 from datetime import datetime
+
+from sqlalchemy import JSON, Column, DateTime, Integer, String, Text
+
+from app.db.base import Base
 
 
 class NotificationLog(Base):

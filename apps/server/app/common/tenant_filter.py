@@ -2,18 +2,18 @@
 
 提供统一的租户过滤逻辑，用于业务查询中添加租户条件。
 """
-from typing import Optional, List, Type, Any
-from sqlalchemy import and_, or_, select
+from typing import Any
+
+from sqlalchemy import select
 from sqlalchemy.sql import Select
-from sqlalchemy.orm import Query
 
 from app.middleware.tenant_context import get_current_tenant_id
 
 
 def add_tenant_filter(
     query: Select,
-    model: Type[Any],
-    tenant_id: Optional[str] = None,
+    model: type[Any],
+    tenant_id: str | None = None,
     tenant_field: str = "tenant_id"
 ) -> Select:
     """
@@ -44,9 +44,9 @@ def add_tenant_filter(
 
 def add_tenant_filter_with_store_fallback(
     query: Select,
-    model: Type[Any],
-    tenant_id: Optional[str] = None,
-    store_model: Type[Any] = None
+    model: type[Any],
+    tenant_id: str | None = None,
+    store_model: type[Any] = None
 ) -> Select:
     """
     为查询添加租户过滤条件，支持通过门店间接关联
@@ -75,7 +75,6 @@ def add_tenant_filter_with_store_fallback(
 
     # 如果模型有 store_id 字段但没有 tenant_id，通过门店关联
     if hasattr(model, 'store_id') and store_model is not None:
-        from sqlalchemy.orm import join
         query = query.join(store_model).where(store_model.tenant_id == tenant_id)
         return query
 
@@ -83,11 +82,11 @@ def add_tenant_filter_with_store_fallback(
 
 
 def get_tenant_id_for_create(
-    tenant_id: Optional[str] = None,
-    store_id: Optional[str] = None,
-    store_model: Type[Any] = None,
+    tenant_id: str | None = None,
+    store_id: str | None = None,
+    store_model: type[Any] = None,
     db=None
-) -> Optional[str]:
+) -> str | None:
     """
     获取创建数据时应使用的租户ID
 
@@ -117,6 +116,7 @@ def get_tenant_id_for_create(
     # 通过门店推断
     if store_id and store_model is not None and db is not None:
         import asyncio
+
         from sqlalchemy import select
 
         async def get_store_tenant():
@@ -156,8 +156,8 @@ class TenantFilteredQuery:
 
     def __init__(
         self,
-        model: Type[Any],
-        tenant_id: Optional[str] = None
+        model: type[Any],
+        tenant_id: str | None = None
     ):
         self.model = model
         self.tenant_id = tenant_id or get_current_tenant_id()
@@ -170,7 +170,7 @@ class TenantFilteredQuery:
         self.base_query = query
         return self
 
-    def with_store_fallback(self, store_model: Type[Any]) -> "TenantFilteredQuery":
+    def with_store_fallback(self, store_model: type[Any]) -> "TenantFilteredQuery":
         """启用门店关联回退"""
         self.store_model = store_model
         self.use_fallback = True

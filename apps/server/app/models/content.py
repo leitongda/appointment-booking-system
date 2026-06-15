@@ -1,8 +1,10 @@
-from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey, Boolean
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
-from datetime import datetime
 import uuid
+
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
+
 
 class News(Base, AuditMixin):
     """新闻资讯"""

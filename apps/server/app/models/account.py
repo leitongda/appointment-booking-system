@@ -8,15 +8,23 @@
 
 旧表 (admins / doctors / users) 保留不动，业务代码渐进式切换。
 """
+import uuid
+from datetime import datetime
+
 from sqlalchemy import (
-    Column, String, Integer, Text, Numeric, DateTime, ForeignKey,
-    UniqueConstraint, Table,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
-from datetime import datetime
-import uuid
 
+from app.db.base import AuditMixin, Base
 
 # ---------------------------------------------------------------------------
 # 统一账号主表

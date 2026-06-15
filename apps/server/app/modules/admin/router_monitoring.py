@@ -1,7 +1,6 @@
 """Admin logs and online status router."""
 
 from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
@@ -20,18 +19,18 @@ from app.modules.admin.schemas import (
     OperationLogResponse,
     UserStatusResponse,
 )
-from app.schemas.response import PageResponse
 from app.modules.admin.service_logs import OperationLogService
+from app.schemas.response import PageResponse
 
 router = APIRouter()
 
 
 @router.get("/logs", response_model=PageResponse[OperationLogResponse], summary="获取操作日志")
 async def get_operation_logs(
-    admin_id: Optional[str] = None,
-    module: Optional[str] = None,
-    start_time: Optional[datetime] = None,
-    end_time: Optional[datetime] = None,
+    admin_id: str | None = None,
+    module: str | None = None,
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),

@@ -1,9 +1,9 @@
 """候补队列查询服务"""
-from sqlalchemy import select, and_
-from typing import Optional, List
 
-from app.models.waitlist import WaitlistEntry
+from sqlalchemy import and_, select
+
 from app.middleware.tenant_context import get_current_tenant_id
+from app.models.waitlist import WaitlistEntry
 
 
 class WaitlistQueryMixin:
@@ -20,7 +20,7 @@ class WaitlistQueryMixin:
         self,
         schedule_id: str,
         user_id: str
-    ) -> Optional[int]:
+    ) -> int | None:
         """获取用户在候补队列中的位置
 
         Args:
@@ -47,7 +47,7 @@ class WaitlistQueryMixin:
         self,
         schedule_id: str,
         status: str = 'WAITING'
-    ) -> List[WaitlistEntry]:
+    ) -> list[WaitlistEntry]:
         """获取排班的候补队列
 
         Args:

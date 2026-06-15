@@ -2,14 +2,13 @@
 前端性能数据上报 API
 接收 Core Web Vitals、路由切换耗时等性能指标
 """
-from fastapi import APIRouter, Depends, Request, HTTPException, status
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, List
-from datetime import datetime
 import logging
 import time
 
-from app.common.auth_unified import get_optional_account, AccountInfo
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.common.auth_unified import AccountInfo, get_optional_account
 from app.middleware.tenant_context import get_current_tenant_id
 from app.utils.ip import get_client_ip
 
@@ -62,7 +61,7 @@ class PerformanceMetricItem(BaseModel):
     value: float = Field(..., description="指标值")
     rating: str = Field(..., description="评级: good/needs-improvement/poor")
     timestamp: int = Field(..., description="采集时间戳")
-    metadata: Optional[dict] = Field(None, description="额外信息")
+    metadata: dict | None = Field(None, description="额外信息")
 
 
 class RouteMetricItem(BaseModel):
@@ -78,11 +77,11 @@ class PerformanceReportRequest(BaseModel):
 
     page_url: str = Field("", description="页面 URL")
     user_agent: str = Field("", description="User-Agent")
-    screen: Optional[dict] = Field(None, description="屏幕信息 {width, height, dpr}")
+    screen: dict | None = Field(None, description="屏幕信息 {width, height, dpr}")
     timestamp: int = Field(..., description="上报时间戳")
-    session_id: Optional[str] = Field(None, max_length=64, description="会话ID")
-    metrics: List[PerformanceMetricItem] = Field(default_factory=list, description="性能指标")
-    route_metrics: List[RouteMetricItem] = Field(default_factory=list, description="路由指标")
+    session_id: str | None = Field(None, max_length=64, description="会话ID")
+    metrics: list[PerformanceMetricItem] = Field(default_factory=list, description="性能指标")
+    route_metrics: list[RouteMetricItem] = Field(default_factory=list, description="路由指标")
 
 
 # ========== 端点 ==========
@@ -91,7 +90,7 @@ class PerformanceReportRequest(BaseModel):
 async def report_performance(
     data: PerformanceReportRequest,
     request: Request,
-    account: Optional[AccountInfo] = Depends(get_optional_account),
+    account: AccountInfo | None = Depends(get_optional_account),
 ):
     """
     接收前端性能指标（Core Web Vitals + 路由耗时）

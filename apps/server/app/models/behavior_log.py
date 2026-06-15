@@ -1,8 +1,10 @@
 """用户行为日志模型"""
-from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey
-from app.db.base import Base
-from datetime import datetime
 import uuid
+from datetime import datetime
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+
+from app.db.base import Base
 
 
 class UserBehaviorLog(Base):

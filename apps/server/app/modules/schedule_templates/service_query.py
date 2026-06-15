@@ -1,6 +1,5 @@
 """Read-oriented schedule template queries."""
 
-from typing import List, Optional
 
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import selectinload
@@ -11,7 +10,7 @@ from app.models.schedule_template import ScheduleTemplate
 
 
 class ScheduleTemplateQueryMixin:
-    async def _get_template_with_tenant(self, template_id: str) -> Optional[ScheduleTemplate]:
+    async def _get_template_with_tenant(self, template_id: str) -> ScheduleTemplate | None:
         """根据 ID 查询排班模板，同时过滤租户。"""
         conditions = [ScheduleTemplate.id == template_id]
         tenant_id = get_current_tenant_id()
@@ -30,18 +29,18 @@ class ScheduleTemplateQueryMixin:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_id(self, template_id: str) -> Optional[ScheduleTemplate]:
+    async def get_by_id(self, template_id: str) -> ScheduleTemplate | None:
         return await self._get_template_with_tenant(template_id)
 
     async def get_list(
         self,
-        store_id: Optional[str] = None,
-        doctor_id: Optional[str] = None,
-        department_id: Optional[str] = None,
-        status: Optional[int] = None,
+        store_id: str | None = None,
+        doctor_id: str | None = None,
+        department_id: str | None = None,
+        status: int | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> tuple[List[ScheduleTemplate], int]:
+    ) -> tuple[list[ScheduleTemplate], int]:
         query = select(ScheduleTemplate).options(
             selectinload(ScheduleTemplate.store),
             selectinload(ScheduleTemplate.doctor),
@@ -84,7 +83,7 @@ class ScheduleTemplateQueryMixin:
         template_id: str,
         page: int = 1,
         page_size: int = 10,
-    ) -> tuple[List[ScheduleGenerationLog], int]:
+    ) -> tuple[list[ScheduleGenerationLog], int]:
         # 先验证模板属于当前租户
         template = await self._get_template_with_tenant(template_id)
         if not template:

@@ -1,6 +1,5 @@
 """Booking notices domain router."""
 
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,9 +17,9 @@ from app.schemas.booking_notice import (
 router = APIRouter()
 
 
-@router.get("/public", response_model=List[BookingNoticeResponse], summary="获取生效预约须知列表")
+@router.get("/public", response_model=list[BookingNoticeResponse], summary="获取生效预约须知列表")
 async def get_public_notices(
-    type: Optional[str] = Query(None, description="类型: BOOKING/VISIT/REFUND"),
+    type: str | None = Query(None, description="类型: BOOKING/VISIT/REFUND"),
     db: AsyncSession = Depends(get_db),
 ):
     service = BookingNoticeService(db)
@@ -29,8 +28,8 @@ async def get_public_notices(
 
 @router.get("", response_model=dict, summary="获取预约须知列表")
 async def get_notices(
-    type: Optional[str] = Query(None, description="类型"),
-    status: Optional[int] = Query(None, description="状态: 0禁用 1启用"),
+    type: str | None = Query(None, description="类型"),
+    status: int | None = Query(None, description="状态: 0禁用 1启用"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE, alias="pageSize"),
     db: AsyncSession = Depends(get_db),

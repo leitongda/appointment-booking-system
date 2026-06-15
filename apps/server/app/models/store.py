@@ -1,7 +1,9 @@
-from sqlalchemy import Column, String, Integer, Numeric, Text, Time, ForeignKey, UniqueConstraint
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import Column, ForeignKey, Integer, Numeric, String, Text, Time, UniqueConstraint
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 
 class Store(Base, AuditMixin):

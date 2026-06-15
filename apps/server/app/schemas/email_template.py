@@ -1,10 +1,11 @@
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, List
 from datetime import datetime
 
-from app.enums.general import EmailTemplateType  # noqa: F401 — re-export
+from pydantic import BaseModel, ConfigDict, Field
+
 from app.core.config import settings
+from app.enums.general import EmailTemplateType  # noqa: F401 — re-export
 from app.schemas.response import to_camel
+
 
 class EmailTemplateBase(BaseModel):
     """邮件模板基础模型"""
@@ -18,7 +19,7 @@ class EmailTemplateBase(BaseModel):
     template_type: str = Field("custom", description="模板类型（字典: email_template_type）")
     subject_template: str = Field(..., max_length=200, description="邮件主题模板")
     content_template: str = Field(..., description="邮件内容模板(HTML)")
-    description: Optional[str] = Field(None, max_length=255, description="模板说明")
+    description: str | None = Field(None, max_length=255, description="模板说明")
     status: int = Field(1, ge=0, le=1, description="状态: 0-禁用 1-启用")
 
 class EmailTemplateCreate(EmailTemplateBase):
@@ -32,12 +33,12 @@ class EmailTemplateUpdate(BaseModel):
         populate_by_name=True,
     )
     
-    name: Optional[str] = Field(None, max_length=100)
-    template_type: Optional[str] = None
-    subject_template: Optional[str] = Field(None, max_length=200)
-    content_template: Optional[str] = None
-    description: Optional[str] = Field(None, max_length=255)
-    status: Optional[int] = Field(None, ge=0, le=1)
+    name: str | None = Field(None, max_length=100)
+    template_type: str | None = None
+    subject_template: str | None = Field(None, max_length=200)
+    content_template: str | None = None
+    description: str | None = Field(None, max_length=255)
+    status: int | None = Field(None, ge=0, le=1)
 
 class EmailTemplateResponse(BaseModel):
     """邮件模板响应"""
@@ -49,15 +50,15 @@ class EmailTemplateResponse(BaseModel):
     )
     
     id: str
-    code: Optional[str] = None
-    name: Optional[str] = None
-    template_type: Optional[str] = None
-    subject_template: Optional[str] = None
-    content_template: Optional[str] = None
-    description: Optional[str] = None
-    status: Optional[int] = 1
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    code: str | None = None
+    name: str | None = None
+    template_type: str | None = None
+    subject_template: str | None = None
+    content_template: str | None = None
+    description: str | None = None
+    status: int | None = 1
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 class EmailTemplateListResponse(BaseModel):
     """邮件模板列表响应"""
@@ -69,14 +70,14 @@ class EmailTemplateListResponse(BaseModel):
     )
     
     id: str
-    code: Optional[str] = None
-    name: Optional[str] = None
-    template_type: Optional[str] = None
-    subject_template: Optional[str] = None
-    description: Optional[str] = None
-    status: Optional[int] = 1
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    code: str | None = None
+    name: str | None = None
+    template_type: str | None = None
+    subject_template: str | None = None
+    description: str | None = None
+    status: int | None = 1
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 class EmailTemplateQuery(BaseModel):
     """邮件模板查询参数"""
@@ -85,9 +86,9 @@ class EmailTemplateQuery(BaseModel):
         populate_by_name=True,
     )
     
-    template_type: Optional[str] = Field(None, description="模板类型（字典: email_template_type）")
-    status: Optional[int] = Field(None, description="状态")
-    keyword: Optional[str] = Field(None, description="关键词搜索")
+    template_type: str | None = Field(None, description="模板类型（字典: email_template_type）")
+    status: int | None = Field(None, description="状态")
+    keyword: str | None = Field(None, description="关键词搜索")
     page: int = Field(1, ge=1)
     page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE)
 
@@ -99,7 +100,7 @@ class EmailTestRequest(BaseModel):
     )
     
     to_email: str = Field(..., description="收件人邮箱")
-    variables: Optional[dict] = Field(None, description="模板变量")
+    variables: dict | None = Field(None, description="模板变量")
 
 class EmailSendRequest(BaseModel):
     """发送邮件请求"""

@@ -1,5 +1,7 @@
 """低代码模板市场数据模型。"""
 
+import uuid
+
 from sqlalchemy import (
     Boolean,
     Column,
@@ -11,8 +13,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
-from app.db.base import Base, AuditMixin
-import uuid
+from app.db.base import AuditMixin, Base
 
 
 class LowCodeTemplate(Base, AuditMixin):

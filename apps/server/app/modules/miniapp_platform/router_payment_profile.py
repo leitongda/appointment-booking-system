@@ -1,13 +1,16 @@
 """小程序平台 - 支付配置管理路由 (PaymentProfile CRUD + set-default)"""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 
-from app.db.session import get_db
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.common.deps import get_current_admin, get_tenant_from_admin
+from app.db.session import get_db
 from app.modules.miniapp_platform.schemas import (
-    PaymentProfileCreate, PaymentProfileUpdate, PaymentProfileResponse,
-    PaymentProfileListResponse, PaymentProfileQuery,
+    PaymentProfileCreate,
+    PaymentProfileListResponse,
+    PaymentProfileQuery,
+    PaymentProfileResponse,
+    PaymentProfileUpdate,
 )
 from app.modules.miniapp_platform.service import PaymentProfileService
 from app.schemas.response import PageResponse
@@ -19,14 +22,14 @@ router = APIRouter()
 
 @router.get("/payment-profiles", response_model=PageResponse[PaymentProfileListResponse], summary="获取支付配置列表")
 async def get_payment_profiles(
-    keyword: Optional[str] = None,
-    status: Optional[int] = Query(None, ge=0, le=1),
-    company_id: Optional[str] = None,
+    keyword: str | None = None,
+    status: int | None = Query(None, ge=0, le=1),
+    company_id: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
-    tenant: Optional[dict] = Depends(get_tenant_from_admin)
+    tenant: dict | None = Depends(get_tenant_from_admin)
 ):
     """获取支付配置列表
 
@@ -75,7 +78,7 @@ async def create_payment_profile(
     data: PaymentProfileCreate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
-    tenant: Optional[dict] = Depends(get_tenant_from_admin)
+    tenant: dict | None = Depends(get_tenant_from_admin)
 ):
     """创建支付配置
 
@@ -224,7 +227,7 @@ async def set_default_payment_profile(
     profile_id: str,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
-    tenant: Optional[dict] = Depends(get_tenant_from_admin)
+    tenant: dict | None = Depends(get_tenant_from_admin)
 ):
     """设置为默认支付配置"""
     # 非平台管理员需要关联租户
@@ -268,10 +271,10 @@ async def set_default_payment_profile(
 @router.get("/payment-profiles/check-unique", summary="检查支付配置编码唯一性")
 async def check_payment_profile_code_unique(
     code: str = Query(..., min_length=1, max_length=50),
-    exclude_id: Optional[str] = Query(None),
+    exclude_id: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
-    tenant: Optional[dict] = Depends(get_tenant_from_admin)
+    tenant: dict | None = Depends(get_tenant_from_admin)
 ):
     """检查支付配置编码是否已存在"""
     # 非平台管理员需要关联租户

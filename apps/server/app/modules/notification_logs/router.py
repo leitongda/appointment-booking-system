@@ -1,41 +1,39 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 
-from app.db.session import get_db
-from app.models.notification_log import NotificationLog
 from app.api.deps import get_current_admin, require_permission
+from app.core.config import settings
+from app.db.session import get_db
+from app.infrastructure.notifications.quota import NotificationQuotaService
+from app.middleware.tenant_context import get_current_tenant_id
+from app.models.notification_log import NotificationLog
+from app.modules.notification_logs.service import NotificationLogService
 from app.schemas.notification_log import (
-    NotificationLogCreate,
+    NotificationChannel,
     NotificationLogQuery,
     NotificationLogResponse,
     NotificationLogStats,
-    NotificationChannel,
-    NotificationStatus,
-    NotificationUsageStats,
     NotificationQuotaInfo,
     NotificationQuotaUpdate,
+    NotificationStatus,
 )
 from app.schemas.response import PageResponse
-from app.modules.notification_logs.service import NotificationLogService
-from app.infrastructure.notifications.quota import NotificationQuotaService
-from app.core.config import settings
-from app.middleware.tenant_context import get_current_tenant_id
 
 router = APIRouter()
 
 
 @router.get("", response_model=PageResponse[NotificationLogResponse], summary="获取通知日志列表")
 async def get_notification_logs(
-    channel: Optional[NotificationChannel] = None,
-    status: Optional[NotificationStatus] = None,
-    message_type: Optional[str] = None,
-    user_id: Optional[str] = None,
-    store_id: Optional[str] = None,
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
+    channel: NotificationChannel | None = None,
+    status: NotificationStatus | None = None,
+    message_type: str | None = None,
+    user_id: str | None = None,
+    store_id: str | None = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -67,9 +65,9 @@ async def get_notification_logs(
 
 @router.get("/stats", response_model=NotificationLogStats, summary="获取通知统计")
 async def get_notification_stats(
-    store_id: Optional[str] = None,
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
+    store_id: str | None = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("system:monitoring")),
@@ -82,7 +80,7 @@ async def get_notification_stats(
 @router.get("/usage-stats", response_model=dict, summary="获取通知用量统计")
 async def get_notification_usage_stats(
     period: str = Query("month", description="统计周期: day/week/month"),
-    tenant_id: Optional[str] = Query(None, description="租户ID，不传则使用当前租户"),
+    tenant_id: str | None = Query(None, description="租户ID，不传则使用当前租户"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("system:monitoring")),
@@ -101,7 +99,7 @@ async def get_notification_usage_stats(
 
 @router.get("/quota", response_model=NotificationQuotaInfo, summary="获取通知配额信息")
 async def get_notification_quota(
-    tenant_id: Optional[str] = Query(None, description="租户ID，不传则使用当前租户"),
+    tenant_id: str | None = Query(None, description="租户ID，不传则使用当前租户"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("system:monitoring")),
@@ -123,7 +121,7 @@ async def get_notification_quota(
 @router.put("/quota", summary="更新通知配额设置")
 async def update_notification_quota(
     quota_update: NotificationQuotaUpdate,
-    tenant_id: Optional[str] = Query(None, description="租户ID，不传则使用当前租户"),
+    tenant_id: str | None = Query(None, description="租户ID，不传则使用当前租户"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("system:config")),
@@ -140,8 +138,9 @@ async def update_notification_quota(
             detail="无法确定租户ID",
         )
 
-    from app.models.settings import SystemSetting
     from sqlalchemy import select
+
+    from app.models.settings import SystemSetting
 
     update_count = 0
     for field, value in quota_update.model_dump(exclude_unset=True).items():

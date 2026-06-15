@@ -5,11 +5,8 @@
 """
 
 import asyncio
-import json
 import logging
 import os
-import tempfile
-from typing import Optional
 
 import httpx
 
@@ -56,7 +53,7 @@ class MiniappPublisher:
         project_path: str,
         version: str,
         desc: str,
-        appid: Optional[str] = None,
+        appid: str | None = None,
     ) -> dict:
         """通过 miniprogram-ci 上传小程序代码包
 
@@ -135,7 +132,7 @@ class MiniappPublisher:
             logger.info("[MiniappPublisher] 代码上传成功: version=%s", version)
             return {"success": True, "output": stdout_text, "error": None}
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             msg = f"代码上传超时 ({self.UPLOAD_TIMEOUT}s)"
             logger.error("[MiniappPublisher] %s", msg)
             try:
@@ -155,7 +152,7 @@ class MiniappPublisher:
 
     async def submit_audit(
         self,
-        access_token: Optional[str] = None,
+        access_token: str | None = None,
     ) -> dict:
         """提交小程序代码审核
 
@@ -195,7 +192,7 @@ class MiniappPublisher:
     async def get_audit_status(
         self,
         auditid: int,
-        access_token: Optional[str] = None,
+        access_token: str | None = None,
     ) -> dict:
         """查询指定审核单的审核状态
 
@@ -245,7 +242,7 @@ class MiniappPublisher:
 
     async def release(
         self,
-        access_token: Optional[str] = None,
+        access_token: str | None = None,
     ) -> dict:
         """发布已审核通过的小程序代码
 
@@ -284,7 +281,7 @@ class MiniappPublisher:
 
     async def rollback(
         self,
-        access_token: Optional[str] = None,
+        access_token: str | None = None,
     ) -> dict:
         """回滚小程序到上一个已发布的版本
 
@@ -323,8 +320,8 @@ class MiniappPublisher:
 
     async def get_preview_qrcode(
         self,
-        page_path: Optional[str] = None,
-        access_token: Optional[str] = None,
+        page_path: str | None = None,
+        access_token: str | None = None,
     ) -> bytes:
         """获取小程序体验版二维码（预览二维码）
 

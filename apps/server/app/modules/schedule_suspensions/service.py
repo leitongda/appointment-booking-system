@@ -1,22 +1,21 @@
 """停诊管理服务"""
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from sqlalchemy.orm import selectinload
-from typing import Optional, List
-from datetime import date
-import uuid
 import json
 import logging
+import uuid
+from datetime import date
 
-from app.models.schedule_suspension import ScheduleSuspension
-from app.models.schedule import Schedule
-from app.models.doctor import Doctor
-from app.models.store import Store
-from app.models.appointment import Appointment
-from app.schemas.schedule_suspension import ScheduleSuspensionCreate, AvailableScheduleForSuspension
-from app.utils.audit import set_create_audit, set_update_audit
-from app.modules.messages.service_messages import MessageService
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
 from app.middleware.tenant_context import get_current_tenant_id
+from app.models.appointment import Appointment
+from app.models.doctor import Doctor
+from app.models.schedule import Schedule
+from app.models.schedule_suspension import ScheduleSuspension
+from app.modules.messages.service_messages import MessageService
+from app.schemas.schedule_suspension import AvailableScheduleForSuspension, ScheduleSuspensionCreate
+from app.utils.audit import set_create_audit, set_update_audit
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +24,7 @@ class ScheduleSuspensionService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, suspension_id: str) -> Optional[ScheduleSuspension]:
+    async def get_by_id(self, suspension_id: str) -> ScheduleSuspension | None:
         query = (
             select(ScheduleSuspension)
             .options(
@@ -43,14 +42,14 @@ class ScheduleSuspensionService:
 
     async def get_list(
         self,
-        store_id: Optional[str] = None,
-        doctor_id: Optional[str] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        status: Optional[int] = None,
+        store_id: str | None = None,
+        doctor_id: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        status: int | None = None,
         page: int = 1,
         page_size: int = 10
-    ) -> tuple[List[ScheduleSuspension], int]:
+    ) -> tuple[list[ScheduleSuspension], int]:
         tenant_id = get_current_tenant_id()
         query = select(ScheduleSuspension).options(
             selectinload(ScheduleSuspension.store),
@@ -84,7 +83,7 @@ class ScheduleSuspensionService:
 
         return list(result.scalars().all()), count_result.scalar() or 0
 
-    async def create(self, data: ScheduleSuspensionCreate, operator_id: Optional[str] = None) -> ScheduleSuspension:
+    async def create(self, data: ScheduleSuspensionCreate, operator_id: str | None = None) -> ScheduleSuspension:
         """创建停诊并自动更新相关排班状态"""
         tenant_id = get_current_tenant_id()
         suspension = ScheduleSuspension(
@@ -279,7 +278,7 @@ class ScheduleSuspensionService:
         await self.db.commit()
         return True
 
-    async def cancel(self, suspension_id: str) -> Optional[ScheduleSuspension]:
+    async def cancel(self, suspension_id: str) -> ScheduleSuspension | None:
         """取消停诊并恢复相关排班状态"""
         suspension = await self.get_by_id(suspension_id)
         if not suspension:
@@ -350,7 +349,7 @@ class ScheduleSuspensionService:
         store_id: str,
         doctor_id: str,
         suspension_date: date
-    ) -> List[AvailableScheduleForSuspension]:
+    ) -> list[AvailableScheduleForSuspension]:
         """获取指定日期的可选排班（用于停诊选择）"""
         schedules = []
         tenant_id = get_current_tenant_id()
@@ -420,8 +419,8 @@ class ScheduleSuspensionService:
         self,
         doctor_id: str,
         suspension_date: date,
-        time_slot: Optional[str] = None
-    ) -> Optional[ScheduleSuspension]:
+        time_slot: str | None = None
+    ) -> ScheduleSuspension | None:
         """检查指定时间是否已停诊"""
         tenant_id = get_current_tenant_id()
         conditions = [

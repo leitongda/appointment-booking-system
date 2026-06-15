@@ -7,12 +7,13 @@ API 限流中间件
 - 租户限流配置缓存在 Redis (key: tenant_rate_limit:{tenant_id})，TTL 5 分钟
 - 缓存未命中时回退到全局默认值（不在中间件中查 DB）
 """
-from fastapi import Request, HTTPException, status
+import logging
+import time
+from collections.abc import Callable
+
+from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from typing import Optional, Callable, List, Tuple
-import time
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             self._redis = await _get_redis_impl()
         return self._redis
 
-    async def _get_tenant_limits(self, tenant_id: str) -> Tuple[int, int]:
+    async def _get_tenant_limits(self, tenant_id: str) -> tuple[int, int]:
         """从 Redis 缓存获取租户专属限流配置
 
         Returns:
@@ -81,8 +82,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     @staticmethod
     async def cache_tenant_limits(
         tenant_id: str,
-        rate_limit_per_minute: Optional[int],
-        rate_limit_per_second: Optional[int],
+        rate_limit_per_minute: int | None,
+        rate_limit_per_second: int | None,
         default_rpm: int = 300,
         default_rps: int = 50,
     ):
@@ -113,7 +114,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     def _build_rate_limit_key(
         self,
-        tenant_id: Optional[str],
+        tenant_id: str | None,
         client_ip: str,
         path: str,
         window: str,

@@ -4,7 +4,7 @@ import uuid
 from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import relationship
 
-from app.db.base import Base, AuditMixin
+from app.db.base import AuditMixin, Base
 
 
 class ExtraQuotaRequest(Base, AuditMixin):

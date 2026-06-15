@@ -1,8 +1,8 @@
 """Rule-set CRUD and enable/disable operations."""
 
+import json
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from sqlalchemy import and_, delete, func, select
 
@@ -18,8 +18,6 @@ from app.models.rule_set import (
     RuleWindow,
 )
 from app.modules.rule_engine.cache import RuleCache
-import json
-
 from app.modules.rule_sets.audit_helpers import (
     compute_rule_set_diff,
     make_rule_set_audit,
@@ -31,7 +29,6 @@ from app.schemas.rule_set import (
     RuleCheckinPolicyCreate,
     RuleSetCreate,
     RuleSetUpdate,
-    RuleWindowCreate,
 )
 from app.utils.audit import set_create_audit, set_update_audit
 
@@ -39,7 +36,7 @@ from app.utils.audit import set_create_audit, set_update_audit
 class RuleSetMutationMixin:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._rule_cache: Optional[RuleCache] = None
+        self._rule_cache: RuleCache | None = None
 
     @property
     def rule_cache(self) -> RuleCache:
@@ -96,7 +93,7 @@ class RuleSetMutationMixin:
         return result.scalar_one_or_none()
 
     async def create(
-        self, data: RuleSetCreate, operator_id: Optional[str] = None
+        self, data: RuleSetCreate, operator_id: str | None = None
     ):
         rule_set = RuleSet(
             id=str(uuid.uuid4()),
@@ -208,7 +205,7 @@ class RuleSetMutationMixin:
         return await self.get_by_id(rule_set.id)
 
     async def update(
-        self, rule_set_id: str, data: RuleSetUpdate, operator_id: Optional[str] = None
+        self, rule_set_id: str, data: RuleSetUpdate, operator_id: str | None = None
     ):
         rule_set = await self._get_rule_set_with_tenant(rule_set_id)
         if not rule_set:
@@ -321,7 +318,7 @@ class RuleSetMutationMixin:
         return await self.get_by_id(rule_set_id)
 
     async def _upsert_booking_policy(
-        self, rule_set_id: str, data: RuleBookingPolicyCreate, operator_id: Optional[str] = None
+        self, rule_set_id: str, data: RuleBookingPolicyCreate, operator_id: str | None = None
     ):
         """Upsert 预约策略"""
         result = await self.db.execute(
@@ -355,7 +352,7 @@ class RuleSetMutationMixin:
             self.db.add(policy)
 
     async def _upsert_checkin_policy(
-        self, rule_set_id: str, data: RuleCheckinPolicyCreate, operator_id: Optional[str] = None
+        self, rule_set_id: str, data: RuleCheckinPolicyCreate, operator_id: str | None = None
     ):
         """Upsert 签到策略"""
         result = await self.db.execute(
@@ -387,7 +384,7 @@ class RuleSetMutationMixin:
             self.db.add(policy)
 
     async def _upsert_capacity_policy(
-        self, rule_set_id: str, data: RuleCapacityPolicyCreate, operator_id: Optional[str] = None
+        self, rule_set_id: str, data: RuleCapacityPolicyCreate, operator_id: str | None = None
     ):
         """Upsert 容量策略"""
         result = await self.db.execute(
@@ -418,7 +415,7 @@ class RuleSetMutationMixin:
             set_create_audit(policy, operator_id)
             self.db.add(policy)
 
-    async def delete(self, rule_set_id: str, operator_id: Optional[str] = None) -> bool:
+    async def delete(self, rule_set_id: str, operator_id: str | None = None) -> bool:
         rule_set = await self._get_rule_set_with_tenant(rule_set_id)
         if not rule_set:
             return False
@@ -465,13 +462,13 @@ class RuleSetMutationMixin:
         )
 
         # 软删除
-        rule_set.deleted_at = datetime.now(timezone.utc)
+        rule_set.deleted_at = datetime.now(UTC)
         rule_set.enabled = False
         await self.db.commit()
         await self._invalidate_rule_set_cache(rule_set_id)
         return True
 
-    async def enable(self, rule_set_id: str, operator_id: Optional[str] = None) -> bool:
+    async def enable(self, rule_set_id: str, operator_id: str | None = None) -> bool:
         rule_set = await self._get_rule_set_with_tenant(rule_set_id)
         if not rule_set:
             return False
@@ -501,7 +498,7 @@ class RuleSetMutationMixin:
         await self._invalidate_rule_set_cache(rule_set_id)
         return True
 
-    async def disable(self, rule_set_id: str, operator_id: Optional[str] = None) -> bool:
+    async def disable(self, rule_set_id: str, operator_id: str | None = None) -> bool:
         rule_set = await self._get_rule_set_with_tenant(rule_set_id)
         if not rule_set:
             return False
@@ -534,8 +531,8 @@ class RuleSetMutationMixin:
     # ==================== 预设模板 ====================
 
     async def create_preset(
-        self, name: str, description: Optional[str], config: dict,
-        sort_order: int = 0, operator_id: Optional[str] = None,
+        self, name: str, description: str | None, config: dict,
+        sort_order: int = 0, operator_id: str | None = None,
     ) -> RuleSetPreset:
         """创建自定义预设模板。"""
         tenant_id = get_current_tenant_id()
@@ -554,8 +551,8 @@ class RuleSetMutationMixin:
         return preset
 
     async def update_preset(
-        self, preset_id: str, operator_id: Optional[str] = None, **kwargs,
-    ) -> Optional[RuleSetPreset]:
+        self, preset_id: str, operator_id: str | None = None, **kwargs,
+    ) -> RuleSetPreset | None:
         """更新自定义预设模板（系统预设不可修改）。"""
         result = await self.db.execute(
             select(RuleSetPreset).where(RuleSetPreset.id == preset_id)

@@ -1,10 +1,10 @@
 """Higher-level config views for system settings."""
 
-from typing import Any, Dict
+from typing import Any
 
 
 class SettingsViewMixin:
-    async def get_booking_settings(self, store_id=None) -> Dict:
+    async def get_booking_settings(self, store_id=None) -> dict:
         data = await self.get_by_category("booking", store_id=store_id)
         return {
             "advanceDays": data.get("advance_days", 10),
@@ -23,7 +23,7 @@ class SettingsViewMixin:
             "appointmentReminderHours": data.get("appointment_reminder_hours", 24),
         }
 
-    async def get_hospital_info(self) -> Dict:
+    async def get_hospital_info(self) -> dict:
         data = await self.get_by_category("hospital")
         return {
             "hospitalName": data.get("name", ""),
@@ -35,7 +35,7 @@ class SettingsViewMixin:
             "logo": data.get("logo", ""),
         }
 
-    async def get_wechat_config(self) -> Dict:
+    async def get_wechat_config(self) -> dict:
         data = await self.get_by_category("wechat")
         return {
             "appId": data.get("app_id", ""),
@@ -44,7 +44,7 @@ class SettingsViewMixin:
             "aesKey": data.get("aes_key", ""),
         }
 
-    async def get_sms_config(self) -> Dict:
+    async def get_sms_config(self) -> dict:
         data = await self.get_by_category("sms")
         return {
             "provider": data.get("provider", "aliyun"),
@@ -57,7 +57,7 @@ class SettingsViewMixin:
             "sendIntervalSeconds": data.get("send_interval_seconds", 60),
         }
 
-    async def get_email_config(self) -> Dict:
+    async def get_email_config(self) -> dict:
         from app.utils.email_sync import decrypt_password
         data = await self.get_by_category("email")
         password = data.get("password", "")
@@ -80,7 +80,7 @@ class SettingsViewMixin:
             "useTls": data.get("use_tls", True),
         }
 
-    async def update_email_config(self, data: Dict, operator_id=None) -> Dict:
+    async def update_email_config(self, data: dict, operator_id=None) -> dict:
         from app.utils.email_sync import encrypt_password
         category = "email"
         mapping = {
@@ -127,7 +127,7 @@ class SettingsViewMixin:
             )
         return fields
 
-    async def update_booking_field(self, field: str, enabled: bool, required: bool) -> Dict[str, Any]:
+    async def update_booking_field(self, field: str, enabled: bool, required: bool) -> dict[str, Any]:
         value = {"enabled": enabled, "required": required}
         await self.set_value("booking_fields", field, value)
         return value
@@ -141,7 +141,7 @@ class SettingsViewMixin:
             )
         return await self.get_booking_fields()
 
-    async def get_patient_card_config(self) -> Dict:
+    async def get_patient_card_config(self) -> dict:
         data = await self.get_by_category("patient_card")
         return {
             "enabled": data.get("enabled", False),
@@ -149,7 +149,7 @@ class SettingsViewMixin:
             "showQrCode": data.get("show_qr_code", True),
         }
 
-    async def update_patient_card_config(self, data: Dict, operator_id=None) -> Dict:
+    async def update_patient_card_config(self, data: dict, operator_id=None) -> dict:
         category = "patient_card"
         mapping = {"enabled": "enabled", "cardTitle": "card_title", "showQrCode": "show_qr_code"}
         for api_key, db_key in mapping.items():
@@ -157,7 +157,7 @@ class SettingsViewMixin:
                 await self.set_value(category, db_key, data[api_key], operator_id=operator_id)
         return await self.get_patient_card_config()
 
-    async def get_security_config(self) -> Dict:
+    async def get_security_config(self) -> dict:
         data = await self.get_by_category("security")
         return {
             "accessTokenExpireMinutes": data.get("access_token_expire_minutes", 30),
@@ -169,7 +169,7 @@ class SettingsViewMixin:
             "sessionTimeoutMinutes": data.get("session_timeout_minutes", 120),
         }
 
-    async def get_source_release_config(self) -> Dict:
+    async def get_source_release_config(self) -> dict:
         data = await self.get_by_category("source_release")
         return {
             "lockTimeoutMinutes": data.get("lock_timeout_minutes", 15),
@@ -182,7 +182,7 @@ class SettingsViewMixin:
             "overbookingLimit": data.get("overbooking_limit", 0),
         }
 
-    async def get_image_config(self) -> Dict:
+    async def get_image_config(self) -> dict:
         data = await self.get_by_category("image")
         return {
             "maxSize": data.get("max_size", 5),
@@ -191,7 +191,7 @@ class SettingsViewMixin:
             "compressQuality": data.get("compress_quality", 80),
         }
 
-    async def update_image_config(self, data: Dict, operator_id=None) -> Dict:
+    async def update_image_config(self, data: dict, operator_id=None) -> dict:
         category = "image"
         mapping = {
             "maxSize": "max_size",

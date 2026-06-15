@@ -2,25 +2,25 @@
 
 提供消息发送、查询、模板管理、接收人规则管理等 API。
 """
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Optional
 
-from app.db.session import get_db
 from app.api.deps import get_current_admin, get_current_user, require_permission
-from app.modules.unified_message.service import UnifiedMessageService
+from app.db.session import get_db
 from app.modules.unified_message.schemas import (
-    NotificationEvent,
-    SendResult,
     BatchSendResult,
     MessageQuery,
     MessageResponse,
-    UnreadCountResponse,
-    UnifiedTemplateCreate,
-    UnifiedTemplateResponse,
+    NotificationEvent,
     RecipientRuleCreate,
     RecipientRuleResponse,
+    SendResult,
+    UnifiedTemplateCreate,
+    UnifiedTemplateResponse,
+    UnreadCountResponse,
 )
+from app.modules.unified_message.service import UnifiedMessageService
 from app.schemas.response import PageResponse
 
 router = APIRouter()
@@ -43,7 +43,7 @@ async def send_notification(
 @router.post("/send-batch", response_model=BatchSendResult, summary="批量发送通知")
 async def send_batch_notification(
     event: NotificationEvent,
-    rule_id: Optional[str] = Query(None, description="指定接收人规则ID"),
+    rule_id: str | None = Query(None, description="指定接收人规则ID"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("message:send")),
@@ -77,8 +77,8 @@ def _get_user_info(current_user: dict) -> tuple[str, str]:
 
 @router.get("/my", response_model=PageResponse[MessageResponse], summary="获取我的消息")
 async def get_my_messages(
-    message_type: Optional[str] = Query(None, description="消息类型"),
-    is_read: Optional[int] = Query(None, ge=0, le=1, description="已读状态"),
+    message_type: str | None = Query(None, description="消息类型"),
+    is_read: int | None = Query(None, ge=0, le=1, description="已读状态"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -133,7 +133,7 @@ async def mark_as_read(
 
 @router.post("/read-all", summary="全部标记已读")
 async def mark_all_as_read(
-    message_type: Optional[str] = Query(None, description="消息类型"),
+    message_type: str | None = Query(None, description="消息类型"),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
@@ -149,12 +149,12 @@ async def mark_all_as_read(
 
 @router.get(
     "/templates",
-    response_model=List[UnifiedTemplateResponse],
+    response_model=list[UnifiedTemplateResponse],
     summary="获取模板列表",
 )
 async def get_templates(
-    message_type: Optional[str] = Query(None, description="消息类型"),
-    status: Optional[int] = Query(None, ge=0, le=1, description="状态"),
+    message_type: str | None = Query(None, description="消息类型"),
+    status: int | None = Query(None, ge=0, le=1, description="状态"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("message:list")),
@@ -234,11 +234,11 @@ async def delete_template(
 
 @router.get(
     "/rules",
-    response_model=List[RecipientRuleResponse],
+    response_model=list[RecipientRuleResponse],
     summary="获取规则列表",
 )
 async def get_rules(
-    event_type: Optional[str] = Query(None, description="事件类型"),
+    event_type: str | None = Query(None, description="事件类型"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("message:list")),

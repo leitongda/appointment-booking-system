@@ -3,34 +3,34 @@
 - 埋点数据上报
 - 行为统计查询
 """
-from fastapi import APIRouter, Depends, Request, Query, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, desc, case
-from typing import Optional, List
-from datetime import datetime, timedelta
 import json
-import time
 import logging
+import time
+from datetime import datetime, timedelta
 
-from app.api.deps import get_db, get_current_admin
-from app.common.auth_unified import get_optional_account, AccountInfo
-from app.schemas.behavior_log import (
-    TrackEventRequest,
-    BatchTrackRequest,
-    UserBehaviorLogResponse,
-    PageViewStats,
-    ClickStats,
-    SearchKeywordStats,
-    DailyStats,
-    BehaviorOverview,
-    TenantActivityStats,
-    TenantActivityDaily,
-)
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy import and_, case, desc, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import get_current_admin, get_db
+from app.common.auth_unified import AccountInfo, get_optional_account
+from app.core.config import settings
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.behavior_log import UserBehaviorLog
+from app.schemas.behavior_log import (
+    BatchTrackRequest,
+    BehaviorOverview,
+    ClickStats,
+    DailyStats,
+    PageViewStats,
+    SearchKeywordStats,
+    TenantActivityDaily,
+    TenantActivityStats,
+    TrackEventRequest,
+    UserBehaviorLogResponse,
+)
 from app.schemas.response import PageResponse
 from app.utils.ip import get_client_ip
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ def _check_rate_limit(client_ip: str) -> None:
             _analytics_rate_limit.pop(ip, None)
 
 
-def _extract_user_id(account: Optional[AccountInfo]) -> Optional[str]:
+def _extract_user_id(account: AccountInfo | None) -> str | None:
     """从认证信息中提取 user_id"""
     if account is None:
         return None
@@ -138,7 +138,7 @@ async def track_event(
     data: TrackEventRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    account: Optional[AccountInfo] = Depends(get_optional_account),
+    account: AccountInfo | None = Depends(get_optional_account),
 ):
     """
     单条埋点数据上报
@@ -195,7 +195,7 @@ async def batch_track_events(
     data: BatchTrackRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    account: Optional[AccountInfo] = Depends(get_optional_account),
+    account: AccountInfo | None = Depends(get_optional_account),
 ):
     """
     批量埋点数据上报
@@ -258,11 +258,11 @@ async def batch_track_events(
 
 @router.get("/logs", response_model=PageResponse[UserBehaviorLogResponse], summary="获取日志列表")
 async def get_behavior_logs(
-    platform: Optional[str] = None,
-    event_type: Optional[str] = None,
-    page_path: Optional[str] = None,
-    start_time: Optional[datetime] = None,
-    end_time: Optional[datetime] = None,
+    platform: str | None = None,
+    event_type: str | None = None,
+    page_path: str | None = None,
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -310,7 +310,7 @@ async def get_behavior_logs(
 
 @router.get("/overview", summary="获取概览统计")
 async def get_behavior_overview(
-    platform: Optional[str] = None,
+    platform: str | None = None,
     days: int = Query(7, ge=1, le=90),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),

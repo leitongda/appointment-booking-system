@@ -3,9 +3,9 @@
 - 异步保存用户行为日志到数据库
 - 定时清理过期数据
 """
+import json
 import logging
 import uuid
-import json
 from datetime import datetime, timedelta
 
 from app.celery_app import celery_app

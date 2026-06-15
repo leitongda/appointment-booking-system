@@ -1,8 +1,8 @@
 """Admin patient-user management router."""
 
-from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import check_store_access, get_current_admin, get_store_filter, require_permission
@@ -11,7 +11,7 @@ from app.db.session import get_db
 from app.modules.patients.service_users import UserManageService
 from app.modules.points.service import PointService
 from app.schemas.response import PageResponse
-from app.schemas.user import FamilyMemberCreate, PatientUpdate, AdminUserUpdate
+from app.schemas.user import AdminUserUpdate, FamilyMemberCreate, PatientUpdate
 
 router = APIRouter()
 
@@ -41,9 +41,9 @@ async def _ensure_card_store_access(
 
 @router.get("", summary="获取患者列表")
 async def get_users(
-    keyword: Optional[str] = None,
-    status: Optional[int] = None,
-    store_id: Optional[str] = None,
+    keyword: str | None = None,
+    status: int | None = None,
+    store_id: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),

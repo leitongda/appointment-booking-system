@@ -2,8 +2,7 @@
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.core.redis import RedisCache
 
@@ -17,19 +16,19 @@ CACHE_TTL = 3600  # 1 hour
 class CachedRuleWindow:
     """Cached rule window representation."""
     id: str
-    name: Optional[str]
+    name: str | None
     action: str
     reference_point: str
-    open_offset_sec: Optional[int]
-    close_offset_sec: Optional[int]
-    open_inclusive: Optional[bool]
-    close_inclusive: Optional[bool]
+    open_offset_sec: int | None
+    close_offset_sec: int | None
+    open_inclusive: bool | None
+    close_inclusive: bool | None
     fail_policy: str
-    fail_tag: Optional[str]
+    fail_tag: str | None
     enabled: bool
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CachedRuleWindow":
+    def from_dict(cls, data: dict[str, Any]) -> "CachedRuleWindow":
         return cls(
             id=data["id"],
             name=data.get("name"),
@@ -44,7 +43,7 @@ class CachedRuleWindow:
             enabled=data["enabled"],
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
@@ -74,15 +73,15 @@ class CachedRuleSet:
     default_close_inclusive: bool
     rounding_mode: str
     clock_skew_tolerance_sec: int
-    tenant_id: Optional[str] = None
-    store_id: Optional[str] = None
-    department_id: Optional[str] = None
-    doctor_id: Optional[str] = None
-    description: Optional[str] = None
-    windows: List[CachedRuleWindow] = field(default_factory=list)
+    tenant_id: str | None = None
+    store_id: str | None = None
+    department_id: str | None = None
+    doctor_id: str | None = None
+    description: str | None = None
+    windows: list[CachedRuleWindow] = field(default_factory=list)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CachedRuleSet":
+    def from_dict(cls, data: dict[str, Any]) -> "CachedRuleSet":
         windows = [CachedRuleWindow.from_dict(w) for w in data.get("windows", [])]
         return cls(
             id=data["id"],
@@ -104,7 +103,7 @@ class CachedRuleSet:
             windows=windows,
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
@@ -132,18 +131,18 @@ class RuleCache:
     def __init__(self, redis_cache: RedisCache):
         self._redis = redis_cache
 
-    def _make_key(self, tenant_id: Optional[str], shift_type_id: str) -> str:
+    def _make_key(self, tenant_id: str | None, shift_type_id: str) -> str:
         """Build cache key for rule set by shift type."""
         tenant_part = f"{tenant_id}:" if tenant_id else ""
         return f"{CACHE_PREFIX}:{tenant_part}ruleset:{shift_type_id}"
 
     def _make_key_v2(
         self,
-        tenant_id: Optional[str],
+        tenant_id: str | None,
         shift_type_id: str,
-        store_id: Optional[str] = None,
-        department_id: Optional[str] = None,
-        doctor_id: Optional[str] = None,
+        store_id: str | None = None,
+        department_id: str | None = None,
+        doctor_id: str | None = None,
     ) -> str:
         """
         Build cache key for rule set with store/department/doctor support.
@@ -164,7 +163,7 @@ class RuleCache:
         else:
             return f"{CACHE_PREFIX}:{tenant_part}ruleset:{shift_type_id}"
 
-    async def get_rule_sets(self, tenant_id: Optional[str], shift_type_id: str) -> Optional[List[CachedRuleSet]]:
+    async def get_rule_sets(self, tenant_id: str | None, shift_type_id: str) -> list[CachedRuleSet] | None:
         """Get cached rule sets for a shift type."""
         key = self._make_key(tenant_id, shift_type_id)
         try:
@@ -178,12 +177,12 @@ class RuleCache:
 
     async def get_rule_sets_v2(
         self,
-        tenant_id: Optional[str],
+        tenant_id: str | None,
         shift_type_id: str,
-        store_id: Optional[str] = None,
-        department_id: Optional[str] = None,
-        doctor_id: Optional[str] = None,
-    ) -> Optional[List[CachedRuleSet]]:
+        store_id: str | None = None,
+        department_id: str | None = None,
+        doctor_id: str | None = None,
+    ) -> list[CachedRuleSet] | None:
         """Get cached rule sets for a shift type with store/department/doctor support."""
         key = self._make_key_v2(tenant_id, shift_type_id, store_id, department_id, doctor_id)
         try:
@@ -197,9 +196,9 @@ class RuleCache:
 
     async def set_rule_sets(
         self,
-        tenant_id: Optional[str],
+        tenant_id: str | None,
         shift_type_id: str,
-        rule_sets: List[CachedRuleSet]
+        rule_sets: list[CachedRuleSet]
     ) -> None:
         """Cache rule sets for a shift type."""
         key = self._make_key(tenant_id, shift_type_id)
@@ -211,12 +210,12 @@ class RuleCache:
 
     async def set_rule_sets_v2(
         self,
-        tenant_id: Optional[str],
+        tenant_id: str | None,
         shift_type_id: str,
-        store_id: Optional[str],
-        department_id: Optional[str],
-        rule_sets: List[CachedRuleSet],
-        doctor_id: Optional[str] = None,
+        store_id: str | None,
+        department_id: str | None,
+        rule_sets: list[CachedRuleSet],
+        doctor_id: str | None = None,
     ) -> None:
         """Cache rule sets for a shift type with store/department/doctor support."""
         key = self._make_key_v2(tenant_id, shift_type_id, store_id, department_id, doctor_id)
@@ -226,12 +225,12 @@ class RuleCache:
         except Exception as e:
             logger.warning(f"Cache set failed for key={key}: {e}")
 
-    def _make_direct_key(self, tenant_id: Optional[str], rule_set_id: str) -> str:
+    def _make_direct_key(self, tenant_id: str | None, rule_set_id: str) -> str:
         """Build cache key for direct rule_set_id lookup."""
         tenant_part = f"{tenant_id}:" if tenant_id else ""
         return f"{CACHE_PREFIX}:{tenant_part}direct:{rule_set_id}"
 
-    async def get_direct_rule_set(self, tenant_id: Optional[str], rule_set_id: str) -> Optional[CachedRuleSet]:
+    async def get_direct_rule_set(self, tenant_id: str | None, rule_set_id: str) -> CachedRuleSet | None:
         """Get cached direct rule set by ID. Returns ORM-compatible object or None."""
         key = self._make_direct_key(tenant_id, rule_set_id)
         try:
@@ -243,7 +242,7 @@ class RuleCache:
             logger.warning(f"Cache get failed for key={key}: {e}")
         return None
 
-    async def set_direct_rule_set(self, tenant_id: Optional[str], rule_set_id: str, rule_set) -> None:
+    async def set_direct_rule_set(self, tenant_id: str | None, rule_set_id: str, rule_set) -> None:
         """Cache a direct rule set lookup result."""
         key = self._make_direct_key(tenant_id, rule_set_id)
         try:
@@ -271,7 +270,7 @@ class RuleCache:
         except Exception as e:
             logger.warning(f"Cache set failed for key={key}: {e}")
 
-    async def invalidate(self, tenant_id: Optional[str], shift_type_ids: List[str]) -> None:
+    async def invalidate(self, tenant_id: str | None, shift_type_ids: list[str]) -> None:
         """
         Invalidate cached rule sets for given shift types.
 
@@ -287,11 +286,11 @@ class RuleCache:
 
     async def invalidate_v2(
         self,
-        tenant_id: Optional[str],
-        shift_type_ids: List[str],
-        store_ids: Optional[List[str]] = None,
-        department_ids: Optional[List[str]] = None,
-        doctor_ids: Optional[List[str]] = None,
+        tenant_id: str | None,
+        shift_type_ids: list[str],
+        store_ids: list[str] | None = None,
+        department_ids: list[str] | None = None,
+        doctor_ids: list[str] | None = None,
     ) -> None:
         """
         Invalidate cached rule sets for given shift types with store/department/doctor support.
@@ -340,7 +339,7 @@ class RuleCache:
                     except Exception:
                         pass
 
-    async def invalidate_tenant(self, tenant_id: Optional[str]) -> None:
+    async def invalidate_tenant(self, tenant_id: str | None) -> None:
         """Invalidate all cached rule sets for a tenant (best-effort scan)."""
         tenant_part = f"{tenant_id}:" if tenant_id else ""
         pattern = f"{CACHE_PREFIX}:{tenant_part}ruleset:*"

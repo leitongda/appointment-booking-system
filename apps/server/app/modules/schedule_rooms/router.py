@@ -1,13 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
-from pydantic import BaseModel, ConfigDict, Field
 
-from app.db.session import get_db
-from app.api.deps import get_current_admin, get_store_filter, check_store_access, require_permission
-from app.schemas.response import PageResponse, to_camel
-from app.modules.schedule_rooms.service import ScheduleRoomService
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import check_store_access, get_current_admin, get_store_filter, require_permission
 from app.core.config import settings
+from app.db.session import get_db
+from app.modules.schedule_rooms.service import ScheduleRoomService
+from app.schemas.response import PageResponse, to_camel
 
 router = APIRouter()
 
@@ -21,12 +21,12 @@ class ScheduleRoomBase(BaseModel):
 
     name: str = Field(..., max_length=100, description="诊室名称")
     store_id: str = Field(..., description="门店ID")
-    room_number: Optional[str] = Field(None, max_length=50, description="房间号")
-    floor: Optional[str] = Field(None, max_length=20, description="楼层")
-    department_id: Optional[str] = Field(None, description="所属科室")
+    room_number: str | None = Field(None, max_length=50, description="房间号")
+    floor: str | None = Field(None, max_length=20, description="楼层")
+    department_id: str | None = Field(None, description="所属科室")
     capacity: int = Field(1, ge=1, description="容量")
     status: int = Field(1, ge=0, le=1, description="状态: 0禁用 1启用")
-    remark: Optional[str] = Field(None, max_length=500, description="备注")
+    remark: str | None = Field(None, max_length=500, description="备注")
 
 class ScheduleRoomCreate(ScheduleRoomBase):
     pass
@@ -37,14 +37,14 @@ class ScheduleRoomUpdate(BaseModel):
         populate_by_name=True,
     )
 
-    name: Optional[str] = Field(None, max_length=100, description="诊室名称")
-    store_id: Optional[str] = Field(None, description="门店ID")
-    room_number: Optional[str] = Field(None, max_length=50, description="房间号")
-    floor: Optional[str] = Field(None, max_length=20, description="楼层")
-    department_id: Optional[str] = Field(None, description="所属科室")
-    capacity: Optional[int] = Field(None, ge=1, description="容量")
-    status: Optional[int] = Field(None, ge=0, le=1, description="状态: 0禁用 1启用")
-    remark: Optional[str] = Field(None, max_length=500, description="备注")
+    name: str | None = Field(None, max_length=100, description="诊室名称")
+    store_id: str | None = Field(None, description="门店ID")
+    room_number: str | None = Field(None, max_length=50, description="房间号")
+    floor: str | None = Field(None, max_length=20, description="楼层")
+    department_id: str | None = Field(None, description="所属科室")
+    capacity: int | None = Field(None, ge=1, description="容量")
+    status: int | None = Field(None, ge=0, le=1, description="状态: 0禁用 1启用")
+    remark: str | None = Field(None, max_length=500, description="备注")
 
 class ScheduleRoomResponse(BaseModel):
     model_config = ConfigDict(
@@ -57,14 +57,14 @@ class ScheduleRoomResponse(BaseModel):
     id: str
     name: str
     store_id: str
-    store_name: Optional[str] = Field(None, description="门店名称")
-    room_number: Optional[str] = None
-    floor: Optional[str] = None
-    department_id: Optional[str] = None
-    department_name: Optional[str] = Field(None, description="科室名称")
+    store_name: str | None = Field(None, description="门店名称")
+    room_number: str | None = None
+    floor: str | None = None
+    department_id: str | None = None
+    department_name: str | None = Field(None, description="科室名称")
     capacity: int = 1
     status: int = 1
-    remark: Optional[str] = None
+    remark: str | None = None
     created_at: object = None
     updated_at: object = None
 
@@ -80,10 +80,10 @@ def _to_response(room) -> ScheduleRoomResponse:
 
 @router.get("", response_model=PageResponse[ScheduleRoomResponse], summary="获取诊室列表")
 async def get_schedule_rooms(
-    name: Optional[str] = None,
-    status: Optional[int] = None,
-    store_id: Optional[str] = None,
-    department_id: Optional[str] = None,
+    name: str | None = None,
+    status: int | None = None,
+    store_id: str | None = None,
+    department_id: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),

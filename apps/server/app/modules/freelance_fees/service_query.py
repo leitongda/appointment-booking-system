@@ -1,17 +1,22 @@
 """兼职费用 — 查询服务"""
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from typing import Optional, List, Tuple
 from datetime import datetime
 
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.freelance import (
-    Freelancer, FreelanceTask, FreelanceInteraction,
-    FreelanceSettlement, FreelanceSettlementItem,
+    FreelanceInteraction,
+    Freelancer,
+    FreelanceSettlement,
+    FreelanceSettlementItem,
+    FreelanceTask,
 )
 from app.modules.freelance_fees.schemas import (
-    FreelancerQuery, FreelanceTaskQuery, FreelanceSettlementQuery,
+    FreelancerQuery,
+    FreelanceSettlementQuery,
+    FreelanceTaskQuery,
 )
-from app.middleware.tenant_context import get_current_tenant_id
 
 
 class FreelanceQueryMixin:
@@ -22,7 +27,7 @@ class FreelanceQueryMixin:
 
     # ---------- 兼职人员 ----------
 
-    async def get_freelancer_by_id(self, freelancer_id: str) -> Optional[Freelancer]:
+    async def get_freelancer_by_id(self, freelancer_id: str) -> Freelancer | None:
         stmt = select(Freelancer).where(Freelancer.id == freelancer_id)
         tenant_id = get_current_tenant_id()
         if tenant_id:
@@ -30,7 +35,7 @@ class FreelanceQueryMixin:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_freelancer_list(self, query: FreelancerQuery) -> Tuple[List[Freelancer], int]:
+    async def get_freelancer_list(self, query: FreelancerQuery) -> tuple[list[Freelancer], int]:
         stmt = select(Freelancer)
         count_stmt = select(func.count(Freelancer.id))
 
@@ -60,7 +65,7 @@ class FreelanceQueryMixin:
 
     # ---------- 发布任务 ----------
 
-    async def get_task_by_id(self, task_id: str) -> Optional[FreelanceTask]:
+    async def get_task_by_id(self, task_id: str) -> FreelanceTask | None:
         stmt = select(FreelanceTask).where(FreelanceTask.id == task_id)
         tenant_id = get_current_tenant_id()
         if tenant_id:
@@ -68,7 +73,7 @@ class FreelanceQueryMixin:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_task_list(self, query: FreelanceTaskQuery) -> Tuple[List[FreelanceTask], int]:
+    async def get_task_list(self, query: FreelanceTaskQuery) -> tuple[list[FreelanceTask], int]:
         stmt = select(FreelanceTask)
         count_stmt = select(func.count(FreelanceTask.id))
 
@@ -106,7 +111,7 @@ class FreelanceQueryMixin:
 
     # ---------- 互动记录 ----------
 
-    async def get_interactions_by_task(self, task_id: str) -> List[FreelanceInteraction]:
+    async def get_interactions_by_task(self, task_id: str) -> list[FreelanceInteraction]:
         stmt = (
             select(FreelanceInteraction)
             .where(FreelanceInteraction.task_id == task_id)
@@ -117,7 +122,7 @@ class FreelanceQueryMixin:
 
     # ---------- 结算单 ----------
 
-    async def get_settlement_by_id(self, settlement_id: str) -> Optional[FreelanceSettlement]:
+    async def get_settlement_by_id(self, settlement_id: str) -> FreelanceSettlement | None:
         stmt = (
             select(FreelanceSettlement)
             .where(FreelanceSettlement.id == settlement_id)
@@ -128,7 +133,7 @@ class FreelanceQueryMixin:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_settlement_list(self, query: FreelanceSettlementQuery) -> Tuple[List[FreelanceSettlement], int]:
+    async def get_settlement_list(self, query: FreelanceSettlementQuery) -> tuple[list[FreelanceSettlement], int]:
         stmt = select(FreelanceSettlement)
         count_stmt = select(func.count(FreelanceSettlement.id))
 
@@ -164,7 +169,7 @@ class FreelanceQueryMixin:
         count_result = await self.db.execute(count_stmt)
         return list(result.scalars().all()), count_result.scalar() or 0
 
-    async def get_settlement_items(self, settlement_id: str) -> List[FreelanceSettlementItem]:
+    async def get_settlement_items(self, settlement_id: str) -> list[FreelanceSettlementItem]:
         stmt = (
             select(FreelanceSettlementItem)
             .where(FreelanceSettlementItem.settlement_id == settlement_id)
@@ -175,7 +180,7 @@ class FreelanceQueryMixin:
 
     # ---------- 统计 ----------
 
-    async def get_freelancer_stats(self, store_id: Optional[str] = None) -> dict:
+    async def get_freelancer_stats(self, store_id: str | None = None) -> dict:
         """兼职人员统计"""
         tenant_id = get_current_tenant_id()
 
@@ -213,7 +218,7 @@ class FreelanceQueryMixin:
             "total_pending_amount": float(total_pending),
         }
 
-    async def get_stats_by_freelancer(self, store_id: Optional[str] = None) -> list:
+    async def get_stats_by_freelancer(self, store_id: str | None = None) -> list:
         """按兼职人员汇总"""
         tenant_id = get_current_tenant_id()
         stmt = (
@@ -246,9 +251,9 @@ class FreelanceQueryMixin:
             for row in result.all()
         ]
 
-    async def get_stats_by_month(self, store_id: Optional[str] = None, months: int = 12) -> list:
+    async def get_stats_by_month(self, store_id: str | None = None, months: int = 12) -> list:
         """按月汇总（近 N 个月）"""
-        from datetime import datetime, timedelta
+        from datetime import timedelta
 
         tenant_id = get_current_tenant_id()
         start_date = datetime.utcnow() - timedelta(days=months * 30)
@@ -281,7 +286,7 @@ class FreelanceQueryMixin:
             for row in result.all()
         ]
 
-    async def get_task_stats(self, store_id: Optional[str] = None) -> dict:
+    async def get_task_stats(self, store_id: str | None = None) -> dict:
         """任务统计"""
         tenant_id = get_current_tenant_id()
 

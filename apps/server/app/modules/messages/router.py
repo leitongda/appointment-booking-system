@@ -1,19 +1,25 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, List
 
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import get_current_admin, get_store_filter, require_permission
+from app.core.config import settings
 from app.db.session import get_db
-from app.api.deps import get_current_user, get_current_admin, get_store_filter, require_permission
-from app.schemas.message import (
-    MessageCreate, MessageBatchCreate, MessageQuery,
-    MessageResponse, MessageListResponse, UnreadCountResponse,
-    MessageTemplateCreate, MessageTemplateUpdate, MessageTemplateResponse,
-    MessageType
-)
-from app.schemas.response import PageResponse
 from app.modules.messages.service_messages import MessageService
 from app.modules.messages.service_templates import MessageTemplateService
-from app.core.config import settings
+from app.schemas.message import (
+    MessageBatchCreate,
+    MessageCreate,
+    MessageListResponse,
+    MessageQuery,
+    MessageResponse,
+    MessageTemplateCreate,
+    MessageTemplateResponse,
+    MessageTemplateUpdate,
+    MessageType,
+    UnreadCountResponse,
+)
+from app.schemas.response import PageResponse
 
 router = APIRouter()
 
@@ -65,8 +71,8 @@ router = APIRouter()
 """
 )
 async def get_my_messages(
-    message_type: Optional[MessageType] = None,
-    is_read: Optional[int] = Query(None, ge=0, le=1),
+    message_type: MessageType | None = None,
+    is_read: int | None = Query(None, ge=0, le=1),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     user_id: str = Query(..., description="用户ID"),
@@ -102,9 +108,9 @@ async def get_unread_count(
     return await service.get_unread_count(user_id, user_type)
 
 
-@router.get("/templates", response_model=List[MessageTemplateResponse], summary="获取模板列表")
+@router.get("/templates", response_model=list[MessageTemplateResponse], summary="获取模板列表")
 async def get_templates(
-    status: Optional[int] = Query(None, ge=0, le=1),
+    status: int | None = Query(None, ge=0, le=1),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("message:list"))
@@ -216,7 +222,7 @@ async def mark_as_read(
 async def mark_all_as_read(
     user_id: str = Query(..., description="用户ID"),
     user_type: str = Query(..., description="用户类型"),
-    message_type: Optional[str] = Query(None, description="消息类型"),
+    message_type: str | None = Query(None, description="消息类型"),
     db: AsyncSession = Depends(get_db)
 ):
     """标记所有消息为已读"""
@@ -258,12 +264,12 @@ async def clear_read_messages(
 
 @router.get("", response_model=PageResponse[MessageListResponse], summary="获取消息列表")
 async def get_all_messages(
-    user_id: Optional[str] = None,
-    user_type: Optional[str] = None,
-    message_type: Optional[MessageType] = None,
-    is_read: Optional[int] = Query(None, ge=0, le=1),
-    keyword: Optional[str] = None,
-    store_id: Optional[str] = None,
+    user_id: str | None = None,
+    user_type: str | None = None,
+    message_type: MessageType | None = None,
+    is_read: int | None = Query(None, ge=0, le=1),
+    keyword: str | None = None,
+    store_id: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),

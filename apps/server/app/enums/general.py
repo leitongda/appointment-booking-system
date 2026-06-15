@@ -1,7 +1,6 @@
 """通用枚举"""
 from enum import Enum
 
-
 # ---------- schemas/store_visit_type_config.py ----------
 
 class TimeUnit(str, Enum):

@@ -11,11 +11,13 @@
 - AppointmentCheckin: 签到日志
 - RuleSetPreset: 规则组预设模板
 """
-from sqlalchemy import Column, String, Integer, Boolean, Text, ForeignKey, Index, DateTime, JSON
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
-from datetime import datetime
 import uuid
+from datetime import datetime
+
+from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 # ShiftType 已抽离到独立模块，此处保留 re-export 保持向后兼容
 from app.models.shift_type import ShiftType  # noqa: F401

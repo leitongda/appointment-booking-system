@@ -3,7 +3,7 @@
 为多角色认证系统提供统一的数据结构，为后续统一账号表打基础。
 """
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, List
+from typing import Any
 
 from app.enums.core import RoleType  # noqa: F401 — re-export
 
@@ -12,36 +12,36 @@ from app.enums.core import RoleType  # noqa: F401 — re-export
 class AdminInfo:
     """管理员额外信息"""
     # 角色信息
-    role_id: Optional[str] = None
-    role_code: Optional[str] = None
-    role_name: Optional[str] = None
+    role_id: str | None = None
+    role_code: str | None = None
+    role_name: str | None = None
 
     # 管理员元数据
-    username: Optional[str] = None
+    username: str | None = None
 
     # 权限列表
-    permissions: List[str] = field(default_factory=list)
+    permissions: list[str] = field(default_factory=list)
 
     # 门店信息
-    current_store_id: Optional[str] = None
-    current_store_name: Optional[str] = None
-    current_store_logo: Optional[str] = None
-    current_store_theme: Optional[str] = None
-    store_ids: List[str] = field(default_factory=list)
-    stores: List[Dict[str, Any]] = field(default_factory=list)
+    current_store_id: str | None = None
+    current_store_name: str | None = None
+    current_store_logo: str | None = None
+    current_store_theme: str | None = None
+    store_ids: list[str] = field(default_factory=list)
+    stores: list[dict[str, Any]] = field(default_factory=list)
 
     # 租户信息
-    tenant_id: Optional[str] = None
-    tenant_name: Optional[str] = None
-    tenant_code: Optional[str] = None
-    tenant_status: Optional[int] = None
+    tenant_id: str | None = None
+    tenant_name: str | None = None
+    tenant_code: str | None = None
+    tenant_status: int | None = None
 
     # 租户订阅详情（用于 /me 接口）
-    tenant_subscription_plan_name: Optional[str] = None
-    tenant_subscription_end_at: Optional[Any] = None
+    tenant_subscription_plan_name: str | None = None
+    tenant_subscription_end_at: Any | None = None
     tenant_is_subscription_active: bool = False
-    tenant_days_until_expiry: Optional[int] = None
-    tenant_contact_phone: Optional[str] = None
+    tenant_days_until_expiry: int | None = None
+    tenant_contact_phone: str | None = None
 
     # 角色标志（便于快速判断）
     is_super_admin: bool = False
@@ -51,7 +51,7 @@ class AdminInfo:
     can_view_all_stores: bool = False
     can_switch_stores: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典（兼容旧接口）"""
         tenant_dict = None
         if self.tenant_id:
@@ -93,17 +93,17 @@ class AdminInfo:
 @dataclass
 class DoctorInfo:
     """医生额外信息"""
-    doctor_id: Optional[str] = None
-    name: Optional[str] = None
-    department_id: Optional[str] = None
-    department_name: Optional[str] = None
-    title: Optional[str] = None
-    store_id: Optional[str] = None
-    store_name: Optional[str] = None
+    doctor_id: str | None = None
+    name: str | None = None
+    department_id: str | None = None
+    department_name: str | None = None
+    title: str | None = None
+    store_id: str | None = None
+    store_name: str | None = None
     # 权限列表（从 DOCTOR_PERMISSIONS 或数据库角色配置加载）
-    permissions: List[str] = field(default_factory=list)
+    permissions: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "id": self.doctor_id,
@@ -119,14 +119,14 @@ class DoctorInfo:
 @dataclass
 class UserInfo:
     """用户额外信息"""
-    openid: Optional[str] = None
+    openid: str | None = None
     points: int = 0
     is_doctor: bool = False
-    doctor_id: Optional[str] = None
+    doctor_id: str | None = None
     # 权限列表（从 USER_PERMISSIONS 或数据库角色配置加载）
-    permissions: List[str] = field(default_factory=list)
+    permissions: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "openid": self.openid,
@@ -146,22 +146,22 @@ class AccountInfo:
     # 基础信息（所有角色共有）
     id: str
     role_type: RoleType
-    tenant_id: Optional[str] = None
-    phone: Optional[str] = None
-    name: Optional[str] = None
-    avatar: Optional[str] = None
+    tenant_id: str | None = None
+    phone: str | None = None
+    name: str | None = None
+    avatar: str | None = None
     status: int = 1
 
     # 扩展信息（来自各自角色表）
-    email: Optional[str] = None
-    last_login_at: Optional[Any] = None
-    last_login_ip: Optional[str] = None
-    created_at: Optional[Any] = None
+    email: str | None = None
+    last_login_at: Any | None = None
+    last_login_ip: str | None = None
+    created_at: Any | None = None
 
     # 角色特定信息（根据 role_type 填充对应的 info）
-    admin_info: Optional[AdminInfo] = None
-    doctor_info: Optional[DoctorInfo] = None
-    user_info: Optional[UserInfo] = None
+    admin_info: AdminInfo | None = None
+    doctor_info: DoctorInfo | None = None
+    user_info: UserInfo | None = None
 
     @property
     def is_admin(self) -> bool:
@@ -198,7 +198,7 @@ class AccountInfo:
         """是否是平台管理员"""
         return self.is_admin and self.admin_info and self.admin_info.is_platform_admin
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典格式（兼容旧的 dict 返回格式）
 
         这个方法确保新 API 与现有代码兼容，
@@ -256,7 +256,7 @@ class AccountInfo:
         return base
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "AccountInfo":
+    def from_dict(cls, data: dict[str, Any]) -> "AccountInfo":
         """从字典创建 AccountInfo（用于兼容旧代码）"""
         role_type_str = data.get("role_type", "user")
         role_type = RoleType(role_type_str) if isinstance(role_type_str, str) else RoleType.USER

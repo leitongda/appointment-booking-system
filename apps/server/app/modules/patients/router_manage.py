@@ -1,18 +1,18 @@
 """Admin patient-card management router."""
 
-from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import check_store_access, get_current_admin, get_store_filter, require_permission
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.patients.service_manage import PatientManageService
+from app.modules.points.service import PointService
 from app.schemas.point_log import PointAdjustData
 from app.schemas.response import PageResponse
 from app.schemas.user import FamilyMemberCreate, PatientCreateByAdmin, PatientUpdate
-from app.modules.points.service import PointService
 
 router = APIRouter()
 
@@ -48,9 +48,9 @@ async def create_patient(
 
 @router.get("", summary="获取患者列表")
 async def get_patients(
-    keyword: Optional[str] = None,
-    is_blacklist: Optional[bool] = None,
-    store_id: Optional[str] = None,
+    keyword: str | None = None,
+    is_blacklist: bool | None = None,
+    store_id: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -74,7 +74,7 @@ async def get_patients(
 
 @router.get("/blacklist", summary="获取黑名单列表")
 async def get_blacklist(
-    store_id: Optional[str] = None,
+    store_id: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -145,12 +145,12 @@ async def delete_patient(
 @router.get("/{patient_id}/appointments", summary="获取患者预约记录")
 async def get_patient_appointments(
     patient_id: str,
-    doctor_id: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    status: Optional[int] = None,
-    is_admin_booked: Optional[bool] = None,
-    is_follow_up: Optional[bool] = None,
+    doctor_id: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    status: int | None = None,
+    is_admin_booked: bool | None = None,
+    is_follow_up: bool | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -176,7 +176,7 @@ async def get_patient_appointments(
 @router.get("/{patient_id}/consumption-records", summary="获取消费记录")
 async def get_consumption_records(
     patient_id: str,
-    item_name: Optional[str] = None,
+    item_name: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -258,7 +258,7 @@ async def get_point_summary(
 @router.put("/{patient_id}/blacklist", summary="加入黑名单")
 async def add_to_blacklist(
     patient_id: str,
-    reason: Optional[str] = None,
+    reason: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin=Depends(get_current_admin),
     _: None = Depends(require_permission("patient:update")),

@@ -1,25 +1,25 @@
 """排班管理相关端点"""
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from datetime import date, timedelta
-from typing import Optional, List
 
-from app.db.session import get_db
+from fastapi import APIRouter, Depends
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.deps import get_current_doctor_by_token
+from app.db.session import get_db
 from app.models.doctor import Doctor
 from app.models.rest_day import RestDay
-from app.modules.schedules.service import ScheduleService
 from app.modules.doctor_portal.schemas import DoctorScheduleResponse
+from app.modules.schedules.service import ScheduleService
 
 router = APIRouter()
 
 
 def _check_rest_day_for_schedule(
     schedule_date: date,
-    store_id: Optional[str],
+    store_id: str | None,
     doctor_id: str,
-    rest_days: List
+    rest_days: list
 ) -> bool:
     """检查指定排班是否在休息日"""
     for rd in rest_days:
@@ -44,11 +44,11 @@ def _check_rest_day_for_schedule(
     return False
 
 
-@router.get("", response_model=List[DoctorScheduleResponse], summary="获取排班列表")
+@router.get("", response_model=list[DoctorScheduleResponse], summary="获取排班列表")
 async def get_my_schedules(
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    status: Optional[int] = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    status: int | None = None,
     doctor: Doctor = Depends(get_current_doctor_by_token),
     db: AsyncSession = Depends(get_db)
 ):
@@ -106,7 +106,7 @@ async def get_my_schedules(
     ]
 
 
-@router.get("/today", response_model=List[DoctorScheduleResponse], summary="获取今日排班")
+@router.get("/today", response_model=list[DoctorScheduleResponse], summary="获取今日排班")
 async def get_my_today_schedules(
     doctor: Doctor = Depends(get_current_doctor_by_token),
     db: AsyncSession = Depends(get_db)

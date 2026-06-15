@@ -1,10 +1,11 @@
 """低代码页面审计日志模型。"""
 
-from sqlalchemy import Column, DateTime, ForeignKey, String, Text
+import uuid
+
+from sqlalchemy import Column, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB
 
 from app.db.base import Base, TimestampMixin
-import uuid
 
 
 class LowCodePageAuditLog(Base, TimestampMixin):

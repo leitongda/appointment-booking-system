@@ -1,4 +1,5 @@
-from typing import TypeVar, Generic, Optional, List, Any
+from typing import Generic, TypeVar
+
 from pydantic import BaseModel, ConfigDict, Field
 
 T = TypeVar('T')
@@ -14,7 +15,7 @@ class Response(BaseModel, Generic[T]):
     """统一响应格式"""
     code: int = 200
     message: str = "success"
-    data: Optional[T] = None
+    data: T | None = None
 
 
 class PageResponse(BaseModel, Generic[T]):
@@ -27,7 +28,7 @@ class PageResponse(BaseModel, Generic[T]):
     
     code: int = 200
     message: str = "success"
-    data: Optional[List[T]] = None
+    data: list[T] | None = None
     total: int = 0
     page: int = 1
     page_size: int = Field(default=10, alias="pageSize")
@@ -52,7 +53,7 @@ class ErrorResponse(BaseModel):
     
     code: int = Field(..., description="错误码", examples=[400, 401, 403, 404, 500])
     message: str = Field(..., description="错误消息", examples=["请求参数错误", "未认证", "无权限", "资源不存在"])
-    detail: Optional[str] = Field(None, description="详细错误信息")
+    detail: str | None = Field(None, description="详细错误信息")
 
 
 class ValidationErrorResponse(BaseModel):
@@ -72,7 +73,7 @@ class ValidationErrorResponse(BaseModel):
     
     code: int = Field(422, description="错误码")
     message: str = Field("参数校验失败", description="错误消息")
-    errors: List[dict] = Field(default_factory=list, description="字段级错误详情")
+    errors: list[dict] = Field(default_factory=list, description="字段级错误详情")
 
 
 # ==================== 常用错误响应定义（用于 responses 参数） ====================

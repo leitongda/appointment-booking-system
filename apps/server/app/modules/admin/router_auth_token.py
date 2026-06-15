@@ -1,22 +1,25 @@
 """Token 和 Session 管理相关端点"""
 import logging
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime
 
 from app.api.deps import get_current_admin
-from app.core.config import settings
-from app.core.security import create_access_token, create_refresh_token, decode_token
-from app.core.redis import RedisCache
-from app.db.session import get_db
 from app.common.security_settings import get_token_expire_config
-import hashlib as _admin_hashlib
+from app.core.redis import RedisCache
+from app.core.security import create_access_token, create_refresh_token, decode_token
+from app.db.session import get_db
 from app.models.admin import Admin, Permission
 from app.models.tenant import Tenant
-from app.modules.admin.helpers import build_admin_response_from_dict, build_stores_list
-from app.modules.admin.schemas import AdminResponse, StoreInfo, SwitchStoreRequest, SwitchTenantRequest, TenantInfoResponse
+from app.modules.admin.helpers import build_admin_response_from_dict
+from app.modules.admin.schemas import (
+    AdminResponse,
+    SwitchStoreRequest,
+    SwitchTenantRequest,
+)
 from app.modules.admin.service_admins import AdminService
 from app.schemas.auth import RefreshTokenRequest, TokenResponse
 
@@ -70,6 +73,7 @@ async def refresh_admin_token(
 
     # 轮换 Refresh Token: 将旧 token 加入黑名单
     from datetime import datetime as _dt
+
     from jose import jwt as _jwt
     try:
         old_claims = _jwt.get_unverified_claims(data.refresh_token)

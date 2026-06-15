@@ -1,10 +1,11 @@
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, List, Any
 from datetime import datetime
 
-from app.enums.message import MessageType  # noqa: F401 — re-export
+from pydantic import BaseModel, ConfigDict, Field
+
 from app.core.config import settings
+from app.enums.message import MessageType  # noqa: F401 — re-export
 from app.schemas.response import to_camel
+
 
 class MessageBase(BaseModel):
     """消息基础模型"""
@@ -14,15 +15,15 @@ class MessageBase(BaseModel):
     )
     
     title: str = Field(..., max_length=200, description="消息标题")
-    content: Optional[str] = Field(None, description="消息内容")
+    content: str | None = Field(None, description="消息内容")
     message_type: str = Field("system", description="消息类型（字典: message_type）")
-    related_id: Optional[str] = Field(None, description="关联业务ID")
+    related_id: str | None = Field(None, description="关联业务ID")
 
 class MessageCreate(MessageBase):
     """创建消息"""
     user_id: str = Field(..., description="接收用户ID")
     user_type: str = Field(..., description="用户类型: patient/doctor")
-    extra_data: Optional[dict] = Field(None, description="额外数据")
+    extra_data: dict | None = Field(None, description="额外数据")
 
 class MessageBatchCreate(BaseModel):
     """批量创建消息"""
@@ -31,12 +32,12 @@ class MessageBatchCreate(BaseModel):
         populate_by_name=True,
     )
     
-    user_ids: List[str] = Field(..., description="接收用户ID列表")
+    user_ids: list[str] = Field(..., description="接收用户ID列表")
     user_type: str = Field(..., description="用户类型")
     title: str = Field(..., max_length=200)
-    content: Optional[str] = None
+    content: str | None = None
     message_type: str = "system"
-    related_id: Optional[str] = None
+    related_id: str | None = None
 
 class MessageResponse(BaseModel):
     """消息响应"""
@@ -48,16 +49,16 @@ class MessageResponse(BaseModel):
     )
     
     id: str
-    store_id: Optional[str] = None
-    user_id: Optional[str] = None
-    user_type: Optional[str] = None
-    title: Optional[str] = None
-    content: Optional[str] = None
-    message_type: Optional[str] = None
-    related_id: Optional[str] = None
-    is_read: Optional[int] = 0
-    read_at: Optional[datetime] = None
-    created_at: Optional[datetime] = None
+    store_id: str | None = None
+    user_id: str | None = None
+    user_type: str | None = None
+    title: str | None = None
+    content: str | None = None
+    message_type: str | None = None
+    related_id: str | None = None
+    is_read: int | None = 0
+    read_at: datetime | None = None
+    created_at: datetime | None = None
 
 class MessageListResponse(BaseModel):
     """消息列表响应"""
@@ -69,12 +70,12 @@ class MessageListResponse(BaseModel):
     )
     
     id: str
-    store_id: Optional[str] = None
-    title: Optional[str] = None
-    content: Optional[str] = None
-    message_type: Optional[str] = None
-    is_read: Optional[int] = 0
-    created_at: Optional[datetime] = None
+    store_id: str | None = None
+    title: str | None = None
+    content: str | None = None
+    message_type: str | None = None
+    is_read: int | None = 0
+    created_at: datetime | None = None
 
 class MessageQuery(BaseModel):
     """消息查询参数"""
@@ -83,8 +84,8 @@ class MessageQuery(BaseModel):
         populate_by_name=True,
     )
     
-    message_type: Optional[str] = Field(None, description="消息类型（字典: message_type）")
-    is_read: Optional[int] = Field(None, description="是否已读")
+    message_type: str | None = Field(None, description="消息类型（字典: message_type）")
+    is_read: int | None = Field(None, description="是否已读")
     page: int = Field(1, ge=1)
     page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE)
 
@@ -116,7 +117,7 @@ class MessageTemplateBase(BaseModel):
     message_type: str
     title_template: str = Field(..., max_length=200)
     content_template: str
-    description: Optional[str] = Field(None, max_length=255)
+    description: str | None = Field(None, max_length=255)
     status: int = Field(1, ge=0, le=1)
 
 class MessageTemplateCreate(MessageTemplateBase):
@@ -128,11 +129,11 @@ class MessageTemplateUpdate(BaseModel):
         populate_by_name=True,
     )
     
-    name: Optional[str] = Field(None, max_length=100)
-    title_template: Optional[str] = Field(None, max_length=200)
-    content_template: Optional[str] = None
-    description: Optional[str] = Field(None, max_length=255)
-    status: Optional[int] = Field(None, ge=0, le=1)
+    name: str | None = Field(None, max_length=100)
+    title_template: str | None = Field(None, max_length=200)
+    content_template: str | None = None
+    description: str | None = Field(None, max_length=255)
+    status: int | None = Field(None, ge=0, le=1)
 
 class MessageTemplateResponse(BaseModel):
     """消息模板响应"""
@@ -144,12 +145,12 @@ class MessageTemplateResponse(BaseModel):
     )
     
     id: str
-    code: Optional[str] = None
-    name: Optional[str] = None
-    message_type: Optional[str] = None
-    title_template: Optional[str] = None
-    content_template: Optional[str] = None
-    description: Optional[str] = None
-    status: Optional[int] = 1
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    code: str | None = None
+    name: str | None = None
+    message_type: str | None = None
+    title_template: str | None = None
+    content_template: str | None = None
+    description: str | None = None
+    status: int | None = 1
+    created_at: datetime | None = None
+    updated_at: datetime | None = None

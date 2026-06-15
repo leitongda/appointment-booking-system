@@ -1,19 +1,18 @@
-from datetime import date, datetime, time, timedelta
-from typing import Optional
+from datetime import datetime, time, timedelta
 
 import pytz
-from sqlalchemy import and_, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy import select
 
-from app.core.events import EventType
 from app.core.error_codes import ErrorCode
+from app.core.events import EventType
+from app.core.websocket import WSMessageType, notify_patient
 from app.middleware.exception import BusinessError
 from app.models.rule_set import AppointmentCheckin
 from app.models.schedule import Schedule
-from app.modules.appointments.common import APPOINTMENT_STATUS, CHECKIN_METHOD, AppointmentServiceBase, logger
+from app.enums.appointment import CheckinMethod
+from app.modules.appointments.common import APPOINTMENT_STATUS, AppointmentServiceBase, logger
 from app.modules.rule_engine import RuleEngineService
 from app.modules.settings.service import SettingsService
-from app.core.websocket import notify_patient, WSMessageType
 from app.utils.datetime import utc_now
 
 
@@ -21,13 +20,13 @@ class AppointmentFlowService(AppointmentServiceBase):
     async def sign_in(
         self,
         appointment_id: str,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
         is_admin: bool = False,
-        checkin_method: str = CHECKIN_METHOD["MANUAL"],
-        device_info: Optional[str] = None,
-        location_info: Optional[str] = None,
-        operator_id: Optional[str] = None,
-        operator_type: Optional[str] = None,
+        checkin_method: str = CheckinMethod.MANUAL,
+        device_info: str | None = None,
+        location_info: str | None = None,
+        operator_id: str | None = None,
+        operator_type: str | None = None,
     ):
         appointment = await self.get_by_id(appointment_id)
         if not appointment:
@@ -130,14 +129,14 @@ class AppointmentFlowService(AppointmentServiceBase):
 
     async def _create_checkin_log(
         self,
-        appointment_id: Optional[str],
+        appointment_id: str | None,
         checkin_method: str,
-        device_info: Optional[str],
-        location_info: Optional[str],
-        operator_id: Optional[str],
-        operator_type: Optional[str],
+        device_info: str | None,
+        location_info: str | None,
+        operator_id: str | None,
+        operator_type: str | None,
         status: str,
-        fail_reason: Optional[str],
+        fail_reason: str | None,
     ):
         if not appointment_id:
             return

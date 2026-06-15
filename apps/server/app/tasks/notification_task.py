@@ -4,40 +4,35 @@
 - 三级提醒策略：24h(微信) / 2h(短信) / 30min(站内信+WebSocket)
 - 并行化：按租户并行派发子任务
 """
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, List
-from dataclasses import dataclass
-
-from sqlalchemy import select, and_, or_, text
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session, joinedload
+import asyncio
 import logging
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any
+
+import httpx
+from celery import group
+from sqlalchemy import and_, select, text
+from sqlalchemy.orm import Session, joinedload
 
 from app.celery_app import celery_app
+from app.common.sync_account_helper import (
+    get_account_openid,
+    get_account_phone,
+)
+from app.core.config import settings as app_settings
 from app.db.session import get_sync_db
+from app.enums.general import ReminderLevel  # noqa: F401 — re-export
+from app.infrastructure.wechat.token_manager import WechatTokenManager
+from app.middleware.tenant_context import clear_tenant_context, set_tenant_context
 from app.models.appointment import Appointment
-from app.models.schedule import Schedule
-from app.models.user import User
 from app.models.doctor import Doctor
-from app.models.department import Department
 from app.models.message import Message, MessageType
 from app.models.notification_log import NotificationLog
+from app.models.schedule import Schedule
 from app.models.settings import SystemSetting as Settings
 from app.models.tenant import Tenant
-from app.core.config import settings as app_settings
-from app.enums.general import ReminderLevel  # noqa: F401 — re-export
-from app.infrastructure.wechat.service import WechatService
-from app.infrastructure.wechat.token_manager import WechatTokenManager
-from app.middleware.tenant_context import set_tenant_context, clear_tenant_context
-from app.modules.settings.service import SettingsService
-from app.common.sync_account_helper import (
-    get_account_phone,
-    get_account_openid,
-    get_user_info_for_reminder,
-)
-from celery import group
-import httpx
-import asyncio
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +49,7 @@ class ReminderConfig:
 
 
 # 三级提醒配置
-REMINDER_CONFIGS: Dict[ReminderLevel, ReminderConfig] = {
+REMINDER_CONFIGS: dict[ReminderLevel, ReminderConfig] = {
     ReminderLevel.LEVEL_24H: ReminderConfig(
         level=ReminderLevel.LEVEL_24H,
         hours_before=24,
@@ -151,9 +146,9 @@ def _send_sms_reminder(
     patient_name: str,
     doctor_name: str,
     appointment_time: str,
-    user_id: Optional[str] = None,
-    store_id: Optional[str] = None,
-    appointment_id: Optional[str] = None,
+    user_id: str | None = None,
+    store_id: str | None = None,
+    appointment_id: str | None = None,
 ) -> bool:
     """发送短信提醒（同步版本）
 
@@ -204,8 +199,8 @@ def _create_in_app_message(
     title: str,
     content: str,
     message_type: str = MessageType.APPOINTMENT.value,
-    related_id: Optional[str] = None,
-    store_id: Optional[str] = None,
+    related_id: str | None = None,
+    store_id: str | None = None,
 ) -> bool:
     """创建站内信（同步版本）"""
     try:
@@ -231,16 +226,14 @@ def _create_in_app_message(
 def _send_websocket_notification(
     doctor_id: str,
     message_type: str,
-    data: Dict[str, Any],
+    data: dict[str, Any],
 ):
     """发送 WebSocket 通知（同步版本）"""
     try:
-        from app.core.websocket import WSMessage
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            from app.core.websocket import ws_manager
             # 同步任务中不需要实际发送 WebSocket，因为这是给患者看的
             # WebSocket 主要用于医生端
             pass
@@ -253,8 +246,8 @@ def _send_websocket_notification(
 def _should_use_unified(tenant_id: str) -> bool:
     """检查租户是否启用了统一消息中心"""
     try:
-        from app.db.session import async_session_maker
         from app.common.feature_flags import FeatureFlagService
+        from app.db.session import async_session_maker
 
         async def _check():
             async with async_session_maker() as session:
@@ -273,23 +266,23 @@ def _should_use_unified(tenant_id: str) -> bool:
 
 def _send_via_unified(
     tenant_id: str,
-    store_id: Optional[str],
+    store_id: str | None,
     recipient_id: str,
     recipient_type: str,
-    recipient_phone: Optional[str],
-    recipient_openid: Optional[str],
+    recipient_phone: str | None,
+    recipient_openid: str | None,
     template_code: str,
     message_type: str,
     title: str,
     content: str,
-    related_id: Optional[str] = None,
-    channels: Optional[list] = None,
+    related_id: str | None = None,
+    channels: list | None = None,
 ) -> bool:
     """通过 UnifiedMessageService 发送通知（同步桥接）"""
     try:
         from app.db.session import async_session_maker
-        from app.modules.unified_message.service import UnifiedMessageService
         from app.modules.unified_message.schemas import NotificationEvent
+        from app.modules.unified_message.service import UnifiedMessageService
 
         event = NotificationEvent(
             tenant_id=tenant_id,
@@ -327,7 +320,7 @@ def _query_appointments_needing_reminder(
     db: Session,
     tenant_id: str,
     reminder_config: ReminderConfig,
-) -> List[tuple]:
+) -> list[tuple]:
     """
     查询需要提醒的预约（优化版本：使用 joinedload 预加载）
 
@@ -410,9 +403,9 @@ def _send_reminder_for_level(
     tenant_id: str,
     tenant_name: str,
     reminder_config: ReminderConfig,
-    wechat_access_token: Optional[str] = None,
-    wechat_template_id: Optional[str] = None,
-) -> Dict[str, int]:
+    wechat_access_token: str | None = None,
+    wechat_template_id: str | None = None,
+) -> dict[str, int]:
     """
     为单个级别发送提醒
 

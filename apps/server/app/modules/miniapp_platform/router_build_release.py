@@ -1,15 +1,19 @@
 """小程序平台 - 构建发布路由 (BuildJob + ReleaseJob)"""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 
-from app.db.session import get_db
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.common.deps import get_current_admin, get_tenant_from_admin
-from app.schemas.miniapp_template import (
-    BuildJobCreate, BuildJobResponse, BuildJobListResponse,
-    ReleaseJobCreate, ReleaseJobResponse, ReleaseJobListResponse,
-)
+from app.db.session import get_db
 from app.modules.miniapp_platform.service_instance import BuildJobService, ReleaseJobService
+from app.schemas.miniapp_template import (
+    BuildJobCreate,
+    BuildJobListResponse,
+    BuildJobResponse,
+    ReleaseJobCreate,
+    ReleaseJobListResponse,
+    ReleaseJobResponse,
+)
 from app.schemas.response import PageResponse
 
 router = APIRouter()
@@ -19,13 +23,13 @@ router = APIRouter()
 
 @router.get("/build-jobs", response_model=PageResponse[BuildJobListResponse], summary="获取构建任务列表")
 async def get_build_jobs(
-    instance_id: Optional[str] = Query(None, description="小程序实例ID"),
-    status: Optional[str] = Query(None, description="任务状态"),
+    instance_id: str | None = Query(None, description="小程序实例ID"),
+    status: str | None = Query(None, description="任务状态"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
-    tenant: Optional[dict] = Depends(get_tenant_from_admin)
+    tenant: dict | None = Depends(get_tenant_from_admin)
 ):
     """获取构建任务列表
 
@@ -104,7 +108,7 @@ async def create_build_job(
     data: BuildJobCreate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
-    tenant: Optional[dict] = Depends(get_tenant_from_admin)
+    tenant: dict | None = Depends(get_tenant_from_admin)
 ):
     """创建构建任务
 
@@ -145,14 +149,14 @@ async def create_build_job(
 
 @router.get("/release-jobs", response_model=PageResponse[ReleaseJobListResponse], summary="获取发布任务列表")
 async def get_release_jobs(
-    instance_id: Optional[str] = Query(None, description="小程序实例ID"),
-    action: Optional[str] = Query(None, description="动作类型"),
-    status: Optional[str] = Query(None, description="任务状态"),
+    instance_id: str | None = Query(None, description="小程序实例ID"),
+    action: str | None = Query(None, description="动作类型"),
+    status: str | None = Query(None, description="任务状态"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
-    tenant: Optional[dict] = Depends(get_tenant_from_admin)
+    tenant: dict | None = Depends(get_tenant_from_admin)
 ):
     """获取发布任务列表
 
@@ -280,7 +284,7 @@ async def create_release_job(
     data: ReleaseJobCreate,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
-    tenant: Optional[dict] = Depends(get_tenant_from_admin)
+    tenant: dict | None = Depends(get_tenant_from_admin)
 ):
     """创建发布任务
 

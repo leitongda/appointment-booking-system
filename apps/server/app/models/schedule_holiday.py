@@ -1,9 +1,11 @@
 """节假日设置模型，用于排班冲突检测。"""
 
-from sqlalchemy import Column, String, Integer, Date, Boolean, ForeignKey
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import Boolean, Column, Date, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 
 class ScheduleHoliday(Base, AuditMixin):

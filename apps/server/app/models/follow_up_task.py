@@ -1,8 +1,10 @@
 """随访任务模型"""
 import uuid
-from sqlalchemy import Column, String, Integer, DateTime, Date, ForeignKey, Index
+
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
+
+from app.db.base import AuditMixin, Base
 
 
 class FollowUpTask(Base, AuditMixin):

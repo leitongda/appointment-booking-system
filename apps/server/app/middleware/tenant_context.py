@@ -15,18 +15,19 @@
 - 公开预约接口必须有租户上下文
 - 租户间数据完全隔离
 """
-from fastapi import Request, HTTPException
-from starlette.middleware.base import BaseHTTPMiddleware
-from typing import Callable, Optional, List
-from contextvars import ContextVar
 import logging
 import re
+from collections.abc import Callable
+from contextvars import ContextVar
+
+from fastapi import HTTPException, Request
+from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger("tenant")
 
 # 使用 ContextVar 存储当前请求的租户信息（支持异步任务）
-_current_tenant_id: ContextVar[Optional[str]] = ContextVar("current_tenant_id", default=None)
-_current_tenant_code: ContextVar[Optional[str]] = ContextVar("current_tenant_code", default=None)
+_current_tenant_id: ContextVar[str | None] = ContextVar("current_tenant_id", default=None)
+_current_tenant_code: ContextVar[str | None] = ContextVar("current_tenant_code", default=None)
 
 # 公开接口租户校验路径前缀
 PUBLIC_TENANT_REQUIRED_PATHS = [
@@ -43,17 +44,17 @@ PUBLIC_TENANT_REQUIRED_PATHS = [
 ]
 
 
-def get_current_tenant_id() -> Optional[str]:
+def get_current_tenant_id() -> str | None:
     """获取当前请求上下文中的租户ID"""
     return _current_tenant_id.get()
 
 
-def get_current_tenant_code() -> Optional[str]:
+def get_current_tenant_code() -> str | None:
     """获取当前请求上下文中的租户编码"""
     return _current_tenant_code.get()
 
 
-def set_tenant_context(tenant_id: Optional[str], tenant_code: Optional[str] = None) -> None:
+def set_tenant_context(tenant_id: str | None, tenant_code: str | None = None) -> None:
     """设置当前请求上下文中的租户信息（主要用于测试和异步任务）"""
     _current_tenant_id.set(tenant_id)
     _current_tenant_code.set(tenant_code)
@@ -163,7 +164,7 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
                 return True
         return False
 
-    async def _extract_tenant(self, request: Request) -> tuple[Optional[str], Optional[str]]:
+    async def _extract_tenant(self, request: Request) -> tuple[str | None, str | None]:
         """从请求中提取租户信息
 
         返回: (tenant_id, tenant_code)
@@ -196,7 +197,7 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
 
         return None, None
 
-    def _extract_from_subdomain(self, request: Request) -> Optional[str]:
+    def _extract_from_subdomain(self, request: Request) -> str | None:
         """从子域名提取租户编码
 
         例如: tenant1.example.com -> tenant1
@@ -219,7 +220,7 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
 
         return None
 
-    def _extract_from_path(self, request: Request) -> Optional[str]:
+    def _extract_from_path(self, request: Request) -> str | None:
         """从路径前缀提取租户编码
 
         例如: /t/tenant1/api/v1/... -> tenant1
@@ -234,7 +235,7 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
 class TenantContext:
     """租户上下文管理器（用于异步任务和后台脚本）"""
 
-    def __init__(self, tenant_id: Optional[str] = None, tenant_code: Optional[str] = None):
+    def __init__(self, tenant_id: str | None = None, tenant_code: str | None = None):
         self.tenant_id = tenant_id
         self.tenant_code = tenant_code
         self._previous_tenant_id = None

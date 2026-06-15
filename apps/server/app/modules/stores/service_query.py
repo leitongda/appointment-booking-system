@@ -1,8 +1,7 @@
 """Read helpers for stores."""
 
-from typing import List, Optional
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import func, select
 
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.admin import Admin, admin_stores
@@ -12,7 +11,7 @@ from app.schemas.store import StoreQuery
 
 
 class StoreQueryMixin:
-    async def get_by_id(self, store_id: str) -> Optional[Store]:
+    async def get_by_id(self, store_id: str) -> Store | None:
         stmt = select(Store).where(Store.id == store_id)
         tenant_id = get_current_tenant_id()
         if tenant_id:
@@ -20,7 +19,7 @@ class StoreQueryMixin:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_code(self, code: str) -> Optional[Store]:
+    async def get_by_code(self, code: str) -> Store | None:
         stmt = select(Store).where(Store.code == code)
         tenant_id = get_current_tenant_id()
         if tenant_id:
@@ -28,7 +27,7 @@ class StoreQueryMixin:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_name(self, name: str) -> Optional[Store]:
+    async def get_by_name(self, name: str) -> Store | None:
         stmt = select(Store).where(Store.name == name)
         tenant_id = get_current_tenant_id()
         if tenant_id:
@@ -36,7 +35,7 @@ class StoreQueryMixin:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def check_name_exists(self, name: str, exclude_id: Optional[str] = None) -> bool:
+    async def check_name_exists(self, name: str, exclude_id: str | None = None) -> bool:
         stmt = select(func.count(Store.id)).where(Store.name == name)
         tenant_id = get_current_tenant_id()
         if tenant_id:
@@ -46,7 +45,7 @@ class StoreQueryMixin:
         result = await self.db.execute(stmt)
         return (result.scalar() or 0) > 0
 
-    async def check_code_exists(self, code: str, exclude_id: Optional[str] = None) -> bool:
+    async def check_code_exists(self, code: str, exclude_id: str | None = None) -> bool:
         stmt = select(func.count(Store.id)).where(Store.code == code)
         tenant_id = get_current_tenant_id()
         if tenant_id:
@@ -56,7 +55,7 @@ class StoreQueryMixin:
         result = await self.db.execute(stmt)
         return (result.scalar() or 0) > 0
 
-    async def get_list(self, query: Optional[StoreQuery] = None) -> tuple[List[Store], int]:
+    async def get_list(self, query: StoreQuery | None = None) -> tuple[list[Store], int]:
         if query is None:
             query = StoreQuery()
 
@@ -85,7 +84,7 @@ class StoreQueryMixin:
         count_result = await self.db.execute(count_stmt)
         return list(result.scalars().all()), count_result.scalar() or 0
 
-    async def get_all_active(self) -> List[Store]:
+    async def get_all_active(self) -> list[Store]:
         stmt = select(Store).where(Store.status == 1)
         tenant_id = get_current_tenant_id()
         if tenant_id:
@@ -101,7 +100,7 @@ class StoreQueryMixin:
         result = await self.db.execute(stmt)
         return result.scalar() or 0
 
-    async def get_department_counts_batch(self, store_ids: List[str]) -> dict[str, int]:
+    async def get_department_counts_batch(self, store_ids: list[str]) -> dict[str, int]:
         """批量查询多个门店的科室数量，解决 N+1 问题。
 
         Returns:
@@ -122,7 +121,7 @@ class StoreQueryMixin:
         # 没有科室的门店不会出现在结果中，补充为 0
         return {sid: counts.get(sid, 0) for sid in store_ids}
 
-    async def get_departments(self, store_id: str) -> List[Department]:
+    async def get_departments(self, store_id: str) -> list[Department]:
         stmt = select(Department).where(Department.store_id == store_id)
         tenant_id = get_current_tenant_id()
         if tenant_id:
@@ -132,7 +131,7 @@ class StoreQueryMixin:
         )
         return list(result.scalars().all())
 
-    async def get_admins(self, store_id: str) -> List[Admin]:
+    async def get_admins(self, store_id: str) -> list[Admin]:
         stmt = (
             select(Admin)
             .join(admin_stores, Admin.id == admin_stores.c.admin_id)
@@ -144,7 +143,7 @@ class StoreQueryMixin:
         result = await self.db.execute(stmt.order_by(Admin.created_at.desc()))
         return list(result.scalars().all())
 
-    async def get_wechat_config(self, store_id: str) -> Optional[dict]:
+    async def get_wechat_config(self, store_id: str) -> dict | None:
         store = await self.get_by_id(store_id)
         if not store:
             return None

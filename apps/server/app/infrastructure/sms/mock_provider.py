@@ -1,5 +1,6 @@
 """Mock 短信服务提供商（开发环境使用，打印到控制台）"""
 import logging
+
 from .provider_base import SmsProvider
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ class MockSmsProvider(SmsProvider):
         """
         logger.info(f"[SMS Mock] 向 {phone} 发送{code_type}验证码: {code}")
         print(f"\n{'='*50}")
-        print(f"📱 短信验证码")
+        print("📱 短信验证码")
         print(f"手机号: {phone}")
         print(f"验证码: {code}")
         print(f"类型: {code_type}")
@@ -46,7 +47,7 @@ class MockSmsProvider(SmsProvider):
         """
         logger.info(f"[SMS Mock] 向 {phone} 发送通知: {content}")
         print(f"\n{'='*50}")
-        print(f"📱 短信通知")
+        print("📱 短信通知")
         print(f"手机号: {phone}")
         print(f"内容: {content}")
         print(f"{'='*50}\n")

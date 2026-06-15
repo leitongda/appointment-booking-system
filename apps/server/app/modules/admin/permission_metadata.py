@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Literal, Optional, Sequence
-
+from collections.abc import Sequence
+from typing import Literal
 
 PermissionControlType = Literal["page", "tab", "action", "api"]
 
@@ -92,7 +92,7 @@ def infer_permission_control_type_for_seed(
     )
 
 
-def normalize_control_type(value: Optional[str]) -> Optional[PermissionControlType]:
+def normalize_control_type(value: str | None) -> PermissionControlType | None:
     if value in {"page", "tab", "action", "api"}:
         return value
     return None

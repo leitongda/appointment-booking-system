@@ -6,12 +6,9 @@
 
 import json
 import logging
-from typing import Any, Optional
+from typing import Any
 
 import redis.asyncio as aioredis
-from fastapi import Header
-
-from app.core.redis import get_redis
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +20,7 @@ async def check_idempotency(
     redis: aioredis.Redis,
     key: str,
     tenant_id: str,
-) -> Optional[dict]:
+) -> dict | None:
     """检查幂等性键是否已存在。
 
     Args:

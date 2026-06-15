@@ -4,26 +4,25 @@
 """
 from datetime import date
 from io import BytesIO
-from typing import Optional
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
 from app.common.deps import require_platform_admin
-from app.schemas.response import ResponseModel
+from app.db.session import get_db
 from app.infrastructure.excel.export_service import ExcelExportService
 from app.modules.platform_metrics.service import PlatformMetricsService
+from app.schemas.response import ResponseModel
 
 router = APIRouter()
 
 
 @router.get("/overview", response_model=ResponseModel, summary="全平台经营总览")
 async def get_overview(
-    start_date: Optional[date] = Query(None, alias="startDate"),
-    end_date: Optional[date] = Query(None, alias="endDate"),
+    start_date: date | None = Query(None, alias="startDate"),
+    end_date: date | None = Query(None, alias="endDate"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(require_platform_admin()),
 ):
@@ -35,8 +34,8 @@ async def get_overview(
 
 @router.get("/tenants/compare", response_model=ResponseModel, summary="租户经营对比")
 async def get_tenants_compare(
-    start_date: Optional[date] = Query(None, alias="startDate"),
-    end_date: Optional[date] = Query(None, alias="endDate"),
+    start_date: date | None = Query(None, alias="startDate"),
+    end_date: date | None = Query(None, alias="endDate"),
     sort_by: str = Query("revenue", description="排序字段: revenue/appointment/visit/new_patient"),
     limit: int = Query(50, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
@@ -52,9 +51,9 @@ async def get_tenants_compare(
 
 @router.get("/stores/compare", response_model=ResponseModel, summary="门店经营对比")
 async def get_stores_compare(
-    start_date: Optional[date] = Query(None, alias="startDate"),
-    end_date: Optional[date] = Query(None, alias="endDate"),
-    tenant_id: Optional[str] = Query(None, alias="tenantId", description="按租户过滤"),
+    start_date: date | None = Query(None, alias="startDate"),
+    end_date: date | None = Query(None, alias="endDate"),
+    tenant_id: str | None = Query(None, alias="tenantId", description="按租户过滤"),
     sort_by: str = Query("revenue", description="排序字段: revenue/appointment/visit/new_patient"),
     limit: int = Query(100, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
@@ -70,8 +69,8 @@ async def get_stores_compare(
 
 @router.get("/trend", response_model=ResponseModel, summary="平台整体趋势")
 async def get_trend(
-    start_date: Optional[date] = Query(None, alias="startDate"),
-    end_date: Optional[date] = Query(None, alias="endDate"),
+    start_date: date | None = Query(None, alias="startDate"),
+    end_date: date | None = Query(None, alias="endDate"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(require_platform_admin()),
 ):
@@ -83,9 +82,9 @@ async def get_trend(
 
 @router.get("/stores/export", summary="导出门店经营对比明细")
 async def export_stores_compare(
-    start_date: Optional[date] = Query(None, alias="startDate"),
-    end_date: Optional[date] = Query(None, alias="endDate"),
-    tenant_id: Optional[str] = Query(None, alias="tenantId"),
+    start_date: date | None = Query(None, alias="startDate"),
+    end_date: date | None = Query(None, alias="endDate"),
+    tenant_id: str | None = Query(None, alias="tenantId"),
     sort_by: str = Query("revenue"),
     limit: int = Query(1000, ge=1, le=5000),
     db: AsyncSession = Depends(get_db),

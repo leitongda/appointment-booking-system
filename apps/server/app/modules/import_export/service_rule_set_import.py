@@ -3,15 +3,19 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from typing import Dict, List, Any, Optional
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from openpyxl import load_workbook
 from io import BytesIO
+from typing import Any
+
+from openpyxl import load_workbook
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.rule_set import (
-    RuleSet, RuleWindow, RuleBookingPolicy, RuleCheckinPolicy,
-    RuleCapacityPolicy, ShiftType, RuleSetShiftType
+    RuleBookingPolicy,
+    RuleCapacityPolicy,
+    RuleCheckinPolicy,
+    RuleSet,
+    RuleWindow,
 )
 
 
@@ -21,7 +25,7 @@ class RuleSetImportService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def import_rule_sets(self, file_content: bytes, tenant_id: Optional[str] = None) -> Dict[str, Any]:
+    async def import_rule_sets(self, file_content: bytes, tenant_id: str | None = None) -> dict[str, Any]:
         """
         导入规则组数据
 
@@ -104,7 +108,7 @@ class RuleSetImportService:
             "errors": errors[:50]
         }
 
-    def _parse_sheet(self, wb, sheet_name: str, expected_headers: List[str]) -> List[Dict[str, Any]]:
+    def _parse_sheet(self, wb, sheet_name: str, expected_headers: list[str]) -> list[dict[str, Any]]:
         """解析单个工作表"""
         if sheet_name not in wb.sheetnames:
             return []
@@ -155,27 +159,27 @@ class RuleSetImportService:
 
         return rows
 
-    def _get_rule_set_headers(self) -> List[str]:
+    def _get_rule_set_headers(self) -> list[str]:
         return ["规则组名称", "优先级", "是否启用", "时间来源", "时区来源", "比较精度",
                 "开放边界包含", "截止边界包含", "取整模式", "时钟偏差容忍度(秒)", "描述"]
 
-    def _get_window_headers(self) -> List[str]:
+    def _get_window_headers(self) -> list[str]:
         return ["规则组名称", "动作类型", "参考点", "开放偏移(秒)", "截止偏移(秒)",
                 "开放边界包含", "截止边界包含", "失败策略", "失败标签", "是否启用", "描述"]
 
-    def _get_booking_headers(self) -> List[str]:
+    def _get_booking_headers(self) -> list[str]:
         return ["规则组名称", "要求登录", "要求档案完整", "每用户每班次", "每用户每天", "每用户每周",
                 "同班次冲突策略", "时间重叠策略", "同类型同日策略"]
 
-    def _get_checkin_headers(self) -> List[str]:
+    def _get_checkin_headers(self) -> list[str]:
         return ["规则组名称", "必须预约", "允许现场补约", "允许签到次数", "记录审计日志",
                 "宽限期(秒)", "宽限后状态", "截止后未签到处理"]
 
-    def _get_capacity_headers(self) -> List[str]:
+    def _get_capacity_headers(self) -> list[str]:
         return ["规则组名称", "总容量", "每用户容量", "启用候补", "候补队列最大长度",
                 "候补递补策略", "允许超额", "超额最大数量"]
 
-    def _validate_rule_sets(self, rule_sets_data: List[Dict]) -> List[Dict]:
+    def _validate_rule_sets(self, rule_sets_data: list[dict]) -> list[dict]:
         """验证规则组基础数据"""
         errors = []
         seen_names = set()
@@ -205,7 +209,7 @@ class RuleSetImportService:
         return errors
 
     def _validate_references(self, rule_sets_data, windows_data, booking_data,
-                            checkin_data, capacity_data) -> List[Dict]:
+                            checkin_data, capacity_data) -> list[dict]:
         """验证数据关联关系"""
         errors = []
         rule_set_names = {rs["规则组名称"] for rs in rule_sets_data if rs.get("规则组名称")}
@@ -252,9 +256,9 @@ class RuleSetImportService:
 
         return errors
 
-    async def _import_rule_set(self, rs_data: Dict, windows_data: List,
-                               booking_data: List, checkin_data: List,
-                               capacity_data: List, tenant_id: str):
+    async def _import_rule_set(self, rs_data: dict, windows_data: list,
+                               booking_data: list, checkin_data: list,
+                               capacity_data: list, tenant_id: str):
         """导入单个规则组及其关联数据"""
 
         # 检查是否已存在（同一租户内名称不能重复）

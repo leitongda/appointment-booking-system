@@ -2,10 +2,9 @@
 import json
 import uuid
 from datetime import datetime
-from typing import Optional, List, Tuple
 
+from sqlalchemy import and_, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, desc
 
 from app.models.platform_announcement import PlatformAnnouncement
 from app.models.tenant import Tenant, TenantNotification
@@ -16,7 +15,7 @@ class PlatformAnnouncementService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, announcement_id: str) -> Optional[PlatformAnnouncement]:
+    async def get_by_id(self, announcement_id: str) -> PlatformAnnouncement | None:
         result = await self.db.execute(
             select(PlatformAnnouncement).where(PlatformAnnouncement.id == announcement_id)
         )
@@ -24,11 +23,11 @@ class PlatformAnnouncementService:
 
     async def get_list(
         self,
-        status: Optional[str] = None,
-        keyword: Optional[str] = None,
+        status: str | None = None,
+        keyword: str | None = None,
         page: int = 1,
         page_size: int = 20,
-    ) -> Tuple[List[PlatformAnnouncement], int]:
+    ) -> tuple[list[PlatformAnnouncement], int]:
         query = select(PlatformAnnouncement)
         count_query = select(func.count(PlatformAnnouncement.id))
 
@@ -57,8 +56,8 @@ class PlatformAnnouncementService:
     async def create(
         self,
         data: PlatformAnnouncementCreate,
-        publisher_id: Optional[str] = None,
-        publisher_name: Optional[str] = None,
+        publisher_id: str | None = None,
+        publisher_name: str | None = None,
     ) -> PlatformAnnouncement:
         announcement = PlatformAnnouncement(
             id=str(uuid.uuid4()),
@@ -81,7 +80,7 @@ class PlatformAnnouncementService:
         self,
         announcement_id: str,
         data: PlatformAnnouncementUpdate,
-    ) -> Optional[PlatformAnnouncement]:
+    ) -> PlatformAnnouncement | None:
         announcement = await self.get_by_id(announcement_id)
         if not announcement:
             return None
@@ -101,7 +100,7 @@ class PlatformAnnouncementService:
         await self.db.refresh(announcement)
         return announcement
 
-    async def publish(self, announcement_id: str) -> Optional[PlatformAnnouncement]:
+    async def publish(self, announcement_id: str) -> PlatformAnnouncement | None:
         """发布公告：将公告状态改为 published，并为目标租户生成通知"""
         announcement = await self.get_by_id(announcement_id)
         if not announcement:
@@ -143,7 +142,7 @@ class PlatformAnnouncementService:
         await self.db.refresh(announcement)
         return announcement
 
-    async def revoke(self, announcement_id: str) -> Optional[PlatformAnnouncement]:
+    async def revoke(self, announcement_id: str) -> PlatformAnnouncement | None:
         """撤回公告"""
         announcement = await self.get_by_id(announcement_id)
         if not announcement:

@@ -3,18 +3,20 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_, update
-from sqlalchemy.orm import selectinload
-from typing import Optional, Tuple, List
-from datetime import datetime
 
+from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.miniapp_platform import Company, PaymentProfile
 from app.modules.miniapp_platform.schemas import (
-    CompanyCreate, CompanyUpdate,
-    PaymentProfileCreate, PaymentProfileUpdate, PaymentProfileQuery,
+    CompanyCreate,
+    CompanyUpdate,
+    PaymentProfileCreate,
+    PaymentProfileQuery,
+    PaymentProfileUpdate,
 )
-from app.middleware.tenant_context import get_current_tenant_id
 
 
 class CompanyService:
@@ -23,14 +25,14 @@ class CompanyService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, company_id: str) -> Optional[Company]:
+    async def get_by_id(self, company_id: str) -> Company | None:
         """获取公司详情"""
         result = await self.db.execute(
             select(Company).where(Company.id == company_id)
         )
         return result.scalar_one_or_none()
 
-    async def get_by_code(self, code: str, tenant_id: str) -> Optional[Company]:
+    async def get_by_code(self, code: str, tenant_id: str) -> Company | None:
         """按编码获取公司"""
         result = await self.db.execute(
             select(Company).where(
@@ -44,12 +46,12 @@ class CompanyService:
 
     async def get_list(
         self,
-        tenant_id: Optional[str] = None,
-        keyword: Optional[str] = None,
-        status: Optional[int] = None,
+        tenant_id: str | None = None,
+        keyword: str | None = None,
+        status: int | None = None,
         page: int = 1,
         page_size: int = 10
-    ) -> Tuple[List[Company], int]:
+    ) -> tuple[list[Company], int]:
         """获取公司列表"""
         # 构建查询
         base_query = select(Company)
@@ -103,7 +105,7 @@ class CompanyService:
         self,
         code: str,
         tenant_id: str,
-        exclude_id: Optional[str] = None
+        exclude_id: str | None = None
     ) -> bool:
         """检查编码是否已存在"""
         query = select(func.count(Company.id)).where(
@@ -121,7 +123,7 @@ class CompanyService:
         self,
         data: CompanyCreate,
         tenant_id: str,
-        operator_id: Optional[str] = None
+        operator_id: str | None = None
     ) -> Company:
         """创建公司"""
         # 检查编码唯一性
@@ -151,8 +153,8 @@ class CompanyService:
         self,
         company_id: str,
         data: CompanyUpdate,
-        operator_id: Optional[str] = None
-    ) -> Optional[Company]:
+        operator_id: str | None = None
+    ) -> Company | None:
         """更新公司"""
         company = await self.get_by_id(company_id)
         if not company:
@@ -200,7 +202,7 @@ class PaymentProfileService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, profile_id: str) -> Optional[PaymentProfile]:
+    async def get_by_id(self, profile_id: str) -> PaymentProfile | None:
         """获取支付配置详情"""
         result = await self.db.execute(
             select(PaymentProfile)
@@ -209,7 +211,7 @@ class PaymentProfileService:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_code(self, code: str, tenant_id: str) -> Optional[PaymentProfile]:
+    async def get_by_code(self, code: str, tenant_id: str) -> PaymentProfile | None:
         """按编码获取支付配置"""
         result = await self.db.execute(
             select(PaymentProfile).where(
@@ -223,9 +225,9 @@ class PaymentProfileService:
 
     async def get_list(
         self,
-        tenant_id: Optional[str] = None,
-        query: Optional[PaymentProfileQuery] = None
-    ) -> Tuple[List[PaymentProfile], int]:
+        tenant_id: str | None = None,
+        query: PaymentProfileQuery | None = None
+    ) -> tuple[list[PaymentProfile], int]:
         """获取支付配置列表"""
         if query is None:
             query = PaymentProfileQuery()
@@ -288,7 +290,7 @@ class PaymentProfileService:
         self,
         code: str,
         tenant_id: str,
-        exclude_id: Optional[str] = None
+        exclude_id: str | None = None
     ) -> bool:
         """检查编码是否已存在"""
         query = select(func.count(PaymentProfile.id)).where(
@@ -306,7 +308,7 @@ class PaymentProfileService:
         self,
         data: PaymentProfileCreate,
         tenant_id: str,
-        operator_id: Optional[str] = None
+        operator_id: str | None = None
     ) -> PaymentProfile:
         """创建支付配置"""
         # 检查编码唯一性
@@ -356,8 +358,8 @@ class PaymentProfileService:
         self,
         profile_id: str,
         data: PaymentProfileUpdate,
-        operator_id: Optional[str] = None
-    ) -> Optional[PaymentProfile]:
+        operator_id: str | None = None
+    ) -> PaymentProfile | None:
         """更新支付配置"""
         profile = await self.get_by_id(profile_id)
         if not profile:
@@ -411,7 +413,7 @@ class PaymentProfileService:
 
         return True
 
-    async def set_default(self, profile_id: str, tenant_id: str) -> Optional[PaymentProfile]:
+    async def set_default(self, profile_id: str, tenant_id: str) -> PaymentProfile | None:
         """设置为默认支付配置"""
         profile = await self.get_by_id(profile_id)
         if not profile:
@@ -434,7 +436,7 @@ class PaymentProfileService:
     async def _clear_other_defaults(
         self,
         tenant_id: str,
-        exclude_id: Optional[str] = None
+        exclude_id: str | None = None
     ) -> None:
         """取消其他默认配置"""
         query = update(PaymentProfile).where(

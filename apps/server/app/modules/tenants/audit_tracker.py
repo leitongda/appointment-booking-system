@@ -14,14 +14,11 @@
 import json
 import uuid
 from datetime import datetime
-from typing import Optional
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import inspect as sa_inspect
-from sqlalchemy.orm import class_mapper
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.tenant_audit_log import TenantAuditLog
-
 
 TRACKED_MODELS = {
     "tenant": [
@@ -78,9 +75,9 @@ class AuditTracker:
         tenant_id: str,
         resource_type: str,
         resource_id: str,
-        actor_id: Optional[str] = None,
+        actor_id: str | None = None,
         actor_type: str = "system",
-        actor_name: Optional[str] = None,
+        actor_name: str | None = None,
     ) -> TenantAuditLog:
         fields = self._get_fields(resource_type)
         after_data = self._snapshot(instance, fields) if fields else {"id": resource_id}
@@ -109,10 +106,10 @@ class AuditTracker:
         tenant_id: str,
         resource_type: str,
         resource_id: str,
-        actor_id: Optional[str] = None,
+        actor_id: str | None = None,
         actor_type: str = "admin",
-        actor_name: Optional[str] = None,
-    ) -> Optional[TenantAuditLog]:
+        actor_name: str | None = None,
+    ) -> TenantAuditLog | None:
         fields = self._get_fields(resource_type)
         changes = {}
 
@@ -160,9 +157,9 @@ class AuditTracker:
         tenant_id: str,
         resource_type: str,
         resource_id: str,
-        actor_id: Optional[str] = None,
+        actor_id: str | None = None,
         actor_type: str = "admin",
-        actor_name: Optional[str] = None,
+        actor_name: str | None = None,
     ) -> TenantAuditLog:
         fields = self._get_fields(resource_type)
         before_data = self._snapshot(instance, fields) if fields else {"id": resource_id}
@@ -192,9 +189,9 @@ class AuditTracker:
         resource_id: str,
         old_status,
         new_status,
-        actor_id: Optional[str] = None,
+        actor_id: str | None = None,
         actor_type: str = "admin",
-        actor_name: Optional[str] = None,
+        actor_name: str | None = None,
     ) -> TenantAuditLog:
         log = TenantAuditLog(
             id=str(uuid.uuid4()),
@@ -217,13 +214,13 @@ class AuditTracker:
     async def track_subscription_change(
         self,
         tenant_id: str,
-        old_plan_id: Optional[str],
+        old_plan_id: str | None,
         new_plan_id: str,
-        old_end_at: Optional[str],
+        old_end_at: str | None,
         new_end_at: str,
-        actor_id: Optional[str] = None,
+        actor_id: str | None = None,
         actor_type: str = "admin",
-        actor_name: Optional[str] = None,
+        actor_name: str | None = None,
     ) -> TenantAuditLog:
         log = TenantAuditLog(
             id=str(uuid.uuid4()),

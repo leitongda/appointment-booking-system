@@ -1,7 +1,7 @@
 """低代码页面 Pydantic schemas。"""
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import Field, field_validator
 
@@ -142,10 +142,10 @@ class LowCodePageBase(BaseSchema):
 
     name: str = Field(..., min_length=1, max_length=100, description="页面名称")
     slug: str = Field(..., min_length=1, max_length=100, description="页面标识")
-    description: Optional[str] = Field(None, max_length=500, description="页面描述")
+    description: str | None = Field(None, max_length=500, description="页面描述")
     schema_data: dict[str, Any] = Field(default_factory=dict, description="页面Schema JSON")
-    thumbnail_url: Optional[str] = Field(None, description="缩略图URL")
-    miniapp_instance_id: Optional[str] = Field(None, description="关联小程序实例ID")
+    thumbnail_url: str | None = Field(None, description="缩略图URL")
+    miniapp_instance_id: str | None = Field(None, description="关联小程序实例ID")
 
     @field_validator("schema_data")
     @classmethod
@@ -170,17 +170,17 @@ class LowCodePageCreate(LowCodePageBase):
 class LowCodePageUpdate(BaseSchema):
     """更新低代码页面请求。"""
 
-    name: Optional[str] = Field(None, min_length=1, max_length=100, description="页面名称")
-    slug: Optional[str] = Field(None, min_length=1, max_length=100, description="页面标识")
-    description: Optional[str] = Field(None, max_length=500, description="页面描述")
-    schema_data: Optional[dict[str, Any]] = Field(None, description="页面Schema JSON")
-    status: Optional[int] = Field(None, ge=0, le=2, description="状态: 0草稿 1已发布 2已归档")
-    thumbnail_url: Optional[str] = Field(None, description="缩略图URL")
-    miniapp_instance_id: Optional[str] = Field(None, description="关联小程序实例ID")
+    name: str | None = Field(None, min_length=1, max_length=100, description="页面名称")
+    slug: str | None = Field(None, min_length=1, max_length=100, description="页面标识")
+    description: str | None = Field(None, max_length=500, description="页面描述")
+    schema_data: dict[str, Any] | None = Field(None, description="页面Schema JSON")
+    status: int | None = Field(None, ge=0, le=2, description="状态: 0草稿 1已发布 2已归档")
+    thumbnail_url: str | None = Field(None, description="缩略图URL")
+    miniapp_instance_id: str | None = Field(None, description="关联小程序实例ID")
 
     @field_validator("schema_data")
     @classmethod
-    def validate_schema_data(cls, v: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+    def validate_schema_data(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
         if not v:
             return v
         depth = _get_schema_depth(v)
@@ -199,5 +199,5 @@ class LowCodePageResponse(LowCodePageBase):
     id: str = Field(..., description="页面ID")
     tenant_id: str = Field(..., description="租户ID")
     status: int = Field(0, description="状态: 0草稿 1已发布 2已归档")
-    created_at: Optional[datetime] = Field(None, description="创建时间")
-    updated_at: Optional[datetime] = Field(None, description="更新时间")
+    created_at: datetime | None = Field(None, description="创建时间")
+    updated_at: datetime | None = Field(None, description="更新时间")

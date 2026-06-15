@@ -1,28 +1,33 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, List
 from datetime import date
 
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import get_current_admin, get_store_filter, require_permission
+from app.core.config import settings
 from app.db.session import get_db
-from app.api.deps import get_current_admin, get_store_filter, require_permission, get_current_doctor_by_token
+from app.modules.leave_requests.service import LeaveRequestService
 from app.schemas.leave_request import (
-    StopClinicCreate, ScheduleChangeCreate, ReviewRequest,
-    LeaveRequestResponse, LeaveRequestQuery, RequestType, RequestStatus
+    LeaveRequestQuery,
+    LeaveRequestResponse,
+    RequestStatus,
+    RequestType,
+    ReviewRequest,
+    ScheduleChangeCreate,
+    StopClinicCreate,
 )
 from app.schemas.response import PageResponse
-from app.modules.leave_requests.service import LeaveRequestService
-from app.core.config import settings
 
 router = APIRouter()
 
 
 @router.get("", response_model=PageResponse[LeaveRequestResponse], summary="获取申请列表")
 async def get_leave_requests(
-    doctor_id: Optional[str] = None,
-    request_type: Optional[RequestType] = None,
-    status: Optional[RequestStatus] = None,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
+    doctor_id: str | None = None,
+    request_type: RequestType | None = None,
+    status: RequestStatus | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -68,10 +73,10 @@ async def get_pending_count(
     return {"count": count}
 
 
-@router.get("/my", response_model=List[LeaveRequestResponse], summary="获取我的申请")
+@router.get("/my", response_model=list[LeaveRequestResponse], summary="获取我的申请")
 async def get_my_requests(
     doctor_id: str = Query(..., description="医生ID"),
-    status: Optional[str] = None,
+    status: str | None = None,
     db: AsyncSession = Depends(get_db)
 ):
     """获取我的申请列表（医生端）"""

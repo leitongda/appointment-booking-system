@@ -1,8 +1,11 @@
 from app.schemas.response import to_camel
+
 """用户收藏 Schema"""
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, Any
 from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
+
 
 class UserFavoriteCreate(BaseModel):
     """创建收藏请求"""
@@ -27,7 +30,7 @@ class UserFavoriteResponse(BaseModel):
     user_id: str
     target_type: str
     target_id: str
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
 class UserFavoriteWithTarget(BaseModel):
     """收藏响应（包含目标详情）"""
@@ -41,9 +44,9 @@ class UserFavoriteWithTarget(BaseModel):
     user_id: str
     target_type: str
     target_id: str
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
     # 目标详情（医生或科室信息）
-    target: Optional[Any] = None
+    target: Any | None = None
 
 class FavoriteCheckRequest(BaseModel):
     """检查收藏状态请求"""
@@ -64,5 +67,5 @@ class FavoriteCheckResponse(BaseModel):
     )
     
     is_favorited: bool
-    favorite_id: Optional[str] = None
+    favorite_id: str | None = None
 

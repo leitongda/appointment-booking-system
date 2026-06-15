@@ -1,13 +1,12 @@
 """统一响应格式中间件"""
 import gzip
 import json
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
-
 
 # 不需要包装响应的路径（OpenAPI 文档相关）
 EXCLUDED_PATHS = {

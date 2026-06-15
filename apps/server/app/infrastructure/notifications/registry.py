@@ -1,9 +1,7 @@
 """通知渠道注册表"""
 import logging
-from typing import Dict, Type
 
 from app.infrastructure.notifications.channels.base import BaseNotificationChannel
-
 
 logger = logging.getLogger(__name__)
 
@@ -15,9 +13,9 @@ class ChannelRegistry:
     """
 
     def __init__(self):
-        self._channels: Dict[str, Type[BaseNotificationChannel]] = {}
+        self._channels: dict[str, type[BaseNotificationChannel]] = {}
 
-    def register(self, channel_class: Type[BaseNotificationChannel]) -> None:
+    def register(self, channel_class: type[BaseNotificationChannel]) -> None:
         """注册渠道类"""
         # 实例化一个临时对象获取 channel_name
         # 传入 None 作为 db，因为 channel_name 是 @property 不需要 db
@@ -31,7 +29,7 @@ class ChannelRegistry:
         self._channels[channel_name] = channel_class
         logger.info(f"[渠道注册表] 注册渠道: {channel_name}")
 
-    def get(self, channel_name: str) -> Type[BaseNotificationChannel] | None:
+    def get(self, channel_name: str) -> type[BaseNotificationChannel] | None:
         """获取渠道类"""
         return self._channels.get(channel_name)
 
@@ -50,11 +48,11 @@ channel_registry = ChannelRegistry()
 
 def register_channels():
     """注册所有内置渠道"""
-    from app.infrastructure.notifications.channels.in_app import InAppChannel
-    from app.infrastructure.notifications.channels.wechat import WechatChannel
-    from app.infrastructure.notifications.channels.sms import SmsChannel
     from app.infrastructure.notifications.channels.email import EmailChannel
+    from app.infrastructure.notifications.channels.in_app import InAppChannel
+    from app.infrastructure.notifications.channels.sms import SmsChannel
     from app.infrastructure.notifications.channels.websocket import WebSocketChannel
+    from app.infrastructure.notifications.channels.wechat import WechatChannel
 
     channel_registry.register(InAppChannel)
     channel_registry.register(WechatChannel)

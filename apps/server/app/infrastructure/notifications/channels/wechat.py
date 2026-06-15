@@ -1,16 +1,14 @@
 """微信订阅消息渠道适配器"""
 import logging
-
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.schemas.notification import NotificationEvent, NotificationContent
-from app.models.notification_log import NotificationLog
-from app.models.user import User
-from app.infrastructure.notifications.channels.base import BaseNotificationChannel
-from app.infrastructure.wechat.service import WechatService
 from datetime import datetime
 
+from sqlalchemy import select
+
+from app.infrastructure.notifications.channels.base import BaseNotificationChannel
+from app.infrastructure.wechat.service import WechatService
+from app.models.notification_log import NotificationLog
+from app.models.user import User
+from app.schemas.notification import NotificationContent, NotificationEvent
 
 logger = logging.getLogger(__name__)
 
@@ -136,8 +134,9 @@ class WechatChannel(BaseNotificationChannel):
         从 unified_templates 表读取微信模板配置。
         优先查找租户模板，其次查找全局模板。
         """
-        from app.modules.unified_message.models import UnifiedTemplate
         from sqlalchemy import and_
+
+        from app.modules.unified_message.models import UnifiedTemplate
 
         # 先查租户模板
         stmt = select(UnifiedTemplate.wechat_template_id).where(
@@ -170,8 +169,9 @@ class WechatChannel(BaseNotificationChannel):
 
         从 unified_templates 表读取 wechat_template_mapping 配置。
         """
-        from app.modules.unified_message.models import UnifiedTemplate
         from sqlalchemy import and_
+
+        from app.modules.unified_message.models import UnifiedTemplate
 
         # 先查租户模板
         stmt = select(UnifiedTemplate.wechat_template_mapping).where(

@@ -1,8 +1,10 @@
-from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey, UniqueConstraint, JSON
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
-from datetime import datetime
 import uuid
+from datetime import datetime
+
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 
 class AppointmentSatisfaction(Base, AuditMixin):

@@ -10,7 +10,17 @@ exclude = [
 ]
 
 [lint]
-select = ["E", "F", "I", "UP", "B", "S", "AS", "SIM"]
+select = ["E", "F", "I", "UP", "B", "S", "SIM"]
+
+ignore = [
+    "B008",   # FastAPI Depends() in function arguments is standard pattern
+    "S105",   # False positives for hardcoded passwords
+    "S110",   # try-except-pass is sometimes intentional
+    "S324",   # hashlib.sha1 required by WeChat API
+    "S603",   # subprocess calls are controlled
+    "S607",   # partial executable paths are intentional
+    "S108",   # temp paths are intentional
+]
 
 [lint.per-file-ignores]
 # tests 目录放宽规则

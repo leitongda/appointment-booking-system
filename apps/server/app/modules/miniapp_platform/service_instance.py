@@ -3,20 +3,26 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from sqlalchemy.orm import selectinload
-from typing import Optional, Tuple, List, Dict, Any
-from datetime import datetime
 import json
+from datetime import datetime
+from typing import Any
 
-from app.models.miniapp_platform import (
-    MiniappInstance, PaymentProfile,
-    AppTemplate, TemplateVersion, BuildJob, ReleaseArtifact, ReleaseJob
-)
-from app.modules.miniapp_platform.schemas import MiniappInstanceCreate, MiniappInstanceUpdate, MiniappInstanceQuery
-from app.schemas.miniapp_template import BuildJobCreate, ReleaseJobCreate
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
 from app.middleware.tenant_context import get_current_tenant_id
+from app.models.miniapp_platform import (
+    AppTemplate,
+    BuildJob,
+    MiniappInstance,
+    PaymentProfile,
+    ReleaseArtifact,
+    ReleaseJob,
+    TemplateVersion,
+)
+from app.modules.miniapp_platform.schemas import MiniappInstanceCreate, MiniappInstanceQuery, MiniappInstanceUpdate
+from app.schemas.miniapp_template import BuildJobCreate, ReleaseJobCreate
 
 
 class MiniappInstanceService:
@@ -25,7 +31,7 @@ class MiniappInstanceService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, instance_id: str) -> Optional[MiniappInstance]:
+    async def get_by_id(self, instance_id: str) -> MiniappInstance | None:
         """获取实例详情"""
         result = await self.db.execute(
             select(MiniappInstance)
@@ -39,7 +45,7 @@ class MiniappInstanceService:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_code(self, code: str, tenant_id: str) -> Optional[MiniappInstance]:
+    async def get_by_code(self, code: str, tenant_id: str) -> MiniappInstance | None:
         """按编码获取实例"""
         result = await self.db.execute(
             select(MiniappInstance).where(
@@ -53,9 +59,9 @@ class MiniappInstanceService:
 
     async def get_list(
         self,
-        tenant_id: Optional[str] = None,
-        query: Optional[MiniappInstanceQuery] = None
-    ) -> Tuple[List[MiniappInstance], int]:
+        tenant_id: str | None = None,
+        query: MiniappInstanceQuery | None = None
+    ) -> tuple[list[MiniappInstance], int]:
         """获取实例列表"""
         from sqlalchemy import or_
 
@@ -109,7 +115,7 @@ class MiniappInstanceService:
         self,
         code: str,
         tenant_id: str,
-        exclude_id: Optional[str] = None
+        exclude_id: str | None = None
     ) -> bool:
         """检查编码是否已存在"""
         query = select(func.count(MiniappInstance.id)).where(
@@ -127,7 +133,7 @@ class MiniappInstanceService:
         self,
         app_id: str,
         tenant_id: str,
-        exclude_id: Optional[str] = None
+        exclude_id: str | None = None
     ) -> bool:
         """检查 AppID 是否已存在"""
         query = select(func.count(MiniappInstance.id)).where(
@@ -145,7 +151,7 @@ class MiniappInstanceService:
         self,
         data: MiniappInstanceCreate,
         tenant_id: str,
-        operator_id: Optional[str] = None
+        operator_id: str | None = None
     ) -> MiniappInstance:
         """创建小程序实例"""
         from app.models.miniapp_platform import AppTemplate, TemplateVersion
@@ -210,8 +216,8 @@ class MiniappInstanceService:
         self,
         instance_id: str,
         data: MiniappInstanceUpdate,
-        operator_id: Optional[str] = None
-    ) -> Optional[MiniappInstance]:
+        operator_id: str | None = None
+    ) -> MiniappInstance | None:
         """更新小程序实例"""
         from app.models.miniapp_platform import AppTemplate, TemplateVersion
         from app.models.store import Store
@@ -275,7 +281,7 @@ class MiniappInstanceService:
 
         return True
 
-    async def update_status(self, instance_id: str, new_status: int) -> Optional[MiniappInstance]:
+    async def update_status(self, instance_id: str, new_status: int) -> MiniappInstance | None:
         """更新实例状态"""
         instance = await self.get_by_id(instance_id)
         if not instance:
@@ -297,14 +303,14 @@ class AppTemplateService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, template_id: str) -> Optional[AppTemplate]:
+    async def get_by_id(self, template_id: str) -> AppTemplate | None:
         """获取模板详情"""
         result = await self.db.execute(
             select(AppTemplate).where(AppTemplate.id == template_id)
         )
         return result.scalar_one_or_none()
 
-    async def get_by_code(self, code: str) -> Optional[AppTemplate]:
+    async def get_by_code(self, code: str) -> AppTemplate | None:
         """按编码获取模板"""
         result = await self.db.execute(
             select(AppTemplate).where(AppTemplate.code == code)
@@ -313,11 +319,11 @@ class AppTemplateService:
 
     async def get_list(
         self,
-        category: Optional[str] = None,
-        status: Optional[int] = None,
+        category: str | None = None,
+        status: int | None = None,
         skip: int = 0,
         limit: int = 20
-    ) -> Tuple[List[AppTemplate], int]:
+    ) -> tuple[list[AppTemplate], int]:
         """获取模板列表"""
         conditions = []
 
@@ -347,10 +353,10 @@ class AppTemplateService:
         self,
         name: str,
         code: str,
-        description: Optional[str],
+        description: str | None,
         category: str,
-        default_config: Optional[Dict[str, Any]],
-        operator_id: Optional[str] = None
+        default_config: dict[str, Any] | None,
+        operator_id: str | None = None
     ) -> AppTemplate:
         """创建模板"""
         existing = await self.get_by_code(code)
@@ -376,12 +382,12 @@ class AppTemplateService:
     async def update(
         self,
         template_id: str,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        default_config: Optional[Dict[str, Any]] = None,
-        status: Optional[int] = None,
-        operator_id: Optional[str] = None
-    ) -> Optional[AppTemplate]:
+        name: str | None = None,
+        description: str | None = None,
+        default_config: dict[str, Any] | None = None,
+        status: int | None = None,
+        operator_id: str | None = None
+    ) -> AppTemplate | None:
         """更新模板"""
         template = await self.get_by_id(template_id)
         if not template:
@@ -407,7 +413,7 @@ class AppTemplateService:
         template_id: str,
         skip: int = 0,
         limit: int = 20
-    ) -> Tuple[List[TemplateVersion], int]:
+    ) -> tuple[list[TemplateVersion], int]:
         """获取模板版本列表"""
         count_query = select(func.count(TemplateVersion.id)).where(
             TemplateVersion.template_id == template_id
@@ -430,10 +436,10 @@ class AppTemplateService:
         self,
         template_id: str,
         version: str,
-        source_ref: Optional[str] = None,
-        schema_version: Optional[str] = None,
-        changelog: Optional[str] = None,
-        operator_id: Optional[str] = None
+        source_ref: str | None = None,
+        schema_version: str | None = None,
+        changelog: str | None = None,
+        operator_id: str | None = None
     ) -> TemplateVersion:
         """创建模板版本"""
         existing_query = select(TemplateVersion).where(
@@ -469,7 +475,7 @@ class BuildJobService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, job_id: str) -> Optional[BuildJob]:
+    async def get_by_id(self, job_id: str) -> BuildJob | None:
         """获取构建任务详情"""
         result = await self.db.execute(
             select(BuildJob)
@@ -484,11 +490,11 @@ class BuildJobService:
     async def get_list(
         self,
         tenant_id: str,
-        instance_id: Optional[str] = None,
-        status: Optional[str] = None,
+        instance_id: str | None = None,
+        status: str | None = None,
         skip: int = 0,
         limit: int = 20
-    ) -> Tuple[List[BuildJob], int]:
+    ) -> tuple[list[BuildJob], int]:
         """获取构建任务列表"""
         conditions = [BuildJob.tenant_id == tenant_id]
 
@@ -519,7 +525,7 @@ class BuildJobService:
         self,
         tenant_id: str,
         data: BuildJobCreate,
-        operator_id: Optional[str] = None
+        operator_id: str | None = None
     ) -> BuildJob:
         """创建构建任务"""
         instance = await self.db.execute(
@@ -559,10 +565,10 @@ class BuildJobService:
         self,
         job_id: str,
         status: str,
-        started_at: Optional[datetime] = None,
-        finished_at: Optional[datetime] = None,
+        started_at: datetime | None = None,
+        finished_at: datetime | None = None,
         **kwargs
-    ) -> Optional[BuildJob]:
+    ) -> BuildJob | None:
         """更新构建任务状态"""
         job = await self.get_by_id(job_id)
         if not job:
@@ -590,7 +596,7 @@ class ReleaseJobService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, job_id: str) -> Optional[ReleaseJob]:
+    async def get_by_id(self, job_id: str) -> ReleaseJob | None:
         """获取发布任务详情"""
         result = await self.db.execute(
             select(ReleaseJob)
@@ -605,12 +611,12 @@ class ReleaseJobService:
     async def get_list(
         self,
         tenant_id: str,
-        instance_id: Optional[str] = None,
-        action: Optional[str] = None,
-        status: Optional[str] = None,
+        instance_id: str | None = None,
+        action: str | None = None,
+        status: str | None = None,
         skip: int = 0,
         limit: int = 20
-    ) -> Tuple[List[ReleaseJob], int]:
+    ) -> tuple[list[ReleaseJob], int]:
         """获取发布任务列表"""
         conditions = []
 
@@ -646,7 +652,7 @@ class ReleaseJobService:
         self,
         tenant_id: str,
         data: ReleaseJobCreate,
-        operator_id: Optional[str] = None
+        operator_id: str | None = None
     ) -> ReleaseJob:
         """创建发布任务"""
         instance = await self.db.execute(
@@ -685,9 +691,9 @@ class ReleaseJobService:
         self,
         job_id: str,
         status: str,
-        result: Optional[Dict[str, Any]] = None,
+        result: dict[str, Any] | None = None,
         **kwargs
-    ) -> Optional[ReleaseJob]:
+    ) -> ReleaseJob | None:
         """更新发布任务状态"""
         job = await self.get_by_id(job_id)
         if not job:

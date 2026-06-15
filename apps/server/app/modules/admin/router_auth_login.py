@@ -1,22 +1,18 @@
 """登录相关端点"""
-import json
 import logging
 from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin
+from app.common.security_settings import get_token_expire_config
 from app.core.config import settings
-from app.core.security import create_access_token, create_refresh_token, get_rsa_public_key, rsa_decrypt
 from app.core.redis import RedisCache
+from app.core.security import create_access_token, create_refresh_token, get_rsa_public_key, rsa_decrypt
 from app.db.session import get_db
 from app.infrastructure.email.service import EmailService
-from app.common.security_settings import get_token_expire_config
-from app.models.admin import Admin, Permission
+from app.models.admin import Admin
 from app.modules.admin.helpers import build_admin_response, build_stores_list, store_admin_session
 from app.modules.admin.schemas import (
     AdminLoginRequest,
@@ -26,10 +22,12 @@ from app.modules.admin.schemas import (
     SmsCodeRequest,
     SmsLoginRequest,
     StoreInfo,
+    WechatCheckResponse,
+    WechatQrcodeResponse,
 )
+from app.modules.admin.service_admins import AdminService
 from app.schemas.auth import EmailLoginRequest, EmailSendCodeRequest
 from app.schemas.response import Response
-from app.modules.admin.service_admins import AdminService
 from app.utils.ip import get_client_ip
 
 router = APIRouter()
@@ -71,8 +69,8 @@ def _check_tenant_status_for_login(admin) -> None:
     if not admin.tenant_id or is_super_admin or not admin.tenant:
         return
 
-    from app.middleware.exception import raise_business_http_error
     from app.core.error_codes import ErrorCode as TenantErrorCode
+    from app.middleware.exception import raise_business_http_error
 
     if admin.tenant.status == 0:
         raise_business_http_error(
@@ -102,7 +100,7 @@ def _check_tenant_status_for_login(admin) -> None:
         )
 
 
-def _tenant_status_error_for_wechat(admin) -> Optional[str]:
+def _tenant_status_error_for_wechat(admin) -> str | None:
     """微信扫码登录：返回错误文案；可正常登录返回 None。"""
     role_code = admin.role.code if admin.role else None
     is_super_admin = role_code == "SUPER_ADMIN"

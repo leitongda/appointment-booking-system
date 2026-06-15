@@ -5,14 +5,14 @@
 - 清理过期的登录 session
 - 清理租户过期日志
 """
-from datetime import datetime, timedelta
-from sqlalchemy import select, and_, delete
-from sqlalchemy.orm import Session
 import logging
+from datetime import datetime, timedelta
+
+from sqlalchemy import and_, delete, select
 
 from app.celery_app import celery_app
-from app.db.session import get_sync_db
 from app.core.redis import get_sync_redis
+from app.db.session import get_sync_db
 from app.models.message import Message
 from app.models.tenant import Tenant
 

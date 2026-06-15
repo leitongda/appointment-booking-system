@@ -1,15 +1,15 @@
 """常见服务模块业务逻辑"""
 import json
-from datetime import datetime, date, timedelta
-from typing import Optional, List
-from sqlalchemy import select, and_, or_
+from datetime import date, timedelta
+
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.common_service import CommonService, HealthReminder
-from app.models.appointment import Appointment
-from app.models.user import Patient
 from app.middleware.tenant_context import get_current_tenant_id
+from app.models.appointment import Appointment
+from app.models.common_service import CommonService, HealthReminder
+from app.models.user import Patient
 
 
 def safe_json_loads(value):
@@ -31,9 +31,9 @@ class CommonServiceService:
 
     async def get_list(
         self,
-        store_id: Optional[str] = None,
-        status: Optional[int] = None,
-    ) -> List[CommonService]:
+        store_id: str | None = None,
+        status: int | None = None,
+    ) -> list[CommonService]:
         """获取常见服务列表"""
         tenant_id = get_current_tenant_id()
 
@@ -68,9 +68,9 @@ class HealthReminderService:
 
     async def get_config(
         self,
-        store_id: Optional[str] = None,
-        reminder_type: Optional[str] = None,
-    ) -> List[HealthReminder]:
+        store_id: str | None = None,
+        reminder_type: str | None = None,
+    ) -> list[HealthReminder]:
         """获取健康提醒配置"""
         tenant_id = get_current_tenant_id()
 
@@ -97,7 +97,7 @@ class HealthReminderService:
     async def get_user_reminder(
         self,
         user_id: str,
-        store_id: Optional[str] = None,
+        store_id: str | None = None,
     ) -> dict:
         """获取用户的健康提醒信息
 

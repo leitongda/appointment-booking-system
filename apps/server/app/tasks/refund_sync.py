@@ -10,13 +10,12 @@ import asyncio
 import logging
 from datetime import datetime, timedelta
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.celery_app import celery_app
 from app.db.session import get_sync_db
-from app.middleware.tenant_context import set_tenant_context, clear_tenant_context
-from app.models.miniapp_platform import PaymentProfile
+from app.middleware.tenant_context import clear_tenant_context, set_tenant_context
 from app.models.refund import RefundRecord
 from app.models.tenant import Tenant
 
@@ -82,13 +81,9 @@ def _sync_tenant_refunds(
     db, tenant_id: str, threshold: datetime
 ) -> int:
     """同步单个租户的退款状态。"""
-    from decimal import Decimal
 
-    from sqlalchemy import func
 
     from app.infrastructure.payments.wechat_pay_service import WeChatPayService
-    from app.models.appointment import Appointment
-    from app.modules.refunds.service import COUNTED_REFUND_STATUSES
 
     # 查找需要同步的退款记录
     refund_records = db.execute(

@@ -1,16 +1,16 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from typing import Optional, List
 import uuid
 
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.middleware.tenant_context import get_current_tenant_id
+from app.models.doctor import Doctor
 from app.models.doctor_booking_setting import DoctorBookingSetting
 from app.models.store import Store
-from app.models.doctor import Doctor
-from app.middleware.tenant_context import get_current_tenant_id
 from app.schemas.doctor_booking_setting import (
     DoctorBookingSettingCreate,
-    DoctorBookingSettingUpdate,
     DoctorBookingSettingQuery,
+    DoctorBookingSettingUpdate,
 )
 from app.utils.audit import set_create_audit, set_update_audit
 
@@ -21,10 +21,10 @@ class DoctorBookingSettingService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    def _tenant_id(self) -> Optional[str]:
+    def _tenant_id(self) -> str | None:
         return get_current_tenant_id()
 
-    async def get_by_id(self, setting_id: str) -> Optional[DoctorBookingSetting]:
+    async def get_by_id(self, setting_id: str) -> DoctorBookingSetting | None:
         """根据ID获取设置"""
         stmt = select(DoctorBookingSetting).where(
             DoctorBookingSetting.id == setting_id
@@ -39,7 +39,7 @@ class DoctorBookingSettingService:
         self,
         store_id: str,
         doctor_id: str
-    ) -> Optional[DoctorBookingSetting]:
+    ) -> DoctorBookingSetting | None:
         """根据门店ID和医生ID获取设置"""
         stmt = select(DoctorBookingSetting).where(
             and_(
@@ -57,7 +57,7 @@ class DoctorBookingSettingService:
         self,
         store_id: str,
         doctor_id: str,
-    ) -> Optional[DoctorBookingSetting]:
+    ) -> DoctorBookingSetting | None:
         stmt = (
             select(DoctorBookingSetting)
             .where(
@@ -77,7 +77,7 @@ class DoctorBookingSettingService:
     async def get_list(
         self,
         query: DoctorBookingSettingQuery
-    ) -> tuple[List[dict], int]:
+    ) -> tuple[list[dict], int]:
         """获取设置列表（包含门店名和医生名）"""
         stmt = (
             select(
@@ -134,7 +134,7 @@ class DoctorBookingSettingService:
         total = count_result.scalar() or 0
         return items, total
 
-    async def create(self, data: DoctorBookingSettingCreate, operator_id: Optional[str] = None) -> DoctorBookingSetting:
+    async def create(self, data: DoctorBookingSettingCreate, operator_id: str | None = None) -> DoctorBookingSetting:
         """创建设置"""
         existing = await self.get_by_store_and_doctor(data.store_id, data.doctor_id)
         if existing:
@@ -174,8 +174,8 @@ class DoctorBookingSettingService:
         self,
         setting_id: str,
         data: DoctorBookingSettingUpdate,
-        operator_id: Optional[str] = None
-    ) -> Optional[DoctorBookingSetting]:
+        operator_id: str | None = None
+    ) -> DoctorBookingSetting | None:
         """更新设置"""
         setting = await self.get_by_id(setting_id)
         if not setting:
@@ -200,7 +200,7 @@ class DoctorBookingSettingService:
         await self.db.commit()
         return True
 
-    async def get_existing_doctor_ids(self, store_id: str) -> List[str]:
+    async def get_existing_doctor_ids(self, store_id: str) -> list[str]:
         """获取指定门店已配置的医生ID列表"""
         stmt = (
             select(DoctorBookingSetting.doctor_id)
@@ -216,8 +216,8 @@ class DoctorBookingSettingService:
         self,
         setting_id: str,
         status: int,
-        operator_id: Optional[str] = None
-    ) -> Optional[DoctorBookingSetting]:
+        operator_id: str | None = None
+    ) -> DoctorBookingSetting | None:
         """更新设置状态"""
         setting = await self.get_by_id(setting_id)
         if not setting:

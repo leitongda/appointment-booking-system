@@ -1,16 +1,16 @@
 """邮件发送服务"""
 import logging
-import aiosmtplib
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from email.utils import formataddr
-from typing import Optional
+
+import aiosmtplib
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
-from app.modules.settings.service import SettingsService
 from app.modules.email_templates.service import EmailTemplateService
+from app.modules.settings.service import SettingsService
 
 
 class EmailService:
@@ -186,7 +186,7 @@ class EmailService:
         self,
         template_id: str,
         to_email: str,
-        variables: Optional[dict] = None
+        variables: dict | None = None
     ) -> bool:
         """
         发送测试邮件

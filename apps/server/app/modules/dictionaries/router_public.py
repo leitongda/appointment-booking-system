@@ -3,12 +3,12 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.modules.dictionaries.service import DictService
 from app.modules.dictionaries.schemas import (
+    BatchDictOptionsResponse,
     DictOptionItem,
     DictOptionsResponse,
-    BatchDictOptionsResponse,
 )
+from app.modules.dictionaries.service import DictService
 
 router = APIRouter()
 

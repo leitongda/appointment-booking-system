@@ -1,10 +1,11 @@
 """预约 API - 聚合路由"""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import get_current_user, get_current_user_or_admin
 from app.db.session import get_db
-from app.api.deps import get_current_user_or_admin, get_current_user
+from app.modules.appointments.service import AppointmentService
 from app.schemas.appointment import (
     AppointmentCancelRequest,
     AppointmentCreate,
@@ -12,8 +13,6 @@ from app.schemas.appointment import (
     AppointmentResponse,
 )
 from app.schemas.response import ErrorResponse
-from app.modules.appointments.service import AppointmentService
-
 
 router = APIRouter()
 
@@ -149,15 +148,16 @@ async def cancel_appointment(
 )
 async def get_payment_params(
     appointment_id: str,
-    openid: Optional[str] = Query(None, description="微信用户openid；未提供时自动读取当前登录用户绑定值"),
+    openid: str | None = Query(None, description="微信用户openid；未提供时自动读取当前登录用户绑定值"),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """获取支付参数（重新发起支付）"""
     from sqlalchemy import select
+
+    from app.middleware.tenant_context import get_current_tenant_id
     from app.models.appointment import Appointment
     from app.models.user import User
-    from app.middleware.tenant_context import get_current_tenant_id
 
     # 1. 查询预约
     stmt = select(Appointment).where(Appointment.id == appointment_id)
@@ -185,7 +185,7 @@ async def get_payment_params(
     if appointment.status != 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"预约状态不正确，当前状态不支持支付，请检查后重试"
+            detail="预约状态不正确，当前状态不支持支付，请检查后重试"
         )
 
     # 4. 验证支付金额
@@ -235,8 +235,8 @@ async def get_payment_params(
 
 # ==================== 聚合子模块路由 ====================
 
-from .router_query import router as query_router
 from .router_flow import router as flow_router
+from .router_query import router as query_router
 
 # 子路由器使用非空路径前缀
 router.include_router(query_router, prefix="/query", tags=["预约查询"])

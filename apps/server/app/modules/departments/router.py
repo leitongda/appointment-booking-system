@@ -1,16 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, List
-from pydantic import BaseModel
 
+from app.api.deps import check_store_access, get_current_admin, get_store_filter, require_permission
+from app.core.config import settings
 from app.db.session import get_db
-from app.api.deps import get_current_admin, get_store_filter, check_store_access, require_permission
-from app.schemas.department import DepartmentCreate, DepartmentUpdate, DepartmentResponse, DepartmentTreeNode
+from app.modules.departments.service import DepartmentService
+from app.schemas.department import DepartmentCreate, DepartmentResponse, DepartmentTreeNode, DepartmentUpdate
 from app.schemas.doctor import DoctorListResponse
 from app.schemas.response import PageResponse
-from app.modules.departments.service import DepartmentService
-from app.core.config import settings
 
 router = APIRouter()
 
@@ -21,7 +21,7 @@ class SortOrderItem(BaseModel):
 
 
 class BatchSortRequest(BaseModel):
-    items: List[SortOrderItem]
+    items: list[SortOrderItem]
 
 def _to_response(department) -> DepartmentResponse:
     """将 Department 模型转换为响应对象，包含门店名称"""
@@ -32,10 +32,10 @@ def _to_response(department) -> DepartmentResponse:
 
 @router.get("", response_model=PageResponse[DepartmentResponse], summary="获取科室列表")
 async def get_departments(
-    name: Optional[str] = None,
-    status: Optional[int] = None,
-    parent_id: Optional[str] = None,
-    store_id: Optional[str] = None,
+    name: str | None = None,
+    status: int | None = None,
+    parent_id: str | None = None,
+    store_id: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -60,10 +60,10 @@ async def get_departments(
         page_size=page_size
     )
 
-@router.get("/tree", response_model=List[DepartmentTreeNode], summary="获取科室树")
+@router.get("/tree", response_model=list[DepartmentTreeNode], summary="获取科室树")
 async def get_department_tree(
-    status: Optional[int] = 1,
-    store_id: Optional[str] = None,
+    status: int | None = 1,
+    store_id: str | None = None,
     db: AsyncSession = Depends(get_db)
 ):
     """获取科室树（公开接口，支持门店过滤）
@@ -73,10 +73,10 @@ async def get_department_tree(
     service = DepartmentService(db)
     return await service.get_tree(status=status, store_id=store_id)
 
-@router.get("/hot", response_model=List[DepartmentResponse], summary="获取热门科室")
+@router.get("/hot", response_model=list[DepartmentResponse], summary="获取热门科室")
 async def get_hot_departments(
     limit: int = Query(8, ge=1, le=20),
-    store_id: Optional[str] = None,
+    store_id: str | None = None,
     db: AsyncSession = Depends(get_db)
 ):
     """获取热门科室（公开接口，不需要登录）"""
@@ -85,9 +85,9 @@ async def get_hot_departments(
     return [_to_response(d) for d in departments]
 
 
-@router.get("/all", response_model=List[DepartmentResponse], summary="获取所有科室")
+@router.get("/all", response_model=list[DepartmentResponse], summary="获取所有科室")
 async def get_all_departments(
-    store_id: Optional[str] = None,
+    store_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin)
 ):
@@ -110,7 +110,7 @@ async def get_all_departments(
 @router.get("/symptom-match", summary="症状匹配科室")
 async def symptom_match(
     q: str = Query(..., min_length=1, max_length=50, description="症状关键词"),
-    store_id: Optional[str] = None,
+    store_id: str | None = None,
     limit: int = Query(default=10, ge=1, le=20),
     db: AsyncSession = Depends(get_db),
 ):
@@ -121,7 +121,7 @@ async def symptom_match(
     2. 科室名称包含查询词
     3. 按匹配度排序
     """
-    from sqlalchemy import func, or_, cast, String
+    from sqlalchemy import String, cast, or_
 
     conditions = [
         Department.status == 1,
@@ -285,7 +285,7 @@ async def delete_department(
     return {"message": "删除成功"}
 
 
-@router.get("/{dept_id}/doctors", response_model=List[DoctorListResponse], summary="获取科室医生")
+@router.get("/{dept_id}/doctors", response_model=list[DoctorListResponse], summary="获取科室医生")
 async def get_department_doctors(
     dept_id: str,
     db: AsyncSession = Depends(get_db),
@@ -329,7 +329,7 @@ async def get_department_doctors(
     return result
 
 
-@router.get("/{dept_id}/available-doctors", response_model=List[DoctorListResponse], summary="获取可绑定医生")
+@router.get("/{dept_id}/available-doctors", response_model=list[DoctorListResponse], summary="获取可绑定医生")
 async def get_available_doctors(
     dept_id: str,
     db: AsyncSession = Depends(get_db),
@@ -377,7 +377,7 @@ async def get_available_doctors(
 @router.put("/{dept_id}/doctors/batch", summary="批量绑定医生")
 async def batch_bind_doctors(
     dept_id: str,
-    doctor_ids: List[str],
+    doctor_ids: list[str],
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("department:update"))

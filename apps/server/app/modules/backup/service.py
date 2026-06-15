@@ -1,22 +1,20 @@
 """租户数据备份与恢复服务"""
-import json
 import hashlib
+import json
 import time
 from datetime import datetime
-from typing import Optional
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import class_mapper
 
-from app.models.tenant import Tenant
-from app.models.store import Store
+from app.models.admin import Admin
+from app.models.appointment import Appointment
 from app.models.department import Department
 from app.models.doctor import Doctor
-from app.models.admin import Admin
 from app.models.schedule import Schedule
-from app.models.appointment import Appointment
-
+from app.models.store import Store
+from app.models.tenant import Tenant
 
 BACKUP_MODELS = [
     ("stores", Store, "tenant_id"),
@@ -95,7 +93,7 @@ class BackupService:
         tenant_id: str,
         backup_data: dict,
         overwrite: bool = False,
-        actor_id: Optional[str] = None,
+        actor_id: str | None = None,
     ) -> dict:
         """导入备份数据到指定租户"""
         tenant = await self.db.get(Tenant, tenant_id)

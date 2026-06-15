@@ -8,9 +8,9 @@
     query = apply_data_scope(query, Doctor, current_admin)
 """
 import json
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any
 
-from sqlalchemy import Select, and_, or_
+from sqlalchemy import Select
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -22,7 +22,7 @@ class DataScopeFilter:
     """
 
     @staticmethod
-    def _get_data_scope(admin_info: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _get_data_scope(admin_info: dict[str, Any]) -> dict[str, Any] | None:
         """从 admin_info 中提取 data_scope 配置
 
         Args:
@@ -42,7 +42,7 @@ class DataScopeFilter:
         return admin_info.get("data_scope")
 
     @staticmethod
-    def _parse_store_ids(store_ids_raw: Any) -> List[str]:
+    def _parse_store_ids(store_ids_raw: Any) -> list[str]:
         """解析 store_ids 字段（可能为 JSON 字符串或列表）"""
         if not store_ids_raw:
             return []
@@ -60,11 +60,11 @@ class DataScopeFilter:
     @classmethod
     def build_filter(
         cls,
-        admin_info: Dict[str, Any],
-        model: Type[DeclarativeBase],
+        admin_info: dict[str, Any],
+        model: type[DeclarativeBase],
         store_id_column: str = "store_id",
         tenant_id_column: str = "tenant_id",
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """构建数据范围过滤条件
 
         Args:
@@ -121,11 +121,11 @@ class DataScopeFilter:
     @classmethod
     def _fallback_filter(
         cls,
-        admin_info: Dict[str, Any],
-        model: Type[DeclarativeBase],
+        admin_info: dict[str, Any],
+        model: type[DeclarativeBase],
         store_id_column: str = "store_id",
         tenant_id_column: str = "tenant_id",
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """无 DataScope 时的 fallback 逻辑（兼容旧系统）
 
         逻辑与原 get_store_filter 一致：
@@ -151,8 +151,8 @@ class DataScopeFilter:
 
 def apply_data_scope(
     query: Select,
-    model: Type[DeclarativeBase],
-    admin_info: Dict[str, Any],
+    model: type[DeclarativeBase],
+    admin_info: dict[str, Any],
     store_id_column: str = "store_id",
     tenant_id_column: str = "tenant_id",
 ) -> Select:

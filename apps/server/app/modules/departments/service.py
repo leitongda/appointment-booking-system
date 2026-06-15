@@ -1,20 +1,21 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from sqlalchemy.orm import selectinload
-from typing import Optional, List
 import uuid
+
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.department import Department
 from app.models.doctor import Doctor
-from app.schemas.department import DepartmentCreate, DepartmentUpdate, DepartmentTreeNode
+from app.schemas.department import DepartmentCreate, DepartmentTreeNode, DepartmentUpdate
 from app.utils.audit import set_create_audit, set_update_audit
+
 
 class DepartmentService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, dept_id: str) -> Optional[Department]:
+    async def get_by_id(self, dept_id: str) -> Department | None:
         conditions = [Department.id == dept_id]
         tenant_id = get_current_tenant_id()
         if tenant_id is not None:
@@ -29,13 +30,13 @@ class DepartmentService:
 
     async def get_list(
         self,
-        name: Optional[str] = None,
-        status: Optional[int] = None,
-        parent_id: Optional[str] = None,
-        store_id: Optional[str] = None,
+        name: str | None = None,
+        status: int | None = None,
+        parent_id: str | None = None,
+        store_id: str | None = None,
         page: int = 1,
         page_size: int = 10
-    ) -> tuple[List[Department], int]:
+    ) -> tuple[list[Department], int]:
         query = select(Department).options(selectinload(Department.store))
         count_query = select(func.count(Department.id))
 
@@ -66,7 +67,7 @@ class DepartmentService:
 
         return list(result.scalars().all()), count_result.scalar() or 0
 
-    async def get_tree(self, status: Optional[int] = 1, store_id: Optional[str] = None) -> List[DepartmentTreeNode]:
+    async def get_tree(self, status: int | None = 1, store_id: str | None = None) -> list[DepartmentTreeNode]:
         query = select(Department).order_by(Department.sort_order)
 
         # 租户过滤
@@ -95,7 +96,7 @@ class DepartmentService:
 
         return tree
 
-    async def get_hot(self, limit: int = 8, store_id: Optional[str] = None) -> List[Department]:
+    async def get_hot(self, limit: int = 8, store_id: str | None = None) -> list[Department]:
         conditions = [Department.is_hot == 1, Department.status == 1]
 
         # 租户过滤
@@ -113,9 +114,9 @@ class DepartmentService:
 
     async def get_all_active(
         self,
-        store_id: Optional[str] = None,
+        store_id: str | None = None,
         limit: int = 1000
-    ) -> List[Department]:
+    ) -> list[Department]:
         """获取所有启用的科室（下拉选择用）
 
         Args:
@@ -140,7 +141,7 @@ class DepartmentService:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def create(self, data: DepartmentCreate, operator_id: Optional[str] = None) -> Department:
+    async def create(self, data: DepartmentCreate, operator_id: str | None = None) -> Department:
         # 将空字符串的外键字段转换为 None，避免外键约束违规
         parent_id = data.parent_id if data.parent_id else None
         store_id = data.store_id if data.store_id else None
@@ -189,7 +190,7 @@ class DepartmentService:
         )
         return result.scalar_one()
 
-    async def update(self, dept_id: str, data: DepartmentUpdate, operator_id: Optional[str] = None) -> Optional[Department]:
+    async def update(self, dept_id: str, data: DepartmentUpdate, operator_id: str | None = None) -> Department | None:
         department = await self.get_by_id(dept_id)
         if not department:
             return None
@@ -234,7 +235,7 @@ class DepartmentService:
         await self.db.commit()
         return True
 
-    async def get_doctors(self, dept_id: str) -> List[Doctor]:
+    async def get_doctors(self, dept_id: str) -> list[Doctor]:
         """获取科室已绑定的医生列表"""
         conditions = [Doctor.department_id == dept_id, Doctor.deleted_at.is_(None)]
         tenant_id = get_current_tenant_id()
@@ -247,7 +248,7 @@ class DepartmentService:
         )
         return list(result.scalars().all())
 
-    async def get_all_doctors(self, store_id: Optional[str] = None) -> List[Doctor]:
+    async def get_all_doctors(self, store_id: str | None = None) -> list[Doctor]:
         """获取所有可绑定的医生列表"""
         conditions = [Doctor.status == 1, Doctor.deleted_at.is_(None)]
         tenant_id = get_current_tenant_id()
@@ -260,7 +261,7 @@ class DepartmentService:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def batch_bind_doctors(self, dept_id: str, doctor_ids: List[str]) -> int:
+    async def batch_bind_doctors(self, dept_id: str, doctor_ids: list[str]) -> int:
         """批量绑定医生到科室
 
         Args:
@@ -303,7 +304,7 @@ class DepartmentService:
         await self.db.commit()
         return len(doctor_ids)
 
-    async def batch_update_sort_order(self, items: List[dict]) -> int:
+    async def batch_update_sort_order(self, items: list[dict]) -> int:
         """批量更新科室排序
 
         Args:

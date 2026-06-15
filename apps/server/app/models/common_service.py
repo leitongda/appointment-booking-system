@@ -1,9 +1,10 @@
 """常见服务配置模型"""
-from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
-from datetime import datetime
 import uuid
+
+from sqlalchemy import Column, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 
 class CommonService(Base, AuditMixin):

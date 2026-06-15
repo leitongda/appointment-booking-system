@@ -3,7 +3,7 @@
 import json
 import uuid
 from datetime import date, datetime, time
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import and_, select
 from sqlalchemy.orm import selectinload
@@ -19,7 +19,7 @@ def _serialize_value(value: Any) -> Any:
     return value
 
 
-def serialize_model(model: Any) -> Optional[dict[str, Any]]:
+def serialize_model(model: Any) -> dict[str, Any] | None:
     if model is None:
         return None
 
@@ -36,7 +36,7 @@ def _serialize_model_list(models: list[Any]) -> list[dict[str, Any]]:
     ]
 
 
-async def snapshot_rule_set(db, rule_set_id: str) -> Optional[str]:
+async def snapshot_rule_set(db, rule_set_id: str) -> str | None:
     """Capture a stable aggregate snapshot for a rule-set and its child resources."""
     conditions = [RuleSet.id == rule_set_id]
 
@@ -126,7 +126,7 @@ def _diff_list(before: list[Any], after: list[Any]) -> list[dict[str, Any]]:
     return changes
 
 
-def compute_rule_set_diff(before: Optional[str], after: Optional[str]) -> Optional[dict[str, Any]]:
+def compute_rule_set_diff(before: str | None, after: str | None) -> dict[str, Any] | None:
     """
     Compute field-level diff between two rule set snapshots.
 
@@ -174,10 +174,10 @@ def make_rule_set_audit(
     action: str,
     resource_type: str,
     resource_id: str,
-    operator_id: Optional[str],
-    snapshot_before: Optional[str] = None,
-    snapshot_after: Optional[str] = None,
-    changes: Optional[str] = None,
+    operator_id: str | None,
+    snapshot_before: str | None = None,
+    snapshot_after: str | None = None,
+    changes: str | None = None,
 ) -> RuleSetAuditLog:
     return RuleSetAuditLog(
         id=str(uuid.uuid4()),

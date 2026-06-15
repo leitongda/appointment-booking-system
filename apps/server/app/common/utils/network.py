@@ -1,10 +1,8 @@
 """Network-related utility helpers."""
 
 import re
-from typing import Optional, Tuple
 
 from fastapi import Request
-
 
 PRIVATE_IP_PATTERNS = [
     re.compile(r"^10\."),
@@ -41,7 +39,7 @@ def get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def get_client_ips(request: Request) -> Tuple[str, Optional[str]]:
+def get_client_ips(request: Request) -> tuple[str, str | None]:
     public_ip = None
     private_ip = None
     all_ips = []

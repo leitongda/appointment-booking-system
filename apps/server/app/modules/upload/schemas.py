@@ -1,4 +1,3 @@
-from typing import Dict, Optional
 
 from pydantic import BaseModel, HttpUrl
 
@@ -16,9 +15,9 @@ class UploadResponse(BaseModel):
     key: str
     size: int
     content_type: str
-    thumbnails: Optional[Dict[str, ThumbnailInfo]] = None
+    thumbnails: dict[str, ThumbnailInfo] | None = None
 
 
 class TransferRequest(BaseModel):
     url: HttpUrl
-    folder: Optional[str] = "images"
+    folder: str | None = "images"

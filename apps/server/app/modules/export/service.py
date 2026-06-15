@@ -1,16 +1,15 @@
 """数据导出服务 - 已升级为 Excel 格式"""
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
-from sqlalchemy.orm import selectinload
-from typing import Optional, List, Union
 from datetime import date, datetime
 
+from sqlalchemy import and_, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.infrastructure.excel.export_service import ExcelExportService
 from app.models.appointment import Appointment
+from app.models.doctor import Doctor
 from app.models.schedule import Schedule
 from app.models.user import Patient
-from app.models.doctor import Doctor
-from app.models.department import Department
-from app.infrastructure.excel.export_service import ExcelExportService
 
 
 class ExportService:
@@ -21,13 +20,13 @@ class ExportService:
 
     async def export_appointments(
         self,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        status: Optional[int] = None,
-        doctor_id: Optional[str] = None,
-        department_id: Optional[str] = None,
-        store_ids: Optional[Union[str, List[str]]] = None,
-        tenant_id: Optional[str] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        status: int | None = None,
+        doctor_id: str | None = None,
+        department_id: str | None = None,
+        store_ids: str | list[str] | None = None,
+        tenant_id: str | None = None,
     ) -> tuple[bytes, str]:
         """导出预约记录
 
@@ -118,9 +117,9 @@ class ExportService:
 
     async def export_patients(
         self,
-        keyword: Optional[str] = None,
-        store_ids: Optional[Union[str, List[str]]] = None,
-        tenant_id: Optional[str] = None,
+        keyword: str | None = None,
+        store_ids: str | list[str] | None = None,
+        tenant_id: str | None = None,
     ) -> tuple[bytes, str]:
         """导出患者列表
 
@@ -184,11 +183,11 @@ class ExportService:
 
     async def export_schedules(
         self,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        doctor_id: Optional[str] = None,
-        store_ids: Optional[Union[str, List[str]]] = None,
-        tenant_id: Optional[str] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        doctor_id: str | None = None,
+        store_ids: str | list[str] | None = None,
+        tenant_id: str | None = None,
     ) -> tuple[bytes, str]:
         """导出排班记录
 

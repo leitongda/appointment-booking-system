@@ -1,23 +1,23 @@
 """租户服务"""
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_
-from sqlalchemy.orm import selectinload
-from typing import Optional, Tuple, List, Union
-from datetime import datetime, timedelta
 import uuid
+from datetime import datetime, timedelta
 
-from fastapi import HTTPException, status
+from sqlalchemy import and_, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from app.models.tenant import Tenant, SubscriptionPlan
-from app.models.store import Store
 from app.models.admin import Admin, Role
 from app.models.department import Department
 from app.models.doctor import Doctor
-from app.models.appointment import Appointment
 from app.models.lowcode_page import LowCodePage
 from app.models.miniapp_platform import MiniappInstance
+from app.models.store import Store
+from app.models.tenant import SubscriptionPlan, Tenant
 from app.modules.tenants.schemas import (
-    TenantCreate, TenantUpdate, TenantSelfUpdateRequest, TenantQuery,
+    TenantCreate,
+    TenantQuery,
+    TenantSelfUpdateRequest,
+    TenantUpdate,
 )
 
 
@@ -27,7 +27,7 @@ class TenantService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, tenant_id: str) -> Optional[Tenant]:
+    async def get_by_id(self, tenant_id: str) -> Tenant | None:
         """获取租户"""
         result = await self.db.execute(
             select(Tenant)
@@ -36,7 +36,7 @@ class TenantService:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_code(self, tenant_code: str) -> Optional[Tenant]:
+    async def get_by_code(self, tenant_code: str) -> Tenant | None:
         """通过编码获取租户"""
         result = await self.db.execute(
             select(Tenant)
@@ -45,7 +45,7 @@ class TenantService:
         )
         return result.scalar_one_or_none()
 
-    async def get_list(self, query: TenantQuery, include_deleted: bool = False) -> Tuple[List[Tenant], int]:
+    async def get_list(self, query: TenantQuery, include_deleted: bool = False) -> tuple[list[Tenant], int]:
         """获取租户列表
 
         Args:
@@ -78,7 +78,6 @@ class TenantService:
         if query.subscription_plan_id:
             conditions.append(Tenant.subscription_plan_id == query.subscription_plan_id)
         if query.tags:
-            import json as _json
             tag_list = [t.strip() for t in query.tags.split(",") if t.strip()]
             if tag_list:
                 tag_conditions = []
@@ -110,7 +109,7 @@ class TenantService:
     # TenantCreate 中需要单独计算、不从 data 直接映射的字段
     _CREATE_COMPUTED_FIELDS = {"is_trial"}
 
-    async def create(self, data: TenantCreate, created_by: Optional[str] = None) -> Tenant:
+    async def create(self, data: TenantCreate, created_by: str | None = None) -> Tenant:
         """创建租户"""
         # 检查编码是否已存在
         existing = await self.get_by_code(data.tenant_code)
@@ -156,7 +155,6 @@ class TenantService:
 
     async def _init_tenant_defaults(self, tenant: Tenant) -> None:
         """初始化租户默认数据：门店、科室、角色"""
-        from app.utils.audit import set_create_audit
 
         now = datetime.utcnow()
 
@@ -206,7 +204,7 @@ class TenantService:
 
         await self.db.commit()
 
-    async def update(self, tenant_id: str, data: Union[TenantUpdate, TenantSelfUpdateRequest], updated_by: Optional[str] = None) -> Optional[Tenant]:
+    async def update(self, tenant_id: str, data: TenantUpdate | TenantSelfUpdateRequest, updated_by: str | None = None) -> Tenant | None:
         """更新租户"""
         tenant = await self.get_by_id(tenant_id)
         if not tenant:
@@ -240,7 +238,7 @@ class TenantService:
 
         return tenant
 
-    async def update_status(self, tenant_id: str, new_status: int, actor_id: Optional[str] = None) -> Optional[Tenant]:
+    async def update_status(self, tenant_id: str, new_status: int, actor_id: str | None = None) -> Tenant | None:
         """更新租户状态"""
         tenant = await self.get_by_id(tenant_id)
         if not tenant:
@@ -263,19 +261,19 @@ class TenantService:
 
         return tenant
 
-    async def suspend(self, tenant_id: str) -> Optional[Tenant]:
+    async def suspend(self, tenant_id: str) -> Tenant | None:
         """暂停租户"""
         return await self.update_status(tenant_id, 0)
 
-    async def activate(self, tenant_id: str) -> Optional[Tenant]:
+    async def activate(self, tenant_id: str) -> Tenant | None:
         """激活租户"""
         return await self.update_status(tenant_id, 1)
 
-    async def mark_overdue(self, tenant_id: str) -> Optional[Tenant]:
+    async def mark_overdue(self, tenant_id: str) -> Tenant | None:
         """标记租户为欠费"""
         return await self.update_status(tenant_id, 2)
 
-    async def delete(self, tenant_id: str, deleted_by: Optional[str] = None) -> bool:
+    async def delete(self, tenant_id: str, deleted_by: str | None = None) -> bool:
         """删除租户（软删除）
 
         软删除策略：
@@ -306,7 +304,7 @@ class TenantService:
         await self.db.commit()
         return True
 
-    async def restore(self, tenant_id: str, restored_by: Optional[str] = None) -> Optional[Tenant]:
+    async def restore(self, tenant_id: str, restored_by: str | None = None) -> Tenant | None:
         """恢复已软删除的租户
 
         Args:
@@ -350,7 +348,7 @@ class TenantService:
         )
         return result.scalar() or 0
 
-    async def get_store_counts_batch(self, tenant_ids: List[str]) -> dict:
+    async def get_store_counts_batch(self, tenant_ids: list[str]) -> dict:
         """批量获取租户的门店数量
 
         Args:
@@ -369,7 +367,7 @@ class TenantService:
         )
         return {row.tenant_id: row.count for row in result.all()}
 
-    async def get_admin_counts_batch(self, tenant_ids: List[str]) -> dict:
+    async def get_admin_counts_batch(self, tenant_ids: list[str]) -> dict:
         """批量获取租户的管理员数量
 
         Args:
@@ -414,7 +412,7 @@ class TenantService:
         )
         return result.scalar() or 0
 
-    async def check_code_exists(self, tenant_code: str, exclude_id: Optional[str] = None) -> bool:
+    async def check_code_exists(self, tenant_code: str, exclude_id: str | None = None) -> bool:
         """检查租户编码是否已存在"""
         query = select(func.count(Tenant.id)).where(Tenant.tenant_code == tenant_code)
         if exclude_id:
@@ -425,7 +423,8 @@ class TenantService:
     async def register_tenant(self, data) -> dict:
         """租户自助注册（创建试用租户 + 管理员账号）"""
         from app.core.security import get_password_hash
-        from app.models.admin import Admin as AdminModel, Role
+        from app.models.admin import Admin as AdminModel
+        from app.models.admin import Role
         from app.modules.tenants.service_plan import SubscriptionPlanService
 
         existing = await self.get_by_code(data.tenant_code)

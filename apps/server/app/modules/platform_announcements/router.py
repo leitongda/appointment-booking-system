@@ -1,18 +1,17 @@
 """平台公告 API（仅平台管理员可访问）"""
-from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
 from app.common.deps import get_current_admin, require_platform_admin
+from app.db.session import get_db
+from app.modules.platform_announcements.service import PlatformAnnouncementService
 from app.schemas.platform_announcement import (
     PlatformAnnouncementCreate,
-    PlatformAnnouncementUpdate,
-    PlatformAnnouncementResponse,
     PlatformAnnouncementListResponse,
+    PlatformAnnouncementResponse,
+    PlatformAnnouncementUpdate,
 )
-from app.modules.platform_announcements.service import PlatformAnnouncementService
 
 router = APIRouter()
 
@@ -36,8 +35,8 @@ async def create_announcement(
 
 @router.get("", response_model=PlatformAnnouncementListResponse, summary="获取平台公告列表")
 async def get_announcements(
-    status: Optional[str] = Query(None, pattern="^(draft|published|revoked)$", description="状态筛选"),
-    keyword: Optional[str] = Query(None, description="关键词搜索"),
+    status: str | None = Query(None, pattern="^(draft|published|revoked)$", description="状态筛选"),
+    keyword: str | None = Query(None, description="关键词搜索"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),

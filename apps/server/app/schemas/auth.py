@@ -1,6 +1,8 @@
-from app.schemas.response import to_camel
+
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
+
+from app.schemas.response import to_camel
+
 
 class LoginRequest(BaseModel):
     """用户登录请求"""
@@ -34,7 +36,7 @@ class RegisterRequest(BaseModel):
     
     phone: str = Field(..., min_length=11, max_length=11, description="手机号", examples=["13800138000"])
     password: str = Field(..., min_length=6, max_length=20, description="密码", examples=["123456"])
-    code: Optional[str] = Field(None, description="短信验证码", examples=["888888"])
+    code: str | None = Field(None, description="短信验证码", examples=["888888"])
 
 class TokenResponse(BaseModel):
     """Token响应"""
@@ -44,10 +46,10 @@ class TokenResponse(BaseModel):
         by_alias=True,
     )
     
-    access_token: Optional[str] = Field(None, description="访问令牌")
-    refresh_token: Optional[str] = Field(None, description="刷新令牌")
+    access_token: str | None = Field(None, description="访问令牌")
+    refresh_token: str | None = Field(None, description="刷新令牌")
     token_type: str = Field("Bearer", description="令牌类型")
-    expires_in: Optional[int] = Field(None, description="访问令牌有效期(秒)")
+    expires_in: int | None = Field(None, description="访问令牌有效期(秒)")
 
 class UserInfo(BaseModel):
     """用户信息（用于登录响应）"""
@@ -59,9 +61,9 @@ class UserInfo(BaseModel):
     )
     
     id: str = Field(..., description="用户ID")
-    phone: Optional[str] = Field(None, description="手机号")
-    nickname: Optional[str] = Field(None, description="昵称")
-    avatar: Optional[str] = Field(None, description="头像URL")
+    phone: str | None = Field(None, description="手机号")
+    nickname: str | None = Field(None, description="昵称")
+    avatar: str | None = Field(None, description="头像URL")
     gender: int = Field(0, description="性别: 0未知 1男 2女")
     status: int = Field(1, description="状态: 0禁用 1正常")
 

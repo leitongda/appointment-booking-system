@@ -5,7 +5,7 @@
 内部通过 Celery task.delay() 投递到异步队列，不阻塞主流程。
 """
 import logging
-from typing import Dict, Any, Optional
+from typing import Any
 
 from app.enums.core import EventType  # noqa: F401 — re-export
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 # 事件类型中文描述映射
-EVENT_TYPE_LABELS: Dict[str, str] = {
+EVENT_TYPE_LABELS: dict[str, str] = {
     EventType.APPOINTMENT_CREATED: "新预约",
     EventType.APPOINTMENT_CANCELLED: "预约取消",
     EventType.CHECKIN: "患者签到",
@@ -27,8 +27,8 @@ EVENT_TYPE_LABELS: Dict[str, str] = {
 def dispatch_event_email(
     store_id: str,
     event_type: str,
-    context: Dict[str, Any],
-    store_name: Optional[str] = None,
+    context: dict[str, Any],
+    store_name: str | None = None,
 ) -> None:
     """
     分发业务事件邮件通知（fire-and-forget）

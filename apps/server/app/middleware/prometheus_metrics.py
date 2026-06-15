@@ -6,14 +6,14 @@ Prometheus 指标中间件
 - http_request_duration_seconds: 请求耗时直方图（按 method, path）
 - http_requests_in_flight: 当前正在处理的请求数
 """
-import time
 import logging
-from typing import Callable
+import time
+from collections.abc import Callable
 
 from fastapi import Request
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
-from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
 
 from app.middleware.tenant_context import get_current_tenant_id
 

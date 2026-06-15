@@ -4,15 +4,14 @@ WebSocket API 路由
 """
 import json
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
+from app.common.auth_deps import get_current_doctor_by_token
 from app.core.config import settings
 from app.core.security import decode_token
 from app.core.websocket import WSMessage, WSMessageType, ws_manager
-from app.common.auth_deps import get_current_doctor_by_token
 from app.models.doctor import Doctor
 
 logger = logging.getLogger(__name__)
@@ -35,7 +34,7 @@ class AckRequest(BaseModel):
 
 # ==================== Token 验证 ====================
 
-async def verify_ws_token(token: str) -> Optional[dict]:
+async def verify_ws_token(token: str) -> dict | None:
     """
     验证 WebSocket 连接的 Token
 
@@ -225,7 +224,7 @@ async def get_online_doctors():
 @router.get("/poll", summary="轮询未确认消息", response_model=PollMessagesResponse)
 async def poll_pending_messages(
     doctor_id: str = Query(..., description="医生 ID"),
-    tenant_id: Optional[str] = Query(None, description="租户 ID")
+    tenant_id: str | None = Query(None, description="租户 ID")
 ):
     """
     HTTP 轮询接口：获取未确认的 WebSocket 消息
@@ -252,7 +251,6 @@ async def acknowledge_message(
     需要医生认证 token。
     """
     from app.middleware.tenant_context import get_current_tenant_id
-    from app.models.doctor import Doctor
 
     tenant_id = get_current_tenant_id()
     removed = await ws_manager.remove_pending_message(

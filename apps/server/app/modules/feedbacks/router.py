@@ -1,12 +1,12 @@
 import json
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, get_current_user, require_permission
+from app.api.deps import get_current_admin, require_permission
 from app.core.config import settings
 from app.db.session import get_db
+from app.modules.feedbacks.service import FeedbackService
 from app.schemas.feedback import (
     FeedbackCreate,
     FeedbackQuery,
@@ -15,7 +15,6 @@ from app.schemas.feedback import (
     FeedbackStatus,
 )
 from app.schemas.response import PageResponse
-from app.modules.feedbacks.service import FeedbackService
 
 router = APIRouter()
 
@@ -47,10 +46,10 @@ def parse_feedback_response(feedback) -> FeedbackResponse:
 
 @router.get("", response_model=PageResponse[FeedbackResponse], summary="获取反馈列表")
 async def get_feedbacks(
-    user_id: Optional[str] = None,
-    feedback_type: Optional[str] = None,
-    status: Optional[FeedbackStatus] = None,
-    keyword: Optional[str] = None,
+    user_id: str | None = None,
+    feedback_type: str | None = None,
+    status: FeedbackStatus | None = None,
+    keyword: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -95,7 +94,7 @@ async def get_statistics(
     return await service.get_statistics()
 
 
-@router.get("/my", response_model=List[FeedbackResponse], summary="获取我的反馈")
+@router.get("/my", response_model=list[FeedbackResponse], summary="获取我的反馈")
 async def get_my_feedbacks(
     user_id: str = Query(..., description="用户ID"),
     db: AsyncSession = Depends(get_db),

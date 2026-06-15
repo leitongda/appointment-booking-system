@@ -2,8 +2,8 @@
 from fastapi import APIRouter
 
 from .router_auth_login import router as login_router
-from .router_auth_token import router as token_router
 from .router_auth_password import router as password_router
+from .router_auth_token import router as token_router
 
 router = APIRouter()
 

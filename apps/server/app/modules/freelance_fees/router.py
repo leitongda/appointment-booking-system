@@ -2,26 +2,34 @@
 from datetime import datetime
 from io import BytesIO
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 
-from app.db.session import get_db
 from app.api.deps import get_current_admin, get_store_filter, require_permission
-from app.modules.freelance_fees.schemas import (
-    FreelancerCreate, FreelancerUpdate, FreelancerResponse, FreelancerQuery,
-    FreelanceTaskCreate, FreelanceTaskUpdate, FreelanceTaskResponse, FreelanceTaskQuery,
-    FreelanceInteractionCreate, FreelanceInteractionResponse,
-    FreelanceSettlementResponse, FreelanceSettlementQuery,
-    SettlementConfirmRequest, SettlementRejectRequest,
-    EngagementBatchUpdate,
-)
-from app.schemas.response import PageResponse
-from app.modules.freelance_fees.service import FreelanceService
-from app.utils.audit import set_create_audit, set_update_audit
 from app.core.config import settings
+from app.db.session import get_db
+from app.modules.freelance_fees.schemas import (
+    EngagementBatchUpdate,
+    FreelanceInteractionCreate,
+    FreelanceInteractionResponse,
+    FreelancerCreate,
+    FreelancerQuery,
+    FreelancerResponse,
+    FreelancerUpdate,
+    FreelanceSettlementQuery,
+    FreelanceSettlementResponse,
+    FreelanceTaskCreate,
+    FreelanceTaskQuery,
+    FreelanceTaskResponse,
+    FreelanceTaskUpdate,
+    SettlementConfirmRequest,
+    SettlementRejectRequest,
+)
+from app.modules.freelance_fees.service import FreelanceService
+from app.schemas.response import PageResponse
+from app.utils.audit import set_create_audit, set_update_audit
 
 router = APIRouter()
 
@@ -30,9 +38,9 @@ router = APIRouter()
 
 @router.get("/freelancers", response_model=PageResponse[FreelancerResponse], summary="兼职人员列表")
 async def get_freelancer_list(
-    name: Optional[str] = None,
-    store_id: Optional[str] = None,
-    status: Optional[int] = None,
+    name: str | None = None,
+    store_id: str | None = None,
+    status: int | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -114,9 +122,9 @@ async def delete_freelancer(
 
 @router.get("/tasks", response_model=PageResponse[FreelanceTaskResponse], summary="任务列表")
 async def get_task_list(
-    freelancer_id: Optional[str] = None,
-    store_id: Optional[str] = None,
-    status_filter: Optional[str] = Query(None, alias="status"),
+    freelancer_id: str | None = None,
+    store_id: str | None = None,
+    status_filter: str | None = Query(None, alias="status"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -269,9 +277,9 @@ async def batch_update_engagement(
 
 @router.get("/settlements", response_model=PageResponse[FreelanceSettlementResponse], summary="结算列表")
 async def get_settlement_list(
-    freelancer_id: Optional[str] = None,
-    store_id: Optional[str] = None,
-    status_filter: Optional[str] = Query(None, alias="status"),
+    freelancer_id: str | None = None,
+    store_id: str | None = None,
+    status_filter: str | None = Query(None, alias="status"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -325,7 +333,7 @@ async def get_settlement(
 @router.post("/settlements/generate", response_model=FreelanceSettlementResponse, summary="生成结算单")
 async def generate_settlement(
     freelancer_id: str = Query(..., description="兼职人员ID"),
-    store_id: Optional[str] = Query(None, description="门店ID"),
+    store_id: str | None = Query(None, description="门店ID"),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("freelance:settle")),
@@ -400,7 +408,7 @@ async def mark_settlement_paid(
 
 @router.get("/statistics", summary="兼职费用统计")
 async def get_statistics(
-    store_id: Optional[str] = None,
+    store_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("freelance:list")),
@@ -415,7 +423,7 @@ async def get_statistics(
 
 @router.get("/statistics/by-freelancer", summary="按兼职人员统计")
 async def get_statistics_by_freelancer(
-    store_id: Optional[str] = None,
+    store_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("freelance:list")),
@@ -429,7 +437,7 @@ async def get_statistics_by_freelancer(
 
 @router.get("/statistics/by-month", summary="按月统计")
 async def get_statistics_by_month(
-    store_id: Optional[str] = None,
+    store_id: str | None = None,
     months: int = Query(12, ge=1, le=24),
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
@@ -445,7 +453,7 @@ async def get_statistics_by_month(
 
 @router.get("/statistics/tasks", summary="任务统计")
 async def get_task_statistics(
-    store_id: Optional[str] = None,
+    store_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("freelance:list")),
@@ -461,10 +469,10 @@ async def get_task_statistics(
 
 @router.get("/export/settlements", summary="导出结算数据")
 async def export_settlements(
-    store_id: Optional[str] = None,
-    status_filter: Optional[str] = Query(None, alias="status"),
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
+    store_id: str | None = None,
+    status_filter: str | None = Query(None, alias="status"),
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("freelance:list")),
@@ -472,7 +480,7 @@ async def export_settlements(
     """导出结算列表为 Excel"""
     from app.infrastructure.excel.export_service import ExcelExportService
     from app.middleware.tenant_context import get_current_tenant_id
-    from app.models.freelance import FreelanceSettlement, Freelancer
+    from app.models.freelance import Freelancer, FreelanceSettlement
 
     store_filter = get_store_filter(current_admin)
     tenant_id = get_current_tenant_id()
@@ -568,10 +576,10 @@ async def import_freelancers(
     _: None = Depends(require_permission("freelance:create")),
 ):
     """批量导入兼职人员"""
-    from app.modules.import_export.service_import import ImportService
+    from app.middleware.tenant_context import get_current_tenant_id
     from app.models.freelance import Freelancer
     from app.models.store import Store
-    from app.middleware.tenant_context import get_current_tenant_id
+    from app.modules.import_export.service_import import ImportService
 
     filename = (file.filename or "").lower()
     if not filename.endswith((".xlsx", ".xls")):

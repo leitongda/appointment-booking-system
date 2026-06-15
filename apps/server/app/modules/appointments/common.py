@@ -1,22 +1,21 @@
-from datetime import date, datetime
 import logging
-from typing import List, Optional, Union
+from datetime import date, datetime
+from typing import Optional
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.events import EventType, dispatch_event_email
 from app.constants.appointment import (
-    APPOINTMENT_STATUS,
     ACTIVE_APPOINTMENT_STATUSES,
     APPOINTMENT_QUERY_OPTIONS,
+    APPOINTMENT_STATUS,
 )
-from app.enums.appointment import CheckinMethod as CHECKIN_METHOD
+from app.core.events import dispatch_event_email
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.appointment import Appointment
-from app.models.rule_set import AppointmentCheckin  # noqa: F401
 from app.models.rest_day import RestDay
+from app.models.rule_set import AppointmentCheckin  # noqa: F401
 from app.models.schedule import Schedule
 from app.schemas.appointment import AppointmentStatistics
 
@@ -61,7 +60,7 @@ class AppointmentServiceBase:
         except Exception as exc:
             logger.warning(f"邮件事件钩子分发失败: event={event_type}, error={exc}")
 
-    async def get_by_id(self, appointment_id: str) -> Optional[Appointment]:
+    async def get_by_id(self, appointment_id: str) -> Appointment | None:
         query = select(Appointment).options(*APPOINTMENT_QUERY_OPTIONS).where(Appointment.id == appointment_id)
         tenant_id = get_current_tenant_id()
         if tenant_id:
@@ -69,7 +68,7 @@ class AppointmentServiceBase:
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_by_appointment_no(self, appointment_no: str) -> Optional[Appointment]:
+    async def get_by_appointment_no(self, appointment_no: str) -> Appointment | None:
         query = (
             select(Appointment)
             .options(*APPOINTMENT_QUERY_OPTIONS)
@@ -83,20 +82,20 @@ class AppointmentServiceBase:
 
     async def get_list(
         self,
-        user_id: Optional[str] = None,
-        doctor_id: Optional[str] = None,
-        patient_id: Optional[str] = None,
-        store_id: Optional[str] = None,
-        status: Optional[int] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        keyword: Optional[str] = None,
-        department_id: Optional[str] = None,
-        created_start: Optional[datetime] = None,
-        created_end: Optional[datetime] = None,
+        user_id: str | None = None,
+        doctor_id: str | None = None,
+        patient_id: str | None = None,
+        store_id: str | None = None,
+        status: int | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        keyword: str | None = None,
+        department_id: str | None = None,
+        created_start: datetime | None = None,
+        created_end: datetime | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> tuple[List[Appointment], int]:
+    ) -> tuple[list[Appointment], int]:
         tenant_id = get_current_tenant_id()
         query = select(Appointment).options(*APPOINTMENT_QUERY_OPTIONS)
         count_query = select(func.count(Appointment.id))
@@ -162,7 +161,7 @@ class AppointmentServiceBase:
         count_result = await self.db.execute(count_query)
         return list(result.scalars().all()), count_result.scalar() or 0
 
-    async def get_today_by_doctor(self, doctor_id: str) -> List[Appointment]:
+    async def get_today_by_doctor(self, doctor_id: str) -> list[Appointment]:
         today = date.today()
         query = (
             select(Appointment)
@@ -189,10 +188,10 @@ class AppointmentServiceBase:
 
     async def get_statistics(
         self,
-        doctor_id: Optional[str] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        store_id: Optional[Union[str, List[str]]] = None,
+        doctor_id: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        store_id: str | list[str] | None = None,
     ) -> AppointmentStatistics:
         tenant_id = get_current_tenant_id()
         base_query = select(Appointment.status, func.count(Appointment.id))
@@ -308,7 +307,7 @@ class AppointmentServiceBase:
             ],
         }
 
-    async def get_today_pending_by_user_and_store(self, user_id: str, store_id: str) -> List[Appointment]:
+    async def get_today_pending_by_user_and_store(self, user_id: str, store_id: str) -> list[Appointment]:
         from app.models.doctor import Doctor
 
         today = date.today()
@@ -334,10 +333,10 @@ class AppointmentServiceBase:
 
     async def get_checkin_queue(
         self,
-        store_id: Optional[str] = None,
-        doctor_id: Optional[str] = None,
-        target_date: Optional[date] = None,
-    ) -> List[Appointment]:
+        store_id: str | None = None,
+        doctor_id: str | None = None,
+        target_date: date | None = None,
+    ) -> list[Appointment]:
         from app.models.doctor import Doctor
 
         target_date = target_date or date.today()
@@ -376,7 +375,7 @@ class AppointmentServiceBase:
         patient_id: str,
         schedule_date: date,
         time_slot: str,
-    ) -> List[Appointment]:
+    ) -> list[Appointment]:
         query = (
             select(Appointment)
             .join(Schedule)
@@ -400,7 +399,7 @@ class AppointmentServiceBase:
     async def _count_user_store_daily_appointments(
         self,
         user_id: str,
-        store_id: Optional[str],
+        store_id: str | None,
         schedule_date: date,
     ) -> int:
         query = (
@@ -443,8 +442,8 @@ class AppointmentServiceBase:
     async def _check_rest_day(
         self,
         check_date: date,
-        store_id: Optional[str] = None,
-        doctor_id: Optional[str] = None,
+        store_id: str | None = None,
+        doctor_id: str | None = None,
     ) -> bool:
         try:
             query = select(RestDay).where(

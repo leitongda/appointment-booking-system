@@ -1,16 +1,16 @@
 """积分服务"""
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_, cast, Date
-from sqlalchemy.orm import selectinload
-from typing import Optional, List, Tuple
-from datetime import datetime
 import uuid
+from datetime import datetime
 
-from app.models.user import User, Patient
-from app.models.point_log import PointLog
-from app.models.admin import Admin
-from app.utils.audit import set_create_audit
+from sqlalchemy import and_, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
 from app.middleware.tenant_context import get_current_tenant_id
+from app.models.admin import Admin
+from app.models.point_log import PointLog
+from app.models.user import Patient, User
+from app.utils.audit import set_create_audit
 
 
 class PointService:
@@ -19,7 +19,7 @@ class PointService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_user_by_patient_id(self, patient_id: str) -> Optional[User]:
+    async def get_user_by_patient_id(self, patient_id: str) -> User | None:
         """通过患者ID获取用户"""
         result = await self.db.execute(
             select(Patient)
@@ -41,7 +41,7 @@ class PointService:
         patient_id: str,
         page: int = 1,
         page_size: int = 10,
-    ) -> Tuple[List[dict], int, int]:
+    ) -> tuple[list[dict], int, int]:
         """获取积分流水
 
         Returns:
@@ -92,9 +92,9 @@ class PointService:
         patient_id: str,
         amount: int,
         remark: str,
-        operator_id: Optional[str] = None,
+        operator_id: str | None = None,
         log_type: int = 4,  # 默认为手动调整
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """调整积分
 
         Args:
@@ -196,13 +196,13 @@ class PointService:
 
     async def get_all_logs(
         self,
-        keyword: Optional[str] = None,
-        log_type: Optional[int] = None,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
+        keyword: str | None = None,
+        log_type: int | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
         page: int = 1,
         page_size: int = 20,
-    ) -> Tuple[List[dict], int]:
+    ) -> tuple[list[dict], int]:
         """获取全局积分流水（跨用户）"""
         query = self._tenant_filter(select(PointLog))
         count_query = self._tenant_filter(select(func.count(PointLog.id)))
@@ -285,12 +285,12 @@ class PointService:
 
     async def get_user_ranking(
         self,
-        keyword: Optional[str] = None,
+        keyword: str | None = None,
         sort_by: str = "points",
         sort_order: str = "desc",
         page: int = 1,
         page_size: int = 20,
-    ) -> Tuple[List[dict], int]:
+    ) -> tuple[list[dict], int]:
         """获取用户积分排行"""
         query = select(User)
         count_query = select(func.count(User.id))
@@ -336,8 +336,8 @@ class PointService:
         user_id: str,
         amount: int,
         remark: str,
-        operator_id: Optional[str] = None,
-    ) -> Optional[dict]:
+        operator_id: str | None = None,
+    ) -> dict | None:
         """直接通过 user_id 调整积分"""
         user = await self.db.get(User, user_id)
         if not user:

@@ -1,11 +1,11 @@
 """系统设置 API"""
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field
 
-from app.db.session import get_db
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.deps import get_current_admin, require_permission
+from app.db.session import get_db
 from app.modules.settings.service import SettingsService
 
 router = APIRouter()
@@ -13,61 +13,61 @@ router = APIRouter()
 
 # ========== Schemas ==========
 class BookingSettingsUpdate(BaseModel):
-    advanceDays: Optional[int] = Field(None, ge=1, le=30)
-    sameDayBooking: Optional[bool] = None
-    cancelHours: Optional[int] = Field(None, ge=0, le=168)
-    perDayLimit: Optional[int] = Field(None, ge=1, le=10)
-    perDoctorLimit: Optional[int] = Field(None, ge=1, le=5)
-    noShowLimit: Optional[int] = Field(None, ge=1, le=10)
-    blacklistDays: Optional[int] = Field(None, ge=1, le=365)
+    advanceDays: int | None = Field(None, ge=1, le=30)
+    sameDayBooking: bool | None = None
+    cancelHours: int | None = Field(None, ge=0, le=168)
+    perDayLimit: int | None = Field(None, ge=1, le=10)
+    perDoctorLimit: int | None = Field(None, ge=1, le=5)
+    noShowLimit: int | None = Field(None, ge=1, le=10)
+    blacklistDays: int | None = Field(None, ge=1, le=365)
     # 提前预约截止配置
-    advanceBookingMinutes: Optional[int] = Field(None, ge=0, le=1440, description="提前预约截止时间（分钟），0表示不限制")
-    advanceBookingDirection: Optional[str] = Field(None, pattern='^(before|after)$', description="时间方向: before往前, after往后")
-    advanceBookingReference: Optional[str] = Field(None, pattern='^(start|end)$', description="基准时间: start开始时间, end结束时间")
+    advanceBookingMinutes: int | None = Field(None, ge=0, le=1440, description="提前预约截止时间（分钟），0表示不限制")
+    advanceBookingDirection: str | None = Field(None, pattern='^(before|after)$', description="时间方向: before往前, after往后")
+    advanceBookingReference: str | None = Field(None, pattern='^(start|end)$', description="基准时间: start开始时间, end结束时间")
     # 签到时间配置
-    signInAdvanceMinutes: Optional[int] = Field(None, ge=0, le=1440, description="提前签到时间（分钟），班次开始前多少分钟可以签到")
-    signInLateMinutes: Optional[int] = Field(None, ge=0, le=1440, description="迟到签到时间（分钟），班次开始后多少分钟还可以签到")
+    signInAdvanceMinutes: int | None = Field(None, ge=0, le=1440, description="提前签到时间（分钟），班次开始前多少分钟可以签到")
+    signInLateMinutes: int | None = Field(None, ge=0, le=1440, description="迟到签到时间（分钟），班次开始后多少分钟还可以签到")
     # 通知策略
-    appointmentReminderHours: Optional[int] = Field(None, ge=1, le=72, description="预约提醒提前时间（小时）")
+    appointmentReminderHours: int | None = Field(None, ge=1, le=72, description="预约提醒提前时间（小时）")
 
 
 class HospitalInfoUpdate(BaseModel):
-    hospitalName: Optional[str] = Field(None, max_length=100)
-    hospitalLevel: Optional[str] = Field(None, max_length=50)
-    address: Optional[str] = Field(None, max_length=200)
-    phone: Optional[str] = Field(None, max_length=50)
-    workTime: Optional[str] = Field(None, max_length=100)
-    introduction: Optional[str] = None
-    logo: Optional[str] = None
+    hospitalName: str | None = Field(None, max_length=100)
+    hospitalLevel: str | None = Field(None, max_length=50)
+    address: str | None = Field(None, max_length=200)
+    phone: str | None = Field(None, max_length=50)
+    workTime: str | None = Field(None, max_length=100)
+    introduction: str | None = None
+    logo: str | None = None
 
 
 class WechatConfigUpdate(BaseModel):
-    appId: Optional[str] = Field(None, max_length=100)
-    appSecret: Optional[str] = Field(None, max_length=100)
-    mchId: Optional[str] = Field(None, max_length=100)
-    apiKey: Optional[str] = Field(None, max_length=100)
-    notifyUrl: Optional[str] = Field(None, max_length=200)
+    appId: str | None = Field(None, max_length=100)
+    appSecret: str | None = Field(None, max_length=100)
+    mchId: str | None = Field(None, max_length=100)
+    apiKey: str | None = Field(None, max_length=100)
+    notifyUrl: str | None = Field(None, max_length=200)
 
 
 class SmsConfigUpdate(BaseModel):
-    smsProvider: Optional[str] = Field(None, max_length=50)
-    accessKeyId: Optional[str] = Field(None, max_length=100)
-    accessKeySecret: Optional[str] = Field(None, max_length=100)
-    signName: Optional[str] = Field(None, max_length=50)
-    templateCode: Optional[str] = Field(None, max_length=50)
+    smsProvider: str | None = Field(None, max_length=50)
+    accessKeyId: str | None = Field(None, max_length=100)
+    accessKeySecret: str | None = Field(None, max_length=100)
+    signName: str | None = Field(None, max_length=50)
+    templateCode: str | None = Field(None, max_length=50)
     # 通知策略参数
-    codeExpireSeconds: Optional[int] = Field(None, ge=60, le=600, description="验证码有效期(秒)")
-    sendIntervalSeconds: Optional[int] = Field(None, ge=30, le=300, description="短信发送间隔(秒)")
+    codeExpireSeconds: int | None = Field(None, ge=60, le=600, description="验证码有效期(秒)")
+    sendIntervalSeconds: int | None = Field(None, ge=30, le=300, description="短信发送间隔(秒)")
 
 
 class EmailConfigUpdate(BaseModel):
-    smtpHost: Optional[str] = Field(None, max_length=100, description="SMTP服务器地址")
-    smtpPort: Optional[int] = Field(None, ge=1, le=65535, description="SMTP端口")
-    smtpUser: Optional[str] = Field(None, max_length=100, description="SMTP用户名")
-    smtpPassword: Optional[str] = Field(None, max_length=200, description="SMTP密码")
-    smtpSsl: Optional[bool] = Field(None, description="是否使用SSL")
-    senderName: Optional[str] = Field(None, max_length=100, description="发件人名称")
-    senderEmail: Optional[str] = Field(None, max_length=100, description="发件人邮箱")
+    smtpHost: str | None = Field(None, max_length=100, description="SMTP服务器地址")
+    smtpPort: int | None = Field(None, ge=1, le=65535, description="SMTP端口")
+    smtpUser: str | None = Field(None, max_length=100, description="SMTP用户名")
+    smtpPassword: str | None = Field(None, max_length=200, description="SMTP密码")
+    smtpSsl: bool | None = Field(None, description="是否使用SSL")
+    senderName: str | None = Field(None, max_length=100, description="发件人名称")
+    senderEmail: str | None = Field(None, max_length=100, description="发件人邮箱")
 
 
 # ========== 预约设置 ==========
@@ -115,7 +115,7 @@ async def get_booking_settings(
 @router.put("/booking", summary="更新预约设置")
 async def update_booking_settings(
     data: BookingSettingsUpdate,
-    storeId: Optional[str] = None,
+    storeId: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("settings:edit")),
@@ -348,7 +348,7 @@ async def update_email_config(
 # ========== 公开接口：获取预约规则 ==========
 @router.get("/booking/rules", summary="获取预约规则")
 async def get_booking_rules(
-    storeId: Optional[str] = None,
+    storeId: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
     """获取预约规则（公开接口，用于患者端）
@@ -379,13 +379,13 @@ async def get_booking_rules(
 
 # ========== 安全策略配置 ==========
 class SecurityConfigUpdate(BaseModel):
-    accessTokenExpireMinutes: Optional[int] = Field(None, ge=5, le=1440, description="AccessToken有效期(分钟)")
-    refreshTokenExpireDays: Optional[int] = Field(None, ge=1, le=90, description="RefreshToken有效期(天)")
-    defaultPassword: Optional[str] = Field(None, min_length=6, max_length=50, description="新建管理员默认密码")
-    rateLimitPerMinute: Optional[int] = Field(None, ge=10, le=10000, description="每分钟请求上限")
-    rateLimitPerSecond: Optional[int] = Field(None, ge=1, le=1000, description="每秒请求上限")
-    loginFailureLockCount: Optional[int] = Field(None, ge=0, le=20, description="登录失败锁定次数(0不锁定)")
-    sessionTimeoutMinutes: Optional[int] = Field(None, ge=5, le=1440, description="会话超时时间(分钟)")
+    accessTokenExpireMinutes: int | None = Field(None, ge=5, le=1440, description="AccessToken有效期(分钟)")
+    refreshTokenExpireDays: int | None = Field(None, ge=1, le=90, description="RefreshToken有效期(天)")
+    defaultPassword: str | None = Field(None, min_length=6, max_length=50, description="新建管理员默认密码")
+    rateLimitPerMinute: int | None = Field(None, ge=10, le=10000, description="每分钟请求上限")
+    rateLimitPerSecond: int | None = Field(None, ge=1, le=1000, description="每秒请求上限")
+    loginFailureLockCount: int | None = Field(None, ge=0, le=20, description="登录失败锁定次数(0不锁定)")
+    sessionTimeoutMinutes: int | None = Field(None, ge=5, le=1440, description="会话超时时间(分钟)")
 
 
 @router.get("/security", summary="获取安全策略配置")
@@ -435,14 +435,14 @@ async def update_security_config(
 
 # ========== 号源释放策略配置 ==========
 class SourceReleaseConfigUpdate(BaseModel):
-    lockTimeoutMinutes: Optional[int] = Field(None, ge=1, le=60, description="号源锁定超时(分钟)")
-    batchReleaseEnabled: Optional[bool] = Field(None, description="是否启用批量释放")
-    batchReleaseDays: Optional[int] = Field(None, ge=1, le=30, description="批量释放提前天数")
-    batchReleaseTime: Optional[str] = Field(None, pattern=r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$', description="批量释放时间点 HH:mm")
-    autoCancelUnpaidMinutes: Optional[int] = Field(None, ge=5, le=1440, description="未支付自动取消时间(分钟)")
-    noShowAutoMarkHours: Optional[int] = Field(None, ge=1, le=168, description="爽约自动标记时间(小时)")
-    allowOverbooking: Optional[bool] = Field(None, description="是否允许超额预约")
-    overbookingLimit: Optional[int] = Field(None, ge=0, le=50, description="超额预约上限")
+    lockTimeoutMinutes: int | None = Field(None, ge=1, le=60, description="号源锁定超时(分钟)")
+    batchReleaseEnabled: bool | None = Field(None, description="是否启用批量释放")
+    batchReleaseDays: int | None = Field(None, ge=1, le=30, description="批量释放提前天数")
+    batchReleaseTime: str | None = Field(None, pattern=r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$', description="批量释放时间点 HH:mm")
+    autoCancelUnpaidMinutes: int | None = Field(None, ge=5, le=1440, description="未支付自动取消时间(分钟)")
+    noShowAutoMarkHours: int | None = Field(None, ge=1, le=168, description="爽约自动标记时间(小时)")
+    allowOverbooking: bool | None = Field(None, description="是否允许超额预约")
+    overbookingLimit: int | None = Field(None, ge=0, le=50, description="超额预约上限")
 
 
 @router.get("/source-release", summary="获取号源释放策略配置")
@@ -524,10 +524,10 @@ async def update_booking_fields(
 
 # ========== 就诊卡配置 ==========
 class PatientCardConfigUpdate(BaseModel):
-    cardName: Optional[str] = Field(None, max_length=50, description="就诊卡名称")
-    cardDescription: Optional[str] = Field(None, max_length=16, description="描述文字（限16字）")
-    maxCardsPerUser: Optional[int] = Field(None, ge=1, le=20, description="可建卡数量")
-    showOnHomepage: Optional[bool] = Field(None, description="首页是否展示")
+    cardName: str | None = Field(None, max_length=50, description="就诊卡名称")
+    cardDescription: str | None = Field(None, max_length=16, description="描述文字（限16字）")
+    maxCardsPerUser: int | None = Field(None, ge=1, le=20, description="可建卡数量")
+    showOnHomepage: bool | None = Field(None, description="首页是否展示")
 
 
 @router.get("/patient-card", summary="获取就诊卡配置")
@@ -565,8 +565,8 @@ class ThumbnailSizeItem(BaseModel):
 
 
 class ImageConfigUpdate(BaseModel):
-    thumbnailSizes: Optional[list[ThumbnailSizeItem]] = Field(None, description="缩略图尺寸配置")
-    compressQuality: Optional[int] = Field(None, ge=1, le=100, description="压缩质量 1-100")
+    thumbnailSizes: list[ThumbnailSizeItem] | None = Field(None, description="缩略图尺寸配置")
+    compressQuality: int | None = Field(None, ge=1, le=100, description="压缩质量 1-100")
 
 
 @router.get("/image", summary="获取图片处理配置")
@@ -610,7 +610,7 @@ class TimePeriodItem(BaseModel):
 
 
 class TimePeriodsUpdate(BaseModel):
-    storeId: Optional[str] = Field(None, description="门店ID，不传则更新全局配置")
+    storeId: str | None = Field(None, description="门店ID，不传则更新全局配置")
     periods: list[TimePeriodItem] = Field(..., min_length=1, description="时段配置列表")
 
 
@@ -621,7 +621,7 @@ class TimePeriodsResponse(BaseModel):
 
 @router.get("/time-periods", summary="获取时段配置")
 async def get_time_periods(
-    storeId: Optional[str] = None,
+    storeId: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
     """获取时段配置（公开接口）

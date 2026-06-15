@@ -1,8 +1,10 @@
 from app.schemas.response import to_camel
+
 """字典管理 Schema 定义"""
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, List, Any
 from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
 
 # ==================== 字典类型 ====================
 
@@ -11,14 +13,14 @@ class DictTypeCreate(BaseModel):
 
     code: str = Field(..., max_length=50, description="字典类型编码")
     name: str = Field(..., max_length=100, description="字典类型名称")
-    description: Optional[str] = Field(None, description="描述")
+    description: str | None = Field(None, description="描述")
 
 class DictTypeUpdate(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
-    name: Optional[str] = Field(None, max_length=100)
-    description: Optional[str] = None
-    status: Optional[int] = None
+    name: str | None = Field(None, max_length=100)
+    description: str | None = None
+    status: int | None = None
 
 class DictTypeResponse(BaseModel):
     model_config = ConfigDict(
@@ -31,10 +33,10 @@ class DictTypeResponse(BaseModel):
     id: str
     code: str
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     status: int
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 # ==================== 字典项 ====================
 
@@ -44,16 +46,16 @@ class DictItemCreate(BaseModel):
     label: str = Field(..., max_length=200, description="显示标签")
     value: str = Field(..., max_length=100, description="字典值")
     sort_order: int = Field(0, description="排序")
-    extra: Optional[Any] = Field(None, description="扩展数据")
+    extra: Any | None = Field(None, description="扩展数据")
 
 class DictItemUpdate(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
-    label: Optional[str] = Field(None, max_length=200)
-    value: Optional[str] = Field(None, max_length=100)
-    sort_order: Optional[int] = None
-    status: Optional[int] = None
-    extra: Optional[Any] = None
+    label: str | None = Field(None, max_length=200)
+    value: str | None = Field(None, max_length=100)
+    sort_order: int | None = None
+    status: int | None = None
+    extra: Any | None = None
 
 class DictItemResponse(BaseModel):
     model_config = ConfigDict(
@@ -69,9 +71,9 @@ class DictItemResponse(BaseModel):
     value: str
     sort_order: int
     status: int
-    extra: Optional[Any] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    extra: Any | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 class SortItem(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
@@ -82,7 +84,7 @@ class SortItem(BaseModel):
 class SortRequest(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
-    items: List[SortItem] = Field(..., description="排序列表")
+    items: list[SortItem] = Field(..., description="排序列表")
 
 # ==================== 公开查询 ====================
 
@@ -97,17 +99,17 @@ class DictOptionItem(BaseModel):
 
     label: str
     value: str
-    extra: Optional[Any] = None
+    extra: Any | None = None
 
 class DictOptionsResponse(BaseModel):
     """单个字典类型的选项列表"""
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
     code: str
-    items: List[DictOptionItem] = Field(default_factory=list)
+    items: list[DictOptionItem] = Field(default_factory=list)
 
 class BatchDictOptionsResponse(BaseModel):
     """批量字典选项查询结果"""
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
-    dicts: List[DictOptionsResponse] = Field(default_factory=list)
+    dicts: list[DictOptionsResponse] = Field(default_factory=list)

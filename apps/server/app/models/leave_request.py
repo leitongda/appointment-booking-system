@@ -1,7 +1,9 @@
-from sqlalchemy import Column, String, Integer, Text, Date, DateTime, ForeignKey
-from app.db.base import Base, AuditMixin
-from app.enums.schedule import RequestStatus, RequestType  # noqa: F401 — re-export for backward compat
 import uuid
+
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String, Text
+
+from app.db.base import AuditMixin, Base
+from app.enums.schedule import RequestStatus, RequestType  # noqa: F401 — re-export for backward compat
 
 
 class LeaveRequest(Base, AuditMixin):

@@ -1,15 +1,13 @@
 """Read and auth helpers for doctors."""
 
 from datetime import date, timedelta
-from typing import Dict, List, Optional
 
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import selectinload
 
-from app.core.security import verify_password
 from app.common.account_sync import AccountSyncService
+from app.core.security import verify_password
 from app.middleware.tenant_context import get_current_tenant_id
-from app.models.department import Department
 from app.models.doctor import Doctor
 from app.models.rest_day import RestDay
 from app.models.schedule import Schedule
@@ -20,7 +18,7 @@ class DoctorQueryMixin:
         self,
         phone: str,
         strict_tenant: bool = False,
-    ) -> Optional[Doctor]:
+    ) -> Doctor | None:
         query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
@@ -46,7 +44,7 @@ class DoctorQueryMixin:
         self,
         username: str,
         strict_tenant: bool = False,
-    ) -> Optional[Doctor]:
+    ) -> Doctor | None:
         query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
@@ -68,7 +66,7 @@ class DoctorQueryMixin:
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
-    async def authenticate(self, phone: str, password: str) -> Optional[Doctor]:
+    async def authenticate(self, phone: str, password: str) -> Doctor | None:
         doctor = await self.get_by_phone(phone, strict_tenant=True)
         if not doctor:
             doctor = await self.get_by_username(phone, strict_tenant=True)
@@ -99,7 +97,7 @@ class DoctorQueryMixin:
 
             await self.db.commit()
 
-    async def get_by_id(self, doctor_id: str) -> Optional[Doctor]:
+    async def get_by_id(self, doctor_id: str) -> Doctor | None:
         query = (
             select(Doctor)
             .options(selectinload(Doctor.department), selectinload(Doctor.store))
@@ -113,13 +111,13 @@ class DoctorQueryMixin:
 
     async def get_list(
         self,
-        name: Optional[str] = None,
-        store_id: Optional[str] = None,
-        department_id: Optional[str] = None,
-        status: Optional[int] = None,
+        name: str | None = None,
+        store_id: str | None = None,
+        department_id: str | None = None,
+        status: int | None = None,
         page: int = 1,
         page_size: int = 10,
-    ) -> tuple[List[Doctor], int]:
+    ) -> tuple[list[Doctor], int]:
         tenant_id = get_current_tenant_id()
         query = select(Doctor).options(selectinload(Doctor.department), selectinload(Doctor.store))
         count_query = select(func.count(Doctor.id))
@@ -150,7 +148,7 @@ class DoctorQueryMixin:
         count_result = await self.db.execute(count_query)
         return list(result.scalars().all()), count_result.scalar() or 0
 
-    async def get_recommended(self, limit: int = 6, store_id: Optional[str] = None) -> List[Doctor]:
+    async def get_recommended(self, limit: int = 6, store_id: str | None = None) -> list[Doctor]:
         tenant_id = get_current_tenant_id()
         query = (
             select(Doctor)
@@ -166,8 +164,8 @@ class DoctorQueryMixin:
         return list(result.scalars().all())
 
     async def get_by_department(
-        self, department_id: str, store_id: Optional[str] = None
-    ) -> List[Doctor]:
+        self, department_id: str, store_id: str | None = None
+    ) -> list[Doctor]:
         tenant_id = get_current_tenant_id()
         query = (
             select(Doctor)
@@ -182,7 +180,7 @@ class DoctorQueryMixin:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_all_active(self, store_id: Optional[str] = None) -> List[Doctor]:
+    async def get_all_active(self, store_id: str | None = None) -> list[Doctor]:
         tenant_id = get_current_tenant_id()
         query = select(Doctor).options(
             selectinload(Doctor.department), selectinload(Doctor.store)
@@ -195,7 +193,7 @@ class DoctorQueryMixin:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_doctors_availability(self, doctor_ids: List[str], days: int = 7) -> Dict[str, bool]:
+    async def get_doctors_availability(self, doctor_ids: list[str], days: int = 7) -> dict[str, bool]:
         if not doctor_ids:
             return {}
 

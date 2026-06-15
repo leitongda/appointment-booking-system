@@ -1,23 +1,23 @@
 """积分管理 API（独立路由）"""
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 
-from app.db.session import get_db
 from app.api.deps import get_current_admin, require_permission
+from app.core.config import settings
+from app.db.session import get_db
 from app.modules.points.service import PointService
 from app.schemas.point_log import PointAdjustData
-from app.core.config import settings
 
 router = APIRouter()
 
 
 @router.get("/logs", summary="获取全局积分流水")
 async def get_all_point_logs(
-    keyword: Optional[str] = Query(None, description="搜索用户姓名/手机号"),
-    log_type: Optional[int] = Query(None, ge=1, le=4, description="类型: 1消费 2充值 3赠送 4手动调整"),
-    start_date: Optional[str] = Query(None, description="开始日期 YYYY-MM-DD"),
-    end_date: Optional[str] = Query(None, description="结束日期 YYYY-MM-DD"),
+    keyword: str | None = Query(None, description="搜索用户姓名/手机号"),
+    log_type: int | None = Query(None, ge=1, le=4, description="类型: 1消费 2充值 3赠送 4手动调整"),
+    start_date: str | None = Query(None, description="开始日期 YYYY-MM-DD"),
+    end_date: str | None = Query(None, description="结束日期 YYYY-MM-DD"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -44,7 +44,7 @@ async def get_all_point_logs(
 
 @router.get("/users", summary="获取用户积分排行")
 async def get_point_users(
-    keyword: Optional[str] = Query(None, description="搜索用户姓名/手机号"),
+    keyword: str | None = Query(None, description="搜索用户姓名/手机号"),
     sort_by: str = Query("points", description="排序字段: points"),
     sort_order: str = Query("desc", description="排序方向: asc/desc"),
     page: int = Query(1, ge=1),

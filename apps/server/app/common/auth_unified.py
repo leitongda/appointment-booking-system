@@ -7,44 +7,48 @@
 
 为后续统一账号表打基础，当前保持与现有 Token 格式完全兼容。
 """
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
-from typing import Optional
 import hashlib
 import json
 
-from app.db.session import get_db
-from app.core.security import decode_token
-from app.core.redis import RedisCache
-from app.models.user import User
-from app.models.doctor import Doctor
-from app.models.admin import Admin
-from app.models.tenant import Tenant
-from app.core.config import settings
-from app.middleware.tenant_context import (
-    get_current_tenant_id,
-    get_current_tenant_code,
-    set_tenant_context,
-)
-from app.middleware.exception import raise_business_http_error
-from app.core.error_codes import ErrorCode as TenantErrorCode
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
 from app.common.auth_types import (
     AccountInfo,
-    RoleType,
     AdminInfo,
     DoctorInfo,
+    RoleType,
     UserInfo,
 )
-from app.common.role_permissions import get_permissions_for_role_type, DOCTOR_PERMISSIONS, USER_PERMISSIONS, load_permissions_from_role
+from app.common.role_permissions import (
+    DOCTOR_PERMISSIONS,
+    USER_PERMISSIONS,
+    load_permissions_from_role,
+)
+from app.core.error_codes import ErrorCode as TenantErrorCode
+from app.core.redis import RedisCache
+from app.core.security import decode_token
+from app.db.session import get_db
+from app.middleware.exception import raise_business_http_error
+from app.middleware.tenant_context import (
+    get_current_tenant_code,
+    get_current_tenant_id,
+    set_tenant_context,
+)
+from app.models.admin import Admin
+from app.models.doctor import Doctor
+from app.models.tenant import Tenant
+from app.models.user import User
 
 # 开发环境导出用于测试
 __all__ = [
     "get_current_account",
     "get_current_account_with_role",
     "get_optional_account",
+    "require_role",
 ]
 
 security = HTTPBearer(
@@ -622,10 +626,37 @@ async def get_current_account_with_role(
     return account
 
 
+def require_role(required_role: RoleType):
+    """工厂函数：返回一个 FastAPI 依赖，验证当前用户是否拥有指定角色。
+
+    用法::
+
+        @router.get("/admin-only")
+        async def admin_endpoint(
+            account: AccountInfo = Depends(require_role(RoleType.ADMIN)),
+        ):
+            ...
+
+    Args:
+        required_role: 要求的角色类型
+
+    Returns:
+        可直接传入 ``Depends()`` 的异步依赖函数
+    """
+
+    async def _dependency(
+        credentials: HTTPAuthorizationCredentials = Depends(security),
+        db: AsyncSession = Depends(get_db),
+    ) -> AccountInfo:
+        return await get_current_account_with_role(required_role, credentials, db)
+
+    return _dependency
+
+
 async def get_optional_account(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db),
-) -> Optional[AccountInfo]:
+) -> AccountInfo | None:
     """可选的统一认证
 
     用于不强制登录的接口，如果提供了有效 Token 则返回账号信息，

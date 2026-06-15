@@ -3,17 +3,16 @@
 
 提供租户级通知配额检查、用量统计和配额告警功能。
 """
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
-from sqlalchemy import select, and_
-from sqlalchemy.ext.asyncio import AsyncSession
 import logging
+from datetime import datetime, timedelta
+from typing import Any
 
-from app.models.notification_log import NotificationLog
-from app.models.tenant import Tenant, SubscriptionPlan
+from sqlalchemy import and_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models.settings import SystemSetting
+from app.models.tenant import Tenant
 from app.modules.notification_logs.service import NotificationLogService
-from app.schemas.notification_log import NotificationStatus
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +43,7 @@ class NotificationQuotaService:
 
     async def get_quota_config(
         self, tenant_id: str, channel: str
-    ) -> Optional[int]:
+    ) -> int | None:
         """获取租户指定渠道的配额配置
 
         优先级:
@@ -208,7 +207,7 @@ class NotificationQuotaService:
         await RedisCache.incr(cache_key, 1)
         await RedisCache.set(cache_key, await RedisCache.get(cache_key), expire=ttl)
 
-    async def get_quota_info(self, tenant_id: str) -> Dict[str, Any]:
+    async def get_quota_info(self, tenant_id: str) -> dict[str, Any]:
         """获取租户完整的配额信息
 
         Args:

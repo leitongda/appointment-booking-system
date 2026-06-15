@@ -12,13 +12,12 @@
 import asyncio
 import json
 import logging
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, List
-from collections import defaultdict
 import time
+from datetime import datetime
+from typing import Any
 
-from app.core.redis import RedisCache
 from app.core.config import settings
+from app.core.redis import RedisCache
 from app.middleware.tenant_context import get_current_tenant_id
 
 logger = logging.getLogger(__name__)
@@ -59,7 +58,7 @@ class RulePerformanceService:
         self.slow_query_ttl = settings.RULE_SLOW_QUERY_TTL
 
     @classmethod
-    def _get_all_operations(cls) -> List[str]:
+    def _get_all_operations(cls) -> list[str]:
         """获取所有操作类型列表"""
         return [
             cls.OP_GET_APPLICABLE_RULE_SET,
@@ -72,14 +71,14 @@ class RulePerformanceService:
         ]
 
     @staticmethod
-    def _resolve_tenant_id(tenant_id: Optional[str] = None) -> Optional[str]:
+    def _resolve_tenant_id(tenant_id: str | None = None) -> str | None:
         """解析有效的租户ID
 
         优先使用显式传入的 tenant_id，否则从上下文获取。
         """
         return tenant_id or get_current_tenant_id()
 
-    def _build_base_prefix(self, tenant_id: Optional[str]) -> str:
+    def _build_base_prefix(self, tenant_id: str | None) -> str:
         """构建包含租户维度的基础前缀
 
         Args:
@@ -93,15 +92,15 @@ class RulePerformanceService:
             return f"rule_engine:{effective_tenant_id}:"
         return "rule_engine:global:"
 
-    def _build_counter_key(self, operation: str, tenant_id: Optional[str] = None) -> str:
+    def _build_counter_key(self, operation: str, tenant_id: str | None = None) -> str:
         """构建计数器 key"""
         return f"{self._build_base_prefix(tenant_id)}{self.PREFIX_COUNTER}{operation}"
 
-    def _build_latency_key(self, operation: str, tenant_id: Optional[str] = None) -> str:
+    def _build_latency_key(self, operation: str, tenant_id: str | None = None) -> str:
         """构建延迟统计 key"""
         return f"{self._build_base_prefix(tenant_id)}{self.PREFIX_LATENCY}{operation}"
 
-    def _build_slow_query_key(self, operation: str, tenant_id: Optional[str] = None) -> str:
+    def _build_slow_query_key(self, operation: str, tenant_id: str | None = None) -> str:
         """构建慢查询 key"""
         return f"{self._build_base_prefix(tenant_id)}{self.PREFIX_SLOW_QUERY}{operation}"
 
@@ -109,9 +108,9 @@ class RulePerformanceService:
         self,
         operation: str,
         duration_ms: float,
-        shift_type_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        tenant_id: Optional[str] = None
+        shift_type_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        tenant_id: str | None = None
     ) -> None:
         """
         记录规则引擎调用
@@ -150,9 +149,9 @@ class RulePerformanceService:
         self,
         operation: str,
         duration_ms: float,
-        shift_type_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        tenant_id: Optional[str] = None
+        shift_type_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        tenant_id: str | None = None
     ) -> None:
         """异步记录调用数据"""
         try:
@@ -185,9 +184,9 @@ class RulePerformanceService:
         self,
         operation: str,
         duration_ms: float,
-        shift_type_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        tenant_id: Optional[str] = None
+        shift_type_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        tenant_id: str | None = None
     ) -> None:
         """记录慢查询"""
         try:
@@ -219,10 +218,10 @@ class RulePerformanceService:
 
     async def get_performance_stats(
         self,
-        operation: Optional[str] = None,
+        operation: str | None = None,
         hours: int = 24,
-        tenant_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+        tenant_id: str | None = None
+    ) -> dict[str, Any]:
         """
         获取性能统计信息
 
@@ -263,8 +262,8 @@ class RulePerformanceService:
         self,
         operation: str,
         hours: int,
-        tenant_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+        tenant_id: str | None = None
+    ) -> dict[str, Any]:
         """获取单个操作的统计信息"""
         try:
             # 1. 调用次数
@@ -308,7 +307,7 @@ class RulePerformanceService:
                 "avg_rate": 0
             }
 
-    def _calculate_percentiles(self, values: List[float]) -> Dict[str, float]:
+    def _calculate_percentiles(self, values: list[float]) -> dict[str, float]:
         """计算延迟分位数"""
         if not values:
             return {"p50": 0, "p95": 0, "p99": 0, "avg": 0, "max": 0, "min": 0}
@@ -343,7 +342,7 @@ class RulePerformanceService:
             "min": round(sorted_values[0], 2)
         }
 
-    def _calculate_summary(self, stats: Dict[str, Dict]) -> Dict[str, Any]:
+    def _calculate_summary(self, stats: dict[str, dict]) -> dict[str, Any]:
         """计算总体摘要"""
         total_calls = sum(s.get("count", 0) for s in stats.values())
         total_slow = sum(s.get("slow_query_count", 0) for s in stats.values())
@@ -366,10 +365,10 @@ class RulePerformanceService:
 
     async def get_slow_queries(
         self,
-        operation: Optional[str] = None,
+        operation: str | None = None,
         limit: int = 100,
-        tenant_id: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        tenant_id: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         获取慢查询列表
 
@@ -416,9 +415,9 @@ class RulePerformanceService:
 
     async def clear_metrics(
         self,
-        operation: Optional[str] = None,
-        tenant_id: Optional[str] = None
-    ) -> Dict[str, bool]:
+        operation: str | None = None,
+        tenant_id: str | None = None
+    ) -> dict[str, bool]:
         """
         清除性能指标
 

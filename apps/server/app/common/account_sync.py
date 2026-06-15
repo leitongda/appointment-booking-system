@@ -11,11 +11,9 @@
 """
 
 import logging
-import uuid
 from dataclasses import dataclass, field
-from typing import Optional
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -42,8 +40,8 @@ def _is_dual_write_enabled() -> bool:
 async def _get_default_role_id(
     db: AsyncSession,
     role_type: str,
-    tenant_id: Optional[str] = None,
-) -> Optional[str]:
+    tenant_id: str | None = None,
+) -> str | None:
     """查询某角色类型的默认 role_id（租户优先，平台兜底）"""
     if tenant_id:
         tenant_result = await db.execute(
@@ -87,7 +85,7 @@ class AccountSyncService:
     async def sync_admin_to_account(
         db: AsyncSession,
         admin_id: str,
-        operator_id: Optional[str] = None,
+        operator_id: str | None = None,
     ) -> None:
         """Admin 写操作后同步到 accounts + account_admins
 
@@ -240,7 +238,7 @@ class AccountSyncService:
     async def sync_doctor_to_account(
         db: AsyncSession,
         doctor_id: str,
-        operator_id: Optional[str] = None,
+        operator_id: str | None = None,
     ) -> None:
         """Doctor 写操作后同步到 accounts + account_doctors
 
@@ -361,7 +359,7 @@ class AccountSyncService:
     async def soft_delete_doctor_from_account(
         db: AsyncSession,
         doctor_id: str,
-        operator_id: Optional[str] = None,
+        operator_id: str | None = None,
     ) -> None:
         """Doctor 软删除时同步到新表（设置 deleted_at + 禁用 status）"""
         if not _is_dual_write_enabled():
@@ -392,7 +390,7 @@ class AccountSyncService:
     async def sync_user_to_account(
         db: AsyncSession,
         user_id: str,
-        operator_id: Optional[str] = None,
+        operator_id: str | None = None,
     ) -> None:
         """User 写操作后同步到 accounts + account_users
 

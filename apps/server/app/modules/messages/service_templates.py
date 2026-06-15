@@ -1,15 +1,14 @@
 """Message template service."""
 
-import uuid
 import logging
-from typing import List, Optional
+import uuid
 
-from sqlalchemy import select, or_
-from jinja2 import Environment, BaseLoader, TemplateSyntaxError
+from jinja2 import BaseLoader, TemplateSyntaxError
 from jinja2.sandbox import SandboxedEnvironment
+from sqlalchemy import or_, select
 
-from app.models.message import MessageTemplate
 from app.middleware.tenant_context import get_current_tenant_id
+from app.models.message import MessageTemplate
 from app.schemas.message import MessageTemplateCreate, MessageTemplateUpdate
 from app.utils.audit import set_create_audit, set_update_audit
 
@@ -27,13 +26,13 @@ class MessageTemplateService:
             stmt = stmt.where(or_(MessageTemplate.tenant_id == tenant_id, MessageTemplate.tenant_id.is_(None)))
         return stmt
 
-    async def get_by_id(self, template_id: str) -> Optional[MessageTemplate]:
+    async def get_by_id(self, template_id: str) -> MessageTemplate | None:
         stmt = select(MessageTemplate).where(MessageTemplate.id == template_id)
         stmt = self._tenant_filter(stmt)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_code(self, code: str) -> Optional[MessageTemplate]:
+    async def get_by_code(self, code: str) -> MessageTemplate | None:
         tenant_id = get_current_tenant_id()
         if tenant_id:
             stmt = select(MessageTemplate).where(
@@ -55,7 +54,7 @@ class MessageTemplateService:
         )
         return result.scalar_one_or_none()
 
-    async def get_list(self, status: Optional[int] = None) -> List[MessageTemplate]:
+    async def get_list(self, status: int | None = None) -> list[MessageTemplate]:
         stmt = select(MessageTemplate)
         stmt = self._tenant_filter(stmt)
         if status is not None:
@@ -65,7 +64,7 @@ class MessageTemplateService:
         return list(result.scalars().all())
 
     async def create(
-        self, data: MessageTemplateCreate, operator_id: Optional[str] = None
+        self, data: MessageTemplateCreate, operator_id: str | None = None
     ) -> MessageTemplate:
         tenant_id = get_current_tenant_id()
 
@@ -95,8 +94,8 @@ class MessageTemplateService:
         return template
 
     async def update(
-        self, template_id: str, data: MessageTemplateUpdate, operator_id: Optional[str] = None
-    ) -> Optional[MessageTemplate]:
+        self, template_id: str, data: MessageTemplateUpdate, operator_id: str | None = None
+    ) -> MessageTemplate | None:
         template = await self.get_by_id(template_id)
         if not template:
             return None

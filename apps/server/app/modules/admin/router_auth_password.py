@@ -3,13 +3,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin
+from app.common.account_sync import AccountSyncService
 from app.core.config import settings
 from app.core.redis import RedisCache
 from app.db.session import get_db
+from app.infrastructure.email.service import EmailService
 from app.modules.admin.schemas import ChangePasswordRequest, UpdateProfileRequest
 from app.modules.admin.service_admins import AdminService
-from app.common.account_sync import AccountSyncService
-from app.infrastructure.email.service import EmailService
 from app.schemas.auth import EmailBindRequest, EmailChangeRequest, EmailSendCodeRequest, EmailUnbindRequest
 
 router = APIRouter()
@@ -59,7 +59,7 @@ async def change_current_admin_password(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="原密码错误，请重新输入")
 
     # 密码策略校验
-    from app.modules.tenants.password_policy import get_tenant_password_policy, PasswordPolicyValidator
+    from app.modules.tenants.password_policy import PasswordPolicyValidator, get_tenant_password_policy
     policy = await get_tenant_password_policy(db, admin.tenant_id)
     validator = PasswordPolicyValidator(policy)
     is_valid, errors = validator.validate(

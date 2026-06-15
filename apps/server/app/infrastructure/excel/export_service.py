@@ -1,9 +1,10 @@
 """Excel 导出基础服务"""
-from typing import List, Dict, Any, Optional
-from datetime import datetime, date
+from datetime import date, datetime
 from io import BytesIO
+from typing import Any
+
 from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 
@@ -27,10 +28,10 @@ class ExcelExportService:
     @classmethod
     def create_workbook(
         cls,
-        headers: List[str],
-        data: List[List[Any]],
+        headers: list[str],
+        data: list[list[Any]],
         sheet_name: str = "数据",
-        column_widths: Optional[List[int]] = None
+        column_widths: list[int] | None = None
     ) -> bytes:
         """
         创建 Excel 工作簿
@@ -104,7 +105,7 @@ class ExcelExportService:
     @classmethod
     def create_multi_sheet_workbook(
         cls,
-        workbook_data: Dict[str, Dict[str, Any]]
+        workbook_data: dict[str, dict[str, Any]]
     ) -> bytes:
         """
         创建多工作表 Excel 工作簿
@@ -162,7 +163,7 @@ class ExcelExportService:
     @classmethod
     def create_multi_sheet_template(
         cls,
-        workbook_data: Dict[str, Dict[str, Any]]
+        workbook_data: dict[str, dict[str, Any]]
     ) -> bytes:
         """
         创建多工作表 Excel 模板

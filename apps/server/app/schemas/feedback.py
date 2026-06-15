@@ -1,10 +1,11 @@
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, List
 from datetime import datetime
 
-from app.enums.feedback import FeedbackStatus, FeedbackType  # noqa: F401 — re-export
+from pydantic import BaseModel, ConfigDict, Field
+
 from app.core.config import settings
+from app.enums.feedback import FeedbackStatus, FeedbackType  # noqa: F401 — re-export
 from app.schemas.response import to_camel
+
 
 class FeedbackCreate(BaseModel):
     """创建反馈"""
@@ -18,8 +19,8 @@ class FeedbackCreate(BaseModel):
     feedback_type: str = Field("suggestion", description="反馈类型（字典: feedback_type）")
     title: str = Field(..., max_length=200, description="反馈标题")
     content: str = Field(..., min_length=10, description="反馈内容")
-    images: Optional[List[str]] = Field(None, description="图片URL列表")
-    contact: Optional[str] = Field(None, max_length=50, description="联系方式")
+    images: list[str] | None = Field(None, description="图片URL列表")
+    contact: str | None = Field(None, max_length=50, description="联系方式")
 
 class FeedbackReply(BaseModel):
     """回复反馈"""
@@ -41,18 +42,18 @@ class FeedbackResponse(BaseModel):
     )
     
     id: str
-    user_id: Optional[str] = None
-    user_type: Optional[str] = None
-    feedback_type: Optional[str] = None
-    title: Optional[str] = None
-    content: Optional[str] = None
-    images: Optional[List[str]] = None
-    contact: Optional[str] = None
-    status: Optional[str] = None
-    handler_id: Optional[str] = None
-    reply: Optional[str] = None
-    handled_at: Optional[datetime] = None
-    created_at: Optional[datetime] = None
+    user_id: str | None = None
+    user_type: str | None = None
+    feedback_type: str | None = None
+    title: str | None = None
+    content: str | None = None
+    images: list[str] | None = None
+    contact: str | None = None
+    status: str | None = None
+    handler_id: str | None = None
+    reply: str | None = None
+    handled_at: datetime | None = None
+    created_at: datetime | None = None
 
 class FeedbackQuery(BaseModel):
     """查询参数"""
@@ -61,9 +62,9 @@ class FeedbackQuery(BaseModel):
         populate_by_name=True,
     )
     
-    user_id: Optional[str] = None
-    feedback_type: Optional[str] = None
-    status: Optional[FeedbackStatus] = None
-    keyword: Optional[str] = None
+    user_id: str | None = None
+    feedback_type: str | None = None
+    status: FeedbackStatus | None = None
+    keyword: str | None = None
     page: int = Field(1, ge=1)
     page_size: int = Field(10, ge=1, le=settings.MAX_PAGE_SIZE)

@@ -4,24 +4,23 @@
 """
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import List, Optional
 
-from sqlalchemy import select, func, and_, desc, asc
+from sqlalchemy import and_, asc, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.store import Store
-from app.models.tenant import Tenant
 from app.models.store_metric import StoreDailyMetric
+from app.models.tenant import Tenant
 from app.modules.platform_metrics.schemas import (
     PlatformOverview,
-    TenantCompareItem,
     StoreCompareItem,
+    TenantCompareItem,
     TrendPoint,
     calc_no_show_rate,
 )
 
 
-def _default_range(end_date: Optional[date], days: int = 30) -> tuple[date, date]:
+def _default_range(end_date: date | None, days: int = 30) -> tuple[date, date]:
     end = end_date or date.today() - timedelta(days=1)
     start = end - timedelta(days=days - 1)
     return start, end
@@ -32,7 +31,7 @@ class PlatformMetricsService:
         self.db = db
 
     async def overview(
-        self, start_date: Optional[date] = None, end_date: Optional[date] = None
+        self, start_date: date | None = None, end_date: date | None = None
     ) -> PlatformOverview:
         start, end = _default_range(end_date) if not start_date else (start_date, end_date or date.today())
 
@@ -76,11 +75,11 @@ class PlatformMetricsService:
 
     async def tenants_compare(
         self,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
         sort_by: str = "revenue",
         limit: int = 50,
-    ) -> List[TenantCompareItem]:
+    ) -> list[TenantCompareItem]:
         start, end = _default_range(end_date) if not start_date else (start_date, end_date or date.today())
 
         sum_col = {
@@ -135,12 +134,12 @@ class PlatformMetricsService:
 
     async def stores_compare(
         self,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        tenant_id: Optional[str] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        tenant_id: str | None = None,
         sort_by: str = "revenue",
         limit: int = 100,
-    ) -> List[StoreCompareItem]:
+    ) -> list[StoreCompareItem]:
         start, end = _default_range(end_date) if not start_date else (start_date, end_date or date.today())
 
         sum_col = {
@@ -201,8 +200,8 @@ class PlatformMetricsService:
         return result
 
     async def trend(
-        self, start_date: Optional[date] = None, end_date: Optional[date] = None
-    ) -> List[TrendPoint]:
+        self, start_date: date | None = None, end_date: date | None = None
+    ) -> list[TrendPoint]:
         start, end = _default_range(end_date) if not start_date else (start_date, end_date or date.today())
 
         rows = (

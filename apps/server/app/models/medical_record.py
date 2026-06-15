@@ -1,8 +1,10 @@
 """病历模型"""
-from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey, Numeric
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 
 class MedicalRecord(Base, AuditMixin):

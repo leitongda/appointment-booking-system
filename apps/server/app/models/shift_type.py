@@ -1,8 +1,10 @@
 """班次类型模型"""
-from sqlalchemy import Column, String, Boolean, Text, ForeignKey
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import Boolean, Column, ForeignKey, String, Text
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 
 class ShiftType(Base, AuditMixin):

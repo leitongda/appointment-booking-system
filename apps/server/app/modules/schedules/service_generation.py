@@ -1,27 +1,25 @@
 """Rest-day checks and template-based generation for schedules."""
 
-import json
 import logging
 import uuid
 from datetime import date, time, timedelta
-from typing import List, Optional, Tuple
 
 from sqlalchemy import and_, select
 from sqlalchemy.exc import IntegrityError
 
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.doctor import Doctor
 from app.models.rest_day import RestDay
 from app.models.schedule import Schedule
 from app.modules.messages.service_messages import MessageService
 from app.utils.schedule_utils import get_time_slot_from_time
-from app.middleware.tenant_context import get_current_tenant_id
 
 logger = logging.getLogger(__name__)
 
 
 class ScheduleGenerationMixin:
     async def _check_rest_day(
-        self, check_date: date, store_id: Optional[str] = None, doctor_id: Optional[str] = None
+        self, check_date: date, store_id: str | None = None, doctor_id: str | None = None
     ) -> bool:
         from app.utils.schedule_utils import is_rest_day
         try:
@@ -45,12 +43,12 @@ class ScheduleGenerationMixin:
 
     async def _validate_slot_against_rules(
         self,
-        shift_type_id: Optional[str],
+        shift_type_id: str | None,
         slot_capacity: int,
-        store_id: Optional[str] = None,
-        department_id: Optional[str] = None,
-        doctor_id: Optional[str] = None,
-    ) -> List[str]:
+        store_id: str | None = None,
+        department_id: str | None = None,
+        doctor_id: str | None = None,
+    ) -> list[str]:
         """校验排班槽位是否符合规则引擎约束，返回警告列表。
 
         检查项：
@@ -58,7 +56,7 @@ class ScheduleGenerationMixin:
         2. 预约时间窗是否配置
         3. 容量策略是否与模板一致
         """
-        warnings: List[str] = []
+        warnings: list[str] = []
 
         if not shift_type_id:
             warnings.append("未关联班次类型，无法校验规则约束")
@@ -106,19 +104,19 @@ class ScheduleGenerationMixin:
     async def _create_schedule_if_not_exists(
         self,
         doctor_id: str,
-        store_id: Optional[str],
+        store_id: str | None,
         schedule_date: date,
-        start_time: Optional[time],
-        end_time: Optional[time],
+        start_time: time | None,
+        end_time: time | None,
         time_slot: str,
         total_slots: int,
         appointment_type: str = "normal",
-        template_id: Optional[str] = None,
-        shift_type_id: Optional[str] = None,
-        rule_set_id: Optional[str] = None,
+        template_id: str | None = None,
+        shift_type_id: str | None = None,
+        rule_set_id: str | None = None,
         check_rest_day: bool = True,
         check_duplicate: bool = True,
-    ) -> Tuple[Optional[Schedule], bool]:
+    ) -> tuple[Schedule | None, bool]:
         if check_rest_day and await self._check_rest_day(schedule_date, store_id, doctor_id):
             return None, False
 
@@ -262,12 +260,12 @@ class ScheduleGenerationMixin:
 
     async def validate_template_rules(
         self,
-        shift_type_id: Optional[str],
+        shift_type_id: str | None,
         slot_capacity: int,
-        store_id: Optional[str] = None,
-        department_id: Optional[str] = None,
-        doctor_id: Optional[str] = None,
-    ) -> List[str]:
+        store_id: str | None = None,
+        department_id: str | None = None,
+        doctor_id: str | None = None,
+    ) -> list[str]:
         """公开接口：校验模板配置是否符合规则引擎约束。供预览 API 调用。"""
         return await self._validate_slot_against_rules(
             shift_type_id=shift_type_id,
@@ -278,7 +276,7 @@ class ScheduleGenerationMixin:
         )
 
     async def _send_schedule_notification_to_doctor(
-        self, doctor_id: str, title: str, content: str, schedule_id: Optional[str] = None
+        self, doctor_id: str, title: str, content: str, schedule_id: str | None = None
     ):
         try:
             message_service = MessageService(self.db)

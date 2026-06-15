@@ -2,9 +2,8 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 
 
 class RefundCreate(BaseModel):
@@ -19,17 +18,17 @@ class RefundResponse(BaseModel):
     id: str
     appointment_id: str
     refund_no: str
-    out_trade_no: Optional[str] = None
+    out_trade_no: str | None = None
     refund_amount: Decimal
     original_amount: Decimal
-    refund_reason: Optional[str] = None
+    refund_reason: str | None = None
     status: str
-    wx_refund_id: Optional[str] = None
-    failed_reason: Optional[str] = None
-    mch_id: Optional[str] = None
-    sub_mchid: Optional[str] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    wx_refund_id: str | None = None
+    failed_reason: str | None = None
+    mch_id: str | None = None
+    sub_mchid: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     class Config:
         from_attributes = True
@@ -43,7 +42,7 @@ class RefundListResponse(BaseModel):
 
 class RefundableAmountResponse(BaseModel):
     """可退款金额查询响应。"""
-    payment_amount: Optional[Decimal] = None
+    payment_amount: Decimal | None = None
     refunded_amount: Decimal = Decimal("0")
     refundable_amount: Decimal = Decimal("0")
-    refund_status: Optional[str] = None
+    refund_status: str | None = None

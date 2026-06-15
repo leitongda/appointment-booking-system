@@ -1,8 +1,10 @@
 """字典项模型"""
-from sqlalchemy import Column, String, Integer, ForeignKey, UniqueConstraint, JSON
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import JSON, Column, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 
 class DictItem(Base, AuditMixin):

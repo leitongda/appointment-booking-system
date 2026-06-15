@@ -2,7 +2,6 @@
 
 import uuid
 from decimal import Decimal
-from typing import List, Optional
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import selectinload
@@ -19,10 +18,10 @@ from app.utils.audit import set_create_audit, set_update_audit
 class ConsultationFeeTypeMixin:
     async def get_fee_types(
         self,
-        status: Optional[int] = None,
-        store_id: Optional[str] = None,
+        status: int | None = None,
+        store_id: str | None = None,
         include_global: bool = True,
-    ) -> List[ConsultationFeeType]:
+    ) -> list[ConsultationFeeType]:
         query = select(ConsultationFeeType).options(selectinload(ConsultationFeeType.store))
 
         if status is not None:
@@ -46,10 +45,10 @@ class ConsultationFeeTypeMixin:
 
     async def get_store_available_fee_types(
         self, store_id: str, status: int = 1
-    ) -> List[ConsultationFeeType]:
+    ) -> list[ConsultationFeeType]:
         return await self.get_fee_types(status=status, store_id=store_id, include_global=True)
 
-    async def get_fee_type_by_id(self, fee_type_id: str) -> Optional[ConsultationFeeType]:
+    async def get_fee_type_by_id(self, fee_type_id: str) -> ConsultationFeeType | None:
         result = await self.db.execute(
             select(ConsultationFeeType)
             .options(selectinload(ConsultationFeeType.store))
@@ -58,8 +57,8 @@ class ConsultationFeeTypeMixin:
         return result.scalar_one_or_none()
 
     async def get_fee_type_by_code(
-        self, code: str, store_id: Optional[str] = None
-    ) -> Optional[ConsultationFeeType]:
+        self, code: str, store_id: str | None = None
+    ) -> ConsultationFeeType | None:
         query = select(ConsultationFeeType).where(ConsultationFeeType.code == code)
         if store_id:
             query = query.where(ConsultationFeeType.store_id == store_id)
@@ -69,7 +68,7 @@ class ConsultationFeeTypeMixin:
         return result.scalar_one_or_none()
 
     async def create_fee_type(
-        self, data: ConsultationFeeTypeCreate, operator_id: Optional[str] = None
+        self, data: ConsultationFeeTypeCreate, operator_id: str | None = None
     ) -> ConsultationFeeType:
         fee_type = ConsultationFeeType(
             id=str(uuid.uuid4()),
@@ -87,8 +86,8 @@ class ConsultationFeeTypeMixin:
         return fee_type
 
     async def update_fee_type(
-        self, fee_type_id: str, data: ConsultationFeeTypeUpdate, operator_id: Optional[str] = None
-    ) -> Optional[ConsultationFeeType]:
+        self, fee_type_id: str, data: ConsultationFeeTypeUpdate, operator_id: str | None = None
+    ) -> ConsultationFeeType | None:
         fee_type = await self.get_fee_type_by_id(fee_type_id)
         if not fee_type:
             return None
@@ -111,13 +110,13 @@ class ConsultationFeeTypeMixin:
         await self.db.commit()
         return True
 
-    async def get_fee_templates(self) -> List[ConsultationFeeTemplate]:
+    async def get_fee_templates(self) -> list[ConsultationFeeTemplate]:
         result = await self.db.execute(
             select(ConsultationFeeTemplate).options(selectinload(ConsultationFeeTemplate.fee_type))
         )
         return list(result.scalars().all())
 
-    async def get_fee_templates_with_types(self) -> List[dict]:
+    async def get_fee_templates_with_types(self) -> list[dict]:
         fee_types = await self.get_fee_types(status=1, store_id=None, include_global=True)
         fee_types = [ft for ft in fee_types if ft.store_id is None]
         templates = await self.get_fee_templates()
@@ -139,7 +138,7 @@ class ConsultationFeeTypeMixin:
             )
         return result
 
-    async def get_fee_template_by_id(self, template_id: str) -> Optional[ConsultationFeeTemplate]:
+    async def get_fee_template_by_id(self, template_id: str) -> ConsultationFeeTemplate | None:
         result = await self.db.execute(
             select(ConsultationFeeTemplate)
             .options(selectinload(ConsultationFeeTemplate.fee_type))
@@ -147,7 +146,7 @@ class ConsultationFeeTypeMixin:
         )
         return result.scalar_one_or_none()
 
-    async def get_fee_template_by_type(self, fee_type_id: str) -> Optional[ConsultationFeeTemplate]:
+    async def get_fee_template_by_type(self, fee_type_id: str) -> ConsultationFeeTemplate | None:
         result = await self.db.execute(
             select(ConsultationFeeTemplate)
             .options(selectinload(ConsultationFeeTemplate.fee_type))
@@ -156,7 +155,7 @@ class ConsultationFeeTypeMixin:
         return result.scalar_one_or_none()
 
     async def create_or_update_fee_template(
-        self, data: ConsultationFeeTemplateCreate, operator_id: Optional[str] = None
+        self, data: ConsultationFeeTemplateCreate, operator_id: str | None = None
     ) -> ConsultationFeeTemplate:
         template = await self.get_fee_template_by_type(data.fee_type_id)
         if template:
@@ -179,7 +178,7 @@ class ConsultationFeeTypeMixin:
         await self.db.refresh(template)
         return template
 
-    async def batch_update_fee_templates(self, templates: List[dict]) -> List[ConsultationFeeTemplate]:
+    async def batch_update_fee_templates(self, templates: list[dict]) -> list[ConsultationFeeTemplate]:
         result = []
         for t in templates:
             fee_type_id = t.get("fee_type_id") or t.get("feeTypeId")

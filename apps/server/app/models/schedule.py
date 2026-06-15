@@ -8,10 +8,13 @@ Description:
 
 Copyright (c) 2026 by ${git_name_email}, All Rights Reserved.
 '''
-from sqlalchemy import Column, String, Integer, Date, Time, ForeignKey, DateTime, Index
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Index, Integer, String, Time
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
+
 
 class Schedule(Base, AuditMixin):
     __tablename__ = "schedules"

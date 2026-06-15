@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,10 +15,10 @@ from app.models.miniapp_platform import MiniappInstance, PaymentProfile, Payment
 class PaymentRoutingConfig:
     payment_profile_id: str
     mode: str
-    app_id: Optional[str]
-    mch_id: Optional[str]
-    sub_mchid: Optional[str]
-    notify_url: Optional[str]
+    app_id: str | None
+    mch_id: str | None
+    sub_mchid: str | None
+    notify_url: str | None
     source: str
 
 
@@ -30,10 +29,10 @@ class PaymentConfigResolver:
     async def resolve(
         self,
         *,
-        store_id: Optional[str] = None,
-        miniapp_instance_id: Optional[str] = None,
-        payment_profile_id: Optional[str] = None,
-    ) -> Optional[PaymentRoutingConfig]:
+        store_id: str | None = None,
+        miniapp_instance_id: str | None = None,
+        payment_profile_id: str | None = None,
+    ) -> PaymentRoutingConfig | None:
         tenant_id = get_current_tenant_id()
 
         if payment_profile_id:

@@ -1,12 +1,12 @@
 """预约查询相关端点"""
-from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from typing import Optional
 from datetime import date, datetime
-import pytz
 
-from app.db.session import get_db
+import pytz
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import status as http_status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.deps import (
     check_store_access,
     get_current_admin,
@@ -15,12 +15,12 @@ from app.api.deps import (
     get_store_filter,
 )
 from app.common.deps import require_permission
-from app.schemas.appointment import AppointmentResponse, AppointmentStatistics
-from app.schemas.response import PageResponse, ErrorResponse
+from app.core.config import settings
+from app.db.session import get_db
 from app.modules.appointments.service import AppointmentService
 from app.modules.rule_engine import RuleEngineService
-from app.core.config import settings
-
+from app.schemas.appointment import AppointmentResponse, AppointmentStatistics
+from app.schemas.response import ErrorResponse, PageResponse
 
 # 常规分页上限（超过此值需要管理员权限+日期范围）
 PAGE_SIZE_STANDARD_LIMIT = 100
@@ -76,16 +76,16 @@ def _ensure_can_view_appointment(appointment, current_user: dict) -> None:
     """,
 )
 async def get_appointments(
-    status: Optional[int] = None,
-    patient_id: Optional[str] = None,
-    store_id: Optional[str] = None,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    keyword: Optional[str] = None,
-    doctor_id: Optional[str] = None,
-    department_id: Optional[str] = None,
-    created_start: Optional[datetime] = None,
-    created_end: Optional[datetime] = None,
+    status: int | None = None,
+    patient_id: str | None = None,
+    store_id: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    keyword: str | None = None,
+    doctor_id: str | None = None,
+    department_id: str | None = None,
+    created_start: datetime | None = None,
+    created_end: datetime | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.APPOINTMENTS_MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -371,9 +371,9 @@ async def get_today_pending_appointments(
     """,
 )
 async def get_checkin_queue(
-    store_id: Optional[str] = None,
-    doctor_id: Optional[str] = None,
-    target_date: Optional[date] = None,
+    store_id: str | None = None,
+    doctor_id: str | None = None,
+    target_date: date | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user_or_admin)
 ):
@@ -460,9 +460,9 @@ async def get_checkin_queue(
     """,
 )
 async def get_appointment_statistics(
-    doctor_id: Optional[str] = None,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
+    doctor_id: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
     db: AsyncSession = Depends(get_db),
     current_admin: dict = Depends(get_current_admin),
     _: None = Depends(require_permission("appointment:statistics")),

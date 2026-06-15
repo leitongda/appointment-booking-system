@@ -1,23 +1,22 @@
 """黑名单管理 API"""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
-from datetime import datetime
 
-from app.db.session import get_db
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.deps import get_current_admin, require_permission
+from app.core.config import settings
+from app.db.session import get_db
 from app.modules.blacklists.service import BlacklistService
 from app.schemas.blacklist import BlacklistCreate
-from app.core.config import settings
 
 router = APIRouter()
 
 
 @router.get("", summary="获取列表")
 async def get_blacklist_list(
-    keyword: Optional[str] = Query(None, description="搜索关键词"),
-    store_id: Optional[str] = Query(None, description="门店ID"),
-    status: Optional[int] = Query(None, description="状态: 1生效 0已解禁"),
+    keyword: str | None = Query(None, description="搜索关键词"),
+    store_id: str | None = Query(None, description="门店ID"),
+    status: int | None = Query(None, description="状态: 1生效 0已解禁"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -86,10 +85,10 @@ async def remove_blacklist(
 
 @router.post("/check", summary="检查黑名单")
 async def check_blacklist(
-    user_id: Optional[str] = None,
-    phone: Optional[str] = None,
-    id_card: Optional[str] = None,
-    store_id: Optional[str] = None,
+    user_id: str | None = None,
+    phone: str | None = None,
+    id_card: str | None = None,
+    store_id: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
     """检查是否在黑名单中（公开接口，用于预约时检查）"""

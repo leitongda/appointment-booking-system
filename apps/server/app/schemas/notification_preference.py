@@ -1,7 +1,9 @@
-from app.schemas.response import to_camel
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas.response import to_camel
+
 
 class NotificationPreferenceResponse(BaseModel):
     model_config = ConfigDict(
@@ -12,7 +14,7 @@ class NotificationPreferenceResponse(BaseModel):
     )
 
     id: str
-    tenant_id: Optional[str] = None
+    tenant_id: str | None = None
     user_id: str
     user_type: str
     appointment_enabled: bool = True
@@ -24,10 +26,10 @@ class NotificationPreferenceResponse(BaseModel):
     email_enabled: bool = True
     wechat_enabled: bool = True
     in_app_enabled: bool = True
-    quiet_hours_start: Optional[str] = None
-    quiet_hours_end: Optional[str] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    quiet_hours_start: str | None = None
+    quiet_hours_end: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 class NotificationPreferenceUpdate(BaseModel):
     model_config = ConfigDict(
@@ -35,14 +37,14 @@ class NotificationPreferenceUpdate(BaseModel):
         populate_by_name=True,
     )
 
-    appointment_enabled: Optional[bool] = None
-    reminder_enabled: Optional[bool] = None
-    queue_call_enabled: Optional[bool] = None
-    stop_clinic_enabled: Optional[bool] = None
-    system_enabled: Optional[bool] = None
-    sms_enabled: Optional[bool] = None
-    email_enabled: Optional[bool] = None
-    wechat_enabled: Optional[bool] = None
-    in_app_enabled: Optional[bool] = None
-    quiet_hours_start: Optional[str] = Field(None, max_length=5)
-    quiet_hours_end: Optional[str] = Field(None, max_length=5)
+    appointment_enabled: bool | None = None
+    reminder_enabled: bool | None = None
+    queue_call_enabled: bool | None = None
+    stop_clinic_enabled: bool | None = None
+    system_enabled: bool | None = None
+    sms_enabled: bool | None = None
+    email_enabled: bool | None = None
+    wechat_enabled: bool | None = None
+    in_app_enabled: bool | None = None
+    quiet_hours_start: str | None = Field(None, max_length=5)
+    quiet_hours_end: str | None = Field(None, max_length=5)

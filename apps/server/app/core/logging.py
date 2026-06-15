@@ -2,13 +2,12 @@
 日志系统配置
 支持控制台输出、文件输出、JSON 格式等
 """
+import json
 import logging
 import logging.handlers
-import sys
 import os
+import sys
 from datetime import datetime
-from typing import Optional
-import json
 
 
 class JsonFormatter(logging.Formatter):
@@ -54,9 +53,37 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(log_data, ensure_ascii=False)
 
 
-class ColoredFormatter(logging.Formatter):
-    """彩色日志格式化器（用于控制台）"""
-    
+class _StructuredEnricher:
+    """非 JSON 路径下的结构化字段条件富化 mixin。
+
+    复用 JsonFormatter.STRUCTURED_FIELDS，对缺失/空字段安全：
+    None / "" / 0 均跳过（0 跳过可避免 request_started 的 duration_ms=0 噪音），
+    因此普通日志（无 extra）行字节级保持原样。
+
+    注意：STRUCTURED_FIELDS 内禁止加入 levelname —— 它在 ColoredFormatter 中
+    会被原地改写为带 ANSI 码的字符串，若纳入此处会把彩色转义符泄漏到文件日志。
+    """
+
+    def _append_structured(self, record: logging.LogRecord, base_line: str) -> str:
+        parts = []
+        for field in JsonFormatter.STRUCTURED_FIELDS:
+            value = getattr(record, field, None)
+            if value in (None, "", 0):
+                continue
+            if field == "duration_ms":
+                parts.append(f"duration={value}ms")
+            elif field == "trace_id":
+                parts.append(f"trace={value}")
+            else:
+                parts.append(f"{field}={value}")
+        if not parts:
+            return base_line
+        return f"{base_line}   | {' '.join(parts)}"
+
+
+class ColoredFormatter(logging.Formatter, _StructuredEnricher):
+    """彩色日志格式化器（用于控制台），并对请求日志做结构化富化。"""
+
     # ANSI 颜色代码
     COLORS = {
         "DEBUG": "\033[36m",     # 青色
@@ -66,15 +93,31 @@ class ColoredFormatter(logging.Formatter):
         "CRITICAL": "\033[35m",  # 紫色
     }
     RESET = "\033[0m"
-    
+
     def __init__(self, fmt: str = None, datefmt: str = None, use_colors: bool = True):
         super().__init__(fmt, datefmt)
         self.use_colors = use_colors
-    
+
     def format(self, record: logging.LogRecord) -> str:
-        if self.use_colors and record.levelname in self.COLORS:
-            record.levelname = f"{self.COLORS[record.levelname]}{record.levelname}{self.RESET}"
-        return super().format(record)
+        # 先备份 levelname，染色后调 super().format() 捕获彩色基础行，再立即还原。
+        # 否则同一 record 被后续 file/error handler 复用时，会把 ANSI 转义码写进文件。
+        # _append_structured 只读 STRUCTURED_FIELDS（不含 levelname），不会重复染色。
+        original_levelname = record.levelname
+        try:
+            if self.use_colors and record.levelname in self.COLORS:
+                record.levelname = f"{self.COLORS[record.levelname]}{record.levelname}{self.RESET}"
+            base_line = super().format(record)
+        finally:
+            record.levelname = original_levelname
+        return self._append_structured(record, base_line)
+
+
+class _StructuredFileFormatter(logging.Formatter, _StructuredEnricher):
+    """文件日志格式化器（非 JSON 分支），输出与控制台一致的结构化富化行。"""
+
+    def format(self, record: logging.LogRecord) -> str:
+        base_line = super().format(record)
+        return self._append_structured(record, base_line)
 
 
 def setup_logging(
@@ -141,7 +184,7 @@ def setup_logging(
         if json_format:
             file_handler.setFormatter(JsonFormatter())
         else:
-            file_handler.setFormatter(logging.Formatter(log_format, date_format))
+            file_handler.setFormatter(_StructuredFileFormatter(log_format, date_format))
         
         root_logger.addHandler(file_handler)
         
@@ -157,7 +200,7 @@ def setup_logging(
         if json_format:
             error_handler.setFormatter(JsonFormatter())
         else:
-            error_handler.setFormatter(logging.Formatter(log_format, date_format))
+            error_handler.setFormatter(_StructuredFileFormatter(log_format, date_format))
         
         root_logger.addHandler(error_handler)
     

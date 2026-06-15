@@ -1,9 +1,9 @@
 """候补队列路由"""
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 
-from app.api.deps import get_current_user_or_admin, get_current_user
+from app.api.deps import get_current_user
 from app.core.config import settings
 from app.db.session import get_db
 from app.modules.waitlist.service import WaitlistService
@@ -106,7 +106,7 @@ async def cancel_waitlist(
 
 @router.get("/my", summary="获取我的候补列表")
 async def get_my_waitlist(
-    status_filter: Optional[str] = Query(None, alias="status"),
+    status_filter: str | None = Query(None, alias="status"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -120,13 +120,14 @@ async def get_my_waitlist(
             detail="未登录",
         )
 
-    from sqlalchemy import select, and_, func
-    from app.models.waitlist import WaitlistEntry
-    from app.models.schedule import Schedule
-    from app.models.doctor import Doctor
-    from app.models.department import Department
-    from app.models.store import Store
+    from sqlalchemy import and_, func, select
+
     from app.middleware.tenant_context import get_current_tenant_id
+    from app.models.department import Department
+    from app.models.doctor import Doctor
+    from app.models.schedule import Schedule
+    from app.models.store import Store
+    from app.models.waitlist import WaitlistEntry
 
     # 构建查询
     conditions = [WaitlistEntry.user_id == user_id]
@@ -233,12 +234,13 @@ async def get_waitlist_detail(
         )
 
     from sqlalchemy import select
-    from app.models.waitlist import WaitlistEntry
-    from app.models.schedule import Schedule
-    from app.models.doctor import Doctor
-    from app.models.department import Department
-    from app.models.store import Store
+
     from app.middleware.tenant_context import get_current_tenant_id
+    from app.models.department import Department
+    from app.models.doctor import Doctor
+    from app.models.schedule import Schedule
+    from app.models.store import Store
+    from app.models.waitlist import WaitlistEntry
 
     # 查询详情
     stmt = (

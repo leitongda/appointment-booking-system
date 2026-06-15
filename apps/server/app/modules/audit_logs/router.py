@@ -1,30 +1,30 @@
 """审计日志 API"""
-from fastapi import APIRouter, Depends, Query
-from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, desc, func
-from sqlalchemy.orm import selectinload
-from typing import Optional
 from datetime import datetime, timedelta
 
-from app.db.session import get_db
+from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
+from sqlalchemy import and_, desc, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
 from app.api.deps import get_current_admin
-from app.models.rule_set import AppointmentCheckin
-from app.models.appointment import Appointment
 from app.core.config import settings
+from app.db.session import get_db
 from app.middleware.tenant_context import get_current_tenant_id
+from app.models.appointment import Appointment
+from app.models.rule_set import AppointmentCheckin
 
 router = APIRouter()
 
 
 @router.get("/checkin-logs")
 async def get_checkin_logs(
-    appointment_id: Optional[str] = Query(None, description="预约ID"),
-    patient_id: Optional[str] = Query(None, description="患者ID"),
-    status: Optional[str] = Query(None, description="状态"),
-    checkin_method: Optional[str] = Query(None, description="签到方式"),
-    start_time: Optional[datetime] = Query(None, description="开始时间"),
-    end_time: Optional[datetime] = Query(None, description="结束时间"),
+    appointment_id: str | None = Query(None, description="预约ID"),
+    patient_id: str | None = Query(None, description="患者ID"),
+    status: str | None = Query(None, description="状态"),
+    checkin_method: str | None = Query(None, description="签到方式"),
+    start_time: datetime | None = Query(None, description="开始时间"),
+    end_time: datetime | None = Query(None, description="结束时间"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE, description="每页数量"),
     db: AsyncSession = Depends(get_db),
@@ -112,8 +112,8 @@ async def get_checkin_logs(
 
 @router.get("/checkin-logs/statistics")
 async def get_checkin_log_statistics(
-    start_date: Optional[datetime] = Query(None, description="开始日期"),
-    end_date: Optional[datetime] = Query(None, description="结束日期"),
+    start_date: datetime | None = Query(None, description="开始日期"),
+    end_date: datetime | None = Query(None, description="结束日期"),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
@@ -156,10 +156,10 @@ async def get_checkin_log_statistics(
 @router.get("/export", summary="导出审计日志")
 async def export_audit_logs(
     format: str = Query("json", pattern="^(json|csv)$", description="导出格式: json / csv"),
-    tenant_id: Optional[str] = Query(None, description="租户ID（平台管理员可指定）"),
-    event_type: Optional[str] = Query(None, description="事件类型筛选"),
-    start_date: Optional[str] = Query(None, description="开始日期 YYYY-MM-DD"),
-    end_date: Optional[str] = Query(None, description="结束日期 YYYY-MM-DD"),
+    tenant_id: str | None = Query(None, description="租户ID（平台管理员可指定）"),
+    event_type: str | None = Query(None, description="事件类型筛选"),
+    start_date: str | None = Query(None, description="开始日期 YYYY-MM-DD"),
+    end_date: str | None = Query(None, description="结束日期 YYYY-MM-DD"),
     db: AsyncSession = Depends(get_db),
     current_admin = Depends(get_current_admin),
 ):
@@ -170,8 +170,9 @@ async def export_audit_logs(
     import io
     import json as _json
 
+    from fastapi import HTTPException
+
     from app.models.tenant_audit_log import TenantAuditLog
-    from fastapi import HTTPException, status
 
     # 确定租户范围
     if not current_admin.get("is_super_admin"):

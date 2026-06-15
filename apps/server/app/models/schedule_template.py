@@ -1,8 +1,10 @@
-from sqlalchemy import Column, String, Integer, Time, ForeignKey, Text, DateTime
-from sqlalchemy.orm import relationship
-from app.db.base import Base, AuditMixin
-import uuid
 import json
+import uuid
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, Time
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
 
 
 class ScheduleTemplate(Base, AuditMixin):

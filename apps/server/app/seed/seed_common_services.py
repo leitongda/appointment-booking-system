@@ -1,20 +1,19 @@
 """常见服务和健康提醒默认种子数据"""
 import asyncio
-import sys
 import os
+import sys
 from datetime import datetime
 from uuid import uuid4
-from typing import List, Dict, Any
 
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy import select
-from app.models.common_service import CommonService, HealthReminder
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from app.core.config import settings
 from app.middleware.tenant_context import TenantContext
-
+from app.models.common_service import CommonService, HealthReminder
 
 # 常见服务默认配置
 COMMON_SERVICES_DEFAULT = [

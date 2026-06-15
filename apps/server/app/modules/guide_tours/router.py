@@ -5,11 +5,12 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.auth_unified import require_role
+from app.common.auth_types import RoleType
 from app.db.session import get_db
-from app.common.auth_unified import get_current_account_with_role
-from app.schemas.response import ResponseModel
 from app.modules.guide_tours.schemas import ProgressUpdate
 from app.modules.guide_tours.service import GuideTourService
+from app.schemas.response import ResponseModel
 
 router = APIRouter()
 
@@ -17,7 +18,7 @@ router = APIRouter()
 @router.get("/active", response_model=ResponseModel, summary="获取已发布指引列表")
 async def get_active_tours(
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_account_with_role("admin")),
+    current_admin: dict = Depends(require_role(RoleType.ADMIN)),
 ):
     """获取当前用户可见的已发布指引，含用户进度。"""
     service = GuideTourService(db)
@@ -29,7 +30,7 @@ async def get_active_tours(
 async def get_progress(
     tour_id: str,
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_account_with_role("admin")),
+    current_admin: dict = Depends(require_role(RoleType.ADMIN)),
 ):
     """获取指定指引的当前用户进度。"""
     service = GuideTourService(db)
@@ -47,7 +48,7 @@ async def update_progress(
     tour_id: str,
     data: ProgressUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin: dict = Depends(get_current_account_with_role("admin")),
+    current_admin: dict = Depends(require_role(RoleType.ADMIN)),
 ):
     """更新当前用户的指引进度（步骤或状态）。"""
     service = GuideTourService(db)

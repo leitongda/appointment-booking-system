@@ -8,11 +8,11 @@ import json
 import logging
 from datetime import datetime, timedelta
 
-from sqlalchemy import and_, select, update as sa_update
+from sqlalchemy import and_, select
 
 from app.celery_app import celery_app
 from app.core.redis import SyncRedisCache
-from app.db.session import SessionLocal, get_sync_db
+from app.db.session import get_sync_db
 from app.models.appointment import Appointment
 from app.models.schedule import Schedule
 from app.models.schedule_suspension import ScheduleSuspension

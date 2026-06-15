@@ -1,11 +1,13 @@
 """用户行为日志 Schema"""
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-from typing import Optional, List
-from datetime import datetime
 import json
+from datetime import datetime
 
-from app.enums.general import BehaviorEventType as EventType, Platform  # noqa: F401 — re-export
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.enums.general import BehaviorEventType as EventType  # noqa: F401 — re-export
+from app.enums.general import Platform
 from app.schemas.response import to_camel
+
 
 class TrackEventRequest(BaseModel):
     """单条埋点上报请求"""
@@ -15,21 +17,21 @@ class TrackEventRequest(BaseModel):
     )
     
     platform: Platform = Field(..., description="平台")
-    session_id: Optional[str] = Field(None, max_length=64, description="会话ID")
+    session_id: str | None = Field(None, max_length=64, description="会话ID")
     event_type: EventType = Field(..., description="事件类型")
-    page_path: Optional[str] = Field(None, max_length=255, description="页面路径")
-    page_title: Optional[str] = Field(None, max_length=100, description="页面标题")
-    element_id: Optional[str] = Field(None, max_length=100, description="元素ID")
-    element_text: Optional[str] = Field(None, max_length=200, description="元素文本")
-    search_keyword: Optional[str] = Field(None, max_length=200, description="搜索关键词")
-    event_name: Optional[str] = Field(None, max_length=100, description="自定义事件名称")
-    duration: Optional[int] = Field(None, ge=0, description="停留时长(毫秒)")
-    referrer: Optional[str] = Field(None, max_length=255, description="来源页面")
-    extra_data: Optional[dict] = Field(None, description="额外数据")
+    page_path: str | None = Field(None, max_length=255, description="页面路径")
+    page_title: str | None = Field(None, max_length=100, description="页面标题")
+    element_id: str | None = Field(None, max_length=100, description="元素ID")
+    element_text: str | None = Field(None, max_length=200, description="元素文本")
+    search_keyword: str | None = Field(None, max_length=200, description="搜索关键词")
+    event_name: str | None = Field(None, max_length=100, description="自定义事件名称")
+    duration: int | None = Field(None, ge=0, description="停留时长(毫秒)")
+    referrer: str | None = Field(None, max_length=255, description="来源页面")
+    extra_data: dict | None = Field(None, description="额外数据")
 
     @field_validator("extra_data")
     @classmethod
-    def validate_extra_data_size(cls, v: Optional[dict]) -> Optional[dict]:
+    def validate_extra_data_size(cls, v: dict | None) -> dict | None:
         if v is not None:
             serialized = json.dumps(v, ensure_ascii=False)
             if len(serialized) > 4096:
@@ -43,7 +45,7 @@ class BatchTrackRequest(BaseModel):
         populate_by_name=True,
     )
     
-    events: List[TrackEventRequest] = Field(..., min_length=1, max_length=100, description="事件列表")
+    events: list[TrackEventRequest] = Field(..., min_length=1, max_length=100, description="事件列表")
 
 class UserBehaviorLogResponse(BaseModel):
     """用户行为日志响应"""
@@ -55,25 +57,25 @@ class UserBehaviorLogResponse(BaseModel):
     )
     
     id: str
-    platform: Optional[str] = None
-    user_id: Optional[str] = None
-    session_id: Optional[str] = None
-    event_type: Optional[str] = None
-    page_path: Optional[str] = None
-    page_title: Optional[str] = None
-    element_id: Optional[str] = None
-    element_text: Optional[str] = None
-    search_keyword: Optional[str] = None
-    event_name: Optional[str] = None
-    duration: Optional[int] = None
-    referrer: Optional[str] = None
-    extra_data: Optional[str] = None
-    ip: Optional[str] = None
-    user_agent: Optional[str] = None
-    device_type: Optional[str] = None
-    browser: Optional[str] = None
-    os: Optional[str] = None
-    created_at: Optional[datetime] = None
+    platform: str | None = None
+    user_id: str | None = None
+    session_id: str | None = None
+    event_type: str | None = None
+    page_path: str | None = None
+    page_title: str | None = None
+    element_id: str | None = None
+    element_text: str | None = None
+    search_keyword: str | None = None
+    event_name: str | None = None
+    duration: int | None = None
+    referrer: str | None = None
+    extra_data: str | None = None
+    ip: str | None = None
+    user_agent: str | None = None
+    device_type: str | None = None
+    browser: str | None = None
+    os: str | None = None
+    created_at: datetime | None = None
 
 # ========== 统计相关 Schema ==========
 
@@ -85,8 +87,8 @@ class PageViewStats(BaseModel):
         by_alias=True,
     )
     
-    page_path: Optional[str] = None
-    page_title: Optional[str] = None
+    page_path: str | None = None
+    page_title: str | None = None
     view_count: int = 0
     unique_users: int = 0
 
@@ -98,9 +100,9 @@ class ClickStats(BaseModel):
         by_alias=True,
     )
     
-    element_id: Optional[str] = None
-    element_text: Optional[str] = None
-    page_path: Optional[str] = None
+    element_id: str | None = None
+    element_text: str | None = None
+    page_path: str | None = None
     click_count: int = 0
 
 class SearchKeywordStats(BaseModel):
@@ -111,7 +113,7 @@ class SearchKeywordStats(BaseModel):
         by_alias=True,
     )
     
-    keyword: Optional[str] = None
+    keyword: str | None = None
     search_count: int = 0
 
 class DailyStats(BaseModel):
@@ -122,7 +124,7 @@ class DailyStats(BaseModel):
         by_alias=True,
     )
     
-    date: Optional[str] = None
+    date: str | None = None
     page_views: int = 0
     unique_users: int = 0
     clicks: int = 0
@@ -140,11 +142,11 @@ class BehaviorOverview(BaseModel):
     total_unique_users: int = 0
     total_clicks: int = 0
     total_searches: int = 0
-    avg_duration: Optional[float] = None
-    top_pages: List[PageViewStats] = []
-    top_clicks: List[ClickStats] = []
-    top_keywords: List[SearchKeywordStats] = []
-    daily_stats: List[DailyStats] = []
+    avg_duration: float | None = None
+    top_pages: list[PageViewStats] = []
+    top_clicks: list[ClickStats] = []
+    top_keywords: list[SearchKeywordStats] = []
+    daily_stats: list[DailyStats] = []
 
 class TenantActivityDaily(BaseModel):
     """租户每日活跃度"""
@@ -167,10 +169,10 @@ class TenantActivityStats(BaseModel):
         by_alias=True,
     )
 
-    tenant_id: Optional[str] = None
+    tenant_id: str | None = None
     start_date: str
     end_date: str
     current_dau: int = 0
     current_wau: int = 0
     current_mau: int = 0
-    daily_stats: List[TenantActivityDaily] = []
+    daily_stats: list[TenantActivityDaily] = []

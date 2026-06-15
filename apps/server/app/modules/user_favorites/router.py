@@ -1,4 +1,3 @@
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,15 +5,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user
 from app.core.config import settings
 from app.db.session import get_db
-from app.schemas.user_favorite import FavoriteCheckResponse, UserFavoriteCreate, UserFavoriteResponse
 from app.modules.user_favorites.service import UserFavoriteService
+from app.schemas.user_favorite import FavoriteCheckResponse, UserFavoriteCreate, UserFavoriteResponse
 
 router = APIRouter()
 
 
 @router.get("", summary="获取收藏列表")
 async def get_favorites(
-    target_type: Optional[str] = Query(None, alias="targetType", pattern="^(doctor|department)$", description="收藏类型"),
+    target_type: str | None = Query(None, alias="targetType", pattern="^(doctor|department)$", description="收藏类型"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE, alias="pageSize"),
     db: AsyncSession = Depends(get_db),

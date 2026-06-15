@@ -3,11 +3,12 @@
 GuideTour: 指引定义（平台管理员配置）
 GuideTourProgress: 用户进度（每人每条指引一行）
 """
-from sqlalchemy import Column, String, Integer, ForeignKey, UniqueConstraint
+import uuid
+
+from sqlalchemy import Column, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 
-from app.db.base import Base, AuditMixin
-import uuid
+from app.db.base import AuditMixin, Base
 
 
 class GuideTour(Base, AuditMixin):

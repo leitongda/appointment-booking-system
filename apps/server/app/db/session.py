@@ -3,13 +3,13 @@
 - 异步连接池：FastAPI 使用
 - 同步连接池：Celery 任务使用
 """
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
 from contextlib import contextmanager
 
-from app.core.config import settings
+from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import Session, sessionmaker
 
+from app.core.config import settings
 
 # ==================== 异步连接池（FastAPI 使用）====================
 engine = create_async_engine(

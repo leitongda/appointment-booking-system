@@ -2,18 +2,19 @@
 操作日志中间件
 拦截写操作（POST/PUT/DELETE）并记录到数据库
 """
+import json
+import logging
+import time
+from collections.abc import Callable
+
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
-from typing import Callable, Optional
-import time
-import logging
-import json
 
-from app.core.security import decode_token
 from app.core.config import settings
-from app.utils.ip import get_client_ip as _get_client_ip_util
+from app.core.security import decode_token
 from app.middleware.tenant_context import get_current_tenant_id
+from app.utils.ip import get_client_ip as _get_client_ip_util
 
 logger = logging.getLogger(__name__)
 

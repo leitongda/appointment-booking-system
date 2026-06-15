@@ -1,27 +1,27 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, List
 
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import check_store_access, get_current_admin, get_store_filter, require_permission
+from app.core.config import settings
 from app.db.session import get_db
-from app.api.deps import get_current_admin, get_store_filter, check_store_access, require_permission
+from app.modules.doctor_booking_settings.service import DoctorBookingSettingService
 from app.schemas.doctor_booking_setting import (
     DoctorBookingSettingCreate,
-    DoctorBookingSettingUpdate,
-    DoctorBookingSettingResponse,
     DoctorBookingSettingQuery,
+    DoctorBookingSettingResponse,
+    DoctorBookingSettingUpdate,
 )
 from app.schemas.response import PageResponse
-from app.modules.doctor_booking_settings.service import DoctorBookingSettingService
-from app.core.config import settings
 
 router = APIRouter()
 
 
 @router.get("", response_model=PageResponse[DoctorBookingSettingResponse], summary="获取医生预约设置列表")
 async def get_doctor_booking_settings(
-    store_id: Optional[str] = None,
-    doctor_id: Optional[str] = None,
-    status: Optional[int] = None,
+    store_id: str | None = None,
+    doctor_id: str | None = None,
+    status: int | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -50,7 +50,7 @@ async def get_doctor_booking_settings(
     )
 
 
-@router.get("/existing-doctors", response_model=List[str], summary="获取已配置医生ID列表")
+@router.get("/existing-doctors", response_model=list[str], summary="获取已配置医生ID列表")
 async def get_existing_doctor_ids(
     store_id: str = Query(..., description="门店ID"),
     db: AsyncSession = Depends(get_db),

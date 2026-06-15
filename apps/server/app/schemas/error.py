@@ -4,8 +4,9 @@ Structured error response schemas.
 Defines the contract between the FastAPI server and frontend clients.
 All error responses follow the ErrorResponse envelope for consistent parsing.
 """
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, Dict, Any
 
 
 def _to_camel(string: str) -> str:
@@ -29,7 +30,7 @@ class ErrorDetail(BaseModel):
         ...,
         description="Human-readable error message",
     )
-    details: Optional[Dict[str, Any]] = Field(
+    details: dict[str, Any] | None = Field(
         None,
         description="Additional error context (conflicts, field errors, etc.)",
     )
@@ -63,7 +64,7 @@ class ErrorResponse(BaseModel):
 
     code: int = Field(..., description="HTTP status code")
     message: str = Field(..., description="Error message")
-    error: Optional[ErrorDetail] = Field(
+    error: ErrorDetail | None = Field(
         None,
         description="Structured error detail (absent in legacy responses)",
     )

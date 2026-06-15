@@ -2,12 +2,11 @@
 
 提供租户配额实时检查功能，确保创建资源时不超出订阅限制。
 """
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime
 
+from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
-from fastapi import HTTPException, status
 
 from app.middleware.tenant_context import get_current_tenant_id
 from app.models.tenant import Tenant
@@ -40,7 +39,7 @@ class QuotaChecker:
     def __init__(self, db):
         self.db = db
 
-    async def _get_tenant(self, tenant_id: Optional[str] = None) -> Optional[Tenant]:
+    async def _get_tenant(self, tenant_id: str | None = None) -> Tenant | None:
         """获取租户对象（预加载 subscription_plan 避免懒加载）"""
         effective_tenant_id = tenant_id or get_current_tenant_id()
         if not effective_tenant_id:
@@ -52,7 +51,7 @@ class QuotaChecker:
         )
         return result.scalar_one_or_none()
 
-    async def check_stores_quota(self, tenant_id: Optional[str] = None) -> None:
+    async def check_stores_quota(self, tenant_id: str | None = None) -> None:
         """检查门店配额
 
         Args:
@@ -82,7 +81,7 @@ class QuotaChecker:
                 limit=max_stores
             )
 
-    async def check_admins_quota(self, tenant_id: Optional[str] = None) -> None:
+    async def check_admins_quota(self, tenant_id: str | None = None) -> None:
         """检查管理员配额
 
         Args:
@@ -112,7 +111,7 @@ class QuotaChecker:
                 limit=max_admins
             )
 
-    async def check_doctors_quota(self, tenant_id: Optional[str] = None) -> None:
+    async def check_doctors_quota(self, tenant_id: str | None = None) -> None:
         """检查医生配额
 
         Args:
@@ -142,7 +141,7 @@ class QuotaChecker:
                 limit=max_doctors
             )
 
-    async def check_appointments_quota(self, tenant_id: Optional[str] = None) -> None:
+    async def check_appointments_quota(self, tenant_id: str | None = None) -> None:
         """检查月预约配额
 
         Args:
@@ -186,7 +185,7 @@ class QuotaChecker:
                 limit=max_appointments
             )
 
-    async def get_quota_usage(self, tenant_id: Optional[str] = None) -> dict:
+    async def get_quota_usage(self, tenant_id: str | None = None) -> dict:
         """获取配额使用情况
 
         Args:
@@ -199,10 +198,10 @@ class QuotaChecker:
         if not tenant:
             return {}
 
-        from app.models.store import Store
         from app.models.admin import Admin
-        from app.models.doctor import Doctor
         from app.models.appointment import Appointment
+        from app.models.doctor import Doctor
+        from app.models.store import Store
 
         # 统计各资源数量
         stores_count = await self.db.scalar(
@@ -261,7 +260,7 @@ class QuotaChecker:
         }
 
 
-async def check_quota(tenant_id: Optional[str], resource_type: str, db) -> None:
+async def check_quota(tenant_id: str | None, resource_type: str, db) -> None:
     """通用配额检查函数
 
     Args:

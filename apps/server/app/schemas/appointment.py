@@ -1,10 +1,12 @@
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
-from datetime import datetime, date, time
+from datetime import date, datetime, time
 from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import inspect as sa_inspect
+
 from app.core.config import settings
 from app.schemas.response import to_camel
+
 
 class AppointmentCreate(BaseModel):
     """创建预约请求"""
@@ -22,7 +24,7 @@ class AppointmentCreate(BaseModel):
     
     schedule_id: str = Field(..., description="排班ID", examples=["sch_abc123def456"])
     patient_id: str = Field(..., description="就诊人ID", examples=["pat_xyz789abc"])
-    symptom_description: Optional[str] = Field(None, max_length=500, description="病情描述/预填信息", examples=["头痛三天，伴有轻微发热"])
+    symptom_description: str | None = Field(None, max_length=500, description="病情描述/预填信息", examples=["头痛三天，伴有轻微发热"])
 
 class AppointmentResponse(BaseModel):
     """预约信息响应"""
@@ -34,46 +36,46 @@ class AppointmentResponse(BaseModel):
     )
 
     id: str = Field(..., description="预约ID")
-    appointment_no: Optional[str] = Field(None, description="预约编号")
-    user_id: Optional[str] = Field(None, description="用户ID")
-    patient_id: Optional[str] = Field(None, description="就诊人ID")
-    patient_name: Optional[str] = Field(None, description="就诊人姓名")
-    patient_phone: Optional[str] = Field(None, description="就诊人手机号")
-    doctor_id: Optional[str] = Field(None, description="医生ID")
-    doctor_name: Optional[str] = Field(None, description="医生姓名")
-    doctor_title: Optional[str] = Field(None, description="医生职称")
-    department_name: Optional[str] = Field(None, description="科室名称")
-    store_name: Optional[str] = Field(None, description="门店名称")
-    schedule_id: Optional[str] = Field(None, description="排班ID")
-    schedule_date: Optional[date] = Field(None, description="就诊日期")
-    time_slot: Optional[str] = Field(None, description="时段: morning上午/afternoon下午/evening晚间")
-    start_time: Optional[time] = Field(None, description="开始时间")
-    end_time: Optional[time] = Field(None, description="结束时间")
-    queue_number: Optional[int] = Field(None, description="排队序号")
-    status: Optional[int] = Field(None, description="状态: 0待支付 1已预约 2已签到 3历史候诊(遗留) 4就诊中 5已完成 6已取消 7已过期 8已爽约")
-    sign_in_time: Optional[datetime] = Field(None, description="签到时间")
-    check_in_method: Optional[str] = Field(None, description="签到方式")
-    call_time: Optional[datetime] = Field(None, description="叫号时间")
-    complete_time: Optional[datetime] = Field(None, description="完成就诊时间")
-    cancel_time: Optional[datetime] = Field(None, description="取消时间")
-    cancel_reason: Optional[str] = Field(None, description="取消原因")
-    symptom_description: Optional[str] = Field(None, description="病情描述")
-    created_at: Optional[datetime] = Field(None, description="创建时间")
-    payment_amount: Optional[float] = Field(None, description="支付金额（元）")
-    payment_time: Optional[datetime] = Field(None, description="支付完成时间")
-    payment_transaction_id: Optional[str] = Field(None, description="支付交易号")
-    refund_status: Optional[str] = Field(None, description="退款状态")
-    refunded_amount: Optional[float] = Field(None, description="已退款金额（元）")
-    rescheduled_from_id: Optional[str] = Field(None, description="转约/改期来源预约ID")
+    appointment_no: str | None = Field(None, description="预约编号")
+    user_id: str | None = Field(None, description="用户ID")
+    patient_id: str | None = Field(None, description="就诊人ID")
+    patient_name: str | None = Field(None, description="就诊人姓名")
+    patient_phone: str | None = Field(None, description="就诊人手机号")
+    doctor_id: str | None = Field(None, description="医生ID")
+    doctor_name: str | None = Field(None, description="医生姓名")
+    doctor_title: str | None = Field(None, description="医生职称")
+    department_name: str | None = Field(None, description="科室名称")
+    store_name: str | None = Field(None, description="门店名称")
+    schedule_id: str | None = Field(None, description="排班ID")
+    schedule_date: date | None = Field(None, description="就诊日期")
+    time_slot: str | None = Field(None, description="时段: morning上午/afternoon下午/evening晚间")
+    start_time: time | None = Field(None, description="开始时间")
+    end_time: time | None = Field(None, description="结束时间")
+    queue_number: int | None = Field(None, description="排队序号")
+    status: int | None = Field(None, description="状态: 0待支付 1已预约 2已签到 3历史候诊(遗留) 4就诊中 5已完成 6已取消 7已过期 8已爽约")
+    sign_in_time: datetime | None = Field(None, description="签到时间")
+    check_in_method: str | None = Field(None, description="签到方式")
+    call_time: datetime | None = Field(None, description="叫号时间")
+    complete_time: datetime | None = Field(None, description="完成就诊时间")
+    cancel_time: datetime | None = Field(None, description="取消时间")
+    cancel_reason: str | None = Field(None, description="取消原因")
+    symptom_description: str | None = Field(None, description="病情描述")
+    created_at: datetime | None = Field(None, description="创建时间")
+    payment_amount: float | None = Field(None, description="支付金额（元）")
+    payment_time: datetime | None = Field(None, description="支付完成时间")
+    payment_transaction_id: str | None = Field(None, description="支付交易号")
+    refund_status: str | None = Field(None, description="退款状态")
+    refunded_amount: float | None = Field(None, description="已退款金额（元）")
+    rescheduled_from_id: str | None = Field(None, description="转约/改期来源预约ID")
 
     @staticmethod
-    def _decimal_to_float(value: Optional[Decimal]) -> Optional[float]:
+    def _decimal_to_float(value: Decimal | None) -> float | None:
         if value is None:
             return None
         return float(value)
 
     @staticmethod
-    def _resolve_check_in_method(appointment) -> Optional[str]:
+    def _resolve_check_in_method(appointment) -> str | None:
         checkin_logs = AppointmentResponse._safe_get_relation(appointment, "checkin_logs") or []
         successful_logs = [log for log in checkin_logs if getattr(log, "status", None) == "SUCCESS"]
         if not successful_logs:
@@ -154,8 +156,8 @@ class AppointmentPendingPaymentResponse(BaseModel):
     """收费预约创建响应。"""
     appointment: AppointmentResponse = Field(..., description="预约信息")
     payment_required: bool = Field(True, description="是否需要支付")
-    payment_amount: Optional[float] = Field(None, description="支付金额（元）")
-    payment_params: Optional[AppointmentPaymentParams] = Field(None, description="支付参数")
+    payment_amount: float | None = Field(None, description="支付金额（元）")
+    payment_params: AppointmentPaymentParams | None = Field(None, description="支付参数")
 
     @classmethod
     def from_result(cls, result: dict) -> "AppointmentPendingPaymentResponse":
@@ -177,11 +179,11 @@ class AppointmentListQuery(BaseModel):
         populate_by_name=True,
     )
 
-    status: Optional[int] = Field(None, description="状态: 0待支付 1已预约 2已签到 3历史候诊(遗留) 4就诊中 5已完成 6已取消 7已过期 8已爽约")
-    patient_id: Optional[str] = Field(None, description="就诊人ID")
-    doctor_id: Optional[str] = Field(None, description="医生ID")
-    start_date: Optional[date] = Field(None, description="开始日期")
-    end_date: Optional[date] = Field(None, description="结束日期")
+    status: int | None = Field(None, description="状态: 0待支付 1已预约 2已签到 3历史候诊(遗留) 4就诊中 5已完成 6已取消 7已过期 8已爽约")
+    patient_id: str | None = Field(None, description="就诊人ID")
+    doctor_id: str | None = Field(None, description="医生ID")
+    start_date: date | None = Field(None, description="开始日期")
+    end_date: date | None = Field(None, description="结束日期")
     page: int = Field(1, ge=1, description="页码")
     page_size: int = Field(10, ge=1, le=settings.APPOINTMENTS_MAX_PAGE_SIZE, description="每页数量（默认10，普通用户上限100，管理员+日期范围可至500）")
 
@@ -197,7 +199,7 @@ class AppointmentCancelRequest(BaseModel):
         }
     )
     
-    reason: Optional[str] = Field(None, max_length=200, description="取消原因", examples=["临时有事无法前往", "预约错误", "身体不适已恢复"])
+    reason: str | None = Field(None, max_length=200, description="取消原因", examples=["临时有事无法前往", "预约错误", "身体不适已恢复"])
 
 class AppointmentStatistics(BaseModel):
     """预约统计信息"""

@@ -3,7 +3,6 @@
 import json
 import uuid
 from datetime import date, datetime, timedelta
-from typing import List, Optional
 
 from sqlalchemy import and_, delete, func, select
 
@@ -172,8 +171,8 @@ class ScheduleTemplateGenerationMixin:
     async def check_generated(
         self,
         template_id: str,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
     ) -> CheckGeneratedResponse:
         query = select(Schedule).where(Schedule.template_id == template_id)
         if start_date:
@@ -198,10 +197,10 @@ class ScheduleTemplateGenerationMixin:
     async def batch_delete_schedules(
         self,
         template_id: str,
-        operator_id: Optional[str] = None,
-        operator_name: Optional[str] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        operator_id: str | None = None,
+        operator_name: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
         future_only: bool = True,
     ) -> int:
         today = date.today()
@@ -239,10 +238,10 @@ class ScheduleTemplateGenerationMixin:
     async def batch_suspend_schedules(
         self,
         template_id: str,
-        operator_id: Optional[str] = None,
-        operator_name: Optional[str] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        operator_id: str | None = None,
+        operator_name: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
         future_only: bool = True,
     ) -> int:
         """
@@ -300,11 +299,11 @@ class ScheduleTemplateGenerationMixin:
         template_id: str,
         action_type: str,
         affected_count: int,
-        operator_id: Optional[str] = None,
-        operator_name: Optional[str] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        remark: Optional[str] = None,
+        operator_id: str | None = None,
+        operator_name: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        remark: str | None = None,
     ) -> ScheduleGenerationLog:
         log = ScheduleGenerationLog(
             id=str(uuid.uuid4()),
@@ -323,7 +322,7 @@ class ScheduleTemplateGenerationMixin:
 
     async def generate_schedules_with_capacity(
         self,
-        template_ids: List[str],
+        template_ids: list[str],
         start_date: date,
         end_date: date,
         capacity_overrides: dict = None,
@@ -400,7 +399,7 @@ class ScheduleTemplateGenerationMixin:
     async def copy_to_doctors(
         self,
         template_id: str,
-        target_doctor_ids: List[str],
+        target_doctor_ids: list[str],
         overrides: dict = None,
     ) -> int:
         from app.models.doctor import Doctor
@@ -502,9 +501,9 @@ class ScheduleTemplateGenerationMixin:
         self,
         template_id: str,
         target_store_id: str,
-        mappings: List[dict],
+        mappings: list[dict],
         overrides: dict = None,
-    ) -> tuple[int, List[dict]]:
+    ) -> tuple[int, list[dict]]:
         """跨院区复制排班规则
 
         Args:
@@ -516,10 +515,10 @@ class ScheduleTemplateGenerationMixin:
         Returns:
             (created_count, failed_mappings)
         """
-        from app.models.doctor import Doctor
-        from app.models.department import Department
-        from app.models.store import Store
         from app.middleware.tenant_context import get_current_tenant_id
+        from app.models.department import Department
+        from app.models.doctor import Doctor
+        from app.models.store import Store
 
         template = await self.get_by_id(template_id)
         if not template:
@@ -539,7 +538,7 @@ class ScheduleTemplateGenerationMixin:
 
         overrides = overrides or {}
         created_count = 0
-        failed_mappings: List[dict] = []
+        failed_mappings: list[dict] = []
 
         # 预加载目标门店的所有有效医生（同一租户内）
         doctor_conditions = [

@@ -1,8 +1,10 @@
-from sqlalchemy import Column, String, Integer, Text, Numeric, ForeignKey, DateTime, UniqueConstraint
-from sqlalchemy.orm import relationship
-from datetime import datetime
-from app.db.base import Base, AuditMixin
 import uuid
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy.orm import relationship
+
+from app.db.base import AuditMixin, Base
+
 
 class Doctor(Base, AuditMixin):
     __tablename__ = "doctors"

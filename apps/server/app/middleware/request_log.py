@@ -2,15 +2,16 @@
 请求日志中间件
 记录每个请求的详细信息，包括耗时、状态码、trace_id 等结构化字段
 """
+import logging
+import time
+import uuid
+from collections.abc import Callable
+
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
-from typing import Callable
-import time
-import logging
-import uuid
 
-from app.utils.ip import get_client_ip
 from app.middleware.tenant_context import get_current_tenant_id
+from app.utils.ip import get_client_ip
 
 logger = logging.getLogger("request")
 

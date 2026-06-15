@@ -1,16 +1,16 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from sqlalchemy.orm import joinedload
-from typing import Optional, List, Dict
 from datetime import date
 from decimal import Decimal
 
-from app.models.appointment import Appointment
-from app.models.schedule import Schedule
-from app.models.doctor import Doctor
-from app.models.consultation_fee import ConsultationFeeType, DoctorConsultationFee
-from app.modules.visit_types.service import VisitTypeService
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
+
 from app.constants.appointment import REVENUE_STATUSES
+from app.models.appointment import Appointment
+from app.models.consultation_fee import ConsultationFeeType, DoctorConsultationFee
+from app.models.doctor import Doctor
+from app.models.schedule import Schedule
+from app.modules.visit_types.service import VisitTypeService
 
 
 class RevenueService:
@@ -92,9 +92,9 @@ class RevenueService:
     async def calculate_total_revenue(
         self,
         start_date: date,
-        end_date: Optional[date] = None,
-        store_id: Optional[str] = None,
-        status_list: List[int] = None
+        end_date: date | None = None,
+        store_id: str | None = None,
+        status_list: list[int] = None
     ) -> Decimal:
         """
         计算时间段内的总收入
@@ -142,8 +142,8 @@ class RevenueService:
         self,
         start_date: date,
         end_date: date,
-        store_id: Optional[str] = None
-    ) -> Dict[str, float]:
+        store_id: str | None = None
+    ) -> dict[str, float]:
         """
         计算收入趋势
 
@@ -173,7 +173,7 @@ class RevenueService:
         appointments = result.scalars().all()
 
         # 按日期分组计算
-        daily_revenue: Dict[str, Decimal] = {}
+        daily_revenue: dict[str, Decimal] = {}
 
         for appt in appointments:
             appt_date = str(appt.created_at.date())

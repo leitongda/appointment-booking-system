@@ -3,11 +3,10 @@
 
 包含通用的装饰器函数，如租户一致性校验等。
 """
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable, Optional
 
 from fastapi import HTTPException
-
 
 from app.middleware.tenant_context import get_current_tenant_id
 

@@ -3,10 +3,10 @@
 
 负责班次类型的 CRUD 操作
 """
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, func
-from typing import Optional, List, Tuple
 import uuid
+
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.rule_set import ShiftType
 from app.utils.audit import set_create_audit, set_update_audit
@@ -20,11 +20,11 @@ class ShiftTypeService:
 
     async def get_list(
         self,
-        enabled: Optional[bool] = None,
-        keyword: Optional[str] = None,
+        enabled: bool | None = None,
+        keyword: str | None = None,
         page: int = 1,
         page_size: int = 10
-    ) -> Tuple[List[ShiftType], int]:
+    ) -> tuple[list[ShiftType], int]:
         """获取班次类型列表
 
         Args:
@@ -69,7 +69,7 @@ class ShiftTypeService:
 
         return list(shift_types), total
 
-    async def get_all_enabled(self) -> List[ShiftType]:
+    async def get_all_enabled(self) -> list[ShiftType]:
         """获取所有启用的班次类型
 
         Returns:
@@ -82,7 +82,7 @@ class ShiftTypeService:
         )
         return list(result.scalars().all())
 
-    async def get_by_id(self, shift_type_id: str) -> Optional[ShiftType]:
+    async def get_by_id(self, shift_type_id: str) -> ShiftType | None:
         """获取班次类型详情
 
         Args:
@@ -96,7 +96,7 @@ class ShiftTypeService:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_code(self, code: str) -> Optional[ShiftType]:
+    async def get_by_code(self, code: str) -> ShiftType | None:
         """根据代码获取班次类型
 
         Args:
@@ -114,9 +114,9 @@ class ShiftTypeService:
         self,
         code: str,
         name: str,
-        description: Optional[str] = None,
+        description: str | None = None,
         enabled: bool = True,
-        operator_id: Optional[str] = None
+        operator_id: str | None = None
     ) -> ShiftType:
         """创建班次类型
 
@@ -157,11 +157,11 @@ class ShiftTypeService:
     async def update(
         self,
         shift_type_id: str,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        enabled: Optional[bool] = None,
-        operator_id: Optional[str] = None
-    ) -> Optional[ShiftType]:
+        name: str | None = None,
+        description: str | None = None,
+        enabled: bool | None = None,
+        operator_id: str | None = None
+    ) -> ShiftType | None:
         """更新班次类型
 
         Args:

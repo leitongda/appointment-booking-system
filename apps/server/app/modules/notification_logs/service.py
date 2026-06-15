@@ -1,6 +1,7 @@
-from datetime import datetime, timedelta, date
-from typing import Optional, List, Tuple, Dict, Any
-from sqlalchemy import select, func, and_, update, cast, Date
+from datetime import datetime, timedelta
+from typing import Any
+
+from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.notification_log import NotificationLog
@@ -9,11 +10,10 @@ from app.schemas.notification_log import (
     NotificationLogQuery,
     NotificationLogStats,
     NotificationStatus,
-    NotificationChannel,
 )
 
 
-def calculate_next_retry(retry_count: int) -> Optional[datetime]:
+def calculate_next_retry(retry_count: int) -> datetime | None:
     """计算下次重试时间（指数退避策略）
 
     Args:
@@ -60,7 +60,7 @@ class NotificationLogService:
 
     async def get_list(
         self, query: NotificationLogQuery
-    ) -> Tuple[List[NotificationLog], int]:
+    ) -> tuple[list[NotificationLog], int]:
         """分页查询通知日志"""
         stmt = select(NotificationLog)
         count_stmt = select(func.count(NotificationLog.id))
@@ -98,9 +98,9 @@ class NotificationLogService:
 
     async def get_stats(
         self,
-        store_id: Optional[str] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        store_id: str | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> NotificationLogStats:
         """获取通知统计信息"""
         base_conditions = []
@@ -234,7 +234,7 @@ class NotificationLogService:
         await self.db.commit()
         return result.rowcount > 0
 
-    async def get_by_id(self, log_id: str) -> Optional[NotificationLog]:
+    async def get_by_id(self, log_id: str) -> NotificationLog | None:
         """根据ID获取日志"""
         result = await self.db.execute(select(NotificationLog).where(NotificationLog.id == log_id))
         return result.scalar_one_or_none()
@@ -244,7 +244,7 @@ class NotificationLogService:
         tenant_id: str,
         period: str = "month",
         group_by: str = "channel",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """获取租户通知用量统计
 
         Args:

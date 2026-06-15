@@ -1,15 +1,15 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from typing import Optional, List
-from datetime import datetime
-import uuid
 import json
+import uuid
+from datetime import datetime
 
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.middleware.tenant_context import get_current_tenant_id
 from app.models.feedback import Feedback, FeedbackStatus
 from app.models.message import Message, MessageType
-from app.schemas.feedback import FeedbackCreate, FeedbackReply, FeedbackQuery
+from app.schemas.feedback import FeedbackCreate, FeedbackQuery, FeedbackReply
 from app.utils.audit import set_create_audit, set_update_audit
-from app.middleware.tenant_context import get_current_tenant_id
 
 
 class FeedbackService:
@@ -25,7 +25,7 @@ class FeedbackService:
             return stmt.where(Feedback.tenant_id == tenant_id)
         return stmt
 
-    async def get_by_id(self, feedback_id: str) -> Optional[Feedback]:
+    async def get_by_id(self, feedback_id: str) -> Feedback | None:
         """根据ID获取反馈"""
         stmt = self._tenant_filter(
             select(Feedback).where(Feedback.id == feedback_id)
@@ -33,7 +33,7 @@ class FeedbackService:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_list(self, query: FeedbackQuery) -> tuple[List[Feedback], int]:
+    async def get_list(self, query: FeedbackQuery) -> tuple[list[Feedback], int]:
         """获取反馈列表"""
         stmt = self._tenant_filter(select(Feedback))
         count_stmt = self._tenant_filter(select(func.count(Feedback.id)))
@@ -63,7 +63,7 @@ class FeedbackService:
 
         return list(result.scalars().all()), count_result.scalar() or 0
 
-    async def get_user_feedbacks(self, user_id: str) -> List[Feedback]:
+    async def get_user_feedbacks(self, user_id: str) -> list[Feedback]:
         """获取用户的反馈列表"""
         stmt = self._tenant_filter(
             select(Feedback)
@@ -100,7 +100,7 @@ class FeedbackService:
         feedback_id: str,
         handler_id: str,
         data: FeedbackReply
-    ) -> Optional[Feedback]:
+    ) -> Feedback | None:
         """回复反馈"""
         feedback = await self.get_by_id(feedback_id)
         if not feedback:
@@ -134,8 +134,8 @@ class FeedbackService:
         self,
         feedback_id: str,
         status: str,
-        operator_id: Optional[str] = None
-    ) -> Optional[Feedback]:
+        operator_id: str | None = None
+    ) -> Feedback | None:
         """更新状态"""
         feedback = await self.get_by_id(feedback_id)
         if not feedback:

@@ -6,15 +6,14 @@
 """
 import logging
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import text
 
 from app.celery_app import celery_app
 from app.db.session import get_sync_db
-from app.models.tenant import Tenant
-from app.middleware.tenant_context import set_tenant_context, clear_tenant_context
 from app.infrastructure.notifications.metrics import record_retry
+from app.middleware.tenant_context import clear_tenant_context, set_tenant_context
+from app.models.tenant import Tenant
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +22,7 @@ RETRY_INTERVALS = [60, 300, 1800, 7200, 18000]  # 1min, 5min, 30min, 2h, 5h
 MAX_RETRIES = len(RETRY_INTERVALS)
 
 
-def calculate_next_retry(retry_count: int) -> Optional[datetime]:
+def calculate_next_retry(retry_count: int) -> datetime | None:
     """计算下次重试时间（指数退避）"""
     if retry_count >= MAX_RETRIES:
         return None
@@ -286,8 +285,8 @@ def _retry_sms(phone: str, extra_data: dict) -> bool:
 def _retry_email(email: str, extra_data: dict) -> bool:
     """重试邮件发送（使用同步 SMTP）"""
     try:
-        from app.utils.email_sync import get_email_config, send_email_sync
         from app.db.session import get_sync_db
+        from app.utils.email_sync import get_email_config, send_email_sync
 
         with get_sync_db() as db:
             config = get_email_config(db)
@@ -306,10 +305,11 @@ def _retry_email(email: str, extra_data: dict) -> bool:
 def _retry_wechat(db, openid: str, extra_data: dict) -> bool:
     """重试微信订阅消息发送"""
     try:
+        import httpx
+        from sqlalchemy import and_, select
+
         from app.infrastructure.wechat.token_manager import WechatTokenManager
         from app.models.settings import SystemSetting
-        from sqlalchemy import select, and_
-        import httpx
 
         # 获取微信配置
         result = db.execute(

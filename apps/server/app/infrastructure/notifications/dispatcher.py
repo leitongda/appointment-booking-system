@@ -1,22 +1,18 @@
 """统一通知分发器"""
 import logging
 from datetime import datetime, time
-from typing import Optional
 
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.notification import (
-    NotificationEvent,
-    NotificationContent,
-    NotificationSendResult,
-    NotificationDispatchResult,
-    NotificationChannel,
-    FallbackContext,
-)
+from app.core.redis import get_redis
 from app.infrastructure.notifications.registry import channel_registry, register_channels
-from app.core.redis import RedisCache, get_redis
-
+from app.schemas.notification import (
+    FallbackContext,
+    NotificationContent,
+    NotificationDispatchResult,
+    NotificationEvent,
+    NotificationSendResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -261,7 +257,7 @@ class NotificationDispatcher:
             )
 
         # 如果没有提供，使用默认内容
-        title = event.title or f"系统通知"
+        title = event.title or "系统通知"
         content = event.content or f"您有一条新的{event.message_type}通知。"
 
         return NotificationContent(
@@ -379,9 +375,13 @@ class NotificationDispatcher:
         """
         try:
             from app.common.notification_preference import (
-                get_user_preferences,
                 CHANNEL_FIELD_MAP as SHARED_CHANNEL_MAP,
+            )
+            from app.common.notification_preference import (
                 TYPE_FIELD_MAP as SHARED_TYPE_MAP,
+            )
+            from app.common.notification_preference import (
+                get_user_preferences,
             )
 
             prefs = await get_user_preferences(self.db, event.recipient_id, event.recipient_type)
@@ -407,7 +407,7 @@ class NotificationDispatcher:
             quiet_start = prefs.get("quiet_hours_start")
             quiet_end = prefs.get("quiet_hours_end")
             if quiet_start and quiet_end and self._in_quiet_hours(quiet_start, quiet_end):
-                logger.info(f"[通知分发] 当前处于免打扰时段，仅保留 in_app 渠道")
+                logger.info("[通知分发] 当前处于免打扰时段，仅保留 in_app 渠道")
                 filtered = [ch for ch in filtered if ch == "in_app"]
 
             return filtered

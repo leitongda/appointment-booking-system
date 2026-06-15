@@ -1,8 +1,9 @@
 """内容版本历史模型"""
-from sqlalchemy import Column, String, Text, DateTime
-from app.db.base import Base, TimestampMixin
-from datetime import datetime
 import uuid
+
+from sqlalchemy import Column, String, Text
+
+from app.db.base import Base, TimestampMixin
 
 
 class ContentVersion(Base, TimestampMixin):

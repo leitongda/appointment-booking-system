@@ -1,21 +1,22 @@
 from app.schemas.response import to_camel
+
 """Shared admin DTOs."""
 
 from datetime import datetime
-from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
 
 class PermissionResponse(BaseModel):
     id: str
     code: str
     name: str
     type: str
-    control_type: Optional[str] = Field(None, serialization_alias="controlType")
-    parent_code: Optional[str] = Field(None, serialization_alias="parentCode")
-    icon: Optional[str] = None
+    control_type: str | None = Field(None, serialization_alias="controlType")
+    parent_code: str | None = Field(None, serialization_alias="parentCode")
+    icon: str | None = None
     sort: int = 0
-    children: Optional[List["PermissionResponse"]] = None
+    children: list["PermissionResponse"] | None = None
 
     class Config:
         from_attributes = True
@@ -25,33 +26,33 @@ class PermissionCreate(BaseModel):
     code: str = Field(..., max_length=100)
     name: str = Field(..., max_length=100)
     type: str = Field(..., max_length=20)
-    control_type: Optional[str] = Field(None, max_length=20)
-    parent_code: Optional[str] = Field(None, max_length=100)
-    icon: Optional[str] = Field(None, max_length=50)
+    control_type: str | None = Field(None, max_length=20)
+    parent_code: str | None = Field(None, max_length=100)
+    icon: str | None = Field(None, max_length=50)
     sort: int = Field(0, ge=0)
 
 class RoleCreate(BaseModel):
     name: str = Field(..., max_length=50)
     code: str = Field(..., max_length=50)
-    description: Optional[str] = Field(None, max_length=200)
-    permissions: Optional[List[str]] = None
+    description: str | None = Field(None, max_length=200)
+    permissions: list[str] | None = None
     status: int = Field(1, ge=0, le=1)
 
 class RoleUpdate(BaseModel):
-    name: Optional[str] = Field(None, max_length=50)
-    description: Optional[str] = Field(None, max_length=200)
-    permissions: Optional[List[str]] = None
-    status: Optional[int] = Field(None, ge=0, le=1)
+    name: str | None = Field(None, max_length=50)
+    description: str | None = Field(None, max_length=200)
+    permissions: list[str] | None = None
+    status: int | None = Field(None, ge=0, le=1)
 
 class RoleResponse(BaseModel):
     id: str
     name: str
     code: str
-    description: Optional[str] = None
-    permissions: Optional[List[str]] = None
+    description: str | None = None
+    permissions: list[str] | None = None
     status: int
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -62,33 +63,33 @@ class RoleResponse(BaseModel):
 
 class AdminCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
-    password: Optional[str] = Field(None, min_length=6, description="不填则使用系统默认密码")
-    name: Optional[str] = Field(None, max_length=50)
-    phone: Optional[str] = Field(None, max_length=20)
-    email: Optional[str] = Field(None, max_length=100)
-    avatar: Optional[str] = Field(None, max_length=255, description="头像URL")
-    role_id: Optional[str] = None
-    store_id: Optional[str] = Field(None, description="当前门店ID（兼容旧版）")
-    store_ids: Optional[List[str]] = Field(None, description="绑定的门店ID列表")
+    password: str | None = Field(None, min_length=6, description="不填则使用系统默认密码")
+    name: str | None = Field(None, max_length=50)
+    phone: str | None = Field(None, max_length=20)
+    email: str | None = Field(None, max_length=100)
+    avatar: str | None = Field(None, max_length=255, description="头像URL")
+    role_id: str | None = None
+    store_id: str | None = Field(None, description="当前门店ID（兼容旧版）")
+    store_ids: list[str] | None = Field(None, description="绑定的门店ID列表")
     status: int = Field(1, ge=0, le=1)
 
 class AdminUpdate(BaseModel):
-    username: Optional[str] = Field(None, min_length=3, max_length=50)
-    password: Optional[str] = Field(None, min_length=6)
-    name: Optional[str] = Field(None, max_length=50)
-    phone: Optional[str] = Field(None, max_length=20)
-    email: Optional[str] = Field(None, max_length=100)
-    avatar: Optional[str] = Field(None, max_length=255, description="头像URL")
-    role_id: Optional[str] = None
-    store_id: Optional[str] = Field(None, description="当前门店ID（兼容旧版）")
-    store_ids: Optional[List[str]] = Field(None, description="绑定的门店ID列表")
-    status: Optional[int] = Field(None, ge=0, le=1)
+    username: str | None = Field(None, min_length=3, max_length=50)
+    password: str | None = Field(None, min_length=6)
+    name: str | None = Field(None, max_length=50)
+    phone: str | None = Field(None, max_length=20)
+    email: str | None = Field(None, max_length=100)
+    avatar: str | None = Field(None, max_length=255, description="头像URL")
+    role_id: str | None = None
+    store_id: str | None = Field(None, description="当前门店ID（兼容旧版）")
+    store_ids: list[str] | None = Field(None, description="绑定的门店ID列表")
+    status: int | None = Field(None, ge=0, le=1)
 
 class StoreInfo(BaseModel):
     id: str
     name: str
-    logo: Optional[str] = None
-    theme_style: Optional[str] = Field(None, serialization_alias="themeStyle")
+    logo: str | None = None
+    theme_style: str | None = Field(None, serialization_alias="themeStyle")
 
     model_config = {
         "from_attributes": True,
@@ -98,11 +99,11 @@ class StoreInfo(BaseModel):
 
 class TenantStatusInfo(BaseModel):
     status: int
-    subscription_plan_name: Optional[str] = Field(None, serialization_alias="subscriptionPlanName")
-    subscription_end_at: Optional[datetime] = Field(None, serialization_alias="subscriptionEndAt")
+    subscription_plan_name: str | None = Field(None, serialization_alias="subscriptionPlanName")
+    subscription_end_at: datetime | None = Field(None, serialization_alias="subscriptionEndAt")
     is_subscription_active: bool = Field(False, serialization_alias="isSubscriptionActive")
-    days_until_expiry: Optional[int] = Field(None, serialization_alias="daysUntilExpiry")
-    contact_phone: Optional[str] = Field(None, serialization_alias="contactPhone")
+    days_until_expiry: int | None = Field(None, serialization_alias="daysUntilExpiry")
+    contact_phone: str | None = Field(None, serialization_alias="contactPhone")
 
     model_config = {
         "populate_by_name": True,
@@ -112,28 +113,28 @@ class TenantStatusInfo(BaseModel):
 class AdminResponse(BaseModel):
     id: str
     username: str
-    name: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    avatar: Optional[str] = None
-    role_id: Optional[str] = Field(None, serialization_alias="roleId")
-    role_name: Optional[str] = Field(None, serialization_alias="roleName")
-    role_code: Optional[str] = Field(None, serialization_alias="roleCode")
-    current_store_id: Optional[str] = Field(None, serialization_alias="currentStoreId")
-    current_store_name: Optional[str] = Field(None, serialization_alias="currentStoreName")
-    store_id: Optional[str] = Field(None, serialization_alias="storeId")
-    store_name: Optional[str] = Field(None, serialization_alias="storeName")
-    store_ids: Optional[List[str]] = Field(None, serialization_alias="storeIds")
-    stores: Optional[List[StoreInfo]] = None
-    permissions: Optional[List[str]] = None
+    name: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    avatar: str | None = None
+    role_id: str | None = Field(None, serialization_alias="roleId")
+    role_name: str | None = Field(None, serialization_alias="roleName")
+    role_code: str | None = Field(None, serialization_alias="roleCode")
+    current_store_id: str | None = Field(None, serialization_alias="currentStoreId")
+    current_store_name: str | None = Field(None, serialization_alias="currentStoreName")
+    store_id: str | None = Field(None, serialization_alias="storeId")
+    store_name: str | None = Field(None, serialization_alias="storeName")
+    store_ids: list[str] | None = Field(None, serialization_alias="storeIds")
+    stores: list[StoreInfo] | None = None
+    permissions: list[str] | None = None
     is_super_admin: bool = Field(False, serialization_alias="isSuperAdmin")
     is_store_admin: bool = Field(False, serialization_alias="isStoreAdmin")
     can_view_all_stores: bool = Field(False, serialization_alias="canSwitchStores", validation_alias="can_view_all_stores")
     status: int
-    last_login_at: Optional[datetime] = Field(None, serialization_alias="lastLoginAt")
-    last_login_ip: Optional[str] = Field(None, serialization_alias="lastLoginIp")
-    tenant_id: Optional[str] = Field(None, serialization_alias="tenantId")
-    tenant: Optional[TenantStatusInfo] = None
+    last_login_at: datetime | None = Field(None, serialization_alias="lastLoginAt")
+    last_login_ip: str | None = Field(None, serialization_alias="lastLoginIp")
+    tenant_id: str | None = Field(None, serialization_alias="tenantId")
+    tenant: TenantStatusInfo | None = None
     created_at: datetime = Field(..., serialization_alias="createdAt")
 
     model_config = {
@@ -169,10 +170,10 @@ class WechatQrcodeResponse(BaseModel):
 
 class WechatCheckResponse(BaseModel):
     status: str
-    access_token: Optional[str] = Field(None, serialization_alias="accessToken")
-    refresh_token: Optional[str] = Field(None, serialization_alias="refreshToken")
-    expires_in: Optional[int] = Field(None, serialization_alias="expiresIn")
-    admin: Optional[AdminResponse] = None
+    access_token: str | None = Field(None, serialization_alias="accessToken")
+    refresh_token: str | None = Field(None, serialization_alias="refreshToken")
+    expires_in: int | None = Field(None, serialization_alias="expiresIn")
+    admin: AdminResponse | None = None
 
     class Config:
         populate_by_name = True
@@ -188,8 +189,8 @@ class AdminLoginResponse(BaseModel):
     refresh_token: str = Field(..., serialization_alias="refreshToken")
     expires_in: int = Field(..., serialization_alias="expiresIn")
     admin: AdminResponse
-    store: Optional[StoreInfo] = None
-    stores: Optional[List[StoreInfo]] = None
+    store: StoreInfo | None = None
+    stores: list[StoreInfo] | None = None
 
     class Config:
         populate_by_name = True
@@ -197,21 +198,21 @@ class AdminLoginResponse(BaseModel):
 class OperationLogResponse(BaseModel):
     id: str
     # 新字段：角色相关
-    actor_id: Optional[str] = None
-    actor_name: Optional[str] = None
-    actor_role: Optional[str] = None
+    actor_id: str | None = None
+    actor_name: str | None = None
+    actor_role: str | None = None
     # 保留旧字段以向后兼容
-    admin_id: Optional[str] = None
-    admin_name: Optional[str] = None
-    module: Optional[str] = None
-    action: Optional[str] = None
-    method: Optional[str] = None
-    path: Optional[str] = None
-    params: Optional[str] = None
-    result: Optional[str] = None
-    ip: Optional[str] = None
-    user_agent: Optional[str] = None
-    duration: Optional[int] = None
+    admin_id: str | None = None
+    admin_name: str | None = None
+    module: str | None = None
+    action: str | None = None
+    method: str | None = None
+    path: str | None = None
+    params: str | None = None
+    result: str | None = None
+    ip: str | None = None
+    user_agent: str | None = None
+    duration: int | None = None
     created_at: datetime
 
     model_config = ConfigDict(
@@ -226,10 +227,10 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=6, max_length=20)
 
 class UpdateProfileRequest(BaseModel):
-    name: Optional[str] = Field(None, max_length=50)
-    phone: Optional[str] = Field(None, max_length=20)
-    email: Optional[str] = Field(None, max_length=100)
-    avatar: Optional[str] = Field(None, max_length=255)
+    name: str | None = Field(None, max_length=50)
+    phone: str | None = Field(None, max_length=20)
+    email: str | None = Field(None, max_length=100)
+    avatar: str | None = Field(None, max_length=255)
 
 class SwitchStoreRequest(BaseModel):
     store_id: str = Field(..., description="目标门店ID")
@@ -251,8 +252,8 @@ class TenantInfoResponse(BaseModel):
 class OnlineUserResponse(BaseModel):
     admin_id: str = Field(..., serialization_alias="adminId")
     username: str
-    name: Optional[str] = None
-    role_name: Optional[str] = Field(None, serialization_alias="roleName")
+    name: str | None = None
+    role_name: str | None = Field(None, serialization_alias="roleName")
     login_time: str = Field(..., serialization_alias="loginTime")
     login_ip: str = Field(..., serialization_alias="loginIp")
     user_agent: str = Field(..., serialization_alias="userAgent")
@@ -265,15 +266,15 @@ class OnlineUserResponse(BaseModel):
 class UserStatusResponse(BaseModel):
     admin_id: str = Field(..., serialization_alias="adminId")
     username: str
-    name: Optional[str] = None
-    role_name: Optional[str] = Field(None, serialization_alias="roleName")
+    name: str | None = None
+    role_name: str | None = Field(None, serialization_alias="roleName")
     status: str
-    login_time: Optional[str] = Field(None, serialization_alias="loginTime")
-    login_ip: Optional[str] = Field(None, serialization_alias="loginIp")
-    device_info: Optional[dict] = Field(None, serialization_alias="deviceInfo")
-    ttl: Optional[int] = None
-    last_login_at: Optional[str] = Field(None, serialization_alias="lastLoginAt")
-    last_login_ip: Optional[str] = Field(None, serialization_alias="lastLoginIp")
+    login_time: str | None = Field(None, serialization_alias="loginTime")
+    login_ip: str | None = Field(None, serialization_alias="loginIp")
+    device_info: dict | None = Field(None, serialization_alias="deviceInfo")
+    ttl: int | None = None
+    last_login_at: str | None = Field(None, serialization_alias="lastLoginAt")
+    last_login_ip: str | None = Field(None, serialization_alias="lastLoginIp")
 
     class Config:
         populate_by_name = True
@@ -281,13 +282,13 @@ class UserStatusResponse(BaseModel):
 class LoginHistoryResponse(BaseModel):
     id: str
     login_time: str = Field(..., serialization_alias="loginTime")
-    logout_time: Optional[str] = Field(None, serialization_alias="logoutTime")
-    logout_type: Optional[str] = Field(None, serialization_alias="logoutType")
-    login_ip: Optional[str] = Field(None, serialization_alias="loginIp")
-    browser: Optional[str] = None
-    os: Optional[str] = None
-    device_type: Optional[str] = Field(None, serialization_alias="deviceType")
-    duration: Optional[int] = None
+    logout_time: str | None = Field(None, serialization_alias="logoutTime")
+    logout_type: str | None = Field(None, serialization_alias="logoutType")
+    login_ip: str | None = Field(None, serialization_alias="loginIp")
+    browser: str | None = None
+    os: str | None = None
+    device_type: str | None = Field(None, serialization_alias="deviceType")
+    duration: int | None = None
 
     class Config:
         populate_by_name = True

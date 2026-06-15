@@ -6,39 +6,37 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime, time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from jinja2 import BaseLoader, TemplateSyntaxError
 from jinja2.sandbox import SandboxedEnvironment
 from sqlalchemy import and_, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.redis import get_redis
+from app.infrastructure.notifications.metrics import (
+    record_dedup_hit,
+    record_send,
+    track_send_latency,
+)
+from app.infrastructure.notifications.registry import channel_registry, register_channels
 from app.modules.unified_message.models import (
+    ChannelStrategy,
     NotificationDelivery,
     NotificationGroup,
     NotificationRecipient,
-    UnifiedTemplate,
-    ChannelStrategy,
     RecipientRule,
-)
-from app.modules.unified_message.schemas import (
-    MessageQuery,
-    MessageResponse,
-    NotificationEvent,
-    SendResult,
-    BatchSendResult,
-    UnreadCountResponse,
+    UnifiedTemplate,
 )
 from app.modules.unified_message.rule_engine import RecipientRuleEngine
-from app.infrastructure.notifications.registry import channel_registry, register_channels
-from app.infrastructure.notifications.channels.base import BaseNotificationChannel
-from app.infrastructure.notifications.metrics import (
-    record_send,
-    record_dedup_hit,
-    track_send_latency,
+from app.modules.unified_message.schemas import (
+    BatchSendResult,
+    MessageQuery,
+    NotificationEvent,
+    SendResult,
+    UnreadCountResponse,
 )
 from app.schemas.notification import NotificationContent
-from app.core.redis import get_redis
 
 logger = logging.getLogger(__name__)
 
@@ -182,8 +180,8 @@ class UnifiedMessageService:
     async def send_to_rule(
         self,
         event: NotificationEvent,
-        rule_id: Optional[str] = None,
-        event_data: Optional[Dict[str, Any]] = None,
+        rule_id: str | None = None,
+        event_data: dict[str, Any] | None = None,
     ) -> BatchSendResult:
         """根据规则发送通知
 
@@ -249,8 +247,8 @@ class UnifiedMessageService:
         )
 
     async def get_rules(
-        self, tenant_id: str, event_type: Optional[str] = None
-    ) -> List[RecipientRule]:
+        self, tenant_id: str, event_type: str | None = None
+    ) -> list[RecipientRule]:
         """获取接收人规则列表"""
         stmt = select(RecipientRule).where(RecipientRule.tenant_id == tenant_id)
         if event_type:
@@ -260,7 +258,7 @@ class UnifiedMessageService:
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
-    async def create_rule(self, tenant_id: str, rule_data: Dict[str, Any]) -> RecipientRule:
+    async def create_rule(self, tenant_id: str, rule_data: dict[str, Any]) -> RecipientRule:
         """创建接收人规则"""
         rule = RecipientRule(
             id=str(uuid.uuid4()),
@@ -272,8 +270,8 @@ class UnifiedMessageService:
         return rule
 
     async def update_rule(
-        self, rule_id: str, tenant_id: str, rule_data: Dict[str, Any]
-    ) -> Optional[RecipientRule]:
+        self, rule_id: str, tenant_id: str, rule_data: dict[str, Any]
+    ) -> RecipientRule | None:
         """更新接收人规则"""
         rule = await self.db.get(RecipientRule, rule_id)
         if not rule or rule.tenant_id != tenant_id:
@@ -302,9 +300,9 @@ class UnifiedMessageService:
     async def get_templates(
         self,
         tenant_id: str,
-        message_type: Optional[str] = None,
-        status: Optional[int] = None,
-    ) -> List[UnifiedTemplate]:
+        message_type: str | None = None,
+        status: int | None = None,
+    ) -> list[UnifiedTemplate]:
         """获取统一模板列表"""
         stmt = select(UnifiedTemplate).where(UnifiedTemplate.tenant_id == tenant_id)
         if message_type:
@@ -315,7 +313,7 @@ class UnifiedMessageService:
         return list(result.scalars().all())
 
     async def create_template(
-        self, tenant_id: str, template_data: Dict[str, Any]
+        self, tenant_id: str, template_data: dict[str, Any]
     ) -> UnifiedTemplate:
         """创建统一模板"""
         # 检查 code 唯一性
@@ -340,8 +338,8 @@ class UnifiedMessageService:
         return template
 
     async def update_template(
-        self, template_id: str, tenant_id: str, template_data: Dict[str, Any]
-    ) -> Optional[UnifiedTemplate]:
+        self, template_id: str, tenant_id: str, template_data: dict[str, Any]
+    ) -> UnifiedTemplate | None:
         """更新统一模板"""
         template = await self.db.get(UnifiedTemplate, template_id)
         if not template or template.tenant_id != tenant_id:
@@ -384,7 +382,7 @@ class UnifiedMessageService:
 
     async def get_user_messages(
         self, user_id: str, user_type: str, query: MessageQuery
-    ) -> Tuple[List[dict], int]:
+    ) -> tuple[list[dict], int]:
         """获取用户消息列表（兼容旧 MessageService.get_user_messages）"""
         # 使用 join 一次性获取 recipient 和 group 数据，避免 N+1 查询
         stmt = (
@@ -501,7 +499,7 @@ class UnifiedMessageService:
         return result.rowcount > 0
 
     async def mark_all_as_read(
-        self, user_id: str, user_type: str, message_type: Optional[str] = None
+        self, user_id: str, user_type: str, message_type: str | None = None
     ) -> int:
         """标记所有消息为已读"""
         stmt = (
@@ -635,7 +633,7 @@ class UnifiedMessageService:
 
         return False
 
-    async def _get_target_channels(self, event: NotificationEvent) -> Tuple[List[str], str]:
+    async def _get_target_channels(self, event: NotificationEvent) -> tuple[list[str], str]:
         """获取目标渠道列表和策略类型
 
         Returns:
@@ -669,9 +667,9 @@ class UnifiedMessageService:
         event: NotificationEvent,
         group: "NotificationGroup",
         recipient: "NotificationRecipient",
-        channels: List[str],
+        channels: list[str],
         content: NotificationContent,
-    ) -> Tuple[int, int, int]:
+    ) -> tuple[int, int, int]:
         """fallback 策略：按顺序尝试渠道，成功即停止"""
         attempted = 0
         succeeded = 0
@@ -716,13 +714,13 @@ class UnifiedMessageService:
         event: NotificationEvent,
         group: "NotificationGroup",
         recipient: "NotificationRecipient",
-        channels: List[str],
+        channels: list[str],
         content: NotificationContent,
-    ) -> Tuple[int, int, int]:
+    ) -> tuple[int, int, int]:
         """parallel/all 策略：并发发送所有渠道"""
         attempted = len(channels)
 
-        async def _try_channel(channel_name: str) -> Tuple[str, bool, str, Optional[datetime]]:
+        async def _try_channel(channel_name: str) -> tuple[str, bool, str, datetime | None]:
             """尝试单个渠道，返回 (channel_name, success, error_msg, sent_at)"""
             try:
                 success, error_msg = await self._send_to_channel(event, channel_name, content)
@@ -761,7 +759,7 @@ class UnifiedMessageService:
 
     async def _send_to_channel(
         self, event: NotificationEvent, channel_name: str, content: NotificationContent
-    ) -> Tuple[bool, Optional[str]]:
+    ) -> tuple[bool, str | None]:
         """发送到单个渠道
 
         Returns:
@@ -793,8 +791,8 @@ class UnifiedMessageService:
         return True, None
 
     async def _filter_by_preference_and_quiet_hours(
-        self, event: NotificationEvent, channels: List[str]
-    ) -> List[str]:
+        self, event: NotificationEvent, channels: list[str]
+    ) -> list[str]:
         """根据用户偏好和免打扰时段过滤渠道"""
         try:
             stmt = text(
@@ -818,7 +816,7 @@ class UnifiedMessageService:
                  "appointment_enabled", "reminder_enabled", "stop_clinic_enabled",
                  "system_enabled", "consultation_enabled", "feedback_enabled",
                  "quiet_hours_start", "quiet_hours_end"],
-                row,
+                row, strict=False,
             ))
 
             # 消息类型开关
@@ -884,7 +882,7 @@ class UnifiedMessageService:
             template_variables=event.variables,
         )
 
-    async def _get_template(self, tenant_id: str, template_code: str) -> Optional[UnifiedTemplate]:
+    async def _get_template(self, tenant_id: str, template_code: str) -> UnifiedTemplate | None:
         """获取模板（优先租户模板，其次全局模板）"""
         # 先查租户模板
         stmt = select(UnifiedTemplate).where(
@@ -916,7 +914,7 @@ class UnifiedMessageService:
         支持医生和患者端推送。
         """
         try:
-            from app.core.websocket import notify_new_message, notify_patient, WSMessageType
+            from app.core.websocket import WSMessageType, notify_new_message, notify_patient
 
             message_data = {
                 "group_id": group_id,
@@ -948,7 +946,7 @@ class UnifiedMessageService:
             # WebSocket 推送失败不影响主流程
             logger.warning(f"[统一消息] WebSocket 推送失败: {e}")
 
-    def _render_template(self, template: UnifiedTemplate, variables: Dict[str, Any]) -> Tuple[str, str]:
+    def _render_template(self, template: UnifiedTemplate, variables: dict[str, Any]) -> tuple[str, str]:
         """使用 Jinja2 渲染模板"""
         env = SandboxedEnvironment(loader=BaseLoader(), autoescape=True)
 
@@ -984,7 +982,7 @@ class UnifiedMessageService:
             return title, content
 
     @staticmethod
-    def _get_recipient_address(event: NotificationEvent, channel: str) -> Optional[str]:
+    def _get_recipient_address(event: NotificationEvent, channel: str) -> str | None:
         """获取接收地址"""
         if channel == "sms":
             return event.recipient_phone
