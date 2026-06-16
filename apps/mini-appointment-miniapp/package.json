@@ -47,7 +47,7 @@
     "@tarojs/runtime": "4.1.9",
     "@tarojs/shared": "4.1.9",
     "@tarojs/taro": "4.1.9",
-    "@tarojs/router": "4.1.9",
+    "@tarojs/router": "4.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
