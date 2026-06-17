@@ -15,6 +15,11 @@ export default defineConfig(async () => {
     sourceRoot: 'src',
     outputRoot: 'dist',
     plugins: ['@tarojs/plugin-framework-react', '@tarojs/plugin-html'],
+    // Turbo 会把动态进度条的每次刷新展开成一条新日志。
+    // quiet 模式保留编译结果、warning、error 和 Watching 信息。
+    logger: {
+      quiet: true,
+    },
     // 小程序环境不支持的库替换为空模块
     // 1. jsencrypt - 依赖 Web Crypto API，小程序不支持
     // 2. @ant-design/pro-components 和 antd - PC端组件库，小程序不需要
@@ -130,6 +135,16 @@ export default defineConfig(async () => {
       },
       // Webpack 配置优化
       webpackChain(chain) {
+        // macOS 文件监听资源不足时 Watchpack 会持续输出 EMFILE。
+        // 开发模式使用轮询，workspace 源码仍可热更新，同时跳过稳定的第三方依赖。
+        if (process.env.NODE_ENV !== 'production') {
+          chain.watchOptions({
+            aggregateTimeout: 300,
+            ignored: /node_modules/,
+            poll: 1000,
+          });
+        }
+
         // 修复 React JSX Runtime 模块导入问题
         // React 18 使用 exports 字段限制导出，需要显式配置
         // 统一使用 patient-miniapp 的 React，避免 shared 包的 React 解析问题

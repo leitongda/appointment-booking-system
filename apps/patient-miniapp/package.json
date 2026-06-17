@@ -14,7 +14,7 @@
     "build:alipay": "NO_PROXY='*' taro build --type alipay",
     "build:h5": "NO_PROXY='*' taro build --type h5",
     "dev:weapp": "NO_PROXY='*' node scripts/dev-weapp.mjs",
-    "dev:weapp:prod": "node scripts/clean.mjs && NO_PROXY='*' NODE_ENV=production node scripts/dev-weapp.mjs",
+    "dev:weapp:prod": "NO_PROXY='*' NODE_ENV=production node scripts/dev-weapp.mjs --clean",
     "dev:swan": "npm run build:swan -- --watch",
     "dev:alipay": "npm run build:alipay -- --watch",
     "dev": "npm run dev:weapp",

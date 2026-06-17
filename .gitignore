@@ -149,6 +149,7 @@ apps/server/var/
 # Lock files (keep pnpm-lock.yaml for version consistency)
 package-lock.json
 yarn.lock
+apps/patient-miniapp/.taro-weapp-dev.lock
 
 **/dist.zip
 gcloud/**
