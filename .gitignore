@@ -153,3 +153,15 @@ apps/patient-miniapp/.taro-weapp-dev.lock
 
 **/dist.zip
 gcloud/**
+
+# Code intelligence index (generated, large)
+.codegraph/
+
+# Build artifacts / packaging outputs
+ink_parallax_layers.zip
+
+# Local-only Claude config (per-machine permissions & MCP enablement)
+.claude/settings.local.json
+
+# Cursor MCP config contains machine-specific absolute paths
+.cursor/
